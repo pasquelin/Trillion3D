@@ -1,56 +1,51 @@
-// Le rendu d'un banc : l'assertion d'exactitude, la comparaison à la baseline du domaine, le
-// fragment déposé dans `.mesure/perf/` et la ligne de tableau affichée en console.
+// Le rendu d'un banc : la garde des chemins cités, l'assertion d'exactitude, la comparaison à la
+// baseline du domaine, le fragment déposé dans `.mesure/perf/` et la ligne affichée en console.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { chargeBaseline, cleDeLigne, niveauEcart } from './baseline.mjs';
-import { RACINE } from './mesure.mjs';
+import { chargeBaseline, cleDeLigne } from './baseline.mjs';
+import { FRAGMENTS, RACINE, cheminFragment } from './chemins.mjs';
+import { ligneMd } from './tableau.mjs';
 
-const FRAGMENTS = join(RACINE, '.mesure', 'perf');
-
-const ms = (v) => (v === null ? 'null' : v.toFixed(3));
-const ns = (v) => (v === null ? '—' : v.toFixed(1));
-
-function ecartTexte(v) {
-  if (niveauEcart(v) === 'absent') return '—';
-  return `${v >= 0 ? '+' : ''}${(v * 100).toFixed(1)} %`;
-}
-
-function ligneMd(r) {
-  const ok = r.correct === null ? '—' : r.correct ? '✓' : '✗';
-  return `| ${r.nom} | ${ms(r.medianeMs)} | ${ms(r.p95Ms)} | ${ns(r.nsParElement)} | ${
-    r.opsParSec ?? 'null'
-  } | ${ecartTexte(r.ecartBaseline)} | ${ok} | ${r.motif ?? ''} |`;
+/** Les chemins mesurés doivent exister : une ligne qui cite un fichier mort ne mesure plus rien. */
+function verifieFichiers(mesures) {
+  for (const m of mesures)
+    for (const chemin of [].concat(m.fichier ?? []))
+      if (!existsSync(join(RACINE, chemin)))
+        throw new Error(`Banc ${m.nom} : le fichier mesuré « ${chemin} » n'existe pas`);
 }
 
 /**
- * Renseigne `ecartBaseline` de chaque ligne à partir de la baseline du domaine. La clé est le
- * couple mesure/cas : deux bancs qui touchent le même fichier source ne s'écrasent plus.
+ * Les lignes du domaine, chacune augmentée de son écart à la baseline. La clé est le couple
+ * mesure/cas : deux bancs qui touchent le même fichier source ne s'écrasent plus. Rien n'est muté —
+ * ce qui part sur disque n'est pas ce que le banc tient encore en main.
  */
 function confronteBaseline(domaine, mesures) {
   const baseline = chargeBaseline(domaine);
-  if (!baseline) return 0;
-  const connus = new Map(baseline.resultats.map((r) => [r.cle, r]));
-  let compares = 0;
-  for (const m of mesures)
-    for (const r of m.resultats) {
+  const connus = new Map((baseline?.resultats ?? []).map((r) => [r.cle, r]));
+  return mesures.map((m) => ({
+    ...m,
+    resultats: m.resultats.map((r) => {
       const base = connus.get(cleDeLigne(m.nom, r.nom));
-      if (!base?.medianeMs || r.medianeMs === null) continue;
-      r.ecartBaseline = (r.medianeMs - base.medianeMs) / base.medianeMs;
-      compares++;
-    }
-  return compares;
+      const comparable = base?.medianeMs && r.medianeMs !== null;
+      return {
+        ...r,
+        ecartBaseline: comparable ? (r.medianeMs - base.medianeMs) / base.medianeMs : null,
+      };
+    }),
+  }));
 }
 
 /**
  * Dépose le fragment du domaine et vérifie son intitulé sous `node:test` : une seule ligne fausse
- * fait tomber le banc. Une ligne sans oracle porte son motif, jamais un silence.
+ * fait tomber le banc.
  */
 export function rapport(domaine, mesures, intitule) {
-  const tous = Array.isArray(mesures) ? mesures : [mesures];
+  const brutes = Array.isArray(mesures) ? mesures : [mesures];
+  verifieFichiers(brutes);
+  const tous = confronteBaseline(domaine, brutes);
   const lignes = tous.flatMap((m) => m.resultats);
-  const compares = confronteBaseline(domaine, tous);
 
   if (intitule)
     test(intitule, () => {
@@ -59,8 +54,20 @@ export function rapport(domaine, mesures, intitule) {
 
   mkdirSync(FRAGMENTS, { recursive: true });
   writeFileSync(
-    join(FRAGMENTS, `${domaine}.json`),
-    JSON.stringify({ version: 2, domaine, compares, mesures: tous }, null, 2) + '\n',
+    cheminFragment(domaine),
+    JSON.stringify({ version: 2, domaine, mesures: tous }, null, 2) + '\n',
   );
   for (const r of lignes) console.log(ligneMd(r));
+}
+
+/** Les fragments déposés par une exécution complète des bancs, pour leurs deux lecteurs. */
+export function lisFragments() {
+  try {
+    return readdirSync(FRAGMENTS)
+      .filter((n) => n.endsWith('.json'))
+      .map((n) => JSON.parse(readFileSync(join(FRAGMENTS, n), 'utf8')))
+      .filter((f) => f.version === 2);
+  } catch {
+    return [];
+  }
 }

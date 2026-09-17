@@ -1,12 +1,7 @@
 // Mesure absolue d'un calcul du moteur, sur des cas nommés, contre un oracle.
-// Ce fichier ne fait que mesurer et comparer : le tableau, les fragments et les baselines sont
-// l'affaire de `rapport.mjs`, et la comparaison bit à bit celle d'`ecart.mjs` et d'`ulp.mjs`.
-import { existsSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+// Ce fichier ne fait que mesurer et comparer : le tableau, les fragments, les baselines et la garde
+// des chemins cités sont l'affaire de `rapport.mjs`.
 import { ecart } from './ecart.mjs';
-
-export const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 
 /** Générateur pseudo-aléatoire à graine fixe (xorshift32) : deux exécutions voient les mêmes entrées. */
 export function graine(depart) {
@@ -19,12 +14,6 @@ export function graine(depart) {
   };
 }
 
-async function chrono(tour) {
-  const t0 = process.hrtime.bigint();
-  await tour();
-  return Number(process.hrtime.bigint() - t0) / 1e6;
-}
-
 function stats(durees) {
   const t = durees.slice().sort((a, b) => a - b);
   const n = t.length;
@@ -34,110 +23,79 @@ function stats(durees) {
   return { medianeMs, p95Ms: t[i95], minMs: t[0], tours: n };
 }
 
-function vide(nom, taille, motif, correct = null, difference = null) {
-  return {
-    nom,
-    taille: taille ?? null,
-    medianeMs: null,
-    p95Ms: null,
-    minMs: null,
-    nsParElement: null,
-    tours: 0,
-    opsParSec: null,
-    ecartBaseline: null,
-    correct,
-    difference,
-    motif: motif ?? null,
-  };
-}
+/** Les champs d'une ligne qu'aucun chronomètre n'a nourrie. `null` n'est jamais zéro. */
+const SANS_MESURE = {
+  medianeMs: null,
+  p95Ms: null,
+  minMs: null,
+  nsParElement: null,
+  tours: 0,
+  opsParSec: null,
+};
+
+const ligne = ({ nom, taille = null, motif = null, correct = null, difference = null }) => ({
+  nom,
+  taille,
+  ...SANS_MESURE,
+  correct,
+  difference,
+  motif,
+});
 
 /** Une ligne sans chiffre : un point de banc documenté, dont le motif remplace la mesure. */
 export function ligneDecrite({ nom, fichier, motif }) {
-  return { nom, fichier, resultats: [vide(nom, null, motif)] };
-}
-
-/** Le fichier mesuré doit exister : une ligne qui cite un chemin mort ne mesure plus rien. */
-function verifieFichier(nom, fichier) {
-  for (const chemin of String(fichier).split(',')) {
-    const propre = chemin.trim();
-    if (propre && !existsSync(join(RACINE, propre)))
-      throw new Error(`Banc ${nom} : le fichier mesuré « ${propre} » n'existe pas`);
-  }
+  return { nom, fichier, resultats: [ligne({ nom, motif })] };
 }
 
 const compteTexte = (c) => `${c.nombre} écart(s), ${c.ulpMax} ULP au plus`;
 
 /**
- * Compare un cas à son oracle. Sans `differences`, l'égalité est stricte au bit près ; avec, c'est
- * `tolere` qui décide. `ecartPublie` change la nature du point : le banc ne réclame plus l'égalité,
- * il chiffre l'écart d'un candidat refusé — la ligne porte alors son compte, jamais un silence.
+ * Compare un cas à son oracle. Sans `differences`, l'égalité est stricte au bit près ; avec, le
+ * compte d'écarts est publié tel quel — le banc mesure alors un candidat REFUSÉ et chiffre ce qu'il
+ * déplace, au lieu de réclamer une égalité qui n'a pas lieu d'être. Sans oracle, la ligne porte le
+ * motif qui dit pourquoi et où la justesse est tenue ; jamais un silence.
  */
-async function verifie(item, calcul, attendu, differences, tolere, ecartPublie, motifDefaut) {
-  const oracle = item.attendu === null ? null : (item.attendu ?? attendu);
-  if (!oracle) return { correct: null, difference: null, motif: item.motif ?? motifDefaut ?? null };
-  const ref = await oracle(item.entree);
+async function verifie(item, { calcul, attendu, differences, motif }) {
+  if (!attendu) return { correct: null, difference: null, motif: motif ?? null };
+  const ref = await attendu(item.entree);
   const obt = await calcul(item.entree);
-  const cmp = item.differences ?? differences;
-  const seuil = item.tolere ?? tolere;
-  if (!cmp) {
+  if (!differences) {
     const diff = ecart(ref, obt, item.nom);
     return { correct: diff === null, difference: diff, motif: null };
   }
-  const compte = cmp(ref, obt, item.nom);
-  if (item.ecartPublie ?? ecartPublie)
-    return { correct: null, difference: null, motif: compteTexte(compte) };
-  const acceptable = seuil ? seuil(compte) : compte.nombre === 0;
-  return {
-    correct: acceptable,
-    difference: acceptable ? null : (compte.premier ?? `${item.nom} : écart hors tolérance`),
-    motif: compte.nombre ? compteTexte(compte) : null,
-  };
+  return { correct: null, difference: null, motif: compteTexte(differences(ref, obt, item.nom)) };
 }
 
 /**
  * Mesure absolue d'un calcul sur un ensemble de cas nommés, chacun vérifié contre `attendu`.
- * Un cas peut porter son propre `attendu` (ou `attendu: null` et un `motif` qui dit pourquoi), ses
- * `differences` et son `tolere` ; `mesure: false` le fait vérifier sans le chronométrer.
+ * `fichier` est le chemin mesuré, ou la liste des chemins ; `mesure: false` sur un cas le fait
+ * vérifier sans le chronométrer.
  */
-export async function mesure({
-  nom,
-  fichier,
-  cas,
-  calcul,
-  attendu,
-  differences,
-  tolere,
-  ecartPublie,
-  motif: motifDefaut,
-  options = {},
-}) {
+export async function mesure({ nom, fichier, cas, options = {}, ...conf }) {
   const { chauffe = 20, tours = 200, budgetMs = 1000 } = options;
-  verifieFichier(nom, fichier);
   const resultats = [];
 
   for (const item of cas) {
-    const { correct, difference, motif } = await verifie(
-      item,
-      calcul,
-      attendu,
-      differences,
-      tolere,
-      ecartPublie,
-      motifDefaut,
-    );
+    const verdict = await verifie(item, conf);
 
     if (item.mesure === false) {
-      resultats.push(vide(item.nom, item.taille, motif, correct, difference));
+      resultats.push(ligne({ ...verdict, nom: item.nom, taille: item.taille }));
       continue;
     }
 
-    for (let i = 0; i < chauffe; i++) await calcul(item.entree);
+    for (let i = 0; i < chauffe; i++) await conf.calcul(item.entree);
 
+    // Deux lectures d'horloge par tour, pas trois : la fin d'un tour est aussi le point où le
+    // budget se juge. Le chronomètre encadre exactement l'appel, comme avant.
     const durees = [];
     const debut = process.hrtime.bigint();
+    let fin;
     while (durees.length < tours) {
-      durees.push(await chrono(() => calcul(item.entree)));
-      if (durees.length >= 5 && Number(process.hrtime.bigint() - debut) / 1e6 > budgetMs) break;
+      const t0 = process.hrtime.bigint();
+      await conf.calcul(item.entree);
+      fin = process.hrtime.bigint();
+      durees.push(Number(fin - t0) / 1e6);
+      if (durees.length >= 5 && Number(fin - debut) / 1e6 > budgetMs) break;
     }
 
     const s = stats(durees);
@@ -147,10 +105,7 @@ export async function mesure({
       ...s,
       nsParElement: item.taille > 0 ? (s.medianeMs * 1e6) / item.taille : null,
       opsParSec: s.medianeMs > 0 ? Math.round(1000 / s.medianeMs) : null,
-      ecartBaseline: null,
-      correct,
-      difference,
-      motif,
+      ...verdict,
     });
   }
   return { nom, fichier, resultats };
@@ -168,6 +123,5 @@ export async function stress({ nom, calcul, extremes }) {
 }
 
 /** Mesure le code du paquet en prenant l'implémentation d'avant l'optimisation pour oracle. */
-export async function compare({ nom, fichier, cas, reference, optimisee, ...reste }) {
-  return mesure({ ...reste, nom, fichier, cas, calcul: optimisee, attendu: reference });
-}
+export const compare = ({ reference, optimisee, ...reste }) =>
+  mesure({ ...reste, calcul: optimisee, attendu: reference });

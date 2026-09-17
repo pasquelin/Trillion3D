@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { rasterVisibility } from '../visibilityRaster.ts';
 import { fillAffine, fillReference, rasterAvec } from './appui/rasterTampon.mjs';
 import { quadrillage } from './appui/scenesCoupe.mjs';
-import { compteur, mesure, note, rapport, stress, ulpEntre } from '../../sdk-core/bench/socle.mjs';
+import { compteur, ecart, mesure, note, rapport, stress } from '../../sdk-core/bench/socle.mjs';
 import { camera, coupe } from './appui/scenes.mjs';
 import { cameraMoteur } from '../cameraFixture.ts';
 
@@ -18,18 +18,11 @@ function differencesImage(attendu, obtenu, nom) {
   const c = compteur();
   for (let i = 0; i < attendu.ids.length; i++) {
     if (attendu.ids[i] !== obtenu.ids[i]) {
-      c.pixelsId++;
       c.nombre++;
       c.premier ??= `${nom} identifiant [${i}]: ${attendu.ids[i]} ≠ ${obtenu.ids[i]}`;
     }
-    if (!Object.is(attendu.depth[i], obtenu.depth[i])) {
-      c.pixelsProfondeur++;
-      const avant = c.nombre;
-      note(c, attendu.depth[i], obtenu.depth[i], `${nom} profondeur [${i}]`, 32);
-      if (avant === c.nombre) c.nombre++;
-      const u = ulpEntre(attendu.depth[i], obtenu.depth[i], 32);
-      if (u > c.ulpMax) c.ulpMax = u;
-    }
+    // Un identifiant est un entier : seule la profondeur a un écart qui se compte en ULP.
+    note(c, attendu.depth[i], obtenu.depth[i], `${nom} profondeur [${i}]`, 32);
   }
   return c;
 }
@@ -76,30 +69,19 @@ const resC1 = await mesure({
   ],
   calcul: tour(rasterAvec(fillAffine)),
   attendu: tour(rasterAvec(fillReference)),
+  // Le candidat a été refusé : donner un comparateur d'écarts dit au socle de chiffrer ce qu'il
+  // déplace au lieu de réclamer une égalité qui n'a pas lieu d'être.
   differences: differencesImage,
-  // Le candidat a été refusé : le banc ne réclame pas son égalité, il chiffre ce qu'il déplace.
-  ecartPublie: true,
   options: { chauffe: 2, tours: 12, budgetMs: 3000 },
 });
 
-test('chaque cas de C1 publie son écart chiffré', () => {
-  for (const r of resC1.resultats) assert.ok(r.motif, `${r.nom} : écart non chiffré`);
-});
-
-/** Deux images identiques, valeur par valeur : `deepEqual` sur un million de pixels coûte trop. */
-function memeImage(attendu, obtenu, nom) {
-  assert.equal(obtenu.ids.length, attendu.ids.length, `${nom} : longueur`);
-  for (let i = 0; i < attendu.ids.length; i++) {
-    if (attendu.ids[i] !== obtenu.ids[i]) assert.fail(`${nom} : identifiant [${i}]`);
-    if (!Object.is(attendu.depth[i], obtenu.depth[i])) assert.fail(`${nom} : profondeur [${i}]`);
-  }
-}
-
+// `ecart` compare les deux tampons valeur par valeur et nomme le premier pixel fautif ; c'est
+// `deepEqual`, sur un million de pixels, qui coûtait trop cher.
 test('la référence recopiée est bien ce que le paquet rasterise aujourd’hui', () => {
   const copie = tour(rasterAvec(fillReference));
   const entrees = [grande, rase, diagonale, damier, ...autresGraines];
   for (let i = 0; i < entrees.length; i++)
-    memeImage(tour(rasterVisibility)(entrees[i]), copie(entrees[i]), `image ${i}`);
+    assert.equal(ecart(tour(rasterVisibility)(entrees[i]), copie(entrees[i]), `image ${i}`), null);
 });
 
 await stress({

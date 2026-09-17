@@ -38,7 +38,7 @@ const jeux = [
 
 const resCoins = await mesure({
   nom: 'coins monde de la coupe Hi-Z',
-  fichier: 'packages/sdk-browser/hizUnoccluded.ts, packages/sdk-browser/hizSplit.ts',
+  fichier: ['packages/sdk-browser/hizUnoccluded.ts', 'packages/sdk-browser/hizSplit.ts'],
   cas: jeux,
   calcul: (e) => {
     projectBoxesFlat(e.pages, e.pages.length, cameraMoteur(cam), viewport, e.avecCache);

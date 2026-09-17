@@ -1,3 +1,4 @@
+import { mediane, scene } from './coupeLancementsDecor.mjs';
 /**
  * Côté page de la mesure du RELEVÉ : ce qu'une image paie à rapatrier la coupe, sur la vraie coupe
  * du moteur (`createDagResources`, `encodeDagKernels`) et un vrai appareil.
@@ -15,35 +16,15 @@
 import * as THREE from 'three';
 import { createDagResources } from '../../packages/sdk-browser/gpuDagResources.ts';
 import { encodeDagKernels } from '../../packages/sdk-browser/gpuDagEncode.ts';
-import {
-  packDagSelection,
-  packedWorldsToRenderOrigin,
-} from '../../packages/sdk-browser/gpuDagPack.ts';
+import { packedWorldsToRenderOrigin } from '../../packages/sdk-browser/gpuDagPack.ts';
 import {
   cameraSelectionUniforms,
   SELECTION_UNIFORM_BYTES,
 } from '../../packages/sdk-browser/gpuSelection.ts';
 import { writeDagUniforms } from '../../packages/sdk-browser/gpuDagUniforms.ts';
-import {
-  dagRecords,
-  residentBase,
-  residentWords,
-  SELECTION_HEADER_WORDS,
-} from '../../packages/sdk-browser/gpuDagLayout.ts';
+import { SELECTION_HEADER_WORDS } from '../../packages/sdk-browser/gpuDagLayout.ts';
 import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
 import { ouvrirAppareil } from './appareilWebgpu.mjs';
-import { scenePages, sceneRoots } from '../../packages/sdk-browser/gpuDagCutFrontierScene.ts';
-
-const mediane = (valeurs) => [...valeurs].sort((a, b) => a - b)[valeurs.length >> 1];
-
-/** La scène : une pyramide de niveaux, une pose, toutes les pages résidentes, vue de face. */
-function scene(feuilles, niveaux) {
-  const roots = sceneRoots(scenePages(feuilles, niveaux), [new THREE.Matrix4()], true);
-  const packed = packDagSelection(roots);
-  const debut = residentBase(packed.pageCount);
-  dagRecords(packed).coldInts.fill(0xffffffff, debut, debut + residentWords(packed.pageCount));
-  return { packed, roots };
-}
 
 export async function executer({ tailles, niveaux, tours, rondes, plafond, erreurs: seuils }) {
   const appareil = await ouvrirAppareil();

@@ -2,7 +2,6 @@
 // rejet de cône de `sdk-core` contre Three.js, sur les entrées hostiles de `scenesVolumes.mjs`. Le
 // test à trois états est aussi opposé à l'ancien `boxClip` dans l'ordre de plans d'avant : réordonner
 // les plans ne change aucun verdict. Seule la colonne « identique » décide, au bit près.
-import * as THREE from 'three';
 import {
   boxConeRejects,
   clipPlanesFromMatrix,
@@ -19,14 +18,7 @@ import {
   vuesHierarchiques,
 } from './scenesHierarchies.mjs';
 import { referenceBoxClip } from '../oracles/selection.mjs';
-import {
-  plansThree,
-  referenceClipPlanes,
-  referenceConeRejects,
-  referencePlanesToLocal,
-  reordonne,
-  troncThree,
-} from '../oracles/volumes.mjs';
+import { referenceConeRejects, referencePlanesToLocal, reordonne } from '../oracles/volumes.mjs';
 
 const un = (nom, entree) => [{ nom, entree, taille: entree.length }];
 const deux = (nom, entree, nomH, entreeH) => [...un(nom, entree), ...un(nomH, entreeH)];
@@ -44,13 +36,15 @@ const locaux = (vues, mondes, pas) =>
   );
 
 /** Les lignes d'équivalence du tronc et du cône, sans options de chronomètre. */
+// L'oracle Three de ces trois calculs date d'avant la convention de profondeur inversée (Z inversé,
+// plan lointain infini) : il ne décrit plus la même sortie. Leur justesse est tenue par
+// `mathFrustum.test.ts` et `mathFrustumBox.test.ts`, et la ligne du banc le publie.
+const Z_INVERSE = 'oracle Three d’avant le Z inversé — justesse dans mathFrustum.test.ts';
+
 export const casTronc = [
   {
     calcul: "plans normalisés du tronc d'une vue-projection",
-    // L'oracle Three date d'avant la convention de profondeur inversée (Z inversé, plan
-    // lointain infini) : il ne décrit plus la même sortie. La justesse de ce calcul est
-    // tenue par `mathFrustum.test.ts` et `mathFrustumBox.test.ts`.
-    oraclePerime: 'oracle Three d’avant le Z inversé — justesse dans mathFrustum.test.ts',
+    motif: Z_INVERSE,
     fichier: 'packages/sdk-core/mathFrustum.ts',
     cas: deux(
       'vues WebGL, WebGPU et hostiles',
@@ -58,20 +52,12 @@ export const casTronc = [
       'caméras dans la hiérarchie',
       vuesHierarchiques,
     ),
-    reference: (liste) =>
-      liste.flatMap(({ vp, webgpu }) => {
-        const tronc = troncThree(vp, webgpu);
-        return [plansThree(tronc, Float64Array), plansThree(tronc, Float32Array)];
-      }),
     optimisee: (liste) =>
       liste.flatMap(({ vp, webgpu }) => [plans(vp, webgpu), plans(vp, webgpu, Float32Array)]),
   },
   {
     calcul: "plans bruts d'une matrice de découpe",
-    // L'oracle Three date d'avant la convention de profondeur inversée (Z inversé, plan
-    // lointain infini) : il ne décrit plus la même sortie. La justesse de ce calcul est
-    // tenue par `mathFrustum.test.ts` et `mathFrustumBox.test.ts`.
-    oraclePerime: 'oracle Three d’avant le Z inversé — justesse dans mathFrustum.test.ts',
+    motif: Z_INVERSE,
     fichier: 'packages/sdk-core/mathFrustum.ts',
     cas: deux(
       'vues WebGL, WebGPU et hostiles',
@@ -79,7 +65,6 @@ export const casTronc = [
       'caméras dans la hiérarchie',
       vuesHierarchiques,
     ),
-    reference: (liste) => liste.map(({ vp }) => Float64Array.from(referenceClipPlanes(vp))),
     optimisee: (liste) =>
       liste.map(({ vp }) => {
         const sortie = new Float64Array(24);
@@ -89,10 +74,7 @@ export const casTronc = [
   },
   {
     calcul: 'boîte hors du tronc',
-    // L'oracle Three date d'avant la convention de profondeur inversée (Z inversé, plan
-    // lointain infini) : il ne décrit plus la même sortie. La justesse de ce calcul est
-    // tenue par `mathFrustum.test.ts` et `mathFrustumBox.test.ts`.
-    oraclePerime: 'oracle Three d’avant le Z inversé — justesse dans mathFrustum.test.ts',
+    motif: Z_INVERSE,
     fichier: 'packages/sdk-core/mathFrustumBox.ts',
     cas: deux(
       'boîtes par vue, plan proche traversé',
@@ -100,16 +82,6 @@ export const casTronc = [
       'boîtes monde et caméras hiérarchiques',
       boitesDeVueHierarchiques,
     ),
-    reference: (liste) =>
-      liste.map(
-        ({ vp, webgpu, boite: b }) =>
-          !troncThree(vp, webgpu).intersectsBox(
-            new THREE.Box3(
-              new THREE.Vector3(b[0], b[1], b[2]),
-              new THREE.Vector3(b[3], b[4], b[5]),
-            ),
-          ),
-      ),
     optimisee: (liste) =>
       liste.map(({ vp, webgpu, boite: b }) =>
         frustumExcludesBox(plans(vp, webgpu), b[0], b[1], b[2], b[3], b[4], b[5]),
