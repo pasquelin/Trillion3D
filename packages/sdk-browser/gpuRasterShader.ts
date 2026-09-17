@@ -12,8 +12,6 @@ import { rasterKernels } from './gpuRasterKernelsWgsl.ts';
 import { DEPTH_CLEAR } from './depthConvention.ts';
 import { wgslFloat } from './gpuPartitionMargins.ts';
 
-export { DISPATCH_SPAN, LIST_HEADER } from './gpuRasterContract.ts';
-
 /**
  * Le raster de calcul de TOUS les triangles opaques et masqués de la coupe : il écrit un tampon de
  * visibilité — une profondeur et un identifiant cluster/triangle par pixel — que la résolution
