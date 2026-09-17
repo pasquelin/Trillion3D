@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-/** Le binaire de l'oracle, construit par `npm run build:native` à côté du compilateur. */
+/** Le binaire de l'oracle, construit par `pnpm run build:native` à côté du compilateur. */
 const ORACLE_BIN = 'packages/asset-compiler-rust/target/release/web-geometry-oracle';
 /** Vrai quand le binaire existe : sans lui, la campagne s'arrête avant d'ouvrir un navigateur. */
 export const oracleBuilt = (root) => existsSync(join(root, ORACLE_BIN));

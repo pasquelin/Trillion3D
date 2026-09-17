@@ -3,7 +3,7 @@
 // or un hôte qui sert le `dist/` construit tel quel les demande par leur URL, à côté du module qui
 // les charge. Sans cette étape, `pageCodec.wasm` manque du `dist/` et le décodeur WebAssembly
 // retombe en silence sur le décodeur JavaScript. Le fichier commis fait foi : cette étape ne
-// compile rien, elle recopie (`npm run build:wasm` est ce qui le reconstruit).
+// compile rien, elle recopie (`pnpm run build:wasm` est ce qui le reconstruit).
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

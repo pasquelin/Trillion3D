@@ -10,7 +10,7 @@ function rapport(cote) {
   return {
     engine: 'moteur-test',
     scene: 'scene-test',
-    commande: 'npm run mesure',
+    commande: 'pnpm run mesure',
     head: 'abc123',
     sides: { a: { from: 'develop' } },
     settings: { frames: 8, warmup: 2, width: 640, height: 360, maxPages: 32 },

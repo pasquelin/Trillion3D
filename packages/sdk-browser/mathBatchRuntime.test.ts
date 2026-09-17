@@ -2,7 +2,7 @@
 // WebAssembly, sur de petits lots purement hostiles de `bench/m5Cas.mjs` (échelles négatives,
 // cisaillement, `w` nul, NaN, ±0, infinis, 1e308, 5e-324) : mêmes bits des deux côtés, `Object.is`
 // près — la même notion d'égalité que `bench/m5.bench.mjs` utilise pour la campagne complète, ici
-// sur un lot assez petit pour tourner dans `npm test`.
+// sur un lot assez petit pour tourner dans `pnpm test`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

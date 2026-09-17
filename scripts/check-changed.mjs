@@ -84,9 +84,7 @@ function main() {
   console.log(`Changed files: ${existing.length}; related tests: ${testFiles.length}`);
   if (!process.argv.includes('--tests-only')) {
     run('node', ['scripts/check-file-lines.mjs', '--changed']);
-    const formatted = existing.filter(
-      (file) => formatPattern.test(file) && file !== 'package-lock.json',
-    );
+    const formatted = existing.filter((file) => formatPattern.test(file));
     const linted = existing.filter((file) => sourcePattern.test(file));
     const duplicateCandidates = existing.filter(
       (file) => sourcePattern.test(file) || file.endsWith('.rs'),

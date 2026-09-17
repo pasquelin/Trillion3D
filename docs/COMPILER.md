@@ -2,7 +2,7 @@
 
 One executable does all of the preparation work: it reads a source model (glTF, GLB, FBX or OBJ), builds the cluster hierarchy and writes the cache described in [FORMAT.md](FORMAT.md). Everything else — the Node adapter, an Electron host, a shell script — only launches it, forwards a few paths and options, and listens to what it says. No external application is needed: the FBX/OBJ reader (ufbx) is compiled into the binary.
 
-Source: [`packages/asset-compiler-rust`](../packages/asset-compiler-rust) (`lib.rs` compiles, `import.rs` imports, `main.rs` is the command line). Build with `npm run build:native`; the binary lands in `packages/asset-compiler-rust/target/release/web-geometry-compiler` (`.exe` on Windows).
+Source: [`packages/asset-compiler-rust`](../packages/asset-compiler-rust) (`lib.rs` compiles, `import.rs` imports, `main.rs` is the command line). Build with `pnpm run build:native`; the binary lands in `packages/asset-compiler-rust/target/release/web-geometry-compiler` (`.exe` on Windows).
 
 ## Contents
 

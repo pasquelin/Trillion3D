@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { prepare } from './index.mts';
 
-/** Le vrai compilateur, là où `npm run build:native` le dépose. */
+/** Le vrai compilateur, là où `pnpm run build:native` le dépose. */
 function compilerBinary() {
   const target = fileURLToPath(new URL('../asset-compiler-rust/target/', import.meta.url));
   return ['release', 'debug']
@@ -26,7 +26,7 @@ async function quad(root) {
 // finales. Le parcours public complet, contre le vrai binaire, doit rendre les deux ensemble.
 test('V02 prepare() rend les mesures finales du pointeur avec celles du manifeste', async (t) => {
   const executable = compilerBinary();
-  if (!executable) return t.skip('compilateur natif absent : lancer `npm run build:native`');
+  if (!executable) return t.skip('compilateur natif absent : lancer `pnpm run build:native`');
   const root = await mkdtemp(join(tmpdir(), 'web-geometry-mesures-'));
   try {
     const result = await prepare(await quad(root), join(root, 'cache'), 'full', 150000, {

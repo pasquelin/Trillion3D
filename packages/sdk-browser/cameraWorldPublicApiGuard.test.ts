@@ -13,8 +13,8 @@
 // `cameraMoteur(…)`, comme l'entrée d'image le fait.
 //
 // `test:gpu` avait échoué sur quatre hôtes de `test/*.browser.mjs` restés sur la caméra brute ; ils
-// sont passés à `cameraMoteur` (montages internes au dépôt, pas des hôtes tiers). `npm test` ne
-// l'avait pas vu : ce sont des scripts hors de `npm test`, que seul `npm run test:gpu` exécute —
+// sont passés à `cameraMoteur` (montages internes au dépôt, pas des hôtes tiers). `pnpm test` ne
+// l'avait pas vu : ce sont des scripts hors de `pnpm test`, que seul `pnpm run test:gpu` exécute —
 // ces tests-ci reproduisent donc les deux appels sans navigateur, le fautif et le bon.
 import test from 'node:test';
 import assert from 'node:assert/strict';

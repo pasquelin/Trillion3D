@@ -41,7 +41,7 @@ checkLabPath();
 const manifestUrl = labManifest(DEFAULT_SCENE, true);
 assert.ok(
   existsSync(join(ROOT, 'dist/sdk-browser/index.js')),
-  'dist absent : lancer `npm run build` avant cette preuve',
+  'dist absent : lancer `pnpm run build` avant cette preuve',
 );
 // Le module de page est empaqueté depuis les SOURCES du dépôt — esbuild, celui de Vite, pris dans
 // le Lab en lecture seule —, si bien qu'il lit la référence de production elle-même plutôt qu'une

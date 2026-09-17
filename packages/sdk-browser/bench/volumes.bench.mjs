@@ -1,7 +1,7 @@
 // Banc des volumes du lot M2 : sdk-core contre Three.js, en deux parties.
 //
 // 1. Équivalence au bit près, cas hostiles et hiérarchies parent/enfant compris. Un seul écart et le
-//    script échoue. Sous `node --test` (`npm run bench:calculs`), c'est la seule partie jouée : elle
+//    script échoue. Sous `node --test` (`pnpm run bench:calculs`), c'est la seule partie jouée : elle
 //    dépose ses lignes avec les formules communes.
 // 2. Performance, jouée quand le script est lancé seul : même travail des deux côtés, opération seule,
 //    lots de 1 000, 10 000 et 100 000, et l'image — plans une fois puis tous les tests. Nanosecondes

@@ -3,7 +3,7 @@
 // une rotation d'échelle uniforme s a pour déterminant ±s³, donc s ≲ 2,15e-7 passait sous 1e-20 et
 // le noyau rendait l'axe local non tourné — le rejet par cône supprimait alors des faces de face.
 // Le comportement GPU réel est prouvé par `test/inverseTransposeePetiteEchelle.browser.mjs` ; ce
-// test-ci rejoue la même arithmétique en f32 pour que `npm test` attrape la régression sans GPU.
+// test-ci rejoue la même arithmétique en f32 pour que `pnpm test` attrape la régression sans GPU.
 // Le modèle f32 vit dans `bench/justesse/inverseTransposeF32.mjs`, partagé avec la preuve
 // d'éclairage : une seule écriture de l'arithmétique, rattachée au shader réellement exécuté par
 // `test/normalTransformArithmetique.browser.mjs`.

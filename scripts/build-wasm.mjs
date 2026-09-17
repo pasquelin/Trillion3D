@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // Compile `packages/page-codec-wasm` pour `wasm32-unknown-unknown` et dépose le module à côté de son
-// chargeur, dans `packages/sdk-browser/`. Hors de `npm run validate` : la cible et l'archiveur LLVM
+// chargeur, dans `packages/sdk-browser/`. Hors de `pnpm run validate` : la cible et l'archiveur LLVM
 // sont une installation locale (`rustup target add wasm32-unknown-unknown`, `rustup component add
 // llvm-tools`), et une machine qui ne les a pas doit quand même pouvoir valider le dépôt. Le test
-// doré du décodeur, lui, tourne en natif dans `npm run test:native`.
+// doré du décodeur, lui, tourne en natif dans `pnpm run test:native`.
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';

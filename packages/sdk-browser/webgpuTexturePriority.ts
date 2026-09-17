@@ -2,7 +2,7 @@ import type { TextureJob } from './webgpuAtlasJobs.ts';
 import { createTextureDemand } from './textureDemand.ts';
 import { createTextureMeasure } from './texturePriorityMeasure.ts';
 
-export type { MaterialAtlasLayers, MaterialLayerIndex } from './texturePriorityRows.ts';
+export type { MaterialLayerIndex } from './texturePriorityRows.ts';
 export type { PriorityCamera, PriorityInputs } from './texturePriorityMeasure.ts';
 import type { PriorityInputs } from './texturePriorityMeasure.ts';
 

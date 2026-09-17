@@ -167,7 +167,7 @@ au navigateur le contexte WebGL et le tas de la série précédente.
 Le harnais ne connaît aucune scène : il mesure celle des caches qu'on lui donne, et ses poses
 viennent des bornes du modèle lues dans la page, pas d'une table. Trois choses à fournir.
 
-1. **Compiler le glTF** avec le binaire Rust (`npm run build:native`, puis
+1. **Compiler le glTF** avec le binaire Rust (`pnpm run build:native`, puis
    `packages/asset-compiler-rust/target/release/web-geometry-compiler`), vers un dossier
    `<nom>-derived/` hors du dépôt et hors du Lab — un cache compilé n'est jamais écrit dans
    `render-tech-lab/public/benchmark-assets`.
@@ -186,7 +186,7 @@ millions de triangles sature une petite scène en travail inutile et en sature u
 résidence. Le relevé consigne le budget employé ; une comparaison n'a de sens qu'à budget égal des
 deux côtés.
 
-## Banc des calculs (`npm run bench:calculs`)
+## Banc des calculs (`pnpm run bench:calculs`)
 
 Les bancs et leurs oracles vivent dans le paquet mesuré, sous `packages/<paquet>/bench/` : la
 vérité de test d'un paquet lui appartient, et un banc atteint les modules du paquet par chemin
