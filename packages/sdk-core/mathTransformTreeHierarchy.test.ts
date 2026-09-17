@@ -8,11 +8,14 @@
 // deux conventions de profondeur. Three n’est utilisé qu’en référence, jamais dans un fichier `math*.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { joueNous } from '../sdk-browser/bench/hierarchieRejeuNous.mjs';
-import { joueThree } from '../sdk-browser/bench/hierarchieRejeuThree.mjs';
-import { chainesFigees } from '../sdk-browser/bench/hierarchieScenarios.mjs';
-import { objectifs, visees } from '../sdk-browser/bench/hierarchieScenariosCamera.mjs';
-import { marquages, scenarioVivant } from '../sdk-browser/bench/hierarchieScenariosVivants.mjs';
+import { joueNous } from '../sdk-browser/bench/appui/hierarchieRejeuNous.mjs';
+import { joueThree } from '../sdk-browser/bench/appui/hierarchieRejeuThree.mjs';
+import { chainesFigees } from '../sdk-browser/bench/appui/hierarchieScenarios.mjs';
+import { objectifs, visees } from '../sdk-browser/bench/appui/hierarchieScenariosCamera.mjs';
+import {
+  marquages,
+  scenarioVivant,
+} from '../sdk-browser/bench/appui/hierarchieScenariosVivants.mjs';
 
 type Sortie = number[];
 

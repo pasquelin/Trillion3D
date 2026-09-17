@@ -13,7 +13,10 @@
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { cameraSelectionUniforms } from '../../packages/sdk-browser/gpuSelection.ts';
-import { packDagSelection, packedWorldsToRenderOrigin } from '../../packages/sdk-browser/gpuDagSelection.ts';
+import {
+  packDagSelection,
+  packedWorldsToRenderOrigin,
+} from '../../packages/sdk-browser/gpuDagSelection.ts';
 import { DAG_SELECTION_SHADER } from '../../packages/sdk-browser/gpuDagShader.ts';
 import { scenePages, sceneRoots } from '../../packages/sdk-browser/gpuDagCutFrontierScene.ts';
 import { selectionGpu } from './noyauSelectionGpu.mjs';

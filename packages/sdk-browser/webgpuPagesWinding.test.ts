@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { setWindingEpoch, windingCw } from './webgpuPagesWinding.ts';
-import { referenceWindingCw } from './bench/oracles/pages.mjs';
+import { referenceWindingCw } from './bench/oracles/pages-webgpu.mjs';
 import type { PageRec } from './pageSelectionTypes.ts';
 
 function rec(matrix: THREE.Matrix4): PageRec {

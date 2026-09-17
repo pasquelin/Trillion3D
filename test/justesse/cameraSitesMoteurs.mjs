@@ -7,9 +7,16 @@ import { exactPagesBackend } from '../../packages/sdk-browser/exactPagesBackend.
 import { threeLodBackend } from '../../packages/sdk-browser/threeLod.ts';
 import { installGpuGlobals } from '../../packages/sdk-browser/webgpuPagesTestGlobals.ts';
 import { mockGpu } from '../../packages/sdk-browser/webgpuPagesMockGpu.ts';
-import { camera as principale, quadScene } from '../../packages/sdk-browser/webgpuPagesTestScenes.ts';
+import {
+  camera as principale,
+  quadScene,
+} from '../../packages/sdk-browser/webgpuPagesTestScenes.ts';
 import { DAG, dagLevel } from '../../packages/sdk-browser/pagesBackendFixture.ts';
-import { fanScene, quadCluster, quadRootsContext } from '../../packages/sdk-browser/pagesBackendScenes.ts';
+import {
+  fanScene,
+  quadCluster,
+  quadRootsContext,
+} from '../../packages/sdk-browser/pagesBackendScenes.ts';
 
 const COMPTES = ['clusters', 'selectedTriangles', 'frustumRejected', 'lodLevel', 'residentPages'];
 const comptes = (metrics) => Object.fromEntries(COMPTES.map((cle) => [cle, metrics[cle] ?? null]));

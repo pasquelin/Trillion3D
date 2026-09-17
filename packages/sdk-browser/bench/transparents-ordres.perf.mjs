@@ -1,9 +1,9 @@
 // GEO-2 : transparents en quelques ordres - passes de mélange et repli.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
-import { cote, FACES, glisse, ITEMS, pose, regimes } from './scenesTransparents.mjs';
-import { appelsEncodes, tours } from './toursTransparents.mjs';
+import { mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
+import { cote, FACES, glisse, ITEMS, pose, regimes } from './appui/scenesTransparents.mjs';
+import { appelsEncodes, tours } from './appui/toursTransparents.mjs';
 import {
   argumentsReference,
   classementReference,
@@ -24,7 +24,7 @@ for (const scene of scenes) {
   for (const [regime, images] of regimes) {
     resultats.push(
       await mesure({
-        nom: `GEO-2 ordres et arguments — ${scene.nom}, ${regime}`,
+        nom: `ordres et arguments — ${scene.nom}, ${regime}`,
         fichier: 'packages/sdk-browser/webgpuBlendDraw.ts',
         cas: casDe(images),
         calcul: scene.tourApres,
@@ -34,7 +34,7 @@ for (const scene of scenes) {
     );
     resultats.push(
       await mesure({
-        nom: `GEO-2 repli processeur — ${scene.nom}, ${regime}`,
+        nom: `repli processeur — ${scene.nom}, ${regime}`,
         fichier: 'packages/sdk-browser/webgpuBlendExpandCpu.ts',
         cas: casDe(images),
         calcul: scene.tourApresSeq,

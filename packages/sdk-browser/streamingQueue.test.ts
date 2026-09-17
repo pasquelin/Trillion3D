@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { compacteFile, findAdmissible } from './streamingQueueOrder.ts';
 import { sortStreamJobs } from './streamingQueueOrderFixture.ts';
-import { referenceAdmission } from './bench/oracles/streaming.mjs';
+import { referenceAdmission } from './bench/oracles/admission-arrivees.mjs';
 import type { Job } from './streamingTypes.ts';
 
 const LIMITE = 6,
@@ -115,7 +115,7 @@ test('an unknown url (no byte size) is treated as zero cost by both sides', () =
 // `splice` à chaque annulation. Oracle du retrait immédiat : `referenceRetireDeLaFile`, recopié tel
 // quel d'avant le lot G dans `bench/oracles/file-streaming.mjs`.
 {
-  const { referenceRetireDeLaFile } = await import('./bench/oracles/file-streaming.mjs');
+  const { referenceRetireDeLaFile } = await import('./bench/oracles/recherches-streaming.mjs');
 
   function job(url: string): Job {
     return {

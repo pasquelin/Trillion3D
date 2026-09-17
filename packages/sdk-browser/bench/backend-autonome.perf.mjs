@@ -1,7 +1,7 @@
-// G1 : le backend autonome détache par le delta de la coupe au lieu de balayer tout le DAG.
+// le backend autonome détache par le delta de la coupe au lieu de balayer tout le DAG.
 import * as THREE from 'three';
 import { createAutonomousGeometry } from '../autonomousGeometry.ts';
-import { graine, mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
+import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
 import { referenceAutonomousSync } from './oracles/backend-autonome.mjs';
 
 const HOSTILES = [0, -0, NaN, Infinity, -Infinity, 5e-324, 1.7976931348623157e308];
@@ -75,7 +75,7 @@ function cas(nom, total, tailles, mesure = true) {
 }
 
 const resAutonome = await mesure({
-  nom: 'G1 coupe du backend autonome',
+  nom: 'coupe du backend autonome',
   fichier: 'packages/sdk-browser/autonomousGeometry.ts',
   cas: [
     cas('20 000 pages, coupes de 200', 20000, [200, 200, 200, 200]),
@@ -101,11 +101,13 @@ await stress({
       colorMaterials: new Map(),
       modifiedPages: new Set(),
     }).sync(),
-  extremes: [{ nom: 'vide', entree: { scene: new THREE.Scene(), allPages: [], shown: [], desired: [] } }],
+  extremes: [
+    { nom: 'vide', entree: { scene: new THREE.Scene(), allPages: [], shown: [], desired: [] } },
+  ],
 });
 
 rapport(
-  'g-autonome',
+  'backend-autonome',
   [resAutonome],
   'G1 attache et détache exactement les mêmes pages, dans le même ordre de scène',
 );

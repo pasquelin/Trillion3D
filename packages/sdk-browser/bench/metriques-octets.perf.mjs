@@ -1,11 +1,11 @@
-// G4 : les octets de sommets publiés par metrics().
+// les octets de sommets publiés par metrics().
 import * as THREE from 'three';
 import { createWebgpuGpuState } from '../webgpuPagesStateGpu.ts';
 import { createWebgpuBlendState } from '../webgpuBlendState.ts';
 import { ensureWebgpuPositionBuffer } from '../webgpuPositions.ts';
 import { prepareWebgpuBlend } from '../webgpuBlendPrepare.ts';
 import { vertexBytesOf } from '../webgpuPagesMetrics.ts';
-import { graine, mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
+import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
 import { referenceVertexBytes } from './oracles/metriques-octets.mjs';
 
 Object.assign(globalThis, {
@@ -65,7 +65,7 @@ const grand = etat(400, 200, true, 0x41);
 const petit = etat(2, 1, true, 0x43);
 
 const resOctets = await mesure({
-  nom: 'G4 octets de sommets du relevé',
+  nom: 'octets de sommets du relevé',
   fichier: 'packages/sdk-browser/webgpuPagesMetrics.ts',
   cas: [
     { nom: '400 pages, 200 transparents', entree: grand, taille: 600 },
@@ -82,4 +82,4 @@ await stress({
   extremes: [{ nom: 'vide', entree: null }],
 });
 
-rapport('g-octets', [resOctets], 'G4 publie exactement les mêmes octets de sommets');
+rapport('metriques-octets', [resOctets], 'G4 publie exactement les mêmes octets de sommets');

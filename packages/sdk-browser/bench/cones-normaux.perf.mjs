@@ -1,15 +1,15 @@
-// F18 : préparation des cônes normaux et catalogue de pages.
+// préparation des cônes normaux et catalogue de pages.
 import * as THREE from 'three';
 import { prepareCones } from '../webgpuPagesPrepare.ts';
 import { compteMateriauxEtTangentes, indexSourceBytes } from '../webgpuPagesCatalogue.ts';
-import { graine, mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
+import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
 import {
   entreeCones,
   referenceCompteMateriauxEtTangentes,
   referenceIndexSourceBytes,
   referencePrepareCones,
 } from './oracles/cones-normaux.mjs';
-import { catalogueDePages } from './scenesChargement.mjs';
+import { catalogueDePages } from './appui/scenesChargement.mjs';
 
 const alea = graine(6151);
 const pages = catalogueDePages({ pages: 20000, materiaux: 60 });
@@ -49,7 +49,7 @@ const casPages = [
 ];
 
 const resCones = await mesure({
-  nom: 'F18 cônes normaux des pages',
+  nom: 'cônes normaux des pages',
   fichier: 'packages/sdk-browser/webgpuPagesPrepare.ts',
   cas: casPages,
   calcul: passeCones(prepareCones),
@@ -57,8 +57,17 @@ const resCones = await mesure({
   options: { tours: 40, budgetMs: 1500 },
 });
 
+const resOctets = await mesure({
+  nom: 'table des octets source',
+  fichier: 'packages/sdk-browser/webgpuPagesCatalogue.ts',
+  cas: casPages,
+  calcul: indexSourceBytes,
+  attendu: referenceIndexSourceBytes,
+  options: { tours: 60, budgetMs: 1500 },
+});
+
 const resDiagnostic = await mesure({
-  nom: 'F18 compteurs du diagnostic des textures',
+  nom: 'compteurs du diagnostic des textures',
   fichier: 'packages/sdk-browser/webgpuPagesCatalogue.ts',
   cas: [
     { nom: '20 000 pages, 4 000 blocs', entree: { pages, blocs }, taille: 24000 },
@@ -76,4 +85,8 @@ await stress({
   extremes: [{ nom: 'vide', entree: [] }],
 });
 
-rapport('f-cones', [resCones, resDiagnostic], 'F18 calcule exactement les mêmes cônes et diagnostics');
+rapport(
+  'cones-normaux',
+  [resCones, resOctets, resDiagnostic],
+  'F18 rend exactement les mêmes cônes, les mêmes octets et les mêmes comptes',
+);

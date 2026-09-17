@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { rasterVisibilityIds, shadeVisibility } from './visibilityBuffer.ts';
-import { referenceShadeVisibility } from './bench/oracles/ombrage.mjs';
+import { referenceShadeVisibility } from './bench/oracles/ombrage-image.mjs';
 import { cameraAt, quad } from '../../test/fixtures/hiz.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 
