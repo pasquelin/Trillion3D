@@ -135,9 +135,19 @@ function sortPlanFarToNear(order: Uint32Array, items: readonly BlendGpuItem[]) {
  *
  * Les tranches ne dépendent que de l'ordre : un classement qui n'a rien bougé les laisse telles
  * quelles, et la carte n'a alors rien à relire. Rend le nombre d'items que le tronc a rejetés.
+ *
+ * SANS ŒIL, RIEN N'EST PEINT, et les tranches sont explicitement vidées. Cette fonction ne tient
+ * plus seulement l'ordre : elle tient le verdict du tronc et le découpage, et des tranches laissées
+ * là décriraient un ordre que l'image n'a pas classé — pire, un plan re-semé d'une autre longueur
+ * depuis les indexerait hors de lui. Une image sans caméra n'a pas d'ordre de peinture ; elle ne
+ * peint donc pas.
  */
 export function orderBlendPasses(blendState: BlendState, eye: ArrayLike<number> | undefined) {
-  if (!eye || !blendState.blendGpu.length) return 0;
+  if (!eye || !blendState.blendGpu.length) {
+    blendState.runCount[0] = 0;
+    blendState.runCount[1] = 0;
+    return 0;
+  }
   refreshEyeKeys(blendState, eye);
   const rejected = rejectByFrustum(blendState);
   const items = blendState.blendGpu,
