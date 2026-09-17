@@ -4,7 +4,7 @@ import { webgpuPagesBackend } from './webgpuPages.ts';
 import { collectClusterPages } from './pageSelection.ts';
 import { packDagSelection } from './gpuDagSelection.ts';
 import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { drawnPageIds, installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { camera } from './webgpuPagesTestScenes.ts';
 import { twoCoarseQuadsScene } from './webgpuPagesTestOccluder.ts';
@@ -18,7 +18,8 @@ test('GPU camera jumps reclaim detail slots while preserving pinned coarse cover
     fixture.indices,
     fixture.associations,
   );
-  const { device, draws } = mockGpu(undefined, packDagSelection(collected.roots));
+  const packed = packDagSelection(collected.roots);
+  const { device, draws, buffers } = mockGpu(undefined, packed);
   const backend = webgpuPagesBackend({
     ...fixture,
     gpuDevice: device,
@@ -36,7 +37,7 @@ test('GPU camera jumps reclaim detail slots while preserving pinned coarse cover
         draws.length = 0;
         backend.render(cam);
         assert.ok(
-          draws.filter((draw) => draw.indirect).some((draw) => !!draw.instanceCount),
+          drawnPageIds(buffers, packed.nodeCount, packed.pageCount).length > 0,
           'current cut must retain visible coverage',
         );
         await backend.flush();

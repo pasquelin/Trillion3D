@@ -56,3 +56,27 @@ export function compactDrawnPages(
   for (let id = 0; id < pageCount; id++) if (marks[nodeCount + id]) out[base + 4 + found++] = id;
   out[base] = found;
 }
+
+/**
+ * Les pages que le masque de l'IMAGE EN COURS nomme, lues là où la carte les pose :
+ * `flags[nodeCount + id]` dans le tampon de la coupe. C'est ce que le raster de calcul consomme sur
+ * place depuis b72278c6, et non le relevé d'une image passée — les tests qui comptaient les
+ * instances d'une commande indirecte comptaient l'ancien chemin matériel, qui ne porte plus la
+ * géométrie opaque.
+ */
+export function drawnPageIds(
+  buffers: ReadonlyArray<{ label?: string; data: Uint8Array }>,
+  nodeCount: number,
+  pageCount: number,
+) {
+  const buffer = buffers.find((entry) => entry.label === 'WG DAG flags');
+  if (!buffer) throw new Error('WG DAG flags buffer absent');
+  const marks = new Uint32Array(
+    buffer.data.buffer,
+    buffer.data.byteOffset,
+    buffer.data.byteLength / 4,
+  );
+  const ids: number[] = [];
+  for (let id = 0; id < pageCount; id++) if (marks[nodeCount + id]) ids.push(id);
+  return ids;
+}

@@ -57,6 +57,7 @@ export async function createDagResources(
     // liste des candidates — qui sert aussi de journal des dessinées de l'image précédente —, puis
     // les files qui restent : jamais lus par le CPU, qui ne copie toujours que les drapeaux de dessin.
     const flags = device.createBuffer({
+      label: 'WG DAG flags',
       size: Math.max(16, (nodeCount * LEVEL_QUEUES + pageCount * 4) * 4),
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
@@ -68,6 +69,7 @@ export async function createDagResources(
     });
     device.queue.writeBuffer(dispatchArgs, 0, new Uint32Array([0, 1, 1, 0]));
     const output = device.createBuffer({
+      label: 'WG DAG readback',
       size: readbackBytes,
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });

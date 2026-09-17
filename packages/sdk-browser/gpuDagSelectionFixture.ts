@@ -28,7 +28,8 @@ export function mockDagDevice(
   type Buf = { size: number; usage: number; data: Uint8Array };
   let bind: { entries: Array<{ binding: number; resource: { buffer: Buf } }> } | undefined;
   let pipeline: { entryPoint: string } | undefined,
-    uniformWriteCount = 0;
+    uniformWriteCount = 0,
+    copyCount = 0;
   const readUniforms = (data: Uint8Array) => {
     const f32 = new Float32Array(data.buffer, data.byteOffset, data.byteLength / 4);
     const u32 = new Uint32Array(data.buffer, data.byteOffset, data.byteLength / 4);
@@ -132,6 +133,9 @@ export function mockDagDevice(
         end() {},
       }),
       copyBufferToBuffer(src: Buf, s: number, dst: Buf, d: number, size: number) {
+        // Les recopies d'armement vont vers l'argument de répartition ; seule celle qui vise une
+        // fente relisible est le relevé, et c'est elle seule qu'une image paie en latence de carte.
+        if (dst.usage & 1) copyCount++;
         dst.data.set(src.data.subarray(s, s + size), d);
       },
       finish: () => ({}),
@@ -153,5 +157,10 @@ export function mockDagDevice(
       onSubmittedWorkDone: async () => {},
     },
   };
-  return { device: device as unknown as GPUDevice, uniformWrites: () => uniformWriteCount };
+  return {
+    device: device as unknown as GPUDevice,
+    uniformWrites: () => uniformWriteCount,
+    /** Les recopies vers une fente RELISIBLE : une par relecture due, jamais une par envoi. */
+    readbackCopies: () => copyCount,
+  };
 }
