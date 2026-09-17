@@ -9,9 +9,9 @@ import type { CutCounts } from './webgpuCutCounts.ts';
  * Applies a completed readback without letting it decide the current-frame draw mask.
  *
  * The readback is taken as a difference: a cut this adopter has already seen enters and leaves no
- * page at all, and a cut that moved names only what moved. `desired` keeps that difference as its
- * opaque head and the transparent cut as its tail, so the steps that follow read a set that survived
- * the previous image rather than one rebuilt from fifteen thousand records.
+ * page at all, and a cut that moved names only what moved. `desired` IS that difference's list — un
+ * seul catalogue pour une seule coupe, opaque et transparent mêlés —, si bien que les étapes qui
+ * suivent lisent un ensemble qui a survécu à l'image précédente, et non un ensemble rebâti.
  */
 export function createWebgpuCutAdopter(options: {
   selection: () => GpuSelection | undefined;

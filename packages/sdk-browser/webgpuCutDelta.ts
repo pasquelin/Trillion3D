@@ -7,16 +7,17 @@ export type CutDelta = ReturnType<typeof createCutDelta>;
  * pages that entered and left since the previous cut, so every consumer downstream reads a difference
  * instead of a list.
  *
- * `pages` — the record array the caller owns — is written in the order the readback published, which
- * is the order the page budget ranks and the host streams in; whatever the caller appended after the
- * cut (the transparent cut, which the GPU never selects) is dropped on every update and re-appended
- * by the caller. Un appelant qui ne veut que la différence l'omet : aucune liste d'enregistrements
- * n'est alors bâtie, et le relevé ne coûte plus que sa propre longueur.
+ * `pages` — the record array the caller owns — is written in the order the cut published, which is
+ * the order the host streams in. Un appelant qui ne veut que la différence l'omet : aucune liste
+ * d'enregistrements n'est alors bâtie, et le relevé ne coûte plus que sa propre longueur.
  *
  * Rien n'est alloué une fois la scène connue, et rien n'est appelé par page : l'appartenance est une
  * marque d'époque lue à même un tableau typé — l'époque du relevé pour le dédoublonnage, celle du
  * relevé précédent pour l'entrée —, les sorties se lisent sur la liste des retenues d'avant, et une
  * image qui adopte le relevé qu'elle tient déjà n'écrit rien du tout.
+ *
+ * La coupe de la carte y arrive par ses identifiants (`apply`), celle du processeur par ses
+ * enregistrements (`adoptRecords`) : un seul contrat, et les lecteurs ne savent pas laquelle décide.
  */
 export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[]) {
   const capacity = Math.max(1, packedPages.length);
