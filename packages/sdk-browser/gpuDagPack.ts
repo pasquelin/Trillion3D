@@ -1,7 +1,7 @@
 import { maxStretch, worldToRenderOrigin } from '../sdk-core/index.ts';
 import { leafCone, PAGE_CONE_FLOATS, SELECTION_NONE as NONE } from './gpuSelection.ts';
 import { DAG_NODE_FLOATS, CULL_STRIDE, type DagRoot, type PackedDag } from './gpuDagTypes.ts';
-import { flatHierarchy, hierarchyDepth } from './gpuDagHierarchy.ts';
+import { flatHierarchy, hierarchyLevelSizes } from './gpuDagHierarchy.ts';
 import {
   CLUSTER_WORDS,
   COLD_CONE,
@@ -38,13 +38,19 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
   // donne. Un seul chemin, et la descente par niveaux n'a jamais de plage de pages sans racine.
   const cullings = roots.map((root) => root.culling ?? flatHierarchy(root.pages));
   let clusterCount = 0,
-    nodeCount = 0,
-    levelCount = 0;
+    nodeCount = 0;
+  // Les étages de toutes les primitives, additionnés étage par étage : la file de la passe `L` ne
+  // porte que des nœuds de l'étage `L`, ce total la majore donc, et la passe se lance à plat.
+  const levelTotals: number[] = [];
   for (let w = 0; w < roots.length; w++) {
     clusterCount += roots[w].pages.length;
     nodeCount += cullings[w].nodes.length / cullings[w].stride;
-    levelCount = Math.max(levelCount, hierarchyDepth(cullings[w].nodes, cullings[w].stride));
+    const sizes = hierarchyLevelSizes(cullings[w].nodes, cullings[w].stride);
+    for (let level = 0; level < sizes.length; level++)
+      levelTotals[level] = (levelTotals[level] ?? 0) + sizes[level];
   }
+  const levelSizes = Uint32Array.from(levelTotals),
+    levelCount = levelSizes.length;
   // L'enregistrement chaud ne porte que ce que les cinq passes d'une image relisent toutes ; le
   // nœud propriétaire et le cône partent au froid, que la seule passe d'ouverture lit.
   const clusters = new Float32Array(Math.max(1, clusterCount) * CLUSTER_WORDS),
@@ -148,6 +154,7 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
     worldStretch,
     rootNodes,
     levelCount,
+    levelSizes,
     nodeCount,
     worldCount: roots.length,
     pageCount: clusterCount,
