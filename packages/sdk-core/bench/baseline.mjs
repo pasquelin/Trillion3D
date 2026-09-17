@@ -62,23 +62,57 @@ export function sauveBaseline(domaine, mesures) {
 }
 
 /**
- * Compare des résultats à une baseline. Retourne un objet résumé avec le verdict global
- * et les cas en régression.
+ * Les deux seuils d'une régression, écrits ICI et nulle part ailleurs.
+ *
+ * Ils vivaient en trois exemplaires : ces deux-là, que personne n'appelait, et deux jeux dans
+ * `scripts/mesure/perf/agrege.mjs` — l'un pour les pastilles du tableau, l'autre pour le résumé.
+ * Les deux derniers se contredisaient : un écart de +14 % s'affichait en avertissement dans le
+ * tableau et se comptait comme régression dans la conclusion de ce même tableau.
  */
-export function compareBaseline(resultats, baseline, options = {}) {
-  const { seuilWarning = 0.1, seuilEchec = 0.25 } = options;
-  if (!baseline?.resultats) return { verdict: 'absent', regressions: [], warnings: [] };
-  const warnings = [],
+export const SEUIL_AVERTISSEMENT = 0.1;
+export const SEUIL_ECHEC = 0.25;
+
+/**
+ * Le niveau d'un écart : `absent` quand il n'y a pas de baseline pour ce cas, puis `ok`,
+ * `avertissement` et `echec`. Une seule règle, que la pastille d'une ligne et le verdict d'un
+ * rapport lisent tous les deux.
+ */
+export function niveauEcart(ecart, options = {}) {
+  const { seuilAvertissement = SEUIL_AVERTISSEMENT, seuilEchec = SEUIL_ECHEC } = options;
+  if (ecart === null || ecart === undefined || Number.isNaN(ecart)) return 'absent';
+  if (ecart > seuilEchec) return 'echec';
+  if (ecart > seuilAvertissement) return 'avertissement';
+  return 'ok';
+}
+
+/**
+ * Le verdict d'un lot de mesures, à partir des écarts que `mesure.mjs` a déjà calculés contre la
+ * baseline. Il ne REFAIT pas ce calcul : un écart calculé deux fois est un écart qui peut diverger,
+ * et `mesure.mjs` est le seul à tenir la baseline au moment où il mesure.
+ *
+ * `absent` quand aucun cas n'a de baseline : il n'y a alors rien à conclure, ce qui n'est pas la
+ * même chose que « rien n'a ralenti ».
+ */
+export function compareBaseline(resultats, options = {}) {
+  const { seuilAvertissement = SEUIL_AVERTISSEMENT, seuilEchec = SEUIL_ECHEC } = options;
+  const seuils = { seuilAvertissement, seuilEchec };
+  const avertissements = [],
     regressions = [];
+  let compares = 0;
   for (const r of resultats) {
-    const base = baseline.resultats.find((b) => b.nom === r.nom);
-    if (!base) continue;
-    const ecart = (r.medianeMs - base.medianeMs) / base.medianeMs;
-    if (ecart > seuilEchec)
-      regressions.push({ nom: r.nom, ecart, base: base.medianeMs, actuel: r.medianeMs });
-    else if (ecart > seuilWarning)
-      warnings.push({ nom: r.nom, ecart, base: base.medianeMs, actuel: r.medianeMs });
+    const niveau = niveauEcart(r.ecartBaseline, seuils);
+    if (niveau === 'absent') continue;
+    compares++;
+    const cas = { nom: r.nom, ecart: r.ecartBaseline };
+    if (niveau === 'echec') regressions.push(cas);
+    else if (niveau === 'avertissement') avertissements.push(cas);
   }
-  const verdict = regressions.length > 0 ? 'echec' : warnings.length > 0 ? 'warning' : 'ok';
-  return { verdict, regressions, warnings };
+  const verdict = !compares
+    ? 'absent'
+    : regressions.length
+      ? 'echec'
+      : avertissements.length
+        ? 'avertissement'
+        : 'ok';
+  return { verdict, compares, regressions, avertissements, ...seuils };
 }
