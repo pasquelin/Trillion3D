@@ -23,7 +23,8 @@ import { planItem, planPipeline, planShared } from './webgpuBlendPlan.ts';
 
 /** Les deux passes : le mélange, puis la transmission sur le fond figé. */
 export const EXPAND_PASSES = 2;
-/** Les entrées de plan qu'un fil de comptage du noyau couvre. */
+/** Les entrées de plan qu'un GROUPE de fils du noyau couvre, et donc ses fils : le nuanceur
+ *  interpole cette valeur dans ses `@workgroup_size`, si bien que les deux ne peuvent pas diverger. */
 export const EXPAND_GROUP = 64;
 /**
  * DEUX mots par tranche : sa première entrée et leur nombre, et rien de plus.
@@ -109,6 +110,53 @@ export function planRegions(maxEntries: number) {
       args: pass * maxEntries * 4,
     });
   return regions;
+}
+
+/**
+ * LES DOUZE MOTS D'UNIFORME DU NOYAU D'ÉTALEMENT, écrits une seule fois.
+ *
+ * Trois écritures et une lecture les partagent : l'encodage de production, la preuve « carte =
+ * modèle », le double de test, et la structure que le nuanceur déclare. Réordonner un mot dans
+ * l'une des quatre laissait les trois autres compiler et passer en lisant les mauvais champs — soit
+ * exactement les dispositifs censés attraper la dérive. Ils lisent tous ici.
+ */
+const UNI_FIELDS = [
+  'entryCount',
+  'groupCount',
+  'runCount',
+  'instanceBase',
+  'argsBase',
+  'maxVertexWords',
+  'vertexShift',
+  'orderBase',
+  'runsBase',
+] as const;
+export const UNI_WORDS = 12;
+export const EXPAND_UNI = Object.fromEntries(UNI_FIELDS.map((nom, rang) => [nom, rang])) as Record<
+  (typeof UNI_FIELDS)[number],
+  number
+>;
+/** La déclaration WGSL de ces mots, dans le même ordre, remplissage compris. */
+export const expandUniformWgsl = () =>
+  `struct Uni{${UNI_FIELDS.map((nom) => `${nom}:u32,`).join('')}pad0:u32,pad1:u32,pad2:u32,}`;
+
+/** Les écrit dans `out`, au rang que chacun occupe. */
+export function blendExpandUniform(
+  out: Uint32Array,
+  counts: { entries: number; runs: number; instanceBase: number },
+  region: { order: number; runs: number; args: number },
+  scene: { maxVertexWords: number; vertexShift: number },
+) {
+  out[EXPAND_UNI.entryCount] = counts.entries;
+  out[EXPAND_UNI.groupCount] = Math.ceil(Math.max(1, counts.entries) / EXPAND_GROUP);
+  out[EXPAND_UNI.runCount] = counts.runs;
+  out[EXPAND_UNI.instanceBase] = counts.instanceBase;
+  out[EXPAND_UNI.argsBase] = region.args;
+  out[EXPAND_UNI.maxVertexWords] = scene.maxVertexWords;
+  out[EXPAND_UNI.vertexShift] = scene.vertexShift;
+  out[EXPAND_UNI.orderBase] = region.order;
+  out[EXPAND_UNI.runsBase] = region.runs;
+  return out;
 }
 
 /** Les mots que le plan et la mémoire de travail du noyau occupent pour toute la scène. */
