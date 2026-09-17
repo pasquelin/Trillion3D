@@ -4,7 +4,8 @@
 //! installer et rien ne part sur le réseau. Chaque ligne montre la texture en couleur, la même en
 //! noir et blanc — le blanc est ce qui se voit, le noir ce qui disparaît —, ses nombres, et un
 //! interrupteur déjà positionné sur la proposition du compilateur. Le bouton d'enregistrement rend
-//! une feuille de réponses au format que `sheet.rs` écrit et que `cutout.rs` relit.
+//! la feuille que le compilateur vient d'écrire, réponses changées : la page emporte cette feuille
+//! telle quelle et n'en connaît qu'un champ, ce qui empêche les deux formats de diverger.
 //!
 //! Les vignettes voyagent en pixels bruts : la page les repeint sur une toile, ce qui évite
 //! d'emporter un encodeur d'image dans le compilateur.
@@ -12,17 +13,18 @@ use super::*;
 
 const TEMPLATE: &str = include_str!("page.html");
 
-pub(crate) fn write_page(path: &Path, entries: &[Entry], model: &str) -> Result<()> {
+pub(crate) fn write_page(path: &Path, entries: &[Entry], sheet: &Value, model: &str) -> Result<()> {
     let rows: Vec<Value> = entries
         .iter()
         .map(|entry| {
-            json!({"sha256":entry.sha256,"image":entry.name,"weight":entry.weight,
+            json!({"sha256":entry.sha256,"weight":entry.weight,
                 "width":entry.thumbnail_size.0,"height":entry.thumbnail_size.1,
-                "pixels":base64(&entry.thumbnail),"measure":entry.shape,
-                "proposal":entry.proposal,"answer":entry.answer})
+                "pixels":base64(&entry.thumbnail)})
         })
         .collect();
-    let data = serde_json::to_string(&json!({"model":model,"textures":rows}))?;
+    // La feuille voyage telle qu'elle vient d'être écrite : la page la réécrit en ne changeant que
+    // les réponses, donc son format — numéro de version compris — n'existe qu'à un seul endroit.
+    let data = serde_json::to_string(&json!({"model":model,"sheet":sheet,"textures":rows}))?;
     // `</script>` dans une chaîne fermerait la balise qui la porte : la seule séquence à neutraliser.
     let page = TEMPLATE.replace("\"__DONNEES__\"", &data.replace("</", "<\\/"));
     atomic(path, page.as_bytes())
