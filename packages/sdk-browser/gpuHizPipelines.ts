@@ -1,28 +1,11 @@
-import { HIZ_SHADER } from './gpuHizShader.ts';
+import { HIZ_SHADER, hizBindEntries } from './gpuHizShader.ts';
 import { dropValidation, openValidation, validationError } from './gpuErrorScope.ts';
 import { shaderFailed } from './gpuShaderModule.ts';
 
 /** Compile the three Hi-Z kernels under one device validation scope. */
 export async function createHizPipelines(device: GPUDevice, uniformBytes: number) {
   openValidation(device);
-  const layout = device.createBindGroupLayout({
-    entries: [
-      { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-      {
-        binding: 1,
-        visibility: GPUShaderStage.COMPUTE,
-        texture: { sampleType: 'unfilterable-float' },
-      },
-      {
-        binding: 2,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: uniformBytes },
-      },
-      { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-      { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-      { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-    ],
-  });
+  const layout = device.createBindGroupLayout({ entries: hizBindEntries(uniformBytes) });
   const module = device.createShaderModule({ code: HIZ_SHADER });
   if (await shaderFailed(device, module)) return undefined;
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
