@@ -109,8 +109,8 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
      * `limited` dit que la couverture demandée ne tient pas dans les fentes : le budget est alors
      * nul, la file se vide, et l'image s'en tient à la couverture épinglée.
      */
-    queueCutResidency(desired: readonly PageRec[], limited = false) {
-      sets.applyBudget(limited ? 0 : options.room, desired);
+    queueCutResidency(limited = false) {
+      sets.applyBudget(limited ? 0 : options.room);
       follow();
     },
     nextJobId: () => ++job,
