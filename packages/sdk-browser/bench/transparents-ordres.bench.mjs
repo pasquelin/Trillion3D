@@ -65,9 +65,21 @@ function tourOptimisee(images, sequence) {
   return sortie;
 }
 
+/** Les deux miroirs que le repli processeur écrit : le banc les tient, comme l'appareil les tient. */
+const miroirs = new Map();
+const miroirDe = (blendState) => {
+  if (!miroirs.has(blendState))
+    miroirs.set(blendState, {
+      expanded: new Uint32Array(blendState.instanceCapacity * 2),
+      args: new Uint32Array(blendState.maxPlanEntries * 8),
+    });
+  return miroirs.get(blendState);
+};
+
 /** L'étalement du repli processeur, relu en plages d'indices : ce que le rasteriseur verrait. */
 function etale(blendState, sortie) {
-  const items = blendState.blendGpu;
+  const items = blendState.blendGpu,
+    miroir = miroirDe(blendState);
   const instances = expandBlendPlan({
     order: blendState.orderBlend,
     runs: blendState.runsBlend,
@@ -80,10 +92,10 @@ function etale(blendState, sortie) {
     vertexShift: blendState.vertexShift,
     instanceBase: 0,
     argsBase: 0,
-    expanded: blendState.expandedPacked,
-    args: blendState.argsPacked,
+    expanded: miroir.expanded,
+    args: miroir.args,
   });
-  const liste = blendState.expandedPacked;
+  const liste = miroir.expanded;
   let at = 0;
   for (let i = 0; i < instances; i++) {
     const item = liste[i * 2],
