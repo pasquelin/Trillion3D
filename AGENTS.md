@@ -100,6 +100,7 @@ This project has a knowledge graph at graphify-out/ with god nodes, community st
 Rules:
 
 - ALWAYS read graphify-out/GRAPH_REPORT.md before reading any source files, running grep/glob searches, or answering codebase questions. The graph is your primary map of the codebase.
-- IF graphify-out/wiki/index.md EXISTS, navigate it instead of reading raw files
+- Navigate graphify-out/wiki/index.md instead of reading raw files. The wiki is not committed — it is rebuilt from the graph for free, with no LLM, by `graphify export wiki`; generate it when the folder is missing rather than falling back to grep
 - For cross-module "how does X relate to Y" questions, prefer `graphify query "<question>"`, `graphify path "<A>" "<B>"`, or `graphify explain "<concept>"` over grep — these traverse the graph's EXTRACTED + INFERRED edges instead of scanning files
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+- After modifying code, run `graphify update .` then `pnpm run graphify:libelles` to keep the graph current (AST-only, no API cost). The update reclusters and flattens every community name back to a filename; the second command gives them back their meaning, from the witnesses kept in `scripts/graphify-communautes.json`. The post-commit hook rebuilds in the background and does not run the second step
+- After changing docs, specs or READMEs, only `/graphify --update` refreshes what the graph knows of them — no CLI does it, and it costs tokens
