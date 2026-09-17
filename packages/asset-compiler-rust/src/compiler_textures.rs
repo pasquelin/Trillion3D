@@ -35,7 +35,7 @@ pub(super) fn stage_textures(
             image_root: stage.image_root,
             meshes: stage.meshes,
             view_map: stage.view_map,
-            answered: &stage.applied.answered,
+            to_measure: &stage.applied.to_measure(),
         })?;
     let weights = cutout::draw_weights(stage.primitives, &stage.applied.materials_by_texture);
     let entries = cutout::entries(stage.g, &previews, &shapes, stage.decisions, &weights);
@@ -47,14 +47,16 @@ pub(super) fn stage_textures(
         .file_name()
         .map(|name| name.to_string_lossy().to_string())
         .unwrap_or_default();
-    cutout::write_sheet(&sheet, &entries, stage.decisions)?;
-    cutout::write_page(&page, &entries, &model)?;
+    let written = cutout::build_sheet(&entries, stage.decisions);
+    cutout::write_sheet(&sheet, &written)?;
+    cutout::write_page(&page, &entries, &written, &model)?;
     let pending = entries
         .iter()
         .filter(|entry| entry.answer.is_none())
         .count();
-    let report = json!({"sheet":sheet.to_string_lossy(),"page":page.to_string_lossy(),
-        "textures":entries.len(),"pending":pending,"applied":stage.applied.report});
+    let report = json!({"version":cutout::SHEET_VERSION,"sheet":sheet.to_string_lossy(),
+        "page":page.to_string_lossy(),"textures":entries.len(),"pending":pending,
+        "changes":stage.applied.report(stage.decisions)});
     progress(
         json!({"phase":"cutouts","completed":1,"total":1,"pending":pending,
         "page":page.to_string_lossy()}),

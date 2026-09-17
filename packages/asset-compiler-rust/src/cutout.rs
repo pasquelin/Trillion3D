@@ -23,16 +23,17 @@ mod tests;
 pub(crate) use apply::{apply_decisions, CutoutApplied};
 pub(crate) use measure::{measure, AlphaShape};
 pub(crate) use page::write_page;
-pub(crate) use sheet::{draw_weights, entries, write_sheet, Entry};
+pub(crate) use sheet::{build_sheet, draw_weights, entries, write_sheet, Entry};
 
 /// Le nom de la feuille de réponses et celui de la page qui sert à la remplir. Les deux vivent à la
 /// racine du modèle compilé : un chemin stable, que la clé de compilation ne déplace pas et que la
 /// purge du cache ne touche pas.
 pub const DECISIONS_FILE: &str = "decoupes.json";
 pub const PAGE_FILE: &str = "decoupes.html";
-/// Version de la feuille. Un numéro inconnu est refusé plutôt que deviné : une réponse mal lue
-/// changerait l'image sans que personne l'ait demandé.
-const DECISIONS_VERSION: u64 = 1;
+/// Version du contrat de la feuille, publiée dans le rapport de compilation : elle gouverne les
+/// RÉPONSES qu'un lecteur y écrit, et rien d'autre. Un numéro inconnu est refusé plutôt que deviné,
+/// une réponse mal lue changerait l'image sans que personne l'ait demandé.
+pub const SHEET_VERSION: u64 = 1;
 /// Le seuil auquel un matériau reclassé découpe, celui de glTF par défaut.
 pub(crate) const CUTOUT_ALPHA: f64 = 0.5;
 
@@ -102,7 +103,7 @@ fn read_answers(path: &Path, bytes: &[u8]) -> Result<BTreeMap<String, bool>> {
     let refuse = |message: String| CompilerError::new("INVALID_CUTOUT_DECISIONS", message);
     let parsed: Value = serde_json::from_slice(bytes)
         .map_err(|error| refuse(format!("{} is not readable JSON: {error}", path.display())))?;
-    if parsed.get("version").and_then(Value::as_u64) != Some(DECISIONS_VERSION) {
+    if parsed.get("version").and_then(Value::as_u64) != Some(SHEET_VERSION) {
         return Err(refuse(format!(
             "{} declares an unknown version",
             path.display()

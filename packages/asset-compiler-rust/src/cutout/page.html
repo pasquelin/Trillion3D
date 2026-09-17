@@ -39,8 +39,11 @@
     <script>
       const DONNEES = "__DONNEES__";
       const liste = document.getElementById('liste');
+      const feuille = DONNEES.sheet;
+      const fiche = (texture) => feuille.textures[texture.sha256];
+      const propose = (texture) => fiche(texture).proposal === 'cutout';
       const textures = [...DONNEES.textures].sort((a, b) => b.weight - a.weight);
-      const reponses = new Map(textures.map((t) => [t.sha256, t.answer ?? t.proposal]));
+      const reponses = new Map(textures.map((t) => [t.sha256, fiche(t).cutout ?? propose(t)]));
 
       function pixels(texture) {
         const brut = atob(texture.pixels);
@@ -49,35 +52,30 @@
         return octets;
       }
 
+      // Le damier dit les trous : sans lui, une feuille découpée sur fond blanc paraît pleine.
       function toile(texture, octets, alphaSeul) {
         const canvas = document.createElement('canvas');
         canvas.width = texture.width;
         canvas.height = texture.height;
         const dessin = canvas.getContext('2d');
-        if (!alphaSeul) {
-          for (let y = 0; y < texture.height; y += 8) {
-            for (let x = 0; x < texture.width; x += 8) {
-              dessin.fillStyle = ((x + y) / 8) % 2 ? '#bbb' : '#eee';
-              dessin.fillRect(x, y, 8, 8);
-            }
+        for (let y = 0; y < texture.height; y += 8) {
+          for (let x = 0; x < texture.width; x += 8) {
+            dessin.fillStyle = ((x + y) / 8) % 2 ? '#bbb' : '#eee';
+            dessin.fillRect(x, y, 8, 8);
           }
         }
-        const image = dessin.createImageData(texture.width, texture.height);
+        const texels = document.createElement('canvas');
+        texels.width = texture.width;
+        texels.height = texture.height;
+        const image = new ImageData(texture.width, texture.height);
         for (let at = 0; at < octets.length; at += 4) {
           const alpha = octets[at + 3];
-          image.data[at] = alphaSeul ? alpha : octets[at];
-          image.data[at + 1] = alphaSeul ? alpha : octets[at + 1];
-          image.data[at + 2] = alphaSeul ? alpha : octets[at + 2];
+          for (let canal = 0; canal < 3; canal += 1)
+            image.data[at + canal] = alphaSeul ? alpha : octets[at + canal];
           image.data[at + 3] = alphaSeul ? 255 : alpha;
         }
-        if (alphaSeul) dessin.putImageData(image, 0, 0);
-        else {
-          const dessus = document.createElement('canvas');
-          dessus.width = texture.width;
-          dessus.height = texture.height;
-          dessus.getContext('2d').putImageData(image, 0, 0);
-          dessin.drawImage(dessus, 0, 0);
-        }
+        texels.getContext('2d').putImageData(image, 0, 0);
+        dessin.drawImage(texels, 0, 0);
         return canvas;
       }
 
@@ -107,32 +105,24 @@
         const texte = document.createElement('div');
         const nom = document.createElement('div');
         nom.className = 'nom';
-        nom.textContent = texture.image;
+        nom.textContent = fiche(texture).image;
         const mesure = document.createElement('div');
         mesure.className = 'mesure';
-        const m = texture.measure;
+        const m = fiche(texture).measure;
         mesure.textContent =
           `${m.betweenPercent} % de pixels entre les deux, dont ${m.atContourPercent} % ` +
           `collés au contour (à ${m.band} pixels ou moins) · ${m.absentPercent} % de vide · ` +
-          `proposition : ${texture.proposal ? 'découpe' : 'vitre'}` +
-          (texture.answer === null ? ' · jamais tranchée' : '');
+          `proposition : ${propose(texture) ? 'découpe' : 'vitre'}` +
+          (fiche(texture).cutout == null ? ' · jamais tranchée' : '');
         texte.append(nom, mesure);
         bloc.append(toile(texture, octets, false), toile(texture, octets, true), texte, choix(texture));
         return bloc;
       }
 
-      function feuille() {
-        const sortie = {};
-        for (const texture of textures) {
-          sortie[texture.sha256] = {
-            image: texture.image,
-            used: true,
-            measure: texture.measure,
-            proposal: texture.proposal ? 'cutout' : 'blend',
-            cutout: reponses.get(texture.sha256),
-          };
-        }
-        return { version: 1, textures: sortie };
+      function repondue() {
+        const sortie = structuredClone(feuille);
+        for (const [sha256, cutout] of reponses) sortie.textures[sha256].cutout = cutout;
+        return sortie;
       }
 
       function resume() {
@@ -142,7 +132,7 @@
       }
 
       document.getElementById('enregistrer').addEventListener('click', async () => {
-        const blob = new Blob([JSON.stringify(feuille(), null, 2)], { type: 'application/json' });
+        const blob = new Blob([JSON.stringify(repondue(), null, 2)], { type: 'application/json' });
         if (window.showSaveFilePicker) {
           try {
             const cible = await window.showSaveFilePicker({ suggestedName: 'decoupes.json' });

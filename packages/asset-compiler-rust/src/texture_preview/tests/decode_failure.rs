@@ -21,7 +21,7 @@ fn stage_one_texture(dir: &Path) -> (Vec<TexturePreview>, Value) {
         image_root: dir,
         meshes: &meshes,
         view_map: &view_map,
-        answered: &BTreeSet::new(),
+        to_measure: &BTreeSet::new(),
     })
     .expect("une texture illisible ne fait jamais échouer la compilation");
     (previews, report)

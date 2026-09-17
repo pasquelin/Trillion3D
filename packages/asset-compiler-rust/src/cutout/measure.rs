@@ -16,8 +16,10 @@ use super::*;
 /// sans rien concéder sur le reste de l'échelle.
 const ABSENT: u8 = 8;
 const PRESENT: u8 = 247;
-/// Le contour dont on mesure la distance : le seuil de découpe par défaut de glTF, en octet.
-const CONTOUR: u8 = 128;
+/// Le contour dont on mesure la distance : le seuil auquel un matériau reclassé découpe, en octet.
+/// Il se dérive de ce seuil et n'est pas réécrit : sinon la mesure dirait « collé au contour » d'un
+/// bord où le matériau ne découpe pas.
+const CONTOUR: u8 = (CUTOUT_ALPHA * 255.0 + 0.5) as u8;
 /// Distance au contour, en pixels, en deçà de laquelle un texel intermédiaire est « collé au bord ».
 /// Le feuillage mesuré adoucit son bord sur deux à huit pixels ; la bande retient ce pire cas.
 const BAND: u8 = 8;
@@ -29,6 +31,7 @@ const MIN_AT_CONTOUR: f32 = 0.70;
 
 /// Ce que la mesure a vu, en parts du nombre de texels — sauf `at_contour`, qui est une part des
 /// seuls intermédiaires : c'est leur emplacement qui distingue les deux formes, pas leur nombre.
+#[derive(Default)]
 pub(crate) struct AlphaShape {
     pub texels: u64,
     pub absent: f32,
@@ -46,14 +49,14 @@ impl AlphaShape {
             && self.between <= MAX_BETWEEN
             && self.at_contour >= MIN_AT_CONTOUR
     }
-    /// Les nombres tels que le rapport et la page les montrent, arrondis au dixième de pour-cent :
-    /// ce sont des parts lues à l'œil, pas des grandeurs dont un consommateur dérive un calcul.
+    /// Les nombres tels que la feuille et la page les montrent, arrondis au dixième de pour-cent :
+    /// ce sont des parts lues à l'œil, pas des grandeurs dont un consommateur dérive un calcul. La
+    /// proposition n'en fait pas partie — c'est un verdict, et la feuille le porte à part.
     pub fn report(&self) -> Value {
         let percent = |share: f32| (f64::from(share) * 1000.0).round() / 10.0;
         json!({"texels":self.texels,"absentPercent":percent(self.absent),
             "presentPercent":percent(self.present),"betweenPercent":percent(self.between),
-            "atContourPercent":percent(self.at_contour),"band":BAND,
-            "proposal":if self.looks_like_cutout() { "cutout" } else { "blend" }})
+            "atContourPercent":percent(self.at_contour),"band":BAND})
     }
 }
 

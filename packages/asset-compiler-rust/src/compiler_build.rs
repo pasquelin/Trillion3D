@@ -50,7 +50,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let g = &loaded.g;
     // L'identité du produit, et non les octets bruts de ce que la source déclare : les mesures d'une
     // conversion en sortent, les images que la scène cite y entrent, les réponses aussi.
-    let key = compiler_identity::cache_key(o, &loaded, &image_root, &cutouts.identity)?;
+    let key = compiler_identity::cache_key(o, &loaded, &image_root, &cutouts.applied)?;
     let mesh_values = values(g, "meshes")?;
     let view_values = values(g, "bufferViews")?;
     let BufferPlan {

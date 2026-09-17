@@ -8,18 +8,28 @@
 use super::*;
 use crate::texture_preview::{collect, source};
 
-/// Ce que l'étape a fait, et ce qu'elle laisse à la page : les textures qu'une réponse a fait
-/// basculer restent montrées, pour qu'un avis puisse être repris.
+/// Ce que l'étape a fait. `applied` est aussi ce qui entre dans l'identité du produit : une réponse
+/// « vitre », un refus, ou une réponse portant sur une texture que cette scène n'emploie pas ne
+/// changent aucun octet et ne doivent donc pas déplacer la clé du cache.
 pub(crate) struct CutoutApplied {
-    pub report: Value,
-    /// Ce qui a vraiment changé la scène, et qui entre à ce titre dans l'identité du produit : les
-    /// liaisons reclassées. Une réponse « vitre », ou une réponse portant sur une texture que cette
-    /// scène n'emploie pas, ne change aucun octet et ne doit donc pas déplacer la clé du cache.
-    pub identity: Value,
-    pub answered: BTreeSet<usize>,
-    /// Les matériaux que chaque texture candidate habille : ce qui permet à la page de montrer
-    /// d'abord les textures qui tiennent le plus de primitives en mélange.
+    pub applied: Vec<Value>,
+    pub refused: Vec<Value>,
+    /// Les matériaux que chaque texture candidate habille. Les clés sont les textures à mesurer —
+    /// l'étape des aperçus les reçoit telles quelles —, et les valeurs servent à montrer d'abord
+    /// celles qui tiennent le plus de primitives en mélange.
     pub materials_by_texture: BTreeMap<usize, BTreeSet<usize>>,
+}
+
+impl CutoutApplied {
+    /// Les textures dont l'alpha est à mesurer : toutes les candidates, y compris celles qu'une
+    /// réponse vient de faire basculer — la page les montre encore, pour qu'un avis soit repris.
+    pub fn to_measure(&self) -> BTreeSet<usize> {
+        self.materials_by_texture.keys().copied().collect()
+    }
+    pub fn report(&self, decisions: &Decisions) -> Value {
+        json!({"decisions":decisions.report(),"candidateTextures":self.materials_by_texture.len(),
+            "applied":self.applied,"refused":self.refused})
+    }
 }
 
 /// Une liaison candidate : un matériau déclaré en mélange dont la couleur de base porte une texture.
@@ -38,22 +48,15 @@ pub(crate) fn apply_decisions(
 ) -> Result<CutoutApplied> {
     let candidates = candidates(g, bin, image_root, meshes)?;
     let (mut applied, mut refused) = (Vec::new(), Vec::new());
-    let (mut answered, mut pending) = (BTreeSet::new(), BTreeSet::new());
     let mut materials_by_texture: BTreeMap<usize, BTreeSet<usize>> = BTreeMap::new();
     for candidate in &candidates {
         materials_by_texture
             .entry(candidate.texture)
             .or_default()
             .insert(candidate.material);
-        match decisions.verdict(&candidate.image_sha) {
-            Some(true) => {}
-            Some(false) => continue,
-            None => {
-                pending.insert(candidate.image_sha.clone());
-                continue;
-            }
+        if decisions.verdict(&candidate.image_sha) != Some(true) {
+            continue;
         }
-        answered.insert(candidate.texture);
         if let Some(reason) = refusal(g, candidate.material) {
             refused.push(json!({"material":candidate.material,"reason":reason}));
             continue;
@@ -73,13 +76,9 @@ pub(crate) fn apply_decisions(
             json!({"material":candidate.material,"texture":candidate.texture,"image":candidate.image_sha}),
         );
     }
-    let identity = json!({ "applied": applied, "refused": refused });
-    let report = json!({"decisions":decisions.report(),"candidates":candidates.len(),
-        "applied":applied,"refused":refused,"pendingTextures":pending.len()});
     Ok(CutoutApplied {
-        report,
-        identity,
-        answered,
+        applied,
+        refused,
         materials_by_texture,
     })
 }
@@ -105,8 +104,10 @@ fn refusal(g: &Value, material: usize) -> Option<&'static str> {
 }
 
 /// Les liaisons candidates de la scène, chacune avec l'empreinte de son image. Une image partagée
-/// n'est lue et hachée qu'une fois ; une image illisible n'est pas une candidate, et l'étape des
-/// aperçus la nommera au rapport comme elle le fait déjà.
+/// n'est lue et hachée qu'une fois DANS CETTE ÉTAPE — l'étape des aperçus relira les mêmes octets
+/// pour les décoder, et le parcours entier est mesuré à 0,08 s sur `emerald-square`, ce qui ne
+/// justifie pas de garder ces octets en mémoire entre les deux. Une image illisible n'est pas une
+/// candidate, et l'étape des aperçus la nommera au rapport comme elle le fait déjà.
 fn candidates(
     g: &Value,
     bin: &[u8],

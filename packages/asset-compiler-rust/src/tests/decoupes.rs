@@ -25,8 +25,7 @@ fn scene_feuillage() -> (PathBuf, Options) {
     let (root, mut options) = cube_fixture();
     let source = options.source.clone();
     fs::write(source.join("feuille.png"), feuille_png()).expect("texture");
-    let mut gltf: Value =
-        serde_json::from_slice(&fs::read(source.join("cube.gltf")).expect("gltf")).expect("json");
+    let mut gltf = read_json(&source.join("cube.gltf"));
     gltf["materials"] = json!([{"alphaMode":"BLEND","name":"feuillage",
         "pbrMetallicRoughness":{"baseColorTexture":{"index":0}}}]);
     gltf["textures"] = json!([{ "source": 0 }]);
@@ -34,9 +33,7 @@ fn scene_feuillage() -> (PathBuf, Options) {
     gltf["meshes"][0]["primitives"][0]["material"] = json!(0);
     let bytes = serde_json::to_vec(&gltf).expect("gltf");
     fs::write(source.join("cube.gltf"), &bytes).expect("gltf");
-    let mut manifest: Value =
-        serde_json::from_slice(&fs::read(source.join("manifest.json")).expect("manifeste"))
-            .expect("json");
+    let mut manifest = read_json(&source.join("manifest.json"));
     manifest["runtime"]["sha256"] = json!(hash(&bytes));
     fs::write(
         source.join("manifest.json"),
@@ -74,6 +71,10 @@ fn chaque_modele_repart_avec_sa_feuille_et_sa_page() {
     assert_eq!(entry["image"], json!("feuille.png"));
     assert_eq!(result["primitives"][0]["pass"], json!("clustered-blend"));
     assert_eq!(result["cutouts"]["pending"], json!(1));
+    assert_eq!(
+        result["cutouts"]["version"],
+        json!(crate::cutout::SHEET_VERSION)
+    );
     let page = fs::read_to_string(options.cache.join(crate::cutout::PAGE_FILE)).expect("page");
     assert!(page.contains(sha), "la page nomme la texture à trancher");
     assert!(
@@ -106,7 +107,7 @@ fn une_reponse_enregistree_fait_passer_le_feuillage_en_decoupe() {
     let second = compile(&options, |_| {}).expect("seconde compile");
     assert_eq!(second["primitives"][0]["pass"], json!("exact-clusters"));
     assert_eq!(
-        second["cutouts"]["applied"]["applied"][0]["material"],
+        second["cutouts"]["changes"]["applied"][0]["material"],
         json!(0)
     );
     assert_ne!(

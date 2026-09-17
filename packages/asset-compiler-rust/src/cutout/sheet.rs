@@ -93,20 +93,26 @@ pub(crate) fn draw_weights(
         .collect()
 }
 
-/// Le nom qu'un humain reconnaît : le fichier de l'image, ou son rang quand elle est embarquée.
+/// Le nom qu'un humain reconnaît : le fichier de l'image, ou son rang quand elle est embarquée. Les
+/// URI d'une scène intermédiaire sont écrites échappées (`uri::encode_relative`), donc le nom est
+/// décodé avant d'être montré — `feuillage été.png`, et non `feuillage%20%C3%A9t%C3%A9.png`.
 fn image_name(images: Option<&Vec<Value>>, image: usize) -> String {
     images
         .and_then(|images| images.get(image))
         .and_then(|value| value.get("uri"))
         .and_then(Value::as_str)
-        .map(|uri| uri.rsplit('/').next().unwrap_or(uri).to_string())
+        .map(|uri| {
+            let decoded = crate::uri::decode(uri).unwrap_or_else(|| uri.to_string());
+            decoded.rsplit('/').next().unwrap_or(&decoded).to_string()
+        })
         .unwrap_or_else(|| format!("image {image}"))
 }
 
-/// Écrit la feuille. Elle porte les candidates de cette scène, puis les réponses anciennes qu'elle
-/// n'emploie pas, marquées comme telles : rien de ce qui a été tranché ne se perd à la compilation
-/// suivante.
-pub(crate) fn write_sheet(path: &Path, entries: &[Entry], decisions: &Decisions) -> Result<()> {
+/// La feuille : les candidates de cette scène, puis les réponses anciennes qu'elle n'emploie pas,
+/// marquées comme telles — rien de ce qui a été tranché ne se perd à la compilation suivante. Elle
+/// est bâtie une fois et sert deux fois : écrite sur le disque, et emportée telle quelle par la
+/// page, qui n'a donc pas à connaître son format pour la réécrire.
+pub(crate) fn build_sheet(entries: &[Entry], decisions: &Decisions) -> Value {
     let mut textures = serde_json::Map::new();
     for entry in entries {
         textures.insert(
@@ -121,8 +127,11 @@ pub(crate) fn write_sheet(path: &Path, entries: &[Entry], decisions: &Decisions)
             textures.insert(sha256.clone(), json!({"used":false,"cutout":cutout}));
         }
     }
-    let sheet = json!({"version":DECISIONS_VERSION,
+    json!({"version":SHEET_VERSION,
         "about":"Réponse par texture : cutout = true pour une découpe, false pour une vraie transparence, null tant que personne n'a tranché. Ouvrir decoupes.html pour répondre en voyant les images.",
-        "textures":Value::Object(textures)});
-    atomic(path, &serde_json::to_vec_pretty(&sheet)?)
+        "textures":Value::Object(textures)})
+}
+
+pub(crate) fn write_sheet(path: &Path, sheet: &Value) -> Result<()> {
+    atomic(path, &serde_json::to_vec_pretty(sheet)?)
 }

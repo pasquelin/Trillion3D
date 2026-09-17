@@ -93,9 +93,9 @@ pub(super) struct PreviewInputs<'a> {
     pub image_root: &'a Path,
     pub meshes: &'a BTreeSet<usize>,
     pub view_map: &'a BTreeMap<usize, usize>,
-    /// Les textures qu'une réponse a déjà fait basculer en découpe : elles restent mesurées, pour
-    /// que la feuille et la page puissent revenir sur un avis.
-    pub answered: &'a BTreeSet<usize>,
+    /// Les textures dont l'alpha est à mesurer au passage, que `cutout` a désignées : cette étape
+    /// sait ce qu'elle décode, pas ce qu'est une découpe.
+    pub to_measure: &'a BTreeSet<usize>,
 }
 
 /// Calcule la pyramide de chaque texture couleur des maillages retenus. Rend les entrées triées par
@@ -108,7 +108,7 @@ pub(super) fn stage_texture_previews(
     BTreeMap<usize, crate::cutout::AlphaShape>,
     Value,
 )> {
-    let wanted = collect::color_textures(inputs.g, inputs.meshes, inputs.answered)?;
+    let wanted = collect::color_textures(inputs.g, inputs.meshes)?;
     let textures = inputs.g.get("textures").and_then(Value::as_array);
     let images = inputs.g.get("images").and_then(Value::as_array);
     let mut previews = Vec::new();
@@ -173,7 +173,7 @@ fn one_preview(
     };
     // La mesure de l'alpha lit l'image PLEINE RÉSOLUTION : la largeur d'un bord adouci se compte en
     // pixels de la source, et un niveau réduit la diviserait par son échelle.
-    let shape = entry.candidate.then(|| {
+    let shape = inputs.to_measure.contains(&entry.texture).then(|| {
         let _t = perf::Timer::new(perf::Phase::TextureAlpha);
         crate::cutout::measure(&decoded)
     });
