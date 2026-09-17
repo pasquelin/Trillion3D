@@ -48,15 +48,15 @@ fn feuille_de_reponses(options: &Options) -> Value {
     read_json(&options.cache.join(crate::cutout::DECISIONS_FILE))
 }
 
-// Comportement : chaque modèle compilé repart avec sa feuille de réponses et sa page, qu'il y ait
+// Comportement : chaque modèle compilé repart avec sa feuille de réponses, qu'il y ait
 // ou non quelque chose à trancher. La feuille porte la mesure et la proposition, et la réponse y
 // est nulle : tant que personne n'a tranché, le mélange reste du mélange.
 #[test]
-fn chaque_modele_repart_avec_sa_feuille_et_sa_page() {
+fn chaque_modele_repart_avec_sa_feuille() {
     let (_root, options) = scene_feuillage();
     let result = compile(&options, |_| {}).expect("compile");
     let sheet = feuille_de_reponses(&options);
-    let (sha, entry) = sheet["textures"]
+    let (_, entry) = sheet["textures"]
         .as_object()
         .expect("textures")
         .iter()
@@ -75,16 +75,9 @@ fn chaque_modele_repart_avec_sa_feuille_et_sa_page() {
         result["cutouts"]["version"],
         json!(crate::cutout::SHEET_VERSION)
     );
-    let page = fs::read_to_string(options.cache.join(crate::cutout::PAGE_FILE)).expect("page");
-    assert!(!page.contains("__DONNEES__"), "la page a reçu ses données");
-    assert!(page.contains(sha), "la page nomme la texture à trancher");
-    assert!(
-        page.contains("\"pixels\":\""),
-        "la page emporte ses vignettes"
-    );
 }
 
-// Comportement : la réponse enregistrée depuis la page passe le feuillage en masqué au seuil de
+// Comportement : la réponse écrite dans la feuille passe le feuillage en masqué au seuil de
 // glTF, et la primitive quitte le chemin du mélange pour celui des grappes exactes — un seul appel
 // de dessin au lieu d'un par item. Le `source.gltf` publié porte le matériau reclassé, puisque
 // c'est lui que le moteur lit pour ombrer.
