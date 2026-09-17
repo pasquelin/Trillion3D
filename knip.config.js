@@ -1,4 +1,4 @@
-// The SDK's source entries are public; browser probes are launched by the host, outside npm test.
+// The SDK's source entries are public; browser probes are launched by the host, outside pnpm test.
 // `pageDecodeWorker.ts` and `pageIntegrationWorker.ts` are worker entry points: the pool and the
 // integration lane load them by URL, never by import.
 export default {
@@ -17,7 +17,7 @@ export default {
     'scripts/mesure/oracle.mjs',
     'scripts/mesure/fixtureLampes.mjs',
     'packages/*/bench/*.bench.mjs',
-    // Reproductions de justesse lancées à la main, hors `npm test`.
+    // Reproductions de justesse lancées à la main, hors `pnpm test`.
     'packages/*/bench/justesse/*.mjs',
     'scripts/mesure/calculs/agrege*.mjs',
     'test/*.test.mjs',

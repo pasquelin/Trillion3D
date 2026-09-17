@@ -29,7 +29,7 @@ The native compiler prepares a cluster DAG — small clusters of triangles, grou
 
 ## Quick start
 
-Requirements: **Node.js 22.18 or newer**, npm, and a Rust toolchain with Cargo available on your path.
+Requirements: **Node.js 22.18 or newer**, pnpm, and a Rust toolchain with Cargo available on your path.
 
 From the repository root:
 
