@@ -126,17 +126,18 @@ export function createBudgetRanking(options: {
         }
         taken += held[level];
       }
+      // Deux boucles et pas une fermeture : celle-ci était allouée à chaque classement et sortait
+      // son curseur des registres, sur autant d'itérations que le budget porte de pages.
       let at = 0;
-      const take = (level: number, count: number) => {
-        const list = lists[level];
-        for (let i = 0; i < count; i++) {
+      for (let level = held.length - 1; level >= floor; level--) {
+        const list = lists[level],
+          take = level > floor ? held[level] : atCut;
+        for (let i = 0; i < take; i++) {
           const key = list[i];
           keys[at] = key;
           ranked[at++] = pageOfKey[key] as PageRec;
         }
-      };
-      for (let level = held.length - 1; level > floor; level--) take(level, held[level]);
-      take(floor, atCut);
+      }
       length = at;
       return records;
     },
