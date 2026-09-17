@@ -8,11 +8,20 @@ type BlendState = ReturnType<typeof createWebgpuBlendState>;
 const PIPELINE_NONE = 0;
 export const PIPELINE_FRONT = 1,
   PIPELINE_BACK = 2;
-/** Une entree de plan : le rang de l'item dans les bits hauts, le pipeline dans les deux bas. */
-const PLAN_SHIFT = 2;
-const planEntry = (item: number, pipeline: number) => (item << PLAN_SHIFT) | pipeline;
+/**
+ * Une entree de plan : le rang de l'item dans les bits hauts, puis le bit qui dit si l'item peut
+ * PARTAGER l'appel de ses voisins, et le pipeline dans les deux bas.
+ *
+ * Le bit de partage est dans l'entree, et non lu sur l'item, parce que le decoupage en tranches
+ * parcourt le plan TRIE : suivre un rang d'item vers son objet, c'est un acces memoire au hasard
+ * par entree, quand la seule lecture du plan est un parcours sequentiel.
+ */
+const PLAN_SHIFT = 3;
+const planEntry = (item: number, pipeline: number, shared: boolean) =>
+  (item << PLAN_SHIFT) | (shared ? 4 : 0) | pipeline;
 export const planItem = (entry: number) => entry >>> PLAN_SHIFT;
 export const planPipeline = (entry: number) => entry & 3;
+export const planShared = (entry: number) => (entry & 4) !== 0;
 /** Aucune primitive paginee derriere cet item : il dessine ses propres indices, par morceaux. */
 export const DRAW_UNPAGED = 0xffffffff;
 /** Les entrees de plan qu'un item peut poser au plus : le dos et la face d'un materiau double. */
@@ -129,7 +138,7 @@ export function refreshBlendPlan(blendState: BlendState) {
     const sides = sidesOf(item);
     room[item.transmissive ? 1 : 0] += sides.length * draws[i * 4 + 1];
     for (const side of sides) {
-      into.push(planEntry(i, side));
+      into.push(planEntry(i, side, !!item.paged));
       if (item.paged) continue;
       if (item.transmissive) transmissionTriangles += item.count / 3;
       else blendTriangles += item.count / 3;
