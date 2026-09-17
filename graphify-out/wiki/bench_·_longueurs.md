@@ -1,10 +1,11 @@
 # bench · longueurs
 
-> 14 nodes
+> 15 nodes
 
 ## Key Concepts
 
 - **vecteurs-transport.perf.mjs** (21 connections) — `packages/sdk-core/bench/vecteurs-transport.perf.mjs`
+- **lightingSceneMath.test.ts** (15 connections) — `packages/sdk-core/lightingSceneMath.test.ts`
 - **vecteurs-transport.mjs** (5 connections) — `packages/sdk-core/bench/oracles/vecteurs-transport.mjs`
 - **referenceLength()** (3 connections) — `packages/sdk-core/bench/oracles/vecteurs-transport.mjs`
 - **referenceValidateScene()** (3 connections) — `packages/sdk-core/bench/oracles/vecteurs-transport.mjs`
@@ -21,22 +22,24 @@
 
 ## Relationships
 
-- [Scène d'expérience d'éclairage](Scène_d'expérience_d'éclairage.md) (4 shared connections)
-- [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (2 shared connections)
-- [Transport de lumière](Transport_de_lumière.md) (2 shared connections)
-- [bench · passe](bench_·_passe.md) (1 shared connections)
-- [Socle de mesure des bancs](Socle_de_mesure_des_bancs.md) (1 shared connections)
-- [Socle du banc sdk-core](Socle_du_banc_sdk-core.md) (1 shared connections)
+- [Scène d'expérience d'éclairage](Scène_d'expérience_d'éclairage.md) (7 shared connections)
+- [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (4 shared connections)
+- [Transport de lumière](Transport_de_lumière.md) (4 shared connections)
+- [Transport de lumière (2)](Transport_de_lumière_2.md) (2 shared connections)
+- [oracles · referenceLinearToSrgb8](oracles_·_referenceLinearToSrgb8.md) (2 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (2 shared connections)
+- [Garde zéro Three.js](Garde_zéro_Three.js.md) (1 shared connections)
 
 ## Source Files
 
 - `packages/sdk-core/bench/oracles/vecteurs-transport.mjs`
 - `packages/sdk-core/bench/vecteurs-transport.perf.mjs`
+- `packages/sdk-core/lightingSceneMath.test.ts`
 
 ## Audit Trail
 
-- EXTRACTED: 25 (89%)
-- INFERRED: 3 (11%)
+- EXTRACTED: 38 (93%)
+- INFERRED: 3 (7%)
 - AMBIGUOUS: 0 (0%)
 
 ---

@@ -23,11 +23,11 @@
 
 - [Blender : pointeurs bruts](Blender_-_pointeurs_bruts.md) (3 shared connections)
 - [blend · POINTER](blend_·_POINTER.md) (2 shared connections)
-- [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
 - [unity · Overrides](unity_·_Overrides.md) (1 shared connections)
 - [proxy · CELL_ERROR_FACTOR](proxy_·_CELL_ERROR_FACTOR.md) (1 shared connections)
 - [blend · Display](blend_·_Display.md) (1 shared connections)
+- [dna · Option](dna_·_Option.md) (1 shared connections)
 
 ## Source Files
 

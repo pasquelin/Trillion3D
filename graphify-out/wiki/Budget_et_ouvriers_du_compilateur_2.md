@@ -1,6 +1,6 @@
 # Budget et ouvriers du compilateur (2)
 
-> 96 nodes
+> 100 nodes
 
 ## Key Concepts
 
@@ -20,6 +20,7 @@
 - **compiled()** (7 connections) — `packages/asset-compiler-rust/src/tests/gltf_scenes.rs`
 - **source_texturee()** (7 connections) — `packages/asset-compiler-rust/src/tests/identite_textures.rs`
 - **sparse_position_fixture()** (6 connections) — `packages/asset-compiler-rust/src/tests/admission_sparse.rs`
+- **fbx_with_external_images()** (6 connections) — `packages/asset-compiler-rust/src/tests/apercus_import.rs`
 - **refusal()** (6 connections) — `packages/asset-compiler-rust/src/tests/gltf_cycle.rs`
 - **identite_textures.rs** (6 connections) — `packages/asset-compiler-rust/src/tests/identite_textures.rs`
 - **import_opacite.rs** (6 connections) — `packages/asset-compiler-rust/src/tests/import_opacite.rs`
@@ -28,28 +29,28 @@
 - **obj_mtl.rs** (6 connections) — `packages/asset-compiler-rust/src/tests/obj_mtl.rs`
 - **obj_texture_cache.rs** (6 connections) — `packages/asset-compiler-rust/src/tests/obj_texture_cache.rs`
 - **source_avec_texture()** (6 connections) — `packages/asset-compiler-rust/src/tests/obj_texture_cache.rs`
-- **Value** (5 connections)
-- *... and 71 more nodes in this community*
+- *... and 75 more nodes in this community*
 
 ## Relationships
 
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (19 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (15 shared connections)
 - [Lots et annulation](Lots_et_annulation.md) (6 shared connections)
 - [tests · DEMI_DIAGONALE](tests_·_DEMI_DIAGONALE.md) (6 shared connections)
-- [Écriture de la scène source](Écriture_de_la_scène_source.md) (4 shared connections)
-- [src · Fn](src_·_Fn.md) (4 shared connections)
+- [Écriture de la scène source](Écriture_de_la_scène_source.md) (5 shared connections)
+- [Couches de profondeur](Couches_de_profondeur.md) (4 shared connections)
+- [unity · les_mesures_et_la_provenance_sortent_de_lidentite](unity_·_les_mesures_et_la_provenance_sortent_de_lidentite.md) (4 shared connections)
 - [Fixtures de grille et ratios](Fixtures_de_grille_et_ratios.md) (4 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (4 shared connections)
 - [Tests dorés du compilateur](Tests_dorés_du_compilateur.md) (4 shared connections)
-- [Routage des conteneurs d'archives](Routage_des_conteneurs_d'archives.md) (3 shared connections)
-- [unity · Option](unity_·_Option.md) (3 shared connections)
-- [Couches de profondeur](Couches_de_profondeur.md) (2 shared connections)
-- [Erreurs du compilateur et USDZ](Erreurs_du_compilateur_et_USDZ.md) (2 shared connections)
-- [Validation du compilateur](Validation_du_compilateur.md) (2 shared connections)
+- [src · Fn (2)](src_·_Fn_2.md) (3 shared connections)
+- [Aperçus de textures (étage) (2)](Aperçus_de_textures_étage_2.md) (2 shared connections)
+- [tests · Arc](tests_·_Arc.md) (2 shared connections)
 
 ## Source Files
 
 - `packages/asset-compiler-rust/src/lib.rs`
 - `packages/asset-compiler-rust/src/tests/admission_sparse.rs`
+- `packages/asset-compiler-rust/src/tests/apercus_import.rs`
 - `packages/asset-compiler-rust/src/tests/base.rs`
 - `packages/asset-compiler-rust/src/tests/gltf_cycle.rs`
 - `packages/asset-compiler-rust/src/tests/gltf_scenes.rs`
@@ -65,8 +66,8 @@
 
 ## Audit Trail
 
-- EXTRACTED: 197 (75%)
-- INFERRED: 64 (25%)
+- EXTRACTED: 204 (76%)
+- INFERRED: 64 (24%)
 - AMBIGUOUS: 0 (0%)
 
 ---

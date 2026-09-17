@@ -1,6 +1,6 @@
 # Options et poses du banc
 
-> 40 nodes
+> 41 nodes
 
 ## Key Concepts
 
@@ -14,6 +14,7 @@
 - **equipSide()** (6 connections) — `scripts/mesure/optionsCote.mjs`
 - **parseArgs()** (4 connections) — `scripts/mesure/options.mjs`
 - **engineOf()** (4 connections) — `scripts/mesure/optionsCote.mjs`
+- **poseAt()** (4 connections) — `scripts/mesure/poses.mjs`
 - **LAB** (4 connections) — `scripts/mesure/poses.mjs`
 - **resolveCache()** (3 connections) — `scripts/mesure/optionsCote.mjs`
 - **lightingSettings()** (3 connections) — `scripts/mesure/optionsEclairage.mjs`
@@ -28,15 +29,14 @@
 - **resolveMounts()** (2 connections) — `scripts/mesure/options.mjs`
 - **screenErrorOf()** (2 connections) — `scripts/mesure/optionsCote.mjs`
 - **sideReport()** (2 connections) — `scripts/mesure/optionsCote.mjs`
-- **variantOf()** (2 connections) — `scripts/mesure/optionsCote.mjs`
-- *... and 15 more nodes in this community*
+- *... and 16 more nodes in this community*
 
 ## Relationships
 
-- [Oracle et serveur de mesure](Oracle_et_serveur_de_mesure.md) (11 shared connections)
-- [Tests navigateur Node](Tests_navigateur_Node.md) (9 shared connections)
-- [Arbre monde et lots de maths](Arbre_monde_et_lots_de_maths.md) (5 shared connections)
-- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (4 shared connections)
+- [Oracle et serveur de mesure](Oracle_et_serveur_de_mesure.md) (12 shared connections)
+- [Tests navigateur Node](Tests_navigateur_Node.md) (7 shared connections)
+- [Arbre monde et lots de maths (2)](Arbre_monde_et_lots_de_maths_2.md) (5 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (3 shared connections)
 - [Pages de justesse WebGPU](Pages_de_justesse_WebGPU.md) (3 shared connections)
 - [mesure · flags](mesure_·_flags.md) (2 shared connections)
 - [test · steps](test_·_steps.md) (2 shared connections)
@@ -54,7 +54,7 @@
 
 ## Audit Trail
 
-- EXTRACTED: 111 (100%)
+- EXTRACTED: 112 (100%)
 - INFERRED: 0 (0%)
 - AMBIGUOUS: 0 (0%)
 

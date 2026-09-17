@@ -25,9 +25,9 @@
 
 ## Relationships
 
-- [Construction du DAG](Construction_du_DAG.md) (1 shared connections)
+- [DAG et stratégie de coupe](DAG_et_stratégie_de_coupe.md) (1 shared connections)
 - [blend · HashMap](blend_·_HashMap.md) (1 shared connections)
-- [Oracle : rayons et indirect](Oracle_-_rayons_et_indirect.md) (1 shared connections)
+- [oracle · albedo_of](oracle_·_albedo_of.md) (1 shared connections)
 
 ## Source Files
 

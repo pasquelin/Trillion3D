@@ -1,63 +1,49 @@
 # Clés et orientation KTX2
 
-> 26 nodes
+> 22 nodes
 
 ## Key Concepts
 
-- **ImageDecoded** (25 connections) — `packages/asset-compiler-rust/src/plugins/image/decoded.rs`
-- **Transfer** (17 connections) — `packages/asset-compiler-rust/src/plugins/image/decoded.rs`
-- **DecodedImage** (16 connections) — `packages/asset-compiler-rust/src/plugins/image.rs`
+- **keys.rs** (12 connections) — `packages/asset-compiler-rust/src/plugins/image/ktx2/keys.rs`
 - **declared.rs** (9 connections) — `packages/asset-compiler-rust/src/plugins/image/ktx2/declared.rs`
-- **decoded.rs** (4 connections) — `packages/asset-compiler-rust/src/plugins/image/decoded.rs`
-- **.new()** (4 connections) — `packages/asset-compiler-rust/src/plugins/image/decoded.rs`
-- **.with_notes()** (4 connections) — `packages/asset-compiler-rust/src/plugins/image/decoded.rs`
-- **Self** (4 connections)
 - **apply()** (4 connections) — `packages/asset-compiler-rust/src/plugins/image/ktx2/declared.rs`
 - **flip()** (4 connections) — `packages/asset-compiler-rust/src/plugins/image/ktx2/declared.rs`
-- **image/blocks.rs** (3 connections) — `packages/asset-compiler-rust/src/plugins/image/blocks.rs`
-- **image()** (3 connections) — `packages/asset-compiler-rust/src/plugins/image/blocks.rs`
-- **to_rgba8()** (3 connections) — `packages/asset-compiler-rust/src/plugins/image/blocks.rs`
-- **.with_transfer()** (3 connections) — `packages/asset-compiler-rust/src/plugins/image/decoded.rs`
+- **read()** (4 connections) — `packages/asset-compiler-rust/src/plugins/image/ktx2/keys.rs`
+- **section()** (4 connections) — `packages/asset-compiler-rust/src/plugins/image/ktx2/keys.rs`
 - **straight()** (3 connections) — `packages/asset-compiler-rust/src/plugins/image/ktx2/declared.rs`
-- **Result** (2 connections)
-- **.with_note()** (2 connections) — `packages/asset-compiler-rust/src/plugins/image/decoded.rs`
 - **RgbaImage** (2 connections)
+- **next()** (2 connections) — `packages/asset-compiler-rust/src/plugins/image/ktx2/keys.rs`
+- **BTreeMap** (2 connections)
+- **Option** (2 connections)
+- **trimmed()** (2 connections) — `packages/asset-compiler-rust/src/plugins/image/ktx2/keys.rs`
 - **.from_unity()** (2 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/transform.rs`
-- **IntoIterator** (1 connections)
-- **BlockDecode** (1 connections)
-- **Item** (1 connections)
 - **FLIPPED** (1 connections) — `packages/asset-compiler-rust/src/plugins/image/ktx2/declared.rs`
 - **IDENTITY** (1 connections) — `packages/asset-compiler-rust/src/plugins/image/ktx2/declared.rs`
 - **NATURAL** (1 connections) — `packages/asset-compiler-rust/src/plugins/image/ktx2/declared.rs`
-- *... and 1 more nodes in this community*
+- **ALIGN** (1 connections) — `packages/asset-compiler-rust/src/plugins/image/ktx2/keys.rs`
+- **ENTRY_LENGTH** (1 connections) — `packages/asset-compiler-rust/src/plugins/image/ktx2/keys.rs`
+- **LENGTH** (1 connections) — `packages/asset-compiler-rust/src/plugins/image/ktx2/keys.rs`
+- **OFFSET** (1 connections) — `packages/asset-compiler-rust/src/plugins/image/ktx2/keys.rs`
+- **ORIENTATION** (1 connections) — `packages/asset-compiler-rust/src/plugins/image/ktx2/keys.rs`
+- **SWIZZLE** (1 connections) — `packages/asset-compiler-rust/src/plugins/image/ktx2/keys.rs`
 
 ## Relationships
 
-- [Décodage d'images](Décodage_d'images.md) (8 shared connections)
-- [Codecs DDS](Codecs_DDS.md) (4 shared connections)
-- [Aperçus de textures et pyramide (3)](Aperçus_de_textures_et_pyramide_3.md) (3 shared connections)
-- [Décodage WebP](Décodage_WebP.md) (2 shared connections)
-- [Décodage EXR](Décodage_EXR.md) (2 shared connections)
-- [tests · ALPHA](tests_·_ALPHA.md) (2 shared connections)
-- [dds · ALPHA_MODE_MASK](dds_·_ALPHA_MODE_MASK.md) (2 shared connections)
-- [En-tête et DFD du KTX2](En-tête_et_DFD_du_KTX2.md) (2 shared connections)
-- [Décodage BMP](Décodage_BMP.md) (1 shared connections)
-- [image · CODEC_UNSUPPORTED](image_·_CODEC_UNSUPPORTED.md) (1 shared connections)
-- [Décodage GIF](Décodage_GIF.md) (1 shared connections)
-- [Décodage HDR](Décodage_HDR.md) (1 shared connections)
+- [Décodage d'images](Décodage_d'images.md) (2 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [En-tête et DFD du KTX2](En-tête_et_DFD_du_KTX2.md) (1 shared connections)
+- [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
 
 ## Source Files
 
-- `packages/asset-compiler-rust/src/plugins/image.rs`
-- `packages/asset-compiler-rust/src/plugins/image/blocks.rs`
-- `packages/asset-compiler-rust/src/plugins/image/decoded.rs`
 - `packages/asset-compiler-rust/src/plugins/image/ktx2/declared.rs`
+- `packages/asset-compiler-rust/src/plugins/image/ktx2/keys.rs`
 - `packages/asset-compiler-rust/src/plugins/scene/unity/transform.rs`
 
 ## Audit Trail
 
-- EXTRACTED: 81 (99%)
-- INFERRED: 1 (1%)
+- EXTRACTED: 31 (94%)
+- INFERRED: 2 (6%)
 - AMBIGUOUS: 0 (0%)
 
 ---

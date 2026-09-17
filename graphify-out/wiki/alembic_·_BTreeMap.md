@@ -33,18 +33,16 @@
 
 ## Relationships
 
-- [import · Option (2)](import_·_Option_2.md) (3 shared connections)
-- [Import Unity et maillages](Import_Unity_et_maillages.md) (2 shared connections)
+- [Import Unity et maillages](Import_Unity_et_maillages.md) (3 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (3 shared connections)
+- [Tables de scène à l'import](Tables_de_scène_à_l'import.md) (2 shared connections)
 - [Maillages et jeux de faces](Maillages_et_jeux_de_faces.md) (2 shared connections)
 - [Lecture du format Blender](Lecture_du_format_Blender.md) (2 shared connections)
-- [import · Option](import_·_Option.md) (1 shared connections)
 - [unity · BUILTIN_GUID](unity_·_BUILTIN_GUID.md) (1 shared connections)
-- [Tables de scène à l'import](Tables_de_scène_à_l'import.md) (1 shared connections)
 - [Rapport et table des textures](Rapport_et_table_des_textures.md) (1 shared connections)
-- [Greffons de scène du compilateur](Greffons_de_scène_du_compilateur.md) (1 shared connections)
 - [mesh · Value](mesh_·_Value.md) (1 shared connections)
 - [usd · HashMap](usd_·_HashMap.md) (1 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
+- [blend · POINTER](blend_·_POINTER.md) (1 shared connections)
 
 ## Source Files
 

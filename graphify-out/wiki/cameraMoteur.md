@@ -2,7 +2,7 @@
 
 > God node · 109 connections · `packages/sdk-browser/cameraFixture.ts`
 
-**Community:** [Sélection des pages visibles](Sélection_des_pages_visibles.md)
+**Community:** [Erreur d'écran hors axe](Erreur_d'écran_hors_axe.md)
 
 ## Connections by Relation
 

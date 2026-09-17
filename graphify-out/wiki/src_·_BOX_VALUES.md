@@ -33,8 +33,8 @@
 
 ## Relationships
 
-- [Import Unity et maillages](Import_Unity_et_maillages.md) (2 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
+- [scene · .accepts_head (2)](scene_·_.accepts_head_2.md) (2 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
 
 ## Source Files
 

@@ -33,18 +33,18 @@
 
 ## Relationships
 
-- [Tests navigateur Node](Tests_navigateur_Node.md) (14 shared connections)
-- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (12 shared connections)
-- [Lancements de coupe et relevé](Lancements_de_coupe_et_relevé.md) (4 shared connections)
-- [justesse · exacts](justesse_·_exacts.md) (3 shared connections)
-- [justesse · ECHELLES](justesse_·_ECHELLES.md) (3 shared connections)
+- [Tests navigateur Node](Tests_navigateur_Node.md) (13 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (13 shared connections)
+- [sdk-browser · DagOutputScratch](sdk-browser_·_DagOutputScratch.md) (4 shared connections)
+- [Adressage et bouclage des textures (2)](Adressage_et_bouclage_des_textures_2.md) (3 shared connections)
+- [Normale d'éclairage à petite échelle](Normale_d'éclairage_à_petite_échelle.md) (3 shared connections)
 - [Justesse de l'inverse transposée](Justesse_de_l'inverse_transposée.md) (3 shared connections)
 - [Options et poses du banc](Options_et_poses_du_banc.md) (3 shared connections)
-- [Oracle et serveur de mesure](Oracle_et_serveur_de_mesure.md) (3 shared connections)
-- [Ordre des transparents](Ordre_des_transparents.md) (2 shared connections)
-- [Oracle DAG et plancher de coupe](Oracle_DAG_et_plancher_de_coupe.md) (2 shared connections)
-- [Arbre monde et lots de maths](Arbre_monde_et_lots_de_maths.md) (2 shared connections)
-- [Mathématiques du tampon de visibilité](Mathématiques_du_tampon_de_visibilité.md) (2 shared connections)
+- [Convention de profondeur](Convention_de_profondeur.md) (3 shared connections)
+- [Lancements de coupe et relevé](Lancements_de_coupe_et_relevé.md) (3 shared connections)
+- [Plan de mélange des transparents](Plan_de_mélange_des_transparents.md) (2 shared connections)
+- [Erreur d'écran hors axe](Erreur_d'écran_hors_axe.md) (2 shared connections)
+- [Arbre monde et lots de maths (2)](Arbre_monde_et_lots_de_maths_2.md) (2 shared connections)
 
 ## Source Files
 

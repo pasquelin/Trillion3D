@@ -1,19 +1,25 @@
 # Descripteurs et n-gones Blender
 
-> 42 nodes
+> 65 nodes
 
 ## Key Concepts
 
 - **descripteur.rs** (14 connections) — `packages/asset-compiler-rust/src/plugins/tests/ktx2/descripteur.rs`
+- **ngones.rs** (13 connections) — `packages/asset-compiler-rust/src/tests/ngones.rs`
+- **ngon/tests.rs** (12 connections) — `packages/asset-compiler-rust/src/plugins/scene/ngon/tests.rs`
 - **blend/tests/mod.rs** (10 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/tests/mod.rs`
 - **lampes.rs** (9 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/tests/lampes.rs`
 - **bornes.rs** (8 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/tests/bornes.rs`
 - **file()** (7 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/tests/bornes.rs`
+- **flat_ring()** (7 connections) — `packages/asset-compiler-rust/src/plugins/scene/ngon/tests.rs`
 - **converted()** (6 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/tests/lampes.rs`
 - **lamp_file()** (6 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/tests/lampes.rs`
+- **prepared_area()** (6 connections) — `packages/asset-compiler-rust/src/tests/ngones.rs`
 - **sdna()** (5 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/tests/bornes.rs`
 - **legacy_file()** (5 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/tests/mod.rs`
+- **cut()** (5 connections) — `packages/asset-compiler-rust/src/plugins/scene/ngon/tests.rs`
 - **declared()** (5 connections) — `packages/asset-compiler-rust/src/plugins/tests/ktx2/descripteur.rs`
+- **rendered_area()** (5 connections) — `packages/asset-compiler-rust/src/tests/ngones.rs`
 - **span()** (4 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/tests/lampes.rs`
 - **block()** (4 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/tests/mod.rs`
 - **read()** (4 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/tests/mod.rs`
@@ -21,36 +27,33 @@
 - **le_meme_niveau_declare_lineaire_puis_srgb_rend_deux_transferts()** (4 connections) — `packages/asset-compiler-rust/src/plugins/tests/ktx2/descripteur.rs`
 - **les_cles_dorientation_et_de_permutation_sont_appliquees_ou_comptees()** (4 connections) — `packages/asset-compiler-rust/src/plugins/tests/ktx2/descripteur.rs`
 - **rows()** (4 connections) — `packages/asset-compiler-rust/src/plugins/tests/ktx2/descripteur.rs`
+- **the_ma_driver_keeps_the_area_of_a_concave_polygon()** (4 connections) — `packages/asset-compiler-rust/src/tests/ngones.rs`
 - **a_hostile_sdna_is_refused_by_name_never_by_panic()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/tests/bornes.rs`
-- **a_view_never_reads_past_the_end_of_its_block()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/tests/bornes.rs`
-- **the_size_ceiling_holds_whatever_the_envelope()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/tests/bornes.rs`
-- **packed()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/tests/lampes.rs`
-- **a_concave_polygon_keeps_its_own_area()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/tests/mod.rs`
-- **le_drapeau_premultiplie_du_descripteur_ramene_lalpha_a_droit()** (3 connections) — `packages/asset-compiler-rust/src/plugins/tests/ktx2/descripteur.rs`
-- **level()** (3 connections) — `packages/asset-compiler-rust/src/plugins/tests/ktx2/descripteur.rs`
-- **a_lamp_type_this_driver_does_not_convert_is_counted_by_its_name()** (2 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/tests/lampes.rs`
-- *... and 17 more nodes in this community*
+- *... and 40 more nodes in this community*
 
 ## Relationships
 
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (4 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (6 shared connections)
+- [Tests dorés du compilateur](Tests_dorés_du_compilateur.md) (3 shared connections)
 - [Lecture du format Blender](Lecture_du_format_Blender.md) (2 shared connections)
-- [Descripteurs et n-gones Blender (3)](Descripteurs_et_n-gones_Blender_3.md) (2 shared connections)
-- [Tests dorés du compilateur](Tests_dorés_du_compilateur.md) (1 shared connections)
+- [Maillages et jeux de faces](Maillages_et_jeux_de_faces.md) (2 shared connections)
 - [Registre des images de test](Registre_des_images_de_test.md) (1 shared connections)
-- [Clés et orientation KTX2](Clés_et_orientation_KTX2.md) (1 shared connections)
+- [image · IntoIterator](image_·_IntoIterator.md) (1 shared connections)
+- [Bacs à sable des pilotes](Bacs_à_sable_des_pilotes.md) (1 shared connections)
 
 ## Source Files
 
 - `packages/asset-compiler-rust/src/plugins/scene/blend/tests/bornes.rs`
 - `packages/asset-compiler-rust/src/plugins/scene/blend/tests/lampes.rs`
 - `packages/asset-compiler-rust/src/plugins/scene/blend/tests/mod.rs`
+- `packages/asset-compiler-rust/src/plugins/scene/ngon/tests.rs`
 - `packages/asset-compiler-rust/src/plugins/tests/ktx2/descripteur.rs`
+- `packages/asset-compiler-rust/src/tests/ngones.rs`
 
 ## Audit Trail
 
-- EXTRACTED: 71 (90%)
-- INFERRED: 8 (10%)
+- EXTRACTED: 113 (91%)
+- INFERRED: 11 (9%)
 - AMBIGUOUS: 0 (0%)
 
 ---

@@ -7,7 +7,6 @@
 - **lightingTransport.ts** (28 connections) — `packages/sdk-core/lightingTransport.ts`
 - **lightingTransportValidation.ts** (22 connections) — `packages/sdk-core/lightingTransportValidation.ts`
 - **fail()** (21 connections) — `packages/sdk-core/lightingTransportValidation.ts`
-- **Scene** (19 connections) — `packages/sdk-core/lightingSceneTypes.ts`
 - **lightingTransportIntersections.ts** (19 connections) — `packages/sdk-core/lightingTransportIntersections.ts`
 - **lightingTransportGeometry.ts** (16 connections) — `packages/sdk-core/lightingTransportGeometry.ts`
 - **lightingTransportState.ts** (15 connections) — `packages/sdk-core/lightingTransportState.ts`
@@ -25,6 +24,7 @@
 - **lightingTransport.test.ts** (9 connections) — `packages/sdk-core/lightingTransport.test.ts`
 - **TransportOptions** (8 connections) — `packages/sdk-core/lightingTransportContracts.ts`
 - **updateTransportGeometry()** (8 connections) — `packages/sdk-core/lightingTransportGeometry.ts`
+- **packSurface()** (8 connections) — `packages/sdk-core/lightingTransportIntersections.ts`
 - **solveTransport()** (8 connections) — `packages/sdk-core/lightingTransportSolve.ts`
 - **update()** (7 connections) — `packages/sdk-core/lightingTransport.ts`
 - **LightingTransportError** (6 connections) — `packages/sdk-core/lightingTransportContracts.ts`
@@ -33,20 +33,17 @@
 
 ## Relationships
 
-- [Scène d'expérience d'éclairage](Scène_d'expérience_d'éclairage.md) (22 shared connections)
-- [Socle des consommateurs](Socle_des_consommateurs.md) (15 shared connections)
-- [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (4 shared connections)
+- [Transport de lumière (2)](Transport_de_lumière_2.md) (13 shared connections)
+- [oracles · referenceLinearToSrgb8](oracles_·_referenceLinearToSrgb8.md) (11 shared connections)
+- [Scène d'expérience d'éclairage](Scène_d'expérience_d'éclairage.md) (7 shared connections)
+- [Faces et volumes d'ombre](Faces_et_volumes_d'ombre.md) (5 shared connections)
+- [bench · longueurs](bench_·_longueurs.md) (4 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (4 shared connections)
-- [Observation de l'éclairage](Observation_de_l'éclairage.md) (3 shared connections)
-- [fixtures · readLightingGltf](fixtures_·_readLightingGltf.md) (2 shared connections)
-- [bench · longueurs](bench_·_longueurs.md) (2 shared connections)
-- [Équivalence du socle mesuré](Équivalence_du_socle_mesuré.md) (1 shared connections)
-- [oracles · referenceLinearToSrgb8](oracles_·_referenceLinearToSrgb8.md) (1 shared connections)
+- [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (3 shared connections)
 - [Vecteurs et normale d'ombrage](Vecteurs_et_normale_d'ombrage.md) (1 shared connections)
 
 ## Source Files
 
-- `packages/sdk-core/lightingSceneTypes.ts`
 - `packages/sdk-core/lightingTransport.test.ts`
 - `packages/sdk-core/lightingTransport.ts`
 - `packages/sdk-core/lightingTransportContracts.ts`
@@ -62,7 +59,7 @@
 
 ## Audit Trail
 
-- EXTRACTED: 208 (99%)
+- EXTRACTED: 199 (99%)
 - INFERRED: 3 (1%)
 - AMBIGUOUS: 0 (0%)
 

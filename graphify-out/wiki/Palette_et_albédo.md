@@ -1,6 +1,6 @@
 # Palette et albédo
 
-> 17 nodes
+> 18 nodes
 
 ## Key Concepts
 
@@ -18,13 +18,14 @@
 - **pack()** (2 connections) — `packages/asset-compiler-rust/src/albedo.rs`
 - **Option** (2 connections)
 - **Value** (2 connections)
+- **albedo** (2 connections)
 - **FnMut** (1 connections)
 - **Option** (1 connections)
 - **btreemap** (1 connections)
 
 ## Relationships
 
-- [unity · Option](unity_·_Option.md) (2 shared connections)
+- [unity · les_mesures_et_la_provenance_sortent_de_lidentite](unity_·_les_mesures_et_la_provenance_sortent_de_lidentite.md) (2 shared connections)
 
 ## Source Files
 
@@ -33,7 +34,7 @@
 
 ## Audit Trail
 
-- EXTRACTED: 29 (94%)
+- EXTRACTED: 30 (94%)
 - INFERRED: 2 (6%)
 - AMBIGUOUS: 0 (0%)
 
