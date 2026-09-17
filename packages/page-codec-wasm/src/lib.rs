@@ -6,7 +6,7 @@
 //! qui passe ici passe là-bas, un octet qui tombe ici tombe là-bas.
 //!
 //! Ce module WebAssembly est celui du SDK, et il n'y en a qu'un : une seule compilation
-//! (`npm run build:wasm`), une seule ressource livrée, une seule instanciation et une seule mémoire
+//! (`pnpm run build:wasm`), une seule ressource livrée, une seule instanciation et une seule mémoire
 //! linéaire côté navigateur. À côté du décodeur de pages, il porte donc les noyaux de calcul en lot
 //! du socle mathématique (`math.rs`, ABI dans `wasm_math.rs`) et le tampon qu'ils partagent avec
 //! JavaScript. Un second module aurait voulu un second pipeline de compilation, un second

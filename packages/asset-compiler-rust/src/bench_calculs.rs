@@ -3,7 +3,7 @@
 //! Pour chaque point optimisé, le banc garde une copie de l'implémentation d'avant (`reference_…`,
 //! aux noms francisés) et la fait tourner sur exactement les mêmes entrées que celle de la
 //! bibliothèque. Il compare d'abord les deux résultats bit à bit, puis mesure la médiane de chacune.
-//! Lancement : `npm run bench:calculs:natif`.
+//! Lancement : `pnpm run bench:calculs:natif`.
 mod b1_monde;
 mod b2_manifeste;
 mod b3_bisection;
