@@ -16,6 +16,9 @@ type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
  * comme argument de répartition par la seconde, et WebGPU refuse un tampon à la fois écrit et lu
  * comme argument dans une même portée de synchronisation. La coupure ne porte que la recopie de ce
  * mot ; les deux autres mots de l'argument valent un et ne changent jamais.
+ *
+ * Une seule copie par niveau, et non deux : la remise à zéro de la file que le niveau suivant
+ * remplira est faite par le noyau lui-même, les files tournant à trois (`gpuDagLevelWgsl.ts`).
  */
 export function encodeDagKernels(encoder: GPUCommandEncoder, resources: DagResources) {
   // Une variante de DIAGNOSTIC seule réencode la coupe. La répétition PRÉCÈDE la coupe qui compte :
@@ -42,12 +45,10 @@ function encodeOnce(
     blockCount,
     levelCount,
     liveGroupsOffset,
-    queueResetOffset,
     queueGroupsOffset,
     candGroupsOffset,
     drawnGroupsOffset,
     work,
-    zeros,
     dispatchArgs,
     bindGroup,
     preparePipeline,
@@ -87,10 +88,9 @@ function encodeOnce(
   pass.dispatchWorkgroups(groups(worldCount));
   pass.end();
   // Chaque niveau se répartit sur les seuls nœuds que le niveau précédent a retenus, et remplit la
-  // file opposée — dont le compte doit repartir de zéro avant qu'il n'y écrive.
+  // file suivante des trois — celle qu'un niveau plus tôt a déjà remise à zéro.
   for (let level = 1; level < levelCount; level++) {
-    const source = level & 1;
-    encoder.copyBufferToBuffer(zeros, 0, work, queueResetOffset[1 - source], 8);
+    const source = level % 3;
     arm(queueGroupsOffset[source]);
     alone(levelPipelines[source]);
   }
