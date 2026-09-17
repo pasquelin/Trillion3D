@@ -1,8 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { readManifestColumns } from '../sdk-core/manifestBinaryRead.ts';
-import { decodeTexturePreviews } from '../sdk-core/manifestBinaryPreview.ts';
-import { previewLevelSize } from '../sdk-core/texturePreviewLevels.ts';
+import { DEFAULT_SCOPE } from '../sdk-core/index.ts';
+import {
+  decodeManifestBinary,
+  previewLevelSize,
+  type SlimClusterManifest,
+} from '../sdk-core/index.ts';
 
 /**
  * The thumbnails a compile already ships, read back for whoever asks the cutout questions.
@@ -36,13 +39,17 @@ async function keyDirectory(cache: string, scope: string): Promise<string | null
 async function manifestOf(cache: string, scope: string) {
   const directory = await keyDirectory(cache, scope);
   if (!directory) return null;
-  const slim: unknown = JSON.parse(await readFile(join(directory, 'clusters.json'), 'utf8'));
+  const slim = JSON.parse(
+    await readFile(join(directory, 'clusters.json'), 'utf8'),
+  ) as SlimClusterManifest;
   const binary = await readFile(join(directory, 'clusters.bin'));
-  const buffer = binary.buffer.slice(
-    binary.byteOffset,
-    binary.byteOffset + binary.byteLength,
-  ) as ArrayBuffer;
-  return { slim: slim as Parameters<typeof readManifestColumns>[0], buffer };
+  return {
+    slim,
+    buffer: binary.buffer.slice(
+      binary.byteOffset,
+      binary.byteOffset + binary.byteLength,
+    ) as ArrayBuffer,
+  };
 }
 
 /**
@@ -52,23 +59,27 @@ async function manifestOf(cache: string, scope: string) {
  */
 export async function readThumbnails(
   cache: string,
-  scope = 'full',
+  scope: string = DEFAULT_SCOPE,
 ): Promise<Map<string, Thumbnail>> {
   const thumbnails = new Map<string, Thumbnail>();
   const manifest = await manifestOf(cache, scope).catch(() => null);
   if (!manifest) return thumbnails;
-  const columns = readManifestColumns(manifest.slim, manifest.buffer);
-  for (const preview of decodeTexturePreviews(columns.previews)) {
+  for (const preview of decodeManifestBinary(manifest.slim, manifest.buffer).texturePreviews ??
+    []) {
     const [width, height] = previewLevelSize(preview.width, preview.height, preview.firstLevel);
     const rgba = preview.levels[0];
-    if (rgba && rgba.length >= width * height * 4)
-      thumbnails.set(preview.sha256, {
-        sha256: preview.sha256,
-        width,
-        height,
-        rgba,
-        sourceBufferView: preview.sourceKind === 1 ? preview.sourceBufferView : undefined,
-      });
+    if (!rgba || rgba.length < width * height * 4) continue;
+    thumbnails.set(preview.sha256, {
+      sha256: preview.sha256,
+      width,
+      height,
+      // Recopié plutôt que gardé en vue : un niveau retenu épinglerait sinon le sidecar entier,
+      // des mégaoctets, pour les quelques kilo-octets qu'on montre.
+      rgba: Uint8Array.from(rgba),
+      // Le contrat public le dit : une source `uri` porte -1, donc tout rang positif est une image
+      // embarquée. Pas de constante interne à emprunter pour ça.
+      sourceBufferView: preview.sourceBufferView >= 0 ? preview.sourceBufferView : undefined,
+    });
   }
   return thumbnails;
 }
@@ -107,7 +118,7 @@ export function resize(thumbnail: Thumbnail, width: number, height: number): Thu
  */
 export async function embeddedImages(
   cache: string,
-  scope = 'full',
+  scope: string = DEFAULT_SCOPE,
 ): Promise<(view: number) => Buffer | null> {
   const directory = await keyDirectory(cache, scope).catch(() => null);
   if (!directory) return () => null;

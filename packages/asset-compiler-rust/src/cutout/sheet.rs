@@ -126,7 +126,7 @@ pub(crate) fn build_sheet(entries: &[Entry], decisions: &Decisions) -> Value {
         }
     }
     json!({"version":SHEET_VERSION,
-        "about":"Réponse par texture : cutout = true pour une découpe, false pour une vraie transparence, null tant que personne n'a tranché. Ouvrir decoupes.html pour répondre en voyant les images.",
+        "about":"Réponse par texture : cutout = true pour une découpe, false pour une vraie transparence, null tant que personne n'a tranché. La préparation pose la question et montre les images ; ce fichier s'édite aussi à la main.",
         "textures":Value::Object(textures)})
 }
 

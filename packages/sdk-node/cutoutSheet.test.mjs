@@ -4,22 +4,10 @@ import { mkdtemp, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readSheet, pendingOf, answerSheet, SHEET_FILE } from './cutoutSheet.mts';
+import { leaf as feuille } from './cutoutFixture.mjs';
 
-const leaf = {
-  image: 'feuillage.png',
-  used: true,
-  measure: { betweenPercent: 4.3 },
-  blendPrimitives: 3,
-  proposal: 'cutout',
-  cutout: null,
-};
-const glass = {
-  image: 'vitre.png',
-  used: true,
-  blendPrimitives: 1,
-  proposal: 'blend',
-  cutout: null,
-};
+const leaf = feuille(3);
+const glass = { ...feuille(1), image: 'vitre.png', proposal: 'blend' };
 
 async function model(sheet) {
   const directory = await mkdtemp(join(tmpdir(), 'wg-feuille-'));
@@ -30,12 +18,10 @@ async function model(sheet) {
 // Comportement : une texture partagée par deux modèles ne fait qu'une ligne — la réponse porte sur
 // les octets de l'image —, et ce qu'elle tient de primitives en mélange s'additionne.
 test('une image partagée ne fait qu’une ligne, et ses primitives s’additionnent', () => {
-  const pending = pendingOf(
-    new Map([
-      ['emerald', { version: 1, textures: { abc: { ...leaf }, def: { ...glass } } }],
-      ['bistro', { version: 1, textures: { abc: { ...leaf, blendPrimitives: 5 } } }],
-    ]),
-  );
+  const pending = pendingOf([
+    { name: 'emerald', sheet: { version: 1, textures: { abc: { ...leaf }, def: { ...glass } } } },
+    { name: 'bistro', sheet: { version: 1, textures: { abc: { ...leaf, blendPrimitives: 5 } } } },
+  ]);
   assert.equal(pending.length, 2);
   assert.deepEqual(
     pending.map((one) => [one.image, one.blendPrimitives, one.models]),
@@ -55,7 +41,7 @@ test('une texture déjà tranchée ou inutilisée ne se redemande pas', () => {
     ghi: { ...leaf, used: false },
     jkl: { ...leaf },
   };
-  const pending = pendingOf(new Map([['emerald', { version: 1, textures }]]));
+  const pending = pendingOf([{ name: 'emerald', sheet: { version: 1, textures } }]);
   assert.deepEqual(
     pending.map((one) => one.sha256),
     ['jkl'],
