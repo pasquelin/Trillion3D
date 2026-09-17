@@ -107,26 +107,27 @@ export function createWebgpuBlendState() {
      *  sommets d'une grappe paginée — le pas de toutes les tranches partagées. */
     vertexShift: 2,
     maxVertexWords: 3,
-    /** Les instances que la scène peut étaler, et où la passe de transmission commence les siennes. */
+    /** Les instances que la scène peut étaler, et où chaque passe commence les siennes. */
     instanceCapacity: 1,
-    transmissionBase: 0,
+    instanceBase: [0, 0],
     /** Les entrées de plan qu'une passe peut porter au plus, et les régions que chacune occupe dans
      *  le tampon de plan, de tranches et d'arguments (`webgpuBlendExpand.ts`). */
     maxPlanEntries: 1,
     planRegions: [] as { order: number; runs: number; args: number }[],
-    /** Un bit par item : le verdict du tronc de l'image, posé avec les clés de classement. */
+    /** Un bit par item : le verdict du tronc de l'image, posé avec les clés de classement, et
+     *  vrai tant qu'un mot du masque a changé depuis la dernière écriture sur la carte. */
     keepPacked: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
+    keepMoved: true,
     /** Tables statiques du plan d'encodage (`webgpuBlendPlan.ts`). */
     drawsPacked: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
-    planBlend: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
-    planTransmission: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
+    /** Les entrées semées de chaque passe : le mélange, puis la transmission. Comme `runCount`,
+     *  `orderMoved` et `planRegions`, tout ce qui va par passe est indexé par la passe. */
+    plans: [new Uint32Array(0), new Uint32Array(0)] as Uint32Array<ArrayBuffer>[],
     /** Les mêmes entrées, dans l'ordre de peinture de l'image : du plus lointain au plus proche.
      *  Semées par le plan, réordonnées sur place à chaque image (`webgpuBlendOrder.ts`). */
-    orderBlend: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
-    orderTransmission: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
+    orders: [new Uint32Array(0), new Uint32Array(0)] as Uint32Array<ArrayBuffer>[],
     /** Les tranches de chaque ordre, refaites — et réécrites sur la carte — quand il a bougé. */
-    runsBlend: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
-    runsTransmission: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
+    runs: [new Uint32Array(0), new Uint32Array(0)] as Uint32Array<ArrayBuffer>[],
     runCount: [0, 0],
     /** L'ordre a-t-il bougé depuis la dernière écriture ? Une pose immobile n'écrit rien. */
     orderMoved: [true, true],
