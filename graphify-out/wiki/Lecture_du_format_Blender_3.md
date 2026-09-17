@@ -26,9 +26,9 @@
 ## Relationships
 
 - [Lecture du format Blender (2)](Lecture_du_format_Blender_2.md) (6 shared connections)
-- [Matrices monde du compilateur](Matrices_monde_du_compilateur.md) (3 shared connections)
+- [ma · AXES](ma_·_AXES.md) (3 shared connections)
 - [usd · AssetPath](usd_·_AssetPath.md) (2 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
 
 ## Source Files
 

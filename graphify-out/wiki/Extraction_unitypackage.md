@@ -1,6 +1,6 @@
 # Extraction unitypackage
 
-> 30 nodes
+> 31 nodes
 
 ## Key Concepts
 
@@ -17,6 +17,7 @@
 - **.prepare()** (5 connections) — `packages/asset-compiler-rust/src/plugins/scene/unitypackage.rs`
 - **String** (4 connections)
 - **Target** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/unitypackage.rs`
+- **Entry** (2 connections)
 - **GzDecoder** (2 connections)
 - **R** (2 connections)
 - **ASSET** (1 connections) — `packages/asset-compiler-rust/src/plugins/scene/unitypackage.rs`
@@ -28,23 +29,22 @@
 - **BufReader** (1 connections)
 - **Error** (1 connections)
 - **File** (1 connections)
-- **Fn** (1 connections)
-- *... and 5 more nodes in this community*
+- *... and 6 more nodes in this community*
 
 ## Relationships
 
-- [unity · Option](unity_·_Option.md) (5 shared connections)
-- [Greffons de scène du compilateur](Greffons_de_scène_du_compilateur.md) (5 shared connections)
+- [unity · les_mesures_et_la_provenance_sortent_de_lidentite](unity_·_les_mesures_et_la_provenance_sortent_de_lidentite.md) (5 shared connections)
+- [plugins · AsRef](plugins_·_AsRef.md) (4 shared connections)
+- [Verrou CLI et fixtures du compilateur](Verrou_CLI_et_fixtures_du_compilateur.md) (2 shared connections)
 - [Archive Alembic](Archive_Alembic.md) (2 shared connections)
 - [Verrou CLI et fixtures du compilateur (2)](Verrou_CLI_et_fixtures_du_compilateur_2.md) (2 shared connections)
-- [Archives zip et USDZ](Archives_zip_et_USDZ.md) (1 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
-- [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
-- [Verrou CLI et fixtures du compilateur](Verrou_CLI_et_fixtures_du_compilateur.md) (1 shared connections)
-- [blend · Display](blend_·_Display.md) (1 shared connections)
 - [Normales et jointures](Normales_et_jointures.md) (1 shared connections)
-- [src · Fn](src_·_Fn.md) (1 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [scene · .accepts_head (2)](scene_·_.accepts_head_2.md) (1 shared connections)
+- [blend · Display](blend_·_Display.md) (1 shared connections)
+- [Validation du compilateur](Validation_du_compilateur.md) (1 shared connections)
 - [Greffons et pilotes de scène](Greffons_et_pilotes_de_scène.md) (1 shared connections)
+- [Tables de scène à l'import](Tables_de_scène_à_l'import.md) (1 shared connections)
 
 ## Source Files
 
@@ -52,7 +52,7 @@
 
 ## Audit Trail
 
-- EXTRACTED: 70 (96%)
+- EXTRACTED: 71 (96%)
 - INFERRED: 3 (4%)
 - AMBIGUOUS: 0 (0%)
 

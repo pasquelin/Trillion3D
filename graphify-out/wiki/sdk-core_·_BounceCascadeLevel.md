@@ -1,6 +1,6 @@
 # sdk-core · BounceCascadeLevel
 
-> 27 nodes
+> 39 nodes
 
 ## Key Concepts
 
@@ -9,41 +9,42 @@
 - **SceneProxy** (12 connections) — `packages/sdk-core/proxyContracts.ts`
 - **bounceCascades.ts** (11 connections) — `packages/sdk-core/bounceCascades.ts`
 - **bounceOccupancy.ts** (11 connections) — `packages/sdk-core/bounceOccupancy.ts`
+- **bounceSchedule.ts** (9 connections) — `packages/sdk-browser/bounceSchedule.ts`
+- **decodeSceneProxy()** (7 connections) — `packages/sdk-core/sceneProxy.ts`
 - **BounceCascades** (6 connections) — `packages/sdk-core/bounceCascades.ts`
 - **createBounceOccupancy()** (6 connections) — `packages/sdk-core/bounceOccupancy.ts`
 - **SceneProxyDescriptor** (5 connections) — `packages/sdk-core/proxyContracts.ts`
 - **createBounceCascades()** (5 connections) — `packages/sdk-core/bounceCascades.ts`
+- **bad()** (5 connections) — `packages/sdk-core/sceneProxy.ts`
+- **PROXY_NODE_FLOATS** (5 connections) — `packages/sdk-core/proxyContracts.ts`
+- **createBounceSchedule()** (4 connections) — `packages/sdk-browser/bounceSchedule.ts`
+- **assertSceneProxy()** (4 connections) — `packages/sdk-core/sceneProxy.ts`
 - **PROXY_TRIANGLE_FLOATS** (4 connections) — `packages/sdk-core/proxyContracts.ts`
+- **BounceOccupancy** (3 connections) — `packages/sdk-core/bounceOccupancy.ts`
 - **baseOf()** (3 connections) — `packages/sdk-core/bounceCascades.ts`
 - **fixedBase()** (3 connections) — `packages/sdk-core/bounceCascades.ts`
 - **dilate()** (3 connections) — `packages/sdk-core/bounceOccupancy.ts`
 - **mark()** (3 connections) — `packages/sdk-core/bounceOccupancy.ts`
+- **checkChildren()** (3 connections) — `packages/sdk-core/sceneProxy.ts`
 - **PROXY_CHILD_WORDS** (3 connections) — `packages/sdk-core/proxyContracts.ts`
 - **PROXY_CHILDREN** (3 connections) — `packages/sdk-core/proxyContracts.ts`
 - **PROXY_NODE_WORDS** (3 connections) — `packages/sdk-core/proxyContracts.ts`
-- **SceneProxyColumns** (2 connections) — `packages/sdk-core/proxyContracts.ts`
-- **movingBase()** (2 connections) — `packages/sdk-core/bounceCascades.ts`
-- **spacingsOf()** (2 connections) — `packages/sdk-core/bounceCascades.ts`
-- **reduce()** (2 connections) — `packages/sdk-core/bounceOccupancy.ts`
-- **SCENE_PROXY_HEADER_WORDS** (2 connections) — `packages/sdk-core/proxyContracts.ts`
-- **SCENE_PROXY_MAGIC** (2 connections) — `packages/sdk-core/proxyContracts.ts`
-- **SCENE_PROXY_VERSION** (2 connections) — `packages/sdk-core/proxyContracts.ts`
-- **BounceCascadeLevel** (1 connections) — `packages/sdk-core/bounceCascades.ts`
-- *... and 2 more nodes in this community*
+- *... and 14 more nodes in this community*
 
 ## Relationships
 
-- [Sondes et rebond GPU](Sondes_et_rebond_GPU.md) (14 shared connections)
-- [Magasin des lumières de scène](Magasin_des_lumières_de_scène.md) (8 shared connections)
-- [sdk-browser · SunFarCounts](sdk-browser_·_SunFarCounts.md) (7 shared connections)
-- [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (4 shared connections)
-- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (1 shared connections)
-- [Télémétrie et métriques](Télémétrie_et_métriques.md) (1 shared connections)
-- [Manifeste binaire (2)](Manifeste_binaire_2.md) (1 shared connections)
-- [Manifeste binaire (3)](Manifeste_binaire_3.md) (1 shared connections)
+- [Sondes et rebond GPU](Sondes_et_rebond_GPU.md) (22 shared connections)
+- [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (7 shared connections)
+- [Manifeste binaire (2)](Manifeste_binaire_2.md) (5 shared connections)
+- [Erreurs moteur et cache (2)](Erreurs_moteur_et_cache_2.md) (3 shared connections)
+- [Vidange et lumières encodées](Vidange_et_lumières_encodées.md) (3 shared connections)
+- [Gabarits de sélection de pages](Gabarits_de_sélection_de_pages.md) (3 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (2 shared connections)
+- [sdk-browser · colonne](sdk-browser_·_colonne.md) (1 shared connections)
 
 ## Source Files
 
+- `packages/sdk-browser/bounceSchedule.ts`
 - `packages/sdk-core/bounceCascades.ts`
 - `packages/sdk-core/bounceOccupancy.ts`
 - `packages/sdk-core/proxyContracts.ts`
@@ -51,8 +52,8 @@
 
 ## Audit Trail
 
-- EXTRACTED: 85 (100%)
-- INFERRED: 0 (0%)
+- EXTRACTED: 111 (98%)
+- INFERRED: 2 (2%)
 - AMBIGUOUS: 0 (0%)
 
 ---

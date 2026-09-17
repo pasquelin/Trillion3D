@@ -25,8 +25,8 @@
 
 - [Lecture du format Blender (2)](Lecture_du_format_Blender_2.md) (6 shared connections)
 - [Lecture du format Blender](Lecture_du_format_Blender.md) (2 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
-- [unity · Option](unity_·_Option.md) (1 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [unity · les_mesures_et_la_provenance_sortent_de_lidentite](unity_·_les_mesures_et_la_provenance_sortent_de_lidentite.md) (1 shared connections)
 - [unity · Fn](unity_·_Fn.md) (1 shared connections)
 
 ## Source Files

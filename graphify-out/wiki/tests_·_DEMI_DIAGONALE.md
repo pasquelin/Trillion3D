@@ -26,7 +26,7 @@
 ## Relationships
 
 - [Budget et ouvriers du compilateur (2)](Budget_et_ouvriers_du_compilateur_2.md) (6 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
 - [Tests dorés du compilateur](Tests_dorés_du_compilateur.md) (1 shared connections)
 
 ## Source Files

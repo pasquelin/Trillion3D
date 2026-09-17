@@ -15,9 +15,9 @@
 
 - [Registre des images de test](Registre_des_images_de_test.md) (1 shared connections)
 - [ktx2 · NAMES](ktx2_·_NAMES.md) (1 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
 - [tests · DROIT](tests_·_DROIT.md) (1 shared connections)
-- [tests · ALPHA](tests_·_ALPHA.md) (1 shared connections)
+- [tests · ALPHA (2)](tests_·_ALPHA_2.md) (1 shared connections)
 - [tests · ASTC_4X4](tests_·_ASTC_4X4.md) (1 shared connections)
 
 ## Source Files

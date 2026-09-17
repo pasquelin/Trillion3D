@@ -2,7 +2,7 @@
 
 > God node · 58 connections · `packages/sdk-core/bench/socle/mesure.mjs`
 
-**Community:** [bench · passe](bench_·_passe.md)
+**Community:** [Garde zéro Three.js](Garde_zéro_Three.js.md)
 
 ## Connections by Relation
 

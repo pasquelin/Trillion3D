@@ -33,8 +33,9 @@
 
 ## Relationships
 
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (6 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (5 shared connections)
 - [Budget et ouvriers du compilateur (2)](Budget_et_ouvriers_du_compilateur_2.md) (4 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
 
 ## Source Files
 

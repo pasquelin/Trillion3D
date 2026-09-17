@@ -13,12 +13,12 @@
 ## Relationships
 
 - [tests · DELTA](tests_·_DELTA.md) (2 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
 - [Budget et ouvriers du compilateur (2)](Budget_et_ouvriers_du_compilateur_2.md) (1 shared connections)
 - [tests · each_prefab_override_names_its_own_object_and_ten_runs_agree](tests_·_each_prefab_override_names_its_own_object_and_ten_runs_agree.md) (1 shared connections)
 - [Projet et propriétés Unity](Projet_et_propriétés_Unity.md) (1 shared connections)
 - [tests · .drop](tests_·_.drop.md) (1 shared connections)
-- [Routage des conteneurs d'archives](Routage_des_conteneurs_d'archives.md) (1 shared connections)
+- [Bacs à sable des pilotes](Bacs_à_sable_des_pilotes.md) (1 shared connections)
 
 ## Source Files
 

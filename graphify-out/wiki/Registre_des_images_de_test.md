@@ -23,10 +23,10 @@
 ## Relationships
 
 - [Tests du pilote GIF](Tests_du_pilote_GIF.md) (2 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
-- [Clés et orientation KTX2](Clés_et_orientation_KTX2.md) (1 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [image · IntoIterator](image_·_IntoIterator.md) (1 shared connections)
 - [tests · ALPHA_32](tests_·_ALPHA_32.md) (1 shared connections)
-- [Profils et couleurs TIFF](Profils_et_couleurs_TIFF.md) (1 shared connections)
+- [tests · ALPHA](tests_·_ALPHA.md) (1 shared connections)
 - [dds · ARRAY_SIZE](dds_·_ARRAY_SIZE.md) (1 shared connections)
 - [tests · DROIT](tests_·_DROIT.md) (1 shared connections)
 - [tests · BLANC](tests_·_BLANC.md) (1 shared connections)

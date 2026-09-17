@@ -1,63 +1,46 @@
 # tests · ALPHA
 
-> 24 nodes
+> 18 nodes
 
 ## Key Concepts
 
-- **fixture()** (28 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/tests/surgery.rs`
-- **tests/psd.rs** (13 connections) — `packages/asset-compiler-rust/src/plugins/tests/psd.rs`
-- **plugins/tests.rs** (10 connections) — `packages/asset-compiler-rust/src/plugins/tests.rs`
-- **assert_refusals()** (6 connections) — `packages/asset-compiler-rust/src/plugins/tests.rs`
-- **assert_claims()** (5 connections) — `packages/asset-compiler-rust/src/plugins/tests.rs`
-- **un_bmp_hors_politique_ressort_en_raison_de_rapport_jamais_en_panique()** (4 connections) — `packages/asset-compiler-rust/src/plugins/tests/bmp.rs`
-- **fixture()** (4 connections) — `packages/asset-compiler-rust/src/plugins/tests.rs`
-- **un_gif_hors_politique_ressort_en_raison_de_rapport_jamais_en_panique()** (4 connections) — `packages/asset-compiler-rust/src/plugins/tests/gif.rs`
-- **rgba_f32()** (4 connections) — `packages/asset-compiler-rust/src/plugins/tests.rs`
-- **un_webp_hors_politique_ressort_en_raison_de_rapport_jamais_en_panique()** (4 connections) — `packages/asset-compiler-rust/src/plugins/tests/webp.rs`
-- **declared()** (3 connections) — `packages/asset-compiler-rust/src/plugins/tests.rs`
-- **pixels()** (3 connections) — `packages/asset-compiler-rust/src/plugins/tests/hdr.rs`
-- **ce_qui_sort_du_sous_ensemble_ressort_en_raison_de_rapport_jamais_en_panique()** (3 connections) — `packages/asset-compiler-rust/src/plugins/tests/psd.rs`
-- **le_plafond_dallocation_compte_quatre_octets_par_pixel()** (2 connections) — `packages/asset-compiler-rust/src/plugins/tests/psd.rs`
-- **un_entete_hors_domaine_est_refuse_par_son_nom()** (2 connections) — `packages/asset-compiler-rust/src/plugins/tests/psd.rs`
-- **temp_dir()** (2 connections) — `packages/asset-compiler-rust/src/plugins/tests.rs`
-- **ALPHA** (1 connections) — `packages/asset-compiler-rust/src/plugins/tests/psd.rs`
-- **avec_alpha()** (1 connections) — `packages/asset-compiler-rust/src/plugins/tests/psd.rs`
-- **GRIS** (1 connections) — `packages/asset-compiler-rust/src/plugins/tests/psd.rs`
-- **les_deux_ecritures_du_composite_rendent_les_pixels_de_la_reference()** (1 connections) — `packages/asset-compiler-rust/src/plugins/tests/psd.rs`
-- **MAX_ALLOC** (1 connections) — `packages/asset-compiler-rust/src/plugins/tests/psd.rs`
-- **RVB** (1 connections) — `packages/asset-compiler-rust/src/plugins/tests/psd.rs`
-- **SIZE** (1 connections) — `packages/asset-compiler-rust/src/plugins/tests/psd.rs`
-- **PathBuf** (1 connections)
+- **tests/dds.rs** (12 connections) — `packages/asset-compiler-rust/src/plugins/tests/dds.rs`
+- **chaque_codec_compresse_declare_rend_les_pixels_de_la_reference()** (4 connections) — `packages/asset-compiler-rust/src/plugins/tests/dds.rs`
+- **check()** (4 connections) — `packages/asset-compiler-rust/src/plugins/tests/dds.rs`
+- **dag/tests/part4.rs** (3 connections) — `packages/asset-compiler-rust/src/dag/tests/part4.rs`
+- **the_culling_hierarchy_owns_every_cluster_once_and_bounds_its_subtree()** (3 connections) — `packages/asset-compiler-rust/src/dag/tests/part4.rs`
+- **sans_compression.rs** (3 connections) — `packages/asset-compiler-rust/src/plugins/tests/dds/sans_compression.rs`
+- **enclosing_sphere_contains_every_input()** (2 connections) — `packages/asset-compiler-rust/src/dag/tests/part4.rs`
+- **bc7_block()** (2 connections) — `packages/asset-compiler-rust/src/plugins/tests/dds.rs`
+- **les_surfaces_non_compressees_rendent_la_meme_image_dans_les_trois_ordres()** (2 connections) — `packages/asset-compiler-rust/src/plugins/tests/dds/sans_compression.rs`
+- **ALPHA** (1 connections) — `packages/asset-compiler-rust/src/plugins/tests/dds.rs`
+- **COLORS** (1 connections) — `packages/asset-compiler-rust/src/plugins/tests/dds.rs`
+- **GREEN** (1 connections) — `packages/asset-compiler-rust/src/plugins/tests/dds.rs`
+- **MAX_ALLOC** (1 connections) — `packages/asset-compiler-rust/src/plugins/tests/dds.rs`
+- **NIBBLES** (1 connections) — `packages/asset-compiler-rust/src/plugins/tests/dds.rs`
+- **ORDER** (1 connections) — `packages/asset-compiler-rust/src/plugins/tests/dds.rs`
+- **RAMP** (1 connections) — `packages/asset-compiler-rust/src/plugins/tests/dds.rs`
+- **PIXELS** (1 connections) — `packages/asset-compiler-rust/src/plugins/tests/dds/sans_compression.rs`
+- **SIDE** (1 connections) — `packages/asset-compiler-rust/src/plugins/tests/dds.rs`
 
 ## Relationships
 
-- [Tests du pilote GIF](Tests_du_pilote_GIF.md) (9 shared connections)
-- [tests · HEADER](tests_·_HEADER.md) (4 shared connections)
-- [tests · DROIT](tests_·_DROIT.md) (4 shared connections)
-- [tests · BLANC](tests_·_BLANC.md) (3 shared connections)
-- [dds · ARRAY_SIZE](dds_·_ARRAY_SIZE.md) (2 shared connections)
-- [tests · gamma](tests_·_gamma.md) (2 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (2 shared connections)
-- [Clés et orientation KTX2](Clés_et_orientation_KTX2.md) (2 shared connections)
-- [tests · IGNORED](tests_·_IGNORED.md) (1 shared connections)
-- [ktx2 · NAMES](ktx2_·_NAMES.md) (1 shared connections)
-- [tests · ASTC_4X4](tests_·_ASTC_4X4.md) (1 shared connections)
-- [ktx2 · invalid_headers](ktx2_·_invalid_headers.md) (1 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (2 shared connections)
+- [dag · Bits](dag_·_Bits.md) (1 shared connections)
+- [Maths partagées et BVH](Maths_partagées_et_BVH.md) (1 shared connections)
+- [Registre des images de test](Registre_des_images_de_test.md) (1 shared connections)
+- [Profils et couleurs TIFF](Profils_et_couleurs_TIFF.md) (1 shared connections)
 
 ## Source Files
 
-- `packages/asset-compiler-rust/src/plugins/scene/blend/tests/surgery.rs`
-- `packages/asset-compiler-rust/src/plugins/tests.rs`
-- `packages/asset-compiler-rust/src/plugins/tests/bmp.rs`
-- `packages/asset-compiler-rust/src/plugins/tests/gif.rs`
-- `packages/asset-compiler-rust/src/plugins/tests/hdr.rs`
-- `packages/asset-compiler-rust/src/plugins/tests/psd.rs`
-- `packages/asset-compiler-rust/src/plugins/tests/webp.rs`
+- `packages/asset-compiler-rust/src/dag/tests/part4.rs`
+- `packages/asset-compiler-rust/src/plugins/tests/dds.rs`
+- `packages/asset-compiler-rust/src/plugins/tests/dds/sans_compression.rs`
 
 ## Audit Trail
 
-- EXTRACTED: 37 (52%)
-- INFERRED: 34 (48%)
+- EXTRACTED: 20 (80%)
+- INFERRED: 5 (20%)
 - AMBIGUOUS: 0 (0%)
 
 ---

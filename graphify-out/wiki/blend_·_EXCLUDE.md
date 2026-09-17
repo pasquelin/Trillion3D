@@ -18,7 +18,7 @@
 ## Relationships
 
 - [Lecture du format Blender (2)](Lecture_du_format_Blender_2.md) (3 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
 
 ## Source Files
 
