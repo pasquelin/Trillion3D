@@ -5,8 +5,10 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { commandePnpm } from '../only-pnpm.mjs';
 
-const buildDist = (dir) => execFileSync('pnpm', ['run', 'build'], { cwd: dir, stdio: 'inherit' });
+const buildDist = (dir) =>
+  execFileSync(...commandePnpm('run', 'build'), { cwd: dir, stdio: 'inherit' });
 
 /** Les côtés demandés : « après » toujours, « avant » seulement s'il a été nommé. */
 export function resolveSides({ apres, avant, root }) {

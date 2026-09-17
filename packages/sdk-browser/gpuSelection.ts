@@ -41,7 +41,8 @@ export type SelectionUniforms = {
 export type SelectionResult = {
   pageIds: number[];
   /** La priorité de chaque demande, au même rang que `pageIds` : l'erreur d'écran du remplaçant,
-   *  quantifiée (`gpuDagRequest.ts`). La liste est rendue classée, priorité décroissante. */
+   *  quantifiée (`gpuDagRequest.ts`). Seul l'ORACLE la publie, pour le banc de justesse qui compare
+   *  les deux classements ; le chemin carte ne rend que l'ordre, qui est ce que l'hôte consomme. */
   requestPriorities?: number[];
   frustumRejected: number;
   lodLevel: number;
