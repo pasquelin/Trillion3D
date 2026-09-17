@@ -173,7 +173,10 @@ fn one_preview(
     };
     // La mesure de l'alpha lit l'image PLEINE RÉSOLUTION : la largeur d'un bord adouci se compte en
     // pixels de la source, et un niveau réduit la diviserait par son échelle.
-    let shape = entry.candidate.then(|| crate::cutout::measure(&decoded));
+    let shape = entry.candidate.then(|| {
+        let _t = perf::Timer::new(perf::Phase::TextureAlpha);
+        crate::cutout::measure(&decoded)
+    });
     let (first_level, pixels) = reduce::pyramid(&decoded, source.transfer, entry.cutoff);
     let preview = TexturePreview {
         texture: u32::try_from(entry.texture).map_err(|_| "texture-out-of-bounds")?,
