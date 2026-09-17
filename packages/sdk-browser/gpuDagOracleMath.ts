@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { frustumExcludesBox, frustumPlanesToLocal, screenErrorBound } from '../sdk-core/index.ts';
-import { viewDepthOf, viewLateralOf } from './pageSelectionProjection.ts';
+import { errorFloorAt, viewDepthOf, viewLateralOf } from './pageSelectionProjection.ts';
 import { DAG_NODE_FLOATS } from './gpuDagTypes.ts';
+import { NODE_FLAGS, NODE_FLOOR, NODE_FLOOR_SPHERE, NODE_HAS_ROOT } from './gpuDagPackNodes.ts';
 import type { SelectionUniforms } from './gpuSelection.ts';
 
 export const dagScratch = {
@@ -121,4 +122,33 @@ export function dagNodeVerdict(
   )
     return -1;
   return ints[base + 15];
+}
+
+/**
+ * Le PLANCHER d'erreur du sous-arbre, projeté comme le noyau le projette (`gpuDagLevelWgsl.ts`,
+ * `errorFloor`) : au-dessus du seuil, aucune de ses grappes n'est assez fine et la coupe n'en prend
+ * aucune. Un sous-arbre qui porte une grappe que rien ne remplace en est exempt — le repli épinglé
+ * la dessine sans consulter de seuil — et rend zéro, donc n'élague jamais.
+ */
+export function dagNodeFloor(
+  f: DagViewFrames,
+  nodes: ArrayLike<number>,
+  ints: Uint32Array,
+  n: number,
+) {
+  const base = n * DAG_NODE_FLOATS,
+    w = ints[base + 12];
+  if (ints[base + NODE_FLAGS] & NODE_HAS_ROOT) return 0;
+  return errorFloorAt(
+    nodes[base + NODE_FLOOR],
+    viewDepthOf(
+      nodes[base + NODE_FLOOR_SPHERE],
+      nodes[base + NODE_FLOOR_SPHERE + 1],
+      nodes[base + NODE_FLOOR_SPHERE + 2],
+      f.views[w],
+    ),
+    nodes[base + NODE_FLOOR_SPHERE + 3],
+    f.stretches[w],
+    f.focal,
+  );
 }

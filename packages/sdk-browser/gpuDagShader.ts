@@ -3,13 +3,14 @@ import { INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
 import { DAG_COMPACT_WGSL } from './gpuDagCompactWgsl.ts';
 import { DAG_LIVE_WGSL } from './gpuDagLiveWgsl.ts';
 import { DAG_LEVEL_WGSL } from './gpuDagLevelWgsl.ts';
+import { DAG_FLOOR_WGSL } from './gpuDagFloorWgsl.ts';
 import { DAG_RECORD_WGSL } from './gpuDagRecordWgsl.ts';
 import { ESCALATION_SLACK } from './pageSelectionTypes.ts';
 import { CLUSTER_LEVEL_SHIFT } from './gpuDagLayout.ts';
 import { CONE_LENGTH_RATIO_WGSL, CONE_ORTHO_EPS_WGSL, HALF_PI_WGSL } from '../sdk-core/index.ts';
 
 export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,worldIndex:u32,flags:u32,}
-struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,}
+struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,floorSphere:vec4f,errorFloor:f32,nodeFlags:u32,pad0:u32,pad1:u32,}
 // \`view\`, \`planes\` et \`worlds\` sont ceux du repere de rendu ; \`cameraWorld\` en est l'origine, que le
 // noyau n'a pas a lire puisque la camera y est posee a zero : elle voyage pour le nommer a qui releve le bloc.
 struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,}
@@ -107,10 +108,8 @@ fn escalate(world:u32,parentPixels:f32){
  else{atomicOr(&work[uni.worldCount+world],1u);}
 }
 /** La remise à zéro et les plans par primitive : deux noyaux hier, un seul lancement aujourd'hui.
- *  Rien ne les liait — le premier écrit les seuils, les compteurs de sortie et les comptes de bloc,
- *  le second les plans du tronc —, et seule la descente, qui suit, lit ce que le second écrit. Les
- *  comptes de bloc de la compaction sont remis à zéro ici parce que \`dagMask\` les accumule, et la
- *  file de la passe 0 reçoit la racine de chaque primitive. */
+ *  Rien ne les liait — le premier écrit les seuils, les compteurs de sortie et les comptes de bloc
+ *  que \`dagMask\` accumule, le second les plans du tronc —, et seule la descente lit le second. */
 @compute @workgroup_size(64)
 fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  let w=id.x;
@@ -119,7 +118,7 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  if(w>=uni.worldCount){return;}
  // La racine de la primitive ouvre la descente : un fil, une racine, aucun compteur à disputer.
  flags[queueBase(0u)+w]=rootOf(w);
- atomicStore(&work[w],bitcast<u32>(max(uni.pixelError,0.0)));
+ atomicStore(&work[w],bitcast<u32>(resetPrune(w)));
  atomicStore(&work[uni.worldCount+w],0u);
  let t=transpose(worlds[w]);let base=w*FRAME;
  for(var i=0u;i<6u;i++){frames[base+i]=t*uni.planes[i];}
@@ -176,7 +175,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u){
  var draw=false;
  if(!coneRejected(i)){
   let w=cluster.worldIndex;
-  if(uni.residentCut!=0u&&atomicLoad(&work[uni.worldCount+w])!=0u){
+  if(uni.residentCut!=0u&&(atomicLoad(&work[uni.worldCount+w])!=0u||pruneCrossed(w))){
    // No resident ancestor replaces the missing cluster: this primitive falls back to its pinned roots.
    draw=(cluster.flags&1u)!=0u;
    if(draw&&!isResident(i)){atomicOr(&out.overflow,2u);draw=false;}
@@ -197,4 +196,5 @@ ${INVERSE_TRANSPOSE_WGSL}
 ${DAG_COMPACT_WGSL}
 ${DAG_LIVE_WGSL}
 ${DAG_LEVEL_WGSL}
+${DAG_FLOOR_WGSL}
 ${DAG_RECORD_WGSL}`;

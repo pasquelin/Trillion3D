@@ -10,16 +10,15 @@
  * monotones vers le bas, donc un parent rejeté rejette tout son sous-arbre, et réciproquement un nœud
  * retenu a forcément un parent retenu, qu'il est inutile de tester.
  *
- * Elle compte aussi l'autre moitié du problème : le rejet PAR LE HAUT. La descente de la carte ne
- * porte que le PLAFOND d'erreur du remplaçant, donc elle ne sait rejeter qu'un sous-arbre trop fin ;
- * un sous-arbre trop grossier, elle le descend jusqu'aux pages. La coupe processeur, elle, rejette
- * les deux (`pageSelectionCutNode.ts`) avec des bornes que `cullingBounds` dérive des pages à la
- * préparation, sans toucher au format du manifeste.
+ * Elle compte aussi l'autre moitié du problème : le rejet PAR LE HAUT. Le nœud porte le PLAFOND
+ * d'erreur du remplaçant depuis le manifeste — de quoi rejeter un sous-arbre trop fin — et, depuis
+ * ce lot, le PLANCHER de l'erreur propre, que `cullingBounds` dérive des pages à la préparation et
+ * que `packCullingNodes` range dans le nœud : de quoi rejeter aussi le trop grossier, comme la
+ * coupe processeur le fait déjà (`pageSelectionCutNode.ts`). Rien du compilateur, rien du format.
+ * Les deux descentes se lancent d'ici pour que la différence soit mesurée, pas déduite.
  */
 import { DAG_NODE_FLOATS, type PackedDag } from './gpuDagTypes.ts';
-import { dagNodeVerdict, dagViewFrames, projectedError } from './gpuDagOracleMath.ts';
-import { BOUND_STRIDE, OWN_FLOOR, OWN_SPHERE } from './pageSelectionCutBounds.ts';
-import { errorFloorAt, viewDepth } from './pageSelectionProjection.ts';
+import { dagNodeFloor, dagNodeVerdict, dagViewFrames, projectedError } from './gpuDagOracleMath.ts';
 import { bandError, bandSphere, dagRecords, worldOf } from './gpuDagLayout.ts';
 import type { SelectionUniforms } from './gpuSelection.ts';
 
@@ -29,7 +28,7 @@ export type Descente = {
   frontiereFeuilles: number;
   frontiereRejetees: number;
   candidats: number;
-  /** Nœuds que le PLANCHER d'erreur du sous-arbre a rejetés, quand `bounds` est donné. */
+  /** Nœuds que le PLANCHER d'erreur du sous-arbre a rejetés, quand `plancher` est demandé. */
   plancherCoupe: number;
   /** Candidates réellement trop grossières, page par page : ce que le rejet par le haut VISE. */
   tropGrossieres: number;
@@ -40,21 +39,21 @@ export type Descente = {
  * Elle ne sert pas à produire une coupe — l'oracle le fait déjà — mais à dire ce que chaque image
  * relit, et sous quelle forme.
  *
- * `bounds` ajoute le rejet PAR LE HAUT et le fait vraiment : l'appelant lance les deux descentes et
+ * `plancher` ajoute le rejet PAR LE HAUT et le fait vraiment : l'appelant lance les deux descentes et
  * soustrait. Compter le sous-arbre d'un nœud rejeté aurait surestimé la différence — les rejets plus
- * bas, tronc et plafond, y retirent déjà des pages que la descente n'aurait jamais listées.
+ * bas, tronc et plafond, y retirent déjà des pages que la descente n'aurait jamais listées. Le
+ * plancher se lit dans le NŒUD EMPAQUETÉ, là où la carte le lit : le rangement est donc mesuré avec.
  */
 export function descenteComptee(
   packed: PackedDag,
   uniforms: SelectionUniforms,
-  bounds?: Float64Array,
+  plancher = false,
 ): Descente {
   const { nodes } = packed;
   const ints = new Uint32Array(nodes.buffer);
   // Le prologue par primitive et le verdict par nœud viennent de `gpuDagOracleMath.ts`, écrits une
   // seule fois pour l'oracle et pour ce comptage : ni l'un ni l'autre ne peut dériver du noyau seul.
   const frames = dagViewFrames(packed, uniforms);
-  if (bounds) verifieBornes(bounds, packed);
   const compte: Descente = {
     visites: 0,
     internes: 0,
@@ -78,7 +77,7 @@ export function descenteComptee(
       }
       // Le PLANCHER d'erreur du sous-arbre, que le nœud ne porte pas encore comme il porte son
       // plafond : aucune de ses grappes n'est assez fine, il n'en sortira pas une candidate.
-      if (bounds && plancherRejette(frames, bounds, packed, ints, n)) {
+      if (plancher && dagNodeFloor(frames, nodes, ints, n) > frames.pixelError) {
         compte.plancherCoupe++;
         compte.frontiereRejetees++;
         continue;
@@ -117,49 +116,4 @@ export function descenteComptee(
     file = suivante;
   }
   return compte;
-}
-
-/**
- * Le plancher d'erreur du sous-arbre, projeté au plus loin que sa sphère englobante autorise : au-
- * dessus du seuil, aucune de ses grappes n'est assez fine et la coupe n'en prend aucune. C'est le
- * rejet PAR LE HAUT, celui que la coupe processeur pose déjà (`pageSelectionCutNode.ts`) et que la
- * descente de la carte ne pose pas. `cullingBounds` dérive ces bornes des pages à la préparation,
- * sans toucher au format du manifeste.
- *
- * `bounds` décrit UNE hiérarchie, celle que toutes les poses partagent ; le rangement, lui, numérote
- * les nœuds d'un bout à l'autre des poses. L'indice local est donc `n` moins la racine de sa
- * primitive. L'oublier ne lève rien et ne se voit pas : une lecture hors tableau rend `undefined`,
- * `errorFloorAt` y répond zéro, et le rejet ne se produit simplement jamais au-delà de la première
- * pose. `verifieBornes` transforme ce silence en erreur.
- */
-function plancherRejette(
-  frames: ReturnType<typeof dagViewFrames>,
-  bounds: Float64Array,
-  packed: PackedDag,
-  ints: Uint32Array,
-  n: number,
-) {
-  const w = ints[n * DAG_NODE_FLOATS + 12];
-  const at = (n - packed.rootNodes[w]) * BOUND_STRIDE;
-  const e = frames.views[w];
-  return (
-    errorFloorAt(
-      bounds[at + OWN_FLOOR],
-      viewDepth(bounds, at + OWN_SPHERE, e),
-      bounds[at + OWN_SPHERE + 3],
-      frames.stretches[w],
-      frames.focal,
-    ) > frames.pixelError
-  );
-}
-
-/** Le contrat de `bounds` : une hiérarchie, la même pour toutes les poses, et autant de nœuds que le
- *  rangement en compte par pose. Vérifié une fois, avant la descente. */
-function verifieBornes(bounds: Float64Array, packed: PackedDag) {
-  const poses = Math.max(1, packed.worldCount);
-  if (bounds.length !== (packed.nodeCount / poses) * BOUND_STRIDE)
-    throw new Error('GPU_DAG_FRONTIER_BOUNDS_SHAPE');
-  for (let w = 0; w < poses; w++)
-    if (packed.rootNodes[w] !== (w * packed.nodeCount) / poses)
-      throw new Error('GPU_DAG_FRONTIER_BOUNDS_SHAPE');
 }

@@ -7,6 +7,7 @@ import { dansPageWebgpu } from './pageWebgpu.mjs';
 import { writeDagUniforms } from '../../gpuDagUniforms.ts';
 import { SELECTION_UNIFORM_BYTES, SELECTION_WORKGROUP } from '../../gpuSelection.ts';
 import { FRAME_VEC4 } from '../../gpuDagTypes.ts';
+import { LEVEL_WORLD_WORDS } from '../../gpuDagFloorWgsl.ts';
 
 const octets = (vue) => Array.from(new Uint8Array(vue.buffer, vue.byteOffset, vue.byteLength));
 
@@ -37,7 +38,7 @@ function versPage(nom, packed, uniforms) {
 }
 
 /** Exécuté dans la page : un pipeline, tous les cas, la sortie `Output` relue pour chacun. */
-async function executer({ shader, cas, workgroup }) {
+async function executer({ shader, cas, workgroup, motsParPrimitive }) {
   const appareil = await globalThis.ouvrirAppareil();
   if (!appareil) return { indisponible: 'aucun adaptateur WebGPU' };
   const { device, erreurs } = appareil;
@@ -76,7 +77,8 @@ async function executer({ shader, cas, workgroup }) {
     const blockCount = groupes(c.pageCount);
     // Les mêmes régions que le moteur (`gpuDagResources.ts`) : après les seuils par primitive et les
     // compteurs de bloc viennent le compteur des vivantes et son compte de groupes, les trois files
-    // de la descente — un compteur chacune —, puis les candidates et le journal des dessinées.
+    // de la descente — un compteur chacune —, puis les candidates et le journal des dessinées, puis
+    // les deux mots par primitive de l'élagage par le haut : son seuil et le plancher qu'il a écarté.
     const workBase = c.worldCount * 2 + blockCount * 2;
     const buffers = [
       tampon(64, c.clusters),
@@ -84,13 +86,20 @@ async function executer({ shader, cas, workgroup }) {
       tampon(256, c.uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),
       tampon(Math.max(16, (c.nodeCount * 3 + c.pageCount * 4) * 4)),
       tampon(sortieOctets),
-      tampon(Math.max(8, (workBase + 9) * 4)),
+      tampon(Math.max(8, (workBase + 9 + c.worldCount * motsParPrimitive) * 4)),
       tampon(64, c.worlds),
       tampon(16, c.frames),
       tampon(48, c.pageCones),
     ];
     const lecture = device.createBuffer({
       size: sortieOctets,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+    });
+    // Les compteurs de l'image : ce que la descente a listé en candidates, et ce que `dagWanted` en
+    // a gardé de vivant. C'est la taille des deux listes que les cinq passes suivantes relisent.
+    const octetsTravail = Math.max(8, (workBase + 9 + c.worldCount * motsParPrimitive) * 4);
+    const compteurs = device.createBuffer({
+      size: octetsTravail,
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
     });
     const group = device.createBindGroup({
@@ -122,18 +131,24 @@ async function executer({ shader, cas, workgroup }) {
     fin.dispatchWorkgroups(groupes(c.pageCount));
     fin.end();
     encoder.copyBufferToBuffer(buffers[4], 0, lecture, 0, sortieOctets);
+    encoder.copyBufferToBuffer(buffers[5], 0, compteurs, 0, octetsTravail);
     device.queue.submit([encoder.finish()]);
     await lecture.mapAsync(GPUMapMode.READ);
     const ints = new Uint32Array(lecture.getMappedRange().slice(0));
     lecture.unmap();
+    await compteurs.mapAsync(GPUMapMode.READ);
+    const travail = new Uint32Array(compteurs.getMappedRange().slice(0));
+    compteurs.unmap();
     const count = Math.min(ints[0], c.pageCount);
     resultats.push({
       nom: c.nom,
       pages: Array.from(ints.subarray(4, 4 + count)).sort((a, b) => a - b),
       frustumRejected: ints[1],
       overflow: ints[3],
+      candidates: travail[workBase + 5],
+      vivantes: travail[workBase],
     });
-    for (const buffer of [...buffers, lecture]) buffer.destroy();
+    for (const buffer of [...buffers, lecture, compteurs]) buffer.destroy();
   }
   const info = await appareil.fermer();
   return { adaptateur: info.court, resultats, erreurs };
@@ -141,12 +156,14 @@ async function executer({ shader, cas, workgroup }) {
 
 /**
  * Lance le noyau GPU sur chaque `{ nom, packed, uniforms }` et rend les pages que le GPU a
- * sélectionnées. `shader` remplace le texte du noyau pour comparer deux versions sur les mêmes cas.
+ * sélectionnées, avec la taille des deux listes que l'image relit : les candidates de la descente et
+ * les vivantes de `dagWanted`. `shader` remplace le texte du noyau pour comparer deux versions.
  */
 export async function selectionGpu(cas, shader = DAG_SELECTION_SHADER) {
   return await dansPageWebgpu(executer, {
     shader,
     cas: cas.map(({ nom, packed, uniforms }) => versPage(nom, packed, uniforms)),
     workgroup: SELECTION_WORKGROUP,
+    motsParPrimitive: LEVEL_WORLD_WORDS,
   });
 }

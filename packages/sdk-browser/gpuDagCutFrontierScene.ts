@@ -4,6 +4,7 @@
  * la matrice monde vient de l'appelant —, `test/engineNoThree.test.mjs` l'interdisant à ce fichier.
  */
 import { flatHierarchy } from './gpuDagHierarchy.ts';
+import { BOUND_STRIDE, cullingBounds, PARENT_SPHERE } from './pageSelectionCutBounds.ts';
 import type { DagRoot } from './gpuDagTypes.ts';
 
 /** Une page de niveau `level`, posée sur une grille, avec la bande d'erreur de son remplaçant. */
@@ -25,15 +26,24 @@ function page(level: number, i: number, cote: number, etendue: number) {
 }
 
 /**
- * La hiérarchie du rangement, dont le plafond d'erreur est rempli : `flatHierarchy` le laisse à -1,
- * ce qui interdit tout élagage par l'erreur. Les nœuds sont numérotés par niveaux, donc les enfants
- * suivent leur parent : un parcours à rebours suffit à remonter le maximum du sous-arbre.
+ * La hiérarchie du rangement, dont le plafond d'erreur ET la sphère du remplaçant sont remplis :
+ * `flatHierarchy` laisse le premier à -1 et la seconde à zéro, ce qui interdit tout élagage par
+ * l'erreur. Les nœuds sont numérotés par niveaux, donc les enfants suivent leur parent : un
+ * parcours à rebours suffit à remonter le maximum du sous-arbre.
+ *
+ * La sphère vient de `cullingBounds`, qui englobe déjà celles des remplaçants du sous-arbre : le
+ * plafond du manifeste est projeté à travers elle, et une sphère laissée à zéro le projetterait
+ * depuis l'origine de la primitive — un plafond sous-estimé, donc un sous-arbre écarté à tort.
  */
 function culling(pages: ReturnType<typeof page>[], parNiveaux: boolean) {
   const { nodes, stride } = parNiveaux ? hierarchieParNiveaux(pages) : flatHierarchy(pages);
   const count = nodes.length / stride;
+  const bornes = cullingBounds({ nodes, stride }, pages);
   for (let n = count - 1; n >= 0; n--) {
-    const base = n * stride;
+    const base = n * stride,
+      at = n * BOUND_STRIDE;
+    for (let a = 0; a < 4; a++)
+      nodes[base + 6 + a] = Math.max(bornes[at + PARENT_SPHERE + a], a === 3 ? 0 : -Infinity);
     let plafond = 0;
     const enfants = nodes[base + 12];
     for (let c = 0; c < enfants; c++) {
