@@ -20,10 +20,24 @@ const GRAPPES = 8,
 
 const alea = graine(31);
 
+/**
+ * Les deux faces d'une scène transparente, et pourquoi le banc mesure les deux.
+ *
+ * `sidesOf` rend UNE entrée de plan pour un matériau simple face, et DEUX — dos puis face, deux
+ * pipelines — pour un matériau double face. Or une tranche s'arrête quand le pipeline change : une
+ * scène double face, le verre et le feuillage d'une scène glTF ordinaire, n'en fusionne donc
+ * aucune. Mesurer la seule scène simple face, c'est mesurer le meilleur cas et le publier comme s'il
+ * était le cas.
+ */
+export const FACES = [
+  ['simple face', THREE.FrontSide],
+  ['double face', THREE.DoubleSide],
+];
+
 /** La scène : douze placements par prototype, plus quatre primitives qui portent leurs tampons. */
-function batisItems() {
+function batisItems(side) {
   const items = [],
-    materiau = new THREE.MeshBasicMaterial({ side: THREE.FrontSide });
+    materiau = new THREE.MeshBasicMaterial({ side });
   for (let i = 0; i < ITEMS; i++) {
     const paged = i < PAGINES;
     const matrix = new THREE.Matrix4().setPosition(
@@ -103,9 +117,9 @@ for (let e = 0; e < spans.length / 2; e++) {
 }
 
 /** Un côté du banc : son état de mélange, son plan à l'ancien format, et ses tampons de sortie. */
-export function cote() {
+export function cote(side) {
   const blendState = createWebgpuBlendState();
-  blendState.blendGpu.push(...batisItems());
+  blendState.blendGpu.push(...batisItems(side));
   blendState.table = {
     maxVertexWords: MOTS,
     capacity: PAGINES * GRAPPES,
@@ -129,7 +143,8 @@ export function cote() {
       instances: undefined,
     },
     args: new Uint32Array(ITEMS * 4),
-    sortie: new Uint32Array(PAGINES * GRAPPES * 3 + ISOLES * 3),
+    // Un item double face étale ses instances deux fois : une par entrée de plan.
+    sortie: new Uint32Array((PAGINES * GRAPPES + ISOLES) * 3 * 2),
   };
 }
 
