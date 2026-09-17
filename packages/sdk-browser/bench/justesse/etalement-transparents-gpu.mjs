@@ -14,7 +14,18 @@
 import assert from 'node:assert/strict';
 import { BLEND_EXPAND_SHADER } from '../../webgpuBlendExpandWgsl.ts';
 import { expandBlendPlan } from '../../webgpuBlendExpandCpu.ts';
-import { buildBlendRuns, EXPAND_GROUP, RUN_WORDS } from '../../webgpuBlendRuns.ts';
+import {
+  blendExpandUniform,
+  buildBlendRuns,
+  EXPAND_GROUP,
+  RUN_WORDS,
+  UNI_WORDS,
+} from '../../webgpuBlendRuns.ts';
+import {
+  BLEND_EXPAND_ENTRIES,
+  blendExpandDispatch,
+  STORAGE_TYPES,
+} from '../../webgpuBlendExpand.ts';
 import { DRAW_UNPAGED, planEntry } from '../../webgpuBlendPlan.ts';
 import { etalementGpu } from './noyauEtalementGpu.mjs';
 import { graine } from '../../../sdk-core/bench/banc.mjs';
@@ -81,21 +92,16 @@ function attendu(entree, instanceWords, argsWords) {
   return { expanded, args };
 }
 
-/** Les douze mots d'uniforme que l'encodeur pose, dans l'ordre que le noyau déclare. */
-const uniformeDe = (entree) => [
-  entree.order.length,
-  Math.ceil(entree.order.length / EXPAND_GROUP),
-  entree.runCount,
-  entree.base.instances,
-  entree.base.args,
-  MOTS,
-  6,
-  0,
-  entree.order.length,
-  0,
-  0,
-  0,
-];
+/** Les douze mots d'uniforme, posés par l'écrivain de production : une seule disposition. */
+const uniformeDe = (entree) =>
+  Array.from(
+    blendExpandUniform(
+      new Uint32Array(UNI_WORDS),
+      { entries: entree.order.length, runs: entree.runCount, instanceBase: entree.base.instances },
+      { order: 0, runs: entree.order.length, args: entree.base.args },
+      { maxVertexWords: MOTS, vertexShift: 6 },
+    ),
+  );
 
 const entrees = [
   cas(7, [3], { instances: 0, args: 0 }),
@@ -114,6 +120,10 @@ for (const entree of entrees) {
     indirect: Array.from(entree.indirect),
     clusters: Array.from(entree.clusters),
     scratchWords: entree.order.length + Math.ceil(entree.order.length / EXPAND_GROUP),
+    types: STORAGE_TYPES,
+    noms: BLEND_EXPAND_ENTRIES,
+    lancements: blendExpandDispatch(entree.order.length, entree.runCount),
+    uniBytes: UNI_WORDS * 4,
     instanceWords,
     argsWords,
   });

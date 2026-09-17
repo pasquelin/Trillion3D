@@ -31,24 +31,14 @@ async function dansLaPage(arg) {
     tampon(new Uint32Array(arg.instanceWords), LU),
     tampon(new Uint32Array(arg.argsWords), LU),
   ];
-  const types = [
-    'read-only-storage',
-    'read-only-storage',
-    'read-only-storage',
-    'read-only-storage',
-    'read-only-storage',
-    'storage',
-    'storage',
-    'storage',
-  ];
   const layout = device.createBindGroupLayout({
     entries: [
       {
         binding: 0,
         visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: 48 },
+        buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: arg.uniBytes },
       },
-      ...types.map((type, i) => ({
+      ...arg.types.map((type, i) => ({
         binding: i + 1,
         visibility: GPUShaderStage.COMPUTE,
         buffer: { type },
@@ -61,23 +51,23 @@ async function dansLaPage(arg) {
   const groupe = device.createBindGroup({
     layout,
     entries: [
-      { binding: 0, resource: { buffer: uniforms, size: 48 } },
+      { binding: 0, resource: { buffer: uniforms, size: arg.uniBytes } },
       ...buffers.map((buffer, i) => ({ binding: i + 1, resource: { buffer } })),
     ],
   });
   const encoder = device.createCommandEncoder();
   const passe = encoder.beginComputePass();
   passe.setBindGroup(0, groupe, [0]);
-  const tailles = [arg.uni[1], 1, arg.uni[0], arg.uni[2]];
-  const noms = ['countBlendGroups', 'scanBlendGroups', 'placeBlendEntries', 'writeBlendRuns'];
-  for (let step = 0; step < 4; step++) {
+  // La disposition, les noms et les lancements viennent du module de production : ce banc rejoue le
+  // noyau livré, il n'en décrit pas une seconde fois le contrat.
+  for (let step = 0; step < arg.noms.length; step++) {
     passe.setPipeline(
       device.createComputePipeline({
         layout: pipelineLayout,
-        compute: { module, entryPoint: noms[step] },
+        compute: { module, entryPoint: arg.noms[step] },
       }),
     );
-    passe.dispatchWorkgroups(step === 1 ? 1 : Math.ceil(Math.max(1, tailles[step]) / 64));
+    passe.dispatchWorkgroups(arg.lancements[step]);
   }
   passe.end();
   const relu = [arg.instanceWords, arg.argsWords].map((mots, k) => {

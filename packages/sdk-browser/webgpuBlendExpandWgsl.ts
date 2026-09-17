@@ -1,5 +1,5 @@
 import { DRAW_UNPAGED } from './webgpuBlendPlan.ts';
-import { EXPAND_GROUP, RUN_WORDS } from './webgpuBlendRuns.ts';
+import { EXPAND_GROUP, expandUniformWgsl, RUN_WORDS } from './webgpuBlendRuns.ts';
 
 /**
  * L'ÉTALEMENT DU PLAN TRIÉ, SUR LA CARTE.
@@ -9,8 +9,10 @@ import { EXPAND_GROUP, RUN_WORDS } from './webgpuBlendRuns.ts';
  * va dans la liste, et l'argument indirect de chaque tranche — est calculé ici, à partir des
  * comptes que la compaction transparente vient d'écrire dans la même soumission.
  *
- * Quatre lancements : un compte par paquet d'entrées, une somme courante sur les paquets, la place
- * de chaque entrée suivie de l'écriture de ses instances, puis l'argument de chaque tranche. La
+ * Quatre lancements : un groupe de fils par paquet d'entrées, qui compte et scanne le paquet chez
+ * lui ; la somme courante sur les paquets, à deux niveaux ; la place absolue de chaque entrée suivie
+ * de l'écriture de ses instances ; puis l'argument de chaque tranche. Aucun fil ne recompte ce qu'un
+ * autre vient de calculer. La
  * sémantique de référence est celle de `webgpuBlendExpandCpu.ts`, que suit le repli processeur, et
  * le banc `transparents-ordres.bench.mjs` compare les deux sorties mot pour mot.
  *
@@ -19,7 +21,7 @@ import { EXPAND_GROUP, RUN_WORDS } from './webgpuBlendRuns.ts';
  * puisque leurs lancements sont ordonnés ; leurs instances et leurs arguments, eux, vivent dans deux
  * régions disjointes que l'uniforme désigne.
  */
-export const BLEND_EXPAND_SHADER = `struct Uni{entryCount:u32,groupCount:u32,runCount:u32,instanceBase:u32,argsBase:u32,maxVertexWords:u32,vertexShift:u32,orderBase:u32,runsBase:u32,pad0:u32,pad1:u32,pad2:u32,}
+export const BLEND_EXPAND_SHADER = `${expandUniformWgsl()}
 @group(0) @binding(0) var<uniform> uni:Uni;
 @group(0) @binding(1) var<storage,read> plan:array<u32>;
 @group(0) @binding(2) var<storage,read> keep:array<u32>;
@@ -30,6 +32,7 @@ export const BLEND_EXPAND_SHADER = `struct Uni{entryCount:u32,groupCount:u32,run
 @group(0) @binding(7) var<storage,read_write> expanded:array<vec2u>;
 @group(0) @binding(8) var<storage,read_write> args:array<u32>;
 const GROUP=${EXPAND_GROUP}u;
+var<workgroup> tuile:array<u32,${EXPAND_GROUP}>;
 fn itemOf(i:u32)->u32{return plan[uni.orderBase+i]>>3u;}
 fn kept(item:u32)->bool{return (keep[item>>5u]&(1u<<(item&31u)))!=0u;}
 /** Ce qu'une entrée de plan étale : les grappes que la compaction lui a gardées, les morceaux
@@ -41,31 +44,56 @@ fn instancesOf(i:u32)->u32{
  if(d.x==${DRAW_UNPAGED}u){return d.y;}
  return counts[d.x*4u+1u];
 }
-@compute @workgroup_size(64)
-fn countBlendGroups(@builtin(global_invocation_id) id:vec3u){
- let g=id.x;
- if(g>=uni.groupCount){return;}
- let end=min(g*GROUP+GROUP,uni.entryCount);
- var total=0u;
- for(var i=g*GROUP;i<end;i++){total=total+instancesOf(i);}
- scratch[uni.entryCount+g]=total;
-}
-@compute @workgroup_size(1)
-fn scanBlendGroups(){
- var cursor=uni.instanceBase;
- for(var g=0u;g<uni.groupCount;g++){
-  let held=scratch[uni.entryCount+g];
-  scratch[uni.entryCount+g]=cursor;
-  cursor=cursor+held;
+/** La somme préfixe inclusive des soixante-quatre valeurs du paquet, en six étapes de doublement. */
+fn scanTuile(k:u32){
+ for(var pas=1u;pas<GROUP;pas=pas<<1u){
+  var pris=0u;
+  if(k>=pas){pris=tuile[k-pas];}
+  workgroupBarrier();
+  tuile[k]=tuile[k]+pris;
+  workgroupBarrier();
  }
 }
-@compute @workgroup_size(64)
+/** Un groupe de fils par paquet d'entrées : chacun compte SON entrée une fois, et le paquet en tire
+ *  d'un coup la place de chacune chez lui et son total. */
+@compute @workgroup_size(${EXPAND_GROUP})
+fn countBlendGroups(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_id) lid:vec3u,@builtin(workgroup_id) wid:vec3u){
+ let i=id.x;
+ let k=lid.x;
+ var mien=0u;
+ if(i<uni.entryCount){mien=instancesOf(i);}
+ tuile[k]=mien;
+ workgroupBarrier();
+ scanTuile(k);
+ if(i<uni.entryCount){scratch[i]=tuile[k]-mien;}
+ if(k==GROUP-1u){scratch[uni.entryCount+wid.x]=tuile[k];}
+}
+/** La somme courante sur les paquets, à deux niveaux : chaque fil en prend une tranche, le paquet
+ *  scanne les soixante-quatre sous-totaux, puis chaque fil repose les siens. */
+@compute @workgroup_size(${EXPAND_GROUP})
+fn scanBlendGroups(@builtin(local_invocation_id) lid:vec3u){
+ let k=lid.x;
+ let par=(uni.groupCount+GROUP-1u)/GROUP;
+ let debut=min(k*par,uni.groupCount);
+ let fin=min(debut+par,uni.groupCount);
+ var somme=0u;
+ for(var g=debut;g<fin;g++){somme=somme+scratch[uni.entryCount+g];}
+ tuile[k]=somme;
+ workgroupBarrier();
+ scanTuile(k);
+ var curseur=uni.instanceBase+tuile[k]-somme;
+ for(var g=debut;g<fin;g++){
+  let tenu=scratch[uni.entryCount+g];
+  scratch[uni.entryCount+g]=curseur;
+  curseur=curseur+tenu;
+ }
+}
+/** La place absolue de chaque entrée, puis ses instances : la place chez soi est déjà comptée. */
+@compute @workgroup_size(${EXPAND_GROUP})
 fn placeBlendEntries(@builtin(global_invocation_id) id:vec3u){
  let i=id.x;
  if(i>=uni.entryCount){return;}
- let g=i/GROUP;
- var at=scratch[uni.entryCount+g];
- for(var j=g*GROUP;j<i;j++){at=at+instancesOf(j);}
+ let at=scratch[uni.entryCount+i/GROUP]+scratch[i];
  scratch[i]=at;
  let held=instancesOf(i);
  if(held==0u){return;}
@@ -77,7 +105,7 @@ fn placeBlendEntries(@builtin(global_invocation_id) id:vec3u){
  }
  for(var j=0u;j<held;j++){expanded[at+j]=vec2u(item,clusters[d.z+j]);}
 }
-@compute @workgroup_size(64)
+@compute @workgroup_size(${EXPAND_GROUP})
 fn writeBlendRuns(@builtin(global_invocation_id) id:vec3u){
  let r=id.x;
  if(r>=uni.runCount){return;}

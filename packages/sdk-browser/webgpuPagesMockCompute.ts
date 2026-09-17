@@ -2,7 +2,7 @@ import { evaluateDagSelectionKernel, type PackedDag } from './gpuDagSelection.ts
 import { DRAW_ITEM_U32, evaluateDrawCompact, indirectForDraw, type DrawItem } from './gpuDraw.ts';
 import { evaluateTransparentCompaction } from './webgpuTransparentCompactCpu.ts';
 import { expandBlendPlan } from './webgpuBlendExpandCpu.ts';
-import { RUN_WORDS } from './webgpuBlendRuns.ts';
+import { EXPAND_UNI, RUN_WORDS } from './webgpuBlendRuns.ts';
 import { compactDrawnPages } from './webgpuPagesTestGlobals.ts';
 import { residentFlags } from './gpuDagLayout.ts';
 
@@ -44,18 +44,20 @@ function simulateBlendExpansion(bind: ComputeBind, offsets?: readonly number[]) 
   const indirect = words(byBinding.get(4)!.data);
   const itemCounts = new Uint32Array(indirect.length / 4);
   for (let item = 0; item < itemCounts.length; item++) itemCounts[item] = indirect[item * 4 + 1];
+  const entries = uni[EXPAND_UNI.entryCount],
+    runs = uni[EXPAND_UNI.runCount];
   expandBlendPlan({
-    order: plan.subarray(uni[7], uni[7] + uni[0]),
-    runs: plan.subarray(uni[8], uni[8] + uni[2] * RUN_WORDS),
-    runCount: uni[2],
+    order: plan.subarray(uni[EXPAND_UNI.orderBase], uni[EXPAND_UNI.orderBase] + entries),
+    runs: plan.subarray(uni[EXPAND_UNI.runsBase], uni[EXPAND_UNI.runsBase] + runs * RUN_WORDS),
+    runCount: runs,
     draws: words(byBinding.get(3)!.data),
     keep: words(byBinding.get(2)!.data),
     itemCounts,
     instances: words(byBinding.get(5)!.data),
-    maxVertexWords: uni[5],
-    vertexShift: uni[6],
-    instanceBase: uni[3],
-    argsBase: uni[4],
+    maxVertexWords: uni[EXPAND_UNI.maxVertexWords],
+    vertexShift: uni[EXPAND_UNI.vertexShift],
+    instanceBase: uni[EXPAND_UNI.instanceBase],
+    argsBase: uni[EXPAND_UNI.argsBase],
     expanded: words(byBinding.get(7)!.data),
     args: words(byBinding.get(8)!.data),
   });
