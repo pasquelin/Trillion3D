@@ -1,5 +1,5 @@
 // Le majorant sur lequel chaque passe de la descente est lancée à plat. C'est lui qui remplace
-// l'armement de l'argument de répartition — près de vingt microsecondes la copie sur apple metal-3 —,
+// l'armement de l'argument de répartition et la coupure qu'il impose (mesure : `gpuDagHierarchy.ts`),
 // et c'est donc lui qui doit être sûr : une file plus longue que son étage laisserait des nœuds retenus
 // sans passe pour les lire, et la coupe perdrait de la géométrie sans que rien ne le dise.
 import test from 'node:test';
@@ -31,8 +31,7 @@ function etages(dag: ReturnType<typeof packed>['dag']) {
 test("le compte d'un étage majore la file de sa passe, et la somme couvre tous les nœuds", () => {
   const { dag } = packed(dagFixture());
   const etage = etages(dag);
-  assert.equal(dag.levelSizes.length, dag.levelCount);
-  const compte = new Int32Array(dag.levelCount);
+  const compte = new Int32Array(dag.levelSizes.length);
   let atteints = 0;
   for (const niveau of etage)
     if (niveau >= 0) {

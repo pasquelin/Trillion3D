@@ -1,4 +1,5 @@
 import { DAG_SELECTION_SHADER } from './gpuDagShader.ts';
+import { LEVEL_QUEUES } from './gpuDagLevelWgsl.ts';
 import { withScreenErrorVariant } from './gpuDagShaderError.ts';
 import { screenErrorVariant } from '../sdk-core/index.ts';
 import { openValidation, validationError } from './gpuErrorScope.ts';
@@ -46,7 +47,7 @@ export async function createDagPipeline(device: GPUDevice, buffers: DagBuffers) 
     device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
   const preparePipeline = stage('dagPrepare'),
     clearDrawnPipeline = stage('dagClearDrawn');
-  const levelPipelines = [stage('dagLevel0'), stage('dagLevel1'), stage('dagLevel2')];
+  const levelPipelines = Array.from({ length: LEVEL_QUEUES }, (_, q) => stage(`dagLevel${q}`));
   const wantedPipeline = stage('dagWanted'),
     escalatePipeline = stage('dagEscalate'),
     checkPipeline = stage('dagCheck'),
@@ -69,6 +70,9 @@ export async function createDagPipeline(device: GPUDevice, buffers: DagBuffers) 
     ],
   });
   return {
+    /** La disposition de liaison, rendue avec les étapes : le banc des lancements monte la coupe
+     *  d'avant sur EXACTEMENT celle-ci, au lieu d'en retaper une quatrième copie. */
+    layout,
     preparePipeline,
     clearDrawnPipeline,
     levelPipelines,
