@@ -122,7 +122,7 @@ export function encodeBlendExpansion(
       region = blendState.planRegions[slice];
     if (!order.length) continue;
     if (blendState.orderMoved[slice]) {
-      expand.uploadPlan(region, order, runs[slice]);
+      expand.uploadPlan(region, order, runs[slice], blendState.runCount[slice]);
       blendState.orderMoved[slice] = false;
     }
     expand.encode(
