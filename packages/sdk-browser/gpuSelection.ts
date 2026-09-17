@@ -14,8 +14,9 @@ import type { EngineCamera } from './cameraWorld.ts';
 const NONE = 0xffffffff,
   UNIFORM_BYTES = 256,
   WORKGROUP = 64;
-/** Floats per cluster in the shared cone/box/residency record read by every kernel. */
-export const PAGE_CONE_FLOATS = 12,
+/** Mots par grappe de l'enregistrement froid partagé — cône, boîte, nœud propriétaire, triangles.
+ *  Miroir public de `COLD_WORDS` (`gpuDagLayout.ts`), qui en est la seule source. */
+export const PAGE_CONE_FLOATS = 13,
   SELECTION_NONE = NONE,
   SELECTION_UNIFORM_BYTES = UNIFORM_BYTES,
   SELECTION_WORKGROUP = WORKGROUP;
@@ -43,6 +44,13 @@ export type SelectionResult = {
   lodLevel: number;
   complete?: boolean;
   drawablePageIds?: number[];
+  /** Les totaux de triangles TENUS PAR LA CARTE, là où le verdict est prononcé : la coupe entière,
+   *  ce qui part au dessin, le trou — une grappe voulue dont les octets ou la ligne manquent — et
+   *  la part en mélange. `selected − drawn − uncovered = 0`. */
+  selectedTriangles?: number;
+  drawnTriangles?: number;
+  uncoveredTriangles?: number;
+  transparentTriangles?: number;
   /** Vrai quand la coupe dépassait le plafond du relevé : les listes sont amputées, et l'image doit
    *  repasser par la coupe processeur plutôt que de les adopter (`gpuDagLayout.ts`). */
   truncated?: boolean;

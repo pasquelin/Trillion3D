@@ -10,6 +10,7 @@ import {
   COLD_MAX,
   COLD_MIN,
   COLD_OWNER,
+  COLD_TRIANGLES,
   HOT_FLAGS,
   HOT_LOD_ERROR,
   HOT_PARENT_ERROR,
@@ -118,6 +119,7 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
         parent < 0,
         owner[i] === NONE,
         rec.level ?? 0,
+        !!rec.transparent,
       );
       if (parent < 0) rootClusters++;
       const cone = leafCone(rec),
@@ -134,6 +136,8 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
       }
       // Le nœud propriétaire n'est lu que par l'oracle, qui rejoue la descente : il reste au froid.
       coneInts[base + COLD_OWNER] = owner[i];
+      // Les triangles de la grappe, au mot entier : c'est la carte qui tient désormais les totaux.
+      coneInts[base + COLD_TRIANGLES] = Math.max(0, Math.trunc(rec.triangles ?? 0));
       cluster++;
     }
   }

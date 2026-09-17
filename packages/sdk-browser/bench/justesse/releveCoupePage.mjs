@@ -18,7 +18,12 @@ import { encodeDagKernels } from '../../gpuDagEncode.ts';
 import { packDagSelection, packedWorldsToRenderOrigin } from '../../gpuDagPack.ts';
 import { cameraSelectionUniforms, SELECTION_UNIFORM_BYTES } from '../../gpuSelection.ts';
 import { writeDagUniforms } from '../../gpuDagUniforms.ts';
-import { dagRecords, residentBase, residentWords } from '../../gpuDagLayout.ts';
+import {
+  dagRecords,
+  residentBase,
+  residentWords,
+  SELECTION_HEADER_WORDS,
+} from '../../gpuDagLayout.ts';
 import { cameraMoteur } from '../../cameraFixture.ts';
 import { ouvrirAppareil } from './appareilWebgpu.mjs';
 import { scenePages, sceneRoots } from '../../gpuDagCutFrontierScene.ts';
@@ -72,17 +77,17 @@ async function mesure(device, { packed, roots }, camera, { tours, rondes, seuils
   };
   poseSeuil(1);
 
-  // Le dimensionnement d'HIER, gardé comme point de mesure : `16 + pageCount*4` par moitié, le pire
-  // cas d'une coupe qui retiendrait le catalogue entier. La production ne l'alloue plus (le plafond
+  // Le dimensionnement d'HIER, gardé comme point de mesure : l'entête plus `pageCount` rangs par
+  // moitié, le pire cas d'une coupe qui retiendrait le catalogue entier. La production ne l'alloue plus (le plafond
   // l'a remplacé), mais le prix d'une copie ne dépend que de sa TAILLE : un tampon de même taille le
   // mesure fidèlement, et c'est le seul moyen de garder le « avant » reproductible.
-  const octetsPireCas = 2 * (16 + packed.pageCount * 4);
+  const octetsPireCas = 2 * (SELECTION_HEADER_WORDS * 4 + packed.pageCount * 4);
   const source = device.createBuffer({
     size: octetsPireCas,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
   });
   const lecture = device.createBuffer({
-    size: octetsPireCas,
+    size: Math.max(octetsPireCas, livre.readbackBytes),
     usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
   });
 

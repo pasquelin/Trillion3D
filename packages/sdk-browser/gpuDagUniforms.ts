@@ -1,5 +1,16 @@
 import type { PackedDag } from './gpuDagTypes.ts';
-import { selectionListCap } from './gpuDagLayout.ts';
+import {
+  OUT_COUNT,
+  OUT_DRAWN_TRIANGLES,
+  OUT_FLAGS,
+  OUT_FRUSTUM_REJECTED,
+  OUT_LOD_LEVEL,
+  OUT_SELECTED_TRIANGLES,
+  OUT_TRANSPARENT_TRIANGLES,
+  OUT_UNCOVERED_TRIANGLES,
+  SELECTION_HEADER_WORDS,
+  selectionListCap,
+} from './gpuDagLayout.ts';
 import type { SelectionResult, SelectionUniforms } from './gpuSelection.ts';
 
 /**
@@ -52,30 +63,40 @@ export function parseDagOutput(
   scratch: DagOutputScratch = createDagOutputScratch(),
 ): SelectionResult | null {
   const ints = new Uint32Array(bytes, byteOffset, Math.floor(byteLength / 4));
-  const count = Math.min(ints[0] ?? 0, Math.max(0, (drawnWordOffset || ints.length) - 4));
+  const head = SELECTION_HEADER_WORDS;
+  const count = Math.min(
+    ints[OUT_COUNT] ?? 0,
+    Math.max(0, (drawnWordOffset || ints.length) - head),
+  );
   // Tableaux dimensionnés d'avance : la lecture d'une image ne fait pas croître un tableau vide
   // élément par élément, et l'itérateur d'un tableau typé n'est jamais déroulé.
   const { result, drawable } = scratch,
     pageIds = result.pageIds;
   pageIds.length = count;
-  for (let i = 0; i < count; i++) pageIds[i] = ints[4 + i];
-  result.frustumRejected = ints[1] ?? 0;
-  result.lodLevel = ints[2] ?? 0;
-  result.complete = ((ints[3] ?? 0) & 2) === 0;
+  for (let i = 0; i < count; i++) pageIds[i] = ints[head + i];
+  result.frustumRejected = ints[OUT_FRUSTUM_REJECTED] ?? 0;
+  result.lodLevel = ints[OUT_LOD_LEVEL] ?? 0;
+  result.complete = ((ints[OUT_FLAGS] ?? 0) & 2) === 0;
+  // Les totaux que la carte tient : ils décrivent la coupe, pas la liste qui la rapporte, donc un
+  // relevé tronqué les rend quand même justes (`gpuDagTotalsWgsl.ts`).
+  result.selectedTriangles = ints[OUT_SELECTED_TRIANGLES] ?? 0;
+  result.transparentTriangles = ints[OUT_TRANSPARENT_TRIANGLES] ?? 0;
+  result.drawnTriangles = ints[OUT_DRAWN_TRIANGLES] ?? 0;
+  result.uncoveredTriangles = ints[OUT_UNCOVERED_TRIANGLES] ?? 0;
   // Bit 1 : la coupe ne tenait pas sous le plafond du relevé. Ce n'est pas une panne de la carte —
   // les noyaux ont tourné, le masque de l'image est juste — mais la LISTE rapportée est amputée, et
   // rien de ce qui en vit ne doit la prendre pour la coupe entière.
-  result.truncated = ((ints[3] ?? 0) & 1) !== 0;
+  result.truncated = ((ints[OUT_FLAGS] ?? 0) & 1) !== 0;
   result.drawablePageIds = undefined;
   // La liste dessinable arrive déjà compactée, dans l'ordre croissant : le processeur ne parcourt
   // plus un drapeau par page du DAG, seulement les rangs que la carte graphique a retenus.
   if (drawnWordOffset) {
     const drawnCount = Math.min(
       ints[drawnWordOffset] ?? 0,
-      Math.max(0, ints.length - drawnWordOffset - 4),
+      Math.max(0, ints.length - drawnWordOffset - head),
     );
     drawable.length = drawnCount;
-    for (let i = 0; i < drawnCount; i++) drawable[i] = ints[drawnWordOffset + 4 + i];
+    for (let i = 0; i < drawnCount; i++) drawable[i] = ints[drawnWordOffset + head + i];
     result.drawablePageIds = drawable;
   }
   return result;

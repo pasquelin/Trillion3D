@@ -1,6 +1,14 @@
 import type { PackedDag } from './gpuDagTypes.ts';
 import { DAG_NODE_FLOATS } from './gpuDagTypes.ts';
-import { CLUSTER_ROOT, clusterLevel, dagRecords, flagsOf, worldOf } from './gpuDagLayout.ts';
+import {
+  CLUSTER_ROOT,
+  CLUSTER_TRANSPARENT,
+  clusterLevel,
+  dagRecords,
+  flagsOf,
+  trianglesOf,
+  worldOf,
+} from './gpuDagLayout.ts';
 import type { SelectionUniforms, SelectionResult } from './gpuSelection.ts';
 import { dagNodeFloor, dagNodeVerdict, dagViewFrames } from './gpuDagOracleMath.ts';
 import { NODE_FIRST_CHILD, NODE_WORLD } from './gpuDagPackNodes.ts';
@@ -84,6 +92,18 @@ export function evaluateDagSelectionKernel(
     return rejected;
   };
   const pageIds: number[] = [];
+  // Les totaux que la carte tient, rejoués au même endroit : `dagWanted` pour la coupe retenue et sa
+  // part en mélange, `dagMask` pour ce qui part au dessin et pour le trou (`gpuDagTotalsWgsl.ts`).
+  const totaux = { selected: 0, transparent: 0, drawn: 0, uncovered: 0 };
+  /** Miroir de `noteImage` (gpuDagTotalsWgsl.ts) : les trois totaux sur le MÊME ensemble. */
+  const note = (i: number, voulu: boolean, dessinee: boolean, trou: boolean) => {
+    if (!voulu) return;
+    const tri = trianglesOf(records, i);
+    totaux.selected += tri;
+    if (flagsOf(records, i) & CLUSTER_TRANSPARENT) totaux.transparent += tri;
+    if (dessinee) totaux.drawn += tri;
+    if (trou) totaux.uncovered += tri;
+  };
   let frustumRejected = 0,
     lodLevel = 0;
   const thresholds = new Float64Array(Math.max(1, packed.worldCount)).fill(Math.max(pixelError, 0));
@@ -105,14 +125,24 @@ export function evaluateDagSelectionKernel(
     else missing[w] = 1;
   }
   const drawablePageIds: number[] = [];
-  if (!resident)
-    return {
+  const publie = (drawable: number[], complete: boolean) =>
+    ({
       pageIds,
       frustumRejected,
       lodLevel,
-      complete: true,
-      drawablePageIds: pageIds.slice(),
-    } as SelectionResult;
+      complete,
+      drawablePageIds: drawable,
+      selectedTriangles: totaux.selected,
+      transparentTriangles: totaux.transparent,
+      drawnTriangles: totaux.drawn,
+      uncoveredTriangles: totaux.uncovered,
+    }) as SelectionResult;
+  if (!resident) {
+    // Sans résidence, `dagMask` dessine tout ce que la coupe retient et ne creuse aucun trou : la
+    // coupe dessinable entière EST la coupe retenue.
+    for (const i of pageIds) note(i, true, true, false);
+    return publie(pageIds.slice(), true);
+  }
   for (let round = 0; round < ESCALATION_ROUNDS + 1; round++) {
     let raised = false;
     for (let i = 0; i < packed.pageCount; i++) {
@@ -146,20 +176,24 @@ export function evaluateDagSelectionKernel(
     const w = worldOf(records, i);
     if (!visible(i) || cone(i, w)) continue;
     let draw: boolean;
+    let trou = false;
     if (missing[w]) {
       draw = !!(flagsOf(records, i) & CLUSTER_ROOT);
       if (draw && !resident[i]) {
         complete = false;
         draw = false;
+        trou = true;
       }
     } else {
       draw = selects(i, thresholds[w]);
       if (draw && !resident[i]) {
         complete = false;
         draw = false;
+        trou = true;
       }
     }
+    note(i, draw || trou, draw, trou);
     if (draw) drawablePageIds.push(i);
   }
-  return { pageIds, frustumRejected, lodLevel, complete, drawablePageIds } as SelectionResult;
+  return publie(drawablePageIds, complete);
 }

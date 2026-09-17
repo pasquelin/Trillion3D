@@ -4,7 +4,7 @@ import { evaluateTransparentCompaction } from './webgpuTransparentCompactCpu.ts'
 import { expandBlendPlan } from './webgpuBlendExpandCpu.ts';
 import { EXPAND_UNI, RUN_WORDS } from './webgpuBlendRuns.ts';
 import { compactDrawnPages } from './webgpuPagesTestGlobals.ts';
-import { residentFlags } from './gpuDagLayout.ts';
+import { SELECTION_HEADER_WORDS, residentFlags } from './gpuDagLayout.ts';
 
 export type ComputeBind = {
   entries: Array<{ binding: number; resource: { buffer: { data: Uint8Array } } }>;
@@ -187,5 +187,5 @@ export function simulateComputeDispatch(
   ints[1] = result.frustumRejected;
   ints[2] = result.lodLevel;
   ints[3] = result.complete === false ? 2 : 0;
-  ints.set(result.pageIds, 4);
+  ints.set(result.pageIds, SELECTION_HEADER_WORDS);
 }

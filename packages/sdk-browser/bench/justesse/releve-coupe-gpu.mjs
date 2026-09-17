@@ -15,7 +15,7 @@ import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dansPageWebgpu, requireDuLab } from './pageWebgpu.mjs';
-import { SELECTION_LIST_CAP } from '../../gpuDagLayout.ts';
+import { SELECTION_HEADER_WORDS, SELECTION_LIST_CAP } from '../../gpuDagLayout.ts';
 
 const ici = dirname(fileURLToPath(import.meta.url));
 const esbuild = createRequire(requireDuLab().resolve('vite'))('esbuild');
@@ -101,7 +101,7 @@ test('le relevé livré tient sous son plafond quelle que soit la taille du cata
   // ① le relevé livré est borné par le plafond, quelle que soit la taille du catalogue ;
   // ② au-delà du plafond, le dimensionnement d'hier coûte strictement plus cher par image.
   // Le plafond lui-même se choisit sur `coupeParErreur`, pas ici.
-  const capOctets = 2 * (16 + PLAFOND * 4);
+  const capOctets = 2 * (SELECTION_HEADER_WORDS * 4 + PLAFOND * 4);
   for (const ligne of table)
     assert.ok(
       ligne.moLivre <= mo(capOctets),

@@ -1,3 +1,5 @@
+import { SELECTION_HEADER_WORDS } from './gpuDagLayout.ts';
+
 export function installGpuGlobals() {
   Object.assign(globalThis, {
     GPUBufferUsage: {
@@ -51,9 +53,10 @@ export function compactDrawnPages(
 ) {
   const marks = new Uint32Array(flagBytes.buffer, flagBytes.byteOffset, flagBytes.byteLength / 4);
   const out = new Uint32Array(outBytes.buffer, outBytes.byteOffset, outBytes.byteLength / 4);
-  const base = 4 + pageCount;
+  const head = SELECTION_HEADER_WORDS,
+    base = head + pageCount;
   let found = 0;
-  for (let id = 0; id < pageCount; id++) if (marks[nodeCount + id]) out[base + 4 + found++] = id;
+  for (let id = 0; id < pageCount; id++) if (marks[nodeCount + id]) out[base + head + found++] = id;
   out[base] = found;
 }
 

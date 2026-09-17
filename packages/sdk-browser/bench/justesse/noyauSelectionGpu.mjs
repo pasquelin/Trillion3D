@@ -8,6 +8,13 @@ import { writeDagUniforms } from '../../gpuDagUniforms.ts';
 import { SELECTION_UNIFORM_BYTES, SELECTION_WORKGROUP } from '../../gpuSelection.ts';
 import { FRAME_VEC4 } from '../../gpuDagTypes.ts';
 import { dagWorkLayout } from '../../gpuDagFloorWgsl.ts';
+import {
+  OUT_DRAWN_TRIANGLES,
+  OUT_SELECTED_TRIANGLES,
+  OUT_TRANSPARENT_TRIANGLES,
+  OUT_UNCOVERED_TRIANGLES,
+  SELECTION_HEADER_WORDS,
+} from '../../gpuDagLayout.ts';
 
 const octets = (vue) => Array.from(new Uint8Array(vue.buffer, vue.byteOffset, vue.byteLength));
 
@@ -40,7 +47,7 @@ function versPage(nom, packed, uniforms) {
 }
 
 /** Exécuté dans la page : un pipeline, tous les cas, la sortie `Output` relue pour chacun. */
-async function executer({ shader, cas, workgroup }) {
+async function executer({ shader, cas, workgroup, entete, totaux }) {
   const appareil = await globalThis.ouvrirAppareil();
   if (!appareil) return { indisponible: 'aucun adaptateur WebGPU' };
   const { device, erreurs } = appareil;
@@ -75,7 +82,7 @@ async function executer({ shader, cas, workgroup }) {
   const groupes = (n) => Math.max(1, Math.ceil(n / workgroup));
   const resultats = [];
   for (const c of cas) {
-    const sortieOctets = 16 + c.pageCount * 4;
+    const sortieOctets = entete * 4 + c.pageCount * 4;
     const blockCount = groupes(c.pageCount);
     // La disposition de `work` est celle que le moteur pose, calculée côté Node et portée avec le
     // cas : la page n'a pas de module à importer, et le banc ne peut pas en dériver une autre.
@@ -142,9 +149,14 @@ async function executer({ shader, cas, workgroup }) {
     const count = Math.min(ints[0], c.pageCount);
     resultats.push({
       nom: c.nom,
-      pages: Array.from(ints.subarray(4, 4 + count)).sort((a, b) => a - b),
+      pages: Array.from(ints.subarray(entete, entete + count)).sort((a, b) => a - b),
       frustumRejected: ints[1],
       overflow: ints[3],
+      // Les totaux que la carte tient : c'est ici qu'ils se comparent à ceux de l'oracle.
+      selectedTriangles: ints[totaux.selected],
+      transparentTriangles: ints[totaux.transparent],
+      drawnTriangles: ints[totaux.drawn],
+      uncoveredTriangles: ints[totaux.uncovered],
       candidates: compteursLus[travail.candCounter],
       vivantes: compteursLus[travail.liveCounter],
     });
@@ -160,9 +172,18 @@ async function executer({ shader, cas, workgroup }) {
  * les vivantes de `dagWanted`. `shader` remplace le texte du noyau pour comparer deux versions.
  */
 export async function selectionGpu(cas, shader = DAG_SELECTION_SHADER) {
+  // La fonction est SÉRIALISÉE dans la page : elle ne voit que son argument. La disposition de
+  // l'entête du relevé y voyage donc, au lieu d'être relue d'un module que la page n'a pas.
   return await dansPageWebgpu(executer, {
     shader,
     cas: cas.map(({ nom, packed, uniforms }) => versPage(nom, packed, uniforms)),
     workgroup: SELECTION_WORKGROUP,
+    entete: SELECTION_HEADER_WORDS,
+    totaux: {
+      selected: OUT_SELECTED_TRIANGLES,
+      transparent: OUT_TRANSPARENT_TRIANGLES,
+      drawn: OUT_DRAWN_TRIANGLES,
+      uncovered: OUT_UNCOVERED_TRIANGLES,
+    },
   });
 }

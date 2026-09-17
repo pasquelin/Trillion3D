@@ -1,6 +1,8 @@
 import { DAG_ERROR_WGSL } from './gpuDagShaderError.ts';
 import { INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
 import { DAG_COMPACT_WGSL } from './gpuDagCompactWgsl.ts';
+import { DAG_TOTALS_WGSL } from './gpuDagTotalsWgsl.ts';
+import { DAG_RELEVE_WGSL } from './gpuDagReleveWgsl.ts';
 import { DAG_LIVE_WGSL } from './gpuDagLiveWgsl.ts';
 import { DAG_LEVEL_WGSL } from './gpuDagLevelWgsl.ts';
 import { DAG_FLOOR_WGSL } from './gpuDagFloorWgsl.ts';
@@ -14,7 +16,7 @@ struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sp
 // \`view\`, \`planes\` et \`worlds\` sont ceux du repere de rendu ; \`cameraWorld\` en est l'origine, que le
 // noyau n'a pas a lire puisque la camera y est posee a zero : elle voyage pour le nommer a qui releve le bloc.
 struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,listCap:u32,pad0:u32,pad1:u32,pad2:u32,}
-struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,pages:array<u32>,}
+struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,selectedTriangles:atomic<u32>,transparentTriangles:atomic<u32>,drawnTriangles:atomic<u32>,uncoveredTriangles:atomic<u32>,pages:array<u32>,}
 @group(0) @binding(0) var<storage, read> clusters:array<Cluster>;
 @group(0) @binding(1) var<storage, read> nodes:array<CullNode>;
 @group(0) @binding(2) var<uniform> uni:Uniforms;
@@ -91,12 +93,6 @@ fn visible(index:u32,cluster:Cluster)->bool{
  return !outsideFrustum(cluster.worldIndex*FRAME,boxMin(index),boxMax(index));
 }
 fn stretchOf(world:u32)->f32{return frames[world*FRAME+6u].x*uni.cameraStretch;}
-/** Le relevé ne porte que \`listCap\` rangs : au-dela le bit 0 le dit TRONQUE (\`gpuDagLayout.ts\`). */
-fn emitOne(page:u32){
- let slot=atomicAdd(&out.count,1u);
- if(slot>=uni.listCap){atomicOr(&out.overflow,1u);return;}
- out.pages[slot]=page;
-}
 /** Raise the primitive's threshold to the replacement band, or demand the pinned cover.
  *  Le seuil est posé STRICTEMENT au-dessus de l'erreur du parent (marge \`ESCALATION_SLACK\`) : les
  *  passes qui le relisent recalculent cette erreur dans un autre point d'entrée, où le pilote ne
@@ -113,7 +109,7 @@ fn escalate(world:u32,parentPixels:f32){
 @compute @workgroup_size(64)
 fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  let w=id.x;
- if(w==0u){atomicStore(&out.count,0u);atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);atomicStore(&out.overflow,0u);resetCounters();}
+ if(w==0u){atomicStore(&out.count,0u);atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);atomicStore(&out.overflow,0u);resetTotaux();resetCounters();}
  if(w<blockCount()){atomicStore(&work[blockBase()+w],0u);}
  if(w>=uni.worldCount){return;}
  // La racine de la primitive ouvre la descente : un fil, une racine, aucun compteur à disputer.
@@ -173,27 +169,29 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u){
  let i=liveAt(s);
  let cluster=clusters[i];
  var draw=false;
+ var trou=false;
  if(!coneRejected(i)){
   let w=cluster.worldIndex;
   if(uni.residentCut!=0u&&(atomicLoad(&work[uni.worldCount+w])!=0u||pruneCrossed(w))){
    // No resident ancestor replaces the missing cluster: this primitive falls back to its pinned roots.
    draw=(cluster.flags&1u)!=0u;
-   if(draw&&!isResident(i)){atomicOr(&out.overflow,2u);draw=false;}
+   if(draw&&!isResident(i)){atomicOr(&out.overflow,2u);draw=false;trou=true;}
   }else{
    let e=uni.view*worlds[w];
    let threshold=select(uni.pixelError,bitcast<f32>(atomicLoad(&work[w])),uni.residentCut!=0u);
    draw=selects(cluster,e,stretchOf(w),focalPixels(),threshold);
-   if(draw&&uni.residentCut!=0u&&!isResident(i)){atomicOr(&out.overflow,2u);draw=false;}
+   if(draw&&uni.residentCut!=0u&&!isResident(i)){atomicOr(&out.overflow,2u);draw=false;trou=true;}
   }
  }
  let posee=select(0u,1u,draw);
  flags[uni.nodeCount+i]=posee;
+ noteImage(i,cluster.flags,draw||trou,draw,trou);
  // Le compte de dessinées du bloc de cette page, tenu ici plutôt que relu ensuite page par page.
  if(posee!=0u){atomicAdd(&work[blockBase()+i/BLOCK],1u);drawnAppend(i);}
 }
 ${DAG_ERROR_WGSL}
 ${INVERSE_TRANSPOSE_WGSL}
-${DAG_COMPACT_WGSL}
+${DAG_COMPACT_WGSL}${DAG_TOTALS_WGSL}${DAG_RELEVE_WGSL}
 ${DAG_LIVE_WGSL}
 ${DAG_LEVEL_WGSL}
 ${DAG_FLOOR_WGSL}

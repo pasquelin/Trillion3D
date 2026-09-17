@@ -16,6 +16,10 @@ function page(level: number, i: number, cote: number, etendue: number) {
   return {
     url: `n${level}-${i}`,
     level,
+    // Un compte de triangles par grappe, VARIABLE : c'est lui que les totaux d'image accumulent, et
+    // une scène qui les laisserait tous égaux — ou tous nuls — ferait accorder la carte et l'oracle
+    // sur rien. La formule ne dépend que du rang et de l'étage, donc la scène reste reproductible.
+    triangles: 64 + ((i * 7 + level * 13) % 129),
     min: [cx - rayon, cy - rayon, -rayon],
     max: [cx + rayon, cy + rayon, rayon],
     sphere: [cx, cy, 0, rayon],

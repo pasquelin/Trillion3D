@@ -69,7 +69,7 @@ for (const [nom, x, z, seuil] of POSES) {
     seuil,
     cpu: cpu.shown.length,
     elagages: descenteComptee(packed, uniforms, true).plancherCoupe,
-    oracle: evaluateDagSelectionKernel(packed, uniforms).pageIds.length,
+    oracle: evaluateDagSelectionKernel(packed, uniforms),
   });
 }
 
@@ -83,9 +83,15 @@ const lignes = cas.map((c) => {
     seuil: c.seuil,
     sousArbresElagues: c.elagages,
     retenuesCpu: c.cpu,
-    retenuesOracle: c.oracle,
+    retenuesOracle: c.oracle.pageIds.length,
     retenuesGpu: lu?.pages.length ?? null,
-    ecartOracleGpu: lu ? Math.abs(lu.pages.length - c.oracle) : null,
+    ecartOracleGpu: lu ? Math.abs(lu.pages.length - c.oracle.pageIds.length) : null,
+    // Les totaux de triangles que la carte tient, contre ceux que l'oracle rejoue au même endroit.
+    // Sans résidence, tout ce que la coupe retient part au dessin et rien ne creuse de trou.
+    trianglesOracle: c.oracle.selectedTriangles,
+    trianglesGpu: lu?.selectedTriangles ?? null,
+    dessinesGpu: lu?.drawnTriangles ?? null,
+    trouGpu: lu?.uncoveredTriangles ?? null,
   };
 });
 console.log(JSON.stringify({ pages: pages.length, adaptateur: gpu.adaptateur, lignes }, null, 2));
@@ -93,4 +99,16 @@ for (const ligne of lignes) {
   assert.ok(ligne.sousArbresElagues > 0, `${ligne.pose} : aucun sous-arbre élagué`);
   assert.equal(ligne.ecartOracleGpu, 0, `${ligne.pose} : la carte et l'oracle divergent`);
   assert.equal(ligne.retenuesGpu, ligne.retenuesCpu, `${ligne.pose} : la carte perd de la coupe`);
+  assert.ok(ligne.trianglesGpu > 0, `${ligne.pose} : aucun triangle compté`);
+  assert.equal(
+    ligne.trianglesGpu,
+    ligne.trianglesOracle,
+    `${ligne.pose} : les totaux de la carte et de l'oracle divergent`,
+  );
+  // L'invariant que le processeur sommait : la coupe vaut le dessin plus le trou.
+  assert.equal(
+    ligne.trianglesGpu - ligne.dessinesGpu - ligne.trouGpu,
+    0,
+    `${ligne.pose} : selected − drawn − uncovered ≠ 0`,
+  );
 }

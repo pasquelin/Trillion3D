@@ -1,6 +1,6 @@
 import { evaluateDagSelectionKernel, type PackedDag } from './gpuDagSelection.ts';
 import { bytesOf, compactDrawnPages } from './webgpuPagesTestGlobals.ts';
-import { residentBase, residentBit } from './gpuDagLayout.ts';
+import { SELECTION_HEADER_WORDS, residentBase, residentBit } from './gpuDagLayout.ts';
 
 export function installGpuGlobals() {
   Object.assign(globalThis, {
@@ -125,7 +125,7 @@ export function mockDagDevice(
           ints[1] = result.frustumRejected;
           ints[2] = result.lodLevel;
           ints[3] = result.complete === false ? 2 : 0;
-          ints.set(result.pageIds, 4);
+          ints.set(result.pageIds, SELECTION_HEADER_WORDS);
           const flags = new Uint32Array(byBinding.get(3)!.data.buffer);
           flags.fill(0, packed.nodeCount);
           for (const id of result.drawablePageIds ?? []) flags[packed.nodeCount + id] = 1;
