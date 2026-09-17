@@ -1,5 +1,4 @@
 import type { PackedDag } from './gpuDagTypes.ts';
-import { DAG_NODE_FLOATS } from './gpuDagTypes.ts';
 import {
   CLUSTER_ROOT,
   CLUSTER_TRANSPARENT,
@@ -8,10 +7,12 @@ import {
   flagsOf,
   trianglesOf,
   worldOf,
+  bandError,
 } from './gpuDagLayout.ts';
 import type { SelectionUniforms, SelectionResult } from './gpuSelection.ts';
-import { dagNodeFloor, dagNodeVerdict, dagViewFrames } from './gpuDagOracleMath.ts';
-import { NODE_FIRST_CHILD, NODE_WORLD } from './gpuDagPackNodes.ts';
+import { dagViewFrames } from './gpuDagOracleMath.ts';
+import { dagOracleDescent } from './gpuDagOracleDescent.ts';
+import { quantizeRequestPriority } from './gpuDagRequest.ts';
 import { createDagOraclePredicates } from './gpuDagOraclePredicates.ts';
 import { ESCALATION_ROUNDS, ESCALATION_SLACK } from './pageSelectionTypes.ts';
 
@@ -32,46 +33,16 @@ export function evaluateDagSelectionKernel(
 ) {
   if (resident && resident.length !== packed.pageCount)
     throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED');
-  const { nodes } = packed;
   // Le décodeur unique de la disposition compacte : le même que le double de tampon relit, si bien
   // qu'aucun rang de champ n'est écrit ailleurs qu'une fois, dans `gpuDagLayout.ts`.
-  const records = dagRecords(packed),
-    nodeInts = new Uint32Array(nodes.buffer);
+  const records = dagRecords(packed);
   // Le prologue par primitive et le verdict par nœud sont ceux de `gpuDagOracleMath.ts`, écrits une
   // seule fois : le comptage de frontière les relit, et ni lui ni l'oracle ne peut dériver seul.
   const frames = dagViewFrames(packed, uniforms);
   const { planes, views, stretches, focal, near, pixelError } = frames;
-  // Descente par niveaux, comme le noyau : un nœud rejeté n'engendre rien, et une feuille jamais
-  // atteinte reste rejetée. Un drapeau non nul dit « ne descends pas ici » ; seules les feuilles
-  // retenues retombent à zéro, et ce sont elles seules que les grappes consultent.
-  const nodeFlags = new Uint8Array(Math.max(1, packed.nodeCount)).fill(1);
-  // Le plus petit plancher que l'élagage par le haut a écarté, par primitive : au-dessus de lui,
-  // l'escalade demanderait un sous-arbre que la descente n'a pas ouvert, et le repli épinglé s'arme.
-  const prunedFloor = new Float64Array(Math.max(1, packed.worldCount)).fill(Infinity);
-  const frontier: number[] = [];
-  for (let w = 0; w < packed.worldCount; w++)
-    if (packed.rootNodes[w] !== 0xffffffff) frontier.push(packed.rootNodes[w]);
-  while (frontier.length) {
-    const n = frontier.pop() as number;
-    const children = dagNodeVerdict(frames, nodes, nodeInts, n);
-    if (children < 0) {
-      nodeFlags[n] = 2;
-      continue;
-    }
-    const floor = dagNodeFloor(frames, nodes, nodeInts, n);
-    if (floor > pixelError) {
-      const w = nodeInts[n * DAG_NODE_FLOATS + NODE_WORLD];
-      if (floor < prunedFloor[w]) prunedFloor[w] = floor;
-      nodeFlags[n] = 2;
-      continue;
-    }
-    if (children) {
-      const first = nodeInts[n * DAG_NODE_FLOATS + NODE_FIRST_CHILD];
-      for (let c = 0; c < children; c++) frontier.push(first + c);
-      continue;
-    }
-    nodeFlags[n] = 0;
-  }
+  // La descente, miroir de `gpuDagLevelWgsl.ts`, posée à part : elle rend le verdict de chaque nœud
+  // et le plancher que l'élagage par le haut a écarté par primitive.
+  const { nodeFlags, prunedFloor } = dagOracleDescent(packed, frames);
   const { coneRejects, visible, bandPixels, selects } = createDagOraclePredicates({
     packed,
     records,
@@ -92,6 +63,8 @@ export function evaluateDagSelectionKernel(
     return rejected;
   };
   const pageIds: number[] = [];
+  /** La priorité de chaque demande, au même rang que `pageIds` : miroir de `quantizePriority`. */
+  const priorites: number[] = [];
   // Les totaux que la carte tient, rejoués au même endroit : `dagWanted` pour la coupe retenue et sa
   // part en mélange, `dagMask` pour ce qui part au dessin et pour le trou (`gpuDagTotalsWgsl.ts`).
   const totaux = { selected: 0, transparent: 0, drawn: 0, uncovered: 0 };
@@ -118,6 +91,8 @@ export function evaluateDagSelectionKernel(
     if (cone(i, w)) continue;
     const level = clusterLevel(flagsOf(records, i));
     if (level > lodLevel) lodLevel = level;
+    // L'erreur du remplaçant, ou la sienne quand rien ne la remplace : `dagWanted` fait de même.
+    priorites.push(quantizeRequestPriority(bandPixels(i, bandError(records, i, 1) < 0 ? 0 : 1)));
     pageIds.push(i);
     if (!resident || resident[i]) continue;
     const parent = bandPixels(i, 1) * ESCALATION_SLACK;
@@ -125,9 +100,21 @@ export function evaluateDagSelectionKernel(
     else missing[w] = 1;
   }
   const drawablePageIds: number[] = [];
-  const publie = (drawable: number[], complete: boolean) =>
-    ({
+  // Le relevé est rendu CLASSÉ, priorité décroissante, comme `parseDagOutput` le rend de la carte.
+  const classe = () => {
+    const rangs = pageIds.map((_, i) => i).sort((a, b) => priorites[b] - priorites[a]);
+    const pagesTriees = rangs.map((r) => pageIds[r]),
+      prioritesTriees = rangs.map((r) => priorites[r]);
+    pageIds.length = 0;
+    pageIds.push(...pagesTriees);
+    priorites.length = 0;
+    priorites.push(...prioritesTriees);
+  };
+  const publie = (drawable: number[], complete: boolean) => (
+    classe(),
+    {
       pageIds,
+      requestPriorities: priorites,
       frustumRejected,
       lodLevel,
       complete,
@@ -136,7 +123,8 @@ export function evaluateDagSelectionKernel(
       transparentTriangles: totaux.transparent,
       drawnTriangles: totaux.drawn,
       uncoveredTriangles: totaux.uncovered,
-    }) as SelectionResult;
+    } as SelectionResult
+  );
   if (!resident) {
     // Sans résidence, `dagMask` dessine tout ce que la coupe retient et ne creuse aucun trou : la
     // coupe dessinable entière EST la coupe retenue.
