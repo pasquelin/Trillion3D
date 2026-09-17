@@ -1,6 +1,6 @@
 // A2 : visMaterial et le triangle projeté sont mis en cache par image (VisibilityFrame) au lieu
 // d'être refaits à chaque pixel. Oracle : la référence d'avant le lot A dans
-// `bench/oracles/ombrage.mjs`.
+// `bench/oracles/ombrage-image.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';

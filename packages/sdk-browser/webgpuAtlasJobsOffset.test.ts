@@ -7,7 +7,7 @@ import {
   recordingDevice,
   referenceWriteRows,
 } from './bench/oracles/h3AtlasJobsOracle.ts';
-import { graine } from '../sdk-core/bench/banc.mjs';
+import { graine } from '../sdk-core/bench/socle.mjs';
 import type { TexturePreview } from '../sdk-core/index.ts';
 
 // H3-1 : la bande de lignes n'est plus recopiée hors des pixels entiers avant d'être remise à
