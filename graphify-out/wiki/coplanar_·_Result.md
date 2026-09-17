@@ -23,9 +23,10 @@
 ## Relationships
 
 - [src · COPLANAR_MAX_LAYER](src_·_COPLANAR_MAX_LAYER.md) (2 shared connections)
-- [coplanar · BTreeMap](coplanar_·_BTreeMap.md) (2 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (1 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
 - [Rapport des bancs de calcul](Rapport_des_bancs_de_calcul.md) (1 shared connections)
+- [coplanar · BTreeMap](coplanar_·_BTreeMap.md) (1 shared connections)
+- [coplanar · Default](coplanar_·_Default.md) (1 shared connections)
 - [Validation du compilateur](Validation_du_compilateur.md) (1 shared connections)
 
 ## Source Files

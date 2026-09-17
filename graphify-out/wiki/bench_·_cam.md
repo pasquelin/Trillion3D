@@ -4,41 +4,36 @@
 
 ## Key Concepts
 
-- **tronc-residence.perf.mjs** (29 connections) — `packages/sdk-browser/bench/tronc-residence.perf.mjs`
-- **hote()** (3 connections) — `packages/sdk-browser/bench/tronc-residence.perf.mjs`
-- **boxes()** (2 connections) — `packages/sdk-browser/bench/tronc-residence.perf.mjs`
-- **clipper()** (2 connections) — `packages/sdk-browser/bench/tronc-residence.perf.mjs`
-- **alea** (2 connections) — `packages/sdk-browser/bench/tronc-residence.perf.mjs`
-- **cam** (1 connections) — `packages/sdk-browser/bench/tronc-residence.perf.mjs`
-- **clip** (1 connections) — `packages/sdk-browser/bench/tronc-residence.perf.mjs`
-- **grande** (1 connections) — `packages/sdk-browser/bench/tronc-residence.perf.mjs`
-- **grandHote** (1 connections) — `packages/sdk-browser/bench/tronc-residence.perf.mjs`
-- **hoteVide** (1 connections) — `packages/sdk-browser/bench/tronc-residence.perf.mjs`
-- **planes** (1 connections) — `packages/sdk-browser/bench/tronc-residence.perf.mjs`
-- **vide** (1 connections) — `packages/sdk-browser/bench/tronc-residence.perf.mjs`
+- **selection-relances.perf.mjs** (27 connections) — `packages/sdk-browser/bench/selection-relances.perf.mjs`
+- **optimiseeCoupe()** (5 connections) — `packages/sdk-browser/bench/selection-relances.perf.mjs`
+- **referenceCoupe()** (5 connections) — `packages/sdk-browser/bench/selection-relances.perf.mjs`
+- **etatDeCoupe()** (4 connections) — `packages/sdk-browser/bench/appui/dagCoupe.mjs`
+- **demande()** (3 connections) — `packages/sdk-browser/bench/selection-relances.perf.mjs`
+- **cam** (1 connections) — `packages/sdk-browser/bench/selection-relances.perf.mjs`
+- **decritC4** (1 connections) — `packages/sdk-browser/bench/selection-relances.perf.mjs`
+- **decritC6** (1 connections) — `packages/sdk-browser/bench/selection-relances.perf.mjs`
+- **image** (1 connections) — `packages/sdk-browser/bench/selection-relances.perf.mjs`
+- **large** (1 connections) — `packages/sdk-browser/bench/selection-relances.perf.mjs`
+- **sansBudget** (1 connections) — `packages/sdk-browser/bench/selection-relances.perf.mjs`
+- **serre** (1 connections) — `packages/sdk-browser/bench/selection-relances.perf.mjs`
 
 ## Relationships
 
-- [sdk-core · cam](sdk-core_·_cam.md) (4 shared connections)
+- [Sélection des pages visibles](Sélection_des_pages_visibles.md) (8 shared connections)
+- [Transformations et collecte des pages](Transformations_et_collecte_des_pages.md) (3 shared connections)
+- [Adoption et reprise de la coupe](Adoption_et_reprise_de_la_coupe.md) (3 shared connections)
 - [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (3 shared connections)
-- [Mathématiques du tampon de visibilité](Mathématiques_du_tampon_de_visibilité.md) (3 shared connections)
-- [Contrat backend et dessin](Contrat_backend_et_dessin.md) (2 shared connections)
-- [sdk-browser · InstanceEnvironment](sdk-browser_·_InstanceEnvironment.md) (2 shared connections)
-- [Pyramide Hi-Z et occlusion](Pyramide_Hi-Z_et_occlusion.md) (1 shared connections)
-- [Matrices et origine de rendu](Matrices_et_origine_de_rendu.md) (1 shared connections)
-- [bench · geometrie](bench_·_geometrie.md) (1 shared connections)
+- [Socle de mesure des bancs](Socle_de_mesure_des_bancs.md) (3 shared connections)
 - [Socle du banc sdk-core](Socle_du_banc_sdk-core.md) (1 shared connections)
-- [sdk-browser · graphe](sdk-browser_·_graphe.md) (1 shared connections)
-- [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (1 shared connections)
-- [Pages autonomes](Pages_autonomes.md) (1 shared connections)
 
 ## Source Files
 
-- `packages/sdk-browser/bench/tronc-residence.perf.mjs`
+- `packages/sdk-browser/bench/appui/dagCoupe.mjs`
+- `packages/sdk-browser/bench/selection-relances.perf.mjs`
 
 ## Audit Trail
 
-- EXTRACTED: 31 (94%)
+- EXTRACTED: 34 (94%)
 - INFERRED: 2 (6%)
 - AMBIGUOUS: 0 (0%)
 

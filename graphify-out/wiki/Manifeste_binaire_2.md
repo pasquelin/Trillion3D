@@ -1,10 +1,25 @@
 # Manifeste binaire (2)
 
-> 33 nodes
+> 49 nodes
 
 ## Key Concepts
 
 - **manifestBinaryFormat.ts** (50 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
+- **manifestBinaryLayout.ts** (30 connections) — `packages/sdk-core/manifestBinaryLayout.ts`
+- **manifestBinaryRead.ts** (20 connections) — `packages/sdk-core/manifestBinaryRead.ts`
+- **packages_sdk_core_contracts_engineerror** (9 connections)
+- **readManifestColumns()** (6 connections) — `packages/sdk-core/manifestBinaryRead.ts`
+- **MANIFEST_BINARY_MAGIC** (5 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
+- **columnElements()** (4 connections) — `packages/sdk-core/manifestBinaryLayout.ts`
+- **COLUMN_NAMES** (4 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
+- **MANIFEST_BINARY_HEADER_WORDS** (4 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
+- **ColumnName** (3 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
+- **columnBytes()** (3 connections) — `packages/sdk-core/manifestBinaryLayout.ts`
+- **BYTES_PER_ELEMENT** (3 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
+- **COLUMN_KIND** (3 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
+- **COLUMN_STRIDE** (3 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
+- **Counts** (2 connections) — `packages/sdk-core/manifestBinaryLayout.ts`
+- **PREVIEW_WORDS** (2 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
 - **ColumnKind** (1 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
 - **FLAG_CLUSTER_ERROR** (1 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
 - **FLAG_COARSE** (1 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
@@ -14,37 +29,29 @@
 - **FLAG_PARENT_ERROR_FINITE** (1 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
 - **FLAG_PARENT_SPHERE** (1 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
 - **FLAG_PARENT_SPHERE_SET** (1 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
-- **FLAG_ROLE** (1 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
-- **FLAG_SOURCE** (1 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
-- **INT_COUNT** (1 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
-- **INT_GROUP** (1 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
-- **INT_ID** (1 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
-- **INT_LEVEL** (1 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
-- **INT_SOURCE** (1 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
-- **INT_START** (1 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
-- **INT_STREAM** (1 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
-- **INT_STREAM_OFFSET** (1 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
-- **PREVIEW_FIRST_LEVEL** (1 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
-- **PREVIEW_HEIGHT** (1 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
-- **PREVIEW_IMAGE** (1 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
-- **PREVIEW_LEVEL_COUNT** (1 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
-- **PREVIEW_PIXEL_BYTES** (1 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
-- *... and 8 more nodes in this community*
+- *... and 24 more nodes in this community*
 
 ## Relationships
 
-- [Manifeste binaire](Manifeste_binaire.md) (13 shared connections)
-- [sdk-core · GroupColumns](sdk-core_·_GroupColumns.md) (2 shared connections)
-- [Manifeste binaire (3)](Manifeste_binaire_3.md) (2 shared connections)
-- [sdk-browser · GeometryBlock](sdk-browser_·_GeometryBlock.md) (1 shared connections)
+- [Manifeste binaire (3)](Manifeste_binaire_3.md) (15 shared connections)
+- [Manifeste binaire](Manifeste_binaire.md) (14 shared connections)
+- [Décodage du manifeste binaire](Décodage_du_manifeste_binaire.md) (11 shared connections)
+- [Magasin des lumières de scène](Magasin_des_lumières_de_scène.md) (5 shared connections)
+- [sdk-browser · GeometryBlock (2)](sdk-browser_·_GeometryBlock_2.md) (1 shared connections)
+- [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (1 shared connections)
+- [Télémétrie et métriques](Télémétrie_et_métriques.md) (1 shared connections)
+- [bench · passe (2)](bench_·_passe_2.md) (1 shared connections)
+- [sdk-core · BounceCascadeLevel](sdk-core_·_BounceCascadeLevel.md) (1 shared connections)
 
 ## Source Files
 
 - `packages/sdk-core/manifestBinaryFormat.ts`
+- `packages/sdk-core/manifestBinaryLayout.ts`
+- `packages/sdk-core/manifestBinaryRead.ts`
 
 ## Audit Trail
 
-- EXTRACTED: 50 (100%)
+- EXTRACTED: 117 (100%)
 - INFERRED: 0 (0%)
 - AMBIGUOUS: 0 (0%)
 

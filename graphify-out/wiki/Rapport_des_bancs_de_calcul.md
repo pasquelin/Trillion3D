@@ -1,6 +1,6 @@
 # Rapport des bancs de calcul
 
-> 26 nodes
+> 25 nodes
 
 ## Key Concepts
 
@@ -23,23 +23,21 @@
 - **.note()** (2 connections) — `packages/asset-compiler-rust/src/bench_calculs/harness.rs`
 - **Option** (2 connections)
 - **Self** (2 connections)
-- **String** (2 connections)
 - **Option** (2 connections)
 - **PathBuf** (2 connections)
 - **shell()** (2 connections) — `packages/asset-compiler-rust/src/bench_calculs/rapport.rs`
 - **bench_calculs_g()** (1 connections) — `packages/asset-compiler-rust/src/bench_calculs.rs`
 - **.retenu()** (1 connections) — `packages/asset-compiler-rust/src/bench_calculs/harness.rs`
-- *... and 1 more nodes in this community*
+- **Value** (1 connections)
 
 ## Relationships
 
-- [bench_calculs · COUNT](bench_calculs_·_COUNT.md) (4 shared connections)
-- [Bancs de calcul Rust (2)](Bancs_de_calcul_Rust_2.md) (3 shared connections)
+- [bench_calculs · Bits (5)](bench_calculs_·_Bits_5.md) (8 shared connections)
 - [Maths partagées et BVH](Maths_partagées_et_BVH.md) (2 shared connections)
-- [Import Unity et maillages](Import_Unity_et_maillages.md) (2 shared connections)
 - [bench_calculs · NEUTRE](bench_calculs_·_NEUTRE.md) (1 shared connections)
-- [Lecture et écriture glTF (2)](Lecture_et_écriture_glTF_2.md) (1 shared connections)
+- [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
 - [coplanar · Result](coplanar_·_Result.md) (1 shared connections)
+- [ktx2 · NAMES](ktx2_·_NAMES.md) (1 shared connections)
 
 ## Source Files
 
@@ -49,7 +47,7 @@
 
 ## Audit Trail
 
-- EXTRACTED: 55 (96%)
+- EXTRACTED: 54 (96%)
 - INFERRED: 2 (4%)
 - AMBIGUOUS: 0 (0%)
 

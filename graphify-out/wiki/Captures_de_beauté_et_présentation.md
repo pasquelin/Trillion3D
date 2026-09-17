@@ -1,20 +1,22 @@
 # Captures de beauté et présentation
 
-> 18 nodes
+> 20 nodes
 
 ## Key Concepts
 
+- **beautyRun.mjs** (7 connections) — `test/appui/beautyRun.mjs`
 - **presentationCase.mjs** (6 connections) — `test/appui/presentationCase.mjs`
+- **presentationRun.mjs** (6 connections) — `test/appui/presentationRun.mjs`
 - **run()** (5 connections) — `test/appui/beautyRun.mjs`
 - **runCase()** (5 connections) — `test/appui/presentationCase.mjs`
-- **beautyRun.mjs** (5 connections) — `test/appui/beautyRun.mjs`
-- **presentationRun.mjs** (5 connections) — `test/appui/presentationRun.mjs`
 - **run()** (4 connections) — `test/appui/presentationRun.mjs`
 - **runCase()** (3 connections) — `test/appui/beautyCase.mjs`
 - **cases()** (3 connections) — `test/appui/beautyCases.mjs`
 - **createChecks()** (3 connections) — `test/appui/presentationChecks.mjs`
 - **createFrame()** (3 connections) — `test/appui/presentationFrame.mjs`
 - **createScene()** (3 connections) — `test/appui/presentationScene.mjs`
+- **/15-virtualized-integration/implementation/engines.ts** (2 connections) — `engines.ts`
+- **/.vite/deps/three.js** (2 connections) — `three.js`
 - **beautyCase.mjs** (2 connections) — `test/appui/beautyCase.mjs`
 - **beautyCases.mjs** (2 connections) — `test/appui/beautyCases.mjs`
 - **presentationChecks.mjs** (2 connections) — `test/appui/presentationChecks.mjs`
@@ -25,10 +27,11 @@
 
 ## Relationships
 
-- No strong cross-community connections detected
+- [Tests navigateur Node](Tests_navigateur_Node.md) (1 shared connections)
 
 ## Source Files
 
+- `engines.ts`
 - `test/appui/beautyCase.mjs`
 - `test/appui/beautyCases.mjs`
 - `test/appui/beautyRun.mjs`
@@ -37,10 +40,11 @@
 - `test/appui/presentationFrame.mjs`
 - `test/appui/presentationRun.mjs`
 - `test/appui/presentationScene.mjs`
+- `three.js`
 
 ## Audit Trail
 
-- EXTRACTED: 29 (100%)
+- EXTRACTED: 33 (100%)
 - INFERRED: 0 (0%)
 - AMBIGUOUS: 0 (0%)
 

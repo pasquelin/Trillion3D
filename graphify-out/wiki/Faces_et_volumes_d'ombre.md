@@ -27,12 +27,13 @@
 
 ## Relationships
 
-- [sdk-core · Slices](sdk-core_·_Slices.md) (6 shared connections)
+- [sdk-core · matrix](sdk-core_·_matrix.md) (9 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (4 shared connections)
-- [sdk-core · faceScratch](sdk-core_·_faceScratch.md) (4 shared connections)
-- [Socle des consommateurs](Socle_des_consommateurs.md) (2 shared connections)
-- [sdk-browser · WriteRecord](sdk-browser_·_WriteRecord.md) (2 shared connections)
-- [Adressage et bouclage des textures (2)](Adressage_et_bouclage_des_textures_2.md) (1 shared connections)
+- [Atlas de textures WebGPU](Atlas_de_textures_WebGPU.md) (2 shared connections)
+- [Atlas d'ombres GPU](Atlas_d'ombres_GPU.md) (1 shared connections)
+- [Socle des consommateurs](Socle_des_consommateurs.md) (1 shared connections)
+- [sdk-core · Slices](sdk-core_·_Slices.md) (1 shared connections)
+- [Adoption et reprise de la coupe](Adoption_et_reprise_de_la_coupe.md) (1 shared connections)
 
 ## Source Files
 

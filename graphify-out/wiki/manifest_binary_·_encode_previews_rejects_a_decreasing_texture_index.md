@@ -17,9 +17,9 @@
 
 ## Relationships
 
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (1 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
 - [Aperçus de textures (étage) (2)](Aperçus_de_textures_étage_2.md) (1 shared connections)
-- [Aperçus de textures et pyramide](Aperçus_de_textures_et_pyramide.md) (1 shared connections)
+- [Aperçus de textures et pyramide (4)](Aperçus_de_textures_et_pyramide_4.md) (1 shared connections)
 
 ## Source Files
 

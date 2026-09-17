@@ -1,10 +1,15 @@
 # sdk-browser · box
 
-> 19 nodes
+> 33 nodes
 
 ## Key Concepts
 
 - **hizNearestBound.test.ts** (17 connections) — `packages/sdk-browser/hizNearestBound.test.ts`
+- **projectCornersInto()** (14 connections) — `packages/sdk-browser/hizCorners.ts`
+- **transparentOcclusionReference.mjs** (13 connections) — `test/appui/transparentOcclusionReference.mjs`
+- **hizProjectionIdentique.test.ts** (12 connections) — `packages/sdk-browser/hizProjectionIdentique.test.ts`
+- **hizProjectionAffine.test.ts** (10 connections) — `packages/sdk-browser/hizProjectionAffine.test.ts`
+- **hizRejectsFlat()** (9 connections) — `packages/sdk-browser/hizOcclusion.ts`
 - **partitionReference.mjs** (9 connections) — `test/appui/partitionReference.mjs`
 - **hizNearestBound.ts** (8 connections) — `packages/sdk-browser/hizNearestBound.ts`
 - **hizNearestBound()** (7 connections) — `packages/sdk-browser/hizNearestBound.ts`
@@ -12,39 +17,49 @@
 - **partitionConservatricePage.mjs** (7 connections) — `test/appui/partitionConservatricePage.mjs`
 - **auditPoses()** (5 connections) — `test/appui/partitionConservatricePage.mjs`
 - **compareAudit()** (5 connections) — `test/appui/partitionReference.mjs`
+- **compare()** (3 connections) — `packages/sdk-browser/hizProjectionIdentique.test.ts`
 - **emptyTotals()** (3 connections) — `test/appui/partitionReference.mjs`
 - **emptyOcclusionTotals()** (3 connections) — `test/appui/transparentOcclusionReference.mjs`
+- **borne()** (2 connections) — `packages/sdk-browser/depthConventionCamera.test.ts`
+- **rectangle()** (2 connections) — `packages/sdk-browser/hizProjectionAffine.test.ts`
+- **boites()** (2 connections) — `packages/sdk-browser/hizProjectionIdentique.test.ts`
+- **graine()** (2 connections) — `packages/sdk-browser/hizProjectionIdentique.test.ts`
+- **reference()** (2 connections) — `packages/sdk-browser/hizProjectionIdentique.test.ts`
 - **box()** (1 connections) — `packages/sdk-browser/hizNearestBound.test.ts`
 - **patternOf()** (1 connections) — `packages/sdk-browser/hizNearestBound.test.ts`
 - **pyramide()** (1 connections) — `packages/sdk-browser/hizNearestBound.test.ts`
 - **voisins()** (1 connections) — `packages/sdk-browser/hizNearestBound.test.ts`
-- **scratch** (1 connections) — `packages/sdk-browser/hizNearestBound.ts`
-- **scratchWords** (1 connections) — `packages/sdk-browser/hizNearestBound.ts`
-- **bits** (1 connections) — `packages/sdk-browser/hizNearestBound.test.ts`
-- **f32** (1 connections) — `packages/sdk-browser/hizNearestBound.test.ts`
-- **scratch** (1 connections) — `test/appui/partitionReference.mjs`
+- *... and 8 more nodes in this community*
 
 ## Relationships
 
-- [Pyramide Hi-Z et occlusion](Pyramide_Hi-Z_et_occlusion.md) (14 shared connections)
-- [Pipelines de visibilité](Pipelines_de_visibilité.md) (3 shared connections)
+- [Pyramide Hi-Z et occlusion](Pyramide_Hi-Z_et_occlusion.md) (22 shared connections)
+- [Oracles de projection](Oracles_de_projection.md) (7 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (6 shared connections)
+- [Manifeste binaire](Manifeste_binaire.md) (3 shared connections)
+- [Convention de profondeur](Convention_de_profondeur.md) (2 shared connections)
 - [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (2 shared connections)
-- [sdk-core · PackedHiz](sdk-core_·_PackedHiz.md) (2 shared connections)
-- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (2 shared connections)
+- [sdk-browser · flush](sdk-browser_·_flush.md) (2 shared connections)
 - [fixtures · readLightingGltf](fixtures_·_readLightingGltf.md) (1 shared connections)
+- [Socle de mesure des bancs](Socle_de_mesure_des_bancs.md) (1 shared connections)
 
 ## Source Files
 
+- `packages/sdk-browser/depthConventionCamera.test.ts`
+- `packages/sdk-browser/hizCorners.ts`
 - `packages/sdk-browser/hizNearestBound.test.ts`
 - `packages/sdk-browser/hizNearestBound.ts`
+- `packages/sdk-browser/hizOcclusion.ts`
+- `packages/sdk-browser/hizProjectionAffine.test.ts`
+- `packages/sdk-browser/hizProjectionIdentique.test.ts`
 - `test/appui/partitionConservatricePage.mjs`
 - `test/appui/partitionReference.mjs`
 - `test/appui/transparentOcclusionReference.mjs`
 
 ## Audit Trail
 
-- EXTRACTED: 51 (98%)
-- INFERRED: 1 (2%)
+- EXTRACTED: 98 (98%)
+- INFERRED: 2 (2%)
 - AMBIGUOUS: 0 (0%)
 
 ---

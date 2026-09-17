@@ -1,15 +1,16 @@
 # . · FBX/OBJ import: alphaMode BLEND, never MASK
 
-> 17 nodes
+> 18 nodes
 
 ## Key Concepts
 
 - **TODO.md — backlog** (16 connections) — `TODO.md`
 - **Compilateur 10 — classify truly binary alpha as MASK at import** (10 connections) — `TODO.md`
 - **Measured priority: the gap is in the constraints, not the algorithms** (8 connections) — `TODO.md`
-- **The four parity criteria** (4 connections) — `AGENTS.md`
+- **R7b — what an instance costs and does not cost** (4 connections) — `docs/SPEC_MOTEUR_SANS_THREE.md`
 - **One record per cluster, placements as an index** (4 connections) — `TODO.md`
 - **Temporal antialiasing — the missing foundation** (4 connections) — `TODO.md`
+- **GPU block compression at cook time** (4 connections) — `TODO.md`
 - **Compiler reclassifies a wrongly-declared blended material at import** (3 connections) — `AGENTS.md`
 - **Mission: UE5-grade virtualized geometry for the web** (3 connections) — `AGENTS.md`
 - **Transparents never turned into masked** (3 connections) — `docs/SPEC_MOTEUR_SANS_THREE.md`
@@ -24,12 +25,12 @@
 
 ## Relationships
 
-- [CLAUDE.md — project entry rule](CLAUDE.md_—_project_entry_rule.md) (6 shared connections)
-- [docs · Shadow maps invalidated page by page under a millisecond budget](docs_·_Shadow_maps_invalidated_page_by_page_under_a_millisecond_budget.md) (5 shared connections)
+- [docs · A pixel cost is not a veto](docs_·_A_pixel_cost_is_not_a_veto.md) (6 shared connections)
+- [CLAUDE.md — project entry rule](CLAUDE.md_—_project_entry_rule.md) (5 shared connections)
 - [docs · C5 — autonomous packets, quantized attributes](docs_·_C5_—_autonomous_packets,_quantized_attributes.md) (5 shared connections)
 - [Documentation et frontières](Documentation_et_frontières.md) (3 shared connections)
-- [Notices des fixtures](Notices_des_fixtures.md) (3 shared connections)
-- [docs · atlasClasses — one or two material-atlas size classes](docs_·_atlasClasses_—_one_or_two_material-atlas_size_classes.md) (2 shared connections)
+- [docs · Ne jamais dégrader l'application](docs_·_Ne_jamais_dégrader_l'application.md) (3 shared connections)
+- [Notices des fixtures](Notices_des_fixtures.md) (2 shared connections)
 
 ## Source Files
 
@@ -40,9 +41,9 @@
 
 ## Audit Trail
 
-- EXTRACTED: 35 (71%)
-- INFERRED: 8 (16%)
-- AMBIGUOUS: 6 (12%)
+- EXTRACTED: 37 (73%)
+- INFERRED: 7 (14%)
+- AMBIGUOUS: 7 (14%)
 
 ---
 

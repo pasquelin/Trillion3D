@@ -1,11 +1,10 @@
 # Socle du banc sdk-core
 
-> 45 nodes
+> 44 nodes
 
 ## Key Concepts
 
 - **rapport()** (45 connections) — `packages/sdk-core/bench/socle/rapport.mjs`
-- **ref_node_fs** (37 connections)
 - **agrege.mjs** (23 connections) — `scripts/mesure/perf/agrege.mjs`
 - **socle/rapport.mjs** (20 connections) — `packages/sdk-core/bench/socle/rapport.mjs`
 - **baseline.mjs** (19 connections) — `packages/sdk-core/bench/socle/baseline.mjs`
@@ -27,24 +26,25 @@
 - **assainir()** (3 connections) — `packages/sdk-core/bench/socle/chemins.mjs`
 - **lisFragments()** (3 connections) — `packages/sdk-core/bench/socle/rapport.mjs`
 - **ecartTexte()** (3 connections) — `packages/sdk-core/bench/socle/tableau.mjs`
+- **cas()** (2 connections) — `packages/sdk-core/bench/socle/baseline.test.mjs`
 - **verifieFichiers()** (2 connections) — `packages/sdk-core/bench/socle/rapport.mjs`
 - **entete()** (2 connections) — `packages/sdk-core/bench/socle/tableau.mjs`
-- *... and 20 more nodes in this community*
+- *... and 19 more nodes in this community*
 
 ## Relationships
 
 - [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (7 shared connections)
-- [Tests navigateur Node](Tests_navigateur_Node.md) (7 shared connections)
-- [Banc de décodage wasm](Banc_de_décodage_wasm.md) (6 shared connections)
-- [Arbre monde et lots de maths](Arbre_monde_et_lots_de_maths.md) (5 shared connections)
-- [Options et poses du banc](Options_et_poses_du_banc.md) (5 shared connections)
-- [Mathématiques du tampon de visibilité](Mathématiques_du_tampon_de_visibilité.md) (4 shared connections)
-- [test · steps](test_·_steps.md) (4 shared connections)
+- [Socle de mesure des bancs](Socle_de_mesure_des_bancs.md) (5 shared connections)
+- [Banc de décodage wasm](Banc_de_décodage_wasm.md) (4 shared connections)
+- [Arbre monde et lots de maths](Arbre_monde_et_lots_de_maths.md) (4 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (4 shared connections)
-- [Oracle et serveur de mesure](Oracle_et_serveur_de_mesure.md) (4 shared connections)
-- [appui · tour](appui_·_tour.md) (3 shared connections)
-- [Diffusion des pages en continu (2)](Diffusion_des_pages_en_continu_2.md) (2 shared connections)
-- [bench · geometrie](bench_·_geometrie.md) (2 shared connections)
+- [Tests navigateur Node](Tests_navigateur_Node.md) (4 shared connections)
+- [bench · passe](bench_·_passe.md) (2 shared connections)
+- [Garde zéro Three.js](Garde_zéro_Three.js.md) (2 shared connections)
+- [sdk-browser · NOYAU](sdk-browser_·_NOYAU.md) (1 shared connections)
+- [Diffusion des pages en continu (2)](Diffusion_des_pages_en_continu_2.md) (1 shared connections)
+- [Télémétrie et métriques (2)](Télémétrie_et_métriques_2.md) (1 shared connections)
+- [Scène de l'explorateur et chargement (3)](Scène_de_l'explorateur_et_chargement_3.md) (1 shared connections)
 
 ## Source Files
 
@@ -58,8 +58,8 @@
 
 ## Audit Trail
 
-- EXTRACTED: 181 (100%)
-- INFERRED: 0 (0%)
+- EXTRACTED: 147 (99%)
+- INFERRED: 1 (1%)
 - AMBIGUOUS: 0 (0%)
 
 ---

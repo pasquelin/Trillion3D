@@ -5,7 +5,7 @@
 ## Key Concepts
 
 - **browser.d.ts** (1 connections) — `types/browser.d.ts`
-- **ext_index_js** (1 connections)
+- **dist_sdk_browser_index** (1 connections)
 
 ## Relationships
 

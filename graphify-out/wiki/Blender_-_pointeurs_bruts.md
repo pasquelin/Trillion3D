@@ -30,7 +30,7 @@
 
 ## Relationships
 
-- [Lecture du format Blender (4)](Lecture_du_format_Blender_4.md) (7 shared connections)
+- [Lecture du format Blender (2)](Lecture_du_format_Blender_2.md) (7 shared connections)
 - [blend · HashMap](blend_·_HashMap.md) (3 shared connections)
 
 ## Source Files
