@@ -16,21 +16,34 @@ import type { TextureJob } from './webgpuAtlasJobs.ts';
  *
  * Le budget est levé pendant `flush()`, où l'image doit converger : sans cela, la file refusée ne se
  * viderait jamais et la capture de référence tournerait sans fin.
+ *
+ * Il ne descend jamais sous les octets que les atlas ont DÉJÀ alloués. Une classe d'atlas est une
+ * texture-tableau créée en entier à la préparation, couches et chaîne de mips comprises : la carte
+ * les porte que le transfert parte ou non. Refuser le niveau 0 d'une couche allouée ne rend donc pas
+ * un octet, il retient seulement l'aperçu de 64 px à l'écran — et le refus est définitif, puisque
+ * l'éviction ne porte que sur les transferts en cours et qu'une scène posée n'en a aucun. Le budget
+ * de l'hôte reprend son sens le jour où la résidence libère vraiment (backlog Textures 3) : il borne
+ * alors ce qui est alloué, donc ce plafond avec lui.
  */
 export function createTextureBudget(options: {
   budget: number;
+  /** Octets que les atlas ont déjà alloués sur la carte ; zéro tant qu'ils n'existent pas. */
+  allocated: () => number;
   /** L'utilité d'un travail, telle que l'ordre de l'image l'a calculée. */
   scoreOf: (job: TextureJob) => number;
 }) {
   let committed = 0;
   let evictions = 0;
+  /** Le plafond réel : le budget demandé, ou l'allocation déjà engagée quand elle le dépasse. */
+  const ceiling = () => Math.max(options.budget, options.allocated());
   return {
     /** Octets engagés sur la carte graphique par les transferts de textures. */
     get committed() {
       return committed;
     },
+    /** Ce que la session s'autorise vraiment à engager : jamais moins que l'allocation des atlas. */
     get budget() {
-      return options.budget;
+      return ceiling();
     },
     /** Transferts défaits depuis le début de la session pour laisser passer plus utile. */
     get evictions() {
@@ -44,8 +57,9 @@ export function createTextureBudget(options: {
      * cours moins utile que lui, qui est alors défait pour lui laisser la place.
      */
     admits(job: TextureJob, jobs: readonly TextureJob[], unbounded: boolean) {
+      const limit = ceiling();
       const needed = (job.rows - job.nextRow) * job.bytesPerRow;
-      if (unbounded || committed + needed <= options.budget) return true;
+      if (unbounded || committed + needed <= limit) return true;
       if (job.nextRow > 0) return true;
       const score = options.scoreOf(job);
       let victim: TextureJob | undefined,
@@ -63,7 +77,7 @@ export function createTextureBudget(options: {
       committed -= victim.nextRow * victim.bytesPerRow;
       victim.nextRow = 0;
       evictions++;
-      return committed + needed <= options.budget;
+      return committed + needed <= limit;
     },
   };
 }

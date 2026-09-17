@@ -73,10 +73,37 @@ function mipPipeline(device: GPUDevice, format: GPUTextureFormat): MipPipeline {
   return built;
 }
 
+/**
+ * Le tampon d'uniformes des réductions, gardé par appareil et agrandi au besoin.
+ *
+ * Le créer puis le détruire à chaque texture obligeait à attendre la fin du travail de l'appareil
+ * avant de le rendre — un aller-retour complet de la file GPU par couche achevée. La pompe, qui ne
+ * lance une passe qu'une fois la précédente résolue, ne transférait donc plus qu'une texture tous
+ * les cinquante à soixante rendus : sur une scène de trois cents textures, l'image n'atteignait
+ * jamais ses niveaux nets. Un tampon qui vit aussi longtemps que l'appareil se réécrit dans l'ordre
+ * de la file, sans rien attendre.
+ */
+const uniformBuffers = new WeakMap<GPUDevice, { buffer: GPUBuffer; size: number }>();
+
+function mipUniforms(device: GPUDevice, size: number) {
+  const held = uniformBuffers.get(device);
+  if (held && held.size >= size) return held.buffer;
+  const buffer = device.createBuffer({
+    size,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+  // L'ancien tampon n'est pas détruit : des passes déjà soumises peuvent encore le lire, et le
+  // ramasse-miettes le rendra. L'agrandissement n'arrive qu'à la première classe plus large.
+  uniformBuffers.set(device, { buffer, size });
+  return buffer;
+}
+
 /** Generate material mip levels once during preparation, averaging color in the texture's
  * declared color space and taking the median of alpha so threshold coverage survives each level.
- * Clamp to each layer's image rather than its padded area. */
-export async function generateMaterialMips(
+ * Clamp to each layer's image rather than its padded area. Les commandes sont soumises sans être
+ * attendues : la file de l'appareil les exécute dans l'ordre, donc avant toute image qui lira la
+ * couche, et la pompe peut enchaîner la texture suivante dès le rendu d'après. */
+export function generateMaterialMips(
   device: GPUDevice,
   texture: GPUTexture,
   format: GPUTextureFormat,
@@ -89,69 +116,66 @@ export async function generateMaterialMips(
   if (levels === 1) return;
   const { layout, pipeline } = mipPipeline(device, format);
   const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256);
-  const packed = new Uint32Array((scales.length * (levels - 1) * stride) / 4);
-  for (let layer = 0; layer < scales.length; layer++)
+  // Les couches réduites, et elles seules : une texture achevée en régénère UNE, pas les deux cent
+  // vingt-trois de sa classe, et les uniformes ne décrivent que ce qui est encodé.
+  const layers = selectedLayers ?? scales.map((_, index) => index);
+  const packed = new Uint32Array((layers.length * (levels - 1) * stride) / 4);
+  for (let rank = 0; rank < layers.length; rank++)
     for (let level = 1; level < levels; level++) {
-      const at = ((layer * (levels - 1) + level - 1) * stride) / 4,
-        scale = scales[layer];
+      const at = ((rank * (levels - 1) + level - 1) * stride) / 4,
+        scale = scales[layers[rank]];
       packed[at] = Math.max(1, Math.floor((width * scale[0]) / 2 ** (level - 1)));
       packed[at + 1] = Math.max(1, Math.floor((height * scale[1]) / 2 ** (level - 1)));
     }
-  const uniforms = device.createBuffer({
-    size: packed.byteLength,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
-  try {
-    device.queue.writeBuffer(uniforms, 0, packed);
-    const encoder = device.createCommandEncoder();
-    for (const layer of selectedLayers ?? scales.map((_, index) => index))
-      for (let level = 1; level < levels; level++) {
-        const group = device.createBindGroup({
-          layout,
-          entries: [
-            {
-              binding: 0,
-              resource: texture.createView({
-                dimension: '2d',
-                baseArrayLayer: layer,
-                arrayLayerCount: 1,
-                baseMipLevel: level - 1,
-                mipLevelCount: 1,
-              }),
+  const uniforms = mipUniforms(device, packed.byteLength);
+  device.queue.writeBuffer(uniforms, 0, packed);
+  const encoder = device.createCommandEncoder();
+  for (let rank = 0; rank < layers.length; rank++) {
+    const layer = layers[rank];
+    for (let level = 1; level < levels; level++) {
+      const group = device.createBindGroup({
+        layout,
+        entries: [
+          {
+            binding: 0,
+            resource: texture.createView({
+              dimension: '2d',
+              baseArrayLayer: layer,
+              arrayLayerCount: 1,
+              baseMipLevel: level - 1,
+              mipLevelCount: 1,
+            }),
+          },
+          {
+            binding: 1,
+            resource: {
+              buffer: uniforms,
+              offset: (rank * (levels - 1) + level - 1) * stride,
+              size: 16,
             },
-            {
-              binding: 1,
-              resource: {
-                buffer: uniforms,
-                offset: (layer * (levels - 1) + level - 1) * stride,
-                size: 16,
-              },
-            },
-          ],
-        });
-        const pass = encoder.beginRenderPass({
-          colorAttachments: [
-            {
-              view: texture.createView({
-                dimension: '2d',
-                baseArrayLayer: layer,
-                arrayLayerCount: 1,
-                baseMipLevel: level,
-                mipLevelCount: 1,
-              }),
-              loadOp: 'clear',
-              storeOp: 'store',
-            },
-          ],
-        });
-        pass.setPipeline(pipeline);
-        pass.setBindGroup(0, group);
-        pass.draw(3);
-        pass.end();
-      }
-    device.queue.submit([encoder.finish()]);
-    await device.queue.onSubmittedWorkDone();
-  } finally {
-    uniforms.destroy();
+          },
+        ],
+      });
+      const pass = encoder.beginRenderPass({
+        colorAttachments: [
+          {
+            view: texture.createView({
+              dimension: '2d',
+              baseArrayLayer: layer,
+              arrayLayerCount: 1,
+              baseMipLevel: level,
+              mipLevelCount: 1,
+            }),
+            loadOp: 'clear',
+            storeOp: 'store',
+          },
+        ],
+      });
+      pass.setPipeline(pipeline);
+      pass.setBindGroup(0, group);
+      pass.draw(3);
+      pass.end();
+    }
   }
+  device.queue.submit([encoder.finish()]);
 }

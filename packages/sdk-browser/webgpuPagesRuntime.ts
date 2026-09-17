@@ -92,6 +92,9 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
   }));
   const textureLedger = createTextureBudget({
     budget: setup.textureResidencyBudget,
+    // Les deux atlas sont alloués en entier à la préparation : ce qu'ils portent est déjà engagé sur
+    // la carte, transfert ou pas. Le registre le sait, sans quoi il refuserait pour rien.
+    allocated: () => (vis.colorAtlas?.bytes ?? 0) + (vis.dataAtlas?.bytes ?? 0),
     scoreOf: priority.scoreOf,
   });
   const texturePump = createWebgpuTexturePump({
