@@ -22,7 +22,7 @@ async function walk(dir, files = []) {
 
 test('Generated declarations import emitted JS modules, not TS sources', async () => {
   const files = await walk(fileURLToPath(new URL('../dist/', import.meta.url)));
-  assert.ok(files.length, 'dist/ must exist; run npm run build');
+  assert.ok(files.length, 'dist/ must exist; run pnpm run build');
   for (const file of files) {
     const text = await readFile(file, 'utf8');
     assert.equal(/from ['"]\.[^'"]+\.(?:ts|mts)['"]/.test(text), false, file);

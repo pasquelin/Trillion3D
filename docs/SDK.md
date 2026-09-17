@@ -2,7 +2,7 @@
 
 Standalone compiler/runtime. Public imports are `@web-geometry/sdk` (core), `/node` and `/browser`. Do not import `packages/` internals.
 
-Build: `npm install`, `npm run build`, `npm test`. Native: `npm run build:native` and `npm run test:native`. `SDK_VERSION` and `FORMAT_VERSION` are independent.
+Build: `pnpm install`, `pnpm run build`, `pnpm test`. Native: `pnpm run build:native` and `pnpm run test:native`. `SDK_VERSION` and `FORMAT_VERSION` are independent.
 
 The generic SDK has no asset URL defaults. Hosts must pass `resourceBaseUrl` to `prepare` and `manifestUrl` to `createExplorer`. The shared default scope is `slice`. Pointers and compiled manifests with another scope are rejected with `SCOPE_MISMATCH`.
 
@@ -235,7 +235,7 @@ bounced; the proxy carries diffuse albedo only.
 `setLightingView('bounce')` is the measurement view: the indirect irradiance alone, multiplied by
 exposure, in linear values with no ACES and no sRGB. It is not an image to look at — it is the
 quantity `scripts/mesure/oracle.mjs` compares against the compiler's own path tracer
-(`web-geometry-oracle`, built by `npm run build:native`), which traces the source triangles with the
+(`web-geometry-oracle`, built by `pnpm run build:native`), which traces the source triangles with the
 same light and diffuse-material model. The oracle truncates the bounce series at its `bounces`
 count while the engine carries the whole series, so a comparison only means something at a matching
 order.
@@ -287,7 +287,7 @@ WebGPU filters transparent meshes against the current camera frustum before uplo
 
 For image checks, call `setPose()`, `awaitPages()`, `render()`, then `await flush()` and `capture()`. The WebGPU `flush()` performs an explicit asynchronous image readback outside the beauty loop; `capture()` returns bottom-left RGBA bytes for that submitted frame. If a browser host renders again and immediately calls the existing synchronous `capture()` API, an isolated WebGL canvas copies the current GPU canvas and reads its pixels on demand; `capture-synchronous` identifies this expensive compatibility path. It is never used by normal `render()`. A texture-only backend rejects unavailable/stale captures. Serialize `flush()` with explicit host rendering; a frame changed by a host render during readback is rejected rather than returned as current. Streaming completion during readback retains the accepted page bytes and defers its automatic redraw to the next render, preserving the captured frame. The first such deferral emits `capture-streaming-deferred`. The WebGL backends continue reading their rendered default framebuffer so pinned Three r174 tone mapping matches the displayed image.
 
-With Render Tech Lab running locally and this SDK built (`npm run build`), run:
+With Render Tech Lab running locally and this SDK built (`pnpm run build`), run:
 
 ```sh
 node test/webgpuBeauty.browser.mjs

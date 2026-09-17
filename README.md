@@ -34,14 +34,14 @@ Requirements: **Node.js 22.18 or newer**, npm, and a Rust toolchain with Cargo a
 From the repository root:
 
 ```sh
-npm install
-npm run build
-npm run build:native
-npm test
-npm run test:native
+pnpm install
+pnpm run build
+pnpm run build:native
+pnpm test
+pnpm run test:native
 ```
 
-During development, `npm run check:changed` checks the line limit, formatting, lint and duplicated blocks in modified files, then runs unit tests connected to them by imports. `npm run test:changed` runs just those tests, and `npm run test:watch` watches unit tests while editing. Every maintained source file has a strict 200-line maximum; `npm run check:lines` checks the whole repository with no legacy exceptions. `npm run check:duplicates` detects repeated JS, TS and Rust blocks of at least 12 lines and 100 tokens. Before integration, run `npm run validate` once for the complete line-limit, duplication, format, lint, unused-code, build and test gates. Browser rendering still needs the visual proof described below.
+During development, `pnpm run check:changed` checks the line limit, formatting, lint and duplicated blocks in modified files, then runs unit tests connected to them by imports. `pnpm run test:changed` runs just those tests, and `pnpm run test:watch` watches unit tests while editing. Every maintained source file has a strict 200-line maximum; `pnpm run check:lines` checks the whole repository with no legacy exceptions. `pnpm run check:duplicates` detects repeated JS, TS and Rust blocks of at least 12 lines and 100 tokens. Before integration, run `pnpm run validate` once for the complete line-limit, duplication, format, lint, unused-code, build and test gates. Browser rendering still needs the visual proof described below.
 
 The TypeScript build emits ESM JavaScript and declarations into `dist/`. The native build produces `packages/asset-compiler-rust/target/release/web-geometry-compiler` (`.exe` on Windows).
 
@@ -49,7 +49,7 @@ The package is currently private and consumed locally; it has not been published
 
 ## Native compiler
 
-All preparation work happens in one executable, `web-geometry-compiler`, built by `npm run build:native`. It reads glTF, GLB, **FBX and OBJ** (the reader is compiled in; no Blender or other tool is needed), writes the cache to disk and talks to its host through three streams only: JSON events on stderr, a small pointer on stdout, cancel requests on stdin.
+All preparation work happens in one executable, `web-geometry-compiler`, built by `pnpm run build:native`. It reads glTF, GLB, **FBX and OBJ** (the reader is compiled in; no Blender or other tool is needed), writes the cache to disk and talks to its host through three streams only: JSON events on stderr, a small pointer on stdout, cancel requests on stdin.
 
 ```sh
 packages/asset-compiler-rust/target/release/web-geometry-compiler scenes/city/city.obj cache/city full 150000 8 8192 /assets/city/ qem-endpoints
