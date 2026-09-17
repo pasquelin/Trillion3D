@@ -6,6 +6,9 @@ import type { TextureJob } from './webgpuAtlasJobs.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 
+/** Un plafond que rien n'atteint : ces bancs éprouvent la pompe, pas le registre d'octets. */
+const OPEN_LEDGER = { budget: Number.MAX_SAFE_INTEGER, allocated: () => 0, scoreOf: () => 0 };
+
 function scriptedJob(
   overrides: { layer?: number; rows: number; bytesPerRow: number },
   uploadRows: TextureJob['uploadRows'],
@@ -44,10 +47,8 @@ function buildPump(jobs: TextureJob[], budget: number, order?: (jobs: TextureJob
         size,
         layers: 4,
         bytes: 0,
-        scales: [
-          [1, 1],
-          [1, 1],
-        ] as Array<[number, number]>,
+        // Une échelle uv par couche, comme l'atlas réel en alloue une par couche.
+        scales: Array.from({ length: 4 }, () => [1, 1]) as Array<[number, number]>,
       },
     ],
     used: 1,
@@ -66,7 +67,7 @@ function buildPump(jobs: TextureJob[], budget: number, order?: (jobs: TextureJob
     budget,
     colorAtlas: () => colorAtlas,
     dataAtlas: () => undefined,
-    ledger: createTextureBudget({ budget: Number.MAX_SAFE_INTEGER, scoreOf: () => 0 }),
+    ledger: createTextureBudget(OPEN_LEDGER),
     order: order ?? (() => {}),
     onResident: () => {},
     screenKnown: () => true,
@@ -78,12 +79,12 @@ function buildPump(jobs: TextureJob[], budget: number, order?: (jobs: TextureJob
   return { pump, submits, colorReady, levels, failures, abandons };
 }
 
-test('une texture plus grosse que le budget d’une image arrive complète en plusieurs pompes, jamais dans textureSkipped', async () => {
+test('une texture plus grosse que le budget d’une image arrive complète en plusieurs pompes, jamais dans textureSkipped', () => {
   const log: Array<{ row: number; count: number }> = [];
   const job = scriptedJob({ rows: 4, bytesPerRow: 8 }, (row, count) => log.push({ row, count }));
   const { pump } = buildPump([job], 8);
   for (let i = 0; i < 4; i++) {
-    await pump.pump();
+    pump.pump();
     assert.equal(pump.skipped, 0);
   }
   assert.equal(pump.uploaded, 1);
@@ -93,46 +94,46 @@ test('une texture plus grosse que le budget d’une image arrive complète en pl
   );
 });
 
-test('le budget n’est dépassé que par la première ligne d’une image, jamais après', async () => {
+test('le budget n’est dépassé que par la première ligne d’une image, jamais après', () => {
   const jobA = scriptedJob({ rows: 1, bytesPerRow: 5 }, () => {});
   const jobB = scriptedJob({ layer: 2, rows: 2, bytesPerRow: 10 }, () => {});
   const { pump } = buildPump([jobA, jobB], 5);
-  await pump.pump();
+  pump.pump();
   assert.equal(pump.bytesLastPass, 5, 'jobA tient exactement dans le budget');
   assert.equal(jobB.nextRow, 0, 'jobB, second de cette image, n’a pas reçu de ligne en trop');
-  await pump.pump();
+  pump.pump();
   assert.equal(jobB.nextRow, 1, 'jobB, premier de cette nouvelle image, peut dépasser une fois');
   assert.equal(pump.bytesLastPass, 10);
 });
 
-test('markReady et la régénération des mips ne sont déclenchés qu’une fois, après la dernière tranche', async () => {
+test('markReady et la régénération des mips ne sont déclenchés qu’une fois, après la dernière tranche', () => {
   const job = scriptedJob({ rows: 2, bytesPerRow: 4 }, () => {});
   const { pump, submits, colorReady } = buildPump([job], 4);
-  await pump.pump();
+  pump.pump();
   assert.equal(colorReady.length, 0);
   assert.equal(submits.length, 0);
-  await pump.pump();
+  pump.pump();
   assert.deepEqual(colorReady, [[1]]);
   assert.equal(submits.length, 1);
-  await pump.pump();
+  pump.pump();
   assert.equal(colorReady.length, 1, 'plus aucun appel une fois la file vide');
   assert.equal(submits.length, 1);
 });
 
-test('trois `uploadRows` qui lèvent sortent la texture de la file sans réessai ; deux échecs puis un succès la transfèrent en entier', async () => {
+test('trois `uploadRows` qui lèvent sortent la texture de la file sans réessai ; deux échecs puis un succès la transfèrent en entier', () => {
   const refused = scriptedJob({ rows: 2, bytesPerRow: 4 }, () => {
     throw new Error('DEVICE_REFUSED');
   });
   const { pump, failures, abandons } = buildPump([refused], 4);
-  await pump.pump();
-  await pump.pump();
-  await pump.pump();
+  pump.pump();
+  pump.pump();
+  pump.pump();
   assert.equal(pump.skipped, 1);
   assert.equal(failures.length, 3);
   assert.equal(abandons.length, 1);
   assert.equal(abandons[0].reason, 'transfer-refused');
   assert.equal(abandons[0].failures, 3);
-  await pump.pump();
+  pump.pump();
   assert.equal(pump.skipped, 1, 'pas de réessai une fois abandonnée');
   assert.equal(failures.length, 3);
 
@@ -144,15 +145,15 @@ test('trois `uploadRows` qui lèvent sortent la texture de la file sans réessai
     log.push(row);
   });
   const second = buildPump([transient], 4);
-  await second.pump.pump();
-  await second.pump.pump();
-  await second.pump.pump();
+  second.pump.pump();
+  second.pump.pump();
+  second.pump.pump();
   assert.equal(second.pump.uploaded, 1);
   assert.equal(second.pump.skipped, 0);
   assert.deepEqual(log, [0]);
 });
 
-test('une texture entamée n’est jamais interrompue au milieu d’une tranche, mais peut être reléguée entre deux tranches', async () => {
+test('une texture entamée n’est jamais interrompue au milieu d’une tranche, mais peut être reléguée entre deux tranches', () => {
   const logX: number[] = [];
   const jobX = scriptedJob({ layer: 1, rows: 3, bytesPerRow: 4 }, (row) => logX.push(row));
   const jobY = scriptedJob({ layer: 2, rows: 1, bytesPerRow: 4 }, () => {});
@@ -164,18 +165,18 @@ test('une texture entamée n’est jamais interrompue au milieu d’une tranche,
   };
   const { pump } = buildPump([jobX, jobY], 4, order);
 
-  await pump.pump(); // jobX takes the only slot this image; one whole row, not a partial one.
+  pump.pump(); // jobX takes the only slot this image; one whole row, not a partial one.
   assert.equal(jobX.nextRow, 1);
 
   relegate = true;
-  await pump.pump(); // jobY jumps ahead and finishes; jobX is relegated, its progress untouched.
+  pump.pump(); // jobY jumps ahead and finishes; jobX is relegated, its progress untouched.
   assert.equal(pump.uploaded, 1);
   assert.equal(jobX.nextRow, 1);
 
   relegate = false;
-  await pump.pump(); // jobX resumes exactly where it paused, not from the start.
+  pump.pump(); // jobX resumes exactly where it paused, not from the start.
   assert.equal(jobX.nextRow, 2);
-  await pump.pump();
+  pump.pump();
   assert.equal(jobX.nextRow, 3);
 
   assert.equal(pump.uploaded, 2);
@@ -183,12 +184,12 @@ test('une texture entamée n’est jamais interrompue au milieu d’une tranche,
   assert.deepEqual(logX, [0, 1, 2]);
 });
 
-test('un travail de niveau progressif (stage 0) appelle onLevel, jamais onColorReady ni de régénération de mips', async () => {
+test('un travail de niveau progressif (stage 0) appelle onLevel, jamais onColorReady ni de régénération de mips', () => {
   const job = scriptedJob({ rows: 1, bytesPerRow: 4 }, () => {});
   job.stage = 0;
   job.level = 3;
   const { pump, submits, colorReady, levels } = buildPump([job], 4);
-  await pump.pump();
+  pump.pump();
   assert.deepEqual(levels, [[1, 3]]);
   assert.equal(colorReady.length, 0);
   assert.equal(submits.length, 0, 'aucune régénération de mips pour un niveau progressif seul');

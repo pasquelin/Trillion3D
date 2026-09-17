@@ -105,10 +105,11 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
   vis.dataAtlas = dataAtlas;
   vis.slots = createWebgpuAtlasSlots(gpuDevice, colorAtlas.slotWords, dataAtlas.slotWords);
   // La chaîne de mips du remplissage se fait une fois, avant la pompe : les niveaux progressifs
-  // écrasent ensuite ceux de leur couche, et la pleine résolution les fait tous régénérer.
+  // écrasent ensuite ceux de leur couche, et la pleine résolution les fait tous régénérer. Les
+  // passes sont soumises, pas attendues : la file de l'appareil les exécute avant ce qui suit.
   for (const atlas of [colorAtlas, dataAtlas])
-    for (const entry of atlas.classes) await regenerateClassMips(gpuDevice, entry);
-  await rt.texturePump.pump();
+    for (const entry of atlas.classes) regenerateClassMips(gpuDevice, entry);
+  rt.texturePump.pump();
   const scales = new Float32Array(Math.max(uvScales.length, dataUvScales.length) * 4);
   for (let i = 0; i < scales.length / 4; i++) {
     scales.set(dataUvScales[i] ?? [1, 1], i * 4);

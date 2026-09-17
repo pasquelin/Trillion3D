@@ -128,8 +128,15 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime) {
   // barrier drains the rest here, outside the measured loop, so a flushed pose is settled.
   // Le budget d'octets engagés est levé ici : une capture de référence doit converger, et une file
   // que le budget refuse ne se viderait jamais. En boucle d'images libre, il s'applique.
-  while (gpuDevice && vis.textureJobs.length) await rt.texturePump.pump(true);
-  await rt.texturePump.pending;
+  // Chaque passe est attendue par l'appareil avant la suivante. Sans ce garde-fou, la barrière
+  // empile la file entière — jusqu'à plusieurs gigaoctets — dans un seul tour de boucle JavaScript :
+  // le fil est bloqué, la file de commandes déborde, et l'image qui suit la barrière paie tout le
+  // retard d'un coup (200 à 500 ms mesurées sur Emerald). L'attente est ici et nulle part ailleurs :
+  // le chemin d'image, lui, pousse une passe par image et ne doit rien attendre.
+  while (gpuDevice && vis.textureJobs.length) {
+    rt.texturePump.pump(true);
+    await gpuDevice.queue.onSubmittedWorkDone();
+  }
   await services.bootstrapState.ensure();
   await services.residency.pending;
   if (run.coverageBudgetEvent) {
