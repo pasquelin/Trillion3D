@@ -2,7 +2,18 @@ import { setupCompute } from './drawCompute.mjs';
 import { setupVisibility } from './drawVisibility.mjs';
 import { runCase } from './drawCase.mjs';
 
-export async function run({ shader, visShader, cases, cap, maxVertexCount, pageStride }) {
+export async function run({
+  shader,
+  visShader,
+  cases,
+  cap,
+  maxVertexCount,
+  pageStride,
+  bindEntries,
+  slots,
+  drawItemU32,
+  visBindings,
+}) {
   const adapter = await navigator.gpu?.requestAdapter();
   if (!adapter) return { unavailable: 'No WebGPU adapter' };
   // Deliberately do not request indirect-first-instance: slot starts must come from storage.
@@ -19,7 +30,7 @@ export async function run({ shader, visShader, cases, cap, maxVertexCount, pageS
     device.destroy();
     return { compilationErrors, errors };
   }
-  const compute = setupCompute(device, module, cap);
+  const compute = setupCompute(device, module, cap, bindEntries, slots, drawItemU32);
   const {
     groups,
     makeBuffer,
@@ -36,6 +47,7 @@ export async function run({ shader, visShader, cases, cap, maxVertexCount, pageS
     offsetRead,
     group,
     pipelines,
+    restBits,
   } = compute;
   const visibility = setupVisibility(
     device,
@@ -45,6 +57,7 @@ export async function run({ shader, visShader, cases, cap, maxVertexCount, pageS
     instances,
     offsets,
     readUsage,
+    visBindings,
   );
   const { width, height, visPipelines, visGroups, views, pixelsRead, directPage } = visibility;
   const { target } = visibility;
@@ -58,6 +71,8 @@ export async function run({ shader, visShader, cases, cap, maxVertexCount, pageS
         groups,
         selectionOffset,
         itemBuffer,
+        restBits,
+        drawItemU32,
         selection,
         uniform,
         group,

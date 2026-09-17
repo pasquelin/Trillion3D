@@ -22,8 +22,8 @@ const browser = new URL('../../packages/sdk-browser/', import.meta.url);
 //
 // Y ajouter une ligne est une décision, pas un oubli ; en retirer une qui ne sert plus aussi — le
 // second test échoue sur une ligne morte. Le contrat de pose caméra, lui, vit dans `cameraWorld.ts`
-// et `test/integration/engineStructure.test.mjs` ; la frontière de calcul du chargement, dans
-// `test/integration/engineNoThreeMath.test.mjs`.
+// et `test/integration/structure-moteur.test.mjs` ; la frontière de calcul du chargement, dans
+// `test/integration/moteur-sans-three-math.test.mjs`.
 const AUTORISES = {
   // 1. Moteurs témoins.
   autonomousGeometry: 'témoin autonome : il monte ses maillages avec la bibliothèque hôte',

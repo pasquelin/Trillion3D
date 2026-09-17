@@ -11,10 +11,10 @@ const navigateur = new URL('../browser/', import.meta.url);
 // WebGPU Chromium) : il vérifie que le site d'appel passe par `cameraMoteur(...)` ou par `vue`
 // (elle-même `cameraMoteur(camera)`, voir `inverseTransposeCas.mjs`), jamais par la caméra hôte nue.
 
-test('cisaillementTransform.browser.mjs et coneEchelleNonUniforme.browser.mjs appellent cameraSelectionUniforms(cameraMoteur(...))', async () => {
+test('cisaillement-transform.browser.mjs et cone-echelle-non-uniforme.browser.mjs appellent cameraSelectionUniforms(cameraMoteur(...))', async () => {
   for (const [fichier, attendus] of [
-    ['cisaillementTransform.browser.mjs', 1],
-    ['coneEchelleNonUniforme.browser.mjs', 2],
+    ['cisaillement-transform.browser.mjs', 1],
+    ['cone-echelle-non-uniforme.browser.mjs', 2],
   ]) {
     const texte = await readFile(new URL(fichier, navigateur), 'utf8');
     assert.match(
@@ -33,9 +33,9 @@ test('cisaillementTransform.browser.mjs et coneEchelleNonUniforme.browser.mjs ap
   }
 });
 
-test('inverseTransposeePetiteEchelle.browser.mjs appelle cameraSelectionUniforms(vue, ...), pas la caméra hôte', async () => {
+test('inverse-transposee-petite-echelle.browser.mjs appelle cameraSelectionUniforms(vue, ...), pas la caméra hôte', async () => {
   const texte = await readFile(
-    new URL('inverseTransposeePetiteEchelle.browser.mjs', navigateur),
+    new URL('inverse-transposee-petite-echelle.browser.mjs', navigateur),
     'utf8',
   );
   assert.match(texte, /\bvue,\n/, 'doit importer `vue` de inverseTransposeCas.mjs');
@@ -52,8 +52,8 @@ test('inverseTransposeePetiteEchelle.browser.mjs appelle cameraSelectionUniforms
   );
 });
 
-test('reflexionFaceEliminee.browser.mjs appelle rasterVisibility(..., vue, ...), pas la caméra hôte', async () => {
-  const texte = await readFile(new URL('reflexionFaceEliminee.browser.mjs', navigateur), 'utf8');
+test('reflexion-face-eliminee.browser.mjs appelle rasterVisibility(..., vue, ...), pas la caméra hôte', async () => {
+  const texte = await readFile(new URL('reflexion-face-eliminee.browser.mjs', navigateur), 'utf8');
   assert.match(
     texte,
     /import \{ decisionCpu, vue \} from '\.\.\/justesse\/inverseTransposeCas\.mjs'/,

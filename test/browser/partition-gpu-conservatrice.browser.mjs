@@ -11,7 +11,7 @@
 // Zéro violation est la seule valeur acceptable. Les marges sont rapportées pour elles-mêmes.
 //
 //   LAB_ROOT=/chemin/vers/render-tech-lab node --experimental-strip-types \
-//     test/browser/partitionGpuConservatrice.browser.mjs
+//     test/browser/partition-gpu-conservatrice.browser.mjs
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { existsSync } from 'node:fs';
@@ -23,7 +23,7 @@ import { startServer } from '../../scripts/mesure/serveur.mjs';
 import { ASSETS, DEFAULT_SCENE, labManifest } from '../../scripts/mesure/scene.mjs';
 import { LAB, checkLabPath, poseAt } from '../../scripts/mesure/poses.mjs';
 
-const ROOT = resolve(import.meta.dirname, '..');
+const ROOT = resolve(import.meta.dirname, '../..');
 const SDK_URL = '/sdk/sdk-browser/index.js',
   MODULES_URL = '/preuve/',
   MESURE_URL = '/mesure/';
@@ -48,7 +48,7 @@ assert.ok(
 // copie. Le paquet est servi comme un fichier ordinaire, au même titre que le dist.
 const esbuild = createRequire(requireDuLab().resolve('vite'))('esbuild');
 const paquet = await esbuild.build({
-  entryPoints: [join(ROOT, 'test/browserFixtures/partitionConservatricePage.mjs')],
+  entryPoints: [join(ROOT, 'test/appui/partitionConservatricePage.mjs')],
   bundle: true,
   write: false,
   format: 'esm',

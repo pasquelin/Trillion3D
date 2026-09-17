@@ -16,9 +16,9 @@ import {
 
 /**
  * LE CONTRAT DE POSE CAMÉRA. Domicile unique de la pose monde d'une caméra dans `sdk-browser` ;
- * `test/integration/engineStructure.test.mjs` interdit à tout autre module de la résoudre ou de lire une pose
+ * `test/integration/structure-moteur.test.mjs` interdit à tout autre module de la résoudre ou de lire une pose
  * locale de caméra, et nomme les consommateurs autorisés à lire la pose résolue. C'est aussi le seul
- * fichier du chemin par image qui nomme un type de la bibliothèque hôte : `test/integration/engineNoThree.test.mjs`
+ * fichier du chemin par image qui nomme un type de la bibliothèque hôte : `test/integration/moteur-sans-three.test.mjs`
  * interdit `three` partout ailleurs dans ce chemin.
  *
  * LE FAIT. Le moteur ne possède pas la caméra : l'hôte la lui tend à chaque image, et elle peut être

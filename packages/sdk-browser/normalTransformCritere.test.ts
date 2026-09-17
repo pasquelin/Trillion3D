@@ -2,7 +2,7 @@
 // noyau. `angleEntre` et `verdictNormale` (`test/justesse/inverseTransposeF32.mjs`) décident si une
 // normale rendue est la bonne : tant qu'ils acceptent une normale retournée ou perdue, aucune des
 // preuves qui s'appuient sur eux — `normalTransform.test.ts` sans GPU,
-// `test/browser/normalTransformArithmetique.browser.mjs` sur GPU réel — ne prouve quoi que ce soit. C'était
+// `test/browser/normal-transform-arithmetique.browser.mjs` sur GPU réel — ne prouve quoi que ce soit. C'était
 // le cas : une valeur absolue sur le produit scalaire confondait N et −N, et `atan2(0, 0) = 0`
 // déclarait juste une normale que le nuanceur avait perdue.
 //

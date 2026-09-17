@@ -2,11 +2,11 @@
 // sur son déterminant NORMALISÉ, jamais sur le déterminant brut. Un seuil absolu juge l'échelle :
 // une rotation d'échelle uniforme s a pour déterminant ±s³, donc s ≲ 2,15e-7 passait sous 1e-20 et
 // le noyau rendait l'axe local non tourné — le rejet par cône supprimait alors des faces de face.
-// Le comportement GPU réel est prouvé par `test/browser/inverseTransposeePetiteEchelle.browser.mjs` ; ce
+// Le comportement GPU réel est prouvé par `test/browser/inverse-transposee-petite-echelle.browser.mjs` ; ce
 // test-ci rejoue la même arithmétique en f32 pour que `pnpm test` attrape la régression sans GPU.
 // Le modèle f32 vit dans `test/justesse/inverseTransposeF32.mjs`, partagé avec la preuve
 // d'éclairage : une seule écriture de l'arithmétique, rattachée au shader réellement exécuté par
-// `test/browser/normalTransformArithmetique.browser.mjs`.
+// `test/browser/normal-transform-arithmetique.browser.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DAG_SELECTION_SHADER } from './gpuDagShader.ts';
