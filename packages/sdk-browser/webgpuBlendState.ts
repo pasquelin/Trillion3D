@@ -5,7 +5,7 @@ import type { BlendOverdraw } from './webgpuBlendOverdraw.ts';
 import type { TransparentCompaction } from './webgpuTransparentCompact.ts';
 import type { TransparentOcclusion } from './gpuTransparentOcclusion.ts';
 import type { TransparentTable } from './webgpuTransparentTable.ts';
-import type { BlendSelect } from './webgpuBlendSelect.ts';
+import type { BlendExpand } from './webgpuBlendExpand.ts';
 
 export type BlendGpuItem = {
   /** Le matériau transmet : l'item est dessiné dans la passe de transmission, pas dans le mélange. */
@@ -96,21 +96,42 @@ export function createWebgpuBlendState() {
     viewBuffer: undefined as GPUBuffer | undefined,
     viewPacked: view,
     viewInts: new Uint32Array(view.buffer),
-    /** Le tronc GPU des items, et les arguments indirects que lui — ou son repli — écrit. */
-    select: undefined as BlendSelect | undefined,
+    /** Le noyau qui étale le plan trié, et les deux tampons qu'il — ou son repli — écrit : la liste
+     *  d'instances que le nuanceur lit, et un argument indirect par tranche. */
+    expand: undefined as BlendExpand | undefined,
+    expandedBuffer: undefined as GPUBuffer | undefined,
+    expandedPacked: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
     argsBuffer: undefined as GPUBuffer | undefined,
     argsPacked: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
-    /** Ce que l'indice de sommet décale pour nommer l'item qui le porte. */
-    itemShift: 1,
+    /** Ce que l'indice de sommet décale pour nommer la première instance de sa tranche, et les
+     *  sommets d'une grappe paginée — le pas de toutes les tranches partagées. */
+    vertexShift: 2,
+    maxVertexWords: 3,
+    /** Les instances que la scène peut étaler, et où la passe de transmission commence les siennes. */
+    instanceCapacity: 1,
+    transmissionBase: 0,
+    /** Les entrées de plan qu'une passe peut porter au plus, et les régions que chacune occupe dans
+     *  le tampon de plan, de tranches et d'arguments (`webgpuBlendExpand.ts`). */
+    maxPlanEntries: 1,
+    planRegions: [] as { order: number; runs: number; args: number }[],
+    /** Un bit par item : le verdict du tronc de l'image, posé avec les clés de classement. */
+    keepPacked: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
     /** Tables statiques du plan d'encodage (`webgpuBlendPlan.ts`). */
     drawsPacked: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
-    boxesPacked: new Float32Array(0) as Float32Array<ArrayBuffer>,
     planBlend: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
     planTransmission: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
     /** Les mêmes entrées, dans l'ordre de peinture de l'image : du plus lointain au plus proche.
      *  Semées par le plan, réordonnées sur place à chaque image (`webgpuBlendOrder.ts`). */
     orderBlend: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
     orderTransmission: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
+    /** Les tranches de chaque ordre, refaites — et réécrites sur la carte — quand il a bougé. */
+    runsBlend: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
+    runsTransmission: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
+    runCount: [0, 0],
+    /** Les entrées que le tronc garde dans chaque tranche : une tranche vide n'est pas encodée. */
+    runKept: [new Uint32Array(0), new Uint32Array(0)] as Uint32Array<ArrayBuffer>[],
+    /** L'ordre a-t-il bougé depuis la dernière écriture ? Une pose immobile n'écrit rien. */
+    orderMoved: [true, true],
     /** Triangles que les items non paginés soumettent dans chaque passe, deux fois pour un item
      *  double face : un compte de scène, bâti avec le plan, et non un compte d'image. */
     blendTriangles: 0,

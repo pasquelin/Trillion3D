@@ -68,7 +68,7 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
   // Une seule question par image, pas par maillage : l'image est-elle eclairee par des lampes
   // declarees ? Sinon les transparents sortent leur albedo brut, comme les opaques (P6).
   ints[22] = ((wantsContractLighting(rt) ? 0 : FLAG_UNLIT_VIEW) | diagnosticBits(diagnostic)) >>> 0;
-  ints[23] = blendState.itemShift;
+  ints[23] = blendState.vertexShift;
   device.queue.writeBuffer(
     buffer,
     0,
