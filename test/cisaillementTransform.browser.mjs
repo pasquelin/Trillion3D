@@ -4,7 +4,7 @@
 // caméra, une fois avec la matrice demandée (cisaillée) et une fois avec sa recomposition
 // translation-rotation-échelle — ce que `setTransform` posait avant ce lot. Les deux verdicts
 // diffèrent : la perte du cisaillement n'était pas une approximation, elle changeait la page
-// sélectionnée. `selectionGpu` vient de `packages/sdk-browser/bench/justesse/noyauSelectionGpu.mjs` ;
+// sélectionnée. `selectionGpu` vient de `test/justesse/noyauSelectionGpu.mjs` ;
 // Playwright, de `render-tech-lab`, en lecture seule.
 //
 // node --experimental-strip-types test/cisaillementTransform.browser.mjs
@@ -18,7 +18,7 @@ import {
 } from '../packages/sdk-browser/gpuDagSelection.ts';
 import { cameraSelectionUniforms } from '../packages/sdk-browser/gpuSelection.ts';
 import { cameraMoteur } from '../packages/sdk-browser/cameraFixture.ts';
-import { selectionGpu } from '../packages/sdk-browser/bench/justesse/noyauSelectionGpu.mjs';
+import { selectionGpu } from './justesse/noyauSelectionGpu.mjs';
 
 const VIEWPORT = [1000, 1000];
 // Boîte locale unité : cisaillée, elle couvre x ∈ [-4, 4] ; recomposée en TRS, x ∈ [-2,364, 2,364].

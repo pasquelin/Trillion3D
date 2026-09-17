@@ -5,7 +5,7 @@
 // fois sur le GPU, avec la normale rendue puis avec la vraie, pour que l'écart de luminance ne
 // dépende d'aucune réécriture CPU de la BRDF.
 import assert from 'node:assert/strict';
-import { NORMAL_TRANSFORM_WGSL, STANDARD_LIGHTING_WGSL } from '../../standardLighting.ts';
+import { NORMAL_TRANSFORM_WGSL, STANDARD_LIGHTING_WGSL } from '../../packages/sdk-browser/standardLighting.ts';
 import { dansPageWebgpu } from './pageWebgpu.mjs';
 
 export const GROUPE = 64;

@@ -13,20 +13,20 @@
  * `encodage` le sépare de ce que le processeur passe à écrire les commandes.
  */
 import * as THREE from 'three';
-import { createDagResources } from '../../gpuDagResources.ts';
-import { encodeDagKernels } from '../../gpuDagEncode.ts';
-import { packDagSelection, packedWorldsToRenderOrigin } from '../../gpuDagPack.ts';
-import { cameraSelectionUniforms, SELECTION_UNIFORM_BYTES } from '../../gpuSelection.ts';
-import { writeDagUniforms } from '../../gpuDagUniforms.ts';
+import { createDagResources } from '../../packages/sdk-browser/gpuDagResources.ts';
+import { encodeDagKernels } from '../../packages/sdk-browser/gpuDagEncode.ts';
+import { packDagSelection, packedWorldsToRenderOrigin } from '../../packages/sdk-browser/gpuDagPack.ts';
+import { cameraSelectionUniforms, SELECTION_UNIFORM_BYTES } from '../../packages/sdk-browser/gpuSelection.ts';
+import { writeDagUniforms } from '../../packages/sdk-browser/gpuDagUniforms.ts';
 import {
   dagRecords,
   residentBase,
   residentWords,
   SELECTION_HEADER_WORDS,
-} from '../../gpuDagLayout.ts';
-import { cameraMoteur } from '../../cameraFixture.ts';
+} from '../../packages/sdk-browser/gpuDagLayout.ts';
+import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
 import { ouvrirAppareil } from './appareilWebgpu.mjs';
-import { scenePages, sceneRoots } from '../../gpuDagCutFrontierScene.ts';
+import { scenePages, sceneRoots } from '../../packages/sdk-browser/gpuDagCutFrontierScene.ts';
 
 const mediane = (valeurs) => [...valeurs].sort((a, b) => a - b)[valeurs.length >> 1];
 

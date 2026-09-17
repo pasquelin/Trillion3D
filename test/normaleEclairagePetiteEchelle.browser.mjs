@@ -4,15 +4,15 @@
 // déterminant brut rendait la normale locale et éclairait la surface comme si elle n'avait pas
 // tourné. La vérité terrain est l'inverse-transposée f64 de Three. La campagne complète, ses
 // chiffres et sa version d'avant le lot sont dans
-// `packages/sdk-browser/bench/justesse/normale-eclairage-petite-echelle.mjs`.
+// `test/justesse/normale-eclairage-petite-echelle.mjs`.
 //
 // LAB_ROOT=… node --experimental-strip-types test/normaleEclairagePetiteEchelle.browser.mjs
 import assert from 'node:assert/strict';
 import {
   construireCas,
   ecart,
-} from '../packages/sdk-browser/bench/justesse/normaleEclairageCas.mjs';
-import { eclairageGpu } from '../packages/sdk-browser/bench/justesse/normaleEclairageGpu.mjs';
+} from './justesse/normaleEclairageCas.mjs';
+import { eclairageGpu } from './justesse/normaleEclairageGpu.mjs';
 
 const ECHELLES = [1e3, 1, 1e-3, 1e-6, 2.155e-7, 2.154e-7, 1e-7, 1e-8, 1e-12, 1e-16];
 const cas = ECHELLES.flatMap((s) =>

@@ -18,7 +18,7 @@ import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { requireDuLab } from '../packages/sdk-browser/bench/justesse/pageWebgpu.mjs';
+import { requireDuLab } from './justesse/pageWebgpu.mjs';
 import { startServer } from '../scripts/mesure/serveur.mjs';
 import { ASSETS, DEFAULT_SCENE, labManifest } from '../scripts/mesure/scene.mjs';
 import { LAB, checkLabPath, poseAt } from '../scripts/mesure/poses.mjs';
