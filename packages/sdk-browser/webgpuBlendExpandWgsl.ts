@@ -30,7 +30,7 @@ export const BLEND_EXPAND_SHADER = `struct Uni{entryCount:u32,groupCount:u32,run
 @group(0) @binding(7) var<storage,read_write> expanded:array<vec2u>;
 @group(0) @binding(8) var<storage,read_write> args:array<u32>;
 const GROUP=${EXPAND_GROUP}u;
-fn itemOf(i:u32)->u32{return plan[uni.orderBase+i]>>2u;}
+fn itemOf(i:u32)->u32{return plan[uni.orderBase+i]>>3u;}
 fn kept(item:u32)->bool{return (keep[item>>5u]&(1u<<(item&31u)))!=0u;}
 /** Ce qu'une entrée de plan étale : les grappes que la compaction lui a gardées, les morceaux
  *  qu'une primitive non paginée porte, rien du tout si le tronc a rejeté son item. */
