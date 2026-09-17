@@ -2,7 +2,7 @@
 
 > God node · 91 connections · `packages/sdk-browser/pageSelectionTypes.ts`
 
-**Community:** [Publication de la coupe](Publication_de_la_coupe.md)
+**Community:** [Adoption et reprise de la coupe](Adoption_et_reprise_de_la_coupe.md)
 
 ## Connections by Relation
 

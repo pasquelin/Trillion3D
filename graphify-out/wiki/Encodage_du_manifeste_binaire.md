@@ -1,6 +1,6 @@
 # Encodage du manifeste binaire
 
-> 46 nodes
+> 44 nodes
 
 ## Key Concepts
 
@@ -12,7 +12,6 @@
 - **manifest_binary/format.rs** (13 connections) — `packages/asset-compiler-rust/src/manifest_binary/format.rs`
 - **Result** (11 connections)
 - **numbers_into()** (9 connections) — `packages/asset-compiler-rust/src/manifest_binary/format.rs`
-- **encode_previews()** (9 connections) — `packages/asset-compiler-rust/src/manifest_binary/preview.rs`
 - **object()** (8 connections) — `packages/asset-compiler-rust/src/manifest_binary/format.rs`
 - **integer()** (7 connections) — `packages/asset-compiler-rust/src/manifest_binary/format.rs`
 - **number()** (7 connections) — `packages/asset-compiler-rust/src/manifest_binary/format.rs`
@@ -29,18 +28,18 @@
 - **.sha()** (3 connections) — `packages/asset-compiler-rust/src/manifest_binary/format.rs`
 - **String** (2 connections)
 - **vector_into_accepts_an_empty_vector_when_the_expected_length_is_zero()** (2 connections) — `packages/asset-compiler-rust/src/manifest_binary/format_tests.rs`
-- *... and 21 more nodes in this community*
+- **vector_into_names_only_the_faulty_entry_and_stops_there()** (2 connections) — `packages/asset-compiler-rust/src/manifest_binary/format_tests.rs`
+- *... and 19 more nodes in this community*
 
 ## Relationships
 
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (5 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (4 shared connections)
+- [Aperçus de textures et pyramide (4)](Aperçus_de_textures_et_pyramide_4.md) (3 shared connections)
 - [bench_calculs · Bits (3)](bench_calculs_·_Bits_3.md) (3 shared connections)
-- [Aperçus de textures et pyramide](Aperçus_de_textures_et_pyramide.md) (3 shared connections)
+- [Manifeste binaire (Rust)](Manifeste_binaire_Rust.md) (2 shared connections)
 - [Erreurs du compilateur et USDZ](Erreurs_du_compilateur_et_USDZ.md) (1 shared connections)
 - [manifest_binary · Result](manifest_binary_·_Result.md) (1 shared connections)
 - [bench_calculs · Bits (4)](bench_calculs_·_Bits_4.md) (1 shared connections)
-- [src · Result](src_·_Result.md) (1 shared connections)
-- [Manifeste binaire (Rust)](Manifeste_binaire_Rust.md) (1 shared connections)
 
 ## Source Files
 
@@ -48,13 +47,12 @@
 - `packages/asset-compiler-rust/src/manifest_binary/format.rs`
 - `packages/asset-compiler-rust/src/manifest_binary/format_tests.rs`
 - `packages/asset-compiler-rust/src/manifest_binary/page.rs`
-- `packages/asset-compiler-rust/src/manifest_binary/preview.rs`
 - `packages/asset-compiler-rust/src/manifest_binary/primitive.rs`
 
 ## Audit Trail
 
-- EXTRACTED: 90 (72%)
-- INFERRED: 35 (28%)
+- EXTRACTED: 88 (73%)
+- INFERRED: 32 (27%)
 - AMBIGUOUS: 0 (0%)
 
 ---

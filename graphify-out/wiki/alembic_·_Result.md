@@ -22,8 +22,8 @@
 ## Relationships
 
 - [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
-- [compiler_lights · range_of](compiler_lights_·_range_of.md) (1 shared connections)
-- [ma · AXES](ma_·_AXES.md) (1 shared connections)
+- [src · fbx_intensity_scale](src_·_fbx_intensity_scale.md) (1 shared connections)
+- [Matrices monde du compilateur](Matrices_monde_du_compilateur.md) (1 shared connections)
 
 ## Source Files
 

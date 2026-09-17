@@ -34,7 +34,7 @@
 ## Relationships
 
 - [Import Unity et maillages](Import_Unity_et_maillages.md) (2 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (2 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (2 shared connections)
 - [Parcours des objets Alembic](Parcours_des_objets_Alembic.md) (2 shared connections)
 - [proxy · CELL_ERROR_FACTOR](proxy_·_CELL_ERROR_FACTOR.md) (1 shared connections)
 - [tests · DROIT](tests_·_DROIT.md) (1 shared connections)

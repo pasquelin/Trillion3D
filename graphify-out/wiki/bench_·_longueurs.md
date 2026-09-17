@@ -22,9 +22,10 @@
 ## Relationships
 
 - [Scène d'expérience d'éclairage](Scène_d'expérience_d'éclairage.md) (4 shared connections)
-- [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (3 shared connections)
+- [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (2 shared connections)
 - [Transport de lumière](Transport_de_lumière.md) (2 shared connections)
-- [bench · geometrie](bench_·_geometrie.md) (1 shared connections)
+- [bench · passe](bench_·_passe.md) (1 shared connections)
+- [Socle de mesure des bancs](Socle_de_mesure_des_bancs.md) (1 shared connections)
 - [Socle du banc sdk-core](Socle_du_banc_sdk-core.md) (1 shared connections)
 
 ## Source Files

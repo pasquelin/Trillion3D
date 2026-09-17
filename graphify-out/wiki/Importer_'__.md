@@ -25,8 +25,8 @@
 
 - [Import Unity et maillages](Import_Unity_et_maillages.md) (3 shared connections)
 - [Erreurs du compilateur et USDZ](Erreurs_du_compilateur_et_USDZ.md) (1 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (1 shared connections)
-- [Verrou CLI et fixtures du compilateur (2)](Verrou_CLI_et_fixtures_du_compilateur_2.md) (1 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
+- [unity · Option](unity_·_Option.md) (1 shared connections)
 - [Rapport et table des textures](Rapport_et_table_des_textures.md) (1 shared connections)
 - [import · Option (2)](import_·_Option_2.md) (1 shared connections)
 

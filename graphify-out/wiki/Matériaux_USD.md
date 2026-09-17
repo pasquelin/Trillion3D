@@ -33,8 +33,8 @@
 
 ## Relationships
 
-- [Verrou CLI et fixtures du compilateur (2)](Verrou_CLI_et_fixtures_du_compilateur_2.md) (4 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (2 shared connections)
+- [unity · Option](unity_·_Option.md) (4 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (2 shared connections)
 - [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
 
 ## Source Files

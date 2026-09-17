@@ -19,7 +19,7 @@
 
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (2 shared connections)
 - [Tests navigateur Node](Tests_navigateur_Node.md) (1 shared connections)
-- [Diffusion des pages en continu (2)](Diffusion_des_pages_en_continu_2.md) (1 shared connections)
+- [Garde zéro Three.js](Garde_zéro_Three.js.md) (1 shared connections)
 
 ## Source Files
 

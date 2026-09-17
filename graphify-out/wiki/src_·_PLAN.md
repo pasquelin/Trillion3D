@@ -27,10 +27,10 @@
 - [src · localise_accepts_exactly_sixty_five_thousand_five_hundred_thirty_five_vertices](src_·_localise_accepts_exactly_sixty_five_thousand_five_hundred_thirty_five_vertices.md) (4 shared connections)
 - [usd · AssetPath](usd_·_AssetPath.md) (2 shared connections)
 - [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (1 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
 - [bench_calculs · Bits](bench_calculs_·_Bits.md) (1 shared connections)
 - [src · Default](src_·_Default.md) (1 shared connections)
-- [Écriture de la scène source](Écriture_de_la_scène_source.md) (1 shared connections)
+- [src · Fn](src_·_Fn.md) (1 shared connections)
 - [src · stride](src_·_stride.md) (1 shared connections)
 - [src · Debug](src_·_Debug.md) (1 shared connections)
 

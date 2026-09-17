@@ -29,12 +29,14 @@
 
 ## Relationships
 
-- [Tests navigateur Node](Tests_navigateur_Node.md) (9 shared connections)
-- [Socle du banc sdk-core](Socle_du_banc_sdk-core.md) (4 shared connections)
+- [Tests navigateur Node](Tests_navigateur_Node.md) (7 shared connections)
+- [Arbre monde et lots de maths](Arbre_monde_et_lots_de_maths.md) (3 shared connections)
 - [Oracle et serveur de mesure](Oracle_et_serveur_de_mesure.md) (3 shared connections)
 - [Options et poses du banc](Options_et_poses_du_banc.md) (2 shared connections)
+- [Pages de justesse WebGPU](Pages_de_justesse_WebGPU.md) (2 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (2 shared connections)
 - [Erreur d'écran hors axe](Erreur_d'écran_hors_axe.md) (1 shared connections)
+- [Socle du banc sdk-core](Socle_du_banc_sdk-core.md) (1 shared connections)
 - [SDK Node : contrats et progression](SDK_Node_-_contrats_et_progression.md) (1 shared connections)
 - [scripts · MANIFESTE](scripts_·_MANIFESTE.md) (1 shared connections)
 - [Scripts de build et distribution (2)](Scripts_de_build_et_distribution_2.md) (1 shared connections)

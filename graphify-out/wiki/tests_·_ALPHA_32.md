@@ -17,9 +17,10 @@
 
 ## Relationships
 
-- [Tests du pilote GIF](Tests_du_pilote_GIF.md) (2 shared connections)
 - [Registre des images de test](Registre_des_images_de_test.md) (1 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (1 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
+- [tests · ALPHA](tests_·_ALPHA.md) (1 shared connections)
+- [Tests du pilote GIF](Tests_du_pilote_GIF.md) (1 shared connections)
 
 ## Source Files
 

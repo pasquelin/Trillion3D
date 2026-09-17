@@ -1,78 +1,70 @@
 # Contrat backend et dessin
 
-> 60 nodes
+> 34 nodes
 
 ## Key Concepts
 
-- **cameraWorld.ts** (93 connections) — `packages/sdk-browser/cameraWorld.ts`
-- **autonomousPages.ts** (33 connections) — `packages/sdk-browser/autonomousPages.ts`
-- **frameGateCore.ts** (33 connections) — `packages/sdk-browser/frameGateCore.ts`
-- **matrixElements.ts** (27 connections) — `packages/sdk-browser/matrixElements.ts`
-- **createFrameGateCore()** (26 connections) — `packages/sdk-browser/frameGateCore.ts`
-- **copyElements()** (24 connections) — `packages/sdk-browser/matrixElements.ts`
+- **exactPagesRender.ts** (27 connections) — `packages/sdk-browser/exactPagesRender.ts`
+- **exactPagesCpu.ts** (22 connections) — `packages/sdk-browser/exactPagesCpu.ts`
 - **explorerTransformParentInstable.test.ts** (21 connections) — `packages/sdk-browser/explorerTransformParentInstable.test.ts`
 - **explorerTransformSoumissions.test.ts** (21 connections) — `packages/sdk-browser/explorerTransformSoumissions.test.ts`
-- **explorerLightApi.ts** (20 connections) — `packages/sdk-browser/explorerLightApi.ts`
 - **hostWorldPlacements** (19 connections) — `packages/sdk-browser/hostWorldPlacements.ts`
-- **autonomousPagesBackend()** (19 connections) — `packages/sdk-browser/autonomousPages.ts`
 - **autonomousRender.ts** (19 connections) — `packages/sdk-browser/autonomousRender.ts`
 - **hostWorldPlacements.ts** (15 connections) — `packages/sdk-browser/hostWorldPlacements.ts`
 - **webglFrameGate.ts** (12 connections) — `packages/sdk-browser/webglFrameGate.ts`
-- **textureFrameViews.ts** (11 connections) — `packages/sdk-browser/textureFrameViews.ts`
-- **webgpuPagesFlushHold.test.ts** (11 connections) — `packages/sdk-browser/webgpuPagesFlushHold.test.ts`
-- **createWebglFrameGate()** (10 connections) — `packages/sdk-browser/webglFrameGate.ts`
+- **CameraMotion** (10 connections) — `packages/sdk-browser/cameraWorld.ts`
 - **createExplorerLightApi()** (9 connections) — `packages/sdk-browser/explorerLightApi.ts`
-- **autonomousManifest.ts** (9 connections) — `packages/sdk-browser/autonomousManifest.ts`
-- **frameViewRevision.ts** (9 connections) — `packages/sdk-browser/frameViewRevision.ts`
-- **frameRevisions.ts** (8 connections) — `packages/sdk-browser/frameRevisions.ts`
-- **viewFingerprint.ts** (8 connections) — `packages/sdk-browser/viewFingerprint.ts`
-- **createViewFingerprint()** (7 connections) — `packages/sdk-browser/viewFingerprint.ts`
-- **lightingCapabilities.ts** (7 connections) — `packages/sdk-browser/lightingCapabilities.ts`
-- **createAutonomousResidency()** (6 connections) — `packages/sdk-browser/autonomousResidency.ts`
-- *... and 35 more nodes in this community*
+- **createExactPagesCpu()** (8 connections) — `packages/sdk-browser/exactPagesCpu.ts`
+- **disabledStageProfile()** (8 connections) — `packages/sdk-core/stageProfile.ts`
+- **HostCpuProfile** (7 connections) — `packages/sdk-browser/hostCpuProfile.ts`
+- **hostCpuProfile.ts** (7 connections) — `packages/sdk-browser/hostCpuProfile.ts`
+- **createExactPagesRender()** (6 connections) — `packages/sdk-browser/exactPagesRender.ts`
+- **banc()** (5 connections) — `packages/sdk-browser/explorerTransformParentInstable.test.ts`
+- **HostCpuStep** (3 connections) — `packages/sdk-browser/hostCpuProfile.ts`
+- **WebglFrameGate** (3 connections) — `packages/sdk-browser/webglFrameGate.ts`
+- **createExactPagesRenderState()** (3 connections) — `packages/sdk-browser/exactPagesRender.ts`
+- **banc()** (3 connections) — `packages/sdk-browser/explorerTransformSoumissions.test.ts`
+- **ExactPagesRenderState** (2 connections) — `packages/sdk-browser/exactPagesRender.ts`
+- **.syncResident()** (2 connections) — `packages/sdk-browser/backendTypes.ts`
+- **api()** (2 connections) — `packages/sdk-browser/explorerTransformSoumissions.test.ts`
+- **EXACT_CPU_STEP** (2 connections) — `packages/sdk-browser/exactPagesCpu.ts`
+- **AutonomousRenderState** (1 connections) — `packages/sdk-browser/autonomousRender.ts`
+- *... and 9 more nodes in this community*
 
 ## Relationships
 
-- [Transformations et collecte des pages](Transformations_et_collecte_des_pages.md) (26 shared connections)
-- [Backends de rendu exacts (2)](Backends_de_rendu_exacts_2.md) (26 shared connections)
-- [Caméra monde et contrat](Caméra_monde_et_contrat.md) (19 shared connections)
-- [API et session de l'explorateur](API_et_session_de_l'explorateur.md) (16 shared connections)
-- [Sélection des pages visibles](Sélection_des_pages_visibles.md) (14 shared connections)
-- [sdk-browser · graphe](sdk-browser_·_graphe.md) (14 shared connections)
-- [sdk-browser · CpuStepSummary](sdk-browser_·_CpuStepSummary.md) (14 shared connections)
-- [sdk-browser · InstanceEnvironment](sdk-browser_·_InstanceEnvironment.md) (13 shared connections)
-- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (13 shared connections)
-- [Pyramide Hi-Z et occlusion](Pyramide_Hi-Z_et_occlusion.md) (12 shared connections)
-- [Priorité de diffusion et textures (2)](Priorité_de_diffusion_et_textures_2.md) (11 shared connections)
-- [Matrices et origine de rendu](Matrices_et_origine_de_rendu.md) (10 shared connections)
+- [API et session de l'explorateur (2)](API_et_session_de_l'explorateur_2.md) (21 shared connections)
+- [Coût CPU et image tenue](Coût_CPU_et_image_tenue.md) (20 shared connections)
+- [Backends de rendu exacts](Backends_de_rendu_exacts.md) (13 shared connections)
+- [Adoption et reprise de la coupe](Adoption_et_reprise_de_la_coupe.md) (12 shared connections)
+- [Transformations et collecte des pages](Transformations_et_collecte_des_pages.md) (12 shared connections)
+- [sdk-browser · flush](sdk-browser_·_flush.md) (9 shared connections)
+- [Sélection des pages visibles](Sélection_des_pages_visibles.md) (7 shared connections)
+- [Étapes et profilage de trame (2)](Étapes_et_profilage_de_trame_2.md) (7 shared connections)
+- [Magasin des lumières de scène](Magasin_des_lumières_de_scène.md) (6 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (6 shared connections)
+- [justesse · Pose](justesse_·_Pose.md) (5 shared connections)
+- [Arbre monde et lots de maths](Arbre_monde_et_lots_de_maths.md) (5 shared connections)
 
 ## Source Files
 
-- `packages/sdk-browser/autonomousInstances.ts`
-- `packages/sdk-browser/autonomousManifest.ts`
-- `packages/sdk-browser/autonomousPages.ts`
 - `packages/sdk-browser/autonomousRender.ts`
-- `packages/sdk-browser/autonomousResidency.ts`
+- `packages/sdk-browser/backendTypes.ts`
 - `packages/sdk-browser/cameraWorld.ts`
+- `packages/sdk-browser/exactPagesCpu.ts`
+- `packages/sdk-browser/exactPagesRender.ts`
 - `packages/sdk-browser/explorerLightApi.ts`
 - `packages/sdk-browser/explorerTransformParentInstable.test.ts`
 - `packages/sdk-browser/explorerTransformSoumissions.test.ts`
-- `packages/sdk-browser/frameGateCore.ts`
-- `packages/sdk-browser/frameRevisions.ts`
-- `packages/sdk-browser/frameViewRevision.ts`
-- `packages/sdk-browser/hizProjectionHold.ts`
+- `packages/sdk-browser/hostCpuProfile.ts`
 - `packages/sdk-browser/hostWorldPlacements.ts`
-- `packages/sdk-browser/lightingCapabilities.ts`
-- `packages/sdk-browser/matrixElements.ts`
-- `packages/sdk-browser/textureFrameViews.ts`
-- `packages/sdk-browser/viewFingerprint.ts`
 - `packages/sdk-browser/webglFrameGate.ts`
-- `packages/sdk-browser/webgpuPagesFlushHold.test.ts`
+- `packages/sdk-core/stageProfile.ts`
 
 ## Audit Trail
 
-- EXTRACTED: 439 (99%)
-- INFERRED: 3 (1%)
+- EXTRACTED: 196 (99%)
+- INFERRED: 1 (1%)
 - AMBIGUOUS: 0 (0%)
 
 ---

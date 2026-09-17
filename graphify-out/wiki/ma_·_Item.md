@@ -1,40 +1,42 @@
 # ma · Item
 
-> 16 nodes
+> 19 nodes
 
 ## Key Concepts
 
-- **Token** (11 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/lex.rs`
-- **Reader** (8 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/lex.rs`
-- **.tokens()** (7 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/lex.rs`
-- **lex.rs** (5 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/lex.rs`
-- **.next()** (5 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/lex.rs`
-- **.string()** (5 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/lex.rs`
-- **String** (4 connections)
-- **.skip()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/lex.rs`
-- **.word()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/lex.rs`
-- **read()** (2 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/lex.rs`
-- **Option** (2 connections)
-- **Result** (2 connections)
-- **.flag()** (2 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/lex.rs`
-- **.text()** (2 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/lex.rs`
+- **Attr** (11 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/value.rs`
+- **value.rs** (6 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/value.rs`
+- **.numbers()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/value.rs`
+- **.scalar()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/value.rs`
+- **.splice()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/value.rs`
+- **.triple()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/value.rs`
+- **elements()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/value.rs`
+- **place()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/value.rs`
+- **Option** (3 connections)
+- **.empty_like()** (2 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/value.rs`
+- **.faces()** (2 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/value.rs`
+- **.flag()** (2 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/value.rs`
+- **.texts()** (2 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/value.rs`
+- **Face** (2 connections)
+- **Self** (2 connections)
+- **String** (2 connections)
 - **Item** (1 connections)
 - **Iterator** (1 connections)
+- **T** (1 connections)
 
 ## Relationships
 
-- [Commandes et document Maya](Commandes_et_document_Maya.md) (5 shared connections)
-- [scene · FILE_INVALID](scene_·_FILE_INVALID.md) (2 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (1 shared connections)
-- [ma · Item (2)](ma_·_Item_2.md) (1 shared connections)
+- [Proxy de scène du compilateur](Proxy_de_scène_du_compilateur.md) (1 shared connections)
+- [Verrou CLI et fixtures du compilateur](Verrou_CLI_et_fixtures_du_compilateur.md) (1 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
 
 ## Source Files
 
-- `packages/asset-compiler-rust/src/plugins/scene/ma/lex.rs`
+- `packages/asset-compiler-rust/src/plugins/scene/ma/value.rs`
 
 ## Audit Trail
 
-- EXTRACTED: 36 (100%)
+- EXTRACTED: 29 (100%)
 - INFERRED: 0 (0%)
 - AMBIGUOUS: 0 (0%)
 

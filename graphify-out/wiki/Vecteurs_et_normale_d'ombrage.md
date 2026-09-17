@@ -1,6 +1,6 @@
 # Vecteurs et normale d'ombrage
 
-> 37 nodes
+> 34 nodes
 
 ## Key Concepts
 
@@ -8,18 +8,15 @@
 - **mathVector.ts** (22 connections) — `packages/sdk-core/mathVector.ts`
 - **mathVector.test.ts** (22 connections) — `packages/sdk-core/mathVector.test.ts`
 - **shadingNormal()** (18 connections) — `packages/sdk-browser/visibilityShadingNormal.ts`
-- **transformAffinePoint()** (14 connections) — `packages/sdk-core/mathVector.ts`
-- **projectVisibilityVertex()** (10 connections) — `packages/sdk-browser/visibilityProjection.ts`
 - **normalizeVector3()** (10 connections) — `packages/sdk-core/mathVector.ts`
-- **transformHomogeneousPoint()** (8 connections) — `packages/sdk-core/mathVector.ts`
 - **transformDirectionVector3()** (6 connections) — `packages/sdk-core/mathVector.ts`
-- **packages_sdk_core_index_normalmatrix3** (6 connections)
 - **addScaledVector3()** (5 connections) — `packages/sdk-core/mathVector.ts`
 - **applyMatrix3Vector3()** (5 connections) — `packages/sdk-core/mathVector.ts`
 - **copyScaledVector3()** (5 connections) — `packages/sdk-core/mathVector.ts`
 - **lengthSqVector3()** (5 connections) — `packages/sdk-core/mathVector.ts`
 - **scaleVector3()** (5 connections) — `packages/sdk-core/mathVector.ts`
 - **packages_sdk_core_index_crossvector3** (2 connections)
+- **packages_sdk_core_index_normalizevector3** (2 connections)
 - **bitEqualVec3()** (1 connections) — `packages/sdk-core/mathVector.test.ts`
 - **proche()** (1 connections) — `packages/sdk-core/mathVector.test.ts`
 - **frameB** (1 connections) — `packages/sdk-browser/visibilityShadingNormal.ts`
@@ -29,34 +26,36 @@
 - **frameOut** (1 connections) — `packages/sdk-browser/visibilityShadingNormal.ts`
 - **frameQ** (1 connections) — `packages/sdk-browser/visibilityShadingNormal.ts`
 - **frameT** (1 connections) — `packages/sdk-browser/visibilityShadingNormal.ts`
-- *... and 12 more nodes in this community*
+- **frameTangents** (1 connections) — `packages/sdk-browser/visibilityShadingNormal.ts`
+- **normalScratch** (1 connections) — `packages/sdk-browser/visibilityShadingNormal.ts`
+- **MATRICES_3X3** (1 connections) — `packages/sdk-core/mathVector.test.ts`
+- *... and 9 more nodes in this community*
 
 ## Relationships
 
-- [sdk-browser · VisTriangle](sdk-browser_·_VisTriangle.md) (12 shared connections)
-- [Matrices et origine de rendu](Matrices_et_origine_de_rendu.md) (12 shared connections)
-- [Socle des consommateurs](Socle_des_consommateurs.md) (11 shared connections)
-- [Convention de profondeur](Convention_de_profondeur.md) (6 shared connections)
-- [sdk-core · bitangent](sdk-core_·_bitangent.md) (5 shared connections)
-- [oracles · attribut](oracles_·_attribut.md) (4 shared connections)
-- [sdk-core · faceScratch](sdk-core_·_faceScratch.md) (4 shared connections)
+- [Mathématiques du tampon de visibilité](Mathématiques_du_tampon_de_visibilité.md) (13 shared connections)
+- [Équivalence du socle mesuré](Équivalence_du_socle_mesuré.md) (10 shared connections)
+- [Matrices et origine de rendu](Matrices_et_origine_de_rendu.md) (9 shared connections)
+- [Socle des consommateurs](Socle_des_consommateurs.md) (5 shared connections)
+- [sdk-core · translation](sdk-core_·_translation.md) (3 shared connections)
+- [oracles · attribut](oracles_·_attribut.md) (3 shared connections)
 - [sdk-browser · flushedSlices](sdk-browser_·_flushedSlices.md) (3 shared connections)
 - [Rejeu de la hiérarchie](Rejeu_de_la_hiérarchie.md) (3 shared connections)
-- [Mathématiques du tampon de visibilité](Mathématiques_du_tampon_de_visibilité.md) (3 shared connections)
-- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (3 shared connections)
-- [sdk-core · translation](sdk-core_·_translation.md) (2 shared connections)
+- [Normale d'ombrage mesurée](Normale_d'ombrage_mesurée.md) (2 shared connections)
+- [sdk-core · matrix](sdk-core_·_matrix.md) (2 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (2 shared connections)
+- [Justesse de l'inverse transposée](Justesse_de_l'inverse_transposée.md) (1 shared connections)
 
 ## Source Files
 
-- `packages/sdk-browser/visibilityProjection.ts`
 - `packages/sdk-browser/visibilityShadingNormal.ts`
 - `packages/sdk-core/mathVector.test.ts`
 - `packages/sdk-core/mathVector.ts`
 
 ## Audit Trail
 
-- EXTRACTED: 142 (99%)
-- INFERRED: 2 (1%)
+- EXTRACTED: 113 (98%)
+- INFERRED: 2 (2%)
 - AMBIGUOUS: 0 (0%)
 
 ---

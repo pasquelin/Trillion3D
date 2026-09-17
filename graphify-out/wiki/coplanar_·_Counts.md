@@ -21,9 +21,10 @@
 
 ## Relationships
 
-- [coplanar · BTreeMap](coplanar_·_BTreeMap.md) (3 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (2 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (2 shared connections)
+- [coplanar · BTreeMap](coplanar_·_BTreeMap.md) (2 shared connections)
 - [tests · assign_layers_breaks_area_ties_by_source_order](tests_·_assign_layers_breaks_area_ties_by_source_order.md) (1 shared connections)
+- [coplanar · Default](coplanar_·_Default.md) (1 shared connections)
 
 ## Source Files
 

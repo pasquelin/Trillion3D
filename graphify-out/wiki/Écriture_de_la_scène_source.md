@@ -1,6 +1,6 @@
 # Écriture de la scène source
 
-> 49 nodes
+> 40 nodes
 
 ## Key Concepts
 
@@ -8,8 +8,6 @@
 - **bundle_dag_pages()** (12 connections) — `packages/asset-compiler-rust/src/compiler_primitive_bundle.rs`
 - **atomic()** (12 connections) — `packages/asset-compiler-rust/src/compiler_storage.rs`
 - **write_source_scene()** (11 connections) — `packages/asset-compiler-rust/src/compiler_scene.rs`
-- **share_bootstrap_bundles()** (8 connections) — `packages/asset-compiler-rust/src/compiler_bundles.rs`
-- **store_page()** (7 connections) — `packages/asset-compiler-rust/src/compiler_page_object.rs`
 - **SourceSceneInputs** (7 connections) — `packages/asset-compiler-rust/src/compiler_scene.rs`
 - **store_object()** (7 connections) — `packages/asset-compiler-rust/src/compiler_storage.rs`
 - **publish()** (6 connections) — `packages/asset-compiler-rust/src/compiler_publish.rs`
@@ -17,40 +15,39 @@
 - **Publication** (5 connections) — `packages/asset-compiler-rust/src/compiler_publish.rs`
 - **compiler_scene.rs** (4 connections) — `packages/asset-compiler-rust/src/compiler_scene.rs`
 - **compiler_storage.rs** (4 connections) — `packages/asset-compiler-rust/src/compiler_storage.rs`
-- **compiler_bundles.rs** (3 connections) — `packages/asset-compiler-rust/src/compiler_bundles.rs`
-- **compiler_copy.rs** (3 connections) — `packages/asset-compiler-rust/src/compiler_copy.rs`
 - **compiler_primitive_bundle.rs** (3 connections) — `packages/asset-compiler-rust/src/compiler_primitive_bundle.rs`
-- **compiler_page_object.rs** (2 connections) — `packages/asset-compiler-rust/src/compiler_page_object.rs`
 - **TexturePreview** (2 connections)
 - **Value** (2 connections)
 - **Result** (2 connections)
-- **Result** (1 connections)
-- **Value** (1 connections)
-- **Result** (1 connections)
-- **Value** (1 connections)
 - **DagCluster** (1 connections)
-- *... and 24 more nodes in this community*
+- **Fn** (1 connections)
+- **Result** (1 connections)
+- **Sync** (1 connections)
+- **Value** (1 connections)
+- **Result** (1 connections)
+- **Value** (1 connections)
+- **BTreeMap** (1 connections)
+- **BTreeSet** (1 connections)
+- **Result** (1 connections)
+- *... and 15 more nodes in this community*
 
 ## Relationships
 
-- [Validation du compilateur](Validation_du_compilateur.md) (15 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (7 shared connections)
-- [tests · Arc](tests_·_Arc.md) (6 shared connections)
-- [Verrou CLI et fixtures du compilateur (2)](Verrou_CLI_et_fixtures_du_compilateur_2.md) (6 shared connections)
-- [src · Option](src_·_Option.md) (5 shared connections)
+- [src · Fn](src_·_Fn.md) (7 shared connections)
+- [Validation du compilateur](Validation_du_compilateur.md) (7 shared connections)
 - [Chargement des modèles](Chargement_des_modèles.md) (5 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (4 shared connections)
+- [Budget et ouvriers du compilateur (2)](Budget_et_ouvriers_du_compilateur_2.md) (4 shared connections)
+- [unity · Option](unity_·_Option.md) (4 shared connections)
+- [Erreurs du compilateur et USDZ](Erreurs_du_compilateur_et_USDZ.md) (3 shared connections)
+- [src · Option](src_·_Option.md) (3 shared connections)
 - [bench_calculs · Bits (2)](bench_calculs_·_Bits_2.md) (2 shared connections)
-- [Verrou CLI et fixtures du compilateur (3)](Verrou_CLI_et_fixtures_du_compilateur_3.md) (2 shared connections)
-- [src · PLAN](src_·_PLAN.md) (1 shared connections)
+- [Verrou CLI et fixtures du compilateur (2)](Verrou_CLI_et_fixtures_du_compilateur_2.md) (2 shared connections)
 - [src · ANIMATED](src_·_ANIMATED.md) (1 shared connections)
-- [src · BTreeSet](src_·_BTreeSet.md) (1 shared connections)
-- [Ressources externes à l'import](Ressources_externes_à_l'import.md) (1 shared connections)
+- [src · fbx_intensity_scale](src_·_fbx_intensity_scale.md) (1 shared connections)
 
 ## Source Files
 
-- `packages/asset-compiler-rust/src/compiler_bundles.rs`
-- `packages/asset-compiler-rust/src/compiler_copy.rs`
-- `packages/asset-compiler-rust/src/compiler_page_object.rs`
 - `packages/asset-compiler-rust/src/compiler_primitive_bundle.rs`
 - `packages/asset-compiler-rust/src/compiler_publish.rs`
 - `packages/asset-compiler-rust/src/compiler_scene.rs`
@@ -59,8 +56,8 @@
 
 ## Audit Trail
 
-- EXTRACTED: 93 (78%)
-- INFERRED: 26 (22%)
+- EXTRACTED: 80 (78%)
+- INFERRED: 22 (22%)
 - AMBIGUOUS: 0 (0%)
 
 ---

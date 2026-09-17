@@ -16,9 +16,10 @@
 
 ## Relationships
 
-- [Verrou CLI et fixtures du compilateur (3)](Verrou_CLI_et_fixtures_du_compilateur_3.md) (4 shared connections)
-- [Import Unity et maillages](Import_Unity_et_maillages.md) (2 shared connections)
-- [Verrou CLI et fixtures du compilateur (2)](Verrou_CLI_et_fixtures_du_compilateur_2.md) (2 shared connections)
+- [Verrou CLI et fixtures du compilateur](Verrou_CLI_et_fixtures_du_compilateur.md) (4 shared connections)
+- [unity · Option](unity_·_Option.md) (2 shared connections)
+- [ktx2 · NAMES](ktx2_·_NAMES.md) (1 shared connections)
+- [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
 
 ## Source Files
 

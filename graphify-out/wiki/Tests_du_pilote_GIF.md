@@ -1,27 +1,23 @@
 # Tests du pilote GIF
 
-> 27 nodes
+> 23 nodes
 
 ## Key Concepts
 
 - **tests/gif.rs** (12 connections) — `packages/asset-compiler-rust/src/plugins/tests/gif.rs`
-- **plugins/tests.rs** (10 connections) — `packages/asset-compiler-rust/src/plugins/tests.rs`
 - **decoded_rgba8()** (8 connections) — `packages/asset-compiler-rust/src/plugins/tests.rs`
 - **rgba8()** (8 connections) — `packages/asset-compiler-rust/src/plugins/tests.rs`
-- **assert_refusals()** (6 connections) — `packages/asset-compiler-rust/src/plugins/tests.rs`
-- **assert_claims()** (5 connections) — `packages/asset-compiler-rust/src/plugins/tests.rs`
-- **un_bmp_hors_politique_ressort_en_raison_de_rapport_jamais_en_panique()** (4 connections) — `packages/asset-compiler-rust/src/plugins/tests/bmp.rs`
-- **fixture()** (4 connections) — `packages/asset-compiler-rust/src/plugins/tests.rs`
-- **un_gif_hors_politique_ressort_en_raison_de_rapport_jamais_en_panique()** (4 connections) — `packages/asset-compiler-rust/src/plugins/tests/gif.rs`
-- **un_webp_hors_politique_ressort_en_raison_de_rapport_jamais_en_panique()** (4 connections) — `packages/asset-compiler-rust/src/plugins/tests/webp.rs`
-- **declared()** (3 connections) — `packages/asset-compiler-rust/src/plugins/tests.rs`
+- **declarations.rs** (7 connections) — `packages/asset-compiler-rust/src/plugins/tests/psd/declarations.rs`
+- **avec_compte_de_calques()** (4 connections) — `packages/asset-compiler-rust/src/plugins/tests/psd/declarations.rs`
+- **decode()** (4 connections) — `packages/asset-compiler-rust/src/plugins/tests/psd/declarations.rs`
+- **un_plan_de_plus_nest_de_la_transparence_que_si_le_fichier_le_declare()** (4 connections) — `packages/asset-compiler-rust/src/plugins/tests/psd/declarations.rs`
 - **rendu()** (3 connections) — `packages/asset-compiler-rust/src/plugins/tests/gif.rs`
 - **chaque_profondeur_lue_rend_les_pixels_de_la_reference()** (3 connections) — `packages/asset-compiler-rust/src/plugins/tests/png.rs`
-- **ce_qui_sort_du_sous_ensemble_ressort_en_raison_de_rapport_jamais_en_panique()** (3 connections) — `packages/asset-compiler-rust/src/plugins/tests/psd.rs`
+- **un_png_anime_rend_son_image_par_defaut_et_compte_lanimation()** (3 connections) — `packages/asset-compiler-rust/src/plugins/tests/png.rs`
+- **les_calques_dun_psd_sont_comptes_puisque_seul_le_composite_sort()** (3 connections) — `packages/asset-compiler-rust/src/plugins/tests/psd/declarations.rs`
 - **rendu_octets()** (2 connections) — `packages/asset-compiler-rust/src/plugins/tests/gif.rs`
 - **pixels()** (2 connections) — `packages/asset-compiler-rust/src/plugins/tests/psd.rs`
 - **RgbaImage** (2 connections)
-- **temp_dir()** (2 connections) — `packages/asset-compiler-rust/src/plugins/tests.rs`
 - **ALPHA_TRANSPARENT** (1 connections) — `packages/asset-compiler-rust/src/plugins/tests/gif.rs`
 - **expected()** (1 connections) — `packages/asset-compiler-rust/src/plugins/tests/gif.rs`
 - **les_deux_tables_de_couleurs_rendent_les_memes_pixels()** (1 connections) — `packages/asset-compiler-rust/src/plugins/tests/gif.rs`
@@ -29,35 +25,31 @@
 - **OPAQUE** (1 connections) — `packages/asset-compiler-rust/src/plugins/tests/gif.rs`
 - **PREMIERE_IMAGE_FIN** (1 connections) — `packages/asset-compiler-rust/src/plugins/tests/gif.rs`
 - **REFERENCE** (1 connections) — `packages/asset-compiler-rust/src/plugins/tests/gif.rs`
-- *... and 2 more nodes in this community*
+- **RgbaImage** (1 connections)
+- **LAYERS_AT** (1 connections) — `packages/asset-compiler-rust/src/plugins/tests/psd/declarations.rs`
 
 ## Relationships
 
-- [tests · HEADER](tests_·_HEADER.md) (4 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (2 shared connections)
-- [tests · ALPHA_32](tests_·_ALPHA_32.md) (2 shared connections)
-- [image · IntoIterator](image_·_IntoIterator.md) (2 shared connections)
-- [Registre des images de test (2)](Registre_des_images_de_test_2.md) (2 shared connections)
+- [tests · ALPHA](tests_·_ALPHA.md) (9 shared connections)
+- [Registre des images de test](Registre_des_images_de_test.md) (2 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (2 shared connections)
 - [tests · gamma](tests_·_gamma.md) (2 shared connections)
-- [tests · ALPHA (2)](tests_·_ALPHA_2.md) (2 shared connections)
-- [Verrou CLI et fixtures du compilateur (3)](Verrou_CLI_et_fixtures_du_compilateur_3.md) (1 shared connections)
-- [tests · DROIT](tests_·_DROIT.md) (1 shared connections)
-- [Registre des images de test](Registre_des_images_de_test.md) (1 shared connections)
-- [psd · LAYERS_AT](psd_·_LAYERS_AT.md) (1 shared connections)
+- [tests · ALPHA_32](tests_·_ALPHA_32.md) (1 shared connections)
+- [Registre des images de test (2)](Registre_des_images_de_test_2.md) (1 shared connections)
+- [Clés et orientation KTX2](Clés_et_orientation_KTX2.md) (1 shared connections)
 
 ## Source Files
 
 - `packages/asset-compiler-rust/src/plugins/tests.rs`
-- `packages/asset-compiler-rust/src/plugins/tests/bmp.rs`
 - `packages/asset-compiler-rust/src/plugins/tests/gif.rs`
 - `packages/asset-compiler-rust/src/plugins/tests/png.rs`
 - `packages/asset-compiler-rust/src/plugins/tests/psd.rs`
-- `packages/asset-compiler-rust/src/plugins/tests/webp.rs`
+- `packages/asset-compiler-rust/src/plugins/tests/psd/declarations.rs`
 
 ## Audit Trail
 
-- EXTRACTED: 37 (65%)
-- INFERRED: 20 (35%)
+- EXTRACTED: 34 (74%)
+- INFERRED: 12 (26%)
 - AMBIGUOUS: 0 (0%)
 
 ---

@@ -33,18 +33,18 @@
 
 ## Relationships
 
-- [État de la coupe de sélection](État_de_la_coupe_de_sélection.md) (19 shared connections)
-- [Coupe projetée de la sélection](Coupe_projetée_de_la_sélection.md) (12 shared connections)
-- [Oracles de projection](Oracles_de_projection.md) (11 shared connections)
+- [État de la coupe de sélection](État_de_la_coupe_de_sélection.md) (20 shared connections)
+- [Coupe projetée de la sélection](Coupe_projetée_de_la_sélection.md) (11 shared connections)
+- [sdk-core · createSeededRandom](sdk-core_·_createSeededRandom.md) (9 shared connections)
 - [Oracle DAG et plancher de coupe](Oracle_DAG_et_plancher_de_coupe.md) (8 shared connections)
-- [Runtime DAG sur GPU](Runtime_DAG_sur_GPU.md) (6 shared connections)
-- [Priorité de diffusion et textures (2)](Priorité_de_diffusion_et_textures_2.md) (5 shared connections)
+- [Priorité de diffusion et textures (2)](Priorité_de_diffusion_et_textures_2.md) (6 shared connections)
+- [justesse · pireMarge](justesse_·_pireMarge.md) (5 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (5 shared connections)
+- [Magasin des lumières de scène](Magasin_des_lumières_de_scène.md) (5 shared connections)
 - [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (4 shared connections)
-- [Gabarits de sélection de pages](Gabarits_de_sélection_de_pages.md) (4 shared connections)
+- [Lancements de coupe et relevé](Lancements_de_coupe_et_relevé.md) (3 shared connections)
 - [Erreur d'écran hors axe](Erreur_d'écran_hors_axe.md) (2 shared connections)
 - [oracles · referenceLinearToSrgb8](oracles_·_referenceLinearToSrgb8.md) (2 shared connections)
-- [sdk-browser · graphe](sdk-browser_·_graphe.md) (2 shared connections)
 
 ## Source Files
 

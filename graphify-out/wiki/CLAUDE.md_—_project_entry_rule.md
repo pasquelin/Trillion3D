@@ -25,13 +25,13 @@
 
 ## Relationships
 
-- [. · FBX/OBJ import: alphaMode BLEND, never MASK](_·_FBX-OBJ_import-_alphaMode_BLEND,_never_MASK.md) (6 shared connections)
+- [. · FBX/OBJ import: alphaMode BLEND, never MASK](_·_FBX-OBJ_import-_alphaMode_BLEND,_never_MASK.md) (5 shared connections)
+- [docs · A pixel cost is not a veto](docs_·_A_pixel_cost_is_not_a_veto.md) (4 shared connections)
 - [Documentation et frontières](Documentation_et_frontières.md) (3 shared connections)
-- [docs · Shadow maps invalidated page by page under a millisecond budget](docs_·_Shadow_maps_invalidated_page_by_page_under_a_millisecond_budget.md) (3 shared connections)
-- [Notices des fixtures](Notices_des_fixtures.md) (2 shared connections)
-- [Banc de mesure commun](Banc_de_mesure_commun.md) (2 shared connections)
+- [docs · Ne jamais dégrader l'application](docs_·_Ne_jamais_dégrader_l'application.md) (2 shared connections)
+- [Banc de mesure commun (2)](Banc_de_mesure_commun_2.md) (2 shared connections)
 - [docs · formatVersion separated from compilerVersion](docs_·_formatVersion_separated_from_compilerVersion.md) (1 shared connections)
-- [docs · atlasClasses — one or two material-atlas size classes](docs_·_atlasClasses_—_one_or_two_material-atlas_size_classes.md) (1 shared connections)
+- [Notices des fixtures](Notices_des_fixtures.md) (1 shared connections)
 
 ## Source Files
 

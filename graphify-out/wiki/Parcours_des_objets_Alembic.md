@@ -27,14 +27,14 @@
 - [Archive Alembic](Archive_Alembic.md) (5 shared connections)
 - [Archive Alembic (2)](Archive_Alembic_2.md) (3 shared connections)
 - [Géométrie Alembic](Géométrie_Alembic.md) (3 shared connections)
-- [alembic · MAX_CORNERS](alembic_·_MAX_CORNERS.md) (2 shared connections)
+- [Maillages et jeux de faces](Maillages_et_jeux_de_faces.md) (2 shared connections)
 - [Oracle : rayons et indirect](Oracle_-_rayons_et_indirect.md) (2 shared connections)
 - [alembic · AtomicBool](alembic_·_AtomicBool.md) (1 shared connections)
-- [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
+- [import · Option (2)](import_·_Option_2.md) (1 shared connections)
 - [Propriétés Alembic](Propriétés_Alembic.md) (1 shared connections)
 - [scene · .accepts_head](scene_·_.accepts_head.md) (1 shared connections)
 - [Erreurs du compilateur et USDZ](Erreurs_du_compilateur_et_USDZ.md) (1 shared connections)
-- [blend · POINTER](blend_·_POINTER.md) (1 shared connections)
+- [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
 
 ## Source Files
 

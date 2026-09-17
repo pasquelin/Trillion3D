@@ -30,14 +30,16 @@
 ## Relationships
 
 - [Priorité de diffusion et textures (2)](Priorité_de_diffusion_et_textures_2.md) (7 shared connections)
-- [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (3 shared connections)
-- [Caméra moteur et tampon](Caméra_moteur_et_tampon.md) (2 shared connections)
+- [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (2 shared connections)
 - [Adressage et bouclage des textures](Adressage_et_bouclage_des_textures.md) (1 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (1 shared connections)
-- [Pages autonomes](Pages_autonomes.md) (1 shared connections)
+- [sdk-browser · makeEnv](sdk-browser_·_makeEnv.md) (1 shared connections)
+- [Pyramide Hi-Z et occlusion](Pyramide_Hi-Z_et_occlusion.md) (1 shared connections)
 - [Diffusion des pages en continu (2)](Diffusion_des_pages_en_continu_2.md) (1 shared connections)
 - [Télémétrie et métriques](Télémétrie_et_métriques.md) (1 shared connections)
-- [bench · geometrie](bench_·_geometrie.md) (1 shared connections)
+- [Mathématiques du tampon de visibilité (2)](Mathématiques_du_tampon_de_visibilité_2.md) (1 shared connections)
+- [bench · passe](bench_·_passe.md) (1 shared connections)
+- [Socle de mesure des bancs](Socle_de_mesure_des_bancs.md) (1 shared connections)
 - [Socle du banc sdk-core](Socle_du_banc_sdk-core.md) (1 shared connections)
 
 ## Source Files

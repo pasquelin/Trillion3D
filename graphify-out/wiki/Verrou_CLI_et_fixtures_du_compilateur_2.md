@@ -1,10 +1,9 @@
 # Verrou CLI et fixtures du compilateur (2)
 
-> 48 nodes
+> 47 nodes
 
 ## Key Concepts
 
-- **Path** (171 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/attr.rs`
 - **scene/archive.rs** (18 connections) — `packages/asset-compiler-rust/src/plugins/scene/archive.rs`
 - **container.rs** (16 connections) — `packages/asset-compiler-rust/src/plugins/scene/archive/container.rs`
 - **container()** (16 connections) — `packages/asset-compiler-rust/src/plugins/scene/archive/container.rs`
@@ -29,34 +28,34 @@
 - **EMPTY** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/archive.rs`
 - **under_byte_limit()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/archive.rs`
 - **under_entry_limit()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/archive.rs`
-- *... and 23 more nodes in this community*
+- **fs** (3 connections)
+- *... and 22 more nodes in this community*
 
 ## Relationships
 
-- [Greffons de scène du compilateur](Greffons_de_scène_du_compilateur.md) (26 shared connections)
-- [Verrou CLI et fixtures du compilateur (3)](Verrou_CLI_et_fixtures_du_compilateur_3.md) (8 shared connections)
-- [Routage des conteneurs d'archives](Routage_des_conteneurs_d'archives.md) (7 shared connections)
-- [Extraction unitypackage](Extraction_unitypackage.md) (7 shared connections)
-- [Écriture de la scène source](Écriture_de_la_scène_source.md) (6 shared connections)
-- [Lecture du format Blender](Lecture_du_format_Blender.md) (6 shared connections)
-- [Exécution des tests dorés](Exécution_des_tests_dorés.md) (6 shared connections)
-- [Erreurs du compilateur et USDZ](Erreurs_du_compilateur_et_USDZ.md) (5 shared connections)
-- [Ressources externes à l'import](Ressources_externes_à_l'import.md) (5 shared connections)
-- [unity · PathBuf](unity_·_PathBuf.md) (5 shared connections)
-- [Import Unity et maillages](Import_Unity_et_maillages.md) (4 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (4 shared connections)
+- [Greffons de scène du compilateur](Greffons_de_scène_du_compilateur.md) (14 shared connections)
+- [unity · Option](unity_·_Option.md) (13 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (3 shared connections)
+- [Erreurs du compilateur et USDZ](Erreurs_du_compilateur_et_USDZ.md) (3 shared connections)
+- [Écriture de la scène source](Écriture_de_la_scène_source.md) (2 shared connections)
+- [Extraction unitypackage](Extraction_unitypackage.md) (2 shared connections)
+- [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
+- [scene · .accepts_head](scene_·_.accepts_head.md) (1 shared connections)
+- [Routage des conteneurs d'archives](Routage_des_conteneurs_d'archives.md) (1 shared connections)
+- [src · Fn](src_·_Fn.md) (1 shared connections)
+- [Verrou CLI et fixtures du compilateur](Verrou_CLI_et_fixtures_du_compilateur.md) (1 shared connections)
+- [alembic · AtomicBool](alembic_·_AtomicBool.md) (1 shared connections)
 
 ## Source Files
 
 - `packages/asset-compiler-rust/src/plugins/scene/archive.rs`
 - `packages/asset-compiler-rust/src/plugins/scene/archive/container.rs`
 - `packages/asset-compiler-rust/src/plugins/scene/archive/zip_reader.rs`
-- `packages/asset-compiler-rust/src/plugins/scene/ma/attr.rs`
 
 ## Audit Trail
 
-- EXTRACTED: 263 (95%)
-- INFERRED: 14 (5%)
+- EXTRACTED: 107 (88%)
+- INFERRED: 14 (12%)
 - AMBIGUOUS: 0 (0%)
 
 ---

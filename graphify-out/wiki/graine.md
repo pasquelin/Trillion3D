@@ -2,7 +2,7 @@
 
 > God node · 58 connections · `packages/sdk-core/bench/socle/mesure.mjs`
 
-**Community:** [bench · geometrie](bench_·_geometrie.md)
+**Community:** [bench · passe](bench_·_passe.md)
 
 ## Connections by Relation
 

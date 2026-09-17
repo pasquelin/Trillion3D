@@ -19,10 +19,10 @@
 
 ## Relationships
 
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (1 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
 - [Greffons et pilotes de scène](Greffons_et_pilotes_de_scène.md) (1 shared connections)
 - [Décodage d'images](Décodage_d'images.md) (1 shared connections)
-- [image · IntoIterator](image_·_IntoIterator.md) (1 shared connections)
+- [Clés et orientation KTX2](Clés_et_orientation_KTX2.md) (1 shared connections)
 
 ## Source Files
 

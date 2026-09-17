@@ -1,10 +1,9 @@
 # unity · PathBuf
 
-> 18 nodes
+> 17 nodes
 
 ## Key Concepts
 
-- **Parts** (14 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/parts.rs`
 - **import()** (13 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/models.rs`
 - **Models** (11 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/models.rs`
 - **models.rs** (9 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/models.rs`
@@ -25,28 +24,23 @@
 
 ## Relationships
 
-- [Verrou CLI et fixtures du compilateur (2)](Verrou_CLI_et_fixtures_du_compilateur_2.md) (5 shared connections)
-- [unity · Fn](unity_·_Fn.md) (5 shared connections)
+- [unity · Option](unity_·_Option.md) (6 shared connections)
+- [unity · Fn](unity_·_Fn.md) (4 shared connections)
 - [unity · .scale](unity_·_.scale.md) (3 shared connections)
-- [unity · Fn (2)](unity_·_Fn_2.md) (3 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (1 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
 - [Routage des conteneurs d'archives](Routage_des_conteneurs_d'archives.md) (1 shared connections)
-- [Validation du compilateur](Validation_du_compilateur.md) (1 shared connections)
+- [src · Fn](src_·_Fn.md) (1 shared connections)
 - [Constructeur YAML Unity](Constructeur_YAML_Unity.md) (1 shared connections)
 - [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
-- [unity · MAX_SCAN_DEPTH](unity_·_MAX_SCAN_DEPTH.md) (1 shared connections)
-- [Références et changements Unity](Références_et_changements_Unity.md) (1 shared connections)
-- [unity · MESH_FILTER](unity_·_MESH_FILTER.md) (1 shared connections)
 
 ## Source Files
 
 - `packages/asset-compiler-rust/src/plugins/scene/unity/models.rs`
-- `packages/asset-compiler-rust/src/plugins/scene/unity/parts.rs`
 
 ## Audit Trail
 
-- EXTRACTED: 57 (95%)
-- INFERRED: 3 (5%)
+- EXTRACTED: 47 (94%)
+- INFERRED: 3 (6%)
 - AMBIGUOUS: 0 (0%)
 
 ---

@@ -1,13 +1,12 @@
 # src · COPLANAR_MAX_LAYER
 
-> 18 nodes
+> 17 nodes
 
 ## Key Concepts
 
 - **src/coplanar.rs** (17 connections) — `packages/asset-compiler-rust/src/coplanar.rs`
 - **CoplanarInputs** (15 connections) — `packages/asset-compiler-rust/src/coplanar.rs`
 - **assign_depth_layers()** (6 connections) — `packages/asset-compiler-rust/src/coplanar.rs`
-- **accessor** (4 connections)
 - **CoplanarResult** (3 connections) — `packages/asset-compiler-rust/src/coplanar.rs`
 - **Result** (3 connections)
 - **Value** (3 connections)
@@ -25,15 +24,14 @@
 
 ## Relationships
 
-- [coplanar · BTreeMap](coplanar_·_BTreeMap.md) (5 shared connections)
-- [Import Unity et maillages](Import_Unity_et_maillages.md) (2 shared connections)
+- [coplanar · Default](coplanar_·_Default.md) (5 shared connections)
 - [coplanar · Result](coplanar_·_Result.md) (2 shared connections)
 - [tests · Surface](tests_·_Surface.md) (2 shared connections)
-- [coplanar · PROGRESS_STEP](coplanar_·_PROGRESS_STEP.md) (2 shared connections)
-- [Validation du compilateur](Validation_du_compilateur.md) (1 shared connections)
-- [bench_calculs · LECTURES](bench_calculs_·_LECTURES.md) (1 shared connections)
-- [emitter · Value](emitter_·_Value.md) (1 shared connections)
-- [oracle · Into](oracle_·_Into.md) (1 shared connections)
+- [coplanar · BTreeMap](coplanar_·_BTreeMap.md) (2 shared connections)
+- [compiler_lights · DERIVED](compiler_lights_·_DERIVED.md) (1 shared connections)
+- [src · Fn](src_·_Fn.md) (1 shared connections)
+- [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
+- [import · Option (2)](import_·_Option_2.md) (1 shared connections)
 
 ## Source Files
 
@@ -41,7 +39,7 @@
 
 ## Audit Trail
 
-- EXTRACTED: 40 (100%)
+- EXTRACTED: 37 (100%)
 - INFERRED: 0 (0%)
 - AMBIGUOUS: 0 (0%)
 

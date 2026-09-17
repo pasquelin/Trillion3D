@@ -1,6 +1,6 @@
 # ma · Default
 
-> 16 nodes
+> 18 nodes
 
 ## Key Concepts
 
@@ -10,11 +10,13 @@
 - **read()** (5 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/document.rs`
 - **.apply()** (4 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/document.rs`
 - **.default()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/document.rs`
+- **leaf()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/document.rs`
 - **Link** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/document.rs`
 - **.attr()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/document.rs`
 - **Option** (3 connections)
 - **String** (3 connections)
 - **.count()** (2 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/document.rs`
+- **.remember()** (2 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/document/path.rs`
 - **Attr** (2 connections)
 - **HashMap** (2 connections)
 - **Default** (1 connections)
@@ -23,20 +25,21 @@
 
 ## Relationships
 
-- [scene · FILE_INVALID](scene_·_FILE_INVALID.md) (1 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (1 shared connections)
-- [document · .remember](document_·_.remember.md) (1 shared connections)
+- [Document](Document.md) (2 shared connections)
+- [scene · .accepts_head](scene_·_.accepts_head.md) (1 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
 - [Rapport et table des textures](Rapport_et_table_des_textures.md) (1 shared connections)
 - [Commandes et document Maya](Commandes_et_document_Maya.md) (1 shared connections)
 
 ## Source Files
 
 - `packages/asset-compiler-rust/src/plugins/scene/ma/document.rs`
+- `packages/asset-compiler-rust/src/plugins/scene/ma/document/path.rs`
 
 ## Audit Trail
 
-- EXTRACTED: 32 (100%)
-- INFERRED: 0 (0%)
+- EXTRACTED: 33 (94%)
+- INFERRED: 2 (6%)
 - AMBIGUOUS: 0 (0%)
 
 ---

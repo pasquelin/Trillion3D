@@ -31,18 +31,18 @@
 
 ## Relationships
 
-- [Bancs de calcul Rust (2)](Bancs_de_calcul_Rust_2.md) (4 shared connections)
 - [Proxy de scène du compilateur](Proxy_de_scène_du_compilateur.md) (3 shared connections)
-- [Import Unity et maillages](Import_Unity_et_maillages.md) (3 shared connections)
-- [bench_calculs · COUNT](bench_calculs_·_COUNT.md) (2 shared connections)
+- [bench_calculs · Bits (5)](bench_calculs_·_Bits_5.md) (3 shared connections)
+- [Import Unity et maillages](Import_Unity_et_maillages.md) (2 shared connections)
+- [Groupes et bissection du DAG](Groupes_et_bissection_du_DAG.md) (2 shared connections)
+- [import · Option (2)](import_·_Option_2.md) (1 shared connections)
 - [bench_calculs · Bits (4)](bench_calculs_·_Bits_4.md) (1 shared connections)
 - [bench_calculs · NEUTRE](bench_calculs_·_NEUTRE.md) (1 shared connections)
+- [Bancs de calcul Rust (2)](Bancs_de_calcul_Rust_2.md) (1 shared connections)
 - [bench_calculs · Bits](bench_calculs_·_Bits.md) (1 shared connections)
 - [dag · Bits](dag_·_Bits.md) (1 shared connections)
 - [src · Bits](src_·_Bits.md) (1 shared connections)
 - [Maths partagées et BVH](Maths_partagées_et_BVH.md) (1 shared connections)
-- [bench_calculs · Bits (2)](bench_calculs_·_Bits_2.md) (1 shared connections)
-- [bench_calculs · Bits (3)](bench_calculs_·_Bits_3.md) (1 shared connections)
 
 ## Source Files
 

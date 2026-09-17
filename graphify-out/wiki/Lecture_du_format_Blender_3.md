@@ -25,11 +25,10 @@
 
 ## Relationships
 
-- [Lecture du format Blender (4)](Lecture_du_format_Blender_4.md) (6 shared connections)
+- [Lecture du format Blender (2)](Lecture_du_format_Blender_2.md) (6 shared connections)
+- [Matrices monde du compilateur](Matrices_monde_du_compilateur.md) (3 shared connections)
 - [usd · AssetPath](usd_·_AssetPath.md) (2 shared connections)
-- [ma · AXES](ma_·_AXES.md) (2 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (1 shared connections)
-- [Matrices monde du compilateur](Matrices_monde_du_compilateur.md) (1 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
 
 ## Source Files
 

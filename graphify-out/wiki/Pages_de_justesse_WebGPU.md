@@ -1,11 +1,12 @@
 # Pages de justesse WebGPU
 
-> 42 nodes
+> 47 nodes
 
 ## Key Concepts
 
 - **dansPageWebgpu()** (18 connections) — `test/justesse/pageWebgpu.mjs`
 - **pageWebgpu.mjs** (18 connections) — `test/justesse/pageWebgpu.mjs`
+- **ref_node_url** (18 connections)
 - **preuvePageMoteur.mjs** (16 connections) — `test/appui/preuvePageMoteur.mjs`
 - **releve-coupe-gpu.mjs** (15 connections) — `test/justesse/releve-coupe-gpu.mjs`
 - **emetteur-sphere-gpu.mjs** (14 connections) — `test/justesse/emetteur-sphere-gpu.mjs`
@@ -15,6 +16,7 @@
 - **camera-parentee-gpu.mjs** (9 connections) — `test/justesse/camera-parentee-gpu.mjs`
 - **requireDuLab()** (8 connections) — `test/justesse/pageWebgpu.mjs`
 - **preuveSaine()** (6 connections) — `test/appui/preuvePageMoteur.mjs`
+- **copy-resources.mjs** (6 connections) — `scripts/copy-resources.mjs`
 - **hiz-rig-camera.browser.mjs** (5 connections) — `test/browser/hiz-rig-camera.browser.mjs`
 - **transparent-transform.browser.mjs** (5 connections) — `test/browser/transparent-transform.browser.mjs`
 - **noyauEtalementGpu.mjs** (5 connections) — `test/justesse/noyauEtalementGpu.mjs`
@@ -24,30 +26,30 @@
 - **image-tenue-couleur.browser.mjs** (4 connections) — `test/browser/image-tenue-couleur.browser.mjs`
 - **transform-parent-perime.browser.mjs** (4 connections) — `test/browser/transform-parent-perime.browser.mjs`
 - **dansLaPage()** (2 connections) — `test/justesse/noyauEtalementGpu.mjs`
+- **SELECTION_LIST_CAP** (2 connections) — `packages/sdk-browser/gpuDagLayout.ts`
 - **mediane()** (1 connections) — `test/justesse/coupe-lancements-gpu.mjs`
 - **au()** (1 connections) — `test/justesse/emetteur-sphere-gpu.mjs`
-- **emetteur()** (1 connections) — `test/justesse/emetteur-sphere-gpu.mjs`
-- **executer()** (1 connections) — `test/justesse/emetteur-sphere-gpu.mjs`
-- **ici** (1 connections) — `test/appui/preuvePageMoteur.mjs`
-- *... and 17 more nodes in this community*
+- *... and 22 more nodes in this community*
 
 ## Relationships
 
+- [Tests navigateur Node](Tests_navigateur_Node.md) (14 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (12 shared connections)
-- [Tests navigateur Node](Tests_navigateur_Node.md) (12 shared connections)
-- [Lancements de coupe et relevé](Lancements_de_coupe_et_relevé.md) (5 shared connections)
-- [Justesse de l'inverse transposée](Justesse_de_l'inverse_transposée.md) (4 shared connections)
-- [Adressage et bouclage des textures (2)](Adressage_et_bouclage_des_textures_2.md) (3 shared connections)
+- [Lancements de coupe et relevé](Lancements_de_coupe_et_relevé.md) (4 shared connections)
+- [justesse · exacts](justesse_·_exacts.md) (3 shared connections)
+- [justesse · ECHELLES](justesse_·_ECHELLES.md) (3 shared connections)
+- [Justesse de l'inverse transposée](Justesse_de_l'inverse_transposée.md) (3 shared connections)
 - [Options et poses du banc](Options_et_poses_du_banc.md) (3 shared connections)
-- [Plan de mélange des transparents](Plan_de_mélange_des_transparents.md) (2 shared connections)
-- [Normale d'éclairage à petite échelle](Normale_d'éclairage_à_petite_échelle.md) (2 shared connections)
-- [Convention de profondeur](Convention_de_profondeur.md) (2 shared connections)
-- [browser · address](browser_·_address.md) (2 shared connections)
+- [Oracle et serveur de mesure](Oracle_et_serveur_de_mesure.md) (3 shared connections)
+- [Ordre des transparents](Ordre_des_transparents.md) (2 shared connections)
 - [Oracle DAG et plancher de coupe](Oracle_DAG_et_plancher_de_coupe.md) (2 shared connections)
-- [Oracle et serveur de mesure](Oracle_et_serveur_de_mesure.md) (2 shared connections)
+- [Arbre monde et lots de maths](Arbre_monde_et_lots_de_maths.md) (2 shared connections)
+- [Mathématiques du tampon de visibilité](Mathématiques_du_tampon_de_visibilité.md) (2 shared connections)
 
 ## Source Files
 
+- `packages/sdk-browser/gpuDagLayout.ts`
+- `scripts/copy-resources.mjs`
 - `test/appui/preuvePageMoteur.mjs`
 - `test/browser/convention-profondeur-moteur-complet.browser.mjs`
 - `test/browser/coupe-gpu-tenue.browser.mjs`
@@ -64,8 +66,8 @@
 
 ## Audit Trail
 
-- EXTRACTED: 124 (98%)
-- INFERRED: 3 (2%)
+- EXTRACTED: 143 (97%)
+- INFERRED: 4 (3%)
 - AMBIGUOUS: 0 (0%)
 
 ---

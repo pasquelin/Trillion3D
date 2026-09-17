@@ -1,10 +1,9 @@
 # Fixtures dorées des pilotes
 
-> 28 nodes
+> 25 nodes
 
 ## Key Concepts
 
-- **Refus nommé** (20 connections) — `packages/asset-compiler-rust/fixtures/bmp/README.md`
 - **Fixture dorée — pilote GIF, une seule image** (15 connections) — `packages/asset-compiler-rust/fixtures/gif/README.md`
 - **Fixture dorée — pilote BMP** (14 connections) — `packages/asset-compiler-rust/fixtures/bmp/README.md`
 - **Fixture dorée — pilote KTX 2.0** (13 connections) — `packages/asset-compiler-rust/fixtures/ktx2/README.md`
@@ -23,21 +22,20 @@
 - **Copier depuis test-assets pour que la dorée n'en dépende pas** (4 connections) — `packages/asset-compiler-rust/fixtures/dds/README.md`
 - **L'encodeur des fixtures ne partage aucune ligne avec le décodeur** (4 connections) — `packages/asset-compiler-rust/fixtures/exr/README.md`
 - **Expansion de profondeur injective** (4 connections) — `packages/asset-compiler-rust/fixtures/bmp/README.md`
-- **image-depth-unsupported** (3 connections) — `packages/asset-compiler-rust/fixtures/tiff/README.md`
 - **Dé-prémultiplication de l'alpha** (3 connections) — `packages/asset-compiler-rust/fixtures/exr/README.md`
 - **Une animation n'est pas une texture** (3 connections) — `packages/asset-compiler-rust/fixtures/gif/README.md`
-- **Refuser avant de décoder** (3 connections) — `packages/asset-compiler-rust/fixtures/png/README.md`
 - **APNG — l'image par défaut sort, l'animation est comptée** (2 connections) — `packages/asset-compiler-rust/fixtures/png/README.md`
 - **Arrondi au plus proche contre troncature du décodeur externe** (2 connections) — `packages/asset-compiler-rust/fixtures/ktx2/README.md`
-- *... and 3 more nodes in this community*
+- **Import PSD limité au composite aplati** (2 connections) — `packages/asset-compiler-rust/fixtures/psd/README.md`
+- **La supercompression n'est qu'un emballage** (2 connections) — `packages/asset-compiler-rust/fixtures/ktx2/README.md`
+- **Socle image::blocks partagé entre pilotes** (1 connections) — `packages/asset-compiler-rust/fixtures/ktx2/README.md`
 
 ## Relationships
 
 - [ma · Fixture blend/limites — licence CC0](ma_·_Fixture_blend-limites_—_licence_CC0.md) (16 shared connections)
-- [Refus nommés et fixtures dorées](Refus_nommés_et_fixtures_dorées.md) (8 shared connections)
-- [Fixtures de correction zip](Fixtures_de_correction_zip.md) (3 shared connections)
-- [Banc de mesure commun](Banc_de_mesure_commun.md) (2 shared connections)
+- [Refus nommés et fixtures dorées](Refus_nommés_et_fixtures_dorées.md) (14 shared connections)
 - [classes-materiaux · Scènes de mesure — les classes de matériau](classes-materiaux_·_Scènes_de_mesure_—_les_classes_de_matériau.md) (1 shared connections)
+- [Banc de mesure commun (2)](Banc_de_mesure_commun_2.md) (1 shared connections)
 
 ## Source Files
 
@@ -50,13 +48,12 @@
 - `packages/asset-compiler-rust/fixtures/obj/README.md`
 - `packages/asset-compiler-rust/fixtures/png/README.md`
 - `packages/asset-compiler-rust/fixtures/psd/README.md`
-- `packages/asset-compiler-rust/fixtures/tiff/README.md`
 
 ## Audit Trail
 
-- EXTRACTED: 106 (87%)
-- INFERRED: 12 (10%)
-- AMBIGUOUS: 4 (3%)
+- EXTRACTED: 99 (90%)
+- INFERRED: 7 (6%)
+- AMBIGUOUS: 4 (4%)
 
 ---
 

@@ -33,7 +33,7 @@
 
 ## Relationships
 
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (2 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (2 shared connections)
 - [Registre des images de test](Registre_des_images_de_test.md) (1 shared connections)
 - [dag · Bits](dag_·_Bits.md) (1 shared connections)
 

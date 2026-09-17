@@ -1,9 +1,10 @@
 # Refus nommés et fixtures dorées
 
-> 21 nodes
+> 24 nodes
 
 ## Key Concepts
 
+- **Refus nommé** (20 connections) — `packages/asset-compiler-rust/fixtures/bmp/README.md`
 - **Fixture dorée — pilote TIFF** (14 connections) — `packages/asset-compiler-rust/fixtures/tiff/README.md`
 - **Fixture dorée — pilote WebP, sans perte uniquement** (13 connections) — `packages/asset-compiler-rust/fixtures/webp/README.md`
 - **Fixture dorée — pilote TGA** (10 connections) — `packages/asset-compiler-rust/fixtures/tga/README.md`
@@ -11,8 +12,10 @@
 - **Pillow 12.2.0 (décodeur/encodeur indépendant)** (5 connections) — `packages/asset-compiler-rust/fixtures/tiff/README.md`
 - **Double lecture par un décodeur indépendant** (5 connections) — `packages/asset-compiler-rust/fixtures/tiff/README.md`
 - **image-decode-failed** (3 connections) — `packages/asset-compiler-rust/fixtures/tiff/README.md`
+- **image-depth-unsupported** (3 connections) — `packages/asset-compiler-rust/fixtures/tiff/README.md`
 - **test-assets/tools/texture_assets.py** (3 connections) — `packages/asset-compiler-rust/fixtures/tiff/README.md`
 - **Politique d'import WebP : sans perte uniquement** (3 connections) — `packages/asset-compiler-rust/fixtures/webp/README.md`
+- **Refuser avant de décoder** (3 connections) — `packages/asset-compiler-rust/fixtures/png/README.md`
 - **image-animation-unsupported** (2 connections) — `packages/asset-compiler-rust/fixtures/webp/README.md`
 - **image-lossy-unsupported** (2 connections) — `packages/asset-compiler-rust/fixtures/webp/README.md`
 - **image-profile-unsupported** (2 connections) — `packages/asset-compiler-rust/fixtures/tiff/README.md`
@@ -28,11 +31,14 @@
 
 ## Relationships
 
-- [Fixtures de correction zip](Fixtures_de_correction_zip.md) (9 shared connections)
-- [Fixtures dorées des pilotes](Fixtures_dorées_des_pilotes.md) (8 shared connections)
+- [Fixtures dorées des pilotes](Fixtures_dorées_des_pilotes.md) (14 shared connections)
+- [Fixtures de correction zip](Fixtures_de_correction_zip.md) (12 shared connections)
+- [Banc de mesure commun (2)](Banc_de_mesure_commun_2.md) (1 shared connections)
 
 ## Source Files
 
+- `packages/asset-compiler-rust/fixtures/bmp/README.md`
+- `packages/asset-compiler-rust/fixtures/png/README.md`
 - `packages/asset-compiler-rust/fixtures/tga/README.md`
 - `packages/asset-compiler-rust/fixtures/tiff/README.md`
 - `packages/asset-compiler-rust/fixtures/unitypackage/README.md`
@@ -40,8 +46,8 @@
 
 ## Audit Trail
 
-- EXTRACTED: 47 (94%)
-- INFERRED: 3 (6%)
+- EXTRACTED: 60 (88%)
+- INFERRED: 8 (12%)
 - AMBIGUOUS: 0 (0%)
 
 ---

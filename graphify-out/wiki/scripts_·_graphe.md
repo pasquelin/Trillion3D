@@ -20,8 +20,8 @@
 ## Relationships
 
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (2 shared connections)
-- [sdk-browser · WriteRecord](sdk-browser_·_WriteRecord.md) (2 shared connections)
-- [Socle du banc sdk-core](Socle_du_banc_sdk-core.md) (1 shared connections)
+- [Atlas de textures WebGPU](Atlas_de_textures_WebGPU.md) (2 shared connections)
+- [Arbre monde et lots de maths](Arbre_monde_et_lots_de_maths.md) (1 shared connections)
 - [Tests navigateur Node](Tests_navigateur_Node.md) (1 shared connections)
 
 ## Source Files

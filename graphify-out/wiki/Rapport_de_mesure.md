@@ -31,17 +31,16 @@
 
 ## Relationships
 
-- [Oracle et serveur de mesure](Oracle_et_serveur_de_mesure.md) (8 shared connections)
+- [Oracle et serveur de mesure](Oracle_et_serveur_de_mesure.md) (5 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (5 shared connections)
-- [API et session de l'explorateur (2)](API_et_session_de_l'explorateur_2.md) (2 shared connections)
-- [Contrat backend et dessin](Contrat_backend_et_dessin.md) (1 shared connections)
-- [sdk-browser · CpuStepSummary](sdk-browser_·_CpuStepSummary.md) (1 shared connections)
-- [sdk-browser · graphe](sdk-browser_·_graphe.md) (1 shared connections)
+- [Tests navigateur Node](Tests_navigateur_Node.md) (4 shared connections)
+- [Coût CPU et image tenue](Coût_CPU_et_image_tenue.md) (2 shared connections)
+- [Télémétrie et métriques](Télémétrie_et_métriques.md) (2 shared connections)
+- [sdk-browser · flush](sdk-browser_·_flush.md) (1 shared connections)
 - [Pages de justesse WebGPU](Pages_de_justesse_WebGPU.md) (1 shared connections)
-- [sdk-browser · DeferredBindings](sdk-browser_·_DeferredBindings.md) (1 shared connections)
-- [Tests navigateur Node](Tests_navigateur_Node.md) (1 shared connections)
+- [sdk-browser · LayoutEntries](sdk-browser_·_LayoutEntries.md) (1 shared connections)
 - [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (1 shared connections)
-- [Caméra monde et contrat](Caméra_monde_et_contrat.md) (1 shared connections)
+- [justesse · Pose](justesse_·_Pose.md) (1 shared connections)
 
 ## Source Files
 

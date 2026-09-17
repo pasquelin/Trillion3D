@@ -33,12 +33,10 @@
 
 ## Relationships
 
-- [Refus nommés et fixtures dorées](Refus_nommés_et_fixtures_dorées.md) (9 shared connections)
-- [Exécution des tests dorés](Exécution_des_tests_dorés.md) (3 shared connections)
-- [Fixtures dorées des pilotes](Fixtures_dorées_des_pilotes.md) (3 shared connections)
+- [Refus nommés et fixtures dorées](Refus_nommés_et_fixtures_dorées.md) (12 shared connections)
+- [Tests dorés du compilateur](Tests_dorés_du_compilateur.md) (4 shared connections)
 - [Pilote USD et fidélité](Pilote_USD_et_fidélité.md) (3 shared connections)
-- [Banc de mesure commun](Banc_de_mesure_commun.md) (2 shared connections)
-- [Tests dorés du compilateur](Tests_dorés_du_compilateur.md) (1 shared connections)
+- [Banc de mesure commun (2)](Banc_de_mesure_commun_2.md) (2 shared connections)
 
 ## Source Files
 
