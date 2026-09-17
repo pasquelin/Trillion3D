@@ -18,7 +18,12 @@ import { packDagSelection, packedWorldsToRenderOrigin } from '../../gpuDagPack.t
 import * as THREE from 'three';
 import { cameraSelectionUniforms, SELECTION_UNIFORM_BYTES } from '../../gpuSelection.ts';
 import { writeDagUniforms } from '../../gpuDagUniforms.ts';
-import { dagRecords, residentBase, residentWords } from '../../gpuDagLayout.ts';
+import {
+  dagRecords,
+  residentBase,
+  residentWords,
+  SELECTION_HEADER_WORDS,
+} from '../../gpuDagLayout.ts';
 import { DAG_SELECTION_SHADER } from '../../gpuDagShader.ts';
 import { DAG_LEVEL_WGSL } from '../../gpuDagLevelWgsl.ts';
 import { cameraMoteur } from '../../cameraFixture.ts';
@@ -95,8 +100,9 @@ export async function executer({ feuilles, niveaux, profondeurs, tours, rondes, 
     const ints = new Uint32Array(lecture.getMappedRange().slice(0));
     lecture.unmap();
     const tete = livre.outputBytes / 4;
+    const entete = SELECTION_HEADER_WORDS;
     const liste = (at) =>
-      Array.from(ints.subarray(at + 4, at + 4 + Math.min(ints[at], packed.pageCount)));
+      Array.from(ints.subarray(at + entete, at + entete + Math.min(ints[at], packed.pageCount)));
     return {
       pages: liste(0).sort((a, b) => a - b),
       dessinees: liste(tete),

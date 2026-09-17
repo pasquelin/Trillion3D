@@ -1,3 +1,5 @@
+import { SELECTION_HEADER_WORDS } from './gpuDagLayout.ts';
+
 /**
  * Compaction de la liste des pages dessinables, faite par la carte graphique.
  *
@@ -18,10 +20,11 @@
  *
  * Aucun tampon neuf : le plafond d'une étape est de huit tampons de stockage, déjà atteint. Les
  * comptes et décalages de bloc vivent derrière les seuils de `work`, la liste derrière les pages
- * voulues de `out` — un compte, trois mots de calage, puis les rangs — si bien que le relevé reste
+ * voulues de `out` — un compte, sept mots de calage, puis les rangs — si bien que le relevé reste
  * une seule copie contiguë.
  */
 export const DAG_COMPACT_WGSL = `const BLOCK:u32=64u;
+const HEAD:u32=${SELECTION_HEADER_WORDS}u;
 fn drawFlag(i:u32)->u32{return flags[uni.nodeCount+i];}
 fn blockCount()->u32{return (uni.clusterCount+BLOCK-1u)/BLOCK;}
 /** Premier mot de la zone des blocs dans \`work\`, après les seuils et les drapeaux de couverture. */
@@ -57,6 +60,6 @@ fn dagDrawScatter(@builtin(global_invocation_id) id:vec3u){
  for(var j=begin;j<i;j++){rank=rank+drawFlag(j);}
  let off=atomicLoad(&work[blockBase()+blockCount()+b]);
  let at=off+rank;if(at>=uni.listCap){atomicOr(&out.overflow,1u);return;}
- out.pages[uni.listCap+4u+at]=i;
+ out.pages[uni.listCap+HEAD+at]=i;
 }
 `;

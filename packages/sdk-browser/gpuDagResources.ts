@@ -4,7 +4,7 @@ import { FRAME_VEC4, type PackedDag } from './gpuDagTypes.ts';
 import { createDagPipeline } from './gpuDagPipeline.ts';
 import { LEVEL_QUEUES } from './gpuDagLevelWgsl.ts';
 import { dagWorkLayout } from './gpuDagFloorWgsl.ts';
-import { selectionListCap } from './gpuDagLayout.ts';
+import { SELECTION_HEADER_WORDS, selectionListCap } from './gpuDagLayout.ts';
 
 export async function createDagResources(
   device: GPUDevice,
@@ -16,13 +16,13 @@ export async function createDagResources(
   const pageCount = packed.pageCount,
     nodeCount = packed.nodeCount,
     worldCount = Math.max(1, packed.worldCount);
-  // La liste compactée des pages dessinables prolonge le relevé : un compte, trois mots de calage,
-  // puis les rangs. Une seule copie contiguë rapporte les deux. Chacune est bornée par le PLAFOND
+  // La liste compactée des pages dessinables prolonge le relevé : un entête, puis les rangs. Une seule copie contiguë rapporte les deux. Chacune est bornée par le PLAFOND
   // et non par le catalogue : c'est ce que l'image recopie et mappe, et le pire cas n'arrive jamais
   // (`gpuDagLayout.ts`, mesuré par `bench/justesse/releve-coupe-gpu.mjs`).
   const listCap = selectionListCap(pageCount),
-    outputBytes = 16 + listCap * 4,
-    drawnBytes = 16 + listCap * 4,
+    headBytes = SELECTION_HEADER_WORDS * 4,
+    outputBytes = headBytes + listCap * 4,
+    drawnBytes = headBytes + listCap * 4,
     // Le même compte de blocs que `blockCount()` du noyau, au mot près : deux compteurs vivent
     // derrière eux dans `work` et le second est recopié vers l'argument de répartition.
     blockCount = Math.ceil(pageCount / SELECTION_WORKGROUP),

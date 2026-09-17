@@ -21,17 +21,27 @@
 /** Mots de l'enregistrement chaud ; le nuanceur déclare `struct Cluster` avec exactement ces champs. */
 export const CLUSTER_WORDS = 12;
 /** Mots de l'enregistrement froid ; `PAGE_CONE_FLOATS` de `gpuSelection.ts` en est le miroir public. */
-const COLD_WORDS = 12;
+const COLD_WORDS = 13;
 export const CLUSTER_ROOT = 1,
-  CLUSTER_NEVER = 2;
+  CLUSTER_NEVER = 2,
+  /** La grappe est en mélange : sa part des triangles est comptée à part, comme sur le processeur. */
+  CLUSTER_TRANSPARENT = 4;
 /** Le niveau de détail voyage dans les bits hauts des drapeaux : une seule passe le lit, à l'émission. */
 export const CLUSTER_LEVEL_SHIFT = 8;
 const CLUSTER_LEVEL_MAX = 0xffffff;
 
-export function packClusterFlags(root: boolean, never: boolean, level: number) {
+export function packClusterFlags(
+  root: boolean,
+  never: boolean,
+  level: number,
+  transparent = false,
+) {
   const bounded = Math.min(Math.max(Math.trunc(level) || 0, 0), CLUSTER_LEVEL_MAX);
   return (
-    ((root ? CLUSTER_ROOT : 0) | (never ? CLUSTER_NEVER : 0) | (bounded << CLUSTER_LEVEL_SHIFT)) >>>
+    ((root ? CLUSTER_ROOT : 0) |
+      (never ? CLUSTER_NEVER : 0) |
+      (transparent ? CLUSTER_TRANSPARENT : 0) |
+      (bounded << CLUSTER_LEVEL_SHIFT)) >>>
     0
   );
 }
@@ -57,6 +67,28 @@ export const SELECTION_LIST_CAP = 262144;
 export const selectionListCap = (pageCount: number) =>
   Math.min(Math.max(0, pageCount), SELECTION_LIST_CAP);
 
+/**
+ * L'entête du relevé, en mots, devant chacune de ses deux moitiés.
+ *
+ * Les quatre premiers sont ceux de toujours — le compte, le rejet par le tronc, le niveau atteint,
+ * les drapeaux. Les quatre suivants portent les TOTAUX DE TRIANGLES, que le processeur sommait
+ * jusqu'ici en parcourant la différence de coupe (`webgpuCutCounts.ts`). Ils sont tenus par les
+ * noyaux, là où le verdict est prononcé : `dagWanted` sait ce que la coupe retient, `dagMask` sait
+ * ce qui part au dessin et ce qui manque. Leur relation reste `selected − drawn − uncovered = 0`.
+ *
+ * C'est la condition pour que le relevé cesse un jour de porter des LISTES : un total tenu par la
+ * carte survit à la disparition de la liste dont il était somme.
+ */
+export const SELECTION_HEADER_WORDS = 8;
+export const OUT_COUNT = 0,
+  OUT_FRUSTUM_REJECTED = 1,
+  OUT_LOD_LEVEL = 2,
+  OUT_FLAGS = 3,
+  OUT_SELECTED_TRIANGLES = 4,
+  OUT_TRANSPARENT_TRIANGLES = 5,
+  OUT_DRAWN_TRIANGLES = 6,
+  OUT_UNCOVERED_TRIANGLES = 7;
+
 /** Premier mot de la résidence, derrière l'enregistrement froid de toutes les grappes. */
 export const residentBase = (pageCount: number) => pageCount * COLD_WORDS;
 /** Mots de résidence : un bit par grappe, trente-deux grappes par mot. */
@@ -76,7 +108,9 @@ export const COLD_CONE = 0,
   COLD_MIN = 4,
   COLD_HAS_BOX = 7,
   COLD_MAX = 8,
-  COLD_OWNER = 11;
+  COLD_OWNER = 11,
+  /** Les triangles de la grappe, lus au mot ENTIER : ce sont eux que les totaux accumulent. */
+  COLD_TRIANGLES = 12;
 
 /**
  * Les quatre vues d'un rangement : le décodeur unique que l'oracle et le double de tampon partagent.
@@ -106,6 +140,9 @@ export const flagsOf = (r: DagRecords, i: number) => r.hotInts[i * CLUSTER_WORDS
 /** Le nœud de coupe qui possède la page : au froid, car seul l'oracle rejoue la descente. */
 export const ownerOf = (r: DagRecords, i: number) => r.coldInts[i * COLD_WORDS + COLD_OWNER];
 export const hasBoxOf = (r: DagRecords, i: number) => r.cold[i * COLD_WORDS + COLD_HAS_BOX];
+/** Les triangles de la grappe, au mot entier : `trianglesOf` du nuanceur en est le miroir. */
+export const trianglesOf = (r: DagRecords, i: number) =>
+  r.coldInts[i * COLD_WORDS + COLD_TRIANGLES];
 /** `at` vaut 0 pour la bande de la grappe, 1 pour celle de son parent : mêmes couples qu'au nuanceur. */
 export const bandError = (r: DagRecords, i: number, at: number) =>
   r.hot[i * CLUSTER_WORDS + (at === 0 ? HOT_LOD_ERROR : HOT_PARENT_ERROR)];
