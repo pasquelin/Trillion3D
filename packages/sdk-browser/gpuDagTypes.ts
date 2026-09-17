@@ -31,9 +31,9 @@ export type PackedDag = {
   worldStretch: Float32Array;
   /** Le nœud racine de chaque primitive, d'où part la descente par niveaux ; `SELECTION_NONE` sans. */
   rootNodes: Uint32Array;
-  /** Profondeur de la hiérarchie la plus profonde : le nombre de passes de la descente. */
-  levelCount: number;
-  /** Nœuds de chaque étage, toutes primitives confondues : le majorant de la file de chaque passe. */
+  /** Nœuds de chaque étage, toutes primitives confondues : le majorant de la file de chaque passe.
+   *  Sa LONGUEUR est la profondeur de la hiérarchie la plus profonde, donc le nombre de passes de la
+   *  descente ; un second champ pour la redire ne serait qu'un état à tenir d'accord. */
   levelSizes: Uint32Array;
   nodeCount: number;
   worldCount: number;

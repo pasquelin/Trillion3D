@@ -2,6 +2,7 @@ import { dropValidation } from './gpuErrorScope.ts';
 import { SELECTION_UNIFORM_BYTES as UNIFORM_BYTES, SELECTION_WORKGROUP } from './gpuSelection.ts';
 import { FRAME_VEC4, type PackedDag } from './gpuDagTypes.ts';
 import { createDagPipeline } from './gpuDagPipeline.ts';
+import { LEVEL_QUEUES } from './gpuDagLevelWgsl.ts';
 
 export async function createDagResources(
   device: GPUDevice,
@@ -54,9 +55,9 @@ export async function createDagResources(
     // La file 0 de la descente, puis les drapeaux de dessin, puis le rejet par cone retenu par
     // `dagWanted` pour les quatre passes qui le relisent, puis la liste des grappes vivantes, puis la
     // liste des candidates — qui sert aussi de journal des dessinées de l'image précédente —, puis
-    // les files 1 et 2 : jamais lus par le CPU, qui ne copie toujours que les drapeaux de dessin.
+    // les files qui restent : jamais lus par le CPU, qui ne copie toujours que les drapeaux de dessin.
     const flags = device.createBuffer({
-      size: Math.max(16, (nodeCount * 3 + pageCount * 4) * 4),
+      size: Math.max(16, (nodeCount * LEVEL_QUEUES + pageCount * 4) * 4),
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
     // Trois mots d'argument, dont les deux derniers valent un une fois pour toutes : seul le premier
@@ -70,10 +71,10 @@ export async function createDagResources(
       size: readbackBytes,
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
-    // Les seuils et drapeaux de couverture par primitive, les comptes et décalages de bloc de la
-    // compaction, puis le compteur des grappes vivantes et celui de leurs groupes de travail :
-    // aucun tampon de stockage de plus, le plafond d'une étape est déjà atteint. Ce dernier mot part
-    // vers l'argument de répartition, d'où la source de copie.
+    // La disposition est celle décrite plus haut, `workBase` comprise : c'est le seul endroit qui la
+    // pose, et `gpuDagLevelWgsl.ts` la relit au mot près depuis le nuanceur. Aucun tampon de stockage
+    // de plus, le plafond d'une étape est déjà atteint ; les mots d'armement partent vers l'argument
+    // de répartition, d'où la source de copie.
     const work = device.createBuffer({
       size: Math.max(8, (workBase + 9) * 4),
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
@@ -150,7 +151,6 @@ export async function createDagResources(
       blockCount,
       outputBytes,
       readbackBytes,
-      levelCount: packed.levelCount,
       levelSizes: packed.levelSizes,
       liveGroupsOffset,
       candGroupsOffset,

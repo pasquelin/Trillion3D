@@ -68,25 +68,17 @@ export function encodeurTemoin() {
   return { encoder, lancements, copies, passes };
 }
 
-const PIPELINES = [
-  'prepare',
-  'clearDrawn',
-  'wanted',
-  'escalate',
-  'check',
-  'mask',
-  'drawPrefix',
-  'drawScatter',
-] as const;
+/** Une étape nommée comme le témoin la verra passer : `gpuDagEncode.ts` déstructure ces champs par
+ *  leur nom, et les écrire ici les rend cherchables depuis lui. */
+const etape = (entryPoint: string) => ({ entryPoint });
 
 export function ressources(residentCut: boolean, levelCount = 3, pageCount = 4096) {
-  const base = {
+  return {
     residentCut,
     pageCount,
     nodeCount: 64,
     worldCount: 2,
     blockCount: 64,
-    levelCount,
     levelSizes: Uint32Array.from(ETAGES.slice(0, levelCount)),
     liveGroupsOffset: LIVE,
     candGroupsOffset: CAND,
@@ -94,15 +86,14 @@ export function ressources(residentCut: boolean, levelCount = 3, pageCount = 409
     work: { nom: 'work' },
     dispatchArgs: { nom: 'dispatchArgs' },
     bindGroup: {},
-    levelPipelines: [
-      { entryPoint: 'dagLevel0' },
-      { entryPoint: 'dagLevel1' },
-      { entryPoint: 'dagLevel2' },
-    ],
-  };
-  for (const nom of PIPELINES)
-    Object.assign(base, {
-      [`${nom}Pipeline`]: { entryPoint: `dag${nom[0].toUpperCase()}${nom.slice(1)}` },
-    });
-  return base as unknown as Parameters<typeof encodeDagKernels>[1];
+    levelPipelines: [etape('dagLevel0'), etape('dagLevel1'), etape('dagLevel2')],
+    preparePipeline: etape('dagPrepare'),
+    clearDrawnPipeline: etape('dagClearDrawn'),
+    wantedPipeline: etape('dagWanted'),
+    escalatePipeline: etape('dagEscalate'),
+    checkPipeline: etape('dagCheck'),
+    maskPipeline: etape('dagMask'),
+    drawPrefixPipeline: etape('dagDrawPrefix'),
+    drawScatterPipeline: etape('dagDrawScatter'),
+  } as unknown as Parameters<typeof encodeDagKernels>[1];
 }
