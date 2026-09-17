@@ -34,21 +34,27 @@ const MAX_SIDES = 2;
  * ceder si la liste etendue devient trop longue.
  */
 function sceneVertexShift(items: readonly BlendGpuItem[], paged: number, capacity: number) {
+  // Seules les primitives NON paginees dependent du pas : leurs longueurs sont ramassees une fois,
+  // et la capacite se recalcule sur cette seule liste quand le pas cede.
+  const libres: number[] = [];
   let longest = paged;
-  for (const item of items) if (!item.paged) longest = Math.max(longest, item.count);
+  for (const item of items)
+    if (!item.paged) {
+      libres.push(item.count);
+      longest = Math.max(longest, item.count);
+    }
   const floor = blendVertexShift(paged);
   let shift = blendVertexShift(longest);
-  while (shift > floor && instanceCapacity(items, shift, capacity) * 2 ** shift > 0xffffffff)
+  while (shift > floor && instanceCapacity(libres, shift, capacity) * 2 ** shift > 0xffffffff)
     shift--;
   return shift;
 }
 
 /** Les instances que la scene peut etaler au plus : la table paginee, plus les morceaux des autres,
  *  et le tout deux fois — un materiau double face porte deux entrees de plan. */
-function instanceCapacity(items: readonly BlendGpuItem[], shift: number, capacity: number) {
+function instanceCapacity(libres: readonly number[], shift: number, capacity: number) {
   let total = capacity;
-  for (const item of items)
-    if (!item.paged) total += Math.ceil(item.count / blendChunkWords(shift, item.count));
+  for (const count of libres) total += Math.ceil(count / blendChunkWords(shift, count));
   return total * MAX_SIDES;
 }
 
@@ -96,8 +102,7 @@ export function buildBlendStatics(blendState: BlendState) {
   const entries = Math.max(1, items.length) * MAX_SIDES;
   blendState.maxPlanEntries = entries;
   blendState.planRegions = planRegions(entries);
-  blendState.runsBlend = new Uint32Array(entries * RUN_WORDS);
-  blendState.runsTransmission = new Uint32Array(entries * RUN_WORDS);
+  blendState.runs = [new Uint32Array(entries * RUN_WORDS), new Uint32Array(entries * RUN_WORDS)];
 }
 
 /** Les deux entrees de plan d'un item double face, dans l'ordre que la passe encodait : dos, face. */
@@ -142,14 +147,12 @@ export function refreshBlendPlan(blendState: BlendState) {
       else blendTriangles += item.count / 3;
     }
   }
-  blendState.transmissionBase = room[0];
+  blendState.instanceBase[1] = room[0];
   blendState.instanceCapacity = Math.max(1, room[0] + room[1]);
-  blendState.planBlend = Uint32Array.from(blend);
-  blendState.planTransmission = Uint32Array.from(transmission);
+  blendState.plans = [Uint32Array.from(blend), Uint32Array.from(transmission)];
   // L'ordre de peinture repart de l'ordre source : c'est la seule fois qu'il est semé, et le
   // classement par image le reprend ensuite sur place, sans jamais rallouer.
-  blendState.orderBlend = blendState.planBlend.slice();
-  blendState.orderTransmission = blendState.planTransmission.slice();
+  blendState.orders = [blendState.plans[0].slice(), blendState.plans[1].slice()];
   blendState.orderMoved[0] = true;
   blendState.orderMoved[1] = true;
   blendState.blendTriangles = blendTriangles;

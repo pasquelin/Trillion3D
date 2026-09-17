@@ -1,48 +1,95 @@
-import { BLEND_EXPAND_SHADER } from './webgpuBlendExpandWgsl.ts';
+import {
+  BLEND_EXPAND_ENTRIES,
+  BLEND_EXPAND_SHADER,
+  blendExpandDispatch,
+  STORAGE_TYPES,
+} from './webgpuBlendExpandWgsl.ts';
 import { shaderFailed } from './gpuShaderModule.ts';
 import { openValidation, validationError } from './gpuErrorScope.ts';
 import { cleanupFailedHiz } from './gpuHizPipelines.ts';
-import {
-  blendExpandUniform,
-  EXPAND_GROUP,
-  EXPAND_PASSES,
-  RUN_WORDS,
-  UNI_WORDS,
-} from './webgpuBlendRuns.ts';
+import { blendExpandUniform, EXPAND_PASSES, RUN_WORDS, UNI_WORDS } from './webgpuBlendRuns.ts';
 
-export type BlendExpand = NonNullable<Awaited<ReturnType<typeof createBlendExpand>>>;
+export type BlendExpand = ReturnType<typeof expandApi>;
 
 /** Chaque passe a sa région d'uniforme, à son propre alignement de liaison dynamique. */
 const UNI_STRIDE = 256;
-/** Les huit tampons de stockage du noyau, dans l'ordre des rangs que le nuanceur déclare. */
-export const STORAGE_TYPES: GPUBufferBindingType[] = [
-  'read-only-storage',
-  'read-only-storage',
-  'read-only-storage',
-  'read-only-storage',
-  'read-only-storage',
-  'storage',
-  'storage',
-  'storage',
-];
-
 /**
- * Les quatre lancements du noyau : un groupe de fils par paquet d'entrées, UN seul pour la somme
- * courante sur les paquets, un fil par entrée, un fil par tranche. Écrits une fois pour l'encodage
- * de production et pour la preuve « carte = modèle » qui rejoue le noyau.
+ * L'OBJET DE SCÈNE DU NOYAU : ce qu'il tient par image, et rien de la fabrique qui l'a monté.
+ *
+ * Écrit à part de `createBlendExpand` exprès : des fermetures rendues depuis la fabrique
+ * retiendraient son module compilé, ses dispositions et ses fermetures de repli, dont aucune ne
+ * sert après la création.
  */
-/** Les quatre points d'entrée du noyau, dans l'ordre où ils s'enchaînent. */
-export const BLEND_EXPAND_ENTRIES = [
-  'countBlendGroups',
-  'scanBlendGroups',
-  'placeBlendEntries',
-  'writeBlendRuns',
-];
-
-export const blendExpandDispatch = (entries: number, runs: number) => {
-  const groups = Math.ceil(Math.max(1, entries) / EXPAND_GROUP);
-  return [groups, 1, groups, Math.ceil(Math.max(1, runs) / EXPAND_GROUP)];
-};
+function expandApi(
+  device: GPUDevice,
+  tampons: { uniforms: GPUBuffer; plan: GPUBuffer; keep: GPUBuffer; draws: GPUBuffer },
+  bindGroup: GPUBindGroup,
+  pipelines: GPUComputePipeline[],
+  items: number,
+  made: GPUBuffer[],
+) {
+  const { uniforms, plan, keep, draws } = tampons;
+  const uni = new Uint32Array(UNI_WORDS);
+  // Les deux tableaux que l'encodage relit sur place : un décalage dynamique, quatre lancements.
+  const offsets = [0],
+    lancements = [0, 0, 0, 0];
+  return {
+    /** La description statique de chaque item : rang paginé, morceaux, base de table, sommets. */
+    uploadDraws(packed: Uint32Array) {
+      device.queue.writeBuffer(
+        draws,
+        0,
+        packed.buffer as ArrayBuffer,
+        packed.byteOffset,
+        items * 16,
+      );
+    },
+    /** Le verdict du tronc de l'image : un bit par item, quelques centaines d'octets. */
+    uploadKeep(packed: Uint32Array) {
+      device.queue.writeBuffer(keep, 0, packed.buffer as ArrayBuffer, packed.byteOffset);
+    },
+    /** L'ordre de peinture et ses tranches, écrits seulement quand le classement les a bougés —
+     *  et seulement les tranches que l'image porte, qui sont quelques-unes, pas quelques mille. */
+    uploadPlan(
+      region: { order: number; runs: number },
+      order: Uint32Array,
+      runs: Uint32Array,
+      runCount: number,
+    ) {
+      if (!order.length) return;
+      const ecris = (at: number, source: Uint32Array, octets: number) =>
+        device.queue.writeBuffer(
+          plan,
+          at * 4,
+          source.buffer as ArrayBuffer,
+          source.byteOffset,
+          octets,
+        );
+      ecris(region.order, order, order.byteLength);
+      ecris(region.runs, runs, Math.max(1, runCount) * RUN_WORDS * 4);
+    },
+    encode(
+      encoder: GPUComputePassEncoder,
+      pass: number,
+      region: { order: number; runs: number; args: number },
+      counts: { entries: number; runs: number; instanceBase: number },
+      scene: { maxVertexWords: number; vertexShift: number },
+    ) {
+      blendExpandUniform(uni, counts, region, scene);
+      device.queue.writeBuffer(uniforms, pass * UNI_STRIDE, uni);
+      offsets[0] = pass * UNI_STRIDE;
+      encoder.setBindGroup(0, bindGroup, offsets);
+      blendExpandDispatch(lancements, counts.entries, counts.runs);
+      for (let step = 0; step < pipelines.length; step++) {
+        encoder.setPipeline(pipelines[step]);
+        encoder.dispatchWorkgroups(lancements[step]);
+      }
+    },
+    dispose() {
+      for (const buffer of made) buffer.destroy();
+    },
+  };
+}
 
 /**
  * Le noyau qui étale le plan trié, et les tampons de scène qu'il lit.
@@ -120,68 +167,14 @@ export async function createBlendExpand(
       ],
     });
     if (await validationError(device)) return bail();
-    const uni = new Uint32Array(UNI_WORDS);
-    const offsets = [0];
-    return {
-      /** La description statique de chaque item : rang paginé, morceaux, base de table, sommets. */
-      uploadDraws(packed: Uint32Array) {
-        device.queue.writeBuffer(
-          draws,
-          0,
-          packed.buffer as ArrayBuffer,
-          packed.byteOffset,
-          sizes.items * 16,
-        );
-      },
-      /** Le verdict du tronc de l'image : un bit par item, quelques centaines d'octets. */
-      uploadKeep(packed: Uint32Array) {
-        device.queue.writeBuffer(keep, 0, packed.buffer as ArrayBuffer, packed.byteOffset);
-      },
-      /** L'ordre de peinture et ses tranches, écrits seulement quand le classement les a bougés —
-       *  et seulement les tranches que l'image porte, qui sont quelques-unes, pas quelques mille. */
-      uploadPlan(
-        region: { order: number; runs: number },
-        order: Uint32Array,
-        runs: Uint32Array,
-        runCount: number,
-      ) {
-        if (!order.length) return;
-        device.queue.writeBuffer(
-          plan,
-          region.order * 4,
-          order.buffer as ArrayBuffer,
-          order.byteOffset,
-          order.byteLength,
-        );
-        device.queue.writeBuffer(
-          plan,
-          region.runs * 4,
-          runs.buffer as ArrayBuffer,
-          runs.byteOffset,
-          Math.max(1, runCount) * RUN_WORDS * 4,
-        );
-      },
-      encode(
-        encoder: GPUComputePassEncoder,
-        pass: number,
-        region: { order: number; runs: number; args: number },
-        counts: { entries: number; runs: number; instanceBase: number },
-        scene: { maxVertexWords: number; vertexShift: number },
-      ) {
-        blendExpandUniform(uni, counts, region, scene);
-        device.queue.writeBuffer(uniforms, pass * UNI_STRIDE, uni);
-        offsets[0] = pass * UNI_STRIDE;
-        encoder.setBindGroup(0, bindGroup, offsets);
-        const lancements = blendExpandDispatch(counts.entries, counts.runs);
-        for (let step = 0; step < pipelines.length; step++) {
-          encoder.setPipeline(pipelines[step]);
-          encoder.dispatchWorkgroups(lancements[step]);
-        }
-      },
-      dispose() {
-        for (const buffer of made) buffer.destroy();
-      },
-    };
+    return expandApi(
+      device,
+      { uniforms, plan, keep, draws },
+      bindGroup,
+      pipelines,
+      sizes.items,
+      made,
+    );
   } catch {
     await cleanupFailedHiz(device, made);
     return undefined;

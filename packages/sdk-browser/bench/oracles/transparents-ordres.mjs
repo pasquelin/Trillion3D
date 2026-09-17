@@ -1,7 +1,8 @@
 // Le chemin d'AVANT le lot « transparents en quelques ordres », recopié tel quel : le classement
-// qui ne posait que des clés, les arguments indirects réécrits par item et par image
-// (`webgpuBlendArgs.ts`), et la boucle d'encodage qui posait un `drawIndirect` par entrée de plan
-// en retestant le tronc entrée par entrée (`webgpuBlendDraw.ts`).
+// qui ne posait que des clés, les arguments indirects réécrits par item et par image, et la boucle
+// d'encodage qui posait un `drawIndirect` par entrée de plan en retestant le tronc entrée par
+// entrée. Les deux fichiers qui les portaient — `webgpuBlendArgs.ts` et `webgpuBlendSelect.ts` —
+// n'existent plus : ces copies sont tout ce qui reste d'eux, et c'est leur raison d'être.
 //
 // C'est l'oracle : ces copies sont des doublons voulus, et le banc compare leur sortie à celle du
 // chemin importé du paquet.
@@ -81,7 +82,7 @@ export function classementReference(scene, order, eye) {
   sortPlanFarToNear(order, items);
 }
 
-/** `writeBlendArgsCpu` : quatre mots par item, réécrits en entier à chaque image. */
+/** Les arguments indirects d'avant : quatre mots par item, réécrits en entier à chaque image. */
 export function argumentsReference(scene, args) {
   const { items, planes, draws, itemCounts } = scene;
   for (let i = 0; i < items.length; i++) {

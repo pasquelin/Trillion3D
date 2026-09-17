@@ -81,8 +81,8 @@ export function drawBlendPass(
   const { gpu, vis, run, blendState } = rt,
     items = blendState.blendGpu,
     slice = transmissive ? 1 : 0,
-    order = transmissive ? blendState.orderTransmission : blendState.orderBlend,
-    runs = transmissive ? blendState.runsTransmission : blendState.runsBlend,
+    order = blendState.orders[slice],
+    runs = blendState.runs[slice],
     count = blendState.runCount[slice],
     args = blendState.argsBuffer;
   if (!count || !args) return;

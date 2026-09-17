@@ -2,7 +2,7 @@ import { BLEND_ITEM_WORDS, writeBlendItemRecord } from './webgpuBlendItems.ts';
 import { BLEND_VIEW_SIZE } from './webgpuBlendUniforms.ts';
 import { buildBlendStatics, refreshBlendPlan } from './webgpuBlendPlan.ts';
 import { createBlendExpand } from './webgpuBlendExpand.ts';
-import { planWords, scratchWords } from './webgpuBlendRuns.ts';
+import { EXPAND_PASSES, planWords, scratchWords } from './webgpuBlendRuns.ts';
 import { writeBlendExpansionCpu } from './webgpuBlendExpandCpu.ts';
 import { writeVolumeRecords } from './webgpuTransmission.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
@@ -53,7 +53,7 @@ export async function prepareBlendResources(rt: WebgpuPagesRuntime, device: GPUD
   });
   blendState.argsBuffer = device.createBuffer({
     label: 'WG blend indirect arguments',
-    size: Math.max(16, entries * 16 * 2),
+    size: Math.max(16, entries * 16 * EXPAND_PASSES),
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
   });
   blendState.expand = await createBlendExpand(
@@ -112,24 +112,29 @@ export function encodeBlendExpansion(
     writeBlendExpansionCpu(blendState, device);
     return;
   }
-  expand.uploadKeep(blendState.keepPacked);
-  const orders = [blendState.orderBlend, blendState.orderTransmission],
-    runs = [blendState.runsBlend, blendState.runsTransmission],
-    bases = [0, blendState.transmissionBase];
+  if (blendState.keepMoved) {
+    expand.uploadKeep(blendState.keepPacked);
+    blendState.keepMoved = false;
+  }
+  const orders = blendState.orders;
   const pass = encoder.beginComputePass({ label: 'WG blend expansion' });
   for (let slice = 0; slice < orders.length; slice++) {
     const order = orders[slice],
       region = blendState.planRegions[slice];
     if (!order.length) continue;
     if (blendState.orderMoved[slice]) {
-      expand.uploadPlan(region, order, runs[slice], blendState.runCount[slice]);
+      expand.uploadPlan(region, order, blendState.runs[slice], blendState.runCount[slice]);
       blendState.orderMoved[slice] = false;
     }
     expand.encode(
       pass,
       slice,
       region,
-      { entries: order.length, runs: blendState.runCount[slice], instanceBase: bases[slice] },
+      {
+        entries: order.length,
+        runs: blendState.runCount[slice],
+        instanceBase: blendState.instanceBase[slice],
+      },
       blendState,
     );
   }
