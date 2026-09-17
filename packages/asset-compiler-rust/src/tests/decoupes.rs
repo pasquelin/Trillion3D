@@ -76,6 +76,7 @@ fn chaque_modele_repart_avec_sa_feuille_et_sa_page() {
         json!(crate::cutout::SHEET_VERSION)
     );
     let page = fs::read_to_string(options.cache.join(crate::cutout::PAGE_FILE)).expect("page");
+    assert!(!page.contains("__DONNEES__"), "la page a reçu ses données");
     assert!(page.contains(sha), "la page nomme la texture à trancher");
     assert!(
         page.contains("\"pixels\":\""),
