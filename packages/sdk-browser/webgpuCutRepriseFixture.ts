@@ -137,7 +137,11 @@ export function banc(panne?: 'debordement' | 'envoi') {
     timing: { marks: {} },
     services: {
       bootstrapState: { ready: true },
-      admitCut: () => desired.length,
+      residencySets: {
+        get requestedCount() {
+          return desired.length;
+        },
+      },
       queueCutResidency: () => {
         comptes.queue++;
       },
