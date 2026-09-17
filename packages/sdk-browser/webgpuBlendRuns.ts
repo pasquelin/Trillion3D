@@ -1,4 +1,10 @@
-import { planItem, planPipeline, planShared } from './webgpuBlendPlan.ts';
+import {
+  PLAN_LOW_MASK,
+  PLAN_SHARED_BIT,
+  planItem,
+  planPipeline,
+  planShared,
+} from './webgpuBlendPlan.ts';
 
 /**
  * LES TRANCHES DE LA PASSE TRANSPARENTE : ce qui remplace un appel par item.
@@ -36,8 +42,6 @@ export const EXPAND_GROUP = 64;
 export const RUN_WORDS = 2;
 /** Une tranche partagée n'appartient à aucun item : son groupe de liaison est celui des paginés. */
 export const RUN_SHARED = 0xffffffff;
-/** Le bit de partage d'une entrée de plan, juste au-dessus des deux bits de pipeline. */
-const PLAN_SHARED_BIT = 4;
 
 /**
  * Le pas d'adressage d'une instance : la puissance de deux qui sépare deux instances dans l'espace
@@ -79,7 +83,7 @@ export function buildBlendRuns(order: Uint32Array, merge: boolean, out: Uint32Ar
     // deux tiennent dans les trois bits bas, et le plan se parcourt sans jamais suivre un rang.
     const suite = PLAN_SHARED_BIT | pipeline;
     let end = first + 1;
-    if (shared) while (end < order.length && (order[end] & 7) === suite) end++;
+    if (shared) while (end < order.length && (order[end] & PLAN_LOW_MASK) === suite) end++;
     const base = runs * RUN_WORDS;
     out[base] = first;
     out[base + 1] = end - first;

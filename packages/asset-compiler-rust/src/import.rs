@@ -155,7 +155,7 @@ mod tables;
 mod textures;
 mod write;
 
-pub(crate) use light::{attach_lights, light_node, LightSource};
+pub(crate) use light::{attach_lights, cone_angles, light_extension, light_node, LightSource};
 use lighting::*;
 use materials::*;
 use mesh::*;

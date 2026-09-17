@@ -25,6 +25,8 @@ Les lots 1, 2 et 4 font disparaître le lag ; 5, 9 et 11 rapprochent de la réf�
 15. Noyaux Rust/Wasm M5 sur la coupe WebGL, la coupe de secours et la reconstruction des rangs.
 16. Compilateur : `dag/groups.rs:20` n'applique pas `DAG_GROUP_MIN` ; `lib.rs:101` constante morte `CLUSTER_TRIANGLES = 256`.
 17. `dagWanted` : un mot compact par grappe (nœud, drapeaux, monde) pour ne plus enregistrer les 80 % de grappes rejetées, à mesurer contre les 0,6 ms de la tête de sélection.
+18. `flatHierarchy` laisse le plafond d'erreur du sous-arbre à -1 et la sphère du remplaçant à zéro : une primitive dont le manifeste ne porte pas de hiérarchie n'est donc élaguée ni par le haut ni par le bas, et perd le levier mesuré à 24-45 % sur les candidates. Les dériver des pages comme `cullingBounds` le fait déjà ; la fixture `gpuDagCutFrontierScene.ts` les remplit aujourd'hui pour pouvoir mesurer, ce que le producteur devrait faire. Demande la même preuve que le lot 3.
+19. `orderBlendPasses` refait quatre parcours complets des items par image — clés à l'œil, rejet par le tronc, puis les deux tris — même quand l'œil et les six plans sont ceux de l'image précédente. Sortir tôt sur l'empreinte de la vue, comme `keepMoved`/`orderMoved` le font déjà pour les envois.
 
 ## Lumière
 
