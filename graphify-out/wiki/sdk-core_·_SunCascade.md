@@ -29,8 +29,10 @@
 
 ## Relationships
 
-- [sdk-core · Slices](sdk-core_·_Slices.md) (13 shared connections)
-- [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (4 shared connections)
+- [sdk-core · matrix](sdk-core_·_matrix.md) (6 shared connections)
+- [sdk-core · Slices](sdk-core_·_Slices.md) (5 shared connections)
+- [bench · faces](bench_·_faces.md) (4 shared connections)
+- [Atlas d'ombres GPU](Atlas_d'ombres_GPU.md) (2 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (2 shared connections)
 
 ## Source Files

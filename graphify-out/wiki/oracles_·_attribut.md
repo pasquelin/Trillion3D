@@ -26,14 +26,14 @@
 
 ## Relationships
 
-- [sdk-browser · VisTriangle](sdk-browser_·_VisTriangle.md) (6 shared connections)
-- [Vecteurs et normale d'ombrage](Vecteurs_et_normale_d'ombrage.md) (4 shared connections)
-- [Mathématiques du tampon de visibilité](Mathématiques_du_tampon_de_visibilité.md) (3 shared connections)
+- [Mathématiques du tampon de visibilité](Mathématiques_du_tampon_de_visibilité.md) (9 shared connections)
+- [Vecteurs et normale d'ombrage](Vecteurs_et_normale_d'ombrage.md) (3 shared connections)
 - [sdk-core · translation](sdk-core_·_translation.md) (2 shared connections)
-- [Socle des consommateurs](Socle_des_consommateurs.md) (2 shared connections)
+- [Équivalence du socle mesuré](Équivalence_du_socle_mesuré.md) (2 shared connections)
 - [Normale d'ombrage mesurée](Normale_d'ombrage_mesurée.md) (2 shared connections)
-- [sdk-browser · graphe](sdk-browser_·_graphe.md) (2 shared connections)
+- [sdk-browser · flush](sdk-browser_·_flush.md) (2 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (2 shared connections)
+- [Justesse de l'inverse transposée](Justesse_de_l'inverse_transposée.md) (1 shared connections)
 - [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (1 shared connections)
 - [Contrat backend et dessin (3)](Contrat_backend_et_dessin_3.md) (1 shared connections)
 

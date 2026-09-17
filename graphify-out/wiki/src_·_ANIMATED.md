@@ -15,8 +15,8 @@
 ## Relationships
 
 - [Validation du compilateur](Validation_du_compilateur.md) (2 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (1 shared connections)
-- [Verrou CLI et fixtures du compilateur (2)](Verrou_CLI_et_fixtures_du_compilateur_2.md) (1 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
+- [unity · Option](unity_·_Option.md) (1 shared connections)
 - [src · Option](src_·_Option.md) (1 shared connections)
 - [Écriture de la scène source](Écriture_de_la_scène_source.md) (1 shared connections)
 

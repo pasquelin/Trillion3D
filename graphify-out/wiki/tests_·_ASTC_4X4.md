@@ -24,9 +24,9 @@
 ## Relationships
 
 - [Registre des images de test](Registre_des_images_de_test.md) (1 shared connections)
-- [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
+- [ktx2 · NAMES](ktx2_·_NAMES.md) (1 shared connections)
 - [ktx2 · invalid_headers](ktx2_·_invalid_headers.md) (1 shared connections)
-- [tests · HEADER](tests_·_HEADER.md) (1 shared connections)
+- [tests · ALPHA](tests_·_ALPHA.md) (1 shared connections)
 
 ## Source Files
 

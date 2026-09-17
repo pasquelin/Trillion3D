@@ -1,71 +1,78 @@
 # sdk-browser · GeometryBlock
 
-> 33 nodes
+> 59 nodes
 
 ## Key Concepts
 
-- **webgpuPagesPrepareTextures.ts** (27 connections) — `packages/sdk-browser/webgpuPagesPrepareTextures.ts`
-- **webgpuTexturePump.ts** (14 connections) — `packages/sdk-browser/webgpuTexturePump.ts`
-- **TextureJob** (12 connections) — `packages/sdk-browser/webgpuAtlasJobs.ts`
-- **webgpuMaterialTextures.ts** (12 connections) — `packages/sdk-browser/webgpuMaterialTextures.ts`
-- **prepareWebgpuTextures()** (10 connections) — `packages/sdk-browser/webgpuPagesPrepareTextures.ts`
-- **webgpuAtlasSlots.ts** (10 connections) — `packages/sdk-browser/webgpuAtlasSlots.ts`
-- **textureBudget.ts** (9 connections) — `packages/sdk-browser/textureBudget.ts`
-- **createTextureBudget()** (8 connections) — `packages/sdk-browser/textureBudget.ts`
-- **prepareWebgpuAtlas()** (8 connections) — `packages/sdk-browser/webgpuAtlasCommon.ts`
-- **textureBudget.test.ts** (8 connections) — `packages/sdk-browser/textureBudget.test.ts`
-- **webgpuAtlasSlots.test.ts** (8 connections) — `packages/sdk-browser/webgpuAtlasSlots.test.ts`
-- **createWebgpuTexturePump()** (7 connections) — `packages/sdk-browser/webgpuTexturePump.ts`
-- **webgpuGeometryPrepare.ts** (7 connections) — `packages/sdk-browser/webgpuGeometryPrepare.ts`
-- **regenerateClassMips()** (6 connections) — `packages/sdk-browser/webgpuAtlasCommon.ts`
-- **collectWebgpuMaterialTextures()** (6 connections) — `packages/sdk-browser/webgpuMaterialTextures.ts`
-- **compteMateriauxEtTangentes()** (5 connections) — `packages/sdk-browser/webgpuPagesCatalogue.ts`
-- **SlotPyramid** (4 connections) — `packages/sdk-browser/webgpuAtlasSlots.ts`
-- **createWebgpuAtlasSlots()** (4 connections) — `packages/sdk-browser/webgpuAtlasSlots.ts`
-- **TEXTURE_PREVIEW_VERSION** (4 connections) — `packages/sdk-core/manifestBinaryFormat.ts`
-- **PREVIEW_BASE** (4 connections) — `packages/sdk-core/texturePreviewLevels.ts`
-- **prepareWebgpuGeometry()** (3 connections) — `packages/sdk-browser/webgpuGeometryPrepare.ts`
-- **atlasReport()** (3 connections) — `packages/sdk-browser/webgpuPagesPrepareTextures.ts`
-- **regenerate()** (3 connections) — `packages/sdk-browser/webgpuTexturePump.ts`
-- **adder()** (2 connections) — `packages/sdk-browser/webgpuMaterialTextures.ts`
-- **defined()** (2 connections) — `packages/sdk-browser/webgpuMaterialTextures.ts`
-- *... and 8 more nodes in this community*
+- **webgpuPagesRuntime.ts** (146 connections) — `packages/sdk-browser/webgpuPagesRuntime.ts`
+- **webgpuVisibilityDrawLayers.test.ts** (38 connections) — `packages/sdk-browser/webgpuVisibilityDrawLayers.test.ts`
+- **webgpuPagesStateVis.ts** (28 connections) — `packages/sdk-browser/webgpuPagesStateVis.ts`
+- **webgpuPagesLayout.ts** (25 connections) — `packages/sdk-browser/webgpuPagesLayout.ts`
+- **webgpuVisibilityItemWords.ts** (22 connections) — `packages/sdk-browser/webgpuVisibilityItemWords.ts`
+- **createWebgpuBlendState()** (21 connections) — `packages/sdk-browser/webgpuBlendState.ts`
+- **createWebgpuPagesRuntime()** (21 connections) — `packages/sdk-browser/webgpuPagesRuntime.ts`
+- **webgpuVisibilityItemWords.test.ts** (16 connections) — `packages/sdk-browser/webgpuVisibilityItemWords.test.ts`
+- **webgpuVisibilityCorners.ts** (15 connections) — `packages/sdk-browser/webgpuVisibilityCorners.ts`
+- **WebgpuVisState** (14 connections) — `packages/sdk-browser/webgpuPagesStateVis.ts`
+- **webgpuTransparentOcclusionHost.ts** (12 connections) — `packages/sdk-browser/webgpuTransparentOcclusionHost.ts`
+- **webgpuPagesDiagnostics.ts** (10 connections) — `packages/sdk-browser/webgpuPagesDiagnostics.ts`
+- **webgpuTransparentDraw.ts** (10 connections) — `packages/sdk-browser/webgpuTransparentDraw.ts`
+- **createWebgpuDiagnostics()** (9 connections) — `packages/sdk-browser/webgpuPagesDiagnostics.ts`
+- **CORNER_VALUES** (9 connections) — `packages/sdk-browser/gpuPartitionContract.ts`
+- **createWebgpuPagesLayout()** (8 connections) — `packages/sdk-browser/webgpuPagesLayout.ts`
+- **WebgpuAtlas** (7 connections) — `packages/sdk-browser/webgpuAtlasCommon.ts`
+- **BackendCapabilities** (7 connections) — `packages/sdk-core/metricsContracts.ts`
+- **createTexturePriority()** (7 connections) — `packages/sdk-browser/webgpuTexturePriority.ts`
+- **refreshDrawItemWords()** (7 connections) — `packages/sdk-browser/webgpuVisibilityItemWords.ts`
+- **encodeTransparentInstances()** (6 connections) — `packages/sdk-browser/webgpuTransparentDraw.ts`
+- **createDrawItemWordsHold()** (6 connections) — `packages/sdk-browser/webgpuVisibilityItemWords.ts`
+- **webgpuPagesStateSunFar.ts** (6 connections) — `packages/sdk-browser/webgpuPagesStateSunFar.ts`
+- **GpuPartition** (5 connections) — `packages/sdk-browser/gpuPartitionTypes.ts`
+- **WebgpuAtlasSlots** (5 connections) — `packages/sdk-browser/webgpuAtlasSlots.ts`
+- *... and 34 more nodes in this community*
 
 ## Relationships
 
-- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (13 shared connections)
-- [sdk-browser · MipPipeline](sdk-browser_·_MipPipeline.md) (12 shared connections)
-- [sdk-browser · WriteRecord](sdk-browser_·_WriteRecord.md) (11 shared connections)
-- [sdk-browser · CpuStepSummary](sdk-browser_·_CpuStepSummary.md) (10 shared connections)
-- [sdk-browser · DagBuffers](sdk-browser_·_DagBuffers.md) (6 shared connections)
-- [sdk-browser · InstanceEnvironment](sdk-browser_·_InstanceEnvironment.md) (6 shared connections)
-- [Priorité de diffusion et textures (2)](Priorité_de_diffusion_et_textures_2.md) (3 shared connections)
-- [sdk-browser · createBuffer](sdk-browser_·_createBuffer.md) (3 shared connections)
-- [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (3 shared connections)
-- [Mathématiques du tampon de visibilité](Mathématiques_du_tampon_de_visibilité.md) (2 shared connections)
-- [Publication de la coupe](Publication_de_la_coupe.md) (2 shared connections)
-- [sdk-browser · graphe](sdk-browser_·_graphe.md) (2 shared connections)
+- [Coût CPU et image tenue](Coût_CPU_et_image_tenue.md) (26 shared connections)
+- [Encodage des dessins WebGPU (2)](Encodage_des_dessins_WebGPU_2.md) (25 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (25 shared connections)
+- [Adoption et reprise de la coupe](Adoption_et_reprise_de_la_coupe.md) (25 shared connections)
+- [sdk-browser · AtlasResources](sdk-browser_·_AtlasResources.md) (19 shared connections)
+- [Dessin GPU et contrat](Dessin_GPU_et_contrat.md) (18 shared connections)
+- [Encodage des dessins WebGPU](Encodage_des_dessins_WebGPU.md) (17 shared connections)
+- [Résidence et amorçage GPU (2)](Résidence_et_amorçage_GPU_2.md) (17 shared connections)
+- [sdk-browser · CaptureOptions](sdk-browser_·_CaptureOptions.md) (14 shared connections)
+- [Ordre des transparents](Ordre_des_transparents.md) (13 shared connections)
+- [Lignes dessinables et validation (3)](Lignes_dessinables_et_validation_3.md) (13 shared connections)
+- [sdk-browser · GeometryBlock (2)](sdk-browser_·_GeometryBlock_2.md) (12 shared connections)
 
 ## Source Files
 
-- `packages/sdk-browser/textureBudget.test.ts`
-- `packages/sdk-browser/textureBudget.ts`
+- `packages/sdk-browser/gpuBounceProbes.ts`
+- `packages/sdk-browser/gpuPartitionContract.ts`
+- `packages/sdk-browser/gpuPartitionTypes.ts`
+- `packages/sdk-browser/gpuRaster.ts`
+- `packages/sdk-browser/gpuRestCompact.ts`
+- `packages/sdk-browser/gpuSunFarShadow.ts`
 - `packages/sdk-browser/webgpuAtlasCommon.ts`
-- `packages/sdk-browser/webgpuAtlasJobs.ts`
-- `packages/sdk-browser/webgpuAtlasSlots.test.ts`
 - `packages/sdk-browser/webgpuAtlasSlots.ts`
-- `packages/sdk-browser/webgpuGeometryPrepare.ts`
-- `packages/sdk-browser/webgpuMaterialTextures.ts`
-- `packages/sdk-browser/webgpuPagesCatalogue.ts`
-- `packages/sdk-browser/webgpuPagesPrepareTextures.ts`
-- `packages/sdk-browser/webgpuTexturePump.ts`
-- `packages/sdk-core/manifestBinaryFormat.ts`
-- `packages/sdk-core/texturePreviewLevels.ts`
+- `packages/sdk-browser/webgpuBlendSelection.ts`
+- `packages/sdk-browser/webgpuBlendState.ts`
+- `packages/sdk-browser/webgpuPageRow.ts`
+- `packages/sdk-browser/webgpuPagesDiagnostics.ts`
+- `packages/sdk-browser/webgpuPagesLayout.ts`
+- `packages/sdk-browser/webgpuPagesRuntime.ts`
+- `packages/sdk-browser/webgpuPagesSetup.ts`
+- `packages/sdk-browser/webgpuPagesStateBounce.ts`
+- `packages/sdk-browser/webgpuPagesStateCapture.ts`
+- `packages/sdk-browser/webgpuPagesStateSunFar.ts`
+- `packages/sdk-browser/webgpuPagesStateTiming.ts`
+- `packages/sdk-browser/webgpuPagesStateVis.ts`
 
 ## Audit Trail
 
-- EXTRACTED: 140 (100%)
-- INFERRED: 0 (0%)
+- EXTRACTED: 452 (100%)
+- INFERRED: 1 (0%)
 - AMBIGUOUS: 0 (0%)
 
 ---

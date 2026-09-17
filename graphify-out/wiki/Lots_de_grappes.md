@@ -1,6 +1,6 @@
 # Lots de grappes
 
-> 68 nodes
+> 66 nodes
 
 ## Key Concepts
 
@@ -21,7 +21,7 @@
 - **clusterBatchesFixture.ts** (10 connections) — `packages/sdk-browser/clusterBatchesFixture.ts`
 - **setupClusterBatches()** (9 connections) — `packages/sdk-browser/clusterBatchSetup.ts`
 - **DrawRanges** (8 connections) — `packages/sdk-browser/clusterBatchRange.ts`
-- **resident()** (8 connections) — `packages/sdk-browser/clusterBatchesFixture.ts`
+- **clusterBatches.test.ts** (7 connections) — `packages/sdk-browser/clusterBatches.test.ts`
 - **ClusterDrawMesh** (6 connections) — `packages/sdk-browser/clusterBatchMesh.ts`
 - **attributes()** (6 connections) — `packages/sdk-browser/clusterBatchesFixture.ts`
 - **buildLayerGroups()** (6 connections) — `packages/sdk-browser/clusterBatchLayers.ts`
@@ -29,22 +29,22 @@
 - **.dispose()** (5 connections) — `packages/sdk-browser/clusterBatches.ts`
 - **.acceptPage()** (4 connections) — `packages/sdk-browser/clusterBatches.ts`
 - **.constructor()** (4 connections) — `packages/sdk-browser/clusterBatches.ts`
-- *... and 43 more nodes in this community*
+- *... and 41 more nodes in this community*
 
 ## Relationships
 
-- [Backends de rendu exacts (2)](Backends_de_rendu_exacts_2.md) (12 shared connections)
-- [sdk-browser · graphe](sdk-browser_·_graphe.md) (11 shared connections)
-- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (7 shared connections)
-- [Pipelines de visibilité](Pipelines_de_visibilité.md) (3 shared connections)
+- [sdk-browser · flush](sdk-browser_·_flush.md) (12 shared connections)
+- [Backends de rendu exacts](Backends_de_rendu_exacts.md) (11 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (6 shared connections)
+- [Adoption et reprise de la coupe](Adoption_et_reprise_de_la_coupe.md) (3 shared connections)
+- [Sélection des pages visibles](Sélection_des_pages_visibles.md) (3 shared connections)
+- [sdk-browser · AtlasResources](sdk-browser_·_AtlasResources.md) (3 shared connections)
 - [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (3 shared connections)
-- [sdk-browser · InstanceEnvironment](sdk-browser_·_InstanceEnvironment.md) (2 shared connections)
-- [sdk-browser · createBuffer](sdk-browser_·_createBuffer.md) (2 shared connections)
-- [Publication de la coupe](Publication_de_la_coupe.md) (2 shared connections)
-- [sdk-browser · camera](sdk-browser_·_camera.md) (1 shared connections)
-- [API et session de l'explorateur](API_et_session_de_l'explorateur.md) (1 shared connections)
-- [sdk-browser · SunFarCounts](sdk-browser_·_SunFarCounts.md) (1 shared connections)
-- [Matrices et origine de rendu](Matrices_et_origine_de_rendu.md) (1 shared connections)
+- [bench · blocs](bench_·_blocs.md) (1 shared connections)
+- [sdk-core · createSeededRandom](sdk-core_·_createSeededRandom.md) (1 shared connections)
+- [Scène d'expérience d'éclairage](Scène_d'expérience_d'éclairage.md) (1 shared connections)
+- [Convention de profondeur](Convention_de_profondeur.md) (1 shared connections)
+- [sdk-core · translation](sdk-core_·_translation.md) (1 shared connections)
 
 ## Source Files
 
@@ -55,14 +55,15 @@
 - `packages/sdk-browser/clusterBatchRange.ts`
 - `packages/sdk-browser/clusterBatchSetup.ts`
 - `packages/sdk-browser/clusterBatchUpdate.ts`
+- `packages/sdk-browser/clusterBatches.test.ts`
 - `packages/sdk-browser/clusterBatches.ts`
 - `packages/sdk-browser/clusterBatchesFixture.ts`
 - `packages/sdk-browser/clusterBatchesScene.test.ts`
 
 ## Audit Trail
 
-- EXTRACTED: 200 (95%)
-- INFERRED: 11 (5%)
+- EXTRACTED: 202 (97%)
+- INFERRED: 6 (3%)
 - AMBIGUOUS: 0 (0%)
 
 ---

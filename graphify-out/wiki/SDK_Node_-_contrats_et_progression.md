@@ -7,7 +7,7 @@
 - **index.mts** (41 connections) — `packages/sdk-node/index.mts`
 - **sdk-node/contracts.ts** (24 connections) — `packages/sdk-node/contracts.ts`
 - **progress.mts** (16 connections) — `packages/sdk-node/progress.mts`
-- **sdk-node/public.test.mjs** (14 connections) — `packages/sdk-node/public.test.mjs`
+- **public.test.mjs** (14 connections) — `packages/sdk-node/public.test.mjs`
 - **compilerProcess.mts** (11 connections) — `packages/sdk-node/compilerProcess.mts`
 - **TerminalProgress** (6 connections) — `packages/sdk-node/contracts.ts`
 - **runCompiler()** (6 connections) — `packages/sdk-node/compilerProcess.mts`
@@ -33,12 +33,12 @@
 
 ## Relationships
 
-- [Tests navigateur Node](Tests_navigateur_Node.md) (14 shared connections)
+- [Tests navigateur Node](Tests_navigateur_Node.md) (13 shared connections)
+- [API et session de l'explorateur (2)](API_et_session_de_l'explorateur_2.md) (11 shared connections)
 - [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (5 shared connections)
-- [Erreurs moteur et cache (2)](Erreurs_moteur_et_cache_2.md) (5 shared connections)
-- [API et session de l'explorateur (2)](API_et_session_de_l'explorateur_2.md) (5 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (5 shared connections)
-- [API et session de l'explorateur](API_et_session_de_l'explorateur.md) (3 shared connections)
+- [Magasin des lumières de scène](Magasin_des_lumières_de_scène.md) (2 shared connections)
+- [Pages de justesse WebGPU](Pages_de_justesse_WebGPU.md) (1 shared connections)
 - [test · steps](test_·_steps.md) (1 shared connections)
 
 ## Source Files

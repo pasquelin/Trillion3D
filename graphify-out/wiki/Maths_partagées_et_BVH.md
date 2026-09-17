@@ -33,13 +33,12 @@
 
 ## Relationships
 
+- [bench_calculs · Bits (5)](bench_calculs_·_Bits_5.md) (8 shared connections)
 - [dag · Bits](dag_·_Bits.md) (5 shared connections)
-- [bench_calculs · COUNT](bench_calculs_·_COUNT.md) (5 shared connections)
-- [Bancs de calcul Rust (2)](Bancs_de_calcul_Rust_2.md) (3 shared connections)
 - [Rapport des bancs de calcul](Rapport_des_bancs_de_calcul.md) (2 shared connections)
 - [DAG et stratégie de coupe](DAG_et_stratégie_de_coupe.md) (2 shared connections)
 - [Jeux de bancs Rust](Jeux_de_bancs_Rust.md) (1 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (1 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
 - [Groupes et bissection du DAG](Groupes_et_bissection_du_DAG.md) (1 shared connections)
 
 ## Source Files

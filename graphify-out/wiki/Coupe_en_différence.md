@@ -33,10 +33,10 @@
 
 ## Relationships
 
-- [Publication de la coupe](Publication_de_la_coupe.md) (8 shared connections)
-- [sdk-browser · InstanceEnvironment](sdk-browser_·_InstanceEnvironment.md) (4 shared connections)
-- [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (3 shared connections)
-- [bench · geometrie](bench_·_geometrie.md) (1 shared connections)
+- [Adoption et reprise de la coupe](Adoption_et_reprise_de_la_coupe.md) (12 shared connections)
+- [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (2 shared connections)
+- [bench · passe](bench_·_passe.md) (1 shared connections)
+- [Socle de mesure des bancs](Socle_de_mesure_des_bancs.md) (1 shared connections)
 - [Socle du banc sdk-core](Socle_du_banc_sdk-core.md) (1 shared connections)
 
 ## Source Files

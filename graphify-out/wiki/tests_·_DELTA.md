@@ -1,11 +1,12 @@
 # tests · DELTA
 
-> 14 nodes
+> 15 nodes
 
 ## Key Concepts
 
 - **unity_sparse.rs** (14 connections) — `packages/asset-compiler-rust/src/tests/unity_sparse.rs`
 - **compile_after_cube()** (7 connections) — `packages/asset-compiler-rust/src/tests/unity_sparse.rs`
+- **.model()** (6 connections) — `packages/asset-compiler-rust/src/tests/unity_projet.rs`
 - **les_vues_dun_accesseur_creux_suivent_le_modele_dans_la_scene()** (5 connections) — `packages/asset-compiler-rust/src/tests/unity_sparse.rs`
 - **resolved()** (5 connections) — `packages/asset-compiler-rust/src/tests/unity_sparse.rs`
 - **Value** (5 connections)
@@ -21,19 +22,21 @@
 
 ## Relationships
 
-- [Projet et propriétés Unity](Projet_et_propriétés_Unity.md) (2 shared connections)
+- [tests · Value](tests_·_Value.md) (2 shared connections)
 - [tests · .drop](tests_·_.drop.md) (2 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (1 shared connections)
-- [Lecture et écriture glTF (2)](Lecture_et_écriture_glTF_2.md) (1 shared connections)
+- [Projet et propriétés Unity](Projet_et_propriétés_Unity.md) (2 shared connections)
+- [tests · each_prefab_override_names_its_own_object_and_ten_runs_agree](tests_·_each_prefab_override_names_its_own_object_and_ten_runs_agree.md) (1 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
 
 ## Source Files
 
+- `packages/asset-compiler-rust/src/tests/unity_projet.rs`
 - `packages/asset-compiler-rust/src/tests/unity_sparse.rs`
 
 ## Audit Trail
 
-- EXTRACTED: 26 (87%)
-- INFERRED: 4 (13%)
+- EXTRACTED: 30 (88%)
+- INFERRED: 4 (12%)
 - AMBIGUOUS: 0 (0%)
 
 ---

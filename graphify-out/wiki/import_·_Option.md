@@ -21,9 +21,9 @@
 
 ## Relationships
 
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (2 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (2 shared connections)
 - [scene · .begin](scene_·_.begin.md) (2 shared connections)
-- [import · AtomicBool](import_·_AtomicBool.md) (1 shared connections)
+- [Tables de scène à l'import](Tables_de_scène_à_l'import.md) (1 shared connections)
 - [alembic · BTreeMap](alembic_·_BTreeMap.md) (1 shared connections)
 - [import · Option (2)](import_·_Option_2.md) (1 shared connections)
 - [usd · HashMap](usd_·_HashMap.md) (1 shared connections)

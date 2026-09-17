@@ -1,57 +1,53 @@
 # Diffusion des pages en continu (2)
 
-> 36 nodes
+> 25 nodes
 
 ## Key Concepts
 
 - **admission-arrivees.perf.mjs** (21 connections) — `packages/sdk-browser/bench/admission-arrivees.perf.mjs`
-- **recherches-streaming.perf.mjs** (18 connections) — `packages/sdk-browser/bench/recherches-streaming.perf.mjs`
 - **streamingQueue.test.ts** (18 connections) — `packages/sdk-browser/streamingQueue.test.ts`
 - **streamingQueueOrder.ts** (10 connections) — `packages/sdk-browser/streamingQueueOrder.ts`
-- **file()** (8 connections) — `packages/sdk-browser/bench/recherches-streaming.perf.mjs`
 - **streamingQueue.ts** (8 connections) — `packages/sdk-browser/streamingQueue.ts`
 - **findAdmissible()** (7 connections) — `packages/sdk-browser/streamingQueueOrder.ts`
 - **createStreamingQueue()** (6 connections) — `packages/sdk-browser/streamingQueue.ts`
 - **compacteFile()** (6 connections) — `packages/sdk-browser/streamingQueueOrder.ts`
 - **sortStreamJobs()** (5 connections) — `packages/sdk-browser/streamingQueueOrderFixture.ts`
 - **admission-arrivees.mjs** (5 connections) — `packages/sdk-browser/bench/oracles/admission-arrivees.mjs`
-- **recherches-streaming.mjs** (5 connections) — `packages/sdk-browser/bench/oracles/recherches-streaming.mjs`
 - **Job** (4 connections) — `packages/sdk-browser/streamingTypes.ts`
 - **octetsDe()** (4 connections) — `packages/sdk-browser/bench/admission-arrivees.perf.mjs`
 - **optimiseeAdmission()** (4 connections) — `packages/sdk-browser/bench/admission-arrivees.perf.mjs`
 - **insereTravail()** (4 connections) — `packages/sdk-browser/streamingQueueOrder.ts`
 - **referenceAdmission()** (3 connections) — `packages/sdk-browser/bench/oracles/admission-arrivees.mjs`
 - **referenceArrivalQueue()** (3 connections) — `packages/sdk-browser/bench/oracles/admission-arrivees.mjs`
-- **referenceEmpileEnAttente()** (3 connections) — `packages/sdk-browser/bench/oracles/recherches-streaming.mjs`
-- **referenceRetireDeLaFile()** (3 connections) — `packages/sdk-browser/bench/oracles/recherches-streaming.mjs`
-- **passeOptimisee()** (3 connections) — `packages/sdk-browser/bench/recherches-streaming.perf.mjs`
-- **passeReference()** (3 connections) — `packages/sdk-browser/bench/recherches-streaming.perf.mjs`
 - **optimiseeAdmission()** (3 connections) — `packages/sdk-browser/streamingQueue.test.ts`
 - **streamingQueueOrderFixture.ts** (3 connections) — `packages/sdk-browser/streamingQueueOrderFixture.ts`
 - **admission()** (2 connections) — `packages/sdk-browser/bench/admission-arrivees.perf.mjs`
-- *... and 11 more nodes in this community*
+- **rangDInsertion()** (2 connections) — `packages/sdk-browser/streamingQueueOrder.ts`
+- **ancienne()** (2 connections) — `packages/sdk-core/projectionOracles.test.ts`
+- **job()** (1 connections) — `packages/sdk-browser/streamingQueue.test.ts`
+- **urls()** (1 connections) — `packages/sdk-browser/streamingQueue.test.ts`
+- **alea** (1 connections) — `packages/sdk-browser/bench/admission-arrivees.perf.mjs`
+- **catalogue** (1 connections) — `packages/sdk-browser/bench/admission-arrivees.perf.mjs`
+- **travaux** (1 connections) — `packages/sdk-browser/bench/admission-arrivees.perf.mjs`
 
 ## Relationships
 
-- [Scène de l'explorateur et chargement (3)](Scène_de_l'explorateur_et_chargement_3.md) (8 shared connections)
-- [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (6 shared connections)
-- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (5 shared connections)
-- [API et session de l'explorateur](API_et_session_de_l'explorateur.md) (5 shared connections)
-- [bench · geometrie](bench_·_geometrie.md) (4 shared connections)
-- [Caméra monde et contrat](Caméra_monde_et_contrat.md) (2 shared connections)
+- [API et session de l'explorateur (2)](API_et_session_de_l'explorateur_2.md) (9 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (4 shared connections)
+- [Garde zéro Three.js](Garde_zéro_Three.js.md) (4 shared connections)
 - [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (2 shared connections)
-- [Socle du banc sdk-core](Socle_du_banc_sdk-core.md) (2 shared connections)
-- [sdk-browser · CpuStepSummary](sdk-browser_·_CpuStepSummary.md) (1 shared connections)
-- [integration · lignesFautives](integration_·_lignesFautives.md) (1 shared connections)
-- [Tests navigateur Node](Tests_navigateur_Node.md) (1 shared connections)
-- [Oracles de projection](Oracles_de_projection.md) (1 shared connections)
+- [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (2 shared connections)
+- [sdk-core · createSeededRandom](sdk-core_·_createSeededRandom.md) (1 shared connections)
+- [bench · passe](bench_·_passe.md) (1 shared connections)
+- [Socle de mesure des bancs](Socle_de_mesure_des_bancs.md) (1 shared connections)
+- [Socle du banc sdk-core](Socle_du_banc_sdk-core.md) (1 shared connections)
+- [Coût CPU et image tenue](Coût_CPU_et_image_tenue.md) (1 shared connections)
+- [Banc de la pompe de textures](Banc_de_la_pompe_de_textures.md) (1 shared connections)
 
 ## Source Files
 
 - `packages/sdk-browser/bench/admission-arrivees.perf.mjs`
 - `packages/sdk-browser/bench/oracles/admission-arrivees.mjs`
-- `packages/sdk-browser/bench/oracles/recherches-streaming.mjs`
-- `packages/sdk-browser/bench/recherches-streaming.perf.mjs`
 - `packages/sdk-browser/streamingQueue.test.ts`
 - `packages/sdk-browser/streamingQueue.ts`
 - `packages/sdk-browser/streamingQueueOrder.ts`
@@ -61,8 +57,8 @@
 
 ## Audit Trail
 
-- EXTRACTED: 92 (86%)
-- INFERRED: 15 (14%)
+- EXTRACTED: 69 (91%)
+- INFERRED: 7 (9%)
 - AMBIGUOUS: 0 (0%)
 
 ---

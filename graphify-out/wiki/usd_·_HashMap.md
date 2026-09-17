@@ -24,7 +24,7 @@
 ## Relationships
 
 - [scene · .begin](scene_·_.begin.md) (1 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (1 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
 - [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
 - [usd · Fn](usd_·_Fn.md) (1 shared connections)
 - [import · Option](import_·_Option.md) (1 shared connections)

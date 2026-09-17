@@ -14,10 +14,10 @@
 ## Relationships
 
 - [Registre des images de test](Registre_des_images_de_test.md) (1 shared connections)
-- [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (1 shared connections)
+- [ktx2 · NAMES](ktx2_·_NAMES.md) (1 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
 - [tests · DROIT](tests_·_DROIT.md) (1 shared connections)
-- [tests · HEADER](tests_·_HEADER.md) (1 shared connections)
+- [tests · ALPHA](tests_·_ALPHA.md) (1 shared connections)
 - [tests · ASTC_4X4](tests_·_ASTC_4X4.md) (1 shared connections)
 
 ## Source Files

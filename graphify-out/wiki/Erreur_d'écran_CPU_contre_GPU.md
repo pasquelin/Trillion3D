@@ -27,8 +27,9 @@
 
 ## Relationships
 
-- [Runtime DAG sur GPU](Runtime_DAG_sur_GPU.md) (6 shared connections)
-- [Oracles de projection](Oracles_de_projection.md) (1 shared connections)
+- [Priorité de diffusion et textures (2)](Priorité_de_diffusion_et_textures_2.md) (3 shared connections)
+- [justesse · pireMarge](justesse_·_pireMarge.md) (3 shared connections)
+- [Lancements de coupe et relevé](Lancements_de_coupe_et_relevé.md) (1 shared connections)
 - [Coupe projetée de la sélection (3)](Coupe_projetée_de_la_sélection_3.md) (1 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (1 shared connections)
 - [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (1 shared connections)

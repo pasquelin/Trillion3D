@@ -16,9 +16,9 @@
 ## Relationships
 
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (2 shared connections)
-- [sdk-core · Slices](sdk-core_·_Slices.md) (1 shared connections)
+- [Atlas d'ombres GPU](Atlas_d'ombres_GPU.md) (1 shared connections)
 - [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (1 shared connections)
-- [Scène de l'explorateur et chargement (3)](Scène_de_l'explorateur_et_chargement_3.md) (1 shared connections)
+- [sdk-browser · avecCoeurs](sdk-browser_·_avecCoeurs.md) (1 shared connections)
 
 ## Source Files
 
