@@ -15,7 +15,7 @@ import type { ClusterCut } from './pageSelectionMath.ts';
  * Un plafond sous le seuil vaut donc pour chaque cluster du sous-arbre, un plancher au-dessus du
  * seuil aussi, et la décision prise au nœud est mot pour mot celle qu'aurait rendue la descente.
  */
-export const BOUND_STRIDE = 12;
+export const BOUND_STRIDE = 13;
 export const OWN_FLOOR = 0,
   OWN_CEIL = 1,
   PARENT_FLOOR = 2,
@@ -24,7 +24,13 @@ export const OWN_FLOOR = 0,
   /** 1 quand chaque cluster du sous-arbre a un groupe producteur. Le repli par forçage dessine
    *  sans condition une grappe que rien n'a produite : un sous-arbre qui en contient une ne peut
    *  pas être rejeté sur la seule erreur propre. */
-  ALL_SOURCED = 11;
+  ALL_SOURCED = 11,
+  /** 1 quand le sous-arbre porte une grappe que RIEN ne remplace — le couvert le plus grossier,
+   *  celui que le repli épinglé dessine. Un tel sous-arbre ne se rejette pas sur l'erreur propre :
+   *  le repli ne consulte aucun seuil, et la descente de la carte doit le lui laisser atteignable
+   *  (`gpuDagLevelWgsl.ts`). La coupe processeur, elle, n'en a pas l'usage : son repli relit les
+   *  pages sans passer par la descente (`pageSelectionCutRepair.ts`). */
+  HAS_ROOT = 12;
 
 /** Étend la sphère englobante rangée en `at` pour couvrir celle lue en `from`.
  *  Rayon négatif : accumulateur encore vide. */
@@ -83,7 +89,10 @@ function foldPage(values: Float64Array, at: number, rec: ClusterCut) {
   if (producer === undefined || producer === null || producer < 0) values[at + ALL_SOURCED] = 0;
   // Un cluster que rien ne remplace se projette à l'infini : il ne baisse aucun plancher.
   const parent = rec.parentError;
-  if (parent === undefined || parent === null) return;
+  if (parent === undefined || parent === null || !Number.isFinite(parent)) {
+    values[at + HAS_ROOT] = 1;
+    return;
+  }
   if (parent < values[at + PARENT_FLOOR]) values[at + PARENT_FLOOR] = parent;
   const band = rec.parentSphere ?? sphere;
   if (band) growSphere(values, at + PARENT_SPHERE, band, 0);
@@ -100,6 +109,7 @@ function foldChild(values: Float64Array, at: number, from: number) {
   growSphere(values, at + OWN_SPHERE, values, from + OWN_SPHERE);
   growSphere(values, at + PARENT_SPHERE, values, from + PARENT_SPHERE);
   if (values[from + ALL_SOURCED] === 0) values[at + ALL_SOURCED] = 0;
+  if (values[from + HAS_ROOT] === 1) values[at + HAS_ROOT] = 1;
 }
 
 /**
@@ -122,6 +132,7 @@ export function cullingBounds(
     values[at + OWN_SPHERE + 3] = -1;
     values[at + PARENT_SPHERE + 3] = -1;
     values[at + ALL_SOURCED] = 1;
+    values[at + HAS_ROOT] = 0;
     const children = nodes[base + 12];
     if (children > 0) {
       const first = nodes[base + 11];

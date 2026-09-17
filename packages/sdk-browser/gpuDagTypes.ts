@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import type { NormalCone } from './pageCone.ts';
 
-export const DAG_NODE_FLOATS = 16,
+/** Vingt-quatre flottants par nœud : les seize du manifeste, puis la sphère du plancher d'erreur du
+ *  sous-arbre, le plancher et un mot de drapeaux (`gpuDagPackNodes.ts`). */
+export const DAG_NODE_FLOATS = 24,
   FRAME_VEC4 = 7,
   CULL_STRIDE = 15;
 type DagCluster = {
@@ -20,7 +22,9 @@ export type DagRoot = {
   world: THREE.Matrix4;
   pages: DagCluster[];
   flat?: boolean;
-  culling?: { nodes: Float64Array; stride: number };
+  /** `bounds` : les bornes par nœud que `cullingBounds` dérive des pages. L'hôte les partage entre
+   *  tous les placements d'une primitive ; sans elles, le rangement les dérive lui-même. */
+  culling?: { nodes: Float64Array; stride: number; bounds?: Float64Array };
 };
 export type PackedDag = {
   kind: 'dag';

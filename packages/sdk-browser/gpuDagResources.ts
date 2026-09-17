@@ -3,6 +3,7 @@ import { SELECTION_UNIFORM_BYTES as UNIFORM_BYTES, SELECTION_WORKGROUP } from '.
 import { FRAME_VEC4, type PackedDag } from './gpuDagTypes.ts';
 import { createDagPipeline } from './gpuDagPipeline.ts';
 import { LEVEL_QUEUES } from './gpuDagLevelWgsl.ts';
+import { LEVEL_WORLD_WORDS } from './gpuDagFloorWgsl.ts';
 
 export async function createDagResources(
   device: GPUDevice,
@@ -23,7 +24,8 @@ export async function createDagResources(
     blockCount = Math.ceil(pageCount / SELECTION_WORKGROUP),
     // Derrière les seuils et les blocs : compteur et groupes de la liste vivante, puis le compteur
     // des TROIS files de la descente — lues à plat, donc sans compte de groupes —, puis ceux de la
-    // liste des candidates et du journal des dessinées.
+    // liste des candidates et du journal des dessinées, puis `LEVEL_WORLD_WORDS` mots par primitive
+    // pour l'élagage par le haut : son seuil, et le plus petit plancher qu'il a écarté.
     workBase = worldCount * 2 + blockCount * 2,
     liveGroupsOffset = (workBase + 1) * 4,
     candGroupsOffset = (workBase + 6) * 4,
@@ -76,7 +78,7 @@ export async function createDagResources(
     // de plus, le plafond d'une étape est déjà atteint ; les mots d'armement partent vers l'argument
     // de répartition, d'où la source de copie.
     const work = device.createBuffer({
-      size: Math.max(8, (workBase + 9) * 4),
+      size: Math.max(8, (workBase + 9 + worldCount * LEVEL_WORLD_WORDS) * 4),
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
     const worlds = device.createBuffer({
