@@ -16,7 +16,7 @@
  * erreur de mille. Deux erreurs voisines peuvent tomber dans le même pas — l'ordre entre elles est
  * alors indifférent, comme il l'est chez la référence, qui ne départage pas non plus.
  */
-export const REQUEST_PAGE_BITS = 22;
+const REQUEST_PAGE_BITS = 22;
 export const REQUEST_PAGE_MAX = 1 << REQUEST_PAGE_BITS;
 export const REQUEST_PRIORITY_MAX = 1023;
 /** Pas de la quantification : seize pas par doublement de l'erreur, sur soixante-quatre doublements. */
