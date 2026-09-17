@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuCutAdopter } from './webgpuCutAdoption.ts';
 import { createCutDelta } from './webgpuCutDelta.ts';
+import { createCutCounts } from './webgpuCutCounts.ts';
 import type { GpuCut, GpuSelection, SelectionUniforms } from './gpuSelection.ts';
 import type { PageRec } from './pageSelection.ts';
 
@@ -34,6 +35,7 @@ function banc(ids: number[]) {
     result: { pageIds: ids, drawablePageIds: ids, frustumRejected: 0, lodLevel: 0 },
   } as GpuCut;
   let peeked: GpuCut | null = cut;
+  const counts = createCutCounts(packedPages, residentOffsetWords);
   const adopter = createWebgpuCutAdopter({
     selection: () => ({ peek: () => peeked }) as unknown as GpuSelection,
     packedPages,
@@ -41,11 +43,11 @@ function banc(ids: number[]) {
     shown,
     drawn,
     uniforms: uniforms(),
-    residentOffsetWords,
+    counts,
     delta: createCutDelta(packedPages, desired),
     drawnDelta: createCutDelta(packedPages, []),
     onCutDelta: () => {},
-    onDrawnDelta: () => {},
+    onDrawnDelta: (delta) => counts.apply(delta),
     onDrawnMirrored: () => {},
   });
   return {
@@ -53,6 +55,7 @@ function banc(ids: number[]) {
     shown,
     drawn,
     residentOffsetWords,
+    counts,
     packedPages,
     cut,
     montre: (next: GpuCut | null) => (peeked = next),
@@ -82,7 +85,9 @@ test('un relevé déjà tenu ne refait pas la liste dessinable, et rend les mêm
   b.shown.pop();
 
   // Les comptes suivent la résidence sans que la liste bouge : un trou apparaît, elle ne change pas.
+  // Le journal des rangs nomme la page dont la ligne vient de partir ; ici le banc le fait pour lui.
   b.residentOffsetWords[1] = -1;
+  b.counts.touch(1);
   assert.equal(b.adopter.adopt(), true);
   assert.equal(b.adopter.metrics.uncoveredTriangles, 2, 'le trou est compté');
   assert.deepEqual(b.shown, contenu, 'la liste est restée celle du relevé');
@@ -110,6 +115,7 @@ test('un nouveau relevé refait la liste, et l’invalidation oublie celui qui �
   assert.equal(b.adopter.adopt(), true);
   assert.deepEqual(b.shown, attendu);
   b.adopter.invalidate();
+  b.counts.clear();
   b.shown.length = 0;
   assert.equal(b.adopter.adopt(), true);
   assert.deepEqual(b.shown, attendu, 'le relevé oublié est relu en entier');

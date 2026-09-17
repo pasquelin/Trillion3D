@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuCutAdopter } from './webgpuCutAdoption.ts';
 import { createCutDelta } from './webgpuCutDelta.ts';
+import { createCutCounts } from './webgpuCutCounts.ts';
 import { ESCALATION_SLACK } from './pageSelectionTypes.ts';
 import type { GpuCut, GpuSelection, SelectionUniforms } from './gpuSelection.ts';
 import type { PageRec } from './pageSelection.ts';
@@ -37,6 +38,7 @@ function banc(ids: number[]) {
       result: { pageIds: ids, drawablePageIds: ids, frustumRejected: 0, lodLevel: 0, complete },
     }) as GpuCut;
   let peeked: GpuCut | null = releve(false);
+  const counts = createCutCounts(packedPages, new Int32Array(packedPages.length).fill(0));
   const adopter = createWebgpuCutAdopter({
     selection: () => ({ peek: () => peeked }) as unknown as GpuSelection,
     packedPages,
@@ -44,11 +46,11 @@ function banc(ids: number[]) {
     shown,
     drawn,
     uniforms: shared,
-    residentOffsetWords: new Int32Array(packedPages.length).fill(0),
+    counts,
     delta: createCutDelta(packedPages, desired),
     drawnDelta: createCutDelta(packedPages, []),
     onCutDelta: () => {},
-    onDrawnDelta: () => {},
+    onDrawnDelta: (delta) => counts.apply(delta),
     onDrawnMirrored: () => {},
   });
   return { adopter, desired, shown, montre: (complete: boolean) => (peeked = releve(complete)) };

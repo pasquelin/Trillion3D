@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { renderGpuCut } from './webgpuPagesGpuCut.ts';
 import { createWebgpuCutAdopter } from './webgpuCutAdoption.ts';
 import { createCutDelta } from './webgpuCutDelta.ts';
+import { createCutCounts } from './webgpuCutCounts.ts';
 import { cameraSelectionUniforms } from './gpuSelection.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 import type { GpuCut, GpuSelection, SelectionUniforms } from './gpuSelection.ts';
@@ -84,6 +85,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
   const desired: PageRec[] = [],
     shown: PageRec[] = [],
     drawn: PageRec[] = [];
+  const counts = createCutCounts([page], new Int32Array([0]));
   const adopter = createWebgpuCutAdopter({
     selection: () => selection,
     packedPages: [page],
@@ -91,11 +93,11 @@ export function banc(panne?: 'debordement' | 'envoi') {
     shown,
     drawn,
     uniforms,
-    residentOffsetWords: new Int32Array([0]),
+    counts,
     delta: createCutDelta([page], desired),
     drawnDelta: createCutDelta([page], []),
     onCutDelta: () => {},
-    onDrawnDelta: () => {},
+    onDrawnDelta: (delta) => counts.apply(delta),
     onDrawnMirrored: () => {},
   });
   const rows = {
@@ -157,6 +159,10 @@ export function banc(panne?: 'debordement' | 'envoi') {
     desired,
     rt,
     image: () => renderGpuCut(rt, camera, 0, 0, 0),
-    arrive: () => (page.array = new Uint32Array([0, 1, 2])),
+    arrive: () => {
+      page.array = new Uint32Array([0, 1, 2]);
+      // Les octets arrivent : ce que le journal des rangs ferait, le banc le fait à la main.
+      counts.touch(0);
+    },
   };
 }

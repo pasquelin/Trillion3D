@@ -6,6 +6,7 @@ import { createWebgpuRowCommit } from './webgpuRowCommit.ts';
 import { noteResidenceChange } from './webgpuShadowBounds.ts';
 import { createWebgpuRowSync } from './webgpuRowSync.ts';
 import { createCutDelta } from './webgpuCutDelta.ts';
+import { createCutCounts } from './webgpuCutCounts.ts';
 import { createWebgpuResidencySets } from './webgpuResidencySets.ts';
 import { createWebgpuPinUpdater } from './webgpuPinUpdater.ts';
 import { createWebgpuBootstrap } from './webgpuBootstrap.ts';
@@ -65,15 +66,16 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     sourceBytes.get(key) ?? Promise.reject(new Error('Missing page'));
   const pageSource = { read };
   const hasBytes = (rec: PageRec) => !!(rec.array || sourceBytes.has(rec.url));
-  /**
-   * The sets residency is decided with, and the difference the GPU readback is read as. Both outlive
-   * the image: an image that moves no page touches neither.
-   */
+  /** The sets residency is decided with, and the difference the GPU readback is read as. Both
+   *  outlive the image: an image that moves no page touches neither. */
   const residencySets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages });
   const cutDelta = createCutDelta(packedPages, run.desired);
-  // La coupe dessinable ne sert que par sa différence : aucune liste d'enregistrements n'en est
-  // tirée. `shownFromGpu` écrit déjà `run.shown` à partir des mêmes identifiants.
+  // La coupe dessinable ne sert que par sa différence ; l'adoption écrit `run.shown` à partir des
+  // mêmes identifiants, quand ils ont changé, et ses triangles se tiennent par cette différence et
+  // par les seules pages dont la couverture bascule — que le journal des rangs nomme déjà.
   const drawnDelta = createCutDelta(packedPages);
+  const cutCounts = createCutCounts(packedPages, rows.residentOffsetWords);
+  rows.watchTouched(cutCounts.touch);
   const pinUpdater = createWebgpuPinUpdater({
     tracking,
     sets: residencySets,
@@ -135,10 +137,10 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     shown: run.shown,
     drawn: run.drawn,
     uniforms: run.selectionUniforms,
-    residentOffsetWords: rows.residentOffsetWords,
+    counts: cutCounts,
     delta: cutDelta,
     drawnDelta,
-    onDrawnDelta: (delta) => residencySets.applyDrawn(delta),
+    onDrawnDelta: (delta) => (residencySets.applyDrawn(delta), cutCounts.apply(delta)),
     onDrawnMirrored: () => markDrawnMirrored(run),
     onCutDelta: (delta) => {
       residencySets.applyCut(delta);
@@ -186,7 +188,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     residencySets,
     admitCut,
     // La coupe processeur réécrit elle-même ces listes : leur âge change avec elle.
-    invalidateCut: () => (run.cutEpoch++, cutAdopter.invalidate()),
+    invalidateCut: () => (run.cutEpoch++, cutCounts.clear(), cutAdopter.invalidate()),
     bootstrapState,
     ensureResident,
     residency,

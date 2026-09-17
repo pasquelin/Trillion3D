@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { markDrawnDiverged, mirrorDrawnFromShown } from './webgpuPagesHelpers.ts';
 import { createWebgpuCutAdopter } from './webgpuCutAdoption.ts';
 import { createCutDelta } from './webgpuCutDelta.ts';
+import { createCutCounts } from './webgpuCutCounts.ts';
 import type { GpuCut, GpuSelection, SelectionUniforms } from './gpuSelection.ts';
 import type { PageRec } from './pageSelection.ts';
 
@@ -69,6 +70,7 @@ test('l’adoption annonce la recopie sur un relevé neuf, et jamais sur celui q
     result: { pageIds: [2, 0], drawablePageIds: [2, 0], frustumRejected: 0, lodLevel: 0 },
   } as GpuCut;
   let peeked: GpuCut | null = premier;
+  const counts = createCutCounts(packedPages, new Int32Array(packedPages.length));
   const adopter = createWebgpuCutAdopter({
     selection: () => ({ peek: () => peeked }) as unknown as GpuSelection,
     packedPages,
@@ -76,11 +78,11 @@ test('l’adoption annonce la recopie sur un relevé neuf, et jamais sur celui q
     shown,
     drawn,
     uniforms: uniforms(),
-    residentOffsetWords: new Int32Array(packedPages.length),
+    counts,
     delta: createCutDelta(packedPages, desired),
     drawnDelta: createCutDelta(packedPages, []),
     onCutDelta: () => {},
-    onDrawnDelta: () => {},
+    onDrawnDelta: (delta) => counts.apply(delta),
     onDrawnMirrored: () => annonces++,
   });
 
