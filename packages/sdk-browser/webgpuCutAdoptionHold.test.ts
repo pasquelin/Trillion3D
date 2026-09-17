@@ -118,3 +118,21 @@ test('un relevé NEUF qui republie les mêmes identifiants ne réécrit rien', (
     assert.deepEqual(b.shown, contenu, 'et la liste affichée est la même');
   }
 });
+
+test('une suite dessinable qui répéterait un identifiant ne l’affiche qu’une fois', () => {
+  // La compaction du noyau écrit des rangs strictement croissants, donc sans doublon : chaque page
+  // vivante y est visitée une fois et son rang est celui de sa propre somme préfixe. La liste
+  // affichée est désormais celle que la différence écrit, qui dédoublonne par marque d'époque — un
+  // relevé abîmé rend donc une page une fois et non deux, là où la seconde passe la recopiait.
+  const b = banc([0, 1, 2]);
+  b.montre({
+    uniforms: b.cut.uniforms,
+    result: { pageIds: [0, 1], drawablePageIds: [0, 1, 1, 0], frustumRejected: 0, lodLevel: 0 },
+  } as GpuCut);
+  assert.equal(b.adopter.adopt(), true);
+  assert.deepEqual(
+    b.shown.map((page) => page.url),
+    ['p0', 'p1'],
+  );
+  assert.equal(b.adopter.metrics.drawnTriangles, 1 + 2, 'et les totaux la comptent une fois');
+});
