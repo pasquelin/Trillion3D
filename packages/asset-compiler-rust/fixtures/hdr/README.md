@@ -41,7 +41,7 @@ la prose, le test les retire avant de comparer.
   **CC0-1.0** (<https://creativecommons.org/publicdomain/zero/1.0/>).
 - La scène `scene.gltf` et son binaire sont écrits ici de la même façon, **CC0-1.0**.
 
-Le `test-assets/textures/hdr-matrix/environment.hdr` (512 × 256, CC0-1.0, produit par un encodeur
+Le `test/assets/textures/hdr-matrix/environment.hdr` (512 × 256, CC0-1.0, produit par un encodeur
 tiers et relu par FFmpeg au moment de son entrée au corpus) couvre le cas d'un fichier écrit
 ailleurs, avec la nouvelle compression sur une vraie largeur. Le pilote a été passé dessus pendant
 le développement ; il n'est pas commis ici — un demi-mégaoctet de pixels qu'on ne peut pas écrire en

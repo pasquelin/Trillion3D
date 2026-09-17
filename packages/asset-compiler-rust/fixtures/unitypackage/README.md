@@ -31,11 +31,11 @@ Ce que chaque choix met sous surveillance :
 ## Provenance et licences
 
 - `test.unitypackage` et `hors-paquet/` : corpus WebGeometry
-  (`test-assets/unity/cc0-unitypackage`, généré par `test-assets/tools/unity_assets.py`),
-  **CC0-1.0**, voir [LICENSE.txt](LICENSE.txt). `test-assets/` n'est pas suivi par git : ces octets
+  (`test/assets/unity/cc0-unitypackage`, généré par `test/assets/tools/unity_assets.py`),
+  **CC0-1.0**, voir [LICENSE.txt](LICENSE.txt). `test/assets/` n'est pas suivi par git : ces octets
   sont recopiés ici pour que la dorée tienne sans lui. Le contenu du paquet garde la licence de son
   auteur — ce pilote n'en accorde ni n'en retire aucune.
-- `tronque.unitypackage` : corpus WebGeometry (`test-assets/limites/truncated-unitypackage`),
+- `tronque.unitypackage` : corpus WebGeometry (`test/assets/limites/truncated-unitypackage`),
   **CC0-1.0**, même notice.
 - `hors-paquet/` est la reconstruction du paquet, **au script C# près** : `Assets/Editor/`
   n'en porte que le `.meta`, pas le `.cs`. Ce pilote ne lit que des données et aucun script n'a sa

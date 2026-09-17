@@ -26,8 +26,8 @@ Ce que chaque choix met sous surveillance :
 
 ## Provenance et licences
 
-- `scene.usdz` : corpus WebGeometry (`test-assets/usd/procedural-usdz`), **CC0-1.0**, voir
-  [LICENSE.txt](LICENSE.txt). `test-assets/` n'est pas suivi par git : ces octets sont recopiés ici
+- `scene.usdz` : corpus WebGeometry (`test/assets/usd/procedural-usdz`), **CC0-1.0**, voir
+  [LICENSE.txt](LICENSE.txt). `test/assets/` n'est pas suivi par git : ces octets sont recopiés ici
   pour que la dorée tienne sans lui.
 - `compressee.usdz`, `sans-scene.usdz` et `deux-scenes.usdz` : synthétiques, écrits pour ce test,
   sans contenu d'aucun tiers. Ils viennent d'un outil extérieur à la caisse que le pilote emploie

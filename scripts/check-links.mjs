@@ -6,7 +6,7 @@
 // reported separately, never checked. Same behavior as the retired
 // scripts/check-links.py, ported so `pnpm run check:links` needs no Python.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, extname, join, resolve } from 'node:path';
+import { dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const sdkRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -17,7 +17,7 @@ const excludedDirs = new Set([
   'dist',
   'target',
   '.claude',
-  'test-assets',
+  'test/assets',
 ]);
 
 function findMarkdownFiles(root) {
@@ -30,8 +30,10 @@ function findMarkdownFiles(root) {
       return;
     }
     for (const entry of entries) {
-      if (excludedDirs.has(entry.name)) continue;
       const full = join(dir, entry.name);
+      // Le nom seul ne suffit pas : une exclusion peut porter un chemin (`test/assets`), et le
+      // corpus hors dépôt ne doit pas être parcouru sous prétexte qu'il s'appelle `assets`.
+      if (excludedDirs.has(entry.name) || excludedDirs.has(relative(root, full))) continue;
       if (entry.isDirectory()) walk(full);
       else if (entry.isFile() && entry.name.endsWith('.md')) results.push(full);
     }

@@ -55,13 +55,13 @@ que le contrat `image-plugin-2` n'a pas — `ImageDecoder::decode` ne nomme une 
 - Leurs pixels ont été vérifiés par un décodeur indépendant (Pillow 12.2.0) avant d'être commités,
   compte d'images compris : une erreur de l'écrivain et du décodeur à la fois ne passerait pas la
   double lecture.
-- `tronque.gif` est repris tel quel de `test-assets/limites/truncated-gif/truncated.gif`, lui aussi
-  **CC0-1.0** (corpus WebGeometry). Le dossier `test-assets/` est livré hors git : le fichier est
+- `tronque.gif` est repris tel quel de `test/assets/limites/truncated-gif/truncated.gif`, lui aussi
+  **CC0-1.0** (corpus WebGeometry). Le dossier `test/assets/` est livré hors git : le fichier est
   copié ici pour que la dorée n'en dépende pas.
 - `scene.gltf` et `scene.bin` — le quad de la dorée du chemin complet — sont le quad de
   `fixtures/hdr/`, même corpus et même licence, avec sa seule image changée.
 
-Le GIF 256 × 256 de `test-assets/textures/legacy-web-matrix/palette.gif` (CC0-1.0) couvre la même
+Le GIF 256 × 256 de `test/assets/textures/legacy-web-matrix/palette.gif` (CC0-1.0) couvre la même
 lecture à grande taille ; le pilote en rend 256 × 256. Il porte la même image de référence que le
 `rgb24.bmp` du même dossier, mais **quantifiée à la source** par son encodeur : le comparer pixel à
 pixel au BMP dirait la perte de cet encodeur, pas celle du pilote. Il n'est pas commité ici.

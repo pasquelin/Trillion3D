@@ -62,13 +62,13 @@ lisible : une profondeur de 64 bits (`bmp-depth-unsupported`) et la compression
   *indices stockés* qui ont été confrontés à la convention de Pillow, pas les octets rendus — les
   deux conventions étant injectives, aucune ne perd d'information, mais elles ne donnent pas les
   mêmes valeurs à un bit près.
-- `tronque.bmp` est repris tel quel de `test-assets/limites/truncated-bmp/truncated.bmp`, lui aussi
-  **CC0-1.0** (corpus WebGeometry). Le dossier `test-assets/` est livré hors git : le fichier est
+- `tronque.bmp` est repris tel quel de `test/assets/limites/truncated-bmp/truncated.bmp`, lui aussi
+  **CC0-1.0** (corpus WebGeometry). Le dossier `test/assets/` est livré hors git : le fichier est
   copié ici pour que la dorée n'en dépende pas.
 - `scene.gltf` et `scene.bin` — le quad de la dorée du chemin complet — sont le quad de
   `fixtures/hdr/`, même corpus et même licence, avec sa seule image changée.
 
-Le BMP 256 × 256 en vraies couleurs 24 bits de `test-assets/textures/legacy-web-matrix/rgb24.bmp`
+Le BMP 256 × 256 en vraies couleurs 24 bits de `test/assets/textures/legacy-web-matrix/rgb24.bmp`
 (CC0-1.0) couvre la même lecture à grande taille. Le pilote a été passé dessus pendant le
 développement — il en rend 256 × 256 ; il n'est pas commité ici, un quart de mégaoctet pour des
 pixels qu'on ne peut pas écrire en clair n'étant pas une fixture minimale.

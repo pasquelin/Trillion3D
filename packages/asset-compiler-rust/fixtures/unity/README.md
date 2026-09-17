@@ -2,9 +2,9 @@
 
 ## `cc0-import-project`
 
-Projet Unity minimal, **CC0-1.0**, repris du corpus local `test-assets/unity/cc0-import-project`
-(généré par `test-assets/tools/unity_assets.py`, corpus WebGeometry, 15 septembre 2026). Le dépôt
-ignore `test-assets/` : seuls les fichiers dont le pilote a besoin sont copiés ici, avec leur
+Projet Unity minimal, **CC0-1.0**, repris du corpus local `test/assets/unity/cc0-import-project`
+(généré par `test/assets/tools/unity_assets.py`, corpus WebGeometry, 15 septembre 2026). Le dépôt
+ignore `test/assets/` : seuls les fichiers dont le pilote a besoin sont copiés ici, avec leur
 notice, `LICENSE.txt`. Le script C# de l'éditeur du corpus n'est pas repris — ce pilote ne lit que
 des données, et aucun script n'a sa place dans une fixture.
 
@@ -44,5 +44,5 @@ L'attendu de la dorée est dans `cc0-import-project/expected.json`.
 ## `limites`
 
 `truncated.unity` : les 31 premiers octets de `Map.unity`, repris du corpus
-`test-assets/limites/truncated-unity` (CC0-1.0, notice dans `LICENSE.txt`). Un fichier sans aucun
+`test/assets/limites/truncated-unity` (CC0-1.0, notice dans `LICENSE.txt`). Un fichier sans aucun
 document doit être refusé proprement, sans panique ni allocation non bornée.

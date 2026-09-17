@@ -1,7 +1,7 @@
 # Tests et bancs de performance
 
 Une commande par intention, un emplacement par nature de test. Tout ce qui suit est vérifié :
-les comptes sont ceux de l'arborescence, et `scripts/test-gpu.test.mjs` tient la liste des sondes.
+les comptes sont ceux de l'arborescence, et `test/test-gpu.test.mjs` tient la liste des sondes.
 
 ## 1. Arborescence
 
@@ -25,8 +25,9 @@ test/
   justesse/            18 sondes GPU + 25 modules d'appui
   appui/               27 modules partagés : serveur de fixtures, pages servies
   fixtures/            scènes et données de test
+  assets/              le corpus de formats sources, hors dépôt (66 Mo, ignoré par git)
+  test-gpu.mjs         l'exécuteur des tests matériels, avec son test
 scripts/
-  test-gpu.mjs          l'exécuteur des tests matériels
   mesure/perf/          agrege.mjs (rapport), baseline-save.mjs (baselines)
 ```
 
@@ -61,7 +62,7 @@ Les deux dossiers se découvrent **par une règle, jamais par une liste tenue à
 `test/browser/*.browser.mjs` est lancé, et les noms suivent la même convention que les sondes et les
 bancs — kebab explicite, `coupe-gpu-tenue`, `normale-eclairage-petite-echelle`.
 
-Ce qui ne peut pas tourner est **déclaré** dans `BROWSER_ECARTES` (`scripts/test-gpu.mjs`) avec son
+Ce qui ne peut pas tourner est **déclaré** dans `BROWSER_ECARTES` (`test/test-gpu.mjs`) avec son
 genre et son motif, et la commande l'imprime avant de démarrer — jamais un silence :
 
 - **montage** — la preuve est bonne, la machine n'est pas prête : assets du Lab à recompiler,
@@ -72,13 +73,13 @@ genre et son motif, et la commande l'imprime avant de démarrer — jamais un si
   sans elle. Le moteur est juste, le double a dérivé : il se répare en lisant le contrat plutôt qu'en
   le recopiant.
 
-`scripts/test-gpu.test.mjs` tient la garde symétrique des deux dossiers : **lancés ∪ écartés == le
+`test/test-gpu.test.mjs` tient la garde symétrique des deux dossiers : **lancés ∪ écartés == le
 disque**, et aucun écart ne survit au fichier qu'il nomme. Sans elle, une preuve oubliée ne
 s'exécute jamais sans que rien ne le dise — ce qui est arrivé à dix d'entre elles.
 
 ```bash
 pnpm run test:gpu                                  # tout
-node scripts/test-gpu.mjs test/justesse/reflexion-cone.mjs   # une cible
+node test/test-gpu.mjs test/justesse/reflexion-cone.mjs   # une cible
 ```
 
 ### Bancs de performance

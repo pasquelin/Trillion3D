@@ -27,8 +27,8 @@ Ce que chaque choix met sous surveillance :
 ## Provenance et licences
 
 - `scene.zip`, `tronquee.zip` et `hors-archive/` : corpus WebGeometry
-  (`test-assets/archives/gltf-nested-zip` et `test-assets/limites/truncated-zip`), **CC0-1.0**, voir
-  [LICENSE.txt](LICENSE.txt). `test-assets/` n'est pas suivi par git : ces octets sont recopiés ici
+  (`test/assets/archives/gltf-nested-zip` et `test/assets/limites/truncated-zip`), **CC0-1.0**, voir
+  [LICENSE.txt](LICENSE.txt). `test/assets/` n'est pas suivi par git : ces octets sont recopiés ici
   pour que la dorée tienne sans lui.
 - `sortie-de-dossier.zip` et `vide.zip` : synthétiques, écrits pour ce test, sans contenu d'aucun
   tiers. Ils se régénèrent par

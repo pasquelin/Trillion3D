@@ -38,10 +38,10 @@ Leur régénération est décrite dans l'entête de `src/tests/ktx2_golden.rs`.
 Tout ce dossier est sous **CC0-1.0** (<https://creativecommons.org/publicdomain/zero/1.0/>), voir
 [LICENSE.txt](LICENSE.txt).
 
-- `basis.ktx2` est copié tel quel de `test-assets/textures/ktx2-matrix/basis.ktx2`, corpus
+- `basis.ktx2` est copié tel quel de `test/assets/textures/ktx2-matrix/basis.ktx2`, corpus
   WebGeometry, écrit par `ktx create v4.4.2 / libktx v4.4.2` le 15 septembre 2026. Le dossier
-  `test-assets/` est livré hors git : le fichier est copié ici pour que la dorée n'en dépende pas.
-- `uastc.ktx2` est **découpé** dans `test-assets/textures/ktx2-matrix/uastc.ktx2` du même corpus :
+  `test/assets/` est livré hors git : le fichier est copié ici pour que la dorée n'en dépende pas.
+- `uastc.ktx2` est **découpé** dans `test/assets/textures/ktx2-matrix/uastc.ktx2` du même corpus :
   les blocs UASTC font seize octets, sont indépendants les uns des autres et rangés par rangées, donc
   les quatre premiers blocs des quatre premières rangées sont exactement le coin supérieur gauche de
   16 × 16 texels de la source, sans le moindre réencodage. L'entête reprend celui de la source avec

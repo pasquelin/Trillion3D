@@ -59,7 +59,7 @@ référence 8 bits — le symptôme que ce pilote refuse désormais. Le même d�
 de deux cent cinquante octets : c'est la preuve que ces fichiers portent bien ce que le pilote
 compte.
 
-Les cinq PNG 256 × 256 de `test-assets/textures/png-matrix/` (gris, palette, RGB 8 bits, RGBA 8 bits
+Les cinq PNG 256 × 256 de `test/assets/textures/png-matrix/` (gris, palette, RGB 8 bits, RGBA 8 bits
 à alpha binaire, RGB 16 bits, CC0-1.0) couvrent la même matrice à grande taille ; le pilote a été
 passé dessus pendant le développement, lu en place, jamais modifié. Un seul fichier change de
 comportement, celui que la décision visait ; les quatre autres rendent ce que leur type de couleur
@@ -74,4 +74,4 @@ annonce :
 | `rgb16.png`        | 2 (RGB)         | 16 bits    | refusé, `image-depth-unsupported` |
 
 Elles ne sont pas commitées ici : cent quarante kilooctets pour des pixels qu'on ne peut pas écrire
-en clair ne font pas une fixture minimale, et le dossier `test-assets/` est livré hors git.
+en clair ne font pas une fixture minimale, et le dossier `test/assets/` est livré hors git.

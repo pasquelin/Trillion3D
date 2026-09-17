@@ -27,11 +27,11 @@ l'origine, la compression et la profondeur ne changent pas un seul octet du rés
   (<https://creativecommons.org/publicdomain/zero/1.0/>), redistribuables sans condition.
   Leurs pixels ont été vérifiés par un décodeur indépendant (Pillow 12.2.0) avant d'être commités :
   une erreur de l'encodeur et du décodeur à la fois ne passerait pas la double lecture.
-- `tronque.tga` est repris tel quel de `test-assets/limites/truncated-tga/truncated.tga`, lui aussi
-  **CC0-1.0** (corpus WebGeometry, généré par `test-assets/tools/texture_assets.py`). Le dossier
-  `test-assets/` est livré hors git : le fichier est copié ici pour que la dorée n'en dépende pas.
+- `tronque.tga` est repris tel quel de `test/assets/limites/truncated-tga/truncated.tga`, lui aussi
+  **CC0-1.0** (corpus WebGeometry, généré par `test/assets/tools/texture_assets.py`). Le dossier
+  `test/assets/` est livré hors git : le fichier est copié ici pour que la dorée n'en dépende pas.
 
-Les quatre TGA 256 × 256 de `test-assets/textures/tga-matrix/` (24 et 32 bits, brut et RLE, origines
+Les quatre TGA 256 × 256 de `test/assets/textures/tga-matrix/` (24 et 32 bits, brut et RLE, origines
 haute et basse, CC0-1.0, produites par Pillow) couvrent la même matrice à grande taille. Le pilote a
 été passé dessus pendant le développement ; elles ne sont pas commitées ici — un quart de mégaoctet
 par fichier pour des pixels qu'on ne peut pas écrire en clair n'est pas une fixture minimale.
