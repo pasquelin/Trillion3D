@@ -1,5 +1,8 @@
 use super::*;
 
+/// Aucune texture à mesurer : ces tests ne couvrent que les aperçus.
+static RIEN_A_MESURER: BTreeSet<usize> = BTreeSet::new();
+
 fn inputs<'a>(
     o: &'a Options,
     g: &'a Value,
@@ -15,6 +18,7 @@ fn inputs<'a>(
         image_root,
         meshes,
         view_map,
+        to_measure: &RIEN_A_MESURER,
     }
 }
 

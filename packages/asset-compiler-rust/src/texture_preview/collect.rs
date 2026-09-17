@@ -6,8 +6,9 @@ pub(super) struct ColorTexture {
     pub cutoff: Option<f32>,
 }
 
-/// Seuil de découpe par défaut de glTF, employé seulement quand le matériau MASK n'en déclare pas.
-const DEFAULT_ALPHA_CUTOFF: f32 = 0.5;
+/// Seuil de découpe par défaut de glTF, employé seulement quand le matériau MASK n'en déclare pas :
+/// celui-là même auquel un matériau reclassé découpe (`cutout::CUTOUT_ALPHA`).
+const DEFAULT_ALPHA_CUTOFF: f32 = crate::cutout::CUTOUT_ALPHA as f32;
 
 #[derive(Default)]
 struct Binding {
@@ -59,7 +60,7 @@ pub(super) fn color_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
         .collect())
 }
 
-fn texture_index(reference: Option<&Value>) -> Option<usize> {
+pub(crate) fn texture_index(reference: Option<&Value>) -> Option<usize> {
     reference?
         .get("index")
         .and_then(Value::as_u64)
@@ -67,7 +68,7 @@ fn texture_index(reference: Option<&Value>) -> Option<usize> {
 }
 
 /// Les matériaux que les maillages compilés emploient réellement, sans doublon.
-fn used_materials(g: &Value, meshes: &BTreeSet<usize>) -> Result<BTreeSet<usize>> {
+pub(crate) fn used_materials(g: &Value, meshes: &BTreeSet<usize>) -> Result<BTreeSet<usize>> {
     let Some(mesh_values) = g.get("meshes").and_then(Value::as_array) else {
         return Ok(BTreeSet::new());
     };
