@@ -329,25 +329,31 @@ with a soft fringe only along the contour. The reference engine never reclassifi
 on its own: it refuses it, names it in the log, and a human ticks _Masked_ before shipping. We
 import other people's files, so the compiler takes that role — **without ever guessing silently**.
 
-Each compile therefore writes two files at the root of the compiled model, beside `native/`:
+Each compile therefore writes one file at the root of the compiled model, beside `native/`:
+`decoupes.json`, the answer sheet — one entry per candidate texture, keyed by the sha256 of its
+image bytes, carrying the measure, the compiler's `proposal`, what the texture still holds in the
+blend path, and `cutout`: `true`, `false`, or `null` while nobody has decided. It is written on
+**every** compile, whether or not anything is pending: the sheet is what says a review is due, and
+`cutouts.version` in the compiled manifest publishes its contract number. The compiler applies
+nothing until an entry answers `true`; with no sheet at all, blended stays blended and the product
+is byte-identical to before.
 
-| Path            | Role                                                                                                    |
-| --------------- | ------------------------------------------------------------------------------------------------------- |
-| `decoupes.json` | The answer sheet: one entry per candidate texture, keyed by the sha256 of its image bytes               |
-| `decoupes.html` | A standalone page — thumbnails embedded, no server, no network — that fills the sheet and saves it back |
-
-Both are written on **every** compile, whether or not anything is pending: the sheet is what says a
-review is due. `cutouts.version` in the compiled manifest publishes the sheet's contract number —
-it governs the answers a reader writes back, and nothing else; an unknown one is refused rather than
-guessed. The page carries the sheet the compiler just wrote and returns it with the answers changed,
-so the format exists in one place only. An entry carries the measure, the compiler's `proposal`, and `cutout` — `true`,
-`false`, or `null` while nobody has decided. The compiler applies nothing until an entry answers
-`true`; with no sheet at all, blended stays blended and the product is byte-identical to before.
+**The compiler draws nothing.** It publishes what is pending — in the manifest and in a `cutouts`
+progress event — and whoever called it presents the question: a terminal asks it, an application
+shows it in its own panel, and a log or an automated chain is asked nothing at all. `reviewCutouts`
+in `@web-geometry/sdk/node` is the terminal side of that: it gathers the pending textures of a whole
+batch (a single import is a batch of one), shows each one — a real picture where the terminal has an
+image protocol, a mosaic of half-blocks where it has none, plus a link to the full-resolution
+texture — takes one keypress per texture, writes the answers into every sheet that knows the image,
+and compiles again only the models an answer changed. An answer is keyed by the image's bytes, so a
+leaf two scenes share is shown once and answered once.
 
 The measure reads the full-resolution alpha inside the decode the texture stage already performs —
 the one that bakes each texture's mip chain into the cache, in parallel on the job's pool (see
 [FORMAT.md](FORMAT.md), _Textures_) —, so no texture is decoded twice (the candidate images are read once more, to key the answers by their
-sha256 — 0.08 s of a 14.5 s Emerald compile). Two numbers separate the two shapes: the share of texels that are
+sha256 — 0.08 s of a 14.5 s Emerald compile). The pictures the question shows are the progressive
+thumbnails the cache already carries for the engine: nothing is drawn, encoded or transported for
+the asking. Two numbers separate the two shapes: the share of texels that are
 neither present nor absent, and the share of those that sit within eight pixels of the 0.5 contour.
 A glass is grey everywhere and far from any contour; a leaf is grey only along its edge. The
 proposal is a proposal — the answer is what applies.
