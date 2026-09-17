@@ -1,47 +1,58 @@
 # src · Fn (2)
 
-> 19 nodes
+> 23 nodes
 
 ## Key Concepts
 
-- **qem_tests.rs** (12 connections) — `packages/asset-compiler-rust/src/qem_tests.rs`
-- **simplify_with_locked_vertices()** (10 connections) — `packages/asset-compiler-rust/src/qem.rs`
-- **compact_region()** (8 connections) — `packages/asset-compiler-rust/src/qem.rs`
-- **qem.rs** (7 connections) — `packages/asset-compiler-rust/src/qem.rs`
-- **SimplifiedMesh** (2 connections) — `packages/asset-compiler-rust/src/qem.rs`
-- **a_mesh_already_below_the_target_is_returned_untouched()** (2 connections) — `packages/asset-compiler-rust/src/qem_tests.rs`
-- **compact_region_falls_back_to_zero_for_an_index_beyond_the_positions()** (2 connections) — `packages/asset-compiler-rust/src/qem_tests.rs`
-- **compact_region_on_a_degenerate_triangle_renumbers_the_repeated_vertex_once()** (2 connections) — `packages/asset-compiler-rust/src/qem_tests.rs`
-- **compact_region_on_a_single_triangle_keeps_every_vertex_once()** (2 connections) — `packages/asset-compiler-rust/src/qem_tests.rs`
-- **compact_region_on_an_empty_mesh_returns_empty_lists()** (2 connections) — `packages/asset-compiler-rust/src/qem_tests.rs`
-- **compact_region_renumbers_each_vertex_once_and_maps_back()** (2 connections) — `packages/asset-compiler-rust/src/qem_tests.rs`
-- **free_vertices_reduce_a_closed_cube()** (2 connections) — `packages/asset-compiler-rust/src/qem_tests.rs`
-- **locked_vertices_keep_every_triangle()** (2 connections) — `packages/asset-compiler-rust/src/qem_tests.rs`
+- **compile()** (22 connections) — `packages/asset-compiler-rust/src/compiler_build.rs`
+- **prune_cache()** (9 connections) — `packages/asset-compiler-rust/src/compiler_prune.rs`
+- **referenced_objects()** (9 connections) — `packages/asset-compiler-rust/src/compiler_prune.rs`
+- **other_scope_objects()** (7 connections) — `packages/asset-compiler-rust/src/compiler_prune.rs`
+- **publish()** (6 connections) — `packages/asset-compiler-rust/src/compiler_publish.rs`
+- **compiler_prune.rs** (5 connections) — `packages/asset-compiler-rust/src/compiler_prune.rs`
+- **compiler_publish.rs** (5 connections) — `packages/asset-compiler-rust/src/compiler_publish.rs`
+- **Publication** (5 connections) — `packages/asset-compiler-rust/src/compiler_publish.rs`
+- **Result** (3 connections)
+- **compiler_build.rs** (2 connections) — `packages/asset-compiler-rust/src/compiler_build.rs`
+- **BTreeSet** (2 connections)
+- **String** (2 connections)
+- **Value** (2 connections)
+- **TexturePreview** (2 connections)
 - **Fn** (1 connections)
 - **Result** (1 connections)
-- **CUBE_INDICES** (1 connections) — `packages/asset-compiler-rust/src/qem_tests.rs`
-- **CUBE_POSITIONS** (1 connections) — `packages/asset-compiler-rust/src/qem_tests.rs`
-- **malformed_input_is_rejected()** (1 connections) — `packages/asset-compiler-rust/src/qem_tests.rs`
-- **meshopt** (1 connections)
+- **Sync** (1 connections)
+- **Value** (1 connections)
+- **Fn** (1 connections)
+- **Option** (1 connections)
+- **Sync** (1 connections)
+- **Result** (1 connections)
+- **Value** (1 connections)
 
 ## Relationships
 
-- [DAG et stratégie de coupe](DAG_et_stratégie_de_coupe.md) (2 shared connections)
-- [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
-- [bench_calculs · Bits](bench_calculs_·_Bits.md) (1 shared connections)
-- [Construction du DAG](Construction_du_DAG.md) (1 shared connections)
-- [src · Option](src_·_Option.md) (1 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
+- [Écriture de la scène source](Écriture_de_la_scène_source.md) (5 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (3 shared connections)
+- [Budget et ouvriers du compilateur (2)](Budget_et_ouvriers_du_compilateur_2.md) (3 shared connections)
+- [Couches de profondeur](Couches_de_profondeur.md) (3 shared connections)
+- [Validation du compilateur](Validation_du_compilateur.md) (2 shared connections)
+- [unity · les_mesures_et_la_provenance_sortent_de_lidentite](unity_·_les_mesures_et_la_provenance_sortent_de_lidentite.md) (2 shared connections)
+- [ktx2 · NAMES](ktx2_·_NAMES.md) (1 shared connections)
+- [Jeux de bancs Rust](Jeux_de_bancs_Rust.md) (1 shared connections)
+- [src · fbx_intensity_scale](src_·_fbx_intensity_scale.md) (1 shared connections)
+- [Chargement des modèles](Chargement_des_modèles.md) (1 shared connections)
+- [src · BTreeMap](src_·_BTreeMap.md) (1 shared connections)
+- [src · BTreeMap (2)](src_·_BTreeMap_2.md) (1 shared connections)
 
 ## Source Files
 
-- `packages/asset-compiler-rust/src/qem.rs`
-- `packages/asset-compiler-rust/src/qem_tests.rs`
+- `packages/asset-compiler-rust/src/compiler_build.rs`
+- `packages/asset-compiler-rust/src/compiler_prune.rs`
+- `packages/asset-compiler-rust/src/compiler_publish.rs`
 
 ## Audit Trail
 
-- EXTRACTED: 23 (68%)
-- INFERRED: 11 (32%)
+- EXTRACTED: 40 (69%)
+- INFERRED: 18 (31%)
 - AMBIGUOUS: 0 (0%)
 
 ---

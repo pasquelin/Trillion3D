@@ -1,12 +1,11 @@
 # sdk-core · SunCascade
 
-> 22 nodes
+> 21 nodes
 
 ## Key Concepts
 
 - **sceneLightSunCascades.ts** (17 connections) — `packages/sdk-core/sceneLightSunCascades.ts`
 - **sceneLightSunCascades.test.ts** (11 connections) — `packages/sdk-core/sceneLightSunCascades.test.ts`
-- **sunCascadeOf()** (10 connections) — `packages/sdk-core/sceneLightSunCascades.ts`
 - **soleil-cascades.mjs** (10 connections) — `packages/sdk-core/bench/oracles/soleil-cascades.mjs`
 - **referenceSunCascadeOf()** (6 connections) — `packages/sdk-core/bench/oracles/soleil-cascades.mjs`
 - **sunCascadeSplits()** (4 connections) — `packages/sdk-core/sceneLightSunCascades.ts`
@@ -29,10 +28,9 @@
 
 ## Relationships
 
-- [sdk-core · matrix](sdk-core_·_matrix.md) (6 shared connections)
-- [sdk-core · Slices](sdk-core_·_Slices.md) (5 shared connections)
-- [bench · faces](bench_·_faces.md) (4 shared connections)
-- [Atlas d'ombres GPU](Atlas_d'ombres_GPU.md) (2 shared connections)
+- [Faces et volumes d'ombre](Faces_et_volumes_d'ombre.md) (7 shared connections)
+- [sdk-core · Inputs](sdk-core_·_Inputs.md) (7 shared connections)
+- [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (3 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (2 shared connections)
 
 ## Source Files
@@ -43,8 +41,8 @@
 
 ## Audit Trail
 
-- EXTRACTED: 50 (96%)
-- INFERRED: 2 (4%)
+- EXTRACTED: 46 (98%)
+- INFERRED: 1 (2%)
 - AMBIGUOUS: 0 (0%)
 
 ---

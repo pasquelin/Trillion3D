@@ -17,7 +17,7 @@
 
 ## Relationships
 
-- [Ordre des transparents](Ordre_des_transparents.md) (2 shared connections)
+- [Plan de mélange des transparents](Plan_de_mélange_des_transparents.md) (2 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (2 shared connections)
 - [Nuanceurs WGSL de visibilité](Nuanceurs_WGSL_de_visibilité.md) (1 shared connections)
 - [Tests navigateur Node](Tests_navigateur_Node.md) (1 shared connections)

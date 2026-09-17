@@ -1,6 +1,6 @@
 # sdk-browser · flushedSlices
 
-> 10 nodes
+> 8 nodes
 
 ## Key Concepts
 
@@ -9,25 +9,22 @@
 - **regionRect()** (4 connections) — `packages/sdk-core/sceneLightShadowVolume.ts`
 - **shadowViewpointOf()** (3 connections) — `packages/sdk-browser/webgpuPagesEncodeShadows.ts`
 - **SHADOW_PAGE** (3 connections) — `packages/sdk-core/sceneLightShadowPages.ts`
-- **regionScissor** (2 connections) — `packages/sdk-browser/webgpuPagesEncodeShadows.ts`
-- **regionViewport** (2 connections) — `packages/sdk-browser/webgpuPagesEncodeShadows.ts`
 - **flushedSlices** (1 connections) — `packages/sdk-browser/webgpuPagesEncodeShadows.ts`
 - **rectScratch** (1 connections) — `packages/sdk-browser/webgpuPagesEncodeShadows.ts`
 - **viewpoint** (1 connections) — `packages/sdk-browser/webgpuPagesEncodeShadows.ts`
 
 ## Relationships
 
-- [sdk-core · matrix](sdk-core_·_matrix.md) (5 shared connections)
-- [sdk-core · Slices](sdk-core_·_Slices.md) (5 shared connections)
-- [Encodage des dessins WebGPU](Encodage_des_dessins_WebGPU.md) (3 shared connections)
+- [Faces et volumes d'ombre](Faces_et_volumes_d'ombre.md) (5 shared connections)
+- [sdk-core · Inputs](sdk-core_·_Inputs.md) (5 shared connections)
+- [Vidange et lumières encodées](Vidange_et_lumières_encodées.md) (3 shared connections)
 - [Vecteurs et normale d'ombrage](Vecteurs_et_normale_d'ombrage.md) (3 shared connections)
 - [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (3 shared connections)
-- [Atlas d'ombres GPU](Atlas_d'ombres_GPU.md) (3 shared connections)
-- [Dessin GPU et contrat](Dessin_GPU_et_contrat.md) (3 shared connections)
-- [Coût CPU et image tenue](Coût_CPU_et_image_tenue.md) (1 shared connections)
+- [Étapes et profilage de trame (2)](Étapes_et_profilage_de_trame_2.md) (3 shared connections)
+- [sdk-browser · AtlasResources](sdk-browser_·_AtlasResources.md) (3 shared connections)
+- [sdk-browser · BlendState](sdk-browser_·_BlendState.md) (2 shared connections)
 - [Pyramide Hi-Z et occlusion](Pyramide_Hi-Z_et_occlusion.md) (1 shared connections)
-- [sdk-browser · GeometryBlock](sdk-browser_·_GeometryBlock.md) (1 shared connections)
-- [sdk-browser · parcoursDeVue](sdk-browser_·_parcoursDeVue.md) (1 shared connections)
+- [Caméra monde et contrat](Caméra_monde_et_contrat.md) (1 shared connections)
 - [sdk-core · clip](sdk-core_·_clip.md) (1 shared connections)
 
 ## Source Files
@@ -38,7 +35,7 @@
 
 ## Audit Trail
 
-- EXTRACTED: 41 (100%)
+- EXTRACTED: 39 (100%)
 - INFERRED: 0 (0%)
 - AMBIGUOUS: 0 (0%)
 

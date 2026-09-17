@@ -18,9 +18,9 @@
 
 ## Relationships
 
-- [tests · ALPHA](tests_·_ALPHA.md) (3 shared connections)
+- [tests · ALPHA (2)](tests_·_ALPHA_2.md) (3 shared connections)
 - [Registre des images de test](Registre_des_images_de_test.md) (1 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
 - [tests · DROIT](tests_·_DROIT.md) (1 shared connections)
 
 ## Source Files

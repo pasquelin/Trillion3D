@@ -20,16 +20,15 @@
 
 ## Relationships
 
-- [bench_calculs · Bits (5)](bench_calculs_·_Bits_5.md) (2 shared connections)
+- [Bancs de calcul Rust (2)](Bancs_de_calcul_Rust_2.md) (2 shared connections)
+- [DAG et stratégie de coupe](DAG_et_stratégie_de_coupe.md) (2 shared connections)
 - [Jeux de bancs Rust](Jeux_de_bancs_Rust.md) (1 shared connections)
-- [Construction du DAG](Construction_du_DAG.md) (1 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
-- [DAG et stratégie de coupe](DAG_et_stratégie_de_coupe.md) (1 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
 - [src · PLAN](src_·_PLAN.md) (1 shared connections)
 - [Maillages et jeux de faces](Maillages_et_jeux_de_faces.md) (1 shared connections)
-- [blend · POINTER](blend_·_POINTER.md) (1 shared connections)
+- [dna · Option](dna_·_Option.md) (1 shared connections)
 - [Normales et jointures](Normales_et_jointures.md) (1 shared connections)
-- [src · Fn (2)](src_·_Fn_2.md) (1 shared connections)
+- [src · Fn](src_·_Fn.md) (1 shared connections)
 
 ## Source Files
 

@@ -20,10 +20,8 @@
 ## Relationships
 
 - [Mathématiques du tampon de visibilité](Mathématiques_du_tampon_de_visibilité.md) (8 shared connections)
-- [bench · passe](bench_·_passe.md) (2 shared connections)
-- [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (2 shared connections)
-- [Socle de mesure des bancs](Socle_de_mesure_des_bancs.md) (1 shared connections)
-- [Socle du banc sdk-core](Socle_du_banc_sdk-core.md) (1 shared connections)
+- [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (4 shared connections)
+- [Garde zéro Three.js](Garde_zéro_Three.js.md) (2 shared connections)
 - [sdk-browser · flush](sdk-browser_·_flush.md) (1 shared connections)
 
 ## Source Files

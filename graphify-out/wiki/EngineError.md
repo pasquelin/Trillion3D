@@ -2,7 +2,7 @@
 
 > God node · 76 connections · `packages/sdk-core/cacheContracts.ts`
 
-**Community:** [Magasin des lumières de scène](Magasin_des_lumières_de_scène.md)
+**Community:** [Manifeste binaire (2)](Manifeste_binaire_2.md)
 
 ## Connections by Relation
 

@@ -17,10 +17,10 @@
 
 ## Relationships
 
-- [tests · ALPHA](tests_·_ALPHA.md) (4 shared connections)
+- [tests · ALPHA (2)](tests_·_ALPHA_2.md) (4 shared connections)
 - [Registre des images de test](Registre_des_images_de_test.md) (1 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
-- [Oracle : rayons et indirect](Oracle_-_rayons_et_indirect.md) (1 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [oracle · Into](oracle_·_Into.md) (1 shared connections)
 - [tests · BLANC](tests_·_BLANC.md) (1 shared connections)
 - [tests · IGNORED](tests_·_IGNORED.md) (1 shared connections)
 - [ktx2 · invalid_headers](ktx2_·_invalid_headers.md) (1 shared connections)
