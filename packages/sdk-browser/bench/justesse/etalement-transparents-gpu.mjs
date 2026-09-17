@@ -14,8 +14,8 @@
 import assert from 'node:assert/strict';
 import { BLEND_EXPAND_SHADER } from '../../webgpuBlendExpandWgsl.ts';
 import { expandBlendPlan } from '../../webgpuBlendExpandCpu.ts';
-import { EXPAND_GROUP, RUN_SHARED, RUN_WORDS } from '../../webgpuBlendRuns.ts';
-import { DRAW_UNPAGED } from '../../webgpuBlendPlan.ts';
+import { buildBlendRuns, EXPAND_GROUP, RUN_WORDS } from '../../webgpuBlendRuns.ts';
+import { DRAW_UNPAGED, planEntry } from '../../webgpuBlendPlan.ts';
 import { etalementGpu } from './noyauEtalementGpu.mjs';
 import { graine } from '../../../sdk-core/bench/banc.mjs';
 
@@ -47,20 +47,12 @@ function cas(items, isoles, base) {
   const order = new Uint32Array(items);
   for (let i = 0; i < items; i++) {
     const item = (items - 1 - i + 17) % items;
-    order[i] = (item << 3) | (isoles.includes(item) ? 0 : 4) | (i % 3 === 0 ? 2 : 1);
+    order[i] = planEntry(item, i % 3 === 0 ? 2 : 1, !isoles.includes(item));
   }
+  // Le découpage en tranches est celui de la PRODUCTION, pas une copie : une preuve « carte =
+  // modèle » qui rejouerait son propre découpeur ne prouverait plus rien du chemin livré.
   const runs = new Uint32Array(items * RUN_WORDS);
-  let count = 0,
-    first = 0;
-  while (first < items) {
-    const pipeline = order[first] & 3,
-      partage = (order[first] & 4) !== 0;
-    let end = first + 1;
-    if (partage) while (end < items && (order[end] & 7) === (4 | pipeline)) end++;
-    runs.set([first, end - first, pipeline, partage ? RUN_SHARED : order[first] >>> 3], count * 4);
-    count++;
-    first = end;
-  }
+  const count = buildBlendRuns(order, true, runs);
   // Le compte indirect que la compaction écrit : quatre mots par item, le compte au deuxième.
   const indirect = new Uint32Array(items * 4);
   for (let item = 0; item < items; item++) indirect[item * 4 + 1] = counts[item];
