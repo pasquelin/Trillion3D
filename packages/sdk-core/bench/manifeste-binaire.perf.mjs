@@ -1,7 +1,7 @@
 // F19 : l'écriture des empreintes d'un manifeste binaire.
 import { writeSha } from '../manifestBinaryLayout.ts';
 import { graine, mesure, stress, rapport } from './mesure.mjs';
-import { referenceWriteSha } from './oracles/f-manifeste.mjs';
+import { referenceWriteSha } from './oracles/manifeste-binaire.mjs';
 
 const alea = graine(211);
 const HEX = '0123456789abcdef';

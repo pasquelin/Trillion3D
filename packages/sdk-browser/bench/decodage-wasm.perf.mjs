@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { decodeGeometryPage } from '../geometryPage.ts';
 import { decodeGeometryPageWasm, prepareSdkWasm } from '../geometryPageWasm.ts';
 import { RACINE, mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
-import { page } from './pagesH2b.mjs';
+import { page } from './pagesWasm.mjs';
 
 const MODULE = join(RACINE, 'packages', 'sdk-browser', 'pageCodec.wasm');
 const codec = await prepareSdkWasm(readFileSync(MODULE));

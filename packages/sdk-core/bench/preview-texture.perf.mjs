@@ -1,7 +1,7 @@
 // G11 : la géométrie d'une entrée de preview.
 import { previewGeometry } from '../texturePreviewLevels.ts';
 import { mesure, stress, rapport } from './mesure.mjs';
-import { referenceExpectedGeometry } from './oracles/g-preview.mjs';
+import { referenceExpectedGeometry } from './oracles/preview-texture.mjs';
 
 const DIMENSIONS = [
   [0, 0],

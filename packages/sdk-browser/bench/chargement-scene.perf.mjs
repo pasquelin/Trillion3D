@@ -4,13 +4,13 @@ import { collectClusterPages } from '../pageSelectionCollect.ts';
 import { exactPagesBounds } from '../exactPagesBounds.ts';
 import { indexManifestBundles, indexManifestPages } from '../manifestPageIndex.ts';
 import { mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
-import { referenceCollectClusterPages } from './oracles/f-chargement.mjs';
+import { referenceCollectClusterPages } from './oracles/chargement-scene.mjs';
 import {
   referenceExactPagesBounds,
   referenceIndexManifestBundles,
   referenceIndexManifestPages,
-} from './oracles/f-scene.mjs';
-import { manifesteEtScene } from './scenesF.mjs';
+} from './oracles/scene-chargement.mjs';
+import { manifesteEtScene } from './scenesChargement.mjs';
 
 const boiteVersTableau = (boite) =>
   boite.isBox3 ? [...boite.min.toArray(), ...boite.max.toArray()] : Array.from(boite);
