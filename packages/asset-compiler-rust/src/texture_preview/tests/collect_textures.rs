@@ -21,7 +21,8 @@ fn base_color_and_emissive_are_the_only_textures_collected() {
         "meshes": meshes_using(&[0]),
     });
     let found =
-        crate::texture_preview::collect::color_textures(&g, &BTreeSet::from([0])).expect("collect");
+        crate::texture_preview::collect::color_textures(&g, &BTreeSet::from([0]), &BTreeSet::new())
+            .expect("collect");
     let mut textures: Vec<usize> = found.iter().map(|c| c.texture).collect();
     textures.sort();
     assert_eq!(textures, vec![2, 5]);
@@ -40,7 +41,8 @@ fn a_shared_base_texture_keeps_the_smallest_mask_cutoff() {
         "meshes": meshes_using(&[0, 1]),
     });
     let found =
-        crate::texture_preview::collect::color_textures(&g, &BTreeSet::from([0])).expect("collect");
+        crate::texture_preview::collect::color_textures(&g, &BTreeSet::from([0]), &BTreeSet::new())
+            .expect("collect");
     assert_eq!(found.len(), 1);
     assert_eq!(found[0].texture, 1);
     assert_eq!(found[0].cutoff, Some(0.3));
@@ -58,7 +60,8 @@ fn a_plain_binding_wins_over_a_mask_binding_on_a_shared_texture() {
         "meshes": meshes_using(&[0, 1]),
     });
     let found =
-        crate::texture_preview::collect::color_textures(&g, &BTreeSet::from([0])).expect("collect");
+        crate::texture_preview::collect::color_textures(&g, &BTreeSet::from([0]), &BTreeSet::new())
+            .expect("collect");
     assert_eq!(found.len(), 1);
     assert_eq!(found[0].texture, 4);
     assert_eq!(found[0].cutoff, None);

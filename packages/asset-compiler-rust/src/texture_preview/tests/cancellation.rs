@@ -46,6 +46,7 @@ fn cancellation_is_honoured_between_two_textures_not_mid_decode() {
         image_root: &dir,
         meshes: &meshes,
         view_map: &view_map,
+        answered: &BTreeSet::new(),
     });
     let immediate_elapsed = started.elapsed();
     assert_eq!(immediate.err().expect("cancelled").code, "CANCELLED");
@@ -61,6 +62,7 @@ fn cancellation_is_honoured_between_two_textures_not_mid_decode() {
         image_root: &dir,
         meshes: &meshes,
         view_map: &view_map,
+        answered: &BTreeSet::new(),
     });
     let mid_flight_elapsed = started.elapsed();
     assert_eq!(interrupted.err().expect("cancelled").code, "CANCELLED");
