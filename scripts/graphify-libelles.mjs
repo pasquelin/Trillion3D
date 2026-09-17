@@ -14,6 +14,7 @@
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { basename, dirname, relative, isAbsolute } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 export const SEUIL_RECOUVREMENT = 0.4;
 const EXTENSIONS = /\.(ts|tsx|js|mjs|rs|py|md|txt|wgsl|json)$/;
@@ -57,9 +58,12 @@ export function nomDerive(ids, contexte) {
  */
 export function apparier(groupes, temoins) {
   const scores = [];
+  // L'appartenance ne dépend que de la communauté : la bâtir une fois par communauté, pas une fois
+  // par (nom, communauté).
+  const membresDe = new Map([...groupes].map(([cid, ids]) => [cid, new Set(ids)]));
   for (const [nom, references] of Object.entries(temoins)) {
-    for (const [cid, ids] of groupes) {
-      const membres = new Set(ids);
+    for (const [cid] of groupes) {
+      const membres = membresDe.get(cid);
       const communs = references.filter((id) => membres.has(id)).length;
       const part = communs / references.length;
       if (part >= SEUIL_RECOUVREMENT) scores.push({ nom, cid, part });
@@ -145,4 +149,4 @@ function principal() {
   console.log(`[graphify] ${repris}/${total} communautés ont retrouvé leur nom métier.`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) principal();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) principal();

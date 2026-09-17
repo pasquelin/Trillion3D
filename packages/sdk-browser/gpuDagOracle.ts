@@ -163,22 +163,13 @@ export function evaluateDagSelectionKernel(
   for (let i = 0; i < packed.pageCount; i++) {
     const w = worldOf(records, i);
     if (!visible(i) || cone(i, w)) continue;
-    let draw: boolean;
-    let trou = false;
-    if (missing[w]) {
-      draw = !!(flagsOf(records, i) & CLUSTER_ROOT);
-      if (draw && !resident[i]) {
-        complete = false;
-        draw = false;
-        trou = true;
-      }
-    } else {
-      draw = selects(i, thresholds[w]);
-      if (draw && !resident[i]) {
-        complete = false;
-        draw = false;
-        trou = true;
-      }
+    // La branche ne décide que du CANDIDAT ; le veto de résidence est la même règle pour les deux,
+    // et l'écrire une fois est ce qui garantit qu'elle le reste.
+    let draw = missing[w] ? !!(flagsOf(records, i) & CLUSTER_ROOT) : selects(i, thresholds[w]);
+    const trou = draw && !resident[i];
+    if (trou) {
+      complete = false;
+      draw = false;
     }
     note(i, draw || trou, draw, trou);
     if (draw) drawablePageIds.push(i);

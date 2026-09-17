@@ -8,6 +8,7 @@
 import { FRUSTUM_PLANE_VALUES, maxStretch } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 import { OPEN_CONE, type NormalCone } from './pageCone.ts';
+import { sameElements } from './matrixElements.ts';
 import { pixelScaleOf } from './streamingPriority.ts';
 import type { EngineCamera } from './cameraWorld.ts';
 
@@ -119,7 +120,7 @@ export function sameSelectionUniforms(a: SelectionUniforms, b: SelectionUniforms
     a.cameraWorld[2] !== b.cameraWorld[2]
   )
     return false;
-  for (let i = 0; i < 16; i++) if (a.view[i] !== b.view[i]) return false;
+  if (!sameElements(a.view, b.view)) return false;
   for (let i = 0; i < 24; i++) if (a.planes[i] !== b.planes[i]) return false;
   return true;
 }
