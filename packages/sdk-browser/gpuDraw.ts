@@ -11,5 +11,5 @@ export {
 } from './gpuDrawContract.ts';
 export type { DrawItem, GpuDraw } from './gpuDrawContract.ts';
 export { evaluateDrawCompact, compactSlotLayout, indirectForDraw } from './gpuDrawCpu.ts';
-export { DRAW_SHADER } from './gpuDrawShader.ts';
+export { DRAW_SHADER, drawBindEntries } from './gpuDrawShader.ts';
 export { createGpuDraw } from './gpuDrawFactory.ts';

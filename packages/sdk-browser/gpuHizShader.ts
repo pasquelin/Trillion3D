@@ -1,6 +1,30 @@
 import { ST_REJECTED, ST_REJECTED_TRIANGLES, ST_TESTED } from './gpuPartitionContract.ts';
 import { HIZ_FAR_WGSL } from './gpuHizRectWgsl.ts';
 
+/** `GPUShaderStage.COMPUTE`, écrit en clair : ce module est aussi lu depuis Node, sans ce global. */
+const COMPUTE = 4;
+
+/**
+ * Les liaisons du groupe 0, publiées sous le WGSL qui les déclare. La disposition de production et
+ * les preuves navigateur les LISENT ici — aucune ne les recopie, donc aucune ne peut prendre du
+ * retard sur le nuanceur. C'est cet écart qui avait rendu `hiz-webgpu.browser.mjs` rouge : sa copie
+ * s'était arrêtée à `@binding(4)` pendant que `state` entrait en 5.
+ */
+export function hizBindEntries(uniformBytes: number): GPUBindGroupLayoutEntry[] {
+  return [
+    { binding: 0, visibility: COMPUTE, buffer: { type: 'storage' } },
+    { binding: 1, visibility: COMPUTE, texture: { sampleType: 'unfilterable-float' } },
+    {
+      binding: 2,
+      visibility: COMPUTE,
+      buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: uniformBytes },
+    },
+    { binding: 3, visibility: COMPUTE, buffer: { type: 'read-only-storage' } },
+    { binding: 4, visibility: COMPUTE, buffer: { type: 'storage' } },
+    { binding: 5, visibility: COMPUTE, buffer: { type: 'storage' } },
+  ];
+}
+
 /**
  * Les trois noyaux de la pyramide Hi-Z. Le test ne reçoit plus ni compte ni octets du processeur :
  * il lit le nombre de boîtes et écrit ses propres compteurs d'élimination dans l'état que la
