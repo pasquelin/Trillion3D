@@ -107,9 +107,11 @@ export function renderCpuCut(
   const selected = selectCpuCut(rt, cam, pixelError, false);
   run.cpuSelectMs = performance.now() - cpuSelectionStarted;
   traceCpuSelection(rt, selected, run.cpuSelectMs);
-  // La coupe processeur publie la sienne par la même différence que le relevé de la carte : elle
-  // écrit `run.desired` elle-même, et les mêmes lecteurs la suivent sans reparcourir de liste.
-  services.adoptCpuCut(selected.wanted ?? run.shown, run.shown);
+  // La coupe choisie, pas encore publiée. L'admission la pèse ici, mais les ensembles de résidence
+  // ne la reçoivent qu'une fois les trois gardes de l'image passées, plus bas : la publier avant
+  // ferait tenir au cache — et lui interdirait de rendre — une coupe que l'image n'a peut-être
+  // jamais dessinée, pendant que la couverture épinglée dont il a besoin d'abord est encore en vol.
+  const wanted = selected.wanted;
   run.overBudget = false;
   run.visible = selected.visible;
   run.selectedTriangles = selected.selectedTriangles;
@@ -119,7 +121,7 @@ export function renderCpuCut(
     requested = run.requestedScratch;
   requested.clear();
   for (const url of bootstrapUrls) requested.add(url);
-  for (let i = 0; i < run.desired.length; i++) requested.add(run.desired[i].url);
+  for (let i = 0; i < wanted.length; i++) requested.add(wanted[i].url);
   const wasLimited = run.coverageBudgetLimited;
   run.coverageBudgetLimited = requested.size > slots;
   if (wasLimited !== run.coverageBudgetLimited)
@@ -130,7 +132,7 @@ export function renderCpuCut(
       slots,
       fallbackRetained: services.bootstrapState.ready,
     };
-  traceAdmission(rt, requested, admissionStarted);
+  traceAdmission(rt, requested, wanted, admissionStarted);
   if (!services.bootstrapState.ready) {
     run.drawn.length = 0;
     run.submittedTriangles = 0;
@@ -158,9 +160,6 @@ export function renderCpuCut(
     run.shown.length = 0;
     appendAll(run.shown, fallback.shown);
     run.lodLevel = fallback.lodLevel;
-    // La couverture épinglée remplace ce qui était montré, et elle seule : la coupe demandée n'a
-    // pas bougé d'un rang, et republier ses quinze mille fiches pour retomber dessus ne dirait rien.
-    services.adoptCpuDrawn(run.shown);
   }
   traceTransition(rt, requested, transition, transitionStarted);
   if (run.shown.some((page) => !services.hasBytes(page)))
@@ -168,6 +167,10 @@ export function renderCpuCut(
   const culled = cullWithTemporalHiz(rt, cam);
   const selectionEnd = performance.now();
   const queueStarted = performance.now();
+  // Ici, et pas plus tôt : l'image a passé ses gardes et `shown` est définitif, repli épinglé
+  // compris. La coupe processeur publie alors la sienne par la même différence que le relevé de la
+  // carte — une fois, et une seule, pour une image qui dessine.
+  services.adoptCpuCut(wanted, run.shown);
   services.queueCutResidency(run.coverageBudgetLimited);
   const queueEnd = performance.now();
   traceQueueReconstruct(rt, queueEnd - queueStarted);
