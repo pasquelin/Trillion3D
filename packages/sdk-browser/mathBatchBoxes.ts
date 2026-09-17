@@ -1,4 +1,4 @@
-import { BOX_VALUES, MATRIX_VALUES, boxUnion } from '../sdk-core/index.ts';
+import { BOX_VALUES, MATRIX_VALUES, boxTransform, boxUnion } from '../sdk-core/index.ts';
 import { createBoxTransformLot, type BoxTransformLot } from './mathBatchRuntime.ts';
 import type { ClusterRoot, PageRec } from './pageSelectionTypes.ts';
 
@@ -22,15 +22,63 @@ import type { ClusterRoot, PageRec } from './pageSelectionTypes.ts';
 
 /** Le lot quand il porte bien `n` boîtes, `null` sinon : l'appelant repasse alors boîte par boîte,
  *  par le même noyau et sur les mêmes entrées. */
-export function lotBoxesReady(lot: BoxTransformLot | null | undefined, n: number) {
+function lotBoxesReady(lot: BoxTransformLot | null | undefined, n: number) {
   return lot?.holds(n) ? lot : null;
 }
 
 /** Union dans `into` des `n` premières boîtes que le lot vient de rendre. */
-export function unionLotBoxes(into: Float64Array, lot: BoxTransformLot, n: number) {
+function unionLotBoxes(into: Float64Array, lot: BoxTransformLot, n: number) {
   const out = lot.out;
   for (let at = 0; at < n * BOX_VALUES; at += BOX_VALUES)
     boxUnion(into, 0, out[at], out[at + 1], out[at + 2], out[at + 3], out[at + 4], out[at + 5]);
+}
+
+/**
+ * L'union des bornes monde d'une énumération de boîtes LOCALES, quelle qu'elle soit.
+ *
+ * Les sites qui unissent des bornes — les pages exactes d'un maillage, les boîtes d'un sous-arbre —
+ * ne diffèrent que par ce qu'ils énumèrent et par la façon d'écrire six flottants. La bascule
+ * lot/unitaire, le comptage, le `run()` et l'union finale sont la même mécanique : elle est écrite
+ * ici une fois, pour qu'une évolution du chemin en lot n'ait pas à être faite deux fois.
+ *
+ * L'appelant écrit sa boîte locale dans `boxes` à `at`, puis appelle `pose(world)`. `ferme()` rend
+ * `into`.
+ */
+export function boxUnionCollector(
+  into: Float64Array,
+  lot: BoxTransformLot | null | undefined,
+  n: number,
+) {
+  const enLot = lotBoxesReady(lot, n);
+  const seule = new Float64Array(BOX_VALUES);
+  let i = 0;
+  return {
+    /** Le tampon où écrire la boîte locale : celui du lot, ou la boîte de passage. */
+    get boxes() {
+      return enLot ? enLot.boxes : seule;
+    },
+    /** Le rang où l'écrire dans `boxes`. */
+    get at() {
+      return enLot ? i * BOX_VALUES : 0;
+    },
+    /** La boîte qui vient d'être écrite part avec sa matrice monde : en lot, ou seule. */
+    pose(world: ArrayLike<number>) {
+      if (enLot) {
+        enLot.mats.set(world, i++ * MATRIX_VALUES);
+        return;
+      }
+      boxTransform(seule, 0, seule, 0, world);
+      boxUnion(into, 0, seule[0], seule[1], seule[2], seule[3], seule[4], seule[5]);
+    },
+    /** Joue le lot s'il y en a un, puis rend l'union. */
+    ferme() {
+      if (enLot) {
+        enLot.run();
+        unionLotBoxes(into, enLot, i);
+      }
+      return into;
+    },
+  };
 }
 
 /** Boîte locale et matrice monde de la racine `i` écrites dans le lot. */

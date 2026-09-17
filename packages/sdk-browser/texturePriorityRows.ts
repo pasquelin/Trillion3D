@@ -1,12 +1,13 @@
 import type * as THREE from 'three';
 import type { PageRec } from './pageSelection.ts';
+import { boxSphere } from './streamingPriority.ts';
 import { uvSpanOf, uvSpanSettled } from './textureUvSpan.ts';
 
 /** Couches d'atlas qu'un matériau lit : ce qui relie une surface dessinée aux textures à transférer. */
 export type MaterialAtlasLayers = { color: readonly number[]; data: readonly number[] };
 export type MaterialLayerIndex = Map<THREE.Material | THREE.Material[], MaterialAtlasLayers>;
 
-/** `of` ne rend pas de rang : la page n'a pas de clé de grappe, l'appelant garde le chemin d'avant. */
+/** `of` ne rend pas de rang : la page n'a pas de clé de grappe, elle ne dépose rien. */
 export const ROW_NO_KEY = -1;
 /** `of` ne rend pas de rang : le matériau n'entre dans aucun atlas, la page ne dépose rien. */
 export const ROW_NO_LAYERS = -2;
@@ -22,8 +23,9 @@ export const ROW_NO_LAYERS = -2;
  *
  * Les lignes sont rangées par CLÉ DE GRAPPE (`PageRec.keyIndex`, posé une fois par l'hôte) et non par
  * placement : douze placements d'une même grappe partagent une ligne, leur boîte étant donnée dans le
- * repère de la primitive. Sans clé — un montage qui n'a pas de catalogue —, `of` rend `ROW_NO_KEY` et
- * l'appelant garde le chemin d'avant : rien n'est deviné.
+ * repère de la primitive. Sans clé, `of` rend `ROW_NO_KEY` et la page ne dépose rien : rien n'est
+ * deviné. Le catalogue en pose une sur toute page (`webgpuPageTracking.ts`), si bien qu'en
+ * production ce refus n'arrive pas.
  *
  * Les couches, elles, sont rangées par MATÉRIAU : une scène en porte quelques dizaines pour des
  * centaines de milliers de grappes, et la table entière est écrite à l'ouverture, à sa taille exacte.
@@ -73,16 +75,8 @@ export function createTexturePriorityRows() {
   };
 
   const build = (page: PageRec, key: number) => {
-    const base = key * 4,
-      { min, max } = page;
-    sphere[base] = (min[0] + max[0]) / 2;
-    sphere[base + 1] = (min[1] + max[1]) / 2;
-    sphere[base + 2] = (min[2] + max[2]) / 2;
-    sphere[base + 3] = Math.hypot(
-      max[0] - sphere[base],
-      max[1] - sphere[base + 1],
-      max[2] - sphere[base + 2],
-    );
+    const { min, max } = page;
+    boxSphere(sphere, min[0], min[1], min[2], max[0], max[1], max[2], key * 4);
     rowMaterial[key] = materials.get(page.material) ?? -1;
     flags[key] = BUILT;
   };
