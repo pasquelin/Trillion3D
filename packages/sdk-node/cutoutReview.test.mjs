@@ -78,6 +78,27 @@ test('une réponse remplit toutes les feuilles concernées et ne recompile que c
   assert.equal(elsewhere.textures.abc.cutout, true, 'la même image est répondue partout');
 });
 
+// Comportement : la règle est rappelée avant la première question, et `?` la réaffiche sans
+// répondre à la place de personne — la question est reposée telle quelle.
+test('la règle est rappelée d’entrée, et `?` la réaffiche', async () => {
+  const job = await model('emerald', { a: leaf(9) });
+  const keyboard = screen(['?', 'v']);
+  const summary = await reviewCutouts([job], {
+    stream: keyboard.stream,
+    input: keyboard.input,
+    rerun: async () => {},
+  });
+  keyboard.stop();
+  const ecran = keyboard.written.join('');
+  assert.equal(summary.answered, 1, '`?` n’a rien répondu, `v` a tranché');
+  assert.match(ecran, /Une DÉCOUPE est présente ou absente/);
+  assert.equal(
+    ecran.split('Une VITRE laisse passer').length - 1,
+    2,
+    'la règle est écrite deux fois : à l’entrée, puis sur demande',
+  );
+});
+
 // Comportement : `t` accepte tout le reste d'un coup, `q` arrête en gardant ce qui est déjà répondu.
 test('`t` accepte le reste, `q` arrête sans perdre les réponses données', async () => {
   const job = await model('emerald', { a: leaf(9), b: leaf(8), c: leaf(7) });
@@ -111,6 +132,7 @@ test('le terminal reçoit ce qu’il sait afficher, et le PNG est un PNG', () =>
   assert.equal(answerOf('d', false), 'cutout');
   assert.equal(answerOf('', true), 'quit');
   assert.equal(answerOf('z', true), null);
+  assert.equal(answerOf('?', true), 'help', 'le rappel de la règle est à une touche');
   const png = encodePng(2, 2, new Uint8Array(16).fill(200));
   assert.deepEqual([...png.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
   assert.equal(png.subarray(12, 16).toString('ascii'), 'IHDR');

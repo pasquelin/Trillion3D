@@ -8,7 +8,7 @@ import {
   type Sheet,
 } from './cutoutSheet.mts';
 import { embeddedImages, readThumbnails, type Thumbnail } from './cutoutThumb.mts';
-import { pictureOf, show } from './cutoutShow.mts';
+import { LEGENDE, pictureOf, show } from './cutoutShow.mts';
 import { askAnswer } from './cutoutAsk.mts';
 
 /**
@@ -72,6 +72,7 @@ export async function reviewCutouts(
     stream.write('  Répondez depuis un terminal, ou éditez decoupes.json à la main.\n');
     return { pending: pending.length, answered: 0, recompiled: [] };
   }
+  for (const ligne of LEGENDE) stream.write(`${ligne}\n`);
   const answers = await ask(stream, options, loaded, pending);
   return await apply(stream, options, loaded, pending, answers);
 }
@@ -105,7 +106,12 @@ async function ask(
       ? await pictureOf(job, one, thumbnail, embedded.get(model) ?? (() => null))
       : null;
     await show(stream, one, `${index + 1}/${pending.length}`, thumbnail, picture);
-    const answer = await askAnswer(one.proposal, options.input ?? process.stdin);
+    let answer = await askAnswer(one.proposal, options.input ?? process.stdin);
+    // Le rappel ne répond pas à la place de personne : il réaffiche la règle et repose la question.
+    while (answer === 'help') {
+      for (const ligne of LEGENDE) stream.write(`${ligne}\n`);
+      answer = await askAnswer(one.proposal, options.input ?? process.stdin);
+    }
     if (answer === 'quit') break;
     if (answer === 'rest') {
       rest = true;

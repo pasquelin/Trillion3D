@@ -4,7 +4,7 @@
  * Enter takes the compiler's proposal, which is what makes a long list short: a pass over sixteen
  * textures is sixteen presses when the measure has them right, and a detour only where it does not.
  */
-export type Answer = 'cutout' | 'blend' | 'rest' | 'quit';
+export type Answer = 'cutout' | 'blend' | 'rest' | 'help' | 'quit';
 
 /** One key, without an Enter to validate it, with the terminal left exactly as it was found. */
 async function keypress(input: NodeJS.ReadStream = process.stdin): Promise<string> {
@@ -31,6 +31,7 @@ export function answerOf(key: string, proposal: boolean): Answer | null {
   if (key === 'd' || key === 'D') return 'cutout';
   if (key === 'v' || key === 'V') return 'blend';
   if (key === 't' || key === 'T') return 'rest';
+  if (key === '?' || key === 'h' || key === 'H') return 'help';
   // Ctrl-C and Escape stop the pass; what was already answered is kept.
   if (key === 'q' || key === 'Q' || key === '' || key === '') return 'quit';
   return null;
