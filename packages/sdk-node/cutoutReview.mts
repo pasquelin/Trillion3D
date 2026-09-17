@@ -1,5 +1,4 @@
-import { writeFile, mkdir, access } from 'node:fs/promises';
-import { dirname, join, basename } from 'node:path';
+import { basename } from 'node:path';
 import type { BatchJob } from './contracts.ts';
 import {
   answerSheet,
@@ -8,9 +7,8 @@ import {
   type PendingCutout,
   type Sheet,
 } from './cutoutSheet.mts';
-import { alphaOf, readThumbnails, type Thumbnail } from './cutoutThumb.mts';
-import { drawThumbnail, imageKind, link } from './cutoutDraw.mts';
-import { encodePng } from './cutoutPng.mts';
+import { embeddedImages, readThumbnails, type Thumbnail } from './cutoutThumb.mts';
+import { pictureOf, show } from './cutoutShow.mts';
 import { askAnswer } from './cutoutAsk.mts';
 
 /**
@@ -40,63 +38,8 @@ export interface CutoutReviewSummary {
   recompiled: string[];
 }
 
-const CELLS = 10;
-
 function nameOf(job: BatchJob): string {
   return job.id ?? basename(job.cache);
-}
-
-/** The picture to offer: the source texture at full size when it is a file, the thumbnail when the
- *  image was embedded in the scene and has no file of its own. */
-async function pictureOf(
-  job: BatchJob,
-  pending: PendingCutout,
-  thumbnail: Thumbnail | undefined,
-): Promise<string | null> {
-  const source = join(dirname(job.source), pending.image);
-  if (
-    await access(source).then(
-      () => true,
-      () => false,
-    )
-  )
-    return source;
-  if (!thumbnail) return null;
-  const directory = join(job.cache, 'decoupes');
-  await mkdir(directory, { recursive: true });
-  const target = join(directory, `${pending.sha256.slice(0, 16)}.png`);
-  await writeFile(target, encodePng(thumbnail.width, thumbnail.height, thumbnail.rgba));
-  return target;
-}
-
-/** One texture on screen: its two pictures side by side, its numbers, and where to see it bigger. */
-function show(
-  stream: NodeJS.WriteStream,
-  pending: PendingCutout,
-  rank: string,
-  thumbnail: Thumbnail | undefined,
-  picture: string | null,
-) {
-  const kind = imageKind();
-  const measure = pending.measure;
-  const facts = [
-    `${measure.betweenPercent ?? '?'} % de pixels entre les deux, dont ${measure.atContourPercent ?? '?'} % au bord`,
-    `${measure.absentPercent ?? '?'} % de vide · ${pending.blendPrimitives} primitive(s) en mélange`,
-    `${pending.models.join(', ')}`,
-    `proposition : ${pending.proposal ? 'DÉCOUPE' : 'VITRE'}`,
-  ];
-  stream.write(`\n  ${rank}  ${basename(pending.image)}\n`);
-  if (thumbnail) {
-    const colour = drawThumbnail(thumbnail, CELLS, kind);
-    const alpha = drawThumbnail(alphaOf(thumbnail), CELLS, kind);
-    for (let row = 0; row < Math.max(colour.length, alpha.length); row++)
-      stream.write(`  ${colour[row] ?? ''}  ${alpha[row] ?? ''}\n`);
-  }
-  for (const fact of facts) stream.write(`    ${fact}\n`);
-  if (picture) stream.write(`    ${link('voir en grand', picture)}\n`);
-  stream.write(
-    '    [Entrée] accepter   [d] découpe   [v] vitre   [t] tout accepter   [q] arrêter\n',
-  );
 }
 
 /** Reads every sheet of the batch; a model with no sheet simply has nothing to answer. */
@@ -140,10 +83,14 @@ async function ask(
   loaded: Map<string, { job: BatchJob; sheet: Sheet }>,
   pending: PendingCutout[],
 ): Promise<Map<string, boolean>> {
+  const scope = options.scope ?? 'full';
   const thumbnails = new Map<string, Thumbnail>();
-  for (const [, one] of loaded)
-    for (const [sha, thumbnail] of await readThumbnails(one.job.cache, options.scope ?? 'full'))
+  const embedded = new Map<string, (view: number) => Buffer | null>();
+  for (const [name, one] of loaded) {
+    for (const [sha, thumbnail] of await readThumbnails(one.job.cache, scope))
       if (!thumbnails.has(sha)) thumbnails.set(sha, thumbnail);
+    embedded.set(name, await embeddedImages(one.job.cache, scope));
+  }
   const answers = new Map<string, boolean>();
   let rest = false;
   for (const [index, one] of pending.entries()) {
@@ -151,10 +98,13 @@ async function ask(
       answers.set(one.sha256, one.proposal);
       continue;
     }
-    const job = loaded.get(one.models[0] ?? '')?.job;
+    const model = one.models[0] ?? '';
+    const job = loaded.get(model)?.job;
     const thumbnail = thumbnails.get(one.sha256);
-    const picture = job ? await pictureOf(job, one, thumbnail) : null;
-    show(stream, one, `${index + 1}/${pending.length}`, thumbnail, picture);
+    const picture = job
+      ? await pictureOf(job, one, thumbnail, embedded.get(model) ?? (() => null))
+      : null;
+    await show(stream, one, `${index + 1}/${pending.length}`, thumbnail, picture);
     const answer = await askAnswer(one.proposal, options.input ?? process.stdin);
     if (answer === 'quit') break;
     if (answer === 'rest') {
