@@ -152,3 +152,48 @@ test('clustered transparency switches LOD with resident coverage and retains bot
     fixture.material.dispose();
   }
 });
+
+/** Le matériau d'un transparent appartient à l'hôte, qui le partage avec le maillage et peut le
+ *  passer en double face entre deux images. L'item pose alors DEUX entrées de plan au lieu d'une,
+ *  et sa liste étalée doit tenir les instances des deux — sans quoi le noyau jette ses écritures
+ *  hors bornes en silence, et la géométrie transparente disparaît sans une erreur. */
+test('un transparent passé en double face étale encore toutes ses instances', async () => {
+  installGpuGlobals();
+  const fixture = quadScene(),
+    { device, draws, buffers } = mockGpu();
+  fixture.material.transparent = true;
+  // Simple face à la préparation : une seule entrée de plan, et la moitié de la place.
+  fixture.material.side = THREE.FrontSide;
+  fixture.metadata.primitives[0].pass = 'clustered-blend';
+  const mesh = fixture.source.children[0] as THREE.Mesh;
+  const backend = webgpuPagesBackend({
+    ...fixture,
+    gpuDevice: device,
+    maxResidentPages: 2,
+    viewport: [32, 32],
+  });
+  try {
+    await backend.prepare();
+    backend.render(camera());
+    await backend.flush();
+    fixture.material.side = THREE.DoubleSide;
+    // Un déplacement, et la scène refait son plan : c'est là que l'item gagne sa seconde entrée.
+    mesh.position.x = 0.1;
+    mesh.updateMatrixWorld(true);
+    draws.length = 0;
+    backend.render(camera());
+    const blend = draws.filter((draw) => draw.indirect && draw.entryPoint === 'vs');
+    assert.equal(blend.length, 2, 'les deux faces sont encodées');
+    const instances = blend.reduce((total, draw) => total + (draw.instanceCount ?? 0), 0);
+    assert.ok(instances > 0, 'les deux faces étalent des instances');
+    const etale = buffers.find((buffer) => buffer.label === 'WG blend expanded instances');
+    assert.ok(
+      etale && etale.data.length >= instances * 8,
+      `la liste étalée tient ${instances} instances`,
+    );
+  } finally {
+    await backend.dispose();
+    fixture.geometry.dispose();
+    fixture.material.dispose();
+  }
+});

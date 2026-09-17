@@ -75,6 +75,13 @@ export function buildBlendStatics(blendState: BlendState) {
   blendState.vertexShift = shift;
   blendState.maxVertexWords = Math.max(3, paged);
   const draws = new Uint32Array(Math.max(1, items.length) * 4);
+  // Les deux passes étalent leurs instances dans DEUX régions disjointes de la même liste. Leur
+  // taille est celle du PIRE CAS — deux entrées de plan par item —, et non celle du plan courant :
+  // `sidesOf` lit le matériau VIVANT, que l'hôte partage avec son maillage, et un matériau passé en
+  // double face entre deux images ferait déborder la liste et pousserait la région de transmission
+  // au-delà de sa fin. Les écritures hors bornes du noyau sont jetées en silence : la géométrie
+  // transparente disparaîtrait sans une erreur.
+  const room = [0, 0];
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     item.tableBase =
@@ -88,17 +95,19 @@ export function buildBlendStatics(blendState: BlendState) {
       // Les instances qu'une entrée de plan peut au plus étaler : ce que la table tient pour cet
       // item. Le noyau, lui, ne lit ce mot que pour une primitive non paginée.
       draws[i * 4 + 1] = table!.itemRanges[item.pagedIndex! * 2 + 1];
+      room[item.transmissive ? 1 : 0] += MAX_SIDES * draws[i * 4 + 1];
       continue;
     }
     const words = blendChunkWords(shift, item.count);
     draws[i * 4 + 1] = Math.ceil(item.count / words);
     draws[i * 4 + 3] = words;
+    room[item.transmissive ? 1 : 0] += MAX_SIDES * draws[i * 4 + 1];
   }
+  blendState.instanceBase[1] = room[0];
+  blendState.instanceCapacity = Math.max(1, room[0] + room[1]);
   blendState.drawsPacked = draws;
   blendState.keepPacked = new Uint32Array(Math.max(1, (items.length + 31) >> 5));
-  // Un item pose au plus deux entrées de plan — le dos et la face —, et au plus une tranche par
-  // entrée : les tables des deux passes sont donc taillées une fois, sur ce pire cas, et un
-  // changement de matériau ou de miroir ne peut plus les faire déborder.
+  // Même pire cas pour les tables du plan et de ses tranches, et pour la même raison.
   const entries = Math.max(1, items.length) * MAX_SIDES;
   blendState.maxPlanEntries = entries;
   blendState.planRegions = planRegions(entries);
@@ -124,13 +133,9 @@ function sidesOf(item: BlendGpuItem) {
  * tranches ne lit un materiau.
  */
 export function refreshBlendPlan(blendState: BlendState) {
-  const items = blendState.blendGpu,
-    draws = blendState.drawsPacked;
+  const items = blendState.blendGpu;
   const blend: number[] = [],
     transmission: number[] = [];
-  // Les deux passes étalent leurs instances dans DEUX régions disjointes de la même liste : une
-  // entrée de plan y met au plus ce que son item tient, et un item double face porte deux entrées.
-  const room = [0, 0];
   // Les triangles que chaque passe SOUMET : un item double face en soumet deux fois les siens,
   // puisqu'il porte deux entrées de plan. Compté ici, avec le plan, et jamais par image.
   let blendTriangles = 0,
@@ -138,17 +143,13 @@ export function refreshBlendPlan(blendState: BlendState) {
   for (let i = 0; i < items.length; i++) {
     const item = items[i],
       into = item.transmissive ? transmission : blend;
-    const sides = sidesOf(item);
-    room[item.transmissive ? 1 : 0] += sides.length * draws[i * 4 + 1];
-    for (const side of sides) {
+    for (const side of sidesOf(item)) {
       into.push(planEntry(i, side, !!item.paged));
       if (item.paged) continue;
       if (item.transmissive) transmissionTriangles += item.count / 3;
       else blendTriangles += item.count / 3;
     }
   }
-  blendState.instanceBase[1] = room[0];
-  blendState.instanceCapacity = Math.max(1, room[0] + room[1]);
   blendState.plans = [Uint32Array.from(blend), Uint32Array.from(transmission)];
   // L'ordre de peinture repart de l'ordre source : c'est la seule fois qu'il est semé, et le
   // classement par image le reprend ensuite sur place, sans jamais rallouer.
