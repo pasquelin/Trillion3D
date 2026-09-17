@@ -2,7 +2,7 @@
 //
 // `packages/sdk-browser/normalTransform.test.ts` éprouve l'arithmétique de la transformation des
 // normales d'éclairage sur un MODÈLE f32 (`bench/justesse/inverseTransposeF32.mjs`), sans GPU : il
-// attrape une régression dans `npm test`, mais un modèle est une seconde implémentation, libre de
+// attrape une régression dans `pnpm test`, mais un modèle est une seconde implémentation, libre de
 // dériver du texte livré sans que personne le voie. Ce fichier-ci ferme la boucle : le texte
 // `NORMAL_TRANSFORM_WGSL` du moteur est compilé et exécuté dans Chromium WebGPU sur EXACTEMENT les
 // mêmes cas (`bench/justesse/normalTransformCas.mjs`), et sa sortie doit être celle du modèle. Un

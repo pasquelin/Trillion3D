@@ -76,6 +76,6 @@ test('un module portant relaxed-simd est refusé même avec simd128', () => {
 
 test("importer le script n'exécute pas la compilation", () => {
   // Si `main()` s'exécutait à l'import, ce test échouerait bien avant d'arriver ici : `cargo`
-  // n'est pas garanti installé sur la machine qui fait tourner `npm test`.
+  // n'est pas garanti installé sur la machine qui fait tourner `pnpm test`.
   assert.equal(typeof verifieJeuInstructions, 'function');
 });

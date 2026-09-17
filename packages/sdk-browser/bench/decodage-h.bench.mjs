@@ -31,7 +31,7 @@ const alea = graine(211);
 // chemin réellement livré, qui passe par le module WebAssembly dès qu'il s'instancie.
 const MODULE = readFileSync(join(RACINE, 'packages', 'sdk-browser', 'pageCodec.wasm'));
 if (!(await prepareSdkWasm(MODULE)))
-  throw new Error('H2_WASM_ABSENT : lancer `npm run build:wasm`');
+  throw new Error('H2_WASM_ABSENT : lancer `pnpm run build:wasm`');
 
 /** Une page complète : les six attributs, donc le pas de 72 octets qu'exige le décodeur. */
 async function page(sommets) {

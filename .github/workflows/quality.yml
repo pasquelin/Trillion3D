@@ -12,12 +12,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # pnpm AVANT setup-node : c'est lui que `cache: pnpm` interroge pour trouver le magasin, et il
+      # lit la version dans le champ `packageManager` de `package.json`.
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22.18.0'
-          cache: npm
+          cache: pnpm
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
-      - run: npm ci
-      - run: npm run validate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run validate
