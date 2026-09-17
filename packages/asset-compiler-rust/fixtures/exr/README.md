@@ -48,7 +48,7 @@ la prose, le test les retire avant de comparer.
   (<https://creativecommons.org/publicdomain/zero/1.0/>), redistribuables sans condition.
 - La scène `scene.gltf` et son binaire sont écrits ici de la même façon, **CC0-1.0**.
 
-Les deux EXR 256 × 256 de `test-assets/textures/hdr-matrix/` (`float16.exr` et `float32.exr`,
+Les deux EXR 256 × 256 de `test/assets/textures/hdr-matrix/` (`float16.exr` et `float32.exr`,
 CC0-1.0, produits par un encodeur tiers et relus par FFmpeg au moment de leur entrée au corpus)
 couvrent le cas d'un fichier écrit ailleurs. Le pilote a été passé dessus pendant le développement ;
 ils ne sont pas commis ici — huit cent mille octets de pixels qu'on ne peut pas écrire en clair ne

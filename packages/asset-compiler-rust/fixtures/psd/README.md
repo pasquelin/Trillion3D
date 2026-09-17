@@ -80,6 +80,6 @@ l'entête de ce test.
   Auteur : corpus WebGeometry, 2026-09-15. Licence : CC0-1.0, texte dans `LICENSE.txt`.
 - `scene.gltf` et `scene.bin` reprennent la géométrie de la dorée `fixtures/hdr/`, du même corpus et
   sous la même licence.
-- Le corpus hors dépôt `test-assets/textures/legacy-web-matrix/flattened.psd` (256 × 256, RVB 8 bits
+- Le corpus hors dépôt `test/assets/textures/legacy-web-matrix/flattened.psd` (256 × 256, RVB 8 bits
   à surface brute) a servi à vérifier le pilote sur un vrai fichier : son composite décodé est
   identique, pixel par pixel, au `rgb24.bmp` posé à côté, qui porte la même image.

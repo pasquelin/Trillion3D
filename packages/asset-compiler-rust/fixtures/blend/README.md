@@ -3,8 +3,8 @@
 ## `procedural-materials`
 
 Scène Blender originale **CC0-1.0**, reprise telle quelle du corpus local
-`test-assets/blend/procedural-materials` (corpus WebGeometry, génération procédurale, 15 septembre
-2026, écrite par Blender 5.2.1 LTS). Le dépôt ignore `test-assets/` : le fichier dont le pilote a
+`test/assets/blend/procedural-materials` (corpus WebGeometry, génération procédurale, 15 septembre
+2026, écrite par Blender 5.2.1 LTS). Le dépôt ignore `test/assets/` : le fichier dont le pilote a
 besoin est copié ici avec sa notice, `LICENSE.txt`. Aucun fichier n'est produit par le dépôt et
 aucune installation de Blender n'est nécessaire pour rejouer la dorée.
 
