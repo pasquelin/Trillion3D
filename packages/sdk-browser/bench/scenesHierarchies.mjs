@@ -6,7 +6,7 @@
 // caméra perspective ou orthographique posée elle-même dans la hiérarchie, dans les deux conventions
 // de profondeur.
 import * as THREE from 'three';
-import { graine } from '../../sdk-core/bench/banc.mjs';
+import { graine } from '../../sdk-core/bench/mesure.mjs';
 import { boites } from './scenesVolumes.mjs';
 
 const alea = graine(60617);

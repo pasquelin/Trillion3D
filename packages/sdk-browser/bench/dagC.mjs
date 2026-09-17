@@ -4,7 +4,7 @@
 // deux fois moins. Tout vient du générateur à graine fixe du banc commun.
 import * as THREE from 'three';
 import { BOX_VALUES, boxEmpty, boxExpandByPoint } from '../../sdk-core/index.ts';
-import { graine } from '../../sdk-core/bench/banc.mjs';
+import { graine } from '../../sdk-core/bench/mesure.mjs';
 
 /**
  * `feuilles` clusters au niveau 0, moitié moins à chaque niveau jusqu'au cluster unique. Les pages
