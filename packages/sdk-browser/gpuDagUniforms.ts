@@ -1,5 +1,5 @@
 import type { PackedDag } from './gpuDagTypes.ts';
-import { requestPage, requestPriority } from './gpuDagRequest.ts';
+import { REQUEST_PRIORITY_MAX, requestPage, requestPriority } from './gpuDagRequest.ts';
 import {
   OUT_COUNT,
   OUT_DRAWN_TRIANGLES,
@@ -22,18 +22,14 @@ import type { SelectionResult, SelectionUniforms } from './gpuSelection.ts';
 export type DagOutputScratch = {
   result: SelectionResult;
   drawable: number[];
-  /** Les pages et priorités lues, et les rangs par lesquels le classement les traverse. Trois
-   *  tampons réutilisés : une relecture ne rend rien au ramasse-miettes. */
-  pages: number[];
-  priorities: number[];
-  rangs: number[];
+  /** Les seaux du tri par comptage, un par pas de priorité. Taille fixe, alloués une fois : le
+   *  classement ne rend jamais rien au ramasse-miettes, quelle que soit la taille du relevé. */
+  seaux: Uint32Array;
 };
 export const createDagOutputScratch = (): DagOutputScratch => ({
   result: { pageIds: [], frustumRejected: 0, lodLevel: 0 },
   drawable: [],
-  pages: [],
-  priorities: [],
-  rangs: [],
+  seaux: new Uint32Array(REQUEST_PRIORITY_MAX + 1),
 });
 
 export function writeDagUniforms(
@@ -82,24 +78,35 @@ export function parseDagOutput(
   );
   // Tableaux dimensionnés d'avance : la lecture d'une image ne fait pas croître un tableau vide
   // élément par élément, et l'itérateur d'un tableau typé n'est jamais déroulé.
-  const { result, drawable, pages, priorities, rangs } = scratch,
+  const { result, drawable, seaux } = scratch,
     pageIds = result.pageIds;
   // Chaque rang est une DEMANDE : la page et sa priorité dans un mot (`gpuDagRequest.ts`). La liste
   // est rendue CLASSÉE, priorité décroissante — c'est dans cet ordre que l'hôte téléverse, et c'est
-  // ce que le chemin WebGL2 fait depuis toujours (`orderPendingUrls`). Le tri porte sur des rangs,
-  // pas sur des objets, et les deux tampons sont réécrits sur place.
-  pages.length = count;
-  priorities.length = count;
-  rangs.length = count;
+  // ce que le chemin WebGL2 fait depuis toujours (`orderPendingUrls`).
+  //
+  // TRI PAR COMPTAGE, et non par comparaison. La priorité est déjà quantifiée sur dix bits : mille
+  // vingt-quatre seaux la couvrent en entier, et deux parcours suffisent — un pour compter, un pour
+  // poser. Aucune comparaison, aucun rappel, aucun tampon intermédiaire : la liste se lit dans le
+  // relevé et s'écrit directement dans `pageIds`, là où un tri par rangs demandait trois tableaux
+  // ordinaires agrandis par `.length =` et n·log n appels de fermeture sur 262 144 rangs au plafond.
+  //
+  // Il est STABLE, et c'est ce qui le rend substituable : à priorité égale l'ordre reste celui du
+  // relevé, exactement ce que rendait le tri par comparaison qu'il remplace.
+  pageIds.length = count;
+  seaux.fill(0);
+  for (let i = 0; i < count; i++) seaux[requestPriority(ints[head + i])]++;
+  // Somme préfixe menée de la priorité la plus HAUTE vers la plus basse : la liste sort décroissante
+  // sans qu'on ait à la retourner.
+  let place = 0;
+  for (let p = REQUEST_PRIORITY_MAX; p >= 0; p--) {
+    const tenus = seaux[p];
+    seaux[p] = place;
+    place += tenus;
+  }
   for (let i = 0; i < count; i++) {
     const word = ints[head + i];
-    pages[i] = requestPage(word);
-    priorities[i] = requestPriority(word);
-    rangs[i] = i;
+    pageIds[seaux[requestPriority(word)]++] = requestPage(word);
   }
-  rangs.sort((a, b) => priorities[b] - priorities[a]);
-  pageIds.length = count;
-  for (let i = 0; i < count; i++) pageIds[i] = pages[rangs[i]];
   result.frustumRejected = ints[OUT_FRUSTUM_REJECTED] ?? 0;
   result.lodLevel = ints[OUT_LOD_LEVEL] ?? 0;
   result.complete = ((ints[OUT_FLAGS] ?? 0) & 2) === 0;
