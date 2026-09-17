@@ -4,6 +4,10 @@ use super::*;
 pub(super) struct ColorTexture {
     pub texture: usize,
     pub cutoff: Option<f32>,
+    /// Une texture dont l'alpha est à mesurer : couleur de base d'un matériau déclaré en mélange,
+    /// ou d'un matériau qu'une réponse vient de faire basculer en découpe — celui-là reste montré
+    /// pour qu'un avis puisse être repris.
+    pub candidate: bool,
 }
 
 /// Seuil de découpe par défaut de glTF, employé seulement quand le matériau MASK n'en déclare pas.
@@ -14,11 +18,16 @@ struct Binding {
     /// Une liaison qui n'est pas la couleur de base d'un matériau MASK : émissif, BLEND ou OPAQUE.
     plain: bool,
     cutoff: Option<f32>,
+    blend: bool,
 }
 
 /// Les textures qui alimentent l'atlas couleur du moteur : couleur de base et émissif des matériaux
 /// des maillages retenus — exactement ce que `collectWebgpuMaterialTextures` y range.
-pub(super) fn color_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<ColorTexture>> {
+pub(super) fn color_textures(
+    g: &Value,
+    meshes: &BTreeSet<usize>,
+    answered: &BTreeSet<usize>,
+) -> Result<Vec<ColorTexture>> {
     let Some(materials) = g.get("materials").and_then(Value::as_array) else {
         return Ok(Vec::new());
     };
@@ -37,6 +46,7 @@ pub(super) fn color_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
             texture_index(material.pointer("/pbrMetallicRoughness/baseColorTexture"))
         {
             let entry = bindings.entry(base).or_default();
+            entry.blend |= material.get("alphaMode").and_then(Value::as_str) == Some("BLEND");
             if mask {
                 entry.cutoff = Some(entry.cutoff.map_or(cutoff, |known| known.min(cutoff)));
             } else {
@@ -55,11 +65,12 @@ pub(super) fn color_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
         .map(|(texture, binding)| ColorTexture {
             texture,
             cutoff: if binding.plain { None } else { binding.cutoff },
+            candidate: binding.blend || answered.contains(&texture),
         })
         .collect())
 }
 
-fn texture_index(reference: Option<&Value>) -> Option<usize> {
+pub(crate) fn texture_index(reference: Option<&Value>) -> Option<usize> {
     reference?
         .get("index")
         .and_then(Value::as_u64)
@@ -67,7 +78,7 @@ fn texture_index(reference: Option<&Value>) -> Option<usize> {
 }
 
 /// Les matériaux que les maillages compilés emploient réellement, sans doublon.
-fn used_materials(g: &Value, meshes: &BTreeSet<usize>) -> Result<BTreeSet<usize>> {
+pub(crate) fn used_materials(g: &Value, meshes: &BTreeSet<usize>) -> Result<BTreeSet<usize>> {
     let Some(mesh_values) = g.get("meshes").and_then(Value::as_array) else {
         return Ok(BTreeSet::new());
     };
