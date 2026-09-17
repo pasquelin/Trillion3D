@@ -48,8 +48,11 @@ fn sans_feuille_le_melange_reste_du_melange() {
     let (mut g, bin, _) = scene();
     let applied = appliquer(&mut g, &bin, &decisions);
     assert_eq!(g["materials"][0]["alphaMode"], json!("BLEND"));
-    assert_eq!(applied.report["candidates"], json!(1));
-    assert_eq!(applied.report["pendingTextures"], json!(1));
+    assert_eq!(applied.report(&decisions)["candidateTextures"], json!(1));
+    assert!(
+        applied.applied.is_empty(),
+        "rien n'est appliqué sans réponse"
+    );
 }
 
 // Comportement : une réponse « découpe » passe le matériau en masqué, au seuil de glTF, et le
@@ -66,8 +69,8 @@ fn une_reponse_decoupe_passe_le_materiau_en_masque() {
     let applied = appliquer(&mut g, &bin, &decisions);
     assert_eq!(g["materials"][0]["alphaMode"], json!("MASK"));
     assert_eq!(g["materials"][0]["alphaCutoff"], json!(0.5));
-    assert_eq!(applied.report["applied"][0]["texture"], json!(0));
-    assert_eq!(applied.answered, BTreeSet::from([0usize]));
+    assert_eq!(applied.applied[0]["texture"], json!(0));
+    assert_eq!(applied.to_measure(), BTreeSet::from([0usize]));
 }
 
 // Comportement : une réponse « vitre », et une texture jamais tranchée, laissent la scène intacte.
@@ -99,10 +102,7 @@ fn une_transmission_est_refusee_malgre_la_reponse() {
     let decisions = load_decisions(&directory, &directory).expect("lecture");
     let applied = appliquer(&mut g, &bin, &decisions);
     assert_eq!(g["materials"][0]["alphaMode"], json!("BLEND"));
-    assert_eq!(
-        applied.report["refused"][0]["reason"],
-        json!("transmission")
-    );
+    assert_eq!(applied.refused[0]["reason"], json!("transmission"));
 }
 
 // Comportement : un matériau dont le facteur alpha est déjà partiel est refusé de même — son
@@ -119,10 +119,7 @@ fn un_facteur_alpha_partiel_est_refuse() {
     let decisions = load_decisions(&directory, &directory).expect("lecture");
     let applied = appliquer(&mut g, &bin, &decisions);
     assert_eq!(g["materials"][0]["alphaMode"], json!("BLEND"));
-    assert_eq!(
-        applied.report["refused"][0]["reason"],
-        json!("alpha-factor")
-    );
+    assert_eq!(applied.refused[0]["reason"], json!("alpha-factor"));
 }
 
 // Comportement : une réponse nulle est une texture non tranchée, pas une erreur ; une version

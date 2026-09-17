@@ -54,14 +54,14 @@ fn linked_images(g: &Value, image_root: &Path) -> Vec<Value> {
 /// La clé du cache : l'identité de la source, celle des ressources qu'elle consomme, et les options
 /// qui décident du produit. Un consommateur qui réutilise par cette clé retrouve les mêmes octets.
 /// `image_root` est la racine où les URI relatives d'images se résolvent, que le routeur a nommée.
-/// `cutouts` est ce qu'une réponse a VRAIMENT changé dans la scène : une liaison reclassée change le
-/// classement de ses primitives, donc les octets du produit ; une réponse sans effet ne déplace pas
-/// la clé.
+/// `cutouts` est ce qu'une réponse a VRAIMENT changé dans la scène : les liaisons reclassées en
+/// découpe, qui changent le classement de leurs primitives donc les octets du produit. Une réponse
+/// sans effet — « vitre », refus, texture que la scène n'emploie pas — ne déplace pas la clé.
 pub(super) fn cache_key(
     o: &Options,
     loaded: &RuntimeSource,
     image_root: &Path,
-    cutouts: &Value,
+    cutouts: &[Value],
 ) -> Result<String> {
     let source = hash(&serde_json::to_vec(&stable(&loaded.manifest))?);
     let images = linked_images(&loaded.g, image_root);
