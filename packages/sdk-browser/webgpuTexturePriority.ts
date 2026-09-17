@@ -1,36 +1,10 @@
-import type * as THREE from 'three';
-import { maxStretch } from '../sdk-core/index.ts';
-import type { PageRec } from './pageSelection.ts';
-import type { BlendGpuItem } from './webgpuBlendState.ts';
 import type { TextureJob } from './webgpuAtlasJobs.ts';
-import { boundsScreenRadius, pixelScaleOf, worldBoxScreenRadius } from './streamingPriority.ts';
-import { openUvSpanBudget, uvSpanOf } from './textureUvSpan.ts';
 import { createTextureDemand } from './textureDemand.ts';
-import { createFrameViews } from './textureFrameViews.ts';
+import { createTextureMeasure } from './texturePriorityMeasure.ts';
 
-/** Couches d'atlas qu'un matériau lit : ce qui relie une surface dessinée aux textures à transférer. */
-type MaterialAtlasLayers = { color: readonly number[]; data: readonly number[] };
-export type MaterialLayerIndex = Map<THREE.Material | THREE.Material[], MaterialAtlasLayers>;
-
-/** La caméra que l'ordre lit : sa vue, sa projection et son plan proche, rien d'autre. */
-export type PriorityCamera = {
-  view: Float64Array;
-  projection: Float64Array;
-  near: number;
-};
-
-/** Ce que l'image en cours donne à l'ordre. */
-type PriorityInputs = {
-  index: MaterialLayerIndex | undefined;
-  /** La coupe que l'image demande au cache : les deux chemins de coupe la réécrivent à chaque image. */
-  requested: readonly PageRec[];
-  blend: readonly BlendGpuItem[];
-  cam: PriorityCamera | undefined;
-  viewport: readonly number[] | undefined;
-  /** Largeur en texels de chaque couche, couleur et données, posée une fois à la préparation. */
-  colorTexels: Float64Array | undefined;
-  dataTexels: Float64Array | undefined;
-};
+export type { MaterialAtlasLayers, MaterialLayerIndex } from './texturePriorityRows.ts';
+export type { PriorityCamera, PriorityInputs } from './texturePriorityMeasure.ts';
+import type { PriorityInputs } from './texturePriorityMeasure.ts';
 
 /**
  * L'ordre de transfert des textures, dicté par l'écran.
@@ -53,50 +27,11 @@ type PriorityInputs = {
 export function createTexturePriority(inputs: () => PriorityInputs) {
   const color = createTextureDemand(),
     data = createTextureDemand();
-  const frames = createFrameViews();
-  const pixelScale: [number, number] = [1, 1];
+  const measure = createTextureMeasure(color, data);
   let lastMs = 0;
   /** Vrai dès qu'une image a été mesurée avec une caméra exploitable. */
   let screenKnown = false;
   const demandOf = (kind: TextureJob['kind']) => (kind === 'color' ? color : data);
-
-  /** Dépose l'empreinte d'une surface sur les couches que son matériau lit. */
-  const deposit = (layers: MaterialAtlasLayers | undefined, pixels: number, uvSpan: number) => {
-    if (!layers || !(pixels > 0)) return;
-    const areaPixels = pixels * pixels;
-    color.add(layers.color, pixels, areaPixels, uvSpan);
-    data.add(layers.data, pixels, areaPixels, uvSpan);
-  };
-
-  /** Mesure l'image : empreinte écran de chaque couche, puis niveau voulu avec hystérésis. */
-  const measure = () => {
-    const { index, requested, blend, cam, viewport, colorTexels, dataTexels } = inputs();
-    color.reset();
-    data.reset();
-    frames.reset();
-    openUvSpanBudget();
-    const camStretch = cam ? maxStretch(cam.view as unknown as readonly number[]) : 0;
-    if (index && cam && camStretch > 0) {
-      screenKnown = true;
-      pixelScaleOf(cam.projection, viewport, pixelScale);
-      const focal = Math.max(pixelScale[0], pixelScale[1]),
-        near = cam.near || 1e-3;
-      for (let i = 0; i < requested.length; i++) {
-        const page = requested[i];
-        const at = frames.of(page.matrix, cam.view);
-        const radius = boundsScreenRadius(page, frames.view(at), frames.stretch(at), focal, near);
-        deposit(index.get(page.material), 2 * radius, uvSpanOf(page.attributes));
-      }
-      for (let i = 0; i < blend.length; i++) {
-        const item = blend[i];
-        if (!item.bounds) continue;
-        const radius = worldBoxScreenRadius(item.bounds, cam.view, camStretch, focal, near);
-        deposit(index.get(item.material), 2 * radius, uvSpanOf(item.sourceGeometry?.attributes));
-      }
-    }
-    color.settle(colorTexels);
-    data.settle(dataTexels);
-  };
 
   /**
    * L'utilité d'un travail : l'aire écran de sa couche par le nombre de niveaux qui lui manquent.
@@ -115,7 +50,7 @@ export function createTexturePriority(inputs: () => PriorityInputs) {
   const rank = (job: TextureJob) => (job.kind === 'color' ? 0 : 1);
   const order = (jobs: TextureJob[]) => {
     const started = performance.now();
-    measure();
+    if (measure(inputs())) screenKnown = true;
     if (jobs.length > 1) {
       // Le score une fois par travail, pas deux fois par comparaison du tri.
       for (const job of jobs) job.score = scoreOf(job);

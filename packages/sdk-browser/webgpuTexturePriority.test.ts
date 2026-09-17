@@ -40,11 +40,16 @@ const MATRIX = new THREE.Matrix4();
 /** Largeur en texels de chaque couche : une texture de 4 096 sur tous les slots du test. */
 const TEXELS = new Float64Array([0, 4096, 4096, 4096]);
 
+/** Grappes distinctes que ces montages déclarent : les lignes tenues par clé y sont largement au
+ *  large, et le chemin mesuré est donc celui que le moteur prend. */
+const KEYS = 64;
+let nextKey = 0;
 /** Une page cubique d'un demi-côté, centrée à `depth` devant l'œil. */
 function page(material: THREE.Material, depth: number): PageRec {
   return {
     material,
     matrix: MATRIX,
+    keyIndex: nextKey++,
     min: [-1, -1, -depth - 1],
     max: [1, 1, -depth + 1],
   } as PageRec;
@@ -69,6 +74,7 @@ test('la couche que la caméra regarde de près passe devant une couche lointain
     viewport: VIEWPORT,
     colorTexels: TEXELS,
     dataTexels: TEXELS,
+    keyCount: KEYS,
   }));
 
   const jobs = [job(3), job(2), job(1)];
@@ -88,6 +94,7 @@ test('la couche que la caméra regarde de près passe devant une couche lointain
     viewport: undefined,
     colorTexels: undefined,
     dataTexels: undefined,
+    keyCount: 0,
   }));
   const untouched = [job(3), job(1), job(2)];
   const originalOrder = [...untouched];
@@ -109,6 +116,7 @@ test('à poids égal, un niveau progressif passe devant la pleine résolution de
     viewport: VIEWPORT,
     colorTexels: undefined,
     dataTexels: undefined,
+    keyCount: KEYS,
   }));
   const full = job(1, 1),
     level = job(1, 0);
@@ -136,6 +144,7 @@ test('tous les niveaux progressifs passent avant toute pleine résolution, quell
     viewport: VIEWPORT,
     colorTexels: undefined,
     dataTexels: undefined,
+    keyCount: KEYS,
   }));
   const largeFull = job(1, 1),
     petitLevel = job(2, 0);
@@ -159,6 +168,7 @@ test('à étage égal, une couche couleur passe avant une couche de données plu
     viewport: VIEWPORT,
     colorTexels: undefined,
     dataTexels: undefined,
+    keyCount: KEYS,
   }));
   const data = { ...job(1), kind: 'data' as const },
     color = job(1);
