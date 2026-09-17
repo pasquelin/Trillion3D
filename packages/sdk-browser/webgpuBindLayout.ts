@@ -77,7 +77,9 @@ export const BLEND_BINDINGS = (() => {
     clusterDiagnostic: rest + 3,
     colorSlots: rest + 4,
     dataSlots: rest + 5,
-    clusterIds: rest + 6,
+    /** La liste d'instances que l'étalement du plan a écrite : deux mots par instance, l'item qui
+     *  la porte et ce qu'elle dessine (`webgpuBlendExpandWgsl.ts`). */
+    planInstances: rest + 6,
     clusterSpans: rest + 7,
     /** Les tranches d'ombre, leur atlas et l'échantillonneur de comparaison qui les lit. */
     shadowSlices: rest + 8,

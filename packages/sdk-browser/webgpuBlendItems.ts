@@ -37,15 +37,15 @@ export function writeBlendItemRecord(
   floats[base + 17] = item.rgba[1];
   floats[base + 18] = item.rgba[2];
   floats[base + 19] = item.rgba[3];
-  // Un item paginé lit sa liste de grappes depuis la base que la table lui a donnée ; un item non
-  // paginé lit son propre tampon d'indices depuis zéro et ne dessine qu'une instance.
-  ints[base + 20] = item.tableBase ?? 0;
-  ints[base + 21] = item.count;
-  ints[base + 22] = item.vertexBase ?? 0;
-  ints[base + 23] = item.flags;
-  ints[base + 24] = layer;
-  ints[base + 25] = mat.emissiveMap ? (tables.mapLayer.get(mat.emissiveMap) ?? 0) : 0;
-  ints[base + 26] = item.wrapModes;
+  // Où l'instance lit ce qu'elle dessine, elle le tient de la liste étalée ; la fiche ne porte plus
+  // que ce qui appartient à l'item — ses indices, son premier sommet, ses drapeaux, ses cartes.
+  ints[base + 20] = item.count;
+  ints[base + 21] = item.vertexBase ?? 0;
+  ints[base + 22] = item.flags;
+  ints[base + 23] = layer;
+  ints[base + 24] = mat.emissiveMap ? (tables.mapLayer.get(mat.emissiveMap) ?? 0) : 0;
+  ints[base + 25] = item.wrapModes;
+  ints[base + 26] = 0;
   ints[base + 27] = 0;
   floats[base + 28] = scale[0];
   floats[base + 29] = scale[1];
@@ -66,4 +66,4 @@ export function writeBlendItemRecord(
 }
 
 /** La déclaration WGSL de la fiche, écrite une fois pour le nuanceur et pour la disposition. */
-export const BLEND_ITEM_WGSL = `struct BlendItem{world:mat4x4f,color:vec4f,tableBase:u32,indexCount:u32,vertexBase:u32,flags:u32,mapIndex:u32,emissiveIndex:u32,wrapModes:u32,padItem:u32,uvScale:vec2f,alphaTest:f32,aoIntensity:f32,roughness:f32,metalness:f32,normalScale:vec2f,roughIndex:u32,metalIndex:u32,normalIndex:u32,aoIndex:u32,emissive:vec4f,}`;
+export const BLEND_ITEM_WGSL = `struct BlendItem{world:mat4x4f,color:vec4f,indexCount:u32,vertexBase:u32,flags:u32,mapIndex:u32,emissiveIndex:u32,wrapModes:u32,padItem0:u32,padItem1:u32,uvScale:vec2f,alphaTest:f32,aoIntensity:f32,roughness:f32,metalness:f32,normalScale:vec2f,roughIndex:u32,metalIndex:u32,normalIndex:u32,aoIndex:u32,emissive:vec4f,}`;

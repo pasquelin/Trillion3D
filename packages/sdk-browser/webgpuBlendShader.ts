@@ -21,7 +21,7 @@ import { TRANSMISSION_WGSL } from './webgpuTransmissionWgsl.ts';
  * fiche de l'item, lue dans un tampon de stockage au rang que l'indice de sommet porte. Rien n'est
  * lie par appel, et l'ordre des appels est celui de la scene.
  */
-export const BLEND_SHADER = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,itemShift:u32,}
+export const BLEND_SHADER = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,}
 ${BLEND_ITEM_WGSL}
 @group(0) @binding(${BLEND_BINDINGS.indices}) var<storage, read> indices:array<u32>;
 @group(0) @binding(${BLEND_BINDINGS.positions}) var<storage, read> positions:array<f32>;
@@ -43,7 +43,7 @@ ${bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes)}
 @group(0) @binding(${BLEND_BINDINGS.clusterDiagnostic}) var<storage,read> clusterDiagnostic:array<u32>;
 @group(0) @binding(${BLEND_BINDINGS.colorSlots}) var<storage,read> colorSlots:array<vec2u>;
 @group(0) @binding(${BLEND_BINDINGS.dataSlots}) var<storage,read> dataSlots:array<u32>;
-@group(0) @binding(${BLEND_BINDINGS.clusterIds}) var<storage,read> clusterIds:array<u32>;
+@group(0) @binding(${BLEND_BINDINGS.planInstances}) var<storage,read> planInstances:array<vec2u>;
 @group(0) @binding(${BLEND_BINDINGS.clusterSpans}) var<storage,read> clusterSpans:array<vec2u>;
 @group(0) @binding(${BLEND_BINDINGS.tileLights}) var<storage,read> tileLights:array<u32>;
 ${TRANSMISSION_WGSL}
@@ -56,17 +56,20 @@ ${NORMAL_TRANSFORM_WGSL}
 // fragment lit les mêmes bits qu'il lisait dans l'uniforme par item, sans liaison par appel.
 struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec3f,@location(4) tangent:vec3f,@location(5) bitangent:vec3f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,@location(9) @interpolate(flat) ids:vec4u,@location(10) @interpolate(flat) maps:vec4u,@location(11) @interpolate(flat) uvA:vec4f,@location(12) @interpolate(flat) pbr:vec4f,@location(13) @interpolate(flat) emissive:vec4f,}
 ${TRIANGLE_PALETTE_WGSL}
-// A paged transparent primitive draws one instance per cluster the GPU compaction kept, in the
-// order the compaction wrote them, which is the source order the scene recorded. An unpaged one
-// keeps its single instance over its own index buffer.
+// Une instance dessine une grappe paginee que la compaction a gardee, ou un morceau d'indices d'une
+// primitive qui ne l'est pas. La liste que l'etalement du plan a ecrite dit, pour chacune, l'item
+// qui la porte et ce qu'elle dessine (webgpuBlendExpandWgsl.ts).
 //
-// L'item se nomme par l'indice de sommet : l'argument indirect de chaque appel commence au rang de
-// l'item multiplie par une puissance de deux plus grande que tout compte de sommets, si bien que le
-// sommet porte son item dans ses bits hauts et son rang local dans les bas. Rien a lier par appel.
+// Le rang de la premiere instance de l'appel se lit dans les bits hauts de l'indice de sommet, et le
+// rang local du sommet dans les bas : l'argument indirect d'une tranche commence au sommet
+// base << vertexShift. C'est ce qui permet a une tranche entiere de tenir dans UN appel, sans rien
+// a lier entre deux entrees du plan — firstInstance dirait la meme chose, mais WebGPU ne l'ouvre
+// a un appel indirect que sous une extension.
 @vertex fn vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instance:u32)->VSOut{
  var out:VSOut;
- let it=items[vertexIndex>>uni.itemShift];
- let local=vertexIndex&((1u<<uni.itemShift)-1u);
+ let slot=planInstances[(vertexIndex>>uni.vertexShift)+instance];
+ let it=items[slot.x];
+ let local=vertexIndex&((1u<<uni.vertexShift)-1u);
  let flags=it.flags|uni.viewFlags;
  out.color=it.color;
  out.ids=vec4u(it.mapIndex,flags,it.emissiveIndex,it.wrapModes);
@@ -74,15 +77,14 @@ ${TRIANGLE_PALETTE_WGSL}
  out.uvA=vec4f(it.uvScale,it.alphaTest,it.aoIntensity);
  out.pbr=vec4f(it.roughness,it.metalness,it.normalScale);
  out.emissive=vec4f(it.emissive.xyz,0.0);
- var base=it.tableBase;
- var count=it.indexCount;
+ var base=slot.y;
+ var count=it.indexCount-slot.y;
  var clusterId=0u;
  if((flags&${FLAG_PAGED}u)!=0u){
-  let entry=clusterIds[it.tableBase+instance];
-  let span=clusterSpans[entry];
+  let span=clusterSpans[slot.y];
   base=span.x;
   count=span.y;
-  clusterId=clusterDiagnostic[entry];
+  clusterId=clusterDiagnostic[slot.y];
  }
  if(local>=count){out.position=vec4f(0.0,0.0,2.0,1.0);out.color=vec4f(0.0);out.uv=vec2f(0.0);out.view=vec3f(0.0);out.normal=vec3f(0.0,0.0,1.0);out.tangent=vec3f(0.0);out.bitangent=vec3f(0.0);out.tri=0u;out.bary=vec3f(0.0);out.diagId=0u;return out;}
  let id=it.vertexBase+indices[base+local];
