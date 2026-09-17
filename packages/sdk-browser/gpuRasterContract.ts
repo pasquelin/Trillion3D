@@ -19,7 +19,7 @@ export const FINE_PER_GROUP = 64 / (FINE_SIDE * FINE_SIDE);
 /** Côté du pavé d'un groupe complet : la classe moyenne tient dans un seul, la grande en boucle. */
 export const TILE = 8;
 /** Pavés qu'un groupe de la grande classe parcourt au plus, donc son étendue maximale en pixels. */
-export const LARGE_TILES = 8;
+const LARGE_TILES = 8;
 export const LARGE_SPAN = TILE * LARGE_TILES - 1;
 
 /** Les mots que la liste réserve avant ses entrées : quatre comptes, la hauteur en pavés la plus

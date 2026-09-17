@@ -5,7 +5,7 @@ import type { Job } from './streamingTypes.ts';
  * précède. Une recherche dichotomique, donc un logarithme de comparaisons là où retrier toute la
  * file en coûtait `n log n` — et une caméra en mouvement empile des demandes à chaque image.
  */
-export function rangDInsertion(queue: readonly { priority: number }[], priority: number) {
+function rangDInsertion(queue: readonly { priority: number }[], priority: number) {
   let low = 0,
     high = queue.length;
   while (low < high) {

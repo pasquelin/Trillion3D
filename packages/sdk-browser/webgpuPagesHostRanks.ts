@@ -1,7 +1,5 @@
 import type { HostRetentionDelta } from './streamingTypes.ts';
 
-export type HostRankDelta = ReturnType<typeof createHostRankDelta>;
-
 /** Ce que la différence lit d'un enregistrement : son rang de requête, et rien d'autre. */
 type Ranked = { requestIndex?: number };
 
