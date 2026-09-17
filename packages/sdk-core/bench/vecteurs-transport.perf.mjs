@@ -2,7 +2,7 @@
 import { length } from '../lightingSceneMath.ts';
 import { validateScene } from '../lightingTransportValidation.ts';
 import { graine, mesure, stress, rapport } from './mesure.mjs';
-import { referenceLength, referenceValidateScene } from './oracles/f-vecteurs.mjs';
+import { referenceLength, referenceValidateScene } from './oracles/vecteurs-transport.mjs';
 
 const alea = graine(97);
 const HOSTILES = [0, -0, NaN, Infinity, -Infinity, 5e-324, 1.7976931348623157e308, -1e-300];

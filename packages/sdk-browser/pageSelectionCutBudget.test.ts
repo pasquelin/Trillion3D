@@ -8,7 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createSelectionResult, selectVisiblePages } from './pageSelection.ts';
-import { dag, racine } from './bench/dagC.mjs';
+import { dag, racine } from './bench/dagCoupe.mjs';
 import { cameraMoteur } from './cameraFixture.ts';
 
 function camera() {

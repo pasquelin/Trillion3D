@@ -46,24 +46,6 @@ function metAJour(noeuds) {
   }
 }
 
-/** Une scène ordinaire du moteur : `taille` nœuds, parent tiré parmi les précédents, échelles positives. */
-export function hierarchie(taille, depart) {
-  const alea = graine(depart),
-    noeuds = [];
-  for (let i = 0; i < taille; i++) {
-    const q = new THREE.Quaternion(alea() - 0.5, alea() - 0.5, alea() - 0.5, alea() - 0.5);
-    noeuds.push(
-      noeud([alea() * 10, alea() * 10, alea() * 10], q.normalize().toArray(), [
-        0.5 + alea(),
-        0.5 + alea(),
-        0.5 + alea(),
-      ]),
-    );
-    if (i) relie(noeuds, i, Math.floor(alea() * i));
-  }
-  return { racine: noeuds[0].objet, noeuds, metAJourSocle: () => metAJour(noeuds) };
-}
-
 /** Échelles hostiles : négatives sur un axe ou trois, non uniformes, nulle, extrêmes. */
 const ECHELLES = [
   [1, 1, 1],

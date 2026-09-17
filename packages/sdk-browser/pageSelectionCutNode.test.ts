@@ -1,7 +1,7 @@
 // Lot 4c : à seuil nul, la décision d'un nœud se prend sur les seules bornes, sans projeter. Elle
 // n'est identique au chemin général que sous l'invariant que `cullingBounds` maintient — une borne
 // finie strictement positive vient toujours d'un cluster qui avait sa sphère —, et c'est le second
-// test qui le prouve. Oracle : `nodeDecision` d'avant le lot, dans `bench/oracles/coupe4c.mjs`.
+// test qui le prouve. Oracle : `nodeDecision` d'avant le lot, dans `bench/oracles/coupe-budget.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -16,7 +16,7 @@ import {
   cullingBounds,
 } from './pageSelectionCutBounds.ts';
 import type { PageRecord, SelectionState } from './pageSelectionCutState.ts';
-import { referenceNodeDecision } from './bench/oracles/coupe4c.mjs';
+import { referenceNodeDecision } from './bench/oracles/coupe-budget.mjs';
 import { cameraMoteur } from './cameraFixture.ts';
 
 const camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.25, 500);

@@ -3,13 +3,13 @@
 // (`Math.hypot(...v)`) à trois arguments positionnels. Le point F20 sur `multiply4`
 // (sceneLightShadowFaces.ts) est sans objet : le lot ombres, sur develop, a réécrit ce fichier et
 // supprimé la fonction avant que ce worktree ne rebase dessus. L'oracle est l'implémentation d'avant
-// le lot F, recopiée telle quelle dans `oracles/f-vecteurs.mjs`.
+// le lot F, recopiée telle quelle dans `oracles/vecteurs-transport.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cross, length } from './lightingSceneMath.ts';
 import { validateScene } from './lightingTransportValidation.ts';
 import { sceneWithBlocker } from '../../test/fixtures/lightingTransportScene.ts';
-import { referenceLength } from './bench/oracles/f-vecteurs.mjs';
+import { referenceLength } from './bench/oracles/vecteurs-transport.mjs';
 import { referenceCross } from '../sdk-browser/bench/oracles/socle-math.mjs';
 import type { Vec3 } from './lightingSceneTypes.ts';
 

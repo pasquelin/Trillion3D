@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { shadeLit } from '../visibilityLighting.ts';
 import { triangleAt } from '../visibilityMath.ts';
 import { graine, mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
-import { referenceShadeLit } from './oracles/g-ombrage.mjs';
+import { referenceShadeLit } from './oracles/ombrage-pixels.mjs';
 import { cameraMoteur } from '../cameraFixture.ts';
 
 const alea = graine(0x6017);

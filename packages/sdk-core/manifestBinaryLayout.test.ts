@@ -1,11 +1,11 @@
 // Lot F, F19 : `writeSha` (manifestBinaryLayout.ts) validait l'empreinte avec une expression
 // régulière puis la parcourait une seconde fois pour l'écrire. Elle lit désormais chaque code une
 // fois, dans une réserve partagée, et ne pose l'empreinte qu'une fois les 64 caractères acceptés.
-// L'oracle est l'implémentation d'avant le lot F, recopiée telle quelle dans `oracles/f-manifeste.mjs`.
+// L'oracle est l'implémentation d'avant le lot F, recopiée telle quelle dans `oracles/manifeste-binaire.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { writeSha } from './manifestBinaryLayout.ts';
-import { referenceWriteSha } from './bench/oracles/f-manifeste.mjs';
+import { referenceWriteSha } from './bench/oracles/manifeste-binaire.mjs';
 
 const VALID = 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90';
 

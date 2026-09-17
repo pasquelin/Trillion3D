@@ -8,12 +8,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chargeBaseline } from './baseline.mjs';
 import { ecart } from './ecart.mjs';
-import { rejoueEnProcessusNeuf } from './processNeuf.mjs';
 
 export const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const FRAGMENTS = join(RACINE, '.mesure', 'perf');
-
-export { rejoueEnProcessusNeuf };
 
 /** Générateur pseudo-aléatoire à graine fixe (xorshift32 déterministe). */
 export function graine(depart) {

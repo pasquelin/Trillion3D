@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { createAutonomousGeometry } from '../autonomousGeometry.ts';
 import { graine, mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
-import { referenceAutonomousSync } from './oracles/g-autonome.mjs';
+import { referenceAutonomousSync } from './oracles/backend-autonome.mjs';
 
 const HOSTILES = [0, -0, NaN, Infinity, -Infinity, 5e-324, 1.7976931348623157e308];
 const geometrie = new THREE.BufferGeometry();

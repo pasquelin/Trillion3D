@@ -2,7 +2,7 @@
 import { createSelectionResult, selectVisiblePages } from '../pageSelection.ts';
 import { ligneDecrite, mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
 import { camera } from './scenes.mjs';
-import { dag, etatDeCoupe, racine } from './dagC.mjs';
+import { dag, etatDeCoupe, racine } from './dagCoupe.mjs';
 import { cameraMoteur } from '../cameraFixture.ts';
 
 const cam = camera(9, 0.1, 16 / 9);

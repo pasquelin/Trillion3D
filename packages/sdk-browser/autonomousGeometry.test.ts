@@ -1,11 +1,11 @@
 // G1 : `autonomousGeometry.ts` détache par l'ensemble des pages effectivement attachées (`attachees`,
 // un `Set` tenu par `attach`/`detach`) au lieu de balayer `allPages` — tout le DAG — à chaque image.
-// Oracle : la version d'avant le lot G, recopiée telle quelle dans `bench/oracles/g-autonome.mjs`.
+// Oracle : la version d'avant le lot G, recopiée telle quelle dans `bench/oracles/backend-autonome.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createAutonomousGeometry } from './autonomousGeometry.ts';
-import { referenceAutonomousSync } from './bench/oracles/g-autonome.mjs';
+import { referenceAutonomousSync } from './bench/oracles/backend-autonome.mjs';
 import type { PageRec } from './pageSelectionTypes.ts';
 
 function fakeScene() {

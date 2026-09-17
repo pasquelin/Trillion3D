@@ -1,7 +1,7 @@
 // C1 : remplissage du visbuffer, affine vs perspective.
 import { rasterVisibility } from '../visibilityRaster.ts';
-import { fillAffine, fillReference, rasterAvec } from './rasterC.mjs';
-import { quadrillage } from './scenesC.mjs';
+import { fillAffine, fillReference, rasterAvec } from './rasterTampon.mjs';
+import { quadrillage } from './scenesCoupe.mjs';
 import { mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
 import { camera, coupe } from './scenes.mjs';
 import { cameraMoteur } from '../cameraFixture.ts';

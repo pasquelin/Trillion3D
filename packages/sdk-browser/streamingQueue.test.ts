@@ -113,9 +113,9 @@ test('an unknown url (no byte size) is treated as zero cost by both sides', () =
 // G5 : une demande annulée est marquée `dropped` puis la file est compactée en un seul passage
 // (`compacteFile`) au prochain `pump`, au lieu d'être retrouvée par `queue.indexOf` et retirée par
 // `splice` à chaque annulation. Oracle du retrait immédiat : `referenceRetireDeLaFile`, recopié tel
-// quel d'avant le lot G dans `bench/oracles/g-file.mjs`.
+// quel d'avant le lot G dans `bench/oracles/file-streaming.mjs`.
 {
-  const { referenceRetireDeLaFile } = await import('./bench/oracles/g-file.mjs');
+  const { referenceRetireDeLaFile } = await import('./bench/oracles/file-streaming.mjs');
 
   function job(url: string): Job {
     return {

@@ -8,8 +8,8 @@ import {
   referenceCompteMateriauxEtTangentes,
   referenceIndexSourceBytes,
   referencePrepareCones,
-} from './oracles/f-cones.mjs';
-import { catalogueDePages } from './scenesF.mjs';
+} from './oracles/cones-normaux.mjs';
+import { catalogueDePages } from './scenesChargement.mjs';
 
 const alea = graine(6151);
 const pages = catalogueDePages({ pages: 20000, materiaux: 60 });

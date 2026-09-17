@@ -10,7 +10,7 @@ import {
   referenceExactPagesBounds,
   referenceIndexManifestPages,
   referenceIndexManifestBundles,
-} from './bench/oracles/f-scene.mjs';
+} from './bench/oracles/scene-chargement.mjs';
 import type { ClusterManifest, Page, Primitive } from '../sdk-core/index.ts';
 
 const manifest = { primitives: [] } as unknown as ClusterManifest;
@@ -56,7 +56,7 @@ test('loadPreparedScene indexes every glTF texture association and nothing else'
 // un seul parcours indexé. `indexManifestPages`/`indexManifestBundles` (manifestPageIndex.ts) et
 // `exactPagesBounds` (exactPagesBounds.ts, via `primitiveFinder`) doivent rendre exactement ce que
 // rendaient les quatre `flatMap` et le `find` d'avant le lot F. Les oracles sont recopiés tels quels
-// dans `oracles/f-scene.mjs`.
+// dans `oracles/scene-chargement.mjs`.
 function pageDe(id: number, url: string, geometryUrl?: string): Page {
   const page = { id, url, sha256: url, bytes: 8, count: 3, min: [0, 0, 0], max: [1, 1, 1] } as Page;
   if (geometryUrl)

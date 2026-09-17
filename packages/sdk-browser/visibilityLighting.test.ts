@@ -1,12 +1,12 @@
 // G3 : visibilityLighting.ts hisse les constantes de l'éclairage hémisphérique (direction du
 // soleil, sa longueur, la couleur du sol et du ciel) hors de `shadeLit`, appelée par pixel, au lieu
 // de les recalculer et réallouer à chaque appel. Oracle : la version d'avant le lot G, recopiée
-// telle quelle dans `bench/oracles/g-ombrage.mjs`.
+// telle quelle dans `bench/oracles/ombrage-pixels.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { shadeLit } from './visibilityLighting.ts';
-import { referenceShadeLit } from './bench/oracles/g-ombrage.mjs';
+import { referenceShadeLit } from './bench/oracles/ombrage-pixels.mjs';
 import type { VisPage, VisMaterial } from './visibilityTypes.ts';
 import type { Projected } from './visibilityProjection.ts';
 import { cameraMoteur } from './cameraFixture.ts';
