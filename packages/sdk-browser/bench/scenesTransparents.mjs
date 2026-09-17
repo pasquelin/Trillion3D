@@ -9,13 +9,13 @@ import { graine } from '../../sdk-core/bench/banc.mjs';
 import { planReference } from './oracles/transparents-ordres.mjs';
 
 /** L'ordre de grandeur de la scène mesurée : 4 288 items transparents, douze placements chacun. */
-export const PLACEMENTS = 12,
+const PLACEMENTS = 12,
   PROTOTYPES = 357,
   ISOLES = 4,
-  ITEMS = PROTOTYPES * PLACEMENTS + ISOLES,
   PAGINES = PROTOTYPES * PLACEMENTS;
+export const ITEMS = PAGINES + ISOLES;
 /** Ce qu'une primitive paginée tient au catalogue, et les sommets d'une grappe. */
-export const GRAPPES = 8,
+const GRAPPES = 8,
   MOTS = 48;
 
 const alea = graine(31);
