@@ -1,16 +1,16 @@
-// F16 et F17 : le chargement d'une scène.
+// le chargement d'une scène.
 import * as THREE from 'three';
 import { collectClusterPages } from '../pageSelectionCollect.ts';
 import { exactPagesBounds } from '../exactPagesBounds.ts';
 import { indexManifestBundles, indexManifestPages } from '../manifestPageIndex.ts';
-import { mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
-import { referenceCollectClusterPages } from './oracles/chargement-scene.mjs';
+import { mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
+import { referenceCollectClusterPages } from './oracles/collecte-pages.mjs';
 import {
   referenceExactPagesBounds,
   referenceIndexManifestBundles,
   referenceIndexManifestPages,
-} from './oracles/scene-chargement.mjs';
-import { manifesteEtScene } from './scenesChargement.mjs';
+} from './oracles/bornes-et-index.mjs';
+import { manifesteEtScene } from './appui/scenesChargement.mjs';
 
 const boiteVersTableau = (boite) =>
   boite.isBox3 ? [...boite.min.toArray(), ...boite.max.toArray()] : Array.from(boite);
@@ -77,6 +77,14 @@ const passeCollect = (fn) => (entree) => {
   };
 };
 
+const passeBounds = (fn) => (entree) => {
+  const manquants = [];
+  const boite = fn(entree.source, entree.associations, entree.metadata, (mesh) =>
+    manquants.push(mesh.id),
+  );
+  return { boite: boiteVersTableau(boite), manquants };
+};
+
 const passeIndex = (pages, bundles) => (metadata) => {
   const index = pages(metadata);
   return {
@@ -97,7 +105,7 @@ const cas = [
 ];
 
 const resCollect = await mesure({
-  nom: 'F16 collecte des pages de clusters',
+  nom: 'collecte des pages de clusters',
   fichier: 'packages/sdk-browser/pageSelectionCollect.ts',
   cas,
   calcul: passeCollect(collectClusterPages),
@@ -105,8 +113,17 @@ const resCollect = await mesure({
   options: { tours: 40, budgetMs: 1500 },
 });
 
+const resBounds = await mesure({
+  nom: 'bornes des pages exactes',
+  fichier: 'packages/sdk-browser/exactPagesBounds.ts',
+  cas,
+  calcul: passeBounds(exactPagesBounds),
+  attendu: passeBounds(referenceExactPagesBounds),
+  options: { tours: 40, budgetMs: 1500 },
+});
+
 const resIndex = await mesure({
-  nom: 'F17 indexation du manifeste',
+  nom: 'indexation du manifeste',
   fichier: 'packages/sdk-browser/manifestPageIndex.ts',
   cas: [
     { nom: '2 400 pages', entree: grande.metadata, taille: 2400 },
@@ -124,7 +141,7 @@ await stress({
 });
 
 rapport(
-  'f-chargement',
-  [resCollect, resIndex],
+  'chargement-scene',
+  [resCollect, resBounds, resIndex],
   'F16 et F17 retrouvent exactement les mêmes pages, index et boîtes',
 );

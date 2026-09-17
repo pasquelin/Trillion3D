@@ -1,4 +1,4 @@
-// H2 : décodage hors du fil principal et hachage d'intégrité.
+// décodage hors du fil principal et hachage d'intégrité.
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { Worker } from 'node:worker_threads';
 import { PAGE_DECODE_PROTOCOL } from '../../sdk-core/index.ts';
 import { prepareSdkWasm } from '../geometryPageWasm.ts';
-import { RACINE, graine, mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
+import { RACINE, ecart, graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
 import { encodeGeometryPage } from '../../page-codec/geometryPage.mjs';
 import { decodeGeometryPage } from '../geometryPage.ts';
 import { decodePageOffThread, verifyPageBytes } from '../pageDecodeHost.ts';
@@ -18,7 +18,7 @@ const MAX_DECODED_BYTES = 16 * 1024 * 1024;
 const alea = graine(211);
 const MODULE = readFileSync(join(RACINE, 'packages', 'sdk-browser', 'pageCodec.wasm'));
 if (!(await prepareSdkWasm(MODULE)))
-  throw new Error('H2_WASM_ABSENT : lancer `npm run build:wasm`');
+  throw new Error('H2_WASM_ABSENT : lancer `pnpm run build:wasm`');
 
 async function page(sommets) {
   const position = new Float32Array(sommets * 3),
@@ -83,19 +83,24 @@ const horsFil = (op, source) =>
     );
   });
 
-test('H2 : le worker rend exactement les octets du fil principal', async () => {
+test('H2 : le worker rend exactement la page et les octets du fil principal', async () => {
   const surPlace = await decodeGeometryPage(grande, MAX_DECODED_BYTES);
   const decodee = await horsFil('decode', grande.slice().buffer);
   assert.equal(decodee.ok, true, decodee.message);
+  assert.equal(ecart(surPlace, restorePageDecode(decodee.decoded), 'page'), null);
+
   const attendu = await sha256Hex(grande.slice().buffer);
   const verifiee = await horsFil('verify', grande.slice().buffer);
   assert.equal(verifiee.ok, true, verifiee.message);
   assert.equal(verifiee.sha256, attendu);
+  const rendus = new Uint8Array(verifiee.source);
+  assert.equal(rendus.length, grande.length);
+  for (let i = 0; i < grande.length; i++) assert.ok(Object.is(rendus[i], grande[i]), `octet ${i}`);
   await worker.terminate();
 });
 
 const resDecode = await mesure({
-  nom: 'H1 décodage contrat WebAssembly',
+  nom: 'décodage contrat WebAssembly',
   fichier: 'packages/sdk-browser/pageDecodeHost.ts',
   cas: [
     { nom: '30 000 sommets, 6 attributs', entree: grande, taille: 30000 },
@@ -107,7 +112,7 @@ const resDecode = await mesure({
 });
 
 const resHash = await mesure({
-  nom: 'H2 hachage intégrité contrat',
+  nom: 'hachage intégrité contrat',
   fichier: 'packages/sdk-browser/pageDecodeHost.ts',
   cas: [
     { nom: '30 000 sommets, compressée', entree: grande.buffer, taille: grande.byteLength },
@@ -124,4 +129,4 @@ await stress({
   extremes: [{ nom: 'tampon vide', entree: new ArrayBuffer(0) }],
 });
 
-rapport('decodage-h', [resDecode, resHash], 'H1 et H2 rendent exactement les mêmes valeurs');
+rapport('decodage-worker', [resDecode, resHash], 'H1 et H2 rendent exactement les mêmes valeurs');

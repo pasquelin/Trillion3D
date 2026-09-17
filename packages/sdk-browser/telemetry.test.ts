@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EngineProfiler } from './telemetry.ts';
-import { referenceIntervals } from './bench/oracles/chargement.mjs';
+import { referenceIntervals } from './bench/oracles/attributs-telemetrie.mjs';
 import type { FrameMetrics, ClusterManifest } from '../sdk-core/index.ts';
 
 test('EngineProfiler records frames and produces accurate statistics and bottlenecks', () => {

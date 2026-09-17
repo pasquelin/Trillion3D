@@ -1,9 +1,9 @@
-// F4 et F5 : la table des lignes dessinables.
+// la table des lignes dessinables.
 import { createWebgpuRowState } from '../webgpuRowState.ts';
 import { createWebgpuRowCommit } from '../webgpuRowCommit.ts';
 import { createWebgpuRowSync } from '../webgpuRowSync.ts';
 import { PAGE_INFO_STRIDE } from '../visibilityTypes.ts';
-import { graine, mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
+import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
 import { referenceRowCommit, referenceRowState } from './oracles/lignes-dessinables.mjs';
 
 const MOTS = PAGE_INFO_STRIDE / 4;
@@ -100,12 +100,45 @@ const cas = [
 ];
 
 const resLignes = await mesure({
-  nom: 'F4 table des lignes dessinables',
+  nom: 'table des lignes dessinables',
   fichier: 'packages/sdk-browser/webgpuRowCommit.ts',
   cas,
   calcul: passe(createWebgpuRowCommit),
   attendu: passe(referenceRowCommit),
   options: { tours: 30, budgetMs: 1500 },
+});
+
+// Le rang d'une page, demandé pour chaque cluster de la coupe CPU d'une image.
+const pagesF5 = catalogue();
+const etatF5 = createWebgpuRowState(pagesF5, SLOTS);
+const referenceF5 = referenceRowState(pagesF5, SLOTS);
+const etrangeres = [];
+for (let i = 0; i < 2000; i++) etrangeres.push({ id: i, url: `x/${i}`, packedIndex: i });
+const demandes = [];
+for (let i = 0; i < 20000; i++) {
+  const r = alea();
+  demandes.push(
+    r < 0.9 ? pagesF5[Math.floor(alea() * PAGES)] : etrangeres[Math.floor(alea() * 2000)],
+  );
+}
+const rangs = (etat) => (liste) => {
+  const sortie = new Array(liste.length);
+  for (let i = 0; i < liste.length; i++) sortie[i] = etat.pageIndexOf(liste[i]) ?? -1;
+  return sortie;
+};
+
+const resRangs = await mesure({
+  nom: 'rang d’une page du catalogue',
+  fichier: 'packages/sdk-browser/webgpuRowState.ts',
+  cas: [
+    { nom: '20 000 demandes, 10 % hors catalogue', entree: demandes, taille: demandes.length },
+    { nom: 'une seule page', entree: [pagesF5[0]], taille: 1 },
+    { nom: 'page étrangère au rang usurpé', entree: [etrangeres[0]], taille: 1 },
+    { nom: 'aucune demande', entree: [], taille: 0 },
+  ],
+  calcul: rangs(etatF5),
+  attendu: rangs(referenceF5),
+  options: { tours: 60, budgetMs: 1500 },
 });
 
 await stress({
@@ -114,4 +147,8 @@ await stress({
   extremes: [{ nom: 'vide', entree: [] }],
 });
 
-rapport('f-lignes', [resLignes], 'F4 et F5 tiennent exactement les mêmes tables de lignes');
+rapport(
+  'lignes-dessinables',
+  [resLignes, resRangs],
+  'F4 et F5 rendent exactement la même table de lignes et les mêmes rangs',
+);

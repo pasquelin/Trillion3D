@@ -1,8 +1,8 @@
-// C4, C5 et C6 : les trois relances de la coupe de clusters.
+// les trois relances de la coupe de clusters.
 import { createSelectionResult, selectVisiblePages } from '../pageSelection.ts';
-import { ligneDecrite, mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
-import { camera } from './scenes.mjs';
-import { dag, etatDeCoupe, racine } from './dagCoupe.mjs';
+import { ligneDecrite, mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
+import { camera } from './appui/scenes.mjs';
+import { dag, etatDeCoupe, racine } from './appui/dagCoupe.mjs';
 import { cameraMoteur } from '../cameraFixture.ts';
 
 const cam = camera(9, 0.1, 16 / 9);
@@ -70,7 +70,7 @@ const large = scene({ feuilles: 10000, seed: 67, pixelError: 8, budget: 30000 })
 const sansBudget = scene({ feuilles: 4000, seed: 71, pixelError: 2, budget: 0 });
 
 const resC5 = await mesure({
-  nom: 'C5 relance sur budget',
+  nom: 'relance sur budget',
   fichier: 'packages/sdk-browser/pageSelectionCut.ts',
   cas: [
     { nom: '20 000 pages, budget 300 dépassé', entree: serre, taille: 20000 },
@@ -83,26 +83,24 @@ const resC5 = await mesure({
 });
 
 const decritC6 = ligneDecrite({
-  nom: 'C6 seuil de réparation mémorisé',
+  nom: 'seuil de réparation mémorisé',
   fichier: 'packages/sdk-browser/pageSelectionCutRepair.ts',
   motif: 'non retenu : la montée par paliers cherche le plus petit point fixe',
 });
 const decritC4 = ligneDecrite({
-  nom: 'C4 second parcours de forçage',
+  nom: 'second parcours de forçage',
   fichier: 'packages/sdk-browser/pageSelectionCutSelect.ts',
   motif: 'non mesuré : le second parcours change de prédicat pour toutes les pages',
 });
 
 await stress({
   nom: 'selectVisiblePages extremes',
-  calcul: (s) =>
-    selectVisiblePages(
-      s.roots,
-      cameraMoteur(cam),
-      demande(s, 1, 0),
-      [],
-    ),
+  calcul: (s) => selectVisiblePages(s.roots, cameraMoteur(cam), demande(s, 1, 0), []),
   extremes: [{ nom: 'sansBudget', entree: sansBudget }],
 });
 
-rapport('selection-c', [resC5, decritC6, decritC4], 'C4, C5 et C6 ont été mesurés ou décrits');
+rapport(
+  'selection-relances',
+  [resC5, decritC6, decritC4],
+  'C4, C5 et C6 ont été mesurés ou décrits',
+);

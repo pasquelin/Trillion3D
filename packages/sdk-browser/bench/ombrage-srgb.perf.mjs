@@ -1,8 +1,8 @@
-// C7 : sRGB vers linéaire dans l'échantillonnage de texture.
+// sRGB vers linéaire dans l'échantillonnage de texture.
 import * as THREE from 'three';
 import { sampleLinear, sampleMap, wrapTexel } from '../visibilityMath.ts';
 import { textureRgba } from '../visibilityTypes.ts';
-import { graine, mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
+import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
 
 function referenceSrgbToLinear(c) {
   return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
@@ -71,7 +71,7 @@ const cas = [
 ];
 
 const resSrgb = await mesure({
-  nom: 'C7 sRGB vers linéaire',
+  nom: 'sRGB vers linéaire',
   fichier: 'packages/sdk-browser/visibilityMath.ts',
   cas,
   calcul: parcours(sampleMap),
@@ -80,7 +80,7 @@ const resSrgb = await mesure({
 });
 
 const resLinear = await mesure({
-  nom: 'C7 échantillonnage linéaire',
+  nom: 'échantillonnage linéaire',
   fichier: 'packages/sdk-browser/visibilityMath.ts',
   cas,
   calcul: parcours(sampleLinear),
@@ -98,4 +98,4 @@ await stress({
   ],
 });
 
-rapport('ombrage-c', [resSrgb, resLinear], 'C7 rend exactement les mêmes composantes');
+rapport('ombrage-srgb', [resSrgb, resLinear], 'C7 rend exactement les mêmes composantes');
