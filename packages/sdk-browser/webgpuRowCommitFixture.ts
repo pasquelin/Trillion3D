@@ -25,7 +25,7 @@ export function catalogue(): PageRec[] {
     } as unknown as PageRec);
   return pages;
 }
-export const ecrivain = (
+const ecrivain = (
   rec: PageRec,
   pageIndex: number,
   row: number,
