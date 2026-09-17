@@ -24,8 +24,8 @@
  * que le rangement compte une fois pour toutes (`hierarchyLevelSizes`), la majore. Les fils au-delà
  * du compte de la file sortent sur la garde, comme ils le faisaient déjà. Ce majorant évite de
  * recopier le mot de tête de l'argument de répartition vers un tampon d'indirection avant chaque
- * passe : dix-neuf microsecondes par copie sur apple metal-3, douze copies par image sur la
- * hiérarchie du banc, mesurées par `bench/justesse/coupe-lancements-gpu.mjs`.
+ * passe : dix-sept à dix-neuf microsecondes par copie sur apple metal-3 selon le relevé, et douze
+ * copies par image sur la hiérarchie du banc (`bench/justesse/coupe-lancements-gpu.mjs`).
  *
  * TROIS files en rotation, pas deux : le compteur de la file qu'un niveau va remplir doit valoir zéro
  * avant qu'il n'y écrive, et avec deux files cette remise à zéro ne pouvait venir que du processeur,
