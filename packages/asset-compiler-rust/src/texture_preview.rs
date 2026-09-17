@@ -26,11 +26,11 @@
 use super::*;
 use crate::plugins::image::{DecodedImage, Transfer};
 
-mod collect;
+pub(crate) mod collect;
 mod curves;
 mod levels;
 mod reduce;
-mod source;
+pub(crate) mod source;
 #[cfg(test)]
 mod tests;
 pub use levels::*;
@@ -93,17 +93,26 @@ pub(super) struct PreviewInputs<'a> {
     pub image_root: &'a Path,
     pub meshes: &'a BTreeSet<usize>,
     pub view_map: &'a BTreeMap<usize, usize>,
+    /// Les textures dont l'alpha est à mesurer au passage, que `cutout` a désignées : cette étape
+    /// sait ce qu'elle décode, pas ce qu'est une découpe.
+    pub to_measure: &'a BTreeSet<usize>,
 }
 
 /// Calcule la pyramide de chaque texture couleur des maillages retenus. Rend les entrées triées par
-/// index de texture et le rapport de l'étape.
+/// index de texture, la forme de l'alpha des textures candidates à la découpe — mesurée dans ce
+/// décodage, jamais dans un second — et le rapport de l'étape.
 pub(super) fn stage_texture_previews(
     inputs: &PreviewInputs<'_>,
-) -> Result<(Vec<TexturePreview>, Value)> {
+) -> Result<(
+    Vec<TexturePreview>,
+    BTreeMap<usize, crate::cutout::AlphaShape>,
+    Value,
+)> {
     let wanted = collect::color_textures(inputs.g, inputs.meshes)?;
     let textures = inputs.g.get("textures").and_then(Value::as_array);
     let images = inputs.g.get("images").and_then(Value::as_array);
     let mut previews = Vec::new();
+    let mut shapes = BTreeMap::new();
     let mut skipped: BTreeMap<&'static str, usize> = BTreeMap::new();
     // Les raisons qu'un pilote pose à côté d'une image qu'il a bien rendue : ce que le fichier
     // déclarait et que la sortie ne porte pas. Comptées par texture, jamais confondues avec un refus.
@@ -115,7 +124,10 @@ pub(super) fn stage_texture_previews(
             continue;
         };
         match one_preview(inputs, textures, images, entry) {
-            Ok((preview, declared)) => {
+            Ok((preview, declared, shape)) => {
+                if let Some(shape) = shape {
+                    shapes.insert(entry.texture, shape);
+                }
                 for note in declared {
                     *notes.entry(note).or_default() += 1;
                 }
@@ -128,7 +140,7 @@ pub(super) fn stage_texture_previews(
     let report = json!({"version":TEXTURE_PREVIEW_VERSION,"base":PREVIEW_BASE,
         "maxLevels":PREVIEW_MAX_LEVELS,"colorTextures":wanted.len(),"previews":previews.len(),
         "pixelBytes":pixel_bytes,"skipped":skipped,"notes":notes});
-    Ok((previews, report))
+    Ok((previews, shapes, report))
 }
 
 fn one_preview(
@@ -136,7 +148,14 @@ fn one_preview(
     textures: &[Value],
     images: &[Value],
     entry: &collect::ColorTexture,
-) -> std::result::Result<(TexturePreview, Vec<&'static str>), &'static str> {
+) -> std::result::Result<
+    (
+        TexturePreview,
+        Vec<&'static str>,
+        Option<crate::cutout::AlphaShape>,
+    ),
+    &'static str,
+> {
     let texture = textures.get(entry.texture).ok_or("texture-out-of-bounds")?;
     let image_index = texture
         .get("source")
@@ -152,6 +171,12 @@ fn one_preview(
         // n'avait pas : la texture est nommée au rapport et n'a pas d'aperçu, jamais rognée.
         DecodedImage::RgbaF32 { .. } => return Err("image-float-unsupported"),
     };
+    // La mesure de l'alpha lit l'image PLEINE RÉSOLUTION : la largeur d'un bord adouci se compte en
+    // pixels de la source, et un niveau réduit la diviserait par son échelle.
+    let shape = inputs.to_measure.contains(&entry.texture).then(|| {
+        let _t = perf::Timer::new(perf::Phase::TextureAlpha);
+        crate::cutout::measure(&decoded)
+    });
     let (first_level, pixels) = reduce::pyramid(&decoded, source.transfer, entry.cutoff);
     let preview = TexturePreview {
         texture: u32::try_from(entry.texture).map_err(|_| "texture-out-of-bounds")?,
@@ -163,5 +188,5 @@ fn one_preview(
         first_level,
         pixels,
     };
-    Ok((preview, source.notes))
+    Ok((preview, source.notes, shape))
 }

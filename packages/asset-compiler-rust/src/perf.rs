@@ -50,6 +50,8 @@ phases! {
  page_packed=>PagePacked=>"pagePackedMs",
  coplanar=>Coplanar=>"coplanarMs",
  manifest=>Manifest=>"manifestMs",
+ texture_alpha=>TextureAlpha=>"textureAlphaMs",
+ cutout_scan=>CutoutScan=>"cutoutScanMs",
 }
 
 thread_local! {
