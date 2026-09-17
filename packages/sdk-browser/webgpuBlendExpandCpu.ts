@@ -99,8 +99,15 @@ export function writeBlendExpansionCpu(
   blendState: ReturnType<typeof createWebgpuBlendState>,
   device: GPUDevice,
 ) {
-  const { expandedBuffer, argsBuffer, expandedPacked, argsPacked } = blendState;
+  const { expandedBuffer, argsBuffer } = blendState;
   if (!expandedBuffer || !argsBuffer) return;
+  // Les deux miroirs processeur n'existent QUE sur ce chemin : un appareil à étage de calcul ne
+  // garde pas en mémoire vive une liste d'instances que la carte écrit toute seule.
+  if (blendState.expandedPacked.length < blendState.instanceCapacity * 2)
+    blendState.expandedPacked = new Uint32Array(blendState.instanceCapacity * 2);
+  if (blendState.argsPacked.length < blendState.maxPlanEntries * 8)
+    blendState.argsPacked = new Uint32Array(blendState.maxPlanEntries * 8);
+  const { expandedPacked, argsPacked } = blendState;
   const orders = [blendState.orderBlend, blendState.orderTransmission],
     runs = [blendState.runsBlend, blendState.runsTransmission],
     bases = [0, blendState.transmissionBase];

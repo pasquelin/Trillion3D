@@ -99,7 +99,6 @@ export function buildBlendStatics(blendState: BlendState) {
   blendState.runsBlend = new Uint32Array(entries * RUN_WORDS);
   blendState.runsTransmission = new Uint32Array(entries * RUN_WORDS);
   blendState.runKept = [new Uint32Array(entries), new Uint32Array(entries)];
-  blendState.argsPacked = new Uint32Array(entries * 4 * 2);
 }
 
 /** Les deux entrees de plan d'un item double face, dans l'ordre que la passe encodait : dos, face. */
@@ -146,8 +145,6 @@ export function refreshBlendPlan(blendState: BlendState) {
   }
   blendState.transmissionBase = room[0];
   blendState.instanceCapacity = Math.max(1, room[0] + room[1]);
-  if (blendState.expandedPacked.length < blendState.instanceCapacity * 2)
-    blendState.expandedPacked = new Uint32Array(blendState.instanceCapacity * 2);
   blendState.planBlend = Uint32Array.from(blend);
   blendState.planTransmission = Uint32Array.from(transmission);
   // L'ordre de peinture repart de l'ordre source : c'est la seule fois qu'il est semé, et le
