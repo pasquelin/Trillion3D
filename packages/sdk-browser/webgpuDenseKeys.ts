@@ -29,8 +29,6 @@ export function createDenseKeySet(capacity: number, mirror?: unknown[]) {
       return count;
     },
     has: (key: number) => at[key] >= 0,
-    /** Position of `key` in `list`, or -1. */
-    indexOf: (key: number) => at[key],
     /** True when the key was not a member yet; `value` fills the mirror entry beside it. */
     add(key: number, value?: unknown) {
       if (at[key] >= 0) return false;

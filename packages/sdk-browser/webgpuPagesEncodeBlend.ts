@@ -104,7 +104,7 @@ export function encodeBlend(
       submittedTriangles: run.blendSubmittedTriangles,
       transmissiveMeshes: blendState.transmissive,
       encodeMs: timing.transparentEncodeMs,
-      passes: blendState.plans[1].length ? 2 : 1,
+      passes: blendState.orders[1].length ? 2 : 1,
     }));
 }
 

@@ -5,7 +5,7 @@
  */
 import { flatHierarchy } from './gpuDagHierarchy.ts';
 import { BOUND_STRIDE, cullingBounds, PARENT_SPHERE } from './pageSelectionCutBounds.ts';
-import type { DagRoot } from './gpuDagTypes.ts';
+import { CULL_STRIDE, type DagRoot } from './gpuDagTypes.ts';
 
 /** Une page de niveau `level`, posée sur une grille, avec la bande d'erreur de son remplaçant. */
 function page(level: number, i: number, cote: number, etendue: number) {
@@ -82,7 +82,7 @@ export function scenePages(feuilles: number, niveaux: number) {
  * et `hierarchyLevelSizes` demandent tous deux.
  */
 function hierarchieParNiveaux(pages: ReturnType<typeof page>[]) {
-  const STRIDE = 15;
+  const STRIDE = CULL_STRIDE;
   const tranches: number[][] = [];
   for (let i = 0, debut = 0; i <= pages.length; i++)
     if (i === pages.length || pages[i].level !== pages[debut].level) {

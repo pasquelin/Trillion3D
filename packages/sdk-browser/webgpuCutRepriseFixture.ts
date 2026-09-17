@@ -3,9 +3,9 @@
 import * as THREE from 'three';
 import { renderGpuCut } from './webgpuPagesGpuCut.ts';
 import { mountCutAdopter } from './webgpuCutAdopterFixture.ts';
-import { cameraSelectionUniforms } from './gpuSelection.ts';
+import { cameraSelectionUniforms, createSelectionUniforms } from './gpuSelection.ts';
 import { cameraMoteur } from './cameraFixture.ts';
-import type { GpuCut, GpuSelection, SelectionUniforms } from './gpuSelection.ts';
+import type { GpuCut, GpuSelection } from './gpuSelection.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -22,14 +22,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
   hote.updateMatrixWorld(true);
   // Le noyau ne lit plus la caméra de l'hôte : l'entrée d'image la recopie une fois au contrat.
   const camera = cameraMoteur(hote);
-  const uniforms: SelectionUniforms = {
-    planes: new Float32Array(24),
-    view: new Float32Array(16),
-    pixelScale: [1, 1],
-    pixelError: 0,
-    near: 0.1,
-    cameraWorld: [0, 0, 0],
-  };
+  const uniforms = createSelectionUniforms();
   cameraSelectionUniforms(camera, 0, VIEWPORT, uniforms);
   const page = {
     url: 'p0',

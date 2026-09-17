@@ -40,9 +40,11 @@ export type BlendGpuItem = {
   /** Premier sommet de sa geometrie dans les tampons concatenes, zero pour un item non pagine. */
   vertexBase?: number;
   /** Carré de la distance de l'œil au centre de sa boîte monde, reposé à chaque image, et son rang
-   *  source, qui départage les clés égales (`webgpuBlendOrder.ts`). */
-  orderKey?: number;
-  orderRank?: number;
+   *  source, qui départage les clés égales (`webgpuBlendOrder.ts`). Obligatoires : `refreshEyeKeys`
+   *  les pose sur tous les items avant tout tri, et le comparateur lit un nombre, jamais un
+   *  peut-être — une valeur défaussée classerait un item « à l'œil » au lieu de se voir. */
+  orderKey: number;
+  orderRank: number;
 };
 
 /** Reused transparent draw lists and GPU resources for one backend instance. */
@@ -122,7 +124,6 @@ export function createWebgpuBlendState() {
     drawsPacked: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
     /** Les entrées semées de chaque passe : le mélange, puis la transmission. Comme `runCount`,
      *  `orderMoved` et `planRegions`, tout ce qui va par passe est indexé par la passe. */
-    plans: [new Uint32Array(0), new Uint32Array(0)] as Uint32Array<ArrayBuffer>[],
     /** Les mêmes entrées, dans l'ordre de peinture de l'image : du plus lointain au plus proche.
      *  Semées par le plan, réordonnées sur place à chaque image (`webgpuBlendOrder.ts`). */
     orders: [new Uint32Array(0), new Uint32Array(0)] as Uint32Array<ArrayBuffer>[],

@@ -3,6 +3,7 @@ import { DAG_NODE_FLOATS } from './gpuDagTypes.ts';
 import { CLUSTER_ROOT, clusterLevel, dagRecords, flagsOf, worldOf } from './gpuDagLayout.ts';
 import type { SelectionUniforms, SelectionResult } from './gpuSelection.ts';
 import { dagNodeFloor, dagNodeVerdict, dagViewFrames } from './gpuDagOracleMath.ts';
+import { NODE_FIRST_CHILD, NODE_WORLD } from './gpuDagPackNodes.ts';
 import { createDagOraclePredicates } from './gpuDagOraclePredicates.ts';
 import { ESCALATION_ROUNDS, ESCALATION_SLACK } from './pageSelectionTypes.ts';
 
@@ -51,13 +52,13 @@ export function evaluateDagSelectionKernel(
     }
     const floor = dagNodeFloor(frames, nodes, nodeInts, n);
     if (floor > pixelError) {
-      const w = nodeInts[n * DAG_NODE_FLOATS + 12];
+      const w = nodeInts[n * DAG_NODE_FLOATS + NODE_WORLD];
       if (floor < prunedFloor[w]) prunedFloor[w] = floor;
       nodeFlags[n] = 2;
       continue;
     }
     if (children) {
-      const first = nodeInts[n * DAG_NODE_FLOATS + 3];
+      const first = nodeInts[n * DAG_NODE_FLOATS + NODE_FIRST_CHILD];
       for (let c = 0; c < children; c++) frontier.push(first + c);
       continue;
     }
