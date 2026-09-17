@@ -120,17 +120,6 @@ export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[
     },
     /** Drops the caller's suffix and reports no difference: the cut is the one already held. */
     hold,
-    /** Forgets the cut held: the CPU cut rewrote the records this index describes. */
-    invalidate() {
-      // Une époque sautée : aucune marque ne vaudra jamais celle-là, donc plus aucun identifiant
-      // n'est membre au prochain relevé, et la liste des retenues repart vide.
-      epoch++;
-      keptCount = 0;
-      enteredCount = 0;
-      exitedCount = 0;
-      publishedCount = -1;
-      changed = true;
-    },
     /** Difference between `ids` and the cut held, and `pages` rewritten in the order of `ids`. */
     apply,
     /**

@@ -83,15 +83,18 @@ test('an unknown or repeated page id never enters the cut', () => {
   assert.equal(pages.length, 2);
 });
 
-test('an invalidated delta re-enters the whole cut, as the first image does', () => {
+test('une coupe vide sort tout ce qui était retenu, et la suivante ré-entre tout', () => {
   const packed = [0, 1].map((id) => pageOf(id));
   const pages: PageRec[] = [];
   const delta = createCutDelta(packed, pages);
   delta.apply([0, 1]);
-  delta.invalidate();
+  delta.apply([]);
   assert.equal(delta.count, 0);
+  assert.equal(delta.exitedCount, 2);
+  assert.equal(pages.length, 0);
   delta.apply([0, 1]);
   assert.deepEqual(listOf(delta).sort(), [0, 1]);
+  assert.equal(delta.enteredCount, 2);
 });
 
 test('a cut held image after image allocates nothing', () => {
@@ -139,6 +142,6 @@ test('la suite publiée décide du drapeau : même ordre non, même ensemble dan
     '2,1,0',
     'la suite a changé sans que les pages retenues bougent',
   );
-  delta.invalidate();
-  assert.equal(delta.changed, true, 'un delta oublié ne tient plus aucune suite');
+  delta.apply([]);
+  assert.equal(delta.changed, true, 'une coupe vide n’est pas celle qui était tenue');
 });
