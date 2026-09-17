@@ -55,22 +55,6 @@ export function materialSide(material: THREE.Material | THREE.Material[]) {
   return Array.isArray(material) ? material[0].side : material.side;
 }
 
-/**
- * Écrit les enregistrements d'une suite d'identifiants publiée par la carte, dans un tableau que
- * l'appelant possède : aucune allocation par image, et l'écriture se fait par rang plutôt que par
- * empilement — la coupe d'une ville se recopie sans repasser par la longueur du tableau à chaque
- * enregistrement. Les totaux de triangles, eux, ne se lisent plus ici : `webgpuCutCounts.ts` les
- * tient d'une image à l'autre, par la seule différence de la coupe.
- */
-export function writeCutPages(into: PageRec[], ids: readonly number[], pages: readonly PageRec[]) {
-  let count = 0;
-  for (let i = 0; i < ids.length; i++) {
-    const rec = pages[ids[i]];
-    if (rec) into[count++] = rec;
-  }
-  into.length = count;
-  return into;
-}
 /** Sum of a cut's triangles, without the closure a `reduce` allocates on every frame. */
 export function triangleSum(pages: readonly PageRec[], transparent?: boolean) {
   let total = 0;

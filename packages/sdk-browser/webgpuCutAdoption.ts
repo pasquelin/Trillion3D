@@ -1,7 +1,7 @@
 import type { GpuCut, GpuSelection, SelectionUniforms } from './gpuSelection.ts';
 import { sameSelectionUniforms } from './gpuSelection.ts';
 import type { PageRec } from './pageSelection.ts';
-import { copyPages, writeCutPages } from './webgpuPagesHelpers.ts';
+import { copyPages } from './webgpuPagesHelpers.ts';
 import type { CutDelta } from './webgpuCutDelta.ts';
 import type { CutCounts } from './webgpuCutCounts.ts';
 
@@ -15,7 +15,6 @@ import type { CutCounts } from './webgpuCutCounts.ts';
  */
 export function createWebgpuCutAdopter(options: {
   selection: () => GpuSelection | undefined;
-  packedPages: PageRec[];
   desired: PageRec[];
   shown: PageRec[];
   drawn: PageRec[];
@@ -25,6 +24,8 @@ export function createWebgpuCutAdopter(options: {
   delta: CutDelta;
   /** The drawable cut as a difference, kept apart because it is not the cut that was asked for. */
   drawnDelta: CutDelta;
+  /** Les fiches que cette différence écrit : `shown` en est la recopie, quand l'image l'adopte. */
+  drawnPages: readonly PageRec[];
   /** Called once per readback, and only there: the difference is applied exactly once. */
   onCutDelta: () => void;
   onDrawnDelta: () => void;
@@ -68,7 +69,7 @@ export function createWebgpuCutAdopter(options: {
     metrics.incomplete = false;
     const cut = options.selection()?.peek();
     if (!cut?.result.drawablePageIds) return false;
-    const { packedPages, desired, shown, drawn, delta, drawnDelta } = options;
+    const { desired, shown, drawn, delta, drawnDelta } = options;
     if (cut === lastCut) {
       delta.hold();
       drawnDelta.hold();
@@ -97,7 +98,9 @@ export function createWebgpuCutAdopter(options: {
     // avancer l'âge sans rien écrire. `shownCut` nul veut dire que ces listes viennent d'ailleurs.
     const held = cut === shownCut || (shownCut !== null && shownSeq === drawnSeq);
     if (!held) {
-      writeCutPages(shown, cut.result.drawablePageIds, packedPages);
+      // La différence vient d'écrire ces fiches en lisant la suite une fois ; les relire une seconde
+      // fois dans le catalogue, à des rangs épars, rendrait exactement le même tableau.
+      copyPages(shown, options.drawnPages);
       copyPages(drawn, shown);
       options.onDrawnMirrored();
       shownCut = cut;

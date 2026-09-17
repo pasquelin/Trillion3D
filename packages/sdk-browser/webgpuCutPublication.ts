@@ -1,11 +1,22 @@
 import type { PageRec } from './pageSelection.ts';
 import { createCutDelta } from './webgpuCutDelta.ts';
-import { createCutCounts } from './webgpuCutCounts.ts';
-import { createCutPending } from './webgpuCutPending.ts';
+import { createCutCounts, type CutCounts } from './webgpuCutCounts.ts';
+import { createCutPending, type CutPending } from './webgpuCutPending.ts';
 import { createWebgpuCutAdopter } from './webgpuCutAdoption.ts';
 import { markDrawnMirrored } from './webgpuPagesHelpers.ts';
 import type { WebgpuResidencySets } from './webgpuResidencySets.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
+
+/**
+ * Ce que le journal des rangs prévient quand une page change de couverture. Posé hors de la
+ * publication pour ne rien capturer d'autre que les deux compteurs qu'il touche : le journal le
+ * garde aussi longtemps que le moteur, et une fermeture prise dans la publication y retiendrait
+ * tout son contexte.
+ */
+const coverageWatcher = (counts: CutCounts, pending: CutPending) => (page: number) => {
+  counts.touch(page);
+  pending.touch(page);
+};
 
 /**
  * La publication d'une coupe, par qui que ce soit qui la décide.
@@ -24,17 +35,15 @@ export function createWebgpuCutPublication(
   const { run, gpu } = rt,
     { rows, packedPages, gpuWanted } = rt.layout;
   const cutDelta = createCutDelta(packedPages, run.desired);
-  // La coupe dessinable ne sert que par sa différence : aucune liste d'enregistrements n'en est
-  // tirée. L'adoption écrit `run.shown` à partir des mêmes identifiants, quand ils ont changé.
-  const drawnDelta = createCutDelta(packedPages);
+  // La coupe dessinable écrit ses fiches elle-même, en lisant sa suite une seule fois : `run.shown`
+  // n'en est plus qu'une recopie, et seulement quand l'image adopte le relevé qui l'a produite.
+  const drawnPages: PageRec[] = [];
+  const drawnDelta = createCutDelta(packedPages, drawnPages);
   const cutCounts = createCutCounts(packedPages, rows.residentOffsetWords, drawnDelta);
   const cutPending = createCutPending(packedPages, cutDelta);
   // Les trois façons dont la couverture d'une grappe bascule — octets reçus, octets rendus, place de
   // cache prise ou rendue — passent toutes par le journal des rangs, qui les nomme une à une.
-  rows.watchTouched((page) => {
-    cutCounts.touch(page);
-    cutPending.touch(page);
-  });
+  rows.watchTouched(coverageWatcher(cutCounts, cutPending));
   const publishCut = () => {
     residencySets.applyCut(cutDelta);
     cutPending.apply();
@@ -47,7 +56,6 @@ export function createWebgpuCutPublication(
   // decides the cut drawn for a moving camera; the current GPU mask does that.
   const cutAdopter = createWebgpuCutAdopter({
     selection: () => run.gpuSelection,
-    packedPages,
     desired: run.desired,
     shown: run.shown,
     drawn: run.drawn,
@@ -55,6 +63,7 @@ export function createWebgpuCutPublication(
     counts: cutCounts,
     delta: cutDelta,
     drawnDelta,
+    drawnPages,
     onDrawnDelta: publishDrawn,
     onDrawnMirrored: () => markDrawnMirrored(run),
     onCutDelta: () => {
