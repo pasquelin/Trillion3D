@@ -49,6 +49,15 @@ export function createTextureDemand() {
     known = new Float64Array(0);
   let count = 0;
   const counters: DemandCounters = { atWanted: 0, visible: 0, missingAverage: 0 };
+  /** Le dépôt d'une empreinte sur une couche : le corps que `add` et `addRange` partagent. */
+  const deposit = (layer: number, pixels: number, areaPixels: number, uvSpan: number) => {
+    ensure(layer);
+    area[layer] += areaPixels;
+    if (pixels > span[layer]) {
+      span[layer] = pixels;
+      uv[layer] = uvSpan;
+    }
+  };
   const ensure = (layer: number) => {
     if (layer < area.length) return;
     area = grown(area, layer);
@@ -74,14 +83,19 @@ export function createTextureDemand() {
     },
     /** Une surface demandée lit ces couches : elle y dépose son empreinte et son étendue uv. */
     add(layers: readonly number[], pixels: number, areaPixels: number, uvSpan: number) {
-      for (const layer of layers) {
-        ensure(layer);
-        area[layer] += areaPixels;
-        if (pixels > span[layer]) {
-          span[layer] = pixels;
-          uv[layer] = uvSpan;
-        }
-      }
+      for (const layer of layers) deposit(layer, pixels, areaPixels, uvSpan);
+    },
+    /** Le même dépôt, sur une PLAGE d'une table de couches à plat : ce que lit la boucle d'image,
+     *  qui tient les couches d'un matériau bout à bout plutôt qu'en tableau par surface. */
+    addRange(
+      layers: Int32Array,
+      from: number,
+      count: number,
+      pixels: number,
+      areaPixels: number,
+      uvSpan: number,
+    ) {
+      for (let i = 0; i < count; i++) deposit(layers[from + i], pixels, areaPixels, uvSpan);
     },
     /** Un niveau de plus est écrit sur ce slot : la résidence ne descend jamais d'elle-même. */
     markLevel(slot: number, level: number) {
