@@ -21,9 +21,9 @@ packages/
   sdk-node/             5 *.test.mjs
 test/
   integration/         10 *.test.mjs     — architecture, frontières, contrats d'export
-  browser/             24 *.browser.mjs  — rendu dans un Chromium réel
-  justesse/            17 sondes GPU + 24 modules d'appui
-  appui/               34 modules partagés : serveur de fixtures, captures, pages
+  browser/             20 *.browser.mjs  — rendu dans un Chromium réel (18 lancés, 2 écartés)
+  justesse/            18 sondes GPU + 25 modules d'appui
+  appui/               27 modules partagés : serveur de fixtures, pages servies
   fixtures/            scènes et données de test
 scripts/
   test-gpu.mjs          l'exécuteur des tests matériels
@@ -38,7 +38,7 @@ nature. Un banc va dans le paquet dont il mesure le code, et l'atteint par chemi
 | Commande | Ce qu'elle lance |
 |---|---|
 | `pnpm test` | les 306 tests unitaires, les 10 tests d'intégration et les tests des scripts |
-| `pnpm run test:gpu` | les 17 sondes de justesse GPU puis les 24 tests de rendu, en série |
+| `pnpm run test:gpu` | les 18 sondes de justesse GPU puis les preuves de rendu lançables, en série |
 | `pnpm run perf:all` | les 39 bancs, puis le rapport agrégé |
 | `pnpm run validate` | la porte complète avant fusion |
 
@@ -56,6 +56,25 @@ aucun appareil graphique et tournent partout.
 d'erreur, matrices de projection, coordonnées de texels, relectures. Une sonde est un fichier dont
 le nom porte un tiret ; les autres fichiers du dossier sont ses modules d'appui, jamais lancés
 seuls. `test/browser/` rend des images dans un Chromium réel et les compare.
+
+Les deux dossiers se découvrent **par une règle, jamais par une liste tenue à la main** : tout
+`test/browser/*.browser.mjs` est lancé, et les noms suivent la même convention que les sondes et les
+bancs — kebab explicite, `coupe-gpu-tenue`, `normale-eclairage-petite-echelle`.
+
+Ce qui ne peut pas tourner est **déclaré** dans `BROWSER_ECARTES` (`scripts/test-gpu.mjs`) avec son
+genre et son motif, et la commande l'imprime avant de démarrer — jamais un silence :
+
+- **montage** — la preuve est bonne, la machine n'est pas prête : assets du Lab à recompiler,
+  serveur du Lab absent, `timestamp-query` indisponible.
+- **régression** — la preuve échoue parce qu'elle a raison. C'est une dette ouverte, portée par une
+  ligne de `TODO.md`, qui se retire en corrigeant le moteur.
+- **double périmé** — la preuve tient une copie à la main d'un contrat que la source a fait évoluer
+  sans elle. Le moteur est juste, le double a dérivé : il se répare en lisant le contrat plutôt qu'en
+  le recopiant.
+
+`scripts/test-gpu.test.mjs` tient la garde symétrique des deux dossiers : **lancés ∪ écartés == le
+disque**, et aucun écart ne survit au fichier qu'il nomme. Sans elle, une preuve oubliée ne
+s'exécute jamais sans que rien ne le dise — ce qui est arrivé à dix d'entre elles.
 
 ```bash
 pnpm run test:gpu                                  # tout

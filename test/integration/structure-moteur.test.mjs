@@ -57,7 +57,7 @@ const POSE_LOCALE = {
  *
  * Depuis le lot M3b, le chemin par image ne lit plus la pose sur une caméra de l'hôte : l'entrée
  * d'image la recopie UNE FOIS dans la caméra du moteur (`readCameraWorld`), et tout l'aval lit cette
- * structure — `test/integration/engineNoThree.test.mjs` interdit à ces fichiers d'importer la bibliothèque hôte.
+ * structure — `test/integration/moteur-sans-three.test.mjs` interdit à ces fichiers d'importer la bibliothèque hôte.
  * Il ne reste donc ici que le contrat et l'oracle qui parcourt le graphe de l'hôte.
  */
 const LISENT_LA_POSE = {

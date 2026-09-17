@@ -4,28 +4,16 @@ import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import { resolve } from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { HIZ_SHADER, packHizPyramid } from '../../packages/sdk-browser/gpuHiz.ts';
+import { HIZ_SHADER, hizBindEntries } from '../../packages/sdk-browser/gpuHiz.ts';
+import {
+  STATE_WORDS,
+  ST_TESTED,
+  TESTED_U32,
+} from '../../packages/sdk-browser/gpuPartitionContract.ts';
+import { BOX_NEAREST, cases, height, width } from '../appui/hizCas.mjs';
 
 const labRoot = process.env.LAB_ROOT ?? resolve('../render-tech-lab');
 const { chromium } = createRequire(resolve(labRoot, 'package.json'))('playwright');
-const width = 33,
-  height = 19;
-const makeCase = (hole) => {
-  const depth = Array.from({ length: height }, () => Array(width).fill(0.2));
-  if (hole) depth[18][32] = 1;
-  const packed = packHizPyramid(depth);
-  return {
-    name: hole ? 'edge background hole' : 'fully covered',
-    data: [...packed.data],
-    size: packed.data.byteLength,
-    expected: hole ? 0 : 1,
-  };
-};
-const cases = [
-  makeCase(false),
-  makeCase(true),
-  { ...makeCase(false), name: 'near-plane crossing', clipsNear: true, expected: 0 },
-];
 const server = createServer((_request, response) => {
   response.writeHead(200, { 'content-type': 'text/html' });
   response.end('<!doctype html><title>WebGeometry Hi-Z GPU check</title>');
@@ -53,7 +41,7 @@ try {
   page.on('pageerror', (error) => report.errors.push(error.message));
   await page.goto(`http://127.0.0.1:${address.port}/`);
   const result = await page.evaluate(
-    async ({ shader, cases }) => {
+    async ({ shader, cases, bindEntries, stateWords, stTested, testedU32, boxNearest }) => {
       const adapter = await navigator.gpu?.requestAdapter();
       if (!adapter) return { unavailable: 'No WebGPU adapter' };
       const adapterInfo = {
@@ -71,23 +59,7 @@ try {
         .filter((message) => message.type === 'error')
         .map((message) => message.message);
       if (compilationErrors.length) return { adapter: adapterInfo, compilationErrors, errors };
-      const layout = device.createBindGroupLayout({
-        entries: [
-          { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-          {
-            binding: 1,
-            visibility: GPUShaderStage.COMPUTE,
-            texture: { sampleType: 'unfilterable-float' },
-          },
-          {
-            binding: 2,
-            visibility: GPUShaderStage.COMPUTE,
-            buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: 256 },
-          },
-          { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-          { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-        ],
-      });
+      const layout = device.createBindGroupLayout({ entries: bindEntries });
       const pipeline = device.createComputePipeline({
         layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
         compute: { module, entryPoint: 'testHiz' },
@@ -102,12 +74,16 @@ try {
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
       });
       const bounds = device.createBuffer({
-        size: 32,
+        size: testedU32 * 4,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
       });
       const flags = device.createBuffer({
         size: 4,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+      });
+      const state = device.createBuffer({
+        size: stateWords * 4,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
       });
       const readback = device.createBuffer({
         size: 4,
@@ -116,18 +92,21 @@ try {
       const uni = new Uint32Array(64);
       uni[2] = 1;
       device.queue.writeBuffer(uniform, 0, uni);
-      const descriptor = new ArrayBuffer(32),
+      const descriptor = new ArrayBuffer(testedU32 * 4),
         i32 = new Int32Array(descriptor),
         f32 = new Float32Array(descriptor),
         u32 = new Uint32Array(descriptor);
       i32.set([0, 0, 8, 4]);
-      f32[4] = 0.8;
+      f32[4] = boxNearest;
       u32[6] = 797;
       u32[7] = 9;
       const results = [];
       for (const sample of cases) {
         u32[5] = sample.clipsNear ? 1 : 0;
         device.queue.writeBuffer(bounds, 0, descriptor);
+        const etat = new Uint32Array(stateWords);
+        etat[stTested] = 1;
+        device.queue.writeBuffer(state, 0, etat);
         const pyramid = device.createBuffer({
           size: sample.size,
           usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
@@ -141,6 +120,7 @@ try {
             { binding: 2, resource: { buffer: uniform, size: 256 } },
             { binding: 3, resource: { buffer: bounds } },
             { binding: 4, resource: { buffer: flags } },
+            { binding: 5, resource: { buffer: state } },
           ],
         });
         const encoder = device.createCommandEncoder();
@@ -162,11 +142,20 @@ try {
       uniform.destroy();
       bounds.destroy();
       flags.destroy();
+      state.destroy();
       readback.destroy();
       device.destroy();
       return { adapter: adapterInfo, results, errors };
     },
-    { shader: HIZ_SHADER, cases },
+    {
+      shader: HIZ_SHADER,
+      cases,
+      bindEntries: hizBindEntries(256),
+      stateWords: STATE_WORDS,
+      stTested: ST_TESTED,
+      testedU32: TESTED_U32,
+      boxNearest: BOX_NEAREST,
+    },
   );
   Object.assign(report, result);
   assert.ok(!result.unavailable, result.unavailable);

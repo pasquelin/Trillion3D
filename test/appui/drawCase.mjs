@@ -6,6 +6,8 @@ export async function runCase(sample, context) {
     groups,
     selectionOffset,
     itemBuffer,
+    restBits,
+    drawItemU32,
     selection,
     uniform,
     group,
@@ -26,14 +28,20 @@ export async function runCase(sample, context) {
     directPage,
   } = context;
   const n = Math.min(sample.items.length, cap),
-    words = new Uint32Array(n * 4);
+    words = new Uint32Array(n * drawItemU32);
+  // `rest` ne voyage plus dans la structure : il est un bit de `restBits`, lu par `restAt(i)`.
+  const bits = new Uint32Array(Math.max(1, Math.ceil(cap / 32)));
   for (let i = 0; i < n; i++) {
-    words[i * 4] = sample.items[i].pageIndex;
-    words[i * 4 + 1] = sample.items[i].bin;
-    words[i * 4 + 2] = sample.items[i].rest;
-    words[i * 4 + 3] = sample.items[i].selectionIndex;
+    const item = sample.items[i];
+    words[i * drawItemU32] = item.pageIndex;
+    words[i * drawItemU32 + 1] = item.bin;
+    words[i * drawItemU32 + 2] = item.selectionIndex;
+    words[i * drawItemU32 + 3] = item.layer ?? 0;
+    words[i * drawItemU32 + 4] = item.triangles ?? 0;
+    if (item.rest) bits[i >>> 5] |= 1 << (i & 31);
   }
   if (n) device.queue.writeBuffer(itemBuffer, 0, words);
+  device.queue.writeBuffer(restBits, 0, bits);
   if (sample.mask) {
     const mask = new Uint32Array(cap + selectionOffset).fill(1);
     mask.set(sample.mask, selectionOffset);

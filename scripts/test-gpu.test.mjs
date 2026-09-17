@@ -3,7 +3,17 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { BROWSER_GPU_TESTS, RACINE, buildTestGpuArgs, listJustesseTests } from './test-gpu.mjs';
+import {
+  BROWSER_ECARTES,
+  DOUBLE_PERIME,
+  MONTAGE,
+  RACINE,
+  REGRESSION,
+  buildTestGpuArgs,
+  listBrowserFiles,
+  listBrowserTests,
+  listJustesseTests,
+} from './test-gpu.mjs';
 
 test('chaque sonde listée existe et porte le nom que la convention exige', () => {
   const sondes = listJustesseTests();
@@ -38,9 +48,41 @@ test('aucun fichier de test/justesse ne reste orphelin : lancé, ou nommé par u
   }
 });
 
-test('chaque test de rendu listé existe sur le disque', () => {
-  for (const cible of BROWSER_GPU_TESTS)
+test('chaque preuve de rendu lancée existe et porte le nom que la convention exige', () => {
+  const lancees = listBrowserTests();
+  assert.ok(lancees.length > 0, 'aucune preuve de rendu trouvée');
+  for (const cible of lancees) {
+    assert.match(cible, /^test\/browser\/[a-z0-9]+(-[a-z0-9]+)*\.browser\.mjs$/);
     assert.ok(existsSync(join(RACINE, cible)), `${cible} n'existe pas`);
+  }
+});
+
+// La garde qui compte, jumelle de celle de `test/justesse` : le dossier tout entier est soit lancé,
+// soit écarté avec un motif. Sans elle, une preuve oubliée ne s'exécute jamais, en silence — ce qui
+// est arrivé à dix d'entre elles pendant la réorganisation des tests.
+test('aucune preuve de rendu ne disparaît : chaque fichier est lancé ou écarté avec son motif', () => {
+  const surDisque = listBrowserFiles().map((f) => f.slice(0, -'.browser.mjs'.length));
+  const lancees = new Set(
+    listBrowserTests().map((c) => c.slice('test/browser/'.length, -'.browser.mjs'.length)),
+  );
+  for (const nom of surDisque)
+    assert.ok(
+      lancees.has(nom) || BROWSER_ECARTES.has(nom),
+      `${nom} n'est ni lancé ni écarté : il ne s'exécute jamais`,
+    );
+  assert.equal(lancees.size + BROWSER_ECARTES.size, surDisque.length);
+});
+
+test("aucun écart ne survit au fichier qu'il nomme, et chacun dit son genre", () => {
+  const surDisque = new Set(listBrowserFiles().map((f) => f.slice(0, -'.browser.mjs'.length)));
+  for (const [nom, [genre, motif]] of BROWSER_ECARTES) {
+    assert.ok(surDisque.has(nom), `${nom} est écarté mais n'existe plus : retirer l'entrée`);
+    assert.ok(
+      [MONTAGE, REGRESSION, DOUBLE_PERIME].includes(genre),
+      `${nom} : genre inconnu ${genre}`,
+    );
+    assert.ok(motif.length > 10, `${nom} : motif trop court pour dire quoi que ce soit`);
+  }
 });
 
 test('buildTestGpuArgs construit la liste complète par défaut, en série', () => {
@@ -50,9 +92,9 @@ test('buildTestGpuArgs construit la liste complète par défaut, en série', () 
     '--test',
     '--test-concurrency=1',
   ]);
-  assert.ok(args.includes('test/browser/cisaillementTransform.browser.mjs'));
+  assert.ok(args.includes('test/browser/cisaillement-transform.browser.mjs'));
   assert.ok(args.some((a) => a.includes('erreur-ecran-borne.mjs')));
-  assert.equal(args.length, 3 + listJustesseTests().length + BROWSER_GPU_TESTS.length);
+  assert.equal(args.length, 3 + listJustesseTests().length + listBrowserTests().length);
 });
 
 test('buildTestGpuArgs transmet les cibles fournies en ligne de commande', () => {

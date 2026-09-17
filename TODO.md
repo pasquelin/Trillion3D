@@ -55,6 +55,7 @@ code ; la mesure dit qu'ils ne rendront pas de millisecondes.
 21. `orderBlendPasses` refait quatre parcours complets des items par image — clés à l'œil, rejet par le tronc, puis les deux tris — même quand l'œil et les six plans sont ceux de l'image précédente. Sortir tôt sur l'empreinte de la vue, comme `keepMoved`/`orderMoved` le font déjà pour les envois.
 22. Coins de boîtes alloués par PLACEMENT : `createBoxCorners(packedPages.length)` prend 1 959 792 × 24 flottants doubles ≈ 376 Mo de RAM hôte, plus 7,8 Mo d'époques (`webgpuPagesLayout.ts`, `hizCorners.ts:125-127`) — le plus gros tampon processeur du moteur. Le lot 5 ne l'efface pas, les coins étant en monde ; les dériver par image des bornes locales et de la matrice, comme le noyau GPU le fait déjà.
 23. Part des images d'une traversée réelle qui ont un transfert de texture en attente : `webgpuTexturePump.pump` sort tôt sur file vide, donc le gain du lot 4a n'est payé que là. Non mesurée, et c'est elle qui dit ce que ce lot vaut.
+24. Les numéros de liaison des groupes de calcul DAG et étalement du mélange sont encore écrits 3 à 4 fois — WGSL, disposition, entrées, double des tests. Hi-Z et dessin sont faits (`hizBindEntries`, `drawBindEntries`, publiés sous leur WGSL) ; `webgpuBindLayout.ts` tient déjà la règle pour les passes de rendu. Reste à publier `DAG_BINDINGS` et `EXPAND_BINDINGS` de la même façon. Le côté qui dérive en silence est le double processeur : il lit le mauvais tampon sans rien lever.
 
 ## Lumière
 

@@ -5,7 +5,7 @@
 // projection, en profondeur inversée et plan lointain infini. Le basculement ne change donc AUCUN
 // nombre du moteur, et l'image tenue doit le rester — c'est ce que ce test vérifie.
 //
-//   LAB_ROOT=… node --experimental-strip-types test/browser/depthConventionMoteurComplet.browser.mjs
+//   LAB_ROOT=… node --experimental-strip-types test/browser/convention-profondeur-moteur-complet.browser.mjs
 import assert from 'node:assert/strict';
 import { preuveDansLaPage, preuveSaine } from '../appui/preuvePageMoteur.mjs';
 

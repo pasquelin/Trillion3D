@@ -5,7 +5,7 @@
 // `test/justesse/noyauSelectionGpu.mjs` ; Playwright, de `render-tech-lab`, en
 // lecture seule.
 //
-// node --experimental-strip-types test/browser/coneEchelleNonUniforme.browser.mjs
+// node --experimental-strip-types test/browser/cone-echelle-non-uniforme.browser.mjs
 // (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -127,5 +127,5 @@ assert.deepEqual(
 );
 
 console.log(
-  'OK : 2 cas, 4 exécutions du noyau WGSL — voir test/browser/coneEchelleNonUniforme.browser.mjs',
+  'OK : 2 cas, 4 exécutions du noyau WGSL — voir test/browser/cone-echelle-non-uniforme.browser.mjs',
 );

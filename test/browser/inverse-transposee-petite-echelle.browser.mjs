@@ -6,7 +6,7 @@
 // chiffres et sa version d'avant le lot sont dans
 // `test/justesse/inverse-transposee-petite-echelle.mjs`.
 //
-// LAB_ROOT=… node --experimental-strip-types test/browser/inverseTransposeePetiteEchelle.browser.mjs
+// LAB_ROOT=… node --experimental-strip-types test/browser/inverse-transposee-petite-echelle.browser.mjs
 import assert from 'node:assert/strict';
 import { cameraSelectionUniforms } from '../../packages/sdk-browser/gpuSelection.ts';
 import {
@@ -76,5 +76,5 @@ assert.equal(lignes.filter((l) => l.faceVisible).length, ECHELLES.length, 'moiti
 
 console.log(
   `OK : ${lignes.length} cas, une exécution du noyau WGSL — voir` +
-    ' test/browser/inverseTransposeePetiteEchelle.browser.mjs',
+    ' test/browser/inverse-transposee-petite-echelle.browser.mjs',
 );

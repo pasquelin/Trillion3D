@@ -1,7 +1,7 @@
 /**
  * La scène du comptage de frontière : une pyramide de niveaux de détail, autant de poses, et la
  * hiérarchie de coupe que le rangement leur donne. Aucune dépendance à la bibliothèque de l'hôte —
- * la matrice monde vient de l'appelant —, `test/integration/engineNoThree.test.mjs` l'interdisant à ce fichier.
+ * la matrice monde vient de l'appelant —, `test/integration/moteur-sans-three.test.mjs` l'interdisant à ce fichier.
  */
 import { flatHierarchy } from './gpuDagHierarchy.ts';
 import { BOUND_STRIDE, cullingBounds, PARENT_SPHERE } from './pageSelectionCutBounds.ts';
@@ -132,7 +132,7 @@ function hierarchieParNiveaux(pages: ReturnType<typeof page>[]) {
 }
 
 /** Les poses de la scène. La matrice monde vient de l'appelant : ce module ne connaît pas la
- *  bibliothèque de l'hôte, et la liste fermée de `test/integration/engineNoThree.test.mjs` le lui interdit. */
+ *  bibliothèque de l'hôte, et la liste fermée de `test/integration/moteur-sans-three.test.mjs` le lui interdit. */
 export function sceneRoots(
   pages: ReturnType<typeof page>[],
   mondes: DagRoot['world'][],

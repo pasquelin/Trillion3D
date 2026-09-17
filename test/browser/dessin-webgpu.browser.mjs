@@ -3,16 +3,18 @@ import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { routeBrowserFixtures } from '../appui/browserFixtureServer.mjs';
-const fixtureDirectory = resolve(dirname(fileURLToPath(import.meta.url)), 'browserFixtures');
 import {
+  BASE_SLOTS,
+  DRAW_ITEM_U32,
   DRAW_SHADER,
+  drawBindEntries,
   evaluateDrawCompact,
   indirectForDraw,
 } from '../../packages/sdk-browser/gpuDraw.ts';
 import { VIS_SHADER, PAGE_INFO_STRIDE } from '../../packages/sdk-browser/visibilityBuffer.ts';
+import { VIS_BINDINGS } from '../../packages/sdk-browser/webgpuBindLayout.ts';
 
 const labRoot = process.env.LAB_ROOT ?? resolve('../render-tech-lab');
 const { chromium } = createRequire(resolve(labRoot, 'package.json'))('playwright');
@@ -71,7 +73,7 @@ const report = {
 try {
   const page = await browser.newPage();
   await page.goto(`http://127.0.0.1:${address.port}/`);
-  await routeBrowserFixtures(page, fixtureDirectory);
+  await routeBrowserFixtures(page);
   const result = await page.evaluate(
     (args) => import('/__wg-fixture/drawRun.mjs').then((module) => module.run(args)),
     {
@@ -81,6 +83,10 @@ try {
       cap,
       maxVertexCount,
       pageStride: PAGE_INFO_STRIDE,
+      bindEntries: drawBindEntries(),
+      slots: BASE_SLOTS,
+      drawItemU32: DRAW_ITEM_U32,
+      visBindings: VIS_BINDINGS,
     },
   );
   Object.assign(report, result);

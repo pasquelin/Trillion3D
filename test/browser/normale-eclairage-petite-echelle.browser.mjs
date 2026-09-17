@@ -6,7 +6,7 @@
 // chiffres et sa version d'avant le lot sont dans
 // `test/justesse/normale-eclairage-petite-echelle.mjs`.
 //
-// LAB_ROOT=… node --experimental-strip-types test/browser/normaleEclairagePetiteEchelle.browser.mjs
+// LAB_ROOT=… node --experimental-strip-types test/browser/normale-eclairage-petite-echelle.browser.mjs
 import assert from 'node:assert/strict';
 import { construireCas, ecart } from '../justesse/normaleEclairageCas.mjs';
 import { eclairageGpu } from '../justesse/normaleEclairageGpu.mjs';
@@ -63,5 +63,5 @@ for (const c of cas) assert.ok(Math.abs(c.vraie[0]) > 0.99, `${c.nom} : cas non 
 
 console.log(
   `OK : ${lignes.length} cas, une exécution des textes d'éclairage — voir` +
-    ' test/browser/normaleEclairagePetiteEchelle.browser.mjs',
+    ' test/browser/normale-eclairage-petite-echelle.browser.mjs',
 );

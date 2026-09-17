@@ -1,9 +1,9 @@
-export function setupCompute(device, module, cap) {
+export function setupCompute(device, module, cap, bindEntries, slots, drawItemU32) {
   const groups = Math.ceil(cap / 64),
     usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC;
   const makeBuffer = (size, bufferUsage = usage) =>
     device.createBuffer({ size, usage: bufferUsage });
-  const itemBuffer = makeBuffer(cap * 16),
+  const itemBuffer = makeBuffer(cap * drawItemU32 * 4),
     uniform = makeBuffer(32, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
   const instances = makeBuffer(cap * 4),
     indirect = makeBuffer(96, usage | GPUBufferUsage.INDIRECT);
@@ -15,23 +15,26 @@ export function setupCompute(device, module, cap) {
   const instRead = makeBuffer(cap * 4, readUsage),
     cmdRead = makeBuffer(96, readUsage),
     offsetRead = makeBuffer(24, readUsage);
-  const layout = device.createBindGroupLayout({
-    entries: [
-      { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-      { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
-      ...[2, 3, 4, 5].map((binding) => ({
-        binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: 'storage' },
-      })),
-      { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-    ],
-  });
+  // `restBits` porte un bit par item — `rest` a quitté la structure pour ce champ —, et `slotUsed`
+  // part à un partout, comme le tampon de production : un slot à zéro ne compacte rien.
+  const restBits = makeBuffer(Math.max(4, Math.ceil(cap / 32) * 4));
+  const slotUsed = makeBuffer(slots * 4);
+  device.queue.writeBuffer(slotUsed, 0, new Uint32Array(slots).fill(1));
+  // La disposition n'est pas recopiée : elle vient de `drawBindEntries()`, sous le WGSL.
+  const layout = device.createBindGroupLayout({ entries: bindEntries });
   const group = device.createBindGroup({
     layout,
-    entries: [itemBuffer, uniform, instances, indirect, counts, offsets, selection].map(
-      (buffer, binding) => ({ binding, resource: { buffer } }),
-    ),
+    entries: [
+      itemBuffer,
+      uniform,
+      instances,
+      indirect,
+      counts,
+      offsets,
+      selection,
+      restBits,
+      slotUsed,
+    ].map((buffer, binding) => ({ binding, resource: { buffer } })),
   });
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
   const pipelines = ['countGroups', 'prefixGroups', 'scatterGroups'].map((entryPoint) =>
@@ -54,5 +57,6 @@ export function setupCompute(device, module, cap) {
     offsetRead,
     group,
     pipelines,
+    restBits,
   };
 }

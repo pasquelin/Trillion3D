@@ -19,7 +19,7 @@ import { copyElements } from './matrixElements.ts';
  * finie. Le seul appel de composition qui subsiste tient la scène de l'HÔTE à jour pour ses propres
  * lecteurs — la réplication (`replicateInstances.ts`) part des matrices monde qu'il porte ; aucun
  * nombre que le moteur dessine n'en sort, les siennes sont celles de `hostWorldPlacements.ts`. Le
- * test `test/integration/engineNoThreeMath.test.mjs` tient cette frontière.
+ * test `test/integration/moteur-sans-three-math.test.mjs` tient cette frontière.
  */
 
 /** Le sous-arbre entier de `node` remis à jour DANS LA SCÈNE DE L'HÔTE, pour ses propres lecteurs. */

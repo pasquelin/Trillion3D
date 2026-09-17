@@ -10,14 +10,15 @@ import { dansPageWebgpu, requireDuLab } from '../justesse/pageWebgpu.mjs';
 const ici = dirname(fileURLToPath(import.meta.url));
 
 /**
- * Exécute `executer()` du module de page `fixture` dans Chromium. `nom` est le nom global sous
- * lequel le paquet s'expose, `titre` celui de la page. Rend le résultat de la page, son tableau
- * `erreurs` complété par les erreurs non rattrapées du document.
+ * Exécute `methode()` du module de page `fixture` dans Chromium — `executer` par défaut, le nom que
+ * portent les pages du moteur. `nom` est le nom global sous lequel le paquet s'expose, `titre` celui
+ * de la page. Rend le résultat de la page, son tableau `erreurs` complété par les erreurs non
+ * rattrapées du document.
  */
-export async function preuveDansLaPage(fixture, nom, titre) {
+export async function preuveDansLaPage(fixture, nom, titre, methode = 'executer') {
   const esbuild = createRequire(requireDuLab().resolve('vite'))('esbuild');
   const paquet = await esbuild.build({
-    entryPoints: [resolve(ici, 'browserFixtures', fixture)],
+    entryPoints: [resolve(ici, fixture)],
     bundle: true,
     write: false,
     format: 'iife',
@@ -27,11 +28,15 @@ export async function preuveDansLaPage(fixture, nom, titre) {
     logLevel: 'error',
   });
   const erreursPage = [];
-  const resultat = await dansPageWebgpu((global) => globalThis[global].executer(), nom, {
-    titre,
-    script: paquet.outputFiles[0].text,
-    erreursPage,
-  });
+  const resultat = await dansPageWebgpu(
+    (cible) => globalThis[cible.nom][cible.methode](),
+    { nom, methode },
+    {
+      titre,
+      script: paquet.outputFiles[0].text,
+      erreursPage,
+    },
+  );
   return { ...resultat, erreurs: [...(resultat.erreurs ?? []), ...erreursPage] };
 }
 

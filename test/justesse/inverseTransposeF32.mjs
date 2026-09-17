@@ -1,7 +1,7 @@
 // Le noyau `inverseTranspose3` d'`inverseTransposeWgsl.ts`, rejoué en f32 côté JS : même ordre
 // d'opérations, même arrondi à chaque produit et à chaque somme (`Math.fround`), mêmes gardes. C'est
 // le MODÈLE — il dit ce que le nuanceur doit calculer, pas ce qu'il calcule. Ce qui le rattache au
-// texte réellement exécuté est mesuré ailleurs : `test/browser/normalTransformArithmetique.browser.mjs`
+// texte réellement exécuté est mesuré ailleurs : `test/browser/normal-transform-arithmetique.browser.mjs`
 // compare, cas par cas, ce modèle à la sortie du shader livré dans Chromium WebGPU. Sans cette
 // mesure, le modèle ne serait qu'une seconde implémentation, libre de dériver en silence.
 //
