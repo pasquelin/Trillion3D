@@ -77,7 +77,10 @@ export function buildBlendRuns(order: Uint32Array, merge: boolean, out: Uint32Ar
     out[base] = first;
     out[base + 1] = end - first;
     out[base + 2] = pipeline;
-    out[base + 3] = shared ? RUN_SHARED : planItem(order[first]);
+    // Une tranche n'est SANS propriétaire que si elle en fusionne plusieurs : celle qui n'a gardé
+    // qu'une entrée nomme son item, et l'image peut alors ne pas l'encoder du tout quand le tronc
+    // le rejette — exactement ce que faisait un appel par item.
+    out[base + 3] = shared && end - first > 1 ? RUN_SHARED : planItem(order[first]);
     runs++;
     first = end;
   }
