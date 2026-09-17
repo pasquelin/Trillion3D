@@ -55,9 +55,9 @@ async function executer({ shader, cas, workgroup }) {
   const etape = (entryPoint) =>
     device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
   const preparePipeline = etape('dagPrepare');
-  // La descente par niveaux : la passe 0 part des racines, chaque passe suivante bascule entre les
-  // deux files que `levelStep` remplit en alternance (piste : `gpuDagLevelWgsl.ts`).
-  const levelPipelines = [etape('dagLevel0'), etape('dagLevel1')];
+  // La descente par niveaux : la passe 0 part des racines, chaque passe suivante tourne sur les
+  // trois files que `levelStep` remplit à tour de rôle (piste : `gpuDagLevelWgsl.ts`).
+  const levelPipelines = [etape('dagLevel0'), etape('dagLevel1'), etape('dagLevel2')];
   const wantedPipeline = etape('dagWanted');
   const maskPipeline = etape('dagMask');
   const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC;
@@ -69,26 +69,22 @@ async function executer({ shader, cas, workgroup }) {
     if (octetsSource) device.queue.writeBuffer(buffer, 0, new Uint8Array(octetsSource));
     return buffer;
   };
-  // Une seule source de zéros, réutilisée pour remettre à zéro la file cible d'une passe de niveau
-  // avant qu'elle n'y écrive (compteur et compte de groupes, deux mots).
-  const zeros = device.createBuffer({ size: 16, usage: GPUBufferUsage.COPY_SRC });
   const groupes = (n) => Math.max(1, Math.ceil(n / workgroup));
   const resultats = [];
   for (const c of cas) {
     const sortieOctets = 16 + c.pageCount * 4;
     const blockCount = groupes(c.pageCount);
     // Les mêmes régions que le moteur (`gpuDagResources.ts`) : après les seuils par primitive et les
-    // compteurs de bloc viennent le compteur des vivantes, puis les deux files de la descente, la
+    // compteurs de bloc viennent le compteur des vivantes, puis les trois files de la descente, la
     // liste des candidates et le journal des dessinées — deux mots chacun (compteur, groupes).
     const workBase = c.worldCount * 2 + blockCount * 2;
-    const queueResetOffset = [(workBase + 2) * 4, (workBase + 4) * 4];
     const buffers = [
       tampon(64, c.clusters),
       tampon(64, c.nodes),
       tampon(256, c.uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),
-      tampon(Math.max(16, (c.nodeCount * 2 + c.pageCount * 4) * 4)),
+      tampon(Math.max(16, (c.nodeCount * 3 + c.pageCount * 4) * 4)),
       tampon(sortieOctets),
-      tampon(Math.max(8, (workBase + 10) * 4)),
+      tampon(Math.max(8, (workBase + 12) * 4)),
       tampon(64, c.worlds),
       tampon(16, c.frames),
       tampon(48, c.pageCones),
@@ -111,10 +107,9 @@ async function executer({ shader, cas, workgroup }) {
     tete.dispatchWorkgroups(groupes(c.nodeCount));
     tete.end();
     // Chaque niveau suivant se répartit sur les seuls nœuds que le niveau précédent a retenus ; la
-    // file où il écrit doit valoir zéro avant, faute de quoi elle prolongerait un niveau d'avant.
+    // file où il écrit a été remise à zéro par le niveau qui la précède de deux, dans le noyau même.
     for (let niveau = 1; niveau < c.levelCount; niveau++) {
-      const source = niveau & 1;
-      encoder.copyBufferToBuffer(zeros, 0, buffers[5], queueResetOffset[1 - source], 8);
+      const source = niveau % 3;
       const passe = encoder.beginComputePass();
       passe.setBindGroup(0, group);
       passe.setPipeline(levelPipelines[source]);

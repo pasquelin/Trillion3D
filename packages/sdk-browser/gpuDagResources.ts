@@ -20,14 +20,13 @@ export async function createDagResources(
     // Le même compte de blocs que `blockCount()` du noyau, au mot près : deux compteurs vivent
     // derrière eux dans `work` et le second est recopié vers l'argument de répartition.
     blockCount = Math.ceil(pageCount / SELECTION_WORKGROUP),
-    // Derrière les seuils et les blocs : compteur et groupes de la liste vivante, puis ceux des deux
+    // Derrière les seuils et les blocs : compteur et groupes de la liste vivante, puis ceux des TROIS
     // files de la descente, de la liste des candidates et du journal des dessinées.
     workBase = worldCount * 2 + blockCount * 2,
     liveGroupsOffset = (workBase + 1) * 4,
-    queueResetOffset = [(workBase + 2) * 4, (workBase + 4) * 4],
-    queueGroupsOffset = [(workBase + 3) * 4, (workBase + 5) * 4],
-    candGroupsOffset = (workBase + 7) * 4,
-    drawnGroupsOffset = (workBase + 9) * 4,
+    queueGroupsOffset = [(workBase + 3) * 4, (workBase + 5) * 4, (workBase + 7) * 4],
+    candGroupsOffset = (workBase + 9) * 4,
+    drawnGroupsOffset = (workBase + 11) * 4,
     readbackBytes = outputBytes + (residentCut ? drawnBytes : 0);
   const uniformData = new Float32Array(UNIFORM_BYTES / 4);
   const frameData = new Float32Array(worldCount * FRAME_VEC4 * 4),
@@ -52,13 +51,12 @@ export async function createDagResources(
       size: UNIFORM_BYTES,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
-    // La file de la passe paire de la descente, puis les drapeaux de dessin, puis le rejet par cone
-    // retenu par `dagWanted` pour les quatre passes qui le relisent, puis la liste des grappes
-    // vivantes, puis la liste des candidates — qui sert aussi de journal des dessinées de l'image
-    // précédente —, puis la file de la passe impaire : jamais lus par le CPU, qui ne copie toujours
-    // que les drapeaux de dessin.
+    // La file 0 de la descente, puis les drapeaux de dessin, puis le rejet par cone retenu par
+    // `dagWanted` pour les quatre passes qui le relisent, puis la liste des grappes vivantes, puis la
+    // liste des candidates — qui sert aussi de journal des dessinées de l'image précédente —, puis
+    // les files 1 et 2 : jamais lus par le CPU, qui ne copie toujours que les drapeaux de dessin.
     const flags = device.createBuffer({
-      size: Math.max(16, (nodeCount * 2 + pageCount * 4) * 4),
+      size: Math.max(16, (nodeCount * 3 + pageCount * 4) * 4),
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
     // Trois mots d'argument, dont les deux derniers valent un une fois pour toutes : seul le premier
@@ -68,8 +66,6 @@ export async function createDagResources(
       usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
     });
     device.queue.writeBuffer(dispatchArgs, 0, new Uint32Array([0, 1, 1, 0]));
-    // La source des remises à zéro de compteur entre deux passes : un tampon neuf vaut zéro.
-    const zeros = device.createBuffer({ size: 16, usage: GPUBufferUsage.COPY_SRC });
     const output = device.createBuffer({
       size: readbackBytes,
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
@@ -79,7 +75,7 @@ export async function createDagResources(
     // aucun tampon de stockage de plus, le plafond d'une étape est déjà atteint. Ce dernier mot part
     // vers l'argument de répartition, d'où la source de copie.
     const work = device.createBuffer({
-      size: Math.max(8, (workBase + 10) * 4),
+      size: Math.max(8, (workBase + 12) * 4),
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
     const worlds = device.createBuffer({
@@ -110,7 +106,6 @@ export async function createDagResources(
       uniforms,
       flags,
       dispatchArgs,
-      zeros,
       output,
       work,
       worlds,
@@ -157,7 +152,6 @@ export async function createDagResources(
       readbackBytes,
       levelCount: packed.levelCount,
       liveGroupsOffset,
-      queueResetOffset,
       queueGroupsOffset,
       candGroupsOffset,
       drawnGroupsOffset,
@@ -169,7 +163,6 @@ export async function createDagResources(
       uniforms,
       flags,
       dispatchArgs,
-      zeros,
       output,
       work,
       worlds,
