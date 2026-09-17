@@ -1,7 +1,6 @@
 import { frustumExcludesBox } from '../sdk-core/index.ts';
 import { planItem } from './webgpuBlendPlan.ts';
-import { buildBlendRuns, RUN_SHARED, RUN_WORDS } from './webgpuBlendRuns.ts';
-import { itemKept } from './webgpuBlendExpandCpu.ts';
+import { buildBlendRuns } from './webgpuBlendRuns.ts';
 import type { BlendGpuItem, createWebgpuBlendState } from './webgpuBlendState.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
@@ -112,26 +111,6 @@ function sortPlanFarToNear(order: Uint32Array, items: readonly BlendGpuItem[]) {
 }
 
 /**
- * Les tranches que l'image encode : UN test par tranche, jamais un par entrée.
- *
- * Une tranche d'un seul item — une primitive non paginée, une surface transmissive — se décide sur
- * le bit du tronc, et l'appel d'un item entièrement hors champ n'est pas encodé, comme avant. Une
- * tranche partagée, elle, porte des milliers d'entrées : les interroger une à une rendrait à
- * l'image le parcours que ce lot lui retire. C'est la carte qui met ses instances à zéro, et un
- * appel sans instance ne pose aucun pixel — au pire une poignée d'appels vides quand plus rien de
- * la scène n'est dans le champ.
- */
-function keptRuns(blendState: BlendState, slice: number) {
-  const runs = slice ? blendState.runsTransmission : blendState.runsBlend,
-    kept = blendState.runKept[slice],
-    keep = blendState.keepPacked;
-  for (let run = 0; run < blendState.runCount[slice]; run++) {
-    const owner = runs[run * RUN_WORDS + 3];
-    kept[run] = owner === RUN_SHARED || itemKept(keep, owner) ? 1 : 0;
-  }
-}
-
-/**
  * Le classement du chemin de production, et le découpage en tranches qu'il commande.
  *
  * Les tranches ne dépendent que de l'ordre : un classement qui n'a rien bougé les laisse telles
@@ -149,7 +128,6 @@ export function orderBlendPasses(blendState: BlendState, eye: ArrayLike<number> 
     // La passe de transmission garde une tranche par entrée : chacune décale encore son volume.
     blendState.runCount[pass] = buildBlendRuns(orders[pass], pass === 0, runs[pass]);
   }
-  for (let pass = 0; pass < orders.length; pass++) keptRuns(blendState, pass);
   return rejected;
 }
 
