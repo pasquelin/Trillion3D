@@ -132,9 +132,9 @@
     "semantic_hash": ""
   },
   "scripts/only-pnpm.mjs": {
-    "mtime": 1789650252.8870625,
-    "seen": 1789652705.191346,
-    "ast_hash": "7c22b44df05cbef1d8564503875fb947",
+    "mtime": 1789658466.663351,
+    "seen": 1789659070.794131,
+    "ast_hash": "97a5d165560a08ad188842eb822a36f8",
     "semantic_hash": ""
   },
   "scripts/build-wasm.mjs": {
@@ -576,9 +576,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/gpuDagOracle.ts": {
-    "mtime": 1789641586.2878704,
-    "seen": 1789652705.190615,
-    "ast_hash": "a308c68df452f006987bec1a42456d3d",
+    "mtime": 1789658494.1714783,
+    "seen": 1789659070.7933419,
+    "ast_hash": "682c51888a5ca5d4ac468b407aededbf",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuCutAdoptionHold.test.ts": {
@@ -1368,9 +1368,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuHeldKeys.ts": {
-    "mtime": 1789611622.7624316,
-    "seen": 1789652705.190987,
-    "ast_hash": "0a7decca31afe4016589a8be7527cdaa",
+    "mtime": 1789658449.4574564,
+    "seen": 1789659070.793764,
+    "ast_hash": "0bf543623888363f02f4a34aa57d3ce7",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuFallbackDraw.ts": {
@@ -1692,9 +1692,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/gpuSelection.ts": {
-    "mtime": 1789650252.8847382,
-    "seen": 1789652705.190701,
-    "ast_hash": "2cbc4b4b65ef5e4f37b83d8fad452e03",
+    "mtime": 1789658403.489781,
+    "seen": 1789659070.793479,
+    "ast_hash": "f05e6603062bbaf2173bac37c49d769b",
     "semantic_hash": ""
   },
   "packages/sdk-browser/pagesBackendScenes.ts": {
@@ -1806,9 +1806,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuCutAdoption.ts": {
-    "mtime": 1789641586.2910383,
-    "seen": 1789652705.190969,
-    "ast_hash": "62af870459a3159a6f38e1ed9d9bf39d",
+    "mtime": 1789659484.0458224,
+    "seen": 1789660102.989738,
+    "ast_hash": "609f8efefffe3297c9a423b88411af8b",
     "semantic_hash": ""
   },
   "packages/sdk-browser/pageSelectionTestHelpers.ts": {
@@ -2682,9 +2682,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/gpuDagLayout.ts": {
-    "mtime": 1789650634.9840033,
-    "seen": 1789652705.19061,
-    "ast_hash": "523a7fd5d63567afb729aa78944bf42b",
+    "mtime": 1789659952.7438195,
+    "seen": 1789660102.989315,
+    "ast_hash": "026431dfe72f877986a531367e8c8ac7",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPagesTransform.ts": {
@@ -3102,9 +3102,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/gpuDagUniforms.ts": {
-    "mtime": 1789650252.8845537,
-    "seen": 1789652705.1906402,
-    "ast_hash": "4a432cb647690ffe6bfd1c6b384c5f87",
+    "mtime": 1789659780.8754354,
+    "seen": 1789660102.989344,
+    "ast_hash": "a5ca61816cc71ca3173add9af91d8246",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuAtlasJobs.ts": {
@@ -3528,9 +3528,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPagesMockCompute.ts": {
-    "mtime": 1789641586.2931583,
-    "seen": 1789652705.191039,
-    "ast_hash": "96d7ee4e344c6cf830adad95a8e3bf4f",
+    "mtime": 1789659952.7440412,
+    "seen": 1789660102.9898088,
+    "ast_hash": "05b64b68f6252aacd2dd7dc13813f06e",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuSunFarHold.test.ts": {
@@ -3636,9 +3636,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/gpuDagUniforms.test.ts": {
-    "mtime": 1789650252.8843796,
-    "seen": 1789652705.190639,
-    "ast_hash": "d2743af8c85a2a34a47cd66afb8129cf",
+    "mtime": 1789659900.7120032,
+    "seen": 1789660102.989344,
+    "ast_hash": "67b510882c01de9ba8dcfebdc96af28b",
     "semantic_hash": ""
   },
   "packages/sdk-browser/gpuDagOraclePredicates.ts": {
@@ -3930,9 +3930,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/texturePriorityMeasure.ts": {
-    "mtime": 1789650252.8856094,
-    "seen": 1789652705.190891,
-    "ast_hash": "cc5b01e55c4150033e2d8307a0e61292",
+    "mtime": 1789658434.1098156,
+    "seen": 1789659070.7936661,
+    "ast_hash": "dcedf2d8962862c8c9f85f0b2927b598",
     "semantic_hash": ""
   },
   "packages/sdk-browser/awaitBackendPages.test.ts": {
@@ -4320,9 +4320,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/gpuDagShader.ts": {
-    "mtime": 1789641586.2894676,
-    "seen": 1789652705.190633,
-    "ast_hash": "24ed8a2ef0391513a254d97dc2f32a64",
+    "mtime": 1789659523.1320107,
+    "seen": 1789660102.9893382,
+    "ast_hash": "468bad23b443e5848031e1e3677dec5b",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuBlendLighting.ts": {
@@ -4674,9 +4674,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/gpuDagTotalsWgsl.ts": {
-    "mtime": 1789641586.2899544,
-    "seen": 1789652705.190637,
-    "ast_hash": "2c5fe204bf4a8c4c9b6c936efb8bb757",
+    "mtime": 1789659505.5690608,
+    "seen": 1789660102.989342,
+    "ast_hash": "9a5cc962fceb16e830ed946dbe52c4f8",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuVisibilityItemWords.test.ts": {
@@ -6504,15 +6504,15 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/usd/light.rs": {
-    "mtime": 1789633919.1676366,
-    "seen": 1789652705.190211,
-    "ast_hash": "ad86ca8069efb8b3fab9f391fc50057b",
+    "mtime": 1789658576.6310596,
+    "seen": 1789659070.7929611,
+    "ast_hash": "14ff3c56dbb00cc07e7793ff51bc4499",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/usd/visit.rs": {
-    "mtime": 1789633919.1674948,
-    "seen": 1789652705.190221,
-    "ast_hash": "865190e6958198ca040ca9725bda8365",
+    "mtime": 1789658576.6312072,
+    "seen": 1789659070.79297,
+    "ast_hash": "367d358fe4f507a7374f7fd22c55f44f",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/usd/matrix.rs": {
@@ -8021,12 +8021,6 @@
     "ast_hash": "afe5d8beb46f40c5bcc3caaa7021eef2",
     "semantic_hash": ""
   },
-  "packages/sdk-core/brandTerms.test.ts": {
-    "mtime": 1789394509.8466775,
-    "seen": 1789652705.191154,
-    "ast_hash": "0e4ba90cc6986fd00cb938feafa94ca3",
-    "semantic_hash": ""
-  },
   "packages/sdk-core/mathCamera.test.ts": {
     "mtime": 1789586953.3347487,
     "seen": 1789652705.191215,
@@ -8550,9 +8544,9 @@
     "semantic_hash": ""
   },
   "TODO.md": {
-    "mtime": 1789657452.225903,
-    "seen": 1789657467.316131,
-    "ast_hash": "20163a36a9cc35559595b93cffc0a9f0",
+    "mtime": 1789660072.793556,
+    "seen": 1789660102.990245,
+    "ast_hash": "9ddea6445b3a73f4a1a941cee0b78056",
     "semantic_hash": ""
   },
   "README.md": {
@@ -10056,9 +10050,9 @@
     "semantic_hash": ""
   },
   "test/justesse/camera-parentee-gpu.mjs": {
-    "mtime": 1789650635.0001054,
-    "seen": 1789652705.1914182,
-    "ast_hash": "efb8ec5972db90d1842397fcf1c20397",
+    "mtime": 1789658560.4440262,
+    "seen": 1789659070.7942011,
+    "ast_hash": "df424f915e5c37df6f00c5030c83482f",
     "semantic_hash": ""
   },
   "test/justesse/camera-parentee.mjs": {
@@ -10098,9 +10092,9 @@
     "semantic_hash": ""
   },
   "test/justesse/coupe-lancements-gpu.mjs": {
-    "mtime": 1789650635.0007188,
-    "seen": 1789652705.191424,
-    "ast_hash": "4de52b8639b1b26ff3c02bedfaabebd3",
+    "mtime": 1789658560.4437728,
+    "seen": 1789659070.7942069,
+    "ast_hash": "af6e10de5e50138723469178562eb3a0",
     "semantic_hash": ""
   },
   "test/justesse/coupeLancementsDecor.mjs": {
@@ -10224,9 +10218,9 @@
     "semantic_hash": ""
   },
   "test/justesse/pageWebgpu.mjs": {
-    "mtime": 1789650635.0026953,
-    "seen": 1789652705.1914392,
-    "ast_hash": "49414b1c3683098f68a389ee8eb7ddac",
+    "mtime": 1789658540.1643713,
+    "seen": 1789659070.794231,
+    "ast_hash": "44dbfebd511ea25b991116de5d2f13be",
     "semantic_hash": ""
   },
   "test/justesse/plancher-erreur-cpu-gpu.mjs": {
@@ -10248,9 +10242,9 @@
     "semantic_hash": ""
   },
   "test/justesse/releve-coupe-gpu.mjs": {
-    "mtime": 1789650635.0031154,
-    "seen": 1789652705.191442,
-    "ast_hash": "e8ca9209e2ce6c49f984208096c6bfe2",
+    "mtime": 1789658560.4439168,
+    "seen": 1789659070.794235,
+    "ast_hash": "3607171bcf1eaee7c7b7fe403fe72d6f",
     "semantic_hash": ""
   },
   "test/justesse/releveCoupePage.mjs": {
@@ -10308,9 +10302,9 @@
     "semantic_hash": ""
   },
   "scripts/graphify-libelles.mjs": {
-    "mtime": 1789653182.1276147,
-    "seen": 1789653217.122401,
-    "ast_hash": "6186fdf246acc998c1f0674ffab47853",
+    "mtime": 1789658483.390517,
+    "seen": 1789659070.794104,
+    "ast_hash": "8daac0496101bc5c3187640427ca6198",
     "semantic_hash": ""
   },
   "scripts/graphify-libelles.test.mjs": {
@@ -10506,9 +10500,9 @@
     "semantic_hash": ""
   },
   "test/test-gpu.mjs": {
-    "mtime": 1789656231.472689,
-    "seen": 1789656820.386875,
-    "ast_hash": "f1dfc90c0a5106a43ed576df0d06b034",
+    "mtime": 1789658473.9388328,
+    "seen": 1789659070.7942379,
+    "ast_hash": "9f9017fbdbe83ac211676a1d388909b9",
     "semantic_hash": ""
   },
   "test/test-gpu.test.mjs": {
