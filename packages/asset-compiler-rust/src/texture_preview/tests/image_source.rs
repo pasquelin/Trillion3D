@@ -1,7 +1,7 @@
 use super::*;
 
-/// Aucune texture tranchée : ces tests ne mesurent que les aperçus.
-static AUCUNE_REPONSE: BTreeSet<usize> = BTreeSet::new();
+/// Aucune texture à mesurer : ces tests ne couvrent que les aperçus.
+static RIEN_A_MESURER: BTreeSet<usize> = BTreeSet::new();
 
 fn inputs<'a>(
     o: &'a Options,
@@ -18,7 +18,7 @@ fn inputs<'a>(
         image_root,
         meshes,
         view_map,
-        answered: &AUCUNE_REPONSE,
+        to_measure: &RIEN_A_MESURER,
     }
 }
 
