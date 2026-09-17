@@ -7,6 +7,20 @@ import { drawFile, drawThumbnail, imageKind, link } from './cutoutDraw.mts';
 import { encodePng } from './cutoutPng.mts';
 
 /**
+ * Ce que les deux mots veulent dire, rappelé avant la première question et à la demande.
+ *
+ * Personne ne tranche à l'aveugle : celui qui répond n'a pas travaillé sur ce lot, et « découpe ou
+ * vitre » ne dit rien tout seul. La règle tient en quatre lignes, et la dernière est celle qui
+ * compte — dans le doute, la réponse sans conséquence existe.
+ */
+export const LEGENDE = [
+  '  Une DÉCOUPE est présente ou absente en chaque point — feuille, grillage, branche :',
+  '  dans l’image en noir et blanc, presque tout est blanc ou noir, le gris ne suit que le bord.',
+  '  Une VITRE laisse passer la lumière partout : elle est grise sur toute sa surface.',
+  '  Dans le doute, répondez vitre : rien ne change.',
+];
+
+/**
  * One cutout question on screen: what it looks like, what it measures, and where to see it whole.
  *
  * Kept apart from the pass that asks, because these are two different jobs — deciding what to show
@@ -76,6 +90,6 @@ export async function show(
   for (const fact of facts) stream.write(`    ${fact}\n`);
   if (picture) stream.write(`    ${link('voir en grand', picture)}\n`);
   stream.write(
-    '    [Entrée] accepter   [d] découpe   [v] vitre   [t] tout accepter   [q] arrêter\n',
+    '    [Entrée] accepter   [d] découpe   [v] vitre   [t] tout accepter   [?] rappel   [q] arrêter\n',
   );
 }
