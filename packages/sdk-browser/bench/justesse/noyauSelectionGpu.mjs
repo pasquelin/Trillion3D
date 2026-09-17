@@ -10,11 +10,10 @@ import { FRAME_VEC4 } from '../../gpuDagTypes.ts';
 
 const octets = (vue) => Array.from(new Uint8Array(vue.buffer, vue.byteOffset, vue.byteLength));
 
-/** Un cas empaqueté, prêt à traverser vers la page : octets bruts, les entiers des clusters compris.
- *  `residentCut` est celui du bloc d'uniformes ; les bits de résidence voyagent dans `pageCones`. */
-export function versPage(nom, packed, uniforms, residentCut = false) {
+/** Un cas empaqueté, prêt à traverser vers la page : octets bruts, les entiers des clusters compris. */
+function versPage(nom, packed, uniforms) {
   const uni = new Float32Array(SELECTION_UNIFORM_BYTES / 4);
-  writeDagUniforms(uni, packed, uniforms, residentCut);
+  writeDagUniforms(uni, packed, uniforms, false);
   const frames = new Float32Array(Math.max(1, packed.worldCount) * FRAME_VEC4 * 4);
   const frameInts = new Uint32Array(frames.buffer);
   for (let w = 0; w < packed.worldCount; w++) {

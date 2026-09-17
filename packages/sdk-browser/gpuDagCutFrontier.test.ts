@@ -161,9 +161,16 @@ test("la frontière de la descente est ce qu'aucune persistance exacte ne peut �
     assert.ok(ligne.plafondPourCent < 5, `${ligne.regime} : plafond ${ligne.plafondPourCent} %`);
     // Le rejet par le haut est SÛR : il ne retire jamais qu'une candidate réellement trop grossière.
     assert.ok(
-      ligne.candidatesRetireesParImage > 0 &&
-        ligne.candidatesRetireesParImage <= ligne.candidatesTropGrossieresParImage,
+      ligne.candidatesRetireesParImage <= ligne.candidatesTropGrossieresParImage,
       `${ligne.regime} : ${ligne.candidatesRetireesParImage} retirées pour ${ligne.candidatesTropGrossieresParImage} trop grossières`,
+    );
+    // Et il PORTE, sur toutes les poses. Le seuil est là pour qu'un rejet qui cesserait de se
+    // produire tombe bruyamment : c'est ainsi qu'une borne indexée sur la mauvaise pose s'était
+    // glissée ici — elle ne levait rien, elle rendait zéro pour onze poses sur douze, et la part
+    // publiée était le sixième de la vraie.
+    assert.ok(
+      ligne.partDuVisePourCent > 50,
+      `${ligne.regime} : le plancher ne retire que ${ligne.partDuVisePourCent} % de sa cible`,
     );
   }
 });
