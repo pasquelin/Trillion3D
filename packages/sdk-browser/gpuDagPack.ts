@@ -1,4 +1,5 @@
 import { maxStretch, worldToRenderOrigin } from '../sdk-core/index.ts';
+import { REQUEST_PAGE_MAX } from './gpuDagRequest.ts';
 import { leafCone, PAGE_CONE_FLOATS, SELECTION_NONE as NONE } from './gpuSelection.ts';
 import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './gpuDagTypes.ts';
 import { cullingBoundsFor, packCullingNodes } from './gpuDagPackNodes.ts';
@@ -64,6 +65,10 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
       levelTotals[level] = (levelTotals[level] ?? 0) + sizes[level];
   }
   const levelSizes = Uint32Array.from(levelTotals);
+  // Le mot de demande nomme la page sur vingt-deux bits (`gpuDagRequest.ts`). Au-delà, le relevé
+  // renverrait une page pour une autre : mieux vaut le refuser par son nom.
+  if (clusterCount > REQUEST_PAGE_MAX)
+    throw new Error(`GPU_SELECTION_PAGE_RANGE: ${clusterCount} > ${REQUEST_PAGE_MAX}`);
   // L'enregistrement chaud ne porte que ce que les cinq passes d'une image relisent toutes ; le
   // nœud propriétaire et le cône partent au froid, que la seule passe d'ouverture lit.
   const clusters = new Float32Array(Math.max(1, clusterCount) * CLUSTER_WORDS),
