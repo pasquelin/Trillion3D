@@ -22,8 +22,11 @@ pub(crate) struct Entry {
     pub weight: u64,
 }
 
-/// Rassemble ce que l'étape des aperçus a mesuré. Une texture sans mesure n'est pas une candidate :
-/// elle n'apparaît ni dans la feuille ni dans la page.
+/// Rassemble ce que l'étape des aperçus a mesuré, UNE ENTRÉE PAR IMAGE. Une texture sans mesure
+/// n'est pas une candidate : elle n'apparaît ni dans la feuille ni dans la page. Et plusieurs
+/// textures citent souvent la même image — le même feuillage sous deux échantillonneurs : elles ne
+/// font qu'une ligne, puisque la réponse porte sur les octets de l'image et vaut pour toutes. Ce
+/// qu'elles tiennent de primitives en mélange s'additionne.
 pub(crate) fn entries(
     g: &Value,
     previews: &[TexturePreview],
@@ -32,13 +35,22 @@ pub(crate) fn entries(
     weights: &BTreeMap<usize, u64>,
 ) -> Vec<Entry> {
     let images = g.get("images").and_then(Value::as_array);
-    previews
-        .iter()
-        .filter_map(|preview| {
-            let shape = measures.get(&(preview.texture as usize))?;
-            let size = preview_level_size(preview.width, preview.height, preview.first_level);
-            let bytes = (size.0 as usize) * (size.1 as usize) * 4;
-            Some(Entry {
+    let mut by_image: BTreeMap<String, Entry> = BTreeMap::new();
+    for preview in previews {
+        let texture = preview.texture as usize;
+        let Some(shape) = measures.get(&texture) else {
+            continue;
+        };
+        let weight = weights.get(&texture).copied().unwrap_or(0);
+        if let Some(known) = by_image.get_mut(&preview.sha256) {
+            known.weight += weight;
+            continue;
+        }
+        let size = preview_level_size(preview.width, preview.height, preview.first_level);
+        let bytes = (size.0 as usize) * (size.1 as usize) * 4;
+        by_image.insert(
+            preview.sha256.clone(),
+            Entry {
                 sha256: preview.sha256.clone(),
                 name: image_name(images, preview.image as usize),
                 thumbnail: preview.pixels.get(..bytes).unwrap_or_default().to_vec(),
@@ -46,13 +58,11 @@ pub(crate) fn entries(
                 shape: shape.report(),
                 proposal: shape.looks_like_cutout(),
                 answer: decisions.verdict(&preview.sha256),
-                weight: weights
-                    .get(&(preview.texture as usize))
-                    .copied()
-                    .unwrap_or(0),
-            })
-        })
-        .collect()
+                weight,
+            },
+        );
+    }
+    by_image.into_values().collect()
 }
 
 /// Ce que trancher rendrait, par texture : les primitives encore en mélange que ses matériaux
