@@ -1,5 +1,4 @@
-import { planItem, planPipeline } from './webgpuBlendPlan.ts';
-import type { BlendGpuItem } from './webgpuBlendState.ts';
+import { planItem, planPipeline, planShared } from './webgpuBlendPlan.ts';
 
 /**
  * LES TRANCHES DE LA PASSE TRANSPARENTE : ce qui remplace un appel par item.
@@ -30,6 +29,8 @@ export const EXPAND_GROUP = 64;
 export const RUN_WORDS = 4;
 /** Une tranche partagée n'appartient à aucun item : son groupe de liaison est celui des paginés. */
 export const RUN_SHARED = 0xffffffff;
+/** Le bit de partage d'une entrée de plan, juste au-dessus des deux bits de pipeline. */
+const PLAN_SHARED_BIT = 4;
 
 /**
  * Le pas d'adressage d'une instance : la puissance de deux qui sépare deux instances dans l'espace
@@ -61,31 +62,22 @@ export function blendChunkWords(shift: number, indexCount: number) {
  * garde son décalage dynamique. `out` appartient à la scène et fait `RUN_WORDS` mots par entrée du
  * plan — le pire cas —, si bien que rien n'est alloué par image.
  */
-export function buildBlendRuns(
-  order: Uint32Array,
-  items: readonly BlendGpuItem[],
-  merge: boolean,
-  out: Uint32Array,
-) {
+export function buildBlendRuns(order: Uint32Array, merge: boolean, out: Uint32Array) {
   let runs = 0,
     first = 0;
   while (first < order.length) {
-    const pipeline = planPipeline(order[first]),
-      owner = planItem(order[first]);
-    const shared = merge && !!items[owner].paged;
+    const pipeline = planPipeline(order[first]);
+    const shared = merge && planShared(order[first]);
+    // Une entrée prolonge la tranche quand elle porte le même pipeline ET le bit de partage : les
+    // deux tiennent dans les trois bits bas, et le plan se parcourt sans jamais suivre un rang.
+    const suite = PLAN_SHARED_BIT | pipeline;
     let end = first + 1;
-    if (shared)
-      while (
-        end < order.length &&
-        planPipeline(order[end]) === pipeline &&
-        items[planItem(order[end])].paged
-      )
-        end++;
+    if (shared) while (end < order.length && (order[end] & 7) === suite) end++;
     const base = runs * RUN_WORDS;
     out[base] = first;
     out[base + 1] = end - first;
     out[base + 2] = pipeline;
-    out[base + 3] = shared ? RUN_SHARED : owner;
+    out[base + 3] = shared ? RUN_SHARED : planItem(order[first]);
     runs++;
     first = end;
   }
