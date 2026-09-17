@@ -32,29 +32,38 @@ function eyeKey(item: BlendGpuItem, ex: number, ey: number, ez: number) {
   return x * x + y * y + z * z;
 }
 
-/**
- * Pose la clé, le rang source et LE VERDICT DU TRONC de chaque item, et rend les rejets.
- *
- * C'est l'unique parcours d'items que l'image paie, et il fallait déjà le faire pour classer : le
- * tronc y coûte une boîte contre six plans, en double précision et par la référence elle-même. Le
- * verdict part sur la carte en un bit par item, et l'étalement du plan met à zéro les instances de
- * ce qu'il rejette (`webgpuBlendExpandWgsl.ts`) — un item hors champ ne coûte plus un appel, il ne
- * coûte plus une instance. Sans boîte exploitable, l'item n'est jamais rejeté.
- */
+/** Pose la clé et le rang source de chaque item. Rien n'est alloué : deux champs réécrits. */
 function refreshEyeKeys(blendState: BlendState, eye: ArrayLike<number>) {
   const items = blendState.blendGpu,
-    keep = blendState.keepPacked,
-    planes = blendState.blendPlanes,
     ex = eye[0],
     ey = eye[1],
     ez = eye[2];
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    item.orderRank = i;
+    item.orderKey = eyeKey(item, ex, ey, ez);
+  }
+}
+
+/**
+ * LE VERDICT DU TRONC DE L'IMAGE : une boîte contre six plans, en double précision et par la
+ * référence elle-même. Il part sur la carte en un bit par item, et l'étalement du plan met à zéro
+ * les instances de ce qu'il rejette (`webgpuBlendExpandWgsl.ts`) — un item hors champ ne coûte plus
+ * un appel, il ne coûte plus une instance. Sans boîte exploitable, l'item n'est jamais rejeté.
+ *
+ * Un SECOND parcours des mêmes items, et non une ligne de plus dans celui des clés : le travail est
+ * le même, mais la boucle fusionnée ralentissait le tri qui la suit de quatre à neuf pour cent au
+ * saut de caméra, mesuré par `transparents-ordres.bench.mjs` et reproduit sur cinq exécutions. Le
+ * mécanisme n'est pas prouvé ; le remède, lui, est mesuré.
+ */
+function rejectByFrustum(blendState: BlendState) {
+  const items = blendState.blendGpu,
+    keep = blendState.keepPacked,
+    planes = blendState.blendPlanes;
   keep.fill(0);
   let rejected = 0;
   for (let i = 0; i < items.length; i++) {
-    const item = items[i],
-      box = item.bounds;
-    item.orderRank = i;
-    item.orderKey = eyeKey(item, ex, ey, ez);
+    const box = items[i].bounds;
     if (box && frustumExcludesBox(planes, box[0], box[1], box[2], box[3], box[4], box[5])) {
       rejected++;
       continue;
@@ -118,7 +127,8 @@ function sortPlanFarToNear(order: Uint32Array, items: readonly BlendGpuItem[]) {
  */
 export function orderBlendPasses(blendState: BlendState, eye: ArrayLike<number> | undefined) {
   if (!eye || !blendState.blendGpu.length) return 0;
-  const rejected = refreshEyeKeys(blendState, eye);
+  refreshEyeKeys(blendState, eye);
+  const rejected = rejectByFrustum(blendState);
   const items = blendState.blendGpu;
   const orders = [blendState.orderBlend, blendState.orderTransmission];
   const runs = [blendState.runsBlend, blendState.runsTransmission];
