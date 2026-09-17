@@ -27,6 +27,8 @@ export interface WebgpuGpuState {
   /** Le dernier relevé adopté déclarait une page voulue non encore arrivée : l'image attend cette
    *  page, elle ne retombe pas sur la coupe processeur. */
   cutIncomplete: boolean;
+  /** Le dernier relevé adopté dépassait le plafond : l'image ne peut pas s'en servir. */
+  cutTruncated: boolean;
   /** La sélection GPU a été abandonnée pour la session : ce qui est mesuré depuis est la coupe
    *  processeur de secours. Publié dans les métriques sous `gpuSelectionFallback`. */
   selectionFallback: boolean;
@@ -85,6 +87,7 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     backdrop: undefined,
     surfaces: undefined,
     cutIncomplete: false,
+    cutTruncated: false,
     selectionFallback: false,
     targetSize: [viewport[0] ?? 1, viewport[1] ?? 1],
     positionBuffers: new Map(),
