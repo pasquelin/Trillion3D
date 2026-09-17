@@ -1,6 +1,6 @@
 // Le majorant sur lequel chaque passe de la descente est lancée à plat. C'est lui qui remplace
-// l'armement de l'argument de répartition — dix-neuf microsecondes par copie sur apple metal-3 —, et
-// c'est donc lui qui doit être sûr : une file plus longue que son étage laisserait des nœuds retenus
+// l'armement de l'argument de répartition — près de vingt microsecondes la copie sur apple metal-3 —,
+// et c'est donc lui qui doit être sûr : une file plus longue que son étage laisserait des nœuds retenus
 // sans passe pour les lire, et la coupe perdrait de la géométrie sans que rien ne le dise.
 import test from 'node:test';
 import assert from 'node:assert/strict';
