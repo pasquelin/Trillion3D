@@ -1,10 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { markDrawnDiverged, mirrorDrawnFromShown } from './webgpuPagesHelpers.ts';
-import { createWebgpuCutAdopter } from './webgpuCutAdoption.ts';
-import { createCutDelta } from './webgpuCutDelta.ts';
-import { createCutCounts } from './webgpuCutCounts.ts';
-import type { GpuCut, GpuSelection, SelectionUniforms } from './gpuSelection.ts';
+import {
+  fixturePages,
+  fixtureUniforms,
+  mountCutAdopter,
+  peekOnly,
+} from './webgpuCutAdopterFixture.ts';
+import type { GpuCut } from './gpuSelection.ts';
 import type { PageRec } from './pageSelection.ts';
 
 // Sur le chemin de la carte graphique, `drawn` n'est que la recopie de `shown`. L'adoption la refait
@@ -36,54 +39,24 @@ test('la recopie n’a lieu que quand le drapeau est baissé, et le relève', ()
   );
 });
 
-const uniforms = (): SelectionUniforms => ({
-  planes: new Float32Array(24),
-  view: new Float32Array(16),
-  pixelScale: [1, 1],
-  pixelError: 0,
-  near: 0.1,
-  cameraWorld: [0, 0, 0],
-});
-
 test('l’adoption annonce la recopie sur un relevé neuf, et jamais sur celui qu’elle tient déjà', () => {
   const ids = [0, 1, 2, 3];
-  const packedPages: PageRec[] = ids.map(
-    (_, i) =>
-      ({
-        url: `p${i}`,
-        triangles: i + 1,
-        transparent: false,
-        array: new Uint32Array(3),
-        packedIndex: i,
-      }) as unknown as PageRec,
-  );
-  const desired: PageRec[] = [],
-    shown: PageRec[] = [],
-    drawn: PageRec[] = [];
+  const packedPages = fixturePages(ids.length);
   let annonces = 0;
   const premier: GpuCut = {
-    uniforms: uniforms(),
+    uniforms: fixtureUniforms(),
     result: { pageIds: ids, drawablePageIds: ids, frustumRejected: 0, lodLevel: 0 },
   } as GpuCut;
   const second: GpuCut = {
-    uniforms: uniforms(),
+    uniforms: fixtureUniforms(),
     result: { pageIds: [2, 0], drawablePageIds: [2, 0], frustumRejected: 0, lodLevel: 0 },
   } as GpuCut;
   let peeked: GpuCut | null = premier;
-  const drawnDelta = createCutDelta(packedPages, []);
-  const counts = createCutCounts(packedPages, new Int32Array(packedPages.length), drawnDelta);
-  const adopter = createWebgpuCutAdopter({
-    selection: () => ({ peek: () => peeked }) as unknown as GpuSelection,
+  const { adopter, shown, drawn } = mountCutAdopter({
     packedPages,
-    desired,
-    shown,
-    drawn,
-    uniforms: uniforms(),
-    counts,
-    delta: createCutDelta(packedPages, desired),
-    drawnDelta,
-    onCutDelta: () => {},
-    onDrawnDelta: () => counts.apply(),
+    residentOffsetWords: new Int32Array(packedPages.length),
+    uniforms: fixtureUniforms(),
+    selection: () => peekOnly(() => peeked),
     onDrawnMirrored: () => annonces++,
   });
 

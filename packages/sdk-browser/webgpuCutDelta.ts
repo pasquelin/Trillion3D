@@ -1,6 +1,42 @@
-import type { PageRec } from './pageSelection.ts';
+import { catalogueIndexOf, type PageRec } from './pageSelection.ts';
 
-export type CutDelta = ReturnType<typeof createCutDelta>;
+/**
+ * La différence publiée, et ce qu'on peut lui demander.
+ *
+ * Les comptes sont des CHAMPS, pas des accesseurs : leurs lecteurs les parcourent vingt mille fois
+ * par image, un accesseur ne s'y inline pas, et chacun devait hisser la borne à la main — trois fois
+ * le même geste et trois fois le même commentaire — pour retrouver le prix d'un champ. Le contrat le
+ * donne maintenant une fois pour toutes. Les tampons sont réécrits sur place, jamais réalloués, et
+ * ce que le lecteur en voit est valide jusqu'à la coupe suivante.
+ */
+export type CutDelta = {
+  /** Les identifiants entrés et sortis depuis la coupe précédente, et leur nombre. */
+  readonly entered: Int32Array;
+  readonly exited: Int32Array;
+  readonly enteredCount: number;
+  readonly exitedCount: number;
+  /** Les identifiants que la coupe retient. */
+  readonly count: number;
+  /**
+   * Faux quand le relevé appliqué porte exactement la même suite d'identifiants que le précédent,
+   * dans le même ordre : `pages` a été réécrit avec les mêmes enregistrements, aux mêmes rangs.
+   * Ce n'est pas l'égalité des ensembles — un ordre différent, même à ensemble égal, est un
+   * changement — et c'est ce qu'il faut à qui lit `pages` dans l'ordre.
+   */
+  readonly changed: boolean;
+  /** Vrai quand l'identifiant appartient au relevé tenu. */
+  has(id: number): boolean;
+  /** Reports no difference: the cut is the one already held, records included. */
+  hold(): void;
+  /** Difference between `ids` and the cut held, and `pages` rewritten in the order of `ids`. */
+  apply(ids: readonly number[]): void;
+  /**
+   * La même différence, publiée par une coupe qui nomme ses enregistrements au lieu de leurs rangs
+   * — la coupe processeur. Le catalogue a le dernier mot, comme partout. Rien n'est alloué passé la
+   * première coupe.
+   */
+  adoptRecords(records: readonly PageRec[]): void;
+};
 
 /**
  * The opaque cut as a set that outlives the image: given the page ids the GPU published, it names the
@@ -20,7 +56,7 @@ export type CutDelta = ReturnType<typeof createCutDelta>;
  * La coupe de la carte y arrive par ses identifiants (`apply`), celle du processeur par ses
  * enregistrements (`adoptRecords`) : un seul contrat, et les lecteurs ne savent pas laquelle décide.
  */
-export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[]) {
+export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[]): CutDelta {
   const capacity = Math.max(1, packedPages.length);
   /** L'époque du relevé où l'identifiant a été retenu pour la dernière fois. */
   const mark = new Int32Array(capacity).fill(-1);
@@ -34,10 +70,7 @@ export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[
   const published = new Int32Array(capacity);
   let epoch = 0,
     keptCount = 0,
-    enteredCount = 0,
-    exitedCount = 0,
-    publishedCount = -1,
-    changed = true;
+    publishedCount = -1;
   /**
    * Vrai quand `ids` est exactement la suite que le dernier relevé appliqué a publiée. Une passe
    * d'entiers, sans une seule écriture : c'est elle qui autorise à ne rien refaire du tout — ni les
@@ -50,21 +83,20 @@ export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[
   };
   /** Le relevé tenu : aucune différence n'est publiée, et la liste est déjà celle qu'il décrit. */
   const hold = () => {
-    changed = false;
-    enteredCount = 0;
-    exitedCount = 0;
+    state.changed = false;
+    state.enteredCount = 0;
+    state.exitedCount = 0;
   };
   /** Les rangs de page d'une liste d'enregistrements, réécrits au lieu d'être rebâtis. */
   const recordIds: number[] = [];
-  /** Difference between `ids` and the cut held, and `pages` rewritten in the order of `ids`. */
   const apply = (ids: readonly number[]) => {
     // Un relevé neuf qui republie la même suite décrit la coupe déjà tenue : elle est tenue, et
     // pas une des quinze mille fiches n'est réécrite.
     if (samePublished(ids)) return hold();
     const previous = epoch;
     epoch++;
-    enteredCount = 0;
-    exitedCount = 0;
+    let enteredCount = 0,
+      exitedCount = 0;
     // Une suite plus longue que le catalogue ne se garde pas : elle est déclarée changée.
     let same = ids.length === publishedCount && ids.length <= capacity;
     publishedCount = ids.length <= capacity ? ids.length : -1;
@@ -94,49 +126,31 @@ export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[
     kept = keptNext;
     keptNext = swap;
     keptCount = count;
-    changed = !same;
+    state.enteredCount = enteredCount;
+    state.exitedCount = exitedCount;
+    state.count = count;
+    state.changed = !same;
   };
-  return {
+  const state = {
     entered,
     exited,
-    /** Vrai quand l'identifiant appartient au relevé tenu. */
+    enteredCount: 0,
+    exitedCount: 0,
+    count: 0,
+    changed: true,
     has: (id: number) => id >= 0 && id < capacity && mark[id] === epoch,
-    get enteredCount() {
-      return enteredCount;
-    },
-    get exitedCount() {
-      return exitedCount;
-    },
-    get count() {
-      return keptCount;
-    },
-    /**
-     * Faux quand le relevé appliqué porte exactement la même suite d'identifiants que le précédent,
-     * dans le même ordre : `pages` a été réécrit avec les mêmes enregistrements, aux mêmes rangs.
-     * Ce n'est pas l'égalité des ensembles — un ordre différent, même à ensemble égal, est un
-     * changement — et c'est ce qu'il faut à qui lit `pages` dans l'ordre.
-     */
-    get changed() {
-      return changed;
-    },
-    /** Reports no difference: the cut is the one already held, records included. */
     hold,
     apply,
-    /**
-     * La même différence, publiée par une coupe qui nomme ses enregistrements au lieu de leurs rangs
-     * — la coupe processeur. Le catalogue a le dernier mot, exactement comme ailleurs : un rang posé
-     * par un autre moteur ne survit pas à la vérification. Rien n'est alloué passé la première coupe.
-     */
     adoptRecords(records: readonly PageRec[]) {
       recordIds.length = records.length;
       let count = 0;
       for (let i = 0; i < records.length; i++) {
-        const rec = records[i],
-          id = rec.packedIndex;
-        if (id !== undefined && packedPages[id] === rec) recordIds[count++] = id;
+        const id = catalogueIndexOf(packedPages, records[i]);
+        if (id !== undefined) recordIds[count++] = id;
       }
       recordIds.length = count;
       apply(recordIds);
     },
   };
+  return state;
 }

@@ -2,9 +2,7 @@
 // ne dépasse la limite de lignes. Les cas vivent dans `webgpuCutReprise.test.ts`.
 import * as THREE from 'three';
 import { renderGpuCut } from './webgpuPagesGpuCut.ts';
-import { createWebgpuCutAdopter } from './webgpuCutAdoption.ts';
-import { createCutDelta } from './webgpuCutDelta.ts';
-import { createCutCounts } from './webgpuCutCounts.ts';
+import { mountCutAdopter } from './webgpuCutAdopterFixture.ts';
 import { cameraSelectionUniforms } from './gpuSelection.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 import type { GpuCut, GpuSelection, SelectionUniforms } from './gpuSelection.ts';
@@ -82,24 +80,11 @@ export function banc(panne?: 'debordement' | 'envoi') {
     },
     peek: () => releve,
   } as unknown as GpuSelection;
-  const desired: PageRec[] = [],
-    shown: PageRec[] = [],
-    drawn: PageRec[] = [];
-  const drawnDelta = createCutDelta([page], []);
-  const counts = createCutCounts([page], new Int32Array([0]), drawnDelta);
-  const adopter = createWebgpuCutAdopter({
-    selection: () => selection,
+  const { adopter, counts, desired, shown } = mountCutAdopter({
     packedPages: [page],
-    desired,
-    shown,
-    drawn,
+    residentOffsetWords: new Int32Array([0]),
     uniforms,
-    counts,
-    delta: createCutDelta([page], desired),
-    drawnDelta,
-    onCutDelta: () => {},
-    onDrawnDelta: () => counts.apply(),
-    onDrawnMirrored: () => {},
+    selection: () => selection,
   });
   const rows = {
     // Déjà posée : `ensurePageTable` n'a pas d'appareil à solliciter sur ce banc.

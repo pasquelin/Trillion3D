@@ -1,64 +1,31 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createWebgpuCutAdopter } from './webgpuCutAdoption.ts';
-import { createCutDelta } from './webgpuCutDelta.ts';
-import { createCutCounts } from './webgpuCutCounts.ts';
 import { ESCALATION_SLACK } from './pageSelectionTypes.ts';
-import type { GpuCut, GpuSelection, SelectionUniforms } from './gpuSelection.ts';
-import type { PageRec } from './pageSelection.ts';
-
-const uniforms = (): SelectionUniforms => ({
-  planes: new Float32Array(24),
-  view: new Float32Array(16),
-  pixelScale: [1, 1],
-  pixelError: 0,
-  near: 0.1,
-  cameraWorld: [0, 0, 0],
-});
+import {
+  fixturePages,
+  fixtureUniforms,
+  mountCutAdopter,
+  peekOnly,
+} from './webgpuCutAdopterFixture.ts';
+import type { GpuCut } from './gpuSelection.ts';
 
 /** Un adopteur et sa coupe, dont la complétude se règle relevé par relevé. */
 function banc(ids: number[]) {
-  const packedPages: PageRec[] = ids.map(
-    (_, i) =>
-      ({
-        url: `p${i}`,
-        triangles: i + 1,
-        transparent: false,
-        array: new Uint32Array(3),
-        packedIndex: i,
-      }) as unknown as PageRec,
-  );
-  const desired: PageRec[] = [],
-    shown: PageRec[] = [],
-    drawn: PageRec[] = [];
-  const shared = uniforms();
+  const packedPages = fixturePages(ids.length);
+  const shared = fixtureUniforms();
   const releve = (complete: boolean): GpuCut =>
     ({
       uniforms: shared,
       result: { pageIds: ids, drawablePageIds: ids, frustumRejected: 0, lodLevel: 0, complete },
     }) as GpuCut;
   let peeked: GpuCut | null = releve(false);
-  const drawnDelta = createCutDelta(packedPages, []);
-  const counts = createCutCounts(
+  const monte = mountCutAdopter({
     packedPages,
-    new Int32Array(packedPages.length).fill(0),
-    drawnDelta,
-  );
-  const adopter = createWebgpuCutAdopter({
-    selection: () => ({ peek: () => peeked }) as unknown as GpuSelection,
-    packedPages,
-    desired,
-    shown,
-    drawn,
+    residentOffsetWords: new Int32Array(packedPages.length).fill(0),
     uniforms: shared,
-    counts,
-    delta: createCutDelta(packedPages, desired),
-    drawnDelta,
-    onCutDelta: () => {},
-    onDrawnDelta: () => counts.apply(),
-    onDrawnMirrored: () => {},
+    selection: () => peekOnly(() => peeked),
   });
-  return { adopter, desired, shown, montre: (complete: boolean) => (peeked = releve(complete)) };
+  return { ...monte, montre: (complete: boolean) => (peeked = releve(complete)) };
 }
 
 test('une page voulue pas encore arrivée met l’image en attente, sans jeter la sélection GPU', () => {

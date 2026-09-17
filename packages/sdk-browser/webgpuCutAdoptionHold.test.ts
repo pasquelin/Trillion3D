@@ -1,62 +1,31 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createWebgpuCutAdopter } from './webgpuCutAdoption.ts';
-import { createCutDelta } from './webgpuCutDelta.ts';
-import { createCutCounts } from './webgpuCutCounts.ts';
-import type { GpuCut, GpuSelection, SelectionUniforms } from './gpuSelection.ts';
+import {
+  fixturePages,
+  fixtureUniforms,
+  mountCutAdopter,
+  peekOnly,
+} from './webgpuCutAdopterFixture.ts';
+import type { GpuCut } from './gpuSelection.ts';
 import type { PageRec } from './pageSelection.ts';
 
-const uniforms = (): SelectionUniforms => ({
-  planes: new Float32Array(24),
-  view: new Float32Array(16),
-  pixelScale: [1, 1],
-  pixelError: 0,
-  near: 0.1,
-  cameraWorld: [0, 0, 0],
-});
-
 function banc(ids: number[]) {
-  const packedPages: PageRec[] = ids.map(
-    (_, i) =>
-      ({
-        url: `p${i}`,
-        triangles: i + 1,
-        transparent: i % 3 === 2,
-        array: new Uint32Array(3),
-        packedIndex: i,
-      }) as unknown as PageRec,
-  );
-  const desired: PageRec[] = [],
-    shown: PageRec[] = [],
-    drawn: PageRec[] = [];
+  const packedPages = fixturePages(ids.length, (i) => i % 3 === 2);
   const residentOffsetWords = new Int32Array(packedPages.length).fill(0);
   const cut: GpuCut = {
-    uniforms: uniforms(),
+    uniforms: fixtureUniforms(),
     result: { pageIds: ids, drawablePageIds: ids, frustumRejected: 0, lodLevel: 0 },
   } as GpuCut;
   let peeked: GpuCut | null = cut;
-  const drawnDelta = createCutDelta(packedPages, []);
-  const counts = createCutCounts(packedPages, residentOffsetWords, drawnDelta);
-  const adopter = createWebgpuCutAdopter({
-    selection: () => ({ peek: () => peeked }) as unknown as GpuSelection,
+  const monte = mountCutAdopter({
     packedPages,
-    desired,
-    shown,
-    drawn,
-    uniforms: uniforms(),
-    counts,
-    delta: createCutDelta(packedPages, desired),
-    drawnDelta,
-    onCutDelta: () => {},
-    onDrawnDelta: () => counts.apply(),
-    onDrawnMirrored: () => {},
+    residentOffsetWords,
+    uniforms: fixtureUniforms(),
+    selection: () => peekOnly(() => peeked),
   });
   return {
-    adopter,
-    shown,
-    drawn,
+    ...monte,
     residentOffsetWords,
-    counts,
     packedPages,
     cut,
     montre: (next: GpuCut | null) => (peeked = next),

@@ -4,6 +4,7 @@ export { projectedPageError } from './pageSelectionDiagnostic.ts';
 export {
   resolvePixelError,
   pageRequestUrl,
+  catalogueIndexOf,
   RequestStamps,
   indexPagesByUrl,
   collectPendingUrls,
