@@ -1,5 +1,5 @@
 // Lot 4 : `visibilityShadingNormal.ts` réécrit sur les vecteurs plats du socle (`mathVector.ts`),
-// sans la bibliothèque hôte. Oracle : `bench/oracles/normale.mjs`, le fichier d'avant recopié tel
+// sans la bibliothèque hôte. Oracle : `bench/oracles/normale-ombrage.mjs`, le fichier d'avant recopié tel
 // quel avec ses `Vector3`/`Matrix3`. Le banc `bench/normale.bench.mjs` rejoue 42 000 repères ; ce
 // test en fixe une poignée en dur, dont deux qui font voir l'ordre des opérations :
 //   — une pose dont la première ligne vaut (1e16, −1e16, 3), traversée par des tangentes tout à un :
@@ -10,7 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { shadingNormal } from './visibilityShadingNormal.ts';
-import { referenceShadingNormal } from './bench/oracles/normale.mjs';
+import { referenceShadingNormal } from './bench/oracles/normale-ombrage.mjs';
 import type { VisMaterial, VisPage } from './visibilityTypes.ts';
 
 const attribut = (valeurs: number[], taille: number) =>

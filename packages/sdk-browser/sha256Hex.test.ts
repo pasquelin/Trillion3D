@@ -1,10 +1,10 @@
 // A14 : `toHex`/`sha256Hex` lisent une table de 256 chaînes hexadécimales déjà écrites au lieu d'un
 // `toString(16).padStart(2, '0')` par octet. Oracle : la version par `toString`, d'avant le lot A,
-// dans `bench/oracles/chargement.mjs`.
+// dans `bench/oracles/attributs-telemetrie.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { toHex } from './sha256Hex.ts';
-import { referenceHex } from './bench/oracles/chargement.mjs';
+import { referenceHex } from './bench/oracles/attributs-telemetrie.mjs';
 
 test('an empty digest is the empty string on both sides', () => {
   assert.equal(toHex(new Uint8Array(0)), '');

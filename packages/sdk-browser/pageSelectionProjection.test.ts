@@ -1,5 +1,5 @@
 // Lot 4c : les chemins à seuil nul décident sans projeter, et la distance partagée ne change pas
-// un bit. Oracle : le chemin général d'avant le lot, recopié dans `bench/oracles/coupe4c.mjs`.
+// un bit. Oracle : le chemin général d'avant le lot, recopié dans `bench/oracles/coupe-budget.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -19,7 +19,7 @@ import {
   referenceErrorFloorPixels,
   referenceProjectCentre,
   referenceProjectedClusterError,
-} from './bench/oracles/coupe4c.mjs';
+} from './bench/oracles/coupe-budget.mjs';
 
 const camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.25, 500);
 camera.position.set(3, 2, 9);
