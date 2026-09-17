@@ -16,6 +16,8 @@ import { createDenseKeySet } from './webgpuDenseKeys.ts';
  * des adresses est celle de tout le monde (`collectPendingUrls`), pas une recopie. L'appartenance à
  * la coupe est celle de la différence, à qui cet ensemble est attaché une fois pour toutes.
  */
+export type CutPending = ReturnType<typeof createCutPending>;
+
 export function createCutPending(packedPages: readonly PageRec[], delta: CutDelta) {
   /** Les fiches des pages qui manquent, tenues au rang de leur clé par l'ensemble lui-même. */
   const records: PageRec[] = [];

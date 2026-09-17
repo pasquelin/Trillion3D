@@ -49,11 +49,11 @@ export function mountCutAdopter(options: {
   const desired: PageRec[] = [],
     shown: PageRec[] = [],
     drawn: PageRec[] = [];
-  const drawnDelta = createCutDelta(packedPages, []);
+  const drawnPages: PageRec[] = [];
+  const drawnDelta = createCutDelta(packedPages, drawnPages);
   const counts = createCutCounts(packedPages, residentOffsetWords, drawnDelta);
   const adopter = createWebgpuCutAdopter({
     selection: options.selection,
-    packedPages,
     desired,
     shown,
     drawn,
@@ -61,6 +61,7 @@ export function mountCutAdopter(options: {
     counts,
     delta: createCutDelta(packedPages, desired),
     drawnDelta,
+    drawnPages,
     onCutDelta: () => {},
     onDrawnDelta: () => counts.apply(),
     onDrawnMirrored: options.onDrawnMirrored ?? (() => {}),
