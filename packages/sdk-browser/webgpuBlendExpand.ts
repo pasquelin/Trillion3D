@@ -119,8 +119,14 @@ export async function createBlendExpand(
       uploadKeep(packed: Uint32Array) {
         device.queue.writeBuffer(keep, 0, packed.buffer as ArrayBuffer, packed.byteOffset);
       },
-      /** L'ordre de peinture et ses tranches, écrits seulement quand le classement les a bougés. */
-      uploadPlan(region: { order: number; runs: number }, order: Uint32Array, runs: Uint32Array) {
+      /** L'ordre de peinture et ses tranches, écrits seulement quand le classement les a bougés —
+       *  et seulement les tranches que l'image porte, qui sont quelques-unes, pas quelques mille. */
+      uploadPlan(
+        region: { order: number; runs: number },
+        order: Uint32Array,
+        runs: Uint32Array,
+        runCount: number,
+      ) {
         if (!order.length) return;
         device.queue.writeBuffer(
           plan,
@@ -134,7 +140,7 @@ export async function createBlendExpand(
           region.runs * 4,
           runs.buffer as ArrayBuffer,
           runs.byteOffset,
-          order.length * RUN_WORDS * 4,
+          Math.max(1, runCount) * RUN_WORDS * 4,
         );
       },
       encode(
