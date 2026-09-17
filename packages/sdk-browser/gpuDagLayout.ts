@@ -89,6 +89,27 @@ export const OUT_COUNT = 0,
   OUT_DRAWN_TRIANGLES = 6,
   OUT_UNCOVERED_TRIANGLES = 7;
 
+/**
+ * Les quatre totaux de triangles posés dans l'entête, dans l'ordre que CE fichier fixe. `dagMask`
+ * les y écrit sur la carte (`gpuDagTotalsWgsl.ts`) ; tout ce qui tient lieu de carte doit les y
+ * écrire pareil, sans quoi l'adoption — qui lit la carte d'abord — prendrait un entête vide pour
+ * une image sans triangles.
+ */
+export function writeTriangleTotals(
+  ints: Uint32Array,
+  totaux: {
+    selectedTriangles?: number;
+    transparentTriangles?: number;
+    drawnTriangles?: number;
+    uncoveredTriangles?: number;
+  },
+) {
+  ints[OUT_SELECTED_TRIANGLES] = totaux.selectedTriangles ?? 0;
+  ints[OUT_TRANSPARENT_TRIANGLES] = totaux.transparentTriangles ?? 0;
+  ints[OUT_DRAWN_TRIANGLES] = totaux.drawnTriangles ?? 0;
+  ints[OUT_UNCOVERED_TRIANGLES] = totaux.uncoveredTriangles ?? 0;
+}
+
 /** Premier mot de la résidence, derrière l'enregistrement froid de toutes les grappes. */
 export const residentBase = (pageCount: number) => pageCount * COLD_WORDS;
 /** Mots de résidence : un bit par grappe, trente-deux grappes par mot. */

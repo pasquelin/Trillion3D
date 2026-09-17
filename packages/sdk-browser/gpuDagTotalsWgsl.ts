@@ -21,14 +21,40 @@ import { CLUSTER_TRANSPARENT } from './gpuDagLayout.ts';
  *
  * Ils décrivent la COUPE, jamais la liste qui la rapporte : un rang que le plafond du relevé refuse
  * ne retire rien d'un total. C'est ce qui leur permet de survivre à la disparition des listes.
+ *
+ * LA SOMME SE FAIT D'ABORD DANS LE GROUPE. Quatre mots uniques additionnés par CHAQUE grappe vivante
+ * sérialisent toute la carte sur quatre adresses : c'est le point chaud d'atomique classique, et il
+ * grandit avec la scène. Chaque groupe de 64 fils somme donc dans sa propre mémoire partagée — une
+ * atomique de groupe, sans trafic mémoire —, puis quatre de ses fils versent le sous-total dans les
+ * mots d'image. La carte passe de quatre additions globales par grappe à quatre par groupe, soit
+ * soixante-quatre fois moins de disputes, pour exactement les mêmes nombres.
  */
-export const DAG_TOTALS_WGSL = `fn noteImage(i:u32,flags:u32,voulu:bool,dessinee:bool,trou:bool){
+export const DAG_TOTALS_WGSL = `var<workgroup> totauxGroupe:array<atomic<u32>,4>;
+fn ouvreTotaux(lid:u32){
+ if(lid<4u){atomicStore(&totauxGroupe[lid],0u);}
+ workgroupBarrier();
+}
+fn noteImage(i:u32,flags:u32,voulu:bool,dessinee:bool,trou:bool){
  if(!voulu){return;}
  let tri=trianglesOf(i);
- atomicAdd(&out.selectedTriangles,tri);
- if((flags&${CLUSTER_TRANSPARENT}u)!=0u){atomicAdd(&out.transparentTriangles,tri);}
- if(dessinee){atomicAdd(&out.drawnTriangles,tri);}
- if(trou){atomicAdd(&out.uncoveredTriangles,tri);}
+ atomicAdd(&totauxGroupe[0],tri);
+ if((flags&${CLUSTER_TRANSPARENT}u)!=0u){atomicAdd(&totauxGroupe[1],tri);}
+ if(dessinee){atomicAdd(&totauxGroupe[2],tri);}
+ if(trou){atomicAdd(&totauxGroupe[3],tri);}
+}
+/** Quatre fils, un compteur chacun : le groupe ne verse rien quand il n'a rien compté. La barrière
+ *  est franchie par TOUS les fils du groupe, y compris ceux qui n'avaient pas de grappe. */
+fn verseTotaux(lid:u32){
+ workgroupBarrier();
+ if(lid>=4u){return;}
+ let v=atomicLoad(&totauxGroupe[lid]);
+ if(v==0u){return;}
+ switch lid{
+  case 0u:{atomicAdd(&out.selectedTriangles,v);}
+  case 1u:{atomicAdd(&out.transparentTriangles,v);}
+  case 2u:{atomicAdd(&out.drawnTriangles,v);}
+  default:{atomicAdd(&out.uncoveredTriangles,v);}
+ }
 }
 fn resetTotaux(){
  atomicStore(&out.selectedTriangles,0u);atomicStore(&out.transparentTriangles,0u);

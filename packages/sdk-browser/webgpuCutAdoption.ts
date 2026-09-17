@@ -118,14 +118,17 @@ export function createWebgpuCutAdopter(options: {
       shownCut = cut;
       shownSeq = drawnSeq;
     }
-    // Les totaux décrivent l'ensemble que la différence vient de poser, c'est-à-dire exactement les
-    // enregistrements de `shown` : ils se lisent, ils ne se recomptent pas.
-    const counts = options.counts.totals;
+    // LA CARTE D'ABORD. Elle a compté les triangles là où le verdict est prononcé, dans `dagMask`,
+    // et les a fait voyager dans l'entête du relevé (`gpuDagTotalsWgsl.ts`) : ils décrivent la coupe
+    // et non la liste qui la rapporte. La somme processeur ne sert plus qu'à ce qui n'a pas de
+    // carte — le repli de `adoptCpuCut` —, et c'est le seul cas où l'entête ne les porte pas.
+    const gpu = cut.result.selectedTriangles;
+    const counts = gpu === undefined ? options.counts.totals : cut.result;
     metrics.ready = true;
-    metrics.selectedTriangles = counts.selectedTriangles;
-    metrics.uncoveredTriangles = counts.uncoveredTriangles;
-    metrics.drawnTriangles = counts.drawnTriangles;
-    metrics.transparentTriangles = counts.transparentTriangles;
+    metrics.selectedTriangles = counts.selectedTriangles ?? 0;
+    metrics.uncoveredTriangles = counts.uncoveredTriangles ?? 0;
+    metrics.drawnTriangles = counts.drawnTriangles ?? 0;
+    metrics.transparentTriangles = counts.transparentTriangles ?? 0;
     metrics.frustumRejected = cut.result.frustumRejected;
     metrics.lodLevel = cut.result.lodLevel;
     return true;
