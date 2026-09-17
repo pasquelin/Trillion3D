@@ -121,30 +121,36 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  for(var i=0u;i<6u;i++){frames[base+i]=t*uni.planes[i];}
 }
 @compute @workgroup_size(64)
-fn dagMask(@builtin(global_invocation_id) id:vec3u){
- let s=id.x;if(s>=liveCount()){return;}
- let i=liveAt(s);
- let cluster=clusters[i];
- var draw=false;
- var trou=false;
- if(!coneRejected(i)){
-  let w=cluster.worldIndex;
-  if(uni.residentCut!=0u&&(atomicLoad(&work[uni.worldCount+w])!=0u||pruneCrossed(w))){
-   // No resident ancestor replaces the missing cluster: this primitive falls back to its pinned roots.
-   draw=(cluster.flags&1u)!=0u;
-   if(draw&&!isResident(i)){atomicOr(&out.overflow,2u);draw=false;trou=true;}
-  }else{
-   let e=uni.view*worlds[w];
-   let threshold=select(uni.pixelError,bitcast<f32>(atomicLoad(&work[w])),uni.residentCut!=0u);
-   draw=selects(cluster,e,stretchOf(w),focalPixels(),threshold);
-   if(draw&&uni.residentCut!=0u&&!isResident(i)){atomicOr(&out.overflow,2u);draw=false;trou=true;}
+fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lid:u32){
+ // Les totaux se somment d'abord dans le groupe (\`gpuDagTotalsWgsl.ts\`), donc TOUS les fils du
+ // groupe franchissent les deux barrières : le fil sans grappe ne sort pas tôt, il ne fait rien.
+ ouvreTotaux(lid);
+ let s=id.x;
+ if(s<liveCount()){
+  let i=liveAt(s);
+  let cluster=clusters[i];
+  var draw=false;
+  var trou=false;
+  if(!coneRejected(i)){
+   let w=cluster.worldIndex;
+   if(uni.residentCut!=0u&&(atomicLoad(&work[uni.worldCount+w])!=0u||pruneCrossed(w))){
+    // No resident ancestor replaces the missing cluster: this primitive falls back to its pinned roots.
+    draw=(cluster.flags&1u)!=0u;
+    if(draw&&!isResident(i)){atomicOr(&out.overflow,2u);draw=false;trou=true;}
+   }else{
+    let e=uni.view*worlds[w];
+    let threshold=select(uni.pixelError,bitcast<f32>(atomicLoad(&work[w])),uni.residentCut!=0u);
+    draw=selects(cluster,e,stretchOf(w),focalPixels(),threshold);
+    if(draw&&uni.residentCut!=0u&&!isResident(i)){atomicOr(&out.overflow,2u);draw=false;trou=true;}
+   }
   }
+  let posee=select(0u,1u,draw);
+  flags[uni.nodeCount+i]=posee;
+  noteImage(i,cluster.flags,draw||trou,draw,trou);
+  // Le compte de dessinées du bloc de cette page, tenu ici plutôt que relu ensuite page par page.
+  if(posee!=0u){atomicAdd(&work[blockBase()+i/BLOCK],1u);drawnAppend(i);}
  }
- let posee=select(0u,1u,draw);
- flags[uni.nodeCount+i]=posee;
- noteImage(i,cluster.flags,draw||trou,draw,trou);
- // Le compte de dessinées du bloc de cette page, tenu ici plutôt que relu ensuite page par page.
- if(posee!=0u){atomicAdd(&work[blockBase()+i/BLOCK],1u);drawnAppend(i);}
+ verseTotaux(lid);
 }
 ${DAG_ERROR_WGSL}
 ${INVERSE_TRANSPOSE_WGSL}
