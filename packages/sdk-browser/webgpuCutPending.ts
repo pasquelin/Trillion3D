@@ -2,8 +2,6 @@ import type { PageRec } from './pageSelection.ts';
 import type { CutDelta } from './webgpuCutDelta.ts';
 import { createDenseKeySet } from './webgpuDenseKeys.ts';
 
-export type CutPending = ReturnType<typeof createCutPending>;
-
 /**
  * Les pages de la coupe demandée qui n'ont pas encore leurs octets, tenues d'une image à l'autre.
  *
@@ -18,7 +16,7 @@ export type CutPending = ReturnType<typeof createCutPending>;
  * coupe est celle de la différence, à qui cet ensemble est attaché une fois pour toutes.
  */
 export function createCutPending(packedPages: readonly PageRec[], delta: CutDelta) {
-  const missing = createDenseKeySet(Math.max(1, packedPages.length));
+  const missing = createDenseKeySet(packedPages.length);
   /** Les rangs de l'ensemble : lus à même le tableau, l'appel est réservé à ce qui bouge. */
   const slots = missing.slots;
   return {

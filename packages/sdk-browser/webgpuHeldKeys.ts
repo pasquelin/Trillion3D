@@ -46,14 +46,5 @@ export function createHeldKeys(options: {
         retain(key, id);
       }
     },
-    /** Lets everything go at once: the cut this index described no longer decides the image. */
-    clear() {
-      for (let i = held.count - 1; i >= 0; i--) {
-        const key = held.list[i];
-        refs[key] = 0;
-        release(key);
-      }
-      held.clear();
-    },
   };
 }
