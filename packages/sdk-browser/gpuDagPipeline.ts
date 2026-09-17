@@ -46,7 +46,7 @@ export async function createDagPipeline(device: GPUDevice, buffers: DagBuffers) 
     device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
   const preparePipeline = stage('dagPrepare'),
     clearDrawnPipeline = stage('dagClearDrawn');
-  const levelPipelines = [stage('dagLevel0'), stage('dagLevel1')];
+  const levelPipelines = [stage('dagLevel0'), stage('dagLevel1'), stage('dagLevel2')];
   const wantedPipeline = stage('dagWanted'),
     escalatePipeline = stage('dagEscalate'),
     checkPipeline = stage('dagCheck'),

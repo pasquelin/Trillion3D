@@ -1,105 +1,13 @@
 // La coupe ne visite plus aucune grappe à plat : la descente par niveaux se répartit sur la file que
 // le niveau précédent a remplie, `dagWanted` sur les seules pages candidates, et les noyaux qui le
-// suivent sur la liste des grappes vivantes. Ce fichier tient le contrat d'encodage qui le porte —
-// dont le nombre de lancements, seul responsable de l'attente que les horodatages n'attribuent à
-// aucun noyau, et qui ne dépend plus que de la profondeur de la hiérarchie.
+// suivent sur la liste des grappes vivantes. Ce fichier tient la liste que chaque noyau parcourt ;
+// `gpuDagEncode.test.ts` tient le nombre de commandes qu'une image ouvre.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { encodeDagKernels } from './gpuDagEncode.ts';
 import { DAG_SELECTION_SHADER } from './gpuDagSelection.ts';
 import { ESCALATION_ROUNDS } from './pageSelectionTypes.ts';
-
-/** `liste` : le décalage du compte de groupes armé avant le lancement, donc la liste parcourue. */
-type Lancement = { noyau: string; groupes: number | 'indirect'; liste?: number };
-type Copie = { de: string; decalage: number; vers: string; octets: number; enPasse: boolean };
-
-const LIVE = 1234,
-  RESET = [1996, 2004],
-  QUEUE = [2000, 2008],
-  CAND = 3000,
-  DRAWN = 4000;
-
-/** Un encodeur qui ne fait que noter : quel noyau, lancé à plat ou sur quelle liste. */
-function encodeurTemoin() {
-  const lancements: Lancement[] = [];
-  const copies: Copie[] = [];
-  const passes: string[] = [];
-  let noyau = '';
-  let arme = -1;
-  let ouverte = false;
-  const pass = {
-    setBindGroup() {},
-    setPipeline(next: { entryPoint: string }) {
-      noyau = next.entryPoint;
-    },
-    dispatchWorkgroups(groupes: number) {
-      lancements.push({ noyau, groupes });
-    },
-    dispatchWorkgroupsIndirect(buffer: { nom: string }, decalage: number) {
-      assert.equal(buffer.nom, 'dispatchArgs');
-      assert.equal(decalage, 0);
-      lancements.push({ noyau, groupes: 'indirect', liste: arme });
-    },
-    end() {
-      ouverte = false;
-    },
-  };
-  const encoder = {
-    beginComputePass(descriptor: { label: string }) {
-      passes.push(descriptor.label);
-      ouverte = true;
-      return pass;
-    },
-    copyBufferToBuffer(
-      de: { nom: string },
-      decalage: number,
-      vers: { nom: string },
-      _cible: number,
-      octets: number,
-    ) {
-      copies.push({ de: de.nom, decalage, vers: vers.nom, octets, enPasse: ouverte });
-      if (vers.nom === 'dispatchArgs') arme = decalage;
-    },
-  };
-  return { encoder, lancements, copies, passes };
-}
-
-const PIPELINES = [
-  'prepare',
-  'clearDrawn',
-  'wanted',
-  'escalate',
-  'check',
-  'mask',
-  'drawPrefix',
-  'drawScatter',
-] as const;
-
-function ressources(residentCut: boolean, levelCount = 3, pageCount = 4096) {
-  const base = {
-    residentCut,
-    pageCount,
-    nodeCount: 64,
-    worldCount: 2,
-    blockCount: 64,
-    levelCount,
-    liveGroupsOffset: LIVE,
-    queueResetOffset: RESET,
-    queueGroupsOffset: QUEUE,
-    candGroupsOffset: CAND,
-    drawnGroupsOffset: DRAWN,
-    work: { nom: 'work' },
-    zeros: { nom: 'zeros' },
-    dispatchArgs: { nom: 'dispatchArgs' },
-    bindGroup: {},
-    levelPipelines: [{ entryPoint: 'dagLevel0' }, { entryPoint: 'dagLevel1' }],
-  };
-  for (const nom of PIPELINES)
-    Object.assign(base, {
-      [`${nom}Pipeline`]: { entryPoint: `dag${nom[0].toUpperCase()}${nom.slice(1)}` },
-    });
-  return base as unknown as Parameters<typeof encodeDagKernels>[1];
-}
+import { encodeurTemoin, ressources, LIVE, QUEUE, CAND } from './gpuDagEncodeFixture.ts';
 
 test('chaque noyau de la coupe se répartit sur la liste que le précédent a remplie', () => {
   const { encoder, lancements } = encodeurTemoin();
@@ -117,10 +25,10 @@ test('chaque noyau de la coupe se répartit sur la liste que le précédent a re
   assert.deepEqual(lancements.slice(2, 5), [
     { noyau: 'dagLevel0', groupes: 1 },
     { noyau: 'dagLevel1', groupes: 'indirect', liste: QUEUE[1] },
-    { noyau: 'dagLevel0', groupes: 'indirect', liste: QUEUE[0] },
+    { noyau: 'dagLevel2', groupes: 'indirect', liste: QUEUE[2] },
   ]);
   const ordre = lancements.map((l) => l.noyau);
-  assert.ok(ordre.indexOf('dagWanted') > ordre.lastIndexOf('dagLevel0'));
+  assert.ok(ordre.indexOf('dagWanted') > ordre.lastIndexOf('dagLevel2'));
   assert.ok(ordre.indexOf('dagEscalate') > ordre.indexOf('dagWanted'));
   // Seules la préparation, la passe 0 et le préfixe restent à plat : leur compte est celui des
   // primitives ou des blocs, jamais celui des grappes.
@@ -150,24 +58,6 @@ test("l'attente entre lancements ne dépend que de la profondeur, pas du nombre 
   assert.equal(profond.lancements.length, lancements.length + 1);
 });
 
-test("l'argument de répartition est recopié hors passe, entre deux passes de la coupe", () => {
-  const { encoder, copies, passes } = encodeurTemoin();
-  encodeDagKernels(encoder as unknown as GPUCommandEncoder, ressources(true));
-  // WebGPU refuse `work` à la fois en écriture et en argument dans une même portée : chaque armement
-  // coupe donc la passe, et ne porte que le mot de tête, les deux autres valant un depuis la
-  // création. Les remises à zéro de compteur de file sortent par la même porte.
-  assert.deepEqual(copies, [
-    { de: 'work', decalage: DRAWN, vers: 'dispatchArgs', octets: 4, enPasse: false },
-    { de: 'zeros', decalage: 0, vers: 'work', octets: 8, enPasse: false },
-    { de: 'work', decalage: QUEUE[1], vers: 'dispatchArgs', octets: 4, enPasse: false },
-    { de: 'zeros', decalage: 0, vers: 'work', octets: 8, enPasse: false },
-    { de: 'work', decalage: QUEUE[0], vers: 'dispatchArgs', octets: 4, enPasse: false },
-    { de: 'work', decalage: CAND, vers: 'dispatchArgs', octets: 4, enPasse: false },
-    { de: 'work', decalage: LIVE, vers: 'dispatchArgs', octets: 4, enPasse: false },
-  ]);
-  assert.deepEqual(passes, new Array(5).fill('WG DAG selection'));
-});
-
 test('sans coupe résidente, le masque suit la liste et les escalades ne sont pas encodées', () => {
   const { encoder, lancements } = encodeurTemoin();
   encodeDagKernels(encoder as unknown as GPUCommandEncoder, ressources(false));
@@ -179,6 +69,7 @@ test('sans coupe résidente, le masque suit la liste et les escalades ne sont pa
   assert.equal(masque?.liste, LIVE);
   // La descente, elle, est encodée dans les deux cas : elle ne dépend pas de la résidence.
   assert.ok(noyaux.includes('dagLevel0') && noyaux.includes('dagLevel1'));
+  assert.ok(noyaux.includes('dagLevel2'));
 });
 
 test('les noyaux de la liste lisent leur grappe dans la liste, pas dans leur identifiant de fil', () => {
