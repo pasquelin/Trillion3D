@@ -19,8 +19,8 @@ export default {
     'packages/*/bench/*.perf.mjs',
     'test/justesse/*.mjs',
     'scripts/mesure/perf/*.mjs',
-    'test/*.test.mjs',
-    'test/*.browser.mjs',
+    'test/integration/*.test.mjs',
+    'test/browser/*.browser.mjs',
   ],
   project: [
     'packages/**/*.{ts,mts,mjs,js}',

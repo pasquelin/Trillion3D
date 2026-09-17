@@ -9,7 +9,7 @@
 // arithmétique. Il éprouve le CALCUL — `xformNormal` = uniteOuZero(inverseTranspose3(mat3(world), n))
 // — sur le modèle f32 de `test/justesse/inverseTransposeF32.mjs` : la rotation suivie à toute
 // échelle, les poses singulières — aplaties puis effondrées — et le seuil franchi des deux côtés.
-// Ce modèle n'est pas le nuanceur : `test/normalTransformArithmetique.browser.mjs` exécute le texte
+// Ce modèle n'est pas le nuanceur : `test/browser/normalTransformArithmetique.browser.mjs` exécute le texte
 // livré dans Chromium WebGPU sur EXACTEMENT ces cas (`test/justesse/normalTransformCas.mjs`) et
 // exige qu'il rende ce que le modèle rend — c'est là, aussi, qu'un nuanceur qui ne compile pas fait
 // échouer la preuve. Restent ici les seuls contrôles de texte qui portent sur la COMPILATION et

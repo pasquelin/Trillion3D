@@ -10,7 +10,7 @@ import {
   referenceExactPagesBounds,
   referenceIndexManifestPages,
   referenceIndexManifestBundles,
-} from './bench/oracles/scene-chargement.mjs';
+} from './bench/oracles/bornes-et-index.mjs';
 import type { ClusterManifest, Page, Primitive } from '../sdk-core/index.ts';
 
 const manifest = { primitives: [] } as unknown as ClusterManifest;

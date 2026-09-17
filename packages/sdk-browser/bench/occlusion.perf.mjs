@@ -1,10 +1,10 @@
-// A3 et A4 : partage des occulteurs et test d'occlusion d'une coupe entière.
+// partage des occulteurs et test d'occlusion d'une coupe entière.
 import { createHizCounts } from '../hizCounts.ts';
 import { countUnoccluded } from '../hizUnoccluded.ts';
 import { splitOccludersInto } from '../hizSplit.ts';
 import { buildHizPyramid } from '../hizDepth.ts';
-import { graine, mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
-import { boites, camera } from './scenes.mjs';
+import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
+import { boites, camera } from './appui/scenes.mjs';
 import { referenceCountUnoccluded, referenceSplitOccluders } from './oracles/occlusion.mjs';
 import { cameraMoteur } from '../cameraFixture.ts';
 
@@ -30,7 +30,7 @@ const occluders = [],
   rest = [];
 
 const resSplit = await mesure({
-  nom: 'A3 splitOccluders',
+  nom: 'splitOccluders',
   fichier: 'packages/sdk-browser/hizSplit.ts',
   cas: jeux,
   calcul: (pages) => {
@@ -45,7 +45,7 @@ const resSplit = await mesure({
 });
 
 const resCount = await mesure({
-  nom: 'A4 countUnoccluded',
+  nom: 'countUnoccluded',
   fichier: 'packages/sdk-browser/hizUnoccluded.ts',
   cas: jeux,
   calcul: (pages) => {
@@ -68,9 +68,11 @@ const resCount = await mesure({
 await stress({
   nom: 'splitOccludersInto extremes',
   calcul: (p) => splitOccludersInto(p, cameraMoteur(cam), viewport, [], []),
-  extremes: [
-    { nom: 'vide', entree: [] },
-  ],
+  extremes: [{ nom: 'vide', entree: [] }],
 });
 
-rapport('occlusion', [resSplit, resCount], 'A3 et A4 isolent les mêmes occulteurs et rejettent les mêmes boîtes');
+rapport(
+  'occlusion',
+  [resSplit, resCount],
+  'A3 et A4 isolent les mêmes occulteurs et rejettent les mêmes boîtes',
+);
