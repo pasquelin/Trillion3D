@@ -41,15 +41,9 @@ pub(super) fn stage_textures(
     let entries = cutout::entries(stage.g, &previews, &shapes, stage.decisions, &weights);
     let sheet = stage.o.cache.join(cutout::DECISIONS_FILE);
     let page = stage.o.cache.join(cutout::PAGE_FILE);
-    let model = stage
-        .o
-        .cache
-        .file_name()
-        .map(|name| name.to_string_lossy().to_string())
-        .unwrap_or_default();
     let written = cutout::build_sheet(&entries, stage.decisions);
     cutout::write_sheet(&sheet, &written)?;
-    cutout::write_page(&page, &entries, &written, &model)?;
+    cutout::write_page(&page, &entries, &written, &sheet)?;
     let pending = entries
         .iter()
         .filter(|entry| entry.answer.is_none())
