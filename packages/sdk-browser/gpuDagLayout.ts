@@ -21,7 +21,7 @@
 /** Mots de l'enregistrement chaud ; le nuanceur déclare `struct Cluster` avec exactement ces champs. */
 export const CLUSTER_WORDS = 12;
 /** Mots de l'enregistrement froid ; `PAGE_CONE_FLOATS` de `gpuSelection.ts` en est le miroir public. */
-export const COLD_WORDS = 12;
+const COLD_WORDS = 12;
 export const CLUSTER_ROOT = 1,
   CLUSTER_NEVER = 2;
 /** Le niveau de détail voyage dans les bits hauts des drapeaux : une seule passe le lit, à l'émission. */
