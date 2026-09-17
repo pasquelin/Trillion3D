@@ -19,6 +19,8 @@ import assert from 'node:assert/strict';
 import { orderBlendPasses } from '../webgpuBlendOrder.ts';
 import { expandBlendPlan } from '../webgpuBlendExpandCpu.ts';
 import { compare, verifieEtDepose } from '../../sdk-core/bench/banc.mjs';
+import { itemKept } from '../webgpuBlendExpandCpu.ts';
+import { RUN_SHARED, RUN_WORDS } from '../webgpuBlendRuns.ts';
 import { cote, glisse, ITEMS, pose, regimes, spans } from './scenesTransparents.mjs';
 import {
   argumentsReference,
@@ -30,6 +32,13 @@ const referenceEtat = cote(),
   optimiseeEtat = cote();
 /** Ce que la boucle d'encodage a compté sur le dernier tour : lu plus bas, jamais perdu en route. */
 let appelsEncodes = 0;
+
+/** La règle d'encodage de `webgpuBlendDraw.ts` : une tranche qui nomme son item et que le tronc
+ *  rejette n'est pas encodée ; une tranche qui en fusionne plusieurs l'est toujours. */
+function encodee(blendState, run) {
+  const owner = blendState.runsBlend[run * RUN_WORDS + 3];
+  return owner === RUN_SHARED || itemKept(blendState.keepPacked, owner);
+}
 
 /** Le chemin d'avant : classement, arguments de tous les items, un appel par entrée. */
 function tourReference(images, sequence) {
@@ -59,7 +68,7 @@ function tourOptimisee(images, sequence) {
     }
     appelsEncodes = 0;
     for (let run = 0; run < blendState.runCount[0]; run++)
-      if (blendState.runKept[0][run]) appelsEncodes++;
+      if (encodee(blendState, run)) appelsEncodes++;
     sortie.push(rejets);
   }
   return sortie;

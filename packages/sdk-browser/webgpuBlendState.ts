@@ -128,8 +128,6 @@ export function createWebgpuBlendState() {
     runsBlend: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
     runsTransmission: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
     runCount: [0, 0],
-    /** Les entrées que le tronc garde dans chaque tranche : une tranche vide n'est pas encodée. */
-    runKept: [new Uint32Array(0), new Uint32Array(0)] as Uint32Array<ArrayBuffer>[],
     /** L'ordre a-t-il bougé depuis la dernière écriture ? Une pose immobile n'écrit rien. */
     orderMoved: [true, true],
     /** Triangles que les items non paginés soumettent dans chaque passe, deux fois pour un item

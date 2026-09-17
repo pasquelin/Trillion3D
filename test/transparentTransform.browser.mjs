@@ -47,17 +47,9 @@ for (const [passe, etapes] of Object.entries(resultat.passes)) {
     !hors.rouge[GAUCHE] && !hors.rouge[DROITE],
     dit('hors-champ', 'le transparent est resté visible'),
   );
+  assert.equal(hors.dessins, 0, dit('hors-champ', 'des dessins ont été émis pour lui'));
   assert.ok(hors.rejetes >= 1, dit('hors-champ', 'le tronc ne l’a pas rejeté'));
   const retour = de('retour');
-  // Hors champ, la carte met à zéro les instances de ce que le tronc rejette, et l'écran le dit
-  // déjà : aucune sonde n'est rouge. Ce qu'il reste à encoder tient à la TRANCHE — une primitive
-  // qui porte ses propres tampons en a une à elle, et elle n'est pas encodée du tout ; une
-  // primitive paginée partage la sienne avec ses voisines, et l'appel subsiste, vide.
-  assert.equal(
-    hors.dessins,
-    passe === 'pagine' ? retour.dessins : 0,
-    dit('hors-champ', 'la tranche hors champ n’est pas celle qu’on attend'),
-  );
   assert.ok(retour.rouge[GAUCHE], dit('retour', 'le transparent n’est pas revenu'));
   assert.ok(retour.dessins >= 1, dit('retour', 'aucun dessin de retour'));
   const stables = etapes.filter((e) => e.nom.startsWith('stabilisation-'));

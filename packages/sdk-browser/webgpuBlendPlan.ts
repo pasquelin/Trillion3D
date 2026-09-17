@@ -98,7 +98,6 @@ export function buildBlendStatics(blendState: BlendState) {
   blendState.planRegions = planRegions(entries);
   blendState.runsBlend = new Uint32Array(entries * RUN_WORDS);
   blendState.runsTransmission = new Uint32Array(entries * RUN_WORDS);
-  blendState.runKept = [new Uint32Array(entries), new Uint32Array(entries)];
 }
 
 /** Les deux entrees de plan d'un item double face, dans l'ordre que la passe encodait : dos, face. */
