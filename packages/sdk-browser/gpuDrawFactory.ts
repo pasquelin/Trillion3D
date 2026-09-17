@@ -3,7 +3,7 @@ import { createGpuDrawBuffers } from './gpuDrawBuffers.ts';
 import type { GpuDraw } from './gpuDrawContract.ts';
 import { dropValidation, openValidation, validationError } from './gpuErrorScope.ts';
 import { shaderFailed } from './gpuShaderModule.ts';
-import { drawShader } from './gpuDrawShader.ts';
+import { drawBindEntries, drawShader } from './gpuDrawShader.ts';
 
 /**
  * Stable GPU compact into one drawIndirect command per slot. `layerSlots` is one plus the deepest
@@ -25,19 +25,7 @@ export async function createGpuDraw(
     const { groupCounts, groupOffsets, slotUsedBuf } = allocated;
     buffers.push(...allocated.all);
     openValidation(device);
-    const layout = device.createBindGroupLayout({
-      entries: [
-        { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-        { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
-        { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-        { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-        { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-        { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-        { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-        { binding: 7, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-        { binding: 8, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-      ],
-    });
+    const layout = device.createBindGroupLayout({ entries: drawBindEntries() });
     const module = device.createShaderModule({ code: drawShader(layerSlots) });
     if (await shaderFailed(device, module)) {
       for (const buffer of buffers) buffer.destroy();

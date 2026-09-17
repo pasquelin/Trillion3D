@@ -23,6 +23,31 @@ import { BASE_SLOTS, slotCount } from './gpuDrawContract.ts';
  * `bench/oracles/gpuDrawPrefixOracle.ts` porte les deux noyaux et `gpuDrawPrefixEquivalence.test.ts`
  * la preuve.
  */
+/** `GPUShaderStage.COMPUTE`, écrit en clair : ce module est aussi lu depuis Node, sans ce global. */
+const COMPUTE = 4;
+
+/**
+ * Les liaisons du groupe 0, publiées sous le WGSL qui les déclare. La disposition de production et
+ * la preuve navigateur les LISENT ici — aucune ne les recopie, donc aucune ne peut prendre du
+ * retard sur le nuanceur. C'est cet écart qui avait rendu `dessin-webgpu.browser.mjs` rouge : sa
+ * copie s'arrêtait à `@binding(6)` pendant que `restBits` et `slotUsed` entraient en 7 et 8.
+ */
+export function drawBindEntries(): GPUBindGroupLayoutEntry[] {
+  const lecture = { type: 'read-only-storage' } as const;
+  const ecriture = { type: 'storage' } as const;
+  return [
+    { binding: 0, visibility: COMPUTE, buffer: lecture },
+    { binding: 1, visibility: COMPUTE, buffer: { type: 'uniform' } },
+    { binding: 2, visibility: COMPUTE, buffer: ecriture },
+    { binding: 3, visibility: COMPUTE, buffer: ecriture },
+    { binding: 4, visibility: COMPUTE, buffer: ecriture },
+    { binding: 5, visibility: COMPUTE, buffer: ecriture },
+    { binding: 6, visibility: COMPUTE, buffer: lecture },
+    { binding: 7, visibility: COMPUTE, buffer: lecture },
+    { binding: 8, visibility: COMPUTE, buffer: lecture },
+  ];
+}
+
 export const drawShader = (layerSlots: number) => {
   const slots = slotCount(layerSlots);
   const top = Math.max(0, Math.max(1, layerSlots) - 1);
