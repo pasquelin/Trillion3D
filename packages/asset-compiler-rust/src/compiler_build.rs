@@ -13,6 +13,8 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     // Le routeur choisit le pilote du format et lui fait produire la scène intermédiaire ; tout ce
     // qui suit ne lit qu'un glTF, sans savoir de quel format il vient.
     let progress = with_ratio(progress);
+    // Les réponses sur les découpes, lues avant toute conversion (`cutout.rs`).
+    let decisions = cutout::load_decisions(&o.cache, &o.source)?;
     let routed: RoutedSource = plugins::scene::prepare_source(o, &progress)?;
     // La racine où les URI relatives d'images se résolvent, lue avant tout déplacement de `o.source`
     // vers le cache : une scène convertie l'y a écrite, ses images sont restées où le pilote les a lues.
@@ -27,28 +29,30 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     } else {
         o
     };
-    let loaded = load_runtime(o, &routed.scene)?;
+    let mut loaded = load_runtime(o, &routed.scene)?;
     let bin = loaded.binary.bytes();
-    let g = &loaded.g;
     let g_bytes = &loaded.g_bytes;
     let manifest = &loaded.manifest;
-    // L'identité du produit, et non les octets bruts de ce que la source déclare : les mesures d'une
-    // conversion en sortent, les images que la scène cite y entrent.
-    let key = compiler_identity::cache_key(o, &loaded, &image_root)?;
-    let mesh_values = values(g, "meshes")?;
-    let view_values = values(g, "bufferViews")?;
     // Une hiérarchie qui se referme sur elle-même est refusée avant toute publication : le parcours
     // des matrices monde part des nœuds sans père, et ne verrait jamais un cycle fermé.
-    compiler_nodes::check_acyclic(g)?;
+    compiler_nodes::check_acyclic(&loaded.g)?;
     // L'ensemble des nœuds de la scène rendue, partagé par la sélection, le proxy et les lampes.
-    let scene_nodes = compiler_nodes::scene_nodes(g)?;
+    let scene_nodes = compiler_nodes::scene_nodes(&loaded.g)?;
     let NodeSelection {
         chosen,
         selected_triangles,
         skinned_meshes,
         meshes,
         mesh_map,
-    } = select_nodes(o, g, &scene_nodes)?;
+    } = select_nodes(o, &loaded.g, &scene_nodes)?;
+    // Les découpes tranchées passent en masqué avant que le moindre matériau soit lu (`cutout.rs`).
+    let cutouts = cutout::apply_decisions(&mut loaded.g, bin, &image_root, &meshes, &decisions)?;
+    let g = &loaded.g;
+    // L'identité du produit, et non les octets bruts de ce que la source déclare : les mesures d'une
+    // conversion en sortent, les images que la scène cite y entrent, les réponses aussi.
+    let key = compiler_identity::cache_key(o, &loaded, &image_root, &cutouts.identity)?;
+    let mesh_values = values(g, "meshes")?;
+    let view_values = values(g, "bufferViews")?;
     let BufferPlan {
         accessors,
         jobs,
@@ -123,17 +127,21 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         output_views: &output_views,
         offset,
     })?;
-    // Les aperçus 16×16 des textures couleur, lus sur le glTF d'entrée et son binaire déjà mappé :
-    // un décodage impossible est une ligne de rapport, jamais un échec de compilation.
-    let (texture_previews, texture_preview_report) =
-        texture_preview::stage_texture_previews(&texture_preview::PreviewInputs {
+    // Les aperçus des textures couleur, et la feuille des découpes que leur décodage mesure.
+    let (texture_previews, texture_preview_report, cutout_report) = stage_textures(
+        &TextureStage {
             o,
             g,
             bin,
             image_root: &image_root,
             meshes: &meshes,
             view_map: &view_map,
-        })?;
+            decisions: &decisions,
+            applied: &cutouts,
+            primitives: &primitives,
+        },
+        &progress,
+    )?;
     // Le proxy résident se construit ici : les coupes grossières sont en main, les aperçus de
     // texture aussi, et c'est le dernier endroit où la hiérarchie de nœuds qui les place existe.
     let scene_proxy = {
@@ -168,7 +176,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     )?;
     let unsupported = compiler_format::unsupported(&o.simplification, autonomous_refusal);
     let cache_format = compiler_format::cache_format(&primitives);
-    let mut result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"status":"ready","key":key,"scenePlugin":routed.plugin.map(plugins::provenance),"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"texturePreviews":texture_preview_report,"proxy":proxy_descriptor,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":shared_math::elapsed_ms(cluster_start),"compileMs":shared_math::elapsed_ms(started),"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phaseElapsedMs":phases.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
+    let mut result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"status":"ready","key":key,"scenePlugin":routed.plugin.map(plugins::provenance),"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"texturePreviews":texture_preview_report,"cutouts":cutout_report,"proxy":proxy_descriptor,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":shared_math::elapsed_ms(cluster_start),"compileMs":shared_math::elapsed_ms(started),"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phaseElapsedMs":phases.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
     publish(
         &Publication {
             o,

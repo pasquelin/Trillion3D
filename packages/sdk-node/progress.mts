@@ -30,6 +30,13 @@ const PHASES: Record<string, (event: CompilerEvent, state: PhaseState) => string
   primitive: (e, s) =>
     `clustering ${s.primitives}${s.primitivesTotal ? `/${s.primitivesTotal}` : ''} primitives`,
   bootstrap: (e) => `root bundles ${e.completed}/${e.total}`,
+  // Les découpes se tranchent à la main : la ligne dit combien de textures attendent une réponse et
+  // où se trouve la page qui sert à la donner, sinon personne ne saurait qu'il y a quelque chose à
+  // faire. Rien à trancher est une ligne aussi : la feuille existe pour tous les modèles.
+  cutouts: (e) =>
+    Number(e.pending ?? 0) > 0
+      ? `${e.pending} texture(s) to review: open ${e.page}`
+      : 'cutouts up to date',
   prune: (e) => `pruning cache (${e.removedKeys} keys, ${mb(e.removedBytes)})`,
   complete: () => 'writing pointer',
 };
