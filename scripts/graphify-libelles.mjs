@@ -8,8 +8,9 @@
  * nommée, et le nom retourne au groupe qui en contient le plus.
  *
  * Les communautés sans correspondance prennent `dossier · nœud dominant`, lisible à défaut
- * d'être métier. Le rapport ne voit ses noms que dans ses titres `### Community N` ; ce sont
- * donc les seuls à réécrire.
+ * d'être métier. Trois fichiers portent le nom : `.graphify_labels.json` pour les exports, le
+ * champ `community_name` de chaque nœud du graphe pour `graphify query`, et les titres
+ * `### Community N` du rapport — les seuls endroits où il apparaît.
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { basename, dirname, relative, isAbsolute } from 'node:path';
@@ -95,6 +96,19 @@ export function reecrireRapport(rapport, libelles) {
   });
 }
 
+/** Réinscrit le nom dans chaque nœud : c'est là que `graphify query` et `explain` le lisent. */
+export function renommerLesNoeuds(graphe, libelles) {
+  let touches = 0;
+  for (const nœud of graphe.nodes) {
+    const nom = libelles.get(nœud.community);
+    if (nom && nœud.community_name !== nom) {
+      nœud.community_name = nom;
+      touches += 1;
+    }
+  }
+  return touches;
+}
+
 export function rendreLesNoms(graphe, temoins, racine) {
   const { groupes, degre } = grouper(graphe);
   const contexte = {
@@ -123,6 +137,8 @@ function principal() {
 
   const parNumero = Object.fromEntries([...libelles].map(([cid, nom]) => [String(cid), nom]));
   writeFileSync('graphify-out/.graphify_labels.json', JSON.stringify(parNumero));
+  const noeuds = renommerLesNoeuds(graphe, libelles);
+  if (noeuds) writeFileSync(cheminGraphe, JSON.stringify(graphe));
   const rapport = 'graphify-out/GRAPH_REPORT.md';
   if (existsSync(rapport))
     writeFileSync(rapport, reecrireRapport(readFileSync(rapport, 'utf8'), libelles));
