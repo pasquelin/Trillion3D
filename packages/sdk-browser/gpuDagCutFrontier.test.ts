@@ -10,9 +10,9 @@
 // doit affronter : le saut de caméra et la scène animée.
 //
 // Il mesure aussi l'AUTRE moitié du problème, celle que la persistance ne touche pas : le rejet par
-// le haut. La descente de la carte ne porte que le plafond d'erreur du remplaçant, donc elle ne sait
-// écarter qu'un sous-arbre trop fin ; la coupe processeur écarte aussi le trop grossier, avec des
-// bornes que `cullingBounds` dérive des pages à la préparation — rien du compilateur, rien du format.
+// le haut. Le plafond d'erreur du remplaçant n'écarte qu'un sous-arbre trop fin ; le plancher de
+// l'erreur propre, que le rangement dérive des pages et range dans le nœud, écarte aussi le trop
+// grossier — rien du compilateur, rien du format.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -21,7 +21,6 @@ import { cameraSelectionUniforms } from './gpuSelection.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 import { descenteComptee } from './gpuDagCutFrontierFixture.ts';
 import { scenePages, sceneRoots } from './gpuDagCutFrontierScene.ts';
-import { cullingBounds } from './pageSelectionCutBounds.ts';
 
 const pages = scenePages(16384, 8);
 /**
@@ -36,14 +35,9 @@ function montage(parNiveaux: boolean) {
     Array.from({ length: 12 }, () => new THREE.Matrix4()),
     parNiveaux,
   );
-  // Les bornes que la coupe processeur dérive déjà de ses pages à la préparation, sans toucher au
-  // format du manifeste (`pageSelectionCutBounds.ts`) : toutes les poses partagent une hiérarchie,
-  // donc un seul jeu. La descente de la carte ne les reçoit pas — c'est ce qu'on mesure.
-  return {
-    roots,
-    packed: packDagSelection(roots),
-    bornes: cullingBounds(roots[0].culling!, pages),
-  };
+  // Le rangement dérive les bornes des pages et range le plancher dans le nœud
+  // (`gpuDagPackNodes.ts`) : la descente comptée le lit là où la carte le lit, pas à côté.
+  return { roots, packed: packDagSelection(roots) };
 }
 const MONTAGES = [
   ['hiérarchie du rangement', montage(false)],
@@ -57,7 +51,7 @@ function image(
   x: number,
   z: number,
   deplacement: number,
-  bornes: Float64Array | undefined,
+  plancher: boolean,
 ) {
   const { roots, packed } = m;
   for (let w = 0; w < roots.length; w++)
@@ -71,13 +65,13 @@ function image(
   cam.updateMatrixWorld();
   const uniforms = cameraSelectionUniforms(cameraMoteur(cam), 1, [1280, 720]);
   packedWorldsToRenderOrigin(packed, roots, uniforms.cameraWorld);
-  return descenteComptee(packed, uniforms, bornes);
+  return descenteComptee(packed, uniforms, plancher);
 }
 
 type Poser = (
   m: (typeof MONTAGES)[number][1],
   i: number,
-  bornes: Float64Array | undefined,
+  plancher: boolean,
 ) => ReturnType<typeof image>;
 const REGIMES: Array<[string, Poser]> = [
   ['pose immobile', (m, _i, b) => image(m, 0, 16, 0, b)],
@@ -98,7 +92,7 @@ test("la frontière de la descente est ce qu'aucune persistance exacte ne peut �
         candidatsAvecPlancher = 0,
         tropGrossieres = 0;
       for (let i = 0; i < 8; i++) {
-        const compte = poser(m, i, undefined);
+        const compte = poser(m, i, false);
         visites += compte.visites;
         internes += compte.internes;
         feuilles += compte.frontiereFeuilles;
@@ -106,7 +100,7 @@ test("la frontière de la descente est ce qu'aucune persistance exacte ne peut �
         candidats += compte.candidats;
         tropGrossieres += compte.tropGrossieres;
         // La même image, la même caméra, avec le rejet par le haut : c'est la SEULE différence.
-        const avec = poser(m, i, m.bornes);
+        const avec = poser(m, i, true);
         plancherCoupe += avec.plancherCoupe;
         candidatsAvecPlancher += avec.candidats;
       }
