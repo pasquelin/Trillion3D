@@ -3,7 +3,7 @@
 // échelles négatives, cisaillement, division homogène par un `w` nul, NaN, zéros signés, infinis,
 // extrêmes de l'exposant — et le reste du lot est du pseudo-aléatoire à graine fixe, pour que deux
 // exécutions voient exactement les mêmes entrées.
-import { graine } from '../../sdk-core/bench/banc.mjs';
+import { graine } from '../../sdk-core/bench/mesure.mjs';
 
 /** Les tailles de lot mesurées : de ce qu'une image bouge à ce qu'une scène entière porte. */
 export const TAILLES = [1_000, 10_000, 100_000];

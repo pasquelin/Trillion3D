@@ -7,7 +7,7 @@ import os from 'node:os';
 import { join } from 'node:path';
 import v8 from 'node:v8';
 import vm from 'node:vm';
-import { RACINE } from '../../sdk-core/bench/banc.mjs';
+import { RACINE } from '../../sdk-core/bench/mesure.mjs';
 
 /** Le ramasse-miettes, exposé à la volée quand Node n'a pas reçu `--expose-gc`. */
 function ramasseMiettes() {

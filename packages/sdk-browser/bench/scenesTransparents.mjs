@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { createWebgpuBlendState } from '../webgpuBlendState.ts';
 import { buildBlendStatics, refreshBlendPlan } from '../webgpuBlendPlan.ts';
-import { graine } from '../../sdk-core/bench/banc.mjs';
+import { graine } from '../../sdk-core/bench/mesure.mjs';
 import { planReference } from './oracles/transparents-ordres.mjs';
 
 /** L'ordre de grandeur de la scène mesurée : 4 288 items transparents, douze placements chacun. */
