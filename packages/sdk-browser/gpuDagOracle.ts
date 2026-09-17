@@ -2,7 +2,7 @@ import type { PackedDag } from './gpuDagTypes.ts';
 import { DAG_NODE_FLOATS } from './gpuDagTypes.ts';
 import { CLUSTER_ROOT, clusterLevel, dagRecords, flagsOf, worldOf } from './gpuDagLayout.ts';
 import type { SelectionUniforms, SelectionResult } from './gpuSelection.ts';
-import { dagNodeVerdict, dagViewFrames } from './gpuDagOracleMath.ts';
+import { dagNodeFloor, dagNodeVerdict, dagViewFrames } from './gpuDagOracleMath.ts';
 import { createDagOraclePredicates } from './gpuDagOraclePredicates.ts';
 import { ESCALATION_ROUNDS, ESCALATION_SLACK } from './pageSelectionTypes.ts';
 
@@ -36,6 +36,9 @@ export function evaluateDagSelectionKernel(
   // atteinte reste rejetée. Un drapeau non nul dit « ne descends pas ici » ; seules les feuilles
   // retenues retombent à zéro, et ce sont elles seules que les grappes consultent.
   const nodeFlags = new Uint8Array(Math.max(1, packed.nodeCount)).fill(1);
+  // Le plus petit plancher que l'élagage par le haut a écarté, par primitive : au-dessus de lui,
+  // l'escalade demanderait un sous-arbre que la descente n'a pas ouvert, et le repli épinglé s'arme.
+  const prunedFloor = new Float64Array(Math.max(1, packed.worldCount)).fill(Infinity);
   const frontier: number[] = [];
   for (let w = 0; w < packed.worldCount; w++)
     if (packed.rootNodes[w] !== 0xffffffff) frontier.push(packed.rootNodes[w]);
@@ -43,6 +46,13 @@ export function evaluateDagSelectionKernel(
     const n = frontier.pop() as number;
     const children = dagNodeVerdict(frames, nodes, nodeInts, n);
     if (children < 0) {
+      nodeFlags[n] = 2;
+      continue;
+    }
+    const floor = dagNodeFloor(frames, nodes, nodeInts, n);
+    if (floor > pixelError) {
+      const w = nodeInts[n * DAG_NODE_FLOATS + 12];
+      if (floor < prunedFloor[w]) prunedFloor[w] = floor;
       nodeFlags[n] = 2;
       continue;
     }
@@ -127,6 +137,9 @@ export function evaluateDagSelectionKernel(
         if (visible(i) && selects(i, thresholds[w]) && !cone(i, w)) missing[w] = 1;
       }
   }
+  // Un seuil monté au-dessus d'un plancher écarté : les étages grossiers dont l'escalade aurait
+  // besoin ne sont pas candidats, et la primitive retombe sur sa couverture épinglée.
+  for (let w = 0; w < thresholds.length; w++) if (thresholds[w] > prunedFloor[w]) missing[w] = 1;
   let complete = true;
   for (let i = 0; i < packed.pageCount; i++) {
     const w = worldOf(records, i);

@@ -1,6 +1,7 @@
 import { maxStretch, worldToRenderOrigin } from '../sdk-core/index.ts';
 import { leafCone, PAGE_CONE_FLOATS, SELECTION_NONE as NONE } from './gpuSelection.ts';
-import { DAG_NODE_FLOATS, CULL_STRIDE, type DagRoot, type PackedDag } from './gpuDagTypes.ts';
+import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './gpuDagTypes.ts';
+import { cullingBoundsFor, packCullingNodes } from './gpuDagPackNodes.ts';
 import { flatHierarchy, hierarchyLevelSizes } from './gpuDagHierarchy.ts';
 import {
   CLUSTER_WORDS,
@@ -47,6 +48,9 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
   // tableau, retrouvé par identité pour les placements suivants.
   const levelTotals: number[] = [];
   const parTableau = new Map<Float64Array, readonly number[]>();
+  // Les bornes de coupe suivent le même partage : l'hôte les dérive déjà par primitive, et un
+  // montage qui n'en donne pas les reçoit ici, une fois par tableau de nœuds.
+  const bornesParTableau = new Map<Float64Array, Float64Array>();
   for (let w = 0; w < roots.length; w++) {
     clusterCount += roots[w].pages.length;
     nodeCount += cullings[w].nodes.length / cullings[w].stride;
@@ -87,35 +91,15 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
     worlds.set(root.world.elements, w * 16);
     worldStretch[w] = maxStretch(root.world.elements);
     const owner = new Uint32Array(root.pages.length).fill(NONE);
-    if (culling.stride < CULL_STRIDE) throw new Error('GPU_DAG_CULLING_STRIDE');
-    const count = culling.nodes.length / culling.stride;
     rootNodes[w] = nodeBase;
-    for (let n = 0; n < count; n++) {
-      const src = n * culling.stride,
-        dst = (nodeBase + n) * DAG_NODE_FLOATS;
-      nodes[dst] = culling.nodes[src];
-      nodes[dst + 1] = culling.nodes[src + 1];
-      nodes[dst + 2] = culling.nodes[src + 2];
-      nodeInts[dst + 3] = nodeBase + culling.nodes[src + 11];
-      nodes[dst + 4] = culling.nodes[src + 3];
-      nodes[dst + 5] = culling.nodes[src + 4];
-      nodes[dst + 6] = culling.nodes[src + 5];
-      nodes[dst + 7] = culling.nodes[src + 10];
-      nodes[dst + 8] = culling.nodes[src + 6];
-      nodes[dst + 9] = culling.nodes[src + 7];
-      nodes[dst + 10] = culling.nodes[src + 8];
-      nodes[dst + 11] = culling.nodes[src + 9];
-      nodeInts[dst + 12] = w;
-      nodeInts[dst + 13] = pageBase + culling.nodes[src + 13];
-      nodeInts[dst + 14] = culling.nodes[src + 14];
-      nodeInts[dst + 15] = culling.nodes[src + 12];
-      if (!culling.nodes[src + 12]) {
-        const first = culling.nodes[src + 13],
-          pages = culling.nodes[src + 14];
-        for (let i = 0; i < pages && first + i < owner.length; i++) owner[first + i] = nodeBase + n;
-      }
-    }
-    node += count;
+    node += packCullingNodes(
+      nodes,
+      nodeInts,
+      culling,
+      cullingBoundsFor(culling, root.pages, bornesParTableau),
+      { world: w, nodeBase, pageBase },
+      owner,
+    );
     for (let i = 0; i < root.pages.length; i++) {
       const rec = root.pages[i],
         dst = cluster * CLUSTER_WORDS;

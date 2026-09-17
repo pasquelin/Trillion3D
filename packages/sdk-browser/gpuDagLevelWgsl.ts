@@ -99,11 +99,17 @@ fn levelStep(src:u32,s:u32){
  let i=flags[queueBase(src)+s];
  if(i==0xffffffffu){return;}
  let node=nodes[i];
- if(outsideFrustum(node.worldIndex*FRAME,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return;}
- if(node.maxParentError>=0.0){
-  let e=uni.view*worlds[node.worldIndex];
-  if(projected(node.maxParentError,node.sphere,e,stretchOf(node.worldIndex),focalPixels())<=uni.pixelError){atomicAdd(&out.frustumRejected,1u);return;}
- }
+ let w=node.worldIndex;
+ if(outsideFrustum(w*FRAME,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return;}
+ let e=uni.view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
+ // Trop FIN : aucun remplaçant du sous-arbre n'est encore assez grossier, le manifeste le porte.
+ if(node.maxParentError>=0.0&&projected(node.maxParentError,node.sphere,e,stretch,focal)<=uni.pixelError){atomicAdd(&out.frustumRejected,1u);return;}
+ // Trop GROSSIER : aucune grappe du sous-arbre n'est assez fine. Un sous-arbre qui porte une grappe
+ // que rien ne remplace en est exempt — le repli épinglé la dessine sans consulter de seuil, et la
+ // descente est le seul chemin par lequel elle lui parvient.
+ // Le compte des rejets par le tronc ne bouge pas : un sous-arbre écarté ici ne l'est ni par le
+ // tronc ni par le plafond, et le relevé de l'image dirait autre chose que ce qu'il nomme.
+ if(floorPrunes(w,node.nodeFlags,node.floorSphere,node.errorFloor,e,stretch,focal)){return;}
  if(node.childCount>0u){queueAppend((src+1u)%${LEVEL_QUEUES}u,node.firstChild,node.childCount);return;}
  spanAppend(candCounter(),candGroups(),candBase(),node.firstPage,node.pageCount);
 }
