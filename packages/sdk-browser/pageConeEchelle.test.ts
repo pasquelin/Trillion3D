@@ -1,7 +1,7 @@
 // Défaut 1 (rejet par cône à petite échelle) : `isConformal` doit juger sur des rapports de
 // longueurs et d'orthogonalité purement relatifs, jamais sur une tolérance additive qui, à petite
 // échelle, masque une vraie déformation anisotrope. Le premier test reprend le cas déclencheur de
-// `bench/justesse/cone-echelle-non-uniforme.mjs` ; les suivants couvrent les 3×3 dégénérées, puis
+// `test/justesse/cone-echelle-non-uniforme.mjs` ; les suivants couvrent les 3×3 dégénérées, puis
 // confirment que le rejet reste possible pour toute échelle uniforme et rotation, comme avant ce lot.
 import test from 'node:test';
 import assert from 'node:assert/strict';

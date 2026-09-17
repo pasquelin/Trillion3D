@@ -13,7 +13,7 @@ import {
   BARY_WEIGHTS_WGSL,
 } from './visibilityPageWgsl.ts';
 import { WRAP_COORD_WGSL, wrapLinear } from './visibilityWrapModes.ts';
-import { lineaireThree } from './bench/justesse/adressageCas.mjs';
+import { lineaireThree } from '../../test/justesse/adressageCas.mjs';
 import { COLOR_ALPHA_WGSL, COLOR_SAMPLE_WGSL, DATA_SAMPLE_WGSL } from './webgpuAtlasWgsl.ts';
 import { rasterSource } from './gpuRasterShader.ts';
 import { SHADE_SHADER } from './visibilityShaderShade.ts';
@@ -66,9 +66,9 @@ test('BARY_WEIGHTS_WGSL déclare fn baryWeights une seule fois dans le raster et
 });
 
 // Défaut 7 : en filtrage linéaire sous `Repeat`, la couture d'une période doit mêler le dernier
-// texel et le premier. La règle de référence est `lineaireThree` (bench/justesse/adressageCas.mjs),
+// texel et le premier. La règle de référence est `lineaireThree` (test/justesse/adressageCas.mjs),
 // écrite indépendamment de `wrapLinear` et déjà vérifiée contre les vrais échantillonneurs WebGL2 et
-// WebGPU par `bench/justesse/adressage-gpu.mjs` : le rang bas vient de la coordonnée décalée d'un
+// WebGPU par `test/justesse/adressage-gpu.mjs` : le rang bas vient de la coordonnée décalée d'un
 // demi-texel, et chacun des deux rangs subit le mode pour lui-même (OpenGL ES 3.0 § 3.8.10, la même
 // règle que WebGPU). La recopier ici en faisait une troisième écriture de la même règle.
 const regle = lineaireThree as (

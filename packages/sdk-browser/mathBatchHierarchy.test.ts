@@ -18,7 +18,7 @@ import {
 import { prepareSdkWasm } from './geometryPageWasm.ts';
 import { prepareMathBatch } from './mathBatchState.ts';
 import { createHierarchyLot, type HierarchyLot } from './mathBatchHierarchy.ts';
-import { chainesHostiles } from './bench/socleHierarchie.mjs';
+import { chainesHostiles } from './bench/appui/socleHierarchie.mjs';
 
 await prepareSdkWasm(readFileSync(join(import.meta.dirname, 'pageCodec.wasm')));
 

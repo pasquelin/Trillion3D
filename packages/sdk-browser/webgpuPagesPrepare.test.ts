@@ -3,7 +3,7 @@
 // sommet, et lit le matériau une seule fois au lieu de deux. `indexSourceBytes` et
 // `compteMateriauxEtTangentes` (webgpuPagesCatalogue.ts) remplacent un `flatMap` d'un couple par page
 // et un `map`/deux copies de table par un seul parcours chacun. Les oracles sont les implémentations
-// d'avant le lot F, recopiées telles quelles dans `oracles/f-cones.mjs`.
+// d'avant le lot F, recopiées telles quelles dans `oracles/cones-normaux.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -14,7 +14,7 @@ import {
   referencePrepareCones,
   referenceIndexSourceBytes,
   referenceCompteMateriauxEtTangentes,
-} from './bench/oracles/f-cones.mjs';
+} from './bench/oracles/cones-normaux.mjs';
 import type { PageRec } from './pageSelection.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 

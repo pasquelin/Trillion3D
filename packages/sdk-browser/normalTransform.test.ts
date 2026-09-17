@@ -7,10 +7,10 @@
 // CE QUE CE FICHIER TIENT, ET COMMENT. Il ne lit plus le texte du nuanceur à coups de motifs : une
 // suite d'`assert.match` sur du WGSL casse au premier reformatage et ne garantit aucune
 // arithmétique. Il éprouve le CALCUL — `xformNormal` = uniteOuZero(inverseTranspose3(mat3(world), n))
-// — sur le modèle f32 de `bench/justesse/inverseTransposeF32.mjs` : la rotation suivie à toute
+// — sur le modèle f32 de `test/justesse/inverseTransposeF32.mjs` : la rotation suivie à toute
 // échelle, les poses singulières — aplaties puis effondrées — et le seuil franchi des deux côtés.
-// Ce modèle n'est pas le nuanceur : `test/normalTransformArithmetique.browser.mjs` exécute le texte
-// livré dans Chromium WebGPU sur EXACTEMENT ces cas (`bench/justesse/normalTransformCas.mjs`) et
+// Ce modèle n'est pas le nuanceur : `test/browser/normalTransformArithmetique.browser.mjs` exécute le texte
+// livré dans Chromium WebGPU sur EXACTEMENT ces cas (`test/justesse/normalTransformCas.mjs`) et
 // exige qu'il rende ce que le modèle rend — c'est là, aussi, qu'un nuanceur qui ne compile pas fait
 // échouer la preuve. Restent ici les seuls contrôles de texte qui portent sur la COMPILATION et
 // l'écriture unique : une déclaration en double ne compilerait pas, et deux copies de
@@ -27,7 +27,7 @@ import {
   verdictNormale,
   xformNormalAvantLeLot,
   xformNormalModele,
-} from './bench/justesse/inverseTransposeF32.mjs';
+} from '../../test/justesse/inverseTransposeF32.mjs';
 import {
   APLATIES,
   CAS,
@@ -36,7 +36,7 @@ import {
   EFFONDREES,
   REGULIERE_MINUSCULE,
   SEUIL,
-} from './bench/justesse/normalTransformCas.mjs';
+} from '../../test/justesse/normalTransformCas.mjs';
 
 /** Le verdict — direction orientée, vecteur nul refusé, norme unitaire — d'une écriture sur un cas. */
 const verdict = (cas: { vraie: number[] }, rendue: number[]) =>

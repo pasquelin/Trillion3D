@@ -2,11 +2,11 @@
 // sur son déterminant NORMALISÉ, jamais sur le déterminant brut. Un seuil absolu juge l'échelle :
 // une rotation d'échelle uniforme s a pour déterminant ±s³, donc s ≲ 2,15e-7 passait sous 1e-20 et
 // le noyau rendait l'axe local non tourné — le rejet par cône supprimait alors des faces de face.
-// Le comportement GPU réel est prouvé par `test/inverseTransposeePetiteEchelle.browser.mjs` ; ce
+// Le comportement GPU réel est prouvé par `test/browser/inverseTransposeePetiteEchelle.browser.mjs` ; ce
 // test-ci rejoue la même arithmétique en f32 pour que `pnpm test` attrape la régression sans GPU.
-// Le modèle f32 vit dans `bench/justesse/inverseTransposeF32.mjs`, partagé avec la preuve
+// Le modèle f32 vit dans `test/justesse/inverseTransposeF32.mjs`, partagé avec la preuve
 // d'éclairage : une seule écriture de l'arithmétique, rattachée au shader réellement exécuté par
-// `test/normalTransformArithmetique.browser.mjs`.
+// `test/browser/normalTransformArithmetique.browser.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DAG_SELECTION_SHADER } from './gpuDagShader.ts';
@@ -18,7 +18,7 @@ import {
   avantLeLot,
   f,
   unitaire,
-} from './bench/justesse/inverseTransposeF32.mjs';
+} from '../../test/justesse/inverseTransposeF32.mjs';
 
 type Vec = [number, number, number];
 
@@ -43,7 +43,7 @@ test('le noyau livré tourne l’axe à toute échelle, de 1e6 à 1e-18', () => 
 // La normalisation change l'arrondi f32 de quelques ULP : la direction rendue hors de la bande du
 // seuil n'est donc pas bit à bit celle d'avant, elle lui est colinéaire à 1e-6 radian près. Ce qui
 // compte est la décision de rejet, mesurée nulle part changée hors bande sur GPU réel — voir
-// `bench/justesse/inverse-transposee-petite-echelle.mjs`.
+// `test/justesse/inverse-transposee-petite-echelle.mjs`.
 test('hors de la bande du seuil, la direction rendue est celle d’avant à 1e-6 radian près', () => {
   for (const s of [1e6, 1e3, 1, 1e-3, 1e-4, 1e-5, 1e-6])
     for (const axe of [
@@ -123,8 +123,8 @@ test('le shader livré ne porte plus de seuil absolu sur le déterminant brut', 
 // verbatim — copie qui cessait de correspondre dès que le noyau changeait, sans que personne le
 // voie. Une reproduction qui ne reproduit plus rassure à tort : ce test tient ce qui fait sa valeur,
 // le seuil absolu sur la 3×3 brute, présent d'un côté et absent de l'autre. La substitution
-// elle-même est établie, et non supposée, par `bench/justesse/substitutionAvant.mjs`. Le GPU réel
-// est mesuré par `bench/justesse/inverse-transposee-petite-echelle.mjs`, qui sépare les suppressions
+// elle-même est établie, et non supposée, par `test/justesse/substitutionAvant.mjs`. Le GPU réel
+// est mesuré par `test/justesse/inverse-transposee-petite-echelle.mjs`, qui sépare les suppressions
 // de faces que le moteur dessine (656 avant le lot, 0 après) de celles qu'il ne dessine pas.
 test('la forme de reproduction du défaut 6 porte encore le seuil absolu, et elle seule', () => {
   const prep = (texte: string) => texte.split('fn invTranspose3Prep')[1].split('\n}')[0];
