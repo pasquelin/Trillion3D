@@ -7,8 +7,8 @@ import { boxEmpty } from '../../sdk-core/index.ts';
 const options = { chauffe: 1, tours: 10, budgetMs: 500 };
 const tousLesCas = [...casBoites, ...casTronc];
 
-// Un cas dont le jeu de cas porte `oraclePerime` est mesuré sans oracle, et la ligne publie le
-// motif : la justesse reste tenue ailleurs, elle n'est jamais simplement tue.
+// Un calcul sans `reference` est mesuré sans oracle, et sa ligne publie le `motif` qui dit
+// pourquoi et où sa justesse est tenue : elle n'est jamais simplement tue.
 const resultats = [];
 for (const item of tousLesCas) {
   resultats.push(
@@ -17,8 +17,8 @@ for (const item of tousLesCas) {
       fichier: item.fichier,
       cas: item.cas,
       calcul: item.optimisee,
-      attendu: item.oraclePerime ? null : item.reference,
-      motif: item.oraclePerime ?? null,
+      attendu: item.reference,
+      motif: item.motif,
       options,
     }),
   );
