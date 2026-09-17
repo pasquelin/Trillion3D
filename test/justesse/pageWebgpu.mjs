@@ -18,6 +18,27 @@ export function requireDuLab() {
 }
 
 /**
+ * Empaquette un module de page en IIFE pour `dansPageWebgpu`, et rend le texte du paquet à passer en
+ * `script`. Les options de paquetage — format, cible, plateforme — sont celles de toutes les
+ * reproductions : les écrire ici est ce qui empêche deux d'entre elles de compiler pour deux cibles
+ * différentes sans que rien ne le dise.
+ */
+export async function empaquetePage(entree, nomGlobal) {
+  const esbuild = createRequire(requireDuLab().resolve('vite'))('esbuild');
+  const paquet = await esbuild.build({
+    entryPoints: [entree],
+    bundle: true,
+    write: false,
+    format: 'iife',
+    globalName: nomGlobal,
+    platform: 'browser',
+    target: 'es2022',
+    logLevel: 'error',
+  });
+  return paquet.outputFiles[0].text;
+}
+
+/**
  * Sert une page vide sur un port libre, l'ouvre dans Chromium et y évalue `fonction(argument)`.
  * `fonction` s'exécute dans la page : elle ne voit que son argument, sérialisé, et rend du JSON.
  * `globalThis.ouvrirAppareil` y est installé d'avance (`appareilWebgpu.mjs`), puisqu'une fonction

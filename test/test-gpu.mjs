@@ -7,8 +7,8 @@
 // ici est déclaré ci-dessous avec son motif — écarté à voix haute, jamais en silence.
 import { spawnSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..');
 const JUSTESSE = 'test/justesse';
@@ -80,5 +80,4 @@ export function runGpuTests(args = process.argv.slice(2)) {
   process.exit(resultat.status ?? 1);
 }
 
-if (process.argv[1] && relative(fileURLToPath(import.meta.url), process.argv[1]) === '')
-  runGpuTests();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) runGpuTests();

@@ -51,9 +51,13 @@ fn shape(type_name: &str) -> Option<Shape> {
 
 /// La lampe glTF de ce prim, versée dans les tables, et son rang. `scale` est l'échelle du monde
 /// accumulée jusqu'à ce prim, `metersPerUnit` compris : c'est elle qui met le rayon en mètres.
-pub(super) fn build(world: &mut World<'_>, prim: &usd::Prim, scale: f64) -> Option<usize> {
-    let type_name = prim.type_name().ok().flatten()?;
-    let Some(shape) = shape(type_name.as_str()) else {
+pub(super) fn build(
+    world: &mut World<'_>,
+    prim: &usd::Prim,
+    type_name: &str,
+    scale: f64,
+) -> Option<usize> {
+    let Some(shape) = shape(type_name) else {
         world.refuse(world::LIGHT);
         return None;
     };

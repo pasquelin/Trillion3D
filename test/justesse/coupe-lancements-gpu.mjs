@@ -8,13 +8,11 @@
 // deux retiennent les mêmes pages et dessinent les mêmes, au bit près.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { dansPageWebgpu, requireDuLab } from './pageWebgpu.mjs';
+import { dansPageWebgpu, empaquetePage } from './pageWebgpu.mjs';
 
 const ici = dirname(fileURLToPath(import.meta.url));
-const esbuild = createRequire(requireDuLab().resolve('vite'))('esbuild');
 
 /** La profondeur livrée de la hiérarchie du banc, puis deux profondeurs ALLONGÉES : les étages de
  *  trop sont vides, la descente n'y fait rien, mais leurs commandes sont bien ouvertes. Ce sont donc
@@ -31,16 +29,7 @@ const mediane = (valeurs, champ) => {
 };
 
 test('la coupe ouvre moins de commandes et retient exactement les mêmes pages', async () => {
-  const paquet = await esbuild.build({
-    entryPoints: [resolve(ici, 'coupeLancementsPage.mjs')],
-    bundle: true,
-    write: false,
-    format: 'iife',
-    globalName: 'coupeLancements',
-    platform: 'browser',
-    target: 'es2022',
-    logLevel: 'error',
-  });
+  const script = await empaquetePage(resolve(ici, 'coupeLancementsPage.mjs'), 'coupeLancements');
   const erreursPage = [];
   const releve = await dansPageWebgpu(
     (argument) => globalThis.coupeLancements.executer(argument),
@@ -52,7 +41,7 @@ test('la coupe ouvre moins de commandes et retient exactement les mêmes pages',
       rondes: RONDES,
       bornes: BORNES,
     },
-    { titre: 'Lancements de la coupe', script: paquet.outputFiles[0].text, erreursPage },
+    { titre: 'Lancements de la coupe', script, erreursPage },
   );
   assert.equal(releve.indisponible, undefined, 'WebGPU doit être disponible');
   assert.deepEqual(releve.compilation ?? [], [], 'les deux noyaux doivent compiler');

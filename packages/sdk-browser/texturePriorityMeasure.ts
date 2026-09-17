@@ -1,5 +1,5 @@
 import type * as THREE from 'three';
-import { maxStretch } from '../sdk-core/index.ts';
+import { maxStretch, transformAffinePoint } from '../sdk-core/index.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 import { pixelScaleOf, worldBoxScreenRadius } from './streamingPriority.ts';
@@ -40,6 +40,9 @@ type Demand = ReturnType<typeof createTextureDemand>;
 
 /** La vue tant qu'aucune pose n'a été rencontrée : jamais lue, la première page en pose une. */
 const EMPTY_VIEW: Float64Array<ArrayBufferLike> = new Float64Array(16);
+/** Centre d'une sphère ramené dans l'espace de vue : trois nombres réécrits par page, jamais
+ *  alloués par page. */
+const vue = new Float64Array(3);
 
 /**
  * La mesure d'une image : l'empreinte écran de chaque couche d'atlas, puis le niveau voulu.
@@ -103,10 +106,8 @@ export function createTextureMeasure(color: Demand, data: Demand) {
           x = sphere[base],
           y = sphere[base + 1],
           z = sphere[base + 2];
-        const cx = view[0] * x + view[4] * y + view[8] * z + view[12],
-          cy = view[1] * x + view[5] * y + view[9] * z + view[13],
-          cz = view[2] * x + view[6] * y + view[10] * z + view[14];
-        const distance = Math.hypot(cx, cy, cz);
+        transformAffinePoint(vue, view, x, y, z);
+        const distance = Math.hypot(vue[0], vue[1], vue[2]);
         const pixels = 2 * ((sphere[base + 3] * stretch * focal) / Math.max(distance, near));
         if (!(pixels > 0)) continue;
         const areaPixels = pixels * pixels,
