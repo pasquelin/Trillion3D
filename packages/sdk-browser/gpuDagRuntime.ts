@@ -1,4 +1,3 @@
-import { maxStretch } from '../sdk-core/index.ts';
 import {
   sameSelectionUniforms,
   type GpuCut,
@@ -7,7 +6,7 @@ import {
   type SelectionUniforms,
 } from './gpuSelection.ts';
 import { RESIDENCY_RANGE_MAX, coalesceResidencyRanges } from './webgpuResidencyRanges.ts';
-import { FRAME_VEC4 } from './gpuDagTypes.ts';
+import { refreshWorldStretch } from './gpuDagWorlds.ts';
 import { residentBase, residentWords } from './gpuDagLayout.ts';
 import { createDagDispatch } from './gpuDagDispatch.ts';
 import type { createDagResources } from './gpuDagResources.ts';
@@ -108,6 +107,10 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
           break;
         }
       if (!changed) return false;
+      // The object-to-view stretch is the primitive's own; recompute it whenever its placement moves.
+      // Une origine de repère qui se déplace ne déplace que les translations : aucun étirement ne
+      // bouge alors, et le tampon des cadres n'est pas repoussé. Lu avant la recopie du miroir.
+      const stretched = refreshWorldStretch(previousWorlds, next, packed, frameData);
       previousWorlds.set(next);
       packed.worlds.set(next);
       device.queue.writeBuffer(
@@ -117,12 +120,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
         next.byteOffset,
         next.byteLength,
       );
-      // The object-to-view stretch is the primitive's own; recompute it whenever its placement moves.
-      for (let w = 0; w < packed.worldCount; w++) {
-        packed.worldStretch[w] = maxStretch(packed.worlds.subarray(w * 16, w * 16 + 16));
-        frameData[(w * FRAME_VEC4 + 6) * 4] = packed.worldStretch[w];
-      }
-      device.queue.writeBuffer(frames, 0, frameData as Float32Array<ArrayBuffer>);
+      if (stretched) device.queue.writeBuffer(frames, 0, frameData as Float32Array<ArrayBuffer>);
       state.worldRevision++;
       state.last = null;
       state.lastSubmitted = undefined;
