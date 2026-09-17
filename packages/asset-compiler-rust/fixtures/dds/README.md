@@ -25,13 +25,13 @@ la référence ne contient donc aucune valeur interpolée, seulement les bornes 
 
 | fichier | origine | ce qu'il prouve |
 | --- | --- | --- |
-| `bc1-mips.dds` | `test-assets/textures/dds-matrix/bc1-mips.dds` | un entête écrit par un encodeur tiers se lit ; 256 × 256, neuf niveaux, seul le niveau 0 ressort ; la chaîne est comptée, un octet en moins et le fichier est refusé |
-| `tronque.dds` | `test-assets/limites/truncated-dds/truncated.dds` | 31 octets sur 43 832 : le nombre magique est là, l'entête non, et le refus est nommé |
+| `bc1-mips.dds` | `test/assets/textures/dds-matrix/bc1-mips.dds` | un entête écrit par un encodeur tiers se lit ; 256 × 256, neuf niveaux, seul le niveau 0 ressort ; la chaîne est comptée, un octet en moins et le fichier est refusé |
+| `tronque.dds` | `test/assets/limites/truncated-dds/truncated.dds` | 31 octets sur 43 832 : le nombre magique est là, l'entête non, et le refus est nommé |
 
 Les deux sont **CC0-1.0** (<https://creativecommons.org/publicdomain/zero/1.0/>), corpus
-WebGeometry, générés par `test-assets/tools/texture_assets.py` le 15 septembre 2026, et leurs
+WebGeometry, générés par `test/assets/tools/texture_assets.py` le 15 septembre 2026, et leurs
 niveaux ont été relus par un décodeur indépendant (Pillow 12.2.0) avant d'entrer au corpus. Le
-dossier `test-assets/` est livré hors git : ils sont copiés ici pour que la dorée n'en dépende pas.
+dossier `test/assets/` est livré hors git : ils sont copiés ici pour que la dorée n'en dépende pas.
 
 Les `bc3-mips.dds`, `bc5-mips.dds`, `bc7-mips.dds` et `bc1-no-mips.dds` du même dossier couvrent la
 même matrice à grande taille. Le pilote a été passé dessus pendant le développement : les cinq

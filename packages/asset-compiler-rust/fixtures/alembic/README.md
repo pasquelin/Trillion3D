@@ -2,9 +2,9 @@
 
 ## `procedural-static`
 
-`scene.abc`, **CC0-1.0**, repris tel quel du corpus local `test-assets/alembic/procedural-static`
-(généré par `test-assets/tools/model_formats_blender.py`, corpus WebGeometry, 15 septembre 2026,
-exporté par Blender 5.2.1 LTS au travers d'Alembic 1.8.3). Le dépôt ignore `test-assets/` : le
+`scene.abc`, **CC0-1.0**, repris tel quel du corpus local `test/assets/alembic/procedural-static`
+(généré par `test/assets/tools/model_formats_blender.py`, corpus WebGeometry, 15 septembre 2026,
+exporté par Blender 5.2.1 LTS au travers d'Alembic 1.8.3). Le dépôt ignore `test/assets/` : le
 fichier est copié ici avec sa notice, `LICENSE.txt`, sans rien y changer — 8 110 octets, conteneur
 Ogawa, version de format 256.
 

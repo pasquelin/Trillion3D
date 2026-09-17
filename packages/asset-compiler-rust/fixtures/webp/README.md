@@ -27,9 +27,9 @@ d'un autre type de formulaire, que le pilote ne revendique pas du tout.
 ## Provenance et licences
 
 - `sans-perte.webp` et `avec-perte.webp` sont repris tels quels de
-  `test-assets/textures/legacy-web-matrix/` (`lossless.webp`, 184 octets, et `lossy.webp`), corpus
-  WebGeometry produit par `test-assets/tools/texture_assets.py`, **CC0-1.0**, voir
-  [LICENSE.txt](LICENSE.txt). `test-assets/` est livré hors git : les octets sont recopiés ici pour
+  `test/assets/textures/legacy-web-matrix/` (`lossless.webp`, 184 octets, et `lossy.webp`), corpus
+  WebGeometry produit par `test/assets/tools/texture_assets.py`, **CC0-1.0**, voir
+  [LICENSE.txt](LICENSE.txt). `test/assets/` est livré hors git : les octets sont recopiés ici pour
   que la dorée tienne sans lui.
 - `etendu-sans-perte.webp`, `anime.webp` et `tronque.webp` sont **dérivés de `sans-perte.webp`** :
   son chunk `VP8L` remis dans un conteneur étendu, puis dans une image d'animation, et le fichier
