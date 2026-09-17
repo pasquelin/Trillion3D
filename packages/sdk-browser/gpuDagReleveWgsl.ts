@@ -6,14 +6,17 @@
  * ici ne sert jamais à dessiner : il sert à DIFFUSER. C'est de lui que l'hôte tire les pages qu'il
  * doit charger, épingler ou rendre au cache.
  *
+ * Chaque rang est une DEMANDE : la page et la priorité que l'hôte lui donnera dans sa file de
+ * téléversement, dans un seul mot (`gpuDagRequest.ts`).
+ *
  * Le plafond (`SELECTION_LIST_CAP`, `gpuDagLayout.ts`) borne ce que la copie d'image emporte. Un
  * rang refusé pose le bit 0 : le relevé est alors TRONQUÉ, et l'image le refuse en entier plutôt que
  * de l'adopter amputé. Les totaux d'image, eux, ne perdent rien — ils décrivent la coupe, pas la
  * liste qui la rapporte (`gpuDagTotalsWgsl.ts`).
  */
-export const DAG_RELEVE_WGSL = `fn emitOne(page:u32){
+export const DAG_RELEVE_WGSL = `fn emitOne(page:u32,pixels:f32){
  let slot=atomicAdd(&out.count,1u);
  if(slot>=uni.listCap){atomicOr(&out.overflow,1u);return;}
- out.pages[slot]=page;
+ out.pages[slot]=packRequest(page,quantizePriority(pixels));
 }
 `;

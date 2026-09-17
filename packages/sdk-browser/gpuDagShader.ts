@@ -3,12 +3,13 @@ import { INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
 import { DAG_COMPACT_WGSL } from './gpuDagCompactWgsl.ts';
 import { DAG_TOTALS_WGSL } from './gpuDagTotalsWgsl.ts';
 import { DAG_RELEVE_WGSL } from './gpuDagReleveWgsl.ts';
+import { DAG_REQUEST_WGSL } from './gpuDagRequest.ts';
+import { DAG_WANTED_WGSL } from './gpuDagWantedWgsl.ts';
 import { DAG_LIVE_WGSL } from './gpuDagLiveWgsl.ts';
 import { DAG_LEVEL_WGSL } from './gpuDagLevelWgsl.ts';
 import { DAG_FLOOR_WGSL } from './gpuDagFloorWgsl.ts';
 import { DAG_RECORD_WGSL } from './gpuDagRecordWgsl.ts';
 import { ESCALATION_SLACK } from './pageSelectionTypes.ts';
-import { CLUSTER_LEVEL_SHIFT } from './gpuDagLayout.ts';
 import { CONE_LENGTH_RATIO_WGSL, CONE_ORTHO_EPS_WGSL, HALF_PI_WGSL } from '../sdk-core/index.ts';
 
 export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,worldIndex:u32,flags:u32,}
@@ -120,50 +121,6 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  for(var i=0u;i<6u;i++){frames[base+i]=t*uni.planes[i];}
 }
 @compute @workgroup_size(64)
-fn dagWanted(@builtin(global_invocation_id) id:vec3u){
- let s=id.x;if(s>=atomicLoad(&work[candCounter()])){return;}
- // Seules les pages des feuilles retenues : une page sous un nœud rejeté n'est jamais lue, et son
- // drapeau de dessin vaut déjà zéro — \`dagClearDrawn\` a effacé les seules qui valaient un.
- let i=flags[candBase()+s];
- let cluster=clusters[i];
- if(!visible(i,cluster)){atomicAdd(&out.frustumRejected,1u);return;}
- liveAppend(i);
- let rejected=coneRejects(i,cluster);
- flags[coneCache(i)]=select(0u,1u,rejected);
- let w=cluster.worldIndex;
- let e=uni.view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
- if(!selects(cluster,e,stretch,focal,uni.pixelError)){return;}
- if(rejected){return;}
- atomicMax(&out.lodLevel,cluster.flags>>${CLUSTER_LEVEL_SHIFT}u);
- emitOne(i);
- if(uni.residentCut==0u||isResident(i)){return;}
- escalate(w,projected(cluster.parentError,cluster.parentSphere,e,stretch,focal));
-}
-@compute @workgroup_size(64)
-fn dagEscalate(@builtin(global_invocation_id) id:vec3u){
- let s=id.x;if(s>=liveCount()||uni.residentCut==0u){return;}
- let i=liveAt(s);
- if(isResident(i)){return;}
- let cluster=clusters[i];
- let w=cluster.worldIndex;
- let e=uni.view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
- if(!selects(cluster,e,stretch,focal,bitcast<f32>(atomicLoad(&work[w])))){return;}
- if(coneRejected(i)){return;}
- escalate(w,projected(cluster.parentError,cluster.parentSphere,e,stretch,focal));
-}
-@compute @workgroup_size(64)
-fn dagCheck(@builtin(global_invocation_id) id:vec3u){
- let s=id.x;if(s>=liveCount()||uni.residentCut==0u){return;}
- let i=liveAt(s);
- if(isResident(i)){return;}
- let cluster=clusters[i];
- let w=cluster.worldIndex;
- let e=uni.view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
- if(!selects(cluster,e,stretch,focal,bitcast<f32>(atomicLoad(&work[w])))){return;}
- if(coneRejected(i)){return;}
- atomicOr(&work[uni.worldCount+w],1u);
-}
-@compute @workgroup_size(64)
 fn dagMask(@builtin(global_invocation_id) id:vec3u){
  let s=id.x;if(s>=liveCount()){return;}
  let i=liveAt(s);
@@ -191,7 +148,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u){
 }
 ${DAG_ERROR_WGSL}
 ${INVERSE_TRANSPOSE_WGSL}
-${DAG_COMPACT_WGSL}${DAG_TOTALS_WGSL}${DAG_RELEVE_WGSL}
+${DAG_COMPACT_WGSL}${DAG_TOTALS_WGSL}${DAG_REQUEST_WGSL}${DAG_RELEVE_WGSL}${DAG_WANTED_WGSL}
 ${DAG_LIVE_WGSL}
 ${DAG_LEVEL_WGSL}
 ${DAG_FLOOR_WGSL}
