@@ -17,7 +17,7 @@ export function streamCutResidency(
   const { run, services } = rt,
     { rows } = rt.layout,
     marks = rt.timing.marks;
-  services.queueCutResidency(run.desired);
+  services.queueCutResidency();
   // Enumerate the bounded resident candidates once. GPU selection and compaction
   // share their page indices; no CPU frustum/LOD traversal or regrouping follows.
   marks.queueEnd = performance.now();

@@ -1,24 +1,28 @@
 import type { PageRec } from './pageSelection.ts';
-import { createDenseKeySet } from './webgpuDenseKeys.ts';
 
 const levelOf = (page: PageRec) => page.level ?? 0;
 
 /**
- * Ranks the cut the page budget has to cut down: coarsest level first, publication order within a
- * level — exactly what a stable descending sort by level gives, obtained by counting instead of
- * comparing, and without ever materialising the levels the budget will not reach.
+ * Ranks the cut the page budget has to cut down: coarsest level first, and within a level the order
+ * the pages joined the weighed set.
  *
  * What is weighed is **pages**, not placements. The budget it is compared against is a number of
  * cache slots, and a slot holds a page: two placements of one page — the same cluster under two
  * instances of an object — occupy one slot and must count once. Counting placements made the budget
  * refuse cuts that fit ten times over, and the queue it then wrote was a prefix whose page count
  * depended on how the placements happened to be distributed, so the resident set depended on the
- * order the network had filled it in. A page's level is a property of the page, so keys partition by
- * level exactly as placements did, and the counting rank is unchanged in kind.
+ * order the network had filled it in.
  *
- * The opaque cut's keys are counted per level once and then moved by the cut difference alone, so an
- * image that enters and leaves no page re-counts nothing. Only the transparent tail, which no
- * readback describes, is re-read. Nothing is allocated once the budget is known.
+ * Le classement ne parcourt plus la coupe. Les clés pesées sont rangées PAR NIVEAU au moment où elles
+ * entrent et sortent — la seule chose qui les fasse bouger —, si bien que le préfixe s'écrit en
+ * lisant les niveaux les plus grossiers d'abord et en s'arrêtant au budget : son coût est celui du
+ * budget, jamais celui de la coupe. Ce que le préfixe contient est inchangé en nature — une
+ * couverture complète plus autant de détail que le budget en porte, jamais une coupe tronquée de la
+ * surface —, et son ordre interne est désormais stable d'une image à l'autre, là où l'ordre de
+ * publication du relevé, tiré d'un compteur atomique, le remettait en cause à chaque image et
+ * faisait réécrire la file pour rien.
+ *
+ * Nothing is allocated once the budget and the levels of a scene are known.
  */
 export function createBudgetRanking(options: {
   keyCount: number;
@@ -26,29 +30,33 @@ export function createBudgetRanking(options: {
   keyOf: (page: PageRec) => number;
 }) {
   const { keyCount, bootstrapKey, keyOf } = options;
-  /** Non-cover pages of the opaque cut, per level and in total, carried between images. */
-  let held = new Int32Array(8),
-    counts = new Int32Array(8),
-    cursors = new Int32Array(8);
-  /** Placements holding each key, and the keys they hold: a key counts once however many hold it. */
+  /** Non-cover pages of the opaque cut, per level: leur nombre, et la liste de leurs clés. */
+  let held = new Int32Array(8);
+  const lists: Int32Array[] = [];
+  /** Placements holding each key, and where the key sits: a key counts once however many hold it. */
   const refs = new Int32Array(Math.max(1, keyCount));
-  const heldKeys = createDenseKeySet(keyCount);
+  const slotOf = new Int32Array(Math.max(1, keyCount)).fill(-1),
+    levelOfKey = new Int32Array(Math.max(1, keyCount)).fill(-1);
+  /** Le premier placement qui a nommé la clé : l'enregistrement par lequel elle sera cherchée. */
+  const pageOfKey: (PageRec | undefined)[] = new Array(Math.max(1, keyCount));
   /** The ranked prefix, one entry per page, and the keys beside it. Sized to the budget once. */
   const ranked: PageRec[] = [];
   let keys = new Int32Array(0);
-  const seen = new Int32Array(Math.max(1, keyCount)).fill(-1);
-  let epoch = 0,
-    length = 0;
+  let length = 0,
+    weighed = 0;
   const grow = (level: number) => {
-    if (level < held.length) return;
-    const size = 1 << (32 - Math.clz32(level));
-    const nextHeld = new Int32Array(size),
-      nextCounts = new Int32Array(size);
-    nextHeld.set(held);
-    nextCounts.set(counts);
-    held = nextHeld;
-    counts = nextCounts;
-    cursors = new Int32Array(size);
+    if (level >= held.length) {
+      const size = 1 << (32 - Math.clz32(level));
+      const next = new Int32Array(size);
+      next.set(held);
+      held = next;
+    }
+    const list = lists[level];
+    if (list && held[level] < list.length) return list;
+    const size = Math.max(8, (list?.length ?? 0) * 2);
+    const next = new Int32Array(size);
+    if (list) next.set(list);
+    return (lists[level] = next);
   };
   return {
     ranked,
@@ -60,28 +68,34 @@ export function createBudgetRanking(options: {
     },
     /** Pages of the opaque cut the budget weighs, the pinned cover excluded. */
     get pageCount() {
-      return heldKeys.count;
+      return weighed;
     },
     /** One placement of the opaque cut joins the weighed set; the cover is never weighed. */
     add(page: PageRec) {
       const key = keyOf(page);
       if (bootstrapKey[key] || refs[key]++ > 0) return;
-      const level = levelOf(page);
-      grow(level);
-      held[level]++;
-      heldKeys.add(key);
+      const level = levelOf(page),
+        list = grow(level);
+      slotOf[key] = held[level];
+      list[held[level]++] = key;
+      levelOfKey[key] = level;
+      pageOfKey[key] = page;
+      weighed++;
     },
     /** One placement leaves it; the page leaves only with its last placement. */
     remove(page: PageRec) {
       const key = keyOf(page);
       if (bootstrapKey[key] || refs[key] <= 0 || --refs[key] > 0) return;
-      held[levelOf(page)]--;
-      heldKeys.remove(key);
-    },
-    clear() {
-      for (let i = heldKeys.count - 1; i >= 0; i--) refs[heldKeys.list[i]] = 0;
-      heldKeys.clear();
-      held.fill(0);
+      const level = levelOfKey[key],
+        list = lists[level];
+      // La dernière clé du niveau prend la place libérée : la liste reste dense, sans être triée.
+      const last = list[--held[level]];
+      list[slotOf[key]] = last;
+      slotOf[last] = slotOf[key];
+      slotOf[key] = -1;
+      levelOfKey[key] = -1;
+      pageOfKey[key] = undefined;
+      weighed--;
     },
     /** True when the queue already holds exactly the ranked prefix, in the same order. */
     matches(list: Int32Array, count: number, pages: readonly PageRec[]) {
@@ -95,9 +109,8 @@ export function createBudgetRanking(options: {
      * into `ranked`/`keys`. Returns the page count so the caller can tell a cut that fits from one
      * that does not without counting it twice.
      */
-    rank(room: number, cut: readonly PageRec[]) {
-      const records = heldKeys.count;
-      counts.set(held);
+    rank(room: number) {
+      const records = weighed;
       if (records <= room) return records;
       if (keys.length < room) {
         keys = new Int32Array(room);
@@ -108,38 +121,26 @@ export function createBudgetRanking(options: {
       let taken = 0,
         floor = 0,
         atCut = 0;
-      for (let level = counts.length - 1; level >= 0; level--) {
-        if (taken + counts[level] >= room) {
+      for (let level = held.length - 1; level >= 0; level--) {
+        if (taken + held[level] >= room) {
           floor = level;
           atCut = room - taken;
           break;
         }
-        taken += counts[level];
+        taken += held[level];
       }
-      let base = 0;
-      for (let level = counts.length - 1; level > floor; level--) {
-        cursors[level] = base;
-        base += counts[level];
-      }
-      cursors[floor] = base;
-      // One entry per page: the first placement in the ranked order is the record it is fetched by.
-      epoch++;
-      let left = atCut;
-      for (let i = 0; i < cut.length; i++) {
-        const page = cut[i],
-          key = keyOf(page),
-          level = levelOf(page);
-        if (level < floor || bootstrapKey[key] || seen[key] === epoch) continue;
-        if (level === floor) {
-          if (left === 0) continue;
-          left--;
+      let at = 0;
+      const take = (level: number, count: number) => {
+        const list = lists[level];
+        for (let i = 0; i < count; i++) {
+          const key = list[i];
+          keys[at] = key;
+          ranked[at++] = pageOfKey[key] as PageRec;
         }
-        seen[key] = epoch;
-        keys[cursors[level]] = key;
-        ranked[cursors[level]] = page;
-        cursors[level]++;
-      }
-      length = room;
+      };
+      for (let level = held.length - 1; level > floor; level--) take(level, held[level]);
+      take(floor, atCut);
+      length = at;
       return records;
     },
   };

@@ -51,11 +51,11 @@ function reference(world: ReturnType<typeof scene>, cutIds: readonly number[], r
 
 /** One image of the GPU-cut path, in the order the engine runs it. */
 export function frame(world: ReturnType<typeof scene>, cutIds: readonly number[], room: number) {
-  const { delta, sets, pages } = world;
+  const { delta, sets } = world;
   delta.apply(cutIds);
   sets.applyCut(delta);
   const requested = sets.requestedCount;
-  sets.applyBudget(room, pages);
+  sets.applyBudget(room);
   return { requested, keep: sets.keepCount };
 }
 
