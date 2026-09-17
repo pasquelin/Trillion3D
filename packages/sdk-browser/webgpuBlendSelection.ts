@@ -7,8 +7,8 @@ type BlendState = ReturnType<typeof createWebgpuBlendState>;
  * La liste de dessin transparente du CHEMIN DE REPLI, celui des appareils sans tampon de
  * visibilité.
  *
- * Le chemin de production, lui, ne parcourt plus les items par image : le tronc est testé par un
- * noyau de calcul qui écrit directement les arguments indirects (`webgpuBlendSelect.ts`). Ici, le
+ * Le chemin de production, lui, ne tient pas de liste de dessin : le tronc y est testé avec les
+ * clés de classement, et la carte étale le plan trié en instances (`webgpuBlendOrder.ts`). Ici, le
  * tronc rejette les primitives entières, la coupe processeur omet les items sans grappe
  * sélectionnée, et l'ordre source est préservé.
  */
