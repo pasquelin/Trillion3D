@@ -105,8 +105,7 @@ fn spread(kind: i64) -> f64 {
 /// cône, et `spotblend` la fraction qui s'adoucit vers son bord.
 fn cone(lamp: &At<'_>) -> (f64, f64) {
     let outer = f64::from(lamp.float("spotsize", 0.0)) / 2.0;
-    let blend = f64::from(lamp.float("spotblend", 0.0)).clamp(0.0, 1.0);
-    (outer * (1.0 - blend), outer)
+    crate::import::cone_angles(outer, f64::from(lamp.float("spotblend", 0.0)))
 }
 
 /// Le rayon de l'enveloppe émissive, en mètres du monde, ou rien quand la lampe n'en porte pas.

@@ -46,12 +46,13 @@ export function createWebgpuRowJournal(pageCount: number) {
    * passent les trois façons dont la couverture d'une grappe bascule — octets reçus, octets rendus,
    * emplacement de cache pris ou rendu —, si bien que les totaux de la coupe s'y raccrochent sans
    * qu'une liste soit parcourue une fois de plus. Prévenus à chaque appel, doublons compris : ce
-   * qu'ils font est idempotent, et une bascule dans les deux sens ne doit pas passer inaperçue.
+   * qu'il fait est idempotent, et une bascule dans les deux sens ne doit pas passer inaperçue. Un
+   * seul, car la publication de coupe est unique : une liste d'abonnés ferait croire le contraire.
    */
-  const watchers: ((page: number) => void)[] = [];
+  let watcher: ((page: number) => void) | undefined;
   const touchPage = (page: number) => {
     touchedSet.add(page);
-    for (let i = 0; i < watchers.length; i++) watchers[i](page);
+    if (watcher) watcher(page);
   };
   return {
     residencyChanges,
@@ -60,7 +61,7 @@ export function createWebgpuRowJournal(pageCount: number) {
     clearResidencyChanges,
     touched,
     touchPage,
-    watchTouched: (watcher: (page: number) => void) => void watchers.push(watcher),
+    watchTouched: (abonne: (page: number) => void) => void (watcher = abonne),
     clearTouched: touchedSet.clear,
   };
 }

@@ -16,12 +16,18 @@ export const PIPELINE_FRONT = 1,
  * parcourt le plan TRIE : suivre un rang d'item vers son objet, c'est un acces memoire au hasard
  * par entree, quand la seule lecture du plan est un parcours sequentiel.
  */
-const PLAN_SHIFT = 3;
+/** Les trois bits bas d'une entrée : deux de pipeline, puis le bit de partage. Le rang de l'item
+ *  occupe le reste. `webgpuBlendRuns.ts` et `webgpuBlendExpandWgsl.ts` lisent ces trois-là d'ici :
+ *  décaler le rang sans les suivre laisserait les trois autres sites compiler et décoder faux. */
+export const PLAN_SHIFT = 3;
+export const PLAN_SHARED_BIT = 4;
+/** Le masque des trois bits bas : deux entrées le partagent quand elles tiennent dans une tranche. */
+export const PLAN_LOW_MASK = (1 << PLAN_SHIFT) - 1;
 export const planEntry = (item: number, pipeline: number, shared: boolean) =>
-  (item << PLAN_SHIFT) | (shared ? 4 : 0) | pipeline;
+  (item << PLAN_SHIFT) | (shared ? PLAN_SHARED_BIT : 0) | pipeline;
 export const planItem = (entry: number) => entry >>> PLAN_SHIFT;
 export const planPipeline = (entry: number) => entry & 3;
-export const planShared = (entry: number) => (entry & 4) !== 0;
+export const planShared = (entry: number) => (entry & PLAN_SHARED_BIT) !== 0;
 /** Aucune primitive paginee derriere cet item : il dessine ses propres indices, par morceaux. */
 export const DRAW_UNPAGED = 0xffffffff;
 /** Les entrees de plan qu'un item peut poser au plus : le dos et la face d'un materiau double. */
@@ -150,10 +156,11 @@ export function refreshBlendPlan(blendState: BlendState) {
       else blendTriangles += item.count / 3;
     }
   }
-  blendState.plans = [Uint32Array.from(blend), Uint32Array.from(transmission)];
   // L'ordre de peinture repart de l'ordre source : c'est la seule fois qu'il est semé, et le
-  // classement par image le reprend ensuite sur place, sans jamais rallouer.
-  blendState.orders = [blendState.plans[0].slice(), blendState.plans[1].slice()];
+  // classement par image le reprend ensuite sur place, sans jamais rallouer. Il n'y a rien à
+  // garder du plan non classé : personne ne le relit, et une seconde copie de la même liste
+  // demanderait de la tenir d'accord avec celle qui est peinte.
+  blendState.orders = [Uint32Array.from(blend), Uint32Array.from(transmission)];
   blendState.orderMoved[0] = true;
   blendState.orderMoved[1] = true;
   blendState.blendTriangles = blendTriangles;

@@ -23,7 +23,30 @@
  */
 /** Les deux mots par primitive que l'élagage ajoute derrière les neuf compteurs d'image de `work` :
  *  son seuil, et le plus petit plancher qu'il a écarté. `gpuDagResources.ts` les alloue. */
-export const LEVEL_WORLD_WORDS = 2;
+const LEVEL_WORLD_WORDS = 2;
+
+/**
+ * La disposition du tampon `work`, en mots, telle que le noyau la lit — `blockBase()`,
+ * `liveCounter()` et les neuf compteurs d'image de `gpuDagLevelWgsl.ts`, puis les mots par
+ * primitive de l'élagage. Posée ICI et nulle part ailleurs : le moteur l'alloue
+ * (`gpuDagResources.ts`) et les bancs qui montent le noyau à la main la relisent, si bien qu'un mot
+ * ajouté au noyau ne peut plus laisser un appelant avec un tampon trop court — où les compteurs
+ * lus hors bornes rendent zéro, et où l'élagage par le haut écarterait alors tout.
+ */
+export function dagWorkLayout(blockCount: number, worldCount: number) {
+  const base = worldCount * 2 + blockCount * 2;
+  return {
+    base,
+    /** Les neuf compteurs de l'image, dans l'ordre où `gpuDagLevelWgsl.ts` les nomme. */
+    liveCounter: base,
+    liveGroups: base + 1,
+    candCounter: base + 5,
+    candGroups: base + 6,
+    drawnCounter: base + 7,
+    drawnGroups: base + 8,
+    words: base + 9 + worldCount * LEVEL_WORLD_WORDS,
+  };
+}
 
 import { NODE_HAS_ROOT } from './gpuDagPackNodes.ts';
 
@@ -61,7 +84,10 @@ fn resetPrune(w:u32)->f32{
  *  primitive ? Un sous-arbre qui porte une grappe que rien ne remplace ne l'est jamais. */
 fn floorPrunes(w:u32,flags:u32,sphere:vec4f,error:f32,e:mat4x4f,stretch:f32,focal:f32)->bool{
  if((flags&${NODE_HAS_ROOT}u)!=0u){return false;}
- let low=errorFloor(error,-(e*vec4f(sphere.xyz,1.0)).z,sphere.w,stretch,focal);
+ // Seule la profondeur sert : le produit complet en jetterait les trois quarts. Même forme que
+ // \`viewDepthOf\` (pageSelectionProjection.ts), quatre multiplications au lieu de seize.
+ let depth=-(e[0].z*sphere.x+e[1].z*sphere.y+e[2].z*sphere.z+e[3].z);
+ let low=errorFloor(error,depth,sphere.w,stretch,focal);
  if(low<=bitcast<f32>(atomicLoad(&work[pruneSlot(w)]))){return false;}
  atomicMin(&work[floorSlot(w)],bitcast<u32>(low));
  return true;

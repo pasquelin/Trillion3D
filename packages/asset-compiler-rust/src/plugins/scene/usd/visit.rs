@@ -101,7 +101,7 @@ fn node(
     }
     if is_light(type_name) {
         if let Some(light) = light::build(world, prim, scale) {
-            node["extensions"] = json!({"KHR_lights_punctual": {"light": light}});
+            node["extensions"] = crate::import::light_extension(light);
         }
     }
     let children: Vec<usize> = prim

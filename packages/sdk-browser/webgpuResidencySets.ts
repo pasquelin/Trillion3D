@@ -67,26 +67,22 @@ export function createWebgpuResidencySets(options: {
   const dequeue = (key: number) => {
     if (wanted.remove(key)) keep.release(key);
   };
-  const askFor = (key: number, page?: PageRec) => requested.retain(key, page);
-  const dropAsk = (key: number) => requested.release(key);
-  const holdDrawn = (key: number) => keep.retain(key);
-  const dropDrawn = (key: number) => keep.release(key);
   /** What the cut asks the cache for, and what the image actually draws. The second is not a subset
    *  of the first: a cluster whose replacement is missing is drawn from a resident ancestor the cut
    *  never asked for, and the cache must not reclaim it while it is on screen. */
   const askedKeys = createHeldKeys({
     keyCount,
     keyOfPageId,
-    retain: (key, id) => askFor(key, packedPages[id]),
-    release: dropAsk,
+    retain: (key, id) => requested.retain(key, packedPages[id]),
+    release: (key) => requested.release(key),
     onEnter: (id) => ranking.add(packedPages[id]),
     onExit: (id) => ranking.remove(packedPages[id]),
   });
   const drawnKeys = createHeldKeys({
     keyCount,
     keyOfPageId,
-    retain: holdDrawn,
-    release: dropDrawn,
+    retain: (key: number) => keep.retain(key),
+    release: (key: number) => keep.release(key),
   });
   /** Empties the queue, releasing every hold it placed. */
   const emptyQueue = () => {
