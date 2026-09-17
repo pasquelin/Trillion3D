@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createArrivalQueue, type ArrivalTarget } from './arrivalQueue.ts';
-import { referenceArrivalQueue } from './bench/oracles/streaming.mjs';
+import { referenceArrivalQueue } from './bench/oracles/admission-arrivees.mjs';
 
 function target() {
   const accepted: string[] = [];

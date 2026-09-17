@@ -65,7 +65,7 @@
   use browser/filesystem adapters. Consume public entry points; packages never import application
   internals.
 - All generic Rust library/CLI code belongs in `packages/`, never numbered benchmarks.
-  `test/engineStructure.test.mjs` checks core/adapter boundaries; `pnpm run check:structure` also
+  `test/integration/engineStructure.test.mjs` checks core/adapter boundaries; `pnpm run check:structure` also
   type-checks sdk-core without DOM.
 - Separate `formatVersion` from `compilerVersion`; reject unknown formats and incompatible caches.
   Compiler/cache-identity changes require correctness fixtures and source provenance. Never overwrite

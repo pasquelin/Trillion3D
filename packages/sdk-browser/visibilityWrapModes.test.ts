@@ -2,7 +2,7 @@
 // Défaut 8 : chaque carte d'un matériau adresse sa texture dans son propre mode. La fiche de page
 // porte donc un quartet par carte, et chaque lecture du nuanceur reçoit le quartet de la carte
 // qu'elle échantillonne — pas les drapeaux du matériau, qui n'en portaient qu'un pour toutes.
-// La preuve sur carte graphique réelle est le banc `bench/justesse/adressage-cartes-gpu.mjs`.
+// La preuve sur carte graphique réelle est le banc `test/justesse/adressage-cartes-gpu.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -21,7 +21,11 @@ import { ROW_WRAP_MODES_WORD } from './webgpuPageRow.ts';
 import { SHADE_SHADER } from './visibilityShaderShade.ts';
 import { BLEND_SHADER } from './webgpuBlendShader.ts';
 import { MASK_KEEP_WGSL } from './visibilityPageWgsl.ts';
-import { CARTES, ligneDePageMelangee, materielMelange } from './bench/justesse/adressageCartes.mjs';
+import {
+  CARTES,
+  ligneDePageMelangee,
+  materielMelange,
+} from '../../test/justesse/adressageCartes.mjs';
 
 const carte = (wrapS: THREE.Wrapping, wrapT: THREE.Wrapping) => ({ wrapS, wrapT }) as THREE.Texture;
 /** Le quartet attendu d'une entrée de la fixture, recalculé depuis ses deux modes déclarés. */

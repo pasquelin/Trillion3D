@@ -1,8 +1,8 @@
 // LE CRITÈRE des preuves de normale, éprouvé sur des vecteurs choisis à la main, sans passer par le
-// noyau. `angleEntre` et `verdictNormale` (`bench/justesse/inverseTransposeF32.mjs`) décident si une
+// noyau. `angleEntre` et `verdictNormale` (`test/justesse/inverseTransposeF32.mjs`) décident si une
 // normale rendue est la bonne : tant qu'ils acceptent une normale retournée ou perdue, aucune des
 // preuves qui s'appuient sur eux — `normalTransform.test.ts` sans GPU,
-// `test/normalTransformArithmetique.browser.mjs` sur GPU réel — ne prouve quoi que ce soit. C'était
+// `test/browser/normalTransformArithmetique.browser.mjs` sur GPU réel — ne prouve quoi que ce soit. C'était
 // le cas : une valeur absolue sur le produit scalaire confondait N et −N, et `atan2(0, 0) = 0`
 // déclarait juste une normale que le nuanceur avait perdue.
 //
@@ -15,8 +15,8 @@ import {
   TOLERANCE_NORME,
   verdictNormale,
   xformNormalModele,
-} from './bench/justesse/inverseTransposeF32.mjs';
-import { DECROCHE_DEG, REGULIERE_MINUSCULE } from './bench/justesse/normalTransformCas.mjs';
+} from '../../test/justesse/inverseTransposeF32.mjs';
+import { DECROCHE_DEG, REGULIERE_MINUSCULE } from '../../test/justesse/normalTransformCas.mjs';
 
 /** Le verdict — direction orientée, vecteur nul refusé, norme unitaire — d'une écriture sur un cas. */
 const verdict = (cas: { vraie: number[] }, rendue: number[]) =>

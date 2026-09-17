@@ -290,9 +290,9 @@ For image checks, call `setPose()`, `awaitPages()`, `render()`, then `await flus
 With Render Tech Lab running locally and this SDK built (`pnpm run build`), run:
 
 ```sh
-node test/webgpuBeauty.browser.mjs
-node test/webgpuEmerald.browser.mjs
-node test/webgpuCapture.browser.mjs
+node test/browser/webgpuBeauty.browser.mjs
+node test/browser/webgpuEmerald.browser.mjs
+node test/browser/webgpuCapture.browser.mjs
 ```
 
 The runners use the Lab's installed Playwright and Chrome's actual WebGPU device. `LAB_ROOT` and `LAB_URL` select the Lab checkout and server (defaults: adjacent `render-tech-lab`, `http://localhost:5174`). The material check compares nine pixels on 18 fixtures with a two-level RGB tolerance and rejects missing diagnostics or GPU failures. The Emerald check replays ten banc 15 poses on the same source, camera, 1012×1000 viewport and pixel error 1. It saves PNGs, per-view differences, source fingerprints and logs under `benchmark-runs/webgpu-visual/`. A successful runner execution is **not** a full-scene visual-parity verdict: inspect the measured differences and screenshots. Neither runner measures performance or proves memory stability.

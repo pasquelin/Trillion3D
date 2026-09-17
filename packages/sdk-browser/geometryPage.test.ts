@@ -1,10 +1,10 @@
 // A13 : le plan de lecture des attributs est calculé une fois par page et les valeurs sont lues par
 // vue typée (petit boutien) plutôt que par une fermeture et un DataView par sommet. Oracle : la
-// version DataView-partout d'avant le lot A, dans `bench/oracles/chargement.mjs`.
+// version DataView-partout d'avant le lot A, dans `bench/oracles/attributs-telemetrie.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decodePageAttributes } from './geometryPage.ts';
-import { referenceDecode } from './bench/oracles/chargement.mjs';
+import { referenceDecode } from './bench/oracles/attributs-telemetrie.mjs';
 
 const FLAGS_NORMAL = 1,
   FLAGS_UV = 2;

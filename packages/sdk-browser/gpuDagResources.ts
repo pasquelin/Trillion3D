@@ -18,7 +18,7 @@ export async function createDagResources(
     worldCount = Math.max(1, packed.worldCount);
   // La liste compactée des pages dessinables prolonge le relevé : un entête, puis les rangs. Une seule copie contiguë rapporte les deux. Chacune est bornée par le PLAFOND
   // et non par le catalogue : c'est ce que l'image recopie et mappe, et le pire cas n'arrive jamais
-  // (`gpuDagLayout.ts`, mesuré par `bench/justesse/releve-coupe-gpu.mjs`).
+  // (`gpuDagLayout.ts`, mesuré par `test/justesse/releve-coupe-gpu.mjs`).
   const listCap = selectionListCap(pageCount),
     headBytes = SELECTION_HEADER_WORDS * 4,
     outputBytes = headBytes + listCap * 4,

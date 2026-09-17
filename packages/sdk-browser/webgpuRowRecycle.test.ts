@@ -9,7 +9,7 @@
 // l'autre grappe pendant que la table la donne pour P.
 //
 // Aucune comparaison différentielle ne peut le dire : l'oracle d'avant le lot F porte la même
-// fonction au mot près (`bench/oracles/f-lignes.mjs`), donc les deux côtés se tromperaient ensemble.
+// fonction au mot près (`bench/oracles/lignes-dessinables.mjs`), donc les deux côtés se tromperaient ensemble.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PAGE_INFO_STRIDE } from './visibilityTypes.ts';

@@ -1,15 +1,15 @@
 // Défaut 4 : `wrapTexel` (visibilityMath.ts) doit suivre la règle entière de la carte graphique pour
 // les trois modes d'adressage — la même que MIRRORED_REPEAT en OpenGL ES 3.0 / WebGPU : i = ⌊t·taille⌋,
 // puis serrage, modulo une période (Repeat), ou modulo deux périodes dont la seconde se lit à rebours
-// (MirroredRepeat). `texelThree` (bench/justesse/adressageCas.mjs) encode cette même règle de façon
+// (MirroredRepeat). `texelThree` (test/justesse/adressageCas.mjs) encode cette même règle de façon
 // indépendante ; c'est l'oracle déjà vérifié contre les vrais échantillonneurs WebGL2 et WebGPU par
-// `bench/justesse/adressage-gpu.mjs`, réutilisé ici pour balayer des cas que les valeurs figées
+// `test/justesse/adressage-gpu.mjs`, réutilisé ici pour balayer des cas que les valeurs figées
 // n'écrivent pas explicitement.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { wrapTexel } from './visibilityMath.ts';
-import { texelThree } from './bench/justesse/adressageCas.mjs';
+import { texelThree } from '../../test/justesse/adressageCas.mjs';
 
 const CLAMP = THREE.ClampToEdgeWrapping,
   REPEAT = THREE.RepeatWrapping,

@@ -1,5 +1,5 @@
 // Ce que vaut la reconstruction de la forme d'avant un lot, dans les bancs de reproduction des
-// défauts 6 et 9 (`bench/justesse/inverse-transposee-petite-echelle.mjs` et
+// défauts 6 et 9 (`test/justesse/inverse-transposee-petite-echelle.mjs` et
 // `normale-eclairage-petite-echelle.mjs`).
 //
 // L'ÉTAT D'AVANT, pour mémoire : les deux bancs reconstruisaient le shader d'avant par
@@ -18,7 +18,7 @@ import assert from 'node:assert/strict';
 import { DAG_SELECTION_SHADER } from './gpuDagShader.ts';
 import { INVERSE_TRANSPOSE_AVANT_WGSL, INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
 import { NORMAL_TRANSFORM_WGSL } from './standardLighting.ts';
-import { substitueFormeAvant } from './bench/justesse/substitutionAvant.mjs';
+import { substitueFormeAvant } from '../../test/justesse/substitutionAvant.mjs';
 
 const ORIGINE = 'packages/sdk-browser/inverseTransposeWgsl.ts';
 const SEUIL_ABSOLU = 'abs(det)<1e-20';
