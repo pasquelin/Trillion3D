@@ -1,6 +1,5 @@
 import type { PageRec } from './pageSelection.ts';
 import type { CutDelta } from './webgpuCutDelta.ts';
-import { createDenseKeySet } from './webgpuDenseKeys.ts';
 
 export type CutCounts = ReturnType<typeof createCutCounts>;
 
@@ -17,12 +16,15 @@ export type CutCounts = ReturnType<typeof createCutCounts>;
  * nomme, et celles dont la couverture vient de basculer — octets reçus ou perdus, ligne de résidence
  * prise ou rendue. Une image qui n'entre ni ne sort aucune page ne touche pas un compteur.
  *
- * L'appartenance est tenue ici plutôt que lue chez la différence : c'est elle qui dit si une page
- * dont la couverture bascule pèse sur le trou, et elle survit à l'image comme les totaux.
+ * L'appartenance n'est pas retenue une seconde fois ici : c'est celle de la différence, qui la tient
+ * déjà et à qui ces totaux sont attachés une fois pour toutes.
  */
-export function createCutCounts(packedPages: readonly PageRec[], residentOffsetWords: Int32Array) {
+export function createCutCounts(
+  packedPages: readonly PageRec[],
+  residentOffsetWords: Int32Array,
+  delta: CutDelta,
+) {
   const capacity = Math.max(1, packedPages.length);
-  const members = createDenseKeySet(capacity);
   /** Ce qui a été compté comme trou : ce qui a été ajouté est exactement ce qui sera retiré. */
   const holed = new Uint8Array(capacity);
   const totals = {
@@ -41,54 +43,49 @@ export function createCutCounts(packedPages: readonly PageRec[], residentOffsetW
     totals.drawnTriangles = selected - uncovered;
     totals.transparentTriangles = transparent;
   };
-  /** Remet la page à sa place dans le trou : membre sans ligne de résidence, ou sans octets. */
-  const recount = (id: number) => {
-    const rec = packedPages[id];
-    if (!rec) return;
-    const now = members.has(id) && (residentOffsetWords[id] < 0 || !rec.array) ? 1 : 0;
-    if (now === holed[id]) return;
-    holed[id] = now;
-    uncovered += now ? rec.triangles : -rec.triangles;
-  };
+  /** Vrai quand la page manque à l'image : pas de ligne de résidence, ou pas d'octets. */
+  const holes = (id: number, rec: PageRec) => residentOffsetWords[id] < 0 || !rec.array;
   return {
     totals,
-    get count() {
-      return members.count;
-    },
-    /** Une différence de la coupe dessinable : les sorties d'abord, les entrées ensuite. */
-    apply(delta: CutDelta) {
-      for (let i = 0; i < delta.exitedCount; i++) {
-        const id = delta.exited[i],
+    /** La différence qui vient d'être appliquée : les sorties d'abord, les entrées ensuite. */
+    apply() {
+      // Les bornes sont lues UNE fois : ce sont des accesseurs, et les relire à chaque tour de
+      // boucle coûtait plus que tout ce que la boucle fait.
+      const exited = delta.exitedCount,
+        entered = delta.enteredCount;
+      const exits = delta.exited,
+        entries = delta.entered;
+      for (let i = 0; i < exited; i++) {
+        const id = exits[i],
           rec = packedPages[id];
-        if (!rec || !members.remove(id)) continue;
         selected -= rec.triangles;
         if (rec.transparent) transparent -= rec.triangles;
-        recount(id);
+        if (holed[id]) {
+          uncovered -= rec.triangles;
+          holed[id] = 0;
+        }
       }
-      for (let i = 0; i < delta.enteredCount; i++) {
-        const id = delta.entered[i],
+      for (let i = 0; i < entered; i++) {
+        const id = entries[i],
           rec = packedPages[id];
-        if (!rec || !members.add(id)) continue;
         selected += rec.triangles;
         if (rec.transparent) transparent += rec.triangles;
-        recount(id);
+        if (holes(id, rec)) {
+          uncovered += rec.triangles;
+          holed[id] = 1;
+        }
       }
       publish();
       return totals;
     },
     /** La couverture d'une page vient de bouger ; hors de la coupe, elle ne pèse sur rien. */
     touch(id: number) {
-      if (id < 0 || id >= capacity || !members.has(id)) return;
-      recount(id);
-      publish();
-    },
-    /** La coupe que ces totaux décrivaient ne décide plus l'image : tout repart de zéro. */
-    clear() {
-      for (let i = members.count - 1; i >= 0; i--) holed[members.list[i]] = 0;
-      members.clear();
-      selected = 0;
-      uncovered = 0;
-      transparent = 0;
+      if (!delta.has(id)) return;
+      const rec = packedPages[id],
+        now = holes(id, rec) ? 1 : 0;
+      if (now === holed[id]) return;
+      holed[id] = now;
+      uncovered += now ? rec.triangles : -rec.triangles;
       publish();
     },
   };

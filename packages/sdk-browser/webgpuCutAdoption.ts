@@ -26,8 +26,8 @@ export function createWebgpuCutAdopter(options: {
   /** The drawable cut as a difference, kept apart because it is not the cut that was asked for. */
   drawnDelta: CutDelta;
   /** Called once per readback, and only there: the difference is applied exactly once. */
-  onCutDelta: (delta: CutDelta) => void;
-  onDrawnDelta: (delta: CutDelta) => void;
+  onCutDelta: () => void;
+  onDrawnDelta: () => void;
   /** Appelée quand `drawn` vient d'être refait depuis `shown` : l'image n'a plus à le refaire. */
   onDrawnMirrored: () => void;
 }) {
@@ -80,8 +80,8 @@ export function createWebgpuCutAdopter(options: {
     if (drawnDelta.changed) drawnSeq++;
     // A difference is applied where it is computed. An image that adopts nothing — no readback has
     // landed — must not replay the previous one, which would count every page twice.
-    options.onCutDelta(delta);
-    options.onDrawnDelta(drawnDelta);
+    options.onCutDelta();
+    options.onDrawnDelta();
     metrics.cutHeld = !delta.changed && !drawnDelta.changed;
     metrics.listsRewritten = !metrics.cutHeld;
     metrics.visible = desired.length;

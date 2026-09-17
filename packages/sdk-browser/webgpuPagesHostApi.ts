@@ -128,11 +128,13 @@ export function pendingUrls(rt: WebgpuPagesRuntime) {
   const scratch = run.hostPendingScratch;
   scratch.length = 0;
   if (run.coverageBudgetLimited) return scratch;
-  const { cutPending } = rt.services,
+  const { packedPages } = rt.layout,
     stamps = rt.setup.requestStamps;
+  const waiting = rt.services.cutPending.pages,
+    count = rt.services.cutPending.count;
   stamps.begin();
-  for (let i = 0; i < cutPending.count; i++) {
-    const rec = rt.layout.packedPages[cutPending.pages[i]];
+  for (let i = 0; i < count; i++) {
+    const rec = packedPages[waiting[i]];
     if (rec && stamps.first(rec.requestIndex)) scratch.push(rec.streamUrl ?? rec.url);
   }
   return scratch;

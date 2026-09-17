@@ -30,7 +30,7 @@ function banc() {
   const shown = [packedPages[0], packedPages[1]];
   const desired: PageRec[] = [];
   const delta = createCutDelta(packedPages, desired);
-  const cutPending = createCutPending(packedPages);
+  const cutPending = createCutPending(packedPages, delta);
   const run = {
     desired,
     shown,
@@ -53,7 +53,7 @@ function banc() {
   /** Une coupe publiée comme le moteur la publie : par sa différence, lecteurs compris. */
   const publie = (ids: number[]) => {
     delta.apply(ids);
-    cutPending.apply(delta);
+    cutPending.apply();
     run.cutEpoch++;
   };
   publie([1, 2, 3, 4]);

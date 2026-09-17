@@ -38,7 +38,12 @@ function banc(ids: number[]) {
       result: { pageIds: ids, drawablePageIds: ids, frustumRejected: 0, lodLevel: 0, complete },
     }) as GpuCut;
   let peeked: GpuCut | null = releve(false);
-  const counts = createCutCounts(packedPages, new Int32Array(packedPages.length).fill(0));
+  const drawnDelta = createCutDelta(packedPages, []);
+  const counts = createCutCounts(
+    packedPages,
+    new Int32Array(packedPages.length).fill(0),
+    drawnDelta,
+  );
   const adopter = createWebgpuCutAdopter({
     selection: () => ({ peek: () => peeked }) as unknown as GpuSelection,
     packedPages,
@@ -48,9 +53,9 @@ function banc(ids: number[]) {
     uniforms: shared,
     counts,
     delta: createCutDelta(packedPages, desired),
-    drawnDelta: createCutDelta(packedPages, []),
+    drawnDelta,
     onCutDelta: () => {},
-    onDrawnDelta: (delta) => counts.apply(delta),
+    onDrawnDelta: () => counts.apply(),
     onDrawnMirrored: () => {},
   });
   return { adopter, desired, shown, montre: (complete: boolean) => (peeked = releve(complete)) };

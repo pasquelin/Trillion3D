@@ -85,7 +85,8 @@ export function banc(panne?: 'debordement' | 'envoi') {
   const desired: PageRec[] = [],
     shown: PageRec[] = [],
     drawn: PageRec[] = [];
-  const counts = createCutCounts([page], new Int32Array([0]));
+  const drawnDelta = createCutDelta([page], []);
+  const counts = createCutCounts([page], new Int32Array([0]), drawnDelta);
   const adopter = createWebgpuCutAdopter({
     selection: () => selection,
     packedPages: [page],
@@ -95,9 +96,9 @@ export function banc(panne?: 'debordement' | 'envoi') {
     uniforms,
     counts,
     delta: createCutDelta([page], desired),
-    drawnDelta: createCutDelta([page], []),
+    drawnDelta,
     onCutDelta: () => {},
-    onDrawnDelta: (delta) => counts.apply(delta),
+    onDrawnDelta: () => counts.apply(),
     onDrawnMirrored: () => {},
   });
   const rows = {

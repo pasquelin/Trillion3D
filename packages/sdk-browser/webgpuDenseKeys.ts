@@ -7,6 +7,11 @@
  * A removal swaps the last member into the hole, so the listing order is the caller's history, never
  * a sort. An optional `mirror` array rides along: entry `i` of the mirror belongs to `list[i]`, so a
  * caller can keep the records beside the keys without a second index.
+ *
+ * `slots` est la table des rangs elle-même : rang du membre, ou -1. Une boucle chaude qui visite des
+ * dizaines de milliers de clés dont presque aucune n'est membre la lit directement — un accès de
+ * tableau typé au lieu d'un appel — et n'appelle `add` ou `remove` que pour celles qui bougent
+ * vraiment. Personne d'autre que ce module ne l'écrit.
  */
 export type DenseKeySet = ReturnType<typeof createDenseKeySet>;
 
@@ -17,6 +22,7 @@ export function createDenseKeySet(capacity: number, mirror?: unknown[]) {
   let count = 0;
   return {
     list,
+    slots: at,
     get count() {
       return count;
     },
