@@ -17,7 +17,7 @@ type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
  * comme argument dans une même portée de synchronisation. La coupure ne porte que la recopie de ce
  * mot ; les deux autres mots de l'argument valent un et ne changent jamais.
  *
- * Cette recopie est CHÈRE : dix-neuf microsecondes sur apple metal-3, mesurées par
+ * Cette recopie est CHÈRE : dix-sept à dix-neuf microsecondes sur apple metal-3, mesurées par
  * `bench/justesse/coupe-lancements-gpu.mjs`, contre une microseconde pour la passe elle-même. Il n'en
  * reste donc que trois par image, là où aucun majorant n'est connu d'avance — le journal des
  * dessinées, les candidates et les vivantes. La descente, elle, se lance à plat : le rangement
