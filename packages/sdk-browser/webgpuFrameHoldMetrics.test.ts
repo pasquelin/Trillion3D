@@ -71,7 +71,12 @@ function tenue() {
     },
     vis: { visEnabled: true, gpuDraw: {}, textureJobs: [], gpuHiz: undefined },
     capture: { secondaryCamera: undefined, capturePending: undefined },
-    services: { bootstrapState: { ready: true }, residency: { busy: false } },
+    services: {
+      bootstrapState: { ready: true },
+      residency: { busy: false },
+      // Le compte des pages de la coupe qui attendent encore leurs octets, tenu par la différence.
+      cutPending: { count: 0 },
+    },
     layout: {
       rows: {
         rowsChanged: false,
@@ -138,4 +143,16 @@ test('les métriques de la coupe réaffichée ne bougent pas', () => {
   assert.equal(metrics.drawCalls, 1);
   assert.equal(metrics.submittedTriangles, 0);
   assert.equal(run.frame, 6, 'une image a bien été produite');
+});
+
+test('une page de la coupe qui attend ses octets interdit de tenir l’image', () => {
+  const { rt, device } = tenue();
+  const pending = rt.services.cutPending as { count: number };
+  assert.equal(holdWebgpuFrame(rt, device), true, 'une coupe entièrement arrivée se tient');
+  // Le compte est celui que la différence de la coupe tient : aucune liste n'est relue ici.
+  pending.count = 1;
+  assert.equal(holdWebgpuFrame(rt, device), false, 'une page attendue peut encore ouvrir un trou');
+  assert.equal(rt.run.frameHeld, false);
+  pending.count = 0;
+  assert.equal(holdWebgpuFrame(rt, device), true);
 });

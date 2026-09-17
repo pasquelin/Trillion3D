@@ -1,21 +1,36 @@
 // Les deux listes que l'hôte demande au moteur WebGPU après le rendu : mêmes adresses qu'un
 // dédoublonnage par ensemble de chaînes, et rendues telles quelles tant que rien de ce dont elles
-// dépendent n'a bougé.
+// dépendent n'a bougé. Celle des pages à charger ne parcourt plus la coupe : la différence tient
+// l'ensemble des pages qui attendent leurs octets, et c'est lui qui est lu.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { RequestStamps, type PageRec } from './pageSelection.ts';
+import { createCutDelta } from './webgpuCutDelta.ts';
+import { createCutPending } from './webgpuCutPending.ts';
 import { pageUrls, pendingUrls } from './webgpuPagesHostApi.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 const rec = (url: string, requestIndex: number, chargee = true) =>
   ({ url, requestIndex, array: chargee ? new Uint32Array(3) : undefined }) as unknown as PageRec;
 
-/** Ce que les deux listes lisent, et rien d'autre : trois listes, deux drapeaux, deux estampilles. */
+/** Ce que les deux listes lisent, et rien d'autre : un catalogue, trois listes, deux estampilles. */
 function banc() {
   const bootstrap = [rec('a', 0)];
-  const shown = [rec('a', 0), rec('b', 1)];
-  // Deux placements d'une même clé de requête, et une page dont les octets ne sont pas arrivés.
-  const desired = [rec('b', 1), rec('c', 2), rec('c', 2), rec('d', 3, false)];
+  // Deux placements d'une même clé de requête (rangs 2 et 3), et trois pages sans octets.
+  const packedPages = [
+    rec('a', 0),
+    rec('b', 1),
+    rec('c', 2),
+    rec('c', 2),
+    rec('d', 3, false),
+    rec('e', 4, false),
+    rec('f', 5, false),
+  ];
+  packedPages.forEach((page, index) => (page.packedIndex = index));
+  const shown = [packedPages[0], packedPages[1]];
+  const desired: PageRec[] = [];
+  const delta = createCutDelta(packedPages, desired);
+  const cutPending = createCutPending(packedPages);
   const run = {
     desired,
     shown,
@@ -31,10 +46,18 @@ function banc() {
   };
   const rt = {
     run,
+    layout: { packedPages },
     setup: { bootstrap, requestStamps: new RequestStamps(6) },
-    services: { bootstrapState: { ready: true } },
+    services: { bootstrapState: { ready: true }, cutPending },
   } as unknown as WebgpuPagesRuntime;
-  return { rt, run, desired };
+  /** Une coupe publiée comme le moteur la publie : par sa différence, lecteurs compris. */
+  const publie = (ids: number[]) => {
+    delta.apply(ids);
+    cutPending.apply(delta);
+    run.cutEpoch++;
+  };
+  publie([1, 2, 3, 4]);
+  return { rt, run, publie, cutPending, packedPages };
 }
 
 /** L'ancienne règle, mot pour mot : un ensemble de chaînes, dans l'ordre de rencontre. */
@@ -61,8 +84,8 @@ test('le suivi du rendu écrit dans son propre tableau, jamais dans la liste ten
 });
 
 test('les deux listes rendent ce qu’un ensemble de chaînes rendait, dans le même ordre', () => {
-  const { rt, run, desired } = banc();
-  assert.deepEqual(pageUrls(rt), parEnsemble([rt.setup.bootstrap, run.shown, desired]));
+  const { rt, run } = banc();
+  assert.deepEqual(pageUrls(rt), parEnsemble([rt.setup.bootstrap, run.shown, run.desired]));
   assert.deepEqual(pageUrls(rt), ['a', 'b', 'c', 'd']);
   // Seules les pages sans octets sont attendues, dédoublonnées de la même façon.
   assert.deepEqual(pendingUrls(rt), ['d']);
@@ -73,12 +96,14 @@ test('les deux listes rendent ce qu’un ensemble de chaînes rendait, dans le m
 });
 
 test('un relevé tenu rend la liste déjà rendue, et tout le reste la refait', () => {
-  const { rt, run, desired } = banc();
+  const { rt, run, publie } = banc();
   const urls = pageUrls(rt),
     pending = pendingUrls(rt);
-  // Un relevé tenu : les listes ne sont pas reparcourues, donc une page ajoutée en douce est ignorée.
+  // Un relevé tenu : les listes ne sont pas reparcourues, donc une coupe élargie en douce est ignorée.
   run.cutHeld = true;
-  desired.push(rec('e', 4, false));
+  const epoch = run.cutEpoch;
+  publie([1, 2, 3, 4, 5]);
+  run.cutEpoch = epoch;
   assert.deepEqual(pageUrls(rt), urls, 'la liste rendue est celle de l’image précédente');
   assert.deepEqual(pendingUrls(rt), pending);
   // Des octets arrivent ou partent : l'estampille avance et les deux listes repartent.
@@ -92,28 +117,44 @@ test('un relevé tenu rend la liste déjà rendue, et tout le reste la refait', 
   // Un relevé qui n'est plus tenu refait tout, sans rien d'autre pour le dire.
   run.coverageBudgetLimited = false;
   run.cutHeld = false;
-  desired.pop();
+  publie([1, 2, 3, 4]);
   assert.deepEqual(pageUrls(rt), ['a', 'b', 'c', 'd']);
   assert.deepEqual(pendingUrls(rt), ['d']);
 });
 
 test('une adoption qui réécrit les listes après coup les fait vieillir, même relevé tenu ensuite', () => {
-  const { rt, run, desired } = banc();
+  const { rt, run, publie } = banc();
   const urls = pageUrls(rt),
     pending = pendingUrls(rt);
   assert.deepEqual(urls, ['a', 'b', 'c', 'd']);
   // La vidange rejoue une adoption APRÈS que l'hôte a pris ses listes : elles bougent sous lui, et
   // l'image suivante peut très bien relire le même relevé et se croire en droit de les tenir.
-  desired.push(rec('e', 4, false));
-  run.cutEpoch++;
+  publie([1, 2, 3, 4, 5]);
   run.cutHeld = true;
   assert.deepEqual(pageUrls(rt), ['a', 'b', 'c', 'd', 'e'], 'la liste périmée n’est pas rendue');
   assert.deepEqual(pendingUrls(rt), ['d', 'e']);
   assert.notDeepEqual(pending, ['d'], 'le tableau tenu a bien été réécrit');
   // Le même âge et le même relevé : là, et là seulement, la liste est rendue telle quelle.
-  desired.push(rec('f', 5, false));
+  const epoch = run.cutEpoch;
+  publie([1, 2, 3, 4, 5, 6]);
+  run.cutEpoch = epoch;
   assert.deepEqual(pageUrls(rt), ['a', 'b', 'c', 'd', 'e']);
   assert.deepEqual(pendingUrls(rt), ['d', 'e']);
+});
+
+test('les octets d’une page de la coupe la font entrer et sortir de l’attente', () => {
+  const { rt, run, cutPending, packedPages } = banc();
+  assert.deepEqual(pendingUrls(rt), ['d']);
+  // Les octets arrivent : le journal des rangs nomme la page, l'ensemble en attente se vide.
+  packedPages[4].array = new Uint32Array(3);
+  cutPending.touch(4);
+  run.pageArrayEpoch++;
+  assert.deepEqual(pendingUrls(rt), []);
+  // Et repartent : elle revient dans l'attente, sans que la coupe ait bougé d'un rang.
+  packedPages[4].array = undefined;
+  cutPending.touch(4);
+  run.pageArrayEpoch++;
+  assert.deepEqual(pendingUrls(rt), ['d']);
 });
 
 test('la couverture d’amorçage décide seule de ce que l’image attend avant d’être prête', () => {
