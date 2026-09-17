@@ -8,8 +8,8 @@ import assert from 'node:assert/strict';
 import type { encodeDagKernels } from './gpuDagEncode.ts';
 
 /** `liste` : le décalage du compte de groupes armé avant le lancement, donc la liste parcourue. */
-export type Lancement = { noyau: string; groupes: number | 'indirect'; liste?: number };
-export type Copie = {
+type Lancement = { noyau: string; groupes: number | 'indirect'; liste?: number };
+type Copie = {
   de: string;
   decalage: number;
   vers: string;
