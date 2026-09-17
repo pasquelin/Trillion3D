@@ -1,9 +1,8 @@
-import { frustumExcludesBox, frustumPlanesToLocal } from '../sdk-core/index.ts';
 import type { PackedDag } from './gpuDagTypes.ts';
 import { DAG_NODE_FLOATS } from './gpuDagTypes.ts';
 import { CLUSTER_ROOT, clusterLevel, dagRecords, flagsOf, worldOf } from './gpuDagLayout.ts';
 import type { SelectionUniforms, SelectionResult } from './gpuSelection.ts';
-import { dagScratch, projectedError } from './gpuDagOracleMath.ts';
+import { dagNodeVerdict, dagViewFrames } from './gpuDagOracleMath.ts';
 import { createDagOraclePredicates } from './gpuDagOraclePredicates.ts';
 import { ESCALATION_ROUNDS, ESCALATION_SLACK } from './pageSelectionTypes.ts';
 
@@ -24,29 +23,15 @@ export function evaluateDagSelectionKernel(
 ) {
   if (resident && resident.length !== packed.pageCount)
     throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED');
-  const { nodes, worlds, worldStretch } = packed;
+  const { nodes } = packed;
   // Le décodeur unique de la disposition compacte : le même que le double de tampon relit, si bien
   // qu'aucun rang de champ n'est écrit ailleurs qu'une fois, dans `gpuDagLayout.ts`.
   const records = dagRecords(packed),
     nodeInts = new Uint32Array(nodes.buffer);
-  const cameraStretch = uniforms.cameraStretch ?? 1,
-    focal = Math.max(uniforms.pixelScale[0], uniforms.pixelScale[1]),
-    near = uniforms.near;
-  const pixelError = uniforms.pixelError;
-  const planes: Float64Array[] = [],
-    views: number[][] = [],
-    stretches: number[] = [];
-  const { view, world, viewMatrix } = dagScratch;
-  view.fromArray(uniforms.view);
-  for (let w = 0; w < packed.worldCount; w++) {
-    world.fromArray(worlds.subarray(w * 16, w * 16 + 16));
-    const object = new Float64Array(24);
-    frustumPlanesToLocal(object, uniforms.planes, world.elements);
-    planes.push(object);
-    viewMatrix.multiplyMatrices(view, world);
-    views.push([...viewMatrix.elements]);
-    stretches.push(worldStretch[w] * cameraStretch);
-  }
+  // Le prologue par primitive et le verdict par nœud sont ceux de `gpuDagOracleMath.ts`, écrits une
+  // seule fois : le comptage de frontière les relit, et ni lui ni l'oracle ne peut dériver seul.
+  const frames = dagViewFrames(packed, uniforms);
+  const { planes, views, stretches, focal, near, pixelError } = frames;
   // Descente par niveaux, comme le noyau : un nœud rejeté n'engendre rien, et une feuille jamais
   // atteinte reste rejetée. Un drapeau non nul dit « ne descends pas ici » ; seules les feuilles
   // retenues retombent à zéro, et ce sont elles seules que les grappes consultent.
@@ -55,42 +40,15 @@ export function evaluateDagSelectionKernel(
   for (let w = 0; w < packed.worldCount; w++)
     if (packed.rootNodes[w] !== 0xffffffff) frontier.push(packed.rootNodes[w]);
   while (frontier.length) {
-    const n = frontier.pop() as number,
-      base = n * DAG_NODE_FLOATS,
-      w = nodeInts[base + 12];
-    if (
-      frustumExcludesBox(
-        planes[w],
-        nodes[base],
-        nodes[base + 1],
-        nodes[base + 2],
-        nodes[base + 4],
-        nodes[base + 5],
-        nodes[base + 6],
-      )
-    )
-      continue;
-    const bound = nodes[base + 7];
-    if (
-      bound >= 0 &&
-      projectedError(
-        bound,
-        nodes[base + 8],
-        nodes[base + 9],
-        nodes[base + 10],
-        nodes[base + 11],
-        views[w],
-        stretches[w],
-        focal,
-        near,
-      ) <= pixelError
-    ) {
+    const n = frontier.pop() as number;
+    const children = dagNodeVerdict(frames, nodes, nodeInts, n);
+    if (children < 0) {
       nodeFlags[n] = 2;
       continue;
     }
-    const children = nodeInts[base + 15];
     if (children) {
-      for (let c = 0; c < children; c++) frontier.push(nodeInts[base + 3] + c);
+      const first = nodeInts[n * DAG_NODE_FLOATS + 3];
+      for (let c = 0; c < children; c++) frontier.push(first + c);
       continue;
     }
     nodeFlags[n] = 0;
