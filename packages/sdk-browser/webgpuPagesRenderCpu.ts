@@ -167,7 +167,7 @@ export function renderCpuCut(
   const culled = cullWithTemporalHiz(rt, cam);
   const selectionEnd = performance.now();
   const queueStarted = performance.now();
-  services.queueCutResidency(run.desired, run.coverageBudgetLimited);
+  services.queueCutResidency(run.coverageBudgetLimited);
   const queueEnd = performance.now();
   traceQueueReconstruct(rt, queueEnd - queueStarted);
   const drawnVerifyStarted = performance.now();

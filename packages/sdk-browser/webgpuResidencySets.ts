@@ -121,15 +121,14 @@ export function createWebgpuResidencySets(options: {
      * The upload queue holds `room` records. A cut that fits is the queue, and the incremental set
      * already is that queue — nothing is walked. A cut that does not fit is ranked coarsest first and
      * cut to `room`: coarse clusters cover more surface per slot, so what survives is a complete
-     * cover plus as much detail as fits, never a truncated cut of the surface. Ranking needs the cut
-     * in the order the readback published it, which is the order `desiredNow` is written in.
+     * cover plus as much detail as fits, never a truncated cut of the surface. Le classement lit les
+     * clés pesées rangées par niveau : il ne parcourt pas la coupe, seulement le budget.
      *
-     * A cut that ranks to the queue already held changes nothing, so nothing is written: the ranking
-     * is recomputed from the records themselves every image, never assumed from the cut standing
-     * still, and the queue is rebuilt only where the two differ.
+     * A cut that ranks to the queue already held changes nothing, so nothing is written, and the
+     * queue is rebuilt only where the two differ.
      */
-    applyBudget(room: number, desiredNow: readonly PageRec[]) {
-      if (ranking.rank(room, desiredNow) <= room) {
+    applyBudget(room: number) {
+      if (ranking.rank(room) <= room) {
         if (!followsDesired) restoreWanted();
         return false;
       }
