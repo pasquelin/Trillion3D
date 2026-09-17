@@ -41,13 +41,26 @@ export function createWebgpuRowJournal(pageCount: number) {
       return touchedSet.count;
     },
   };
+  /**
+   * Qui d'autre veut savoir qu'une page vient d'être nommée. `touchPage` est le seul endroit par où
+   * passent les trois façons dont la couverture d'une grappe bascule — octets reçus, octets rendus,
+   * emplacement de cache pris ou rendu —, si bien que les totaux de la coupe s'y raccrochent sans
+   * qu'une liste soit parcourue une fois de plus. Prévenus à chaque appel, doublons compris : ce
+   * qu'ils font est idempotent, et une bascule dans les deux sens ne doit pas passer inaperçue.
+   */
+  const watchers: ((page: number) => void)[] = [];
+  const touchPage = (page: number) => {
+    touchedSet.add(page);
+    for (let i = 0; i < watchers.length; i++) watchers[i](page);
+  };
   return {
     residencyChanges,
     noteResidencyChange: (page: number) => void changed.add(page),
     sortResidencyChanges,
     clearResidencyChanges,
     touched,
-    touchPage: (page: number) => void touchedSet.add(page),
+    touchPage,
+    watchTouched: (watcher: (page: number) => void) => void watchers.push(watcher),
     clearTouched: touchedSet.clear,
   };
 }
