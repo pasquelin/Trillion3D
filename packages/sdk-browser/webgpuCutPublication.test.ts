@@ -1,11 +1,11 @@
 // La publication d'une coupe processeur : elle ne fait vieillir les listes qu'une fois par image —
 // celui qui oublie le relevé le fait avant de choisir, et couvre ainsi la sortie par erreur de la
-// coupe — et le repli épinglé, qui ne remplace que la liste montrée, ne republie pas la coupe
-// demandée pour retomber dessus.
+// coupe — et republier la même coupe ne remue rien, puisque ce qui est publié est une différence.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuCutPublication } from './webgpuCutPublication.ts';
 import { fixturePages, fixtureUniforms } from './webgpuCutAdopterFixture.ts';
+import type { CutDelta } from './webgpuCutDelta.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 import type { WebgpuResidencySets } from './webgpuResidencySets.ts';
 
@@ -22,10 +22,12 @@ function banc() {
     pagesEntered: null,
     pagesExited: null,
   };
-  const comptes = { coupe: 0, dessinee: 0 };
+  /** Ce que les ensembles de résidence ont réellement reçu : des différences, pas des listes. */
+  const remue = { coupe: 0, dessinee: 0 };
+  const compte = (delta: CutDelta) => delta.enteredCount + delta.exitedCount;
   const residencySets = {
-    applyCut: () => comptes.coupe++,
-    applyDrawn: () => comptes.dessinee++,
+    applyCut: (delta: CutDelta) => (remue.coupe += compte(delta)),
+    applyDrawn: (delta: CutDelta) => (remue.dessinee += compte(delta)),
   } as unknown as WebgpuResidencySets;
   const rt = {
     run,
@@ -40,26 +42,29 @@ function banc() {
     },
   } as unknown as WebgpuPagesCore;
   const publication = createWebgpuCutPublication(rt, residencySets);
-  return { publication, run, packedPages, comptes };
+  return { publication, run, packedPages, remue };
 }
 
 test('une image de coupe processeur ne fait vieillir les listes qu’une fois', () => {
   const { publication, run, packedPages } = banc();
   const avant = run.cutEpoch;
-  // L'ordre de `renderCpuCut` : oublier le relevé, choisir, publier, puis remplacer le montré.
+  // L'ordre de `renderCpuCut` : oublier le relevé, choisir, puis publier une fois les gardes passées.
   publication.forgetReadback();
   publication.adoptCpuCut(packedPages.slice(0, 3), packedPages.slice(0, 2));
-  publication.adoptCpuDrawn(packedPages.slice(0, 1));
-  assert.equal(run.cutEpoch, avant + 1, 'un seul vieillissement, quoi qu’il arrive ensuite');
+  assert.equal(run.cutEpoch, avant + 1, 'un seul vieillissement pour l’image');
+  assert.deepEqual(
+    run.desired.map((page) => (page as { url: string }).url),
+    ['p0', 'p1', 'p2'],
+  );
 });
 
-test('le repli épinglé ne republie que la liste montrée', () => {
-  const { publication, run, packedPages, comptes } = banc();
+test('republier la même coupe ne remue aucun ensemble', () => {
+  const { publication, packedPages, remue } = banc();
   publication.adoptCpuCut(packedPages.slice(0, 3), packedPages.slice(0, 2));
-  const coupe = comptes.coupe,
-    demandee = [...run.desired];
-  publication.adoptCpuDrawn(packedPages.slice(0, 1));
-  assert.equal(comptes.coupe, coupe, 'la coupe demandée n’est pas repassée');
-  assert.equal(comptes.dessinee, 2, 'la liste montrée, elle, l’est');
-  assert.deepEqual(run.desired, demandee, 'et elle n’a pas bougé d’un rang');
+  const coupe = remue.coupe,
+    dessinee = remue.dessinee;
+  assert.ok(coupe > 0 && dessinee > 0, 'la première publication a bien nommé des pages');
+  publication.adoptCpuCut(packedPages.slice(0, 3), packedPages.slice(0, 2));
+  assert.equal(remue.coupe, coupe, 'la seconde ne fait entrer ni sortir une seule page');
+  assert.equal(remue.dessinee, dessinee);
 });

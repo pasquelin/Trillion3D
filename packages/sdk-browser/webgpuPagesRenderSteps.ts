@@ -1,8 +1,14 @@
+import type { PageRec } from './pageSelection.ts';
 import { urlsOf } from './webgpuPagesHelpers.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** The residency traces of the CPU path, each stamped with the time its step took. */
-export function traceAdmission(rt: WebgpuPagesRuntime, requested: Set<string>, started: number) {
+export function traceAdmission(
+  rt: WebgpuPagesRuntime,
+  requested: Set<string>,
+  wanted: readonly PageRec[],
+  started: number,
+) {
   const { run, diag } = rt,
     { tracking, slots } = rt.setup;
   diag.traceDiagnostic('residency-admission', 'Admission des ensembles demandés', () => ({
@@ -10,7 +16,9 @@ export function traceAdmission(rt: WebgpuPagesRuntime, requested: Set<string>, s
     scope: 'cpu/residency-admission',
     elapsedMs: performance.now() - started,
     requested: tracking.traceSet('admission.requested', [...requested]),
-    wanted: tracking.traceSet('admission.wanted', urlsOf(run.desired)),
+    // La coupe que l'admission pèse est celle qui vient d'être choisie ; `run.desired` porte encore
+    // celle que l'image précédente a publiée, et ne décrit donc pas ce passage-ci.
+    wanted: tracking.traceSet('admission.wanted', urlsOf(wanted)),
     loaded: tracking.traceSet('admission.loaded', urlsOf(run.drawn)),
     slots,
     limited: run.coverageBudgetLimited,
@@ -129,8 +137,8 @@ export function cpuSampleOf(
     transparentEncodeMs: drew ? timing.transparentEncodeMs : 0,
     transparentIncludedIn: 'encodeSubmitMs',
     asyncResidencyWaitMs: null,
-    /** Pages the residency path had to touch: the cut's difference, not its size. Null on a CPU cut,
-     *  which owns no difference and rebuilds its sets whole. */
+    /** Pages the residency path had to touch: the cut's difference, not its size. Null on a CPU cut :
+     *  sa différence est celle de la coupe, pas celle que la résidence a remuée. */
     residencyPagesEntered: run.pagesEntered,
     residencyPagesExited: run.pagesExited,
   };
