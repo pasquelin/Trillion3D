@@ -99,12 +99,7 @@ export function parseDagOutput(
   }
   rangs.sort((a, b) => priorities[b] - priorities[a]);
   pageIds.length = count;
-  const rangees = (result.requestPriorities ??= []);
-  rangees.length = count;
-  for (let i = 0; i < count; i++) {
-    pageIds[i] = pages[rangs[i]];
-    rangees[i] = priorities[rangs[i]];
-  }
+  for (let i = 0; i < count; i++) pageIds[i] = pages[rangs[i]];
   result.frustumRejected = ints[OUT_FRUSTUM_REJECTED] ?? 0;
   result.lodLevel = ints[OUT_LOD_LEVEL] ?? 0;
   result.complete = ((ints[OUT_FLAGS] ?? 0) & 2) === 0;

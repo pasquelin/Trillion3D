@@ -41,8 +41,8 @@ const centre = new Float64Array(4),
   // La pose de l'hôte recopiée dans un tampon possédé : le produit du socle ne lit et n'écrit que
   // des `Float64Array` (`mathMatrix4.ts`). Seize nombres par matrice DISTINCTE, pas par fiche.
   worldMirror = new Float64Array(16);
-/** Sphère `[x, y, z, r]` d'une boîte à six bornes : centre au milieu, rayon jusqu'au coin `max`. */
-function boxSphere(
+/** Sphère `[x, y, z, r]` d'une boîte à six bornes, écrite en `at` : centre au milieu, rayon au coin. */
+export function boxSphere(
   out: Float64Array,
   x0: number,
   y0: number,
@@ -50,11 +50,12 @@ function boxSphere(
   x1: number,
   y1: number,
   z1: number,
+  at = 0,
 ) {
-  out[0] = (x0 + x1) / 2;
-  out[1] = (y0 + y1) / 2;
-  out[2] = (z0 + z1) / 2;
-  out[3] = Math.hypot(x1 - out[0], y1 - out[1], z1 - out[2]);
+  out[at] = (x0 + x1) / 2;
+  out[at + 1] = (y0 + y1) / 2;
+  out[at + 2] = (z0 + z1) / 2;
+  out[at + 3] = Math.hypot(x1 - out[at], y1 - out[at + 1], z1 - out[at + 2]);
   return out;
 }
 function boundsSphere(record: PriorityRecord, out: Float64Array) {

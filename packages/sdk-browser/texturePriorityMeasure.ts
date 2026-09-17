@@ -2,7 +2,7 @@ import type * as THREE from 'three';
 import { maxStretch } from '../sdk-core/index.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
-import { boundsScreenRadius, pixelScaleOf, worldBoxScreenRadius } from './streamingPriority.ts';
+import { pixelScaleOf, worldBoxScreenRadius } from './streamingPriority.ts';
 import { openUvSpanBudget, uvSpanOf } from './textureUvSpan.ts';
 import { createFrameViews } from './textureFrameViews.ts';
 import type { createTextureDemand } from './textureDemand.ts';
@@ -71,12 +71,11 @@ export function createTextureMeasure(color: Demand, data: Demand) {
     openUvSpanBudget();
     const camStretch = cam ? maxStretch(cam.view as unknown as readonly number[]) : 0;
     let measured = false;
-    if (index && cam && camStretch > 0) {
+    if (index && cam && camStretch > 0 && rows.open(index, keyCount)) {
       measured = true;
       pixelScaleOf(cam.projection, viewport, pixelScale);
       const focal = Math.max(pixelScale[0], pixelScale[1]),
         near = cam.near || 1e-3;
-      const flat = rows.open(index, keyCount);
       const { sphere, uvSpan, material, colorAt, colorCount, dataAt, dataCount, layers } =
         rows.views;
       // La coupe est groupée par primitive — le catalogue l'est, et la sélection en garde l'ordre —,
@@ -94,13 +93,12 @@ export function createTextureMeasure(color: Demand, data: Demand) {
           view = frames.view(at);
           stretch = frames.stretch(at);
         }
-        const row = flat ? rows.of(page) : ROW_NO_KEY;
-        if (row === ROW_NO_LAYERS) continue;
-        if (row === ROW_NO_KEY) {
-          const radius = boundsScreenRadius(page, view, stretch, focal, near);
-          deposit(index.get(page.material), 2 * radius, uvSpanOf(page.attributes));
-          continue;
-        }
+        // `ROW_NO_KEY` comme `ROW_NO_LAYERS` : la page ne dépose rien. La première n'arrive pas en
+        // production — le catalogue pose une clé sur toute page (`webgpuPageTracking.ts`) et la
+        // résidence refuse celles qui n'en ont pas —, et une seconde formule d'empreinte écran
+        // gardée pour elle dériverait de celle-ci sans que rien ne l'exécute.
+        const row = rows.of(page);
+        if (row === ROW_NO_KEY || row === ROW_NO_LAYERS) continue;
         const base = row * 4,
           x = sphere[base],
           y = sphere[base + 1],

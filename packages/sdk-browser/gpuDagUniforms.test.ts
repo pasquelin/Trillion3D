@@ -20,8 +20,9 @@ const HEAD_ORACLE = 4;
 /**
  * Le relevé réduit à ce que les deux côtés peuvent porter. `drawablePageIds` est normalisé — l'oracle
  * n'écrivait la clé que lorsqu'un masque existait, le relevé réutilisé la porte toujours. Les champs
- * que l'oracle ne connaît pas — `truncated` et les quatre totaux — sont ÔTÉS et assertés à part :
- * les comparer reviendrait à demander à l'oracle ce qu'il n'a jamais su.
+ * que l'un des deux seulement produit — `truncated`, `requestPriorities` que seul l'oracle publie,
+ * et les quatre totaux — sont ÔTÉS et assertés à part : les comparer reviendrait à demander à un
+ * côté ce qu'il n'a jamais su.
  */
 const champs = (releve: SelectionResult | null) => {
   if (!releve) return releve;
