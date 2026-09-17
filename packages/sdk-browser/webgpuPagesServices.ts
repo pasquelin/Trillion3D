@@ -108,7 +108,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     room: Math.max(0, slots - bootstrapUrls.size),
     getCache: () => gpu.cache,
     getFrame: () => run.frame,
-    getShown: () => run.shown,
     updatePins,
     ensureResident,
     markLost: () => {
@@ -125,8 +124,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     pageSource,
     hasBytes,
     residencySets,
-    /** Ce que l'image demande au cache : la différence de la coupe l'a posé au moment de l'adopter. */
-    admitCut: () => residencySets.requestedCount,
     bootstrapState,
     ensureResident,
     residency,

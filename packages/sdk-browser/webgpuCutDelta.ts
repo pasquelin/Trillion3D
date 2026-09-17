@@ -121,7 +121,6 @@ export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[
     },
     /** Drops the caller's suffix and reports no difference: the cut is the one already held. */
     hold,
-    /** Difference between `ids` and the cut held, and `pages` rewritten in the order of `ids`. */
     apply,
     /**
      * La même différence, publiée par une coupe qui nomme ses enregistrements au lieu de leurs rangs

@@ -33,13 +33,13 @@ test('a cut wider than the page budget keeps the same coarse subset as the whole
 
 test('la coupe processeur passe par la même différence, et la carte reprend contre elle', () => {
   const world = scene();
-  const { sets, tracking, delta, pages, packed, bootstrapKey } = world;
+  const { sets, tracking, delta, packed, bootstrapKey } = world;
   frame(world, [0, 1, 2, 3, 16], 64);
   // Elle nomme ses enregistrements et non des rangs ; la différence en tire les mêmes rangs, et les
   // ensembles bougent de ce qui a bougé — ni vidés, ni rebâtis.
   delta.adoptRecords([packed[10], packed[11], packed[19]]);
   sets.applyCut(delta);
-  sets.applyBudget(64, pages);
+  sets.applyBudget(64);
   assert.deepEqual(
     keysOf(tracking.wanted),
     new Set(

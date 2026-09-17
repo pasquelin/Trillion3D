@@ -13,7 +13,8 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 export function admitGpuCut(rt: WebgpuPagesRuntime, pixelError: number, budgeted: number) {
   const { run, services } = rt,
     { slots } = rt.setup;
-  const requested = services.admitCut();
+  // Ce que l'image demande au cache : la différence de la coupe l'a posé au moment de l'adopter.
+  const requested = services.residencySets.requestedCount;
   const wasLimited = run.coverageBudgetLimited;
   run.coverageBudgetLimited = requested > slots;
   // Coarsen until the wanted cut fits, and relax again once it fits with room to spare. Doubling

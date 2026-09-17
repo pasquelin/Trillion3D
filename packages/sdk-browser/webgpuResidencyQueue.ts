@@ -13,7 +13,6 @@ type QueueOptions = {
   room: number;
   getCache: () => Cache | undefined;
   getFrame: () => number;
-  getShown: () => readonly PageRec[];
   updatePins: () => void;
   ensureResident: (wanted: readonly PageRec[], frame: number, jobId: number) => Promise<void>;
   markLost: () => void;
