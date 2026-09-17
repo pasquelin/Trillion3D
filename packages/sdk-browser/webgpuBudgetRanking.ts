@@ -35,8 +35,8 @@ export function createBudgetRanking(options: {
   const lists: Int32Array[] = [];
   /** Placements holding each key, and where the key sits: a key counts once however many hold it. */
   const refs = new Int32Array(Math.max(1, keyCount));
-  const slotOf = new Int32Array(Math.max(1, keyCount)).fill(-1),
-    levelOfKey = new Int32Array(Math.max(1, keyCount)).fill(-1);
+  const slotOf = new Int32Array(Math.max(1, keyCount)),
+    levelOfKey = new Int32Array(Math.max(1, keyCount));
   /** Le premier placement qui a nommé la clé : l'enregistrement par lequel elle sera cherchée. */
   const pageOfKey: (PageRec | undefined)[] = new Array(Math.max(1, keyCount));
   /** The ranked prefix, one entry per page, and the keys beside it. Sized to the budget once. */
@@ -92,8 +92,6 @@ export function createBudgetRanking(options: {
       const last = list[--held[level]];
       list[slotOf[key]] = last;
       slotOf[last] = slotOf[key];
-      slotOf[key] = -1;
-      levelOfKey[key] = -1;
       pageOfKey[key] = undefined;
       weighed--;
     },

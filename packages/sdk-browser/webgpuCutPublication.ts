@@ -7,8 +7,6 @@ import { markDrawnMirrored } from './webgpuPagesHelpers.ts';
 import type { WebgpuResidencySets } from './webgpuResidencySets.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
-export type WebgpuCutPublication = ReturnType<typeof createWebgpuCutPublication>;
-
 /**
  * La publication d'une coupe, par qui que ce soit qui la décide.
  *
