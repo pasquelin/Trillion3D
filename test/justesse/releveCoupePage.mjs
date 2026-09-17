@@ -15,8 +15,14 @@
 import * as THREE from 'three';
 import { createDagResources } from '../../packages/sdk-browser/gpuDagResources.ts';
 import { encodeDagKernels } from '../../packages/sdk-browser/gpuDagEncode.ts';
-import { packDagSelection, packedWorldsToRenderOrigin } from '../../packages/sdk-browser/gpuDagPack.ts';
-import { cameraSelectionUniforms, SELECTION_UNIFORM_BYTES } from '../../packages/sdk-browser/gpuSelection.ts';
+import {
+  packDagSelection,
+  packedWorldsToRenderOrigin,
+} from '../../packages/sdk-browser/gpuDagPack.ts';
+import {
+  cameraSelectionUniforms,
+  SELECTION_UNIFORM_BYTES,
+} from '../../packages/sdk-browser/gpuSelection.ts';
 import { writeDagUniforms } from '../../packages/sdk-browser/gpuDagUniforms.ts';
 import {
   dagRecords,

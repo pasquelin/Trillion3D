@@ -8,10 +8,7 @@ import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { loadavg } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  compareBaseline,
-  niveauEcart,
-} from '../../../packages/sdk-core/bench/socle/baseline.mjs';
+import { compareBaseline, niveauEcart } from '../../../packages/sdk-core/bench/socle/baseline.mjs';
 
 const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const FRAGMENTS = join(RACINE, '.mesure', 'perf');

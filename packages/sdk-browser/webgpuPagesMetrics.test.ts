@@ -5,7 +5,7 @@ import { createWebgpuRunState } from './webgpuPagesStateRun.ts';
 import { createWebgpuVisState } from './webgpuPagesStateVis.ts';
 import { createWebgpuBlendState } from './webgpuBlendState.ts';
 import { createWebgpuLightState } from './webgpuPagesStateLights.ts';
-import { referenceVertexBytes } from './bench/oracles/g-octets.mjs';
+import { referenceVertexBytes } from './bench/oracles/metriques-octets.mjs';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import type { TextureJob } from './webgpuAtlasJobs.ts';
 
@@ -117,7 +117,7 @@ test('les métriques d’atlas reflètent les octets et classes calculés une fo
 // G4 : `vertexBytesOf` lit un total tenu à l'allocation (`gpu.vertexBytes`, incrémenté par
 // `ensureWebgpuPositionBuffer` et `prepareWebgpuBlend`) au lieu de resommer, à chaque relevé, tous
 // les tampons de positions résidents et tous les maillages transparents. Oracle : la resommation
-// complète d'avant le lot G, recopiée telle quelle dans `bench/oracles/g-octets.mjs`.
+// complète d'avant le lot G, recopiée telle quelle dans `bench/oracles/metriques-octets.mjs`.
 {
   function buffer(size: number) {
     return { size } as unknown as GPUBuffer;

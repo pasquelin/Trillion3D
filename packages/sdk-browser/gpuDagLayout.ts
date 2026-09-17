@@ -53,7 +53,7 @@ export const clusterLevel = (flags: number) => flags >>> CLUSTER_LEVEL_SHIFT;
  * Le tampon de relevé était taillé sur `pageCount` — le pire cas, une coupe qui retiendrait le
  * catalogue entier —, et la copie d'image en emportait la totalité : 15,2 Mo par image à 1 992 187
  * grappes, pour une coupe qui en retient de l'ordre du centième. Mesuré sur apple metal-3
- * (`bench/justesse/releve-coupe-gpu.mjs`) : 1,17 ms par image pour le relevé complet contre 0,52 ms
+ * (`test/justesse/releve-coupe-gpu.mjs`) : 1,17 ms par image pour le relevé complet contre 0,52 ms
  * pour un relevé plafonné, quand les noyaux eux-mêmes en coûtent 0,99.
  *
  * Le plafond est LARGE devant une coupe réelle : le même banc retient 7 812 rangs de 1 992 187 à

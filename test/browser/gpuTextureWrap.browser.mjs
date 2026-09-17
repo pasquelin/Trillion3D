@@ -6,7 +6,7 @@
 //   • sur la couture d'une période en répétition, le moteur mêle lui-même les deux bords de la
 //     texture ; son poids ne peut pas valoir bit pour bit celui que l'échantillonneur quantifie, la
 //     couleur rendue est donc comparée à la règle exacte, à un demi niveau sur 255 près.
-// `adressageGpuPage.mjs` (bench/justesse) porte l'orchestration WebGPU et le nuanceur des prises,
+// `adressageGpuPage.mjs` (test/justesse) porte l'orchestration WebGPU et le nuanceur des prises,
 // déjà vérifiés par la reproduction du lot ; ce test écrit ses propres cas, structurés autrement que
 // ceux de la reproduction pour rester une preuve indépendante. Le nuanceur, lui, n'est pas recopié :
 // deux copies seraient deux chances de voir la lecture éprouvée dériver de celle de production.

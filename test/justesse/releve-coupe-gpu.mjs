@@ -7,7 +7,7 @@
 // `encodeDagKernels` — et ne change qu'une chose entre les deux variantes : le nombre d'octets que
 // la copie emporte. L'écart est donc exactement le prix du pire cas, sur le même travail de noyau.
 //
-//   node --experimental-strip-types packages/sdk-browser/bench/justesse/releve-coupe-gpu.mjs
+//   node --experimental-strip-types packages/sdk-browser/test/justesse/releve-coupe-gpu.mjs
 //   (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,7 +15,10 @@ import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dansPageWebgpu, requireDuLab } from './pageWebgpu.mjs';
-import { SELECTION_HEADER_WORDS, SELECTION_LIST_CAP } from '../../packages/sdk-browser/gpuDagLayout.ts';
+import {
+  SELECTION_HEADER_WORDS,
+  SELECTION_LIST_CAP,
+} from '../../packages/sdk-browser/gpuDagLayout.ts';
 
 const ici = dirname(fileURLToPath(import.meta.url));
 const esbuild = createRequire(requireDuLab().resolve('vite'))('esbuild');

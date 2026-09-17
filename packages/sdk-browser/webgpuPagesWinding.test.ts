@@ -1,6 +1,6 @@
 // A9 : le sens de parcours d'un cluster est mémorisé sur la page et invalidé seulement quand
 // l'époque de la table de lignes change, au lieu d'un déterminant 3×3 recalculé à chaque lecture.
-// Oracle : la version sans cache, d'avant le lot A, dans `bench/oracles/pages.mjs`.
+// Oracle : la version sans cache, d'avant le lot A, dans `bench/oracles/pages-webgpu.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
