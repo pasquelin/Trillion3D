@@ -60,6 +60,7 @@
     "validate": "node scripts/validate.mjs",
     "check:structure": "node --test test/integration/engineStructure.test.mjs test/integration/engineNoThree.test.mjs test/integration/engineNoThreeMath.test.mjs && tsc -p tsconfig.core.json --noEmit",
     "check:links": "node scripts/check-links.mjs",
+    "graphify:libelles": "node scripts/graphify-libelles.mjs",
     "check:dts": "node scripts/rewrite-dts-extensions.mjs --check",
     "perf:browser": "node --experimental-strip-types --test --test-concurrency=1 packages/sdk-browser/bench/*.perf.mjs",
     "perf:core": "node --experimental-strip-types --test --test-concurrency=1 packages/sdk-core/bench/*.perf.mjs",
