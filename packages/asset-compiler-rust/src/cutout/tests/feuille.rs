@@ -46,7 +46,10 @@ fn deux_textures_dune_meme_image_ne_font_quune_ligne() {
         entries[0].weight, 5,
         "les primitives des deux liaisons s'additionnent"
     );
-    assert_eq!(entries[0].name, "feuillage.png");
+    assert_eq!(
+        entries[0].name, "dossier/feuillage.png",
+        "l'URI relative entière, pour que la texture se retrouve en pleine résolution"
+    );
 }
 
 // Comportement : deux images distinctes gardent deux lignes, et chacune son interrupteur.

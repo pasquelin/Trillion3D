@@ -7,14 +7,12 @@
 //! que cette scène n'emploie plus : une réponse se donne une fois par texture, pas une fois par
 //! scène.
 use super::*;
-use crate::texture_preview::{preview_level_size, TexturePreview};
+use crate::texture_preview::TexturePreview;
 
 /// Une texture à trancher, telle que la feuille et la page la montrent.
 pub(crate) struct Entry {
     pub sha256: String,
     pub name: String,
-    pub thumbnail: Vec<u8>,
-    pub thumbnail_size: (u32, u32),
     pub shape: Value,
     pub proposal: bool,
     pub answer: Option<bool>,
@@ -51,15 +49,11 @@ pub(crate) fn entries(
             known.weight += weight;
             continue;
         }
-        let size = preview_level_size(preview.width, preview.height, preview.first_level);
-        let bytes = (size.0 as usize) * (size.1 as usize) * 4;
         by_image.insert(
             preview.sha256.clone(),
             Entry {
                 sha256: preview.sha256.clone(),
                 name: image_name(images, preview.image as usize),
-                thumbnail: preview.pixels.get(..bytes).unwrap_or_default().to_vec(),
-                thumbnail_size: size,
                 shape: shape.report(),
                 proposal: shape.looks_like_cutout(),
                 answer: decisions.verdict(&preview.sha256),
@@ -98,31 +92,30 @@ pub(crate) fn draw_weights(
         .collect()
 }
 
-/// Le nom qu'un humain reconnaît : le fichier de l'image, ou son rang quand elle est embarquée. Les
-/// URI d'une scène intermédiaire sont écrites échappées (`uri::encode_relative`), donc le nom est
-/// décodé avant d'être montré — `feuillage été.png`, et non `feuillage%20%C3%A9t%C3%A9.png`.
+/// L'image telle qu'un humain la retrouve : son URI relative, décodée — `textures/feuillage été.png`
+/// et non `textures/feuillage%20%C3%A9t%C3%A9.png`. Le chemin entier, et pas seulement le nom de
+/// fichier, pour que celui qui pose la question puisse ouvrir la texture en pleine résolution ; à
+/// lui de n'afficher que le dernier segment. Une image embarquée n'a pas de fichier : son rang.
 fn image_name(images: Option<&Vec<Value>>, image: usize) -> String {
     images
         .and_then(|images| images.get(image))
         .and_then(|value| value.get("uri"))
         .and_then(Value::as_str)
-        .map(|uri| {
-            let decoded = crate::uri::decode(uri).unwrap_or_else(|| uri.to_string());
-            decoded.rsplit('/').next().unwrap_or(&decoded).to_string()
-        })
+        .map(|uri| crate::uri::decode(uri).unwrap_or_else(|| uri.to_string()))
         .unwrap_or_else(|| format!("image {image}"))
 }
 
 /// La feuille : les candidates de cette scène, puis les réponses anciennes qu'elle n'emploie pas,
-/// marquées comme telles — rien de ce qui a été tranché ne se perd à la compilation suivante. Elle
-/// est bâtie une fois et sert deux fois : écrite sur le disque, et emportée telle quelle par la
-/// page, qui n'a donc pas à connaître son format pour la réécrire.
+/// marquées comme telles — rien de ce qui a été tranché ne se perd à la compilation suivante.
+/// `blendPrimitives` dit ce que trancher rendrait, pour que celui qui pose la question montre
+/// d'abord ce qui rapporte le plus, sans avoir à le recalculer.
 pub(crate) fn build_sheet(entries: &[Entry], decisions: &Decisions) -> Value {
     let mut textures = serde_json::Map::new();
     for entry in entries {
         textures.insert(
             entry.sha256.clone(),
             json!({"image":entry.name,"used":true,"measure":entry.shape,
+                "blendPrimitives":entry.weight,
                 "proposal":if entry.proposal { "cutout" } else { "blend" },
                 "cutout":entry.answer}),
         );

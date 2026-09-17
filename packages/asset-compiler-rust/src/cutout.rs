@@ -15,21 +15,19 @@ use super::*;
 
 mod apply;
 pub(crate) mod measure;
-mod page;
 mod sheet;
 #[cfg(test)]
 mod tests;
 
 pub(crate) use apply::{apply_decisions, CutoutApplied};
 pub(crate) use measure::{measure, AlphaShape};
-pub(crate) use page::write_page;
-pub(crate) use sheet::{build_sheet, draw_weights, entries, write_sheet, Entry};
+pub(crate) use sheet::{build_sheet, draw_weights, entries, write_sheet};
 
-/// Le nom de la feuille de réponses et celui de la page qui sert à la remplir. Les deux vivent à la
-/// racine du modèle compilé : un chemin stable, que la clé de compilation ne déplace pas et que la
-/// purge du cache ne touche pas.
+/// Le nom de la feuille de réponses, à la racine du modèle compilé : un chemin stable, que la clé
+/// de compilation ne déplace pas et que la purge du cache ne touche pas. Le compilateur ne dessine
+/// rien — il publie ses textures en attente, et c'est l'appelant, terminal ou application, qui les
+/// présente et récolte les réponses.
 pub const DECISIONS_FILE: &str = "decoupes.json";
-pub const PAGE_FILE: &str = "decoupes.html";
 /// Version du contrat de la feuille, publiée dans le rapport de compilation : elle gouverne les
 /// RÉPONSES qu'un lecteur y écrit, et rien d'autre. Un numéro inconnu est refusé plutôt que deviné,
 /// une réponse mal lue changerait l'image sans que personne l'ait demandé.
