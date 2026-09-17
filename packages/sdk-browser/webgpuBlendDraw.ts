@@ -5,8 +5,8 @@ import { createBlendOverdraw } from './webgpuBlendOverdraw.ts';
 import { countsBlendOverdraw } from './diagnosticGpuVariant.ts';
 import { VOLUME_SIZE, VOLUME_STRIDE } from './webgpuTransmission.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
-import { PIPELINE_BACK, PIPELINE_FRONT } from './webgpuBlendPlan.ts';
-import { RUN_SHARED, RUN_WORDS } from './webgpuBlendRuns.ts';
+import { PIPELINE_BACK, PIPELINE_FRONT, planPipeline } from './webgpuBlendPlan.ts';
+import { RUN_SHARED, RUN_WORDS, runOwner } from './webgpuBlendRuns.ts';
 import { itemKept } from './webgpuBlendExpandCpu.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -81,6 +81,7 @@ export function drawBlendPass(
   const { gpu, vis, run, blendState } = rt,
     items = blendState.blendGpu,
     slice = transmissive ? 1 : 0,
+    order = transmissive ? blendState.orderTransmission : blendState.orderBlend,
     runs = transmissive ? blendState.runsTransmission : blendState.runsBlend,
     count = blendState.runCount[slice],
     args = blendState.argsBuffer;
@@ -118,15 +119,16 @@ export function drawBlendPass(
   const base = blendState.planRegions[slice].args * 4;
   for (let index = 0; index < count; index++) {
     const at = index * RUN_WORDS,
-      owner = runs[at + 3];
+      entry = order[runs[at]],
+      owner = runOwner(entry, runs[at + 1]);
     // Une tranche qui nomme son item se decide sur le bit du tronc : l'appel qui ne poserait aucun
     // pixel n'est pas encode du tout, comme il ne l'etait pas par item. Une tranche qui en fusionne
     // plusieurs porte trop d'entrees pour les interroger une a une — c'est la carte qui met ses
     // instances a zero, et un appel sans instance ne pose rien.
     if (owner !== RUN_SHARED && !itemKept(blendState.keepPacked, owner)) continue;
     encoded++;
-    if (boundPipeline !== runs[at + 2]) {
-      boundPipeline = runs[at + 2];
+    if (boundPipeline !== planPipeline(entry)) {
+      boundPipeline = planPipeline(entry);
       pass.setPipeline(
         boundPipeline === PIPELINE_FRONT
           ? vis.pipelineBlendFront!

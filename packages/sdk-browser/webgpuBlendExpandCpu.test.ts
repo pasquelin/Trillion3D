@@ -1,12 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { blendChunkWords, blendVertexShift, RUN_SHARED, RUN_WORDS } from './webgpuBlendRuns.ts';
+import { blendChunkWords, blendVertexShift, RUN_WORDS } from './webgpuBlendRuns.ts';
 import { expandBlendPlan, itemKept } from './webgpuBlendExpandCpu.ts';
-import { DRAW_UNPAGED } from './webgpuBlendPlan.ts';
+import { DRAW_UNPAGED, planEntry } from './webgpuBlendPlan.ts';
 
 /** Une entrée de plan : le rang de l'item, le bit de partage, le pipeline. */
-const entree = (item: number, shared: boolean, pipeline = 1) =>
-  (item << 3) | (shared ? 4 : 0) | pipeline;
+const entree = (item: number, shared: boolean, pipeline = 1) => planEntry(item, pipeline, shared);
 
 /** Le décor minimal d'un étalement : trois items paginés d'un côté, une primitive isolée. */
 function decor() {
@@ -39,7 +38,7 @@ test('une tranche partagée étale les instances de ses entrées, dans l’ordre
   const base = decor();
   const order = Uint32Array.from([entree(2, true), entree(0, true), entree(1, true)]);
   const runs = new Uint32Array(RUN_WORDS);
-  runs.set([0, 3, 1, RUN_SHARED]);
+  runs.set([0, 3]);
   const total = expandBlendPlan({ ...base, order, runs, runCount: 1 });
   assert.equal(total, 6, 'un + deux + trois grappes');
   // L'item qui porte chaque instance, puis l'entrée de table que la compaction lui a gardée.
@@ -57,7 +56,7 @@ test('un item que le tronc rejette n’étale aucune instance, et ne décale pas
   base.keep[0] = 0b1101;
   const order = Uint32Array.from([entree(0, true), entree(1, true), entree(2, true)]);
   const runs = new Uint32Array(RUN_WORDS);
-  runs.set([0, 3, 1, RUN_SHARED]);
+  runs.set([0, 3]);
   const total = expandBlendPlan({ ...base, order, runs, runCount: 1 });
   assert.equal(total, 3, 'les deux grappes du rang 0 et la grappe du rang 2');
   assert.deepEqual(Array.from(base.expanded.subarray(0, 6)), [0, 100, 0, 101, 2, 108]);
@@ -68,7 +67,7 @@ test('une primitive non paginée s’étale en morceaux d’un pas d’indices',
   const base = decor();
   const order = Uint32Array.from([entree(3, false)]);
   const runs = new Uint32Array(RUN_WORDS);
-  runs.set([0, 1, 1, 3]);
+  runs.set([0, 1]);
   const total = expandBlendPlan({ ...base, order, runs, runCount: 1 });
   assert.equal(total, 3, 'dix-huit mots d’indices, six par instance');
   // Chaque instance dit où son morceau commence ; le nuanceur en tire sa longueur.
@@ -81,7 +80,7 @@ test('les deux passes étalent dans deux régions disjointes, chacune à sa base
   const base = decor();
   const order = Uint32Array.from([entree(0, true)]);
   const runs = new Uint32Array(RUN_WORDS);
-  runs.set([0, 1, 1, RUN_SHARED]);
+  runs.set([0, 1]);
   expandBlendPlan({ ...base, order, runs, runCount: 1, instanceBase: 5, argsBase: 8 });
   assert.deepEqual(Array.from(base.expanded.subarray(10, 14)), [0, 100, 0, 101]);
   // Le sommet de départ porte le rang absolu de la première instance : cinq, décalé du pas.
