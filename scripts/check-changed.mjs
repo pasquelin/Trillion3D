@@ -54,7 +54,10 @@ export function relatedTests(files, changed) {
     .filter(
       (file) =>
         testPattern.test(file) &&
-        (file.startsWith('packages/') || file.startsWith('scripts/mesure/') || changed.has(file)),
+        (file.startsWith('packages/') ||
+          file.startsWith('scripts/mesure/') ||
+          file.startsWith('test/') ||
+          changed.has(file)),
     )
     .filter((file) => reachesChanged(file))
     .sort();

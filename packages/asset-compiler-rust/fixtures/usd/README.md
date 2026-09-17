@@ -27,8 +27,8 @@ Ce que chaque choix met sous surveillance :
 
 ## Provenance et licences
 
-- `corpus/` : corpus WebGeometry (`test-assets/usd/procedural-usda` et `procedural-usdc`),
-  **CC0-1.0**, voir [LICENSE.txt](LICENSE.txt). `test-assets/` n'est pas suivi par git : ces octets
+- `corpus/` : corpus WebGeometry (`test/assets/usd/procedural-usda` et `procedural-usdc`),
+  **CC0-1.0**, voir [LICENSE.txt](LICENSE.txt). `test/assets/` n'est pas suivi par git : ces octets
   sont recopiés ici pour que la dorée tienne sans lui.
 - `minuscule/scene.usda` : écrit à la main pour ce test depuis la spécification publique de l'AOUSD,
   sans contenu d'aucun tiers. `minuscule/textures/checker.png` vient du même corpus CC0.
