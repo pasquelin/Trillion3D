@@ -9,6 +9,8 @@ import { ensureWebgpuVisibilityBindings } from './webgpuVisibilityBindings.ts';
 import { ensureWebgpuShadeBindings } from './webgpuShadeBindings.ts';
 import { visGroupFor } from './webgpuVisibilityDrawer.ts';
 import { drawBlendPass } from './webgpuBlendDraw.ts';
+import { buildBlendStatics } from './webgpuBlendPlan.ts';
+import { orderBlendPasses } from './webgpuBlendOrder.ts';
 import { createWebgpuBlendState } from './webgpuBlendState.ts';
 import { BASE_SLOTS, MAX_DRAW_SLOTS } from './gpuDraw.ts';
 import { createGpuRaster } from './gpuRaster.ts';
@@ -18,7 +20,7 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 // Le défaut que ce test attrape : une disposition gagne une liaison et un seul de ses deux
 // constructeurs la lie. Le dispositif réel répond « Number of entries (10) did not match the
-// expected number of entries (12) », puis perd le dispositif ; aucun test ne le voyait.
+// expected number of entries (12) », puis le perd ; aucun test ne le voyait.
 
 type Recorded = { layout: { entries: unknown[] }; entries: unknown[] };
 
@@ -96,11 +98,12 @@ test('chaque constructeur de groupe de liaison lie exactement les entrées de sa
     count: 3,
     group: undefined,
   };
-  // La passe transparente lit un plan statique : une entrée porte le rang de l'item et le pipeline
-  // à poser, et les comptes d'instances viennent du tampon d'arguments indirects.
+  // La passe transparente encode une TRANCHE à la fois, et l'item non paginé en est une à lui seul.
   const blendState = createWebgpuBlendState();
   blendState.blendGpu.push(item as unknown as (typeof blendState.blendGpu)[number]);
+  buildBlendStatics(blendState);
   blendState.orderBlend = Uint32Array.from([1]);
+  orderBlendPasses(blendState, [0, 0, 0]);
   Object.assign(blendState, { argsBuffer: {}, itemBuffer: {}, viewBuffer: {} });
   const rt = {
     vis,
@@ -133,27 +136,21 @@ test('chaque constructeur de groupe de liaison lie exactement les entrées de sa
   // liste partagée que celui-ci, rejoué ici après invalidation du groupe.
   ensureWebgpuShadeBindings(rt, device);
   // Les deux constructeurs de `blendBindGroupLayout` : le groupe que TOUS les items paginés
-  // partagent, sur la géométrie concaténée, puis celui d'un item non paginé, sur ses propres
-  // tampons. Les deux passent par la même liste d'entrées, et la passe les bâtit tous les deux.
-  const pass = {
-    setViewport() {},
-    setBindGroup() {},
-    setPipeline() {},
-    draw() {},
-    drawIndirect() {},
-    end() {},
-  };
+  // partagent, puis celui d'un item non paginé, sur ses propres tampons.
+  const stub = (noms: string[]) =>
+    Object.fromEntries(noms.map((nom) => [nom, () => {}])) as unknown as GPURenderPassEncoder;
+  const pass = stub(['setViewport', 'setBindGroup', 'setPipeline', 'draw', 'drawIndirect', 'end']);
   drawBlendPass(rt, device, { beginRenderPass: () => pass } as unknown as GPUCommandEncoder);
 
   // Le constructeur unique du raster logiciel des petits triangles, cinquième paire du chemin :
   // il lit les mêmes classes d'atlas et la même table de slots que les autres passes.
-  const smallPass = {
-    setBindGroup() {},
-    setPipeline() {},
-    dispatchWorkgroups() {},
-    dispatchWorkgroupsIndirect() {},
-    end() {},
-  };
+  const smallPass = stub([
+    'setBindGroup',
+    'setPipeline',
+    'dispatchWorkgroups',
+    'dispatchWorkgroupsIndirect',
+    'end',
+  ]);
   const smallEncoder = {
     clearBuffer() {},
     copyBufferToBuffer() {},

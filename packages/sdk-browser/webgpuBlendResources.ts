@@ -1,8 +1,9 @@
 import { BLEND_ITEM_WORDS, writeBlendItemRecord } from './webgpuBlendItems.ts';
 import { BLEND_VIEW_SIZE } from './webgpuBlendUniforms.ts';
 import { buildBlendStatics, refreshBlendPlan } from './webgpuBlendPlan.ts';
-import { createBlendArgsBuffer } from './webgpuBlendArgs.ts';
-import { createBlendSelect } from './webgpuBlendSelect.ts';
+import { createBlendExpand } from './webgpuBlendExpand.ts';
+import { planWords, scratchWords } from './webgpuBlendRuns.ts';
+import { writeBlendExpansionCpu } from './webgpuBlendExpandCpu.ts';
 import { writeVolumeRecords } from './webgpuTransmission.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -40,16 +41,31 @@ export async function prepareBlendResources(rt: WebgpuPagesRuntime, device: GPUD
     size: BLEND_VIEW_SIZE,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
-  blendState.argsBuffer = createBlendArgsBuffer(device, items.length);
+  // Les deux sorties de l'étalement : la liste d'instances que le nuanceur lit au rang que l'indice
+  // de sommet lui donne, et un argument indirect par tranche. Elles appartiennent à la scène, et le
+  // repli processeur les écrit lui-même quand l'appareil n'a pas d'étage de calcul.
+  const entries = blendState.maxPlanEntries;
   refreshBlendScene(rt, device);
-  blendState.select = await createBlendSelect(
+  blendState.expandedBuffer = device.createBuffer({
+    label: 'WG blend expanded instances',
+    size: blendState.instanceCapacity * 8,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  });
+  blendState.argsBuffer = device.createBuffer({
+    label: 'WG blend indirect arguments',
+    size: Math.max(16, entries * 16 * 2),
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
+  });
+  blendState.expand = await createBlendExpand(
     device,
-    items.length,
-    blendState.compaction?.indirectBuffer,
-    blendState.argsBuffer,
+    { items: items.length, planWords: planWords(entries), scratchWords: scratchWords(entries) },
+    {
+      counts: blendState.compaction?.indirectBuffer,
+      clusters: blendState.compaction?.instanceBuffer,
+    },
+    { expanded: blendState.expandedBuffer, args: blendState.argsBuffer },
   );
-  blendState.select?.uploadDraws(blendState.drawsPacked);
-  blendState.select?.uploadBoxes(blendState.boxesPacked);
+  blendState.expand?.uploadDraws(blendState.drawsPacked);
 }
 
 /**
@@ -73,6 +89,49 @@ export function refreshBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice) {
     packed.byteLength,
   );
   refreshBlendPlan(blendState);
-  blendState.select?.uploadBoxes(blendState.boxesPacked);
   writeVolumeRecords(rt, device);
+}
+
+/**
+ * Ce que l'image demande à l'étalement : le verdict du tronc, l'ordre s'il a bougé, puis les deux
+ * passes de noyaux, enchaînées dans UNE passe de calcul.
+ *
+ * Les lancements d'une même passe de calcul sont ordonnés et voient les écritures des précédents :
+ * le mélange peut donc rendre sa mémoire de travail à la transmission, dont les instances et les
+ * arguments vivent, eux, dans leurs propres régions. Sans étage de calcul, le processeur écrit
+ * exactement les mêmes mots (`webgpuBlendExpandCpu.ts`).
+ */
+export function encodeBlendExpansion(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+) {
+  const { blendState } = rt,
+    expand = blendState.expand;
+  if (!expand) {
+    writeBlendExpansionCpu(blendState, device);
+    return;
+  }
+  expand.uploadKeep(blendState.keepPacked);
+  const orders = [blendState.orderBlend, blendState.orderTransmission],
+    runs = [blendState.runsBlend, blendState.runsTransmission],
+    bases = [0, blendState.transmissionBase];
+  const pass = encoder.beginComputePass({ label: 'WG blend expansion' });
+  for (let slice = 0; slice < orders.length; slice++) {
+    const order = orders[slice],
+      region = blendState.planRegions[slice];
+    if (!order.length) continue;
+    if (blendState.orderMoved[slice]) {
+      expand.uploadPlan(region, order, runs[slice]);
+      blendState.orderMoved[slice] = false;
+    }
+    expand.encode(
+      pass,
+      slice,
+      region,
+      { entries: order.length, runs: blendState.runCount[slice], instanceBase: bases[slice] },
+      blendState,
+    );
+  }
+  pass.end();
 }

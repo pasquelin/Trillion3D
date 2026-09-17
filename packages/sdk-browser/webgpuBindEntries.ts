@@ -74,8 +74,8 @@ export type BlendBindResources = AtlasResources &
     scales: GPUBuffer;
     /** Identité d'un cluster transparent, une par entrée de la table de dessin. */
     clusterDiagnostic: GPUBuffer;
-    /** La liste compactée des clusters à dessiner, et la portée de chacun dans le cache de pages. */
-    clusterIds: GPUBuffer;
+    /** La liste d'instances étalée par l'image, et la portée de chaque grappe dans le cache. */
+    planInstances: GPUBuffer;
     clusterSpans: GPUBuffer;
     /** Le volume du matériau, à décalage dynamique comme l'uniforme principal. */
     volume: GPUBuffer;
@@ -161,7 +161,7 @@ export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
     { binding: b.clusterDiagnostic, resource: { buffer: r.clusterDiagnostic } },
     { binding: b.colorSlots, resource: { buffer: r.slots.color } },
     { binding: b.dataSlots, resource: { buffer: r.slots.data } },
-    { binding: b.clusterIds, resource: { buffer: r.clusterIds } },
+    { binding: b.planInstances, resource: { buffer: r.planInstances } },
     { binding: b.clusterSpans, resource: { buffer: r.clusterSpans } },
     { binding: b.shadowSlices, resource: { buffer: r.shadowSlices } },
     { binding: b.shadowAtlas, resource: r.shadowAtlas },

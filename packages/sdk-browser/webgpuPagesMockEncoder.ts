@@ -32,6 +32,7 @@ export function createMockCommandEncoderFactory(inputs: {
   let currentRenderEntry = '';
   let currentBind: unknown,
     computeBind: ComputeBind | undefined,
+    computeOffsets: readonly number[] | undefined,
     computePipeline: { entryPoint: string } | undefined,
     visPassFails = failVisPass;
   return () => ({
@@ -101,8 +102,11 @@ export function createMockCommandEncoderFactory(inputs: {
       setPipeline(next: { entryPoint: string }) {
         computePipeline = next;
       },
-      setBindGroup(_i: number, group: typeof computeBind) {
+      // Les décalages dynamiques comptent : l'étalement du plan lit la région d'uniforme de SA
+      // passe, et deux passes se suivent dans la même passe de calcul.
+      setBindGroup(_i: number, group: typeof computeBind, offsets?: readonly number[]) {
         computeBind = group;
+        computeOffsets = offsets;
       },
       // Les noyaux qui se répartissent sur la liste des grappes vivantes passent par ici : le double
       // rejoue le même noyau quel que soit le chemin par lequel la carte graphique le lance.
@@ -110,7 +114,7 @@ export function createMockCommandEncoderFactory(inputs: {
         this.dispatchWorkgroups();
       },
       dispatchWorkgroups() {
-        simulateComputeDispatch(computePipeline, computeBind, computes, packed);
+        simulateComputeDispatch(computePipeline, computeBind, computes, packed, computeOffsets);
       },
       end() {},
     }),

@@ -6,6 +6,7 @@ import { drawBlendPass } from './webgpuBlendDraw.ts';
 import { createWebgpuBlendState } from './webgpuBlendState.ts';
 import { copyBackdrop, writeVolumeRecords, VOLUME_STRIDE } from './webgpuTransmission.ts';
 import { buildBlendStatics, refreshBlendPlan } from './webgpuBlendPlan.ts';
+import { orderBlendPasses } from './webgpuBlendOrder.ts';
 import { FLAG_TRANSMISSIVE } from './visibilityBuffer.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import type { WebgpuGpuState } from './webgpuPagesStateGpu.ts';
@@ -66,6 +67,9 @@ function prepared() {
   // d'encodage se bâtissent avec elle, comme le fait `prepareBlendResources`.
   buildBlendStatics(blendState);
   refreshBlendPlan(blendState);
+  // Le classement de l'image pose les clés, le verdict du tronc et les tranches que la passe encode.
+  // Les trois copies sont au même endroit : leurs clés sont égales, et l'ordre source les départage.
+  orderBlendPasses(blendState, [0, 0, 0]);
   blendState.visibleBlend.push(...blendState.blendGpu);
   blendState.volumePacked = new Float32Array(blendState.blendGpu.length * (VOLUME_STRIDE / 4));
   return { blendState, gpu };

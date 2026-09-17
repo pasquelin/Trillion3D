@@ -1,4 +1,7 @@
+import { frustumExcludesBox } from '../sdk-core/index.ts';
 import { planItem } from './webgpuBlendPlan.ts';
+import { buildBlendRuns, RUN_WORDS } from './webgpuBlendRuns.ts';
+import { itemKept } from './webgpuBlendExpandCpu.ts';
 import type { BlendGpuItem, createWebgpuBlendState } from './webgpuBlendState.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
@@ -30,17 +33,36 @@ function eyeKey(item: BlendGpuItem, ex: number, ey: number, ez: number) {
   return x * x + y * y + z * z;
 }
 
-/** Pose la clé et le rang source de chaque item. Rien n'est alloué : deux champs réécrits. */
+/**
+ * Pose la clé, le rang source et LE VERDICT DU TRONC de chaque item, et rend les rejets.
+ *
+ * C'est l'unique parcours d'items que l'image paie, et il fallait déjà le faire pour classer : le
+ * tronc y coûte une boîte contre six plans, en double précision et par la référence elle-même. Le
+ * verdict part sur la carte en un bit par item, et l'étalement du plan met à zéro les instances de
+ * ce qu'il rejette (`webgpuBlendExpandWgsl.ts`) — un item hors champ ne coûte plus un appel, il ne
+ * coûte plus une instance. Sans boîte exploitable, l'item n'est jamais rejeté.
+ */
 function refreshEyeKeys(blendState: BlendState, eye: ArrayLike<number>) {
   const items = blendState.blendGpu,
+    keep = blendState.keepPacked,
+    planes = blendState.blendPlanes,
     ex = eye[0],
     ey = eye[1],
     ez = eye[2];
+  keep.fill(0);
+  let rejected = 0;
   for (let i = 0; i < items.length; i++) {
-    const item = items[i];
+    const item = items[i],
+      box = item.bounds;
     item.orderRank = i;
     item.orderKey = eyeKey(item, ex, ey, ez);
+    if (box && frustumExcludesBox(planes, box[0], box[1], box[2], box[3], box[4], box[5])) {
+      rejected++;
+      continue;
+    }
+    keep[i >>> 5] |= 1 << (i & 31);
   }
+  return rejected;
 }
 
 /**
@@ -62,6 +84,7 @@ const precedes = (keyA: number, rankA: number, keyB: number, rankB: number) =>
  * dépassent donc jamais, et le dos reste devant la face.
  */
 function sortPlanFarToNear(order: Uint32Array, items: readonly BlendGpuItem[]) {
+  let shifted = false;
   for (let i = 1; i < order.length; i++) {
     const entry = order[i],
       moved = items[planItem(entry)];
@@ -79,17 +102,54 @@ function sortPlanFarToNear(order: Uint32Array, items: readonly BlendGpuItem[]) {
         break;
       order[j + 1] = order[j];
       j--;
+      shifted = true;
     }
     order[j + 1] = entry;
   }
+  return shifted;
 }
 
-/** Le classement du chemin de production : les deux plans, du plus lointain au plus proche. */
+/**
+ * Les entrées que le tronc garde dans chaque tranche.
+ *
+ * Une tranche dont il ne reste rien n'est pas encodée du tout : c'est la même règle qu'un appel par
+ * item, qui sautait l'item entièrement hors champ. Un test de bit par entrée, sur le plan déjà
+ * classé — ce que la boucle d'encodage payait en produit de matrice et en appel de pilote.
+ */
+function countKeptRuns(blendState: BlendState, slice: number, order: Uint32Array) {
+  const runs = slice ? blendState.runsTransmission : blendState.runsBlend,
+    kept = blendState.runKept[slice],
+    keep = blendState.keepPacked;
+  for (let run = 0; run < blendState.runCount[slice]; run++) {
+    const at = run * RUN_WORDS,
+      first = runs[at],
+      entries = runs[at + 1];
+    let held = 0;
+    for (let k = 0; k < entries; k++) if (itemKept(keep, planItem(order[first + k]))) held++;
+    kept[run] = held;
+  }
+}
+
+/**
+ * Le classement du chemin de production, et le découpage en tranches qu'il commande.
+ *
+ * Les tranches ne dépendent que de l'ordre : un classement qui n'a rien bougé les laisse telles
+ * quelles, et la carte n'a alors rien à relire. Rend le nombre d'items que le tronc a rejetés.
+ */
 export function orderBlendPasses(blendState: BlendState, eye: ArrayLike<number> | undefined) {
-  if (!eye || !blendState.blendGpu.length) return;
-  refreshEyeKeys(blendState, eye);
-  sortPlanFarToNear(blendState.orderBlend, blendState.blendGpu);
-  sortPlanFarToNear(blendState.orderTransmission, blendState.blendGpu);
+  if (!eye || !blendState.blendGpu.length) return 0;
+  const rejected = refreshEyeKeys(blendState, eye);
+  const items = blendState.blendGpu;
+  const orders = [blendState.orderBlend, blendState.orderTransmission];
+  const runs = [blendState.runsBlend, blendState.runsTransmission];
+  for (let pass = 0; pass < orders.length; pass++) {
+    if (!sortPlanFarToNear(orders[pass], items) && !blendState.orderMoved[pass]) continue;
+    blendState.orderMoved[pass] = true;
+    // La passe de transmission garde une tranche par entrée : chacune décale encore son volume.
+    blendState.runCount[pass] = buildBlendRuns(orders[pass], items, pass === 0, runs[pass]);
+  }
+  for (let pass = 0; pass < orders.length; pass++) countKeptRuns(blendState, pass, orders[pass]);
+  return rejected;
 }
 
 /**

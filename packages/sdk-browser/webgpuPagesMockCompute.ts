@@ -1,6 +1,8 @@
 import { evaluateDagSelectionKernel, type PackedDag } from './gpuDagSelection.ts';
 import { DRAW_ITEM_U32, evaluateDrawCompact, indirectForDraw, type DrawItem } from './gpuDraw.ts';
 import { evaluateTransparentCompaction } from './webgpuTransparentCompactCpu.ts';
+import { expandBlendPlan } from './webgpuBlendExpandCpu.ts';
+import { RUN_WORDS } from './webgpuBlendRuns.ts';
 import { compactDrawnPages } from './webgpuPagesTestGlobals.ts';
 import { residentFlags } from './gpuDagLayout.ts';
 
@@ -29,48 +31,34 @@ function simulateTransparentCompaction(bind: ComputeBind) {
 }
 
 /**
- * Rejoue le tronc transparent : le meme oracle que `BLEND_SELECT_SHADER`, un item par tour. Un
- * appel garde l'argument indirect que la compaction lui a donne, ou tombe a zero instance.
+ * Rejoue l'étalement du plan trié : le même oracle que `BLEND_EXPAND_SHADER`, écrit une fois pour
+ * les deux chemins (`webgpuBlendExpandCpu.ts`). Le double le rejoue au dernier des quatre noyaux,
+ * quand toutes les entrées que la carte lirait sont là.
  */
-function simulateBlendSelect(bind: ComputeBind) {
+function simulateBlendExpansion(bind: ComputeBind, offsets?: readonly number[]) {
   const byBinding = new Map(bind.entries.map((entry) => [entry.binding, entry.resource.buffer]));
   const uniBytes = byBinding.get(0)!.data;
-  const planes = new Float32Array(uniBytes.buffer, uniBytes.byteOffset, 24);
-  const itemCount = words(uniBytes)[24];
-  const boxBytes = byBinding.get(1)!.data;
-  const boxes = new Float32Array(boxBytes.buffer, boxBytes.byteOffset, boxBytes.byteLength / 4);
-  const draws = words(byBinding.get(2)!.data),
-    counts = words(byBinding.get(3)!.data),
-    args = words(byBinding.get(4)!.data);
-  for (let item = 0; item < itemCount; item++) {
-    const lo = item * 8,
-      hi = lo + 4;
-    let rejected = false;
-    // Sans boite exploitable, l'item n'est jamais rejete : c'est la regle du chemin processeur.
-    if (boxes[lo + 3] !== 0) {
-      let span = 0;
-      for (let axis = 0; axis < 3; axis++)
-        span = Math.max(span, Math.abs(boxes[lo + axis]), Math.abs(boxes[hi + axis]));
-      for (let p = 0; p < 6 && !rejected; p++) {
-        const nx = planes[p * 4],
-          ny = planes[p * 4 + 1],
-          nz = planes[p * 4 + 2],
-          nw = planes[p * 4 + 3];
-        const corner =
-          nx * boxes[(nx > 0 ? hi : lo) + 0] +
-          ny * boxes[(ny > 0 ? hi : lo) + 1] +
-          nz * boxes[(nz > 0 ? hi : lo) + 2];
-        rejected = corner + nw < -(1e-5 * (Math.abs(nw) + span + 1));
-      }
-    }
-    const d = item * 4;
-    let instances = draws[d] !== 0xffffffff ? counts[draws[d] * 4 + 1] : 1;
-    if (rejected) instances = 0;
-    args[d] = draws[d + 1];
-    args[d + 1] = instances;
-    args[d + 2] = draws[d + 2];
-    args[d + 3] = 0;
-  }
+  const uni = words(uniBytes).subarray((offsets?.[0] ?? 0) / 4);
+  const plan = words(byBinding.get(1)!.data);
+  // La compaction écrit un argument indirect par item paginé ; l'étalement n'en lit que le compte.
+  const indirect = words(byBinding.get(4)!.data);
+  const itemCounts = new Uint32Array(indirect.length / 4);
+  for (let item = 0; item < itemCounts.length; item++) itemCounts[item] = indirect[item * 4 + 1];
+  expandBlendPlan({
+    order: plan.subarray(uni[7], uni[7] + uni[0]),
+    runs: plan.subarray(uni[8], uni[8] + uni[2] * RUN_WORDS),
+    runCount: uni[2],
+    draws: words(byBinding.get(3)!.data),
+    keep: words(byBinding.get(2)!.data),
+    itemCounts,
+    instances: words(byBinding.get(5)!.data),
+    maxVertexWords: uni[5],
+    vertexShift: uni[6],
+    instanceBase: uni[3],
+    argsBase: uni[4],
+    expanded: words(byBinding.get(7)!.data),
+    args: words(byBinding.get(8)!.data),
+  });
 }
 
 export function simulateComputeDispatch(
@@ -78,12 +66,13 @@ export function simulateComputeDispatch(
   computeBind: ComputeBind | undefined,
   computes: string[],
   packed?: PackedDag,
+  offsets?: readonly number[],
 ) {
   if (computePipeline?.entryPoint) computes.push(computePipeline.entryPoint);
   if (computePipeline?.entryPoint === 'scatterTransparentGroups' && computeBind)
     return simulateTransparentCompaction(computeBind);
-  if (computePipeline?.entryPoint === 'selectBlendItems' && computeBind)
-    return simulateBlendSelect(computeBind);
+  if (computePipeline?.entryPoint === 'writeBlendRuns' && computeBind)
+    return simulateBlendExpansion(computeBind, offsets);
   if (computePipeline?.entryPoint === 'scatterGroups' && computeBind) {
     const byBinding = new Map(
       computeBind.entries.map((entry) => [entry.binding, entry.resource.buffer]),
