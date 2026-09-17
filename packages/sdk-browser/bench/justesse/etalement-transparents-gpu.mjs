@@ -12,7 +12,6 @@
 // LAB_ROOT=… node --experimental-strip-types \
 //   packages/sdk-browser/bench/justesse/etalement-transparents-gpu.mjs
 import assert from 'node:assert/strict';
-import { BLEND_EXPAND_SHADER } from '../../webgpuBlendExpandWgsl.ts';
 import { expandBlendPlan } from '../../webgpuBlendExpandCpu.ts';
 import {
   blendExpandUniform,
@@ -23,9 +22,10 @@ import {
 } from '../../webgpuBlendRuns.ts';
 import {
   BLEND_EXPAND_ENTRIES,
+  BLEND_EXPAND_SHADER,
   blendExpandDispatch,
   STORAGE_TYPES,
-} from '../../webgpuBlendExpand.ts';
+} from '../../webgpuBlendExpandWgsl.ts';
 import { DRAW_UNPAGED, planEntry } from '../../webgpuBlendPlan.ts';
 import { etalementGpu } from './noyauEtalementGpu.mjs';
 import { graine } from '../../../sdk-core/bench/banc.mjs';
@@ -122,7 +122,7 @@ for (const entree of entrees) {
     scratchWords: entree.order.length + Math.ceil(entree.order.length / EXPAND_GROUP),
     types: STORAGE_TYPES,
     noms: BLEND_EXPAND_ENTRIES,
-    lancements: blendExpandDispatch(entree.order.length, entree.runCount),
+    lancements: blendExpandDispatch([], entree.order.length, entree.runCount),
     uniBytes: UNI_WORDS * 4,
     instanceWords,
     argsWords,

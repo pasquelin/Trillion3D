@@ -45,8 +45,8 @@ export function writeBlendItemRecord(
   ints[base + 23] = layer;
   ints[base + 24] = mat.emissiveMap ? (tables.mapLayer.get(mat.emissiveMap) ?? 0) : 0;
   ints[base + 25] = item.wrapModes;
-  ints[base + 26] = 0;
-  ints[base + 27] = 0;
+  // Les deux mots de remplissage qui suivent alignent `uvScale` ; ils restent à zéro, et ce tampon
+  // n'est écrit que d'ici.
   floats[base + 28] = scale[0];
   floats[base + 29] = scale[1];
   floats[base + 30] = mat.alphaTest;

@@ -102,7 +102,7 @@ test('chaque constructeur de groupe de liaison lie exactement les entrées de sa
   const blendState = createWebgpuBlendState();
   blendState.blendGpu.push(item as unknown as (typeof blendState.blendGpu)[number]);
   buildBlendStatics(blendState);
-  blendState.orderBlend = Uint32Array.from([1]);
+  blendState.orders[0] = Uint32Array.from([1]);
   orderBlendPasses(blendState, [0, 0, 0]);
   Object.assign(blendState, { argsBuffer: {}, itemBuffer: {}, viewBuffer: {} });
   const rt = {
