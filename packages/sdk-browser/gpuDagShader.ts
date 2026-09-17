@@ -13,7 +13,7 @@ export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:ve
 struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,floorSphere:vec4f,errorFloor:f32,nodeFlags:u32,pad0:u32,pad1:u32,}
 // \`view\`, \`planes\` et \`worlds\` sont ceux du repere de rendu ; \`cameraWorld\` en est l'origine, que le
 // noyau n'a pas a lire puisque la camera y est posee a zero : elle voyage pour le nommer a qui releve le bloc.
-struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,}
+struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,listCap:u32,pad0:u32,pad1:u32,pad2:u32,}
 struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,pages:array<u32>,}
 @group(0) @binding(0) var<storage, read> clusters:array<Cluster>;
 @group(0) @binding(1) var<storage, read> nodes:array<CullNode>;
@@ -91,10 +91,10 @@ fn visible(index:u32,cluster:Cluster)->bool{
  return !outsideFrustum(cluster.worldIndex*FRAME,boxMin(index),boxMax(index));
 }
 fn stretchOf(world:u32)->f32{return frames[world*FRAME+6u].x*uni.cameraStretch;}
+/** Le relevé ne porte que \`listCap\` rangs : au-dela le bit 0 le dit TRONQUE (\`gpuDagLayout.ts\`). */
 fn emitOne(page:u32){
- let cap=uni.clusterCount;
  let slot=atomicAdd(&out.count,1u);
- if(slot>=cap){atomicStore(&out.overflow,1u);return;}
+ if(slot>=uni.listCap){atomicOr(&out.overflow,1u);return;}
  out.pages[slot]=page;
 }
 /** Raise the primitive's threshold to the replacement band, or demand the pinned cover.
