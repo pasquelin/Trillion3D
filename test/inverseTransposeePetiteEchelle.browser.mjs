@@ -4,7 +4,7 @@
 // sur le déterminant brut rendait l'axe local non tourné et supprimait la page. Le rejet légitime
 // (mêmes triangles, dos à la caméra) doit rester, à ces mêmes échelles. La campagne complète, ses
 // chiffres et sa version d'avant le lot sont dans
-// `packages/sdk-browser/bench/justesse/inverse-transposee-petite-echelle.mjs`.
+// `test/justesse/inverse-transposee-petite-echelle.mjs`.
 //
 // LAB_ROOT=… node --experimental-strip-types test/inverseTransposeePetiteEchelle.browser.mjs
 import assert from 'node:assert/strict';
@@ -16,8 +16,8 @@ import {
   decisionCpu,
   empaqueteCas,
   veriteTerrain,
-} from '../packages/sdk-browser/bench/justesse/inverseTransposeCas.mjs';
-import { selectionGpu } from '../packages/sdk-browser/bench/justesse/noyauSelectionGpu.mjs';
+} from './justesse/inverseTransposeCas.mjs';
+import { selectionGpu } from './justesse/noyauSelectionGpu.mjs';
 
 /** Rotation de 180° : les faces regardent la caméra. Sans rotation : elles lui tournent le dos. */
 const ECHELLES = [1e-3, 1e-6, 2e-7, 1e-7, 1e-8, 1e-12, 1e-16];

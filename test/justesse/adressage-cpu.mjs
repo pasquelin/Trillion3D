@@ -5,13 +5,13 @@
 // Défaut 8 : un matériau dont les six cartes n'ont pas le même mode. Le chemin processeur lit le
 // mode dans la texture qu'il échantillonne (`texelAt`), pas dans un drapeau de matériau : on le
 // compte carte par carte plutôt que de le déduire de la lecture du code.
-//   node --experimental-strip-types packages/sdk-browser/bench/justesse/adressage-cpu.mjs [sortie.json]
+//   node --experimental-strip-types test/justesse/adressage-cpu.mjs [sortie.json]
 // Code de retour 1 au premier écart. `sortie.json` reçoit les texels lus, pour comparer deux commits.
 import { writeFileSync } from 'node:fs';
 import * as THREE from 'three';
-import { sampleLinear, wrapTexel } from '../../visibilityMath.ts';
-import { wrapLinear } from '../../visibilityWrapModes.ts';
-import { rasterVisibility } from '../../visibilityRaster.ts';
+import { sampleLinear, wrapTexel } from '../../packages/sdk-browser/visibilityMath.ts';
+import { wrapLinear } from '../../packages/sdk-browser/visibilityWrapModes.ts';
+import { rasterVisibility } from '../../packages/sdk-browser/visibilityRaster.ts';
 import {
   bilan,
   cas,
@@ -22,7 +22,7 @@ import {
   texelThree,
 } from './adressageCas.mjs';
 import { CARTES, materielMelange, TEXTURE, UV } from './adressageCartes.mjs';
-import { cameraMoteur } from '../../cameraFixture.ts';
+import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
 
 const textures = new Map();
 function carte(c) {

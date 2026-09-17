@@ -20,12 +20,12 @@ import {
   regleNormalisee,
   surCouture,
   TOLERANCE,
-} from '../packages/sdk-browser/bench/justesse/adressageCas.mjs';
+} from './justesse/adressageCas.mjs';
 import {
   executerDansChromium,
   MELANGE,
   NUANCEUR_PRISES,
-} from '../packages/sdk-browser/bench/justesse/adressageGpuPage.mjs';
+} from './justesse/adressageGpuPage.mjs';
 
 // Une texture 4×3, tous texels distincts (rouge = 20+40x, vert = 20+40y, alpha = 10+10·rang).
 const LARGEUR = 4,

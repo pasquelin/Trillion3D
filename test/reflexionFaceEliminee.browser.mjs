@@ -11,14 +11,14 @@
 // LAB_ROOT=… node --experimental-strip-types test/reflexionFaceEliminee.browser.mjs
 import assert from 'node:assert/strict';
 import { rasterVisibility } from '../packages/sdk-browser/visibilityRaster.ts';
-import { decisionCpu, vue } from '../packages/sdk-browser/bench/justesse/inverseTransposeCas.mjs';
-import { tousLesCas } from '../packages/sdk-browser/bench/justesse/inverseTransposeEchantillon.mjs';
+import { decisionCpu, vue } from './justesse/inverseTransposeCas.mjs';
+import { tousLesCas } from './justesse/inverseTransposeEchantillon.mjs';
 import {
   chargeRaster,
   pageVisible,
   VUE,
-} from '../packages/sdk-browser/bench/justesse/reflexionCas.mjs';
-import { rasterGpu } from '../packages/sdk-browser/bench/justesse/noyauRasterGpu.mjs';
+} from './justesse/reflexionCas.mjs';
+import { rasterGpu } from './justesse/noyauRasterGpu.mjs';
 
 const gpu = await rasterGpu(chargeRaster(tousLesCas));
 assert.equal(gpu.indisponible ?? null, null, String(gpu.indisponible));

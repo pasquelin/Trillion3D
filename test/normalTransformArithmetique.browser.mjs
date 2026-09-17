@@ -1,11 +1,11 @@
 // Ce qui rattache le modèle f32 de `xformNormal` au nuanceur réellement exécuté.
 //
 // `packages/sdk-browser/normalTransform.test.ts` éprouve l'arithmétique de la transformation des
-// normales d'éclairage sur un MODÈLE f32 (`bench/justesse/inverseTransposeF32.mjs`), sans GPU : il
+// normales d'éclairage sur un MODÈLE f32 (`test/justesse/inverseTransposeF32.mjs`), sans GPU : il
 // attrape une régression dans `pnpm test`, mais un modèle est une seconde implémentation, libre de
 // dériver du texte livré sans que personne le voie. Ce fichier-ci ferme la boucle : le texte
 // `NORMAL_TRANSFORM_WGSL` du moteur est compilé et exécuté dans Chromium WebGPU sur EXACTEMENT les
-// mêmes cas (`bench/justesse/normalTransformCas.mjs`), et sa sortie doit être celle du modèle. Un
+// mêmes cas (`test/justesse/normalTransformCas.mjs`), et sa sortie doit être celle du modèle. Un
 // nuanceur qui ne compile pas fait échouer ce test, et un modèle qui dérive aussi.
 //
 // LAB_ROOT=… node --experimental-strip-types test/normalTransformArithmetique.browser.mjs
@@ -14,15 +14,15 @@ import {
   angleEntre,
   verdictNormale,
   xformNormalModele,
-} from '../packages/sdk-browser/bench/justesse/inverseTransposeF32.mjs';
+} from './justesse/inverseTransposeF32.mjs';
 import {
   CAS,
   DECROCHE_DEG,
   DEG,
   GARDES,
   REGULIERE_MINUSCULE,
-} from '../packages/sdk-browser/bench/justesse/normalTransformCas.mjs';
-import { eclairageGpu } from '../packages/sdk-browser/bench/justesse/normaleEclairageGpu.mjs';
+} from './justesse/normalTransformCas.mjs';
+import { eclairageGpu } from './justesse/normaleEclairageGpu.mjs';
 
 const TOUS = [...CAS, ...GARDES, REGULIERE_MINUSCULE];
 const gpu = await eclairageGpu(TOUS);

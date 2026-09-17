@@ -22,7 +22,7 @@ import * as THREE from 'three';
 import { cameraSelectionUniforms } from './gpuSelection.ts';
 import { rasterVisibility } from './visibilityRaster.ts';
 import type { VisPage } from './visibilityTypes.ts';
-import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from './bench/justesse/cameraRig.mjs';
+import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from '../../test/justesse/cameraRig.mjs';
 import { cameraMoteur } from './cameraFixture.ts';
 
 type Pose = (typeof POSES_PARENT)[number];

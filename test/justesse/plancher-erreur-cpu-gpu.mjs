@@ -11,22 +11,22 @@
 // processeur (`selectVisiblePages`), l'oracle Node du noyau et le noyau WGSL exécuté dans Chromium.
 // Le compte des sous-arbres élagués est publié : sans élagage, la preuve ne porterait sur rien.
 //
-// node --experimental-strip-types packages/sdk-browser/bench/justesse/plancher-erreur-cpu-gpu.mjs
+// node --experimental-strip-types test/justesse/plancher-erreur-cpu-gpu.mjs
 // (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { selectVisiblePages } from '../../pageSelectionCut.ts';
-import { cullingBounds } from '../../pageSelectionCutBounds.ts';
-import { cameraSelectionUniforms } from '../../gpuSelection.ts';
+import { selectVisiblePages } from '../../packages/sdk-browser/pageSelectionCut.ts';
+import { cullingBounds } from '../../packages/sdk-browser/pageSelectionCutBounds.ts';
+import { cameraSelectionUniforms } from '../../packages/sdk-browser/gpuSelection.ts';
 import {
   evaluateDagSelectionKernel,
   packDagSelection,
   packedWorldsToRenderOrigin,
-} from '../../gpuDagSelection.ts';
-import { descenteComptee } from '../../gpuDagCutFrontierFixture.ts';
-import { scenePages, sceneRoots } from '../../gpuDagCutFrontierScene.ts';
+} from '../../packages/sdk-browser/gpuDagSelection.ts';
+import { descenteComptee } from '../../packages/sdk-browser/gpuDagCutFrontierFixture.ts';
+import { scenePages, sceneRoots } from '../../packages/sdk-browser/gpuDagCutFrontierScene.ts';
 import { selectionGpu } from './noyauSelectionGpu.mjs';
-import { cameraMoteur } from '../../cameraFixture.ts';
+import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
 
 const VIEWPORT = [1280, 720];
 /** Le quatrième champ est le seuil ; le cinquième, les profondeurs où la pyramide est POSÉE. Une

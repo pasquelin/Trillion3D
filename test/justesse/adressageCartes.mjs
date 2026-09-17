@@ -3,9 +3,9 @@
 // tous les deux cette fixture : un seul matériau éprouvé, donc une seule chose à relire quand les
 // modes changent.
 import * as THREE from 'three';
-import { createPageRowWriter } from '../../webgpuPageRow.ts';
-import { PAGE_INFO_STRIDE } from '../../visibilityTypes.ts';
-import { WRAP_MAP } from '../../visibilityWrapModes.ts';
+import { createPageRowWriter } from '../../packages/sdk-browser/webgpuPageRow.ts';
+import { PAGE_INFO_STRIDE } from '../../packages/sdk-browser/visibilityTypes.ts';
+import { WRAP_MAP } from '../../packages/sdk-browser/visibilityWrapModes.ts';
 import { octetsTexture } from './adressageCas.mjs';
 
 const {
