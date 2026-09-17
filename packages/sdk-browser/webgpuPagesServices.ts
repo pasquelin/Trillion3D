@@ -5,16 +5,13 @@ import { createPageRowWriter } from './webgpuPageRow.ts';
 import { createWebgpuRowCommit } from './webgpuRowCommit.ts';
 import { noteResidenceChange } from './webgpuShadowBounds.ts';
 import { createWebgpuRowSync } from './webgpuRowSync.ts';
-import { createCutDelta } from './webgpuCutDelta.ts';
-import { createCutCounts } from './webgpuCutCounts.ts';
 import { createWebgpuResidencySets } from './webgpuResidencySets.ts';
 import { createWebgpuPinUpdater } from './webgpuPinUpdater.ts';
 import { createWebgpuBootstrap } from './webgpuBootstrap.ts';
 import { createWebgpuResidentEnsurer } from './webgpuResidentEnsurer.ts';
 import { createWebgpuResidencyQueue } from './webgpuResidencyQueue.ts';
-import { createWebgpuCutAdopter } from './webgpuCutAdoption.ts';
+import { createWebgpuCutPublication } from './webgpuCutPublication.ts';
 import { acceptPage, dropPage } from './webgpuPagesPageApi.ts';
-import { markDrawnMirrored } from './webgpuPagesHelpers.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
 export type WebgpuPagesServices = ReturnType<typeof createWebgpuPagesServices>;
@@ -23,7 +20,7 @@ export type WebgpuPagesServices = ReturnType<typeof createWebgpuPagesServices>;
  *  queue and the GPU cut adopter. Each reads the runtime lazily, so none holds a stale frame. */
 export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   const { run, gpu, diag, context } = rt,
-    { rows, packedPages, drawSlots, gpuWanted } = rt.layout,
+    { rows, packedPages, drawSlots } = rt.layout,
     { tracking, bootstrap, bootstrapUrls, bootstrapKey, slots } = rt.setup,
     { sourceBytes, byUrl } = rt.setup;
   const mirror = createWebgpuResidencyMirror({
@@ -69,13 +66,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   /** The sets residency is decided with, and the difference the GPU readback is read as. Both
    *  outlive the image: an image that moves no page touches neither. */
   const residencySets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages });
-  const cutDelta = createCutDelta(packedPages, run.desired);
-  // La coupe dessinable ne sert que par sa différence ; l'adoption écrit `run.shown` à partir des
-  // mêmes identifiants, quand ils ont changé, et ses triangles se tiennent par cette différence et
-  // par les seules pages dont la couverture bascule — que le journal des rangs nomme déjà.
-  const drawnDelta = createCutDelta(packedPages);
-  const cutCounts = createCutCounts(packedPages, rows.residentOffsetWords);
-  rows.watchTouched(cutCounts.touch);
   const pinUpdater = createWebgpuPinUpdater({
     tracking,
     sets: residencySets,
@@ -128,72 +118,19 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     traceDiagnostic: diag.traceDiagnostic,
     diagnosticFailure: diag.diagnosticFailure,
   });
-  // Readback describes submitted work and future streaming requests. It never
-  // decides the cut drawn for a moving camera; the current GPU mask does that.
-  const cutAdopter = createWebgpuCutAdopter({
-    selection: () => run.gpuSelection,
-    packedPages,
-    desired: run.desired,
-    shown: run.shown,
-    drawn: run.drawn,
-    uniforms: run.selectionUniforms,
-    counts: cutCounts,
-    delta: cutDelta,
-    drawnDelta,
-    onDrawnDelta: (delta) => (residencySets.applyDrawn(delta), cutCounts.apply(delta)),
-    onDrawnMirrored: () => markDrawnMirrored(run),
-    onCutDelta: (delta) => {
-      residencySets.applyCut(delta);
-      run.pagesEntered = delta.enteredCount;
-      run.pagesExited = delta.exitedCount;
-    },
-  });
-  // Before the first readback the image asks the cache for the pinned cover and nothing else.
-  if (!run.desired.length)
-    for (let i = 0; i < gpuWanted.length; i++) run.desired.push(gpuWanted[i]);
-  /** Adopte le relevé et dit si l'IMAGE en est changée : si les listes affichées ont été réécrites.
-   *  Un relevé neuf republiant les mêmes identifiants dans le même ordre n'en réécrit aucune. */
-  const adoptGpuCut = () => {
-    const adopted = cutAdopter.adopt(),
-      metrics = cutAdopter.metrics;
-    run.cutHeld = metrics.cutHeld;
-    gpu.cutIncomplete = metrics.incomplete;
-    // Une adoption qui réécrit les listes les fait changer d'âge, au rendu comme dans la vidange.
-    if (metrics.listsRewritten) run.cutEpoch++;
-    if (!adopted) return metrics.listsRewritten;
-    run.visible = metrics.visible;
-    run.selectedTriangles = metrics.selectedTriangles;
-    run.uncoveredTriangles = metrics.uncoveredTriangles;
-    run.submittedTriangles = metrics.selectedTriangles;
-    run.drawnTriangles = metrics.drawnTriangles;
-    run.blendPagedTriangles = metrics.transparentTriangles;
-    run.frustumRejected = metrics.frustumRejected;
-    run.lodLevel = metrics.lodLevel;
-    run.gpuMetricsReady = metrics.ready;
-    return metrics.listsRewritten;
-  };
-  /**
-   * Answers what the image asks the cache for. One cut covers both passes now, and the readback
-   * applied its difference the moment it was adopted, so nothing is re-read here.
-   */
-  const admitCut = () => {
-    residencySets.releaseCpu();
-    return residencySets.requestedCount;
-  };
+  const publication = createWebgpuCutPublication(rt, residencySets);
   return {
     syncRows,
     syncRowsFromCut,
     pageSource,
     hasBytes,
     residencySets,
-    admitCut,
-    // La coupe processeur réécrit elle-même ces listes : leur âge change avec elle.
-    invalidateCut: () => (run.cutEpoch++, cutCounts.clear(), cutAdopter.invalidate()),
+    /** Ce que l'image demande au cache : la différence de la coupe l'a posé au moment de l'adopter. */
+    admitCut: () => residencySets.requestedCount,
     bootstrapState,
     ensureResident,
     residency,
-    queueResident: residency.queueResident,
     queueCutResidency: residency.queueCutResidency,
-    adoptGpuCut,
+    ...publication,
   };
 }

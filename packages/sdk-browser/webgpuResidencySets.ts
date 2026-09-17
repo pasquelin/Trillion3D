@@ -1,7 +1,7 @@
 import type { PageRec } from './pageSelection.ts';
 import type { CutDelta } from './webgpuCutDelta.ts';
 import { createDenseKeySet } from './webgpuDenseKeys.ts';
-import { createKeyUnion, createRefreshedKeys } from './webgpuKeyUnion.ts';
+import { createKeyUnion } from './webgpuKeyUnion.ts';
 import { createBudgetRanking } from './webgpuBudgetRanking.ts';
 import { createHeldKeys } from './webgpuHeldKeys.ts';
 import type { createWebgpuPageTracking } from './webgpuPageTracking.ts';
@@ -13,12 +13,12 @@ export type WebgpuResidencySets = ReturnType<typeof createWebgpuResidencySets>;
 /**
  * The sets an image decides residency with, carried from one image to the next instead of rebuilt.
  *
- * `desired` is what the image asks the cache for — the pinned cover, the opaque cut and the
- * transparent cut — and `keep` adds what the image draws, which the cache must not reclaim under it.
- * The opaque cut arrives as a difference from the GPU readback, the transparent cut as a short list
- * the image re-reads, so a moving camera costs the pages that changed and a still one costs nothing.
- * `tracking.wanted` is what the upload queue walks: the desired set itself, unless the page budget
- * forces the coarser subset `applyBudget` computes.
+ * `desired` is what the image asks the cache for — the pinned cover and the cut — and `keep` adds
+ * what the image draws, which the cache must not reclaim under it. La coupe arrive comme une
+ * DIFFÉRENCE, qu'elle vienne du relevé de la carte ou de la coupe processeur : un même contrat pour
+ * les deux, si bien qu'une caméra qui bouge coûte les pages qui ont changé et une caméra immobile
+ * rien du tout. `tracking.wanted` is what the upload queue walks: the desired set itself, unless the
+ * page budget forces the coarser subset `applyBudget` computes.
  */
 export function createWebgpuResidencySets(options: {
   tracking: Tracking;
@@ -71,8 +71,6 @@ export function createWebgpuResidencySets(options: {
   const dropAsk = (key: number) => requested.release(key);
   const holdDrawn = (key: number) => keep.retain(key);
   const dropDrawn = (key: number) => keep.release(key);
-  const cpuWanted = createRefreshedKeys(keyCount, askFor, dropAsk);
-  const cpuShown = createRefreshedKeys(keyCount, holdDrawn, dropDrawn);
   /** What the cut asks the cache for, and what the image actually draws. The second is not a subset
    *  of the first: a cluster whose replacement is missing is drawn from a resident ancestor the cut
    *  never asked for, and the cache must not reclaim it while it is on screen. */
@@ -111,31 +109,13 @@ export function createWebgpuResidencySets(options: {
     get keepCount() {
       return tracking.keep.count;
     },
-    /** Applies one GPU cut difference: only the pages that entered and left are touched. */
+    /** Applies one cut difference: only the pages that entered and left are touched. */
     applyCut(delta: CutDelta) {
       askedKeys.apply(delta);
     },
     /** Applies one difference of the drawable cut, which is what the image must not lose. */
     applyDrawn(delta: CutDelta) {
       drawnKeys.apply(delta);
-    },
-    /**
-     * The CPU cut owns the whole set for as long as it drives the image: it hands over its wanted and
-     * drawn lists in full, and the GPU cut re-seeds from nothing when it takes over again.
-     */
-    refreshCpu(wantedNow: readonly PageRec[], shownNow: readonly PageRec[]) {
-      askedKeys.clear();
-      ranking.clear();
-      drawnKeys.clear();
-      if (!followsDesired) restoreWanted();
-      cpuWanted.refresh(wantedNow, keyOf);
-      cpuShown.refresh(shownNow, keyOf);
-    },
-    /** Hands the opaque and transparent cuts back the sets the CPU cut held. */
-    releaseCpu() {
-      if (!cpuWanted.held.count && !cpuShown.held.count) return;
-      cpuWanted.clear();
-      cpuShown.clear();
     },
     /**
      * The upload queue holds `room` records. A cut that fits is the queue, and the incremental set
