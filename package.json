@@ -39,6 +39,7 @@
     "packages/README.md"
   ],
   "scripts": {
+    "preinstall": "node scripts/only-pnpm.mjs",
     "build": "tsc -p tsconfig.json && node scripts/rewrite-dts-extensions.mjs && node scripts/copy-resources.mjs && node scripts/write-build-provenance.mjs",
     "build:native": "cargo build --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml",
     "build:wasm": "node scripts/build-wasm.mjs",
