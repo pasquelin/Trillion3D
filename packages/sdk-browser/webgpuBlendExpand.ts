@@ -2,15 +2,20 @@ import { BLEND_EXPAND_SHADER } from './webgpuBlendExpandWgsl.ts';
 import { shaderFailed } from './gpuShaderModule.ts';
 import { openValidation, validationError } from './gpuErrorScope.ts';
 import { cleanupFailedHiz } from './gpuHizPipelines.ts';
-import { EXPAND_GROUP, EXPAND_PASSES, RUN_WORDS } from './webgpuBlendRuns.ts';
+import {
+  blendExpandUniform,
+  EXPAND_GROUP,
+  EXPAND_PASSES,
+  RUN_WORDS,
+  UNI_WORDS,
+} from './webgpuBlendRuns.ts';
 
 export type BlendExpand = NonNullable<Awaited<ReturnType<typeof createBlendExpand>>>;
 
-/** Douze mots d'uniforme par passe, chacun à son propre alignement de liaison dynamique. */
-const UNI_WORDS = 12,
-  UNI_STRIDE = 256;
+/** Chaque passe a sa région d'uniforme, à son propre alignement de liaison dynamique. */
+const UNI_STRIDE = 256;
 /** Les huit tampons de stockage du noyau, dans l'ordre des rangs que le nuanceur déclare. */
-const STORAGE_TYPES: GPUBufferBindingType[] = [
+export const STORAGE_TYPES: GPUBufferBindingType[] = [
   'read-only-storage',
   'read-only-storage',
   'read-only-storage',
@@ -20,6 +25,24 @@ const STORAGE_TYPES: GPUBufferBindingType[] = [
   'storage',
   'storage',
 ];
+
+/**
+ * Les quatre lancements du noyau : un groupe de fils par paquet d'entrées, UN seul pour la somme
+ * courante sur les paquets, un fil par entrée, un fil par tranche. Écrits une fois pour l'encodage
+ * de production et pour la preuve « carte = modèle » qui rejoue le noyau.
+ */
+/** Les quatre points d'entrée du noyau, dans l'ordre où ils s'enchaînent. */
+export const BLEND_EXPAND_ENTRIES = [
+  'countBlendGroups',
+  'scanBlendGroups',
+  'placeBlendEntries',
+  'writeBlendRuns',
+];
+
+export const blendExpandDispatch = (entries: number, runs: number) => {
+  const groups = Math.ceil(Math.max(1, entries) / EXPAND_GROUP);
+  return [groups, 1, groups, Math.ceil(Math.max(1, runs) / EXPAND_GROUP)];
+};
 
 /**
  * Le noyau qui étale le plan trié, et les tampons de scène qu'il lit.
@@ -75,12 +98,7 @@ export async function createBlendExpand(
       ],
     });
     const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
-    const pipelines = [
-      'countBlendGroups',
-      'scanBlendGroups',
-      'placeBlendEntries',
-      'writeBlendRuns',
-    ].map((entryPoint) =>
+    const pipelines = BLEND_EXPAND_ENTRIES.map((entryPoint) =>
       device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } }),
     );
     // Sans primitive paginée il n'y a ni compte ni liste de grappes à lire : le noyau ne touche
@@ -150,27 +168,14 @@ export async function createBlendExpand(
         counts: { entries: number; runs: number; instanceBase: number },
         scene: { maxVertexWords: number; vertexShift: number },
       ) {
-        const groups = Math.ceil(Math.max(1, counts.entries) / EXPAND_GROUP);
-        uni.set([
-          counts.entries,
-          groups,
-          counts.runs,
-          counts.instanceBase,
-          region.args,
-          scene.maxVertexWords,
-          scene.vertexShift,
-          region.order,
-          region.runs,
-        ]);
+        blendExpandUniform(uni, counts, region, scene);
         device.queue.writeBuffer(uniforms, pass * UNI_STRIDE, uni);
         offsets[0] = pass * UNI_STRIDE;
         encoder.setBindGroup(0, bindGroup, offsets);
-        const sizesOf = [groups, 1, counts.entries, counts.runs];
+        const lancements = blendExpandDispatch(counts.entries, counts.runs);
         for (let step = 0; step < pipelines.length; step++) {
           encoder.setPipeline(pipelines[step]);
-          encoder.dispatchWorkgroups(
-            step === 1 ? 1 : Math.ceil(Math.max(1, sizesOf[step]) / EXPAND_GROUP),
-          );
+          encoder.dispatchWorkgroups(lancements[step]);
         }
       },
       dispose() {
