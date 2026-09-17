@@ -3,9 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { routeBrowserFixtures } from '../appui/browserFixtureServer.mjs';
-const fixtureDirectory = resolve(dirname(fileURLToPath(import.meta.url)), 'browserFixtures');
 
 // Real GPU presentation/capture regression fixtures, outside timed beauty runs.
 // Start Lab 15 and build this SDK before running. No performance claim is made.
@@ -56,7 +54,7 @@ try {
   });
   page.on('pageerror', (error) => report.errors.push(error.message));
   await page.goto(labUrl + '/__wg-presentation-fixture');
-  await routeBrowserFixtures(page, fixtureDirectory);
+  await routeBrowserFixtures(page);
   Object.assign(
     report,
     await page.evaluate(

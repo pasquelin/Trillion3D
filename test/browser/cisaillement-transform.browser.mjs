@@ -7,7 +7,7 @@
 // sélectionnée. `selectionGpu` vient de `test/justesse/noyauSelectionGpu.mjs` ;
 // Playwright, de `render-tech-lab`, en lecture seule.
 //
-// node --experimental-strip-types test/browser/cisaillementTransform.browser.mjs
+// node --experimental-strip-types test/browser/cisaillement-transform.browser.mjs
 // (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -123,5 +123,5 @@ assert.deepEqual(
 );
 
 console.log(
-  'OK : 2 matrices, 2 vues, 4 exécutions du noyau WGSL — voir test/browser/cisaillementTransform.browser.mjs',
+  'OK : 2 matrices, 2 vues, 4 exécutions du noyau WGSL — voir test/browser/cisaillement-transform.browser.mjs',
 );

@@ -1,6 +1,10 @@
-// L'exécuteur des tests matériels : les sondes de justesse de `test/justesse/` puis les tests de
+// L'exécuteur des tests matériels : les sondes de justesse de `test/justesse/` puis les preuves de
 // rendu de `test/browser/`, un par un. Les chemins sont résolus depuis la racine du dépôt, jamais
 // depuis le répertoire courant : la commande donne le même résultat d'où qu'on la lance.
+//
+// Les deux dossiers sont découverts par une règle, jamais par une liste tenue à la main : un
+// fichier qu'on oublie d'ajouter ne s'exécute pas, et rien ne le dit. Ce qui ne peut pas tourner
+// ici est déclaré ci-dessous avec son motif — écarté à voix haute, jamais en silence.
 import { spawnSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
@@ -8,23 +12,26 @@ import { fileURLToPath } from 'node:url';
 
 export const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..');
 const JUSTESSE = 'test/justesse';
+const BROWSER = 'test/browser';
 
-export const BROWSER_GPU_TESTS = [
-  'test/browser/cisaillementTransform.browser.mjs',
-  'test/browser/coneEchelleNonUniforme.browser.mjs',
-  'test/browser/coupeGpuTenue.browser.mjs',
-  'test/browser/depthConventionMoteurComplet.browser.mjs',
-  'test/browser/gpuTextureWrap.browser.mjs',
-  'test/browser/hizCameraRig.browser.mjs',
-  'test/browser/imageTenueCouleur.browser.mjs',
-  'test/browser/inverseTransposeePetiteEchelle.browser.mjs',
-  'test/browser/normalTransformArithmetique.browser.mjs',
-  'test/browser/normaleEclairagePetiteEchelle.browser.mjs',
-  'test/browser/normaleEclairageSubstitutionsRefusees.browser.mjs',
-  'test/browser/reflexionFaceEliminee.browser.mjs',
-  'test/browser/setTransformParentPerime.browser.mjs',
-  'test/browser/transparentTransform.browser.mjs',
-];
+/** Un montage que l'exécuteur ne fournit pas : la preuve est bonne, la machine n'est pas prête. */
+export const MONTAGE = 'montage';
+/** Un défaut du moteur : la preuve échoue parce qu'elle a raison. Chacun porte une ligne de TODO. */
+export const REGRESSION = 'régression';
+/**
+ * La preuve tient une copie à la main d'un contrat que la source a fait évoluer sans elle. Le moteur
+ * est juste, le double a dérivé : il se répare en lisant le contrat au lieu de le recopier.
+ */
+export const DOUBLE_PERIME = 'double périmé';
+
+/**
+ * Les preuves de rendu que `pnpm run test:gpu` ne lance pas, et pourquoi. Une entrée `REGRESSION`
+ * est une dette ouverte, pas une dispense : elle se retire en corrigeant le moteur.
+ */
+export const BROWSER_ECARTES = new Map([
+  ['beaute-webgpu', [MONTAGE, 'assets du Lab à recompiler avec `dag-group-qem-v1`']],
+  ['presentation-gpu', [MONTAGE, 'assets du Lab à recompiler avec `dag-group-qem-v1`']],
+]);
 
 /**
  * Les sondes exécutables de `test/justesse/` : celles dont le nom porte un tiret. Les autres
@@ -37,14 +44,37 @@ export function listJustesseTests() {
     .map((fichier) => `${JUSTESSE}/${fichier}`);
 }
 
+/** Tout `*.browser.mjs` présent sur le disque, écartés compris : la référence du dossier. */
+export function listBrowserFiles() {
+  return readdirSync(join(RACINE, BROWSER))
+    .filter((fichier) => fichier.endsWith('.browser.mjs'))
+    .sort();
+}
+
+/** Les preuves de rendu que l'exécuteur lance : le dossier, moins ce qui est déclaré écarté. */
+export function listBrowserTests() {
+  return listBrowserFiles()
+    .filter((fichier) => !BROWSER_ECARTES.has(fichier.slice(0, -'.browser.mjs'.length)))
+    .map((fichier) => `${BROWSER}/${fichier}`);
+}
+
+/** Ce que la commande n'a pas prouvé, dit avant de lancer quoi que ce soit. */
+export function ecartsRapportes() {
+  return [...BROWSER_ECARTES].map(([nom, [genre, motif]]) => `  ${genre} — ${nom} : ${motif}`);
+}
+
 /** Les arguments de `node` : les drapeaux, puis la cible demandée ou la liste complète. */
 export function buildTestGpuArgs(cliArgs = []) {
   const flags = ['--experimental-strip-types', '--test', '--test-concurrency=1'];
   if (cliArgs.length > 0) return [...flags, ...cliArgs];
-  return [...flags, ...listJustesseTests(), ...BROWSER_GPU_TESTS];
+  return [...flags, ...listJustesseTests(), ...listBrowserTests()];
 }
 
 export function runGpuTests(args = process.argv.slice(2)) {
+  if (args.length === 0 && BROWSER_ECARTES.size > 0)
+    console.log(
+      `${BROWSER_ECARTES.size} preuves de rendu écartées :\n${ecartsRapportes().join('\n')}\n`,
+    );
   const resultat = spawnSync('node', buildTestGpuArgs(args), { stdio: 'inherit', cwd: RACINE });
   if (resultat.error) throw resultat.error;
   process.exit(resultat.status ?? 1);

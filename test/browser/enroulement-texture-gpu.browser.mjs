@@ -11,7 +11,7 @@
 // ceux de la reproduction pour rester une preuve indépendante. Le nuanceur, lui, n'est pas recopié :
 // deux copies seraient deux chances de voir la lecture éprouvée dériver de celle de production.
 //
-//   LAB_ROOT=…/render-tech-lab node --experimental-strip-types test/browser/gpuTextureWrap.browser.mjs
+//   LAB_ROOT=…/render-tech-lab node --experimental-strip-types test/browser/enroulement-texture-gpu.browser.mjs
 import assert from 'node:assert/strict';
 import { wrapNibble } from '../../packages/sdk-browser/visibilityWrapModes.ts';
 import {
