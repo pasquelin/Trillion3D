@@ -10,7 +10,6 @@
  * monotones vers le bas, donc un parent rejeté rejette tout son sous-arbre, et réciproquement un nœud
  * retenu a forcément un parent retenu, qu'il est inutile de tester.
  */
-import * as THREE from 'three';
 import { frustumExcludesBox, frustumPlanesToLocal } from '../sdk-core/index.ts';
 import { flatHierarchy } from './gpuDagHierarchy.ts';
 import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './gpuDagTypes.ts';
@@ -71,17 +70,14 @@ export function scenePages(feuilles: number, niveaux: number) {
   return pages;
 }
 
-export function sceneRoots(pages: ReturnType<typeof page>[], mondes: number): DagRoot[] {
+/** Les poses de la scène. La matrice monde vient de l'appelant : ce module ne connaît pas la
+ *  bibliothèque de l'hôte, et la liste fermée de `test/engineNoThree.test.mjs` le lui interdit. */
+export function sceneRoots(
+  pages: ReturnType<typeof page>[],
+  mondes: DagRoot['world'][],
+): DagRoot[] {
   const cull = culling(pages);
-  return Array.from({ length: mondes }, (_, w) => ({
-    world: new THREE.Matrix4().makeTranslation(
-      (w % 4) * 6.5 - 9.75,
-      Math.floor(w / 4) * 6.5 - 6.5,
-      0,
-    ),
-    pages: pages as DagRoot['pages'],
-    culling: cull,
-  }));
+  return mondes.map((world) => ({ world, pages: pages as DagRoot['pages'], culling: cull }));
 }
 
 export type Descente = {
