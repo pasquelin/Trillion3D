@@ -1,4 +1,4 @@
-import { DRAW_UNPAGED } from './webgpuBlendPlan.ts';
+import { DRAW_UNPAGED, PLAN_SHARED_BIT, PLAN_SHIFT } from './webgpuBlendPlan.ts';
 import { EXPAND_GROUP, expandUniformWgsl, RUN_WORDS } from './webgpuBlendRuns.ts';
 
 /** Les huit tampons de stockage du noyau, dans l'ordre des rangs que le nuanceur déclare. */
@@ -67,7 +67,7 @@ export const BLEND_EXPAND_SHADER = `${expandUniformWgsl()}
 @group(0) @binding(8) var<storage,read_write> args:array<u32>;
 const GROUP=${EXPAND_GROUP}u;
 var<workgroup> tuile:array<u32,${EXPAND_GROUP}>;
-fn itemOf(i:u32)->u32{return plan[uni.orderBase+i]>>3u;}
+fn itemOf(i:u32)->u32{return plan[uni.orderBase+i]>>${PLAN_SHIFT}u;}
 fn kept(item:u32)->bool{return (keep[item>>5u]&(1u<<(item&31u)))!=0u;}
 /** Ce qu'une entrée de plan étale : les grappes que la compaction lui a gardées, les morceaux
  *  qu'une primitive non paginée porte, rien du tout si le tronc a rejeté son item. */
@@ -151,9 +151,12 @@ fn writeBlendRuns(@builtin(global_invocation_id) id:vec3u){
  // La tranche qui fusionne dessine des grappes, au pas de la table ; celle qui n'a gardé qu'une
  // entree dessine ce que SON item porte. Le propriétaire se lit sur l'entrée, comme au processeur.
  let entry=plan[uni.orderBase+first];
- let fusionne=entries>1u&&(entry&4u)!=0u;
+ let fusionne=entries>1u&&(entry&${PLAN_SHARED_BIT}u)!=0u;
  var vertexCount=uni.maxVertexWords;
- if(!fusionne&&draws[entry>>3u].x==${DRAW_UNPAGED}u){vertexCount=draws[entry>>3u].w;}
+ // Une seule lecture de la description de dessin : elle fait seize octets, et les deux champs lus
+ // en sortent ensemble.
+ let dessin=draws[entry>>${PLAN_SHIFT}u];
+ if(!fusionne&&dessin.x==${DRAW_UNPAGED}u){vertexCount=dessin.w;}
  let o=uni.argsBase+r*4u;
  args[o]=vertexCount;
  args[o+1u]=scratch[last]+instancesOf(last)-base;

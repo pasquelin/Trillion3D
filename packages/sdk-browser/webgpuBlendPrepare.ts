@@ -102,6 +102,9 @@ export function prepareWebgpuBlend(
       // Chaque carte du matériau adresse sa texture dans son propre mode, comme une page opaque.
       wrapModes: wrapModes(mat),
       paged,
+      // Reposés par `refreshEyeKeys` avant chaque tri ; ici seulement pour qu'ils existent.
+      orderKey: 0,
+      orderRank: 0,
     };
     refreshBlendBounds(item);
     blendState.blendGpu.push(item);

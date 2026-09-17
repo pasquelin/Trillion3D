@@ -1,3 +1,4 @@
+import { CULL_STRIDE } from './gpuDagTypes.ts';
 /**
  * La hiérarchie de coupe telle que la descente par niveaux la lit : sa profondeur, et celle qu'une
  * primitive sans hiérarchie reçoit pour que la descente soit le seul chemin de production.
@@ -14,7 +15,7 @@
  */
 const LEAF_PAGES = 32,
   BRANCH = 8,
-  STRIDE = 15,
+  STRIDE = CULL_STRIDE,
   INF = Infinity;
 
 type Built = { min: number[]; max: number[]; first: number; pages: number; children: Built[] };

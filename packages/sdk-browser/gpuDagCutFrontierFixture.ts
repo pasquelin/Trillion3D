@@ -20,6 +20,7 @@
 import { DAG_NODE_FLOATS, type PackedDag } from './gpuDagTypes.ts';
 import { dagNodeFloor, dagNodeVerdict, dagViewFrames, projectedError } from './gpuDagOracleMath.ts';
 import { bandError, bandSphere, dagRecords, worldOf } from './gpuDagLayout.ts';
+import { NODE_FIRST_CHILD, NODE_FIRST_PAGE, NODE_PAGE_COUNT } from './gpuDagPackNodes.ts';
 import type { SelectionUniforms } from './gpuSelection.ts';
 
 export type Descente = {
@@ -84,17 +85,17 @@ export function descenteComptee(
       }
       if (enfants) {
         compte.internes++;
-        const premier = ints[n * DAG_NODE_FLOATS + 3];
+        const premier = ints[n * DAG_NODE_FLOATS + NODE_FIRST_CHILD];
         for (let c = 0; c < enfants; c++) suivante.push(premier + c);
         continue;
       }
       compte.frontiereFeuilles++;
       const at = n * DAG_NODE_FLOATS;
-      compte.candidats += ints[at + 14];
+      compte.candidats += ints[at + NODE_PAGE_COUNT];
       // Ce que le rejet par le haut vise : une grappe dont l'erreur propre dépasse encore le seuil
       // est trop grossière, la coupe ne la prendra pas, et la descente l'a pourtant listée.
-      for (let p = 0; p < ints[at + 14]; p++) {
-        const i = ints[at + 13] + p,
+      for (let p = 0; p < ints[at + NODE_PAGE_COUNT]; p++) {
+        const i = ints[at + NODE_FIRST_PAGE] + p,
           w = worldOf(records, i),
           sphere = bandSphere(records, i, 0);
         if (

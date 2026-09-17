@@ -23,9 +23,24 @@ import { CULL_STRIDE, DAG_NODE_FLOATS, type DagRoot } from './gpuDagTypes.ts';
  * que rien ne remplace. Le repli épinglé de `dagMask` dessine ces grappes-là sans consulter aucun
  * seuil : la descente ne doit donc jamais les élaguer, quelle que soit leur erreur.
  */
-export const NODE_FLOOR_SPHERE = 16,
+/** Les rangs du nœud empaqueté, dans l'ordre où `struct CullNode` du nuanceur les déclare. Trois
+ *  lecteurs les relisent — le nuanceur, l'oracle (`gpuDagOracleMath.ts`) et le comptage de frontière
+ *  —, et ils ne sont écrits qu'ici : un champ déplacé ne peut donc pas laisser un lecteur derrière. */
+export const NODE_MIN = 0,
+  NODE_FIRST_CHILD = 3,
+  NODE_MAX = 4,
+  /** Plafond d'erreur du remplaçant du sous-arbre, -1 quand le manifeste n'en porte pas. */
+  NODE_CEIL = 7,
+  NODE_SPHERE = 8,
+  NODE_WORLD = 12,
+  NODE_FIRST_PAGE = 13,
+  NODE_PAGE_COUNT = 14,
+  NODE_CHILD_COUNT = 15,
+  NODE_FLOOR_SPHERE = 16,
   NODE_FLOOR = 20,
   NODE_FLAGS = 21;
+/** Les deux mots de calage qui portent le nœud à quatre-vingt-seize octets, alignés sur le vec4. */
+const NODE_PAD = 22;
 /** Bit 0 des drapeaux de nœud : le sous-arbre porte une grappe que rien ne remplace. */
 export const NODE_HAS_ROOT = 1;
 /** Le plus grand f32 : le nuanceur ne peut pas écrire une constante infinie, et son plancher lit
@@ -72,28 +87,25 @@ export function packCullingNodes(
     const src = n * culling.stride,
       dst = (nodeBase + n) * DAG_NODE_FLOATS,
       at = n * BOUND_STRIDE;
-    nodes[dst] = culling.nodes[src];
-    nodes[dst + 1] = culling.nodes[src + 1];
-    nodes[dst + 2] = culling.nodes[src + 2];
-    nodeInts[dst + 3] = nodeBase + culling.nodes[src + 11];
-    nodes[dst + 4] = culling.nodes[src + 3];
-    nodes[dst + 5] = culling.nodes[src + 4];
-    nodes[dst + 6] = culling.nodes[src + 5];
-    nodes[dst + 7] = culling.nodes[src + 10];
-    nodes[dst + 8] = culling.nodes[src + 6];
-    nodes[dst + 9] = culling.nodes[src + 7];
-    nodes[dst + 10] = culling.nodes[src + 8];
-    nodes[dst + 11] = culling.nodes[src + 9];
-    nodeInts[dst + 12] = world;
-    nodeInts[dst + 13] = pageBase + culling.nodes[src + 13];
-    nodeInts[dst + 14] = culling.nodes[src + 14];
-    nodeInts[dst + 15] = culling.nodes[src + 12];
-    for (let a = 0; a < 4; a++) nodes[dst + NODE_FLOOR_SPHERE + a] = bounds[at + OWN_SPHERE + a];
+    for (let a = 0; a < 3; a++) {
+      nodes[dst + NODE_MIN + a] = culling.nodes[src + a];
+      nodes[dst + NODE_MAX + a] = culling.nodes[src + 3 + a];
+    }
+    for (let a = 0; a < 4; a++) {
+      nodes[dst + NODE_SPHERE + a] = culling.nodes[src + 6 + a];
+      nodes[dst + NODE_FLOOR_SPHERE + a] = bounds[at + OWN_SPHERE + a];
+    }
+    nodes[dst + NODE_CEIL] = culling.nodes[src + 10];
+    nodeInts[dst + NODE_FIRST_CHILD] = nodeBase + culling.nodes[src + 11];
+    nodeInts[dst + NODE_CHILD_COUNT] = culling.nodes[src + 12];
+    nodeInts[dst + NODE_FIRST_PAGE] = pageBase + culling.nodes[src + 13];
+    nodeInts[dst + NODE_PAGE_COUNT] = culling.nodes[src + 14];
+    nodeInts[dst + NODE_WORLD] = world;
     const floor = bounds[at + OWN_FLOOR];
     nodes[dst + NODE_FLOOR] = Number.isFinite(floor) ? floor : INF32;
     nodeInts[dst + NODE_FLAGS] = bounds[at + HAS_ROOT] ? NODE_HAS_ROOT : 0;
-    nodeInts[dst + 22] = 0;
-    nodeInts[dst + 23] = 0;
+    nodeInts[dst + NODE_PAD] = 0;
+    nodeInts[dst + NODE_PAD + 1] = 0;
     if (!culling.nodes[src + 12]) {
       const first = culling.nodes[src + 13],
         pages = culling.nodes[src + 14];

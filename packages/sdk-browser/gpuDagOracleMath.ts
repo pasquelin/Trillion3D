@@ -2,7 +2,18 @@ import * as THREE from 'three';
 import { frustumExcludesBox, frustumPlanesToLocal, screenErrorBound } from '../sdk-core/index.ts';
 import { errorFloorAt, viewDepthOf, viewLateralOf } from './pageSelectionProjection.ts';
 import { DAG_NODE_FLOATS } from './gpuDagTypes.ts';
-import { NODE_FLAGS, NODE_FLOOR, NODE_FLOOR_SPHERE, NODE_HAS_ROOT } from './gpuDagPackNodes.ts';
+import {
+  NODE_CEIL,
+  NODE_CHILD_COUNT,
+  NODE_FLAGS,
+  NODE_FLOOR,
+  NODE_FLOOR_SPHERE,
+  NODE_HAS_ROOT,
+  NODE_MAX,
+  NODE_MIN,
+  NODE_SPHERE,
+  NODE_WORLD,
+} from './gpuDagPackNodes.ts';
 import type { SelectionUniforms } from './gpuSelection.ts';
 
 export const dagScratch = {
@@ -92,28 +103,28 @@ export function dagNodeVerdict(
   n: number,
 ) {
   const base = n * DAG_NODE_FLOATS,
-    w = ints[base + 12];
+    w = ints[base + NODE_WORLD];
   if (
     frustumExcludesBox(
       f.planes[w],
-      nodes[base],
-      nodes[base + 1],
-      nodes[base + 2],
-      nodes[base + 4],
-      nodes[base + 5],
-      nodes[base + 6],
+      nodes[base + NODE_MIN],
+      nodes[base + NODE_MIN + 1],
+      nodes[base + NODE_MIN + 2],
+      nodes[base + NODE_MAX],
+      nodes[base + NODE_MAX + 1],
+      nodes[base + NODE_MAX + 2],
     )
   )
     return -1;
-  const ceil = nodes[base + 7];
+  const ceil = nodes[base + NODE_CEIL];
   if (
     ceil >= 0 &&
     projectedError(
       ceil,
-      nodes[base + 8],
-      nodes[base + 9],
-      nodes[base + 10],
-      nodes[base + 11],
+      nodes[base + NODE_SPHERE],
+      nodes[base + NODE_SPHERE + 1],
+      nodes[base + NODE_SPHERE + 2],
+      nodes[base + NODE_SPHERE + 3],
       f.views[w],
       f.stretches[w],
       f.focal,
@@ -121,7 +132,7 @@ export function dagNodeVerdict(
     ) <= f.pixelError
   )
     return -1;
-  return ints[base + 15];
+  return ints[base + NODE_CHILD_COUNT];
 }
 
 /**
@@ -137,7 +148,7 @@ export function dagNodeFloor(
   n: number,
 ) {
   const base = n * DAG_NODE_FLOATS,
-    w = ints[base + 12];
+    w = ints[base + NODE_WORLD];
   if (ints[base + NODE_FLAGS] & NODE_HAS_ROOT) return 0;
   return errorFloorAt(
     nodes[base + NODE_FLOOR],

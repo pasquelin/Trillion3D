@@ -33,7 +33,7 @@ export function createWebgpuCutPublication(
   residencySets: WebgpuResidencySets,
 ) {
   const { run, gpu } = rt,
-    { rows, packedPages, gpuWanted } = rt.layout;
+    { rows, packedPages } = rt.layout;
   const cutDelta = createCutDelta(packedPages, run.desired);
   // La coupe dessinable écrit ses fiches elle-même, en lisant sa suite une seule fois : `run.shown`
   // n'en est plus qu'une recopie, et seulement quand l'image adopte le relevé qui l'a produite.
@@ -73,7 +73,9 @@ export function createWebgpuCutPublication(
     },
   });
   // Before the first readback the image asks the cache for the pinned cover and nothing else.
-  cutDelta.adoptRecords(gpuWanted);
+  // Lu ici et non retenu : la portée de cette publication vit aussi longtemps que le moteur, et une
+  // liste qui ne sert qu'à l'amorçage n'a pas à y rester accrochée.
+  cutDelta.adoptRecords(rt.layout.gpuWanted);
   publishCut();
   /** Adopte le relevé et dit si l'IMAGE en est changée : si les listes affichées ont été réécrites.
    *  Un relevé neuf republiant les mêmes identifiants dans le même ordre n'en réécrit aucune. */

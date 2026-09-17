@@ -109,13 +109,13 @@ fn extent(
 /// demi-angle intérieur est ce que cette fraction laisse.
 fn cone(world: &mut World<'_>, prim: &usd::Prim) -> Option<(f64, f64)> {
     let outer = read(world, prim, "inputs:shaping:cone:angle")?.to_radians();
-    let softness = number(world, prim, "inputs:shaping:cone:softness", 0.0).clamp(0.0, 1.0);
+    let softness = number(world, prim, "inputs:shaping:cone:softness", 0.0);
     let outer = if outer.is_finite() {
         outer
     } else {
         DEFAULT_CONE.to_radians()
     };
-    Some((outer * (1.0 - softness), outer))
+    Some(crate::import::cone_angles(outer, softness))
 }
 
 /// La couleur de la lampe, canaux finis et non négatifs ; blanche par défaut, comme `UsdLux`.

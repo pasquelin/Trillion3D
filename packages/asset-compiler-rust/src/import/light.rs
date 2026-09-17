@@ -54,12 +54,24 @@ impl LightSource {
     }
 }
 
+/// Les deux demi-angles d'un projecteur, en radians, à partir du demi-angle EXTÉRIEUR et de la
+/// fraction du cône qui s'adoucit vers son bord. Chaque format nomme et cadre ces deux nombres à sa
+/// façon — `inputs:shaping:cone:angle` et sa `softness` chez `UsdLux`, `spotsize` (l'angle entier)
+/// et `spotblend` chez Blender — mais la règle qui en tire l'intérieur est la même, et elle
+/// n'est écrite qu'ici. La douceur est bornée à `[0, 1]` : hors de là, le cône s'inverserait.
+pub(crate) fn cone_angles(outer: f64, softness: f64) -> (f64, f64) {
+    (outer * (1.0 - softness.clamp(0.0, 1.0)), outer)
+}
+
+/// Ce qu'un nœud porte pour citer la lampe de rang `light` : la forme de l'extension glTF, écrite
+/// une fois pour les pilotes qui bâtissent leur nœud eux-mêmes comme pour `light_node`.
+pub(crate) fn light_extension(light: usize) -> Value {
+    json!({"KHR_lights_punctual": {"light": light}})
+}
+
 /// Le nœud qui instancie la lampe de rang `light`, à la matrice donnée.
 pub(crate) fn light_node(name: &str, matrix: Value, light: usize) -> Value {
-    json!({
-        "name": name, "matrix": matrix,
-        "extensions": {"KHR_lights_punctual": {"light": light}},
-    })
+    json!({"name": name, "matrix": matrix, "extensions": light_extension(light)})
 }
 
 /// Déclare les lampes dans le document. Une scène qui n'en porte aucune n'annonce pas l'extension :

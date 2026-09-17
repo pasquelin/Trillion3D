@@ -1,18 +1,17 @@
 import { createWebgpuCutAdopter } from './webgpuCutAdoption.ts';
 import { createCutDelta } from './webgpuCutDelta.ts';
 import { createCutCounts } from './webgpuCutCounts.ts';
-import type { GpuCut, GpuSelection, SelectionUniforms } from './gpuSelection.ts';
+import {
+  createSelectionUniforms,
+  type GpuCut,
+  type GpuSelection,
+  type SelectionUniforms,
+} from './gpuSelection.ts';
 import type { PageRec } from './pageSelection.ts';
 
-/** Le bloc d'uniformes d'un banc : jamais comparé à autre chose qu'à lui-même ou à sa copie. */
-export const fixtureUniforms = (): SelectionUniforms => ({
-  planes: new Float32Array(24),
-  view: new Float32Array(16),
-  pixelScale: [1, 1],
-  pixelError: 0,
-  near: 0.1,
-  cameraWorld: [0, 0, 0],
-});
+/** Le bloc d'uniformes d'un banc : celui du moteur, pour qu'un champ ajouté au contrat arrive ici
+ *  sans qu'on l'y recopie. Jamais comparé à autre chose qu'à lui-même ou à sa copie. */
+export const fixtureUniforms = createSelectionUniforms;
 
 /** Un catalogue de `count` grappes, une par rang, toutes avec leurs octets. */
 export function fixturePages(count: number, transparent: (index: number) => boolean = () => false) {

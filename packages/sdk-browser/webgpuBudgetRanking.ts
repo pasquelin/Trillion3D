@@ -37,7 +37,9 @@ export function createBudgetRanking(options: {
   const refs = new Int32Array(Math.max(1, keyCount));
   const slotOf = new Int32Array(Math.max(1, keyCount));
   /** Le premier placement qui a nommé la clé : l'enregistrement par lequel elle sera cherchée. */
-  const pageOfKey: (PageRec | undefined)[] = new Array(Math.max(1, keyCount));
+  // Rempli à la construction : un tableau agrandi sans l'être reste troué à vie, et le classement
+  // le paie à chaque lecture. Même mesure que `webgpuCutDelta.ts`, même geste.
+  const pageOfKey: (PageRec | undefined)[] = new Array(Math.max(1, keyCount)).fill(undefined);
   /** The ranked prefix, one entry per page, and the keys beside it. Sized to the budget once. */
   const ranked: PageRec[] = [];
   let keys = new Int32Array(0);

@@ -106,19 +106,13 @@ function sortPlanFarToNear(order: Uint32Array, items: readonly BlendGpuItem[]) {
   let shifted = false;
   for (let i = 1; i < order.length; i++) {
     const entry = order[i],
-      moved = items[planItem(entry)];
+      moved = items[planItem(entry)],
+      movedKey = moved.orderKey,
+      movedRank = moved.orderRank;
     let j = i - 1;
     while (j >= 0) {
       const held = items[planItem(order[j])];
-      if (
-        !precedes(
-          held.orderKey ?? 0,
-          held.orderRank ?? 0,
-          moved.orderKey ?? 0,
-          moved.orderRank ?? 0,
-        )
-      )
-        break;
+      if (!precedes(held.orderKey, held.orderRank, movedKey, movedRank)) break;
       order[j + 1] = order[j];
       j--;
     }
@@ -171,19 +165,13 @@ export function orderVisibleBlend(blendState: BlendState, eye: ArrayLike<number>
   refreshEyeKeys(blendState, eye);
   const visible = blendState.visibleBlend;
   for (let i = 1; i < visible.length; i++) {
-    const moved = visible[i];
+    const moved = visible[i],
+      movedKey = moved.orderKey,
+      movedRank = moved.orderRank;
     let j = i - 1;
     for (; j >= 0; j--) {
       const held = visible[j];
-      if (
-        !precedes(
-          held.orderKey ?? 0,
-          held.orderRank ?? 0,
-          moved.orderKey ?? 0,
-          moved.orderRank ?? 0,
-        )
-      )
-        break;
+      if (!precedes(held.orderKey, held.orderRank, movedKey, movedRank)) break;
       visible[j + 1] = held;
     }
     visible[j + 1] = moved;
