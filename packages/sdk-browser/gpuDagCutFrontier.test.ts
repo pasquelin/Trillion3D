@@ -17,7 +17,10 @@ import { cameraMoteur } from './cameraFixture.ts';
 import { descenteComptee, scenePages, sceneRoots } from './gpuDagCutFrontierFixture.ts';
 
 const pages = scenePages(16384, 8);
-const roots = sceneRoots(pages, 12);
+const roots = sceneRoots(
+  pages,
+  Array.from({ length: 12 }, () => new THREE.Matrix4()),
+);
 const packed = packDagSelection(roots);
 const cam = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 200);
 
