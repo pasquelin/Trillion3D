@@ -158,8 +158,9 @@ export function renderCpuCut(
     run.shown.length = 0;
     appendAll(run.shown, fallback.shown);
     run.lodLevel = fallback.lodLevel;
-    // La couverture épinglée remplace ce qui était montré : la différence la reprend telle quelle.
-    services.adoptCpuCut(run.desired, run.shown);
+    // La couverture épinglée remplace ce qui était montré, et elle seule : la coupe demandée n'a
+    // pas bougé d'un rang, et republier ses quinze mille fiches pour retomber dessus ne dirait rien.
+    services.adoptCpuDrawn(run.shown);
   }
   traceTransition(rt, requested, transition, transitionStarted);
   if (run.shown.some((page) => !services.hasBytes(page)))
