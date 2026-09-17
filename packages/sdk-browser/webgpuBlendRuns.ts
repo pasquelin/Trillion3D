@@ -25,8 +25,14 @@ import { planItem, planPipeline, planShared } from './webgpuBlendPlan.ts';
 export const EXPAND_PASSES = 2;
 /** Les entrées de plan qu'un fil de comptage du noyau couvre. */
 export const EXPAND_GROUP = 64;
-/** Quatre mots par tranche : première entrée, nombre d'entrées, pipeline, item propriétaire. */
-export const RUN_WORDS = 4;
+/**
+ * DEUX mots par tranche : sa première entrée et leur nombre, et rien de plus.
+ *
+ * Le pipeline et l'item propriétaire se lisent sur la première entrée du plan, qui les porte déjà
+ * dans ses trois bits bas. Les écrire aussi dans la tranche doublait ce que l'image écrit sur une
+ * scène qui ne fusionne rien — une scène double face, où chaque tranche ne tient qu'une entrée.
+ */
+export const RUN_WORDS = 2;
 /** Une tranche partagée n'appartient à aucun item : son groupe de liaison est celui des paginés. */
 export const RUN_SHARED = 0xffffffff;
 /** Le bit de partage d'une entrée de plan, juste au-dessus des deux bits de pipeline. */
@@ -76,16 +82,22 @@ export function buildBlendRuns(order: Uint32Array, merge: boolean, out: Uint32Ar
     const base = runs * RUN_WORDS;
     out[base] = first;
     out[base + 1] = end - first;
-    out[base + 2] = pipeline;
-    // Une tranche n'est SANS propriétaire que si elle en fusionne plusieurs : celle qui n'a gardé
-    // qu'une entrée nomme son item, et l'image peut alors ne pas l'encoder du tout quand le tronc
-    // le rejette — exactement ce que faisait un appel par item.
-    out[base + 3] = shared && end - first > 1 ? RUN_SHARED : planItem(order[first]);
     runs++;
     first = end;
   }
   return runs;
 }
+
+/**
+ * L'ITEM QU'UNE TRANCHE NOMME, ou `RUN_SHARED` quand elle en fusionne plusieurs.
+ *
+ * Une tranche n'est sans propriétaire que si elle fusionne : celle qui n'a gardé qu'une entrée
+ * nomme son item, et l'image peut alors ne pas l'encoder du tout quand le tronc le rejette —
+ * exactement ce que faisait un appel par item. Les trois chemins la lisent ici : l'encodage, le
+ * noyau d'étalement et son modèle processeur.
+ */
+export const runOwner = (entry: number, entries: number) =>
+  entries > 1 && planShared(entry) ? RUN_SHARED : planItem(entry);
 
 /** Ce que chaque passe occupe : son ordre et ses tranches dans le plan, ses arguments indirects. */
 export function planRegions(maxEntries: number) {

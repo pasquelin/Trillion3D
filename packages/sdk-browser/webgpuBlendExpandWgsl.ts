@@ -1,5 +1,5 @@
 import { DRAW_UNPAGED } from './webgpuBlendPlan.ts';
-import { EXPAND_GROUP, RUN_SHARED } from './webgpuBlendRuns.ts';
+import { EXPAND_GROUP, RUN_WORDS } from './webgpuBlendRuns.ts';
 
 /**
  * L'ÉTALEMENT DU PLAN TRIÉ, SUR LA CARTE.
@@ -81,13 +81,17 @@ fn placeBlendEntries(@builtin(global_invocation_id) id:vec3u){
 fn writeBlendRuns(@builtin(global_invocation_id) id:vec3u){
  let r=id.x;
  if(r>=uni.runCount){return;}
- let at=uni.runsBase+r*4u;
+ let at=uni.runsBase+r*${RUN_WORDS}u;
  let first=plan[at];
- let last=first+plan[at+1u]-1u;
+ let entries=plan[at+1u];
+ let last=first+entries-1u;
  let base=scratch[first];
- let owner=plan[at+3u];
+ // La tranche qui fusionne dessine des grappes, au pas de la table ; celle qui n'a gardé qu'une
+ // entree dessine ce que SON item porte. Le propriétaire se lit sur l'entrée, comme au processeur.
+ let entry=plan[uni.orderBase+first];
+ let fusionne=entries>1u&&(entry&4u)!=0u;
  var vertexCount=uni.maxVertexWords;
- if(owner!=${RUN_SHARED}u&&draws[owner].x==${DRAW_UNPAGED}u){vertexCount=draws[owner].w;}
+ if(!fusionne&&draws[entry>>3u].x==${DRAW_UNPAGED}u){vertexCount=draws[entry>>3u].w;}
  let o=uni.argsBase+r*4u;
  args[o]=vertexCount;
  args[o+1u]=scratch[last]+instancesOf(last)-base;
