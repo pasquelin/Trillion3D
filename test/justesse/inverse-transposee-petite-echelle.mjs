@@ -17,14 +17,14 @@
 // moteur (`inverseTransposeOracle.mjs`) — et publie les populations séparées.
 //
 // LAB_ROOT=… node --experimental-strip-types \
-//   packages/sdk-browser/bench/justesse/inverse-transposee-petite-echelle.mjs
+//   test/justesse/inverse-transposee-petite-echelle.mjs
 import assert from 'node:assert/strict';
-import { cameraSelectionUniforms } from '../../gpuSelection.ts';
-import { DAG_SELECTION_SHADER } from '../../gpuDagShader.ts';
+import { cameraSelectionUniforms } from '../../packages/sdk-browser/gpuSelection.ts';
+import { DAG_SELECTION_SHADER } from '../../packages/sdk-browser/gpuDagShader.ts';
 import {
   INVERSE_TRANSPOSE_AVANT_WGSL,
   INVERSE_TRANSPOSE_WGSL,
-} from '../../inverseTransposeWgsl.ts';
+} from '../../packages/sdk-browser/inverseTransposeWgsl.ts';
 import {
   vue,
   VIEWPORT,

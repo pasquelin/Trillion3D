@@ -12,28 +12,28 @@
  * mesure donc la SUITE ENTIÈRE d'une image, jamais un noyau isolé, et alterne les variantes pour que
  * la dérive thermique tombe des deux côtés.
  */
-import { createDagResources } from '../../gpuDagResources.ts';
-import { encodeDagKernels } from '../../gpuDagEncode.ts';
-import { packDagSelection, packedWorldsToRenderOrigin } from '../../gpuDagPack.ts';
+import { createDagResources } from '../../packages/sdk-browser/gpuDagResources.ts';
+import { encodeDagKernels } from '../../packages/sdk-browser/gpuDagEncode.ts';
+import { packDagSelection, packedWorldsToRenderOrigin } from '../../packages/sdk-browser/gpuDagPack.ts';
 import * as THREE from 'three';
-import { cameraSelectionUniforms, SELECTION_UNIFORM_BYTES } from '../../gpuSelection.ts';
-import { writeDagUniforms } from '../../gpuDagUniforms.ts';
+import { cameraSelectionUniforms, SELECTION_UNIFORM_BYTES } from '../../packages/sdk-browser/gpuSelection.ts';
+import { writeDagUniforms } from '../../packages/sdk-browser/gpuDagUniforms.ts';
 import {
   dagRecords,
   residentBase,
   residentWords,
   SELECTION_HEADER_WORDS,
-} from '../../gpuDagLayout.ts';
-import { DAG_SELECTION_SHADER } from '../../gpuDagShader.ts';
-import { DAG_LEVEL_WGSL } from '../../gpuDagLevelWgsl.ts';
-import { cameraMoteur } from '../../cameraFixture.ts';
+} from '../../packages/sdk-browser/gpuDagLayout.ts';
+import { DAG_SELECTION_SHADER } from '../../packages/sdk-browser/gpuDagShader.ts';
+import { DAG_LEVEL_WGSL } from '../../packages/sdk-browser/gpuDagLevelWgsl.ts';
+import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
 import {
   DAG_LEVEL_WGSL_AVANT,
   encodeAvant,
   ressourcesAvant,
-} from '../oracles/coupe-lancements.mjs';
+} from '../../packages/sdk-browser/bench/oracles/coupe-lancements.mjs';
 import { ouvrirAppareil } from './appareilWebgpu.mjs';
-import { scenePages, sceneRoots } from '../../gpuDagCutFrontierScene.ts';
+import { scenePages, sceneRoots } from '../../packages/sdk-browser/gpuDagCutFrontierScene.ts';
 
 const SHADER_AVANT = DAG_SELECTION_SHADER.replace(DAG_LEVEL_WGSL, DAG_LEVEL_WGSL_AVANT);
 

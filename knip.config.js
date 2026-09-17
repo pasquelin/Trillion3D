@@ -17,7 +17,7 @@ export default {
     'scripts/mesure/oracle.mjs',
     'scripts/mesure/fixtureLampes.mjs',
     'packages/*/bench/*.perf.mjs',
-    'packages/sdk-browser/bench/justesse/*.mjs',
+    'test/justesse/*.mjs',
     'scripts/mesure/perf/*.mjs',
     'test/*.test.mjs',
     'test/*.browser.mjs',

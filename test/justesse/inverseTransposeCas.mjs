@@ -5,17 +5,17 @@ import {
   frustumExcludesBox,
   frustumPlanesFromMatrix,
   frustumPlanesToLocal,
-} from '../../../sdk-core/index.ts';
+} from '../../packages/sdk-core/index.ts';
 import {
   coneContextFor,
   coneCullsPageWith,
   createConeContext,
   triangleCone,
-} from '../../pageCone.ts';
-import { packDagSelection, packedWorldsToRenderOrigin } from '../../gpuDagSelection.ts';
-import { selectVisiblePages } from '../../pageSelectionCut.ts';
+} from '../../packages/sdk-browser/pageCone.ts';
+import { packDagSelection, packedWorldsToRenderOrigin } from '../../packages/sdk-browser/gpuDagSelection.ts';
+import { selectVisiblePages } from '../../packages/sdk-browser/pageSelectionCut.ts';
 import { poseMonde } from './normaleEclairageCas.mjs';
-import { cameraMoteur } from '../../cameraFixture.ts';
+import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
 
 export const VIEWPORT = [1000, 1000];
 // Caméra fixe : sur -Z, elle regarde l'origine où chaque objet est recentré quelle que soit sa

@@ -6,7 +6,7 @@
 // la caméra sans parent de même pose monde au bit près. Tout écart est un défaut : le script échoue.
 // Le résidu de cohérence des uniformes de sélection (repère de rendu, cameraSites.mjs) est affiché.
 //
-//   node --experimental-strip-types packages/sdk-browser/bench/justesse/camera-parentee.mjs
+//   node --experimental-strip-types test/justesse/camera-parentee.mjs
 //
 // `--empreinte <fichier>` relève à la place les mêmes sites sur des caméras sans parent : le premier
 // passage écrit le fichier, le suivant compare au bit près (avant/après une correction).

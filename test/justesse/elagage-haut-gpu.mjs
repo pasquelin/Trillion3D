@@ -8,16 +8,16 @@
 // dont aucune grappe n'était assez fine. Ce que la mesure publie, c'est donc un travail évité, pas
 // une coupe changée.
 //
-// node --experimental-strip-types packages/sdk-browser/bench/justesse/elagage-haut-gpu.mjs
+// node --experimental-strip-types test/justesse/elagage-haut-gpu.mjs
 // (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { cameraSelectionUniforms } from '../../gpuSelection.ts';
-import { packDagSelection, packedWorldsToRenderOrigin } from '../../gpuDagSelection.ts';
-import { DAG_SELECTION_SHADER } from '../../gpuDagShader.ts';
-import { scenePages, sceneRoots } from '../../gpuDagCutFrontierScene.ts';
+import { cameraSelectionUniforms } from '../../packages/sdk-browser/gpuSelection.ts';
+import { packDagSelection, packedWorldsToRenderOrigin } from '../../packages/sdk-browser/gpuDagSelection.ts';
+import { DAG_SELECTION_SHADER } from '../../packages/sdk-browser/gpuDagShader.ts';
+import { scenePages, sceneRoots } from '../../packages/sdk-browser/gpuDagCutFrontierScene.ts';
 import { selectionGpu } from './noyauSelectionGpu.mjs';
-import { cameraMoteur } from '../../cameraFixture.ts';
+import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
 
 const VIEWPORT = [1280, 720];
 const POSES = [

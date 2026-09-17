@@ -15,7 +15,7 @@ import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dansPageWebgpu, requireDuLab } from './pageWebgpu.mjs';
-import { SELECTION_HEADER_WORDS, SELECTION_LIST_CAP } from '../../gpuDagLayout.ts';
+import { SELECTION_HEADER_WORDS, SELECTION_LIST_CAP } from '../../packages/sdk-browser/gpuDagLayout.ts';
 
 const ici = dirname(fileURLToPath(import.meta.url));
 const esbuild = createRequire(requireDuLab().resolve('vite'))('esbuild');

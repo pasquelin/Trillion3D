@@ -8,7 +8,7 @@
 // WebGL. Ce module oppose les deux vérités : la brute et celle du moteur, mesurée en fragments
 // réellement couverts par la rasterisation.
 import * as THREE from 'three';
-import { windingCw } from '../../webgpuPagesWinding.ts';
+import { windingCw } from '../../packages/sdk-browser/webgpuPagesWinding.ts';
 import { camera } from './inverseTransposeCas.mjs';
 
 const TRIANGLES = [

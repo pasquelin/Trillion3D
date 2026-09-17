@@ -2,7 +2,7 @@
 // doit garder le cas déclencheur de la reproduction (échelle non uniforme 1e-8/1e-6/1e-6, deux vrais
 // triangles) et continuer de rejeter un cluster conforme (échelle uniforme et rotation) dont la face
 // est dos à la caméra, comme avant ce lot. `selectionGpu` vient de
-// `packages/sdk-browser/bench/justesse/noyauSelectionGpu.mjs` ; Playwright, de `render-tech-lab`, en
+// `test/justesse/noyauSelectionGpu.mjs` ; Playwright, de `render-tech-lab`, en
 // lecture seule.
 //
 // node --experimental-strip-types test/coneEchelleNonUniforme.browser.mjs
@@ -16,7 +16,7 @@ import {
 } from '../packages/sdk-browser/gpuDagSelection.ts';
 import { cameraSelectionUniforms } from '../packages/sdk-browser/gpuSelection.ts';
 import { cameraMoteur } from '../packages/sdk-browser/cameraFixture.ts';
-import { selectionGpu } from '../packages/sdk-browser/bench/justesse/noyauSelectionGpu.mjs';
+import { selectionGpu } from './justesse/noyauSelectionGpu.mjs';
 
 const VIEWPORT = [1000, 1000];
 
@@ -32,7 +32,7 @@ function empaquete(world, page, uniforms) {
 }
 
 /** Cas déclencheur : deux vrais triangles, échelle (1e-8, 1e-6, 1e-6), face visible et grande —
- *  identique à `bench/justesse/cone-echelle-non-uniforme.mjs`. */
+ *  identique à `test/justesse/cone-echelle-non-uniforme.mjs`. */
 function casDeclencheur() {
   const positions = [0, 0, 0, 1e6, 0, -1e6, 0, 1e6, 0, 0, 0, 0, -1e6, 0, -1e6, 0, -1e6, 0];
   const indices = [0, 1, 2, 3, 4, 5];

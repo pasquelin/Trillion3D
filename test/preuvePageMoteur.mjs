@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import {
   dansPageWebgpu,
   requireDuLab,
-} from '../packages/sdk-browser/bench/justesse/pageWebgpu.mjs';
+} from './justesse/pageWebgpu.mjs';
 
 const ici = dirname(fileURLToPath(import.meta.url));
 

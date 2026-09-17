@@ -7,7 +7,7 @@
 // `selectVisiblePages`, l'oracle Node du noyau et le noyau WGSL réellement exécuté dans Chromium
 // WebGPU, puis échoue si l'un d'eux retire les triangles.
 //
-// node --experimental-strip-types packages/sdk-browser/bench/justesse/cone-echelle-non-uniforme.mjs
+// node --experimental-strip-types test/justesse/cone-echelle-non-uniforme.mjs
 // (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -17,16 +17,16 @@ import {
   createConeContext,
   OPEN_CONE,
   triangleCone,
-} from '../../pageCone.ts';
-import { selectVisiblePages } from '../../pageSelectionCut.ts';
-import { cameraSelectionUniforms } from '../../gpuSelection.ts';
+} from '../../packages/sdk-browser/pageCone.ts';
+import { selectVisiblePages } from '../../packages/sdk-browser/pageSelectionCut.ts';
+import { cameraSelectionUniforms } from '../../packages/sdk-browser/gpuSelection.ts';
 import {
   evaluateDagSelectionKernel,
   packDagSelection,
   packedWorldsToRenderOrigin,
-} from '../../gpuDagSelection.ts';
+} from '../../packages/sdk-browser/gpuDagSelection.ts';
 import { selectionGpu } from './noyauSelectionGpu.mjs';
-import { cameraMoteur } from '../../cameraFixture.ts';
+import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
 
 const positions = [0, 0, 0, 1e6, 0, -1e6, 0, 1e6, 0, 0, 0, 0, -1e6, 0, -1e6, 0, -1e6, 0];
 const indices = [0, 1, 2, 3, 4, 5];

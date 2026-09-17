@@ -8,20 +8,20 @@
 // noyau WGSL réellement exécuté dans Chromium WebGPU (tout en f32). Chaque écart est listé avec sa
 // marge relative au seuil, la mesure de ce que l'arrondi f32 peut basculer.
 //
-// node --experimental-strip-types packages/sdk-browser/bench/justesse/erreur-ecran-cpu-gpu.mjs [n]
+// node --experimental-strip-types test/justesse/erreur-ecran-cpu-gpu.mjs [n]
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { maxStretch } from '../../../sdk-core/index.ts';
-import { cutSelects, projectedClusterError } from '../../pageSelectionMath.ts';
-import { cameraSelectionUniforms } from '../../gpuSelection.ts';
+import { maxStretch } from '../../packages/sdk-core/index.ts';
+import { cutSelects, projectedClusterError } from '../../packages/sdk-browser/pageSelectionMath.ts';
+import { cameraSelectionUniforms } from '../../packages/sdk-browser/gpuSelection.ts';
 import {
   evaluateDagSelectionKernel,
   packDagSelection,
   packedWorldsToRenderOrigin,
-} from '../../gpuDagSelection.ts';
+} from '../../packages/sdk-browser/gpuDagSelection.ts';
 import { selectionGpu } from './noyauSelectionGpu.mjs';
 import { lois, xorshift32 } from './tirage.mjs';
-import { cameraMoteur } from '../../cameraFixture.ts';
+import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
 
 const N = Number(process.argv[2] ?? 20000);
 const SEUIL = 0.75;

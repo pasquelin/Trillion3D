@@ -95,7 +95,7 @@ export function maxStretch(elements: ArrayLike<number>): number {
  * plus. Le long du rayon (C → k·C, k > 1, profondeur du centre C_d > 0), (kℓ + ρ)/(k·C_d − ρ) et
  * 1/(k·C_d − ρ − δ) décroissent : l'erreur annoncée décroît avec la distance. Les deux bornes de
  * l'étape 2 viennent de deux points différents de la boule : E est serrée pour une petite sphère,
- * large quand la boule frôle le plan proche loin de l'axe (`bench/justesse/erreur-ecran-borne.mjs`).
+ * large quand la boule frôle le plan proche loin de l'axe (`test/justesse/erreur-ecran-borne.mjs`).
  *
  * Aucune garde ici : l'appelant a déjà traité l'erreur nulle, infinie ou invalide. Une profondeur
  * ou une distance à l'axe non finie rend l'infini. L'ordre des opérations, (δ·f)/m puis un facteur

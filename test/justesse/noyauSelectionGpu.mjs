@@ -2,20 +2,20 @@
 // par `packDagSelection`, les uniformes de `writeDagUniforms`, les passes `dagPrepare` à `dagMask`
 // dans l'ordre du moteur (coupe non résidente), puis la relecture de la sortie du GPU. Playwright
 // vient de `render-tech-lab`, en lecture seule.
-import { DAG_SELECTION_SHADER } from '../../gpuDagShader.ts';
+import { DAG_SELECTION_SHADER } from '../../packages/sdk-browser/gpuDagShader.ts';
 import { dansPageWebgpu } from './pageWebgpu.mjs';
-import { writeDagUniforms } from '../../gpuDagUniforms.ts';
-import { SELECTION_UNIFORM_BYTES, SELECTION_WORKGROUP } from '../../gpuSelection.ts';
-import { FRAME_VEC4 } from '../../gpuDagTypes.ts';
-import { dagWorkLayout } from '../../gpuDagFloorWgsl.ts';
-import { REQUEST_PAGE_MAX } from '../../gpuDagRequest.ts';
+import { writeDagUniforms } from '../../packages/sdk-browser/gpuDagUniforms.ts';
+import { SELECTION_UNIFORM_BYTES, SELECTION_WORKGROUP } from '../../packages/sdk-browser/gpuSelection.ts';
+import { FRAME_VEC4 } from '../../packages/sdk-browser/gpuDagTypes.ts';
+import { dagWorkLayout } from '../../packages/sdk-browser/gpuDagFloorWgsl.ts';
+import { REQUEST_PAGE_MAX } from '../../packages/sdk-browser/gpuDagRequest.ts';
 import {
   OUT_DRAWN_TRIANGLES,
   OUT_SELECTED_TRIANGLES,
   OUT_TRANSPARENT_TRIANGLES,
   OUT_UNCOVERED_TRIANGLES,
   SELECTION_HEADER_WORDS,
-} from '../../gpuDagLayout.ts';
+} from '../../packages/sdk-browser/gpuDagLayout.ts';
 
 const octets = (vue) => Array.from(new Uint8Array(vue.buffer, vue.byteOffset, vue.byteLength));
 

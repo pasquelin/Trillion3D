@@ -8,7 +8,7 @@
 // rasteriser de façon fiable ; sa position au monde, elle, est la même à ses trois sommets — c'est
 // le seul point que le nuanceur évalue, exactement celui de la reproduction.
 //
-// node --experimental-strip-types packages/sdk-browser/bench/justesse/emetteur-sphere-gpu.mjs
+// node --experimental-strip-types test/justesse/emetteur-sphere-gpu.mjs
 //   [<cache>/native/full/<clé>/lights.json]
 // (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
 //
@@ -19,7 +19,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dansPageWebgpu } from './pageWebgpu.mjs';
-import { DEPTH_CLEAR, DEPTH_COMPARE } from '../../depthConvention.ts';
+import { DEPTH_CLEAR, DEPTH_COMPARE } from '../../packages/sdk-browser/depthConvention.ts';
 
 /** Le centre et le rayon de la lampe : ceux du produit de cache donné, sinon ceux de l'audit. */
 function emetteur(chemin) {

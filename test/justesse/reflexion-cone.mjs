@@ -15,14 +15,14 @@
 // pas échanger la face éliminée, et il dessinait donc exactement les faces que le cône supprime.
 //
 // LAB_ROOT=… node --experimental-strip-types \
-//   packages/sdk-browser/bench/justesse/reflexion-cone.mjs
+//   test/justesse/reflexion-cone.mjs
 import assert from 'node:assert/strict';
-import { rasterVisibility } from '../../visibilityRaster.ts';
+import { rasterVisibility } from '../../packages/sdk-browser/visibilityRaster.ts';
 import { camera, decisionCpu, veriteTerrain } from './inverseTransposeCas.mjs';
 import { tousLesCas } from './inverseTransposeEchantillon.mjs';
 import { pageVisible, sensDuMoteur, VUE } from './reflexionCas.mjs';
 import { dessineParLeMoteur } from './inverseTransposeOracle.mjs';
-import { cameraMoteur } from '../../cameraFixture.ts';
+import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
 
 // --- Ce que le GPU dessine réellement : l'oracle d'orientation vraie, écrit une seule fois -------
 const gpu = await dessineParLeMoteur(tousLesCas);

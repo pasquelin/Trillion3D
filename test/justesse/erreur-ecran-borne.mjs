@@ -11,9 +11,9 @@
 // réel/annoncé est donné pour l'ancienne formule (`ε·s·f / (|C| − r·s)`, recopiée ici) et pour le
 // moteur ; la monotonie (distance le long du rayon, rayon croissant) est vérifiée sur le moteur.
 //
-// node --experimental-strip-types packages/sdk-browser/bench/justesse/erreur-ecran-borne.mjs [cas]
+// node --experimental-strip-types test/justesse/erreur-ecran-borne.mjs [cas]
 import assert from 'node:assert/strict';
-import { clusterErrorPixels, maxStretch } from '../../../sdk-core/index.ts';
+import { clusterErrorPixels, maxStretch } from '../../packages/sdk-core/index.ts';
 import { lois, mulberry32 } from './tirage.mjs';
 
 const CAS = Number(process.argv[2] ?? 20000);

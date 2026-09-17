@@ -1,6 +1,6 @@
 // Défaut 4 : l'exécution WebGPU des lots d'adressage dans un vrai Chromium. Le harnais et
 // l'ouverture de l'appareil sont ceux de `pageWebgpu.mjs` et `appareilWebgpu.mjs`.
-import { WRAP_COORD_WGSL } from '../../visibilityWrapModes.ts';
+import { WRAP_COORD_WGSL } from '../../packages/sdk-browser/visibilityWrapModes.ts';
 import { dansPageWebgpu } from './pageWebgpu.mjs';
 
 /** Le bit qui, dans ces bancs seuls, demande le mélange des prises : les lots au plus proche ne

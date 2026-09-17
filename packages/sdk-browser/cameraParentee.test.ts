@@ -1,6 +1,6 @@
 // Défaut 5 : une caméra parentée doit donner la même pose à TOUS les sites du moteur.
 //
-// Chaque site de `bench/justesse/cameraSites.mjs` — uniformes de sélection, coupe, Hi-Z, rasters,
+// Chaque site de `test/justesse/cameraSites.mjs` — uniformes de sélection, coupe, Hi-Z, rasters,
 // diagnostics, et les moteurs entiers sur le faux périphérique GPU — est appelé image après image
 // avec une caméra enfant d'un groupe d'hôte qui n'appartient à aucune scène préparée, puis avec la
 // caméra sans parent de même pose monde au bit près. Les deux relevés doivent être égaux.
@@ -10,8 +10,8 @@
 // personne d'autre que lui.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from './bench/justesse/cameraRig.mjs';
-import { SITES, residuRepereDeRendu } from './bench/justesse/cameraSites.mjs';
+import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from '../../test/justesse/cameraRig.mjs';
+import { SITES, residuRepereDeRendu } from '../../test/justesse/cameraSites.mjs';
 
 type Pose = (typeof POSES_PARENT)[number];
 type Site = {

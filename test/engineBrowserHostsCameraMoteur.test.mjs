@@ -57,7 +57,7 @@ test('reflexionFaceEliminee.browser.mjs appelle rasterVisibility(..., vue, ...),
   const texte = await readFile(new URL('reflexionFaceEliminee.browser.mjs', testDir), 'utf8');
   assert.match(
     texte,
-    /import \{ decisionCpu, vue \} from '\.\.\/packages\/sdk-browser\/bench\/justesse\/inverseTransposeCas\.mjs'/,
+    /import \{ decisionCpu, vue \} from '\.\/justesse\/inverseTransposeCas\.mjs'/,
     'doit importer `vue`, pas `camera`',
   );
   assert.match(texte, /rasterVisibility\(\[pageVisible\(tousLesCas\[i\]\)\],\s*vue,/);
@@ -69,7 +69,7 @@ test('reflexionFaceEliminee.browser.mjs appelle rasterVisibility(..., vue, ...),
 });
 
 test('`vue` (inverseTransposeCas.mjs) est bien cameraMoteur(camera), pas la caméra hôte nue', async () => {
-  const texte = await readFile(new URL('bench/justesse/inverseTransposeCas.mjs', browser), 'utf8');
-  assert.match(texte, /import \{ cameraMoteur \} from '\.\.\/\.\.\/cameraFixture\.ts'/);
+  const texte = await readFile(new URL('justesse/inverseTransposeCas.mjs', testDir), 'utf8');
+  assert.match(texte, /import \{ cameraMoteur \} from '\.\.\/\.\.\/packages\/sdk-browser\/cameraFixture\.ts'/);
   assert.match(texte, /export const vue = cameraMoteur\(camera\);/);
 });

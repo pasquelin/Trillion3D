@@ -2,7 +2,7 @@
 // qui le décrit, et la caméra de face. Rien n'y nomme une scène du banc — le moteur ne voit que des
 // passes et des matériaux, comme pour n'importe quelle scène importée.
 import * as THREE from 'three';
-import { ouvrirAppareil } from '../../packages/sdk-browser/bench/justesse/appareilWebgpu.mjs';
+import { ouvrirAppareil } from '../justesse/appareilWebgpu.mjs';
 
 export const VIEWPORT = [96, 96];
 

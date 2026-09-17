@@ -12,7 +12,7 @@
 // même pose monde. Des matrices d'une vue précédente feraient diverger l'une ou l'autre.
 import * as THREE from 'three';
 import { webgpuPagesBackend } from '../../packages/sdk-browser/webgpuPages.ts';
-import { ouvrirAppareil } from '../../packages/sdk-browser/bench/justesse/appareilWebgpu.mjs';
+import { ouvrirAppareil } from '../justesse/appareilWebgpu.mjs';
 import {
   batisseur,
   cameraFace,

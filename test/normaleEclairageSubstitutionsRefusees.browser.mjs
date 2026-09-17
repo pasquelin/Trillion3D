@@ -22,18 +22,18 @@
 //
 // LAB_ROOT=… node --experimental-strip-types test/normaleEclairageSubstitutionsRefusees.browser.mjs
 import assert from 'node:assert/strict';
-import { verdictNormale } from '../packages/sdk-browser/bench/justesse/inverseTransposeF32.mjs';
+import { verdictNormale } from './justesse/inverseTransposeF32.mjs';
 import {
   APLATIES,
   CAS,
   DECROCHE_DEG,
   EFFONDREES,
   REGULIERE_MINUSCULE,
-} from '../packages/sdk-browser/bench/justesse/normalTransformCas.mjs';
+} from './justesse/normalTransformCas.mjs';
 import {
   SUBSTITUTIONS,
   eclairageGpu,
-} from '../packages/sdk-browser/bench/justesse/normaleEclairageGpu.mjs';
+} from './justesse/normaleEclairageGpu.mjs';
 
 /** Ordinaires, aplatis et témoin de non-gourmandise : les cas dont la normale a une DIRECTION. */
 const TOUS = [...CAS, ...APLATIES, REGULIERE_MINUSCULE];

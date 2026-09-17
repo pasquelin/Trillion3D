@@ -9,13 +9,13 @@
 // la normale vraie (Three en f64) ainsi que l'écart relatif de luminance de la même BRDF.
 //
 // LAB_ROOT=… node --experimental-strip-types \
-//   packages/sdk-browser/bench/justesse/normale-eclairage-petite-echelle.mjs
+//   test/justesse/normale-eclairage-petite-echelle.mjs
 import assert from 'node:assert/strict';
-import { NORMAL_TRANSFORM_WGSL } from '../../standardLighting.ts';
+import { NORMAL_TRANSFORM_WGSL } from '../../packages/sdk-browser/standardLighting.ts';
 import {
   INVERSE_TRANSPOSE_AVANT_WGSL,
   INVERSE_TRANSPOSE_WGSL,
-} from '../../inverseTransposeWgsl.ts';
+} from '../../packages/sdk-browser/inverseTransposeWgsl.ts';
 import { campagne, construireCas, ecart, luminance } from './normaleEclairageCas.mjs';
 import { eclairageGpu } from './normaleEclairageGpu.mjs';
 import { substitueFormeAvant } from './substitutionAvant.mjs';

@@ -4,11 +4,11 @@
 // Chaque carte est ensuite lue par le WGSL d'adressage du moteur, dans Chromium, et comparée à
 // l'échantillonneur natif réglé sur le mode de cette carte-là — la référence des lots 4 et 7.
 //   LAB_ROOT=…/render-tech-lab node --experimental-strip-types \
-//     packages/sdk-browser/bench/justesse/adressage-cartes-gpu.mjs
+//     test/justesse/adressage-cartes-gpu.mjs
 // Bloquant : tout écart bit à bit hors couture de période, et sur la couture toute lecture qui
 // s'écarte de la règle exacte de plus d'un demi niveau sur 255.
-import { wrapOf } from '../../visibilityWrapModes.ts';
-import { ROW_WRAP_MODES_WORD } from '../../webgpuPageRow.ts';
+import { wrapOf } from '../../packages/sdk-browser/visibilityWrapModes.ts';
+import { ROW_WRAP_MODES_WORD } from '../../packages/sdk-browser/webgpuPageRow.ts';
 import { ADRESSE, regleNormalisee, surCouture, TOLERANCE } from './adressageCas.mjs';
 import { executerDansChromium, MELANGE, NUANCEUR_PRISES } from './adressageGpuPage.mjs';
 import { CARTES, ligneDePageMelangee, TEXTURE, UV } from './adressageCartes.mjs';

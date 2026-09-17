@@ -7,21 +7,21 @@
 // nœud de culling et ses bornes), l'oracle Node du noyau et le noyau WGSL réellement exécuté dans
 // Chromium WebGPU, puis échoue si l'un d'eux retient le grossier.
 //
-// node --experimental-strip-types packages/sdk-browser/bench/justesse/erreur-ecran-hors-axe.mjs
+// node --experimental-strip-types test/justesse/erreur-ecran-hors-axe.mjs
 // (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { selectVisiblePages } from '../../pageSelectionCut.ts';
-import { projectedClusterError } from '../../pageSelectionMath.ts';
-import { cullingBounds } from '../../pageSelectionCutBounds.ts';
-import { cameraSelectionUniforms } from '../../gpuSelection.ts';
+import { selectVisiblePages } from '../../packages/sdk-browser/pageSelectionCut.ts';
+import { projectedClusterError } from '../../packages/sdk-browser/pageSelectionMath.ts';
+import { cullingBounds } from '../../packages/sdk-browser/pageSelectionCutBounds.ts';
+import { cameraSelectionUniforms } from '../../packages/sdk-browser/gpuSelection.ts';
 import {
   evaluateDagSelectionKernel,
   packDagSelection,
   packedWorldsToRenderOrigin,
-} from '../../gpuDagSelection.ts';
+} from '../../packages/sdk-browser/gpuDagSelection.ts';
 import { selectionGpu } from './noyauSelectionGpu.mjs';
-import { cameraMoteur } from '../../cameraFixture.ts';
+import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
 
 const SEUIL = 0.4;
 const VIEWPORT = [1920, 1080];
