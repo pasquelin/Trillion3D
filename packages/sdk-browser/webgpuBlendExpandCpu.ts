@@ -1,5 +1,5 @@
 import { DRAW_UNPAGED, planItem } from './webgpuBlendPlan.ts';
-import { RUN_SHARED, RUN_WORDS } from './webgpuBlendRuns.ts';
+import { RUN_SHARED, RUN_WORDS, runOwner } from './webgpuBlendRuns.ts';
 import type { createWebgpuBlendState } from './webgpuBlendState.ts';
 
 /**
@@ -51,7 +51,7 @@ export function expandBlendPlan(x: BlendExpansion) {
     const at = run * RUN_WORDS,
       first = runs[at],
       entries = runs[at + 1],
-      owner = runs[at + 3],
+      owner = runOwner(order[first], entries),
       base = cursor;
     // Une tranche partagée dessine des grappes, toutes au pas de la table ; une tranche d'un seul
     // item non paginé dessine ses morceaux, au pas que sa géométrie lui a donné.

@@ -17,7 +17,7 @@ export const PIPELINE_FRONT = 1,
  * par entree, quand la seule lecture du plan est un parcours sequentiel.
  */
 const PLAN_SHIFT = 3;
-const planEntry = (item: number, pipeline: number, shared: boolean) =>
+export const planEntry = (item: number, pipeline: number, shared: boolean) =>
   (item << PLAN_SHIFT) | (shared ? 4 : 0) | pipeline;
 export const planItem = (entry: number) => entry >>> PLAN_SHIFT;
 export const planPipeline = (entry: number) => entry & 3;
