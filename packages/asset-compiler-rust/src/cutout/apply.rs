@@ -120,6 +120,9 @@ fn candidates(
     ) else {
         return Ok(Vec::new());
     };
+    // Lire et hacher les images candidates est ce que cette étape coûte avant toute mesure : une
+    // image partagée n'est lue qu'une fois, et le compteur dit ce que ce parcours vaut.
+    let _t = perf::Timer::new(perf::Phase::CutoutScan);
     let mut hashes: BTreeMap<usize, String> = BTreeMap::new();
     let mut found = Vec::new();
     for id in collect::used_materials(g, meshes)? {
