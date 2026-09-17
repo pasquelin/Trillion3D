@@ -12,8 +12,15 @@
 use super::*;
 
 const TEMPLATE: &str = include_str!("page.html");
+/// Ce que la page porte à la place de ses données, et que cette étape remplace.
+const PLACEHOLDER: &str = "__DONNEES__";
 
-pub(crate) fn write_page(path: &Path, entries: &[Entry], sheet: &Value, model: &str) -> Result<()> {
+pub(crate) fn write_page(
+    path: &Path,
+    entries: &[Entry],
+    sheet: &Value,
+    target: &Path,
+) -> Result<()> {
     let rows: Vec<Value> = entries
         .iter()
         .map(|entry| {
@@ -24,9 +31,22 @@ pub(crate) fn write_page(path: &Path, entries: &[Entry], sheet: &Value, model: &
         .collect();
     // La feuille voyage telle qu'elle vient d'être écrite : la page la réécrit en ne changeant que
     // les réponses, donc son format — numéro de version compris — n'existe qu'à un seul endroit.
-    let data = serde_json::to_string(&json!({"model":model,"sheet":sheet,"textures":rows}))?;
+    // Le dossier où la feuille est attendue : une page ouverte depuis le disque ne sait pas écrire
+    // ailleurs que dans les téléchargements, et doit donc pouvoir dire où déposer le fichier.
+    let model = target
+        .parent()
+        .and_then(Path::file_name)
+        .map(|name| name.to_string_lossy().to_string())
+        .unwrap_or_default();
+    let data = serde_json::to_string(
+        &json!({"model":model,"dossier":target.parent().unwrap_or(target).to_string_lossy(),
+            "sheet":sheet,"textures":rows}),
+    )?;
+    // Le repère est un identifiant nu, sans guillemets : un formateur qui passerait sur le gabarit
+    // en changerait le style de citation, et la substitution ne le retrouverait plus.
     // `</script>` dans une chaîne fermerait la balise qui la porte : la seule séquence à neutraliser.
-    let page = TEMPLATE.replace("\"__DONNEES__\"", &data.replace("</", "<\\/"));
+    let page = TEMPLATE.replace(PLACEHOLDER, &data.replace("</", "<\\/"));
+    debug_assert!(!page.contains(PLACEHOLDER), "le gabarit a perdu son repère");
     atomic(path, page.as_bytes())
 }
 

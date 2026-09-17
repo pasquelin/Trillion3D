@@ -5028,9 +5028,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/compiler_build.rs": {
-    "mtime": 1789561969.0439906,
-    "seen": 1789652705.189985,
-    "ast_hash": "24b0f9c4dd68336416829cfbfa9a2d7f",
+    "mtime": 1789665203.3441107,
+    "seen": 1789665613.618863,
+    "ast_hash": "894a72e1de006ffb9cc1d7358fffb178",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/geometry_page.rs": {
@@ -5112,9 +5112,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/lib.rs": {
-    "mtime": 1789550606.0430346,
-    "seen": 1789652705.190052,
-    "ast_hash": "4c13b80c2207050eb654d220c598f9c2",
+    "mtime": 1789665203.346088,
+    "seen": 1789665613.618952,
+    "ast_hash": "890aee08d7968ba8689c460e24240e4d",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/compiler_publish.rs": {
@@ -5148,9 +5148,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/perf.rs": {
-    "mtime": 1789552684.3529074,
-    "seen": 1789652705.190071,
-    "ast_hash": "2d575cc5dd1d9863b9b6e36a2c5c56c4",
+    "mtime": 1789665203.3462543,
+    "seen": 1789665613.618973,
+    "ast_hash": "89108ddf6d7369d1e9af73ba1c8de203",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/compiler_autonomous.rs": {
@@ -5208,9 +5208,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/compiler_identity.rs": {
-    "mtime": 1789545971.8681145,
-    "seen": 1789652705.1899898,
-    "ast_hash": "cfd8089a1f7ae8bbe20dc4ae0d63f939",
+    "mtime": 1789665203.344327,
+    "seen": 1789665613.6188679,
+    "ast_hash": "d78498e29dfe3a23c97b68defef3a714",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/compiler_bundles.rs": {
@@ -5226,9 +5226,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/texture_preview.rs": {
-    "mtime": 1789529610.4070163,
-    "seen": 1789652705.190322,
-    "ast_hash": "1bd83dbc943b990488b3dce5d11ece04",
+    "mtime": 1789665203.34684,
+    "seen": 1789665613.619284,
+    "ast_hash": "7641fd88e67ee7a15b0e9adbe91172b5",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/bench_calculs.rs": {
@@ -7056,9 +7056,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/tests/mod.rs": {
-    "mtime": 1789598133.078137,
-    "seen": 1789652705.1902888,
-    "ast_hash": "2d1b6e837ac61c6ffe6d2ef7114a4a36",
+    "mtime": 1789665203.3466034,
+    "seen": 1789665613.619243,
+    "ast_hash": "83eeee1fa8467ad58f80ba6d98bd65b4",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/tests/part6.rs": {
@@ -7302,15 +7302,15 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/texture_preview/collect.rs": {
-    "mtime": 1789437734.5901556,
-    "seen": 1789652705.1903229,
-    "ast_hash": "0027d612f87abf1eec98f0662e2ab125",
+    "mtime": 1789665203.347028,
+    "seen": 1789665613.619285,
+    "ast_hash": "fbf482e77e25ac6ab2a8fefdea8e3b44",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/texture_preview/source.rs": {
-    "mtime": 1789545971.869719,
-    "seen": 1789652705.190327,
-    "ast_hash": "f68036932cef09947b36daf18485e392",
+    "mtime": 1789665203.347215,
+    "seen": 1789665613.6192892,
+    "ast_hash": "35afff130d1758ca8a8329ac52952251",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/texture_preview/levels.rs": {
@@ -7326,20 +7326,20 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/texture_preview/tests/cancellation.rs": {
-    "mtime": 1789475460.7012947,
-    "seen": 1789652705.190329,
-    "ast_hash": "9fad2d6f5fb7a846d6cad04855d82014",
+    "mtime": 1789665203.3473654,
+    "seen": 1789665613.6192908,
+    "ast_hash": "8caed3e7c741d718e4d4ce0a22e642e3",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/texture_preview/tests/decode_failure.rs": {
-    "mtime": 1789475460.7014866,
-    "seen": 1789652705.19033,
-    "ast_hash": "0ce0d8094307f407a17b0f9090eb6d74",
+    "mtime": 1789665203.3475187,
+    "seen": 1789665613.619293,
+    "ast_hash": "7b708879b6fc6392f133dcd93df03e17",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/texture_preview/tests/collect_textures.rs": {
-    "mtime": 1789437734.5906196,
-    "seen": 1789652705.190329,
+    "mtime": 1789664889.7544308,
+    "seen": 1789665613.619292,
     "ast_hash": "75a97929683e61b613c2a15bc43bfe49",
     "semantic_hash": ""
   },
@@ -7368,9 +7368,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/texture_preview/tests/image_source.rs": {
-    "mtime": 1789475460.7016516,
-    "seen": 1789652705.190331,
-    "ast_hash": "a9c4bb888f75c03427c4ee49f68039ae",
+    "mtime": 1789665203.34767,
+    "seen": 1789665613.619294,
+    "ast_hash": "d7ae9d20e1d070d809686a02424acb91",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/texture_preview/tests/transfert.rs": {
@@ -8544,9 +8544,9 @@
     "semantic_hash": ""
   },
   "TODO.md": {
-    "mtime": 1789660072.793556,
-    "seen": 1789660102.990245,
-    "ast_hash": "9ddea6445b3a73f4a1a941cee0b78056",
+    "mtime": 1789665203.3433135,
+    "seen": 1789665613.622039,
+    "ast_hash": "0f35bce6deb50abd8524bd0aa6d2910d",
     "semantic_hash": ""
   },
   "README.md": {
@@ -8580,9 +8580,9 @@
     "semantic_hash": ""
   },
   "docs/COMPILER.md": {
-    "mtime": 1789641902.0515103,
-    "seen": 1789652705.191453,
-    "ast_hash": "d88914dcfb34cdfaed7d56eb7814d352",
+    "mtime": 1789665203.3438258,
+    "seen": 1789665613.62204,
+    "ast_hash": "767cccf69de29f0ccfcecaf00db78e86",
     "semantic_hash": ""
   },
   "docs/SDK.md": {
@@ -9840,9 +9840,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-node/progress.mts": {
-    "mtime": 1789394509.8596344,
-    "seen": 1789652705.191307,
-    "ast_hash": "d093a8cf55d2a62816eb08371c478493",
+    "mtime": 1789665203.3478503,
+    "seen": 1789665613.6213608,
+    "ast_hash": "5d6bce32a74891578040bb2989e72377",
     "semantic_hash": ""
   },
   "packages/sdk-node/provenance.mts": {
@@ -10521,6 +10521,78 @@
     "mtime": 1789657452.2262776,
     "seen": 1789657467.316135,
     "ast_hash": "4fac502fc70d57544000765416721f8f",
+    "semantic_hash": ""
+  },
+  "packages/asset-compiler-rust/src/compiler_textures.rs": {
+    "mtime": 1789665479.9251597,
+    "seen": 1789665613.618894,
+    "ast_hash": "c3f68eb602d7632160f4c9bf07af3e56",
+    "semantic_hash": ""
+  },
+  "packages/asset-compiler-rust/src/cutout.rs": {
+    "mtime": 1789665203.344619,
+    "seen": 1789665613.618909,
+    "ast_hash": "61f76d26c6c3963aa3aaa79f5380a959",
+    "semantic_hash": ""
+  },
+  "packages/asset-compiler-rust/src/cutout/apply.rs": {
+    "mtime": 1789665203.3447964,
+    "seen": 1789665613.6189098,
+    "ast_hash": "316f2a35f95203b850ca4afdaf778df5",
+    "semantic_hash": ""
+  },
+  "packages/asset-compiler-rust/src/cutout/measure.rs": {
+    "mtime": 1789665203.344939,
+    "seen": 1789665613.618911,
+    "ast_hash": "f223ac22d84dd0052935fa034749f2d1",
+    "semantic_hash": ""
+  },
+  "packages/asset-compiler-rust/src/cutout/page.rs": {
+    "mtime": 1789665479.9250004,
+    "seen": 1789665613.618911,
+    "ast_hash": "47f45694fd358e3c9007e25b819f0b86",
+    "semantic_hash": ""
+  },
+  "packages/asset-compiler-rust/src/cutout/sheet.rs": {
+    "mtime": 1789665203.3453796,
+    "seen": 1789665613.618912,
+    "ast_hash": "b1a1bf79b58b53a1f93c0f76bad299da",
+    "semantic_hash": ""
+  },
+  "packages/asset-compiler-rust/src/cutout/tests.rs": {
+    "mtime": 1789665203.3454933,
+    "seen": 1789665613.618913,
+    "ast_hash": "8baaa31301b6098f442566e0038f0dee",
+    "semantic_hash": ""
+  },
+  "packages/asset-compiler-rust/src/cutout/tests/feuille.rs": {
+    "mtime": 1789665203.3456545,
+    "seen": 1789665613.6189141,
+    "ast_hash": "d0ec5c26b1dc019ce6b4e438bb5bd38c",
+    "semantic_hash": ""
+  },
+  "packages/asset-compiler-rust/src/cutout/tests/forme.rs": {
+    "mtime": 1789665203.3457818,
+    "seen": 1789665613.618915,
+    "ast_hash": "bf6443ac1787e5d72096f503c45ade50",
+    "semantic_hash": ""
+  },
+  "packages/asset-compiler-rust/src/cutout/tests/reponses.rs": {
+    "mtime": 1789665203.3459046,
+    "seen": 1789665613.618916,
+    "ast_hash": "57b1a7fba8de940e2a3cd7106c268327",
+    "semantic_hash": ""
+  },
+  "packages/asset-compiler-rust/src/tests/decoupes.rs": {
+    "mtime": 1789665490.4316766,
+    "seen": 1789665613.619223,
+    "ast_hash": "08faae8fb4413887e9cf08a072ff5a2e",
+    "semantic_hash": ""
+  },
+  "packages/asset-compiler-rust/src/cutout/page.html": {
+    "mtime": 1789665612.1349247,
+    "seen": 1789665613.6220999,
+    "ast_hash": "0ffc7aeb117cc89a0c8661bf5043ca34",
     "semantic_hash": ""
   }
 }
