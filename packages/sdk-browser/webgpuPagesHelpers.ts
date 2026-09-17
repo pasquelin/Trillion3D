@@ -56,54 +56,20 @@ export function materialSide(material: THREE.Material | THREE.Material[]) {
 }
 
 /**
- * Turns a GPU page-id list into records, into an array the caller owns: no per-frame allocation.
- * `into` absent : les comptes seuls sont relus, sur exactement les mêmes enregistrements et dans le
- * même ordre — ce que demande un appelant dont la liste est déjà faite de ce relevé.
+ * Écrit les enregistrements d'une suite d'identifiants publiée par la carte, dans un tableau que
+ * l'appelant possède : aucune allocation par image, et l'écriture se fait par rang plutôt que par
+ * empilement — la coupe d'une ville se recopie sans repasser par la longueur du tableau à chaque
+ * enregistrement. Les totaux de triangles, eux, ne se lisent plus ici : `webgpuCutCounts.ts` les
+ * tient d'une image à l'autre, par la seule différence de la coupe.
  */
-/**
- * The cut the GPU published, and what of it the frame cannot draw: a cluster whose page left the
- * cache between the selection's view of residency and now has no row, and no ancestor took its place
- * — that is a hole in the image, and `uncovered` is the only honest way to say so.
- *
- * Trois totaux d'une même passe : `selectedTriangles` la coupe entière, `uncoveredTriangles` le
- * trou, `drawnTriangles` ce qui reste et part au dessin. Ils se lisent ensemble, et leur somme est
- * la relation de couverture `selected − drawn − uncovered = 0`.
- */
-const gpuCutCounts = {
-  selectedTriangles: 0,
-  drawnTriangles: 0,
-  uncoveredTriangles: 0,
-  transparentTriangles: 0,
-};
-export function shownFromGpu(
-  pages: PageRec[],
-  ids: readonly number[],
-  into: PageRec[] | undefined,
-  residentOffsetWords: Int32Array,
-) {
-  let selected = 0,
-    uncovered = 0,
-    transparent = 0,
-    count = 0;
+export function writeCutPages(into: PageRec[], ids: readonly number[], pages: readonly PageRec[]) {
+  let count = 0;
   for (let i = 0; i < ids.length; i++) {
-    const id = ids[i],
-      rec = pages[id];
-    if (!rec) continue;
-    // Écriture par rang plutôt qu'empilement : la coupe d'une ville se recopie sans repasser par la
-    // longueur du tableau à chaque enregistrement.
-    if (into) into[count++] = rec;
-    selected += rec.triangles;
-    if (rec.transparent) transparent += rec.triangles;
-    if (residentOffsetWords[id] < 0 || !rec.array) uncovered += rec.triangles;
+    const rec = pages[ids[i]];
+    if (rec) into[count++] = rec;
   }
-  if (into) into.length = count;
-  gpuCutCounts.selectedTriangles = selected;
-  // Ce que l'image remet au dessin : la coupe publiée moins ses grappes sans ligne de résidence.
-  // Une soustraction hors de la boucle, sur deux compteurs que la boucle tenait déjà.
-  gpuCutCounts.drawnTriangles = selected - uncovered;
-  gpuCutCounts.uncoveredTriangles = uncovered;
-  gpuCutCounts.transparentTriangles = transparent;
-  return gpuCutCounts;
+  into.length = count;
+  return into;
 }
 /** Sum of a cut's triangles, without the closure a `reduce` allocates on every frame. */
 export function triangleSum(pages: readonly PageRec[], transparent?: boolean) {

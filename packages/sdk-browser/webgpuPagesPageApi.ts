@@ -97,11 +97,11 @@ export function dropPage(rt: WebgpuPagesCore, url: string) {
   for (let i = 0; i < recs.length; i++) {
     const rec = recs[i],
       page = rows.pageIndexOf(rec);
-    // Les octets d'un cluster sont ce qui le rend dessinable au même titre que sa place en cache :
-    // la page est nommée ici pour que la synchronisation des rangs la revoie.
-    if (page !== undefined) rows.touchPage(page);
     rec.array = undefined;
     rec.indexBytes = rec.triangles * 12;
+    // Les octets d'un cluster sont ce qui le rend dessinable au même titre que sa place en cache :
+    // la page est nommée APRÈS l'abandon, pour que ce qui la relit y lise bien la page sans octets.
+    if (page !== undefined) rows.touchPage(page);
     sourceBytes.delete(rec.url);
     gpu.cache?.unload?.(rec.url);
     tracking.unmarkPinned(tracking.keyOf(rec));
