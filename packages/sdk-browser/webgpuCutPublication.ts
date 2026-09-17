@@ -75,10 +75,6 @@ export function createWebgpuCutPublication(
   // Before the first readback the image asks the cache for the pinned cover and nothing else.
   cutDelta.adoptRecords(gpuWanted);
   publishCut();
-  const adoptCpuDrawn = (shown: readonly PageRec[]) => {
-    drawnDelta.adoptRecords(shown);
-    publishDrawn();
-  };
   /** Adopte le relevé et dit si l'IMAGE en est changée : si les listes affichées ont été réécrites.
    *  Un relevé neuf republiant les mêmes identifiants dans le même ordre n'en réécrit aucune. */
   const adoptGpuCut = () => {
@@ -106,17 +102,18 @@ export function createWebgpuCutPublication(
     adoptGpuCut,
     /**
      * La coupe processeur publie la sienne par les mêmes différences : `wanted` écrit `run.desired`
-     * lui-même, et les mêmes lecteurs suivent. L'appelant a déjà oublié le relevé et fait vieillir
-     * les listes AVANT de choisir — c'est lui qui couvre la sortie par erreur de la coupe, comme il
-     * le fait pour la recopie de `drawn` —, donc rien de tout cela n'est refait ici.
+     * lui-même, et les mêmes lecteurs suivent. Appelée une fois par image qui dessine, et seulement
+     * une fois ses gardes passées : ce qu'elle pose, l'image le tient. L'appelant a déjà oublié le
+     * relevé et fait vieillir les listes avant de choisir — c'est lui qui couvre la sortie par
+     * erreur de la coupe, comme il le fait pour la recopie de `drawn` —, donc rien de tout cela
+     * n'est refait ici. La republier telle quelle ne change rien : la différence est vide.
      */
     adoptCpuCut(wanted: readonly PageRec[], shown: readonly PageRec[]) {
       cutDelta.adoptRecords(wanted);
       publishCut();
-      adoptCpuDrawn(shown);
+      drawnDelta.adoptRecords(shown);
+      publishDrawn();
     },
-    /** Seule la liste montrée a bougé : le repli épinglé l'a remplacée une fois la coupe publiée. */
-    adoptCpuDrawn,
     /** Le relevé tenu ne décrit plus les listes de l'image : la suivante le relira en entier. */
     forgetReadback: () => (run.cutEpoch++, cutAdopter.forgetReadback()),
   };
