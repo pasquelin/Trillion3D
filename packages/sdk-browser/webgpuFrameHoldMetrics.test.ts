@@ -71,9 +71,10 @@ function tenue() {
     },
     vis: { visEnabled: true, gpuDraw: {}, textureJobs: [], gpuHiz: undefined },
     capture: { secondaryCamera: undefined, capturePending: undefined },
-    setup: { frameBudget: 0 },
+    setup: { geometryPool: { slots: 0 }, texturePool: {} },
     services: {
       bootstrapState: { ready: true },
+      residencySets: { keepCount: 0 },
       residency: { busy: false },
       // Le compte des pages de la coupe qui attendent encore leurs octets, tenu par la différence.
       cutPending: { count: 0 },

@@ -107,7 +107,7 @@ test('explicit captures reject stale images and aborted surface captures leave t
   }
 });
 
-test('surface capture rejects missing pages and a budget failure keeps the main viewport', async () => {
+test('surface capture rejects missing pages and a device-limit failure keeps the main viewport', async () => {
   installGpuGlobals();
   const { device } = mockGpu();
   const fixture = quadScene();
@@ -118,7 +118,6 @@ test('surface capture rejects missing pages and a budget failure keeps the main 
     gpuDevice: device,
     maxResidentPages: 2,
     viewport,
-    maxFrameAllocationBytes: 100000,
   });
   try {
     await backend.prepare();
@@ -129,8 +128,8 @@ test('surface capture rejects missing pages and a budget failure keeps the main 
     );
     assert.deepEqual(viewport, [32, 32]);
     await assert.rejects(
-      () => backend.captureSurfaceView!(camera(), { width: 100, height: 100 }),
-      /SURFACE_BUDGET/,
+      () => backend.captureSurfaceView!(camera(), { width: 8193, height: 100 }),
+      /SURFACE_DEVICE_LIMIT/,
     );
     assert.deepEqual(viewport, [32, 32]);
     backend.render(camera());
