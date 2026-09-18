@@ -8,9 +8,9 @@ import { drawnPageIds, installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
 
-// Le raster de calcul ne se crée que sous `raster-calcul` : la même coupe part alors au calcul —
-// binning, profondeur des occulteurs, du reste, identifiants — et aucune commande matérielle ne
-// porte de géométrie. C'est le côté calcul du banc bit à bit (Géométrie 26, point 3).
+// Le raster de calcul ne se crée que sous `raster-calcul` ou `raster-hybride` : la coupe part alors
+// au calcul — binning, profondeur des occulteurs, du reste, identifiants — entre les passes du
+// matériel, qui ouvrent l'image. C'est le côté calcul du banc bit à bit (Géométrie 26, point 3).
 test('la variante raster-calcul confie la coupe au raster de calcul, et elle seule', async () => {
   installGpuGlobals();
   const fixture = quadScene();
@@ -39,8 +39,11 @@ test('la variante raster-calcul confie la coupe au raster de calcul, et elle seu
     rest = at(rasterEntry('fine', MODE_DEPTH_REST)),
     ids = at(rasterEntry('fine', MODE_ID));
   assert.ok(bin >= 0 && occluder > bin && rest > occluder && ids > rest);
-  assert.equal(draws.filter((draw) => draw.indirect).length, 0);
-  assert.ok(draws.every((draw) => draw.vertexCount === 3));
+  // Les passes matérielles s'encodent toujours : ce sont elles qui ouvrent l'image, et leurs
+  // commandes indirectes restent — c'est l'étage de sommets qui replie ce que le calcul prend.
+  assert.ok(draws.some((draw) => draw.indirect));
+  // Les deux résolutions du calcul, chacune un triangle plein écran : la pyramide et l'image close.
+  assert.equal(draws.filter((draw) => draw.entryPoint === 'vs').length, 2);
   // Ce raster prend toute la coupe : ce n'est pas celui de la référence, et il ne le déclare pas.
   assert.ok(backend.capabilities.unsupported.includes('small-triangle compute raster'));
   backend.dispose();

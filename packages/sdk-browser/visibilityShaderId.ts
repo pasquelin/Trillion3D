@@ -8,11 +8,13 @@ import {
 import { ATLAS_SLOTS_WGSL, COLOR_ALPHA_WGSL, atlasTextures } from './webgpuAtlasWgsl.ts';
 import { VIS_BINDINGS } from './webgpuBindLayout.ts';
 import { HIZ_REJECTED_WGSL } from './gpuPartitionContract.ts';
+import { COMPUTE_TAKES_WGSL, SCREEN_WGSL } from './gpuRasterContract.ts';
 
 /**
- * Le raster matériel du tampon de visibilité : le repli de l'appareil qui ne peut pas héberger le
- * raster de calcul. Il dessine TOUTE la coupe opaque et masquée — plus aucun seuil de taille n'en
- * écarte de triangle, puisqu'il n'y a plus de second producteur pour les reprendre.
+ * Le raster matériel du tampon de visibilité, producteur de l'image opaque et masquée. Sous le
+ * partage de la référence (`uni.computeSpan`), il laisse au raster de calcul les triangles que
+ * celui-ci prend — le même prédicat, lu sur les mêmes sommets — et dessine tous les autres ; à
+ * zéro, il dessine toute la coupe sans lire un sommet de plus.
  */
 export const VIS_SHADER = `${PAGE_INFO_WGSL}
 ${PAGE_BINDING.indices}
@@ -33,12 +35,21 @@ ${PAGE_LOOKUP_WGSL}
 struct VSOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) id:u32,@location(1) @interpolate(flat) instance:u32,@location(2) uv:vec2f,}
 ${PAGE_VERTEX_WGSL}
 ${PAGE_MASK_WGSL}
+${SCREEN_WGSL}
+${COMPUTE_TAKES_WGSL}
+/** Vrai quand le raster de calcul prend ce triangle : le matériel ne le dessine pas. */
+fn leftToCompute(page:PageInfo,triangle:u32)->bool{
+ if(uni.computeSpan<=0.0){return false;}
+ let ia=indices[page.pageOffset+triangle*3u];let ib=indices[page.pageOffset+triangle*3u+1u];let ic=indices[page.pageOffset+triangle*3u+2u];
+ let vp=uni.viewProj*page.world;
+ return computeTakes(vp*vec4f(vertPos(page.vertexBase,ia),1.0),vp*vec4f(vertPos(page.vertexBase,ib),1.0),vp*vec4f(vertPos(page.vertexBase,ic),1.0));
+}
 @vertex fn vis_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->VSOut{
  var out:VSOut;
  let pageIndex=drawPage(instanceIndex);
  let page=pages[pageIndex];
  out.instance=pageIndex;out.uv=vec2f(0.0);
- if(vertexIndex>=page.indexCount){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
+ if(vertexIndex>=page.indexCount||leftToCompute(page,vertexIndex/3u)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  let id=indices[page.pageOffset+vertexIndex];
  let p=vertPos(page.vertexBase,id);
  let world=page.world*vec4f(p,1.0);
@@ -53,7 +64,7 @@ ${PAGE_MASK_WGSL}
  let page=pages[pageIndex];
  out.instance=pageIndex;out.uv=vec2f(0.0);
  if(hizRejected(page.hizSlot)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
- if(vertexIndex>=page.indexCount){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
+ if(vertexIndex>=page.indexCount||leftToCompute(page,vertexIndex/3u)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  let id=indices[page.pageOffset+vertexIndex];
  let p=vertPos(page.vertexBase,id);
  let world=page.world*vec4f(p,1.0);
