@@ -84,6 +84,9 @@ export function batisseur() {
   };
 }
 
+/** Une matrice de la bibliothèque hôte, colonne-major, prête pour `setTransform`. */
+export const versApi = (matrice) => new Float32Array(matrice.elements);
+
 /** La caméra des preuves : de face, translatée sur `x` sans changer d'axe optique — une glissade
  *  pure, où la parallaxe seule sépare le proche du lointain. */
 export function cameraFace(x = 0) {
@@ -95,7 +98,9 @@ export function cameraFace(x = 0) {
 }
 
 /** Le moteur WebGPU réel monté sur une scène bâtie, avec sa propre toile. `options` complète le
- *  contexte de l'hôte — `stageProfile: true` pour lire les compteurs publics par étape. */
+ *  contexte de l'hôte — `stageProfile: true` pour lire les compteurs publics par étape. Les preuves
+ *  d'ici comparent des images au pixel près et attendent une image tenue en quelques images :
+ *  l'antialiasing temporel est coupé, sauf pour la preuve qui le choisit. */
 export function moteur(webgpuPagesBackend, scene, device, onDiagnostic, options = {}) {
   const canvas = document.createElement('canvas');
   document.body.append(canvas);
@@ -110,6 +115,7 @@ export function moteur(webgpuPagesBackend, scene, device, onDiagnostic, options 
     viewport: [...VIEWPORT],
     clearColor: 0x000000,
     diagnosticDetail: 'summary',
+    temporalAntialiasing: false,
     onDiagnostic,
     ...options,
   });

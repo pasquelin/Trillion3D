@@ -94,7 +94,10 @@ export async function captureSurfaceView(
     throw new Error('SURFACE_CAPTURE_BUSY: dispose the previous capture first');
   if (run.lost || !gpuDevice || !rt.vis.visEnabled || !run.lastCamera)
     throw new Error('SURFACE_CAPTURE_UNAVAILABLE');
-  const reserve = checkSurfaceSize(gpuDevice, options.width, options.height, frameBudget, 32);
+  // L'historique de l'antialiasing temporel reste alloué pendant la capture : il compte avec elle.
+  const reserve =
+    checkSurfaceSize(gpuDevice, options.width, options.height, frameBudget, 32) +
+    (rt.gpu.temporal?.historyBytes ?? 0);
   checkFrameBudget(rt, viewport[0], viewport[1], reserve);
   checkFrameBudget(rt, options.width, options.height, reserve);
   const saved: SavedView = {

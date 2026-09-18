@@ -141,6 +141,9 @@ export interface BackendContext {
   textureBudgetBytes?: number;
   /** Atlas size classes the host allows. Defaults to 2; `1` forces the single-array allocation. */
   atlasClasses?: 1 | 2;
+  /** L'antialiasing temporel, actif par défaut comme chez la référence : `false` rend l'image
+   *  échantillonnée au centre du pixel, sans gigue ni historique — le « avant » d'une comparaison. */
+  temporalAntialiasing?: boolean;
   sceneLighting?: THREE.Object3D;
   /** Les lampes du contrat, possédées par l'hôte et partagées par tous les moteurs de la session. */
   sceneLights?: SceneLightStore;

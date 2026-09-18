@@ -96,9 +96,15 @@ par image quelle que soit la scène** :
 | DepthExport               | 217 µs     |                                   |
 | Emit GBuffer              | 2 084 µs   | passe matériaux                   |
 | **Passe matériaux**       | **~2 ms**  | 1 dessin par matériau             |
+| Antialiasing temporel (4) | non publié | `WG temporal antialiasing`        |
 
 (1) La diapositive imprime « 108ms » ; la somme des passes et le total annoncé de 2,5 ms disent
 microsecondes. Nous retenons 108 µs.
+
+(4) Leur image est rendue à 2496 × 1404 avec gigue et remontée en 4K par accumulation temporelle ;
+la nôtre accumule à résolution native, sans remontée, et sa passe ne se lit que par différence
+d'enveloppe (Lumière 16). Aucun coût publié de leur côté pour cette passe seule : la ligne dit
+qu'elle existe des deux côtés, pas ce qu'elle vaut.
 
 Ce qu'on peut en tirer sans tricher :
 

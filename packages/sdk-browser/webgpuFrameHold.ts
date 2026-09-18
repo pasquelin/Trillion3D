@@ -1,5 +1,6 @@
 import { sampleWebgpuFrame } from './webgpuFrameSignature.ts';
 import { CPU_STEP } from './webgpuPagesCpuSteps.ts';
+import { beginTaaFrame, taaSettled } from './taaFrame.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
@@ -90,7 +91,12 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
  */
 export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { run, gpu } = rt;
-  if (!run.gate.held() || !frameSettled(rt)) {
+  // Image calme : rien de ce dont elle dépend n'a bougé et rien n'est en vol. C'est l'entrée
+  // d'image de l'accumulation temporelle, qui y repart en phase fixe et converge sur un plein cycle
+  // de ces images-là avant que l'une d'elles puisse être tenue (`TAA_STILL_FRAMES`).
+  const quiet = run.gate.held() && frameSettled(rt);
+  beginTaaFrame(rt, run.gate.cam, quiet);
+  if (!quiet || !taaSettled(rt)) {
     run.frameHeld = false;
     return false;
   }

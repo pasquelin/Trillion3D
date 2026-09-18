@@ -1,4 +1,5 @@
 import { BOUNCE_SETTINGS } from '../sdk-core/index.ts';
+import { MOTION_CAPABILITY, TAA_CAPABILITY } from './taaPrepare.ts';
 import type { BackendCapabilities, BackendContext, RenderBackend } from './backendTypes.ts';
 import { createWebgpuPagesServices, type WebgpuPagesServices } from './webgpuPagesServices.ts';
 import { createWebgpuDiagnostics } from './webgpuPagesDiagnostics.ts';
@@ -162,7 +163,9 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
       'temporal occlusion culling',
       'small-triangle compute raster',
       'physical VRAM instrumentation',
-      'global illumination, surface cache and motion vectors',
+      'global illumination and surface cache',
+      MOTION_CAPABILITY,
+      TAA_CAPABILITY,
       'sun shadows beyond the last cascade',
       'textured PBR maps',
       'visibility buffer',
