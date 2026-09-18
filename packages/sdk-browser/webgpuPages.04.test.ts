@@ -6,7 +6,7 @@ import { webgpuPagesBackend } from './webgpuPages.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { dagRoots } from './webgpuPagesTestDag.ts';
-import { quadScene, camera } from './webgpuPagesTestScenes.ts';
+import { camera, quadBackend } from './webgpuPagesTestScenes.ts';
 import { coarseQuadScene } from './webgpuPagesTestOccluder.ts';
 
 test('the initial cover also protects regions first discovered after a camera jump', async () => {
@@ -141,21 +141,12 @@ test('webgpu pages select the same coarse LOD cut as the WebGL2 exact backend', 
 test('a lost WebGPU device fails the backend without throwing from dispose', async () => {
   installGpuGlobals();
   const { device, lose } = mockGpu();
-  const { source, metadata, indices, associations, geometry, material } = quadScene();
-  const backend = webgpuPagesBackend({
-    source,
-    metadata,
-    indices,
-    associations,
-    gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
-  });
+  const { fixture, backend } = quadBackend(device);
   await backend.prepare();
   lose('destroyed');
   await Promise.resolve();
   assert.throws(() => backend.render(camera()), /WEBGPU_LOST/);
   await backend.dispose();
-  geometry.dispose();
-  material.dispose();
+  fixture.geometry.dispose();
+  fixture.material.dispose();
 });

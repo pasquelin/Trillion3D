@@ -6,6 +6,7 @@
 //! compilateur sache lire. Ce qui est ici ne dépend d'aucun format : seul le remplissage en dépend.
 //! Rien n'est jamais écrit à côté de la source.
 use super::*;
+use crate::plugins::scene::SceneOutput;
 mod media;
 pub(crate) use media::readable;
 
@@ -13,7 +14,8 @@ pub(crate) use media::readable;
 /// linéaire entre mipmaps au rétrécissement.
 const DEFAULT_FILTER: [u32; 2] = [9729, 9987];
 
-/// Les tables du glTF en cours d'écriture.
+/// Les tables du glTF en cours d'écriture. Se construit par `new` : la clé porte le pilote.
+#[derive(Default)]
 pub(crate) struct SceneTables {
     pub(crate) nodes: Vec<Value>,
     pub(crate) meshes: Vec<Value>,
@@ -43,25 +45,8 @@ pub(crate) struct SceneTables {
 impl SceneTables {
     pub(crate) fn new(plugin: &dyn ScenePlugin) -> Self {
         Self {
-            nodes: Vec::new(),
-            meshes: Vec::new(),
-            mesh_triangles: Vec::new(),
-            materials: Vec::new(),
-            accessors: Vec::new(),
-            images: Vec::new(),
-            images_by_uri: HashMap::new(),
-            samplers: Vec::new(),
-            sampler_ids: HashMap::new(),
-            textures: Vec::new(),
-            lights: Vec::new(),
-            bin: Bin {
-                bytes: Vec::new(),
-                views: Vec::new(),
-            },
-            report: Report::default(),
-            counts: BTreeMap::new(),
-            files: Vec::new(),
             key_material: format!("{}:{}", plugin.name(), plugin.version()),
+            ..Self::default()
         }
     }
     pub(crate) fn count(&mut self, what: &'static str, by: usize) {
@@ -127,12 +112,32 @@ impl SceneTables {
             .push(json!({"file":name,"plugin":plugin,"importKey":key}));
         self.key_material.push_str(&format!("\n{name}@{key}"));
     }
-    pub(crate) fn key(&self) -> String {
+
+    /// Les racines de la scène : les nœuds qu'aucun autre ne cite comme enfant.
+    fn roots(&self) -> Vec<usize> {
+        let mut child = vec![false; self.nodes.len()];
+        for node in &self.nodes {
+            for id in node["children"].as_array().map_or(&[][..], Vec::as_slice) {
+                if let Some(id) = id.as_u64() {
+                    child[id as usize] = true;
+                }
+            }
+        }
+        (0..self.nodes.len()).filter(|id| !child[*id]).collect()
+    }
+}
+
+impl SceneOutput for SceneTables {
+    fn nodes(&self) -> &[Value] {
+        &self.nodes
+    }
+    fn counts(&self) -> &BTreeMap<&'static str, usize> {
+        &self.counts
+    }
+    fn key(&self) -> String {
         hash(self.key_material.as_bytes())
     }
-
-    /// Écrit la scène dans `<cache>/native/imports/<clé>/` et rend ce dossier.
-    pub(crate) fn write(
+    fn write(
         self,
         plugin: &dyn ScenePlugin,
         directory: &Path,
@@ -179,18 +184,5 @@ impl SceneTables {
             },
         )?;
         Ok(directory.to_path_buf())
-    }
-
-    /// Les racines de la scène : les nœuds qu'aucun autre ne cite comme enfant.
-    fn roots(&self) -> Vec<usize> {
-        let mut child = vec![false; self.nodes.len()];
-        for node in &self.nodes {
-            for id in node["children"].as_array().map_or(&[][..], Vec::as_slice) {
-                if let Some(id) = id.as_u64() {
-                    child[id as usize] = true;
-                }
-            }
-        }
-        (0..self.nodes.len()).filter(|id| !child[*id]).collect()
     }
 }

@@ -7,10 +7,19 @@ use super::super::*;
 use super::Scene;
 use crate::hash;
 use crate::import::{f32_bytes, write_scene, Tables};
+use crate::plugins::scene::SceneOutput;
 
-impl Scene {
-    /// Écrit la scène dans `directory` et rend ce dossier.
-    pub(in super::super) fn write(
+impl SceneOutput for Scene {
+    fn nodes(&self) -> &[Value] {
+        &self.nodes
+    }
+    fn counts(&self) -> &BTreeMap<&'static str, usize> {
+        &self.counts
+    }
+    fn key(&self) -> String {
+        hash(self.key_material.as_bytes())
+    }
+    fn write(
         self,
         plugin: &dyn ScenePlugin,
         directory: &Path,

@@ -3,13 +3,7 @@ import { collectCover, buildIndex } from './threeLodHelpers.ts';
 import { installSceneLighting, sceneLightingApi } from './sceneLighting.ts';
 import * as THREE from 'three';
 import type { BackendFactory } from './backendTypes.ts';
-import { hashId } from './backendCommon.ts';
-import {
-  createTriangleDiagnosticMaterial,
-  disposeTriangleGeometry,
-  materialSide,
-  triangleGeometry,
-} from './triangleDiagnostic.ts';
+import { applyMeshDiagnostic, disposeTriangleGeometry } from './triangleDiagnostic.ts';
 import { isTransmissive } from './visibilityBuffer.ts';
 import { setGeometryBounds } from './threeBounds.ts';
 import { BOX_VALUES, boxEmpty, boxExpandByPoint } from '../sdk-core/index.ts';
@@ -121,19 +115,8 @@ export const threeLodBackend: BackendFactory = (context) => {
     setDiagnostic(mode) {
       overlays.splice(0).forEach((m) => m.dispose());
       for (const lod of lods)
-        for (const level of lod.levels) {
-          const mesh = level.object as THREE.Mesh;
-          const sourceGeometry = mesh.userData.sourceGeometry as THREE.BufferGeometry;
-          const sourceMaterial = mesh.userData.sourceMaterial as THREE.Material | THREE.Material[];
-          mesh.geometry = sourceGeometry;
-          mesh.material = sourceMaterial;
-          if (mode === 'wireframe') {
-            mesh.geometry = triangleGeometry(sourceGeometry, hashId(String(mesh.id)));
-            const material = createTriangleDiagnosticMaterial(materialSide(sourceMaterial));
-            overlays.push(material);
-            mesh.material = material;
-          }
-        }
+        for (const level of lod.levels)
+          applyMeshDiagnostic(level.object as THREE.Mesh, mode, overlays);
     },
     async prepare() {},
     // Ce moteur reparcourt la scène à chaque image : aucune révision n'a à l'apprendre.

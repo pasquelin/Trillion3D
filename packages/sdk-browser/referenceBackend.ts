@@ -1,12 +1,7 @@
 import { meshes as objects, geometryBytes } from './sceneMeshes.ts';
-import { baseCapabilities, hashId, lighting, DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
+import { baseCapabilities, lighting, DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
 import { sceneLightingApi } from './sceneLighting.ts';
-import {
-  createTriangleDiagnosticMaterial,
-  disposeTriangleGeometry,
-  materialSide,
-  triangleGeometry,
-} from './triangleDiagnostic.ts';
+import { applyMeshDiagnostic, disposeTriangleGeometry } from './triangleDiagnostic.ts';
 import type { BackendFactory } from './backendTypes.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import * as THREE from 'three';
@@ -38,18 +33,7 @@ export const referenceBackend: BackendFactory = ({
   }
   const applyDiagnostic = (mode: DiagnosticMode) => {
     overlays.splice(0).forEach((m) => m.dispose());
-    for (const mesh of copies) {
-      const sourceGeometry = mesh.userData.sourceGeometry as THREE.BufferGeometry;
-      const sourceMaterial = mesh.userData.sourceMaterial as THREE.Material | THREE.Material[];
-      mesh.geometry = sourceGeometry;
-      mesh.material = sourceMaterial;
-      if (mode === 'wireframe') {
-        mesh.geometry = triangleGeometry(sourceGeometry, hashId(String(mesh.id)));
-        const material = createTriangleDiagnosticMaterial(materialSide(sourceMaterial));
-        overlays.push(material);
-        mesh.material = material;
-      }
-    }
+    for (const mesh of copies) applyMeshDiagnostic(mesh, mode, overlays);
   };
   return {
     id: 'three-webgl-reference',

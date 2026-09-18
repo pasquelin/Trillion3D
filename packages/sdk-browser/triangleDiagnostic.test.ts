@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createTriangleDiagnosticMaterial, triangleGeometry } from './triangleDiagnostic.ts';
+import {
+  applyMeshDiagnostic,
+  createTriangleDiagnosticMaterial,
+  triangleGeometry,
+} from './triangleDiagnostic.ts';
 import { hashId } from './backendCommon.ts';
 import { exactPagesBackend, referenceBackend } from './index.ts';
 import { quadScene, frontCamera, quadRootsContext } from './pagesBackendScenes.ts';
@@ -23,6 +27,26 @@ test('triangle material is filled and unlit with vertex colors', () => {
   assert.ok(material instanceof THREE.MeshBasicMaterial);
   assert.equal(material.wireframe, false);
   assert.equal(material.vertexColors, true);
+  material.dispose();
+});
+
+test('a mesh diagnostic swaps in the triangle colouring and hands the source back on beauty', () => {
+  const { geometry, material, mesh } = quadScene();
+  mesh.userData.sourceGeometry = geometry;
+  mesh.userData.sourceMaterial = material;
+  material.side = THREE.DoubleSide;
+  const overlays: THREE.Material[] = [];
+  applyMeshDiagnostic(mesh, 'wireframe', overlays);
+  assert.equal(mesh.geometry, triangleGeometry(geometry));
+  assert.equal(overlays.length, 1);
+  assert.equal(mesh.material, overlays[0]);
+  assert.equal((mesh.material as THREE.Material).side, THREE.DoubleSide);
+  applyMeshDiagnostic(mesh, 'beauty', overlays);
+  assert.equal(mesh.geometry, geometry);
+  assert.equal(mesh.material, material);
+  assert.equal(overlays.length, 1, 'the overlay stays for its owner to dispose');
+  overlays[0].dispose();
+  geometry.dispose();
   material.dispose();
 });
 

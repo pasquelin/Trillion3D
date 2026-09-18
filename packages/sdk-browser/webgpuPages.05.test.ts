@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
-import { quadScene, camera } from './webgpuPagesTestScenes.ts';
+import { quadScene, camera, quadBackend } from './webgpuPagesTestScenes.ts';
 
 test('webgpu pages never publish an incomplete initial cover', async () => {
   installGpuGlobals();
@@ -96,15 +96,7 @@ test('webgpu pages without a device fail prepare so the explorer can keep the Th
 test('the direct WebGPU fallback uses the scene background supplied by its host', async () => {
   installGpuGlobals();
   const { device, passes } = mockGpu(undefined, undefined, false, true);
-  const { source, metadata, indices, associations, geometry, material } = quadScene();
-  const backend = webgpuPagesBackend({
-    source,
-    metadata,
-    indices,
-    associations,
-    gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
+  const { fixture, backend } = quadBackend(device, {
     clearColor: 0x2d4059,
   });
   await backend.prepare();
@@ -116,22 +108,14 @@ test('the direct WebGPU fallback uses the scene background supplied by its host'
   )?.colorClear;
   assert.deepEqual(clear, { r: 0x2d / 255, g: 0x40 / 255, b: 0x59 / 255, a: 1 });
   backend.dispose();
-  geometry.dispose();
-  material.dispose();
+  fixture.geometry.dispose();
+  fixture.material.dispose();
 });
 
 test('the visibility-buffer path also clears with the host scene background', async () => {
   installGpuGlobals();
   const { device, passes } = mockGpu();
-  const { source, metadata, indices, associations, geometry, material } = quadScene();
-  const backend = webgpuPagesBackend({
-    source,
-    metadata,
-    indices,
-    associations,
-    gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
+  const { fixture, backend } = quadBackend(device, {
     clearColor: 0x2d4059,
   });
   await backend.prepare();
@@ -150,6 +134,6 @@ test('the visibility-buffer path also clears with the host scene background', as
     ),
   );
   backend.dispose();
-  geometry.dispose();
-  material.dispose();
+  fixture.geometry.dispose();
+  fixture.material.dispose();
 });

@@ -3,18 +3,12 @@ import assert from 'node:assert/strict';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
-import { quadScene, camera } from './webgpuPagesTestScenes.ts';
+import { quadScene, camera, quadBackend } from './webgpuPagesTestScenes.ts';
 
 test('opaque materials are rendered before lighting into reusable GPU surface textures', async () => {
   installGpuGlobals();
   const { device, passes } = mockGpu();
-  const fixture = quadScene();
-  const backend = webgpuPagesBackend({
-    ...fixture,
-    gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
-  });
+  const { fixture, backend } = quadBackend(device);
   try {
     await backend.prepare();
     backend.render(camera());
@@ -86,13 +80,7 @@ test('surface capture uses its own camera and restores the main view without cop
 test('explicit captures reject stale images and aborted surface captures leave the main view intact', async () => {
   installGpuGlobals();
   const { device } = mockGpu();
-  const fixture = quadScene();
-  const backend = webgpuPagesBackend({
-    ...fixture,
-    gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
-  });
+  const { fixture, backend } = quadBackend(device);
   try {
     await backend.prepare();
     backend.render(camera());

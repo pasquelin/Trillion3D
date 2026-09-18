@@ -40,13 +40,13 @@ impl World<'_> {
     }
 }
 
-/// Remplit les tables de la scène depuis le document, et rend ce que le rapport publie en clair.
+/// Remplit les tables de la scène depuis le document.
 pub(super) fn scene(
     document: &Document,
     graph: &Graph,
     scene: &mut Scene,
     request: &SceneRequest<'_>,
-) -> BTreeMap<&'static str, usize> {
+) {
     let images = crate::plugins::scene::image_root(request.source);
     let mut kids = vec![Vec::new(); document.nodes.len()];
     for (rank, node) in document.nodes.iter().enumerate() {
@@ -83,7 +83,6 @@ pub(super) fn scene(
         "matrix": xform::root(document.meters_per_unit),
         "children": children,
     }));
-    world.scene.counts.clone()
 }
 
 /// Le nœud glTF d'un `transform` et de sa descendance, ou rien quand il ne porte aucune surface.
