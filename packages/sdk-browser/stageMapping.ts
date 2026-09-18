@@ -39,6 +39,15 @@ const PASSES: Readonly<Record<string, readonly [stage: string, block: GpuPassBlo
     'WG small triangle binning': ['geometry', 'visibility'],
     'WG small triangle raster': ['geometry', 'visibility'],
     'WG hybrid visibility resolve': ['geometry', 'visibility'],
+    // Le raster de calcul (`gpuRaster.ts`, `gpuRasterResolve.ts`) : il construit le même tampon.
+    'WG raster target and lists': ['geometry', 'visibility'],
+    'WG raster dispatch': ['geometry', 'visibility'],
+    'WG raster binning': ['geometry', 'visibility'],
+    'WG raster occluder depth': ['geometry', 'visibility'],
+    'WG raster tested depth': ['geometry', 'visibility'],
+    'WG raster identifiers': ['geometry', 'visibility'],
+    'WG raster occluder hiz': ['hiZ', 'visibility'],
+    'WG raster resolve': ['geometry', 'visibility'],
     'WG empty surfaces': ['geometry', 'materials'],
     'WG material surfaces v1': ['geometry', 'materials'],
     'WG opaque fallback': ['geometry', 'other'],
@@ -59,7 +68,7 @@ const PASSES: Readonly<Record<string, readonly [stage: string, block: GpuPassBlo
   });
 
 /** L'étape d'une passe, par son étiquette. Inconnue vaut `geometry`. */
-const gpuPassStageOf = (name: string) => PASSES[name]?.[0] ?? 'geometry';
+export const gpuPassStageOf = (name: string) => PASSES[name]?.[0] ?? 'geometry';
 /** Le bloc d'une passe, par son étiquette. Inconnue vaut `other`. */
 export const gpuPassBlockOf = (name: string): GpuPassBlock => PASSES[name]?.[1] ?? 'other';
 

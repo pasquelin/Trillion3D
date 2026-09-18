@@ -22,20 +22,41 @@ const WEBGPU_FLAGS = [...BASE_FLAGS, '--enable-unsafe-webgpu'];
 // refuse par `AUTONOMOUS_SCENE_UNAVAILABLE`.
 // `three` dit que le moteur dessine par Three.js, donc qu'il recopie les lampes d'un graphe source
 // au lieu de lire le magasin du contrat : à celui-là seul, l'hôte pose les lampes en Three.
+// `page` est le module servi sous `/mesure/` dont `measureView` joue la série ; `source` dit ce que
+// la page charge : le cache compilé (`cache`) ou le glTF source des assets (`gltf`).
 export const ENGINES = {
   webgl: {
     backend: 'exactPagesBackend',
     id: 'exact-cluster-pages',
     flags: BASE_FLAGS,
     three: true,
+    page: 'pageEclairage.mjs',
+    source: 'cache',
   },
-  webgpu: { backend: 'webgpuPagesBackend', id: 'webgpu-page-raster', flags: WEBGPU_FLAGS },
+  webgpu: {
+    backend: 'webgpuPagesBackend',
+    id: 'webgpu-page-raster',
+    flags: WEBGPU_FLAGS,
+    page: 'pageEclairage.mjs',
+    source: 'cache',
+  },
+  // Le témoin Three.js nu : rien du SDK, le glTF source rendu par Three seul (`pageThreeNu.mjs`).
+  // C'est le rendu naïf face auquel le moteur se lit, et il survit au retrait de Three du moteur.
+  'three-nu': {
+    backend: null,
+    id: 'three-nu',
+    flags: BASE_FLAGS,
+    page: 'pageThreeNu.mjs',
+    source: 'gltf',
+  },
   webgl2: {
     backend: 'autonomousPagesBackend',
     id: 'autonomous-pages-webgl',
     flags: BASE_FLAGS,
     autonome: true,
     three: true,
+    page: 'pageEclairage.mjs',
+    source: 'cache',
   },
 };
 

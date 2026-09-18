@@ -17,6 +17,7 @@ export async function measureView(options) {
   const lost = (globalThis.incidentsGpu = []);
   canvas.addEventListener('webglcontextlost', () => lost.push('webglcontextlost'), false);
   const reglages = await import(`${options.modulesUrl}pageExplorateur.mjs`);
+  const mesure = await import(`${options.modulesUrl}pageMesure.mjs`);
   // La préparation, chronométrée de l'appel au retour, et ce qu'elle a fait passer sur le réseau :
   // les ressources que la page a chargées jusqu'ici ne sont pas comptées, seules celles d'après.
   const preparationStart = performance.now();
@@ -48,14 +49,7 @@ export async function measureView(options) {
   // Une lampe en mouvement : un petit cercle, appliqué avant chaque image mesurée.
   const moveLight = (frame) => {
     if (!moving) return;
-    const angle = (frame / moving.period) * Math.PI * 2;
-    explorer.setLight(moving.id, {
-      position: [
-        moving.origin[0] + Math.cos(angle) * moving.radius,
-        moving.origin[1],
-        moving.origin[2] + Math.sin(angle) * moving.radius,
-      ],
-    });
+    explorer.setLight(moving.id, { position: mesure.positionLampeMobile(moving, frame) });
     eclairage?.suivre(explorer);
   };
   const pose = options.pose;
@@ -147,11 +141,11 @@ export async function measureView(options) {
     shadowAtlas = digest ? { ...digest, pagesEnAttente: pending, images: drains } : null;
   }
   // La capture part telle quelle vers Node, qui l'encode en PNG et la compare.
-  const rgba = explorer.capture();
-  const body = rgba.buffer.slice(rgba.byteOffset, rgba.byteOffset + rgba.byteLength);
-  const response = await fetch(
-    `/capture?file=${encodeURIComponent(options.captureFile)}&w=${canvas.width}&h=${canvas.height}`,
-    { method: 'POST', body },
+  const response = await mesure.posterCapture(
+    options.captureFile,
+    explorer.capture(),
+    canvas.width,
+    canvas.height,
   );
   // L'ensemble sélectionné, lu comme dans les lots précédents : voir `pageCoupe.mjs`.
   const selection = coupe.lireCoupe(explorer, options.engineId);
@@ -161,12 +155,7 @@ export async function measureView(options) {
   const metrics = Object.fromEntries(Object.entries(last ?? {}).filter(([, v]) => scalaire(v)));
   // Les octets passés sur le réseau depuis la préparation, par sorte de fichier : ce que le
   // chargement et la série ont vraiment coûté au serveur, images et niveaux de texture compris.
-  const network = {};
-  for (const entry of performance.getEntriesByType('resource').slice(resourcesBefore)) {
-    const extension = entry.name.split('?')[0].match(/\.([a-z0-9]+)$/i);
-    const kind = (extension ? extension[1] : 'autre').toLowerCase();
-    network[kind] = (network[kind] ?? 0) + (entry.transferSize || entry.encodedBodySize || 0);
-  }
+  const network = mesure.reseauDepuis(resourcesBefore);
   const size = { width: canvas.width, height: canvas.height };
   explorer.dispose();
   canvas.remove();

@@ -14,6 +14,11 @@ export default {
     'scripts/mesure/pageCoupe.mjs',
     'scripts/mesure/pageTemoin.mjs',
     'scripts/mesure/pageExplorateur.mjs',
+    'scripts/mesure/pageEclairage.mjs',
+    'scripts/mesure/pageThreeNu.mjs',
+    // La campagne complète et son rapport, lancés à la main.
+    'scripts/mesure/campagne.mjs',
+    'scripts/mesure/rapportGlobal.mjs',
     'scripts/mesure/oracle.mjs',
     'scripts/mesure/fixtureLampes.mjs',
     'packages/*/bench/*.perf.mjs',
@@ -32,8 +37,9 @@ export default {
   paths: {
     '/packages/sdk-browser/*': ['packages/sdk-browser/*'],
   },
-  // `scripts/build-wasm.mjs` interroge la chaîne Rust installée par rustup, pas un paquet npm.
-  ignoreBinaries: ['rustc'],
+  // `scripts/build-wasm.mjs` interroge la chaîne Rust installée par rustup, pas un paquet npm ;
+  // `sips` est l'outil d'image de macOS, que le rapport global appelle pour ses JPEG.
+  ignoreBinaries: ['rustc', 'sips'],
   // These specifiers are Vite/Render Tech Lab runtime URLs, not local Node modules.
   ignoreUnresolved: [
     '/.vite/deps/three.js',

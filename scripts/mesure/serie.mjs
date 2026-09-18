@@ -3,7 +3,6 @@ import { createHash } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pngFromRgba } from './serveur.mjs';
-import { measureView } from './page.mjs';
 import { distribution, machineLoad } from './rapport.mjs';
 import { passesGpu } from './seriePasses.mjs';
 
@@ -25,6 +24,9 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     // lit pas le magasin de lampes, l'hôte lui pose donc les mêmes lampes en Three.
     modulesUrl: '/mesure/',
     temoin: ENGINE.three === true,
+    // La page de mesure du moteur, et la source qu'elle charge quand ce n'est pas le cache.
+    page: ENGINE.page,
+    gltfUrl: side.sourceUrl ?? null,
     pose,
     poses,
     captureFile,
@@ -50,7 +52,7 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     shadowPages: settings.shadowPages,
     shadowDigest: settings.shadowDigest,
     // Les textures lues dans le cache : seulement pour un moteur qui lit l'atlas, jamais le témoin.
-    textureSource: ENGINE.id === 'three-webgl-reference' ? 'host' : settings.textureSource,
+    textureSource: settings.textureSource,
     temporalAntialiasing: settings.temporalAntialiasing,
     mathPath: settings.mathPath === 'auto' ? null : settings.mathPath,
     movingNode: settings.movingNode,
@@ -72,6 +74,9 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     cpuSelectMs: distribution(result.cpuSelectMs),
     moteur: ENGINE.id,
     gpuFrameMs: ENGINE.id === 'webgpu-page-raster' ? distribution(result.gpuFrameMs) : null,
+    // Temps mur d'une image synchronisée — rendu puis attente de la carte — quand la page le relève.
+    imageSyncMs: result.syncFrameMs?.length ? distribution(result.syncFrameMs) : null,
+    rafIntervalMs: result.rafIntervalMs?.length ? distribution(result.rafIntervalMs) : null,
     // Découpage par étape publié par le moteur : p50/p95, processeur et carte graphique séparés.
     profilParEtape: result.stageProfile ?? null,
     // Chaque passe de la carte et les blocs qu'un profil publié sait nommer, p50/p95 sur les
@@ -169,7 +174,10 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
  */
 async function runInPage(page, payload) {
   try {
-    return await page.evaluate(measureView, payload);
+    return await page.evaluate(
+      async (o) => (await import(`${o.modulesUrl}${o.page}`)).measureView(o),
+      payload,
+    );
   } catch (error) {
     const incidents = await page.evaluate(() => globalThis.incidentsGpu ?? []).catch(() => []);
     if (!incidents.length) throw error;
