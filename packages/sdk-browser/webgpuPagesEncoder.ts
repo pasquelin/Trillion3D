@@ -44,6 +44,8 @@ export function submitColorCopy(
     run.gpuDrawCalls++;
   }
   const owned = encoder === timing.frameEncoder;
+  // Le retour d'image des textures part avec l'image : copié vers sa lecture, puis remis à zéro.
+  if (!capture.secondaryCamera) rt.vis.textures?.feedback.encode(encoder);
   // La soumission est chronométrée seule : l'encodage qui la précède ne la porte plus.
   const submitStart = performance.now();
   const command = encoder.finish();
@@ -51,6 +53,7 @@ export function submitColorCopy(
   timing.lastQueueSubmitMs = performance.now() - submitStart;
   // Les compteurs d'une image relevée ne se mappent qu'une fois l'image qui les a copiés soumise.
   rt.vis.gpuPartition?.countsSubmitted();
+  if (!capture.secondaryCamera) rt.vis.textures?.feedback.submitted();
   // Idem pour les compteurs de l'ombre lointaine : leur copie ne se mappe qu'une fois soumise.
   rt.sunFar.gpu?.submitted();
   run.imageRevision++;

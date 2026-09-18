@@ -18,7 +18,7 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 /** Renders one image: refreshes the scene inputs a row depends on, then hands the frame to the GPU
  *  cut when it is available and to the CPU reference cut otherwise. */
 export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
-  const { run, gpu, vis, capture, context, diag, blendState } = rt,
+  const { run, gpu, vis, capture, context, blendState } = rt,
     { gpuDevice, source } = rt.setup,
     { selectionRoots, worldUpdates, rows } = rt.layout;
   if (capture.secondaryCamera && !capture.surfaceRenderAllowed)
@@ -47,11 +47,8 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
   // qui n'y passe pas — coupe processeur, capture de surface, image en attente — refait tout.
   run.cutHeld = false;
   setWindingEpoch(rows.tableEpoch);
-  try {
-    rt.texturePump.pump();
-  } catch (error) {
-    diag.diagnosticFailure('progressive-texture-mips-failed', error);
-  }
+  // Ce que le retour d'image de l'image précédente a demandé devient résident, sous le budget.
+  vis.textures?.pump(run.frame);
   // Une matrice monde est fonction de la seule scène : une image que rien n'a touchée les
   // retrouverait toutes à l'identique. L'index du moteur n'est donc recalculé qu'à un changement de
   // révision de scène, et un nœud que `setWebgpuTransform` vient de déplacer l'a déjà recalculé.
@@ -105,6 +102,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
   run.blendSubmittedTriangles = 0;
   run.blendDrawCalls = 0;
   run.frame++;
+  run.blendFeedbackWritten = false;
   run.gpuFrameActive = false;
   run.hizPyramidFresh = false;
   run.gpuMetricsReady = false;

@@ -36,7 +36,7 @@ test('trace failure diagnostics retain bounded stack and cause context', async (
   }
 });
 
-test('texture uploads obey the per-frame source-byte budget, and a flush settles the whole queue', async () => {
+test('les queues des textures sont épinglées à la préparation, et une texture qui tient dans sa queue ne diffuse rien', async () => {
   installGpuGlobals();
   const { device } = mockGpu();
   const fixture = quadScene();
@@ -59,17 +59,23 @@ test('texture uploads obey the per-frame source-byte budget, and a flush settles
     maxTextureTransferBytesPerFrame: 16,
   });
   try {
-    // La préparation ne transfère aucune pleine résolution : tant qu'aucune caméra n'a dicté d'ordre,
-    // le budget d'une image ne part pas dans l'ordre de l'atlas. Une image en dépense une couche.
+    // Trois queues par atlas — le texel de remplissage et deux textures —, posées avant toute
+    // image : ce que l'écran montre tant qu'aucune tuile n'est demandée.
     await backend.prepare();
-    assert.equal(backend.metrics().textureUploaded, 0);
-    assert.equal(backend.metrics().texturePending, 4);
-    // The readiness barrier drains the rest, so two renders of one camera cannot differ because a
-    // material layer landed between them.
+    const prepared = backend.metrics();
+    assert.equal(prepared.textureTilesResident, 6);
+    assert.equal(prepared.textureTilesServed, 0);
+    assert.equal(prepared.textureTilesPending, 0);
+    assert.equal(prepared.texturePoolLayers, 4, '512 Mio, deux atlas, des couches de 63,5 Mio');
+    // Une texture de 2×2 tient dans sa queue : aucune tuile diffusée à demander, la barrière
+    // converge sans rien copier, et le pool ne bouge pas.
     backend.render(camera());
     await backend.flush();
-    assert.equal(backend.metrics().texturePending, 0);
-    assert.equal(backend.metrics().textureUploaded, 4);
+    const settled = backend.metrics();
+    assert.equal(settled.textureTilesResident, 6);
+    assert.equal(settled.textureTilesServed, 0);
+    assert.equal(settled.textureTilesPending, 0);
+    assert.equal(settled.textureTilesRefused, 0);
   } finally {
     backend.dispose();
     fixture.geometry.dispose();
@@ -121,16 +127,20 @@ test('vis draws instance each packed page from the page table', async () => {
   fixture.material.dispose();
 });
 
-test('webgpu map atlas is a Chrome copyExternalImageToTexture destination', async () => {
+test('les pools de textures sont des destinations de copie, alloués une fois à la taille du budget', async () => {
   installGpuGlobals();
   const { device, textures } = mockGpu();
   const { fixture, backend } = quadBackend(device);
   await backend.prepare();
-  const atlas = textures.find((texture) => texture.depthOrArrayLayers > 1);
-  assert.ok(atlas);
+  const pools = textures.filter((texture) => texture.width === 4080 && texture.height === 4080);
+  assert.equal(pools.length, 2, 'un pool couleur, un pool de données');
   const need =
     GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT;
-  assert.equal((atlas.usage ?? 0) & need, need);
+  for (const pool of pools) {
+    assert.equal((pool.usage ?? 0) & need, need);
+    assert.equal(pool.depthOrArrayLayers, 4);
+  }
+  assert.deepEqual(pools.map((pool) => pool.format).sort(), ['rgba8unorm', 'rgba8unorm-srgb']);
   backend.dispose();
   fixture.geometry.dispose();
   fixture.material.dispose();

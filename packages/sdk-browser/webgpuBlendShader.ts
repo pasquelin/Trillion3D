@@ -3,13 +3,15 @@ import { bounceApplyWgsl } from './bounceApplyWgsl.ts';
 import { STANDARD_LIGHTING_WGSL, NORMAL_TRANSFORM_WGSL } from './standardLighting.ts';
 import { TRIANGLE_PALETTE_WGSL } from './trianglePalette.ts';
 import {
-  ATLAS_SLOTS_WGSL,
   COLOR_SAMPLE_WGSL,
   DATA_SAMPLE_WGSL,
-  atlasTextures,
-} from './webgpuAtlasWgsl.ts';
+  TILE_POOL_WGSL,
+  tileDeclarations,
+} from './webgpuTileWgsl.ts';
+import { TILE_REQUEST_WGSL } from './webgpuTileRequestWgsl.ts';
 import { BLEND_BINDINGS } from './webgpuBindLayout.ts';
 import { BLEND_ITEM_WGSL } from './webgpuBlendItems.ts';
+import { BLEND_REQUEST_WGSL } from './webgpuBlendRequestWgsl.ts';
 import { FLAG_PAGED, FLAG_TRANSMISSIVE, FLAG_UNLIT_VIEW } from './visibilityBuffer.ts';
 import { WRAP_MAP } from './visibilityWrapModes.ts';
 import { TRANSMISSION_WGSL } from './webgpuTransmissionWgsl.ts';
@@ -21,18 +23,17 @@ import { TRANSMISSION_WGSL } from './webgpuTransmissionWgsl.ts';
  * fiche de l'item, lue dans un tampon de stockage au rang que l'indice de sommet porte. Rien n'est
  * lie par appel, et l'ordre des appels est celui de la scene.
  */
-export const BLEND_SHADER = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,}
+export const BLEND_SHADER = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pad0:u32,pad1:u32,pad2:u32,}
 ${BLEND_ITEM_WGSL}
 @group(0) @binding(${BLEND_BINDINGS.indices}) var<storage, read> indices:array<u32>;
 @group(0) @binding(${BLEND_BINDINGS.positions}) var<storage, read> positions:array<f32>;
 @group(0) @binding(${BLEND_BINDINGS.uvs}) var<storage, read> uvs:array<f32>;
 @group(0) @binding(${BLEND_BINDINGS.uniform}) var<uniform> uni:BlendView;
 @group(0) @binding(${BLEND_BINDINGS.items}) var<storage,read> items:array<BlendItem>;
-${atlasTextures(BLEND_BINDINGS.maps, 'maps')}
+${tileDeclarations(BLEND_BINDINGS.color, 'color')}
 @group(0) @binding(${BLEND_BINDINGS.sampler}) var mapsSampler:sampler;
-${atlasTextures(BLEND_BINDINGS.dataMaps, 'dataMaps')}
+${tileDeclarations(BLEND_BINDINGS.data, 'data')}
 @group(0) @binding(${BLEND_BINDINGS.normals}) var<storage,read> normals:array<f32>;
-@group(0) @binding(${BLEND_BINDINGS.scales}) var<storage,read> scales:array<vec4f>;
 ${STANDARD_LIGHTING_WGSL}
 ${declaredLightingWgsl(BLEND_BINDINGS.proxy)}
 ${bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes)}
@@ -41,20 +42,23 @@ ${bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes)}
 @group(0) @binding(${BLEND_BINDINGS.shadowAtlas}) var shadowAtlas:texture_depth_2d;
 @group(0) @binding(${BLEND_BINDINGS.shadowSampler}) var shadowSampler:sampler_comparison;
 @group(0) @binding(${BLEND_BINDINGS.clusterDiagnostic}) var<storage,read> clusterDiagnostic:array<u32>;
-@group(0) @binding(${BLEND_BINDINGS.colorSlots}) var<storage,read> colorSlots:array<vec2u>;
-@group(0) @binding(${BLEND_BINDINGS.dataSlots}) var<storage,read> dataSlots:array<vec2u>;
 @group(0) @binding(${BLEND_BINDINGS.planInstances}) var<storage,read> planInstances:array<vec2u>;
 @group(0) @binding(${BLEND_BINDINGS.clusterSpans}) var<storage,read> clusterSpans:array<vec2u>;
 @group(0) @binding(${BLEND_BINDINGS.tileLights}) var<storage,read> tileLights:array<u32>;
 ${TRANSMISSION_WGSL}
-${ATLAS_SLOTS_WGSL}
+${TILE_POOL_WGSL}
 ${COLOR_SAMPLE_WGSL}
 ${DATA_SAMPLE_WGSL}
+${TILE_REQUEST_WGSL}
+// La couleur mêlée, et le rang de tuile que ce pixel demande aux textures virtuelles, posé dans sa
+// propre cible : l'étage de fragments n'écrit rien en mémoire, il garde son rejet anticipé.
+struct BlendOut{@location(0) color:vec4f,@location(1) request:u32,}
+${BLEND_REQUEST_WGSL}
 ${NORMAL_TRANSFORM_WGSL}
 // Ce que l'étage de sommets lit sur la fiche de l'item et que l'étage de fragments relit tel quel :
 // les six cartes, leurs facteurs et les drapeaux. Ils sont constants sur l'appel, donc PLATS — le
 // fragment lit les mêmes bits qu'il lisait dans l'uniforme par item, sans liaison par appel.
-struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec3f,@location(4) tangent:vec3f,@location(5) bitangent:vec3f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,@location(9) @interpolate(flat) ids:vec4u,@location(10) @interpolate(flat) maps:vec4u,@location(11) @interpolate(flat) uvA:vec4f,@location(12) @interpolate(flat) pbr:vec4f,@location(13) @interpolate(flat) emissive:vec4f,}
+struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec3f,@location(4) tangent:vec3f,@location(5) bitangent:vec3f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,@location(9) @interpolate(flat) ids:vec4u,@location(10) @interpolate(flat) maps:vec4u,@location(11) @interpolate(flat) alphaAo:vec2f,@location(12) @interpolate(flat) pbr:vec4f,@location(13) @interpolate(flat) emissive:vec4f,}
 ${TRIANGLE_PALETTE_WGSL}
 // Une instance dessine une grappe paginee que la compaction a gardee, ou un morceau d'indices d'une
 // primitive qui ne l'est pas. La liste que l'etalement du plan a ecrite dit, pour chacune, l'item
@@ -74,7 +78,7 @@ ${TRIANGLE_PALETTE_WGSL}
  out.color=it.color;
  out.ids=vec4u(it.mapIndex,flags,it.emissiveIndex,it.wrapModes);
  out.maps=vec4u(it.roughIndex,it.metalIndex,it.normalIndex,it.aoIndex);
- out.uvA=vec4f(it.uvScale,it.alphaTest,it.aoIntensity);
+ out.alphaAo=vec2f(it.alphaTest,it.aoIntensity);
  out.pbr=vec4f(it.roughness,it.metalness,it.normalScale);
  out.emissive=vec4f(it.emissive.xyz,0.0);
  var base=slot.y;
@@ -112,10 +116,13 @@ ${TRIANGLE_PALETTE_WGSL}
  let i=id*2u;out.uv=vec2f(uvs[i],uvs[i+1u]);
  return out;
 }
-@fragment fn fs(in:VSOut,@builtin(front_facing) front:bool)->@location(0) vec4f{
+@fragment fn fs(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{
  let flags=in.ids.y;
  let wrap=in.ids.w;
  let gradX=dpdx(in.uv);let gradY=dpdy(in.uv);
+ // Seuls les pixels de la phase sont lus par la réduction : les autres ne calculent rien.
+ var request=0u;
+ if(feedbackPhase(in.position.xy,uni.feedback)){request=blendRequest(in,wrap,gradX,gradY);}
  let q0=dpdx(in.view);let q1=dpdy(in.view);
  // uniteOuZero rend normalize partout ou le vecteur n'est pas nul : memes bits qu'avant sur une
  // surface ordinaire, vecteur nul — et non NaN — sur une face effondree, dont un NaN gagnerait les
@@ -132,13 +139,13 @@ ${TRIANGLE_PALETTE_WGSL}
   N=uniteOuZero(in.normal);
   if((flags&2u)!=0u){N*=face;}
  }
- let sample=colorSample(in.ids.x,in.uvA.xy,in.uv,wrapOf(wrap,${WRAP_MAP.base}u),gradX,gradY);
+ let sample=colorSample(in.ids.x,in.uv,wrapOf(wrap,${WRAP_MAP.base}u),gradX,gradY);
  let alpha=sample.w*in.color.w;
  // \`fwidth\` exige un flot de contrôle uniforme : les drapeaux viennent de la fiche par item, donc
  // la dérivée est prise avant toute condition qui en dépend et n'est lue que par la vue « fil de fer ».
  let width=fwidth(in.bary);
  if((flags&0x40000000u)!=0u){
-  if(alpha<=0.01||alpha<in.uvA.z){discard;}
+  if(alpha<=0.01||alpha<in.alphaAo.x){discard;}
   var color=vec3f(0.204,0.827,0.6);
   if((flags&0x20000000u)!=0u){
    let edge=1.0-min(min(smoothstep(0.0,width.x*1.2,in.bary.x),smoothstep(0.0,width.y*1.2,in.bary.y)),smoothstep(0.0,width.z*1.2,in.bary.z));
@@ -146,18 +153,18 @@ ${TRIANGLE_PALETTE_WGSL}
   }else if((flags&0x10000000u)!=0u){color=select(vec3f(0.5,0.55,0.6),hashColor(in.diagId&0x00ffffffu),in.diagId!=0u);}
   else if((flags&0x08000000u)!=0u){color=select(vec3f(0.04,0.51,0.94),vec3f(0.95,0.42,0.05),(in.diagId&0x80000000u)!=0u);}
   else if((flags&0x04000000u)!=0u){let ratio=f32((in.diagId>>24u)&127u)/127.0;color=vec3f(ratio,1.0-ratio,0.12);}
-  return vec4f(color,1.0);
+  return BlendOut(vec4f(color,1.0),request);
  }
  var rgb=in.color.xyz*sample.xyz;
  // La teinte du materiau avant tout eclairage : c'est elle qui colore le fond qu'une surface
  // transmissive laisse voir, jamais la couleur deja eclairee.
  let baseTint=rgb;
  var rough=in.pbr.x;var metal=in.pbr.y;var ao=1.0;
- if(in.maps.x!=0u){rough*=dataSample(in.maps.x,scales[in.maps.x].xy,in.uv,wrapOf(wrap,${WRAP_MAP.rough}u),gradX,gradY).g;}
- if(in.maps.y!=0u){metal*=dataSample(in.maps.y,scales[in.maps.y].xy,in.uv,wrapOf(wrap,${WRAP_MAP.metal}u),gradX,gradY).b;}
- if(in.maps.w!=0u){ao+=in.uvA.w*(dataSample(in.maps.w,scales[in.maps.w].xy,in.uv,wrapOf(wrap,${WRAP_MAP.ao}u),gradX,gradY).r-1.0);}
+ if(in.maps.x!=0u){rough*=dataSample(in.maps.x,in.uv,wrapOf(wrap,${WRAP_MAP.rough}u),gradX,gradY).g;}
+ if(in.maps.y!=0u){metal*=dataSample(in.maps.y,in.uv,wrapOf(wrap,${WRAP_MAP.metal}u),gradX,gradY).b;}
+ if(in.maps.w!=0u){ao+=in.alphaAo.y*(dataSample(in.maps.w,in.uv,wrapOf(wrap,${WRAP_MAP.ao}u),gradX,gradY).r-1.0);}
  if(in.maps.z!=0u){
-  let mapN=dataSample(in.maps.z,scales[in.maps.z].xy,in.uv,wrapOf(wrap,${WRAP_MAP.normal}u),gradX,gradY).xyz*2.0-vec3f(1.0);
+  let mapN=dataSample(in.maps.z,in.uv,wrapOf(wrap,${WRAP_MAP.normal}u),gradX,gradY).xyz*2.0-vec3f(1.0);
   var T=-(cross(q1,N)*gradX.x+cross(N,q0)*gradY.x);
   var B=-(cross(q1,N)*gradX.y+cross(N,q0)*gradY.y);
   if((flags&2048u)!=0u){T=uniteOuZero(in.tangent);B=uniteOuZero(in.bitangent);}
@@ -166,8 +173,8 @@ ${TRIANGLE_PALETTE_WGSL}
   N=uniteOuZero(T*tbnScale*mapN.x*in.pbr.z+B*tbnScale*mapN.y*in.pbr.w+N*mapN.z);
  }
  var emissive=in.emissive.xyz;
- if(in.ids.z!=0u){emissive*=colorSample(in.ids.z,scales[in.ids.z].zw,in.uv,wrapOf(wrap,${WRAP_MAP.emissive}u),gradX,gradY).rgb;}
- if(alpha<in.uvA.z){discard;}
+ if(in.ids.z!=0u){emissive*=colorSample(in.ids.z,in.uv,wrapOf(wrap,${WRAP_MAP.emissive}u),gradX,gradY).rgb;}
+ if(alpha<in.alphaAo.x){discard;}
  // Aucune lampe declaree, ou vue sans eclairage demandee : l'albedo brut, exactement comme la
  // resolution opaque. Ni ambiance, ni ciel, ni soleil par defaut (P6).
  let unlit=(flags&${FLAG_UNLIT_VIEW}u)!=0u;
@@ -181,8 +188,8 @@ ${TRIANGLE_PALETTE_WGSL}
  // et cette passe est la seule a le porter : une vue sans eclairage transmet toujours ce qu'elle
  // voit derriere, elle ne l'eclaire simplement pas.
  if((flags&${FLAG_TRANSMISSIVE}u)!=0u){
-  return transmissionColor(rgb,baseTint,alpha,N,V,in.view,in.position.xy,in.position.z,clamped,ao,unlit);
+  return BlendOut(transmissionColor(rgb,baseTint,alpha,N,V,in.view,in.position.xy,in.position.z,clamped,ao,unlit),request);
  }
- return vec4f(rgb,alpha);
+ return BlendOut(vec4f(rgb,alpha),request);
 }
 `;

@@ -10,7 +10,7 @@ test('surface budgets reject invalid dimensions, device limits and excess alloca
   assert.equal(checkSurfaceSize(device, 100, 100, 280000), 280000);
   assert.equal(
     frameTargetBytes(3, 3, true),
-    9 * 48 + 9 * 4 + (9 + 4 + 1) * 8,
+    9 * 52 + 9 * 4 + (9 + 4 + 1) * 8,
     'odd Hi-Z levels must reserve ceil dimensions',
   );
 });

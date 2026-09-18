@@ -163,7 +163,7 @@ export function isTransmissive(material: THREE.Material | THREE.Material[]) {
   return visMaterial(material).transmission > 0;
 }
 
-type TextureRgba = { data: Uint8Array; width: number; height: number };
+export type TextureRgba = { data: Uint8Array; width: number; height: number };
 /**
  * Les octets d'une texture, gardés tant qu'elle montre la même image. Le rastériseur et l'échantillon
  * appellent ceci par texel lu : sans mémoire, chaque texel allouait une vue `Uint8Array` et un objet.

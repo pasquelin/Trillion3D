@@ -50,22 +50,24 @@ function recordStages(rt: WebgpuPagesRuntime) {
   if (!stages) return;
   stages.frameCpu((add) => {
     addCpuSteps(CPU.stages, timing.cpuProfile.row, add);
-    // L'ordre des textures est calculé dans la pompe, hors de la ligne des bornes processeur : il se
-    // dépose ici, et seulement tant que la file porte du travail. Une file vide n'a pas coûté zéro,
-    // elle n'a rien fait du tout — l'étape reste « non mesuré ».
-    if (rt.vis.textureJobs.length) add('textures', rt.texturePriority.lastMs);
+    // La passe du diffuseur de tuiles, hors de la ligne des bornes processeur : elle se dépose ici,
+    // et seulement quand un retour d'image lui a donné du travail. Sans retour, elle n'a pas coûté
+    // zéro, elle n'a rien fait du tout — l'étape reste « non mesuré ».
+    const tiles = rt.vis.textures?.counters;
+    if (tiles?.worked) add('textures', tiles.lastMs);
   });
-  const demand = rt.texturePriority.counters;
-  stages.setCounts('textures', {
-    couchesAuNiveauVoulu: demand.atWanted,
-    couchesVisibles: demand.visible,
-    niveauxManquants: Math.round(demand.missingAverage * 100),
-    octetsEngages: rt.textureLedger.committed,
-    evictions: rt.textureLedger.evictions,
-  });
-  if (!rt.vis.textureJobs.length)
+  const tiles = rt.vis.textures?.counters;
+  if (tiles)
+    stages.setCounts('textures', {
+      tuilesDemandees: tiles.requested,
+      tuilesAuNiveau: tiles.atLevel,
+      niveauxManquants: Math.round(tiles.missingAverage * 100),
+      tuilesServies: tiles.served,
+      tuilesEnAttente: tiles.pending,
+    });
+  if (!tiles?.worked)
     stages.setReason('textures', {
-      cpu: 'file vide : aucun ordre à calculer',
+      cpu: 'aucun retour d’image : aucune tuile à servir',
       gpu: 'les transferts passent par la file de la carte, sans passe horodatée',
     });
   // Ce que la passe d'ombres a réellement redessiné : des compteurs, jamais des durées. Les six

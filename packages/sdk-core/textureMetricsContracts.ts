@@ -1,63 +1,52 @@
 /**
- * Ce que la pompe de textures, les atlas et la résidence des mips publient sur une image.
+ * Ce que les textures virtuelles publient sur une image : le pool, les tuiles, le retour d'image.
  *
  * Ces champs vivent à part de `FrameMetrics` parce qu'ils décrivent une autre file que l'image :
- * le transfert découpé des textures avance à son rythme, borné par octets et par image, et les
- * atlas sont dimensionnés une fois. Tous facultatifs : un moteur sans textures les laisse absents,
- * `null` dit « non mesuré », jamais une estimation.
+ * les tuiles arrivent à leur rythme, bornées par octets et par image, et le pool est dimensionné
+ * une fois. Tous facultatifs : un moteur sans textures les laisse absents, `null` dit « non
+ * mesuré », jamais une estimation.
  */
 export interface TextureFrameMetrics {
   /**
-   * Le transfert découpé des textures source vers les atlas, compté par la pompe elle-même. Champs
-   * facultatifs ajoutés après coup : un lecteur plus ancien les ignore, un moteur qui ne découpe pas
-   * ses transferts les laisse absents, et `null` dit « non mesuré », jamais une estimation.
-   *
-   * `textureUploaded` : textures transférées en entier, dernière tranche comprise.
-   * `texturePending` : textures encore en file, entamées ou intactes.
-   * `textureInFlight` : textures dont une tranche au moins est passée et qui en attendent d'autres.
-   * `textureSlicesUploaded` : tranches réellement transférées depuis le début de la session.
-   * `textureBytesLastFrame` : octets admis par la dernière passe de la pompe. Le budget
-   * `maxTextureTransferBytesPerFrame` le borne à une ligne de texture près : la ligne est l'unité
-   * indivisible d'une tranche et la première ligne d'une image passe même si elle dépasse à elle
-   * seule le budget, sans quoi une texture plus large que le budget n'avancerait jamais.
-   * `textureSkipped` : niveaux sortis de la file après trois refus de transfert de l'appareil.
-   * Une texture trop grosse pour le budget d'une image n'y est jamais comptée : elle est découpée.
-   * `textureLevelsUploaded` : niveaux progressifs transférés en entier, ceux que le sidecar porte
-   * entre l'aperçu le plus grossier et la pleine résolution.
+   * Le pool physique, fixe pour la session : ses octets — CALCULÉS depuis ses dimensions et son
+   * format, WebGPU ne publiant pas la mémoire occupée —, ses couches par atlas, et ce qu'il porte.
+   * `texturePoolBytes` ne dépend pas de la scène ; `textureResidentBytes` en est la part occupée,
+   * queues épinglées comprises.
    */
-  textureUploaded?: number | null;
-  texturePending?: number | null;
-  textureInFlight?: number | null;
-  textureSlicesUploaded?: number | null;
-  textureBytesLastFrame?: number | null;
-  textureSkipped?: number | null;
-  textureLevelsUploaded?: number | null;
-  /**
-   * Les octets que les atlas de matériaux occupent en mémoire graphique, **calculés** depuis les
-   * dimensions, le nombre de couches, la chaîne de mips et le format de chaque classe allouée — ce
-   * ne sont pas des octets mesurés sur l'appareil, que WebGPU ne publie pas. `vramBytes` reste
-   * `null` tant que rien ne le mesure vraiment.
-   *
-   * `textureAtlasBytesCalculated` : total des deux atlas. `textureAtlasClassBytesCalculated` : le
-   * détail par classe, atlas couleur d'abord puis atlas de données. `textureAtlasClassesUsed` :
-   * classes réellement peuplées, une seule valant l'allocation à la taille maximale.
-   */
-  textureAtlasBytesCalculated?: number | null;
-  textureAtlasClassBytesCalculated?: number[] | null;
-  textureAtlasClassesUsed?: number | null;
-  /**
-   * Ce que l'écran demande des textures et ce que la session engage pour le servir.
-   * `textureResidentBytes` : octets engagés sur la carte, niveaux achevés et lignes déjà écrites.
-   * `textureBudgetBytes` : la borne posée par l'hôte ou tirée des limites de l'appareil.
-   * `textureAtWantedLevel` sur `textureLayers` : couches dont le niveau de mip que l'écran réclame
-   * est résident, sur le nombre de couches de la scène. `textureMissingLevels` : niveaux manquants
-   * en moyenne sur les couches visibles. `textureEvictions` : transferts en cours défaits pour
-   * laisser passer plus utile ; aucun niveau achevé n'est jamais défait.
-   */
+  texturePoolBytes?: number | null;
+  texturePoolLayers?: number | null;
+  textureTilesResident?: number | null;
   textureResidentBytes?: number | null;
-  textureBudgetBytes?: number | null;
-  textureAtWantedLevel?: number | null;
-  textureLayers?: number | null;
+  /**
+   * Le retour d'image : ce que les pixels ont demandé au dernier relevé. `textureTilesRequested` :
+   * tuiles distinctes nommées ; `textureTilesAtLevel` : celles servies au niveau même que le pixel
+   * appelle ; `textureMissingLevels` : niveaux de retard en moyenne sur les tuiles demandées — zéro
+   * quand l'image est celle que le pool peut donner de mieux ; `textureTilesPending` : demandées
+   * et pas encore servies à la fin de la passe.
+   */
+  textureTilesRequested?: number | null;
+  textureTilesAtLevel?: number | null;
   textureMissingLevels?: number | null;
-  textureEvictions?: number | null;
+  textureTilesPending?: number | null;
+  /**
+   * Le diffuseur, depuis le début de la session. `textureTilesServed` : tuiles copiées dans le pool.
+   * `textureTilesEvicted` : places reprises à une tuile moins regardée. `textureTilesRefused` :
+   * tuiles qu'aucune place ne pouvait accueillir, tout ce que le pool porte ayant été regardé dans
+   * l'image — le pool est trop petit pour la vue, et c'est publié, jamais compensé.
+   * `textureBytesLastFrame` : octets de tuiles admis par la dernière passe.
+   */
+  textureTilesServed?: number | null;
+  textureTilesEvicted?: number | null;
+  textureTilesRefused?: number | null;
+  textureBytesLastFrame?: number | null;
+  /**
+   * Les sources. `textureLevelReads` : niveaux cuits en lecture dans le cache. `textureLevelsDecoded`
+   * : niveaux cuits décodés depuis le début. `textureLevelCacheBytes` : octets hôte des niveaux
+   * décodés tenus pour en découper d'autres tuiles, sous un budget fixe. `textureScratchBuilds` :
+   * textures de travail bâties pour une texture sans chaîne cuite, la source entière chaque fois.
+   */
+  textureLevelReads?: number | null;
+  textureLevelsDecoded?: number | null;
+  textureLevelCacheBytes?: number | null;
+  textureScratchBuilds?: number | null;
 }

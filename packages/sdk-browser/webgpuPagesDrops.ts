@@ -138,10 +138,8 @@ export function dropVis(rt: WebgpuPagesRuntime) {
   vis.shadeUniform?.destroy();
   vis.visUniform?.destroy();
   vis.zeroFlags?.destroy();
-  vis.colorAtlas?.destroy();
-  vis.dataAtlas?.destroy();
-  vis.materialScales?.destroy();
-  vis.materialScales = undefined;
+  vis.textures?.destroy();
+  vis.textures = undefined;
   vis.visSlotGroups.fill(undefined);
   vis.rasterGroups.fill(undefined);
   vis.concatPos =
@@ -151,11 +149,7 @@ export function dropVis(rt: WebgpuPagesRuntime) {
     vis.shadeUniform =
     vis.visUniform =
     vis.zeroFlags =
-    vis.colorAtlas =
-    vis.dataAtlas =
       undefined;
-  vis.slots?.destroy();
-  vis.slots = undefined;
   rows.pageTableFloats = undefined;
   rows.pageTableInts = undefined;
   rows.rowPageIndex.fill(-1);
@@ -169,7 +163,6 @@ export function dropVis(rt: WebgpuPagesRuntime) {
   rows.packedCount = 0;
   rows.rowsChanged = true;
   capabilities.materials = UNTEXTURED_MATERIALS;
-  vis.textureJobs.length = 0;
   for (const item of VIS_FEATURES)
     if (!capabilities.unsupported.includes(item)) capabilities.unsupported.push(item);
 }

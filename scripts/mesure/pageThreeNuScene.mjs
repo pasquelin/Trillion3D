@@ -52,5 +52,5 @@ export function octets(scene) {
   }
   for (const a of tampons) geometrie += a.array.byteLength;
   for (const i of images) textures += (i.width ?? 0) * (i.height ?? 0) * BYTES_PER_TEXEL_WITH_MIPS;
-  return { geometrie, textures, geometries: geometries.size, images: images.size };
+  return { geometrie, textures, geometries: geometries.size };
 }

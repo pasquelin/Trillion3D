@@ -20,7 +20,7 @@ import { previewFirstLevel, previewLastLevel, previewLevelSize } from '../sdk-co
 export const TILE_SIZE = 128;
 export const TILE_BORDER = 4;
 export const TILE_PITCH = TILE_SIZE + 2 * TILE_BORDER;
-export const TILES_PER_ROW = 30;
+const TILES_PER_ROW = 30;
 export const POOL_LAYER_SIDE = TILES_PER_ROW * TILE_PITCH;
 export const TILES_PER_LAYER = TILES_PER_ROW * TILES_PER_ROW;
 export const TILE_BYTES = TILE_PITCH * TILE_PITCH * 4;
@@ -32,10 +32,10 @@ export const MAX_LEVELS = 16;
 export const levelSize = previewLevelSize;
 
 /** Le premier niveau de la queue : celui dont les deux côtés tiennent sous 64 texels. */
-export const tailLevel = previewFirstLevel;
+const tailLevel = previewFirstLevel;
 
 /** Le dernier niveau, celui où les deux côtés valent un texel. */
-export const lastLevel = previewLastLevel;
+const lastLevel = previewLastLevel;
 
 /** Tuiles d'un niveau diffusé, en colonnes puis en lignes. */
 export function tilesAt(width: number, height: number, level: number): [number, number] {
@@ -94,7 +94,7 @@ export function placeOf(index: number): TilePlace {
  * peut être plus grossier que celui de l'entrée quand la tuile demandée manque encore. Le bit haut
  * dit que l'entrée est servie ; zéro dit « rien de diffusé ici, lis la queue ».
  */
-export const ENTRY_SERVED = 0x80000000;
+const ENTRY_SERVED = 0x80000000;
 export const packEntry = (place: TilePlace, level: number) =>
   (ENTRY_SERVED | place.x | (place.y << 8) | (place.layer << 16) | (level << 24)) >>> 0;
 export const entryLevel = (word: number) => (word >>> 24) & 0x7f;

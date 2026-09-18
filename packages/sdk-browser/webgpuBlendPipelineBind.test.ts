@@ -44,7 +44,6 @@ function joue(items: ReturnType<typeof item>[]) {
   };
   // Les groupes de liaison sont rebâtis à la première passe, quand les ressources d'éclairage
   // entrent dans la clé : le stub en donne assez pour que la construction aboutisse.
-  const atlas = { classes: Array.from({ length: 16 }, () => ({ view: {} })) };
   // L'ordre des pipelines n'est plus décidé dans la boucle d'encodage : il est cuit dans le plan
   // statique, une entrée par face, bâtie avec la scène. On le bâtit donc ici comme la préparation.
   const blendState = Object.assign(createWebgpuBlendState(), {
@@ -66,11 +65,12 @@ function joue(items: ReturnType<typeof item>[]) {
       pipelineBlendBack: BACK,
       pipelineBlendTextured: TEXTURED,
       blendBindGroupLayout: {},
-      colorAtlas: atlas,
-      dataAtlas: atlas,
+      textures: {
+        color: { pool: { view: {} }, pages: { buffer: {} } },
+        data: { pool: { view: {} }, pages: { buffer: {} } },
+        feedback: { buffer: {} },
+      },
       mapsSampler: {},
-      materialScales: {},
-      slots: { color: {}, data: {} },
     },
     gpu: {
       hdrView: {},

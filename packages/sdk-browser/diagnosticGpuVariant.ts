@@ -66,8 +66,8 @@ export function resolveDiagnosticGpuVariant(
 /** Les deux étages de fragments de diagnostic, ajoutés au module de mélange pour ces variantes
  *  seulement : sans variante, la production compile exactement le module d'avant. */
 export const DIAGNOSTIC_BLEND_WGSL = `
-@fragment fn fsPlat()->@location(0) vec4f{return vec4f(0.5,0.5,0.5,0.5);}
-@fragment fn fsJete()->@location(0) vec4f{discard;return vec4f(0.0);}`;
+@fragment fn fsPlat()->BlendOut{return BlendOut(vec4f(0.5,0.5,0.5,0.5),0u);}
+@fragment fn fsJete()->BlendOut{discard;return BlendOut(vec4f(0.0),0u);}`;
 
 /** L'étage de fragments et le masque d'écriture d'une variante, pour la passe de mélange. */
 export function blendVariantPipeline(variant: DiagnosticGpuVariant | undefined) {

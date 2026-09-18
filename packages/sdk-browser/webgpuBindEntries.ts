@@ -1,5 +1,4 @@
-import type { WebgpuAtlas } from './webgpuAtlasCommon.ts';
-import type { WebgpuAtlasSlots } from './webgpuAtlasSlots.ts';
+import type { WebgpuTileStreamer } from './webgpuTileStreamer.ts';
 import {
   BLEND_BINDINGS,
   SHADE_BINDINGS,
@@ -7,9 +6,9 @@ import {
   VIS_BINDINGS,
 } from './webgpuBindLayout.ts';
 
-/** Ce que toute passe qui échantillonne un atlas a besoin de lier : ses classes et la table des
- *  slots, qui dit pour chaque texture sa classe, sa couche et jusqu'où ses mips sont résidents. */
-type AtlasResources = { colorAtlas: WebgpuAtlas; sampler: GPUSampler; slots: WebgpuAtlasSlots };
+/** Ce que toute passe qui échantillonne un atlas a besoin de lier : le diffuseur, qui porte le
+ *  pool et la table de pages de chaque atlas, et l'échantillonneur. */
+type AtlasResources = { textures: WebgpuTileStreamer; sampler: GPUSampler };
 
 /** Les ressources d'un groupe de la passe de visibilité : celles qui changent d'un constructeur à
  *  l'autre sont l'uniforme (son décalage de slot), les drapeaux Hi-Z et les deux tampons de slots,
@@ -35,7 +34,6 @@ export type ShadeBindResources = AtlasResources & {
   normal: GPUBuffer;
   pageTable: GPUBuffer;
   uniform: GPUBuffer;
-  dataAtlas: WebgpuAtlas;
 };
 
 /**
@@ -69,9 +67,7 @@ export type BlendBindResources = AtlasResources &
     uniformSize: number;
     /** Les fiches d'items, indexees par le rang de l'item dans la scene (`webgpuBlendItems.ts`). */
     items: GPUBuffer;
-    dataAtlas: WebgpuAtlas;
     normals: GPUBuffer;
-    scales: GPUBuffer;
     /** Identité d'un cluster transparent, une par entrée de la table de dessin. */
     clusterDiagnostic: GPUBuffer;
     /** La liste d'instances étalée par l'image, et la portée de chaque grappe dans le cache. */
@@ -99,9 +95,14 @@ export type SmallBindResources = AtlasResources & {
   selectionMask: GPUBuffer;
 };
 
-/** Une entrée de texture par classe d'atlas, aux liaisons que la disposition leur donne. */
-const atlasEntries = (bindings: readonly number[], atlas: WebgpuAtlas): GPUBindGroupEntry[] =>
-  bindings.map((binding, index) => ({ binding, resource: atlas.classes[index].view }));
+/** Les deux entrées d'un atlas : son pool et sa table de pages. */
+const atlasEntries = (
+  bindings: { pool: number; pages: number },
+  atlas: WebgpuTileStreamer['color'],
+): GPUBindGroupEntry[] => [
+  { binding: bindings.pool, resource: atlas.pool.view },
+  { binding: bindings.pages, resource: { buffer: atlas.pages.buffer } },
+];
 
 /** L'unique liste d'entrées de `visBindGroupLayout`. Ses deux constructeurs — le groupe direct et
  *  celui d'un slot indirect — passent par ici, si bien qu'une liaison ajoutée à la disposition ne
@@ -115,11 +116,10 @@ export function visBindEntries(r: VisBindResources): GPUBindGroupEntry[] {
     { binding: b.flags, resource: { buffer: r.flags } },
     { binding: b.uniform, resource: { buffer: r.uniform, offset: r.uniformOffset, size: 96 } },
     { binding: b.uv, resource: { buffer: r.uv } },
-    ...atlasEntries(b.maps, r.colorAtlas),
+    ...atlasEntries(b.color, r.textures.color),
     { binding: b.sampler, resource: r.sampler },
     { binding: b.instances, resource: { buffer: r.instances } },
     { binding: b.slotOffsets, resource: { buffer: r.slotOffsets } },
-    { binding: b.colorSlots, resource: { buffer: r.slots.color } },
   ];
 }
 
@@ -134,12 +134,11 @@ export function shadeBindEntries(r: ShadeBindResources): GPUBindGroupEntry[] {
     { binding: b.uv, resource: { buffer: r.uv } },
     { binding: b.normal, resource: { buffer: r.normal } },
     { binding: b.pageTable, resource: { buffer: r.pageTable } },
-    ...atlasEntries(b.maps, r.colorAtlas),
+    ...atlasEntries(b.color, r.textures.color),
     { binding: b.sampler, resource: r.sampler },
     { binding: b.uniform, resource: { buffer: r.uniform } },
-    ...atlasEntries(b.dataMaps, r.dataAtlas),
-    { binding: b.colorSlots, resource: { buffer: r.slots.color } },
-    { binding: b.dataSlots, resource: { buffer: r.slots.data } },
+    ...atlasEntries(b.data, r.textures.data),
+    { binding: b.feedback, resource: { buffer: r.textures.feedback.buffer } },
   ];
 }
 
@@ -152,15 +151,12 @@ export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
     { binding: b.uvs, resource: { buffer: r.uvs } },
     { binding: b.uniform, resource: { buffer: r.uniform, size: r.uniformSize } },
     { binding: b.items, resource: { buffer: r.items } },
-    ...atlasEntries(b.maps, r.colorAtlas),
+    ...atlasEntries(b.color, r.textures.color),
     { binding: b.sampler, resource: r.sampler },
-    ...atlasEntries(b.dataMaps, r.dataAtlas),
+    ...atlasEntries(b.data, r.textures.data),
     { binding: b.normals, resource: { buffer: r.normals } },
-    { binding: b.scales, resource: { buffer: r.scales } },
     { binding: b.directLights, resource: { buffer: r.directLights } },
     { binding: b.clusterDiagnostic, resource: { buffer: r.clusterDiagnostic } },
-    { binding: b.colorSlots, resource: { buffer: r.slots.color } },
-    { binding: b.dataSlots, resource: { buffer: r.slots.data } },
     { binding: b.planInstances, resource: { buffer: r.planInstances } },
     { binding: b.clusterSpans, resource: { buffer: r.clusterSpans } },
     { binding: b.shadowSlices, resource: { buffer: r.shadowSlices } },
@@ -186,10 +182,9 @@ export function smallBindEntries(r: SmallBindResources): GPUBindGroupEntry[] {
     { binding: b.hizFlags, resource: { buffer: r.hizFlags } },
     { binding: b.uniform, resource: { buffer: r.uniform, offset: 0, size: r.uniformSize } },
     { binding: b.uvs, resource: { buffer: r.uvs } },
-    ...atlasEntries(b.maps, r.colorAtlas),
+    ...atlasEntries(b.color, r.textures.color),
     { binding: b.sampler, resource: r.sampler },
     { binding: b.work, resource: { buffer: r.work } },
     { binding: b.selectionMask, resource: { buffer: r.selectionMask } },
-    { binding: b.colorSlots, resource: { buffer: r.slots.color } },
   ];
 }

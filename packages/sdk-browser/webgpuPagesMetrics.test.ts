@@ -7,7 +7,6 @@ import { createWebgpuBlendState } from './webgpuBlendState.ts';
 import { createWebgpuLightState } from './webgpuPagesStateLights.ts';
 import { referenceVertexBytes } from './bench/oracles/metriques-octets.mjs';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
-import type { TextureJob } from './webgpuAtlasJobs.ts';
 
 // Lot triangles synchrones : `drawnTriangles` est recopié tel quel depuis `run.drawnTriangles`, sans
 // la garde `pending` (`gpuFrameActive && !gpuMetricsReady`) qui masque `submittedTriangles` — il n'a
@@ -25,9 +24,6 @@ test('metricsOf publie drawnTriangles depuis run.drawnTriangles, même quand sub
     blendState: createWebgpuBlendState(),
     services: { bootstrapState: { ready: true } },
     lights: createWebgpuLightState(),
-    textureLedger: { committed: 0, budget: 0, evictions: 0 },
-    texturePriority: { counters: { atWanted: 0, visible: 0, missingAverage: 0 }, layers: 0 },
-    texturePump: { uploaded: 0, skipped: 0, inFlight: 0, slices: 0, bytesLastPass: 0 },
   } as unknown as WebgpuPagesRuntime;
 
   const metrics = metricsOf(rt);
@@ -35,34 +31,7 @@ test('metricsOf publie drawnTriangles depuis run.drawnTriangles, même quand sub
   assert.equal(metrics.submittedTriangles, null, 'témoin : la garde pending masque bien celui-ci');
 });
 
-test('textureInFlight, textureSlicesUploaded et textureBytesLastFrame reflètent exactement la pompe, texturePending la file en attente', () => {
-  const vis = createWebgpuVisState();
-  vis.textureJobs.push({} as TextureJob, {} as TextureJob);
-  const rt = {
-    run: createWebgpuRunState(),
-    gpu: { positionBuffers: new Map() },
-    vis,
-    timing: {},
-    blendState: createWebgpuBlendState(),
-    services: { bootstrapState: { ready: true } },
-    lights: createWebgpuLightState(),
-    textureLedger: { committed: 0, budget: 0, evictions: 0 },
-    texturePriority: { counters: { atWanted: 0, visible: 0, missingAverage: 0 }, layers: 0 },
-    texturePump: { uploaded: 5, skipped: 1, inFlight: 2, slices: 7, bytesLastPass: 123 },
-  } as unknown as WebgpuPagesRuntime;
-
-  const metrics = metricsOf(rt);
-  assert.equal(metrics.textureUploaded, 5);
-  assert.equal(metrics.textureSkipped, 1);
-  assert.equal(metrics.textureInFlight, 2);
-  assert.equal(metrics.textureSlicesUploaded, 7);
-  assert.equal(metrics.textureBytesLastFrame, 123);
-  assert.equal(metrics.texturePending, 2);
-});
-
-// Comportement 9 : textureLevelsUploaded reflète la pompe, et les métriques d'atlas — octets et
-// classes calculés — valent `null` tant qu'un des deux atlas n'est pas prêt.
-test('textureLevelsUploaded reflète la pompe ; les métriques d’atlas sont null sans atlas prêt', () => {
+test('les métriques de textures sont celles du diffuseur, et `null` tant qu’il n’est pas bâti', () => {
   const rt = {
     run: createWebgpuRunState(),
     gpu: { positionBuffers: new Map() },
@@ -71,47 +40,24 @@ test('textureLevelsUploaded reflète la pompe ; les métriques d’atlas sont nu
     blendState: createWebgpuBlendState(),
     services: { bootstrapState: { ready: true } },
     lights: createWebgpuLightState(),
-    textureLedger: { committed: 0, budget: 0, evictions: 0 },
-    texturePriority: { counters: { atWanted: 0, visible: 0, missingAverage: 0 }, layers: 0 },
-    texturePump: { uploaded: 0, skipped: 0, inFlight: 0, slices: 0, bytesLastPass: 0, levels: 3 },
   } as unknown as WebgpuPagesRuntime;
+  const before = metricsOf(rt) as Record<string, unknown>;
+  assert.equal(
+    'texturePoolBytes' in before,
+    false,
+    'aucun pool : rien n’est publié, pas même zéro',
+  );
+  rt.vis.textures = {
+    metrics: () => ({ texturePoolBytes: 512, textureTilesResident: 3, textureLevelReads: null }),
+  } as unknown as typeof rt.vis.textures;
   const metrics = metricsOf(rt);
-  assert.equal(metrics.textureLevelsUploaded, 3);
-  assert.equal(metrics.textureAtlasBytesCalculated, null);
-  assert.equal(metrics.textureAtlasClassBytesCalculated, null);
-  assert.equal(metrics.textureAtlasClassesUsed, null);
-});
-
-// Comportement 9 : une fois les deux atlas prêts, les octets et les classes calculées reflètent
-// exactement leurs plans — jamais mesurés, toujours la somme et la liste de leurs classes.
-test('les métriques d’atlas reflètent les octets et classes calculés une fois les deux atlas prêts', () => {
-  const vis = createWebgpuVisState();
-  vis.colorAtlas = {
-    classes: [{ bytes: 100 }, { bytes: 20 }],
-    used: 2,
-    bytes: 120,
-  } as unknown as typeof vis.colorAtlas;
-  vis.dataAtlas = {
-    classes: [{ bytes: 50 }, { bytes: 10 }],
-    used: 1,
-    bytes: 60,
-  } as unknown as typeof vis.dataAtlas;
-  const rt = {
-    run: createWebgpuRunState(),
-    gpu: { positionBuffers: new Map() },
-    vis,
-    timing: {},
-    blendState: createWebgpuBlendState(),
-    services: { bootstrapState: { ready: true } },
-    lights: createWebgpuLightState(),
-    textureLedger: { committed: 0, budget: 0, evictions: 0 },
-    texturePriority: { counters: { atWanted: 0, visible: 0, missingAverage: 0 }, layers: 0 },
-    texturePump: { uploaded: 0, skipped: 0, inFlight: 0, slices: 0, bytesLastPass: 0, levels: 0 },
-  } as unknown as WebgpuPagesRuntime;
-  const metrics = metricsOf(rt);
-  assert.equal(metrics.textureAtlasBytesCalculated, 180);
-  assert.deepEqual(metrics.textureAtlasClassBytesCalculated, [100, 20, 50, 10]);
-  assert.equal(metrics.textureAtlasClassesUsed, 2);
+  assert.equal(metrics.texturePoolBytes, 512);
+  assert.equal(metrics.textureTilesResident, 3);
+  assert.equal(
+    metrics.textureLevelReads,
+    null,
+    'sans lecteur de niveaux : non mesuré, jamais zéro',
+  );
 });
 
 // G4 : `vertexBytesOf` lit un total tenu à l'allocation (`gpu.vertexBytes`, incrémenté par
