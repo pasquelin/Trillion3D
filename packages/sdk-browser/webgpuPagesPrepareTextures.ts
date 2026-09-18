@@ -74,7 +74,7 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     device: gpuDevice,
     color,
     data,
-    layersPerAtlas: rt.setup.texturePoolLayers,
+    layersPerAtlas: rt.setup.texturePool.layers,
     budgetBytes: rt.setup.textureBudget,
     readLevel,
     onFailure: diag.diagnosticFailure,
@@ -91,7 +91,7 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     color: catalogueReport(color),
     data: catalogueReport(data),
     pool: {
-      layersPerAtlas: rt.setup.texturePoolLayers,
+      layersPerAtlas: rt.setup.texturePool.layers,
       bytes: textures.color.pool.bytes + textures.data.pool.bytes,
       layerBytes: POOL_LAYER_BYTES,
       tileBytes: TILE_BYTES,

@@ -60,6 +60,10 @@ export function createWebgpuTileStreamer(options: {
     counters,
     onFailure: options.onFailure,
   });
+  const flushAll = () => {
+    color.flush(device);
+    data.flush(device);
+  };
   /** Les tuiles que le dernier retour d'image nomme, celles qui résident touchées au passage. */
   const requests = (frame: number) => {
     const counts = feedback.take();
@@ -93,17 +97,19 @@ export function createWebgpuTileStreamer(options: {
     prepare() {
       for (const atlas of [color, data])
         atlas.pinTails(device.queue, (slot, place) => sources.tail(atlas, slot, place));
-      color.flush(device);
-      data.flush(device);
+      flushAll();
     },
     /**
      * Une passe : les tuiles demandées, servies dans l'ordre de leur poids sous le budget d'octets ;
-     * `unbounded` lève le budget. Rend ce qui a été servi et ce qui manque encore.
+     * `unbounded` lève le budget. Rend ce qui a été servi, ce qui attend encore ses octets, et ce
+     * que le pool a refusé — un refus n'est pas une attente : rien ne viendra, le niveau grossier
+     * tient, et l'image peut se poser dessus.
      */
     pump(frame: number, unbounded = false) {
       const started = performance.now();
       let served = 0,
-        missing = 0,
+        waiting = 0,
+        refused = 0,
         bytes = 0,
         colorServed = false,
         encoder: GPUCommandEncoder | undefined;
@@ -112,33 +118,32 @@ export function createWebgpuTileStreamer(options: {
       counters.worked = wanted.length > 0;
       for (const request of wanted) {
         if (!unbounded && bytes >= options.budgetBytes) {
-          missing++;
+          waiting++;
           continue;
         }
-        let done = false;
+        let verdict: ReturnType<typeof sources.serve> = 'waiting';
         try {
-          done = sources.serve(request.atlas, request.key, frame, open);
+          verdict = sources.serve(request.atlas, request.key, frame, open);
         } catch (error) {
           options.onFailure('texture-tile-failed', error);
         }
-        if (!done) {
-          missing++;
-          continue;
+        if (verdict === 'waiting') waiting++;
+        else if (verdict === 'refused') refused++;
+        else {
+          served++;
+          bytes += TILE_BYTES;
+          if (request.atlas === color) colorServed = true;
         }
-        served++;
-        bytes += TILE_BYTES;
-        if (request.atlas === color) colorServed = true;
       }
       if (encoder) device.queue.submit([encoder.finish()]);
       sources.endPass();
-      color.flush(device);
-      data.flush(device);
+      flushAll();
       counters.served += served;
-      counters.pending = missing;
+      counters.pending = waiting;
       counters.bytesLastFrame = bytes;
       counters.lastMs = performance.now() - started;
       if (colorServed) options.onColorChanged();
-      return { served, missing };
+      return { served, waiting, refused };
     },
     /** Le retour d'une image part avec elle : la cible où ses pixels ont posé leurs demandes — quand
      *  une passe l'a écrite — est réduite en compteurs pour la phase, copiés vers leur lecture puis
@@ -155,6 +160,13 @@ export function createWebgpuTileStreamer(options: {
     /** Faux sur un appareil sans étage de calcul : aucun pixel ne demande de tuile. */
     get requestReduce() {
       return reduce !== undefined;
+    },
+    /** Les deux pools changent de couches en gardant leurs tuiles ; rend les tuiles évincées. */
+    resize(layers: number) {
+      const evicted = color.resize(device, layers) + data.resize(device, layers);
+      flushAll();
+      options.onColorChanged();
+      return evicted;
     },
     metrics: () => counters.metrics([color, data], sources.levels),
     /** Vrai tant qu'un niveau cuit se lit : une tuile manquante peut encore arriver. */

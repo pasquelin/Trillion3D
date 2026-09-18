@@ -10,7 +10,8 @@ type Tracking = ReturnType<typeof createWebgpuPageTracking>;
 type QueueOptions = {
   tracking: Tracking;
   sets: WebgpuResidencySets;
-  room: number;
+  /** Les fentes que la file peut demander au-delà de la couverture racine, lues à chaque coupe. */
+  room: () => number;
   getCache: () => Cache | undefined;
   getFrame: () => number;
   updatePins: () => void;
@@ -112,7 +113,7 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
      * de charger à plein budget.
      */
     queueCutResidency(limited: boolean) {
-      sets.applyBudget(limited ? 0 : options.room);
+      sets.applyBudget(limited ? 0 : options.room());
       follow();
     },
     nextJobId: () => ++job,

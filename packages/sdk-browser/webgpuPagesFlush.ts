@@ -1,7 +1,6 @@
-import { readGpuImage, readbackBytesPerRow } from './gpuPresentation.ts';
+import { readGpuImage } from './gpuPresentation.ts';
 import { collectPendingUrls } from './pageSelection.ts';
 import { outputColorDiagnostic } from './webgpuPagesHelpers.ts';
-import { checkFrameBudget } from './webgpuPagesTargets.ts';
 import { fallbackToCpuCut } from './webgpuPagesDrops.ts';
 import { bounceState, directLightingState } from './webgpuPagesEncodeLights.ts';
 import { wantsContractLighting } from './webgpuPagesLightResources.ts';
@@ -53,12 +52,6 @@ async function readBackImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
     const revision = run.imageRevision,
       [width, height] = gpu.targetSize,
       texture = gpu.colorTexture!;
-    checkFrameBudget(
-      rt,
-      width,
-      height,
-      capture.captureAllocationBytes + readbackBytesPerRow(width) * height,
-    );
     capture.capturePending = readGpuImage(gpuDevice, texture, width, height, context.signal)
       .then((pixels) => {
         if (run.lost || revision !== run.imageRevision) return;

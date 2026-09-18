@@ -3,6 +3,8 @@ import type { BackendDiagnostic } from './backendTypes.ts';
 import { createGpuPageReader } from './gpuPageReader.ts';
 import { createGpuPageLoader } from './gpuPageLoad.ts';
 import { createGpuPagePins } from './gpuPagePins.ts';
+import { createPageBuffer, pageBufferBytes, resizeGpuPages } from './gpuPageResize.ts';
+import { evictResident } from './gpuPageCommit.ts';
 import type { ResidentPage, GpuPageContext } from './gpuPageTypes.ts';
 export type { ResidentPage } from './gpuPageTypes.ts';
 /** WebGPU allocation/queue boundary. Page bytes and policy are supplied by the host. Queue writes are ordered; dispose waits for in-flight submits before destroy. */
@@ -11,27 +13,10 @@ export function createGpuPageCache(
   source: PageSource,
   options: { pageBytes: number; slots: number; onDiagnostic?: (d: BackendDiagnostic) => void },
 ) {
-  const { pageBytes, slots } = options,
-    size = pageBytes * slots;
-  if (
-    !Number.isSafeInteger(pageBytes) ||
-    pageBytes < 4 ||
-    pageBytes % 4 ||
-    !Number.isSafeInteger(slots) ||
-    slots < 1 ||
-    size > device.limits.maxBufferSize
-  )
+  const { pageBytes, slots } = options;
+  if (!Number.isSafeInteger(pageBytes) || pageBytes < 4 || pageBytes % 4)
     throw new Error('INVALID_PAGE_BUDGET');
-  if (
-    device.limits.maxStorageBufferBindingSize !== undefined &&
-    size > device.limits.maxStorageBufferBindingSize
-  )
-    throw new Error('INVALID_PAGE_BUDGET');
-  const buffer = device.createBuffer({
-    label: 'WG geometry page cache',
-    size,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
-  });
+  const buffer = createPageBuffer(device, pageBufferBytes(device, pageBytes, slots));
   const resident = new Map<string, ResidentPage>(),
     pins = new Set<string>(),
     free = Array.from({ length: slots }, (_, i) => i),
@@ -56,7 +41,7 @@ export function createGpuPageCache(
     version: 1,
     pageBytes,
     slots,
-    allocatedBytes: size,
+    allocatedBytes: pageBytes * slots,
     source: 'host-page-source',
     drawDetached: false,
   }));
@@ -90,8 +75,26 @@ export function createGpuPageCache(
   const load = createGpuPageLoader(context);
   const pinning = createGpuPagePins(context);
   return {
-    buffer,
+    /** Le tampon du réservoir : une autre identité après `resize`, à relier de nouveau. */
+    get buffer() {
+      return context.buffer;
+    },
+    get slots() {
+      return context.slots;
+    },
     load,
+    /**
+     * Change la taille du réservoir en gardant ses pages, derrière les chargements en cours : rien
+     * ne s'écrit dans un tampon pendant qu'il est copié. Rend les clés évincées faute de place.
+     */
+    resize(slots: number) {
+      const operation = state.pending.then(() => {
+        check();
+        return resizeGpuPages(context, slots);
+      });
+      state.pending = operation.catch(() => {});
+      return operation;
+    },
     get(key: string) {
       return resident.get(key);
     },
@@ -134,25 +137,14 @@ export function createGpuPageCache(
         }));
         return false;
       }
-      resident.delete(key);
-      changeKeys.push(key);
-      changeSlots.push(-1);
+      evictResident(context, page, 'explicit-unload');
       free.push(page.slot);
-      state.evictions++;
-      emit('gpu-page-eviction', 'Page retirée de la résidence GPU', () => ({
-        version: 1,
-        key,
-        slot: page.slot,
-        generation: page.generation,
-        bytes: page.bytes,
-        reason: 'explicit-unload',
-        drawDetached: false,
-      }));
       return true;
     },
     stats() {
       return {
-        allocatedBytes: size,
+        allocatedBytes: pageBytes * context.slots,
+        slots: context.slots,
         residentPages: resident.size,
         bytesRead: state.bytesRead,
         uploadedBytes: state.uploadedBytes,
@@ -180,7 +172,7 @@ export function createGpuPageCache(
           } catch {
             /* Queue may already be lost. */
           }
-          buffer.destroy();
+          context.buffer.destroy();
         });
       return state.pending;
     },

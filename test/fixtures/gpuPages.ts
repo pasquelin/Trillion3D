@@ -1,5 +1,9 @@
+type Copy = { from: unknown; fromOffset: number; to: unknown; toOffset: number; size: number };
+
 export function mockDevice(limits: Record<string, number> = { maxBufferSize: 1024 }) {
   const writes: Array<{ offset: number; bytes: Uint8Array }> = [];
+  // Les copies de tampon à tampon d'un redimensionnement, dans l'ordre où elles sont encodées.
+  const copies: Copy[] = [];
   let fences = 0,
     destroyed = 0;
   const device = {
@@ -8,6 +12,16 @@ export function mockDevice(limits: Record<string, number> = { maxBufferSize: 102
       destroy() {
         destroyed++;
       },
+    }),
+    createCommandEncoder: () => ({
+      copyBufferToBuffer: (
+        from: unknown,
+        fromOffset: number,
+        to: unknown,
+        toOffset: number,
+        size: number,
+      ) => copies.push({ from, fromOffset, to, toOffset, size }),
+      finish: () => ({}),
     }),
     queue: {
       // `dataOffset` et `size` sont respectés : ce qui part vraiment sur la carte est ce que le
@@ -23,6 +37,7 @@ export function mockDevice(limits: Record<string, number> = { maxBufferSize: 102
           offset,
           bytes: new Uint8Array(data.buffer, data.byteOffset + dataOffset, size).slice(),
         }),
+      submit() {},
       onSubmittedWorkDone: async () => {
         fences++;
       },
@@ -31,6 +46,7 @@ export function mockDevice(limits: Record<string, number> = { maxBufferSize: 102
   return {
     device: device as unknown as GPUDevice,
     writes,
+    copies,
     fences: () => fences,
     destroyed: () => destroyed,
   };

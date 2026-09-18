@@ -14,7 +14,7 @@ export type WebgpuPagesLayout = ReturnType<typeof createWebgpuPagesLayout>;
 /** The fixed geometry of the drawing path: the packed opaque pages, the row table sized to the slot
  *  budget, and every per-row scratch array the image reuses instead of reallocating. */
 export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
-  const { roots, bootstrap, slots, pageBytes } = setup;
+  const { roots, bootstrap, cap: slots, pageBytes } = setup;
   const opaqueRoots = roots.filter((root) => !root.pages[0]?.transparent),
     transparentRoots = roots.filter((root) => root.pages[0]?.transparent);
   // One cluster catalogue for one cut: the opaque primitives first, then the transparent ones. The

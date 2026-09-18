@@ -132,14 +132,19 @@ test('webgpu page raster matches the WebGL2 exact-pages triangles', async () => 
   material.dispose();
 });
 
-test('webgpu pages refuse an incomplete surface when the visible set exceeds the slot budget', async () => {
+// Comme les pages racines de la référence, résidentes hors de son pool : un budget plus petit que
+// la couverture racine est relevé jusqu'à elle, nommément, et l'image est complète — jamais refusée.
+test('un budget sous la couverture racine est relevé jusqu’à elle, nommément, et l’image se prépare', async () => {
   installGpuGlobals();
-  const { device, draws } = mockGpu();
+  const { device } = mockGpu();
   const { fixture, backend } = quadBackend(device, {
     maxResidentPages: 1,
   });
-  await assert.rejects(backend.prepare(), /INITIAL_COVERAGE_BUDGET/);
-  assert.equal(draws.length, 0);
+  await backend.prepare();
+  const metrics = backend.metrics();
+  assert.equal(metrics.geometryPoolClamp, 'root-cover');
+  assert.ok((metrics.geometryPoolSlots ?? 0) > 1, 'les fentes tiennent la couverture racine');
+  assert.equal(metrics.coverageReady, true);
   backend.dispose();
   fixture.geometry.dispose();
   fixture.material.dispose();

@@ -27,7 +27,10 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   const baseBootstrap = bootstrap.slice();
   const byUrl = indexPagesByUrl(allPages),
     bootstrapUrls = new Set(bootstrap.map((page) => page.url));
-  const cap = context.maxResidentPages ?? Math.max(1024, bootstrapUrls.size),
+  const cap =
+      context.maxResidentPages ??
+      context.residentPagesDefault ??
+      Math.max(1024, bootstrapUrls.size),
     scene = new THREE.Scene();
   const lighting = installSceneLighting(
     scene,

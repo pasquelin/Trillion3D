@@ -33,7 +33,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
   } = context;
   const { roots, allPages, blendCopies, bootstrap, requestCount, prepared, worlds } =
     collectClusterPages(source, metadata, indices, associations);
-  const cap = maxResidentPages ?? Math.max(1024, prepared),
+  const cap = maxResidentPages ?? context.residentPagesDefault ?? Math.max(1024, prepared),
     scene = new THREE.Scene();
   const sceneLights = lighting(scene, clearColor, context.sceneLighting ?? source);
   const shown: PageRec[] = [],
