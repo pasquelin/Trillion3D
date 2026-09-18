@@ -1,16 +1,17 @@
 import { emeraldProvenance, MEASURE_WIDTH, MEASURE_HEIGHT } from '../appui/emeraldProvenance.mjs';
+import { routeBaseline } from '../appui/emeraldBaseline.mjs';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
-import { createHash } from 'node:crypto';
 const labRoot = process.env.LAB_ROOT ?? resolve('../render-tech-lab');
 const { chromium } = createRequire(resolve(labRoot, 'package.json'))('playwright');
-import { mkdir, writeFile, readFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 const out = resolve(
   'benchmark-runs/webgpu-visual',
   process.argv[2] ?? new Date().toISOString().replaceAll(':', '-'),
 );
-const provenance = await emeraldProvenance(labRoot);
+const provenance = await emeraldProvenance(labRoot),
+  taa = process.env.WEBGPU_TAA !== 'off';
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
 try {
@@ -22,33 +23,15 @@ try {
   page.on('console', (m) => {
     if (m.type() === 'error') console.error(m.text());
   });
-  if (process.env.WEBGPU_BASELINE_DIR) {
-    const ts = (await import('typescript')).default;
-    for (const file of ['webgpuPages', 'visibilityBuffer']) {
-      const source = await readFile(resolve(process.env.WEBGPU_BASELINE_DIR, file + '.ts'), 'utf8');
-      provenance.baselineOverrides.push({
-        file,
-        sha256: createHash('sha256').update(source).digest('hex'),
-      });
-      await writeFile(resolve(out, file + '.baseline.ts'), source);
-      const js = ts
-        .transpileModule(source, {
-          compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
-        })
-        .outputText.replaceAll(".ts'", ".js'")
-        .replaceAll("from 'three'", "from '/.vite/deps/three.js'");
-      await page.route('**/dist/sdk-browser/' + file + '.js*', (route) =>
-        route.fulfill({ contentType: 'application/javascript', body: js }),
-      );
-    }
-  }
+  if (process.env.WEBGPU_BASELINE_DIR)
+    await routeBaseline(page, out, provenance, process.env.WEBGPU_BASELINE_DIR);
   await page.goto(provenance.labUrl + '/?test=15-virtualized-integration');
   await page.exposeFunction('saveImage', async (name, data) => {
     await writeFile(out + '/' + name + '.png', Buffer.from(data.split(',')[1], 'base64'));
     console.log('captured', name);
   });
   const result = await page.evaluate(
-    async ({ sdkUrl, ...viewport }) => {
+    async ({ sdkUrl, temporalAntialiasing, ...viewport }) => {
       const { benchEngine } = await import('/15-virtualized-integration/implementation/engines.ts');
       const { createExplorer } = await import(sdkUrl);
       const { urbanPath, framesPerSegment } = await import('/src/lab/modelCampaign.ts');
@@ -95,6 +78,7 @@ try {
           preload: 'visible',
           backends: [benchEngine(id).factory],
           textureSource: id === 'webgpu-page-raster' ? 'cache' : 'host', // le témoin garde ses images
+          temporalAntialiasing,
 
           clearColor: 0x2a303c,
           onDiagnostic: (event) => events.push({ id, ...event }),
@@ -104,11 +88,15 @@ try {
         for (const [i, s] of path.entries()) {
           e.setPose(s.pose);
           await e.awaitPages();
-          for (let w = 0; w < 4; w++) {
-            e.render();
+          // Chauffe : un moteur qui publie `frameHeld` rend jusqu'à l'image tenue — un plein cycle
+          // avec l'accumulation temporelle, plafonné —, le témoin quatre images comme toujours.
+          let metrics = { ...e.render() };
+          for (let w = 1; w < ('frameHeld' in metrics ? 24 : 4) && !metrics.frameHeld; w++) {
             await e.flush();
+            metrics = { ...e.render() };
           }
-          const metrics = { ...e.render() };
+          await e.flush();
+          metrics = { ...e.render() };
           const pixels = read(canvas);
           await window.saveImage(id + '-' + i, canvas.toDataURL());
           const capture = e.capture();
@@ -165,7 +153,12 @@ try {
       }
       return { results, events, gpu, userAgent: navigator.userAgent };
     },
-    { sdkUrl: '/@fs' + resolve('dist/sdk-browser/index.js'), ...viewport },
+    // `WEBGPU_TAA=off` rend le « avant » du lot Lumière 16, sans gigue ni historique.
+    {
+      sdkUrl: '/@fs' + resolve('dist/sdk-browser/index.js'),
+      temporalAntialiasing: taa,
+      ...viewport,
+    },
   );
   result.provenance = provenance;
   result.errors = errors;

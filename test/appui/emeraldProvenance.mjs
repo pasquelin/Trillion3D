@@ -9,8 +9,8 @@ import { readFile } from 'node:fs/promises';
  * 2496 × 1404, la résolution interne du profil publié auquel `docs/REFERENCE_UE5.md` compare la
  * forme des passes — comparer des millisecondes prises à deux résolutions différentes ne veut rien
  * dire. Ce qu'on n'égale PAS, et qu'il ne faut pas laisser croire : eux remontent cette image en 4K
- * par leur antialiasing temporel, que nous n'avons pas (Lumière 16). C'est le rendu interne qui est
- * à la même taille, pas la sortie.
+ * par leur sur-échantillonnage temporel ; le nôtre accumule à résolution native et ne remonte rien.
+ * C'est le rendu interne qui est à la même taille, pas la sortie.
  */
 export const MEASURE_WIDTH = 2496;
 export const MEASURE_HEIGHT = 1404;
@@ -26,6 +26,10 @@ export async function emeraldProvenance(labRoot) {
     'sceneLighting.ts',
     'deferredLighting.ts',
     'gpuPresentation.ts',
+    'taaShaderWgsl.ts',
+    'taaFrame.ts',
+    'taaWeights.ts',
+    'temporalAntialiasing.ts',
   ];
   const hashes = {};
   for (const file of sourceFiles)

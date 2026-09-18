@@ -12,6 +12,7 @@ import { ensureUniform } from './webgpuPagesPipelineFor.ts';
 import { clearValueOf } from './webgpuPagesEncoder.ts';
 import { encodeDirectLights } from './webgpuPagesEncodeLights.ts';
 import { composesOffscreen } from './diagnosticGpuVariant.ts';
+import { encodeTaaPass } from './taaFrame.ts';
 import { directLightResources, wantsContractLighting } from './webgpuPagesLightResources.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import type { EngineCamera } from './cameraWorld.ts';
@@ -149,6 +150,9 @@ export function encodeSurfaceLighting(
   gpu.deferred.light(encoder, gpu.hdrView);
   run.gpuDrawCalls++;
   encodeBlend(rt, device, encoder, uniformBase);
+  // L'accumulation temporelle lit l'image éclairée et mélangée, et rend ce que la composition lit
+  // — l'image telle quelle quand cette image n'accumule pas.
+  const composed = encodeTaaPass(rt, device, encoder, cam, gpu.hdrView);
   // Diagnostic seul : la variante hors écran ne demande pas la vue de la chaîne d'échange. La passe
   // de composition reste la même, à une cible de couleur près — c'est ce qui isole la présentation.
   const presentation =
@@ -156,6 +160,6 @@ export function encodeSurfaceLighting(
       ? undefined
       : gpu.presenter?.targetView(width, height);
   run.gpuDrawCalls++;
-  gpu.deferred.compose(encoder, gpu.colorView, clearValueOf(clearColor), presentation);
+  gpu.deferred.compose(encoder, gpu.colorView, clearValueOf(clearColor), presentation, composed);
   return !!presentation;
 }

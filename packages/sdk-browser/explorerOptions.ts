@@ -53,6 +53,11 @@ export interface ExplorerOptions {
   textureBudgetBytes?: number;
   /** Atlas size classes the prepared WebGPU renderer may allocate. Defaults to 2. */
   atlasClasses?: 1 | 2;
+  /** L'antialiasing temporel du moteur WebGPU, actif par défaut comme chez la référence : chaque
+   *  image est rendue avec une gigue d'une fraction de pixel et accumulée sur les précédentes,
+   *  reprojetées. `false` rend l'image échantillonnée au centre du pixel, sans historique — c'est
+   *  le « avant » d'une comparaison, et ce que les bancs au pixel près demandent. */
+  temporalAntialiasing?: boolean;
   /** D'où viennent les texels des matériaux. `'host'`, le défaut : le chargeur glTF lit et décode
    *  chaque image source, comme toujours — c'est ce qu'un moteur qui dessine la scène de l'hôte
    *  (le témoin Three) exige. `'cache'` : une image dont la chaîne de mips est cuite dans le cache
