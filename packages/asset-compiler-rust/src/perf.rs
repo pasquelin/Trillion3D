@@ -51,6 +51,9 @@ phases! {
  coplanar=>Coplanar=>"coplanarMs",
  manifest=>Manifest=>"manifestMs",
  texture_alpha=>TextureAlpha=>"textureAlphaMs",
+ texture_decode=>TextureDecode=>"textureDecodeMs",
+ texture_bake=>TextureBake=>"textureBakeMs",
+ texture_write=>TextureWrite=>"textureWriteMs",
  cutout_scan=>CutoutScan=>"cutoutScanMs",
 }
 

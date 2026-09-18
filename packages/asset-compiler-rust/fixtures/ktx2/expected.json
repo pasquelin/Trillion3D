@@ -5,9 +5,11 @@
   },
   "case": "Trois quads, trois matériaux opaques, une texture KTX 2.0 chacun : un niveau R8G8B8A8 sRGB non compressé de 4 × 4, une charge UASTC LDR 4 × 4 de 16 × 16, et une charge ETC1S de 256 × 256 sous supercompression BasisLZ.",
   "formatVersion": 3,
-  "manifestBinaryVersion": 4,
+  "manifestBinaryVersion": 5,
   "previews": [
     {
+      "atlas": 0,
+      "bakedLevels": 0,
       "firstLevel": 0,
       "height": 4,
       "image": 0,
@@ -30,26 +32,26 @@
           "coveredAtMaskCutoff": 4,
           "level": 1,
           "samples": [
-            [59, 59, 50, 238],
-            [216, 59, 129, 204],
-            [59, 216, 129, 204],
-            [216, 216, 211, 170],
-            [216, 216, 211, 170]
+            [60, 60, 52, 238],
+            [218, 60, 130, 204],
+            [60, 218, 130, 204],
+            [218, 218, 213, 170],
+            [218, 218, 213, 170]
           ],
-          "sha256": "56224983efe7fed2d57728b075e577c10f63534722891a616fc9cb931f000b25",
+          "sha256": "1f4e8ce90f6047889e0ace1fee74d9cd40c83e451a5138a06660c3a1c6da7644",
           "size": [2, 2]
         },
         {
           "coveredAtMaskCutoff": 1,
           "level": 2,
           "samples": [
-            [157, 157, 138, 204],
-            [157, 157, 138, 204],
-            [157, 157, 138, 204],
-            [157, 157, 138, 204],
-            [157, 157, 138, 204]
+            [164, 164, 146, 204],
+            [164, 164, 146, 204],
+            [164, 164, 146, 204],
+            [164, 164, 146, 204],
+            [164, 164, 146, 204]
           ],
-          "sha256": "f8d7bc22308fb098e0ea7fca96d0f2785f416255caed7a81984aee22691645f8",
+          "sha256": "1726a183782e471b6eb66302ba38c39c825a4a1ebbb217d9cc43ea5170c739d6",
           "size": [1, 1]
         }
       ],
@@ -62,6 +64,8 @@
       "width": 4
     },
     {
+      "atlas": 0,
+      "bakedLevels": 0,
       "firstLevel": 0,
       "height": 16,
       "image": 1,
@@ -71,65 +75,65 @@
           "coveredAtMaskCutoff": 0,
           "level": 0,
           "samples": [
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0]
+            [0, 0, 30, 0],
+            [15, 0, 30, 0],
+            [0, 15, 30, 0],
+            [15, 15, 30, 0],
+            [8, 8, 30, 0]
           ],
-          "sha256": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+          "sha256": "cd3337204db01f7b868c0cd628ce5822ae88958153ccd29fc1987ea63dbfac4f",
           "size": [16, 16]
         },
         {
           "coveredAtMaskCutoff": 0,
           "level": 1,
           "samples": [
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0]
+            [0, 0, 30, 0],
+            [15, 0, 30, 0],
+            [0, 15, 30, 0],
+            [15, 15, 30, 0],
+            [8, 8, 30, 0]
           ],
-          "sha256": "5341e6b2646979a70e57653007a1f310169421ec9bdd9f1a5648f75ade005af1",
+          "sha256": "e354338d8d4389b97d56ea2ed47eb06d51e9bc755c99d0b92c628a0fd6e6752c",
           "size": [8, 8]
         },
         {
           "coveredAtMaskCutoff": 0,
           "level": 2,
           "samples": [
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0]
+            [2, 2, 30, 0],
+            [14, 2, 30, 0],
+            [2, 14, 30, 0],
+            [14, 14, 30, 0],
+            [10, 10, 30, 0]
           ],
-          "sha256": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b",
+          "sha256": "b6aa193f119e64f8a81aee9274a61b15f398b132d3268453c33e6a916bae5e29",
           "size": [4, 4]
         },
         {
           "coveredAtMaskCutoff": 0,
           "level": 3,
           "samples": [
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0]
+            [4, 4, 30, 0],
+            [12, 4, 30, 0],
+            [4, 12, 30, 0],
+            [12, 12, 30, 0],
+            [12, 12, 30, 0]
           ],
-          "sha256": "374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b25632aab28ec37bb",
+          "sha256": "9c49389b18160eba8e92f5f2b3aa40bf3cda4f61cff1b5b7a79eb52594fa0649",
           "size": [2, 2]
         },
         {
           "coveredAtMaskCutoff": 0,
           "level": 4,
           "samples": [
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0]
+            [8, 8, 30, 0],
+            [8, 8, 30, 0],
+            [8, 8, 30, 0],
+            [8, 8, 30, 0],
+            [8, 8, 30, 0]
           ],
-          "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+          "sha256": "a3ae4d54e453670cf4aeb601f1de81c358a33a378e86b38acfc755f6c422a90f",
           "size": [1, 1]
         }
       ],
@@ -142,6 +146,8 @@
       "width": 16
     },
     {
+      "atlas": 0,
+      "bakedLevels": 2,
       "firstLevel": 2,
       "height": 256,
       "image": 2,
@@ -151,91 +157,91 @@
           "coveredAtMaskCutoff": 2048,
           "level": 2,
           "samples": [
-            [0, 0, 0, 0],
+            [1, 1, 33, 0],
             [254, 1, 222, 255],
             [1, 254, 214, 255],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0]
+            [255, 253, 39, 0],
+            [130, 130, 31, 0]
           ],
-          "sha256": "600077219269d30b851fad4d6206c4a3bca69ae8048811afb2864da2e2acc5f1",
+          "sha256": "ffaa94fb18d6209af728c1e5a45704527ec554c0632a17d9ee2b939e7203c974",
           "size": [64, 64]
         },
         {
           "coveredAtMaskCutoff": 512,
           "level": 3,
           "samples": [
-            [0, 0, 0, 0],
+            [2, 4, 30, 0],
             [250, 4, 221, 255],
             [3, 252, 221, 255],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0]
+            [252, 251, 36, 0],
+            [132, 132, 33, 0]
           ],
-          "sha256": "519c28461ceaeaffcac00a5fed9544e70ad7847a5de62acdc8145a5677e4f981",
+          "sha256": "f56df6242b87009708e198856f65f6c8308087800d15eb6b4882021692189ab0",
           "size": [32, 32]
         },
         {
           "coveredAtMaskCutoff": 128,
           "level": 4,
           "samples": [
-            [0, 0, 0, 0],
+            [7, 8, 29, 0],
             [248, 7, 221, 255],
             [7, 248, 220, 255],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0]
+            [249, 247, 33, 0],
+            [136, 136, 33, 0]
           ],
-          "sha256": "6cf55cdc36f6f453dd3e5a1eea88d1dac07b4f26973801c477594c3bfe2cbf2e",
+          "sha256": "7b9ce343267bbe449dda2fd3e16ee081c065f4e704249d9bd653fa5c6473ab04",
           "size": [16, 16]
         },
         {
           "coveredAtMaskCutoff": 32,
           "level": 5,
           "samples": [
-            [0, 0, 0, 0],
+            [17, 17, 164, 0],
             [240, 17, 163, 255],
-            [17, 240, 162, 255],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0]
+            [17, 240, 163, 255],
+            [240, 240, 164, 0],
+            [144, 144, 164, 0]
           ],
-          "sha256": "f0e3a11d5dd6fc23c57f2fb6f8bc71fde3f1762d8e1b3f55eeccc1862adbe4ef",
+          "sha256": "9d6290315e7707a753fc382a4d9d89917e4677c3a86acdc474eea1029a007780",
           "size": [8, 8]
         },
         {
           "coveredAtMaskCutoff": 16,
           "level": 6,
           "samples": [
-            [36, 36, 163, 128],
-            [224, 37, 162, 128],
-            [36, 224, 162, 128],
-            [225, 224, 163, 128],
+            [36, 36, 164, 128],
+            [225, 37, 163, 128],
+            [36, 224, 163, 128],
+            [225, 224, 164, 128],
             [161, 161, 164, 128]
           ],
-          "sha256": "f9edfdb21d403003ee807c9869e1ce67d22bf561f36e2b9411833408864a4bc8",
+          "sha256": "e0676ab811f44ee5e2fc83be603a8f64ec4b12554647877aeec644b4be11e4c0",
           "size": [4, 4]
         },
         {
           "coveredAtMaskCutoff": 4,
           "level": 7,
           "samples": [
-            [74, 74, 163, 128],
-            [196, 74, 163, 128],
+            [74, 75, 164, 128],
+            [196, 74, 164, 128],
             [75, 196, 163, 128],
-            [196, 196, 163, 128],
-            [196, 196, 163, 128]
+            [196, 196, 164, 128],
+            [196, 196, 164, 128]
           ],
-          "sha256": "0af900c2fbce9bdb684f455c77b76988399fe967f815c1afcf043b6fce3fa92d",
+          "sha256": "1d15a1eb932d22b68439fd5b04f6a9dfc82f1b6613614bdfce55a9d586440552",
           "size": [2, 2]
         },
         {
           "coveredAtMaskCutoff": 1,
           "level": 8,
           "samples": [
-            [151, 151, 163, 128],
-            [151, 151, 163, 128],
-            [151, 151, 163, 128],
-            [151, 151, 163, 128],
-            [151, 151, 163, 128]
+            [151, 151, 164, 128],
+            [151, 151, 164, 128],
+            [151, 151, 164, 128],
+            [151, 151, 164, 128],
+            [151, 151, 164, 128]
           ],
-          "sha256": "162d5df6a69b0d81b70b484dc5d6361ef475f42886a9c8c00a4b6c5aa0c30bd5",
+          "sha256": "5fbe601be43c2ad9a456840284ccf1075ddf71af710f82cf484774143c5e2bef",
           "size": [1, 1]
         }
       ],
@@ -249,14 +255,19 @@
     }
   ],
   "report": {
+    "bakedLevels": 2,
     "base": 64,
     "colorTextures": 3,
+    "dataTextures": 0,
     "maxLevels": 7,
     "notes": {},
     "pixelBytes": 23292,
     "previews": 3,
     "skipped": {},
-    "version": 2
+    "version": 3
   },
-  "rule": "Chaque texture couleur porte la queue sans perte de sa chaîne de mips, du premier niveau dont aucun côté ne dépasse 64 jusqu'au 1×1, en RGBA8 sRGB à alpha droit. Le conteneur KTX2 n'ajoute aucune perte : ce que le pilote rend est la reconstruction que la spécification du codec définit, et rien d'autre."
+  "rule": "Chaque texture couleur porte la queue sans perte de sa chaîne de mips, du premier niveau dont aucun côté ne dépasse 64 jusqu'au 1×1, en RGBA8 sRGB à alpha droit. Le conteneur KTX2 n'ajoute aucune perte : ce que le pilote rend est la reconstruction que la spécification du codec définit, et rien d'autre.",
+  "textures": {
+    "url": "../../textures/v3/{sha}/{kind}-{level}.png"
+  }
 }

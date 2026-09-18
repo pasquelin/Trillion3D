@@ -67,8 +67,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         json!({"phase":"import","completed":1,"total":1,"ms":import_ms,"primitives":jobs.len(),"nodes":chosen.len()}),
     );
     let cluster_start = Instant::now();
-    // La grappe naît et meurt avec ce travail : chacun de ses ouvriers adopte ses compteurs, et le
-    // temps qu'il y passe n'atterrit pas dans le manifeste d'un travail voisin.
+    // La grappe naît et meurt avec ce travail : ses ouvriers adoptent ses compteurs, pas ceux d'un voisin.
     let pool = rayon::ThreadPoolBuilder::new()
         .num_threads(o.threads)
         .start_handler({
@@ -127,8 +126,9 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         output_views: &output_views,
         offset,
     })?;
-    // Les aperçus des textures couleur, et la feuille des découpes que leur décodage mesure.
+    // La chaîne de mips de chaque texture d'atlas et la feuille des découpes, sur la grappe.
     let (texture_previews, texture_preview_report, cutout_report) = stage_textures(
+        &pool,
         &TextureStage {
             o,
             g,
@@ -142,8 +142,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         },
         &progress,
     )?;
-    // Le proxy résident se construit ici : les coupes grossières sont en main, les aperçus de
-    // texture aussi, et c'est le dernier endroit où la hiérarchie de nœuds qui les place existe.
+    // Le proxy résident : coupes grossières et aperçus en main, hiérarchie de nœuds encore là.
     let scene_proxy = {
         let _t = perf::Timer::new(perf::Phase::Manifest);
         proxy::stage_proxy(&proxy::ProxyInputs {
@@ -192,7 +191,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     // Le manifeste, lui, est déjà écrit — il ne porte donc que `compileMs`, la durée qu'il pouvait
     // connaître, et l'appelant reçoit `wallMs`, prise une fois le cache purgé.
     let prune_start = Instant::now();
-    let pruned = prune_cache(o, &key, &result, &progress)?;
+    let pruned = prune_cache(o, &key, &result, &texture_previews, &progress)?;
     result["metrics"]["pruneMs"] = json!(shared_math::elapsed_ms(prune_start));
     result["metrics"]["wallMs"] = json!(shared_math::elapsed_ms(started));
     progress(json!({"phase":"complete","completed":1,"total":1,"pruned":pruned}));

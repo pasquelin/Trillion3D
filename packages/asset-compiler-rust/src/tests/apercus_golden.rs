@@ -12,8 +12,8 @@ const TEXTURE_PREVIEW_U32: usize = 21;
 const TEXTURE_PREVIEW_SHA: usize = 22;
 const TEXTURE_PREVIEW_PIXELS: usize = 23;
 /// Nombres par entrée : texture, image, largeur, hauteur, genre et vue de provenance, premier
-/// niveau, nombre de niveaux, début et longueur des pixels.
-const PREVIEW_WORDS: usize = 10;
+/// niveau, nombre de niveaux, début et longueur des pixels, atlas, niveaux cuits en fichiers.
+const PREVIEW_WORDS: usize = 12;
 /// `alphaCutoff` du matériau MASK de la fixture, en octet : 0,25 × 255 arrondi. Compter les texels
 /// qui l'atteignent à chaque niveau dit d'un coup d'œil si la couverture du masque a été préservée,
 /// et si l'alpha des deux textures non masquées est resté intact.
@@ -60,6 +60,7 @@ pub(super) fn previews_digest(run: &GoldenRun) -> Value {
     json!({
       "formatVersion": run.result["formatVersion"],
       "manifestBinaryVersion": run.slim["binary"]["version"],
+      "textures": run.slim["textures"],
       "report": run.result["texturePreviews"],
       "binary": {
         "texturePreviews": run.slim["binary"]["texturePreviews"],
@@ -69,8 +70,8 @@ pub(super) fn previews_digest(run: &GoldenRun) -> Value {
     })
 }
 
-/// Une entrée : les dix nombres qu'elle déclare, le condensé de son image source, et la suite de ses
-/// niveaux découpée aux dimensions que `preview_level_size` redéduit — jamais à celles annoncées.
+/// Une entrée : les douze nombres qu'elle déclare, le condensé de son image source, et la suite de
+/// ses niveaux découpée aux dimensions que `preview_level_size` redéduit — jamais à celles annoncées.
 fn entry_digest(
     bytes: &[u8],
     base: usize,
@@ -93,6 +94,7 @@ fn entry_digest(
       "sourceKind": word(base + 16), "sourceView": word(base + 20),
       "firstLevel": first, "levelCount": word(base + 28),
       "pixelOffset": word(base + 32), "pixelBytes": word(base + 36),
+      "atlas": word(base + 40), "bakedLevels": word(base + 44),
       "sourceSha256": sha256, "levels": levels,
     })
 }

@@ -11,20 +11,7 @@ fn scene_with_one_texture() -> Value {
 
 /// L'étape jouée sur un dossier qui ne porte qu'une image, celle de `scene_with_one_texture`.
 fn stage_one_texture(dir: &Path) -> (Vec<TexturePreview>, Value) {
-    let g = scene_with_one_texture();
-    let o = options(dir);
-    let (meshes, view_map) = (BTreeSet::from([0usize]), BTreeMap::new());
-    let (previews, _, report) = stage_texture_previews(&PreviewInputs {
-        o: &o,
-        g: &g,
-        bin: &[],
-        image_root: dir,
-        meshes: &meshes,
-        view_map: &view_map,
-        to_measure: &BTreeSet::new(),
-    })
-    .expect("une texture illisible ne fait jamais échouer la compilation");
-    (previews, report)
+    stage_scene(dir, &scene_with_one_texture())
 }
 
 // Comportement 7 : un décodage impossible (ici un PNG tronqué) est une entrée de rapport, zéro

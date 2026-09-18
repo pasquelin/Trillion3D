@@ -37,6 +37,11 @@ pub(crate) fn entries(
     let images = g.get("images").and_then(Value::as_array);
     let mut by_image: BTreeMap<String, Entry> = BTreeMap::new();
     for preview in previews {
+        // Une découpe est une affaire de couleur de base : l'entrée de l'atlas de données d'une
+        // même texture, quand il y en a une, n'est ni une candidate ni un poids de plus.
+        if preview.kind != crate::texture_preview::AtlasKind::Color {
+            continue;
+        }
         let texture = preview.texture as usize;
         let Some(shape) = measures.get(&texture) else {
             continue;

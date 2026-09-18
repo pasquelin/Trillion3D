@@ -31,7 +31,7 @@ const MIN_AT_CONTOUR: f32 = 0.70;
 
 /// Ce que la mesure a vu, en parts du nombre de texels — sauf `at_contour`, qui est une part des
 /// seuls intermédiaires : c'est leur emplacement qui distingue les deux formes, pas leur nombre.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub(crate) struct AlphaShape {
     pub texels: u64,
     pub absent: f32,
