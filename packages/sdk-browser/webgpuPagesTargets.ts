@@ -98,6 +98,7 @@ export function ensureTargets(
   gpu.backdrop = createBackdrop(device, width, height, blendState.transmissive > 0);
   // L'historique temporel suit la taille de l'image, dans ce qui reste du budget.
   const allocationBytes = targetBytes + ensureTaaTargets(rt, width, height, targetBytes);
+  gpu.targetBytes = allocationBytes;
   // Les groupes de liaison d'un item transparent nomment les vues du fond : elles viennent de
   // changer, donc ils sont refaits à la première image qui suit.
   for (const item of blendState.blendGpu) item.group = undefined;

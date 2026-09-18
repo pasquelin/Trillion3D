@@ -3,6 +3,7 @@ import { disposeBackdrop } from './webgpuTransmission.ts';
 import { dropBlendBuffers } from './webgpuBlendBuffers.ts';
 import { disposeBlendResources } from './webgpuBlendResources.ts';
 import { directLightTimings } from './stageMapping.ts';
+import { gpuDeviceLedgerOf } from './gpuDeviceLedger.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
@@ -26,6 +27,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
   const { run, gpu, vis, timing, blendState, services, lights } = rt;
   const stats = gpu.cache?.stats();
   const vertexBytes = vertexBytesOf(gpu, vis);
+  const ledger = gpuDeviceLedgerOf(rt.setup?.gpuDevice)?.snapshot();
   const pending = run.gpuFrameActive && !run.gpuMetricsReady;
   // Ce que le test d'occultation a éliminé, du chemin qui l'a fait tourner : les compteurs que la
   // carte a écrits sur la dernière image relevée, ou ceux de l'oracle processeur là où aucun test
@@ -83,6 +85,13 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     gpuFrameMs: timing.lastGpuFrameMs,
     gpuHostGapMs: timing.lastGpuHostGapMs,
     vramBytes: null,
+    // Le registre de l'appareil : tout ce que le moteur a alloué et pas encore détruit, calculé
+    // depuis les descripteurs. `null` tant qu'aucun registre n'est posé, jamais zéro.
+    gpuAllocatedBytes: ledger?.bytes ?? null,
+    gpuAllocatedByLabel: ledger?.byLabel ?? null,
+    gpuAllocationsUnknownFormat: ledger?.unknownFormats ?? null,
+    gpuFrameTargetBytes: gpu.targetBytes || null,
+    gpuFrameBudgetBytes: rt.setup?.frameBudget ?? null,
     drawCalls: run.gpuDrawCalls,
     hizTestedClusters: hiz?.tested ?? null,
     hizRejectedClusters: hiz?.rejected ?? null,
