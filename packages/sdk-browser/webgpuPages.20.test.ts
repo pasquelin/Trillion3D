@@ -8,21 +8,18 @@ import { drawnPageIds, installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
 
-// Géométrie 26 : le raster de calcul ne se crée que sous la variante `raster-calcul`. Sans elle,
-// le matériel dessine et aucun noyau de raster n'est lancé ; avec elle, la même coupe part au
-// calcul — binning, profondeur des occulteurs, du reste, identifiants — et aucune commande
-// matérielle ne porte de géométrie. C'est le côté « calcul » du banc bit à bit de l'étape 2.
+// Le raster de calcul ne se crée que sous `raster-calcul` : la même coupe part alors au calcul —
+// binning, profondeur des occulteurs, du reste, identifiants — et aucune commande matérielle ne
+// porte de géométrie. C'est le côté calcul du banc bit à bit (Géométrie 26, point 3).
 test('la variante raster-calcul confie la coupe au raster de calcul, et elle seule', async () => {
   installGpuGlobals();
-  const { source, metadata, indices, associations, geometry, material } = quadScene();
+  const fixture = quadScene();
+  const { source, metadata, indices, associations } = fixture;
   const collected = collectClusterPages(source, metadata, indices, associations);
   const packed = packDagSelection(collected.roots);
   const { device, draws, computes, buffers } = mockGpu(undefined, packed);
   const backend = webgpuPagesBackend({
-    source,
-    metadata,
-    indices,
-    associations,
+    ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
@@ -47,6 +44,6 @@ test('la variante raster-calcul confie la coupe au raster de calcul, et elle seu
   // Ce raster prend toute la coupe : ce n'est pas celui de la référence, et il ne le déclare pas.
   assert.ok(backend.capabilities.unsupported.includes('small-triangle compute raster'));
   backend.dispose();
-  geometry.dispose();
-  material.dispose();
+  fixture.geometry.dispose();
+  fixture.material.dispose();
 });

@@ -70,37 +70,24 @@ export function encodeEmptySurfaces(
 const rasterInput = {} as GpuRasterInput;
 
 /**
- * Crée le raster de calcul une fois, quand la variante `raster-calcul` le demande, et retient
- * l'appareil qui ne peut pas l'héberger. En production il n'est jamais créé : mesuré le 18 sept.
- * 2026 sur toute la coupe, il coûte 25,5 ms d'enveloppe contre 5,5 au matériel à 1248×702, et son
- * admission par la seule mémoire (`checkFrameBudget`) faisait dépendre l'image de la taille de la
- * fenêtre. Il reviendra en production par la coupe de la référence — petits triangles au calcul,
- * grands au matériel — admise par un budget de temps mesuré, jamais par la place en mémoire.
+ * Crée le raster de calcul une fois, et seulement sous la variante `raster-calcul` : en production
+ * le matériel dessine (Géométrie 26). Une variante est une demande, pas une occasion — un appareil
+ * sans calcul ou un budget de surfaces dépassé refuse, ils ne rendent pas en silence l'image du
+ * matériel sous l'étiquette du calcul.
  */
 export function ensureGpuRaster(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const { vis, capture, diag } = rt,
-    [width, height] = rt.gpu.targetSize;
-  if (
-    vis.gpuRaster ||
-    vis.hybridUnavailable ||
-    !requestsComputeRaster(rt.context?.diagnosticGpuVariant) ||
-    typeof device.createComputePipeline !== 'function'
-  )
-    return;
-  try {
-    checkFrameBudget(
-      rt,
-      width,
-      height,
-      capture.captureAllocationBytes + width * height * 8 + rt.layout.rasterCapacity * 8,
-    );
-    // Aucune capacité n'est accordée : « small-triangle compute raster » reste non tenue, ce raster
-    // prend toute la coupe et n'est pas celui de la référence.
-    vis.gpuRaster = createGpuRaster(device, width, height, rt.layout.rasterCapacity);
-  } catch (error) {
-    vis.hybridUnavailable = true;
-    diag.diagnosticFailure('opaque-compute-raster-unavailable', error);
-  }
+  const { vis, capture } = rt;
+  if (vis.gpuRaster || !requestsComputeRaster(rt.context?.diagnosticGpuVariant)) return;
+  if (typeof device.createComputePipeline !== 'function')
+    throw new Error('COMPUTE_RASTER_UNAVAILABLE: raster-calcul demandé sans étage de calcul');
+  const [width, height] = rt.gpu.targetSize;
+  checkFrameBudget(
+    rt,
+    width,
+    height,
+    capture.captureAllocationBytes + width * height * 8 + rt.layout.rasterCapacity * 8,
+  );
+  vis.gpuRaster = createGpuRaster(device, width, height, rt.layout.rasterCapacity);
 }
 
 /** Writes the image's uniforms and rebuilds the shade and raster bind groups a resource change voided. */

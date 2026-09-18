@@ -1,4 +1,20 @@
+import assert from 'node:assert/strict';
 import { SELECTION_HEADER_WORDS } from './gpuDagLayout.ts';
+import { BASE_SLOTS, PAGE_BIND_ALIGN } from './gpuDraw.ts';
+import type { MockDraw } from './webgpuPagesMockEncoder.ts';
+
+/**
+ * Les commandes indirectes d'une image du raster matériel, avec les invariants qu'elles tiennent
+ * toutes : au plus un appel par slot, la première instance à zéro, la table de pages liée à un
+ * décalage aligné. Chaque test ne garde que ce qui lui est propre — instances, bacs, tampons.
+ */
+export function indirectDraws(draws: readonly MockDraw[]) {
+  const vis = draws.filter((draw) => draw.indirect);
+  assert.ok(vis.length >= 1 && vis.length <= BASE_SLOTS);
+  assert.ok(vis.every((draw) => draw.firstInstance === 0));
+  assert.ok(vis.every((draw) => (draw.bindOffset ?? 0) % PAGE_BIND_ALIGN === 0));
+  return vis;
+}
 
 export function installGpuGlobals() {
   Object.assign(globalThis, {
