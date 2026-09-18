@@ -5,9 +5,11 @@
   },
   "case": "Quatre quads, quatre matériaux qui se partagent trois textures couleur : un OPAQUE à baseColorTexture PNG 40×24 liée par uri, un MASK à alphaCutoff 0,25 sur un PNG 24×16 à alpha binaire embarqué en bufferView, et un BLEND dont la baseColorTexture JPEG 80×48 sert aussi d'emissiveTexture à un quatrième matériau.",
   "formatVersion": 4,
-  "manifestBinaryVersion": 4,
+  "manifestBinaryVersion": 5,
   "previews": [
     {
+      "atlas": 0,
+      "bakedLevels": 0,
       "firstLevel": 0,
       "height": 24,
       "image": 0,
@@ -47,9 +49,9 @@
             [245, 19, 160, 255],
             [10, 238, 94, 255],
             [245, 238, 242, 255],
-            [140, 150, 144, 255]
+            [141, 151, 143, 255]
           ],
-          "sha256": "072b5fb290427f58efb7fdb4852011d824870cc27d22aed49d3cff36b62306ea",
+          "sha256": "193c77e750c25e4f097dc115631a87ff85fe80724e3add48bf4852662364df2d",
           "size": [10, 6]
         },
         {
@@ -57,38 +59,38 @@
           "level": 3,
           "samples": [
             [26, 46, 31, 255],
-            [232, 46, 161, 255],
-            [26, 218, 95, 255],
-            [232, 218, 226, 255],
-            [128, 130, 128, 255]
+            [232, 46, 160, 255],
+            [26, 217, 95, 255],
+            [232, 217, 226, 255],
+            [129, 131, 128, 255]
           ],
-          "sha256": "b6b13f4485dc124988d057c3186089f47f760491a6ecd52d9e284ae1d755032e",
+          "sha256": "f711f270c92f911ea544e75e02e4c1bd74687bd21bb8583d8cf63b845c890377",
           "size": [5, 3]
         },
         {
           "coveredAtMaskCutoff": 2,
           "level": 4,
           "samples": [
-            [58, 99, 67, 255],
-            [157, 99, 130, 255],
-            [58, 99, 67, 255],
-            [157, 99, 130, 255],
-            [157, 99, 130, 255]
+            [58, 100, 67, 255],
+            [158, 100, 130, 255],
+            [58, 100, 67, 255],
+            [158, 100, 130, 255],
+            [158, 100, 130, 255]
           ],
-          "sha256": "215b74f55a29fa97f6888e05ec39ca7a5bf3a4075b2580611fa46efca3af36e4",
+          "sha256": "cf61729136d479e1cc33f60080814216043676ceee4b6dadd58290d58cf8bf01",
           "size": [2, 1]
         },
         {
           "coveredAtMaskCutoff": 1,
           "level": 5,
           "samples": [
-            [120, 99, 105, 255],
-            [120, 99, 105, 255],
-            [120, 99, 105, 255],
-            [120, 99, 105, 255],
-            [120, 99, 105, 255]
+            [121, 100, 104, 255],
+            [121, 100, 104, 255],
+            [121, 100, 104, 255],
+            [121, 100, 104, 255],
+            [121, 100, 104, 255]
           ],
-          "sha256": "d88279a068ff46ccfeca4ad29d28a418449d2adc892212185b1bdc9061c7c2a1",
+          "sha256": "29e6ad89ea47eb58dbf3b675462791fc777f5eae4a243601244f76f4f11a4dba",
           "size": [1, 1]
         }
       ],
@@ -101,6 +103,8 @@
       "width": 40
     },
     {
+      "atlas": 0,
+      "bakedLevels": 0,
       "firstLevel": 0,
       "height": 16,
       "image": 1,
@@ -110,65 +114,65 @@
           "coveredAtMaskCutoff": 192,
           "level": 0,
           "samples": [
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
+            [200, 160, 120, 0],
+            [200, 160, 120, 0],
+            [200, 160, 120, 0],
+            [200, 160, 120, 0],
             [200, 160, 120, 255]
           ],
-          "sha256": "5d1678ac123ab7e243d81ef0417b12a0645ef43fca00546d75be1f19571696bd",
+          "sha256": "a9be7ded7b779e9a73c0cf79a1ef78b693831c7fcc91cbb4acce10ce8a2ddc32",
           "size": [24, 16]
         },
         {
           "coveredAtMaskCutoff": 48,
           "level": 1,
           "samples": [
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [200, 160, 120, 128]
+            [200, 160, 120, 0],
+            [200, 160, 120, 0],
+            [200, 160, 120, 0],
+            [200, 160, 120, 0],
+            [200, 160, 120, 255]
           ],
-          "sha256": "cff457eb33fa6640b48747860a9050ce03caa99fefed453205051cdb6a00f5d5",
+          "sha256": "f21b3143809a5da4b307db070118e8bcc527a6e32791e3f168799f9021a5e7bc",
           "size": [12, 8]
         },
         {
           "coveredAtMaskCutoff": 12,
           "level": 2,
           "samples": [
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [200, 160, 120, 128]
+            [200, 160, 120, 0],
+            [200, 160, 120, 0],
+            [200, 160, 120, 0],
+            [200, 160, 120, 0],
+            [200, 160, 120, 255]
           ],
-          "sha256": "5bbd3cd27350951438a39eea4f6f9ba7c2abf4dae44807e7b753d1dc3f2f6119",
+          "sha256": "6cf6f396230e0068467f574d84900378c127e4bd2ed8c65230b79b2b6383ed5a",
           "size": [6, 4]
         },
         {
           "coveredAtMaskCutoff": 2,
           "level": 3,
           "samples": [
-            [200, 160, 120, 48],
-            [200, 160, 120, 48],
-            [200, 160, 120, 48],
-            [200, 160, 120, 48],
-            [200, 160, 120, 96]
+            [200, 160, 120, 0],
+            [200, 160, 120, 0],
+            [200, 160, 120, 0],
+            [200, 160, 120, 0],
+            [200, 160, 120, 192]
           ],
-          "sha256": "73f35e37d7a819d1a9dbd053b9741cc73f37f6ac50f85b26a9791cd710b1e908",
+          "sha256": "3876c6b81e13003047ad3cb3f032a011ecc9030fc6c8ff21de2c958edf220011",
           "size": [3, 2]
         },
         {
           "coveredAtMaskCutoff": 1,
           "level": 4,
           "samples": [
-            [200, 160, 120, 143],
-            [200, 160, 120, 143],
-            [200, 160, 120, 143],
-            [200, 160, 120, 143],
-            [200, 160, 120, 143]
+            [200, 160, 120, 96],
+            [200, 160, 120, 96],
+            [200, 160, 120, 96],
+            [200, 160, 120, 96],
+            [200, 160, 120, 96]
           ],
-          "sha256": "eb17ee4c6d5ae078f4e5137a2ecfe3be6b4b638cd21b6476559067b6f93ab692",
+          "sha256": "1c77a61189772b1dfa0ff006373344285175c07328728e556650e7aae5d56cf4",
           "size": [1, 1]
         }
       ],
@@ -181,6 +185,8 @@
       "width": 24
     },
     {
+      "atlas": 0,
+      "bakedLevels": 1,
       "firstLevel": 1,
       "height": 48,
       "image": 2,
@@ -203,13 +209,13 @@
           "coveredAtMaskCutoff": 240,
           "level": 2,
           "samples": [
-            [5, 8, 129, 255],
+            [5, 8, 130, 255],
             [249, 8, 129, 255],
-            [4, 247, 127, 255],
+            [4, 247, 128, 255],
             [249, 248, 128, 255],
-            [135, 137, 129, 255]
+            [136, 137, 129, 255]
           ],
-          "sha256": "16d3be2b07c6c731eca59662bbc733456d9f8085789101d8f90a7f9e6d4c2edc",
+          "sha256": "6414356c002ba328fb37f48956c83f481cea75aeef467c70e54564b16a45e23d",
           "size": [20, 12]
         },
         {
@@ -218,37 +224,37 @@
           "samples": [
             [13, 21, 129, 255],
             [243, 21, 128, 255],
-            [12, 236, 128, 255],
-            [243, 237, 128, 255],
+            [12, 236, 129, 255],
+            [244, 237, 129, 255],
             [141, 150, 128, 255]
           ],
-          "sha256": "2f957900fd83bd20625744c09570b513441203d75a349f8f20e6a4b214e8053e",
+          "sha256": "cf407517177ae6b222b337162eb2d90099d1afd895305614541aedf1c9e89287",
           "size": [10, 6]
         },
         {
           "coveredAtMaskCutoff": 15,
           "level": 4,
           "samples": [
-            [27, 47, 128, 255],
-            [231, 48, 128, 255],
-            [27, 216, 128, 255],
-            [231, 216, 128, 255],
+            [28, 47, 128, 255],
+            [231, 47, 128, 255],
+            [28, 216, 129, 255],
+            [231, 216, 129, 255],
             [128, 130, 128, 255]
           ],
-          "sha256": "df540b3b835db4e57b8506fc045332a5183634e24e42d8d812cfe7592e2f5ffb",
+          "sha256": "c246efdd8c8d3b49a35e1d637ecbad843895aa1b8960151139f016e81367717c",
           "size": [5, 3]
         },
         {
           "coveredAtMaskCutoff": 2,
           "level": 5,
           "samples": [
-            [58, 100, 128, 255],
+            [59, 100, 128, 255],
             [156, 100, 128, 255],
-            [58, 100, 128, 255],
+            [59, 100, 128, 255],
             [156, 100, 128, 255],
             [156, 100, 128, 255]
           ],
-          "sha256": "3c6d0402dd1e58e90c271f2dc5ab86d943b6a373e50b12b9052e58411087601a",
+          "sha256": "aed2d176a4bfaee8f79c9732fc8314a5bcd716daa85d50ed2a7fd4193179b945",
           "size": [2, 1]
         },
         {
@@ -275,14 +281,19 @@
     }
   ],
   "report": {
+    "bakedLevels": 1,
     "base": 64,
     "colorTextures": 3,
+    "dataTextures": 0,
     "maxLevels": 7,
     "notes": {},
     "pixelBytes": 12268,
     "previews": 3,
     "skipped": {},
-    "version": 2
+    "version": 3
   },
-  "rule": "Chaque texture couleur porte la queue sans perte de sa chaîne de mips, du premier niveau dont aucun côté ne dépasse 64 jusqu'au 1×1, en RGBA8 sRGB à alpha droit. Seule la texture dont toutes les liaisons sont des couleurs de base MASK voit son alpha remis à l'échelle pour préserver la couverture de la source au seuil du matériau ; les deux autres gardent leur alpha intact."
+  "rule": "Chaque texture couleur porte la queue sans perte de sa chaîne de mips, du premier niveau dont aucun côté ne dépasse 64 jusqu'au 1×1, en RGBA8 sRGB à alpha droit. Seule la texture dont toutes les liaisons sont des couleurs de base MASK voit son alpha remis à l'échelle pour préserver la couverture de la source au seuil du matériau ; les deux autres gardent leur alpha intact.",
+  "textures": {
+    "url": "../../textures/v3/{sha}/{kind}-{level}.png"
+  }
 }

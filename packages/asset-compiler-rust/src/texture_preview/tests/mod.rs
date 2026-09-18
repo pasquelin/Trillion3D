@@ -1,15 +1,15 @@
 use super::*;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+mod atlas_rule;
+mod bake_files;
 mod box_reduce;
 mod cancellation;
 mod collect_textures;
 mod decode_failure;
 mod image_source;
 mod levels;
-mod mask_coverage;
-mod pyramid_bleed;
-mod transfert;
+mod median_alpha;
 
 /// A fresh directory under the OS temp dir, unique per call so parallel tests never collide.
 pub(super) fn temp_dir(tag: &str) -> PathBuf {
@@ -24,7 +24,7 @@ pub(super) fn temp_dir(tag: &str) -> PathBuf {
     fs::create_dir_all(&dir).expect("temp dir");
     dir
 }
-/// Minimal `Options` a stage needs; only `cancelled` and `source` ever matter to these tests.
+/// Minimal `Options` a stage needs; only `cancelled`, `source` and `cache` ever matter to these tests.
 pub(super) fn options(source: &Path) -> Options {
     Options {
         source: source.to_path_buf(),
@@ -45,7 +45,13 @@ pub(super) fn rgba_from(
 ) -> image::RgbaImage {
     image::RgbaImage::from_fn(width, height, |x, y| image::Rgba(pixel(x, y)))
 }
-/// Les dimensions du niveau de rang `index` d'une pyramide, le rang 0 étant le plus fin porté.
+/// La queue du sidecar d'une source, telle que `bake` la produit : la chaîne entière réduite à
+/// ses niveaux à partir du premier porté.
+pub(super) fn tail_of(source: &image::RgbaImage, kind: AtlasKind) -> (u32, Vec<u8>) {
+    let first = preview_first_level(source.width(), source.height());
+    (first, reduce::tail(&reduce::chain(source, kind), first))
+}
+/// Les dimensions du niveau de rang `index` d'une queue, le rang 0 étant le plus fin porté.
 pub(super) fn level_size(width: u32, height: u32, index: usize) -> (u32, u32) {
     preview_level_size(
         width,
@@ -53,7 +59,7 @@ pub(super) fn level_size(width: u32, height: u32, index: usize) -> (u32, u32) {
         preview_first_level(width, height) + index as u32,
     )
 }
-/// A level's straight-alpha sRGB8 pixel bytes, sliced out of the pyramid's variable-length bytes.
+/// A level's RGBA8 pixel bytes, sliced out of the tail's variable-length bytes.
 pub(super) fn level_bytes(width: u32, height: u32, pixels: &[u8], index: usize) -> &[u8] {
     let mut start = 0usize;
     for step in 0..index {
@@ -62,4 +68,26 @@ pub(super) fn level_bytes(width: u32, height: u32, pixels: &[u8], index: usize) 
     }
     let (w, h) = level_size(width, height, index);
     &pixels[start..start + (w * h * 4) as usize]
+}
+/// Le progrès que ces tests ignorent.
+pub(super) fn silent(_: Value) {}
+/// L'étape jouée sur un dossier source et une scène, maillage 0 retenu, rien à mesurer : ce que
+/// les tests de bout en bout partagent. Rend les entrées et le rapport.
+pub(super) fn stage_scene(dir: &Path, g: &Value) -> (Vec<TexturePreview>, Value) {
+    let o = options(dir);
+    let (meshes, view_map) = (BTreeSet::from([0usize]), BTreeMap::new());
+    let (previews, _, report) = stage_texture_previews(
+        &PreviewInputs {
+            o: &o,
+            g,
+            bin: &[],
+            image_root: dir,
+            meshes: &meshes,
+            view_map: &view_map,
+            to_measure: &BTreeSet::new(),
+        },
+        &silent,
+    )
+    .expect("une texture illisible ne fait jamais échouer la compilation");
+    (previews, report)
 }

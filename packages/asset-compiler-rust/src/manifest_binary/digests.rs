@@ -2,12 +2,22 @@
 //! pour tenir la limite de lignes du dépôt, sans rien changer à ce qu'elles lisent.
 use super::{
     bad, Result, BUNDLE_SHA, GEOMETRY_SHA, HEADER_WORDS, MANIFEST_BINARY_MAGIC,
-    MANIFEST_BINARY_VERSION, PAGE_SHA,
+    MANIFEST_BINARY_VERSION, PAGE_SHA, TEXTURE_PREVIEW_SHA,
 };
 
 /// Every object digest a binary sidecar names: the PAGE, GEOMETRY and BUNDLE sha columns, 64 ASCII
 /// characters per entry. Reads the header written by `split`; a foreign or truncated file is refused.
 pub fn digests(bytes: &[u8]) -> Result<Vec<String>> {
+    sha_columns(bytes, &[PAGE_SHA, GEOMETRY_SHA, BUNDLE_SHA])
+}
+
+/// Every source-image digest a binary sidecar names — the directories under `textures/` its
+/// baked levels live in. Same header, same refusals.
+pub fn texture_digests(bytes: &[u8]) -> Result<Vec<String>> {
+    sha_columns(bytes, &[TEXTURE_PREVIEW_SHA])
+}
+
+fn sha_columns(bytes: &[u8], wanted: &[usize]) -> Result<Vec<String>> {
     let word = |at: usize| -> Result<usize> {
         Ok(u32::from_le_bytes(
             bytes
@@ -25,7 +35,7 @@ pub fn digests(bytes: &[u8]) -> Result<Vec<String>> {
     }
     let columns = word(8)?;
     let mut out = Vec::new();
-    for index in [PAGE_SHA, GEOMETRY_SHA, BUNDLE_SHA] {
+    for &index in wanted {
         if index >= columns {
             continue;
         }

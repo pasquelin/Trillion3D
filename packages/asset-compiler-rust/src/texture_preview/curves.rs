@@ -1,20 +1,6 @@
-//! Les deux courbes de la chaîne d'aperçus : celle qui ramène un octet reçu en linéaire, et celle
-//! qui rend un linéaire en octet sRGB. Elles sont séparées de la réduction parce qu'elles ne
-//! dépendent que de ce que le fichier a déclaré, jamais de la géométrie des niveaux.
-use super::Transfer;
-
-/// La table qui ramène un octet reçu en linéaire, selon ce que le fichier a déclaré. Des
-/// échantillons déjà proportionnels à la lumière ne passent par aucune courbe : leur table est la
-/// division par 255, et rien d'autre. L'aperçu, lui, reste du sRGB dans les deux cas — c'est son
-/// contrat —, si bien qu'une source linéaire y est **encodée** au dernier pas au lieu d'être
-/// décodée deux fois.
-pub(super) fn transfer_table(transfer: Transfer) -> &'static [f32; 256] {
-    match transfer {
-        Transfer::Srgb => srgb_table(),
-        Transfer::Linear => linear_table(),
-    }
-}
-
+//! Les courbes de la chaîne : celle qui ramène un octet sRGB en linéaire, la table neutre d'un
+//! octet linéaire, et celle qui rend un linéaire en octet sRGB. Séparées de la réduction parce
+//! qu'elles ne dépendent que du format de l'atlas, jamais de la géométrie des niveaux.
 /// Les 256 valeurs d'octet linéaire, à leur échelle : la table neutre.
 pub(super) fn linear_table() -> &'static [f32; 256] {
     static TABLE: std::sync::OnceLock<[f32; 256]> = std::sync::OnceLock::new();

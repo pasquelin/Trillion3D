@@ -18,11 +18,11 @@
   "rule": "Un conteneur ne change rien à la scène qu'il emballe : le paquet est extrait sous le cache et la scène qui en sort est exactement celle de la même couche lue hors paquet. La couche racine est la première entrée du paquet, jamais une couche cherchée parmi les autres : celles-là sont des ressources. Un paquet mal disposé ou qui n'ouvre pas sur une couche USD est refusé par son code, jamais extrait à moitié.",
   "scene": {
     "formatVersion": 4,
-    "manifestBinaryVersion": 4,
+    "manifestBinaryVersion": 5,
     "primitives": 9,
     "selectedNodes": [0, 2, 4],
     "selectedTriangles": 36,
-    "sidecarSha256": "a975dd583ce2cf9cb1eb414925aae74a799b601daf3d088f239cd922c11ac13a",
+    "sidecarSha256": "dee7f739f4d9aca9b87c7605ae0445a1706aa3ccde60553b0aa868ee06d79aa3",
     "sourceTriangles": 36,
     "totalNodes": 3
   },

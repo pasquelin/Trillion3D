@@ -5,9 +5,11 @@
   },
   "case": "Un quad dont la couleur de base est rgb-brut.psd, un composite Photoshop aplati de 4 × 2 en RVB huit bits à surface brute, compilé par le harnais commun.",
   "formatVersion": 3,
-  "manifestBinaryVersion": 4,
+  "manifestBinaryVersion": 5,
   "previews": [
     {
+      "atlas": 0,
+      "bakedLevels": 0,
       "firstLevel": 0,
       "height": 2,
       "image": 0,
@@ -43,13 +45,13 @@
           "coveredAtMaskCutoff": 1,
           "level": 2,
           "samples": [
-            [109, 130, 85, 255],
-            [109, 130, 85, 255],
-            [109, 130, 85, 255],
-            [109, 130, 85, 255],
-            [109, 130, 85, 255]
+            [110, 131, 85, 255],
+            [110, 131, 85, 255],
+            [110, 131, 85, 255],
+            [110, 131, 85, 255],
+            [110, 131, 85, 255]
           ],
-          "sha256": "c7276fc92e9c35882c248f4d642b312f50529e1b06c98f3649b2fc36e140c43f",
+          "sha256": "cb5386200ed01699790b2a35fda0f636cd225323719893e636944514a8d215f6",
           "size": [1, 1]
         }
       ],
@@ -63,14 +65,19 @@
     }
   ],
   "report": {
+    "bakedLevels": 0,
     "base": 64,
     "colorTextures": 1,
+    "dataTextures": 0,
     "maxLevels": 7,
     "notes": {},
     "pixelBytes": 44,
     "previews": 1,
     "skipped": {},
-    "version": 2
+    "version": 3
   },
-  "rule": "Un composite aplati de huit bits par canal entre dans les aperçus progressifs comme toute autre source RGBA8 : la queue sans perte de sa chaîne de mips est produite, aucune raison n'est portée au rapport, et les pixels sont ceux que le fichier portait déjà — jamais des calques recomposés."
+  "rule": "Un composite aplati de huit bits par canal entre dans les aperçus progressifs comme toute autre source RGBA8 : la queue sans perte de sa chaîne de mips est produite, aucune raison n'est portée au rapport, et les pixels sont ceux que le fichier portait déjà — jamais des calques recomposés.",
+  "textures": {
+    "url": "../../textures/v3/{sha}/{kind}-{level}.png"
+  }
 }

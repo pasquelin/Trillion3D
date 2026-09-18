@@ -28,6 +28,9 @@ pub(super) fn publish(inputs: &Publication<'_>, result: &Value) -> Result<()> {
     };
     let (mut slim, binary) = manifest_binary::split(result, &templates, inputs.previews)?;
     slim["binary"]["sha256"] = json!(hash(&binary));
+    // Le gabarit des niveaux cuits : `{sha}` est l'empreinte des octets sources, `{kind}` l'atlas
+    // (`srgb` ou `linear`), `{level}` le rang du niveau. Une seule vérité, comme pour les pages.
+    slim["textures"] = json!({"url":format!("../../{}", texture_preview::level_template())});
     let directory = inputs.directory;
     atomic(&directory.join(MANIFEST_BINARY_FILE), &binary)?;
     atomic(&directory.join(proxy::SCENE_PROXY_FILE), inputs.proxy_bytes)?;

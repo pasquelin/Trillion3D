@@ -1,63 +1,47 @@
+use super::reduce::AtlasKind;
 use super::*;
 
-/// Une texture couleur et, s'il y a lieu, le seuil de découpe dont il faut préserver la couverture.
-pub(super) struct ColorTexture {
+/// Une texture d'un atlas du moteur, et lequel : la même texture glTF peut alimenter les deux.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub(crate) struct AtlasTexture {
     pub texture: usize,
-    pub cutoff: Option<f32>,
+    pub kind: AtlasKind,
 }
 
-/// Seuil de découpe par défaut de glTF, employé seulement quand le matériau MASK n'en déclare pas :
-/// celui-là même auquel un matériau reclassé découpe (`cutout::CUTOUT_ALPHA`).
-const DEFAULT_ALPHA_CUTOFF: f32 = crate::cutout::CUTOUT_ALPHA as f32;
-
-#[derive(Default)]
-struct Binding {
-    /// Une liaison qui n'est pas la couleur de base d'un matériau MASK : émissif, BLEND ou OPAQUE.
-    plain: bool,
-    cutoff: Option<f32>,
-}
-
-/// Les textures qui alimentent l'atlas couleur du moteur : couleur de base et émissif des matériaux
-/// des maillages retenus — exactement ce que `collectWebgpuMaterialTextures` y range.
-pub(super) fn color_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<ColorTexture>> {
+/// Les textures qui alimentent les atlas du moteur, triées par texture puis par atlas — exactement
+/// ce que `collectWebgpuMaterialTextures` y range : couleur de base et émissif dans l'atlas
+/// couleur ; métal-rugosité, normale et occlusion dans l'atlas de données. La couleur de base d'un
+/// matériau qui découpe et l'émissif d'un autre sont une seule entrée : l'atlas ne connaît pas la
+/// liaison, et la chaîne de mips non plus.
+pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<AtlasTexture>> {
     let Some(materials) = g.get("materials").and_then(Value::as_array) else {
         return Ok(Vec::new());
     };
-    let mut bindings: BTreeMap<usize, Binding> = BTreeMap::new();
+    let mut wanted = BTreeSet::new();
     for id in used_materials(g, meshes)? {
         let Some(material) = materials.get(id) else {
             continue;
         };
-        let mask = material.get("alphaMode").and_then(Value::as_str) == Some("MASK");
-        let cutoff = material
-            .get("alphaCutoff")
-            .and_then(Value::as_f64)
-            .map(|value| value as f32)
-            .unwrap_or(DEFAULT_ALPHA_CUTOFF);
-        if let Some(base) =
-            texture_index(material.pointer("/pbrMetallicRoughness/baseColorTexture"))
-        {
-            let entry = bindings.entry(base).or_default();
-            if mask {
-                entry.cutoff = Some(entry.cutoff.map_or(cutoff, |known| known.min(cutoff)));
-            } else {
-                entry.plain = true;
+        let bindings = [
+            (
+                material.pointer("/pbrMetallicRoughness/baseColorTexture"),
+                AtlasKind::Color,
+            ),
+            (material.get("emissiveTexture"), AtlasKind::Color),
+            (
+                material.pointer("/pbrMetallicRoughness/metallicRoughnessTexture"),
+                AtlasKind::Data,
+            ),
+            (material.get("normalTexture"), AtlasKind::Data),
+            (material.get("occlusionTexture"), AtlasKind::Data),
+        ];
+        for (reference, kind) in bindings {
+            if let Some(texture) = texture_index(reference) {
+                wanted.insert(AtlasTexture { texture, kind });
             }
         }
-        if let Some(emissive) = texture_index(material.get("emissiveTexture")) {
-            bindings.entry(emissive).or_default().plain = true;
-        }
     }
-    // Une texture partagée n'est corrigée que si toutes ses liaisons sont des couleurs de base de
-    // matériaux MASK, et alors au plus petit de leurs seuils : la moindre liaison BLEND, OPAQUE ou
-    // émissive laisse l'alpha intact, car l'y remettre à l'échelle fausserait cette liaison-là.
-    Ok(bindings
-        .into_iter()
-        .map(|(texture, binding)| ColorTexture {
-            texture,
-            cutoff: if binding.plain { None } else { binding.cutoff },
-        })
-        .collect())
+    Ok(wanted.into_iter().collect())
 }
 
 pub(crate) fn texture_index(reference: Option<&Value>) -> Option<usize> {

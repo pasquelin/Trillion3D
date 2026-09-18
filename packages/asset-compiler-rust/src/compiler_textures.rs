@@ -1,4 +1,5 @@
-//! L'étape des textures : les aperçus progressifs, puis la feuille des découpes qu'ils mesurent.
+//! L'étape des textures : la chaîne de mips cuite de chaque texture d'atlas, puis la feuille des
+//! découpes que son décodage mesure.
 //!
 //! Les deux tiennent ensemble parce qu'elles partagent un décodage : mesurer l'alpha d'une texture
 //! demande la même image pleine résolution que sa pyramide d'aperçu, et la décoder deux fois
@@ -24,19 +25,26 @@ pub(super) struct TextureStage<'a> {
 /// page sont écrites à CHAQUE compilation, qu'il y ait ou non quelque chose à trancher : c'est la
 /// feuille qui dit si une relecture est due.
 pub(super) fn stage_textures(
+    pool: &rayon::ThreadPool,
     stage: &TextureStage<'_>,
     progress: &(impl Fn(Value) + Sync),
 ) -> Result<(Vec<TexturePreview>, Value, Value)> {
-    let (previews, shapes, preview_report) =
-        texture_preview::stage_texture_previews(&texture_preview::PreviewInputs {
-            o: stage.o,
-            g: stage.g,
-            bin: stage.bin,
-            image_root: stage.image_root,
-            meshes: stage.meshes,
-            view_map: stage.view_map,
-            to_measure: &stage.applied.to_measure(),
-        })?;
+    // Les images se décodent sur la grappe du travail, une par ouvrier, chacune sous le plafond
+    // d'allocation d'un décodage ; la feuille, elle, s'écrit une fois toutes rendues.
+    let (previews, shapes, preview_report) = pool.install(|| {
+        texture_preview::stage_texture_previews(
+            &texture_preview::PreviewInputs {
+                o: stage.o,
+                g: stage.g,
+                bin: stage.bin,
+                image_root: stage.image_root,
+                meshes: stage.meshes,
+                view_map: stage.view_map,
+                to_measure: &stage.applied.to_measure(),
+            },
+            progress,
+        )
+    })?;
     let weights = cutout::draw_weights(stage.primitives, &stage.applied.materials_by_texture);
     let entries = cutout::entries(stage.g, &previews, &shapes, stage.decisions, &weights);
     let sheet = stage.o.cache.join(cutout::DECISIONS_FILE);

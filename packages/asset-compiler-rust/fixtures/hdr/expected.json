@@ -2,8 +2,10 @@
   "case": "Un quad dont la couleur de base est plat.hdr, un Radiance RGBE 4 × 2 à lignes brutes, compilé par le harnais commun.",
   "imageContract": "image-plugin-3",
   "report": {
+    "bakedLevels": 0,
     "base": 64,
     "colorTextures": 1,
+    "dataTextures": 0,
     "maxLevels": 7,
     "notes": {},
     "pixelBytes": 0,
@@ -11,15 +13,15 @@
     "skipped": {
       "image-float-unsupported": 1
     },
-    "version": 2
+    "version": 3
   },
   "rule": "Une texture flottante ne fait échouer aucune compilation et n'est jamais rognée à huit bits : les aperçus progressifs sont du RGBA8 sRGB, la texture est comptée, aucun aperçu n'est produit, et la raison image-float-unsupported est nommée au rapport.",
   "scene": {
     "formatVersion": 3,
-    "manifestBinaryVersion": 4,
+    "manifestBinaryVersion": 5,
     "primitives": 1,
     "selectedTriangles": 2,
-    "sidecarSha256": "6a9faec1c549b3157e083318a1d17b91beb6d00bcda3dd3768b186cca9789cdc",
+    "sidecarSha256": "edbd8a5bf4e5f785975aef8e8a8f7572fcd8b6764f220af3995221290edd4da5",
     "texturePreviewBytes": 0
   }
 }

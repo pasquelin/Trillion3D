@@ -45,7 +45,9 @@ pub(crate) fn with_ratio(progress: impl Fn(Value) + Sync) -> impl Fn(Value) + Sy
                 }
             }
             Some("bootstrap") => 0.95 + 0.01 * frac(&event),
-            Some("coplanar") => 0.96 + 0.01 * frac(&event),
+            Some("coplanar") => 0.96 + 0.005 * frac(&event),
+            // Les textures se cuisent entre les couches coplanaires et le proxy : une image par pas.
+            Some("textures") => 0.965 + 0.005 * frac(&event),
             Some("proxy") => 0.97,
             Some("lights") => 0.98,
             Some("prune") => 0.99,

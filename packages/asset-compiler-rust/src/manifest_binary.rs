@@ -25,13 +25,16 @@ mod preview_tests;
 mod primitive;
 #[cfg(test)]
 mod tests;
-pub use digests::digests;
+pub use digests::{digests, texture_digests};
 use format::*;
 
 /// Version 4 turns the fixed 16×16 preview entries into the variable progressive levels: the pixel
 /// column is no longer one stride per entry, and an entry carries its own byte range. A reader of
 /// version 3 would slice the wrong texture's levels, so it refuses this file outright.
-pub const MANIFEST_BINARY_VERSION: u32 = 4;
+/// Version 5 widens an entry from ten to twelve words — the atlas it serves and the number of
+/// levels baked as files under `textures/` — and its pixels follow the graphics card's mip rule.
+/// A reader of version 4 would stride through the entries wrongly, so it refuses this file.
+pub const MANIFEST_BINARY_VERSION: u32 = 5;
 /// 'W','G','M','B' read as a little-endian u32.
 pub const MANIFEST_BINARY_MAGIC: u32 = 0x424d_4757;
 const HEADER_WORDS: usize = 4;
@@ -63,7 +66,7 @@ const TEXTURE_PREVIEW_PIXELS: usize = 23;
 const COLUMNS: usize = 24;
 /// Nombres par entrée de niveaux : texture, image, largeur, hauteur, genre et vue de provenance,
 /// puis le premier niveau porté, leur nombre, et le début et la longueur de ses pixels.
-const PREVIEW_WORDS: usize = 10;
+const PREVIEW_WORDS: usize = 12;
 
 /// Octets qu'une page écrit dans chaque colonne de page, quelle que soit la page.
 const PAGE_COLUMN_WIDTHS: [(usize, usize); 10] = [

@@ -1,6 +1,6 @@
 //! Ce que la feuille et la page montrent : une ligne par IMAGE, jamais une par liaison.
 use super::*;
-use crate::texture_preview::{PreviewSource, TexturePreview};
+use crate::texture_preview::{AtlasKind, PreviewSource, TexturePreview};
 
 /// Un aperçu 1×1 d'une image donnée, cité par la texture `texture`.
 fn apercu(texture: u32, image: u32, sha256: &str) -> TexturePreview {
@@ -11,7 +11,9 @@ fn apercu(texture: u32, image: u32, sha256: &str) -> TexturePreview {
         height: 1,
         source: PreviewSource::Uri,
         sha256: sha256.into(),
+        kind: AtlasKind::Color,
         first_level: 0,
+        baked_levels: 0,
         pixels: vec![10, 20, 30, 40],
     }
 }
