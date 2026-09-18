@@ -32,6 +32,11 @@ function releve(run, serie, nom, side) {
     raisonGpu: s.gpuReason ?? null,
   }));
   const etape = (stage) => etapes.find((e) => e.etape === stage) ?? null;
+  // L'enveloppe carte : celle du profil par étape, sinon celle que la page a relevée elle-même ;
+  // et le temps mur synchronisé du témoin Three (rendu puis attente carte).
+  const gpu = profil?.gpuImageMs ?? side.gpuFrameMs;
+  const gpuP50 = p50(gpu),
+    imageSyncP50 = p50(side.imageSyncMs);
   // Le bloc se relit dans la table du moteur d'aujourd'hui, pas dans celle du jour du relevé.
   const liste = passes.map((pass) => ({
     nom: pass.name,
@@ -49,15 +54,17 @@ function releve(run, serie, nom, side) {
     cpuP50: p50(side.cpuFrameMs),
     cpuP95: p95(side.cpuFrameMs),
     cpuSelectP50: p50(side.cpuSelectMs),
-    gpuP50: p50(profil?.gpuImageMs),
-    gpuP95: p95(profil?.gpuImageMs),
+    gpuP50,
+    gpuP95: p95(gpu),
     gpuReleves: profil?.gpuSamples ?? 0,
     gpuMethode: profil?.gpuMethod ?? null,
     profilCoutP50: p50(profil?.overheadMs),
     rafP50: p50(side.rafIntervalMs),
-    // Temps mur d'une image synchronisée : témoin Three nu seulement (rendu puis attente carte).
-    imageSyncP50: p50(side.imageSyncMs),
+    imageSyncP50,
     imageSyncP95: p95(side.imageSyncMs),
+    // Ce que ce côté appelle « une image » : l'enveloppe carte quand il la relève, sinon le temps
+    // mur synchronisé. Les fiches comparent les côtés par ce seul chiffre.
+    imageMs: gpuP50 ?? imageSyncP50,
     imageTenue: side.imageTenue ?? null,
     // Passes et étapes, telles quelles.
     passes: liste,
@@ -81,6 +88,8 @@ function releve(run, serie, nom, side) {
     pagesDemandees: side.budgetPages?.demande ?? null,
     couvertureLimitee: side.budgetPages?.couvertureLimiteeParBudget ?? null,
     geometrieOctets: side.geometrieOctets ?? null,
+    // Triangles uniques de la scène chez un témoin qui les compte (pages Three) : ses octets par triangle.
+    trianglesUniques: metrics.uniqueTriangles ?? null,
     decodageWasm: metrics.pagesDecodedWasm ?? null,
     // Textures.
     texturesEngagees: metrics.textureResidentBytes ?? null,

@@ -13,6 +13,9 @@ poste, les assets vivent sous `.mesure/assets/` (§ Assets).
   (`optionsCote.mjs`). `webgl2` exige un cache dont toutes les
   primitives sont des clusters exacts : sans cela le compilateur laisse `autonomousScene` nul et
   l'explorateur refuse la série par `AUTONOMOUS_SCENE_UNAVAILABLE`.
+  Les témoins, à mettre d'un côté par `--moteur-avant` : `three-nu` (Three.js seul, tout dessiné à
+  chaque image) et `three-lod` (Three.js plus un `THREE.LOD` à trois niveaux par maillage,
+  simplifiés par meshoptimizer au chargement : la méthode classique).
 - `--avant` / `--apres` : un dossier `dist/` construit, ou une référence git, extraite hors du dépôt
   et construite. Sans `--avant`, un seul côté est mesuré ; `--apres` vaut le `dist/` du dépôt.
 - `--moteur-avant` / `--moteur-apres` : le moteur d'un seul côté, qui l'emporte sur `--moteur`. C'est
