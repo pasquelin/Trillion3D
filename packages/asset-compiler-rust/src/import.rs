@@ -35,7 +35,7 @@ fn import_error(error: &ufbx::Error) -> CompilerError {
     )
 }
 
-/// Multiplicative hash for the (position, normal, uv, colour) corner keys: SipHash dominated mesh conversion.
+/// Multiplicative hash for the (position, normal, uv, colour) corner values: SipHash dominated mesh conversion.
 #[derive(Default, Clone, Copy)]
 struct CornerHasher(u64);
 impl std::hash::Hasher for CornerHasher {
@@ -51,7 +51,24 @@ impl std::hash::Hasher for CornerHasher {
         self.0 = (self.0.rotate_left(5) ^ (v as u64)).wrapping_mul(0x517cc1b727220a95);
     }
 }
-type CornerMap = HashMap<(u32, u32, u32, u32), u32, std::hash::BuildHasherDefault<CornerHasher>>;
+/// Les valeurs d'un coin — position, normale, uv, couleur : douze flottants, nuls quand l'attribut
+/// manque. Deux coins aux mêmes bits sont un seul sommet, quel que soit le rang que le fichier leur
+/// donne. Le hachage passe mot par mot : la clé n'a ni longueur à hacher ni octets à parcourir.
+const CORNER_VALUES: usize = 12;
+const CORNER_POSITION: std::ops::Range<usize> = 0..3;
+const CORNER_NORMAL: std::ops::Range<usize> = 3..6;
+const CORNER_UV: std::ops::Range<usize> = 6..8;
+const CORNER_COLOR: std::ops::Range<usize> = 8..12;
+#[derive(PartialEq, Eq)]
+struct CornerKey([u32; CORNER_VALUES]);
+impl std::hash::Hash for CornerKey {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        for word in self.0 {
+            state.write_u32(word);
+        }
+    }
+}
+type CornerMap = HashMap<CornerKey, u32, std::hash::BuildHasherDefault<CornerHasher>>;
 /// Le binaire d'une scène intermédiaire en construction, partagé avec les pilotes de scène qui
 /// écrivent leur propre glTF : une vue par bloc d'octets, alignée sur quatre.
 #[derive(Default)]

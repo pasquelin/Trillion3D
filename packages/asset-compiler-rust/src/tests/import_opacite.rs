@@ -5,7 +5,7 @@ use super::*;
 
 /// Copie la fixture FBX dans un dossier jetable avec ses deux images. `shared_texture` rebranche la
 /// carte d'opacité sur la texture de couleur de base, le seul cas que glTF sait porter.
-fn fbx_fixture(shared_texture: bool) -> (PathBuf, Options) {
+pub(super) fn fbx_fixture(shared_texture: bool) -> (PathBuf, Options) {
     let (root, mut options) = fixture();
     let source = root.join("fbx");
     fs::create_dir_all(&source).expect("dossier fbx");
@@ -28,7 +28,7 @@ fn fbx_fixture(shared_texture: bool) -> (PathBuf, Options) {
 }
 
 /// Le glTF importé et le manifeste d'import de la fixture.
-fn import_of(options: &Options) -> (Value, Value) {
+pub(super) fn import_of(options: &Options) -> (Value, Value) {
     compile(options, |_| {}).expect("compile fbx");
     let imports = options.cache.join("native/imports");
     let entry = fs::read_dir(&imports)
