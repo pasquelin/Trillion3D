@@ -83,15 +83,11 @@ export function encodeBlend(
   encodeBlendExpansion(rt, device, encoder);
   const prepared = performance.now();
   timing.transparentPrepareMs += prepared - cpuStart;
-  let feedbackWritten = drawBlendPass(rt, device, encoder);
+  drawBlendPass(rt, device, encoder);
   // La transmission vient apres les melanges, sur un fond fige : les deux copies separent les deux
   // passes, si bien qu'aucune surface transmissive ne lit une image a demi composee.
   if (blendState.transmissive && copyBackdrop(rt, encoder))
-    feedbackWritten = drawBlendPass(rt, device, encoder, true, feedbackWritten) || feedbackWritten;
-  // Ce que les transparents ont demandé aux textures virtuelles, réduit en compteurs : la même liste
-  // que la résolution opaque incrémente, copiée et remise à zéro à la soumission.
-  if (feedbackWritten && vis.textures && gpu.feedbackView && !rt.capture.secondaryCamera)
-    vis.textures.reduceBlend(encoder, gpu.feedbackView, gpu.targetSize, run.textureConverging);
+    drawBlendPass(rt, device, encoder, true);
   const finished = performance.now();
   timing.transparentDrawMs += finished - prepared;
   timing.transparentEncodeMs += finished - cpuStart;

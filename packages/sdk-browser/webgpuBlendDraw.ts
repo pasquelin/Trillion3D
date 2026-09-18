@@ -1,4 +1,5 @@
 import { BLEND_VIEW_SIZE } from './webgpuBlendUniforms.ts';
+import { feedbackAttachment } from './webgpuPagesAttachments.ts';
 import { blendBindEntries, type BlendLighting } from './webgpuBindEntries.ts';
 import { blendLightResources, sameLighting } from './webgpuBlendLighting.ts';
 import { createBlendOverdraw } from './webgpuBlendOverdraw.ts';
@@ -65,8 +66,8 @@ function blendBindGroup(
  *
  * `transmissive` dit laquelle des deux passes on encode : les mélanges d'abord, puis, une fois le
  * fond figé, les surfaces qui le relisent — une tranche par entrée, chacune décalant son volume.
- * `loadFeedback` garde le retour des textures virtuelles posé par une passe précédente de l'image ;
- * la fonction dit si elle a ouvert une passe, donc si ce retour existe.
+ * Le retour des textures virtuelles est ouvert par `feedbackAttachment`, qui sait seul si une passe
+ * de l'image l'a déjà écrit ; la fonction dit si elle a ouvert une passe.
  */
 /** Le tableau de decalages dynamiques, alloue une fois : `setBindGroup` le lit sur place. */
 const offsets = [0];
@@ -76,7 +77,6 @@ export function drawBlendPass(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   transmissive = false,
-  loadFeedback = false,
 ): boolean {
   const { gpu, vis, run, blendState } = rt,
     items = blendState.blendGpu,
@@ -108,9 +108,8 @@ export function drawBlendPass(
         loadOp: 'load',
         storeOp: 'store',
       },
-      // Le retour des textures virtuelles : effacé par la première passe de l'image, gardé par la
-      // seconde, réduit en compteurs après elles (`webgpuTileReduce.ts`).
-      { view: gpu.feedbackView!, loadOp: loadFeedback ? 'load' : 'clear', storeOp: 'store' },
+      // Le retour des textures virtuelles, ouvert par la première passe qui l'écrit.
+      feedbackAttachment(rt),
     ],
     depthStencilAttachment: { view: gpu.depthView!, depthLoadOp: 'load', depthStoreOp: 'store' },
   });

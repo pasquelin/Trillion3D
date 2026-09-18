@@ -1,4 +1,5 @@
 import type { EngineCamera } from './cameraWorld.ts';
+import { surfaceColorAttachments } from './webgpuPagesAttachments.ts';
 import { createGpuRaster } from './gpuRaster.ts';
 import { ensureWebgpuVisibilityBindings } from './webgpuVisibilityBindings.ts';
 import { ensureWebgpuShadeBindings } from './webgpuShadeBindings.ts';
@@ -7,33 +8,9 @@ import { checkFrameBudget } from './webgpuPagesTargets.ts';
 import { requestsComputeRaster } from './diagnosticGpuGeometry.ts';
 import { createRenderEncoder, submitColorCopy } from './webgpuPagesEncoder.ts';
 import { encodeSurfaceLighting } from './webgpuPagesEncodeBlend.ts';
-import type { SurfaceBuffer } from './surfaceBuffer.ts';
 import type { GpuRasterInput } from './gpuRasterTypes.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import { DEPTH_CLEAR } from './depthConvention.ts';
-
-let attachmentsFor: GPUTextureView[] | undefined,
-  attachments: GPURenderPassColorAttachment[] | undefined;
-
-/**
- * Les pièces jointes de couleur des surfaces, gardées telles quelles jusqu'au prochain jeu de vues.
- * Leurs quatre descripteurs ne dépendent que des vues, et les vues ne changent qu'au redimensionnement
- * de la cible : les reconstruire par image allouait cinq objets pour écrire les mêmes champs.
- * `views()` reste appelé à chaque image, c'est lui qui refuse une cible libérée.
- */
-export function surfaceColorAttachments(surfaces: SurfaceBuffer) {
-  const views = surfaces.views();
-  if (attachmentsFor !== views || !attachments) {
-    attachments = views.map((view) => ({
-      view,
-      loadOp: 'clear' as const,
-      storeOp: 'store' as const,
-      clearValue: [0, 0, 0, 0],
-    }));
-    attachmentsFor = views;
-  }
-  return attachments;
-}
 
 /** An image with no drawable row still clears the surfaces, lights them and presents the result. */
 export function encodeEmptySurfaces(

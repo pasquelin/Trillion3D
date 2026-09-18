@@ -1,4 +1,5 @@
 import type { EngineCamera } from './cameraWorld.ts';
+import { shadeColorAttachments } from './webgpuPagesAttachments.ts';
 import { VIS_MAX_PAGES } from './visibilityBuffer.ts';
 import { encodeWebgpuPartition } from './webgpuVisibilityPartition.ts';
 import { uploadRowCorners } from './webgpuVisibilityCorners.ts';
@@ -15,7 +16,6 @@ import {
   computeRasterStages,
   ensureGpuRaster,
   ensureVisBindings,
-  surfaceColorAttachments,
 } from './webgpuPagesEncodeVisSetup.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -96,9 +96,11 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   // une image sur quinze, et mappés une fois l'image soumise. Aucune image n'attend ce retour.
   if (vis.gpuPartition?.countsDue(run.frame)) vis.gpuPartition.encodeCounts(encoder, run.frame);
   if (!gpu.surfaces || !gpu.deferred || !gpu.hdrView) throw new Error('DEFERRED_UNAVAILABLE');
+  // Les surfaces, et la cible de retour des textures virtuelles où chaque pixel opaque pose le rang
+  // de tuile qu'il demande — complétée par les transparents, réduite en compteurs à la soumission.
   const shadePass = encoder.beginRenderPass({
     label: 'WG material surfaces v1',
-    colorAttachments: surfaceColorAttachments(gpu.surfaces),
+    colorAttachments: shadeColorAttachments(rt, gpu.surfaces),
   });
   shadePass.setViewport(0, 0, width, height, 0, 1);
   if (vis.shadeBindGroup) {

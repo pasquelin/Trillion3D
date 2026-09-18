@@ -1,11 +1,14 @@
 /**
- * La réduction du retour d'image des transparents : la cible où chaque pixel a posé le rang de la
- * tuile qu'il demande devient des compteurs, les mêmes que la résolution opaque incrémente.
- *
- * La passe de mélange ne peut pas écrire en mémoire sans perdre son rejet anticipé de profondeur
- * (`webgpuBlendRejetAnticipe.test.ts`) : elle écrit une cible, et c'est cette passe de calcul, un
- * fil par pixel de la phase, qui compte. Un pixel sur seize hors barrière, tous pendant une
- * convergence — la même phase que la résolution opaque, lue dans le même mot.
+ * La réduction du retour d'image : la cible où chaque pixel — opaque par la résolution matérielle,
+ * transparent par la passe de mélange — a posé le rang de la tuile qu'il demande devient des
+ * compteurs par tuile. Aucun étage de fragments n'écrit en mémoire : la passe de mélange y perdrait
+ * son rejet anticipé de profondeur (`webgpuBlendRejetAnticipe.test.ts`), et la résolution y payait
+ * six compteurs atomiques par pixel de phase — six chaînes de lectures dépendantes et six atomiques
+ * disputés, dont tout le groupe de pixels que la carte exécute ensemble attendait : la passe
+ * matériaux coûtait le double de l'ancien atlas à 2496×1404 sur Emerald (5,6 ms contre 2,8 ; 2,65
+ * sans ce retour). C'est cette passe de calcul, un fil par pixel de la phase, qui compte : un pixel
+ * sur seize hors barrière, tous pendant une convergence — le principe de la référence, le pixel
+ * écrit sa demande et l'analyse vient après.
  */
 import { FEEDBACK_EVERY, FEEDBACK_STRIDE } from './webgpuTileFeedback.ts';
 

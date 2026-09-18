@@ -1,8 +1,8 @@
 /**
  * Le retour d'image des textures virtuelles : ce que les pixels ont DEMANDÉ, tuile par tuile.
  *
- * Les passes qui échantillonnent les atlas incrémentent, pour un pixel sur seize, le compteur de la
- * tuile que leur niveau appelle. À la fin de l'image, les compteurs sont copiés dans un tampon de
+ * Chaque pixel pose dans la cible de retour le rang de la tuile qu'il demande, et une passe de calcul
+ * (`webgpuTileReduce.ts`) en compte un sur seize. À la fin de l'image, les compteurs sont copiés dans un tampon de
  * lecture et remis à zéro ; la lecture est asynchrone et revient une image plus tard, sans jamais
  * bloquer l'image en cours. Deux tampons de lecture se relaient : l'un se mappe pendant que l'autre
  * reçoit la copie suivante.

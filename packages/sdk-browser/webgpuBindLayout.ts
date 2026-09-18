@@ -20,13 +20,6 @@ export const atlasLayoutEntries = (
   },
   { binding: bindings.pages, visibility, buffer: readOnly },
 ];
-/** Le retour d'image : un tampon de stockage que le pixel incrémente. */
-export const feedbackLayoutEntry = (binding: number): GPUBindGroupLayoutEntry => ({
-  binding,
-  visibility: GPUShaderStage.FRAGMENT,
-  buffer: { type: 'storage' },
-});
-
 export const VIS_BINDINGS = {
   cache: 0,
   position: 1,
@@ -51,8 +44,6 @@ export const SHADE_BINDINGS = {
   sampler: 8,
   uniform: 9,
   data: atlas(10),
-  /** Le retour d'image des textures virtuelles : un compteur par tuile, écrit par le pixel. */
-  feedback: 12,
 };
 
 export const BLEND_BINDINGS = {

@@ -1,11 +1,11 @@
-// Lot F, F10 : `surfaceColorAttachments` (webgpuPagesEncodeVisSetup.ts) garde les quatre descripteurs
+// Lot F, F10 : `surfaceColorAttachments` (webgpuPagesAttachments.ts) garde les quatre descripteurs
 // de pièce jointe tant que `surfaces.views()` rend le même tableau, au lieu d'en allouer cinq objets
 // à chaque image. `views()` reste appelé à chaque image ; seule la reconstruction est conditionnelle.
 // L'oracle est la reconstruction inconditionnelle d'avant le lot F, recopiée telle quelle dans
 // `oracles/cadre-vue.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { surfaceColorAttachments } from './webgpuPagesEncodeVisSetup.ts';
+import { surfaceColorAttachments } from './webgpuPagesAttachments.ts';
 import { referenceAttachments } from './bench/oracles/cadre-vue.mjs';
 import type { SurfaceBuffer } from './surfaceBuffer.ts';
 

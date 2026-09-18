@@ -73,7 +73,7 @@ async function drainShadows(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
  * Une pose vidée : textures convergées ET ombres vidées, en alternance jusqu'au calme, et le même
  * prédicat que l'image tenue (`unsettledMask`) pour dire si c'est acquis. L'ordre seul ne suffit
  * pas : ce que l'ombre d'un feuillage demande aux textures se lit dans les cascades du soleil
- * (`visibilityShaderShadowRequest.ts`), et une cascade redessinée par le drainage déplace cette
+ * (`visibilityShaderRequest.ts`), et une cascade redessinée par le drainage déplace cette
  * demande ; une tuile arrivée, à l'inverse, périme toutes les ombres. Un tour dont le drainage n'a
  * rien redessiné a convergé ses textures sur les cascades finales : c'est l'arrêt.
  *

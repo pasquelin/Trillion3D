@@ -401,12 +401,6 @@
     "ast_hash": "d2e89daa5d97858513e4f64e62fbeaf5",
     "semantic_hash": ""
   },
-  "packages/sdk-browser/webgpuPagesEncodeVisSetup.test.ts": {
-    "mtime": 1789731930.927221,
-    "seen": 1789748804.036223,
-    "ast_hash": "2ff6f612d8d36f2f0d4bf8b71bcf84a2",
-    "semantic_hash": "2ff6f612d8d36f2f0d4bf8b71bcf84a2"
-  },
   "packages/sdk-browser/pagesBackend2.test.ts": {
     "mtime": 1789731930.904045,
     "seen": 1789748804.0360582,
@@ -480,9 +474,9 @@
     "semantic_hash": "2e3d197936bcb5871a93cc607f0949d7"
   },
   "packages/sdk-browser/webgpuPagesEncodeVisSetup.ts": {
-    "mtime": 1789748765.8854804,
-    "seen": 1789748804.036224,
-    "ast_hash": "5ac563dfb825d26963fb33b0b57f9728",
+    "mtime": 1789752642.3701546,
+    "seen": 1789752983.7663202,
+    "ast_hash": "bd1324b34745db266fbf4e985316b832",
     "semantic_hash": ""
   },
   "packages/sdk-browser/clusterBatchesScene.test.ts": {
@@ -492,9 +486,9 @@
     "semantic_hash": "75de5cc5e337cd0dc5379e9133f903c2"
   },
   "packages/sdk-browser/webgpuVisibilityPipelines.ts": {
-    "mtime": 1789748765.889471,
-    "seen": 1789748804.036333,
-    "ast_hash": "468b84030aec5ab3fa56a60ae6a0eab7",
+    "mtime": 1789751697.3259163,
+    "seen": 1789752983.766442,
+    "ast_hash": "55182902584c2fb5fcd866bf2db7a8d6",
     "semantic_hash": ""
   },
   "packages/sdk-browser/explorerOptions.ts": {
@@ -738,9 +732,9 @@
     "semantic_hash": "67444bb3a2abd2d1495e54c056c3cf46"
   },
   "packages/sdk-browser/webgpuPagesPrepareTextures.ts": {
-    "mtime": 1789748765.8864264,
-    "seen": 1789748804.03625,
-    "ast_hash": "fada2a82cfcd038b19a4f0f35626151b",
+    "mtime": 1789751647.7346685,
+    "seen": 1789752983.766349,
+    "ast_hash": "2ddaca58916e71dca393e2f3539aa2b1",
     "semantic_hash": ""
   },
   "packages/sdk-browser/threeLod.test.ts": {
@@ -1110,10 +1104,10 @@
     "semantic_hash": "831a2cf6911eb28c89ae3ee2a93f334b"
   },
   "packages/sdk-browser/webgpuPagesEncodeVis.ts": {
-    "mtime": 1789731930.9271336,
-    "seen": 1789748804.036223,
-    "ast_hash": "865c50407fc692602885c246b69d8493",
-    "semantic_hash": "865c50407fc692602885c246b69d8493"
+    "mtime": 1789752642.370759,
+    "seen": 1789752983.766319,
+    "ast_hash": "83e0d22610c6908231070c762a8132a8",
+    "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuResidencyQueue.ts": {
     "mtime": 1789731930.935416,
@@ -1200,9 +1194,9 @@
     "semantic_hash": "87ecb8313b61e8d097041eab1e6bf81f"
   },
   "packages/sdk-browser/surfaceBuffer.ts": {
-    "mtime": 1789748765.8805337,
-    "seen": 1789748804.036094,
-    "ast_hash": "959e23f866e208b0e2f8d5e4ad393e68",
+    "mtime": 1789751599.69788,
+    "seen": 1789752983.766154,
+    "ast_hash": "53183d4a76da0230e66101dfbc0bbb7f",
     "semantic_hash": ""
   },
   "packages/sdk-browser/pageSelectionTypes.ts": {
@@ -1230,9 +1224,9 @@
     "semantic_hash": "77b38068d7977e8ef379b12f66d48643"
   },
   "packages/sdk-browser/webgpuVisibilityShaders.ts": {
-    "mtime": 1789748765.8895967,
-    "seen": 1789748804.036334,
-    "ast_hash": "470b441eea46b548485af07f824800d1",
+    "mtime": 1789751573.2647228,
+    "seen": 1789752983.766443,
+    "ast_hash": "7049fb908bda6e53292d972ef980c939",
     "semantic_hash": ""
   },
   "packages/sdk-browser/depthConvention.ts": {
@@ -1752,9 +1746,9 @@
     "semantic_hash": "3a5752edf40210d95e4f769ef777d27b"
   },
   "packages/sdk-browser/webgpuVisibilityUniforms.ts": {
-    "mtime": 1789748765.8897078,
-    "seen": 1789748804.036335,
-    "ast_hash": "cc1c0a6ec296a77f1d06a02a0efac7c9",
+    "mtime": 1789752480.3358328,
+    "seen": 1789752983.766444,
+    "ast_hash": "2cf465a6a953d4d02556747c23d073ff",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuRowSlots.ts": {
@@ -2436,9 +2430,9 @@
     "semantic_hash": "d7da2846b6feaee816e1904b4aafae36"
   },
   "packages/sdk-browser/webgpuBindLayout.ts": {
-    "mtime": 1789748765.8827395,
-    "seen": 1789748804.036149,
-    "ast_hash": "86b1e173122449abce30ac4c85a9a310",
+    "mtime": 1789751573.2640707,
+    "seen": 1789752983.766222,
+    "ast_hash": "0da3b6ac47344d415ac869f7ddb1cb0b",
     "semantic_hash": ""
   },
   "packages/sdk-browser/gpuHizPyramid.ts": {
@@ -2514,8 +2508,8 @@
     "semantic_hash": "d071f3c732bc402dd4d81d1c1ee449d8"
   },
   "packages/sdk-browser/webgpuPagesEncodeDraws.ts": {
-    "mtime": 1789731930.9267285,
-    "seen": 1789748804.036219,
+    "mtime": 1789752530.440277,
+    "seen": 1789752983.766316,
     "ast_hash": "6edd48969f57132bc960c0081c3006b1",
     "semantic_hash": "6edd48969f57132bc960c0081c3006b1"
   },
@@ -2730,10 +2724,10 @@
     "semantic_hash": "092ba0aab973bc64108f8d9fbbb118fa"
   },
   "packages/sdk-browser/diagnosticGpuGeometry.ts": {
-    "mtime": 1789731930.86876,
-    "seen": 1789748804.035718,
-    "ast_hash": "4f36260b2268fadc4239f3f0d89bb79d",
-    "semantic_hash": "4f36260b2268fadc4239f3f0d89bb79d"
+    "mtime": 1789752480.3356724,
+    "seen": 1789752983.765653,
+    "ast_hash": "51c663ed2ac2403a57db4e1d0964e750",
+    "semantic_hash": ""
   },
   "packages/sdk-browser/visibilityTypes.ts": {
     "mtime": 1789748765.8822262,
@@ -3210,9 +3204,9 @@
     "semantic_hash": "96a6c77c363ce00d9bd281220ab693a4"
   },
   "packages/sdk-browser/visibilityWrapModes.test.ts": {
-    "mtime": 1789748765.8823507,
-    "seen": 1789748804.0361412,
-    "ast_hash": "04cc7f0b4501c4465e346e170f8fc0f1",
+    "mtime": 1789752583.376315,
+    "seen": 1789752983.766212,
+    "ast_hash": "6fb564ec4d7e306dcf3178d72f971613",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuResidencySets.ts": {
@@ -3282,9 +3276,9 @@
     "semantic_hash": "649436d422bb0b4b9a7c0d6e3b179eef"
   },
   "packages/sdk-browser/webgpuPagesStateRun.ts": {
-    "mtime": 1789748765.8874254,
-    "seen": 1789748804.036264,
-    "ast_hash": "45fc9fc2939dc4b7fda91da8c1ff69c3",
+    "mtime": 1789752642.3708801,
+    "seen": 1789752983.766366,
+    "ast_hash": "f16feb0a198ceb29e47d6e515ce8159b",
     "semantic_hash": ""
   },
   "packages/sdk-browser/mathBatchStateContract.test.ts": {
@@ -3360,9 +3354,9 @@
     "semantic_hash": "207348f5b583e3532b03b35de52f259c"
   },
   "packages/sdk-browser/webgpuPagesEncodeBlend.ts": {
-    "mtime": 1789748765.8851936,
-    "seen": 1789748804.036219,
-    "ast_hash": "a7bb97c12d493dfa2f7fb4912cf4a3dc",
+    "mtime": 1789752530.4398057,
+    "seen": 1789752983.766315,
+    "ast_hash": "875aa2316ea04008cd72a10460f21ee8",
     "semantic_hash": ""
   },
   "packages/sdk-browser/pageSelectionHelpers.ts": {
@@ -3408,9 +3402,9 @@
     "semantic_hash": "5e521aac7676c04bd560ac684a610946"
   },
   "packages/sdk-browser/webgpuPagesTargets.ts": {
-    "mtime": 1789748765.8876696,
-    "seen": 1789748804.036271,
-    "ast_hash": "6e7419d3afbba7b4fbffcda6efff1d2d",
+    "mtime": 1789751610.8880644,
+    "seen": 1789752983.7663732,
+    "ast_hash": "b61d2fa51af2251f9f613d97c1135a8f",
     "semantic_hash": ""
   },
   "packages/sdk-browser/cacheFormat.test.ts": {
@@ -3510,9 +3504,9 @@
     "semantic_hash": "f59313df7abf09b17e145621f61a6f8f"
   },
   "packages/sdk-browser/webgpuBlendDraw.ts": {
-    "mtime": 1789748765.882859,
-    "seen": 1789748804.036151,
-    "ast_hash": "faed85f2322a4e1ac64f623292f995ba",
+    "mtime": 1789752642.3706508,
+    "seen": 1789752983.7662249,
+    "ast_hash": "bcd115857ef9be12ced5e379cf7e945d",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuVisibilityItemWords.ts": {
@@ -3576,9 +3570,9 @@
     "semantic_hash": "9cb3a5fb6a3c53e2c78efdecfcc53852"
   },
   "packages/sdk-browser/webgpuBlendPipelines.ts": {
-    "mtime": 1789748765.8833654,
-    "seen": 1789748804.03616,
-    "ast_hash": "df9a59033a71f4f04a9db69845dcb925",
+    "mtime": 1789752545.2078478,
+    "seen": 1789752983.7662358,
+    "ast_hash": "c87f0489223572d0782dada0c0094fdb",
     "semantic_hash": ""
   },
   "packages/sdk-browser/visibilityShadingNormal.ts": {
@@ -3630,10 +3624,10 @@
     "semantic_hash": "e3cfba2209669a164551bb945d039a65"
   },
   "packages/sdk-browser/webgpuPages.10.test.ts": {
-    "mtime": 1789731930.9248633,
-    "seen": 1789748804.036205,
-    "ast_hash": "308c106e0574637fd0ac107d233c0b79",
-    "semantic_hash": "308c106e0574637fd0ac107d233c0b79"
+    "mtime": 1789751746.5240169,
+    "seen": 1789752983.7662961,
+    "ast_hash": "a85ae6894cc2adf6fd73b15b4e59819e",
+    "semantic_hash": ""
   },
   "packages/sdk-browser/geometryPageWasm.test.ts": {
     "mtime": 1789731930.8753066,
@@ -3744,9 +3738,9 @@
     "semantic_hash": "ccf96f932d95b2b61976c5f0dd5b2dec"
   },
   "packages/sdk-browser/webgpuPagesStateVis.ts": {
-    "mtime": 1789748765.8875532,
-    "seen": 1789748804.036267,
-    "ast_hash": "4f8e5927e1591cf12664dd84a62d4789",
+    "mtime": 1789751573.264951,
+    "seen": 1789752983.766369,
+    "ast_hash": "3ae8ce5c3130a6614e606ebc658ebf0e",
     "semantic_hash": ""
   },
   "packages/sdk-browser/clusterBatchLayers.ts": {
@@ -3792,9 +3786,9 @@
     "semantic_hash": "84c24cff13fe74a7b9fb749018b5a9c1"
   },
   "packages/sdk-browser/visibilityShaderShade.ts": {
-    "mtime": 1789748765.8820016,
-    "seen": 1789748804.0361369,
-    "ast_hash": "001dd9977d8c8199f672dfd001778091",
+    "mtime": 1789752480.3352463,
+    "seen": 1789752983.766208,
+    "ast_hash": "ad0efd9aec1cd292683eb123c484f79a",
     "semantic_hash": ""
   },
   "packages/sdk-browser/explorerHeldFrame.ts": {
@@ -4098,9 +4092,9 @@
     "semantic_hash": "0fa21e643314c7e53d96ab3f5d761b66"
   },
   "packages/sdk-browser/webgpuPagesRender.ts": {
-    "mtime": 1789748765.886742,
-    "seen": 1789748804.036253,
-    "ast_hash": "4c7d71bf8f839af8628276b551d5e058",
+    "mtime": 1789751647.7343984,
+    "seen": 1789752983.766353,
+    "ast_hash": "46871af67f06264c87c35128a30939a4",
     "semantic_hash": ""
   },
   "packages/sdk-browser/clusterBatches.ts": {
@@ -4128,9 +4122,9 @@
     "semantic_hash": "5c7a609623950bcf197f27d175c0562e"
   },
   "packages/sdk-browser/webgpuPagesEncoder.ts": {
-    "mtime": 1789748765.8855972,
-    "seen": 1789748804.036226,
-    "ast_hash": "5ff138dd983eec5569471987db7f7c85",
+    "mtime": 1789752530.4405806,
+    "seen": 1789752983.766322,
+    "ast_hash": "825bbf15dcc79aa6d041261f878485ad",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPagesPrepareCache.ts": {
@@ -4146,9 +4140,9 @@
     "semantic_hash": "0ec8f4b9458ecaf6f37a03e90c70e737"
   },
   "packages/sdk-browser/webgpuBlendShader.ts": {
-    "mtime": 1789748765.8837202,
-    "seen": 1789748804.036166,
-    "ast_hash": "4a55de8787cd1fc63b863c3cac5b5826",
+    "mtime": 1789752480.336108,
+    "seen": 1789752983.7662451,
+    "ast_hash": "2eea84754786ebaff82afe61c920dd30",
     "semantic_hash": ""
   },
   "packages/sdk-browser/explorerSceneFiniteTransform.test.ts": {
@@ -4602,9 +4596,9 @@
     "semantic_hash": "7fe5403683629c98457d31390952f98b"
   },
   "packages/sdk-browser/webgpuBindEntries.ts": {
-    "mtime": 1789748765.88263,
-    "seen": 1789748804.036148,
-    "ast_hash": "43272e0406a67be81b06e56ecb21799f",
+    "mtime": 1789751573.264175,
+    "seen": 1789752983.766221,
+    "ast_hash": "b0a29b3a998d56b1d65ce7e29d86bfe7",
     "semantic_hash": ""
   },
   "packages/sdk-browser/pageConeEchelle.test.ts": {
@@ -8376,9 +8370,9 @@
     "semantic_hash": "791ccac21545ab2b8dafde93141db76b"
   },
   "TODO.md": {
-    "mtime": 1789748765.8557017,
-    "seen": 1789748804.036706,
-    "ast_hash": "62164b3276af84fc0dd366ecfb2b701e",
+    "mtime": 1789752936.8702683,
+    "seen": 1789752983.766837,
+    "ast_hash": "4a66cfe723f9da9fd2212e93cddf5579",
     "semantic_hash": ""
   },
   "README.md": {
@@ -10884,27 +10878,21 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/visibilityShaderMaps.ts": {
-    "mtime": 1789748765.8818433,
-    "seen": 1789748804.036136,
-    "ast_hash": "69b28eacf1e4392aa7e569f7d74ae9ca",
-    "semantic_hash": ""
-  },
-  "packages/sdk-browser/visibilityShaderShadowRequest.ts": {
-    "mtime": 1789748765.882088,
-    "seen": 1789748804.036138,
-    "ast_hash": "107e05388bab2666103985ee294e9303",
+    "mtime": 1789752463.4820955,
+    "seen": 1789752983.7662048,
+    "ast_hash": "9c0edece61e8f45de069b3bb41cb1e99",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuBlendRequestWgsl.test.ts": {
-    "mtime": 1789748765.8834777,
-    "seen": 1789748804.0361621,
-    "ast_hash": "70758acf59c14eb3e58a5f96c4d5ddd0",
+    "mtime": 1789752583.376181,
+    "seen": 1789752983.76624,
+    "ast_hash": "63b9d089cee797eb6d6ab4dceb2b4b98",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuBlendRequestWgsl.ts": {
-    "mtime": 1789748765.8835592,
-    "seen": 1789748804.036163,
-    "ast_hash": "37bc3042966084d9ac21f13c6b85edfb",
+    "mtime": 1789752407.8513784,
+    "seen": 1789752983.766241,
+    "ast_hash": "ff71c09fded22f93c75373bb66536b40",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuTileAtlas.ts": {
@@ -10920,9 +10908,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuTileConverge.ts": {
-    "mtime": 1789748765.8880374,
-    "seen": 1789748804.0363011,
-    "ast_hash": "997392f69189896658af3fd56b8f4320",
+    "mtime": 1789752583.3758729,
+    "seen": 1789752983.766407,
+    "ast_hash": "4cadc9268fa16775e6d3b18255061168",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuTileCounters.ts": {
@@ -10932,9 +10920,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuTileFeedback.ts": {
-    "mtime": 1789748741.7664702,
-    "seen": 1789748804.036302,
-    "ast_hash": "1f15fcd0e09041b1e3a0ce8bc62ee6f9",
+    "mtime": 1789751694.2712188,
+    "seen": 1789752983.766409,
+    "ast_hash": "946818c6d0af3ffa4656699ae3747550",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuTileLevels.ts": {
@@ -10950,8 +10938,8 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuTilePageTable.ts": {
-    "mtime": 1789748741.7667506,
-    "seen": 1789748804.036305,
+    "mtime": 1789749937.4888322,
+    "seen": 1789752983.766411,
     "ast_hash": "c3405ce6523df1e3248c984a5d2e7a7c",
     "semantic_hash": ""
   },
@@ -10968,15 +10956,15 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuTileReduce.ts": {
-    "mtime": 1789748765.888522,
-    "seen": 1789748804.0363069,
-    "ast_hash": "bd667c878d9e5b013d5a3aa2b162c853",
+    "mtime": 1789752583.3760426,
+    "seen": 1789752983.7664142,
+    "ast_hash": "7774aa6cb011799bcc3d57c0cf0ce0d1",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuTileRequestWgsl.ts": {
-    "mtime": 1789748765.888591,
-    "seen": 1789748804.036308,
-    "ast_hash": "7e81dd84904a56ec7bf48af647a62a71",
+    "mtime": 1789752589.1056063,
+    "seen": 1789752983.766415,
+    "ast_hash": "1b8734549d7f71b07ea8c1f92fb27f56",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuTileScratch.ts": {
@@ -10992,15 +10980,15 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuTileStreamer.ts": {
-    "mtime": 1789748765.8888001,
-    "seen": 1789748804.03631,
-    "ast_hash": "8cf441294e16cbee8fd5c1c3f1193d32",
+    "mtime": 1789752530.4410553,
+    "seen": 1789752983.766418,
+    "ast_hash": "f919be92c32374077de83ef5c3c4be7b",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuTileWgsl.ts": {
-    "mtime": 1789748765.8889105,
-    "seen": 1789748804.0363111,
-    "ast_hash": "3e98cd838afc3061b7fbfb116cd0fd1f",
+    "mtime": 1789752463.4839528,
+    "seen": 1789752983.766419,
+    "ast_hash": "d5091c113511fd81123d534b82d43a29",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuTileWrite.ts": {
@@ -11025,6 +11013,24 @@
     "mtime": 1789748765.8908525,
     "seen": 1789748804.036581,
     "ast_hash": "463ea066f55f6314265c0cf354cef977",
+    "semantic_hash": ""
+  },
+  "packages/sdk-browser/visibilityShaderRequest.ts": {
+    "mtime": 1789752437.044194,
+    "seen": 1789752983.766207,
+    "ast_hash": "338286ee964679dd8badf2328fa330d8",
+    "semantic_hash": ""
+  },
+  "packages/sdk-browser/webgpuPagesAttachments.test.ts": {
+    "mtime": 1789752727.7331922,
+    "seen": 1789752983.766307,
+    "ast_hash": "31a9bb89587fe1583f10828c2981c075",
+    "semantic_hash": ""
+  },
+  "packages/sdk-browser/webgpuPagesAttachments.ts": {
+    "mtime": 1789752711.6081083,
+    "seen": 1789752983.766308,
+    "ast_hash": "44b0809c9689593ba19fb3fc3b93890d",
     "semantic_hash": ""
   }
 }

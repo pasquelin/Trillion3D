@@ -97,7 +97,7 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
       tileBytes: TILE_BYTES,
       tilesPerAtlas: textures.color.pool.tiles,
       pinnedTails: textures.color.pool.resident + textures.data.pool.resident,
-      blendFeedback: textures.blendFeedback,
+      requestReduce: textures.requestReduce,
     },
     progressiveLevels: { version: TEXTURE_PREVIEW_VERSION, base: PREVIEW_BASE },
     preparationMs: performance.now() - textureStarted,

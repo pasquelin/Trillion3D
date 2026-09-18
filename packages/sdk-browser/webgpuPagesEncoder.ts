@@ -44,8 +44,15 @@ export function submitColorCopy(
     run.gpuDrawCalls++;
   }
   const owned = encoder === timing.frameEncoder;
-  // Le retour d'image des textures part avec l'image : copié vers sa lecture, puis remis à zéro.
-  if (!capture.secondaryCamera) rt.vis.textures?.feedback.encode(encoder);
+  // Le retour d'image des textures part avec l'image : la cible où les pixels ont posé leurs
+  // demandes est réduite en compteurs, copiés vers leur lecture puis remis à zéro.
+  if (!capture.secondaryCamera && gpu.feedbackView)
+    rt.vis.textures?.publishRequests(
+      encoder,
+      run.feedbackWritten ? gpu.feedbackView : undefined,
+      gpu.targetSize,
+      run.textureConverging,
+    );
   // La soumission est chronométrée seule : l'encodage qui la précède ne la porte plus.
   const submitStart = performance.now();
   const command = encoder.finish();

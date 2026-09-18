@@ -18,11 +18,11 @@ export const DIAGNOSTIC_VIS_WGSL = `
 
 /** Les deux étages plats de la résolution : sans rien lire, puis en ne lisant que l'identifiant. */
 export const DIAGNOSTIC_SHADE_WGSL = `
-@fragment fn shade_plat_fs()->SurfaceOut{return diagnosticSurface(vec3f(0.5));}
+@fragment fn shade_plat_fs()->SurfaceOut{return diagnosticSurface(vec3f(0.5),0u);}
 @fragment fn shade_ids_fs(@builtin(position) pos:vec4f)->SurfaceOut{
  let packed=textureLoad(vis,vec2i(i32(pos.x),i32(pos.y)),0).r;
  if(packed==0u){return emptySurface();}
- return diagnosticSurface(vec3f(f32(packed&0xffu)/255.0));
+ return diagnosticSurface(vec3f(f32(packed&0xffu)/255.0),0u);
 }`;
 
 /** Le suffixe d'étage du raster (`vis_<suffixe>_fs`, `vis_hiz_<suffixe>_fs`) que chaque variante impose. */

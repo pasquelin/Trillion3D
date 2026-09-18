@@ -117,11 +117,15 @@ for (const [nom, texte] of Object.entries({ SHADE_SHADER, BLEND_SHADER }))
 test('chaque rang de WRAP_MAP est lu par la lecture et par le retour d’image des deux nuanceurs', () => {
   const fois = (texte: string, motif: string) => texte.split(motif).length - 1;
   for (const rang of Object.values(WRAP_MAP)) {
-    // La carte de base est lue une troisième fois dans l'ombrage : la demande de tuiles pour l'ombre
-    // du soleil (`visibilityShaderShadowRequest.ts`) adresse la découpe par le même quartet.
+    // Dans l'ombrage, chaque carte est lue par son quartet ; la base l'est une seconde fois par la
+    // demande de tuiles pour l'ombre du soleil (`visibilityShaderRequest.ts`), et les cartes de
+    // données comparent leur quartet à celui des cartes déjà lues pour les reprendre
+    // (`lectureDonnee`) : rugosité et occlusion deux comparaisons, métal deux. Le retour d'image,
+    // lui, adresse par la règle commune (`mapRequest`), sans quartet écrit par carte.
+    const attendu = { 0: 2, 1: 3, 2: 3, 3: 1, 4: 3, 5: 1 }[rang] ?? 1;
     assert.equal(
       fois(SHADE_SHADER, `wrapOf(page.wrapModes,${rang}u)`),
-      rang === WRAP_MAP.base ? 3 : 2,
+      attendu,
       `rang ${rang}, ombrage`,
     );
     assert.equal(fois(BLEND_SHADER, `wrapOf(wrap,${rang}u)`), 1, `rang ${rang}, lot transparent`);
