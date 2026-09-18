@@ -26,6 +26,7 @@ mod gltf_scenes;
 mod identite_import;
 mod identite_textures;
 mod import_opacite;
+mod import_soudure;
 mod ktx2_golden;
 mod lampes_emetteur;
 mod ma_driver;
