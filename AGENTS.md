@@ -33,6 +33,10 @@
   Unmeasured values = `null`, never estimates presented as measurements. Keep diagnostics outside
   measured beauty passes; report unsupported capabilities. Measure on a quiet machine, and publish
   the run-to-run spread whenever a claim rests on a difference smaller than it.
+- A per-pass GPU duration says *where*, never *how much*: on tile-based GPUs passes overlap and a
+  pass's timestamp absorbs its neighbours' work (17 Sept. 2026: a composition pass read 7 ms with
+  the sun and 2.4 ms without, having not changed). The frame envelope is the total; a difference
+  between two runs is read on the envelope only.
 
 ## Image and fidelity
 
