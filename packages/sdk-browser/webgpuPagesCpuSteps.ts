@@ -40,6 +40,8 @@ const CPU = cpuStepTable([
 ] as const);
 export const CPU_STEP_NAMES = CPU.names;
 export const CPU_STEP = CPU.at;
+/** L'étape de chaque borne, dans l'ordre de la ligne du profil ; `null` pour une somme. */
+export const CPU_STEP_STAGES = CPU.stages;
 
 /** Dépose les bornes processeur de l'image dans le profil public par étape, quand il est monté. */
 function recordStages(rt: WebgpuPagesRuntime) {
