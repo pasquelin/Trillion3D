@@ -67,9 +67,11 @@ test('MASK_KEEP_WGSL déclare fn maskKeep une seule fois dans le raster et les d
   eachOnce(MASK_KEEP_WGSL, { SMALL_SHADER, VIS_SHADER, SHADOW_DEPTH_SHADER });
 });
 
-test('BARY_WEIGHTS_WGSL déclare fn baryWeights une seule fois dans le raster et l’ombrage', () => {
+test('BARY_WEIGHTS_WGSL déclare fn baryWeights une seule fois dans l’ombrage, jamais dans le raster', () => {
   assert.match(BARY_WEIGHTS_WGSL, /fn baryWeights\(/);
-  eachOnce(BARY_WEIGHTS_WGSL, { SMALL_SHADER, SHADE_SHADER });
+  eachOnce(BARY_WEIGHTS_WGSL, { SHADE_SHADER });
+  // Le raster décide la couverture sur ses trois arêtes, pas sur des poids dérivés.
+  assert.doesNotMatch(SMALL_SHADER, /baryWeights/);
 });
 
 // Défaut 7 : en filtrage linéaire sous `Repeat`, la couture d'une période doit mêler le dernier
