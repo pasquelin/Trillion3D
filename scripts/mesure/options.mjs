@@ -11,8 +11,6 @@ export { resolveSides } from './dists.mjs';
 export { ENGINES, engineOf, equipSide, resolveCache, sideReport } from './optionsCote.mjs';
 import { ENGINES } from './optionsCote.mjs';
 
-export const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-
 /** Le dossier d'un paquet installé, cherché comme Node le cherche : de la racine vers le haut. Un
  *  worktree sans `node_modules` à lui trouve ainsi ceux de l'arbre de travail principal. */
 function packageDir(root, name) {

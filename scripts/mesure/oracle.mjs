@@ -18,7 +18,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import { chromium } from 'playwright';
+import { lancerChrome } from './chrome.mjs';
 import * as options from './options.mjs';
 import { startServer, pngFromRgba } from './serveur.mjs';
 import { readBounds } from './page.mjs';
@@ -89,8 +89,7 @@ async function main() {
   const captures = new Map();
   const server = await startServer({ port: 0, mounts, captures });
   const port = server.address().port;
-  const browser = await chromium.launch({
-    executablePath: options.CHROME,
+  const browser = await lancerChrome({
     headless: flag('visible', 'false') !== 'true',
     args: options.ENGINES.webgpu.flags,
   });
