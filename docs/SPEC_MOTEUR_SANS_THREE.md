@@ -190,7 +190,7 @@ Ce que le web impose, et la réponse :
 - **L0** — le soleil décomposé : les 4,6 ms d'ombres, tuiles et éclairage expliquées par différences d'enveloppe (Lumière 17). Rien n'est optimisé avant.
 - **L1** — traces écran : réflexions et rebond court depuis l'image HDR, la profondeur et la normale déjà rendues ; la pièce la moins chère de la référence, et la première.
 - **L2** — direct stochastique débruité par le TAA (Lumière 13) : des dizaines de lampes au prix d'une.
-- **L3** — ombres en pages virtuelles depuis le raster de calcul (Lumière 2, 6, 12) : seules les pages vues, en cache.
+- **L3** — ombres en pages virtuelles depuis le raster matériel (Lumière 2, 6, 12) : seules les pages vues, en cache. Le raster de calcul est éteint depuis Géométrie 26, mesure faite.
 - **L4** — champ de distance global cuit, traversé en compute, lisant le cache de surfaces du proxy.
 - **L5** — sondes écran rassemblant L1 et L4, filtrées par l'historique temporel ; sondes monde (Lumière 11) pour le lointain ; le rebond allumé par défaut quand son budget tient.
 - **L6** — réflexions rugueuses et matériaux (Lumière 7, 10).

@@ -19,8 +19,6 @@ export type GpuRasterInput = {
   depthView: GPUTextureView;
   hizView?: GPUTextureView;
   selection?: { maskBuffer: GPUBuffer; maskOffset: number };
-  /** La variante de diagnostic qui pèse les occulteurs seuls : la moitié testée reste hors image. */
-  skipRest?: boolean;
   groups: Array<unknown>;
   groupKey: number;
 };

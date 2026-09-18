@@ -25,8 +25,7 @@ console.log(
       adaptateur: resultat.adaptateur ?? null,
       couverts: resultat.couverts,
       clusters: resultat.clusters,
-      silhouettes: resultat.silhouettes,
-      interieurs: resultat.interieurs,
+      variantes: resultat.variantes,
       erreurs: resultat.erreurs,
     },
     null,
@@ -35,18 +34,22 @@ console.log(
 );
 preuveSaine(resultat);
 assert.ok(resultat.couverts > 1000, `la scène ne couvre que ${resultat.couverts} pixels`);
-assert.deepEqual(resultat.clusters, [30, 30], 'les deux moteurs dessinent la même coupe');
-assert.deepEqual(
-  resultat.interieurs,
-  [],
-  `${resultat.interieurs.length / 2} pixel(s) diffèrent loin de toute silhouette : fissure ou triangle parasite`,
-);
-// La silhouette peut différer d'un pixel là où les deux règles de remplissage ne coïncident pas ;
-// elle ne peut pas différer plus que son propre périmètre.
-assert.ok(
-  resultat.silhouettes < resultat.couverts / 8,
-  `${resultat.silhouettes} pixels de silhouette diffèrent sur ${resultat.couverts} couverts`,
-);
+assert.equal(resultat.clusters, 30);
+for (const [variante, releve] of Object.entries(resultat.variantes)) {
+  assert.equal(releve.clusters, 30, `${variante} : les deux moteurs dessinent la même coupe`);
+  assert.deepEqual(
+    releve.interieurs,
+    [],
+    `${variante} : ${releve.interieurs.length / 2} pixel(s) diffèrent loin de toute silhouette — fissure, triangle parasite, ou triangle qu'aucun des deux rasters n'a pris`,
+  );
+  // La silhouette peut différer d'un pixel là où les deux règles de remplissage ne coïncident pas ;
+  // elle ne peut pas différer plus que son propre périmètre.
+  assert.ok(
+    releve.silhouettes < resultat.couverts / 8,
+    `${variante} : ${releve.silhouettes} pixels de silhouette diffèrent sur ${resultat.couverts} couverts`,
+  );
+}
+const silhouettes = Object.values(resultat.variantes).map((releve) => releve.silhouettes);
 console.log(
-  `OK : ${resultat.couverts} pixels couverts, 0 différence intérieure, ${resultat.silhouettes} sur la silhouette — ${resultat.adaptateur}`,
+  `OK : ${resultat.couverts} pixels couverts, 0 différence intérieure sous les deux variantes, silhouettes ${silhouettes.join(' / ')} — ${resultat.adaptateur}`,
 );

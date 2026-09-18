@@ -1,4 +1,4 @@
-import { FINE_SIDE, LARGE_SPAN, TILE } from './gpuRasterContract.ts';
+import { COMPUTE_ALL, FINE_SIDE, LARGE_SPAN, TILE } from './gpuRasterContract.ts';
 
 /**
  * Ce qu'un triangle décide avant qu'un pixel ne soit nommé, et la seule écriture de ce calcul : le
@@ -78,18 +78,25 @@ fn setupTriangle(pageIndex:u32,triangle:u32,vp:mat4x4f,det:f32)->Tri{
  if(abs(orient)<1e-8){return t;}
  let front=select((orient>0.0),(orient<0.0),(det>=0.0));
  if((page.flags&2u)==0u){if((page.flags&256u)!=0u){if(front){return t;}}else if(!front){return t;}}
- var lo=min(a,min(b,c));var hi=max(a,max(b,c));
- if(cl.n==4u){lo=min(lo,d);hi=max(hi,d);}
+ // La boîte des trois premiers sommets est celle que le partage lit, dans le même texte que le
+ // matériel ; le quatrième sommet d'une coupe l'élargit ensuite, et ce triangle-là n'est de toute
+ // façon pas partagé : un sommet derrière le plan proche le laisse au matériel.
+ var box=screenBox(a,b,c);
+ let clipped=cl.n==4u||ca.w-ca.z<0.0||cb.w-cb.z<0.0||cc.w-cc.z<0.0;
+ if(uni.computeSpan<${COMPUTE_ALL}&&(clipped||box.span>uni.computeSpan)){return t;}
  let last=uni.viewport-vec2f(1.0);
- let q0=clamp(floor(lo),vec2f(0.0),last);
- let q1=clamp(floor(hi),vec2f(0.0),last);
+ if(cl.n==4u){
+  let lo=min(box.lo,d);let hi=max(box.hi,d);
+  let q0=clamp(floor(lo),vec2f(0.0),last);let q1=clamp(floor(hi),vec2f(0.0),last);
+  box=ScreenBox(lo,hi,q0,q1,max(q1.x-q0.x,q1.y-q0.y));
+ }
  // Une boîte entièrement à gauche ou au-dessus de l'image se serre sur le bord : le serrage seul ne
  // la distingue pas d'une boîte qui touche ce bord, c'est la boîte NON serrée qui le dit.
- if(hi.x<0.0||hi.y<0.0||lo.x>last.x||lo.y>last.y){return t;}
+ if(box.hi.x<0.0||box.hi.y<0.0||box.lo.x>last.x||box.lo.y>last.y){return t;}
  t.ok=1u;t.a=a;t.b=b;t.c=c;t.d=d;t.ca=cl.p[0];t.cb=cl.p[1];t.cc=cl.p[2];t.cd=select(cl.p[0],cl.p[3],cl.n==4u);
  t.ua=cl.u[0];t.ub=cl.u[1];t.uc=cl.u[2];t.ud=ud;
- t.area0=area0;t.area1=area1;t.lo=q0;t.hi=q1;
- t.span=max(q1.x-q0.x,q1.y-q0.y);
+ t.area0=area0;t.area1=area1;t.lo=box.q0;t.hi=box.q1;
+ t.span=box.span;
  return t;
 }
 /** La classe de taille d'une boîte déjà découpée : le pavé qu'un groupe de fils couvre d'un coup. */

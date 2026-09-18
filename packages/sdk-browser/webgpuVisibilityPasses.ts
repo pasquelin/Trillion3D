@@ -2,6 +2,7 @@ import { drawVis } from './webgpuVisibilityDrawer.ts';
 import { skipsSecondaryPass } from './diagnosticGpuGeometry.ts';
 import { restSlotCount } from './gpuDrawContract.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+import type { ComputeRasterStages } from './webgpuPagesEncodeVisSetup.ts';
 import { DEPTH_CLEAR } from './depthConvention.ts';
 
 /**
@@ -18,7 +19,7 @@ import { DEPTH_CLEAR } from './depthConvention.ts';
  * ligne testée qu'elle garde. La partition a posé les `0` et les `2` avant cette étape ; le test ne
  * fait que ramener certains `2` à `1`.
  */
-export function encodeHizMidFrame(
+function encodeHizMidFrame(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
@@ -43,12 +44,10 @@ export function encodeHizMidFrame(
 }
 
 /**
- * Le raster matériel du tampon de visibilité : la passe primaire, puis, quand les ressources de la
- * moitié testée existent, la pyramide, le test d'occultation et la passe secondaire.
- *
- * C'est le repli de l'appareil qui ne peut pas héberger le raster de calcul — il n'y a plus qu'ici
- * que la géométrie opaque passe par des appels de dessin. Quand le raster de calcul existe, c'est
- * lui qui produit ces mêmes attachements, et aucun de ces appels n'est encodé.
+ * Le tampon de visibilité, dans l'ordre de la référence : la passe matérielle primaire, la moitié
+ * occulteurs du raster de calcul fondue dedans, la pyramide et son test, la passe secondaire, la
+ * moitié testée du calcul, puis ses identifiants. Sans `compute` — pas de raster de calcul — le
+ * matériel produit seul les mêmes attachements, et chaque étape du calcul est simplement absente.
  */
 export function encodeWebgpuVisibilityPasses(
   rt: WebgpuPagesRuntime,
@@ -57,6 +56,7 @@ export function encodeWebgpuVisibilityPasses(
   twoPass: boolean,
   tableRows: number,
   useIndirect: boolean,
+  compute: ComputeRasterStages,
 ) {
   const { vis, gpu } = rt,
     { gpuHiz } = vis,
@@ -98,18 +98,23 @@ export function encodeWebgpuVisibilityPasses(
   visPass.setViewport(0, 0, width, height, 0, 1);
   drawVis(rt, device, visPass, false, useIndirect);
   visPass.end();
+  compute?.occluders(encoder);
   rt.run.hizPyramidFresh = false;
-  if (!twoPass || !gpuHiz) return;
-  encodeHizMidFrame(rt, device, encoder, tableRows);
-  // La seule variante de diagnostic qui touche aux commandes encodées : elle laisse la moitié
-  // testée hors de l'image pour peser les occulteurs seuls, et rend donc une image incomplète.
-  if (skipsSecondaryPass(rt.context?.diagnosticGpuVariant)) return;
-  const restPass = encoder.beginRenderPass({
-    label: 'WG visibility secondary',
-    colorAttachments: visColors('load'),
-    depthStencilAttachment: { view: depthTarget, depthLoadOp: 'load', depthStoreOp: 'store' },
-  });
-  restPass.setViewport(0, 0, width, height, 0, 1);
-  drawVis(rt, device, restPass, true, useIndirect);
-  restPass.end();
+  if (twoPass && gpuHiz) {
+    encodeHizMidFrame(rt, device, encoder, tableRows);
+    // La seule variante de diagnostic qui touche aux commandes encodées : elle laisse la moitié
+    // testée hors de l'image pour peser les occulteurs seuls, et rend donc une image incomplète.
+    if (!skipsSecondaryPass(rt.context?.diagnosticGpuVariant)) {
+      const restPass = encoder.beginRenderPass({
+        label: 'WG visibility secondary',
+        colorAttachments: visColors('load'),
+        depthStencilAttachment: { view: depthTarget, depthLoadOp: 'load', depthStoreOp: 'store' },
+      });
+      restPass.setViewport(0, 0, width, height, 0, 1);
+      drawVis(rt, device, restPass, true, useIndirect);
+      restPass.end();
+      compute?.rest(encoder);
+    }
+  }
+  compute?.ids(encoder);
 }

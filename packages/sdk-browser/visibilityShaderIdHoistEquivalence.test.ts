@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { VIS_SHADER } from './visibilityShaderId.ts';
+import { rasterSource } from './gpuRasterShader.ts';
+import { COMPUTE_TAKES_WGSL } from './gpuRasterContract.ts';
 import {
   hoisted,
   perVertex,
@@ -18,10 +20,20 @@ import {
 // les trois sommets projetes avec le produit nomme une fois sont ceux qu'un produit refait pour
 // chacun aurait donnes, sur des matrices hostiles.
 
-test('le repli materiel ne connait plus de seuil de petit triangle', () => {
-  assert.doesNotMatch(VIS_SHADER, /computeTriangle/);
-  assert.doesNotMatch(VIS_SHADER, /smallThreshold/);
-  assert.match(VIS_SHADER, /if\(vertexIndex>=page\.indexCount\)\{/);
+test('le raster matériel lit le partage dans le même texte que le raster de calcul', () => {
+  // Le même prédicat, sur le même produit hissé `viewProj*world` : un triangle a exactement un
+  // des deux rasters. À zéro, l'étage de sommets ne lit pas un sommet de plus.
+  assert.ok(VIS_SHADER.includes(COMPUTE_TAKES_WGSL));
+  assert.ok(rasterSource(4, 16).includes(COMPUTE_TAKES_WGSL));
+  assert.match(
+    VIS_SHADER,
+    /fn leftToCompute\(page:PageInfo,triangle:u32\)->bool\{\n if\(uni\.computeSpan<=0\.0\)\{return false;\}/,
+  );
+  assert.match(VIS_SHADER, /let vp=uni\.viewProj\*page\.world;/);
+  assert.match(
+    VIS_SHADER,
+    /if\(vertexIndex>=page\.indexCount\|\|leftToCompute\(page,vertexIndex\/3u\)\)\{/,
+  );
 });
 
 function assertSameTriangle(viewProj: Mat4, world: Mat4, vertices: readonly Vec4[]) {

@@ -15,6 +15,34 @@ export const DISPATCH_SPAN = 65535;
 
 /** Côté du pavé de la classe fine, et triangles qu'un groupe de soixante-quatre fils y traite. */
 export const FINE_SIDE = 4;
+
+/**
+ * Le partage petits/grands de la référence : un triangle dont la boîte d'écran, serrée à l'image,
+ * ne dépasse pas `computeSpan` pixels part au raster de calcul, les autres au matériel. Zéro :
+ * le matériel dessine tout ; `COMPUTE_ALL` : le calcul prend toute la coupe, plan proche compris.
+ * Un triangle qu'un sommet met derrière le plan proche reste au matériel, qui le coupe lui-même.
+ */
+export const COMPUTE_ALL = 1e9;
+
+/**
+ * Le prédicat du partage, le même texte dans les deux rasters : ils lisent les mêmes sommets, le
+ * même produit hissé `viewProj*world`, la même boîte — et se partagent la coupe sans trou ni
+ * doublon. Exige `uni.viewport`, `uni.computeSpan` et `screen`.
+ */
+export const SCREEN_WGSL = `fn screen(p:vec4f)->vec2f{return vec2f((p.x/p.w*0.5+0.5)*uni.viewport.x,(1.0-(p.y/p.w*0.5+0.5))*uni.viewport.y);}`;
+export const COMPUTE_TAKES_WGSL = `
+struct ScreenBox{lo:vec2f,hi:vec2f,q0:vec2f,q1:vec2f,span:f32,}
+fn screenBox(a:vec2f,b:vec2f,c:vec2f)->ScreenBox{
+ let lo=min(a,min(b,c));let hi=max(a,max(b,c));
+ let last=uni.viewport-vec2f(1.0);
+ let q0=clamp(floor(lo),vec2f(0.0),last);let q1=clamp(floor(hi),vec2f(0.0),last);
+ return ScreenBox(lo,hi,q0,q1,max(q1.x-q0.x,q1.y-q0.y));
+}
+fn computeTakes(ca:vec4f,cb:vec4f,cc:vec4f)->bool{
+ if(uni.computeSpan>=${COMPUTE_ALL}){return true;}
+ if(uni.computeSpan<=0.0||ca.w-ca.z<0.0||cb.w-cb.z<0.0||cc.w-cc.z<0.0){return false;}
+ return screenBox(screen(ca),screen(cb),screen(cc)).span<=uni.computeSpan;
+}`;
 export const FINE_PER_GROUP = 64 / (FINE_SIDE * FINE_SIDE);
 /** Côté du pavé d'un groupe complet : la classe moyenne tient dans un seul, la grande en boucle. */
 export const TILE = 8;

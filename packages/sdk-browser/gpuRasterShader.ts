@@ -2,6 +2,7 @@ import { ATLAS_SLOTS_WGSL, COLOR_ALPHA_WGSL, atlasTextures } from './webgpuAtlas
 import { EDGE_WGSL, MASK_KEEP_WGSL, PAGE_INFO_STRUCT_WGSL } from './visibilityPageWgsl.ts';
 import { SMALL_BINDINGS } from './webgpuBindLayout.ts';
 import { RASTER_TRI_WGSL } from './gpuRasterTriWgsl.ts';
+import { COMPUTE_TAKES_WGSL, SCREEN_WGSL } from './gpuRasterContract.ts';
 import { RASTER_PIXEL_WGSL } from './gpuRasterPixelWgsl.ts';
 import { rasterKernels } from './gpuRasterKernelsWgsl.ts';
 import { DEPTH_CLEAR } from './depthConvention.ts';
@@ -19,7 +20,7 @@ import { wgslFloat } from './gpuPartitionMargins.ts';
  * seuil sur les mêmes coordonnées.
  */
 const PAGE_INFO = `${PAGE_INFO_STRUCT_WGSL}
-struct Uniforms{viewProj:mat4x4f,viewport:vec2f,pad0:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,}`;
+struct Uniforms{viewProj:mat4x4f,viewport:vec2f,computeSpan:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,}`;
 
 export const rasterSource = (capacity: number, listBase: number) => `${PAGE_INFO}
 @group(0) @binding(${SMALL_BINDINGS.indices}) var<storage,read> indices:array<u32>;
@@ -51,7 +52,8 @@ fn vertex(vp:mat4x4f,vertexBase:u32,index:u32)->vec4f{
 }
 fn uv(page:PageInfo,index:u32)->vec2f{let base=(page.vertexBase+index)*2u;return vec2f(uvs[base],uvs[base+1u]);}
 ${EDGE_WGSL}
-fn screen(p:vec4f)->vec2f{return vec2f((p.x/p.w*0.5+0.5)*uni.viewport.x,(1.0-(p.y/p.w*0.5+0.5))*uni.viewport.y);}
+${SCREEN_WGSL}
+${COMPUTE_TAKES_WGSL}
 ${MASK_KEEP_WGSL}
 ${RASTER_TRI_WGSL}
 ${RASTER_PIXEL_WGSL}
@@ -65,7 +67,9 @@ ${rasterKernels(capacity)}`;
  *
  * `hiz` sert entre les deux moitiés de l'image : la pyramide a besoin de la profondeur des
  * occulteurs avant que le moindre identifiant n'ait été départagé, elle n'écrit donc que le niveau
- * zéro. `one` et `two` closent l'image, quand la profondeur est définitive et l'identifiant choisi.
+ * zéro et le tampon de profondeur. `one` et `two` closent l'image, quand la profondeur est
+ * définitive et l'identifiant choisi. Toutes passent le test de profondeur contre ce que le raster
+ * matériel a déjà posé : c'est là que les deux producteurs se fondent, pixel par pixel.
  */
 export const RESOLVE = `struct Uniforms{viewProj:mat4x4f,viewport:vec2f,pad0:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,}
 @group(0) @binding(0) var<storage,read> frame:array<u32>;
@@ -73,8 +77,9 @@ export const RESOLVE = `struct Uniforms{viewProj:mat4x4f,viewport:vec2f,pad0:f32
 @vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);}
 struct One{@location(0) id:u32,@builtin(frag_depth) depth:f32,}
 struct Two{@location(0) id:u32,@location(1) hiz:f32,@builtin(frag_depth) depth:f32,}
+struct Hiz{@location(0) hiz:f32,@builtin(frag_depth) depth:f32,}
 fn offset(pos:vec4f)->u32{return u32(pos.y)*u32(uni.viewport.x)+u32(pos.x);}
 fn pixelCount()->u32{return u32(uni.viewport.x)*u32(uni.viewport.y);}
 @fragment fn one(@builtin(position) pos:vec4f)->One{let i=offset(pos);let id=frame[pixelCount()+i];if(id==0xffffffffu){discard;}return One(id,bitcast<f32>(frame[i]));}
 @fragment fn two(@builtin(position) pos:vec4f)->Two{let i=offset(pos);let id=frame[pixelCount()+i];if(id==0xffffffffu){discard;}let depth=bitcast<f32>(frame[i]);return Two(id,depth,depth);}
-@fragment fn hiz(@builtin(position) pos:vec4f)->@location(0) f32{let d=bitcast<f32>(frame[offset(pos)]);if(d<=${wgslFloat(DEPTH_CLEAR)}){discard;}return d;}`;
+@fragment fn hiz(@builtin(position) pos:vec4f)->Hiz{let d=bitcast<f32>(frame[offset(pos)]);if(d<=${wgslFloat(DEPTH_CLEAR)}){discard;}return Hiz(d,d);}`;

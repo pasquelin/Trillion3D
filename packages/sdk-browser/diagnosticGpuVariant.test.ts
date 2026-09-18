@@ -59,7 +59,7 @@ test('le comptage, la présentation hors écran et le raster de calcul ne sont a
   const calcul = DIAGNOSTIC_GPU_VARIANTS.filter(requestsComputeRaster);
   assert.deepEqual(comptant, ['transparents-surdessin']);
   assert.deepEqual(horsEcran, ['presentation-hors-ecran']);
-  assert.deepEqual(calcul, ['raster-calcul']);
+  assert.deepEqual(calcul, ['raster-calcul', 'raster-hybride']);
   assert.equal(requestsComputeRaster(undefined), false);
 });
 

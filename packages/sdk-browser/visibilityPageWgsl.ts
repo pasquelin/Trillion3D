@@ -11,7 +11,7 @@ export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:ve
 
 /** La description d'un cluster, suivie de l'uniforme d'une passe de géométrie de page. */
 export const PAGE_INFO_WGSL = `${PAGE_INFO_STRUCT_WGSL}
-struct Uniforms{viewProj:mat4x4f,viewport:vec2f,pad0:f32,pad1:f32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,}`;
+struct Uniforms{viewProj:mat4x4f,viewport:vec2f,computeSpan:f32,pad1:f32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,}`;
 
 /**
  * Les liaisons qu'une passe de géométrie de page partage, une par ligne. Elles sont nommées plutôt

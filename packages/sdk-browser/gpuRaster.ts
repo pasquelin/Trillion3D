@@ -94,17 +94,11 @@ export function createGpuRaster(
     height,
     capacity,
     /**
-     * Encode l'image entière du tampon de visibilité et rend le nombre de lancements de calcul.
-     *
-     * `midFrame` est la pyramide Hi-Z et son test : ils tournent entre la profondeur des occulteurs,
-     * déjà reversée dans le niveau zéro, et le raster de la moitié testée qui lit leur verdict.
-     * Sans lui — pas de partition, pas de pyramide — la moitié occulteurs est toute la coupe.
+     * La moitié occulteurs : le rangement de la coupe, la profondeur des occulteurs, et sa fonte
+     * dans le niveau zéro de la pyramide et le tampon de profondeur que le raster matériel vient
+     * de poser. Rend le nombre de lancements de calcul encodés.
      */
-    encode(
-      encoder: GPUCommandEncoder,
-      input: GpuRasterInput,
-      midFrame?: (encoder: GPUCommandEncoder) => void,
-    ) {
+    encodeOccluders(encoder: GPUCommandEncoder, input: GpuRasterInput) {
       // Toutes les ressources vivent plus longtemps que l'image : l'appelant garde les groupes et
       // nomme celui que cette combinaison de source de verdicts et de sélection emploie.
       group = (input.groups[input.groupKey] ??= device.createBindGroup({
@@ -143,18 +137,19 @@ export function createGpuRaster(
       // choisisse un identifiant. Un identifiant choisi avant qu'une classe n'ait écrit sa
       // profondeur nommerait un triangle perdant.
       encodeMode(encoder, MODE_DEPTH_OCCLUDER, 'WG raster occluder depth');
-      let dispatches = 3 + RASTER_CLASSES.length;
-      if (midFrame) {
-        resolves.encodeHiz(encoder, input, width, height);
-        midFrame(encoder);
-        if (!input.skipRest) {
-          encodeMode(encoder, MODE_DEPTH_REST, 'WG raster tested depth');
-          dispatches += RASTER_CLASSES.length;
-        }
-      }
+      if (input.hizView) resolves.encodeHiz(encoder, input, width, height);
+      return 3 + RASTER_CLASSES.length;
+    },
+    /** La moitié testée survivante, après le verdict de la pyramide. */
+    encodeRest(encoder: GPUCommandEncoder) {
+      encodeMode(encoder, MODE_DEPTH_REST, 'WG raster tested depth');
+      return RASTER_CLASSES.length;
+    },
+    /** Le départage des identifiants sur tout ce qui a été dessiné, et l'image close. */
+    encodeIds(encoder: GPUCommandEncoder, input: GpuRasterInput) {
       encodeMode(encoder, MODE_ID, 'WG raster identifiers');
       resolves.encodeFinal(encoder, input, width, height);
-      return dispatches + RASTER_CLASSES.length;
+      return RASTER_CLASSES.length;
     },
     dispose() {
       work.destroy();

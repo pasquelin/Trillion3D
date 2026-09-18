@@ -121,10 +121,19 @@ export async function executer() {
     onDiag = (e) => evenements.push(e);
   try {
     const materiel = await rendu(device, onDiag, {});
-    const calcul = await rendu(device, onDiag, {
-      diagnosticDetail: 'trace',
-      diagnosticGpuVariant: 'raster-calcul',
-    });
+    // Les deux façons de confier des triangles au calcul : toute la coupe, ou les petits seuls —
+    // le partage de la référence, où chaque triangle a exactement un des deux rasters.
+    const variantes = {};
+    for (const variante of ['raster-calcul', 'raster-hybride']) {
+      const calcul = await rendu(device, onDiag, {
+        diagnosticDetail: 'trace',
+        diagnosticGpuVariant: variante,
+      });
+      variantes[variante] = {
+        clusters: calcul.metriques.clusters,
+        ...compare(materiel.pixels, calcul.pixels),
+      };
+    }
     let couverts = 0;
     for (let i = 0; i < materiel.pixels.length; i += 4)
       if (!estFond(materiel.pixels, i)) couverts++;
@@ -132,8 +141,8 @@ export async function executer() {
     return {
       adaptateur: info.court,
       couverts,
-      clusters: [materiel.metriques.clusters, calcul.metriques.clusters],
-      ...compare(materiel.pixels, calcul.pixels),
+      clusters: materiel.metriques.clusters,
+      variantes,
       evenements,
       erreurs,
     };

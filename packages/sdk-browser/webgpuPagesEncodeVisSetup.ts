@@ -4,7 +4,7 @@ import { ensureWebgpuVisibilityBindings } from './webgpuVisibilityBindings.ts';
 import { ensureWebgpuShadeBindings } from './webgpuShadeBindings.ts';
 import { writeWebgpuVisibilityUniforms } from './webgpuVisibilityUniforms.ts';
 import { checkFrameBudget } from './webgpuPagesTargets.ts';
-import { requestsComputeRaster, skipsSecondaryPass } from './diagnosticGpuGeometry.ts';
+import { requestsComputeRaster } from './diagnosticGpuGeometry.ts';
 import { createRenderEncoder, submitColorCopy } from './webgpuPagesEncoder.ts';
 import { encodeSurfaceLighting } from './webgpuPagesEncodeBlend.ts';
 import type { SurfaceBuffer } from './surfaceBuffer.ts';
@@ -98,25 +98,24 @@ export function ensureVisBindings(rt: WebgpuPagesRuntime, device: GPUDevice, tab
 }
 
 /**
- * Rastère en calcul TOUS les triangles opaques et masqués de la coupe, et rend le nombre de
- * lancements encodés. Chemin de diagnostic (`raster-calcul`) tant que la coupe petits/grands n'existe
- * pas. `midFrame` porte la pyramide et le test d'occultation : ils tombent entre la profondeur des
- * occulteurs et celle de la moitié testée, là où le raster matériel les met. Rend `null` — et rien
- * n'est encodé — quand une ressource manque : l'appelant reprend le matériel.
+ * Les trois étapes du raster de calcul, prêtes à s'intercaler entre les passes du raster matériel :
+ * la moitié occulteurs après la passe primaire, la moitié testée après la secondaire, les
+ * identifiants pour clore — chacune fondue dans les attachements que le matériel a posés. Rend
+ * `null` quand une ressource manque : le matériel dessine alors seul, et les triangles que le
+ * partage lui aurait retirés restent les siens tant que `computeSpan` vaut zéro.
  */
-export function encodeRaster(
+export function computeRasterStages(
   rt: WebgpuPagesRuntime,
-  encoder: GPUCommandEncoder,
   twoPass: boolean,
   tableRows: number,
   maxVertexCount: number,
   idsView: GPUTextureView,
   depthTarget: GPUTextureView,
-  midFrame: (encoder: GPUCommandEncoder) => void,
 ) {
   const { vis, gpu, run } = rt;
+  const raster = vis.gpuRaster;
   if (
-    !vis.gpuRaster ||
+    !raster ||
     !gpu.cache ||
     !vis.concatPos ||
     !vis.concatUv ||
@@ -132,10 +131,6 @@ export function encodeRaster(
   // partition, ou sans pyramide, l'image lit des zéros et rastère toute la coupe en une fois.
   const hizFlags = twoPass && vis.gpuHiz ? vis.gpuHiz.flags : vis.zeroFlags;
   const key = (hizFlags === vis.zeroFlags ? 0 : 1) + (run.gpuFrameActive ? 2 : 0);
-  const mid = twoPass && vis.gpuHiz ? midFrame : undefined;
-  // Les triangles plein écran des résolutions sont des appels de dessin comme les autres : celui
-  // qui clôt l'image, et celui de la pyramide quand la moitié testée existe. Le compte les porte.
-  run.gpuDrawCalls += mid ? 2 : 1;
   const input = rasterInput;
   input.indices = gpu.cache.buffer;
   input.positions = vis.concatPos;
@@ -152,8 +147,22 @@ export function encodeRaster(
   input.depthView = depthTarget;
   input.hizView = vis.gpuHiz?.level0View;
   input.selection = run.gpuFrameActive ? run.gpuSelection : undefined;
-  input.skipRest = skipsSecondaryPass(rt.context?.diagnosticGpuVariant);
   input.groups = vis.rasterGroups;
   input.groupKey = key;
-  return vis.gpuRaster.encode(encoder, input, mid);
+  // Les triangles plein écran des résolutions sont des appels de dessin comme les autres : celui
+  // qui clôt l'image, et celui de la pyramide quand la moitié testée existe. Le compte les porte.
+  return {
+    occluders(encoder: GPUCommandEncoder) {
+      run.gpuDrawCalls += input.hizView ? 1 : 0;
+      run.gpuComputeDispatches += raster.encodeOccluders(encoder, input);
+    },
+    rest(encoder: GPUCommandEncoder) {
+      run.gpuComputeDispatches += raster.encodeRest(encoder);
+    },
+    ids(encoder: GPUCommandEncoder) {
+      run.gpuDrawCalls += 1;
+      run.gpuComputeDispatches += raster.encodeIds(encoder, input);
+    },
+  };
 }
+export type ComputeRasterStages = ReturnType<typeof computeRasterStages>;
