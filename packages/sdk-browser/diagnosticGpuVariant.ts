@@ -5,8 +5,8 @@ import type { DiagnosticDetail } from './backendTypes.ts';
  * chacune neutralise UN facteur de l'image sans toucher aux commandes encodées — mêmes passes,
  * mêmes appels de dessin, même ordre, même tri — à trois exceptions déclarées : la coupe doublée
  * réencode sa sélection, `geometrie-une-passe` retire la seconde passe de visibilité, et
- * `raster-calcul` confie la géométrie opaque au raster de calcul ; leurs durées ne se soustraient
- * pas comme les autres. L'image rendue DIFFÈRE donc de l'image de
+ * `raster-calcul` et `raster-hybride` confient tout ou partie de la géométrie opaque au raster de
+ * calcul ; leurs durées ne se soustraient pas comme les autres. L'image rendue DIFFÈRE donc de l'image de
  * production par construction : aucune n'est une optimisation, aucune ne se mesure en fidélité, et
  * aucun chemin de production n'en allume une. Le seul moyen est `diagnosticGpuVariant` de
  * `createExplorer`, refusée hors `diagnosticDetail: 'trace'`.
@@ -39,6 +39,10 @@ export const DIAGNOSTIC_GPU_VARIANTS = [
    *  production ; sans elle, le raster matériel dessine. Deux côtés qui ne diffèrent que par elle
    *  donnent, à la même taille, l'enveloppe et l'écart d'image du calcul contre le matériel. */
   'raster-calcul',
+  /** Le partage de la référence : les triangles dont la boîte tient dans `COMPUTE_SPAN` pixels
+   *  au raster de calcul, tous les autres au matériel. C'est le candidat à la production ; il n'y
+   *  entre que si l'enveloppe le dit. */
+  'raster-hybride',
   /** La résolution des surfaces ne lit rien et rend une valeur constante. */
   'resolution-plate',
   /** La résolution des surfaces ne lit que le tampon de visibilité, sans matériau ni atlas. */

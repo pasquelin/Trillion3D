@@ -1,15 +1,24 @@
 import type { GpuRasterInput } from './gpuRasterTypes.ts';
-import { DEPTH_CLEAR, DEPTH_COMPARE } from './depthConvention.ts';
+import { DEPTH_COMPARE_OR_EQUAL } from './depthConvention.ts';
+
+const RESOLVE_DEPTH = {
+  format: 'depth32float' as const,
+  depthWriteEnabled: true,
+  depthCompare: DEPTH_COMPARE_OR_EQUAL,
+};
 
 /**
  * Les résolutions matérielles plein écran du tampon de visibilité.
  *
- * Elles sont le SEUL producteur des attachements que le reste de l'image lit : la texture
- * d'identifiants, le tampon de profondeur opaque et le niveau zéro de la pyramide. C'est pourquoi
- * elles les effacent : plus aucune passe de géométrie ne les ouvre avant elles.
+ * Le raster matériel ouvre et efface les attachements — identifiants, profondeur opaque, niveau
+ * zéro de la pyramide — et y pose ses triangles ; ces résolutions y fondent ensuite ceux du raster
+ * de calcul, sous le même test de profondeur, en gardant ce qui s'y trouve (`load`). Un pixel que
+ * les deux producteurs atteignent revient au plus proche, et à égalité au calcul, qui passe en
+ * dernier : `greater-equal`, sinon la seconde résolution perdrait la profondeur que la première
+ * venait de poser.
  *
- * `encodeHiz` ne touche que la pyramide, et sans tampon de profondeur : elle tourne quand aucun
- * identifiant n'a encore été départagé, et la pyramide ne lit que la profondeur linéaire.
+ * `encodeHiz` sert entre les deux moitiés : elle pose la profondeur des occulteurs du calcul dans
+ * le niveau zéro et le tampon, avant qu'aucun identifiant ne soit départagé.
  */
 export function createRasterResolves(
   device: GPUDevice,
@@ -39,11 +48,7 @@ export function createRasterResolves(
           : [{ format: 'r32uint' as const }],
       },
       primitive,
-      depthStencil: {
-        format: 'depth32float' as const,
-        depthWriteEnabled: true,
-        depthCompare: DEPTH_COMPARE,
-      },
+      depthStencil: RESOLVE_DEPTH,
     });
   const one = makeFinal(false),
     two = makeFinal(true);
@@ -52,6 +57,7 @@ export function createRasterResolves(
     vertex,
     fragment: { module, entryPoint: 'hiz', targets: [{ format: 'r32float' as const }] },
     primitive,
+    depthStencil: RESOLVE_DEPTH,
   });
   let group: GPUBindGroup | undefined;
   const bound = (uniform: GPUBuffer) =>
@@ -62,15 +68,16 @@ export function createRasterResolves(
         { binding: 1, resource: { buffer: uniform, offset: 0, size: 96 } },
       ],
     }));
-  /**
-   * Une pièce jointe de couleur effacée à la valeur que son attachement attend. Le niveau zéro de
-   * la pyramide est une profondeur : il s'efface au lointain, que la convention seule connaît.
-   */
-  const cleared = (view: GPUTextureView, r: number) => ({
+  /** Une pièce jointe de couleur gardée telle que le raster matériel l'a laissée. */
+  const kept = (view: GPUTextureView) => ({
     view,
-    loadOp: 'clear' as const,
+    loadOp: 'load' as const,
     storeOp: 'store' as const,
-    clearValue: { r, g: 0, b: 0, a: 1 },
+  });
+  const depthKept = (view: GPUTextureView) => ({
+    view,
+    depthLoadOp: 'load' as const,
+    depthStoreOp: 'store' as const,
   });
   /**
    * Les deux descripteurs de passe, gardés tels quels jusqu'au prochain jeu de vues. Ils ne
@@ -92,19 +99,15 @@ export function createRasterResolves(
     hizFor = input.hizView;
     hizPass = {
       label: 'WG raster occluder hiz',
-      colorAttachments: [cleared(input.hizView!, DEPTH_CLEAR)],
+      colorAttachments: [kept(input.hizView!)],
+      depthStencilAttachment: depthKept(input.depthView),
     };
     finalPass = {
       label: 'WG raster resolve',
       colorAttachments: input.hizView
-        ? [cleared(input.idsView, 0), cleared(input.hizView, DEPTH_CLEAR)]
-        : [cleared(input.idsView, 0)],
-      depthStencilAttachment: {
-        view: input.depthView,
-        depthClearValue: DEPTH_CLEAR,
-        depthLoadOp: 'clear',
-        depthStoreOp: 'store',
-      },
+        ? [kept(input.idsView), kept(input.hizView)]
+        : [kept(input.idsView)],
+      depthStencilAttachment: depthKept(input.depthView),
     };
   };
   return {
