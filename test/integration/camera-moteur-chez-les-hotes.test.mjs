@@ -7,8 +7,8 @@ const navigateur = new URL('../browser/', import.meta.url);
 // Défaut corrigé en 5fecd558 : quatre hôtes de `test/browser/*.browser.mjs` appelaient
 // `cameraSelectionUniforms`/`rasterVisibility` avec une `THREE.PerspectiveCamera` brute — ces API
 // veulent depuis M3b une `EngineCamera`, d'où `cam.planes` et `page.matrix` indéfinis en silence.
-// Ce test est structurel (lecture de source, pas d'exécution — ces hôtes veulent `LAB_ROOT` et un
-// WebGPU Chromium) : il vérifie que le site d'appel passe par `cameraMoteur(...)` ou par `vue`
+// Ce test est structurel (lecture de source, pas d'exécution — ces hôtes veulent un WebGPU
+// Chromium) : il vérifie que le site d'appel passe par `cameraMoteur(...)` ou par `vue`
 // (elle-même `cameraMoteur(camera)`, voir `inverseTransposeCas.mjs`), jamais par la caméra hôte nue.
 
 test('cisaillement-transform.browser.mjs et cone-echelle-non-uniforme.browser.mjs appellent cameraSelectionUniforms(cameraMoteur(...))', async () => {

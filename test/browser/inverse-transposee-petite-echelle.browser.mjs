@@ -6,7 +6,7 @@
 // chiffres et sa version d'avant le lot sont dans
 // `test/justesse/inverse-transposee-petite-echelle.mjs`.
 //
-// LAB_ROOT=… node --experimental-strip-types test/browser/inverse-transposee-petite-echelle.browser.mjs
+// node --experimental-strip-types test/browser/inverse-transposee-petite-echelle.browser.mjs
 import assert from 'node:assert/strict';
 import { cameraSelectionUniforms } from '../../packages/sdk-browser/gpuSelection.ts';
 import {

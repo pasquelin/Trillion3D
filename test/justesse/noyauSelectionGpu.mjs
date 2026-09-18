@@ -1,7 +1,6 @@
 // Le noyau WGSL de sélection du DAG réellement exécuté dans Chromium WebGPU : les tampons empaquetés
 // par `packDagSelection`, les uniformes de `writeDagUniforms`, les passes `dagPrepare` à `dagMask`
-// dans l'ordre du moteur (coupe non résidente), puis la relecture de la sortie du GPU. Playwright
-// vient de `render-tech-lab`, en lecture seule.
+// dans l'ordre du moteur (coupe non résidente), puis la relecture de la sortie du GPU.
 import { DAG_SELECTION_SHADER } from '../../packages/sdk-browser/gpuDagShader.ts';
 import { dansPageWebgpu } from './pageWebgpu.mjs';
 import { writeDagUniforms } from '../../packages/sdk-browser/gpuDagUniforms.ts';

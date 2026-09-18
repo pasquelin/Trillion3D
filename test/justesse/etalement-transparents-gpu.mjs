@@ -9,7 +9,7 @@
 // Chromium WebGPU, sur les mêmes entrées que le modèle, et compare les deux sorties mot pour mot :
 // la liste d'instances étalée et l'argument indirect de chaque tranche.
 //
-// LAB_ROOT=… node --experimental-strip-types \
+// node --experimental-strip-types \
 //   test/justesse/etalement-transparents-gpu.mjs
 import assert from 'node:assert/strict';
 import { expandBlendPlan } from '../../packages/sdk-browser/webgpuBlendExpandCpu.ts';

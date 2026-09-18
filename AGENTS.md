@@ -24,8 +24,8 @@
 - **Never optimise a path whose cost is not measured.** State its share of the frame first, on a real
   scene, or say plainly that it is unknown. A batch justified by a supposition is a batch to stop.
 - Measure the whole frame before a part of it: the engine publishes a per-step CPU profile
-  (`webgpuPagesCpuSteps.ts`, `cpu-timing` diagnostic) and the lab has a headless walk
-  (`render-tech-lab/scripts/headless/`). Read them before choosing a target.
+  (`webgpuPagesCpuSteps.ts`, `cpu-timing` diagnostic) and the repository has its own bench
+  (`scripts/mesure/banc.mjs`, README alongside). Read them before choosing a target.
 - When a measurement contradicts a plan — including one in `TODO.md` — the measurement wins, and the
   plan is corrected in the same batch.
 - Compare identical input, camera, quality, machine and resource budget. Record DPR, error threshold,
@@ -65,8 +65,13 @@
 - Generic engine: no scene names, hardcoded lights/cameras or object-type special cases. Use imported
   material/light properties; one lighting model for opaque and transparent surfaces, one reflection
   model for reflective surfaces. Benchmark fixes must generalize to any imported scene.
-- `render-tech-lab` is an ordinary host of `prepare()`, `createExplorer()` and public SDK validation.
-  Never add host code to make the engine work or write `public/benchmark-assets`.
+- **This repository is self-contained.** It builds, tests, measures and proves itself with only its
+  own dependencies (`pnpm install`), the machine's Chrome and its own assets (`.mesure/assets/`, off
+  git). No code, script, test or doc may read another project on disk — no neighbour path, no
+  `LAB_ROOT`. `render-tech-lab` is one ordinary host of `prepare()` and `createExplorer()`: it tests
+  the engine, the engine never leans on it. Never add host code to make the engine work, never
+  write into a host's folders. The only proofs that touch it are mounted on its pages, take its
+  address by `LAB_URL`, and are excluded from `test:gpu` by name.
 - Keep React/Electron/Vite, DOM and platform filesystem APIs out of runtime-core/shared contracts;
   use browser/filesystem adapters. Consume public entry points; packages never import application
   internals.

@@ -11,7 +11,6 @@
 //       dessinée depuis les mêmes matrices plutôt que recopiée.
 //
 //   node --experimental-strip-types test/browser/hiz-rig-camera.browser.mjs
-//   (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
 import assert from 'node:assert/strict';
 import { preuveDansLaPage, preuveSaine } from '../appui/preuvePageMoteur.mjs';
 

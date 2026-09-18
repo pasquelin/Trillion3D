@@ -1,20 +1,18 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
+import { chromium } from 'playwright';
 import { dirname, resolve } from 'node:path';
-import { routeBrowserFixtures } from '../appui/browserFixtureServer.mjs';
+import { adresseDuLab, routeBrowserFixtures } from '../appui/browserFixtureServer.mjs';
 
 // Real GPU presentation/capture regression fixtures, outside timed beauty runs.
-// Start Lab 15 and build this SDK before running. No performance claim is made.
-const labRoot = resolve(process.env.LAB_ROOT ?? '../render-tech-lab');
-const labUrl = process.env.LAB_URL ?? 'http://localhost:5174';
+// Start the Lab (`LAB_URL`) and build this SDK before running. No performance claim is made.
+const labUrl = adresseDuLab();
 const sdkRoot = resolve(process.env.PRESENTATION_SDK_ROOT ?? '.');
 const distRoot = resolve(process.env.WEBGPU_DIST_DIR ?? resolve(sdkRoot, 'dist'));
 const out = resolve(
   process.env.PRESENTATION_RESULT ?? 'benchmark-runs/gpu-presentation/result.json',
 );
-const { chromium } = createRequire(resolve(labRoot, 'package.json'))('playwright');
 const hashes = {};
 for (const name of ['webgpuPages', 'deferredLighting', 'gpuPresentation', 'visibilityBuffer'])
   hashes[name] = createHash('sha256')

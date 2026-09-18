@@ -1,11 +1,10 @@
 // Ce que les preuves « moteur réel dans Chromium » partagent : empaqueter un module de page avec
-// esbuild — celui de Vite, pris dans `render-tech-lab` en lecture seule —, l'exécuter dans une page
-// locale avec un vrai appareil WebGPU, et rendre ce que la page a répondu, erreurs comprises.
+// esbuild, l'exécuter dans une page locale avec un vrai appareil WebGPU, et rendre ce que la page a
+// répondu, erreurs comprises.
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { dansPageWebgpu, requireDuLab } from '../justesse/pageWebgpu.mjs';
+import { dansPageWebgpu, empaquetePage } from '../justesse/pageWebgpu.mjs';
 
 const ici = dirname(fileURLToPath(import.meta.url));
 
@@ -16,24 +15,14 @@ const ici = dirname(fileURLToPath(import.meta.url));
  * rattrapées du document.
  */
 export async function preuveDansLaPage(fixture, nom, titre, methode = 'executer') {
-  const esbuild = createRequire(requireDuLab().resolve('vite'))('esbuild');
-  const paquet = await esbuild.build({
-    entryPoints: [resolve(ici, fixture)],
-    bundle: true,
-    write: false,
-    format: 'iife',
-    globalName: nom,
-    platform: 'browser',
-    target: 'es2022',
-    logLevel: 'error',
-  });
+  const script = await empaquetePage(resolve(ici, fixture), nom);
   const erreursPage = [];
   const resultat = await dansPageWebgpu(
     (cible) => globalThis[cible.nom][cible.methode](),
     { nom, methode },
     {
       titre,
-      script: paquet.outputFiles[0].text,
+      script,
       erreursPage,
     },
   );

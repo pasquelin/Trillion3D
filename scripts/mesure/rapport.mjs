@@ -1,5 +1,5 @@
 // Statistiques, écarts d'images, charge machine et `resume.md`, pour `banc.mjs`.
-// Les calculs sont ceux du SDK : mêmes quantiles, même comparaison d'images que le Lab.
+// Les calculs sont ceux du SDK : mêmes quantiles, même comparaison d'images partout.
 import { loadavg } from 'node:os';
 import { compareImages, summarize } from '../../packages/sdk-core/index.ts';
 import { cheminsCalcul } from './rapportCalcul.mjs';
