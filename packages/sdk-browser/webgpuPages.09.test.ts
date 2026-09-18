@@ -6,7 +6,7 @@ import { packDagSelection } from './gpuDagSelection.ts';
 import { MODE_DEPTH_OCCLUDER, MODE_DEPTH_REST, MODE_ID, rasterEntry } from './gpuRasterContract.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
-import { quadScene, camera } from './webgpuPagesTestScenes.ts';
+import { quadScene, camera, quadBackend } from './webgpuPagesTestScenes.ts';
 import { assertOccluderImage, occluderScene } from './webgpuPagesTestOccluder.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 
@@ -132,13 +132,7 @@ test('a compact pipeline failure keeps the per-page draw loop', async () => {
 test('normal GPU rendering never copies the image to CPU staging buffers', async () => {
   installGpuGlobals();
   const { device, imageCopies } = mockGpu();
-  const fixture = quadScene();
-  const backend = webgpuPagesBackend({
-    ...fixture,
-    gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
-  });
+  const { fixture, backend } = quadBackend(device);
   try {
     await backend.prepare();
     backend.render(camera());

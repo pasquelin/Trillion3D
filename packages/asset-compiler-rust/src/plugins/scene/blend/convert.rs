@@ -30,7 +30,7 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
     }));
     let root = image_root(request.source);
     let mut scene = walker::Scene {
-        out: Out::new(),
+        out: Out::default(),
         images: Images::default(),
         materials: HashMap::new(),
         meshes: HashMap::new(),

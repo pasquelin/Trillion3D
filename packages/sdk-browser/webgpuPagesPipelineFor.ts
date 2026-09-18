@@ -5,7 +5,8 @@ import { BASE_SLOTS, BIN_BACK, BIN_FRONT, BIN_NONE } from './gpuDraw.ts';
 import { visLayerPipelineIndex } from './webgpuVisibilityPipelines.ts';
 import { screenErrorColor } from './diagnosticColors.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
-import { PAGES_GREEN, clusterRgb, linearColor, materialSide } from './webgpuPagesHelpers.ts';
+import { PAGES_GREEN, clusterRgb, linearColor } from './webgpuPagesHelpers.ts';
+import { materialSide } from './triangleDiagnostic.ts';
 import { windingCw } from './webgpuPagesWinding.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 

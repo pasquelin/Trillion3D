@@ -4,26 +4,16 @@
 // zéro sur ce chemin, et `drawnTriangles` reprend `selectedTriangles` tel quel.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { webgpuPagesBackend } from './webgpuPages.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
-import { quadScene, camera } from './webgpuPagesTestScenes.ts';
+import { camera, quadBackend } from './webgpuPagesTestScenes.ts';
 
 test('coupe processeur (visibility buffer indisponible) : drawnTriangles = selectedTriangles, uncoveredTriangles = 0', async () => {
   installGpuGlobals();
   // `rejectR32 = true` : la cible r32uint du visbuffer échoue, le moteur retombe sur le raster de
   // page et la coupe processeur — même repli que dans webgpuPages.08.test.ts.
   const { device } = mockGpu(undefined, undefined, false, true);
-  const { source, metadata, indices, associations, geometry, material } = quadScene();
-  const backend = webgpuPagesBackend({
-    source,
-    metadata,
-    indices,
-    associations,
-    gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
-  });
+  const { fixture, backend } = quadBackend(device);
   await backend.prepare();
   assert.equal(backend.capabilities.unsupported.includes('visibility buffer'), true);
   backend.render(camera());
@@ -37,6 +27,6 @@ test('coupe processeur (visibility buffer indisponible) : drawnTriangles = selec
   assert.equal(metrics.uncoveredTriangles, 0);
   assert.equal(metrics.drawnTriangles, metrics.selectedTriangles);
   backend.dispose();
-  geometry.dispose();
-  material.dispose();
+  fixture.geometry.dispose();
+  fixture.material.dispose();
 });

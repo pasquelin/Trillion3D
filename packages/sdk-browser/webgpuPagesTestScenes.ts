@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { dagRoots } from './webgpuPagesTestDag.ts';
+import { webgpuPagesBackend } from './webgpuPages.ts';
+import type { BackendContext } from './backendTypes.ts';
 import { frontCamera, quadIndices, quadScene as quadMesh } from './pagesBackendScenes.ts';
 
 /** The red quad with its two root clusters, as the WebGPU tests hand it to the backend. */
@@ -34,6 +36,25 @@ export function quadScene() {
   const indices = quadIndices();
   const associations = new Map([[mesh, { meshes: 0, primitives: 0 }]]);
   return { geometry, material, source, pages, metadata, indices, associations };
+}
+
+/**
+ * The WebGPU backend mounted on the red quad as the tests want it: two resident pages, a 32 px
+ * viewport, and whatever the test adds. The fixture comes back for the test to dispose.
+ */
+export function quadBackend(
+  gpuDevice: BackendContext['gpuDevice'],
+  options: Partial<BackendContext> = {},
+) {
+  const fixture = quadScene();
+  const backend = webgpuPagesBackend({
+    ...fixture,
+    gpuDevice,
+    maxResidentPages: 2,
+    viewport: [32, 32],
+    ...options,
+  });
+  return { fixture, backend };
 }
 
 export function camera() {

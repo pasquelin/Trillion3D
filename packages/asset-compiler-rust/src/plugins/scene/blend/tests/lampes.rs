@@ -85,7 +85,7 @@ fn packed(values: &[f32; 12]) -> Vec<u8> {
 fn converted(lamps: &[[f32; 12]], names: &[&str]) -> (Vec<Value>, Out) {
     let bytes = lamp_file(lamps);
     let file = BlendFile::open(&bytes, MAX_BYTES).expect("le fichier écrit pour ce test");
-    let mut out = Out::new();
+    let mut out = Out::default();
     for (block, name) in file.of(*b"DATA").zip(names) {
         let view = file.view(block).expect("la vue de la lampe");
         light::build(Some(view), (*name).to_string(), SCALE, &mut out);

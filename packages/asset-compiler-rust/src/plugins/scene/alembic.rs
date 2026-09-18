@@ -24,7 +24,7 @@
 use super::*;
 use crate::{hash_file, CompilerError};
 use serde_json::json;
-use std::{sync::atomic::Ordering, time::Instant};
+use std::time::Instant;
 
 mod archive;
 mod convert;

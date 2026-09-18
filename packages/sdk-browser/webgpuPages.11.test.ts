@@ -4,17 +4,12 @@ import * as THREE from 'three';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
-import { quadScene, camera } from './webgpuPagesTestScenes.ts';
+import { quadScene, camera, quadBackend } from './webgpuPagesTestScenes.ts';
 
 test('a host diagnostic exception cannot break GPU initialization or rendering', async () => {
   installGpuGlobals();
   const { device } = mockGpu();
-  const fixture = quadScene();
-  const backend = webgpuPagesBackend({
-    ...fixture,
-    gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
+  const { fixture, backend } = quadBackend(device, {
     onDiagnostic() {
       throw new Error('HOST_LOG_FAILURE');
     },
