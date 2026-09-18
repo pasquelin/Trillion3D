@@ -38,11 +38,17 @@ fn clipNear(pa:vec4f,pb:vec4f,pc:vec4f,ua:vec2f,ub:vec2f,uc:vec2f)->Clip{
   let curIn=dc>=0.0;let nxtIn=dn>=0.0;
   if(curIn){res.p[res.n]=cur;res.u[res.n]=inU[i];res.n=res.n+1u;}
   if(curIn!=nxtIn){
-   let t=dc/(dc-dn);
+   // Le point de coupe est calculé depuis le même sommet pour les deux triangles qui partagent
+   // l'arête — celui qui est devant le plan —, sinon deux arrondis différents ouvraient la coupe.
+   let fromCur=curIn;
+   let p0=select(nxt,cur,fromCur);let p1=select(cur,nxt,fromCur);
+   let u0=select(inU[j],inU[i],fromCur);let u1=select(inU[i],inU[j],fromCur);
+   let d0=select(dn,dc,fromCur);let d1=select(dc,dn,fromCur);
+   let t=d0/(d0-d1);
    // Le sommet coupé est reposé exactement sur le plan : son \`w\` vaut \`near\` au bit près, aucun
    // arrondi ne peut le rendre plus proche que le plan proche.
-   var q=mix(cur,nxt,t);q.w=q.z;
-   res.p[res.n]=q;res.u[res.n]=mix(inU[i],inU[j],t);res.n=res.n+1u;
+   var q=mix(p0,p1,t);q.w=q.z;
+   res.p[res.n]=q;res.u[res.n]=mix(u0,u1,t);res.n=res.n+1u;
   }
  }
  return res;

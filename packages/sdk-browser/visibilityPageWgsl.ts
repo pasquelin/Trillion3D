@@ -43,9 +43,10 @@ export const PAGE_UV_WGSL = `fn vertUv(base:u32,idx:u32)->vec2f{let i=(base+idx)
 export const EDGE_WGSL = `fn edge(a:vec2f,b:vec2f,p:vec2f)->f32{return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}`;
 
 /**
- * Les trois poids barycentriques affines du point `p`, l'aire signée étant déjà connue. Le raster
- * des petits triangles et l'ombrage du tampon de visibilité posaient le même quotient chacun de son
- * côté ; c'est le même triangle qu'ils pondèrent, il n'en existe qu'une écriture. Exige `EDGE_WGSL`.
+ * Les trois poids barycentriques affines du point `p`, l'aire signée étant déjà connue, pour
+ * l'ombrage du tampon de visibilité. Le raster de calcul ne s'en sert plus : il décide la
+ * couverture sur ses trois arêtes, et un poids dérivé par `1-w0-w1` n'est pas étanche. Exige
+ * `EDGE_WGSL`.
  */
 export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f,area:f32)->vec3f{
  let w0=edge(b,c,p)/area;let w1=edge(c,a,p)/area;

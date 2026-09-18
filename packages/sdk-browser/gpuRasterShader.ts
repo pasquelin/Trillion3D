@@ -1,10 +1,5 @@
 import { ATLAS_SLOTS_WGSL, COLOR_ALPHA_WGSL, atlasTextures } from './webgpuAtlasWgsl.ts';
-import {
-  BARY_WEIGHTS_WGSL,
-  EDGE_WGSL,
-  MASK_KEEP_WGSL,
-  PAGE_INFO_STRUCT_WGSL,
-} from './visibilityPageWgsl.ts';
+import { EDGE_WGSL, MASK_KEEP_WGSL, PAGE_INFO_STRUCT_WGSL } from './visibilityPageWgsl.ts';
 import { SMALL_BINDINGS } from './webgpuBindLayout.ts';
 import { RASTER_TRI_WGSL } from './gpuRasterTriWgsl.ts';
 import { RASTER_PIXEL_WGSL } from './gpuRasterPixelWgsl.ts';
@@ -56,7 +51,6 @@ fn vertex(vp:mat4x4f,vertexBase:u32,index:u32)->vec4f{
 }
 fn uv(page:PageInfo,index:u32)->vec2f{let base=(page.vertexBase+index)*2u;return vec2f(uvs[base],uvs[base+1u]);}
 ${EDGE_WGSL}
-${BARY_WEIGHTS_WGSL}
 fn screen(p:vec4f)->vec2f{return vec2f((p.x/p.w*0.5+0.5)*uni.viewport.x,(1.0-(p.y/p.w*0.5+0.5))*uni.viewport.y);}
 ${MASK_KEEP_WGSL}
 ${RASTER_TRI_WGSL}
