@@ -76,8 +76,16 @@ export function createTileSources(options: {
   };
   return {
     levels,
-    /** Sert une tuile depuis sa source ; faux quand ses octets ne sont pas encore là. */
-    serve(atlas: WebgpuTileAtlas, key: TileKey, frame: number, encoder: () => GPUCommandEncoder) {
+    /**
+     * Sert une tuile depuis sa source. `waiting` : ses octets ne sont pas encore là, elle repassera ;
+     * `refused` : le pool est plein pour cette vue, rien ne viendra — et rien n'a été lu pour elle.
+     */
+    serve(
+      atlas: WebgpuTileAtlas,
+      key: TileKey,
+      frame: number,
+      encoder: () => GPUCommandEncoder,
+    ): 'served' | 'waiting' | 'refused' {
       const { layout, source } = atlas.textures[key.slot];
       const [width, height] = levelSize(layout.width, layout.height, key.level);
       const region = tileRegion(width, height, key.tx, key.ty);
@@ -85,21 +93,22 @@ export function createTileSources(options: {
         const levelKey = { sha256: source.sha256, atlas: source.atlas, level: key.level };
         const bitmap = levels?.get(levelKey, frame);
         if (!bitmap) {
+          if (!atlas.roomFor(frame)) return 'refused';
           if (levels && levels.inFlight < MAX_LEVEL_READS) levels.request(levelKey, frame);
-          return false;
+          return 'waiting';
         }
         const place = atlas.place(key, frame);
-        if (!place) return false;
+        if (!place) return 'refused';
         writeTileFromBitmap(device.queue, atlas.pool.texture, place, bitmap, region);
-        return true;
+        return 'served';
       }
       if (source.kind !== 'host') throw new Error('TEXTURE_TILE_WITHOUT_SOURCE');
       const scratch = scratchOf(atlas, key.slot);
-      if (!scratch) return false;
+      if (!scratch) return 'waiting';
       const place = atlas.place(key, frame);
-      if (!place) return false;
+      if (!place) return 'refused';
       copyTileFromTexture(encoder(), atlas.pool.texture, place, scratch.texture, key.level, region);
-      return true;
+      return 'served';
     },
     /** La queue d'une texture de l'hôte, copiée depuis sa texture de travail et soumise. */
     tail(atlas: WebgpuTileAtlas, slot: number, place: TilePlace) {

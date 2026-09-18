@@ -25,6 +25,7 @@ import { createArrivalSpecs } from './pageArrivalSpecs.ts';
 import { endCpuFrame, hostCpuStep } from './webgpuPagesCpuSteps.ts';
 import { setWebgpuTransform } from './webgpuPagesTransform.ts';
 import { disposeWebgpuPages, metricsOf } from './webgpuPagesMetrics.ts';
+import { setWebgpuMemoryBudgets } from './webgpuPagesMemory.ts';
 import { installGpuDeviceLedger } from './gpuDeviceLedger.ts';
 export { outputColorDiagnostic } from './webgpuPagesHelpers.ts';
 
@@ -61,14 +62,11 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     setTransform(nodeName, matrix) {
       setWebgpuTransform(rt, nodeName, matrix);
     },
+    setMemoryBudgets: (budgets) => setWebgpuMemoryBudgets(rt, budgets),
     async prepare() {
       context.signal?.throwIfAborted();
-      const { gpuDevice, bootstrap, slots } = setup;
+      const { gpuDevice } = setup;
       if (!gpuDevice) throw new Error('WEBGPU_UNAVAILABLE');
-      if (bootstrap.length > slots)
-        throw new Error(
-          `INITIAL_COVERAGE_BUDGET: ${bootstrap.length} pages required, ${slots} slots`,
-        );
       // Le registre des allocations se pose avant la première : tout ce qui suit y est compté.
       installGpuDeviceLedger(gpuDevice);
       prepareGpuTiming(rt, gpuDevice);

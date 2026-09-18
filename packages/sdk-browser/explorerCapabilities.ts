@@ -31,7 +31,7 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
   const { canvas, options, scope, metadata, diagnosticChannel, emit, diagnose } = session;
   const { autonomous, manifestUrl, metadataUrl, sceneFile, base, source, pageSources, resources } =
     inputs;
-  const { pages, geometryPages, attachCap, cacheCap } = pageSources;
+  const { pages, geometryPages, cacheCap } = pageSources;
   let gpuDevice: GPUDevice | undefined;
   let renderer: THREE.WebGLRenderer | undefined;
   // Le chemin des calculs en lot est décidé ici, avec les autres capacités, et jamais en silence :
@@ -149,10 +149,11 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
     detail: diagnosticChannel.detail,
     backendMode: autonomous ? 'autonomous-webgl' : directGpu ? 'webgpu-direct' : 'webgl-composed',
     limits: {
-      maxResidentPages: attachCap,
+      maxResidentPages: options.maxResidentPages ?? null,
       maxCachedPages: cacheCap,
       pageFetchWorkers: options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS,
-      maxFrameAllocationBytes: options.maxFrameAllocationBytes ?? null,
+      geometryPoolBytes: options.geometryPoolBytes ?? null,
+      texturePoolBytes: options.texturePoolBytes ?? null,
     },
     pageCatalogue: (autonomous ? geometryPages : pages).map((page) => ({
       url: page.url,

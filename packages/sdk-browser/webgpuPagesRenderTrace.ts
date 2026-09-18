@@ -91,7 +91,7 @@ export function traceCpuFrameWaiting(
 /** The complete frame snapshot of a CPU-cut image, after its submission. */
 export function traceCpuFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const { run, timing, diag, blendState } = rt,
-    { tracking, bootstrap, bootstrapUrls, slots, frameBudget } = rt.setup;
+    { tracking, bootstrap, bootstrapUrls, slots } = rt.setup;
   if (!diag.traceEnabled) return;
   diag.traceDiagnostic('frame', 'Snapshot complet de la frame WebGPU', () =>
     frameTraceSnapshot(rt, cam, cpuSelectionDecision(rt), {
@@ -108,7 +108,6 @@ export function traceCpuFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
           ...new Set([...bootstrapUrls, ...urlsOf(run.desired)]),
         ]),
         limited: run.coverageBudgetLimited,
-        frameBytes: frameBudget,
       },
       gpuTiming: timing.gpuTiming?.stats() ?? { supported: false, reason: 'not-initialized' },
       transparent: {

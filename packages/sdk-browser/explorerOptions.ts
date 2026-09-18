@@ -45,14 +45,22 @@ export interface ExplorerOptions {
   comparisonPair?: [string, string];
   gpu?: GPU;
   pointsOfInterest?: PointOfInterest[];
-  maxFrameAllocationBytes?: number;
   /** Octets de tuiles de textures que le moteur WebGPU admet par image ; 16 Mio par défaut. */
   maxTextureTransferBytesPerFrame?: number;
-  /** Octets du pool de textures virtuelles du moteur WebGPU, fixes pour la session — c'est la
-   *  mémoire de textures, quelle que soit la scène. 512 Mio par défaut, à parts égales entre l'atlas
-   *  couleur et l'atlas de données, en couches de 63,5 Mio ; refus nommé sous une couche par atlas.
-   *  Ce qu'une vue demande de plus attend qu'une tuile moins regardée se libère, et une tuile
-   *  absente montre son niveau grossier : les métriques `textureTiles*` le publient. */
+  /** Octets du pool de pages de géométrie du moteur WebGPU — la mémoire de géométrie diffusée,
+   *  quelle que soit la scène, comme le pool de 512 Mo de la référence. 512 Mio par défaut. La
+   *  couverture racine y tient toujours ; ce qu'une vue demande de plus s'affiche plus grossier,
+   *  jamais refusé. Se règle en cours de session par `explorer.setMemoryBudgets`. */
+  geometryPoolBytes?: number;
+  /** Le plus grand pool de géométrie que `explorer.setMemoryBudgets` pourra demander en cours de
+   *  session — le maximum d'un curseur de réglage. Le budget de départ sans lui. */
+  geometryPoolCeilingBytes?: number;
+  /** Octets du pool de textures virtuelles du moteur WebGPU — la mémoire de textures, quelle que
+   *  soit la scène. 512 Mio par défaut, à parts égales entre l'atlas couleur et l'atlas de données,
+   *  en couches de 63,5 Mio ; sous une couche par atlas le pool est relevé à une, nommément. Ce
+   *  qu'une vue demande de plus attend qu'une tuile moins regardée se libère, et une tuile absente
+   *  montre son niveau grossier : les métriques `textureTiles*` le publient. Se règle en cours de
+   *  session par `explorer.setMemoryBudgets`. */
   texturePoolBytes?: number;
   /** L'antialiasing temporel du moteur WebGPU, actif par défaut comme chez la référence : chaque
    *  image est rendue avec une gigue d'une fraction de pixel et accumulée sur les précédentes,

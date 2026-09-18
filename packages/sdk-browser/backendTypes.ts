@@ -28,6 +28,10 @@ export interface RenderBackend {
   lighting?: { shadows: boolean; reason?: string };
   /** Déplace un nœud nommé de la scène préparée ; appliqué à l'image suivante, sans allocation (R8). */
   setTransform?(nodeName: string, matrix: Float32Array): void;
+  /** Règle les réservoirs de mémoire en cours de session ; rend ce que le moteur tient après. */
+  setMemoryBudgets?(
+    budgets: import('./webgpuPagesMemory.ts').MemoryBudgets,
+  ): Promise<import('./webgpuPagesMemory.ts').MemoryBudgetsReport>;
   prepare(): Promise<void>;
   render(camera: HostCamera): void;
   readonly overBudget: boolean;
@@ -116,6 +120,9 @@ export interface BackendContext {
   readTextureLevel?: import('./textureLevelReader.ts').TextureLevelReader;
   signal?: AbortSignal;
   maxResidentPages?: number;
+  /** Ce que les moteurs à mémoire hôte gardent résident sans plafond de l'hôte ; le moteur WebGPU
+   *  l'ignore, son réservoir est en octets. */
+  residentPagesDefault?: number;
   maxCachedPages?: number;
   /** Resident page/bundle bytes kept by the streamer. Defaults to DEFAULT_CACHED_BYTES. */
   maxCachedBytes?: number;
@@ -131,13 +138,18 @@ export interface BackendContext {
   gpuDevice?: GPUDevice;
   /** A host canvas dedicated to this WebGPU backend. */
   gpuCanvas?: HTMLCanvasElement;
-  /** WebGPU frame targets, Hi-Z pyramids, one surface capture and async image staging; excludes scene assets and WebGL diagnostic capture. */
-  maxFrameAllocationBytes?: number;
   /** Octets de tuiles de textures admis par image. */
   maxTextureTransferBytesPerFrame?: number;
-  /** Octets du pool de textures virtuelles, fixes pour la session et partagés entre l'atlas couleur
-   *  et l'atlas de données ; 512 Mio par défaut. Ce qu'une vue demande de plus attend qu'une tuile
-   *  moins regardée se libère, et une tuile absente montre son niveau grossier. */
+  /** Octets du pool de pages de géométrie, fixes quelle que soit la scène ; 512 Mio par défaut.
+   *  La couverture racine y tient toujours ; le reste s'affiche plus grossier quand il n'y entre
+   *  pas. Les cibles d'image ne sont pas budgétées : elles suivent la résolution. */
+  geometryPoolBytes?: number;
+  /** Le plus grand pool de géométrie qu'un `setMemoryBudgets` pourra demander en cours de session ;
+   *  le budget de départ sans lui. Les tables par page dessinable sont taillées une fois, à lui. */
+  geometryPoolCeilingBytes?: number;
+  /** Octets du pool de textures virtuelles, partagés entre l'atlas couleur et l'atlas de données ;
+   *  512 Mio par défaut. Ce qu'une vue demande de plus attend qu'une tuile moins regardée se
+   *  libère, et une tuile absente montre son niveau grossier. */
   texturePoolBytes?: number;
   /** L'antialiasing temporel, actif par défaut comme chez la référence : `false` rend l'image
    *  échantillonnée au centre du pixel, sans gigue ni historique — le « avant » d'une comparaison. */

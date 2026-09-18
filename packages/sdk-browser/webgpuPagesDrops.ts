@@ -99,6 +99,24 @@ function dropGpuDraw(rt: WebgpuPagesRuntime) {
     rt.capabilities.unsupported.push('indirect draw');
 }
 
+/**
+ * Les groupes de liaison qui nomment les ressources partagées du dessin — tampon du réservoir de
+ * pages, table de pages, pools de tuiles, uniformes — : l'une d'elles vient de changer d'identité,
+ * ils sont refaits à l'image suivante. Les groupes des régions d'ombre sont indexés par l'identité
+ * de ce qu'ils tiennent et se refont seuls.
+ */
+export function dropPoolBindGroups(rt: Pick<WebgpuPagesRuntime, 'vis' | 'gpu' | 'blendState'>) {
+  const { vis, gpu, blendState } = rt;
+  vis.visBindGroup = undefined;
+  vis.visHizBindGroup = undefined;
+  vis.shadeBindGroup = undefined;
+  vis.visSlotGroups.fill(undefined);
+  vis.rasterGroups.fill(undefined);
+  gpu.bindGroups.clear();
+  for (const item of blendState.blendGpu) item.group = undefined;
+  blendState.pagedGroup = undefined;
+}
+
 export function dropVis(rt: WebgpuPagesRuntime) {
   const { vis, capabilities } = rt,
     { rows, drawSlots } = rt.layout;
@@ -113,18 +131,14 @@ export function dropVis(rt: WebgpuPagesRuntime) {
   vis.visLayerPipelines.length = 0;
   vis.drawLayerSlots = 1;
   vis.shadePipeline = undefined;
-  vis.shadeBindGroup = undefined;
   vis.shadeBindGroupLayout = undefined;
   vis.visBindGroupLayout = undefined;
-  vis.visBindGroup = undefined;
-  vis.visHizBindGroup = undefined;
   vis.mapsSampler = undefined;
   vis.blendBindGroupLayout = undefined;
   vis.pipelineBlendTextured = undefined;
   vis.pipelineBlendFront = undefined;
   vis.pipelineBlendBack = undefined;
-  for (const item of rt.blendState.blendGpu) item.group = undefined;
-  rt.blendState.pagedGroup = undefined;
+  dropPoolBindGroups(rt);
   rt.blendState.overdraw?.dispose();
   rt.blendState.overdraw = undefined;
   vis.gpuRaster?.dispose();

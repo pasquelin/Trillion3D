@@ -13,34 +13,12 @@ import {
 import { lighting } from './webgpuPagesHelpers.ts';
 import { createHostRankDelta } from './webgpuPagesHostRanks.ts';
 import { RASTER_BACKGROUND } from './pageRaster.ts';
-import { POOL_LAYER_BYTES } from './textureTiles.ts';
-
-/** Le budget d'allocation d'image par défaut, en octets : voir `createWebgpuPagesSetup`. */
-export const DEFAULT_FRAME_BUDGET = 288 * 1024 * 1024;
-/**
- * Le budget du pool de textures par défaut : 512 Mio, partagés à parts égales entre l'atlas
- * couleur et l'atlas de données, en couches de 30×30 tuiles de 136² texels (63,5 Mio chacune).
- * Fixe quelle que soit la scène, comme le budget d'image : c'est le critère de parité. Ce qu'une
- * vue demande de plus attend qu'une tuile moins regardée se libère, et le relevé le publie.
- */
-const DEFAULT_TEXTURE_POOL_BUDGET = 512 * 1024 * 1024;
-
-/** Couches par atlas que le budget donne ; refus nommé sous une couche par atlas. */
-export function texturePoolLayersFor(budgetBytes: number, device: GPUDevice | undefined) {
-  if (!Number.isSafeInteger(budgetBytes) || budgetBytes < 1)
-    throw new Error('INVALID_TEXTURE_POOL_BUDGET');
-  const layers = Math.floor(budgetBytes / 2 / POOL_LAYER_BYTES);
-  if (layers < 1)
-    throw new Error(
-      `TEXTURE_POOL_BUDGET: ${budgetBytes} bytes, under one layer per atlas (${2 * POOL_LAYER_BYTES})`,
-    );
-  const limit = device?.limits?.maxTextureArrayLayers;
-  if (typeof limit === 'number' && layers > limit)
-    throw new Error(
-      `TEXTURE_POOL_DEVICE_LIMIT: ${layers} layers per atlas, device allows ${limit}`,
-    );
-  return layers;
-}
+import {
+  DEFAULT_GEOMETRY_POOL_BUDGET,
+  DEFAULT_TEXTURE_POOL_BUDGET,
+  geometryPoolFor,
+  texturePoolFor,
+} from './webgpuMemoryBudgets.ts';
 
 export type WebgpuDiagnostics = ReturnType<typeof createWebgpuDiagnostics> & {
   traceEnabled: boolean;
@@ -65,7 +43,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   );
   if (typeof window !== 'undefined')
     console.info('[web-geometry] couleur de fond reçue par WebGeometry WebGPU', inputColor);
-  const { roots, allPages, blendCopies, prepared, requestCount, worlds } = collectClusterPages(
+  const { roots, allPages, blendCopies, requestCount, worlds } = collectClusterPages(
     source,
     metadata,
     indices,
@@ -111,9 +89,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   // object otherwise. One request therefore hands bytes to every cluster that shares it. The GPU page
   // cache stays keyed by cluster (`rec.url`), because that is the granularity it uploads and pins.
   const byUrl = indexPagesByUrl(allPages);
-  const cap = maxResidentPages ?? Math.max(1024, prepared);
   const uniquePages = Math.max(1, new Set(allPages.map((page) => page.url)).size);
-  const slots = Math.max(1, Math.min(cap, uniquePages));
   const scene = new THREE.Scene();
   lighting(scene, clearColor);
   for (const copy of blendCopies) scene.add(copy);
@@ -124,11 +100,29 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     if (padded > pageBytes) pageBytes = padded;
   }
   const sourceBytes = indexSourceBytes(allPages);
-  // 288 Mio : ce que 2496 × 1404 — la résolution de relevé — demande avec toutes les cibles de la
-  // version 1, la réserve Hi-Z, les deux cibles d'historique de l'antialiasing temporel et la
-  // cible de retour d'image des transparents (289,7 Mo, calculé), arrondi au multiple de 32 Mio.
-  // Avant l'historique, 256 suffisaient ; la 4K ne tenait pas et ne tient toujours pas.
-  const frameBudget = context.maxFrameAllocationBytes ?? DEFAULT_FRAME_BUDGET;
+  // Les deux réservoirs fixes du moteur, en octets, comme chez la référence : ce qui n'y tient pas
+  // s'affiche plus grossier. Les cibles d'image, elles, suivent la résolution sans plafond.
+  const poolFor = (budgetBytes: number, ceilingSlots?: number) =>
+    geometryPoolFor({
+      budgetBytes,
+      pageBytes,
+      uniquePages,
+      rootPages: bootstrapUrls.size,
+      maxResidentPages,
+      ceilingSlots,
+      limits: gpuDevice?.limits,
+    });
+  const geometryPool = poolFor(context.geometryPoolBytes ?? DEFAULT_GEOMETRY_POOL_BUDGET);
+  // Le plafond que le réservoir peut atteindre en cours de session (`setMemoryBudgets`) : les
+  // tables dimensionnées par page dessinable le sont une fois, à ce plafond. Sans plafond déclaré,
+  // c'est le budget de départ.
+  const cap = poolFor(
+    Math.max(geometryPool.budgetBytes, context.geometryPoolCeilingBytes ?? 0),
+  ).slots;
+  const texturePool = texturePoolFor(
+    context.texturePoolBytes ?? DEFAULT_TEXTURE_POOL_BUDGET,
+    gpuDevice,
+  );
   const reserveHiz = typeof gpuDevice?.createComputePipeline === 'function';
   const textureBudget = Math.max(
     1,
@@ -160,17 +154,22 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     requestUrls,
     // Ce que l'hôte épingle, tenu d'une image à l'autre et publié comme une différence de rangs.
     hostRanks: createHostRankDelta(requestCount, requestUrls),
+    // Le plafond des tables dimensionnées par page dessinable : les fentes que le réservoir peut
+    // atteindre en cours de session.
     cap,
-    slots,
     scene,
     pageBytes,
     sourceBytes,
-    frameBudget,
     reserveHiz,
     textureBudget,
-    texturePoolLayers: texturePoolLayersFor(
-      context.texturePoolBytes ?? DEFAULT_TEXTURE_POOL_BUDGET,
-      gpuDevice,
-    ),
+    // Les deux réservoirs tels qu'ils sont tenus ; `setMemoryBudgets` les remplace par un autre
+    // tiré de la même règle, `slots` suit.
+    geometryPool,
+    // Le même réservoir pour un autre budget, sous le plafond de la session.
+    geometryPoolFor: (budgetBytes: number) => poolFor(budgetBytes, cap),
+    texturePool,
+    get slots() {
+      return this.geometryPool.slots;
+    },
   };
 }

@@ -94,8 +94,12 @@ export function createWebgpuResidentEnsurer({
       try {
         await cache.load(rec.url, signal);
       } catch (error) {
-        if (!tracking.wanted.has(key) && String(error).includes('ALL_PAGES_PINNED')) continue;
-        throw error;
+        if (!String(error).includes('ALL_PAGES_PINNED')) throw error;
+        // Réservoir plein de pages que l'image tient : comme le streamer de la référence, la salve
+        // s'arrête là, sans rien lâcher. Ce qui reste voulu s'affiche par son ancêtre résident, et
+        // l'admission de la coupe, qui lit le même état, grossit l'erreur écran jusqu'à ce que
+        // tout tienne (`admitGpuCut`).
+        break;
       }
       cache = getCache();
       if (isLost() || !cache) throw new Error('WEBGPU_LOST');

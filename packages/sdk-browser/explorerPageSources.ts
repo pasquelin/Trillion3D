@@ -22,7 +22,9 @@ export async function createExplorerPageSources(
   const { pages, geometryPages, geometryUrls, pageIdByUrl } = indexManifestPages(metadata);
   const exactPages = pages.filter((page) => (page.role ?? 'exact') !== 'coarse');
   const preload = options.preload ?? 'visible';
-  // A cluster DAG cuts far below its exact page count, but the cut moves every frame: the resident
+  // Ce que les moteurs à mémoire hôte gardent résident sans plafond de l'hôte, et ce que le
+  // diffuseur garde en cache ; le moteur WebGPU, lui, tient son propre réservoir en octets. A
+  // cluster DAG cuts far below its exact page count, but the cut moves every frame: the resident
   // set must be a superset of it or the cache thrashes. Twice the expected cut, floored at 32768.
   const bundles = indexManifestBundles(metadata);
   const dagPages = bundles.length > 0;

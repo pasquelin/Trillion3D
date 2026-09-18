@@ -8,6 +8,8 @@ import {
   type WebgpuTilePageTable,
 } from './webgpuTilePageTable.ts';
 import { writeTailFromBytes } from './webgpuTileWrite.ts';
+import { resizeTileAtlas } from './webgpuTileAtlasResize.ts';
+import { tailId, tileId, tileKeyOf } from './webgpuTileIds.ts';
 
 /**
  * D'où viennent les texels d'une texture. `bytes` : tout tient dans la queue du sidecar, rien n'est
@@ -20,18 +22,6 @@ type TileSource =
   | { kind: 'host'; map: THREE.Texture; rgba: TextureRgba | null };
 
 export type TileTexture = { layout: TileLayout; source: TileSource };
-
-/** L'identifiant entier d'une tuile diffusée, celui que le pool retient par place. */
-const tileId = ({ slot, level, tx, ty }: TileKey) =>
-  ((slot << 20) | (level << 16) | (ty << 8) | tx) >>> 0;
-const tileKeyOf = (id: number): TileKey => ({
-  slot: id >>> 20,
-  level: (id >>> 16) & 15,
-  ty: (id >>> 8) & 255,
-  tx: id & 255,
-});
-/** L'identifiant de la queue d'une texture : hors de la plage des tuiles diffusées. */
-const tailId = (slot: number) => (0x80000000 | slot) >>> 0;
 
 /**
  * Un atlas de textures virtuelles : son pool, sa table de pages et son catalogue. Il sait quelle
@@ -52,9 +42,18 @@ export type WebgpuTileAtlas = {
   /** Une place pour une tuile qui arrive : libre, ou reprise à la moins regardée ; `undefined`
    *  quand tout ce que le pool porte a été regardé dans cette image — refus compté. */
   place(key: TileKey, frame: number): TilePlace | undefined;
+  /** Dit si `place` aurait une place à donner dans cette image, sans rien prendre ; faux compte un
+   *  refus. La résidence se décide AVANT de lire un niveau : un pool plein pour la vue ne lance
+   *  aucune lecture pour une tuile qu'il refuserait ensuite. */
+  roomFor(frame: number): boolean;
   /** Le niveau qui sert une tuile aujourd'hui : le sien, un ancêtre, ou la queue. */
   servedLevel(key: TileKey): number;
   flush(device: Pick<GPUDevice, 'queue'>): void;
+  /** Change le pool de couches en gardant ses tuiles ; rend le compte des tuiles évincées. */
+  resize(
+    device: Pick<GPUDevice, 'createTexture' | 'createCommandEncoder' | 'queue'>,
+    layers: number,
+  ): number;
   destroy(): void;
 };
 
@@ -69,7 +68,7 @@ export function createWebgpuTileAtlas(
   },
 ): WebgpuTileAtlas {
   const { kind, textures } = options;
-  const pool = createWebgpuTilePool(device, {
+  let pool = createWebgpuTilePool(device, {
     kind,
     format: options.format,
     layers: options.layers,
@@ -87,12 +86,15 @@ export function createWebgpuTileAtlas(
   // Les candidates à l'éviction, calculées une fois par image et consommées dans l'ordre.
   let candidates: number[] = [],
     candidatesFrame = -1;
-  const evict = (frame: number) => {
+  const candidatesAt = (frame: number) => {
     if (candidatesFrame !== frame) {
       candidates = pool.candidates(frame);
       candidatesFrame = frame;
     }
-    const index = candidates.shift();
+    return candidates;
+  };
+  const evict = (frame: number) => {
+    const index = candidatesAt(frame).shift();
     if (index === undefined) return undefined;
     const id = pool.keyOf(index);
     pages.clearTile(tileKeyOf(id));
@@ -103,7 +105,9 @@ export function createWebgpuTileAtlas(
   };
   return {
     kind,
-    pool,
+    get pool() {
+      return pool;
+    },
     pages,
     textures,
     get evictions() {
@@ -136,10 +140,14 @@ export function createWebgpuTileAtlas(
       pool.touch(index, frame);
       return true;
     },
+    roomFor(frame) {
+      if (pool.resident < pool.tiles || candidatesAt(frame).length > 0) return true;
+      refused++;
+      return false;
+    },
     place(key, frame) {
       const id = tileId(key);
-      // Une place libre, sinon celle que la moins regardée vient de rendre — elle est en haut de
-      // la pile des libres, donc la prise qui suit est la sienne.
+      // Une place libre, sinon celle que la moins regardée vient de rendre.
       let index = pool.acquire(id, frame);
       if (index === undefined && evict(frame) !== undefined) index = pool.acquire(id, frame);
       if (index === undefined) {
@@ -156,6 +164,19 @@ export function createWebgpuTileAtlas(
       return word === 0 ? textures[key.slot].layout.tail : entryLevel(word);
     },
     flush: (target) => pages.flush(target),
+    resize(target, layers) {
+      const result = resizeTileAtlas(
+        target,
+        { kind, format: options.format, layers },
+        pool,
+        pages,
+        resident,
+      );
+      pool = result.pool;
+      evictions += result.evicted;
+      candidatesFrame = -1;
+      return result.evicted;
+    },
     destroy() {
       pages.destroy();
       pool.destroy();

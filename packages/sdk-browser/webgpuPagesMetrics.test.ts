@@ -22,8 +22,8 @@ test('metricsOf publie drawnTriangles depuis run.drawnTriangles, même quand sub
     vis: createWebgpuVisState(),
     timing: {},
     blendState: createWebgpuBlendState(),
-    services: { bootstrapState: { ready: true } },
-    setup: { frameBudget: 0 },
+    services: { bootstrapState: { ready: true }, residencySets: { keepCount: 0 } },
+    setup: { geometryPool: { slots: 0 }, texturePool: {} },
     lights: createWebgpuLightState(),
   } as unknown as WebgpuPagesRuntime;
 
@@ -39,8 +39,8 @@ test('les métriques de textures sont celles du diffuseur, et `null` tant qu’i
     vis: createWebgpuVisState(),
     timing: {},
     blendState: createWebgpuBlendState(),
-    services: { bootstrapState: { ready: true } },
-    setup: { frameBudget: 0 },
+    services: { bootstrapState: { ready: true }, residencySets: { keepCount: 0 } },
+    setup: { geometryPool: { slots: 0 }, texturePool: {} },
     lights: createWebgpuLightState(),
   } as unknown as WebgpuPagesRuntime;
   const before = metricsOf(rt) as Record<string, unknown>;

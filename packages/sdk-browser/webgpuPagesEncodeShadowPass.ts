@@ -27,9 +27,24 @@ function shadowRegionGroup(rt: WebgpuPagesRuntime, device: GPUDevice, region: nu
     !cull
   )
     return;
-  const key = [cacheBuffer, concatPos, concatUv, pageTable, textures, cull.kept];
-  if (key.some((resource, index) => lights.shadowGroupsKey[index] !== resource)) {
-    lights.shadowGroupsKey = key;
+  // Ce que les groupes nomment et qui peut changer d'identité — le pool de tuiles couleur, pas le
+  // diffuseur qui le porte —, comparé en place : rien n'est alloué par région ni par image.
+  const key = lights.shadowGroupsKey,
+    pool = textures.color.pool.view;
+  if (
+    key[0] !== cacheBuffer ||
+    key[1] !== concatPos ||
+    key[2] !== concatUv ||
+    key[3] !== pageTable ||
+    key[4] !== pool ||
+    key[5] !== cull.kept
+  ) {
+    key[0] = cacheBuffer;
+    key[1] = concatPos;
+    key[2] = concatUv;
+    key[3] = pageTable;
+    key[4] = pool;
+    key[5] = cull.kept;
     lights.shadowGroups.fill(undefined);
   }
   let group = lights.shadowGroups[region];

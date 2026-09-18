@@ -27,6 +27,7 @@ const fakeSetup = (overrides: Partial<WebgpuPagesSetup> = {}) =>
     roots: [],
     bootstrap: [],
     slots: 4,
+    cap: 4,
     pageBytes: 12,
     ...overrides,
   }) as unknown as WebgpuPagesSetup;
@@ -100,11 +101,12 @@ test('dropVis collapses the coplanar layer pipelines and drawLayerSlots back to 
   const vis = createWebgpuVisState();
   vis.drawLayerSlots = 4;
   vis.visLayerPipelines = [{} as GPURenderPipeline, {} as GPURenderPipeline];
-  const layout = createWebgpuPagesLayout(fakeSetup({ slots: 1 }));
+  const layout = createWebgpuPagesLayout(fakeSetup({ slots: 1, cap: 1 }));
   const rt = {
     vis,
     layout,
     run: createWebgpuRunState(),
+    gpu: { bindGroups: new Map() },
     blendState: createWebgpuBlendState(),
     capabilities: { materials: '', unsupported: [] as string[] },
   } as unknown as WebgpuPagesRuntime;

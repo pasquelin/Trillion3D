@@ -13,7 +13,7 @@ import {
   tilesAt,
   TILES_PER_LAYER,
 } from './textureTiles.ts';
-import { texturePoolLayersFor } from './webgpuPagesSetup.ts';
+import { texturePoolFor } from './webgpuMemoryBudgets.ts';
 
 test('une texture 2048² a cinq niveaux diffusés de 256 + 64 + 16 + 4 + 1 tuiles, et sa queue commence au 64', () => {
   const layout = tileLayout(2048, 2048);
@@ -53,15 +53,26 @@ test('une place du pool a un rang unique, et l’entrée de table garde place et
   assert.ok(word > 0x7fffffff, 'le bit haut dit que l’entrée est servie');
 });
 
-test('le budget du pool donne des couches entières par atlas, et refuse par son nom sous une couche', () => {
-  assert.equal(
-    texturePoolLayersFor(512 * 1024 * 1024, undefined),
-    4,
-    '512 Mio : quatre couches par atlas',
-  );
-  assert.equal(texturePoolLayersFor(2 * 66_585_600, undefined), 1);
-  assert.throws(() => texturePoolLayersFor(100_000_000, undefined), /TEXTURE_POOL_BUDGET/);
-  assert.throws(() => texturePoolLayersFor(0, undefined), /INVALID_TEXTURE_POOL_BUDGET/);
+test('le budget du pool donne des couches entières par atlas, et ne refuse jamais : il relève ou ramène, nommément', () => {
+  assert.deepEqual(texturePoolFor(512 * 1024 * 1024, undefined), {
+    budgetBytes: 512 * 1024 * 1024,
+    layers: 4,
+    allocatedBytes: 8 * 66_585_600,
+    clamp: null,
+  });
+  assert.equal(texturePoolFor(2 * 66_585_600, undefined).layers, 1);
+  assert.deepEqual(texturePoolFor(100_000_000, undefined), {
+    budgetBytes: 100_000_000,
+    layers: 1,
+    allocatedBytes: 2 * 66_585_600,
+    clamp: 'minimum',
+  });
+  assert.throws(() => texturePoolFor(0, undefined), /INVALID_TEXTURE_POOL_BUDGET/);
   const device = { limits: { maxTextureArrayLayers: 2 } } as unknown as GPUDevice;
-  assert.throws(() => texturePoolLayersFor(512 * 1024 * 1024, device), /TEXTURE_POOL_DEVICE_LIMIT/);
+  assert.deepEqual(texturePoolFor(512 * 1024 * 1024, device), {
+    budgetBytes: 512 * 1024 * 1024,
+    layers: 2,
+    allocatedBytes: 4 * 66_585_600,
+    clamp: 'device-limit',
+  });
 });

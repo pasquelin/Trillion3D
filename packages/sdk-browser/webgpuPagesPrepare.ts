@@ -66,7 +66,7 @@ export function prepareCones(rt: WebgpuPagesRuntime) {
 /** Builds every GPU resource an image needs; called once, after the device and lighting exist. */
 export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { gpu, vis, run, context, diag, capabilities, blendState, services } = rt,
-    { allPages, blendCopies, scene, viewport, cap, frameBudget } = rt.setup,
+    { allPages, blendCopies, scene, viewport, cap } = rt.setup,
     { packedPages, selectionRoots, rows } = rt.layout;
   rt.lights.buffer = createSceneLightContractBuffer(gpuDevice);
   // Plus aucune lumière écrite dans la scène, d'aucun côté : opaques et transparents lisent le même
@@ -176,7 +176,6 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     shadowUnavailable: rt.lights.shadowReason,
     bounceProxy: !!context.readSceneProxy,
     bounceWanted: rt.bounce.wanted,
-    frameBudgetBytes: frameBudget,
     imageReadbackDuringRender: false,
     visibilityBuffer: vis.visEnabled,
     gpuSelection: !!run.gpuSelection,

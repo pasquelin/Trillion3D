@@ -71,7 +71,10 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     associations: associations,
     textureIndices,
     signal,
-    maxResidentPages: attachCap,
+    // Le plafond en pages est celui de l'hôte, ou rien : le moteur WebGPU tient son pool en octets
+    // ; les moteurs à mémoire hôte gardent par défaut ce que le diffuseur a calculé pour eux.
+    maxResidentPages: options.maxResidentPages,
+    residentPagesDefault: attachCap,
     maxCachedPages: cacheCap,
     pixelError: options.pixelError ?? 0,
     lodAdaptive: options.lodAdaptive,
@@ -81,9 +84,10 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     viewport,
     gpuDevice,
     gpuCanvas: directGpu ? canvas : undefined,
-    maxFrameAllocationBytes: options.maxFrameAllocationBytes,
     maxTextureTransferBytesPerFrame: options.maxTextureTransferBytesPerFrame,
     temporalAntialiasing: options.temporalAntialiasing ?? true,
+    geometryPoolBytes: options.geometryPoolBytes,
+    geometryPoolCeilingBytes: options.geometryPoolCeilingBytes,
     texturePoolBytes: options.texturePoolBytes,
     stageProfile: options.stageProfile === true,
     // La variante de diagnostic est vérifiée ici, une fois : hors `trace`, elle est refusée.

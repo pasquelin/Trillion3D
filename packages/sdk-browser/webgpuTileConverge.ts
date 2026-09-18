@@ -21,9 +21,11 @@ const POSE_ROUNDS = 4;
 /**
  * Fait converger les textures d'une pose : l'image est rendue avec tous ses pixels au retour, ce
  * qu'ils demandent est servi sans budget, et l'on recommence jusqu'à ce qu'aucune tuile demandée ne
- * manque. Une tuile dont le niveau se lit encore est attendue ; une tuile qu'aucune place ne peut
- * accueillir — le pool est plein de tuiles regardées dans cette image — ne l'est pas : le tour
- * s'arrête, et `textureTilesRefused` le dit.
+ * manque. Une tuile dont le niveau se lit encore est attendue ; une tuile refusée ne l'est pas —
+ * le pool est plein pour cette vue, rien ne viendra, le niveau grossier tient
+ * (`textureTilesRefused`). Le pool ne cède jamais ce que l'image d'avant regardait, si bien
+ * qu'un tour ne peut pas défaire le tour précédent : la barrière converge ou refuse, elle ne
+ * tourne pas sur elle-même.
  *
  * Rien n'est libéré ici : une tuile reste résidente jusqu'à ce que le pool, plein, cède la moins
  * regardée — la règle de la référence. La barrière libérait ce que la dernière image n'avait pas
@@ -43,12 +45,12 @@ async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
     renderWebgpuPages(rt, run.lastCamera!);
     await gpuDevice.queue.onSubmittedWorkDone();
     await textures.settled();
-    const { served, missing } = textures.pump(run.frame, true);
+    const { served, waiting } = textures.pump(run.frame, true);
     total += served;
     // Une tuile servie n'est montrée que par l'image suivante : on ne s'arrête que sur une image
-    // qui n'a rien demandé de plus, ou sur un manque que rien ne viendra combler.
-    if (!served && (!missing || !textures.reading)) break;
-    if (missing) await textures.settled();
+    // qui n'a rien demandé de plus, ou sur une attente que rien ne viendra combler.
+    if (!served && (!waiting || !textures.reading)) break;
+    if (waiting) await textures.settled();
   }
   return total;
 }

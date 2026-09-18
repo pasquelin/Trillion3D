@@ -69,7 +69,8 @@ function banc(options: { ready: boolean; resident: boolean }) {
       bootstrap: [] as PageRec[],
       slots: 64,
       gpuDevice: {},
-      frameBudget: 0,
+      geometryPool: { slots: 64 },
+      texturePool: {},
       tracking: { traceSet: () => ({}), traceRecs: () => ({}) },
     },
     gpu: { cache: { get: (url: string) => residents.get(url) }, targetSize: [64, 64] },
@@ -85,6 +86,7 @@ function banc(options: { ready: boolean; resident: boolean }) {
     },
     services: {
       bootstrapState: { ready: options.ready },
+      residencySets: { keepCount: 0 },
       hasBytes: () => true,
       forgetReadback: () => journal.push('oubli'),
       adoptCpuCut: (wanted: readonly PageRec[]) => {

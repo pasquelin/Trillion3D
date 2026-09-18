@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { PageRec } from './pageSelection.ts';
 import { projectedPageError } from './pageSelection.ts';
+import { dropPoolBindGroups } from './webgpuPagesDrops.ts';
 import { BASE_SLOTS, BIN_BACK, BIN_FRONT, BIN_NONE } from './gpuDraw.ts';
 import { visLayerPipelineIndex } from './webgpuVisibilityPipelines.ts';
 import { screenErrorColor } from './diagnosticColors.ts';
@@ -95,9 +96,7 @@ export function ensureUniform(rt: WebgpuPagesCore, device: GPUDevice, draws: num
   const bytes = Math.max(1, draws, rt.setup.cap) * UNIFORM_STRIDE;
   if (!gpu.uniformBuffer || gpu.uniformBuffer.size < bytes) {
     gpu.uniformBuffer?.destroy();
-    gpu.bindGroups.clear();
-    for (const item of rt.blendState.blendGpu) item.group = undefined;
-    rt.blendState.pagedGroup = undefined;
+    dropPoolBindGroups(rt);
     gpu.uniformBuffer = device.createBuffer({
       size: bytes,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,

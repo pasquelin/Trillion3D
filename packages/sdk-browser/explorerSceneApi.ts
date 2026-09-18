@@ -3,6 +3,7 @@ import { EngineError } from '../sdk-core/index.ts';
 import type { AssetScope, CameraPose, FrameMetrics, StablePreview } from '../sdk-core/index.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
+import type { MemoryBudgets } from './webgpuPagesMemory.ts';
 
 type Inputs = {
   check: () => void;
@@ -18,6 +19,21 @@ type Inputs = {
 export function createExplorerSceneApi(inputs: Inputs) {
   const { check, active: getActive, backends, render, flush, capture, scope, canvas } = inputs;
   return {
+    /**
+     * Règle les réservoirs de mémoire du moteur actif en cours de session — ce qu'un curseur de
+     * réglage appelle. Le moteur garde ce qui tient dans le nouveau réservoir, et le rapport dit ce
+     * qu'il tient vraiment (`clamp` quand la valeur a été ramenée) et ce que le réglage a coûté.
+     */
+    async setMemoryBudgets(budgets: MemoryBudgets) {
+      check();
+      const active = getActive();
+      if (!active.setMemoryBudgets)
+        throw new EngineError(
+          'UNSUPPORTED_MEMORY_BUDGETS',
+          `${active.id} does not support memory budgets`,
+        );
+      return active.setMemoryBudgets(budgets);
+    },
     addInstance(id: string, transform: THREE.Matrix4) {
       check();
       const active = getActive();

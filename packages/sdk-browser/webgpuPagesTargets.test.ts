@@ -1,14 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { checkFrameBudget } from './webgpuPagesTargets.ts';
+import { frameTargetAllocation } from './webgpuPagesTargets.ts';
 import { ensureTaaTargets } from './taaPrepare.ts';
-import { DEFAULT_FRAME_BUDGET } from './webgpuPagesSetup.ts';
+import { frameTargetBytes } from './surfaceBuffer.ts';
 import { TAA_HISTORY_BYTES_PER_PIXEL } from './temporalAntialiasing.ts';
 import { MEASURE_HEIGHT, MEASURE_WIDTH } from '../../test/appui/emeraldProvenance.mjs';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Un moteur réduit à son budget, avec une passe temporelle factice qui note ses redimensionnements. */
-function runtime(frameBudget = DEFAULT_FRAME_BUDGET) {
+/** Un moteur réduit à ses cibles, avec une passe temporelle factice qui note ses redimensionnements. */
+function runtime() {
   const resized: number[][] = [],
     failures: string[] = [];
   const temporal = {
@@ -22,7 +22,6 @@ function runtime(frameBudget = DEFAULT_FRAME_BUDGET) {
   const rt = {
     setup: {
       gpuDevice: { limits: { maxTextureDimension2D: 8192 } },
-      frameBudget,
       reserveHiz: true,
     },
     gpu: { temporal },
@@ -33,37 +32,37 @@ function runtime(frameBudget = DEFAULT_FRAME_BUDGET) {
   return { rt, temporal, resized, failures };
 }
 
-// Le défaut que ce test attrape : à la résolution de relevé, les deux cibles d'historique faisaient
-// dépasser le budget de 256 Mio (275 680 016 > 268 435 456, mesuré le 18 sept. 2026) et le moteur
-// refusait de se préparer. Le budget par défaut doit admettre cette image, historique compris.
-test('le budget par défaut admet la résolution de relevé avec les deux cibles d’historique', () => {
+// Le défaut que ce test attrape : un plafond de 288 Mio, relevé une fois sur ce Mac, refusait la 4K
+// et le raster de calcul à 2496×1404 (`SURFACE_BUDGET: 415 Mo > 288 Mio`, 18 sept. 2026) sur une
+// machine qui les tenait. Comme chez la référence, les cibles suivent la résolution : ce qu'elles
+// coûtent est publié, et seule une taille que l'appareil ne sait pas faire est refusée.
+test('les cibles suivent la résolution, historique compris : la 4K est admise et chiffrée', () => {
   const { rt, resized, temporal } = runtime();
-  const base = checkFrameBudget(rt, MEASURE_WIDTH, MEASURE_HEIGHT);
-  const history = ensureTaaTargets(rt, MEASURE_WIDTH, MEASURE_HEIGHT, base);
-  assert.equal(history, MEASURE_WIDTH * MEASURE_HEIGHT * TAA_HISTORY_BYTES_PER_PIXEL);
-  assert.ok(base + history <= DEFAULT_FRAME_BUDGET, `${base + history} octets au-dessus du budget`);
-  assert.deepEqual(resized, [[MEASURE_WIDTH, MEASURE_HEIGHT]]);
+  for (const [width, height] of [
+    [MEASURE_WIDTH, MEASURE_HEIGHT],
+    [3840, 2160],
+  ]) {
+    const base = frameTargetAllocation(rt, width, height);
+    assert.equal(base, frameTargetBytes(width, height, true));
+    assert.equal(ensureTaaTargets(rt, width, height), width * height * TAA_HISTORY_BYTES_PER_PIXEL);
+  }
+  assert.ok(
+    frameTargetBytes(3840, 2160, true) > 288 * 1024 * 1024,
+    'la 4K dépasse l’ancien plafond',
+  );
+  assert.deepEqual(resized, [
+    [MEASURE_WIDTH, MEASURE_HEIGHT],
+    [3840, 2160],
+  ]);
   // Des cibles réallouées n'ont plus d'historique.
   assert.equal(temporal.frame.hasHistory, false);
   assert.equal(temporal.frame.stillFrames, 0);
-});
-
-test('l’historique qui ne tient pas fait partir la passe, nommément, jamais l’image', () => {
-  const base = checkFrameBudget(runtime().rt, 1000, 1000);
-  const { rt, failures } = runtime(base + 1);
-  assert.equal(ensureTaaTargets(rt, 1000, 1000, base), 0);
-  assert.equal(rt.gpu.temporal, undefined);
-  assert.deepEqual(failures, ['temporal-antialiasing-unavailable']);
-  assert.deepEqual(rt.capabilities.unsupported, ['temporal antialiasing', 'motion vectors']);
+  assert.throws(() => frameTargetAllocation(rt, 8193, 16), /SURFACE_DEVICE_LIMIT/);
 });
 
 test('une capture de surfaces ne touche pas aux cibles d’historique de la vue', () => {
   const { rt, resized } = runtime();
   rt.capture.secondaryCamera = {} as never;
-  assert.equal(
-    ensureTaaTargets(rt, 64, 64, 0),
-    0,
-    'la réserve de la capture porte déjà l’historique',
-  );
+  assert.equal(ensureTaaTargets(rt, 64, 64), 0, 'la réserve de la capture porte déjà l’historique');
   assert.deepEqual(resized, []);
 });

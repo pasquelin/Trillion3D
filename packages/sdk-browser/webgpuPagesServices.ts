@@ -103,7 +103,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   const residency = createWebgpuResidencyQueue({
     tracking,
     sets: residencySets,
-    room: Math.max(0, slots - bootstrapUrls.size),
+    room: () => Math.max(0, rt.setup.slots - bootstrapUrls.size),
     getCache: () => gpu.cache,
     getFrame: () => run.frame,
     updatePins,

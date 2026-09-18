@@ -4,7 +4,6 @@ import { createGpuRaster } from './gpuRaster.ts';
 import { ensureWebgpuVisibilityBindings } from './webgpuVisibilityBindings.ts';
 import { ensureWebgpuShadeBindings } from './webgpuShadeBindings.ts';
 import { writeWebgpuVisibilityUniforms } from './webgpuVisibilityUniforms.ts';
-import { checkFrameBudget } from './webgpuPagesTargets.ts';
 import { requestsComputeRaster } from './diagnosticGpuGeometry.ts';
 import { createRenderEncoder, submitColorCopy } from './webgpuPagesEncoder.ts';
 import { encodeSurfaceLighting } from './webgpuPagesEncodeBlend.ts';
@@ -53,17 +52,11 @@ const rasterInput = {} as GpuRasterInput;
  * matériel sous l'étiquette du calcul.
  */
 export function ensureGpuRaster(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const { vis, capture } = rt;
+  const { vis } = rt;
   if (vis.gpuRaster || !requestsComputeRaster(rt.context?.diagnosticGpuVariant)) return;
   if (typeof device.createComputePipeline !== 'function')
     throw new Error('COMPUTE_RASTER_UNAVAILABLE: raster-calcul demandé sans étage de calcul');
   const [width, height] = rt.gpu.targetSize;
-  checkFrameBudget(
-    rt,
-    width,
-    height,
-    capture.captureAllocationBytes + width * height * 8 + rt.layout.rasterCapacity * 8,
-  );
   vis.gpuRaster = createGpuRaster(device, width, height, rt.layout.rasterCapacity);
 }
 
