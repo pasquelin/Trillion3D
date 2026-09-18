@@ -31,8 +31,6 @@ export function createWebgpuTileStreamer(options: {
   /** Octets de tuiles admis par image hors barrière. */
   budgetBytes: number;
   readLevel?: TextureLevelReader;
-  /** Octets hôte des niveaux cuits décodés tenus entre deux passes. */
-  levelCacheBytes: number;
   onFailure: (phase: string, error: unknown) => void;
   /** Des tuiles de couleur viennent d'arriver ou de partir : ce que l'ombre d'un feuillage découpé
    *  doit suivre. */
@@ -59,7 +57,6 @@ export function createWebgpuTileStreamer(options: {
   const sources = createTileSources({
     device,
     readLevel: options.readLevel,
-    levelCacheBytes: options.levelCacheBytes,
     counters,
     onFailure: options.onFailure,
   });

@@ -47,7 +47,7 @@ export type WebgpuTileAtlas = {
   readonly refused: number;
   /** Épingle la queue de chaque texture ; `fromHost` pose celle d'une texture sans queue en octets. */
   pinTails(queue: GPUQueue, fromHost: (slot: number, place: TilePlace) => void): void;
-  /** La place d'une tuile résidente, marquée vue, ou `undefined`. */
+  /** Marque vue la tuile si elle réside ; dit si c'est le cas. */
   touch(key: TileKey, frame: number): boolean;
   /** Une place pour une tuile qui arrive : libre, ou reprise à la moins regardée ; `undefined`
    *  quand tout ce que le pool porte a été regardé dans cette image — refus compté. */

@@ -31,12 +31,6 @@ export const MAX_LEVELS = 16;
 /** Dimensions du niveau `level` d'une texture, jamais moins d'un texel par côté. */
 export const levelSize = previewLevelSize;
 
-/** Le premier niveau de la queue : celui dont les deux côtés tiennent sous 64 texels. */
-const tailLevel = previewFirstLevel;
-
-/** Le dernier niveau, celui où les deux côtés valent un texel. */
-const lastLevel = previewLastLevel;
-
 /** Tuiles d'un niveau diffusé, en colonnes puis en lignes. */
 export function tilesAt(width: number, height: number, level: number): [number, number] {
   const [w, h] = levelSize(width, height, level);
@@ -65,8 +59,9 @@ export type TileLayout = {
 export function tileLayout(width: number, height: number): TileLayout {
   if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1)
     throw new Error('INVALID_TEXTURE_SIZE');
-  const tail = tailLevel(width, height),
-    last = lastLevel(width, height);
+  // La queue commence au niveau dont les deux côtés tiennent sous 64 texels, et finit à un texel.
+  const tail = previewFirstLevel(width, height),
+    last = previewLastLevel(width, height);
   if (last >= MAX_LEVELS) throw new Error('TEXTURE_TOO_LARGE');
   const offsets: number[] = [];
   let entries = 0;
