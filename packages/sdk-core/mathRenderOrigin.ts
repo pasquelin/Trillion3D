@@ -1,4 +1,5 @@
 import { copyMatrix4, type NumberSink } from './mathMatrix4.ts';
+import { transformHomogeneousPoint } from './mathVector.ts';
 
 /**
  * LE REPÈRE DE RENDU. Une scène posée loin de l'origine du monde tremble : la carte graphique
@@ -39,6 +40,22 @@ export function worldToRenderOrigin<T extends NumberSink>(
   out[at + 13] = world[13] - origin[1];
   out[at + 14] = world[14] - origin[2];
   return out;
+}
+
+/**
+ * Écrit `m · T(origin)` : la même matrice, appliquée à un point rapporté à `origin`. Seule la
+ * quatrième colonne change, et elle vaut `m · (origin, 1)` — calculée dans la précision des entrées
+ * avant l'arrondi de l'écriture, si bien que la composition n'ajoute aucune erreur à celle que le
+ * noyau borne déjà. `at` comme ci-dessus.
+ */
+export function matrixAtRenderOrigin<T extends NumberSink>(
+  out: T,
+  m: ArrayLike<number>,
+  origin: ArrayLike<number>,
+  at = 0,
+) {
+  copyMatrix4(out, m, at);
+  return transformHomogeneousPoint(out, m, origin[0], origin[1], origin[2], at + 12);
 }
 
 /**

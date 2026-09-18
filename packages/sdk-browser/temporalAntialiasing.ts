@@ -84,8 +84,10 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
     motion,
     /** Octets des deux cibles telles qu'allouées : ce qu'une capture doit compter à côté des siennes. */
     get historyBytes() {
-      return width * height * TAA_HISTORY_BYTES_PER_PIXEL * (textures.length ? 1 : 0);
+      return textures.length ? width * height * TAA_HISTORY_BYTES_PER_PIXEL : 0;
     },
+    /** Le brouillon des entrées de l'image, rempli par `encodeTaaPass` : rien n'est alloué par image. */
+    inputs: {} as TaaInputs,
     /** Ce que la passe garde d'une image à l'autre côté processeur : gigue, historique, tenue. */
     frame: createTaaFrameState(),
     /** Vrai quand les cibles ont la taille demandée ; sinon elles sont refaites et l'historique
@@ -156,6 +158,8 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
       dropTargets();
       motion.dispose();
       uniform.destroy();
+      bound = undefined;
+      this.inputs = {} as TaaInputs;
     },
   };
 }
