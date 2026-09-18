@@ -1,5 +1,6 @@
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { slotCount } from './gpuDraw.ts';
+import { computeSpanFor } from './diagnosticGpuGeometry.ts';
 import type { WebgpuVisState } from './webgpuPagesStateVis.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -36,9 +37,9 @@ export function writeWebgpuVisibilityUniforms(
     visUniPacked.set(viewProj, base);
     visUniPacked[base + 16] = width;
     visUniPacked[base + 17] = height;
-    // Le mot qui portait le seuil des petits triangles ne sert plus : le raster de calcul prend
-    // TOUTE la coupe opaque, et le repli matériel la redessine entière. Il reste du remplissage.
-    visUniPacked[base + 18] = 0;
+    // Le partage de la coupe entre les deux rasters, lu par les deux : zéro tant que le raster de
+    // calcul n'existe pas, et le matériel ne lit alors pas un sommet de plus.
+    visUniPacked[base + 18] = vis.gpuRaster ? computeSpanFor(rt.context?.diagnosticGpuVariant) : 0;
     // The compute raster splits the page row over two dispatch dimensions; it needs the live count.
     visInts[base + 19] = tableRows;
     visInts[base + 20] = Math.max(0, slot - 1);

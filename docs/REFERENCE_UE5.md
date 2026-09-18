@@ -108,9 +108,9 @@ qu'elle existe des deux côtés, pas ce qu'elle vaut.
 
 (5) Leur raster est double : les petits triangles en calcul, les grands au matériel. Le nôtre est
 matériel seul en production depuis le 18 sept. 2026 (Géométrie 26 dans `TODO.md`, mesures
-comprises) ; le raster de calcul pour toute la coupe ne reste joignable que par la variante de
-diagnostic `raster-calcul`. La coupe petits/grands, admise par budget de temps mesuré, est le point
-(2) de cette même ligne du backlog.
+comprises). Le même partage existe chez nous sous la variante de diagnostic `raster-hybride`, à
+0 px du matériel, et il perd sur apple metal-3 — la passe matérielle ne sent pas les petits
+triangles que le calcul lui retire. Il reste éteint jusqu'à une mesure sur une carte de bureau.
 
 Ce qu'on peut en tirer sans tricher :
 

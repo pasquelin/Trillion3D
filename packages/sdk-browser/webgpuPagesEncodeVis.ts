@@ -3,7 +3,7 @@ import { VIS_MAX_PAGES } from './visibilityBuffer.ts';
 import { encodeWebgpuPartition } from './webgpuVisibilityPartition.ts';
 import { uploadRowCorners } from './webgpuVisibilityCorners.ts';
 import { clearDrawItemWords, refreshDrawItemWords } from './webgpuVisibilityItemWords.ts';
-import { encodeHizMidFrame, encodeWebgpuVisibilityPasses } from './webgpuVisibilityPasses.ts';
+import { encodeWebgpuVisibilityPasses } from './webgpuVisibilityPasses.ts';
 import { ensureUniform } from './webgpuPagesPipelineFor.ts';
 import { visLayerTop } from './webgpuVisibilityUniforms.ts';
 import { createRenderEncoder, submitColorCopy } from './webgpuPagesEncoder.ts';
@@ -12,7 +12,7 @@ import { uploadDirtyRows } from './webgpuPagesEncodeDraws.ts';
 import { uploadClusterSpheres } from './webgpuShadowBounds.ts';
 import {
   encodeEmptySurfaces,
-  encodeRaster,
+  computeRasterStages,
   ensureGpuRaster,
   ensureVisBindings,
   surfaceColorAttachments,
@@ -84,18 +84,14 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
     clearDrawItemWords(words);
     rows.rowsChanged = false;
   }
-  // Le raster matériel est le producteur de l'image opaque : profondeur, identifiants et niveau
-  // zéro de la pyramide sortent de ses deux passes. Le raster de calcul ne le remplace que sous la
-  // variante `raster-calcul`, et lui rend la main dès qu'une ressource lui manque.
-  rt.run.hizPyramidFresh = false;
-  const dispatched = vis.gpuRaster
-    ? encodeRaster(rt, encoder, twoPass, tableRows, maxVertexCount, idsView, depthTarget, (mid) =>
-        encodeHizMidFrame(rt, device, mid, tableRows),
-      )
+  // Le raster matériel ouvre l'image opaque et y dessine sa part de la coupe ; le raster de calcul,
+  // quand il existe, y fond la sienne entre ses passes — petits triangles sous le partage de la
+  // référence, toute la coupe sous la variante `raster-calcul`.
+  run.gpuComputeDispatches = 0;
+  const compute = vis.gpuRaster
+    ? computeRasterStages(rt, twoPass, tableRows, maxVertexCount, idsView, depthTarget)
     : null;
-  run.gpuComputeDispatches = dispatched ?? 0;
-  if (dispatched === null)
-    encodeWebgpuVisibilityPasses(rt, device, encoder, twoPass, tableRows, useIndirect);
+  encodeWebgpuVisibilityPasses(rt, device, encoder, twoPass, tableRows, useIndirect, compute);
   // Les compteurs que la carte vient d'écrire — partition et verdicts d'occultation — sont copiés
   // une image sur quinze, et mappés une fois l'image soumise. Aucune image n'attend ce retour.
   if (vis.gpuPartition?.countsDue(run.frame)) vis.gpuPartition.encodeCounts(encoder, run.frame);

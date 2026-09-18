@@ -157,7 +157,8 @@ test('chaque constructeur de groupe de liaison lie exactement les entrées de sa
     beginComputePass: () => smallPass,
     beginRenderPass: () => pass,
   } as unknown as GPUCommandEncoder;
-  createGpuRaster(device, 4, 4, 8).encode(smallEncoder, {
+  const raster = createGpuRaster(device, 4, 4, 8);
+  const rasterInput = {
     indices: {} as GPUBuffer,
     positions: {} as GPUBuffer,
     pages: {} as GPUBuffer,
@@ -173,7 +174,9 @@ test('chaque constructeur de groupe de liaison lie exactement les entrées de sa
     depthView: {} as GPUTextureView,
     groups: [],
     groupKey: 0,
-  });
+  };
+  raster.encodeOccluders(smallEncoder, rasterInput);
+  raster.encodeIds(smallEncoder, rasterInput);
 
   const counted = groups.map((group) => [group.entries.length, group.layout.entries.length]);
   assert.equal(counted.length, 7, 'les six constructeurs ont tourné, le résolveur compris');

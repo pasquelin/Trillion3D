@@ -27,6 +27,8 @@
 
 /** La comparaison de profondeur de tous les pipelines : en profondeur inversée, le plus grand gagne. */
 export const DEPTH_COMPARE: GPUCompareFunction = 'greater';
+/** La même comparaison, égalité comprise : ce qu'une résolution repasse sur sa propre profondeur. */
+export const DEPTH_COMPARE_OR_EQUAL: GPUCompareFunction = 'greater-equal';
 
 /** Profondeur du plan proche. Rien ne peut être plus proche. */
 export const DEPTH_NEAR = 1;
