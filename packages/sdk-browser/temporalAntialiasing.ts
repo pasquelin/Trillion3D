@@ -1,7 +1,7 @@
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
 import { makeFullscreenPipeline } from './deferredLightingProgram.ts';
 import { TAA_BINDINGS, TAA_PASS, TAA_SHADER, TAA_VIEW_BYTES } from './taaShaderWgsl.ts';
-import { createTaaFrameState } from './taaFrame.ts';
+import { createTaaCheckpoint, createTaaFrameState } from './taaFrame.ts';
 import { createPlacementMotion, type MotionRoot } from './taaMotion.ts';
 import { readOnly } from './webgpuBindLayout.ts';
 
@@ -73,6 +73,8 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
     /** La cible lue à la prochaine image : l'autre est écrite. */
     read = 0,
     bound: TaaInputs | undefined;
+  /** D'où la dernière image ordinaire est partie : ce qu'une image de convergence rejoue. */
+  const saved = createTaaCheckpoint();
   const dropTargets = () => {
     for (const texture of textures) texture.destroy();
     textures.length = 0;
@@ -90,6 +92,31 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
     inputs: {} as TaaInputs,
     /** Ce que la passe garde d'une image à l'autre côté processeur : gigue, historique, tenue. */
     frame: createTaaFrameState(),
+    /** L'entrée d'une image ordinaire retient d'où elle part ; une image de convergence — la
+     *  barrière qui rerend la même pose pour montrer les tuiles arrivées — y REVIENT : même gigue,
+     *  même compte d'images calmes, même historique lu. Elle refait l'image sans l'accumuler de
+     *  plus : deux barrières au nombre d'images différent donnent la même image, au bit près. */
+    checkpoint(quiet: boolean) {
+      const { frame } = this;
+      saved.read = read;
+      saved.sample = frame.sample;
+      saved.stillFrames = frame.stillFrames;
+      saved.hasHistory = frame.hasHistory;
+      saved.sceneSeen = frame.sceneSeen;
+      saved.quiet = quiet;
+      saved.previousViewProjection.set(frame.previousViewProjection);
+    },
+    /** Rend le calme de l'image rejouée : le sien, pas celui que les tuiles arrivées ont troublé. */
+    replay() {
+      const { frame } = this;
+      read = saved.read;
+      frame.sample = saved.sample;
+      frame.stillFrames = saved.stillFrames;
+      frame.hasHistory = saved.hasHistory;
+      frame.sceneSeen = saved.sceneSeen;
+      frame.previousViewProjection.set(saved.previousViewProjection);
+      return saved.quiet;
+    },
     /** Vrai quand les cibles ont la taille demandée ; sinon elles sont refaites et l'historique
      *  n'existe plus. Rend vrai quand quelque chose a été réalloué. */
     resize(w: number, h: number) {

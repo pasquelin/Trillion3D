@@ -97,8 +97,6 @@ test('a cut-out cluster carries its alpha test into the visibility row', () => {
     geometryBlocks: new Map(),
     mapLayer: new Map(),
     dataLayer: new Map(),
-    uvScales: [],
-    dataUvScales: [],
     markRowDirty: () => {},
   });
   // Une page écrite en ligne appartient à un placement : la disposition WebGPU le pose.

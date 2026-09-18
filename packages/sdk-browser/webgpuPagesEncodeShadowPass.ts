@@ -13,7 +13,7 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 function shadowRegionGroup(rt: WebgpuPagesRuntime, device: GPUDevice, region: number) {
   const { vis, gpu, lights } = rt;
   const cacheBuffer = gpu.cache?.buffer,
-    { visBindGroupLayout, concatPos, concatUv, pageTable, colorAtlas, mapsSampler, slots } = vis;
+    { visBindGroupLayout, concatPos, concatUv, pageTable, textures, mapsSampler } = vis;
   const { cull } = lights;
   if (
     !visBindGroupLayout ||
@@ -21,14 +21,13 @@ function shadowRegionGroup(rt: WebgpuPagesRuntime, device: GPUDevice, region: nu
     !concatPos ||
     !concatUv ||
     !pageTable ||
-    !colorAtlas ||
+    !textures ||
     !mapsSampler ||
-    !slots ||
     !vis.zeroFlags ||
     !cull
   )
     return;
-  const key = [cacheBuffer, concatPos, concatUv, pageTable, colorAtlas, slots.color, cull.kept];
+  const key = [cacheBuffer, concatPos, concatUv, pageTable, textures, cull.kept];
   if (key.some((resource, index) => lights.shadowGroupsKey[index] !== resource)) {
     lights.shadowGroupsKey = key;
     lights.shadowGroups.fill(undefined);
@@ -45,11 +44,10 @@ function shadowRegionGroup(rt: WebgpuPagesRuntime, device: GPUDevice, region: nu
         uniform: cull.drawUniform,
         uniformOffset: region * PAGE_BIND_ALIGN,
         uv: concatUv,
-        colorAtlas,
+        textures,
         sampler: mapsSampler,
         instances: cull.kept,
         slotOffsets: cull.offsets,
-        slots,
       }),
     });
     lights.shadowGroups[region] = group;

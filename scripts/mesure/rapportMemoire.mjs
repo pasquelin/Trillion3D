@@ -8,12 +8,12 @@ const PLUS_LOURDES = 8;
  * La mémoire de la carte graphique par côté et par vue, lue dans le registre d'allocations que le
  * moteur publie : le total est ce qu'il a alloué et pas détruit, calculé depuis chaque descripteur
  * — WebGPU ne publie pas la mémoire occupée. Les trois familles nommées viennent des compteurs du
- * moteur (atlas calculé, géométrie allouée, cibles admises par le budget d'image) ; le reste est la
+ * moteur (pool de textures calculé, géométrie allouée, cibles admises par le budget d'image) ; le reste est la
  * différence. Un côté sans registre est « non mesuré », jamais zéro.
  */
 export function memoire(report) {
   const lines = [
-    '| vue | seuil | côté | total alloué | atlas de textures | géométrie | cibles d’image / budget | reste |',
+    '| vue | seuil | côté | total alloué | pool de textures | géométrie | cibles d’image / budget | reste |',
     '|---|---|---|---|---|---|---|---|',
   ];
   const details = [];
@@ -21,7 +21,7 @@ export function memoire(report) {
     for (const [side, resultat] of Object.entries(serie.sides)) {
       const m = resultat.metrics ?? {};
       const total = num(m.gpuAllocatedBytes);
-      const atlas = num(m.textureAtlasBytesCalculated),
+      const atlas = num(m.texturePoolBytes),
         geometrie = num(m.geometryAllocationBytes),
         cibles = num(m.gpuFrameTargetBytes);
       const reste = total === null ? null : total - (atlas ?? 0) - (geometrie ?? 0) - (cibles ?? 0);

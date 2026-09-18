@@ -106,6 +106,9 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       texture,
       view,
       sliceBuffer,
+      /** Le miroir hôte du tampon de tranches : ce que la carte relit, faces jamais redessinées
+       *  comprises. La résolution matérielle en recopie la tranche du soleil dans son uniforme. */
+      sliceMirror: slicePacked as Readonly<Float32Array>,
       depth,
       clear,
       faceGroup,

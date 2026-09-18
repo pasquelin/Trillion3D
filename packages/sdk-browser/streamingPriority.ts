@@ -42,7 +42,7 @@ const centre = new Float64Array(4),
   // des `Float64Array` (`mathMatrix4.ts`). Seize nombres par matrice DISTINCTE, pas par fiche.
   worldMirror = new Float64Array(16);
 /** Sphère `[x, y, z, r]` d'une boîte à six bornes, écrite en `at` : centre au milieu, rayon au coin. */
-export function boxSphere(
+function boxSphere(
   out: Float64Array,
   x0: number,
   y0: number,
@@ -144,7 +144,7 @@ export function orderPendingUrls(
  * priorité des textures emploie : ce que l'œil voit d'une surface, et non ce qu'elle porte de
  * triangles. Les tampons de travail sont ceux du module, réécrits sur place.
  */
-export function boundsScreenRadius(
+function boundsScreenRadius(
   record: Pick<PriorityRecord, 'min' | 'max'>,
   view: ArrayLike<number>,
   stretch: number,
@@ -158,18 +158,6 @@ export function boundsScreenRadius(
     focal,
     near,
   );
-}
-
-/** Rayon écran, en pixels, d'une boîte monde à six bornes à plat vue par `view`. */
-export function worldBoxScreenRadius(
-  box: ArrayLike<number>,
-  view: ArrayLike<number>,
-  stretch: number,
-  focal: number,
-  near: number,
-) {
-  boxSphere(bounds, box[0], box[1], box[2], box[3], box[4], box[5]);
-  return sphereScreenRadius(bounds, view, stretch, focal, near);
 }
 
 /** Rayon écran d'une sphère `[x, y, z, r]` vue par `view` ; `centre` garde la projection. */

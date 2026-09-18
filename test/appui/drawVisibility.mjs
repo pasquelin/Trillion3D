@@ -58,15 +58,16 @@ export function setupVisibility(
   const mapsView = maps.createView({ dimension: '2d-array' }),
     sampler = device.createSampler();
   // Les numéros ne sont pas recopiés : ils viennent de `VIS_BINDINGS` (`webgpuBindLayout.ts`), la
-  // source que le WGSL interpole déjà. Une classe d'atlas de plus décale les trois côtés ensemble —
-  // c'est ce décalage, manqué ici seul, qui rendait cette preuve rouge sur `colorSlots`.
+  // source que le WGSL interpole déjà. Une liaison d'atlas de plus décale les trois côtés ensemble —
+  // c'est ce décalage, manqué ici seul, qui rendait cette preuve rouge sur la table de pages.
   const b = visBindings;
   const lecture = (binding) => ({
     binding,
     visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
     buffer: { type: 'read-only-storage' },
   });
-  const colorSlots = makeBuffer(64 * 8);
+  // Une table de pages vide : aucune page ne porte de carte, le pool n'est jamais lu.
+  const colorPages = makeBuffer(64 * 4);
   const visLayout = device.createBindGroupLayout({
     entries: [
       lecture(b.cache),
@@ -76,13 +77,13 @@ export function setupVisibility(
       lecture(b.uv),
       lecture(b.instances),
       lecture(b.slotOffsets),
-      lecture(b.colorSlots),
+      lecture(b.color.pages),
       { binding: b.uniform, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } },
-      ...b.maps.map((binding) => ({
-        binding,
+      {
+        binding: b.color.pool,
         visibility: GPUShaderStage.FRAGMENT,
         texture: { sampleType: 'float', viewDimension: '2d-array' },
-      })),
+      },
       { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
     ],
   });
@@ -115,11 +116,11 @@ export function setupVisibility(
           { binding: b.flags, resource: { buffer: flags } },
           { binding: b.uniform, resource: { buffer: visUniform } },
           { binding: b.uv, resource: { buffer: uvs } },
-          ...b.maps.map((binding) => ({ binding, resource: mapsView })),
+          { binding: b.color.pool, resource: mapsView },
           { binding: b.sampler, resource: sampler },
           { binding: b.instances, resource: { buffer: instances } },
           { binding: b.slotOffsets, resource: { buffer: offsets } },
-          { binding: b.colorSlots, resource: { buffer: colorSlots } },
+          { binding: b.color.pages, resource: { buffer: colorPages } },
         ],
       }),
     );

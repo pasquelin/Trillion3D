@@ -4,6 +4,7 @@ import { computeSpanFor } from './diagnosticGpuGeometry.ts';
 import { computeRasterReady } from './webgpuPagesEncodeVisSetup.ts';
 import type { WebgpuVisState } from './webgpuPagesStateVis.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+import { SHADE_UNIFORM_BYTES, writeSunSlice } from './visibilityShaderShadowRequest.ts';
 
 /** Une entrée par slot de dessin indirect, plus celle du chemin direct. La taille suit le nombre de
  *  couches coplanaires de la scène : sans couche, c'est exactement le tampon d'avant. */
@@ -51,7 +52,7 @@ export function writeWebgpuVisibilityUniforms(
   }
   device.queue.writeBuffer(visUniform, 0, visUniPacked);
   const shadeUniform = (vis.shadeUniform ??= device.createBuffer({
-    size: 256,
+    size: SHADE_UNIFORM_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   }));
   shadeUniPacked.set(viewProj, 0);
@@ -59,6 +60,11 @@ export function writeWebgpuVisibilityUniforms(
   shadeUniPacked[17] = height;
   const shadeInts = new Uint32Array(shadeUniPacked.buffer);
   shadeInts[20] = tableRows;
+  // La phase du retour d'image des textures : un pixel sur seize parle, tous pendant une convergence.
+  shadeInts[22] = vis.textures?.feedback.phaseWord(run.textureConverging) ?? 0;
+  // La tranche d'ombre du soleil, pour que la résolution demande les tuiles que l'ombre d'un
+  // feuillage lit ; sans soleil à ombre, une tranche sans face, et rien n'est demandé.
+  writeSunSlice(rt.lights, shadeUniPacked);
   shadeInts[21] =
     diagnostic === 'beauty'
       ? 0

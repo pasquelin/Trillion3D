@@ -52,7 +52,12 @@ export function createWebgpuTilePool(
     label: `WG texture pool ${options.kind}`,
     size: { width: POOL_LAYER_SIDE, height: POOL_LAYER_SIDE, depthOrArrayLayers: layers },
     format: options.format,
-    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC,
+    // `copyExternalImageToTexture` exige aussi `RENDER_ATTACHMENT` de sa destination.
+    usage:
+      GPUTextureUsage.TEXTURE_BINDING |
+      GPUTextureUsage.COPY_DST |
+      GPUTextureUsage.COPY_SRC |
+      GPUTextureUsage.RENDER_ATTACHMENT,
   });
   const owner = new Int32Array(tiles).fill(-1),
     lastUse = new Uint32Array(tiles),

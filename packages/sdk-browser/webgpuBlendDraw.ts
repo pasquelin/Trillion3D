@@ -34,11 +34,9 @@ function blendBindGroup(
       uniform: blendState.viewBuffer!,
       uniformSize: BLEND_VIEW_SIZE,
       items: blendState.itemBuffer!,
-      colorAtlas: vis.colorAtlas!,
+      textures: vis.textures!,
       sampler: vis.mapsSampler!,
-      dataAtlas: vis.dataAtlas!,
       normals: item ? (item.normal ?? zero) : vis.concatNrm!,
-      scales: vis.materialScales!,
       ...lighting,
       clusterDiagnostic: compaction?.diagnosticBuffer ?? zero,
       planInstances: blendState.expandedBuffer ?? zero,
@@ -47,7 +45,6 @@ function blendBindGroup(
       volumeSize: VOLUME_SIZE,
       backdrop: gpu.backdrop!.colorView,
       backdropDepth: gpu.backdrop!.depthView,
-      slots: vis.slots!,
     }),
   });
 }
@@ -108,9 +105,17 @@ export function drawBlendPass(
         loadOp: 'load',
         storeOp: 'store',
       },
+      // Le retour des textures virtuelles : effacé par la première passe de l'image, gardé par la
+      // seconde, réduit en compteurs après elles (`webgpuTileReduce.ts`).
+      {
+        view: gpu.feedbackView!,
+        loadOp: run.blendFeedbackWritten ? 'load' : 'clear',
+        storeOp: 'store',
+      },
     ],
     depthStencilAttachment: { view: gpu.depthView!, depthLoadOp: 'load', depthStoreOp: 'store' },
   });
+  run.blendFeedbackWritten = true;
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1);
   overdraw?.begin(pass, transmissive);
   let boundPipeline = -1,

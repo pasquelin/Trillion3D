@@ -8,50 +8,32 @@ import {
   PAGE_VERTEX_WGSL,
 } from './visibilityPageWgsl.ts';
 import {
-  ATLAS_SLOTS_WGSL,
   COLOR_SAMPLE_WGSL,
   DATA_SAMPLE_WGSL,
-  atlasTextures,
-} from './webgpuAtlasWgsl.ts';
+  TILE_POOL_WGSL,
+  feedbackDeclaration,
+  tileDeclarations,
+} from './webgpuTileWgsl.ts';
+import { TILE_FEEDBACK_WGSL } from './webgpuTileRequestWgsl.ts';
+import { SHADE_SHADOW_REQUEST_WGSL, SHADOW_REQUEST_WRAP } from './visibilityShaderShadowRequest.ts';
+import { SHADOW_SLICE_WGSL } from './directShadowWgsl.ts';
 import { SHADE_BINDINGS } from './webgpuBindLayout.ts';
-import { WRAP_MAP } from './visibilityWrapModes.ts';
-
-/**
- * Ce que chaque carte de `WRAP_MAP` donne à sa lecture : son slot dans la fiche de page et son
- * échelle. Un rang ajouté à `WRAP_MAP` sans son entrée ici ne compile pas ; sans cette table, une
- * septième carte se serait lue en serrage sans que rien ne le signale.
- */
-const CARTE = {
-  base: ['mapIndex', 'uvScale'],
-  rough: ['roughnessIndex', 'roughUvScale'],
-  metal: ['metalnessIndex', 'metalUvScale'],
-  normal: ['normalIndex', 'normalUvScale'],
-  ao: ['aoIndex', 'aoUvScale'],
-  emissive: ['emissiveIndex', 'emissiveUvScale'],
-} as const satisfies Record<keyof typeof WRAP_MAP, readonly [string, string]>;
-
-/** La lecture d'atlas d'une carte : son slot, son échelle, SON quartet, les dérivées du pixel. */
-const lecture = (fn: string, nom: keyof typeof WRAP_MAP) =>
-  `${fn}(page.${CARTE[nom][0]},page.${CARTE[nom][1]},uv,wrapOf(page.wrapModes,${WRAP_MAP[nom]}u),ddx,ddy)`;
-
-/** Le corps n'est exécuté que si la carte existe : le slot 0 est l'absence de texture. */
-const siCarte = (nom: keyof typeof WRAP_MAP, corps: string) =>
-  `if(page.${CARTE[nom][0]}!=0u){${corps}}`;
+import { lecture, retour, siCarte } from './visibilityShaderMaps.ts';
 
 export const SHADE_SHADER = `${PAGE_INFO_STRUCT_WGSL}
-struct ShadeUni{viewProj:mat4x4f,viewport:vec4f,pageCount:u32,mode:u32,pad0:u32,pad1:u32,padding:array<vec4f,10>,}
+${SHADOW_SLICE_WGSL}
+struct ShadeUni{viewProj:mat4x4f,viewport:vec4f,pageCount:u32,mode:u32,feedback:u32,pad1:u32,sun:ShadowSlice,}
 @group(0) @binding(${SHADE_BINDINGS.visView}) var vis:texture_2d<u32>;
 @group(0) @binding(${SHADE_BINDINGS.cache}) var<storage, read> indices:array<u32>;
 @group(0) @binding(${SHADE_BINDINGS.position}) var<storage, read> positions:array<f32>;
 @group(0) @binding(${SHADE_BINDINGS.uv}) var<storage, read> uvs:array<f32>;
 @group(0) @binding(${SHADE_BINDINGS.normal}) var<storage, read> normals:array<f32>;
 @group(0) @binding(${SHADE_BINDINGS.pageTable}) var<storage, read> pages:array<PageInfo>;
-${atlasTextures(SHADE_BINDINGS.maps, 'maps')}
+${tileDeclarations(SHADE_BINDINGS.color, 'color')}
 @group(0) @binding(${SHADE_BINDINGS.sampler}) var mapsSampler:sampler;
 @group(0) @binding(${SHADE_BINDINGS.uniform}) var<uniform> uni:ShadeUni;
-${atlasTextures(SHADE_BINDINGS.dataMaps, 'dataMaps')}
-@group(0) @binding(${SHADE_BINDINGS.colorSlots}) var<storage, read> colorSlots:array<vec2u>;
-@group(0) @binding(${SHADE_BINDINGS.dataSlots}) var<storage, read> dataSlots:array<vec2u>;
+${tileDeclarations(SHADE_BINDINGS.data, 'data')}
+${feedbackDeclaration(SHADE_BINDINGS.feedback)}
 ${TRIANGLE_PALETTE_WGSL}
 ${PAGE_VERTEX_WGSL}
 ${PAGE_UV_WGSL}
@@ -59,9 +41,11 @@ fn vertN(base:u32,idx:u32)->vec3f{let i=(base+idx)*7u;return vec3f(normals[i],no
 fn vertT(base:u32,idx:u32)->vec4f{let i=(base+idx)*7u+3u;return vec4f(normals[i],normals[i+1u],normals[i+2u],normals[i+3u]);}
 ${EDGE_WGSL}
 ${BARY_WEIGHTS_WGSL}
-${ATLAS_SLOTS_WGSL}
+${TILE_POOL_WGSL}
 ${COLOR_SAMPLE_WGSL}
 ${DATA_SAMPLE_WGSL}
+${TILE_FEEDBACK_WGSL}
+${SHADE_SHADOW_REQUEST_WGSL}
 ${INVERSE_TRANSPOSE_WGSL}
 struct SurfaceOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@location(2) emissiveAo:vec4f,@location(3) flags:u32,}
 fn emptySurface()->SurfaceOut{return SurfaceOut(vec4f(0.0),vec4f(0.0),vec4f(0.0),0u);}
@@ -118,6 +102,10 @@ fn framebuffer(clip:vec4f)->vec3f{
     ddx=(dUdx*W-U*dWdx)/(W*W);ddy=(dUdy*W-U*dWdy)/(W*W);
    }
   }
+ }
+ if(feedbackPhase(pos.xy,uni.feedback)){
+  ${retour}
+  if((page.flags&12u)==12u){let s=colorSlot(page.mapIndex);shadowRequests(page,s,slotWrapped(s,uv,${SHADOW_REQUEST_WRAP}),w0,w1,w2,i0,i1,i2,w0*bary.x+w1*bary.y+w2*bary.z);}
  }
  let sample=${lecture('colorSample', 'base')};
  var roughSample=vec4f(1.0);

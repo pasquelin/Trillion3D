@@ -50,7 +50,7 @@ export type BlendGpuItem = {
 /** Reused transparent draw lists and GPU resources for one backend instance. */
 export function createWebgpuBlendState() {
   /** Les vingt-quatre mots de l'uniforme de vue, et leur vue entière : alloués une fois. */
-  const view = new Float32Array(24);
+  const view = new Float32Array(28);
   const blendGpu: BlendGpuItem[] = [];
   const pagedBlendGpu = new Map<THREE.Mesh, BlendGpuItem>();
   const visibleBlend: BlendGpuItem[] = [];

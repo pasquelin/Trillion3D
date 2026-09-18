@@ -14,8 +14,7 @@ import { orderBlendPasses } from './webgpuBlendOrder.ts';
 import { createWebgpuBlendState } from './webgpuBlendState.ts';
 import { BASE_SLOTS, MAX_DRAW_SLOTS } from './gpuDraw.ts';
 import { createGpuRaster } from './gpuRaster.ts';
-import { ATLAS_CLASS_COUNT } from './webgpuAtlasClasses.ts';
-import type { WebgpuAtlas } from './webgpuAtlasCommon.ts';
+import type { WebgpuTileStreamer } from './webgpuTileStreamer.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 // Le défaut que ce test attrape : une disposition gagne une liaison et un seul de ses deux
@@ -39,15 +38,17 @@ function recordingDevice(groups: Recorded[]) {
   } as unknown as GPUDevice;
 }
 
-/** Un atlas de la forme que les constructeurs lisent : une classe de taille par slot de liaison. */
-function stubAtlas() {
+/** Le diffuseur de la forme que les constructeurs lisent : un pool et une table par atlas, le retour. */
+function stubTextures() {
+  const atlas = () => ({
+    pool: { view: {} as GPUTextureView },
+    pages: { buffer: {} as GPUBuffer },
+  });
   return {
-    classes: Array.from({ length: ATLAS_CLASS_COUNT }, () => ({
-      view: {} as GPUTextureView,
-      size: [4, 4] as [number, number],
-    })),
-    used: 1,
-  } as unknown as WebgpuAtlas;
+    color: atlas(),
+    data: atlas(),
+    feedback: { buffer: {} as GPUBuffer },
+  } as unknown as WebgpuTileStreamer;
 }
 
 /** Tout ce qu'un constructeur lit sur `rt.vis` : des jetons, seul leur nombre est vérifié ici. */
@@ -63,11 +64,8 @@ function stubVis(layouts: Record<string, unknown>) {
     shadeUniform: token(),
     zeroFlags: token(),
     visView: {} as GPUTextureView,
-    colorAtlas: stubAtlas(),
-    dataAtlas: stubAtlas(),
+    textures: stubTextures(),
     mapsSampler: {} as GPUSampler,
-    slots: { color: token(), data: token() },
-    materialScales: token(),
     gpuHiz: undefined,
     visSlotGroups: new Array(MAX_DRAW_SLOTS * 2).fill(undefined),
     gpuDraw: { indirectBuffer: token(), instanceBuffer: token(), slotOffsetsBuffer: token() },
@@ -143,7 +141,7 @@ test('chaque constructeur de groupe de liaison lie exactement les entrées de sa
   drawBlendPass(rt, device, { beginRenderPass: () => pass } as unknown as GPUCommandEncoder);
 
   // Le constructeur unique du raster logiciel des petits triangles, cinquième paire du chemin :
-  // il lit les mêmes classes d'atlas et la même table de slots que les autres passes.
+  // il lit le même pool couleur et la même table de pages que les autres passes.
   const smallPass = stub(['setBindGroup', 'setPipeline', 'dispatchWorkgroups', 'end']);
   const smallEncoder = {
     clearBuffer() {},
@@ -161,8 +159,7 @@ test('chaque constructeur de groupe de liaison lie exactement les entrées de sa
     hizFlags: buffer,
     uniform: buffer,
     uvs: buffer,
-    colorAtlas: vis.colorAtlas,
-    slots: vis.slots as never,
+    textures: vis.textures,
     sampler: vis.mapsSampler,
     pageRows: 1,
     maxTriangles: 3,
