@@ -138,7 +138,6 @@ export function shadeBindEntries(r: ShadeBindResources): GPUBindGroupEntry[] {
     { binding: b.sampler, resource: r.sampler },
     { binding: b.uniform, resource: { buffer: r.uniform } },
     ...atlasEntries(b.data, r.textures.data),
-    { binding: b.feedback, resource: { buffer: r.textures.feedback.buffer } },
   ];
 }
 

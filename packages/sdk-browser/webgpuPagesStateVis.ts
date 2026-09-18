@@ -1,5 +1,5 @@
 import type { GpuPartition } from './gpuPartitionTypes.ts';
-import { SHADE_UNIFORM_WORDS } from './visibilityShaderShadowRequest.ts';
+import { SHADE_UNIFORM_WORDS } from './visibilityShaderRequest.ts';
 import type * as THREE from 'three';
 import type { GpuHiz } from './gpuHiz.ts';
 import type { GpuRaster } from './gpuRaster.ts';

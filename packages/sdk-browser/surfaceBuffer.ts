@@ -7,6 +7,9 @@ export const SURFACE_FORMATS: GPUTextureFormat[] = [
   'r32uint',
 ];
 const SURFACE_BYTES_PER_PIXEL = 28;
+/** La cible de retour des textures virtuelles : le rang de tuile qu'un pixel demande, écrit par la
+ *  résolution matérielle puis par les transparents, réduit en compteurs pour un pixel sur seize. */
+export const FEEDBACK_FORMAT: GPUTextureFormat = 'r32uint';
 /** Color, depth, visibility, HDR, material surfaces, the transparent texture feedback target and
  *  optional two Hi-Z pyramids. */
 export function frameTargetBytes(width: number, height: number, withHiz: boolean) {

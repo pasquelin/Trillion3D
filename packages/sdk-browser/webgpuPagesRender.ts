@@ -102,6 +102,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
   run.blendSubmittedTriangles = 0;
   run.blendDrawCalls = 0;
   run.frame++;
+  run.feedbackWritten = false;
   run.gpuFrameActive = false;
   run.hizPyramidFresh = false;
   run.gpuMetricsReady = false;

@@ -1,4 +1,5 @@
 import { BLEND_SHADER } from './webgpuBlendShader.ts';
+import { FEEDBACK_FORMAT } from './surfaceBuffer.ts';
 import { BLEND_VIEW_SIZE } from './webgpuBlendUniforms.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 import { BLEND_BINDINGS, atlasLayoutEntries, readOnly } from './webgpuBindLayout.ts';
@@ -101,7 +102,7 @@ export async function createWebgpuBlendPipelines(
           },
           // Le rang de tuile que le pixel demande aux textures virtuelles : une cible entière, sans
           // mélange, que la réduction relit après la passe.
-          { format: 'r32uint' as GPUTextureFormat },
+          { format: FEEDBACK_FORMAT },
         ],
       },
       primitive: { topology: 'triangle-list', cullMode, frontFace: 'ccw' },

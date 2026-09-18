@@ -1,9 +1,6 @@
 import { WRAP_COORD_WGSL } from './visibilityWrapModes.ts';
 import { MAX_LEVELS, POOL_LAYER_SIDE, TILE_BORDER, TILE_PITCH, TILE_SIZE } from './textureTiles.ts';
 import { PAGE_HEADER_WORDS, PAGE_SLOT_WORDS } from './webgpuTilePageTable.ts';
-import { FEEDBACK_EVERY, FEEDBACK_STRIDE } from './webgpuTileFeedback.ts';
-
-const STRIDE_MASK = FEEDBACK_STRIDE - 1;
 
 /**
  * Les lectures de textures virtuelles partagées par toutes les passes : une indirection dans la
@@ -19,17 +16,20 @@ const STRIDE_MASK = FEEDBACK_STRIDE - 1;
  * caméra a fait venir —, jamais la queue tant qu'il y en a une, pour que l'ombre d'une feuille que
  * personne n'a demandée à son niveau reste une feuille et non une tache de 64 texels.
  *
- * L'en-tête d'une texture — taille, queue, dernier niveau, début de ses niveaux — se lit UNE fois
- * par échantillon (`TileSlot`), pas une fois par prise : les deux prises d'un mélange n'ajoutent
- * chacune que l'adresse de leur niveau et leur entrée. Sur un pixel de feuillage, c'est la
- * différence entre une chaîne de douze lectures dépendantes et une de huit.
+ * L'en-tête d'une texture — taille, queue, dernier niveau, place de la queue — se lit UNE fois par
+ * échantillon (`TileSlot`), pas une fois par prise : les deux prises d'un mélange n'ajoutent chacune
+ * que l'adresse de leur niveau et leur entrée. Sur un pixel de feuillage, c'est la différence entre
+ * une chaîne de douze lectures dépendantes et une de six. Deux variantes mesurées et écartées à
+ * 2496×1404 sur Emerald (passe matériaux 5,64 ms) : la table liée en `vec4<u32>`, l'en-tête en un
+ * mot — 5,70 ms, sans effet ; l'adresse de niveau recalculée en boucle au lieu d'être lue — 6,5 ms,
+ * l'arithmétique divergente coûte plus que la lecture qu'elle évite.
  *
  * Les coordonnées sont bornées au demi-texel du niveau lu : le filtrage linéaire ne sort donc jamais
  * des texels d'un niveau, ni d'une tuile de la queue vers sa voisine, et la couture d'une période en
  * répétition reste celle que `wrapUv` mêle à la main.
  *
- * Le nuanceur hôte déclare `colorPool`, `dataPool`, `mapsSampler`, `colorPages`, `dataPages` et,
- * s'il publie un retour d'image, `tileFeedback`, aux liaisons que `webgpuBindEntries.ts` publie.
+ * Le nuanceur hôte déclare `colorPool`, `dataPool`, `mapsSampler`, `colorPages` et `dataPages`, aux
+ * liaisons que `webgpuBindEntries.ts` publie.
  */
 export const TILE_POOL_WGSL = `${WRAP_COORD_WGSL}
 const TEXEL_TILE:f32=${TILE_SIZE}.0;
@@ -41,8 +41,8 @@ const PAGE_SLOT:u32=${PAGE_SLOT_WORDS}u;
 const PAGE_LEVELS:u32=${MAX_LEVELS}u;
 struct TileTap{uv:vec2f,layer:i32,}
 /** L'en-tête d'une texture : sa taille, son premier niveau de queue, son dernier niveau, le mot où
- *  commencent les adresses de ses niveaux, et son en-tête même — la place de sa queue s'y relit. */
-struct TileSlot{size:vec2f,tail:u32,last:u32,levels:u32,header:u32,}
+ *  commencent les adresses de ses niveaux, et la place de sa queue. */
+struct TileSlot{size:vec2f,tail:u32,last:u32,levels:u32,tailWord:u32,}
 fn atlasLod(px:vec2f,py:vec2f)->f32{return 0.5*log2(max(max(dot(px,px),dot(py,py)),1e-20));}
 /** Le niveau qu'une empreinte demande à une texture, borné à ses niveaux : la règle unique du choix
  *  de niveau, pour la lecture comme pour la demande. */
@@ -60,20 +60,16 @@ fn levelSize(size:vec2f,level:u32)->vec2f{return max(floor(size/exp2(f32(level))
 fn levelTexel(uv:vec2f,lsize:vec2f)->vec2f{return clamp(uv*lsize,vec2f(0.5),lsize-0.5);}
 /** L'entrée d'un texel dans son niveau : sa tuile, en lignes de tuiles. */
 fn tileEntry(texel:vec2f,lsize:vec2f)->u32{return u32(texel.y/TEXEL_TILE)*u32(ceil(lsize.x/TEXEL_TILE))+u32(texel.x/TEXEL_TILE);}
-fn feedbackPhase(p:vec2f,word:u32)->bool{
- if((word&${FEEDBACK_EVERY}u)!=0u){return true;}
- return ((u32(p.x)&${STRIDE_MASK}u)|((u32(p.y)&${STRIDE_MASK}u)<<2u))==(word&${FEEDBACK_EVERY - 1}u);
-}`;
+`;
 
 /**
  * Les lectures d'un atlas, engendrées par nom : le tampon `${k}Pages` et le pool `${k}Pool` ne se
  * passent pas en argument en WGSL, donc chaque atlas a ses fonctions, du même texte.
  */
 const kind = (k: string) => `fn ${k}Slot(slot:u32)->TileSlot{
- let header=PAGE_HEADER+slot*PAGE_SLOT;
- return TileSlot(sizeOf(${k}Pages[header]),${k}Pages[header+1u],${k}Pages[header+2u],${k}Pages[3]+slot*PAGE_LEVELS,header);
+ let h=PAGE_HEADER+slot*PAGE_SLOT;
+ return TileSlot(sizeOf(${k}Pages[h]),${k}Pages[h+1u],${k}Pages[h+2u],${k}Pages[3]+slot*PAGE_LEVELS,${k}Pages[h+3u]);
 }
-fn ${k}Texels(slot:u32)->vec2f{return sizeOf(${k}Pages[PAGE_HEADER+slot*PAGE_SLOT]);}
 /** Le mot de la table où vit la tuile d'un texel à un niveau diffusé. */
 fn ${k}Entry(s:TileSlot,uv:vec2f,level:u32)->u32{
  let lsize=levelSize(s.size,level);
@@ -84,9 +80,8 @@ fn ${k}Place(s:TileSlot,uv:vec2f,level:u32,word:u32)->TileTap{
  if(word==0u){
   let res=max(level,s.tail);
   let rtexel=levelTexel(uv,levelSize(s.size,res));
-  let tailWord=${k}Pages[s.header+3u];
-  let origin=placeOrigin(tailWord)+vec2f(tailOffset(res-s.tail),0.0);
-  return TileTap((origin+rtexel)/POOL_SIDE,placeLayer(tailWord));
+  let origin=placeOrigin(s.tailWord)+vec2f(tailOffset(res-s.tail),0.0);
+  return TileTap((origin+rtexel)/POOL_SIDE,placeLayer(s.tailWord));
  }
  let res=(word>>24u)&0x7fu;
  let rtexel=levelTexel(uv,levelSize(s.size,res));
@@ -110,25 +105,26 @@ fn ${k}Blend(s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f,finest:bool)->vec4f{
  if(t<=0.0||l0>=f32(s.last)){return a;}
  return mix(a,${k}Fetch(s,uv,u32(l0)+1u,finest),t);
 }
-fn ${k}SampleAt(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f)->vec4f{return ${k}Blend(${k}Slot(slot),uv,ddx,ddy,false);}`;
+fn ${k}SampleAt(s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f)->vec4f{return ${k}Blend(s,uv,ddx,ddy,false);}`;
 
 /**
- * La lecture publique d'un atlas : `wrap` est le quartet d'adressage de la carte lue. Une seule
- * lecture hors couture, quatre mêlées sur la couture d'une période en répétition, où la règle de
- * l'échantillonneur mêlerait le dernier texel et le premier : c'est la lecture qui reboucle, pas la
- * coordonnée. `name + 'At'` est la lecture que `name` dispatche, aux dérivées de la passe.
+ * La lecture publique d'un atlas : `wrap` est le quartet d'adressage de la carte lue. L'en-tête se
+ * lit une fois, puis une seule lecture hors couture, quatre mêlées sur la couture d'une période en
+ * répétition, où la règle de l'échantillonneur mêlerait le dernier texel et le premier : c'est la
+ * lecture qui reboucle, pas la coordonnée. `name + 'At'` est la lecture que `name` dispatche.
  */
-const wrapped = (name: string, k: 'color' | 'data', out: string) => {
+const wrapped = (name: string, k: string, out: string) => {
   const at = `${name}At`,
     call = ',ddx,ddy';
   return `fn ${name}(slot:u32,uv:vec2f,wrap:u32,ddx:vec2f,ddy:vec2f)->${out}{
- if(!wrapRepete(wrap)){return ${at}(slot,wrapReplie(uv,wrap)${call});}
- let t=wrapUv(uv,wrap,${k}Texels(slot));
- if(!t.couture){return ${at}(slot,t.proche${call});}
- let s00=${at}(slot,t.proche${call});
- let s10=${at}(slot,vec2f(t.loin.x,t.proche.y)${call});
- let s01=${at}(slot,vec2f(t.proche.x,t.loin.y)${call});
- let s11=${at}(slot,t.loin${call});
+ let s=${k}Slot(slot);
+ if(!wrapRepete(wrap)){return ${at}(s,wrapReplie(uv,wrap)${call});}
+ let t=wrapUv(uv,wrap,s.size);
+ if(!t.couture){return ${at}(s,t.proche${call});}
+ let s00=${at}(s,t.proche${call});
+ let s10=${at}(s,vec2f(t.loin.x,t.proche.y)${call});
+ let s01=${at}(s,vec2f(t.proche.x,t.loin.y)${call});
+ let s11=${at}(s,t.loin${call});
  return mix(mix(s00,s10,t.poids.x),mix(s01,s11,t.poids.x),t.poids.y);
 }`;
 };
@@ -145,7 +141,7 @@ ${wrapped('colorSample', 'color', 'vec4f')}`;
  * `COLOR_SAMPLE_WGSL`.
  */
 export const maskAlphaWgsl = (finest: boolean) =>
-  `fn maskAlphaAt(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f)->f32{return colorBlend(colorSlot(slot),uv,ddx,ddy,${finest}).w;}
+  `fn maskAlphaAt(s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f)->f32{return colorBlend(s,uv,ddx,ddy,${finest}).w;}
 ${wrapped('maskAlpha', 'color', 'f32')}`;
 
 /** Lecture de l'atlas de données : `dataSample(slot, uv, wrap, ddx, ddy)`. */
@@ -156,7 +152,3 @@ ${wrapped('dataSample', 'data', 'vec4f')}`;
 export const tileDeclarations = (bindings: { pool: number; pages: number }, name: string) =>
   `@group(0) @binding(${bindings.pool}) var ${name}Pool:texture_2d_array<f32>;
 @group(0) @binding(${bindings.pages}) var<storage,read> ${name}Pages:array<u32>;`;
-
-/** La déclaration du retour d'image : un compteur atomique par tuile diffusée des deux atlas. */
-export const feedbackDeclaration = (binding: number) =>
-  `@group(0) @binding(${binding}) var<storage,read_write> tileFeedback:array<atomic<u32>>;`;
