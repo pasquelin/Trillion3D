@@ -9,13 +9,13 @@ les comptes sont ceux de l'arborescence, et `test/test-gpu.test.mjs` tient la li
 packages/
   sdk-core/            57 *.test.ts      — tests unitaires, collés à leur source
     bench/
-      *.perf.mjs          4 bancs de performance
+      *.perf.mjs          6 bancs de performance
       socle.mjs           l'entrée unique des bancs
       socle/              mesure.mjs, rapport.mjs, ecart.mjs, ulp.mjs, baseline.mjs
       oracles/            les implémentations de référence, recopiées telles quelles
   sdk-browser/        244 *.test.ts
     bench/
-      *.perf.mjs         35 bancs de performance
+      *.perf.mjs         38 bancs de performance
       oracles/            oracles du paquet
       appui/              28 modules d'appui : scènes, rejeux, jeux de cas
   sdk-node/             5 *.test.mjs
@@ -40,7 +40,7 @@ nature. Un banc va dans le paquet dont il mesure le code, et l'atteint par chemi
 |---|---|
 | `pnpm test` | les 306 tests unitaires, les 10 tests d'intégration et les tests des scripts |
 | `pnpm run test:gpu` | les 18 sondes de justesse GPU puis les preuves de rendu lançables, en série |
-| `pnpm run perf:all` | les 39 bancs, puis le rapport agrégé |
+| `pnpm run perf:all` | les 44 bancs, puis le rapport agrégé |
 | `pnpm run validate` | la porte complète avant fusion |
 
 `pnpm run test:changed` et `pnpm run check:changed` ne jouent que ce que les fichiers modifiés

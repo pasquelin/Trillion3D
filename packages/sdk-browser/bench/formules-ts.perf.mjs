@@ -1,6 +1,6 @@
 // Banc d'équivalence du lot « formules communes TS ».
 import { DEFAULT_PIXEL_RATIO, devicePixels } from '../backendCommon.ts';
-import { bounceBatchOf, frustumExcludesBox } from '../../sdk-core/index.ts';
+import { frustumExcludesBox } from '../../sdk-core/index.ts';
 import { nanosecondsToMs } from '../gpuTimingTypes.ts';
 import { VIS_TRIANGLE_BITS } from '../visibilityTypes.ts';
 import { barycentric } from '../visibilityMath.ts';
@@ -10,7 +10,6 @@ import { plancherDuModele } from '../../../scripts/mesure/poses.mjs';
 import { mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
 import {
   referenceBarycentric,
-  referenceBounceBatch,
   referenceDevicePixels,
   referenceFloorOf,
   referenceNsToMs,
@@ -19,15 +18,7 @@ import {
   referenceSignedArea,
   referenceWeights,
 } from './oracles/formules-ts.mjs';
-import {
-  casPlans,
-  durees,
-  emprises,
-  lots,
-  rangs,
-  tailles,
-  triangles,
-} from './appui/scenesFormules.mjs';
+import { casPlans, durees, emprises, rangs, tailles, triangles } from './appui/scenesFormules.mjs';
 
 const un = (nom, entree, taille) => [{ nom, entree, taille }];
 const options = { chauffe: 2, tours: 12, budgetMs: 500 };
@@ -97,15 +88,6 @@ const resRow = await mesure({
   options,
 });
 
-const resBatch = await mesure({
-  nom: 'lot budget millisecondes',
-  fichier: 'packages/sdk-core/bounceBudget.ts',
-  cas: un('2 000 plafonds et charges', lots, lots.length),
-  calcul: (liste) => liste.map((l) => bounceBatchOf(l.ceiling, l.load)),
-  attendu: (liste) => liste.map((l) => referenceBounceBatch(l.ceiling, l.load)),
-  options,
-});
-
 const resPixels = await mesure({
   nom: "pixels d'appareil dimension logique",
   fichier: 'packages/sdk-browser/backendCommon.ts',
@@ -145,6 +127,6 @@ await stress({
 
 rapport(
   'formules-ts',
-  [resPlanes, resArea, resWeights, resBary, resRow, resBatch, resPixels, resNs, resFloor],
+  [resPlanes, resArea, resWeights, resBary, resRow, resPixels, resNs, resFloor],
   'chaque formule commune rend exactement ce que rendaient les copies qu elle remplace',
 );
