@@ -44,11 +44,6 @@ export function referencePackedRowBase(row, bits) {
   return ((row + 1) << bits) >>> 0;
 }
 
-/** `gpuBounceProbes.ts:121` et `gpuBounceSurface.ts:117` d'avant : le lot borné par le budget. */
-export function referenceBounceBatch(ceiling, load) {
-  return Math.max(1, Math.round(ceiling * load));
-}
-
 /** `explorerCapabilities.ts:132-137` et `explorerViewportApi.ts:65-66` d'avant. */
 export function referenceDevicePixels(logical, pixelRatio, defaut) {
   return Math.floor(logical * (pixelRatio ?? defaut));
