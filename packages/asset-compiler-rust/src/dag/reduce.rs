@@ -56,6 +56,8 @@ pub(super) fn reduce_group(
     let sphere = enclosing_sphere(&spheres);
     let live = live_triangles(merged.iter().copied());
     let raw = attempt(input, &live)?;
+    // Une réduction qui ne rend pas moins de grappes ne fait pas monter le DAG : elle est refusée,
+    // même si elle a retiré des triangles, plutôt que d'ajouter un niveau que rien ne remplace.
     let (chosen, welded) = match raw {
         Ok(raw) if raw.progresses(children.len()) => (raw, false),
         raw => {
@@ -67,11 +69,10 @@ pub(super) fn reduce_group(
             } else {
                 attempt(input, &welded_indices)?
             };
-            match (raw, welded) {
-                (Ok(raw), Ok(welded)) if !welded.progresses(children.len()) => (raw, false),
-                (_, Ok(welded)) => (welded, true),
-                (Ok(raw), Err(_)) => (raw, false),
-                (Err(outcome), Err(_)) => return Ok(Err(outcome)),
+            match welded {
+                Ok(welded) if welded.progresses(children.len()) => (welded, true),
+                Ok(_) => return Ok(Err(GroupOutcome::NoCollapse)),
+                Err(outcome) => return Ok(Err(raw.err().unwrap_or(outcome))),
             }
         }
     };

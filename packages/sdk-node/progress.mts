@@ -5,6 +5,7 @@ import type {
   TerminalProgress,
   TerminalProgressOptions,
 } from './contracts.ts';
+import { dagWarningsTally } from './progressDag.mts';
 
 /**
  * Terminal progress for compiler jobs: one live line per job on a TTY (spinner, bar, phase, elapsed),
@@ -110,6 +111,7 @@ export function createTerminalProgress({
   };
   // Une ligne qui reste : la barre est effacée d'abord sur un terminal, écrite telle quelle ailleurs.
   const persist = (text: string) => stream.write(`${tty ? '\r\x1b[K' : ''}${text}\n`);
+  const dag = dagWarningsTally();
   const finish = (mark: string, summary: string) => {
     if (state.finished) return;
     stop();
@@ -124,6 +126,7 @@ export function createTerminalProgress({
     /** Feed every compiler event here; the line completes or fails by itself. */
     event(event: CompilerEvent) {
       if (event.event === 'complete') {
+        if (dag.count) persist(dag.line(label));
         finish('✔', summaryOf(event.pointer));
         return;
       }
@@ -136,12 +139,10 @@ export function createTerminalProgress({
       if (event.phase === 'import' && typeof event.primitives === 'number')
         state.primitivesTotal = event.primitives;
       if (event.phase === 'primitive') state.primitives += 1;
-      // Un DAG que le compilateur n'a pas fait monter : une ligne qui reste, pas un état de barre.
+      // Un DAG que le compilateur n'a pas fait monter : compté ici, dit en une ligne à la fin.
       if (Array.isArray(event.warnings))
         for (const warning of event.warnings as Array<Record<string, unknown>>)
-          persist(
-            `⚠ ${label} mesh ${event.mesh}/${event.primitive} ${warning.code} : ${warning.roots} racines sur ${warning.pages} pages, groupes ${JSON.stringify(warning.groups)}`,
-          );
+          dag.record(warning, `${event.mesh}/${event.primitive}`);
       state.phase = event.phase ?? event.event ?? '';
       const describe = PHASES[state.phase];
       if (describe) state.text = describe(event, state);
