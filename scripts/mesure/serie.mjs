@@ -73,7 +73,8 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     cpuFrameMs: distribution(result.cpuFrameMs),
     cpuSelectMs: distribution(result.cpuSelectMs),
     moteur: ENGINE.id,
-    gpuFrameMs: ENGINE.id === 'webgpu-page-raster' ? distribution(result.gpuFrameMs) : null,
+    // L'enveloppe carte graphique d'une image, quand la page la relève (moteur WebGPU).
+    gpuFrameMs: result.gpuFrameMs?.length ? distribution(result.gpuFrameMs) : null,
     // Temps mur d'une image synchronisée — rendu puis attente de la carte — quand la page le relève.
     imageSyncMs: result.syncFrameMs?.length ? distribution(result.syncFrameMs) : null,
     rafIntervalMs: result.rafIntervalMs?.length ? distribution(result.rafIntervalMs) : null,

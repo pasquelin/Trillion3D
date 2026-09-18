@@ -32,9 +32,11 @@ export function lampe(light, box, shadows) {
   return [objet, objet.target];
 }
 
-/** Les octets que Three tient pour cette scène : tampons de sommets et d'indices, texels avec mips. */
+/** Les octets que Three tient pour cette scène : tampons de sommets et d'indices, texels avec mips.
+ *  Un tampon partagé par plusieurs géométries (les niveaux de détail) n'est compté qu'une fois. */
 export function octets(scene) {
   const geometries = new Set(),
+    tampons = new Set(),
     images = new Set();
   scene.traverse((o) => {
     if (o.geometry) geometries.add(o.geometry);
@@ -45,9 +47,10 @@ export function octets(scene) {
   let geometrie = 0,
     textures = 0;
   for (const g of geometries) {
-    for (const a of Object.values(g.attributes)) geometrie += a.array.byteLength;
-    if (g.index) geometrie += g.index.array.byteLength;
+    for (const a of Object.values(g.attributes)) tampons.add(a);
+    if (g.index) tampons.add(g.index);
   }
+  for (const a of tampons) geometrie += a.array.byteLength;
   for (const i of images) textures += (i.width ?? 0) * (i.height ?? 0) * BYTES_PER_TEXEL_WITH_MIPS;
   return { geometrie, textures, geometries: geometries.size, images: images.size };
 }

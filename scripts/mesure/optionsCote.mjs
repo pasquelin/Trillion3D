@@ -49,6 +49,15 @@ export const ENGINES = {
     page: 'pageThreeNu.mjs',
     source: 'gltf',
   },
+  // Le témoin Three.js à niveaux de détail : le Three nu plus un `THREE.LOD` par maillage, niveaux
+  // simplifiés par meshoptimizer au chargement (`pageThreeLod.mjs`). La méthode classique.
+  'three-lod': {
+    backend: null,
+    id: 'three-lod',
+    flags: BASE_FLAGS,
+    page: 'pageThreeLod.mjs',
+    source: 'gltf',
+  },
   webgl2: {
     backend: 'autonomousPagesBackend',
     id: 'autonomous-pages-webgl',

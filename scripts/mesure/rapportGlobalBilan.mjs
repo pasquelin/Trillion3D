@@ -6,6 +6,10 @@ const li = (points) => points.map((p) => `<li>${p}</li>`).join('');
 
 export function bilan(ex) {
   const [nuS, mS] = paire(ex, 'three-nu', 'sol');
+  // Les octets par triangle de Three, mesurés sur la scène telle qu'il la lit (tout le glTF).
+  const nuSans = trouve(ex, 'three-nu-sans-ombres', 'sol', 1, 'avant');
+  const octetsThree =
+    nuSans?.trianglesUniques > 0 ? nuSans.geometrieOctets / nuSans.trianglesUniques : null;
   const sol = trouve(ex, 'mobile', 'sol', 1);
   const sansLum = trouve(ex, 'sans-lumiere', 'sol', 1);
   const inst = trouve(ex, 'instances-12', 'generale', 1);
@@ -14,7 +18,7 @@ export function bilan(ex) {
     sol && sansLum
       ? `<strong>Les ombres du soleil</strong> : ${ms(moins(sol.gpuP50, sansLum.gpuP50))} sur ${ms(sol.gpuP50)} depuis la rue. Les garder d’une image à l’autre au lieu de les redessiner.`
       : '',
-    `<strong>La géométrie</strong> : ${OCTETS_PAR_TRIANGLE.nous} octets par triangle, ${nombre(OCTETS_PAR_TRIANGLE.nous / UNREAL.octetsParTriangle, 0)} fois Unreal (${nombre(UNREAL.octetsParTriangle, 1)}), plus lourd que Three (${OCTETS_PAR_TRIANGLE.three}). Compresser à la cuisson, comme Unreal.${inst ? ` Et douze copies du modèle = ${nombre(inst.geometrieOctets / 1e6, 0, 'Mo')} : une seule copie, l’instance en index.` : ''}`,
+    `<strong>La géométrie</strong> : ${OCTETS_PAR_TRIANGLE.nous} octets par triangle, ${nombre(OCTETS_PAR_TRIANGLE.nous / UNREAL.octetsParTriangle, 0)} fois Unreal (${nombre(UNREAL.octetsParTriangle, 1)}), ${octetsThree === null ? '' : `contre ${nombre(octetsThree, 0)} pour Three qui garde tout le glTF, tangentes comprises`}. Compresser à la cuisson, comme Unreal.${inst ? ` Et douze copies du modèle = ${nombre(inst.geometrieOctets / 1e6, 0, 'Mo')} : une seule copie, l’instance en index.` : ''}`,
     sol
       ? `<strong>Les textures</strong> : ${nombre(sol.texturesEngagees / 1e9, 1, 'Go')} en mémoire, sans compression. Unreal compresse et se fixe une réserve.`
       : '',

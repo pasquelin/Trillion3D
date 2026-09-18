@@ -1,30 +1,47 @@
-// Les briques de la première page : une fiche (question, verdict, phrase, corps), la fiche à trois
-// barres par vue avec son verdict — plus petit est mieux, face à Three —, et les paires d'images.
+// Les briques de la première page : les témoins et les séries, une fiche (question, verdict, phrase,
+// corps), la fiche à barres par vue avec son verdict — plus petit est mieux, face au premier
+// témoin —, et les paires d'images.
 import { barres, html, nombre } from './rapportGlobalGraphes.mjs';
 import { paire } from './rapportGlobalLecture.mjs';
 
-export const SERIES = ['Three.js nu', 'Notre moteur', 'Unreal (sa console)'];
-
-/** Les paires d'images du comparateur : Three.js (avant) et le moteur (après), même exécution. */
-const PAIRES = [
-  ['three-nu-sans-ombres', 'sol', 'Rue, sans ombres'],
-  ['three-nu-sans-ombres', 'generale', 'Vue de haut, sans ombres'],
-  ['three-nu', 'sol', 'Rue, avec ombres'],
-  ['three-nu', 'generale', 'Vue de haut, avec ombres'],
-  ['three-nu', 'rue', 'Carrefour, avec ombres'],
-  ['three-nu', 'detail', 'Trottoir, avec ombres'],
-  ['three-nu-lampes-4', 'sol', 'Rue, soleil et quatre lampes'],
-  ['three-nu-lampes-4', 'generale', 'Vue de haut, soleil et quatre lampes'],
-  ['three-nu-1248', 'sol', 'Rue, petit écran'],
-  ['three-nu-1248', 'generale', 'Vue de haut, petit écran'],
+// Les témoins de la première page, dans l'ordre des barres : le moteur du banc qui les joue et le
+// nom de leur série. Le premier est la référence des verdicts (« mieux que Three »). Les exécutions
+// de la campagne d'un témoin portent son moteur en préfixe (`three-nu-1248`, `three-lod-lampes-4`).
+export const TEMOINS = [
+  { moteur: 'three-nu', serie: 'Three.js nu' },
+  { moteur: 'three-lod', serie: 'Three.js LOD' },
 ];
-export const pairesImages = (ex) =>
-  PAIRES.map(([run, vue, libelle]) => {
-    const [a, b] = paire(ex, run, vue);
-    return { libelle, a: a?.png, b: b?.png };
-  });
+export const NOTRE = 'Notre moteur';
+// Les séries de chaque fiche : les témoins, notre moteur, Unreal. `valeurs(vue)` rend une valeur
+// par série ; un témoin non mesuré vaut `null` et sa barre l'écrit.
+const SERIES = [...TEMOINS.map((t) => t.serie), NOTRE, 'Unreal (sa console)'];
+const NOUS = TEMOINS.length;
 
-/** Le verdict d'un chiffre du moteur face à Three : plus petit est mieux. */
+/** Les vues du comparateur d'images : le suffixe d'exécution du témoin, la vue, le libellé. */
+const VUES_IMAGES = [
+  ['-sans-ombres', 'sol', 'Rue, sans ombres'],
+  ['-sans-ombres', 'generale', 'Vue de haut, sans ombres'],
+  ['', 'sol', 'Rue, avec ombres'],
+  ['', 'generale', 'Vue de haut, avec ombres'],
+  ['', 'rue', 'Carrefour, avec ombres'],
+  ['', 'detail', 'Trottoir, avec ombres'],
+  ['-lampes-4', 'sol', 'Rue, soleil et quatre lampes'],
+  ['-lampes-4', 'generale', 'Vue de haut, soleil et quatre lampes'],
+  ['-1248', 'sol', 'Rue, petit écran'],
+  ['-1248', 'generale', 'Vue de haut, petit écran'],
+];
+
+/** Les paires d'images du comparateur : le témoin (avant) et le moteur (après), même exécution,
+ *  témoin par témoin dans l'ordre des barres ; le rapport laisse choisir le témoin affiché. */
+export const pairesImages = (ex) =>
+  TEMOINS.flatMap(({ moteur, serie }) =>
+    VUES_IMAGES.map(([suffixe, vue, libelle]) => {
+      const [a, b] = paire(ex, moteur + suffixe, vue);
+      return { temoin: serie, libelle, a: a?.png, b: b?.png };
+    }),
+  );
+
+/** Le verdict d'un chiffre du moteur face au témoin de référence : plus petit est mieux. */
 function verdict(moteur, three) {
   if (moteur === null || three === null) return ['neutre', 'pas de comparaison possible'];
   if (moteur < three * 0.8) return ['bon', `mieux que Three (${nombre(three / moteur, 1)}×)`];
@@ -32,18 +49,26 @@ function verdict(moteur, three) {
   return ['mauvais', `moins bien que Three (${nombre(moteur / three, 1)}×)`];
 }
 
-/** Une fiche ; `large` la met sur toute la largeur. Rend une fonction pour que la page décide. */
-export const fiche =
-  (id, question, corps, [classe, mot], explication) =>
-  (large) =>
-    `<article id="${id}" class="fiche${large ? ' large' : ''}"><div class="fiche-texte"><h3>${html(question)}</h3><p class="fiche-verdict"><span class="pastille ${classe}"></span>${html(mot)}</p><p class="fiche-explication">${explication}</p></div><div class="fiche-corps">${corps}</div></article>`;
+/** Une fiche, rendue par `grille` ; `large` la met d'office sur toute la largeur. */
+export function fiche(id, question, corps, [classe, mot], explication, large = false) {
+  const rendu = (pleine) =>
+    `<article id="${id}" class="fiche${pleine ? ' large' : ''}"><div class="fiche-texte"><h3>${html(question)}</h3><p class="fiche-verdict"><span class="pastille ${classe}"></span>${html(mot)}</p><p class="fiche-explication">${explication}</p></div><div class="fiche-corps">${corps}</div></article>`;
+  rendu.large = large;
+  return rendu;
+}
 
-/** Une fiche à trois barres par vue ; le verdict lit chaque vue et garde le moins bon. */
+/** Les barres d'une fiche : les quatre séries, une ligne par vue, la mise en page de la première page. */
+export const barresSeries = (id, unite, lignes, decimales = 1) =>
+  barres({ id, titre: unite, unite, series: SERIES, lignes, decimales, gauche: 150, grand: true });
+
+/** Une fiche à barres par vue ; le verdict lit chaque vue et garde le moins bon. */
 export function fichePar(id, question, unite, vues, valeurs, explication, decimales = 1) {
   const lignes = vues.map(([vue, libelle]) => ({ libelle, valeurs: valeurs(vue) }));
   const rang = { bon: 0, moyen: 1, mauvais: 2, neutre: -1 };
   const verdicts = lignes.map((l) => {
-    const [t, m] = l.valeurs;
+    // Le témoin de référence est le premier de `TEMOINS`, notre moteur suit les témoins.
+    const t = l.valeurs[0],
+      m = l.valeurs[NOUS];
     const [classe, mot] = verdict(
       typeof m === 'number' ? m : null,
       typeof t === 'number' ? t : null,
@@ -54,27 +79,18 @@ export function fichePar(id, question, unite, vues, valeurs, explication, decima
   return fiche(
     id,
     question,
-    barres({
-      id,
-      titre: unite,
-      unite,
-      series: SERIES,
-      lignes,
-      decimales,
-      gauche: 150,
-      grand: true,
-    }),
+    barresSeries(id, unite, lignes, decimales),
     [pire[0], verdicts.map(([, mot]) => mot).join(' · ')],
     explication,
   );
 }
 
 /** Les fiches posées sur deux colonnes ; une fiche seule sur la dernière ligne prend les deux. */
-export function grille(fiches, larges = new Set()) {
+export function grille(fiches) {
   let colonnes = 0;
   return fiches
     .map((f, i) => {
-      const large = larges.has(i) || (i === fiches.length - 1 && colonnes % 2 === 0);
+      const large = f.large || (i === fiches.length - 1 && colonnes % 2 === 0);
       colonnes = large ? Math.ceil(colonnes / 2) * 2 + 2 : colonnes + 1;
       return f(large);
     })
