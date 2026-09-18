@@ -1,6 +1,6 @@
 # tests · Surface
 
-> 12 nodes
+> 12 nodes · cohesion 0.32
 
 ## Key Concepts
 
@@ -14,17 +14,17 @@
 - **Value** (3 connections)
 - **collect_with_world_matches_collect_for_a_mirrored_node()** (2 connections) — `packages/asset-compiler-rust/src/tests/coplanar_collect.rs`
 - **Option** (2 connections)
-- **Surface** (1 connections)
 - **coplanar** (1 connections)
+- **Surface** (1 connections)
 
 ## Relationships
 
 - [Couches de profondeur](Couches_de_profondeur.md) (2 shared connections)
 - [src · COPLANAR_MAX_LAYER](src_·_COPLANAR_MAX_LAYER.md) (2 shared connections)
 - [Couches coplanaires](Couches_coplanaires.md) (2 shared connections)
-- [bench_calculs · Bits (2)](bench_calculs_·_Bits_2.md) (1 shared connections)
+- [bench_calculs · Bits](bench_calculs_·_Bits.md) (1 shared connections)
 - [coplanar · Option](coplanar_·_Option.md) (1 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
 - [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
 - [coplanar · BTreeMap](coplanar_·_BTreeMap.md) (1 shared connections)
 

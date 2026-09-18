@@ -1,45 +1,60 @@
 # Oracle : rayons et indirect
 
-> 16 nodes
+> 55 nodes · cohesion 0.09
 
 ## Key Concepts
 
+- **oracle.rs** (13 connections) — `packages/asset-compiler-rust/src/oracle.rs`
+- **oracle/geometry.rs** (12 connections) — `packages/asset-compiler-rust/src/oracle/geometry.rs`
 - **trace.rs** (12 connections) — `packages/asset-compiler-rust/src/oracle/trace.rs`
+- **OracleJob** (11 connections) — `packages/asset-compiler-rust/src/oracle.rs`
 - **rays.rs** (11 connections) — `packages/asset-compiler-rust/src/oracle/rays.rs`
 - **indirect()** (11 connections) — `packages/asset-compiler-rust/src/oracle/rays.rs`
+- **job.rs** (10 connections) — `packages/asset-compiler-rust/src/oracle/job.rs`
+- **bad()** (9 connections) — `packages/asset-compiler-rust/src/oracle/job.rs`
 - **direct()** (9 connections) — `packages/asset-compiler-rust/src/oracle/trace.rs`
+- **surface_at()** (8 connections) — `packages/asset-compiler-rust/src/oracle/geometry.rs`
+- **job_of()** (8 connections) — `packages/asset-compiler-rust/src/oracle/job.rs`
+- **number()** (8 connections) — `packages/asset-compiler-rust/src/oracle/job.rs`
+- **vector()** (8 connections) — `packages/asset-compiler-rust/src/oracle/job.rs`
 - **render_row()** (8 connections) — `packages/asset-compiler-rust/src/oracle/rays.rs`
 - **trace()** (8 connections) — `packages/asset-compiler-rust/src/oracle/trace.rs`
+- **normal_of()** (7 connections) — `packages/asset-compiler-rust/src/oracle/geometry.rs`
+- **light_of()** (7 connections) — `packages/asset-compiler-rust/src/oracle/job.rs`
 - **World** (7 connections)
+- **triangle_hit()** (7 connections) — `packages/asset-compiler-rust/src/oracle/trace.rs`
+- **normalise()** (6 connections) — `packages/asset-compiler-rust/src/oracle/geometry.rs`
+- **count()** (6 connections) — `packages/asset-compiler-rust/src/oracle/job.rs`
+- **Value** (6 connections)
+- **camera_ray()** (6 connections) — `packages/asset-compiler-rust/src/oracle/rays.rs`
 - **scene_reach()** (6 connections) — `packages/asset-compiler-rust/src/oracle/trace.rs`
-- **Hit** (4 connections) — `packages/asset-compiler-rust/src/oracle/trace.rs`
-- **geometry** (4 connections)
-- **World** (3 connections)
-- **render()** (3 connections) — `packages/asset-compiler-rust/src/oracle/trace.rs`
-- **slab()** (3 connections) — `packages/asset-compiler-rust/src/oracle/trace.rs`
-- **hash_unit()** (2 connections) — `packages/asset-compiler-rust/src/oracle/rays.rs`
-- **SECONDARY_SHARE** (1 connections) — `packages/asset-compiler-rust/src/oracle/rays.rs`
-- **pi** (1 connections)
+- **cross()** (5 connections) — `packages/asset-compiler-rust/src/oracle/geometry.rs`
+- *... and 30 more nodes in this community*
 
 ## Relationships
 
-- [oracle · albedo_of](oracle_·_albedo_of.md) (15 shared connections)
-- [src · KIND_POINT](src_·_KIND_POINT.md) (5 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (2 shared connections)
+- [Parcours des objets Alembic](Parcours_des_objets_Alembic.md) (2 shared connections)
+- [Import Unity et maillages (2)](Import_Unity_et_maillages_2.md) (1 shared connections)
+- [Oracle : rayons et indirect (2)](Oracle_-_rayons_et_indirect_2.md) (1 shared connections)
+- [scene · .accepts_head (2)](scene_·_.accepts_head_2.md) (1 shared connections)
+- [tests · DROIT](tests_·_DROIT.md) (1 shared connections)
+- [Erreurs du compilateur et USDZ](Erreurs_du_compilateur_et_USDZ.md) (1 shared connections)
 - [DAG et stratégie de coupe](DAG_et_stratégie_de_coupe.md) (1 shared connections)
 - [scene · .begin](scene_·_.begin.md) (1 shared connections)
-- [Parcours des objets Alembic](Parcours_des_objets_Alembic.md) (1 shared connections)
-- [blend · POINTER](blend_·_POINTER.md) (1 shared connections)
 
 ## Source Files
 
+- `packages/asset-compiler-rust/src/oracle.rs`
+- `packages/asset-compiler-rust/src/oracle/geometry.rs`
+- `packages/asset-compiler-rust/src/oracle/job.rs`
 - `packages/asset-compiler-rust/src/oracle/rays.rs`
 - `packages/asset-compiler-rust/src/oracle/trace.rs`
 
 ## Audit Trail
 
-- EXTRACTED: 47 (80%)
-- INFERRED: 12 (20%)
+- EXTRACTED: 128 (86%)
+- INFERRED: 21 (14%)
 - AMBIGUOUS: 0 (0%)
 
 ---

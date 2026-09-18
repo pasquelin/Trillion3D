@@ -1,16 +1,17 @@
 # webgpuPagesBackend()
 
-> God node · 73 connections · `packages/sdk-browser/webgpuPages.ts`
+> God node · 77 connections · `packages/sdk-browser/webgpuPages.ts`
 
 **Community:** [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md)
 
 ## Connections by Relation
 
 ### calls
-- setWebgpuTransform() `EXTRACTED`
 - prepareWebgpuPages() `EXTRACTED`
+- setWebgpuTransform() `EXTRACTED`
 - renderWebgpuPages() `EXTRACTED`
 - createWebgpuPagesRuntime() `EXTRACTED`
+- quadBackend() `EXTRACTED`
 - captureSurfaceView() `EXTRACTED`
 - disposeWebgpuPages() `EXTRACTED`
 - flushWebgpuPages() `EXTRACTED`
@@ -26,43 +27,44 @@
 - pendingUrls() `EXTRACTED`
 - dropPage() `EXTRACTED`
 - createArrivalSpecs() `EXTRACTED`
-- executer() `EXTRACTED`
-- *…and 10 more `calls` connection(s) not listed (lowest-degree first to go)*
+- *…and 11 more `calls` connection(s) not listed (lowest-degree first to go)*
 
 ### contains
 - webgpuPages.ts `EXTRACTED`
 
 ### imports
+- webgpuPagesTestScenes.ts `EXTRACTED`
 - webgpuPagesLayersState.test.ts `EXTRACTED`
 - webgpuPagesTestOccluder.ts `EXTRACTED`
-- explorerCapabilities.ts `EXTRACTED`
 - explorerBackends.ts `EXTRACTED`
+- explorerCapabilities.ts `EXTRACTED`
 - webgpuPages.07.test.ts `EXTRACTED`
-- webgpuPages.03.test.ts `EXTRACTED`
 - cameraSitesMoteurs.mjs `EXTRACTED`
+- webgpuPages.03.test.ts `EXTRACTED`
 - webgpuPages.09.test.ts `EXTRACTED`
-- webgpuFrameCost.test.ts `EXTRACTED`
-- webgpuPages.04.test.ts `EXTRACTED`
-- webgpuPages.16.test.ts `EXTRACTED`
 - webgpuPages.18.test.ts `EXTRACTED`
 - transparentTransformPage.mjs `EXTRACTED`
+- webgpuFrameCost.test.ts `EXTRACTED`
+- webgpuPages.04.test.ts `EXTRACTED`
 - webgpuPages.06.test.ts `EXTRACTED`
-- hizRigPage.mjs `EXTRACTED`
+- webgpuPages.16.test.ts `EXTRACTED`
+- webgpuPages.20.test.ts `EXTRACTED`
 - webgpuPages.08.test.ts `EXTRACTED`
-- webgpuPages.17.test.ts `EXTRACTED`
+- hizRigPage.mjs `EXTRACTED`
+- rasterCalculPage.mjs `EXTRACTED`
 - webgpuPages.01.test.ts `EXTRACTED`
-- webgpuPages.12.test.ts `EXTRACTED`
-- webgpuTextureOrder.test.ts `EXTRACTED`
-- *…and 14 more `imports` connection(s) not listed (lowest-degree first to go)*
+- *…and 15 more `imports` connection(s) not listed (lowest-degree first to go)*
 
 ### indirect_call
 - executer() `INFERRED`
 - configureExplorer() `INFERRED`
 - sequence() `INFERRED`
 - sequence() `INFERRED`
-- sequence() `INFERRED`
 - prepareExplorerBackends() `INFERRED`
+- executionComplete() `INFERRED`
+- sequence() `INFERRED`
 - poseNeuve() `INFERRED`
+- rendu() `INFERRED`
 
 ### re_exports
 - sdk-browser/index.ts `EXTRACTED`

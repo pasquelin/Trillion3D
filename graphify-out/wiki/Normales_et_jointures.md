@@ -1,6 +1,6 @@
 # Normales et jointures
 
-> 41 nodes
+> 42 nodes · cohesion 0.08
 
 ## Key Concepts
 
@@ -29,13 +29,12 @@
 - **.new()** (2 connections) — `packages/asset-compiler-rust/src/plugins/scene/normals/join.rs`
 - **.root()** (2 connections) — `packages/asset-compiler-rust/src/plugins/scene/normals/join.rs`
 - **.unite()** (2 connections) — `packages/asset-compiler-rust/src/plugins/scene/normals/join.rs`
-- *... and 16 more nodes in this community*
+- *... and 17 more nodes in this community*
 
 ## Relationships
 
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (2 shared connections)
-- [Extraction unitypackage](Extraction_unitypackage.md) (1 shared connections)
-- [bench_calculs · Bits](bench_calculs_·_Bits.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (2 shared connections)
+- [Bancs de calcul Rust (2)](Bancs_de_calcul_Rust_2.md) (1 shared connections)
 
 ## Source Files
 

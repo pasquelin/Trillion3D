@@ -1,6 +1,6 @@
 # Codecs DDS
 
-> 35 nodes
+> 34 nodes · cohesion 0.09
 
 ## Key Concepts
 
@@ -23,20 +23,20 @@
 - **.level_bytes()** (2 connections) — `packages/asset-compiler-rust/src/plugins/image/dds/codec.rs`
 - **BlockDecode** (2 connections)
 - **level_size()** (2 connections) — `packages/asset-compiler-rust/src/plugins/image/dds/header.rs`
-- **texture2ddecoder** (2 connections)
 - **.is_uncompressed()** (1 connections) — `packages/asset-compiler-rust/src/plugins/image/dds/codec.rs`
 - **SRGB** (1 connections) — `packages/asset-compiler-rust/src/plugins/image/dds/codec.rs`
 - **ALPHA_MODE_MASK** (1 connections) — `packages/asset-compiler-rust/src/plugins/image/dds/header.rs`
 - **ALPHA_MODE_PREMULTIPLIED** (1 connections) — `packages/asset-compiler-rust/src/plugins/image/dds/header.rs`
 - **DDPF_FOURCC** (1 connections) — `packages/asset-compiler-rust/src/plugins/image/dds/header.rs`
-- *... and 10 more nodes in this community*
+- **DDPF_RGB** (1 connections) — `packages/asset-compiler-rust/src/plugins/image/dds/header.rs`
+- *... and 9 more nodes in this community*
 
 ## Relationships
 
 - [image · IntoIterator](image_·_IntoIterator.md) (4 shared connections)
 - [Décodage d'images](Décodage_d'images.md) (3 shared connections)
-- [Blocs EAC du KTX2](Blocs_EAC_du_KTX2.md) (2 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [ktx2 · FLAGS](ktx2_·_FLAGS.md) (2 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
 
 ## Source Files
 
@@ -45,7 +45,7 @@
 
 ## Audit Trail
 
-- EXTRACTED: 63 (98%)
+- EXTRACTED: 62 (98%)
 - INFERRED: 1 (2%)
 - AMBIGUOUS: 0 (0%)
 

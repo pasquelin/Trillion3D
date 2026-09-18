@@ -1,6 +1,6 @@
 # usd · AssetPath
 
-> 18 nodes
+> 18 nodes · cohesion 0.28
 
 ## Key Concepts
 
@@ -26,7 +26,7 @@
 ## Relationships
 
 - [src · PLAN](src_·_PLAN.md) (2 shared connections)
-- [Lecture du format Blender (3)](Lecture_du_format_Blender_3.md) (2 shared connections)
+- [Lecture du format Blender (4)](Lecture_du_format_Blender_4.md) (2 shared connections)
 - [scene · .accepts_head](scene_·_.accepts_head.md) (1 shared connections)
 
 ## Source Files

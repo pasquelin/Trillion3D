@@ -1,6 +1,6 @@
 # hdr · EXPONENT_BIAS
 
-> 15 nodes
+> 15 nodes · cohesion 0.20
 
 ## Key Concepts
 

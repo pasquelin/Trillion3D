@@ -1,6 +1,6 @@
 # Refus d'attributs Maya
 
-> 35 nodes
+> 35 nodes · cohesion 0.06
 
 ## Key Concepts
 

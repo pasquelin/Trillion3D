@@ -1,35 +1,38 @@
 # src · BTreeMap (2)
 
-> 8 nodes
+> 11 nodes · cohesion 0.24
 
 ## Key Concepts
 
-- **plan_buffers()** (13 connections) — `packages/asset-compiler-rust/src/compiler_plan.rs`
-- **dense_bytes()** (6 connections) — `packages/asset-compiler-rust/src/compiler_plan.rs`
-- **compiler_plan.rs** (5 connections) — `packages/asset-compiler-rust/src/compiler_plan.rs`
-- **BufferPlan** (4 connections) — `packages/asset-compiler-rust/src/compiler_plan.rs`
-- **BTreeSet** (2 connections)
-- **Result** (2 connections)
+- **stage_textures()** (9 connections) — `packages/asset-compiler-rust/src/compiler_textures.rs`
+- **TextureStage** (9 connections) — `packages/asset-compiler-rust/src/compiler_textures.rs`
+- **compiler_textures.rs** (5 connections) — `packages/asset-compiler-rust/src/compiler_textures.rs`
+- **TexturePreview** (2 connections)
 - **Value** (2 connections)
 - **BTreeMap** (1 connections)
+- **BTreeSet** (1 connections)
+- **Fn** (1 connections)
+- **Result** (1 connections)
+- **Sync** (1 connections)
+- **ThreadPool** (1 connections)
 
 ## Relationships
 
-- [Validation du compilateur](Validation_du_compilateur.md) (5 shared connections)
-- [src · Option](src_·_Option.md) (2 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
-- [Écriture de la scène source](Écriture_de_la_scène_source.md) (1 shared connections)
+- [Empaquetage des pages DAG](Empaquetage_des_pages_DAG.md) (2 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
 - [Budget et ouvriers du compilateur (2)](Budget_et_ouvriers_du_compilateur_2.md) (1 shared connections)
-- [src · Fn (2)](src_·_Fn_2.md) (1 shared connections)
+- [Identité du compilateur et purge](Identité_du_compilateur_et_purge.md) (1 shared connections)
+- [src · CUTOUT_ALPHA](src_·_CUTOUT_ALPHA.md) (1 shared connections)
+- [cutout · BTreeMap](cutout_·_BTreeMap.md) (1 shared connections)
 
 ## Source Files
 
-- `packages/asset-compiler-rust/src/compiler_plan.rs`
+- `packages/asset-compiler-rust/src/compiler_textures.rs`
 
 ## Audit Trail
 
-- EXTRACTED: 15 (65%)
-- INFERRED: 8 (35%)
+- EXTRACTED: 19 (95%)
+- INFERRED: 1 (5%)
 - AMBIGUOUS: 0 (0%)
 
 ---

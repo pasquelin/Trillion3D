@@ -1,20 +1,20 @@
 # EngineError
 
-> God node · 76 connections · `packages/sdk-core/cacheContracts.ts`
+> God node · 78 connections · `packages/sdk-core/cacheContracts.ts`
 
-**Community:** [Manifeste binaire (2)](Manifeste_binaire_2.md)
+**Community:** [Erreurs moteur et cache](Erreurs_moteur_et_cache.md)
 
 ## Connections by Relation
 
 ### calls
 - setWebgpuTransform() `EXTRACTED`
 - validateSceneLight() `EXTRACTED`
+- checked() `EXTRACTED`
 - createExplorerDraw() `EXTRACTED`
 - loadClusterManifest() `EXTRACTED`
 - encodeManifestBinary() `EXTRACTED`
 - referenceCollectClusterPages() `EXTRACTED`
 - createExplorer() `EXTRACTED`
-- checked() `EXTRACTED`
 - createExplorerLightApi() `EXTRACTED`
 - assertCacheIdentity() `EXTRACTED`
 - assertManifestBinary() `EXTRACTED`
@@ -27,15 +27,15 @@
 - createSceneProxyReader() `EXTRACTED`
 - assertCachePointer() `EXTRACTED`
 - assertCacheReady() `EXTRACTED`
-- *…and 18 more `calls` connection(s) not listed (lowest-degree first to go)*
+- *…and 19 more `calls` connection(s) not listed (lowest-degree first to go)*
 
 ### contains
 - cacheContracts.ts `EXTRACTED`
 
 ### imports
 - webgpuPagesTransform.ts `EXTRACTED`
-- hostWorldTree.ts `EXTRACTED`
 - explorerScene.ts `EXTRACTED`
+- hostWorldTree.ts `EXTRACTED`
 - explorerDraw.ts `EXTRACTED`
 - manifestBinaryPreview.test.ts `EXTRACTED`
 - mathTransformTree.ts `EXTRACTED`
@@ -53,7 +53,7 @@
 - explorerTransformParentInstable.test.ts `EXTRACTED`
 - manifestBinary.test.ts `EXTRACTED`
 - manifestBinaryDecodeParts.ts `EXTRACTED`
-- *…and 16 more `imports` connection(s) not listed (lowest-degree first to go)*
+- *…and 17 more `imports` connection(s) not listed (lowest-degree first to go)*
 
 ### method
 - .constructor() `EXTRACTED`

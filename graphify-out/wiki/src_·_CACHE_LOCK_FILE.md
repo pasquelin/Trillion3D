@@ -1,6 +1,6 @@
 # src · CACHE_LOCK_FILE
 
-> 13 nodes
+> 13 nodes · cohesion 0.17
 
 ## Key Concepts
 
@@ -20,9 +20,9 @@
 
 ## Relationships
 
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
 - [Budget et ouvriers du compilateur (2)](Budget_et_ouvriers_du_compilateur_2.md) (1 shared connections)
-- [Couches de profondeur](Couches_de_profondeur.md) (1 shared connections)
+- [Empaquetage des pages DAG](Empaquetage_des_pages_DAG.md) (1 shared connections)
 
 ## Source Files
 

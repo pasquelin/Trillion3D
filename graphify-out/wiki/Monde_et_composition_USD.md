@@ -1,6 +1,6 @@
 # Monde et composition USD
 
-> 42 nodes
+> 42 nodes · cohesion 0.05
 
 ## Key Concepts
 
@@ -35,8 +35,8 @@
 
 - [scene · .accepts_head](scene_·_.accepts_head.md) (2 shared connections)
 - [scene · .accepts_head (2)](scene_·_.accepts_head_2.md) (1 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
-- [unity · les_mesures_et_la_provenance_sortent_de_lidentite](unity_·_les_mesures_et_la_provenance_sortent_de_lidentite.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
+- [Identité du compilateur et purge](Identité_du_compilateur_et_purge.md) (1 shared connections)
 
 ## Source Files
 

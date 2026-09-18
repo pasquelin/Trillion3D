@@ -1,45 +1,49 @@
 # Matériaux et projet Unity
 
-> 46 nodes
+> 26 nodes · cohesion 0.17
 
 ## Key Concepts
 
-- **unity/materials.rs** (17 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/materials.rs`
 - **Project** (15 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/project.rs`
-- **unity/textures.rs** (13 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/textures.rs`
 - **material_json()** (12 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/materials.rs`
 - **Properties** (10 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/materials.rs`
 - **emission()** (9 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/materials.rs`
 - **.texture()** (9 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/materials.rs`
 - **Textures** (9 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/textures.rs`
 - **.named()** (8 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/materials.rs`
-- **sampler()** (7 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/textures.rs`
+- **read_text()** (7 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/project.rs`
 - **.first()** (6 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/materials.rs`
-- **resolve()** (6 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/textures.rs`
-- **setting()** (6 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/textures.rs`
-- **.texture()** (6 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/textures.rs`
+- **.index()** (6 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/project.rs`
 - **alpha()** (5 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/materials.rs`
 - **.color()** (5 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/materials.rs`
-- **Scene** (5 connections)
-- **wrap()** (5 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/textures.rs`
 - **Scene** (4 connections)
 - **Yaml** (4 connections)
-- **filter()** (4 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/textures.rs`
-- **Option** (4 connections)
+- **.add_meta()** (4 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/project.rs`
+- **.relative_uri()** (4 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/project.rs`
 - **Option** (3 connections)
 - **Value** (3 connections)
-- **Yaml** (3 connections)
-- *... and 21 more nodes in this community*
+- **.asset()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/project.rs`
+- **Option** (3 connections)
+- **String** (3 connections)
+- **.float()** (2 connections) — `packages/asset-compiler-rust/src/plugins/scene/unity/materials.rs`
+- **String** (1 connections)
+- **AtomicBool** (1 connections)
+- **Result** (1 connections)
+- *... and 1 more nodes in this community*
 
 ## Relationships
 
-- [unity · les_mesures_et_la_provenance_sortent_de_lidentite](unity_·_les_mesures_et_la_provenance_sortent_de_lidentite.md) (10 shared connections)
-- [unity · Overrides](unity_·_Overrides.md) (4 shared connections)
-- [Constructeur YAML Unity](Constructeur_YAML_Unity.md) (3 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (2 shared connections)
-- [Références et changements Unity](Références_et_changements_Unity.md) (2 shared connections)
-- [scene · AtomicBool](scene_·_AtomicBool.md) (1 shared connections)
+- [unity · FILTER_UNSUPPORTED](unity_·_FILTER_UNSUPPORTED.md) (6 shared connections)
+- [unity · MAX_SCAN_DEPTH](unity_·_MAX_SCAN_DEPTH.md) (5 shared connections)
+- [Identité du compilateur et purge](Identité_du_compilateur_et_purge.md) (5 shared connections)
+- [Matériaux et projet Unity (2)](Matériaux_et_projet_Unity_2.md) (4 shared connections)
+- [unity · Overrides](unity_·_Overrides.md) (3 shared connections)
+- [Constructeur YAML Unity](Constructeur_YAML_Unity.md) (2 shared connections)
+- [Références et changements Unity](Références_et_changements_Unity.md) (1 shared connections)
+- [Import Unity et maillages (3)](Import_Unity_et_maillages_3.md) (1 shared connections)
 - [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
+- [unity · Document](unity_·_Document.md) (1 shared connections)
+- [unity · .scale](unity_·_.scale.md) (1 shared connections)
 
 ## Source Files
 
@@ -49,8 +53,8 @@
 
 ## Audit Trail
 
-- EXTRACTED: 105 (94%)
-- INFERRED: 7 (6%)
+- EXTRACTED: 78 (93%)
+- INFERRED: 6 (7%)
 - AMBIGUOUS: 0 (0%)
 
 ---
