@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { pngFromRgba } from './serveur.mjs';
 import { distribution, machineLoad } from './rapport.mjs';
 import { passesGpu } from './seriePasses.mjs';
+import { poolGeometrie, reservoirs } from './serieReservoirs.mjs';
 
 /** Une série : un côté, une vue, un seuil. Écrit sa capture, renvoie sa ligne de rapport. */
 export async function runSerie(ctx, page, side, view, pixelError, pose, captures, suffix = '') {
@@ -33,7 +34,8 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     pixelError,
     frames: settings.frames,
     warmup: settings.warmup,
-    maxPages: settings.maxPages,
+    // Les réservoirs de mémoire demandés au moteur, et leur réglage en session ; `null` = défaut.
+    ...reservoirs(settings),
     instances: settings.instances,
     width: settings.width,
     height: settings.height,
@@ -88,6 +90,8 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     preparationMs: typeof result.preparationMs === 'number' ? result.preparationMs : null,
     // Images rendues avant la capture pour que le moteur tienne la pose ; `null` s'il n'en tient pas.
     imagesCalme: typeof result.imagesCalme === 'number' ? result.imagesCalme : null,
+    // Le réglage des réservoirs en session, tel que le moteur l'a rapporté ; `null` sans réglage.
+    reglageVivant: result.reglageVivant ?? null,
     reseau: result.network ?? null,
     variante: side.variante ?? null,
     erreur: side.erreur ?? 'certifiee',
@@ -134,10 +138,13 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     // tampons de sommets. `null` quand le moteur ne la publie pas, jamais déduite.
     geometrieOctets: metrics.geometryAllocationBytes ?? null,
     budgetPages: {
-      demande: settings.maxPages,
+      demande: settings.maxPages ?? null,
       residentes: metrics.residentPages ?? null,
       couvertureLimiteeParBudget: metrics.coverageBudgetLimited ?? null,
     },
+    // Le pool de géométrie tel que le moteur l'a tenu : octets demandés, fentes, ce qui l'a borné,
+    // et les pages que la dernière image voulait sans qu'il puisse les prendre. `null` = non publié.
+    poolGeometrie: poolGeometrie(metrics),
     // Le relevé du gouverneur de chemin de calcul : mode demandé, disponibilité du module, et pour
     // chaque opération en lot le chemin réellement joué avec les médianes des deux. `null` quand le
     // dist mesuré est antérieur au gouverneur — non mesuré, et non pas « chemin JavaScript ».

@@ -45,3 +45,14 @@ export async function poseCalme(explorer, pose, limite = 64) {
   }
   return null;
 }
+
+/**
+ * Le réglage des réservoirs en cours de session — ce qu'un curseur d'application fait —, et ce
+ * qu'il coûte : le rapport du moteur (réservoirs tenus, pages et tuiles évincées, millisecondes du
+ * réglage) et le nombre d'images pour que la pose se tienne de nouveau. `null` sans réglage demandé.
+ */
+export async function reglerReservoirs(explorer, pose, budgets) {
+  if (!budgets) return null;
+  const rapport = await explorer.setMemoryBudgets(budgets);
+  return { ...rapport, imagesReprise: await poseCalme(explorer, pose) };
+}
