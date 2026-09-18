@@ -38,12 +38,19 @@ export type TextureJob = {
   nextRow: number;
   /** Tranches refusées par l'appareil pour ce niveau ; au-delà de la borne, il est abandonné. */
   failures: number;
+  /** Faux tant que les octets du niveau ne sont pas en main : un niveau cuit se lit d'abord dans le
+   *  cache, et la pompe ne l'admet qu'une fois `fetch` résolu. Vrai d'emblée sans `fetch`. */
+  ready: boolean;
+  /** Lit les octets du niveau et rend `ready` vrai ; absent d'un niveau déjà en mémoire. */
+  fetch?: () => Promise<void>;
+  /** Vrai le temps d'une lecture, pour n'en lancer qu'une par niveau. */
+  fetching?: boolean;
   uploadRows: (row: number, count: number) => void;
 };
 
-type Placement = { slot: number; classIndex: number; layer: number };
+export type Placement = { slot: number; classIndex: number; layer: number };
 
-function textureJob(
+export function textureJob(
   kind: TextureJob['kind'],
   place: Placement,
   level: number,
@@ -63,6 +70,7 @@ function textureJob(
     bytesPerRow,
     nextRow: 0,
     failures: 0,
+    ready: true,
     uploadRows,
   };
 }
@@ -109,18 +117,18 @@ export function previewLevelJobs(options: {
   texture: GPUTexture;
   place: Placement;
   preview: TexturePreview;
+  kind: TextureJob['kind'];
+  /** Les niveaux que la couche attend en tout : la queue seule, ou la chaîne entière quand les
+   *  niveaux au-dessus sont cuits et arrivent par `bakedLevelJobs`. */
+  pyramid: SlotPyramid;
 }): TextureJob[] {
-  const { device, texture, place, preview } = options;
-  const pyramid: SlotPyramid = {
-    first: preview.firstLevel,
-    last: preview.firstLevel + preview.levels.length - 1,
-  };
+  const { device, texture, place, preview, kind, pyramid } = options;
   const jobs: TextureJob[] = [];
   for (let index = preview.levels.length - 1; index >= 0; index--) {
     const level = preview.firstLevel + index;
     const [width, height] = previewLevelSize(preview.width, preview.height, level);
     const upload = writeRows(device, texture, level, place.layer, preview.levels[index], width);
-    jobs.push({ ...textureJob('color', place, level, 0, height, width * 4, upload), pyramid });
+    jobs.push({ ...textureJob(kind, place, level, 0, height, width * 4, upload), pyramid });
   }
   return jobs;
 }

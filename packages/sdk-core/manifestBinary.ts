@@ -10,6 +10,7 @@ export {
   previewLastLevel,
   previewLevelCount,
   previewLevelSize,
+  previewIsWhole,
   previewPixelBytes,
 } from './texturePreviewLevels.ts';
 export { isBinaryManifest, assertManifestBinary } from './manifestBinaryTypes.ts';

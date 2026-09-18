@@ -51,7 +51,7 @@ ${atlasTextures(SHADE_BINDINGS.maps, 'maps')}
 @group(0) @binding(${SHADE_BINDINGS.uniform}) var<uniform> uni:ShadeUni;
 ${atlasTextures(SHADE_BINDINGS.dataMaps, 'dataMaps')}
 @group(0) @binding(${SHADE_BINDINGS.colorSlots}) var<storage, read> colorSlots:array<vec2u>;
-@group(0) @binding(${SHADE_BINDINGS.dataSlots}) var<storage, read> dataSlots:array<u32>;
+@group(0) @binding(${SHADE_BINDINGS.dataSlots}) var<storage, read> dataSlots:array<vec2u>;
 ${TRIANGLE_PALETTE_WGSL}
 ${PAGE_VERTEX_WGSL}
 ${PAGE_UV_WGSL}

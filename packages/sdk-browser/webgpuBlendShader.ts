@@ -42,7 +42,7 @@ ${bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes)}
 @group(0) @binding(${BLEND_BINDINGS.shadowSampler}) var shadowSampler:sampler_comparison;
 @group(0) @binding(${BLEND_BINDINGS.clusterDiagnostic}) var<storage,read> clusterDiagnostic:array<u32>;
 @group(0) @binding(${BLEND_BINDINGS.colorSlots}) var<storage,read> colorSlots:array<vec2u>;
-@group(0) @binding(${BLEND_BINDINGS.dataSlots}) var<storage,read> dataSlots:array<u32>;
+@group(0) @binding(${BLEND_BINDINGS.dataSlots}) var<storage,read> dataSlots:array<vec2u>;
 @group(0) @binding(${BLEND_BINDINGS.planInstances}) var<storage,read> planInstances:array<vec2u>;
 @group(0) @binding(${BLEND_BINDINGS.clusterSpans}) var<storage,read> clusterSpans:array<vec2u>;
 @group(0) @binding(${BLEND_BINDINGS.tileLights}) var<storage,read> tileLights:array<u32>;
