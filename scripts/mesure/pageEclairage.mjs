@@ -17,6 +17,13 @@ export async function measureView(options) {
   const lost = (globalThis.incidentsGpu = []);
   canvas.addEventListener('webglcontextlost', () => lost.push('webglcontextlost'), false);
   const reglages = await import(`${options.modulesUrl}pageExplorateur.mjs`);
+  // La préparation, chronométrée de l'appel au retour, et ce qu'elle a fait passer sur le réseau :
+  // les ressources que la page a chargées jusqu'ici ne sont pas comptées, seules celles d'après.
+  const preparationStart = performance.now();
+  // Le tampon des entrées de ressources déborde à 250 par défaut ; une scène en charge des dizaines
+  // de milliers, et un tampon plein cesse d'enregistrer sans rien dire.
+  performance.setResourceTimingBufferSize(1_000_000);
+  const resourcesBefore = performance.getEntriesByType('resource').length;
   const explorer = await sdk.createExplorer(canvas, {
     onDiagnostic: (event) => {
       if (event.phase !== 'gpu-uncaptured-error' && event.phase !== 'gpu-device-lost') return;
@@ -25,6 +32,7 @@ export async function measureView(options) {
     },
     ...reglages.optionsExplorateur(options, factory, eclairage),
   });
+  const preparationMs = performance.now() - preparationStart;
   // Ce que le fichier a apporté, avant tout ajout du banc. Un dist plus ancien que le lot d'import
   // des lampes n'a pas cette fonction : la mesure rend `null`, jamais un compte inventé.
   const declared = typeof explorer.importedLights === 'function' ? explorer.importedLights() : null;
@@ -104,12 +112,17 @@ export async function measureView(options) {
   // navigateur entre deux images, parce que les relevés d'horodatage reviennent par une promesse et
   // qu'une boucle qui n'attend jamais n'en récupère presque aucun ; la fenêtre est vidée d'abord.
   let stageProfile = null;
+  // Chaque relevé de passes distinct vu pendant cette boucle, reconnu à l'image qu'il décrit : le
+  // même relevé reste accroché aux métriques jusqu'au suivant, et le compter deux fois pèserait.
+  const gpuPassSamples = [];
   if (options.stageProfile) {
     explorer.resetStageProfile();
     for (let i = 0; i < options.profileFrames; i++) {
       moveLight(i);
       moveNode(i);
-      explorer.render(poseAt(i));
+      const frame = explorer.render(poseAt(i));
+      const sample = frame.gpuPassMs;
+      if (sample && sample.frame !== gpuPassSamples.at(-1)?.frame) gpuPassSamples.push(sample);
       await explorer.flush();
       // Une vraie limite d'image : le navigateur ne rend un compteur d'horodatage WebGL2 lisible
       // qu'après une frontière d'image, et c'est aussi ce que fait une application réelle.
@@ -146,6 +159,14 @@ export async function measureView(options) {
   // d'une mesure absente, qu'un lecteur remplacerait par zéro — ce que le contrat interdit.
   const scalaire = (v) => v === null || typeof v === 'number' || typeof v === 'boolean';
   const metrics = Object.fromEntries(Object.entries(last ?? {}).filter(([, v]) => scalaire(v)));
+  // Les octets passés sur le réseau depuis la préparation, par sorte de fichier : ce que le
+  // chargement et la série ont vraiment coûté au serveur, images et niveaux de texture compris.
+  const network = {};
+  for (const entry of performance.getEntriesByType('resource').slice(resourcesBefore)) {
+    const extension = entry.name.split('?')[0].match(/\.([a-z0-9]+)$/i);
+    const kind = (extension ? extension[1] : 'autre').toLowerCase();
+    network[kind] = (network[kind] ?? 0) + (entry.transferSize || entry.encodedBodySize || 0);
+  }
   const size = { width: canvas.width, height: canvas.height };
   explorer.dispose();
   canvas.remove();
@@ -158,8 +179,11 @@ export async function measureView(options) {
     shadowAtlas,
     movingNode,
     stageProfile,
+    gpuPassSamples,
     selection,
     metrics,
+    preparationMs,
+    network,
     // Le relevé du gouverneur de chemin de calcul : un objet, donc écarté par le filtre scalaire
     // ci-dessus. Sans lui, rien ne dirait quel chemin la campagne a réellement joué.
     mathBatch: last?.mathBatch ?? null,

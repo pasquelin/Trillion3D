@@ -3,6 +3,8 @@
 import { loadavg } from 'node:os';
 import { compareImages, summarize } from '../../packages/sdk-core/index.ts';
 import { cheminsCalcul } from './rapportCalcul.mjs';
+import { p50p95, passes } from './rapportPasses.mjs';
+import { textures } from './rapportTextures.mjs';
 
 /** p50/p95/p99 d'une série, ou `null` si elle est vide : rien n'est déduit d'une série absente. */
 export const distribution = (values) => summarize(values ?? []);
@@ -62,9 +64,6 @@ function rows(report) {
   return lines;
 }
 
-/** `p50 / p95` d'une étape, ou « non mesuré » : un tiret ne serait pas distinct d'un zéro. */
-const etape = (q) => (q ? `${q.p50.toFixed(3)} / ${q.p95.toFixed(3)}` : 'non mesuré');
-
 /** Les compteurs d'une étape, sur une seule ligne ; vide quand l'étape n'en porte pas. */
 const compteurs = (counts) =>
   Object.entries(counts ?? {})
@@ -89,8 +88,8 @@ function etapes(report) {
           `${profile.gpuSamples} relevés carte graphique sur une fenêtre de ${profile.windowFrames}`,
         `- Mesure carte graphique : ${profile.gpuMethod ?? 'non mesurée'}` +
           (profile.gpuReason ? ` (${profile.gpuReason})` : ''),
-        `- Coût du profil lui-même : ${etape(profile.overheadMs)} ms par image`,
-        `- Image entière côté carte graphique (enveloppe) : ${etape(profile.gpuImageMs)} ms — les`,
+        `- Coût du profil lui-même : ${p50p95(profile.overheadMs)} ms par image`,
+        `- Image entière côté carte graphique (enveloppe) : ${p50p95(profile.gpuImageMs)} ms — les`,
         '  durées par étape ne s’y additionnent pas : cet appareil peut faire se chevaucher deux passes,',
         '  et une somme les compterait deux fois.',
         '',
@@ -98,10 +97,12 @@ function etapes(report) {
         '|---|---|---|---|',
         ...profile.stages.map(
           (stage) =>
-            `| ${stage.label} | ${etape(stage.cpuMs)} | ${etape(stage.gpuMs)} ` +
+            `| ${stage.label} | ${p50p95(stage.cpuMs)} | ${p50p95(stage.gpuMs)} ` +
             `| ${compteurs(stage.counts)} |`,
         ),
         '',
+        ...passes(resultat.passesGpu),
+        ...textures(resultat.metrics, resultat),
       );
     }
   return lines;
