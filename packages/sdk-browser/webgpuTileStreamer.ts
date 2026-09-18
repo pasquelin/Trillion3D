@@ -140,17 +140,20 @@ export function createWebgpuTileStreamer(options: {
       if (colorServed) options.onColorChanged();
       return { served, missing };
     },
-    /** Réduit en compteurs la cible de retour des transparents, pour la phase de l'image. */
-    reduceBlend(
+    /** Le retour d'une image part avec elle : la cible où ses pixels ont posé leurs demandes — quand
+     *  une passe l'a écrite — est réduite en compteurs pour la phase, copiés vers leur lecture puis
+     *  remis à zéro. */
+    publishRequests(
       encoder: GPUCommandEncoder,
-      target: GPUTextureView,
+      target: GPUTextureView | undefined,
       size: [number, number],
       every: boolean,
     ) {
-      reduce?.encode(encoder, target, feedback.buffer, size, feedback.phaseWord(every));
+      if (target) reduce?.encode(encoder, target, feedback.buffer, size, feedback.phaseWord(every));
+      feedback.encode(encoder);
     },
-    /** Faux sur un appareil sans étage de calcul : les transparents ne demandent aucune tuile. */
-    get blendFeedback() {
+    /** Faux sur un appareil sans étage de calcul : aucun pixel ne demande de tuile. */
+    get requestReduce() {
       return reduce !== undefined;
     },
     metrics: () => counters.metrics([color, data], sources.levels),

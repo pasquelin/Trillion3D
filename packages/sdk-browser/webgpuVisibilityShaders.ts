@@ -1,5 +1,5 @@
 import { shaderErrors } from './gpuShaderModule.ts';
-import { SHADE_UNIFORM_BYTES } from './visibilityShaderShadowRequest.ts';
+import { SHADE_UNIFORM_BYTES } from './visibilityShaderRequest.ts';
 import { SHADE_SHADER, VIS_SHADER } from './visibilityBuffer.ts';
 import { VIS_BINDINGS, atlasLayoutEntries, readOnly } from './webgpuBindLayout.ts';
 import {

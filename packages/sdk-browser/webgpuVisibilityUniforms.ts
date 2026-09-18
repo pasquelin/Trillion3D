@@ -4,7 +4,7 @@ import { computeSpanFor } from './diagnosticGpuGeometry.ts';
 import { computeRasterReady } from './webgpuPagesEncodeVisSetup.ts';
 import type { WebgpuVisState } from './webgpuPagesStateVis.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
-import { SHADE_UNIFORM_BYTES, writeSunSlice } from './visibilityShaderShadowRequest.ts';
+import { SHADE_UNIFORM_BYTES, writeSunSlice } from './visibilityShaderRequest.ts';
 
 /** Une entrée par slot de dessin indirect, plus celle du chemin direct. La taille suit le nombre de
  *  couches coplanaires de la scène : sans couche, c'est exactement le tampon d'avant. */
