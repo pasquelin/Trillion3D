@@ -5,9 +5,11 @@
   },
   "case": "Un quad dont la couleur de base est palette-globale.gif, un GIF 4 × 2 indexé sur une table de couleurs globale de huit entrées, compilé par le harnais commun.",
   "formatVersion": 3,
-  "manifestBinaryVersion": 4,
+  "manifestBinaryVersion": 5,
   "previews": [
     {
+      "atlas": 0,
+      "bakedLevels": 0,
       "firstLevel": 0,
       "height": 2,
       "image": 0,
@@ -63,14 +65,19 @@
     }
   ],
   "report": {
+    "bakedLevels": 0,
     "base": 64,
     "colorTextures": 1,
+    "dataTextures": 0,
     "maxLevels": 7,
     "notes": {},
     "pixelBytes": 44,
     "previews": 1,
     "skipped": {},
-    "version": 2
+    "version": 3
   },
-  "rule": "Chaque texture couleur porte la queue sans perte de sa chaîne de mips, du premier niveau dont aucun côté ne dépasse 64 jusqu'au 1×1, en RGBA8 sRGB à alpha droit. Ni le BMP ni le GIF n'ajoutent de perte : le premier est lu tel quel et remis dans l'ordre de l'image, le second est indexé, et une table de couleurs porte déjà du 8-8-8."
+  "rule": "Chaque texture couleur porte la queue sans perte de sa chaîne de mips, du premier niveau dont aucun côté ne dépasse 64 jusqu'au 1×1, en RGBA8 sRGB à alpha droit. Ni le BMP ni le GIF n'ajoutent de perte : le premier est lu tel quel et remis dans l'ordre de l'image, le second est indexé, et une table de couleurs porte déjà du 8-8-8.",
+  "textures": {
+    "url": "../../textures/v3/{sha}/{kind}-{level}.png"
+  }
 }

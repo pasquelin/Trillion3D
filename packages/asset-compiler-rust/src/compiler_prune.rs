@@ -41,10 +41,15 @@ pub(super) fn referenced_objects(
     }
     Ok(())
 }
-/// Les objets qu'un scope qu'on ne recompile pas nomme. Ses pages ne vivent que dans les colonnes de
-/// son sidecar : sans sidecar lisible, aucune purge ne peut décider quoi garder, donc elle échoue
-/// et ne supprime rien plutôt que de compter ce scope pour zéro objet.
-fn other_scope_objects(dir: &Path, into: &mut BTreeSet<String>) -> Result<()> {
+/// Les objets et les empreintes d'images qu'un scope qu'on ne recompile pas nomme. Ses pages et ses
+/// niveaux de texture ne vivent que dans les colonnes de son sidecar, lu une fois pour les deux :
+/// sans sidecar lisible, aucune purge ne peut décider quoi garder, donc elle échoue et ne supprime
+/// rien plutôt que de compter ce scope pour zéro objet.
+fn other_scope(
+    dir: &Path,
+    objects: &mut BTreeSet<String>,
+    textures: &mut BTreeSet<String>,
+) -> Result<()> {
     let Ok(text) = fs::read(dir.join("clusters.json")) else {
         return Ok(());
     };
@@ -57,7 +62,14 @@ fn other_scope_objects(dir: &Path, into: &mut BTreeSet<String>) -> Result<()> {
             ),
         )
     })?;
-    referenced_objects(&serde_json::from_slice(&text)?, Some(&binary), into)
+    referenced_objects(&serde_json::from_slice(&text)?, Some(&binary), objects)?;
+    textures.extend(manifest_binary::texture_digests(&binary).map_err(|e| {
+        CompilerError::new(
+            "UNSUPPORTED_FORMAT",
+            format!("Cached manifest binary is not readable by this compiler: {e}"),
+        )
+    })?);
+    Ok(())
 }
 /// After a successful compile, remove the other keys of this scope and every object no surviving
 /// manifest references. Objects are shared across scopes, so the other scope's manifest is read too.
@@ -66,11 +78,13 @@ pub(super) fn prune_cache(
     o: &Options,
     key: &str,
     result: &Value,
+    textures: &[texture_preview::TexturePreview],
     progress: &(impl Fn(Value) + Sync),
 ) -> Result<Value> {
     let native = o.cache.join("native");
     let mut keep = BTreeSet::new();
     referenced_objects(result, None, &mut keep)?;
+    let mut keep_textures: BTreeSet<String> = textures.iter().map(|p| p.sha256.clone()).collect();
     let mut removed_keys = 0usize;
     for scope in ["slice", "full"] {
         let dir = native.join(scope);
@@ -90,7 +104,7 @@ pub(super) fn prune_cache(
         // version arrête la purge, cache intact, au lieu d'effacer les pages qu'il utilise encore.
         if scope != o.scope {
             if let Some(name) = current.as_deref() {
-                other_scope_objects(&dir.join(name), &mut keep)?;
+                other_scope(&dir.join(name), &mut keep, &mut keep_textures)?;
             }
         }
         for entry in entries {
@@ -137,10 +151,14 @@ pub(super) fn prune_cache(
             }
         }
     }
-    let summary = json!({"removedKeys":removed_keys,"removedObjects":removed_objects,"removedBytes":removed_bytes,"keptObjects":kept_objects});
-    if removed_keys > 0 || removed_objects > 0 {
+    let (removed_textures, texture_bytes) =
+        compiler_prune_textures::prune_textures(&native, &keep_textures)?;
+    let summary = json!({"removedKeys":removed_keys,"removedObjects":removed_objects,"removedBytes":removed_bytes,"keptObjects":kept_objects,
+        "removedTextures":removed_textures,"removedTextureBytes":texture_bytes});
+    if removed_keys > 0 || removed_objects > 0 || removed_textures > 0 {
         progress(
-            json!({"phase":"prune","completed":1,"total":1,"removedKeys":removed_keys,"removedObjects":removed_objects,"removedBytes":removed_bytes}),
+            json!({"phase":"prune","completed":1,"total":1,"removedKeys":removed_keys,"removedObjects":removed_objects,"removedBytes":removed_bytes,
+            "removedTextures":removed_textures,"removedTextureBytes":texture_bytes}),
         );
     }
     Ok(summary)

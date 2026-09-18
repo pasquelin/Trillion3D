@@ -1,5 +1,4 @@
 use super::*;
-use std::thread;
 use std::time::Instant;
 
 fn scene_with_two_textures() -> Value {
@@ -17,13 +16,24 @@ fn scene_with_two_textures() -> Value {
     })
 }
 
-// Comportement 8 : la cancellation est revérifiée avant chaque texture, jamais seulement au
-// début — un décodage déjà en cours n'est pas interrompu, mais la texture suivante ne démarre pas.
-// Deux exécutions comparées : cancellation déjà posée avant l'appel (retour immédiat) contre
-// cancellation posée par un autre fil pendant que la première, grosse texture se décode (retour
-// seulement après ce travail) ; la seconde doit mesurablement durer plus longtemps.
+/// Une grappe d'un seul fil : les images se suivent dans l'ordre de leur index, comme dans un
+/// travail dont `threads` vaut un, et la seconde ne démarre qu'après la première. Bâtie AVANT que
+/// la course commence : sa construction prend plus longtemps qu'un fil ne met à poser un drapeau.
+fn one_thread() -> rayon::ThreadPool {
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(1)
+        .build()
+        .expect("grappe")
+}
+
+// Comportement 8 : la cancellation est revérifiée avant chaque image, jamais seulement au début —
+// un décodage déjà en cours n'est pas interrompu, mais l'image suivante ne démarre pas. Deux
+// exécutions comparées : cancellation déjà posée avant l'appel (retour immédiat) contre
+// cancellation posée par le rapport de progrès de la première image, c'est-à-dire juste après son
+// décodage (retour seulement après ce travail) ; la seconde doit mesurablement durer plus
+// longtemps. Le drapeau est posé par le progrès et non par un autre fil : aucune course.
 #[test]
-fn cancellation_is_honoured_between_two_textures_not_mid_decode() {
+fn cancellation_is_honoured_between_two_images_not_mid_decode() {
     let dir = temp_dir("cancel-between");
     let big = rgba_from(2200, 2200, |x, y| {
         [(x % 256) as u8, (y % 256) as u8, 5, 255]
@@ -38,31 +48,43 @@ fn cancellation_is_honoured_between_two_textures_not_mid_decode() {
 
     let already_cancelled = options(&dir);
     already_cancelled.cancelled.store(true, Ordering::Relaxed);
+    let pool = one_thread();
     let started = Instant::now();
-    let immediate = stage_texture_previews(&PreviewInputs {
-        o: &already_cancelled,
-        g: &g,
-        bin: &[],
-        image_root: &dir,
-        meshes: &meshes,
-        view_map: &view_map,
-        to_measure: &BTreeSet::new(),
+    let immediate = pool.install(|| {
+        stage_texture_previews(
+            &PreviewInputs {
+                o: &already_cancelled,
+                g: &g,
+                bin: &[],
+                image_root: &dir,
+                meshes: &meshes,
+                view_map: &view_map,
+                to_measure: &BTreeSet::new(),
+            },
+            &silent,
+        )
     });
     let immediate_elapsed = started.elapsed();
     assert_eq!(immediate.err().expect("cancelled").code, "CANCELLED");
 
     let mid_flight = options(&dir);
     let flag = mid_flight.cancelled.clone();
-    thread::spawn(move || flag.store(true, Ordering::Relaxed));
+    let pool = one_thread();
+    let after_first_image = move |_: Value| flag.store(true, Ordering::Relaxed);
     let started = Instant::now();
-    let interrupted = stage_texture_previews(&PreviewInputs {
-        o: &mid_flight,
-        g: &g,
-        bin: &[],
-        image_root: &dir,
-        meshes: &meshes,
-        view_map: &view_map,
-        to_measure: &BTreeSet::new(),
+    let interrupted = pool.install(|| {
+        stage_texture_previews(
+            &PreviewInputs {
+                o: &mid_flight,
+                g: &g,
+                bin: &[],
+                image_root: &dir,
+                meshes: &meshes,
+                view_map: &view_map,
+                to_measure: &BTreeSet::new(),
+            },
+            &after_first_image,
+        )
     });
     let mid_flight_elapsed = started.elapsed();
     assert_eq!(interrupted.err().expect("cancelled").code, "CANCELLED");
