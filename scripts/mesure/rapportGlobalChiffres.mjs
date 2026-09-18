@@ -3,8 +3,8 @@
 // moteur avec la ligne du backlog qui s'y attaque.
 /**
  * Les chiffres publiés de la référence (`docs/REFERENCE_UE5.md`, talk SIGGRAPH 2021, démo PS5 à
- * 2496×1404 remontée en 4K), et les deux repères qui ne sont pas mesurés par le banc : les octets
- * par triangle de notre format (`docs/FORMAT.md`) et ceux d'un glTF brut lu par Three.
+ * 2496×1404 remontée en 4K), et le repère que le banc ne mesure pas : les octets par triangle de
+ * notre format (`docs/FORMAT.md`). Ceux des témoins Three sont mesurés (`trianglesUniques`).
  */
 export const REFERENCE = {
   trianglesParGrappe: 128,
@@ -18,7 +18,7 @@ export const REFERENCE = {
   cpuMs: 0.05,
 };
 REFERENCE.imageMs = REFERENCE.visibiliteMs + REFERENCE.materiauxMs;
-export const OCTETS_PAR_TRIANGLE = { three: 36, nous: 48 };
+export const OCTETS_PAR_TRIANGLE = { nous: 48 };
 
 /** Somme des p50 des passes que `garde` retient, ou `null` si aucune. */
 export function sommePasses(releve, garde) {
