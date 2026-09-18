@@ -5,6 +5,12 @@
 - **Build Unreal Engine 5's virtualized geometry for the web, with its performance.** The reference
   is UE5: Nanite for the geometry, its temporal antialiasing for the image, its streaming and memory
   budgets. Its techniques, its constraints, its numbers. At every trade-off, take its solution.
+- **The end goal is the whole image, not only the geometry: Lumen-class lighting — dynamic global
+  illumination, reflections and shadows — with the reference's performance, rebuilt for the web's
+  constraints (no hardware ray tracing, bounded and unreadable GPU memory, one browser frame).**
+  Nanite, the temporal antialiasing and the memory budgets are the foundation; the lighting is what
+  they are for. It is reached by stages, each measured, and the strategy lives in
+  `docs/SPEC_MOTEUR_SANS_THREE.md` §8. A stage that is out of order is not out of scope.
 - **Never copy Unreal code, shaders or assets into this repository.** Not one line, ever. Unreal is
   not open source and its source is EULA-covered; reimplement from public material only — papers,
   talks, documentation, observed behaviour. Naming it as a reference is fine and expected; carrying
