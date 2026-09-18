@@ -1,6 +1,7 @@
 import type * as THREE from 'three';
 import type { TextureRgba } from './visibilityTypes.ts';
 import { generateMaterialMips, mipLevelCountFor } from './textureMips.ts';
+import { writeRgba } from './webgpuTileWrite.ts';
 
 /**
  * La texture de travail d'une texture de l'hôte : la source entière, transférée une fois, et sa
@@ -40,18 +41,13 @@ export function createTileScratch(
   });
   if (rgba) {
     if (rgba.width !== width || rgba.height !== height) throw new Error('TEXTURE_SOURCE_SIZE');
-    device.queue.writeTexture(
-      { texture },
-      rgba.data as Uint8Array<ArrayBuffer>,
-      { bytesPerRow: width * 4, rowsPerImage: height },
-      { width, height },
-    );
+    writeRgba(device.queue, texture, [0, 0, 0], rgba.data, width, height);
   } else {
     const image = options.map.image as GPUCopyExternalImageSource | undefined;
     if (!image || typeof device.queue.copyExternalImageToTexture !== 'function')
       throw new Error(options.errorCode);
     device.queue.copyExternalImageToTexture({ source: image }, { texture }, [width, height]);
   }
-  generateMaterialMips(device, texture, format, width, height, [[1, 1]]);
+  generateMaterialMips(device, texture, format, width, height);
   return { texture, destroy: () => texture.destroy() };
 }

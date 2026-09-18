@@ -27,7 +27,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
   const { run, gpu, vis, timing, blendState, services, lights } = rt;
   const stats = gpu.cache?.stats();
   const vertexBytes = vertexBytesOf(gpu, vis);
-  const ledger = gpuDeviceLedgerOf(rt.setup?.gpuDevice)?.snapshot();
+  const ledger = gpuDeviceLedgerOf(rt.setup.gpuDevice)?.snapshot();
   const pending = run.gpuFrameActive && !run.gpuMetricsReady;
   // Ce que le test d'occultation a éliminé, du chemin qui l'a fait tourner : les compteurs que la
   // carte a écrits sur la dernière image relevée, ou ceux de l'oracle processeur là où aucun test
@@ -72,7 +72,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     gpuAllocatedByLabel: ledger?.byLabel ?? null,
     gpuAllocationsUnknownFormat: ledger?.unknownFormats ?? null,
     gpuFrameTargetBytes: gpu.targetBytes || null,
-    gpuFrameBudgetBytes: rt.setup?.frameBudget ?? null,
+    gpuFrameBudgetBytes: rt.setup.frameBudget,
     drawCalls: run.gpuDrawCalls,
     hizTestedClusters: hiz?.tested ?? null,
     hizRejectedClusters: hiz?.rejected ?? null,

@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuTilePageTable, PAGE_HEADER_WORDS } from './webgpuTilePageTable.ts';
 import { entryLevel, entryPlace, MAX_LEVELS, packEntry, tileLayout } from './textureTiles.ts';
+import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 
-Object.assign(globalThis, { GPUBufferUsage: { STORAGE: 128, COPY_DST: 8 } });
+installGpuGlobals();
 
 /** Un faux appareil : il journalise chaque écriture de tampon, en mots. */
 function fakeDevice() {

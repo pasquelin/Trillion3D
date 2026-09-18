@@ -10,6 +10,12 @@
  * La phase avance d'une image à l'autre pour que les seize pixels d'un carré aient tous parlé en
  * seize images ; une barrière qui doit converger demande tous les pixels d'un coup.
  */
+/** Le mot de phase : le bit `FEEDBACK_EVERY` demande tous les pixels ; sinon les deux bits bas
+ *  donnent la colonne et les deux suivants la ligne du pixel parlant dans chaque carré de
+ *  `FEEDBACK_STRIDE`, donc `FEEDBACK_EVERY` phases avant d'avoir entendu tout le carré. */
+export const FEEDBACK_STRIDE = 4;
+export const FEEDBACK_EVERY = FEEDBACK_STRIDE * FEEDBACK_STRIDE;
+
 export type WebgpuTileFeedback = {
   readonly buffer: GPUBuffer;
   readonly entries: number;
@@ -46,13 +52,15 @@ export function createWebgpuTileFeedback(device: Device, entries: number): Webgp
   const copied = [false, false],
     busy = [false, false];
   const inFlight = new Set<Promise<void>>();
+  // Les compteurs revenus, un tableau par tampon de lecture : rien n'est alloué par image.
+  const held = [0, 1].map(() => new Uint32Array(entries));
   let next = 0,
     phase = 0,
     latest: Uint32Array | undefined;
   return {
     buffer,
     entries,
-    phaseWord: (every) => (every ? 16 : 0) | phase,
+    phaseWord: (every) => (every ? FEEDBACK_EVERY : 0) | phase,
     encode(encoder) {
       if (busy[next] || copied[next]) return;
       encoder.copyBufferToBuffer(buffer, 0, staging[next], 0, bytes);
@@ -60,7 +68,7 @@ export function createWebgpuTileFeedback(device: Device, entries: number): Webgp
       copied[next] = true;
     },
     submitted() {
-      phase = (phase + 1) & 15;
+      phase = (phase + 1) % FEEDBACK_EVERY;
       if (!copied[next]) return;
       const rank = next;
       copied[rank] = false;
@@ -69,8 +77,9 @@ export function createWebgpuTileFeedback(device: Device, entries: number): Webgp
       const read = target
         .mapAsync(GPUMapMode.READ)
         .then(() => {
-          latest = new Uint32Array(target.getMappedRange().slice(0));
+          held[rank].set(new Uint32Array(target.getMappedRange(), 0, entries));
           target.unmap();
+          latest = held[rank];
         })
         .catch(() => undefined)
         .finally(() => {

@@ -1,5 +1,5 @@
-const go = (b) => (typeof b === 'number' ? `${(b / 1e9).toFixed(3)} Go` : 'non mesuré');
-const mo = (b) => (typeof b === 'number' ? `${(b / 1e6).toFixed(1)} Mo` : 'non mesuré');
+export const go = (b) => (typeof b === 'number' ? `${(b / 1e9).toFixed(3)} Go` : 'non mesuré');
+export const mo = (b) => (typeof b === 'number' ? `${(b / 1e6).toFixed(1)} Mo` : 'non mesuré');
 const n = (v) => (typeof v === 'number' ? String(v) : 'non mesuré');
 const n2 = (v) => (typeof v === 'number' ? v.toFixed(2) : 'non mesuré');
 

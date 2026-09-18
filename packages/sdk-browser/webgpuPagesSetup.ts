@@ -24,8 +24,6 @@ export const DEFAULT_FRAME_BUDGET = 288 * 1024 * 1024;
  * vue demande de plus attend qu'une tuile moins regardée se libère, et le relevé le publie.
  */
 const DEFAULT_TEXTURE_POOL_BUDGET = 512 * 1024 * 1024;
-/** Octets hôte des niveaux cuits décodés, tenus pour en découper d'autres tuiles. */
-const DEFAULT_LEVEL_CACHE_BYTES = 192 * 1024 * 1024;
 
 /** Couches par atlas que le budget donne ; refus nommé sous une couche par atlas. */
 export function texturePoolLayersFor(budgetBytes: number, device: GPUDevice | undefined) {
@@ -174,6 +172,5 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
       context.texturePoolBytes ?? DEFAULT_TEXTURE_POOL_BUDGET,
       gpuDevice,
     ),
-    textureLevelCacheBytes: DEFAULT_LEVEL_CACHE_BYTES,
   };
 }

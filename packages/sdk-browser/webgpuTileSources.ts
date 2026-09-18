@@ -18,6 +18,8 @@ const MAX_LEVEL_READS = 6;
  *  troisième texture attendent la passe suivante. Elles vivent jusqu'à la soumission de la passe :
  *  une copie encodée nomme sa texture, qui ne peut pas être détruite avant. */
 const MAX_SCRATCHES = 2;
+/** Octets hôte des niveaux cuits décodés, tenus pour en découper d'autres tuiles. */
+const LEVEL_CACHE_BYTES = 192 * 1024 * 1024;
 
 /**
  * D'où les texels d'une tuile viennent, et comment ils atteignent le pool : un niveau cuit décodé
@@ -30,7 +32,6 @@ const MAX_SCRATCHES = 2;
 export function createTileSources(options: {
   device: GPUDevice;
   readLevel?: TextureLevelReader;
-  levelCacheBytes: number;
   counters: TileCounters;
   onFailure: (phase: string, error: unknown) => void;
 }) {
@@ -38,7 +39,7 @@ export function createTileSources(options: {
   const levels = options.readLevel
     ? createWebgpuTileLevels({
         read: options.readLevel,
-        budgetBytes: options.levelCacheBytes,
+        budgetBytes: LEVEL_CACHE_BYTES,
         onFailure: (key: LevelKey, error) =>
           options.onFailure(
             `texture-level-read-failed ${key.sha256}/${key.atlas}/${key.level}`,

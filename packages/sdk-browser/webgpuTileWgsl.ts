@@ -1,7 +1,9 @@
 import { WRAP_COORD_WGSL } from './visibilityWrapModes.ts';
-import { POOL_LAYER_SIDE, TILE_BORDER, TILE_PITCH, TILE_SIZE } from './textureTiles.ts';
+import { MAX_LEVELS, POOL_LAYER_SIDE, TILE_BORDER, TILE_PITCH, TILE_SIZE } from './textureTiles.ts';
 import { PAGE_HEADER_WORDS, PAGE_SLOT_WORDS } from './webgpuTilePageTable.ts';
-import { MAX_LEVELS } from './textureTiles.ts';
+import { FEEDBACK_EVERY, FEEDBACK_STRIDE } from './webgpuTileFeedback.ts';
+
+const STRIDE_MASK = FEEDBACK_STRIDE - 1;
 
 /**
  * Les lectures de textures virtuelles partagées par toutes les passes : une indirection dans la
@@ -59,8 +61,8 @@ fn levelTexel(uv:vec2f,lsize:vec2f)->vec2f{return clamp(uv*lsize,vec2f(0.5),lsiz
 /** L'entrée d'un texel dans son niveau : sa tuile, en lignes de tuiles. */
 fn tileEntry(texel:vec2f,lsize:vec2f)->u32{return u32(texel.y/TEXEL_TILE)*u32(ceil(lsize.x/TEXEL_TILE))+u32(texel.x/TEXEL_TILE);}
 fn feedbackPhase(p:vec2f,word:u32)->bool{
- if((word&16u)!=0u){return true;}
- return ((u32(p.x)&3u)|((u32(p.y)&3u)<<2u))==(word&15u);
+ if((word&${FEEDBACK_EVERY}u)!=0u){return true;}
+ return ((u32(p.x)&${STRIDE_MASK}u)|((u32(p.y)&${STRIDE_MASK}u)<<2u))==(word&${FEEDBACK_EVERY - 1}u);
 }`;
 
 /**
@@ -114,13 +116,14 @@ fn ${k}SampleAt(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f)->vec4f{return ${k}Blend($
  * La lecture publique d'un atlas : `wrap` est le quartet d'adressage de la carte lue. Une seule
  * lecture hors couture, quatre mêlées sur la couture d'une période en répétition, où la règle de
  * l'échantillonneur mêlerait le dernier texel et le premier : c'est la lecture qui reboucle, pas la
- * coordonnée. `name + 'At'` est la lecture que `name` dispatche.
+ * coordonnée. `name + 'At'` est la lecture que `name` dispatche, aux dérivées de la passe.
  */
-const wrapped = (name: string, texels: string, args: string, call: string, out: string) => {
-  const at = `${name}At`;
-  return `fn ${name}(slot:u32,uv:vec2f,wrap:u32${args})->${out}{
+const wrapped = (name: string, k: 'color' | 'data', out: string) => {
+  const at = `${name}At`,
+    call = ',ddx,ddy';
+  return `fn ${name}(slot:u32,uv:vec2f,wrap:u32,ddx:vec2f,ddy:vec2f)->${out}{
  if(!wrapRepete(wrap)){return ${at}(slot,wrapReplie(uv,wrap)${call});}
- let t=wrapUv(uv,wrap,${texels}(slot));
+ let t=wrapUv(uv,wrap,${k}Texels(slot));
  if(!t.couture){return ${at}(slot,t.proche${call});}
  let s00=${at}(slot,t.proche${call});
  let s10=${at}(slot,vec2f(t.loin.x,t.proche.y)${call});
@@ -132,7 +135,7 @@ const wrapped = (name: string, texels: string, args: string, call: string, out: 
 
 /** Lecture de l'atlas couleur : `colorSample(slot, uv, wrap, ddx, ddy)`. */
 export const COLOR_SAMPLE_WGSL = `${kind('color')}
-${wrapped('colorSample', 'colorTexels', ',ddx:vec2f,ddy:vec2f', ',ddx,ddy', 'vec4f')}`;
+${wrapped('colorSample', 'color', 'vec4f')}`;
 
 /**
  * La découpe d'un matériau à masque : `maskAlpha(slot, uv, wrap, ddx, ddy)`, l'alpha de la carte de
@@ -143,11 +146,11 @@ ${wrapped('colorSample', 'colorTexels', ',ddx:vec2f,ddy:vec2f', ',ddx,ddy', 'vec
  */
 export const maskAlphaWgsl = (finest: boolean) =>
   `fn maskAlphaAt(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f)->f32{return colorBlend(colorSlot(slot),uv,ddx,ddy,${finest}).w;}
-${wrapped('maskAlpha', 'colorTexels', ',ddx:vec2f,ddy:vec2f', ',ddx,ddy', 'f32')}`;
+${wrapped('maskAlpha', 'color', 'f32')}`;
 
 /** Lecture de l'atlas de données : `dataSample(slot, uv, wrap, ddx, ddy)`. */
 export const DATA_SAMPLE_WGSL = `${kind('data')}
-${wrapped('dataSample', 'dataTexels', ',ddx:vec2f,ddy:vec2f', ',ddx,ddy', 'vec4f')}`;
+${wrapped('dataSample', 'data', 'vec4f')}`;
 
 /** Les déclarations d'un atlas : son pool et sa table de pages, aux liaisons que la disposition donne. */
 export const tileDeclarations = (bindings: { pool: number; pages: number }, name: string) =>

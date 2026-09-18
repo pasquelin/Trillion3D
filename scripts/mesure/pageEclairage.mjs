@@ -158,10 +158,13 @@ export async function measureView(options) {
   const selection = coupe.lireCoupe(explorer, options.engineId);
   // Les mesures du dernier relevé, `null` compris : une mesure tue serait indistinguable d'une
   // mesure absente, qu'un lecteur remplacerait par zéro — ce que le contrat interdit. Un relevé
-  // d'octets par étiquette ou par classe d'atlas est une table de nombres : il passe aussi.
+  // d'octets par étiquette est une table de nombres : il passe aussi.
   const scalaire = (v) => v === null || typeof v === 'number' || typeof v === 'boolean';
   const table = (v) =>
-    typeof v === 'object' && v !== null && Object.values(v).every((x) => typeof x === 'number');
+    typeof v === 'object' &&
+    v !== null &&
+    !Array.isArray(v) &&
+    Object.values(v).every((x) => typeof x === 'number');
   const metrics = Object.fromEntries(
     Object.entries(last ?? {}).filter(([, v]) => scalaire(v) || table(v)),
   );

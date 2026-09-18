@@ -107,11 +107,15 @@ export function installGpuDeviceLedger(device: LedgerDevice): GpuDeviceLedger {
   if (existing) return existing;
   const live = new Map<object, { label: string; bytes: number }>();
   let unknownFormats = 0;
+  // Le relevé est lu à chaque image de l'hôte, image tenue comprise : il n'est rebâti qu'après une
+  // allocation ou une destruction, jamais dans une scène immobile.
+  let held: GpuDeviceLedgerSnapshot | undefined;
   const track = <T extends { destroy(): void }>(resource: T, label: string, bytes: number) => {
     live.set(resource, { label, bytes });
+    held = undefined;
     const destroy = resource.destroy;
     resource.destroy = function (this: T) {
-      live.delete(resource);
+      if (live.delete(resource)) held = undefined;
       return destroy.call(this);
     };
     return resource;
@@ -127,6 +131,7 @@ export function installGpuDeviceLedger(device: LedgerDevice): GpuDeviceLedger {
     track(createBuffer(descriptor), descriptor.label ?? LABEL_NONE, descriptor.size);
   const ledger: GpuDeviceLedger = {
     snapshot() {
+      if (held) return held;
       const sums = new Map<string, number>();
       let bytes = 0;
       for (const entry of live.values()) {
@@ -134,7 +139,7 @@ export function installGpuDeviceLedger(device: LedgerDevice): GpuDeviceLedger {
         sums.set(entry.label, (sums.get(entry.label) ?? 0) + entry.bytes);
       }
       const byLabel = Object.fromEntries([...sums].sort((a, b) => b[1] - a[1]));
-      return { bytes, byLabel, unknownFormats, live: live.size };
+      return (held = { bytes, byLabel, unknownFormats, live: live.size });
     },
   };
   ledgers.set(device, ledger);

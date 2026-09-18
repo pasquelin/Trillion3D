@@ -77,7 +77,6 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     layersPerAtlas: rt.setup.texturePoolLayers,
     budgetBytes: rt.setup.textureBudget,
     readLevel,
-    levelCacheBytes: rt.setup.textureLevelCacheBytes,
     onFailure: diag.diagnosticFailure,
     onColorChanged: () => {
       // Origine du changement de ressources : une tuile de couleur vient d'atteindre le pool ou de

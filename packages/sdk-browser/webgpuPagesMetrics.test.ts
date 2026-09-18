@@ -23,6 +23,7 @@ test('metricsOf publie drawnTriangles depuis run.drawnTriangles, même quand sub
     timing: {},
     blendState: createWebgpuBlendState(),
     services: { bootstrapState: { ready: true } },
+    setup: { frameBudget: 0 },
     lights: createWebgpuLightState(),
   } as unknown as WebgpuPagesRuntime;
 
@@ -39,6 +40,7 @@ test('les métriques de textures sont celles du diffuseur, et `null` tant qu’i
     timing: {},
     blendState: createWebgpuBlendState(),
     services: { bootstrapState: { ready: true } },
+    setup: { frameBudget: 0 },
     lights: createWebgpuLightState(),
   } as unknown as WebgpuPagesRuntime;
   const before = metricsOf(rt) as Record<string, unknown>;

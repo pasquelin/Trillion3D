@@ -40,9 +40,9 @@ export function sectionMemoire(ex) {
     ['images sources (host)', h],
   ].map(([libelle, x]) => [
     libelle,
-    octets(x?.texturesAtlas),
+    octets(x?.texturesPool),
     octets(x?.texturesEngagees),
-    `${nombre(x?.texturesNiveauVoulu, 0)} / ${nombre(x?.texturesCouches, 0)}`,
+    `${nombre(x?.tuilesAuNiveau, 0)} / ${nombre(x?.tuilesDemandees, 0)}`,
     nombre(x?.texturesEvictions, 0),
     x?.reseau ? `png ${octets(x.reseau.png)}, bin ${octets(x.reseau.bin)}` : 'non mesuré',
     secondes(x?.preparationMs),
@@ -79,9 +79,9 @@ export function sectionMemoire(ex) {
     tableau(
       [
         'Source',
-        'Atlas calculé',
+        'Pool de tuiles',
         'Engagé',
-        'Couches au niveau voulu / total',
+        'Tuiles au niveau voulu / demandées',
         'Évictions',
         'Réseau',
         'Préparation',

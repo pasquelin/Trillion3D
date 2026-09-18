@@ -71,6 +71,7 @@ function tenue() {
     },
     vis: { visEnabled: true, gpuDraw: {}, textureJobs: [], gpuHiz: undefined },
     capture: { secondaryCamera: undefined, capturePending: undefined },
+    setup: { frameBudget: 0 },
     services: {
       bootstrapState: { ready: true },
       residency: { busy: false },
