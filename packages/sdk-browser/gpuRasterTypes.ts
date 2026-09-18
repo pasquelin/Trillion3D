@@ -18,6 +18,9 @@ export type GpuRasterInput = {
   idsView: GPUTextureView;
   depthView: GPUTextureView;
   hizView?: GPUTextureView;
+  /** Vrai quand l'image a une moitié testée : la profondeur des occulteurs se fond alors avant la
+   *  pyramide, dans le niveau zéro et le tampon. */
+  tested: boolean;
   selection?: { maskBuffer: GPUBuffer; maskOffset: number };
   groups: Array<unknown>;
   groupKey: number;

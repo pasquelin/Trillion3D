@@ -111,7 +111,8 @@ export function createRasterResolves(
     };
   };
   return {
-    /** La profondeur des occulteurs, telle que la pyramide la réduit. Rien d'autre n'est écrit. */
+    /** La profondeur des occulteurs du calcul, dans le niveau zéro que la pyramide réduit et dans le
+     *  tampon de profondeur ; aucun identifiant. */
     encodeHiz(encoder: GPUCommandEncoder, input: GpuRasterInput, width: number, height: number) {
       refresh(input);
       const pass = encoder.beginRenderPass(hizPass!);

@@ -1,7 +1,7 @@
 /**
  * Le contrat du raster de calcul : une seule écriture des nombres que le WGSL et l'encodeur lisent
- * tous les deux. Le raster couvre TOUS les triangles opaques et masqués de la coupe ; le mélange
- * garde sa passe matérielle.
+ * tous les deux. Le raster prend la part de la coupe opaque et masquée que le partage lui donne,
+ * jusqu'à toute la coupe ; le mélange garde sa passe matérielle.
  *
  * Quatre classes de taille, deux listes. Une classe dit combien de pixels un groupe de soixante-
  * quatre fils couvre d'un coup, jamais ce qu'un triangle vaut : la classe se lit sur la boîte
@@ -16,39 +16,44 @@ export const DISPATCH_SPAN = 65535;
 /** Côté du pavé de la classe fine, et triangles qu'un groupe de soixante-quatre fils y traite. */
 export const FINE_SIDE = 4;
 
-/**
- * Le partage petits/grands de la référence : un triangle dont la boîte d'écran, serrée à l'image,
- * ne dépasse pas `computeSpan` pixels part au raster de calcul, les autres au matériel. Zéro :
- * le matériel dessine tout ; `COMPUTE_ALL` : le calcul prend toute la coupe, plan proche compris.
- * Un triangle qu'un sommet met derrière le plan proche reste au matériel, qui le coupe lui-même.
- */
-export const COMPUTE_ALL = 1e9;
-
-/**
- * Le prédicat du partage, le même texte dans les deux rasters : ils lisent les mêmes sommets, le
- * même produit hissé `viewProj*world`, la même boîte — et se partagent la coupe sans trou ni
- * doublon. Exige `uni.viewport`, `uni.computeSpan` et `screen`.
- */
-export const SCREEN_WGSL = `fn screen(p:vec4f)->vec2f{return vec2f((p.x/p.w*0.5+0.5)*uni.viewport.x,(1.0-(p.y/p.w*0.5+0.5))*uni.viewport.y);}`;
-export const COMPUTE_TAKES_WGSL = `
-struct ScreenBox{lo:vec2f,hi:vec2f,q0:vec2f,q1:vec2f,span:f32,}
-fn screenBox(a:vec2f,b:vec2f,c:vec2f)->ScreenBox{
- let lo=min(a,min(b,c));let hi=max(a,max(b,c));
- let last=uni.viewport-vec2f(1.0);
- let q0=clamp(floor(lo),vec2f(0.0),last);let q1=clamp(floor(hi),vec2f(0.0),last);
- return ScreenBox(lo,hi,q0,q1,max(q1.x-q0.x,q1.y-q0.y));
-}
-fn computeTakes(ca:vec4f,cb:vec4f,cc:vec4f)->bool{
- if(uni.computeSpan>=${COMPUTE_ALL}){return true;}
- if(uni.computeSpan<=0.0||ca.w-ca.z<0.0||cb.w-cb.z<0.0||cc.w-cc.z<0.0){return false;}
- return screenBox(screen(ca),screen(cb),screen(cc)).span<=uni.computeSpan;
-}`;
 export const FINE_PER_GROUP = 64 / (FINE_SIDE * FINE_SIDE);
 /** Côté du pavé d'un groupe complet : la classe moyenne tient dans un seul, la grande en boucle. */
 export const TILE = 8;
 /** Pavés qu'un groupe de la grande classe parcourt au plus, donc son étendue maximale en pixels. */
 const LARGE_TILES = 8;
 export const LARGE_SPAN = TILE * LARGE_TILES - 1;
+/** Étendue maximale d'une boîte de la classe fine : un pavé de `FINE_SIDE` pixels de côté. */
+export const FINE_SPAN = FINE_SIDE - 1;
+
+/**
+ * Le partage petits/grands de la référence : un triangle dont la boîte d'écran, serrée à l'image,
+ * ne dépasse pas `computeSpan` pixels part au raster de calcul, les autres au matériel. Zéro :
+ * le matériel dessine tout. `COMPUTE_ALL` est un mode, pas une étendue infinie : le calcul prend
+ * alors aussi les triangles qu'un sommet met derrière le plan proche, qu'un seuil laisse toujours
+ * au matériel, qui les coupe lui-même.
+ */
+export const COMPUTE_ALL = 1e9;
+
+/**
+ * Le prédicat du partage, le même texte dans les deux rasters : ils lisent les mêmes sommets, le
+ * même produit hissé `viewProj*world`, la même boîte — et se partagent la coupe sans trou ni
+ * doublon. Exige `uni.viewport` et `uni.computeSpan`.
+ */
+export const COMPUTE_TAKES_WGSL = `
+fn screen(p:vec4f)->vec2f{return vec2f((p.x/p.w*0.5+0.5)*uni.viewport.x,(1.0-(p.y/p.w*0.5+0.5))*uni.viewport.y);}
+struct ScreenBox{lo:vec2f,hi:vec2f,q0:vec2f,q1:vec2f,span:f32,}
+/** La boîte serrée à l'image d'une étendue d'écran, et son étendue en pixels entiers. */
+fn boxOf(lo:vec2f,hi:vec2f)->ScreenBox{
+ let last=uni.viewport-vec2f(1.0);
+ let q0=clamp(floor(lo),vec2f(0.0),last);let q1=clamp(floor(hi),vec2f(0.0),last);
+ return ScreenBox(lo,hi,q0,q1,max(q1.x-q0.x,q1.y-q0.y));
+}
+fn screenBox(a:vec2f,b:vec2f,c:vec2f)->ScreenBox{return boxOf(min(a,min(b,c)),max(a,max(b,c)));}
+fn computeTakes(ca:vec4f,cb:vec4f,cc:vec4f)->bool{
+ if(uni.computeSpan>=${COMPUTE_ALL}){return true;}
+ if(uni.computeSpan<=0.0||ca.w-ca.z<0.0||cb.w-cb.z<0.0||cc.w-cc.z<0.0){return false;}
+ return screenBox(screen(ca),screen(cb),screen(cc)).span<=uni.computeSpan;
+}`;
 
 /** Les mots que la liste réserve avant ses entrées : quatre comptes, la hauteur en pavés la plus
  *  grande de l'image, puis les quatre lancements que le noyau `plan` en déduit. */

@@ -39,9 +39,9 @@ export const DIAGNOSTIC_GPU_VARIANTS = [
    *  production ; sans elle, le raster matériel dessine. Deux côtés qui ne diffèrent que par elle
    *  donnent, à la même taille, l'enveloppe et l'écart d'image du calcul contre le matériel. */
   'raster-calcul',
-  /** Le partage de la référence : les triangles dont la boîte tient dans `COMPUTE_SPAN` pixels
-   *  au raster de calcul, tous les autres au matériel. C'est le candidat à la production ; il n'y
-   *  entre que si l'enveloppe le dit. */
+  /** Le partage de la référence : les triangles de la classe fine du raster — une boîte de trois
+   *  pixels de côté au plus — au raster de calcul, tous les autres au matériel. C'est le candidat
+   *  à la production ; il n'y entre que si l'enveloppe le dit. */
   'raster-hybride',
   /** La résolution des surfaces ne lit rien et rend une valeur constante. */
   'resolution-plate',

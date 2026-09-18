@@ -8,7 +8,7 @@ import {
 import { ATLAS_SLOTS_WGSL, COLOR_ALPHA_WGSL, atlasTextures } from './webgpuAtlasWgsl.ts';
 import { VIS_BINDINGS } from './webgpuBindLayout.ts';
 import { HIZ_REJECTED_WGSL } from './gpuPartitionContract.ts';
-import { COMPUTE_TAKES_WGSL, SCREEN_WGSL } from './gpuRasterContract.ts';
+import { COMPUTE_ALL, COMPUTE_TAKES_WGSL } from './gpuRasterContract.ts';
 
 /**
  * Le raster matériel du tampon de visibilité, producteur de l'image opaque et masquée. Sous le
@@ -35,11 +35,13 @@ ${PAGE_LOOKUP_WGSL}
 struct VSOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) id:u32,@location(1) @interpolate(flat) instance:u32,@location(2) uv:vec2f,}
 ${PAGE_VERTEX_WGSL}
 ${PAGE_MASK_WGSL}
-${SCREEN_WGSL}
 ${COMPUTE_TAKES_WGSL}
-/** Vrai quand le raster de calcul prend ce triangle : le matériel ne le dessine pas. */
-fn leftToCompute(page:PageInfo,triangle:u32)->bool{
+/** Vrai quand le matériel ne dessine pas ce sommet : hors de la page, ou d'un triangle que le
+ *  raster de calcul prend. Sans partage, ni sous \`COMPUTE_ALL\`, aucun sommet de plus n'est lu. */
+fn hardwareSkips(page:PageInfo,vertexIndex:u32)->bool{
+ if(vertexIndex>=page.indexCount||uni.computeSpan>=${COMPUTE_ALL}){return true;}
  if(uni.computeSpan<=0.0){return false;}
+ let triangle=vertexIndex/3u;
  let ia=indices[page.pageOffset+triangle*3u];let ib=indices[page.pageOffset+triangle*3u+1u];let ic=indices[page.pageOffset+triangle*3u+2u];
  let vp=uni.viewProj*page.world;
  return computeTakes(vp*vec4f(vertPos(page.vertexBase,ia),1.0),vp*vec4f(vertPos(page.vertexBase,ib),1.0),vp*vec4f(vertPos(page.vertexBase,ic),1.0));
@@ -49,7 +51,7 @@ fn leftToCompute(page:PageInfo,triangle:u32)->bool{
  let pageIndex=drawPage(instanceIndex);
  let page=pages[pageIndex];
  out.instance=pageIndex;out.uv=vec2f(0.0);
- if(vertexIndex>=page.indexCount||leftToCompute(page,vertexIndex/3u)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
+ if(hardwareSkips(page,vertexIndex)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  let id=indices[page.pageOffset+vertexIndex];
  let p=vertPos(page.vertexBase,id);
  let world=page.world*vec4f(p,1.0);
@@ -64,7 +66,7 @@ fn leftToCompute(page:PageInfo,triangle:u32)->bool{
  let page=pages[pageIndex];
  out.instance=pageIndex;out.uv=vec2f(0.0);
  if(hizRejected(page.hizSlot)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
- if(vertexIndex>=page.indexCount||leftToCompute(page,vertexIndex/3u)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
+ if(hardwareSkips(page,vertexIndex)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  let id=indices[page.pageOffset+vertexIndex];
  let p=vertPos(page.vertexBase,id);
  let world=page.world*vec4f(p,1.0);
