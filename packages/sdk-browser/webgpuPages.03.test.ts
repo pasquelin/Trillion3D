@@ -10,7 +10,7 @@ import { packDagSelection } from './gpuDagSelection.ts';
 import { MODE_ID, rasterEntry } from './gpuRasterContract.ts';
 import { drawnPageIds, installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
-import { quadScene, camera, mixedBinScene } from './webgpuPagesTestScenes.ts';
+import { quadScene, camera, mixedBinScene, quadBackend } from './webgpuPagesTestScenes.ts';
 
 test('webgpu pages raster consumes the GPU cache and does not attach a mesh per visible page', async () => {
   installGpuGlobals();
@@ -126,19 +126,12 @@ test('webgpu page raster matches the WebGL2 exact-pages triangles', async () => 
 test('webgpu pages refuse an incomplete surface when the visible set exceeds the slot budget', async () => {
   installGpuGlobals();
   const { device, draws } = mockGpu();
-  const { source, metadata, indices, associations, geometry, material } = quadScene();
-  const backend = webgpuPagesBackend({
-    source,
-    metadata,
-    indices,
-    associations,
-    gpuDevice: device,
+  const { fixture, backend } = quadBackend(device, {
     maxResidentPages: 1,
-    viewport: [32, 32],
   });
   await assert.rejects(backend.prepare(), /INITIAL_COVERAGE_BUDGET/);
   assert.equal(draws.length, 0);
   backend.dispose();
-  geometry.dispose();
-  material.dispose();
+  fixture.geometry.dispose();
+  fixture.material.dispose();
 });

@@ -133,7 +133,7 @@ fn a_concave_polygon_keeps_its_own_area() {
         sharp: vec![true],
         sharp_corners: Vec::new(),
     };
-    let mut out = Out::new();
+    let mut out = Out::default();
     let normals = normals::corners(&geometry.surface()).normals;
     let (mesh, triangles) = build::mesh_json(
         &geometry,

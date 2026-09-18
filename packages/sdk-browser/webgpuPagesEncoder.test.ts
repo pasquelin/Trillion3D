@@ -4,24 +4,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { webgpuPagesBackend } from './webgpuPages.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
-import { quadScene, camera } from './webgpuPagesTestScenes.ts';
+import { camera, quadBackend } from './webgpuPagesTestScenes.ts';
 
 test('encoding-submit : la pose tracée est celle de la caméra du moteur, pas la pose locale de la caméra hôte', async () => {
   installGpuGlobals();
   const events: Array<{ phase: string; context: Record<string, unknown> }> = [];
-  const fixture = quadScene();
   const { device } = mockGpu();
-  const backend = webgpuPagesBackend({
-    ...fixture,
-    gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
+  const { fixture, backend } = quadBackend(device, {
     diagnosticDetail: 'trace' as never,
     onDiagnostic: (event) => events.push(event),
-  } as never);
+  });
   try {
     await backend.prepare();
     // Rig que personne d'autre ne remonte : la caméra hôte locale reste à l'origine, seul le rig
@@ -61,16 +55,11 @@ test('encoding-submit : la pose tracée est celle de la caméra du moteur, pas l
 test('encoding-submit : drawnTriangles publie run.drawnTriangles, jamais null une fois l’image soumise', async () => {
   installGpuGlobals();
   const events: Array<{ phase: string; context: Record<string, unknown> }> = [];
-  const fixture = quadScene();
   const { device } = mockGpu();
-  const backend = webgpuPagesBackend({
-    ...fixture,
-    gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
+  const { fixture, backend } = quadBackend(device, {
     diagnosticDetail: 'trace' as never,
     onDiagnostic: (event) => events.push(event),
-  } as never);
+  });
   try {
     await backend.prepare();
     const cam = camera();

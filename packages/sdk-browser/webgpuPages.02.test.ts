@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
-import { quadScene, camera } from './webgpuPagesTestScenes.ts';
+import { quadScene, camera, quadBackend } from './webgpuPagesTestScenes.ts';
 
 test('trace failure diagnostics retain bounded stack and cause context', async () => {
   installGpuGlobals();
@@ -85,16 +85,7 @@ test('texture uploads obey the per-frame source-byte budget, and a flush settles
 test('vis pipeline layout stores the page table at binding 2', async () => {
   installGpuGlobals();
   const { device, layouts } = mockGpu();
-  const { source, metadata, indices, associations, geometry, material } = quadScene();
-  const backend = webgpuPagesBackend({
-    source,
-    metadata,
-    indices,
-    associations,
-    gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
-  });
+  const { fixture, backend } = quadBackend(device);
   await backend.prepare();
   const visLayout = layouts.find(
     (layout) =>
@@ -110,23 +101,14 @@ test('vis pipeline layout stores the page table at binding 2', async () => {
   );
   assert.equal(visLayout.entries.find((entry) => entry.binding === 4)?.buffer?.type, 'uniform');
   backend.dispose();
-  geometry.dispose();
-  material.dispose();
+  fixture.geometry.dispose();
+  fixture.material.dispose();
 });
 
 test('vis draws instance each packed page from the page table', async () => {
   installGpuGlobals();
   const { device, draws } = mockGpu();
-  const { source, metadata, indices, associations, geometry, material } = quadScene();
-  const backend = webgpuPagesBackend({
-    source,
-    metadata,
-    indices,
-    associations,
-    gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
-  });
+  const { fixture, backend } = quadBackend(device);
   await backend.prepare();
   backend.render(camera());
   await backend.flush?.();
@@ -135,23 +117,14 @@ test('vis draws instance each packed page from the page table', async () => {
   assert.ok(instances.has(0));
   assert.ok(instances.has(1));
   backend.dispose();
-  geometry.dispose();
-  material.dispose();
+  fixture.geometry.dispose();
+  fixture.material.dispose();
 });
 
 test('webgpu map atlas is a Chrome copyExternalImageToTexture destination', async () => {
   installGpuGlobals();
   const { device, textures } = mockGpu();
-  const { source, metadata, indices, associations, geometry, material } = quadScene();
-  const backend = webgpuPagesBackend({
-    source,
-    metadata,
-    indices,
-    associations,
-    gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
-  });
+  const { fixture, backend } = quadBackend(device);
   await backend.prepare();
   const atlas = textures.find((texture) => texture.depthOrArrayLayers > 1);
   assert.ok(atlas);
@@ -159,6 +132,6 @@ test('webgpu map atlas is a Chrome copyExternalImageToTexture destination', asyn
     GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT;
   assert.equal((atlas.usage ?? 0) & need, need);
   backend.dispose();
-  geometry.dispose();
-  material.dispose();
+  fixture.geometry.dispose();
+  fixture.material.dispose();
 });

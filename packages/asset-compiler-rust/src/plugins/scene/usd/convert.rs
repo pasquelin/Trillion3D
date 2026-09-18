@@ -20,26 +20,15 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         usize::try_from(fs::metadata(file)?.len()).unwrap_or(usize::MAX),
         &crate::hash_file(file)?,
     );
-    let counts = traverse(&mut scene, &stage, &images, request);
-    if request.cancelled.load(Ordering::Relaxed) {
-        return Err(CompilerError::new("CANCELLED", "Import cancelled"));
-    }
-    if !scene.nodes.iter().any(|node| node.get("mesh").is_some()) {
-        return Err(CompilerError::new(
-            "IMPORT_EMPTY",
-            "usd: no visible mesh in this layer",
-        ));
-    }
-    let directory = request
-        .cache
-        .join("native")
-        .join("imports")
-        .join(scene.key());
-    let written = scene.write(plugin, &directory, file, started)?;
-    (request.progress)(
-        json!({"phase":"import-source","step":"complete","plugin":NAME,"counts":counts,"ms":started.elapsed().as_secs_f64()*1000.0}),
-    );
-    Ok(written)
+    traverse(&mut scene, &stage, &images, request);
+    super::finish(
+        scene,
+        request,
+        plugin,
+        file,
+        started,
+        "usd: no visible mesh in this layer",
+    )
 }
 
 /// Ouvre la couche composée. Une couche illisible s'arrête ici, nommée, sans rien avoir écrit.
@@ -52,13 +41,8 @@ fn open(file: &Path) -> Result<usd::Stage> {
     })
 }
 
-/// Parcourt la scène composée et remplit les tables. Rend ce que le rapport publie en clair.
-fn traverse(
-    scene: &mut Scene,
-    stage: &usd::Stage,
-    images: &Path,
-    request: &SceneRequest<'_>,
-) -> BTreeMap<&'static str, usize> {
+/// Parcourt la scène composée et remplit les tables.
+fn traverse(scene: &mut Scene, stage: &usd::Stage, images: &Path, request: &SceneRequest<'_>) {
     let mut world = World {
         stage,
         scene,
@@ -81,7 +65,6 @@ fn traverse(
         "children": children,
     });
     world.scene.node(root);
-    world.scene.counts.clone()
 }
 
 /// Les prims par lesquels le parcours commence : toutes les racines de la scène. `defaultPrim`

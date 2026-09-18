@@ -5,30 +5,21 @@ import { collectClusterPages, selectVisiblePages } from './pageSelection.ts';
 import { packDagSelection } from './gpuDagSelection.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
-import { quadScene, camera } from './webgpuPagesTestScenes.ts';
+import { quadScene, camera, quadBackend } from './webgpuPagesTestScenes.ts';
 import { coarseQuadScene } from './webgpuPagesTestOccluder.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 
 test('webgpu pages without compute keep the CPU cut and report gpuDriven false', async () => {
   installGpuGlobals();
   const { device } = mockGpu();
-  const { source, metadata, indices, associations, geometry, material } = quadScene();
-  const backend = webgpuPagesBackend({
-    source,
-    metadata,
-    indices,
-    associations,
-    gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
-  });
+  const { fixture, backend } = quadBackend(device);
   await backend.prepare();
   assert.equal(backend.capabilities.gpuDriven, false);
   backend.render(camera());
   assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1']);
   backend.dispose();
-  geometry.dispose();
-  material.dispose();
+  fixture.geometry.dispose();
+  fixture.material.dispose();
 });
 
 test('webgpu compute selection page ids match the CPU oracle for the same camera and pixelError', async () => {

@@ -39,27 +39,14 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
             world.scene.roots.extend(attached);
         }
     }
-    if request.cancelled.load(Ordering::Relaxed) {
-        return Err(CompilerError::new("CANCELLED", "Import cancelled"));
-    }
-    if !scene.nodes.iter().any(|node| node.get("mesh").is_some()) {
-        return Err(CompilerError::new(
-            "IMPORT_EMPTY",
-            format!("alembic: {} carries no polygonal mesh", file.display()),
-        ));
-    }
     // La clé tient l'empreinte du fichier lu : une archive inchangée se réécrit à l'identique, au
     // même endroit, et une archive modifiée n'hérite jamais de ce que la précédente avait écrit.
-    let directory = request
-        .cache
-        .join("native")
-        .join("imports")
-        .join(scene.key());
-    let counts = scene.counts.clone();
-    let written = scene.write(plugin, &directory, file, started)?;
-    (request.progress)(
-        json!({"phase":"import-source","step":"complete","plugin":NAME,
-        "counts":counts,"ms":started.elapsed().as_secs_f64() * 1000.0}),
-    );
-    Ok(written)
+    super::finish(
+        scene,
+        request,
+        plugin,
+        file,
+        started,
+        &format!("alembic: {} carries no polygonal mesh", file.display()),
+    )
 }

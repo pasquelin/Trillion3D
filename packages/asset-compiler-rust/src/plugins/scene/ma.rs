@@ -35,12 +35,7 @@ use super::*;
 use crate::import::{Report, SceneTables as Scene};
 use crate::CompilerError;
 use serde_json::json;
-use std::{
-    collections::{BTreeMap, HashMap},
-    fs,
-    sync::atomic::Ordering,
-    time::Instant,
-};
+use std::{collections::HashMap, fs, sync::atomic::Ordering, time::Instant};
 
 mod attr;
 mod build;

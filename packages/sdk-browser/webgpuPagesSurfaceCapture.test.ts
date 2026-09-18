@@ -4,21 +4,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { webgpuPagesBackend } from './webgpuPages.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
-import { quadScene, camera } from './webgpuPagesTestScenes.ts';
+import { camera, quadBackend } from './webgpuPagesTestScenes.ts';
 
 test('captureSurfaceView : cameraWorld est la pose monde sous un rig, pas la pose locale de la caméra hôte', async () => {
   installGpuGlobals();
   const { device } = mockGpu();
-  const fixture = quadScene();
-  const backend = webgpuPagesBackend({
-    ...fixture,
-    gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
-  });
+  const { fixture, backend } = quadBackend(device);
   try {
     await backend.prepare();
     const main = camera();

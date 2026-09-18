@@ -13,6 +13,7 @@ const ARRAY_BUFFER: u32 = 34962;
 const ELEMENT_ARRAY_BUFFER: u32 = 34963;
 
 /// La scène intermédiaire en construction.
+#[derive(Default)]
 pub(super) struct Out {
     pub(super) nodes: Vec<Value>,
     pub(super) meshes: Vec<Value>,
@@ -33,26 +34,6 @@ pub(super) struct Out {
 }
 
 impl Out {
-    pub(super) fn new() -> Out {
-        Out {
-            nodes: Vec::new(),
-            meshes: Vec::new(),
-            materials: Vec::new(),
-            accessors: Vec::new(),
-            images: Vec::new(),
-            samplers: Vec::new(),
-            textures: Vec::new(),
-            lights: Vec::new(),
-            bin: Bin {
-                bytes: Vec::new(),
-                views: Vec::new(),
-            },
-            report: Report::default(),
-            counts: BTreeMap::new(),
-            roots: Vec::new(),
-            triangles: 0,
-        }
-    }
     pub(super) fn count(&mut self, what: &'static str, by: usize) {
         *self.counts.entry(what).or_insert(0) += by;
     }

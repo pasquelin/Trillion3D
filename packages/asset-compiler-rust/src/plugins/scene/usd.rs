@@ -26,7 +26,7 @@ use crate::CompilerError;
 use openusd::{sdf, usd};
 use serde_json::json;
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeSet, HashMap},
     fs,
     sync::atomic::Ordering,
     time::Instant,

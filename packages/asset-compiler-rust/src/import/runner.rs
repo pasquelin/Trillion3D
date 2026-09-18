@@ -85,10 +85,7 @@ pub fn import_source(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Re
         textures: Vec::new(),
         sampler_ids: HashMap::new(),
         lights: Vec::new(),
-        bin: Bin {
-            bytes: Vec::new(),
-            views: Vec::new(),
-        },
+        bin: Bin::default(),
         report: Report::default(),
         triangles: 0,
         mesh_nodes: 0,

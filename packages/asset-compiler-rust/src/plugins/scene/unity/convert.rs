@@ -49,7 +49,7 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         json!({"phase":"import-source","step":"scan","plugin":NAME,"metaFiles":project.meta_files}),
     );
     let mut scene = Scene::new(plugin);
-    let counts = {
+    {
         let mut world = World {
             scene: &mut scene,
             project: &project,
@@ -59,29 +59,17 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         };
         traverse(&mut world, file)?;
         world.scene.count("metaFiles", project.meta_files);
-        world.scene.counts.clone()
-    };
-    if request.cancelled.load(Ordering::Relaxed) {
-        return Err(CompilerError::new("CANCELLED", "Import cancelled"));
-    }
-    if !scene.nodes.iter().any(|node| node.get("mesh").is_some()) {
-        return Err(CompilerError::new(
-            "IMPORT_EMPTY",
-            "unity: no visible mesh instance in this scene",
-        ));
     }
     // La clé tient l'empreinte de chaque fichier de données lu et celle de chaque modèle importé :
     // une scène inchangée se réécrit à l'identique, au même endroit.
-    let directory = request
-        .cache
-        .join("native")
-        .join("imports")
-        .join(scene.key());
-    let written = scene.write(plugin, &directory, file, started)?;
-    (request.progress)(
-        json!({"phase":"import-source","step":"complete","plugin":NAME,"counts":counts,"ms":crate::shared_math::elapsed_ms(started)}),
-    );
-    Ok(written)
+    super::finish(
+        scene,
+        request,
+        plugin,
+        file,
+        started,
+        "unity: no visible mesh instance in this scene",
+    )
 }
 
 /// Parcourt la scène depuis ses racines.
