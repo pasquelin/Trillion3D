@@ -19,10 +19,9 @@
 // machine au début et à la fin de chaque série. C'est à l'appelant de juger si elle était calme.
 // =====================================================================================
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import { chromium } from 'playwright';
+import { lancerChrome } from './chrome.mjs';
 import * as options from './options.mjs';
 import { startServer } from './serveur.mjs';
 import { readBounds } from './page.mjs';
@@ -41,7 +40,6 @@ const {
 const CTX = { MANIFEST: null, OUT, settings, lights: null, poses: null };
 
 async function main() {
-  if (!existsSync(options.CHROME)) throw new Error(`Chrome absent : ${options.CHROME}`);
   await mkdir(OUT, { recursive: true });
   const sides = options.resolveSides({
     apres: flags.get('apres'),
@@ -92,11 +90,7 @@ async function main() {
   // rend pas, et la troisième série n'obtient plus de contexte (« WebGL2 unavailable »). Relancer
   // le navigateur libère le processus GPU entre deux séries.
   const onFreshPage = async (run) => {
-    const browser = await chromium.launch({
-      headless: !settings.visible,
-      executablePath: options.CHROME,
-      args: FLAGS,
-    });
+    const browser = await lancerChrome({ headless: !settings.visible, args: FLAGS });
     const page = await browser.newPage({
       viewport: { width: settings.width, height: settings.height },
     });

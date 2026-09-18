@@ -16,7 +16,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { chromium } from 'playwright';
+import { lancerChrome } from '../../scripts/mesure/chrome.mjs';
 import { empaquetePage } from '../justesse/pageWebgpu.mjs';
 import { startServer } from '../../scripts/mesure/serveur.mjs';
 import { ASSETS, DEFAULT_SCENE, assetsManifest } from '../../scripts/mesure/scene.mjs';
@@ -76,7 +76,7 @@ const mounts = [
 
 const server = await startServer({ port: 0, mounts, captures: new Map() });
 const port = server.address().port;
-const browser = await chromium.launch({ headless: true, channel: 'chrome' });
+const browser = await lancerChrome({ headless: true });
 let resultat;
 const erreursPage = [];
 try {

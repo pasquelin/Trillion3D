@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
-import { chromium } from 'playwright';
+import { lancerChrome } from '../../scripts/mesure/chrome.mjs';
 import { writeFile } from 'node:fs/promises';
 import { adresseDuLab, routeBrowserFixtures } from '../appui/browserFixtureServer.mjs';
 const labUrl = adresseDuLab();
-const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const browser = await lancerChrome({ headless: true });
 try {
   const page = await browser.newPage();
   page.on('console', (m) => {

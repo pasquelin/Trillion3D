@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { chromium } from 'playwright';
+import { lancerChrome } from '../../scripts/mesure/chrome.mjs';
 import { dirname, resolve } from 'node:path';
 import { adresseDuLab, routeBrowserFixtures } from '../appui/browserFixtureServer.mjs';
 
@@ -28,7 +28,7 @@ const report = {
   errors: [],
   checks: [],
 };
-const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const browser = await lancerChrome({ headless: true });
 try {
   const page = await browser.newPage();
   // Use Lab's module server without starting its dashboard or another renderer.
