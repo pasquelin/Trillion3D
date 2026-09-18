@@ -1164,9 +1164,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/gpuPartitionUniform.ts": {
-    "mtime": 1789554835.7742844,
-    "seen": 1789652705.190685,
-    "ast_hash": "0f0e5913e011da8a10f9b9c7c5930bc3",
+    "mtime": 1789716177.270672,
+    "seen": 1789716212.901921,
+    "ast_hash": "6fcf39869cf98a8d8461207446ddf156",
     "semantic_hash": ""
   },
   "packages/sdk-browser/gpuTiming.ts": {
@@ -1986,9 +1986,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPagesCpuSteps.ts": {
-    "mtime": 1789588958.3478382,
-    "seen": 1789652705.191013,
-    "ast_hash": "81c9b1cdc4642f5e85cdabd829afa816",
+    "mtime": 1789716177.271383,
+    "seen": 1789716212.9022841,
+    "ast_hash": "c09730c4b54b5742ef5757baef0cafb4",
     "semantic_hash": ""
   },
   "packages/sdk-browser/capabilities.ts": {
@@ -3708,9 +3708,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuShadowBounds.ts": {
-    "mtime": 1789551692.6889489,
-    "seen": 1789652705.191099,
-    "ast_hash": "0ad56035e3ced1d38742a38e3e93419c",
+    "mtime": 1789716177.2721562,
+    "seen": 1789716212.9023921,
+    "ast_hash": "e3cfba2209669a164551bb945d039a65",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPages.10.test.ts": {
@@ -4866,9 +4866,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/bench/oracles/formules-ts.mjs": {
-    "mtime": 1789517244.5564454,
-    "seen": 1789652705.190426,
-    "ast_hash": "e7d1d0379d10fd75f7b8873c9b06333a",
+    "mtime": 1789716177.2690563,
+    "seen": 1789716212.901597,
+    "ast_hash": "e3f73779c96e1834d7d7e6ed348eb1b3",
     "semantic_hash": ""
   },
   "packages/sdk-browser/bench/oracles/occlusion.mjs": {
@@ -9288,9 +9288,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/bench/appui/scenesFormules.mjs": {
-    "mtime": 1789650634.9732764,
-    "seen": 1789652705.19039,
-    "ast_hash": "2693085c67fdd341ace8e7060dbd8926",
+    "mtime": 1789716177.2674022,
+    "seen": 1789716212.901551,
+    "ast_hash": "7e20e53a6847fd4545a0ecf4534dae64",
     "semantic_hash": ""
   },
   "packages/sdk-browser/bench/appui/scenesHierarchies.mjs": {
@@ -9444,9 +9444,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/bench/formules-ts.perf.mjs": {
-    "mtime": 1789650634.9777246,
-    "seen": 1789652705.190409,
-    "ast_hash": "a7b03a7284afe049ee18143d4f454da7",
+    "mtime": 1789716177.2679148,
+    "seen": 1789716212.9015749,
+    "ast_hash": "007bf22cada9a9c6daa0775d652ddd79",
     "semantic_hash": ""
   },
   "packages/sdk-browser/bench/hierarchie.perf.mjs": {
@@ -10266,9 +10266,9 @@
     "semantic_hash": ""
   },
   "docs/TESTS.md": {
-    "mtime": 1789671757.5440412,
-    "seen": 1789671986.066258,
-    "ast_hash": "66cc9ab0d1577597dd124915a5632b62",
+    "mtime": 1789716177.266783,
+    "seen": 1789716212.902793,
+    "ast_hash": "0d5f7c4ec515c5c9c2992e60f193e0b9",
     "semantic_hash": ""
   },
   "test/README.md": {
@@ -10713,6 +10713,66 @@
     "mtime": 1789677439.1709719,
     "seen": 1789711560.522052,
     "ast_hash": "bb293902cccc1e99a899d1aa7494be01",
+    "semantic_hash": ""
+  },
+  "packages/sdk-browser/bench/lampes-ombres.perf.mjs": {
+    "mtime": 1789716177.268074,
+    "seen": 1789716212.901579,
+    "ast_hash": "e38b32eea31ec894a48df941c460cfdd",
+    "semantic_hash": ""
+  },
+  "packages/sdk-browser/bench/oracles/lampes-ombres.mjs": {
+    "mtime": 1789716177.26919,
+    "seen": 1789716212.901602,
+    "ast_hash": "f9977f880ac0141c4bb9e020e35a4c1b",
+    "semantic_hash": ""
+  },
+  "packages/sdk-browser/bench/oracles/partition-uniforme.mjs": {
+    "mtime": 1789716177.2693052,
+    "seen": 1789716212.90161,
+    "ast_hash": "2b7ea85b777724901e21371155823d05",
+    "semantic_hash": ""
+  },
+  "packages/sdk-browser/bench/oracles/profil-etapes.mjs": {
+    "mtime": 1789716177.2694187,
+    "seen": 1789716212.901611,
+    "ast_hash": "3fdcb4985d853a5750df80745b74c0b0",
+    "semantic_hash": ""
+  },
+  "packages/sdk-browser/bench/partition-uniforme.perf.mjs": {
+    "mtime": 1789716177.2695417,
+    "seen": 1789716212.901623,
+    "ast_hash": "108938c63ac0e2978c0b582800cbe8f8",
+    "semantic_hash": ""
+  },
+  "packages/sdk-browser/bench/profil-etapes.perf.mjs": {
+    "mtime": 1789716177.269673,
+    "seen": 1789716212.901624,
+    "ast_hash": "ece6521b980a9dc6aec30f59169909eb",
+    "semantic_hash": ""
+  },
+  "packages/sdk-core/bench/couches-coplanaires.perf.mjs": {
+    "mtime": 1789716177.2722821,
+    "seen": 1789716212.9024289,
+    "ast_hash": "cdfb598b1067e012b7ec6308110f211b",
+    "semantic_hash": ""
+  },
+  "packages/sdk-core/bench/oracles/couches-coplanaires.mjs": {
+    "mtime": 1789716177.2723858,
+    "seen": 1789716212.902431,
+    "ast_hash": "992e6a416a8ef3d4c87f63d9c1222378",
+    "semantic_hash": ""
+  },
+  "packages/sdk-core/bench/oracles/rebond-sondes.mjs": {
+    "mtime": 1789716177.272488,
+    "seen": 1789716212.902434,
+    "ast_hash": "4c98b4796713409813c7add67d14dd31",
+    "semantic_hash": ""
+  },
+  "packages/sdk-core/bench/rebond-sondes.perf.mjs": {
+    "mtime": 1789716177.272612,
+    "seen": 1789716212.902438,
+    "ast_hash": "754600e4e00e2c57f57c6f3e4e720ad6",
     "semantic_hash": ""
   }
 }
