@@ -27,6 +27,10 @@ export async function measureView(options) {
   const resourcesBefore = performance.getEntriesByType('resource').length;
   const explorer = await sdk.createExplorer(canvas, {
     onDiagnostic: (event) => {
+      // Ce que la barrière a fait pour poser l'image, et ce qui l'en empêche encore : la cause d'un
+      // témoin A/A qui bruite se lit ici, pas dans le bruit.
+      if (event.phase === 'pose-settle')
+        lost.push(`${event.phase} ${JSON.stringify(event.context)}`);
       if (event.phase !== 'gpu-uncaptured-error' && event.phase !== 'gpu-device-lost') return;
       const cause = event.context ?? {};
       lost.push(`${event.phase} : ${cause.error ?? cause.message ?? cause.reason ?? ''}`);
@@ -140,6 +144,9 @@ export async function measureView(options) {
     const digest = await explorer.shadowAtlasDigest();
     shadowAtlas = digest ? { ...digest, pagesEnAttente: pending, images: drains } : null;
   }
+  // La capture est celle d'une pose CALME (`pageMesure.mjs`) : `imagesCalme` dit combien d'images
+  // il a fallu pour que le moteur la tienne, `null` s'il ne tient pas d'image.
+  const imagesCalme = await mesure.poseCalme(explorer, current);
   // La capture part telle quelle vers Node, qui l'encode en PNG et la compare.
   const response = await mesure.posterCapture(
     options.captureFile,
@@ -178,6 +185,7 @@ export async function measureView(options) {
     metrics,
     preparationMs,
     network,
+    imagesCalme,
     // Le relevé du gouverneur de chemin de calcul : un objet, donc écarté par le filtre scalaire
     // ci-dessus. Sans lui, rien ne dirait quel chemin la campagne a réellement joué.
     mathBatch: last?.mathBatch ?? null,

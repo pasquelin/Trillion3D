@@ -1,7 +1,7 @@
 import { BLEND_SHADER } from './webgpuBlendShader.ts';
 import { BLEND_VIEW_SIZE } from './webgpuBlendUniforms.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
-import { BLEND_BINDINGS, atlasLayoutEntry, readOnly } from './webgpuBindLayout.ts';
+import { BLEND_BINDINGS, atlasLayoutEntries, readOnly } from './webgpuBindLayout.ts';
 import { VOLUME_SIZE } from './webgpuTransmission.ts';
 import {
   blendVariantPipeline,
@@ -33,15 +33,12 @@ export async function createWebgpuBlendPipelines(
       // La fiche de chaque item, lue au rang que l'indice de sommet porte : c'est elle qui remplace
       // le decalage dynamique d'uniforme, et donc le groupe de liaison par appel.
       { binding: b.items, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
-      ...b.maps.map((binding) => atlasLayoutEntry(binding)),
+      ...atlasLayoutEntries(b.color),
       { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
-      ...b.dataMaps.map((binding) => atlasLayoutEntry(binding)),
+      ...atlasLayoutEntries(b.data),
       { binding: b.normals, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
-      { binding: b.scales, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
       { binding: b.directLights, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
       { binding: b.clusterDiagnostic, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
-      { binding: b.colorSlots, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
-      { binding: b.dataSlots, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
       { binding: b.planInstances, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
       { binding: b.clusterSpans, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
       { binding: b.shadowSlices, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
@@ -102,6 +99,9 @@ export async function createWebgpuBlendPipelines(
               alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' },
             },
           },
+          // Le rang de tuile que le pixel demande aux textures virtuelles : une cible entière, sans
+          // mélange, que la réduction relit après la passe.
+          { format: 'r32uint' as GPUTextureFormat },
         ],
       },
       primitive: { topology: 'triangle-list', cullMode, frontFace: 'ccw' },

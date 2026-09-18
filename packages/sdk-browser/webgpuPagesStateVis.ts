@@ -1,14 +1,12 @@
 import type { GpuPartition } from './gpuPartitionTypes.ts';
+import { SHADE_UNIFORM_WORDS } from './visibilityShaderShadowRequest.ts';
 import type * as THREE from 'three';
 import type { GpuHiz } from './gpuHiz.ts';
 import type { GpuRaster } from './gpuRaster.ts';
 import type { GpuDraw } from './gpuDraw.ts';
 import type { GpuRestCompact } from './gpuRestCompact.ts';
 import { MAX_DRAW_SLOTS } from './gpuDraw.ts';
-import type { TextureJob } from './webgpuAtlasJobs.ts';
-import type { MaterialLayerIndex } from './webgpuTexturePriority.ts';
-import type { WebgpuAtlas } from './webgpuAtlasCommon.ts';
-import type { WebgpuAtlasSlots } from './webgpuAtlasSlots.ts';
+import type { WebgpuTileStreamer } from './webgpuTileStreamer.ts';
 
 type GeometryBlock = {
   vertexBase: number;
@@ -69,23 +67,14 @@ export interface WebgpuVisState {
   concatNrm: GPUBuffer | undefined;
   pageTable: GPUBuffer | undefined;
   shadeUniform: GPUBuffer | undefined;
-  /** Les classes de taille de l'atlas couleur et de l'atlas de données. */
-  colorAtlas: WebgpuAtlas | undefined;
-  dataAtlas: WebgpuAtlas | undefined;
+  /** Les textures virtuelles : les deux pools, leurs tables de pages, le retour d'image. */
+  textures: WebgpuTileStreamer | undefined;
   mapsSampler: GPUSampler | undefined;
-  materialScales: GPUBuffer | undefined;
-  /** Classe, couche et résidence de mips de chaque slot de texture. */
-  slots: WebgpuAtlasSlots | undefined;
   shadeUniPacked: Float32Array<ArrayBuffer>;
   visUniPacked: Float32Array<ArrayBuffer>;
   geometryBlocks: Map<THREE.BufferGeometry['attributes'], GeometryBlock>;
   mapLayer: Map<THREE.Texture, number>;
   dataLayer: Map<THREE.Texture, number>;
-  /** Couches d'atlas que chaque matériau lit : l'ordre de transfert suit ce que la coupe dessine. */
-  materialLayers: MaterialLayerIndex | undefined;
-  uvScales: Array<[number, number]>;
-  dataUvScales: Array<[number, number]>;
-  textureJobs: TextureJob[];
 }
 
 export function createWebgpuVisState(): WebgpuVisState {
@@ -127,19 +116,12 @@ export function createWebgpuVisState(): WebgpuVisState {
     concatNrm: undefined,
     pageTable: undefined,
     shadeUniform: undefined,
-    colorAtlas: undefined,
-    dataAtlas: undefined,
+    textures: undefined,
     mapsSampler: undefined,
-    materialScales: undefined,
-    slots: undefined,
-    shadeUniPacked: new Float32Array(64),
+    shadeUniPacked: new Float32Array(SHADE_UNIFORM_WORDS),
     visUniPacked: new Float32Array(7 * 64),
     geometryBlocks: new Map(),
     mapLayer: new Map(),
     dataLayer: new Map(),
-    materialLayers: undefined,
-    uvScales: [[1, 1]],
-    dataUvScales: [[1, 1]],
-    textureJobs: [],
   };
 }

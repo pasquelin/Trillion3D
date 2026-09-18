@@ -15,7 +15,7 @@ import {
 } from './visibilityPageWgsl.ts';
 import { WRAP_COORD_WGSL, wrapLinear } from './visibilityWrapModes.ts';
 import { lineaireThree } from '../../test/justesse/adressageCas.mjs';
-import { COLOR_ALPHA_WGSL, COLOR_SAMPLE_WGSL, DATA_SAMPLE_WGSL } from './webgpuAtlasWgsl.ts';
+import { COLOR_SAMPLE_WGSL, DATA_SAMPLE_WGSL, maskAlphaWgsl } from './webgpuTileWgsl.ts';
 import { rasterSource } from './gpuRasterShader.ts';
 import { SHADE_SHADER } from './visibilityShaderShade.ts';
 import { VIS_SHADER } from './visibilityShaderId.ts';
@@ -121,7 +121,7 @@ test('les lectures d’atlas reçoivent le quartet de leur carte et mêlent quat
   );
   for (const [nom, bloc] of Object.entries({
     COLOR_SAMPLE_WGSL,
-    COLOR_ALPHA_WGSL,
+    MASK_ALPHA_WGSL: maskAlphaWgsl(true),
     DATA_SAMPLE_WGSL,
   })) {
     assert.match(bloc, /,uv:vec2f,wrap:u32/, `${nom} doit recevoir le quartet de sa carte`);
@@ -138,9 +138,13 @@ test('les lectures d’atlas reçoivent le quartet de leur carte et mêlent quat
     VIS_SHADER,
     SHADOW_DEPTH_SHADER,
   }))
+    // Une lecture d'atlas (`let t=wrapUv(`) ou le retour d'image qui la nomme (`return wrapUv(`) :
+    // la coordonnée que le pixel demande est celle qu'il lit.
     assert.equal(
       occurrences(texte, 'wrapUv('),
-      occurrences(texte, 'fn wrapUv(') + occurrences(texte, 'let t=wrapUv('),
+      occurrences(texte, 'fn wrapUv(') +
+        occurrences(texte, 'let t=wrapUv(') +
+        occurrences(texte, 'return wrapUv('),
       `${nom} ne replie une coordonnée que dans une lecture d'atlas, jamais pour son compte`,
     );
 });

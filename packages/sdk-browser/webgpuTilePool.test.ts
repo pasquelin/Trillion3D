@@ -4,7 +4,7 @@ import { createWebgpuTilePool } from './webgpuTilePool.ts';
 import { POOL_LAYER_BYTES, TILE_BYTES, TILES_PER_LAYER } from './textureTiles.ts';
 
 Object.assign(globalThis, {
-  GPUTextureUsage: { TEXTURE_BINDING: 4, COPY_SRC: 1, COPY_DST: 2 },
+  GPUTextureUsage: { TEXTURE_BINDING: 4, COPY_SRC: 1, COPY_DST: 2, RENDER_ATTACHMENT: 16 },
 });
 
 /** Un faux appareil : il retient le descripteur de la texture qu'on lui demande. */

@@ -124,8 +124,9 @@ const AUTORISES = {
   visibilityRaster: 'constantes de face du matériau hôte',
   visibilityTypes: 'contrat : matériaux, textures et couleurs de l’hôte',
   visibilityWrapModes: 'modes de répétition de la texture hôte',
-  webgpuAtlasCommon: 'textures de l’hôte rangées en atlas',
-  webgpuAtlasJobs: 'textures de l’hôte à téléverser',
+  webgpuTileAtlas: 'texture de l’hôte comme source d’une tuile',
+  webgpuTileCatalogue: 'textures de l’hôte au catalogue du pool',
+  webgpuTileScratch: 'image de l’hôte transférée dans la texture de travail',
   webgpuBlendBuffers: 'attributs de géométrie de l’hôte',
   webgpuBlendItems: 'contrat : textures de l’hôte rangées par la fiche d’un item',
   webgpuBlendPlan: 'constantes de face du matériau hôte',
@@ -142,10 +143,6 @@ const AUTORISES = {
   webgpuPagesStateVis: 'contrat : géométries et textures de l’hôte',
   webgpuPositions: 'attribut de position de la géométrie hôte',
   webgpuPresentationSetup: 'la présentation passe par une scène et un matériau de l’hôte',
-  textureFrameViews: 'matrice monde de la racine hôte',
-  textureUvSpan: 'attribut uv de la géométrie hôte',
-  texturePriorityMeasure: 'pose de la racine hôte tenue d’une page à la suivante',
-  texturePriorityRows: 'textures du matériau hôte',
 };
 
 const IMPORTE_HOTE = /^\s*(?:import|export)\b[^\n]*\bfrom\s+['"]three['"]/m;

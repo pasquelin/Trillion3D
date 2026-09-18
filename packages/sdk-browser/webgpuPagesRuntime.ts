@@ -5,9 +5,6 @@ import type { BackendCapabilities, BackendContext, RenderBackend } from './backe
 import { createWebgpuPagesServices, type WebgpuPagesServices } from './webgpuPagesServices.ts';
 import { createWebgpuDiagnostics } from './webgpuPagesDiagnostics.ts';
 import { createWebgpuBlendState } from './webgpuBlendState.ts';
-import { createWebgpuTexturePump } from './webgpuTexturePump.ts';
-import { createTexturePriority } from './webgpuTexturePriority.ts';
-import { createTextureBudget } from './textureBudget.ts';
 import { createWebgpuPagesSetup, type WebgpuDiagnostics } from './webgpuPagesSetup.ts';
 import { createWebgpuPagesLayout, type WebgpuPagesLayout } from './webgpuPagesLayout.ts';
 import { createWebgpuGpuState, type WebgpuGpuState } from './webgpuPagesStateGpu.ts';
@@ -64,27 +61,8 @@ export interface WebgpuPagesRuntime {
   timing: WebgpuTimingState;
   capabilities: BackendCapabilities;
   blendState: ReturnType<typeof createWebgpuBlendState>;
-  texturePump: ReturnType<typeof createWebgpuTexturePump>;
-  /** L'ordre dicté par l'écran et le registre d'octets engagés qu'il alimente. */
-  texturePriority: ReturnType<typeof createTexturePriority>;
-  textureLedger: ReturnType<typeof createTextureBudget>;
   /** Residency machinery, built once the state exists; it reads the runtime lazily. */
   services: WebgpuPagesServices;
-}
-
-/** Une boîte qui contient tout le monde : le signal « tout a changé » de l'ordonnanceur d'ombres. */
-const EVERYWHERE_MIN = [-1e30, -1e30, -1e30],
-  EVERYWHERE_MAX = [1e30, 1e30, 1e30];
-
-/**
- * Un niveau de couleur de plus est résident : la découpe alpha que les cartes d'ombre lisent vient
- * de changer pour toute surface qui porte cette texture, et une carte dessinée au niveau d'avant
- * décrirait un feuillage qui n'est plus celui de l'image. Toutes les pages repartent donc en
- * attente, sous le budget ordinaire de l'étape Ombres. Sans ce signal, deux exécutions identiques
- * rendaient deux ombres différentes, selon le moment où chaque page avait été dessinée.
- */
-function shadowsFollowTextures(lights: WebgpuLightState) {
-  lights.plan.worldChanged(EVERYWHERE_MIN, EVERYWHERE_MAX);
 }
 
 export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRuntime {
@@ -96,57 +74,6 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
   const run = createWebgpuRunState();
   const blendState = createWebgpuBlendState();
   const lights = createWebgpuLightState(context.sceneLights);
-  // Le signal de priorité est celui de la coupe précédente : elle a déjà nommé les pages demandées
-  // au cache et les maillages transparents visibles, donc les lire ne coûte ni passe GPU ni lecture
-  // bloquante. `run.desired` et non `run.drawn` : voir `webgpuTexturePriority.ts`.
-  const priority = createTexturePriority(() => ({
-    index: vis.materialLayers,
-    requested: run.desired,
-    blend: blendState.visibleBlend,
-    cam: run.gate.cam,
-    viewport: setup.viewport,
-    colorTexels: vis.colorAtlas?.texels,
-    dataTexels: vis.dataAtlas?.texels,
-    // Les grappes distinctes du catalogue : les lignes tenues d'une image à l'autre sont rangées par
-    // clé de grappe, un placement de plus n'en ajoutant aucune.
-    keyCount: setup.tracking.keyCount,
-  }));
-  const textureLedger = createTextureBudget({
-    budget: setup.textureResidencyBudget,
-    // Les deux atlas sont alloués en entier à la préparation : ce qu'ils portent est déjà engagé sur
-    // la carte, transfert ou pas. Le registre le sait, sans quoi il refuserait pour rien.
-    allocated: () => (vis.colorAtlas?.bytes ?? 0) + (vis.dataAtlas?.bytes ?? 0),
-    scoreOf: priority.scoreOf,
-  });
-  const texturePump = createWebgpuTexturePump({
-    device: setup.gpuDevice,
-    jobs: vis.textureJobs,
-    budget: setup.textureBudget,
-    ledger: textureLedger,
-    colorAtlas: () => vis.colorAtlas,
-    dataAtlas: () => vis.dataAtlas,
-    order: priority.order,
-    onResident: priority.markLevel,
-    screenKnown: () => priority.screenKnown,
-    onLevel: (kind, slot, level, pyramid) => {
-      if (pyramid) vis.slots?.markLevel(kind, slot, level, pyramid);
-      // Origine du changement de ressources : un niveau progressif vient d'atteindre l'atlas.
-      run.gate.resourcesChanged();
-      if (kind === 'color') shadowsFollowTextures(lights);
-    },
-    onReady: (kind, slots) => {
-      vis.slots?.markReady(kind, slots);
-      run.gate.resourcesChanged();
-      if (kind === 'color') shadowsFollowTextures(lights);
-    },
-    onFailure: diag.diagnosticFailure,
-    onAbandon: (details) =>
-      diag.engineDiagnostic(
-        'progressive-texture-abandoned',
-        'Texture sortie de la file après refus répétés du transfert',
-        details,
-      ),
-  });
   const capabilities: BackendCapabilities = {
     renderer: 'WebGPU page raster',
     materials: UNTEXTURED_MATERIALS,
@@ -191,9 +118,6 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     timing: createWebgpuTimingState(context.stageProfile ? createWebgpuStageProfiler() : undefined),
     capabilities,
     blendState,
-    texturePump,
-    texturePriority: priority,
-    textureLedger,
   };
   return { ...core, services: createWebgpuPagesServices(core) };
 }

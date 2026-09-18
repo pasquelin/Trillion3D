@@ -105,7 +105,7 @@ export function ensureVisBindings(rt: WebgpuPagesRuntime, device: GPUDevice, tab
 export function computeRasterReady(rt: WebgpuPagesRuntime) {
   const { vis, gpu } = rt;
   const raster = vis.gpuRaster,
-    { concatPos, concatUv, pageTable, zeroFlags, colorAtlas, slots, mapsSampler } = vis;
+    { concatPos, concatUv, pageTable, zeroFlags, textures, mapsSampler } = vis;
   if (
     !raster ||
     !gpu.cache ||
@@ -113,8 +113,7 @@ export function computeRasterReady(rt: WebgpuPagesRuntime) {
     !concatUv ||
     !pageTable ||
     !zeroFlags ||
-    !colorAtlas ||
-    !slots ||
+    !textures ||
     !mapsSampler
   )
     return null;
@@ -125,8 +124,7 @@ export function computeRasterReady(rt: WebgpuPagesRuntime) {
     concatUv,
     pageTable,
     zeroFlags,
-    colorAtlas,
-    slots,
+    textures,
     mapsSampler,
   };
 }
@@ -160,8 +158,7 @@ export function computeRasterStages(
   // L'uniforme est écrit avant toute passe (`ensureVisBindings`) : il existe quand on encode.
   input.uniform = vis.visUniform!;
   input.uvs = ready.concatUv;
-  input.colorAtlas = ready.colorAtlas;
-  input.slots = ready.slots;
+  input.textures = ready.textures;
   input.sampler = ready.mapsSampler;
   input.pageRows = tableRows;
   input.maxTriangles = Math.ceil(maxVertexCount / 3);

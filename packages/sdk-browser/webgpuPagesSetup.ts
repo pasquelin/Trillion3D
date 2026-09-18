@@ -13,10 +13,36 @@ import {
 import { lighting } from './webgpuPagesHelpers.ts';
 import { createHostRankDelta } from './webgpuPagesHostRanks.ts';
 import { RASTER_BACKGROUND } from './pageRaster.ts';
-import { defaultTextureBudgetBytes } from './textureBudget.ts';
+import { POOL_LAYER_BYTES } from './textureTiles.ts';
 
 /** Le budget d'allocation d'image par défaut, en octets : voir `createWebgpuPagesSetup`. */
 export const DEFAULT_FRAME_BUDGET = 288 * 1024 * 1024;
+/**
+ * Le budget du pool de textures par défaut : 512 Mio, partagés à parts égales entre l'atlas
+ * couleur et l'atlas de données, en couches de 30×30 tuiles de 136² texels (63,5 Mio chacune).
+ * Fixe quelle que soit la scène, comme le budget d'image : c'est le critère de parité. Ce qu'une
+ * vue demande de plus attend qu'une tuile moins regardée se libère, et le relevé le publie.
+ */
+const DEFAULT_TEXTURE_POOL_BUDGET = 512 * 1024 * 1024;
+/** Octets hôte des niveaux cuits décodés, tenus pour en découper d'autres tuiles. */
+const DEFAULT_LEVEL_CACHE_BYTES = 192 * 1024 * 1024;
+
+/** Couches par atlas que le budget donne ; refus nommé sous une couche par atlas. */
+export function texturePoolLayersFor(budgetBytes: number, device: GPUDevice | undefined) {
+  if (!Number.isSafeInteger(budgetBytes) || budgetBytes < 1)
+    throw new Error('INVALID_TEXTURE_POOL_BUDGET');
+  const layers = Math.floor(budgetBytes / 2 / POOL_LAYER_BYTES);
+  if (layers < 1)
+    throw new Error(
+      `TEXTURE_POOL_BUDGET: ${budgetBytes} bytes, under one layer per atlas (${2 * POOL_LAYER_BYTES})`,
+    );
+  const limit = device?.limits?.maxTextureArrayLayers;
+  if (typeof limit === 'number' && layers > limit)
+    throw new Error(
+      `TEXTURE_POOL_DEVICE_LIMIT: ${layers} layers per atlas, device allows ${limit}`,
+    );
+  return layers;
+}
 
 export type WebgpuDiagnostics = ReturnType<typeof createWebgpuDiagnostics> & {
   traceEnabled: boolean;
@@ -101,9 +127,9 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   }
   const sourceBytes = indexSourceBytes(allPages);
   // 288 Mio : ce que 2496 × 1404 — la résolution de relevé — demande avec toutes les cibles de la
-  // version 1, la réserve Hi-Z et les deux cibles d'historique de l'antialiasing temporel
-  // (275,7 Mo, mesuré), arrondi au multiple de 32 Mio. Avant l'historique, 256 suffisaient ; la 4K
-  // ne tenait pas et ne tient toujours pas.
+  // version 1, la réserve Hi-Z, les deux cibles d'historique de l'antialiasing temporel et la
+  // cible de retour d'image des transparents (289,7 Mo, calculé), arrondi au multiple de 32 Mio.
+  // Avant l'historique, 256 suffisaient ; la 4K ne tenait pas et ne tient toujours pas.
   const frameBudget = context.maxFrameAllocationBytes ?? DEFAULT_FRAME_BUDGET;
   const reserveHiz = typeof gpuDevice?.createComputePipeline === 'function';
   const textureBudget = Math.max(
@@ -144,13 +170,10 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     frameBudget,
     reserveHiz,
     textureBudget,
-    // Octets de textures que la session s'autorise à engager sur la carte : ce que l'hôte demande,
-    // sinon une valeur tirée des limites de l'appareil et bornée des deux côtés.
-    textureResidencyBudget: Math.max(
-      1,
-      Number.isFinite(context.textureBudgetBytes)
-        ? context.textureBudgetBytes!
-        : defaultTextureBudgetBytes(gpuDevice),
+    texturePoolLayers: texturePoolLayersFor(
+      context.texturePoolBytes ?? DEFAULT_TEXTURE_POOL_BUDGET,
+      gpuDevice,
     ),
+    textureLevelCacheBytes: DEFAULT_LEVEL_CACHE_BYTES,
   };
 }

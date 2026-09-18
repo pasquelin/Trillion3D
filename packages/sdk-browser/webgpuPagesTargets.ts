@@ -55,6 +55,7 @@ export function ensureTargets(
   gpu.depthTexture?.destroy();
   vis.visTexture?.destroy();
   gpu.hdrTexture?.destroy();
+  gpu.feedbackTexture?.destroy();
   disposeBackdrop(gpu);
   gpu.surfaces?.dispose();
   vis.visTexture = undefined;
@@ -86,6 +87,13 @@ export function ensureTargets(
     format: 'rgba16float',
     usage,
   });
+  gpu.feedbackTexture = device.createTexture({
+    label: 'WG texture feedback target',
+    size: { width, height },
+    format: 'r32uint',
+    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+  });
+  gpu.feedbackView = gpu.feedbackTexture.createView();
   gpu.surfaces = createSurfaceBuffer(
     device,
     width,
