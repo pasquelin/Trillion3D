@@ -28,7 +28,7 @@ const GROUPES = {
   NU: '--moteur-avant three-nu --moteur-apres webgpu --avant dist --apres dist',
   LOD: '--moteur-avant three-lod --moteur-apres webgpu --avant dist --apres dist',
 };
-const SOCLE = '--moteur webgpu --images 60 --max-pages 100000 --textures cache';
+const SOCLE = '--moteur webgpu --images 60 --textures cache';
 
 // Une ligne par exécution : `nom | ce qu'elle isole | arguments`, groupes en majuscules.
 const LIGNES = `
@@ -57,7 +57,9 @@ budget-ombres-0-25 | budget d’ombres serré à 0,25 ms : pages en attente et r
 rebond | lumière qui rebondit allumée | DEUX --pixelError 1 MOBILE PLEINE --lampes 4 --rebond on
 instances-4 | quatre copies du modèle | --vues generale --pixelError 1 MOBILE PLEINE --instances 4
 instances-12 | douze copies du modèle | --vues generale --pixelError 1 MOBILE PLEINE --instances 12
-budget-3000 | budget de 3 000 pages : la résidence sous contrainte | TOUTES --pixelError 1 MOBILE PLEINE --max-pages 3000
+pool-geo-8 | pool de géométrie de 8 Mio : la résidence sous contrainte extrême, image complète attendue | TOUTES --pixelError 1 MOBILE PLEINE --pool-geometrie 8
+pool-tex-64 | pool de textures de 64 Mio : une couche par atlas, niveaux grossiers attendus | TOUTES --pixelError 1 MOBILE PLEINE --pool-textures 64
+pool-4k | 3840×2160 : les cibles suivent la résolution, plus aucun plafond ne refuse | DEUX --pixelError 1 MOBILE --largeur 3840 --hauteur 2160
 temoin-three | le témoin Three du SDK (avant) face au moteur WebGPU (après), sans ombres | --moteur-avant webgl --moteur-apres webgpu DEUX_COTES DEUX --pixelError 1 --soleil --ombres off PLEINE
 webgl | le moteur WebGL (exact-cluster-pages) | --moteur webgl TOUTES --pixelError 1 MOBILE PLEINE
 webgl2 | le moteur autonome WebGL2 (refus attendu si le cache porte du mélange) | --moteur webgl2 DEUX --pixelError 1 MOBILE PLEINE

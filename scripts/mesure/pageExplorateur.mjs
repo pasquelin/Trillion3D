@@ -17,7 +17,12 @@ export function optionsExplorateur(options, factory, eclairage) {
     detail: 'source',
     pixelError: options.pixelError,
     lodAdaptive: false,
-    maxResidentPages: options.maxPages,
+    // Le plafond en pages et les réservoirs en octets : absents (`undefined`), le moteur garde
+    // ses défauts — la page tourne dans le navigateur, rien n'est sérialisé ici.
+    maxResidentPages: options.maxPages ?? undefined,
+    geometryPoolBytes: options.geometryPoolBytes ?? undefined,
+    texturePoolBytes: options.texturePoolBytes ?? undefined,
+    geometryPoolCeilingBytes: options.geometryPoolCeilingBytes ?? undefined,
     preload: 'visible',
     ...(options.autonome ? { autonomousGeometry: true } : { backends: [factory] }),
     // Le groupe de lampes du témoin : vide à la création, rempli du magasin juste après.
