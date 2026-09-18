@@ -92,9 +92,11 @@ export function barres({
     svg += `<text class="libelle" x="${gauche - 8}" y="${y0 + hauteurGroupe / 2}" text-anchor="end" dominant-baseline="middle"><title>${html(ligne.libelle)}</title>${html(court)}</text>`;
     ligne.valeurs.forEach((v, j) => {
       const y = y0 + (grand ? 9 : 5) + j * (epaisseur + (grand ? 4 : 2));
-      // Une valeur absente ou un mot (« non publié », « n'existe pas ») s'écrit à la place de la barre.
+      // Une valeur absente ou un mot (« non publié », « n'existe pas ») s'écrit à la place de la
+      // barre, dans la couleur de sa série et sous son nom : le lecteur sait de qui on parle.
       if (typeof v !== 'number') {
-        svg += `<text class="vide" x="${gauche + 6}" y="${y + epaisseur / 2}" dominant-baseline="middle">${html(v ?? 'non mesuré')}</text>`;
+        const mot = v ?? 'non mesuré';
+        svg += `<text class="vide" x="${gauche + 6}" y="${y + epaisseur / 2}" dominant-baseline="middle" style="fill:${SERIES[j % SERIES.length]}">${html(`${series[j]} : ${mot}`)}</text>`;
         return;
       }
       const w = Math.max(1, v * echelle);

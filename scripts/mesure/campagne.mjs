@@ -26,6 +26,7 @@ const GROUPES = {
   // Deux côtés sur le même dist : le premier porte la variante ou le moteur qui fait la différence.
   DEUX_COTES: '--avant dist --apres dist',
   NU: '--moteur-avant three-nu --moteur-apres webgpu --avant dist --apres dist',
+  LOD: '--moteur-avant three-lod --moteur-apres webgpu --avant dist --apres dist',
 };
 const SOCLE = '--moteur webgpu --images 60 --max-pages 100000 --textures cache';
 
@@ -64,6 +65,10 @@ three-nu | Three nu (avant) face au moteur WebGPU (après), soleil et ombres, ca
 three-nu-1248 | Three nu face au moteur à 1248×702 | NU DEUX --pixelError 1 MOBILE QUART
 three-nu-sans-ombres | Three nu face au moteur sans ombres : fidélité des matériaux et de la lumière seule | NU DEUX --pixelError 1 --soleil --ombres off PLEINE
 three-nu-lampes-4 | Three nu face au moteur, soleil et quatre ponctuelles avec ombres | NU DEUX --pixelError 1 MOBILE PLEINE --lampes 4
+three-lod | Three à trois niveaux de détail (avant) face au moteur WebGPU (après), soleil et ombres, caméra mobile | LOD TOUTES --pixelError 1 MOBILE PLEINE
+three-lod-1248 | Three à niveaux de détail face au moteur à 1248×702 | LOD DEUX --pixelError 1 MOBILE QUART
+three-lod-sans-ombres | Three à niveaux de détail face au moteur sans ombres | LOD DEUX --pixelError 1 --soleil --ombres off PLEINE
+three-lod-lampes-4 | Three à niveaux de détail face au moteur, soleil et quatre ponctuelles avec ombres | LOD DEUX --pixelError 1 MOBILE PLEINE --lampes 4
 visible | fenêtre ouverte : cadence non plafonnée à 60 Hz | DEUX --pixelError 1 MOBILE PLEINE --visible
 `;
 
