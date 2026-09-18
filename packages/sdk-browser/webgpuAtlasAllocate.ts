@@ -44,6 +44,7 @@ export function allocateAtlasClasses(
   return plan.sizes.map(([width, height], index) => {
     const layers = plan.layers[index];
     const texture = device.createTexture({
+      label: `WG material atlas ${format} classe ${index}`,
       size: { width, height, depthOrArrayLayers: layers },
       format,
       mipLevelCount: mipLevelCountFor(width, height),

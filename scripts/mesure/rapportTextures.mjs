@@ -1,5 +1,6 @@
 const go = (b) => (typeof b === 'number' ? `${(b / 1e9).toFixed(3)} Go` : 'non mesuré');
 const n = (v) => (typeof v === 'number' ? String(v) : 'non mesuré');
+const mo = (b) => (typeof b === 'number' ? `${(b / 1e6).toFixed(1)} Mo` : 'non mesurée');
 
 /**
  * Les textures d'un côté, lues dans les métriques que le moteur publie déjà. Les octets d'atlas sont
@@ -28,6 +29,10 @@ export function textures(metrics, resultat = {}) {
       `sur un budget de ${go(m.textureBudgetBytes)} ; couches au niveau voulu ` +
       `${n(m.textureAtWantedLevel)} / ${n(m.textureLayers)} ; niveaux manquants ` +
       `${n(m.textureMissingLevels)} ; transferts défaits ${n(m.textureEvictions)}`,
+    `- Pompe de textures : ${n(m.textureUploaded)} transférées, ${n(m.texturePending)} en file, ` +
+      `${n(m.textureInFlight)} entamées, ${n(m.textureSlicesUploaded)} tranches, ` +
+      `${n(m.textureLevelsUploaded)} niveaux, ${n(m.textureSkipped)} sorties après refus ; ` +
+      `dernière passe ${mo(m.textureBytesLastFrame)}`,
     `- Préparation ${preparation} ; réseau depuis la préparation : ${reseau}`,
     '',
   ];

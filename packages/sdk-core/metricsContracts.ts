@@ -2,9 +2,11 @@ import type { MathPathMetrics } from './mathPathContracts.ts';
 import type { TextureFrameMetrics } from './textureMetricsContracts.ts';
 import type { ShadowFrameMetrics } from './shadowMetricsContracts.ts';
 import type { OcclusionFrameMetrics } from './occlusionMetricsContracts.ts';
+import type { GpuMemoryFrameMetrics } from './gpuMemoryContracts.ts';
 export type { ShadowFrameMetrics } from './shadowMetricsContracts.ts';
 export type { OcclusionFrameMetrics } from './occlusionMetricsContracts.ts';
 export type { TextureFrameMetrics } from './textureMetricsContracts.ts';
+export type { GpuMemoryFrameMetrics } from './gpuMemoryContracts.ts';
 
 /** One timed GPU pass. `gpuMs` is null when the device returned no usable pair of timestamps. */
 export interface GpuPassTiming {
@@ -36,7 +38,7 @@ export interface GpuPassTimings {
  */
 export type GpuFrameMs = number | null;
 export interface FrameMetrics
-  extends ShadowFrameMetrics, OcclusionFrameMetrics, TextureFrameMetrics {
+  extends ShadowFrameMetrics, OcclusionFrameMetrics, TextureFrameMetrics, GpuMemoryFrameMetrics {
   rafIntervalMs: number | null;
   cpuFrameMs: number;
   cpuSubmitMs: number | null;
