@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { chromium } from 'playwright';
+import { lancerChrome } from '../../scripts/mesure/chrome.mjs';
 import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import { resolve } from 'node:path';
@@ -22,7 +22,7 @@ await new Promise((ready, reject) => {
 });
 const address = server.address();
 if (!address || typeof address === 'string') throw Error('HTTP listener unavailable');
-const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const browser = await lancerChrome({ headless: true });
 const report = {
   version: 1,
   startedAt: new Date().toISOString(),
