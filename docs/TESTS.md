@@ -65,8 +65,9 @@ bancs — kebab explicite, `coupe-gpu-tenue`, `normale-eclairage-petite-echelle`
 Ce qui ne peut pas tourner est **déclaré** dans `BROWSER_ECARTES` (`test/test-gpu.mjs`) avec son
 genre et son motif, et la commande l'imprime avant de démarrer — jamais un silence :
 
-- **montage** — la preuve est bonne, la machine n'est pas prête : assets du Lab à recompiler,
-  serveur du Lab absent, `timestamp-query` indisponible.
+- **montage** — la preuve est bonne, la machine n'est pas prête : assets de `.mesure/assets/` à
+  recompiler, `LAB_URL` absent pour une preuve montée sur les pages du Lab, `timestamp-query`
+  indisponible.
 - **régression** — la preuve échoue parce qu'elle a raison. C'est une dette ouverte, portée par une
   ligne de `TODO.md`, qui se retire en corrigeant le moteur.
 - **double périmé** — la preuve tient une copie à la main d'un contrat que la source a fait évoluer

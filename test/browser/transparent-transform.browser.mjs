@@ -2,12 +2,10 @@
 // de place à l'image, paginé comme non paginé, par son propre nœud comme par son parent, sous une
 // matrice cisaillée, hors du champ et au retour, y compris après stabilisation de l'image tenue.
 //
-// La page (`test/browserFixtures/transparentTransformPage.mjs`) est empaquetée par esbuild — celui
-// de Vite, pris dans `render-tech-lab` en lecture seule — et exécutée dans Chromium avec un vrai
-// appareil WebGPU. Rien n'est simulé : `webgpuPagesBackend`, ses passes et sa relecture d'image.
+// La page (`test/appui/transparentTransformPage.mjs`) est empaquetée par esbuild et exécutée dans
+// Chromium avec un vrai appareil WebGPU. Rien n'est simulé : `webgpuPagesBackend`, ses passes et sa relecture d'image.
 //
 //   node --experimental-strip-types test/browser/transparent-transform.browser.mjs
-//   (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
 import assert from 'node:assert/strict';
 import { preuveDansLaPage, preuveSaine } from '../appui/preuvePageMoteur.mjs';
 

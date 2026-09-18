@@ -18,7 +18,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import { createRequire } from 'node:module';
+import { chromium } from 'playwright';
 import * as options from './options.mjs';
 import { startServer, pngFromRgba } from './serveur.mjs';
 import { readBounds } from './page.mjs';
@@ -89,7 +89,6 @@ async function main() {
   const captures = new Map();
   const server = await startServer({ port: 0, mounts, captures });
   const port = server.address().port;
-  const { chromium } = createRequire(join(options.LAB, 'package.json'))('playwright');
   const browser = await chromium.launch({
     executablePath: options.CHROME,
     headless: flag('visible', 'false') !== 'true',

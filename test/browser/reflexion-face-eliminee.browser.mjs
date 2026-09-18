@@ -8,7 +8,7 @@
 // éliminent : 2 421 désaccords, tous des réflexions, et les 54 cas où le cône « supprimait une face
 // visible » n'étaient visibles que de ce rasteriseur-là.
 //
-// LAB_ROOT=… node --experimental-strip-types test/browser/reflexion-face-eliminee.browser.mjs
+// node --experimental-strip-types test/browser/reflexion-face-eliminee.browser.mjs
 import assert from 'node:assert/strict';
 import { rasterVisibility } from '../../packages/sdk-browser/visibilityRaster.ts';
 import { decisionCpu, vue } from '../justesse/inverseTransposeCas.mjs';

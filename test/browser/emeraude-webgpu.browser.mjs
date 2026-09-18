@@ -1,16 +1,16 @@
 import { emeraldProvenance, MEASURE_WIDTH, MEASURE_HEIGHT } from '../appui/emeraldProvenance.mjs';
 import { routeBaseline } from '../appui/emeraldBaseline.mjs';
+import { adresseDuLab } from '../appui/browserFixtureServer.mjs';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
+import { chromium } from 'playwright';
 import { resolve } from 'node:path';
-const labRoot = process.env.LAB_ROOT ?? resolve('../render-tech-lab');
-const { chromium } = createRequire(resolve(labRoot, 'package.json'))('playwright');
 import { mkdir, writeFile } from 'node:fs/promises';
 const out = resolve(
   'benchmark-runs/webgpu-visual',
   process.argv[2] ?? new Date().toISOString().replaceAll(':', '-'),
 );
-const provenance = await emeraldProvenance(labRoot),
+const labUrl = adresseDuLab();
+const provenance = await emeraldProvenance(labUrl),
   taa = process.env.WEBGPU_TAA !== 'off';
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
@@ -25,7 +25,7 @@ try {
   });
   if (process.env.WEBGPU_BASELINE_DIR)
     await routeBaseline(page, out, provenance, process.env.WEBGPU_BASELINE_DIR);
-  await page.goto(provenance.labUrl + '/?test=15-virtualized-integration');
+  await page.goto(labUrl + '/?test=15-virtualized-integration');
   await page.exposeFunction('saveImage', async (name, data) => {
     await writeFile(out + '/' + name + '.png', Buffer.from(data.split(',')[1], 'base64'));
     console.log('captured', name);

@@ -8,7 +8,6 @@
 // WebGPU, puis échoue si l'un d'eux retire les triangles.
 //
 // node --experimental-strip-types test/justesse/cone-echelle-non-uniforme.mjs
-// (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {

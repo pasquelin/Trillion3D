@@ -10,18 +10,17 @@
 //   3. la profondeur de la carte minore celle de la référence, biais de couche compris.
 // Zéro violation est la seule valeur acceptable. Les marges sont rapportées pour elles-mêmes.
 //
-//   LAB_ROOT=/chemin/vers/render-tech-lab node --experimental-strip-types \
-//     test/browser/partition-gpu-conservatrice.browser.mjs
+//   node --experimental-strip-types test/browser/partition-gpu-conservatrice.browser.mjs
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { requireDuLab } from '../justesse/pageWebgpu.mjs';
+import { chromium } from 'playwright';
+import { empaquetePage } from '../justesse/pageWebgpu.mjs';
 import { startServer } from '../../scripts/mesure/serveur.mjs';
-import { ASSETS, DEFAULT_SCENE, labManifest } from '../../scripts/mesure/scene.mjs';
-import { LAB, checkLabPath, poseAt } from '../../scripts/mesure/poses.mjs';
+import { ASSETS, DEFAULT_SCENE, assetsManifest } from '../../scripts/mesure/scene.mjs';
+import { poseAt } from '../../scripts/mesure/poses.mjs';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 const SDK_URL = '/sdk/sdk-browser/index.js',
@@ -37,27 +36,34 @@ function packageDir(name) {
   }
 }
 
-checkLabPath();
-const manifestUrl = labManifest(DEFAULT_SCENE, true);
+const manifestUrl = assetsManifest(DEFAULT_SCENE, true);
+/**
+ * Vrai quand le cache porte au moins une grappe transparente : sans elle, la moitié transparente
+ * de la preuve n'a rien à examiner et le dit, plutôt que d'échouer ou de retirer la moitié opaque.
+ */
+function cacheAvecTransparents() {
+  const manifest = join(ASSETS, manifestUrl.replace('/benchmark-assets/', ''));
+  const clusters = JSON.parse(
+    readFileSync(join(dirname(manifest), JSON.parse(readFileSync(manifest, 'utf8')).url), 'utf8'),
+  );
+  return clusters.primitives.some((primitive) => primitive.pass === 'clustered-blend');
+}
 assert.ok(
   existsSync(join(ROOT, 'dist/sdk-browser/index.js')),
   'dist absent : lancer `pnpm run build` avant cette preuve',
 );
-// Le module de page est empaqueté depuis les SOURCES du dépôt — esbuild, celui de Vite, pris dans
-// le Lab en lecture seule —, si bien qu'il lit la référence de production elle-même plutôt qu'une
-// copie. Le paquet est servi comme un fichier ordinaire, au même titre que le dist.
-const esbuild = createRequire(requireDuLab().resolve('vite'))('esbuild');
-const paquet = await esbuild.build({
-  entryPoints: [join(ROOT, 'test/appui/partitionConservatricePage.mjs')],
-  bundle: true,
-  write: false,
-  format: 'esm',
-  platform: 'browser',
-  target: 'es2022',
-  logLevel: 'error',
-});
+// Le module de page est empaqueté depuis les SOURCES du dépôt, si bien qu'il lit la référence de
+// production elle-même plutôt qu'une copie. Le paquet est servi comme un fichier ordinaire, au même
+// titre que le dist.
+const audit = await empaquetePage(
+  join(ROOT, 'test/appui/partitionConservatricePage.mjs'),
+  undefined,
+  {
+    format: 'esm',
+  },
+);
 const preuveDir = await mkdtemp(join(tmpdir(), 'wg-preuve-partition-'));
-await writeFile(join(preuveDir, 'audit.js'), paquet.outputFiles[0].text);
+await writeFile(join(preuveDir, 'audit.js'), audit);
 
 const mounts = [
   { prefix: '/vendor/three/', dir: packageDir('three') },
@@ -70,7 +76,6 @@ const mounts = [
 
 const server = await startServer({ port: 0, mounts, captures: new Map() });
 const port = server.address().port;
-const { chromium } = createRequire(join(LAB, 'package.json'))('playwright');
 const browser = await chromium.launch({ headless: true, channel: 'chrome' });
 let resultat;
 const erreursPage = [];
@@ -145,12 +150,17 @@ assert.deepEqual(
   [],
   'des grappes transparentes retirées restent visibles pour la référence',
 );
-assert.ok(occ.examinees > 0, 'aucune grappe transparente n’a été examinée');
-assert.ok(
-  occ.rejetees > 0,
-  'le test d’occultation des transparents n’a rien rejeté : rien à prouver',
-);
-assert.equal(occ.violations, 0, `${occ.violations} grappes transparentes rejetées à tort`);
+if (cacheAvecTransparents()) {
+  assert.ok(occ.examinees > 0, 'aucune grappe transparente n’a été examinée');
+  assert.ok(
+    occ.rejetees > 0,
+    'le test d’occultation des transparents n’a rien rejeté : rien à prouver',
+  );
+  assert.equal(occ.violations, 0, `${occ.violations} grappes transparentes rejetées à tort`);
+} else {
+  assert.equal(occ.examinees, 0, 'des grappes transparentes examinées sans grappe dans le cache');
+  console.warn('grappes transparentes : non examinées, le cache de référence n’en porte aucune');
+}
 const pourcent = (n) => ((100 * n) / t.margeTexelsCount).toFixed(2);
 console.log(
   `OK : ${t.clusters} clusters audités sur ${POSES} poses — 0 violation sur les trois règles.\n` +

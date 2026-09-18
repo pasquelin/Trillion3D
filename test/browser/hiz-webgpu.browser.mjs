@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
+import { chromium } from 'playwright';
 import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import { resolve } from 'node:path';
@@ -12,8 +12,6 @@ import {
 } from '../../packages/sdk-browser/gpuPartitionContract.ts';
 import { BOX_NEAREST, cases, height, width } from '../appui/hizCas.mjs';
 
-const labRoot = process.env.LAB_ROOT ?? resolve('../render-tech-lab');
-const { chromium } = createRequire(resolve(labRoot, 'package.json'))('playwright');
 const server = createServer((_request, response) => {
   response.writeHead(200, { 'content-type': 'text/html' });
   response.end('<!doctype html><title>WebGeometry Hi-Z GPU check</title>');
