@@ -1,26 +1,31 @@
 import { ATLAS_SLOTS_WGSL, COLOR_ALPHA_WGSL, atlasTextures } from './webgpuAtlasWgsl.ts';
-import { EDGE_WGSL, MASK_KEEP_WGSL, PAGE_INFO_STRUCT_WGSL } from './visibilityPageWgsl.ts';
+import {
+  EDGE_WGSL,
+  MASK_KEEP_WGSL,
+  PAGE_INFO_STRUCT_WGSL,
+  VIS_UNIFORMS_WGSL,
+} from './visibilityPageWgsl.ts';
 import { SMALL_BINDINGS } from './webgpuBindLayout.ts';
 import { RASTER_TRI_WGSL } from './gpuRasterTriWgsl.ts';
-import { COMPUTE_TAKES_WGSL, SCREEN_WGSL } from './gpuRasterContract.ts';
+import { COMPUTE_TAKES_WGSL } from './gpuRasterContract.ts';
 import { RASTER_PIXEL_WGSL } from './gpuRasterPixelWgsl.ts';
 import { rasterKernels } from './gpuRasterKernelsWgsl.ts';
 import { DEPTH_CLEAR } from './depthConvention.ts';
 import { wgslFloat } from './gpuPartitionMargins.ts';
 
 /**
- * Le raster de calcul de TOUS les triangles opaques et masqués de la coupe : il écrit un tampon de
- * visibilité — une profondeur et un identifiant cluster/triangle par pixel — que la résolution
- * matérielle plein écran reverse ensuite dans la texture d'identifiants, la profondeur et le niveau
- * zéro de la pyramide. Le matériel ne dessine plus de géométrie opaque ; les surfaces à mélange et à
- * transmission gardent la leur.
+ * Le raster de calcul de la part de la coupe opaque et masquée que le partage lui donne — les petits
+ * triangles, ou toute la coupe : il écrit un tampon de visibilité — une profondeur et un identifiant
+ * cluster/triangle par pixel — que la résolution matérielle plein écran fond ensuite dans la texture
+ * d'identifiants, la profondeur et le niveau zéro de la pyramide que le raster matériel a ouverts.
+ * Les surfaces à mélange et à transmission gardent leur passe.
  *
  * Un matériau à masque fait son test alpha ICI, sur le niveau de carte déjà résident : la découpe de
  * la silhouette est donc la même dans l'image et dans les ombres, qui appliquent `maskKeep` au même
  * seuil sur les mêmes coordonnées.
  */
 const PAGE_INFO = `${PAGE_INFO_STRUCT_WGSL}
-struct Uniforms{viewProj:mat4x4f,viewport:vec2f,computeSpan:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,}`;
+${VIS_UNIFORMS_WGSL}`;
 
 export const rasterSource = (capacity: number, listBase: number) => `${PAGE_INFO}
 @group(0) @binding(${SMALL_BINDINGS.indices}) var<storage,read> indices:array<u32>;
@@ -52,7 +57,6 @@ fn vertex(vp:mat4x4f,vertexBase:u32,index:u32)->vec4f{
 }
 fn uv(page:PageInfo,index:u32)->vec2f{let base=(page.vertexBase+index)*2u;return vec2f(uvs[base],uvs[base+1u]);}
 ${EDGE_WGSL}
-${SCREEN_WGSL}
 ${COMPUTE_TAKES_WGSL}
 ${MASK_KEEP_WGSL}
 ${RASTER_TRI_WGSL}
@@ -71,7 +75,7 @@ ${rasterKernels(capacity)}`;
  * définitive et l'identifiant choisi. Toutes passent le test de profondeur contre ce que le raster
  * matériel a déjà posé : c'est là que les deux producteurs se fondent, pixel par pixel.
  */
-export const RESOLVE = `struct Uniforms{viewProj:mat4x4f,viewport:vec2f,pad0:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,}
+export const RESOLVE = `${VIS_UNIFORMS_WGSL}
 @group(0) @binding(0) var<storage,read> frame:array<u32>;
 @group(0) @binding(1) var<uniform> uni:Uniforms;
 @vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);}

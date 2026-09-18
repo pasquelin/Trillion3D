@@ -9,9 +9,13 @@ import { VIS_BINDINGS } from './webgpuBindLayout.ts';
  */
 export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,uvScale:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,roughUvScale:vec2f,metalUvScale:vec2f,normalUvScale:vec2f,aoIndex:u32,aoIntensity:f32,aoUvScale:vec2f,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,emissiveUvScale:vec2f,normalScaleY:f32,pad1:f32,pad4:vec4f,depthBias:u32,wrapModes:u32,placement:u32,pad5d:u32,}`;
 
+/** L'uniforme d'une image du tampon de visibilité, le même mot à mot pour les deux rasters et les
+ *  résolutions : `webgpuVisibilityUniforms.ts` l'écrit une fois par slot. */
+export const VIS_UNIFORMS_WGSL = `struct Uniforms{viewProj:mat4x4f,viewport:vec2f,computeSpan:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,}`;
+
 /** La description d'un cluster, suivie de l'uniforme d'une passe de géométrie de page. */
 export const PAGE_INFO_WGSL = `${PAGE_INFO_STRUCT_WGSL}
-struct Uniforms{viewProj:mat4x4f,viewport:vec2f,computeSpan:f32,pad1:f32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,}`;
+${VIS_UNIFORMS_WGSL}`;
 
 /**
  * Les liaisons qu'une passe de géométrie de page partage, une par ligne. Elles sont nommées plutôt
@@ -44,9 +48,8 @@ export const EDGE_WGSL = `fn edge(a:vec2f,b:vec2f,p:vec2f)->f32{return (b.x-a.x)
 
 /**
  * Les trois poids barycentriques affines du point `p`, l'aire signée étant déjà connue, pour
- * l'ombrage du tampon de visibilité. Le raster de calcul ne s'en sert plus : il décide la
- * couverture sur ses trois arêtes, et un poids dérivé par `1-w0-w1` n'est pas étanche. Exige
- * `EDGE_WGSL`.
+ * l'ombrage du tampon de visibilité. Le raster de calcul a les siens : il décide la couverture sur
+ * ses trois arêtes, et un poids dérivé par `1-w0-w1` n'est pas étanche. Exige `EDGE_WGSL`.
  */
 export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f,area:f32)->vec3f{
  let w0=edge(b,c,p)/area;let w1=edge(c,a,p)/area;
