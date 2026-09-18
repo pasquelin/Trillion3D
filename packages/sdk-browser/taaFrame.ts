@@ -1,8 +1,7 @@
-import { copyMatrix4, invertMatrix4, transformHomogeneousPoint } from '../sdk-core/index.ts';
+import { invertMatrix4, matrixAtRenderOrigin } from '../sdk-core/index.ts';
 import { TAA_SAMPLES, TAA_STILL_FRAMES, jitterViewProjection, taaJitter } from './taaJitter.ts';
-import { TAA_WEIGHTS, taaWeights } from './taaWeights.ts';
+import { TAA_WEIGHTS, taaWeightTable } from './taaWeights.ts';
 import type { EngineCamera } from './cameraWorld.ts';
-import type { TaaInputs } from './temporalAntialiasing.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Ce que la passe temporelle garde d'une image à l'autre côté processeur. */
@@ -75,14 +74,8 @@ export function taaRenderMatrix(rt: WebgpuPagesRuntime, cam: EngineCamera): Arra
 
 const anchored = new Float64Array(16),
   packed = new Float32Array(40 + TAA_WEIGHTS),
-  inputs = {} as TaaInputs;
-
-/** `out` = `m · T(œil)` : la même matrice appliquée à un point rapporté à l'œil ; seule la
- *  quatrième colonne change — `m · (œil, 1)` —, calculée en double. */
-function anchorAtEye(out: Float64Array, m: ArrayLike<number>, eye: ArrayLike<number>) {
-  copyMatrix4(out, m);
-  return transformHomogeneousPoint(out, m, eye[0], eye[1], eye[2], 12);
-}
+  /** Les poids du filtre pour chacun des huit rangs de gigue : ils ne dépendent que d'elle. */
+  weights = taaWeightTable();
 
 /**
  * Encode la passe temporelle de cette image et rend la vue que la composition doit lire — celle de
@@ -104,12 +97,12 @@ export function encodeTaaPass(
   if (!state.hasHistory) temporal.motion.reset();
   else temporal.motion.update(cam.eye, state.sceneSeen !== scene);
   const [width, height] = gpu.targetSize;
-  packed.set(anchorAtEye(anchored, state.previousViewProjection, cam.eye), 0);
+  matrixAtRenderOrigin(packed, state.previousViewProjection, cam.eye, 0);
   // L'inverse de la vue-projection SANS gigue : le pixel reprojeté est son centre non décalé, avec
   // la profondeur lue à l'échantillon décalé. À caméra fixe, l'historique est ainsi relu exactement
   // sur son texel — relu à la gigue près, il serait rééchantillonné en bilinéaire à chaque image et
   // s'adoucirait sans fin.
-  anchorAtEye(anchored, cam.viewProjection, cam.eye);
+  matrixAtRenderOrigin(anchored, cam.viewProjection, cam.eye);
   packed.set(invertMatrix4(anchored, anchored), 16);
   packed[32] = width;
   packed[33] = height;
@@ -120,9 +113,9 @@ export function encodeTaaPass(
   packed[37] = state.hasHistory ? 1 : 0;
   packed[38] = temporal.motion.moved ? 1 : 0;
   packed[39] = 0;
-  // Les poids du filtre de l'image courante ne dépendent que de la gigue : une fois par image.
-  taaWeights(state.jitter[0], state.jitter[1], packed, 40);
+  packed.set(weights[state.sample], 40);
   device.queue.writeBuffer(temporal.uniform, 0, packed);
+  const { inputs } = temporal;
   inputs.current = current;
   inputs.depth = gpu.depthView;
   inputs.ids = vis.visView;

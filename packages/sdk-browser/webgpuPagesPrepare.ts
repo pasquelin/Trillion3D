@@ -81,11 +81,12 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   });
   // Le programme du contrat finit de compiler entre deux images : son arrivée est une ressource
   // neuve, et sans ce compteur l'image tenue continuerait de présenter l'albédo brut.
-  gpu.deferred = await createDeferredLighting(gpuDevice, rt.lights.buffer, () =>
-    run.gate.resourcesChanged(),
-  );
+  // Les deux programmes compilent côte à côte : ils ne partagent que l'appareil.
+  [gpu.deferred] = await Promise.all([
+    createDeferredLighting(gpuDevice, rt.lights.buffer, () => run.gate.resourcesChanged()),
+    prepareTemporalAntialiasing(rt, gpuDevice),
+  ]);
   context.signal?.throwIfAborted();
-  await prepareTemporalAntialiasing(rt, gpuDevice);
   ({
     presenter: gpu.presenter,
     canvasTexture: gpu.canvasTexture,

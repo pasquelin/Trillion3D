@@ -9,6 +9,7 @@ import {
   UNI_VIEW_PROJ,
   writeSplitDouble,
 } from './gpuPartitionContract.ts';
+import { matrixAtRenderOrigin } from '../sdk-core/index.ts';
 
 /** Ce qu'une image dit à la partition, et rien de plus : deux matrices, une ancre, sept entiers. */
 export type PartitionFrame = {
@@ -37,23 +38,6 @@ export type PartitionFrame = {
 };
 
 /**
- * `M · T(a)` : la même matrice, appliquée à un point rapporté à l'ancre. Seule la quatrième colonne
- * change, et elle vaut `M · (a, 1)` — le calcul se fait en double précision avant l'arrondi, si bien
- * que la composition n'ajoute aucune erreur à celle que le noyau borne déjà.
- */
-function writeAnchored(
-  into: Float32Array,
-  at: number,
-  elements: ArrayLike<number>,
-  [ax, ay, az]: readonly [number, number, number],
-) {
-  for (let i = 0; i < 12; i++) into[at + i] = elements[i];
-  for (let row = 0; row < 4; row++)
-    into[at + 12 + row] =
-      elements[row] * ax + elements[4 + row] * ay + elements[8 + row] * az + elements[12 + row];
-}
-
-/**
  * Les mots de l'uniforme d'une image, écrits dans un tampon que l'appelant tient. `rows` arrive à
  * part : l'appelant le plafonne à la capacité du tampon, et le passer ainsi évite de recopier
  * l'image entière dans un objet neuf à chaque appel.
@@ -64,8 +48,9 @@ export function packPartitionUniform(
   frame: PartitionFrame,
   rows: number,
 ) {
-  writeAnchored(floats, UNI_VIEW, frame.view, frame.anchor);
-  writeAnchored(floats, UNI_VIEW_PROJ, frame.viewProj, frame.anchor);
+  // Ancrées sur l'œil : la composition n'ajoute aucune erreur à celle que le noyau borne déjà.
+  matrixAtRenderOrigin(floats, frame.view, frame.anchor, UNI_VIEW);
+  matrixAtRenderOrigin(floats, frame.viewProj, frame.anchor, UNI_VIEW_PROJ);
   // L'ancre part elle aussi en deux mots : le noyau retranche les deux, et l'écart qu'il obtient
   // vaut celui du double d'origine à un ulp au carré près.
   for (let i = 0; i < 3; i++)

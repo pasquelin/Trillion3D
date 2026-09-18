@@ -12,6 +12,7 @@ import {
 import { TAA_STILL_FRAMES } from './taaJitter.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import type { EngineCamera } from './cameraWorld.ts';
+import type { TaaInputs } from './temporalAntialiasing.ts';
 
 /** Le strict nécessaire d'un moteur : la passe factice, ses entrées, la caméra et les révisions. */
 function runtime() {
@@ -33,6 +34,7 @@ function runtime() {
       },
     },
     frame: createTaaFrameState(),
+    inputs: {} as TaaInputs,
     encode(_encoder: unknown, inputs: unknown) {
       encoded.push(inputs);
       return output;

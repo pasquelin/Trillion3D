@@ -1,5 +1,6 @@
 import {
   IDENTITY_MATRIX4,
+  copyMatrix4,
   invertMatrix4,
   multiplyMatrix4,
   transformAffinePoint,
@@ -42,6 +43,7 @@ export function createPlacementMotion(device: GPUDevice, roots: readonly MotionR
   /** Les racines dont l'entrée n'est pas l'identité. */
   const moved: number[] = [];
   const current = new Float64Array(16),
+    held = new Float64Array(16),
     motion = new Float64Array(16);
   let from = count,
     to = -1;
@@ -80,10 +82,11 @@ export function createPlacementMotion(device: GPUDevice, roots: readonly MotionR
         for (let w = 0; w < roots.length; w++) {
           const elements = roots[w].world.elements,
             at = w * 16;
-          if (sameElements(previous.subarray(at, at + 16), elements)) continue;
+          if (sameElements(previous, elements, at)) continue;
           current.set(elements);
           invertMatrix4(current, current);
-          multiplyMatrix4(motion, previous.subarray(at, at + 16), current);
+          copyMatrix4(held, previous, 0, at);
+          multiplyMatrix4(motion, held, current);
           // `M · (œil, 1)` en colonne de translation, puis `− œil` au passage en simple précision.
           transformAffinePoint(motion, motion, eye[0], eye[1], eye[2], 12);
           worldToRenderOrigin(mirror, motion, eye, at);

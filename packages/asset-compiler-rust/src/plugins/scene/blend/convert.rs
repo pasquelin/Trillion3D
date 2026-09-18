@@ -68,29 +68,18 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         .out
         .report
         .add_count("blend-object-outside-scene", outside);
-    if !scene
-        .out
-        .nodes
-        .iter()
-        .any(|node| node.get("mesh").is_some())
-    {
-        return Err(CompilerError::new(
-            "IMPORT_EMPTY",
-            format!("blend: {} carries no mesh object", source.display()),
-        ));
-    }
-    let key = hash(format!("{}:{}\n{digest}", plugin.name(), plugin.version()).as_bytes());
-    let directory = request.cache.join("native").join("imports").join(key);
-    let files = json!([{"file": name_of(source), "bytes": raw.len(), "sha256": digest}]);
-    let counts = scene.out.counts.clone();
-    let written = scene
-        .out
-        .write(plugin, &directory, source, files, started)?;
-    (request.progress)(json!({
-        "phase":"import-source","step":"complete","plugin":NAME,"counts":counts,
-        "ms":started.elapsed().as_secs_f64()*1000.0,
-    }));
-    Ok(written)
+    // La clé tient l'empreinte du fichier lu : un fichier inchangé se réécrit à l'identique, au
+    // même endroit.
+    scene.out.key_material = format!("{}:{}\n{digest}", plugin.name(), plugin.version());
+    scene.out.files = json!([{"file": name_of(source), "bytes": raw.len(), "sha256": digest}]);
+    super::finish(
+        scene.out,
+        request,
+        plugin,
+        source,
+        started,
+        &format!("blend: {} carries no mesh object", source.display()),
+    )
 }
 
 /// Le fichier à compiler. Deux `.blend` dans un dossier, c'est une ambiguïté que le pilote ne

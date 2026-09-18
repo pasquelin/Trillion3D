@@ -60,6 +60,10 @@ test('l’historique qui ne tient pas fait partir la passe, nommément, jamais l
 test('une capture de surfaces ne touche pas aux cibles d’historique de la vue', () => {
   const { rt, resized } = runtime();
   rt.capture.secondaryCamera = {} as never;
-  ensureTaaTargets(rt, 64, 64, 0);
+  assert.equal(
+    ensureTaaTargets(rt, 64, 64, 0),
+    0,
+    'la réserve de la capture porte déjà l’historique',
+  );
   assert.deepEqual(resized, []);
 });

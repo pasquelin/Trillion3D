@@ -5,8 +5,8 @@ import { IDENTITY_MATRIX4, copyMatrix4 } from '../sdk-core/index.ts';
  * demandée est celle qu'un nœud porte déjà. Chaque lecteur écrivait sa propre boucle ; ils lisent
  * tous la même arithmétique, au flottant près et sans tolérance.
  */
-export function sameElements(held: ArrayLike<number>, now: ArrayLike<number>) {
-  for (let i = 0; i < 16; i++) if (held[i] !== now[i]) return false;
+export function sameElements(held: ArrayLike<number>, now: ArrayLike<number>, heldAt = 0) {
+  for (let i = 0; i < 16; i++) if (held[heldAt + i] !== now[i]) return false;
   return true;
 }
 

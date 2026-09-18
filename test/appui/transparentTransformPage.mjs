@@ -6,6 +6,7 @@ import { webgpuPagesBackend } from '../../packages/sdk-browser/webgpuPages.ts';
 import {
   VIEWPORT,
   cameraFace,
+  estRouge,
   executerPasses,
   image,
   libere,
@@ -27,7 +28,7 @@ function couleurEn(pixels, camera, x, y, z = 0) {
 }
 
 /** Vrai quand la couleur lue porte le rouge du carreau et non le bleu du fond. */
-const rouge = (c) => c[0] > 110 && c[0] > c[2] + 40;
+const rouge = (c) => estRouge(c, 0);
 
 /** Translation pure sur `x`. */
 function translation(x) {
