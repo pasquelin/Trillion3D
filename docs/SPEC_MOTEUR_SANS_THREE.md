@@ -6,7 +6,7 @@ Version 2, 16 septembre 2026. Document de référence pour les agents. Chaque ex
 
 Objectif : un moteur de géométrie virtualisée complet et autonome pour le web, utilisable dans un éditeur (mode édition) et livrable dans un jeu (mode final), à 120 images par seconde sur les scènes du banc, sans perte de rendu, sans dépendance à Three.js dans le SDK ni dans le runtime livré. Three.js ne subsiste que dans le banc de mesure, comme moteur témoin.
 
-Non-objectifs de cette version : animation squelettique, physique, audio, réseau, éclairage global dynamique, ombres. Ils sont hors périmètre et ne doivent pas être commencés avant la fin des phases 1 à 5.
+Non-objectifs de cette version : animation squelettique, physique, audio, réseau. L'éclairage global dynamique, les réflexions et les ombres ne sont PAS des non-objectifs : ils sont la finalité, par étapes, au §8. Ils sont hors périmètre et ne doivent pas être commencés avant la fin des phases 1 à 5.
 
 Règles transverses : fidélité avant vitesse (aucune réduction de résolution, de distance, de qualité ; transparents jamais transformés en masqués) ; aucune dette ; mots interdits (nom du système de géométrie virtualisée d'Epic, nom de son moteur) ; un hôte ne configure rien et ne lit aucun champ de format ; tests écrits après le code, une passe ; chaque fusion prouvée par captures identiques ou différence expliquée au niveau du bruit A/A.
 
@@ -160,3 +160,40 @@ B4. **Scripts headless** conservés dans `render-tech-lab/scripts/headless/` pou
 - FBX : lecteur libre imparfait ; glTF reste le pivot, conversion en amont si nécessaire.
 - WebGL2 : jamais le même pipeline que WebGPU (pas de compute) ; parité exigée sur l'image, pas sur la méthode.
 - Trois mois d'agents estimés pour les phases 1 à 7 ; les phases 1 à 3 donnent déjà un moteur de rendu livrable.
+
+## 8. Lumière : la cible et la stratégie web
+
+But final : l'éclairage de la référence — illumination globale dynamique, réflexions, ombres —, à ses performances, sur le web. Rien ici n'est copié : ce qui suit vient du matériel public (talks SIGGRAPH 2021–2022, documentation) et de ce que le moteur a déjà.
+
+Ce dont la référence est faite, et notre équivalent :
+
+| Pièce de la référence | Rôle | Chez nous aujourd'hui | Ce qui manque |
+| --- | --- | --- | --- |
+| Antialiasing temporel | débruite tout ce qui est stochastique | livré (Lumière 16), 0 px A/A | — |
+| Traces écran | premier tir de tout rayon : profondeur et normale de l'image, presque gratuit | rien | L1 |
+| Champs de distance (par maillage, puis global) | rayons hors écran sans lancer de rayons matériel | proxy résident à erreur certifiée, traversé triangle par triangle | L4 |
+| Cache de surfaces | radiance des surfaces hors écran, mise à jour sous budget | une radiance par triangle et face du proxy, balayée sous budget | L4 |
+| Sondes écran (grille de 16 px) + cache de radiance monde | rassemblement final, filtré dans le temps | sondes monde SH2 en cascades ; aucune sonde écran | L5 |
+| Réflexions | traces écran, puis champs de distance lisant le cache | aucune | L1, L6 |
+| Cartes d'ombre virtuelles | pages d'ombre 16k, seules les vues, en cache | atlas 4096, cascades, budget 1 ms | L3 |
+| Éclairage direct stochastique | peu d'échantillons par pixel, débruités | rejet par tuile livré, échantillonnage non | L2 |
+
+Ce que le web impose, et la réponse :
+
+- **Pas de lancer de rayons matériel** : la voie logicielle de la référence — traces écran d'abord, champs de distance ensuite — est celle qu'on prend ; le champ de distance est cuit par le compilateur, comme les textures, à résolution fixée par le budget.
+- **Mémoire bornée et illisible** : chaque pièce entre dans un budget en octets fixé d'avance (§3 et `maxFrameAllocationBytes`) et s'en va nommément si elle n'y tient pas, jamais l'image ; les textures et la géométrie rendent d'abord ce qu'elles prennent (T2bis, T5, Géométrie 5 et 11).
+- **Une image de navigateur** : chaque pièce a un budget en millisecondes et un relevé par différence d'enveloppe ; l'ordre des lots suit ce que la mesure dit coûter, pas l'envie.
+- **Pas de fils persistants, huit tampons de stockage par étage** : contournés comme pour la coupe DAG et le raster de calcul.
+
+Étapes, chacune avec sa preuve (0 px A/A à l'arrêt, budget tenu, avant/après publié) :
+
+- **L0** — le soleil décomposé : les 4,6 ms d'ombres, tuiles et éclairage expliquées par différences d'enveloppe (Lumière 17). Rien n'est optimisé avant.
+- **L1** — traces écran : réflexions et rebond court depuis l'image HDR, la profondeur et la normale déjà rendues ; la pièce la moins chère de la référence, et la première.
+- **L2** — direct stochastique débruité par le TAA (Lumière 13) : des dizaines de lampes au prix d'une.
+- **L3** — ombres en pages virtuelles depuis le raster de calcul (Lumière 2, 6, 12) : seules les pages vues, en cache.
+- **L4** — champ de distance global cuit, traversé en compute, lisant le cache de surfaces du proxy.
+- **L5** — sondes écran rassemblant L1 et L4, filtrées par l'historique temporel ; sondes monde (Lumière 11) pour le lointain ; le rebond allumé par défaut quand son budget tient.
+- **L6** — réflexions rugueuses et matériaux (Lumière 7, 10).
+
+Critère de fin : sur la même scène et la même machine que la référence (Géométrie 25), même image à l'œil, mêmes budgets en octets, même enveloppe en millisecondes.
+
