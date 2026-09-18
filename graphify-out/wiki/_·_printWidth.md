@@ -1,6 +1,6 @@
 # . · printWidth
 
-> 4 nodes
+> 4 nodes · cohesion 0.50
 
 ## Key Concepts
 

@@ -1,6 +1,6 @@
 # Erreur d'écran CPU contre GPU
 
-> 39 nodes
+> 39 nodes · cohesion 0.07
 
 ## Key Concepts
 
@@ -18,30 +18,31 @@
 - **lois()** (3 connections) — `test/justesse/tirage.mjs`
 - **ancienne()** (2 connections) — `test/justesse/erreur-ecran-borne.mjs`
 - **reel()** (2 connections) — `test/justesse/erreur-ecran-borne.mjs`
+- **cpu** (2 connections) — `test/justesse/erreur-ecran-cpu-gpu.mjs`
 - **mulberry32()** (2 connections) — `test/justesse/tirage.mjs`
 - **xorshift32()** (2 connections) — `test/justesse/tirage.mjs`
-- **cpu** (2 connections) — `test/justesse/erreur-ecran-cpu-gpu.mjs`
 - **ajoute()** (1 connections) — `test/justesse/erreur-ecran-borne.mjs`
-- **resume()** (1 connections) — `test/justesse/erreur-ecran-borne.mjs`
-- **serie()** (1 connections) — `test/justesse/erreur-ecran-borne.mjs`
-- **pireMarge()** (1 connections) — `test/justesse/erreur-ecran-cpu-gpu.mjs`
 - **CAS** (1 connections) — `test/justesse/erreur-ecran-borne.mjs`
 - **familles** (1 connections) — `test/justesse/erreur-ecran-borne.mjs`
 - **{ hasard, entre, log }** (1 connections) — `test/justesse/erreur-ecran-borne.mjs`
 - **rapport** (1 connections) — `test/justesse/erreur-ecran-borne.mjs`
+- **resume()** (1 connections) — `test/justesse/erreur-ecran-borne.mjs`
+- **serie()** (1 connections) — `test/justesse/erreur-ecran-borne.mjs`
+- **aLOracle** (1 connections) — `test/justesse/erreur-ecran-cpu-gpu.mjs`
 - *... and 14 more nodes in this community*
 
 ## Relationships
 
-- [Erreur d'écran hors axe](Erreur_d'écran_hors_axe.md) (9 shared connections)
-- [Coupe projetée de la sélection (3)](Coupe_projetée_de_la_sélection_3.md) (6 shared connections)
-- [Priorité de diffusion et textures (2)](Priorité_de_diffusion_et_textures_2.md) (5 shared connections)
+- [Uniformes de sélection et justesse](Uniformes_de_sélection_et_justesse.md) (7 shared connections)
+- [Coupe projetée de la sélection](Coupe_projetée_de_la_sélection.md) (6 shared connections)
+- [Priorité de diffusion et textures](Priorité_de_diffusion_et_textures.md) (5 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (2 shared connections)
 - [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (2 shared connections)
-- [Adressage et bouclage des textures (2)](Adressage_et_bouclage_des_textures_2.md) (1 shared connections)
-- [sdk-browser · flush](sdk-browser_·_flush.md) (1 shared connections)
-- [sdk-browser · DagOutputScratch](sdk-browser_·_DagOutputScratch.md) (1 shared connections)
-- [Sélection des pages visibles](Sélection_des_pages_visibles.md) (1 shared connections)
+- [Lancements de coupe et relevé](Lancements_de_coupe_et_relevé.md) (2 shared connections)
+- [Pages autonomes et backends](Pages_autonomes_et_backends.md) (1 shared connections)
+- [Adoption et reprise de la coupe](Adoption_et_reprise_de_la_coupe.md) (1 shared connections)
+- [Pyramide Hi-Z et occlusion](Pyramide_Hi-Z_et_occlusion.md) (1 shared connections)
+- [Adressage et bouclage des textures](Adressage_et_bouclage_des_textures.md) (1 shared connections)
 
 ## Source Files
 

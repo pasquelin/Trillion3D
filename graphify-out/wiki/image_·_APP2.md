@@ -1,6 +1,6 @@
 # image · APP2
 
-> 13 nodes
+> 13 nodes · cohesion 0.18
 
 ## Key Concepts
 

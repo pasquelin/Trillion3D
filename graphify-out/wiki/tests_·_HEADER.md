@@ -1,9 +1,10 @@
 # tests · HEADER
 
-> 14 nodes
+> 15 nodes · cohesion 0.30
 
 ## Key Concepts
 
+- **fixture()** (28 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/tests/surgery.rs`
 - **surgery.rs** (14 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/tests/surgery.rs`
 - **field()** (7 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/tests/surgery.rs`
 - **BlendFile** (6 connections)
@@ -21,10 +22,18 @@
 
 ## Relationships
 
-- [tests · ALPHA (2)](tests_·_ALPHA_2.md) (4 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [tests · DROIT](tests_·_DROIT.md) (4 shared connections)
+- [Tests du pilote GIF](Tests_du_pilote_GIF.md) (4 shared connections)
+- [Tests du pilote GIF (2)](Tests_du_pilote_GIF_2.md) (3 shared connections)
+- [tests · DROIT (2)](tests_·_DROIT_2.md) (3 shared connections)
+- [dds · ARRAY_SIZE](dds_·_ARRAY_SIZE.md) (2 shared connections)
+- [tests · gamma](tests_·_gamma.md) (2 shared connections)
+- [Fixtures TIFF et PSD, refus nommés](Fixtures_TIFF_et_PSD,_refus_nommés.md) (2 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
 - [Lots et annulation](Lots_et_annulation.md) (1 shared connections)
-- [Lecture du format Blender (2)](Lecture_du_format_Blender_2.md) (1 shared connections)
+- [tests · IGNORED](tests_·_IGNORED.md) (1 shared connections)
+- [ktx2 · NAMES](ktx2_·_NAMES.md) (1 shared connections)
+- [tests · ASTC_4X4](tests_·_ASTC_4X4.md) (1 shared connections)
 
 ## Source Files
 
@@ -32,8 +41,8 @@
 
 ## Audit Trail
 
-- EXTRACTED: 34 (97%)
-- INFERRED: 1 (3%)
+- EXTRACTED: 34 (58%)
+- INFERRED: 25 (42%)
 - AMBIGUOUS: 0 (0%)
 
 ---

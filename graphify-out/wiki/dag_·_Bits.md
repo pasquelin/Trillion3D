@@ -1,6 +1,6 @@
 # dag · Bits
 
-> 13 nodes
+> 13 nodes · cohesion 0.24
 
 ## Key Concepts
 
@@ -15,16 +15,17 @@
 - **empreinte()** (2 connections) — `packages/asset-compiler-rust/src/bench_calculs/b9_vecteurs.rs`
 - **point_reference()** (2 connections) — `packages/asset-compiler-rust/src/bench_calculs/b9_vecteurs.rs`
 - **merge_spheres()** (2 connections) — `packages/asset-compiler-rust/src/dag/bounds.rs`
-- **Bits** (1 connections)
 - **extend_aabb** (1 connections)
+- **Bits** (1 connections)
 
 ## Relationships
 
-- [DAG et stratégie de coupe](DAG_et_stratégie_de_coupe.md) (6 shared connections)
 - [Maths partagées et BVH](Maths_partagées_et_BVH.md) (4 shared connections)
-- [Bancs de calcul Rust (2)](Bancs_de_calcul_Rust_2.md) (2 shared connections)
+- [Construction du DAG](Construction_du_DAG.md) (4 shared connections)
+- [Bancs de calcul Rust](Bancs_de_calcul_Rust.md) (2 shared connections)
+- [DAG et stratégie de coupe](DAG_et_stratégie_de_coupe.md) (2 shared connections)
 - [Jeux de bancs Rust](Jeux_de_bancs_Rust.md) (1 shared connections)
-- [tests · ALPHA](tests_·_ALPHA.md) (1 shared connections)
+- [Profils et couleurs TIFF](Profils_et_couleurs_TIFF.md) (1 shared connections)
 
 ## Source Files
 

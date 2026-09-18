@@ -1,6 +1,6 @@
 # Ressources externes à l'import
 
-> 34 nodes
+> 34 nodes · cohesion 0.09
 
 ## Key Concepts
 
@@ -33,12 +33,12 @@
 
 ## Relationships
 
-- [unity · les_mesures_et_la_provenance_sortent_de_lidentite](unity_·_les_mesures_et_la_provenance_sortent_de_lidentite.md) (5 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (2 shared connections)
-- [Rapport et table des textures](Rapport_et_table_des_textures.md) (2 shared connections)
-- [Verrou CLI et fixtures du compilateur](Verrou_CLI_et_fixtures_du_compilateur.md) (1 shared connections)
-- [Tables de scène à l'import](Tables_de_scène_à_l'import.md) (1 shared connections)
-- [Écriture de la scène source](Écriture_de_la_scène_source.md) (1 shared connections)
+- [Identité du compilateur et purge](Identité_du_compilateur_et_purge.md) (5 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (2 shared connections)
+- [import · Option](import_·_Option.md) (2 shared connections)
+- [scene · .accepts_head](scene_·_.accepts_head.md) (1 shared connections)
+- [Matériaux importés FBX/OBJ](Matériaux_importés_FBX-OBJ.md) (1 shared connections)
+- [Empaquetage des pages DAG](Empaquetage_des_pages_DAG.md) (1 shared connections)
 
 ## Source Files
 

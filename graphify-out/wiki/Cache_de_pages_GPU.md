@@ -1,6 +1,6 @@
 # Cache de pages GPU
 
-> 19 nodes
+> 18 nodes · cohesion 0.27
 
 ## Key Concepts
 
@@ -10,14 +10,13 @@
 - **gpuPageTypes.ts** (8 connections) — `packages/sdk-browser/gpuPageTypes.ts`
 - **gpuPageLoad.ts** (7 connections) — `packages/sdk-browser/gpuPageLoad.ts`
 - **webgpuPagesPrepareCache.ts** (6 connections) — `packages/sdk-browser/webgpuPagesPrepareCache.ts`
+- **gpuPageCommit.ts** (5 connections) — `packages/sdk-browser/gpuPageCommit.ts`
+- **createGpuPageReader()** (5 connections) — `packages/sdk-browser/gpuPageReader.ts`
 - **GpuPageContext** (5 connections) — `packages/sdk-browser/gpuPageTypes.ts`
 - **ResidentPage** (5 connections) — `packages/sdk-browser/gpuPageTypes.ts`
-- **createGpuPageReader()** (5 connections) — `packages/sdk-browser/gpuPageReader.ts`
-- **gpuPageCommit.ts** (5 connections) — `packages/sdk-browser/gpuPageCommit.ts`
-- **PageSource** (4 connections) — `packages/sdk-core/cacheContracts.ts`
 - **createGpuPageLoader()** (4 connections) — `packages/sdk-browser/gpuPageLoad.ts`
-- **createWebgpuPagesCache()** (4 connections) — `packages/sdk-browser/webgpuPagesPrepareCache.ts`
 - **gpuPagePins.ts** (4 connections) — `packages/sdk-browser/gpuPagePins.ts`
+- **PageSource** (4 connections) — `packages/sdk-core/cacheContracts.ts`
 - **commitGpuPage()** (3 connections) — `packages/sdk-browser/gpuPageCommit.ts`
 - **createGpuPagePins()** (3 connections) — `packages/sdk-browser/gpuPagePins.ts`
 - **httpPageSource()** (2 connections) — `packages/sdk-browser/gpuPages.ts`
@@ -26,14 +25,15 @@
 
 ## Relationships
 
-- [API et session de l'explorateur (2)](API_et_session_de_l'explorateur_2.md) (8 shared connections)
-- [Résidence et amorçage GPU (2)](Résidence_et_amorçage_GPU_2.md) (8 shared connections)
+- [Résidence et amorçage GPU](Résidence_et_amorçage_GPU.md) (8 shared connections)
 - [sdk-browser · DeferredBindings](sdk-browser_·_DeferredBindings.md) (6 shared connections)
-- [sdk-browser · FrameGateSources](sdk-browser_·_FrameGateSources.md) (2 shared connections)
-- [Lignes dessinables et validation (2)](Lignes_dessinables_et_validation_2.md) (2 shared connections)
+- [API et session de l'explorateur](API_et_session_de_l'explorateur.md) (4 shared connections)
+- [Pages autonomes et backends](Pages_autonomes_et_backends.md) (4 shared connections)
 - [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (2 shared connections)
-- [sdk-browser · BlendState](sdk-browser_·_BlendState.md) (2 shared connections)
-- [Gabarits de sélection de pages](Gabarits_de_sélection_de_pages.md) (1 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (2 shared connections)
+- [Résidence et amorçage GPU (2)](Résidence_et_amorçage_GPU_2.md) (2 shared connections)
+- [Encodage des dessins WebGPU (2)](Encodage_des_dessins_WebGPU_2.md) (2 shared connections)
+- [Erreurs moteur et cache](Erreurs_moteur_et_cache.md) (1 shared connections)
 
 ## Source Files
 
@@ -48,7 +48,7 @@
 
 ## Audit Trail
 
-- EXTRACTED: 73 (99%)
+- EXTRACTED: 71 (99%)
 - INFERRED: 1 (1%)
 - AMBIGUOUS: 0 (0%)
 

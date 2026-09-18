@@ -1,6 +1,6 @@
 # proxy · ERROR_LADDER
 
-> 9 nodes
+> 9 nodes · cohesion 0.44
 
 ## Key Concepts
 
@@ -16,8 +16,8 @@
 
 ## Relationships
 
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
-- [bench_calculs · Bits (2)](bench_calculs_·_Bits_2.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
+- [bench_calculs · Bits](bench_calculs_·_Bits.md) (1 shared connections)
 
 ## Source Files
 

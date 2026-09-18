@@ -1,6 +1,6 @@
 # sdk-browser · node
 
-> 12 nodes
+> 12 nodes · cohesion 0.17
 
 ## Key Concepts
 
@@ -10,12 +10,12 @@
 - **node** (1 connections) — `packages/sdk-browser/package.json`
 - **exports** (1 connections) — `packages/sdk-browser/package.json`
 - **files** (1 connections) — `packages/sdk-browser/package.json`
+- **three** (1 connections) — `packages/sdk-browser/package.json`
 - **name** (1 connections) — `packages/sdk-browser/package.json`
 - **three** (1 connections) — `packages/sdk-browser/package.json`
 - **private** (1 connections) — `packages/sdk-browser/package.json`
 - **type** (1 connections) — `packages/sdk-browser/package.json`
 - **version** (1 connections) — `packages/sdk-browser/package.json`
-- **three** (1 connections) — `packages/sdk-browser/package.json`
 
 ## Relationships
 

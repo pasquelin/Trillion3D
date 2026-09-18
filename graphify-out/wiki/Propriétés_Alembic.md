@@ -1,6 +1,6 @@
 # Propriétés Alembic
 
-> 22 nodes
+> 22 nodes · cohesion 0.18
 
 ## Key Concepts
 

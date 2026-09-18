@@ -1,6 +1,6 @@
 # packages_sdk_browser_gpudraw_draw_item_u32
 
-> 1 nodes
+> 1 nodes · cohesion 1.00
 
 ## Key Concepts
 

@@ -1,6 +1,6 @@
 # ma · Item
 
-> 19 nodes
+> 19 nodes · cohesion 0.15
 
 ## Key Concepts
 
@@ -27,8 +27,8 @@
 ## Relationships
 
 - [Proxy de scène du compilateur](Proxy_de_scène_du_compilateur.md) (1 shared connections)
-- [Verrou CLI et fixtures du compilateur](Verrou_CLI_et_fixtures_du_compilateur.md) (1 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [scene · .accepts_head](scene_·_.accepts_head.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
 
 ## Source Files
 

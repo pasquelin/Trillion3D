@@ -1,6 +1,6 @@
 # ref_src_lab_modelcampaign_ts
 
-> 1 nodes
+> 1 nodes · cohesion 1.00
 
 ## Key Concepts
 

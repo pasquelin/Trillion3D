@@ -1,6 +1,6 @@
 # coplanar · Result
 
-> 15 nodes
+> 15 nodes · cohesion 0.22
 
 ## Key Concepts
 
@@ -24,7 +24,7 @@
 
 - [src · COPLANAR_MAX_LAYER](src_·_COPLANAR_MAX_LAYER.md) (2 shared connections)
 - [coplanar · BTreeMap](coplanar_·_BTreeMap.md) (2 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
 - [Rapport des bancs de calcul](Rapport_des_bancs_de_calcul.md) (1 shared connections)
 - [Validation du compilateur](Validation_du_compilateur.md) (1 shared connections)
 

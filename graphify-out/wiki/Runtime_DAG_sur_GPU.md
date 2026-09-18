@@ -1,65 +1,65 @@
 # Runtime DAG sur GPU
 
-> 24 nodes
+> 29 nodes · cohesion 0.11
 
 ## Key Concepts
 
+- **residence.perf.mjs** (31 connections) — `packages/sdk-browser/bench/residence.perf.mjs`
 - **gpuDagRuntime.ts** (24 connections) — `packages/sdk-browser/gpuDagRuntime.ts`
-- **gpuDagDispatch.ts** (18 connections) — `packages/sdk-browser/gpuDagDispatch.ts`
-- **gpuDagWorlds.test.ts** (12 connections) — `packages/sdk-browser/gpuDagWorlds.test.ts`
+- **gpuDagRuntime.test.ts** (19 connections) — `packages/sdk-browser/gpuDagRuntime.test.ts`
 - **residentWords()** (10 connections) — `packages/sdk-browser/gpuDagLayout.ts`
-- **gpuDagWorlds.ts** (10 connections) — `packages/sdk-browser/gpuDagWorlds.ts`
-- **createDagDispatch()** (9 connections) — `packages/sdk-browser/gpuDagDispatch.ts`
 - **residentBase()** (9 connections) — `packages/sdk-browser/gpuDagLayout.ts`
 - **createDagRuntime()** (9 connections) — `packages/sdk-browser/gpuDagRuntime.ts`
-- **sameSelectionUniforms()** (7 connections) — `packages/sdk-browser/gpuSelection.ts`
-- **FRAME_VEC4** (6 connections) — `packages/sdk-browser/gpuDagTypes.ts`
-- **refreshWorldStretch()** (5 connections) — `packages/sdk-browser/gpuDagWorlds.ts`
-- **createDagOutputScratch()** (3 connections) — `packages/sdk-browser/gpuDagUniforms.ts`
-- **copySelectionUniforms()** (3 connections) — `packages/sdk-browser/gpuSelection.ts`
-- **coalesceResidencyRanges()** (3 connections) — `packages/sdk-browser/webgpuResidencyRanges.ts`
+- **residence.mjs** (6 connections) — `packages/sdk-browser/bench/oracles/residence.mjs`
+- **updateResidencyBits()** (4 connections) — `packages/sdk-browser/gpuDagRuntime.ts`
+- **referenceUpdateResidency()** (3 connections) — `packages/sdk-browser/bench/oracles/residence.mjs`
+- **residencyColumn()** (3 connections) — `packages/sdk-browser/bench/oracles/residence.mjs`
+- **balayage()** (3 connections) — `packages/sdk-browser/gpuDagRuntime.test.ts`
 - **webgpuResidencyRanges.ts** (3 connections) — `packages/sdk-browser/webgpuResidencyRanges.ts`
+- **coalesceResidencyRanges()** (3 connections) — `packages/sdk-browser/webgpuResidencyRanges.ts`
+- **etirements()** (2 connections) — `packages/sdk-browser/bench/residence.perf.mjs`
 - **ResidencyChanges** (2 connections) — `packages/sdk-browser/gpuSelection.ts`
-- **reference()** (2 connections) — `packages/sdk-browser/gpuDagWorlds.test.ts`
 - **RESIDENCY_RANGE_MAX** (2 connections) — `packages/sdk-browser/webgpuResidencyRanges.ts`
-- **DagResources** (1 connections) — `packages/sdk-browser/gpuDagDispatch.ts`
-- **DagRuntimeState** (1 connections) — `packages/sdk-browser/gpuDagDispatch.ts`
-- **DagResources** (1 connections) — `packages/sdk-browser/gpuDagRuntime.ts`
-- **packedOf()** (1 connections) — `packages/sdk-browser/gpuDagWorlds.test.ts`
-- **scene()** (1 connections) — `packages/sdk-browser/gpuDagWorlds.test.ts`
-- **LINEAR** (1 connections) — `packages/sdk-browser/gpuDagWorlds.ts`
+- **alea** (1 connections) — `packages/sdk-browser/bench/residence.perf.mjs`
+- **base** (1 connections) — `packages/sdk-browser/bench/residence.perf.mjs`
+- **bits** (1 connections) — `packages/sdk-browser/bench/residence.perf.mjs`
+- **colonne()** (1 connections) — `packages/sdk-browser/bench/residence.perf.mjs`
+- **conesReference** (1 connections) — `packages/sdk-browser/bench/residence.perf.mjs`
+- **images** (1 connections) — `packages/sdk-browser/bench/residence.perf.mjs`
+- **mondes** (1 connections) — `packages/sdk-browser/bench/residence.perf.mjs`
+- **motsTouches** (1 connections) — `packages/sdk-browser/bench/residence.perf.mjs`
+- **pages** (1 connections) — `packages/sdk-browser/bench/residence.perf.mjs`
+- *... and 4 more nodes in this community*
 
 ## Relationships
 
-- [Erreur d'écran hors axe](Erreur_d'écran_hors_axe.md) (12 shared connections)
-- [sdk-browser · colonne](sdk-browser_·_colonne.md) (9 shared connections)
-- [Lancements de coupe et relevé](Lancements_de_coupe_et_relevé.md) (9 shared connections)
-- [Adoption et reprise de la coupe](Adoption_et_reprise_de_la_coupe.md) (8 shared connections)
-- [sdk-browser · DagOutputScratch](sdk-browser_·_DagOutputScratch.md) (7 shared connections)
-- [Priorité de diffusion et textures (2)](Priorité_de_diffusion_et_textures_2.md) (6 shared connections)
-- [sdk-browser · DagResources](sdk-browser_·_DagResources.md) (3 shared connections)
-- [sdk-browser · DagBuffers](sdk-browser_·_DagBuffers.md) (3 shared connections)
-- [Oracle DAG et plancher de coupe](Oracle_DAG_et_plancher_de_coupe.md) (3 shared connections)
+- [Priorité de diffusion et textures](Priorité_de_diffusion_et_textures.md) (8 shared connections)
+- [Lancements de coupe et relevé](Lancements_de_coupe_et_relevé.md) (7 shared connections)
+- [Adoption et reprise de la coupe](Adoption_et_reprise_de_la_coupe.md) (7 shared connections)
+- [Oracle DAG et plancher de coupe](Oracle_DAG_et_plancher_de_coupe.md) (6 shared connections)
+- [Uniformes de sélection et justesse](Uniformes_de_sélection_et_justesse.md) (6 shared connections)
+- [Lancements de coupe et relevé (2)](Lancements_de_coupe_et_relevé_2.md) (6 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (3 shared connections)
+- [Socle de mesure des bancs](Socle_de_mesure_des_bancs.md) (2 shared connections)
+- [Bancs d'octets et d'ombrage sRGB](Bancs_d'octets_et_d'ombrage_sRGB.md) (2 shared connections)
 - [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (2 shared connections)
-- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (2 shared connections)
-- [Dessin GPU et contrat](Dessin_GPU_et_contrat.md) (1 shared connections)
+- [Pages autonomes et backends](Pages_autonomes_et_backends.md) (2 shared connections)
+- [Garde zéro Three.js](Garde_zéro_Three.js.md) (1 shared connections)
 
 ## Source Files
 
-- `packages/sdk-browser/gpuDagDispatch.ts`
+- `packages/sdk-browser/bench/oracles/residence.mjs`
+- `packages/sdk-browser/bench/residence.perf.mjs`
 - `packages/sdk-browser/gpuDagLayout.ts`
+- `packages/sdk-browser/gpuDagRuntime.test.ts`
 - `packages/sdk-browser/gpuDagRuntime.ts`
-- `packages/sdk-browser/gpuDagTypes.ts`
-- `packages/sdk-browser/gpuDagUniforms.ts`
-- `packages/sdk-browser/gpuDagWorlds.test.ts`
-- `packages/sdk-browser/gpuDagWorlds.ts`
 - `packages/sdk-browser/gpuSelection.ts`
 - `packages/sdk-browser/webgpuResidencyRanges.ts`
 
 ## Audit Trail
 
-- EXTRACTED: 104 (100%)
-- INFERRED: 0 (0%)
+- EXTRACTED: 96 (95%)
+- INFERRED: 5 (5%)
 - AMBIGUOUS: 0 (0%)
 
 ---

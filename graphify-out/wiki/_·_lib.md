@@ -1,18 +1,18 @@
 # . · lib
 
-> 9 nodes
+> 9 nodes · cohesion 0.22
 
 ## Key Concepts
 
 - **tsconfig.core.json** (5 connections) — `tsconfig.core.json`
 - **compilerOptions** (4 connections) — `tsconfig.core.json`
+- **./tsconfig.json** (1 connections) — `tsconfig.core.json`
 - **lib** (1 connections) — `tsconfig.core.json`
 - **noEmit** (1 connections) — `tsconfig.core.json`
 - **types** (1 connections) — `tsconfig.core.json`
 - **exclude** (1 connections) — `tsconfig.core.json`
 - **extends** (1 connections) — `tsconfig.core.json`
 - **include** (1 connections) — `tsconfig.core.json`
-- **./tsconfig.json** (1 connections) — `tsconfig.core.json`
 
 ## Relationships
 

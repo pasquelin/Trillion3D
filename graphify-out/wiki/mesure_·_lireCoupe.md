@@ -1,11 +1,11 @@
 # mesure · lireCoupe
 
-> 2 nodes
+> 2 nodes · cohesion 1.00
 
 ## Key Concepts
 
-- **lireCoupe()** (1 connections) — `scripts/mesure/pageCoupe.mjs`
 - **pageCoupe.mjs** (1 connections) — `scripts/mesure/pageCoupe.mjs`
+- **lireCoupe()** (1 connections) — `scripts/mesure/pageCoupe.mjs`
 
 ## Relationships
 

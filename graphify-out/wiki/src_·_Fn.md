@@ -1,6 +1,6 @@
 # src · Fn
 
-> 19 nodes
+> 19 nodes · cohesion 0.16
 
 ## Key Concepts
 
@@ -17,20 +17,21 @@
 - **compact_region_renumbers_each_vertex_once_and_maps_back()** (2 connections) — `packages/asset-compiler-rust/src/qem_tests.rs`
 - **free_vertices_reduce_a_closed_cube()** (2 connections) — `packages/asset-compiler-rust/src/qem_tests.rs`
 - **locked_vertices_keep_every_triangle()** (2 connections) — `packages/asset-compiler-rust/src/qem_tests.rs`
+- **meshopt** (1 connections)
 - **Fn** (1 connections)
 - **Result** (1 connections)
 - **CUBE_INDICES** (1 connections) — `packages/asset-compiler-rust/src/qem_tests.rs`
 - **CUBE_POSITIONS** (1 connections) — `packages/asset-compiler-rust/src/qem_tests.rs`
 - **malformed_input_is_rejected()** (1 connections) — `packages/asset-compiler-rust/src/qem_tests.rs`
-- **meshopt** (1 connections)
 
 ## Relationships
 
-- [DAG et stratégie de coupe](DAG_et_stratégie_de_coupe.md) (3 shared connections)
+- [DAG et stratégie de coupe](DAG_et_stratégie_de_coupe.md) (2 shared connections)
 - [scene · .accepts_head (2)](scene_·_.accepts_head_2.md) (1 shared connections)
-- [bench_calculs · Bits](bench_calculs_·_Bits.md) (1 shared connections)
-- [src · Option](src_·_Option.md) (1 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [Bancs de calcul Rust (2)](Bancs_de_calcul_Rust_2.md) (1 shared connections)
+- [Construction du DAG](Construction_du_DAG.md) (1 shared connections)
+- [src · Option (2)](src_·_Option_2.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
 
 ## Source Files
 

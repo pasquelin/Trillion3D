@@ -1,6 +1,6 @@
 # Étapes et profilage de trame
 
-> 27 nodes
+> 26 nodes · cohesion 0.15
 
 ## Key Concepts
 
@@ -11,48 +11,48 @@
 - **gpuTiming.test.ts** (9 connections) — `packages/sdk-browser/gpuTiming.test.ts`
 - **nanosecondsToMs()** (7 connections) — `packages/sdk-browser/gpuTimingTypes.ts`
 - **webglFrameTimer.ts** (6 connections) — `packages/sdk-browser/webglFrameTimer.ts`
-- **createWebglFrameTimer()** (5 connections) — `packages/sdk-browser/webglFrameTimer.ts`
 - **gpuTimingEncoder.ts** (5 connections) — `packages/sdk-browser/gpuTimingEncoder.ts`
+- **createWebglFrameTimer()** (5 connections) — `packages/sdk-browser/webglFrameTimer.ts`
 - **webglFrameTimer.test.ts** (5 connections) — `packages/sdk-browser/webglFrameTimer.test.ts`
 - **summarizeTimestamps()** (4 connections) — `packages/sdk-browser/gpuTimingSample.ts`
-- **TimingPart** (3 connections) — `packages/sdk-browser/gpuTimingEncoder.ts`
-- **GpuTimingSample** (3 connections) — `packages/sdk-browser/gpuTimingTypes.ts`
+- **gpuTimingTypes.test.ts** (4 connections) — `packages/sdk-browser/gpuTimingTypes.test.ts`
 - **createTimingResources()** (3 connections) — `packages/sdk-browser/gpuTimingEncoder.ts`
 - **instrumentTimingEncoder()** (3 connections) — `packages/sdk-browser/gpuTimingEncoder.ts`
+- **TimingPart** (3 connections) — `packages/sdk-browser/gpuTimingEncoder.ts`
 - **createSampleEmitter()** (3 connections) — `packages/sdk-browser/gpuTimingSample.ts`
 - **timingEntries()** (3 connections) — `packages/sdk-browser/gpuTimingSample.ts`
+- **GpuTimingSample** (3 connections) — `packages/sdk-browser/gpuTimingTypes.ts`
 - **fixtures/gpuTiming.ts** (3 connections) — `test/fixtures/gpuTiming.ts`
-- **GpuFrameMs** (2 connections) — `packages/sdk-core/metricsContracts.ts`
-- **render()** (2 connections) — `packages/sdk-browser/awaitBackendPages.test.ts`
 - **fixture()** (2 connections) — `test/fixtures/gpuTiming.ts`
 - **PART** (2 connections) — `test/fixtures/gpuTiming.ts`
-- **TimingEntry** (1 connections) — `packages/sdk-browser/gpuTimingSample.ts`
-- **TimerExtension** (1 connections) — `packages/sdk-browser/webglFrameTimer.ts`
 - **onSample()** (1 connections) — `packages/sdk-browser/gpuTiming.test.ts`
-- *... and 2 more nodes in this community*
+- **TimingEntry** (1 connections) — `packages/sdk-browser/gpuTimingSample.ts`
+- **fakeGl()** (1 connections) — `packages/sdk-browser/webglFrameTimer.test.ts`
+- **TimerExtension** (1 connections) — `packages/sdk-browser/webglFrameTimer.ts`
+- *... and 1 more nodes in this community*
 
 ## Relationships
 
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (6 shared connections)
-- [Étapes et profilage de trame (2)](Étapes_et_profilage_de_trame_2.md) (5 shared connections)
-- [sdk-browser · bounceGpuMs](sdk-browser_·_bounceGpuMs.md) (3 shared connections)
-- [Contrat backend et dessin (3)](Contrat_backend_et_dessin_3.md) (3 shared connections)
+- [sdk-browser · sample](sdk-browser_·_sample.md) (4 shared connections)
+- [Étapes et profilage de trame (2) (2)](Étapes_et_profilage_de_trame_2_2_2.md) (4 shared connections)
 - [Formules communes TypeScript](Formules_communes_TypeScript.md) (2 shared connections)
-- [Télémétrie et métriques](Télémétrie_et_métriques.md) (1 shared connections)
-- [sdk-browser · flush](sdk-browser_·_flush.md) (1 shared connections)
+- [API et session de l'explorateur](API_et_session_de_l'explorateur.md) (2 shared connections)
+- [Attente des pages du backend](Attente_des_pages_du_backend.md) (1 shared connections)
+- [Télémétrie et métriques (3)](Télémétrie_et_métriques_3.md) (1 shared connections)
 - [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (1 shared connections)
+- [API et session de l'explorateur (2)](API_et_session_de_l'explorateur_2.md) (1 shared connections)
 
 ## Source Files
 
-- `packages/sdk-browser/awaitBackendPages.test.ts`
 - `packages/sdk-browser/gpuTiming.test.ts`
 - `packages/sdk-browser/gpuTiming.ts`
 - `packages/sdk-browser/gpuTimingEncoder.ts`
 - `packages/sdk-browser/gpuTimingSample.ts`
+- `packages/sdk-browser/gpuTimingTypes.test.ts`
 - `packages/sdk-browser/gpuTimingTypes.ts`
 - `packages/sdk-browser/webglFrameTimer.test.ts`
 - `packages/sdk-browser/webglFrameTimer.ts`
-- `packages/sdk-core/metricsContracts.ts`
 - `test/fixtures/gpuTiming.ts`
 
 ## Audit Trail

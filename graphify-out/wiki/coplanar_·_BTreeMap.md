@@ -1,6 +1,6 @@
 # coplanar · BTreeMap
 
-> 15 nodes
+> 15 nodes · cohesion 0.21
 
 ## Key Concepts
 
@@ -27,7 +27,7 @@
 - [coplanar · Result](coplanar_·_Result.md) (2 shared connections)
 - [coplanar · PROGRESS_STEP](coplanar_·_PROGRESS_STEP.md) (2 shared connections)
 - [tests · Surface](tests_·_Surface.md) (1 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
 
 ## Source Files
 

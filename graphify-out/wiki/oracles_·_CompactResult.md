@@ -1,6 +1,6 @@
 # oracles · CompactResult
 
-> 8 nodes
+> 8 nodes · cohesion 0.43
 
 ## Key Concepts
 
@@ -16,9 +16,9 @@
 ## Relationships
 
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (2 shared connections)
-- [sdk-core · Inputs](sdk-core_·_Inputs.md) (1 shared connections)
+- [sdk-browser · tilesOn](sdk-browser_·_tilesOn.md) (1 shared connections)
 - [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (1 shared connections)
-- [sdk-browser · counters](sdk-browser_·_counters.md) (1 shared connections)
+- [sdk-browser · avecCoeurs](sdk-browser_·_avecCoeurs.md) (1 shared connections)
 
 ## Source Files
 

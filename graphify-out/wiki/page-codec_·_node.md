@@ -1,6 +1,6 @@
 # page-codec · node
 
-> 9 nodes
+> 9 nodes · cohesion 0.22
 
 ## Key Concepts
 

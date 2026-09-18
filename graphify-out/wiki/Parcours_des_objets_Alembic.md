@@ -1,6 +1,6 @@
 # Parcours des objets Alembic
 
-> 16 nodes
+> 17 nodes · cohesion 0.26
 
 ## Key Concepts
 
@@ -13,6 +13,7 @@
 - **.xform_node()** (7 connections) — `packages/asset-compiler-rust/src/plugins/scene/alembic/walk.rs`
 - **Result** (6 connections)
 - **.visit()** (6 connections) — `packages/asset-compiler-rust/src/plugins/scene/alembic/walk.rs`
+- **geometry** (4 connections)
 - **.animated()** (4 connections) — `packages/asset-compiler-rust/src/plugins/scene/alembic/walk.rs`
 - **Kind** (3 connections)
 - **Properties** (2 connections)
@@ -26,9 +27,10 @@
 - [Archive Alembic](Archive_Alembic.md) (5 shared connections)
 - [Archive Alembic (2)](Archive_Alembic_2.md) (3 shared connections)
 - [Géométrie Alembic](Géométrie_Alembic.md) (3 shared connections)
+- [Oracle : rayons et indirect](Oracle_-_rayons_et_indirect.md) (2 shared connections)
 - [Maillages et jeux de faces](Maillages_et_jeux_de_faces.md) (2 shared connections)
-- [alembic · a_group_above_the_allocation_ceiling_is_refused_by_name](alembic_·_a_group_above_the_allocation_ceiling_is_refused_by_name.md) (1 shared connections)
-- [Oracle : rayons et indirect](Oracle_-_rayons_et_indirect.md) (1 shared connections)
+- [blend · HashMap](blend_·_HashMap.md) (1 shared connections)
+- [mesh · AtomicBool](mesh_·_AtomicBool.md) (1 shared connections)
 - [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
 - [Propriétés Alembic](Propriétés_Alembic.md) (1 shared connections)
 - [scene · .accepts_head](scene_·_.accepts_head.md) (1 shared connections)
@@ -41,7 +43,7 @@
 
 ## Audit Trail
 
-- EXTRACTED: 49 (91%)
+- EXTRACTED: 52 (91%)
 - INFERRED: 5 (9%)
 - AMBIGUOUS: 0 (0%)
 

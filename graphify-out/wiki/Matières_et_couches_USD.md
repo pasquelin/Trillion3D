@@ -1,6 +1,6 @@
 # Matières et couches USD
 
-> 32 nodes
+> 32 nodes · cohesion 0.10
 
 ## Key Concepts
 
@@ -33,10 +33,10 @@
 
 ## Relationships
 
-- [Tests dorés du compilateur](Tests_dorés_du_compilateur.md) (6 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (4 shared connections)
+- [Exécution des tests dorés](Exécution_des_tests_dorés.md) (6 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (4 shared connections)
 - [Pilote USD et fidélité](Pilote_USD_et_fidélité.md) (4 shared connections)
-- [unity · les_mesures_et_la_provenance_sortent_de_lidentite](unity_·_les_mesures_et_la_provenance_sortent_de_lidentite.md) (1 shared connections)
+- [Identité du compilateur et purge](Identité_du_compilateur_et_purge.md) (1 shared connections)
 
 ## Source Files
 

@@ -1,6 +1,6 @@
 # Décodage PSD
 
-> 30 nodes
+> 30 nodes · cohesion 0.07
 
 ## Key Concepts
 
@@ -34,7 +34,7 @@
 ## Relationships
 
 - [Décodage d'images](Décodage_d'images.md) (2 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
 - [En-tête et DFD du KTX2](En-tête_et_DFD_du_KTX2.md) (1 shared connections)
 - [Greffons et pilotes de scène](Greffons_et_pilotes_de_scène.md) (1 shared connections)
 - [image · IntoIterator](image_·_IntoIterator.md) (1 shared connections)

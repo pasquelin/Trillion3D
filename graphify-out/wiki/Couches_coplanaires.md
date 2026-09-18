@@ -1,6 +1,6 @@
 # Couches coplanaires
 
-> 30 nodes
+> 30 nodes · cohesion 0.12
 
 ## Key Concepts
 

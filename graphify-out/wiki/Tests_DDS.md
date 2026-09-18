@@ -1,6 +1,6 @@
 # Tests DDS
 
-> 23 nodes
+> 23 nodes · cohesion 0.13
 
 ## Key Concepts
 

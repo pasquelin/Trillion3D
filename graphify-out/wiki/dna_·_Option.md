@@ -1,6 +1,6 @@
 # dna · Option
 
-> 14 nodes
+> 14 nodes · cohesion 0.32
 
 ## Key Concepts
 
@@ -21,13 +21,13 @@
 
 ## Relationships
 
-- [blend · POINTER](blend_·_POINTER.md) (3 shared connections)
+- [blend · POINTER](blend_·_POINTER.md) (2 shared connections)
+- [blend · HashMap](blend_·_HashMap.md) (2 shared connections)
 - [blend · Display](blend_·_Display.md) (2 shared connections)
 - [Lecture du format Blender](Lecture_du_format_Blender.md) (1 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
-- [bench_calculs · Bits](bench_calculs_·_Bits.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
+- [Bancs de calcul Rust (2)](Bancs_de_calcul_Rust_2.md) (1 shared connections)
 - [Erreurs du compilateur et USDZ](Erreurs_du_compilateur_et_USDZ.md) (1 shared connections)
-- [blend · HashMap](blend_·_HashMap.md) (1 shared connections)
 
 ## Source Files
 

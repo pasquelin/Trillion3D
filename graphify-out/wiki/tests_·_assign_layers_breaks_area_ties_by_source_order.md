@@ -1,6 +1,6 @@
 # tests · assign_layers_breaks_area_ties_by_source_order
 
-> 7 nodes
+> 7 nodes · cohesion 0.52
 
 ## Key Concepts
 

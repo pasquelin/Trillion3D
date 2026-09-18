@@ -1,11 +1,11 @@
 # mesure · optionsExplorateur
 
-> 2 nodes
+> 2 nodes · cohesion 1.00
 
 ## Key Concepts
 
-- **optionsExplorateur()** (1 connections) — `scripts/mesure/pageExplorateur.mjs`
 - **pageExplorateur.mjs** (1 connections) — `scripts/mesure/pageExplorateur.mjs`
+- **optionsExplorateur()** (1 connections) — `scripts/mesure/pageExplorateur.mjs`
 
 ## Relationships
 

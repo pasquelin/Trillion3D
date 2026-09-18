@@ -2,7 +2,7 @@
 
 > God node · 69 connections · `packages/sdk-browser/backendTypes.ts`
 
-**Community:** [Contrat backend et dessin (3)](Contrat_backend_et_dessin_3.md)
+**Community:** [API et session de l'explorateur (2)](API_et_session_de_l'explorateur_2.md)
 
 ## Connections by Relation
 
@@ -12,11 +12,11 @@
 ### imports
 - webgpuPagesRuntime.ts `EXTRACTED`
 - explorerDraw.ts `EXTRACTED`
+- pagesBackendScenes.ts `EXTRACTED`
 - explorerRender.ts `EXTRACTED`
+- explorerBackends.ts `EXTRACTED`
 - explorerLifecycle.ts `EXTRACTED`
 - pageRaster.ts `EXTRACTED`
-- pagesBackendScenes.ts `EXTRACTED`
-- explorerBackends.ts `EXTRACTED`
 - explorerHostState.ts `EXTRACTED`
 - explorerMetrics.ts `EXTRACTED`
 - explorerPageSources.ts `EXTRACTED`

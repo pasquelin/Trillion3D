@@ -1,16 +1,16 @@
 # Monde et ombrage Maya
 
-> 24 nodes
+> 23 nodes · cohesion 0.15
 
 ## Key Concepts
 
 - **World** (10 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/build.rs`
 - **Graph** (9 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/shading.rs`
 - **ma/shading.rs** (7 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/shading.rs`
-- **scene()** (6 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/build.rs`
 - **Bind** (6 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/shading.rs`
 - **resolve()** (6 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/shading.rs`
 - **ma/build.rs** (5 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/build.rs`
+- **scene()** (5 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/build.rs`
 - **visit()** (5 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/build.rs`
 - **group()** (5 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/shading.rs`
 - **root()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/shading.rs`
@@ -24,16 +24,15 @@
 - **HashMap** (2 connections)
 - **MAX_DEPTH** (1 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/build.rs`
 - **AtomicBool** (1 connections)
-- **BTreeMap** (1 connections)
 - **HashMap** (1 connections)
 - **Scene** (1 connections)
 - **index()** (1 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/shading.rs`
 
 ## Relationships
 
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (2 shared connections)
-- [plugins · AsRef](plugins_·_AsRef.md) (1 shared connections)
-- [unity · les_mesures_et_la_provenance_sortent_de_lidentite](unity_·_les_mesures_et_la_provenance_sortent_de_lidentite.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (2 shared connections)
+- [Greffons de scène du compilateur](Greffons_de_scène_du_compilateur.md) (1 shared connections)
+- [Identité du compilateur et purge](Identité_du_compilateur_et_purge.md) (1 shared connections)
 - [scene · .accepts_head](scene_·_.accepts_head.md) (1 shared connections)
 - [unity · Fn](unity_·_Fn.md) (1 shared connections)
 
@@ -44,7 +43,7 @@
 
 ## Audit Trail
 
-- EXTRACTED: 45 (98%)
+- EXTRACTED: 44 (98%)
 - INFERRED: 1 (2%)
 - AMBIGUOUS: 0 (0%)
 

@@ -1,6 +1,6 @@
 # usd · BTreeSet
 
-> 17 nodes
+> 17 nodes · cohesion 0.24
 
 ## Key Concepts
 
@@ -24,7 +24,7 @@
 
 ## Relationships
 
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
 
 ## Source Files
 

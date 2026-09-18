@@ -1,6 +1,6 @@
 # appui · drawCase
 
-> 8 nodes
+> 8 nodes · cohesion 0.46
 
 ## Key Concepts
 

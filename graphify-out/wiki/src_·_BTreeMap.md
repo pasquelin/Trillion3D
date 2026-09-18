@@ -1,6 +1,6 @@
 # src · BTreeMap
 
-> 12 nodes
+> 12 nodes · cohesion 0.39
 
 ## Key Concepts
 
@@ -20,11 +20,10 @@
 ## Relationships
 
 - [Validation du compilateur](Validation_du_compilateur.md) (7 shared connections)
-- [src · Option](src_·_Option.md) (3 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
-- [Écriture de la scène source](Écriture_de_la_scène_source.md) (1 shared connections)
+- [src · Option (2)](src_·_Option_2.md) (3 shared connections)
+- [Empaquetage des pages DAG](Empaquetage_des_pages_DAG.md) (2 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
 - [Budget et ouvriers du compilateur (2)](Budget_et_ouvriers_du_compilateur_2.md) (1 shared connections)
-- [src · Fn (2)](src_·_Fn_2.md) (1 shared connections)
 
 ## Source Files
 

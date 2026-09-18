@@ -1,42 +1,43 @@
 # Lecture du format Blender (4)
 
-> 16 nodes
+> 18 nodes · cohesion 0.26
 
 ## Key Concepts
 
-- **Scene** (13 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/walker.rs`
-- **.mesh()** (7 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/walker.rs`
-- **.slots()** (7 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/walker.rs`
-- **.object()** (6 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/walker.rs`
-- **short()** (6 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/walker.rs`
-- **.material()** (5 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/walker.rs`
-- **walker.rs** (4 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/walker.rs`
-- **Option** (4 connections)
-- **.light()** (4 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/walker.rs`
-- **.overridden()** (4 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/walker.rs`
-- **pointer_at()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/walker.rs`
-- **Result** (2 connections)
-- **AtomicBool** (1 connections)
-- **BlendFile** (1 connections)
-- **HashMap** (1 connections)
-- **String** (1 connections)
+- **object.rs** (17 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/object.rs`
+- **Matrix** (11 connections)
+- **rotation()** (9 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/object.rs`
+- **local()** (8 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/object.rs`
+- **multiply()** (6 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/object.rs`
+- **scaling()** (6 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/object.rs`
+- **world()** (6 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/object.rs`
+- **euler()** (5 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/object.rs`
+- **square()** (4 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/object.rs`
+- **triple()** (4 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/object.rs`
+- **AXIS_ANGLE** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/object.rs`
+- **quad()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/object.rs`
+- **turn()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/object.rs`
+- **IDENTITY** (2 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/object.rs`
+- **QUATERNION** (2 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/object.rs`
+- **MAX_DEPTH** (1 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/object.rs`
+- **OB_MESH** (1 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/object.rs`
+- **ORDERS** (1 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/object.rs`
 
 ## Relationships
 
 - [Lecture du format Blender (2)](Lecture_du_format_Blender_2.md) (6 shared connections)
-- [Lecture du format Blender](Lecture_du_format_Blender.md) (2 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
-- [unity · les_mesures_et_la_provenance_sortent_de_lidentite](unity_·_les_mesures_et_la_provenance_sortent_de_lidentite.md) (1 shared connections)
-- [unity · Fn](unity_·_Fn.md) (1 shared connections)
+- [Matrices monde du compilateur](Matrices_monde_du_compilateur.md) (3 shared connections)
+- [usd · AssetPath](usd_·_AssetPath.md) (2 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
 
 ## Source Files
 
-- `packages/asset-compiler-rust/src/plugins/scene/blend/walker.rs`
+- `packages/asset-compiler-rust/src/plugins/scene/blend/object.rs`
 
 ## Audit Trail
 
-- EXTRACTED: 39 (98%)
-- INFERRED: 1 (2%)
+- EXTRACTED: 47 (90%)
+- INFERRED: 5 (10%)
 - AMBIGUOUS: 0 (0%)
 
 ---

@@ -1,6 +1,6 @@
 # Options
 
-> God node · 57 connections · `packages/asset-compiler-rust/src/lib.rs`
+> God node · 61 connections · `packages/asset-compiler-rust/src/lib.rs`
 
 **Community:** [Budget et ouvriers du compilateur (2)](Budget_et_ouvriers_du_compilateur_2.md)
 
@@ -32,8 +32,8 @@
 - PreviewInputs `EXTRACTED`
 - select_nodes() `EXTRACTED`
 - prune_cache() `EXTRACTED`
-- load_runtime() `EXTRACTED`
-- *…and 35 more `references` connection(s) not listed (lowest-degree first to go)*
+- TextureStage `EXTRACTED`
+- *…and 39 more `references` connection(s) not listed (lowest-degree first to go)*
 
 ---
 

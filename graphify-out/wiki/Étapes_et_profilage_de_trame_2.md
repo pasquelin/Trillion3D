@@ -1,77 +1,61 @@
 # Étapes et profilage de trame (2)
 
-> 57 nodes
+> 23 nodes · cohesion 0.17
 
 ## Key Concepts
 
-- **stageMapping.ts** (33 connections) — `packages/sdk-browser/stageMapping.ts`
-- **gpuShadowAtlas.ts** (27 connections) — `packages/sdk-browser/gpuShadowAtlas.ts`
-- **webgpuPagesStateLights.ts** (24 connections) — `packages/sdk-browser/webgpuPagesStateLights.ts`
-- **webgpuPagesStateTiming.ts** (21 connections) — `packages/sdk-browser/webgpuPagesStateTiming.ts`
-- **stageProfiler.ts** (20 connections) — `packages/sdk-browser/stageProfiler.ts`
-- **gpuShadowCull.ts** (16 connections) — `packages/sdk-browser/gpuShadowCull.ts`
-- **stageMapping.test.ts** (16 connections) — `packages/sdk-browser/stageMapping.test.ts`
-- **webgpuPagesPrepareLights.ts** (16 connections) — `packages/sdk-browser/webgpuPagesPrepareLights.ts`
-- **createCheckedShaderModule()** (14 connections) — `packages/sdk-browser/gpuShaderModule.ts`
-- **gpuLightTiles.ts** (14 connections) — `packages/sdk-browser/gpuLightTiles.ts`
-- **stageProfile.ts** (11 connections) — `packages/sdk-core/stageProfile.ts`
-- **WebgpuLightState** (9 connections) — `packages/sdk-browser/webgpuPagesStateLights.ts`
-- **createStageProfiler()** (9 connections) — `packages/sdk-browser/stageProfiler.ts`
-- **WebgpuTimingState** (8 connections) — `packages/sdk-browser/webgpuPagesStateTiming.ts`
-- **prepareDirectLights()** (8 connections) — `packages/sdk-browser/webgpuPagesPrepareLights.ts`
-- **stageProfiler.test.ts** (8 connections) — `packages/sdk-browser/stageProfiler.test.ts`
-- **GpuPassTimings** (6 connections) — `packages/sdk-core/metricsContracts.ts`
-- **createGpuShadowAtlas()** (6 connections) — `packages/sdk-browser/gpuShadowAtlas.ts`
-- **stageQuantiles** (5 connections) — `packages/sdk-core/stageProfile.ts`
-- **GpuShadowAtlas** (4 connections) — `packages/sdk-browser/gpuShadowAtlas.ts`
-- **ShadowPlan** (4 connections) — `packages/sdk-core/sceneLightShadowPlan.ts`
-- **createGpuLightTiles()** (4 connections) — `packages/sdk-browser/gpuLightTiles.ts`
-- **shadowAtlasBytes()** (4 connections) — `packages/sdk-browser/gpuShadowAtlas.ts`
-- **createGpuShadowCull()** (4 connections) — `packages/sdk-browser/gpuShadowCull.ts`
-- **stageLabel()** (4 connections) — `packages/sdk-core/stageProfile.ts`
-- *... and 32 more nodes in this community*
+- **webgpuPagesCpuSteps.ts** (30 connections) — `packages/sdk-browser/webgpuPagesCpuSteps.ts`
+- **frameCostAudit.ts** (23 connections) — `packages/sdk-browser/frameCostAudit.ts`
+- **exactPagesCpu.ts** (22 connections) — `packages/sdk-browser/exactPagesCpu.ts`
+- **gpuFrameCostSnapshot()** (7 connections) — `packages/sdk-browser/frameCostAudit.ts`
+- **logFrameCostAudit()** (7 connections) — `packages/sdk-browser/frameCostAudit.ts`
+- **hostCpuProfile.ts** (7 connections) — `packages/sdk-browser/hostCpuProfile.ts`
+- **addCpuSteps()** (7 connections) — `packages/sdk-browser/stageMapping.ts`
+- **publishCpuProfile()** (7 connections) — `packages/sdk-browser/webgpuPagesCpuSteps.ts`
+- **createHostFrameCostAudit()** (6 connections) — `packages/sdk-browser/frameCostAudit.ts`
+- **frameCostAuditEnabled()** (6 connections) — `packages/sdk-browser/frameCostAudit.ts`
+- **endCpuFrame()** (6 connections) — `packages/sdk-browser/webgpuPagesCpuSteps.ts`
+- **recordStages()** (4 connections) — `packages/sdk-browser/webgpuPagesCpuSteps.ts`
+- **buildProvenance.ts** (3 connections) — `packages/sdk-browser/buildProvenance.ts`
+- **SDK_BUILD_PROVENANCE** (3 connections) — `packages/sdk-browser/buildProvenance.ts`
+- **poseDeLaVue()** (3 connections) — `packages/sdk-browser/frameCostAudit.ts`
+- **HostCpuStep** (3 connections) — `packages/sdk-browser/hostCpuProfile.ts`
+- **cpuStepTable()** (3 connections) — `packages/sdk-browser/stageMapping.ts`
+- **EXACT_CPU_STEP** (2 connections) — `packages/sdk-browser/exactPagesCpu.ts`
+- **WEBGL_STAGES** (2 connections) — `packages/sdk-browser/stageMapping.ts`
+- **CPU_STEP_STAGES** (2 connections) — `packages/sdk-browser/webgpuPagesCpuSteps.ts`
+- **CPU** (1 connections) — `packages/sdk-browser/exactPagesCpu.ts`
+- **HostRenderer** (1 connections) — `packages/sdk-browser/frameCostAudit.ts`
+- **CPU** (1 connections) — `packages/sdk-browser/webgpuPagesCpuSteps.ts`
 
 ## Relationships
 
-- [sdk-core · Inputs](sdk-core_·_Inputs.md) (13 shared connections)
-- [Coût CPU et image tenue](Coût_CPU_et_image_tenue.md) (13 shared connections)
-- [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (13 shared connections)
-- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (12 shared connections)
-- [sdk-browser · BlendState](sdk-browser_·_BlendState.md) (12 shared connections)
-- [sdk-browser · DeferredBindings](sdk-browser_·_DeferredBindings.md) (10 shared connections)
-- [Sondes et rebond GPU](Sondes_et_rebond_GPU.md) (9 shared connections)
-- [sdk-browser · bounceGpuMs](sdk-browser_·_bounceGpuMs.md) (9 shared connections)
-- [sdk-browser · DagBuffers](sdk-browser_·_DagBuffers.md) (7 shared connections)
-- [Étapes et profilage de trame](Étapes_et_profilage_de_trame.md) (5 shared connections)
-- [Télémétrie et métriques](Télémétrie_et_métriques.md) (5 shared connections)
-- [Vidange et lumières encodées](Vidange_et_lumières_encodées.md) (5 shared connections)
+- [API et session de l'explorateur](API_et_session_de_l'explorateur.md) (8 shared connections)
+- [Étapes et profilage de trame (2)](Étapes_et_profilage_de_trame_2.md) (7 shared connections)
+- [Étapes et profilage de trame (2) (2)](Étapes_et_profilage_de_trame_2_2_2.md) (6 shared connections)
+- [Encodage des dessins WebGPU (2)](Encodage_des_dessins_WebGPU_2.md) (6 shared connections)
+- [sdk-browser · DrawnMirror](sdk-browser_·_DrawnMirror.md) (6 shared connections)
+- [sdk-browser · sample](sdk-browser_·_sample.md) (5 shared connections)
+- [Pyramide Hi-Z et occlusion](Pyramide_Hi-Z_et_occlusion.md) (5 shared connections)
+- [Pages autonomes et backends](Pages_autonomes_et_backends.md) (4 shared connections)
+- [sdk-browser · TaaFrameState](sdk-browser_·_TaaFrameState.md) (4 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (4 shared connections)
+- [Étapes et profilage de trame (2) (3)](Étapes_et_profilage_de_trame_2_3.md) (3 shared connections)
+- [Vidange et lumières encodées](Vidange_et_lumières_encodées.md) (3 shared connections)
 
 ## Source Files
 
-- `packages/sdk-browser/deferredLighting.ts`
-- `packages/sdk-browser/gpuLightTiles.ts`
-- `packages/sdk-browser/gpuRestCompact.ts`
-- `packages/sdk-browser/gpuSelection.ts`
-- `packages/sdk-browser/gpuShaderModule.ts`
-- `packages/sdk-browser/gpuShadowAtlas.ts`
-- `packages/sdk-browser/gpuShadowCull.ts`
-- `packages/sdk-browser/gpuShadowCullShader.ts`
-- `packages/sdk-browser/stageMapping.test.ts`
+- `packages/sdk-browser/buildProvenance.ts`
+- `packages/sdk-browser/exactPagesCpu.ts`
+- `packages/sdk-browser/frameCostAudit.ts`
+- `packages/sdk-browser/hostCpuProfile.ts`
 - `packages/sdk-browser/stageMapping.ts`
-- `packages/sdk-browser/stageProfiler.test.ts`
-- `packages/sdk-browser/stageProfiler.ts`
-- `packages/sdk-browser/webgpuPagesPrepareLights.ts`
-- `packages/sdk-browser/webgpuPagesStateLights.ts`
-- `packages/sdk-browser/webgpuPagesStateTiming.ts`
-- `packages/sdk-core/metricsContracts.ts`
-- `packages/sdk-core/sceneLightShadowFaces.ts`
-- `packages/sdk-core/sceneLightShadowPlan.ts`
-- `packages/sdk-core/stageProfile.ts`
+- `packages/sdk-browser/webgpuPagesCpuSteps.ts`
 
 ## Audit Trail
 
-- EXTRACTED: 250 (100%)
-- INFERRED: 1 (0%)
+- EXTRACTED: 113 (100%)
+- INFERRED: 0 (0%)
 - AMBIGUOUS: 0 (0%)
 
 ---

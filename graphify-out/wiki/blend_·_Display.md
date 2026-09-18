@@ -1,6 +1,6 @@
 # blend · Display
 
-> 18 nodes
+> 13 nodes · cohesion 0.26
 
 ## Key Concepts
 
@@ -8,15 +8,10 @@
 - **truncated()** (5 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/envelope.rs`
 - **unwrap()** (5 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/envelope.rs`
 - **zstandard()** (5 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/envelope.rs`
-- **Read** (5 connections)
 - **head()** (4 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/envelope.rs`
 - **Result** (4 connections)
-- **oracle_main.rs** (3 connections) — `packages/asset-compiler-rust/src/oracle_main.rs`
-- **fail()** (3 connections) — `packages/asset-compiler-rust/src/oracle_main.rs`
 - **within()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/envelope.rs`
-- **main()** (2 connections) — `packages/asset-compiler-rust/src/oracle_main.rs`
 - **Shape** (2 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/envelope.rs`
-- **Display** (1 connections)
 - **GZIP** (1 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/envelope.rs`
 - **MAGIC** (1 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/envelope.rs`
 - **WIDE_LENGTH** (1 connections) — `packages/asset-compiler-rust/src/plugins/scene/blend/envelope.rs`
@@ -26,22 +21,19 @@
 ## Relationships
 
 - [dna · Option](dna_·_Option.md) (2 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
+- [blend · POINTER](blend_·_POINTER.md) (1 shared connections)
 - [Erreurs du compilateur et USDZ](Erreurs_du_compilateur_et_USDZ.md) (1 shared connections)
 - [blend · HashMap](blend_·_HashMap.md) (1 shared connections)
-- [Décodage d'images](Décodage_d'images.md) (1 shared connections)
-- [blend · POINTER](blend_·_POINTER.md) (1 shared connections)
-- [Extraction unitypackage](Extraction_unitypackage.md) (1 shared connections)
 
 ## Source Files
 
-- `packages/asset-compiler-rust/src/oracle_main.rs`
 - `packages/asset-compiler-rust/src/plugins/scene/blend/envelope.rs`
 
 ## Audit Trail
 
-- EXTRACTED: 31 (91%)
-- INFERRED: 3 (9%)
+- EXTRACTED: 23 (88%)
+- INFERRED: 3 (12%)
 - AMBIGUOUS: 0 (0%)
 
 ---

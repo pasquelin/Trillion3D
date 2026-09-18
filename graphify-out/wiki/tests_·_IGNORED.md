@@ -1,6 +1,6 @@
 # tests · IGNORED
 
-> 13 nodes
+> 13 nodes · cohesion 0.19
 
 ## Key Concepts
 
@@ -20,10 +20,10 @@
 
 ## Relationships
 
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
 - [tests · DROIT](tests_·_DROIT.md) (1 shared connections)
-- [Registre des images de test](Registre_des_images_de_test.md) (1 shared connections)
-- [tests · ALPHA (2)](tests_·_ALPHA_2.md) (1 shared connections)
+- [ktx2 · NAMES](ktx2_·_NAMES.md) (1 shared connections)
+- [tests · HEADER](tests_·_HEADER.md) (1 shared connections)
 
 ## Source Files
 

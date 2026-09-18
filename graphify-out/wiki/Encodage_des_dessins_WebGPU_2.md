@@ -1,72 +1,78 @@
 # Encodage des dessins WebGPU (2)
 
-> 43 nodes
+> 58 nodes · cohesion 0.07
 
 ## Key Concepts
 
-- **webgpuPagesEncodeVisSetup.ts** (38 connections) — `packages/sdk-browser/webgpuPagesEncodeVisSetup.ts`
-- **webgpuPagesEncodeVis.ts** (37 connections) — `packages/sdk-browser/webgpuPagesEncodeVis.ts`
-- **encodeVis()** (21 connections) — `packages/sdk-browser/webgpuPagesEncodeVis.ts`
-- **webgpuVisibilityUniforms.ts** (18 connections) — `packages/sdk-browser/webgpuVisibilityUniforms.ts`
-- **webgpuVisibilityPartition.ts** (14 connections) — `packages/sdk-browser/webgpuVisibilityPartition.ts`
-- **webgpuPartitionAudit.ts** (13 connections) — `packages/sdk-browser/webgpuPartitionAudit.ts`
-- **webgpuVisibilityPasses.ts** (13 connections) — `packages/sdk-browser/webgpuVisibilityPasses.ts`
-- **SurfaceBuffer** (12 connections) — `packages/sdk-browser/surfaceBuffer.ts`
-- **webgpuPagesEncodeVisSetup.test.ts** (12 connections) — `packages/sdk-browser/webgpuPagesEncodeVisSetup.test.ts`
-- **webgpuTransparentOcclusionAudit.ts** (11 connections) — `packages/sdk-browser/webgpuTransparentOcclusionAudit.ts`
-- **submitColorCopy()** (9 connections) — `packages/sdk-browser/webgpuPagesEncoder.ts`
-- **visLayerTop()** (9 connections) — `packages/sdk-browser/webgpuVisibilityUniforms.ts`
-- **encodeEmptySurfaces()** (7 connections) — `packages/sdk-browser/webgpuPagesEncodeVisSetup.ts`
-- **surfaceColorAttachments()** (7 connections) — `packages/sdk-browser/webgpuPagesEncodeVisSetup.ts`
-- **refreshDrawItemWords()** (7 connections) — `packages/sdk-browser/webgpuVisibilityItemWords.ts`
-- **ensureGpuRaster()** (6 connections) — `packages/sdk-browser/webgpuPagesEncodeVisSetup.ts`
-- **ensureVisBindings()** (6 connections) — `packages/sdk-browser/webgpuPagesEncodeVisSetup.ts`
-- **readTransparentOcclusionAudit()** (6 connections) — `packages/sdk-browser/webgpuTransparentOcclusionAudit.ts`
-- **encodeWebgpuVisibilityPasses()** (6 connections) — `packages/sdk-browser/webgpuVisibilityPasses.ts`
-- **visUniformSlots()** (6 connections) — `packages/sdk-browser/webgpuVisibilityUniforms.ts`
-- **gpuReadback.ts** (6 connections) — `packages/sdk-browser/gpuReadback.ts`
-- **skipsSecondaryPass()** (5 connections) — `packages/sdk-browser/diagnosticGpuGeometry.ts`
-- **readGpuBuffer()** (5 connections) — `packages/sdk-browser/gpuReadback.ts`
-- **encodeHizMidFrame()** (5 connections) — `packages/sdk-browser/webgpuVisibilityPasses.ts`
-- **readGpuTextureR32F()** (4 connections) — `packages/sdk-browser/gpuReadback.ts`
-- *... and 18 more nodes in this community*
+- **webgpuPagesRuntime.ts** (156 connections) — `packages/sdk-browser/webgpuPagesRuntime.ts`
+- **WebgpuPagesRuntime** (100 connections) — `packages/sdk-browser/webgpuPagesRuntime.ts`
+- **webgpuPagesLayout.ts** (25 connections) — `packages/sdk-browser/webgpuPagesLayout.ts`
+- **webgpuPagesMetrics.test.ts** (22 connections) — `packages/sdk-browser/webgpuPagesMetrics.test.ts`
+- **createWebgpuPagesRuntime()** (22 connections) — `packages/sdk-browser/webgpuPagesRuntime.ts`
+- **createWebgpuBlendState()** (21 connections) — `packages/sdk-browser/webgpuBlendState.ts`
+- **webgpuSunFarHold.test.ts** (20 connections) — `packages/sdk-browser/webgpuSunFarHold.test.ts`
+- **webgpuVisibilityCorners.ts** (15 connections) — `packages/sdk-browser/webgpuVisibilityCorners.ts`
+- **webgpuBlendSelection.ts** (12 connections) — `packages/sdk-browser/webgpuBlendSelection.ts`
+- **packages_sdk_core_index_frustumexcludesbox** (12 connections)
+- **webgpuTransparentDraw.ts** (10 connections) — `packages/sdk-browser/webgpuTransparentDraw.ts`
+- **createWebgpuPagesLayout()** (8 connections) — `packages/sdk-browser/webgpuPagesLayout.ts`
+- **etat()** (7 connections) — `packages/sdk-browser/bench/metriques-octets.perf.mjs`
+- **metricsOf()** (7 connections) — `packages/sdk-browser/webgpuPagesMetrics.ts`
+- **webgpuPagesStateCapture.ts** (7 connections) — `packages/sdk-browser/webgpuPagesStateCapture.ts`
+- **BackendCapabilities** (7 connections) — `packages/sdk-core/metricsContracts.ts`
+- **SurfaceCapture** (6 connections) — `packages/sdk-browser/surfaceBuffer.ts`
+- **createWebgpuGpuState()** (6 connections) — `packages/sdk-browser/webgpuPagesStateGpu.ts`
+- **webgpuPagesStateSunFar.ts** (6 connections) — `packages/sdk-browser/webgpuPagesStateSunFar.ts`
+- **encodeTransparentInstances()** (6 connections) — `packages/sdk-browser/webgpuTransparentDraw.ts`
+- **vertexBytesOf()** (5 connections) — `packages/sdk-browser/webgpuPagesMetrics.ts`
+- **WebgpuPagesSetup** (5 connections) — `packages/sdk-browser/webgpuPagesSetup.ts`
+- **webgpuPagesStateBounce.ts** (5 connections) — `packages/sdk-browser/webgpuPagesStateBounce.ts`
+- **WebgpuCaptureState** (5 connections) — `packages/sdk-browser/webgpuPagesStateCapture.ts`
+- **createWebgpuSunFarState()** (5 connections) — `packages/sdk-browser/webgpuPagesStateSunFar.ts`
+- *... and 33 more nodes in this community*
 
 ## Relationships
 
-- [Encodage des dessins WebGPU](Encodage_des_dessins_WebGPU.md) (25 shared connections)
-- [sdk-browser · BlendState](sdk-browser_·_BlendState.md) (24 shared connections)
-- [sdk-browser · AtlasResources](sdk-browser_·_AtlasResources.md) (18 shared connections)
-- [Partition GPU et classification](Partition_GPU_et_classification.md) (10 shared connections)
-- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (9 shared connections)
-- [sdk-browser · GeometryBlock](sdk-browser_·_GeometryBlock.md) (9 shared connections)
-- [sdk-browser · CaptureOptions](sdk-browser_·_CaptureOptions.md) (7 shared connections)
-- [sdk-browser · DeferredBindings](sdk-browser_·_DeferredBindings.md) (5 shared connections)
-- [Dessin GPU et contrat](Dessin_GPU_et_contrat.md) (5 shared connections)
-- [Pages autonomes (2)](Pages_autonomes_2.md) (5 shared connections)
-- [Vidange et lumières encodées](Vidange_et_lumières_encodées.md) (4 shared connections)
-- [Convention de profondeur](Convention_de_profondeur.md) (4 shared connections)
+- [Encodage des dessins WebGPU](Encodage_des_dessins_WebGPU.md) (32 shared connections)
+- [sdk-browser · CaptureOptions](sdk-browser_·_CaptureOptions.md) (26 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (22 shared connections)
+- [Plan de mélange des transparents](Plan_de_mélange_des_transparents.md) (21 shared connections)
+- [Adoption et reprise de la coupe](Adoption_et_reprise_de_la_coupe.md) (17 shared connections)
+- [sdk-browser · AtlasKind](sdk-browser_·_AtlasKind.md) (15 shared connections)
+- [sdk-browser · DeferredBindings](sdk-browser_·_DeferredBindings.md) (14 shared connections)
+- [sdk-browser · DrawnMirror](sdk-browser_·_DrawnMirror.md) (14 shared connections)
+- [sdk-browser · TaaFrameState](sdk-browser_·_TaaFrameState.md) (13 shared connections)
+- [Pyramide Hi-Z et occlusion](Pyramide_Hi-Z_et_occlusion.md) (12 shared connections)
+- [Transformations et collecte des pages](Transformations_et_collecte_des_pages.md) (12 shared connections)
+- [Vidange et lumières encodées](Vidange_et_lumières_encodées.md) (12 shared connections)
 
 ## Source Files
 
-- `packages/sdk-browser/diagnosticGpuGeometry.ts`
-- `packages/sdk-browser/gpuDrawContract.ts`
-- `packages/sdk-browser/gpuReadback.ts`
+- `packages/sdk-browser/bench/metriques-octets.perf.mjs`
+- `packages/sdk-browser/bench/oracles/metriques-octets.mjs`
+- `packages/sdk-browser/gpuBounceProbes.ts`
+- `packages/sdk-browser/gpuSunFarShadow.ts`
 - `packages/sdk-browser/surfaceBuffer.ts`
-- `packages/sdk-browser/webgpuPagesEncodeVis.ts`
-- `packages/sdk-browser/webgpuPagesEncodeVisSetup.test.ts`
-- `packages/sdk-browser/webgpuPagesEncodeVisSetup.ts`
-- `packages/sdk-browser/webgpuPagesEncoder.ts`
-- `packages/sdk-browser/webgpuPartitionAudit.ts`
-- `packages/sdk-browser/webgpuTransparentOcclusionAudit.ts`
-- `packages/sdk-browser/webgpuVisibilityItemWords.ts`
-- `packages/sdk-browser/webgpuVisibilityPartition.ts`
-- `packages/sdk-browser/webgpuVisibilityPasses.ts`
-- `packages/sdk-browser/webgpuVisibilityUniforms.ts`
+- `packages/sdk-browser/webgpuBlendSelection.ts`
+- `packages/sdk-browser/webgpuBlendState.ts`
+- `packages/sdk-browser/webgpuPagesLayout.ts`
+- `packages/sdk-browser/webgpuPagesMetrics.test.ts`
+- `packages/sdk-browser/webgpuPagesMetrics.ts`
+- `packages/sdk-browser/webgpuPagesPrepareBounce.ts`
+- `packages/sdk-browser/webgpuPagesRuntime.ts`
+- `packages/sdk-browser/webgpuPagesServices.ts`
+- `packages/sdk-browser/webgpuPagesSetup.ts`
+- `packages/sdk-browser/webgpuPagesStateBounce.ts`
+- `packages/sdk-browser/webgpuPagesStateCapture.ts`
+- `packages/sdk-browser/webgpuPagesStateGpu.ts`
+- `packages/sdk-browser/webgpuPagesStateSunFar.ts`
+- `packages/sdk-browser/webgpuPagesStateTiming.ts`
+- `packages/sdk-browser/webgpuPagesStateVis.ts`
 
 ## Audit Trail
 
-- EXTRACTED: 228 (98%)
-- INFERRED: 4 (2%)
+- EXTRACTED: 481 (100%)
+- INFERRED: 2 (0%)
 - AMBIGUOUS: 0 (0%)
 
 ---

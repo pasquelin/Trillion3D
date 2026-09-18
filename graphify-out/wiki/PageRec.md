@@ -18,10 +18,10 @@
 - webgpuVisibilityDrawLayers.test.ts `EXTRACTED`
 - webgpuPagesLayersState.test.ts `EXTRACTED`
 - webgpuPagesTestOccluder.ts `EXTRACTED`
+- texturePriorityMeasure.ts `EXTRACTED`
 - webgpuPagesStateRun.ts `EXTRACTED`
 - autonomousPages.ts `EXTRACTED`
 - webgpuPagesServices.ts `EXTRACTED`
-- texturePriorityMeasure.ts `EXTRACTED`
 - pageSelectionCollect.ts `EXTRACTED`
 - pageRaster.ts `EXTRACTED`
 - webgpuPagesHostApi.ts `EXTRACTED`

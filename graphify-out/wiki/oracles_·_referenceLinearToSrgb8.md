@@ -1,6 +1,6 @@
 # oracles · referenceLinearToSrgb8
 
-> 18 nodes
+> 18 nodes · cohesion 0.13
 
 ## Key Concepts
 
@@ -14,12 +14,12 @@
 - **referenceCross()** (2 connections) — `packages/sdk-browser/bench/oracles/socle-math.mjs`
 - **referenceFillPatchRays()** (2 connections) — `packages/sdk-browser/bench/oracles/socle-math.mjs`
 - **radicalInverse()** (2 connections) — `packages/sdk-core/lightingTransportRays.ts`
+- **projectScratch** (1 connections) — `packages/sdk-browser/bench/oracles/socle-math.mjs`
 - **referenceLinearToSrgb8()** (1 connections) — `packages/sdk-browser/bench/oracles/socle-math.mjs`
 - **referencePackedSurface()** (1 connections) — `packages/sdk-browser/bench/oracles/socle-math.mjs`
 - **referenceProjectVisibilityVertex()** (1 connections) — `packages/sdk-browser/bench/oracles/socle-math.mjs`
 - **referenceSrgb8Linear()** (1 connections) — `packages/sdk-browser/bench/oracles/socle-math.mjs`
 - **referenceWindingCw()** (1 connections) — `packages/sdk-browser/bench/oracles/socle-math.mjs`
-- **projectScratch** (1 connections) — `packages/sdk-browser/bench/oracles/socle-math.mjs`
 - **bitangent** (1 connections) — `packages/sdk-core/lightingTransportRays.ts`
 - **tangent** (1 connections) — `packages/sdk-core/lightingTransportRays.ts`
 
@@ -28,15 +28,15 @@
 - [Transport de lumière](Transport_de_lumière.md) (11 shared connections)
 - [Faces et volumes d'ombre](Faces_et_volumes_d'ombre.md) (6 shared connections)
 - [Vecteurs et normale d'ombrage](Vecteurs_et_normale_d'ombrage.md) (5 shared connections)
+- [Priorité de diffusion et oracles](Priorité_de_diffusion_et_oracles.md) (3 shared connections)
 - [Scène d'expérience d'éclairage](Scène_d'expérience_d'éclairage.md) (3 shared connections)
-- [oracles · record](oracles_·_record.md) (3 shared connections)
-- [Adoption et reprise de la coupe](Adoption_et_reprise_de_la_coupe.md) (2 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (2 shared connections)
 - [bench · longueurs](bench_·_longueurs.md) (2 shared connections)
 - [Équivalence du socle mesuré](Équivalence_du_socle_mesuré.md) (2 shared connections)
-- [Matrices et origine de rendu](Matrices_et_origine_de_rendu.md) (1 shared connections)
-- [Caméra monde et contrat](Caméra_monde_et_contrat.md) (1 shared connections)
-- [sdk-browser · flush](sdk-browser_·_flush.md) (1 shared connections)
+- [appui · matrices32](appui_·_matrices32.md) (1 shared connections)
+- [Pages autonomes et backends](Pages_autonomes_et_backends.md) (1 shared connections)
 - [Transport de lumière (2)](Transport_de_lumière_2.md) (1 shared connections)
+- [Matrices et origine de rendu](Matrices_et_origine_de_rendu.md) (1 shared connections)
 
 ## Source Files
 

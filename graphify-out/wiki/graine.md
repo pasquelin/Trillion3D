@@ -1,6 +1,6 @@
 # graine()
 
-> God node · 58 connections · `packages/sdk-core/bench/socle/mesure.mjs`
+> God node · 63 connections · `packages/sdk-core/bench/socle/mesure.mjs`
 
 **Community:** [Garde zéro Three.js](Garde_zéro_Three.js.md)
 
@@ -47,10 +47,10 @@
 - eclairage-pixel.perf.mjs `EXTRACTED`
 - texture-echantillonnee.perf.mjs `EXTRACTED`
 - scenesTransparents.mjs `EXTRACTED`
+- lampes-ombres.perf.mjs `EXTRACTED`
 - metriques-octets.perf.mjs `EXTRACTED`
 - ombrage-srgb.perf.mjs `EXTRACTED`
-- admission-arrivees.perf.mjs `EXTRACTED`
-- *…and 18 more `imports` connection(s) not listed (lowest-degree first to go)*
+- *…and 23 more `imports` connection(s) not listed (lowest-degree first to go)*
 
 ### re_exports
 - socle.mjs `EXTRACTED`

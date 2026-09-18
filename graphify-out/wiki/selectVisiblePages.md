@@ -43,16 +43,16 @@
 - selection-relances.perf.mjs `EXTRACTED`
 - exactPagesRender.ts `EXTRACTED`
 - gpuDagSelectionTestHelpers.ts `EXTRACTED`
-- webgpuPages.09.test.ts `EXTRACTED`
 - exactPagesRequests.ts `EXTRACTED`
 - pages-anneau.perf.mjs `EXTRACTED`
 - pageConeEchelle.test.ts `EXTRACTED`
+- webgpuPages.09.test.ts `EXTRACTED`
 - pageSelectionCut.test.ts `EXTRACTED`
 - pageSelectionResident.test.ts `EXTRACTED`
-- pageSelectionBoxes.test.ts `EXTRACTED`
 - webgpuPages.06.test.ts `EXTRACTED`
+- pageSelectionBoxes.test.ts `EXTRACTED`
+- webgpuPages.08.test.ts `EXTRACTED`
 - autonomousRender.ts `EXTRACTED`
-- pageSelection.test.ts `EXTRACTED`
 - *…and 11 more `imports` connection(s) not listed (lowest-degree first to go)*
 
 ### re_exports

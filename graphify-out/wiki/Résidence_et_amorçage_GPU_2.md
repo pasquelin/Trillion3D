@@ -1,68 +1,64 @@
 # Résidence et amorçage GPU (2)
 
-> 41 nodes
+> 20 nodes · cohesion 0.17
 
 ## Key Concepts
 
-- **webgpuResidencySets.ts** (23 connections) — `packages/sdk-browser/webgpuResidencySets.ts`
-- **webgpuPinUpdater.ts** (17 connections) — `packages/sdk-browser/webgpuPinUpdater.ts`
+- **webgpuPagesServices.ts** (33 connections) — `packages/sdk-browser/webgpuPagesServices.ts`
+- **createWebgpuPagesServices()** (17 connections) — `packages/sdk-browser/webgpuPagesServices.ts`
 - **webgpuResidentEnsurer.ts** (17 connections) — `packages/sdk-browser/webgpuResidentEnsurer.ts`
-- **webgpuResidencyQueue.ts** (16 connections) — `packages/sdk-browser/webgpuResidencyQueue.ts`
-- **webgpuBootstrap.ts** (15 connections) — `packages/sdk-browser/webgpuBootstrap.ts`
-- **webgpuPageTracking.ts** (14 connections) — `packages/sdk-browser/webgpuPageTracking.ts`
-- **createDenseKeySet()** (13 connections) — `packages/sdk-browser/webgpuDenseKeys.ts`
-- **createWebgpuPageTracking()** (12 connections) — `packages/sdk-browser/webgpuPageTracking.ts`
-- **webgpuPagesDiagnostics.ts** (10 connections) — `packages/sdk-browser/webgpuPagesDiagnostics.ts`
-- **createWebgpuDiagnostics()** (9 connections) — `packages/sdk-browser/webgpuPagesDiagnostics.ts`
-- **createWebgpuResidencySets()** (9 connections) — `packages/sdk-browser/webgpuResidencySets.ts`
-- **webgpuDenseKeys.ts** (9 connections) — `packages/sdk-browser/webgpuDenseKeys.ts`
-- **webgpuBudgetRanking.ts** (7 connections) — `packages/sdk-browser/webgpuBudgetRanking.ts`
-- **webgpuHeldKeys.ts** (6 connections) — `packages/sdk-browser/webgpuHeldKeys.ts`
-- **webgpuKeyUnion.ts** (6 connections) — `packages/sdk-browser/webgpuKeyUnion.ts`
-- **WebgpuResidencySets** (5 connections) — `packages/sdk-browser/webgpuResidencySets.ts`
-- **createBudgetRanking()** (5 connections) — `packages/sdk-browser/webgpuBudgetRanking.ts`
-- **createHeldKeys()** (4 connections) — `packages/sdk-browser/webgpuHeldKeys.ts`
+- **WebgpuPagesCore** (9 connections) — `packages/sdk-browser/webgpuPagesRuntime.ts`
+- **createWebgpuRowCommit()** (8 connections) — `packages/sdk-browser/webgpuRowCommit.ts`
+- **createWebgpuRowSync()** (8 connections) — `packages/sdk-browser/webgpuRowSync.ts`
+- **webgpuTransparentSpans.ts** (7 connections) — `packages/sdk-browser/webgpuTransparentSpans.ts`
+- **dropPage()** (5 connections) — `packages/sdk-browser/webgpuPagesPageApi.ts`
+- **createWebgpuBootstrap()** (4 connections) — `packages/sdk-browser/webgpuBootstrap.ts`
+- **createWebgpuPinUpdater()** (4 connections) — `packages/sdk-browser/webgpuPinUpdater.ts`
+- **createWebgpuResidencyMirror()** (4 connections) — `packages/sdk-browser/webgpuResidencyMirror.ts`
 - **createWebgpuResidentEnsurer()** (4 connections) — `packages/sdk-browser/webgpuResidentEnsurer.ts`
-- **createKeyUnion()** (3 connections) — `packages/sdk-browser/webgpuKeyUnion.ts`
-- **DenseKeySet** (2 connections) — `packages/sdk-browser/webgpuDenseKeys.ts`
-- **yieldToEventLoop()** (2 connections) — `packages/sdk-browser/webgpuResidentEnsurer.ts`
+- **createWebgpuResidencyQueue()** (3 connections) — `packages/sdk-browser/webgpuResidencyQueue.ts`
+- **updateTransparentSpan()** (3 connections) — `packages/sdk-browser/webgpuTransparentSpans.ts`
 - **UPLOAD_SLICE_MS** (2 connections) — `packages/sdk-browser/backendCommon.ts`
-- **BootstrapOptions** (1 connections) — `packages/sdk-browser/webgpuBootstrap.ts`
-- **Cache** (1 connections) — `packages/sdk-browser/webgpuBootstrap.ts`
-- *... and 16 more nodes in this community*
+- **yieldToEventLoop()** (2 connections) — `packages/sdk-browser/webgpuResidentEnsurer.ts`
+- **Cache** (1 connections) — `packages/sdk-browser/webgpuResidentEnsurer.ts`
+- **EnsureOptions** (1 connections) — `packages/sdk-browser/webgpuResidentEnsurer.ts`
+- **Trace** (1 connections) — `packages/sdk-browser/webgpuResidentEnsurer.ts`
+- **Tracking** (1 connections) — `packages/sdk-browser/webgpuResidentEnsurer.ts`
 
 ## Relationships
 
-- [Adoption et reprise de la coupe](Adoption_et_reprise_de_la_coupe.md) (25 shared connections)
-- [Lignes dessinables et validation (2)](Lignes_dessinables_et_validation_2.md) (17 shared connections)
-- [Sélection des pages visibles](Sélection_des_pages_visibles.md) (14 shared connections)
-- [Cache de pages GPU](Cache_de_pages_GPU.md) (8 shared connections)
-- [Lignes dessinables et validation (3)](Lignes_dessinables_et_validation_3.md) (3 shared connections)
-- [sdk-browser · BlendState](sdk-browser_·_BlendState.md) (3 shared connections)
-- [Coupe en différence](Coupe_en_différence.md) (2 shared connections)
-- [sdk-browser · rec](sdk-browser_·_rec.md) (2 shared connections)
-- [Backends de rendu exacts (2)](Backends_de_rendu_exacts_2.md) (2 shared connections)
-- [API et session de l'explorateur (2)](API_et_session_de_l'explorateur_2.md) (2 shared connections)
+- [Résidence et amorçage GPU](Résidence_et_amorçage_GPU.md) (12 shared connections)
+- [Adoption et reprise de la coupe](Adoption_et_reprise_de_la_coupe.md) (9 shared connections)
+- [Encodage des dessins WebGPU (2)](Encodage_des_dessins_WebGPU_2.md) (8 shared connections)
+- [Pages autonomes](Pages_autonomes.md) (6 shared connections)
+- [Lignes de page et double face](Lignes_de_page_et_double_face.md) (6 shared connections)
+- [Lignes dessinables et validation](Lignes_dessinables_et_validation.md) (6 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (4 shared connections)
+- [Lignes dessinables et validation (3)](Lignes_dessinables_et_validation_3.md) (4 shared connections)
+- [sdk-core · Inputs (2)](sdk-core_·_Inputs_2.md) (3 shared connections)
+- [sdk-browser · Tracking](sdk-browser_·_Tracking.md) (3 shared connections)
+- [bench · catalogue](bench_·_catalogue.md) (3 shared connections)
+- [Pages autonomes et backends](Pages_autonomes_et_backends.md) (2 shared connections)
 
 ## Source Files
 
 - `packages/sdk-browser/backendCommon.ts`
 - `packages/sdk-browser/webgpuBootstrap.ts`
-- `packages/sdk-browser/webgpuBudgetRanking.ts`
-- `packages/sdk-browser/webgpuDenseKeys.ts`
-- `packages/sdk-browser/webgpuHeldKeys.ts`
-- `packages/sdk-browser/webgpuKeyUnion.ts`
-- `packages/sdk-browser/webgpuPageTracking.ts`
-- `packages/sdk-browser/webgpuPagesDiagnostics.ts`
+- `packages/sdk-browser/webgpuPagesPageApi.ts`
+- `packages/sdk-browser/webgpuPagesRuntime.ts`
+- `packages/sdk-browser/webgpuPagesServices.ts`
 - `packages/sdk-browser/webgpuPinUpdater.ts`
+- `packages/sdk-browser/webgpuResidencyMirror.ts`
 - `packages/sdk-browser/webgpuResidencyQueue.ts`
-- `packages/sdk-browser/webgpuResidencySets.ts`
 - `packages/sdk-browser/webgpuResidentEnsurer.ts`
+- `packages/sdk-browser/webgpuRowCommit.ts`
+- `packages/sdk-browser/webgpuRowSync.ts`
+- `packages/sdk-browser/webgpuTransparentSpans.ts`
 
 ## Audit Trail
 
-- EXTRACTED: 153 (100%)
-- INFERRED: 0 (0%)
+- EXTRACTED: 100 (98%)
+- INFERRED: 2 (2%)
 - AMBIGUOUS: 0 (0%)
 
 ---

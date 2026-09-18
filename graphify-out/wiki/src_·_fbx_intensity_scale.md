@@ -1,6 +1,6 @@
 # src · fbx_intensity_scale
 
-> 34 nodes
+> 34 nodes · cohesion 0.09
 
 ## Key Concepts
 
@@ -33,14 +33,13 @@
 
 ## Relationships
 
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (3 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (3 shared connections)
 - [compiler_lights · DERIVED](compiler_lights_·_DERIVED.md) (2 shared connections)
 - [Matrices monde du compilateur](Matrices_monde_du_compilateur.md) (2 shared connections)
+- [Empaquetage des pages DAG](Empaquetage_des_pages_DAG.md) (2 shared connections)
 - [alembic · Result](alembic_·_Result.md) (1 shared connections)
 - [Blocs EAC du KTX2](Blocs_EAC_du_KTX2.md) (1 shared connections)
-- [unity · les_mesures_et_la_provenance_sortent_de_lidentite](unity_·_les_mesures_et_la_provenance_sortent_de_lidentite.md) (1 shared connections)
-- [src · Fn (2)](src_·_Fn_2.md) (1 shared connections)
-- [Écriture de la scène source](Écriture_de_la_scène_source.md) (1 shared connections)
+- [Identité du compilateur et purge](Identité_du_compilateur_et_purge.md) (1 shared connections)
 
 ## Source Files
 

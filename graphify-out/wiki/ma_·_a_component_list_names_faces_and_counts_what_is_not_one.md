@@ -1,6 +1,6 @@
 # ma · a_component_list_names_faces_and_counts_what_is_not_one
 
-> 11 nodes
+> 11 nodes · cohesion 0.24
 
 ## Key Concepts
 
@@ -18,7 +18,7 @@
 
 ## Relationships
 
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
 
 ## Source Files
 

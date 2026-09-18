@@ -1,11 +1,11 @@
 # types · browser.d
 
-> 2 nodes
+> 2 nodes · cohesion 1.00
 
 ## Key Concepts
 
-- **browser.d.ts** (1 connections) — `types/browser.d.ts`
 - **dist_sdk_browser_index** (1 connections)
+- **browser.d.ts** (1 connections) — `types/browser.d.ts`
 
 ## Relationships
 

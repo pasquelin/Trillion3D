@@ -1,6 +1,6 @@
 # tests · AWKWARD
 
-> 10 nodes
+> 10 nodes · cohesion 0.33
 
 ## Key Concepts
 
@@ -17,9 +17,9 @@
 
 ## Relationships
 
-- [Tests dorés du compilateur](Tests_dorés_du_compilateur.md) (3 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
-- [Bacs à sable des pilotes](Bacs_à_sable_des_pilotes.md) (1 shared connections)
+- [Exécution des tests dorés](Exécution_des_tests_dorés.md) (3 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
+- [Routage des conteneurs d'archives](Routage_des_conteneurs_d'archives.md) (1 shared connections)
 
 ## Source Files
 

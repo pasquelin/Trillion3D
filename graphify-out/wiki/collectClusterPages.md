@@ -1,6 +1,6 @@
 # collectClusterPages()
 
-> God node · 62 connections · `packages/sdk-browser/pageSelectionCollect.ts`
+> God node · 63 connections · `packages/sdk-browser/pageSelectionCollect.ts`
 
 **Community:** [Sélection des pages visibles](Sélection_des_pages_visibles.md)
 
@@ -40,20 +40,20 @@
 - webgpuPagesSetup.ts `EXTRACTED`
 - webgpuPages.07.test.ts `EXTRACTED`
 - gpuDagSelectionTestHelpers.ts `EXTRACTED`
-- webgpuPages.03.test.ts `EXTRACTED`
 - instancesPartagees.test.ts `EXTRACTED`
+- webgpuPages.03.test.ts `EXTRACTED`
 - webgpuPages.09.test.ts `EXTRACTED`
+- webgpuPages.18.test.ts `EXTRACTED`
 - pageSelectionCut.test.ts `EXTRACTED`
 - pageSelectionResident.test.ts `EXTRACTED`
 - webgpuFrameCost.test.ts `EXTRACTED`
+- webgpuPages.06.test.ts `EXTRACTED`
 - webgpuPages.16.test.ts `EXTRACTED`
-- webgpuPages.18.test.ts `EXTRACTED`
+- webgpuPages.20.test.ts `EXTRACTED`
 - cameraParenteeGpuPage.mjs `EXTRACTED`
 - pageSelectionBoxes.test.ts `EXTRACTED`
 - webgpuMaterialClasses.test.ts `EXTRACTED`
-- webgpuPages.06.test.ts `EXTRACTED`
-- pageSelection.test.ts `EXTRACTED`
-- *…and 17 more `imports` connection(s) not listed (lowest-degree first to go)*
+- *…and 18 more `imports` connection(s) not listed (lowest-degree first to go)*
 
 ### indirect_call
 - chargement-scene.perf.mjs `INFERRED`

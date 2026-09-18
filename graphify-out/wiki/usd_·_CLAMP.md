@@ -1,6 +1,6 @@
 # usd · CLAMP
 
-> 14 nodes
+> 14 nodes · cohesion 0.23
 
 ## Key Concepts
 
@@ -21,7 +21,7 @@
 
 ## Relationships
 
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
 - [Décodage EXR](Décodage_EXR.md) (1 shared connections)
 
 ## Source Files

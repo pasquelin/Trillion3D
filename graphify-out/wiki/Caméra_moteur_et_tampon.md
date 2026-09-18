@@ -1,68 +1,52 @@
 # Caméra moteur et tampon
 
-> 25 nodes
+> 16 nodes · cohesion 0.22
 
 ## Key Concepts
 
-- **visibilityBuffer.test.ts** (33 connections) — `packages/sdk-browser/visibilityBuffer.test.ts`
-- **visibilityBufferShading.test.ts** (25 connections) — `packages/sdk-browser/visibilityBufferShading.test.ts`
-- **visibilityBufferMaterials.test.ts** (24 connections) — `packages/sdk-browser/visibilityBufferMaterials.test.ts`
-- **visibilityBufferShader.test.ts** (19 connections) — `packages/sdk-browser/visibilityBufferShader.test.ts`
-- **visibilityShade.test.ts** (18 connections) — `packages/sdk-browser/visibilityShade.test.ts`
-- **rasterVisibilityIds()** (17 connections) — `packages/sdk-browser/visibilityRaster.ts`
-- **shadeVisibility()** (17 connections) — `packages/sdk-browser/visibilityShade.ts`
-- **compareImages()** (14 connections) — `packages/sdk-core/compareImages.ts`
-- **packages_sdk_browser_visibilitybuffer_rastervisibilityids** (12 connections)
-- **visibilityBufferFixture.ts** (11 connections) — `packages/sdk-browser/visibilityBufferFixture.ts`
-- **assertOccluderImage()** (9 connections) — `packages/sdk-browser/webgpuPagesTestOccluder.ts`
-- **packages_sdk_browser_visibilitybuffer_shadevisibility** (9 connections)
-- **camera()** (5 connections) — `packages/sdk-browser/visibilityBufferFixture.ts`
-- **quadPages()** (5 connections) — `packages/sdk-browser/visibilityBufferFixture.ts`
-- **centerId()** (4 connections) — `packages/sdk-browser/visibilityBufferFixture.ts`
-- **VIS_INVALID** (4 connections) — `packages/sdk-browser/visibilityTypes.ts`
-- **packages_sdk_browser_visibilitybuffer_unpackvisibilityid** (4 connections)
-- **packages_sdk_browser_visibilitybuffer_vis_invalid** (3 connections)
-- **VIS_MAX_PAGE_TRIANGLES** (2 connections) — `packages/sdk-browser/visibilityTypes.ts`
-- **compareImages.ts** (2 connections) — `packages/sdk-core/compareImages.ts`
-- **packages_sdk_browser_visibilitybuffer_packvisibilityid** (2 connections)
-- **bitExactPixels()** (1 connections) — `packages/sdk-browser/visibilityShade.test.ts`
-- **packages_sdk_browser_visibilitybuffer_vis_max_page_triangles** (1 connections)
-- **packages_sdk_browser_visibilitybuffer_vis_triangle_mask** (1 connections)
-- **packages_sdk_browser_visibilitybuffer_visibilityuvderivatives** (1 connections)
+- **pageRaster.ts** (29 connections) — `packages/sdk-browser/pageRaster.ts`
+- **resolveCameraWorld()** (12 connections) — `packages/sdk-browser/cameraWorld.ts`
+- **barycentricAt()** (9 connections) — `packages/sdk-browser/visibilityProjection.ts`
+- **rasterPages()** (8 connections) — `packages/sdk-browser/pageRaster.ts`
+- **rasterPageRecords()** (7 connections) — `packages/sdk-browser/pageRaster.ts`
+- **fillTriangle()** (5 connections) — `packages/sdk-browser/pageRaster.ts`
+- **opaqueBackgroundRgba()** (4 connections) — `packages/sdk-browser/pageRaster.ts`
+- **RASTER_BACKGROUND** (4 connections) — `packages/sdk-browser/pageRaster.ts`
+- **threeReference()** (3 connections) — `packages/sdk-browser/cameraWorld.test.ts`
+- **colorOf()** (3 connections) — `packages/sdk-browser/pageRaster.ts`
+- **project()** (2 connections) — `packages/sdk-browser/pageRaster.ts`
+- **projectAttribute()** (2 connections) — `packages/sdk-browser/pageRaster.ts`
+- **pa** (1 connections) — `packages/sdk-browser/pageRaster.ts`
+- **pb** (1 connections) — `packages/sdk-browser/pageRaster.ts`
+- **pc** (1 connections) — `packages/sdk-browser/pageRaster.ts`
+- **projectScratch** (1 connections) — `packages/sdk-browser/pageRaster.ts`
 
 ## Relationships
 
-- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (32 shared connections)
-- [Mathématiques du tampon de visibilité](Mathématiques_du_tampon_de_visibilité.md) (21 shared connections)
-- [Pyramide Hi-Z et occlusion](Pyramide_Hi-Z_et_occlusion.md) (16 shared connections)
-- [sdk-browser · flush](sdk-browser_·_flush.md) (11 shared connections)
-- [sdk-browser · GeometryBlock](sdk-browser_·_GeometryBlock.md) (7 shared connections)
-- [Erreur d'écran hors axe](Erreur_d'écran_hors_axe.md) (5 shared connections)
-- [Sélection des pages visibles](Sélection_des_pages_visibles.md) (5 shared connections)
-- [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (4 shared connections)
-- [Mathématiques du tampon de visibilité (2)](Mathématiques_du_tampon_de_visibilité_2.md) (4 shared connections)
-- [Caméra monde et contrat](Caméra_monde_et_contrat.md) (3 shared connections)
-- [sdk-browser · DeferredBindings](sdk-browser_·_DeferredBindings.md) (3 shared connections)
-- [Télémétrie et métriques](Télémétrie_et_métriques.md) (2 shared connections)
+- [Pyramide Hi-Z et occlusion](Pyramide_Hi-Z_et_occlusion.md) (13 shared connections)
+- [Mathématiques du tampon de visibilité](Mathématiques_du_tampon_de_visibilité.md) (7 shared connections)
+- [Pages autonomes et backends](Pages_autonomes_et_backends.md) (3 shared connections)
+- [Mathématiques du tampon de visibilité (2)](Mathématiques_du_tampon_de_visibilité_2.md) (3 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (3 shared connections)
+- [sdk-browser · CaptureOptions](sdk-browser_·_CaptureOptions.md) (2 shared connections)
+- [Adoption et reprise de la coupe](Adoption_et_reprise_de_la_coupe.md) (2 shared connections)
+- [Résidence et amorçage GPU](Résidence_et_amorçage_GPU.md) (2 shared connections)
+- [Caméra monde et contrat](Caméra_monde_et_contrat.md) (1 shared connections)
+- [Matrices et origine de rendu](Matrices_et_origine_de_rendu.md) (1 shared connections)
+- [API et session de l'explorateur (2)](API_et_session_de_l'explorateur_2.md) (1 shared connections)
+- [API et session de l'explorateur](API_et_session_de_l'explorateur.md) (1 shared connections)
 
 ## Source Files
 
-- `packages/sdk-browser/visibilityBuffer.test.ts`
-- `packages/sdk-browser/visibilityBufferFixture.ts`
-- `packages/sdk-browser/visibilityBufferMaterials.test.ts`
-- `packages/sdk-browser/visibilityBufferShader.test.ts`
-- `packages/sdk-browser/visibilityBufferShading.test.ts`
-- `packages/sdk-browser/visibilityRaster.ts`
-- `packages/sdk-browser/visibilityShade.test.ts`
-- `packages/sdk-browser/visibilityShade.ts`
-- `packages/sdk-browser/visibilityTypes.ts`
-- `packages/sdk-browser/webgpuPagesTestOccluder.ts`
-- `packages/sdk-core/compareImages.ts`
+- `packages/sdk-browser/cameraWorld.test.ts`
+- `packages/sdk-browser/cameraWorld.ts`
+- `packages/sdk-browser/pageRaster.ts`
+- `packages/sdk-browser/visibilityProjection.ts`
 
 ## Audit Trail
 
-- EXTRACTED: 176 (96%)
-- INFERRED: 8 (4%)
+- EXTRACTED: 66 (100%)
+- INFERRED: 0 (0%)
 - AMBIGUOUS: 0 (0%)
 
 ---

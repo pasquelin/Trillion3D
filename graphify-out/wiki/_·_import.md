@@ -1,6 +1,6 @@
 # . · import
 
-> 11 nodes
+> 11 nodes · cohesion 0.18
 
 ## Key Concepts
 

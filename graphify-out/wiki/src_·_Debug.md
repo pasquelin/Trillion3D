@@ -1,6 +1,6 @@
 # src · Debug
 
-> 13 nodes
+> 13 nodes · cohesion 0.26
 
 ## Key Concepts
 
