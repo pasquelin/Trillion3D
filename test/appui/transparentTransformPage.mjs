@@ -10,6 +10,7 @@ import {
   image,
   libere,
   moteur,
+  versApi,
 } from './preuveSceneCommune.mjs';
 import { sceneTransparente } from './transparentTransformScene.mjs';
 
@@ -27,9 +28,6 @@ function couleurEn(pixels, camera, x, y, z = 0) {
 
 /** Vrai quand la couleur lue porte le rouge du carreau et non le bleu du fond. */
 const rouge = (c) => c[0] > 110 && c[0] > c[2] + 40;
-
-/** Une matrice monde colonne-major, prête pour `setTransform`. */
-const versApi = (matrice) => new Float32Array(matrice.elements);
 
 /** Translation pure sur `x`. */
 function translation(x) {

@@ -3,6 +3,7 @@ import { projectedPageError } from './pageSelection.ts';
 import { screenErrorRatio } from './diagnosticColors.ts';
 import { drawWebgpuFallback } from './webgpuFallbackDraw.ts';
 import { viewProj } from './webgpuPagesHelpers.ts';
+import { taaRenderMatrix } from './taaFrame.ts';
 import { ensureUniform } from './webgpuPagesPipelineFor.ts';
 import {
   abandonFrameEncoder,
@@ -73,7 +74,8 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
   // Plans du tronc et vue-projection sont ceux que l'entrée d'image a posés : le moteur n'a qu'une
   // convention de profondeur (`depthConvention.ts`), donc rien n'est converti en chemin.
   blendState.blendPlanes.set(cam.planes);
-  viewProj.set(cam.viewProjection);
+  // La matrice de rendu porte la gigue de l'antialiasing temporel ; la caméra n'en sait rien.
+  viewProj.set(taaRenderMatrix(rt, cam));
   ensurePageTable(rt, device);
   if (!run.gpuFrameActive) rt.services.syncRowsFromCut();
   else if (run.rowsSyncedFrame !== run.frame) {

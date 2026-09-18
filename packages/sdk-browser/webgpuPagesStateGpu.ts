@@ -3,6 +3,7 @@ import type { createGpuPageCache } from './gpuPages.ts';
 import type { createGpuPresenter, createSynchronousCanvasCapture } from './gpuPresentation.ts';
 import type { createDeferredLighting } from './deferredLighting.ts';
 import type { SurfaceBuffer } from './surfaceBuffer.ts';
+import type { TemporalAntialiasing } from './temporalAntialiasing.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 
 /** GPU resources of the forward path: page cache, pipelines, frame targets and presentation. */
@@ -58,6 +59,9 @@ export interface WebgpuGpuState {
   blitMaterial: THREE.ShaderMaterial | undefined;
   blit: THREE.Mesh | undefined;
   deferred: Awaited<ReturnType<typeof createDeferredLighting>> | undefined;
+  /** La passe d'antialiasing temporel et ses deux cibles d'historique ; absente quand l'hôte la
+   *  refuse ou que l'appareil ne l'héberge pas. */
+  temporal: TemporalAntialiasing | undefined;
 }
 
 /** Les deux copies que la passe de transmission lit, et leurs vues. */
@@ -109,5 +113,6 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     blitMaterial: undefined,
     blit: undefined,
     deferred: undefined,
+    temporal: undefined,
   };
 }

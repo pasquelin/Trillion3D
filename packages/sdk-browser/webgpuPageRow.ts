@@ -23,6 +23,8 @@ export const ROW_ID_BASE_WORD = 27,
 /** Mot où vit l'adressage des cartes de la page, un quartet chacune (`visibilityWrapModes.ts`).
  *  Il occupe un des mots de remplissage de la fiche : la fiche ne grossit pas d'un octet. */
 export const ROW_WRAP_MODES_WORD = 61;
+/** Le mot de la fiche qui porte le placement de la ligne (`PageInfo.placement`). */
+export const ROW_PLACEMENT_WORD = 62;
 /** Mot de la ligne où vit le nombre d'indices que la page dessine : ce que la carte lit pour la
  *  dessiner, et donc le seul compte de sommets qu'un parcours d'image a besoin de relire. */
 export const ROW_INDEX_WORDS = 25;
@@ -148,6 +150,10 @@ export function createPageRowWriter({
     // Chaque carte adresse sa texture dans son propre mode : la couleur peut se répéter là où les
     // normales se serrent, et le nuanceur lit le quartet de la carte qu'il échantillonne.
     ints[base + ROW_WRAP_MODES_WORD] = material.wrap;
+    // Le placement de la ligne : la passe temporelle y lit la matrice de mouvement du pixel. Une
+    // page sans placement n'existe pas dans une disposition WebGPU : c'est un invariant, pas zéro.
+    if (rec.placementIndex === undefined) throw new Error('PAGE_PLACEMENT_MISSING');
+    ints[base + ROW_PLACEMENT_WORD] = rec.placementIndex;
     markRowDirty(row);
   };
 }

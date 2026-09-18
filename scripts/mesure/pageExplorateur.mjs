@@ -47,5 +47,7 @@ export function optionsExplorateur(options, factory, eclairage) {
     ...(options.shadowPages === false ? { shadowPageInvalidation: false } : {}),
     // Les niveaux de texture lus dans le cache plutôt que les images sources décodées.
     ...(options.textureSource === 'cache' ? { textureSource: 'cache' } : {}),
+    // L'antialiasing temporel coupé : l'image d'avant le lot, échantillonnée au centre du pixel.
+    ...(options.temporalAntialiasing === false ? { temporalAntialiasing: false } : {}),
   };
 }

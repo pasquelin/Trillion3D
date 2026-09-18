@@ -32,6 +32,12 @@ Un seul harnais pour tous les lots. Une commande, aucun serveur à lancer à la 
   texture cuits dans le cache compilé, sans que le chargeur glTF ouvre les images sources ; le
   témoin Three garde ses images quoi qu'il arrive. Un dist d'avant cette option l'ignore, ce qui
   permet de la laisser sur une comparaison avant/après.
+- `--antialiasing on|off` (par défaut `on`) : `off` fait rendre le moteur WebGPU sans gigue ni
+  historique — l'image d'avant le lot Lumière 16, échantillonnée au centre du pixel. Deux exécutions
+  dont seule cette option diffère donnent le coût et l'écart en pixels de l'accumulation temporelle ;
+  le coût se lit sur l'ENVELOPPE de l'image, pas sur l'étiquette de la passe (sur apple metal-3,
+  l'horodatage des dernières passes absorbe celles qui les précèdent). Un dist d'avant l'option
+  l'ignore.
 - `--profil on|off` (par défaut `on`) : demande au moteur son découpage par étape. `off` rejoue
   exactement la même série sans ce chronométrage — deux exécutions dont seule cette option diffère
   donnent la porte de fidélité et le coût du profil.

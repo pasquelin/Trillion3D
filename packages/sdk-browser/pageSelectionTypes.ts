@@ -51,6 +51,9 @@ export type PageRec = {
   /** Rang de la page dans le catalogue empaqueté d'un moteur WebGPU, posé une fois. Un autre moteur
    *  qui le réécrit ne trompe personne : le lecteur vérifie que le catalogue rend bien cette page. */
   packedIndex?: number;
+  /** Rang de la racine — le placement — dans les racines de sélection d'un moteur WebGPU, posé une
+   *  fois par sa disposition : c'est ce que la fiche porte pour retrouver le mouvement du placement. */
+  placementIndex?: number;
 };
 /**
  * Group links of a primitive, flattened once and shared by every instance of it.

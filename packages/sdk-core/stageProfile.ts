@@ -69,6 +69,7 @@ export const STAGE_LABELS: Readonly<Record<string, string>> = Object.freeze({
   lightLists: 'Listes de lampes',
   bounce: "Rebond (sondes d'irradiance)",
   lighting: 'Éclairage (résolution)',
+  antialiasing: 'Antialiasing temporel',
   present: 'Présentation',
   frame: 'Image entière',
 });

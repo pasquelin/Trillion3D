@@ -108,6 +108,10 @@ export function readOptions(argv, root) {
     // n'ouvre plus les images sources. Réservé au moteur WebGPU, qui lit l'atlas ; le témoin Three
     // dessine la scène de l'hôte et garde ses images. Un dist d'avant cette option l'ignore.
     textureSource: flags.get('textures') === 'cache' ? 'cache' : 'host',
+    // `--antialiasing off` : le moteur WebGPU rend sans gigue ni historique — le « avant » du lot
+    // Lumière 16. Sans l'option, le moteur garde son défaut, l'accumulation temporelle active ; un
+    // dist d'avant l'option l'ignore, ce qui permet de la laisser sur une comparaison avant/après.
+    temporalAntialiasing: flags.get('antialiasing') !== 'off',
     // Le mode sans fenêtre plafonne l'affichage à 60 Hz sur cette machine : `--visible` ouvre une
     // vraie fenêtre quand la cadence compte.
     visible: flags.get('visible') === 'true',

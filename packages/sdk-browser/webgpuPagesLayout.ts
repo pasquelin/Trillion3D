@@ -23,6 +23,11 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
   // buffer. Keeping the opaque prefix first leaves every opaque page index exactly where it was.
   const selectionRoots = [...opaqueRoots, ...transparentRoots];
   const packedPages: PageRec[] = selectionRoots.flatMap((root) => root.pages);
+  // Le placement d'une page est le rang de sa racine : ce que la fiche porte pour retrouver le
+  // mouvement du placement (`taaMotion.ts`), posé une fois comme `packedIndex`.
+  selectionRoots.forEach((root, placement) => {
+    for (const page of root.pages) page.placementIndex = placement;
+  });
   const opaquePageCount = opaqueRoots.reduce((total, root) => total + root.pages.length, 0);
   const worldUpdates = new Float32Array(Math.max(1, selectionRoots.length) * 16);
   const gpuWanted: PageRec[] = bootstrap;

@@ -4,7 +4,7 @@ import { SUN_FAR_PROXY_BINDING } from './sunFarShadowWgsl.ts';
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
 
 /** Construit un pipeline plein écran, en asynchrone quand l'appareil le propose. */
-function makeFullscreenPipeline(
+export function makeFullscreenPipeline(
   device: GPUDevice,
   module: GPUShaderModule,
   bind: GPUBindGroupLayout,
@@ -82,8 +82,11 @@ export async function createDeferredProgram(
     boundAtlas: GPUTextureView | undefined,
     boundProbes: GPUBuffer | undefined,
     boundProxy: GPUBuffer | undefined,
-    lightGroup: GPUBindGroup | undefined,
-    composeGroup: GPUBindGroup | undefined;
+    boundHdr: GPUTextureView | undefined,
+    lightGroup: GPUBindGroup | undefined;
+  /** Un groupe de composition par source lue : l'image éclairée, ou l'une des deux cibles
+   *  d'historique de l'antialiasing temporel. Trois au plus, tenus tant que l'uniforme vit. */
+  const composeGroups = new Map<GPUTextureView, GPUBindGroup>();
   return {
     light,
     compose,
@@ -91,8 +94,22 @@ export async function createDeferredProgram(
     get lightGroup() {
       return lightGroup;
     },
-    get composeGroup() {
-      return composeGroup;
+    /** Le groupe qui lit `source`, l'image éclairée liée par défaut. `undefined` avant `bind`. */
+    composeGroup(source?: GPUTextureView) {
+      const view = source ?? boundHdr;
+      if (!view) return undefined;
+      let group = composeGroups.get(view);
+      if (!group) {
+        group = device.createBindGroup({
+          layout: layouts.composition,
+          entries: [
+            { binding: 0, resource: view },
+            { binding: 1, resource: { buffer: bindings.uniform } },
+          ],
+        });
+        composeGroups.set(view, group);
+      }
+      return group;
     },
     bind(
       surface: SurfaceBuffer,
@@ -106,6 +123,8 @@ export async function createDeferredProgram(
         atlas = direct.atlas ?? placeholders.atlasView;
       const probes = direct.probes;
       const proxy = direct.proxy ?? placeholders.proxy;
+      if (boundHdr !== hdr) composeGroups.clear();
+      boundHdr = hdr;
       if (
         boundSurface === surface &&
         boundTiles === tiles &&
@@ -141,13 +160,6 @@ export async function createDeferredProgram(
           { binding: 12, resource: { buffer: direct.probes } },
         );
       lightGroup = device.createBindGroup({ layout: layouts.lighting, entries });
-      composeGroup = device.createBindGroup({
-        layout: layouts.composition,
-        entries: [
-          { binding: 0, resource: hdr },
-          { binding: 1, resource: { buffer: bindings.uniform } },
-        ],
-      });
     },
     release() {
       boundSurface = undefined;
@@ -155,8 +167,9 @@ export async function createDeferredProgram(
       boundAtlas = undefined;
       boundProbes = undefined;
       boundProxy = undefined;
+      boundHdr = undefined;
       lightGroup = undefined;
-      composeGroup = undefined;
+      composeGroups.clear();
     },
   };
 }

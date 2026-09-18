@@ -15,6 +15,9 @@ import { createHostRankDelta } from './webgpuPagesHostRanks.ts';
 import { RASTER_BACKGROUND } from './pageRaster.ts';
 import { defaultTextureBudgetBytes } from './textureBudget.ts';
 
+/** Le budget d'allocation d'image par défaut, en octets : voir `createWebgpuPagesSetup`. */
+export const DEFAULT_FRAME_BUDGET = 288 * 1024 * 1024;
+
 export type WebgpuDiagnostics = ReturnType<typeof createWebgpuDiagnostics> & {
   traceEnabled: boolean;
 };
@@ -97,7 +100,11 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     if (padded > pageBytes) pageBytes = padded;
   }
   const sourceBytes = indexSourceBytes(allPages);
-  const frameBudget = context.maxFrameAllocationBytes ?? 256 * 1024 * 1024;
+  // 288 Mio : ce que 2496 × 1404 — la résolution de relevé — demande avec toutes les cibles de la
+  // version 1, la réserve Hi-Z et les deux cibles d'historique de l'antialiasing temporel
+  // (275,7 Mo, mesuré), arrondi au multiple de 32 Mio. Avant l'historique, 256 suffisaient ; la 4K
+  // ne tenait pas et ne tient toujours pas.
+  const frameBudget = context.maxFrameAllocationBytes ?? DEFAULT_FRAME_BUDGET;
   const reserveHiz = typeof gpuDevice?.createComputePipeline === 'function';
   const textureBudget = Math.max(
     1,

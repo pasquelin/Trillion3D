@@ -155,16 +155,16 @@ export async function createDeferredLighting(
         pass.draw(3);
         pass.end();
       },
+      /** Compose `source` — l'image éclairée par défaut, ou la sortie de l'antialiasing temporel. */
       compose(
         encoder: GPUCommandEncoder,
         target: GPUTextureView,
         clear: GPUColor,
         presentation?: GPUTextureView,
+        source?: GPUTextureView,
       ) {
-        const group = active.composeGroup;
+        const group = active.composeGroup(source);
         if (!group) throw new Error('SURFACE_NOT_BOUND');
-        // Both UNORM targets receive the same display value. Keep the persistent
-        // capture image while avoiding a separate fullscreen read and presentation.
         const colorAttachments: GPURenderPassColorAttachment[] = [
           { view: target, loadOp: 'clear', storeOp: 'store', clearValue: clear },
         ];
