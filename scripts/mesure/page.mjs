@@ -1,10 +1,7 @@
-// Ce qui s'exécute DANS la page. Playwright sérialise ces fonctions : elles ne peuvent lire aucune
-// variable ni appeler aucune fonction de module, tout leur arrive par leur unique argument. C'est
+// Ce qui s'exécute DANS la page. Playwright sérialise cette fonction : elle ne peut lire aucune
+// variable ni appeler aucune fonction de module, tout lui arrive par son unique argument. C'est
 // la raison, et la seule, pour laquelle la création de l'explorateur est dupliquée entre
-// `readBounds` ci-dessous et `measureView`, sérialisée de la même façon dans `pageEclairage.mjs`.
-
-// measureView reste réexportée d'ici : les consommateurs (`serie.mjs`) l'importent de `page.mjs`.
-export { measureView } from './pageEclairage.mjs';
+// `readBounds` ci-dessous et `measureView` de `pageEclairage.mjs`, que la page importe par URL.
 
 /** Les bornes du modèle, lues sur un explorateur minuscule : elles donnent les poses du banc. */
 export async function readBounds(options) {

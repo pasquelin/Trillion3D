@@ -57,8 +57,10 @@ async function main() {
     sides.some((side) => !side.cache),
   );
   CTX.MANIFEST = MANIFEST;
-  for (const side of sides)
+  for (const side of sides) {
     side.manifestUrl = side.cache ? `/cache/${side.name}/native/full/manifest.json` : MANIFEST;
+    side.sourceUrl = side.engine.source === 'gltf' ? options.sceneGltf(scene) : null;
+  }
   const captures = new Map();
   const mounts = options.resolveMounts(ROOT, sides, resources);
 
