@@ -1,6 +1,6 @@
 # Décodage WebP
 
-> 20 nodes
+> 20 nodes · cohesion 0.12
 
 ## Key Concepts
 
@@ -27,7 +27,7 @@
 
 ## Relationships
 
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (2 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (2 shared connections)
 - [image · IntoIterator](image_·_IntoIterator.md) (2 shared connections)
 - [Décodage d'images](Décodage_d'images.md) (2 shared connections)
 - [Décodage GIF](Décodage_GIF.md) (1 shared connections)

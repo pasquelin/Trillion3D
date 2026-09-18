@@ -1,6 +1,6 @@
 # Décodage GIF
 
-> 23 nodes
+> 23 nodes · cohesion 0.12
 
 ## Key Concepts
 
@@ -31,7 +31,7 @@
 ## Relationships
 
 - [Décodage WebP](Décodage_WebP.md) (1 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
 - [Greffons et pilotes de scène](Greffons_et_pilotes_de_scène.md) (1 shared connections)
 - [Décodage d'images](Décodage_d'images.md) (1 shared connections)
 - [image · IntoIterator](image_·_IntoIterator.md) (1 shared connections)

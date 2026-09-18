@@ -1,6 +1,6 @@
 # sdk-core · clip
 
-> 16 nodes
+> 15 nodes · cohesion 0.31
 
 ## Key Concepts
 
@@ -14,7 +14,6 @@
 - **countPages()** (3 connections) — `packages/sdk-core/sceneLightShadowPages.ts`
 - **faceDirty()** (3 connections) — `packages/sdk-core/sceneLightShadowPages.ts`
 - **maskBase()** (3 connections) — `packages/sdk-core/sceneLightShadowPages.ts`
-- **ShadowDirty** (2 connections) — `packages/sdk-core/sceneLightShadowDirty.ts`
 - **pageOf()** (2 connections) — `packages/sdk-core/sceneLightShadowPages.ts`
 - **project()** (2 connections) — `packages/sdk-core/sceneLightShadowPages.ts`
 - **SHADOW_MASK_BYTES** (2 connections) — `packages/sdk-core/sceneLightShadowPages.ts`
@@ -23,10 +22,10 @@
 
 ## Relationships
 
-- [sdk-core · Inputs](sdk-core_·_Inputs.md) (13 shared connections)
-- [Faces et volumes d'ombre](Faces_et_volumes_d'ombre.md) (2 shared connections)
+- [sdk-core · Inputs](sdk-core_·_Inputs.md) (12 shared connections)
+- [Faces et volumes d'ombre](Faces_et_volumes_d'ombre.md) (3 shared connections)
 - [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (1 shared connections)
-- [sdk-browser · flushedSlices](sdk-browser_·_flushedSlices.md) (1 shared connections)
+- [sdk-browser · tilesOn](sdk-browser_·_tilesOn.md) (1 shared connections)
 
 ## Source Files
 
@@ -35,7 +34,7 @@
 
 ## Audit Trail
 
-- EXTRACTED: 51 (100%)
+- EXTRACTED: 50 (100%)
 - INFERRED: 0 (0%)
 - AMBIGUOUS: 0 (0%)
 

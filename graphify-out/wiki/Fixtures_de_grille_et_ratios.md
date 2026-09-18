@@ -1,6 +1,6 @@
 # Fixtures de grille et ratios
 
-> 27 nodes
+> 27 nodes · cohesion 0.11
 
 ## Key Concepts
 
@@ -26,16 +26,16 @@
 - **compile_dag_covers_transparent_primitives_and_records_their_source_rank()** (2 connections) — `packages/asset-compiler-rust/src/tests/part3.rs`
 - **simplification_none_ne_construit_aucun_niveau_grossier()** (2 connections) — `packages/asset-compiler-rust/src/tests/simplification_none.rs`
 - **simplification_qem_endpoints_garde_son_dag()** (2 connections) — `packages/asset-compiler-rust/src/tests/simplification_none.rs`
+- **duration** (1 connections)
 - **AtomicBool** (1 connections)
 - **PathBuf** (1 connections)
-- **String** (1 connections)
 - *... and 2 more nodes in this community*
 
 ## Relationships
 
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (5 shared connections)
-- [Budget et ouvriers du compilateur (2)](Budget_et_ouvriers_du_compilateur_2.md) (4 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (5 shared connections)
+- [Budget et ouvriers du compilateur (2)](Budget_et_ouvriers_du_compilateur_2.md) (3 shared connections)
+- [Lecture et écriture glTF](Lecture_et_écriture_glTF.md) (2 shared connections)
 
 ## Source Files
 

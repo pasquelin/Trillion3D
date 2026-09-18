@@ -1,6 +1,6 @@
 # src · localise_accepts_exactly_sixty_five_thousand_five_hundred_thirty_five_vertices
 
-> 8 nodes
+> 8 nodes · cohesion 0.43
 
 ## Key Concepts
 
@@ -16,8 +16,8 @@
 ## Relationships
 
 - [src · PLAN](src_·_PLAN.md) (4 shared connections)
-- [Bancs de calcul Rust (2)](Bancs_de_calcul_Rust_2.md) (1 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [Bancs de calcul Rust](Bancs_de_calcul_Rust.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
 
 ## Source Files
 

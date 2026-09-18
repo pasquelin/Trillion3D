@@ -1,36 +1,54 @@
 # src · Option (2)
 
-> 13 nodes
+> 19 nodes · cohesion 0.23
 
 ## Key Concepts
 
-- **src/uri.rs** (10 connections) — `packages/asset-compiler-rust/src/uri.rs`
-- **encode_relative()** (5 connections) — `packages/asset-compiler-rust/src/uri.rs`
-- **resolve_under()** (5 connections) — `packages/asset-compiler-rust/src/uri.rs`
-- **component()** (4 connections) — `packages/asset-compiler-rust/src/uri.rs`
-- **decode()** (4 connections) — `packages/asset-compiler-rust/src/uri.rs`
-- **String** (3 connections)
-- **lechappement_et_le_decodage_sont_inverses()** (2 connections) — `packages/asset-compiler-rust/src/uri.rs`
-- **unreserved()** (2 connections) — `packages/asset-compiler-rust/src/uri.rs`
+- **invalid()** (40 connections) — `packages/asset-compiler-rust/src/compiler_validate.rs`
+- **Accessor<'_>** (7 connections) — `packages/asset-compiler-rust/src/compiler_accessor_decode.rs`
+- **Result** (7 connections)
+- **.collect_f32()** (6 connections) — `packages/asset-compiler-rust/src/compiler_accessor_decode.rs`
+- **reserve()** (6 connections) — `packages/asset-compiler-rust/src/compiler_accessor_types.rs`
+- **.bytes_at()** (5 connections) — `packages/asset-compiler-rust/src/compiler_accessor_decode.rs`
+- **.collect_u32()** (5 connections) — `packages/asset-compiler-rust/src/compiler_accessor_decode.rs`
+- **.decoded_value()** (5 connections) — `packages/asset-compiler-rust/src/compiler_accessor_decode.rs`
+- **.u32_at()** (5 connections) — `packages/asset-compiler-rust/src/compiler_accessor_decode.rs`
+- **.value()** (5 connections) — `packages/asset-compiler-rust/src/compiler_accessor_decode.rs`
+- **compiler_accessor_types.rs** (5 connections) — `packages/asset-compiler-rust/src/compiler_accessor_types.rs`
+- **.f32_at()** (4 connections) — `packages/asset-compiler-rust/src/compiler_accessor_decode.rs`
+- **Accessor** (3 connections) — `packages/asset-compiler-rust/src/compiler_accessor_types.rs`
+- **SparseAccessor** (3 connections) — `packages/asset-compiler-rust/src/compiler_accessor_types.rs`
+- **.index()** (3 connections) — `packages/asset-compiler-rust/src/compiler_accessor_types.rs`
+- **Result** (2 connections)
 - **Option** (1 connections)
-- **PathBuf** (1 connections)
-- **Result** (1 connections)
-- **un_echappement_invalide_ne_se_decode_pas()** (1 connections) — `packages/asset-compiler-rust/src/uri.rs`
-- **un_nom_ordinaire_ne_change_pas()** (1 connections) — `packages/asset-compiler-rust/src/uri.rs`
+- **T** (1 connections)
+- **Into** (1 connections)
 
 ## Relationships
 
-- [unity · les_mesures_et_la_provenance_sortent_de_lidentite](unity_·_les_mesures_et_la_provenance_sortent_de_lidentite.md) (3 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [Validation du compilateur](Validation_du_compilateur.md) (12 shared connections)
+- [Empaquetage des pages DAG](Empaquetage_des_pages_DAG.md) (5 shared connections)
+- [src · Option](src_·_Option.md) (4 shared connections)
+- [src · BTreeMap](src_·_BTreeMap.md) (3 shared connections)
+- [src · BTreeMap (3)](src_·_BTreeMap_3.md) (2 shared connections)
+- [Matrices monde du compilateur](Matrices_monde_du_compilateur.md) (2 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
+- [Erreurs du compilateur et USDZ](Erreurs_du_compilateur_et_USDZ.md) (1 shared connections)
+- [src · ANIMATED](src_·_ANIMATED.md) (1 shared connections)
+- [Couches de profondeur](Couches_de_profondeur.md) (1 shared connections)
+- [src · Fn](src_·_Fn.md) (1 shared connections)
+- [src · Bits](src_·_Bits.md) (1 shared connections)
 
 ## Source Files
 
-- `packages/asset-compiler-rust/src/uri.rs`
+- `packages/asset-compiler-rust/src/compiler_accessor_decode.rs`
+- `packages/asset-compiler-rust/src/compiler_accessor_types.rs`
+- `packages/asset-compiler-rust/src/compiler_validate.rs`
 
 ## Audit Trail
 
-- EXTRACTED: 22 (100%)
-- INFERRED: 0 (0%)
+- EXTRACTED: 39 (53%)
+- INFERRED: 35 (47%)
 - AMBIGUOUS: 0 (0%)
 
 ---

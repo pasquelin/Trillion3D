@@ -1,6 +1,6 @@
 # Archive Alembic (2)
 
-> 10 nodes
+> 10 nodes · cohesion 0.22
 
 ## Key Concepts
 
@@ -10,16 +10,16 @@
 - **kind.rs** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/alembic/kind.rs`
 - **.read()** (2 connections) — `packages/asset-compiler-rust/src/plugins/scene/alembic/geom.rs`
 - **Kind** (2 connections) — `packages/asset-compiler-rust/src/plugins/scene/alembic/kind.rs`
+- **meta_value** (1 connections)
 - **DIGEST_BYTES** (1 connections) — `packages/asset-compiler-rust/src/plugins/scene/alembic/archive.rs`
 - **MAX_DEPTH** (1 connections) — `packages/asset-compiler-rust/src/plugins/scene/alembic/archive.rs`
 - **META_INLINE** (1 connections) — `packages/asset-compiler-rust/src/plugins/scene/alembic/archive.rs`
-- **meta_value** (1 connections)
 
 ## Relationships
 
 - [Archive Alembic](Archive_Alembic.md) (4 shared connections)
 - [Parcours des objets Alembic](Parcours_des_objets_Alembic.md) (3 shared connections)
-- [unity · les_mesures_et_la_provenance_sortent_de_lidentite](unity_·_les_mesures_et_la_provenance_sortent_de_lidentite.md) (1 shared connections)
+- [Identité du compilateur et purge](Identité_du_compilateur_et_purge.md) (1 shared connections)
 - [Alembic : format Ogawa](Alembic_-_format_Ogawa.md) (1 shared connections)
 - [Propriétés Alembic](Propriétés_Alembic.md) (1 shared connections)
 - [Géométrie Alembic](Géométrie_Alembic.md) (1 shared connections)

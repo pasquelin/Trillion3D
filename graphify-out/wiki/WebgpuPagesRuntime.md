@@ -1,8 +1,8 @@
 # WebgpuPagesRuntime
 
-> God node · 96 connections · `packages/sdk-browser/webgpuPagesRuntime.ts`
+> God node · 100 connections · `packages/sdk-browser/webgpuPagesRuntime.ts`
 
-**Community:** [sdk-browser · BlendState](sdk-browser_·_BlendState.md)
+**Community:** [Encodage des dessins WebGPU (2)](Encodage_des_dessins_WebGPU_2.md)
 
 ## Connections by Relation
 
@@ -15,22 +15,22 @@
 - webgpuPagesEncodeBlend.ts `EXTRACTED`
 - webgpuBindEntries.test.ts `EXTRACTED`
 - webgpuPagesPrepareVisibility.ts `EXTRACTED`
+- webgpuPagesEncodeDraws.ts `EXTRACTED`
 - webgpuPagesEncodeVisSetup.ts `EXTRACTED`
 - webgpuPagesRenderCpu.ts `EXTRACTED`
 - webgpuVisibilityDrawLayers.test.ts `EXTRACTED`
-- webgpuPagesEncodeVis.ts `EXTRACTED`
 - webgpuPagesLayersState.test.ts `EXTRACTED`
 - webgpuBlendDraw.ts `EXTRACTED`
-- webgpuPagesEncodeDraws.ts `EXTRACTED`
+- webgpuPagesEncodeVis.ts `EXTRACTED`
+- taaFrame.ts `EXTRACTED`
 - webgpuTransmissionPass.test.ts `EXTRACTED`
 - webgpuPagesDrops.ts `EXTRACTED`
 - webgpuPagesGpuCut.ts `EXTRACTED`
 - webgpuPagesRender.ts `EXTRACTED`
 - webgpuPagesSurfaceCapture.ts `EXTRACTED`
-- webgpuBlendUniforms.ts `EXTRACTED`
-- webgpuPagesHostApi.ts `EXTRACTED`
-- webgpuBlendResources.ts `EXTRACTED`
-- *…and 57 more `imports` connection(s) not listed (lowest-degree first to go)*
+- webgpuPagesCpuSteps.ts `EXTRACTED`
+- webgpuPagesPrepareTextures.ts `EXTRACTED`
+- *…and 61 more `imports` connection(s) not listed (lowest-degree first to go)*
 
 ### references
 - createWebgpuBlendState() `EXTRACTED`
@@ -38,11 +38,11 @@
 - WebgpuRunState `EXTRACTED`
 - WebgpuVisState `EXTRACTED`
 - WebgpuGpuState `EXTRACTED`
+- createWebgpuTexturePump() `EXTRACTED`
+- createTextureBudget() `EXTRACTED`
 - WebgpuLightState `EXTRACTED`
 - WebgpuTimingState `EXTRACTED`
-- createTextureBudget() `EXTRACTED`
 - BackendCapabilities `EXTRACTED`
-- createWebgpuTexturePump() `EXTRACTED`
 - createTexturePriority() `EXTRACTED`
 - WebgpuPagesSetup `EXTRACTED`
 - WebgpuCaptureState `EXTRACTED`

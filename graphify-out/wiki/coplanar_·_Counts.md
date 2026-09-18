@@ -1,6 +1,6 @@
 # coplanar · Counts
 
-> 14 nodes
+> 14 nodes · cohesion 0.22
 
 ## Key Concepts
 
@@ -22,7 +22,7 @@
 ## Relationships
 
 - [coplanar · BTreeMap](coplanar_·_BTreeMap.md) (3 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (2 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (2 shared connections)
 - [tests · assign_layers_breaks_area_ties_by_source_order](tests_·_assign_layers_breaks_area_ties_by_source_order.md) (1 shared connections)
 
 ## Source Files

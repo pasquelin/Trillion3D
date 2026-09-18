@@ -1,6 +1,6 @@
 # unity · BUILTIN_GUID
 
-> 12 nodes
+> 12 nodes · cohesion 0.27
 
 ## Key Concepts
 
@@ -20,7 +20,7 @@
 ## Relationships
 
 - [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
 - [Constructeur YAML Unity](Constructeur_YAML_Unity.md) (1 shared connections)
 - [Projet et propriétés Unity](Projet_et_propriétés_Unity.md) (1 shared connections)
 - [alembic · BTreeMap](alembic_·_BTreeMap.md) (1 shared connections)

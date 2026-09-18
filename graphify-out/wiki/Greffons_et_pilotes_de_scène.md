@@ -1,6 +1,6 @@
 # Greffons et pilotes de scène
 
-> 37 nodes
+> 37 nodes · cohesion 0.08
 
 ## Key Concepts
 
@@ -33,18 +33,18 @@
 
 ## Relationships
 
-- [plugins · AsRef](plugins_·_AsRef.md) (4 shared connections)
-- [Tables de scène à l'import](Tables_de_scène_à_l'import.md) (4 shared connections)
+- [Greffons de scène du compilateur](Greffons_de_scène_du_compilateur.md) (8 shared connections)
 - [scene · .accepts_head](scene_·_.accepts_head.md) (3 shared connections)
 - [Décodage d'images](Décodage_d'images.md) (2 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (2 shared connections)
-- [Jeux de bancs Rust](Jeux_de_bancs_Rust.md) (1 shared connections)
-- [tests · Document](tests_·_Document.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (2 shared connections)
+- [Import Unity et maillages (2)](Import_Unity_et_maillages_2.md) (1 shared connections)
+- [tests · a_format_outside_the_registry_is_named_in_the_report](tests_·_a_format_outside_the_registry_is_named_in_the_report.md) (1 shared connections)
 - [Décodage BMP](Décodage_BMP.md) (1 shared connections)
 - [image · CODEC_UNSUPPORTED](image_·_CODEC_UNSUPPORTED.md) (1 shared connections)
 - [Décodage EXR](Décodage_EXR.md) (1 shared connections)
 - [Décodage GIF](Décodage_GIF.md) (1 shared connections)
 - [Décodage HDR](Décodage_HDR.md) (1 shared connections)
+- [image · IntoIterator](image_·_IntoIterator.md) (1 shared connections)
 
 ## Source Files
 

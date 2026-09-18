@@ -1,6 +1,6 @@
 # Lots de grappes
 
-> 70 nodes
+> 66 nodes · cohesion 0.07
 
 ## Key Concepts
 
@@ -20,31 +20,30 @@
 - **clusterBatchesScene.test.ts** (11 connections) — `packages/sdk-browser/clusterBatchesScene.test.ts`
 - **clusterBatchesFixture.ts** (10 connections) — `packages/sdk-browser/clusterBatchesFixture.ts`
 - **setupClusterBatches()** (9 connections) — `packages/sdk-browser/clusterBatchSetup.ts`
-- **exactPagesResidency.ts** (9 connections) — `packages/sdk-browser/exactPagesResidency.ts`
 - **DrawRanges** (8 connections) — `packages/sdk-browser/clusterBatchRange.ts`
-- **clusterBatches.test.ts** (7 connections) — `packages/sdk-browser/clusterBatches.test.ts`
-- **ClusterDrawMesh** (6 connections) — `packages/sdk-browser/clusterBatchMesh.ts`
 - **attributes()** (6 connections) — `packages/sdk-browser/clusterBatchesFixture.ts`
 - **buildLayerGroups()** (6 connections) — `packages/sdk-browser/clusterBatchLayers.ts`
+- **ClusterDrawMesh** (6 connections) — `packages/sdk-browser/clusterBatchMesh.ts`
 - **updateClusterBatches()** (6 connections) — `packages/sdk-browser/clusterBatchUpdate.ts`
 - **.dispose()** (5 connections) — `packages/sdk-browser/clusterBatches.ts`
-- **createExactPagesResidency()** (5 connections) — `packages/sdk-browser/exactPagesResidency.ts`
-- *... and 45 more nodes in this community*
+- **.acceptPage()** (4 connections) — `packages/sdk-browser/clusterBatches.ts`
+- **.constructor()** (4 connections) — `packages/sdk-browser/clusterBatches.ts`
+- **.update()** (4 connections) — `packages/sdk-browser/clusterBatches.ts`
+- *... and 41 more nodes in this community*
 
 ## Relationships
 
-- [Backends de rendu exacts (2)](Backends_de_rendu_exacts_2.md) (11 shared connections)
-- [sdk-browser · flush](sdk-browser_·_flush.md) (11 shared connections)
-- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (6 shared connections)
-- [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (4 shared connections)
-- [Sélection des pages visibles](Sélection_des_pages_visibles.md) (3 shared connections)
-- [Erreur d'écran hors axe](Erreur_d'écran_hors_axe.md) (3 shared connections)
-- [sdk-browser · AtlasResources](sdk-browser_·_AtlasResources.md) (3 shared connections)
-- [Adoption et reprise de la coupe](Adoption_et_reprise_de_la_coupe.md) (2 shared connections)
-- [API et session de l'explorateur (2)](API_et_session_de_l'explorateur_2.md) (2 shared connections)
+- [Pages autonomes et backends](Pages_autonomes_et_backends.md) (21 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (7 shared connections)
+- [Uniformes de sélection et justesse](Uniformes_de_sélection_et_justesse.md) (3 shared connections)
+- [Pipelines de visibilité](Pipelines_de_visibilité.md) (3 shared connections)
+- [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (3 shared connections)
+- [Pages autonomes](Pages_autonomes.md) (2 shared connections)
+- [API et session de l'explorateur](API_et_session_de_l'explorateur.md) (2 shared connections)
 - [bench · blocs](bench_·_blocs.md) (1 shared connections)
-- [sdk-core · createSeededRandom](sdk-core_·_createSeededRandom.md) (1 shared connections)
-- [Scène d'expérience d'éclairage](Scène_d'expérience_d'éclairage.md) (1 shared connections)
+- [Maintien de projection et mouvement TAA](Maintien_de_projection_et_mouvement_TAA.md) (1 shared connections)
+- [État de la coupe de sélection](État_de_la_coupe_de_sélection.md) (1 shared connections)
+- [Adoption et reprise de la coupe](Adoption_et_reprise_de_la_coupe.md) (1 shared connections)
 
 ## Source Files
 
@@ -55,16 +54,14 @@
 - `packages/sdk-browser/clusterBatchRange.ts`
 - `packages/sdk-browser/clusterBatchSetup.ts`
 - `packages/sdk-browser/clusterBatchUpdate.ts`
-- `packages/sdk-browser/clusterBatches.test.ts`
 - `packages/sdk-browser/clusterBatches.ts`
 - `packages/sdk-browser/clusterBatchesFixture.ts`
 - `packages/sdk-browser/clusterBatchesScene.test.ts`
-- `packages/sdk-browser/exactPagesResidency.ts`
 
 ## Audit Trail
 
-- EXTRACTED: 212 (97%)
-- INFERRED: 7 (3%)
+- EXTRACTED: 199 (97%)
+- INFERRED: 6 (3%)
 - AMBIGUOUS: 0 (0%)
 
 ---

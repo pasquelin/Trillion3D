@@ -2,7 +2,7 @@
 
 > God node · 109 connections · `packages/sdk-browser/cameraFixture.ts`
 
-**Community:** [Erreur d'écran hors axe](Erreur_d'écran_hors_axe.md)
+**Community:** [Uniformes de sélection et justesse](Uniformes_de_sélection_et_justesse.md)
 
 ## Connections by Relation
 

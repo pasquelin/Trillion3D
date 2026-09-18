@@ -1,6 +1,6 @@
 # Scripts npm et build
 
-> 28 nodes
+> 28 nodes · cohesion 0.07
 
 ## Key Concepts
 

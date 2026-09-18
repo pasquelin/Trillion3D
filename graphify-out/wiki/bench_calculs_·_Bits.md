@@ -1,44 +1,53 @@
 # bench_calculs · Bits
 
-> 13 nodes
+> 22 nodes · cohesion 0.15
 
 ## Key Concepts
 
-- **b6_adjacence.rs** (8 connections) — `packages/asset-compiler-rust/src/bench_calculs/b6_adjacence.rs`
-- **hashmap** (8 connections)
-- **dag/tests/part1.rs** (6 connections) — `packages/asset-compiler-rust/src/dag/tests/part1.rs`
-- **row()** (4 connections) — `packages/asset-compiler-rust/src/bench_calculs/b6_adjacence.rs`
-- **reference_adjacence()** (3 connections) — `packages/asset-compiler-rust/src/bench_calculs/b6_adjacence.rs`
-- **cle()** (2 connections) — `packages/asset-compiler-rust/src/bench_calculs/b6_adjacence.rs`
-- **empreinte()** (2 connections) — `packages/asset-compiler-rust/src/bench_calculs/b6_adjacence.rs`
+- **g12_statistiques.rs** (13 connections) — `packages/asset-compiler-rust/src/bench_calculs/g12_statistiques.rs`
+- **build_dag_primitive()** (13 connections) — `packages/asset-compiler-rust/src/compiler_primitive_dag.rs`
+- **memes_stats()** (7 connections) — `packages/asset-compiler-rust/src/bench_calculs/g12_statistiques.rs`
+- **row()** (5 connections) — `packages/asset-compiler-rust/src/bench_calculs/g12_statistiques.rs`
+- **compiler_primitive_dag.rs** (5 connections) — `packages/asset-compiler-rust/src/compiler_primitive_dag.rs`
+- **DagResult** (5 connections) — `packages/asset-compiler-rust/src/compiler_primitive_dag.rs`
+- **erreurs()** (4 connections) — `packages/asset-compiler-rust/src/bench_calculs/g12_statistiques.rs`
+- **level_error_stats()** (4 connections) — `packages/asset-compiler-rust/src/compiler_primitive_dag.rs`
+- **des_doublons_et_le_poison_ne_font_pas_diverger_le_triplet()** (3 connections) — `packages/asset-compiler-rust/src/bench_calculs/g12_statistiques.rs`
+- **empreinte()** (3 connections) — `packages/asset-compiler-rust/src/bench_calculs/g12_statistiques.rs`
+- **reference_stats()** (3 connections) — `packages/asset-compiler-rust/src/bench_calculs/g12_statistiques.rs`
+- **un_grand_niveau_avec_beaucoup_de_poison_reste_identique()** (3 connections) — `packages/asset-compiler-rust/src/bench_calculs/g12_statistiques.rs`
+- **deux_elements_choisissent_la_meme_moitie_haute_comme_mediane()** (2 connections) — `packages/asset-compiler-rust/src/bench_calculs/g12_statistiques.rs`
+- **un_seul_element_est_son_propre_minimum_median_et_maximum()** (2 connections) — `packages/asset-compiler-rust/src/bench_calculs/g12_statistiques.rs`
+- **Value** (2 connections)
+- **level_error_stats** (1 connections)
 - **Bits** (1 connections)
-- **errors_are_monotone_and_roots_are_terminal()** (1 connections) — `packages/asset-compiler-rust/src/dag/tests/part1.rs`
-- **every_level_above_zero_uses_groups_of_eight_to_thirty_two_clusters()** (1 connections) — `packages/asset-compiler-rust/src/dag/tests/part1.rs`
-- **every_threshold_selects_exactly_one_cluster_per_ancestor_chain()** (1 connections) — `packages/asset-compiler-rust/src/dag/tests/part1.rs`
-- **level_zero_clusters_respect_the_triangle_budget_and_cover_the_source_once()** (1 connections) — `packages/asset-compiler-rust/src/dag/tests/part1.rs`
-- **cluster_adjacency** (1 connections)
+- **Trois** (1 connections)
+- **Fn** (1 connections)
+- **Option** (1 connections)
+- **Result** (1 connections)
+- **Sync** (1 connections)
 
 ## Relationships
 
-- [Bancs de calcul Rust (2)](Bancs_de_calcul_Rust_2.md) (2 shared connections)
-- [DAG et stratégie de coupe](DAG_et_stratégie_de_coupe.md) (2 shared connections)
+- [Empaquetage des pages DAG](Empaquetage_des_pages_DAG.md) (3 shared connections)
+- [Bancs de calcul Rust](Bancs_de_calcul_Rust.md) (2 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (2 shared connections)
 - [Jeux de bancs Rust](Jeux_de_bancs_Rust.md) (1 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
-- [src · PLAN](src_·_PLAN.md) (1 shared connections)
-- [Maillages et jeux de faces](Maillages_et_jeux_de_faces.md) (1 shared connections)
-- [dna · Option](dna_·_Option.md) (1 shared connections)
-- [Normales et jointures](Normales_et_jointures.md) (1 shared connections)
-- [src · Fn](src_·_Fn.md) (1 shared connections)
+- [Budget et ouvriers du compilateur (2)](Budget_et_ouvriers_du_compilateur_2.md) (1 shared connections)
+- [proxy · ERROR_LADDER](proxy_·_ERROR_LADDER.md) (1 shared connections)
+- [Couches de profondeur](Couches_de_profondeur.md) (1 shared connections)
+- [Validation du compilateur](Validation_du_compilateur.md) (1 shared connections)
+- [tests · Surface](tests_·_Surface.md) (1 shared connections)
 
 ## Source Files
 
-- `packages/asset-compiler-rust/src/bench_calculs/b6_adjacence.rs`
-- `packages/asset-compiler-rust/src/dag/tests/part1.rs`
+- `packages/asset-compiler-rust/src/bench_calculs/g12_statistiques.rs`
+- `packages/asset-compiler-rust/src/compiler_primitive_dag.rs`
 
 ## Audit Trail
 
-- EXTRACTED: 23 (92%)
-- INFERRED: 2 (8%)
+- EXTRACTED: 40 (85%)
+- INFERRED: 7 (15%)
 - AMBIGUOUS: 0 (0%)
 
 ---

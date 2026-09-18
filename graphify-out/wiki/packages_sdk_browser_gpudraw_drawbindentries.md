@@ -1,6 +1,6 @@
 # packages_sdk_browser_gpudraw_drawbindentries
 
-> 1 nodes
+> 1 nodes · cohesion 1.00
 
 ## Key Concepts
 

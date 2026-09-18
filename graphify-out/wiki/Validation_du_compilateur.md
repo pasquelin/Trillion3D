@@ -1,6 +1,6 @@
 # Validation du compilateur
 
-> 42 nodes
+> 42 nodes · cohesion 0.11
 
 ## Key Concepts
 
@@ -12,6 +12,7 @@
 - **accessor()** (11 connections) — `packages/asset-compiler-rust/src/compiler_accessor_create.rs`
 - **hash_file()** (11 connections) — `packages/asset-compiler-rust/src/compiler_validate.rs`
 - **optional_index()** (11 connections) — `packages/asset-compiler-rust/src/compiler_validate.rs`
+- **stage_proxy()** (11 connections) — `packages/asset-compiler-rust/src/proxy.rs`
 - **node_triangles()** (9 connections) — `packages/asset-compiler-rust/src/compiler_source.rs`
 - **primitive_triangles()** (9 connections) — `packages/asset-compiler-rust/src/compiler_source.rs`
 - **validate()** (8 connections) — `packages/asset-compiler-rust/src/accessor_validation.rs`
@@ -28,23 +29,22 @@
 - **compiler_buffers.rs** (4 connections) — `packages/asset-compiler-rust/src/compiler_buffers.rs`
 - **Result** (4 connections)
 - **Value** (4 connections)
-- **Option** (4 connections)
 - *... and 17 more nodes in this community*
 
 ## Relationships
 
-- [src · Option](src_·_Option.md) (12 shared connections)
-- [Écriture de la scène source](Écriture_de_la_scène_source.md) (10 shared connections)
-- [Proxy de scène du compilateur](Proxy_de_scène_du_compilateur.md) (9 shared connections)
-- [Couches de profondeur](Couches_de_profondeur.md) (8 shared connections)
-- [Chargement des modèles](Chargement_des_modèles.md) (8 shared connections)
+- [Empaquetage des pages DAG](Empaquetage_des_pages_DAG.md) (16 shared connections)
+- [src · Option (2)](src_·_Option_2.md) (12 shared connections)
+- [Proxy de scène du compilateur](Proxy_de_scène_du_compilateur.md) (11 shared connections)
+- [src · Option](src_·_Option.md) (8 shared connections)
 - [src · BTreeMap](src_·_BTreeMap.md) (7 shared connections)
-- [src · BTreeMap (2)](src_·_BTreeMap_2.md) (5 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (4 shared connections)
-- [unity · les_mesures_et_la_provenance_sortent_de_lidentite](unity_·_les_mesures_et_la_provenance_sortent_de_lidentite.md) (3 shared connections)
-- [Matrices monde du compilateur](Matrices_monde_du_compilateur.md) (3 shared connections)
+- [Couches de profondeur](Couches_de_profondeur.md) (5 shared connections)
+- [src · BTreeMap (3)](src_·_BTreeMap_3.md) (5 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (4 shared connections)
+- [Identité du compilateur et purge](Identité_du_compilateur_et_purge.md) (3 shared connections)
+- [Matrices monde du compilateur (2)](Matrices_monde_du_compilateur_2.md) (3 shared connections)
+- [Greffons de scène du compilateur](Greffons_de_scène_du_compilateur.md) (2 shared connections)
 - [src · ANIMATED](src_·_ANIMATED.md) (2 shared connections)
-- [src · Fn (2)](src_·_Fn_2.md) (2 shared connections)
 
 ## Source Files
 
@@ -53,11 +53,12 @@
 - `packages/asset-compiler-rust/src/compiler_buffers.rs`
 - `packages/asset-compiler-rust/src/compiler_source.rs`
 - `packages/asset-compiler-rust/src/compiler_validate.rs`
+- `packages/asset-compiler-rust/src/proxy.rs`
 
 ## Audit Trail
 
-- EXTRACTED: 92 (52%)
-- INFERRED: 85 (48%)
+- EXTRACTED: 97 (53%)
+- INFERRED: 86 (47%)
 - AMBIGUOUS: 0 (0%)
 
 ---

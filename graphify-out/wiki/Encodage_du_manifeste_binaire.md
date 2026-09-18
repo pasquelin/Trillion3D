@@ -1,6 +1,6 @@
 # Encodage du manifeste binaire
 
-> 27 nodes
+> 28 nodes · cohesion 0.18
 
 ## Key Concepts
 
@@ -9,6 +9,7 @@
 - **encode_page()** (14 connections) — `packages/asset-compiler-rust/src/manifest_binary/page.rs`
 - **manifest_binary/format.rs** (13 connections) — `packages/asset-compiler-rust/src/manifest_binary/format.rs`
 - **Result** (11 connections)
+- **numbers_into()** (9 connections) — `packages/asset-compiler-rust/src/manifest_binary/format.rs`
 - **object()** (8 connections) — `packages/asset-compiler-rust/src/manifest_binary/format.rs`
 - **integer()** (7 connections) — `packages/asset-compiler-rust/src/manifest_binary/format.rs`
 - **number()** (7 connections) — `packages/asset-compiler-rust/src/manifest_binary/format.rs`
@@ -21,25 +22,24 @@
 - **Option** (4 connections)
 - **.sha()** (3 connections) — `packages/asset-compiler-rust/src/manifest_binary/format.rs`
 - **String** (2 connections)
-- **page.rs** (2 connections) — `packages/asset-compiler-rust/src/manifest_binary/page.rs`
+- **manifest_binary/page.rs** (2 connections) — `packages/asset-compiler-rust/src/manifest_binary/page.rs`
 - **manifest_binary/primitive.rs** (2 connections) — `packages/asset-compiler-rust/src/manifest_binary/primitive.rs`
 - **Into** (1 connections)
 - **Map** (1 connections)
 - **Result** (1 connections)
 - **Value** (1 connections)
 - **Map** (1 connections)
-- **Result** (1 connections)
-- *... and 2 more nodes in this community*
+- *... and 3 more nodes in this community*
 
 ## Relationships
 
-- [manifest_binary · .i32](manifest_binary_·_.i32.md) (9 shared connections)
-- [manifest_binary · vector_into_accepts_an_empty_vector_when_the_expected_length_is_zero](manifest_binary_·_vector_into_accepts_an_empty_vector_when_the_expected_length_is_zero.md) (8 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (3 shared connections)
-- [Aperçus de textures et pyramide (3)](Aperçus_de_textures_et_pyramide_3.md) (2 shared connections)
-- [src · Result](src_·_Result.md) (2 shared connections)
+- [Encodage du manifeste binaire (2)](Encodage_du_manifeste_binaire_2.md) (14 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (3 shared connections)
+- [Aperçus de textures et pyramide](Aperçus_de_textures_et_pyramide.md) (2 shared connections)
+- [bench_calculs · Bits (2)](bench_calculs_·_Bits_2.md) (2 shared connections)
+- [Manifeste binaire (Rust) (2)](Manifeste_binaire_Rust_2.md) (2 shared connections)
 - [Erreurs du compilateur et USDZ](Erreurs_du_compilateur_et_USDZ.md) (1 shared connections)
-- [manifest_binary · Result](manifest_binary_·_Result.md) (1 shared connections)
+- [manifest_binary · String (2)](manifest_binary_·_String_2.md) (1 shared connections)
 
 ## Source Files
 
@@ -49,8 +49,8 @@
 
 ## Audit Trail
 
-- EXTRACTED: 67 (74%)
-- INFERRED: 23 (26%)
+- EXTRACTED: 69 (73%)
+- INFERRED: 25 (27%)
 - AMBIGUOUS: 0 (0%)
 
 ---
