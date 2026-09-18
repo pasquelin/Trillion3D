@@ -1,4 +1,5 @@
 use super::*;
+use crate::compiler_primitive_warn::primitive_event;
 
 pub(super) struct PrimitiveInputs<'a> {
     pub o: &'a Options,
@@ -125,7 +126,7 @@ pub(super) fn compile_primitive(
     let mesh = *mesh_map
         .get(old)
         .ok_or_else(|| invalid("Missing mesh mapping"))?;
-    let mut page_attributes = Vec::<geometry_page::Attribute>::new();
+    let mut attributes = Vec::<geometry_page::Attribute>::new();
     if !unsplit {
         for (name, width, offset, flag) in [
             ("NORMAL", 3, 12, 1),
@@ -148,7 +149,7 @@ pub(super) fn compile_primitive(
                         format!("{name} count or width differs from POSITION"),
                     ));
                 }
-                page_attributes.push(geometry_page::Attribute {
+                attributes.push(geometry_page::Attribute {
                     offset,
                     width,
                     source_width: a.width,
@@ -159,7 +160,7 @@ pub(super) fn compile_primitive(
         }
     }
     let store_packed = |slice: &[u32]| -> Result<(Value, bool)> {
-        compiler_page_object::store_page(o, slice, &pos, &page_attributes)
+        compiler_page_object::store_page(o, slice, &pos, &attributes)
     };
     // Transparent primitives join the DAG too: their draw order is restored at runtime from the
     // recorded source rank, so spatial clustering no longer scrambles the blend order.
@@ -178,15 +179,16 @@ pub(super) fn compile_primitive(
         proxy_threshold,
         reused,
         dag_report,
+        warnings,
         culling_report,
         structure_report,
         stream_report,
     } = if dag_primitive {
-        build_dag_primitive(o, &pos, &index_values, demand, &store_packed)?
+        build_dag_primitive(o, &pos, &attributes, &index_values, demand, &store_packed)?
     } else {
         DagResult::default()
     };
-    progress(json!({"phase":"primitive","mesh":mesh,"primitive":primitive,"pages":pages.len()}));
+    progress(primitive_event(mesh, *primitive, pages.len(), &warnings));
     Ok(CompiledPrimitive {
         cluster_planes,
         proxy_cut,
