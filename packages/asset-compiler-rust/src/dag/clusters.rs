@@ -137,9 +137,27 @@ pub(super) fn position_key(positions: &[f32], id: u32) -> [u32; 3] {
 /// Canonical vertex per position: duplicated vertices at UV or normal seams are one point, so a
 /// lock placed on one copy locks every copy and no seam can crack.
 pub fn weld_positions(positions: &[f32], indices: &[u32]) -> Vec<u32> {
-    let count = positions.len() / 3;
+    weld_by(positions.len() / 3, indices, |id| {
+        position_key(positions, id)
+    })
+}
+/// Canonical vertex per (position, uv): the copies that differ only by their normal or their
+/// colour are one point, those on a texture seam stay two. It is the weld the reduction falls back
+/// on, so a coarse level never draws one side of a seam with the other side's texture.
+pub fn weld_positions_and_uv(positions: &[f32], uvs: &[f32], indices: &[u32]) -> Vec<u32> {
+    weld_by(positions.len() / 3, indices, |id| {
+        let i = id as usize * 2;
+        let uv = [uvs[i], uvs[i + 1]].map(normalized_bits);
+        (position_key(positions, id), uv)
+    })
+}
+fn weld_by<K: std::hash::Hash + Eq>(
+    count: usize,
+    indices: &[u32],
+    key: impl Fn(u32) -> K,
+) -> Vec<u32> {
     let mut canonical: Vec<u32> = (0..count as u32).collect();
-    let mut seen: HashMap<[u32; 3], u32> = HashMap::with_capacity(indices.len() / 2);
+    let mut seen: HashMap<K, u32> = HashMap::with_capacity(indices.len() / 2);
     let mut visited = vec![false; count];
     for &id in indices {
         let slot = id as usize;
@@ -147,7 +165,7 @@ pub fn weld_positions(positions: &[f32], indices: &[u32]) -> Vec<u32> {
             continue;
         }
         visited[slot] = true;
-        canonical[slot] = *seen.entry(position_key(positions, id)).or_insert(id);
+        canonical[slot] = *seen.entry(key(id)).or_insert(id);
     }
     canonical
 }

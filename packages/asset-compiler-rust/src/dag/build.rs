@@ -3,16 +3,24 @@ use super::*;
 /// Construit le DAG des clusters. `strategy` décide si les niveaux grossiers existent : en
 /// `ExactClusters` la construction rend le niveau zéro seul, sans groupe ni réduction, si bien que
 /// la couverture publiée est exactement celle des triangles de la source.
+///
+/// `uvs` — deux flottants par sommet, ou rien — dit quelles copies d'une position la réduction a le
+/// droit de souder quand elle n'avance plus : celles qui partagent la texture, jamais l'autre bord
+/// d'une couture.
 pub fn build_dag_tallied(
     positions: &[f32],
+    uvs: Option<&[f32]>,
     indices: &[u32],
     strategy: DagStrategy,
     checkpoint: &(dyn Fn() -> Result<()> + Sync),
 ) -> Result<(Vec<DagCluster>, Vec<DagGroup>, Vec<GroupTally>)> {
     checkpoint()?;
-    let weld = {
+    let (weld, weld_seam) = {
         let _t = Timer::new(Phase::Weld);
-        weld_positions(positions, indices)
+        (
+            weld_positions(positions, indices),
+            uvs.map(|uvs| weld_positions_and_uv(positions, uvs, indices)),
+        )
     };
     // Rank of the source triangle each vertex first appears in, used to keep the draw order stable.
     let mut first_use = vec![u32::MAX; positions.len() / 3];
@@ -88,6 +96,7 @@ pub fn build_dag_tallied(
             positions,
             locks: &locks,
             weld: &weld,
+            weld_seam: weld_seam.as_deref().unwrap_or(&weld),
         };
         let reductions: Vec<std::result::Result<GroupReduction, GroupOutcome>> = groups
             .par_iter()
@@ -106,6 +115,8 @@ pub fn build_dag_tallied(
             let reduction = match reduction {
                 Ok(reduction) => {
                     tally.record(GroupOutcome::Reduced);
+                    tally.welded += usize::from(reduction.welded);
+                    tally.relocked += usize::from(reduction.relocked);
                     reduction
                 }
                 Err(outcome) => {

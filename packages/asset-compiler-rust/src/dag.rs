@@ -89,6 +89,10 @@ struct GroupReduction {
     sphere: [f64; 4],
     clusters: Vec<Vec<u32>>,
     source_rank: u32,
+    /// La réduction a dû souder les indices par position (`reduce.rs`).
+    welded: bool,
+    /// La réduction a dû verrouiller des triangles en plus pour garder son bord.
+    relocked: bool,
 }
 /// One reduction of the DAG, kept so the runtime can swap a whole group at once.
 ///
@@ -113,9 +117,12 @@ pub enum GroupOutcome {
     UnusableError,
 }
 /// Per-level tally of group outcomes, reported by the compiler so a stalled DAG is visible.
+/// `welded` and `relocked` count, among the reduced groups, those that needed a retry.
 #[derive(Clone, Copy, Default, Debug)]
 pub struct GroupTally {
     pub reduced: usize,
+    pub welded: usize,
+    pub relocked: usize,
     pub too_small: usize,
     pub no_collapse: usize,
     pub border_lost: usize,
@@ -136,7 +143,10 @@ impl GroupTally {
 struct GroupReductionInput<'a> {
     positions: &'a [f32],
     locks: &'a [bool],
+    /// Sommet canonique par position : verrous, bords, adjacence.
     weld: &'a [u32],
+    /// Sommet canonique par (position, uv) : la soudure de repli de la réduction.
+    weld_seam: &'a [u32],
 }
 pub const CULLING_BRANCHING: usize = 8;
 pub const CULLING_LEAF: usize = 8;
@@ -171,11 +181,13 @@ impl Default for CullingNode {
     }
 }
 
+pub(crate) mod border;
 pub(crate) mod bounds;
 mod build;
 pub(crate) mod clusters;
 mod culling;
 pub(crate) mod groups;
+pub(crate) mod reduce;
 #[cfg(test)]
 mod tests;
 
@@ -184,3 +196,4 @@ pub use build::build_dag_tallied;
 use clusters::*;
 pub use culling::build_culling_bvh;
 use groups::*;
+use reduce::*;
