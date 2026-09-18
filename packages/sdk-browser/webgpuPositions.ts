@@ -18,6 +18,7 @@ export function ensureWebgpuPositionBuffer(
     xyz[i * 3 + 2] = position.getZ(i);
   }
   const buffer = device.createBuffer({
+    label: 'WG positions',
     size: xyz.byteLength,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });

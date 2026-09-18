@@ -149,10 +149,15 @@ export async function measureView(options) {
   );
   // L'ensemble sélectionné, lu comme dans les lots précédents : voir `pageCoupe.mjs`.
   const selection = coupe.lireCoupe(explorer, options.engineId);
-  // Les mesures scalaires du dernier relevé, `null` compris : une mesure tue serait indistinguable
-  // d'une mesure absente, qu'un lecteur remplacerait par zéro — ce que le contrat interdit.
+  // Les mesures du dernier relevé, `null` compris : une mesure tue serait indistinguable d'une
+  // mesure absente, qu'un lecteur remplacerait par zéro — ce que le contrat interdit. Un relevé
+  // d'octets par étiquette ou par classe d'atlas est une table de nombres : il passe aussi.
   const scalaire = (v) => v === null || typeof v === 'number' || typeof v === 'boolean';
-  const metrics = Object.fromEntries(Object.entries(last ?? {}).filter(([, v]) => scalaire(v)));
+  const table = (v) =>
+    typeof v === 'object' && v !== null && Object.values(v).every((x) => typeof x === 'number');
+  const metrics = Object.fromEntries(
+    Object.entries(last ?? {}).filter(([, v]) => scalaire(v) || table(v)),
+  );
   // Les octets passés sur le réseau depuis la préparation, par sorte de fichier : ce que le
   // chargement et la série ont vraiment coûté au serveur, images et niveaux de texture compris.
   const network = mesure.reseauDepuis(resourcesBefore);

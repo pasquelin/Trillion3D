@@ -34,6 +34,8 @@ export interface WebgpuGpuState {
    *  processeur de secours. Publié dans les métriques sous `gpuSelectionFallback`. */
   selectionFallback: boolean;
   targetSize: [number, number];
+  /** Les octets des cibles d'image de cette taille, ceux que le budget d'image a admis. */
+  targetBytes: number;
   positionBuffers: Map<THREE.BufferGeometry['attributes'], GPUBuffer>;
   /** Indices, UV et normales des transparents, tenus par la géométrie source : deux instances d'un
    *  même objet partagent la même géométrie, donc les mêmes tampons. `undefined` retenu dans la
@@ -94,6 +96,7 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     cutTruncated: false,
     selectionFallback: false,
     targetSize: [viewport[0] ?? 1, viewport[1] ?? 1],
+    targetBytes: 0,
     positionBuffers: new Map(),
     blendIndexBuffers: new Map(),
     blendUvBuffers: new Map(),

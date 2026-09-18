@@ -5,6 +5,7 @@ import { compareImages, summarize } from '../../packages/sdk-core/index.ts';
 import { cheminsCalcul } from './rapportCalcul.mjs';
 import { p50p95, passes } from './rapportPasses.mjs';
 import { textures } from './rapportTextures.mjs';
+import { memoire } from './rapportMemoire.mjs';
 
 /** p50/p95/p99 d'une série, ou `null` si elle est vide : rien n'est déduit d'une série absente. */
 export const distribution = (values) => summarize(values ?? []);
@@ -138,6 +139,13 @@ export function resume(report) {
     "aucun seuil n'est écrit dans le code, et « non mesuré » n'est pas zéro.",
     '',
     ...cheminsCalcul(report),
+    '',
+    '## Mémoire carte graphique',
+    '',
+    "Le total est ce que le moteur a alloué sur l'appareil et pas encore détruit, calculé depuis",
+    "chaque descripteur : WebGPU ne publie pas la mémoire occupée. « non mesuré » n'est pas zéro.",
+    '',
+    ...memoire(report),
     '',
     '## Témoin A/A et écart avant/après',
     '',

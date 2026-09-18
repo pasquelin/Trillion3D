@@ -78,19 +78,23 @@ test('measureView garde un `false` explicite, distinct d’un compteur absent', 
   assert.equal(metrics.imageTenue, true);
 });
 
-test('measureView filtre toujours ce qui n’est ni nombre, ni booléen, ni `null`', async () => {
+test('measureView garde une table de nombres — octets par étiquette ou par classe — et filtre le reste', async () => {
   const { metrics } = await mesurer({
     triangles: 500,
-    scene: { nested: 1 },
-    pending: [1, 2, 3],
+    gpuAllocatedByLabel: { 'WG display color': 4, 'sans étiquette': 8 },
+    textureAtlasClassBytesCalculated: [1, 2],
+    scene: { nested: { deep: 1 } },
+    pending: [1, 'deux'],
     absent: undefined,
   });
   assert.equal(metrics.triangles, 500);
+  assert.deepEqual(metrics.gpuAllocatedByLabel, { 'WG display color': 4, 'sans étiquette': 8 });
+  assert.deepEqual(metrics.textureAtlasClassBytesCalculated, [1, 2]);
   assert.equal(
     'scene' in metrics,
     false,
-    'un objet imbriqué ne passe pas pour un compteur scalaire',
+    'un objet dont une valeur n’est pas un nombre ne passe pas',
   );
-  assert.equal('pending' in metrics, false, 'un tableau non plus');
+  assert.equal('pending' in metrics, false, 'un tableau mêlé non plus');
   assert.equal('absent' in metrics, false, '`undefined` reste une absence, pas une valeur publiée');
 });

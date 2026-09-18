@@ -67,6 +67,7 @@ export function prepareWebgpuGeometry(
   }
   const upload = (data: Float32Array) => {
     const buffer = device.createBuffer({
+      label: 'WG transparent geometry',
       size: Math.max(4, data.byteLength),
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });

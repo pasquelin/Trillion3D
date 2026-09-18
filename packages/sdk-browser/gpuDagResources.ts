@@ -45,10 +45,12 @@ export async function createDagResources(
   const buffers: GPUBuffer[] = [];
   try {
     const clusters = device.createBuffer({
+      label: 'WG DAG clusters',
       size: Math.max(64, packed.clusters.byteLength),
       usage: STORAGE,
     });
     const nodes = device.createBuffer({
+      label: 'WG DAG nodes',
       size: Math.max(64, packed.nodes.byteLength),
       usage: STORAGE,
     });
@@ -80,10 +82,12 @@ export async function createDagResources(
     // Aucun tampon de stockage de plus, le plafond d'une étape est déjà atteint ; les mots d'armement
     // partent vers l'argument de répartition, d'où la source de copie.
     const work = device.createBuffer({
+      label: 'WG DAG work',
       size: Math.max(8, travail.words * 4),
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
     const worlds = device.createBuffer({
+      label: 'WG DAG worlds',
       size: Math.max(64, packed.worlds.byteLength),
       usage: STORAGE,
     });
@@ -92,6 +96,7 @@ export async function createDagResources(
       usage: STORAGE,
     });
     const pageCones = device.createBuffer({
+      label: 'WG DAG page cones',
       size: Math.max(48, packed.pageCones.byteLength),
       usage: STORAGE,
     });

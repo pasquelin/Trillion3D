@@ -171,6 +171,14 @@ redessinées, appels de dessin), le moyen de mesure carte graphique retenu par l
 du profil lui-même. Le même découpage est enregistré tel quel dans `mesure.json`, sous
 `series[].sides[].profilParEtape`, pour comparer lot à lot. « non mesuré » n'est pas zéro.
 
+La section « Mémoire carte graphique » donne, par côté et par vue, ce que le moteur a alloué sur
+l'appareil et pas encore détruit — chaque texture et chaque tampon, comptés par un registre posé sur
+l'appareil et calculés depuis leur descripteur, WebGPU ne publiant pas la mémoire occupée —, avec
+trois familles nommées (atlas de textures calculé, géométrie allouée, cibles d'image admises par le
+budget d'image et ce budget), le reste par différence, et les étiquettes les plus lourdes ; le relevé
+complet par étiquette est dans `series[].sides[].metrics.gpuAllocatedByLabel`. Les seize compteurs
+textures du moteur sont sous chaque étape, lignes « Textures » et « Pompe de textures ».
+
 Chaque série est jouée dans une page neuve, fermée juste après. Une scène Emerald laisse plusieurs
 centaines de mégaoctets vivants dans la page qui l'a jouée : en enchaînant les séries sur une seule
 page, `new THREE.WebGLRenderer` finit par ne plus obtenir de contexte (« Error creating WebGL

@@ -9,11 +9,7 @@ export type { ResidentPage } from './gpuPageTypes.ts';
 export function createGpuPageCache(
   device: GPUDevice,
   source: PageSource,
-  options: {
-    pageBytes: number;
-    slots: number;
-    onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
-  },
+  options: { pageBytes: number; slots: number; onDiagnostic?: (d: BackendDiagnostic) => void },
 ) {
   const { pageBytes, slots } = options,
     size = pageBytes * slots;
@@ -32,6 +28,7 @@ export function createGpuPageCache(
   )
     throw new Error('INVALID_PAGE_BUDGET');
   const buffer = device.createBuffer({
+    label: 'WG geometry page cache',
     size,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
   });
