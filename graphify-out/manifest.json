@@ -684,9 +684,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPages.06.test.ts": {
-    "mtime": 1789551692.6819963,
-    "seen": 1789652705.190999,
-    "ast_hash": "1d6e452337143134c52109cb22ebe12a",
+    "mtime": 1789717728.220052,
+    "seen": 1789718470.571703,
+    "ast_hash": "c0b5aed08e227ece8f39d1de5aeda802",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuTransparentShader.ts": {
@@ -882,9 +882,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPagesRenderCpuDrawn.test.ts": {
-    "mtime": 1789560026.8081584,
-    "seen": 1789652705.191055,
-    "ast_hash": "4b4e244b14dcc75c8d3616849a08a7d0",
+    "mtime": 1789717752.3388126,
+    "seen": 1789718470.571759,
+    "ast_hash": "c6e03bac532cb37b65cf7abe8040068a",
     "semantic_hash": ""
   },
   "packages/sdk-browser/textureBudget.ts": {
@@ -1152,9 +1152,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPagesPipelineFor.ts": {
-    "mtime": 1789572553.7217104,
-    "seen": 1789652705.191042,
-    "ast_hash": "6d4aea6d252596f87a534f8df978f3af",
+    "mtime": 1789717555.675942,
+    "seen": 1789718470.571746,
+    "ast_hash": "84389d60cd62aeaf6f8d502a2efb3ff2",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuBlendExpand.ts": {
@@ -1332,9 +1332,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPagesTestScenes.ts": {
-    "mtime": 1789404259.1522532,
-    "seen": 1789652705.1910741,
-    "ast_hash": "f55bd33911db19c5528cd03a07c5a790",
+    "mtime": 1789717686.4026651,
+    "seen": 1789718470.571778,
+    "ast_hash": "a86ffc5d2ff92602d68d4a6d4b6f38de",
     "semantic_hash": ""
   },
   "packages/sdk-browser/gpuDagCutFloor.test.ts": {
@@ -1530,9 +1530,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPages.05.test.ts": {
-    "mtime": 1789394509.8382208,
-    "seen": 1789652705.190998,
-    "ast_hash": "44445862068099855d605561a4c1ae20",
+    "mtime": 1789717728.2196753,
+    "seen": 1789718470.571703,
+    "ast_hash": "f4c08c48eecd0e9465b38ed716775d8c",
     "semantic_hash": ""
   },
   "packages/sdk-browser/scheduling.ts": {
@@ -2274,9 +2274,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPages.04.test.ts": {
-    "mtime": 1789404259.1456678,
-    "seen": 1789652705.190997,
-    "ast_hash": "9db22813d19efe5191f8103c050dd672",
+    "mtime": 1789717752.3342168,
+    "seen": 1789718470.571702,
+    "ast_hash": "dee03b665a793cf4cc94f9681440dda2",
     "semantic_hash": ""
   },
   "packages/sdk-browser/explorerSelectionApi.ts": {
@@ -2406,9 +2406,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPagesHelpers.ts": {
-    "mtime": 1789611622.762974,
-    "seen": 1789652705.19103,
-    "ast_hash": "957a7e18c8c6026b98660c053b243489",
+    "mtime": 1789717549.8922622,
+    "seen": 1789718470.571734,
+    "ast_hash": "2b7d4a3b2bb64373f481419c9b726155",
     "semantic_hash": ""
   },
   "packages/sdk-browser/lightingObservationResources.ts": {
@@ -2718,15 +2718,15 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPages.01.test.ts": {
-    "mtime": 1789464240.1378114,
-    "seen": 1789652705.190994,
-    "ast_hash": "560dcec2fa6467fa8302fe7c143d1fb4",
+    "mtime": 1789717728.2178195,
+    "seen": 1789718470.5716999,
+    "ast_hash": "2f3b1cecb3b56766dfae996a8a9d2826",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPages.11.test.ts": {
-    "mtime": 1789575605.0416102,
-    "seen": 1789652705.1910028,
-    "ast_hash": "51d412980ce7b06ee401bce84b0bb3dc",
+    "mtime": 1789717743.1395848,
+    "seen": 1789718470.5717068,
+    "ast_hash": "4f248316170e1859182fd4be97932021",
     "semantic_hash": ""
   },
   "packages/sdk-browser/gpuDagShaderError.ts": {
@@ -2808,15 +2808,15 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/threeLod.ts": {
-    "mtime": 1789543796.1288388,
-    "seen": 1789652705.190897,
-    "ast_hash": "87776ef6e8f1ef072b8dc97ed6fa978b",
+    "mtime": 1789717549.891962,
+    "seen": 1789718470.571599,
+    "ast_hash": "9f3640bcc9063d20fda1bca147cb9364",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPagesSurfaceCapture.test.ts": {
-    "mtime": 1789551692.68769,
-    "seen": 1789652705.191068,
-    "ast_hash": "37db877be748140e01bb5ce29fcc0ae9",
+    "mtime": 1789717752.3408763,
+    "seen": 1789718470.5717719,
+    "ast_hash": "3abdac87df39d100db9eba6d87377179",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuRowRecycle.test.ts": {
@@ -3024,9 +3024,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/referenceBackend.ts": {
-    "mtime": 1789543796.1283405,
-    "seen": 1789652705.1908522,
-    "ast_hash": "443cdbccab799f578cc53b65f8defd70",
+    "mtime": 1789717549.8915517,
+    "seen": 1789718470.571548,
+    "ast_hash": "34bd5b81d7a28d9318b843123aa477ac",
     "semantic_hash": ""
   },
   "packages/sdk-browser/pageDecodeTask.ts": {
@@ -3090,9 +3090,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPages.08.test.ts": {
-    "mtime": 1789551692.6828623,
-    "seen": 1789652705.191,
-    "ast_hash": "8f93c60156860fc13b101bf9dfb87203",
+    "mtime": 1789717728.2204528,
+    "seen": 1789718470.571705,
+    "ast_hash": "8640d27921c93745cd8f6e4f07dc6666",
     "semantic_hash": ""
   },
   "packages/sdk-browser/textureMips.ts": {
@@ -3198,9 +3198,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/triangleDiagnostic.test.ts": {
-    "mtime": 1789408514.071981,
-    "seen": 1789652705.190899,
-    "ast_hash": "6fccada09ddfe79040dff5e6c95278a0",
+    "mtime": 1789717783.7383938,
+    "seen": 1789718470.571601,
+    "ast_hash": "cb5cb60712e8fbce4669f86bdf0c7a4c",
     "semantic_hash": ""
   },
   "packages/sdk-browser/directLightingWgsl.ts": {
@@ -3360,9 +3360,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPages.09.test.ts": {
-    "mtime": 1789641586.2918072,
-    "seen": 1789652705.1910012,
-    "ast_hash": "eeaba0c24f45a0bfa6d7599b07cb8443",
+    "mtime": 1789717709.413858,
+    "seen": 1789718470.571706,
+    "ast_hash": "604c878679c7d2fd9291168042579653",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuAtlasClasses.test.ts": {
@@ -3480,9 +3480,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/triangleDiagnostic.ts": {
-    "mtime": 1789408514.0721517,
-    "seen": 1789652705.1908998,
-    "ast_hash": "0f359f9605c9c15a8254edcd152f8470",
+    "mtime": 1789717549.8911207,
+    "seen": 1789718470.5716019,
+    "ast_hash": "5e521aac7676c04bd560ac684a610946",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPagesTargets.ts": {
@@ -3714,9 +3714,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPages.10.test.ts": {
-    "mtime": 1789394509.8397048,
-    "seen": 1789652705.1910021,
-    "ast_hash": "855b115ec842368507b4c7bc4c182de9",
+    "mtime": 1789717709.4142852,
+    "seen": 1789718470.5717068,
+    "ast_hash": "308c106e0574637fd0ac107d233c0b79",
     "semantic_hash": ""
   },
   "packages/sdk-browser/geometryPageWasm.test.ts": {
@@ -4098,9 +4098,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPages.02.test.ts": {
-    "mtime": 1789560099.068259,
-    "seen": 1789652705.190995,
-    "ast_hash": "6bcd560f8e980cec266f73fa5e242533",
+    "mtime": 1789717728.2185202,
+    "seen": 1789718470.5716999,
+    "ast_hash": "5e0cdfdaec3ffb92958409c5dbfb480e",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPages.12.test.ts": {
@@ -4302,9 +4302,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPagesEncoder.test.ts": {
-    "mtime": 1789560026.8057685,
-    "seen": 1789652705.191023,
-    "ast_hash": "32c4283eb89e71ff6be310152cb24bcb",
+    "mtime": 1789717752.3365822,
+    "seen": 1789718470.571727,
+    "ast_hash": "5ba544647a8ff21185ee760e53e95783",
     "semantic_hash": ""
   },
   "packages/sdk-browser/gpuDagRuntime.test.ts": {
@@ -4374,9 +4374,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPages.03.test.ts": {
-    "mtime": 1789641586.2915518,
-    "seen": 1789652705.190996,
-    "ast_hash": "4c73d34a712bdd48bf94310239c2ab34",
+    "mtime": 1789717728.2188234,
+    "seen": 1789718470.571701,
+    "ast_hash": "17f179ef49c286fd5e299edcbffea6d7",
     "semantic_hash": ""
   },
   "packages/sdk-browser/exactPagesContractLights.test.ts": {
@@ -5544,9 +5544,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene.rs": {
-    "mtime": 1789531463.910567,
-    "seen": 1789652705.1901062,
-    "ast_hash": "5a8968eca43e09cf1da7f1efea1714ad",
+    "mtime": 1789717356.5010722,
+    "seen": 1789718470.5707479,
+    "ast_hash": "0bbcaa05b324152417028994f4b41109",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/image.rs": {
@@ -5940,9 +5940,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/ma.rs": {
-    "mtime": 1789552684.3533368,
-    "seen": 1789652705.190159,
-    "ast_hash": "b863790ed0dcd874b8111274968d810b",
+    "mtime": 1789717414.3067045,
+    "seen": 1789718470.570803,
+    "ast_hash": "1e62d9ec1920eefd6e0b1eff48d282b3",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/ufbx_driver.rs": {
@@ -5952,9 +5952,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/usd.rs": {
-    "mtime": 1789598133.07457,
-    "seen": 1789652705.190208,
-    "ast_hash": "821b15914849fd10dfc664e0c919b76d",
+    "mtime": 1789717356.5208902,
+    "seen": 1789718470.570854,
+    "ast_hash": "1ae38e98fb35231684939fd7029bcf66",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/blend.rs": {
@@ -6000,9 +6000,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/alembic.rs": {
-    "mtime": 1789526872.3062594,
-    "seen": 1789652705.1901069,
-    "ast_hash": "6710f9e3f157d467efe26c1f6d9ef17c",
+    "mtime": 1789717356.5095458,
+    "seen": 1789718470.570749,
+    "ast_hash": "d7ce08f6b9c94fae758ecfe57ef571dc",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/unity/overrides.rs": {
@@ -6024,9 +6024,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/unity/convert.rs": {
-    "mtime": 1789533243.5566595,
-    "seen": 1789652705.1901922,
-    "ast_hash": "23c5006bd88ec4621bd7d2acee53b891",
+    "mtime": 1789717243.0508032,
+    "seen": 1789718470.570837,
+    "ast_hash": "4ae48db82fde25cb233382261f462ccd",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/unity/render.rs": {
@@ -6150,9 +6150,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/ma/convert.rs": {
-    "mtime": 1789503844.3269227,
-    "seen": 1789652705.1901639,
-    "ast_hash": "6d2f2146ce3505a3f955cf16780c49d5",
+    "mtime": 1789717243.0500114,
+    "seen": 1789718470.5708082,
+    "ast_hash": "e92e8d901b26ab435dddbb91461e5d0f",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/ma/command.rs": {
@@ -6168,9 +6168,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/ma/build.rs": {
-    "mtime": 1789543796.1162148,
-    "seen": 1789652705.190162,
-    "ast_hash": "33c50fcaaf610d3a72ec0b9371b5991c",
+    "mtime": 1789717414.295005,
+    "seen": 1789718470.570805,
+    "ast_hash": "baf1edd626306ed5d13c3acb86227571",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/ma/material.rs": {
@@ -6324,9 +6324,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/blend/out.rs": {
-    "mtime": 1789598133.0732217,
-    "seen": 1789652705.190145,
-    "ast_hash": "c211124a37cca7145dcba80a4f209136",
+    "mtime": 1789717271.9389374,
+    "seen": 1789718470.5707881,
+    "ast_hash": "306fbc6be6ece6880a5bfbadf54d5770",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/blend/walker.rs": {
@@ -6336,9 +6336,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/blend/convert.rs": {
-    "mtime": 1789598133.0728838,
-    "seen": 1789652705.190136,
-    "ast_hash": "3aef8d30a81e15bcaa77fa0b99d8004e",
+    "mtime": 1789717271.9499767,
+    "seen": 1789718470.5707781,
+    "ast_hash": "740f104505a761ee15996dc465f86114",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/blend/light.rs": {
@@ -6420,9 +6420,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/blend/tests/lampes.rs": {
-    "mtime": 1789598133.0733287,
-    "seen": 1789652705.190148,
-    "ast_hash": "ed14969bc627e7e7b5249bc0e5bd2ea7",
+    "mtime": 1789717271.9503438,
+    "seen": 1789718470.570791,
+    "ast_hash": "44f28e862e23894c02d0fd0c5da31287",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/blend/tests/normales.rs": {
@@ -6450,15 +6450,15 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/blend/tests/mod.rs": {
-    "mtime": 1789598133.0738158,
-    "seen": 1789652705.1901498,
-    "ast_hash": "9981e818c9063935ac2e9cc3d30baf3c",
+    "mtime": 1789717271.9506361,
+    "seen": 1789718470.570793,
+    "ast_hash": "d75a6534ac52c4adc92f9aeb22c4a9e2",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/blend/tests/fidelite.rs": {
-    "mtime": 1789531463.9114048,
-    "seen": 1789652705.1901472,
-    "ast_hash": "c38d8baf494b14f8b9c46a56399f133e",
+    "mtime": 1789717271.950882,
+    "seen": 1789718470.570791,
+    "ast_hash": "d1f730c1ea23b9412b9ddb16ed8391b2",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/blend/tests/uri.rs": {
@@ -6474,9 +6474,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/blend/tests/bornes.rs": {
-    "mtime": 1789531463.911248,
-    "seen": 1789652705.190146,
-    "ast_hash": "19c0170073ec796431fa62e3be9a4827",
+    "mtime": 1789717271.9513333,
+    "seen": 1789718470.5707898,
+    "ast_hash": "6271bc4fdd73087e475ee500763606ce",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/blend/dna/read.rs": {
@@ -6498,9 +6498,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/usd/convert.rs": {
-    "mtime": 1789598133.0759223,
-    "seen": 1789652705.190208,
-    "ast_hash": "4f6e93a12546f511f2de50d5dbf6f7ba",
+    "mtime": 1789717258.463971,
+    "seen": 1789718470.570855,
+    "ast_hash": "485685fdcfb752eb24c6918937fed1ff",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/usd/light.rs": {
@@ -6588,9 +6588,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/alembic/scene.rs": {
-    "mtime": 1789492227.5910761,
-    "seen": 1789652705.1901171,
-    "ast_hash": "4f5abb42893a63ae1ce67c7a795cda89",
+    "mtime": 1789717414.0128803,
+    "seen": 1789718470.5707579,
+    "ast_hash": "2f8a83a23fd4cca03cd059b41bbac368",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/alembic/mesh.rs": {
@@ -6606,9 +6606,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/alembic/convert.rs": {
-    "mtime": 1789492227.5902746,
-    "seen": 1789652705.19011,
-    "ast_hash": "631d35bd7307401d0a17b9cd7f96b614",
+    "mtime": 1789717243.0511382,
+    "seen": 1789718470.570752,
+    "ast_hash": "fb79cad15862d1b7b5346e74c7876828",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/alembic/geom.rs": {
@@ -6672,9 +6672,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/alembic/scene/write.rs": {
-    "mtime": 1789492227.5912259,
-    "seen": 1789652705.1901178,
-    "ast_hash": "7d0bdaf0a92572a13387dd90798da686",
+    "mtime": 1789717356.502247,
+    "seen": 1789718470.57076,
+    "ast_hash": "2d2a391fa5e87d6e92585f83527f926b",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/plugins/scene/normals/join.rs": {
@@ -7452,9 +7452,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/import/runner.rs": {
-    "mtime": 1789598133.072197,
-    "seen": 1789652705.190047,
-    "ast_hash": "f4743b4ba8fc9b49f880a6a9e52bfa31",
+    "mtime": 1789717271.9390898,
+    "seen": 1789718470.5706859,
+    "ast_hash": "e67b1832b8e5d688e7e03ca87a154b65",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/import/textures.rs": {
@@ -7476,9 +7476,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/import/tables.rs": {
-    "mtime": 1789598133.0723696,
-    "seen": 1789652705.190048,
-    "ast_hash": "75d9f2817c498df3c575680e5a7a1aac",
+    "mtime": 1789717356.501546,
+    "seen": 1789718470.570688,
+    "ast_hash": "4848a0e546023ad26e91d8e18d7ddaee",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/import/primitive.rs": {
@@ -7620,9 +7620,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-core/lightingTransportOracle.ts": {
-    "mtime": 1789396051.2253587,
-    "seen": 1789652705.191194,
-    "ast_hash": "69a7d2450489051a5933a626130a7c66",
+    "mtime": 1789717492.937063,
+    "seen": 1789718470.5718982,
+    "ast_hash": "2242918e1d7025a2fb1b9049ab55a698",
     "semantic_hash": ""
   },
   "packages/sdk-core/mathSphere.test.ts": {
@@ -8148,9 +8148,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-core/lightingTransportSolve.ts": {
-    "mtime": 1789396051.2274466,
-    "seen": 1789652705.191197,
-    "ast_hash": "0bc35d7d0b11fb0c35a68135951ac207",
+    "mtime": 1789717492.9369247,
+    "seen": 1789718470.5719008,
+    "ast_hash": "c271dfef8b782a84d9e3c781cdb382ce",
     "semantic_hash": ""
   },
   "packages/sdk-core/sceneLightShadowAtlas.ts": {
@@ -8211,12 +8211,6 @@
     "mtime": 1789551692.6918113,
     "seen": 1789652705.191217,
     "ast_hash": "e30d6a2115d70f2b59dd574a8e8d0304",
-    "semantic_hash": ""
-  },
-  "packages/sdk-core/lightingTransportResidual.ts": {
-    "mtime": 1789396051.2266505,
-    "seen": 1789652705.1911948,
-    "ast_hash": "fee54a56c6482007d2cc5be3768b5794",
     "semantic_hash": ""
   },
   "packages/sdk-core/sceneLightSunCascades.test.ts": {
@@ -10773,6 +10767,12 @@
     "mtime": 1789716177.272612,
     "seen": 1789716212.902438,
     "ast_hash": "754600e4e00e2c57f57c6f3e4e720ad6",
+    "semantic_hash": ""
+  },
+  "packages/sdk-core/lightingTransportStep.ts": {
+    "mtime": 1789717492.9134052,
+    "seen": 1789718470.571904,
+    "ast_hash": "2c64bc8945f11a1ab07e506bdfc0a5a2",
     "semantic_hash": ""
   }
 }
