@@ -57,6 +57,17 @@ export function parseArgs(argv) {
   return flags;
 }
 
+/** Les réservoirs à régler en session, ou `null` quand aucun n'est demandé. */
+function vivant(flags, mio) {
+  const budgets = {
+    geometryPoolBytes: flags.has('pool-geometrie-vivant')
+      ? mio('pool-geometrie-vivant')
+      : undefined,
+    texturePoolBytes: flags.has('pool-textures-vivant') ? mio('pool-textures-vivant') : undefined,
+  };
+  return Object.values(budgets).some((v) => v !== undefined) ? budgets : null;
+}
+
 /** Le chemin des calculs en lot imposé à la campagne, ou `auto` : le gouverneur arbitre alors. */
 function mathPathOf(flags) {
   const value = flags.get('chemin-math') ?? 'auto';
@@ -72,6 +83,13 @@ export function readOptions(argv, root) {
     const value = Number(flags.get(name) ?? fallback);
     if (!Number.isFinite(value)) throw new Error(`--${name} doit être un nombre`);
     return value;
+  };
+  /** Une option en Mio, ou `null` quand elle n'est pas donnée. */
+  const mioSi = (name) => {
+    if (!flags.has(name)) return null;
+    const value = number(name, 0);
+    if (!(value > 0)) throw new Error(`--${name} doit être un nombre de Mio strictement positif`);
+    return Math.round(value * 1024 * 1024);
   };
   const engine = flags.get('moteur') ?? 'webgl';
   if (!ENGINES[engine]) throw new Error(`--moteur doit valoir ${Object.keys(ENGINES).join(', ')}`);
@@ -91,7 +109,19 @@ export function readOptions(argv, root) {
     frames: number('images', 60),
     warmup: number('chauffe', 8),
     pixelErrors,
-    maxPages: number('max-pages', 100000),
+    // `--max-pages` : un plafond en PAGES sur le pool de géométrie, pour les scènes de test ; sans
+    // lui, le pool est le réservoir en octets du moteur. `--pool-geometrie` et `--pool-textures`
+    // donnent ces réservoirs en Mio, comme les variables de la référence ; absents, le moteur garde
+    // ses 512 Mio. Une valeur extrême est un cas de mesure, pas une erreur : le moteur dégrade.
+    maxPages: flags.has('max-pages') ? number('max-pages', 0) : null,
+    geometryPoolBytes: mioSi('pool-geometrie'),
+    texturePoolBytes: mioSi('pool-textures'),
+    // `--pool-geometrie-plafond` : le plus grand pool qu'un réglage en session pourra demander.
+    geometryPoolCeilingBytes: mioSi('pool-geometrie-plafond'),
+    // `--pool-geometrie-vivant` / `--pool-textures-vivant` : les mêmes réservoirs, mais réglés EN
+    // SESSION après la chauffe, par `explorer.setMemoryBudgets` — ce qu'un curseur d'application
+    // fait. Le relevé dit ce que le réglage a coûté et en combien d'images l'image s'est retenue.
+    poolVivant: vivant(flags, mioSi),
     width: number('largeur', 1280),
     height: number('hauteur', 720),
     port: number('port', 0),

@@ -5,7 +5,7 @@ que ce dépôt sur la machine : Playwright et esbuild sont ses dépendances de d
 poste, les assets vivent sous `.mesure/assets/` (§ Assets).
 
     node scripts/mesure/banc.mjs --moteur webgl --avant <ref-git|dist> --apres <ref-git|dist> \
-         --vues generale,sol,rue --images 60 --pixelError 0,1 --max-pages 100000
+         --vues generale,sol,rue --images 60 --pixelError 0,1
 
 - `--moteur` : `webgl` (exact-cluster-pages), `webgpu` (webgpu-page-raster) ou `webgl2`
   (autonomous-pages-webgl, le moteur autonome qui décode lui-même les pages de géométrie, donc le
@@ -174,8 +174,8 @@ du profil lui-même. Le même découpage est enregistré tel quel dans `mesure.j
 La section « Mémoire carte graphique » donne, par côté et par vue, ce que le moteur a alloué sur
 l'appareil et pas encore détruit — chaque texture et chaque tampon, comptés par un registre posé sur
 l'appareil et calculés depuis leur descripteur, WebGPU ne publiant pas la mémoire occupée —, avec
-trois familles nommées (atlas de textures calculé, géométrie allouée, cibles d'image admises par le
-budget d'image et ce budget), le reste par différence, et les étiquettes les plus lourdes ; le relevé
+trois familles nommées (atlas de textures calculé, géométrie allouée face à son réservoir, cibles
+d'image qui suivent la résolution), le reste par différence, et les étiquettes les plus lourdes ; le relevé
 complet par étiquette est dans `series[].sides[].metrics.gpuAllocatedByLabel`. Les seize compteurs
 des textures virtuelles sont sous chaque étape, lignes « Textures », « Retour d'image » et
 « Diffuseur » : le pool est fixe, « résident » est ce que la vue occupe.
@@ -226,10 +226,22 @@ viennent des bornes du modèle lues dans la page, pas d'une table. Trois choses 
    URL — sous `/benchmark-assets/` pour les caches des assets —, et `--ressources` ne le concerne pas :
    c'est le journal d'erreurs du relevé qui dit lequel des deux cas on est, page par page.
 
-`--max-pages` est à régler pour la scène : la valeur qui convient à un modèle urbain de plusieurs
-millions de triangles sature une petite scène en travail inutile et en sature une plus grosse en
-résidence. Le relevé consigne le budget employé ; une comparaison n'a de sens qu'à budget égal des
-deux côtés.
+Les réservoirs de mémoire sont ceux du moteur — fixes, en octets, comme les variables de la
+référence : `--pool-geometrie <Mio>` (pages de géométrie, 512 Mio par défaut) et
+`--pool-textures <Mio>` (tuiles de textures, 512 Mio par défaut). Une valeur extrême est un cas de
+mesure, pas une erreur : le moteur dégrade et le relevé le dit (`poolGeometrie.borne`,
+`poolGeometrie.saturees`, `coverageBudgetLimited`, `textureTilesRefused`). `--max-pages` reste un
+plafond en PAGES pour les scènes de test. Le relevé consigne les réservoirs employés ; une
+comparaison n'a de sens qu'à réservoirs égaux des deux côtés.
+
+Le réglage EN SESSION — ce qu'un curseur d'application fait par `explorer.setMemoryBudgets` — se
+mesure par `--pool-geometrie-vivant <Mio>` et `--pool-textures-vivant <Mio>` : après la chauffe, le
+banc règle les réservoirs et relève ce que le moteur en dit (`series[].sides[].reglageVivant` :
+réservoirs tenus, pages et tuiles évincées, millisecondes du réglage, ce qui résidait juste avant)
+et le nombre d'images pour que la pose se tienne de nouveau (`imagesReprise`, `null` si elle ne se
+tient plus — un réservoir plus petit que la vue). Une chauffe longue (`--chauffe 60`) remplit le
+réservoir avant le réglage ; sans elle, rien n'a à être évincé. Pour faire GRANDIR le pool de géométrie en session,
+`--pool-geometrie-plafond <Mio>` déclare le plus grand pool que la session pourra atteindre.
 
 ## Bancs de performance
 
