@@ -25,17 +25,47 @@ import { wgslFloat } from './gpuPartitionMargins.ts';
  * La couche coplanaire du cluster est un décalage entier sur la clé de profondeur, appliqué avant
  * l'empaquetage : en profondeur inversée, AJOUTER des unités rapproche exactement d'autant de
  * derniers bits, plafonné aux bits du plan proche. Zéro pour la couche 0.
+ *
+ * **La couverture est étanche.** Un pixel est couvert quand ses trois fonctions d'arête ont le signe
+ * de l'aire — jamais par des poids dérivés, dont la division et le \`1-w0-w1\` arrondissent : sur une
+ * arête partagée les deux voisins laissaient le même pixel à personne (fissure), et sur un éclat de
+ * la coupe au plan proche l'arrondi acceptait des pixels loin du triangle (frise). Chaque arête est
+ * évaluée dans l'ordre CANONIQUE de ses deux sommets, donc avec les mêmes opérandes dans le même
+ * ordre pour les deux triangles qui la partagent : ils lisent la même valeur au signe près, et un
+ * pixel exactement sur l'arête revient à celui des deux dont l'intérieur est du côté positif du
+ * sens canonique — une règle haut-gauche, un seul propriétaire.
  */
 export const RASTER_PIXEL_WGSL = `
-/** Les poids barycentriques du pixel dans le sous-triangle qui le couvre ; \`w<0\` : aucun. */
+/** L'ordre canonique de deux sommets d'écran : le plus haut, puis le plus à gauche, en premier. */
+fn canonBefore(a:vec2f,b:vec2f)->bool{return a.y<b.y||(a.y==b.y&&a.x<b.x);}
+/** \`edge(a,b,p)\` calculé dans l'ordre canonique : les deux triangles d'une arête lisent les mêmes bits. */
+fn canonEdge(a:vec2f,b:vec2f,p:vec2f)->f32{
+ if(canonBefore(a,b)){return edge(a,b,p);}
+ return -edge(b,a,p);
+}
+/** Vrai quand l'arête \`a→b\` laisse \`p\` du côté intérieur du triangle d'aire \`area\`. */
+fn edgeCovers(a:vec2f,b:vec2f,p:vec2f,area:f32)->bool{
+ let e=canonEdge(a,b,p);
+ let inside=area>0.0;
+ if(e==0.0){return canonBefore(a,b)==inside;}
+ return (e>0.0)==inside;
+}
+/** Les poids barycentriques du pixel dans le triangle \`(a,b,c)\` s'il le couvre ; \`w<0\` : non. */
+fn coverTri(a:vec2f,b:vec2f,c:vec2f,area:f32,p:vec2f)->vec4f{
+ if(area==0.0||!edgeCovers(b,c,p,area)||!edgeCovers(c,a,p,area)||!edgeCovers(a,b,p,area)){return vec4f(0.0,0.0,0.0,-1.0);}
+ // Les poids se normalisent sur LEUR somme, pas sur l'aire posée à la préparation : les trois
+ // arêtes arrondissent chacune de leur côté, et un poids qui ne somme pas à un décale toute la
+ // profondeur d'une surface plate — assez pour perdre le départage d'une couche coplanaire.
+ let e0=edge(b,c,p);let e1=edge(c,a,p);let e2=edge(a,b,p);
+ return vec4f(vec3f(e0,e1,e2)/(e0+e1+e2),1.0);
+}
+/** Les poids du pixel dans le sous-triangle qui le couvre, et lequel ; \`w<0\` : aucun. */
 fn coverAt(t:Tri,sample:vec2f)->vec4f{
- if(t.area0!=0.0){
-  let bw=baryWeights(t.a,t.b,t.c,sample,t.area0);
-  if(bw.x>=0.0&&bw.y>=0.0&&bw.z>=0.0){return vec4f(bw,0.0);}
- }
- if(t.quad!=0u&&t.area1!=0.0){
-  let bw=baryWeights(t.a,t.c,t.d,sample,t.area1);
-  if(bw.x>=0.0&&bw.y>=0.0&&bw.z>=0.0){return vec4f(bw,1.0);}
+ let first=coverTri(t.a,t.b,t.c,t.area0,sample);
+ if(first.w>=0.0){return vec4f(first.xyz,0.0);}
+ if(t.quad!=0u){
+  let second=coverTri(t.a,t.c,t.d,t.area1,sample);
+  if(second.w>=0.0){return vec4f(second.xyz,1.0);}
  }
  return vec4f(0.0,0.0,0.0,-1.0);
 }
