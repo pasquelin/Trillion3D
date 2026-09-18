@@ -43,11 +43,6 @@ for (let i = 0; i < 3000; i++) {
 export const rangs = [];
 for (let i = 0; i < 2000; i++) rangs.push(i % 17 === 0 ? Math.floor(alea() * 1e7) : i);
 
-/** Les plafonds de travail et les charges que le budget du rebond leur applique. */
-export const lots = [];
-for (let i = 0; i < 2000; i++)
-  lots.push({ ceiling: i % 11 === 0 ? nombre() : Math.floor(alea() * 1e6), load: alea() });
-
 /** Les dimensions logiques et les rapports de pixels que l'hôte règle, `undefined` compris. */
 export const tailles = [];
 for (let i = 0; i < 2000; i++)
