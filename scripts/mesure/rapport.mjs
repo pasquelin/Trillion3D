@@ -28,6 +28,16 @@ const num = (value) => (value == null ? '—' : String(value));
 const mo = (value) => (value == null ? '—' : (value / (1024 * 1024)).toFixed(1));
 /** Un témoin à trois états : `oui`, `non`, ou un tiret quand ce moteur ne le publie pas. */
 const oui = (value) => (value == null ? '—' : value ? 'oui' : 'non');
+/** Les réservoirs demandés au moteur : en Mio quand le banc les a donnés, sinon ses défauts. */
+const pool = (bytes) => (bytes == null ? 'défaut du moteur' : `${mo(bytes)} Mio`);
+const budgets = (settings) => {
+  const parts = [
+    `pool géométrie ${pool(settings.geometryPoolBytes)}`,
+    `pool textures ${pool(settings.texturePoolBytes)}`,
+  ];
+  if (settings.maxPages != null) parts.push(`plafond ${settings.maxPages} pages`);
+  return parts.join(', ');
+};
 const diffText = (d) =>
   !d ? '—' : d.erreur ? d.erreur : `${d.pixels} px, max canal ${d.maxCanal}`;
 /**
@@ -120,7 +130,7 @@ export function resume(report) {
         .map(([name, side]) => `${name} = ${side.from}`)
         .join(', '),
     `- Images par série : ${report.settings.frames} (chauffe ${report.settings.warmup}), ` +
-      `${report.settings.width}×${report.settings.height}, budget ${report.settings.maxPages} pages`,
+      `${report.settings.width}×${report.settings.height}, ${budgets(report.settings)}`,
     `- Début ${report.startedAt}, fin ${report.finishedAt}`,
     '',
     '## Relevés',

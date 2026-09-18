@@ -16,7 +16,8 @@ test('chaque côté de chaque vue a sa ligne, et le reste est la différence', (
             texturePoolBytes: 6_688_572_304,
             geometryAllocationBytes: 400_000_000,
             gpuFrameTargetBytes: 275_700_000,
-            gpuFrameBudgetBytes: 301_989_888,
+            geometryPoolBytes: 536_870_912,
+            geometryPoolClamp: 'scene',
             gpuAllocationsUnknownFormat: 0,
             gpuAllocatedByLabel: {
               'WG material atlas rgba8unorm classe 0': 4_252_572_304,
@@ -30,7 +31,7 @@ test('chaque côté de chaque vue a sa ligne, et le reste est la différence', (
   });
   assert.equal(
     lignes[2],
-    '| sol | e1 | apres | 7.500 Go | 6.689 Go | 0.400 Go | 275.7 Mo / 302.0 Mo | 0.136 Go |',
+    '| sol | e1 | apres | 7.500 Go | 6.689 Go | 0.400 Go / 536.9 Mo (scene) | 275.7 Mo | 0.136 Go |',
   );
   assert.equal(lignes[3], '');
   assert.equal(
@@ -57,11 +58,11 @@ test('un côté sans registre est non mesuré, jamais à zéro, et un format inc
   });
   assert.equal(
     lignes[2],
-    '| generale | e1 | avant | non mesuré | non mesuré | non mesuré | non mesuré / non mesuré | non mesuré |',
+    '| generale | e1 | avant | non mesuré | non mesuré | non mesuré / non mesuré | non mesuré | non mesuré |',
   );
   assert.equal(
     lignes[3],
-    '| generale | e1 | apres | 0.000 Go | non mesuré | non mesuré | non mesuré / non mesuré | 0.000 Go |',
+    '| generale | e1 | apres | 0.000 Go | non mesuré | non mesuré / non mesuré | non mesuré | 0.000 Go |',
   );
   assert.equal(lignes.length, 6);
   assert.match(

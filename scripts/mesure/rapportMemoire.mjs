@@ -8,12 +8,13 @@ const PLUS_LOURDES = 8;
  * La mémoire de la carte graphique par côté et par vue, lue dans le registre d'allocations que le
  * moteur publie : le total est ce qu'il a alloué et pas détruit, calculé depuis chaque descripteur
  * — WebGPU ne publie pas la mémoire occupée. Les trois familles nommées viennent des compteurs du
- * moteur (pool de textures calculé, géométrie allouée, cibles admises par le budget d'image) ; le reste est la
- * différence. Un côté sans registre est « non mesuré », jamais zéro.
+ * moteur (pool de textures calculé, géométrie allouée et le réservoir demandé, cibles d'image qui
+ * suivent la résolution) ; le reste est la différence. Un côté sans registre est « non mesuré »,
+ * jamais zéro. Un réservoir que le moteur n'a pas pu tenir tel quel dit pourquoi, entre parenthèses.
  */
 export function memoire(report) {
   const lines = [
-    '| vue | seuil | côté | total alloué | pool de textures | géométrie | cibles d’image / budget | reste |',
+    '| vue | seuil | côté | total alloué | pool de textures | géométrie / pool | cibles d’image | reste |',
     '|---|---|---|---|---|---|---|---|',
   ];
   const details = [];
@@ -27,12 +28,14 @@ export function memoire(report) {
       const reste = total === null ? null : total - (atlas ?? 0) - (geometrie ?? 0) - (cibles ?? 0);
       lines.push(
         `| ${serie.view} | e${serie.pixelError} | ${side} | ${go(total)} | ${go(atlas)} ` +
-          `| ${go(geometrie)} | ${mo(cibles)} / ${mo(m.gpuFrameBudgetBytes)} | ${go(reste)} |`,
+          `| ${go(geometrie)} / ${mo(m.geometryPoolBytes)}${borne(m)} | ${mo(cibles)} | ${go(reste)} |`,
       );
       details.push(...plusLourdes(serie, side, m));
     }
   return [...lines, '', ...details];
 }
+
+const borne = (m) => (m.geometryPoolClamp ? ` (${m.geometryPoolClamp})` : '');
 
 /** Les allocations les plus lourdes d'un côté, par étiquette, et l'aveu d'un format inconnu. */
 function plusLourdes(serie, side, m) {

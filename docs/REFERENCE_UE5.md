@@ -37,12 +37,14 @@ Trois écarts que le tableau ne dit pas, et qu'aucun test ne rattrape aujourd'hu
   `DAG_GROUP_MAX` et ne regarde jamais `DAG_GROUP_MIN` : un groupe de deux grappes est accepté là où
   la référence en tient huit. Ligne Géométrie 16 du backlog.
 - **`CLUSTER_TRIANGLES = 256` vit encore dans `lib.rs`**, morte, à côté du 128 qui compte. Même ligne.
-- **Le budget de résidence se compte en pages, pas en octets.** La référence donne à son pool une
+- **Le budget de résidence se compte en octets, comme le sien.** La référence donne à son pool une
   taille fixe en mégaoctets — 512 Mo par défaut, hors pages racines **(2)** — et les pages racines y
-  sont toujours résidentes. Nous épinglons les racines de la même façon (`pinned`, `docs/FORMAT.md`),
-  mais le budget est un NOMBRE DE PAGES : deux machines aux mémoires différentes tiennent le même
-  nombre de pages. C'est un choix, pas un oubli ; il devient faux le jour où une page n'a plus une
-  taille à peu près constante.
+  sont toujours résidentes. Depuis Géométrie 0 (18 sept. 2026), le nôtre aussi : `geometryPoolBytes`,
+  512 Mio par défaut, jamais lu sur la machine, converti en fentes à la taille de la plus grosse page,
+  et jamais sous la couverture racine (`pinned`, `docs/FORMAT.md`). Deux écarts, à notre avantage :
+  un réglage en session garde ce qui tient dans le nouveau pool là où la référence vide le sien, et
+  un pool plein n'est ni une exception ni un avertissement au journal, mais un compteur
+  (`geometryPoolSaturated`) et une coupe plus grossière.
 
 ## 2. Octets par triangle — la seule comparaison de mémoire qui tienne
 
@@ -135,7 +137,7 @@ Ce qu'on peut en tirer sans tricher :
 | --- | --- |
 | Structure du DAG et des pages | **Oui**, aux trois écarts du §1 près |
 | Octets par triangle | **Non** : ~6× au-dessus |
-| Budget mémoire fixe | **Non** : compté en pages, et 7,56 Go de textures brutes à côté |
+| Budget mémoire fixe | **Oui** depuis Géométrie 0 : 512 Mio de pages et 512 Mio de tuiles, en octets, réglables ; les textures ne sont pas encore comprimées à la cuisson (T5) |
 | Coût processeur par image | **Non** : 0,5–2,8 ms contre ~0 |
 | Millisecondes GPU | **Inconnu**, et le restera tant que la campagne du §3 n'est pas jouée |
 

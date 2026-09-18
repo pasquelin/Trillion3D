@@ -92,6 +92,8 @@ export async function measureView(options) {
     explorer.render(pose);
     await explorer.flush();
   }
+  // Le réglage des réservoirs en session, s'il est demandé, se mesure sur la coupe déjà résidente.
+  const reglageVivant = await mesure.reglerReservoirs(explorer, pose, options.poolVivant);
   const cpuFrameMs = [],
     cpuSelectMs = [],
     gpuFrameMs = [];
@@ -147,19 +149,17 @@ export async function measureView(options) {
   // La capture est celle d'une pose CALME (`pageMesure.mjs`) : `imagesCalme` dit combien d'images
   // il a fallu pour que le moteur la tienne, `null` s'il ne tient pas d'image.
   const imagesCalme = await mesure.poseCalme(explorer, current);
-  // La capture part telle quelle vers Node, qui l'encode en PNG et la compare.
   const response = await mesure.posterCapture(
     options.captureFile,
     explorer.capture(),
     canvas.width,
     canvas.height,
   );
-  // L'ensemble sélectionné, lu comme dans les lots précédents : voir `pageCoupe.mjs`.
   const selection = coupe.lireCoupe(explorer, options.engineId);
   // Les mesures du dernier relevé, `null` compris : une mesure tue serait indistinguable d'une
   // mesure absente, qu'un lecteur remplacerait par zéro — ce que le contrat interdit. Un relevé
   // d'octets par étiquette est une table de nombres : il passe aussi.
-  const scalaire = (v) => v === null || typeof v === 'number' || typeof v === 'boolean';
+  const scalaire = (v) => v === null || ['number', 'boolean', 'string'].includes(typeof v);
   const table = (v) =>
     typeof v === 'object' &&
     v !== null &&
@@ -189,6 +189,7 @@ export async function measureView(options) {
     preparationMs,
     network,
     imagesCalme,
+    reglageVivant,
     // Le relevé du gouverneur de chemin de calcul : un objet, donc écarté par le filtre scalaire
     // ci-dessus. Sans lui, rien ne dirait quel chemin la campagne a réellement joué.
     mathBatch: last?.mathBatch ?? null,
