@@ -58,3 +58,7 @@ export const shadeVariantFragment = (variant?: DiagnosticGpuVariant) =>
 /** Vrai quand la variante n'encode pas la seconde passe de visibilité : les occulteurs seuls. */
 export const skipsSecondaryPass = (variant?: DiagnosticGpuVariant) =>
   variant === 'geometrie-une-passe';
+
+/** Vrai quand la variante laisse le raster matériel dessiner la géométrie opaque. */
+export const forcesHardwareRaster = (variant?: DiagnosticGpuVariant) =>
+  variant === 'raster-materiel';

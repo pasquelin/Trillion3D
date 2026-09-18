@@ -6,7 +6,7 @@
 // chiffres et sa version d'avant le lot sont dans
 // `test/justesse/normale-eclairage-petite-echelle.mjs`.
 //
-// LAB_ROOT=… node --experimental-strip-types test/browser/normale-eclairage-petite-echelle.browser.mjs
+// node --experimental-strip-types test/browser/normale-eclairage-petite-echelle.browser.mjs
 import assert from 'node:assert/strict';
 import { construireCas, ecart } from '../justesse/normaleEclairageCas.mjs';
 import { eclairageGpu } from '../justesse/normaleEclairageGpu.mjs';

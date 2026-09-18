@@ -2,11 +2,9 @@
 // doit garder le cas déclencheur de la reproduction (échelle non uniforme 1e-8/1e-6/1e-6, deux vrais
 // triangles) et continuer de rejeter un cluster conforme (échelle uniforme et rotation) dont la face
 // est dos à la caméra, comme avant ce lot. `selectionGpu` vient de
-// `test/justesse/noyauSelectionGpu.mjs` ; Playwright, de `render-tech-lab`, en
-// lecture seule.
+// `test/justesse/noyauSelectionGpu.mjs`.
 //
 // node --experimental-strip-types test/browser/cone-echelle-non-uniforme.browser.mjs
-// (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { OPEN_CONE, triangleCone } from '../../packages/sdk-browser/pageCone.ts';

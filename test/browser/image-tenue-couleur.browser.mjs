@@ -6,7 +6,6 @@
 // puis réencodées, et l'image tenue s'éclaircissait à chaque présentation.
 //
 //   node --experimental-strip-types test/browser/image-tenue-couleur.browser.mjs
-//   (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
 import assert from 'node:assert/strict';
 import { preuveDansLaPage } from '../appui/preuvePageMoteur.mjs';
 

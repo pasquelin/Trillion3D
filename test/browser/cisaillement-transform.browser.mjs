@@ -4,11 +4,9 @@
 // caméra, une fois avec la matrice demandée (cisaillée) et une fois avec sa recomposition
 // translation-rotation-échelle — ce que `setTransform` posait avant ce lot. Les deux verdicts
 // diffèrent : la perte du cisaillement n'était pas une approximation, elle changeait la page
-// sélectionnée. `selectionGpu` vient de `test/justesse/noyauSelectionGpu.mjs` ;
-// Playwright, de `render-tech-lab`, en lecture seule.
+// sélectionnée. `selectionGpu` vient de `test/justesse/noyauSelectionGpu.mjs`.
 //
 // node --experimental-strip-types test/browser/cisaillement-transform.browser.mjs
-// (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { OPEN_CONE } from '../../packages/sdk-browser/pageCone.ts';

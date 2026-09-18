@@ -1,13 +1,11 @@
 // Justesse d'une caméra parentée, côté GPU réellement exécuté.
 //
-// La page `cameraParenteeGpuPage.mjs` est empaquetée par esbuild (celui de Vite, pris dans
-// `render-tech-lab` en lecture seule, sans rien y écrire), servie sur une origine locale et lancée
-// dans Chromium avec Playwright. Image après image, la sélection WebGPU du moteur est calculée pour
+// La page `cameraParenteeGpuPage.mjs` est empaquetée par esbuild, servie sur une origine locale et
+// lancée dans Chromium avec Playwright. Image après image, la sélection WebGPU du moteur est calculée pour
 // la caméra enfant d'un parent d'hôte déplacé puis tourné, puis pour la caméra sans parent de même
 // pose monde. Les pages sélectionnées doivent être identiques ; sinon le script échoue.
 //
 //   node test/justesse/camera-parentee-gpu.mjs
-//   (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dansPageWebgpu, empaquetePage } from './pageWebgpu.mjs';

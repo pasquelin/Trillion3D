@@ -1,14 +1,16 @@
 # Banc de mesure commun
 
-Un seul harnais pour tous les lots. Une commande, aucun serveur à lancer à la main :
+Un seul harnais pour tous les lots. Une commande, aucun serveur à lancer à la main, rien d'autre
+que ce dépôt sur la machine : Playwright et esbuild sont ses dépendances de dev, Chrome celui du
+poste, les assets vivent sous `.mesure/assets/` (§ Assets).
 
     node scripts/mesure/banc.mjs --moteur webgl --avant <ref-git|dist> --apres <ref-git|dist> \
          --vues generale,sol,rue --images 60 --pixelError 0,1 --max-pages 100000
 
 - `--moteur` : `webgl` (exact-cluster-pages), `webgpu` (webgpu-page-raster) ou `webgl2`
   (autonomous-pages-webgl, le moteur autonome qui décode lui-même les pages de géométrie, donc le
-  seul qui fait monter `pagesDecodedWasm`) ; il choisit aussi les drapeaux de Chromium, copiés de
-  `render-tech-lab/scripts/headless/lib.mjs` et `shots.mjs`. `webgl2` exige un cache dont toutes les
+  seul qui fait monter `pagesDecodedWasm`) ; il choisit aussi les drapeaux de Chromium
+  (`optionsCote.mjs`). `webgl2` exige un cache dont toutes les
   primitives sont des clusters exacts : sans cela le compilateur laisse `autonomousScene` nul et
   l'explorateur refuse la série par `AUTONOMOUS_SCENE_UNAVAILABLE`.
 - `--avant` / `--apres` : un dossier `dist/` construit, ou une référence git, extraite hors du dépôt
@@ -20,12 +22,12 @@ Un seul harnais pour tous les lots. Une commande, aucun serveur à lancer à la 
   ceux dont les deux côtés ont besoin, et chaque côté publie son moteur dans `mesure.json`.
 - `--cache-avant` / `--cache-apres` : le dossier « derived » d'un cache compilé (celui qui contient
   `native/full`), pour comparer deux compilateurs sur la même scène. Sans l'option, le côté lit le
-  cache du Lab. Chaque cache nommé est rendu sous `/cache/<côté>/`.
+  cache de la scène de référence dans les assets. Chaque cache nommé est rendu sous `/cache/<côté>/`.
 - `--ressources <dossier>` : le dossier que le glTF d'un cache compilé désigne par chemin relatif,
   monté sous `/assets/`. Sans lui, un cache compilé sans base de ressources sort ses textures en 404
   et la mesure porterait sur des matériaux sans texture — ce ne serait plus la scène.
-- `--vues` parmi `generale`, `sol`, `rue`, `detail` (banc 15, pathVersion 5, vérifiée contre le Lab à
-  chaque exécution) ; `--pixelError` prend une liste ; aussi `--chauffe`, `--largeur`, `--hauteur`, `--out` et `--port` (libre par défaut, jamais 5174).
+- `--vues` parmi `generale`, `sol`, `rue`, `detail` (trajectoire `poses.mjs`, `PATH_VERSION` 5,
+  dont le dépôt est la source) ; `--pixelError` prend une liste ; aussi `--chauffe`, `--largeur`, `--hauteur`, `--out` et `--port` (libre par défaut).
 - `--rebond on|off` (par défaut `off`) : allume la lumière qui rebondit, éteinte par défaut dans
   le moteur. Sans elle, l'étape « Rebond » vaut « non mesuré » et l'image est celle d'avant le lot.
 - `--textures cache|host` (par défaut `host`) : `cache` fait lire au moteur WebGPU les niveaux de
@@ -172,23 +174,37 @@ page, `new THREE.WebGLRenderer` finit par ne plus obtenir de contexte (« Error 
 context », relevé au passage de la vue `generale` à `sol` le 14 septembre 2026). Fermer la page rend
 au navigateur le contexte WebGL et le tas de la série précédente.
 
+## Assets
+
+Le harnais sert `.mesure/assets/` (hors git ; `WG_ASSETS` pointe un autre dossier) sous
+`/benchmark-assets/`. Il y attend, pour la scène de référence `emerald-square` : `emerald-square/`
+(le glTF et ses textures, `emerald-day.gltf`) et `emerald-square-derived/` (le cache compilé,
+`native/full/manifest.json`). Le cache se recompile depuis les sources avec notre compilateur :
+
+    pnpm run build && pnpm run build:native
+    WEB_GEOMETRY_COMPILER_BIN=packages/asset-compiler-rust/target/release/web-geometry-compiler \
+    node dist/sdk-node/cli.mjs .mesure/assets/emerald-square/emerald-day.gltf \
+         .mesure/assets/emerald-square-derived full 150000 /benchmark-assets/emerald-square/
+
+La base des ressources est l'URL sous laquelle le harnais sert les sources : c'est là que le glTF
+compilé va chercher ses textures. L'empreinte du cache est la clé `key` de `manifest.json`, et
+`mesure.json` la consigne : deux relevés ne se comparent qu'à clé égale.
+
 ## Mesurer une autre scène
 
 Le harnais ne connaît aucune scène : il mesure celle des caches qu'on lui donne, et ses poses
 viennent des bornes du modèle lues dans la page, pas d'une table. Trois choses à fournir.
 
-1. **Compiler le glTF** avec le binaire Rust (`pnpm run build:native`, puis
-   `packages/asset-compiler-rust/target/release/web-geometry-compiler`), vers un dossier
-   `<nom>-derived/` hors du dépôt et hors du Lab — un cache compilé n'est jamais écrit dans
-   `render-tech-lab/public/benchmark-assets`.
+1. **Compiler le glTF** comme ci-dessus (§ Assets), vers un dossier `<nom>-derived/` — sous
+   `.mesure/assets/` ou ailleurs, jamais dans un dossier suivi par git.
 2. **Nommer ce cache aux deux côtés** : `--cache-avant <dossier>` et `--cache-apres <dossier>`. Le
    nom de la scène est déduit du dossier `derived` ; sans aucune de ces deux options, le harnais lit
-   le cache du Lab et retombe sur la scène par défaut. Le cache du Lab n'est exigé que lorsqu'un
-   côté au moins n'a pas le sien.
+   le cache de la scène de référence et retombe dessus. Ce cache n'est exigé que lorsqu'un côté au
+   moins n'a pas le sien.
 3. **Monter les ressources** : `--ressources <dossier>` est le dossier que le glTF du cache désigne
    par chemin relatif. Sans lui, les textures sortent en 404 et la mesure ne porte plus sur la
    scène. Un cache compilé avec un `resourceBaseUrl` absolu, lui, va chercher ses textures à cette
-   URL — sous `/benchmark-assets/` pour les caches du Lab —, et `--ressources` ne le concerne pas :
+   URL — sous `/benchmark-assets/` pour les caches des assets —, et `--ressources` ne le concerne pas :
    c'est le journal d'erreurs du relevé qui dit lequel des deux cas on est, page par page.
 
 `--max-pages` est à régler pour la scène : la valeur qui convient à un modèle urbain de plusieurs

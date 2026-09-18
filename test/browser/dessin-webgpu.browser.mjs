@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
+import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import { routeBrowserFixtures } from '../appui/browserFixtureServer.mjs';
 import {
   BASE_SLOTS,
@@ -16,8 +15,6 @@ import {
 import { VIS_SHADER, PAGE_INFO_STRIDE } from '../../packages/sdk-browser/visibilityBuffer.ts';
 import { VIS_BINDINGS } from '../../packages/sdk-browser/webgpuBindLayout.ts';
 
-const labRoot = process.env.LAB_ROOT ?? resolve('../render-tech-lab');
-const { chromium } = createRequire(resolve(labRoot, 'package.json'))('playwright');
 const cap = 192,
   maxVertexCount = 3;
 // Canonical page IDs deliberately differ from both input and compacted positions.

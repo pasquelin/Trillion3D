@@ -1,7 +1,7 @@
 // Défauts 4 et 7, GPU : le WGSL de production (`wrapUv`/`wrapCoord`, visibilityWrapModes.ts)
-// échantillonné par une vraie carte graphique WebGPU dans Chromium (Playwright de render-tech-lab,
-// en lecture seule), contre l'échantillonneur natif réglé sur le même mode d'adressage — le tout sur
-// une texture à texels tous distincts, en filtrage linéaire. Deux séries :
+// échantillonné par une vraie carte graphique WebGPU dans Chromium, contre l'échantillonneur natif
+// réglé sur le même mode d'adressage — le tout sur une texture à texels tous distincts, en filtrage
+// linéaire. Deux séries :
 //   • hors couture de période, miroir, répétition et serrage restent identiques bit à bit ;
 //   • sur la couture d'une période en répétition, le moteur mêle lui-même les deux bords de la
 //     texture ; son poids ne peut pas valoir bit pour bit celui que l'échantillonneur quantifie, la
@@ -11,7 +11,7 @@
 // ceux de la reproduction pour rester une preuve indépendante. Le nuanceur, lui, n'est pas recopié :
 // deux copies seraient deux chances de voir la lecture éprouvée dériver de celle de production.
 //
-//   LAB_ROOT=…/render-tech-lab node --experimental-strip-types test/browser/enroulement-texture-gpu.browser.mjs
+//   node --experimental-strip-types test/browser/enroulement-texture-gpu.browser.mjs
 import assert from 'node:assert/strict';
 import { wrapNibble } from '../../packages/sdk-browser/visibilityWrapModes.ts';
 import {
