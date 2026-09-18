@@ -100,21 +100,20 @@ export function encodeWebgpuVisibilityPasses(
   visPass.end();
   compute?.occluders(encoder);
   rt.run.hizPyramidFresh = false;
-  if (twoPass && gpuHiz) {
-    encodeHizMidFrame(rt, device, encoder, tableRows);
-    // La seule variante de diagnostic qui touche aux commandes encodées : elle laisse la moitié
-    // testée hors de l'image pour peser les occulteurs seuls, et rend donc une image incomplète.
-    if (!skipsSecondaryPass(rt.context?.diagnosticGpuVariant)) {
-      const restPass = encoder.beginRenderPass({
-        label: 'WG visibility secondary',
-        colorAttachments: visColors('load'),
-        depthStencilAttachment: { view: depthTarget, depthLoadOp: 'load', depthStoreOp: 'store' },
-      });
-      restPass.setViewport(0, 0, width, height, 0, 1);
-      drawVis(rt, device, restPass, true, useIndirect);
-      restPass.end();
-      compute?.rest(encoder);
-    }
+  const tested = twoPass && !!gpuHiz;
+  if (tested) encodeHizMidFrame(rt, device, encoder, tableRows);
+  // La seule variante de diagnostic qui touche aux commandes encodées : elle laisse la moitié
+  // testée hors de l'image pour peser les occulteurs seuls, et rend donc une image incomplète.
+  if (tested && !skipsSecondaryPass(rt.context?.diagnosticGpuVariant)) {
+    const restPass = encoder.beginRenderPass({
+      label: 'WG visibility secondary',
+      colorAttachments: visColors('load'),
+      depthStencilAttachment: { view: depthTarget, depthLoadOp: 'load', depthStoreOp: 'store' },
+    });
+    restPass.setViewport(0, 0, width, height, 0, 1);
+    drawVis(rt, device, restPass, true, useIndirect);
+    restPass.end();
+    compute?.rest(encoder);
   }
   compute?.ids(encoder);
 }

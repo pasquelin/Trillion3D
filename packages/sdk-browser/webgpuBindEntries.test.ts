@@ -144,34 +144,31 @@ test('chaque constructeur de groupe de liaison lie exactement les entrées de sa
 
   // Le constructeur unique du raster logiciel des petits triangles, cinquième paire du chemin :
   // il lit les mêmes classes d'atlas et la même table de slots que les autres passes.
-  const smallPass = stub([
-    'setBindGroup',
-    'setPipeline',
-    'dispatchWorkgroups',
-    'dispatchWorkgroupsIndirect',
-    'end',
-  ]);
+  const smallPass = stub(['setBindGroup', 'setPipeline', 'dispatchWorkgroups', 'end']);
   const smallEncoder = {
     clearBuffer() {},
     copyBufferToBuffer() {},
-    beginComputePass: () => smallPass,
+    beginComputePass: () => ({ ...smallPass, dispatchWorkgroupsIndirect() {} }),
     beginRenderPass: () => pass,
   } as unknown as GPUCommandEncoder;
   const raster = createGpuRaster(device, 4, 4, 8);
+  const buffer = {} as GPUBuffer,
+    view = {} as GPUTextureView;
   const rasterInput = {
-    indices: {} as GPUBuffer,
-    positions: {} as GPUBuffer,
-    pages: {} as GPUBuffer,
-    hizFlags: {} as GPUBuffer,
-    uniform: {} as GPUBuffer,
-    uvs: {} as GPUBuffer,
+    indices: buffer,
+    positions: buffer,
+    pages: buffer,
+    hizFlags: buffer,
+    uniform: buffer,
+    uvs: buffer,
     colorAtlas: vis.colorAtlas,
     slots: vis.slots as never,
     sampler: vis.mapsSampler,
     pageRows: 1,
     maxTriangles: 3,
-    idsView: {} as GPUTextureView,
-    depthView: {} as GPUTextureView,
+    idsView: view,
+    depthView: view,
+    tested: false,
     groups: [],
     groupKey: 0,
   };

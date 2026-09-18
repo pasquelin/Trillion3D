@@ -1,5 +1,5 @@
 import type { DiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
-import { COMPUTE_ALL, FINE_SIDE } from './gpuRasterContract.ts';
+import { COMPUTE_ALL, FINE_SPAN } from './gpuRasterContract.ts';
 
 /**
  * Les étages de fragments de DIAGNOSTIC de la passe de géométrie, ajoutés aux deux modules de
@@ -60,14 +60,10 @@ export const shadeVariantFragment = (variant?: DiagnosticGpuVariant) =>
 export const skipsSecondaryPass = (variant?: DiagnosticGpuVariant) =>
   variant === 'geometrie-une-passe';
 
-/** Le plus grand côté de boîte, en pixels, qu'un triangle peut avoir pour aller au raster de
- *  calcul sous le partage : la classe fine du raster, quatre triangles par groupe de fils. */
-const COMPUTE_SPAN = FINE_SIDE - 1;
-
 /** Ce que la variante confie au raster de calcul : rien, les petits triangles, ou toute la coupe. */
 export function computeSpanFor(variant?: DiagnosticGpuVariant) {
   if (variant === 'raster-calcul') return COMPUTE_ALL;
-  if (variant === 'raster-hybride') return COMPUTE_SPAN;
+  if (variant === 'raster-hybride') return FINE_SPAN;
   return 0;
 }
 
