@@ -70,6 +70,21 @@ export interface WebgpuPagesRuntime {
   services: WebgpuPagesServices;
 }
 
+/** Une boîte qui contient tout le monde : le signal « tout a changé » de l'ordonnanceur d'ombres. */
+const EVERYWHERE_MIN = [-1e30, -1e30, -1e30],
+  EVERYWHERE_MAX = [1e30, 1e30, 1e30];
+
+/**
+ * Un niveau de couleur de plus est résident : la découpe alpha que les cartes d'ombre lisent vient
+ * de changer pour toute surface qui porte cette texture, et une carte dessinée au niveau d'avant
+ * décrirait un feuillage qui n'est plus celui de l'image. Toutes les pages repartent donc en
+ * attente, sous le budget ordinaire de l'étape Ombres. Sans ce signal, deux exécutions identiques
+ * rendaient deux ombres différentes, selon le moment où chaque page avait été dessinée.
+ */
+function shadowsFollowTextures(lights: WebgpuLightState) {
+  lights.plan.worldChanged(EVERYWHERE_MIN, EVERYWHERE_MAX);
+}
+
 export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRuntime {
   const traceEnabled = !!context.onDiagnostic && context.diagnosticDetail !== 'summary';
   const diag = { ...createWebgpuDiagnostics(context.onDiagnostic, traceEnabled), traceEnabled };
@@ -78,6 +93,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
   const vis = createWebgpuVisState();
   const run = createWebgpuRunState();
   const blendState = createWebgpuBlendState();
+  const lights = createWebgpuLightState(context.sceneLights);
   // Le signal de priorité est celui de la coupe précédente : elle a déjà nommé les pages demandées
   // au cache et les maillages transparents visibles, donc les lire ne coûte ni passe GPU ni lecture
   // bloquante. `run.desired` et non `run.drawn` : voir `webgpuTexturePriority.ts`.
@@ -114,10 +130,12 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
       if (pyramid) vis.slots?.markLevel(kind, slot, level, pyramid);
       // Origine du changement de ressources : un niveau progressif vient d'atteindre l'atlas.
       run.gate.resourcesChanged();
+      if (kind === 'color') shadowsFollowTextures(lights);
     },
     onReady: (kind, slots) => {
       vis.slots?.markReady(kind, slots);
       run.gate.resourcesChanged();
+      if (kind === 'color') shadowsFollowTextures(lights);
     },
     onFailure: diag.diagnosticFailure,
     onAbandon: (details) =>
@@ -158,7 +176,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     layout,
     gpu: createWebgpuGpuState(setup.viewport),
     vis,
-    lights: createWebgpuLightState(context.sceneLights),
+    lights,
     bounce: createWebgpuBounceState(
       context.bounce === true,
       context.bounceBudgetMs ?? BOUNCE_SETTINGS.budgetMs,
