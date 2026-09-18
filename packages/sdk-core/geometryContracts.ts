@@ -1,3 +1,4 @@
+import type { DagReport } from './dagContracts.ts';
 import type { AssetScope } from './contractsBase.ts';
 import type { SceneProxyDescriptor } from './proxyContracts.ts';
 
@@ -128,6 +129,7 @@ export interface Primitive {
   pass: string;
   clusterStrategy?: 'dag-groups';
   pages: Page[];
+  dag?: DagReport | null;
   culling?: CullingHierarchy | null;
   structure?: ClusterStructure | null;
   streams?: StreamCatalogue | null;
