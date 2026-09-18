@@ -1,4 +1,9 @@
-import { ATLAS_SLOTS_WGSL, COLOR_ALPHA_WGSL, atlasTextures } from './webgpuAtlasWgsl.ts';
+import {
+  COLOR_SAMPLE_WGSL,
+  TILE_POOL_WGSL,
+  maskAlphaWgsl,
+  tileDeclarations,
+} from './webgpuTileWgsl.ts';
 import {
   EDGE_WGSL,
   MASK_KEEP_WGSL,
@@ -20,9 +25,9 @@ import { wgslFloat } from './gpuPartitionMargins.ts';
  * d'identifiants, la profondeur et le niveau zéro de la pyramide que le raster matériel a ouverts.
  * Les surfaces à mélange et à transmission gardent leur passe.
  *
- * Un matériau à masque fait son test alpha ICI, sur le niveau de carte déjà résident : la découpe de
- * la silhouette est donc la même dans l'image et dans les ombres, qui appliquent `maskKeep` au même
- * seuil sur les mêmes coordonnées.
+ * Un matériau à masque fait son test alpha ICI, sur la tuile la plus fine déjà résidente — ce raster
+ * n'a pas de dérivées et passe des gradients nuls à `maskKeep`, le même test que l'image et les
+ * ombres, au même seuil, sur les mêmes coordonnées.
  */
 const PAGE_INFO = `${PAGE_INFO_STRUCT_WGSL}
 ${VIS_UNIFORMS_WGSL}`;
@@ -34,7 +39,7 @@ export const rasterSource = (capacity: number, listBase: number) => `${PAGE_INFO
 @group(0) @binding(${SMALL_BINDINGS.hizFlags}) var<storage,read> hizFlags:array<u32>;
 @group(0) @binding(${SMALL_BINDINGS.uniform}) var<uniform> uni:Uniforms;
 @group(0) @binding(${SMALL_BINDINGS.uvs}) var<storage,read> uvs:array<f32>;
-${atlasTextures(SMALL_BINDINGS.maps, 'maps')}
+${tileDeclarations(SMALL_BINDINGS.color, 'color')}
 @group(0) @binding(${SMALL_BINDINGS.sampler}) var mapsSampler:sampler;
 // Un seul tampon de travail : d'abord les deux attachements que le raster résout — la profondeur,
 // puis les identifiants un écran plus loin —, et à partir de LIST les deux listes de triangles,
@@ -42,9 +47,9 @@ ${atlasTextures(SMALL_BINDINGS.maps, 'maps')}
 @group(0) @binding(${SMALL_BINDINGS.work}) var<storage,read_write> work:array<atomic<u32>>;
 const LIST:u32=${listBase}u;
 @group(0) @binding(${SMALL_BINDINGS.selectionMask}) var<storage,read> selectionMask:array<u32>;
-@group(0) @binding(${SMALL_BINDINGS.colorSlots}) var<storage,read> colorSlots:array<vec2u>;
-${ATLAS_SLOTS_WGSL}
-${COLOR_ALPHA_WGSL}
+${TILE_POOL_WGSL}
+${COLOR_SAMPLE_WGSL}
+${maskAlphaWgsl(false)}
 fn pixelCount()->u32{return u32(uni.viewport.x)*u32(uni.viewport.y);}
 // Le produit \`viewProj * world\` et le determinant de la partie lineaire ne dependent que de la page :
 // ils sont calcules une fois pour la page et relus tels quels par chacun de ses triangles. Les memes

@@ -8,8 +8,9 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Le pas des uniformes du chemin de repli, qui garde un enregistrement par primitive. */
 export const UNIFORM_STRIDE = 256;
-/** `viewProj`, l'oeil, les tuiles de lampes, les drapeaux de vue et le decalage d'item : 96 octets. */
-export const BLEND_VIEW_SIZE = 96;
+/** `viewProj`, l'oeil, les tuiles de lampes, les drapeaux de vue, le décalage d'item, la phase du
+ *  retour d'image des textures et trois mots d'alignement : 112 octets. */
+export const BLEND_VIEW_SIZE = 112;
 
 /** Les bits de diagnostic que TOUTE la passe porte : ils ne dependent pas de l'item. */
 function diagnosticBits(diagnostic: DiagnosticMode) {
@@ -28,7 +29,7 @@ function diagnosticBits(diagnostic: DiagnosticMode) {
 }
 
 /**
- * L'uniforme de VUE de la passe transparente : quatre-vingt-seize octets, une fois par image.
+ * L'uniforme de VUE de la passe transparente : cent douze octets, une fois par image.
  *
  * Tout ce qui appartenait a un item — sa matrice, sa couleur, ses six cartes — vit maintenant dans
  * la fiche que le nuanceur lit au rang porte par l'indice de sommet (`webgpuBlendItems.ts`). Il ne
@@ -69,6 +70,8 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
   // declarees ? Sinon les transparents sortent leur albedo brut, comme les opaques (P6).
   ints[22] = ((wantsContractLighting(rt) ? 0 : FLAG_UNLIT_VIEW) | diagnosticBits(diagnostic)) >>> 0;
   ints[23] = blendState.vertexShift;
+  // La phase du retour d'image des textures : la même que la résolution opaque, cette image-ci.
+  ints[24] = rt.vis.textures?.feedback.phaseWord(run.textureConverging) ?? 0;
   device.queue.writeBuffer(
     buffer,
     0,

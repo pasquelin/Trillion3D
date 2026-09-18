@@ -7,13 +7,8 @@ import { bounceState, directLightingState } from './webgpuPagesEncodeLights.ts';
 import { wantsContractLighting } from './webgpuPagesLightResources.ts';
 import { sunFarState } from './webgpuPagesPrepareSunFar.ts';
 import { renderWebgpuPages } from './webgpuPagesRender.ts';
+import { settlePose } from './webgpuTileConverge.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
-
-/** Images qu'une barrière consacre au plus aux pages d'ombre en attente. Une page attend au plus
- *  deux images sous le budget ordinaire (`retardMaxImages`) ; le reste couvre une caméra immobile
- *  dont toutes les pages viennent d'être périmées par un dernier niveau de texture. Une caméra qui
- *  bouge périme des pages à chaque image et ne converge jamais : la borne est là pour elle. */
-const SHADOW_DRAIN_LIMIT = 8;
 
 function reportProgress(rt: WebgpuPagesRuntime) {
   const { run, gpu, blendState, diag, services, context } = rt;
@@ -112,7 +107,7 @@ async function readBackImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
 /** Settles everything the last render left in flight: texture layers, residency, timing, the GPU
  *  selection readback and the explicit image readback. */
 export async function flushWebgpuPages(rt: WebgpuPagesRuntime) {
-  const { run, gpu, vis, capture, timing, diag, services } = rt,
+  const { run, gpu, capture, timing, diag, services } = rt,
     { gpuDevice } = rt.setup;
   // Le témoin d'image tenue n'est PAS retiré d'office : un hôte qui vide à chaque image n'aurait
   // alors jamais d'image tenue. Chaque drainage qui change réellement l'image l'annonce lui-même —
@@ -128,38 +123,13 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime) {
     if (run.lastCamera && !capture.secondaryCamera && !run.lost)
       renderWebgpuPages(rt, run.lastCamera);
   }
-  // Material texture layers are part of readiness, not a per-frame decoration: a page drawn before
-  // its layer lands is shaded from layer 0, so the image of one camera keeps changing while the
-  // queue drains. `render` still admits at most `textureBudget` bytes per frame; the explicit
-  // barrier drains the rest here, outside the measured loop, so a flushed pose is settled.
-  // Le budget d'octets engagés est levé ici : une capture de référence doit converger, et une file
-  // que le budget refuse ne se viderait jamais. En boucle d'images libre, il s'applique.
-  // Chaque passe est attendue par l'appareil avant la suivante. Sans ce garde-fou, la barrière
-  // empile la file entière — jusqu'à plusieurs gigaoctets — dans un seul tour de boucle JavaScript :
-  // le fil est bloqué, la file de commandes déborde, et l'image qui suit la barrière paie tout le
-  // retard d'un coup (200 à 500 ms mesurées sur Emerald). L'attente est ici et nulle part ailleurs :
-  // le chemin d'image, lui, pousse une passe par image et ne doit rien attendre.
-  // Un niveau cuit se lit avant de se transférer : quand la file n'a plus rien de prêt, la barrière
-  // attend les lectures en vol au lieu de tourner à vide.
-  const landedBefore = rt.texturePump.levels + rt.texturePump.uploaded;
-  while (gpuDevice && vis.textureJobs.length) {
-    rt.texturePump.pump(true);
-    await gpuDevice.queue.onSubmittedWorkDone();
-    const reading = rt.texturePump.settled();
-    if (reading && !vis.textureJobs.some((job) => job.ready)) await reading;
-  }
-  // Les cartes d'ombre suivent les textures : quand ce drainage a fait arriver un niveau, les pages
-  // qu'il a périmées sont redessinées ici, sous leur budget, jusqu'à ce qu'aucune n'attende — une
-  // pose vidée est une pose dont l'ombre décrit l'image. Rien n'est redessiné quand aucun niveau
-  // n'est arrivé : une caméra qui bouge périme des pages à chaque image, une page de géométrie qui
-  // entre ou sort en périme aussi, et ce n'est pas l'affaire de la barrière. Bornée, voir
-  // `SHADOW_DRAIN_LIMIT`.
-  const arrived = rt.texturePump.levels + rt.texturePump.uploaded !== landedBefore;
-  for (let drains = 0; arrived && drains < SHADOW_DRAIN_LIMIT && run.lastCamera; drains++) {
-    if (run.lost || capture.secondaryCamera || !(rt.lights.plan.counts.pendingPages > 0)) break;
-    renderWebgpuPages(rt, run.lastCamera);
-    if (gpuDevice) await gpuDevice.queue.onSubmittedWorkDone();
-  }
+  // Les tuiles de textures font partie de la préparation d'une pose, pas d'une décoration par
+  // image : une surface lue sur un niveau grossier changera quand sa tuile arrivera. `render`
+  // n'admet qu'un budget d'octets par image ; la barrière fait converger le reste ici, hors de la
+  // boucle mesurée, puis vide les cartes d'ombre, et recommence tant qu'un drainage a redessiné
+  // quelque chose (`settlePose`) : une pose vidée est une pose servie au mieux de ce que le pool
+  // peut donner, dont l'ombre décrit l'image.
+  await settlePose(rt, gpuDevice);
   await services.bootstrapState.ensure();
   await services.residency.pending;
   if (run.coverageBudgetEvent) {

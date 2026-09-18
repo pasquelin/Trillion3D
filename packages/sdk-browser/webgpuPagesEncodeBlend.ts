@@ -38,11 +38,8 @@ export function encodeBlend(
   const textured = !!(
     vis.blendBindGroupLayout &&
     vis.pipelineBlendTextured &&
-    vis.colorAtlas &&
+    vis.textures &&
     vis.mapsSampler &&
-    vis.dataAtlas &&
-    vis.materialScales &&
-    vis.slots &&
     vis.concatPos &&
     vis.concatUv &&
     vis.concatNrm &&
@@ -91,6 +88,10 @@ export function encodeBlend(
   // passes, si bien qu'aucune surface transmissive ne lit une image a demi composee.
   if (blendState.transmissive && copyBackdrop(rt, encoder))
     drawBlendPass(rt, device, encoder, true);
+  // Ce que les transparents ont demandé aux textures virtuelles, réduit en compteurs : la même liste
+  // que la résolution opaque incrémente, copiée et remise à zéro à la soumission.
+  if (run.blendFeedbackWritten && vis.textures && gpu.feedbackView && !rt.capture.secondaryCamera)
+    vis.textures.reduceBlend(encoder, gpu.feedbackView, gpu.targetSize, run.textureConverging);
   const finished = performance.now();
   timing.transparentDrawMs += finished - prepared;
   timing.transparentEncodeMs += finished - cpuStart;

@@ -93,11 +93,11 @@ function releve(run, serie, nom, side) {
     decodageWasm: metrics.pagesDecodedWasm ?? null,
     // Textures.
     texturesEngagees: metrics.textureResidentBytes ?? null,
-    texturesBudget: metrics.textureBudgetBytes ?? null,
-    texturesAtlas: metrics.textureAtlasBytesCalculated ?? null,
-    texturesNiveauVoulu: metrics.textureAtWantedLevel ?? null,
-    texturesCouches: metrics.textureLayers ?? null,
-    texturesEvictions: metrics.textureEvictions ?? null,
+    texturesBudget: metrics.texturePoolBytes ?? null,
+    texturesAtlas: metrics.texturePoolBytes ?? null,
+    texturesNiveauVoulu: metrics.textureTilesAtLevel ?? null,
+    texturesCouches: metrics.textureTilesRequested ?? null,
+    texturesEvictions: metrics.textureTilesEvicted ?? null,
     // Lumière.
     lampesActives: metrics.lightsActive ?? null,
     ombres: etape('shadows')?.compteurs ?? null,

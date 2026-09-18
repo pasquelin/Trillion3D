@@ -1,6 +1,7 @@
 import { shaderErrors } from './gpuShaderModule.ts';
+import { SHADE_UNIFORM_BYTES } from './visibilityShaderShadowRequest.ts';
 import { SHADE_SHADER, VIS_SHADER } from './visibilityBuffer.ts';
-import { VIS_BINDINGS, atlasLayoutEntry, readOnly } from './webgpuBindLayout.ts';
+import { VIS_BINDINGS, atlasLayoutEntries, readOnly } from './webgpuBindLayout.ts';
 import {
   DIAGNOSTIC_SHADE_WGSL,
   DIAGNOSTIC_VIS_WGSL,
@@ -17,7 +18,7 @@ export async function createWebgpuVisibilityShaders(
   variant?: DiagnosticGpuVariant,
 ) {
   const shadeUniform = device.createBuffer({
-    size: 256,
+    size: SHADE_UNIFORM_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const b = VIS_BINDINGS;
@@ -37,11 +38,10 @@ export async function createWebgpuVisibilityShaders(
         buffer: { type: 'uniform', minBindingSize: 96 },
       },
       { binding: b.uv, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
-      ...b.maps.map((binding) => atlasLayoutEntry(binding)),
+      ...atlasLayoutEntries(b.color),
       { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
       { binding: b.instances, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
       { binding: b.slotOffsets, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
-      { binding: b.colorSlots, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
     ],
   });
   // The untested passes bind zeros at the same row index the tested ones read, so the buffer spans

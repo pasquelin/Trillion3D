@@ -5,7 +5,12 @@ import {
   PAGE_MASK_WGSL,
   PAGE_VERTEX_WGSL,
 } from './visibilityPageWgsl.ts';
-import { ATLAS_SLOTS_WGSL, COLOR_ALPHA_WGSL, atlasTextures } from './webgpuAtlasWgsl.ts';
+import {
+  COLOR_SAMPLE_WGSL,
+  TILE_POOL_WGSL,
+  maskAlphaWgsl,
+  tileDeclarations,
+} from './webgpuTileWgsl.ts';
 import { VIS_BINDINGS } from './webgpuBindLayout.ts';
 
 /**
@@ -15,7 +20,8 @@ import { VIS_BINDINGS } from './webgpuBindLayout.ts';
  *
  * L'étage de fragment n'écrit rien : il n'existe que pour écarter. Un matériau à masque d'opacité —
  * feuillage, grille, claustra — projette l'ombre de sa découpe et non la silhouette pleine de son
- * cluster, parce que le test de masque est celui du raster, au caractère près (`PAGE_MASK_WGSL`).
+ * cluster, parce que le test de masque est celui du raster (`PAGE_MASK_WGSL`), lu au niveau de la
+ * carte que le texel d'ombre demande — ses dérivées, pas celles de la caméra.
  *
  * Il écarte aussi l'enveloppe de l'émetteur : une lampe qui déclare un rayon n'accepte aucune
  * profondeur d'une surface plus proche de son centre que ce rayon. La règle est la distance
@@ -28,18 +34,18 @@ ${PAGE_BINDING.positions}
 ${PAGE_BINDING.pages}
 ${PAGE_BINDING.uniforms}
 @group(0) @binding(${VIS_BINDINGS.uv}) var<storage, read> uvs:array<f32>;
-${atlasTextures(VIS_BINDINGS.maps, 'maps')}
+${tileDeclarations(VIS_BINDINGS.color, 'color')}
 @group(0) @binding(${VIS_BINDINGS.sampler}) var mapsSampler:sampler;
 ${PAGE_BINDING.instances}
 ${PAGE_BINDING.slotOffsets}
-@group(0) @binding(${VIS_BINDINGS.colorSlots}) var<storage, read> colorSlots:array<vec2u>;
 struct ShadowView{viewProjection:mat4x4f,params:vec4f,emitter:vec4f,}
 @group(1) @binding(0) var<uniform> shadow:ShadowView;
 struct ShadowOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) instance:u32,@location(1) uv:vec2f,@location(2) fromEmitter:vec3f,}
 ${PAGE_LOOKUP_WGSL}
 ${PAGE_VERTEX_WGSL}
-${ATLAS_SLOTS_WGSL}
-${COLOR_ALPHA_WGSL}
+${TILE_POOL_WGSL}
+${COLOR_SAMPLE_WGSL}
+${maskAlphaWgsl(true)}
 ${PAGE_MASK_WGSL}
 @vertex fn shadow_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
  var out:ShadowOut;
@@ -58,9 +64,10 @@ ${PAGE_MASK_WGSL}
 }
 /** N'écrit aucune couleur : la passe n'a pas de cible. Il n'écarte que l'enveloppe et la découpe. */
 @fragment fn shadow_fs(in:ShadowOut){
+ let gx=dpdx(in.uv);let gy=dpdy(in.uv);
  let radius=shadow.emitter.w;
  if(radius>0.0&&dot(in.fromEmitter,in.fromEmitter)<radius*radius){discard;}
- if(!maskKeep(pages[in.instance],in.uv)){discard;}
+ if(!maskKeep(pages[in.instance],in.uv,gx,gy)){discard;}
 }
 /** Remet la tranche au LOINTAIN sans effacer le reste de l'atlas. La profondeur des faces est
  *  inversée comme celle de la caméra (\`depthConvention.ts\`) : le lointain vaut zéro. */

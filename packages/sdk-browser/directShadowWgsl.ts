@@ -25,9 +25,14 @@ const POISSON_16 = [
  * constant et biais par pente, puis moyenne de seize prises. Les bornes viennent des réglages
  * publiés — ni la tranche ni le noyau ne peuvent déborder du rectangle de la face.
  */
+/** Une tranche d'ombre telle que la carte la lit : la matrice et le rectangle d'atlas de chaque
+ *  face, puis l'entête (faces, ouverture, côté, plan proche). Partagée par tout nuanceur qui lit une
+ *  tranche, dans le tampon ou recopiée dans un uniforme. */
+export const SHADOW_SLICE_WGSL = `struct ShadowFace{viewProjection:mat4x4f,rect:vec4f,}
+struct ShadowSlice{faces:array<ShadowFace,${POINT_FACES}>,info:vec4f,}`;
+
 export const DIRECT_SHADOW_WGSL = `
-struct ShadowFace{viewProjection:mat4x4f,rect:vec4f,}
-struct ShadowSlice{faces:array<ShadowFace,${POINT_FACES}>,info:vec4f,}
+${SHADOW_SLICE_WGSL}
 struct ShadowSlices{items:array<ShadowSlice>,}
 const PCF_TAPS:u32=${LIGHT_SETTINGS.pcfTaps}u;
 const SHADOW_BIAS:f32=${LIGHT_SETTINGS.shadowDepthBias};

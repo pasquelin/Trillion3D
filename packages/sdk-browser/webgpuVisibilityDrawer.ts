@@ -14,16 +14,7 @@ export function visGroupFor(
 ) {
   const { vis, gpu } = rt;
   const cacheBuffer = gpu.cache?.buffer,
-    {
-      visBindGroupLayout,
-      concatPos,
-      concatUv,
-      pageTable,
-      visUniform,
-      colorAtlas,
-      mapsSampler,
-      slots,
-    } = vis,
+    { visBindGroupLayout, concatPos, concatUv, pageTable, visUniform, textures, mapsSampler } = vis,
     { gpuDraw } = vis;
   if (
     !visBindGroupLayout ||
@@ -32,9 +23,8 @@ export function visGroupFor(
     !concatUv ||
     !pageTable ||
     !visUniform ||
-    !colorAtlas ||
+    !textures ||
     !mapsSampler ||
-    !slots ||
     !gpuDraw
   )
     return;
@@ -53,11 +43,10 @@ export function visGroupFor(
         uniform: visUniform,
         uniformOffset: (slot + 1) * 256,
         uv: concatUv,
-        colorAtlas,
+        textures,
         sampler: mapsSampler,
         instances: gpuDraw.instanceBuffer,
         slotOffsets: gpuDraw.slotOffsetsBuffer,
-        slots,
       }),
     });
     vis.visSlotGroups[key] = group;

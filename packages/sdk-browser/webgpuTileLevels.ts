@@ -17,8 +17,8 @@ export type LevelKey = { sha256: string; atlas: number; level: number };
 export type WebgpuTileLevels = {
   /** Le niveau décodé s'il est là, en le marquant lu ; sinon `undefined`, sans rien lancer. */
   get(key: LevelKey, frame: number): ImageBitmap | undefined;
-  /** Lance la lecture si elle n'est ni là ni en vol ; `bytes` sont les octets qu'elle occupera. */
-  request(key: LevelKey, bytes: number, frame: number): void;
+  /** Lance la lecture si elle n'est ni là ni en vol. */
+  request(key: LevelKey, frame: number): void;
   readonly inFlight: number;
   readonly fetched: number;
   readonly bytes: number;
@@ -65,7 +65,7 @@ export function createWebgpuTileLevels(options: {
       entry.lastUse = frame;
       return entry.bitmap;
     },
-    request(key, needed, frame) {
+    request(key, frame) {
       const id = keyOf(key);
       if (held.has(id) || pending.has(id)) return;
       const read = options
@@ -80,7 +80,6 @@ export function createWebgpuTileLevels(options: {
         .catch((error: unknown) => options.onFailure(key, error))
         .finally(() => pending.delete(id));
       pending.set(id, read);
-      void needed;
     },
     get inFlight() {
       return pending.size;

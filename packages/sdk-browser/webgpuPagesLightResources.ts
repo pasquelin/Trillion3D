@@ -1,5 +1,20 @@
 import type { DirectLightResources } from './deferredLightingProgram.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+import type { WebgpuLightState } from './webgpuPagesStateLights.ts';
+
+const EVERYWHERE_MIN = [-1e30, -1e30, -1e30],
+  EVERYWHERE_MAX = [1e30, 1e30, 1e30];
+
+/**
+ * Une tuile de couleur de plus est résidente : la découpe alpha que les cartes d'ombre lisent vient
+ * de changer pour toute surface qui porte cette texture, et une carte dessinée au niveau d'avant
+ * décrirait un feuillage qui n'est plus celui de l'image. Toutes les pages repartent donc en
+ * attente, sous le budget ordinaire de l'étape Ombres. Sans ce signal, deux exécutions identiques
+ * rendaient deux ombres différentes, selon le moment où chaque page avait été dessinée.
+ */
+export function shadowsFollowTextures(lights: WebgpuLightState) {
+  lights.plan.worldChanged(EVERYWHERE_MIN, EVERYWHERE_MAX);
+}
 
 /**
  * Vrai quand l'image doit être éclairée par les lampes déclarées. Faux dans la seule vue sans

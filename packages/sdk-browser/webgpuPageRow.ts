@@ -45,8 +45,6 @@ type PageRowResources = {
   geometryBlocks: Map<THREE.BufferGeometry['attributes'], GeometryBlock>;
   mapLayer: Map<THREE.Texture, number>;
   dataLayer: Map<THREE.Texture, number>;
-  uvScales: Array<[number, number]>;
-  dataUvScales: Array<[number, number]>;
   markRowDirty: (row: number) => void;
 };
 
@@ -55,8 +53,6 @@ export function createPageRowWriter({
   geometryBlocks,
   mapLayer,
   dataLayer,
-  uvScales,
-  dataUvScales,
   markRowDirty,
 }: PageRowResources) {
   // Ce que le catalogue fixe une fois pour toutes ne se recalcule pas à chaque page qui arrive.
@@ -74,8 +70,7 @@ export function createPageRowWriter({
       material = constants.materialOf(rec.material),
       geo = geometryBlocks.get(rec.attributes);
     const mat = material.mat;
-    const layer = mat.map && mapLayer.has(mat.map) ? mapLayer.get(mat.map)! : 0,
-      scale = uvScales[layer] ?? [1, 1];
+    const layer = mat.map && mapLayer.has(mat.map) ? mapLayer.get(mat.map)! : 0;
     const roughLayer =
       mat.roughnessMap && dataLayer.has(mat.roughnessMap) ? dataLayer.get(mat.roughnessMap)! : 0;
     const metalLayer =
@@ -108,8 +103,6 @@ export function createPageRowWriter({
     ints[base + ROW_INDEX_WORDS] = index.length;
     ints[base + 26] = geo?.vertexBase ?? 0;
     ints[base + ROW_ID_BASE_WORD] = packedRowBase(row);
-    floats[base + 28] = scale[0];
-    floats[base + 29] = scale[1];
     ints[base + 30] = constants.hashOf(rec.clusterId);
     // The Hi-Z verdict of a row lives at the row's own index, and the rows a frame does not test are
     // cleared on the GPU before the test, so no row ever reads the verdict of an earlier image.
@@ -118,28 +111,13 @@ export function createPageRowWriter({
     ints[base + 33] = metalLayer;
     ints[base + 34] = nrmLayer;
     floats[base + 35] = mat.normalScale;
-    const roughScale = dataUvScales[roughLayer] ?? [1, 1],
-      metalScale = dataUvScales[metalLayer] ?? [1, 1],
-      nrmScale = dataUvScales[nrmLayer] ?? [1, 1];
-    floats[base + 36] = roughScale[0];
-    floats[base + 37] = roughScale[1];
-    floats[base + 38] = metalScale[0];
-    floats[base + 39] = metalScale[1];
-    floats[base + 40] = nrmScale[0];
-    floats[base + 41] = nrmScale[1];
     const aoLayer = mat.aoMap ? (dataLayer.get(mat.aoMap) ?? 0) : 0,
       emissiveLayer = mat.emissiveMap ? (mapLayer.get(mat.emissiveMap) ?? 0) : 0;
-    const aoScale = dataUvScales[aoLayer] ?? [1, 1],
-      emissiveScale = uvScales[emissiveLayer] ?? [1, 1];
     ints[base + 42] = aoLayer;
     floats[base + 43] = mat.aoIntensity;
-    floats[base + 44] = aoScale[0];
-    floats[base + 45] = aoScale[1];
     ints[base + 46] = emissiveLayer;
     ints[base + 47] = pageIndex;
     floats.set(mat.emissive, base + 48);
-    floats[base + 52] = emissiveScale[0];
-    floats[base + 53] = emissiveScale[1];
     floats[base + 54] = mat.normalScaleY;
     floats[base + 55] = rec.role === 'coarse' ? 1 : 0;
     floats[base + 56] = 0;

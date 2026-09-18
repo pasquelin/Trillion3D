@@ -10,7 +10,7 @@ import {
   rasterEntry,
 } from './gpuRasterContract.ts';
 import { RESOLVE, rasterSource } from './gpuRasterShader.ts';
-import { SMALL_BINDINGS, atlasLayoutEntry, readOnly } from './webgpuBindLayout.ts';
+import { SMALL_BINDINGS, atlasLayoutEntries, readOnly } from './webgpuBindLayout.ts';
 import { smallBindEntries } from './webgpuBindEntries.ts';
 import { createRasterResolves } from './gpuRasterResolve.ts';
 import type { GpuRasterInput } from './gpuRasterTypes.ts';
@@ -53,11 +53,10 @@ export function createGpuRaster(
       { binding: b.hizFlags, visibility: compute, buffer: readOnly },
       { binding: b.uniform, visibility: compute, buffer: { type: 'uniform' } },
       { binding: b.uvs, visibility: compute, buffer: readOnly },
-      ...b.maps.map((binding) => atlasLayoutEntry(binding, compute)),
+      ...atlasLayoutEntries(b.color, compute),
       { binding: b.sampler, visibility: compute, sampler: {} },
       { binding: b.work, visibility: compute, buffer: { type: 'storage' } },
       { binding: b.selectionMask, visibility: compute, buffer: readOnly },
-      { binding: b.colorSlots, visibility: compute, buffer: readOnly },
     ],
   });
   const computeModule = device.createShaderModule({ code: rasterSource(capacity, listOffset / 4) });
@@ -111,11 +110,10 @@ export function createGpuRaster(
           uniform: input.uniform,
           uniformSize: 96,
           uvs: input.uvs,
-          colorAtlas: input.colorAtlas,
+          textures: input.textures,
           sampler: input.sampler,
           work,
           selectionMask: input.selection?.maskBuffer ?? input.hizFlags,
-          slots: input.slots,
         }),
       })) as GPUBindGroup;
       encoder.clearBuffer(work, listOffset, HEADER_CLEAR_BYTES);

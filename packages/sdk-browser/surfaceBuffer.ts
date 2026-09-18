@@ -7,11 +7,12 @@ export const SURFACE_FORMATS: GPUTextureFormat[] = [
   'r32uint',
 ];
 const SURFACE_BYTES_PER_PIXEL = 28;
-/** Color, depth, visibility, HDR, material surfaces and optional two Hi-Z pyramids. */
+/** Color, depth, visibility, HDR, material surfaces, the transparent texture feedback target and
+ *  optional two Hi-Z pyramids. */
 export function frameTargetBytes(width: number, height: number, withHiz: boolean) {
   if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1)
     throw new Error('INVALID_SURFACE_SIZE');
-  let bytes = width * height * 48;
+  let bytes = width * height * 52;
   if (withHiz) {
     bytes += width * height * 4;
     let w = width,

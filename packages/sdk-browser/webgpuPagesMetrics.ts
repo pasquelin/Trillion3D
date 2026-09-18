@@ -58,28 +58,9 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     transparentFrustumRejected: run.blendFrustumRejected,
     transparentDrawCalls: run.blendDrawCalls,
     transparentSubmittedTriangles: run.blendSubmittedTriangles,
-    textureUploaded: rt.texturePump.uploaded,
-    texturePending: vis.textureJobs.length,
-    textureSkipped: rt.texturePump.skipped,
-    textureInFlight: rt.texturePump.inFlight,
-    textureSlicesUploaded: rt.texturePump.slices,
-    textureBytesLastFrame: rt.texturePump.bytesLastPass,
-    textureLevelsUploaded: rt.texturePump.levels,
-    textureResidentBytes: rt.textureLedger.committed,
-    textureBudgetBytes: rt.textureLedger.budget,
-    textureEvictions: rt.textureLedger.evictions,
-    textureAtWantedLevel: rt.texturePriority.counters.atWanted,
-    textureLayers: rt.texturePriority.layers,
-    textureMissingLevels: rt.texturePriority.counters.missingAverage,
-    // Octets calculés depuis les dimensions, les couches et les formats alloués : rien n'est mesuré
-    // sur l'appareil ici, et un atlas encore absent ne vaut pas zéro mais `null`.
-    textureAtlasBytesCalculated:
-      vis.colorAtlas && vis.dataAtlas ? vis.colorAtlas.bytes + vis.dataAtlas.bytes : null,
-    textureAtlasClassBytesCalculated:
-      vis.colorAtlas && vis.dataAtlas
-        ? [...vis.colorAtlas.classes, ...vis.dataAtlas.classes].map((entry) => entry.bytes)
-        : null,
-    textureAtlasClassesUsed: vis.colorAtlas?.used ?? null,
+    // Les textures virtuelles : le pool, les tuiles, le retour d'image. Tout à `null` tant que la
+    // préparation ne les a pas bâties, jamais un zéro à la place d'un pool absent.
+    ...(vis.textures?.metrics() ?? {}),
     cpuSubmitMs: timing.lastSubmitMs,
     gpuPassMs: timing.lastGpuPassMs,
     gpuFrameMs: timing.lastGpuFrameMs,
@@ -149,6 +130,7 @@ export function disposeWebgpuPages(
   gpu.colorTexture?.destroy();
   gpu.depthTexture?.destroy();
   gpu.hdrTexture?.destroy();
+  gpu.feedbackTexture?.destroy();
   disposeBackdrop(gpu);
   gpu.surfaces?.dispose();
   capture.surfaceCapture?.dispose();

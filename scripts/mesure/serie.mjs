@@ -86,6 +86,8 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     // La préparation chronométrée dans la page, et les octets passés sur le réseau depuis, par sorte
     // de fichier ; `null` pour un dist d'avant ces deux relevés.
     preparationMs: typeof result.preparationMs === 'number' ? result.preparationMs : null,
+    // Images rendues avant la capture pour que le moteur tienne la pose ; `null` s'il n'en tient pas.
+    imagesCalme: typeof result.imagesCalme === 'number' ? result.imagesCalme : null,
     reseau: result.network ?? null,
     variante: side.variante ?? null,
     erreur: side.erreur ?? 'certifiee',

@@ -177,7 +177,15 @@ l'appareil et calculés depuis leur descripteur, WebGPU ne publiant pas la mémo
 trois familles nommées (atlas de textures calculé, géométrie allouée, cibles d'image admises par le
 budget d'image et ce budget), le reste par différence, et les étiquettes les plus lourdes ; le relevé
 complet par étiquette est dans `series[].sides[].metrics.gpuAllocatedByLabel`. Les seize compteurs
-textures du moteur sont sous chaque étape, lignes « Textures » et « Pompe de textures ».
+des textures virtuelles sont sous chaque étape, lignes « Textures », « Retour d'image » et
+« Diffuseur » : le pool est fixe, « résident » est ce que la vue occupe.
+
+La capture est celle d'une **pose calme** : après la barrière, la pose est rendue jusqu'à ce que le
+moteur tienne l'image — accumulation temporelle convergée, plus rien en vol —, au plus soixante-quatre
+images (`poseCalme`, `pageMesure.mjs`). Une capture prise en pleine accumulation porterait l'histoire
+de la trajectoire, dont l'arrivée des tuiles de textures ne se rejoue pas à l'identique d'une
+exécution à l'autre. `series[].sides[].imagesCalme` dit combien d'images il a fallu, `null` pour un
+moteur qui ne tient pas d'image (le témoin Three).
 
 Chaque série est jouée dans une page neuve, fermée juste après. Une scène Emerald laisse plusieurs
 centaines de mégaoctets vivants dans la page qui l'a jouée : en enchaînant les séries sur une seule

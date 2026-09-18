@@ -89,6 +89,8 @@ test('trace diagnostics retain one bounded snapshot for every rendered frame', a
     await backend.flush();
     backend.render(camera());
     await backend.flush();
+    // Deux images de l'hôte, et aucune image de convergence : sans texture diffusée, la barrière
+    // n'a rien à faire converger et ne rend rien.
     const frames = events.filter((event) => event.phase === 'frame');
     assert.equal(frames.length, 2);
     assert.deepEqual(

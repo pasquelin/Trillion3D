@@ -28,3 +28,20 @@ export function reseauDepuis(depuis) {
   }
   return network;
 }
+
+/**
+ * Rend la pose jusqu'à ce que le moteur la tienne — accumulation temporelle convergée, plus rien en
+ * vol —, au plus `limite` images. Une capture prise en pleine accumulation porterait l'histoire de
+ * la trajectoire, dont l'arrivée des tuiles de textures ne se rejoue pas à l'identique d'une
+ * exécution à l'autre ; celle d'une pose calme ne dépend que de la pose. Rend le nombre d'images
+ * qu'il a fallu, ou `null` si le moteur ne tient pas d'image (le témoin Three, par exemple).
+ */
+export async function poseCalme(explorer, pose, limite = 64) {
+  for (let i = 0; i < limite; i++) {
+    const frame = explorer.render(pose);
+    await explorer.flush();
+    if (typeof frame.frameHeld !== 'boolean') return null;
+    if (frame.frameHeld) return i;
+  }
+  return null;
+}

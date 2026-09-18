@@ -1,8 +1,14 @@
 import { SURFACE_FORMATS } from './surfaceBuffer.ts';
+import { SHADE_UNIFORM_BYTES } from './visibilityShaderShadowRequest.ts';
 import { depthLayerUnits } from '../sdk-core/index.ts';
 import { DEPTH_COMPARE } from './depthConvention.ts';
 import { openValidation, validationError } from './gpuErrorScope.ts';
-import { SHADE_BINDINGS, atlasLayoutEntry, readOnly } from './webgpuBindLayout.ts';
+import {
+  SHADE_BINDINGS,
+  atlasLayoutEntries,
+  feedbackLayoutEntry,
+  readOnly,
+} from './webgpuBindLayout.ts';
 import { shadeVariantFragment, visVariantFragment } from './diagnosticGpuGeometry.ts';
 import type { DiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
 
@@ -134,16 +140,15 @@ export function createWebgpuShadePipeline(
       { binding: b.uv, visibility: fragment, buffer: readOnly },
       { binding: b.normal, visibility: fragment, buffer: readOnly },
       { binding: b.pageTable, visibility: fragment, buffer: readOnly },
-      ...b.maps.map((binding) => atlasLayoutEntry(binding)),
+      ...atlasLayoutEntries(b.color),
       { binding: b.sampler, visibility: fragment, sampler: { type: 'filtering' } },
       {
         binding: b.uniform,
         visibility: fragment,
-        buffer: { type: 'uniform', minBindingSize: 256 },
+        buffer: { type: 'uniform', minBindingSize: SHADE_UNIFORM_BYTES },
       },
-      ...b.dataMaps.map((binding) => atlasLayoutEntry(binding)),
-      { binding: b.colorSlots, visibility: fragment, buffer: readOnly },
-      { binding: b.dataSlots, visibility: fragment, buffer: readOnly },
+      ...atlasLayoutEntries(b.data),
+      feedbackLayoutEntry(b.feedback),
     ],
   });
   return scoped(device, () => ({

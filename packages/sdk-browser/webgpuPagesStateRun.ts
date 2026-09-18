@@ -1,4 +1,4 @@
-import type { HostCamera } from './cameraWorld.ts';
+import type { CameraMotion, EngineCamera, HostCamera } from './cameraWorld.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import { createSelectionResult, type PageRec, type SelectionResult } from './pageSelection.ts';
 import {
@@ -9,7 +9,6 @@ import {
 import { createHizCounts, type HizCounts, type TemporalHizState } from './hiz.ts';
 import { unmirroredDrawn } from './webgpuPagesHelpers.ts';
 import { createFrameGateCore, type FrameGateCore } from './frameGateCore.ts';
-import type { CameraMotion, EngineCamera } from './cameraWorld.ts';
 import { HOLD_SIGNATURE_VALUES } from './webgpuFrameSignature.ts';
 
 /** What the current image decided and counted: the cut, the coverage budget, the metrics the host
@@ -30,8 +29,8 @@ export interface WebgpuRunState {
   lastCamera: HostCamera | undefined;
   gpuSelection: GpuSelection | undefined;
   gpuFrameActive: boolean;
-  /** Vrai quand la pyramide Hi-Z a été construite dans la soumission en cours : le test
-   *  d'occultation des transparents ne dépouille jamais une pyramide d'une autre image. */
+  /** Vrai quand la pyramide Hi-Z a été construite dans la soumission en cours : le test d'occultation
+   *  des transparents ne dépouille jamais une pyramide d'une autre image. */
   hizPyramidFresh: boolean;
   gpuMetricsReady: boolean;
   coverageBudgetLimited: boolean;
@@ -45,9 +44,8 @@ export interface WebgpuRunState {
   blendUnpagedTriangles: number;
   blendSubmittedTriangles: number;
   blendDrawCalls: number;
-  /** Triangles de la coupe que l'image courante remet au dessin : la coupe publiée moins les
-   *  grappes sans ligne de résidence. Compté sans attendre aucun retour de la carte, et tenu d'une
-   *  image à l'autre comme la coupe elle-même, image tenue comprise. */
+  /** Triangles de la coupe que l'image courante remet au dessin : la coupe publiée moins les grappes
+   *  sans ligne de résidence. Compté sans attendre la carte, tenu d'une image à l'autre comme la coupe. */
   drawnTriangles: number;
   blendFrustumRejected: number;
   gpuDrawCalls: number;
@@ -75,8 +73,7 @@ export interface WebgpuRunState {
   shown: PageRec[];
   desired: PageRec[];
   drawn: PageRec[];
-  /** Vrai quand `drawn` est la recopie de `shown` telle qu'elle est. Écrit par les seules fonctions
-   *  de recopie de `webgpuPagesHelpers.ts`. */
+  /** Vrai quand `drawn` recopie `shown` tel quel ; écrit par les seules recopies de `webgpuPagesHelpers.ts`. */
   drawnMirrorsShown: boolean;
   /** Pages the residency path had to touch this image; null before a GPU cut reported one. */
   pagesEntered: number | null;
@@ -94,7 +91,7 @@ export interface WebgpuRunState {
   /** Vrai quand l'adoption a relu le relevé déjà tenu : `desired` et `shown` n'ont pas bougé. */
   cutHeld: boolean;
   /** L'âge des listes de la coupe : augmente dès qu'une adoption ou la coupe processeur les réécrit,
-   *  y compris hors du rendu. Ce que lit qui garde une liste d'une image à l'autre. */
+   *  rendu ou pas. Ce que lit qui garde une liste d'une image à l'autre. */
   cutEpoch: number;
   /** Augmente chaque fois qu'une page reçoit ou perd ses octets : ce que la liste attendue lit. */
   pageArrayEpoch: number;
@@ -106,15 +103,19 @@ export interface WebgpuRunState {
   /** Ensembles d'urls d'une image : remplis puis vidés, jamais réalloués. */
   requestedScratch: Set<string>;
   transitionScratch: Set<string>;
-  /** L'entrée d'image : les trois révisions, l'origine de la vue, la relecture du graphe source, la
-   *  remontée des matrices monde et le témoin d'image tenue. Voir `frameGateCore.ts`. */
+  /** L'entrée d'image : révisions, origine de la vue, relecture du graphe source, remontée des
+   *  matrices monde et témoin d'image tenue. Voir `frameGateCore.ts`. */
   gate: FrameGateCore;
   /** Vrai quand l'image en cours a été tenue : aucune étape processeur n'a été exécutée. */
   frameHeld: boolean;
+  /** Une barrière fait converger les textures (tous les pixels publient leur retour d'image), et
+   *  une passe de mélange de cette image a écrit la cible de retour (la réduction a de quoi lire). */
+  textureConverging: boolean;
+  blendFeedbackWritten: boolean;
   /** La révision dont les matrices sont portées à la carte et aux items transparents. */
   worldUploadRevision: number;
-  /** L'origine du repère de rendu des matrices déjà portées à la carte : l'œil de cette image-là.
-   *  Une caméra qui bouge la périme comme un changement de scène périme la révision. */
+  /** L'origine du repère de rendu des matrices portées à la carte : l'œil de cette image-là. Une
+   *  caméra qui bouge la périme comme un changement de scène périme la révision. */
   worldUploadOrigin: Float64Array;
   /** Signature ordonnée de la moitié testée : deux images qui la partagent partagent leurs
    *  occulteurs, donc la partition que la suivante hérite. */
@@ -189,6 +190,8 @@ export function createWebgpuRunState(): WebgpuRunState {
     transitionScratch: new Set<string>(),
     gate: createFrameGateCore(HOLD_SIGNATURE_VALUES),
     frameHeld: false,
+    textureConverging: false,
+    blendFeedbackWritten: false,
     worldUploadRevision: 0,
     // Pas de repère avant la première image : elle rebase, quoi qu'il arrive.
     worldUploadOrigin: new Float64Array([NaN, NaN, NaN]),

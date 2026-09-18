@@ -20,6 +20,10 @@ export interface WebgpuGpuState {
   depthView: GPUTextureView | undefined;
   hdrTexture: GPUTexture | undefined;
   hdrView: GPUTextureView | undefined;
+  /** Ce que les transparents demandent aux textures virtuelles, un rang de tuile par pixel : une
+   *  cible, jamais une écriture de l'étage de fragments, qui coûterait le rejet anticipé. */
+  feedbackTexture: GPUTexture | undefined;
+  feedbackView: GPUTextureView | undefined;
   /** Le fond figé que la passe de transmission relit : une copie de la cible HDR et de la
    *  profondeur, prises après les opaques et les mélanges. Un texel 1×1 tant que la scène ne porte
    *  aucune surface transmissive — la liaison existe alors sans rien coûter. */
@@ -90,6 +94,8 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     depthView: undefined,
     hdrTexture: undefined,
     hdrView: undefined,
+    feedbackTexture: undefined,
+    feedbackView: undefined,
     backdrop: undefined,
     surfaces: undefined,
     cutIncomplete: false,

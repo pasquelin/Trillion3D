@@ -7,7 +7,10 @@ import { VIS_BINDINGS } from './webgpuBindLayout.ts';
  * partagée par le raster du visibility buffer et par les passes de profondeur des ombres — deux
  * copies de cette structure seraient deux chances de la voir dériver.
  */
-export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,uvScale:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,roughUvScale:vec2f,metalUvScale:vec2f,normalUvScale:vec2f,aoIndex:u32,aoIntensity:f32,aoUvScale:vec2f,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,emissiveUvScale:vec2f,normalScaleY:f32,pad1:f32,pad4:vec4f,depthBias:u32,wrapModes:u32,placement:u32,pad5d:u32,}`;
+/** Les six `pad*Uv` sont les échelles uv d'atlas que les textures virtuelles ont rendues inutiles :
+ *  une texture est lue dans son propre espace. Ils restent à zéro, jamais lus, jusqu'au recompactage
+ *  de la fiche (backlog Textures). */
+export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,padBaseUv:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,padRoughUv:vec2f,padMetalUv:vec2f,padNormalUv:vec2f,aoIndex:u32,aoIntensity:f32,padAoUv:vec2f,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,padEmissiveUv:vec2f,normalScaleY:f32,pad1:f32,pad4:vec4f,depthBias:u32,wrapModes:u32,placement:u32,pad5d:u32,}`;
 
 /** L'uniforme d'une image du tampon de visibilité, le même mot à mot pour les deux rasters et les
  *  résolutions : `webgpuVisibilityUniforms.ts` l'écrit une fois par slot. */
@@ -64,18 +67,21 @@ export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f
  * 128 = matériau à masque ; le seuil est `baseColor.w`, et le mode d'adressage de la carte de base
  * vient du mot par carte, jamais des drapeaux du matériau.
  *
- * Le shader hôte déclare `uvs`, l'atlas couleur et sa table de slots, puis insère `ATLAS_SLOTS_WGSL`
- * (qui porte la règle d'adressage) et `COLOR_ALPHA_WGSL` avant ce bloc : `colorAlpha` y applique
- * l'adressage de la page et lit le niveau le plus fin déjà résident.
+ * `ddx`, `ddy` sont les dérivées de la coordonnée par texel de la passe qui lit — pixel de la caméra
+ * ou texel d'ombre — : chacune lit la carte au niveau de son empreinte, comme la passe matériaux
+ * lit sa couleur (`maskAlpha`, `webgpuTileWgsl.ts`). Le raster de calcul, qui n'a pas de dérivées,
+ * passe zéro et lit le niveau 0 — la tuile la plus fine résidente sous ce texel.
+ *
+ * Le shader hôte déclare `uvs`, le pool couleur et sa table de pages, puis insère `TILE_POOL_WGSL`
+ * (qui porte la règle d'adressage), `COLOR_SAMPLE_WGSL` et `maskAlphaWgsl(...)` avant ce bloc.
  */
-export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f)->bool{
+export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f,ddx:vec2f,ddy:vec2f)->bool{
  if((page.flags&128u)==0u||(page.flags&8u)==0u){return true;}
  // Les niveaux de la chaîne prennent la MÉDIANE de l'alpha, jamais sa moyenne : un texel grossier
  // passe le seuil quand la moitié de ce qu'il recouvre le passait, donc la couverture du seuil
- // traverse les niveaux et la découpe reste juste dès le premier niveau reçu. Une moyenne, elle,
- // faisait grossir la silhouette niveau après niveau et rendait le quad opaque pendant le
- // chargement. Une couche prête relit le niveau 0, exactement comme avant ce lot.
- return colorAlpha(page.mapIndex,page.uvScale,uv,wrapOf(page.wrapModes,${WRAP_MAP.base}u))>=page.baseColor.w;
+ // traverse les niveaux et la découpe reste juste à tout niveau. Une moyenne, elle, faisait grossir
+ // la silhouette niveau après niveau et rendait le quad opaque pendant le chargement.
+ return maskAlpha(page.mapIndex,uv,wrapOf(page.wrapModes,${WRAP_MAP.base}u),ddx,ddy)>=page.baseColor.w;
 }`;
 
 /** Le test de masque précédé de la coordonnée de texture qu'un sommet de page lui fournit. */

@@ -1,7 +1,8 @@
 import { shadeBindEntries } from './webgpuBindEntries.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Reuses the material resolve bindings on `rt.vis` until their underlying buffers change. */
+/** Le groupe de liaison de la résolution matérielle, bâti quand ses ressources sont là. Une seule
+ *  construction, pour la préparation comme pour l'image ; il est refait après invalidation. */
 export function ensureWebgpuShadeBindings(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vis } = rt,
     cacheBuffer = rt.gpu.cache?.buffer,
@@ -12,11 +13,9 @@ export function ensureWebgpuShadeBindings(rt: WebgpuPagesRuntime, device: GPUDev
       concatUv,
       concatNrm,
       pageTable,
-      colorAtlas,
-      dataAtlas,
+      textures,
       mapsSampler,
       shadeUniform,
-      slots,
     } = vis;
   if (
     !vis.shadeBindGroup &&
@@ -27,11 +26,9 @@ export function ensureWebgpuShadeBindings(rt: WebgpuPagesRuntime, device: GPUDev
     concatUv &&
     concatNrm &&
     pageTable &&
-    colorAtlas &&
-    dataAtlas &&
+    textures &&
     mapsSampler &&
-    shadeUniform &&
-    slots
+    shadeUniform
   ) {
     vis.shadeBindGroup = device.createBindGroup({
       layout,
@@ -42,11 +39,9 @@ export function ensureWebgpuShadeBindings(rt: WebgpuPagesRuntime, device: GPUDev
         uv: concatUv,
         normal: concatNrm,
         pageTable,
-        colorAtlas,
+        textures,
         sampler: mapsSampler,
         uniform: shadeUniform,
-        dataAtlas,
-        slots,
       }),
     });
   }

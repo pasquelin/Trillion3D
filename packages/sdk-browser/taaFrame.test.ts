@@ -35,6 +35,8 @@ function runtime() {
     },
     frame: createTaaFrameState(),
     inputs: {} as TaaInputs,
+    checkpoint() {},
+    replay: () => false,
     encode(_encoder: unknown, inputs: unknown) {
       encoded.push(inputs);
       return output;
@@ -152,4 +154,28 @@ test('la tenue attend un plein cycle d’images calmes, moyennées uniformément
   dropTaaHistory(rt);
   assert.equal(temporal.frame.hasHistory, false);
   assert.equal(taaSettled(rt), false);
+});
+
+// Une image de convergence — la barrière qui rerend la même pose pour montrer les tuiles arrivées —
+// rejoue la dernière image ordinaire : même gigue, même calme, au lieu d'accumuler une fois de plus.
+test('une image de convergence rejoue la dernière image ordinaire au lieu d’avancer la gigue', () => {
+  const { rt, temporal, frame } = runtime();
+  let replayed = 0,
+    checkpoints = 0;
+  temporal.checkpoint = () => {
+    checkpoints++;
+  };
+  temporal.replay = () => {
+    replayed++;
+    return true;
+  };
+  frame(false);
+  assert.equal(checkpoints, 1, 'une image ordinaire retient d’où elle part');
+  assert.equal(replayed, 0);
+  rt.run.textureConverging = true;
+  frame(false);
+  assert.equal(replayed, 1, 'une image de convergence rejoue');
+  assert.equal(checkpoints, 1, 'et ne retient rien de neuf');
+  // Le calme rejoué est celui de l'image de référence, pas celui que les tuiles ont troublé.
+  assert.equal(temporal.frame.stillFrames, 1);
 });

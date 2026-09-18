@@ -23,6 +23,19 @@ export interface TaaFrameState {
   active: boolean;
 }
 
+/** Ce qu'une image de convergence rejoue de la dernière image ordinaire : voir `checkpoint`. */
+export function createTaaCheckpoint() {
+  return {
+    read: 0,
+    sample: 0,
+    stillFrames: 0,
+    hasHistory: false,
+    sceneSeen: -1,
+    quiet: false,
+    previousViewProjection: new Float64Array(16),
+  };
+}
+
 export function createTaaFrameState(): TaaFrameState {
   return {
     sample: 0,
@@ -49,6 +62,9 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera, quiet: 
   const state = temporal.frame;
   state.active = !rt.capture.secondaryCamera && rt.run.diagnostic === 'beauty';
   if (!state.active) return;
+  // Une image de convergence refait la dernière image ordinaire, elle ne l'accumule pas de plus.
+  if (rt.run.textureConverging) quiet = temporal.replay();
+  else temporal.checkpoint(quiet);
   if (!quiet) state.stillFrames = 0;
   else if (state.stillFrames++ === 0) {
     state.hasHistory = false;

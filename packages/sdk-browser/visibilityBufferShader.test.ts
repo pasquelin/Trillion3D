@@ -36,7 +36,7 @@ test('vis shader instances pages from the page table', () => {
   assert.doesNotMatch(VIS_SHADER, /uni\.pageOffset/);
   assert.match(VIS_SHADER, /@group\(0\) @binding\(2\) var<storage,\s*read> pages/);
   assert.match(VIS_SHADER, /@group\(0\) @binding\(4\) var<uniform> uni/);
-  assert.match(VIS_SHADER, /@group\(0\) @binding\(6\) var maps/);
+  assert.match(VIS_SHADER, /@group\(0\) @binding\(6\) var colorPool/);
   assert.match(VIS_SHADER, /fn maskKeep/);
   assert.match(VIS_SHADER, /discard;/);
   assert.match(VIS_SHADER, /textureSampleLevel/);

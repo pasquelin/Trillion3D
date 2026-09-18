@@ -3,48 +3,82 @@ import { CPU_STEP } from './webgpuPagesCpuSteps.ts';
 import { beginTaaFrame, taaSettled } from './taaFrame.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
+/** Ce qui peut encore changer l'image, un bit chacun ; `unsettledReasons` les nomme. */
+const REASONS = [
+  'lost',
+  'secondaryCamera',
+  'capturePending',
+  'frameEncoder',
+  'visDisabled',
+  'gpuFrameInactive',
+  'cutMoving',
+  'overBudget',
+  'uncoveredTriangles',
+  'noOccluderHistory',
+  'deferredDrops',
+  'bootstrap',
+  'residencyBusy',
+  'rowsDirty',
+  'texturesPending',
+  'shadowsPending',
+  'cutPending',
+  'bounceProbes',
+] as const;
+const BIT = Object.fromEntries(REASONS.map((reason, index) => [reason, 1 << index])) as Record<
+  (typeof REASONS)[number],
+  number
+>;
+export const TEXTURES_PENDING = BIT.texturesPending,
+  SHADOWS_PENDING = BIT.shadowsPending;
+
 /**
- * Vrai quand plus rien ne peut changer l'image en dehors d'une écriture de l'hôte : aucun chargement
- * en cours, aucun relevé encore à adopter, aucun historique d'occultation à établir, aucune texture
- * en vol, aucune ombre en attente, aucune sonde à converger. Tout doute se tranche ici du côté
- * « refaire le travail » : chaque condition manquante rend faux.
+ * Ce qui empêche encore l'image de ne dépendre que d'une écriture de l'hôte, en bits : un chargement
+ * en cours, un relevé encore à adopter, un historique d'occultation à établir, une texture en vol,
+ * une ombre en attente, une sonde à converger. Zéro quand plus rien ne bouge. Tout doute se tranche
+ * du côté « refaire le travail » : chaque condition manquante pose son bit. Aucune allocation : la
+ * tenue le lit à chaque image, la barrière s'en sert de prédicat d'arrêt.
  */
-function frameSettled(rt: WebgpuPagesRuntime) {
+export function unsettledMask(rt: WebgpuPagesRuntime) {
   const { run, vis, lights, bounce, capture, services, timing } = rt,
     { rows } = rt.layout;
-  return (
-    !run.lost &&
-    !capture.secondaryCamera &&
-    !capture.capturePending &&
-    !timing.frameEncoder &&
-    vis.visEnabled &&
-    !!vis.gpuDraw &&
-    run.gpuFrameActive &&
-    run.gpuMetricsReady &&
-    run.cutHeld &&
-    !run.overBudget &&
-    !run.coverageBudgetLimited &&
-    run.uncoveredTriangles === 0 &&
-    !run.noOccluderHistory &&
-    !run.deferredDrops.size &&
-    services.bootstrapState.ready &&
-    !services.residency.busy &&
-    !rows.rowsChanged &&
-    rows.dirtyTo < rows.dirtyFrom &&
-    rows.rowsEpoch === rows.tableEpoch &&
-    !rows.candidateOverflow &&
-    !vis.textureJobs.length &&
-    !rt.texturePump.inFlight &&
-    !lights.plan.counts.pendingPages &&
-    // Chaque page de la coupe demandée porte ses octets. Une page encore attendue peut encore
-    // changer la coupe, donc l'image : tenir celle-ci ouvrirait un trou. Ce compte est tenu par la
-    // différence de la coupe, jamais relu sur la liste.
-    !services.cutPending.count &&
-    // Les sondes de la lumière qui rebondit convergent d'image en image : leur état n'est écrit par
-    // aucune révision, et une image tenue le figerait avant la convergence.
-    !bounce.probes
-  );
+  let mask = 0;
+  if (run.lost) mask |= BIT.lost;
+  if (capture.secondaryCamera) mask |= BIT.secondaryCamera;
+  if (capture.capturePending) mask |= BIT.capturePending;
+  if (timing.frameEncoder) mask |= BIT.frameEncoder;
+  if (!vis.visEnabled || !vis.gpuDraw) mask |= BIT.visDisabled;
+  if (!run.gpuFrameActive || !run.gpuMetricsReady) mask |= BIT.gpuFrameInactive;
+  if (!run.cutHeld) mask |= BIT.cutMoving;
+  if (run.overBudget || run.coverageBudgetLimited) mask |= BIT.overBudget;
+  if (run.uncoveredTriangles !== 0) mask |= BIT.uncoveredTriangles;
+  if (run.noOccluderHistory) mask |= BIT.noOccluderHistory;
+  if (run.deferredDrops.size) mask |= BIT.deferredDrops;
+  if (!services.bootstrapState.ready) mask |= BIT.bootstrap;
+  if (services.residency.busy) mask |= BIT.residencyBusy;
+  if (
+    rows.rowsChanged ||
+    rows.dirtyTo >= rows.dirtyFrom ||
+    rows.rowsEpoch !== rows.tableEpoch ||
+    rows.candidateOverflow
+  )
+    mask |= BIT.rowsDirty;
+  // Une tuile demandée et pas encore servie changera l'image quand elle arrivera ; et une
+  // convergence doit rendre pour lire ce que la pose demande, jamais tenir.
+  if (vis.textures?.counters.pending || run.textureConverging) mask |= BIT.texturesPending;
+  if (lights.plan.counts.pendingPages > 0) mask |= BIT.shadowsPending;
+  // Chaque page de la coupe demandée porte ses octets. Une page encore attendue peut encore
+  // changer la coupe, donc l'image : tenir celle-ci ouvrirait un trou. Ce compte est tenu par la
+  // différence de la coupe, jamais relu sur la liste.
+  if (services.cutPending.count) mask |= BIT.cutPending;
+  // Les sondes de la lumière qui rebondit convergent d'image en image : leur état n'est écrit par
+  // aucune révision, et une image tenue le figerait avant la convergence.
+  if (bounce.probes) mask |= BIT.bounceProbes;
+  return mask;
 }
+
+/** Les noms des bits posés : ce que la barrière publie quand la pose ne se pose pas. */
+export const unsettledReasons = (mask: number) =>
+  REASONS.filter((reason) => (mask & BIT[reason]) !== 0);
 
 /**
  * Ce qu'une image tenue a réellement fait, publié comme tel.
@@ -94,7 +128,7 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
   // Image calme : rien de ce dont elle dépend n'a bougé et rien n'est en vol. C'est l'entrée
   // d'image de l'accumulation temporelle, qui y repart en phase fixe et converge sur un plein cycle
   // de ces images-là avant que l'une d'elles puisse être tenue (`TAA_STILL_FRAMES`).
-  const quiet = run.gate.held() && frameSettled(rt);
+  const quiet = run.gate.held() && unsettledMask(rt) === 0;
   beginTaaFrame(rt, run.gate.cam, quiet);
   if (!quiet || !taaSettled(rt)) {
     run.frameHeld = false;
@@ -116,9 +150,12 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
   return true;
 }
 
-/** Range l'image qui vient d'être encodée et soumise en entier : elle seule autorise une tenue. */
+/** Range l'image qui vient d'être encodée et soumise en entier : elle seule autorise une tenue.
+ *  Une image de convergence rejoue la dernière image ordinaire : le témoin ne la voit pas, et deux
+ *  images ordinaires identiques restent deux images consécutives à ses yeux. */
 export function keepWebgpuFrame(rt: WebgpuPagesRuntime) {
-  const { gate } = rt.run;
+  const { gate, textureConverging } = rt.run;
+  if (textureConverging) return;
   sampleWebgpuFrame(rt, gate.hold.sample);
   gate.hold.keep(gate.revisions);
 }

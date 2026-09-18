@@ -1,4 +1,5 @@
 import { createWebgpuBlendPipelines } from './webgpuBlendPipelines.ts';
+import { ensureWebgpuShadeBindings } from './webgpuShadeBindings.ts';
 import { createWebgpuVisibilityShaders } from './webgpuVisibilityShaders.ts';
 import {
   createWebgpuCoplanarLayerPipelines,
@@ -6,7 +7,6 @@ import {
   createWebgpuVisibilityRasterPipelines,
 } from './webgpuVisibilityPipelines.ts';
 import { visUniformSlots } from './webgpuVisibilityUniforms.ts';
-import { shadeBindEntries } from './webgpuBindEntries.ts';
 import { MAX_DEPTH_LAYER, depthLayerUnits } from '../sdk-core/index.ts';
 import { createGpuHiz } from './gpuHiz.ts';
 import { createGpuDraw } from './gpuDraw.ts';
@@ -21,7 +21,7 @@ import { VIS_FEATURES, type WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 /** Builds the forward material pipelines, the visibility raster and shade pipelines, the Hi-Z
  *  pyramid and the indirect draw; leaves `visEnabled` telling whether the image can use them. */
 export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
-  const { vis, gpu, capabilities, diag, blendState } = rt,
+  const { vis, capabilities, diag, blendState } = rt,
     { drawSlots } = rt.layout,
     [width, height] = rt.setup.viewport;
   try {
@@ -120,36 +120,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       size: PAGE_INFO_STRIDE,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
-  if (
-    vis.visView &&
-    gpu.cache &&
-    vis.concatPos &&
-    vis.concatUv &&
-    vis.concatNrm &&
-    vis.colorAtlas &&
-    vis.dataAtlas &&
-    vis.mapsSampler &&
-    vis.slots &&
-    vis.shadeUniform &&
-    vis.shadeBindGroupLayout
-  ) {
-    vis.shadeBindGroup = gpuDevice.createBindGroup({
-      layout: vis.shadeBindGroupLayout,
-      entries: shadeBindEntries({
-        visView: vis.visView,
-        cache: gpu.cache.buffer,
-        position: vis.concatPos,
-        uv: vis.concatUv,
-        normal: vis.concatNrm,
-        pageTable: vis.pageTable,
-        colorAtlas: vis.colorAtlas,
-        sampler: vis.mapsSampler,
-        uniform: vis.shadeUniform,
-        dataAtlas: vis.dataAtlas,
-        slots: vis.slots,
-      }),
-    });
-  }
+  ensureWebgpuShadeBindings(rt, gpuDevice);
   vis.visEnabled =
     !!vis.visTexture && !!vis.shadeBindGroup && !!vis.shadePipeline && !!vis.visPipelineBack;
   if (!vis.visEnabled) return dropVis(rt);

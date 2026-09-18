@@ -5,7 +5,12 @@ import {
   PAGE_MASK_WGSL,
   PAGE_VERTEX_WGSL,
 } from './visibilityPageWgsl.ts';
-import { ATLAS_SLOTS_WGSL, COLOR_ALPHA_WGSL, atlasTextures } from './webgpuAtlasWgsl.ts';
+import {
+  COLOR_SAMPLE_WGSL,
+  TILE_POOL_WGSL,
+  maskAlphaWgsl,
+  tileDeclarations,
+} from './webgpuTileWgsl.ts';
 import { VIS_BINDINGS } from './webgpuBindLayout.ts';
 import { HIZ_REJECTED_WGSL } from './gpuPartitionContract.ts';
 import { COMPUTE_ALL, COMPUTE_TAKES_WGSL } from './gpuRasterContract.ts';
@@ -24,13 +29,13 @@ ${PAGE_BINDING.pages}
 ${HIZ_REJECTED_WGSL}
 ${PAGE_BINDING.uniforms}
 @group(0) @binding(${VIS_BINDINGS.uv}) var<storage, read> uvs:array<f32>;
-${atlasTextures(VIS_BINDINGS.maps, 'maps')}
+${tileDeclarations(VIS_BINDINGS.color, 'color')}
 @group(0) @binding(${VIS_BINDINGS.sampler}) var mapsSampler:sampler;
 ${PAGE_BINDING.instances}
 ${PAGE_BINDING.slotOffsets}
-@group(0) @binding(${VIS_BINDINGS.colorSlots}) var<storage, read> colorSlots:array<vec2u>;
-${ATLAS_SLOTS_WGSL}
-${COLOR_ALPHA_WGSL}
+${TILE_POOL_WGSL}
+${COLOR_SAMPLE_WGSL}
+${maskAlphaWgsl(false)}
 ${PAGE_LOOKUP_WGSL}
 struct VSOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) id:u32,@location(1) @interpolate(flat) instance:u32,@location(2) uv:vec2f,}
 ${PAGE_VERTEX_WGSL}
@@ -78,11 +83,13 @@ fn hardwareSkips(page:PageInfo,vertexIndex:u32)->bool{
 struct VisHizOut{@location(0) id:u32,@location(1) depth:f32,}
 @fragment fn vis_hiz_fs(in:VSOut)->VisHizOut{
  var out:VisHizOut;
- if(!maskKeep(pages[in.instance],in.uv)){discard;}
+ let gx=dpdx(in.uv);let gy=dpdy(in.uv);
+ if(!maskKeep(pages[in.instance],in.uv,gx,gy)){discard;}
  out.id=in.id;out.depth=in.position.z;return out;
 }
 @fragment fn vis_fs(in:VSOut)->@location(0) u32{
- if(!maskKeep(pages[in.instance],in.uv)){discard;}
+ let gx=dpdx(in.uv);let gy=dpdy(in.uv);
+ if(!maskKeep(pages[in.instance],in.uv,gx,gy)){discard;}
  return in.id;
 }
 `;

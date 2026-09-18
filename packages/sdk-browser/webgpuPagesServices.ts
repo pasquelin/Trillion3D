@@ -41,8 +41,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     geometryBlocks: rt.vis.geometryBlocks,
     mapLayer: rt.vis.mapLayer,
     dataLayer: rt.vis.dataLayer,
-    uvScales: rt.vis.uvScales,
-    dataUvScales: rt.vis.dataUvScales,
     markRowDirty: rows.markRowDirty,
   });
   // Le miroir de résidence est le seul état incrémental de ce chemin : son journal est vérifié

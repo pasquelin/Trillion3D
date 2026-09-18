@@ -133,14 +133,12 @@ export interface BackendContext {
   gpuCanvas?: HTMLCanvasElement;
   /** WebGPU frame targets, Hi-Z pyramids, one surface capture and async image staging; excludes scene assets and WebGL diagnostic capture. */
   maxFrameAllocationBytes?: number;
-  /** Maximum source texture bytes admitted to GPU upload per frame. */
+  /** Octets de tuiles de textures admis par image. */
   maxTextureTransferBytesPerFrame?: number;
-  /** Octets de textures que la session s'autorise à engager sur la carte graphique. Par défaut, une
-   *  valeur tirée des limites de l'appareil et bornée. Ce qui dépasse attend son tour : l'ordre sert
-   *  d'abord ce que la caméra regarde, et la file finit par se vider sans qu'aucun niveau soit perdu. */
-  textureBudgetBytes?: number;
-  /** Atlas size classes the host allows. Defaults to 2; `1` forces the single-array allocation. */
-  atlasClasses?: 1 | 2;
+  /** Octets du pool de textures virtuelles, fixes pour la session et partagés entre l'atlas couleur
+   *  et l'atlas de données ; 512 Mio par défaut. Ce qu'une vue demande de plus attend qu'une tuile
+   *  moins regardée se libère, et une tuile absente montre son niveau grossier. */
+  texturePoolBytes?: number;
   /** L'antialiasing temporel, actif par défaut comme chez la référence : `false` rend l'image
    *  échantillonnée au centre du pixel, sans gigue ni historique — le « avant » d'une comparaison. */
   temporalAntialiasing?: boolean;

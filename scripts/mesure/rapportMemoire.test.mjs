@@ -13,7 +13,7 @@ test('chaque côté de chaque vue a sa ligne, et le reste est la différence', (
         apres: {
           metrics: {
             gpuAllocatedBytes: 7_500_000_000,
-            textureAtlasBytesCalculated: 6_688_572_304,
+            texturePoolBytes: 6_688_572_304,
             geometryAllocationBytes: 400_000_000,
             gpuFrameTargetBytes: 275_700_000,
             gpuFrameBudgetBytes: 301_989_888,

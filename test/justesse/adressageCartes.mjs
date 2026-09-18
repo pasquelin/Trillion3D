@@ -70,21 +70,12 @@ export function ligneDePageMelangee() {
     [mat.normalMap, 3],
     [mat.aoMap, 4],
   ]);
-  const echelles = [
-    [1, 1],
-    [1, 1],
-    [1, 1],
-    [1, 1],
-    [1, 1],
-  ];
   const ecrire = createPageRowWriter({
     geometryBlocks: new Map([
       [attributes, { vertexBase: 0, count: 3, hasUv: true, hasNormal: true, hasTangent: false }],
     ]),
     mapLayer,
     dataLayer,
-    uvScales: echelles,
-    dataUvScales: echelles,
     markRowDirty: () => {},
   });
   const buffer = new ArrayBuffer(PAGE_INFO_STRIDE);

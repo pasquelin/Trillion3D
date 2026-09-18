@@ -17,6 +17,7 @@ export default {
     'scripts/mesure/pageEclairage.mjs',
     'scripts/mesure/pageThreeNu.mjs',
     'scripts/mesure/pageThreeLod.mjs',
+    'scripts/mesure/pageMesure.mjs',
     // La campagne complète et son rapport, lancés à la main.
     'scripts/mesure/campagne.mjs',
     'scripts/mesure/rapportGlobal.mjs',

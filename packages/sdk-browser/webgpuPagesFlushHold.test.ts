@@ -52,10 +52,9 @@ function vidange(adopte?: () => boolean, arme = true) {
       adoptGpuCut: adopte ?? (() => false),
     },
     setup: { gpuDevice: undefined, bootstrap: [] },
-    texturePump: { pump: async () => {}, pending: Promise.resolve() },
     context: { gpuCanvas: undefined },
     blendState: { blendGpu: [], visibleBlend: [] },
-    lights: {},
+    lights: { plan: { counts: { pendingPages: 0 } } },
   } as unknown as WebgpuPagesRuntime;
   return { rt, gate, frameHold, revisions };
 }

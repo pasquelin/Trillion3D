@@ -1,5 +1,4 @@
-import type { WebgpuAtlas } from './webgpuAtlasCommon.ts';
-import type { WebgpuAtlasSlots } from './webgpuAtlasSlots.ts';
+import type { WebgpuTileStreamer } from './webgpuTileStreamer.ts';
 
 /** Ce qu'une image donne au raster de calcul : toutes ces ressources lui survivent. */
 export type GpuRasterInput = {
@@ -10,8 +9,7 @@ export type GpuRasterInput = {
   hizFlags: GPUBuffer;
   uniform: GPUBuffer;
   uvs: GPUBuffer;
-  colorAtlas: WebgpuAtlas;
-  slots: WebgpuAtlasSlots;
+  textures: WebgpuTileStreamer;
   sampler: GPUSampler;
   pageRows: number;
   maxTriangles: number;

@@ -13,9 +13,8 @@ export function ensureWebgpuVisibilityBindings(rt: WebgpuPagesRuntime, device: G
       pageTable,
       visUniform,
       zeroFlags,
-      colorAtlas,
+      textures,
       mapsSampler,
-      slots,
     } = vis;
   if (
     layout &&
@@ -25,9 +24,8 @@ export function ensureWebgpuVisibilityBindings(rt: WebgpuPagesRuntime, device: G
     pageTable &&
     visUniform &&
     zeroFlags &&
-    colorAtlas &&
-    mapsSampler &&
-    slots
+    textures &&
+    mapsSampler
   ) {
     const make = (flags: GPUBuffer) =>
       device.createBindGroup({
@@ -40,11 +38,10 @@ export function ensureWebgpuVisibilityBindings(rt: WebgpuPagesRuntime, device: G
           uniform: visUniform,
           uniformOffset: 0,
           uv: concatUv,
-          colorAtlas,
+          textures,
           sampler: mapsSampler,
           instances: zeroFlags,
           slotOffsets: zeroFlags,
-          slots,
         }),
       });
     vis.visBindGroup ??= make(zeroFlags);
