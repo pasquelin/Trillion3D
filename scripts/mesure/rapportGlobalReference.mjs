@@ -103,7 +103,7 @@ export function tableauReference({ mobile, fixe, instances12 }) {
       'Textures',
       'pool physique fixe, comprimé à la cuisson (non sourcé)',
       mobile
-        ? `${octets(mobile.texturesEngagees)} engagés sur ${octets(mobile.texturesBudget)} d’atlas RGBA brut`
+        ? `${octets(mobile.texturesEngagees)} engagés sur ${octets(mobile.texturesPool)} de pool RGBA brut`
         : 'non mesuré',
       'ni pool fixe ni compression (Textures T4, T5)',
     ],

@@ -104,7 +104,7 @@ async function readBackImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   }
 }
 
-/** Settles everything the last render left in flight: texture layers, residency, timing, the GPU
+/** Settles everything the last render left in flight: texture tiles, residency, timing, the GPU
  *  selection readback and the explicit image readback. */
 export async function flushWebgpuPages(rt: WebgpuPagesRuntime) {
   const { run, gpu, capture, timing, diag, services } = rt,

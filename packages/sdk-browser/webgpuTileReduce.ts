@@ -7,7 +7,10 @@
  * fil par pixel de la phase, qui compte. Un pixel sur seize hors barrière, tous pendant une
  * convergence — la même phase que la résolution opaque, lue dans le même mot.
  */
+import { FEEDBACK_EVERY, FEEDBACK_STRIDE } from './webgpuTileFeedback.ts';
+
 const WORKGROUP = 8;
+const STRIDE_MASK = FEEDBACK_STRIDE - 1;
 
 const REDUCE_WGSL = `struct ReduceUni{size:vec2u,feedback:u32,pad:u32,}
 @group(0) @binding(0) var requests:texture_2d<u32>;
@@ -15,7 +18,7 @@ const REDUCE_WGSL = `struct ReduceUni{size:vec2u,feedback:u32,pad:u32,}
 @group(0) @binding(2) var<uniform> uni:ReduceUni;
 @compute @workgroup_size(${WORKGROUP},${WORKGROUP}) fn reduce(@builtin(global_invocation_id) id:vec3u){
  var p=id.xy;
- if((uni.feedback&16u)==0u){p=p*4u+vec2u(uni.feedback&3u,(uni.feedback>>2u)&3u);}
+ if((uni.feedback&${FEEDBACK_EVERY}u)==0u){p=p*${FEEDBACK_STRIDE}u+vec2u(uni.feedback&${STRIDE_MASK}u,(uni.feedback>>2u)&${STRIDE_MASK}u);}
  if(p.x>=uni.size.x||p.y>=uni.size.y){return;}
  let request=textureLoad(requests,p,0).r;
  if(request!=0u){atomicAdd(&tileFeedback[request-1u],1u);}
@@ -74,9 +77,9 @@ export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce | un
       words[1] = size[1];
       words[2] = phaseWord;
       device.queue.writeBuffer(uniform, 0, words);
-      const every = (phaseWord & 16) !== 0;
-      const cols = every ? size[0] : Math.ceil(size[0] / 4),
-        rows = every ? size[1] : Math.ceil(size[1] / 4);
+      const every = (phaseWord & FEEDBACK_EVERY) !== 0;
+      const cols = every ? size[0] : Math.ceil(size[0] / FEEDBACK_STRIDE),
+        rows = every ? size[1] : Math.ceil(size[1] / FEEDBACK_STRIDE);
       const pass = encoder.beginComputePass({ label: 'WG texture feedback reduce' });
       pass.setPipeline(pipeline);
       pass.setBindGroup(0, group!);

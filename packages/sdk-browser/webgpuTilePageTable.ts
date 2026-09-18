@@ -31,7 +31,6 @@ export type WebgpuTilePageTable = {
   readonly words: Uint32Array<ArrayBuffer>;
   readonly entries: number;
   readonly buffer: GPUBuffer;
-  layoutOf(slot: number): TileLayout;
   /** Le mot d'une tuile diffusée, tel que le nuanceur le lira après `flush`. */
   entryOf(key: TileKey): number;
   /** Le rang de retour d'image d'une tuile, et l'inverse — les deux bornes d'une même liste. */
@@ -119,7 +118,6 @@ export function createWebgpuTilePageTable(
     words,
     entries,
     buffer,
-    layoutOf: (slot) => layouts[slot],
     entryOf: (key) => words[wordIndex(key)],
     feedbackIndexOf: (key) => wordIndex(key) - entriesAt + options.feedbackOffset,
     tileOf(feedbackIndex) {

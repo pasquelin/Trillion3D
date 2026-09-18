@@ -1,5 +1,5 @@
-const go = (b) => (typeof b === 'number' ? `${(b / 1e9).toFixed(3)} Go` : 'non mesuré');
-const mo = (b) => (typeof b === 'number' ? `${(b / 1e6).toFixed(1)} Mo` : 'non mesuré');
+import { go, mo } from './rapportTextures.mjs';
+
 const num = (v) => (typeof v === 'number' ? v : null);
 /** Les étiquettes publiées dans le résumé : au-delà, le relevé complet est dans `mesure.json`. */
 const PLUS_LOURDES = 8;

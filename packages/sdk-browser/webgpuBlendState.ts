@@ -6,6 +6,7 @@ import type { TransparentCompaction } from './webgpuTransparentCompact.ts';
 import type { TransparentOcclusion } from './gpuTransparentOcclusion.ts';
 import type { TransparentTable } from './webgpuTransparentTable.ts';
 import type { BlendExpand } from './webgpuBlendExpand.ts';
+import { BLEND_VIEW_SIZE } from './webgpuBlendUniforms.ts';
 
 export type BlendGpuItem = {
   /** Le matériau transmet : l'item est dessiné dans la passe de transmission, pas dans le mélange. */
@@ -49,8 +50,8 @@ export type BlendGpuItem = {
 
 /** Reused transparent draw lists and GPU resources for one backend instance. */
 export function createWebgpuBlendState() {
-  /** Les vingt-quatre mots de l'uniforme de vue, et leur vue entière : alloués une fois. */
-  const view = new Float32Array(28);
+  /** Les mots de l'uniforme de vue, alloués une fois. */
+  const view = new Float32Array(BLEND_VIEW_SIZE / 4);
   const blendGpu: BlendGpuItem[] = [];
   const pagedBlendGpu = new Map<THREE.Mesh, BlendGpuItem>();
   const visibleBlend: BlendGpuItem[] = [];
