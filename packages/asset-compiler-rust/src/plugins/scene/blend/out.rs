@@ -4,6 +4,7 @@
 //! accesseur à recopier : il en crée. Chaque tableau part dans le binaire par une vue alignée, et
 //! l'accesseur qui la nomme porte les bornes que le glTF exige des positions.
 use super::*;
+use crate::plugins::scene::SceneOutput;
 
 /// Le type de composant glTF d'un flottant simple, et celui d'un entier non signé de 32 bits.
 const FLOAT: u32 = 5126;
@@ -31,6 +32,10 @@ pub(super) struct Out {
     pub(super) roots: Vec<usize>,
     /// Les triangles instanciés : ceux de chaque nœud porteur de maillage, pas ceux des maillages.
     pub(super) triangles: usize,
+    /// Ce que la clé de cache hache : le pilote, sa version et l'empreinte du fichier lu.
+    pub(super) key_material: String,
+    /// Le fichier lu, tel que le manifeste le publie.
+    pub(super) files: Value,
 }
 
 impl Out {
@@ -84,14 +89,23 @@ impl Out {
         }
         self.samplers.len() - 1
     }
+}
 
-    /// Écrit la scène dans `directory` et rend ce dossier.
-    pub(super) fn write(
+impl SceneOutput for Out {
+    fn nodes(&self) -> &[Value] {
+        &self.nodes
+    }
+    fn counts(&self) -> &BTreeMap<&'static str, usize> {
+        &self.counts
+    }
+    fn key(&self) -> String {
+        hash(self.key_material.as_bytes())
+    }
+    fn write(
         self,
         plugin: &dyn ScenePlugin,
         directory: &Path,
         source: &Path,
-        files: Value,
         started: Instant,
     ) -> Result<PathBuf> {
         let mesh_nodes = self
@@ -122,7 +136,7 @@ impl Out {
             || {
                 json!({
                     "plugin": crate::plugins::provenance(plugin),
-                    "path": source.to_string_lossy(), "files": files, "counts": self.counts,
+                    "path": source.to_string_lossy(), "files": self.files, "counts": self.counts,
                     "meshes": self.meshes.len(), "materials": self.materials.len(),
                     "images": self.images.len(),
                     "importMs": started.elapsed().as_secs_f64() * 1000.0,
