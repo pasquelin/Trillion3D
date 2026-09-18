@@ -17,8 +17,8 @@ Trois familles, et elles ne se comparent pas de la même façon :
 
 Toutes les valeurs « référence » viennent du talk SIGGRAPH 2021 *A Deep Dive into Nanite Virtualized
 Geometry* (Karis, Stubbe, Wihlidal), sauf les deux lignes marquées **(2)**, qui viennent d'une source
-secondaire. Aucun code, shader ni asset de la référence n'est lu, cité ou porté ici — seulement ses
-chiffres publiés.
+secondaire, et la phrase marquée **(3)**, qui n'est pas sourcée du tout. Aucun code, shader ni asset
+de la référence n'est lu, cité ou porté ici — seulement ses chiffres publiés.
 
 ## 1. Structure — vérifié par le test
 
@@ -74,7 +74,8 @@ cinquantaine — un facteur ~6 sur la géométrie. La cible du dépôt (≤ 12 o
 est du bon ordre ; le travail qui l'atteint n'est pas fait, et c'est la ligne Géométrie 11.
 
 Hors géométrie, l'écart est plus grand encore : 7,56 Go de RGBA brut pour les textures d'Emerald,
-là où la référence tient un pool physique de taille fixe, comprimé à la cuisson (Textures T4, T5).
+là où la référence tient un pool physique de taille fixe, comprimé à la cuisson **(3)** (Textures
+T2bis, T4, T5).
 
 ## 3. Millisecondes — la forme, pas le verdict
 
@@ -139,3 +140,8 @@ Ce qu'on peut en tirer sans tricher :
   512 Mo par défaut, hors pages racines : `r.Nanite.Streaming.StreamingPoolSize`, Unreal Directive —
   <https://unrealdirective.com/resources/console-variables/r-nanite-streaming-streamingpoolsize/>.
   Source secondaire : le talk dit « pages de taille fixe » sans donner la taille.
+- **(3)** **Non sourcée.** Le talk ci-dessus ne parle que de géométrie : il ne décrit pas le système
+  de textures de la référence, qui en est un autre. La phrase du §2 sur le pool de textures de taille
+  fixe comprimé à la cuisson n'est adossée à aucune source ici, et
+  `test/integration/reference-ue5.test.mjs` ne vérifie aucune constante de texture. À sourcer ou à
+  retirer ; tant qu'elle porte ce marqueur, elle ne vaut pas les lignes du §1.
