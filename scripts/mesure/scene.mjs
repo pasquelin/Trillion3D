@@ -1,6 +1,6 @@
 // La scène mesurée et le cache qui la porte. Le harnais ne connaît aucune scène : il déduit son nom
 // du cache qu'on lui donne, et ne réclame le dossier d'assets que lorsqu'un côté le lit vraiment.
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 
 // Les assets du banc, en lecture seule : `<scène>/` (sources glTF) et `<scène>-derived/` (cache
@@ -29,4 +29,12 @@ export function assetsManifest(scene, needed) {
   if (needed && !existsSync(join(ASSETS, `${scene}-derived/native/full/manifest.json`)))
     throw new Error(`cache absent : ${join(ASSETS, `${scene}-derived`)}`);
   return `/benchmark-assets/${scene}-derived/native/full/manifest.json`;
+}
+
+/** L'URL du glTF source d'une scène des assets, pour le témoin Three nu qui ne lit aucun cache. */
+export function sceneGltf(scene) {
+  const dossier = join(ASSETS, scene);
+  const gltf = existsSync(dossier) ? readdirSync(dossier).find((f) => f.endsWith('.gltf')) : null;
+  if (!gltf) throw new Error(`glTF source absent : ${dossier}`);
+  return `/benchmark-assets/${scene}/${gltf}`;
 }
