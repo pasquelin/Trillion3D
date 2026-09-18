@@ -107,10 +107,10 @@ d'enveloppe (Lumière 16). Aucun coût publié de leur côté pour cette passe s
 qu'elle existe des deux côtés, pas ce qu'elle vaut.
 
 (5) Leur raster est double : les petits triangles en calcul, les grands au matériel. Le nôtre est
-matériel seul en production depuis Géométrie 26 : le raster de calcul pour toute la coupe coûtait
-25,5 ms d'enveloppe contre 5,5 à 1248×702 (18 sept. 2026), et ne reste joignable que par la
-variante de diagnostic `raster-calcul`. La coupe petits/grands, admise par budget de temps mesuré,
-est le point (2) de cette ligne.
+matériel seul en production depuis le 18 sept. 2026 (Géométrie 26 dans `TODO.md`, mesures
+comprises) ; le raster de calcul pour toute la coupe ne reste joignable que par la variante de
+diagnostic `raster-calcul`. La coupe petits/grands, admise par budget de temps mesuré, est le point
+(2) de cette même ligne du backlog.
 
 Ce qu'on peut en tirer sans tricher :
 

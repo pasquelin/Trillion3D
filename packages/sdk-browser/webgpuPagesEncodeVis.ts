@@ -87,16 +87,15 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   // Le raster matériel est le producteur de l'image opaque : profondeur, identifiants et niveau
   // zéro de la pyramide sortent de ses deux passes. Le raster de calcul ne le remplace que sous la
   // variante `raster-calcul`, et lui rend la main dès qu'une ressource lui manque.
-  run.gpuComputeDispatches = 0;
   rt.run.hizPyramidFresh = false;
   const dispatched = vis.gpuRaster
     ? encodeRaster(rt, encoder, twoPass, tableRows, maxVertexCount, idsView, depthTarget, (mid) =>
         encodeHizMidFrame(rt, device, mid, tableRows),
       )
     : null;
+  run.gpuComputeDispatches = dispatched ?? 0;
   if (dispatched === null)
     encodeWebgpuVisibilityPasses(rt, device, encoder, twoPass, tableRows, useIndirect);
-  else run.gpuComputeDispatches = dispatched;
   // Les compteurs que la carte vient d'écrire — partition et verdicts d'occultation — sont copiés
   // une image sur quinze, et mappés une fois l'image soumise. Aucune image n'attend ce retour.
   if (vis.gpuPartition?.countsDue(run.frame)) vis.gpuPartition.encodeCounts(encoder, run.frame);

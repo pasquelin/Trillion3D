@@ -10,6 +10,11 @@ import {
   HIZ_SHADER,
   packHizPyramid,
 } from './gpuHiz.ts';
+import { VERDICT_KEPT, VERDICT_REJECTED } from './gpuPartitionContract.ts';
+
+/** Le verdict d'une boîte seule, la pyramide ramenée à son niveau zéro. */
+const verdictAtLevelZero = (pyramid: Parameters<typeof levelZero>[0], bounds: HizBounds) =>
+  evaluateHizTest(packHizPyramid(levelZero(pyramid)), [bounds])[0];
 
 /** Level 0 of the flat pyramid, in the row-of-rows shape `packHizPyramid` still takes. */
 function levelZero(pyramid: { data: Float32Array; widths: Int32Array; heights: Int32Array }) {
@@ -107,11 +112,11 @@ test('GPU Hi-Z test kernel matches hizRejects and never rejects a background hol
   };
   const flags = evaluateHizTest(packed, [hole, near, edge]);
   assert.equal(hizRejects(pyramid, hole), false);
-  assert.deepEqual([...flags], [0, 0, 0]);
+  assert.deepEqual([...flags], [VERDICT_KEPT, VERDICT_KEPT, VERDICT_KEPT]);
   const closedFlags = evaluateHizTest(closedPacked, [occluded, equal, near]);
   assert.equal(hizRejects(closed, occluded), true);
   assert.equal(hizRejects(closed, equal), false);
-  assert.deepEqual([...closedFlags], [1, 0, 0]);
+  assert.deepEqual([...closedFlags], [VERDICT_REJECTED, VERDICT_KEPT, VERDICT_KEPT]);
 });
 
 test('an integer-edge max is inclusive so a hole on that pixel cannot hide', () => {
@@ -129,7 +134,7 @@ test('an integer-edge max is inclusive so a hole on that pixel cannot hide', () 
     clipsNear: false,
   };
   assert.equal(hizRejects(pyramid, bounds), false);
-  assert.deepEqual([...evaluateHizTest(packed, [bounds])], [0]);
+  assert.deepEqual([...evaluateHizTest(packed, [bounds])], [VERDICT_KEPT]);
 });
 
 test('a covered 33 by 19 footprint can reject through a reduced Hi-Z level', () => {
@@ -145,7 +150,7 @@ test('a covered 33 by 19 footprint can reject through a reduced Hi-Z level', () 
     clipsNear: false,
   };
   assert.equal(hizRejects(pyramid, bounds), true);
-  assert.deepEqual([...evaluateHizTest(packHizPyramid(levelZero(pyramid)), [bounds])], [1]);
+  assert.equal(verdictAtLevelZero(pyramid, bounds), VERDICT_REJECTED);
 });
 
 test('a background pixel at the far edge of a large footprint prevents rejection', () => {
@@ -162,7 +167,7 @@ test('a background pixel at the far edge of a large footprint prevents rejection
     clipsNear: false,
   };
   assert.equal(hizRejects(pyramid, bounds), false);
-  assert.deepEqual([...evaluateHizTest(packHizPyramid(levelZero(pyramid)), [bounds])], [0]);
+  assert.equal(verdictAtLevelZero(pyramid, bounds), VERDICT_KEPT);
 });
 
 test('a footprint extending outside the viewport is tested on its clipped part and rejected', () => {
@@ -178,7 +183,7 @@ test('a footprint extending outside the viewport is tested on its clipped part a
     clipsNear: false,
   };
   assert.equal(hizRejects(pyramid, bounds), true);
-  assert.deepEqual([...evaluateHizTest(packHizPyramid(levelZero(pyramid)), [bounds])], [1]);
+  assert.equal(verdictAtLevelZero(pyramid, bounds), VERDICT_REJECTED);
 });
 
 test('Hi-Z compute shader declares this-frame min reduction, background at the far value', () => {

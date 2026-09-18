@@ -7,6 +7,7 @@ import {
 } from './visibilityPageWgsl.ts';
 import { ATLAS_SLOTS_WGSL, COLOR_ALPHA_WGSL, atlasTextures } from './webgpuAtlasWgsl.ts';
 import { VIS_BINDINGS } from './webgpuBindLayout.ts';
+import { HIZ_REJECTED_WGSL } from './gpuPartitionContract.ts';
 
 /**
  * Le raster matériel du tampon de visibilité : le repli de l'appareil qui ne peut pas héberger le
@@ -18,6 +19,7 @@ ${PAGE_BINDING.indices}
 ${PAGE_BINDING.positions}
 ${PAGE_BINDING.pages}
 @group(0) @binding(${VIS_BINDINGS.flags}) var<storage, read> hizFlags:array<u32>;
+${HIZ_REJECTED_WGSL}
 ${PAGE_BINDING.uniforms}
 @group(0) @binding(${VIS_BINDINGS.uv}) var<storage, read> uvs:array<f32>;
 ${atlasTextures(VIS_BINDINGS.maps, 'maps')}
@@ -50,7 +52,7 @@ ${PAGE_MASK_WGSL}
  let pageIndex=drawPage(instanceIndex);
  let page=pages[pageIndex];
  out.instance=pageIndex;out.uv=vec2f(0.0);
- if(page.hizSlot!=0xffffffffu&&hizFlags[page.hizSlot]==1u){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
+ if(hizRejected(page.hizSlot)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  if(vertexIndex>=page.indexCount){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  let id=indices[page.pageOffset+vertexIndex];
  let p=vertPos(page.vertexBase,id);

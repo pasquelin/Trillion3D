@@ -1,5 +1,6 @@
 import { hizBuildPyramid, hizReduceCeil } from '../sdk-core/index.ts';
 import { hizRejects, type HizBounds, type HizPyramid } from './hiz.ts';
+import { VERDICT_KEPT, VERDICT_REJECTED } from './gpuPartitionContract.ts';
 
 export type PackedHiz = { data: Float32Array; sizes: Array<[number, number]>; offsets: number[] };
 
@@ -69,6 +70,7 @@ function pyramidFromPacked(packed: PackedHiz): HizPyramid {
 export function evaluateHizTest(packed: PackedHiz, bounds: HizBounds[], bias = 0) {
   const pyramid = pyramidFromPacked(packed);
   const flags = new Uint32Array(bounds.length);
-  for (let i = 0; i < bounds.length; i++) flags[i] = hizRejects(pyramid, bounds[i], bias) ? 1 : 0;
+  for (let i = 0; i < bounds.length; i++)
+    flags[i] = hizRejects(pyramid, bounds[i], bias) ? VERDICT_REJECTED : VERDICT_KEPT;
   return flags;
 }

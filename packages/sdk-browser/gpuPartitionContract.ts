@@ -76,6 +76,18 @@ export const ST_TESTED = 0,
   ST_MODE = 10,
   ST_TWO_PASS = 11;
 
+/** Le verdict d'une ligne, un mot par slot Hi-Z : la moitié occulteurs, la moitié testée que la
+ *  pyramide rejette, la moitié testée qu'elle garde. La partition pose occulteur et gardé, le test
+ *  ramène certains gardés à rejeté ; tout ce qui dessine — étage de sommets, troncature de la moitié
+ *  testée, raster de calcul — lit ce mot, et un lecteur qui lirait deux valeurs perd des grappes. */
+export const VERDICT_OCCLUDER = 0,
+  VERDICT_REJECTED = 1,
+  VERDICT_KEPT = 2;
+
+/** Le prédicat de rejet, le même texte dans chaque module qui lie `hizFlags` : un slot valide au
+ *  verdict rejeté. Sa négation est ce qui dessine. */
+export const HIZ_REJECTED_WGSL = `fn hizRejected(hizSlot:u32)->bool{return hizSlot!=0xffffffffu&&hizFlags[hizSlot]==${VERDICT_REJECTED}u;}`;
+
 /** Mode de partage : le seuil médian de l'image, ou l'historique d'occulteurs de la précédente. */
 export const MODE_MEDIAN = 0,
   MODE_HISTORY = 1;

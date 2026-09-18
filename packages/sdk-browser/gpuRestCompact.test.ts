@@ -4,24 +4,17 @@ import { createGpuRestCompact } from './gpuRestCompact.ts';
 import { REST_COMPACT_SHADER } from './gpuRestCompactWgsl.ts';
 import { VIS_SHADER } from './visibilityBuffer.ts';
 import { BASE_SLOTS } from './gpuDraw.ts';
+import { HIZ_REJECTED_WGSL, VERDICT_REJECTED } from './gpuPartitionContract.ts';
 
-// Comportement 1 : la troncature retient EXACTEMENT ce que l'étage de sommets dessinait. Les deux
-// prédicats sont lus dans les deux textes : l'étage écarte un `hizSlot` valide au verdict 1, la
-// troncature garde un `hizSlot` invalide ou tout verdict autre que 1 — le 2 d'une ligne testée et
-// gardée compris. Lire « verdict nul » ici tronquait toute la moitié testée (12aa9fcd).
+// Comportement 1 : la troncature retient EXACTEMENT ce que l'étage de sommets dessinait — les deux
+// textes portent le même `hizRejected`, et la troncature en garde la négation. Un prédicat recopié
+// à la main avait tronqué toute la moitié testée quand le verdict est passé à trois valeurs.
 test('la troncature de la moitié testée applique le prédicat de l’étage de sommets', () => {
-  assert.ok(
-    VIS_SHADER.includes('page.hizSlot!=0xffffffffu&&hizFlags[page.hizSlot]==1u'),
-    'l’étage de sommets écarte une ligne rejetée',
-  );
-  assert.ok(
-    REST_COMPACT_SHADER.includes('hizSlot==0xffffffffu||hizFlags[hizSlot]!=1u'),
-    'la troncature garde exactement la négation de ce prédicat',
-  );
-  assert.ok(
-    !REST_COMPACT_SHADER.includes('hizFlags[hizSlot]==0u'),
-    'un verdict 2 — testé et gardé — reste dans le compte',
-  );
+  assert.ok(VIS_SHADER.includes(HIZ_REJECTED_WGSL), 'l’étage de sommets lie le prédicat partagé');
+  assert.ok(REST_COMPACT_SHADER.includes(HIZ_REJECTED_WGSL), 'la troncature lie le même texte');
+  assert.match(VIS_SHADER, /if\(hizRejected\(page\.hizSlot\)\)/);
+  assert.match(REST_COMPACT_SHADER, /return !hizRejected\(pages\[ligne\]\.hizSlot\);/);
+  assert.match(HIZ_REJECTED_WGSL, new RegExp(`==${VERDICT_REJECTED}u;`));
 });
 
 // Comportement 2 : rien n'est déplacé. Le rang de la dernière survivante devient le compte, si bien

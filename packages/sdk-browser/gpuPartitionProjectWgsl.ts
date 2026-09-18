@@ -10,6 +10,7 @@ import {
   HISTO_BITS,
   STATE_HISTO,
   ST_HISTORY_OCCLUDERS,
+  VERDICT_REJECTED,
   ST_IN_FRONT,
 } from './gpuPartitionContract.ts';
 
@@ -31,7 +32,7 @@ fn projectRows(@builtin(global_invocation_id) id:vec3u){
  // C'est le verdict de l'image d'avant, lu avant que le test Hi-Z de celle-ci ne remette à zéro.
  let held=rowData[base+${ROW_FLAGS}u];
  var drawn=1u;
- if((held&${FLAG_PREV_REST}u)!=0u){drawn=select(1u,0u,flags[i]==1u);}
+ if((held&${FLAG_PREV_REST}u)!=0u){drawn=select(1u,0u,flags[i]==${VERDICT_REJECTED}u);}
  if(drawn!=0u){atomicAdd(&state[${ST_HISTORY_OCCLUDERS}u],1u);}
  let box=projectBox(i,items[i].layer);
  if(box.clips==0u){

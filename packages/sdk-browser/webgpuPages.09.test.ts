@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { collectClusterPages, selectVisiblePages } from './pageSelection.ts';
 import { packDagSelection } from './gpuDagSelection.ts';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { indirectDraws, installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera, quadBackend } from './webgpuPagesTestScenes.ts';
 import { assertOccluderImage, occluderScene } from './webgpuPagesTestOccluder.ts';
@@ -45,8 +45,8 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
   draws.length = 0;
   computes.length = 0;
   backend.render(cam);
-  // La pyramide se bâtit entre les deux passes matérielles : les occulteurs vident la cible, la
-  // moitié testée la recharge une fois son verdict rendu — copie de profondeur, réduction, test.
+  // Les occulteurs vident la cible, la moitié testée la recharge ; copie de profondeur, réduction
+  // puis test, dans cet ordre, entre les deux.
   const visPasses = passes.filter(
     (pass) => pass.label === 'WG visibility primary' || pass.label === 'WG visibility secondary',
   );
@@ -61,9 +61,7 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
   assert.ok(at('testHiz') > at('reduceHiz'));
   assert.deepEqual(backend.selectedPageIds().sort(), cpu.shown.map((page) => page.url).sort());
   assertOccluderImage(backend, cpu.shown, cam, viewport);
-  const vis = draws.filter((draw) => draw.indirect);
-  assert.ok(vis.length >= 1 && vis.length <= 6);
-  assert.ok(vis.every((draw) => draw.firstInstance === 0));
+  indirectDraws(draws);
   backend.dispose();
   geometry.dispose();
   material.dispose();
