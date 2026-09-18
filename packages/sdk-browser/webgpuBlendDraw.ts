@@ -65,6 +65,8 @@ function blendBindGroup(
  *
  * `transmissive` dit laquelle des deux passes on encode : les mélanges d'abord, puis, une fois le
  * fond figé, les surfaces qui le relisent — une tranche par entrée, chacune décalant son volume.
+ * `loadFeedback` garde le retour des textures virtuelles posé par une passe précédente de l'image ;
+ * la fonction dit si elle a ouvert une passe, donc si ce retour existe.
  */
 /** Le tableau de decalages dynamiques, alloue une fois : `setBindGroup` le lit sur place. */
 const offsets = [0];
@@ -74,7 +76,8 @@ export function drawBlendPass(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   transmissive = false,
-) {
+  loadFeedback = false,
+): boolean {
   const { gpu, vis, run, blendState } = rt,
     items = blendState.blendGpu,
     slice = transmissive ? 1 : 0,
@@ -82,7 +85,7 @@ export function drawBlendPass(
     runs = blendState.runs[slice],
     count = blendState.runCount[slice],
     args = blendState.argsBuffer;
-  if (!count || !args) return;
+  if (!count || !args) return false;
   // L'atlas d'ombres et la grille de sondes n'existent pas des la premiere image : un groupe bati
   // sur les remplacants doit etre refait le jour ou les vraies ressources arrivent.
   const lighting = blendLightResources(rt);
@@ -107,15 +110,10 @@ export function drawBlendPass(
       },
       // Le retour des textures virtuelles : effacé par la première passe de l'image, gardé par la
       // seconde, réduit en compteurs après elles (`webgpuTileReduce.ts`).
-      {
-        view: gpu.feedbackView!,
-        loadOp: run.blendFeedbackWritten ? 'load' : 'clear',
-        storeOp: 'store',
-      },
+      { view: gpu.feedbackView!, loadOp: loadFeedback ? 'load' : 'clear', storeOp: 'store' },
     ],
     depthStencilAttachment: { view: gpu.depthView!, depthLoadOp: 'load', depthStoreOp: 'store' },
   });
-  run.blendFeedbackWritten = true;
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1);
   overdraw?.begin(pass, transmissive);
   let boundPipeline = -1,
@@ -168,4 +166,5 @@ export function drawBlendPass(
     ? blendState.transmissionTriangles
     : blendState.blendTriangles;
   run.blendSubmittedTriangles = run.blendPagedTriangles + run.blendUnpagedTriangles;
+  return true;
 }

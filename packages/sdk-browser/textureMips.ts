@@ -6,9 +6,9 @@ export function mipLevelCountFor(width: number, height: number) {
 /**
  * La disposition et le programme de réduction, construits UNE FOIS par appareil et par format.
  *
- * La chaîne de mips est régénérée à chaque texture qui achève son transfert : recompiler le même
- * programme et la même disposition à chacune faisait payer une compilation de pipeline par texture,
- * sur le chemin même qui doit rendre l'image nette au plus vite. Le cache est tenu par appareil,
+ * La chaîne de mips est engendrée à chaque texture de travail : recompiler le même programme et
+ * la même disposition à chacune faisait payer une compilation de pipeline par texture, sur le
+ * chemin même qui doit servir ses tuiles au plus vite. Le cache est tenu par appareil,
  * donc un appareil perdu emporte ses pipelines avec lui.
  */
 type MipPipeline = { layout: GPUBindGroupLayout; pipeline: GPURenderPipeline };
@@ -26,7 +26,7 @@ const pipelines = new WeakMap<GPUDevice, Map<GPUTextureFormat, MipPipeline>>();
  * La médiane de quatre valeurs, elle, passe un seuil DONNÉ exactement quand deux des quatre texels
  * le passent : le texel grossier est gardé quand la moitié de ce qu'il recouvre l'était, et la
  * couverture du seuil se conserve d'un niveau au suivant sans dépendre du seuil. C'est ce qui la
- * rend applicable ici : le seuil appartient au matériau, la chaîne de mips à une couche d'atlas que
+ * rend applicable ici : le seuil appartient au matériau, la chaîne de mips à une texture que
  * plusieurs matériaux partagent, et rien à cet endroit ne sait quel seuil lui sera appliqué.
  *
  * Triée décroissante, la médiane est la moyenne des deux valeurs du milieu : `u` est la deuxième,
@@ -77,11 +77,8 @@ function mipPipeline(device: GPUDevice, format: GPUTextureFormat): MipPipeline {
  * Le tampon d'uniformes des réductions, gardé par appareil et agrandi au besoin.
  *
  * Le créer puis le détruire à chaque texture obligeait à attendre la fin du travail de l'appareil
- * avant de le rendre — un aller-retour complet de la file GPU par couche achevée. La pompe, qui ne
- * lance une passe qu'une fois la précédente résolue, ne transférait donc plus qu'une texture tous
- * les cinquante à soixante rendus : sur une scène de trois cents textures, l'image n'atteignait
- * jamais ses niveaux nets. Un tampon qui vit aussi longtemps que l'appareil se réécrit dans l'ordre
- * de la file, sans rien attendre.
+ * avant de le rendre — un aller-retour complet de la file GPU par texture. Un tampon qui vit aussi
+ * longtemps que l'appareil se réécrit dans l'ordre de la file, sans rien attendre.
  */
 const uniformBuffers = new WeakMap<GPUDevice, { buffer: GPUBuffer; size: number }>();
 
@@ -89,93 +86,57 @@ function mipUniforms(device: GPUDevice, size: number) {
   const held = uniformBuffers.get(device);
   if (held && held.size >= size) return held.buffer;
   const buffer = device.createBuffer({
+    label: 'WG texture mips uniforms',
     size,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   // L'ancien tampon n'est pas détruit : des passes déjà soumises peuvent encore le lire, et le
-  // ramasse-miettes le rendra. L'agrandissement n'arrive qu'à la première classe plus large.
+  // ramasse-miettes le rendra. L'agrandissement n'arrive qu'à la première texture plus grande.
   uniformBuffers.set(device, { buffer, size });
   return buffer;
 }
 
-/** Generate material mip levels once during preparation, averaging color in the texture's
- * declared color space and taking the median of alpha so threshold coverage survives each level.
- * Clamp to each layer's image rather than its padded area. Les commandes sont soumises sans être
- * attendues : la file de l'appareil les exécute dans l'ordre, donc avant toute image qui lira la
- * couche, et la pompe peut enchaîner la texture suivante dès le rendu d'après. */
+/** Engendre la chaîne de mips d'une texture 2D : la couleur moyennée, l'alpha en médiane pour que
+ * la couverture d'un seuil survive à chaque niveau. Les commandes sont soumises sans être
+ * attendues : la file de l'appareil les exécute dans l'ordre, donc avant toute copie qui lira un
+ * niveau. */
 export function generateMaterialMips(
   device: GPUDevice,
   texture: GPUTexture,
   format: GPUTextureFormat,
   width: number,
   height: number,
-  scales: readonly (readonly [number, number])[],
-  selectedLayers?: readonly number[],
 ) {
   const levels = mipLevelCountFor(width, height);
   if (levels === 1) return;
   const { layout, pipeline } = mipPipeline(device, format);
   const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256);
-  // Les couches réduites, et elles seules : une texture achevée en régénère UNE, pas les deux cent
-  // vingt-trois de sa classe, et les uniformes ne décrivent que ce qui est encodé.
-  const layers = selectedLayers ?? scales.map((_, index) => index);
-  const packed = new Uint32Array((layers.length * (levels - 1) * stride) / 4);
-  for (let rank = 0; rank < layers.length; rank++)
-    for (let level = 1; level < levels; level++) {
-      const at = ((rank * (levels - 1) + level - 1) * stride) / 4,
-        scale = scales[layers[rank]];
-      packed[at] = Math.max(1, Math.floor((width * scale[0]) / 2 ** (level - 1)));
-      packed[at + 1] = Math.max(1, Math.floor((height * scale[1]) / 2 ** (level - 1)));
-    }
+  // Un uniforme par niveau réduit : l'étendue du niveau source, pour ne pas lire hors de l'image.
+  const packed = new Uint32Array(((levels - 1) * stride) / 4);
+  for (let level = 1; level < levels; level++) {
+    const at = ((level - 1) * stride) / 4;
+    packed[at] = Math.max(1, width >> (level - 1));
+    packed[at + 1] = Math.max(1, height >> (level - 1));
+  }
   const uniforms = mipUniforms(device, packed.byteLength);
   device.queue.writeBuffer(uniforms, 0, packed);
   const encoder = device.createCommandEncoder();
-  for (let rank = 0; rank < layers.length; rank++) {
-    const layer = layers[rank];
-    for (let level = 1; level < levels; level++) {
-      const group = device.createBindGroup({
-        layout,
-        entries: [
-          {
-            binding: 0,
-            resource: texture.createView({
-              dimension: '2d',
-              baseArrayLayer: layer,
-              arrayLayerCount: 1,
-              baseMipLevel: level - 1,
-              mipLevelCount: 1,
-            }),
-          },
-          {
-            binding: 1,
-            resource: {
-              buffer: uniforms,
-              offset: (rank * (levels - 1) + level - 1) * stride,
-              size: 16,
-            },
-          },
-        ],
-      });
-      const pass = encoder.beginRenderPass({
-        colorAttachments: [
-          {
-            view: texture.createView({
-              dimension: '2d',
-              baseArrayLayer: layer,
-              arrayLayerCount: 1,
-              baseMipLevel: level,
-              mipLevelCount: 1,
-            }),
-            loadOp: 'clear',
-            storeOp: 'store',
-          },
-        ],
-      });
-      pass.setPipeline(pipeline);
-      pass.setBindGroup(0, group);
-      pass.draw(3);
-      pass.end();
-    }
+  const viewOf = (level: number) => texture.createView({ baseMipLevel: level, mipLevelCount: 1 });
+  for (let level = 1; level < levels; level++) {
+    const group = device.createBindGroup({
+      layout,
+      entries: [
+        { binding: 0, resource: viewOf(level - 1) },
+        { binding: 1, resource: { buffer: uniforms, offset: (level - 1) * stride, size: 16 } },
+      ],
+    });
+    const pass = encoder.beginRenderPass({
+      colorAttachments: [{ view: viewOf(level), loadOp: 'clear', storeOp: 'store' }],
+    });
+    pass.setPipeline(pipeline);
+    pass.setBindGroup(0, group);
+    pass.draw(3);
+    pass.end();
   }
   device.queue.submit([encoder.finish()]);
 }

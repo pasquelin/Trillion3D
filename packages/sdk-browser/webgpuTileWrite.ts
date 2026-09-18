@@ -47,6 +47,29 @@ export function tileRegion(levelWidth: number, levelHeight: number, tx: number, 
 
 /** L'origine d'une cellule du pool, en texels. */
 const cellOrigin = (place: TilePlace) => [place.x * TILE_PITCH, place.y * TILE_PITCH] as const;
+/** L'origine du `rank`-ième niveau de la queue dans sa cellule, bordure comprise. */
+const tailOrigin = (place: TilePlace, rank: number): GPUOrigin3D => [
+  place.x * TILE_PITCH + TILE_BORDER + tailOffset(rank),
+  place.y * TILE_PITCH + TILE_BORDER,
+  place.layer,
+];
+
+/** Écrit des texels RGBA8 serrés à une origine d'une texture. */
+export function writeRgba(
+  queue: GPUQueue,
+  texture: GPUTexture,
+  origin: GPUOrigin3D,
+  pixels: Uint8Array,
+  width: number,
+  height: number,
+) {
+  queue.writeTexture(
+    { texture, origin },
+    pixels as Uint8Array<ArrayBuffer>,
+    { bytesPerRow: width * 4, rowsPerImage: height },
+    { width, height },
+  );
+}
 
 export function writeTileFromBitmap(
   queue: GPUQueue,
@@ -88,19 +111,10 @@ export function writeTailFromBytes(
   tail: number,
   levels: readonly Uint8Array[],
 ) {
-  const [ox, oy] = cellOrigin(place);
   levels.forEach((pixels, rank) => {
     const [width, height] = levelSize(size[0], size[1], tail + rank);
     if (pixels.byteLength !== width * height * 4) throw new Error('TEXTURE_TAIL_BYTES');
-    queue.writeTexture(
-      {
-        texture: pool,
-        origin: [ox + TILE_BORDER + tailOffset(rank), oy + TILE_BORDER, place.layer],
-      },
-      pixels as Uint8Array<ArrayBuffer>,
-      { bytesPerRow: width * 4, rowsPerImage: height },
-      { width, height },
-    );
+    writeRgba(queue, pool, tailOrigin(place, rank), pixels, width, height);
   });
 }
 
@@ -113,15 +127,11 @@ export function copyTailFromTexture(
   tail: number,
   last: number,
 ) {
-  const [ox, oy] = cellOrigin(place);
   for (let level = tail; level <= last; level++) {
     const [width, height] = levelSize(size[0], size[1], level);
     encoder.copyTextureToTexture(
       { texture: source, mipLevel: level, origin: [0, 0, 0] },
-      {
-        texture: pool,
-        origin: [ox + TILE_BORDER + tailOffset(level - tail), oy + TILE_BORDER, place.layer],
-      },
+      { texture: pool, origin: tailOrigin(place, level - tail) },
       [width, height, 1],
     );
   }
