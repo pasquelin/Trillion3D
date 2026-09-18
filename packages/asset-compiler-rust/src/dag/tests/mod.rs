@@ -28,11 +28,20 @@ pub(crate) fn grid(n: usize) -> (Vec<f32>, Vec<u32>) {
     (positions, indices)
 }
 
+/// Le DAG complet d'un maillage, sans uv, sans point d'annulation.
+pub(super) fn build_of(
+    positions: &[f32],
+    indices: &[u32],
+) -> (Vec<DagCluster>, Vec<DagGroup>, Vec<GroupTally>) {
+    build_dag_tallied(positions, None, indices, DagStrategy::QemEndpoints, &|| {
+        Ok(())
+    })
+    .expect("dag")
+}
+
 pub(super) fn build(n: usize) -> (Vec<f32>, Vec<u32>, Vec<DagCluster>) {
     let (positions, indices) = grid(n);
-    let (dag, _, _) =
-        build_dag_tallied(&positions, &indices, DagStrategy::QemEndpoints, &|| Ok(()))
-            .expect("dag");
+    let (dag, _, _) = build_of(&positions, &indices);
     (positions, indices, dag)
 }
 
@@ -72,3 +81,4 @@ mod part2;
 mod part3;
 mod part4;
 mod part5;
+mod part6;
