@@ -47,43 +47,44 @@ pub(super) fn mesh_json(
             let count = ufbx::triangulate_face_vec(&mut scratch, mesh, face) as usize * 3;
             for &corner in &scratch[..count] {
                 let c = corner as usize;
-                let key = (
-                    mesh.vertex_position.indices[c],
-                    if has_normal {
-                        mesh.vertex_normal.indices[c]
-                    } else {
-                        0
-                    },
-                    if has_uv { mesh.vertex_uv.indices[c] } else { 0 },
-                    if has_color {
-                        mesh.vertex_color.indices[c]
-                    } else {
-                        0
-                    },
-                );
+                // Un sommet est ce qu'il vaut, pas le rang que le fichier lui donne : un FBX qui
+                // écrit ses normales et ses UV coin par coin (Unreal, Blender) sortirait sinon trois
+                // sommets par triangle, aucun partagé, et le simplificateur du DAG — qui verrouille
+                // tout point présent en plus de deux exemplaires — ne réduirait rien.
+                let mut values = [0.0f32; CORNER_VALUES];
+                let p = mesh.vertex_position.values[mesh.vertex_position.indices[c] as usize];
+                values[CORNER_POSITION].copy_from_slice(&[p.x as f32, p.y as f32, p.z as f32]);
+                if has_normal {
+                    let n = mesh.vertex_normal.values[mesh.vertex_normal.indices[c] as usize];
+                    let [x, y, z] =
+                        crate::shared_math::normalized_or([n.x, n.y, n.z], [0.0, 1.0, 0.0]);
+                    values[CORNER_NORMAL].copy_from_slice(&[x as f32, y as f32, z as f32]);
+                }
+                if has_uv {
+                    let t = mesh.vertex_uv.values[mesh.vertex_uv.indices[c] as usize];
+                    values[CORNER_UV].copy_from_slice(&[t.x as f32, (1.0 - t.y) as f32]);
+                }
+                if has_color {
+                    let k = mesh.vertex_color.values[mesh.vertex_color.indices[c] as usize];
+                    values[8..12]
+                        .copy_from_slice(&[k.x as f32, k.y as f32, k.z as f32, k.w as f32]);
+                }
                 let next = unique.len() as u32;
-                let id = *unique.entry(key).or_insert_with(|| {
-                    let p = mesh.vertex_position.values[key.0 as usize];
-                    out.positions
-                        .extend_from_slice(&[p.x as f32, p.y as f32, p.z as f32]);
-                    if has_normal {
-                        let n = mesh.vertex_normal.values[key.1 as usize];
-                        let [x, y, z] =
-                            crate::shared_math::normalized_or([n.x, n.y, n.z], [0.0, 1.0, 0.0]);
-                        out.normals
-                            .extend_from_slice(&[x as f32, y as f32, z as f32]);
-                    }
-                    if has_uv {
-                        let t = mesh.vertex_uv.values[key.2 as usize];
-                        out.uvs.extend_from_slice(&[t.x as f32, (1.0 - t.y) as f32]);
-                    }
-                    if has_color {
-                        let c = mesh.vertex_color.values[key.3 as usize];
-                        out.colors
-                            .extend_from_slice(&[c.x as f32, c.y as f32, c.z as f32, c.w as f32]);
-                    }
-                    next
-                });
+                let id = *unique
+                    .entry(CornerKey(values.map(f32::to_bits)))
+                    .or_insert_with(|| {
+                        out.positions.extend_from_slice(&values[CORNER_POSITION]);
+                        if has_normal {
+                            out.normals.extend_from_slice(&values[CORNER_NORMAL]);
+                        }
+                        if has_uv {
+                            out.uvs.extend_from_slice(&values[CORNER_UV]);
+                        }
+                        if has_color {
+                            out.colors.extend_from_slice(&values[CORNER_COLOR]);
+                        }
+                        next
+                    });
                 out.indices.push(id);
             }
         }
