@@ -3,7 +3,7 @@ import { webgpuPagesBackend } from './webgpuPages.ts';
 import { autonomousPagesBackend } from './autonomousPages.ts';
 import { DEFAULT_BACKENDS } from './defaultBackends.ts';
 import { DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
-import { createSceneLightStore } from '../sdk-core/index.ts';
+import { createSceneLightStore, dagWarningsDiagnostic } from '../sdk-core/index.ts';
 import { createSceneProxyReader } from './sceneProxyLoad.ts';
 import { createTextureLevelReader } from './textureLevelReader.ts';
 import { resolveDiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
@@ -62,6 +62,14 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
         scope,
       });
   }
+  // Ce que le compilateur a nommé sans pouvoir le corriger — un DAG qui n'est pas monté — se dit
+  // à l'ouverture, avant le choix du moteur : c'est un fait du cache, pas d'un moteur.
+  const dagWarnings = dagWarningsDiagnostic(metadata.primitives);
+  if (dagWarnings)
+    diagnose(dagWarnings.phase, dagWarnings.message, {
+      kind: 'preparation',
+      ...dagWarnings.context,
+    });
   const context: BackendContext = {
     source,
     metadata,
