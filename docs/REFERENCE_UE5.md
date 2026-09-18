@@ -87,7 +87,7 @@ par image quelle que soit la scène** :
 | Clear VisBuffer           | 66 µs      | —                                 |
 | Main Pass : InstanceCull  | 108 µs (1) | tri d'instances                   |
 | Main Pass : ClusterCull   | 406 µs     | descente DAG sur la carte         |
-| Main Pass : Rasterize     | 1 148 µs   | raster de calcul                  |
+| Main Pass : Rasterize     | 1 148 µs   | raster matériel (5)               |
 | BuildHZB                  | 99 µs      | pyramide Hi-Z                     |
 | Post Pass : InstanceCull  | 125 µs     | — (nous n'avons pas la 2e passe)  |
 | Post Pass : ClusterCull   | 102 µs     | —                                 |
@@ -105,6 +105,12 @@ microsecondes. Nous retenons 108 µs.
 la nôtre accumule à résolution native, sans remontée, et sa passe ne se lit que par différence
 d'enveloppe (Lumière 16). Aucun coût publié de leur côté pour cette passe seule : la ligne dit
 qu'elle existe des deux côtés, pas ce qu'elle vaut.
+
+(5) Leur raster est double : les petits triangles en calcul, les grands au matériel. Le nôtre est
+matériel seul en production depuis Géométrie 26 : le raster de calcul pour toute la coupe coûtait
+25,5 ms d'enveloppe contre 5,5 à 1248×702 (18 sept. 2026), et ne reste joignable que par la
+variante de diagnostic `raster-calcul`. La coupe petits/grands, admise par budget de temps mesuré,
+est le point (2) de cette ligne.
 
 Ce qu'on peut en tirer sans tricher :
 

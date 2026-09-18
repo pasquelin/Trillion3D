@@ -6,7 +6,8 @@ import { FINE_SIDE, LARGE_SPAN, TILE } from './gpuRasterContract.ts';
  * depuis les mêmes entrées. L'ensemble qui atteint un pixel est donc celui qu'une évaluation par
  * pixel aurait atteint.
  *
- * Deux différences avec le raster qui ne prenait que les petits triangles :
+ * Deux différences avec le raster qui ne prenait que les petits triangles — la coupe petits/grands
+ * de la référence, qui reviendra sous un budget de temps mesuré :
  *
  * - **La boîte est découpée au viewport au lieu d'être rejetée.** Un triangle qui déborde de l'écran
  *   n'est plus renvoyé au matériel : il garde la part de sa boîte qui tombe dans l'image, et c'est
