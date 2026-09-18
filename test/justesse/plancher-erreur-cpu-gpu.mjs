@@ -12,7 +12,6 @@
 // Le compte des sous-arbres élagués est publié : sans élagage, la preuve ne porterait sur rien.
 //
 // node --experimental-strip-types test/justesse/plancher-erreur-cpu-gpu.mjs
-// (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { selectVisiblePages } from '../../packages/sdk-browser/pageSelectionCut.ts';

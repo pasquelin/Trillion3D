@@ -34,15 +34,7 @@ test('readOptions rejects unknown engine', () => {
   assert.throws(() => readOptions(['--moteur=unknown'], root), /--moteur doit valoir/);
 });
 
-test('readOptions rejects port 5174', () => {
-  const root = '/tmp/test';
-  assert.throws(
-    () => readOptions(['--port=5174'], root),
-    /le port 5174 appartient au serveur de l'utilisateur/,
-  );
-});
-
-test('readOptions accepts valid ports other than 5174', () => {
+test('readOptions accepts an explicit port', () => {
   const root = '/tmp/test';
   const result = readOptions(['--port=3000'], root);
   assert.strictEqual(result.settings.port, 3000);

@@ -8,7 +8,7 @@
 // reconstruit, puis texte livré — sur les mêmes cas, et chiffre l'angle entre la normale rendue et
 // la normale vraie (Three en f64) ainsi que l'écart relatif de luminance de la même BRDF.
 //
-// LAB_ROOT=… node --experimental-strip-types \
+// node --experimental-strip-types \
 //   test/justesse/normale-eclairage-petite-echelle.mjs
 import assert from 'node:assert/strict';
 import { NORMAL_TRANSFORM_WGSL } from '../../packages/sdk-browser/standardLighting.ts';

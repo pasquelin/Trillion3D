@@ -16,7 +16,7 @@
 // l'oracle d'orientation vraie — la rasterisation réelle des mêmes cas avec l'état de face du
 // moteur (`inverseTransposeOracle.mjs`) — et publie les populations séparées.
 //
-// LAB_ROOT=… node --experimental-strip-types \
+// node --experimental-strip-types \
 //   test/justesse/inverse-transposee-petite-echelle.mjs
 import assert from 'node:assert/strict';
 import { cameraSelectionUniforms } from '../../packages/sdk-browser/gpuSelection.ts';

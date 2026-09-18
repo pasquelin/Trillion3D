@@ -10,7 +10,6 @@
 //
 // node --experimental-strip-types test/justesse/emetteur-sphere-gpu.mjs
 //   [<cache>/native/full/<clé>/lights.json]
-// (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
 //
 // Sans argument, le centre et le rayon sont ceux de la reproduction, écrits ici. Avec le
 // `lights.json` qu'une compilation vient de publier, ils sortent de la première lampe qui porte un

@@ -1,6 +1,6 @@
 // L'isolement entre origines du serveur du harnais : c'est lui, et lui seul, qui décide si le SDK
 // prendra son chemin de mémoire partagée. Défaut fermé : une campagne de référence ne change pas de
-// chemin sans qu'on l'écrive. Le Lab, qui a son propre serveur, n'est pas concerné.
+// chemin sans qu'on l'écrive.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { startServer } from './serveur.mjs';

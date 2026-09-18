@@ -6,6 +6,20 @@ import { fileURLToPath } from 'node:url';
 // qui recalculait le chemin le gardait faux après le déplacement de `browserFixtures/` vers `appui/`.
 const FIXTURES = dirname(fileURLToPath(import.meta.url));
 
+/**
+ * L'adresse du serveur du Lab, pour les seules preuves montées sur SES pages (`beaute`, `emeraude`,
+ * `presentation`). Le moteur ne connaît aucun chemin vers le Lab : l'adresse est donnée par la
+ * commande, `LAB_URL`, ou la preuve refuse de partir. Sans elle, `test:gpu` les écarte à voix haute.
+ */
+export function adresseDuLab() {
+  const url = process.env.LAB_URL;
+  if (!url)
+    throw new Error(
+      'LAB_URL absent : cette preuve tourne sur les pages du Lab, donner son adresse',
+    );
+  return url.replace(/\/$/, '');
+}
+
 /** Serve only the fixture modules owned by this test through the current browser origin. */
 export async function routeBrowserFixtures(page, directory = FIXTURES) {
   const root = resolve(directory);

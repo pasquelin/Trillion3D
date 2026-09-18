@@ -8,7 +8,6 @@
 // Chromium WebGPU, puis échoue si l'un d'eux retient le grossier.
 //
 // node --experimental-strip-types test/justesse/erreur-ecran-hors-axe.mjs
-// (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { selectVisiblePages } from '../../packages/sdk-browser/pageSelectionCut.ts';

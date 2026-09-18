@@ -20,7 +20,7 @@
 // change rien et N→−N non plus. Une mutation qu'on ne peut pas voir ne prouve rien ; ces cas-là
 // sont éprouvés par leur valeur exacte dans `test/browser/normal-transform-arithmetique.browser.mjs`.
 //
-// LAB_ROOT=… node --experimental-strip-types test/browser/normale-eclairage-substitutions-refusees.browser.mjs
+// node --experimental-strip-types test/browser/normale-eclairage-substitutions-refusees.browser.mjs
 import assert from 'node:assert/strict';
 import { verdictNormale } from '../justesse/inverseTransposeF32.mjs';
 import {

@@ -1,16 +1,7 @@
-// Trajectoire du banc, vues et poses, recopiées du Lab et vérifiées contre lui à chaque exécution.
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-
-export const LAB = '/Users/pasquelin/Applications/render-tech-lab';
-
-// Copie littérale de `urbanPath` / `streetLevel` de `render-tech-lab/src/lab/modelCampaign.ts`
-// (pathVersion 5). Le Lab n'est pas importable ici : son module est en TypeScript et tire tout le
-// banc 15 avec lui. La copie est donc vérifiée contre la source à chaque exécution, et le harnais
-// refuse de mesurer si elle a bougé.
+// Trajectoire du banc, vues et poses. C'est ici que la trajectoire est définie : le dépôt est sa
+// source, et tout hôte qui veut rejouer le même banc la recopie d'ici. `PATH_VERSION` monte à chaque
+// changement des points, pour que deux relevés ne se comparent qu'à trajectoire égale.
 const PATH_VERSION = 5;
-const POINTS_SOURCE =
-  ' const points=[[.72,28,.78],[.2,8,.26],[.05,1.2,.08],[-.08,1.7,.12],[-.03,1.5,.04],[-.03,1.5,.04],[.3,10,-.26],[-.38,8,-.36],[-.48,12,.46],[.72,28,.78]];';
 const POINTS = [
   [0.72, 28, 0.78],
   [0.2, 8, 0.26],
@@ -34,23 +25,6 @@ export const VIEWS = {
   rue: { index: 2 * FRAMES_PER_SEGMENT + 30, segment: 'Déplacement au niveau de référence' },
   detail: { index: 4 * FRAMES_PER_SEGMENT, segment: 'Gros plan sur une géométrie détaillée' },
 };
-
-/** Refuse de mesurer si la trajectoire du banc a changé sous la copie ci-dessus. */
-export function checkLabPath() {
-  const source = readFileSync(join(LAB, 'src/lab/modelCampaign.ts'), 'utf8');
-  const version = source.match(/export const pathVersion\s*=\s*(\d+)/);
-  const points = source.split('\n').find((line) => line.includes('const points=[['));
-  if (!version || Number(version[1]) !== PATH_VERSION)
-    throw new Error(
-      `trajectoire du banc en version ${version ? version[1] : '?'} et non ${PATH_VERSION} : recopier urbanPath`,
-    );
-  if (points !== POINTS_SOURCE)
-    throw new Error('les points de la trajectoire du banc ont changé : recopier urbanPath');
-  const names = source.match(/export const segmentNames=\[([^\]]*)\]/);
-  for (const view of Object.values(VIEWS))
-    if (names && !names[1].includes(view.segment))
-      throw new Error(`le segment « ${view.segment} » n'existe plus dans le banc`);
-}
 
 /**
  * Plancher du modèle, `streetLevel` du banc : le plan d'origine si la géométrie l'enjambe, sinon le

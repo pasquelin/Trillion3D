@@ -3,8 +3,8 @@
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-// Drapeaux copiés littéralement de `render-tech-lab/scripts/headless/lib.mjs` (BASE_FLAGS) et de
-// `shots.mjs` (`--enable-unsafe-webgpu`). Le Lab n'est pas modifié ; ces lignes en sont la copie.
+// Drapeaux de Chromium du banc : un affichage jamais bridé en arrière-plan, la mesure GPU activée,
+// WebGPU ouvert. Toute mesure du dépôt lance le navigateur avec ces lignes, et seulement elles.
 const BASE_FLAGS = [
   '--disable-backgrounding-occluded-windows',
   '--disable-renderer-backgrounding',
@@ -92,7 +92,7 @@ export function engineOf(flags, name, fallback) {
  * Le cache d'un côté. La valeur nomme le dossier « derived » — celui qui contient `native/full` —
  * ou directement `native/full` ; c'est le dossier derived qui est rendu, parce que le manifeste
  * compilé désigne ses paquets par `../../objects/`, hors de `native/full`. Sans valeur, le côté
- * garde le cache du Lab.
+ * garde le cache des assets du banc (`scene.mjs`).
  */
 export function resolveCache(value) {
   if (!value) return undefined;

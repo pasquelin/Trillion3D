@@ -8,7 +8,6 @@
 // la copie emporte. L'écart est donc exactement le prix du pire cas, sur le même travail de noyau.
 //
 //   node --experimental-strip-types packages/sdk-browser/test/justesse/releve-coupe-gpu.mjs
-//   (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dirname, resolve } from 'node:path';

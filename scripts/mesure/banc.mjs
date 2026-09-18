@@ -18,11 +18,11 @@
 // AUCUN CHRONOMÉTRAGE SÉRIEUX N'EST PROMIS ICI : le harnais relève les durées et la charge de la
 // machine au début et à la fin de chaque série. C'est à l'appelant de juger si elle était calme.
 // =====================================================================================
-import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
+import { chromium } from 'playwright';
 import * as options from './options.mjs';
 import { startServer } from './serveur.mjs';
 import { readBounds } from './page.mjs';
@@ -41,7 +41,6 @@ const {
 const CTX = { MANIFEST: null, OUT, settings, lights: null, poses: null };
 
 async function main() {
-  options.checkLabPath();
   if (!existsSync(options.CHROME)) throw new Error(`Chrome absent : ${options.CHROME}`);
   await mkdir(OUT, { recursive: true });
   const sides = options.resolveSides({
@@ -49,13 +48,13 @@ async function main() {
     avant: flags.get('avant'),
     root: ROOT,
   });
-  // Chaque côté a son cache compilé (`--cache-<côté>`, sinon celui du Lab), son moteur
+  // Chaque côté a son cache compilé (`--cache-<côté>`, sinon celui des assets du banc), son moteur
   // (`--moteur-<côté>`, les drapeaux de Chromium étant la réunion) et sa variante (`--variante-<côté>`).
   for (const side of sides) options.equipSide(side, flags, settings);
   const FLAGS = [...new Set(sides.flatMap((side) => side.engine.flags))];
-  // La scène mesurée est celle des caches nommés ; sans aucun, celle que le Lab garde par défaut.
+  // La scène mesurée est celle des caches nommés ; sans aucun, la scène de référence du banc.
   const scene = options.sceneOf(sides.find((side) => side.cache)?.cache);
-  const MANIFEST = options.labManifest(
+  const MANIFEST = options.assetsManifest(
     scene,
     sides.some((side) => !side.cache),
   );
@@ -88,7 +87,6 @@ async function main() {
   });
   const port = server.address().port;
   report.settings = { ...settings, port };
-  const { chromium } = createRequire(join(options.LAB, 'package.json'))('playwright');
   // Un navigateur neuf par série, fermé aussitôt après. Une scène Emerald laisse plusieurs
   // centaines de mégaoctets dans le processus GPU de Chromium ; fermer seulement la page ne les
   // rend pas, et la troisième série n'obtient plus de contexte (« WebGL2 unavailable »). Relancer

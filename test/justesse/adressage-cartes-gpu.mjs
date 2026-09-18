@@ -3,7 +3,7 @@
 // nuanceur donne à chaque carte en est relu par `wrapOf`, le miroir processeur du `wrapOf` WGSL.
 // Chaque carte est ensuite lue par le WGSL d'adressage du moteur, dans Chromium, et comparée à
 // l'échantillonneur natif réglé sur le mode de cette carte-là — la référence des lots 4 et 7.
-//   LAB_ROOT=…/render-tech-lab node --experimental-strip-types \
+//   node --experimental-strip-types \
 //     test/justesse/adressage-cartes-gpu.mjs
 // Bloquant : tout écart bit à bit hors couture de période, et sur la couture toute lecture qui
 // s'écarte de la règle exacte de plus d'un demi niveau sur 255.

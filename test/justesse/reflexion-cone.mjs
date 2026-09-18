@@ -14,7 +14,7 @@
 // Le vrai défaut est ailleurs et il est bien en CPU : `visibilityRaster` était le seul chemin à ne
 // pas échanger la face éliminée, et il dessinait donc exactement les faces que le cône supprime.
 //
-// LAB_ROOT=… node --experimental-strip-types \
+// node --experimental-strip-types \
 //   test/justesse/reflexion-cone.mjs
 import assert from 'node:assert/strict';
 import { rasterVisibility } from '../../packages/sdk-browser/visibilityRaster.ts';

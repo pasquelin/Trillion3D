@@ -15,7 +15,7 @@ import { readFile } from 'node:fs/promises';
 export const MEASURE_WIDTH = 2496;
 export const MEASURE_HEIGHT = 1404;
 
-export async function emeraldProvenance(labRoot) {
+export async function emeraldProvenance(labUrl) {
   const sourceFiles = [
     'index.ts',
     'webgpuPages.ts',
@@ -39,8 +39,7 @@ export async function emeraldProvenance(labRoot) {
   const provenance = {
     startedAt: new Date().toISOString(),
     purpose: 'visual-only',
-    labRoot,
-    labUrl: process.env.LAB_URL ?? 'http://localhost:5174',
+    labUrl,
     head: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     hashes,
     width: MEASURE_WIDTH,

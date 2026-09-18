@@ -4,7 +4,7 @@ import { ensureWebgpuVisibilityBindings } from './webgpuVisibilityBindings.ts';
 import { ensureWebgpuShadeBindings } from './webgpuShadeBindings.ts';
 import { writeWebgpuVisibilityUniforms } from './webgpuVisibilityUniforms.ts';
 import { checkFrameBudget } from './webgpuPagesTargets.ts';
-import { skipsSecondaryPass } from './diagnosticGpuGeometry.ts';
+import { forcesHardwareRaster, skipsSecondaryPass } from './diagnosticGpuGeometry.ts';
 import { createRenderEncoder, submitColorCopy } from './webgpuPagesEncoder.ts';
 import { encodeSurfaceLighting } from './webgpuPagesEncodeBlend.ts';
 import type { SurfaceBuffer } from './surfaceBuffer.ts';
@@ -74,7 +74,12 @@ const rasterInput = {} as GpuRasterInput;
 export function ensureGpuRaster(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vis, capture, capabilities, diag } = rt,
     [width, height] = rt.gpu.targetSize;
-  if (vis.gpuRaster || vis.hybridUnavailable || typeof device.createComputePipeline !== 'function')
+  if (
+    vis.gpuRaster ||
+    vis.hybridUnavailable ||
+    forcesHardwareRaster(rt.context?.diagnosticGpuVariant) ||
+    typeof device.createComputePipeline !== 'function'
+  )
     return;
   try {
     checkFrameBudget(

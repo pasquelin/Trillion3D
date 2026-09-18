@@ -5,8 +5,8 @@ import { VIEWS } from './poses.mjs';
 import { ASSETS } from './scene.mjs';
 import { lightingSettings } from './optionsEclairage.mjs';
 
-export { LAB, PATH_VERSION, VIEWS, checkLabPath, poseAt } from './poses.mjs';
-export { labManifest, sceneOf } from './scene.mjs';
+export { PATH_VERSION, VIEWS, poseAt } from './poses.mjs';
+export { assetsManifest, sceneOf } from './scene.mjs';
 export { resolveSides } from './dists.mjs';
 export { ENGINES, engineOf, equipSide, resolveCache, sideReport } from './optionsCote.mjs';
 import { ENGINES } from './optionsCote.mjs';
@@ -24,8 +24,8 @@ function packageDir(root, name) {
 }
 
 /**
- * Ce que le serveur du harnais rend, et rien d'autre : les dépendances du navigateur, le cache du
- * Lab, le dist de chaque côté et son cache s'il en a un. `resources` est le dossier auquel le glTF
+ * Ce que le serveur du harnais rend, et rien d'autre : les dépendances du navigateur, les assets
+ * du banc, le dist de chaque côté et son cache s'il en a un. `resources` est le dossier auquel le glTF
  * d'un cache compilé fait référence par chemin relatif (`assets/textures/...`) ; sans lui, un cache
  * compilé sans base de ressources sort ses textures en 404 et la mesure ne porte plus sur la scène.
  */
@@ -137,8 +137,6 @@ export function readOptions(argv, root) {
   if (![1, 4, 9, 12].includes(settings.instances))
     throw new Error('--instances doit valoir 1, 4, 9 ou 12');
   if (settings.lights < 0) throw new Error('--lampes doit être un entier positif ou nul');
-  if (settings.port === 5174)
-    throw new Error("le port 5174 appartient au serveur de l'utilisateur");
   if (settings.frames < 1) throw new Error('--images doit être un entier positif');
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const out = resolve(flags.get('out') ?? join(root, '.mesure/out', `${engine}-${stamp}`));

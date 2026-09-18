@@ -299,27 +299,19 @@ WebGPU filters transparent meshes against the current camera frustum before uplo
 
 For image checks, call `setPose()`, `awaitPages()`, `render()`, then `await flush()` and `capture()`. The WebGPU `flush()` performs an explicit asynchronous image readback outside the beauty loop; `capture()` returns bottom-left RGBA bytes for that submitted frame. If a browser host renders again and immediately calls the existing synchronous `capture()` API, an isolated WebGL canvas copies the current GPU canvas and reads its pixels on demand; `capture-synchronous` identifies this expensive compatibility path. It is never used by normal `render()`. A texture-only backend rejects unavailable/stale captures. Serialize `flush()` with explicit host rendering; a frame changed by a host render during readback is rejected rather than returned as current. Streaming completion during readback retains the accepted page bytes and defers its automatic redraw to the next render, preserving the captured frame. The first such deferral emits `capture-streaming-deferred`. The WebGL backends continue reading their rendered default framebuffer so pinned Three r174 tone mapping matches the displayed image.
 
-With Render Tech Lab running locally and this SDK built (`pnpm run build`), run:
+`pnpm run test:gpu` runs every hardware proof (`test/justesse/`, `test/browser/`) with the repository's own Playwright and esbuild, the machine's Chrome and its actual WebGPU device, and the assets under `.mesure/assets/` (see `scripts/mesure/README.md` § Assets). Nothing outside this repository is read. Three proofs are mounted on Render Tech Lab's pages and are excluded from `test:gpu` by name; they take the Lab server's address explicitly:
 
 ```sh
-node test/browser/beaute-webgpu.browser.mjs
-node test/browser/emeraude-webgpu.browser.mjs
-node test/browser/capture-webgpu.browser.mjs
+LAB_URL=http://localhost:5174 node test/browser/beaute-webgpu.browser.mjs
+LAB_URL=http://localhost:5174 node test/browser/emeraude-webgpu.browser.mjs
+LAB_URL=http://localhost:5174 node test/browser/presentation-gpu.browser.mjs
 ```
 
-The runners use the Lab's installed Playwright and Chrome's actual WebGPU device. `LAB_ROOT` and `LAB_URL` select the Lab checkout and server (defaults: adjacent `render-tech-lab`, `http://localhost:5174`). The material check compares nine pixels on 18 fixtures with a two-level RGB tolerance and rejects missing diagnostics or GPU failures. The Emerald check replays ten banc 15 poses on the same source, camera, pixel error 1, and a 2496×1404 viewport — the internal resolution of the published profile `docs/REFERENCE_UE5.md` compares pass shapes against, declared once as `MEASURE_WIDTH`/`MEASURE_HEIGHT` in `test/appui/emeraldProvenance.mjs` and recorded in the provenance. What is matched is the internal render size, not their 4K output: that comes from a temporal upscale this engine does not have. It saves PNGs, per-view differences, source fingerprints and logs under `benchmark-runs/webgpu-visual/`. A successful runner execution is **not** a full-scene visual-parity verdict: inspect the measured differences and screenshots. Neither runner measures performance or proves memory stability.
+The material check compares nine pixels on 18 fixtures with a two-level RGB tolerance and rejects missing diagnostics or GPU failures. The Emerald check replays ten banc 15 poses on the same source, camera, pixel error 1, and a 2496×1404 viewport — the internal resolution of the published profile `docs/REFERENCE_UE5.md` compares pass shapes against, declared once as `MEASURE_WIDTH`/`MEASURE_HEIGHT` in `test/appui/emeraldProvenance.mjs` and recorded in the provenance. What is matched is the internal render size, not their 4K output: that comes from a temporal upscale this engine does not have. It saves PNGs, per-view differences, source fingerprints and logs under `benchmark-runs/webgpu-visual/`. A successful runner execution is **not** a full-scene visual-parity verdict: inspect the measured differences and screenshots. Neither runner measures performance or proves memory stability.
 
 The current WebGPU path still lacks per-texture transforms/UV channels/filter modes, environment maps, shadows and the full material contract. Padded texture-array boundaries, transparent compositing and full-scene pixel differences still need dedicated parity checks. The CPU shading oracle encodes linear lighting to sRGB without ACES; it is not a substitute for the displayed-image comparisons.
 
 The separated pipeline has completed real Lab paths and A/A checks; full material parity and a controlled performance verdict remain unvalidated. Start the Lab recipe with material fixtures, then Emerald with fixed camera, resolution, lights, pixel error and warmup. Verify actual direct-presentation logs, independent A/A captures, foreground coverage, transparent compositing and second-view restoration before timing. Preserve raw source hashes and results; old reports do not validate this code. Node tests validate orchestration/CPU contracts with GPU doubles and do not execute WGSL.
-
-The existing model report can be verified without starting a renderer:
-
-```sh
-LAB_ROOT=../render-tech-lab node --experimental-strip-types test/debugLogging.archive.mjs ../render-tech-lab/reports/15-virtualized-integration/campaign-ID
-```
-
-This check compares every journal event and capture against the original compressed report, verifies hashes, diagnostic sequences and measured sample counts. It does not rerun the campaign.
 
 For prepared WebGPU scenes, `maxTextureTransferBytesPerFrame` bounds source texture uploads per frame. A texture larger than that budget is cut into bands of rows spread over several frames, in the order the camera draws them, and is never dropped for its size; a layer becomes readable only after its last band and its mip regeneration, showing its 16x16 preview until then. Frame metrics expose `textureUploaded`, `texturePending`, `textureInFlight`, `textureSlicesUploaded`, `textureBytesLastFrame`, `textureSkipped` and `totalSubmittedTriangles`; `textureSkipped` counts only textures the device refused three times. `createExplorer` exposes `renderViews(poses)` for successive captures. Its `addInstance`, `updateInstance`, `removeInstance`, `updateMaterial` and `replaceGeometryPage` methods currently require the autonomous WebGL2 backend; other backends return `UNSUPPORTED_SCENE_UPDATE`.
 

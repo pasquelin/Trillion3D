@@ -2,35 +2,27 @@
 // reproductions « GPU réellement exécuté » : le noyau de sélection du DAG (`noyauSelectionGpu.mjs`),
 // la rasterisation (`noyauRasterGpu.mjs`), les normales d'éclairage (`normaleEclairageGpu.mjs`), les
 // lots d'adressage (`adressageGpuPage.mjs`) et la caméra parentée (`camera-parentee-gpu.mjs`)
-// l'utilisent. Playwright vient de `render-tech-lab`, en lecture seule.
-import { createRequire } from 'node:module';
+// l'utilisent. Playwright et esbuild sont des dépendances de dev du dépôt : le moteur se prouve
+// seul, sans autre projet sur la machine.
 import { createServer } from 'node:http';
-import { resolve } from 'node:path';
+import * as esbuild from 'esbuild';
+import { chromium } from 'playwright';
 import { ouvrirAppareil } from './appareilWebgpu.mjs';
 
 /**
- * Le `require` de `render-tech-lab` (`LAB_ROOT`, par défaut le voisin du dépôt) : Playwright et
- * l'esbuild de Vite en viennent, sans qu'aucune ligne n'y soit écrite.
- */
-export function requireDuLab() {
-  const labRoot = process.env.LAB_ROOT ?? resolve('../render-tech-lab');
-  return createRequire(resolve(labRoot, 'package.json'));
-}
-
-/**
- * Empaquette un module de page en IIFE pour `dansPageWebgpu`, et rend le texte du paquet à passer en
- * `script`. Les options de paquetage — format, cible, plateforme — sont celles de toutes les
+ * Empaquette un module de page pour le navigateur et rend le texte du paquet : en IIFE sous
+ * `nomGlobal` pour `dansPageWebgpu`, ou en module ES (`format: 'esm'`) quand la page le charge par
+ * `import()`. Les options de paquetage — cible, plateforme — sont celles de toutes les
  * reproductions : les écrire ici est ce qui empêche deux d'entre elles de compiler pour deux cibles
  * différentes sans que rien ne le dise.
  */
-export async function empaquetePage(entree, nomGlobal) {
-  const esbuild = createRequire(requireDuLab().resolve('vite'))('esbuild');
+export async function empaquetePage(entree, nomGlobal, { format = 'iife' } = {}) {
   const paquet = await esbuild.build({
     entryPoints: [entree],
     bundle: true,
     write: false,
-    format: 'iife',
-    globalName: nomGlobal,
+    format,
+    ...(format === 'iife' ? { globalName: nomGlobal } : {}),
     platform: 'browser',
     target: 'es2022',
     logLevel: 'error',
@@ -50,7 +42,6 @@ export async function empaquetePage(entree, nomGlobal) {
  */
 export async function dansPageWebgpu(fonction, argument, options = {}) {
   const { titre = 'WebGeometry WebGPU', script = null, erreursPage = null } = options;
-  const { chromium } = requireDuLab()('playwright');
   const balise = script ? '<script src="/page.js"></script>' : '';
   const html = `<!doctype html><title>${titre}</title>${balise}`;
   const server = createServer((request, response) => {

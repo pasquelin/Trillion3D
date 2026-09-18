@@ -28,9 +28,12 @@ export const DOUBLE_PERIME = 'double périmé';
  * Les preuves de rendu que `pnpm run test:gpu` ne lance pas, et pourquoi. Une entrée `REGRESSION`
  * est une dette ouverte, pas une dispense : elle se retire en corrigeant le moteur.
  */
+/** Les preuves montées sur les pages du Lab : elles prennent son adresse par `LAB_URL`. */
+const SUR_LE_LAB = 'montée sur les pages du Lab (`LAB_URL`)';
 export const BROWSER_ECARTES = new Map([
-  ['beaute-webgpu', [MONTAGE, 'assets du Lab à recompiler avec `dag-group-qem-v1`']],
-  ['presentation-gpu', [MONTAGE, 'assets du Lab à recompiler avec `dag-group-qem-v1`']],
+  ['beaute-webgpu', [MONTAGE, `${SUR_LE_LAB} ; ses assets à recompiler`]],
+  ['emeraude-webgpu', [MONTAGE, `${SUR_LE_LAB} ; à remonter sur le serveur du harnais`]],
+  ['presentation-gpu', [MONTAGE, `${SUR_LE_LAB} ; ses assets à recompiler`]],
 ]);
 
 /**

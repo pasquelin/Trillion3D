@@ -3,9 +3,10 @@ import type { DiagnosticDetail } from './backendTypes.ts';
 /**
  * Les variantes de DIAGNOSTIC de la carte graphique. Elles n'existent que pour ventiler une durée :
  * chacune neutralise UN facteur de l'image sans toucher aux commandes encodées — mêmes passes,
- * mêmes appels de dessin, même ordre, même tri — à deux exceptions déclarées : la coupe doublée
- * réencode sa sélection, et `geometrie-une-passe` retire la seconde passe de visibilité ; leurs
- * durées ne se soustraient pas comme les autres. L'image rendue DIFFÈRE donc de l'image de
+ * mêmes appels de dessin, même ordre, même tri — à trois exceptions déclarées : la coupe doublée
+ * réencode sa sélection, `geometrie-une-passe` retire la seconde passe de visibilité, et
+ * `raster-materiel` rend la géométrie opaque au raster matériel ; leurs durées ne se soustraient
+ * pas comme les autres. L'image rendue DIFFÈRE donc de l'image de
  * production par construction : aucune n'est une optimisation, aucune ne se mesure en fidélité, et
  * aucun chemin de production n'en allume une. Le seul moyen est `diagnosticGpuVariant` de
  * `createExplorer`, refusée hors `diagnosticDetail: 'trace'`.
@@ -34,6 +35,10 @@ export const DIAGNOSTIC_GPU_VARIANTS = [
   'geometrie-sommets',
   /** La seconde passe de visibilité n'est pas encodée : les occulteurs seuls. */
   'geometrie-une-passe',
+  /** Le raster de calcul n'est jamais créé : le raster matériel dessine la géométrie opaque, comme
+   *  sur l'appareil qui ne peut pas héberger le calcul. Deux côtés qui ne diffèrent que par elle
+   *  donnent, à la même taille, l'enveloppe du raster de calcul contre celle du matériel. */
+  'raster-materiel',
   /** La résolution des surfaces ne lit rien et rend une valeur constante. */
   'resolution-plate',
   /** La résolution des surfaces ne lit que le tampon de visibilité, sans matériau ni atlas. */

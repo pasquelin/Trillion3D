@@ -1,5 +1,5 @@
 // Serveur statique du harnais et encodage PNG, pour `banc.mjs`. Rien n'est écrit ici : le serveur
-// lit les dists, les dépendances du navigateur et les assets Emerald du Lab, et encaisse les
+// lit les dists, les dépendances du navigateur et les assets du banc, et encaisse les
 // captures RGBA que la page lui poste.
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
@@ -74,7 +74,7 @@ const ISOLATION = {
 };
 
 /** Écoute sur `port`, sert `mounts`, dépose les captures dans `captures`. `isolation` pose COOP et
- *  COEP sur chaque réponse ; le Lab, lui, n'est pas touché. */
+ *  COEP sur chaque réponse. */
 export function startServer({ port, mounts, captures, isolation = false }) {
   const server = http.createServer((req, res) => {
     if (isolation)

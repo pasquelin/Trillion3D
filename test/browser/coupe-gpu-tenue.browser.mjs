@@ -8,7 +8,6 @@
 // aucun repli n'a été déclaré (`gpuSelectionFallback` faux).
 //
 //   node --experimental-strip-types test/browser/coupe-gpu-tenue.browser.mjs
-//   (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
 import assert from 'node:assert/strict';
 import { preuveDansLaPage, preuveSaine } from '../appui/preuvePageMoteur.mjs';
 

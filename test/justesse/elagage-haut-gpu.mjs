@@ -9,7 +9,6 @@
 // une coupe changée.
 //
 // node --experimental-strip-types test/justesse/elagage-haut-gpu.mjs
-// (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { cameraSelectionUniforms } from '../../packages/sdk-browser/gpuSelection.ts';
