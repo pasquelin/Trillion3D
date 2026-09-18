@@ -48,7 +48,9 @@ export function ensureTaaTargets(
   base: number,
 ) {
   const temporal = rt.gpu.temporal;
-  if (!temporal || rt.capture.secondaryCamera) return temporal?.historyBytes ?? 0;
+  if (!temporal) return 0;
+  // Sous une capture, la réserve de la capture porte déjà l'historique : il n'est pas compté deux fois.
+  if (rt.capture.secondaryCamera) return 0;
   const history = width * height * TAA_HISTORY_BYTES_PER_PIXEL;
   if (base + history > rt.setup.frameBudget) {
     dropTemporalAntialiasing(

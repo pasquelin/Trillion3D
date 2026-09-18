@@ -2,9 +2,10 @@
  * Les poids du filtre de l'image courante : un par voisin de la fenêtre 3×3, pour une gigue donnée.
  * Fenêtre de Blackman-Harris sur un rayon d'UN pixel, centrée sur le centre non décalé du pixel :
  * un voisin ne pèse que lorsque l'échantillon de cette image est loin du centre, ce qui recentre
- * sans adoucir. Ils ne dépendent que de la gigue, donc ils se calculent une fois par image, ici,
- * et jamais par pixel — vingt-sept cosinus de moins par pixel.
+ * sans adoucir. Ils ne dépendent que de la gigue, qui ne prend que `TAA_SAMPLES` valeurs : la table
+ * se calcule une fois, et jamais par image ni par pixel.
  */
+import { TAA_SAMPLES, taaJitter } from './taaJitter.ts';
 
 /** Neuf poids, rangés voisin par voisin (dy puis dx, de −1 à 1), trois `vec4f` dans l'uniforme. */
 export const TAA_WEIGHTS = 12;
@@ -33,4 +34,13 @@ export function taaWeights(jx: number, jy: number, out: Float32Array, at: number
   for (k = 0; k < 9; k++) out[at + k] /= sum;
   for (; k < TAA_WEIGHTS; k++) out[at + k] = 0;
   return out;
+}
+
+/** Les poids de chacun des `TAA_SAMPLES` rangs de gigue, prêts à copier dans l'uniforme. */
+export function taaWeightTable() {
+  const jitter = new Float64Array(2);
+  return Array.from({ length: TAA_SAMPLES }, (_, sample) => {
+    taaJitter(sample, jitter);
+    return taaWeights(jitter[0], jitter[1], new Float32Array(TAA_WEIGHTS), 0);
+  });
 }

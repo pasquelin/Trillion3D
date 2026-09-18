@@ -1,7 +1,21 @@
 import * as THREE from 'three';
 import assert from 'node:assert/strict';
 import type { BackendContext, RenderBackend } from './backendTypes.ts';
+import type { ClusterManifest } from '../sdk-core/index.ts';
 import { DAG, dagRoots, type Cluster } from './pagesBackendFixture.ts';
+
+/** The quad's manifest without its primitives: a ready slice of two triangles over the DAG model. */
+export const QUAD_MANIFEST: Omit<ClusterManifest, 'primitives'> = {
+  ...DAG,
+  schema: 1,
+  status: 'ready',
+  key: 'quad',
+  scope: 'slice',
+  sourceTriangles: 2,
+  selectedTriangles: 2,
+  selectedNodes: [],
+  totalNodes: 0,
+};
 
 /** A unit quad as two triangles: the source most page tests cluster. */
 export function quadScene(material: THREE.Material = new THREE.MeshBasicMaterial()) {
@@ -53,15 +67,7 @@ export function quadRootsContext(resident: boolean, extra: Partial<BackendContex
   const context: BackendContext = {
     source: scene.source,
     metadata: {
-      ...DAG,
-      schema: 1,
-      status: 'ready',
-      key: 'quad',
-      scope: 'slice',
-      sourceTriangles: 2,
-      selectedTriangles: 2,
-      selectedNodes: [],
-      totalNodes: 0,
+      ...QUAD_MANIFEST,
       primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...dagRoots(quadPages()) }],
     },
     indices: resident ? quadIndices() : new Map<string, Uint32Array>(),

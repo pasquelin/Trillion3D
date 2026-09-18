@@ -9,6 +9,7 @@
 //   node --experimental-strip-types test/browser/antialiasing-temporel.browser.mjs
 import assert from 'node:assert/strict';
 import { preuveDansLaPage, preuveSaine } from '../appui/preuvePageMoteur.mjs';
+import { estRouge } from '../appui/preuveSceneCommune.mjs';
 
 const resultat = await preuveDansLaPage(
   'antialiasingTemporelPage.mjs',
@@ -167,8 +168,8 @@ for (const [etape, cle] of [
       const i = (y * largeur + x) * 4;
       // Le rouge au sens large de `redCount` : un pixel de bord compte comme carreau ici, pour que
       // toute la zone libérée soit examinée ; le compte des bords intermédiaires, lui, est strict.
-      const etaitRouge = avant[i] > 110 && avant[i] > avant[i + 2] + 40,
-        estFond = !(apres[i] > 110 && apres[i] > apres[i + 2] + 40);
+      const etaitRouge = estRouge(avant, i),
+        estFond = !estRouge(apres, i);
       if (!etaitRouge || !estFond || auBord(apres, x, y)) continue;
       for (let c = 0; c < 3; c++)
         if (Math.abs(accumulee[i + c] - apres[i + c]) > 2) {

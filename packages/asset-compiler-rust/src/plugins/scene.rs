@@ -111,7 +111,7 @@ fn finish(
     empty: &str,
 ) -> Result<PathBuf> {
     if request.cancelled.load(Ordering::Relaxed) {
-        return Err(CompilerError::new("CANCELLED", "Import cancelled"));
+        return Err(cancel::refusal());
     }
     if !scene.nodes().iter().any(|node| node.get("mesh").is_some()) {
         return Err(CompilerError::new("IMPORT_EMPTY", empty));

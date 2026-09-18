@@ -154,11 +154,13 @@ export function difference(a, b) {
   return n;
 }
 
+/** Vrai quand le pixel à `i` porte le rouge du carreau et non le bleu du fond. */
+export const estRouge = (pixels, i) => pixels[i] > 110 && pixels[i] > pixels[i + 2] + 40;
+
 /** Le nombre de pixels qui portent le rouge du carreau plutôt que le bleu du fond. */
 export function redCount(pixels) {
   let n = 0;
-  for (let i = 0; i < pixels.length; i += 4)
-    if (pixels[i] > 110 && pixels[i] > pixels[i + 2] + 40) n++;
+  for (let i = 0; i < pixels.length; i += 4) if (estRouge(pixels, i)) n++;
   return n;
 }
 
