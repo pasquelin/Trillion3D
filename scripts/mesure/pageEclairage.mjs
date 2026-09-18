@@ -25,16 +25,9 @@ export async function measureView(options) {
   // de milliers, et un tampon plein cesse d'enregistrer sans rien dire.
   performance.setResourceTimingBufferSize(1_000_000);
   const resourcesBefore = performance.getEntriesByType('resource').length;
+  const diagnostics = mesure.collecteDiagnostics(lost);
   const explorer = await sdk.createExplorer(canvas, {
-    onDiagnostic: (event) => {
-      // Ce que la barrière a fait pour poser l'image, et ce qui l'en empêche encore : la cause d'un
-      // témoin A/A qui bruite se lit ici, pas dans le bruit.
-      if (event.phase === 'pose-settle')
-        lost.push(`${event.phase} ${JSON.stringify(event.context)}`);
-      if (event.phase !== 'gpu-uncaptured-error' && event.phase !== 'gpu-device-lost') return;
-      const cause = event.context ?? {};
-      lost.push(`${event.phase} : ${cause.error ?? cause.message ?? cause.reason ?? ''}`);
-    },
+    onDiagnostic: diagnostics.onDiagnostic,
     ...reglages.optionsExplorateur(options, factory, eclairage),
   });
   const preparationMs = performance.now() - preparationStart;
@@ -195,6 +188,8 @@ export async function measureView(options) {
     mathBatch: last?.mathBatch ?? null,
     size,
     lost,
+    // Les avertissements du compilateur que le moteur a remontés à l'ouverture ; `null` sans aucun.
+    avertissementsDag: diagnostics.avertissements,
     captureStatus: response.status,
   };
 }
