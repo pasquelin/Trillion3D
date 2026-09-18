@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { dagRoots } from './webgpuPagesTestDag.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import type { BackendContext } from './backendTypes.ts';
+import type { ClusterManifest } from '../sdk-core/index.ts';
 import { frontCamera, quadIndices, quadScene as quadMesh } from './pagesBackendScenes.ts';
 
 /** The red quad with its two root clusters, as the WebGPU tests hand it to the backend. */
@@ -20,9 +21,17 @@ export function quadScene() {
       sha256: 'x',
     })),
   );
-  const metadata = {
+  const metadata: ClusterManifest = {
     errorModel: 'dag-group-qem-v1',
     clusterStrategy: 'dag-groups',
+    schema: 1,
+    status: 'ready',
+    key: 'quad',
+    scope: 'slice',
+    sourceTriangles: 2,
+    selectedTriangles: 2,
+    selectedNodes: [],
+    totalNodes: 0,
     primitives: [
       {
         mesh: 0,
@@ -44,7 +53,7 @@ export function quadScene() {
  */
 export function quadBackend(
   gpuDevice: BackendContext['gpuDevice'],
-  options: Partial<BackendContext> = {},
+  options: Partial<Omit<BackendContext, 'source' | 'metadata' | 'indices' | 'associations'>> = {},
 ) {
   const fixture = quadScene();
   const backend = webgpuPagesBackend({
