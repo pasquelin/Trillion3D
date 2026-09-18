@@ -51,8 +51,14 @@ export interface ExplorerOptions {
    *  valeur tirée des limites de l'appareil et bornée. Ce qui dépasse attend son tour : l'ordre sert
    *  d'abord ce que la caméra regarde, et la file finit par se vider sans qu'aucun niveau soit perdu. */
   textureBudgetBytes?: number;
-  /** Atlas size classes the prepared WebGPU renderer may allocate. Defaults to 1. */
+  /** Atlas size classes the prepared WebGPU renderer may allocate. Defaults to 2. */
   atlasClasses?: 1 | 2;
+  /** D'où viennent les texels des matériaux. `'host'`, le défaut : le chargeur glTF lit et décode
+   *  chaque image source, comme toujours — c'est ce qu'un moteur qui dessine la scène de l'hôte
+   *  (le témoin Three) exige. `'cache'` : une image dont la chaîne de mips est cuite dans le cache
+   *  n'est ni lue ni décodée, le moteur WebGPU en lit les niveaux un à un quand l'écran les demande.
+   *  À ne demander que lorsque tous les moteurs de la session lisent l'atlas et non la scène. */
+  textureSource?: 'host' | 'cache';
   sceneLighting?: THREE.Object3D;
   /** La lumière qui rebondit. Éteinte par défaut ; `true` l'allume pour toute la session. */
   bounce?: boolean;

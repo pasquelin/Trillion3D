@@ -48,6 +48,8 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     shadowBudgetMs: settings.shadowBudgetMs,
     shadowPages: settings.shadowPages,
     shadowDigest: settings.shadowDigest,
+    // Les textures lues dans le cache : seulement pour un moteur qui lit l'atlas, jamais le témoin.
+    textureSource: ENGINE.id === 'three-webgl-reference' ? 'host' : settings.textureSource,
     mathPath: settings.mathPath === 'auto' ? null : settings.mathPath,
     movingNode: settings.movingNode,
     movingNodeRadius: settings.movingNodeRadius,

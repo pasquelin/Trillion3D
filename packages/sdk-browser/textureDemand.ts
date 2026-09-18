@@ -150,6 +150,8 @@ export function createTextureDemand() {
     /** Écart entre ce qui est résident et ce que l'écran demande, en niveaux de mip. */
     gapOf: (slot: number) =>
       slot < wanted.length ? Math.max(0, finest[slot] - wanted[slot]) : TAIL_LEVEL,
+    /** Le niveau que l'écran demande ; la queue seule tant qu'aucune empreinte n'est déposée. */
+    wantedOf: (slot: number) => (slot < wanted.length ? wanted[slot] : TAIL_LEVEL),
     areaOf: (slot: number) => (slot < area.length ? area[slot] : 0),
     counters,
     /** Couches connues de la scène, aperçu de repli exclu. */

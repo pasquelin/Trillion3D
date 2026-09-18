@@ -5,6 +5,7 @@ import { DEFAULT_BACKENDS } from './defaultBackends.ts';
 import { DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
 import { createSceneLightStore } from '../sdk-core/index.ts';
 import { createSceneProxyReader } from './sceneProxyLoad.ts';
+import { createTextureLevelReader } from './textureLevelReader.ts';
 import { resolveDiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
 import { declareImportedLights, loadImportedLights } from './importedLights.ts';
 import type { BackendContext, RenderBackend } from './backendTypes.ts';
@@ -82,7 +83,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     gpuCanvas: directGpu ? canvas : undefined,
     maxFrameAllocationBytes: options.maxFrameAllocationBytes,
     maxTextureTransferBytesPerFrame: options.maxTextureTransferBytesPerFrame,
-    atlasClasses: options.atlasClasses ?? 1,
+    atlasClasses: options.atlasClasses ?? 2,
     textureBudgetBytes: options.textureBudgetBytes,
     stageProfile: options.stageProfile === true,
     // La variante de diagnostic est vérifiée ici, une fois : hors `trace`, elle est refusée.
@@ -98,6 +99,13 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     bounce: options.bounce,
     bounceBudgetMs: options.bounceBudgetMs,
     readSceneProxy: createSceneProxyReader(metadata.proxy, base, signal),
+    // Le lecteur n'existe qu'à la demande de l'hôte : sous `'host'`, le chargeur a lu et décodé
+    // les images, et le moteur prend le chemin d'avant — les lire une seconde fois dans le cache
+    // doublerait le réseau pour la même image.
+    readTextureLevel:
+      options.textureSource === 'cache'
+        ? createTextureLevelReader(metadata.textures, base, signal)
+        : undefined,
     sceneLights,
     importedLightIds,
   };

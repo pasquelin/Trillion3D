@@ -4,7 +4,14 @@ import { collectWebgpuMaterialTextures } from './webgpuMaterialTextures.ts';
 import { prepareWebgpuAtlas, regenerateClassMips } from './webgpuAtlasCommon.ts';
 import { createWebgpuAtlasSlots } from './webgpuAtlasSlots.ts';
 import { ATLAS_CLASS_COUNT } from './webgpuAtlasClasses.ts';
-import { PREVIEW_BASE, TEXTURE_PREVIEW_VERSION, type TexturePreview } from '../sdk-core/index.ts';
+import {
+  PREVIEW_ATLAS_COLOR,
+  PREVIEW_ATLAS_DATA,
+  PREVIEW_BASE,
+  previewIsWhole,
+  TEXTURE_PREVIEW_VERSION,
+  type TexturePreview,
+} from '../sdk-core/index.ts';
 import { mipLevelCountFor } from './textureMips.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -67,16 +74,23 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
   });
   const textureStarted = performance.now();
   const fallbackEncoder = gpuDevice.createCommandEncoder();
-  // Les niveaux progressifs du sidecar, rangés par la texture de la scène qu'ils couvrent.
-  const byTexture = new Map<number, TexturePreview>();
+  // Les niveaux du sidecar, rangés par la texture de la scène qu'ils couvrent et par atlas : la
+  // même texture peut en avoir une entrée pour chacun, réduite par la courbe de cet atlas.
+  const byTexture = new Map<string, TexturePreview>();
   for (const preview of rt.context.metadata.texturePreviews ?? [])
-    byTexture.set(preview.texture, preview);
-  const previewFor = (index: number) => {
-    const source = rt.context.textureIndices?.get(maps[index]);
-    return source === undefined ? undefined : byTexture.get(source);
+    byTexture.set(`${preview.texture}/${preview.atlas}`, preview);
+  const previewOf = (kind: 'color' | 'data', list: typeof maps) => (index: number) => {
+    const source = rt.context.textureIndices?.get(list[index]);
+    const atlas = kind === 'color' ? PREVIEW_ATLAS_COLOR : PREVIEW_ATLAS_DATA;
+    return source === undefined ? undefined : byTexture.get(`${source}/${atlas}`);
   };
-  // Une seule classe par défaut : l'hôte demande la seconde explicitement (`atlasClasses`).
-  const maxClasses = rt.context.atlasClasses ?? 1;
+  const previewFor = previewOf('color', maps);
+  const dataPreviewFor = previewOf('data', dataMaps);
+  const readLevel = rt.context.readTextureLevel;
+  // Deux classes par défaut : une texture 16×16 rangée dans l'atlas dimensionné sur la plus
+  // grande occupe une couche entière — 872 359 272 octets sur Emerald, rendus pour 0,012 % de
+  // pixels changés (`docs/SDK.md`). L'hôte redescend à une classe explicitement (`atlasClasses`).
+  const maxClasses = rt.context.atlasClasses ?? 2;
   const colorAtlas = prepareWebgpuAtlas(gpuDevice, maps, uvScales, textureJobs, fallbackEncoder, {
     kind: 'color',
     format: 'rgba8unorm-srgb',
@@ -84,6 +98,7 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     fillFor: () => WHITE,
     errorCode: 'MATERIAL_COLOR_TEXTURE_UNAVAILABLE',
     previewFor,
+    readLevel,
   });
   vis.colorAtlas = colorAtlas;
   const dataAtlas = prepareWebgpuAtlas(
@@ -99,6 +114,8 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
       fillFor: (source) =>
         source !== undefined && normalMaps.has(dataMaps[source]) ? FLAT_NORMAL : WHITE,
       errorCode: 'MATERIAL_DATA_TEXTURE_UNAVAILABLE',
+      previewFor: dataPreviewFor,
+      readLevel,
     },
   );
   gpuDevice.queue.submit([fallbackEncoder.finish()]);
@@ -127,6 +144,12 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
       version: TEXTURE_PREVIEW_VERSION,
       base: PREVIEW_BASE,
       withLevels: maps.filter((_map, index) => previewFor(index)).length,
+      dataWithLevels: dataMaps.filter((_map, index) => dataPreviewFor(index)).length,
+      // Les chaînes cuites en entier, que le moteur lit dans le cache sans jamais décoder la source.
+      baked: [
+        ...maps.map((_m, i) => previewFor(i)),
+        ...dataMaps.map((_m, i) => dataPreviewFor(i)),
+      ].filter((preview) => preview && previewIsWhole(preview) && readLevel).length,
       format: 'rgba8unorm-srgb',
     },
     preparationMs: performance.now() - textureStarted,

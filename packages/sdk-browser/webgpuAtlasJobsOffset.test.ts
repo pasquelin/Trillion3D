@@ -84,6 +84,8 @@ test('H3-1 : les niveaux progressifs d’un aperçu partent eux aussi octet pour
     height,
     sourceKind: 0,
     sourceBufferView: -1,
+    atlas: 0,
+    bakedLevels: 0,
     sha256: '0'.repeat(64),
     firstLevel,
     levels,
@@ -104,6 +106,8 @@ test('H3-1 : les niveaux progressifs d’un aperçu partent eux aussi octet pour
     texture: {} as GPUTexture,
     place: { slot: 3, classIndex: 0, layer: 3 },
     preview,
+    kind: 'color',
+    pyramid: { first: firstLevel, last: firstLevel + levels.length - 1 },
   });
   for (const job of jobs)
     for (const [row, count] of bandes(job.rows, 3)) job.uploadRows(row, count);

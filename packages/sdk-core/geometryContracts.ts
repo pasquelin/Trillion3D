@@ -139,8 +139,11 @@ export interface Primitive {
   };
 }
 /**
- * L'aperçu d'une texture couleur : cinq niveaux RGBA8 sRGB à alpha droit, du 16×16 au 1×1. Le
- * moteur l'échantillonne tant que la vraie texture n'est pas transférée, puis bascule sur elle.
+ * La chaîne de mips d'une texture d'atlas : la queue dans le sidecar — du premier niveau dont aucun
+ * côté ne dépasse `PREVIEW_BASE` au 1×1, en RGBA8 dans l'encodage de son atlas — et, au-dessus,
+ * `bakedLevels` fichiers PNG sans perte dans le cache, un par niveau du 0 au `bakedLevels - 1`, à
+ * l'adresse que `ClusterManifest.textures.url` gabarit. Le moteur écrit chaque niveau reçu dans le
+ * niveau de mip de même rang de sa couche et échantillonne la queue résidente sans rien recalculer.
  */
 export interface TexturePreview {
   /** Rang dans le tableau `textures` de la scène préparée. */
@@ -155,9 +158,14 @@ export interface TexturePreview {
   sourceBufferView: number;
   /** SHA-256 des octets sources décodés. */
   sha256: string;
+  /** L'atlas que cette entrée sert : `PREVIEW_ATLAS_COLOR` ou `PREVIEW_ATLAS_DATA`. */
+  atlas: number;
   /** Rang du premier niveau porté dans la chaîne de mips de la source ; 0 quand elle tient déjà
    *  sous `PREVIEW_BASE` et que le sidecar porte donc sa pleine résolution. */
   firstLevel: number;
+  /** Niveaux cuits en fichiers dans le cache, du 0 au `bakedLevels - 1` ; `firstLevel` quand la
+   *  chaîne est entière, 0 quand rien n'a été écrit et que le moteur charge l'image source. */
+  bakedLevels: number;
   /** Les niveaux portés dans l'ordre, du plus fin au 1×1, chacun une vue sur les octets du sidecar. */
   levels: Uint8Array<ArrayBuffer>[];
 }
@@ -177,8 +185,13 @@ export interface ClusterManifest {
   totalNodes: number;
   autonomousScene?: string | null;
   primitives: Primitive[];
-  /** Un aperçu par texture couleur décodée, trié par index de texture; vide sans image décodable. */
+  /** Une entrée par (texture, atlas) décodée, triée par texture puis par atlas ; vide sans image
+   *  décodable. */
   texturePreviews?: TexturePreview[];
+  /** Le gabarit des niveaux cuits, relatif au manifeste : `{sha}` l'empreinte de l'image source,
+   *  `{kind}` le nom de l'atlas (`PREVIEW_ATLAS_NAMES`), `{level}` le rang du niveau. Absent d'un
+   *  cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du sidecar. */
+  textures?: { url: string };
   /** Où lire le proxy résident de la scène et son BVH : la géométrie que les rayons touchent.
    *  Absent d'un cache compilé avant le rebond, qui reste lisible tel quel. */
   proxy?: SceneProxyDescriptor;
