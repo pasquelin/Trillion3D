@@ -145,8 +145,8 @@ test('moving opaque cameras use the current GPU selection without CPU reselectio
       cam.updateMatrixWorld();
       draws.length = 0;
       backend.render(cam);
-      // La sélection de l'IMAGE EN COURS, lue dans son masque : c'est elle que le raster de calcul
-      // consomme sur place, là où l'ancienne commande indirecte portait le compte d'instances.
+      // La sélection de l'IMAGE EN COURS, lue dans son masque : c'est elle que les commandes
+      // indirectes consomment en instances, sans attendre le relevé d'une image passée.
       assert.equal(
         drawnPageIds(buffers, packed.nodeCount, packed.pageCount).length,
         target ? 0 : 2,
