@@ -9,6 +9,12 @@ import { sunFarState } from './webgpuPagesPrepareSunFar.ts';
 import { renderWebgpuPages } from './webgpuPagesRender.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
+/** Images qu'une barrière consacre au plus aux pages d'ombre en attente. Une page attend au plus
+ *  deux images sous le budget ordinaire (`retardMaxImages`) ; le reste couvre une caméra immobile
+ *  dont toutes les pages viennent d'être périmées par un dernier niveau de texture. Une caméra qui
+ *  bouge périme des pages à chaque image et ne converge jamais : la borne est là pour elle. */
+const SHADOW_DRAIN_LIMIT = 8;
+
 function reportProgress(rt: WebgpuPagesRuntime) {
   const { run, gpu, blendState, diag, services, context } = rt;
   if (performance.now() - run.lastProgressMs < 2000) return;
@@ -135,11 +141,24 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime) {
   // le chemin d'image, lui, pousse une passe par image et ne doit rien attendre.
   // Un niveau cuit se lit avant de se transférer : quand la file n'a plus rien de prêt, la barrière
   // attend les lectures en vol au lieu de tourner à vide.
+  const landedBefore = rt.texturePump.levels + rt.texturePump.uploaded;
   while (gpuDevice && vis.textureJobs.length) {
     rt.texturePump.pump(true);
     await gpuDevice.queue.onSubmittedWorkDone();
     const reading = rt.texturePump.settled();
     if (reading && !vis.textureJobs.some((job) => job.ready)) await reading;
+  }
+  // Les cartes d'ombre suivent les textures : quand ce drainage a fait arriver un niveau, les pages
+  // qu'il a périmées sont redessinées ici, sous leur budget, jusqu'à ce qu'aucune n'attende — une
+  // pose vidée est une pose dont l'ombre décrit l'image. Rien n'est redessiné quand aucun niveau
+  // n'est arrivé : une caméra qui bouge périme des pages à chaque image, une page de géométrie qui
+  // entre ou sort en périme aussi, et ce n'est pas l'affaire de la barrière. Bornée, voir
+  // `SHADOW_DRAIN_LIMIT`.
+  const arrived = rt.texturePump.levels + rt.texturePump.uploaded !== landedBefore;
+  for (let drains = 0; arrived && drains < SHADOW_DRAIN_LIMIT && run.lastCamera; drains++) {
+    if (run.lost || capture.secondaryCamera || !(rt.lights.plan.counts.pendingPages > 0)) break;
+    renderWebgpuPages(rt, run.lastCamera);
+    if (gpuDevice) await gpuDevice.queue.onSubmittedWorkDone();
   }
   await services.bootstrapState.ensure();
   await services.residency.pending;
