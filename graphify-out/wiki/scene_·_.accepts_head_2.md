@@ -1,6 +1,6 @@
 # scene · .accepts_head (2)
 
-> 25 nodes
+> 26 nodes · cohesion 0.08
 
 ## Key Concepts
 
@@ -9,8 +9,10 @@
 - **wasm.rs** (9 connections) — `packages/page-codec-wasm/src/wasm.rs`
 - **ALEMBIC** (8 connections) — `packages/asset-compiler-rust/src/plugins/scene/alembic.rs`
 - **fuite()** (5 connections) — `packages/page-codec-wasm/src/wasm.rs`
+- **page_decode()** (3 connections) — `packages/page-codec-wasm/src/wasm.rs`
 - **arena_alloc()** (2 connections) — `packages/page-codec-wasm/src/wasm_math.rs`
 - **page_alloc()** (2 connections) — `packages/page-codec-wasm/src/wasm.rs`
+- **archive** (1 connections)
 - **.accepts_head()** (1 connections) — `packages/asset-compiler-rust/src/plugins/scene/alembic.rs`
 - **.extensions()** (1 connections) — `packages/asset-compiler-rust/src/plugins/scene/alembic.rs`
 - **.name()** (1 connections) — `packages/asset-compiler-rust/src/plugins/scene/alembic.rs`
@@ -27,23 +29,22 @@
 - **page_release()** (1 connections) — `packages/page-codec-wasm/src/wasm.rs`
 - **rends()** (1 connections) — `packages/page-codec-wasm/src/wasm.rs`
 - **RESULT_WORDS** (1 connections) — `packages/page-codec-wasm/src/wasm.rs`
-- **T** (1 connections)
-- **archive** (1 connections)
+- *... and 1 more nodes in this community*
 
 ## Relationships
 
-- [plugins · AsRef](plugins_·_AsRef.md) (2 shared connections)
+- [Greffons de scène du compilateur](Greffons_de_scène_du_compilateur.md) (4 shared connections)
+- [Import Unity et maillages](Import_Unity_et_maillages.md) (3 shared connections)
 - [src · BOX_VALUES](src_·_BOX_VALUES.md) (2 shared connections)
-- [src · budget_de_decompression_refuse_avant_toute_decompression](src_·_budget_de_decompression_refuse_avant_toute_decompression.md) (2 shared connections)
-- [Import Unity et maillages](Import_Unity_et_maillages.md) (2 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
-- [scene · .accepts_head](scene_·_.accepts_head.md) (1 shared connections)
-- [Verrou CLI et fixtures du compilateur](Verrou_CLI_et_fixtures_du_compilateur.md) (1 shared connections)
-- [blend · NGON_UNCUT](blend_·_NGON_UNCUT.md) (1 shared connections)
-- [Monde et composition USD](Monde_et_composition_USD.md) (1 shared connections)
-- [Greffons et pilotes de scène](Greffons_et_pilotes_de_scène.md) (1 shared connections)
-- [Tables de scène à l'import](Tables_de_scène_à_l'import.md) (1 shared connections)
 - [Validation du compilateur](Validation_du_compilateur.md) (1 shared connections)
+- [Fixtures de pilotes et plafond d'allocation](Fixtures_de_pilotes_et_plafond_d'allocation.md) (1 shared connections)
+- [bench_calculs · Bits (2)](bench_calculs_·_Bits_2.md) (1 shared connections)
+- [DAG et stratégie de coupe](DAG_et_stratégie_de_coupe.md) (1 shared connections)
+- [src · PLAN](src_·_PLAN.md) (1 shared connections)
+- [Manifeste binaire (Rust)](Manifeste_binaire_Rust.md) (1 shared connections)
+- [Oracle : rayons et indirect](Oracle_-_rayons_et_indirect.md) (1 shared connections)
+- [Matrices monde du compilateur (2)](Matrices_monde_du_compilateur_2.md) (1 shared connections)
+- [Maillages et jeux de faces](Maillages_et_jeux_de_faces.md) (1 shared connections)
 
 ## Source Files
 
@@ -53,8 +54,8 @@
 
 ## Audit Trail
 
-- EXTRACTED: 58 (98%)
-- INFERRED: 1 (2%)
+- EXTRACTED: 58 (97%)
+- INFERRED: 2 (3%)
 - AMBIGUOUS: 0 (0%)
 
 ---

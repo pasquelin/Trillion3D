@@ -1,6 +1,6 @@
 # ma · Default
 
-> 16 nodes
+> 18 nodes · cohesion 0.19
 
 ## Key Concepts
 
@@ -10,11 +10,13 @@
 - **read()** (5 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/document.rs`
 - **.apply()** (4 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/document.rs`
 - **.default()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/document.rs`
+- **leaf()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/document.rs`
 - **Link** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/document.rs`
 - **.attr()** (3 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/document.rs`
 - **Option** (3 connections)
 - **String** (3 connections)
 - **.count()** (2 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/document.rs`
+- **.remember()** (2 connections) — `packages/asset-compiler-rust/src/plugins/scene/ma/document/path.rs`
 - **Attr** (2 connections)
 - **HashMap** (2 connections)
 - **Default** (1 connections)
@@ -23,20 +25,21 @@
 
 ## Relationships
 
+- [Document](Document.md) (2 shared connections)
 - [scene · .accepts_head](scene_·_.accepts_head.md) (1 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
-- [document · .remember](document_·_.remember.md) (1 shared connections)
-- [Rapport et table des textures](Rapport_et_table_des_textures.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
+- [import · Option](import_·_Option.md) (1 shared connections)
 - [Commandes et document Maya](Commandes_et_document_Maya.md) (1 shared connections)
 
 ## Source Files
 
 - `packages/asset-compiler-rust/src/plugins/scene/ma/document.rs`
+- `packages/asset-compiler-rust/src/plugins/scene/ma/document/path.rs`
 
 ## Audit Trail
 
-- EXTRACTED: 32 (100%)
-- INFERRED: 0 (0%)
+- EXTRACTED: 33 (94%)
+- INFERRED: 2 (6%)
 - AMBIGUOUS: 0 (0%)
 
 ---

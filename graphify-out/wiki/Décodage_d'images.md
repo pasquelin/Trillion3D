@@ -1,6 +1,6 @@
 # Décodage d'images
 
-> 47 nodes
+> 46 nodes · cohesion 0.07
 
 ## Key Concepts
 
@@ -21,30 +21,30 @@
 - **from_pixels()** (4 connections) — `packages/asset-compiler-rust/src/plugins/image/dds/blocks.rs`
 - **decode()** (4 connections) — `packages/asset-compiler-rust/src/plugins/image.rs`
 - **Result** (4 connections)
-- **format** (4 connections)
+- **blocks_as_shared** (3 connections)
 - **image/blocks.rs** (3 connections) — `packages/asset-compiler-rust/src/plugins/image/blocks.rs`
 - **image()** (3 connections) — `packages/asset-compiler-rust/src/plugins/image/blocks.rs`
 - **to_rgba8()** (3 connections) — `packages/asset-compiler-rust/src/plugins/image/blocks.rs`
 - **extensions()** (3 connections) — `packages/asset-compiler-rust/src/plugins/image.rs`
 - **.decode()** (3 connections) — `packages/asset-compiler-rust/src/plugins/image.rs`
-- **blocks_as_shared** (3 connections)
 - **Cow** (2 connections)
-- *... and 22 more nodes in this community*
+- **Result** (2 connections)
+- *... and 21 more nodes in this community*
 
 ## Relationships
 
 - [image · IntoIterator](image_·_IntoIterator.md) (7 shared connections)
 - [Codecs DDS](Codecs_DDS.md) (3 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (3 shared connections)
+- [En-tête et DFD du KTX2](En-tête_et_DFD_du_KTX2.md) (3 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (3 shared connections)
 - [Greffons et pilotes de scène](Greffons_et_pilotes_de_scène.md) (2 shared connections)
-- [unity · les_mesures_et_la_provenance_sortent_de_lidentite](unity_·_les_mesures_et_la_provenance_sortent_de_lidentite.md) (2 shared connections)
+- [Identité du compilateur et purge](Identité_du_compilateur_et_purge.md) (2 shared connections)
 - [Sections et pixels PSD](Sections_et_pixels_PSD.md) (2 shared connections)
-- [Clés et orientation KTX2](Clés_et_orientation_KTX2.md) (2 shared connections)
 - [Décodage EXR](Décodage_EXR.md) (2 shared connections)
 - [Décodage HDR](Décodage_HDR.md) (2 shared connections)
 - [Décodage PSD](Décodage_PSD.md) (2 shared connections)
 - [Décodage WebP](Décodage_WebP.md) (2 shared connections)
-- [En-tête et DFD du KTX2](En-tête_et_DFD_du_KTX2.md) (1 shared connections)
+- [tests · a_format_outside_the_registry_is_named_in_the_report](tests_·_a_format_outside_the_registry_is_named_in_the_report.md) (1 shared connections)
 
 ## Source Files
 
@@ -56,7 +56,7 @@
 
 ## Audit Trail
 
-- EXTRACTED: 113 (94%)
+- EXTRACTED: 110 (94%)
 - INFERRED: 7 (6%)
 - AMBIGUOUS: 0 (0%)
 

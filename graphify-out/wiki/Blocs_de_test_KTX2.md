@@ -1,6 +1,6 @@
 # Blocs de test KTX2
 
-> 26 nodes
+> 26 nodes · cohesion 0.10
 
 ## Key Concepts
 

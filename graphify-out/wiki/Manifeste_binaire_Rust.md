@@ -1,6 +1,6 @@
 # Manifeste binaire (Rust)
 
-> 41 nodes
+> 41 nodes · cohesion 0.05
 
 ## Key Concepts
 
@@ -33,12 +33,12 @@
 
 ## Relationships
 
-- [src · Result](src_·_Result.md) (2 shared connections)
+- [Manifeste binaire (Rust) (2)](Manifeste_binaire_Rust_2.md) (2 shared connections)
 - [Aperçus de textures (étage) (2)](Aperçus_de_textures_étage_2.md) (1 shared connections)
 - [scene · .accepts_head (2)](scene_·_.accepts_head_2.md) (1 shared connections)
-- [Jeux de bancs Rust](Jeux_de_bancs_Rust.md) (1 shared connections)
-- [manifest_binary · Result](manifest_binary_·_Result.md) (1 shared connections)
-- [Décodage d'images](Décodage_d'images.md) (1 shared connections)
+- [Import Unity et maillages (2)](Import_Unity_et_maillages_2.md) (1 shared connections)
+- [manifest_binary · String (2)](manifest_binary_·_String_2.md) (1 shared connections)
+- [Documentation et frontières](Documentation_et_frontières.md) (1 shared connections)
 
 ## Source Files
 

@@ -1,63 +1,45 @@
 # Bancs de calcul Rust (2)
 
-> 37 nodes
+> 13 nodes · cohesion 0.18
 
 ## Key Concepts
 
-- **harness.rs** (27 connections) — `packages/asset-compiler-rust/src/bench_calculs/harness.rs`
-- **compare()** (27 connections) — `packages/asset-compiler-rust/src/bench_calculs/harness.rs`
-- **f_scalaires.rs** (10 connections) — `packages/asset-compiler-rust/src/bench_calculs/f_scalaires.rs`
-- **measure()** (7 connections) — `packages/asset-compiler-rust/src/bench_calculs/harness.rs`
-- **b3_bordure.rs** (6 connections) — `packages/asset-compiler-rust/src/bench_calculs/b3_bordure.rs`
-- **b5_page.rs** (6 connections) — `packages/asset-compiler-rust/src/bench_calculs/b5_page.rs`
-- **row_normalisation()** (5 connections) — `packages/asset-compiler-rust/src/bench_calculs/f_scalaires.rs`
-- **row()** (4 connections) — `packages/asset-compiler-rust/src/bench_calculs/b3_bordure.rs`
-- **row()** (4 connections) — `packages/asset-compiler-rust/src/bench_calculs/b5_page.rs`
-- **row_bourrage()** (4 connections) — `packages/asset-compiler-rust/src/bench_calculs/f_scalaires.rs`
-- **turn()** (4 connections) — `packages/asset-compiler-rust/src/bench_calculs/harness.rs`
-- **empreinte()** (3 connections) — `packages/asset-compiler-rust/src/bench_calculs/b5_page.rs`
-- **reference_localise()** (3 connections) — `packages/asset-compiler-rust/src/bench_calculs/b5_page.rs`
-- **FnMut** (3 connections)
-- **T** (3 connections)
-- **Locale** (2 connections)
-- **empreinte()** (2 connections) — `packages/asset-compiler-rust/src/bench_calculs/b3_bordure.rs`
-- **reference_bordure()** (2 connections) — `packages/asset-compiler-rust/src/bench_calculs/b3_bordure.rs`
-- **directions()** (2 connections) — `packages/asset-compiler-rust/src/bench_calculs/f_scalaires.rs`
-- **empreinte_bourrage()** (2 connections) — `packages/asset-compiler-rust/src/bench_calculs/f_scalaires.rs`
-- **empreinte_vecteurs()** (2 connections) — `packages/asset-compiler-rust/src/bench_calculs/f_scalaires.rs`
-- **Bits** (2 connections)
-- **median()** (2 connections) — `packages/asset-compiler-rust/src/bench_calculs/harness.rs`
-- **String** (2 connections)
-- **TIME_BUDGET** (2 connections) — `packages/asset-compiler-rust/src/bench_calculs/harness.rs`
-- *... and 12 more nodes in this community*
+- **hashmap** (8 connections)
+- **b6_adjacence.rs** (8 connections) — `packages/asset-compiler-rust/src/bench_calculs/b6_adjacence.rs`
+- **dag/tests/part1.rs** (6 connections) — `packages/asset-compiler-rust/src/dag/tests/part1.rs`
+- **row()** (4 connections) — `packages/asset-compiler-rust/src/bench_calculs/b6_adjacence.rs`
+- **reference_adjacence()** (3 connections) — `packages/asset-compiler-rust/src/bench_calculs/b6_adjacence.rs`
+- **cle()** (2 connections) — `packages/asset-compiler-rust/src/bench_calculs/b6_adjacence.rs`
+- **empreinte()** (2 connections) — `packages/asset-compiler-rust/src/bench_calculs/b6_adjacence.rs`
+- **cluster_adjacency** (1 connections)
+- **Bits** (1 connections)
+- **errors_are_monotone_and_roots_are_terminal()** (1 connections) — `packages/asset-compiler-rust/src/dag/tests/part1.rs`
+- **every_level_above_zero_uses_groups_of_eight_to_thirty_two_clusters()** (1 connections) — `packages/asset-compiler-rust/src/dag/tests/part1.rs`
+- **every_threshold_selects_exactly_one_cluster_per_ancestor_chain()** (1 connections) — `packages/asset-compiler-rust/src/dag/tests/part1.rs`
+- **level_zero_clusters_respect_the_triangle_budget_and_cover_the_source_once()** (1 connections) — `packages/asset-compiler-rust/src/dag/tests/part1.rs`
 
 ## Relationships
 
-- [Maths partagées et BVH](Maths_partagées_et_BVH.md) (8 shared connections)
-- [Rapport des bancs de calcul](Rapport_des_bancs_de_calcul.md) (5 shared connections)
-- [Jeux de bancs Rust](Jeux_de_bancs_Rust.md) (3 shared connections)
-- [Groupes et bissection du DAG](Groupes_et_bissection_du_DAG.md) (3 shared connections)
-- [Matrices monde du compilateur](Matrices_monde_du_compilateur.md) (2 shared connections)
-- [bench_calculs · Bits (4)](bench_calculs_·_Bits_4.md) (2 shared connections)
-- [src · Bits](src_·_Bits.md) (2 shared connections)
-- [bench_calculs · Bits](bench_calculs_·_Bits.md) (2 shared connections)
-- [dag · Bits](dag_·_Bits.md) (2 shared connections)
-- [Aperçus de textures et pyramide (3)](Aperçus_de_textures_et_pyramide_3.md) (2 shared connections)
-- [bench_calculs · Bits (2)](bench_calculs_·_Bits_2.md) (2 shared connections)
-- [bench_calculs · Bits (3)](bench_calculs_·_Bits_3.md) (2 shared connections)
+- [Bancs de calcul Rust](Bancs_de_calcul_Rust.md) (2 shared connections)
+- [DAG et stratégie de coupe](DAG_et_stratégie_de_coupe.md) (1 shared connections)
+- [src · PLAN](src_·_PLAN.md) (1 shared connections)
+- [Maillages et jeux de faces](Maillages_et_jeux_de_faces.md) (1 shared connections)
+- [dna · Option](dna_·_Option.md) (1 shared connections)
+- [Normales et jointures](Normales_et_jointures.md) (1 shared connections)
+- [src · Fn](src_·_Fn.md) (1 shared connections)
+- [Jeux de bancs Rust](Jeux_de_bancs_Rust.md) (1 shared connections)
+- [Construction du DAG](Construction_du_DAG.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
 
 ## Source Files
 
-- `packages/asset-compiler-rust/src/bench_calculs/b3_bordure.rs`
-- `packages/asset-compiler-rust/src/bench_calculs/b5_page.rs`
-- `packages/asset-compiler-rust/src/bench_calculs/f_scalaires.rs`
-- `packages/asset-compiler-rust/src/bench_calculs/harness.rs`
-- `packages/asset-compiler-rust/src/shared_math.rs`
+- `packages/asset-compiler-rust/src/bench_calculs/b6_adjacence.rs`
+- `packages/asset-compiler-rust/src/dag/tests/part1.rs`
 
 ## Audit Trail
 
-- EXTRACTED: 73 (74%)
-- INFERRED: 25 (26%)
+- EXTRACTED: 23 (92%)
+- INFERRED: 2 (8%)
 - AMBIGUOUS: 0 (0%)
 
 ---

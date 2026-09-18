@@ -1,6 +1,6 @@
 # fixtures · readLightingGltf
 
-> 14 nodes
+> 14 nodes · cohesion 0.33
 
 ## Key Concepts
 
@@ -16,21 +16,20 @@
 - **dot()** (4 connections) — `test/fixtures/lightingSceneTestHelpers.ts`
 - **sub()** (4 connections) — `test/fixtures/lightingSceneTestHelpers.ts`
 - **unit()** (3 connections) — `test/fixtures/lightingSceneTestHelpers.ts`
-- **readLightingGltf()** (2 connections) — `test/fixtures/lightingSceneGltfTestHelpers.ts`
 - **lightingSceneGltfTestHelpers.ts** (2 connections) — `test/fixtures/lightingSceneGltfTestHelpers.ts`
+- **readLightingGltf()** (2 connections) — `test/fixtures/lightingSceneGltfTestHelpers.ts`
 
 ## Relationships
 
 - [Scène d'expérience d'éclairage](Scène_d'expérience_d'éclairage.md) (13 shared connections)
-- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (8 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (9 shared connections)
 - [Transport de lumière (2)](Transport_de_lumière_2.md) (3 shared connections)
 - [bench · blocs](bench_·_blocs.md) (1 shared connections)
-- [sdk-browser · flush](sdk-browser_·_flush.md) (1 shared connections)
-- [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (1 shared connections)
-- [Coût CPU et image tenue](Coût_CPU_et_image_tenue.md) (1 shared connections)
-- [sdk-browser · box](sdk-browser_·_box.md) (1 shared connections)
-- [Mathématiques du tampon de visibilité (2)](Mathématiques_du_tampon_de_visibilité_2.md) (1 shared connections)
-- [sdk-browser · Plan](sdk-browser_·_Plan.md) (1 shared connections)
+- [Pages autonomes et backends](Pages_autonomes_et_backends.md) (1 shared connections)
+- [Intégration des pages arrivées (3)](Intégration_des_pages_arrivées_3.md) (1 shared connections)
+- [Étapes et profilage de trame (2) (2)](Étapes_et_profilage_de_trame_2_2_2.md) (1 shared connections)
+- [Pyramide Hi-Z et occlusion](Pyramide_Hi-Z_et_occlusion.md) (1 shared connections)
+- [Lignes de page et double face](Lignes_de_page_et_double_face.md) (1 shared connections)
 
 ## Source Files
 

@@ -1,78 +1,63 @@
 # Télémétrie et métriques
 
-> 68 nodes
+> 25 nodes · cohesion 0.13
 
 ## Key Concepts
 
-- **explorerRender.ts** (32 connections) — `packages/sdk-browser/explorerRender.ts`
 - **explorerMetrics.ts** (25 connections) — `packages/sdk-browser/explorerMetrics.ts`
-- **explorerFrameDiagnostic.ts** (22 connections) — `packages/sdk-browser/explorerFrameDiagnostic.ts`
 - **EngineProfiler** (20 connections) — `packages/sdk-browser/telemetry.ts`
-- **FrameMetrics** (20 connections) — `packages/sdk-core/metricsContracts.ts`
-- **cameraPath.ts** (19 connections) — `packages/sdk-browser/cameraPath.ts`
-- **telemetry.ts** (17 connections) — `packages/sdk-browser/telemetry.ts`
 - **explorerMetrics.test.ts** (15 connections) — `packages/sdk-browser/explorerMetrics.test.ts`
-- **metricsContracts.ts** (14 connections) — `packages/sdk-core/metricsContracts.ts`
 - **createExplorerMetrics()** (13 connections) — `packages/sdk-browser/explorerMetrics.ts`
-- **explorerFrameDiagnostic.test.ts** (12 connections) — `packages/sdk-browser/explorerFrameDiagnostic.test.ts`
-- **explorerRenderTriangles.test.ts** (12 connections) — `packages/sdk-browser/explorerRenderTriangles.test.ts`
-- **explorerTelemetryApi.ts** (12 connections) — `packages/sdk-browser/explorerTelemetryApi.ts`
-- **telemetry.test.ts** (12 connections) — `packages/sdk-browser/telemetry.test.ts`
-- **packages_sdk_core_index_framemetrics** (12 connections)
-- **summarize()** (9 connections) — `packages/sdk-core/stats.ts`
-- **createExplorerRender()** (8 connections) — `packages/sdk-browser/explorerRender.ts`
-- **frameStatistics()** (8 connections) — `packages/sdk-core/stats.ts`
 - **backendMetricKeys.ts** (8 connections) — `packages/sdk-browser/backendMetricKeys.ts`
-- **stats.test.ts** (7 connections) — `packages/sdk-core/stats.test.ts`
-- **runCameraPath()** (6 connections) — `packages/sdk-browser/cameraPath.ts`
-- **TelemetryReport** (5 connections) — `packages/sdk-browser/telemetryTypes.ts`
-- **emitExplorerFrameDiagnostic()** (5 connections) — `packages/sdk-browser/explorerFrameDiagnostic.ts`
-- **pageDecodeStats()** (5 connections) — `packages/sdk-browser/pageDecodeHost.ts`
 - **.getReport()** (5 connections) — `packages/sdk-browser/telemetry.ts`
-- *... and 43 more nodes in this community*
+- **.metrics()** (4 connections) — `packages/sdk-browser/backendTypes.ts`
+- **.startAutoLog()** (4 connections) — `packages/sdk-browser/telemetry.ts`
+- **BackendMetrics** (3 connections) — `packages/sdk-browser/backendMetricKeys.ts`
+- **harnais()** (3 connections) — `packages/sdk-browser/explorerMetrics.test.ts`
+- **pageIntegrationStats()** (3 connections) — `packages/sdk-browser/pageIntegrationHost.ts`
+- **.formatReport()** (3 connections) — `packages/sdk-browser/telemetry.ts`
+- **.printReport()** (3 connections) — `packages/sdk-browser/telemetry.ts`
+- **.setMetadata()** (3 connections) — `packages/sdk-browser/telemetry.ts`
+- **.stopAutoLog()** (3 connections) — `packages/sdk-browser/telemetry.ts`
+- **BACKEND_METRIC_KEYS** (2 connections) — `packages/sdk-browser/backendMetricKeys.ts`
+- **publishMetric()** (2 connections) — `packages/sdk-browser/explorerMetrics.ts`
+- **state()** (2 connections) — `packages/sdk-browser/explorerMetrics.test.ts`
+- **.dispose()** (2 connections) — `packages/sdk-browser/telemetry.ts`
+- **.orderedIntervals()** (2 connections) — `packages/sdk-browser/telemetry.ts`
+- **.record()** (2 connections) — `packages/sdk-browser/telemetry.ts`
+- **ComposedMetric** (1 connections) — `packages/sdk-browser/backendMetricKeys.ts`
+- **State** (1 connections) — `packages/sdk-browser/explorerMetrics.ts`
+- **streamer** (1 connections) — `packages/sdk-browser/explorerMetrics.test.ts`
+- **.constructor()** (1 connections) — `packages/sdk-browser/telemetry.ts`
 
 ## Relationships
 
-- [API et session de l'explorateur (2)](API_et_session_de_l'explorateur_2.md) (56 shared connections)
-- [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (13 shared connections)
-- [Contrat backend et dessin (3)](Contrat_backend_et_dessin_3.md) (12 shared connections)
-- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (11 shared connections)
-- [Diffusion des pages en continu](Diffusion_des_pages_en_continu.md) (10 shared connections)
-- [Coût CPU et image tenue](Coût_CPU_et_image_tenue.md) (9 shared connections)
-- [Télémétrie et métriques (2)](Télémétrie_et_métriques_2.md) (6 shared connections)
-- [Gabarits de sélection de pages](Gabarits_de_sélection_de_pages.md) (5 shared connections)
-- [Étapes et profilage de trame (2)](Étapes_et_profilage_de_trame_2.md) (5 shared connections)
-- [sdk-browser · flush](sdk-browser_·_flush.md) (4 shared connections)
-- [Caméra monde et contrat](Caméra_monde_et_contrat.md) (4 shared connections)
-- [Scène de l'explorateur et chargement (2)](Scène_de_l'explorateur_et_chargement_2.md) (4 shared connections)
+- [Pages autonomes et backends](Pages_autonomes_et_backends.md) (17 shared connections)
+- [API et session de l'explorateur](API_et_session_de_l'explorateur.md) (10 shared connections)
+- [API et session de l'explorateur (2)](API_et_session_de_l'explorateur_2.md) (4 shared connections)
+- [Diffusion des pages en continu](Diffusion_des_pages_en_continu.md) (4 shared connections)
+- [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (3 shared connections)
+- [Arbre monde et lots de maths](Arbre_monde_et_lots_de_maths.md) (3 shared connections)
+- [sdk-browser · avecCoeurs](sdk-browser_·_avecCoeurs.md) (3 shared connections)
+- [Intégration des pages arrivées (2)](Intégration_des_pages_arrivées_2.md) (2 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (2 shared connections)
+- [Télémétrie et métriques (2)](Télémétrie_et_métriques_2.md) (1 shared connections)
+- [Attente des pages du backend](Attente_des_pages_du_backend.md) (1 shared connections)
+- [API et session de l'explorateur (3)](API_et_session_de_l'explorateur_3.md) (1 shared connections)
 
 ## Source Files
 
 - `packages/sdk-browser/backendMetricKeys.ts`
 - `packages/sdk-browser/backendTypes.ts`
-- `packages/sdk-browser/cameraPath.ts`
-- `packages/sdk-browser/explorer.ts`
-- `packages/sdk-browser/explorerFrameDiagnostic.test.ts`
-- `packages/sdk-browser/explorerFrameDiagnostic.ts`
 - `packages/sdk-browser/explorerMetrics.test.ts`
 - `packages/sdk-browser/explorerMetrics.ts`
-- `packages/sdk-browser/explorerRender.ts`
-- `packages/sdk-browser/explorerRenderFallback.ts`
-- `packages/sdk-browser/explorerRenderTriangles.test.ts`
-- `packages/sdk-browser/explorerTelemetryApi.ts`
-- `packages/sdk-browser/pageDecodeHost.ts`
 - `packages/sdk-browser/pageIntegrationHost.ts`
-- `packages/sdk-browser/scheduling.ts`
-- `packages/sdk-browser/telemetry.test.ts`
 - `packages/sdk-browser/telemetry.ts`
-- `packages/sdk-browser/telemetryTypes.ts`
-- `packages/sdk-core/metricsContracts.ts`
-- `packages/sdk-core/occlusionMetricsContracts.ts`
 
 ## Audit Trail
 
-- EXTRACTED: 287 (97%)
-- INFERRED: 8 (3%)
+- EXTRACTED: 86 (95%)
+- INFERRED: 5 (5%)
 - AMBIGUOUS: 0 (0%)
 
 ---

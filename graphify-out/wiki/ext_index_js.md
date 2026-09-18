@@ -1,6 +1,6 @@
 # ext_index_js
 
-> 1 nodes
+> 1 nodes · cohesion 1.00
 
 ## Key Concepts
 

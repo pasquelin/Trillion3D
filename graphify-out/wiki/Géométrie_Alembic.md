@@ -1,6 +1,6 @@
 # Géométrie Alembic
 
-> 20 nodes
+> 20 nodes · cohesion 0.23
 
 ## Key Concepts
 

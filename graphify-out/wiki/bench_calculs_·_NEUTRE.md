@@ -1,27 +1,27 @@
 # bench_calculs · NEUTRE
 
-> 11 nodes
+> 11 nodes · cohesion 0.22
 
 ## Key Concepts
 
 - **b4_capacites.rs** (10 connections) — `packages/asset-compiler-rust/src/bench_calculs/b4_capacites.rs`
 - **empreinte_compacte()** (3 connections) — `packages/asset-compiler-rust/src/bench_calculs/b4_capacites.rs`
 - **Compacte** (2 connections)
+- **index_bytes** (2 connections)
 - **empreinte_octets()** (2 connections) — `packages/asset-compiler-rust/src/bench_calculs/b4_capacites.rs`
 - **reference_compacte()** (2 connections) — `packages/asset-compiler-rust/src/bench_calculs/b4_capacites.rs`
 - **rows()** (2 connections) — `packages/asset-compiler-rust/src/bench_calculs/b4_capacites.rs`
 - **Bits** (2 connections)
-- **index_bytes** (2 connections)
+- **compact_region** (1 connections)
 - **NEUTRE** (1 connections) — `packages/asset-compiler-rust/src/bench_calculs/b4_capacites.rs`
 - **reference_octets()** (1 connections) — `packages/asset-compiler-rust/src/bench_calculs/b4_capacites.rs`
-- **compact_region** (1 connections)
 
 ## Relationships
 
-- [Bancs de calcul Rust (2)](Bancs_de_calcul_Rust_2.md) (1 shared connections)
+- [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
+- [Bancs de calcul Rust](Bancs_de_calcul_Rust.md) (1 shared connections)
 - [Jeux de bancs Rust](Jeux_de_bancs_Rust.md) (1 shared connections)
 - [Rapport des bancs de calcul](Rapport_des_bancs_de_calcul.md) (1 shared connections)
-- [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
 
 ## Source Files
 

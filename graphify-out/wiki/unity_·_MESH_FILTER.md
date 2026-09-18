@@ -1,6 +1,6 @@
 # unity · MESH_FILTER
 
-> 14 nodes
+> 14 nodes · cohesion 0.20
 
 ## Key Concepts
 
@@ -22,10 +22,10 @@
 ## Relationships
 
 - [Références et changements Unity](Références_et_changements_Unity.md) (3 shared connections)
-- [Constructeur YAML Unity](Constructeur_YAML_Unity.md) (2 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
-- [unity · Overrides](unity_·_Overrides.md) (1 shared connections)
-- [unity · les_mesures_et_la_provenance_sortent_de_lidentite](unity_·_les_mesures_et_la_provenance_sortent_de_lidentite.md) (1 shared connections)
+- [unity · Overrides](unity_·_Overrides.md) (2 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
+- [Constructeur YAML Unity](Constructeur_YAML_Unity.md) (1 shared connections)
+- [Identité du compilateur et purge](Identité_du_compilateur_et_purge.md) (1 shared connections)
 - [unity · Fn](unity_·_Fn.md) (1 shared connections)
 
 ## Source Files

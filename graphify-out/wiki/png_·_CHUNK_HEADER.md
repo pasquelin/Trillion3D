@@ -1,6 +1,6 @@
 # png · CHUNK_HEADER
 
-> 6 nodes
+> 6 nodes · cohesion 0.40
 
 ## Key Concepts
 

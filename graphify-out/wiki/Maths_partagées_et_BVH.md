@@ -1,6 +1,6 @@
 # Maths partagées et BVH
 
-> 43 nodes
+> 44 nodes · cohesion 0.08
 
 ## Key Concepts
 
@@ -29,17 +29,17 @@
 - **points_f32()** (2 connections) — `packages/asset-compiler-rust/src/bench_calculs/f_valeurs.rs`
 - **DagCluster** (2 connections)
 - **elapsed_ms()** (2 connections) — `packages/asset-compiler-rust/src/shared_math.rs`
-- *... and 18 more nodes in this community*
+- *... and 19 more nodes in this community*
 
 ## Relationships
 
-- [Bancs de calcul Rust (2)](Bancs_de_calcul_Rust_2.md) (8 shared connections)
+- [Bancs de calcul Rust](Bancs_de_calcul_Rust.md) (8 shared connections)
 - [Rapport des bancs de calcul](Rapport_des_bancs_de_calcul.md) (4 shared connections)
 - [dag · Bits](dag_·_Bits.md) (4 shared connections)
 - [Jeux de bancs Rust](Jeux_de_bancs_Rust.md) (2 shared connections)
 - [DAG et stratégie de coupe](DAG_et_stratégie_de_coupe.md) (2 shared connections)
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
-- [tests · ALPHA](tests_·_ALPHA.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
+- [Profils et couleurs TIFF](Profils_et_couleurs_TIFF.md) (1 shared connections)
 - [Groupes et bissection du DAG](Groupes_et_bissection_du_DAG.md) (1 shared connections)
 
 ## Source Files
@@ -52,8 +52,8 @@
 
 ## Audit Trail
 
-- EXTRACTED: 63 (68%)
-- INFERRED: 30 (32%)
+- EXTRACTED: 63 (67%)
+- INFERRED: 31 (33%)
 - AMBIGUOUS: 0 (0%)
 
 ---

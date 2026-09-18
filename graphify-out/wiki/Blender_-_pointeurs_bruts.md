@@ -1,6 +1,6 @@
 # Blender : pointeurs bruts
 
-> 23 nodes
+> 23 nodes · cohesion 0.20
 
 ## Key Concepts
 

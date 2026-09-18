@@ -1,6 +1,6 @@
 # Sections et pixels PSD
 
-> 26 nodes
+> 26 nodes · cohesion 0.14
 
 ## Key Concepts
 
@@ -20,6 +20,7 @@
 - **layers()** (3 connections) — `packages/asset-compiler-rust/src/plugins/image/psd/sections.rs`
 - **Result** (2 connections)
 - **Result** (2 connections)
+- **icc** (1 connections)
 - **MARKER_BYTES** (1 connections) — `packages/asset-compiler-rust/src/plugins/image/psd/pixels.rs`
 - **RGBA_BYTES** (1 connections) — `packages/asset-compiler-rust/src/plugins/image/psd/pixels.rs`
 - **COUNT_BYTES** (1 connections) — `packages/asset-compiler-rust/src/plugins/image/psd/sections.rs`
@@ -28,14 +29,13 @@
 - **RESOURCE** (1 connections) — `packages/asset-compiler-rust/src/plugins/image/psd/sections.rs`
 - **RESOURCE_HEAD** (1 connections) — `packages/asset-compiler-rust/src/plugins/image/psd/sections.rs`
 - **Header** (1 connections)
-- **WIDE** (1 connections) — `packages/asset-compiler-rust/src/plugins/image/psd/sections.rs`
 - *... and 1 more nodes in this community*
 
 ## Relationships
 
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (2 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (2 shared connections)
 - [Décodage d'images](Décodage_d'images.md) (2 shared connections)
-- [psd · COUNT_PSB](psd_·_COUNT_PSB.md) (1 shared connections)
+- [Sections et pixels PSD (2)](Sections_et_pixels_PSD_2.md) (1 shared connections)
 
 ## Source Files
 

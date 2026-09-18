@@ -1,6 +1,6 @@
 # blend · .bools
 
-> 18 nodes
+> 18 nodes · cohesion 0.12
 
 ## Key Concepts
 
@@ -25,7 +25,7 @@
 
 ## Relationships
 
-- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [Budget et ouvriers du compilateur](Budget_et_ouvriers_du_compilateur.md) (1 shared connections)
 - [Lecture du format Blender (2)](Lecture_du_format_Blender_2.md) (1 shared connections)
 
 ## Source Files

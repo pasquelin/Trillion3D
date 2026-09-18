@@ -1,6 +1,6 @@
 # Bancs de hiérarchie
 
-> 44 nodes
+> 44 nodes · cohesion 0.10
 
 ## Key Concepts
 
@@ -11,9 +11,9 @@
 - **alea** (11 connections) — `packages/sdk-browser/bench/appui/hierarchieScenarios.mjs`
 - **hierarchieScenariosCamera.mjs** (11 connections) — `packages/sdk-browser/bench/appui/hierarchieScenariosCamera.mjs`
 - **scenarioVivant()** (10 connections) — `packages/sdk-browser/bench/appui/hierarchieScenariosVivants.mjs`
+- **hierarchieRejeuThree.mjs** (8 connections) — `packages/sdk-browser/bench/appui/hierarchieRejeuThree.mjs`
 - **joueThree()** (8 connections) — `packages/sdk-browser/bench/appui/hierarchieRejeuThree.mjs`
 - **dans()** (8 connections) — `packages/sdk-browser/bench/appui/hierarchieScenarios.mjs`
-- **hierarchieRejeuThree.mjs** (8 connections) — `packages/sdk-browser/bench/appui/hierarchieRejeuThree.mjs`
 - **pose()** (6 connections) — `packages/sdk-browser/bench/appui/hierarchieScenarios.mjs`
 - **cameraAuHasard()** (5 connections) — `packages/sdk-browser/bench/appui/hierarchieScenarios.mjs`
 - **chainesFigees()** (5 connections) — `packages/sdk-browser/bench/appui/hierarchieScenarios.mjs`
@@ -34,11 +34,11 @@
 ## Relationships
 
 - [Rejeu de la hiérarchie](Rejeu_de_la_hiérarchie.md) (6 shared connections)
-- [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (3 shared connections)
+- [Socle de mesure des bancs](Socle_de_mesure_des_bancs.md) (3 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (2 shared connections)
-- [sdk-browser · flush](sdk-browser_·_flush.md) (1 shared connections)
+- [Pages autonomes et backends](Pages_autonomes_et_backends.md) (1 shared connections)
 - [Garde zéro Three.js](Garde_zéro_Three.js.md) (1 shared connections)
-- [Équivalence du socle mesuré](Équivalence_du_socle_mesuré.md) (1 shared connections)
+- [Bancs d'octets et d'ombrage sRGB](Bancs_d'octets_et_d'ombrage_sRGB.md) (1 shared connections)
 
 ## Source Files
 

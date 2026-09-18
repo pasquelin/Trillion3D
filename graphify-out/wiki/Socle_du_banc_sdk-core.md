@@ -1,6 +1,6 @@
 # Socle du banc sdk-core
 
-> 43 nodes
+> 43 nodes · cohesion 0.09
 
 ## Key Concepts
 
@@ -9,8 +9,8 @@
 - **baseline.mjs** (19 connections) — `packages/sdk-core/bench/socle/baseline.mjs`
 - **chemins.mjs** (13 connections) — `packages/sdk-core/bench/socle/chemins.mjs`
 - **tableau.mjs** (10 connections) — `packages/sdk-core/bench/socle/tableau.mjs`
-- **ligneMd()** (8 connections) — `packages/sdk-core/bench/socle/tableau.mjs`
 - **baseline.test.mjs** (8 connections) — `packages/sdk-core/bench/socle/baseline.test.mjs`
+- **ligneMd()** (8 connections) — `packages/sdk-core/bench/socle/tableau.mjs`
 - **RACINE** (7 connections) — `packages/sdk-core/bench/socle/chemins.mjs`
 - **niveauEcart()** (5 connections) — `packages/sdk-core/bench/socle/baseline.mjs`
 - **sauveBaseline()** (5 connections) — `packages/sdk-core/bench/socle/baseline.mjs`
@@ -25,22 +25,22 @@
 - **assainir()** (3 connections) — `packages/sdk-core/bench/socle/chemins.mjs`
 - **lisFragments()** (3 connections) — `packages/sdk-core/bench/socle/rapport.mjs`
 - **ecartTexte()** (3 connections) — `packages/sdk-core/bench/socle/tableau.mjs`
+- **SEUIL_AVERTISSEMENT** (2 connections) — `packages/sdk-core/bench/socle/baseline.mjs`
+- **SEUIL_ECHEC** (2 connections) — `packages/sdk-core/bench/socle/baseline.mjs`
 - **cas()** (2 connections) — `packages/sdk-core/bench/socle/baseline.test.mjs`
-- **verifieFichiers()** (2 connections) — `packages/sdk-core/bench/socle/rapport.mjs`
-- **entete()** (2 connections) — `packages/sdk-core/bench/socle/tableau.mjs`
-- **ms()** (2 connections) — `packages/sdk-core/bench/socle/tableau.mjs`
+- **dossierBaselines** (2 connections) — `packages/sdk-core/bench/socle/chemins.mjs`
 - *... and 18 more nodes in this community*
 
 ## Relationships
 
-- [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (8 shared connections)
+- [Scripts de build et distribution](Scripts_de_build_et_distribution.md) (5 shared connections)
+- [Bancs d'octets et d'ombrage sRGB](Bancs_d'octets_et_d'ombrage_sRGB.md) (5 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (4 shared connections)
-- [Tests navigateur Node](Tests_navigateur_Node.md) (4 shared connections)
-- [Arbre monde et lots de maths (2)](Arbre_monde_et_lots_de_maths_2.md) (3 shared connections)
+- [Socle de mesure des bancs](Socle_de_mesure_des_bancs.md) (3 shared connections)
+- [Tests navigateur Node](Tests_navigateur_Node.md) (3 shared connections)
 - [Banc de décodage wasm](Banc_de_décodage_wasm.md) (2 shared connections)
-- [justesse · occurrences](justesse_·_occurrences.md) (1 shared connections)
-- [test · steps](test_·_steps.md) (1 shared connections)
-- [Pages de justesse WebGPU](Pages_de_justesse_WebGPU.md) (1 shared connections)
+- [sdk-browser · NOYAU](sdk-browser_·_NOYAU.md) (1 shared connections)
+- [SDK Node : contrats et progression](SDK_Node_-_contrats_et_progression.md) (1 shared connections)
 
 ## Source Files
 
