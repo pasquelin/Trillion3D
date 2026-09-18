@@ -45,5 +45,7 @@ export function optionsExplorateur(options, factory, eclairage) {
       ? { shadowBudgetMs: options.shadowBudgetMs }
       : {}),
     ...(options.shadowPages === false ? { shadowPageInvalidation: false } : {}),
+    // Les niveaux de texture lus dans le cache plutôt que les images sources décodées.
+    ...(options.textureSource === 'cache' ? { textureSource: 'cache' } : {}),
   };
 }

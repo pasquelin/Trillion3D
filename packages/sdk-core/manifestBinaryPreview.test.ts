@@ -34,6 +34,8 @@ function preview(texture: number, width: number, height: number, seed: number): 
     height,
     sourceKind: 0,
     sourceBufferView: -1,
+    atlas: 0,
+    bakedLevels: 0,
     sha256: sha(String(texture)),
     firstLevel: previewFirstLevel(width, height),
     levels: levels(width, height, seed),
@@ -68,9 +70,12 @@ function previewWord(buffer: ArrayBuffer, entry: number, field: number) {
   const offset = header[MANIFEST_BINARY_HEADER_WORDS + index * 2];
   return new Uint32Array(buffer, offset + (entry * PREVIEW_WORDS + field) * 4, 1);
 }
+// Les rangs des mots, écrits ici en dur et non importés : le test fige la disposition du sidecar.
 const PREVIEW_FIRST_LEVEL = 6,
   PREVIEW_PIXEL_OFFSET = 8,
-  PREVIEW_PIXEL_BYTES = 9;
+  PREVIEW_PIXEL_BYTES = 9,
+  PREVIEW_ATLAS = 10,
+  PREVIEW_BAKED_LEVELS = 11;
 function refused(buffer: ArrayBuffer, slim: SlimClusterManifest) {
   assert.throws(
     () => decodeManifestBinary(slim, buffer),
@@ -112,5 +117,43 @@ test('a pixel range offset that opens a gap after the previous entry is refused'
 test('a pixel range offset that overlaps the previous entry is refused', () => {
   const { slim, buffer } = encode([preview(0, 4, 4, 1), preview(1, 4, 4, 2)]);
   previewWord(buffer, 1, PREVIEW_PIXEL_OFFSET)[0] -= 8;
+  refused(buffer, slim);
+});
+
+test('atlas and baked levels round-trip, and the same texture may serve both atlases in order', () => {
+  const color = { ...preview(3, 256, 128, 1), atlas: 0, bakedLevels: 2 };
+  const data = { ...preview(3, 256, 128, 2), atlas: 1, bakedLevels: 2 };
+  const { slim, buffer } = encode([preview(1, 8, 8, 0), color, data]);
+  const decoded = decodeManifestBinary(slim, buffer).texturePreviews!;
+  assert.equal(decoded.length, 3);
+  assert.deepEqual(
+    decoded.map((p) => [p.texture, p.atlas, p.bakedLevels]),
+    [
+      [1, 0, 0],
+      [3, 0, 2],
+      [3, 1, 2],
+    ],
+  );
+  assert.equal(previewWord(buffer, 1, PREVIEW_ATLAS)[0], 0);
+  assert.equal(previewWord(buffer, 2, PREVIEW_ATLAS)[0], 1);
+  assert.equal(previewWord(buffer, 2, PREVIEW_BAKED_LEVELS)[0], 2);
+});
+
+test('the same texture twice for one atlas, or data before colour, is refused as unordered', () => {
+  const twice = [preview(3, 8, 8, 1), preview(3, 8, 8, 2)];
+  assert.throws(() => encode(twice), /not ordered by texture and atlas/);
+  const backwards = [{ ...preview(3, 8, 8, 1), atlas: 1 }, preview(3, 8, 8, 2)];
+  assert.throws(() => encode(backwards), /not ordered by texture and atlas/);
+});
+
+test('an unknown atlas, or more baked levels than lie above the tail, is refused by both sides', () => {
+  assert.throws(() => encode([{ ...preview(0, 8, 8, 1), atlas: 2 }]), /unknown atlas/);
+  assert.throws(
+    () => encode([{ ...preview(0, 256, 256, 1), bakedLevels: 3 }]),
+    /more levels than lie above its tail/,
+  );
+  // Un sidecar dont le mot a été forcé après coup est refusé à la lecture, pas seulement à l'écriture.
+  const { slim, buffer } = encode([preview(0, 256, 256, 1)]);
+  previewWord(buffer, 0, PREVIEW_ATLAS)[0] = 7;
   refused(buffer, slim);
 });

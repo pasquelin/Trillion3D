@@ -3,9 +3,7 @@ import type { TextureJob } from './webgpuAtlasJobs.ts';
 import type { SlotPyramid } from './webgpuAtlasSlots.ts';
 import type { createTextureBudget } from './textureBudget.ts';
 
-/** Tranches qu'un appareil peut refuser pour un même niveau avant qu'il quitte la file :
- *  au troisième refus il est abandonné, compté dans `textureSkipped`, plus jamais réessayé. */
-const MAX_FAILURES = 3;
+import { createTextureReads, MAX_FAILURES } from './webgpuTextureReads.ts';
 
 /** Les couches d'une classe dont la pleine résolution vient d'arriver. */
 type ClassLayers = Map<number, number[]>;
@@ -41,9 +39,14 @@ export function createWebgpuTexturePump(options: {
   /** Vrai dès qu'une caméra a dicté un ordre : avant, seules les queues d'aperçus partent. */
   screenKnown: () => boolean;
   /** Un niveau progressif de plus est résident sur ce slot, dans la pyramide que porte son travail. */
-  onLevel: (slot: number, level: number, pyramid: SlotPyramid | undefined) => void;
-  /** Les slots couleur dont la vraie texture est transférée et remipmappée passent à « prêt ». */
-  onColorReady: (slots: readonly number[]) => void;
+  onLevel: (
+    kind: TextureJob['kind'],
+    slot: number,
+    level: number,
+    pyramid: SlotPyramid | undefined,
+  ) => void;
+  /** Les slots dont la vraie texture est transférée et remipmappée passent à « prêt ». */
+  onReady: (kind: TextureJob['kind'], slots: readonly number[]) => void;
   onFailure: (phase: string, error: unknown) => void;
   /** Sortie définitive d'un niveau de la file, avec la raison et l'avancement atteint. */
   onAbandon: (context: Record<string, unknown>) => void;
@@ -53,14 +56,14 @@ export function createWebgpuTexturePump(options: {
     slices = 0,
     levels = 0,
     bytesLastPass = 0;
-  const readySlots: number[] = [];
+  const readySlots = { color: [] as number[], data: [] as number[] };
   const colorClasses: ClassLayers = new Map(),
     dataClasses: ClassLayers = new Map();
   const finished = (job: TextureJob) => {
     options.onResident(job.kind, job.slot, job.level);
     if (job.stage === 0) {
       levels++;
-      options.onLevel(job.slot, job.level, job.pyramid);
+      options.onLevel(job.kind, job.slot, job.level, job.pyramid);
       return;
     }
     uploaded++;
@@ -68,8 +71,17 @@ export function createWebgpuTexturePump(options: {
     const layers = byClass.get(job.classIndex);
     if (layers) layers.push(job.layer);
     else byClass.set(job.classIndex, [job.layer]);
-    if (job.kind === 'color') readySlots.push(job.slot);
+    readySlots[job.kind].push(job.slot);
   };
+  const reads = createTextureReads({
+    jobs: options.jobs,
+    onFailure: options.onFailure,
+    onAbandon: (job, reason) => {
+      skipped++;
+      const { kind, slot, level, failures, rows, nextRow: rowsTransferred } = job;
+      options.onAbandon({ reason, kind, slot, level, failures, rowsTransferred, rows });
+    },
+  });
   /**
    * Transfère des tranches tant que le budget de l'image en laisse tenir une. La file est parcourue
    * dans son ordre : un niveau que le registre d'octets refuse est sauté, jamais abandonné — il
@@ -88,7 +100,8 @@ export function createWebgpuTexturePump(options: {
         at++;
         continue;
       }
-      if (!ledger.admits(job, jobs, unbounded)) {
+      // Un niveau cuit dont les octets ne sont pas encore là ne bloque pas les suivants.
+      if (!job.ready || !ledger.admits(job, jobs, unbounded)) {
         at++;
         continue;
       }
@@ -103,17 +116,7 @@ export function createWebgpuTexturePump(options: {
         options.onFailure('progressive-texture-upload-failed', error);
         if (++job.failures >= MAX_FAILURES) {
           ledger.commit(-job.nextRow * job.bytesPerRow);
-          jobs.splice(at, 1);
-          skipped++;
-          options.onAbandon({
-            reason: 'transfer-refused',
-            kind: job.kind,
-            slot: job.slot,
-            level: job.level,
-            failures: job.failures,
-            rowsTransferred: job.nextRow,
-            rows: job.rows,
-          });
+          reads.abandon(job, 'transfer-refused');
         }
         break;
       }
@@ -139,47 +142,58 @@ export function createWebgpuTexturePump(options: {
   const pump = (unbounded = false) => {
     const { device, jobs } = options;
     if (!jobs.length || !device) return;
-    readySlots.length = 0;
+    readySlots.color.length = 0;
+    readySlots.data.length = 0;
     colorClasses.clear();
     dataClasses.clear();
     options.order(jobs);
+    // Avant la première caméra, aucun niveau cuit n'est lu : comme la pleine résolution, il attend
+    // que l'écran dise lequel sert. La barrière passe outre, elle doit converger.
+    if (unbounded || options.screenKnown()) reads.prefetch();
     admit(unbounded);
     const color = options.colorAtlas(),
       data = options.dataAtlas();
     if (color && colorClasses.size) {
       regenerate(device, color, colorClasses);
       // Après la dernière tranche et ses mips seulement : avant, la couche n'est pas montrable.
-      options.onColorReady(readySlots);
+      options.onReady('color', readySlots.color);
     }
-    if (data && dataClasses.size) regenerate(device, data, dataClasses);
+    if (data && dataClasses.size) {
+      regenerate(device, data, dataClasses);
+      options.onReady('data', readySlots.data);
+    }
   };
   return {
     pump,
-    /** Textures transférées en entier, dernière tranche comprise. */
+    /** Tenue quand toutes les lectures en vol ont abouti ou échoué ; `null` sans lecture en vol.
+     *  C'est ce qu'une barrière attend entre deux passes pour converger. */
+    settled: reads.settled,
+    /** Niveaux cuits lus dans le cache ; textures transférées en entier ; niveaux progressifs
+     *  transférés ; niveaux sortis de la file sur refus répété — jamais pour cause de taille ;
+     *  tranches réellement transférées ; octets admis par la dernière passe. Depuis le début. */
+    get fetched() {
+      return reads.fetched;
+    },
     get uploaded() {
       return uploaded;
     },
-    /** Niveaux progressifs transférés en entier depuis le début de la session. */
     get levels() {
       return levels;
     },
-    /** Niveaux sortis de la file sur refus répété de l'appareil, jamais pour cause de taille. */
     get skipped() {
       return skipped;
     },
-    /** Tranches réellement transférées depuis le début de la session. */
     get slices() {
       return slices;
+    },
+    get bytesLastPass() {
+      return bytesLastPass;
     },
     /** Niveaux dont une tranche au moins est passée et qui en attendent d'autres. */
     get inFlight() {
       let count = 0;
       for (const job of options.jobs) if (job.nextRow > 0) count++;
       return count;
-    },
-    /** Octets admis par la dernière passe de la pompe. */
-    get bytesLastPass() {
-      return bytesLastPass;
     },
   };
 }

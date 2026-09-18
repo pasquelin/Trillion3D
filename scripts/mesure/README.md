@@ -28,6 +28,10 @@ Un seul harnais pour tous les lots. Une commande, aucun serveur à lancer à la 
   chaque exécution) ; `--pixelError` prend une liste ; aussi `--chauffe`, `--largeur`, `--hauteur`, `--out` et `--port` (libre par défaut, jamais 5174).
 - `--rebond on|off` (par défaut `off`) : allume la lumière qui rebondit, éteinte par défaut dans
   le moteur. Sans elle, l'étape « Rebond » vaut « non mesuré » et l'image est celle d'avant le lot.
+- `--textures cache|host` (par défaut `host`) : `cache` fait lire au moteur WebGPU les niveaux de
+  texture cuits dans le cache compilé, sans que le chargeur glTF ouvre les images sources ; le
+  témoin Three garde ses images quoi qu'il arrive. Un dist d'avant cette option l'ignore, ce qui
+  permet de la laisser sur une comparaison avant/après.
 - `--profil on|off` (par défaut `on`) : demande au moteur son découpage par étape. `off` rejoue
   exactement la même série sans ce chronométrage — deux exécutions dont seule cette option diffère
   donnent la porte de fidélité et le coût du profil.
