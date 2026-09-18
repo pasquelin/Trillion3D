@@ -89,9 +89,10 @@ try {
           e.setPose(s.pose);
           await e.awaitPages();
           // Chauffe : un moteur qui publie `frameHeld` rend jusqu'à l'image tenue — un plein cycle
-          // avec l'accumulation temporelle, plafonné —, le témoin quatre images comme toujours.
+          // d'images calmes après la dernière arrivée de texture, 64 au plus : à 24, huit poses sur
+          // dix étaient relevées avant convergence —, le témoin quatre images comme toujours.
           let metrics = { ...e.render() };
-          for (let w = 1; w < ('frameHeld' in metrics ? 24 : 4) && !metrics.frameHeld; w++) {
+          for (let w = 1; w < ('frameHeld' in metrics ? 64 : 4) && !metrics.frameHeld; w++) {
             await e.flush();
             metrics = { ...e.render() };
           }
