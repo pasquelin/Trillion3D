@@ -75,3 +75,22 @@ test('batch progress opens one line per job id and ignores batch-level lines', (
   assert.match(text, /2\/2 b/);
   assert.match(text, /✔ 1\/2 a 1 triangles/);
 });
+// Comportement : un avertissement de DAG porté par l'événement d'une primitive devient une ligne
+// du journal, nommée, avec ses racines, ses pages et ses groupes par issue.
+test('a DAG warning on a primitive event is printed as its own line', () => {
+  const out = capture();
+  const progress = createTerminalProgress({ label: 'village', stream: out.stream });
+  progress.event({
+    event: 'progress',
+    job: 'job',
+    phase: 'primitive',
+    ratio: 0.5,
+    mesh: 7,
+    primitive: 0,
+    warnings: [{ code: 'DAG_FLAT', roots: 98, pages: 98, groups: { noCollapse: 4 } }],
+  });
+  assert.match(
+    out.text(),
+    /⚠ village mesh 7\/0 DAG_FLAT : 98 racines sur 98 pages, groupes \{"noCollapse":4\}/,
+  );
+});

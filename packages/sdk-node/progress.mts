@@ -108,13 +108,13 @@ export function createTerminalProgress({
       state.timer = null;
     }
   };
+  // Une ligne qui reste : la barre est effacée d'abord sur un terminal, écrite telle quelle ailleurs.
+  const persist = (text: string) => stream.write(`${tty ? '\r\x1b[K' : ''}${text}\n`);
   const finish = (mark: string, summary: string) => {
     if (state.finished) return;
     stop();
     state.finished = true;
-    stream.write(
-      `${tty ? '\r\x1b[K' : ''}${mark} ${index + 1}/${total} ${label} ${summary} ${elapsed()}\n`,
-    );
+    persist(`${mark} ${index + 1}/${total} ${label} ${summary} ${elapsed()}`);
   };
   if (tty) {
     state.timer = setInterval(draw, interval);
@@ -136,6 +136,12 @@ export function createTerminalProgress({
       if (event.phase === 'import' && typeof event.primitives === 'number')
         state.primitivesTotal = event.primitives;
       if (event.phase === 'primitive') state.primitives += 1;
+      // Un DAG que le compilateur n'a pas fait monter : une ligne qui reste, pas un état de barre.
+      if (Array.isArray(event.warnings))
+        for (const warning of event.warnings as Array<Record<string, unknown>>)
+          persist(
+            `⚠ ${label} mesh ${event.mesh}/${event.primitive} ${warning.code} : ${warning.roots} racines sur ${warning.pages} pages, groupes ${JSON.stringify(warning.groups)}`,
+          );
       state.phase = event.phase ?? event.event ?? '';
       const describe = PHASES[state.phase];
       if (describe) state.text = describe(event, state);

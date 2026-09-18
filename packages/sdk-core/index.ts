@@ -42,6 +42,8 @@ export type {
   SlimPrimitiveBinary,
 } from './manifestBinary.ts';
 export * from './diagnostics.ts';
+export { dagWarningsDiagnostic } from './dagWarnings.ts';
+export type { PrimitiveDagWarning } from './dagWarnings.ts';
 export { LOD_QUALITY, lodQuality, adaptivePixelError } from './lodPolicy.ts';
 export type { LodQualityId } from './lodPolicy.ts';
 export * from './competitors.ts';
