@@ -27,6 +27,22 @@ function writeClusterSphere(rec: PageRec, out: Float32Array, base: number) {
   );
 }
 
+/** Écrit les sphères des lignes `[from, to]` ; une ligne sans fiche prend un rayon nul. */
+export function packClusterSpheres(
+  packedRecs: ArrayLike<PageRec | undefined>,
+  packed: Float32Array,
+  from: number,
+  to: number,
+) {
+  for (let row = from; row <= to; row++) {
+    const rec = packedRecs[row],
+      base = row * CLUSTER_SPHERE_FLOATS;
+    if (rec) writeClusterSphere(rec, packed, base);
+    else packed[base + 3] = 0;
+  }
+  return packed;
+}
+
 /**
  * La sphère monde de chaque ligne dessinable, dans l'ordre des lignes de la table de pages.
  *
@@ -57,19 +73,10 @@ export function uploadClusterSpheres(
   from: number,
   to: number,
 ) {
-  const { rows } = rt.layout;
   const spheres = ensureClusterSpheres(rt, device);
   const last = Math.min(to, spheres.rows - 1);
   if (last < from) return;
-  for (let row = from; row <= last; row++) {
-    const rec = rows.packedRecs[row],
-      base = row * CLUSTER_SPHERE_FLOATS;
-    if (!rec) {
-      spheres.packed[base + 3] = 0;
-      continue;
-    }
-    writeClusterSphere(rec, spheres.packed, base);
-  }
+  packClusterSpheres(rt.layout.rows.packedRecs, spheres.packed, from, last);
   // Décalage et taille comptés en flottants : c'est ce que `writeBuffer` attend d'un tableau typé.
   device.queue.writeBuffer(
     spheres.buffer,
