@@ -34,7 +34,7 @@ function penombre(coneAngle, douceur) {
 }
 
 /** La lampe Three du type déclaré. Trois types au contrat, trois ici, et rien d'autre. */
-function creer(light) {
+export function creer(light) {
   if (light.kind === 'directional') return new THREE.DirectionalLight();
   if (light.kind === 'spot') return new THREE.SpotLight();
   return new THREE.PointLight();
@@ -46,7 +46,7 @@ function creer(light) {
  * l'atténuation fenêtrée du moteur. Une directionnelle n'a ni position ni portée : seule compte la
  * direction, que Three lit comme `position − cible`, donc l'opposée de la propagation.
  */
-function appliquer(objet, light, douceur) {
+export function appliquer(objet, light, douceur) {
   objet.color.setRGB(light.color[0], light.color[1], light.color[2], THREE.LinearSRGBColorSpace);
   objet.intensity = light.intensity;
   objet.castShadow = false;
