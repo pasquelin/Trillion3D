@@ -59,6 +59,6 @@ export const shadeVariantFragment = (variant?: DiagnosticGpuVariant) =>
 export const skipsSecondaryPass = (variant?: DiagnosticGpuVariant) =>
   variant === 'geometrie-une-passe';
 
-/** Vrai quand la variante laisse le raster matériel dessiner la géométrie opaque. */
-export const forcesHardwareRaster = (variant?: DiagnosticGpuVariant) =>
-  variant === 'raster-materiel';
+/** Vrai quand la variante confie la géométrie opaque au raster de calcul, au lieu du matériel. */
+export const requestsComputeRaster = (variant?: DiagnosticGpuVariant) =>
+  variant === 'raster-calcul';

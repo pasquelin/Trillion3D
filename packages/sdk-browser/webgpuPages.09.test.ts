@@ -3,19 +3,18 @@ import assert from 'node:assert/strict';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { collectClusterPages, selectVisiblePages } from './pageSelection.ts';
 import { packDagSelection } from './gpuDagSelection.ts';
-import { MODE_DEPTH_OCCLUDER, MODE_DEPTH_REST, MODE_ID, rasterEntry } from './gpuRasterContract.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera, quadBackend } from './webgpuPagesTestScenes.ts';
 import { assertOccluderImage, occluderScene } from './webgpuPagesTestOccluder.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 
-test('GPU Hi-Z builds the pyramid between the raster occluder depth and the rest depth', async () => {
+test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the disoccluded vis pass', async () => {
   installGpuGlobals();
   const { source, metadata, indices, associations, geometry, material } = occluderScene();
   const viewport: [number, number] = [32, 32];
   const collected = collectClusterPages(source, metadata, indices, associations);
-  const { device, computes, textures, draws } = mockGpu(
+  const { device, passes, computes, textures, draws } = mockGpu(
     undefined,
     packDagSelection(collected.roots),
     false,
@@ -46,22 +45,25 @@ test('GPU Hi-Z builds the pyramid between the raster occluder depth and the rest
   draws.length = 0;
   computes.length = 0;
   backend.render(cam);
-  // Les deux passes de visibilité matérielles ont disparu avec b72278c6 : la pyramide se bâtit
-  // désormais entre deux LANCEMENTS du raster de calcul. L'ordre est le même fait, dit là où il a
-  // lieu — profondeur des occulteurs, pyramide, verdict, profondeur du reste, puis identifiants —
-  // et il est plus fort que l'ancien, qui ne lisait que les chargements de deux passes.
+  // La pyramide se bâtit entre les deux passes matérielles : les occulteurs vident la cible, la
+  // moitié testée la recharge une fois son verdict rendu — copie de profondeur, réduction, test.
+  const visPasses = passes.filter(
+    (pass) => pass.label === 'WG visibility primary' || pass.label === 'WG visibility secondary',
+  );
+  assert.ok(visPasses.length >= 2);
+  assert.equal(visPasses[visPasses.length - 2]?.colorLoad, 'clear');
+  assert.equal(visPasses[visPasses.length - 2]?.depthLoad, 'clear');
+  assert.equal(visPasses[visPasses.length - 1]?.colorLoad, 'load');
+  assert.equal(visPasses[visPasses.length - 1]?.depthLoad, 'load');
   const at = (entry: string) => computes.indexOf(entry);
-  const occluder = at(rasterEntry('fine', MODE_DEPTH_OCCLUDER)),
-    rest = at(rasterEntry('fine', MODE_DEPTH_REST)),
-    ids = at(rasterEntry('fine', MODE_ID));
-  assert.ok(occluder >= 0 && rest > occluder && ids > rest);
-  assert.ok(at('copyDepth') > occluder);
+  assert.ok(at('copyDepth') >= 0);
   assert.ok(at('reduceHiz') > at('copyDepth'));
   assert.ok(at('testHiz') > at('reduceHiz'));
-  assert.ok(at('testHiz') < rest, 'la moitié testée ne se dessine qu’après son verdict');
   assert.deepEqual(backend.selectedPageIds().sort(), cpu.shown.map((page) => page.url).sort());
   assertOccluderImage(backend, cpu.shown, cam, viewport);
-  assert.equal(draws.filter((draw) => draw.indirect).length, 0);
+  const vis = draws.filter((draw) => draw.indirect);
+  assert.ok(vis.length >= 1 && vis.length <= 6);
+  assert.ok(vis.every((draw) => draw.firstInstance === 0));
   backend.dispose();
   geometry.dispose();
   material.dispose();

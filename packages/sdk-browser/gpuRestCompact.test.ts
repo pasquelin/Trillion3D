@@ -6,15 +6,21 @@ import { VIS_SHADER } from './visibilityBuffer.ts';
 import { BASE_SLOTS } from './gpuDraw.ts';
 
 // Comportement 1 : la troncature retient EXACTEMENT ce que l'étage de sommets dessinait. Les deux
-// prédicats sont lus dans les deux textes : un `hizSlot` invalide, ou un verdict nul.
+// prédicats sont lus dans les deux textes : l'étage écarte un `hizSlot` valide au verdict 1, la
+// troncature garde un `hizSlot` invalide ou tout verdict autre que 1 — le 2 d'une ligne testée et
+// gardée compris. Lire « verdict nul » ici tronquait toute la moitié testée (12aa9fcd).
 test('la troncature de la moitié testée applique le prédicat de l’étage de sommets', () => {
   assert.ok(
     VIS_SHADER.includes('page.hizSlot!=0xffffffffu&&hizFlags[page.hizSlot]==1u'),
     'l’étage de sommets écarte une ligne rejetée',
   );
   assert.ok(
-    REST_COMPACT_SHADER.includes('hizSlot==0xffffffffu||hizFlags[hizSlot]==0u'),
+    REST_COMPACT_SHADER.includes('hizSlot==0xffffffffu||hizFlags[hizSlot]!=1u'),
     'la troncature garde exactement la négation de ce prédicat',
+  );
+  assert.ok(
+    !REST_COMPACT_SHADER.includes('hizFlags[hizSlot]==0u'),
+    'un verdict 2 — testé et gardé — reste dans le compte',
   );
 });
 

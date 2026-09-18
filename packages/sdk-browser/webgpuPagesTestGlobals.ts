@@ -62,10 +62,9 @@ export function compactDrawnPages(
 
 /**
  * Les pages que le masque de l'IMAGE EN COURS nomme, lues là où la carte les pose :
- * `flags[nodeCount + id]` dans le tampon de la coupe. C'est ce que le raster de calcul consomme sur
- * place depuis b72278c6, et non le relevé d'une image passée — les tests qui comptaient les
- * instances d'une commande indirecte comptaient l'ancien chemin matériel, qui ne porte plus la
- * géométrie opaque.
+ * `flags[nodeCount + id]` dans le tampon de la coupe. C'est la sélection que l'image dessine, quel
+ * que soit le raster qui la consomme — le matériel par ses commandes indirectes, ou le calcul sur
+ * place sous la variante `raster-calcul` —, et non le relevé d'une image passée.
  */
 export function drawnPageIds(
   buffers: ReadonlyArray<{ label?: string; data: Uint8Array }>,

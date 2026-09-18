@@ -13,9 +13,11 @@ export const REST_COMPACT_WORKGROUP = 64;
  * tout de même, pour chacune de ces instances, le nombre de sommets de la plus grosse page du
  * modèle.
  *
- * Ce noyau cherche le RANG DE LA DERNIÈRE SURVIVANTE de chaque slot testé — même prédicat que
- * l'étage de sommets, `hizSlot` valide et verdict non nul — et ramène le compte d'instances de la
- * commande à ce rang. Ce qui sort du compte est un suffixe d'instances toutes rejetées, qui ne
+ * Ce noyau cherche le RANG DE LA DERNIÈRE SURVIVANTE de chaque slot testé — la négation exacte du
+ * prédicat de rejet de l'étage de sommets, `hizSlot` valide et verdict 1 — et ramène le compte
+ * d'instances de la commande à ce rang. Le verdict est à trois valeurs depuis 12aa9fcd (0 occulteur,
+ * 1 rejeté, 2 testé et gardé) : lire « nul » ici tronquait toute la moitié testée, et le raster
+ * matériel perdait chaque grappe qui sortait de derrière une autre. Ce qui sort du compte est un suffixe d'instances toutes rejetées, qui ne
  * dessinaient rien : l'image est identique par construction, et l'ORDRE des instances retenues ne
  * bouge pas d'un rang, puisque rien n'est déplacé.
  *
@@ -35,10 +37,10 @@ struct Uniforms{restSlots:u32,pad0:u32,pad1:u32,pad2:u32,}
 @group(0) @binding(6) var<uniform> uni:Uniforms;
 /** Le rang du slot testé numéro \`n\` : trois modes de face par couche, après les trois occulteurs. */
 fn restSlotAt(n:u32)->u32{return (n/${BASE_SLOTS / 2}u)*${BASE_SLOTS}u+${BASE_SLOTS / 2}u+n%${BASE_SLOTS / 2}u;}
-/** Le prédicat de l'étage de sommets : une ligne rejetée par la pyramide n'écrit aucun pixel. */
+/** La négation du prédicat de l'étage de sommets : seule une ligne rejetée (verdict 1) n'écrit rien. */
 fn vivante(ligne:u32)->bool{
  let hizSlot=pages[ligne].hizSlot;
- return hizSlot==0xffffffffu||hizFlags[hizSlot]==0u;
+ return hizSlot==0xffffffffu||hizFlags[hizSlot]!=1u;
 }
 @compute @workgroup_size(${REST_COMPACT_WORKGROUP})
 fn restMark(@builtin(global_invocation_id) id:vec3u){
