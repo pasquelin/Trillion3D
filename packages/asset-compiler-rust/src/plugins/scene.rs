@@ -4,11 +4,13 @@
 //! trouve telle quelle sous la source ou qu'il l'écrive dans le cache. Le compilateur ne lit rien
 //! d'autre, et ne sait pas de quel format elle vient.
 use super::Plugin;
-use crate::{Options, Result};
-use serde_json::Value;
+use crate::{CompilerError, Options, Result};
+use serde_json::{json, Value};
 use std::{
+    collections::BTreeMap,
     path::{Path, PathBuf},
-    sync::atomic::AtomicBool,
+    sync::atomic::{AtomicBool, Ordering},
+    time::Instant,
 };
 
 mod alembic;
@@ -78,6 +80,54 @@ pub fn image_root(source: &Path) -> PathBuf {
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
         .map_or_else(|| PathBuf::from("."), Path::to_path_buf)
+}
+
+/// Des tables glTF en construction, telles que `finish` les écrit : leurs nœuds, ce que le rapport
+/// publie en clair, la clé de cache de la conversion, et l'écriture elle-même.
+pub(crate) trait SceneOutput {
+    fn nodes(&self) -> &[Value];
+    fn counts(&self) -> &BTreeMap<&'static str, usize>;
+    /// La clé de cache : l'empreinte du pilote, de sa version et de tout ce qu'il a lu.
+    fn key(&self) -> String;
+    /// Écrit la scène dans `directory` et rend ce dossier.
+    fn write(
+        self,
+        plugin: &dyn ScenePlugin,
+        directory: &Path,
+        source: &Path,
+        started: Instant,
+    ) -> Result<PathBuf>;
+}
+
+/// La fin commune des pilotes qui remplissent eux-mêmes leurs tables : une conversion annulée ou
+/// sans surface est refusée par son nom avant d'écrire quoi que ce soit ; sinon la scène part dans
+/// le cache à sa clé, et l'avancement publie ses comptes une fois le dossier écrit.
+fn finish(
+    scene: impl SceneOutput,
+    request: &SceneRequest<'_>,
+    plugin: &dyn ScenePlugin,
+    file: &Path,
+    started: Instant,
+    empty: &str,
+) -> Result<PathBuf> {
+    if request.cancelled.load(Ordering::Relaxed) {
+        return Err(CompilerError::new("CANCELLED", "Import cancelled"));
+    }
+    if !scene.nodes().iter().any(|node| node.get("mesh").is_some()) {
+        return Err(CompilerError::new("IMPORT_EMPTY", empty));
+    }
+    let directory = request
+        .cache
+        .join("native")
+        .join("imports")
+        .join(scene.key());
+    let counts = scene.counts().clone();
+    let written = scene.write(plugin, &directory, file, started)?;
+    (request.progress)(json!({
+        "phase":"import-source","step":"complete","plugin":plugin.name(),
+        "counts":counts,"ms":crate::shared_math::elapsed_ms(started),
+    }));
+    Ok(written)
 }
 
 /// La scène intermédiaire, prête à charger.

@@ -8,7 +8,6 @@
 use self::write::digest;
 use super::mesh::{FaceSet, Part};
 use super::*;
-use crate::hash;
 use crate::import::mesh::index_bytes;
 use crate::import::{f32_bytes, Bin, Report};
 use std::collections::{BTreeMap, HashMap};
@@ -147,9 +146,5 @@ impl Scene {
     pub(super) fn read_file(&mut self, name: &str, bytes: usize, digest: &str) {
         self.key_material
             .push_str(&format!("\n{name}:{bytes}:{digest}"));
-    }
-
-    pub(super) fn key(&self) -> String {
-        hash(self.key_material.as_bytes())
     }
 }

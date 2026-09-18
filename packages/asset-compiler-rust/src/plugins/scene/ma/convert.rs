@@ -23,27 +23,15 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         &digest,
     );
     carry(&document.report, &mut scene.report);
-    let counts = build::scene(&document, &graph, &mut scene, request);
-    if request.cancelled.load(Ordering::Relaxed) {
-        return Err(CompilerError::new("CANCELLED", "Import cancelled"));
-    }
-    if !scene.nodes.iter().any(|node| node.get("mesh").is_some()) {
-        return Err(CompilerError::new(
-            "IMPORT_EMPTY",
-            format!("ma: {} carries no visible polygonal mesh", file.display()),
-        ));
-    }
-    let directory = request
-        .cache
-        .join("native")
-        .join("imports")
-        .join(scene.key());
-    let written = scene.write(plugin, &directory, file, started)?;
-    (request.progress)(
-        json!({"phase":"import-source","step":"complete","plugin":NAME,
-        "counts":counts,"ms":crate::shared_math::elapsed_ms(started)}),
-    );
-    Ok(written)
+    build::scene(&document, &graph, &mut scene, request);
+    super::finish(
+        scene,
+        request,
+        plugin,
+        file,
+        started,
+        &format!("ma: {} carries no visible polygonal mesh", file.display()),
+    )
 }
 
 /// La taille du fichier, refusée au-delà du plafond du pilote plutôt que lue.

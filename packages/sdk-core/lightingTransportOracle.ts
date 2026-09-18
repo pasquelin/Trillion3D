@@ -5,7 +5,7 @@ import {
   type TransportOptions,
 } from './lightingTransportContracts.ts';
 import { fail, checkpoint, progress } from './lightingTransportValidation.ts';
-import { maximumResidual } from './lightingTransportResidual.ts';
+import { maximumResidual } from './lightingTransportStep.ts';
 
 /** Independent direct linear solve; never calls the iterative solver. Work is outside measured runs. */
 export function solveTransportOracle(

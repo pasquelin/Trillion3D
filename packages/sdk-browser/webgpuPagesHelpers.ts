@@ -51,9 +51,6 @@ export function clusterRgb(id: string): [number, number, number] {
   if (THREE.ColorManagement.enabled) colorScratch.convertSRGBToLinear();
   return [colorScratch.r, colorScratch.g, colorScratch.b];
 }
-export function materialSide(material: THREE.Material | THREE.Material[]) {
-  return Array.isArray(material) ? material[0].side : material.side;
-}
 
 /** Sum of a cut's triangles, without the closure a `reduce` allocates on every frame. */
 export function triangleSum(pages: readonly PageRec[], transparent?: boolean) {

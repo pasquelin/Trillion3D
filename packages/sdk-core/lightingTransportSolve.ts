@@ -1,7 +1,7 @@
 import type { TransportOptions } from './lightingTransportContracts.ts';
 import type { TransportState } from './lightingTransportState.ts';
 import { checkpoint, progress, fail } from './lightingTransportValidation.ts';
-import { maximumResidual } from './lightingTransportResidual.ts';
+import { transportStep } from './lightingTransportStep.ts';
 const PI = Math.PI;
 
 export function solveTransport(
@@ -37,29 +37,7 @@ export function solveTransport(
   let iterations = 0;
   for (; iterations < maxIterations;) {
     checkpoint(options);
-    let delta = 0;
-    for (let i = 0; i < size; i++) {
-      let red = 0,
-        green = 0,
-        blue = 0;
-      for (let j = 0; j < size; j++) {
-        const value = matrix[i * size + j],
-          at = j * 3;
-        red += value * state.radiance[at];
-        green += value * state.radiance[at + 1];
-        blue += value * state.radiance[at + 2];
-      }
-      const at = i * 3;
-      state.next[at] = source[at] + albedo[at] * red;
-      state.next[at + 1] = source[at + 1] + albedo[at + 1] * green;
-      state.next[at + 2] = source[at + 2] + albedo[at + 2] * blue;
-      delta = Math.max(
-        delta,
-        Math.abs(state.next[at] - state.radiance[at]),
-        Math.abs(state.next[at + 1] - state.radiance[at + 1]),
-        Math.abs(state.next[at + 2] - state.radiance[at + 2]),
-      );
-    }
+    const delta = transportStep(matrix, source, albedo, state.radiance, state.next, size);
     const previous = state.radiance;
     state.radiance = state.next;
     state.next = previous;
@@ -67,7 +45,8 @@ export function solveTransport(
     if (delta <= tolerance * (1 - contraction)) break;
     if ((iterations & 15) === 0) progress(options, 'solve', iterations, maxIterations);
   }
-  const residual = maximumResidual(matrix, source, albedo, state.radiance, size);
+  // The step's change on the solution is its residual; `next` is the buffer just swapped out.
+  const residual = transportStep(matrix, source, albedo, state.radiance, state.next, size);
   const errorBound = residual / (1 - contraction);
   if (!Number.isFinite(errorBound) || !state.radiance.every(Number.isFinite))
     fail('NUMERICAL_OVERFLOW', 'Transport radiance exceeded finite arithmetic');
