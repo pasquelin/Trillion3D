@@ -6,7 +6,7 @@
 // seul, sans autre projet sur la machine.
 import { createServer } from 'node:http';
 import * as esbuild from 'esbuild';
-import { chromium } from 'playwright';
+import { lancerChrome } from '../../scripts/mesure/chrome.mjs';
 import { ouvrirAppareil } from './appareilWebgpu.mjs';
 
 /**
@@ -50,7 +50,7 @@ export async function dansPageWebgpu(fonction, argument, options = {}) {
     response.end(sert ? script : html);
   });
   await new Promise((ready) => server.listen(0, '127.0.0.1', ready));
-  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  const browser = await lancerChrome({ headless: true });
   try {
     const page = await browser.newPage();
     if (erreursPage) page.on('pageerror', (error) => erreursPage.push(error.message));

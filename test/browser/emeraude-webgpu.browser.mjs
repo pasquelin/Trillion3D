@@ -2,7 +2,7 @@ import { emeraldProvenance, MEASURE_WIDTH, MEASURE_HEIGHT } from '../appui/emera
 import { routeBaseline } from '../appui/emeraldBaseline.mjs';
 import { adresseDuLab } from '../appui/browserFixtureServer.mjs';
 import assert from 'node:assert/strict';
-import { chromium } from 'playwright';
+import { lancerChrome } from '../../scripts/mesure/chrome.mjs';
 import { resolve } from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 const out = resolve(
@@ -13,7 +13,7 @@ const labUrl = adresseDuLab();
 const provenance = await emeraldProvenance(labUrl),
   taa = process.env.WEBGPU_TAA !== 'off';
 await mkdir(out, { recursive: true });
-const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const browser = await lancerChrome({ headless: true });
 try {
   // La fenêtre tient la résolution de relevé, que le canevas soit dimensionné explicitement ou non.
   const viewport = { width: MEASURE_WIDTH, height: MEASURE_HEIGHT };
