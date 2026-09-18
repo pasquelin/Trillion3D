@@ -110,6 +110,8 @@ export interface WebgpuRunState {
   frameHeld: boolean;
   /** Une barrière fait converger les textures : tous les pixels publient leur retour d'image. */
   textureConverging: boolean;
+  /** Une passe de l'image — opaque ou mélange — a écrit la cible de retour : de quoi réduire. */
+  feedbackWritten: boolean;
   /** La révision dont les matrices sont portées à la carte et aux items transparents. */
   worldUploadRevision: number;
   /** L'origine du repère de rendu des matrices portées à la carte : l'œil de cette image-là. Une
@@ -189,6 +191,7 @@ export function createWebgpuRunState(): WebgpuRunState {
     gate: createFrameGateCore(HOLD_SIGNATURE_VALUES),
     frameHeld: false,
     textureConverging: false,
+    feedbackWritten: false,
     worldUploadRevision: 0,
     // Pas de repère avant la première image : elle rebase, quoi qu'il arrive.
     worldUploadOrigin: new Float64Array([NaN, NaN, NaN]),

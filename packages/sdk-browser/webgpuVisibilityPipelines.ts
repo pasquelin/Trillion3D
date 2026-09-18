@@ -1,14 +1,9 @@
-import { SURFACE_FORMATS } from './surfaceBuffer.ts';
-import { SHADE_UNIFORM_BYTES } from './visibilityShaderShadowRequest.ts';
+import { FEEDBACK_FORMAT, SURFACE_FORMATS } from './surfaceBuffer.ts';
+import { SHADE_UNIFORM_BYTES } from './visibilityShaderRequest.ts';
 import { depthLayerUnits } from '../sdk-core/index.ts';
 import { DEPTH_COMPARE } from './depthConvention.ts';
 import { openValidation, validationError } from './gpuErrorScope.ts';
-import {
-  SHADE_BINDINGS,
-  atlasLayoutEntries,
-  feedbackLayoutEntry,
-  readOnly,
-} from './webgpuBindLayout.ts';
+import { SHADE_BINDINGS, atlasLayoutEntries, readOnly } from './webgpuBindLayout.ts';
 import { shadeVariantFragment, visVariantFragment } from './diagnosticGpuGeometry.ts';
 import type { DiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
 
@@ -148,7 +143,6 @@ export function createWebgpuShadePipeline(
         buffer: { type: 'uniform', minBindingSize: SHADE_UNIFORM_BYTES },
       },
       ...atlasLayoutEntries(b.data),
-      feedbackLayoutEntry(b.feedback),
     ],
   });
   return scoped(device, () => ({
@@ -159,7 +153,8 @@ export function createWebgpuShadePipeline(
       fragment: {
         module: shadeModule,
         entryPoint: shadeVariantFragment(variant),
-        targets: SURFACE_FORMATS.map((format) => ({ format })),
+        // Les surfaces, puis la demande de tuiles que la cible de retour de l'image reçoit.
+        targets: [...SURFACE_FORMATS, FEEDBACK_FORMAT].map((format) => ({ format })),
       },
       primitive: { topology: 'triangle-list', cullMode: 'none' },
     }),

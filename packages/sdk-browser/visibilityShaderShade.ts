@@ -11,14 +11,13 @@ import {
   COLOR_SAMPLE_WGSL,
   DATA_SAMPLE_WGSL,
   TILE_POOL_WGSL,
-  feedbackDeclaration,
   tileDeclarations,
 } from './webgpuTileWgsl.ts';
-import { TILE_FEEDBACK_WGSL } from './webgpuTileRequestWgsl.ts';
-import { SHADE_SHADOW_REQUEST_WGSL, SHADOW_REQUEST_WRAP } from './visibilityShaderShadowRequest.ts';
+import { TILE_REQUEST_WGSL } from './webgpuTileRequestWgsl.ts';
+import { SHADE_REQUEST_WGSL } from './visibilityShaderRequest.ts';
 import { SHADOW_SLICE_WGSL } from './directShadowWgsl.ts';
 import { SHADE_BINDINGS } from './webgpuBindLayout.ts';
-import { lecture, retour, siCarte } from './visibilityShaderMaps.ts';
+import { lecture, lectureDonnee, siCarte } from './visibilityShaderMaps.ts';
 
 export const SHADE_SHADER = `${PAGE_INFO_STRUCT_WGSL}
 ${SHADOW_SLICE_WGSL}
@@ -33,7 +32,6 @@ ${tileDeclarations(SHADE_BINDINGS.color, 'color')}
 @group(0) @binding(${SHADE_BINDINGS.sampler}) var mapsSampler:sampler;
 @group(0) @binding(${SHADE_BINDINGS.uniform}) var<uniform> uni:ShadeUni;
 ${tileDeclarations(SHADE_BINDINGS.data, 'data')}
-${feedbackDeclaration(SHADE_BINDINGS.feedback)}
 ${TRIANGLE_PALETTE_WGSL}
 ${PAGE_VERTEX_WGSL}
 ${PAGE_UV_WGSL}
@@ -44,12 +42,18 @@ ${BARY_WEIGHTS_WGSL}
 ${TILE_POOL_WGSL}
 ${COLOR_SAMPLE_WGSL}
 ${DATA_SAMPLE_WGSL}
-${TILE_FEEDBACK_WGSL}
-${SHADE_SHADOW_REQUEST_WGSL}
+${TILE_REQUEST_WGSL}
+${SHADE_REQUEST_WGSL}
 ${INVERSE_TRANSPOSE_WGSL}
-struct SurfaceOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@location(2) emissiveAo:vec4f,@location(3) flags:u32,}
-fn emptySurface()->SurfaceOut{return SurfaceOut(vec4f(0.0),vec4f(0.0),vec4f(0.0),0u);}
-fn diagnosticSurface(color:vec3f)->SurfaceOut{return SurfaceOut(vec4f(color,0.0),vec4f(0.0),vec4f(0.0),3u);}
+// La cinquième sortie est le rang de tuile que ce pixel demande aux textures virtuelles, posé dans
+// la cible de retour que les transparents complètent et qu'une passe de calcul réduit en compteurs.
+struct SurfaceOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@location(2) emissiveAo:vec4f,@location(3) flags:u32,@location(4) request:u32,}
+/** Une surface sans rien à éclairer — fond, ou découpe qui l'écarte — : sa demande de tuiles reste,
+ *  le raster qui a gardé le pixel lit la même carte, et c'est ce pixel qui la nomme. */
+fn cutSurface(request:u32)->SurfaceOut{return SurfaceOut(vec4f(0.0),vec4f(0.0),vec4f(0.0),0u,request);}
+fn emptySurface()->SurfaceOut{return cutSurface(0u);}
+/** Un diagnostic garde la demande : ses textures convergent comme celles de l'image. */
+fn diagnosticSurface(color:vec3f,request:u32)->SurfaceOut{return SurfaceOut(vec4f(color,0.0),vec4f(0.0),vec4f(0.0),3u,request);}
 fn framebuffer(clip:vec4f)->vec3f{
  let ndc=clip.xyz/clip.w;
  return vec3f((ndc.x*0.5+0.5)*uni.viewport.x,(-ndc.y*0.5+0.5)*uni.viewport.y,ndc.z);
@@ -103,34 +107,35 @@ fn framebuffer(clip:vec4f)->vec3f{
    }
   }
  }
- if(feedbackPhase(pos.xy,uni.feedback)){
-  ${retour}
-  if((page.flags&12u)==12u){let s=colorSlot(page.mapIndex);shadowRequests(page,s,slotWrapped(s,uv,${SHADOW_REQUEST_WRAP}),w0,w1,w2,i0,i1,i2,w0*bary.x+w1*bary.y+w2*bary.z);}
- }
+ let request=shadeRequest(page,pos.xy,uv,ddx,ddy,w0,w1,w2,i0,i1,i2,w0*bary.x+w1*bary.y+w2*bary.z);
  let sample=${lecture('colorSample', 'base')};
  var roughSample=vec4f(1.0);
  ${siCarte('rough', `roughSample=${lecture('dataSample', 'rough')};`)}
  var metalSample=vec4f(1.0);
- ${siCarte('metal', `metalSample=${lecture('dataSample', 'metal')};`)}
- var ao=1.0;
- ${siCarte('ao', `ao=1.0+page.aoIntensity*(${lecture('dataSample', 'ao')}.r-1.0);`)}
+ ${lectureDonnee('metalSample', 'metal', [['roughSample', 'rough']])}
+ var aoSample=vec4f(1.0);
+ ${lectureDonnee('aoSample', 'ao', [
+   ['roughSample', 'rough'],
+   ['metalSample', 'metal'],
+ ])}
+ let ao=1.0+page.aoIntensity*(aoSample.r-1.0);
  var emissive=page.emissive.xyz;
  ${siCarte('emissive', `emissive*=${lecture('colorSample', 'emissive')}.rgb;`)}
  var nrmSample=vec4f(0.5,0.5,1.0,1.0);
  ${siCarte('normal', `nrmSample=${lecture('dataSample', 'normal')};`)}
  if((page.flags&8u)!=0u){
   rgb=rgb*sample.xyz;
-  if((page.flags&128u)!=0u&&sample.w<page.baseColor.w){return emptySurface();}
+  if((page.flags&128u)!=0u&&sample.w<page.baseColor.w){return cutSurface(request);}
  }
  if(uni.mode==1u){
   let edgeW=1.0-min(min(smoothstep(0.0,width.x*1.2,bary.x),smoothstep(0.0,width.y*1.2,bary.y)),smoothstep(0.0,width.z*1.2,bary.z));
-  return diagnosticSurface(mix(hashColor(stableTriangleId(page.clusterHash,tri)),vec3f(0.04,0.05,0.07),edgeW));
+  return diagnosticSurface(mix(hashColor(stableTriangleId(page.clusterHash,tri)),vec3f(0.04,0.05,0.07),edgeW),request);
  }
- if(uni.mode==2u){return diagnosticSurface(hashColor(page.clusterHash));}
- if(uni.mode==3u){return diagnosticSurface(vec3f(0.204,0.827,0.6));}
- if(uni.mode==4u){return diagnosticSurface(select(vec3f(0.04,0.51,0.94),vec3f(0.95,0.42,0.05),page.pad1>0.5));}
- if(uni.mode==5u){return diagnosticSurface(vec3f(0.204,0.827,0.6));}
- if(uni.mode==6u){let ratio=clamp(page.pad4.x,0.0,1.0);return diagnosticSurface(vec3f(ratio,1.0-ratio,0.12));}
+ if(uni.mode==2u){return diagnosticSurface(hashColor(page.clusterHash),request);}
+ if(uni.mode==3u){return diagnosticSurface(vec3f(0.204,0.827,0.6),request);}
+ if(uni.mode==4u){return diagnosticSurface(select(vec3f(0.04,0.51,0.94),vec3f(0.95,0.42,0.05),page.pad1>0.5),request);}
+ if(uni.mode==5u){return diagnosticSurface(vec3f(0.204,0.827,0.6),request);}
+ if(uni.mode==6u){let ratio=clamp(page.pad4.x,0.0,1.0);return diagnosticSurface(vec3f(ratio,1.0-ratio,0.12),request);}
  var metal=clamp(page.metalness*metalSample.z,0.0,1.0);var rough=clamp(page.roughness*roughSample.y,0.0525,1.0);
  // Original vertices may straddle the near plane; recover the clipped winding.
   let screenFace=select(-1.0,1.0,area*c0.w*c1.w*c2.w<0.0);
@@ -177,6 +182,6 @@ fn framebuffer(clip:vec4f)->vec3f{
    if((page.flags&2u)!=0u&&(page.flags&16u)!=0u){T*=face;B*=face;}
    N=uniteOuZero(T*mapN.x+B*mapN.y+N*mapN.z);
   }
- return SurfaceOut(vec4f(rgb,metal),vec4f(N,rough),vec4f(emissive,ao),select(1u,2u,(page.flags&1u)!=0u));
+ return SurfaceOut(vec4f(rgb,metal),vec4f(N,rough),vec4f(emissive,ao),select(1u,2u,(page.flags&1u)!=0u),request);
 }
 `;

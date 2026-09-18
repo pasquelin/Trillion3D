@@ -1,4 +1,9 @@
-import { checkSurfaceSize, createSurfaceBuffer, frameTargetBytes } from './surfaceBuffer.ts';
+import {
+  FEEDBACK_FORMAT,
+  checkSurfaceSize,
+  createSurfaceBuffer,
+  frameTargetBytes,
+} from './surfaceBuffer.ts';
 import { dropGpuHiz } from './webgpuPagesDrops.ts';
 import { backdropBytes, createBackdrop, disposeBackdrop } from './webgpuTransmission.ts';
 import { ensureTaaTargets } from './taaPrepare.ts';
@@ -90,7 +95,7 @@ export function ensureTargets(
   gpu.feedbackTexture = device.createTexture({
     label: 'WG texture feedback target',
     size: { width, height },
-    format: 'r32uint',
+    format: FEEDBACK_FORMAT,
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
   });
   gpu.feedbackView = gpu.feedbackTexture.createView();

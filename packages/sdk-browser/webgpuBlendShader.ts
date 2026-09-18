@@ -120,9 +120,7 @@ ${TRIANGLE_PALETTE_WGSL}
  let flags=in.ids.y;
  let wrap=in.ids.w;
  let gradX=dpdx(in.uv);let gradY=dpdy(in.uv);
- // Seuls les pixels de la phase sont lus par la réduction : les autres ne calculent rien.
- var request=0u;
- if(feedbackPhase(in.position.xy,uni.feedback)){request=blendRequest(in,wrap,gradX,gradY);}
+ let request=blendRequest(in,wrap,gradX,gradY);
  let q0=dpdx(in.view);let q1=dpdy(in.view);
  // uniteOuZero rend normalize partout ou le vecteur n'est pas nul : memes bits qu'avant sur une
  // surface ordinaire, vecteur nul — et non NaN — sur une face effondree, dont un NaN gagnerait les
