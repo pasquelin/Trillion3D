@@ -163,6 +163,8 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     png: capture ? captureFile : null,
     captureStatus: result.captureStatus,
     incidentsGpu: result.lost.length ? result.lost : null,
+    // Un DAG que le compilateur n'a pas fait monter, dit par le moteur à l'ouverture : `null` sans.
+    avertissementsDag: result.avertissementsDag ?? null,
     canvas: result.size,
     metrics,
   };

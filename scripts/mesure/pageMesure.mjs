@@ -56,3 +56,25 @@ export async function reglerReservoirs(explorer, pose, budgets) {
   const rapport = await explorer.setMemoryBudgets(budgets);
   return { ...rapport, imagesReprise: await poseCalme(explorer, pose) };
 }
+
+/**
+ * Le collecteur des diagnostics du moteur pendant une série : les incidents de la carte graphique
+ * et la pose de l'image vont dans `lost`, publié sur la page ; les avertissements du compilateur
+ * — un DAG qui n'est pas monté, dits à l'ouverture — restent à part, pour le relevé.
+ */
+export function collecteDiagnostics(lost) {
+  const diagnostics = {
+    avertissements: null,
+    onDiagnostic(event) {
+      // Ce que la barrière a fait pour poser l'image, et ce qui l'en empêche encore : la cause d'un
+      // témoin A/A qui bruite se lit ici, pas dans le bruit.
+      if (event.phase === 'pose-settle')
+        lost.push(`${event.phase} ${JSON.stringify(event.context)}`);
+      if (event.phase === 'dag-warnings') diagnostics.avertissements = event.context;
+      if (event.phase !== 'gpu-uncaptured-error' && event.phase !== 'gpu-device-lost') return;
+      const cause = event.context ?? {};
+      lost.push(`${event.phase} : ${cause.error ?? cause.message ?? cause.reason ?? ''}`);
+    },
+  };
+  return diagnostics;
+}
