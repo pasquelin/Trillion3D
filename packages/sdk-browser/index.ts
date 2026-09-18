@@ -21,6 +21,8 @@ export type {
   PointOfInterest,
 } from './backendTypes.ts';
 export type { DiagnosticDetail } from './backendTypes.ts';
+export { gpuPassBlockOf, gpuPassBlockTotals } from './gpuPassBlocks.ts';
+export type { GpuPassBlock, GpuPassBlockTotals } from './gpuPassBlocks.ts';
 export { createDiagnosticChannel } from './diagnosticChannel.ts';
 export type {
   DiagnosticChannel,

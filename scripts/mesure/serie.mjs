@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { pngFromRgba } from './serveur.mjs';
 import { measureView } from './page.mjs';
 import { distribution, machineLoad } from './rapport.mjs';
+import { passesGpu } from './seriePasses.mjs';
 
 /** Une série : un côté, une vue, un seuil. Écrit sa capture, renvoie sa ligne de rapport. */
 export async function runSerie(ctx, page, side, view, pixelError, pose, captures, suffix = '') {
@@ -72,6 +73,13 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     gpuFrameMs: ENGINE.id === 'webgpu-page-raster' ? distribution(result.gpuFrameMs) : null,
     // Découpage par étape publié par le moteur : p50/p95, processeur et carte graphique séparés.
     profilParEtape: result.stageProfile ?? null,
+    // Chaque passe de la carte et les blocs qu'un profil publié sait nommer, p50/p95 sur les
+    // relevés de la même boucle que le profil ; `null` sans relevé.
+    passesGpu: passesGpu(result.gpuPassSamples),
+    // La préparation chronométrée dans la page, et les octets passés sur le réseau depuis, par sorte
+    // de fichier ; `null` pour un dist d'avant ces deux relevés.
+    preparationMs: typeof result.preparationMs === 'number' ? result.preparationMs : null,
+    reseau: result.network ?? null,
     variante: side.variante ?? null,
     erreur: side.erreur ?? 'certifiee',
     selectedTriangles: metrics.selectedTriangles ?? null,

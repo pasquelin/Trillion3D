@@ -8,41 +8,58 @@ import { SHADOW_PASS } from './gpuShadowAtlas.ts';
 import type { StageAdd } from './stageProfiler.ts';
 
 /**
- * L'étape à laquelle appartient chaque passe GPU, lue par l'étiquette que la passe porte déjà. C'est
- * l'unique lecture des étiquettes du dépôt : les durées de l'éclairage direct et le profil par étape
- * la partagent. Une étiquette inconnue n'est pas rangée d'office ailleurs : elle rejoint `geometry`,
- * la seule étape qui dessine sans nom propre.
+ * Les deux blocs d'une image que l'on sait mettre en regard d'un profil publié, et rien d'autre.
+ * `visibility` est la construction du tampon de visibilité : sélection, partition, Hi-Z et raster.
+ * `materials` est l'écriture des surfaces depuis ce tampon. Tout le reste est `other` : ombres,
+ * listes de lampes, rebond, transparents, éclairage différé, présentation, et le chemin de repli qui
+ * ne passe pas par le tampon — ranger l'un de ceux-là dans un bloc gonflerait une comparaison au
+ * lieu de la servir, donc ils restent dehors ET nommés, chaque passe gardant sa durée.
  */
-const PASS_STAGES: Readonly<Record<string, string>> = Object.freeze({
-  'WG DAG selection': 'selection',
-  'WG partition': 'partition',
-  'WG draw compaction': 'selection',
-  [REST_COMPACT_PASS]: 'geometry',
-  'WG HiZ pyramid': 'hiZ',
-  'WG HiZ test': 'hiZ',
-  'WG clear': 'geometry',
-  'WG visibility primary': 'geometry',
-  'WG visibility secondary': 'geometry',
-  'WG small triangle binning': 'geometry',
-  'WG small triangle raster': 'geometry',
-  'WG hybrid visibility resolve': 'geometry',
-  'WG empty surfaces': 'geometry',
-  'WG material surfaces v1': 'geometry',
-  'WG opaque fallback': 'geometry',
-  'WG transparents': 'transparents',
-  'WG transmission': 'transparents',
-  'WG transparent compaction': 'transparents',
-  [SHADOW_PASS]: 'shadows',
-  'WG shadow cull': 'shadows',
-  [LIGHT_TILES_PASS]: 'lightLists',
-  [BOUNCE_SURFACE_PASS]: 'bounce',
-  [BOUNCE_PROBE_PASS]: 'bounce',
-  [DEFERRED_LIGHTING_PASS]: 'lighting',
-  'WG HDR composition': 'present',
-  'WG HDR composition + present': 'present',
-  'WG direct present': 'present',
-  'WG explicit capture': 'present',
-});
+export type GpuPassBlock = 'visibility' | 'materials' | 'other';
+
+/**
+ * L'étape du profil et le bloc de comparaison de chaque passe GPU, lus par l'étiquette que la passe
+ * porte déjà. C'est l'unique lecture des étiquettes du dépôt : les durées de l'éclairage direct, le
+ * profil par étape et les blocs la partagent. Une étiquette inconnue rejoint `geometry`, la seule
+ * étape qui dessine sans nom propre, et `other`, pour qu'une passe nouvelle n'aille pas grossir en
+ * silence un bloc comparé.
+ */
+const PASSES: Readonly<Record<string, readonly [stage: string, block: GpuPassBlock]>> =
+  Object.freeze({
+    'WG DAG selection': ['selection', 'visibility'],
+    'WG partition': ['partition', 'visibility'],
+    'WG draw compaction': ['selection', 'visibility'],
+    [REST_COMPACT_PASS]: ['geometry', 'other'],
+    'WG HiZ pyramid': ['hiZ', 'visibility'],
+    'WG HiZ test': ['hiZ', 'visibility'],
+    'WG clear': ['geometry', 'visibility'],
+    'WG visibility primary': ['geometry', 'visibility'],
+    'WG visibility secondary': ['geometry', 'visibility'],
+    'WG small triangle binning': ['geometry', 'visibility'],
+    'WG small triangle raster': ['geometry', 'visibility'],
+    'WG hybrid visibility resolve': ['geometry', 'visibility'],
+    'WG empty surfaces': ['geometry', 'materials'],
+    'WG material surfaces v1': ['geometry', 'materials'],
+    'WG opaque fallback': ['geometry', 'other'],
+    'WG transparents': ['transparents', 'other'],
+    'WG transmission': ['transparents', 'other'],
+    'WG transparent compaction': ['transparents', 'other'],
+    [SHADOW_PASS]: ['shadows', 'other'],
+    'WG shadow cull': ['shadows', 'other'],
+    [LIGHT_TILES_PASS]: ['lightLists', 'other'],
+    [BOUNCE_SURFACE_PASS]: ['bounce', 'other'],
+    [BOUNCE_PROBE_PASS]: ['bounce', 'other'],
+    [DEFERRED_LIGHTING_PASS]: ['lighting', 'other'],
+    'WG HDR composition': ['present', 'other'],
+    'WG HDR composition + present': ['present', 'other'],
+    'WG direct present': ['present', 'other'],
+    'WG explicit capture': ['present', 'other'],
+  });
+
+/** L'étape d'une passe, par son étiquette. Inconnue vaut `geometry`. */
+const gpuPassStageOf = (name: string) => PASSES[name]?.[0] ?? 'geometry';
+/** Le bloc d'une passe, par son étiquette. Inconnue vaut `other`. */
+export const gpuPassBlockOf = (name: string): GpuPassBlock => PASSES[name]?.[1] ?? 'other';
 
 /** Les étapes que le moteur WebGPU sait nommer, dans l'ordre où elles se produisent. */
 export const WEBGPU_STAGES = [
@@ -82,21 +99,29 @@ export const WEBGL_STAGES = [
 ] as const;
 
 /**
- * La durée carte graphique de chaque étape d'un relevé, en un seul parcours. `null` pour une étape
- * dont une passe n'a pas de durée utilisable : une somme partielle passerait pour une mesure. Un
- * relevé tronqué ou absent ne donne aucune étape, pour la même raison.
+ * La durée carte graphique d'un relevé par groupe de passes, en un seul parcours, `classify`
+ * nommant le groupe de chaque passe. `null` pour un groupe dont une passe n'a pas de durée
+ * utilisable : une somme partielle passerait pour une mesure. Un relevé tronqué ou absent ne donne
+ * aucun groupe, pour la même raison.
  */
-function gpuStageTotals(sample: GpuPassTimings | null | undefined) {
-  const totals = new Map<string, number | null>();
+export function gpuTotalsBy<Group extends string>(
+  sample: GpuPassTimings | null | undefined,
+  classify: (name: string) => Group,
+) {
+  const totals = new Map<Group, number | null>();
   if (!sample || sample.truncated) return totals;
   for (const pass of sample.passes) {
-    const stage = PASS_STAGES[pass.name] ?? 'geometry';
-    const total = totals.get(stage);
+    const group = classify(pass.name);
+    const total = totals.get(group);
     if (total === null) continue;
-    totals.set(stage, pass.gpuMs === null ? null : (total ?? 0) + pass.gpuMs);
+    totals.set(group, pass.gpuMs === null ? null : (total ?? 0) + pass.gpuMs);
   }
   return totals;
 }
+
+/** La durée carte graphique de chaque étape du profil. */
+const gpuStageTotals = (sample: GpuPassTimings | null | undefined) =>
+  gpuTotalsBy(sample, gpuPassStageOf);
 
 /** Ventile un relevé sur les étapes du profil : ce qui n'est pas mesuré n'y est pas déposé. */
 export function addGpuPasses(sample: GpuPassTimings | null | undefined, add: StageAdd) {
