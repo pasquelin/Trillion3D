@@ -1,5 +1,5 @@
 use super::*;
-use crate::texture_preview::PreviewSource;
+use crate::texture_preview::{AtlasKind, PreviewSource};
 
 fn templates() -> Templates<'static> {
     Templates {
@@ -17,7 +17,9 @@ fn preview(texture: u32, width: u32, height: u32, fill: u8) -> TexturePreview {
         height,
         source: PreviewSource::Uri,
         sha256: std::iter::repeat_n('a', 64).collect(),
+        kind: AtlasKind::Color,
         first_level: preview_first_level(width, height),
+        baked_levels: preview_first_level(width, height),
         pixels: vec![fill; preview_pixel_bytes(width, height)],
     }
 }
@@ -51,6 +53,8 @@ fn texture_previews_round_trip_through_the_binary_columns() {
             word(base + 28),
             preview_level_count(source.width, source.height)
         );
+        assert_eq!(word(base + 40), source.kind.word());
+        assert_eq!(word(base + 44), source.baked_levels);
         let sha = std::str::from_utf8(&bytes[sha_off + entry * 64..sha_off + entry * 64 + 64])
             .expect("ascii");
         assert_eq!(sha, source.sha256);
@@ -76,7 +80,8 @@ fn a_sidecar_of_an_older_version_is_refused() {
     assert!(digests(&old).is_err());
 }
 
-// Comportement 9 (c) : un index de texture qui ne progresse pas est refusé.
+// Comportement 9 (c) : un couple (texture, atlas) qui ne progresse pas est refusé — la même texture
+// peut avoir une entrée par atlas, couleur avant données, jamais deux fois le même atlas.
 #[test]
 fn encode_previews_rejects_a_decreasing_texture_index() {
     let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
@@ -84,6 +89,24 @@ fn encode_previews_rejects_a_decreasing_texture_index() {
     let error =
         crate::manifest_binary::preview::encode_previews(&previews, &mut columns).unwrap_err();
     assert_eq!(error.code, "INVALID_MANIFEST");
+    let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
+    let mut data = preview(2, 4, 4, 1);
+    data.kind = AtlasKind::Data;
+    let both = vec![preview(2, 4, 4, 1), data];
+    crate::manifest_binary::preview::encode_previews(&both, &mut columns)
+        .expect("une entrée par atlas");
+    let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
+    let twice = vec![preview(2, 4, 4, 1), preview(2, 4, 4, 1)];
+    assert!(crate::manifest_binary::preview::encode_previews(&twice, &mut columns).is_err());
+}
+
+// Comportement 9 (g) : plus de niveaux cuits que la queue n'en laisse au-dessus d'elle est refusé.
+#[test]
+fn encode_previews_rejects_more_baked_levels_than_the_tail_leaves() {
+    let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
+    let mut malformed = preview(0, 128, 128, 1);
+    malformed.baked_levels += 1;
+    assert!(crate::manifest_binary::preview::encode_previews(&[malformed], &mut columns).is_err());
 }
 
 // Comportement 9 (d) : une dimension source nulle est refusée.

@@ -132,6 +132,7 @@ mod compiler_primitive;
 mod compiler_primitive_bundle;
 mod compiler_primitive_dag;
 mod compiler_prune;
+mod compiler_prune_textures;
 mod compiler_publish;
 mod compiler_ratio;
 mod compiler_runtime;
