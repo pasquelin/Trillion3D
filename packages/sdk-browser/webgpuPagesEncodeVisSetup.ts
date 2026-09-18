@@ -4,11 +4,10 @@ import { ensureWebgpuVisibilityBindings } from './webgpuVisibilityBindings.ts';
 import { ensureWebgpuShadeBindings } from './webgpuShadeBindings.ts';
 import { writeWebgpuVisibilityUniforms } from './webgpuVisibilityUniforms.ts';
 import { checkFrameBudget } from './webgpuPagesTargets.ts';
-import { forcesHardwareRaster, skipsSecondaryPass } from './diagnosticGpuGeometry.ts';
+import { requestsComputeRaster, skipsSecondaryPass } from './diagnosticGpuGeometry.ts';
 import { createRenderEncoder, submitColorCopy } from './webgpuPagesEncoder.ts';
 import { encodeSurfaceLighting } from './webgpuPagesEncodeBlend.ts';
 import type { SurfaceBuffer } from './surfaceBuffer.ts';
-import { grantCapability } from './webgpuPagesDrops.ts';
 import type { GpuRasterInput } from './gpuRasterTypes.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import { DEPTH_CLEAR } from './depthConvention.ts';
@@ -70,14 +69,21 @@ export function encodeEmptySurfaces(
  */
 const rasterInput = {} as GpuRasterInput;
 
-/** Crée le raster de calcul une fois, et retient l'appareil qui ne peut pas l'héberger. */
+/**
+ * Crée le raster de calcul une fois, quand la variante `raster-calcul` le demande, et retient
+ * l'appareil qui ne peut pas l'héberger. En production il n'est jamais créé : mesuré le 18 sept.
+ * 2026 sur toute la coupe, il coûte 25,5 ms d'enveloppe contre 5,5 au matériel à 1248×702, et son
+ * admission par la seule mémoire (`checkFrameBudget`) faisait dépendre l'image de la taille de la
+ * fenêtre. Il reviendra en production par la coupe de la référence — petits triangles au calcul,
+ * grands au matériel — admise par un budget de temps mesuré, jamais par la place en mémoire.
+ */
 export function ensureGpuRaster(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const { vis, capture, capabilities, diag } = rt,
+  const { vis, capture, diag } = rt,
     [width, height] = rt.gpu.targetSize;
   if (
     vis.gpuRaster ||
     vis.hybridUnavailable ||
-    forcesHardwareRaster(rt.context?.diagnosticGpuVariant) ||
+    !requestsComputeRaster(rt.context?.diagnosticGpuVariant) ||
     typeof device.createComputePipeline !== 'function'
   )
     return;
@@ -88,8 +94,9 @@ export function ensureGpuRaster(rt: WebgpuPagesRuntime, device: GPUDevice) {
       height,
       capture.captureAllocationBytes + width * height * 8 + rt.layout.rasterCapacity * 8,
     );
+    // Aucune capacité n'est accordée : « small-triangle compute raster » reste non tenue, ce raster
+    // prend toute la coupe et n'est pas celui de la référence.
     vis.gpuRaster = createGpuRaster(device, width, height, rt.layout.rasterCapacity);
-    grantCapability(capabilities, 'opaque compute raster');
   } catch (error) {
     vis.hybridUnavailable = true;
     diag.diagnosticFailure('opaque-compute-raster-unavailable', error);
@@ -105,9 +112,10 @@ export function ensureVisBindings(rt: WebgpuPagesRuntime, device: GPUDevice, tab
 
 /**
  * Rastère en calcul TOUS les triangles opaques et masqués de la coupe, et rend le nombre de
- * lancements encodés. `midFrame` porte la pyramide et le test d'occultation : ils tombent entre la
- * profondeur des occulteurs et celle de la moitié testée, là où le raster matériel les mettait.
- * Rend `null` — et rien n'est encodé — quand une ressource manque : l'appelant reprend le matériel.
+ * lancements encodés. Chemin de diagnostic (`raster-calcul`) tant que la coupe petits/grands n'existe
+ * pas. `midFrame` porte la pyramide et le test d'occultation : ils tombent entre la profondeur des
+ * occulteurs et celle de la moitié testée, là où le raster matériel les met. Rend `null` — et rien
+ * n'est encodé — quand une ressource manque : l'appelant reprend le matériel.
  */
 export function encodeRaster(
   rt: WebgpuPagesRuntime,

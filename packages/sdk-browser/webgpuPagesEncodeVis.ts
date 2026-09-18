@@ -84,9 +84,9 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
     clearDrawItemWords(words);
     rows.rowsChanged = false;
   }
-  // Le raster de calcul est le producteur de l'image opaque : profondeur, identifiants et niveau
-  // zéro de la pyramide sortent tous de lui. Le matériel ne dessine plus de géométrie opaque — il
-  // ne reprend la main que sur l'appareil qui ne peut pas héberger ce raster.
+  // Le raster matériel est le producteur de l'image opaque : profondeur, identifiants et niveau
+  // zéro de la pyramide sortent de ses deux passes. Le raster de calcul ne le remplace que sous la
+  // variante `raster-calcul`, et lui rend la main dès qu'une ressource lui manque.
   run.gpuComputeDispatches = 0;
   rt.run.hizPyramidFresh = false;
   const dispatched = vis.gpuRaster

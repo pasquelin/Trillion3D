@@ -10,6 +10,7 @@ import {
   selectionRepeat,
 } from './diagnosticGpuVariant.ts';
 import type { DiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
+import { requestsComputeRaster } from './diagnosticGpuGeometry.ts';
 
 test('aucune variante demandée : rien à vérifier, rien à monter', () => {
   assert.equal(resolveDiagnosticGpuVariant(undefined, 'summary'), undefined);
@@ -52,11 +53,14 @@ test('chaque variante neutralise un seul facteur, et son étage existe dans le m
   }
 });
 
-test('le comptage et la présentation hors écran ne sont allumés que par leur variante', () => {
+test('le comptage, la présentation hors écran et le raster de calcul ne sont allumés que par leur variante', () => {
   const comptant = DIAGNOSTIC_GPU_VARIANTS.filter(countsBlendOverdraw);
   const horsEcran = DIAGNOSTIC_GPU_VARIANTS.filter(composesOffscreen);
+  const calcul = DIAGNOSTIC_GPU_VARIANTS.filter(requestsComputeRaster);
   assert.deepEqual(comptant, ['transparents-surdessin']);
   assert.deepEqual(horsEcran, ['presentation-hors-ecran']);
+  assert.deepEqual(calcul, ['raster-calcul']);
+  assert.equal(requestsComputeRaster(undefined), false);
 });
 
 test('seules les deux variantes de la coupe la réencodent, et chacune sa part', () => {

@@ -7,7 +7,7 @@ import { webgpuPagesBackend } from './webgpuPages.ts';
 import { rasterPageRecords } from './pageRaster.ts';
 import { collectClusterPages } from './pageSelection.ts';
 import { packDagSelection } from './gpuDagSelection.ts';
-import { MODE_ID, rasterEntry } from './gpuRasterContract.ts';
+import { PAGE_BIND_ALIGN } from './gpuDraw.ts';
 import { drawnPageIds, installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera, mixedBinScene, quadBackend } from './webgpuPagesTestScenes.ts';
@@ -46,20 +46,27 @@ test('webgpu pages raster consumes the GPU cache and does not attach a mesh per 
     shade.reduce((n, d) => n + d.vertexCount, 0),
     3,
   );
-  // Le raster de calcul est le producteur de l'image opaque depuis b72278c6 : la coupe lui arrive
-  // par le masque de l'image, et plus aucune commande matérielle ne porte de géométrie — seuls les
-  // triangles plein écran de la résolution et de l'ombrage restent.
+  // Le raster matériel est le producteur de l'image opaque : la coupe lui arrive par le masque de
+  // l'image, que ses commandes indirectes consomment en instances. Le raster de calcul ne se
+  // crée pas en production — aucun binning, aucune capacité de calcul opaque.
   assert.deepEqual(drawnPageIds(buffers, packed.nodeCount, packed.pageCount), [0, 1]);
-  assert.ok(computes.includes('bin') && computes.includes(rasterEntry('fine', MODE_ID)));
-  assert.equal(draws.filter((d) => d.indirect).length, 0);
-  assert.ok(draws.every((d) => d.vertexCount === 3));
+  const vis = draws.filter((d) => d.indirect);
+  assert.ok(vis.length >= 1 && vis.length <= 6);
+  assert.equal(
+    vis.reduce((n, d) => n + (d.instanceCount ?? 0), 0),
+    2,
+  );
+  assert.ok(vis.every((d) => d.firstInstance === 0));
+  assert.ok(vis.every((d) => (d.bindOffset ?? 0) % PAGE_BIND_ALIGN === 0));
+  assert.equal(computes.includes('bin'), false);
+  assert.ok(backend.capabilities.unsupported.includes('small-triangle compute raster'));
   assert.equal(backend.capabilities.unsupported.includes('visibility buffer'), false);
   backend.dispose();
   geometry.dispose();
   material.dispose();
 });
 
-test('the compute raster reads one unsorted page table for both sided bins', async () => {
+test('vis drawIndirect consumes GPU instance indices against one unsorted page table', async () => {
   installGpuGlobals();
   const { source, metadata, indices, associations, geoA, geoB, front, both } = mixedBinScene();
   const collected = collectClusterPages(source, metadata, indices, associations);
@@ -80,12 +87,18 @@ test('the compute raster reads one unsorted page table for both sided bins', asy
   draws.length = 0;
   computes.length = 0;
   backend.render(camera());
-  // Les deux bacs — face avant seule et double face — tenaient hier deux commandes indirectes sur
-  // une table de pages commune. Le raster de calcul n'a plus de bacs : il lit la MÊME table et le
-  // MÊME masque pour les deux, en un seul encodage, et le côté se lit sur la ligne de la page.
+  // Les deux bacs — face avant seule et double face — tiennent deux commandes indirectes sur une
+  // table de pages commune, et lisent le MÊME masque de l'image.
   assert.deepEqual(drawnPageIds(buffers, packed.nodeCount, packed.pageCount), [0, 1]);
-  assert.equal(computes.filter((entry) => entry === 'bin').length, 1);
-  assert.equal(draws.filter((draw) => draw.indirect).length, 0);
+  assert.equal(computes.includes('bin'), false);
+  const vis = draws.filter((draw) => draw.indirect);
+  assert.ok(vis.length >= 2 && vis.length <= 6);
+  assert.equal(
+    vis.reduce((n, draw) => n + (draw.instanceCount ?? 0), 0),
+    2,
+  );
+  assert.deepEqual([...new Set(vis.map((draw) => draw.bindOffset ?? 0))], [0]);
+  assert.ok(vis.every((draw) => draw.instanceBuffer && draw.slotOffsetsBuffer));
   backend.dispose();
   geoA.dispose();
   geoB.dispose();
