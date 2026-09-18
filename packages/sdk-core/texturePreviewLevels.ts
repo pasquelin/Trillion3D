@@ -61,3 +61,12 @@ export function previewGeometry(width: number, height: number) {
 export function previewPixelBytes(width: number, height: number) {
   return previewGeometry(width, height).pixelBytes;
 }
+
+/**
+ * Vrai quand tout ce qui dépasse la queue du sidecar est cuit — y compris quand rien ne la dépasse,
+ * la source tenant sous `PREVIEW_BASE`. Une telle chaîne se suffit : le moteur n'a pas besoin de
+ * l'image source. C'est l'unique lecture de `bakedLevels` contre `firstLevel` du dépôt.
+ */
+export function previewIsWhole(preview: { firstLevel: number; bakedLevels: number }) {
+  return preview.bakedLevels === preview.firstLevel;
+}

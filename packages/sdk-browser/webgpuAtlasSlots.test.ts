@@ -36,19 +36,24 @@ test('le slot 0 est prêt dès la création, sans appel à markReady', () => {
 
 // Comportement 6 : la résidence n'avance que sur une suite de niveaux sans trou depuis le plus
 // grossier — un niveau fin isolé n'écrit rien tant que les niveaux qui le séparent du sommet
-// manquent, puis l'écriture reprend dès que le trou est comblé.
+// manquent, puis l'écriture reprend dès que le trou est comblé ; et quand la suite atteint le
+// niveau 0, la couche est prête d'elle-même, sans `markReady`.
 test('la résidence n’avance que sur une suite de niveaux sans trou depuis le plus grossier', () => {
   installGpuGlobals();
   const { device, calls } = fakeDevice();
   const slots = createWebgpuAtlasSlots(device, new Uint32Array(2), new Uint32Array(2));
   const pyramid: SlotPyramid = { first: 0, last: 2 };
   const before = calls.length;
-  slots.markLevel(1, 0, pyramid);
+  slots.markLevel('color', 1, 0, pyramid);
   assert.equal(calls.length, before, 'le niveau le plus fin seul ne comble aucun trou');
-  slots.markLevel(1, 2, pyramid);
+  slots.markLevel('color', 1, 2, pyramid);
   assert.deepEqual(calls.at(-1), { byteOffset: 12, values: [2 | (2 << 8)] });
-  slots.markLevel(1, 1, pyramid);
-  assert.deepEqual(calls.at(-1), { byteOffset: 12, values: [0 | (2 << 8)] });
+  slots.markLevel('color', 1, 1, pyramid);
+  assert.deepEqual(
+    calls.at(-1),
+    { byteOffset: 12, values: [0xffffffff] },
+    'chaîne entière : prête',
+  );
   slots.destroy();
 });
 
@@ -59,15 +64,15 @@ test('markReady est idempotent et ignore les rangs invalides ; markLevel ignore 
   const { device, calls } = fakeDevice();
   const slots = createWebgpuAtlasSlots(device, new Uint32Array(3), new Uint32Array(3));
   const before = calls.length;
-  slots.markReady([1]);
+  slots.markReady('color', [1]);
   assert.deepEqual(calls.at(-1), { byteOffset: 12, values: [0xffffffff] });
   assert.equal(calls.length, before + 1);
-  slots.markReady([1]);
+  slots.markReady('color', [1]);
   assert.equal(calls.length, before + 1, 'un slot déjà prêt ne redéclenche pas d’écriture');
-  slots.markReady([0, -1, 999, 1.5]);
+  slots.markReady('color', [0, -1, 999, 1.5]);
   assert.equal(calls.length, before + 1, 'rangs négatif, hors bornes et non entier tous ignorés');
-  slots.markLevel(-1, 0, { first: 0, last: 0 });
-  slots.markLevel(999, 0, { first: 0, last: 0 });
+  slots.markLevel('color', -1, 0, { first: 0, last: 0 });
+  slots.markLevel('color', 999, 0, { first: 0, last: 0 });
   assert.equal(calls.length, before + 1, 'markLevel ignore aussi un slot invalide');
   slots.destroy();
 });

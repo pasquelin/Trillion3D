@@ -23,11 +23,18 @@ export {
   isBinaryManifest,
   manifestBinaryRanges,
   previewFirstLevel,
+  previewIsWhole,
   previewLastLevel,
   previewLevelCount,
   previewLevelSize,
   previewPixelBytes,
 } from './manifestBinary.ts';
+export { textureLevelUrl } from './textureLevelUrl.ts';
+export {
+  PREVIEW_ATLAS_COLOR,
+  PREVIEW_ATLAS_DATA,
+  PREVIEW_ATLAS_NAMES,
+} from './manifestBinaryFormat.ts';
 export type {
   ManifestBinaryDescriptor,
   SlimClusterManifest,

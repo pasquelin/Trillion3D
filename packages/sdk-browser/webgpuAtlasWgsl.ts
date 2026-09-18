@@ -5,11 +5,11 @@ import { ATLAS_CLASS_COUNT } from './webgpuAtlasClasses.ts';
  * Les lectures d'atlas partagées par toutes les passes, engendrées une fois par classe de taille.
  *
  * Deux indirections, toutes deux dans la table des slots que le moteur tient à jour : le slot d'une
- * texture dit dans quelle classe et sur quelle couche elle vit, et — pour la couleur — jusqu'où sa
- * chaîne de mips est résidente. Tant qu'elle ne l'est pas jusqu'au niveau 0, l'échantillonnage est
- * explicite et borné aux niveaux réellement écrits ; dès que la pleine résolution est arrivée et ses
- * mips régénérés, le mot vaut `ATLAS_READY` et la lecture est exactement celle d'avant ce lot, à
- * dérivées explicites, sur la vraie texture. L'image finale est donc celle d'avant, au bit près.
+ * texture dit dans quelle classe et sur quelle couche elle vit, et jusqu'où sa chaîne de mips est
+ * résidente — pour les deux atlas, depuis que les niveaux de données sont cuits et arrivent un à
+ * un. Tant qu'elle ne l'est pas jusqu'au niveau 0, l'échantillonnage est explicite et borné aux
+ * niveaux réellement écrits ; dès que la chaîne est entière, le mot vaut `ATLAS_READY` et la
+ * lecture est exactement celle d'avant ce lot, à dérivées explicites, sur la vraie texture.
  *
  * Le shader hôte déclare lui-même `maps0..`, `dataMaps0..`, `mapsSampler`, `colorSlots` et
  * `dataSlots` aux numéros de liaison que `webgpuBindEntries.ts` publie, et n'insère que les blocs
@@ -84,7 +84,7 @@ const wrapped = (name: string, compte: string, args: string, call: string, out: 
 };
 
 const COLOR_LOAD = 'let entry=colorSlots[slot];let word=entry.x;';
-const DATA_LOAD = 'let word=dataSlots[slot];';
+const DATA_LOAD = 'let entry=dataSlots[slot];let word=entry.x;';
 
 /** Couleur : chemin d'avant quand la couche est prête, niveau explicite borné pendant le chargement. */
 const colorClass = (index: number) =>
@@ -106,10 +106,14 @@ const alphaClass = (index: number) =>
  return textureSampleLevel(maps${index},mapsSampler,uv*scale,layer,level).w;
 }`;
 
-/** Données : aucun niveau progressif, donc exactement la lecture d'avant ce lot. */
+/** Données : même règle que la couleur depuis que leurs niveaux arrivent un à un — chemin d'avant
+ *  quand la couche est prête, niveau explicite borné aux niveaux écrits pendant le chargement. */
 const dataClass = (index: number) =>
-  `fn dataSample${index}(layer:i32,scale:vec2f,uv:vec2f,ddx:vec2f,ddy:vec2f)->vec4f{
- return textureSampleGrad(dataMaps${index},mapsSampler,uv*scale,layer,ddx*scale,ddy*scale);
+  `fn dataSample${index}(layer:i32,lod:u32,scale:vec2f,uv:vec2f,ddx:vec2f,ddy:vec2f)->vec4f{
+ if(lod==ATLAS_READY){return textureSampleGrad(dataMaps${index},mapsSampler,uv*scale,layer,ddx*scale,ddy*scale);}
+ let texels=vec2f(textureDimensions(dataMaps${index},0))*scale;
+ let level=clamp(atlasLod(ddx*texels,ddy*texels),atlasFinest(lod),atlasCoarsest(lod));
+ return textureSampleLevel(dataMaps${index},mapsSampler,uv*scale,layer,level);
 }`;
 
 /** Lecture de l'atlas couleur : `colorSample(slot, uvScale, uv, wrap, ddx, ddy)`. */
@@ -125,7 +129,7 @@ ${wrapped('colorAlpha', 'colorTexels', '', '', 'f32')}`;
 /** Lecture de l'atlas de données : `dataSample(slot, uvScale, uv, wrap, ddx, ddy)`. */
 export const DATA_SAMPLE_WGSL = `${CLASSES.map(dataClass).join('\n')}
 ${texels('dataTexels', DATA_LOAD, 'dataMaps')}
-${dispatch('dataSampleAt', 'scale:vec2f,uv:vec2f,ddx:vec2f,ddy:vec2f)->vec4f', DATA_LOAD, 'scale,uv,ddx,ddy', 'dataSample')}
+${dispatch('dataSampleAt', 'scale:vec2f,uv:vec2f,ddx:vec2f,ddy:vec2f)->vec4f', DATA_LOAD, 'entry.y,scale,uv,ddx,ddy', 'dataSample')}
 ${wrapped('dataSample', 'dataTexels', ',ddx:vec2f,ddy:vec2f', ',ddx,ddy', 'vec4f')}`;
 
 /** Les déclarations de texture d'un atlas, une par classe, aux liaisons que la disposition donne. */

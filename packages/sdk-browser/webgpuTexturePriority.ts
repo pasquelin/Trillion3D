@@ -44,7 +44,11 @@ export function createTexturePriority(inputs: () => PriorityInputs) {
   const scoreOf = (job: TextureJob) => {
     const demand = demandOf(job.kind);
     const gap = demand.gapOf(job.slot);
-    return gap > 0 ? demand.areaOf(job.slot) * gap : 0;
+    // Un niveau cuit plus fin que ce que l'écran demande n'est pas utile aujourd'hui : il pèse
+    // zéro, comme une couche déjà servie, et attend que la caméra s'approche ou que la file se
+    // vide. La pleine résolution d'une chaîne non cuite, elle, reste le seul niveau fin qui existe.
+    if (gap <= 0 || (job.fetch && job.level < demand.wantedOf(job.slot))) return 0;
+    return demand.areaOf(job.slot) * gap;
   };
   /** La couleur avant les données : seule la couleur manquante se voit. */
   const rank = (job: TextureJob) => (job.kind === 'color' ? 0 : 1);
@@ -54,12 +58,15 @@ export function createTexturePriority(inputs: () => PriorityInputs) {
     if (jobs.length > 1) {
       // Le score une fois par travail, pas deux fois par comparaison du tri.
       for (const job of jobs) job.score = scoreOf(job);
+      // Du plus grossier au plus fin sur une même couche : la résidence ne descend qu'au bas d'une
+      // suite sans trou, et un niveau fin lu avant le grossier attendrait en mémoire pour rien.
       jobs.sort(
         (a, b) =>
           a.stage - b.stage ||
           rank(a) - rank(b) ||
           b.score - a.score ||
-          (b.nextRow ? 1 : 0) - (a.nextRow ? 1 : 0),
+          (b.nextRow ? 1 : 0) - (a.nextRow ? 1 : 0) ||
+          (a.slot === b.slot ? b.level - a.level : 0),
       );
     }
     lastMs = performance.now() - started;

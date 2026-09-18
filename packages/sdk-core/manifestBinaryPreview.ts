@@ -10,28 +10,52 @@ type PreviewColumns = {
   previewPixels: Uint8Array<ArrayBuffer>;
 };
 
-/** Ce que l'écriture et la lecture exigent toutes deux d'une entrée — index de texture entier et
- *  strictement croissant, dimensions source réelles — pour qu'une entrée refusée à l'écriture soit
- *  exactement celle que la lecture refuserait. Rend le `previous` de l'entrée suivante. */
+/** Ce que l'écriture et la lecture exigent toutes deux d'une entrée — couple (texture, atlas) entier
+ *  et strictement croissant, atlas connu, dimensions source réelles, niveaux cuits sous la queue —
+ *  pour qu'une entrée refusée à l'écriture soit exactement celle que la lecture refuserait. Rend la
+ *  clé de l'entrée, que la suivante doit dépasser. */
 function checkEntryHeader(
   entry: number,
-  texture: number,
-  width: number,
-  height: number,
+  header: Pick<TexturePreview, 'texture' | 'atlas' | 'width' | 'height' | 'bakedLevels'>,
   previous: number,
 ) {
-  if (!Number.isInteger(texture) || texture <= previous)
-    throw new EngineError('INVALID_CACHE', 'Texture previews are not ordered by texture index', {
+  const { texture, atlas, width, height, bakedLevels } = header;
+  if (atlas !== format.PREVIEW_ATLAS_COLOR && atlas !== format.PREVIEW_ATLAS_DATA)
+    throw new EngineError('INVALID_CACHE', 'A texture preview names an unknown atlas', {
       entry,
-      texture,
+      atlas,
     });
+  const key = texture * 2 + atlas;
+  if (!Number.isInteger(texture) || key <= previous)
+    throw new EngineError(
+      'INVALID_CACHE',
+      'Texture previews are not ordered by texture and atlas',
+      {
+        entry,
+        texture,
+        atlas,
+      },
+    );
   if (!(width > 0) || !(height > 0))
     throw new EngineError('INVALID_CACHE', 'A texture preview declares an empty source image', {
       entry,
       width,
       height,
     });
-  return texture;
+  if (
+    !Number.isInteger(bakedLevels) ||
+    bakedLevels < 0 ||
+    bakedLevels > previewGeometry(width, height).firstLevel
+  )
+    throw new EngineError(
+      'INVALID_CACHE',
+      'A texture preview bakes more levels than lie above its tail',
+      {
+        entry,
+        bakedLevels,
+      },
+    );
+  return key;
 }
 
 /**
@@ -50,7 +74,9 @@ export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[]
     const texture = previewWords[base + format.PREVIEW_TEXTURE];
     const width = previewWords[base + format.PREVIEW_WIDTH],
       height = previewWords[base + format.PREVIEW_HEIGHT];
-    previous = checkEntryHeader(entry, texture, width, height, previous);
+    const atlas = previewWords[base + format.PREVIEW_ATLAS],
+      bakedLevels = previewWords[base + format.PREVIEW_BAKED_LEVELS];
+    previous = checkEntryHeader(entry, { texture, atlas, width, height, bakedLevels }, previous);
     const expected = previewGeometry(width, height);
     const firstLevel = previewWords[base + format.PREVIEW_FIRST_LEVEL];
     const declared = {
@@ -97,7 +123,9 @@ export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[]
           ? -1
           : previewWords[base + format.PREVIEW_SOURCE_VIEW],
       sha256: previewShaText.substring(entry * 64, entry * 64 + 64),
+      atlas,
       firstLevel,
+      bakedLevels,
       levels,
     };
   }
@@ -120,7 +148,7 @@ export function encodePreviewColumns(previews: readonly TexturePreview[], view: 
   let previous = -1,
     offset = 0;
   previews.forEach((preview, entry) => {
-    previous = checkEntryHeader(entry, preview.texture, preview.width, preview.height, previous);
+    previous = checkEntryHeader(entry, preview, previous);
     const expected = previewGeometry(preview.width, preview.height);
     const base = entry * format.PREVIEW_WORDS;
     words[base + format.PREVIEW_TEXTURE] = preview.texture;
@@ -134,6 +162,8 @@ export function encodePreviewColumns(previews: readonly TexturePreview[], view: 
     words[base + format.PREVIEW_LEVEL_COUNT] = expected.levelCount;
     words[base + format.PREVIEW_PIXEL_OFFSET] = offset;
     words[base + format.PREVIEW_PIXEL_BYTES] = expected.pixelBytes;
+    words[base + format.PREVIEW_ATLAS] = preview.atlas;
+    words[base + format.PREVIEW_BAKED_LEVELS] = preview.bakedLevels;
     writeSha(sha, entry, preview.sha256);
     for (let index = 0; index < expected.levelCount; index++) {
       const [w, h] = previewLevelSize(preview.width, preview.height, expected.firstLevel + index);

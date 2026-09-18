@@ -1,4 +1,4 @@
-import { emeraldProvenance } from '../appui/emeraldProvenance.mjs';
+import { emeraldProvenance, MEASURE_WIDTH, MEASURE_HEIGHT } from '../appui/emeraldProvenance.mjs';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
@@ -14,7 +14,9 @@ const provenance = await emeraldProvenance(labRoot);
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
 try {
-  const page = await browser.newPage({ viewport: { width: 1400, height: 1200 } });
+  // La fenêtre tient la résolution de relevé, que le canevas soit dimensionné explicitement ou non.
+  const viewport = { width: MEASURE_WIDTH, height: MEASURE_HEIGHT };
+  const page = await browser.newPage({ viewport });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => {
@@ -46,7 +48,7 @@ try {
     console.log('captured', name);
   });
   const result = await page.evaluate(
-    async (sdkUrl) => {
+    async ({ sdkUrl, ...viewport }) => {
       const { benchEngine } = await import('/15-virtualized-integration/implementation/engines.ts');
       const { createExplorer } = await import(sdkUrl);
       const { urbanPath, framesPerSegment } = await import('/src/lab/modelCampaign.ts');
@@ -87,12 +89,13 @@ try {
         const e = await createExplorer(canvas, {
           manifestUrl: '/benchmark-assets/emerald-square-derived/native/full/manifest.json',
           scope: 'full',
-          width: 1012,
-          height: 1000,
+          ...viewport,
           pixelError: 1,
           maxResidentPages: 100000,
           preload: 'visible',
           backends: [benchEngine(id).factory],
+          textureSource: id === 'webgpu-page-raster' ? 'cache' : 'host', // le témoin garde ses images
+
           clearColor: 0x2a303c,
           onDiagnostic: (event) => events.push({ id, ...event }),
         });
@@ -162,7 +165,7 @@ try {
       }
       return { results, events, gpu, userAgent: navigator.userAgent };
     },
-    '/@fs' + resolve('dist/sdk-browser/index.js'),
+    { sdkUrl: '/@fs' + resolve('dist/sdk-browser/index.js'), ...viewport },
   );
   result.provenance = provenance;
   result.errors = errors;

@@ -72,6 +72,8 @@ test('un niveau progressif part tel quel, octet pour octet, dans le niveau de mi
     device,
     texture: {} as GPUTexture,
     place: { slot: 3, classIndex: 0, layer: 3 },
+    kind: 'color',
+    pyramid: { first: 1, last: 7 },
     preview: {
       texture: 0,
       image: 0,
@@ -79,6 +81,8 @@ test('un niveau progressif part tel quel, octet pour octet, dans le niveau de mi
       height: 64,
       sourceKind: 0,
       sourceBufferView: -1,
+      atlas: 0,
+      bakedLevels: 0,
       sha256: '0'.repeat(64),
       firstLevel: 1,
       levels,

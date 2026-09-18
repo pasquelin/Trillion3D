@@ -26,6 +26,7 @@ function scriptedJob(
     bytesPerRow: overrides.bytesPerRow,
     nextRow: 0,
     failures: 0,
+    ready: true,
     uploadRows,
   };
 }
@@ -71,8 +72,8 @@ function buildPump(jobs: TextureJob[], budget: number, order?: (jobs: TextureJob
     order: order ?? (() => {}),
     onResident: () => {},
     screenKnown: () => true,
-    onLevel: (slot, level) => levels.push([slot, level]),
-    onColorReady: (slots) => colorReady.push([...slots]),
+    onLevel: (_kind, slot, level) => levels.push([slot, level]),
+    onReady: (kind, slots) => void (kind === 'color' && colorReady.push([...slots])),
     onFailure: (phase, error) => failures.push({ phase, error }),
     onAbandon: (context) => abandons.push(context),
   });
@@ -184,7 +185,7 @@ test('une texture entamée n’est jamais interrompue au milieu d’une tranche,
   assert.deepEqual(logX, [0, 1, 2]);
 });
 
-test('un travail de niveau progressif (stage 0) appelle onLevel, jamais onColorReady ni de régénération de mips', () => {
+test('un travail de niveau progressif (stage 0) appelle onLevel, jamais onReady ni de régénération de mips', () => {
   const job = scriptedJob({ rows: 1, bytesPerRow: 4 }, () => {});
   job.stage = 0;
   job.level = 3;

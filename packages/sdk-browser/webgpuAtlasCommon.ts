@@ -1,9 +1,13 @@
 import type * as THREE from 'three';
 import type { TexturePreview } from '../sdk-core/index.ts';
 import { textureRgba } from './visibilityBuffer.ts';
-import { generateMaterialMips, mipLevelCountFor } from './textureMips.ts';
-import { planAtlasClasses, type AtlasClassPlan } from './webgpuAtlasClasses.ts';
+import { generateMaterialMips } from './textureMips.ts';
+import { allocateAtlasClasses } from './webgpuAtlasAllocate.ts';
+import { planAtlasClasses } from './webgpuAtlasClasses.ts';
 import { previewLevelJobs, textureJobFor, type TextureJob } from './webgpuAtlasJobs.ts';
+import { bakedLevelJobs } from './webgpuAtlasBakedJobs.ts';
+import type { TextureLevelReader } from './textureLevelReader.ts';
+import { previewIsWhole, previewLastLevel } from '../sdk-core/index.ts';
 
 type AtlasFill = { r: number; g: number; b: number; a: number };
 
@@ -18,6 +22,8 @@ export type AtlasSpec = {
   errorCode: string;
   /** Les niveaux progressifs d'une texture source, quand le sidecar en porte. */
   previewFor?: (index: number) => TexturePreview | undefined;
+  /** Le lecteur des niveaux cuits ; sans lui, une chaîne cuite se charge comme avant, par la source. */
+  readLevel?: TextureLevelReader;
 };
 
 /** Une classe de taille allouée : sa texture-tableau, ses échelles uv par couche et ses octets. */
@@ -44,31 +50,6 @@ export type WebgpuAtlas = {
   destroy(): void;
 };
 
-function clearWebgpuAtlasLayer(
-  encoder: GPUCommandEncoder,
-  texture: GPUTexture,
-  layer: number,
-  color: AtlasFill,
-) {
-  const pass = encoder.beginRenderPass({
-    colorAttachments: [
-      {
-        view: texture.createView({
-          dimension: '2d',
-          baseArrayLayer: layer,
-          arrayLayerCount: 1,
-          baseMipLevel: 0,
-          mipLevelCount: 1,
-        }),
-        clearValue: color,
-        loadOp: 'clear',
-        storeOp: 'store',
-      },
-    ],
-  });
-  pass.end();
-}
-
 /**
  * Regénère la chaîne de mips d'une classe : toutes ses couches, ou seulement celles données. Le
  * format, les dimensions et les échelles uv se lisent sur la classe, si bien qu'aucun appelant ne
@@ -89,41 +70,13 @@ export function regenerateClassMips(
   );
 }
 
-function allocate(
-  device: GPUDevice,
-  plan: AtlasClassPlan,
-  format: GPUTextureFormat,
-  encoder: GPUCommandEncoder,
-  fillFor: (classIndex: number, layer: number) => AtlasFill,
-): AtlasClassTexture[] {
-  return plan.sizes.map(([width, height], index) => {
-    const layers = plan.layers[index];
-    const texture = device.createTexture({
-      size: { width, height, depthOrArrayLayers: layers },
-      format,
-      mipLevelCount: mipLevelCountFor(width, height),
-      usage:
-        GPUTextureUsage.TEXTURE_BINDING |
-        GPUTextureUsage.COPY_DST |
-        GPUTextureUsage.RENDER_ATTACHMENT,
-    });
-    for (let layer = 0; layer < layers; layer++)
-      clearWebgpuAtlasLayer(encoder, texture, layer, fillFor(index, layer));
-    return {
-      texture,
-      view: texture.createView({ dimension: '2d-array' }),
-      size: [width, height] as [number, number],
-      layers,
-      bytes: plan.bytes[index],
-      scales: Array.from({ length: layers }, () => [1, 1] as [number, number]),
-    };
-  });
-}
-
 /**
  * Alloue les classes de taille d'un atlas de matériaux, efface chaque couche sur `encoder` et met
- * en file le transfert de chaque texture source : d'abord ses niveaux progressifs quand le sidecar
- * en porte, puis sa pleine résolution. La couche 0 de chaque classe reste le remplissage de repli.
+ * en file le transfert de chaque texture source. Une texture dont la chaîne est cuite dans le cache
+ * n'a rien à demander à l'image source : sa queue vient du sidecar, ses niveaux au-dessus se lisent
+ * un à un quand l'écran les réclame, et la carte ne régénère rien. Les autres gardent le chemin
+ * d'avant — queue du sidecar s'il y en a une, puis pleine résolution depuis l'image, puis
+ * régénération des mips. La couche 0 de chaque classe reste le remplissage de repli.
  */
 export function prepareWebgpuAtlas(
   device: GPUDevice,
@@ -134,7 +87,18 @@ export function prepareWebgpuAtlas(
   spec: AtlasSpec,
 ): WebgpuAtlas {
   const rgbaMaps = maps.map((texture) => textureRgba(texture));
+  // Une chaîne entière se suffit : ses dimensions sont celles du manifeste, et l'image source, que
+  // l'hôte a pu ne pas charger, n'est pas lue — pourvu qu'un lecteur existe pour ses niveaux cuits,
+  // ou qu'elle n'en ait aucun, la source tenant sous la base.
+  const previews = maps.map((_map, index) => spec.previewFor?.(index));
+  const chains = previews.map((preview) =>
+    preview && previewIsWhole(preview) && (preview.bakedLevels === 0 || spec.readLevel)
+      ? preview
+      : undefined,
+  );
   const sizes = maps.map((texture, index): [number, number] => {
+    const chain = chains[index];
+    if (chain) return [chain.width, chain.height];
     const rgba = rgbaMaps[index];
     if (rgba) return [rgba.width, rgba.height];
     const image = texture.image as { width?: number; height?: number } | undefined;
@@ -146,7 +110,7 @@ export function prepareWebgpuAtlas(
   const sourceAt: number[][] = plan.sizes.map(() => []);
   for (let index = 0; index < maps.length; index++)
     sourceAt[plan.slotClass[index]][plan.slotLayer[index]] = index;
-  const classes = allocate(device, plan, spec.format, encoder, (classIndex, layer) =>
+  const classes = allocateAtlasClasses(device, plan, spec.format, encoder, (classIndex, layer) =>
     spec.fillFor(sourceAt[classIndex][layer]),
   );
   const slotWords = new Uint32Array(maps.length + 1);
@@ -158,23 +122,34 @@ export function prepareWebgpuAtlas(
     const entry = classes[classIndex];
     slotWords[slot] = classIndex | (layer << 8);
     const place = { slot, classIndex, layer };
-    const preview = spec.previewFor?.(index);
-    if (preview)
-      textureJobs.push(...previewLevelJobs({ device, texture: entry.texture, place, preview }));
-    const { job, scale } = textureJobFor({
-      device,
-      texture: entry.texture,
-      rgba: rgbaMaps[index],
-      map: maps[index],
-      place,
-      kind: spec.kind,
-      atlas: entry.size,
-      errorCode: spec.errorCode,
-    });
+    const preview = previews[index],
+      chain = chains[index];
+    const last = preview ? previewLastLevel(preview.width, preview.height) : 0;
+    const pyramid = chain ? { first: 0, last } : { first: preview?.firstLevel ?? 0, last };
+    const common = { device, texture: entry.texture, place, kind: spec.kind, pyramid };
+    if (preview) textureJobs.push(...previewLevelJobs({ ...common, preview }));
+    let scale: [number, number];
+    if (chain) {
+      if (spec.readLevel)
+        textureJobs.push(...bakedLevelJobs({ ...common, preview: chain, read: spec.readLevel }));
+      scale = [chain.width / entry.size[0], chain.height / entry.size[1]];
+    } else {
+      const full = textureJobFor({
+        device,
+        texture: entry.texture,
+        rgba: rgbaMaps[index],
+        map: maps[index],
+        place,
+        kind: spec.kind,
+        atlas: entry.size,
+        errorCode: spec.errorCode,
+      });
+      scale = full.scale;
+      textureJobs.push(full.job);
+    }
     uvScales[slot] = scale;
     texels[slot] = entry.size[0] * scale[0];
     entry.scales[layer] = scale;
-    textureJobs.push(job);
   }
   return {
     classes,

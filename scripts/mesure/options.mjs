@@ -104,6 +104,10 @@ export function readOptions(argv, root) {
     // porte aucune variante : sans cela les deux côtés ne paieraient pas le même diagnostic.
     trace: [...flags.keys()].some((name) => name === 'variante' || name.startsWith('variante-')),
     profileFrames: number('images-profil', 120),
+    // `--textures cache` : le moteur lit les niveaux de texture cuits dans le cache et le chargeur
+    // n'ouvre plus les images sources. Réservé au moteur WebGPU, qui lit l'atlas ; le témoin Three
+    // dessine la scène de l'hôte et garde ses images. Un dist d'avant cette option l'ignore.
+    textureSource: flags.get('textures') === 'cache' ? 'cache' : 'host',
     // Le mode sans fenêtre plafonne l'affichage à 60 Hz sur cette machine : `--visible` ouvre une
     // vraie fenêtre quand la cadence compte.
     visible: flags.get('visible') === 'true',

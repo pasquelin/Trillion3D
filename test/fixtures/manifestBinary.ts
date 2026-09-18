@@ -123,6 +123,8 @@ export function manifest(): ClusterManifest {
         height: PREVIEW_SIZE[1],
         sourceKind: 0,
         sourceBufferView: -1,
+        atlas: 0,
+        bakedLevels: 0,
         sha256: sha('9'),
         firstLevel: previewFirstLevel(...PREVIEW_SIZE),
         levels: previewLevels(),

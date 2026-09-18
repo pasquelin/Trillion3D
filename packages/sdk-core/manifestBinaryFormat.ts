@@ -18,17 +18,23 @@
  */
 /** Version 4 turns the fixed 16×16 preview entries into the variable progressive levels: the pixel
  *  column has no stride any more, each entry naming its own byte range. A file of another version is
- *  refused whole: a reader that sliced the wrong range would show one texture's levels on another. */
-export const MANIFEST_BINARY_VERSION = 4;
+ *  refused whole: a reader that sliced the wrong range would show one texture's levels on another.
+ *  Version 5 widens a preview entry from ten to twelve words — the atlas it serves and how many
+ *  levels are baked as files under `textures/` — and its pixels follow the graphics card's mip rule;
+ *  a version-4 reader would stride through the entries wrongly, so it refuses this file. */
+export const MANIFEST_BINARY_VERSION = 5;
 /** 'W','G','M','B' read as a little-endian u32. */
 export const MANIFEST_BINARY_MAGIC = 0x424d4757;
 export const MANIFEST_BINARY_HEADER_WORDS = 4;
 
 /** Progressive texture levels, mirrored by `packages/asset-compiler-rust/src/texture_preview.rs`:
- *  the lossless tail of a source's mip chain, RGBA8 sRGB with straight alpha, from the finest level
- *  no side of which exceeds `PREVIEW_BASE` down to 1×1. Their sizes are not written down: they
- *  follow from the source dimensions, which `texturePreviewLevels.ts` recomputes. */
-export const TEXTURE_PREVIEW_VERSION = 2;
+ *  the tail of a source's mip chain in the sidecar, RGBA8 in the atlas's own encoding, from the
+ *  finest level no side of which exceeds `PREVIEW_BASE` down to 1×1 — and, above it, one lossless
+ *  PNG per level in the cache, `bakedLevels` of them from level 0 up. Every level follows the mip
+ *  rule the card applied when it regenerated the chain itself (`textureMips.ts`): linear mean of
+ *  the colours, median alpha, level `k` from the quantized level `k - 1`. Their sizes are not
+ *  written down: they follow from the source dimensions, which `texturePreviewLevels.ts` recomputes. */
+export const TEXTURE_PREVIEW_VERSION = 3;
 /** `texturePreviewU32` slots. */
 export const PREVIEW_TEXTURE = 0,
   PREVIEW_IMAGE = 1,
@@ -39,10 +45,18 @@ export const PREVIEW_TEXTURE = 0,
   PREVIEW_FIRST_LEVEL = 6,
   PREVIEW_LEVEL_COUNT = 7,
   PREVIEW_PIXEL_OFFSET = 8,
-  PREVIEW_PIXEL_BYTES = 9;
-export const PREVIEW_WORDS = 10;
+  PREVIEW_PIXEL_BYTES = 9,
+  PREVIEW_ATLAS = 10,
+  PREVIEW_BAKED_LEVELS = 11;
+export const PREVIEW_WORDS = 12;
 /** A preview whose bytes came from an image `uri`; anything else names a glTF buffer view. */
 export const PREVIEW_SOURCE_URI = 0;
+/** The atlas a preview serves: colour (`rgba8unorm-srgb`, base colour and emissive) or data
+ *  (`rgba8unorm`, metal-roughness, normal, occlusion). The same texture may have one entry each. */
+export const PREVIEW_ATLAS_COLOR = 0,
+  PREVIEW_ATLAS_DATA = 1;
+/** The `{kind}` a baked level's path carries for each atlas, as `bake.rs` names them. */
+export const PREVIEW_ATLAS_NAMES = ['srgb', 'linear'] as const;
 
 export const COLUMN_NAMES = [
   'pageBounds',

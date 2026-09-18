@@ -110,13 +110,13 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     order: priority.order,
     onResident: priority.markLevel,
     screenKnown: () => priority.screenKnown,
-    onLevel: (slot, level, pyramid) => {
-      if (pyramid) vis.slots?.markLevel(slot, level, pyramid);
+    onLevel: (kind, slot, level, pyramid) => {
+      if (pyramid) vis.slots?.markLevel(kind, slot, level, pyramid);
       // Origine du changement de ressources : un niveau progressif vient d'atteindre l'atlas.
       run.gate.resourcesChanged();
     },
-    onColorReady: (slots) => {
-      vis.slots?.markReady(slots);
+    onReady: (kind, slots) => {
+      vis.slots?.markReady(kind, slots);
       run.gate.resourcesChanged();
     },
     onFailure: diag.diagnosticFailure,

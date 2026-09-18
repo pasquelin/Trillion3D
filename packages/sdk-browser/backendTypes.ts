@@ -112,6 +112,8 @@ export interface BackendContext {
   associations: Map<THREE.Object3D, { meshes?: number; primitives?: number }>;
   /** Rang glTF de chaque texture de la scène préparée, pour relier une couche d'atlas à son aperçu. */
   textureIndices?: Map<THREE.Texture, number>;
+  /** Le lecteur des niveaux de texture cuits dans le cache ; absent d'un cache qui n'en a pas. */
+  readTextureLevel?: import('./textureLevelReader.ts').TextureLevelReader;
   signal?: AbortSignal;
   maxResidentPages?: number;
   maxCachedPages?: number;
@@ -137,7 +139,7 @@ export interface BackendContext {
    *  valeur tirée des limites de l'appareil et bornée. Ce qui dépasse attend son tour : l'ordre sert
    *  d'abord ce que la caméra regarde, et la file finit par se vider sans qu'aucun niveau soit perdu. */
   textureBudgetBytes?: number;
-  /** Atlas size classes the host allows. Defaults to 1, the single-array allocation. */
+  /** Atlas size classes the host allows. Defaults to 2; `1` forces the single-array allocation. */
   atlasClasses?: 1 | 2;
   sceneLighting?: THREE.Object3D;
   /** Les lampes du contrat, possédées par l'hôte et partagées par tous les moteurs de la session. */

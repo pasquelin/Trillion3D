@@ -133,9 +133,13 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime) {
   // le fil est bloqué, la file de commandes déborde, et l'image qui suit la barrière paie tout le
   // retard d'un coup (200 à 500 ms mesurées sur Emerald). L'attente est ici et nulle part ailleurs :
   // le chemin d'image, lui, pousse une passe par image et ne doit rien attendre.
+  // Un niveau cuit se lit avant de se transférer : quand la file n'a plus rien de prêt, la barrière
+  // attend les lectures en vol au lieu de tourner à vide.
   while (gpuDevice && vis.textureJobs.length) {
     rt.texturePump.pump(true);
     await gpuDevice.queue.onSubmittedWorkDone();
+    const reading = rt.texturePump.settled();
+    if (reading && !vis.textureJobs.some((job) => job.ready)) await reading;
   }
   await services.bootstrapState.ensure();
   await services.residency.pending;
