@@ -11,7 +11,7 @@ import { quadScene, camera } from './webgpuPagesTestScenes.ts';
 // Le raster de calcul ne se crée que sous `raster-calcul` ou `raster-hybride` : la coupe part alors
 // au calcul — binning, profondeur des occulteurs, du reste, identifiants — entre les passes du
 // matériel, qui ouvrent l'image. C'est le côté calcul du banc bit à bit (Géométrie 26, point 3).
-test('la variante raster-calcul confie la coupe au raster de calcul, et elle seule', async () => {
+test('la variante raster-calcul confie toute la coupe au raster de calcul', async () => {
   installGpuGlobals();
   const fixture = quadScene();
   const { source, metadata, indices, associations } = fixture;

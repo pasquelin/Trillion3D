@@ -70,8 +70,8 @@ export function encodeEmptySurfaces(
 const rasterInput = {} as GpuRasterInput;
 
 /**
- * Crée le raster de calcul une fois, et seulement sous la variante `raster-calcul` : en production
- * le matériel dessine (Géométrie 26). Une variante est une demande, pas une occasion — un appareil
+ * Crée le raster de calcul une fois, et seulement sous une variante qui le demande — `raster-calcul`
+ * ou `raster-hybride` : en production le matériel dessine (Géométrie 26). Une variante est une demande, pas une occasion — un appareil
  * sans calcul ou un budget de surfaces dépassé refuse, ils ne rendent pas en silence l'image du
  * matériel sous l'étiquette du calcul.
  */
@@ -98,11 +98,43 @@ export function ensureVisBindings(rt: WebgpuPagesRuntime, device: GPUDevice, tab
 }
 
 /**
+ * Le raster de calcul dessine cette image : il existe, et toutes ses ressources aussi. C'est LA
+ * décision que l'uniforme du partage (`computeSpan`) et les étapes encodées lisent toutes les deux ;
+ * une seule, sinon le matériel replierait des triangles que personne ne dessine.
+ */
+export function computeRasterReady(rt: WebgpuPagesRuntime) {
+  const { vis, gpu } = rt;
+  const raster = vis.gpuRaster,
+    { concatPos, concatUv, pageTable, zeroFlags, colorAtlas, slots, mapsSampler } = vis;
+  if (
+    !raster ||
+    !gpu.cache ||
+    !concatPos ||
+    !concatUv ||
+    !pageTable ||
+    !zeroFlags ||
+    !colorAtlas ||
+    !slots ||
+    !mapsSampler
+  )
+    return null;
+  return {
+    raster,
+    indices: gpu.cache.buffer,
+    concatPos,
+    concatUv,
+    pageTable,
+    zeroFlags,
+    colorAtlas,
+    slots,
+    mapsSampler,
+  };
+}
+
+/**
  * Les trois étapes du raster de calcul, prêtes à s'intercaler entre les passes du raster matériel :
  * la moitié occulteurs après la passe primaire, la moitié testée après la secondaire, les
- * identifiants pour clore — chacune fondue dans les attachements que le matériel a posés. Rend
- * `null` quand une ressource manque : le matériel dessine alors seul, et les triangles que le
- * partage lui aurait retirés restent les siens tant que `computeSpan` vaut zéro.
+ * identifiants pour clore — chacune fondue dans les attachements que le matériel a posés.
  */
 export function computeRasterStages(
   rt: WebgpuPagesRuntime,
@@ -112,40 +144,31 @@ export function computeRasterStages(
   idsView: GPUTextureView,
   depthTarget: GPUTextureView,
 ) {
-  const { vis, gpu, run } = rt;
-  const raster = vis.gpuRaster;
-  if (
-    !raster ||
-    !gpu.cache ||
-    !vis.concatPos ||
-    !vis.concatUv ||
-    !vis.pageTable ||
-    !vis.visUniform ||
-    !vis.zeroFlags ||
-    !vis.colorAtlas ||
-    !vis.slots ||
-    !vis.mapsSampler
-  )
-    return null;
+  const { vis, run } = rt;
+  const ready = computeRasterReady(rt);
+  if (!ready) return null;
+  const { raster } = ready;
   // Le partage occulteurs/testés voyage par le mot de verdict que la partition a écrit : sans
   // partition, ou sans pyramide, l'image lit des zéros et rastère toute la coupe en une fois.
-  const hizFlags = twoPass && vis.gpuHiz ? vis.gpuHiz.flags : vis.zeroFlags;
-  const key = (hizFlags === vis.zeroFlags ? 0 : 1) + (run.gpuFrameActive ? 2 : 0);
+  const hizFlags = twoPass && vis.gpuHiz ? vis.gpuHiz.flags : ready.zeroFlags;
+  const key = (hizFlags === ready.zeroFlags ? 0 : 1) + (run.gpuFrameActive ? 2 : 0);
   const input = rasterInput;
-  input.indices = gpu.cache.buffer;
-  input.positions = vis.concatPos;
-  input.pages = vis.pageTable;
+  input.indices = ready.indices;
+  input.positions = ready.concatPos;
+  input.pages = ready.pageTable;
   input.hizFlags = hizFlags;
-  input.uniform = vis.visUniform;
-  input.uvs = vis.concatUv;
-  input.colorAtlas = vis.colorAtlas;
-  input.slots = vis.slots;
-  input.sampler = vis.mapsSampler;
+  // L'uniforme est écrit avant toute passe (`ensureVisBindings`) : il existe quand on encode.
+  input.uniform = vis.visUniform!;
+  input.uvs = ready.concatUv;
+  input.colorAtlas = ready.colorAtlas;
+  input.slots = ready.slots;
+  input.sampler = ready.mapsSampler;
   input.pageRows = tableRows;
   input.maxTriangles = Math.ceil(maxVertexCount / 3);
   input.idsView = idsView;
   input.depthView = depthTarget;
   input.hizView = vis.gpuHiz?.level0View;
+  input.tested = twoPass && !!vis.gpuHiz;
   input.selection = run.gpuFrameActive ? run.gpuSelection : undefined;
   input.groups = vis.rasterGroups;
   input.groupKey = key;
@@ -153,7 +176,7 @@ export function computeRasterStages(
   // qui clôt l'image, et celui de la pyramide quand la moitié testée existe. Le compte les porte.
   return {
     occluders(encoder: GPUCommandEncoder) {
-      run.gpuDrawCalls += input.hizView ? 1 : 0;
+      run.gpuDrawCalls += input.tested ? 1 : 0;
       run.gpuComputeDispatches += raster.encodeOccluders(encoder, input);
     },
     rest(encoder: GPUCommandEncoder) {

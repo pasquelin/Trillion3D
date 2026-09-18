@@ -137,7 +137,7 @@ export function createGpuRaster(
       // choisisse un identifiant. Un identifiant choisi avant qu'une classe n'ait écrit sa
       // profondeur nommerait un triangle perdant.
       encodeMode(encoder, MODE_DEPTH_OCCLUDER, 'WG raster occluder depth');
-      if (input.hizView) resolves.encodeHiz(encoder, input, width, height);
+      if (input.tested) resolves.encodeHiz(encoder, input, width, height);
       return 3 + RASTER_CLASSES.length;
     },
     /** La moitié testée survivante, après le verdict de la pyramide. */
