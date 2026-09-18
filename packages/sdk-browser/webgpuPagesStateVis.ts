@@ -32,7 +32,6 @@ export interface WebgpuVisState {
   shadePipeline: GPURenderPipeline | undefined;
   gpuHiz: GpuHiz | undefined;
   gpuRaster: GpuRaster | undefined;
-  hybridUnavailable: boolean;
   visHizRestBack: GPURenderPipeline | undefined;
   visHizRestNone: GPURenderPipeline | undefined;
   visHizRestFront: GPURenderPipeline | undefined;
@@ -102,7 +101,6 @@ export function createWebgpuVisState(): WebgpuVisState {
     shadePipeline: undefined,
     gpuHiz: undefined,
     gpuRaster: undefined,
-    hybridUnavailable: false,
     visHizRestBack: undefined,
     visHizRestNone: undefined,
     visHizRestFront: undefined,

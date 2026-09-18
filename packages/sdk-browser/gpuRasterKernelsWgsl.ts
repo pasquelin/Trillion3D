@@ -16,6 +16,7 @@ import {
   rasterEntry,
 } from './gpuRasterContract.ts';
 import { DEPTH_CLEAR } from './depthConvention.ts';
+import { VERDICT_KEPT, VERDICT_OCCLUDER, VERDICT_REJECTED } from './gpuPartitionContract.ts';
 import { wgslFloat } from './gpuPartitionMargins.ts';
 
 /** Les douze points d'entrée : quatre classes de taille, chacune dans les trois modes de l'image. */
@@ -52,15 +53,15 @@ const LIST_L:u32=LIST+${LIST_HEADER + capacity}u;
  // Profondeur inversée : le tampon part du LOINTAIN, et c'est le PLUS GRAND qui gagne ensuite.
  atomicStore(&work[offset],bitcast<u32>(${wgslFloat(DEPTH_CLEAR)}));atomicStore(&work[pixels+offset],0xffffffffu);
 }
-/** Le verdict d'une ligne : 0 occulteur, 1 testée et rejetée, 2 testée et gardée. */
+/** Le verdict d'une ligne, VERDICT_* du contrat ; une ligne sans slot Hi-Z est un occulteur. */
 fn rowVerdict(page:PageInfo)->u32{
- if(page.hizSlot==0xffffffffu){return 0u;}
+ if(page.hizSlot==0xffffffffu){return ${VERDICT_OCCLUDER}u;}
  return hizFlags[page.hizSlot];
 }
 fn modeKeeps(mode:u32,verdict:u32)->bool{
- if(mode==${MODE_DEPTH_OCCLUDER}u){return verdict==0u;}
- if(mode==${MODE_DEPTH_REST}u){return verdict==2u;}
- return verdict!=1u;
+ if(mode==${MODE_DEPTH_OCCLUDER}u){return verdict==${VERDICT_OCCLUDER}u;}
+ if(mode==${MODE_DEPTH_REST}u){return verdict==${VERDICT_KEPT}u;}
+ return verdict!=${VERDICT_REJECTED}u;
 }
 /** Une entrée de liste redevient le triangle qu'elle nomme, si le mode courant le dessine. */
 fn triOf(entry:u32,mode:u32)->Tri{

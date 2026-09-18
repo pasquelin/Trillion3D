@@ -7,8 +7,7 @@ import { webgpuPagesBackend } from './webgpuPages.ts';
 import { rasterPageRecords } from './pageRaster.ts';
 import { collectClusterPages } from './pageSelection.ts';
 import { packDagSelection } from './gpuDagSelection.ts';
-import { PAGE_BIND_ALIGN } from './gpuDraw.ts';
-import { drawnPageIds, installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { drawnPageIds, indirectDraws, installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera, mixedBinScene, quadBackend } from './webgpuPagesTestScenes.ts';
 
@@ -50,14 +49,11 @@ test('webgpu pages raster consumes the GPU cache and does not attach a mesh per 
   // l'image, que ses commandes indirectes consomment en instances. Le raster de calcul ne se
   // crée pas en production — aucun binning, aucune capacité de calcul opaque.
   assert.deepEqual(drawnPageIds(buffers, packed.nodeCount, packed.pageCount), [0, 1]);
-  const vis = draws.filter((d) => d.indirect);
-  assert.ok(vis.length >= 1 && vis.length <= 6);
+  const vis = indirectDraws(draws);
   assert.equal(
     vis.reduce((n, d) => n + (d.instanceCount ?? 0), 0),
     2,
   );
-  assert.ok(vis.every((d) => d.firstInstance === 0));
-  assert.ok(vis.every((d) => (d.bindOffset ?? 0) % PAGE_BIND_ALIGN === 0));
   assert.equal(computes.includes('bin'), false);
   assert.ok(backend.capabilities.unsupported.includes('small-triangle compute raster'));
   assert.equal(backend.capabilities.unsupported.includes('visibility buffer'), false);
@@ -91,8 +87,8 @@ test('vis drawIndirect consumes GPU instance indices against one unsorted page t
   // table de pages commune, et lisent le MÊME masque de l'image.
   assert.deepEqual(drawnPageIds(buffers, packed.nodeCount, packed.pageCount), [0, 1]);
   assert.equal(computes.includes('bin'), false);
-  const vis = draws.filter((draw) => draw.indirect);
-  assert.ok(vis.length >= 2 && vis.length <= 6);
+  const vis = indirectDraws(draws);
+  assert.ok(vis.length >= 2);
   assert.equal(
     vis.reduce((n, draw) => n + (draw.instanceCount ?? 0), 0),
     2,

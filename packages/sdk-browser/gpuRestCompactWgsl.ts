@@ -1,5 +1,6 @@
 import { PAGE_INFO_STRUCT_WGSL } from './visibilityPageWgsl.ts';
 import { BASE_SLOTS } from './gpuDrawContract.ts';
+import { HIZ_REJECTED_WGSL } from './gpuPartitionContract.ts';
 
 /** Les fils d'un groupe de travail de la marque : une tuile d'instances de la moitié testée. */
 export const REST_COMPACT_WORKGROUP = 64;
@@ -13,11 +14,8 @@ export const REST_COMPACT_WORKGROUP = 64;
  * tout de même, pour chacune de ces instances, le nombre de sommets de la plus grosse page du
  * modèle.
  *
- * Ce noyau cherche le RANG DE LA DERNIÈRE SURVIVANTE de chaque slot testé — la négation exacte du
- * prédicat de rejet de l'étage de sommets, `hizSlot` valide et verdict 1 — et ramène le compte
- * d'instances de la commande à ce rang. Le verdict est à trois valeurs depuis 12aa9fcd (0 occulteur,
- * 1 rejeté, 2 testé et gardé) : lire « nul » ici tronquait toute la moitié testée, et le raster
- * matériel perdait chaque grappe qui sortait de derrière une autre. Ce qui sort du compte est un suffixe d'instances toutes rejetées, qui ne
+ * Ce noyau cherche le RANG DE LA DERNIÈRE SURVIVANTE de chaque slot testé — la négation du même
+ * `hizRejected` que l'étage de sommets — et ramène le compte d'instances de la commande à ce rang. Ce qui sort du compte est un suffixe d'instances toutes rejetées, qui ne
  * dessinaient rien : l'image est identique par construction, et l'ORDRE des instances retenues ne
  * bouge pas d'un rang, puisque rien n'est déplacé.
  *
@@ -35,13 +33,10 @@ struct Uniforms{restSlots:u32,pad0:u32,pad1:u32,pad2:u32,}
 @group(0) @binding(4) var<storage, read> hizFlags:array<u32>;
 @group(0) @binding(5) var<storage, read_write> dernieres:array<atomic<u32>>;
 @group(0) @binding(6) var<uniform> uni:Uniforms;
+${HIZ_REJECTED_WGSL}
 /** Le rang du slot testé numéro \`n\` : trois modes de face par couche, après les trois occulteurs. */
 fn restSlotAt(n:u32)->u32{return (n/${BASE_SLOTS / 2}u)*${BASE_SLOTS}u+${BASE_SLOTS / 2}u+n%${BASE_SLOTS / 2}u;}
-/** La négation du prédicat de l'étage de sommets : seule une ligne rejetée (verdict 1) n'écrit rien. */
-fn vivante(ligne:u32)->bool{
- let hizSlot=pages[ligne].hizSlot;
- return hizSlot==0xffffffffu||hizFlags[hizSlot]!=1u;
-}
+fn vivante(ligne:u32)->bool{return !hizRejected(pages[ligne].hizSlot);}
 @compute @workgroup_size(${REST_COMPACT_WORKGROUP})
 fn restMark(@builtin(global_invocation_id) id:vec3u){
  if(id.y>=uni.restSlots){return;}

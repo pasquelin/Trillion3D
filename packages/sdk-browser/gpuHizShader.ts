@@ -1,4 +1,10 @@
-import { ST_REJECTED, ST_REJECTED_TRIANGLES, ST_TESTED } from './gpuPartitionContract.ts';
+import {
+  ST_REJECTED,
+  ST_REJECTED_TRIANGLES,
+  ST_TESTED,
+  VERDICT_KEPT,
+  VERDICT_REJECTED,
+} from './gpuPartitionContract.ts';
 import { HIZ_FAR_WGSL } from './gpuHizRectWgsl.ts';
 
 /** `GPUShaderStage.COMPUTE`, écrit en clair : ce module est aussi lu depuis Node, sans ce global. */
@@ -67,15 +73,15 @@ fn testHiz(@builtin(global_invocation_id) id:vec3u){
  let i=id.x;if(i>=atomicLoad(&state[${ST_TESTED}u])){return;}
  let b=bounds[i];
  let row=b.rowAndClip>>1u;
- // Une ligne testée que la pyramide ne peut pas juger reste dessinée : verdict 2, jamais 0 — 0
- // est la moitié occulteurs, et le raster de calcul la dessine dans son autre mode.
- if((b.rowAndClip&1u)!=0u||b.maxX<b.minX||b.maxY<b.minY){flags[row]=2u;return;}
+ // Une ligne testée que la pyramide ne peut pas juger reste dessinée : gardée, jamais occulteur —
+ // le raster de calcul dessine les occulteurs dans son autre mode.
+ if((b.rowAndClip&1u)!=0u||b.maxX<b.minX||b.maxY<b.minY){flags[row]=${VERDICT_KEPT}u;return;}
  let far=pyramidFar(b.minX,b.minY,b.maxX,b.maxY,b.pad0,b.pad1);
  let bias=bitcast<f32>(uni.d);
  // Profondeur inversee : une boite est rejetee quand son point le PLUS PROCHE reste derriere le
  // plus lointain de la pyramide, donc quand il lui est INFERIEUR.
  let reject=select(0u,1u,b.nearest<far-bias);
- flags[row]=select(2u,1u,reject!=0u);
+ flags[row]=select(${VERDICT_KEPT}u,${VERDICT_REJECTED}u,reject!=0u);
  if(reject!=0u){
   atomicAdd(&state[${ST_REJECTED}u],1u);
   atomicAdd(&state[${ST_REJECTED_TRIANGLES}u],b.triangles);
