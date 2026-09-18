@@ -126,9 +126,9 @@
     "semantic_hash": ""
   },
   "scripts/banc.test.mjs": {
-    "mtime": 1789479820.172873,
-    "seen": 1789652705.1913111,
-    "ast_hash": "790d970797bec440bce34b6fbb44877e",
+    "mtime": 1789721706.230741,
+    "seen": 1789721933.930979,
+    "ast_hash": "f39aa660b41c3a10b81abd5c6e780ee1",
     "semantic_hash": ""
   },
   "scripts/only-pnpm.mjs": {
@@ -180,9 +180,9 @@
     "semantic_hash": ""
   },
   "scripts/mesure/optionsCote.mjs": {
-    "mtime": 1789583020.3286452,
-    "seen": 1789652705.191325,
-    "ast_hash": "56c4f9eb8aa0563d65a6006fcdda2f80",
+    "mtime": 1789720757.9024632,
+    "seen": 1789721107.2337239,
+    "ast_hash": "dad11fd0e9144f67b2ba0454d01d1dbb",
     "semantic_hash": ""
   },
   "scripts/mesure/dists.mjs": {
@@ -198,9 +198,9 @@
     "semantic_hash": ""
   },
   "scripts/mesure/options.mjs": {
-    "mtime": 1789719164.090066,
-    "seen": 1789719322.567164,
-    "ast_hash": "16dd48e17912c9f58d4c9b9dca8ee1e4",
+    "mtime": 1789721706.2303574,
+    "seen": 1789721933.930995,
+    "ast_hash": "83632dba4bcc1e944a83416a0acc64c9",
     "semantic_hash": ""
   },
   "scripts/mesure/pageTemoin.mjs": {
@@ -240,9 +240,9 @@
     "semantic_hash": ""
   },
   "scripts/mesure/scene.mjs": {
-    "mtime": 1789460230.6798656,
-    "seen": 1789652705.1913412,
-    "ast_hash": "bac7a9297ea5216655e69f4f4f868fe4",
+    "mtime": 1789720649.672635,
+    "seen": 1789721107.233742,
+    "ast_hash": "e615d1b80114ef95a15781349db845be",
     "semantic_hash": ""
   },
   "scripts/mesure/rapportCalcul.mjs": {
@@ -252,9 +252,9 @@
     "semantic_hash": ""
   },
   "scripts/mesure/banc.mjs": {
-    "mtime": 1789588646.898291,
-    "seen": 1789652705.1913211,
-    "ast_hash": "223026b41f39c959daecd7b60779c53c",
+    "mtime": 1789720769.2487116,
+    "seen": 1789721107.23372,
+    "ast_hash": "989d09d4d8dd2d9fc1a1e08a92b16166",
     "semantic_hash": ""
   },
   "scripts/mesure/serie.mjs": {
@@ -276,9 +276,9 @@
     "semantic_hash": ""
   },
   "scripts/mesure/serveur.test.mjs": {
-    "mtime": 1789588646.8988798,
-    "seen": 1789652705.191345,
-    "ast_hash": "0c7da6b0c1feae7b343f8ff502de132f",
+    "mtime": 1789720769.2535453,
+    "seen": 1789721107.233748,
+    "ast_hash": "ff853784b52913577ca85984f11c1674",
     "semantic_hash": ""
   },
   "scripts/mesure/oraclePage.mjs": {
@@ -294,9 +294,9 @@
     "semantic_hash": ""
   },
   "scripts/mesure/oracle.mjs": {
-    "mtime": 1789641902.1821268,
-    "seen": 1789652705.191327,
-    "ast_hash": "b3100a5b7c0618f0f2a36a9e8cda0c60",
+    "mtime": 1789720686.1349897,
+    "seen": 1789721107.233726,
+    "ast_hash": "4f89d2529f4882ca3f93d8872c4bd720",
     "semantic_hash": ""
   },
   "scripts/mesure/oracleCompare.mjs": {
@@ -306,21 +306,21 @@
     "semantic_hash": ""
   },
   "scripts/mesure/serveur.mjs": {
-    "mtime": 1789588646.8987856,
-    "seen": 1789652705.191344,
-    "ast_hash": "dcaf096d600a07eff9ad8fbba29107ba",
+    "mtime": 1789720777.0391467,
+    "seen": 1789721107.233748,
+    "ast_hash": "bbdcafda28a2101a413938bff9b533e5",
     "semantic_hash": ""
   },
   "scripts/mesure/poses.mjs": {
-    "mtime": 1789491617.9657729,
-    "seen": 1789652705.191336,
-    "ast_hash": "393e084b377edd87805fa6e85c443c7c",
+    "mtime": 1789720649.6723154,
+    "seen": 1789721107.2337348,
+    "ast_hash": "5d89c36a2e4a742264ab4753c2ce0d82",
     "semantic_hash": ""
   },
   "scripts/mesure/rapport.mjs": {
-    "mtime": 1789686888.577359,
-    "seen": 1789711560.522043,
-    "ast_hash": "38736768a6e14bd34d1f0c0bd7487f30",
+    "mtime": 1789720769.251222,
+    "seen": 1789721107.233737,
+    "ast_hash": "d15e04e10febb07c3243e7ad4eb177b5",
     "semantic_hash": ""
   },
   "scripts/mesure/serieCalcul.test.mjs": {
@@ -480,9 +480,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPagesEncodeVisSetup.ts": {
-    "mtime": 1789588958.3488045,
-    "seen": 1789652705.1910222,
-    "ast_hash": "ff4be1baf955573de9bdbc2d7bd45f76",
+    "mtime": 1789721563.9444094,
+    "seen": 1789721933.930654,
+    "ast_hash": "f998104c3708df2c529e2066ccfd2560",
     "semantic_hash": ""
   },
   "packages/sdk-browser/clusterBatchesScene.test.ts": {
@@ -804,9 +804,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/diagnosticGpuVariant.ts": {
-    "mtime": 1789566962.298613,
-    "seen": 1789652705.190523,
-    "ast_hash": "640bceb7be76dc716532e8d2df76100e",
+    "mtime": 1789721563.9439876,
+    "seen": 1789721933.930015,
+    "ast_hash": "272ec61a3fd71903bc9d642c6d400d58",
     "semantic_hash": ""
   },
   "packages/sdk-browser/gpuPages.ts": {
@@ -2784,9 +2784,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/diagnosticGpuGeometry.ts": {
-    "mtime": 1789566962.297721,
-    "seen": 1789652705.190521,
-    "ast_hash": "ebc83665ae0667b5cc0ac9cd6239a527",
+    "mtime": 1789721563.9441383,
+    "seen": 1789721933.930014,
+    "ast_hash": "b1ccb737dd3e4685654532affe283b25",
     "semantic_hash": ""
   },
   "packages/sdk-browser/visibilityTypes.ts": {
@@ -8520,9 +8520,9 @@
     "semantic_hash": ""
   },
   "TODO.md": {
-    "mtime": 1789719164.0734026,
-    "seen": 1789719322.56732,
-    "ast_hash": "b4a560437c368678491b4d59056330db",
+    "mtime": 1789721736.8154647,
+    "seen": 1789721933.931147,
+    "ast_hash": "135af45743d012cfb01a6d5f254ca2ff",
     "semantic_hash": ""
   },
   "README.md": {
@@ -8532,9 +8532,9 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1789719164.072879,
-    "seen": 1789719322.567318,
-    "ast_hash": "04bf412eb3d5b89db7ad9ab956e1567e",
+    "mtime": 1789720818.9516246,
+    "seen": 1789721107.233859,
+    "ast_hash": "a5a0762370fc3cc11db0c9c9d7c7f5ad",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
@@ -8544,9 +8544,9 @@
     "semantic_hash": ""
   },
   "docs/SPEC_MOTEUR_SANS_THREE.md": {
-    "mtime": 1789719164.0744927,
-    "seen": 1789719322.5673249,
-    "ast_hash": "7b529f45160666ca3c85d60525f41259",
+    "mtime": 1789720843.526732,
+    "seen": 1789721107.233867,
+    "ast_hash": "a75ea0e40bf82c101e0e950776ecb52d",
     "semantic_hash": ""
   },
   "docs/README.md": {
@@ -8562,9 +8562,9 @@
     "semantic_hash": ""
   },
   "docs/SDK.md": {
-    "mtime": 1789719164.0742495,
-    "seen": 1789719322.567324,
-    "ast_hash": "f7464d2db0c17a9df9cae8ea61fee817",
+    "mtime": 1789720843.5270028,
+    "seen": 1789721107.233866,
+    "ast_hash": "552fa9578826a883b364ed5cb4d7bbaa",
     "semantic_hash": ""
   },
   "docs/FORMAT.md": {
@@ -8586,9 +8586,9 @@
     "semantic_hash": ""
   },
   "scripts/mesure/README.md": {
-    "mtime": 1789719164.0897844,
-    "seen": 1789719322.567371,
-    "ast_hash": "7cae17ff14ec3018878380af6f68f28b",
+    "mtime": 1789721706.230953,
+    "seen": 1789721933.9312031,
+    "ast_hash": "fabeca6d7275083c2ded44fa1543da81",
     "semantic_hash": ""
   },
   "packages/README.md": {
@@ -9054,9 +9054,9 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1789666781.6150858,
-    "seen": 1789671986.064634,
-    "ast_hash": "dc4f1f7c64ad4df4aa4c1a5b62107da8",
+    "mtime": 1789721718.6684356,
+    "seen": 1789721933.929389,
+    "ast_hash": "dc65686803eaa250df1b4db87e9e9d19",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/Cargo.toml": {
@@ -9846,9 +9846,9 @@
     "semantic_hash": ""
   },
   "test/appui/browserFixtureServer.mjs": {
-    "mtime": 1789652683.681867,
-    "seen": 1789652705.191354,
-    "ast_hash": "6e49ae052b7110f83804968fba98de73",
+    "mtime": 1789720898.6281564,
+    "seen": 1789721107.233757,
+    "ast_hash": "cb719d10b807e1ba06849e6a12ba85e3",
     "semantic_hash": ""
   },
   "test/appui/coupeGpuTenuePage.mjs": {
@@ -9888,9 +9888,9 @@
     "semantic_hash": ""
   },
   "test/appui/emeraldProvenance.mjs": {
-    "mtime": 1789719164.0914226,
-    "seen": 1789719322.567204,
-    "ast_hash": "31e75c47ae66c5159c43db058f9b0a81",
+    "mtime": 1789720686.135802,
+    "seen": 1789721107.2337642,
+    "ast_hash": "d5a0e11eb67452d271168910f8aa58fa",
     "semantic_hash": ""
   },
   "test/appui/hizRigPage.mjs": {
@@ -9948,9 +9948,9 @@
     "semantic_hash": ""
   },
   "test/appui/preuvePageMoteur.mjs": {
-    "mtime": 1789655094.9275808,
-    "seen": 1789656481.0922759,
-    "ast_hash": "2e716e84018bac761ef8507496fe533e",
+    "mtime": 1789720557.5967758,
+    "seen": 1789721107.2337742,
+    "ast_hash": "37838eab80b6983dce29625ee716e362",
     "semantic_hash": ""
   },
   "test/appui/preuveSceneCommune.mjs": {
@@ -9984,9 +9984,9 @@
     "semantic_hash": ""
   },
   "test/justesse/adressage-cartes-gpu.mjs": {
-    "mtime": 1789650634.9995046,
-    "seen": 1789652705.191413,
-    "ast_hash": "b9d0f8415578ee9c7ba9174843847571",
+    "mtime": 1789720706.166655,
+    "seen": 1789721107.233815,
+    "ast_hash": "20ab5632ea637ac5779421b81d916d1e",
     "semantic_hash": ""
   },
   "test/justesse/adressage-cpu.mjs": {
@@ -9996,9 +9996,9 @@
     "semantic_hash": ""
   },
   "test/justesse/adressage-gpu.mjs": {
-    "mtime": 1789650634.9997005,
-    "seen": 1789652705.191415,
-    "ast_hash": "9b02bfc66f074b7198108fd680b748c9",
+    "mtime": 1789720706.189375,
+    "seen": 1789721107.233817,
+    "ast_hash": "d838501e3b82174d4423348cb3ac28fd",
     "semantic_hash": ""
   },
   "test/justesse/adressageCartes.mjs": {
@@ -10026,9 +10026,9 @@
     "semantic_hash": ""
   },
   "test/justesse/camera-parentee-gpu.mjs": {
-    "mtime": 1789658560.4440262,
-    "seen": 1789659070.7942011,
-    "ast_hash": "df424f915e5c37df6f00c5030c83482f",
+    "mtime": 1789720749.7188873,
+    "seen": 1789721107.233821,
+    "ast_hash": "458e44f53a21a15bf4ac550c59ebe3b8",
     "semantic_hash": ""
   },
   "test/justesse/camera-parentee.mjs": {
@@ -10062,9 +10062,9 @@
     "semantic_hash": ""
   },
   "test/justesse/cone-echelle-non-uniforme.mjs": {
-    "mtime": 1789650635.00061,
-    "seen": 1789652705.191423,
-    "ast_hash": "4a6d21e7f7371215181ad75164457b1a",
+    "mtime": 1789720718.6723883,
+    "seen": 1789721107.2338262,
+    "ast_hash": "0853de03947ccdab3c26295c7dce5e0f",
     "semantic_hash": ""
   },
   "test/justesse/coupe-lancements-gpu.mjs": {
@@ -10086,15 +10086,15 @@
     "semantic_hash": ""
   },
   "test/justesse/elagage-haut-gpu.mjs": {
-    "mtime": 1789650635.0010026,
-    "seen": 1789652705.191426,
-    "ast_hash": "148f68a7616723553c7a352489d1a77c",
+    "mtime": 1789720718.6719902,
+    "seen": 1789721107.233829,
+    "ast_hash": "123edf1ff747e19dadbca293e187488b",
     "semantic_hash": ""
   },
   "test/justesse/emetteur-sphere-gpu.mjs": {
-    "mtime": 1789650635.0011091,
-    "seen": 1789652705.191427,
-    "ast_hash": "5ab0d0df104e9d8bbfd644d69051f878",
+    "mtime": 1789720718.6726556,
+    "seen": 1789721107.23383,
+    "ast_hash": "3dff69390623355849965f9ee9e13fb3",
     "semantic_hash": ""
   },
   "test/justesse/erreur-ecran-borne.mjs": {
@@ -10110,21 +10110,21 @@
     "semantic_hash": ""
   },
   "test/justesse/erreur-ecran-hors-axe.mjs": {
-    "mtime": 1789650635.0013912,
-    "seen": 1789652705.1914291,
-    "ast_hash": "5f0a108f095e662f489ad7883d0ac17c",
+    "mtime": 1789720718.6722515,
+    "seen": 1789721107.233833,
+    "ast_hash": "1982cee06ee47b790f5d31d78d2a0a79",
     "semantic_hash": ""
   },
   "test/justesse/etalement-transparents-gpu.mjs": {
-    "mtime": 1789650635.0014935,
-    "seen": 1789652705.1914291,
-    "ast_hash": "fac6f2e6e4cafd31d2e47e14b951e2b8",
+    "mtime": 1789720706.1806445,
+    "seen": 1789721107.233833,
+    "ast_hash": "a601a174f09aa8ca104619ebec86c9d5",
     "semantic_hash": ""
   },
   "test/justesse/inverse-transposee-petite-echelle.mjs": {
-    "mtime": 1789650635.001601,
-    "seen": 1789652705.1914299,
-    "ast_hash": "08f8a18dc8979eafca2197f24a34d2c8",
+    "mtime": 1789720706.1711252,
+    "seen": 1789721107.233834,
+    "ast_hash": "8cf62651191e1a9b6241130b38a35495",
     "semantic_hash": ""
   },
   "test/justesse/inverseTransposeCas.mjs": {
@@ -10158,9 +10158,9 @@
     "semantic_hash": ""
   },
   "test/justesse/normale-eclairage-petite-echelle.mjs": {
-    "mtime": 1789650635.0021427,
-    "seen": 1789652705.191435,
-    "ast_hash": "f99ca32a21b90f68fbbab43181154115",
+    "mtime": 1789720706.2025836,
+    "seen": 1789721107.233839,
+    "ast_hash": "a20b23096bedff0233651427a23fa392",
     "semantic_hash": ""
   },
   "test/justesse/normaleEclairageCas.mjs": {
@@ -10188,27 +10188,27 @@
     "semantic_hash": ""
   },
   "test/justesse/noyauSelectionGpu.mjs": {
-    "mtime": 1789650635.0026054,
-    "seen": 1789652705.1914392,
-    "ast_hash": "7b0803dabf92d6bf1cd9170c4c465a42",
+    "mtime": 1789720749.7187083,
+    "seen": 1789721107.2338428,
+    "ast_hash": "c752303e80a7e81be129f8e6b5f671d8",
     "semantic_hash": ""
   },
   "test/justesse/pageWebgpu.mjs": {
-    "mtime": 1789658540.1643713,
-    "seen": 1789659070.794231,
-    "ast_hash": "44dbfebd511ea25b991116de5d2f13be",
+    "mtime": 1789721706.2291195,
+    "seen": 1789721933.931131,
+    "ast_hash": "110dd419ab82b94c40205fcb71ea99ac",
     "semantic_hash": ""
   },
   "test/justesse/plancher-erreur-cpu-gpu.mjs": {
-    "mtime": 1789650635.002825,
-    "seen": 1789652705.1914399,
-    "ast_hash": "6e48c4d468d97e4e8b04f96bc00b53ee",
+    "mtime": 1789720718.6728256,
+    "seen": 1789721107.233845,
+    "ast_hash": "582f489cfb615dded68ec2ed2716ba87",
     "semantic_hash": ""
   },
   "test/justesse/reflexion-cone.mjs": {
-    "mtime": 1789650635.0029194,
-    "seen": 1789652705.1914408,
-    "ast_hash": "4b0a14497ef4bcf190f1a6e5f84db840",
+    "mtime": 1789720706.206751,
+    "seen": 1789721107.233846,
+    "ast_hash": "8b2ceabab15e53a669fba66acf9a0150",
     "semantic_hash": ""
   },
   "test/justesse/reflexionCas.mjs": {
@@ -10218,9 +10218,9 @@
     "semantic_hash": ""
   },
   "test/justesse/releve-coupe-gpu.mjs": {
-    "mtime": 1789658560.4439168,
-    "seen": 1789659070.794235,
-    "ast_hash": "3607171bcf1eaee7c7b7fe403fe72d6f",
+    "mtime": 1789720718.672514,
+    "seen": 1789721107.2338471,
+    "ast_hash": "10dcd2603e38cfcc4729d21360725f95",
     "semantic_hash": ""
   },
   "test/justesse/releveCoupePage.mjs": {
@@ -10260,9 +10260,9 @@
     "semantic_hash": ""
   },
   "docs/TESTS.md": {
-    "mtime": 1789716177.266783,
-    "seen": 1789716212.902793,
-    "ast_hash": "0d5f7c4ec515c5c9c2992e60f193e0b9",
+    "mtime": 1789721718.6677048,
+    "seen": 1789721933.931154,
+    "ast_hash": "e56ce21342cf35b36334ac6880487e3b",
     "semantic_hash": ""
   },
   "test/README.md": {
@@ -10290,123 +10290,123 @@
     "semantic_hash": ""
   },
   "test/browser/beaute-webgpu.browser.mjs": {
-    "mtime": 1789652707.0920644,
-    "seen": 1789653217.1224651,
-    "ast_hash": "6718b355ccf18b26fe39db63c2493e6a",
+    "mtime": 1789721718.6680033,
+    "seen": 1789721933.931058,
+    "ast_hash": "c2827b172b44571a124877dfade50f12",
     "semantic_hash": ""
   },
   "test/browser/cisaillement-transform.browser.mjs": {
-    "mtime": 1789653181.3926458,
-    "seen": 1789653217.122466,
-    "ast_hash": "8a2233edae76299b3210b90636a83091",
+    "mtime": 1789720749.7190056,
+    "seen": 1789721107.233781,
+    "ast_hash": "cf159f5958ceb3a6728e0c90963f52b4",
     "semantic_hash": ""
   },
   "test/browser/cone-echelle-non-uniforme.browser.mjs": {
-    "mtime": 1789653181.439734,
-    "seen": 1789653217.122467,
-    "ast_hash": "b4c09c6d1c133e83dea48cf29a3c9a51",
+    "mtime": 1789720749.7192247,
+    "seen": 1789721107.233782,
+    "ast_hash": "ad46d88d88ea7e7183bd36a562e9511b",
     "semantic_hash": ""
   },
   "test/browser/convention-profondeur-moteur-complet.browser.mjs": {
-    "mtime": 1789653181.409602,
-    "seen": 1789653217.122468,
-    "ast_hash": "34eba2a3f04631e69e8c04f52585f19b",
+    "mtime": 1789720706.2546256,
+    "seen": 1789721107.233783,
+    "ast_hash": "451a01360e95101d8dc9c5f5973e3f4d",
     "semantic_hash": ""
   },
   "test/browser/coupe-gpu-tenue.browser.mjs": {
-    "mtime": 1789653181.3882565,
-    "seen": 1789653217.1224692,
-    "ast_hash": "be4ebc96dbc6a639ee30b5063e98fcc8",
+    "mtime": 1789720718.6733036,
+    "seen": 1789721107.233783,
+    "ast_hash": "d4e6a0f9005862113df22896dd07d3fa",
     "semantic_hash": ""
   },
   "test/browser/dessin-webgpu.browser.mjs": {
-    "mtime": 1789654948.2778394,
-    "seen": 1789656481.0922859,
-    "ast_hash": "0c7fccfc749e09d3ff3f665e21bfda9a",
+    "mtime": 1789720686.13548,
+    "seen": 1789721107.233784,
+    "ast_hash": "3ce06adf5bf96cdd70578624df986e99",
     "semantic_hash": ""
   },
   "test/browser/emeraude-webgpu.browser.mjs": {
-    "mtime": 1789719312.3353217,
-    "seen": 1789719322.567235,
-    "ast_hash": "4b51b5e8c606f5d5b4c1077de18f0137",
+    "mtime": 1789721718.6682312,
+    "seen": 1789721933.9310641,
+    "ast_hash": "15d2248466434b9e61bd7b921fbf4df2",
     "semantic_hash": ""
   },
   "test/browser/enroulement-texture-gpu.browser.mjs": {
-    "mtime": 1789653181.4138563,
-    "seen": 1789653217.1224709,
-    "ast_hash": "5f125d35a445b6994511193e0fc57896",
+    "mtime": 1789720749.7191133,
+    "seen": 1789721107.233786,
+    "ast_hash": "f1726bad36f2a1c19ea1d1b9e1a3654a",
     "semantic_hash": ""
   },
   "test/browser/hiz-rig-camera.browser.mjs": {
-    "mtime": 1789653181.4227543,
-    "seen": 1789653217.122472,
-    "ast_hash": "6d42aae1bb104a8b9d5d54045a653f29",
+    "mtime": 1789720718.6735187,
+    "seen": 1789721107.2337868,
+    "ast_hash": "4ada13c2d9eee06f4d126cd2cdd820a6",
     "semantic_hash": ""
   },
   "test/browser/hiz-webgpu.browser.mjs": {
-    "mtime": 1789655016.7004137,
-    "seen": 1789656481.0922902,
-    "ast_hash": "ecd96f42223f645252fb4343a3e22fcf",
+    "mtime": 1789720686.1353009,
+    "seen": 1789721107.2337868,
+    "ast_hash": "850dee261d8a2df781258ab4bb2daeec",
     "semantic_hash": ""
   },
   "test/browser/image-tenue-couleur.browser.mjs": {
-    "mtime": 1789653181.4438963,
-    "seen": 1789653217.122474,
-    "ast_hash": "57e86835c34924fbe9e4a6cda1d9abbc",
+    "mtime": 1789720718.6737404,
+    "seen": 1789721107.233788,
+    "ast_hash": "a2ff62437baf41ae0072405f98da685f",
     "semantic_hash": ""
   },
   "test/browser/inverse-transposee-petite-echelle.browser.mjs": {
-    "mtime": 1789653181.4055393,
-    "seen": 1789653217.122475,
-    "ast_hash": "9fdd21a1c1d9aae03ac5e7edde3c19c5",
+    "mtime": 1789720706.2714858,
+    "seen": 1789721107.233789,
+    "ast_hash": "fa098ed5304924ca0a15e7381f3b8fa5",
     "semantic_hash": ""
   },
   "test/browser/normal-transform-arithmetique.browser.mjs": {
-    "mtime": 1789653181.4011178,
-    "seen": 1789653217.122476,
-    "ast_hash": "8fda4537bb26b4e4702ec3c037a23f48",
+    "mtime": 1789720706.2460988,
+    "seen": 1789721107.23379,
+    "ast_hash": "063383c383b22525486784922e29a772",
     "semantic_hash": ""
   },
   "test/browser/normale-eclairage-petite-echelle.browser.mjs": {
-    "mtime": 1789653181.3835244,
-    "seen": 1789653217.122477,
-    "ast_hash": "6942b6ffd603cab11902363b3d9409d0",
+    "mtime": 1789720706.2291458,
+    "seen": 1789721107.2337909,
+    "ast_hash": "5efbac73a57de7faeb372a013690b9c5",
     "semantic_hash": ""
   },
   "test/browser/normale-eclairage-substitutions-refusees.browser.mjs": {
-    "mtime": 1789653181.4269562,
-    "seen": 1789653217.122478,
-    "ast_hash": "3f784e7b155a8a2599b9581a267d9a43",
+    "mtime": 1789720706.2631102,
+    "seen": 1789721107.233792,
+    "ast_hash": "227cc8ff4327019e23f2dfd94813c72a",
     "semantic_hash": ""
   },
   "test/browser/partition-gpu-conservatrice.browser.mjs": {
-    "mtime": 1789653181.3969774,
-    "seen": 1789653217.122478,
-    "ast_hash": "f5a9b315165a999ba0886898cef00b4f",
+    "mtime": 1789721740.4078429,
+    "seen": 1789721933.931073,
+    "ast_hash": "4d3bca07184dfd0f0123c19090136b8b",
     "semantic_hash": ""
   },
   "test/browser/presentation-gpu.browser.mjs": {
-    "mtime": 1789652707.1037412,
-    "seen": 1789653217.1224802,
-    "ast_hash": "6c1c91c18062d5365cac7ce9dff3c3f9",
+    "mtime": 1789720686.1359088,
+    "seen": 1789721107.233793,
+    "ast_hash": "be39cf70c7e1161a7c1e1b00214c64c8",
     "semantic_hash": ""
   },
   "test/browser/reflexion-face-eliminee.browser.mjs": {
-    "mtime": 1789653181.4311156,
-    "seen": 1789653217.1224809,
-    "ast_hash": "30ab6f13a7761937b7b3dfc08ae5a5d6",
+    "mtime": 1789720706.2503939,
+    "seen": 1789721107.233794,
+    "ast_hash": "ace60dcdeef66ab06e822bbccfcd1202",
     "semantic_hash": ""
   },
   "test/browser/transform-parent-perime.browser.mjs": {
-    "mtime": 1789653181.4184735,
-    "seen": 1789653217.1224809,
-    "ast_hash": "644d086aaf21d4ba677d7c3087d0dc68",
+    "mtime": 1789720706.2797382,
+    "seen": 1789721107.2337952,
+    "ast_hash": "1ee229dc520d407d2b9542abeb9e0f9a",
     "semantic_hash": ""
   },
   "test/browser/transparent-transform.browser.mjs": {
-    "mtime": 1789653181.4355152,
-    "seen": 1789653217.1224818,
-    "ast_hash": "0424768e36f932d5ca571a87d5ceb015",
+    "mtime": 1789720749.7193198,
+    "seen": 1789721107.2337961,
+    "ast_hash": "5b3fff670b3baa8465c8b24477a987c7",
     "semantic_hash": ""
   },
   "test/appui/hizCas.mjs": {
@@ -10416,9 +10416,9 @@
     "semantic_hash": ""
   },
   "test/integration/camera-moteur-chez-les-hotes.test.mjs": {
-    "mtime": 1789653181.378611,
-    "seen": 1789656481.09231,
-    "ast_hash": "d98d5078887b8116a820de058a567801",
+    "mtime": 1789720718.6730313,
+    "seen": 1789721107.233805,
+    "ast_hash": "1046c633926c56b11d995cbaed1dcbc6",
     "semantic_hash": ""
   },
   "test/integration/contrat-public.test.mjs": {
@@ -10476,9 +10476,9 @@
     "semantic_hash": ""
   },
   "test/test-gpu.mjs": {
-    "mtime": 1789658473.9388328,
-    "seen": 1789659070.7942379,
-    "ast_hash": "9f9017fbdbe83ac211676a1d388909b9",
+    "mtime": 1789721706.2302306,
+    "seen": 1789721933.931139,
+    "ast_hash": "18ede0afe743d93a4fa1e93599aac79e",
     "semantic_hash": ""
   },
   "test/test-gpu.test.mjs": {
@@ -10869,6 +10869,12 @@
     "mtime": 1789720157.3160377,
     "seen": 1789720452.005193,
     "ast_hash": "6c8f39d323166af33573c8781c284242",
+    "semantic_hash": ""
+  },
+  "pnpm-workspace.yaml": {
+    "mtime": 1789721724.949393,
+    "seen": 1789721933.9312031,
+    "ast_hash": "65079c80b5db7f158f14d8d20bfb2286",
     "semantic_hash": ""
   }
 }
