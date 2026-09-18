@@ -61,6 +61,7 @@ fn group_simplification_pins_shared_vertices_and_frees_the_open_boundary() {
         positions: &positions,
         locks: &locks,
         weld: &weld,
+        weld_seam: &weld,
     };
     let reduction = reduce_group(&input, &group)
         .expect("reduce")
@@ -124,6 +125,7 @@ fn an_isolated_sheet_simplifies_its_whole_boundary() {
         positions: &positions,
         locks: &locks,
         weld: &weld,
+        weld_seam: &weld,
     };
     let reduction = reduce_group(&input, &group)
         .expect("reduce")

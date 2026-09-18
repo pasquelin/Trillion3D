@@ -12,6 +12,8 @@ pub(super) struct DagResult {
     pub proxy_threshold: f64,
     pub reused: i32,
     pub dag_report: Value,
+    /// Ce que le DAG a de mauvais à dire, nommé : vide quand il est monté jusqu'à sa racine.
+    pub warnings: Vec<Value>,
     pub culling_report: Value,
     pub structure_report: Value,
     pub stream_report: Value,
@@ -42,14 +44,19 @@ pub(super) fn level_error_stats(errors: &mut [f64]) -> (f64, f64, f64) {
 pub(super) fn build_dag_primitive(
     o: &Options,
     pos: &[f32],
+    attributes: &[geometry_page::Attribute],
     index_values: &[u32],
     proxy_demand: crate::proxy::cut::CutDemand,
     store_packed: &(impl Fn(&[u32]) -> Result<(Value, bool)> + Sync),
 ) -> Result<DagResult> {
+    let strategy = crate::dag::DagStrategy::named(&o.simplification);
+    // Les uv, quand la primitive en porte : la soudure de repli du DAG ne franchit pas une couture.
+    let uvs = attributes.iter().find(|a| a.flag == 2);
     let (dag, groups, tallies) = crate::dag::build_dag_tallied(
         pos,
+        uvs.map(|a| &a.values[..]),
         index_values,
-        crate::dag::DagStrategy::named(&o.simplification),
+        strategy,
         &|| check(o),
     )?;
     if dag
@@ -85,28 +92,11 @@ pub(super) fn build_dag_primitive(
     // La coupe grossière du proxy se lit ici, où le DAG et les positions sont tous deux en main;
     // plus loin, les clusters n'existent plus que comme objets de cache.
     let (proxy_threshold, proxy_cut) = crate::proxy::cut::coarse_cut(&dag, pos, proxy_demand);
-    let depth = dag.iter().map(|c| c.level).max().unwrap_or(0);
-    let mut level_stats = Vec::new();
-    for level in 0..=depth {
-        let mut errors: Vec<f64> = Vec::new();
-        let mut triangles = 0usize;
-        let mut roots = 0usize;
-        for cluster in dag.iter().filter(|c| c.level == level) {
-            errors.push(cluster.lod_error);
-            triangles += cluster.triangles();
-            if cluster.is_root() {
-                roots += 1;
-            }
-        }
-        if errors.is_empty() {
-            continue;
-        }
-        let clusters = errors.len();
-        let (min, median, max) = level_error_stats(&mut errors);
-        level_stats.push(json!({"level":level,"clusters":clusters,"triangles":triangles,"roots":roots,"errorMin":min,"errorMedian":median,"errorMax":max}));
-    }
-    let group_stats:Vec<Value>=tallies.iter().enumerate().map(|(i,tally)|json!({"level":i+1,"reduced":tally.reduced,"tooSmall":tally.too_small,"noCollapse":tally.no_collapse,"borderLost":tally.border_lost,"unusableError":tally.unusable_error})).collect();
-    let dag_report = json!({"depth":depth,"clusterTriangles":crate::dag::DAG_CLUSTER_TRIANGLES,"groupMin":crate::dag::DAG_GROUP_MIN,"groupMax":crate::dag::DAG_GROUP_MAX,"levels":level_stats,"groups":group_stats});
+    let shape = compiler_primitive_warn::DagShape::of(&dag);
+    let depth = shape.depth;
+    let group_stats:Vec<Value>=tallies.iter().enumerate().map(|(i,tally)|json!({"level":i+1,"reduced":tally.reduced,"welded":tally.welded,"relocked":tally.relocked,"tooSmall":tally.too_small,"noCollapse":tally.no_collapse,"borderLost":tally.border_lost,"unusableError":tally.unusable_error})).collect();
+    let warnings = compiler_primitive_warn::dag_warnings(strategy, &shape, &tallies);
+    let dag_report = json!({"depth":depth,"clusterTriangles":crate::dag::DAG_CLUSTER_TRIANGLES,"groupMin":crate::dag::DAG_GROUP_MIN,"groupMax":crate::dag::DAG_GROUP_MAX,"levels":compiler_primitive_warn::level_report(&dag, depth),"groups":group_stats,"warnings":warnings});
     // Pages follow the culling order so every hierarchy node owns a contiguous page range.
     let (order, culling) = {
         let _t = perf::Timer::new(perf::Phase::Culling);
@@ -180,6 +170,7 @@ pub(super) fn build_dag_primitive(
         proxy_threshold,
         reused,
         dag_report,
+        warnings,
         culling_report,
         structure_report,
         stream_report,

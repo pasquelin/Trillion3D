@@ -1,4 +1,5 @@
 use super::*;
+use crate::dag::border::border_survived;
 
 // Lot B3 : refine_bisection remplace un HashSet<usize> reconstruit à chaque coupe par une table
 // `present` de booléens réutilisée, entièrement remise à `false` en sortie ; border_survived

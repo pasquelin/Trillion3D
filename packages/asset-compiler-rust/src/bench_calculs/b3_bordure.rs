@@ -2,7 +2,7 @@
 //! listes triées et une fusion. Référence : l'ancienne version, noms francisés.
 use super::harness::{compare, Bits, Row};
 use super::inputs::Xorshift;
-use crate::dag::groups::border_survived;
+use crate::dag::border::border_survived;
 
 fn reference_bordure(fusion: &[u32], reduit: &[u32], verrous: &[bool], soudure: &[u32]) -> bool {
     let exiges: std::collections::HashSet<u32> = fusion
@@ -36,7 +36,7 @@ pub(crate) fn row() -> Row {
     let soudure: Vec<u32> = (0..SOMMETS).map(|i| (i - i % 2) as u32).collect();
     compare(
         "B3 bord du groupe sans HashSet",
-        "dag/groups.rs",
+        "dag/border.rs",
         "groupe de 32 clusters, 12 288 coins, 200 000 sommets".into(),
         &mut || reference_bordure(&fusion, &reduit, &verrous, &soudure),
         &mut || border_survived(&fusion, &reduit, &verrous, &soudure),
