@@ -1,4 +1,5 @@
 import { visLayerTop } from './webgpuVisibilityUniforms.ts';
+import { taaRenderMatrix } from './taaFrame.ts';
 import type { PartitionFrame } from './gpuPartitionUniform.ts';
 import type { EngineCamera } from './cameraWorld.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
@@ -65,7 +66,9 @@ export function encodeWebgpuPartition(
   // qu'une ligne peut alors porter une autre page. C'est la seule condition qui s'y ajoute.
   const historyValid = !run.noOccluderHistory && run.occluderHistoryEpoch === rows.tableEpoch;
   frame.view = cam.view;
-  frame.viewProj = cam.viewProjection;
+  // La matrice de rendu, gigue de l'antialiasing temporel comprise : la pyramide que le test
+  // d'occultation lit a été rasterisée avec elle, et ses marges sont à l'ulp près.
+  frame.viewProj = taaRenderMatrix(rt, cam);
   // L'ancre de la projection : l'œil dans le monde. Les coins n'entrent dans le noyau que par leur
   // écart à elle, ce qui garde la borne d'erreur serrée quelle que soit la taille du modèle.
   anchor[0] = cam.eye[0];

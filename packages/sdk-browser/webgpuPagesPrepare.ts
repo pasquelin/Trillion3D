@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createDeferredLighting } from './deferredLighting.ts';
+import { prepareTemporalAntialiasing } from './taaPrepare.ts';
 import { createSceneLightContractBuffer } from './webgpuPagesStateLights.ts';
 import { prepareWebgpuPresentation } from './webgpuPresentationSetup.ts';
 import { createWebgpuPagesPipelines } from './webgpuPagesPipelines.ts';
@@ -84,6 +85,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     run.gate.resourcesChanged(),
   );
   context.signal?.throwIfAborted();
+  await prepareTemporalAntialiasing(rt, gpuDevice);
   ({
     presenter: gpu.presenter,
     canvasTexture: gpu.canvasTexture,
@@ -179,6 +181,10 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     gpuSelection: !!run.gpuSelection,
     indirectDraw: !!vis.gpuDraw,
     hiz: !!vis.gpuHiz,
+    temporalAntialiasing: !!gpu.temporal,
+    // Aucune cible de vecteurs n'est rastérisée : la passe temporelle les dérive du tampon de
+    // visibilité et de la pose précédente du placement.
+    motionVectors: gpu.temporal ? 'derived' : false,
     unsupported: [...capabilities.unsupported],
   });
 }

@@ -2,6 +2,7 @@ import type { GpuPassTimings } from '../sdk-core/index.ts';
 import { BOUNCE_PROBE_PASS } from './bounceProbeWgsl.ts';
 import { BOUNCE_SURFACE_PASS } from './bounceSurfaceWgsl.ts';
 import { DEFERRED_LIGHTING_PASS } from './deferredLighting.ts';
+import { TAA_PASS } from './taaShaderWgsl.ts';
 import { LIGHT_TILES_PASS } from './gpuLightTiles.ts';
 import { REST_COMPACT_PASS } from './gpuRestCompact.ts';
 import { SHADOW_PASS } from './gpuShadowAtlas.ts';
@@ -50,6 +51,7 @@ const PASSES: Readonly<Record<string, readonly [stage: string, block: GpuPassBlo
     [BOUNCE_SURFACE_PASS]: ['bounce', 'other'],
     [BOUNCE_PROBE_PASS]: ['bounce', 'other'],
     [DEFERRED_LIGHTING_PASS]: ['lighting', 'other'],
+    [TAA_PASS]: ['antialiasing', 'other'],
     'WG HDR composition': ['present', 'other'],
     'WG HDR composition + present': ['present', 'other'],
     'WG direct present': ['present', 'other'],
@@ -83,6 +85,7 @@ export const WEBGPU_STAGES = [
   'lightLists',
   'bounce',
   'lighting',
+  'antialiasing',
   'present',
 ] as const;
 

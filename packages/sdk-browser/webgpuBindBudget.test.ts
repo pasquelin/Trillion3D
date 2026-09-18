@@ -5,6 +5,7 @@ import { createWebgpuVisibilityShaders } from './webgpuVisibilityShaders.ts';
 import { createWebgpuShadePipeline } from './webgpuVisibilityPipelines.ts';
 import { createWebgpuBlendPipelines } from './webgpuBlendPipelines.ts';
 import { createGpuRaster } from './gpuRaster.ts';
+import { createTemporalAntialiasing } from './temporalAntialiasing.ts';
 
 /** Le dispositif factice des dispositions : il ne garde que ce qu'on lui demande de créer. */
 function recordingDevice() {
@@ -16,6 +17,8 @@ function recordingDevice() {
     createComputePipeline: () => ({}),
     createShaderModule: () => ({ getCompilationInfo: async () => ({ messages: [] }) }),
     createBindGroup: (desc: unknown) => desc,
+    createSampler: () => ({}),
+    queue: { writeBuffer() {} },
   } as unknown as GPUDevice;
 }
 
@@ -35,7 +38,8 @@ test('aucune disposition ne dépasse les huit tampons de stockage garantis par �
     ['visibilité', visBindGroupLayout],
     ['résolution matérielle', shadeBindGroupLayout],
     ['transparents', blendBindGroupLayout],
-    ['petits triangles', smallComputeLayout(device)],
+    ['petits triangles', await firstLayout(device, (d) => createGpuRaster(d, 4, 4, 8))],
+    ['antialiasing temporel', await firstLayout(device, (d) => createTemporalAntialiasing(d, []))],
   ];
   const stages = {
     VERTEX: GPUShaderStage.VERTEX,
@@ -60,8 +64,8 @@ test('aucune disposition ne dépasse les huit tampons de stockage garantis par �
   }
 });
 
-/** La disposition de calcul du raster logiciel, telle que son constructeur la crée. */
-function smallComputeLayout(device: GPUDevice) {
+/** La première disposition qu'un constructeur crée sur le dispositif factice. */
+async function firstLayout(device: GPUDevice, build: (recording: GPUDevice) => unknown) {
   const layouts: unknown[] = [];
   const recording = {
     ...device,
@@ -70,6 +74,6 @@ function smallComputeLayout(device: GPUDevice) {
       return descriptor;
     },
   } as unknown as GPUDevice;
-  createGpuRaster(recording, 4, 4, 8);
+  await build(recording);
   return layouts[0];
 }

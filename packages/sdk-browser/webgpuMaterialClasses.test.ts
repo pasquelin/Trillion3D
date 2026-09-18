@@ -101,12 +101,13 @@ test('a cut-out cluster carries its alpha test into the visibility row', () => {
     dataUvScales: [],
     markRowDirty: () => {},
   });
-  const mask = collected.roots[0].pages[0];
+  // Une page écrite en ligne appartient à un placement : la disposition WebGPU le pose.
+  const mask = Object.assign(collected.roots[0].pages[0], { placementIndex: 0 });
   writeRow(mask, 0, 0, 0, new Uint32Array([0, 1, 2]), floats, ints);
   assert.equal((ints[23] & FLAG_MASK) !== 0, true, 'le drapeau de découpe est posé');
   assert.equal(floats[19], 0.5, 'le seuil alpha du matériau voyage avec la ligne');
   // A blend never becomes a cut-out: its row would otherwise discard instead of blending.
-  const blend = collected.roots[1].pages[0];
+  const blend = Object.assign(collected.roots[1].pages[0], { placementIndex: 1 });
   writeRow(blend, 0, 0, 0, new Uint32Array([0, 1, 2]), floats, ints);
   assert.equal((ints[23] & FLAG_MASK) !== 0, false);
   assert.equal(floats[19], 1);

@@ -2,6 +2,7 @@
 // l'unique écriture de son identifiant, et chaque nuanceur qui l'assemble doit le porter une seule
 // fois — deux copies dans un même texte seraient deux chances de le voir dériver, comme avant ce lot.
 import test from 'node:test';
+import { TAA_SHADER } from './taaShaderWgsl.ts';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {
@@ -32,7 +33,13 @@ function eachOnce(fragment: string, shaders: Record<string, string>) {
 
 test('PAGE_INFO_STRUCT_WGSL déclare struct PageInfo une seule fois dans chaque nuanceur qui la lit', () => {
   assert.match(PAGE_INFO_STRUCT_WGSL, /struct PageInfo\{/);
-  eachOnce(PAGE_INFO_STRUCT_WGSL, { SMALL_SHADER, SHADE_SHADER, VIS_SHADER, SHADOW_DEPTH_SHADER });
+  eachOnce(PAGE_INFO_STRUCT_WGSL, {
+    SMALL_SHADER,
+    SHADE_SHADER,
+    VIS_SHADER,
+    SHADOW_DEPTH_SHADER,
+    TAA_SHADER,
+  });
 });
 
 test('EDGE_WGSL déclare fn edge une seule fois dans le raster des petits triangles et l’ombrage', () => {

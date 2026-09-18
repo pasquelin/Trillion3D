@@ -149,6 +149,7 @@ F4. **Critère** : sur Emerald × 9, vue générale < 2 M triangles sélectionn�
 
 B1. Three.js reste le **moteur témoin** dans le Lab : même scène, même caméra, capture PNG sans perte, comparaison au pixel à 0 px (identité attendue) et à 1 px (différences localisées aux bascules), témoin A/A.
 B2. **Parité WebGPU/WebGL2** : test automatique sur toutes les scènes, erreur max ≤ 2 par canal, sinon échec.
+B2bis. **Antialiasing temporel** (WebGPU, actif par défaut) : l'accumulation ne touche que les deux pixels d'un bord, l'intérieur des surfaces reste à 0 px, deux exécutions rendent la même image au bit près, une image n'est tenue qu'après un plein cycle d'images immobiles, et un objet déplacé ne laisse aucun fantôme ; les bancs à 0 px le coupent (`temporalAntialiasing: false`).
 B3. **Campagnes** : fenêtre visible à 120 Hz, machine libre, mode mesure sans trace, ABBA, DPR/pixelError/résolution/commit consignés, quatre moteurs, 1 et 9 instances, toutes les scènes ; verdict par scène et moteur (FPS présentés, p95, p99, images > 8,33 ms, pixels différents, première image).
 B4. **Scripts headless** conservés dans `render-tech-lab/scripts/headless/` pour les preuves rapides de chaque fusion.
 

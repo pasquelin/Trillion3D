@@ -4,7 +4,7 @@ import { grantCapability } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Ce que la capacité déclare tant que la lumière qui rebondit n'est pas gréée sur cet appareil. */
-const BOUNCE_CAPABILITY = 'global illumination, surface cache and motion vectors';
+const BOUNCE_CAPABILITY = 'global illumination and surface cache';
 /** Approximations nommées du rebond, publiées dans le diagnostic (P5). */
 const BOUNCE_APPROXIMATIONS = [
   'the cascades interpolate irradiance between eight probes, so a detail smaller than a cell is lost',

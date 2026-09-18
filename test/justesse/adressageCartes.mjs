@@ -98,6 +98,8 @@ export function ligneDePageMelangee() {
     clusterId: 'c0',
     role: 'fine',
     depthLayer: 0,
+    // Une page écrite en ligne appartient à un placement : la disposition WebGPU le pose.
+    placementIndex: 0,
   };
   ecrire(rec, 0, 0, 0, new Uint32Array([0, 1, 2]), floats, ints);
   return { mat, ints, floats };
