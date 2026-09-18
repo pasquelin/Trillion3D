@@ -75,22 +75,27 @@ test('batch progress opens one line per job id and ignores batch-level lines', (
   assert.match(text, /2\/2 b/);
   assert.match(text, /✔ 1\/2 a 1 triangles/);
 });
-// Comportement : un avertissement de DAG porté par l'événement d'une primitive devient une ligne
-// du journal, nommée, avec ses racines, ses pages et ses groupes par issue.
-test('a DAG warning on a primitive event is printed as its own line', () => {
+// Comportement : les avertissements de DAG portés par les événements de primitive sont comptés et
+// dits en une ligne à la fin du travail — par code, avec le pire cas —, jamais une ligne par primitive.
+test('DAG warnings are summarised in one line when the job completes', () => {
   const out = capture();
   const progress = createTerminalProgress({ label: 'village', stream: out.stream });
-  progress.event({
-    event: 'progress',
-    job: 'job',
-    phase: 'primitive',
-    ratio: 0.5,
-    mesh: 7,
-    primitive: 0,
-    warnings: [{ code: 'DAG_FLAT', roots: 98, pages: 98, groups: { noCollapse: 4 } }],
-  });
+  const warn = (mesh, warnings) =>
+    progress.event({
+      event: 'progress',
+      job: 'job',
+      phase: 'primitive',
+      ratio: 0.5,
+      mesh,
+      primitive: 0,
+      warnings,
+    });
+  warn(7, [{ code: 'DAG_FLAT', roots: 98, pages: 98, groups: { noCollapse: 4 } }]);
+  warn(9, [{ code: 'DAG_ROOTS', roots: 6, pages: 27, groups: { noCollapse: 1 } }]);
+  assert.doesNotMatch(out.text(), /⚠/, 'rien n’est dit avant la fin');
+  progress.event({ event: 'complete', job: 'job', ratio: 1, pointer: { primitives: 2 } });
   assert.match(
     out.text(),
-    /⚠ village mesh 7\/0 DAG_FLAT : 98 racines sur 98 pages, groupes \{"noCollapse":4\}/,
+    /⚠ village : 2 primitive\(s\) sans racine unique \(1 DAG_FLAT, 1 DAG_ROOTS\) ; pire mesh 7\/0 : 98 racines sur 98 pages — détail dans clusters.json\n✔ 1\/1 village/,
   );
 });
