@@ -46,7 +46,8 @@ export function tileRegion(levelWidth: number, levelHeight: number, tx: number, 
 }
 
 /** L'origine d'une cellule du pool, en texels. */
-const cellOrigin = (place: TilePlace) => [place.x * TILE_PITCH, place.y * TILE_PITCH] as const;
+export const cellOrigin = (place: TilePlace) =>
+  [place.x * TILE_PITCH, place.y * TILE_PITCH] as const;
 /** L'origine du `rank`-ième niveau de la queue dans sa cellule, bordure comprise. */
 const tailOrigin = (place: TilePlace, rank: number): GPUOrigin3D => [
   place.x * TILE_PITCH + TILE_BORDER + tailOffset(rank),

@@ -56,7 +56,7 @@ test('prendre, toucher, rendre : la clé suit la place, et un pool plein refuse 
   assert.equal(pool.acquire(999, 1), undefined, 'plein : rien à donner, et rien de cassé');
 });
 
-test('les candidates à l’éviction sont les tuiles non épinglées vues avant l’image, la plus ancienne d’abord', () => {
+test('les candidates à l’éviction sont les tuiles non épinglées que ni l’image ni la précédente n’ont vues, la plus ancienne d’abord', () => {
   const { device } = fakeDevice();
   const pool = createWebgpuTilePool(device, { kind: 'color', format: 'rgba8unorm', layers: 1 });
   const tail = pool.acquire(1, 1, true)!;
@@ -64,8 +64,9 @@ test('les candidates à l’éviction sont les tuiles non épinglées vues avant
   const older = pool.acquire(3, 1)!;
   const fresh = pool.acquire(4, 7)!;
   assert.deepEqual(pool.candidates(7), [older, old]);
-  assert.deepEqual(pool.candidates(8), [older, old, fresh]);
-  assert.equal(pool.candidates(1).length, 0);
+  assert.deepEqual(pool.candidates(8), [older, old], 'vue à l’image d’avant : gardée');
+  assert.deepEqual(pool.candidates(9), [older, old, fresh]);
+  assert.equal(pool.candidates(2).length, 0);
   pool.release(tail);
   assert.equal(pool.resident, 3);
 });

@@ -24,7 +24,8 @@ export function vertexBytesOf(
 }
 
 export function metricsOf(rt: WebgpuPagesRuntime) {
-  const { run, gpu, vis, timing, blendState, services, lights } = rt;
+  const { run, gpu, vis, timing, blendState, services, lights } = rt,
+    { geometryPool } = rt.setup;
   const stats = gpu.cache?.stats();
   const vertexBytes = vertexBytesOf(gpu, vis);
   const ledger = gpuDeviceLedgerOf(rt.setup.gpuDevice)?.snapshot();
@@ -72,7 +73,12 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     gpuAllocatedByLabel: ledger?.byLabel ?? null,
     gpuAllocationsUnknownFormat: ledger?.unknownFormats ?? null,
     gpuFrameTargetBytes: gpu.targetBytes || null,
-    gpuFrameBudgetBytes: rt.setup.frameBudget,
+    geometryPoolBytes: geometryPool.budgetBytes,
+    geometryPoolSlots: geometryPool.slots,
+    geometryPoolAllocatedBytes: geometryPool.allocatedBytes,
+    geometryPoolClamp: geometryPool.clamp,
+    geometryPoolSaturated: Math.max(0, services.residencySets.keepCount - geometryPool.slots),
+    texturePoolClamp: rt.setup.texturePool.clamp,
     drawCalls: run.gpuDrawCalls,
     hizTestedClusters: hiz?.tested ?? null,
     hizRejectedClusters: hiz?.rejected ?? null,
@@ -147,7 +153,7 @@ export function disposeWebgpuPages(
   rt.lights.spheres?.buffer.destroy();
   rt.lights.spheres = undefined;
   rt.lights.shadowGroups.fill(undefined);
-  rt.lights.shadowGroupsKey = [];
+  rt.lights.shadowGroupsKey.length = 0;
   rt.lights.buffer?.destroy();
   rt.lights.plan.reset();
   gpu.presenter?.dispose();

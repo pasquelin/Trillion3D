@@ -45,34 +45,34 @@ export interface SurfaceBuffer {
   views(): GPUTextureView[];
   dispose(): void;
 }
+/**
+ * Les octets qu'une surface de cette taille prend, une fois les limites de l'APPAREIL vérifiées.
+ * Aucun plafond en octets n'est posé ici : comme chez la référence, les cibles suivent la résolution,
+ * et seul ce que l'appareil déclare ne pas savoir faire est refusé, nommément.
+ */
 export function checkSurfaceSize(
   device: GPUDevice,
   width: number,
   height: number,
-  budgetBytes: number,
   bytesPerPixel = SURFACE_BYTES_PER_PIXEL,
 ) {
   if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1)
     throw new Error('INVALID_SURFACE_SIZE');
-  if (!Number.isSafeInteger(budgetBytes) || budgetBytes < 1)
-    throw new Error('INVALID_SURFACE_BUDGET');
   if (
     width > (device.limits.maxTextureDimension2D ?? 8192) ||
     height > (device.limits.maxTextureDimension2D ?? 8192)
   )
     throw new Error('SURFACE_DEVICE_LIMIT');
   const bytes = width * height * bytesPerPixel;
-  if (!Number.isSafeInteger(bytes) || bytes > budgetBytes)
-    throw new Error(`SURFACE_BUDGET: ${bytes} > ${budgetBytes}`);
+  if (!Number.isSafeInteger(bytes)) throw new Error('INVALID_SURFACE_SIZE');
   return bytes;
 }
 export function createSurfaceBuffer(
   device: GPUDevice,
   width: number,
   height: number,
-  budgetBytes: number,
 ): SurfaceBuffer {
-  const allocationBytes = checkSurfaceSize(device, width, height, budgetBytes);
+  const allocationBytes = checkSurfaceSize(device, width, height);
   const textures: GPUTexture[] = [];
   let views: GPUTextureView[];
   try {

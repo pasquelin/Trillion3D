@@ -3,7 +3,6 @@ import * as THREE from 'three';
 import { checkSurfaceSize, createSurfaceBuffer, type SurfaceCapture } from './surfaceBuffer.ts';
 import { collectPendingUrls } from './pageSelection.ts';
 import { viewProj } from './webgpuPagesHelpers.ts';
-import { checkFrameBudget } from './webgpuPagesTargets.ts';
 import { resetHizHistory } from './webgpuPagesDrops.ts';
 import { holdHostCamera, resolveCameraWorld, type HostCamera } from './cameraWorld.ts';
 import {
@@ -27,7 +26,7 @@ function copySurfaces(
     eye = rt.run.gate.cam.eye;
   if (!rt.vis.visEnabled || !gpu.surfaces || !gpu.depthTexture)
     throw new Error('SURFACE_CAPTURE_UNAVAILABLE');
-  const owned = createSurfaceBuffer(gpuDevice, options.width, options.height, reserve);
+  const owned = createSurfaceBuffer(gpuDevice, options.width, options.height);
   let depth: GPUTexture;
   try {
     depth = gpuDevice.createTexture({
@@ -87,7 +86,7 @@ export async function captureSurfaceView(
   options: CaptureOptions,
 ) {
   const { run, capture, context, diag } = rt,
-    { gpuDevice, viewport, frameBudget } = rt.setup;
+    { gpuDevice, viewport } = rt.setup;
   context.signal?.throwIfAborted();
   options.signal?.throwIfAborted();
   if (capture.secondaryCamera || capture.surfaceCapture)
@@ -96,10 +95,8 @@ export async function captureSurfaceView(
     throw new Error('SURFACE_CAPTURE_UNAVAILABLE');
   // L'historique de l'antialiasing temporel reste alloué pendant la capture : il compte avec elle.
   const reserve =
-    checkSurfaceSize(gpuDevice, options.width, options.height, frameBudget, 32) +
+    checkSurfaceSize(gpuDevice, options.width, options.height, 32) +
     (rt.gpu.temporal?.historyBytes ?? 0);
-  checkFrameBudget(rt, viewport[0], viewport[1], reserve);
-  checkFrameBudget(rt, options.width, options.height, reserve);
   const saved: SavedView = {
     main: run.lastCamera,
     size: [viewport[0], viewport[1]],

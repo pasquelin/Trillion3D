@@ -35,30 +35,16 @@ function dropTemporalAntialiasing(rt: WebgpuPagesRuntime, error: unknown) {
 }
 
 /**
- * Les cibles d'historique pour la taille de l'image en cours, et leurs octets. Comme le raster de
- * calcul, la passe ne fait jamais refuser une image : si ses cibles n'entrent pas dans le budget
- * avec les autres (`base`), c'est elle qui s'en va, nommément. Une capture de surfaces rend depuis
- * une autre caméra et n'accumule pas : ses cibles ne touchent pas l'historique de la vue, qui
- * reste entier pour l'image qui suit la restauration.
+ * Les cibles d'historique pour la taille de l'image en cours, et leurs octets. Elles suivent la
+ * résolution comme les autres cibles : aucun budget ne les fait partir. Une capture de surfaces
+ * rend depuis une autre caméra et n'accumule pas : ses cibles ne touchent pas l'historique de la
+ * vue, qui reste entier pour l'image qui suit la restauration.
  */
-export function ensureTaaTargets(
-  rt: WebgpuPagesRuntime,
-  width: number,
-  height: number,
-  base: number,
-) {
+export function ensureTaaTargets(rt: WebgpuPagesRuntime, width: number, height: number) {
   const temporal = rt.gpu.temporal;
   if (!temporal) return 0;
   // Sous une capture, la réserve de la capture porte déjà l'historique : il n'est pas compté deux fois.
   if (rt.capture.secondaryCamera) return 0;
-  const history = width * height * TAA_HISTORY_BYTES_PER_PIXEL;
-  if (base + history > rt.setup.frameBudget) {
-    dropTemporalAntialiasing(
-      rt,
-      new Error(`SURFACE_BUDGET: ${base + history} > ${rt.setup.frameBudget}`),
-    );
-    return 0;
-  }
   if (temporal.resize(width, height)) dropTaaHistory(rt);
-  return history;
+  return width * height * TAA_HISTORY_BYTES_PER_PIXEL;
 }
