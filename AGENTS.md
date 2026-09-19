@@ -117,6 +117,11 @@
   to `develop` or `main`; the GitHub ruleset `.github/ruleset.json` (applied with
   `gh api -X PUT repos/{owner}/{repo}/rulesets/<id> --input .github/ruleset.json`) refuses a direct
   or forced push and a merge without the `validate` check green.
+- **The branch is checked out in a worktree of its own, never in the shared checkout.**
+  `git worktree add ../webGeometry-<issue>-<short-name> -b <issue>-<short-name> origin/develop`,
+  then `pnpm install` there; `git worktree remove` it once the pull request is merged. Several
+  agents work on this repository at the same time: two of them in one working tree overwrite each
+  other's files without a word, and a single `git status` then mixes two batches on one branch.
 - **The release is a pull request like any other.** `develop` reaches `main` through its own
   issue and its own pull request, body on the same template and starting with `Closes #<issue>`,
   merged once `validate` is green; its head is `develop` itself, so no branch is cut for it and
