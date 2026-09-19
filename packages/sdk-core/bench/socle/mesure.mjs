@@ -52,8 +52,9 @@ const compteTexte = (c) => `${c.nombre} discrepancy(ies), ${c.ulpMax} ULP at mos
 /**
  * Compares a case to its oracle. Without `differences`, equality is strict bitwise; with, the
  * count of discrepancies is published as is — the benchmark then measures a REFUSED candidate and quantifies what it
- * displaces, instead of demanding equality that does not apply. Without oracle, the line bears the
- * reason stating why and where accuracy is maintained; never silence.
+ * displaces, instead of demanding equality that does not apply. The caller's `motif` is always
+ * kept: without an oracle it says where correctness is held, with one it says what the comparison
+ * leaves out; never silence.
  */
 async function verifie(item, { calcul, attendu, differences, motif }) {
   if (!attendu) return { correct: null, difference: null, motif: motif ?? null };
@@ -61,9 +62,10 @@ async function verifie(item, { calcul, attendu, differences, motif }) {
   const obt = await calcul(item.input);
   if (!differences) {
     const diff = ecart(ref, obt, item.name);
-    return { correct: diff === null, difference: diff, motif: null };
+    return { correct: diff === null, difference: diff, motif: motif ?? null };
   }
-  return { correct: null, difference: null, motif: compteTexte(differences(ref, obt, item.name)) };
+  const compte = compteTexte(differences(ref, obt, item.name));
+  return { correct: null, difference: null, motif: motif ? `${compte} ; ${motif}` : compte };
 }
 
 /**
