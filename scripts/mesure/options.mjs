@@ -6,16 +6,7 @@ import { ASSETS } from './scene.mjs';
 import { lightingSettings } from './optionsEclairage.mjs';
 
 export { PATH_VERSION, VIEWS, poseAt } from './poses.mjs';
-export {
-  applySceneFlag,
-  assetsManifest,
-  REFERENCE_SCENES,
-  SCENE_NOTES,
-  sceneDerived,
-  sceneGltf,
-  sceneOf,
-  scenesOf,
-} from './scene.mjs';
+export { applySceneFlag, assetsManifest, sceneGltf, sceneOf, scenesOf } from './scene.mjs';
 export { resolveSides } from './dists.mjs';
 export { ENGINES, engineOf, equipSide, resolveCache, sideReport } from './optionsCote.mjs';
 import { ENGINES } from './optionsCote.mjs';
