@@ -7,6 +7,7 @@ export function sectionLumiere(ex) {
   const runs = [
     ['sans-lumiere', 'aucune lampe (albédo brut)'],
     ['mobile', 'soleil seul'],
+    ['soleil-sans-ombres', 'soleil sans cartes d’ombre'],
     ['lampes-4-sans-ombres', 'soleil + 4 ponctuelles sans ombres'],
     ['lampes-4', 'soleil + 4 ponctuelles avec ombres'],
     ['lampes-16', 'soleil + 16 ponctuelles avec ombres'],

@@ -35,7 +35,7 @@ export const GROUPES = [
     'Géométrie 9, 26',
   ],
   ['Passe matériaux', (p) => p.bloc === 'materials', 'Géométrie 13'],
-  ['Ombres', (p) => p.etape === 'shadows', 'Lumière 17'],
+  ['Ombres', (p) => p.etape === 'shadows', 'Lumière 6, 13'],
   [
     'Éclairage (listes de lampes + différé)',
     (p) => p.etape === 'lightLists' || p.etape === 'lighting',

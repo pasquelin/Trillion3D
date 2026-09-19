@@ -16,15 +16,15 @@ qui rend de la mémoire, les finitions en dernier.
    elle devient la seconde référence du banc, et ses 29 M de triangles sélectionnés au seuil 1 px
    (le feuillage) sont le prochain chiffre à comprendre. Tant que ce n'est pas fait, aucun
    chiffre du moteur ne vaut hors d'Emerald.
-1. **Rendu et FPS** — Lumière 17 (le soleil coûte 4,6 ms sur 10 depuis la rue : cascades
-   gardées d'une image à l'autre), Lumière 1 (image stable à 8 lampes), Géométrie 13 (une passe par
-   matériau : le socle sans lampe vaut déjà un Three nu), Géométrie 9 (Hi-Z par visibilité passée),
-   Géométrie 12 (ombres par la même géométrie), Lumière 2, 4, 6 ; Géométrie 27 (vues lointaines) ne
-   s'ouvre que sur la mesure faite après Compilateur 0.
+1. **Rendu et FPS** — Lumière 13 (le coût du soleil est l'échantillonnage des ombres, pas le raster des cascades),
+   Lumière 1 (image stable à 8 lampes), Géométrie 13 (une passe par matériau : le socle sans lampe
+   vaut déjà un Three nu), Géométrie 9 (Hi-Z par visibilité passée), Géométrie 12 (ombres par la
+   même géométrie), Lumière 2, 4, 6 ; Géométrie 27 (vues lointaines) ne s'ouvre que sur la mesure
+   faite après Compilateur 0.
 2. **Mémoire, donc petites machines** — Géométrie 11 (8,7 octets par triangle, comme Unreal),
    Textures T5 (compression à la cuisson), Géométrie 5 (une copie par grappe, l'instance en index),
    Textures T3, T2, T2ter, T4 (mesures), Géométrie 28 (ce qui reste des réservoirs de mémoire).
-3. **Fidélité et matériaux** — Lumière 7, 10, 11, 12, 13 ; Compilateur 10 (masque tramé, verdict à
+3. **Fidélité et matériaux** — Lumière 7, 10, 11, 12 ; Compilateur 10 (masque tramé, verdict à
    l'œil) ; Géométrie 25 (campagne face à Unreal sur la même machine).
 4. **Finitions, nettoyages, outillage** — tout le reste : Géométrie 1–3, 6, 7, 14–18, 21–24, 26 ;
    Lumière 3, 5, 8, 15 ; Compilateur 1, 2, 4–9, 11, 12 ; Calculateur 1–3 ; Mesure 0, 1.
@@ -80,9 +80,8 @@ REFUSE.
 10. Après 7 : réflexions rugueuses, ombres colorées semi-transparentes, translucidité du feuillage. Aucune conversion BLEND → MASK dans le moteur : la référence ne reclasse jamais d'elle-même, elle refuse le matériau et le nomme (sa géométrie virtualisée n'accepte que l'opaque et le masqué). Le travail est côté compilateur, et sur réponse explicite — Compilateur 10.
 11. Rebond 3 (`lot/rebond-3`) : cascades de sondes autour de la caméra, budget en millisecondes plutôt qu'en nombres de maillages et de rayons, base d'harmoniques sphériques d'ordre 2, activé par défaut quand le budget tient.
 12. Ombres des matériaux en mélange : une grappe transparente n'obtient pas de ligne de visibilité (`webgpuRowSync.ts`), n'entre jamais dans la table des rangs dessinés des cartes d'ombre et n'ombre rien. L'ombre atténuée et colorée d'une surface semi-transparente reste un lot à part.
-13. Éclairage stochastique par pixel (RX2) : le rejet par tuile est livré, l'échantillonnage non. L'historique passe par les cibles en ping-pong de l'antialiasing temporel (`temporalAntialiasing.ts`, livré), pas par un tampon de stockage — c'est le même historique, monté une seule fois. Demande aussi un banc où les lampes atteignent vraiment les surfaces transparentes.
+13. Éclairage stochastique par pixel (RX2) : le rejet par tuile est livré, l'échantillonnage non. C'est le coût du soleil mesuré en SPEC L0 : l'échantillonnage des ombres, pas les cascades. L'historique passe par les cibles en ping-pong de l'antialiasing temporel (`temporalAntialiasing.ts`, livré), pas par un tampon de stockage. Demande aussi un banc où les lampes atteignent vraiment les surfaces transparentes.
 15. Couvrir `createDeferredLayouts` dans `webgpuBindBudget.test.ts`, et exécuter `prepareWebgpuPages` de bout en bout : rien ne le fait aujourd'hui.
-17. **Le soleil coûte 4,6 ms sur une image de 10** (17 sept. 2026, Emerald vue sol à 2496×1404, caméra mobile : enveloppe 10,0 / 14,3 ms p50/p95 avec `--soleil`, 5,4 / 7,7 sans), autant que le tampon de visibilité et la passe matériaux réunis, et aucun lot ne le visait. À faire : (a) le coûter poste par poste — ombres, tuiles, éclairage avec ombres — par soustraction d'enveloppes (`--ombres off`, puis sans tuiles), jamais par lecture des passes ; (b) garder les cascades d'une image à l'autre — ne redessiner que les pages d'ombre dont la géométrie ou la lumière a changé, comme les cartes d'ombre virtuelles de la référence —, à caméra fixe d'abord (0 px), puis mobile.
 
 ## Textures
 
