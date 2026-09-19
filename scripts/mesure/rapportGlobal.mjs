@@ -162,6 +162,8 @@ const output = join(dossier, 'rapport.html');
 writeFileSync(
   output,
   page({
+    // Published beside the documentation portal (`docs/index.html`), which the reader comes from.
+    retour: { href: './', libelle: '← Documentation' },
     titre: 'The engine, measured',
     sousTitre: `Full campaign on ${scenes.map((s) => s.name).join(', ')} — ${jouees.length} runs, ${tous.reduce((n, e) => n + e.readings.length, 0)} samples`,
     sections,
