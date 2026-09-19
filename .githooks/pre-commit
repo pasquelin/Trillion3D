@@ -1,0 +1,6 @@
+#!/bin/sh
+. "$(dirname "$0")/lib.sh"
+branch="$(current_branch)"
+if is_protected "$branch"; then
+  refuse "no commit on '$branch': branch <issue>-<short-name> from an issue, then open a pull request."
+fi
