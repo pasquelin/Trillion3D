@@ -119,7 +119,9 @@
   or forced push and a merge without the `validate` check green.
 - **The branch is checked out in a worktree of its own, never in the shared checkout.**
   `git worktree add ../webGeometry-<issue>-<short-name> -b <issue>-<short-name> origin/develop`,
-  then `pnpm install` there; `git worktree remove` it once the pull request is merged. Several
+  then `pnpm install` there. Once the maintainer has merged the branch, whoever notices first
+  removes the tree and the branch it left behind: `git worktree remove`, then `git branch -d`.
+  Several
   agents work on this repository at the same time: two of them in one working tree overwrite each
   other's files without a word, and a single `git status` then mixes two batches on one branch.
 - **The release is a pull request like any other.** `develop` reaches `main` through its own
