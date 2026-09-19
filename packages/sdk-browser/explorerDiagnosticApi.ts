@@ -1,11 +1,8 @@
 import * as THREE from 'three';
 import { DIAGNOSTICS, type DiagnosticMode } from '../sdk-core/index.ts';
 import { clusterColor, hashId } from './backendCommon.ts';
-import {
-  createTriangleDiagnosticMaterial,
-  materialSide,
-  triangleGeometry,
-} from './triangleDiagnostic.ts';
+import { createTriangleDiagnosticMaterial, triangleGeometry } from './triangleDiagnostic.ts';
+import { materialSide } from './materialSide.ts';
 import type { RenderBackend } from './backendTypes.ts';
 
 type Inputs = {

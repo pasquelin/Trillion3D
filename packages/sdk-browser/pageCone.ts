@@ -6,7 +6,8 @@ import {
   linearPartScale,
   normalMatrix3,
 } from '../sdk-core/index.ts';
-import * as THREE from 'three';
+import type * as THREE from 'three';
+import { sideOf } from './materialSide.ts';
 import type { MatrixElements } from './matrixElements.ts';
 
 export type NormalCone = { axis: [number, number, number]; angle: number };
@@ -110,10 +111,7 @@ export function coneCullsPageWith(
   max: number[],
   material?: THREE.Material | THREE.Material[],
 ): boolean {
-  if (material) {
-    const side = Array.isArray(material) ? material[0]?.side : material.side;
-    if (side === THREE.DoubleSide || side === THREE.BackSide) return false;
-  }
+  if (material && sideOf(material) !== 'front') return false;
   if (!ctx.conformal) return false;
   if (cone.angle >= HALF_PI) return false;
   return boxConeRejects(

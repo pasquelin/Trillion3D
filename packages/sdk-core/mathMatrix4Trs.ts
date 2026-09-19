@@ -136,3 +136,61 @@ export function decomposeMatrix4(
   scale[1] = sy;
   scale[2] = sz;
 }
+
+/**
+ * `out = [u | v | n | origin]`: the three columns of a basis, then its origin — `makeBasis`
+ * followed by `setPosition`. Sixteen stores, the last row `(0, 0, 0, 1)` exactly.
+ */
+export function basisMatrix4<T extends NumberSink>(
+  out: T,
+  u: ArrayLike<number>,
+  v: ArrayLike<number>,
+  n: ArrayLike<number>,
+  origin: ArrayLike<number>,
+  outAt = 0,
+) {
+  out[outAt] = u[0];
+  out[outAt + 1] = u[1];
+  out[outAt + 2] = u[2];
+  out[outAt + 3] = 0;
+  out[outAt + 4] = v[0];
+  out[outAt + 5] = v[1];
+  out[outAt + 6] = v[2];
+  out[outAt + 7] = 0;
+  out[outAt + 8] = n[0];
+  out[outAt + 9] = n[1];
+  out[outAt + 10] = n[2];
+  out[outAt + 11] = 0;
+  out[outAt + 12] = origin[0];
+  out[outAt + 13] = origin[1];
+  out[outAt + 14] = origin[2];
+  out[outAt + 15] = 1;
+  return out;
+}
+
+/** `out` = uniform scale `s` placed at `center` — `makeScale(s, s, s)` followed by `setPosition`.
+ *  Sixteen stores, each index a constant: a zeroing loop then the diagonal cost 4% more than Three. */
+export function uniformScaleMatrix4<T extends NumberSink>(
+  out: T,
+  s: number,
+  center: ArrayLike<number>,
+  outAt = 0,
+) {
+  out[outAt] = s;
+  out[outAt + 1] = 0;
+  out[outAt + 2] = 0;
+  out[outAt + 3] = 0;
+  out[outAt + 4] = 0;
+  out[outAt + 5] = s;
+  out[outAt + 6] = 0;
+  out[outAt + 7] = 0;
+  out[outAt + 8] = 0;
+  out[outAt + 9] = 0;
+  out[outAt + 10] = s;
+  out[outAt + 11] = 0;
+  out[outAt + 12] = center[0];
+  out[outAt + 13] = center[1];
+  out[outAt + 14] = center[2];
+  out[outAt + 15] = 1;
+  return out;
+}

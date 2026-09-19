@@ -4,7 +4,12 @@
 import * as THREE from 'three';
 import { multiplyMatrix4 } from '../mathMatrix4.ts';
 import { invertMatrix4 } from '../mathMatrix4Inverse.ts';
-import { composeMatrix4, decomposeMatrix4 } from '../mathMatrix4Trs.ts';
+import {
+  basisMatrix4,
+  composeMatrix4,
+  decomposeMatrix4,
+  uniformScaleMatrix4,
+} from '../mathMatrix4Trs.ts';
 import { rapport } from './socle.mjs';
 import { N, duel, flatOf, points, quaternion, trsMatrices, views } from './oracles/three-duel.mjs';
 
@@ -128,6 +133,50 @@ lines.push(
         decomposed[at + 9] = es[2];
       }
       return decomposed;
+    },
+  }),
+);
+
+// Pure copies: a basis from three columns and an origin, a uniform scale placed at a centre.
+// Three writes them in two calls (`makeBasis`/`makeScale`, then `setPosition`), the engine in one.
+const u = points(N),
+  v = points(N),
+  n = points(N);
+const uViews = views(u.flat, 3),
+  vViews = views(v.flat, 3),
+  nViews = views(n.flat, 3);
+
+lines.push(
+  await duel({
+    name: 'Matrix4.makeBasis',
+    fichier: TRS,
+    three: () => {
+      for (let i = 0; i < N; i++)
+        outThree[i].makeBasis(u.three[i], v.three[i], n.three[i]).setPosition(position.three[i]);
+    },
+    oracle,
+    core: () => {
+      for (let i = 0; i < N; i++)
+        basisMatrix4(out, uViews[i], vViews[i], nViews[i], pViews[i], i * 16);
+      return out;
+    },
+  }),
+);
+
+lines.push(
+  await duel({
+    name: 'Matrix4.makeScale',
+    fichier: TRS,
+    three: () => {
+      for (let i = 0; i < N; i++) {
+        const s = scale.flat[i * 3];
+        outThree[i].makeScale(s, s, s).setPosition(position.three[i]);
+      }
+    },
+    oracle,
+    core: () => {
+      for (let i = 0; i < N; i++) uniformScaleMatrix4(out, scale.flat[i * 3], pViews[i], i * 16);
+      return out;
     },
   }),
 );

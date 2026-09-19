@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { composeMatrix4, decomposeMatrix4 } from './mathMatrix4Trs.ts';
+import {
+  basisMatrix4,
+  composeMatrix4,
+  decomposeMatrix4,
+  uniformScaleMatrix4,
+} from './mathMatrix4Trs.ts';
 import { determinantMatrix4 } from './mathMatrix4.ts';
 
 const proche = (a: number, b: number, tol = 1e-9) => Math.abs(a - b) <= tol;
@@ -67,4 +72,16 @@ test('decomposeMatrix4: zero scale on one axis, quaternion NaN — like dividing
     q.every(Number.isNaN),
     'a zero column length divides by zero: NaN, not an arbitrary value',
   );
+});
+
+test('basisMatrix4: columns u, v, n then the origin, last row exact, written at an offset', () => {
+  const out = new Float64Array(32).fill(NaN);
+  basisMatrix4(out, [1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12], 16);
+  assert.ok([...out.subarray(0, 16)].every(Number.isNaN), 'nothing before the offset');
+  assert.deepEqual([...out.subarray(16)], [1, 2, 3, 0, 4, 5, 6, 0, 7, 8, 9, 0, 10, 11, 12, 1]);
+});
+
+test('uniformScaleMatrix4: the diagonal scaled, the centre in the last column, the rest zero', () => {
+  const out = uniformScaleMatrix4(new Float64Array(16).fill(NaN), 2.5, [7, 8, 9]);
+  assert.deepEqual([...out], [2.5, 0, 0, 0, 0, 2.5, 0, 0, 0, 0, 2.5, 0, 7, 8, 9, 1]);
 });
