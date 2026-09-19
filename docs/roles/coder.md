@@ -5,8 +5,14 @@ exactly one GitHub issue; every rule of AGENTS.md applies, this file only orders
 
 1. `gh issue view <number>`. Read only the files it names and their direct dependants, the graph
    first (AGENTS.md §graphify).
-2. `git fetch origin && git switch -c <number>-<short-name> origin/develop`. The branch name starts
-   with the issue number; the pre-commit hook refuses any other branch.
+2. `git fetch origin`, then cut the branch in a worktree of its own — the shared checkout may hold
+   another agent's batch, and two agents in one tree overwrite each other:
+   `git worktree add ../webGeometry-<number>-<short-name> -b <number>-<short-name> origin/develop`,
+   then `pnpm install` in it and work there. The branch name starts with the issue number; the
+   pre-commit hook refuses any other branch. A sibling tree has no `.mesure/assets/` of its own
+   (off git): a batch that measures points `WG_ASSETS` at the shared one. The tree outlives your
+   report, since merging is the maintainer's; it is removed with `git worktree remove` and
+   `git branch -d` once the branch is merged, by whoever comes to it first.
 3. Code and test as AGENTS.md §Quality and evidence and §Engine and package boundaries require.
 4. `pnpm run check:changed`, then `pnpm run test:changed`, then `pnpm run validate`.
 5. Commit in small steps, message `type(scope): what changed (#<number>)`, no trailer, no
