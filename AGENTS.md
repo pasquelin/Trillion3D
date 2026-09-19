@@ -124,6 +124,9 @@
   Several agents work on this repository at the same time: two of them in one working tree
   overwrite each other's files without a word, and a single `git status` then mixes two batches
   on one branch.
+- **Issue lifecycle labels make ongoing work visible.** As soon as the worktree is created, mark
+  the issue in progress (`gh issue edit <issue> --add-label "in progress"`). When the pull request
+  is opened, switch it to `in review` (`gh issue edit <issue> --remove-label "in progress" --add-label "in review"`).
 - **The release is a pull request like any other.** `develop` reaches `main` through its own
   issue and its own pull request, body on the same template and starting with `Closes #<issue>`,
   merged once `validate` is green; its head is `develop` itself, so no branch is cut for it and
