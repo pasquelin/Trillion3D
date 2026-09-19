@@ -121,10 +121,10 @@
   issue and its own pull request, body on the same template and starting with `Closes #<issue>`,
   merged once `validate` is green; its head is `develop` itself, so no branch is cut for it and
   it carries no code — what it releases was proved by the pull requests already merged, which its
-  "Local review before push" section names. `scripts/check-pr-body.sh`, run by the CI, refuses a
-  body without that first line whatever the base branch: a release opened without an issue fails
-  `validate` before anything else is read. Pages serves `main` + `/docs`, so nothing is published
-  until that merge.
+  "Local review before push" section names. `scripts/check-pr-body.sh`, run by the CI on a pull
+  request to `main` as on one to `develop`, refuses a body without that first line: a release
+  opened without an issue fails `validate` before anything else is read. Pages serves
+  `main` + `/docs`, so nothing is published until that merge.
 - **Before the push that opens a pull request, the author reviews its own diff twice**: a
   simplification pass, then a correctness pass, fixes applied, gates rerun (`docs/roles/coder.md`
   step 6 names the commands per tool). The pull request says what each pass found under "Local
