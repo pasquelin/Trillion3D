@@ -2,73 +2,100 @@
 
 # Web Geometry
 
-### Reusable geometry preparation and rendering for the web — a native Rust compiler, a TypeScript SDK, and explicit performance evidence.
+### Virtualized geometry for the web — a native Rust compiler, a WebGPU/WebGL2 runtime in TypeScript, and a bench that proves every number.
 
-[![Rust](https://img.shields.io/badge/Rust-native%20compiler-000000?logo=rust&logoColor=white)](packages/asset-compiler-rust)
-[![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](packages/sdk-core)
-[![Three.js 0.174](https://img.shields.io/badge/Three.js-0.174-000000?logo=three.js&logoColor=white)](packages/sdk-browser)
-[![WebGL2](https://img.shields.io/badge/WebGL2-scene%20renderer-990000?logo=webgl&logoColor=white)](#current-capabilities)
-[![WebGPU](https://img.shields.io/badge/WebGPU-page%20cache-005A9C?logo=webgpu&logoColor=white)](#current-capabilities)
-[![Status](https://img.shields.io/badge/status-in%20development-d29922)](#current-limits)
+_Géométrie virtualisée pour le web — un compilateur natif en Rust, un moteur WebGPU/WebGL2 en TypeScript, et un banc qui prouve chaque chiffre._
 
-**[Product principles](docs/architecture/PRINCIPES_DU_PRODUIT.md)** · **[Quick start](#quick-start)** · **[SDK](docs/SDK.md)** · **[Compiler](docs/COMPILER.md)** · **[Architecture](packages/README.md)** · **[Current limits](#current-limits)**
+[![Rust](https://img.shields.io/badge/Rust-native%20compiler-2b2d30?logo=rust&logoColor=dea584)](packages/asset-compiler-rust)
+[![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-2b2d30?logo=typescript&logoColor=3178c6)](packages/sdk-core)
+[![WebGPU](https://img.shields.io/badge/WebGPU-page%20raster%20%2B%20compute-2b2d30?logo=webgpu&logoColor=6fa8dc)](#what-it-does)
+[![WebGL2](https://img.shields.io/badge/WebGL2-fallback-2b2d30?logo=webgl&logoColor=e06666)](#what-it-does)
+[![Three.js 0.174](https://img.shields.io/badge/Three.js-0.174-2b2d30?logo=three.js&logoColor=ffffff)](packages/sdk-browser)
+[![Node 22](https://img.shields.io/badge/Node-%E2%89%A522.18-2b2d30?logo=node.js&logoColor=6da95f)](#quick-start)
+[![pnpm](https://img.shields.io/badge/pnpm-workspace-2b2d30?logo=pnpm&logoColor=f69220)](#quick-start)
+[![Quality](https://github.com/pasquelin/WebGeometry/actions/workflows/quality.yml/badge.svg)](https://github.com/pasquelin/WebGeometry/actions/workflows/quality.yml)
+[![Tests](https://img.shields.io/badge/tests-node%20%2B%20cargo%20%2B%20GPU%20proofs-2b2d30?logo=checkmarx&logoColor=6da95f)](#quality-bar)
+[![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial-2b2d30)](#licence)
+
+**[Live report ↗](https://pasquelin.github.io/WebGeometry/)** · **[Why](#why-web-geometry)** · **[Quick start](#quick-start)** · **[Compiler](docs/COMPILER.md)** · **[SDK](docs/SDK.md)** · **[Architecture](packages/README.md)** · **[Bench](scripts/mesure/README.md)** · **[The reference in numbers](docs/REFERENCE_UE5.md)** · **[Roadmap](#roadmap)**
 
 </div>
 
-Documentation : [spécifications de Web Geometry](docs/README.md) · [format de cache](docs/FORMAT.md).
-
 ---
 
-## Overview
+## Why Web Geometry
 
-Web Geometry brings geometry preparation, versioned runtime contracts and browser adapters into one reusable SDK. Applications consume the public SDK entry points.
+Unreal Engine 5 changed what a scene can hold: geometry is streamed by clusters, one cut through a
+DAG per frame, drawn through a visibility buffer, resolved by temporal antialiasing, held under a
+fixed memory budget. None of that exists for the browser. **Web Geometry rebuilds it for the web's
+constraints** — no hardware ray tracing, bounded and unreadable GPU memory, one browser frame — with
+the reference's techniques, its constraints and its numbers, reimplemented from public material
+only. The geometry is the foundation; the lighting is what it is for.
 
-The native compiler prepares a cluster DAG — small clusters of triangles, grouped and simplified level by level, each carrying the screen error that lets a runtime pick one cut through the graph — plus a culling hierarchy, streaming bundles and reusable SHA-addressed cache pages. The browser adapter currently renders the prepared scene through Three.js and WebGL2, with a reference backend and an exact-cluster backend. When a WebGPU device is available, an optional page raster consumes the bounded WebGPU page cache and runs frustum + `lodScore` in compute; the CPU cut stays the A/A oracle and the silent fallback.
+Parity means four things, and none of them is a pixel count:
 
-**The project is under active development.** The importer reads a versioned source manifest and the glTF it names. This is not yet a general-purpose virtualized geometry engine or an integrated WebGPU scene renderer.
+|                              |                                                                                       |
+| ---------------------------- | ------------------------------------------------------------------------------------- |
+| **Fixed budgets**            | memory in bytes and frame time in milliseconds are set, not discovered on the machine |
+| **Residency by the frame**   | what stays on the GPU is what the frame actually read, pages and texture tiles alike  |
+| **Compression at cook time** | the compiler pays once; the runtime decodes pages, it never recomputes them           |
+| **No work in a still scene** | a fixed camera redraws zero pages — measured, not assumed                             |
+
+## What it does
+
+| Area                   | Implemented scope                                                                                                                                                                                                                                                                                                                   |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Native compiler**    | glTF, GLB, FBX and OBJ import (no external tool); verified source hashes; a cluster DAG that reaches a single root — clusters grouped, simplified and welded level by level, each carrying its screen error; a flat culling hierarchy; streaming bundles; a bounded worker pool; DAG warnings reported to the CLI and to the engine |
+| **Cache**              | SHA-addressed page, geometry-page and bundle objects; every persisted entry validated before reuse; `formatVersion` separate from `compilerVersion`, unknown formats rejected                                                                                                                                                       |
+| **WebGPU page raster** | GPU frustum + `lodScore` cut in compute, conservative backface cones, two-phase Hi-Z occlusion, visibility-buffer encode through at most six non-indexed `drawIndirect` commands, deferred material shading, temporal antialiasing                                                                                                  |
+| **Textures**           | virtual texturing: a bounded tile pool, per-tile feedback read back by rank, residency driven by what the frame sampled                                                                                                                                                                                                             |
+| **Lighting**           | Cook-Torrance GGX with a hemispherical ambient term; sun through cascaded shadow maps under a 1 ms budget; per-tile light rejection — the stochastic and screen-space stages are the roadmap                                                                                                                                        |
+| **Memory**             | fixed reservoirs for pages and tiles like the reference, adjustable in session without losing residency; no image cap; a `cpu-timing` diagnostic and per-step CPU profile                                                                                                                                                           |
+| **Fallbacks**          | the CPU cut stays the A/A oracle and the silent fallback; WebGL2 exact-cluster and reference backends when no WebGPU device is present                                                                                                                                                                                              |
+| **Jobs**               | immutable progress snapshots, subscriptions, bounded cancellation, explicit failure semantics                                                                                                                                                                                                                                       |
 
 ## Quick start
 
-Requirements: **Node.js 22.18 or newer**, pnpm, and a Rust toolchain with Cargo available on your path.
-
-From the repository root:
+Requirements: **Node.js 22.18 or newer**, **pnpm**, and a Rust toolchain with Cargo on your path.
 
 ```sh
 pnpm install
-pnpm run build
-pnpm run build:native
-pnpm test
-pnpm run test:native
+pnpm run build           # TypeScript → dist/ (ESM + declarations)
+pnpm run build:native    # → packages/asset-compiler-rust/target/release/web-geometry-compiler
+pnpm test                # unit and integration tests (node --test)
+pnpm run test:native     # cargo test
 ```
 
-During development, `pnpm run check:changed` checks the line limit, formatting, lint and duplicated blocks in modified files, then runs unit tests connected to them by imports. `pnpm run test:changed` runs just those tests, and `pnpm run test:watch` watches unit tests while editing. Every maintained source file has a strict 200-line maximum; `pnpm run check:lines` checks the whole repository with no legacy exceptions. `pnpm run check:duplicates` detects repeated JS, TS and Rust blocks of at least 12 lines and 100 tokens. Before integration, run `pnpm run validate` once for the complete line-limit, duplication, format, lint, unused-code, build and test gates. Browser rendering still needs the visual proof described below.
-
-The TypeScript build emits ESM JavaScript and declarations into `dist/`. The native build produces `packages/asset-compiler-rust/target/release/web-geometry-compiler` (`.exe` on Windows).
-
-The package is currently private and consumed locally; it has not been published to npm. Build it before importing it from a host project. Scene assets are supplied by the host and are not included in this repository.
+The package is private and consumed locally; it is not published to npm. Scene assets are supplied
+by the host and are not part of this repository.
 
 ## Native compiler
 
-All preparation work happens in one executable, `web-geometry-compiler`, built by `pnpm run build:native`. It reads glTF, GLB, **FBX and OBJ** (the reader is compiled in; no Blender or other tool is needed), writes the cache to disk and talks to its host through three streams only: JSON events on stderr, a small pointer on stdout, cancel requests on stdin.
+All preparation happens in one executable, `web-geometry-compiler`. It reads the source, writes
+the cache to disk and talks to its host through three streams only: JSON events on stderr, a small
+pointer on stdout, cancel requests on stdin.
 
 ```sh
 packages/asset-compiler-rust/target/release/web-geometry-compiler scenes/city/city.obj cache/city full 150000 8 8192 /assets/city/ qem-endpoints
 packages/asset-compiler-rust/target/release/web-geometry-compiler --jobs jobs.json   # many models, bounded workers, one process
 ```
 
-`@web-geometry/sdk/node` (`prepare`, `prepareMany`) is a thin relay over it; any other host (Electron, a CI script, another language) can drive it the same way. Full reference: [docs/COMPILER.md](docs/COMPILER.md).
+`@web-geometry/sdk/node` (`prepare`, `prepareMany`) is a thin relay over it; any other host
+(Electron, a CI script, another language) can drive it the same way. Full reference:
+[docs/COMPILER.md](docs/COMPILER.md).
 
 ## Public SDK
 
-| Entry point | Purpose |
-|---|---|
-| `@web-geometry/sdk` or `@web-geometry/sdk/core` | Versioned contracts, jobs, progress, cancellation, diagnostics and safety policy |
-| `@web-geometry/sdk/node` | Native compiler process adapter and compilation jobs |
-| `@web-geometry/sdk/browser` | Explorer lifecycle, rendering backends, camera paths and WebGPU page cache |
+| Entry point                                     | Purpose                                                                               |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `@web-geometry/sdk` or `@web-geometry/sdk/core` | Versioned contracts, jobs, progress, cancellation, diagnostics and safety policy      |
+| `@web-geometry/sdk/node`                        | Native compiler process adapter and compilation jobs                                  |
+| `@web-geometry/sdk/browser`                     | Explorer lifecycle, rendering backends, camera paths, WebGPU page cache and tile pool |
 
-Applications own their canvas, animation loop, resource URLs and controller disposal. Node hosts own source/cache directories and process configuration. React and Electron integrations can use these boundaries without introducing framework dependencies into the core.
-
-See the [SDK guide](docs/SDK.md) and [architecture notes](packages/README.md) for lifecycle, compatibility and fallback contracts. Consumers should use public exports rather than internal source paths.
+Applications own their canvas, animation loop, resource URLs and controller disposal. Node hosts
+own source/cache directories and process configuration. React and Electron integrations use these
+boundaries without bringing a framework into the core. Consumers use public exports, never internal
+source paths. See the [SDK guide](docs/SDK.md) and the [architecture notes](packages/README.md).
 
 ## Architecture
 
@@ -82,7 +109,7 @@ Node adapter → Native Rust compiler
           Versioned manifest + cached pages
                       │
                       ▼
-              Browser adapter
+              Browser adapter (WebGPU page raster · WebGL2 fallbacks)
                       │
                       ▼
              Host-owned canvas
@@ -90,41 +117,104 @@ Node adapter → Native Rust compiler
 Core: contracts · jobs · cancellation · diagnostics · safety policy
 ```
 
-| Directory | Responsibility |
-|---|---|
-| [`packages/asset-compiler-rust`](packages/asset-compiler-rust) | Production preparation library and native CLI |
-| [`packages/page-codec`](packages/page-codec) | Reference geometry-page encoder used to test the browser decoder |
-| [`packages/sdk-core`](packages/sdk-core) | Platform-independent TypeScript contracts and policies |
-| [`packages/sdk-node`](packages/sdk-node) | Native process and filesystem integration |
-| [`packages/sdk-browser`](packages/sdk-browser) | Browser rendering and GPU resource adapters |
-| [`test`](test) | Public package integration tests |
+| Directory                                                      | Responsibility                                                   |
+| -------------------------------------------------------------- | ---------------------------------------------------------------- |
+| [`packages/asset-compiler-rust`](packages/asset-compiler-rust) | Preparation library and native CLI                               |
+| [`packages/page-codec`](packages/page-codec)                   | Reference geometry-page encoder used to test the browser decoder |
+| [`packages/sdk-core`](packages/sdk-core)                       | Platform-independent TypeScript contracts and policies           |
+| [`packages/sdk-node`](packages/sdk-node)                       | Native process and filesystem integration                        |
+| [`packages/sdk-browser`](packages/sdk-browser)                 | Browser rendering and GPU resource adapters                      |
+| [`scripts/mesure`](scripts/mesure)                             | The bench: one harness, campaigns and the HTML report            |
+| [`test`](test)                                                 | Public package integration tests and GPU proofs                  |
 
-## Current capabilities
+## Measuring
 
-| Area | Implemented scope |
-|---|---|
-| Native preparation | Verified source hashes, read-only binary mapping, a cluster DAG with per-cluster screen errors, a flat culling hierarchy, streaming bundles and a bounded worker pool |
-| Cache | SHA-addressed shared page, geometry-page and bundle objects, validation before reuse and manifest publication after preparation |
-| Browser rendering | Reference and exact-cluster WebGL2 backends, CPU culling over the flat cluster hierarchy, source material preservation, optional WebGPU page raster with visbuffer, glTF 2.0 Cook-Torrance GGX PBR specular with hemispherical diffuse ambient (no environment map), and 2-phase Hi-Z |
-| Diagnostics | Beauty, wireframe and cluster views where supported by the selected backend |
-| WebGPU resources | Page-cache API with uploads, pins, bounded slots and eviction; optional page raster (`webgpu-page-raster`) with GPU frustum + `lodScore` selection plus conservative backface cones, 2-phase Hi-Z occlusion culling, visbuffer encode of at most six non-indexed `drawIndirect` commands, and a CPU cut fallback |
-| Jobs | Immutable progress snapshots, subscriptions and cancellation |
-| Compatibility | Separate SDK and asset-format versions; explicit rejection of unsupported formats |
-| Recovery | Prepared reference fallback for backend errors while the WebGL context remains usable |
+Nothing is optimised before it is measured, and no claim outlives its measurement.
 
-## Evidence and validation
+```sh
+node scripts/mesure/banc.mjs --moteur webgpu --avant <git-ref|dist> --apres <git-ref|dist> \
+     --vues generale,sol,rue --images 60 --pixelError 0,1
+node scripts/mesure/campagne.mjs        # the whole campaign
+node scripts/mesure/rapportGlobal.mjs   # one HTML report
+```
 
-Correctness comes before performance. Compare reference and candidate images under identical scene, camera and rendering conditions before recording a performance verdict. Diagnostic overlays stay outside measured beauty passes. Unknown or uninstrumented metrics remain `null`.
+- One harness for every lot: Playwright drives the machine's Chrome, nothing else is needed on
+  disk beyond `.mesure/assets/`.
+- **Before/after in one run**, same poses, same lights, same caches, same server — and the engine
+  facing two witnesses: bare Three.js and Three.js with a three-level `THREE.LOD` (the classic method).
+- Identical input, camera, quality, machine and resource budget; DPR, error threshold, resolution
+  and commit recorded; CPU and GPU times never added; unmeasured values are `null`, never estimates.
+- Per-pass GPU durations say _where_, never _how much_: on tile-based GPUs passes overlap, so a
+  difference is read on the frame envelope only.
+- `0 px`, `tri = selected` and A/A noise are the default proof for geometry and lighting.
 
-The test suites cover compiler behavior and public SDK contracts. A passing build or unit test does not establish a rendering speedup. Physical scene campaigns and their raw measurements must record the input, revision, machine, cache state and timing boundary alongside each result.
+See [scripts/mesure/README.md](scripts/mesure/README.md) and [docs/TESTS.md](docs/TESTS.md).
+
+## Quality bar
+
+| Gate                        | What it enforces                                                                                                                                                                                 |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm run check:changed`    | format, lint, line limit, duplicates and the unit tests reached by imports from the changed files                                                                                                |
+| `pnpm run check:lines`      | **200 physical lines per source file**, JS/TS/Rust, no legacy exception                                                                                                                          |
+| `pnpm run check:duplicates` | no repeated block ≥ 12 lines and ≥ 100 tokens across JS/TS/Rust                                                                                                                                  |
+| `pnpm run check:structure`  | core/adapter boundaries; `sdk-core` type-checks without DOM                                                                                                                                      |
+| `pnpm run validate`         | everything above plus Clippy, unused code/files/dependencies, TS and native builds, declarations, links, and all JS/TS/Rust tests — the CI gate ([`quality.yml`](.github/workflows/quality.yml)) |
+| `pnpm run test:gpu`         | browser proofs on a real GPU                                                                                                                                                                     |
+
+The engine stays generic: no scene names, no hardcoded lights or cameras, no object-type special
+cases. Not one line of Unreal — or any other engine's — code, shaders or assets enters this
+repository; everything is reimplemented from papers, talks, documentation and observed behaviour.
+
+## Documentation
+
+| Document                                                              | Role                                                                                                          |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [Native compiler](docs/COMPILER.md)                                   | Arguments, events, pointer, batch mode, cancellation, FBX/OBJ import, error codes                             |
+| [Cache format](docs/FORMAT.md)                                        | Pointer, `clusters.json` and its binary annex, cluster DAG, culling hierarchy, streaming bundles, SHA objects |
+| [SDK guide](docs/SDK.md)                                              | Lifecycle, compatibility and fallback contracts                                                               |
+| [Architecture](packages/README.md)                                    | Package contracts and remaining work                                                                          |
+| [Product principles](docs/architecture/PRINCIPES_DU_PRODUIT.md)       | Portable core, capabilities, source ownership, fallback                                                       |
+| [Web / Electron / Node integration](docs/architecture/INTEGRATION.md) | Who owns the canvas, the loop, the preparation and the fallback                                               |
+| [Tests and benches](docs/TESTS.md)                                    | Unit tests, GPU correctness probes, performance benches                                                       |
+| [The reference in numbers](docs/REFERENCE_UE5.md)                     | The reference's published constants, bytes per triangle and profile, against ours                             |
+| [Engine target](docs/SPEC_MOTEUR_SANS_THREE.md)                       | Editor, final cook, exit from Three.js, requirements, exit criteria, lighting strategy                        |
+
+The documentation is written in **French**; the code, its identifiers and this page are in English.
+
+## Roadmap
+
+The geometry, the temporal antialiasing and the memory budgets are the foundation. What they are
+for is **Lumen-class lighting** — dynamic global illumination, reflections and shadows — reached by
+stages, each measured before the next ([spec §8](docs/SPEC_MOTEUR_SANS_THREE.md)):
+
+| Stage | Content                                                                             | State                                                      |
+| ----- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| L0    | Direct lighting and sun costed on the bench                                         | done — the sun costs its shadow sampling, not its cascades |
+| L1    | Screen traces: reflections and short bounce from the rendered HDR, depth and normal | next                                                       |
+| L2    | Stochastic direct lighting denoised by TAA: dozens of lights at the price of one    | planned                                                    |
+| L3    | Virtual shadow pages from the hardware raster, only the pages seen, cached          | planned                                                    |
+| L4    | Cooked global distance field traversed in compute, reading a surface cache          | planned                                                    |
+| L5    | World radiance probes in cascades                                                   | planned                                                    |
+| L6    | Reflections through the distance field reading the cache                            | planned                                                    |
+
+Open tasks are listed in [`TODO.md`](TODO.md); a task is deleted once it is done.
 
 ## Current limits
 
-- The importer supports multiple buffers, sparse accessors (`accessor.sparse`), and routes skinned meshes, morph targets and animations to the `shared-blend` reference pass without pipeline failure. Non-triangle primitives and non-standard extensions remain unsupported.
-- Compression and independently replaceable native pipeline stages remain future work. The compiler emits one hierarchy, the cluster DAG; the pair-tree hierarchy it used to emit is gone, and the browser adapter still reads caches that carry one.
-- GPU frustum + `lodScore` selection plus conservative backface cones (prepare-time page cones, `coneRejects` with perspective spread). Visbuffer encode instances resident pages from the page table and issues at most six non-indexed `drawIndirect` commands (cull mode × Hi-Z pass). `selectVisiblePages` and `applyTemporalHiz` remain the A/A oracles and the silent fallbacks. Compaction is a stable exclusive scan; overflow or a missing compact pipeline restores the per-page `draw()` loop and keeps `'indirect draw'` in `unsupported`. The visibility buffer pass evaluates Cook-Torrance GGX specular with a hemispherical diffuse ambient term; specular environment-map IBL is not implemented. 2-phase Hi-Z tests occluders in Pass 1, builds the current frame depth pyramid, and disoccludes revealed geometry in Pass 2; previous-frame depth is reused only while the view is unchanged and is never reprojected. The WebGPU page raster falls back to WebGL2 if the device is missing or lost; a missing visbuffer format falls back to the untextured page raster and leaves Hi-Z off.
-- The compiler RAM option is an admission estimate, not an enforced peak-memory limit.
-- Full graphics-device/context-loss recovery and cross-API fallback remain unimplemented.
-- N-API/WASM bindings, published packages, signed native distributions and cross-platform performance CI remain pending.
+- Not yet a general-purpose engine: the importer reads a versioned source manifest and the
+  source it names; non-triangle primitives and non-standard glTF extensions are unsupported.
+- Delivered simplification and page compression are those documented in
+  [docs/FORMAT.md](docs/FORMAT.md); the compiler's RAM option is an admission estimate, not an
+  enforced peak-memory limit.
+- Specular environment-map IBL, full device-loss recovery and cross-API fallback are not
+  implemented; a missing visbuffer format falls back to the untextured page raster with Hi-Z off.
+- No N-API/WASM bindings, published packages, signed native distributions or cross-platform
+  performance CI yet.
 
-See [architecture and implementation limits](packages/README.md) for the detailed contracts and remaining work.
+## Licence
+
+Web Geometry is published under the [PolyForm Noncommercial License 1.0.0](LICENSE): free for
+noncommercial use, study, research and personal projects. **Commercial use requires a separate
+licence** from the copyright holder — open an issue or contact the author.
+
+Copyright © 2026 Alban Pasquelin.
