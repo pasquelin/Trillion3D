@@ -31,7 +31,7 @@ export function chargeBaseline(domaine) {
   if (!existsSync(chemin)) return null;
   try {
     const lue = JSON.parse(readFileSync(chemin, 'utf8'));
-    return lue?.version === 2 ? lue : null;
+    return lue?.version === 3 ? lue : null;
   } catch {
     return null;
   }
@@ -54,7 +54,7 @@ export function sauveBaseline(domaine, mesures) {
     cheminBaseline(domaine),
     JSON.stringify(
       {
-        version: 2,
+        version: 3,
         domaine,
         commit: commitCourant(),
         date: new Date().toISOString(),

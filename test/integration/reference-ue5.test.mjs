@@ -15,10 +15,10 @@ const racine = new URL('../../', import.meta.url);
 const doc = new URL('docs/REFERENCE_UE5.md', racine);
 const sources = new URL('packages/asset-compiler-rust/src/', racine);
 
-const UNITES = { Kio: 1024, Mio: 1024 * 1024, KiB: 1024, MiB: 1024 * 1024 };
+const UNITES = { KiB: 1024, MiB: 1024 * 1024 };
 
 const nombre = (cellule) => {
-  const trouve = /^([\d\u202f\u00a0 ]+)(?:\s+(Kio|Mio|KiB|MiB))?$/u.exec(cellule.trim());
+  const trouve = /^([\d\u202f\u00a0 ]+)(?:\s+(KiB|MiB))?$/u.exec(cellule.trim());
   if (!trouve) return null;
   const brut = Number(trouve[1].replaceAll(/[\u202f\u00a0 ]/gu, ''));
   if (!Number.isFinite(brut)) return null;
@@ -75,30 +75,21 @@ test('each structural constant in the parity table matches the code', async () =
   }
 });
 
-// The three deviations declared in §1 are code facts, not opinions: the day one
-// is fixed, the document lies in the other direction. The test keeps that side covered too.
-test('deviations declared in the parity table are still true', async () => {
+// The nuances declared in §1 are code facts, not opinions: the day one is fixed, the document
+// lies in the other direction. Each is checked both ways, so a reworded sentence cannot silently
+// skip the check: the nuance is declared exactly when the code still carries it.
+test('nuances declared in the parity table are still true, and only those', async () => {
   const texte = await readFile(doc, 'utf8');
   const groupes = await readFile(new URL('dag/groups.rs', sources), 'utf8');
   const lib = await readFile(new URL('lib.rs', sources), 'utf8');
-  if (
-    texte.includes('Group floor is not applied') ||
-    texte.includes('Le plancher de groupe n’est pas appliqué')
-  ) {
-    assert.doesNotMatch(
-      groupes,
-      /DAG_GROUP_MIN/u,
-      'dag/groups.rs now applies the floor: remove this discrepancy from docs/REFERENCE_UE5.md',
-    );
-  }
-  if (
-    texte.includes('`CLUSTER_TRIANGLES = 256` remains') ||
-    texte.includes('`CLUSTER_TRIANGLES = 256` vit encore')
-  ) {
-    assert.match(
-      lib,
-      /pub const CLUSTER_TRIANGLES:\s*usize\s*=\s*256;/u,
-      'the dead constant is gone: remove this discrepancy from docs/REFERENCE_UE5.md',
-    );
-  }
+  assert.equal(
+    texte.includes('**Group floor is not enforced.**'),
+    !/DAG_GROUP_MIN/u.test(groupes),
+    'docs/REFERENCE_UE5.md and dag/groups.rs disagree on whether the group floor is enforced',
+  );
+  assert.equal(
+    texte.includes('**`CLUSTER_TRIANGLES = 256` remains in `lib.rs`**'),
+    /pub const CLUSTER_TRIANGLES:\s*usize\s*=\s*256;/u.test(lib),
+    'docs/REFERENCE_UE5.md and lib.rs disagree on whether the dead 256 constant remains',
+  );
 });
