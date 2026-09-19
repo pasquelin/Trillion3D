@@ -50,9 +50,9 @@ function lookingAt(from: [number, number, number], at: [number, number, number])
 }
 
 for (const [name, cam] of [
-  ['tout visible', wideCamera()],
-  ['tout hors du tronc', lookingAt([0, 0, -100], [0, 0, -1000])],
-  ['mixte', lookingAt([1, 0, 5], [0, 0, 0])],
+  ['all visible', wideCamera()],
+  ['all outside the frustum', lookingAt([0, 0, -100], [0, 0, -1000])],
+  ['mixed', lookingAt([1, 0, 5], [0, 0, 0])],
 ] as const)
   test(`the hierarchical cut matches the flat cut, camera ${name}`, () => {
     const { flat, hierarchical } = bothCuts(cam);

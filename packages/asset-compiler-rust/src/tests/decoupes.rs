@@ -37,9 +37,9 @@ fn scene_feuillage() -> (PathBuf, Options) {
     manifest["runtime"]["sha256"] = json!(hash(&bytes));
     fs::write(
         source.join("manifest.json"),
-        serde_json::to_vec(&manifest).expect("manifeste"),
+        serde_json::to_vec(&manifest).expect("manifest"),
     )
-    .expect("manifeste");
+    .expect("manifest");
     options.scope = "full".into();
     (root, options)
 }
@@ -61,7 +61,7 @@ fn chaque_modele_repart_avec_sa_feuille() {
         .expect("textures")
         .iter()
         .next()
-        .expect("une");
+        .expect("one");
     assert_eq!(
         entry["proposal"],
         json!("cutout"),
@@ -79,8 +79,8 @@ fn chaque_modele_repart_avec_sa_feuille() {
 
 // Behavior: answer in sheet sets foliage to mask at glTF threshold,
 // primitive leaves blend path for exact clusters — single draw call
-// instead of per-item call. Published `source.gltf` carries reclassified material.
-// c'est lui que le moteur lit pour ombrer.
+// instead of per-item call. Published `source.gltf` carries reclassified material:
+// that is what the engine reads to shade.
 #[test]
 fn une_reponse_enregistree_fait_passer_le_feuillage_en_decoupe() {
     let (_root, options) = scene_feuillage();
@@ -95,10 +95,10 @@ fn une_reponse_enregistree_fait_passer_le_feuillage_en_decoupe() {
     }
     fs::write(
         options.cache.join(crate::cutout::DECISIONS_FILE),
-        serde_json::to_vec(&sheet).expect("feuille"),
+        serde_json::to_vec(&sheet).expect("sheet"),
     )
     .expect("write");
-    let second = compile(&options, |_| {}).expect("seconde compile");
+    let second = compile(&options, |_| {}).expect("second compile");
     assert_eq!(second["primitives"][0]["pass"], json!("exact-clusters"));
     assert_eq!(
         second["cutouts"]["changes"]["applied"][0]["material"],

@@ -26,7 +26,7 @@ pub(super) fn compile_files(tag: &str, layers: &[(&str, &str)], images: &[&str])
 /// Places file under temporary root, creating folders first.
 fn write_under(root: &Path, name: &str, put: impl FnOnce(&Path) -> std::io::Result<()>) {
     let path = root.join(name);
-    fs::create_dir_all(path.parent().expect("dossier")).expect("dossier");
+    fs::create_dir_all(path.parent().expect("dir")).expect("dir");
     put(&path).unwrap_or_else(|error| panic!("{name}: {error}"));
 }
 
@@ -80,7 +80,7 @@ fn the_wrap_scale_bias_and_colour_space_of_a_uv_texture_are_carried_or_counted()
     assert_eq!(
         [&sampler(&gltf)["wrapS"], &sampler(&gltf)["wrapT"]],
         [&json!(10497), &json!(33071)],
-        "chaque axe garde son propre mode"
+        "each axis keeps its own mode"
     );
 
     let black = "            token inputs:wrapT = \"black\"\n";

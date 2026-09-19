@@ -43,7 +43,7 @@ fn cover_and_shared_ignore_two_triangles_that_only_touch_along_an_edge() {
     cover(&b, &rect, grid, &mut buffer_b);
     assert!(
         shared(&buffer_a, &buffer_b) == 0,
-        "un bord commun ne partage aucune cellule"
+        "a shared edge shares no cell"
     );
     // Both triangles cover cells, test meaningless otherwise.
     assert!(buffer_a.iter().any(|word| *word != 0));

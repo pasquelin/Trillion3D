@@ -50,7 +50,7 @@
       }
     ]
   },
-  "case": "Scene Blender 5.2 CC0 compressee en Zstandard : trois objets qui partagent un meme cube, accroches a un objet vide qui les porte, six faces a trois materiaux, une couche d UV, des faces toutes nettes, un materiau emissif d intensite 3, un materiau opaque et un materiau transparent dont la couleur et l alpha viennent d une meme image PNG empaquetee dans le fichier.",
+  "case": "Blender 5.2 CC0 scene compressed with Zstandard: three objects that share the same cube, parented to an empty that carries them, six faces with three materials, one UV layer, all sharp faces, an emissive material of intensity 3, an opaque material and a transparent material whose colour and alpha come from the same PNG packed in the file.",
   "instancie": {
     "meshNodes": 3,
     "selectedTriangles": 36,
@@ -75,7 +75,7 @@
       "blend-emission-clamped": 1
     }
   },
-  "rule": "Blender travaille en Z vers le haut, le glTF en Y vers le haut : un unique noeud racine porte la conversion d axes, et aucun sommet n est retouche. Un maillage partage par trois objets n est ecrit qu une fois ; seules les matrices different. L indice de matiere vit a la face chez Blender et a la primitive en glTF : les six faces donnent trois primitives. Les normales ne sont pas dans le fichier et sont calculees a la lecture, a plat pour une face nette. L emission vaut couleur x intensite, bornee a 1 par le glTF et comptee des qu elle depasse. Les octets de l image empaquetee partent tels quels dans le binaire de la scene, par une vue de tampon : aucun reencodage.",
+  "rule": "Blender works with Z up, glTF with Y up: a single root node carries the axis conversion, and no vertex is touched. A mesh shared by three objects is written only once; only the matrices differ. The material index lives on the face in Blender and on the primitive in glTF: the six faces yield three primitives. Normals are not in the file and are computed at read, flat for a sharp face. Alpha wired to the alpha channel of the image the base colour already carries passes as-is: the factor is one, otherwise it would cancel the image, and the mode becomes BLEND. Blender places the UV origin bottom-left and glTF top-left: v becomes 1 - v, image bytes staying intact. Emission is colour x intensity, clamped to 1 by glTF and counted as soon as it exceeds. Packed image bytes go as-is into the scene binary, through a buffer view: no re-encoding.",
   "scene": {
     "meshNames": ["Cube"],
     "nodes": [

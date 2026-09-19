@@ -1,6 +1,6 @@
 {
-  "case": "Deux surfaces opaques coplanaires dont les contours ne partagent qu'un carré de coin.",
-  "rule": "Aires égales (16 et 16) : l'ordre de la source départage. Seule l'aire commune est comptée.",
+  "case": "Two coplanar opaque surfaces whose outlines share only a corner square.",
+  "rule": "Equal areas (16 and 16): source order breaks the tie. Only the shared area is counted.",
   "formatVersion": 3,
   "manifestBinaryVersion": 5,
   "coplanar": {

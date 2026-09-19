@@ -46,7 +46,7 @@ test('delivered readout stays under its cap regardless of catalog size', async (
   assert.equal(releve.indisponible, undefined, 'WebGPU must be available');
   assert.deepEqual([...(releve.erreurs ?? []), ...erreursPage], []);
   const mesurees = releve.lignes.filter((ligne) => !ligne.refus);
-  assert.ok(mesurees.length >= 2, 'au moins deux tailles doivent tenir sur la carte');
+  assert.ok(mesurees.length >= 2, 'at least two sizes must fit on the card');
   const arrondi = (x) => Number(x.toFixed(4));
   const mo = (octets) => Number((octets / 1048576).toFixed(2));
   const table = mesurees.map((ligne) => {
