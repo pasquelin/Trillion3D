@@ -10,7 +10,7 @@ import {
   setNodeQuaternion,
   setNodeScale,
 } from '../mathTransformTree.ts';
-import { updateNodeMatrixWorld } from '../mathTransformTreeUpdate.ts';
+import { updateNodeMatrixWorld, updateNodeWorldMatrix } from '../mathTransformTreeUpdate.ts';
 import { visitSubtree } from '../mathTransformTreeStructure.ts';
 import { lookAtNode } from '../mathTransformTreeLookAt.ts';
 import { boxEmpty, boxExpandByPoint } from '../mathBox.ts';
@@ -72,6 +72,22 @@ lines.push(
     oracle,
     core: () => {
       updateNodeMatrixWorld(tree, rootNode);
+      return worlds;
+    },
+  }),
+);
+
+// `updateWorldMatrix(true, false)`: the ancestors then the node, called once per node.
+lines.push(
+  await duel({
+    nom: 'Object3D.updateWorldMatrix, ancestors and node',
+    fichier: TREE,
+    three: () => {
+      for (let i = 1; i <= N; i++) objects[i].updateWorldMatrix(true, false);
+    },
+    oracle,
+    core: () => {
+      for (let i = 1; i <= N; i++) updateNodeWorldMatrix(tree, i, true, false);
       return worlds;
     },
   }),
