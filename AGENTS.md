@@ -122,7 +122,7 @@
   every pull request to the reviewer, a separate agent with a fresh context, and loops with it —
   fix, push, re-check — until it answers `READY` (three rounds at most), then reports to the
   maintainer. Claude Code has them as subagents in `.claude/agents/`,
-  the reviewer without write tools.
+  the reviewer without edit tools.
 - Merging is the maintainer's decision, never an agent's. `gh pr merge` is not for agents.
 
 ## Interaction and replies
