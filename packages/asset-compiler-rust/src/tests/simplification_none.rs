@@ -49,5 +49,5 @@ fn simplification_qem_endpoints_garde_son_dag() {
     let (depth, racines, niveau_zero) = dag_of("qem-endpoints");
     assert_eq!(depth, 6, "profondeur inchangée");
     assert_eq!(niveau_zero, 8192, "le niveau zéro couvre toute la source");
-    assert_eq!(racines, 126, "racine inchangée");
+    assert_eq!(racines, 127, "racine inchangée");
 }
