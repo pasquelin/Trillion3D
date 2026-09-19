@@ -127,7 +127,7 @@ export function createWebgpuTileStreamer(options: {
           options.onFailure('texture-tile-failed', error);
         }
         if (verdict === 'waiting') waiting++;
-        else if (verdict !== 'refused') {
+        else if (verdict === 'served') {
           served++;
           bytes += TILE_BYTES;
           if (request.atlas === color) colorServed = true;

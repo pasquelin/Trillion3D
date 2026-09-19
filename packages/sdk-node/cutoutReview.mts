@@ -8,8 +8,8 @@ import {
   type Sheet,
 } from './cutoutSheet.mts';
 import { imageKind } from './cutoutDraw.mts';
-import { readThumbnails, type Thumbnail } from './cutoutThumb.mts';
-import { askAnswer, LEGENDE, pictureOf, show, type EmbeddedImages } from './cutoutShow.mts';
+import { readThumbnails, type EmbeddedImages, type Thumbnail } from './cutoutThumb.mts';
+import { askAnswer, LEGENDE, pictureOf, show } from './cutoutShow.mts';
 
 /**
  * The cutout questions of a whole batch, asked once and applied everywhere.
@@ -37,13 +37,10 @@ function nameOf(model: CutoutModel): string {
 
 /** Reads every sheet of the batch; a model with no sheet simply has nothing to answer. */
 async function sheetsOf(models: CutoutModel[]): Promise<Loaded[]> {
-  const sheets = await Promise.all(models.map((model) => readSheet(model.cache)));
-  const loaded: Loaded[] = [];
-  sheets.forEach((sheet, index) => {
-    const model = models[index] as CutoutModel;
-    if (sheet) loaded.push({ model, name: nameOf(model), sheet });
-  });
-  return loaded;
+  const read = await Promise.all(
+    models.map(async (model) => ({ model, sheet: await readSheet(model.cache) })),
+  );
+  return read.flatMap(({ model, sheet }) => (sheet ? [{ model, name: nameOf(model), sheet }] : []));
 }
 
 export async function reviewCutouts(
@@ -69,10 +66,13 @@ export async function reviewCutouts(
   // à montrer, et leur produit compilé pèse des dizaines de mégaoctets.
   const concerned = loaded.filter((one) => named.has(one.name));
   const answers = await ask(stream, options, concerned, pending);
-  const written = await Promise.all(
-    loaded.map((one) => answerSheet(one.model.cache, one.sheet, answers)),
-  );
-  const changed = loaded.filter((_, index) => written[index]).map((one) => one.model);
+  const changed = (
+    await Promise.all(
+      loaded.map(async (one) =>
+        (await answerSheet(one.model.cache, one.sheet, answers)) ? one.model : null,
+      ),
+    )
+  ).filter((model): model is CutoutModel => model !== null);
   const cutouts = [...answers.values()].filter(Boolean).length;
   stream.write(
     `\n  ${cutouts} découpe(s), ${answers.size - cutouts} vitre(s) · ${changed.length} modèle(s) à recompiler\n`,
@@ -80,14 +80,16 @@ export async function reviewCutouts(
   return { pending: pending.length, answered: answers.size, changed };
 }
 
-/** The thumbnails of the concerned models, by image: a texture two models share is read once. */
+/**
+ * The thumbnails of the concerned models, by image: a texture two models share is read once. One
+ * model at a time — each read holds a whole `clusters.bin`, and the questions are then asked one by
+ * one anyway, so reading them all at once would only raise the peak.
+ */
 async function thumbnailsOf(concerned: Loaded[]): Promise<Map<string, Thumbnail>> {
   const thumbnails = new Map<string, Thumbnail>();
-  const read = await Promise.all(
-    concerned.map((one) => readThumbnails(one.model.cache, one.model.scope)),
-  );
-  for (const found of read)
-    for (const [sha, thumbnail] of found) if (!thumbnails.has(sha)) thumbnails.set(sha, thumbnail);
+  for (const one of concerned)
+    for (const [sha, thumbnail] of await readThumbnails(one.model.cache, one.model.scope))
+      if (!thumbnails.has(sha)) thumbnails.set(sha, thumbnail);
   return thumbnails;
 }
 

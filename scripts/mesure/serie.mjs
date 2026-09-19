@@ -2,7 +2,7 @@
 import { createHash } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { pngFromRgba } from './serveur.mjs';
+import { encodePng } from '../../packages/sdk-node/png.mts';
 import { distribution, machineLoad } from './rapport.mjs';
 import { passesGpu } from './seriePasses.mjs';
 import { poolGeometrie, reservoirs } from './serieReservoirs.mjs';
@@ -65,7 +65,7 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
   const metrics = result.metrics ?? {};
   const capture = captures.get(captureFile);
   if (capture)
-    await writeFile(join(OUT, captureFile), pngFromRgba(capture.body, capture.w, capture.h));
+    await writeFile(join(OUT, captureFile), encodePng(capture.w, capture.h, capture.body, true));
   const ids = result.selection.ids;
   await writeFile(
     join(OUT, `${captureFile.replace(/\.png$/, '')}.coupe.txt`),
