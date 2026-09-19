@@ -74,9 +74,12 @@ export function composeMatrix4<T extends NumberSink>(
 }
 
 /**
- * Composes `n` matrices. Each argument is read either as one flat buffer of `n` elements or as
- * `n` sub-views, chosen once before the loop — `mathBatch.ts` explains why a matrix travels as a
- * sub-view. Repeats `composeMatrix4`; replaces Three's `for … m.compose(p, q, s)`.
+ * Composes `n` matrices. Every argument is read either as one flat buffer of `n` elements or as
+ * `n` sub-views — `mathBatch.ts` explains why a matrix travels as a sub-view. The form is settled
+ * BEFORE the loop, never inside it: a ternary per element costs 6% on two hundred thousand
+ * compositions, measured against Three's own loop by `three-vs-core-batch-matrices.perf.mjs`.
+ *
+ * Repeats `composeMatrix4`; replaces Three's `for … m.compose(p, q, s)`.
  */
 export function composeMatrix4Batch(
   out: NumberSink | readonly NumberSink[],
@@ -89,15 +92,32 @@ export function composeMatrix4Batch(
   const p = Array.isArray(positions) ? (positions as readonly ArrayLike<number>[]) : null;
   const q = Array.isArray(quaternions) ? (quaternions as readonly ArrayLike<number>[]) : null;
   const s = Array.isArray(scales) ? (scales as readonly ArrayLike<number>[]) : null;
-  for (let i = 0; i < n; i++)
+  if (!o && !p && !q && !s) {
+    const dst = out as NumberSink,
+      pf = positions as ArrayLike<number>,
+      qf = quaternions as ArrayLike<number>,
+      sf = scales as ArrayLike<number>;
+    for (let i = 0; i < n; i++) {
+      const pi = i * POSITION_STRIDE;
+      composeAt(dst, i * MATRIX_STRIDE, pf, pi, qf, i * QUATERNION_STRIDE, sf, pi);
+    }
+    return;
+  }
+  if (o && p && q && s) {
+    for (let i = 0; i < n; i++) composeAt(o[i], 0, p[i], 0, q[i], 0, s[i], 0);
+    return;
+  }
+  for (let i = 0; i < n; i++) {
+    const pi = i * POSITION_STRIDE;
     composeAt(
       o ? o[i] : (out as NumberSink),
       o ? 0 : i * MATRIX_STRIDE,
       p ? p[i] : (positions as ArrayLike<number>),
-      p ? 0 : i * POSITION_STRIDE,
+      p ? 0 : pi,
       q ? q[i] : (quaternions as ArrayLike<number>),
       q ? 0 : i * QUATERNION_STRIDE,
       s ? s[i] : (scales as ArrayLike<number>),
-      s ? 0 : i * POSITION_STRIDE,
+      s ? 0 : pi,
     );
+  }
 }
