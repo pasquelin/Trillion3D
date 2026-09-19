@@ -142,9 +142,11 @@ export function referenceShadeLit(
     L = [Lraw[0] / lLen, Lraw[1] / lLen, Lraw[2] / lLen];
   const NdotL = Math.max(0, Nx * L[0] + Ny * L[1] + Nz * L[2]),
     up = Ny * 0.5 + 0.5;
-  const groundColor = new THREE.Color(0x495061);
+  // Ground `#495061` brought to linear by the exact curve, as the engine does since #76 — the
+  // host library's rounded constants gave a value 1e-11 off; the formula is written here, not shared.
+  const linear = (v) => Math.pow((v / 255 + 0.055) / 1.055, 2.4);
   const sky = [2, 2, 2],
-    ground = [groundColor.r * 2, groundColor.g * 2, groundColor.b * 2];
+    ground = [linear(0x49) * 2, linear(0x50) * 2, linear(0x61) * 2];
   const hemi = [
     ground[0] + (sky[0] - ground[0]) * up,
     ground[1] + (sky[1] - ground[1]) * up,

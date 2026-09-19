@@ -19,7 +19,6 @@ export function createObservationMeshes(
   // matrices are ordinary arrays, copied at the boundaries.
   const copies: { mesh: THREE.Mesh; surface: number; restTransform: Float64Array }[] = [];
   const hostWorld = new Float64Array(16),
-    basisWorld = new Float64Array(16),
     composed = new Float64Array(16);
   const geometrySet = new Set<THREE.BufferGeometry>();
   const { basis, surfaceBasis, sphereBasis } = createObservationTransforms(state);
@@ -70,7 +69,7 @@ export function createObservationMeshes(
       const restTransform = new Float64Array(16);
       invertMatrix4(
         restTransform,
-        (surface >= 0 ? surfaceBasis(surface, basis) : sphereBasis(basis)).elements,
+        surface >= 0 ? surfaceBasis(surface, basis) : sphereBasis(basis),
       );
       copyElements(hostWorld, original.matrixWorld.elements);
       multiplyMatrix4(restTransform, restTransform, hostWorld);
@@ -106,10 +105,9 @@ export function createObservationMeshes(
       for (const copy of copies) {
         if (copy.surface >= 0) surfaceBasis(copy.surface, basis);
         else sphereBasis(basis);
-        copyElements(basisWorld, basis.elements);
         copyElements(
           copy.mesh.matrix.elements,
-          multiplyMatrix4(composed, basisWorld, copy.restTransform),
+          multiplyMatrix4(composed, basis, copy.restTransform),
         );
         copy.mesh.matrixWorldNeedsUpdate = true;
       }

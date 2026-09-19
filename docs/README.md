@@ -4,13 +4,14 @@ The GitHub Pages site (`/docs` on `main`) serves the latest campaign report: `in
 
 The delivered SDK is described by the [SDK guide](SDK.md), [package architecture](../packages/README.md), [native compiler](COMPILER.md), and [cache format](FORMAT.md). Anything not listed here is not part of the release.
 
-| Document                                                         | Role                                                                                                                                     |
-| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| [Native compiler](COMPILER.md)                                  | `web-geometry-compiler`: CLI arguments, events, pointer, batch mode, cancellation, FBX/OBJ import, error codes                          |
-| [Cache format](FORMAT.md)                                        | Pointer, `clusters.json` and its binary sidecar `clusters.bin`, cluster DAG, culling hierarchy, streaming bundles, SHA objects           |
-| [Product principles](architecture/PRODUCT_PRINCIPLES.md)      | Behavioral requirements: portable core, capabilities, source ownership, fallback                                                        |
-| [Web / Electron / Node integration](architecture/INTEGRATION.md)| Canvas ownership, render loop, preparation, and fallback                                                                                 |
-| [Tests and performance benchmarks](TESTS.md)                    | Unit tests organization, GPU correctness probes, and 39 performance benchmarks                                                           |
-| [Reference UE5 in numbers](REFERENCE_UE5.md)                     | Published constants, bytes per triangle, and performance profile of the reference versus our engine; valid comparisons and caveats       |
+| Document                                                         | Role                                                                                                                               |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| [Native compiler](COMPILER.md)                                   | `web-geometry-compiler`: CLI arguments, events, pointer, batch mode, cancellation, FBX/OBJ import, error codes                     |
+| [Cache format](FORMAT.md)                                        | Pointer, `clusters.json` and its binary sidecar `clusters.bin`, cluster DAG, culling hierarchy, streaming bundles, SHA objects     |
+| [Product principles](architecture/PRODUCT_PRINCIPLES.md)         | Behavioral requirements: portable core, capabilities, source ownership, fallback                                                   |
+| [Web / Electron / Node integration](architecture/INTEGRATION.md) | Canvas ownership, render loop, preparation, and fallback                                                                           |
+| [Engine API, batch by batch](API.md)                             | Functions each merged batch delivers: signature, what it computes, the host-library call replaced, the proof                       |
+| [Tests and performance benchmarks](TESTS.md)                     | Unit tests organization, GPU correctness probes, and 39 performance benchmarks                                                     |
+| [Reference UE5 in numbers](REFERENCE_UE5.md)                     | Published constants, bytes per triangle, and performance profile of the reference versus our engine; valid comparisons and caveats |
 
 The engine target (editor, final baking, Three.js retirement, requirements and exit criteria) is maintained in [`docs/SPEC_ENGINE_WITHOUT_THREE.md`](SPEC_ENGINE_WITHOUT_THREE.md). The backlog of open tasks is kept in the [GitHub issues](https://github.com/pasquelin/WebGeometry/issues); a finished task is closed.

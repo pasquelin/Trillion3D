@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { sideOf } from './materialSide.ts';
 
 export const VIS_INVALID = 0;
 /**
@@ -114,14 +115,15 @@ export function visMaterial(material: THREE.Material | THREE.Material[]): VisMat
     'color' in first && first.color instanceof THREE.Color ? first.color : new THREE.Color(1, 1, 1);
   const std = first as THREE.MeshStandardMaterial;
   const phys = first as THREE.MeshPhysicalMaterial;
-  const lit = !!std.isMeshStandardMaterial;
+  const lit = !!std.isMeshStandardMaterial,
+    side = sideOf(first);
   return {
     baseColor: [color.r, color.g, color.b],
     metalness: lit ? std.metalness : 0,
     roughness: lit ? std.roughness : 1,
     lit,
-    doubleSided: first.side === THREE.DoubleSide,
-    backSide: first.side === THREE.BackSide,
+    doubleSided: side === 'double',
+    backSide: side === 'back',
     alphaTest: 'alphaTest' in first && typeof first.alphaTest === 'number' ? first.alphaTest : 0,
     map: 'map' in first && first.map ? (first.map as THREE.Texture) : undefined,
     metalnessMap: lit && std.metalnessMap ? std.metalnessMap : undefined,

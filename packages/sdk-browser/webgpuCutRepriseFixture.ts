@@ -1,10 +1,10 @@
 // Setup of the GPU-cut resume bench, split from its cases so neither file exceeds the line
 // limit. Cases live in `webgpuCutReprise.test.ts`.
-import * as THREE from 'three';
+import { IDENTITY_MATRIX4 } from '../sdk-core/index.ts';
 import { renderGpuCut } from './webgpuPagesGpuCut.ts';
 import { mountCutAdopter } from './webgpuCutAdopterFixture.ts';
 import { cameraSelectionUniforms, createSelectionUniforms } from './gpuSelection.ts';
-import { cameraMoteur } from './cameraFixture.ts';
+import { createEngineCamera, writeEngineCamera } from './engineCamera.ts';
 import type { GpuCut, GpuSelection } from './gpuSelection.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
@@ -17,11 +17,11 @@ const VIEWPORT: [number, number] = [512, 512];
  * transfer decode would.
  */
 export function banc(panne?: 'debordement' | 'envoi') {
-  const hote = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
-  hote.position.z = 5;
-  hote.updateMatrixWorld(true);
-  // The kernel no longer reads the host camera: the frame input copies it once into the contract.
-  const camera = cameraMoteur(hote);
+  // The kernel reads the engine camera only: posed at z = 5, looking down the axis.
+  const camera = createEngineCamera();
+  camera.world.set(IDENTITY_MATRIX4);
+  camera.world[14] = 5;
+  writeEngineCamera(camera, { fov: 55, aspect: 1, near: 0.1, far: 100, zoom: 1 });
   const uniforms = createSelectionUniforms();
   cameraSelectionUniforms(camera, 0, VIEWPORT, uniforms);
   const page = {

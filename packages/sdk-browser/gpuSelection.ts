@@ -6,7 +6,8 @@
  * block, the readback shape and the page-cone convention — so neither side owns the other.
  */
 import { FRUSTUM_PLANE_VALUES, maxStretch } from '../sdk-core/index.ts';
-import * as THREE from 'three';
+import type * as THREE from 'three';
+import { sideOf } from './materialSide.ts';
 import { OPEN_CONE, type NormalCone } from './pageCone.ts';
 import { sameElements } from './matrixElements.ts';
 import { pixelScaleOf } from './streamingPriority.ts';
@@ -141,11 +142,7 @@ export function leafCone(page: {
   cone?: NormalCone;
   material?: THREE.Material | THREE.Material[];
 }): NormalCone {
-  const material = page.material;
-  if (material) {
-    const side = Array.isArray(material) ? material[0]?.side : material.side;
-    if (side === THREE.DoubleSide || side === THREE.BackSide) return OPEN_CONE;
-  }
+  if (page.material && sideOf(page.material) !== 'front') return OPEN_CONE;
   return page.cone ?? OPEN_CONE;
 }
 

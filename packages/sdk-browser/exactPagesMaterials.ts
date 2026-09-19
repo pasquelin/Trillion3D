@@ -2,11 +2,8 @@ import type { EngineCamera } from './cameraWorld.ts';
 import { clusterColor, hashId } from './backendCommon.ts';
 import { projectedPageError, type PageRec } from './pageSelection.ts';
 import { screenErrorColor } from './diagnosticColors.ts';
-import {
-  createTriangleDiagnosticMaterial,
-  materialSide,
-  triangleGeometry,
-} from './triangleDiagnostic.ts';
+import { createTriangleDiagnosticMaterial, triangleGeometry } from './triangleDiagnostic.ts';
+import { materialSide } from './materialSide.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 
