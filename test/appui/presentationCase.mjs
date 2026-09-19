@@ -22,10 +22,7 @@ export async function runCase(fixture, context) {
     await backend.prepare();
     backend.render(camera);
     await backend.flush();
-    const outputCanvas =
-      canvas ??
-      backend.scene.children.find((object) => object.userData.blit)?.material.uniforms.image.value
-        .image;
+    const outputCanvas = canvas ?? backend.presentedSurface;
     check(outputCanvas instanceof HTMLCanvasElement, fixture.name + ': no output canvas');
     const frame = createFrame({
       backend,

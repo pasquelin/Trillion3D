@@ -46,6 +46,9 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     id: 'webgpu-page-raster',
     capabilities: rt.capabilities,
     scene: setup.scene,
+    get presentedSurface() {
+      return rt.gpu.composedCanvas;
+    },
     get overBudget() {
       return run.overBudget;
     },

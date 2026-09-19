@@ -131,7 +131,6 @@ const AUTORISES = {
   webgpuPagesStateGpu: 'contract: host geometries, textures and presentation mesh',
   webgpuPagesStateVis: 'contract: host geometries and textures',
   webgpuPositions: 'position attribute of the host geometry',
-  webgpuPresentationSetup: 'presentation goes through a host scene and material',
 };
 
 const IMPORTE_HOTE = /^\s*(?:import|export)\b[^\n]*\bfrom\s+['"]three['"]/m;
