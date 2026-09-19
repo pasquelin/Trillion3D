@@ -1,7 +1,7 @@
 /**
  * Lighting and shadow counters of a frame, split from `FrameMetrics` by responsibility.
- * `FrameMetrics` inherits them via `extends`: the public contract seen by consumers (sdk-core/index.ts,
- * the Lab) is unchanged, these fields remain direct properties of `FrameMetrics`.
+ * `FrameMetrics` inherits them via `extends`: the public contract seen by consumers
+ * (`sdk-core/index.ts`) is unchanged, these fields remain direct properties of `FrameMetrics`.
  */
 export interface ShadowFrameMetrics {
   /** `SceneLight` contract lights that the frame lit. Null on an engine that ignores them. */
