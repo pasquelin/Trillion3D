@@ -3,28 +3,28 @@ import { multiplyMatrix4, type NumberSink } from './mathMatrix4.ts';
 import { invertMatrix4 } from './mathMatrix4Inverse.ts';
 
 /**
- * Caméra perspective du moteur, en PROFONDEUR INVERSÉE et plan lointain infini : le plan proche se
- * projette sur 1, l'infini sur 0, et la découpe reste `[0, 1]`. C'est la convention unique du
- * moteur, celle que `depthConvention.ts` (sdk-browser) publie aux pipelines et aux lecteurs de
- * profondeur ; aucune autre n'est portée ici.
+ * Engine perspective camera, in REVERSED DEPTH and infinite far plane: near plane
+ * projects to 1, infinity to 0, and clip bounds remain `[0, 1]`. This is the single
+ * engine convention, published by `depthConvention.ts` (sdk-browser) to pipelines and depth
+ * readers; no other is supported here.
  *
- * POURQUOI. Une profondeur en simple précision concentre ses bits près de zéro, et la division
- * perspective concentre déjà la profondeur près du plan proche : les deux effets s'annulent quand
- * le plan proche vaut 1 et le lointain 0, si bien qu'à mille kilomètres deux surfaces voisines
- * gardent encore des profondeurs distinctes là où la convention directe les écrasait sur la même
- * valeur. Le plan lointain n'entre plus dans la formule — plus de `far - near` au dénominateur,
- * donc plus rien à régler et rien qui sature : `ndc = near / distance`.
+ * WHY. Single-precision depth concentrates its bits near zero, and perspective
+ * division already concentrates depth near the near plane: both effects cancel out when
+ * near plane is 1 and far is 0, so that at a thousand kilometers two adjacent surfaces
+ * still retain distinct depth values where direct convention squashed them to the same
+ * value. Far plane no longer enters the formula — no `far - near` in denominator,
+ * hence nothing to tune and nothing that saturates: `ndc = near / distance`.
  *
- * Ni vue décalée (`setViewOffset`), ni décalage de film, ni projection orthographique : le moteur
- * n'en pose aucune.
+ * Neither offset view (`setViewOffset`), nor film offset, nor orthographic projection: the engine
+ * sets none.
  */
 
 const DEG2RAD = Math.PI / 180;
 
 /**
- * Projection perspective d'une caméra de champ vertical `fov` degrés, rapport `aspect`, plan proche
- * `near`, grossissement `zoom`. Profondeur inversée, plan lointain infini : `near` se projette sur
- * 1, l'infini sur 0. Aucun plan lointain n'entre ici, donc aucune division par lui.
+ * Perspective projection of a camera with vertical `fov` degrees, ratio `aspect`, near plane
+ * `near`, zoom `zoom`. Reversed depth, infinite far plane: `near` projects to
+ * 1, infinity to 0. No far plane enters here, hence no division by it.
  */
 export function perspectiveProjection<T extends NumberSink>(
   out: T,
@@ -49,8 +49,8 @@ export function perspectiveProjection<T extends NumberSink>(
   out[7] = 0;
   out[8] = (right + left) / (right - left);
   out[9] = (top + bottom) / (top - bottom);
-  // `z_découpe = near` et `w_découpe = -z_vue` : la profondeur normalisée vaut `near / distance`,
-  // qui vaut 1 au plan proche et tend vers 0 sans jamais l'atteindre.
+  // `z_clip = near` and `w_clip = -z_view`: normalized depth equals `near / distance`,
+  // which equals 1 at near plane and approaches 0 without reaching it.
   out[10] = 0;
   out[11] = -1;
   out[12] = 0;
@@ -60,13 +60,13 @@ export function perspectiveProjection<T extends NumberSink>(
   return out;
 }
 
-/** Les matrices d'une image de caméra, allouées une fois et réécrites à chaque image. */
+/** Matrices of a camera frame, allocated once and rewritten each frame. */
 export interface CameraFrame {
-  /** Vue : l'inverse de la matrice monde de la caméra (`matrixWorldInverse`). */
+  /** View: inverse of camera world matrix (`matrixWorldInverse`). */
   view: Float64Array;
-  /** Projection × vue. */
+  /** Projection × view. */
   viewProjection: Float64Array;
-  /** Les six plans normalisés du tronc de `viewProjection`, rangés comme `frustumPlanesFromMatrix`. */
+  /** The six normalized planes of the `viewProjection` frustum, ordered like `frustumPlanesFromMatrix`. */
   planes: Float64Array;
 }
 
@@ -79,18 +79,18 @@ export function createCameraFrame(): CameraFrame {
 }
 
 /**
- * Réécrit l'image : vue = inverse de `world` (nulle pour une matrice monde singulière, comme la
- * référence), vue-projection = `projection · vue`, et les six plans du tronc de cette
- * vue-projection. Une seule convention de profondeur traverse les trois.
+ * Rewrites frame: view = inverse of `world` (zero for a singular world matrix, like
+ * reference), view-projection = `projection · view`, and the six planes of this
+ * view-projection frustum. A single depth convention crosses all three.
  *
- * `far` est le plan lointain que l'hôte DÉCLARE. La projection n'en a plus — elle est infinie, ce
- * qui est tout l'objet du Z inversé —, mais le tronc le garde : sans lui, une image gagnerait d'un
- * coup tous les objets que la caméra ne montrait pas. Omis ou non fini, le lointain reste sans
- * borne (`frustumFarPlane`).
+ * `far` is the far plane DECLARED by host. Projection has none — it is infinite,
+ * which is the whole point of reversed Z —, but frustum keeps it: without it, a frame would
+ * suddenly gain all objects camera was not showing. Omitted or non-finite, far remains
+ * unbounded (`frustumFarPlane`).
  *
- * La projection et la pose monde sont des `Float64Array` possédés, comme les trois tampons de
- * l'image : le produit ne lit qu'un seul type de tampon (`mathMatrix4.ts`), et l'appelant qui part
- * d'une matrice de l'hôte la recopie avant d'entrer ici — `readCameraWorld` le fait déjà.
+ * Projection and world pose are owned `Float64Array`, like the frame's three buffers:
+ * product only reads a single buffer type (`mathMatrix4.ts`), and caller starting from
+ * a host matrix copies it before entering here — `readCameraWorld` already does this.
  */
 export function updateCameraFrame(
   frame: CameraFrame,

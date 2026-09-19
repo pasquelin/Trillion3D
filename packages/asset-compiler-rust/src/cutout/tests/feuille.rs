@@ -1,8 +1,8 @@
-//! Ce que la feuille et la page montrent : une ligne par IMAGE, jamais une par liaison.
+//! What sheet and page display: one row per IMAGE, never per binding.
 use super::*;
 use crate::texture_preview::{AtlasKind, PreviewSource, TexturePreview};
 
-/// Un aperçu 1×1 d'une image donnée, cité par la texture `texture`.
+/// 1×1 preview of given image, cited by texture .
 fn apercu(texture: u32, image: u32, sha256: &str) -> TexturePreview {
     TexturePreview {
         texture,
@@ -28,10 +28,10 @@ fn forme() -> AlphaShape {
     }
 }
 
-// Comportement : deux textures qui citent la même image — le même feuillage sous deux
-// échantillonneurs — ne font qu'une ligne, et ce qu'elles tiennent de primitives en mélange
-// s'additionne. Sans cela la page poserait deux interrupteurs sur une seule réponse, et cocher
-// l'un décocherait l'autre.
+// Behavior: two textures citing same image — same foliage under two
+// samplers — make one row, blend primitives they hold
+// sum up. Otherwise page would put two switches on single answer, checking
+// one unchecking the other.
 #[test]
 fn deux_textures_dune_meme_image_ne_font_quune_ligne() {
     let g = json!({ "images": [{ "uri": "dossier/feuillage.png" }] });
@@ -48,7 +48,7 @@ fn deux_textures_dune_meme_image_ne_font_quune_ligne() {
     );
     assert_eq!(
         entries[0].name, "dossier/feuillage.png",
-        "l'URI relative entière, pour que la texture se retrouve en pleine résolution"
+        "the full relative URI, so the texture is found at full resolution"
     );
 }
 

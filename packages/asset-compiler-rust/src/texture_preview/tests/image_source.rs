@@ -1,6 +1,6 @@
 use super::*;
 
-/// Aucune texture à mesurer : ces tests ne couvrent que les aperçus.
+/// No textures to measure: tests cover previews only.
 static RIEN_A_MESURER: BTreeSet<usize> = BTreeSet::new();
 
 fn inputs<'a>(
@@ -22,7 +22,7 @@ fn inputs<'a>(
     }
 }
 
-// Comportement 6 (a) : une uri encodée (`%20`) est décodée puis lue sous le dossier source.
+// Behavior 6 (a): encoded URI (`%20`) decoded then read under source folder.
 #[test]
 fn a_uri_with_percent_20_is_decoded_before_reading() {
     let dir = temp_dir("uri-space");
@@ -44,7 +44,7 @@ fn a_uri_with_percent_20_is_decoded_before_reading() {
     assert!(provenance == PreviewSource::Uri);
 }
 
-// Comportement 6 (b) : une uri qui tente de sortir du dossier source (`..`) est refusée.
+// Behavior 6 (b): URI attempting path traversal out of source (`..`) refused.
 #[test]
 fn a_uri_with_dot_dot_is_refused() {
     let dir = temp_dir("uri-dotdot");
@@ -65,8 +65,8 @@ fn a_uri_with_dot_dot_is_refused() {
     assert_eq!(error, "image-uri-outside-source");
 }
 
-// Comportement 6 (c) : une image embarquée nomme sa vue de tampon telle que `source.gltf` la
-// publie — celle de `view_map`, pas l'index de la vue d'entrée.
+// Behavior 6 (c): embedded image names buffer view as `source.gltf`
+// publishes it — `view_map`, not input view index.
 #[test]
 fn an_embedded_image_names_its_remapped_buffer_view() {
     let dir = temp_dir("buffer-view");
@@ -85,7 +85,7 @@ fn an_embedded_image_names_its_remapped_buffer_view() {
     assert!(matches!(provenance, PreviewSource::BufferView(7)));
 }
 
-// Comportement 6 (d) : une uri `data:` est refusée — l'aperçu ne décode jamais un base64 embarqué.
+// Behavior 6 (d): `data:` URI refused — preview never decodes embedded base64.
 #[test]
 fn a_data_uri_is_refused() {
     let dir = temp_dir("uri-data");

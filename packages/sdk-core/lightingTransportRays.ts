@@ -3,7 +3,7 @@ import { fail } from './lightingTransportValidation.ts';
 import { EPSILON } from './lightingTransportIntersections.ts';
 import { crossVector3 } from './mathVector.ts';
 const PI = Math.PI;
-/** Le repère tangent de la facette en cours : écrit puis relu dans le même appel. */
+/** Tangent frame of the current facet: written then reread in the same call. */
 const tangent = new Float64Array(3),
   bitangent = new Float64Array(3);
 

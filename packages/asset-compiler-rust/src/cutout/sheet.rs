@@ -1,30 +1,30 @@
-//! La feuille de réponses, et ce qu'elle contient.
+//! Answer sheet, and what it contains.
 //!
-//! Elle est écrite à CHAQUE compilation, à côté du modèle compilé, qu'il y ait quelque chose à
-//! trancher ou non : c'est elle qui dit si une relecture est due. Chaque texture candidate y porte
-//! sa mesure, la proposition du compilateur, et la réponse — `null` tant que personne ne s'est
-//! prononcé. Les réponses déjà données sont recopiées telles quelles, y compris celles de textures
-//! que cette scène n'emploie plus : une réponse se donne une fois par texture, pas une fois par
-//! scène.
+//! Written on EVERY compilation, alongside compiled model, whether there is anything
+//! to decide or not: tells whether re-reading is due. Each candidate texture carries
+//! its measurement, compiler proposal, and answer —  until someone
+//! decides. Answers already given are copied as is, including textures
+//! this scene no longer uses: an answer is given once per texture, not once per
+//! scene.
 use super::*;
 use crate::texture_preview::TexturePreview;
 
-/// Une texture à trancher, telle que la feuille et la page la montrent.
+/// Candidate texture to decide, as sheet and page present it.
 pub(crate) struct Entry {
     pub sha256: String,
     pub name: String,
     pub shape: Value,
     pub proposal: bool,
     pub answer: Option<bool>,
-    /// Primitives encore en mélange que cette texture habille : ce que trancher rendrait.
+    /// Primitives still in blend clothed by this texture: what deciding yields.
     pub weight: u64,
 }
 
-/// Rassemble ce que l'étape des aperçus a mesuré, UNE ENTRÉE PAR IMAGE. Une texture sans mesure
-/// n'est pas une candidate : elle n'apparaît ni dans la feuille ni dans la page. Et plusieurs
-/// textures citent souvent la même image — le même feuillage sous deux échantillonneurs : elles ne
-/// font qu'une ligne, puisque la réponse porte sur les octets de l'image et vaut pour toutes. Ce
-/// qu'elles tiennent de primitives en mélange s'additionne.
+/// Gathers what preview step measured, ONE ENTRY PER IMAGE. Texture without measurement
+/// is not a candidate: appears neither in sheet nor page. Multiple
+/// textures often cite same image — same foliage under two samplers: they
+/// make one row, since answer targets image bytes and holds for all.
+/// Blend primitives they hold sum up.
 pub(crate) fn entries(
     g: &Value,
     previews: &[TexturePreview],
@@ -35,8 +35,8 @@ pub(crate) fn entries(
     let images = g.get("images").and_then(Value::as_array);
     let mut by_image: BTreeMap<String, Entry> = BTreeMap::new();
     for preview in previews {
-        // Une découpe est une affaire de couleur de base : l'entrée de l'atlas de données d'une
-        // même texture, quand il y en a une, n'est ni une candidate ni un poids de plus.
+        // Cutout is a base color affair: data atlas entry of same texture,
+        // when present, is neither a candidate nor extra weight.
         if preview.kind != crate::texture_preview::AtlasKind::Color {
             continue;
         }
@@ -64,9 +64,9 @@ pub(crate) fn entries(
     by_image.into_values().collect()
 }
 
-/// Ce que trancher rendrait, par texture : les primitives encore en mélange que ses matériaux
-/// portent. Une texture déjà tranchée en découpe n'en a plus, et descend d'elle-même au bas de la
-/// liste — ce qui reste à faire est en haut.
+/// What deciding yields, per texture: blend primitives their materials
+/// carry. Texture already decided as cutout has none left and drops
+/// to bottom of list — remaining work stays on top.
 pub(crate) fn draw_weights(
     primitives: &[Value],
     materials_by_texture: &BTreeMap<usize, BTreeSet<usize>>,
@@ -92,10 +92,10 @@ pub(crate) fn draw_weights(
         .collect()
 }
 
-/// L'image telle qu'un humain la retrouve : son URI relative, décodée — `textures/feuillage été.png`
-/// et non `textures/feuillage%20%C3%A9t%C3%A9.png`. Le chemin entier, et pas seulement le nom de
-/// fichier, pour que celui qui pose la question puisse ouvrir la texture en pleine résolution ; à
-/// lui de n'afficher que le dernier segment. Une image embarquée n'a pas de fichier : son rang.
+/// Image as human finds it: relative URI, decoded —
+/// not . Full path, not just filename,
+/// so user asking question can open full resolution texture; user displays
+/// only last segment. Embedded image has no file: its index.
 fn image_name(images: Option<&Vec<Value>>, image: usize) -> String {
     images
         .and_then(|images| images.get(image))
@@ -105,10 +105,10 @@ fn image_name(images: Option<&Vec<Value>>, image: usize) -> String {
         .unwrap_or_else(|| format!("image {image}"))
 }
 
-/// La feuille : les candidates de cette scène, puis les réponses anciennes qu'elle n'emploie pas,
-/// marquées comme telles — rien de ce qui a été tranché ne se perd à la compilation suivante.
-/// `blendPrimitives` dit ce que trancher rendrait, pour que celui qui pose la question montre
-/// d'abord ce qui rapporte le plus, sans avoir à le recalculer.
+/// Sheet: candidates of this scene, then old answers it does not use,
+/// marked as such — nothing decided is lost on next compilation.
+///  says what deciding yields, so user asking question shows
+/// highest return items first without recomputing.
 pub(crate) fn build_sheet(entries: &[Entry], decisions: &Decisions) -> Value {
     let mut textures = serde_json::Map::new();
     for entry in entries {
@@ -126,7 +126,7 @@ pub(crate) fn build_sheet(entries: &[Entry], decisions: &Decisions) -> Value {
         }
     }
     json!({"version":SHEET_VERSION,
-        "about":"Réponse par texture : cutout = true pour une découpe, false pour une vraie transparence, null tant que personne n'a tranché. La préparation pose la question et montre les images ; ce fichier s'édite aussi à la main.",
+        "about":"Answer per texture: cutout = true for a cutout, false for real transparency, null until someone decides. Preparation asks the question and shows the images; this file can also be edited by hand.",
         "textures":Value::Object(textures)})
 }
 

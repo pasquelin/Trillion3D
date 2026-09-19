@@ -42,7 +42,7 @@ export const referenceBackend: BackendFactory = ({
     scene,
     setDiagnostic: applyDiagnostic,
     async prepare() {},
-    // Ce moteur reparcourt la scène à chaque image : aucune révision n'a à l'apprendre.
+    // This engine re-traverses scene on every frame: no revision needs to notify it.
     ...sceneLightingApi(sceneLights, () => {}),
     render() {
       source.updateMatrixWorld(true);

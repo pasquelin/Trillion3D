@@ -16,10 +16,10 @@ import { createRasterResolves } from './gpuRasterResolve.ts';
 import type { GpuRasterInput } from './gpuRasterTypes.ts';
 
 /**
- * Le raster de calcul de la coupe opaque et masquée.
+ * Compute raster of the opaque and masked cut.
  *
- * `capacity` est le nombre de triangles qu'une liste peut tenir : tout triangle de toute ligne
- * dessinable. Les deux listes en tiennent donc chacune la totalité, et aucune image n'en perd un.
+ * `capacity` is the number of triangles a list can hold: every triangle of every drawable row.
+ * Both lists therefore each hold the whole, and no frame loses one.
  */
 export function createGpuRaster(
   device: GPUDevice,
@@ -27,8 +27,8 @@ export function createGpuRaster(
   height: number,
   capacity: number,
 ) {
-  // Un seul tampon de stockage pour l'image et pour les listes : l'étage de calcul n'a droit qu'à
-  // huit tampons sur l'appareil le plus pauvre que WebGPU garantit, et le raster les emploie tous.
+  // One storage buffer for the image and for the lists: the compute stage is allowed only eight
+  // buffers on the poorest device WebGPU guarantees, and the raster uses them all.
   const targetBytes = Math.max(8, width * height * 8),
     listOffset = targetBytes;
   const work = device.createBuffer({
@@ -36,8 +36,8 @@ export function createGpuRaster(
     size: listOffset + Math.max(4, (LIST_HEADER + 2 * capacity) * 4),
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   });
-  // Les mots de lancement sont copiés hors des listes au lieu d'être écrits par une liaison, si bien
-  // qu'aucune passe ne tient le tampon dont elle se lance.
+  // Dispatch words are copied out of the lists instead of being written by a binding, so no
+  // pass holds the buffer it launches from.
   const indirect = device.createBuffer({
     label: 'WG raster dispatch',
     size: DISPATCH_WORDS * 4,
@@ -69,8 +69,8 @@ export function createGpuRaster(
   const clear = pipelineFor('clear'),
     bin = pipelineFor('bin'),
     plan = pipelineFor('plan');
-  /** Un pipeline par classe et par mode : le mode ne voyage pas par un uniforme, il EST le point
-   *  d'entrée, si bien qu'aucun lancement ne relit un mot pour savoir ce qu'il fait. */
+  /** One pipeline per class and per mode: the mode does not travel by a uniform, it IS the
+   *  entry point, so no dispatch rereads a word to know what it does. */
   const raster = RASTER_CLASSES.map((klass) =>
     [MODE_DEPTH_OCCLUDER, MODE_DEPTH_REST, MODE_ID].map((mode) =>
       pipelineFor(rasterEntry(klass, mode)),
@@ -78,7 +78,7 @@ export function createGpuRaster(
   );
   const resolves = createRasterResolves(device, RESOLVE, work, targetBytes);
   let group: GPUBindGroup | undefined;
-  /** Les quatre lancements indirects d'un mode, dans une seule passe de calcul. */
+  /** The four indirect dispatches of a mode, in a single compute pass. */
   const encodeMode = (encoder: GPUCommandEncoder, mode: number, label: string) => {
     const pass = encoder.beginComputePass({ label });
     pass.setBindGroup(0, group!);
@@ -93,13 +93,13 @@ export function createGpuRaster(
     height,
     capacity,
     /**
-     * La moitié occulteurs : le rangement de la coupe, la profondeur des occulteurs, et sa fonte
-     * dans le niveau zéro de la pyramide et le tampon de profondeur que le raster matériel vient
-     * de poser. Rend le nombre de lancements de calcul encodés.
+     * Occluder half: binning the cut, occluder depth, and its merge into pyramid level zero and
+     * the depth buffer the hardware raster just wrote. Returns the number of compute dispatches
+     * encoded.
      */
     encodeOccluders(encoder: GPUCommandEncoder, input: GpuRasterInput) {
-      // Toutes les ressources vivent plus longtemps que l'image : l'appelant garde les groupes et
-      // nomme celui que cette combinaison de source de verdicts et de sélection emploie.
+      // Every resource outlives the frame: the caller keeps the groups and names the one this
+      // combination of verdict source and selection uses.
       group = (input.groups[input.groupKey] ??= device.createBindGroup({
         layout: computeLayout,
         entries: smallBindEntries({
@@ -130,20 +130,19 @@ export function createGpuRaster(
       binning.dispatchWorkgroups(1);
       binning.end();
       encoder.copyBufferToBuffer(work, listOffset + 24, indirect, 0, DISPATCH_WORDS * 4);
-      // Une passe par lancement de raster : deux lancements consécutifs voient déjà les écritures
-      // l'un de l'autre, donc toutes les classes ont posé leur profondeur avant qu'aucune ne
-      // choisisse un identifiant. Un identifiant choisi avant qu'une classe n'ait écrit sa
-      // profondeur nommerait un triangle perdant.
+      // One pass per raster dispatch: two consecutive dispatches already see each other's
+      // writes, so every class has written its depth before any chooses an identifier. An
+      // identifier chosen before a class has written its depth would name a losing triangle.
       encodeMode(encoder, MODE_DEPTH_OCCLUDER, 'WG raster occluder depth');
       if (input.tested) resolves.encodeHiz(encoder, input, width, height);
       return 3 + RASTER_CLASSES.length;
     },
-    /** La moitié testée survivante, après le verdict de la pyramide. */
+    /** Surviving tested half, after the pyramid verdict. */
     encodeRest(encoder: GPUCommandEncoder) {
       encodeMode(encoder, MODE_DEPTH_REST, 'WG raster tested depth');
       return RASTER_CLASSES.length;
     },
-    /** Le départage des identifiants sur tout ce qui a été dessiné, et l'image close. */
+    /** Identifier resolve over everything that was drawn, and the frame closed. */
     encodeIds(encoder: GPUCommandEncoder, input: GpuRasterInput) {
       encodeMode(encoder, MODE_ID, 'WG raster identifiers');
       resolves.encodeFinal(encoder, input, width, height);

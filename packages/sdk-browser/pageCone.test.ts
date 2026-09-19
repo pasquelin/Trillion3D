@@ -90,7 +90,7 @@ test('BackSide materials are not cone-culled from behind', () => {
   material.dispose();
 });
 
-test('le contexte de racine rend le même rejet que le calcul par cluster, et n’est posé qu’à la demande', () => {
+test('the root context yields the same reject as the per-cluster compute, and is set only on demand', () => {
   const cone = { axis: [0, 0, 1] as [number, number, number], angle: Math.PI / 6 };
   const world = new THREE.Matrix4().makeRotationY(0.4).setPosition(2, 0, -1);
   const cam = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
@@ -98,7 +98,7 @@ test('le contexte de racine rend le même rejet que le calcul par cluster, et n�
   cam.lookAt(0, 0, 0);
   cam.updateMatrixWorld();
   const ctx = createConeContext();
-  assert.equal(ctx.ready, false, 'aucune racine lue tant que personne ne demande un rejet');
+  assert.equal(ctx.ready, false, 'no root read until someone asks for a reject');
   coneContextFor(ctx, world, cameraMoteur(cam).eye);
   assert.equal(ctx.ready, true);
   for (const [min, max] of [
@@ -118,6 +118,6 @@ test('le contexte de racine rend le même rejet que le calcul par cluster, et n�
     assert.equal(
       coneCullsPageWith(ctx, cone, world, min, max),
       coneCullsPage(cone, world, min, max, cameraMoteur(cam).eye),
-      `boîte ${min} ${max}`,
+      `box ${min} ${max}`,
     );
 });

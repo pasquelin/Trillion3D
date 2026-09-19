@@ -1,11 +1,11 @@
 /**
- * Le rejet par face d'ombre : de la liste d'instances que la compaction de l'image a produite, une
- * face ne garde que les clusters dont la sphère monde touche à la fois la portée de la lampe et le
- * cône de la face. Les autres seraient de toute façon rejetés par le plan lointain — `far` vaut la
- * portée — ou par les plans latéraux de la projection : l'atlas sort texel pour texel identique.
+ * Per-shadow-face reject: from the instance list the frame compact produced, a face keeps only
+ * clusters whose world sphere touches both the light's range and the face's cone. The others
+ * would be rejected anyway by the far plane — `far` is the range — or by the projection's side
+ * planes: the atlas comes out texel-for-texel identical.
  *
- * La liste source est celle du dessin principal, sélection comprise : la passe d'ombres voit donc
- * exactement les mêmes clusters qu'avant, jamais un de plus.
+ * The source list is that of the main draw, selection included: the shadow pass therefore sees
+ * exactly the same clusters as before, never one more.
  */
 export const SHADOW_CULL_SHADER = `struct Sphere{center:vec3f,radius:f32,}
 struct Face{center:vec3f,far:f32,axis:vec3f,halfAngle:f32,}
@@ -19,7 +19,7 @@ struct Uni{faces:u32,slots:u32,maxVertexCount:u32,capacity:u32,}
 @group(0) @binding(6) var<storage, read> faces:array<Face>;
 @group(0) @binding(7) var<storage, read_write> live:array<u32>;
 
-/** Les instances vivantes de l'image : la somme des commandes indirectes, contiguës depuis zéro. */
+/** Live instances of the frame: the sum of the indirect commands, contiguous from zero. */
 @compute @workgroup_size(1)
 fn shadowCullPrepare(){
  var sum=0u;
@@ -33,8 +33,8 @@ fn shadowCullPrepare(){
  }
 }
 
-/** Une instance, une face : gardée ou non. L'ordre du résultat est libre — la carte garde un
- *  minimum de profondeur, et un minimum ne dépend pas de l'ordre des écritures. */
+/** One instance, one face: kept or not. Result order is free — the GPU keeps a depth
+ *  minimum, and a minimum does not depend on write order. */
 @compute @workgroup_size(64)
 fn shadowCullScatter(@builtin(global_invocation_id) id:vec3u){
  let index=id.x;let face=id.y;

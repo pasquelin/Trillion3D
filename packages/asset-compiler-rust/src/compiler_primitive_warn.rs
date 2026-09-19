@@ -1,16 +1,17 @@
-//! Les avertissements du DAG d'une primitive : un DAG qui n'est pas monté n'est jamais publié en
-//! silence. La référence ne laisse pas sortir un maillage sans racine — le niveau le plus grossier
-//! est ce qui se dessine au loin —, et le 18 sept. 2026 une scène est sortie avec 70 primitives sur
-//! 101 sans aucun niveau grossier, tout compté dans `clusters.json` et rien dit.
+//! Warnings of a primitive's DAG: a DAG that did not rise is never published in
+//! silence. The reference does not let a mesh without a root go out — the coarsest
+//! level is what draws in the distance — and on 18 Sept. 2026 a scene went out
+//! with 70 primitives of 101 without any coarse level, all counted in
+//! `clusters.json` and nothing said.
 use super::*;
 
-/// Part des pages au-delà de laquelle les racines d'une primitive d'au moins `DAG_GROUP_MIN`
-/// grappes disent un DAG arrêté en route. Huit grappes qui montent jusqu'à une racine font quinze
-/// pages dont une racine (7 %) ; le même DAG arrêté après son premier niveau en fait douze dont
-/// quatre (33 %). Un huitième tient entre les deux.
+/// Page share beyond which the roots of a primitive of at least `DAG_GROUP_MIN`
+/// clusters say a DAG stopped mid-way. Eight clusters that rise to one root make
+/// fifteen pages of which one is a root (7 %); the same DAG stopped after its
+/// first level makes twelve of which four (33 %). An eighth sits between the two.
 const DAG_ROOT_SHARE: usize = 8;
 
-/// Une ligne publiée par niveau du DAG : grappes, triangles, racines, erreurs.
+/// One published row per DAG level: clusters, triangles, roots, errors.
 pub(super) fn level_report(dag: &[crate::dag::DagCluster], depth: usize) -> Vec<Value> {
     let mut stats = Vec::new();
     for level in 0..=depth {
@@ -32,7 +33,7 @@ pub(super) fn level_report(dag: &[crate::dag::DagCluster], depth: usize) -> Vec<
     stats
 }
 
-/// Les quatre nombres qu'un avertissement juge, lus une fois sur le DAG.
+/// The four numbers a warning judges, read once on the DAG.
 pub(super) struct DagShape {
     pub level0: usize,
     pub depth: usize,
@@ -80,8 +81,8 @@ pub(super) fn dag_warnings(
     })]
 }
 
-/// L'événement de progression d'une primitive compilée. Un DAG qui n'est pas monté se dit au
-/// journal, pas seulement dans `clusters.json` : ses avertissements voyagent avec l'événement.
+/// Progress event of a compiled primitive. A DAG that did not rise is told in the
+/// log, not only in `clusters.json`: its warnings travel with the event.
 pub(super) fn primitive_event(
     mesh: usize,
     primitive: usize,
@@ -122,8 +123,8 @@ mod tests {
         dag_warnings(DagStrategy::QemEndpoints, &shape, t)
     }
 
-    // Comportement : une primitive de plusieurs grappes restée en profondeur 0 est nommée, avec le
-    // nombre de groupes par issue ; les grappes exactes demandées (`none`) n'en sont pas une.
+    // Behaviour: a primitive of several clusters left at depth 0 is named, with
+    // the group count per outcome; requested exact clusters (`none`) are not one.
     #[test]
     fn une_primitive_sans_niveau_grossier_est_un_avertissement_nomme() {
         let warnings = warn(98, 0, 98, 98, &[stalled(4)]);
@@ -141,8 +142,8 @@ mod tests {
         assert!(warn(1, 0, 1, 1, &[]).is_empty());
     }
 
-    // Comportement : trop de racines sur une primitive d'au moins huit grappes est un avertissement,
-    // une seule racine sur quinze pages n'en est pas un, et une petite primitive n'est pas jugée.
+    // Behaviour: too many roots on a primitive of at least eight clusters is a
+    // warning, a single root on fifteen pages is not one, and a small primitive is not judged.
     #[test]
     fn trop_de_racines_est_un_avertissement_au_dela_du_huitieme_des_pages() {
         let ok = warn(8, 3, 15, 1, &[]);

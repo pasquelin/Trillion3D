@@ -1,31 +1,32 @@
-// Justesse de l'exclusion sphérique de l'émetteur, réellement exécutée dans Chromium WebGPU.
+// Correctness of spherical emitter exclusion, actually run in Chromium WebGPU.
 //
-// La formule est celle de `shadow_fs` (gpuShadowShader.ts) au caractère près : l'écart au carré au
-// centre de l'émetteur contre le rayon au carré. Elle tourne ici sur un seul triangle occultant par
-// cas, à la place exacte de la reproduction mathématique de l'audit (VERIFICATION_STABILISATION_
-// 5896648_2026-09-16, défaut 4) : (0,19 ; 0,18 ; 0,17) m, à 0,3121 m d'une lampe de rayon 0,20 m,
-// hors de la sphère ; (0,19 ; 0 ; 0) m, à 0,19 m, dedans. Le triangle est grand à l'écran pour
-// rasteriser de façon fiable ; sa position au monde, elle, est la même à ses trois sommets — c'est
-// le seul point que le nuanceur évalue, exactement celui de la reproduction.
+// The formula is that of `shadow_fs` (gpuShadowShader.ts) to the character: squared distance
+// to the emitter centre against the squared radius. It runs here on a single occluding
+// triangle per case, at the exact place of the audit's mathematical reproduction
+// (VERIFICATION_STABILISATION_5896648_2026-09-16, defect 4): (0.19; 0.18; 0.17) m, 0.3121 m
+// from a lamp of radius 0.20 m, outside the sphere; (0.19; 0; 0) m, at 0.19 m, inside. The
+// triangle is large on screen so rasterisation is reliable; its world position, though, is
+// the same at all three vertices — that is the only point the shader evaluates, exactly
+// that of the reproduction.
 //
 // node --experimental-strip-types test/justesse/emetteur-sphere-gpu.mjs
-//   [<cache>/native/full/<clé>/lights.json]
+//   [<cache>/native/full/<key>/lights.json]
 //
-// Sans argument, le centre et le rayon sont ceux de la reproduction, écrits ici. Avec le
-// `lights.json` qu'une compilation vient de publier, ils sortent de la première lampe qui porte un
-// `emitterRadius` : la chaîne complète — fixture, compilateur, nuanceur — est alors éprouvée sans
-// qu'une valeur soit recopiée à la main. Les points d'essai restent relatifs au centre de la lampe.
+// With no argument, centre and radius are those of the reproduction, written here. With the
+// `lights.json` a compilation has just published, they come from the first lamp that carries
+// an `emitterRadius`: the full chain — fixture, compiler, shader — is then exercised without
+// any value being copied by hand. Trial points stay relative to the lamp centre.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dansPageWebgpu } from './pageWebgpu.mjs';
 import { DEPTH_CLEAR, DEPTH_COMPARE } from '../../packages/sdk-browser/depthConvention.ts';
 
-/** Le centre et le rayon de la lampe : ceux du produit de cache donné, sinon ceux de l'audit. */
+/** Lamp centre and radius: those of the given cache product, otherwise those of the audit. */
 function emetteur(chemin) {
   if (!chemin) return { centre: [0, 0, 0], rayon: 0.2, source: 'reproduction' };
   const fichier = JSON.parse(readFileSync(chemin, 'utf8'));
   const lampe = (fichier.lights ?? []).find((light) => typeof light.emitterRadius === 'number');
-  assert.ok(lampe, `aucune lampe ne porte emitterRadius dans ${chemin}`);
+  assert.ok(lampe, `no lamp carries emitterRadius in ${chemin}`);
   return { centre: lampe.position, rayon: lampe.emitterRadius, source: chemin };
 }
 
@@ -37,14 +38,14 @@ struct VsOut{@builtin(position) position:vec4f,@location(0) fromEmitter:vec3f,}
 }
 @fragment fn fs(in:VsOut){
  let radius=uni.emitter.w;
- // Identique à shadow_fs (gpuShadowShader.ts) : l'exclusion est exactement la sphère annoncée.
+ // Identical to shadow_fs (gpuShadowShader.ts): exclusion is exactly the announced sphere.
  if(radius>0.0&&dot(in.fromEmitter,in.fromEmitter)<radius*radius){discard;}
 }`;
 
-/** Exécuté dans la page : un pipeline de profondeur seule, un triangle par cas, la carte relue. */
+/** Run in the page: a depth-only pipeline, one triangle per case, the map read back. */
 async function executer({ shader, cas, size, triangle, depthCompare, depthClear }) {
   const appareil = await globalThis.ouvrirAppareil();
-  if (!appareil) return { indisponible: 'aucun adaptateur WebGPU' };
+  if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
   const { module, compilation } = await appareil.compile(shader);
   if (compilation.length) return { compilation, erreurs };
@@ -143,9 +144,9 @@ const cas = [
   { nom: 'dans-la-sphere', emitter: [...centre, rayon], world: au([0.19, 0, 0]) },
   { nom: 'sans-rayon-meme-point', emitter: [...centre, 0], world: au([0.19, 0, 0]) },
 ];
-// 64 texels : `bytesPerRow` (4 octets par texel de profondeur) doit être un multiple de 256.
-// `executer` est sérialisée puis évaluée DANS la page : la convention de profondeur du moteur y
-// entre par l'argument, jamais par une fermeture sur un import de Node.
+// 64 texels: `bytesPerRow` (4 bytes per depth texel) must be a multiple of 256.
+// `executer` is serialised then evaluated IN the page: the engine's depth convention enters
+// there by argument, never by a closure over a Node import.
 const argument = {
   shader: SHADER,
   cas,
@@ -155,7 +156,7 @@ const argument = {
   depthClear: DEPTH_CLEAR,
 };
 const resultat = await dansPageWebgpu(executer, argument, {
-  titre: 'WebGeometry exclusion sphérique',
+  titre: 'WebGeometry spherical exclusion',
 });
 console.log(JSON.stringify({ source, centre, rayon, ...resultat }, null, 2));
 
@@ -163,24 +164,22 @@ assert.equal(resultat.indisponible ?? null, null, String(resultat.indisponible))
 assert.deepEqual(resultat.compilation ?? [], []);
 assert.deepEqual(resultat.erreurs, []);
 const par = Object.fromEntries(resultat.resultats.map((r) => [r.nom, r]));
-// Profondeur INVERSÉE : la carte part du lointain (`DEPTH_CLEAR`) et un fragment écrit 0,5, donc
-// « une ombre est portée » se lit sur le MAXIMUM, et « rien n'est écrit » sur une carte restée
-// entière à la valeur d'effacement.
+// INVERTED depth: the map starts at far (`DEPTH_CLEAR`) and a fragment writes 0.5, so
+// "a shadow is cast" is read on the MAXIMUM, and "nothing is written" on a map that stayed
+// entirely at the clear value.
 assert.ok(
   par['diagonale-hors-sphere'].max > DEPTH_CLEAR,
-  'le point diagonal, hors sphère, doit porter son ombre (profondeur écrite)',
+  'the diagonal point, outside the sphere, must cast its shadow (depth written)',
 );
 assert.equal(
   par['dans-la-sphere'].min,
   DEPTH_CLEAR,
-  'le point à 0,19 m, dans la sphère, ne doit rien écrire',
+  'the point at 0.19 m, inside the sphere, must write nothing',
 );
 assert.equal(par['dans-la-sphere'].max, DEPTH_CLEAR);
 assert.ok(
   par['sans-rayon-meme-point'].max > DEPTH_CLEAR,
-  'une lampe sans rayon ne doit rien exclure, même au même point',
+  'a lamp with no radius must exclude nothing, even at the same point',
 );
 
-console.log(
-  'OK : exclusion sphérique de l’émetteur réellement exécutée — voir emetteur-sphere-gpu.mjs',
-);
+console.log('OK: spherical emitter exclusion actually run — see emetteur-sphere-gpu.mjs');

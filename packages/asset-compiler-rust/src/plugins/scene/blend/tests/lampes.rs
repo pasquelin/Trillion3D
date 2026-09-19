@@ -1,13 +1,13 @@
-//! Les lampes du pilote `blend`, prouvées sur une SDNA écrite ici même.
+//! Lamps of the `blend` driver, proven on an SDNA written here.
 //!
-//! La fixture CC0 du dépôt ne porte aucune lampe, et le dépôt ne fabrique pas de `.blend` : comme
-//! pour l'ancienne disposition d'entête, le fichier est donc écrit à partir de la description
-//! publique du format — une SDNA d'une seule structure `Lamp`, et un bloc de données typé par elle.
-//! C'est exactement ce que le pilote lira d'un vrai fichier : la même structure, demandée par les
-//! mêmes noms de champs.
+//! The repository's CC0 fixture holds no lamp, and the repository does not build `.blend` files:
+//! as for the old header layout, the file is therefore written from the public description of
+//! the format — an SDNA of a single `Lamp` structure, and a data block typed by it. That is
+//! exactly what the driver will read from a real file: the same structure, asked for by the same
+//! field names.
 use super::*;
 
-/// Les champs de la structure `Lamp` que ce lecteur demande, dans l'ordre où la SDNA les décrit.
+/// The fields of the `Lamp` structure this reader asks for, in the order the SDNA describes them.
 const FIELDS: [(&str, &str); 12] = [
     ("short", "type"),
     ("float", "r"),
@@ -22,11 +22,11 @@ const FIELDS: [(&str, &str); 12] = [
     ("float", "area_size"),
     ("float", "area_sizey"),
 ];
-/// L'échelle du monde de l'objet qui porte la lampe : le rayon d'émetteur la traverse.
+/// World scale of the object that holds the lamp: the emitter radius goes through it.
 const SCALE: f64 = 2.0;
 
-/// Un fichier Blender d'une seule structure `Lamp`, et un bloc de données par lampe donnée. Chaque
-/// lampe est décrite par les valeurs de `FIELDS`, dans le même ordre.
+/// A Blender file of a single `Lamp` structure, and one data block per given lamp. Each lamp is
+/// described by the values of `FIELDS`, in the same order.
 fn lamp_file(lamps: &[[f32; 12]]) -> Vec<u8> {
     let mut sdna = Vec::new();
     sdna.extend_from_slice(b"SDNA");
@@ -60,7 +60,7 @@ fn lamp_file(lamps: &[[f32; 12]]) -> Vec<u8> {
     out
 }
 
-/// La taille d'une `Lamp` : la somme de ses champs, sans remplissage, comme la SDNA les enchaîne.
+/// The size of a `Lamp`: the sum of its fields, without padding, as the SDNA chains them.
 fn span() -> usize {
     FIELDS
         .iter()
@@ -68,7 +68,7 @@ fn span() -> usize {
         .sum()
 }
 
-/// Les octets d'une lampe : chaque valeur écrite à la largeur que son champ déclare.
+/// The bytes of a lamp: each value written at the width its field declares.
 fn packed(values: &[f32; 12]) -> Vec<u8> {
     let mut out = Vec::with_capacity(span());
     for ((kind, _), value) in FIELDS.iter().zip(values) {
@@ -81,21 +81,21 @@ fn packed(values: &[f32; 12]) -> Vec<u8> {
     out
 }
 
-/// Les lampes que ce fichier donne au pilote, converties, et ce qu'il a compté.
+/// The lamps this file gives the driver, converted, and what it counted.
 fn converted(lamps: &[[f32; 12]], names: &[&str]) -> (Vec<Value>, Out) {
     let bytes = lamp_file(lamps);
-    let file = BlendFile::open(&bytes, MAX_BYTES).expect("le fichier écrit pour ce test");
+    let file = BlendFile::open(&bytes, MAX_BYTES).expect("the file written for this test");
     let mut out = Out::default();
     for (block, name) in file.of(*b"DATA").zip(names) {
-        let view = file.view(block).expect("la vue de la lampe");
+        let view = file.view(block).expect("the lamp's view");
         light::build(Some(view), (*name).to_string(), SCALE, &mut out);
     }
     (out.lights.clone(), out)
 }
 
-// Comportement : les quatre types de lampe que Blender écrit deviennent des lampes glTF, chaque
-// champ étant demandé par son nom à la SDNA — puissance, exposition, couleur, cône — et le rayon
-// d'émetteur venant de la donnée native, porté en mètres du monde par l'échelle de l'objet.
+// Behaviour: the four lamp types Blender writes become glTF lights, each field being asked for
+// by its name from the SDNA — power, exposure, colour, cone — and the emitter radius coming from
+// the native data, carried in world metres by the object's scale.
 #[test]
 fn the_four_blender_lamp_types_become_gltf_lights_with_their_native_emitter_radius() {
     // type, r, g, b, energy_new, exposure, radius, spotsize, spotblend, area_shape, x, y
@@ -111,10 +111,10 @@ fn the_four_blender_lamp_types_become_gltf_lights_with_their_native_emitter_radi
     ];
     let names = ["Ampoule", "Soleil", "Projecteur", "Panneau"];
     let (lights, out) = converted(&lamps, &names);
-    // La puissance en watts se répartit sur la sphère pour une ponctuelle et un projecteur, sur
-    // l'hémisphère lambertien pour une surface, et la force d'un soleil est déjà un éclairement ;
-    // le facteur 683 est la candela par watt par stéradian. Les produits sont écrits dans l'ordre
-    // où la conversion les pose, la dernière décimale d'un flottant dépendant de cet ordre.
+    // Power in watts is spread over the sphere for a point and a spot, over the lambertian
+    // hemisphere for an area, and a sun's strength is already an illuminance; the 683 factor is
+    // the candela per watt per steradian. Products are written in the order the conversion stores
+    // them, the last decimal of a float depending on that order.
     let sphere = 1.0 / (4.0 * std::f64::consts::PI);
     let disc = 1.0 / std::f64::consts::PI;
     assert_eq!(
@@ -130,21 +130,21 @@ fn the_four_blender_lamp_types_become_gltf_lights_with_their_native_emitter_radi
             {"name":"Panneau","type":"point","color":[1.0,1.0,1.0],
              "intensity":50.0 * disc * 683.0,"extras":{"emitterRadius":5.0}},
         ]),
-        "les lampes converties depuis la SDNA ont changé"
+        "lamps converted from the SDNA have changed"
     );
     assert!(
         out.report.unsupported.is_empty(),
-        "rien ne devait être refusé"
+        "nothing was expected to be refused"
     );
 }
 
-// Comportement : un type de lampe que ce pilote ne rend pas — le `hemi` des fichiers d'avant
-// Blender 2.8 — est compté par son nom, et n'entre pas dans la scène.
+// Behaviour: a lamp type this driver does not convert — the `hemi` of files from before
+// Blender 2.8 — is counted by its name, and does not enter the scene.
 #[test]
 fn a_lamp_type_this_driver_does_not_convert_is_counted_by_its_name() {
     let hemi = [3.0, 1.0, 1.0, 1.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
     let (lights, out) = converted(&[hemi], &["Hemi"]);
-    assert!(lights.is_empty(), "aucune lampe ne devait sortir");
+    assert!(lights.is_empty(), "no lamp was expected to come out");
     assert_eq!(
         out.report.unsupported.get("blend-light-type-unsupported"),
         Some(&1)

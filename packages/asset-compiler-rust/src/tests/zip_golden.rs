@@ -1,12 +1,12 @@
-//! Doré du pilote `zip` : un conteneur ne doit rien changer à la scène qu'il emballe. La fixture
-//! est donc double — la même scène glTF dans son archive et hors d'elle — et le doré compare les
-//! deux compilations l'une à l'autre avant de les comparer à `expected.json`. Il fixe aussi ce que
-//! le pilote refuse : une archive qui sort de son dossier d'extraction, une archive tronquée et une
+//! `zip` driver golden test: container must not change packaged scene. Fixture
+//! double — same glTF scene inside archive and outside — golden compares
+//! both compilations to each other before comparing to `expected.json`. Fixes
+//! driver refusals: archive escaping extraction folder, truncated archive, and
 //! archive vide, chacune par son code.
 use super::*;
 
-// Comportement 25 : une scène lue à travers son ZIP est exactement la scène lue hors archive, la
-// chaîne des deux pilotes est consignée, et les trois archives piégées sont refusées par leur nom.
+// Behavior 25: scene read through ZIP equals scene read outside archive,
+// two driver chain recorded, three trapped archives refused by name.
 #[test]
 fn a_zipped_scene_compiles_to_the_same_thing_as_the_scene_outside_the_archive() {
     let dir = golden_dir("zip");
@@ -15,24 +15,24 @@ fn a_zipped_scene_compiles_to_the_same_thing_as_the_scene_outside_the_archive() 
     assert_eq!(
         scene_digest(&inside),
         scene_digest(&outside),
-        "la scène extraite du ZIP diverge de la même scène hors archive"
+        "the scene extracted from the ZIP diverges from the same scene outside the archive"
     );
     assert_eq!(
         archive_digest(&dir, &inside),
         golden_expected(&dir),
-        "fixture zip : la sortie compilée diverge de expected.json"
+        "fixture zip: compiled output diverges from expected.json"
     );
     assert_eq!(
         outside.result["scenePlugin"]["name"], "gltf",
-        "hors archive, c'est le pilote glTF qui répond"
+        "outside the archive, it is the glTF driver that answers"
     );
 }
 
-/// Ce que la dorée fixe : le pilote retenu, la chaîne publiée au rapport, les codes de refus des
-/// archives piégées, et la scène elle-même.
+/// Golden fixes: retained driver, published report chain, refusal codes
+/// trapped archives, scene itself.
 fn archive_digest(dir: &Path, run: &GoldenRun) -> Value {
-    // La clé de cache tient l'empreinte de toute l'implémentation du compilateur : elle prouve que
-    // les deux compilations n'en font qu'une, elle ne se fige pas dans un attendu qu'un changement
+    // Cache key holds fingerprint of entire compiler implementation: proves
+    // two compilations equal, not frozen in expectation change would shift
     // sans rapport ferait rougir.
     let mut scene = scene_digest(run);
     scene.as_object_mut().expect("scene").remove("key");
@@ -48,11 +48,11 @@ fn archive_digest(dir: &Path, run: &GoldenRun) -> Value {
     })
 }
 
-/// L'identité de la scène compilée : la clé de cache tient l'empreinte du manifeste de la source et
-/// de son binaire, le condensé du sidecar tient les octets que le moteur lira, les comptes disent le
-/// reste. Deux compilations qui rendent ce condensé à l'identique ont produit la même scène — et la
-/// clé étant la même, la seconde relit le cache de la première. Ni `clusters.json` ni le rapport ne
-/// sont comparés entiers : ils portent des durées, qui ne sont d'aucune scène.
+/// Compiled scene identity: cache key holds source manifest fingerprint and
+/// binary, sidecar hash holds bytes engine reads, counts say
+/// rest. Two compilations rendering identical hash produced same scene — and
+/// key being same, second re-reads first's cache. Neither `clusters.json` nor report
+/// compared whole: carry durations, not scene properties.
 fn scene_digest(run: &GoldenRun) -> Value {
     json!({
       "formatVersion": run.result["formatVersion"],
@@ -67,11 +67,11 @@ fn scene_digest(run: &GoldenRun) -> Value {
     })
 }
 
-/// La chaîne `zip` → pilote interne, telle que le conteneur l'a publiée au rapport.
+/// `zip` -> internal driver chain, as container published in report.
 fn chain_report(run: &GoldenRun) -> Value {
     run.reports
         .iter()
         .find(|report| report["phase"] == "archive" && report["step"] == "routed")
         .map(|report| report["chain"].clone())
-        .expect("le conteneur publie la chaîne des pilotes")
+        .expect("the container publishes the driver chain")
 }

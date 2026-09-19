@@ -1,11 +1,11 @@
-//! Le chemin complet des découpes : une scène dont le feuillage est déclaré en mélange, la feuille
-//! de réponses que le compilateur en tire, puis ce que la réponse change au produit.
+//! Complete cutout pipeline: scene with foliage declared in blend, answer
+//! sheet compiler produces, and what answer changes in product.
 //!
-//! La texture est écrite ici, en PNG, plutôt que déposée dans le dépôt : sa forme est ce que le
-//! test éprouve, et la lire dans le code dit mieux ce qui est mesuré qu'un fichier binaire.
+//! Texture written here in PNG rather than committed: shape tested,
+//! reading in code expresses measured property better than binary file.
 use super::*;
 
-/// Une feuille : un disque plein au bord adouci sur trois pixels, sur fond entièrement vide.
+/// Leaf: full disc with 3-pixel softened edge, empty background.
 fn feuille_png() -> Vec<u8> {
     let image = image::RgbaImage::from_fn(64, 64, |x, y| {
         let (dx, dy) = (x as f32 - 31.5, y as f32 - 31.5);
@@ -20,7 +20,7 @@ fn feuille_png() -> Vec<u8> {
     png
 }
 
-/// Un quadrilatère texturé par un matériau déclaré en mélange, prêt à compiler.
+/// Textured quad with material declared in blend, ready to compile.
 fn scene_feuillage() -> (PathBuf, Options) {
     let (root, mut options) = cube_fixture();
     let source = options.source.clone();
@@ -48,9 +48,9 @@ fn feuille_de_reponses(options: &Options) -> Value {
     read_json(&options.cache.join(crate::cutout::DECISIONS_FILE))
 }
 
-// Comportement : chaque modèle compilé repart avec sa feuille de réponses, qu'il y ait
-// ou non quelque chose à trancher. La feuille porte la mesure et la proposition, et la réponse y
-// est nulle : tant que personne n'a tranché, le mélange reste du mélange.
+// Behavior: each compiled model gets answer sheet, whether items to decide
+// or not. Sheet carries measurement and proposal, answer null:
+// until decided, blend remains blend.
 #[test]
 fn chaque_modele_repart_avec_sa_feuille() {
     let (_root, options) = scene_feuillage();
@@ -65,9 +65,9 @@ fn chaque_modele_repart_avec_sa_feuille() {
     assert_eq!(
         entry["proposal"],
         json!("cutout"),
-        "la feuille est proposée en découpe"
+        "the sheet is proposed as cutout"
     );
-    assert_eq!(entry["cutout"], Value::Null, "personne n'a encore tranché");
+    assert_eq!(entry["cutout"], Value::Null, "nobody has decided yet");
     assert_eq!(entry["image"], json!("feuille.png"));
     assert_eq!(result["primitives"][0]["pass"], json!("clustered-blend"));
     assert_eq!(result["cutouts"]["pending"], json!(1));
@@ -77,14 +77,14 @@ fn chaque_modele_repart_avec_sa_feuille() {
     );
 }
 
-// Comportement : la réponse écrite dans la feuille passe le feuillage en masqué au seuil de
-// glTF, et la primitive quitte le chemin du mélange pour celui des grappes exactes — un seul appel
-// de dessin au lieu d'un par item. Le `source.gltf` publié porte le matériau reclassé, puisque
+// Behavior: answer in sheet sets foliage to mask at glTF threshold,
+// primitive leaves blend path for exact clusters — single draw call
+// instead of per-item call. Published `source.gltf` carries reclassified material.
 // c'est lui que le moteur lit pour ombrer.
 #[test]
 fn une_reponse_enregistree_fait_passer_le_feuillage_en_decoupe() {
     let (_root, options) = scene_feuillage();
-    let first = compile(&options, |_| {}).expect("première compile");
+    let first = compile(&options, |_| {}).expect("first compile");
     let mut sheet = feuille_de_reponses(&options);
     for (_, entry) in sheet["textures"]
         .as_object_mut()
@@ -97,7 +97,7 @@ fn une_reponse_enregistree_fait_passer_le_feuillage_en_decoupe() {
         options.cache.join(crate::cutout::DECISIONS_FILE),
         serde_json::to_vec(&sheet).expect("feuille"),
     )
-    .expect("écriture");
+    .expect("write");
     let second = compile(&options, |_| {}).expect("seconde compile");
     assert_eq!(second["primitives"][0]["pass"], json!("exact-clusters"));
     assert_eq!(
@@ -106,14 +106,14 @@ fn une_reponse_enregistree_fait_passer_le_feuillage_en_decoupe() {
     );
     assert_ne!(
         first["key"], second["key"],
-        "une réponse change l'identité du produit"
+        "an answer changes the product identity"
     );
     let published = read_json(
         &options
             .cache
             .join("native")
             .join("full")
-            .join(second["key"].as_str().expect("clé"))
+            .join(second["key"].as_str().expect("key"))
             .join("source.gltf"),
     );
     assert_eq!(published["materials"][0]["alphaMode"], json!("MASK"));

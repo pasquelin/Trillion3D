@@ -1,19 +1,19 @@
-//! Ce que la couche dit d'elle-même — son unité, son axe haut — et ce que sa composition n'a pas
-//! résolu.
+//! What the layer says of itself — its unit, its up axis — and what its composition did not
+//! resolve.
 //!
-//! Une référence ou une charge vers un fichier absent ne fait pas échouer la composition : USD
-//! compose ce qu'il trouve et laisse le prim vide. Un asset qui perd une pièce entière sans que
-//! personne ne le dise est pire qu'un refus, donc le pilote relit les arcs écrits et compte ceux
-//! dont le fichier n'est pas là. Le chemin d'un arc s'ancre sur la couche qui l'écrit : celle de la
-//! source, la seule que ce pilote reçoive.
+//! A reference or payload toward a missing file does not fail composition: USD composes what it
+//! finds and leaves the prim empty. An asset that loses a whole piece with nobody saying so is
+//! worse than a rejection, so the driver rereads the written arcs and counts those whose file is
+//! not there. An arc's path anchors on the layer that writes it: the source's, the only one this
+//! driver receives.
 use super::*;
 
-/// L'unité implicite d'une couche USD : le centimètre. Une couche qui ne déclare rien n'est pas en
-/// mètres, et la lire ainsi agrandit sa scène cent fois.
+/// Implicit unit of a USD layer: the centimetre. A layer that declares nothing is not in metres,
+/// and reading it as such enlarges its scene a hundredfold.
 const DEFAULT_METERS_PER_UNIT: f64 = 0.01;
 
-/// L'unité de la couche, en mètres par unité. Une valeur absente, nulle ou non finie retombe sur
-/// l'unité implicite plutôt que d'inventer une échelle.
+/// Layer unit, in metres per unit. A missing, zero or non-finite value falls back to the
+/// implicit unit rather than inventing a scale.
 pub(super) fn meters_per_unit(stage: &usd::Stage) -> f64 {
     metadata(stage, "metersPerUnit")
         .as_ref()
@@ -22,7 +22,7 @@ pub(super) fn meters_per_unit(stage: &usd::Stage) -> f64 {
         .unwrap_or(DEFAULT_METERS_PER_UNIT)
 }
 
-/// L'axe haut de la couche. USD le déclare `Y` par défaut.
+/// Up axis of the layer. USD declares it `Y` by default.
 pub(super) fn z_up(stage: &usd::Stage) -> bool {
     metadata(stage, "upAxis")
         .as_ref()
@@ -31,17 +31,17 @@ pub(super) fn z_up(stage: &usd::Stage) -> bool {
         == Some("Z")
 }
 
-/// Une métadonnée composée de la couche.
+/// A composed metadata of the layer.
 fn metadata(stage: &usd::Stage, key: &str) -> Option<sdf::Value> {
     stage.stage_metadata(key).ok().flatten()
 }
 
-/// Ce prim porte-t-il un jeu de variantes ? Seule la sélection composée est lue.
+/// Does this prim carry a variant set? Only the composed selection is read.
 pub(super) fn variants(world: &World<'_>, prim: &usd::Prim) -> bool {
     field(world, prim, "variantSetNames").is_some()
 }
 
-/// Le nombre d'arcs écrits sur ce prim — références et charges — dont le fichier visé n'est pas là.
+/// Number of arcs written on this prim — references and payloads — whose target file is not there.
 pub(super) fn unresolved(world: &World<'_>, prim: &usd::Prim) -> usize {
     let references = match field(world, prim, "references") {
         Some(sdf::Value::ReferenceListOp(op)) => {
@@ -63,7 +63,7 @@ pub(super) fn unresolved(world: &World<'_>, prim: &usd::Prim) -> usize {
         .count()
 }
 
-/// Le chemin d'un arc, ancré sur le dossier de la couche quand il est relatif.
+/// Path of an arc, anchored on the layer directory when it is relative.
 fn anchored(root: &Path, asset: &str) -> PathBuf {
     let path = Path::new(asset);
     match path.is_absolute() {
@@ -72,7 +72,7 @@ fn anchored(root: &Path, asset: &str) -> PathBuf {
     }
 }
 
-/// Un champ composé de ce prim.
+/// A composed field of this prim.
 fn field(world: &World<'_>, prim: &usd::Prim, name: &str) -> Option<sdf::Value> {
     world
         .stage

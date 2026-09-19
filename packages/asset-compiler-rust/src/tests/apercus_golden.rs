@@ -1,26 +1,30 @@
-//! Doré des aperçus progressifs : la seule couverture du chemin complet glTF réel → `compile()` →
-//! cache → sidecar binaire pour la section `texturePreviews`. Les tests en éprouvette de
-//! `texture_preview/tests/` fixent la math sur des images construites en mémoire ; celui-ci fixe
-//! les octets qu'un moteur lira vraiment, décodeur PNG et JPEG compris.
+//! Golden of progressive previews: the only coverage of the full path real glTF →
+//! `compile()` → cache → binary sidecar for the `texturePreviews` section. The
+//! in-vitro tests in `texture_preview/tests/` fix the math on images built in
+//! memory; this one fixes the bytes an engine will actually read, PNG and JPEG
+//! decoders included.
 use super::*;
 
-/// Colonnes du sidecar, dans l'ordre que `packages/sdk-core/manifestBinaryFormat.ts` publie sous
-/// `COLUMN_NAMES`. Le doré les relit par leur rang, comme un lecteur extérieur, sans emprunter les
-/// constantes privées de l'écrivain : un rang qui bouge est un changement de format, pas un détail.
+/// Sidecar columns, in the order `packages/sdk-core/manifestBinaryFormat.ts`
+/// publishes under `COLUMN_NAMES`. The golden rereads them by rank, like an
+/// outside reader, without borrowing the writer's private constants: a rank that
+/// moves is a format change, not a detail.
 const HEADER_WORDS: usize = 4;
 const TEXTURE_PREVIEW_U32: usize = 21;
 const TEXTURE_PREVIEW_SHA: usize = 22;
 const TEXTURE_PREVIEW_PIXELS: usize = 23;
-/// Nombres par entrée : texture, image, largeur, hauteur, genre et vue de provenance, premier
-/// niveau, nombre de niveaux, début et longueur des pixels, atlas, niveaux cuits en fichiers.
+/// Numbers per entry: texture, image, width, height, kind and provenance view,
+/// first level, level count, pixel start and length, atlas, levels baked to files.
 const PREVIEW_WORDS: usize = 12;
-/// `alphaCutoff` du matériau MASK de la fixture, en octet : 0,25 × 255 arrondi. Compter les texels
-/// qui l'atteignent à chaque niveau dit d'un coup d'œil si la couverture du masque a été préservée,
-/// et si l'alpha des deux textures non masquées est resté intact.
+/// `alphaCutoff` of the fixture's MASK material, as a byte: 0.25 × 255 rounded.
+/// Counting texels that reach it at each level says at a glance whether mask
+/// coverage was preserved, and whether the alpha of the two unmasked textures
+/// stayed intact.
 const MASK_CUTOFF_BYTE: u8 = 64;
 
-// Comportement 24 : la fixture dorée à textures passe par le compilateur et chaque octet de ses
-// aperçus est comparé à expected.json — provenance, géométrie des niveaux, pixels et couverture.
+// Behaviour 24: the golden textured fixture goes through the compiler and every
+// byte of its previews is compared to expected.json — provenance, level geometry,
+// pixels and coverage.
 #[test]
 fn texture_previews_match_their_golden_expected_json() {
     let fixture_dir = golden_dir("apercus/atlas-couleur");
@@ -28,15 +32,15 @@ fn texture_previews_match_their_golden_expected_json() {
     assert_eq!(
         previews_digest(&run),
         golden_expected(&fixture_dir),
-        "fixture atlas-couleur: les aperçus de texture divergent de expected.json"
+        "fixture atlas-couleur: texture previews diverge from expected.json"
     );
 }
 
-/// Le condensé que le doré compare : le rapport de l'étape, les compteurs du manifeste mince, puis
-/// pour chaque entrée du sidecar sa provenance et chacun de ses niveaux octet par octet.
+/// Digest the golden compares: the stage report, the slim-manifest counters, then
+/// for each sidecar entry its provenance and each of its levels byte by byte.
 pub(super) fn previews_digest(run: &GoldenRun) -> Value {
     let bytes = &run.binary;
-    let word = |at: usize| u32::from_le_bytes(bytes[at..at + 4].try_into().expect("mot"));
+    let word = |at: usize| u32::from_le_bytes(bytes[at..at + 4].try_into().expect("word"));
     let column = |index: usize| {
         let at = (HEADER_WORDS + index * 2) * 4;
         (word(at) as usize, word(at + 4) as usize)
@@ -70,8 +74,9 @@ pub(super) fn previews_digest(run: &GoldenRun) -> Value {
     })
 }
 
-/// Une entrée : les douze nombres qu'elle déclare, le condensé de son image source, et la suite de
-/// ses niveaux découpée aux dimensions que `preview_level_size` redéduit — jamais à celles annoncées.
+/// One entry: the twelve numbers it declares, the digest of its source image, and
+/// the sequence of its levels sliced at the dimensions `preview_level_size`
+/// re-reduces — never at those announced.
 fn entry_digest(
     bytes: &[u8],
     base: usize,
@@ -99,8 +104,9 @@ fn entry_digest(
     })
 }
 
-/// Un niveau : ses dimensions, le condensé de tous ses octets — un seul qui change fait rougir le
-/// doré — puis cinq texels et la couverture au seuil, pour que le diff dise *où* le calcul a bougé.
+/// One level: its dimensions, the digest of all its bytes — a single one that
+/// changes makes the golden blush — then five texels and coverage at the
+/// threshold, so the diff says *where* the computation moved.
 fn level_digest(level: u32, w: u32, h: u32, texels: &[u8]) -> Value {
     let texel = |x: u32, y: u32| {
         let at = ((y * w + x) * 4) as usize;

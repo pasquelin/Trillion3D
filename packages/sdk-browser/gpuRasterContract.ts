@@ -1,48 +1,48 @@
 /**
- * Le contrat du raster de calcul : une seule écriture des nombres que le WGSL et l'encodeur lisent
- * tous les deux. Le raster prend la part de la coupe opaque et masquée que le partage lui donne,
- * jusqu'à toute la coupe ; le mélange garde sa passe matérielle.
+ * Compute-raster contract: one writing of the numbers that both the WGSL and the encoder read.
+ * The raster takes the share of the opaque and masked cut that the split gives it, up to the
+ * whole cut; blend keeps its hardware pass.
  *
- * Quatre classes de taille, deux listes. Une classe dit combien de pixels un groupe de soixante-
- * quatre fils couvre d'un coup, jamais ce qu'un triangle vaut : la classe se lit sur la boîte
- * ENTIÈRE du triangle, découpée au viewport, donc un triangle à moitié hors champ tombe dans la
- * classe de ce qu'il en reste. Aucune classe ne peut déborder pendant que l'autre a de la place :
- * les deux d'une même liste la remplissent par les deux bouts, et la borne est tenue sur la somme.
+ * Four size classes, two lists. A class says how many pixels a sixty-four-thread group covers
+ * at once, never what a triangle is worth: the class is read on the triangle's WHOLE box,
+ * clipped to the viewport, so a triangle half off-screen falls in the class of what remains.
+ * No class can overflow while the other has room: both of the same list fill it from both
+ * ends, and the bound is held on the sum.
  */
 
-/** Groupes qu'une dimension de lancement garantit : la liste se répartit sur x et z au besoin. */
+/** Groups one dispatch dimension guarantees: the list spreads over x and z as needed. */
 export const DISPATCH_SPAN = 65535;
 
-/** Côté du pavé de la classe fine, et triangles qu'un groupe de soixante-quatre fils y traite. */
+/** Side of the fine-class tile, and triangles a sixty-four-thread group treats there. */
 export const FINE_SIDE = 4;
 
 export const FINE_PER_GROUP = 64 / (FINE_SIDE * FINE_SIDE);
-/** Côté du pavé d'un groupe complet : la classe moyenne tient dans un seul, la grande en boucle. */
+/** Side of a full group's tile: the coarse class fits in one, the large class loops. */
 export const TILE = 8;
-/** Pavés qu'un groupe de la grande classe parcourt au plus, donc son étendue maximale en pixels. */
+/** Tiles a large-class group walks at most, hence its maximum span in pixels. */
 const LARGE_TILES = 8;
 export const LARGE_SPAN = TILE * LARGE_TILES - 1;
-/** Étendue maximale d'une boîte de la classe fine : un pavé de `FINE_SIDE` pixels de côté. */
+/** Maximum span of a fine-class box: a tile of `FINE_SIDE` pixels on a side. */
 export const FINE_SPAN = FINE_SIDE - 1;
 
 /**
- * Le partage petits/grands de la référence : un triangle dont la boîte d'écran, serrée à l'image,
- * ne dépasse pas `computeSpan` pixels part au raster de calcul, les autres au matériel. Zéro :
- * le matériel dessine tout. `COMPUTE_ALL` est un mode, pas une étendue infinie : le calcul prend
- * alors aussi les triangles qu'un sommet met derrière le plan proche, qu'un seuil laisse toujours
- * au matériel, qui les coupe lui-même.
+ * The reference's small/large split: a triangle whose screen box, clamped to the frame, does not
+ * exceed `computeSpan` pixels goes to the compute raster, the others to hardware. Zero: hardware
+ * draws everything. `COMPUTE_ALL` is a mode, not an infinite span: compute then also takes
+ * triangles a vertex puts behind the near plane, which a threshold always leaves to hardware,
+ * which clips them itself.
  */
 export const COMPUTE_ALL = 1e9;
 
 /**
- * Le prédicat du partage, le même texte dans les deux rasters : ils lisent les mêmes sommets, le
- * même produit hissé `viewProj*world`, la même boîte — et se partagent la coupe sans trou ni
- * doublon. Exige `uni.viewport` et `uni.computeSpan`.
+ * The split predicate, the same text in both rasters: they read the same vertices, the same
+ * hoisted product `viewProj*world`, the same box — and share the cut with neither hole nor
+ * duplicate. Requires `uni.viewport` and `uni.computeSpan`.
  */
 export const COMPUTE_TAKES_WGSL = `
 fn screen(p:vec4f)->vec2f{return vec2f((p.x/p.w*0.5+0.5)*uni.viewport.x,(1.0-(p.y/p.w*0.5+0.5))*uni.viewport.y);}
 struct ScreenBox{lo:vec2f,hi:vec2f,q0:vec2f,q1:vec2f,span:f32,}
-/** La boîte serrée à l'image d'une étendue d'écran, et son étendue en pixels entiers. */
+/** Screen-extent box clamped to the frame, and its span in integer pixels. */
 fn boxOf(lo:vec2f,hi:vec2f)->ScreenBox{
  let last=uni.viewport-vec2f(1.0);
  let q0=clamp(floor(lo),vec2f(0.0),last);let q1=clamp(floor(hi),vec2f(0.0),last);
@@ -55,34 +55,34 @@ fn computeTakes(ca:vec4f,cb:vec4f,cc:vec4f)->bool{
  return screenBox(screen(ca),screen(cb),screen(cc)).span<=uni.computeSpan;
 }`;
 
-/** Les mots que la liste réserve avant ses entrées : quatre comptes, la hauteur en pavés la plus
- *  grande de l'image, puis les quatre lancements que le noyau `plan` en déduit. */
+/** Words the list reserves before its entries: four counts, the frame's largest height in
+ *  tiles, then the four dispatches the `plan` kernel derives from them. */
 export const CNT_FINE = 0,
   CNT_COARSE = 1,
   CNT_LARGE = 2,
   CNT_HUGE = 3,
   TILE_ROWS = 4;
-/** Premier mot des lancements indirects ; ils sont contigus pour ne faire qu'une seule copie. */
+/** First word of the indirect dispatches; they are contiguous so they copy as one. */
 export const DISPATCH_BASE = 6;
 export const DISPATCH_WORDS = 12;
 export const LIST_HEADER = 20;
 
-/** Les octets d'en-tête que l'image remet à zéro : les cinq compteurs, arrondis au mot de copie. */
+/** Header bytes the frame clears: the five counters, rounded to the copy word. */
 export const HEADER_CLEAR_BYTES = 24;
 
 /**
- * Les trois modes d'un noyau de raster, dans l'ordre où l'image les encode.
- * `DEPTH_OCCLUDER` pose la profondeur de la moitié occulteurs — c'est elle que la pyramide réduit ;
- * `DEPTH_REST` ajoute la moitié testée que le verdict Hi-Z a gardée ; `ID` départage enfin les
- * identifiants sur la profondeur devenue définitive.
+ * The three modes of a raster kernel, in the order the frame encodes them.
+ * `DEPTH_OCCLUDER` writes the occluder-half depth — that is what the pyramid reduces;
+ * `DEPTH_REST` adds the tested half the Hi-Z verdict kept; `ID` finally resolves identifiers
+ * on the now-final depth.
  */
 export const MODE_DEPTH_OCCLUDER = 0,
   MODE_DEPTH_REST = 1,
   MODE_ID = 2;
 
-/** Les quatre classes, dans l'ordre de leurs lancements indirects. */
+/** The four classes, in the order of their indirect dispatches. */
 export const RASTER_CLASSES = ['fine', 'coarse', 'large', 'huge'] as const;
 export type RasterClass = (typeof RASTER_CLASSES)[number];
 
-/** Le nom du point d'entrée d'une classe dans un mode : une seule règle, les deux côtés la lisent. */
+/** Entry-point name of a class in a mode: one rule, both sides read it. */
 export const rasterEntry = (klass: RasterClass, mode: number) => `${klass}${mode}`;

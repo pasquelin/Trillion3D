@@ -1,28 +1,28 @@
-//! Le découpage d'un `Mesh` en parties par matériau.
+//! Splitting a `Mesh` into parts by material.
 //!
-//! USD lie un matériau à toute la surface par `material:binding`, et en lie d'autres à des paquets
-//! de faces par des `GeomSubset` de la famille `materialBind`. Une partie devient une primitive
-//! glTF : même géométrie, un matériau chacune. Les faces qu'aucun sous-ensemble ne réclame
-//! reviennent à la liaison du maillage, ce que dit la spécification pour une famille partielle.
+//! USD binds a material to the whole surface by `material:binding`, and binds others to packs of
+//! faces by `GeomSubset` of the `materialBind` family. A part becomes a glTF primitive: same
+//! geometry, one material each. Faces no subset claims go back to the mesh binding, which is
+//! what the specification says for a partial family.
 use super::*;
 
-/// Le nom de la famille de sous-ensembles qui lie les matériaux.
+/// Name of the subset family that binds materials.
 const FAMILY: &str = "materialBind";
-/// La relation qui lie un matériau à un prim et à sa descendance.
+/// Relationship that binds a material to a prim and its descendants.
 const BINDING: &str = "material:binding";
-/// La métadonnée qui donne sa force à une liaison, et la seule valeur qui la rend plus forte que
-/// les liaisons de la descendance du prim qui la porte.
+/// Metadata that gives a binding its strength, and the only value that makes it stronger than
+/// the bindings of the descendants of the prim that carries it.
 const STRENGTH: &str = "bindMaterialAs";
 const STRONGER: &str = "strongerThanDescendants";
 
-/// Une partie du maillage : son matériau, et les faces qu'elle porte.
+/// A mesh part: its material, and the faces it carries.
 pub(super) struct Part {
     pub(super) material: Option<usize>,
     pub(super) faces: Vec<usize>,
 }
 
-/// Le découpage d'un maillage, dans l'ordre où les sous-ensembles sont déclarés, la part du
-/// maillage lui-même venant en dernier quand il en reste des faces.
+/// Split of a mesh, in the order subsets are declared, the mesh's own share coming last when
+/// faces remain.
 pub(super) fn parts(
     world: &mut World<'_>,
     prim: &usd::Prim,
@@ -55,9 +55,9 @@ pub(super) fn parts(
     out
 }
 
-/// Les faces d'un `GeomSubset` de la famille des matériaux, ou `None` pour tout autre enfant — un
-/// sous-ensemble d'une autre famille, un sous-ensemble de points ou d'arêtes, un prim quelconque.
-/// Un indice hors du maillage est écarté : il ne désigne aucune face.
+/// Faces of a `GeomSubset` of the material family, or `None` for any other child — a subset of
+/// another family, a subset of points or edges, any prim. An index outside the mesh is dropped:
+/// it names no face.
 fn subset_faces(prim: &usd::Prim, faces: usize) -> Option<Vec<usize>> {
     if prim.type_name().ok().flatten()?.as_str() != "GeomSubset" {
         return None;
@@ -77,10 +77,10 @@ fn subset_faces(prim: &usd::Prim, faces: usize) -> Option<Vec<usize>> {
     )
 }
 
-/// Le matériau que ce prim reçoit. `material:binding` se résout en remontant les ancêtres et la
-/// liaison la plus proche gagne : un `GeomSubset` qui n'en déclare pas prend celle de son maillage,
-/// et un maillage celle du groupe qui le porte. Une liaison déclarée plus forte que sa descendance
-/// l'emporte sur celles d'en dessous, et la plus haute de celles-là sur les autres.
+/// Material this prim receives. `material:binding` resolves by walking ancestors and the
+/// nearest binding wins: a `GeomSubset` that declares none takes that of its mesh, and a mesh
+/// that of the group that carries it. A binding declared stronger than its descendants wins
+/// over those below, and the highest of those over the others.
 fn binding(world: &mut World<'_>, prim: &usd::Prim, double_sided: bool) -> Option<usize> {
     let mut nearest = None;
     let mut strongest = None;
@@ -97,13 +97,13 @@ fn binding(world: &mut World<'_>, prim: &usd::Prim, double_sided: bool) -> Optio
     }
     match strongest.or(nearest) {
         Some(target) => material::resolve(world, &target, double_sided),
-        // Sans matériau à qui porter le double face, les deux faces sortiraient de la scène.
+        // Without a material to carry double-sided, both faces would leave the scene.
         None if double_sided => material::double_sided(world),
         None => None,
     }
 }
 
-/// La cible de `material:binding` écrite sur ce prim, sans rien hériter.
+/// Target of `material:binding` written on this prim, inheriting nothing.
 fn bound_at(world: &World<'_>, path: &sdf::Path) -> Option<sdf::Path> {
     world
         .stage
@@ -116,7 +116,7 @@ fn bound_at(world: &World<'_>, path: &sdf::Path) -> Option<sdf::Path> {
         .next()
 }
 
-/// Cette liaison est-elle déclarée plus forte que celles de sa descendance ?
+/// Is this binding declared stronger than those of its descendants?
 fn stronger(world: &World<'_>, path: &sdf::Path) -> bool {
     path.append_property(BINDING)
         .ok()
@@ -128,7 +128,7 @@ fn stronger(world: &World<'_>, path: &sdf::Path) -> bool {
         == Some(STRONGER)
 }
 
-/// Un attribut de ce prim lu en texte.
+/// An attribute of this prim read as text.
 fn attribute_text(prim: &usd::Prim, name: &str) -> Option<String> {
     let (value, _) = read::first(&prim.attribute(name))?;
     read::text(&value)

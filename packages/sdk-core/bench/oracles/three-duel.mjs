@@ -75,14 +75,14 @@ export function flatOf(objects, stride, out) {
 
 /**
  * One measure with two lines: `three` timed, then `core` timed, each running its operation and
- * nothing else on `taille` elements. `oracle` reads Three's result untimed; `core` returns the
+ * nothing else on `size` elements. `oracle` reads Three's result untimed; `core` returns the
  * engine's. Without `tolerance`, the two must be equal bit for bit; with it, the largest absolute
  * difference must stay under it and the line counts the values that differ. `motif` names what
  * the comparison leaves out, when it leaves something out.
  */
-export async function duel({ nom, fichier, taille = N, three, oracle, core, tolerance, motif }) {
-  const cas = [{ nom, taille, entree: null }];
-  const witness = await mesure({ nom, fichier, cas, calcul: three, motif: 'Three.js witness' });
+export async function duel({ name, fichier, size = N, three, oracle, core, tolerance, motif }) {
+  const cas = [{ name, size, input: null }];
+  const witness = await mesure({ name, fichier, cas, calcul: three, motif: 'Three.js witness' });
   let maxAbs = 0;
   const differences = (ref, obt, chemin) => {
     const c = compteur();
@@ -95,7 +95,7 @@ export async function duel({ nom, fichier, taille = N, three, oracle, core, tole
     return c;
   };
   const engine = await mesure({
-    nom,
+    name,
     fichier,
     cas,
     calcul: core,
@@ -105,16 +105,16 @@ export async function duel({ nom, fichier, taille = N, three, oracle, core, tole
   });
   if (tolerance !== undefined)
     engine.resultats[0].motif = `largest gap ${maxAbs.toExponential(1)} ; ${engine.resultats[0].motif}`;
-  const t = { ...witness.resultats[0], nom: `${nom} · Three.js` },
-    c = { ...engine.resultats[0], nom: `${nom} · sdk-core` };
-  test(`${nom}: same result as Three.js, at least as fast`, () => {
+  const t = { ...witness.resultats[0], name: `${name} · Three.js` },
+    c = { ...engine.resultats[0], name: `${name} · sdk-core` };
+  test(`${name}: same result as Three.js, at least as fast`, () => {
     if (tolerance !== undefined)
-      assert.ok(maxAbs <= tolerance, `${nom}: largest difference ${maxAbs} above ${tolerance}`);
-    else assert.equal(c.correct, true, `${nom}: ${c.difference}`);
+      assert.ok(maxAbs <= tolerance, `${name}: largest difference ${maxAbs} above ${tolerance}`);
+    else assert.equal(c.correct, true, `${name}: ${c.difference}`);
     assert.ok(
       c.minMs <= t.minMs,
-      `${nom}: sdk-core best ${c.minMs.toFixed(3)} ms above Three.js ${t.minMs.toFixed(3)} ms`,
+      `${name}: sdk-core best ${c.minMs.toFixed(3)} ms above Three.js ${t.minMs.toFixed(3)} ms`,
     );
   });
-  return { nom, fichier, resultats: [t, c] };
+  return { name, fichier, resultats: [t, c] };
 }

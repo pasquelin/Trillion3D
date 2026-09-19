@@ -1,20 +1,20 @@
 /**
- * Images entre deux relevés. Un relevé est un diagnostic : les images d'entre-deux ne copient rien
- * et ne mappent rien, et aucune n'attend jamais le retour d'un relevé.
+ * Frames between two samples. A sample is a diagnostic: frames in between copy nothing and map
+ * nothing, and none ever waits for a sample to return.
  */
 const READ_EVERY_IMAGES = 15;
 
-/** `GPUMapMode.READ`, ou sa valeur là où un appareil de test laisse l'énumération vide. */
+/** `GPUMapMode.READ`, or its value where a test device leaves the enum empty. */
 const mapRead = () => (globalThis as { GPUMapMode?: { READ: number } }).GPUMapMode?.READ ?? 1;
 
 /**
- * Le relevé périodique de compteurs écrits par le GPU, une image sur quinze. L'appelant échantillonne
- * une image, encode la copie de ce qu'elle a écrit, puis signale la soumission : le mappage n'est
- * demandé qu'après, sans quoi cette soumission porterait un tampon mappé. Un seul relevé est en
- * route à la fois, et `read` reçoit la plage mappée, à lire sur place avant qu'elle ne soit démappée.
+ * Periodic sample of counters the GPU wrote, one frame in fifteen. The caller samples a frame,
+ * encodes the copy of what it wrote, then signals submission: mapping is requested only after,
+ * otherwise that submission would carry a mapped buffer. One sample is in flight at a time, and
+ * `read` receives the mapped range, to be read in place before it is unmapped.
  *
- * Une perte d'appareil ou une libération annule le mappage : les compteurs gardent leur dernière
- * image, rien n'est déduit. Le tampon de relevé est celui de l'appelant, créé avec son propre label.
+ * A device loss or a dispose cancels the mapping: counters keep their last frame, nothing is
+ * inferred. The sample buffer is the caller's, created with its own label.
  */
 export function createGpuPeriodicReadback(read: (mapped: ArrayBuffer) => void) {
   let buffer: GPUBuffer | undefined,
@@ -25,7 +25,7 @@ export function createGpuPeriodicReadback(read: (mapped: ArrayBuffer) => void) {
     disposed = false,
     lastSampledFrame = -READ_EVERY_IMAGES;
 
-  // Les rappels du mappage, faits une fois : une image relevée n'alloue aucune fermeture.
+  // Mapping callbacks, made once: a sampled frame allocates no closure.
   const onMapped = () => {
     if (disposed || !buffer) return;
     read(buffer.getMappedRange(0, bytes));
@@ -36,7 +36,7 @@ export function createGpuPeriodicReadback(read: (mapped: ArrayBuffer) => void) {
     try {
       buffer?.unmap();
     } catch {
-      /* Déjà démappé par une libération. */
+      /* Already unmapped by a dispose. */
     }
     mapping = false;
   };
@@ -45,30 +45,30 @@ export function createGpuPeriodicReadback(read: (mapped: ArrayBuffer) => void) {
     get buffer() {
       return buffer;
     },
-    /** Vrai dès qu'un relevé est revenu, jusqu'à la libération. */
+    /** True once a sample has returned, until dispose. */
     get ready() {
       return ready;
     },
-    /** Adopte le tampon `COPY_DST | MAP_READ` que les copies remplissent ; la libération le détruit. */
+    /** Adopts the `COPY_DST | MAP_READ` buffer the copies fill; dispose destroys it. */
     adopt(target: GPUBuffer) {
       buffer = target;
     },
-    /** Vrai quand l'intervalle est écoulé et qu'aucun relevé n'est encore en route. */
+    /** True when the interval has elapsed and no sample is still in flight. */
     due(frame: number) {
       return !mapping && !copyEncoded && frame - lastSampledFrame >= READ_EVERY_IMAGES;
     },
-    /** Note l'image échantillonnée : l'intervalle court à partir d'elle. */
+    /** Notes the sampled frame: the interval runs from it. */
     sampled(frame: number) {
       lastSampledFrame = frame;
     },
-    /** Encode la copie de `size` octets de `source`, à mapper une fois l'image soumise. */
+    /** Encodes the copy of `size` bytes from `source`, to be mapped once the frame is submitted. */
     copy(encoder: GPUCommandEncoder, source: GPUBuffer, offset: number, size: number) {
       if (!buffer) return;
       encoder.copyBufferToBuffer(source, offset, buffer, 0, size);
       bytes = size;
       copyEncoded = true;
     },
-    /** Demande le mappage de la copie encodée. Sans effet sur une image qui n'en a encodé aucune. */
+    /** Requests mapping of the encoded copy. No effect on a frame that encoded none. */
     submitted() {
       if (!copyEncoded || !buffer || disposed) return;
       copyEncoded = false;

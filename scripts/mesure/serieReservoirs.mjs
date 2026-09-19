@@ -1,8 +1,8 @@
-// Les réservoirs de mémoire d'une série : ce que le banc demande au moteur, et ce que le moteur
-// dit en avoir tenu. Les réservoirs sont fixes, en octets, comme les variables de la référence ;
-// une valeur extrême est un cas de mesure, et le relevé dit comment le moteur l'a tenue.
+// Memory reservoirs of a series: what the bench asks of the engine, and what the engine says it
+// held. Reservoirs are fixed, in bytes, like the reference's variables; an extreme value is a
+// measurement case, and the reading says how the engine held it.
 
-/** Les réservoirs demandés par le banc, pour la page de mesure ; `null` laisse le défaut du moteur. */
+/** Reservoirs requested by the bench, for the measurement page; `null` leaves the engine default. */
 export const reservoirs = ({
   maxPages,
   geometryPoolBytes,
@@ -11,7 +11,7 @@ export const reservoirs = ({
   poolVivant,
 }) => ({ maxPages, geometryPoolBytes, texturePoolBytes, geometryPoolCeilingBytes, poolVivant });
 
-/** Le pool de géométrie tel que le moteur l'a tenu, pour `mesure.json` ; `null` = non publié. */
+/** The geometry pool as the engine held it, for `mesure.json`; `null` = unpublished. */
 export const poolGeometrie = (m) => ({
   octets: m.geometryPoolBytes ?? null,
   fentes: m.geometryPoolSlots ?? null,

@@ -1,4 +1,4 @@
-//! La lecture des réponses, et ce qu'une réponse change dans la scène.
+//! Answer reading, and what an answer changes in scene.
 use super::*;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -20,11 +20,11 @@ fn ecrire(directory: &Path, sheet: &Value) {
         directory.join(DECISIONS_FILE),
         serde_json::to_vec(sheet).expect("feuille"),
     )
-    .expect("écriture");
+    .expect("write");
 }
 
-/// Une scène d'un maillage, d'un matériau en mélange et d'une image embarquée dont les octets sont
-/// le binaire lui-même : la feuille se range par l'empreinte de ces octets.
+/// Scene of mesh, blend material, and embedded image whose bytes are
+/// binary itself: sheet sorts by fingerprint of these bytes.
 fn scene() -> (Value, Vec<u8>, String) {
     let bin = b"des octets d'image".to_vec();
     let g = json!({"meshes":[{"primitives":[{"material":0}]}],
@@ -40,7 +40,7 @@ fn appliquer(g: &mut Value, bin: &[u8], decisions: &Decisions) -> CutoutApplied 
         .expect("application")
 }
 
-// Comportement : sans feuille, rien ne change. Un mélange reste un mélange, et le rapport le dit.
+// Behavior: without sheet, nothing changes. Blend stays blend, report says so.
 #[test]
 fn sans_feuille_le_melange_reste_du_melange() {
     let directory = dossier("vide");
@@ -51,12 +51,12 @@ fn sans_feuille_le_melange_reste_du_melange() {
     assert_eq!(applied.report(&decisions)["candidateTextures"], json!(1));
     assert!(
         applied.applied.is_empty(),
-        "rien n'est appliqué sans réponse"
+        "nothing is applied without an answer"
     );
 }
 
-// Comportement : une réponse « découpe » passe le matériau en masqué, au seuil de glTF, et le
-// rapport nomme la liaison changée.
+// Behavior: "cutout" answer sets material to mask, at glTF threshold, and
+// report names changed binding.
 #[test]
 fn une_reponse_decoupe_passe_le_materiau_en_masque() {
     let directory = dossier("decoupe");
@@ -73,7 +73,7 @@ fn une_reponse_decoupe_passe_le_materiau_en_masque() {
     assert_eq!(applied.to_measure(), BTreeSet::from([0usize]));
 }
 
-// Comportement : une réponse « vitre », et une texture jamais tranchée, laissent la scène intacte.
+// Behavior: "window" answer, and never decided texture, leave scene intact.
 #[test]
 fn une_reponse_vitre_laisse_la_scene_intacte() {
     let directory = dossier("vitre");
@@ -87,8 +87,8 @@ fn une_reponse_vitre_laisse_la_scene_intacte() {
     assert_eq!(g["materials"][0]["alphaMode"], json!("BLEND"));
 }
 
-// Comportement : un matériau qui transmet la lumière est refusé malgré la réponse — son épaisseur
-// n'est pas une découpe —, et le refus est nommé plutôt que tu.
+// Behavior: material transmitting light is refused despite answer — its thickness
+// is not a cutout —, refusal named rather than quiet.
 #[test]
 fn une_transmission_est_refusee_malgre_la_reponse() {
     let directory = dossier("transmission");
@@ -105,8 +105,8 @@ fn une_transmission_est_refusee_malgre_la_reponse() {
     assert_eq!(applied.refused[0]["reason"], json!("transmission"));
 }
 
-// Comportement : un matériau dont le facteur alpha est déjà partiel est refusé de même — son
-// opacité ne vient pas de la texture, et la découper ne la rendrait pas.
+// Behavior: material whose alpha factor is already partial is likewise refused — its
+// opacity does not come from texture, cutting out would not yield it.
 #[test]
 fn un_facteur_alpha_partiel_est_refuse() {
     let directory = dossier("facteur");
@@ -122,9 +122,9 @@ fn un_facteur_alpha_partiel_est_refuse() {
     assert_eq!(applied.refused[0]["reason"], json!("alpha-factor"));
 }
 
-// Comportement : une réponse nulle est une texture non tranchée, pas une erreur ; une version
-// inconnue et une réponse d'un autre type sont refusées, parce qu'une réponse mal lue changerait
-// l'image sans que personne l'ait demandé.
+// Behavior: null answer is undecided texture, not an error; unknown version
+// and answer of another type refused, because misread answer would change
+// image without user asking.
 #[test]
 fn une_feuille_illisible_est_refusee_et_une_reponse_nulle_attend() {
     let directory = dossier("formes");
@@ -147,8 +147,8 @@ fn une_feuille_illisible_est_refusee_et_une_reponse_nulle_attend() {
     assert!(load_decisions(&directory, &directory).is_err());
 }
 
-// Comportement : une feuille livrée à côté de la source amorce la première compilation, quand le
-// modèle compilé n'en a pas encore.
+// Behavior: sheet delivered next to source seeds first compilation, when
+// compiled model does not have one yet.
 #[test]
 fn une_feuille_livree_avec_la_source_amorce() {
     let (cache, source) = (dossier("cache"), dossier("source"));

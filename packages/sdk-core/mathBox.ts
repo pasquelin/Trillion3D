@@ -1,16 +1,16 @@
 /**
- * Boîtes alignées sur les axes, rangées à plat : six flottants `minX, minY, minZ, maxX, maxY, maxZ`
- * à partir d'un décalage. Fonctions libres, sortie passée en paramètre, aucune allocation.
+ * Axis-aligned bounding boxes, stored flat: six floats `minX, minY, minZ, maxX, maxY, maxZ`
+ * starting at an offset. Free functions, output passed as parameter, zero allocation.
  *
- * Chaque opération garde l'arithmétique de la boîte de Three.js terme à terme — `Math.min` et
- * `Math.max` composante par composante, transformation homogène des huit coins avec division par
- * `w` — pour rendre les mêmes bits, NaN, zéros signés et infinis compris.
+ * Each operation preserves the arithmetic of Three.js Box3 term by term — `Math.min` and
+ * `Math.max` component-wise, homogeneous transformation of the eight corners with division by
+ * `w` — to yield the exact same bits, including NaN, signed zeroes, and infinities.
  */
 
-/** Flottants d'une boîte rangée à plat. */
+/** Floats of a box stored flat. */
 export const BOX_VALUES = 6;
 
-/** Pose la boîte vide : bornes basses à `+Infinity`, hautes à `-Infinity`. */
+/** Sets an empty box: lower bounds at `+Infinity`, upper bounds at `-Infinity`. */
 export function boxEmpty(out: Float64Array, o: number) {
   out[o] = Infinity;
   out[o + 1] = Infinity;
@@ -20,12 +20,12 @@ export function boxEmpty(out: Float64Array, o: number) {
   out[o + 5] = -Infinity;
 }
 
-/** Vraie quand une borne haute passe sous sa borne basse. Une borne NaN ne rend pas la boîte vide. */
+/** True when an upper bound falls below its lower bound. A NaN bound does not make the box empty. */
 export function boxIsEmpty(box: ArrayLike<number>, o: number) {
   return box[o + 3] < box[o] || box[o + 4] < box[o + 1] || box[o + 5] < box[o + 2];
 }
 
-/** Étend la boîte à un point. */
+/** Expands the box to contain a point. */
 export function boxExpandByPoint(out: Float64Array, o: number, x: number, y: number, z: number) {
   out[o] = Math.min(out[o], x);
   out[o + 1] = Math.min(out[o + 1], y);
@@ -35,7 +35,7 @@ export function boxExpandByPoint(out: Float64Array, o: number, x: number, y: num
   out[o + 5] = Math.max(out[o + 5], z);
 }
 
-/** Union de la boîte avec une autre donnée par ses six bornes. */
+/** Union of the box with another given by its six bounds. */
 export function boxUnion(
   out: Float64Array,
   o: number,
@@ -55,10 +55,10 @@ export function boxUnion(
 }
 
 /**
- * Les huit coins d'une boîte transformés par `m` (4×4 colonne-major), écrits à plat — vingt-quatre
- * flottants à partir de `o`. Le coin `i` prend `max` sur l'axe x quand son bit 1 est levé, sur y
- * pour le bit 2, sur z pour le bit 4. Chaque coin est la transformation homogène d'un point :
- * `(m·p) / (m₃·p)`, l'inverse de `w` calculé une fois puis multiplié.
+ * The eight corners of a box transformed by `m` (4×4 column-major), written flat — twenty-four
+ * floats starting at `o`. Corner `i` takes `max` on `x` when bit 1 is set, on `y`
+ * for bit 2, on `z` for bit 4. Each corner is the homogeneous transformation of a point:
+ * `(m·p) / (m₃·p)`, inverse of `w` computed once then multiplied.
  */
 export function boxCornersInto(
   out: Float64Array,
@@ -86,9 +86,9 @@ export function boxCornersInto(
 const corners = new Float64Array(24);
 
 /**
- * Boîte englobant l'image par `m` de la boîte `box` : l'union de ses huit coins transformés. Une
- * boîte vide reste telle quelle, bornes comprises. `out` peut être `box` : les bornes sont lues
- * avant la première écriture.
+ * Bounding box enclosing the image by `m` of `box`: union of its eight transformed corners. An
+ * empty box stays as is, bounds included. `out` can be `box`: bounds are read
+ * before the first write.
  */
 export function boxTransform(
   out: Float64Array,

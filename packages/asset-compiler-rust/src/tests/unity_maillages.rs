@@ -1,5 +1,5 @@
-//! Ce qu'un maillage de modèle garde de propre à chaque instance qui le cite, et ce qu'un
-//! `LODGroup` écarte. Les retouches d'instance sont dans `unity_instances.rs`.
+//! What a model mesh keeps of its own for each instance that cites it, and what
+//! a `LODGroup` sets aside. Instance overrides are in `unity_instances.rs`.
 use super::*;
 use unity_projet::{
     enfants, mat_blanc, material_index, materiau, node_named, objet, Projet, BUILTIN,
@@ -14,9 +14,10 @@ fn matiere(name: &str) -> String {
     mat_blanc(name, "    - _Metallic: 0\n")
 }
 
-// Constat 49 : deux rendus qui désignent le même maillage de modèle ne portent pas les mêmes
-// matériaux. Le maillage versé est partagé ; chaque liaison différente en reçoit sa variante, et
-// celui qu'une instance a déjà posé sans liaison n'est jamais réécrit sous elle.
+// Finding 49: two renderers that point at the same model mesh do not carry the
+// same materials. The poured mesh is shared; each different binding receives its
+// variant, and the one an instance already placed without a binding is never
+// rewritten under it.
 #[test]
 fn two_renderers_that_share_a_mesh_keep_their_own_materials() {
     let projet = Projet::new("maillage-partage");
@@ -43,7 +44,7 @@ fn two_renderers_that_share_a_mesh_keep_their_own_materials() {
     assert_eq!(
         material_of_child(&gltf, "Nue"),
         Value::Null,
-        "le rendu qui ne déclare aucun matériau garde le maillage du modèle tel quel"
+        "the renderer that declares no material keeps the model mesh as-is"
     );
     assert_eq!(
         material_of_child(&gltf, "Rouge"),
@@ -55,9 +56,9 @@ fn two_renderers_that_share_a_mesh_keep_their_own_materials() {
     );
 }
 
-// Constat 50 : un rendu que plusieurs niveaux d'un `LODGroup` citent est gardé au niveau le plus
-// détaillé où il apparaît. L'écarter parce qu'un niveau grossier le cite aussi retire du LOD0 une
-// surface que la scène y montre.
+// Finding 50: a renderer that several levels of a `LODGroup` cite is kept at the
+// most detailed level where it appears. Setting it aside because a coarse level
+// also cites it would drop from LOD0 a surface the scene shows there.
 #[test]
 fn a_renderer_listed_in_two_lod_levels_is_kept_at_the_finest_one() {
     let projet = Projet::new("lod-partage");
@@ -73,19 +74,19 @@ fn a_renderer_listed_in_two_lod_levels_is_kept_at_the_finest_one() {
     for name in ["Fine", "Partagee"] {
         assert!(
             !node_named(&gltf, name).expect("l'objet du niveau")["mesh"].is_null(),
-            "{name} est cité par le niveau le plus fin: son maillage est gardé"
+            "{name} is cited by the finest level: its mesh is kept"
         );
     }
     assert_eq!(
         manifest["source"]["counts"]["lodDropped"],
         Value::Null,
-        "aucun rendu n'est écarté"
+        "no renderer is set aside"
     );
 }
 
-/// Le matériau que porte le maillage du premier enfant de ce nœud.
+/// Material carried by the mesh of this node's first child.
 fn material_of_child(gltf: &Value, name: &str) -> Value {
-    let node = node_named(gltf, name).unwrap_or_else(|| panic!("le nœud {name}"));
+    let node = node_named(gltf, name).unwrap_or_else(|| panic!("the node {name}"));
     let child = node["children"][0].as_u64().expect("un enfant") as usize;
     let mesh = gltf["nodes"][child]["mesh"].as_u64().expect("un maillage") as usize;
     gltf["meshes"][mesh]["primitives"][0]["material"].clone()

@@ -4,18 +4,18 @@ import { NODE_FIRST_CHILD, NODE_WORLD } from './gpuDagPackNodes.ts';
 import type { dagViewFrames } from './gpuDagOracleMath.ts';
 
 /**
- * La descente de l'oracle : le miroir Node de `gpuDagLevelWgsl.ts`.
+ * Oracle descent: the Node mirror of `gpuDagLevelWgsl.ts`.
  *
- * Un nœud rejeté n'engendre rien, et une feuille jamais atteinte reste rejetée. `nodeFlags` porte le
- * verdict de chaque nœud — non nul veut dire « ne descends pas ici » —, et seules les feuilles
- * retenues retombent à zéro : ce sont elles seules que les grappes consultent ensuite.
+ * A rejected node yields nothing, and a never-reached leaf stays rejected. `nodeFlags` carries
+ * each node's verdict — non-zero means « do not descend here » —, and only kept leaves fall back
+ * to zero: they alone are what clusters consult next.
  *
- * `prunedFloor` est le plus petit plancher que l'élagage par le haut a écarté, par primitive. Au
- * -dessus de lui, l'escalade de résidence réclamerait un sous-arbre que la descente n'a pas ouvert,
- * et le repli épinglé s'arme (`gpuDagFloorWgsl.ts`).
+ * `prunedFloor` is the smallest floor top-down pruning discarded, per primitive. Above it,
+ * residency escalation would demand a subtree the descent did not open, and the pinned fallback
+ * arms (`gpuDagFloorWgsl.ts`).
  *
- * Posée à part de `gpuDagOracle.ts` : c'est une étape entière, elle a son miroir WGSL à elle, et
- * l'oracle qui la portait avait atteint sa limite de lignes.
+ * Split from `gpuDagOracle.ts`: it is a whole step, it has its own WGSL mirror, and the oracle
+ * that carried it had reached its line limit.
  */
 export function dagOracleDescent(
   packed: { nodeCount: number; worldCount: number; nodes: Float32Array; rootNodes: Uint32Array },

@@ -1,6 +1,6 @@
-// Mesure absolue de la sélection : frustum clip et résidence autonome. Aucun oracle ici : ces deux
-// calculs n'ont pas d'implémentation d'avant à confronter, leur justesse est tenue par
-// `mathFrustumBox.test.ts` et `autonomousResidency.test.ts`. Chaque ligne le dit plutôt que de le taire.
+// Absolute selection measurement: frustum clip and autonomous residency. No oracle here: these
+// two computations have no prior implementation to confront; their correctness is held by
+// `mathFrustumBox.test.ts` and `autonomousResidency.test.ts`. Each line says so rather than staying silent.
 import * as THREE from 'three';
 import { clipPlanesFromMatrix, frustumClipBox } from '../../sdk-core/index.ts';
 import { collectPendingUrls } from '../pageSelectionRequests.ts';
@@ -43,18 +43,18 @@ const clipper = (plat) => {
 
 // ── Mesure frustumClipBox ────────────────────────────────────────────
 const clipResult = await mesure({
-  nom: 'frustumClipBox',
+  name: 'frustumClipBox',
   fichier: 'packages/sdk-core/mathFrustumBox.ts',
   cas: [
-    { nom: '20k boîtes dont dégénérées', entree: grande, taille: 20000 },
-    { nom: 'aucune boîte', entree: vide, taille: 0 },
+    { name: '20k boxes including degenerates', input: grande, size: 20000 },
+    { name: 'no boxes', input: vide, size: 0 },
   ],
   calcul: clipper,
-  motif: 'temps seul — justesse dans mathFrustumBox.test.ts',
+  motif: 'time only — correctness in mathFrustumBox.test.ts',
   options: { tours: 200, budgetMs: 1000 },
 });
 
-// ── Mesure résidence ─────────────────────────────────────────────────
+// ── Residency measurement ────────────────────────────────────────────
 const alea = graine(41);
 function hote(nombre) {
   const pages = [];
@@ -81,39 +81,39 @@ const grandHote = hote(15000),
   hoteVide = hote(0);
 
 const residenceResult = await mesure({
-  nom: 'collectPendingUrls',
+  name: 'collectPendingUrls',
   fichier: 'packages/sdk-browser/pageSelectionRequests.ts',
   cas: [
-    { nom: '15k pages', entree: grandHote, taille: 15000 },
-    { nom: 'aucune page', entree: hoteVide, taille: 0 },
+    { name: '15k pages', input: grandHote, size: 15000 },
+    { name: 'no pages', input: hoteVide, size: 0 },
   ],
   calcul: (h) => ({
     pending: [...h.obtenu.pendingUrls()],
     retained: [...h.obtenu.pageUrls()],
     attente: collectPendingUrls(h.pages, h.vers).slice(),
   }),
-  motif: 'temps seul — justesse dans autonomousResidency.test.ts',
+  motif: 'time only — correctness in autonomousResidency.test.ts',
   options: { tours: 60, budgetMs: 1000 },
 });
 
 // ── Stress testing ───────────────────────────────────────────────────
 await stress({
-  nom: 'frustumClipBox extremes',
+  name: 'frustumClipBox extremes',
   calcul: (e) => frustumClipBox(planes, e[0], e[1], e[2], e[3], e[4], e[5]),
   extremes: [
-    { nom: 'boîte NaN', entree: [NaN, NaN, NaN, NaN, NaN, NaN] },
+    { name: 'NaN box', input: [NaN, NaN, NaN, NaN, NaN, NaN] },
     {
-      nom: 'boîte Infinity',
-      entree: [-Infinity, -Infinity, -Infinity, Infinity, Infinity, Infinity],
+      name: 'Infinity box',
+      input: [-Infinity, -Infinity, -Infinity, Infinity, Infinity, Infinity],
     },
-    { nom: 'boîte inversée', entree: [1, 1, 1, -1, -1, -1] },
-    { nom: 'boîte zéro', entree: [0, 0, 0, 0, 0, 0] },
-    { nom: 'boîte -0', entree: [-0, -0, -0, -0, -0, -0] },
+    { name: 'inverted box', input: [1, 1, 1, -1, -1, -1] },
+    { name: 'zero box', input: [0, 0, 0, 0, 0, 0] },
+    { name: '-0 box', input: [-0, -0, -0, -0, -0, -0] },
   ],
 });
 
 rapport(
   'tronc-residence',
   [clipResult, residenceResult],
-  'Sélection : frustum clip et résidence — mesure absolue',
+  'Selection: frustum clip and residency — absolute measurement',
 );

@@ -150,8 +150,8 @@ test('GPU draw uploads each item once without a CPU compact and exposes GPU slot
       GPUBufferUsage.COPY_SRC,
   );
 
-  // Lignes empaquetées {pageIndex,bin,selectionIndex,couche,triangles} : rien de l'image n'y entre,
-  // et la moitié occulteurs/testés vient du tampon que la partition GPU écrit.
+  // Packed rows {pageIndex,bin,selectionIndex,layer,triangles}: nothing of the frame enters
+  // there, and the occluder/tested half comes from the buffer the GPU partition writes.
   const items = new Uint32Array([4, BIN_BACK, 0, 0, 1, 1, BIN_NONE, 0, 0, 1, 7, BIN_BACK, 0, 0, 1]);
   const encoder = device.createCommandEncoder();
   gpu.encode(encoder, items, 3, 0, 2, 768);

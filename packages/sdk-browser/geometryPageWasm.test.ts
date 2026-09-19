@@ -1,6 +1,6 @@
-// Lot H2 : le chargeur du décodeur WebAssembly et son repli JavaScript. `prepareSdkWasm`
-// mémorise sa décision pour tout le process ; chaque scénario hostile importe donc une instance
-// fraîche du module (spécificateur différent, même fichier) pour ne pas hériter du cache des autres.
+// Batch H2: the WebAssembly decoder loader and its JavaScript fallback. `prepareSdkWasm`
+// remembers its decision for the whole process; each hostile scenario therefore imports a fresh
+// instance of the module (different specifier, same file) so it does not inherit the others' cache.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -12,7 +12,7 @@ const MODULE = readFileSync(join(import.meta.dirname, 'pageCodec.wasm'));
 
 type WasmModule = typeof import('./geometryPageWasm.ts');
 let compteur = 0;
-/** Une instance fraîche du chargeur : son `attente` mémorisé n'a encore rien décidé. */
+/** A fresh loader instance: its remembered `attente` has not decided anything yet. */
 function frais(): Promise<WasmModule> {
   return import(`./geometryPageWasm.ts?fraicheur=${compteur++}`) as Promise<WasmModule>;
 }
@@ -27,9 +27,9 @@ async function pageAvecMoinsZero() {
   return data as Uint8Array;
 }
 
-test('des octets valides instancient le module et décodent comme le chemin en place', async () => {
+test('valid bytes instantiate the module and decode like the in-place path', async () => {
   const { decodeGeometryPageWasm, prepareSdkWasm } = await frais();
-  assert.ok(await prepareSdkWasm(MODULE), 'le module réel doit s’instancier');
+  assert.ok(await prepareSdkWasm(MODULE), 'the real module must instantiate');
   const donnees = await pageAvecMoinsZero();
   const parWasm = await decodeGeometryPageWasm(donnees.slice(), 1 << 20);
   const enPlace = await decodeGeometryPage(donnees.slice(), 1 << 20);
@@ -42,7 +42,7 @@ test('des octets valides instancient le module et décodent comme le chemin en p
   assert.ok(Object.is(parWasm.attributes.position[0], -0));
 });
 
-test('des octets qui ne sont pas un module WebAssembly valide font échouer l’instanciation sans lever', async () => {
+test('bytes that are not a valid WebAssembly module fail instantiation without throwing', async () => {
   const { decodeGeometryPageWasm, prepareSdkWasm } = await frais();
   assert.equal(await prepareSdkWasm(new Uint8Array([1, 2, 3, 4])), null);
   const donnees = await pageAvecMoinsZero();
@@ -51,10 +51,10 @@ test('des octets qui ne sont pas un module WebAssembly valide font échouer l’
   assert.deepEqual(Array.from(parRepli.indices), Array.from(enPlace.indices));
 });
 
-test('un moteur sans SIMD simulé — l’instanciation qui lève — retombe sur le décodeur JavaScript', async () => {
+test('a simulated engine without SIMD — instantiation that throws — falls back to the JavaScript decoder', async () => {
   const { decodeGeometryPageWasm, prepareSdkWasm } = await frais();
   const original = WebAssembly.instantiate;
-  // @ts-expect-error : simule un moteur qui refuse de compiler le module (SIMD absent, par exemple).
+  // @ts-expect-error: simulates an engine that refuses to compile the module (SIMD missing, for example).
   WebAssembly.instantiate = () => {
     throw new WebAssembly.CompileError('simd absent');
   };
@@ -68,10 +68,10 @@ test('un moteur sans SIMD simulé — l’instanciation qui lève — retombe su
   assert.equal(parRepli.vertexCount, 3);
 });
 
-test('sans WebAssembly du tout, l’instanciation rend null tout de suite', async () => {
+test('with no WebAssembly at all, instantiation returns null immediately', async () => {
   const { prepareSdkWasm } = await frais();
   const original = globalThis.WebAssembly;
-  // @ts-expect-error : simule une plateforme sans WebAssembly.
+  // @ts-expect-error: simulates a platform without WebAssembly.
   delete globalThis.WebAssembly;
   try {
     assert.equal(await prepareSdkWasm(MODULE), null);
@@ -80,7 +80,7 @@ test('sans WebAssembly du tout, l’instanciation rend null tout de suite', asyn
   }
 });
 
-test('même chargé, le module refuse une page trop courte avant d’y toucher', async () => {
+test('even once loaded, the module refuses a page that is too short before touching it', async () => {
   const { decodeGeometryPageWasm, prepareSdkWasm } = await frais();
   assert.ok(await prepareSdkWasm(MODULE));
   await assert.rejects(

@@ -1,38 +1,41 @@
-//! Doré du pilote `ktx2` : la seule couverture du chemin complet glTF réel → `compile()` → cache →
-//! sidecar binaire pour des textures KTX 2.0. Les tests en éprouvette de `plugins/tests/ktx2/`
-//! fixent ce que le pilote rend texel par texel ; celui-ci fixe les octets qu'un moteur lira
-//! vraiment, une fois les trois chemins du conteneur passés par le compilateur entier.
+//! Golden of the `ktx2` driver: the only coverage of the full path real glTF →
+//! `compile()` → cache → binary sidecar for KTX 2.0 textures. The in-vitro tests
+//! in `plugins/tests/ktx2/` fix what the driver yields texel by texel; this one
+//! fixes the bytes an engine will actually read, once the container's three
+//! paths have gone through the whole compiler.
 //!
-//! Trois quads, trois matériaux, trois textures : un niveau non compressé écrit depuis la
-//! spécification, une charge UASTC LDR découpée au coin du corpus, et une charge ETC1S sous
-//! supercompression BasisLZ telle que l'encodeur de Khronos l'a écrite. La provenance de chacune est
-//! dans `fixtures/ktx2/README.md`.
+//! Three quads, three materials, three textures: an uncompressed level written
+//! from the specification, a UASTC LDR payload cut from the corner of the
+//! corpus, and an ETC1S payload under BasisLZ supercompression as Khronos's
+//! encoder wrote it. Provenance of each is in `fixtures/ktx2/README.md`.
 //!
-//! Régénération de la scène et de son attendu, depuis la racine du dépôt :
+//! Regenerating the scene and its expected, from the repository root:
 //!
 //! ```text
 //! cargo test --release --manifest-path packages/asset-compiler-rust/Cargo.toml \
-//!   -- --ignored regenere_la_fixture_ktx2 --nocapture
+//!   -- --ignored regenerate_the_ktx2_fixture --nocapture
 //! npx prettier --write packages/asset-compiler-rust/fixtures/ktx2/expected.json
 //! ```
 //!
-//! Ignorée par défaut : elle écrit dans `fixtures/`. Le diff qu'elle produit se relit avant d'être
-//! commité — un attendu régénéré sans lecture ne surveille plus rien.
+//! Ignored by default: it writes into `fixtures/`. The diff it produces is
+//! re-read before being committed — an expected regenerated without reading no
+//! longer watches anything.
 use super::apercus_golden::previews_digest;
 use super::*;
 
-/// Un quad par texture, écartés sur trois profondeurs pour qu'aucune paire ne soit coplanaire.
+/// One quad per texture, spaced on three depths so no pair is coplanar.
 const QUADS: usize = 3;
 const POSITION_BYTES: usize = QUADS * 4 * 12;
 const TEXCOORD_BYTES: usize = QUADS * 4 * 8;
 const INDEX_BYTES: usize = 24;
-/// Les trois textures de la scène, dans l'ordre des matériaux : les trois chemins du pilote.
+/// The scene's three textures, in material order: the driver's three paths.
 const TEXTURES: [&str; QUADS] = ["base.ktx2", "uastc.ktx2", "basis.ktx2"];
-const CASE: &str = "Trois quads, trois matériaux opaques, une texture KTX 2.0 chacun : un niveau R8G8B8A8 sRGB non compressé de 4 × 4, une charge UASTC LDR 4 × 4 de 16 × 16, et une charge ETC1S de 256 × 256 sous supercompression BasisLZ.";
-const RULE: &str = "Chaque texture couleur porte la queue sans perte de sa chaîne de mips, du premier niveau dont aucun côté ne dépasse 64 jusqu'au 1×1, en RGBA8 sRGB à alpha droit. Le conteneur KTX2 n'ajoute aucune perte : ce que le pilote rend est la reconstruction que la spécification du codec définit, et rien d'autre.";
+const CASE: &str = "Three quads, three opaque materials, one KTX 2.0 texture each: an uncompressed 4 × 4 R8G8B8A8 sRGB level, a 16 × 16 UASTC LDR 4 × 4 payload, and a 256 × 256 ETC1S payload under BasisLZ supercompression.";
+const RULE: &str = "Each colour texture carries the lossless tail of its mip chain, from the first level whose neither side exceeds 64 through 1×1, in RGBA8 sRGB with straight alpha. The KTX2 container adds no loss: what the driver yields is the reconstruction the codec specification defines, and nothing else.";
 
-// Comportement 26 : la fixture dorée à textures KTX 2.0 passe par le compilateur et chaque octet de
-// ses aperçus est comparé à expected.json — provenance, géométrie des niveaux, pixels et couverture.
+// Behaviour 26: the golden KTX 2.0 texture fixture goes through the compiler and
+// every byte of its previews is compared to expected.json — provenance, level
+// geometry, pixels and coverage.
 #[test]
 fn ktx2_texture_previews_match_their_golden_expected_json() {
     let dir = golden_dir("ktx2");
@@ -40,23 +43,23 @@ fn ktx2_texture_previews_match_their_golden_expected_json() {
     assert_eq!(
         previews_digest(&run),
         golden_expected(&dir),
-        "fixture ktx2 : les aperçus de texture divergent de expected.json"
+        "fixture ktx2: texture previews diverge from expected.json"
     );
 }
 
 #[test]
-#[ignore = "écrit dans fixtures/ ; se relance à la main, et son diff se relit"]
-fn regenere_la_fixture_ktx2() {
+#[ignore = "writes into fixtures/; rerun by hand, and its diff is re-read"]
+fn regenerate_the_ktx2_fixture() {
     let dir = golden_dir("ktx2");
     let bin = scene_bytes();
-    fs::write(dir.join("scene.bin"), &bin).expect("binaire");
+    fs::write(dir.join("scene.bin"), &bin).expect("binary");
     let gltf = serde_json::to_vec_pretty(&scene(bin.len())).expect("glTF");
-    fs::write(dir.join("scene.gltf"), &gltf).expect("scène");
+    fs::write(dir.join("scene.gltf"), &gltf).expect("scene");
     let run = compile_golden(&dir, "scene");
     write_expected(&dir, previews_digest(&run), CASE, RULE);
 }
 
-/// Positions, coordonnées de texture puis indices : les trois vues du binaire, dans cet ordre.
+/// Positions, texture coordinates then indices: the three binary views, in that order.
 fn scene_bytes() -> Vec<u8> {
     let corners = |quad: usize| {
         let (left, depth) = (quad as f32 * 3.0, quad as f32);
@@ -81,8 +84,8 @@ fn scene_bytes() -> Vec<u8> {
     floats.chain(indices).collect()
 }
 
-/// La scène : une seule vue par attribut, un accesseur d'indices par quad à son décalage dans la
-/// vue commune, et un matériau opaque par texture.
+/// The scene: one view per attribute, one index accessor per quad at its offset
+/// in the shared view, and one opaque material per texture.
 fn scene(buffer_bytes: usize) -> Value {
     let vertices = QUADS * 4;
     let indices_at = POSITION_BYTES + TEXCOORD_BYTES;

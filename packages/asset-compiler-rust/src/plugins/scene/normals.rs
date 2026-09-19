@@ -1,17 +1,16 @@
-//! Les normales par coin d'un maillage, arêtes dures comprises. Partagée par les pilotes qui
-//! calculent leurs normales plutôt que de les lire — `ma` et `blend`.
+//! Per-corner normals of a mesh, hard edges included. Shared by the drivers that compute their
+//! normals rather than reading them — `ma` and `blend`.
 //!
-//! La normale d'une face vient de la formule de Newell, qui vaut pour un polygone quelconque et
-//! dont la longueur est le double de l'aire : c'est donc aussi la pondération naturelle d'une
-//! moyenne par sommet. Ce qui décide du lissage n'est ni le format ni le type d'objet, mais deux
-//! marques que les deux formats écrivent chacun à leur façon : une **face nette** garde sa propre
-//! normale sur chacun de ses coins, et une **arête dure** coupe la continuité entre les deux faces
-//! qu'elle sépare.
+//! A face's normal comes from Newell's formula, which holds for an arbitrary polygon and whose
+//! length is twice the area: it is therefore also the natural weighting of a per-vertex average.
+//! What decides smoothing is neither the format nor the object type, but two marks that both
+//! formats write each in their own way: a **sharp face** keeps its own normal on each of its
+//! corners, and a **hard edge** cuts continuity between the two faces it separates.
 //!
-//! Le lissage se lit donc par **éventails** : deux coins d'un même sommet ne se moyennent que s'ils
-//! se rejoignent par une suite d'arêtes douces entre faces lisses. Moyenner tous les coins d'un
-//! sommet, comme si l'arête n'existait pas, arrondit une arête vive ; n'en moyenner aucun rend une
-//! sphère à facettes. Ce sont les deux défauts que ce calcul remplace.
+//! Smoothing is therefore read by **fans**: two corners of the same vertex only average if they
+//! meet through a chain of soft edges between smooth faces. Averaging every corner of a vertex,
+//! as if the edge did not exist, rounds a sharp edge; averaging none of them yields a faceted
+//! sphere. Those are the two defects this computation replaces.
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
@@ -20,31 +19,31 @@ mod join;
 mod tests;
 use join::Join;
 
-/// Ce que ce calcul lit d'un maillage. Les deux tableaux de marques sont lus par leur rang quand il
-/// y est : un tableau vide dit donc « rien de net », ce qui est le maillage entièrement lisse.
+/// What this computation reads of a mesh. Both mark tables are read by their rank when it is in
+/// them: an empty table therefore says “nothing sharp”, which is the fully smooth mesh.
 pub(super) struct Surface<'a> {
-    /// Trois flottants par sommet.
+    /// Three floats per vertex.
     pub(super) positions: &'a [f32],
-    /// Le sommet de chaque coin.
+    /// Vertex of each corner.
     pub(super) corners: &'a [u32],
-    /// Le premier coin de chaque face, plus la fin du dernier : `faces + 1` valeurs.
+    /// First corner of each face, plus the end of the last: `faces + 1` values.
     pub(super) offsets: &'a [u32],
-    /// La face garde sa propre normale sur tous ses coins.
+    /// The face keeps its own normal on all its corners.
     pub(super) sharp_faces: &'a [bool],
-    /// L'arête qui mène de ce coin au suivant de sa face est dure.
+    /// The edge that leads from this corner to the next of its face is hard.
     pub(super) sharp_corners: &'a [bool],
 }
 
-/// Les normales de chaque coin, et le groupe de lissage auquel il appartient. Deux coins du même
-/// groupe portent exactement la même normale : l'appelant peut n'en écrire qu'un seul sommet.
+/// Normals of each corner, and the smoothing group it belongs to. Two corners of the same group
+/// carry exactly the same normal: the caller can write only one vertex of them.
 pub(super) struct Shaded {
-    /// Trois flottants par coin.
+    /// Three floats per corner.
     pub(super) normals: Vec<f32>,
-    /// Un rang de groupe par coin.
+    /// One group rank per corner.
     pub(super) groups: Vec<u32>,
 }
 
-/// Les normales par coin de cette surface.
+/// Per-corner normals of this surface.
 pub(super) fn corners(surface: &Surface<'_>) -> Shaded {
     let faces = surface.offsets.len().saturating_sub(1);
     let planes: Vec<[f32; 3]> = (0..faces).map(|face| surface.newell(face)).collect();
@@ -77,24 +76,24 @@ pub(super) fn corners(surface: &Surface<'_>) -> Shaded {
 }
 
 impl Surface<'_> {
-    /// Les coins d'une face, dans l'ordre du fichier.
+    /// Corners of a face, in file order.
     fn span(&self, face: usize) -> std::ops::Range<usize> {
         self.offsets[face] as usize..self.offsets[face + 1] as usize
     }
 
-    /// Réunit les coins que les arêtes douces rejoignent. Une face nette n'y entre pas, une arête
-    /// dure est sautée, et une arête que plus de deux faces se partagent n'en réunit aucune : il n'y
-    /// a pas d'éventail à y lire, et deviner rendrait un coin au hasard.
+    /// Unites the corners that soft edges join. A sharp face does not enter, a hard edge is
+    /// skipped, and an edge that more than two faces share unites none of them: there is no fan
+    /// to read there, and guessing would yield a corner at random.
     ///
-    /// Les incidences se comptent **avant** la moindre union : réunir dès la deuxième rencontre,
-    /// c'est décider sans savoir qu'une troisième face existe, donc lisser les deux premières faces
-    /// du fichier et laisser la troisième seule. L'ordre des faces changeait alors la sortie.
+    /// Incidences are counted **before** any union: uniting from the second encounter is
+    /// deciding without knowing a third face exists, so smoothing the first two faces of the
+    /// file and leaving the third alone. Face order then changed the output.
     ///
-    /// Elles se comptent aussi sur **toute** la topologie, marques comprises : une arête que trois
-    /// faces se partagent en garde trois, qu'une de ces faces soit nette ou que l'une d'elles la
-    /// déclare dure. Compter après filtrage en laissait deux, et soudait les deux faces restantes
-    /// comme un bord ordinaire — une arête vive arrondie par la marque censée la trancher. Les
-    /// marques de lissage ne décident donc que des unions.
+    /// They are also counted on **the whole** topology, marks included: an edge that three
+    /// faces share keeps three, whether one of those faces is sharp or one of them declares it
+    /// hard. Counting after filtering left two, and welded the two remaining faces as an
+    /// ordinary border — a sharp edge rounded by the mark meant to cut it. Smoothing marks
+    /// therefore only decide unions.
     fn weld(&self, join: &mut Join, faces: usize) {
         let mut shared: HashMap<[u32; 2], usize> = HashMap::new();
         self.edges(faces, Edges::Every, |edge, _| {
@@ -118,9 +117,9 @@ impl Surface<'_> {
         }
     }
 
-    /// Chaque arête d'une face, une fois : ses deux sommets ordonnés, qui l'identifient quel que
-    /// soit le sens de parcours de la face, puis ses deux coins. `Edges::Smooth` n'en retient que
-    /// celles qui peuvent lisser ; `Edges::Every` les rend toutes, c'est-à-dire la topologie seule.
+    /// Each edge of a face, once: its two vertices ordered, which identify it whatever the
+    /// face's walk sense, then its two corners. `Edges::Smooth` keeps only those that can
+    /// smooth; `Edges::Every` yields them all, that is topology alone.
     fn edges(&self, faces: usize, which: Edges, mut each: impl FnMut([u32; 2], [u32; 2])) {
         let smooth = which == Edges::Smooth;
         for face in (0..faces).filter(|face| !smooth || !marked(self.sharp_faces, *face)) {
@@ -137,9 +136,9 @@ impl Surface<'_> {
         }
     }
 
-    /// Réunit, des deux bouts d'une arête partagée, les coins qui portent le même sommet. Les deux
-    /// faces la parcourent d'ordinaire en sens contraire, mais un maillage retourné ne le fait pas :
-    /// c'est le sommet qui décide, jamais l'ordre.
+    /// Unites, from both ends of a shared edge, the corners that carry the same vertex. The two
+    /// faces ordinarily walk it in opposite senses, but a flipped mesh does not: it is the
+    /// vertex that decides, never the order.
     fn pair(&self, join: &mut Join, side: [u32; 2], other: [u32; 2]) {
         for here in side {
             for there in other {
@@ -150,7 +149,7 @@ impl Surface<'_> {
         }
     }
 
-    /// La somme de Newell d'une face : sa direction normale, de longueur le double de son aire.
+    /// Newell sum of a face: its normal direction, of length twice its area.
     fn newell(&self, face: usize) -> [f32; 3] {
         let span = self.span(face);
         let (first, length) = (span.start, span.len());
@@ -165,7 +164,7 @@ impl Surface<'_> {
         normal
     }
 
-    /// La position du sommet d'un coin, ou l'origine quand le tableau ne la porte pas.
+    /// Position of a corner's vertex, or the origin when the table does not carry it.
     fn point(&self, corner: usize) -> [f32; 3] {
         let at = self.corners[corner] as usize * 3;
         self.positions
@@ -174,21 +173,21 @@ impl Surface<'_> {
     }
 }
 
-/// Quelles arêtes un parcours rend : celles que la topologie porte, ou celles qui peuvent lisser.
+/// Which edges a walk yields: those topology carries, or those that can smooth.
 #[derive(Clone, Copy, PartialEq)]
 enum Edges {
-    /// Toutes, marques comprises : c'est ce qui compte les faces incidentes d'une arête.
+    /// All, marks included: that is what counts an edge's incident faces.
     Every,
-    /// Les arêtes douces des faces lisses, seules candidates à une union.
+    /// Soft edges of smooth faces, the only candidates for a union.
     Smooth,
 }
 
-/// Ce rang est-il marqué ? Un tableau plus court que le domaine ne marque pas ce qu'il ne dit pas.
+/// Is this rank marked? A table shorter than the domain does not mark what it does not say.
 fn marked(marks: &[bool], rank: usize) -> bool {
     marks.get(rank).copied().unwrap_or(false)
 }
 
-/// Le vecteur unitaire, ou le vecteur nul quand il n'y a pas de direction à donner.
+/// Unit vector, or the null vector when there is no direction to give.
 fn unit(vector: [f32; 3]) -> [f32; 3] {
     let length = (vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]).sqrt();
     if !length.is_finite() || length == 0.0 {

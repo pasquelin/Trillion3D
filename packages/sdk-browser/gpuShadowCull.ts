@@ -4,14 +4,14 @@ import { MAX_SHADOW_REGIONS } from './gpuShadowAtlas.ts';
 import { SHADOW_CULL_SHADER } from './gpuShadowCullShader.ts';
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
 
-/** Mots d'un uniforme de slot de dessin : la matrice, le cadre, puis le slot et son indirection. */
+/** Words of a draw-slot uniform: the matrix, the frame, then the slot and its indirection. */
 const DRAW_UNIFORM_WORDS = PAGE_BIND_ALIGN / 4;
 const WORD_DRAW_SLOT = 20,
   WORD_INDIRECT = 21;
 
 /**
- * L'unique table des liaisons du rejet : son ordre nomme à la fois la disposition et le groupe —
- * sphères, liste source, indirect source, gardés, indirect produit, uniforme, volumes, vivants.
+ * The cull's single bind table: its order names both the layout and the group — spheres, source
+ * list, source indirect, kept, produced indirect, uniform, volumes, live.
  */
 const BINDING_TYPES: readonly GPUBufferBindingType[] = [
   'read-only-storage',
@@ -27,9 +27,9 @@ const BINDING_TYPES: readonly GPUBufferBindingType[] = [
 export type GpuShadowCull = Awaited<ReturnType<typeof createGpuShadowCull>>;
 
 /**
- * Le rejet par région : une liste d'instances par région redessinée, et la commande indirecte qui va
- * avec. Tous les tampons sont alloués une fois pour le budget d'une image — au plus
- * `MAX_SHADOW_REGIONS` régions, au plus `capacity` clusters chacune — et une image n'alloue rien.
+ * Per-region cull: one instance list per redrawn region, and the matching indirect command. All
+ * buffers are allocated once for a frame's budget — at most `MAX_SHADOW_REGIONS` regions, at
+ * most `capacity` clusters each — and a frame allocates nothing.
  */
 export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
@@ -64,7 +64,7 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
     for (const buffer of all) buffer.destroy();
   };
   try {
-    // La place de chaque région dans la liste commune, et son slot de dessin : posées une fois.
+    // Each region's place in the shared list, and its draw slot: set once.
     const offsetWords = new Uint32Array(MAX_SHADOW_REGIONS);
     const drawWords = new Uint32Array(MAX_SHADOW_REGIONS * DRAW_UNIFORM_WORDS);
     for (let region = 0; region < MAX_SHADOW_REGIONS; region++) {
@@ -102,14 +102,14 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
       offsets,
       drawUniform,
       volumes,
-      /** Pousse les volumes des `faces` premières faces : un seul écrit, jamais un par face. */
+      /** Pushes the volumes of the first `faces` faces: one write, never one per face. */
       flushVolumes(faces: number) {
         if (faces) device.queue.writeBuffer(faceVolumes, 0, volumes, 0, faces * SHADOW_CULL_FLOATS);
       },
       /**
-       * Encode le rejet de toutes les faces de l'image. `slots` est le nombre de commandes de la
-       * compaction principale, `rows` le majorant des instances qu'elle a pu produire, et
-       * `maxVertexCount` le compte de sommets qu'une instance dessine.
+       * Encodes the cull of every face of the frame. `slots` is the command count of the main
+       * compact, `rows` the upper bound of instances it may have produced, and `maxVertexCount`
+       * the vertex count an instance draws.
        */
       encode(
         encoder: GPUCommandEncoder,
@@ -120,8 +120,8 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
         maxVertexCount: number,
       ) {
         if (!faces) return;
-        // Les tampons du groupe, dans l'ordre des liaisons : ceux de l'image d'abord, les nôtres
-        // ensuite. Le groupe n'est rebâti que si l'un d'eux a changé d'identité.
+        // Group buffers, in bind order: the frame's first, ours next. The group is rebuilt
+        // only if one of them has changed identity.
         const buffers = [
           sources.spheres,
           sources.source,

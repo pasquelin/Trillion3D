@@ -2,20 +2,19 @@ import { sortPages } from '../sdk-core/index.ts';
 import { createDenseKeySet } from './webgpuDenseKeys.ts';
 
 /**
- * Les deux listes qui pilotent la table de lignes.
+ * The two lists that drive the row table.
  *
- * `touched` nomme les pages dont la résidence ou l'emplacement dans le cache vient de bouger :
- * c'est la seule entrée de la synchronisation des rangs, qui ne parcourt donc plus le catalogue.
- * Elle a la taille du catalogue et un marquage par page, si bien qu'une page ne s'y inscrit qu'une
- * fois et qu'elle ne peut plus déborder : aucune rafale d'arrivées ne déclenche plus le parcours
- * des 124 000 pages qui coûtait le pic de l'image.
+ * `touched` names pages whose residency or cache slot just moved: it is the only input of rank sync,
+ * which therefore no longer walks the catalogue. It has the catalogue's size and a per-page mark, so
+ * a page enrols only once and it can no longer overflow: no burst of arrivals triggers the walk of
+ * the 124,000 pages that cost the image's peak any more.
  *
- * `residencyChanges` est ce que la passe a effectivement changé : les pages dont le DRAPEAU de
- * résidence a basculé. La sélection GPU n'écrit que leurs plages tant que `sorted` tient, et la
- * liste est RANGÉE à la fin de la passe plutôt que remplie dans l'ordre : une page qui part et une
- * page qui arrive ne se nomment pas dans le même ordre, et exiger que les index montent renvoyait
- * la sélection au parcours des 124 000 pages dès qu'une passe mêlait les deux. Le marquage par page
- * interdit le doublon, donc la liste ne peut pas non plus déborder.
+ * `residencyChanges` is what the pass actually changed: pages whose residency FLAG flipped. GPU
+ * selection writes only their ranges while `sorted` holds, and the list is SORTED at the end of the
+ * pass rather than filled in order: a page that leaves and a page that arrives are not named in the
+ * same order, and requiring indices to increase sent selection back to walking the 124,000 pages as
+ * soon as a pass mixed both. Per-page marking forbids the duplicate, so the list cannot overflow
+ * either.
  */
 export function createWebgpuRowJournal(pageCount: number) {
   const changed = createDenseKeySet(pageCount);
@@ -26,7 +25,7 @@ export function createWebgpuRowJournal(pageCount: number) {
     },
     sorted: true,
   };
-  /** Range le journal : la sélection GPU lit des plages, donc des index qui montent. */
+  /** Sorts the journal: GPU selection reads ranges, therefore increasing indices. */
   const sortResidencyChanges = () => {
     sortPages(changed.list, changed.count);
   };
@@ -42,12 +41,11 @@ export function createWebgpuRowJournal(pageCount: number) {
     },
   };
   /**
-   * Qui d'autre veut savoir qu'une page vient d'être nommée. `touchPage` est le seul endroit par où
-   * passent les trois façons dont la couverture d'une grappe bascule — octets reçus, octets rendus,
-   * emplacement de cache pris ou rendu —, si bien que les totaux de la coupe s'y raccrochent sans
-   * qu'une liste soit parcourue une fois de plus. Prévenus à chaque appel, doublons compris : ce
-   * qu'il fait est idempotent, et une bascule dans les deux sens ne doit pas passer inaperçue. Un
-   * seul, car la publication de coupe est unique : une liste d'abonnés ferait croire le contraire.
+   * Who else wants to know a page has just been named. `touchPage` is the only place the three ways
+   * a cluster's coverage flips go through — bytes received, bytes returned, cache slot taken or
+   * returned — so the cut totals hook there without a list being walked once more. Notified on every
+   * call, duplicates included: what it does is idempotent, and a flip both ways must not go unseen.
+   * One only, because cut publication is unique: a subscriber list would suggest the opposite.
    */
   let watcher: ((page: number) => void) | undefined;
   const touchPage = (page: number) => {

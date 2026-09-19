@@ -1,12 +1,12 @@
-// Les réglages passés à `createExplorer` par la page de mesure. Ce module est servi à la page et
-// importé par son URL, comme `pageCoupe.mjs` : `measureView` est sérialisée par Playwright et ne
-// peut lire aucune variable de module.
+// Settings passed to `createExplorer` by the measurement page. This module is served to the page
+// and imported by its URL, like `pageCoupe.mjs`: `measureView` is serialised by Playwright and
+// cannot read any module variable.
 
 /**
- * Les réglages de l'explorateur pour une série : ce que le banc a demandé, et rien d'autre. Une
- * option absente laisse au moteur son propre défaut ; aucune n'est inventée ici.
+ * Explorer settings for a series: what the bench asked for, and nothing else. A missing
+ * option leaves the engine its own default; none is invented here.
  */
-export function optionsExplorateur(options, factory, eclairage) {
+export function explorerOptions(options, factory, lighting) {
   return {
     manifestUrl: options.manifestUrl,
     scope: 'full',
@@ -17,42 +17,42 @@ export function optionsExplorateur(options, factory, eclairage) {
     detail: 'source',
     pixelError: options.pixelError,
     lodAdaptive: false,
-    // Le plafond en pages et les réservoirs en octets : absents (`undefined`), le moteur garde
-    // ses défauts — la page tourne dans le navigateur, rien n'est sérialisé ici.
+    // The page ceiling and byte reservoirs: absent (`undefined`), the engine keeps its
+    // defaults — the page runs in the browser, nothing is serialised here.
     maxResidentPages: options.maxPages ?? undefined,
     geometryPoolBytes: options.geometryPoolBytes ?? undefined,
     texturePoolBytes: options.texturePoolBytes ?? undefined,
     geometryPoolCeilingBytes: options.geometryPoolCeilingBytes ?? undefined,
     preload: 'visible',
-    ...(options.autonome ? { autonomousGeometry: true } : { backends: [factory] }),
-    // Le groupe de lampes du témoin : vide à la création, rempli du magasin juste après.
-    ...(eclairage ? { sceneLighting: eclairage.groupe } : {}),
+    ...(options.autonomous ? { autonomousGeometry: true } : { backends: [factory] }),
+    // The witness light group: empty at creation, filled from the store right after.
+    ...(lighting ? { sceneLighting: lighting.groupe } : {}),
     comparisonLayout: 'single',
     clearColor: 0x2a303c,
-    // Une variante de DIAGNOSTIC du moteur, quand le banc en demande une : elle rend une image
-    // différente par construction, et le SDK la refuse hors du détail « trace ».
+    // An engine DIAGNOSTIC variant, when the bench asks for one: it produces a different
+    // image by construction, and the SDK refuses it outside the "trace" detail.
     diagnosticDetail: options.trace ? 'trace' : 'summary',
-    ...(options.variante ? { diagnosticGpuVariant: options.variante } : {}),
-    // La métrique d'erreur écran de l'EXPÉRIENCE : absente, l'explorateur garde la nôtre.
-    ...(options.erreur ? { screenError: options.erreur } : {}),
-    // Le chemin de calcul en lot imposé à la campagne (`--chemin-math js|wasm`) ; sans lui, le
-    // gouverneur arbitre par la mesure, et le relevé dit ce qu'il a choisi.
+    ...(options.variant ? { diagnosticGpuVariant: options.variant } : {}),
+    // The EXPERIENCE screen-error metric: absent, the explorer keeps ours.
+    ...(options.errorMetric ? { screenError: options.errorMetric } : {}),
+    // The batch compute path imposed on the campaign (`--chemin-math js|wasm`); without it,
+    // the governor decides by measurement, and the reading says what it chose.
     ...(options.mathPath ? { mathPath: options.mathPath } : {}),
-    // Le découpage par étape n'existe que si on le demande ; il est éteint partout ailleurs.
+    // The per-stage breakdown exists only if asked for; it is off everywhere else.
     stageProfile: options.stageProfile === true,
-    // Idem pour la lumière qui rebondit : le moteur l'éteint par défaut, le banc peut l'allumer.
+    // Same for bounce lighting: the engine turns it off by default, the bench can turn it on.
     bounce: options.bounce === true,
-    // Les lampes que le fichier source portait : le moteur les déclare seul, le banc peut les taire.
+    // Lights the source file carried: the engine declares them alone, the bench can silence them.
     importedLights: options.importedLights !== false,
-    // Le budget de l'étape Ombres et l'invalidation par pages : sans ces options, le moteur garde
-    // ses propres réglages publiés.
+    // The Shadows-stage budget and page invalidation: without these options, the engine keeps
+    // its own published settings.
     ...(typeof options.shadowBudgetMs === 'number'
       ? { shadowBudgetMs: options.shadowBudgetMs }
       : {}),
     ...(options.shadowPages === false ? { shadowPageInvalidation: false } : {}),
-    // Les niveaux de texture lus dans le cache plutôt que les images sources décodées.
+    // Texture levels read from the cache rather than decoded source images.
     ...(options.textureSource === 'cache' ? { textureSource: 'cache' } : {}),
-    // L'antialiasing temporel coupé : l'image d'avant le lot, échantillonnée au centre du pixel.
+    // Temporal antialiasing cut: the pre-batch image, sampled at the pixel centre.
     ...(options.temporalAntialiasing === false ? { temporalAntialiasing: false } : {}),
   };
 }

@@ -1,20 +1,20 @@
-// Le miroir WGSL de la variante d'EXPÉRIENCE : le texte livré porte la nôtre, la campagne de la
-// référence externe ne retourne qu'une constante, et la branche du nuanceur reprend mot pour mot
-// `referenceScreenError` de sdk-core.
+// WGSL mirror of the EXPERIMENT variant: the shipped text carries ours, the external-reference
+// campaign returns only a constant, and the shader branch restates `referenceScreenError` from
+// sdk-core word for word.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { referenceScreenError } from '../sdk-core/index.ts';
 import { DAG_SELECTION_SHADER } from './gpuDagShader.ts';
 import { REFERENCE_ERROR_DECL, withScreenErrorVariant } from './gpuDagShaderError.ts';
 
-test('le texte par défaut est rendu caractère pour caractère, la constante étant fausse', () => {
+test('the default text is returned character for character, the constant being false', () => {
   assert.ok(DAG_SELECTION_SHADER.includes(REFERENCE_ERROR_DECL));
   assert.equal(withScreenErrorVariant(DAG_SELECTION_SHADER, 'certifiee'), DAG_SELECTION_SHADER);
-  // La borne certifiée est toujours là, opérandes et ordre inchangés.
+  // The certified bound is still there, operands and order unchanged.
   assert.match(DAG_SELECTION_SHADER, /return \(\(shift\*focal\)\/nearest\)\*\(slant\/closest\);/);
 });
 
-test('la variante reference ne retourne que la constante, et porte la même formule que le CPU', () => {
+test('the reference variant returns only the constant, and carries the same formula as the CPU', () => {
   const code = withScreenErrorVariant(DAG_SELECTION_SHADER, 'reference');
   assert.equal(code.split('const REFERENCE_ERROR:bool=true;').length, 2);
   assert.ok(!code.includes(REFERENCE_ERROR_DECL));
@@ -22,7 +22,7 @@ test('la variante reference ne retourne que la constante, et porte la même form
     code.replace('const REFERENCE_ERROR:bool=true;', REFERENCE_ERROR_DECL),
     DAG_SELECTION_SHADER,
   );
-  // La branche du nuanceur, recopiée : mêmes opérandes, même ordre que `referenceScreenError`.
+  // Shader branch, copied: same operands, same order as `referenceScreenError`.
   assert.match(
     code,
     /if\(!\(depth>uni\.near\)\)\{return INF;\}\n {2}let delta=error\*stretch;\n {2}return \(delta\*focal\)\/depth;/,
@@ -38,9 +38,9 @@ test('la variante reference ne retourne que la constante, et porte la même form
   }
 });
 
-test('un texte sans la déclaration est refusé plutôt que rendu inchangé', () => {
+test('a text without the declaration is refused rather than returned unchanged', () => {
   assert.throws(
     () => withScreenErrorVariant('fn projected(){}', 'reference'),
-    /declaration REFERENCE_ERROR absente/,
+    /REFERENCE_ERROR declaration missing/,
   );
 });

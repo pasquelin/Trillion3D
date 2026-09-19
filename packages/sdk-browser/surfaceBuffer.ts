@@ -7,8 +7,8 @@ export const SURFACE_FORMATS: GPUTextureFormat[] = [
   'r32uint',
 ];
 const SURFACE_BYTES_PER_PIXEL = 28;
-/** La cible de retour des textures virtuelles : le rang de tuile qu'un pixel demande, écrit par la
- *  résolution matérielle puis par les transparents, réduit en compteurs pour un pixel sur seize. */
+/** Virtual-texture feedback target: the tile rank a pixel asks for, written by hardware
+ *  resolve then by transparents, reduced to counters for one pixel in sixteen. */
 export const FEEDBACK_FORMAT: GPUTextureFormat = 'r32uint';
 /** Color, depth, visibility, HDR, material surfaces, the transparent texture feedback target and
  *  optional two Hi-Z pyramids. */
@@ -40,15 +40,15 @@ export interface SurfaceBuffer {
   readonly normalRough: GPUTexture;
   /** RGB emission, A ambient occlusion. */
   readonly emissiveAo: GPUTexture;
-  /** 0 background, 1 unlit, 2 lit, 3 display-space diagnostic. */
+  /** 0 background, 1 unlit, 2 reads, 3 display-space diagnostic. */
   readonly flags: GPUTexture;
   views(): GPUTextureView[];
   dispose(): void;
 }
 /**
- * Les octets qu'une surface de cette taille prend, une fois les limites de l'APPAREIL vérifiées.
- * Aucun plafond en octets n'est posé ici : comme chez la référence, les cibles suivent la résolution,
- * et seul ce que l'appareil déclare ne pas savoir faire est refusé, nommément.
+ * Bytes a surface of this size takes, once DEVICE limits are checked.
+ * No byte ceiling is set here: as in the reference, targets follow resolution,
+ * and only what the device declares it cannot do is refused, by name.
  */
 export function checkSurfaceSize(
   device: GPUDevice,
@@ -116,8 +116,8 @@ export function createSurfaceBuffer(
   };
 }
 export interface SurfaceCapture extends SurfaceBuffer {
-  /** Profondeur inversée dans [0,1], fond au lointain (`depthConvention.ts`). Géométrie opaque et
-   *  à masque seulement. */
+  /** Reversed depth in [0,1], background at the far plane (`depthConvention.ts`). Opaque and
+   *  masked geometry only. */
   readonly depth: GPUTexture;
   readonly inverseViewProjection: ReadonlyArray<number>;
   readonly cameraWorld: readonly [number, number, number];

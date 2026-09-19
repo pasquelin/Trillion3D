@@ -4,33 +4,33 @@ export function mipLevelCountFor(width: number, height: number) {
 }
 
 /**
- * La disposition et le programme de réduction, construits UNE FOIS par appareil et par format.
+ * Layout and reduction program, built ONCE per device and per format.
  *
- * La chaîne de mips est engendrée à chaque texture de travail : recompiler le même programme et
- * la même disposition à chacune faisait payer une compilation de pipeline par texture, sur le
- * chemin même qui doit servir ses tuiles au plus vite. Le cache est tenu par appareil,
- * donc un appareil perdu emporte ses pipelines avec lui.
+ * The mip chain is generated at every working texture: recompiling the same program and the same
+ * layout at each made one pay a pipeline compilation per texture, on the very path that must
+ * serve its tiles as fast as possible. The cache is held per device, so a lost device takes its
+ * pipelines with it.
  */
 type MipPipeline = { layout: GPUBindGroupLayout; pipeline: GPURenderPipeline };
 const pipelines = new WeakMap<GPUDevice, Map<GPUTextureFormat, MipPipeline>>();
 
 /**
- * Les couleurs sont moyennées, l'alpha est la MÉDIANE des quatre texels — jamais leur moyenne.
+ * Colours are averaged, alpha is the MEDIAN of the four texels — never their mean.
  *
- * L'alpha d'une carte de feuillage n'est pas une couleur : c'est ce qu'un matériau à masque compare
- * à son seuil. Une moyenne tire chaque niveau vers l'alpha moyen de la carte ; au-dessus du seuil,
- * la silhouette grossit d'un niveau à l'autre jusqu'à ce que le quad entier passe le test, perde ses
- * trous et se peigne en rectangle opaque devant ce qui est derrière — ce que le chargement rendait
- * visible, puisque la découpe lit alors le niveau le plus fin RÉSIDENT, donc un niveau grossier.
+ * Alpha of a foliage map is not a colour: it is what a masked material compares to its threshold.
+ * A mean pulls each level toward the map's mean alpha; above the threshold, the silhouette grows
+ * from one level to the next until the whole quad passes the test, loses its holes and combs into
+ * an opaque rectangle in front of what is behind — which loading used to make visible, since the
+ * cutout then reads the finest RESIDENT level, therefore a coarse level.
  *
- * La médiane de quatre valeurs, elle, passe un seuil DONNÉ exactement quand deux des quatre texels
- * le passent : le texel grossier est gardé quand la moitié de ce qu'il recouvre l'était, et la
- * couverture du seuil se conserve d'un niveau au suivant sans dépendre du seuil. C'est ce qui la
- * rend applicable ici : le seuil appartient au matériau, la chaîne de mips à une texture que
- * plusieurs matériaux partagent, et rien à cet endroit ne sait quel seuil lui sera appliqué.
+ * The median of four values, itself, passes a GIVEN threshold exactly when two of the four texels
+ * pass it: the coarse texel is kept when half of what it covers was, and threshold coverage is
+ * preserved from one level to the next without depending on the threshold. That is what makes it
+ * applicable here: the threshold belongs to the material, the mip chain to a texture several
+ * materials share, and nothing at this place knows which threshold will be applied to it.
  *
- * Triée décroissante, la médiane est la moyenne des deux valeurs du milieu : `u` est la deuxième,
- * `v` la troisième, six comparaisons sans tri ni branche.
+ * Sorted decreasing, the median is the mean of the two middle values: `u` is the second, `v` the
+ * third, six comparisons with neither a sort nor a branch.
  */
 const MIP_SHADER = `
  @group(0) @binding(0) var source:texture_2d<f32>;
@@ -74,11 +74,11 @@ function mipPipeline(device: GPUDevice, format: GPUTextureFormat): MipPipeline {
 }
 
 /**
- * Le tampon d'uniformes des réductions, gardé par appareil et agrandi au besoin.
+ * Uniform buffer of the reductions, kept per device and grown as needed.
  *
- * Le créer puis le détruire à chaque texture obligeait à attendre la fin du travail de l'appareil
- * avant de le rendre — un aller-retour complet de la file GPU par texture. Un tampon qui vit aussi
- * longtemps que l'appareil se réécrit dans l'ordre de la file, sans rien attendre.
+ * Creating then destroying it at every texture forced waiting for the end of the device's work
+ * before releasing it — a full round trip of the GPU queue per texture. A buffer that lives as
+ * long as the device rewrites itself in queue order, waiting for nothing.
  */
 const uniformBuffers = new WeakMap<GPUDevice, { buffer: GPUBuffer; size: number }>();
 
@@ -90,16 +90,15 @@ function mipUniforms(device: GPUDevice, size: number) {
     size,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
-  // L'ancien tampon n'est pas détruit : des passes déjà soumises peuvent encore le lire, et le
-  // ramasse-miettes le rendra. L'agrandissement n'arrive qu'à la première texture plus grande.
+  // The old buffer is not destroyed: already-submitted passes may still read it, and the
+  // garbage collector will release it. Growth only happens at the first larger texture.
   uniformBuffers.set(device, { buffer, size });
   return buffer;
 }
 
-/** Engendre la chaîne de mips d'une texture 2D : la couleur moyennée, l'alpha en médiane pour que
- * la couverture d'un seuil survive à chaque niveau. Les commandes sont soumises sans être
- * attendues : la file de l'appareil les exécute dans l'ordre, donc avant toute copie qui lira un
- * niveau. */
+/** Generates the mip chain of a 2D texture: averaged colour, median alpha so that threshold
+ * coverage survives every level. Commands are submitted without being awaited: the device queue
+ * runs them in order, therefore before any copy that will read a level. */
 export function generateMaterialMips(
   device: GPUDevice,
   texture: GPUTexture,
@@ -111,7 +110,7 @@ export function generateMaterialMips(
   if (levels === 1) return;
   const { layout, pipeline } = mipPipeline(device, format);
   const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256);
-  // Un uniforme par niveau réduit : l'étendue du niveau source, pour ne pas lire hors de l'image.
+  // One uniform per reduced level: the extent of the source level, so as not to read off the image.
   const packed = new Uint32Array(((levels - 1) * stride) / 4);
   for (let level = 1; level < levels; level++) {
     const at = ((level - 1) * stride) / 4;

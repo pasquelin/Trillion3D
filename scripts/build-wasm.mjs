@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Compile `packages/page-codec-wasm` pour `wasm32-unknown-unknown` et dépose le module à côté de son
-// chargeur, dans `packages/sdk-browser/`. Hors de `pnpm run validate` : la cible et l'archiveur LLVM
-// sont une installation locale (`rustup target add wasm32-unknown-unknown`, `rustup component add
-// llvm-tools`), et une machine qui ne les a pas doit quand même pouvoir valider le dépôt. Le test
-// doré du décodeur, lui, tourne en natif dans `pnpm run test:native`.
+// Compiles `packages/page-codec-wasm` for `wasm32-unknown-unknown` and deposits the module next to its
+// loader, in `packages/sdk-browser/`. Outside of `pnpm run validate`: the target and LLVM archiver
+// are a local setup (`rustup target add wasm32-unknown-unknown`, `rustup component add
+// llvm-tools`), and a machine without them must still be able to validate the repo. The decoder's
+// golden test runs natively in `pnpm run test:native`.
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -20,38 +20,39 @@ function rustc(...args) {
 }
 
 /**
- * `-relaxed-simd` : les noyaux de calcul en lot du socle (`packages/page-codec-wasm/src/math.rs`)
- * rendent les bits de la version JavaScript parce que WebAssembly n'a AUCUNE instruction de
- * multiplication-addition fusionnée — ni le jeu de base, ni `simd128`. `relaxed-simd` en a une
- * (`f64x2.relaxed_madd`), dont l'arrondi est laissé au moteur : une seule de ces instructions
- * casserait l'égalité, sans rien signaler. Elle n'est pas dans les capacités par défaut de la cible,
- * mais on la refuse explicitement plutôt que d'en dépendre, et `verifieJeuInstructions` relit le
- * module produit pour le confirmer.
+ * `-relaxed-simd`: the batch computation kernels of core (`packages/page-codec-wasm/src/math.rs`)
+ * match the bitwise output of the JavaScript version because WebAssembly has NO fused multiply-add
+ * instruction — neither in base nor `simd128`. `relaxed-simd` has one (`f64x2.relaxed_madd`), whose
+ * rounding is implementation-defined: a single such instruction would break exact bit equality silently.
+ * It is not enabled by default for the target, but we explicitly reject it rather than depend on it,
+ * and `verifieJeuInstructions` re-reads the output module to confirm.
  *
- * `simd128` : le décodeur meshopt embarqué a des chemins vectoriels sous `__wasm_simd128__`, et le
- * décodeur JavaScript de référence tourne déjà sur le module SIMD de `meshoptimizer`. Sans ces
- * drapeaux, le module rend les mêmes octets mais perd la moitié de son avance. Un navigateur sans
- * SIMD ne l'instancie pas : le chargeur repasse alors tout seul sur le décodeur JavaScript.
+ * `simd128`: the embedded meshopt decoder has vector paths under `__wasm_simd128__`, and the reference
+ * JavaScript decoder already runs on the SIMD module of `meshoptimizer`. Without these flags, the module
+ * outputs the same bytes but loses half its speedup. A browser without SIMD will fail instantiation,
+ * causing the loader to silently fall back to JavaScript decoder.
  */
 
 /**
- * La section personnalisée `target_features` du module nomme en clair chaque capacité que le
- * compilateur a autorisée. On y exige `simd128` et on y refuse toute capacité « relaxed », dont les
- * instructions ont un arrondi laissé au moteur.
+ * The `target_features` custom section of the module lists each capability authorized by the compiler.
+ * We require `simd128` and reject any "relaxed" feature whose instruction rounding is implementation-defined.
  */
 export function verifieJeuInstructions(chemin) {
   const module = new WebAssembly.Module(readFileSync(chemin));
   const [section] = WebAssembly.Module.customSections(module, 'target_features');
-  if (!section) throw new Error(`${chemin} : section « target_features » absente.`);
+  if (!section) throw new Error(`${chemin}: "target_features" section missing.`);
   const noms = Buffer.from(section).toString('latin1');
   if (noms.includes('relaxed'))
-    throw new Error(`${chemin} : capacité « relaxed » présente, arrondi flottant non garanti.`);
-  if (!noms.includes('simd128')) throw new Error(`${chemin} : simd128 absent du module produit.`);
+    throw new Error(
+      `${chemin}: "relaxed" capability present, floating-point rounding not guaranteed.`,
+    );
+  if (!noms.includes('simd128'))
+    throw new Error(`${chemin}: simd128 missing from the produced module.`);
 }
 
 /**
- * `ar` d'Apple ne sait pas archiver des objets WebAssembly : il rend une archive vide et le lien
- * échoue sur des symboles meshopt absents. `llvm-ar` du composant `llvm-tools` les archive.
+ * Apple's `ar` cannot archive WebAssembly objects: it produces an empty archive causing link failure
+ * on missing meshopt symbols. `llvm-ar` from `llvm-tools` archives them properly.
  */
 function archiveur() {
   const hote = rustc('-vV')
@@ -60,20 +61,18 @@ function archiveur() {
     ?.slice(6);
   const chemin = join(rustc('--print', 'sysroot'), 'lib', 'rustlib', hote ?? '', 'bin', 'llvm-ar');
   if (!existsSync(chemin))
-    throw new Error(
-      `llvm-ar introuvable : ${chemin}\nInstaller avec : rustup component add llvm-tools`,
-    );
+    throw new Error(`llvm-ar not found: ${chemin}\nInstall with: rustup component add llvm-tools`);
   return chemin;
 }
 
-/** Compile le module, le vérifie et le dépose à côté de son chargeur. Rien ici n'est importable
- * sans lancer `cargo build` : c'est pourquoi ce script n'exécute `main()` que joué en CLI, jamais
- * quand `verifieJeuInstructions` est importé pour un test.
+/** Compiles the module, verifies it, and places it alongside its loader. Nothing here is importable
+ * without running `cargo build`: which is why this script only executes `main()` when invoked via CLI,
+ * never when `verifieJeuInstructions` is imported for testing.
  */
 function main() {
-  /** La bibliothèque standard de la cible est là ou elle n'y est pas : le sysroot le dit. */
+  /** The target standard library is either present or missing: sysroot indicates it. */
   if (!existsSync(join(rustc('--print', 'sysroot'), 'lib', 'rustlib', CIBLE)))
-    throw new Error(`Cible ${CIBLE} absente.\nInstaller avec : rustup target add ${CIBLE}`);
+    throw new Error(`Target ${CIBLE} missing.\nInstall with: rustup target add ${CIBLE}`);
 
   const DRAPEAUX = {
     AR_wasm32_unknown_unknown: archiveur(),
@@ -100,7 +99,7 @@ function main() {
     mkdirSync(dossier, { recursive: true });
     copyFileSync(construit, join(dossier, NOM));
   }
-  console.log(`${NOM} : ${statSync(construit).size} octets`);
+  console.log(`${NOM}: ${statSync(construit).size} bytes`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

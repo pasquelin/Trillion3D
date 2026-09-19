@@ -1,11 +1,11 @@
-//! Ce qu'un prim tient de ses ancêtres : le matériau que `material:binding` lie plus haut, et le
-//! `doubleSided` que la géométrie déclare sans qu'aucun matériau ne soit lié.
+//! What a prim holds from its ancestors: the material `material:binding` binds
+//! higher up, and the `doubleSided` geometry declares without any material bound.
 //!
 //! Les textures ont leur propre fichier, `usd_textures.rs` ; les faces invalides `usd_faces.rs`.
 use super::*;
 use usd_driver::{compile_layer, wrap};
 
-/// Deux matériaux nommés, de quoi distinguer celui qui gagne.
+/// Two named materials, enough to tell which one wins.
 pub(super) const PAIR: &str = r#"
     def Material "M"
     {
@@ -32,7 +32,7 @@ pub(super) const PAIR: &str = r#"
     }
 "#;
 
-/// Le nom du matériau de chaque primitive du maillage de ce rang, ou `null` quand elle n'en cite pas.
+/// Material name of each primitive of the mesh of this rank, or `null` when it cites none.
 pub(super) fn bound(gltf: &Value, mesh: usize) -> Vec<Value> {
     gltf["meshes"][mesh]["primitives"]
         .as_array()
@@ -45,7 +45,7 @@ pub(super) fn bound(gltf: &Value, mesh: usize) -> Vec<Value> {
         .collect()
 }
 
-/// Un maillage carré à deux faces, nommé, qui porte `extra` entre ses attributs.
+/// A named two-face square mesh, which carries `extra` among its attributes.
 pub(super) fn quad(name: &str, extra: &str) -> String {
     format!(
         r#"
@@ -60,9 +60,9 @@ pub(super) fn quad(name: &str, extra: &str) -> String {
     )
 }
 
-// Comportement 50 : `material:binding` se résout en remontant les ancêtres — la liaison la plus
-// proche gagne, un `GeomSubset` sans liaison prend celle de son maillage, et une liaison déclarée
-// `strongerThanDescendants` l'emporte sur celles de sa descendance.
+// Behaviour 50: `material:binding` resolves by walking up ancestors — the closest
+// binding wins, a `GeomSubset` without a binding takes that of its mesh, and a
+// binding declared `strongerThanDescendants` wins over those of its descendants.
 #[test]
 fn a_material_bound_on_an_ancestor_reaches_the_prims_that_do_not_bind_one() {
     let body = format!(
@@ -73,7 +73,7 @@ fn a_material_bound_on_an_ancestor_reaches_the_prims_that_do_not_bind_one() {
     assert_eq!(
         bound(&gltf, 0),
         ["M"],
-        "la liaison de l'ancêtre atteint le maillage"
+        "the ancestor's binding reaches the mesh"
     );
 
     let subset = r#"
@@ -92,7 +92,7 @@ fn a_material_bound_on_an_ancestor_reaches_the_prims_that_do_not_bind_one() {
     assert_eq!(
         bound(&gltf, 0),
         ["M", "M"],
-        "le sous-ensemble sans liaison prend celle de son maillage"
+        "the subset without a binding takes that of its mesh"
     );
 
     let strong = "    rel material:binding = </Root/M> (\n        bindMaterialAs = \"strongerThanDescendants\"\n    )\n";
@@ -104,24 +104,24 @@ fn a_material_bound_on_an_ancestor_reaches_the_prims_that_do_not_bind_one() {
     assert_eq!(
         bound(&gltf, 0),
         ["M"],
-        "la liaison plus forte que sa descendance l'emporte"
+        "the binding stronger than its descendants wins"
     );
 }
 
-// Comportement 51 : `doubleSided` est une propriété de la géométrie en USD et du matériau en glTF.
-// Un maillage double face sans matériau lié en reçoit un, partagé par tous ceux qui sont dans son
-// cas ; un maillage lié, lui, obtient une variante double face de son matériau, jamais une mutation
-// de celui que les autres maillages citent.
+// Behaviour 51: `doubleSided` is a geometry property in USD and a material one
+// in glTF. A double-sided mesh without a bound material receives one, shared by
+// all in its case; a bound mesh gets a double-sided variant of its material,
+// never a mutation of the one other meshes cite.
 #[test]
 fn a_double_sided_mesh_without_a_binding_still_carries_its_two_faces() {
     let body = quad("Quad", "        uniform bool doubleSided = 1\n");
     let (_, gltf) = compile_layer("double-seul", &wrap("", &body)).prepared("usd");
     let materials = gltf["materials"].as_array().expect("materials").clone();
-    assert_eq!(materials.len(), 1, "un seul matériau par défaut");
+    assert_eq!(materials.len(), 1, "only one default material");
     assert_eq!(
         materials[0]["doubleSided"],
         json!(true),
-        "le double face du maillage arrive au matériau"
+        "the mesh's double-sidedness reaches the material"
     );
     assert_eq!(bound(&gltf, 0), [materials[0]["name"].clone()]);
 
@@ -140,11 +140,11 @@ fn a_double_sided_mesh_without_a_binding_still_carries_its_two_faces() {
     assert_eq!(
         sides,
         [Value::Null, json!(true)],
-        "le matériau partagé reste simple face, sa variante porte les deux"
+        "the shared material stays single-sided, its variant carries both"
     );
     assert_eq!(
         bound(&gltf, 0),
         ["M"],
-        "le maillage simple face garde le sien"
+        "the single-sided mesh keeps its own"
     );
 }

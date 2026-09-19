@@ -1,14 +1,14 @@
-//! Dorées des deux pilotes flottants, par le chemin complet : une scène glTF réelle dont l'unique
-//! texture couleur est un EXR ou un Radiance HDR, compilée par le harnais commun.
+//! Floating point driver golden test: real glTF scene with single
+//! color texture (EXR or Radiance HDR), compiled via common harness.
 //!
-//! Ce que ces dorées fixent n'est pas une image mais un **refus** : les aperçus progressifs sont du
-//! RGBA8 sRGB, une image flottante n'y entre pas sans report de tons, donc sans perte ajoutée. La
-//! compilation aboutit, la texture est comptée, et la raison `image-float-unsupported` est nommée
-//! au rapport. Les valeurs décodées, elles, se prouvent dans `src/plugins/tests/`.
+//! What these goldens fix is not an image but a **refusal**: progressive previews are
+//! sRGB RGBA8, floating point image does not enter without tone mapping (lossy).
+//! Compilation succeeds, texture counted, reason `image-float-unsupported`
+//! reported. Decoded values tested in `src/plugins/tests/`.
 use super::*;
 
-// Comportement : une texture flottante traverse le compilateur sans le faire échouer et sans être
-// rognée à huit bits ; elle est nommée au rapport des aperçus, par la raison du contrat d'image.
+// Behavior: floating point texture passes through compiler without failure or 8-bit clipping;
+// reported in previews report, per image contract reason.
 #[test]
 fn une_texture_flottante_est_nommee_au_rapport_plutot_que_ramenee_a_huit_bits() {
     for format in ["exr", "hdr"] {
@@ -17,13 +17,13 @@ fn une_texture_flottante_est_nommee_au_rapport_plutot_que_ramenee_a_huit_bits() 
         assert_eq!(
             float_digest(&run),
             golden_expected(&fixture_dir),
-            "fixture {format}: la sortie compilée diverge de expected.json"
+            "fixture {format}: compiled output diverges from expected.json"
         );
     }
 }
 
-/// Ce que la dorée compare : le contrat d'image que ce binaire publie, le pilote qui revendique la
-/// texture, le rapport des aperçus — d'où vient le refus nommé — et la scène elle-même.
+/// Golden comparison: image contract binary publishes, driver claiming
+/// texture, preview report — origin of named refusal —, and scene.
 fn float_digest(run: &GoldenRun) -> Value {
     json!({
       "imageContract": plugins::image::VERSION,

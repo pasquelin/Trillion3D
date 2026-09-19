@@ -1,7 +1,7 @@
-// Les sections « mémoire » et « moteurs » du rapport global : instances, budget de pages, textures ;
-// les trois moteurs du dépôt et le témoin Three du SDK, avec les exécutions refusées.
+// The "memory" and "engines" sections of the global report: instances, page budget, textures;
+// the three engines of the repository and the SDK Three witness, with refused runs.
 import { nombre, octets, pixels as px, secondes, tableau } from './rapportGlobalGraphes.mjs';
-import { trouve, VUES } from './rapportGlobalLecture.mjs';
+import { trouve, VIEW_IDS } from './rapportGlobalLecture.mjs';
 
 export function sectionMemoire(ex) {
   const inst = [
@@ -19,7 +19,7 @@ export function sectionMemoire(ex) {
       nombre(r?.cpuP50, 2),
     ];
   });
-  const budget = VUES.map((vue) => {
+  const budget = VIEW_IDS.map((vue) => {
     const a = trouve(ex, 'mobile', vue, 1);
     const b = trouve(ex, 'budget-3000', vue, 1);
     return [
@@ -86,15 +86,15 @@ export function sectionMemoire(ex) {
 
 export function sectionMoteurs(ex) {
   const lignes = [];
-  for (const vue of VUES)
-    for (const [run, cote, libelle] of [
+  for (const vue of VIEW_IDS)
+    for (const [run, side, libelle] of [
       ['mobile', null, 'WebGPU (webgpu-page-raster)'],
       ['webgl', null, 'WebGL (exact-cluster-pages)'],
       ['webgl2', null, 'Standalone WebGL2'],
       ['temoin-three', 'avant', 'Three witness, locked camera, no shadows'],
       ['temoin-three', 'apres', 'WebGPU, locked camera, no shadows'],
     ]) {
-      const r = trouve(ex, run, vue, 1, cote);
+      const r = trouve(ex, run, vue, 1, side);
       if (!r) continue;
       lignes.push([
         `${vue} · ${libelle}`,
@@ -111,7 +111,7 @@ export function sectionMoteurs(ex) {
   const refus = ex
     .filter((e) => e.absent || e.erreurs?.length)
     .map((e) => [
-      e.nom,
+      e.name,
       e.absent ? e.erreur : e.erreurs.map((x) => x.message ?? JSON.stringify(x)).join(' · '),
     ]);
   return [

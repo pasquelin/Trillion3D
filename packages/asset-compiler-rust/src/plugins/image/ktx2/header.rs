@@ -1,11 +1,12 @@
-//! L'entête KTX 2.0 et son index de niveaux, lus champ par champ depuis la spécification publique
-//! de Khronos. Les décalages sont ceux de la structure du document : douze octets d'identifiant,
-//! puis `vkFormat`, `typeSize`, les trois dimensions, `layerCount`, `faceCount`, `levelCount` et
-//! `supercompressionScheme`, puis l'index des trois sections, puis l'index des niveaux.
+//! The KTX 2.0 header and its level index, read field by field from Khronos's public
+//! specification. Offsets are those of the document's structure: twelve identifier bytes,
+//! then `vkFormat`, `typeSize`, the three dimensions, `layerCount`, `faceCount`, `levelCount`
+//! and `supercompressionScheme`, then the index of the three sections, then the level index.
 //!
-//! Ce module ne lit aucun pixel : il rend la surface — codec, dimensions, schéma de supercompression
-//! et bornes du niveau 0 — ou un refus nommé. La chaîne annoncée est vérifiée entière : un KTX2 qui
-//! promet neuf niveaux dont l'un sort du fichier est tronqué, pas à moitié bon.
+//! This module reads no pixel: it returns the surface — codec, dimensions, supercompression
+//! scheme and level-0 bounds — or a named refusal. The announced chain is checked whole: a
+//! KTX2 that promises nine levels of which one falls outside the file is truncated, not
+//! half-good.
 use super::{dfd, format};
 use super::{
     DATA_TRUNCATED, HEADER_INVALID, HEADER_TRUNCATED, LAYOUT_UNSUPPORTED, MAGIC,
@@ -13,44 +14,44 @@ use super::{
 };
 use crate::plugins::image::{Transfer, MAX_LEVELS};
 
-/// Fin de l'entête fixe : identifiant, quatorze champs et l'index des trois sections.
+/// End of the fixed header: identifier, fourteen fields and the index of the three sections.
 const HEADER_END: usize = 80;
-/// Une entrée de l'index des niveaux : décalage, longueur, longueur une fois décompressée.
+/// One level-index entry: offset, length, length once decompressed.
 const LEVEL_ENTRY: usize = 24;
-/// `typeSize` vaut un pour tout format compressé en blocs comme pour l'octet non compressé ; une
-/// autre valeur annonce des mots de plusieurs octets à réordonner, hors de la liste déclarée.
+/// `typeSize` is one for every block-compressed format as for the uncompressed byte; another
+/// value announces multi-byte words to reorder, off the declared list.
 const TYPE_SIZE: u32 = 1;
 
-/// `supercompressionScheme` : les trois schémas que ce pilote déclare, sur les quatre numérotés.
-/// ZLIB (3) n'entre pas — aucun encodeur courant ne l'écrit, et un lecteur non exercé ment.
+/// `supercompressionScheme`: the three schemes this driver declares, of the four numbered.
+/// ZLIB (3) does not enter — no current encoder writes it, and an unexercised reader lies.
 const NONE: u32 = 0;
 const BASIS_LZ: u32 = 1;
 pub(super) const ZSTD: u32 = 2;
 
-/// La surface que le pilote va lire : son codec, sa taille, sa supercompression et son niveau 0.
+/// Surface the driver will read: its codec, its size, its supercompression and its level 0.
 pub(super) struct Surface {
     pub(super) format: u32,
     pub(super) width: u32,
     pub(super) height: u32,
     pub(super) supercompression: u32,
-    /// La fonction de transfert que le fichier déclare : celle du descripteur de format quand il la
-    /// nomme, celle du `vkFormat` sinon, et à défaut le sRGB de convention.
+    /// Transfer function the file declares: that of the format descriptor when it names one,
+    /// that of the `vkFormat` otherwise, and failing that conventional sRGB.
     pub(super) transfer: Transfer,
-    /// Le descripteur de format lève le drapeau d'alpha prémultiplié : les composantes sont déjà
-    /// multipliées par leur alpha, et le contrat de sortie les demande droites.
+    /// The format descriptor raises the premultiplied-alpha flag: components are already
+    /// multiplied by their alpha, and the output contract asks for them straight.
     pub(super) premultiplied: bool,
-    /// Les bornes du niveau 0 dans le fichier, telles que l'index les donne.
+    /// Level-0 bounds in the file, as the index gives them.
     pub(super) level: std::ops::Range<usize>,
-    /// `uncompressedByteLength` du niveau 0 : ce que la supercompression doit rendre.
+    /// `uncompressedByteLength` of level 0: what supercompression must return.
     pub(super) plain: usize,
 }
 
-/// Le mot de trente-deux bits à ce décalage, petit-boutien comme tout le format.
+/// The thirty-two-bit word at this offset, little-endian like the whole format.
 fn word(bytes: &[u8], at: usize) -> u32 {
     u32::from_le_bytes([bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]])
 }
 
-/// Le mot de soixante-quatre bits à ce décalage : l'index des niveaux ne compte qu'en 64 bits.
+/// The sixty-four-bit word at this offset: the level index only counts in 64 bits.
 fn long(bytes: &[u8], at: usize) -> std::result::Result<usize, &'static str> {
     let long = u64::from_le_bytes(bytes[at..at + 8].try_into().map_err(|_| DATA_TRUNCATED)?);
     usize::try_from(long).map_err(|_| DATA_TRUNCATED)
@@ -70,16 +71,16 @@ pub(super) fn parse(bytes: &[u8]) -> std::result::Result<Surface, &'static str> 
     if width == 0 || word(bytes, 16) != TYPE_SIZE || levels > MAX_LEVELS {
         return Err(HEADER_INVALID);
     }
-    // Hauteur nulle (texture à une dimension), volume, tableau de couches et cube : le pilote ne
-    // déclare que la surface plane unique.
+    // Null height (one-dimensional texture), volume, layer array and cube: the driver only
+    // declares the single planar surface.
     if height == 0 || depth > 0 || layers > 1 || faces != 1 {
         return Err(LAYOUT_UNSUPPORTED);
     }
     if !matches!(supercompression, NONE | BASIS_LZ | ZSTD) {
         return Err(SUPERCOMPRESSION_UNSUPPORTED);
     }
-    // `levelCount` nul annonce une texture dont les niveaux se calculent au chargement : un seul
-    // niveau est stocké, et c'est celui-là qu'on lit.
+    // A null `levelCount` announces a texture whose levels are computed at load: a single
+    // level is stored, and that is the one that is read.
     let levels = levels.max(1) as usize;
     let (level, plain) = chain(bytes, levels)?;
     let descriptor = dfd::read(bytes);
@@ -99,8 +100,8 @@ pub(super) fn parse(bytes: &[u8]) -> std::result::Result<Surface, &'static str> 
     })
 }
 
-/// L'index des niveaux, entier. Chaque niveau annoncé doit tenir dans le fichier et commencer après
-/// l'index lui-même ; on ne lit que le niveau 0, mais on refuse de le lire dans un fichier qui ment.
+/// The level index, whole. Each announced level must fit in the file and start after the
+/// index itself; only level 0 is read, but it is refused in a file that is lying.
 fn chain(
     bytes: &[u8],
     levels: usize,

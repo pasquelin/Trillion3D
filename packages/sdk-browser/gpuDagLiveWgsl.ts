@@ -1,35 +1,36 @@
 /**
- * La liste des grappes vivantes d'une image, et l'argument de répartition qui la dimensionne.
+ * The list of live clusters of a frame, and the dispatch argument that sizes it.
  *
- * Le tronc et les nœuds de coupe écartent déjà la très grande majorité des grappes : sur le banc à
- * douze instances, 1 581 313 des 1 959 792 grappes tombent par leur nœud ou par le tronc, et 378 479
- * survivent. Les cinq noyaux qui suivaient `dagWanted` — trois escalades, la vérification et le
- * masque — visitaient pourtant les 1 959 792, une par fil, et relisaient chacune son enregistrement
- * de grappe et son cône de page pour refaire le même rejet. C'est de la bande passante, pas du
- * calcul : ces passes lisent 112 octets par grappe et rien d'autre ne les retient.
+ * The frustum and the cut nodes already drop the vast majority of clusters: on the
+ * twelve-instance bench, 1,581,313 of the 1,959,792 clusters fall by their node or by the
+ * frustum, and 378,479 survive. The five kernels that followed `dagWanted` — three escalations,
+ * the check and the mask — still visited all 1,959,792, one per thread, and reread each
+ * cluster record and page cone to redo the same reject. That is bandwidth, not compute: those
+ * passes read 112 bytes per cluster and nothing else holds them.
  *
- * `dagWanted`, qui parcourt les candidates de la descente, dépose donc l'indice de chaque survivante
- * dans une liste, et les cinq noyaux se répartissent indirectement sur cette liste seule. Le verdict
- * de chacun est inchangé : ils commençaient tous par `visible`, et une grappe absente de la liste est
- * précisément une grappe dont `visible` était faux — donc une grappe dont ils ne faisaient rien.
+ * `dagWanted`, which walks the descent's candidates, therefore deposits each survivor's index
+ * in a list, and the five kernels dispatch indirectly over that list alone. Each verdict is
+ * unchanged: they all started with `visible`, and a cluster absent from the list is precisely
+ * a cluster whose `visible` was false — hence a cluster they did nothing with.
  *
- * Le nombre de groupes de travail n'est plus tiré après coup par un noyau d'un seul fil : l'ajout qui
- * ouvre une tranche de soixante-quatre — celui dont le rang est un multiple de la taille de groupe —
- * incrémente le compte lui-même. Il vaut donc exactement `ceil(vivantes / 64)`, sans lancement de
- * plus et sans la latence fixe qu'un lancement d'un seul fil paie quand même.
+ * The workgroup count is no longer pulled afterwards by a single-thread kernel: the append
+ * that opens a sixty-four-wide slice — the one whose rank is a multiple of the group size —
+ * increments the count itself. It is therefore exactly `ceil(live / 64)`, with no extra
+ * dispatch and without the fixed latency a single-thread dispatch pays anyway.
  *
- * Le masque est la seule des cinq à écrire un drapeau de dessin ; celles qu'il ne visite pas valent
- * déjà zéro, `dagClearDrawn` ayant effacé les seules qui valaient un — celles de l'image d'avant.
+ * The mask is the only one of the five to write a draw flag; those it does not visit are
+ * already zero, `dagClearDrawn` having cleared the only ones that were one — those of the
+ * previous frame.
  *
- * L'ordre d'écriture de la liste est celui d'un compteur atomique, donc indéterminé. Aucun des cinq
- * n'en dépend : trois accumulent par `atomicMax` et `atomicOr`, commutatifs, et le masque écrit à
- * l'indice de sa propre grappe. La liste compactée des pages dessinables, elle, est lue plus loin
- * dans l'ordre croissant des grappes, pas dans celui-ci.
+ * The list's write order is that of an atomic counter, hence indeterminate. None of the five
+ * depends on it: three accumulate with `atomicMax` and `atomicOr`, commutative, and the mask
+ * writes at its own cluster's index. The compacted drawable-page list is read further on in
+ * increasing cluster order, not this one.
  *
- * Aucun tampon de plus : le plafond de huit tampons de stockage par étape est déjà atteint. La liste
- * prolonge `flags` après le cache de cônes ; le compteur des vivantes et celui de leurs groupes
- * prolongent `work` après les blocs de la compaction, d'où l'argument de répartition est recopié —
- * WebGPU interdit le même tampon en écriture et en argument dans une même portée.
+ * No extra buffer: the eight storage buffers per stage ceiling is already reached. The list
+ * extends `flags` after the cone cache; the live counter and their group counter extend
+ * `work` after the compaction blocks, from which the dispatch argument is copied — WebGPU
+ * forbids the same buffer as write and as argument in one scope.
  */
 export const DAG_LIVE_WGSL = `fn liveBase()->u32{return uni.nodeCount+uni.clusterCount*2u;}
 fn liveCounter()->u32{return uni.worldCount*2u+blockCount()*2u;}

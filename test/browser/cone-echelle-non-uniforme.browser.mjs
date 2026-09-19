@@ -1,7 +1,7 @@
-// Défaut 1 (rejet par cône à petite échelle) : le noyau WGSL réellement exécuté dans Chromium WebGPU
-// doit garder le cas déclencheur de la reproduction (échelle non uniforme 1e-8/1e-6/1e-6, deux vrais
-// triangles) et continuer de rejeter un cluster conforme (échelle uniforme et rotation) dont la face
-// est dos à la caméra, comme avant ce lot. `selectionGpu` vient de
+// Defect 1 (cone rejection at small scale): the WGSL kernel actually run in Chromium WebGPU must
+// keep the reproduction's trigger case (non-uniform scale 1e-8/1e-6/1e-6, two real triangles)
+// and keep rejecting a conformal cluster (uniform scale and rotation) whose face is back to the
+// camera, as before this batch. `selectionGpu` comes from
 // `test/justesse/noyauSelectionGpu.mjs`.
 //
 // node --experimental-strip-types test/browser/cone-echelle-non-uniforme.browser.mjs
@@ -18,9 +18,9 @@ import { selectionGpu } from '../justesse/noyauSelectionGpu.mjs';
 
 const VIEWPORT = [1000, 1000];
 
-/** La page empaquetée DANS LE REPÈRE DE RENDU de `uniforms` — l'œil en est l'origine —, comme
- *  l'entrée d'image la porte à la carte. Empaqueter en monde absolu sous une vue relative mêlerait
- *  deux repères dans la même formule, et le tronc comme le cône trancheraient faux. */
+/** The page packed IN THE RENDER FRAME of `uniforms` — the eye is its origin — as the frame
+ *  input carries it to the GPU. Packing in absolute world under a relative view would mix two
+ *  frames in the same formula, and both frustum and cone would cut wrongly. */
 function empaquete(world, page, uniforms) {
   return packedWorldsToRenderOrigin(
     packDagSelection([{ world, pages: [{ url: '0', lodError: 0, parentError: null, ...page }] }]),
@@ -29,8 +29,8 @@ function empaquete(world, page, uniforms) {
   );
 }
 
-/** Cas déclencheur : deux vrais triangles, échelle (1e-8, 1e-6, 1e-6), face visible et grande —
- *  identique à `test/justesse/cone-echelle-non-uniforme.mjs`. */
+/** Trigger case: two real triangles, scale (1e-8, 1e-6, 1e-6), visible and large face —
+ *  identical to `test/justesse/cone-echelle-non-uniforme.mjs`. */
 function casDeclencheur() {
   const positions = [0, 0, 0, 1e6, 0, -1e6, 0, 1e6, 0, 0, 0, 0, -1e6, 0, -1e6, 0, -1e6, 0];
   const indices = [0, 1, 2, 3, 4, 5];
@@ -52,8 +52,8 @@ function casDeclencheur() {
   };
 }
 
-/** Cas conforme hostile : échelle uniforme et rotation, une boîte dos à la caméra doit rester
- *  rejetée exactement comme avant ce lot — la correction ne relâche pas le rejet conforme. */
+/** Hostile conformal case: uniform scale and rotation, a box back to the camera must stay
+ *  rejected exactly as before this batch — the fix does not loosen conformal rejection. */
 function casConformeDosCamera() {
   const cone = { axis: [0, 0, 1], angle: Math.PI / 6 };
   const world = new THREE.Matrix4().compose(
@@ -106,24 +106,24 @@ assert.equal(indisponible, null, String(indisponible));
 assert.deepEqual(gpu.compilation ?? [], []);
 assert.deepEqual(gpu.erreurs ?? [], []);
 
-assert.deepEqual(pages('declencheur:sansCone'), [0], 'témoin : sans cône, la page reste');
+assert.deepEqual(pages('declencheur:sansCone'), [0], 'witness: without cone, the page stays');
 assert.deepEqual(
   pages('declencheur:avecCone'),
   [0],
-  'défaut 1 : le noyau WGSL rejette la page pourtant visible à petite échelle non uniforme',
+  'defect 1: the WGSL kernel rejects the page even though it is visible at small non-uniform scale',
 );
 
 assert.deepEqual(
   pages('conformeDosCamera:sansCone'),
   [0],
-  'témoin : sans cône, la page conforme dos caméra reste',
+  'witness: without cone, the conformal back-facing page stays',
 );
 assert.deepEqual(
   pages('conformeDosCamera:avecCone'),
   [],
-  'un cluster conforme dont la face est dos à la caméra doit toujours être rejeté',
+  'a conformal cluster whose face is back to the camera must still be rejected',
 );
 
 console.log(
-  'OK : 2 cas, 4 exécutions du noyau WGSL — voir test/browser/cone-echelle-non-uniforme.browser.mjs',
+  'OK: 2 cases, 4 runs of the WGSL kernel — see test/browser/cone-echelle-non-uniforme.browser.mjs',
 );

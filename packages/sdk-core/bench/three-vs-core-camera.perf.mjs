@@ -23,7 +23,7 @@ const xy = new Float64Array(N * 4),
 const lines = [];
 lines.push(
   await duel({
-    nom: 'Matrix4.makePerspective',
+    name: 'Matrix4.makePerspective',
     fichier: 'packages/sdk-core/mathCamera.ts',
     three: () => {
       for (let i = 0; i < N; i++) {
@@ -64,7 +64,7 @@ const sides = new Float64Array(N * 16),
 
 lines.push(
   await duel({
-    nom: 'Frustum.setFromProjectionMatrix',
+    name: 'Frustum.setFromProjectionMatrix',
     fichier: 'packages/sdk-core/mathFrustum.ts',
     three: () => {
       for (let i = 0; i < N; i++) {

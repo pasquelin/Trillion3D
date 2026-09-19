@@ -45,13 +45,13 @@ pub(super) fn rgba_from(
 ) -> image::RgbaImage {
     image::RgbaImage::from_fn(width, height, |x, y| image::Rgba(pixel(x, y)))
 }
-/// La queue du sidecar d'une source, telle que `bake` la produit : la chaîne entière réduite à
-/// ses niveaux à partir du premier porté.
+/// Sidecar tail of a source, as `bake` produces: full chain reduced to
+/// its levels starting from first carried.
 pub(super) fn tail_of(source: &image::RgbaImage, kind: AtlasKind) -> (u32, Vec<u8>) {
     let first = preview_first_level(source.width(), source.height());
     (first, reduce::tail(&reduce::chain(source, kind), first))
 }
-/// Les dimensions du niveau de rang `index` d'une queue, le rang 0 étant le plus fin porté.
+/// Dimensions of level at `index` in tail, rank 0 coarsest carried.
 pub(super) fn level_size(width: u32, height: u32, index: usize) -> (u32, u32) {
     preview_level_size(
         width,
@@ -69,10 +69,10 @@ pub(super) fn level_bytes(width: u32, height: u32, pixels: &[u8], index: usize) 
     let (w, h) = level_size(width, height, index);
     &pixels[start..start + (w * h * 4) as usize]
 }
-/// Le progrès que ces tests ignorent.
+/// Progress ignored by these tests.
 pub(super) fn silent(_: Value) {}
-/// L'étape jouée sur un dossier source et une scène, maillage 0 retenu, rien à mesurer : ce que
-/// les tests de bout en bout partagent. Rend les entrées et le rapport.
+/// Step run on source folder and scene, mesh 0 retained, nothing to measure:
+/// shared by end-to-end tests. Returns entries and report.
 pub(super) fn stage_scene(dir: &Path, g: &Value) -> (Vec<TexturePreview>, Value) {
     let o = options(dir);
     let (meshes, view_map) = (BTreeSet::from([0usize]), BTreeMap::new());
@@ -88,6 +88,6 @@ pub(super) fn stage_scene(dir: &Path, g: &Value) -> (Vec<TexturePreview>, Value)
         },
         &silent,
     )
-    .expect("une texture illisible ne fait jamais échouer la compilation");
+    .expect("an unreadable texture never fails the compilation");
     (previews, report)
 }

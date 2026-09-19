@@ -3,23 +3,23 @@ import { dirtyRange } from './webgpuRowState.ts';
 import type { GpuPartition } from './gpuPartitionTypes.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Ce qui décrit les coins déjà envoyés à la carte : l'âge de la table dont ils sont sortis. */
+/** What describes the corners already sent to the GPU: the age of the table they came from. */
 export function createCornerUploadHold() {
   return { epoch: -1, count: 0 };
 }
 
 /**
- * Les huit coins monde de chaque ligne dessinable, dans le tampon que la projection GPU lit.
+ * The eight world corners of every drawable row, in the buffer GPU projection reads.
  *
- * Un coin ne change que quand la matrice monde de sa page change, et l'âge de la table nomme
- * exactement ce moment-là : une caméra qui bouge n'en réécrit aucun. Sur une image ordinaire, seule
- * la plage que la table vient de déclarer sale voyage — le même intervalle que les sphères d'ombre
- * empruntent —, et un âge nouveau redemande les lignes dessinables, une fois.
+ * A corner changes only when its page's world matrix changes, and the table's age names exactly that
+ * moment: a moving camera rewrites none. On an ordinary image, only the range the table just declared
+ * dirty travels — the same interval shadow spheres borrow — and a new age asks for the drawable rows
+ * again, once.
  *
- * Les coins sont ceux que la double précision calcule (`createBoxCorners`), portés chacun par DEUX
- * simples précisions : la valeur arrondie et son résidu. Le noyau les rapporte à la pose de la
- * caméra, elle aussi en deux mots, si bien que la magnitude monde ne survit à aucune soustraction et
- * que sa borne d'erreur ne dépend plus que de la taille du cluster (`gpuPartitionMargins.ts`).
+ * The corners are those double precision computes (`createBoxCorners`), each carried by TWO single-
+ * precision values: the rounded value and its residue. The kernel reports them to the camera pose,
+ * itself in two words, so world magnitude survives no subtraction and its error bound depends only
+ * on cluster size (`gpuPartitionMargins.ts`).
  */
 export function uploadRowCorners(rt: WebgpuPagesRuntime, partition: GpuPartition) {
   const { rows, boxCorners, cornerPacked, cornerHold } = rt.layout;
@@ -46,9 +46,9 @@ export function uploadRowCorners(rt: WebgpuPagesRuntime, partition: GpuPartition
 }
 
 /**
- * Les huit coins d'une boîte, lus dans `corners` à partir de `at`, écrits dans `packed` à partir de
- * `base`. Chaque coordonnée part en deux mots : l'arrondi simple précision, puis ce qu'il a laissé.
- * La somme des deux représente le double d'origine à un ulp au carré près.
+ * The eight corners of a box, read in `corners` from `at`, written in `packed` from `base`. Each
+ * coordinate leaves in two words: the single-precision rounding, then what it left. The sum of the
+ * two represents the original double to within a squared ulp.
  */
 export function packBoxCorners(
   packed: Float32Array,

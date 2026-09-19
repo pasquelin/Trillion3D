@@ -11,7 +11,7 @@ const FRONT = 'front' as unknown as GPURenderPipeline,
   BACK = 'back' as unknown as GPURenderPipeline,
   TEXTURED = 'textured' as unknown as GPURenderPipeline;
 
-/** Un item de mélange déjà lié : seul l'enchaînement des pipelines est observé ici. */
+/** An already-bound blend item: only the pipeline sequence is observed here. */
 const item = (side: THREE.Side, negatif = false, paged = false) => {
   const matrix = new THREE.Matrix4();
   if (negatif) matrix.makeScale(-1, 1, 1);
@@ -23,13 +23,13 @@ const item = (side: THREE.Side, negatif = false, paged = false) => {
     paged,
   };
 };
-/** Le même item, mais paginé : il lit la géométrie concaténée, donc il partage les appels. */
+/** The same item, but paged: it reads concatenated geometry, so it shares draws. */
 const pagee = (side: THREE.Side) => item(side, false, true);
 
 function joue(items: ReturnType<typeof item>[]) {
   const pipelines: unknown[] = [];
-  // Le rang de la TRANCHE dont chaque appel relit l'argument indirect : une tranche par appel, et
-  // les instances de toutes ses entrées à la suite.
+  // Rank of the RUN whose indirect argument each draw rereads: one run per draw, and the
+  // instances of all its entries in sequence.
   const draws: number[] = [];
   const pass = {
     setViewport() {},
@@ -42,10 +42,10 @@ function joue(items: ReturnType<typeof item>[]) {
     },
     end() {},
   };
-  // Les groupes de liaison sont rebâtis à la première passe, quand les ressources d'éclairage
-  // entrent dans la clé : le stub en donne assez pour que la construction aboutisse.
-  // L'ordre des pipelines n'est plus décidé dans la boucle d'encodage : il est cuit dans le plan
-  // statique, une entrée par face, bâtie avec la scène. On le bâtit donc ici comme la préparation.
+  // Bind groups are rebuilt on the first pass, when lighting resources enter the key: the stub
+  // gives enough for construction to succeed. Pipeline order is no longer decided in the encode
+  // loop: it is baked in the static plan, one entry per face, built with the scene. It is therefore
+  // built here the way prepare does.
   const blendState = Object.assign(createWebgpuBlendState(), {
     argsBuffer: {} as GPUBuffer,
     itemBuffer: {} as GPUBuffer,
@@ -54,9 +54,8 @@ function joue(items: ReturnType<typeof item>[]) {
   blendState.blendGpu.push(...(items as unknown as (typeof blendState.blendGpu)[number][]));
   buildBlendStatics(blendState);
   refreshBlendPlan(blendState);
-  // Le classement de l'image pose le verdict du tronc et découpe le plan en tranches : c'est lui
-  // qui décide combien d'appels la passe encode. Tous les items sont au même endroit, donc l'ordre
-  // source les départage.
+  // Frame ranking sets the frustum verdict and slices the plan into runs: it is what decides how
+  // many draws the pass encodes. All items are at the same place, so source order breaks them.
   orderBlendPasses(blendState, [0, 0, 0]);
   const rt = {
     vis: {
@@ -88,7 +87,7 @@ function joue(items: ReturnType<typeof item>[]) {
     },
     lights: { buffer: {}, shadows: undefined, store: { count: 0, unlit: false } },
     bounce: { probes: undefined },
-    // Vue `lit` sans lampe : le contrat éclaire, donc la passe lie ses ressources par défaut.
+    // `lit` view with no light: the contract lights, so the pass binds its default resources.
     sunFar: { gpu: undefined },
     blendState,
     run: {
@@ -107,9 +106,9 @@ function joue(items: ReturnType<typeof item>[]) {
   return { pipelines, draws, calls: rt.run.blendDrawCalls };
 }
 
-test('un item non paginé garde son appel : il porte ses propres tampons', () => {
-  // Cinq items qui ne sont pas paginés : chacun lit ses indices, ses positions et ses UV, donc
-  // chacun garde son groupe de liaison et son appel — une tranche par entrée, comme avant.
+test('an unpaged item keeps its draw: it carries its own buffers', () => {
+  // Five items that are not paged: each reads its indices, positions and UVs, so each keeps its
+  // bind group and its draw — one run per entry, as before.
   const suite = joue([
     item(THREE.FrontSide),
     item(THREE.FrontSide),
@@ -117,15 +116,15 @@ test('un item non paginé garde son appel : il porte ses propres tampons', () =>
     item(THREE.BackSide),
     item(THREE.BackSide),
   ]);
-  assert.equal(suite.calls, 5, 'un appel par item non paginé');
-  assert.deepEqual(suite.draws, [0, 1, 2, 3, 4], 'chaque appel relit l’argument de SA tranche');
-  assert.deepEqual(suite.pipelines, [BACK, FRONT], 'un pipeline par changement, dans l’ordre');
+  assert.equal(suite.calls, 5, 'one draw per unpaged item');
+  assert.deepEqual(suite.draws, [0, 1, 2, 3, 4], 'each draw rereads the argument of ITS run');
+  assert.deepEqual(suite.pipelines, [BACK, FRONT], 'one pipeline per change, in order');
 });
 
-test('des items paginés qui posent le même pipeline tiennent en UN appel', () => {
-  // C'est tout le lot : cinq items paginés d'affilée, un seul ordre de dessin. Ils lisent tous la
-  // même géométrie concaténée et le même cache de pages, et leurs instances se suivent dans la
-  // liste étalée, du plus lointain au plus proche.
+test('paged items that set the same pipeline fit in ONE draw', () => {
+  // That is the whole lot: five paged items in a row, one draw order. They all read the same
+  // concatenated geometry and the same page cache, and their instances follow each other in the
+  // expanded list, farthest to nearest.
   const fondu = joue([
     pagee(THREE.FrontSide),
     pagee(THREE.FrontSide),
@@ -133,37 +132,37 @@ test('des items paginés qui posent le même pipeline tiennent en UN appel', () 
     pagee(THREE.FrontSide),
     pagee(THREE.FrontSide),
   ]);
-  assert.equal(fondu.calls, 1, 'cinq items, un appel');
+  assert.equal(fondu.calls, 1, 'five items, one draw');
   assert.deepEqual(fondu.draws, [0]);
   assert.deepEqual(fondu.pipelines, [BACK]);
 
-  // Le pipeline reste la seule coupure : deux faces demandées, deux tranches, et pas une de plus.
+  // Pipeline remains the only break: two faces requested, two runs, and not one more.
   const deuxFaces = joue([pagee(THREE.FrontSide), pagee(THREE.BackSide), pagee(THREE.FrontSide)]);
-  assert.equal(deuxFaces.calls, 3, 'le pipeline change deux fois, donc trois tranches');
+  assert.equal(deuxFaces.calls, 3, 'the pipeline changes twice, hence three runs');
   assert.deepEqual(deuxFaces.pipelines, [BACK, FRONT, BACK]);
 });
 
-test('un item non paginé coupe la tranche de ses voisins paginés', () => {
-  // Il ne peut pas partager leur groupe de liaison : la tranche s'arrête sur lui et repart après.
+test('an unpaged item cuts the run of its paged neighbours', () => {
+  // It cannot share their bind group: the run stops on it and restarts after.
   const melange = joue([
     pagee(THREE.FrontSide),
     pagee(THREE.FrontSide),
     item(THREE.FrontSide),
     pagee(THREE.FrontSide),
   ]);
-  assert.equal(melange.calls, 3, 'paginés, l’isolé, paginés');
+  assert.equal(melange.calls, 3, 'paged, the isolated one, paged');
   assert.deepEqual(melange.draws, [0, 1, 2]);
-  assert.deepEqual(melange.pipelines, [BACK], 'un seul pipeline pour les trois');
+  assert.deepEqual(melange.pipelines, [BACK], 'one pipeline for the three');
 });
 
-test('un item à deux faces pose bien ses deux pipelines, dans l’ordre du mélange', () => {
+test('a two-sided item does set its two pipelines, in blend order', () => {
   const deux = joue([item(THREE.DoubleSide), item(THREE.DoubleSide)]);
-  assert.equal(deux.calls, 4, 'deux dessins par item à deux faces');
-  // Le second item reprend là où le premier s'est arrêté : sa première face change, la seconde aussi.
+  assert.equal(deux.calls, 4, 'two draws per two-sided item');
+  // The second item picks up where the first stopped: its first face changes, the second too.
   assert.deepEqual(deux.pipelines, [FRONT, BACK, FRONT, BACK]);
 
-  // Un déterminant négatif échange les deux faces de l'item : il commence donc par celle que le
-  // précédent venait de poser, et seul ce qui change est reposé — quatre dessins, trois pipelines.
+  // A negative determinant swaps the item's two faces: it therefore starts with the one the
+  // previous had just set, and only what changes is reset — four draws, three pipelines.
   const renverse = joue([item(THREE.DoubleSide), item(THREE.DoubleSide, true)]);
   assert.equal(renverse.calls, 4);
   assert.deepEqual(renverse.pipelines, [FRONT, BACK, FRONT]);

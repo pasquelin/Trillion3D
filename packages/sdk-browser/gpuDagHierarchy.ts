@@ -1,17 +1,17 @@
 import { CULL_STRIDE } from './gpuDagTypes.ts';
 /**
- * La hiérarchie de coupe telle que la descente par niveaux la lit : sa profondeur, et celle qu'une
- * primitive sans hiérarchie reçoit pour que la descente soit le seul chemin de production.
+ * The cut hierarchy as level-by-level descent reads it: its depth, and the one a
+ * primitive without a hierarchy receives so descent is the only production path.
  *
- * Disposition d'un nœud, celle du manifeste : `[0..2]` boîte minimale, `[3..5]` boîte maximale,
- * `[6..9]` sphère, `[10]` plafond d'erreur du remplaçant, `[11]` premier enfant, `[12]` nombre
- * d'enfants, `[13]` première page, `[14]` nombre de pages. Les nœuds sont numérotés par niveaux, la
- * racine au rang zéro : la descente n'a donc qu'à partir de ce rang.
+ * Node layout, the manifest's: `[0..2]` min box, `[3..5]` max box, `[6..9]` sphere,
+ * `[10]` replacement error ceiling, `[11]` first child, `[12]` child count, `[13]`
+ * first page, `[14]` page count. Nodes are numbered by levels, root at rank zero:
+ * descent therefore only has to start at that rank.
  *
- * La hiérarchie synthétisée ne change aucun verdict : son plafond d'erreur vaut -1, donc aucun de
- * ses nœuds n'est jamais rejeté par l'erreur, et sa boîte est l'union de celles de ses pages — une
- * page sans boîte rend la boîte du nœud infinie, si bien que le tronc ne rejette un nœud que lorsque
- * toutes ses pages portent une boîte qu'il rejette aussi, une à une, comme hier.
+ * The synthesised hierarchy changes no verdict: its error ceiling is -1, so none of
+ * its nodes is ever rejected by error, and its box is the union of its pages' —
+ * a page without a box makes the node box infinite, so the trunk rejects a node
+ * only when every page carries a box it also rejects, one by one, as before.
  */
 const LEAF_PAGES = 32,
   BRANCH = 8,
@@ -35,7 +35,7 @@ function box(
   return { min, max };
 }
 
-/** Étend `[min, max]` à la boîte `[childMin, childMax]`, axe par axe. */
+/** Expands `[min, max]` to the box `[childMin, childMax]`, axis by axis. */
 function expand(
   min: number[],
   max: number[],
@@ -55,7 +55,7 @@ function merge(children: Built[]): Built {
   return { min, max, first: 0, pages: 0, children };
 }
 
-/** Numérotation par niveaux, racine au rang zéro : `firstChild` d'un nœud est donc contigu. */
+/** Numbering by levels, root at rank zero: a node's `firstChild` is therefore contiguous. */
 function emit(root: Built, count: number) {
   const nodes = new Float64Array(count * STRIDE);
   const queue: Built[] = [root];
@@ -78,8 +78,8 @@ function emit(root: Built, count: number) {
   return { nodes, stride: STRIDE };
 }
 
-/** La hiérarchie qu'une primitive sans hiérarchie reçoit : feuilles de trente-deux pages, nœuds de
- *  huit enfants, jusqu'à une racine unique. Une primitive sans page garde une racine feuille vide. */
+/** Hierarchy a primitive without a hierarchy receives: thirty-two-page leaves, eight-child
+ *  nodes, up to a single root. A primitive with no page keeps an empty leaf root. */
 export function flatHierarchy(pages: ReadonlyArray<{ min?: number[]; max?: number[] }>) {
   let level: Built[] = [];
   for (let first = 0; first < pages.length; first += LEAF_PAGES) {
@@ -100,27 +100,29 @@ export function flatHierarchy(pages: ReadonlyArray<{ min?: number[]; max?: numbe
 }
 
 /**
- * Le nombre de nœuds de chaque étage de la hiérarchie, la racine à l'étage zéro. Sa longueur est la
- * profondeur, soit le nombre de passes que la descente demande pour l'épuiser.
+ * Node count of each hierarchy level, root at level zero. Its length is the depth,
+ * i.e. the number of passes descent needs to exhaust it.
  *
- * L'étage `L` MAJORE la file de la passe `L` : cette file ne porte que des enfants de nœuds retenus à
- * l'étage `L-1`, donc que des nœuds de l'étage `L`, et la descente les y écrit compactés à partir de
- * zéro. C'est ce majorant, connu du rangement une fois pour toutes, qui permet de lancer chaque passe
- * de niveau À PLAT : les fils au-delà de la file sortent sur la garde de compte, le mot de tête de
- * l'argument de répartition n'a plus à être recopié vers un tampon d'indirection, et plus rien ne
- * coupe la descente — elle tient dans la passe de tête.
+ * Level `L` UPPER-BOUNDS pass `L`'s queue: that queue only holds children of nodes
+ * kept at level `L-1`, hence only nodes of level `L`, and descent writes them there
+ * compacted from zero. That bound, known from packing once and for all, lets each
+ * level pass launch FLAT: children past the queue leave on the count guard, the
+ * dispatch argument's head word no longer has to be copied to an indirection buffer,
+ * and nothing cuts descent — it fits in the head pass.
  *
- * LA MESURE QUI LE JUSTIFIE, publiée par `test/justesse/coupe-lancements-gpu.mjs` et citée d'ici
- * seulement : sur apple metal-3, un niveau de plus coûte environ 26 µs quand il ouvre sa propre
- * passe derrière deux copies hors passe, et environ 1,5 µs quand il est un lancement à plat dans la
- * passe de tête. Le banc republie la pente à chaque exécution ; ces deux valeurs en sont l'ordre.
- * Le banc ne sépare pas la copie de la passe qu'elle coupe, et ne le prétend pas : retirer un
- * armement changerait aussi la taille du lancement, donc le travail fait.
+ * THE MEASUREMENT THAT JUSTIFIES IT, published by `test/justesse/coupe-lancements-gpu.mjs`
+ * and cited from here only: on apple metal-3, one more level costs about 26 µs when it
+ * opens its own pass behind two off-pass copies, and about 1.5 µs when it is a flat
+ * dispatch in the head pass. The bench republishes the slope each run; those two
+ * values are the order of magnitude. The bench does not split the copy from the pass
+ * it cuts, and does not claim to: removing an arming would also change dispatch size,
+ * hence the work done.
  *
- * Le prix de ces fils qui sortent aussitôt est borné, et le banc le balaie : un étage annoncé à
- * 100 000 nœuds coûte autant qu'un étage de 657, et il faut l'annoncer à 1 000 000 pour retrouver le
- * prix d'un niveau d'avant. L'étage le plus large vaut environ `clusterCount / CULLING_BRANCHING`, si
- * bien que la marge tient jusqu'à des millions de grappes par primitive.
+ * The cost of those children that leave at once is bounded, and the bench sweeps it:
+ * a level announced at 100,000 nodes costs as much as a level of 657, and it takes
+ * announcing 1,000,000 to recover the previous level's price. The widest level is
+ * about `clusterCount / CULLING_BRANCHING`, so the margin holds up to millions of
+ * clusters per primitive.
  */
 export function hierarchyLevelSizes(nodes: Float64Array, stride: number) {
   const count = nodes.length / stride;
@@ -135,7 +137,7 @@ export function hierarchyLevelSizes(nodes: Float64Array, stride: number) {
         children = nodes[base + 12];
       for (let c = 0; c < children; c++) next.push(nodes[base + 11] + c);
     }
-    if (next.length > count) throw new Error('Hierarchie de culling incoherente');
+    if (next.length > count) throw new Error('Inconsistent culling hierarchy');
     frontier = next;
   }
   return sizes;

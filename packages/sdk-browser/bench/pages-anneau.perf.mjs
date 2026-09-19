@@ -1,4 +1,4 @@
-// le préchargement de l'anneau autour de la coupe.
+// preloading the ring around the cut.
 import { createSelectionResult, selectVisiblePages } from '../pageSelection.ts';
 import { compteur, mesure, parcours, rapport, stress } from '../../sdk-core/bench/socle.mjs';
 import { camera } from './appui/scenes.mjs';
@@ -22,48 +22,48 @@ function scene({ feuilles, seed, pixelError }) {
   };
 }
 
-/** `exactPagesRequests.ts` : l'anneau est une seconde coupe, à la moitié du seuil. */
-function anneauParSeconde(entree) {
+/** `exactPagesRequests.ts`: the ring is a second cut, at half the threshold. */
+function anneauParSeconde(input) {
   const ring = selectVisiblePages(
-    entree.roots,
+    input.roots,
     cameraMoteur(cam),
     {
-      pixelError: entree.pixelError > 0 ? entree.pixelError * 0.5 : 0.5,
+      pixelError: input.pixelError > 0 ? input.pixelError * 0.5 : 0.5,
       viewport: image,
       holdResident: false,
-      wanted: entree.wantedAnneau,
-      result: entree.resultatAnneau,
+      wanted: input.wantedAnneau,
+      result: input.resultatAnneau,
     },
-    entree.anneau,
+    input.anneau,
   );
   return (ring.wanted.length ? ring.wanted : ring.shown).map((rec) => rec.url);
 }
 
-/** Ce que la coupe déjà calculée peut donner : ses propres pages, rien de plus fin. */
-function anneauParLaCoupe(entree) {
+/** What the already-computed cut can give: its own pages, nothing finer. */
+function anneauParLaCoupe(input) {
   const cut = selectVisiblePages(
-    entree.roots,
+    input.roots,
     cameraMoteur(cam),
     {
-      pixelError: entree.pixelError,
+      pixelError: input.pixelError,
       viewport: image,
       holdResident: false,
-      wanted: entree.wantedCoupe,
-      result: entree.resultatCoupe,
+      wanted: input.wantedCoupe,
+      result: input.resultatCoupe,
     },
-    entree.coupe,
+    input.coupe,
   );
   return (cut.wanted.length ? cut.wanted : cut.shown).map((rec) => rec.url);
 }
 
-/** L'écart dit les deux raisons d'un coup : l'anneau n'est pas la coupe, et il n'est pas par image. */
-function differencesAnneau(attendu, obtenu, nom) {
-  const c = parcours(compteur(), attendu, obtenu, nom);
+/** The delta states both reasons at once: the ring is not the cut, and it is not per frame. */
+function differencesAnneau(attendu, obtenu, name) {
+  const c = parcours(compteur(), attendu, obtenu, name);
   if (c.nombre)
     c.premier =
-      `l'anneau descend sous la coupe (${attendu.length} pages demandées contre ${obtenu.length} ` +
-      "dans la coupe), il ne s'en dérive pas ; et la seconde coupe n'est pas faite par image : " +
-      "`explorerDraw.ts` ne l'appelle que réseau au repos, après un délai";
+      `the ring goes below the cut (${attendu.length} requested pages against ${obtenu.length} ` +
+      'in the cut); it is not derived from it; and the second cut is not done per frame: ' +
+      '`explorerDraw.ts` calls it only when the network is idle, after a delay';
   return c;
 }
 
@@ -71,23 +71,23 @@ const dense = scene({ feuilles: 10000, seed: 79, pixelError: 8 });
 const rare = scene({ feuilles: 2000, seed: 83, pixelError: 32 });
 
 const resC3 = await mesure({
-  nom: 'anneau par seconde coupe',
+  name: 'ring via a second cut',
   fichier: 'packages/sdk-browser/exactPagesRequests.ts',
   cas: [
-    { nom: '20 000 pages, seuil 8 contre 4', entree: dense, taille: 20000 },
-    { nom: '4 000 pages, seuil 32 contre 16', entree: rare, taille: 4000 },
+    { name: '20 000 pages, threshold 8 against 4', input: dense, size: 20000 },
+    { name: '4 000 pages, threshold 32 against 16', input: rare, size: 4000 },
   ],
   calcul: anneauParLaCoupe,
   attendu: anneauParSeconde,
-  // La coupe ne peut pas tenir lieu d'anneau : le banc chiffre ce qui les sépare, il ne l'efface pas.
+  // Cut cannot substitute for ring: benchmark quantifies difference.
   differences: differencesAnneau,
   options: { chauffe: 2, tours: 15, budgetMs: 1500 },
 });
 
 await stress({
-  nom: 'anneauParLaCoupe extremes',
+  name: 'anneauParLaCoupe extremes',
   calcul: (s) => anneauParLaCoupe(s),
-  extremes: [{ nom: 'rare', entree: rare }],
+  extremes: [{ name: 'rare', input: rare }],
 });
 
-rapport('pages-anneau', [resC3], "C3 a été mesuré et l'écart de l'anneau est décrit");
+rapport('pages-anneau', [resC3], 'C3 was measured and the ring delta is described');

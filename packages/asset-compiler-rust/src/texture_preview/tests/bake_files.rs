@@ -19,10 +19,10 @@ fn stage(dir: &Path) -> (Vec<TexturePreview>, Value) {
     stage_scene(dir, &scene_with_two_readers())
 }
 
-// Comportement 9 : une image de 256 px lue par les deux atlas est décodée une fois et donne deux
-// entrées, une par atlas ; chacune écrit ses niveaux au-dessus de la queue — 256 et 128 px, soit
-// `first_level` fichiers — sous `textures/v3/<sha>/<atlas>-<k>.png`, et la queue du sidecar commence
-// au 64 px. Le PNG est sans perte : relu, il rend exactement les octets du niveau.
+// Behavior 9: 256 px image read by both atlases decoded once, yielding two
+// entries, one per atlas; each writes levels above tail — 256 and 128 px, i.e.
+// `first_level` files — under `textures/v3/<sha>/<atlas>-<k>.png`, sidecar tail starts
+// at 64 px. PNG is lossless: re-read, gives exact level bytes.
 #[test]
 fn levels_above_the_tail_are_written_once_per_atlas_as_lossless_png() {
     let dir = temp_dir("bake-files");
@@ -34,7 +34,7 @@ fn levels_above_the_tail_are_written_once_per_atlas_as_lossless_png() {
     assert_eq!(previews[1].kind, AtlasKind::Data);
     assert_eq!(
         previews[0].sha256, previews[1].sha256,
-        "même image, même empreinte"
+        "same image, same fingerprint"
     );
     assert_eq!(
         previews[0].first_level, 2,
@@ -74,14 +74,14 @@ fn levels_above_the_tail_are_written_once_per_atlas_as_lossless_png() {
             "la queue reste dans le sidecar, pas en fichier"
         );
     }
-    // Le rapport compte les deux atlas.
+    // Report counts both atlases.
     assert_eq!(report["colorTextures"], json!(1));
     assert_eq!(report["dataTextures"], json!(1));
     assert_eq!(report["previews"], json!(2));
 }
 
-// Comportement 9 (b) : un niveau déjà écrit n'est pas réécrit — l'empreinte et l'atlas disent que
-// son contenu est le bon. Le fichier garde son horodatage, et son contenu.
+// Behavior 9 (b): level already written is not rewritten — hash and atlas confirm
+// content correct. File retains timestamp and content.
 #[test]
 fn an_existing_level_file_is_left_untouched() {
     let dir = temp_dir("bake-reuse");
@@ -98,7 +98,7 @@ fn an_existing_level_file_is_left_untouched() {
             0,
         ));
     let stamp = b"pas un png, et personne ne doit y toucher";
-    fs::write(&path, stamp).expect("écraser");
+    fs::write(&path, stamp).expect("overwrite");
     let modified = fs::metadata(&path)
         .expect("meta")
         .modified()
@@ -115,8 +115,8 @@ fn an_existing_level_file_is_left_untouched() {
     assert_eq!(report["bakedLevels"], json!(2));
 }
 
-// Comportement 9 (c) : une image qui tient sous la base n'écrit aucun fichier — tout est dans le
-// sidecar — et le compte le dit.
+// Behavior 9 (c): image fitting under base writes no files — everything in
+// sidecar — count confirms.
 #[test]
 fn a_small_image_bakes_nothing_to_disk() {
     let dir = temp_dir("bake-small");
@@ -129,9 +129,9 @@ fn a_small_image_bakes_nothing_to_disk() {
     assert!(!dir.join("cache").join("native").join("textures").exists());
 }
 
-// Comportement 9 (d) : un niveau qui ne peut pas s'écrire — ici un fichier à la place du dossier
-// des textures — ne coûte pas la queue : l'entrée sort avec `baked_levels = 0`, sa queue intacte,
-// et le rapport nomme l'échec. Le moteur charge alors l'image source, comme avant le lot.
+// Behavior 9 (d): unwritable level — here file in place of textures
+// folder — does not forfeit tail: entry outputs `baked_levels = 0`, tail intact,
+// report names failure. Engine loads source image as before.
 #[test]
 fn a_level_that_cannot_be_written_keeps_the_tail_and_bakes_nothing() {
     let dir = temp_dir("bake-unwritable");
@@ -145,7 +145,7 @@ fn a_level_that_cannot_be_written_keeps_the_tail_and_bakes_nothing() {
     let (first, tail) = tail_of(&source, AtlasKind::Color);
     assert_eq!(previews[0].first_level, first);
     assert_eq!(previews[0].baked_levels, 0);
-    assert_eq!(previews[0].pixels, tail, "la queue est entière");
+    assert_eq!(previews[0].pixels, tail, "the tail is whole");
     assert_eq!(report["bakedLevels"], json!(0));
     assert_eq!(report["notes"]["texture-level-write-failed"], json!(1));
     assert_eq!(report["previews"], json!(2));

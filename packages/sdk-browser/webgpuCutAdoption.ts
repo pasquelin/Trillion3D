@@ -9,9 +9,9 @@ import type { CutCounts } from './webgpuCutCounts.ts';
  * Applies a completed readback without letting it decide the current-frame draw mask.
  *
  * The readback is taken as a difference: a cut this adopter has already seen enters and leaves no
- * page at all, and a cut that moved names only what moved. `desired` IS that difference's list — un
- * seul catalogue pour une seule coupe, opaque et transparent mêlés —, si bien que les étapes qui
- * suivent lisent un ensemble qui a survécu à l'image précédente, et non un ensemble rebâti.
+ * page at all, and a cut that moved names only what moved. `desired` IS that difference's list — one
+ * catalogue for one cut, opaque and transparent mixed — so the stages that follow read a set that
+ * survived the previous frame, not a rebuilt set.
  */
 export function createWebgpuCutAdopter(options: {
   selection: () => GpuSelection | undefined;
@@ -19,53 +19,53 @@ export function createWebgpuCutAdopter(options: {
   shown: PageRec[];
   drawn: PageRec[];
   uniforms: SelectionUniforms;
-  /** Les totaux de la coupe dessinable, tenus par la différence : ils sont lus, jamais resommés. */
+  /** Totals of the drawable cut, held by the difference: they are read, never resommed. */
   counts: CutCounts;
   delta: CutDelta;
   /** The drawable cut as a difference, kept apart because it is not the cut that was asked for. */
   drawnDelta: CutDelta;
-  /** Les fiches que cette différence écrit : `shown` en est la recopie, quand l'image l'adopte. */
+  /** Records this difference writes: `shown` is a copy of them, when the frame adopts it. */
   drawnPages: readonly PageRec[];
   /** Called once per readback, and only there: the difference is applied exactly once. */
   onCutDelta: () => void;
   onDrawnDelta: () => void;
-  /** Appelée quand `drawn` vient d'être refait depuis `shown` : l'image n'a plus à le refaire. */
+  /** Called when `drawn` has just been remade from `shown`: the frame no longer has to remake it. */
   onDrawnMirrored: () => void;
 }) {
   const metrics = {
-    /** Vrai quand l'image a relu le relevé qu'elle tenait déjà : `desired` et `shown` sont ceux de
-     *  l'image précédente, aux mêmes rangs. Faux par défaut, et faux dès qu'un doute existe. */
+    /** True when the frame reread the shown list it already held: `desired` and `shown` are those of
+     *  the previous frame, at the same ranks. False by default, and false as soon as a doubt exists. */
     cutHeld: false,
-    /** Vrai quand cette adoption a réellement réécrit `desired` ou `shown`. L'adoption ne se produit
-     *  pas qu'au rendu : la vidange en rejoue une après coup, donc tout lecteur de ces listes doit
-     *  savoir qu'elles ont bougé sous lui, pas seulement que l'image en cours les tenait. */
+    /** True when this adoption actually rewrote `desired` or `shown`. Adoption does not happen only
+     *  at render: a drain replays one after the fact, so every reader of these lists must know they
+     *  moved under it, not only that the current frame held them. */
     listsRewritten: false,
-    /** Vrai quand le relevé adopté déclare une couverture incomplète : une page que le noyau veut
-     *  dessiner n'est pas encore arrivée. L'image ATTEND cette page, elle ne jette pas la sélection
-     *  GPU — le repli processeur est réservé à un échec réel de la sélection. */
+    /** True when the adopted shown list declares incomplete coverage: a page the kernel wants to
+     *  draw has not arrived yet. The frame WAITS for that page, it does not drop GPU selection —
+     *  the CPU fallback is reserved for a real selection failure. */
     incomplete: false,
-    /** Vrai quand le relevé adopté est AMPUTÉ : la coupe ne tenait pas sous le plafond du relevé.
-     *  Aucune différence n'en est tirée — une liste amputée ferait sortir des pages qui sont dans la
-     *  coupe —, et l'image repasse par la coupe processeur, seule à savoir choisir un sous-ensemble
-     *  représentable. */
+    /** True when the adopted shown list is TRUNCATED: the cut did not fit under the shown-list
+     *  ceiling. No difference is taken from it — a truncated list would exit pages that are still
+     *  in the cut — and the frame goes back through the CPU cut, the only one that knows how to
+     *  pick a representable subset. */
     truncated: false,
     ready: false,
     visible: 0,
     selectedTriangles: 0,
     uncoveredTriangles: 0,
-    /** La part de la coupe qui part au dessin : `selectedTriangles` moins le trou. */
+    /** Share of the cut that goes to draw: `selectedTriangles` minus the hole. */
     drawnTriangles: 0,
     transparentTriangles: 0,
     frustumRejected: 0,
     lodLevel: 0,
   };
   let lastCut: GpuCut | null = null;
-  /** Le relevé dont `shown` et `drawn` sont faits, ou `null` quand ils viennent d'ailleurs. */
+  /** Shown list `shown` and `drawn` are made from, or `null` when they come from elsewhere. */
   let shownCut: GpuCut | null = null;
-  /** L'âge de la suite d'identifiants dessinables : il avance à chaque fois qu'un relevé en publie
-   *  une autre, adoptée ou non. `shownSeq` est celui de la suite dont `shown` est réellement fait :
-   *  un relevé appliqué puis rejeté — uniformes différents, couverture incomplète — les sépare, et
-   *  c'est ce qui interdit de tenir `shown` sur une suite que l'image n'a jamais adoptée. */
+  /** Age of the drawable id sequence: it advances every time a shown list publishes another one,
+   *  adopted or not. `shownSeq` is that of the sequence `shown` is actually made from: a shown list
+   *  applied then rejected — different uniforms, incomplete coverage — separates them, and that is
+   *  what forbids holding `shown` on a sequence the frame never adopted. */
   let drawnSeq = 0,
     shownSeq = -1;
   const adopt = () => {
@@ -75,8 +75,8 @@ export function createWebgpuCutAdopter(options: {
     metrics.truncated = false;
     const cut = options.selection()?.peek();
     if (!cut?.result.drawablePageIds) return false;
-    // Avant toute différence : une liste amputée décrit moins que la coupe, et la différence qu'on
-    // en tirerait ferait SORTIR des pages que la coupe retient encore.
+    // Before any difference: a truncated list describes less than the cut, and the difference taken
+    // from it would EXIT pages the cut still holds.
     if (cut.result.truncated) {
       metrics.truncated = true;
       return false;
@@ -103,25 +103,25 @@ export function createWebgpuCutAdopter(options: {
       metrics.incomplete = true;
       return false;
     }
-    // `shown` est une fonction de la seule suite d'identifiants dessinables : un relevé neuf qui
-    // republie la MÊME suite que celle dont `shown` est fait rend les mêmes fiches, aux mêmes rangs,
-    // et ni `shown` ni sa recopie `drawn` ne sont refaits. La comparaison porte sur l'âge de la suite
-    // adoptée, pas sur la dernière différence appliquée : un relevé appliqué puis rejeté a fait
-    // avancer l'âge sans rien écrire. `shownCut` nul veut dire que ces listes viennent d'ailleurs.
+    // `shown` is a function of the drawable id sequence alone: a new shown list that republishes
+    // the SAME sequence `shown` is made from yields the same records, at the same ranks, and neither
+    // `shown` nor its copy `drawn` is remade. The comparison is on the age of the adopted sequence,
+    // not on the last applied difference: a shown list applied then rejected advanced the age
+    // without writing anything. A null `shownCut` means these lists come from elsewhere.
     const held = cut === shownCut || (shownCut !== null && shownSeq === drawnSeq);
     if (!held) {
-      // La différence vient d'écrire ces fiches en lisant la suite une fois ; les relire une seconde
-      // fois dans le catalogue, à des rangs épars, rendrait exactement le même tableau.
+      // The difference has just written these records by reading the sequence once; rereading them a
+      // second time in the catalogue, at sparse ranks, would yield exactly the same array.
       copyPages(shown, options.drawnPages);
       copyPages(drawn, shown);
       options.onDrawnMirrored();
       shownCut = cut;
       shownSeq = drawnSeq;
     }
-    // LA CARTE D'ABORD. Elle a compté les triangles là où le verdict est prononcé, dans `dagMask`,
-    // et les a fait voyager dans l'entête du relevé (`gpuDagTotalsWgsl.ts`) : ils décrivent la coupe
-    // et non la liste qui la rapporte. La somme processeur ne sert plus qu'à ce qui n'a pas de
-    // carte — le repli de `adoptCpuCut` —, et c'est le seul cas où l'entête ne les porte pas.
+    // GPU FIRST. It counted the triangles where the verdict is given, in `dagMask`, and shipped
+    // them in the shown-list header (`gpuDagTotalsWgsl.ts`): they describe the cut, not the list
+    // that reports it. The CPU sum now serves only what has no GPU — the `adoptCpuCut` fallback —
+    // and that is the only case where the header does not carry them.
     const gpu = cut.result.selectedTriangles;
     const counts = gpu === undefined ? options.counts.totals : cut.result;
     metrics.ready = true;
@@ -134,9 +134,9 @@ export function createWebgpuCutAdopter(options: {
     return true;
   };
   /**
-   * Oublie le relevé tenu : une autre coupe a écrit les tableaux que cet adopteur entretient. Les
-   * différences, elles, ne sont pas jetées — celui qui a écrit ces tableaux les a publiées par
-   * elles, et les jeter ferait redemander une coupe que le cache tient déjà.
+   * Forgets the held shown list: another cut wrote the arrays this adopter maintains. The
+   * differences themselves are not dropped — whoever wrote those arrays published them through
+   * them, and dropping them would re-request a cut the cache already holds.
    */
   const forgetReadback = () => {
     lastCut = null;

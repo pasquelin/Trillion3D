@@ -1,22 +1,22 @@
-//! La reconstruction d'une surface en blocs de 4 × 4 vers RGBA8, partagée par les pilotes qui
-//! reçoivent des blocs déjà compressés pour le GPU : `dds` et `ktx2` nomment leurs codecs chacun à
-//! sa façon — `dwFourCC`, `dxgiFormat`, `vkFormat` — mais une fois le décodeur choisi, promener ses
-//! pixels est exactement le même travail, et il ne s'écrit qu'une fois.
+//! Reconstruction of a 4 × 4 block surface to RGBA8, shared by the drivers that receive blocks
+//! already compressed for the GPU: `dds` and `ktx2` name their codecs each in their own way —
+//! `dwFourCC`, `dxgiFormat`, `vkFormat` — but once the decoder is chosen, walking its pixels is
+//! exactly the same work, and it is written only once.
 //!
-//! `texture2ddecoder` développe chaque bloc par l'interpolation entière que la spécification du
-//! codec définit — aucun arrondi ni filtre n'est ajouté ici — et rend un pixel par mot de
-//! trente-deux bits, octets B, G, R, A en mémoire. La seule chose que fait ce module ensuite est de
-//! remettre ces octets dans l'ordre du contrat, R, G, B, A.
+//! `texture2ddecoder` expands each block by the integer interpolation the codec specification
+//! defines — no extra rounding or filter is added here — and returns one pixel per thirty-two-bit
+//! word, bytes B, G, R, A in memory. The only thing this module then does is put those bytes back
+//! into the contract order, R, G, B, A.
 use super::DecodedImage;
 
-/// La signature d'un décodeur de blocs : les octets du niveau, ses dimensions, les pixels rendus.
+/// Signature of a block decoder: the level's bytes, its dimensions, the returned pixels.
 pub(super) type BlockDecode = fn(&[u8], usize, usize, &mut [u32]) -> Result<(), &'static str>;
 
-/// Développe le niveau 0 d'une surface en blocs de 4 × 4. Le décodeur travaille une rangée de blocs
-/// à la fois dans un tampon de quatre lignes de pixels, recopiées aussitôt dans l'image : aucun
-/// second tampon de la taille de l'image. Chaque bloc se décode seul, donc découper par rangée rend
-/// exactement les mêmes pixels. `truncated` est la raison que le pilote appelant donne à un niveau
-/// plus court que le nombre de blocs annoncé — un refus nommé, jamais une panique.
+/// Expands level 0 of a 4 × 4 block surface. The decoder works one block row at a time into a
+/// four-line pixel buffer, copied immediately into the image: no second buffer the size of the
+/// image. Each block decodes on its own, so cutting by row yields exactly the same pixels.
+/// `truncated` is the reason the calling driver gives a level shorter than the announced block
+/// count — a named refusal, never a panic.
 pub(super) fn to_rgba8(
     decode: BlockDecode,
     block_bytes: usize,
@@ -40,8 +40,8 @@ pub(super) fn to_rgba8(
     Ok(rgba)
 }
 
-/// L'image RGBA8 de ces octets, ou la raison nommée du pilote quand ils ne remplissent pas la
-/// surface annoncée. Le contrat d'image interdit une image vide : `from_raw` est la seule porte.
+/// The RGBA8 image of these bytes, or the calling driver's named reason when they do not fill the
+/// announced surface. The image contract forbids an empty image: `from_raw` is the only gate.
 pub(super) fn image(
     width: u32,
     height: u32,

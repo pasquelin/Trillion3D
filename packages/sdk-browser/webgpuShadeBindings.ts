@@ -1,8 +1,8 @@
 import { shadeBindEntries } from './webgpuBindEntries.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Le groupe de liaison de la résolution matérielle, bâti quand ses ressources sont là. Une seule
- *  construction, pour la préparation comme pour l'image ; il est refait après invalidation. */
+/** Bind group of the hardware resolve, built when its resources are there. One construction, for
+ *  prepare as for the image; it is rebuilt after invalidation. */
 export function ensureWebgpuShadeBindings(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vis } = rt,
     cacheBuffer = rt.gpu.cache?.buffer,

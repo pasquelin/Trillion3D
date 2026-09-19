@@ -28,7 +28,7 @@ export function mockGpu(
     views: Array<{ dimension?: string } | undefined>;
   }> = [];
   const passes: MockPass[] = [];
-  /** Chaque bande de lignes transférée vers une couche d'atlas, dans l'ordre où elle est partie. */
+  /** Each row strip transferred to an atlas layer, in the order it left. */
   const textureWrites: Array<{
     mipLevel: number;
     layer: number;

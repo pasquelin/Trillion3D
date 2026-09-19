@@ -31,8 +31,8 @@ pub(super) fn hash(b: &[u8]) -> String {
 pub(super) fn hash_file(p: &Path) -> Result<String> {
     Ok(hash_file_tail(p)?.0)
 }
-/// L'empreinte du fichier et son dernier octet, d'une seule passe de lecture : un appelant qui veut
-/// savoir comment le fichier finit n'a pas à le rouvrir derrière. `None` pour un fichier vide.
+/// File fingerprint and last byte, from a single read pass: a caller wanting to
+/// know how file ends does not have to re-open it afterwards. `None` for empty file.
 pub(super) fn hash_file_tail(p: &Path) -> Result<(String, Option<u8>)> {
     let mut f = File::open(p)?;
     let mut h = Sha256::new();
@@ -58,10 +58,10 @@ pub(super) fn is_safe_source_name(name: &str) -> bool {
         && !name.contains("..")
         && !name.contains('\0')
 }
-/// Le chemin d'une ressource sous la racine servie, assaini. Un chemin absolu, un chemin qui nomme
-/// un volume, ou dont un segment n'est pas un nom de fichier sûr — il remonterait au-dessus de la
-/// racine — n'en a pas : la ressource est comptée absente plutôt que lue hors du dossier source.
-/// `separators` dit ce qui sépare les segments dans le format d'origine.
+/// Resource path under served root, sanitized. An absolute path, path naming
+/// a volume, or with unsafe filename segment — climbing above
+/// root — has none: resource counted missing rather than read out of source folder.
+/// `separators` specifies segment separators in original format.
 pub(super) fn safe_relative(file: &str, separators: &[char]) -> Option<String> {
     if file.starts_with('/') || file.contains(':') {
         return None;

@@ -7,9 +7,9 @@ import {
 } from './gpuPartitionContract.ts';
 
 /**
- * Les tampons que la partition GPU possède : ils ne dépendent que du nombre de lignes dessinables,
- * jamais de l'image. Les bits de reste et les comptes par slot ne sont PAS ici — ce sont ceux de la
- * compaction de dessin, que la partition écrit à sa place.
+ * Buffers the GPU partition owns: they depend only on the drawable-row count, never on the frame.
+ * Rest bits and per-slot counts are NOT here — they belong to the draw compact, which the
+ * partition writes in their place.
  */
 export function createGpuPartitionBuffers(device: GPUDevice, slotCap: number) {
   const rows = Math.max(1, slotCap);
@@ -50,7 +50,7 @@ export function createGpuPartitionBuffers(device: GPUDevice, slotCap: number) {
   };
 }
 
-/** La disposition de liaison du module : huit tampons de stockage, puis l'uniforme. */
+/** The module's bind layout: eight storage buffers, then the uniform. */
 export function createGpuPartitionLayout(device: GPUDevice) {
   const kinds: GPUBufferBindingType[] = [
     'read-only-storage',

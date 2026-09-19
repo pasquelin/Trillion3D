@@ -9,7 +9,7 @@ export function createGpuPageLoader(context: GpuPageContext) {
     const abortListener =
       report && signal
         ? () =>
-            emit('gpu-page-abort', 'Chargement GPU annulé', () => ({
+            emit('gpu-page-abort', 'GPU load cancelled', () => ({
               version: 1,
               key,
               reason: String(signal.reason ?? 'aborted'),
@@ -17,7 +17,7 @@ export function createGpuPageLoader(context: GpuPageContext) {
         : undefined;
     if (abortListener) signal?.addEventListener('abort', abortListener, { once: true });
     const requestStarted = now();
-    emit('gpu-page-request', 'Demande de page GPU reçue', () => ({
+    emit('gpu-page-request', 'GPU page request received', () => ({
       version: 1,
       key,
       resident: resident.has(key),
@@ -28,7 +28,7 @@ export function createGpuPageLoader(context: GpuPageContext) {
       const queueStarted = now();
       try {
         check(combined);
-        emit('gpu-page-queue-wait', 'Attente de la file CPU de chargement GPU terminée', () => ({
+        emit('gpu-page-queue-wait', 'GPU load CPU queue wait finished', () => ({
           version: 1,
           key,
           durationMs: report ? queueStarted - requestStarted : null,
@@ -37,7 +37,7 @@ export function createGpuPageLoader(context: GpuPageContext) {
         if (existing) {
           resident.delete(key);
           resident.set(key, existing);
-          emit('gpu-page-cache-hit', 'Page GPU déjà résidente', () => ({
+          emit('gpu-page-cache-hit', 'GPU page already resident', () => ({
             version: 1,
             key,
             slot: existing.slot,
@@ -46,7 +46,7 @@ export function createGpuPageLoader(context: GpuPageContext) {
           }));
           return existing;
         }
-        emit('gpu-page-cache-miss', 'Page absente de la résidence GPU', () => ({
+        emit('gpu-page-cache-miss', 'Page absent from GPU residency', () => ({
           version: 1,
           key,
           source: 'page-source',
@@ -56,7 +56,7 @@ export function createGpuPageLoader(context: GpuPageContext) {
           bytes = await (fetched ?? fetchBytes(key, combined));
         } catch (err) {
           if (!combined.aborted && !state.disposed) {
-            emit('gpu-page-retry', 'Nouvelle lecture GPU après échec', () => ({
+            emit('gpu-page-retry', 'New GPU read after failure', () => ({
               version: 1,
               key,
               attempt: 1,
@@ -68,14 +68,14 @@ export function createGpuPageLoader(context: GpuPageContext) {
         }
         check(combined);
         if (bytes.byteLength > pageBytes || bytes.byteLength === 0) {
-          emit('gpu-page-corruption', 'Taille de page GPU inattendue', () => ({
+          emit('gpu-page-corruption', 'Unexpected GPU page size', () => ({
             version: 1,
             key,
             reason: 'page-size-mismatch',
             expectedBytes: pageBytes,
             actualBytes: bytes.byteLength,
           }));
-          emit('gpu-page-admission-blocked', 'Page refusée par la capacité d’un slot GPU', () => ({
+          emit('gpu-page-admission-blocked', 'Page refused by a GPU slot capacity', () => ({
             version: 1,
             key,
             reason: 'page-size-mismatch',
@@ -86,7 +86,7 @@ export function createGpuPageLoader(context: GpuPageContext) {
         }
         return commitGpuPage(context, key, bytes, requestStarted);
       } catch (error) {
-        emit('gpu-page-error', 'Chargement GPU échoué', () => ({
+        emit('gpu-page-error', 'GPU load failed', () => ({
           version: 1,
           key,
           status: statusOf(error),

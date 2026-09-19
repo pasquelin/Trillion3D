@@ -1,9 +1,10 @@
-// C5 : un passage de la coupe qui dépasse le budget de pages s'arrête à la page qui dépasse
-// (`pageSelectionCut.ts`) au lieu de mener chaque relance jusqu'au bout avant de la mesurer. La
-// référence est l'ancien `sweep()` : une relance complète, rejouée ici en appelant la sélection sans
-// budget (`pageBudget` omis désactive le drapeau `over`) et en vérifiant la longueur nous-mêmes,
-// exactement ce que faisait la boucle d'avant le lot C. La coupe rendue — pages affichées et
-// demandées dans l'ordre, compteurs, seuil final — doit être strictement identique.
+// C5: a cut pass that exceeds the page budget stops at the overflowing page
+// (`pageSelectionCut.ts`) instead of taking each retry to the end before measuring it.
+// The reference is the old `sweep()`: a complete retry, replayed here by calling
+// selection without a budget (`pageBudget` omitted disables the `over` flag) and
+// checking length ourselves, exactly what the loop did before lot C. The returned
+// cut — shown and requested pages in order, counters, final threshold — must be
+// strictly identical.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -30,8 +31,8 @@ function ask(pixelError: number, pageBudget: number) {
   };
 }
 
-/** `pageSelectionCut.ts` avant le lot C : chaque relance mène sa descente jusqu'au bout, la longueur
- *  du résultat décide seule si elle est refaite au double du seuil. */
+/** `pageSelectionCut.ts` before lot C: each retry takes its descent to the end, the
+ *  result length alone decides whether it is redone at double the threshold. */
 function relanceComplete(
   roots: ReturnType<typeof racine>[],
   cam: THREE.PerspectiveCamera,
@@ -55,58 +56,62 @@ function assertSameCut(
   assert.deepEqual(
     neuf.shown.map((rec) => rec.url),
     ancien.shown.map((rec) => rec.url),
-    `${message} : pages affichées`,
+    `${message}: shown pages`,
   );
   assert.deepEqual(
     neuf.wanted.map((rec) => rec.url),
     ancien.wanted.map((rec) => rec.url),
-    `${message} : pages demandées`,
+    `${message}: requested pages`,
   );
-  assert.equal(neuf.frustumRejected, ancien.frustumRejected, `${message} : frustumRejected`);
-  assert.equal(neuf.nodesTested, ancien.nodesTested, `${message} : nodesTested`);
-  assert.equal(neuf.lodLevel, ancien.lodLevel, `${message} : lodLevel`);
-  assert.equal(neuf.complete, ancien.complete, `${message} : complete`);
-  assert.ok(Object.is(neuf.pixelError, ancien.pixelError), `${message} : seuil final`);
+  assert.equal(neuf.frustumRejected, ancien.frustumRejected, `${message}: frustumRejected`);
+  assert.equal(neuf.nodesTested, ancien.nodesTested, `${message}: nodesTested`);
+  assert.equal(neuf.lodLevel, ancien.lodLevel, `${message}: lodLevel`);
+  assert.equal(neuf.complete, ancien.complete, `${message}: complete`);
+  assert.ok(Object.is(neuf.pixelError, ancien.pixelError), `${message}: final threshold`);
 }
 
-test('un premier passage dépassé d’une seule page converge sur la même coupe que l’ancienne relance', () => {
+test('a first pass overflowed by a single page converges on the same cut as the old retry', () => {
   const pages = dag({ feuilles: 1024, seed: 5, residentes: 1 });
   const roots = [racine(pages)];
   const cam = camera();
-  // Premier passage (seuil 50) : 18 pages pour un budget de 17, dépassé d'une seule page.
+  // First pass (threshold 50): 18 pages for a budget of 17, over by a single page.
   const neuf = selectVisiblePages(roots, cameraMoteur(cam), ask(50, 17), []);
   const ancien = relanceComplete(roots, cam, 50, 17);
-  assertSameCut(neuf, ancien, 'dépassement de 1');
+  assertSameCut(neuf, ancien, 'overflow of 1');
 });
 
-test('un premier passage dépassé d’un ordre de grandeur (10×) converge sur la même coupe', () => {
+test('a first pass overflowed by an order of magnitude (10×) converges on the same cut', () => {
   const pages = dag({ feuilles: 1024, seed: 5, residentes: 1 });
   const roots = [racine(pages)];
   const cam = camera();
-  // Premier passage (seuil 1) : 1024 pages pour un budget de 100, dépassé d'un peu plus de 10×.
+  // First pass (threshold 1): 1024 pages for a budget of 100, over by a little more than 10×.
   const neuf = selectVisiblePages(roots, cameraMoteur(cam), ask(1, 100), []);
   const ancien = relanceComplete(roots, cam, 1, 100);
-  assertSameCut(neuf, ancien, 'dépassement de 10×');
+  assertSameCut(neuf, ancien, 'overflow of 10×');
 });
 
-test('un budget tenu du premier coup ne déclenche aucune relance, des deux côtés', () => {
+test('a budget held on the first try triggers no retry, on either side', () => {
   const pages = dag({ feuilles: 64, seed: 7, residentes: 1 });
   const roots = [racine(pages)];
   const cam = camera();
   const neuf = selectVisiblePages(roots, cameraMoteur(cam), ask(1, 1000), []);
   const ancien = relanceComplete(roots, cam, 1, 1000);
-  assertSameCut(neuf, ancien, 'budget tenu');
-  assert.equal(neuf.pixelError, 1, 'aucun doublement du seuil');
+  assertSameCut(neuf, ancien, 'budget held');
+  assert.equal(neuf.pixelError, 1, 'no doubling of the threshold');
 });
 
-test('un budget que même le seuil le plus grossier ne peut tenir refait la coupe entière', () => {
-  // Deux racines disjointes : chacune converge vers un unique cluster le plus grossier, donc le
-  // minimum atteignable est 2 pages. Un budget de 1 dépasse donc à chaque seuil, jusqu'au dernier.
+test('a budget even the coarsest threshold cannot hold remakes the whole cut', () => {
+  // Two disjoint roots: each converges toward a single coarsest cluster, so the
+  // reachable minimum is 2 pages. A budget of 1 therefore overflows at every threshold, through the last.
   const roots = [0, 1].map((i) => racine(dag({ feuilles: 16, seed: 5 + i, residentes: 1 })));
   const cam = camera();
   const neuf = selectVisiblePages(roots, cameraMoteur(cam), ask(1, 1), []);
   const ancien = relanceComplete(roots, cam, 1, 1);
-  assertSameCut(neuf, ancien, 'jamais satisfiable');
-  assert.equal(neuf.shown.length, 2, 'minimum incompressible des deux racines');
-  assert.equal(neuf.pixelError, 65536, 'seize doublements puis la coupe entière au même seuil');
+  assertSameCut(neuf, ancien, 'never satisfiable');
+  assert.equal(neuf.shown.length, 2, 'incompressible minimum of the two roots');
+  assert.equal(
+    neuf.pixelError,
+    65536,
+    'sixteen doublings then the whole cut at the same threshold',
+  );
 });

@@ -44,7 +44,7 @@ const lines = [];
 basePose();
 lines.push(
   await duel({
-    nom: 'Object3D.updateMatrixWorld, every node moved',
+    name: 'Object3D.updateMatrixWorld, every node moved',
     fichier: TREE,
     three: () => {
       moved(true)(++round);
@@ -63,7 +63,7 @@ lines.push(
 basePose();
 lines.push(
   await duel({
-    nom: 'Object3D.updateMatrixWorld, root moved',
+    name: 'Object3D.updateMatrixWorld, root moved',
     fichier: TREE,
     three: () => {
       moveThree(0, ++round);
@@ -82,7 +82,7 @@ lines.push(
 basePose();
 lines.push(
   await duel({
-    nom: 'Object3D.updateMatrixWorld, still scene',
+    name: 'Object3D.updateMatrixWorld, still scene',
     fichier: TREE,
     three: () => root.updateMatrixWorld(),
     oracle,
@@ -98,7 +98,7 @@ lines.push(
 basePose();
 lines.push(
   await duel({
-    nom: 'Object3D.updateWorldMatrix, ancestors and node',
+    name: 'Object3D.updateWorldMatrix, ancestors and node',
     fichier: TREE,
     three: () => {
       round++;
@@ -124,7 +124,7 @@ const count = new Float64Array(1),
   countThree = new Float64Array(1);
 lines.push(
   await duel({
-    nom: 'Object3D.traverse',
+    name: 'Object3D.traverse',
     fichier: 'packages/sdk-core/mathTransformTreeStructure.ts',
     three: () => {
       countThree[0] = 0;

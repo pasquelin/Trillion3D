@@ -11,8 +11,8 @@ import { FULL_FACE, writeConeVolume } from './sceneLightShadowVolume.ts';
 import { writeSunFace } from './sceneLightSunFaces.ts';
 
 /**
- * Les six axes d'une ponctuelle, dans l'ordre que le shader retrouve depuis l'axe majeur de la
- * direction lampe → point : +X, −X, +Y, −Y, +Z, −Z. L'ordre est le contrat, pas un détail.
+ * The six axes of a point light, in the order the shader recovers from the major axis of the
+ * light → point direction: +X, −X, +Y, −Y, +Z, −Z. The order is the contract, not a detail.
  */
 export const POINT_FACE_AXES: ReadonlyArray<readonly [number, number, number]> = [
   [1, 0, 0],
@@ -22,14 +22,14 @@ export const POINT_FACE_AXES: ReadonlyArray<readonly [number, number, number]> =
   [0, 0, 1],
   [0, 0, -1],
 ];
-/** Flottants d'une face dans le tampon de tranches : la matrice puis le rectangle d'atlas. */
+/** Floats of a face in the slice buffer: the matrix then the atlas rectangle. */
 export const SHADOW_FACE_FLOATS = 20;
-/** Flottants d'une tranche : six faces plus un `vec4f` d'entête (faces, type, côté, pad). */
+/** Floats of a slice: six faces plus a header `vec4f` (faces, kind, side, pad). */
 export const SHADOW_SLICE_FLOATS = POINT_FACES * SHADOW_FACE_FLOATS + 4;
 
 /**
- * Faces réellement dessinées pour une lampe : six pour une ponctuelle, une pour un projecteur, et
- * les cascades pour une directionnelle — jamais plus que les six faces réservées par tranche.
+ * Faces actually drawn for a light: six for a point, one for a spot, and
+ * the cascades for a directional — never more than the six faces reserved per slice.
  */
 export function faceCountOf(rank: number) {
   if (rank === LIGHT_KIND.point) return POINT_FACES;
@@ -37,26 +37,26 @@ export function faceCountOf(rank: number) {
   return 1;
 }
 
-/** Demi-angle du cône élargi d'un demi-degré, pour que le bord du cône reste couvert par la carte. */
+/** Half-angle of the cone widened by half a degree, so the cone edge stays covered by the map. */
 const spotFov = (coneAngle: number) => Math.min(Math.PI * 0.98, 2 * coneAngle + 0.0175);
 
-/** Flottants du volume d'une face : centre et plan lointain, axe de la face et demi-angle. */
+/** Floats of a face volume: centre and far plane, face axis and half-angle. */
 export const SHADOW_CULL_FLOATS = 8;
 
 /**
- * Écrit la matrice vue-projection d'une face à son emplacement dans `matrices`, et, si le rejet est
- * armé, le volume que celui-ci oppose à la région `rect` de cette face. Les deux partent du même axe
- * et du même champ — un seul calcul, donc aucun risque qu'ils visent des directions différentes. Une
- * ponctuelle prend l'axe de `POINT_FACE_AXES` et 90° ; un projecteur prend sa direction et son cône
- * élargi ; une directionnelle prend la cascade `face`, qui suit la caméra. Le rayon d'émetteur, lui,
- * ne touche ni la projection ni le rejet : son exclusion est exactement une sphère, écrite là où la
- * profondeur d'ombre s'écrit, et un plan proche relevé en retirerait un cube.
+ * Writes the view-projection matrix of a face at its slot in `matrices`, and, if reject is
+ * armed, the volume it opposes to region `rect` of that face. Both start from the same axis
+ * and the same field — one calculation, so no risk they aim at different directions. A
+ * point takes the `POINT_FACE_AXES` axis and 90°; a spot takes its direction and its widened
+ * cone; a directional takes cascade `face`, which follows the camera. The emitter radius, for
+ * its part, touches neither projection nor reject: its exclusion is exactly a sphere, written where
+ * shadow depth is written, and a raised near plane would remove a cube from it.
  *
- * `rect` est la part de la face à redessiner, en coordonnées normalisées ; `FULL_FACE` par défaut,
- * et le volume est alors exactement celui d'avant l'invalidation par pages. Un cluster dont la
- * sphère monde ne touche ni la portée ni ce volume ne peut rien écrire dans la région : la
- * projection et le ciseau le rejetteraient de toute façon. Le rejet est donc exact, jamais une
- * approximation de qualité — la région ne change pas d'un texel.
+ * `rect` is the part of the face to redraw, in normalised coordinates; `FULL_FACE` by default,
+ * and the volume is then exactly that from before per-page invalidation. A cluster whose
+ * world sphere touches neither the range nor this volume can write nothing in the region: the
+ * projection and the scissor would reject it anyway. Reject is therefore exact, never a
+ * quality approximation — the region does not change by a texel.
  */
 export function writeFace(
   matrices: Float32Array,
@@ -76,8 +76,8 @@ export function writeFace(
   const fov = point ? Math.PI / 2 : spotFov(light.coneAngle!);
   const planes = shadowProjection(fov, light.range!);
   composeFace(matrices, matBase, light.position!, forward);
-  // Le plan lointain de la face, pas la portée : les deux ne coïncident que si la portée dépasse le
-  // plan proche, et un cluster entre les deux doit rester dessiné.
+  // The far plane of the face, not the range: the two coincide only if the range exceeds the
+  // near plane, and a cluster between the two must stay drawn.
   if (cull) writeConeVolume(cull, cullBase, light.position!, planes.far, planes.halfFov, rect);
   return planes;
 }

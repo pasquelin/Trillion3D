@@ -13,12 +13,12 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 export function admitGpuCut(rt: WebgpuPagesRuntime, pixelError: number, budgeted: number) {
   const { run, services } = rt,
     { slots } = rt.setup;
-  // Ce que l'image demande au cache : la différence de la coupe l'a posé au moment de l'adopter.
+  // What the image asks the cache: the cut's delta posted it at the moment of adopting.
   const { requestedCount: requested, keepCount } = services.residencySets;
   const wasLimited = run.coverageBudgetLimited;
-  // Ce que l'image tient — couverture racine, coupe et ancêtres dessinés — doit tenir dans les
-  // fentes au même titre que la coupe : sans cela, les ancêtres qui tiennent les fentes attendraient
-  // les enfants qui ne peuvent pas y entrer. La coupe processeur applique la même règle.
+  // What the image holds — root coverage, cut and drawn ancestors — must fit in the slots the same
+  // way the cut does: without that, ancestors holding the slots would wait for children that cannot
+  // enter. The CPU cut applies the same rule.
   run.coverageBudgetLimited = requested > slots || keepCount > slots;
   // Coarsen until the wanted cut fits, and relax again once it fits with room to spare. Doubling
   // and halving with a gap between the two thresholds keeps the loop from oscillating every frame.

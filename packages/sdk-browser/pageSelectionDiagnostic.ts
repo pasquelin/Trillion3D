@@ -6,7 +6,7 @@ import { pixelScaleOf } from './streamingPriority.ts';
 import type { EngineCamera } from './cameraWorld.ts';
 
 const diagnosticErrorView = new Float64Array(16);
-/** La pose de l'hôte recopiée : le produit du socle ne lit que des `Float64Array`. */
+/** Host pose copied: the core product only reads `Float64Array`. */
 const diagnosticWorld = new Float64Array(16);
 const diagnosticPixelScale = [1, 1];
 

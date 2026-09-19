@@ -1,14 +1,15 @@
-//! L'étape des textures : la chaîne de mips cuite de chaque texture d'atlas, puis la feuille des
-//! découpes que son décodage mesure.
+//! Texture stage: the baked mip chain of each atlas texture, then the cutout
+//! sheet that its decoding measures.
 //!
-//! Les deux tiennent ensemble parce qu'elles partagent un décodage : mesurer l'alpha d'une texture
-//! demande la même image pleine résolution que sa pyramide d'aperçu, et la décoder deux fois
-//! coûterait une seconde fois les secondes d'une grande scène.
+//! The two belong together because they share a decode: measuring a texture's
+//! alpha needs the same full-resolution image as its preview pyramid, and
+//! decoding it twice would cost a large scene's seconds a second time.
 use super::*;
 use crate::texture_preview::TexturePreview;
 
-/// Tout ce que l'étape lit. `primitives` sert au seul classement de la feuille : une texture qui
-/// tient encore des primitives en mélange est celle qu'il y a le plus à gagner à trancher.
+/// Everything the stage reads. `primitives` serves only the sheet ranking: a
+/// texture that still holds blend primitives is the one there is most to gain by
+/// deciding.
 pub(super) struct TextureStage<'a> {
     pub o: &'a Options,
     pub g: &'a Value,
@@ -21,16 +22,16 @@ pub(super) struct TextureStage<'a> {
     pub primitives: &'a [Value],
 }
 
-/// Rend les aperçus, le rapport des aperçus et celui des découpes. La feuille de réponses et sa
-/// page sont écrites à CHAQUE compilation, qu'il y ait ou non quelque chose à trancher : c'est la
-/// feuille qui dit si une relecture est due.
+/// Returns the previews, the preview report and the cutout report. The answer
+/// sheet and its page are written on EVERY compilation, whether there is something
+/// to decide or not: it is the sheet that says whether a re-read is due.
 pub(super) fn stage_textures(
     pool: &rayon::ThreadPool,
     stage: &TextureStage<'_>,
     progress: &(impl Fn(Value) + Sync),
 ) -> Result<(Vec<TexturePreview>, Value, Value)> {
-    // Les images se décodent sur la grappe du travail, une par ouvrier, chacune sous le plafond
-    // d'allocation d'un décodage ; la feuille, elle, s'écrit une fois toutes rendues.
+    // Images decode on the job pool, one per worker, each under a decode's
+    // allocation ceiling; the sheet is written once they are all done.
     let (previews, shapes, preview_report) = pool.install(|| {
         texture_preview::stage_texture_previews(
             &texture_preview::PreviewInputs {
