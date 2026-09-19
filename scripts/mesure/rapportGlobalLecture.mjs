@@ -147,6 +147,13 @@ function lireExecution(dossier, nom) {
 export function lireCampagne(dossier, ordre = null) {
   const noms = readdirSync(dossier, { withFileTypes: true })
     .filter((d) => d.isDirectory() && d.name !== 'vignettes')
+    .filter((d) => {
+      const path = join(dossier, d.name);
+      if (existsSync(join(path, 'mesure.json'))) return true;
+      return !readdirSync(path, { withFileTypes: true }).some(
+        (e) => e.isDirectory() && existsSync(join(path, e.name, 'mesure.json')),
+      );
+    })
     .map((d) => d.name);
   const rangs = new Map((ordre ?? []).map(([nom, pourquoi], i) => [nom, { i, pourquoi }]));
   noms.sort((a, b) => (rangs.get(a)?.i ?? 0) - (rangs.get(b)?.i ?? 0) || a.localeCompare(b));
