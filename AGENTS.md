@@ -121,9 +121,9 @@
   `git worktree add ../webGeometry-<issue>-<short-name> -b <issue>-<short-name> origin/develop`,
   then `pnpm install` there. Once the maintainer has merged the branch, whoever notices first
   removes the tree and the branch it left behind: `git worktree remove`, then `git branch -d`.
-  Several
-  agents work on this repository at the same time: two of them in one working tree overwrite each
-  other's files without a word, and a single `git status` then mixes two batches on one branch.
+  Several agents work on this repository at the same time: two of them in one working tree
+  overwrite each other's files without a word, and a single `git status` then mixes two batches
+  on one branch.
 - **The release is a pull request like any other.** `develop` reaches `main` through its own
   issue and its own pull request, body on the same template and starting with `Closes #<issue>`,
   merged once `validate` is green; its head is `develop` itself, so no branch is cut for it and
