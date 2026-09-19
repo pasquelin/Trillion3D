@@ -13,8 +13,9 @@ import {
   ownerOf,
   worldOf,
 } from './gpuDagLayout.ts';
-import { frustumExcludesBox } from '../sdk-core/index.ts';
+import { copyMatrix4, frustumExcludesBox } from '../sdk-core/index.ts';
 import { dagScratch, projectedError } from './gpuDagOracleMath.ts';
+import type { MatrixElements } from './matrixElements.ts';
 
 type PredicateContext = {
   packed: PackedDag;
@@ -30,6 +31,8 @@ type PredicateContext = {
 
 /** Eye of the render frame: the origin, by construction. */
 const RENDER_ORIGIN_EYE = new Float64Array(3);
+/** The scratch world under the host-matrix shape the cone test reads. */
+const SCRATCH_WORLD: MatrixElements = { elements: dagScratch.world };
 
 export function createDagOraclePredicates(context: PredicateContext) {
   const { packed, records, nodeFlags, planes, views, stretches, focal, near } = context;
@@ -43,8 +46,8 @@ export function createDagOraclePredicates(context: PredicateContext) {
     // origin: the camera is at zero there. The oracle therefore puts the eye at zero — putting
     // the world position here would mix an absolute operand with relative boxes, and the cone
     // would decide wrongly.
-    dagScratch.world.fromArray(worlds.subarray(w * 16, w * 16 + 16));
-    return coneCullsPage(cone, dagScratch.world, min, max, RENDER_ORIGIN_EYE);
+    copyMatrix4(dagScratch.world, worlds, 0, w * 16);
+    return coneCullsPage(cone, SCRATCH_WORLD, min, max, RENDER_ORIGIN_EYE);
   };
   const visible = (index: number) => {
     // The owner node lives in the cold, outside what each frame pass rereads.
