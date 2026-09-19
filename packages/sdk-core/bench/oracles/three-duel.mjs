@@ -18,7 +18,7 @@ export const rnd = (a = -10, b = 10) => a + alea() * (b - a);
  * where the engine writes the curve (`mathColor.ts`); the largest gap this leaves, declared once
  * for every bench that measures it.
  */
-export const SRGB_REFERENCE_GAP = 1e-9;
+export const SRGB_REFERENCE_GAP = 1e-10;
 
 /** A unit quaternion from four seeded draws. */
 export const quaternion = () => new THREE.Quaternion(rnd(), rnd(), rnd(), rnd()).normalize();
@@ -103,6 +103,8 @@ export async function duel({ nom, fichier, taille = N, three, oracle, core, tole
     motif,
     ...(tolerance === undefined ? {} : { differences }),
   });
+  if (tolerance !== undefined)
+    engine.resultats[0].motif = `largest gap ${maxAbs.toExponential(1)} ; ${engine.resultats[0].motif}`;
   const t = { ...witness.resultats[0], nom: `${nom} · Three.js` },
     c = { ...engine.resultats[0], nom: `${nom} · sdk-core` };
   test(`${nom}: same result as Three.js, at least as fast`, () => {
