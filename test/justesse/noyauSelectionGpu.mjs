@@ -22,7 +22,7 @@ import {
 const octets = (vue) => Array.from(new Uint8Array(vue.buffer, vue.byteOffset, vue.byteLength));
 
 /** A packed case, ready to cross into the page: raw bytes, including cluster integers. */
-function versPage(nom, packed, uniforms) {
+function versPage(name, packed, uniforms) {
   const uni = new Float32Array(SELECTION_UNIFORM_BYTES / 4);
   writeDagUniforms(uni, packed, uniforms, false);
   const frames = new Float32Array(Math.max(1, packed.worldCount) * FRAME_VEC4 * 4);
@@ -34,7 +34,7 @@ function versPage(nom, packed, uniforms) {
   }
   const blockCount = Math.ceil(Math.max(1, packed.pageCount) / SELECTION_WORKGROUP);
   return {
-    nom,
+    name,
     travail: dagWorkLayout(blockCount, Math.max(1, packed.worldCount)),
     pageCount: packed.pageCount,
     nodeCount: packed.nodeCount,
@@ -151,8 +151,7 @@ async function executer({ shader, cas, workgroup, entete, totaux, bitsPage }) {
     compteurs.unmap();
     const count = Math.min(ints[0], c.pageCount);
     resultats.push({
-      name: c.nom,
-      nom: c.nom,
+      name: c.name,
       // Request words in the ORDER THE GPU WROTE THEM: that is what ranking rereads.
       // `pages` stays sorted, for proofs that compare sets.
       demandes: Array.from(ints.subarray(entete, entete + count)),
@@ -176,7 +175,7 @@ async function executer({ shader, cas, workgroup, entete, totaux, bitsPage }) {
 }
 
 /**
- * Run the GPU kernel on each `{ nom, packed, uniforms }` and return the pages the GPU
+ * Run the GPU kernel on each `{ name, packed, uniforms }` and return the pages the GPU
  * selected, with the sizes of the two lists the frame rereads: descent candidates and
  * `dagWanted` live ones. `shader` replaces the kernel text to compare two versions.
  */
@@ -185,7 +184,7 @@ export async function selectionGpu(cas, shader = DAG_SELECTION_SHADER) {
   // header layout therefore travels with it, instead of being reread from a module the page lacks.
   return await dansPageWebgpu(executer, {
     shader,
-    cas: cas.map((c) => versPage(c.name ?? c.nom, c.packed, c.uniforms)),
+    cas: cas.map((c) => versPage(c.name, c.packed, c.uniforms)),
     workgroup: SELECTION_WORKGROUP,
     entete: SELECTION_HEADER_WORDS,
     bitsPage: REQUEST_PAGE_MAX,
