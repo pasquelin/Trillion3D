@@ -81,3 +81,22 @@ the adaptive threshold and the shadow range.
 | `type Side = 'front' \| 'back' \| 'double'` | which faces of a surface are drawn; every raster, cone, pipeline and blend-plan decision compares against it                                                           | `FrontSide`, `BackSide`, `DoubleSide` | `materialSide.test.ts` |
 | `sideOf(material)`                          | the `Side` a host material declares, the first of an array deciding, an empty array front — read once at the import boundary, the only place naming the host constants | `material.side === THREE.DoubleSide`  | `materialSide.test.ts` |
 | `materialSide(material)`                    | the host constant itself, for the diagnostic materials still built with the host library                                                                               | —                                     | `materialSide.test.ts` |
+
+## Batch E1 — the image reaches the surface (#77)
+
+The WebGPU engine no longer hands its image to a host renderer to be displayed. With a host canvas
+it presents into it directly; without one it presents into a canvas of its own and publishes it,
+and the host copies that canvas with the program below. Nothing here is a performance claim: on the
+direct path the presentation is fused into the composition pass, and on the composed path — which
+the bench does not take — the copy's cost was not isolated above the run-to-run spread. That path
+uploads the whole canvas every frame, held frames included; the engine counts `imageRevision` and
+could spare it, and the lot that removes the WebGL composition host is where that belongs.
+
+### Presentation — `packages/sdk-browser/webgpuPresentationSetup.ts`, `webglCanvasBlit.ts`, `explorerComposeSurface.ts`
+
+| Function                                       | Computes                                                                                                                                                                                                       | Replaces                                                                         | Proof                                                                                                |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `prepareWebgpuPresentation(device, gpuCanvas)` | the engine's presenter on the host canvas, or on one it creates when the host gave none                                                                                                                        | `new CanvasTexture` + `new ShaderMaterial` + a blit mesh added to the host scene | `test/appui/presentationCase.mjs`, mounted on the Lab pages and excluded from `test:gpu`             |
+| `RenderBackend.presentedSurface`               | the canvas an engine presented into, published on the contract; such an engine does not use `scene` for display, and an engine drawing on the host surface publishes none                                      | `scene.children.find((o) => o.userData.blit).material.uniforms.image.value`      | `test/appui/presentationCase.mjs`, mounted on the Lab pages and excluded from `test:gpu`             |
+| `createCanvasBlit(gl)`                         | a full-screen copy program on the caller's context: uploads a canvas and draws it over the viewport, rows reversed once, and reads the source in the encoding the destination writes so nothing converts twice | `WebGLRenderer.render` of a blit mesh, `copyFramebufferToTexture`                | `test/browser/presentation-composee.browser.mjs`: 12 288 channels to each destination, not one apart |
+| `createBackendPresenter(host)`                 | the one place that puts an engine's image on the host surface: copies a presented surface into the bound framebuffer and answers true, or answers false for an engine that hands over a scene                  | `WebGLRenderer.render(backend.scene, camera)` on the WebGPU path                 | `explorerComposeSurface.test.ts`, `test/browser/presentation-composee.browser.mjs`                   |
