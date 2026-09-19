@@ -111,6 +111,8 @@ Three verdict types, never silence:
 keyed by measurement/case pairs. They are **off-git and machine-specific**: timing is only valid on
 the hardware where it was recorded. Without a baseline, the "vs baseline" column shows `—` and the
 report indicates no baseline exists on this machine, rather than erroneously claiming zero regression.
+Fragments and baselines carry `version: 3` (rows keyed `name` / `size`, in English); a file of an
+older version is ignored, and `pnpm run perf:baseline` records it again.
 
 The report flags any machine load higher than 4: above this threshold, timings are inconclusive.
 

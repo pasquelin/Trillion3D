@@ -23,26 +23,27 @@ function coupeDe(scene) {
   return { scene: scene.name, analyse, reading: r, view: r.vue };
 }
 
-function bloc({ scene, analyse, releve, vue }) {
-  if (!releve)
+/** One scene block of the section, from an `analyseCut` result and the reading it came from. */
+export function blocCoupe({ scene, analyse, reading, view }) {
+  if (!reading)
     return `<p><strong>${html(scene)}</strong>: <code>mobile</code> run missing — not measured.</p>`;
   if (!analyse)
-    return `<p><strong>${html(scene)}</strong>: cut for view ${html(vue)} missing — not measured.</p>`;
-  const { total, inconnues, parPrimitive, parNiveau } = analyse;
-  const mesurés = releve.triangles;
+    return `<p><strong>${html(scene)}</strong>: cut for view ${html(view)} missing — not measured.</p>`;
+  const { total, unknown, byPrimitive, byLevel } = analyse;
+  const mesurés = reading.triangles;
   return [
-    `<p><strong>${html(scene)}</strong>, ${html(vue)} view, 1 px threshold: ${nombre(total, 0)} triangles in the cut (${nombre(mesurés, 0)} published by the engine)${inconnues ? `, ${nombre(inconnues, 0)} pages with no record` : ''}.</p>`,
-    tableau(['Primitive', 'Triangles', 'Share'], lignes(parPrimitive, total, 12)),
-    tableau(['DAG level', 'Triangles', 'Share'], lignes(parNiveau, total, 12)),
+    `<p><strong>${html(scene)}</strong>, ${html(view)} view, 1 px threshold: ${nombre(total, 0)} triangles in the cut (${nombre(mesurés, 0)} published by the engine)${unknown ? `, ${nombre(unknown, 0)} pages with no record` : ''}.</p>`,
+    tableau(['Primitive', 'Triangles', 'Share'], lignes(byPrimitive, total, 12)),
+    tableau(['DAG level', 'Triangles', 'Share'], lignes(byLevel, total, 12)),
   ].join('');
 }
 
-function verdictWhisperwind(item) {
+export function verdictWhisperwind(item) {
   if (!item?.analyse) return '';
-  const { parPrimitive, total } = item.analyse;
-  const tete = parPrimitive[0];
+  const { byPrimitive, total } = item.analyse;
+  const tete = byPrimitive[0];
   if (!tete || !total) return '';
-  return `<div class="verdict">${html(item.scene)}: ${nombre(total / 1e6, 1)} M triangles at the 1 px threshold. The top item is <strong>${html(tete.nom)}</strong> (${nombre((100 * tete.triangles) / total, 0)} %). A foliage card only shrinks by disappearing; the reference thins them and dithers the mask.</div>`;
+  return `<div class="verdict">${html(item.scene)}: ${nombre(total / 1e6, 1)} M triangles at the 1 px threshold. The top item is <strong>${html(tete.name)}</strong> (${nombre((100 * tete.triangles) / total, 0)} %). A foliage card only shrinks by disappearing; the reference thins them and dithers the mask.</div>`;
 }
 
 /** "Where triangles come from" section: one cut per scene, plus the Whisperwind verdict. */
@@ -51,7 +52,7 @@ export function sectionCoupe(scenes) {
   const whisper = items.find((i) => i.scene === 'whisperwind-village');
   return [
     '<p>The <code>mobile</code> cut at the 1 px threshold, from the capture (settled pose), pages matched against the compiled cache. The engine also publishes triangles from the last measured frame — with a moving camera the two can differ. No figure is inferred outside this cut.</p>',
-    ...items.map(bloc),
+    ...items.map(blocCoupe),
     verdictWhisperwind(whisper),
   ].join('');
 }
