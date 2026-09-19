@@ -62,6 +62,8 @@ const AUTORISES = {
   explorerCapture: 'boundary: it reads pixels of the host target',
   explorerDisposeSource: 'boundary: it frees host-graph resources',
   explorerDraw: 'boundary: it calls the host renderer',
+  // Split out of `explorerDraw`, not a new dependency: the same boundary, on its own file.
+  explorerDrawScene: 'boundary: it draws the scene an engine hands to the host renderer',
   explorerHeldFrame: 'boundary: it recomposes the held image in a host scene',
   explorerHostState: 'boundary: it restores a recorded pose into the host camera',
   explorerLifecycle: 'boundary: it creates and destroys the host renderer',
