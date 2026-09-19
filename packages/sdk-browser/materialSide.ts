@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 
-/** Which faces of a surface are drawn: the engine's own enum, compared everywhere downstream. */
+/** Which faces of a surface are drawn — `front`, `back` or `double`, what the host declares as
+ *  `THREE.FrontSide`, `THREE.BackSide` or `THREE.DoubleSide`: the engine's own enum, compared
+ *  everywhere downstream. */
 export type Side = 'front' | 'back' | 'double';
 
 /** The host side constant a material declares, the first of an array deciding; an empty

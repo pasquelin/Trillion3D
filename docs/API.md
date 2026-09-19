@@ -36,15 +36,15 @@ numbers. Conventions shared by every entry:
 
 ### Vectors — `packages/sdk-core/mathVector.ts`
 
-| Function                                               | Computes                                                                    | Replaces                        | Proof                                    |
-| ------------------------------------------------------ | --------------------------------------------------------------------------- | ------------------------------- | ---------------------------------------- |
-| `dotVector3(a, b, aAt = 0, bAt = 0)`                   | `a · b` on three components read at offsets                                 | `Vector3.dot`                   | bench `Vector3.dot` (×3.9)               |
-| `crossVector3(out, a, b, outAt = 0, aAt = 0, bAt = 0)` | `out = a × b`; operands read before the first write, so `out` may alias     | `Vector3.crossVectors`          | bench `Vector3.crossVectors` (×5.0)      |
-| `lengthSqVector3(v, at = 0)`                           | `x² + y² + z²`; `Math.sqrt` of it is the reference's `length()` bit for bit | `Vector3.lengthSq`, `length`    | bench `Vector3.length` (×1.7)            |
-| `scaleVector3(out, s)`                                 | the three components multiplied in place                                    | `Vector3.multiplyScalar`        | bench `Vector3.multiplyScalar` (×4.3)    |
-| `copyScaledVector3(out, a, s, outAt = 0, aAt = 0)`     | `out = a · s`                                                               | `Vector3.copy().multiplyScalar` | same line                                |
-| `transformAffinePoint(out, m, x, y, z, outAt = 0)`     | `M · (x, y, z, 1)` for an affine `M`, three components                      | `Vector3.applyMatrix4`          | bench `Vector3.applyMatrix4` (×2.4)      |
-| `normalizeVector3(v)`                                  | `v /                                                                        | v                               | ` in place, a zero vector left unchanged | `Vector3.normalize` | `mathVector.test.ts` |
+| Function                                               | Computes                                                                    | Replaces                        | Proof                                 |
+| ------------------------------------------------------ | --------------------------------------------------------------------------- | ------------------------------- | ------------------------------------- |
+| `dotVector3(a, b, aAt = 0, bAt = 0)`                   | `a · b` on three components read at offsets                                 | `Vector3.dot`                   | bench `Vector3.dot` (×3.9)            |
+| `crossVector3(out, a, b, outAt = 0, aAt = 0, bAt = 0)` | `out = a × b`; operands read before the first write, so `out` may alias     | `Vector3.crossVectors`          | bench `Vector3.crossVectors` (×5.0)   |
+| `lengthSqVector3(v, at = 0)`                           | `x² + y² + z²`; `Math.sqrt` of it is the reference's `length()` bit for bit | `Vector3.lengthSq`, `length`    | bench `Vector3.length` (×1.7)         |
+| `scaleVector3(out, s)`                                 | the three components multiplied in place                                    | `Vector3.multiplyScalar`        | bench `Vector3.multiplyScalar` (×4.3) |
+| `copyScaledVector3(out, a, s, outAt = 0, aAt = 0)`     | `out = a · s`                                                               | `Vector3.copy().multiplyScalar` | same line                             |
+| `transformAffinePoint(out, m, x, y, z, outAt = 0)`     | `M · (x, y, z, 1)` for an affine `M`, three components                      | `Vector3.applyMatrix4`          | bench `Vector3.applyMatrix4` (×2.4)   |
+| `normalizeVector3(v)`                                  | `v / ‖v‖` in place, a zero vector left unchanged                            | `Vector3.normalize`             | `mathVector.test.ts`                  |
 
 ### Colours — `packages/sdk-core/mathColor.ts`
 
