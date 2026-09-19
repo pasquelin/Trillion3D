@@ -9,8 +9,10 @@ exactly one GitHub issue; every rule of AGENTS.md applies, this file only orders
    another agent's batch, and two agents in one tree overwrite each other:
    `git worktree add ../webGeometry-<number>-<short-name> -b <number>-<short-name> origin/develop`,
    then `pnpm install` in it and work there. The branch name starts with the issue number; the
-   pre-commit hook refuses any other branch. `git worktree remove` it once the pull request is
-   merged.
+   pre-commit hook refuses any other branch. A sibling tree has no `.mesure/assets/` of its own
+   (off git): a batch that measures points `WG_ASSETS` at the shared one. The tree outlives your
+   report, since merging is the maintainer's; it is removed with `git worktree remove` and
+   `git branch -d` once the branch is merged, by whoever comes to it first.
 3. Code and test as AGENTS.md §Quality and evidence and §Engine and package boundaries require.
 4. `pnpm run check:changed`, then `pnpm run test:changed`, then `pnpm run validate`.
 5. Commit in small steps, message `type(scope): what changed (#<number>)`, no trailer, no
