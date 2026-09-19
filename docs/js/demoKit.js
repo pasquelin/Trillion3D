@@ -5,6 +5,8 @@
  * knows any particular function.
  */
 
+import { escapeHtml } from './escapeHtml.js';
+
 /** A number the reader drags. `step` defaults to a hundredth of the range. */
 export function slider(name, label, min, max, value, step) {
   return { kind: 'slider', name, label, min, max, value, step: step ?? (max - min) / 100 };
@@ -46,14 +48,6 @@ export function formatNumber(value) {
   const absolute = Math.abs(value);
   if (absolute >= 1e6 || absolute < 1e-4) return value.toExponential(2);
   return value.toFixed(absolute >= 100 ? 1 : 4).replace(/\.?0+$/, '');
-}
-
-function escapeHtml(text) {
-  return String(text ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 
 function controlHtml(control) {
