@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { hashId } from './backendCommon.ts';
+import { materialSide } from './materialSide.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 
 const cache = new WeakMap<THREE.BufferGeometry, THREE.BufferGeometry>();
@@ -51,10 +52,6 @@ function colorTriangles(geometry: THREE.BufferGeometry, salt: number) {
 
 export function createTriangleDiagnosticMaterial(side: THREE.Side, _salt = 0) {
   return new THREE.MeshBasicMaterial({ vertexColors: true, side, toneMapped: false, fog: false });
-}
-
-export function materialSide(material: THREE.Material | THREE.Material[]) {
-  return Array.isArray(material) ? material[0].side : material.side;
 }
 
 /**

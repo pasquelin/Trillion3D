@@ -1,5 +1,10 @@
-import * as THREE from 'three';
-import { frustumExcludesBox, frustumPlanesToLocal, screenErrorBound } from '../sdk-core/index.ts';
+import {
+  copyMatrix4,
+  frustumExcludesBox,
+  frustumPlanesToLocal,
+  multiplyMatrix4,
+  screenErrorBound,
+} from '../sdk-core/index.ts';
 import { errorFloorAt, viewDepthOf, viewLateralOf } from './pageSelectionProjection.ts';
 import { DAG_NODE_FLOATS } from './gpuDagTypes.ts';
 import {
@@ -16,10 +21,11 @@ import {
 } from './gpuDagPackNodes.ts';
 import type { SelectionUniforms } from './gpuSelection.ts';
 
+/** Column-major 4×4 buffers rewritten per world, never reallocated. */
 export const dagScratch = {
-  view: new THREE.Matrix4(),
-  world: new THREE.Matrix4(),
-  viewMatrix: new THREE.Matrix4(),
+  view: new Float64Array(16),
+  world: new Float64Array(16),
+  viewMatrix: new Float64Array(16),
   cone: { axis: [0, 0, 1] as [number, number, number], angle: Math.PI },
   min: [0, 0, 0] as number[],
   max: [0, 0, 0] as number[],
@@ -73,14 +79,14 @@ export function dagViewFrames(
     views: number[][] = [],
     stretches: number[] = [];
   const { view, world, viewMatrix } = dagScratch;
-  view.fromArray(uniforms.view);
+  copyMatrix4(view, uniforms.view);
   for (let w = 0; w < packed.worldCount; w++) {
-    world.fromArray(packed.worlds.subarray(w * 16, w * 16 + 16));
+    copyMatrix4(world, packed.worlds, 0, w * 16);
     const object = new Float64Array(24);
-    frustumPlanesToLocal(object, uniforms.planes, world.elements);
+    frustumPlanesToLocal(object, uniforms.planes, world);
     planes.push(object);
-    viewMatrix.multiplyMatrices(view, world);
-    views.push([...viewMatrix.elements]);
+    multiplyMatrix4(viewMatrix, view, world);
+    views.push(Array.from(viewMatrix));
     stretches.push(packed.worldStretch[w] * cameraStretch);
   }
   return {
