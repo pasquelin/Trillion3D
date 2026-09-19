@@ -1,6 +1,5 @@
 import type { GpuRasterInput } from './gpuRasterTypes.ts';
 import { DEPTH_COMPARE_OR_EQUAL } from './depthConvention.ts';
-import { VIS_UNIFORM_BYTES } from './visibilityPageWgsl.ts';
 
 const RESOLVE_DEPTH = {
   format: 'depth32float' as const,
@@ -66,7 +65,7 @@ export function createRasterResolves(
       layout,
       entries: [
         { binding: 0, resource: { buffer: work, offset: 0, size: targetBytes } },
-        { binding: 1, resource: { buffer: uniform, offset: 0, size: VIS_UNIFORM_BYTES } },
+        { binding: 1, resource: { buffer: uniform, offset: 0, size: 96 } },
       ],
     }));
   /** Une pièce jointe de couleur gardée telle que le raster matériel l'a laissée. */

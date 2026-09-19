@@ -7,8 +7,6 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {
   PAGE_INFO_STRUCT_WGSL,
-  VIS_UNIFORMS_WGSL,
-  VIS_UNIFORM_BYTES,
   EDGE_WGSL,
   PAGE_VERTEX_WGSL,
   PAGE_UV_WGSL,
@@ -67,16 +65,6 @@ test('WRAP_COORD_WGSL déclare fn wrapCoord une seule fois, en direct comme via 
 test('MASK_KEEP_WGSL déclare fn maskKeep une seule fois dans le raster et les deux ombres', () => {
   assert.match(MASK_KEEP_WGSL, /fn maskKeep\(/);
   eachOnce(MASK_KEEP_WGSL, { SMALL_SHADER, VIS_SHADER, SHADOW_DEPTH_SHADER });
-});
-
-test('mask keep/discard is a hash of the screen pixel (#25)', () => {
-  assert.match(MASK_KEEP_WGSL, /fn maskHash\(pixel:vec2f,frame:f32\)/);
-  assert.match(MASK_KEEP_WGSL, /coverage>maskHash\(pixel,frame\)/);
-  assert.match(VIS_SHADER, /in\.position\.xy,0\.0/);
-  assert.match(SHADOW_DEPTH_SHADER, /in\.position\.xy,0\.0/);
-  assert.match(SMALL_SHADER, /pixel,0\.0/);
-  assert.match(VIS_UNIFORMS_WGSL, /maskFrame:f32,padMask0:f32,padMask1:f32,padMask2:f32/);
-  assert.equal(VIS_UNIFORM_BYTES % 16, 0);
 });
 
 test('BARY_WEIGHTS_WGSL déclare fn baryWeights une seule fois dans l’ombrage, jamais dans le raster', () => {

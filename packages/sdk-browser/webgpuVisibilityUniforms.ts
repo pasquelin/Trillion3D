@@ -49,8 +49,6 @@ export function writeWebgpuVisibilityUniforms(
     visInts[base + 21] = slot === 0 ? 0 : 1;
     visInts[base + 22] = gpuFrameActive ? maskOffset : 0;
     visInts[base + 23] = gpuFrameActive ? 1 : 0;
-    // TAA sample as the temporal salt of the screen-pixel mask hash (#25). Zero without TAA.
-    visUniPacked[base + 24] = rt.gpu.temporal?.frame.sample ?? 0;
   }
   device.queue.writeBuffer(visUniform, 0, visUniPacked);
   const shadeUniform = (vis.shadeUniform ??= device.createBuffer({

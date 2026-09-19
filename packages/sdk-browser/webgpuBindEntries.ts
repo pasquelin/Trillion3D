@@ -5,7 +5,6 @@ import {
   SMALL_BINDINGS,
   VIS_BINDINGS,
 } from './webgpuBindLayout.ts';
-import { VIS_UNIFORM_BYTES } from './visibilityPageWgsl.ts';
 
 /** Ce que toute passe qui échantillonne un atlas a besoin de lier : le diffuseur, qui porte le
  *  pool et la table de pages de chaque atlas, et l'échantillonneur. */
@@ -115,7 +114,7 @@ export function visBindEntries(r: VisBindResources): GPUBindGroupEntry[] {
     { binding: b.position, resource: { buffer: r.position } },
     { binding: b.pageTable, resource: { buffer: r.pageTable } },
     { binding: b.flags, resource: { buffer: r.flags } },
-    { binding: b.uniform, resource: { buffer: r.uniform, offset: r.uniformOffset, size: VIS_UNIFORM_BYTES } },
+    { binding: b.uniform, resource: { buffer: r.uniform, offset: r.uniformOffset, size: 96 } },
     { binding: b.uv, resource: { buffer: r.uv } },
     ...atlasEntries(b.color, r.textures.color),
     { binding: b.sampler, resource: r.sampler },

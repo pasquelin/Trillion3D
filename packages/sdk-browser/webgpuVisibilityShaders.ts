@@ -9,7 +9,6 @@ import {
   variesVisibility,
 } from './diagnosticGpuGeometry.ts';
 import type { DiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
-import { VIS_UNIFORM_BYTES } from './visibilityPageWgsl.ts';
 
 /** Allocates visibility uniforms and validates both shader modules before pipeline creation. */
 export async function createWebgpuVisibilityShaders(
@@ -35,8 +34,8 @@ export async function createWebgpuVisibilityShaders(
       { binding: b.flags, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
       {
         binding: b.uniform,
-        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-        buffer: { type: 'uniform', minBindingSize: VIS_UNIFORM_BYTES },
+        visibility: GPUShaderStage.VERTEX,
+        buffer: { type: 'uniform', minBindingSize: 96 },
       },
       { binding: b.uv, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
       ...atlasLayoutEntries(b.color),
