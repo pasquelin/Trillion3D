@@ -20,7 +20,8 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { lancerChrome } from './chrome.mjs';
 import * as options from './options.mjs';
-import { startServer, pngFromRgba } from './serveur.mjs';
+import { startServer } from './serveur.mjs';
+import { encodePng } from '../../packages/sdk-node/png.mts';
 import { readBounds } from './page.mjs';
 import { measureIrradiance } from './oraclePage.mjs';
 import { benchLights } from './lampes.mjs';
@@ -178,7 +179,7 @@ async function runView(page, ctx) {
   if (result.erreur) return { vue: view, erreur: result.erreur };
   const capture = captures.get(captureFile);
   if (capture)
-    await writeFile(join(out, captureFile), pngFromRgba(capture.body, capture.w, capture.h));
+    await writeFile(join(out, captureFile), encodePng(capture.w, capture.h, capture.body, true));
   const reference = join(out, `${view}.f32`);
   const job = oracleJob(settings, pose, lights.lights, reference);
   const oracle = runOracle(ROOT, job, out, view);

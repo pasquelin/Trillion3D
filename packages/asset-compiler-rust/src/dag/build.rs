@@ -50,10 +50,11 @@ pub fn build_dag_tallied(
     }
     let mut tallies: Vec<GroupTally> = Vec::new();
     let mut reductions_kept: Vec<DagGroup> = Vec::new();
-    if strategy == DagStrategy::ExactClusters {
+    // Les soudures ne servent qu'à la réduction : rien à souder pour des grappes exactes ni pour
+    // une primitive qui tient dans une seule grappe.
+    if strategy == DagStrategy::ExactClusters || dag.len() < 2 {
         return Ok((dag, reductions_kept, tallies));
     }
-    // Les soudures ne servent qu'à la réduction : après le retour des grappes exactes, pas avant.
     let (weld, weld_seam) = {
         let _t = Timer::new(Phase::Weld);
         (

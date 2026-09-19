@@ -3,8 +3,9 @@ import { tmpdir } from 'node:os';
 import { dirname, join, basename } from 'node:path';
 import type { CutoutModel, CutoutReviewOptions } from './contracts.ts';
 import type { PendingCutout } from './cutoutSheet.mts';
-import { alphaOf, embeddedImages, type Thumbnail } from './cutoutThumb.mts';
-import { drawFile, drawThumbnail, encodePng, link, type ImageKind } from './cutoutDraw.mts';
+import { alphaOf, embeddedImages, type EmbeddedImages, type Thumbnail } from './cutoutThumb.mts';
+import { drawFile, drawThumbnail, link, type ImageKind } from './cutoutDraw.mts';
+import { encodePng } from './png.mts';
 
 /**
  * Ce que les deux mots veulent dire, rappelé avant la première question et à la demande.
@@ -33,7 +34,7 @@ export async function pictureOf(
   model: CutoutModel,
   pending: PendingCutout,
   thumbnail: Thumbnail | undefined,
-  embedded: EmbeddedImages = new Map(),
+  embedded: EmbeddedImages,
 ): Promise<string | null> {
   const source = join(dirname(model.source), pending.image);
   if (
@@ -56,12 +57,6 @@ export async function pictureOf(
   return target;
 }
 
-/**
- * Les images embarquées des modèles d'une passe, par cache : ouvertes à la première question qui en
- * demande et pas avant, et rendues avec la passe — un `source.bin` pèse des dizaines de mégaoctets,
- * un hôte durable n'a pas à les garder d'un lot à l'autre.
- */
-export type EmbeddedImages = Map<string, Promise<(view: number) => Buffer | null>>;
 async function embeddedOf(model: CutoutModel, thumbnail: Thumbnail, embedded: EmbeddedImages) {
   let images = embedded.get(model.cache);
   if (!images) {

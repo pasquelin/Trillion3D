@@ -115,6 +115,12 @@ export function resize(thumbnail: Thumbnail, width: number, height: number): Thu
  * the `source.bin` the compile published beside its manifest. A model that links its textures as
  * files has none, and needs none — the file itself is sharper than anything we could rebuild.
  */
+/**
+ * Les images embarquées des modèles d'une passe, par cache : ouvertes à la première question qui en
+ * demande et pas avant, et rendues avec la passe — un `source.bin` pèse des dizaines de mégaoctets,
+ * un hôte durable n'a pas à les garder d'un lot à l'autre.
+ */
+export type EmbeddedImages = Map<string, Promise<(view: number) => Buffer | null>>;
 export async function embeddedImages(
   cache: string,
   scope: string = DEFAULT_SCOPE,

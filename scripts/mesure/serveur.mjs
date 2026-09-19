@@ -1,10 +1,9 @@
-// Serveur statique du harnais et encodage PNG, pour `banc.mjs`. Rien n'est écrit ici : le serveur
+// Serveur statique du harnais, pour `banc.mjs`. Rien n'est écrit ici : le serveur
 // lit les dists, les dépendances du navigateur et les assets du banc, et encaisse les
 // captures RGBA que la page lui poste.
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import http from 'node:http';
-import { encodePng } from '../../packages/sdk-node/cutoutDraw.mts';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -100,9 +99,4 @@ export function startServer({ port, mounts, captures, isolation = false }) {
     serveFile(mount, url.pathname, res);
   });
   return new Promise((done) => server.listen(port, '127.0.0.1', () => done(server)));
-}
-
-/** RGBA d'origine bas-gauche, comme `capture()` le rend, vers un PNG 8 bits sans perte. */
-export function pngFromRgba(rgba, w, h) {
-  return encodePng(w, h, rgba, true);
 }
