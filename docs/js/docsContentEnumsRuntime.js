@@ -5,6 +5,7 @@ export const ENUMS_RUNTIME = [
   {
     ...ENUM,
     id: 'MathPathMode',
+    exports: ['MathPath', 'MathPathMode', 'MATH_PATH_CONTRACT'],
     module: 'packages/sdk-core/mathPathContracts.ts',
     signature: "type MathPath = 'js' | 'wasm'\ntype MathPathMode = MathPath | 'auto'",
     description:
@@ -25,6 +26,7 @@ console.log(MATH_PATH_CONTRACT, governor.metrics()); // per operation: jsNsPerEl
   {
     ...ENUM,
     id: 'JobStatus',
+    exports: ['JobStatus', 'createJob'],
     module: 'packages/sdk-core/jobs.ts',
     signature: "type JobStatus = 'queued' | 'running' | 'completed' | 'cancelled' | 'failed'",
     description:
@@ -43,6 +45,7 @@ await job.promise; // job.cancel(reason) aborts it and disposes what it owned`,
   {
     ...ENUM,
     id: 'CapabilityTier',
+    exports: ['CapabilityTier', 'createSafetyPolicy'],
     module: 'packages/sdk-core/safety.ts',
     signature: "type CapabilityTier = 'full' | 'degraded' | 'baseline'",
     description:
@@ -59,6 +62,7 @@ policy.trip('device-lost', now); // straight to the safe path`,
   {
     ...ENUM,
     id: 'GpuTimingMethod',
+    exports: ['GpuTimingMethod'],
     module: 'packages/sdk-core/stageProfile.ts',
     signature: "type GpuTimingMethod = 'timestamp-query' | 'EXT_disjoint_timer_query_webgl2'",
     description:
@@ -73,6 +77,7 @@ console.log(profile.gpuMethod, profile.gpuImageMs); // null when nothing measure
   {
     ...ENUM,
     id: 'ColumnKind',
+    exports: ['ColumnKind', 'COLUMN_KIND'],
     module: 'packages/sdk-core/manifestBinaryFormat.ts',
     signature: "type ColumnKind = 'f64' | 'i32' | 'u32' | 'u8'",
     description:
@@ -90,8 +95,8 @@ console.log(COLUMN_KIND.pageBounds); // 'f64'`,
   {
     ...ENUM,
     id: 'Side',
+    exports: ['Side', 'sideOf', 'materialSide'],
     module: 'packages/sdk-browser/materialSide.ts',
-    issue: 76,
     signature:
       "type Side = 'front' | 'back' | 'double'\nfunction sideOf(material): Side\nfunction materialSide(material): THREE.Side",
     description:
