@@ -1,4 +1,5 @@
 import { FULLSCREEN_VERTEX } from './deferredLighting.ts';
+import { createCanvasBlit } from './webglCanvasBlit.ts';
 
 const PRESENT_SHADER = `@group(0) @binding(0) var image:texture_2d<f32>;
 ${FULLSCREEN_VERTEX}
@@ -119,59 +120,22 @@ export function createSynchronousCanvasCapture() {
     preserveDrawingBuffer: false,
   });
   if (!gl) throw new Error('SYNCHRONOUS_CAPTURE_UNAVAILABLE: await flush before capture');
-  const program = gl.createProgram()!,
-    texture = gl.createTexture()!,
-    vao = gl.createVertexArray()!;
-  const shaders: WebGLShader[] = [];
+  let blit: ReturnType<typeof createCanvasBlit>;
   try {
-    for (const [type, source] of [
-      [
-        gl.VERTEX_SHADER,
-        '#version 300 es\nvoid main(){gl_Position=vec4(float((gl_VertexID&1)*4-1),float((gl_VertexID>>1)*4-1),0.,1.);}',
-      ],
-      [
-        gl.FRAGMENT_SHADER,
-        '#version 300 es\nprecision highp float;uniform sampler2D image;out vec4 color;void main(){color=texelFetch(image,ivec2(gl_FragCoord.xy),0);}',
-      ],
-    ] as const) {
-      const shader = gl.createShader(type)!;
-      shaders.push(shader);
-      gl.shaderSource(shader, source);
-      gl.compileShader(shader);
-      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS))
-        throw new Error(gl.getShaderInfoLog(shader) ?? 'CAPTURE_SHADER');
-      gl.attachShader(program, shader);
-    }
-    gl.linkProgram(program);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS))
-      throw new Error(gl.getProgramInfoLog(program) ?? 'CAPTURE_PROGRAM');
+    blit = createCanvasBlit(gl);
   } catch (error) {
-    shaders.forEach((shader) => gl.deleteShader(shader));
-    gl.deleteProgram(program);
-    gl.deleteTexture(texture);
-    gl.deleteVertexArray(vao);
     gl.getExtension('WEBGL_lose_context')?.loseContext();
     throw error;
   }
-  shaders.forEach((shader) => gl.deleteShader(shader));
   return {
     read(source: HTMLCanvasElement) {
       if (gl.isContextLost()) throw new Error('CAPTURE_CONTEXT_LOST');
       if (canvas.width !== source.width) canvas.width = source.width;
       if (canvas.height !== source.height) canvas.height = source.height;
       gl.viewport(0, 0, canvas.width, canvas.height);
-      gl.disable(gl.DITHER);
-      gl.useProgram(program);
-      gl.bindVertexArray(vao);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-      gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, source);
-      gl.uniform1i(gl.getUniformLocation(program, 'image'), 0);
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      // The copy reverses the rows: the read that follows starts at the bottom, which is the
+      // convention the SDK publishes.
+      blit.draw(source);
       const pixels = new Uint8Array(canvas.width * canvas.height * 4);
       gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
       const error = gl.getError();
@@ -179,9 +143,7 @@ export function createSynchronousCanvasCapture() {
       return pixels;
     },
     dispose() {
-      gl.deleteTexture(texture);
-      gl.deleteVertexArray(vao);
-      gl.deleteProgram(program);
+      blit.dispose();
       gl.getExtension('WEBGL_lose_context')?.loseContext();
     },
   };

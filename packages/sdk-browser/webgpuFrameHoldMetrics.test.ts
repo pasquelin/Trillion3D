@@ -63,7 +63,7 @@ function tenue() {
       presenter: { present: () => {} },
       colorTexture: {},
       targetSize: [4, 4],
-      canvasTexture: undefined,
+      composedCanvas: undefined,
       cache: undefined,
       vertexBytes: 0,
       positionBuffers: new Map(),

@@ -148,6 +148,16 @@ organisation has been measured. The number of call sites does not measure a cost
 volume processed and cross-thread traffic are measured before any move. Transferable buffers avoid
 copies but change owner: a lot, not a call.
 
+R1f. **Image output owned by the engine.** With a single WebGPU engine, the host canvas is
+configured by the engine's own `GPUCanvasContext` and the composition pass writes the display
+image straight into the swap chain: there is no separate presentation pass to remove, and no
+object of the host's rendering library on that path. A host that composes several engines on a
+WebGL2 surface receives the engine's canvas as `presentedSurface` and copies it with the engine's
+own full-screen program (`webglCanvasBlit.ts`): the bytes go through unchanged, the rows are
+reversed once, and the synchronous capture reads the same copy. What still belongs to the host
+library on the output side is the WebGL2 renderer itself — the batch engine written on host meshes
+and the composition host around it — and it is written by its own lot, not by this one.
+
 R2. **Loader**: reads the binary manifest and packets; never a format field on the host side;
 public validation (`assertCachePointer`, `assertCacheReady`).
 R3. **Streaming**: 32 in-flight transfers, priority by screen error then distance, prefetch ring,
