@@ -18,10 +18,10 @@ function clipRecordBox(min: readonly number[], max: readonly number[]) {
   return frustumClipBox(selectionScratch.planes, min[0], min[1], min[2], max[0], max[1], max[2]);
 }
 
-/** Retient un cluster déjà choisi : demande, niveau, résidence, estampille.
+/** Keep a cluster already chosen: request, level, residency, stamp.
  *  Build requested and drawable cuts separately; a resident fallback never hides a missing request.
- *  `resident` est la règle de résidence de la coupe, résolue une fois : à `RESIDENT_ALL` il n'y a
- *  rien à lire sur la fiche, et le cluster est retenu sans autre question. */
+ *  `resident` is the cut's residency rule, resolved once: at `RESIDENT_ALL` there is
+ *  nothing to read on the record, and the cluster is kept without another question. */
 function keep<T extends PageRecord>(
   s: SelectionState<T>,
   rec: T,
@@ -43,15 +43,15 @@ function keep<T extends PageRecord>(
   }
   s.shown[s.shownCount++] = rec;
   s.shownTriangles += triangles;
-  // Un passage qui dépasse le budget est jeté tel quel : son seul résultat est « trop de pages ».
-  // Le savoir au premier dépassement épargne la fin de la descente, pas une page de celle qu'on garde.
+  // A pass that exceeds the budget is discarded as-is: its only result is "too many pages".
+  // Knowing at the first overrun skips the rest of the descent, not a page of the cut we keep.
   if (s.budget !== 0 && s.shownCount > s.budget) s.over = true;
 }
 
-/** Teste un cluster, sauf sa coupe quand un ancêtre l'a déjà tranchée (`settled`) : le tronc et le
- *  cône restent posés, et l'ordre d'émission reste celui de la descente complète.
- *  `inside`, `forcing`, `exact`, `cones`, `boxes` et `resident` sont constants sous un nœud : la
- *  boucle les passe au lieu de les relire sur l'état à chaque cluster. */
+/** Test a cluster, except its cut when an ancestor already settled it (`settled`): the frustum and
+ *  the cone stay as they are, and the emission order stays that of the full descent.
+ *  `inside`, `forcing`, `exact`, `cones`, `boxes` and `resident` are constant under a node: the
+ *  loop passes them instead of rereading them from state at each cluster. */
 function take<T extends PageRecord>(
   s: SelectionState<T>,
   rec: T,
@@ -63,9 +63,9 @@ function take<T extends PageRecord>(
   boxes: boolean,
   resident: number,
 ) {
-  // Un cluster qu'un ancêtre place entièrement dans le tronc ne lit plus sa boîte : ni test, ni
-  // vérification de présence quand la racine l'a déclarée. C'est la seule lecture de fiche que le
-  // tronc imposait encore à un cluster qu'il ne teste pas.
+  // A cluster that an ancestor places entirely inside the frustum no longer reads its box: neither
+  // a test nor a presence check when the root declared it. That was the only record read the
+  // frustum still imposed on a cluster it does not test.
   if (!inside) {
     const min = rec.min,
       max = rec.max;
@@ -108,10 +108,10 @@ export function traverse<T extends PageRecord>(
     marks?: Int32Array;
   },
 ) {
-  // Le repli par forçage ne teste pas la coupe mais le groupe forcé. Les bornes de coupe le
-  // certifient quand même sur un sous-arbre qu'aucun groupe forcé ne touche : les marques de
-  // forçage le disent en une lecture, et la descente y élague comme la passe ordinaire. Sans
-  // marques — racine montée à la main, primitive sans groupes —, le forçage descend tout.
+  // The forcing fallback does not test the cut but the forced group. Cut bounds still
+  // certify it on a subtree no forced group touches: the forcing marks say so in one read, and
+  // the descent prunes there like the ordinary pass. Without
+  // marks — a hand-built root, a primitive without groups — forcing descends everything.
   const forcing = s.flatUseForcing,
     marks = forcing ? culling?.marks : undefined,
     exact = s.flatExact,
@@ -136,7 +136,7 @@ export function traverse<T extends PageRecord>(
     const base = node * stride;
     let inside = (entry & 1) === 1;
     let settled = (entry & 2) === 2;
-    // Un nœud déjà tranché et entièrement dans le tronc n'est pas testé : il n'est que traversé.
+    // A node already settled and entirely inside the frustum is not tested: it is only traversed.
     if (!inside || !settled) s.nodesTested++;
     if (!inside) {
       const clipped = frustumClipBox(
@@ -155,9 +155,9 @@ export function traverse<T extends PageRecord>(
       inside = clipped === 2;
     }
     if (!settled) {
-      // Rejet que le manifeste porte déjà : aucun remplaçant encore assez grossier dans le sous-arbre.
-      // À seuil nul le plafond du remplaçant ne passe sous le seuil que s'il est nul : même identité
-      // que `cutSelectsAtZero`, et pas une projection de plus.
+      // Rejection the manifest already carries: no replacement still coarse enough in the subtree.
+      // At a zero threshold the parent ceiling drops under the threshold only if it is zero: same identity
+      // as `cutSelectsAtZero`, and not one extra projection.
       const bound = nodes[base + 10];
       if (
         exact
@@ -183,7 +183,7 @@ export function traverse<T extends PageRecord>(
     const children = nodes[base + 12];
     if (children > 0) {
       const first = nodes[base + 11];
-      if (top + children > stack.length) throw new Error('Pile de culling trop petite');
+      if (top + children > stack.length) throw new Error('Culling stack too small');
       const flag = (inside ? 1 : 0) | (settled ? 2 : 0);
       for (let child = 0; child < children; child++) stack[top++] = ((first + child) << 2) | flag;
       continue;

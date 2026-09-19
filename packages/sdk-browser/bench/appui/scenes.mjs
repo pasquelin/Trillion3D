@@ -1,6 +1,6 @@
-// Entrées du banc : réalistes (une coupe de milliers de pages devant une caméra) et hostiles
-// (triangles dégénérés, sommets derrière la caméra, NaN, Infinity, -0, boîtes vides ou inversées).
-// Tout vient d'un générateur à graine fixe : deux exécutions voient exactement les mêmes flottants.
+// Bench inputs: realistic (a cut of thousands of pages in front of a camera) and hostile
+// (degenerate triangles, vertices behind the camera, NaN, Infinity, -0, empty or inverted boxes).
+// Everything comes from a seeded generator: two runs see the exact same floats.
 import * as THREE from 'three';
 import { graine } from '../../../sdk-core/bench/socle.mjs';
 
@@ -15,11 +15,11 @@ export function camera(z = 6, near = 0.1, aspect = 16 / 9) {
 const MAUVAIS = [NaN, Infinity, -Infinity, -0];
 
 /**
- * Une page de `triangles` triangles posés au hasard dans une dalle. `hostile` remplace une partie
- * des sommets par des valeurs que le chemin chaud doit traverser sans broncher : triangle dégénéré
- * d'aire nulle, sommet derrière la caméra, coordonnée non finie ou zéro négatif.
+ * A page of `triangles` triangles placed at random in a tile. `hostile` replaces some
+ * vertices with values the hot path must walk without flinching: a degenerate zero-area
+ * triangle, a vertex behind the camera, a non-finite coordinate or a negative zero.
  */
-function page(alea, index, triangles, hostile, material, taille) {
+function page(alea, index, triangles, hostile, material, size) {
   const positions = new Float32Array(triangles * 3 * 3),
     indices = new Uint32Array(triangles * 3);
   const px = (alea() - 0.5) * 8,
@@ -37,15 +37,15 @@ function page(alea, index, triangles, hostile, material, taille) {
     for (let v = 0; v < 3; v++) {
       const at = (t * 3 + v) * 3,
         source = degenere ? 0 : v;
-      let x = cx + (source - 1) * taille,
-        y = cy + (source % 2 ? taille * 0.9 : -taille * 0.9),
+      let x = cx + (source - 1) * size,
+        y = cy + (source % 2 ? size * 0.9 : -size * 0.9),
         z = cz + (alea() - 0.5) * 0.1;
       if (derriere) z = 30;
       if (casse) x = MAUVAIS[(t + v) % MAUVAIS.length];
       positions[at] = x;
       positions[at + 1] = y;
       positions[at + 2] = z;
-      // Sens de parcours inversé : les triangles font face à la caméra, le visbuffer les garde.
+      // Reversed winding: the triangles face the camera, the visbuffer keeps them.
       indices[t * 3 + v] = t * 3 + (2 - v);
       for (let axe = 0; axe < 3; axe++) {
         const valeur = positions[at + axe];
@@ -74,25 +74,25 @@ function page(alea, index, triangles, hostile, material, taille) {
   };
 }
 
-/** Une coupe complète : `pages` pages de `triangles` triangles chacune, devant la caméra. */
+/** A complete cut: `pages` pages of `triangles` triangles each, in front of the camera. */
 export function coupe({
   pages = 200,
   triangles = 24,
   hostile = true,
   seed = 7,
-  taille = 0.16,
+  size = 0.16,
   material,
 } = {}) {
   const alea = graine(seed),
     mat = material ?? new THREE.MeshBasicMaterial({ color: 0x88aa44 });
   const liste = [];
-  for (let i = 0; i < pages; i++) liste.push(page(alea, i, triangles, hostile, mat, taille));
+  for (let i = 0; i < pages; i++) liste.push(page(alea, i, triangles, hostile, mat, size));
   return liste;
 }
 
 /**
- * Des boîtes seules, sans géométrie : ce que la Hi-Z projette et trie. `degenerees` ajoute la boîte
- * vide, la boîte inversée (min > max), la boîte à l'infini et la boîte qui traverse le plan proche.
+ * Boxes only, without geometry: what Hi-Z projects and sorts. `degenerees` adds the empty
+ * box, the inverted box (min > max), the infinite box and the box that crosses the near plane.
  */
 export function boites({ count = 20000, seed = 11, degenerees = true } = {}) {
   const alea = graine(seed),
@@ -129,7 +129,7 @@ export function boites({ count = 20000, seed = 11, degenerees = true } = {}) {
   return liste;
 }
 
-/** Les rectangles écran que `hizTestRect` doit classer : plein écran, vides, hors champ, immenses. */
+/** Screen rectangles that `hizTestRect` must classify: full screen, empty, off-field, huge. */
 export function rectangles({ count = 20000, seed = 13, width = 1280, height = 720 } = {}) {
   const alea = graine(seed),
     liste = [];

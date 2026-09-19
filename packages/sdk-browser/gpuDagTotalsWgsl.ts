@@ -1,33 +1,33 @@
 import { CLUSTER_TRANSPARENT } from './gpuDagLayout.ts';
 
 /**
- * Les totaux de triangles d'une image, tenus PAR LA CARTE.
+ * Triangle totals of a frame, held BY THE GPU.
  *
- * Le processeur les sommait en parcourant la différence de coupe (`webgpuCutCounts.ts`) : ce qui
- * entre s'ajoute, ce qui sort se retire. Cela exigeait qu'il connaisse la coupe — la liste entière,
- * rapportée image après image. Ici ils sont accumulés là où le verdict est prononcé, dans `dagMask`,
- * le seul noyau qui sache ce qu'une image dessine.
+ * The CPU used to sum them by walking the cut delta (`webgpuCutCounts.ts`): what enters is added,
+ * what leaves is subtracted. That required it to know the cut — the whole list, reported frame after
+ * frame. Here they are accumulated where the verdict is given, in `dagMask`, the only kernel that
+ * knows what a frame draws.
  *
- * LES TROIS SONT PRIS SUR LE MÊME ENSEMBLE, et c'est ce qui tient l'invariant que le processeur
- * documentait — `selected − drawn − uncovered = 0` :
+ * ALL THREE ARE TAKEN ON THE SAME SET, and that is what holds the invariant the CPU documented —
+ * `selected − drawn − uncovered = 0`:
  *
- * - `voulu` : la COUPE DESSINABLE ENTIÈRE, c'est-à-dire ce que `dagMask` dessinerait si la résidence
- *   ne s'y opposait pas. Ce n'est pas ce que `dagWanted` retient : entre les deux, l'escalade de
- *   résidence a monté le seuil de la primitive, et une grappe retenue au seuil de l'image peut ne
- *   plus l'être au seuil escaladé.
- * - `dessinee` : ce qui part vraiment au raster, donc ce que le masque porte.
- * - `trou` : ce que la coupe voulait dessiner et que la résidence lui refuse. Exactement la
- *   différence des deux, jamais autre chose.
+ * - `voulu`: the FULL DRAWABLE CUT, i.e. what `dagMask` would draw if residency did not oppose it.
+ *   This is not what `dagWanted` keeps: between the two, residency escalation has raised the
+ *   primitive's threshold, and a cluster kept at the frame threshold may no longer be at the
+ *   escalated one.
+ * - `dessinee`: what actually goes to the raster, hence what the mask carries.
+ * - `trou`: what the cut wanted to draw and residency refuses it. Exactly the difference of the
+ *   two, never anything else.
  *
- * Ils décrivent la COUPE, jamais la liste qui la rapporte : un rang que le plafond du relevé refuse
- * ne retire rien d'un total. C'est ce qui leur permet de survivre à la disparition des listes.
+ * They describe the CUT, never the list that reports it: a rank the readback cap refuses does not
+ * subtract from a total. That is what lets them survive the disappearance of the lists.
  *
- * LA SOMME SE FAIT D'ABORD DANS LE GROUPE. Quatre mots uniques additionnés par CHAQUE grappe vivante
- * sérialisent toute la carte sur quatre adresses : c'est le point chaud d'atomique classique, et il
- * grandit avec la scène. Chaque groupe de 64 fils somme donc dans sa propre mémoire partagée — une
- * atomique de groupe, sans trafic mémoire —, puis quatre de ses fils versent le sous-total dans les
- * mots d'image. La carte passe de quatre additions globales par grappe à quatre par groupe, soit
- * soixante-quatre fois moins de disputes, pour exactement les mêmes nombres.
+ * THE SUM HAPPENS IN THE WORKGROUP FIRST. Four unique words added by EVERY live cluster serialize
+ * the whole GPU on four addresses: that is the classic atomic hotspot, and it grows with the scene.
+ * Each group of 64 threads therefore sums in its own shared memory — a workgroup atomic, with no
+ * memory traffic — then four of its threads pour the subtotal into the frame words. The GPU goes
+ * from four global adds per cluster to four per group, sixty-four times fewer contests, for exactly
+ * the same numbers.
  */
 export const DAG_TOTALS_WGSL = `var<workgroup> totauxGroupe:array<atomic<u32>,4>;
 fn ouvreTotaux(lid:u32){
@@ -42,8 +42,8 @@ fn noteImage(i:u32,flags:u32,voulu:bool,dessinee:bool,trou:bool){
  if(dessinee){atomicAdd(&totauxGroupe[2],tri);}
  if(trou){atomicAdd(&totauxGroupe[3],tri);}
 }
-/** Quatre fils, un compteur chacun : le groupe ne verse rien quand il n'a rien compté. La barrière
- *  est franchie par TOUS les fils du groupe, y compris ceux qui n'avaient pas de grappe. */
+/** Four threads, one counter each: the group pours nothing when it counted nothing. The barrier
+ *  is crossed by EVERY thread in the group, including those that had no cluster. */
 fn verseTotaux(lid:u32){
  workgroupBarrier();
  if(lid>=4u){return;}

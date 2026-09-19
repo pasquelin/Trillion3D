@@ -1,8 +1,8 @@
 use super::*;
 
-// Lot B5 : classify_link prête un LinkScratch réutilisé au lieu d'allouer trois listes et une pile
-// par sommet. Vidé à l'entrée sur chacune de ses dizaines de sorties, y compris les abandons
-// anticipés : un bloc réutilisé après une sortie anticipée doit rendre le même verdict qu'un bloc
+// Lot B5: classify_link lends a reused LinkScratch instead of allocating three lists and a stack
+// per vertex. Cleared at entry on each of its dozens of outputs, including early returns:
+// a block reused after an early exit must yield the same result as a fresh block
 // neuf.
 
 #[test]
@@ -34,16 +34,16 @@ fn classify_link_classifies_an_open_fan_as_boundary() {
 #[test]
 fn classify_link_reuses_scratch_after_an_early_return_without_leaking_state() {
     let mut scratch = LinkScratch::default();
-    // Trois arêtes sur un même sommet : la troisième sort tôt par "locked", laissant le bloc de
-    // travail à moitié rempli (ids, neighbours et degree posés, seen et stack jamais touchés).
+    // Three edges on the same vertex: the third exits early with "locked", leaving the work
+    // block half filled (ids, neighbours, and degree set, seen and stack never touched).
     let non_manifold = [(1u32, 2u32), (1, 3), (1, 4)];
     assert_eq!(classify_link(&non_manifold, &mut scratch), "locked");
-    // Le même bloc, réutilisé sur un éventail fermé propre, doit rendre le même verdict qu'un
-    // bloc neuf : la fonction le vide entièrement à l'entrée, quel que soit l'état laissé par
-    // l'appel précédent.
+    // The same block, reused on a clean closed fan, must yield the same result as a
+    // fresh block: the function clears it completely at entry, regardless of the state left by
+    // the previous call.
     let closed = [(10u32, 20u32), (20, 30), (30, 10)];
     assert_eq!(classify_link(&closed, &mut scratch), "interior");
-    // Et un troisième appel, ouvert cette fois, confirme que chaque appel repart bien à zéro.
+    // And a third call, open this time, confirms that each call starts fresh from scratch.
     let open = [(10u32, 20u32), (20, 30)];
     assert_eq!(classify_link(&open, &mut scratch), "boundary");
 }

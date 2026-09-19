@@ -23,8 +23,8 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
   // buffer. Keeping the opaque prefix first leaves every opaque page index exactly where it was.
   const selectionRoots = [...opaqueRoots, ...transparentRoots];
   const packedPages: PageRec[] = selectionRoots.flatMap((root) => root.pages);
-  // Le placement d'une page est le rang de sa racine : ce que la fiche porte pour retrouver le
-  // mouvement du placement (`taaMotion.ts`), posé une fois comme `packedIndex`.
+  // A page's placement is its root's rank: what the row carries to find the placement motion
+  // (`taaMotion.ts`), posted once as `packedIndex`.
   selectionRoots.forEach((root, placement) => {
     for (const page of root.pages) page.placementIndex = placement;
   });
@@ -42,7 +42,7 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
   // Rows are the visibility buffer's, and only opaque clusters ever claim one.
   const drawSlots = Math.max(1, Math.min(VIS_MAX_PAGES, opaquePageCount || 1, slots * maxCopies));
   const rows = createWebgpuRowState(packedPages, drawSlots);
-  /** Tout triangle de toute ligne dessinable : la borne qu'une liste du raster ne peut dépasser. */
+  /** Every triangle of every drawable row: the bound a raster list cannot exceed. */
   const rasterCapacity = drawSlots * Math.ceil(Math.max(1, pageBytes / 4) / 3);
   /**
    * World-space corners of every page's box, kept across images and rebuilt only when the epoch of the
@@ -50,16 +50,16 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
    * image; it no longer retransforms them, and the projection itself no longer runs on this side.
    */
   const boxCorners = createBoxCorners(packedPages.length);
-  /** Les mêmes coins, par LIGNE et en simple précision : ce que la partition GPU lit. Ils ne sont
-   *  réécrits que sur la plage sale de la table, jamais par image. */
+  /** The same corners, per ROW and in single precision: what the GPU partition reads. They are
+   *  rewritten only on the table's dirty range, never per image. */
   const cornerPacked = new Float32Array(drawSlots * CORNER_VALUES);
   const cornerHold = createCornerUploadHold();
-  /** Les fiches de dessin, tenues d'une image à l'autre : seule une ligne qui change les réécrit. */
+  /** Draw rows, held from one image to the next: only a changing row rewrites them. */
   const drawItemWords = new Uint32Array(drawSlots * DRAW_ITEM_U32);
   const itemWordsHold = createDrawItemWordsHold(drawSlots);
   return {
-    /** Le lot de boîtes des racines, réservé à la préparation et rejoué à chaque déplacement de
-     *  nœud ; `null` tant que la préparation n'a pas eu lieu ou quand le lot n'est pas gréable. */
+    /** Root-box batch, reserved at prepare and replayed on every node move; `null` until prepare has
+     *  happened or when the batch cannot be fitted. */
     rootBoxes: null as BoxTransformLot | null,
     opaqueRoots,
     transparentRoots,

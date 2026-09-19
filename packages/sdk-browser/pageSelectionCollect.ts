@@ -16,16 +16,16 @@ export function collectClusterPages(
   associations: Map<THREE.Object3D, { meshes?: number; primitives?: number }>,
   options: { allowMissing?: boolean } = {},
 ) {
-  // Les matrices monde des pages et des racines sont celles du MOTEUR, calculées depuis les poses
-  // locales de l'hôte : plus aucune fiche ne porte la `matrixWorld` vivante de son maillage.
+  // World matrices of pages and roots are the ENGINE's, computed from the host's local poses:
+  // no record any longer carries the live `matrixWorld` of its mesh.
   const worlds = hostWorldPlacements(source);
   const roots: Array<ClusterRoot<PageRec>> = [],
     allPages: PageRec[] = [],
     blendCopies: THREE.Mesh[] = [],
     bootstrap: PageRec[] = [];
   const primitiveOf = primitiveFinder(metadata.primitives);
-  // Un gabarit par objet source, partagé par tous ses placements : la forme du DAG, ses bandes
-  // d'erreur et ses identités de clusters ne dépendent d'aucune matrice monde.
+  // One template per source object, shared by all its placements: the DAG shape, its error
+  // bands and cluster identities depend on no world matrix.
   const templates = createPrimitiveTemplates(indices, options.allowMissing === true);
   let order = 0;
   for (const mesh of objects(source)) {
@@ -97,8 +97,8 @@ export function collectClusterPages(
     roots.push({
       world,
       pages,
-      // Les nœuds, leurs bornes et leurs liens appartiennent à la primitive et sont partagés par
-      // tous ses placements ; seules les marques de forçage sont propres à ce placement-ci.
+      // Nodes, their bounds and their links belong to the primitive and are shared by all its
+      // placements; only the force marks are proper to this placement.
       culling: culling && {
         ...culling,
         bounds: shape.bounds!,
@@ -110,12 +110,12 @@ export function collectClusterPages(
       structure,
       forced: structure ? new Uint8Array(structure.groupCount) : undefined,
       forcedList: structure ? [] : undefined,
-      // Aucune page collectée ne porte de cône : `prepareCones` est le seul à en poser, et il
-      // relève ce drapeau en même temps. Le moteur WebGL2 ne l'appelle pas et ne paie donc plus
-      // une lecture de `cone` par cluster testé.
+      // No collected page carries a cone: `prepareCones` is the only one to set them, and it
+      // raises this flag at the same time. The WebGL2 engine does not call it and therefore no
+      // longer pays a `cone` read per tested cluster.
       cones: false,
-      // Chaque fiche reçoit `min` et `max` du manifeste, que le contrat de page rend obligatoires :
-      // la racine le déclare, et la coupe cesse de le vérifier par cluster.
+      // Each record receives `min` and `max` from the manifest, which the page contract makes
+      // mandatory: the root declares it, and the cut stops checking it per cluster.
       boxes: true,
     });
     // The clusters nothing replaces are the coarsest complete cover; they stay resident so the cut

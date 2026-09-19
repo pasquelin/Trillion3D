@@ -45,14 +45,14 @@ ${DATA_SAMPLE_WGSL}
 ${TILE_REQUEST_WGSL}
 ${SHADE_REQUEST_WGSL}
 ${INVERSE_TRANSPOSE_WGSL}
-// La cinquième sortie est le rang de tuile que ce pixel demande aux textures virtuelles, posé dans
-// la cible de retour que les transparents complètent et qu'une passe de calcul réduit en compteurs.
+// The fifth output is the tile rank this pixel asks of virtual textures, placed in the
+// feedback target that transparents complete and that a compute pass reduces into counters.
 struct SurfaceOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@location(2) emissiveAo:vec4f,@location(3) flags:u32,@location(4) request:u32,}
-/** Une surface sans rien à éclairer — fond, ou découpe qui l'écarte — : sa demande de tuiles reste,
- *  le raster qui a gardé le pixel lit la même carte, et c'est ce pixel qui la nomme. */
+/** A surface with nothing to light — background, or a cutout that drops it —: its tile request
+ *  stays, the raster that kept the pixel reads the same map, and it is this pixel that names it. */
 fn cutSurface(request:u32)->SurfaceOut{return SurfaceOut(vec4f(0.0),vec4f(0.0),vec4f(0.0),0u,request);}
 fn emptySurface()->SurfaceOut{return cutSurface(0u);}
-/** Un diagnostic garde la demande : ses textures convergent comme celles de l'image. */
+/** A diagnostic keeps the request: its textures converge like those of the image. */
 fn diagnosticSurface(color:vec3f,request:u32)->SurfaceOut{return SurfaceOut(vec4f(color,0.0),vec4f(0.0),vec4f(0.0),3u,request);}
 fn framebuffer(clip:vec4f)->vec3f{
  let ndc=clip.xyz/clip.w;
@@ -140,19 +140,19 @@ fn framebuffer(clip:vec4f)->vec3f{
  // Original vertices may straddle the near plane; recover the clipped winding.
   let screenFace=select(-1.0,1.0,area*c0.w*c1.w*c2.w<0.0);
   let world3=mat3x3f(page.world[0].xyz,page.world[1].xyz,page.world[2].xyz);
-  // Le sens de face d'une pose singulière ne vient PAS de son déterminant nul : sur une face
-  // aplatie, l'adjointe a déjà mis la normale du côté du produit vectoriel des arêtes transformées,
-  // et il ne reste que le côté d'où l'écran la voit. Le test de déterminant ci-dessous rend
-  // exactement cela à déterminant nul — face y vaut screenFace —, comme matrixWindingCw côté CPU.
+  // Face winding of a singular pose does NOT come from its zero determinant: on a flattened
+  // face, the adjugate already put the normal on the side of the transformed-edge cross product,
+  // and only the side the screen sees it from remains. The determinant test below yields
+  // exactly that at a zero determinant — face y is screenFace — like matrixWindingCw on the CPU.
   let face=screenFace*select(-1.0,1.0,determinant(world3)>=0.0);
   let side=select(1.0,-1.0,(page.flags&256u)!=0u);
-  // Les trois normales du triangle subissent la MÊME matrice : la normalisation, le déterminant et
-  // l'adjointe se calculent une fois pour le pixel, et chaque normale ne garde que le produit 3×3.
-  // xformNormal faisait ce prologue trois fois ; l'opérande et l'ordre par normale ne bougent pas.
-  // uniteOuZero rend normalize sur tout vecteur non nul, donc les mêmes bits qu'avant sur une pose
-  // régulière ; il ne diffère que là où normalize rendrait NaN — face effondrée, triangle dégénéré.
-  // Sur une pose de rang 2, invTranspose3Apply rend la normale de la FACE transformée : les trois
-  // normales de sommets y tombent sur la même direction, et l'interpolation la conserve.
+  // The three triangle normals undergo the SAME matrix: normalisation, determinant and
+  // adjugate are computed once for the pixel, and each normal only keeps the 3×3 product.
+  // xformNormal did this prologue three times; the operand and per-normal order do not move.
+  // uniteOuZero returns normalize on any non-zero vector, hence the same bits as before on a
+  // regular pose; it only differs where normalize would yield NaN — collapsed face, degenerate triangle.
+  // On a rank-2 pose, invTranspose3Apply returns the transformed FACE normal: the three
+  // vertex normals fall on the same direction, and interpolation keeps it.
   let invT=invTranspose3Prep(world3);
   var n0=uniteOuZero(invTranspose3Apply(invT,vertN(page.vertexBase,i0)))*side;
   var n1=uniteOuZero(invTranspose3Apply(invT,vertN(page.vertexBase,i1)))*side;

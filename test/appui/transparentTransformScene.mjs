@@ -1,15 +1,15 @@
-// La scène de la preuve « un transparent suit `setTransform` » : un fond opaque plein cadre, et un
-// carreau transparent nommé `vitre` sous un nœud `pivot`. Le moteur ne le distingue que par la
-// passe déclarée et par son matériau.
+// Scene of the proof "a transparent follows `setTransform`": a full-frame opaque background, and a
+// transparent tile named `vitre` under a `pivot` node. The engine distinguishes it only by the
+// declared pass and by its material.
 import * as THREE from 'three';
 import { batisseur, carre } from './preuveSceneCommune.mjs';
 
-/** Demi-largeur du carreau transparent : la fenêtre d'échantillonnage en dépend, pas l'inverse. */
+/** Half-width of the transparent tile: the sampling window depends on it, not the reverse. */
 export const DEMI = 0.35;
 
 /**
- * `pagine` choisit la passe du carreau — `clustered-blend` le fait passer par les pages du DAG,
- * `shared-blend` par le chemin non paginé.
+ * `pagine` chooses the tile's pass — `clustered-blend` sends it through the DAG pages,
+ * `shared-blend` through the unpaged path.
  */
 export function sceneTransparente(pagine) {
   const bati = batisseur();

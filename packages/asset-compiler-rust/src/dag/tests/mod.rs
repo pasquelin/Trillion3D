@@ -28,7 +28,7 @@ pub(crate) fn grid(n: usize) -> (Vec<f32>, Vec<u32>) {
     (positions, indices)
 }
 
-/// Le DAG complet d'un maillage, sans uv, sans point d'annulation.
+/// Full mesh DAG, no UVs, no cancel point.
 pub(super) fn build_of(
     positions: &[f32],
     indices: &[u32],

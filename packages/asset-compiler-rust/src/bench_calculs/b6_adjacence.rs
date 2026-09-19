@@ -1,6 +1,6 @@
-//! B6 — `cluster_adjacency` sans tri global : les arêtes de bord sont groupées par clé dans une
-//! table de hachage. Les poids sont des sommes d'entiers, donc l'ordre de parcours ne les change
-//! pas. Référence : l'ancienne version, noms francisés.
+//! B6 — `cluster_adjacency` without a global sort: border edges are grouped by key
+//! in a hash table. Weights are integer sums, so traversal order does not change
+//! them. Reference: old version, French names.
 use super::harness::{compare, Bits, Row};
 use super::inputs;
 use crate::dag::clusters::cluster_adjacency;
@@ -76,7 +76,7 @@ pub(crate) fn row() -> Row {
     let clusters = inputs::clusters(0x0AD_ACE, 2048, 128);
     let vues: Vec<&[u32]> = clusters.iter().map(Vec::as_slice).collect();
     compare(
-        "B6 adjacence par arêtes de bord (témoin)",
+        "B6 adjacency by border edges (control)",
         "dag/clusters.rs",
         "2 048 clusters de 128 triangles".into(),
         &mut || reference_adjacence(&vues),

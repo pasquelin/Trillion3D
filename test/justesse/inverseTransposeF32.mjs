@@ -1,13 +1,14 @@
-// Le noyau `inverseTranspose3` d'`inverseTransposeWgsl.ts`, rejoué en f32 côté JS : même ordre
-// d'opérations, même arrondi à chaque produit et à chaque somme (`Math.fround`), mêmes gardes. C'est
-// le MODÈLE — il dit ce que le nuanceur doit calculer, pas ce qu'il calcule. Ce qui le rattache au
-// texte réellement exécuté est mesuré ailleurs : `test/browser/normal-transform-arithmetique.browser.mjs`
-// compare, cas par cas, ce modèle à la sortie du shader livré dans Chromium WebGPU. Sans cette
-// mesure, le modèle ne serait qu'une seconde implémentation, libre de dériver en silence.
+// The `inverseTranspose3` kernel from `inverseTransposeWgsl.ts`, replayed in f32 on the JS
+// side: same operation order, same rounding on every product and every sum (`Math.fround`),
+// same guards. This is the MODEL — it says what the shader must compute, not what it computes.
+// What ties it to the actually executed text is measured elsewhere:
+// `test/browser/normal-transform-arithmetique.browser.mjs` compares, case by case, this model
+// to the shipped shader's output in Chromium WebGPU. Without that measurement the model would
+// be only a second implementation, free to drift in silence.
 //
-// Écrit ici plutôt que dans un test : `normalTransform.test.ts` (éclairage),
-// `gpuDagInverseTranspose.test.ts` (sélection) et la preuve navigateur lisent tous les trois la même
-// arithmétique, au lieu d'en tenir chacun une copie.
+// Written here rather than in a test: `normalTransform.test.ts` (lighting),
+// `gpuDagInverseTranspose.test.ts` (selection) and the browser proof all three read the same
+// arithmetic, instead of each holding a copy.
 
 import { SINGULAR_DETERMINANT } from '../../packages/sdk-core/mathSingular.ts';
 
@@ -22,38 +23,38 @@ export const divise = (a, t) => [f(a[0] / t), f(a[1] / t), f(a[2] / t)];
 export const norme = (a) => Math.hypot(a[0], a[1], a[2]);
 export const unitaire = (a) => divise(a, norme(a));
 
-/** Degrés par radian : le critère se juge en degrés partout où il se lit. */
+/** Degrees per radian: the criterion is judged in degrees wherever it is read. */
 export const DEG = 180 / Math.PI;
 
 /**
- * Ce qu'une normale rendue peut s'écarter de la norme 1 sans que ce soit un défaut. `normalize` en
- * f32 rend `v / length(v)` : chaque composante porte au plus un demi-ULP relatif (2⁻²⁴ ≈ 6e-8), la
- * somme des trois carrés en accumule l'ordre de trois et la racine en reprend la moitié — quelques
- * 1e-7 au total. `1e-6` laisse cinq fois cette marge, et reste très loin de ce que rendrait un
- * vecteur nul (norme 0), un NaN (norme NaN) ou une normale que personne n'a renormalisée (ici 1e8).
- * La tolérance ne sert donc pas à laisser passer un doute : elle sépare l'arrondi du défaut.
+ * How far a rendered normal may drift from unit length without being a defect. f32 `normalize`
+ * returns `v / length(v)`: each component carries at most a half relative ULP (2⁻²⁴ ≈ 6e-8), the
+ * sum of the three squares accumulates on the order of three, and the square root takes half of
+ * that — a few 1e-7 in total. `1e-6` leaves five times that margin, and stays far from what a
+ * zero vector (norm 0), a NaN (norm NaN) or an un-renormalised normal (here 1e8) would yield.
+ * The tolerance is therefore not there to let a doubt through: it separates rounding from defect.
  */
 export const TOLERANCE_NORME = 1e-6;
 
-/** Une direction exploitable : trois composantes finies, et pas le vecteur nul. */
+/** A usable direction: three finite components, and not the zero vector. */
 export const direction = (v) =>
   Array.isArray(v) && v.length === 3 && v.every(Number.isFinite) && norme(v) > 0;
 
 /**
- * L'angle ORIENTÉ, en radians, entre deux directions : `atan2` du produit vectoriel sur le produit
- * scalaire SIGNÉ, en f64 et sans normaliser. Il vaut zéro pour deux directions identiques et π pour
- * deux directions opposées.
+ * The ORIENTED angle, in radians, between two directions: `atan2` of the cross product over the
+ * SIGNED dot product, in f64 and without normalising. It is zero for two identical directions
+ * and π for two opposite ones.
  *
- * DEUX PIÈGES QUE CETTE ÉCRITURE ÉVITE, ET QU'ELLE A DÉJÀ LAISSÉS PASSER.
- *  — Une VALEUR ABSOLUE sur le produit scalaire confond N et −N : une normale retournée — le
- *    défaut le plus courant d'une inverse-transposée, et exactement ce qu'une surface éclairée
- *    par-derrière montre — était alors déclarée juste à zéro degré près.
- *  — Un vecteur NUL ou NON FINI n'a pas de direction, et `atan2(0, 0)` vaut zéro : une normale que
- *    le nuanceur a perdue passait pour identique à celle qu'on attendait. Le résultat est ici
- *    `NaN`, qu'aucune comparaison `< seuil` n'accepte.
- * `acos` du produit scalaire de vecteurs normalisés en f32 reste écarté : il amplifie l'erreur
- * d'arrondi de la norme (acos(1−ε) ≈ √(2ε), soit 2e-4 rad pour un ε d'un ULP f32) et annoncerait un
- * écart là où les deux vecteurs sont identiques au bit près.
+ * TWO TRAPS THIS WRITING AVOIDS, AND THAT IT HAS ALREADY LET THROUGH.
+ *  — An ABSOLUTE VALUE on the dot product confuses N and −N: a flipped normal — the most common
+ *    inverse-transpose defect, and exactly what a surface lit from behind shows — was then
+ *    declared correct to zero degrees.
+ *  — A ZERO or NON-FINITE vector has no direction, and `atan2(0, 0)` is zero: a normal the shader
+ *    had lost passed as identical to the expected one. The result here is `NaN`, which no
+ *    `< threshold` comparison accepts.
+ * `acos` of the dot product of f32-normalised vectors stays out: it amplifies the norm's rounding
+ * error (acos(1−ε) ≈ √(2ε), i.e. 2e-4 rad for a one-ULP f32 ε) and would report a gap where the
+ * two vectors are identical to the bit.
  */
 export function angleEntre(a, b) {
   if (!direction(a) || !direction(b)) return NaN;
@@ -62,41 +63,41 @@ export function angleEntre(a, b) {
 }
 
 /**
- * LE CRITÈRE d'une normale rendue, en un objet plutôt qu'en un nombre : direction, norme et seuil
- * sont trois exigences distinctes, et un verdict qui les résume à un angle laisse passer les deux
- * premières. `raison` est `null` quand tout tient, et sinon dit CE QUI a manqué — c'est ce texte
- * qu'un message d'échec porte. `ecartDeg` vaut `NaN` dès qu'une des deux directions n'existe pas :
- * jamais zéro, jamais « conforme par défaut ».
+ * The CRITERION of a rendered normal, as an object rather than a number: direction, norm and
+ * threshold are three distinct requirements, and a verdict that folds them into an angle lets the
+ * first two through. `raison` is `null` when everything holds, otherwise it says WHAT was missing
+ * — that is the text a failure message carries. `ecartDeg` is `NaN` as soon as either direction
+ * does not exist: never zero, never "conforming by default".
  */
 export function verdictNormale(rendue, attendue, decrocheDeg) {
   const n = direction(rendue) ? norme(rendue) : NaN;
   const ecartDeg = angleEntre(rendue, attendue) * DEG;
   const raison = !direction(rendue)
-    ? `normale rendue sans direction : [${rendue}]`
+    ? `rendered normal has no direction: [${rendue}]`
     : !direction(attendue)
-      ? `normale attendue sans direction : [${attendue}]`
+      ? `expected normal has no direction: [${attendue}]`
       : Math.abs(n - 1) > TOLERANCE_NORME
-        ? `norme ${n} au lieu de 1 à ${TOLERANCE_NORME} près : la normale n'est pas unitaire`
+        ? `norm ${n} instead of 1 within ${TOLERANCE_NORME}: the normal is not unit`
         : ecartDeg < decrocheDeg
           ? null
-          : `${ecartDeg}° de [${attendue}], au-delà du décrochage de ${decrocheDeg}°`;
+          : `${ecartDeg}° from [${attendue}], beyond the ${decrocheDeg}° dropout`;
   return { ok: raison === null, ecartDeg, norme: n, raison };
 }
 
-/** La 3×3 supérieure gauche d'une matrice monde 4×4 rangée par colonnes, en trois colonnes. */
+/** The upper-left 3×3 of a column-major 4×4 world matrix, as three columns. */
 export const colonnes3 = (world) => [
   [world[0], world[1], world[2]],
   [world[4], world[5], world[6]],
   [world[8], world[9], world[10]],
 ];
 
-/** `mat3x3f(cross(b,c),cross(c,a),cross(a,b)) * v`, dans l'ordre du WGSL. */
+/** `mat3x3f(cross(b,c),cross(c,a),cross(a,b)) * v`, in WGSL order. */
 export function cofacteur([a, b, c], v) {
   const [x, y, z] = [croix(b, c), croix(c, a), croix(a, b)];
   return [0, 1, 2].map((k) => f(f(f(x[k] * v[0]) + f(y[k] * v[1])) + f(z[k] * v[2])));
 }
 
-/** Le seuil absolu d'AVANT les défauts 6 et 9, en f32 : `abs(det)<1e-20` sur la 3×3 brute. */
+/** Absolute threshold from BEFORE defects 6 and 9, in f32: `abs(det)<1e-20` on the raw 3×3. */
 export function avantLeLot(m, v) {
   const [a, b, c] = m;
   const det = point(a, croix(b, c));
@@ -105,11 +106,11 @@ export function avantLeLot(m, v) {
 }
 
 /**
- * Le noyau livré, en f32 : 3×3 divisée par la somme de ses valeurs absolues avant le déterminant,
- * puis la convention des matrices singulières d'`inverseTransposeWgsl.ts`. Somme nulle, infinie ou
- * NaN : l'adjointe est mise à zéro par le noyau, donc le produit est le vecteur nul. Déterminant
- * normalisé sous le seuil mais adjointe non nulle : l'adjointe SEULE, sans le facteur `1/(det·t)`
- * qui vaudrait ±∞ — c'est le produit vectoriel des arêtes transformées, à 1/t² près.
+ * The shipped kernel, in f32: 3×3 divided by the sum of its absolute values before the
+ * determinant, then the singular-matrix convention from `inverseTransposeWgsl.ts`. Null, infinite
+ * or NaN sum: the kernel zeroes the adjugate, so the product is the zero vector. Normalised
+ * determinant under the threshold but non-zero adjugate: the adjugate ALONE, without the
+ * `1/(det·t)` factor that would be ±∞ — the cross product of the transformed edges, to 1/t².
  */
 export function apresLeLot(m, v) {
   const t = m.reduce((s, col) => f(s + col.reduce((k, x) => f(k + Math.abs(x)), 0)), 0);
@@ -121,14 +122,14 @@ export function apresLeLot(m, v) {
   return divise(porte, f(det * t));
 }
 
-/** `uniteOuZero` du noyau : `normalize(v)`, sauf sur un vecteur nul ou non fini où il rend zéro. */
+/** Kernel `uniteOuZero`: `normalize(v)`, except on a zero or non-finite vector where it returns zero. */
 export const uniteOuZero = (a) => (point(a, a) > 0 ? unitaire(a) : [0, 0, 0]);
 
 /**
- * `xformNormal(world, n)` du nuanceur d'éclairage : l'inverse-transposée de la 3×3 monde appliquée
- * à la normale locale, puis renormalisée. `world` est la 4×4 rangée par colonnes.
+ * Lighting-shader `xformNormal(world, n)`: the inverse-transpose of the world 3×3 applied to the
+ * local normal, then renormalised. `world` is the column-major 4×4.
  */
 export const xformNormalModele = (world, n) => uniteOuZero(apresLeLot(colonnes3(world), n));
 
-/** La même composition avec la forme d'avant le lot, pour dire ce que le défaut rendait. */
+/** The same composition with the pre-batch form, to say what the defect returned. */
 export const xformNormalAvantLeLot = (world, n) => unitaire(avantLeLot(colonnes3(world), n));

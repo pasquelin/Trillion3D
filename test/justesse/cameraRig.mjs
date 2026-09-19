@@ -1,10 +1,10 @@
-// Le rig d'hôte des reproductions « caméra parentée » : une caméra enfant d'un groupe qui n'appartient
-// à aucune scène préparée. Le moteur ne met à jour que sa scène ; ce parent-là, seul l'hôte le touche.
+// Host rig of the "parented camera" reproductions: a camera child of a group that belongs to no
+// prepared scene. The engine only updates its scene; that parent, only the host touches.
 import * as THREE from 'three';
 
 /**
- * Poses du parent image après image : immobile, déplacé de +5 en X, puis tourné, puis ailleurs ; la
- * cinquième sort la scène du champ, la sixième approche la caméra sous le seuil d'un LOD.
+ * Parent poses frame after frame: still, moved +5 in X, then rotated, then elsewhere; the fifth
+ * takes the scene out of view, the sixth brings the camera under a LOD threshold.
  */
 export const POSES_PARENT = [
   { x: 0, z: 0, ry: 0 },
@@ -15,7 +15,7 @@ export const POSES_PARENT = [
   { x: 0, z: -3.5, ry: 0.1 },
 ];
 
-/** Poses d'une caméra sans parent, pour l'empreinte avant/après : position locale et lacet. */
+/** Poses of a parentless camera, for the before/after fingerprint: local position and yaw. */
 export const POSES_SANS_PARENT = Array.from({ length: 24 }, (_, i) => ({
   x: Math.sin(i * 0.7) * 3,
   y: Math.cos(i * 1.3) * 0.8,
@@ -33,7 +33,7 @@ const regle = (camera, fov, aspect) => {
   return camera;
 };
 
-/** La caméra est posée localement, jamais regardée vers un point : aucune lecture du parent. */
+/** The camera is posed locally, never looked at a point: no parent is read. */
 export function creeRig(fov = 55, aspect = 16 / 9) {
   const parent = new THREE.Group();
   const camera = regle(new THREE.PerspectiveCamera(), fov, aspect);
@@ -43,7 +43,7 @@ export function creeRig(fov = 55, aspect = 16 / 9) {
   return { parent, camera };
 }
 
-/** Pose le parent. `hote` : l'hôte met aussi à jour son rig avant l'image, comme il le devrait. */
+/** Poses the parent. `hote`: the host also updates its rig before the frame, as it should. */
 export function poseRig(rig, pose, hote) {
   rig.parent.position.set(pose.x, 0, pose.z);
   rig.parent.rotation.y = pose.ry;
@@ -52,10 +52,10 @@ export function poseRig(rig, pose, hote) {
 }
 
 /**
- * Caméra sans parent de même pose monde que le rig mis à jour par l'hôte, au bit près : sa matrice
- * locale est la matrice monde du rig (plus de recomposition depuis un quaternion), sa position est
- * la translation de cette matrice. Vue, inverse, direction et position sont donc exactement celles
- * qu'un rig juste doit produire.
+ * Parentless camera of the same world pose as the host-updated rig, bit for bit: its local matrix
+ * is the rig's world matrix (no recomposition from a quaternion), its position is that matrix's
+ * translation. View, inverse, direction and position are therefore exactly those a correct rig
+ * must produce.
  */
 export function cameraAplatie(pose, fov = 55, aspect = 16 / 9) {
   const jumeau = creeRig(fov, aspect);
@@ -69,7 +69,7 @@ export function cameraAplatie(pose, fov = 55, aspect = 16 / 9) {
   return plate;
 }
 
-/** Caméra sans parent posée directement. */
+/** Parentless camera posed directly. */
 export function cameraSansParent(pose, fov = 55, aspect = 16 / 9) {
   const camera = regle(new THREE.PerspectiveCamera(), fov, aspect);
   camera.position.set(pose.x, pose.y, pose.z);

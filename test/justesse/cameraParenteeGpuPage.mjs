@@ -1,6 +1,6 @@
-// Côté page de la reproduction GPU : la vraie sélection WebGPU du moteur (`createGpuDagSelection`,
-// ses tampons, son noyau et sa relecture), alimentée par les vrais `cameraSelectionUniforms`.
-// Empaqueté par esbuild puis exécuté dans Chromium : rien n'est rejoué hors du GPU.
+// Page side of the GPU reproduction: the engine's real WebGPU selection (`createGpuDagSelection`,
+// its buffers, kernel and readout), fed by the real `cameraSelectionUniforms`.
+// Bundled by esbuild then run in Chromium: nothing is replayed off the GPU.
 import { cameraSelectionUniforms } from '../../packages/sdk-browser/gpuSelection.ts';
 import {
   createGpuDagSelection,
@@ -14,7 +14,7 @@ import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
 
 const VIEWPORT = [1280, 720];
 
-/** Une sélection GPU neuve par séquence : aucun relevé d'une séquence ne sert l'autre. */
+/** A fresh GPU selection per sequence: no reading from one sequence serves the other. */
 async function sequence(device, cameras, pixelError) {
   const fixture = dagFixture();
   const { roots } = collectClusterPages(

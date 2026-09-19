@@ -1,9 +1,9 @@
-// Oracles purs de A12, sans effet de bord : `streaming.bench.mjs` les mesure, les tests unitaires
-// les importent comme référence.
+// Pure A12 oracles, no side effects: `streaming.bench.mjs` measures them; unit tests import
+// them as reference.
 const LIMITE = 6,
   BUDGET_TRANSFERT = 2 * 1024 * 1024;
 
-/** `streamingQueue.ts:22-59` avant le lot A : tri complet à chaque tour du `while`, puis findIndex. */
+/** `streamingQueue.ts:22-59` before batch A: a full sort on every `while` lap, then findIndex. */
 export function referenceAdmission(queue, octetsDe) {
   const admis = [];
   let active = 0,
@@ -23,7 +23,7 @@ export function referenceAdmission(queue, octetsDe) {
   return admis;
 }
 
-/** `arrivalQueue.ts:15-65` avant le lot A : `touched.includes` à chaque page livrée. */
+/** `arrivalQueue.ts:15-65` before batch A: `touched.includes` on every delivered page. */
 export function referenceArrivalQueue(byteBudget, countBudget) {
   const items = [],
     waiting = new Map(),

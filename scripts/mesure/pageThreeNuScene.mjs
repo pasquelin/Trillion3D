@@ -1,12 +1,12 @@
-// La scène du témoin Three nu : ses lampes et ce qu'elle tient en mémoire. Servi à la page avec
-// `pageThreeNu.mjs`, n'importe que `three`.
+// Scene of the bare Three witness: its lights and what it holds in memory. Served to the page with
+// `pageThreeNu.mjs`, imports only `three`.
 import * as THREE from 'three';
 import { appliquer, creer } from './pageTemoin.mjs';
 
 const BYTES_PER_TEXEL_WITH_MIPS = 4 * 1.34;
 
-/** La lampe Three du contrat — conversion du témoin (`pageTemoin.mjs`) — plus ce qui est propre au
- *  nu : l'ombre. Le soleil se place hors de la boîte du modèle, sa caméra d'ombre la couvre. */
+/** The contract's Three light — conversion from the witness (`pageTemoin.mjs`) — plus what is
+ *  specific to the bare path: the shadow. The sun sits outside the model box, its shadow camera covers it. */
 export function lampe(light, box, shadows) {
   const objet = creer(light);
   appliquer(objet, light, 0);
@@ -32,8 +32,8 @@ export function lampe(light, box, shadows) {
   return [objet, objet.target];
 }
 
-/** Les octets que Three tient pour cette scène : tampons de sommets et d'indices, texels avec mips.
- *  Un tampon partagé par plusieurs géométries (les niveaux de détail) n'est compté qu'une fois. */
+/** Bytes Three holds for this scene: vertex and index buffers, texels with mips.
+ *  A buffer shared by several geometries (levels of detail) is counted only once. */
 export function octets(scene) {
   const geometries = new Set(),
     tampons = new Set(),

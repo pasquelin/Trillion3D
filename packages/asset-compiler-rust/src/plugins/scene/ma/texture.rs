@@ -1,26 +1,26 @@
-//! Un nœud `file` de Maya vers une texture glTF.
+//! A Maya `file` node into a glTF texture.
 //!
-//! Le pilote ne décode rien lui-même : il nomme l'image par son URI, relativement à la racine où le
-//! compilateur relira ces mêmes octets, et laisse le registre d'images dire si ce format se lit.
-//! Une image absente, hors du dossier de la source ou hors du registre est comptée au rapport, et la
-//! scène continue sans elle — jamais un échec de compilation.
+//! The driver decodes nothing itself: it names the image by its URI, relative to the root where
+//! the compiler will reread those same bytes, and leaves the image registry to say whether this
+//! format reads. A missing image, outside the source directory or outside the registry is
+//! counted in the report, and the scene continues without it — never a compilation failure.
 //!
-//! Maya écrit souvent un chemin absolu de la machine qui a exporté. Ce chemin n'existe pas ici, et
-//! le suivre sortirait du dossier servi : seul son nom de fichier est retenu, cherché à la racine
-//! des images puis dans `sourceimages`, le dossier que Maya donne aux textures d'un projet.
+//! Maya often writes an absolute path of the machine that exported. That path does not exist
+//! here, and following it would leave the served directory: only its file name is kept, looked
+//! up at the image root then in `sourceimages`, the folder Maya gives a project's textures.
 use super::*;
 
-/// Le dossier qu'un projet Maya réserve aux textures.
+/// Directory a Maya project reserves for textures.
 const IMAGES_DIRECTORY: &str = "sourceimages";
-/// Ce qui sépare les segments d'un chemin écrit par Maya : la machine qui a exporté peut être une
-/// machine Windows, et le chemin qu'elle a écrit porte alors des barres inverses.
+/// What separates segments of a path Maya writes: the machine that exported may be a Windows
+/// machine, and the path it wrote then carries backslashes.
 const SEPARATORS: &[char] = &['/', '\\'];
-/// Les deux modes de répétition d'un échantillonneur glTF : répéter, ou borner au dernier texel.
+/// The two wrap modes of a glTF sampler: repeat, or clamp to the last texel.
 const REPEAT: u32 = 10497;
 const CLAMP: u32 = 33071;
-/// Les composantes du placage d'un `place2dTexture` qu'un glTF sans `KHR_texture_transform` ne
-/// porte pas, chacune avec la valeur qui ne déplace rien. Maya les écrit d'un bloc ou composante
-/// par composante, et les deux écritures disent la même chose.
+/// Placement components of a `place2dTexture` that a glTF without `KHR_texture_transform` does
+/// not carry, each with the value that moves nothing. Maya writes them as a block or component
+/// by component, and both writings say the same thing.
 const PLACEMENTS: &[(&[&str], f64)] = &[
     (&["re", "repeatUV"], 1.0),
     (&["reu", "repeatU"], 1.0),
@@ -30,18 +30,18 @@ const PLACEMENTS: &[(&[&str], f64)] = &[
     (&["ofv", "offsetV"], 0.0),
     (&["ro", "rotateUV"], 0.0),
 ];
-/// Les deux miroirs d'un `place2dTexture` : aucun mode de répétition de glTF ne fait ce pliage.
+/// The two mirrors of a `place2dTexture`: no glTF wrap mode does that folding.
 const MIRRORS: &[&[&str]] = &[&["mu", "mirrorU"], &["mv", "mirrorV"]];
 
-/// La texture glTF branchée sur l'une de ces entrées d'un nœud, sous la forme que glTF attend d'un
-/// emplacement de texture : `{"index": …}`.
+/// glTF texture wired onto one of these inputs of a node, in the form glTF expects of a texture
+/// slot: `{"index": …}`.
 pub(super) fn connected(world: &mut World<'_>, node: usize, names: &[&str]) -> Option<Value> {
     let source = world.graph.input(node, names).map(|(source, _)| source)?;
     of(world, source)
 }
 
-/// La texture glTF de ce nœud. Une entrée branchée sur autre chose qu'un nœud `file` — un calcul,
-/// une rampe, un bruit — n'est pas une image : elle est comptée plutôt qu'évaluée.
+/// glTF texture of this node. An input wired onto something other than a `file` node — a
+/// computation, a ramp, a noise — is not an image: it is counted rather than evaluated.
 pub(super) fn of(world: &mut World<'_>, node: usize) -> Option<Value> {
     let document = world.document;
     if document.nodes[node].kind != "file" {
@@ -56,7 +56,7 @@ pub(super) fn of(world: &mut World<'_>, node: usize) -> Option<Value> {
     Some(json!({ "index": world.scene.texture(index, sampler) }))
 }
 
-/// Le rang de l'image, versée à la première demande, ou rien quand le fichier ne se lit pas.
+/// Rank of the image, poured on first request, or nothing when the file does not read.
 fn image(world: &mut World<'_>, written: &str) -> Option<usize> {
     let images = world.images;
     let Some((relative, mime)) = candidates(written)
@@ -70,8 +70,8 @@ fn image(world: &mut World<'_>, written: &str) -> Option<usize> {
     Some(world.scene.image(relative, mime))
 }
 
-/// Les chemins où chercher l'image sous la racine, dans l'ordre : le chemin écrit quand il est
-/// relatif et sûr, puis son seul nom de fichier à la racine des images, puis ce nom sous
+/// Paths where to look up the image under the root, in order: the written path when it is
+/// relative and safe, then its file name alone at the image root, then that name under
 /// `sourceimages`.
 fn candidates(written: &str) -> Vec<String> {
     let name = written
@@ -89,10 +89,10 @@ fn candidates(written: &str) -> Vec<String> {
     out
 }
 
-/// L'échantillonneur de ce nœud `file`, lu sur le `place2dTexture` branché sur ses coordonnées.
-/// Maya répète par défaut, et `wrapU` comme `wrapV` bornent séparément l'axe qu'ils nomment. Ce
-/// même nœud porte le placage — répétition, décalage, rotation, miroir —, que la sortie ne porte
-/// pas : ce qui ne passe pas est compté par son nom plutôt que perdu en silence.
+/// Sampler of this `file` node, read on the `place2dTexture` wired onto its coordinates. Maya
+/// repeats by default, and `wrapU` as `wrapV` clamp separately the axis they name. That same
+/// node carries the placement — repeat, offset, rotation, mirror — which the output does not
+/// carry: what does not pass is counted by name rather than lost in silence.
 fn sampler(world: &mut World<'_>, node: usize) -> usize {
     let document = world.document;
     let place = world
@@ -126,7 +126,7 @@ fn sampler(world: &mut World<'_>, node: usize) -> usize {
         .sampler_uv(repeats(&["wu", "wrapU"]), repeats(&["wv", "wrapV"]))
 }
 
-/// Cette composante du placage est-elle écrite ailleurs qu'à sa valeur neutre ?
+/// Is this placement component written elsewhere than at its neutral value?
 fn moved(place: &Node, names: &[&str], neutral: f64) -> bool {
     place
         .attr(names)

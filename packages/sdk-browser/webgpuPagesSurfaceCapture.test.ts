@@ -1,6 +1,6 @@
-// `captureSurfaceView` (lot 3) : le `cameraWorld` publié est celui de la caméra du moteur que le
-// contrat vient de recopier (`rt.run.gate.cam.eye`), jamais une lecture directe de la caméra hôte.
-// Sous un rig que l'hôte ne remonte pas, les deux poses diffèrent : seule la pose monde discrimine.
+// `captureSurfaceView` (lot 3): the published `cameraWorld` is that of the engine camera the
+// contract just copied (`rt.run.gate.cam.eye`), never a direct read of the host camera. Under a rig
+// the host does not walk, the two poses differ: only the world pose discriminates.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -8,7 +8,7 @@ import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { camera, quadBackend } from './webgpuPagesTestScenes.ts';
 
-test('captureSurfaceView : cameraWorld est la pose monde sous un rig, pas la pose locale de la caméra hôte', async () => {
+test("captureSurfaceView: cameraWorld is the world pose under a rig, not the host camera's local pose", async () => {
   installGpuGlobals();
   const { device } = mockGpu();
   const { fixture, backend } = quadBackend(device);
@@ -20,8 +20,8 @@ test('captureSurfaceView : cameraWorld est la pose monde sous un rig, pas la pos
     backend.render(main);
     await backend.flush?.();
 
-    // Rig à deux niveaux, que personne d'autre que ce test ne remonte : la caméra locale garde une
-    // pose triviale, et c'est le rig seul qui porte la translation et la rotation.
+    // Two-level rig, which nobody but this test walks: the local camera keeps a trivial pose, and it
+    // is the rig alone that carries translation and rotation.
     const rig = new THREE.Object3D();
     rig.position.set(4, -2, 6);
     rig.rotation.set(0, Math.PI / 3, 0);
@@ -30,7 +30,7 @@ test('captureSurfaceView : cameraWorld est la pose monde sous un rig, pas la pos
     rig.add(view);
     rig.updateWorldMatrix(true, false);
     const attendu = view.getWorldPosition(new THREE.Vector3()).toArray();
-    // Témoin : la pose locale de la caméra (l'origine) n'est pas la pose monde sous ce rig.
+    // Witness: the camera's local pose (the origin) is not the world pose under this rig.
     assert.notDeepEqual(attendu, view.position.toArray());
 
     const surface = await backend.captureSurfaceView!(view, { width: 16, height: 16 });

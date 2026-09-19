@@ -1,7 +1,7 @@
 use super::*;
 use scene::{route, Routed};
 
-/// Le nom du pilote retenu pour cette source, ou le code d'erreur du refus.
+/// Name of the driver retained for this source, or the error code of the refusal.
 fn routed(path: &std::path::Path) -> std::result::Result<String, (&'static str, String)> {
     match route(path) {
         Ok(Routed::Manifest) => Ok("manifest".to_string()),
@@ -10,8 +10,8 @@ fn routed(path: &std::path::Path) -> std::result::Result<String, (&'static str, 
     }
 }
 
-// Contrat du routeur : une source qu'aucun pilote ne revendique est refusée, et le refus nomme ce
-// que ce binaire accepte — sinon l'appelant n'a aucun moyen de savoir quoi exporter.
+// Router contract: a source no driver claims is refused, and the refusal names what this binary
+// accepts — otherwise the caller has no way to know what to export.
 #[test]
 fn an_unknown_source_is_refused_and_the_accepted_formats_are_named() {
     let dir = temp_dir("unknown");
@@ -27,8 +27,8 @@ fn an_unknown_source_is_refused_and_the_accepted_formats_are_named() {
     fs::remove_dir_all(dir).expect("cleanup");
 }
 
-// Contrat du routeur : deux pilotes servis par le même dossier, c'est une ambiguïté. Le compilateur
-// refuse en nommant les deux plutôt que de deviner lequel porte la scène.
+// Router contract: two drivers served by the same directory is an ambiguity. The compiler
+// refuses by naming both rather than guessing which one carries the scene.
 #[test]
 fn a_source_claimed_by_two_plugins_is_refused_and_both_are_named() {
     let dir = temp_dir("ambiguous");
@@ -43,8 +43,8 @@ fn a_source_claimed_by_two_plugins_is_refused_and_both_are_named() {
     fs::remove_dir_all(dir).expect("cleanup");
 }
 
-// Contrat du routeur : un format, un pilote. glTF et GLB vont au pilote glTF, en fichier comme en
-// dossier ; deux glTF dans le même dossier restent une ambiguïté, celle du pilote lui-même.
+// Router contract: one format, one driver. glTF and GLB go to the glTF driver, as a file as in a
+// directory; two glTFs in the same directory remain an ambiguity, that of the driver itself.
 #[test]
 fn gltf_and_glb_sources_select_the_gltf_plugin() {
     let dir = temp_dir("gltf");
@@ -54,11 +54,11 @@ fn gltf_and_glb_sources_select_the_gltf_plugin() {
     let glb = temp_dir("glb");
     fs::write(glb.join("mesh.glb"), b"glTF\x02\x00\x00\x00").expect("glb");
     assert_eq!(routed(&glb).expect("glb"), "gltf");
-    // Sans extension, l'entête du conteneur suffit à désigner le pilote.
+    // Without an extension, the container header is enough to name the driver.
     fs::rename(glb.join("mesh.glb"), glb.join("mesh")).expect("rename");
     assert_eq!(routed(&glb.join("mesh")).expect("headless glb"), "gltf");
-    // Deux modèles dans un dossier restent une ambiguïté, tranchée par le pilote lui-même : le
-    // routeur lui remet tout ce qu'il revendique, c'est lui qui sait combien il en accepte.
+    // Two models in a directory remain an ambiguity, settled by the driver itself: the router
+    // hands it everything it claims; it is the driver that knows how many it accepts.
     fs::write(dir.join("other.glb"), b"glTF\x02\x00\x00\x00").expect("second");
     let Routed::Driver(plugin, files) = route(&dir).expect("two models") else {
         panic!("a directory of models routed to the manifest")
@@ -78,8 +78,8 @@ fn gltf_and_glb_sources_select_the_gltf_plugin() {
     fs::remove_dir_all(glb).expect("cleanup");
 }
 
-// Contrat du routeur : FBX et OBJ sont deux pilotes distincts, jamais un pilote « ufbx » commun, et
-// un dossier qui porte déjà `manifest.json` ne passe par aucun pilote.
+// Router contract: FBX and OBJ are two distinct drivers, never a shared “ufbx” driver, and a
+// directory that already carries `manifest.json` goes through no driver.
 #[test]
 fn fbx_obj_and_manifest_sources_each_go_to_their_own_route() {
     let dir = temp_dir("ufbx");
@@ -92,7 +92,7 @@ fn fbx_obj_and_manifest_sources_each_go_to_their_own_route() {
     match route(&obj).expect("obj directory") {
         Routed::Driver(plugin, files) => {
             assert_eq!(plugin.name(), "obj");
-            assert_eq!(files.len(), 1, "le .mtl voisin n'est pas une source");
+            assert_eq!(files.len(), 1, "the neighbouring .mtl is not a source");
         }
         Routed::Manifest => panic!("obj directory routed to the manifest"),
     }

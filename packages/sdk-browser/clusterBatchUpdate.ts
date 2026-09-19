@@ -11,7 +11,7 @@ const bySourceOrder = (a: BatchPage, b: BatchPage) =>
 type BatchUpdateState = {
   scene: THREE.Scene;
   groups: Array<BatchGroup | undefined>;
-  /** Lots jumeaux des couches coplanaires, par `renderOrder` puis par couche. */
+  /** Twin batches of coplanar layers, by `renderOrder` then by layer. */
   layerGroups: Array<Map<number, BatchGroup> | undefined>;
   active: BatchGroup[];
   touched: BatchGroup[];
@@ -22,14 +22,14 @@ type BatchUpdateState = {
   attributeBytes: number;
 };
 
-/** Met à jour les sous-dessins et les objets de la scène sans recopier les index. */
+/** Updates the sub-draws and the scene objects without copying the indices. */
 export function updateClusterBatches(state: BatchUpdateState, display: readonly BatchPage[]) {
   const touched = state.touched;
   touched.length = 0;
   for (let i = 0; i < display.length; i++) {
     const rec = display[i];
     if (!rec.array) continue;
-    // Un cluster d'une couche coplanaire supérieure à 0 rejoint le lot jumeau qui porte le biais.
+    // A cluster of a coplanar layer above 0 joins the twin batch that carries the bias.
     const group = groupForPage(state.groups, state.layerGroups, rec);
     if (!group) continue;
     const urlIndex = group.primitive.urlIndexByPage[rec.id];
@@ -51,14 +51,14 @@ export function updateClusterBatches(state: BatchUpdateState, display: readonly 
     group.ranges.push(slot.offset, slot.length);
     group.triangles += rec.triangles;
   }
-  // Les groupes transparents gardent l'ordre source : multi-draw dessine les plages dans l'ordre donné.
+  // Transparent groups keep source order: multi-draw draws the ranges in the given order.
   for (let i = 0; i < touched.length; i++) {
     const group = touched[i];
     if (!group.transparent) continue;
     const pending = group.pending;
     pending.length = group.pendingCount;
-    // La coupe arrive presque toujours déjà dans l'ordre source : la vérifier coûte un parcours, la
-    // trier coûte un tri par groupe transparent et par image.
+    // The cut almost always already arrives in source order: checking it costs a walk,
+    // sorting it costs a sort per transparent group and per frame.
     let ordered = true;
     for (let k = 1; k < pending.length && ordered; k++)
       if (bySourceOrder(pending[k - 1], pending[k]) > 0) ordered = false;
@@ -101,7 +101,7 @@ export function updateClusterBatches(state: BatchUpdateState, display: readonly 
       group.mesh = mesh;
     } else if (mesh.material !== material) mesh.material = material;
     mesh.matrix.copy(sample.matrix);
-    // Les tableaux sont réutilisés ; leur identité ne change que lorsqu'ils ont dû grandir.
+    // Arrays are reused; their identity changes only when they had to grow.
     mesh._multiDrawStarts = group.ranges.starts;
     mesh._multiDrawCounts = group.ranges.counts;
     mesh._multiDrawCount = group.ranges.count;

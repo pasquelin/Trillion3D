@@ -1,14 +1,14 @@
-// Oracle de `bounceBudget.ts`, réécrit d'après le contrat : le lot est le plafond fois la fraction,
-// arrondi, jamais nul ; la fraction suit la consigne par lissage exponentiel, bornée entre son
-// plancher et un, et ne bouge pas sur un relevé absent, nul ou non fini. Les constantes viennent
-// du contrat, pour que l'oracle ne dérive pas en silence.
+// Oracle of `bounceBudget.ts`, rewritten according to the contract: the batch is the ceiling times the fraction,
+// rounded, never zero; the fraction follows the target via exponential smoothing, bounded between its
+// floor and one, and does not move on a missing, zero, or non-finite sample. Constants come
+// from the contract so that the oracle does not silently drift.
 import { BOUNCE_SETTINGS } from '../../bounceContracts.ts';
 
 export function referenceBounceBatch(ceiling, load) {
   return Math.max(1, Math.round(ceiling * load));
 }
 
-/** La même forme que `createBounceBudget` : un budget qui observe et publie ses trois champs. */
+/** Same shape as `createBounceBudget`: a budget that observes and publishes its three fields. */
 export function referenceBudgetSequence(budgetMs) {
   const { budgetSmoothing, budgetFloor } = BOUNCE_SETTINGS;
   const bornee = (f) => Math.min(1, Math.max(budgetFloor, f));

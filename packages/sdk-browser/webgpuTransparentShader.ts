@@ -12,10 +12,9 @@ import { TRANSPARENT_GROUP, TRANSPARENT_NONE } from './webgpuTransparentTable.ts
  * Item ranges are aligned on the group, so no group spans two items and each item's instances are
  * written inside its own range — the base a draw reads is known before the image starts.
  *
- * Une entrée sort de la liste pour deux raisons seulement : la coupe ne l'a pas sélectionnée, ou le
- * test Hi-Z des transparents l'a trouvée ENTIÈREMENT derrière l'opaque déjà dessiné
- * (`gpuTransparentOcclusionWgsl.ts`). Ni l'une ni l'autre ne réordonne quoi que ce soit : la sortie
- * reste l'ordre de la table, privé de ses entrées retirées.
+ * An entry leaves the list for two reasons only: the cut did not select it, or the transparent Hi-Z
+ * test found it ENTIRELY behind the already-drawn opaque (`gpuTransparentOcclusionWgsl.ts`). Neither
+ * reorders anything: the output stays the table order, stripped of its dropped entries.
  */
 export const TRANSPARENT_COMPACT_SHADER = `struct Uniforms{entryCount:u32,groupCount:u32,itemCount:u32,selectionOffset:u32,vertexCount:u32,pad0:u32,pad1:u32,pad2:u32,}
 @group(0) @binding(0) var<storage, read> entries:array<u32>;

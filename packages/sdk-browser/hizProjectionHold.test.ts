@@ -57,27 +57,27 @@ test('the view, the viewport or the world epoch moving retires every rectangle a
   };
   const all = [1, 1, 1, 1];
   {
-    // Sous un rig d'hôte, la caméra n'a pas de pose locale nouvelle : c'est un ancêtre qui a bougé,
-    // et l'hôte n'est pas tenu de remonter quoi que ce soit. Le cache doit quand même repartir,
-    // sans quoi le test Hi-Z recevrait les rectangles de la vue précédente.
+    // Under a host rig, the camera has no new local pose: it is an ancestor that moved, and the
+    // host is not required to walk anything up. The cache must still start over, otherwise the
+    // Hi-Z test would receive the previous view's rectangles.
     const { hold, view } = settled();
     const rig = new THREE.Group();
     rig.add(view);
     rig.position.x = 3;
     hold.reframe(cameraMoteur(view), 1280, 720, 1);
-    assert.equal(hold.select(4, undefined, pages), 4, 'rig d’hôte déplacé');
+    assert.equal(hold.select(4, undefined, pages), 4, 'host rig moved');
     assert.deepEqual(pending(hold, 4), all);
     hold.keep(4, pages);
-    // Et le rig immobile ne les retire pas : le cache tient.
+    // And a still rig does not retire them: the cache holds.
     hold.reframe(cameraMoteur(view), 1280, 720, 1);
-    assert.equal(hold.select(4, undefined, pages), 0, 'rig immobile');
+    assert.equal(hold.select(4, undefined, pages), 0, 'still rig');
   }
   {
     const { hold, view } = settled();
     view.position.x += 1e-6;
     view.updateMatrixWorld();
     hold.reframe(cameraMoteur(view), 1280, 720, 1);
-    assert.equal(hold.select(4, undefined, pages), 4, 'caméra déplacée');
+    assert.equal(hold.select(4, undefined, pages), 4, 'camera moved');
     assert.deepEqual(pending(hold, 4), all);
   }
   {
@@ -86,26 +86,26 @@ test('the view, the viewport or the world epoch moving retires every rectangle a
     view.updateProjectionMatrix();
     hold.reframe(cameraMoteur(view), 1280, 720, 1);
     hold.select(4, undefined, pages);
-    assert.deepEqual(pending(hold, 4), all, 'projection changée');
+    assert.deepEqual(pending(hold, 4), all, 'projection changed');
   }
   {
     const { hold, view } = settled();
     hold.reframe(cameraMoteur(view), 640, 720, 1);
     hold.select(4, undefined, pages);
-    assert.deepEqual(pending(hold, 4), all, 'fenêtre');
+    assert.deepEqual(pending(hold, 4), all, 'viewport');
   }
   {
     const { hold, view } = settled();
     hold.reframe(cameraMoteur(view), 1280, 720, 2);
     hold.select(4, undefined, pages);
-    assert.deepEqual(pending(hold, 4), all, 'époque des matrices monde');
+    assert.deepEqual(pending(hold, 4), all, 'world-matrix epoch');
   }
   {
     const { hold, view } = settled();
     hold.invalidate();
     hold.reframe(cameraMoteur(view), 1280, 720, 1);
     hold.select(4, undefined, pages);
-    assert.deepEqual(pending(hold, 4), all, 'table retirée');
+    assert.deepEqual(pending(hold, 4), all, 'table retired');
   }
   {
     // A view that did not move leaves every rectangle standing, however often it is re-read.

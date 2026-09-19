@@ -1,6 +1,6 @@
-// La vue `lit` demandée explicitement éclaire, même sans lampe : le contrat tourne et sort du noir,
-// émissifs conservés. Auparavant `store.count > 0` la faisait retomber sur l'albédo brut, et une
-// pièce qu'on venait d'éteindre s'affichait claire — l'extinction ne se voyait sur aucun pixel.
+// An explicitly requested `lit` view lights, even with no light: the contract runs and outputs
+// black, emissives kept. Previously `store.count > 0` fell back to raw albedo, and a room just
+// switched off displayed bright — the blackout showed on no pixel.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore, type SceneLight } from '../sdk-core/index.ts';
@@ -22,35 +22,35 @@ function banc() {
   return { store, rt: { lights: { store } } as unknown as WebgpuPagesRuntime };
 }
 
-test('vue `lit` sans lampe : le contrat éclaire quand même, l’image sort noire', () => {
+test('`lit` view with no light: the contract still lights, the image comes out black', () => {
   const b = banc();
   b.store.setView('lit');
   assert.equal(wantsContractLighting(b.rt), true);
 });
 
-test('éteindre la dernière lampe en vue `lit` ne rallume pas l’albédo', () => {
+test('turning off the last light in a `lit` view does not bring albedo back', () => {
   const b = banc();
   b.store.setView('lit');
   b.store.add({ ...LAMPE });
   assert.equal(wantsContractLighting(b.rt), true);
   b.store.remove('l0');
-  assert.equal(wantsContractLighting(b.rt), true, 'toujours éclairé, donc noir : c’est la règle');
+  assert.equal(wantsContractLighting(b.rt), true, 'always lit, therefore black: that is the rule');
 });
 
-test('`auto` garde son comportement : albédo tant qu’aucune lampe n’est déclarée', () => {
+test('`auto` keeps its behaviour: albedo while no light is declared', () => {
   const b = banc();
-  assert.equal(wantsContractLighting(b.rt), false, 'auto sans lampe : albédo brut');
+  assert.equal(wantsContractLighting(b.rt), false, 'auto with no light: raw albedo');
   b.store.add({ ...LAMPE });
-  assert.equal(wantsContractLighting(b.rt), true, 'une lampe déclarée : l’éclairage réel s’impose');
+  assert.equal(wantsContractLighting(b.rt), true, 'a declared light: real lighting takes over');
   b.store.remove('l0');
   assert.equal(
     wantsContractLighting(b.rt),
     false,
-    'et il repart à l’albédo quand il n’y en a plus',
+    'and it falls back to albedo when there are none left',
   );
 });
 
-test('`unlit` reste la vue de diagnostic, lampes ou pas', () => {
+test('`unlit` stays the diagnostic view, lights or not', () => {
   const b = banc();
   b.store.setView('unlit');
   assert.equal(wantsContractLighting(b.rt), false);

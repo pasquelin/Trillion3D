@@ -1,4 +1,4 @@
-// sens de parcours d'un cluster et comparaison de caméra de vue.
+// winding of a cluster and view-camera comparison.
 import * as THREE from 'three';
 import { sameHizView } from '../hizTemporal.ts';
 import { setWindingEpoch, windingCw } from '../webgpuPagesWinding.ts';
@@ -67,12 +67,12 @@ const optimiseeVue = parcoursDeVue((camera) => {
 });
 
 const resWinding = await mesure({
-  nom: 'windingCw',
+  name: 'windingCw',
   fichier: 'packages/sdk-browser/webgpuPagesWinding.ts',
   cas: [
-    { nom: '20 000 clusters, 4 lectures', entree: gros, taille: gros.length },
-    { nom: 'un cluster', entree: seul, taille: 1 },
-    { nom: 'aucun cluster', entree: [], taille: 0 },
+    { name: '20 000 clusters, 4 reads', input: gros, size: gros.length },
+    { name: 'one cluster', input: seul, size: 1 },
+    { name: 'no clusters', input: [], size: 0 },
   ],
   calcul: imageDeSens(windingCw, true),
   attendu: imageDeSens(referenceWindingCw, false),
@@ -80,11 +80,11 @@ const resWinding = await mesure({
 });
 
 const resSameView = await mesure({
-  nom: 'caméra de comparaison',
+  name: 'comparison camera',
   fichier: 'packages/sdk-browser/webgpuPagesRender.ts',
   cas: [
-    { nom: '400 images', entree: 400, taille: 400 },
-    { nom: 'une image', entree: 1, taille: 1 },
+    { name: '400 frames', input: 400, size: 400 },
+    { name: 'one frame', input: 1, size: 1 },
   ],
   calcul: optimiseeVue,
   attendu: referenceVue,
@@ -92,19 +92,15 @@ const resSameView = await mesure({
 });
 
 await stress({
-  nom: 'windingCw extremes',
+  name: 'windingCw extremes',
   calcul: (c) => windingCw(c),
   extremes: [
     {
-      nom: 'matrice zero',
-      entree: { matrix: new THREE.Matrix4().set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) },
+      name: 'zero matrix',
+      input: { matrix: new THREE.Matrix4().set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) },
     },
-    { nom: 'echelle negative', entree: { matrix: new THREE.Matrix4().makeScale(-1, -1, -1) } },
+    { name: 'negative scale', input: { matrix: new THREE.Matrix4().makeScale(-1, -1, -1) } },
   ],
 });
 
-rapport(
-  'pages-webgpu',
-  [resWinding, resSameView],
-  'A9 et A10 rendent exactement les mêmes valeurs',
-);
+rapport('pages-webgpu', [resWinding, resSameView], 'A9 and A10 yield the exact same values');

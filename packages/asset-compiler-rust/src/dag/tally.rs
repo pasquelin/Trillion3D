@@ -1,4 +1,4 @@
-//! Le décompte des groupes par issue, niveau par niveau, tel que le rapport du DAG le publie.
+//! Group tally per outcome, level by level, as published in DAG report.
 
 /// Why a group did not produce a coarser level. Its clusters then become roots.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -22,8 +22,8 @@ pub struct GroupTally {
     pub unusable_error: usize,
 }
 impl GroupTally {
-    /// Le décompte en JSON, une clé par champ : la seule forme que le rapport et l'avertissement
-    /// écrivent, pour qu'un champ ajouté ici ne manque nulle part.
+    /// Tally in JSON, one key per field: single form written by report and warning,
+    /// so added field missing nowhere.
     pub fn json(&self) -> serde_json::Value {
         serde_json::json!({
             "reduced": self.reduced,
@@ -35,7 +35,7 @@ impl GroupTally {
             "unusableError": self.unusable_error,
         })
     }
-    /// La somme de plusieurs niveaux, champ à champ.
+    /// Sum of multiple levels, field by field.
     pub fn total(tallies: &[GroupTally]) -> GroupTally {
         tallies
             .iter()

@@ -1,24 +1,24 @@
-// Rejeu d'un scénario de hiérarchie (lot M3a) sur de vrais `Object3D` et caméras de Three.js.
-// `hierarchieRejeuNous.mjs` rejoue les mêmes opérations dans le même ordre sur la hiérarchie et la
-// caméra de sdk-core. Chaque lecture rend un tableau de nombres étiqueté par le rang de l'opération ;
-// `compare` confronte les deux côtés avec `Object.is`, composante par composante.
+// Replay of a hierarchy scenario (batch M3a) on real Three.js `Object3D` and cameras.
+// `hierarchieRejeuNous.mjs` replays the same operations in the same order on the sdk-core
+// hierarchy and camera. Each read yields a number array tagged by the operation rank;
+// `compare` confronts both sides with `Object.is`, component by component.
 //
-// Opérations : `ajoute` (parent, position, quaternion, échelle, caméra ou rien), `pose` (position,
-// quaternion, échelle, chacune ou `null`), `local` (matrice locale posée), `auto` (`matrixAutoUpdate`),
-// `rattache` (nouveau parent, `-1` pour détacher), `retire` (le nœud et ses descendants, listés),
+// Operations: `ajoute` (parent, position, quaternion, scale, camera or none), `pose` (position,
+// quaternion, scale, each or `null`), `local` (posed local matrix), `auto` (`matrixAutoUpdate`),
+// `rattache` (new parent, `-1` to detach), `retire` (the node and its descendants, listed),
 // `maj` (`updateMatrixWorld(force)`), `majMonde` (`updateWorldMatrix(parents, enfants)`), `vise`
-// (`lookAt` avec un haut), `objectif` (nouveaux réglages de caméra), `lis` (lectures monde d'un nœud),
-// `image` (vue, vue-projection et plans d'une caméra), `instantane` (matrices monde de tous les vivants).
+// (`lookAt` with an up), `objectif` (new camera settings), `lis` (world reads of a node),
+// `image` (view, view-projection and planes of a camera), `instantane` (world matrices of all live nodes).
 import * as THREE from 'three';
 
 const systeme = (webgpu) => (webgpu ? THREE.WebGPUCoordinateSystem : THREE.WebGLCoordinateSystem);
 
 /**
- * La projection de Three portée dans la convention du moteur : profondeur INVERSÉE, plan lointain
- * INFINI (`depthConvention.ts`). Seule la ligne de profondeur change — `m10 = 0`, `m14 = near`,
- * c'est-à-dire `ndc = near / distance` —, et elle est la même quelle que soit la convention de
- * découpe déclarée : `makePerspective` ne fait varier que ces deux termes-là. Tout le reste reste le
- * témoin de Three au bit près : champ, rapport, zoom et colonne perspective.
+ * Three's projection carried into the engine convention: REVERSED depth, INFINITE far plane
+ * (`depthConvention.ts`). Only the depth row changes — `m10 = 0`, `m14 = near`, that is
+ * `ndc = near / distance` — and it is the same whichever clip convention is declared:
+ * `makePerspective` only varies those two terms. Everything else stays the Three witness
+ * bit-exact: field of view, aspect, zoom and the perspective column.
  */
 function projectionMoteur(out, camera) {
   out.copy(camera.projectionMatrix);
@@ -28,21 +28,21 @@ function projectionMoteur(out, camera) {
 }
 
 /**
- * Les six plans du tronc dans la convention du moteur, bâtis avec les primitives de Three.
- * Renverser la profondeur échange les plans PROCHE et LOIN ; et le lointain ne se lit plus dans la
- * projection, qui n'en a plus, mais dans la vue : un point est dedans quand `far + z >= 0`. Un
- * `far` non fini laisse en place le plan que la projection infinie donne — de normale nulle, donc
- * non numérique une fois normalisé, donc qui ne rejette rien : un lointain sans borne.
+ * The six frustum planes in the engine convention, built with Three primitives.
+ * Reversing depth swaps the NEAR and FAR planes; and far is no longer read from the
+ * projection, which no longer has one, but from the view: a point is inside when `far + z >= 0`.
+ * A non-finite `far` leaves the plane that infinite projection gives — zero normal, hence
+ * non-numeric once normalized, hence rejecting nothing: an unbounded far.
  */
 function plansMoteur(tronc, vp, view, far) {
   tronc.setFromProjectionMatrix(vp, THREE.WebGPUCoordinateSystem);
   const brut = tronc.planes.flatMap((plan) => [...plan.normal.toArray(), plan.constant]);
-  const sortie = [...brut.slice(0, 16), ...brut.slice(20, 24), ...brut.slice(16, 20)];
-  if (!Number.isFinite(far)) return sortie;
+  const output = [...brut.slice(0, 16), ...brut.slice(20, 24), ...brut.slice(16, 20)];
+  if (!Number.isFinite(far)) return output;
   const v = view.elements;
   const loin = new THREE.Plane(new THREE.Vector3(v[2], v[6], v[10]), v[14] + far).normalize();
-  sortie.splice(16, 4, loin.normal.x, loin.normal.y, loin.normal.z, loin.constant);
-  return sortie;
+  output.splice(16, 4, loin.normal.x, loin.normal.y, loin.normal.z, loin.constant);
+  return output;
 }
 
 function regleCameraThree(camera, spec) {
@@ -52,7 +52,7 @@ function regleCameraThree(camera, spec) {
   camera.updateProjectionMatrix();
 }
 
-/** Les opérations sur les objets de Three.js. */
+/** The operations on Three.js objects. */
 export function joueThree(scenario) {
   const objets = [],
     vivants = [],

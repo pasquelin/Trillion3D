@@ -11,16 +11,16 @@ import { sunCascadeOf } from './sceneLightSunCascades.ts';
 const eye: [number, number, number] = [0, 0, 0];
 
 /**
- * La matrice vue-projection d'une cascade du soleil, et le volume que le rejet oppose à la région
- * `rect` : l'œil reculé vers lui de toute la profondeur de la boîte, puis l'orthographie de côté
- * `2·rayon`. La cascade n'est calculée qu'une fois pour les deux écritures. Le résultat publié ne
- * porte ni ouverture ni plan proche : le shader lit l'échelle de la cascade dans la matrice
- * elle-même, la seule source qui ne puisse pas diverger d'elle.
+ * View-projection matrix of a sun cascade, and the volume the reject opposes to region
+ * `rect`: the eye pulled back toward it by the whole box depth, then the orthography of side
+ * `2·radius`. The cascade is computed only once for both writes. The published result
+ * carries neither aperture nor near plane: the shader reads the cascade scale in the matrix
+ * itself, the only source that cannot diverge from it.
  *
- * Le volume est la sphère qui circonscrit la sous-boîte que la région découpe dans la boîte de la
- * cascade — la boîte entière quand la région est la face entière. Le demi-angle vaut π, donc le
- * rejet ne fait que le test de distance : une orthographie n'a pas de sommet, et un cône partant
- * d'un point n'aurait aucun sens pour elle.
+ * The volume is the sphere that circumscribes the sub-box the region cuts in the cascade
+ * box — the whole box when the region is the whole face. The half-angle is π, so
+ * reject only does the distance test: an orthography has no apex, and a cone starting
+ * from a point would make no sense for it.
  */
 export function writeSunFace(
   matrices: Float32Array,

@@ -9,13 +9,13 @@ fn scene_with_one_texture() -> Value {
     })
 }
 
-/// L'étape jouée sur un dossier qui ne porte qu'une image, celle de `scene_with_one_texture`.
+/// Step run on folder with single image, that of `scene_with_one_texture`.
 fn stage_one_texture(dir: &Path) -> (Vec<TexturePreview>, Value) {
     stage_scene(dir, &scene_with_one_texture())
 }
 
-// Comportement 7 : un décodage impossible (ici un PNG tronqué) est une entrée de rapport, zéro
-// aperçu — jamais une erreur qui ferait échouer la compilation.
+// Behavior 7: failed decode (here truncated PNG) is report entry, zero
+// preview — never an error failing compilation.
 #[test]
 fn an_undecodable_image_is_reported_and_yields_no_preview() {
     let dir = temp_dir("decode-failure");
@@ -27,8 +27,8 @@ fn an_undecodable_image_is_reported_and_yields_no_preview() {
     assert_eq!(report["skipped"]["image-decode-failed"], json!(1));
 }
 
-// Comportement 7 (suite) : une image absente du disque a le même sort — une raison de rapport
-// dédiée, pas un échec.
+// Behavior 7 (cont): missing disk image same fate — dedicated
+// report reason, not failure.
 #[test]
 fn a_missing_image_file_is_reported_and_yields_no_preview() {
     let dir = temp_dir("decode-missing");

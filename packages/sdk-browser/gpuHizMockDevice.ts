@@ -1,6 +1,6 @@
 /**
- * L'appareil minimal que le Hi-Z demande, pour les tests qui l'observent sans carte graphique.
- * Les constantes d'usage sont posées à l'import : la fabrique les lit au moment où elle alloue.
+ * The minimal device Hi-Z needs, for tests that observe it without a GPU.
+ * Usage constants are set at import: the factory reads them when it allocates.
  */
 Object.assign(globalThis, {
   GPUBufferUsage: { MAP_READ: 1, COPY_DST: 8, COPY_SRC: 16, UNIFORM: 64, STORAGE: 128 },

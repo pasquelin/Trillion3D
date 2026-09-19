@@ -1,8 +1,8 @@
-// Les sections « performance » du rapport global, seconde moitié : la courbe des résolutions, les
-// passes de la carte et les étapes du processeur. Chaque graphe lit les relevés de
-// `rapportGlobalLecture.mjs` et ne calcule rien d'autre que des sommes de p50 nommées comme telles.
+// The "performance" sections of the global report, second half: the resolution curve, GPU
+// passes and CPU stages. Each graph reads the readings of
+// `rapportGlobalLecture.mjs` and computes nothing else than p50 sums named as such.
 import { barres, deuxCols, html, nombre, tableau } from './rapportGlobalGraphes.mjs';
-import { DEUX_VUES, LIBELLE, trouve } from './rapportGlobalLecture.mjs';
+import { TWO_VIEWS, LIBELLE, trouve } from './rapportGlobalLecture.mjs';
 import { GROUPES, sommePasses } from './rapportGlobalChiffres.mjs';
 
 export function sectionResolutions(ex) {
@@ -15,7 +15,7 @@ export function sectionResolutions(ex) {
   const lignes = (lire, seuil = 1) =>
     points.map(([run, libelle]) => ({
       libelle,
-      valeurs: DEUX_VUES.map((v) => lire(trouve(ex, run, v, seuil)) ?? null),
+      valeurs: TWO_VIEWS.map((v) => lire(trouve(ex, run, v, seuil)) ?? null),
     }));
   const seuils = [
     ['res-1248-e0', 0, 'maximum quality (0 px error)'],
@@ -29,14 +29,14 @@ export function sectionResolutions(ex) {
         id: 'g-res-gpu',
         titre: 'Whole frame, GPU, p50, by resolution',
         unite: 'ms',
-        series: DEUX_VUES.map((v) => LIBELLE[v]),
+        series: TWO_VIEWS.map((v) => LIBELLE[v]),
         lignes: lignes((r) => r?.gpuP50),
       }),
       barres({
         id: 'g-res-mat',
         titre: 'Materials pass (WG material surfaces v1), p50, by resolution',
         unite: 'ms',
-        series: DEUX_VUES.map((v) => LIBELLE[v]),
+        series: TWO_VIEWS.map((v) => LIBELLE[v]),
         lignes: lignes((r) => r?.passe('WG material surfaces v1')?.p50),
       }),
     ),
@@ -47,24 +47,24 @@ export function sectionResolutions(ex) {
         sousTitre: 'at normal quality, selection does not coarsen clusters when the screen shrinks',
         unite: 'triangles',
         decimales: 0,
-        series: DEUX_VUES.map((v) => LIBELLE[v]),
+        series: TWO_VIEWS.map((v) => LIBELLE[v]),
         lignes: lignes((r) => r?.triangles),
       }),
       barres({
         id: 'g-res-seuils',
         titre: 'At 1248×702: whole frame by requested quality',
         unite: 'ms',
-        series: DEUX_VUES.map((v) => LIBELLE[v]),
+        series: TWO_VIEWS.map((v) => LIBELLE[v]),
         lignes: seuils.map(([run, seuil, libelle]) => ({
           libelle,
-          valeurs: DEUX_VUES.map((v) => trouve(ex, run, v, seuil)?.gpuP50 ?? null),
+          valeurs: TWO_VIEWS.map((v) => trouve(ex, run, v, seuil)?.gpuP50 ?? null),
         })),
       }),
     ),
   ].join('');
 }
 
-/** Les passes de la carte, une par barre, pour une vue. */
+/** GPU passes, one per bar, for a view. */
 export function sectionPasses(ex) {
   const blocs = (r) => GROUPES.map(([libelle, garde]) => [libelle, sommePasses(r, garde)]);
   const out = [
@@ -92,7 +92,7 @@ export function sectionPasses(ex) {
           unite: 'ms',
           decimales: 3,
           series: ['ms'],
-          lignes: passes.map((p) => ({ libelle: p.nom.replace(/^WG /, ''), valeurs: [p.p50] })),
+          lignes: passes.map((p) => ({ libelle: p.name.replace(/^WG /, ''), valeurs: [p.p50] })),
         }),
       ),
     );
@@ -100,7 +100,7 @@ export function sectionPasses(ex) {
   return out.join('');
 }
 
-/** Les étapes du processeur et leurs compteurs. */
+/** CPU stages and their counters. */
 export function sectionEtapes(ex) {
   const r = trouve(ex, 'mobile', 'sol', 1);
   if (!r) return '<p>No sample.</p>';

@@ -2,28 +2,28 @@
 export const LOD_QUALITY = {
   source: {
     id: 'source',
-    label: 'Détail source maximal',
+    label: 'Maximum source detail',
     pixelError: 0,
     anisotropy: 'source',
     adaptive: false,
   },
   high: {
     id: 'high',
-    label: 'Qualité élevée',
+    label: 'High quality',
     pixelError: 1,
     anisotropy: 'maximum',
     adaptive: false,
   },
   balanced: {
     id: 'balanced',
-    label: 'Qualité équilibrée',
+    label: 'Balanced quality',
     pixelError: 4,
     anisotropy: 'source',
     adaptive: false,
   },
   adaptive: {
     id: 'adaptive',
-    label: 'Mode adaptatif',
+    label: 'Adaptive mode',
     pixelError: 2,
     anisotropy: 'source',
     adaptive: true,

@@ -8,17 +8,17 @@ import { drawFile, drawThumbnail, link, type ImageKind } from './cutoutDraw.mts'
 import { encodePng } from './png.mts';
 
 /**
- * Ce que les deux mots veulent dire, rappelé avant la première question et à la demande.
+ * What the two words mean, recalled before the first question and on demand.
  *
- * Personne ne tranche à l'aveugle : celui qui répond n'a pas travaillé sur ce lot, et « découpe ou
- * vitre » ne dit rien tout seul. La règle tient en quatre lignes, et la dernière est celle qui
- * compte — dans le doute, la réponse sans conséquence existe.
+ * Nobody decides blind: the person answering did not work on this batch, and "cutout or blend"
+ * means nothing on its own. The rule fits in four lines, and the last is the one that counts —
+ * when in doubt, the answer that changes nothing exists.
  */
 export const LEGENDE = [
-  '  Une DÉCOUPE est présente ou absente en chaque point — feuille, grillage, branche :',
-  '  dans l’image en noir et blanc, presque tout est blanc ou noir, le gris ne suit que le bord.',
-  '  Une VITRE laisse passer la lumière partout : elle est grise sur toute sa surface.',
-  '  Dans le doute, répondez vitre : rien ne change.',
+  '  A CUTOUT is present or absent at every point — leaf, grille, branch:',
+  '  in the black-and-white picture, almost everything is white or black; grey follows only the edge.',
+  '  A BLEND lets light through everywhere: it is grey across its whole surface.',
+  '  When in doubt, answer blend: nothing changes.',
 ];
 
 /**
@@ -44,8 +44,8 @@ export async function pictureOf(
     )
   )
     return source;
-  // Les octets de l'image ne sont ouverts que pour une texture EMBARQUÉE, donc jamais pour une
-  // scène qui lie ses fichiers : le `source.bin` d'un modèle pèse des dizaines de mégaoctets.
+  // Image bytes are opened only for an EMBEDDED texture, never for a scene that links its files:
+  // a model's `source.bin` weighs tens of megabytes.
   const own =
     thumbnail?.sourceBufferView === undefined ? null : await embeddedOf(model, thumbnail, embedded);
   const bytes = own ?? (thumbnail && encodePng(thumbnail.width, thumbnail.height, thumbnail.rgba));
@@ -85,14 +85,14 @@ export async function show(
   const { thumbnail, picture } = pictures;
   const measure = pending.measure;
   const facts = [
-    `${measure.betweenPercent ?? '?'} % de pixels entre les deux, dont ${measure.atContourPercent ?? '?'} % au bord`,
-    `${measure.absentPercent ?? '?'} % de vide · ${pending.blendPrimitives} primitive(s) en mélange`,
+    `${measure.betweenPercent ?? '?'} % of pixels between the two, of which ${measure.atContourPercent ?? '?'} % at the edge`,
+    `${measure.absentPercent ?? '?'} % empty · ${pending.blendPrimitives} blended primitive(s)`,
     `${pending.models.join(', ')}`,
-    `proposition : ${pending.proposal ? 'DÉCOUPE' : 'VITRE'}`,
+    `proposal: ${pending.proposal ? 'CUTOUT' : 'BLEND'}`,
   ];
   stream.write(`\n  ${rank}  ${basename(pending.image)}\n`);
   if (thumbnail) {
-    // Un terminal sans protocole d'image ne saurait rien faire de ces octets : ils ne sont pas lus.
+    // A terminal without an image protocol cannot use these bytes: they are not read.
     const file = picture && kind !== 'blocks' ? await readFile(picture).catch(() => null) : null;
     const colour = (file && drawFile(file, kind)) ?? drawThumbnail(thumbnail, kind);
     const alpha = drawThumbnail(alphaOf(thumbnail), kind);
@@ -100,9 +100,9 @@ export async function show(
       stream.write(`  ${colour[row] ?? ''}  ${alpha[row] ?? ''}\n`);
   }
   for (const fact of facts) stream.write(`    ${fact}\n`);
-  if (picture) stream.write(`    ${link('voir en grand', picture)}\n`);
+  if (picture) stream.write(`    ${link('view full size', picture)}\n`);
   stream.write(
-    '    [Entrée] accepter   [d] découpe   [v] vitre   [t] tout accepter   [?] rappel   [q] arrêter\n',
+    '    [Enter] accept   [d] cutout   [v] blend   [t] accept remaining   [?] reminder   [q] quit\n',
   );
 }
 

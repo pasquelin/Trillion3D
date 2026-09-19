@@ -2,21 +2,18 @@ import { readFile } from 'node:fs/promises';
 import { dirname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// Les modules servis vivent dans ce dossier, à côté du serveur. C'est lui qui le sait : un appelant
-// qui recalculait le chemin le gardait faux après le déplacement de `browserFixtures/` vers `appui/`.
+// The served modules live in this folder, next to the server. It is the one that knows: a caller
+// that recomputed the path kept it wrong after `browserFixtures/` moved to `appui/`.
 const FIXTURES = dirname(fileURLToPath(import.meta.url));
 
 /**
- * L'adresse du serveur du Lab, pour les seules preuves montées sur SES pages (`beaute`, `emeraude`,
- * `presentation`). Le moteur ne connaît aucun chemin vers le Lab : l'adresse est donnée par la
- * commande, `LAB_URL`, ou la preuve refuse de partir. Sans elle, `test:gpu` les écarte à voix haute.
+ * Address of the Lab server, for the proofs mounted on ITS pages only (`beaute`, `emeraude`,
+ * `presentation`). The engine knows no path to the Lab: the address is given by the command,
+ * `LAB_URL`, or the proof refuses to start. Without it, `test:gpu` excludes them out loud.
  */
 export function adresseDuLab() {
   const url = process.env.LAB_URL;
-  if (!url)
-    throw new Error(
-      'LAB_URL absent : cette preuve tourne sur les pages du Lab, donner son adresse',
-    );
+  if (!url) throw new Error('LAB_URL missing: this proof runs on the Lab pages, give its address');
   return url.replace(/\/$/, '');
 }
 

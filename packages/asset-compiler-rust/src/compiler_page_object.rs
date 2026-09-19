@@ -1,9 +1,11 @@
 use super::*;
 
-/// Écrit une page géométrique dans le magasin adressé par contenu et rend son entrée de manifeste.
+/// Writes a geometry page into the content-addressed store and returns its
+/// manifest entry.
 ///
-/// Une page déjà présente et dont l'empreinte correspond n'est pas réécrite : deux compilations de
-/// la même source partagent leurs objets, et le compteur de pages réutilisées le dit.
+/// A page already present whose fingerprint matches is not rewritten: two
+/// compilations of the same source share their objects, and the reused-page
+/// counter says so.
 pub(super) fn store_page(
     o: &Options,
     slice: &[u32],

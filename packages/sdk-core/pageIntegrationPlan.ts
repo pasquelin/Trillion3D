@@ -10,18 +10,18 @@ import {
 } from './pageIntegrationContracts.ts';
 
 /**
- * Longueur au-delà de laquelle l'insertion cesse d'être le meilleur tri : jusque-là une liste
- * presque ordonnée ne déplace rien, au-delà une liste en désordre coûterait son carré.
+ * Length beyond which insertion ceases to be the best sort: up to there an almost
+ * ordered list moves nothing, beyond a disordered list would cost its square.
  */
 const SORT_INSERTION_MAX = 64;
 
 /**
- * Tri croissant en place d'un début de tableau d'index de page.
+ * In-place increasing sort of a prefix of a page-index array.
  *
- * Les listes triées ici tiennent presque toujours quelques dizaines d'entrées déjà ordonnées :
- * l'insertion ne déplace alors rien du tout et n'alloue rien. Une liste longue — la file des pages
- * qui attendent leur fiche pendant une rafale d'arrivées — passe par le tri du tableau typé, en
- * n log n, au prix d'une seule vue sur le début du tableau.
+ * The lists sorted here almost always hold a few dozen already-ordered entries:
+ * insertion then moves nothing at all and allocates nothing. A long list — the queue of pages
+ * waiting for their sheet during a burst of arrivals — goes through the typed-array sort, in
+ * n log n, at the cost of a single view on the start of the array.
  */
 export function sortPages(pages: Int32Array, count: number) {
   if (count > SORT_INSERTION_MAX) {
@@ -39,7 +39,7 @@ export function sortPages(pages: Int32Array, count: number) {
   }
 }
 
-/** Le plan d'une arrivée : une tranche par enregistrement, et les rangs de page qu'elle remue. */
+/** Plan of an arrival: one slice per record, and the page ranks it moves. */
 export type PageIntegrationPlan = {
   slices: Int32Array;
   count: number;
@@ -48,16 +48,16 @@ export type PageIntegrationPlan = {
 };
 
 /**
- * Le plan d'intégration d'un paquet arrivé, calculé des seuls entiers du catalogue.
+ * Integration plan of an arrived pack, computed from the catalogue integers alone.
  *
- * Pour chaque enregistrement : le premier mot d'index qu'il occupe dans le paquet et le nombre de
- * mots qu'il y tient — exactement ce que la vue posée sur le paquet couvrait jusqu'ici, aux mêmes
- * bits, puisque c'est la même division entière par quatre et le même produit par trois. Une requête
- * qui ne porte qu'une page prend le paquet entier : son offset vaut `-1` dans la fiche.
+ * For each record: the first index word it occupies in the pack and the number of
+ * words it holds there — exactly what the view on the pack covered until now, at the same
+ * bits, since it is the same integer divide by four and the same product by three. A request
+ * that carries only one page takes the whole pack: its offset is `-1` in the sheet.
  *
- * Les rangs de page sont rendus distincts et croissants : c'est dans cet ordre que le journal de
- * résidence les nomme, et le tri d'une liste presque toujours déjà ordonnée ne déplace rien. Un
- * enregistrement hors table (`-1`) n'en fait pas partie.
+ * Page ranks are returned distinct and increasing: that is the order the residency
+ * journal names them, and sorting an almost always already-ordered list moves nothing. A
+ * record out of table (`-1`) is not part of it.
  */
 export function planPageIntegration(
   specs: Int32Array,
@@ -88,7 +88,7 @@ export function planPageIntegration(
   return into;
 }
 
-/** Les tampons d'un plan, dimensionnés pour la requête la plus fournie du catalogue. */
+/** Buffers of a plan, sized for the catalogue's fullest request. */
 export function createPageIntegrationPlan(records: number): PageIntegrationPlan {
   const room = Math.max(1, records);
   return {

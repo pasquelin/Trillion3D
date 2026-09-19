@@ -1,5 +1,5 @@
-//! B9 — `#[inline]` explicites sur les petites fonctions vectorielles. Référence : les mêmes corps,
-//! recopiés dans le banc sans attribut, noms francisés.
+//! B9 — explicit `#[inline]` on small vector functions. Reference: the same
+//! bodies, copied into the bench without the attribute, French names.
 use super::harness::{compare, Bits, Row};
 use super::inputs;
 use crate::dag::bounds::{bounding_sphere, enclosing_sphere};
@@ -56,11 +56,11 @@ fn empreinte(spheres: &Vec<[f64; 4]>) -> Bits {
 }
 
 pub(crate) fn row() -> Row {
-    // Un maillage empoisonné : NaN, ±Infinity et -0 dans les positions.
+    // A poisoned mesh: NaN, ±Infinity and -0 in the positions.
     let (positions, indices) = inputs::mesh_hostile(0x0009_EC10, 400_000);
     let clusters: Vec<&[u32]> = indices.chunks(128 * 3).collect();
     compare(
-        "B9 sphères englobantes (#[inline])",
+        "B9 bounding spheres (#[inline])",
         "dag/bounds.rs",
         "400 000 triangles, 3 125 clusters, positions non finies".into(),
         &mut || {

@@ -7,15 +7,15 @@ import {
 } from './mathTransformTree.ts';
 
 /**
- * Structure de la hiérarchie : ordre de mise à jour, retrait, reparentage. L'ordre range chaque parent
- * avant ses enfants ; il est reconstruit paresseusement, une fois, à la première mise à jour qui suit
- * un changement de structure — jamais par image tant que la structure ne bouge pas.
+ * Hierarchy structure: update order, removal, reparenting. The order places each parent
+ * before its children; it is rebuilt lazily, once, at the first update that follows
+ * a structure change — never per frame as long as the structure does not move.
  */
 
 /**
- * Reconstruit l'ordre si la structure a changé. Quand chaque parent a un indice inférieur à ses
- * enfants — le cas d'une scène chargée parent d'abord — l'ordre est celui des indices, contigu en
- * mémoire ; sinon un tri par profondeur, stable en indice.
+ * Rebuilds the order if the structure has changed. When every parent has a lower index than its
+ * children — the case of a scene loaded parent-first — the order is that of the indices, contiguous
+ * in memory; otherwise a depth sort, stable by index.
  */
 export function ensureOrder(tree: TransformTree) {
   if (!tree.orderDirty) return;
@@ -53,8 +53,8 @@ export function ensureOrder(tree: TransformTree) {
 }
 
 /**
- * Une marque neuve pour un parcours de sous-arbre, sous 2³¹ : la mise à jour la double et y range un
- * bit. Les marques sont effacées au rebouclage.
+ * A fresh stamp for a subtree traversal, under 2³¹: the update doubles it and stores a
+ * bit in it. Stamps are cleared on wrap-around.
  */
 export function nextStamp(tree: TransformTree) {
   tree.call = (tree.call + 1) & 0x7fffffff;
@@ -66,8 +66,8 @@ export function nextStamp(tree: TransformTree) {
 }
 
 /**
- * Appelle `visit` sur `node` puis sur chacun de ses descendants, parents d'abord. La mise à jour par
- * image garde sa propre boucle : un appel indirect par nœud y coûterait sur cent mille nœuds.
+ * Calls `visit` on `node` then on each of its descendants, parents first. The per-frame
+ * update keeps its own loop: an indirect call per node would cost there on a hundred thousand nodes.
  */
 export function visitSubtree(
   tree: TransformTree,
@@ -76,7 +76,7 @@ export function visitSubtree(
 ) {
   ensureOrder(tree);
   const { order, parent, stamp } = tree;
-  // Paire, comme les marques de la mise à jour : un parcours ne relit jamais celle d'un autre.
+  // Even, like the update stamps: a traversal never rereads another's.
   const mark = nextStamp(tree) * 2;
   stamp[node] = mark;
   visit(tree, node);
@@ -90,8 +90,8 @@ export function visitSubtree(
 }
 
 /**
- * Retire `node` et tous ses descendants ; leurs indices seront réutilisés. Pour détacher un
- * sous-arbre en le gardant, `reparentTransformNode(tree, node, -1)`.
+ * Removes `node` and all its descendants; their indices will be reused. To detach a
+ * subtree while keeping it, `reparentTransformNode(tree, node, -1)`.
  */
 export function removeTransformNode(tree: TransformTree, node: number) {
   assertNode(tree, node);
@@ -105,15 +105,15 @@ function freeNode(tree: TransformTree, node: number) {
 }
 
 /**
- * Rattache `node` à `parent` (`-1` : racine), comme `add` de la référence : les matrices ne bougent
- * pas avant la prochaine mise à jour. Lève si `parent` est `node` ou l'un de ses descendants.
+ * Attaches `node` to `parent` (`-1`: root), like the reference `add`: matrices do not move
+ * until the next update. Throws if `parent` is `node` or one of its descendants.
  */
 export function reparentTransformNode(tree: TransformTree, node: number, parent: number) {
   assertNode(tree, node);
   if (parent !== -1) assertNode(tree, parent);
   for (let walk = parent; walk >= 0; walk = tree.parent[walk])
     if (walk === node)
-      throw new EngineError('TRANSFORM_CYCLE', `nœud ${parent} sous ${node} : cycle`, {
+      throw new EngineError('TRANSFORM_CYCLE', `node ${parent} under ${node}: cycle`, {
         node,
         parent,
       });

@@ -1,68 +1,67 @@
 /**
- * La disposition mémoire que la partition GPU partage avec le test Hi-Z et avec l'hôte.
+ * Memory layout the GPU partition shares with the Hi-Z test and with the host.
  *
- * Tout ce qu'une image décidait ligne par ligne sur le processeur — projection des boîtes en
- * rectangles d'écran, partage occulteurs/testés, empaquetage des bornes du test d'occultation — est
- * écrit par des noyaux de calcul dans ces trois tampons. Le processeur n'en relit que `state`, et
- * seulement sur le rythme du relevé périodique.
+ * Everything a frame used to decide row by row on the CPU — projecting boxes into screen
+ * rectangles, occluder/tested split, packing the occlusion-test bounds — is written by compute
+ * kernels into these three buffers. The CPU rereads only `state`, and only on the periodic-
+ * sample cadence.
  */
 
 /**
- * Flottants d'une boîte monde : huit coins, chacun en trois coordonnées portées par DEUX simples
- * précisions — la valeur arrondie et son résidu.
+ * Floats of a world box: eight corners, each in three coordinates carried by TWO single-
+ * precision values — the rounded value and its residue.
  *
- * Un coin seul en simple précision porte une erreur de `u|x|`, et sur un modèle dont les
- * coordonnées valent des dizaines de milliers cette erreur-là domine toutes les autres : la borne
- * conservatrice rendait alors des rectangles de plusieurs centaines de texels. Deux flottants
- * représentent le double d'origine à `u²` près, et l'écart à l'ancre se calcule sans jamais faire
- * apparaître la magnitude monde : la borne redevient proportionnelle à la taille du cluster.
+ * A corner alone in single precision carries an error of `u|x|`, and on a model whose
+ * coordinates are tens of thousands that error dominates all others: the conservative bound
+ * then yielded rectangles of several hundred texels. Two floats represent the original double
+ * to within `u²`, and the gap to the anchor is computed without ever bringing world magnitude
+ * into view: the bound becomes proportional to the cluster size again.
  */
 export const CORNER_VALUES = 48;
 
 /**
- * Mots par ligne de `rowData` : le rectangle d'écran non découpé (quatre entiers signés), la borne
- * de profondeur déjà redressée, les drapeaux, la clé ordonnable de profondeur, et un mot de garde.
+ * Words per `rowData` row: the unclipped screen rectangle (four signed integers), the already-
+ * corrected depth bound, the flags, the sortable depth key, and a guard word.
  */
 export const ROW_DATA_U32 = 8;
 export const ROW_NEAREST = 4,
   ROW_FLAGS = 5,
   ROW_KEY = 6;
-/** Bits de `rowData[ROW_FLAGS]`. */
+/** Bits of `rowData[ROW_FLAGS]`. */
 export const FLAG_CLIP = 1,
   FLAG_PREV_REST = 2,
   FLAG_HISTORY = 4;
 
 /**
- * Mots par boîte testée : le rectangle déjà découpé au viewport et exprimé en texels du mip qui le
- * couvre, la borne de profondeur, la ligne de verdict, l'adresse du mip, et les triangles dont le
- * compteur pèse un rejet.
+ * Words per tested box: the rectangle already clipped to the viewport and expressed in texels of
+ * the mip that covers it, the depth bound, the verdict row, the mip address, and the triangles
+ * whose count weighs a reject.
  */
 export const TESTED_U32 = 12;
 
-/** Fils d'un groupe de travail des noyaux par ligne. */
+/** Threads of a per-row kernel workgroup. */
 export const PARTITION_WORKGROUP = 64;
 
 /**
- * L'histogramme de profondeur de `state` : son premier mot, et le nombre de bits de tête de la clé
- * ordonnable qui nomment un seau.
+ * Depth histogram of `state`: its first word, and the number of leading bits of the sortable key
+ * that name a bucket.
  *
- * La clé est celle de la profondeur de VUE, jamais celle de la profondeur normalisée. Les bits de
- * tête d'un flottant sont son exposant, et une profondeur normalisée par une projection perspective
- * vit presque entière dans un seul exposant : tous les seaux sauf un restaient vides, le seuil
- * médian tombait au-delà de toutes les boîtes, et l'image entière partait du côté des occulteurs —
- * la moitié testée ne contenait plus que des boîtes coupées, que rien ne rejette. La profondeur de
- * vue, elle, s'étale sur une vingtaine d'exposants, et douze bits la découpent assez finement pour
- * que le seuil tombe près de la médiane.
+ * The key is that of VIEW depth, never of normalised depth. A float's leading bits are its
+ * exponent, and a depth normalised by a perspective projection lives almost entirely in a
+ * single exponent: every bucket but one stayed empty, the median threshold fell beyond every
+ * box, and the whole frame went to the occluder side — the tested half held only clipped boxes,
+ * which nothing rejects. View depth, for its part, spreads over about twenty exponents, and
+ * twelve bits slice it finely enough for the threshold to fall near the median.
  */
 export const STATE_HISTO = 16;
 export const HISTO_BITS = 12;
 export const HISTO_BUCKETS = 1 << HISTO_BITS;
-/** Seaux qu'un fil du groupe de travail totalise dans le balayage à deux niveaux de `chooseSplit`. */
+/** Buckets a workgroup thread totals in the two-level sweep of `chooseSplit`. */
 export const HISTO_BLOCK = HISTO_BUCKETS / PARTITION_WORKGROUP;
 export const STATE_WORDS = STATE_HISTO + HISTO_BUCKETS;
 
-/** Compteurs de `state`, tous atomiques : les trois décisions que `chooseSplit` pose y sont
- *  simplement rangées par `atomicStore`, jamais accumulées. */
+/** Counters of `state`, all atomic: the three decisions `chooseSplit` sets are simply stored
+ *  there by `atomicStore`, never accumulated. */
 export const ST_TESTED = 0,
   ST_OCCLUDERS = 1,
   ST_HISTORY_OCCLUDERS = 2,
@@ -76,26 +75,26 @@ export const ST_TESTED = 0,
   ST_MODE = 10,
   ST_TWO_PASS = 11;
 
-/** Le verdict d'une ligne, un mot par slot Hi-Z : la moitié occulteurs, la moitié testée que la
- *  pyramide rejette, la moitié testée qu'elle garde. La partition pose occulteur et gardé, le test
- *  ramène certains gardés à rejeté ; tout ce qui dessine — étage de sommets, troncature de la moitié
- *  testée, raster de calcul — lit ce mot, et un lecteur qui lirait deux valeurs perd des grappes. */
+/** Verdict of a row, one word per Hi-Z slot: the occluder half, the tested half the pyramid
+ *  rejects, the tested half it keeps. The partition sets occluder and kept, the test brings some
+ *  kept back to rejected; everything that draws — vertex stage, tested-half truncation, compute
+ *  raster — reads this word, and a reader that would read two values loses clusters. */
 export const VERDICT_OCCLUDER = 0,
   VERDICT_REJECTED = 1,
   VERDICT_KEPT = 2;
 
-/** Le prédicat de rejet, le même texte dans chaque module qui lie `hizFlags` : un slot valide au
- *  verdict rejeté. Sa négation est ce qui dessine. */
+/** Reject predicate, the same text in every module that binds `hizFlags`: a valid slot at the
+ *  rejected verdict. Its negation is what draws. */
 export const HIZ_REJECTED_WGSL = `fn hizRejected(hizSlot:u32)->bool{return hizSlot!=0xffffffffu&&hizFlags[hizSlot]==${VERDICT_REJECTED}u;}`;
 
-/** Mode de partage : le seuil médian de l'image, ou l'historique d'occulteurs de la précédente. */
+/** Split mode: the frame's median threshold, or the previous frame's occluder history. */
 export const MODE_MEDIAN = 0,
   MODE_HISTORY = 1;
 
 /**
- * Mots de l'uniforme : vue (16) et vue-projection (16), toutes deux DÉJÀ composées avec la
- * translation de l'ancre ; l'ancre en deux simples précisions, avec le plan proche ; puis les
- * scalaires, puis la table des mips — décalage et largeur — que l'empaquetage des bornes lit.
+ * Uniform words: view (16) and view-projection (16), both ALREADY composed with the anchor
+ * translation; the anchor in two single-precision values, with the near plane; then the
+ * scalars, then the mip table — offset and width — that bound packing reads.
  */
 export const UNI_VIEW = 0,
   UNI_VIEW_PROJ = 16,
@@ -107,11 +106,11 @@ export const MAX_HIZ_LEVELS = 16;
 export const UNIFORM_U32 = UNI_LEVELS + MAX_HIZ_LEVELS * 2;
 
 /**
- * Une coordonnée double écrite en DEUX simples précisions : l'arrondi au plus proche, puis ce qu'il
- * a laissé. La somme des deux représente le double d'origine à un ulp au carré près, et c'est sous
- * cette seule forme que les coins et l'ancre entrent dans le noyau (`gpuPartitionMargins.ts`). Les
- * deux positions sont données séparément parce que les dispositions diffèrent : un coin range son
- * résidu trois flottants plus loin, l'uniforme quatre.
+ * A double coordinate written as TWO single-precision values: round-to-nearest, then what it
+ * left. The sum of the two represents the original double to within an ulp squared, and that is
+ * the only form in which corners and the anchor enter the kernel (`gpuPartitionMargins.ts`). The
+ * two positions are given separately because the layouts differ: a corner stores its residue
+ * three floats further, the uniform four.
  */
 export function writeSplitDouble(out: Float32Array, highAt: number, lowAt: number, value: number) {
   const high = Math.fround(value);

@@ -37,7 +37,7 @@ export function createGpuPageCache(
     changeSlots: number[] = [];
   const reader = createGpuPageReader(source, pageBytes, options.onDiagnostic, fetches);
   const { emit } = reader;
-  emit('gpu-page-catalogue', 'Cache GPU configuré', () => ({
+  emit('gpu-page-catalogue', 'GPU cache configured', () => ({
     version: 1,
     pageBytes,
     slots,
@@ -47,7 +47,7 @@ export function createGpuPageCache(
   }));
   const check = (signal?: AbortSignal) => {
     if (state.disposed) {
-      emit('gpu-page-error', 'Opération refusée après dispose', () => ({
+      emit('gpu-page-error', 'Operation refused after dispose', () => ({
         version: 1,
         error: 'PAGE_CACHE_DISPOSED',
       }));
@@ -75,14 +75,14 @@ export function createGpuPageCache(
   const load = createGpuPageLoader(context);
   const pinning = createGpuPagePins(context);
   return {
-    /** Le tampon du réservoir : une autre identité après `resize`, à relier de nouveau. */
+    /** The pool buffer: a new identity after `resize`, to be rebound. */
     get buffer() {
       return context.buffer;
     },
     load,
     /**
-     * Change la taille du réservoir en gardant ses pages, derrière les chargements en cours : rien
-     * ne s'écrit dans un tampon pendant qu'il est copié. Rend les clés évincées faute de place.
+     * Changes the pool size while keeping its pages, behind in-flight loads: nothing is written
+     * into a buffer while it is being copied. Returns keys evicted for lack of room.
      */
     resize(slots: number) {
       const operation = state.pending.then(() => {
@@ -117,7 +117,7 @@ export function createGpuPageCache(
     unload(key: string) {
       const page = resident.get(key);
       if (!page) {
-        emit('gpu-page-unload-refused', 'Déchargement GPU refusé', () => ({
+        emit('gpu-page-unload-refused', 'GPU unload refused', () => ({
           version: 1,
           key,
           reason: 'not-resident',
@@ -125,7 +125,7 @@ export function createGpuPageCache(
         return false;
       }
       if (pins.has(key)) {
-        emit('gpu-page-unload-refused', 'Déchargement GPU refusé', () => ({
+        emit('gpu-page-unload-refused', 'GPU unload refused', () => ({
           version: 1,
           key,
           slot: page.slot,
@@ -151,7 +151,7 @@ export function createGpuPageCache(
     },
     dispose() {
       if (state.disposed) return state.pending.then(() => {});
-      emit('gpu-page-dispose', 'Cache GPU libéré', () => ({
+      emit('gpu-page-dispose', 'GPU cache released', () => ({
         version: 1,
         resident: resident.size,
         loading: fetches.size,

@@ -9,13 +9,13 @@ test('instances of one primitive share a single resident index buffer written on
     data = fixture();
   const batches = new ClusterBatches(scene, data.pages);
   resident(batches, data, ['a', 'b', 'c', 'd']);
-  // a=6, b=9, c=3 indices pour la primitive partagée ; d=12 pour l'autre.
-  assert.equal(batches.metrics.pageRangeWrites, 4, 'une écriture par page, pas une par instance');
+  // a=6, b=9, c=3 indices for the shared primitive; d=12 for the other.
+  assert.equal(batches.metrics.pageRangeWrites, 4, 'one write per page, not one per instance');
   assert.equal(batches.metrics.indexBytesWritten, (6 + 9 + 3 + 12) * 4);
   assert.equal(
     batches.indexBytes,
     (6 + 9 + 3 + 12) * 4,
-    'capacité = somme des pages de chaque primitive',
+    'capacity = sum of the pages of each primitive',
   );
 
   batches.update(data.pages);
@@ -25,10 +25,10 @@ test('instances of one primitive share a single resident index buffer written on
   assert.equal(
     first.geometry,
     second.geometry,
-    'les deux instances partagent la géométrie et son index',
+    'the two instances share the geometry and its index',
   );
   assert.notEqual(first.geometry, third.geometry);
-  assert.equal(first.count, 1, 'les trois pages sont contiguës : un seul sous-dessin');
+  assert.equal(first.count, 1, 'the three pages are contiguous: a single sub-draw');
   assert.deepEqual(first.starts, [0]);
   assert.deepEqual(first.counts, [18]);
   assert.deepEqual(second.counts, [18]);
@@ -47,21 +47,21 @@ test('a cut that changes every frame rewrites no index and detaches the groups i
   const writes = batches.metrics.pageRangeWrites,
     bytes = batches.metrics.indexBytesWritten;
 
-  // Coupe 2 : l'instance 1 disparaît, l'instance 0 ne garde que les pages a et c (non adjacentes).
+  // Cut 2: instance 1 disappears, instance 0 keeps only pages a and c (non-adjacent).
   const cut = data.pages.filter(
     (page) => (page.renderOrder === 0 && page.url !== 'b') || page.renderOrder === 2,
   );
   batches.update(cut);
-  assert.equal(batches.metrics.pageRangeWrites, writes, 'aucune plage réécrite');
-  assert.equal(batches.metrics.indexBytesWritten, bytes, "aucun octet d'index réuploadé");
-  assert.equal(drawOf(scene, 1), undefined, 'le groupe sans page visible est détaché');
+  assert.equal(batches.metrics.pageRangeWrites, writes, 'no range rewritten');
+  assert.equal(batches.metrics.indexBytesWritten, bytes, 'no index byte re-uploaded');
+  assert.equal(drawOf(scene, 1), undefined, 'the group with no visible page is detached');
   const first = drawOf(scene, 0)!;
-  assert.equal(first.count, 2, 'a et c ne sont pas adjacentes : deux sous-dessins');
+  assert.equal(first.count, 2, 'a and c are not adjacent: two sub-draws');
   assert.deepEqual(first.starts, [0, 15 * 4]);
   assert.deepEqual(first.counts, [6, 3]);
   assert.equal(batches.metrics.drawCalls, 2);
 
-  // Retour à la coupe complète : le groupe est ré-attaché, toujours sans écriture d'index.
+  // Back to the full cut: the group is re-attached, still with no index write.
   batches.update(data.pages);
   assert.equal(batches.metrics.pageRangeWrites, writes);
   assert.equal(drawOf(scene, 1)!.counts[0], 18);
@@ -81,12 +81,12 @@ test('an evicted page frees its range and the next residency reuses it', () => {
   batches.update(data.pages);
   const partial = drawOf(scene, 0)!;
   assert.deepEqual(partial.starts, [0, 15 * 4]);
-  assert.deepEqual(partial.counts, [6, 3], 'a et c restent en place, le trou de b est sauté');
+  assert.deepEqual(partial.counts, [6, 3], 'a and c stay in place, the hole of b is skipped');
 
   resident(batches, data, ['b']);
   batches.update(data.pages);
   const back = drawOf(scene, 0)!;
-  assert.equal(back.count, 1, 'b reprend exactement son trou : tout redevient contigu');
+  assert.equal(back.count, 1, 'b takes back exactly its hole: everything becomes contiguous again');
   assert.deepEqual(back.counts, [18]);
 });
 
@@ -136,7 +136,7 @@ test('page urls of a cut are listed once per page, instances included, and diagn
   assert.deepEqual(urls.sort(), ['a', 'b', 'c', 'd']);
   const again: string[] = [];
   batches.markUrls(data.pages, 2, again);
-  assert.equal(again.length, 4, 'une nouvelle estampille redonne la liste complète');
+  assert.equal(again.length, 4, 'a new stamp gives back the full list');
 
   batches.update(data.pages);
   assert.equal(scene.children.length, 3);
@@ -144,7 +144,7 @@ test('page urls of a cut are listed once per page, instances included, and diagn
   assert.equal(scene.children.length, 0);
   assert.equal(batches.metrics.drawCalls, 0);
   batches.update(data.pages);
-  assert.equal(scene.children.length, 3, 'le mode beauté réattache les mêmes lots');
+  assert.equal(scene.children.length, 3, 'beauty mode reattaches the same batches');
   batches.dispose();
   assert.equal(scene.children.length, 0);
 });

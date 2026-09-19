@@ -1,22 +1,14 @@
-# Tests transverses
+# Cross-cutting Tests
 
-Ce répertoire regroupe ce qui n'appartient à aucun paquet en particulier. Les tests unitaires, eux,
-vivent à côté de leur source, sous `packages/*/`.
+This directory contains what does not belong to any specific package. Unit tests live alongside their source code under `packages/*/`.
 
-- **`integration/`** — 10 tests d'architecture et de contrat (`engineStructure`, `engineNoThree`,
-  `public`, `dts-extensions`…), joués par `pnpm test`.
-- **`browser/`** — 20 preuves de rendu exécutées dans un Chromium réel (WebGPU / WebGL2) : 18
-  lancées, 2 écartées avec leur motif dans `BROWSER_ECARTES` (`test/test-gpu.mjs`).
-- **`justesse/`** — 18 sondes de précision matérielle, plus leurs 25 modules d'appui. Une sonde est
-  un fichier dont le nom porte un tiret ; les autres ne se lancent jamais seuls.
-- **`appui/`** — les modules partagés par les tests de rendu : serveur de fixtures, pages
-  servies au navigateur, jeux de cas.
-- **`fixtures/`** — scènes et données de test.
-- **`assets/`** — le corpus de formats sources, livré hors dépôt et ignoré par git.
+- **`integration/`** — 10 architecture and contract tests (`engineStructure`, `engineNoThree`, `public`, `dts-extensions`…), run by `pnpm test`.
+- **`browser/`** — 20 rendering proofs executed in real Chromium (WebGPU / WebGL2): 18 launched, 2 skipped with their reason in `BROWSER_ECARTES` (`test/test-gpu.mjs`).
+- **`justesse/`** — 18 hardware precision probes, plus their 25 support modules. A probe is a file whose name contains a hyphen; others are never executed standalone.
+- **`appui/`** — modules shared by rendering tests: fixture server, pages served to browser, case suites.
+- **`fixtures/`** — test scenes and data.
+- **`assets/`** — source format corpus, delivered outside repo and gitignored.
 
-Les deux dossiers se découvrent par une règle et leurs noms suivent la convention des bancs et des
-sondes : kebab explicite. `browser/` et `justesse/` se lancent ensemble par `pnpm run test:gpu`
-(`test/test-gpu.mjs`), et `test/test-gpu.test.mjs` garde l'égalité **lancés ∪ écartés ==
-disque** dans les deux : aucun fichier ne peut cesser de s'exécuter en silence.
+The two folders are discovered by rule and their names follow benchmark and probe convention: explicit kebab-case. `browser/` and `justesse/` run together via `pnpm run test:gpu` (`test/test-gpu.mjs`), and `test/test-gpu.test.mjs` preserves the equality **launched ∪ skipped == disk** in both: no file can silently stop running.
 
-Documentation complète : [`docs/TESTS.md`](../docs/TESTS.md).
+Full documentation: [`docs/TESTS.md`](../docs/TESTS.md).

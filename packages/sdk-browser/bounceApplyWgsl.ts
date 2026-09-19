@@ -1,17 +1,17 @@
 import { BOUNCE_GRID_WGSL, INVERSE_PI_WGSL } from './bounceGridWgsl.ts';
 
 /**
- * L'application du rebond, aux liaisons que la passe appelante lui donne : la résolution différée
- * opaque et la passe de mélange lisent les mêmes sondes, avec la même loi, depuis deux dispositions
- * de liaisons différentes. Une seule implémentation, jamais deux.
+ * Bounce application, at the bindings the calling pass gives it: opaque deferred resolve and
+ * the blend pass read the same probes, with the same law, from two different binding layouts.
+ * One implementation, never two.
  *
- * L'irradiance interpolée des sondes multiplie l'albédo diffus du pixel, divisé par π : c'est la
- * même loi de Lambert que le direct, avec la même implémentation de référence. Le terme est
- * strictement additif au direct — émission, direct et indirect sont partitionnés (P3) — et il vaut
- * exactement zéro là où aucune sonde ne voit le point, ce qui interdit une fuite à travers un mur.
+ * Interpolated probe irradiance multiplies the pixel's diffuse albedo, divided by π: that is
+ * the same Lambert law as the direct term, with the same reference implementation. The term is
+ * strictly additive to the direct — emission, direct and indirect are partitioned (P3) — and it
+ * is exactly zero where no probe sees the point, which forbids a leak through a wall.
  *
- * Un métal pur n'a pas d'albédo diffus : sa part indirecte est nulle, comme dans le direct. Le
- * spéculaire indirect n'est pas de ce lot, et son absence est déclarée plutôt que devinée.
+ * A pure metal has no diffuse albedo: its indirect share is zero, as in the direct term.
+ * Indirect specular is not in this batch, and its absence is declared rather than guessed.
  */
 export function bounceApplyWgsl(grid: number, probes: number): string {
   return `
@@ -19,20 +19,20 @@ export function bounceApplyWgsl(grid: number, probes: number): string {
 @group(0) @binding(${probes}) var<storage,read> probes:array<vec4f>;
 ${BOUNCE_GRID_WGSL}
 ${INVERSE_PI_WGSL}
-/** La radiance diffuse qu'un pixel renvoie de la lumière qui a rebondi avant de l'atteindre. */
+/** Diffuse radiance a pixel returns from light that bounced before reaching it. */
 fn bounceLighting(rgb:vec3f,metal:f32,N:vec3f,P:vec3f,ao:f32)->vec3f{
  return rgb*(1.0-metal)*INVERSE_PI*sampleBounce(P,N)*ao;
 }`;
 }
 
-/** L'application du rebond aux liaisons de la résolution différée, et ses deux vues de mesure. */
+/** Bounce application at the deferred-resolve bindings, and its two measurement views. */
 export const BOUNCE_APPLY_WGSL = `${bounceApplyWgsl(11, 12)}
-/** Vrai quand l'hôte a demandé la vue de diagnostic d'irradiance indirecte, et elle seule. */
+/** True when the host asked for the indirect-irradiance diagnostic view, and that view only. */
 fn bounceOnly()->bool{return bounce.reach.y>0.5;}
 /**
- * L'irradiance indirecte nue du pixel, multipliée par l'exposition : c'est ce que le harnais
- * compare à l'oracle du compilateur. Ni albédo, ni ACES, ni sRGB — une image à mesurer, pas une
- * image à regarder, et l'exposition n'est là que pour la faire tenir dans les huit bits de la
- * capture. Une valeur au-delà de un est écrêtée, et le harnais compte ce qu'elle a écrêté.
+ * The pixel's raw indirect irradiance, multiplied by exposure: that is what the harness
+ * compares to the compiler oracle. No albedo, no ACES, no sRGB — an image to measure, not an
+ * image to look at, and exposure is there only to fit it in the eight bits of the capture.
+ * A value beyond one is clipped, and the harness counts what it clipped.
  */
 fn bounceIrradiance(N:vec3f,P:vec3f,exposure:f32)->vec3f{return sampleBounce(P,N)*exposure;}`;

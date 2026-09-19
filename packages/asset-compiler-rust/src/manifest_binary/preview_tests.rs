@@ -24,8 +24,8 @@ fn preview(texture: u32, width: u32, height: u32, fill: u8) -> TexturePreview {
     }
 }
 
-// Comportement 9 (a) : le sidecar fait l'aller-retour écriture/lecture de la section des aperçus —
-// chaque champ écrit par `split` se relit identique à l'octet près, sans passer par un décodeur.
+// Behavior 9 (a): sidecar does round-trip write/read of preview section —
+// each field written by `split` reads back identical bit-for-bit, without decoder.
 #[test]
 fn texture_previews_round_trip_through_the_binary_columns() {
     let previews = vec![preview(0, 32, 16, 11), preview(3, 8, 8, 222)];
@@ -58,7 +58,7 @@ fn texture_previews_round_trip_through_the_binary_columns() {
         let sha = std::str::from_utf8(&bytes[sha_off + entry * 64..sha_off + entry * 64 + 64])
             .expect("ascii");
         assert_eq!(sha, source.sha256);
-        // La plage d'octets de l'entrée est celle que l'entrée déclare, et elle suit la précédente.
+        // Entry byte range is what entry declares, following previous one.
         let (start, length) = (word(base + 32) as usize, word(base + 36) as usize);
         assert_eq!(start, offset);
         assert_eq!(length, source.pixels.len());
@@ -70,8 +70,8 @@ fn texture_previews_round_trip_through_the_binary_columns() {
     }
 }
 
-// Comportement 9 (b) : un fichier d'une version antérieure (ici 3, les aperçus de longueur fixe)
-// est refusé d'emblée, jamais lu comme s'il avait la nouvelle section.
+// Behavior 9 (b): file from earlier version (here 3, fixed-length previews)
+// refused outright, never read as if it had new section.
 #[test]
 fn a_sidecar_of_an_older_version_is_refused() {
     let (_, bytes) = split(&json!({"primitives": []}), &templates(), &[]).expect("split");
@@ -80,8 +80,8 @@ fn a_sidecar_of_an_older_version_is_refused() {
     assert!(digests(&old).is_err());
 }
 
-// Comportement 9 (c) : un couple (texture, atlas) qui ne progresse pas est refusé — la même texture
-// peut avoir une entrée par atlas, couleur avant données, jamais deux fois le même atlas.
+// Behavior 9 (c): pair (texture, atlas) that does not advance refused — same texture
+// can have one entry per atlas, color before data, never same atlas twice.
 #[test]
 fn encode_previews_rejects_a_decreasing_texture_index() {
     let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
@@ -94,13 +94,13 @@ fn encode_previews_rejects_a_decreasing_texture_index() {
     data.kind = AtlasKind::Data;
     let both = vec![preview(2, 4, 4, 1), data];
     crate::manifest_binary::preview::encode_previews(&both, &mut columns)
-        .expect("une entrée par atlas");
+        .expect("one entry per atlas");
     let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
     let twice = vec![preview(2, 4, 4, 1), preview(2, 4, 4, 1)];
     assert!(crate::manifest_binary::preview::encode_previews(&twice, &mut columns).is_err());
 }
 
-// Comportement 9 (g) : plus de niveaux cuits que la queue n'en laisse au-dessus d'elle est refusé.
+// Behavior 9 (g): more baked levels than tail leaves above it refused.
 #[test]
 fn encode_previews_rejects_more_baked_levels_than_the_tail_leaves() {
     let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
@@ -109,7 +109,7 @@ fn encode_previews_rejects_more_baked_levels_than_the_tail_leaves() {
     assert!(crate::manifest_binary::preview::encode_previews(&[malformed], &mut columns).is_err());
 }
 
-// Comportement 9 (d) : une dimension source nulle est refusée.
+// Behavior 9 (d): zero source dimension refused.
 #[test]
 fn encode_previews_rejects_a_null_dimension() {
     let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
@@ -117,8 +117,8 @@ fn encode_previews_rejects_a_null_dimension() {
     assert!(crate::manifest_binary::preview::encode_previews(&previews, &mut columns).is_err());
 }
 
-// Comportement 9 (e) : un mauvais nombre d'octets de pixels — donc un décalage de niveau faux vu
-// depuis les constantes de niveau — est refusé.
+// Behavior 9 (e): wrong pixel byte count — false level shift viewed
+// from level constants — refused.
 #[test]
 fn encode_previews_rejects_the_wrong_pixel_byte_length() {
     let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
@@ -127,9 +127,9 @@ fn encode_previews_rejects_the_wrong_pixel_byte_length() {
     assert!(crate::manifest_binary::preview::encode_previews(&[malformed], &mut columns).is_err());
 }
 
-// Comportement 9 (f) : une entrée dont le premier niveau annoncé ne correspond pas à ses dimensions
-// est refusée, même quand ses octets de pixels ont la bonne longueur pour ce premier niveau erroné
-// n'étant pas en cause : c'est bien la géométrie déclarée, pas la taille des pixels, qui ment ici.
+// Behavior 9 (f): entry whose announced first level contradicts dimensions
+// refused, even when pixel bytes have right length for errant first level
+// not at fault: declared geometry, not pixel size, lies here.
 #[test]
 fn encode_previews_rejects_a_first_level_that_disagrees_with_the_dimensions() {
     let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();

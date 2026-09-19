@@ -3,7 +3,7 @@ use super::scene::World;
 use super::{OracleJob, OracleLight, KIND_SPOT, KIND_SUN, SPOT_EDGE};
 use rayon::prelude::*;
 
-/// Ce qu'un rayon a touché : la distance, et le triangle. Aucune pile, aucune récursion.
+/// What a ray hit: distance, and triangle. No stack, no recursion.
 pub struct Hit {
     pub distance: f64,
     pub triangle: usize,
@@ -23,7 +23,7 @@ fn slab(world: &World, node: usize, origin: [f64; 3], inverse: [f64; 3], limit: 
     entry <= exit
 }
 
-/// Möller–Trumbore, double face : un mur n'a pas d'endroit ni d'envers pour la lumière.
+/// Möller–Trumbore, double-sided: a wall has no front or back for light.
 fn triangle_hit(
     world: &World,
     triangle: usize,
@@ -57,8 +57,8 @@ fn triangle_hit(
     distance
 }
 
-/// Le plus proche triangle touché, ou rien. La traversée n'a pas de borne d'étapes ici : l'oracle
-/// paie le temps qu'il faut, c'est le moteur qui travaille sous budget.
+/// Closest hit triangle, or none. Traversal has no step bound here: the oracle
+/// pays whatever time it takes; it is the engine that runs under budget.
 pub fn trace(world: &World, origin: [f64; 3], ray: [f64; 3], limit: f64, any: bool) -> Hit {
     let mut best = Hit {
         distance: limit,
@@ -102,8 +102,8 @@ pub fn trace(world: &World, origin: [f64; 3], ray: [f64; 3], limit: f64, any: bo
     best
 }
 
-/// L'irradiance des lampes déclarées en un point : la même atténuation physique et les mêmes cônes
-/// que le nuanceur, avec une ombre tracée sur les triangles sources au lieu d'une carte.
+/// Irradiance of declared lights at a point: same physical attenuation and cones
+/// as the shader, with ray-traced shadows on source triangles instead of shadow maps.
 pub fn direct(world: &World, lights: &[OracleLight], point: [f64; 3], n: [f64; 3]) -> [f64; 3] {
     let mut total = [0.0f64; 3];
     let offset = [
@@ -153,8 +153,8 @@ pub fn direct(world: &World, lights: &[OracleLight], point: [f64; 3], n: [f64; 3
     total
 }
 
-/// La portée qu'un rayon sans distance propre — celui d'un soleil — doit parcourir : la diagonale
-/// de la scène, qui la traverse forcément.
+/// The range that a ray without own distance — e.g. a sun light — must travel: scene diagonal,
+/// which necessarily crosses it.
 pub fn scene_reach(world: &World) -> f64 {
     let bounds = &world.node_bounds;
     if bounds.len() < 6 {
@@ -164,8 +164,8 @@ pub fn scene_reach(world: &World) -> f64 {
     (side(0) * side(0) + side(1) * side(1) + side(2) * side(2)).sqrt()
 }
 
-/// Rend l'image d'irradiance indirecte, une ligne par tâche. Chaque pixel a sa propre graine, donc
-/// la même image sort du même travail, quel que soit le nombre de fils.
+/// Returns the indirect irradiance image, one line per task. Each pixel has its own seed, so
+/// the same image comes out of the same job, regardless of thread count.
 pub fn render(job: &OracleJob, world: &World) -> Vec<f32> {
     let mut image = vec![0.0f32; job.width * job.height * 3];
     image

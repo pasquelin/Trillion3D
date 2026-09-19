@@ -1,14 +1,15 @@
-// Les cas sur lesquels `xformNormal` (NORMAL_TRANSFORM_WGSL, standardLighting.ts) est éprouvée :
-// ordinaires d'un côté — une pose monde, une normale locale, la normale monde vraie en f64 —,
-// singuliers de l'autre, aplatis puis effondrés. La même liste sert au test d'arithmétique sans GPU
-// (`packages/sdk-browser/normalTransform.test.ts`) et à l'exécution du nuanceur livré dans Chromium
-// (`test/browser/normal-transform-arithmetique.browser.mjs`) : le modèle f32 et le shader réel répondent sur
-// les MÊMES entrées, sans quoi l'accord entre eux ne voudrait rien dire.
+// Cases on which `xformNormal` (NORMAL_TRANSFORM_WGSL, standardLighting.ts) is probed:
+// ordinary on one side — a world pose, a local normal, the true world normal in f64 —,
+// singular on the other, flattened then collapsed. The same list serves the no-GPU
+// arithmetic test (`packages/sdk-browser/normalTransform.test.ts`) and running the shipped
+// shader in Chromium (`test/browser/normal-transform-arithmetique.browser.mjs`): the f32
+// model and the real shader answer on the SAME inputs, or else agreement between them
+// would mean nothing.
 import { construireCas } from './normaleEclairageCas.mjs';
 
-/** s³ = 1e-20 : l'échelle uniforme sous laquelle l'ancien seuil absolu se déclenchait. */
+/** s³ = 1e-20: the uniform scale under which the old absolute threshold fired. */
 export const SEUIL = Math.cbrt(1e-20);
-/** Le décrochage : au-delà, la normale n'est plus celle de la surface tournée. */
+/** Dropout: beyond this, the normal is no longer that of the rotated surface. */
 export const DECROCHE_DEG = 1e-3;
 export { DEG } from './inverseTransposeF32.mjs';
 
@@ -21,7 +22,7 @@ const NORMALES = [
   [0, 0, 1],
   [0.6, -0.8, 0],
 ];
-/** De 1e3 à 1e-16, et de part et d'autre du seuil : les cas l'encadrent au lieu de l'éviter. */
+/** From 1e3 to 1e-16, and on both sides of the threshold: cases bracket it instead of avoiding it. */
 const ECHELLES = [1e3, 1, 1e-3, 1e-6, 2.16e-7, 2.154e-7, 1e-7, 1e-8, 1e-12, 1e-16];
 const MATIERE = { lumiere: [0.3, 0.8, 0.5, 3], metal: 0.1, rugosite: 0.4 };
 
@@ -35,7 +36,7 @@ export const CAS = ECHELLES.flatMap((s) =>
   ),
 );
 
-/** Une 4×4 rangée par colonnes, bâtie sur trois colonnes 3D et une translation nulle. */
+/** A column-major 4×4, built from three 3D columns and a null translation. */
 const pose = (colonnes) => [...colonnes[0], 0, ...colonnes[1], 0, ...colonnes[2], 0, 0, 0, 0, 1];
 const ROTATION_MINUSCULE = [
   [1e-8, 0, 0],
@@ -45,7 +46,7 @@ const ROTATION_MINUSCULE = [
 const ZERO = [0, 0, 0];
 const NORMALE_GARDE = [0.6, -0.8, 0];
 
-/** Un cas singulier : sa pose, sa normale locale, et la normale monde que la convention exige. */
+/** A singular case: its pose, its local normal, and the world normal the convention requires. */
 const garde = (nom, colonnes, normale, vraie) => ({
   nom,
   world: pose(colonnes),
@@ -57,34 +58,34 @@ const garde = (nom, colonnes, normale, vraie) => ({
 });
 
 /**
- * LES POSES SINGULIÈRES QUI GARDENT UNE FACE (rang 2). La primitive est écrasée sur un PLAN, ses
- * faces y gardent une aire non nulle, et la normale monde est celle de la face transformée — le
- * produit vectoriel de ses arêtes transformées. Les deux attentes sont calculées à la main ici,
- * sans passer par le noyau.
+ * SINGULAR POSES THAT KEEP A FACE (rank 2). The primitive is crushed onto a PLANE, its faces
+ * keep a non-zero area there, and the world normal is that of the transformed face — the
+ * cross product of its transformed edges. Both expectations are computed by hand here,
+ * without going through the kernel.
  *
- *  — `échelle (1,1,0) puis 90° autour de Y` est LE contre-exemple de l'audit. Ry(90°) envoie x sur
- *    −z et z sur x ; composée avec diag(1, 1, 0) elle a pour colonnes (0,0,−1), (0,1,0), (0,0,0).
- *    Le triangle local (0,0,0), (1,0,0), (0,1,0) devient (0,0,0), (0,0,−1), (0,1,0) : arêtes monde
- *    (0,0,−1) et (0,1,0), produit vectoriel (1, 0, 0), aire 0,5 — la face est parfaitement visible
- *    et parfaitement orientée. Sa normale LOCALE est (0,0,1) ; la normale monde attendue est donc
- *    +X. L'ancien repli rendait +Z, la normale locale non tournée, soit un éclairage d'environ 0,09
- *    par canal au lieu de 0,8 ; le chemin CPU, lui, rendait le vecteur nul.
- *  — `colonne nulle` écrase l'axe y : colonnes (1e-8,0,0), (0,0,0), (0,0,−1e-8). Le plan d'arrivée
- *    est XZ, de normale ±Y. La normale locale (0,6, −0,8, 0) est celle des arêtes (0,8; 0,6; 0) et
- *    (0,0,1) ; transformées, elles valent (8e-9, 0, 0) et (0, 0, −1e-8), et leur produit vectoriel
- *    vaut (0, 8e-17, 0) : +Y. La composante −y de la normale locale ne survit pas — sur une face
- *    aplatie toutes les normales de sommets tombent sur la normale de la face, le lissage disparaît
- *    avec le volume, et c'est l'orientation des ARÊTES qui décide du côté.
+ *  — `scale (1,1,0) then 90° around Y` is THE audit counter-example. Ry(90°) sends x onto
+ *    −z and z onto x; composed with diag(1, 1, 0) its columns are (0,0,−1), (0,1,0), (0,0,0).
+ *    The local triangle (0,0,0), (1,0,0), (0,1,0) becomes (0,0,0), (0,0,−1), (0,1,0): world
+ *    edges (0,0,−1) and (0,1,0), cross product (1, 0, 0), area 0.5 — the face is perfectly
+ *    visible and perfectly oriented. Its LOCAL normal is (0,0,1); the expected world normal
+ *    is therefore +X. The old fallback returned +Z, the unrotated local normal, i.e. lighting
+ *    of about 0.09 per channel instead of 0.8; the CPU path returned the zero vector.
+ *  — `null column` crushes the y axis: columns (1e-8,0,0), (0,0,0), (0,0,−1e-8). The arrival
+ *    plane is XZ, of normal ±Y. Local normal (0.6, −0.8, 0) is that of edges (0.8; 0.6; 0)
+ *    and (0,0,1); transformed they are (8e-9, 0, 0) and (0, 0, −1e-8), and their cross
+ *    product is (0, 8e-17, 0): +Y. The local normal's −y component does not survive — on a
+ *    flattened face every vertex normal falls onto the face normal, smoothing vanishes with
+ *    the volume, and it is the EDGES' orientation that decides the side.
  */
 export const APLATIES = [
   garde(
-    'face aplatie : échelle (1,1,0) puis 90° autour de Y',
+    'flattened face: scale (1,1,0) then 90° around Y',
     [[0, 0, -1], [0, 1, 0], ZERO],
     [0, 0, 1],
     [1, 0, 0],
   ),
   garde(
-    'colonne nulle (rang 2, la face garde son aire)',
+    'null column (rank 2, the face keeps its area)',
     [ROTATION_MINUSCULE[0], ZERO, ROTATION_MINUSCULE[2]],
     NORMALE_GARDE,
     [0, 1, 0],
@@ -92,21 +93,22 @@ export const APLATIES = [
 ];
 
 /**
- * LES POSES QUI EFFONDRENT LA FACE : plus d'aire monde, donc plus de normale, donc pas d'éclairage.
- * L'attente est le vecteur NUL — fini, jamais un NaN qui gagnerait les pixels voisins par les
- * dérivées d'écran, et jamais la normale locale d'une surface qui n'existe plus.
+ * POSES THAT COLLAPSE THE FACE: no more world area, hence no normal, hence no lighting.
+ * The expectation is the ZERO vector — finite, never a NaN that would leak into neighbouring
+ * pixels through screen derivatives, and never the local normal of a surface that no longer
+ * exists.
  *
- *  — `3×3 nulle` et `rang 1` effondrent la primitive sur un point ou une droite : l'adjointe y est
- *    nulle d'elle-même, les trois colonnes étant parallèles, tous ses produits vectoriels le sont.
- *  — `coefficient infini` et `coefficient NaN` ne sont pas des poses : la somme des valeurs
- *    absolues n'est pas finie, la 3×3 normalisée ne vaut plus rien, et le noyau met son adjointe à
- *    zéro. Ces deux-là ne devraient jamais atteindre le nuanceur — `assertFiniteTransform` les
- *    refuse au chargement et à `setTransform` — mais le noyau ne le suppose pas.
+ *  — `null 3×3` and `rank 1` collapse the primitive onto a point or a line: the adjugate is
+ *    zero by itself there, the three columns being parallel, all its cross products are.
+ *  — `infinite coefficient` and `NaN coefficient` are not poses: the sum of absolute values
+ *    is not finite, the normalised 3×3 is worthless, and the kernel zeroes its adjugate.
+ *    Those two should never reach the shader — `assertFiniteTransform` rejects them at load
+ *    and at `setTransform` — but the kernel does not assume that.
  */
 export const EFFONDREES = [
-  garde('3×3 nulle (somme nulle)', [ZERO, ZERO, ZERO], NORMALE_GARDE, ZERO),
+  garde('null 3×3 (null sum)', [ZERO, ZERO, ZERO], NORMALE_GARDE, ZERO),
   garde(
-    'rang 1 (les trois colonnes sur un axe)',
+    'rank 1 (all three columns on one axis)',
     [
       [1, 0, 0],
       [2, 0, 0],
@@ -116,34 +118,35 @@ export const EFFONDREES = [
     ZERO,
   ),
   garde(
-    'coefficient infini',
+    'infinite coefficient',
     [[Infinity, 0, 0], ROTATION_MINUSCULE[1], ROTATION_MINUSCULE[2]],
     NORMALE_GARDE,
     ZERO,
   ),
   garde(
-    'coefficient NaN',
+    'NaN coefficient',
     [[NaN, 0, 0], ROTATION_MINUSCULE[1], ROTATION_MINUSCULE[2]],
     NORMALE_GARDE,
     ZERO,
   ),
 ];
 
-/** Tous les cas singuliers, aplatis puis effondrés : la liste que les preuves exécutent sur GPU. */
+/** All singular cases, flattened then collapsed: the list the proofs run on GPU. */
 export const GARDES = [...APLATIES, ...EFFONDREES];
 
 /**
- * Le témoin de non-gourmandise du garde : minuscule mais régulière, elle doit tourner.
+ * Witness that the guard is not greedy: tiny but regular, it must rotate.
  *
- * `ROTATION_MINUSCULE` est diag(1e-8, −1e-8, −1e-8) : une rotation d'un demi-tour autour de x,
- * d'échelle 1e-8, de déterminant +1e-24. Son inverse-transposée est diag(1e8, −1e8, −1e8), et la
- * normale locale [0,6, −0,8, 0] donne [6e7, 8e7, 0], soit [0,6, 0,8, 0] une fois unitaire. Le
- * demi-tour retourne y et z ; il ne retourne pas x. L'attente portée ici était [−0,6, −0,8, 0],
- * l'OPPOSÉ : le critère d'alors prenait la valeur absolue du produit scalaire, confondait N et −N,
- * et validait cette erreur à zéro degré. Le critère orienté de `verdictNormale` la refuse.
+ * `ROTATION_MINUSCULE` is diag(1e-8, −1e-8, −1e-8): a half-turn around x, scale 1e-8,
+ * determinant +1e-24. Its inverse-transpose is diag(1e8, −1e8, −1e8), and the local
+ * normal [0.6, −0.8, 0] yields [6e7, 8e7, 0], i.e. [0.6, 0.8, 0] once unit. The half-turn
+ * flips y and z; it does not flip x. The expectation carried here used to be [−0.6, −0.8, 0],
+ * the OPPOSITE: the criterion of the time took the absolute value of the dot product,
+ * confused N and −N, and accepted that error at zero degrees. `verdictNormale`'s oriented
+ * criterion refuses it.
  */
 export const REGULIERE_MINUSCULE = {
-  nom: 'rotation d’échelle 1e-8 (régulière)',
+  nom: 'scale-1e-8 rotation (regular)',
   world: pose(ROTATION_MINUSCULE),
   normale: NORMALE_GARDE,
   vraie: [0.6, 0.8, 0],

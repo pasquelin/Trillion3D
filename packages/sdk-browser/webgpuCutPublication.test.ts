@@ -1,6 +1,6 @@
-// La publication d'une coupe processeur : elle ne fait vieillir les listes qu'une fois par image —
-// celui qui oublie le relevé le fait avant de choisir, et couvre ainsi la sortie par erreur de la
-// coupe — et republier la même coupe ne remue rien, puisque ce qui est publié est une différence.
+// Publication of a CPU cut: it only ages the lists once per image — whoever forgets the readback
+// does it before choosing, and thus covers an erroneous exit of the cut — and republishing the
+// same cut stirs nothing, since what is published is a difference.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuCutPublication } from './webgpuCutPublication.ts';
@@ -22,7 +22,7 @@ function banc() {
     pagesEntered: null,
     pagesExited: null,
   };
-  /** Ce que les ensembles de résidence ont réellement reçu : des différences, pas des listes. */
+  /** What the residency sets actually received: differences, not lists. */
   const remue = { coupe: 0, dessinee: 0 };
   const compte = (delta: CutDelta) => delta.enteredCount + delta.exitedCount;
   const residencySets = {
@@ -45,26 +45,26 @@ function banc() {
   return { publication, run, packedPages, remue };
 }
 
-test('une image de coupe processeur ne fait vieillir les listes qu’une fois', () => {
+test('a CPU-cut image only ages the lists once', () => {
   const { publication, run, packedPages } = banc();
   const avant = run.cutEpoch;
-  // L'ordre de `renderCpuCut` : oublier le relevé, choisir, puis publier une fois les gardes passées.
+  // Order of `renderCpuCut`: forget the readback, choose, then publish once the guards have passed.
   publication.forgetReadback();
   publication.adoptCpuCut(packedPages.slice(0, 3), packedPages.slice(0, 2));
-  assert.equal(run.cutEpoch, avant + 1, 'un seul vieillissement pour l’image');
+  assert.equal(run.cutEpoch, avant + 1, 'a single ageing for the image');
   assert.deepEqual(
     run.desired.map((page) => (page as { url: string }).url),
     ['p0', 'p1', 'p2'],
   );
 });
 
-test('republier la même coupe ne remue aucun ensemble', () => {
+test('republishing the same cut stirs no set', () => {
   const { publication, packedPages, remue } = banc();
   publication.adoptCpuCut(packedPages.slice(0, 3), packedPages.slice(0, 2));
   const coupe = remue.coupe,
     dessinee = remue.dessinee;
-  assert.ok(coupe > 0 && dessinee > 0, 'la première publication a bien nommé des pages');
+  assert.ok(coupe > 0 && dessinee > 0, 'the first publication did name pages');
   publication.adoptCpuCut(packedPages.slice(0, 3), packedPages.slice(0, 2));
-  assert.equal(remue.coupe, coupe, 'la seconde ne fait entrer ni sortir une seule page');
+  assert.equal(remue.coupe, coupe, 'the second neither enters nor exits a single page');
   assert.equal(remue.dessinee, dessinee);
 });

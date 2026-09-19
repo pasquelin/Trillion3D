@@ -1,7 +1,7 @@
-// A10 : `renderWebgpuPages` recopie la vue de comparaison Hi-Z (`run.previousHizView`) dans la même
-// caméra du moteur gardée au lieu d'en allouer une par changement de vue. `sameHizView` ne lit que
-// la vue et la projection, donc recopier dans une structure déjà allouée doit rendre exactement le
-// même verdict, image après image, qu'une structure neuve.
+// A10: `renderWebgpuPages` copies the Hi-Z comparison view (`run.previousHizView`) into the same
+// kept engine camera instead of allocating one per view change. `sameHizView` reads only the view
+// and the projection, so copying into an already-allocated structure must yield exactly the same
+// verdict, image after image, as a fresh structure.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -62,9 +62,9 @@ test('a repeated identical pose is stable, and NaN in the world matrix never rep
   a.updateMatrixWorld();
   const kept = holdCameraWorld(createEngineCamera(), cameraMoteur(a));
   assert.equal(sameHizView(kept, cameraMoteur(a)), true);
-  // La caméra gardée est figée ; celle de CETTE image est recopiée depuis l'hôte, ce qui inverse sa
-  // matrice monde : un NaN doit entrer par la pose locale, pas en touchant les nombres à la main,
-  // sinon il serait réécrit avant la comparaison.
+  // The kept camera is frozen; THIS image's is copied from the host, which inverts its world matrix:
+  // a NaN must enter through the local pose, not by touching the numbers by hand, or it would be
+  // rewritten before the comparison.
   const nanCam = a.clone();
   nanCam.position.x = NaN;
   assert.equal(
@@ -74,9 +74,9 @@ test('a repeated identical pose is stable, and NaN in the world matrix never rep
   );
 });
 
-// Levier « historique d'occulteurs » : une caméra qui bouge ne périme que la pyramide temporelle.
-// Les deux invalidations sont de nature différente — la pyramide n'est relue que pour une vue
-// identique au bit près, l'historique des occulteurs ne nomme que des pages — et se séparent donc.
+// "Occluder history" lever: a moving camera only voids the temporal pyramid. The two invalidations
+// are of different kinds — the pyramid is reread only for a bit-identical view, occluder history
+// names pages only — and therefore split.
 function runState() {
   return {
     noOccluderHistory: false,

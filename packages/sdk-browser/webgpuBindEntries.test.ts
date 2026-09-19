@@ -17,9 +17,9 @@ import { createGpuRaster } from './gpuRaster.ts';
 import type { WebgpuTileStreamer } from './webgpuTileStreamer.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-// Le défaut que ce test attrape : une disposition gagne une liaison et un seul de ses deux
-// constructeurs la lie. Le dispositif réel répond « Number of entries (10) did not match the
-// expected number of entries (12) », puis le perd ; aucun test ne le voyait.
+// Defect this test catches: a layout gains a binding and only one of its two constructors
+// binds it. The real device answers “Number of entries (10) did not match the expected number
+// of entries (12)”, then loses it; no test saw it.
 
 type Recorded = { layout: { entries: unknown[] }; entries: unknown[] };
 
@@ -38,7 +38,7 @@ function recordingDevice(groups: Recorded[]) {
   } as unknown as GPUDevice;
 }
 
-/** Le diffuseur de la forme que les constructeurs lisent : un pool et une table par atlas, le retour. */
+/** Streamer in the shape constructors read: one pool and one table per atlas, plus feedback. */
 function stubTextures() {
   const atlas = () => ({
     pool: { view: {} as GPUTextureView },
@@ -51,7 +51,7 @@ function stubTextures() {
   } as unknown as WebgpuTileStreamer;
 }
 
-/** Tout ce qu'un constructeur lit sur `rt.vis` : des jetons, seul leur nombre est vérifié ici. */
+/** Everything a constructor reads on `rt.vis`: tokens, only their count is checked here. */
 function stubVis(layouts: Record<string, unknown>) {
   const token = () => ({}) as GPUBuffer;
   return {
@@ -72,7 +72,7 @@ function stubVis(layouts: Record<string, unknown>) {
   };
 }
 
-test('chaque constructeur de groupe de liaison lie exactement les entrées de sa disposition', async () => {
+test('each bind-group constructor binds exactly the entries of its layout', async () => {
   installGpuGlobals();
   const groups: Recorded[] = [];
   const device = recordingDevice(groups);
@@ -96,7 +96,7 @@ test('chaque constructeur de groupe de liaison lie exactement les entrées de sa
     count: 3,
     group: undefined,
   };
-  // La passe transparente encode une TRANCHE à la fois, et l'item non paginé en est une à lui seul.
+  // The transparent pass encodes one RUN at a time, and the unpaged item is a run on its own.
   const blendState = createWebgpuBlendState();
   blendState.blendGpu.push(item as unknown as (typeof blendState.blendGpu)[number]);
   buildBlendStatics(blendState);
@@ -121,27 +121,27 @@ test('chaque constructeur de groupe de liaison lie exactement les entrées de sa
     },
     lights: { buffer: {}, shadows: undefined, store: { count: 0, unlit: false } },
     bounce: { probes: undefined },
-    // Vue `lit` sans lampe : le contrat éclaire, donc la passe lie ses ressources par défaut.
+    // `lit` view with no light: the contract lights, so the pass binds its default resources.
     sunFar: { gpu: undefined },
     blendState,
     run: { gpuDrawCalls: 0, blendDrawCalls: 0, blendSubmittedTriangles: 0 },
   } as unknown as WebgpuPagesRuntime;
 
-  // Les deux constructeurs de `visBindGroupLayout` : le groupe direct et celui d'un slot indirect.
+  // Both constructors of `visBindGroupLayout`: the direct group and that of an indirect slot.
   ensureWebgpuVisibilityBindings(rt, device);
-  assert.ok(visGroupFor(rt, device, BASE_SLOTS, false), 'le groupe de slot est bien construit');
-  // Les deux constructeurs de `shadeBindGroupLayout` : celui de la préparation passe par la même
-  // liste partagée que celui-ci, rejoué ici après invalidation du groupe.
+  assert.ok(visGroupFor(rt, device, BASE_SLOTS, false), 'the slot group is built');
+  // Both constructors of `shadeBindGroupLayout`: prepare goes through the same shared list as
+  // this one, replayed here after the group is invalidated.
   ensureWebgpuShadeBindings(rt, device);
-  // Les deux constructeurs de `blendBindGroupLayout` : le groupe que TOUS les items paginés
-  // partagent, puis celui d'un item non paginé, sur ses propres tampons.
+  // Both constructors of `blendBindGroupLayout`: the group ALL paged items share, then that of
+  // an unpaged item, on its own buffers.
   const stub = (noms: string[]) =>
     Object.fromEntries(noms.map((nom) => [nom, () => {}])) as unknown as GPURenderPassEncoder;
   const pass = stub(['setViewport', 'setBindGroup', 'setPipeline', 'draw', 'drawIndirect', 'end']);
   drawBlendPass(rt, device, { beginRenderPass: () => pass } as unknown as GPUCommandEncoder);
 
-  // Le constructeur unique du raster logiciel des petits triangles, cinquième paire du chemin :
-  // il lit le même pool couleur et la même table de pages que les autres passes.
+  // The unique constructor of the small-triangle software raster, fifth pair of the path: it
+  // reads the same colour pool and the same page table as the other passes.
   const smallPass = stub(['setBindGroup', 'setPipeline', 'dispatchWorkgroups', 'end']);
   const smallEncoder = {
     clearBuffer() {},
@@ -173,13 +173,9 @@ test('chaque constructeur de groupe de liaison lie exactement les entrées de sa
   raster.encodeIds(smallEncoder, rasterInput);
 
   const counted = groups.map((group) => [group.entries.length, group.layout.entries.length]);
-  assert.equal(counted.length, 7, 'les six constructeurs ont tourné, le résolveur compris');
+  assert.equal(counted.length, 7, 'the six constructors ran, the resolver included');
   for (const [built, expected] of counted)
-    assert.equal(
-      built,
-      expected,
-      `un groupe lie ${built} entrées pour une disposition de ${expected}`,
-    );
+    assert.equal(built, expected, `a group binds ${built} entries for a layout of ${expected}`);
   assert.deepEqual(
     counted.slice(0, 5),
     [
@@ -189,6 +185,6 @@ test('chaque constructeur de groupe de liaison lie exactement les entrées de sa
       [blendCount, blendCount],
       [blendCount, blendCount],
     ],
-    'dans l’ordre : groupe direct, groupe de slot, résolution matérielle, transparents paginés puis non paginés',
+    'in order: direct group, slot group, hardware resolve, paged then unpaged transparents',
   );
 });

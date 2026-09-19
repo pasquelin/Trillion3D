@@ -1,14 +1,14 @@
-// Lecture des `mesure.json` d'une campagne : un relevé plat par (exécution, vue, seuil, côté), avec
-// les chiffres que `rapportGlobal.mjs` met en regard. Aucun chiffre n'est inventé : une grandeur
-// que le banc n'a pas publiée vaut `null`, et le rapport l'écrit « non mesuré ».
+// Reading `mesure.json` files of a campaign: one flat reading per (run, view, threshold, side),
+// with the figures that `rapportGlobal.mjs` puts side by side. No figure is invented: a quantity
+// the bench did not publish is `null`, and the report writes "unmeasured".
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gpuPassBlockOf, gpuPassStageOf } from '../../packages/sdk-browser/gpuPassBlocks.ts';
 import { VIEWS } from './poses.mjs';
 
-/** Les vues du banc et leur nom lisible, pour tout le rapport. */
-export const VUES = Object.keys(VIEWS);
-export const DEUX_VUES = ['generale', 'sol'];
+/** Bench views and their readable name, for the whole report. */
+export const VIEW_IDS = Object.keys(VIEWS);
+export const TWO_VIEWS = ['generale', 'sol'];
 export const QUALITES = ['maximum quality (0 px error)', 'normal quality (1 px error)'];
 export const LIBELLE = {
   generale: 'Overview',
@@ -20,8 +20,8 @@ export const LIBELLE = {
 const p50 = (stat) => stat?.p50 ?? null;
 const p95 = (stat) => stat?.p95 ?? null;
 
-/** Le relevé d'un côté d'une série : tout ce que le rapport lit, à plat. */
-function releve(run, serie, nom, side) {
+/** Reading of one side of a series: everything the report reads, flattened. */
+function reading(run, serie, name, side) {
   const profil = side.profilParEtape ?? null;
   const stages = profil?.stages ?? [];
   const passes = side.passesGpu?.passes ?? [];
@@ -37,14 +37,14 @@ function releve(run, serie, nom, side) {
     raisonGpu: s.gpuReason ?? null,
   }));
   const etape = (stage) => etapes.find((e) => e.etape === stage) ?? null;
-  // L'enveloppe carte : celle du profil par étape, sinon celle que la page a relevée elle-même ;
-  // et le temps mur synchronisé du témoin Three (rendu puis attente carte).
+  // GPU envelope: that of the per-stage profile, otherwise the one the page recorded itself;
+  // and the synchronised wall time of the Three witness (render then GPU wait).
   const gpu = profil?.gpuImageMs ?? side.gpuFrameMs;
   const gpuP50 = p50(gpu),
     imageSyncP50 = p50(side.imageSyncMs);
-  // Le bloc se relit dans la table du moteur d'aujourd'hui, pas dans celle du jour du relevé.
+  // The block is reread from today's engine table, not from the one of the reading day.
   const liste = passes.map((pass) => ({
-    nom: pass.name,
+    name: pass.name,
     bloc: gpuPassBlockOf(pass.name),
     etape: gpuPassStageOf(pass.name),
     p50: p50(pass.gpuMs),
@@ -54,8 +54,8 @@ function releve(run, serie, nom, side) {
     run,
     vue: serie.view,
     seuil: serie.pixelError,
-    cote: nom,
-    // Millisecondes : processeur par image, enveloppe carte graphique, cadence.
+    side: name,
+    // Milliseconds: CPU per frame, GPU envelope, cadence.
     cpuP50: p50(side.cpuFrameMs),
     cpuP95: p95(side.cpuFrameMs),
     cpuSelectP50: p50(side.cpuSelectMs),
@@ -67,11 +67,11 @@ function releve(run, serie, nom, side) {
     rafP50: p50(side.rafIntervalMs),
     imageSyncP50,
     imageSyncP95: p95(side.imageSyncMs),
-    // Ce que ce côté appelle « une image » : l'enveloppe carte quand il la relève, sinon le temps
-    // mur synchronisé. Les fiches comparent les côtés par ce seul chiffre.
+    // What this side calls "a frame": the GPU envelope when it records it, otherwise the
+    // synchronised wall time. Cards compare sides by this single figure.
     imageMs: gpuP50 ?? imageSyncP50,
     imageTenue: side.imageTenue ?? null,
-    // Passes et étapes, telles quelles.
+    // Passes and stages, as-is.
     passes: liste,
     blocs: side.passesGpu?.blocs
       ? {
@@ -81,9 +81,9 @@ function releve(run, serie, nom, side) {
         }
       : null,
     etapes,
-    passe: (nom) => liste.find((p) => p.nom === nom) ?? null,
+    passe: (name) => liste.find((p) => p.name === name) ?? null,
     etape,
-    // Géométrie et sélection.
+    // Geometry and selection.
     triangles: side.selectedTriangles ?? null,
     trianglesDessines: side.drawnTriangles ?? null,
     trianglesNonCouverts: side.uncoveredTriangles ?? null,
@@ -93,7 +93,7 @@ function releve(run, serie, nom, side) {
     pagesDemandees: side.budgetPages?.demande ?? null,
     couvertureLimitee: side.budgetPages?.couvertureLimiteeParBudget ?? null,
     geometrieOctets: side.geometrieOctets ?? null,
-    // Triangles uniques de la scène chez un témoin qui les compte (pages Three) : ses octets par triangle.
+    // Unique triangles of the scene at a witness that counts them (Three pages): its bytes per triangle.
     trianglesUniques: metrics.uniqueTriangles ?? null,
     decodageWasm: metrics.pagesDecodedWasm ?? null,
     // Textures.
@@ -102,12 +102,12 @@ function releve(run, serie, nom, side) {
     tuilesAuNiveau: metrics.textureTilesAtLevel ?? null,
     tuilesDemandees: metrics.textureTilesRequested ?? null,
     texturesEvictions: metrics.textureTilesEvicted ?? null,
-    // Lumière.
+    // Lighting.
     lampesActives: metrics.lightsActive ?? null,
     ombres: etape('shadows')?.compteurs ?? null,
     rebond: etape('bounce')?.compteurs ?? null,
     atlasOmbres: side.atlasOmbres ?? null,
-    // Fidélité et contexte.
+    // Fidelity and context.
     temoinAA: serie.temoinAA ?? null,
     ecart: serie.ecartAvantApres ?? null,
     coupeIdentique: serie.coupeIdentique ?? null,
@@ -118,10 +118,10 @@ function releve(run, serie, nom, side) {
   };
 }
 
-/** Une exécution de la campagne : ses réglages et tous ses relevés. */
-function lireExecution(dossier, nom) {
-  const fichier = join(dossier, nom, 'mesure.json');
-  const log = join(dossier, nom, 'campagne.log');
+/** A campaign run: its settings and all its readings. */
+function lireExecution(dossier, name) {
+  const fichier = join(dossier, name, 'mesure.json');
+  const log = join(dossier, name, 'campagne.log');
   if (!existsSync(fichier)) {
     const texte = existsSync(log) ? readFileSync(log, 'utf8') : '';
     const erreur = texte
@@ -129,28 +129,28 @@ function lireExecution(dossier, nom) {
       .filter((l) => /erreur|error|refus/i.test(l))
       .slice(-3)
       .join(' · ');
-    return { nom, absent: true, erreur: erreur || 'aucun mesure.json', releves: [] };
+    return { name, absent: true, erreur: erreur || 'no mesure.json', readings: [] };
   }
   const m = JSON.parse(readFileSync(fichier, 'utf8'));
-  const releves = [];
+  const readings = [];
   for (const serie of m.series)
-    for (const [cote, side] of Object.entries(serie.sides ?? {}))
-      if (!cote.endsWith('-aa')) releves.push(releve(nom, serie, cote, side));
+    for (const [sideName, sideData] of Object.entries(serie.sides ?? {}))
+      if (!sideName.endsWith('-aa')) readings.push(reading(name, serie, sideName, sideData));
   return {
-    nom,
+    name,
     absent: false,
     head: m.head,
     scene: m.scene,
     erreurs: m.errors ?? [],
     debut: m.startedAt,
     fin: m.finishedAt,
-    releves,
+    readings,
   };
 }
 
-/** Toutes les exécutions d'un dossier de campagne, dans l'ordre de la campagne si elle est donnée. */
+/** All runs of a campaign folder, in campaign order if given. */
 export function lireCampagne(dossier, ordre = null) {
-  const noms = readdirSync(dossier, { withFileTypes: true })
+  const names = readdirSync(dossier, { withFileTypes: true })
     .filter((d) => d.isDirectory() && d.name !== 'vignettes')
     .filter((d) => {
       const path = join(dossier, d.name);
@@ -160,25 +160,25 @@ export function lireCampagne(dossier, ordre = null) {
       );
     })
     .map((d) => d.name);
-  const rangs = new Map((ordre ?? []).map(([nom, pourquoi], i) => [nom, { i, pourquoi }]));
-  noms.sort((a, b) => (rangs.get(a)?.i ?? 0) - (rangs.get(b)?.i ?? 0) || a.localeCompare(b));
-  const executions = noms.map((nom) => lireExecution(dossier, nom));
-  for (const ex of executions) ex.pourquoi = rangs.get(ex.nom)?.pourquoi ?? '';
+  const rangs = new Map((ordre ?? []).map(([name, pourquoi], i) => [name, { i, pourquoi }]));
+  names.sort((a, b) => (rangs.get(a)?.i ?? 0) - (rangs.get(b)?.i ?? 0) || a.localeCompare(b));
+  const executions = names.map((name) => lireExecution(dossier, name));
+  for (const ex of executions) ex.pourquoi = rangs.get(ex.name)?.pourquoi ?? '';
   return executions;
 }
 
-/** Le relevé d'une exécution pour une vue, un seuil et un côté (le premier côté par défaut). */
-export function trouve(executions, nom, vue, seuil = 1, cote = null) {
-  const ex = executions.find((e) => e.nom === nom);
+/** Reading of a run for a view, a threshold and a side (the first side by default). */
+export function trouve(executions, name, vue, seuil = 1, side = null) {
+  const ex = executions.find((e) => e.name === name);
   return (
-    ex?.releves.find(
-      (r) => r.vue === vue && r.seuil === seuil && (cote === null || r.cote === cote),
+    ex?.readings.find(
+      (r) => r.vue === vue && r.seuil === seuil && (side === null || r.side === side),
     ) ?? null
   );
 }
 
-/** Les deux côtés d'une exécution à deux moteurs : `[avant, apres]` (Three nu, puis le moteur). */
-export const paire = (executions, nom, vue, seuil = 1) => [
-  trouve(executions, nom, vue, seuil, 'avant'),
-  trouve(executions, nom, vue, seuil, 'apres'),
+/** The two sides of a two-engine run: `[avant, apres]` (bare Three, then the engine). */
+export const paire = (executions, name, vue, seuil = 1) => [
+  trouve(executions, name, vue, seuil, 'avant'),
+  trouve(executions, name, vue, seuil, 'apres'),
 ];

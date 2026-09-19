@@ -55,7 +55,7 @@ export function evaluateHizReduce(src: Float32Array, srcWidth: number, srcHeight
   return { data, width, height };
 }
 
-/** Le paquet du noyau GPU est déjà plat : la pyramide du test CPU le lit sans le recopier. */
+/** The GPU kernel's pack is already flat: the CPU test's pyramid reads it without copying it. */
 function pyramidFromPacked(packed: PackedHiz): HizPyramid {
   return {
     data: packed.data,

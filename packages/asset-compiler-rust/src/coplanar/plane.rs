@@ -59,8 +59,8 @@ pub fn plane_of_triangles(
             ]
         })
     };
-    // La boîte s'accumule ici sans passer par `shared_math::extend_aabb` : l'ordre des sommations
-    // de cette fonction décide des surfaces coplanaires, et rien n'y est déplacé.
+    // Bounding box accumulates here without using `shared_math::extend_aabb`: summation order
+    // of this function decides coplanar surfaces, and nothing is moved.
     let mut accumulated = [0.0f64; 3];
     let mut area = 0.0f64;
     let mut low = [f64::INFINITY; 3];

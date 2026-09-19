@@ -33,8 +33,8 @@ export function prepareWebgpuBlend(
 ) {
   let transmissive = 0;
   for (const copy of blendCopies) {
-    // Une surface transmissive traverse la même préparation que les autres mélanges : elle n'en
-    // diffère qu'au dessin, où elle relit le fond figé au lieu de le mélanger par alpha.
+    // A transmissive surface goes through the same prepare as the other blends: it differs only
+    // at draw, where it rereads the frozen background instead of blending by alpha.
     const transmits = isTransmissive(copy.material);
     if (transmits) transmissive++;
     const mat = visMaterial(copy.material);
@@ -49,8 +49,8 @@ export function prepareWebgpuBlend(
     )!;
     const paged = !!copy.userData.pagedBlend;
     // A paged primitive reads its indices from the page cache, cluster by cluster: it owns none.
-    // Les trois autres tampons appartiennent à la géométrie, pas au placement : neuf instances d'un
-    // objet les écrivent une fois. Les octets sont les mêmes, l'ordre des items aussi.
+    // The other three buffers belong to the geometry, not the placement: nine instances of one
+    // object write them once. The bytes are the same, the item order too.
     const index = paged ? undefined : ensureBlendIndexBuffer(device, idx, gpu);
     const uv = paged ? undefined : ensureBlendUvBuffer(device, copy.geometry.attributes, gpu);
     const tangentAttr = copy.geometry.attributes.tangent;
@@ -69,10 +69,10 @@ export function prepareWebgpuBlend(
     if (mat.backSide) flags |= FLAG_BACK;
     if (paged) flags |= FLAG_PAGED;
     if (transmits) flags |= FLAG_TRANSMISSIVE;
-    // Aucune transformation n'est cuite ici : l'item porte la matrice monde vivante de son maillage
-    // source, et sa boîte est POSÉE par le même chemin que celui qui la reprendra après un
-    // déplacement. La boîte monde reste conservative sous rotation, miroir, échelle non uniforme et
-    // cisaillement — c'est `boxTransform` qui le garantit, pas une décomposition.
+    // No transform is baked here: the item carries the live world matrix of its source mesh, and
+    // its box is SET by the same path that will refresh it after a move. The world box stays
+    // conservative under rotation, mirror, non-uniform scale and shear — `boxTransform` guarantees
+    // that, not a decomposition.
     let worldBox: Float64Array | undefined;
     if (copy.frustumCulled) {
       if (!copy.geometry.boundingBox) copy.geometry.computeBoundingBox();
@@ -99,10 +99,10 @@ export function prepareWebgpuBlend(
       ],
       map: mat.map,
       flags,
-      // Chaque carte du matériau adresse sa texture dans son propre mode, comme une page opaque.
+      // Each material map addresses its texture in its own wrap mode, like an opaque page.
       wrapModes: wrapModes(mat),
       paged,
-      // Reposés par `refreshEyeKeys` avant chaque tri ; ici seulement pour qu'ils existent.
+      // Reset by `refreshEyeKeys` before each sort; here only so they exist.
       orderKey: 0,
       orderRank: 0,
     };

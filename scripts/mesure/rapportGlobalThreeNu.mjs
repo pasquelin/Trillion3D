@@ -1,7 +1,8 @@
-// La section « face à Three.js nu » du rapport global : le rendu naïf de la même scène, mêmes poses
-// et mêmes lampes, face au moteur, dans la même exécution. C'est le témoin qui survit au retrait de
-// Three du moteur, et c'est là que se lisent les points faibles : chaque endroit où le moteur est
-// plus lent, plus lourd ou plus loin de l'image qu'un rendu qui ne fait rien d'intelligent.
+// The "against bare Three.js" section of the global report: the naive render of the same
+// scene, same poses and same lights, against the engine, in the same run. That is the
+// witness that survives Three's withdrawal from the engine, and that is where the weak
+// points are read: every place where the engine is slower, heavier or further from the
+// image than a render that does nothing clever.
 import {
   barres,
   deuxCols,
@@ -12,11 +13,11 @@ import {
   secondes,
   tableau,
 } from './rapportGlobalGraphes.mjs';
-import { DEUX_VUES, paire, VUES } from './rapportGlobalLecture.mjs';
+import { TWO_VIEWS, paire, VIEW_IDS } from './rapportGlobalLecture.mjs';
 
 export function sectionThreeNu(ex) {
   const paires = (run, vues) => vues.map((v) => [v, ...paire(ex, run, v)]).filter(([, t]) => t);
-  const pleine = paires('three-nu', VUES);
+  const pleine = paires('three-nu', VIEW_IDS);
   if (!pleine.length) return '<p>The <code>three-nu</code> run is missing.</p>';
   const lignesTemps = pleine.map(([v, t, m]) => ({
     libelle: v,
@@ -54,7 +55,7 @@ export function sectionThreeNu(ex) {
     ['three-nu-lampes-4', 'sun + 4 shadowed point lights'],
     ['three-nu-1248', '1248×702, sun and shadows'],
   ].flatMap(([run, libelle]) =>
-    paires(run, VUES).map(([v, t, m]) => [
+    paires(run, VIEW_IDS).map(([v, t, m]) => [
       `${libelle} · ${v}`,
       nombre(t.imageSyncP50, 2),
       nombre(m.gpuP50, 2),
@@ -63,7 +64,7 @@ export function sectionThreeNu(ex) {
       px(m.temoinAA),
     ]),
   );
-  const quart = paires('three-nu-1248', DEUX_VUES);
+  const quart = paires('three-nu-1248', TWO_VIEWS);
   return [
     '<p>Three.js vanilla: the source glTF loaded by <code>GLTFLoader</code>, <code>MeshStandardMaterial</code>, everything drawn every frame, one 4096² shadow map for the sun, a 1024² cube per point light, ACES and sRGB. No selection, no streaming, no temporal antialiasing, no bounce. Its frame time is a <strong>synced wall clock</strong> (<code>render</code> then a pixel read that waits for the GPU): one measurement, not a sum, and not the same as a GPU-pass envelope — the two columns are read side by side, not against each other to a tenth of a millisecond. WebGL does not give per-pass times.</p>',
     deuxCols(

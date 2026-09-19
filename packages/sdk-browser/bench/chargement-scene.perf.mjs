@@ -1,4 +1,4 @@
-// le chargement d'une scène.
+// loading a scene.
 import * as THREE from 'three';
 import { collectClusterPages } from '../pageSelectionCollect.ts';
 import { exactPagesBounds } from '../exactPagesBounds.ts';
@@ -55,31 +55,31 @@ const recDe = (rec) => ({
   packedIndex: rec.packedIndex,
 });
 
-const passeCollect = (fn) => (entree) => {
-  let sortie;
+const passeCollect = (fn) => (input) => {
+  let output;
   try {
-    sortie = fn(entree.source, entree.metadata, entree.indices, entree.associations);
+    output = fn(input.source, input.metadata, input.indices, input.associations);
   } catch (erreur) {
     return { refus: erreur.message };
   }
   return {
     refus: null,
-    requestCount: sortie.requestCount,
-    prepared: sortie.prepared,
-    blendCopies: sortie.blendCopies.length,
-    bootstrap: sortie.bootstrap.length,
-    pages: sortie.allPages.map(recDe),
-    boites: sortie.roots.flatMap((root) => [
+    requestCount: output.requestCount,
+    prepared: output.prepared,
+    blendCopies: output.blendCopies.length,
+    bootstrap: output.bootstrap.length,
+    pages: output.allPages.map(recDe),
+    boites: output.roots.flatMap((root) => [
       ...boiteVersTableau(root.localBox),
       ...boiteVersTableau(root.worldBox),
     ]),
-    bornes: sortie.roots.map((root) => root.culling?.bounds ?? null),
+    bornes: output.roots.map((root) => root.culling?.bounds ?? null),
   };
 };
 
-const passeBounds = (fn) => (entree) => {
+const passeBounds = (fn) => (input) => {
   const manquants = [];
-  const boite = fn(entree.source, entree.associations, entree.metadata, (mesh) =>
+  const boite = fn(input.source, input.associations, input.metadata, (mesh) =>
     manquants.push(mesh.id),
   );
   return { boite: boiteVersTableau(boite), manquants };
@@ -98,14 +98,14 @@ const passeIndex = (pages, bundles) => (metadata) => {
 };
 
 const cas = [
-  { nom: '200 primitives, 2 600 pages', entree: grande, taille: 2600 },
-  { nom: 'une primitive, une page', entree: petite, taille: 1 },
-  { nom: 'maillage sans primitive', entree: orpheline, taille: 3 },
-  { nom: 'scène vide', entree: videScene, taille: 0 },
+  { name: '200 primitives, 2 600 pages', input: grande, size: 2600 },
+  { name: 'one primitive, one page', input: petite, size: 1 },
+  { name: 'mesh without a primitive', input: orpheline, size: 3 },
+  { name: 'empty scene', input: videScene, size: 0 },
 ];
 
 const resCollect = await mesure({
-  nom: 'collecte des pages de clusters',
+  name: 'cluster page collection',
   fichier: 'packages/sdk-browser/pageSelectionCollect.ts',
   cas,
   calcul: passeCollect(collectClusterPages),
@@ -114,7 +114,7 @@ const resCollect = await mesure({
 });
 
 const resBounds = await mesure({
-  nom: 'bornes des pages exactes',
+  name: 'exact page bounds',
   fichier: 'packages/sdk-browser/exactPagesBounds.ts',
   cas,
   calcul: passeBounds(exactPagesBounds),
@@ -123,11 +123,11 @@ const resBounds = await mesure({
 });
 
 const resIndex = await mesure({
-  nom: 'indexation du manifeste',
+  name: 'manifest indexing',
   fichier: 'packages/sdk-browser/manifestPageIndex.ts',
   cas: [
-    { nom: '2 400 pages', entree: grande.metadata, taille: 2400 },
-    { nom: 'une page', entree: petite.metadata, taille: 1 },
+    { name: '2 400 pages', input: grande.metadata, size: 2400 },
+    { name: 'one page', input: petite.metadata, size: 1 },
   ],
   calcul: passeIndex(indexManifestPages, indexManifestBundles),
   attendu: passeIndex(referenceIndexManifestPages, referenceIndexManifestBundles),
@@ -135,13 +135,13 @@ const resIndex = await mesure({
 });
 
 await stress({
-  nom: 'exactPagesBounds extremes',
+  name: 'exactPagesBounds extremes',
   calcul: (scene) => exactPagesBounds(scene.source, scene.associations, scene.metadata),
-  extremes: [{ nom: 'vide', entree: videScene }],
+  extremes: [{ name: 'empty', input: videScene }],
 });
 
 rapport(
   'chargement-scene',
   [resCollect, resBounds, resIndex],
-  'F16 et F17 retrouvent exactement les mêmes pages, index et boîtes',
+  'F16 and F17 recover the exact same pages, indices and boxes',
 );

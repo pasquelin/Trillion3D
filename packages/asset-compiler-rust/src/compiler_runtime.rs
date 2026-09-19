@@ -66,8 +66,9 @@ pub(super) fn load_model_file(
         bin_hash,
     })
 }
-/// Charge la scène intermédiaire que le routeur a préparée. Une scène convertie a déplacé `o.source`
-/// sur son dossier de cache : elle se relit alors par son manifeste, comme une source qui en porte un.
+/// Loads the intermediate scene the router prepared. A converted scene has moved
+/// `o.source` onto its cache folder: it is then re-read through its manifest, like
+/// a source that already carries one.
 pub(super) fn load_runtime(o: &Options, prepared: &PreparedScene) -> Result<RuntimeSource> {
     match prepared {
         PreparedScene::InPlace(name) if o.source.is_file() => load_model_file(

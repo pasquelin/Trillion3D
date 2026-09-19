@@ -1,10 +1,11 @@
-//! La publication d'un travail compilé : le sidecar binaire de colonnes, le proxy résident, le
-//! manifeste allégé, puis le pointeur du scope. Sorti de `compiler_build.rs` pour tenir la limite de
-//! lignes du dépôt, sans rien changer à ce qui est écrit ni à l'ordre des écritures.
+//! Publication of a compiled job: the binary column sidecar, the resident proxy,
+//! the slim manifest, then the scope pointer. Split out of `compiler_build.rs` to
+//! keep the repository line limit, without changing what is written or the write
+//! order.
 use super::*;
 use crate::texture_preview::TexturePreview;
 
-/// Où un résultat se dépose, et ce qu'il emporte avec lui.
+/// Where a result is stored, and what it takes with it.
 pub(super) struct Publication<'a> {
     pub o: &'a Options,
     pub key: &'a str,
@@ -15,9 +16,9 @@ pub(super) struct Publication<'a> {
 }
 
 /// The manifest travels as a small JSON plus a binary of typed-array columns: a reader maps the
-/// columns instead of tokenizing tens of megabytes before its first frame. Le pointeur du scope
-/// vient en dernier : c'est la seule entrée stable d'un cache, et il ne doit jamais nommer une clé
-/// dont le manifeste ne serait pas encore écrit.
+/// columns instead of tokenizing tens of megabytes before its first frame. The
+/// scope pointer comes last: it is the only stable entry of a cache, and it must
+/// never name a key whose manifest would not yet be written.
 pub(super) fn publish(inputs: &Publication<'_>, result: &Value) -> Result<()> {
     let _t = perf::Timer::new(perf::Phase::Manifest);
     let templates = manifest_binary::Templates {
@@ -28,8 +29,8 @@ pub(super) fn publish(inputs: &Publication<'_>, result: &Value) -> Result<()> {
     };
     let (mut slim, binary) = manifest_binary::split(result, &templates, inputs.previews)?;
     slim["binary"]["sha256"] = json!(hash(&binary));
-    // Le gabarit des niveaux cuits : `{sha}` est l'empreinte des octets sources, `{kind}` l'atlas
-    // (`srgb` ou `linear`), `{level}` le rang du niveau. Une seule vérité, comme pour les pages.
+    // Baked-level template: `{sha}` is the source-bytes fingerprint, `{kind}` the
+    // atlas (`srgb` or `linear`), `{level}` the level rank. One truth, as for pages.
     slim["textures"] = json!({"url":format!("../../{}", texture_preview::level_template())});
     let directory = inputs.directory;
     atomic(&directory.join(MANIFEST_BINARY_FILE), &binary)?;

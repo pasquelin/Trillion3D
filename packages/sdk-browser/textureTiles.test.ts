@@ -15,7 +15,7 @@ import {
 } from './textureTiles.ts';
 import { texturePoolFor } from './webgpuMemoryBudgets.ts';
 
-test('une texture 2048² a cinq niveaux diffusés de 256 + 64 + 16 + 4 + 1 tuiles, et sa queue commence au 64', () => {
+test('a 2048² texture has five streamed levels of 256 + 64 + 16 + 4 + 1 tiles, and its tail starts at 64', () => {
   const layout = tileLayout(2048, 2048);
   assert.equal(layout.tail, 5);
   assert.equal(layout.last, 11);
@@ -24,36 +24,36 @@ test('une texture 2048² a cinq niveaux diffusés de 256 + 64 + 16 + 4 + 1 tuile
   assert.deepEqual(tilesAt(2048, 2048, 4), [1, 1]);
 });
 
-test('une texture sous 64 texels n’a aucun niveau diffusé : tout est dans la queue', () => {
+test('a texture under 64 texels has no streamed level: everything is in the tail', () => {
   const layout = tileLayout(4, 3);
   assert.equal(layout.tail, 0);
   assert.equal(layout.last, 2);
   assert.deepEqual(layout.offsets, []);
   assert.equal(layout.entries, 0);
-  // 100×40 : le niveau 0 dépasse 64 en largeur, le niveau 1 (50×20) tient.
+  // 100×40: level 0 exceeds 64 in width, level 1 (50×20) fits.
   assert.equal(tileLayout(100, 40).tail, 1);
   assert.deepEqual(tilesAt(100, 40, 0), [1, 1]);
   assert.throws(() => tileLayout(0, 4), /INVALID_TEXTURE_SIZE/);
   assert.throws(() => tileLayout(1 << 16, 4), /TEXTURE_TOO_LARGE/);
 });
 
-test('les niveaux de la queue se rangent côte à côte sous 128 texels', () => {
+test('tail levels sit side by side under 128 texels', () => {
   assert.deepEqual([0, 1, 2, 3, 4, 5, 6].map(tailOffset), [0, 64, 96, 112, 120, 124, 126]);
   assert.equal(tailOffset(6) + 1, 127);
   assert.equal(POOL_LAYER_SIDE, 30 * TILE_PITCH);
 });
 
-test('une place du pool a un rang unique, et l’entrée de table garde place et niveau', () => {
+test('a pool slot has a unique rank, and the table entry keeps place and level', () => {
   const place = { x: 29, y: 7, layer: 3 };
   assert.deepEqual(placeOf(placeIndex(place)), place);
   assert.equal(placeIndex({ x: 0, y: 0, layer: 1 }), TILES_PER_LAYER);
   const word = packEntry(place, 9);
   assert.equal(entryLevel(word), 9);
   assert.deepEqual(entryPlace(word), place);
-  assert.ok(word > 0x7fffffff, 'le bit haut dit que l’entrée est servie');
+  assert.ok(word > 0x7fffffff, 'the high bit says the entry is served');
 });
 
-test('le budget du pool donne des couches entières par atlas, et ne refuse jamais : il relève ou ramène, nommément', () => {
+test('the pool budget yields whole layers per atlas, and never refuses: it raises or brings back, by name', () => {
   assert.deepEqual(texturePoolFor(512 * 1024 * 1024, undefined), {
     budgetBytes: 512 * 1024 * 1024,
     layers: 4,

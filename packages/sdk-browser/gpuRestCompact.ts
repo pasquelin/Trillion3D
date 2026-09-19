@@ -5,26 +5,26 @@ import { cleanupFailedHiz } from './gpuHizPipelines.ts';
 import { bounceGroup, bounceLayout } from './bounceBindings.ts';
 import { shaderFailed } from './gpuShaderModule.ts';
 
-/** L'étiquette de la passe, celle que le profil par étape range dans « Géométrie ». */
+/** Pass label, the one the per-step profile files under "Geometry". */
 export const REST_COMPACT_PASS = 'WG rest truncation';
 const REST_PASS = { label: REST_COMPACT_PASS } as const;
 
 export type GpuRestCompact = {
   /**
-   * Ramène le compte d'instances de chaque commande indirecte de la moitié testée au rang de sa
-   * dernière ligne survivante. `rows` borne le lancement — une moitié testée ne peut pas tenir plus
-   * de lignes que la table n'en a de dessinables. La table de lignes est passée à chaque image :
-   * elle est allouée après la création de ce noyau.
+   * Brings each tested-half indirect command's instance count back to the rank of its last
+   * surviving row. `rows` bounds the dispatch — a tested half cannot hold more rows than the
+   * table has drawable. The row table is passed every frame: it is allocated after this kernel
+   * is created.
    */
   encode(encoder: GPUCommandEncoder, restSlots: number, rows: number, pages: GPUBuffer): void;
   dispose(): void;
 };
 
 /**
- * La troncature de la moitié testée. Elle n'existe que si la compaction de dessin et la pyramide
- * existent : sans elles il n'y a ni liste d'instances, ni verdict à lire. Une plateforme sans calcul
- * rend `undefined`, et l'image garde le chemin d'avant — la seconde passe dessine alors les lignes
- * rejetées, dont chaque sommet est écarté un par un, exactement comme auparavant.
+ * Truncation of the tested half. It exists only if the draw compact and the pyramid exist:
+ * without them there is neither an instance list nor a verdict to read. A platform without
+ * compute returns `undefined`, and the frame keeps the previous path — the second pass then
+ * draws the rejected rows, each vertex discarded one by one, exactly as before.
  */
 export async function createGpuRestCompact(
   device: GPUDevice,
@@ -46,7 +46,7 @@ export async function createGpuRestCompact(
       size: 16,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
-    // Indexé par le rang du slot testé : la moitié des slots de dessin.
+    // Indexed by the tested slot's rank: half of the draw slots.
     const last = device.createBuffer({
       label: 'WG rest last survivor',
       size: (MAX_DRAW_SLOTS / 2) * 4,
@@ -95,14 +95,14 @@ export async function createGpuRestCompact(
             uniforms,
           ]);
         }
-        // Le nombre de slots testés est fixé par la préparation : l'uniforme n'est écrit qu'à son
-        // changement.
+        // The tested-slot count is fixed by preparation: the uniform is written only when it
+        // changes.
         if (boundSlots !== restSlots) {
           boundSlots = restSlots;
           uniData[0] = restSlots;
           device.queue.writeBuffer(uniforms, 0, uniData);
         }
-        // Aucune image ne lit le rang d'une image antérieure : il repart de zéro avant la marque.
+        // No frame reads a previous frame's rank: it starts from zero before the mark.
         encoder.clearBuffer(last, 0, restSlots * 4);
         const pass = encoder.beginComputePass(REST_PASS);
         pass.setBindGroup(0, bindGroup);
