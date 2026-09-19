@@ -87,6 +87,61 @@ test('a documented signature takes the arguments the function really takes', asy
   }
 });
 
+/** What a package entry point really exports: its own declarations and what it re-exports. */
+const surfaces = new Map();
+function surfaceOf(file, seen = new Set()) {
+  const cached = surfaces.get(file);
+  if (cached) return cached;
+  const names = new Set();
+  if (seen.has(file) || !existsSync(join(ROOT, file))) return names;
+  seen.add(file);
+  const source = readFileSync(join(ROOT, file), 'utf8');
+  for (const name of exported(file)) names.add(name);
+  const directory = file.slice(0, file.lastIndexOf('/'));
+  for (const match of source.matchAll(/export\s+\*\s+from\s+'([^']+)'/g))
+    for (const name of surfaceOf(resolveFrom(directory, match[1]), seen)) names.add(name);
+  surfaces.set(file, names);
+  return names;
+}
+
+/** A relative import of the sources, `./x.ts` or `../pkg/x.ts`, as a repository path. */
+function resolveFrom(directory, specifier) {
+  const parts = `${directory}/${specifier}`.split('/');
+  const stack = [];
+  for (const part of parts) {
+    if (part === '.' || part === '') continue;
+    if (part === '..') stack.pop();
+    else stack.push(part);
+  }
+  return stack.join('/');
+}
+
+const ENTRY_POINTS = {
+  '@web-geometry/sdk': 'packages/sdk-core/index.ts',
+  '@web-geometry/sdk/core': 'packages/sdk-core/index.ts',
+  '@web-geometry/sdk/browser': 'packages/sdk-browser/index.ts',
+  '@web-geometry/sdk/node': 'packages/sdk-node/index.mts',
+};
+
+test('an example only imports what the file or entry point it names really exports', () => {
+  for (const entry of ENTRIES) {
+    if (entry.issue || !entry.example) continue;
+    for (const match of entry.example.matchAll(/import\s+\{([^}]*)\}\s+from\s+'([^']+)'/g)) {
+      // Either a published entry point, or the source file that holds the symbol — an example
+      // may not invent a third form, and either way the names must be there.
+      const file = ENTRY_POINTS[match[2]] ?? (match[2].startsWith('packages/') ? match[2] : null);
+      assert.ok(file, `${entry.id}: neither an entry point nor a source file: ${match[2]}`);
+      assert.ok(existsSync(join(ROOT, file)), `${entry.id}: ${file} does not exist`);
+      const surface = surfaceOf(file);
+      for (const name of match[1]
+        .split(',')
+        .map((part) => part.trim())
+        .filter(Boolean))
+        assert.ok(surface.has(name), `${entry.id}: ${match[2]} does not export ${name}`);
+    }
+  }
+});
+
 test('every demo belongs to an entry of the portal', async () => {
   const { DEMOS } = await import(join(DOCS, 'demoRegistry.js'));
   const ids = new Set(ENTRIES.map((entry) => entry.id));

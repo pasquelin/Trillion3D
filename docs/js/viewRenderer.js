@@ -1,5 +1,8 @@
 /** Renders one entry, and the shell of the live demo. Everything an entry carries is escaped. */
 import { ISSUES, issueUrl, REPOSITORY } from './docsModel.js';
+import { escapeHtml } from './escapeHtml.js';
+
+export { escapeHtml };
 
 const KIND_BADGE = {
   Function: 'badge-secondary',
@@ -8,14 +11,6 @@ const KIND_BADGE = {
   Guide: 'badge-info',
   Example: 'badge-info',
 };
-
-export function escapeHtml(text) {
-  return String(text ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
 
 /** `code`, **bold** and *italic* in a description, on escaped text: no other markup is honoured. */
 export function inlineMarkup(text) {
