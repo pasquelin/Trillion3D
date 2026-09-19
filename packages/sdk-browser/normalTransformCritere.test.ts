@@ -1,13 +1,13 @@
-// LE CRITÈRE des preuves de normale, éprouvé sur des vecteurs choisis à la main, sans passer par le
-// noyau. `angleEntre` et `verdictNormale` (`test/justesse/inverseTransposeF32.mjs`) décident si une
-// normale rendue est la bonne : tant qu'ils acceptent une normale retournée ou perdue, aucune des
-// preuves qui s'appuient sur eux — `normalTransform.test.ts` sans GPU,
-// `test/browser/normal-transform-arithmetique.browser.mjs` sur GPU réel — ne prouve quoi que ce soit. C'était
-// le cas : une valeur absolue sur le produit scalaire confondait N et −N, et `atan2(0, 0) = 0`
-// déclarait juste une normale que le nuanceur avait perdue.
+// CRITERION for normal proofs, tested on manually chosen vectors without going through
+// kernel. `angleEntre` and `verdictNormale` (`test/justesse/inverseTransposeF32.mjs`) decide if a
+// rendered normal is correct: as long as they accept a reversed or lost normal, none of
+// proofs relying on them — `normalTransform.test.ts` without GPU,
+// `test/browser/normal-transform-arithmetique.browser.mjs` on real GPU — proves anything. That was
+// the case: absolute value on dot product confused N and −N, and `atan2(0, 0) = 0`
+// declared correct a normal that shader had lost.
 //
-// Séparé de `normalTransform.test.ts` par responsabilité : là-bas l'arithmétique du noyau, ici
-// l'instrument qui la juge.
+// Separated from `normalTransform.test.ts` by responsibility: there kernel arithmetic, here
+// instrument judging it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -18,70 +18,67 @@ import {
 } from '../../test/justesse/inverseTransposeF32.mjs';
 import { DECROCHE_DEG, REGULIERE_MINUSCULE } from '../../test/justesse/normalTransformCas.mjs';
 
-/** Le verdict — direction orientée, vecteur nul refusé, norme unitaire — d'une écriture sur un cas. */
+/** Verdict — oriented direction, zero vector rejected, unit norm — of a write on a case. */
 const verdict = (cas: { vraie: number[] }, rendue: number[]) =>
   verdictNormale(rendue, cas.vraie, DECROCHE_DEG);
 
-test('angleEntre/verdictNormale : direction ORIENTÉE, N et −N ne sont plus confondus (justesse)', () => {
+test('angleEntre/verdictNormale: ORIENTED direction, N and −N no longer confused (correctness)', () => {
   const N = [0, 0, 1];
   const moinsN = [0, 0, -1];
-  assert.ok(Math.abs(angleEntre(N, N)) < 1e-12, 'deux directions identiques : angle nul');
+  assert.ok(Math.abs(angleEntre(N, N)) < 1e-12, 'two identical directions: null angle');
   assert.ok(
     Math.abs(angleEntre(N, moinsN) - Math.PI) < 1e-12,
-    'deux directions opposées : π, pas 0 comme sous une valeur absolue du produit scalaire',
+    'two opposite directions: π, not 0 as under an absolute value of the dot product',
   );
   const oppose = verdict({ vraie: N }, moinsN);
-  assert.ok(!oppose.ok, 'une normale rendue opposée à l’attendue doit être refusée');
-  assert.ok(Math.abs(oppose.ecartDeg - 180) < 1e-9, `écart ${oppose.ecartDeg}°, attendu 180°`);
+  assert.ok(!oppose.ok, 'a normal returned opposite the expected one must be refused');
+  assert.ok(Math.abs(oppose.ecartDeg - 180) < 1e-9, `gap ${oppose.ecartDeg}°, expected 180°`);
 });
 
-test('angleEntre/verdictNormale : vecteur nul ou non fini rend NaN, jamais 0 (justesse)', () => {
+test('angleEntre/verdictNormale: zero or non-finite vector yields NaN, never 0 (correctness)', () => {
   for (const v of [
     [0, 0, 0],
     [NaN, 0, 0],
     [Infinity, 0, 0],
     [0, -Infinity, 0],
   ])
-    assert.ok(Number.isNaN(angleEntre(v, [0, 0, 1])), `angleEntre([${v}], N) doit être NaN`);
+    assert.ok(Number.isNaN(angleEntre(v, [0, 0, 1])), `angleEntre([${v}], N) must be NaN`);
   const rendueNulle = verdict({ vraie: [0, 0, 1] }, [0, 0, 0]);
-  assert.ok(!rendueNulle.ok, 'un vecteur nul est refusé, jamais accepté à 0°');
-  assert.ok(Number.isNaN(rendueNulle.ecartDeg), 'écart NaN, jamais 0° comme atan2(0, 0)');
-  assert.match(rendueNulle.raison ?? '', /sans direction/, `raison : ${rendueNulle.raison}`);
+  assert.ok(!rendueNulle.ok, 'a null vector is refused, never accepted at 0°');
+  assert.ok(Number.isNaN(rendueNulle.ecartDeg), 'NaN gap, never 0° like atan2(0, 0)');
+  assert.match(rendueNulle.raison ?? '', /no direction/, `raison : ${rendueNulle.raison}`);
 });
 
-test('verdictNormale : une norme hors tolérance est refusée même dans la bonne direction (justesse)', () => {
+test('verdictNormale: non-unit norm is rejected even in right direction (correctness)', () => {
   const tropCourte = verdict({ vraie: [0, 0, 1] }, [0, 0, 0.9]);
-  assert.ok(
-    !tropCourte.ok,
-    'une normale non unitaire doit être refusée, même parfaitement alignée',
-  );
-  assert.match(tropCourte.raison ?? '', /norme/, `raison inattendue : ${tropCourte.raison}`);
+  assert.ok(!tropCourte.ok, 'a non-unit normal must be refused, even if perfectly aligned');
+  assert.match(tropCourte.raison ?? '', /not unit/, `unexpected reason: ${tropCourte.raison}`);
   const dansLaTolerance = verdict({ vraie: [0, 0, 1] }, [0, 0, 1 + 1e-7]);
-  assert.ok(dansLaTolerance.ok, `1e-7 sous ${TOLERANCE_NORME} : ne doit pas être refusée`);
+  assert.ok(dansLaTolerance.ok, `1e-7 under ${TOLERANCE_NORME}: must not be refused`);
 });
 
 test(
-  'REGULIERE_MINUSCULE : inverse-transposée calculée à la main, indépendamment du noyau, donne ' +
-    '[0,6 ; 0,8 ; 0] (justesse géométrique)',
+  'REGULIERE_MINUSCULE: inverse-transpose computed by hand, independently of the kernel, yields ' +
+    '[0.6 ; 0.8 ; 0] (geometric correctness)',
   () => {
-    // diag(1e-8, −1e-8, −1e-8) est sa propre transposée ; son inverse est diag(1e8, −1e8, −1e8).
-    // Appliquée à la normale locale [0,6, −0,8, 0] : [0,6·1e8, −0,8·(−1e8), 0] = [6e7, 8e7, 0].
-    // Arithmétique double ordinaire, sans `Math.fround` ni `cofacteur` : ce calcul ne réutilise rien
-    // du noyau éprouvé, il en est le témoin indépendant.
+    // diag(1e-8, −1e-8, −1e-8) is its own transpose; its inverse is diag(1e8, −1e8, −1e8).
+    // Applied to local normal [0.6, −0.8, 0]: [0.6·1e8, −0.8·(−1e8), 0] = [6e7, 8e7, 0].
+    // Plain double arithmetic, without `Math.fround` or `cofacteur`: this calculation reuses nothing
+    // from tested kernel, serving as independent witness.
     const brut = [0.6 * 1e8, -0.8 * -1e8, 0];
     const norme = Math.hypot(brut[0], brut[1], brut[2]);
     const main = [brut[0] / norme, brut[1] / norme, brut[2] / norme];
     assert.deepEqual(
       main,
       [0.6, 0.8, 0],
-      'le calcul à la main ne tombe pas sur la valeur attendue',
+      'the hand computation does not land on the expected value',
     );
-    assert.deepEqual(REGULIERE_MINUSCULE.vraie, main, 'le témoin s’écarte de la valeur à la main');
+    assert.deepEqual(REGULIERE_MINUSCULE.vraie, main, 'the witness departs from the hand value');
     const rendue = xformNormalModele(REGULIERE_MINUSCULE.world, REGULIERE_MINUSCULE.normale);
     const v = verdictNormale(rendue, main, DECROCHE_DEG);
     assert.ok(
       v.ok,
-      `${REGULIERE_MINUSCULE.nom} : le noyau rend [${rendue}], au lieu de [${main}] — ${v.raison}`,
+      `${REGULIERE_MINUSCULE.nom}: the kernel returns [${rendue}], instead of [${main}] — ${v.raison}`,
     );
   },
 );

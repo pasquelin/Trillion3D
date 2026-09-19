@@ -4,28 +4,28 @@ import type { BatchPage } from './clusterBatchRange.ts';
 import { BatchGroup } from './clusterBatchPrimitive.ts';
 
 /**
- * Sous-lots des couches coplanaires, pour le chemin WebGL2.
+ * Sub-batches of coplanar layers, for the WebGL2 path.
  *
- * Une instance de primitive dessine ses clusters en un `WEBGL_multi_draw` par matériau. Les clusters
- * que le compilateur a placés sur une couche supérieure à 0 sortent de ce lot et rejoignent un lot
- * jumeau, même géométrie et même tampon d'index, dont le matériau porte le décalage de profondeur de
- * sa couche en unités matérielles. Les plages du lot d'origine gardent l'ordre qu'elles avaient :
- * seules les plages marquées changent de lot, et rien d'autre de la scène ne bouge.
+ * A primitive instance draws its clusters in one `WEBGL_multi_draw` per material. Clusters
+ * the compiler placed on a layer above 0 leave this batch and join a twin batch, same
+ * geometry and same index buffer, whose material carries that layer's depth offset in
+ * hardware units. Ranges of the original batch keep the order they had: only the marked
+ * ranges change batch, and nothing else of the scene moves.
  */
 
-/** Le matériau d'un sous-lot biaisé : le matériau d'origine, plus le décalage de sa couche. */
+/** Material of a biased sub-batch: the original material, plus its layer offset. */
 function biasedMaterial(material: THREE.Material, layer: number) {
   const clone = material.clone();
   clone.polygonOffset = true;
   clone.polygonOffsetFactor = 0;
-  // Ce chemin dessine avec la projection de la bibliothèque hôte, en profondeur DIRECTE : s'y
-  // rapprocher de l'œil, c'est RETRANCHER des unités — l'opposé du chemin du moteur.
+  // This path draws with the host-library projection, in FORWARD depth: getting closer
+  // to the eye means SUBTRACTING units — the opposite of the engine path.
   clone.polygonOffsetUnits = -depthLayerUnits(layer);
   return clone;
 }
 
-/** Un lot jumeau par (instance, couche) rencontrée. Une scène sans surface coplanaire empilée n'en
- *  crée aucun et dessine exactement comme avant. */
+/** One twin batch per (instance, layer) encountered. A scene without stacked coplanar
+ *  surfaces creates none and draws exactly as before. */
 export function buildLayerGroups(
   pages: readonly BatchPage[],
   groups: Array<BatchGroup | undefined>,
@@ -34,7 +34,7 @@ export function buildLayerGroups(
   const materials: THREE.Material[] = [];
   for (const page of pages) {
     const layer = page.depthLayer ?? 0;
-    // Un matériau multiple n'a pas de biais unique à porter : la page reste sur son lot d'origine.
+    // A multi-material has no single bias to carry: the page stays on its original batch.
     if (layer <= 0 || Array.isArray(page.material)) continue;
     const base = groups[page.renderOrder];
     if (!base) continue;
@@ -51,7 +51,7 @@ export function buildLayerGroups(
   return { layerGroups, materials };
 }
 
-/** Le lot qui doit recevoir une page : son lot jumeau quand elle porte une couche, sinon le sien. */
+/** The batch that should receive a page: its twin when it carries a layer, otherwise its own. */
 export function groupForPage(
   groups: Array<BatchGroup | undefined>,
   layerGroups: Array<Map<number, BatchGroup> | undefined>,
@@ -65,7 +65,7 @@ export function groupForPage(
   return groups[page.renderOrder];
 }
 
-/** Tous les lots d'une scène : ceux de couche 0 et leurs jumeaux biaisés. */
+/** Every batch of a scene: the layer-0 ones and their biased twins. */
 export function* everyGroup(
   groups: Array<BatchGroup | undefined>,
   layerGroups: Array<Map<number, BatchGroup> | undefined>,

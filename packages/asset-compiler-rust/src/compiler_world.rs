@@ -8,8 +8,8 @@ pub(super) const IDENTITY: Mat4 = [
 /// A scene graph deeper than this is refused rather than followed: a cycle would never end.
 const MAX_DEPTH: usize = 256;
 
-/// `a · b`, l'opération `b` s'appliquant au point avant `a`. Partagée avec les pilotes de scène
-/// qui composent eux-mêmes leurs matrices.
+/// `a · b`, operation `b` applying to point before `a`. Shared with scene drivers
+/// composing own matrices.
 pub(super) fn multiply(a: &Mat4, b: &Mat4) -> Mat4 {
     let mut out = [0.0f64; 16];
     for column in 0..4 {
@@ -45,14 +45,14 @@ fn numbers(value: Option<&Value>, length: usize, what: &str) -> Result<Option<Ve
         .map(Some)
 }
 
-/// La translation de `by`. Partagée avec les pilotes de scène qui composent leurs matrices.
+/// Translation by `by`. Shared with scene drivers composing matrices.
 pub(super) fn translation(by: [f64; 3]) -> Mat4 {
     let mut out = IDENTITY;
     out[12..15].copy_from_slice(&by);
     out
 }
 
-/// La mise à l'échelle de `by`, axe par axe.
+/// Scaling by `by`, axis by axis.
 pub(super) fn scaling(by: [f64; 3]) -> Mat4 {
     let mut out = IDENTITY;
     for axis in 0..3 {

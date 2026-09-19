@@ -1,9 +1,9 @@
-//! Les DDS minuscules de la dorée, écrits ici octet par octet depuis la spécification publique de
-//! Microsoft. Aucun encodeur n'est appelé : chaque champ de `DDS_HEADER`, de `DDS_PIXELFORMAT` et
-//! de `DDS_HEADER_DXT10` est posé à la main, et chaque bloc porte des valeurs dont on connaît le
-//! décodage exact. C'est la seule façon d'affirmer « sans perte » sans croire le décodeur sur parole.
+//! Tiny DDS of the golden, written here byte by byte from Microsoft's public specification. No
+//! encoder is called: each field of `DDS_HEADER`, `DDS_PIXELFORMAT` and `DDS_HEADER_DXT10` is
+//! set by hand, and each block carries values whose exact decoding is known. That is the only
+//! way to assert “lossless” without taking the decoder's word for it.
 
-/// Décalages, relatifs au début de `DDS_HEADER` — le nombre magique fait quatre octets de plus.
+/// Offsets, relative to the start of `DDS_HEADER` — the magic number is four extra bytes.
 const SIZE: usize = 0;
 const FLAGS: usize = 4;
 const HEIGHT: usize = 8;
@@ -20,7 +20,7 @@ fn put(into: &mut [u8], at: usize, value: u32) {
     into[at..at + 4].copy_from_slice(&value.to_le_bytes());
 }
 
-/// Les trente-deux octets de `DDS_PIXELFORMAT` pour un codec nommé par son `dwFourCC`.
+/// Thirty-two bytes of `DDS_PIXELFORMAT` for a codec named by its `dwFourCC`.
 pub(super) fn fourcc_format(tag: &[u8; 4]) -> [u8; 32] {
     let mut format = [0u8; 32];
     put(&mut format, 0, 32);
@@ -30,12 +30,12 @@ pub(super) fn fourcc_format(tag: &[u8; 4]) -> [u8; 32] {
     format
 }
 
-/// Les trente-deux octets de `DDS_PIXELFORMAT` d'une surface non compressée, décrite par ses
-/// masques de bits. `bit_count` est laissé libre : un profil hors liste doit pouvoir s'écrire.
+/// Thirty-two bytes of `DDS_PIXELFORMAT` of an uncompressed surface, described by its bit
+/// masks. `bit_count` is left free: a profile outside the list must be able to write itself.
 pub(super) fn mask_format(bit_count: u32, masks: [u32; 4]) -> [u8; 32] {
     let mut format = [0u8; 32];
     put(&mut format, 0, 32);
-    // DDPF_RGB | DDPF_ALPHAPIXELS quand un masque d'alpha est donné.
+    // DDPF_RGB | DDPF_ALPHAPIXELS when an alpha mask is given.
     put(&mut format, 4, if masks[3] == 0 { 0x40 } else { 0x41 });
     put(&mut format, 12, bit_count);
     for (channel, mask) in masks.iter().enumerate() {
@@ -44,7 +44,7 @@ pub(super) fn mask_format(bit_count: u32, masks: [u32; 4]) -> [u8; 32] {
     format
 }
 
-/// Le conteneur complet : nombre magique, `DDS_HEADER`, puis les octets qui suivent l'entête.
+/// Complete container: magic number, `DDS_HEADER`, then the bytes that follow the header.
 pub(super) fn container(
     format: [u8; 32],
     width: u32,
@@ -67,8 +67,8 @@ pub(super) fn container(
     out
 }
 
-/// Le même conteneur, codec nommé par le `dxgiFormat` de `DDS_HEADER_DXT10` : une texture 2D
-/// simple, ni tableau, ni cube, alpha droit.
+/// The same container, codec named by the `dxgiFormat` of `DDS_HEADER_DXT10`: a simple 2D
+/// texture, neither array nor cube, straight alpha.
 pub(super) fn dx10(dxgi: u32, width: u32, height: u32, payload: &[u8]) -> Vec<u8> {
     let mut extended = [0u8; 20];
     put(&mut extended, 0, dxgi);
@@ -80,8 +80,8 @@ pub(super) fn dx10(dxgi: u32, width: u32, height: u32, payload: &[u8]) -> Vec<u8
     container(fourcc_format(b"DX10"), width, height, 1, &tail)
 }
 
-/// Un écrivain de bits, du bit de poids faible du premier octet vers le haut : c'est l'ordre dans
-/// lequel les blocs BCn se lisent, indices comme champs de BC7.
+/// A bit writer, from the low bit of the first byte upward: that is the order in which BCn
+/// blocks are read, indices as BC7 fields.
 pub(super) struct Bits {
     block: [u8; 16],
     at: usize,
@@ -103,13 +103,13 @@ impl Bits {
         }
         self
     }
-    /// Les seize octets écrits, complétés de zéros — la taille d'un bloc BC2, BC3, BC5 ou BC7.
+    /// The sixteen written bytes, padded with zeros — the size of a BC2, BC3, BC5 or BC7 block.
     pub(super) fn block(&self) -> [u8; 16] {
         self.block
     }
 }
 
-/// Les indices d'un bloc, `width` bits chacun, du premier pixel au dernier.
+/// Indices of a block, `width` bits each, from the first pixel to the last.
 pub(super) fn indices(values: [u8; 16], width: usize) -> Vec<u8> {
     let mut bits = Bits::new();
     for value in values {
@@ -118,15 +118,15 @@ pub(super) fn indices(values: [u8; 16], width: usize) -> Vec<u8> {
     bits.block()[..values.len() * width / 8].to_vec()
 }
 
-/// Le bloc de couleurs BC1 de la dorée : rouge pur et bleu pur en 565, donc `couleur0 > couleur1`
-/// et les quatre couleurs interpolées, puis les indices donnés.
+/// Golden's BC1 colour block: pure red and pure blue in 565, so `colour0 > colour1` and the four
+/// interpolated colours, then the given indices.
 pub(super) fn color_block(order: [u8; 16]) -> Vec<u8> {
     let mut block = vec![0x00, 0xf8, 0x1f, 0x00];
     block.extend_from_slice(&indices(order, 2));
     block
 }
 
-/// Un bloc d'alpha à trois bits (BC3, BC4, BC5) : deux bornes puis seize indices.
+/// A three-bit alpha block (BC3, BC4, BC5): two bounds then sixteen indices.
 pub(super) fn ramp_block(first: u8, second: u8, order: [u8; 16]) -> Vec<u8> {
     let mut block = vec![first, second];
     block.extend_from_slice(&indices(order, 3));

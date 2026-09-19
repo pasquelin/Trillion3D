@@ -45,61 +45,63 @@ export interface ExplorerOptions {
   comparisonPair?: [string, string];
   gpu?: GPU;
   pointsOfInterest?: PointOfInterest[];
-  /** Octets de tuiles de textures que le moteur WebGPU admet par image ; 16 Mio par défaut. */
+  /** Texture-tile bytes the WebGPU engine admits per frame; 16 MiB by default. */
   maxTextureTransferBytesPerFrame?: number;
-  /** Octets du pool de pages de géométrie du moteur WebGPU — la mémoire de géométrie diffusée,
-   *  quelle que soit la scène, comme le pool de 512 Mo de la référence. 512 Mio par défaut. La
-   *  couverture racine y tient toujours ; ce qu'une vue demande de plus s'affiche plus grossier,
-   *  jamais refusé. Se règle en cours de session par `explorer.setMemoryBudgets`. */
+  /** Geometry-page pool bytes of the WebGPU engine — streamed geometry memory, regardless
+   *  of the scene, like the reference's 512 MB pool. 512 MiB by default. The root cover
+   *  always fits; what a view asks beyond that draws coarser, never refused. Set during
+   *  the session by `explorer.setMemoryBudgets`. */
   geometryPoolBytes?: number;
-  /** Le plus grand pool de géométrie que `explorer.setMemoryBudgets` pourra demander en cours de
-   *  session — le maximum d'un curseur de réglage. Le budget de départ sans lui. */
+  /** Largest geometry pool `explorer.setMemoryBudgets` may ask for during the session —
+   *  the maximum of a settings slider. The starting budget without it. */
   geometryPoolCeilingBytes?: number;
-  /** Octets du pool de textures virtuelles du moteur WebGPU — la mémoire de textures, quelle que
-   *  soit la scène. 512 Mio par défaut, à parts égales entre l'atlas couleur et l'atlas de données,
-   *  en couches de 63,5 Mio ; sous une couche par atlas le pool est relevé à une, nommément. Ce
-   *  qu'une vue demande de plus attend qu'une tuile moins regardée se libère, et une tuile absente
-   *  montre son niveau grossier : les métriques `textureTiles*` le publient. Se règle en cours de
-   *  session par `explorer.setMemoryBudgets`. */
+  /** Virtual-texture pool bytes of the WebGPU engine — texture memory, regardless of the
+   *  scene. 512 MiB by default, split equally between the colour atlas and the data atlas,
+   *  in 63.5 MiB layers; under one layer per atlas the pool is raised to one, by name. What
+   *  a view asks beyond that waits for a less-looked-at tile to free, and a missing tile
+   *  shows its coarse level: the `textureTiles*` metrics publish it. Set during the session
+   *  by `explorer.setMemoryBudgets`. */
   texturePoolBytes?: number;
-  /** L'antialiasing temporel du moteur WebGPU, actif par défaut comme chez la référence : chaque
-   *  image est rendue avec une gigue d'une fraction de pixel et accumulée sur les précédentes,
-   *  reprojetées. `false` rend l'image échantillonnée au centre du pixel, sans historique — c'est
-   *  le « avant » d'une comparaison, et ce que les bancs au pixel près demandent. */
+  /** Temporal antialiasing of the WebGPU engine, on by default as in the reference: each
+   *  frame is rendered with a fraction-of-a-pixel jitter and accumulated over the previous
+   *  ones, reprojected. `false` renders the image sampled at the pixel centre, with no
+   *  history — that is the "before" of a comparison, and what pixel-for-pixel benches ask. */
   temporalAntialiasing?: boolean;
-  /** D'où viennent les texels des matériaux. `'host'`, le défaut : le chargeur glTF lit et décode
-   *  chaque image source, comme toujours — c'est ce qu'un moteur qui dessine la scène de l'hôte
-   *  (le témoin Three) exige. `'cache'` : une image dont la chaîne de mips est cuite dans le cache
-   *  n'est ni lue ni décodée, le moteur WebGPU en lit les niveaux un à un quand l'écran les demande.
-   *  À ne demander que lorsque tous les moteurs de la session lisent l'atlas et non la scène. */
+  /** Where material texels come from. `'host'`, the default: the glTF loader reads and
+   *  decodes every source image, as always — that is what an engine that draws the host
+   *  scene (the Three witness) requires. `'cache'`: an image whose mip chain is baked in
+   *  the cache is neither read nor decoded, the WebGPU engine reads its levels one by one
+   *  when the screen asks. Only request when every engine of the session reads the atlas,
+   *  not the scene. */
   textureSource?: 'host' | 'cache';
   sceneLighting?: THREE.Object3D;
-  /** La lumière qui rebondit. Éteinte par défaut ; `true` l'allume pour toute la session. */
+  /** Bounced light. Off by default; `true` turns it on for the whole session. */
   bounce?: boolean;
-  /** Durée visée de l'étape « Rebond » par image, en millisecondes. 0,8 ms par défaut. */
+  /** Target duration of the "Bounce" step per frame, in milliseconds. 0.8 ms by default. */
   bounceBudgetMs?: number;
-  /** Chronométrer chaque étape de l'image et publier `explorer.stageProfile()`. Éteint par défaut. */
+  /** Time every step of the frame and publish `explorer.stageProfile()`. Off by default. */
   stageProfile?: boolean;
-  /** Une variante de DIAGNOSTIC de la carte graphique (`diagnosticGpuVariant.ts`) : elle neutralise
-   *  un facteur de l'image pour en ventiler la durée, et rend donc une image différente de celle de
-   *  production. Absente par défaut ; refusée hors `diagnosticDetail: 'trace'`. */
+  /** A GPU DIAGNOSTIC variant (`diagnosticGpuVariant.ts`): it neutralises a factor of the
+   *  frame to split its duration, and therefore renders an image different from production.
+   *  Absent by default; refused outside `diagnosticDetail: 'trace'`. */
   diagnosticGpuVariant?: DiagnosticGpuVariant;
-  /** Budget de l'étape Ombres, en millisecondes de carte graphique par image. 1,0 par défaut : les
-   *  pages invalidées au-delà attendent leur tour, jamais perdues, leur retard publié. */
+  /** Shadows-step budget, in GPU milliseconds per frame. 1.0 by default: invalidated pages
+   *  beyond that wait their turn, never lost, their lag published. */
   shadowBudgetMs?: number;
-  /** Invalidation des cartes d'ombre page par page. Allumée par défaut ; `false` fait repartir la
-   *  face entière dès qu'un objet bouge dans sa portée, comme avant le lot des ombres virtualisées. */
+  /** Page-by-page shadow-map invalidation. On by default; `false` restarts the whole face
+   *  as soon as an object moves in its range, as before the virtualized-shadows batch. */
   shadowPageInvalidation?: boolean;
-  /** Déclarer les lampes que le fichier source portait, lues dans le cache. Allumé par défaut :
-   *  une scène importée arrive avec ses lumières. `false` ouvre la scène sans aucune d'elles. */
+  /** Declare the lights the source file carried, read from the cache. On by default: an
+   *  imported scene arrives with its lights. `false` opens the scene with none of them. */
   importedLights?: boolean;
-  /** Chemin des opérations de calcul en lot : `'auto'` par défaut, la mesure arbitrant entre le
-   *  JavaScript de référence et le module WebAssembly. `'js'` ou `'wasm'` l'imposent pour une
-   *  campagne ; `'wasm'` retombe sur `'js'` là où le module manque, et le dit dans les métriques. */
+  /** Path of batched compute operations: `'auto'` by default, measurement arbitrating
+   *  between reference JavaScript and the WebAssembly module. `'js'` or `'wasm'` impose it
+   *  for a campaign; `'wasm'` falls back on `'js'` where the module is missing, and says so
+   *  in the metrics. */
   mathPath?: MathPathMode;
-  /** EXPÉRIENCE de mesure (`sdk-core/screenErrorVariant.ts`) : la métrique d'erreur écran des
-   *  clusters. `'certifiee'` par défaut, la nôtre ; `'reference'` met la projection simple de la
-   *  référence externe, processeur et carte graphique au même résultat au f32 près. */
+  /** Measurement EXPERIENCE (`sdk-core/screenErrorVariant.ts`): the cluster screen-error
+   *  metric. `'certifiee'` by default, ours; `'reference'` puts the simple projection of the
+   *  external reference, CPU and GPU to the same result to f32. */
   screenError?: ScreenErrorVariant;
   logInterval?: number;
 }

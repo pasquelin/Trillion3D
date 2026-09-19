@@ -8,9 +8,9 @@ pub(super) struct NodeSelection {
     pub mesh_map: BTreeMap<usize, usize>,
 }
 
-/// Les indices d'enfants d'un nœud, bornés au tableau des nœuds. Le seul endroit où `children` se
-/// lit : la hiérarchie se parcourt deux fois — pour les matrices monde, pour la scène rendue — et
-/// une seule des deux lectures a le droit d'exister.
+/// Child indices of a node, bounded to the node array. The only place `children`
+/// is read: the hierarchy is walked twice — for world matrices, for the rendered
+/// scene — and only one of the two reads is allowed to exist.
 pub(super) fn children_of(nodes: &[Value], id: usize) -> Result<Vec<usize>> {
     let mut out = Vec::new();
     for child in nodes[id]
@@ -28,8 +28,9 @@ pub(super) fn children_of(nodes: &[Value], id: usize) -> Result<Vec<usize>> {
     Ok(out)
 }
 
-/// L'état d'un nœud dans le parcours qui cherche un cycle : jamais vu, en cours de parcours, ou
-/// entièrement parcouru. Retrouver un nœud en cours de parcours, c'est être revenu sur ses pas.
+/// State of a node in the walk that looks for a cycle: never seen, currently
+/// walking, or fully walked. Finding a node currently being walked means we have
+/// come back on our steps.
 #[derive(Clone, Copy, PartialEq)]
 enum Visit {
     Unseen,
@@ -37,11 +38,12 @@ enum Visit {
     Done,
 }
 
-/// Refuse une hiérarchie de nœuds qui se referme sur elle-même. Le parcours des matrices monde part
-/// des nœuds sans père : un cycle fermé n'en a aucun, il n'était donc jamais parcouru et partait
-/// publié tel quel, à faire tourner sans fin le parcours du consommateur. Tous les nœuds sont
-/// visités, pas seulement ceux que la scène rendue nomme, parce que c'est le document entier qui
-/// est publié. Un nœud sans père et hors de la scène n'est pas un cycle : il n'est jamais revu.
+/// Refuses a node hierarchy that closes on itself. World-matrix walk starts from
+/// parentless nodes: a closed cycle has none, so it was never walked and used to
+/// go out published as-is, sending the consumer's walk into an endless loop. Every
+/// node is visited, not only those the rendered scene names, because the whole
+/// document is published. A parentless node outside the scene is not a cycle: it
+/// is never seen again.
 pub(super) fn check_acyclic(g: &Value) -> Result<()> {
     let nodes = values(g, "nodes")?;
     let mut state = vec![Visit::Unseen; nodes.len()];
@@ -70,9 +72,10 @@ pub(super) fn check_acyclic(g: &Value) -> Result<()> {
     Ok(())
 }
 
-/// Les racines de la scène rendue. glTF 2.0 §3.5 : un document ne rend qu'une scène — celle que
-/// `scene` nomme, sinon la première déclarée. Sans `scenes`, le document n'en désigne aucune : le
-/// compilateur prend alors toutes les racines de la hiérarchie, et `docs/COMPILER.md` l'écrit.
+/// Roots of the rendered scene. glTF 2.0 §3.5: a document renders only one scene
+/// — the one `scene` names, otherwise the first declared. Without `scenes`, the
+/// document names none: the compiler then takes every hierarchy root, and
+/// `docs/COMPILER.md` writes it.
 fn scene_roots(g: &Value, nodes: &[Value]) -> Result<Vec<usize>> {
     let Some(scenes) = g
         .get("scenes")
@@ -110,10 +113,11 @@ fn scene_roots(g: &Value, nodes: &[Value]) -> Result<Vec<usize>> {
     Ok(roots)
 }
 
-/// Les nœuds que la scène rendue atteint depuis ses racines. Un nœud d'une autre scène, ou qu'aucune
-/// scène ne nomme, n'appartient pas à ce qui est compilé : ni sa géométrie, ni sa lampe, ni son
-/// remplaçant dans le proxy. Cet ensemble est le seul que la sélection, le proxy et les lampes
-/// consultent, pour qu'ils ne puissent pas répondre trois choses différentes.
+/// Nodes the rendered scene reaches from its roots. A node of another scene, or
+/// that no scene names, does not belong to what is compiled: neither its geometry,
+/// nor its light, nor its stand-in in the proxy. This set is the only one
+/// selection, the proxy and lights consult, so they cannot answer three different
+/// things.
 pub(super) fn scene_nodes(g: &Value) -> Result<BTreeSet<usize>> {
     let nodes = values(g, "nodes")?;
     let mut stack = scene_roots(g, nodes)?;

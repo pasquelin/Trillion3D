@@ -1,4 +1,4 @@
-// les bornes de cascade du soleil.
+// sun cascade bounds.
 import { LIGHT_SETTINGS } from '../sceneLightContracts.ts';
 import { sunCascadeOf } from '../sceneLightSunCascades.ts';
 import { graine, mesure, stress, rapport } from './socle.mjs';
@@ -24,34 +24,34 @@ for (let i = 0; i < 400; i++) immobiles.push(vue(0.1, 500, 16 / 9, 0.6));
 const hostiles = [];
 for (const near of HOSTILES) for (const far of HOSTILES) hostiles.push(vue(near, far, 1, 0.7));
 
-const faces = (cascadeDe) => (vues) => {
-  const sortie = new Float64Array(vues.length * LIGHT_SETTINGS.sunCascades * 7);
+const faces = (cascadeDe) => (views) => {
+  const output = new Float64Array(views.length * LIGHT_SETTINGS.sunCascades * 7);
   let at = 0;
-  for (const view of vues) {
+  for (const view of views) {
     for (let face = 0; face < LIGHT_SETTINGS.sunCascades; face++) {
       const c = cascadeDe(view, AXE, face, 2048);
-      sortie[at++] = c.center[0];
-      sortie[at++] = c.center[1];
-      sortie[at++] = c.center[2];
-      sortie[at++] = c.radius;
-      sortie[at++] = c.boxCenter[0];
-      sortie[at++] = c.boxCenter[1];
-      sortie[at++] = c.boxCenter[2];
+      output[at++] = c.center[0];
+      output[at++] = c.center[1];
+      output[at++] = c.center[2];
+      output[at++] = c.radius;
+      output[at++] = c.boxCenter[0];
+      output[at++] = c.boxCenter[1];
+      output[at++] = c.boxCenter[2];
     }
   }
-  return sortie;
+  return output;
 };
 
 const cas = [
-  { nom: '400 vues qui bougent', entree: images, taille: 400 },
-  { nom: '400 images vue immobile', entree: immobiles, taille: 400 },
-  { nom: 'distances hostiles', entree: hostiles, taille: hostiles.length },
-  { nom: 'une seule vue', entree: [images[0]], taille: 1 },
-  { nom: 'aucune vue', entree: [], taille: 0 },
+  { name: '400 vues qui bougent', input: images, size: 400 },
+  { name: '400 images vue immobile', input: immobiles, size: 400 },
+  { name: 'distances hostiles', input: hostiles, size: hostiles.length },
+  { name: 'une seule vue', input: [images[0]], size: 1 },
+  { name: 'aucune vue', input: [], size: 0 },
 ];
 
 const res = await mesure({
-  nom: 'bornes cascade soleil',
+  name: 'bornes cascade soleil',
   fichier: 'packages/sdk-core/sceneLightSunCascades.ts',
   cas,
   calcul: faces(sunCascadeOf),
@@ -60,13 +60,13 @@ const res = await mesure({
 });
 
 await stress({
-  nom: 'sunCascadeOf extremes',
+  name: 'sunCascadeOf extremes',
   calcul: (v) => sunCascadeOf(v, AXE, 0, 2048),
   extremes: [
-    { nom: 'near=far', entree: vue(10, 10, 1, 0.5) },
-    { nom: 'near negatif', entree: vue(-5, 50, 1, 0.5) },
-    { nom: 'fov infini', entree: vue(0.1, 100, 1, Infinity) },
+    { name: 'near=far', input: vue(10, 10, 1, 0.5) },
+    { name: 'near negatif', input: vue(-5, 50, 1, 0.5) },
+    { name: 'fov infini', input: vue(0.1, 100, 1, Infinity) },
   ],
 });
 
-rapport('soleil-cascades', [res], 'G8 rend exactement les mêmes bornes de cascade');
+rapport('soleil-cascades', [res], 'G8 yields the exact same cascade bounds');

@@ -1,5 +1,5 @@
-// Oracles purs de A13 et A14, sans effet de bord : `chargement.bench.mjs` les mesure, les tests
-// unitaires les importent comme référence.
+// Pure A13 and A14 oracles, no side effects: `chargement.bench.mjs` measures them; unit
+// tests import them as reference.
 const OPTIONAL = [
   ['normal', 3, 1],
   ['uv', 2, 2],
@@ -8,7 +8,7 @@ const OPTIONAL = [
   ['color', 4, 16],
 ];
 
-/** `geometryPage.ts:63-88` avant le lot A : `DataView` élément par élément, fermeture par sommet. */
+/** `geometryPage.ts:63-88` before batch A: `DataView` element by element, a closure per vertex. */
 export function referenceDecode(indexData, vertexData, indexCount, vertexCount, flags, stride) {
   const indexView = new DataView(indexData.buffer),
     indices = new Uint32Array(indexCount);
@@ -39,7 +39,7 @@ export function referenceDecode(indexData, vertexData, indexCount, vertexCount, 
   return { indices, attributes };
 }
 
-/** `telemetry.ts:24-33` avant le lot A : `push` puis `shift` de tout le tableau. */
+/** `telemetry.ts:24-33` before batch A: `push` then `shift` of the whole array. */
 export function referenceIntervals(max, valeurs) {
   const intervals = [];
   for (const dt of valeurs)
@@ -50,6 +50,6 @@ export function referenceIntervals(max, valeurs) {
   return intervals;
 }
 
-/** `clusterPages.ts:12-15` et `streamingFetch.ts:4-7` avant le lot A : un `toString` par octet. */
+/** `clusterPages.ts:12-15` and `streamingFetch.ts:4-7` before batch A: one `toString` per byte. */
 export const referenceHex = (digested) =>
   Array.from(digested, (b) => b.toString(16).padStart(2, '0')).join('');

@@ -1,55 +1,55 @@
-# Fixture de correction — aperçus progressifs des textures couleur
+# Correction fixture — progressive colour-texture previews
 
-Une scène glTF minuscule qui fixe la section `texturePreviews` du compilateur de bout en bout :
-glTF réel → `compile()` → cache → colonnes `texturePreview*` de `clusters.bin`. Les tests en
-éprouvette de `../../src/texture_preview/tests/` fixent la math sur des images construites en
-mémoire ; celui-ci fixe les octets qu'un moteur lira vraiment, décodeur PNG et décodeur JPEG
-compris.
+A tiny glTF scene that pins the compiler's `texturePreviews` section end to end:
+real glTF → `compile()` → cache → `texturePreview*` columns of `clusters.bin`. The in-memory
+unit tests of `../../src/texture_preview/tests/` pin the math on images built in
+memory; this one pins the bytes an engine will actually read, PNG decoder and JPEG decoder
+included.
 
 ## `atlas-couleur`
 
-Quatre quads de deux triangles, écartés de trois unités pour qu'aucune paire ne soit coplanaire —
-la scène ne parle que de textures.
+Four two-triangle quads, spaced three units apart so no pair is coplanar —
+the scene speaks only of textures.
 
-| primitive | matériau | classe | texture couleur |
+| primitive | material | class | colour texture |
 | --- | --- | --- | --- |
 | 0 | `beton` | opaque | `baseColorTexture` → texture 0 |
-| 1 | `grille` | `MASK`, `alphaCutoff` **0,25** | `baseColorTexture` → texture 1 |
+| 1 | `grille` | `MASK`, `alphaCutoff` **0.25** | `baseColorTexture` → texture 1 |
 | 2 | `vitre` | `BLEND` | `baseColorTexture` → texture 2 |
-| 3 | `lampe` | opaque, émissif | `emissiveTexture` → **texture 2**, partagée avec `vitre` |
+| 3 | `lampe` | opaque, emissive | `emissiveTexture` → **texture 2**, shared with `vitre` |
 
-| image | fichier | provenance | dimensions | premier niveau porté | niveaux |
+| image | file | provenance | dimensions | first carried level | levels |
 | --- | --- | --- | --- | --- | --- |
 | 0 | `base-degrade.png` | `uri` | 40 × 24 | 0 | 6 |
-| 1 | — | `bufferView` 6 de `atlas-couleur.bin` | 24 × 16 | 0 | 5 |
+| 1 | — | `bufferView` 6 of `atlas-couleur.bin` | 24 × 16 | 0 | 5 |
 | 2 | `lueur.jpg` | `uri` | 80 × 48 | **1** | 6 |
 
-Ce que chaque choix met sous surveillance :
+What each choice puts under watch:
 
-- **40 × 24** n'est ni carré ni multiple de seize : les cases de la moyenne de boîte n'ont pas
-  toutes la même taille et le dernier niveau s'atteint par troncature.
-- **80 × 48** est la seule image dont un côté dépasse `PREVIEW_BASE` : son premier niveau porté est
-  le mip 1, jamais le mip 0. C'est aussi le seul JPEG, donc le second décodeur.
-- **24 × 16 à alpha strictement binaire** (une ellipse centrée, couverture exactement 192 texels
-  sur 384) est la seule texture dont toutes les liaisons sont des couleurs de base `MASK` : c'est
-  la seule dont l'alpha est remis à l'échelle pour préserver cette couverture. Les deux autres
-  gardent leur alpha intact, ce que `coveredAtMaskCutoff` de `expected.json` montre en restant égal
-  au nombre total de texels de chaque niveau.
-- **La texture 2 est partagée** entre un `BLEND` et un émissif : aucune de ses liaisons n'est un
-  `MASK`, donc aucun seuil ne s'y applique.
-- **Une image par `uri`, une par `bufferView`** : les deux chemins de lecture des octets sources.
+- **40 × 24** is neither square nor a multiple of sixteen: the box-average cells do not all
+  have the same size and the last level is reached by truncation.
+- **80 × 48** is the only image whose one side exceeds `PREVIEW_BASE`: its first carried level is
+  mip 1, never mip 0. It is also the only JPEG, hence the second decoder.
+- **24 × 16 with strictly binary alpha** (a centred ellipse, coverage of exactly 192 texels
+  out of 384) is the only texture whose every binding is a `MASK` base colour: it is
+  the only one whose alpha is rescaled to preserve that coverage. The other two
+  keep their alpha intact, which `coveredAtMaskCutoff` of `expected.json` shows by remaining equal
+  to the total texel count of each level.
+- **Texture 2 is shared** between a `BLEND` and an emissive: none of its bindings is a
+  `MASK`, so no cutoff applies.
+- **One image by `uri`, one by `bufferView`**: both source-byte read paths.
 
 ## `expected.json`
 
-Pour chaque entrée du sidecar : les dix nombres qu'elle déclare, le condensé de son image source,
-puis chaque niveau avec ses dimensions, le **sha256 de tous ses octets**, cinq texels (quatre coins
-et centre) et sa couverture au seuil du matériau `MASK`. Le sha256 fait rougir le doré dès qu'un
-octet d'aperçu change ; les texels et la couverture disent *où* le calcul a bougé. `case` et `rule`
-ne sont que de la prose, le test les retire avant de comparer.
+For each sidecar entry: the ten numbers it declares, the digest of its source image,
+then each level with its dimensions, the **sha256 of all its bytes**, five texels (four corners
+and centre) and its coverage at the `MASK` material cutoff. The sha256 trips the golden as soon as a
+preview byte changes; the texels and the coverage say *where* the computation moved. `case` and `rule`
+are prose only, the test strips them before comparing.
 
-## Régénérer
+## Regenerating
 
-La scène, ses images et son attendu sortent tous du même code, `../../src/tests/apercus_source.rs` :
+The scene, its images and its expected all come from the same code, `../../src/tests/apercus_source.rs`:
 
 ```
 cargo test --release --manifest-path packages/asset-compiler-rust/Cargo.toml \
@@ -57,7 +57,7 @@ cargo test --release --manifest-path packages/asset-compiler-rust/Cargo.toml \
 npx prettier --write packages/asset-compiler-rust/fixtures/apercus/atlas-couleur/expected.json
 ```
 
-Le test qui l'écrit est ignoré par défaut. **Le diff qu'il produit se relit avant d'être commité** :
-un attendu régénéré sans lecture ne surveille plus rien. Les octets d'un JPEG décodé dépendent du
-décodeur : un changement de version de la caisse `image` demande de régénérer, et de justifier
-l'écart dans le message de commit.
+The test that writes it is ignored by default. **The diff it produces is re-read before being committed**:
+a regenerated expected without a reading no longer watches anything. The bytes of a decoded JPEG depend on the
+decoder: a version change of the `image` crate requires regenerating, and justifying
+the gap in the commit message.

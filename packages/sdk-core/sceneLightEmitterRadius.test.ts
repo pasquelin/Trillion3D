@@ -26,14 +26,14 @@ const view = {
   far: 100,
 };
 
-test("le rayon d'émetteur traverse la validation, et n'est accepté que dans (0, portée)", () => {
+test('the emitter radius passes validation, and is accepted only in (0, range)', () => {
   assert.equal(validateSceneLight(lanterne(0.2)).emitterRadius, 0.2);
   assert.equal(validateSceneLight(lanterne()).emitterRadius, undefined);
   for (const refuse of [0, -1, 30, 45, Number.NaN])
-    assert.throws(() => validateSceneLight(lanterne(refuse)), /rayon d'émetteur/);
+    assert.throws(() => validateSceneLight(lanterne(refuse)), /emitter radius/);
 });
 
-test("une lampe directionnelle n'a pas d'enveloppe, et le contrat refuse de lui en prêter une", () => {
+test('a directional light has no envelope, and the contract refuses to lend it one', () => {
   assert.throws(
     () =>
       validateSceneLight({
@@ -49,8 +49,8 @@ test("une lampe directionnelle n'a pas d'enveloppe, et le contrat refuse de lui 
   );
 });
 
-test("le plan proche d'une carte d'ombre ne vient que de la portée de la lampe", () => {
-  // Le réglage de portée 30 m donne le plan proche relevé par le vérificateur : 0,15 m.
+test("a shadow map's near plane comes only from the light's range", () => {
+  // The 30 m range setting gives the near plane recorded by the checker: 0.15 m.
   const sans = shadowProjection(Math.PI / 2, 30).near;
   assert.equal(
     sans,
@@ -59,7 +59,7 @@ test("le plan proche d'une carte d'ombre ne vient que de la portée de la lampe"
   assert.equal(sans, 0.15);
 });
 
-test("la face d'ombre garde ce plan proche, que la lampe déclare une enveloppe ou non", () => {
+test('the shadow face keeps this near plane, whether the light declares an envelope or not', () => {
   const matrices = new Float32Array(16);
   const nu = writeFace(matrices, 0, null, 0, validateSceneLight(lanterne()), 0, view, 1024).near;
   const enveloppe = writeFace(
@@ -73,17 +73,17 @@ test("la face d'ombre garde ce plan proche, que la lampe déclare une enveloppe 
     1024,
   ).near;
   assert.equal(nu, 0.15);
-  // L'enveloppe n'est plus retirée par un plan proche relevé — qui retirerait un cube, jusqu'à √3
-  // fois le rayon dans les diagonales — mais par la distance au centre de la lampe, là où la
-  // profondeur d'ombre s'écrit. La projection, elle, ne bouge pas d'un texel.
+  // The envelope is no longer removed by a recorded near plane — which would remove a cube, up to √3
+  // times the radius on the diagonals — but by the distance to the light centre, where
+  // shadow depth is written. The projection itself does not move by a texel.
   assert.equal(enveloppe, nu);
 });
 
-test("le point diagonal de l'audit franchit la projection et tombe hors de la sphère, un point plus proche y tombe", () => {
-  // Reproduction de repros.mts (audit VERIFICATION_STABILISATION_5896648) : lampe à l'origine,
-  // portée 30 m, rayon d'émetteur 0,20 m. Le point (0,19 ; 0,18 ; 0,17) est celui que l'ancien plan
-  // proche relevé rejetait des six faces ; il doit désormais être accepté par au moins une d'elles,
-  // puisque la projection ne dépend plus que de la portée.
+test("the audit's diagonal point passes the projection and falls outside the sphere, a closer point falls in", () => {
+  // Reproduction of repros.mts (audit VERIFICATION_STABILISATION_5896648): light at the origin,
+  // range 30 m, emitter radius 0.20 m. Point (0.19; 0.18; 0.17) is the one the old recorded
+  // near plane rejected from the six faces; it must now be accepted by at least one of them,
+  // since the projection now depends only on range.
   const light = validateSceneLight(lanterne(0.2));
   const point = [0.19, 0.18, 0.17] as const;
   const accepted = Array.from({ length: 6 }, (_, face) => {
@@ -105,22 +105,22 @@ test("le point diagonal de l'audit franchit la projection et tombe hors de la sp
       clip[2] <= clip[3]
     );
   });
-  assert.ok(accepted.some(Boolean), 'le point doit appartenir à au moins une face');
+  assert.ok(accepted.some(Boolean), 'the point must belong to at least one face');
   const distance = Math.hypot(...point);
-  assert.ok(distance > 0.2, `distance ${distance} devrait dépasser le rayon 0,2`);
+  assert.ok(distance > 0.2, `distance ${distance} should exceed radius 0.2`);
   assert.ok(Math.abs(distance - 0.3121) < 1e-3);
-  // Un point à 0,19 m du centre, lui, tombe dans la sphère : c'est le fragment que le nuanceur
-  // d'ombre écarte (`gpuShadowShader.ts`), pas la face qui l'accepte tout de même.
+  // A point 0.19 m from the centre, for its part, falls in the sphere: that is the fragment the
+  // shadow shader discards (`gpuShadowShader.ts`), not the face that still accepts it.
   assert.ok(Math.hypot(0.19, 0, 0) < 0.2);
 });
 
-test("régler le seul rayon d'émetteur périme bien la carte d'ombre de la lampe", () => {
+test("setting the emitter radius alone does stale the light's shadow map", () => {
   const store = createSceneLightStore();
   store.add(validateSceneLight(lanterne()));
   const before = store.epoch;
   store.set('lanterne', { emitterRadius: 0.25 });
-  // Une mutation identique ne périme rien (lot « mutations idempotentes ») ; celle-ci change la
-  // carte d'ombre de la lampe, donc elle doit être vue.
+  // An identical mutation stales nothing (batch "idempotent mutations"); this one changes the
+  // light's shadow map, so it must be seen.
   assert.notEqual(store.epoch, before);
   assert.equal(store.light('lanterne')!.emitterRadius, 0.25);
   const stable = store.epoch;

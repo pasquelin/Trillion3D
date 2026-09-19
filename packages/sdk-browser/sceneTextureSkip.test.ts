@@ -19,10 +19,10 @@ const entry = (image: number, firstLevel: number, bakedLevels: number): TextureP
 const manifest = (previews: TexturePreview[]): ClusterManifest =>
   ({ textures: { url: 'x' }, texturePreviews: previews }) as unknown as ClusterManifest;
 
-// Comportement : l'adresse sautée est celle que le chargeur de l'hôte demandera, par la règle que
-// l'appelant lui donne — jamais normalisée ici, sinon un `./` ou un espace encodé par `new URL`
-// ferait lire l'image malgré tout.
-test('l’adresse d’une image cuite est celle de l’hôte, telle que sa règle l’écrit', () => {
+// Behaviour: the skipped address is the one the host loader will ask for, by the rule the
+// caller gives it — never normalised here, or a `./` or a space encoded by `new URL`
+// would still read the image.
+test("a baked image address is the host's, as its rule writes it", () => {
   const urls = bakedImageUrls(
     manifest([entry(0, 2, 2), entry(1, 2, 2)]),
     [{ uri: './tex/a.png' }, { uri: 'tex/b c.png' }],
@@ -34,9 +34,9 @@ test('l’adresse d’une image cuite est celle de l’hôte, telle que sa règl
   );
 });
 
-// Comportement : une image n'est sautée que si CHAQUE entrée qui la lit est entière ; sans entrée,
-// ou en `data:`, elle est lue comme avant.
-test('une image n’est sautée que si toutes ses entrées sont entières', () => {
+// Behaviour: an image is skipped only if every entry that reads it is whole; with no entry,
+// or as `data:`, it is read as before.
+test('an image is skipped only if all of its entries are whole', () => {
   const urls = bakedImageUrls(
     manifest([entry(0, 2, 2), entry(0, 2, 0), entry(1, 2, 2), entry(2, 2, 2)]),
     [{ uri: 'a.png' }, { uri: 'b.png' }, { uri: 'data:image/png;base64,AAAA' }, { uri: 'c.png' }],

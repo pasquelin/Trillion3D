@@ -1,9 +1,9 @@
-//! Les fichiers de données que la scène cite : documents YAML lus une fois, matériaux par GUID.
+//! Data files the scene cites: YAML documents read once, materials by GUID.
 use super::*;
 
 impl Builder<'_, '_> {
-    /// Le document d'un fichier de données, lu une seule fois. Son empreinte entre dans l'identité
-    /// de la conversion : un `.prefab` ou un `.mat` modifié donne une autre scène intermédiaire.
+    /// Document of a data file, read once. Its digest enters the conversion identity: a modified
+    /// `.prefab` or `.mat` yields a different intermediate scene.
     pub(super) fn document(&mut self, path: &Path) -> Option<Rc<Document>> {
         if let Some(known) = self.documents.get(path) {
             return Some(known.clone());
@@ -15,7 +15,7 @@ impl Builder<'_, '_> {
                 .scene
                 .report
                 .notes
-                .push(format!("fichier de données illisible: {name}"));
+                .push(format!("unreadable data file: {name}"));
             return None;
         };
         let digest = hash(text.as_bytes());
@@ -37,7 +37,7 @@ impl Builder<'_, '_> {
         Some(document)
     }
 
-    /// Le matériau glTF d'un GUID de `.mat`, versé une seule fois.
+    /// glTF material of a `.mat` GUID, poured once.
     pub(super) fn material(&mut self, reference: &Ref) -> Option<usize> {
         let guid = reference.guid.as_ref()?;
         if let Some(known) = self.materials.get(guid) {
@@ -72,5 +72,5 @@ impl Builder<'_, '_> {
     }
 }
 
-/// La classe d'un `Material` sérialisé.
+/// Class of a serialized `Material`.
 const MATERIAL: u32 = 21;

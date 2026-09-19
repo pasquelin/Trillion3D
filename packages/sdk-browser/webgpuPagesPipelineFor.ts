@@ -1,4 +1,3 @@
-import * as THREE from 'three';
 import type { PageRec } from './pageSelection.ts';
 import { projectedPageError } from './pageSelection.ts';
 import { dropPoolBindGroups } from './webgpuPagesDrops.ts';
@@ -7,12 +6,11 @@ import { visLayerPipelineIndex } from './webgpuVisibilityPipelines.ts';
 import { screenErrorColor } from './diagnosticColors.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 import { PAGES_GREEN, clusterRgb, linearColor } from './webgpuPagesHelpers.ts';
-import { materialSide } from './triangleDiagnostic.ts';
+import { sideOf } from './materialSide.ts';
 import { windingCw } from './webgpuPagesWinding.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
-/** Ordre des slots indirects de la couche 0 : les trois pipelines non testés, puis leurs jumeaux
- *  testés par la Hi-Z. */
+/** Order of layer-0 indirect slots: the three untested pipelines, then their Hi-Z-tested twins. */
 const VIS_SLOTS = [
   'visPipelineBack',
   'visPipelineNone',
@@ -23,22 +21,22 @@ const VIS_SLOTS = [
 ] as const;
 
 export function pipelineFor(rt: WebgpuPagesCore, rec: PageRec) {
-  const side = materialSide(rec.material);
-  if (side === THREE.DoubleSide) return rt.gpu.pipelineNone;
+  const side = sideOf(rec.material);
+  if (side === 'double') return rt.gpu.pipelineNone;
   return windingCw(rec) ? rt.gpu.pipelineBackCw : rt.gpu.pipelineBack;
 }
 
-/** Rang du mode de face d'un cluster dans un jeu de couche : dos, aucune, face, dos inversé, face
- *  inversée. Le même ordre que `LAYER_CULLS` construit. */
+/** Rank of a cluster's face mode in a layer set: back, none, front, inverted back, inverted front.
+ *  The same order `LAYER_CULLS` builds. */
 const visCullSlot = (rec: PageRec) => {
-  const side = materialSide(rec.material);
-  if (side === THREE.DoubleSide) return 1;
-  if (side === THREE.BackSide) return windingCw(rec) ? 4 : 2;
+  const side = sideOf(rec.material);
+  if (side === 'double') return 1;
+  if (side === 'back') return windingCw(rec) ? 4 : 2;
   return windingCw(rec) ? 3 : 0;
 };
 
-/** Le pipeline d'un slot indirect : la couche 0 garde les siens, chaque couche suivante a les mêmes
- *  états plus son décalage de profondeur. Le rang de face d'un slot est son `bin`. */
+/** Pipeline of an indirect slot: layer 0 keeps its own, each later layer has the same states plus
+ *  its depth bias. A slot's face rank is its `bin`. */
 export function visSlotPipeline(rt: WebgpuPagesCore, slot: number) {
   const { vis } = rt;
   const layer = Math.floor(slot / BASE_SLOTS),
@@ -47,26 +45,26 @@ export function visSlotPipeline(rt: WebgpuPagesCore, slot: number) {
   return vis.visLayerPipelines[visLayerPipelineIndex(layer, within >= 3, within % 3)];
 }
 
-/** Le pipeline d'un cluster dessiné SANS compaction indirecte. Ce chemin-là ne connaît pas la
- *  moitié testée : sans compaction il n'y a pas de partition, et l'image tient en une passe. */
+/** Pipeline of a cluster drawn WITHOUT indirect compaction. That path does not know the tested
+ *  half: without compaction there is no partition, and the image fits in one pass. */
 export function visPipelineFor(rt: WebgpuPagesCore, rec: PageRec) {
   const { vis } = rt;
   const layer = Math.min(rec.depthLayer, vis.drawLayerSlots - 1);
   if (layer > 0)
     return vis.visLayerPipelines[visLayerPipelineIndex(layer, false, visCullSlot(rec))];
-  const side = materialSide(rec.material),
+  const side = sideOf(rec.material),
     cw = windingCw(rec);
-  if (side === THREE.DoubleSide) return vis.visPipelineNone;
-  if (side === THREE.BackSide) return cw ? vis.visPipelineFrontCw : vis.visPipelineFront;
+  if (side === 'double') return vis.visPipelineNone;
+  if (side === 'back') return cw ? vis.visPipelineFrontCw : vis.visPipelineFront;
   return cw ? vis.visPipelineBackCw : vis.visPipelineBack;
 }
 
 export const visBin = (rec: PageRec): 0 | 1 | 2 => {
-  const side = materialSide(rec.material);
-  if (side === THREE.DoubleSide) return BIN_NONE;
+  const side = sideOf(rec.material);
+  if (side === 'double') return BIN_NONE;
   // Indirect pipelines share ccw front faces; a reflection swaps which side
   // must be culled instead of requiring three more draw slots.
-  return (side === THREE.BackSide) !== windingCw(rec) ? BIN_FRONT : BIN_BACK;
+  return (side === 'back') !== windingCw(rec) ? BIN_FRONT : BIN_BACK;
 };
 
 export function bindGroupFor(rt: WebgpuPagesCore, device: GPUDevice, position: GPUBuffer) {

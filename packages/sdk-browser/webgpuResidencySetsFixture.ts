@@ -12,7 +12,7 @@ export function scene() {
   const opaque = Array.from({ length: 16 }, (_, id) => rec(`o${id >> 1}`, id >> 1));
   const transparent = Array.from({ length: 4 }, (_, id) => rec(`t${id}`, id));
   const packed = [...opaque, ...transparent];
-  // Le rang de la page voyage sur la page, comme le catalogue du moteur le pose.
+  // The page's rank travels on the page, as the engine catalogue posts it.
   packed.forEach((page, index) => (page.packedIndex = index));
   const cover = [rec('o0', 0), rec('t0', 0)];
   const tracking = createWebgpuPageTracking([...packed, ...cover]);
@@ -70,8 +70,8 @@ export function check(
 ) {
   const got = frame(world, cutIds, room);
   const want = reference(world, cutIds, room);
-  assert.equal(got.requested, want.requested, `${label}: pages demandées`);
-  assert.deepEqual(keysOf(world.tracking.wanted), want.wanted, `${label}: file de résidence`);
-  assert.deepEqual(keysOf(world.tracking.keep), want.keep, `${label}: ensemble gardé`);
-  assert.equal(got.keep, want.keep.size, `${label}: taille gardée`);
+  assert.equal(got.requested, want.requested, `${label}: requested pages`);
+  assert.deepEqual(keysOf(world.tracking.wanted), want.wanted, `${label}: residency queue`);
+  assert.deepEqual(keysOf(world.tracking.keep), want.keep, `${label}: kept set`);
+  assert.equal(got.keep, want.keep.size, `${label}: kept size`);
 }

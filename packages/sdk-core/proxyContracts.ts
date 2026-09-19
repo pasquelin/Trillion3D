@@ -1,73 +1,73 @@
 /**
- * Le proxy résident : format du produit de cache que les rayons de lumière touchent (LC1).
+ * The resident proxy: format of the cache product that light rays hit (LC1).
  *
- * Rien ici ne nomme une scène. Le proxy est une représentation grossière de toute la géométrie,
- * construite à la compilation, indépendante de la caméra, à triangles de taille bornée : le
- * compilateur ramène les sommets sur une grille, écarte ce qui n'a plus de surface et redécoupe ce
- * qui reste trop grand, jusqu'à tenir le budget de triangles. Cette taille bornée est aussi celle
- * d'une maille du cache de surfaces, qui porte une valeur par triangle et par face.
+ * Nothing here names a scene. The proxy is a coarse representation of all the geometry,
+ * built at compile time, independent of the camera, with triangles of bounded size: the
+ * compiler snaps vertices onto a grid, discards what no longer has surface and recuts what
+ * remains too large, until it holds the triangle budget. This bounded size is also that
+ * of a cell of the surface cache, which carries one value per triangle and per face.
  *
- * Le BVH est large : quatre enfants par nœud, boîtes écrites sur huit bits dans les bornes exactes
- * du parent et arrondies vers l'extérieur, si bien qu'une boîte quantifiée contient toujours ce
- * qu'elle contenait. Le moteur teste les quatre d'un coup, descend sur la plus proche et empile les
- * autres : la même borne de traversée couvre quatre fois plus d'arbre qu'un arbre binaire.
+ * The BVH is wide: four children per node, boxes written on eight bits in the parent's exact
+ * bounds and rounded outward, so a quantized box always contains what
+ * it contained. The engine tests all four at once, descends on the nearest and stacks the
+ * others: the same traversal bound covers four times more tree than a binary tree.
  */
 
-/** Version du produit de cache « proxy ». Un proxy d'une autre version est refusé, jamais deviné. */
+/** Version of the "proxy" cache product. A proxy of another version is rejected, never guessed. */
 export const SCENE_PROXY_VERSION = 2;
-/** 'W','G','P','X' lus comme un entier non signé de 32 bits en petit-boutiste. */
+/** 'W','G','P','X' read as an unsigned 32-bit integer little-endian. */
 export const SCENE_PROXY_MAGIC = 0x58504757;
-/** Entiers d'en-tête : signature, version, triangles, nœuds. */
+/** Header integers: signature, version, triangles, nodes. */
 export const SCENE_PROXY_HEADER_WORDS = 4;
-/** Nombres par triangle du proxy : trois sommets monde, sans normale — elle se déduit du triangle. */
+/** Numbers per proxy triangle: three world vertices, no normal — it is deduced from the triangle. */
 export const PROXY_TRIANGLE_FLOATS = 9;
-/** Nombres par nœud du BVH : ses bornes exactes, repère des boîtes quantifiées de ses enfants. */
+/** Numbers per BVH node: its exact bounds, frame of its children's quantized boxes. */
 export const PROXY_NODE_FLOATS = 6;
-/** Enfants d'un nœud : quatre boîtes testées d'un coup, la plus proche gardée pour la suite. */
+/** Children of a node: four boxes tested at once, the nearest kept for the rest. */
 export const PROXY_CHILDREN = 4;
-/** Entiers par enfant : deux mots de boîte quantifiée et de compte, puis le lien. */
+/** Integers per child: two words of quantized box and count, then the link. */
 export const PROXY_CHILD_WORDS = 3;
-/** Entiers par nœud : ses quatre enfants bout à bout. */
+/** Integers per node: its four children concatenated. */
 export const PROXY_NODE_WORDS = PROXY_CHILDREN * PROXY_CHILD_WORDS;
 
-/** Les colonnes du proxy, telles que son objet de cache les porte et que le GPU les recopie. */
+/** Proxy columns, as its cache object carries them and the GPU copies them. */
 export interface SceneProxyColumns {
-  /** Trois sommets monde par triangle, `PROXY_TRIANGLE_FLOATS` nombres chacun. */
+  /** Three world vertices per triangle, `PROXY_TRIANGLE_FLOATS` numbers each. */
   triangles: Float32Array;
-  /** Albédo diffus linéaire du triangle, empaqueté RGBA8. */
+  /** Linear diffuse albedo of the triangle, packed RGBA8. */
   albedo: Uint32Array;
-  /** Bornes exactes de chaque nœud du BVH. */
+  /** Exact bounds of each BVH node. */
   nodeBounds: Float32Array;
-  /** Les quatre enfants de chaque nœud : boîte quantifiée, compte de triangles, présence, lien. */
+  /** The four children of each node: quantized box, triangle count, presence, link. */
   nodeChildren: Uint32Array;
 }
 
 /**
- * Ce que le manifeste dit du proxy résident : où le lire, ce qu'il pèse et ce qu'il vaut. C'est un
- * produit de cache à part, et non une colonne du sidecar : un manifeste sans lui reste lisible mot
- * pour mot par un moteur qui l'ignore, et ses dizaines de mégaoctets ne retardent pas la première
- * image d'une scène qui ne déclare aucune lampe.
+ * What the manifest says of the resident proxy: where to read it, what it weighs and what it is
+ * worth. It is a separate cache product, not a sidecar column: a manifest without it stays readable
+ * word for word by an engine that ignores it, and its tens of megabytes do not delay the first
+ * frame of a scene that declares no light.
  */
 export interface SceneProxyDescriptor {
   version: number;
   url: string;
   sha256: string;
   bytes: number;
-  /** Erreur géométrique du proxy en mètres : celle de la coupe, plus celle de la simplification. */
+  /** Geometric error of the proxy in metres: that of the cut, plus that of simplification. */
   errorMetres: number;
-  /** Plancher du seuil : ce que la spécification demande avant que le budget ne l'élargisse. */
+  /** Floor of the threshold: what the specification asks before the budget widens it. */
   errorFloorMetres: number;
-  /** Pas de grille que la simplification a pris : la taille d'un triangle, donc d'une maille. */
+  /** Grid step that simplification took: the size of a triangle, hence of a cell. */
   cellMetres: number;
-  /** Budget de triangles publié, celui qui a décidé du seuil réellement obtenu. */
+  /** Published triangle budget, the one that decided the threshold actually obtained. */
   triangleBudget: number;
-  /** Emprise monde du proxy : trois bornes basses puis trois hautes. */
+  /** World extent of the proxy: three lower bounds then three upper. */
   bounds: [number, number, number, number, number, number];
   triangles: number;
   nodes: number;
 }
 
-/** Le proxy lu : son descriptif et ses colonnes, vues sur les octets de son objet de cache. */
+/** The read proxy: its descriptor and its columns, views on the bytes of its cache object. */
 export interface SceneProxy extends SceneProxyDescriptor {
   data: SceneProxyColumns;
 }

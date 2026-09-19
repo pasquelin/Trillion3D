@@ -8,28 +8,29 @@ import {
 import { CULL_STRIDE, DAG_NODE_FLOATS, type DagRoot } from './gpuDagTypes.ts';
 
 /**
- * Le nœud de coupe tel que la carte le lit, et le PLANCHER d'erreur du sous-arbre qu'il porte
- * désormais.
+ * The cut node as the GPU reads it, and the subtree error FLOOR it now carries.
  *
- * Le manifeste ne donne au nœud que le PLAFOND d'erreur du remplaçant : la descente ne sait donc
- * écarter qu'un sous-arbre trop fin, et descend jusqu'aux pages un sous-arbre trop grossier dont la
- * coupe ne prendra rien. Le plancher — la plus petite erreur propre du sous-arbre, avec la sphère
- * qui englobe celles qu'il résume — est l'autre moitié, celle que la coupe processeur pose déjà
- * (`pageSelectionCutNode.ts`). `cullingBounds` le dérive des pages à la préparation : rien du
- * compilateur, rien du format de page.
+ * The manifest only gives the node the replacement error CEILING: descent can
+ * therefore only drop a too-fine subtree, and walks down to pages a too-coarse
+ * subtree the cut will take nothing from. The floor — the smallest own error of
+ * the subtree, with the sphere that encloses those it summarises — is the other
+ * half, which the CPU cut already sets (`pageSelectionCutNode.ts`). `cullingBounds`
+ * derives it from the pages at prepare: nothing from the compiler, nothing from
+ * the page format.
  *
- * Quatre mots de plus par nœud, soit seize flottants devenus vingt-quatre : la sphère du plancher,
- * le plancher lui-même et un mot de drapeaux dont le seul bit dit si le sous-arbre porte une grappe
- * que rien ne remplace. Le repli épinglé de `dagMask` dessine ces grappes-là sans consulter aucun
- * seuil : la descente ne doit donc jamais les élaguer, quelle que soit leur erreur.
+ * Four more words per node, sixteen floats become twenty-four: the floor sphere,
+ * the floor itself, and a flags word whose only bit says whether the subtree
+ * carries a cluster nothing replaces. `dagMask`'s pinned fallback draws those
+ * clusters without consulting any threshold: descent must therefore never prune
+ * them, whatever their error.
  */
-/** Les rangs du nœud empaqueté, dans l'ordre où `struct CullNode` du nuanceur les déclare. Trois
- *  lecteurs les relisent — le nuanceur, l'oracle (`gpuDagOracleMath.ts`) et le comptage de frontière
- *  —, et ils ne sont écrits qu'ici : un champ déplacé ne peut donc pas laisser un lecteur derrière. */
+/** Packed-node ranks, in the order `struct CullNode` of the shader declares them. Three
+ *  readers reread them — the shader, the oracle (`gpuDagOracleMath.ts`) and frontier
+ *  counting — and they are written only here: a moved field cannot leave a reader behind. */
 export const NODE_MIN = 0,
   NODE_FIRST_CHILD = 3,
   NODE_MAX = 4,
-  /** Plafond d'erreur du remplaçant du sous-arbre, -1 quand le manifeste n'en porte pas. */
+  /** Replacement error ceiling of the subtree, -1 when the manifest does not carry one. */
   NODE_CEIL = 7,
   NODE_SPHERE = 8,
   NODE_WORLD = 12,
@@ -39,19 +40,19 @@ export const NODE_MIN = 0,
   NODE_FLOOR_SPHERE = 16,
   NODE_FLOOR = 20,
   NODE_FLAGS = 21;
-/** Les deux mots de calage qui portent le nœud à quatre-vingt-seize octets, alignés sur le vec4. */
+/** The two pad words that bring the node to ninety-six bytes, vec4-aligned. */
 const NODE_PAD = 22;
-/** Bit 0 des drapeaux de nœud : le sous-arbre porte une grappe que rien ne remplace. */
+/** Bit 0 of the node flags: the subtree carries a cluster nothing replaces. */
 export const NODE_HAS_ROOT = 1;
-/** Le plus grand f32 : le nuanceur ne peut pas écrire une constante infinie, et son plancher lit
- *  cette valeur là où la borne processeur rend l'infini. Les deux rejettent le même sous-arbre. */
+/** Largest f32: the shader cannot write an infinite constant, and its floor reads
+ *  this value where the CPU bound returns infinity. Both reject the same subtree. */
 const INF32 = 3.4e38;
 
 type Culling = NonNullable<DagRoot['culling']>;
 
-/** Les bornes de la primitive : celles que l'hôte a déjà dérivées, sinon les nôtres. Un même
- *  tableau de nœuds vient toujours avec les mêmes pages — un placement copie l'enveloppe, pas la
- *  donnée —, si bien que la réduction est faite une fois par tableau et retrouvée par identité. */
+/** Primitive bounds: those the host already derived, otherwise ours. The same
+ *  node array always comes with the same pages — a placement copies the envelope,
+ *  not the data — so the reduction is done once per array and recovered by identity. */
 export function cullingBoundsFor(
   culling: Culling,
   pages: DagRoot['pages'],
@@ -67,9 +68,9 @@ export function cullingBoundsFor(
 }
 
 /**
- * Recopie les nœuds d'une primitive dans le tableau de la carte et rend, par grappe, le nœud feuille
- * qui la possède. `owner` est rempli sur place ; une grappe qu'aucune feuille ne range reste à
- * `SELECTION_NONE`, comme pour la coupe processeur, et n'est jamais sélectionnée.
+ * Copies a primitive's nodes into the GPU array and returns, per cluster, the leaf
+ * node that owns it. `owner` is filled in place; a cluster no leaf stores stays at
+ * `SELECTION_NONE`, as for the CPU cut, and is never selected.
  */
 export function packCullingNodes(
   nodes: Float32Array,

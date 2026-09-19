@@ -1,48 +1,48 @@
 /**
- * Contrat publié du gouverneur de chemin de calcul (`mathPathGovernor.ts`), version 1.
+ * Published contract of the compute-path governor (`mathPathGovernor.ts`), version 1.
  *
- * Ce que l'hôte lit dans les métriques est ce que le gouverneur a MESURÉ, jamais une estimation :
- * une médiane qu'aucune exécution n'a nourrie vaut `null`, et un chemin qu'aucune décision n'a
- * encore arrêté vaut `null` lui aussi. Zéro dirait « mesuré à zéro ».
+ * What the host reads in the metrics is what the governor has MEASURED, never an estimate:
+ * a median that no execution has fed is `null`, and a path that no decision has
+ * yet settled is `null` too. Zero would say "measured at zero".
  */
 
-/** Les deux chemins portés. Le JavaScript est la référence et le repli ; le Wasm est l'accéléré. */
+/** The two paths carried. JavaScript is the reference and the fallback; Wasm is the accelerated one. */
 export type MathPath = 'js' | 'wasm';
-/** Ce qu'un hôte demande : un chemin imposé pour une campagne, ou l'arbitrage par la mesure. */
+/** What a host asks for: a path imposed for a campaign, or arbitration by measurement. */
 export type MathPathMode = MathPath | 'auto';
 
-/** Version du contrat de ce relevé. Un hôte qui ne la connaît pas ne lit pas les champs. */
+/** Version of this report's contract. A host that does not know it does not read the fields. */
 export const MATH_PATH_CONTRACT = 1;
 
-/** Le relevé d'une opération en lot nommée. */
+/** Report of a named batch operation. */
 export interface MathPathOperation {
-  /** Le chemin que la prochaine exécution jouera, `null` tant qu'aucune n'a eu lieu. */
+  /** The path the next execution will play, `null` until none has taken place. */
   path: MathPath | null;
-  /** Médiane glissante de la durée par élément, en nanosecondes ; `null` si non mesurée. */
+  /** Sliding median of duration per element, in nanoseconds; `null` if unmeasured. */
   jsNsPerElement: number | null;
   wasmNsPerElement: number | null;
-  /** Exécutions retenues dans chaque médiane. */
+  /** Executions retained in each median. */
   jsSamples: number;
   wasmSamples: number;
-  /** Bascules décidées depuis le début de la session. */
+  /** Switches decided since the start of the session. */
   switches: number;
-  /** Éléments traités depuis le début de la session, tous chemins confondus. */
+  /** Elements processed since the start of the session, all paths combined. */
   elements: number;
 }
 
-/** L'état du gouverneur pour toute la session. */
+/** Governor state for the whole session. */
 export interface MathPathMetrics {
   contract: number;
   mode: MathPathMode;
-  /** Le module WebAssembly est chargé, à la bonne version de contrat. */
+  /** The WebAssembly module is loaded, at the right contract version. */
   wasmAvailable: boolean;
-  /** Le module a été compilé avec `simd128` ; `null` tant qu'aucun module n'est chargé. */
+  /** The module was compiled with `simd128`; `null` until a module is loaded. */
   wasmSimd: boolean | null;
-  /** Résolution de l'horloge du fil, en millisecondes ; `null` tant qu'elle n'a pas été estimée. */
+  /** Thread clock resolution, in milliseconds; `null` until it has been estimated. */
   clockResolutionMs: number | null;
-  /** Vrai quand l'horloge est trop grossière pour arbitrer : tout reste sur le chemin JavaScript. */
+  /** True when the clock is too coarse to arbitrate: everything stays on the JavaScript path. */
   clockCoarse: boolean;
-  /** Pourquoi le chemin WebAssembly n'est pas jouable, ou `null` quand il l'est. */
+  /** Why the WebAssembly path is not playable, or `null` when it is. */
   unavailableReason: string | null;
   operations: Record<string, MathPathOperation>;
 }

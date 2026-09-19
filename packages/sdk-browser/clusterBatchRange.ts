@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-/** Forme structurelle d'un enregistrement de page. Volontairement structurelle : aucun couplage à pageSelection.ts. */
+/** Structural shape of a page record. Deliberately structural: no coupling to pageSelection.ts. */
 export type BatchPage = {
   id: number;
   url: string;
@@ -20,7 +20,7 @@ export type BatchPage = {
 
 export type FreeRange = { offset: number; length: number };
 
-/** Allocateur de plages : première place libre, fusion des voisins à la libération, croissance en dernier recours. */
+/** Range allocator: first free slot, neighbour merge on release, growth as last resort. */
 export class IndexRangeAllocator {
   private ranges: FreeRange[] = [];
   private total: number;
@@ -38,7 +38,7 @@ export class IndexRangeAllocator {
   get freeRanges(): readonly FreeRange[] {
     return this.ranges;
   }
-  /** Renvoie l'offset de la plage réservée, ou -1 si aucune place contiguë ne convient. */
+  /** Returns the offset of the reserved range, or -1 if no contiguous slot fits. */
   allocate(length: number) {
     if (!(length > 0)) return -1;
     for (let i = 0; i < this.ranges.length; i++) {
@@ -80,7 +80,7 @@ export class IndexRangeAllocator {
     }
     this.ranges.splice(i, 0, { offset, length });
   }
-  /** Étend la capacité ; la place ajoutée fusionne avec la fin libre. */
+  /** Extends capacity; the added room merges with the free tail. */
   grow(extra: number) {
     const added = Math.max(0, Math.floor(extra));
     if (!added) return this.total;
@@ -92,7 +92,7 @@ export class IndexRangeAllocator {
   }
 }
 
-/** Liste de sous-dessins réutilisée d'une image à l'autre. `starts` en octets (ce qu'attend Three.js), `counts` en indices. */
+/** Sub-draw list reused from frame to frame. `starts` in bytes (what Three.js expects), `counts` in indices. */
 export class DrawRanges {
   starts = new Int32Array(8);
   counts = new Int32Array(8);
@@ -100,7 +100,7 @@ export class DrawRanges {
   reset() {
     this.count = 0;
   }
-  /** Ajoute une plage ; fusionne avec la précédente si elle la prolonge. Renvoie true si un sous-dessin a été créé. */
+  /** Adds a range; merges with the previous one if it continues it. Returns true if a sub-draw was created. */
   push(offset: number, length: number) {
     const bytes = offset * Uint32Array.BYTES_PER_ELEMENT;
     if (this.count > 0) {

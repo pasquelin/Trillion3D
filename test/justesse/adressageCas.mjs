@@ -1,11 +1,11 @@
-// Défaut 4 : les cas d'adressage d'un texel et la règle de Three à laquelle on les compare.
+// Defect 4: texel addressing cases and the Three rule they are compared to.
 //
-// Three ne choisit pas lui-même le texel : il confie le mode de la carte à l'échantillonneur de la
-// carte graphique (`WebGLTextures` : RepeatWrapping → REPEAT, MirroredRepeatWrapping →
-// MIRRORED_REPEAT, ClampToEdgeWrapping → CLAMP_TO_EDGE). La référence est donc la règle entière
-// de la spécification OpenGL ES 3.0 (§ 3.8.10), la même que WebGPU : i = ⌊u·taille⌋, puis
-// serrage, modulo, ou modulo sur deux périodes dont la seconde est lue à rebours. Le script GPU
-// vérifie cette référence contre les vrais échantillonneurs, cas par cas.
+// Three does not pick the texel itself: it hands the map's wrap mode to the GPU sampler
+// (`WebGLTextures`: RepeatWrapping → REPEAT, MirroredRepeatWrapping → MIRRORED_REPEAT,
+// ClampToEdgeWrapping → CLAMP_TO_EDGE). The reference is therefore the full OpenGL ES 3.0
+// specification rule (§ 3.8.10), the same as WebGPU: i = ⌊u·size⌋, then clamp, modulo, or
+// modulo over two periods whose second is read backwards. The GPU script checks that
+// reference against the real samplers, case by case.
 import * as THREE from 'three';
 
 export const MODES = [
@@ -15,8 +15,8 @@ export const MODES = [
 ];
 
 /**
- * Le mode d'adressage WebGPU de chaque mode de carte Three, celui que `WebGLTextures` donne à
- * l'échantillonneur : la table de tous les bancs GPU d'adressage, écrite une seule fois.
+ * WebGPU address mode of each Three wrap mode, the one `WebGLTextures` gives the sampler:
+ * the table of every addressing GPU bench, written once.
  */
 export const ADRESSE = new Map([
   [THREE.ClampToEdgeWrapping, 'clamp-to-edge'],
@@ -24,13 +24,13 @@ export const ADRESSE = new Map([
   [THREE.MirroredRepeatWrapping, 'mirror-repeat'],
 ]);
 
-/** Les modes éprouvés côté GPU : nom lisible, mode de carte Three, mode d'adressage WebGPU. */
+/** Modes exercised on the GPU: readable name, Three wrap mode, WebGPU address mode. */
 export const MODES_GPU = MODES.map(([nom, wrap]) => ({ nom, wrap, adresse: ADRESSE.get(wrap) }));
 
-/** Un demi niveau sur 255 : la quantification du poids que l'échantillonneur s'autorise. */
+/** Half a level in 255: the weight quantisation the sampler is allowed. */
 export const TOLERANCE = 0.5;
 
-/** Le rang de texel `i` ramené dans l'image par le mode d'adressage, seul, sans sa coordonnée. */
+/** Texel index `i` brought back into the image by the address mode alone, without its coordinate. */
 function enroule(i, taille, wrap) {
   if (wrap === THREE.ClampToEdgeWrapping) return Math.min(taille - 1, Math.max(0, i));
   const periode = wrap === THREE.RepeatWrapping ? taille : 2 * taille;
@@ -38,16 +38,16 @@ function enroule(i, taille, wrap) {
   return j < taille ? j : periode - 1 - j;
 }
 
-/** Le texel que l'échantillonneur au plus proche retient sur un axe de `taille` texels. */
+/** The texel nearest-neighbour sampling keeps on an axis of `taille` texels. */
 export function texelThree(t, taille, wrap) {
   return enroule(Math.floor(t * taille), taille, wrap);
 }
 
 /**
- * Les deux texels que l'échantillonneur mêle en filtrage linéaire sur un axe, et le poids du
- * second : la coordonnée décalée d'un demi-texel donne le rang bas, et chacun des deux rangs subit
- * le mode d'adressage pour lui-même (§ 3.8.10). Sous `Repeat`, les deux rangs d'une couture de
- * période sont donc le dernier texel et le premier, que replier la coordonnée sépare.
+ * The two texels linear filtering blends on an axis, and the weight of the second: the
+ * coordinate shifted by half a texel gives the low index, and each of the two indices takes
+ * the address mode for itself (§ 3.8.10). Under `Repeat`, the two indices of a period seam
+ * are therefore the last texel and the first, which wrapping the coordinate would split.
  */
 export function lineaireThree(t, taille, wrap) {
   const c = t * taille - 0.5,
@@ -55,16 +55,16 @@ export function lineaireThree(t, taille, wrap) {
   return [enroule(bas, taille, wrap), enroule(bas + 1, taille, wrap), c - bas];
 }
 
-/** L'octet que les deux texels mêlés rendent sur leur axe : rouge = 20 + 40x, vert = 20 + 40y. */
+/** The byte the two blended texels yield on their axis: red = 20 + 40x, green = 20 + 40y. */
 export const melange = ([i0, i1, poids]) => (20 + 40 * i0) * (1 - poids) + (20 + 40 * i1) * poids;
 
-/** La couleur exacte de la règle sur un axe, les deux texels mêlés, ramenée à [0, 1]. */
+/** The rule's exact colour on an axis, the two texels blended, brought back to [0, 1]. */
 export const regleNormalisee = (t, taille, wrap) => melange(lineaireThree(t, taille, wrap)) / 255;
 
 /**
- * La couture d'une période : sous `Repeat`, les deux texels mêlés ne sont pas voisins dans l'image,
- * l'un est le dernier et l'autre le premier. Le serrage et le miroir y lisent deux fois le même
- * texel de bord, ce que le repli de la coordonnée rend déjà — eux n'ont pas de couture.
+ * A period seam: under `Repeat`, the two blended texels are not neighbours in the image,
+ * one is the last and the other the first. Clamp and mirror read the same edge texel twice
+ * there, which wrapping the coordinate already yields — they have no seam.
  */
 export const surCouture = (t, taille, wrap) => {
   if (wrap !== THREE.RepeatWrapping) return false;
@@ -72,13 +72,13 @@ export const surCouture = (t, taille, wrap) => {
   return i1 !== i0 + 1;
 };
 
-/** Vrai quand la coordonnée tombe, à 1e-3 texel près, sur la frontière de deux texels. */
+/** True when the coordinate falls, to 1e-3 texel, on the boundary of two texels. */
 export const surFrontiere = (t, taille) => Math.abs(t * taille - Math.round(t * taille)) < 1e-3;
 
 /**
- * Les coordonnées d'un axe de `taille` texels, arrondies en flottant 32 bits comme la carte
- * graphique les reçoit : entières, centres de texel (demi-texel), frontières, négatives, voisines
- * de 0 et de 1, et grandes (±1e3) sur les deux parités de période.
+ * Coordinates of an axis of `taille` texels, rounded to 32-bit float as the GPU receives
+ * them: integers, texel centres (half-texel), boundaries, negatives, neighbours of 0 and 1,
+ * and large (±1e3) on both period parities.
  */
 export function coordonnees(taille) {
   const out = [-1001, -1000, -3, -2, -1, 0, 1, 2, 3, 1000, 1001, 0.999, -0.001, 1.001, -0.999];
@@ -90,12 +90,12 @@ export function coordonnees(taille) {
   return out.map(Math.fround);
 }
 
-/** L'autre axe, fixé hors frontière à 1,3 : les trois modes y lisent trois texels différents. */
+/** The other axis, fixed off-boundary at 1.3: the three modes read three different texels there. */
 export const AUTRE_AXE = Math.fround(1.3);
 
 /**
- * Les textures de test, une taille paire et une impaire sur chaque axe. Texel (x, y) : rouge
- * 20 + 40x, vert 20 + 40y, alpha 10 + 10·rang — toutes les composantes distinctes.
+ * Test textures, one even size and one odd on each axis. Texel (x, y): red 20 + 40x, green
+ * 20 + 40y, alpha 10 + 10·index — every component distinct.
  */
 export const TAILLES = [
   [4, 5],
@@ -112,8 +112,8 @@ export function octetsTexture(largeur, hauteur) {
 }
 
 /**
- * Tous les cas : chaque taille, chaque axe éprouvé, chaque couple de modes (S, T). La coordonnée
- * éprouvée parcourt `coordonnees`, l'autre vaut `AUTRE_AXE`. `attendu` est le texel (x, y) de Three.
+ * Every case: each size, each exercised axis, each pair of modes (S, T). The exercised
+ * coordinate walks `coordonnees`, the other is `AUTRE_AXE`. `attendu` is Three's texel (x, y).
  */
 export function cas() {
   const out = [];
@@ -147,8 +147,8 @@ export function cas() {
 }
 
 /**
- * Le décompte des écarts d'une comparaison, composante par composante : l'axe éprouvé par mode et
- * par frontière, l'axe fixé à 1,3 par mode. `ecart(c, k)` rend `null` ou un exemple lisible.
+ * Discrepancy tally of a comparison, component by component: the exercised axis by mode and
+ * by boundary, the axis fixed at 1.3 by mode. `ecart(c, k)` returns `null` or a readable example.
  */
 export function bilan(nom, liste, ecart) {
   const lignes = {};
@@ -161,18 +161,18 @@ export function bilan(nom, liste, ecart) {
   };
   for (const c of liste) {
     const k = c.axe === 'u' ? 0 : 1;
-    const marques = `${c.frontiere ? ' (frontière)' : ''}${c.couture ? ' (couture)' : ''}`;
+    const marques = `${c.frontiere ? ' (boundary)' : ''}${c.couture ? ' (seam)' : ''}`;
     compte(`${c.eprouve}${marques}`, ecart(c, k));
-    compte(`${k ? c.nomS : c.nomT} (axe fixé)`, ecart(c, 1 - k));
+    compte(`${k ? c.nomS : c.nomT} (fixed axis)`, ecart(c, 1 - k));
   }
   console.log(`\n${nom}`);
   for (const [cle, l] of Object.entries(lignes).sort())
     console.log(
-      `  ${cle.padEnd(38)} ${String(l.ecarts).padStart(4)} écarts / ${l.cas}${l.exemple ? `  ex. ${l.exemple}` : ''}`,
+      `  ${cle.padEnd(38)} ${String(l.ecarts).padStart(4)} discrepancies / ${l.cas}${l.exemple ? `  e.g. ${l.exemple}` : ''}`,
     );
   return lignes;
 }
 
-/** Les écarts des lignes d'un bilan que `retenue(cle)` compte comme bloquantes. */
+/** Discrepancies of a bilan's rows that `retenue(cle)` counts as blocking. */
 export const somme = (lignes, retenue = () => true) =>
   Object.entries(lignes).reduce((n, [cle, l]) => n + (retenue(cle) ? l.ecarts : 0), 0);

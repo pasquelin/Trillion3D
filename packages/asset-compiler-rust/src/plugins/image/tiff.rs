@@ -1,23 +1,23 @@
-//! Pilote TIFF, lu depuis la spécification publique « TIFF Revision 6.0 » (Adobe Developers
-//! Association, 3 juin 1992) et décodé par la crate `image` (feature `tiff`, qui embarque la crate
-//! `tiff`, MIT, notices conservées avec la dépendance). Aucun SDK d'éditeur, aucun réencodage.
+//! TIFF driver, read from the public specification "TIFF Revision 6.0" (Adobe Developers
+//! Association, 3 June 1992) and decoded by the `image` crate (`tiff` feature, which embeds
+//! the `tiff` crate, MIT, notices kept with the dependency). No vendor SDK, no re-encoding.
 //!
-//! TIFF est un conteneur de champs plutôt qu'un format : il décrit aussi bien un RGB8 non compressé
-//! qu'un scan CCITT, un JPEG emballé, un document de trente pages ou un 16 bits scientifique. Le
-//! pilote ne revendique donc pas « le TIFF » : il **déclare ses profils un par un**, lit l'IFD du
-//! fichier avant tout décodage (`profile`), et refuse en le nommant tout ce qui n'y est pas.
+//! TIFF is a field container rather than a format: it describes an uncompressed RGB8 as well
+//! as a CCITT scan, a wrapped JPEG, a thirty-page document or a scientific 16-bit. The driver
+//! therefore does not claim "TIFF": it **declares its profiles one by one**, reads the file's
+//! IFD before any decode (`profile`), and refuses by naming anything that is not there.
 //!
-//! Profils lus, tous vers RGBA8 exact :
-//! - gris 8 bits, noir à zéro — la valeur est recopiée sur les trois canaux, alpha 255 ;
-//! - RGB 8 bits — alpha 255 ;
-//! - RGBA 8 bits à alpha non associé (droit) — les quatre octets passent tels quels ;
-//! - compressions : aucune, LZW, Deflate (tags 8 et 32946), PackBits ; toutes rendent les octets
-//!   d'origine, aucune n'ajoute de perte. Bandes comme tuiles : c'est la même image écrite
-//!   autrement, et la configuration entrelacée est la seule acceptée.
+//! Profiles read, all to exact RGBA8:
+//! - 8-bit greyscale, black at zero — the value is copied onto the three channels, alpha 255;
+//! - 8-bit RGB — alpha 255;
+//! - 8-bit RGBA with unassociated (straight) alpha — the four bytes pass as-is;
+//! - compressions: none, LZW, Deflate (tags 8 and 32946), PackBits; all return the original
+//!   bytes, none adds loss. Strips as well as tiles: it is the same image written another
+//!   way, and the interleaved configuration is the only one accepted.
 //!
-//! Refusés, nommés, jamais devinés : BigTIFF, multi-pages, palette, CMJN, YCbCr, CIELab, alpha
-//! associé (prémultiplié), configuration séparée, JPEG-in-TIFF, CCITT, et toute profondeur autre
-//! que 8 bits. Le 16 bits a sa propre raison : voir `DEPTH`.
+//! Refused, named, never guessed: BigTIFF, multi-page, palette, CMYK, YCbCr, CIELab,
+//! associated (premultiplied) alpha, planar configuration, JPEG-in-TIFF, CCITT, and any
+//! depth other than 8 bits. 16-bit has its own reason: see `DEPTH`.
 use super::{crate_image, ImageDecoded, ImageDecoder, Plugin};
 
 mod profile;
@@ -25,16 +25,16 @@ mod profile;
 pub(super) static TIFF: Tiff = Tiff;
 pub(super) struct Tiff;
 
-/// Entête ou IFD illisibles : pour l'hôte c'est le même symptôme qu'un décodage manqué, et la
-/// texture retombe sur son blanc.
+/// Unreadable header or IFD: for the host that is the same symptom as a failed decode, and
+/// the texture falls back to white.
 const UNREADABLE: &str = "image-decode-failed";
-/// Un TIFF valide, mais hors des profils que ce pilote déclare lire.
+/// A valid TIFF, but outside the profiles this driver declares it reads.
 const PROFILE: &str = "image-profile-unsupported";
-/// Un TIFF 16 bits par composante. Ce n'est pas un profil exotique : c'est de la précision que
-/// `DecodedImage` ne sait pas encore porter, sa seule variante étant RGBA8. La rogner en silence
-/// ajouterait une perte que la source n'avait pas, ce que la politique d'import interdit. Pour
-/// l'accepter il faudrait une variante `Rgba16` au contrat d'image et son traitement explicite chez
-/// chaque consommateur — `texture_preview` aujourd'hui, la pyramide d'aperçus ensuite.
+/// A 16-bit-per-component TIFF. This is not an exotic profile: it is precision that
+/// `DecodedImage` cannot yet carry, its only variant being RGBA8. Clipping it in silence
+/// would add a loss the source did not have, which the import policy forbids. Accepting it
+/// would need an `Rgba16` variant on the image contract and its explicit handling at every
+/// consumer — `texture_preview` today, the preview pyramid next.
 const DEPTH: &str = "image-depth-unsupported";
 
 impl Plugin for Tiff {
@@ -44,8 +44,8 @@ impl Plugin for Tiff {
     fn version(&self) -> &'static str {
         "tiff-image-0.25"
     }
-    /// Les deux extensions du même format : `.tif` vient de la limite à trois lettres, `.tiff` est
-    /// celle que posent les outils d'aujourd'hui.
+    /// The two extensions of the same format: `.tif` comes from the three-letter limit,
+    /// `.tiff` is the one today's tools put.
     fn extensions(&self) -> &'static [&'static str] {
         &["tif", "tiff"]
     }
@@ -55,16 +55,16 @@ impl ImageDecoder for Tiff {
     fn mime(&self) -> &'static str {
         "image/tiff"
     }
-    /// L'ordre des octets puis le nombre magique. BigTIFF (43) est reconnu ici bien qu'il soit
-    /// refusé au décodage : mieux vaut le nommer que le laisser sortir en format inconnu.
+    /// Byte order then the magic number. BigTIFF (43) is recognized here even though it is
+    /// refused at decode: better to name it than to let it come out as unknown format.
     fn accepts_head(&self, head: &[u8]) -> bool {
         matches!(
             head.get(..4),
             Some(b"II\x2a\x00" | b"MM\x00\x2a" | b"II\x2b\x00" | b"MM\x00\x2b")
         )
     }
-    /// Le profil d'abord, les pixels ensuite : ce qui n'est pas déclaré ne va jamais jusqu'au
-    /// décodeur, et ce qui y va en ressort octet pour octet.
+    /// The profile first, the pixels next: what is not declared never reaches the decoder,
+    /// and what does comes out byte for byte.
     fn decode(
         &self,
         bytes: &[u8],

@@ -1,14 +1,14 @@
-// Preuve par le moteur réel : la partition GPU est CONSERVATRICE, cluster par cluster.
+// Proof on the real engine: GPU partition is CONSERVATIVE, cluster by cluster.
 //
-// La scène du banc (douze instances), la trajectoire du banc, trente poses réparties dessus. Après
-// chaque image, `partitionAudit()` rend ce que la carte a écrit pour CHAQUE ligne résidente —
-// rectangle d'écran et borne de profondeur — avec les coins monde en double précision et les
-// matrices d'où elle l'a tiré. La référence est recalculée sur ces mêmes entrées, et trois règles
-// sont comptées sur toutes les lignes de toutes les poses :
-//   1. le rectangle de la carte contient celui de la référence ;
-//   2. une boîte que la référence dit coupée par le plan proche porte le drapeau de coupe ;
-//   3. la profondeur de la carte minore celle de la référence, biais de couche compris.
-// Zéro violation est la seule valeur acceptable. Les marges sont rapportées pour elles-mêmes.
+// The bench scene (twelve instances), the bench trajectory, thirty poses along it. After
+// each frame, `partitionAudit()` returns what the GPU wrote for EVERY resident row —
+// screen rectangle and depth bound — with world corners in double precision and the
+// matrices it was taken from. The reference is recomputed on those same inputs, and
+// three rules are counted on every row of every pose:
+//   1. the GPU rectangle contains the reference's;
+//   2. a box the reference says is cut by the near plane carries the clip flag;
+//   3. GPU depth is a lower bound of the reference's, layer bias included.
+// Zero violations is the only acceptable value. Margins are reported for themselves.
 //
 //   node --experimental-strip-types test/browser/partition-gpu-conservatrice.browser.mjs
 import assert from 'node:assert/strict';
@@ -16,7 +16,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { lancerChrome } from '../../scripts/mesure/chrome.mjs';
+import { launchChrome } from '../../scripts/mesure/chrome.mjs';
 import { empaquetePage } from '../justesse/pageWebgpu.mjs';
 import { startServer } from '../../scripts/mesure/serveur.mjs';
 import { ASSETS, DEFAULT_SCENE, assetsManifest } from '../../scripts/mesure/scene.mjs';
@@ -27,19 +27,19 @@ const SDK_URL = '/sdk/sdk-browser/index.js',
   MODULES_URL = '/preuve/',
   MESURE_URL = '/mesure/';
 const POSES = 30;
-/** Le dossier d'un paquet installé, cherché comme Node le cherche : de la racine vers le haut. */
+/** Directory of an installed package, looked up the way Node does: from the root upward. */
 function packageDir(name) {
   for (let dir = ROOT; ; dir = dirname(dir)) {
     const candidate = join(dir, 'node_modules', name);
     if (existsSync(candidate)) return candidate;
-    if (dirname(dir) === dir) throw new Error(`paquet introuvable : ${name}`);
+    if (dirname(dir) === dir) throw new Error(`package not found: ${name}`);
   }
 }
 
 const manifestUrl = assetsManifest(DEFAULT_SCENE, true);
 /**
- * Vrai quand le cache porte au moins une grappe transparente : sans elle, la moitié transparente
- * de la preuve n'a rien à examiner et le dit, plutôt que d'échouer ou de retirer la moitié opaque.
+ * True when the cache holds at least one transparent cluster: without it, the transparent half
+ * of the proof has nothing to examine and says so, rather than failing or dropping the opaque half.
  */
 function cacheAvecTransparents() {
   const manifest = join(ASSETS, manifestUrl.replace('/benchmark-assets/', ''));
@@ -50,11 +50,10 @@ function cacheAvecTransparents() {
 }
 assert.ok(
   existsSync(join(ROOT, 'dist/sdk-browser/index.js')),
-  'dist absent : lancer `pnpm run build` avant cette preuve',
+  'dist missing: run `pnpm run build` before this proof',
 );
-// Le module de page est empaqueté depuis les SOURCES du dépôt, si bien qu'il lit la référence de
-// production elle-même plutôt qu'une copie. Le paquet est servi comme un fichier ordinaire, au même
-// titre que le dist.
+// The page module is bundled from the repository SOURCES, so it reads the production reference
+// itself rather than a copy. The bundle is served as an ordinary file, same as dist.
 const audit = await empaquetePage(
   join(ROOT, 'test/appui/partitionConservatricePage.mjs'),
   undefined,
@@ -76,7 +75,7 @@ const mounts = [
 
 const server = await startServer({ port: 0, mounts, captures: new Map() });
 const port = server.address().port;
-const browser = await lancerChrome({ headless: true });
+const browser = await launchChrome({ headless: true });
 let resultat;
 const erreursPage = [];
 try {
@@ -89,13 +88,13 @@ try {
     if (r.status() >= 400) erreursPage.push(`HTTP ${r.status()} ${r.url()}`);
   });
   await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'load' });
-  // Les bornes du modèle, lues par le harnais de mesure lui-même : les poses du banc en dépendent,
-  // et une seconde lecture décrirait une autre scène.
+  // Model bounds, read by the measurement harness itself: the bench poses depend on them,
+  // and a second read would describe another scene.
   const bounds = await page.evaluate(
     async (options) => (await import(`${options.mesureUrl}page.mjs`)).readBounds(options),
     { sdkUrl: SDK_URL, mesureUrl: MESURE_URL, manifestUrl },
   );
-  // Trente poses réparties sur toute la trajectoire du banc : la caméra bouge à chaque image.
+  // Thirty poses spread along the whole bench trajectory: the camera moves every frame.
   const total = 9 * 60;
   const poses = Array.from({ length: POSES }, (_, i) =>
     poseAt(bounds, Math.round((i * (total - 1)) / (POSES - 1))),
@@ -122,58 +121,55 @@ try {
 
 console.log(JSON.stringify({ ...resultat, images: resultat.images?.slice(-3) }, null, 2));
 assert.equal(resultat.erreur ?? null, null, String(resultat.erreur));
-assert.deepEqual(erreursPage, [], 'la page a signalé des erreurs');
-assert.deepEqual(resultat.evenements, [], 'le moteur a signalé un repli ou une erreur');
+assert.deepEqual(erreursPage, [], 'the page reported errors');
+assert.deepEqual(resultat.evenements, [], 'the engine reported a fallback or an error');
 
 const t = resultat.total;
-assert.equal(resultat.images.length, POSES, 'toutes les poses doivent avoir été auditées');
-assert.ok(t.clusters > 0, 'aucune ligne résidente n’a été comparée');
-assert.equal(t.violations1, 0, `${t.violations1} rectangles GPU plus étroits que la référence`);
-assert.equal(t.violations2, 0, `${t.violations2} boîtes coupées par le plan proche sans drapeau`);
-assert.equal(t.violations3, 0, `${t.violations3} profondeurs GPU au-dessus de la référence`);
-// Preuve d'activité : la coupe tourne bien sur la carte, et l'image n'a pas de trou.
+assert.equal(resultat.images.length, POSES, 'every pose must have been audited');
+assert.ok(t.clusters > 0, 'no resident row was compared');
+assert.equal(t.violations1, 0, `${t.violations1} GPU rectangles narrower than the reference`);
+assert.equal(t.violations2, 0, `${t.violations2} boxes cut by the near plane with no clip flag`);
+assert.equal(t.violations3, 0, `${t.violations3} GPU depths above the reference`);
+// Activity proof: the cut does run on the GPU, and the image has no hole.
 for (const image of resultat.images) {
-  assert.equal(image.cpuSelectMs, null, 'la coupe est retombée sur le processeur');
-  assert.equal(image.gpuSelectionFallback, false, 'la sélection GPU a été abandonnée');
-  assert.equal(image.uncoveredTriangles, 0, 'l’image a un trou');
+  assert.equal(image.cpuSelectMs, null, 'the cut fell back to the CPU');
+  assert.equal(image.gpuSelectionFallback, false, 'GPU selection was abandoned');
+  assert.equal(image.uncoveredTriangles, 0, 'the image has a hole');
 }
-// Sans rejet d'occultation, la conservativité ne prouverait rien : le test doit trancher.
+// Without an occlusion reject, conservativeness would prove nothing: the test must decide.
 assert.ok(
   resultat.images.some((image) => (image.hizRejectedClusters ?? 0) > 0),
-  'le test Hi-Z n’a rejeté aucun cluster : la preuve ne porterait sur rien',
+  'the Hi-Z test rejected no cluster: the proof would cover nothing',
 );
-// Les grappes transparentes passent le MÊME test, sur la même pyramide : chacune que la carte a
-// retirée doit rester rejetée par la référence, sur ses bornes en double précision.
+// Transparent clusters take the SAME test, on the same pyramid: each one the GPU removed
+// must stay rejected by the reference, on its double-precision bounds.
 const occ = resultat.occultation;
 assert.deepEqual(
   resultat.violationsOccultation,
   [],
-  'des grappes transparentes retirées restent visibles pour la référence',
+  'removed transparent clusters remain visible to the reference',
 );
 if (cacheAvecTransparents()) {
-  assert.ok(occ.examinees > 0, 'aucune grappe transparente n’a été examinée');
-  assert.ok(
-    occ.rejetees > 0,
-    'le test d’occultation des transparents n’a rien rejeté : rien à prouver',
-  );
-  assert.equal(occ.violations, 0, `${occ.violations} grappes transparentes rejetées à tort`);
+  assert.ok(occ.examinees > 0, 'no transparent cluster was examined');
+  assert.ok(occ.rejetees > 0, 'the transparent occlusion test rejected nothing: nothing to prove');
+  assert.equal(occ.violations, 0, `${occ.violations} transparent clusters wrongly rejected`);
 } else {
-  assert.equal(occ.examinees, 0, 'des grappes transparentes examinées sans grappe dans le cache');
-  console.warn('grappes transparentes : non examinées, le cache de référence n’en porte aucune');
+  assert.equal(occ.examinees, 0, 'transparent clusters were examined with none in the cache');
+  console.warn('transparent clusters: not examined, the reference cache holds none');
 }
 const pourcent = (n) => ((100 * n) / t.margeTexelsCount).toFixed(2);
 console.log(
-  `OK : ${t.clusters} clusters audités sur ${POSES} poses — 0 violation sur les trois règles.\n` +
-    `  Rectangle : ${pourcent(t.margeParPalier[0])} % des côtés identiques à la référence, ` +
-    `${pourcent(t.margeParPalier[1])} % à un texel près, ${pourcent(t.margeParPalier[4])} % au-delà ` +
-    `de seize ; moyenne ${t.margeTexelsMoyenne?.toFixed(3)} texel, max ${t.margeTexelsMax}.\n` +
-    `  Profondeur : écart moyen ${t.ecartProfondeurMoyen?.toExponential(3)}, ` +
-    `max ${t.ecartProfondeurMax.toExponential(3)}, toujours sous la référence.\n` +
-    `  Largeur écran < 16 texels : ${t.largeurParPalier[0]} boîtes côté carte, ` +
-    `${t.largeurRefParPalier[0]} côté référence — le test garde la même finesse.`,
+  `OK: ${t.clusters} clusters audited over ${POSES} poses — 0 violations of the three rules.\n` +
+    `  Rectangle: ${pourcent(t.margeParPalier[0])} % of sides identical to the reference, ` +
+    `${pourcent(t.margeParPalier[1])} % within one texel, ${pourcent(t.margeParPalier[4])} % beyond ` +
+    `sixteen; mean ${t.margeTexelsMoyenne?.toFixed(3)} texel, max ${t.margeTexelsMax}.\n` +
+    `  Depth: mean gap ${t.ecartProfondeurMoyen?.toExponential(3)}, ` +
+    `max ${t.ecartProfondeurMax.toExponential(3)}, always below the reference.\n` +
+    `  Screen width < 16 texels: ${t.largeurParPalier[0]} boxes on the GPU, ` +
+    `${t.largeurRefParPalier[0]} on the reference — the test keeps the same fineness.`,
 );
 console.log(
-  `OK : ${occ.rejetees} grappes transparentes retirées sur ${occ.examinees} examinées ` +
-    `(${occ.poses} poses) — 0 violation : la référence les rejette toutes, ` +
-    `dont ${occ.horsEcran} dont le rectangle de référence ne touche aucun pixel.`,
+  `OK: ${occ.rejetees} transparent clusters removed of ${occ.examinees} examined ` +
+    `(${occ.poses} poses) — 0 violations: the reference rejects them all, ` +
+    `including ${occ.horsEcran} whose reference rectangle touches no pixel.`,
 );

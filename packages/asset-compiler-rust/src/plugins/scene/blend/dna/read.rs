@@ -1,8 +1,8 @@
-//! La lecture des sections du bloc `DNA1`, octet par octet.
+//! Reading the sections of the `DNA1` block, byte by byte.
 //!
-//! Chaque section annonce un compte ; aucun n'est cru sans être borné par ce que le bloc porte
-//! encore, et aucun produit de dimensions ou de tailles n'est posé sans être vérifié. Un fichier
-//! qui ment sur l'un d'eux est refusé sous `blend-dna-invalid`, jamais par une panique.
+//! Each section announces a count; none is trusted without being bounded by what the block still
+//! carries, and no product of dimensions or sizes is stored without being checked. A file that
+//! lies about any of them is refused under `blend-dna-invalid`, never by a panic.
 use super::{Field, Layout, POINTER};
 use crate::plugins::scene::blend::{refused, CompilerError, Result};
 use std::collections::HashMap;
@@ -14,7 +14,7 @@ fn invalid() -> CompilerError {
     )
 }
 
-/// Une étiquette de section, lue là où elle doit être.
+/// A section tag, read where it must be.
 pub(super) fn tag(bytes: &[u8], at: &mut usize, expected: &[u8; 4]) -> Result<()> {
     let found = bytes.get(*at..*at + 4).ok_or_else(invalid)?;
     if found != expected {
@@ -24,8 +24,8 @@ pub(super) fn tag(bytes: &[u8], at: &mut usize, expected: &[u8; 4]) -> Result<()
     Ok(())
 }
 
-/// Le compte d'une section, borné par ce que le bloc peut encore porter : chaque entrée y pèse au
-/// moins `unit` octets, donc un compte qui ne tient pas dans le reste du bloc ment.
+/// The count of a section, bounded by what the block can still carry: each entry weighs at least
+/// `unit` bytes, so a count that does not fit in the rest of the block is a lie.
 pub(super) fn count(bytes: &[u8], at: &mut usize, unit: usize) -> Result<usize> {
     let total = u32::from_le_bytes(word(bytes, at)?) as usize;
     let room = bytes.len().saturating_sub(*at);
@@ -45,10 +45,10 @@ pub(super) fn word<const N: usize>(bytes: &[u8], at: &mut usize) -> Result<[u8; 
     Ok(found)
 }
 
-/// Une section de chaînes : son étiquette, son compte, puis les chaînes, le tout aligné sur quatre.
+/// A string section: its tag, its count, then the strings, all aligned on four.
 pub(super) fn strings(bytes: &[u8], at: &mut usize, label: &[u8; 4]) -> Result<Vec<String>> {
     tag(bytes, at, label)?;
-    // Une chaîne pèse au moins son zéro terminal : le compte tient donc dans le reste du bloc.
+    // A string weighs at least its terminating zero: the count therefore fits in the rest of the block.
     let total = count(bytes, at, 1)?;
     let mut out = Vec::with_capacity(total);
     for _ in 0..total {
@@ -64,8 +64,8 @@ pub(super) fn strings(bytes: &[u8], at: &mut usize, label: &[u8; 4]) -> Result<V
     Ok(out)
 }
 
-/// Une structure et ses champs : les décalages se cumulent dans l'ordre déclaré, un pointeur pesant
-/// toujours la taille de pointeur du fichier, un tableau le produit de ses dimensions.
+/// A structure and its fields: offsets accumulate in declared order, a pointer always weighing
+/// the file's pointer size, an array the product of its dimensions.
 pub(super) fn layout(
     bytes: &[u8],
     at: &mut usize,
@@ -103,8 +103,8 @@ pub(super) fn layout(
             .and_then(|span| offset.checked_add(span))
             .ok_or_else(invalid)?;
     }
-    // La taille déclarée par `TLEN` fait foi — c'est celle du pas d'un tableau de structures ; la
-    // somme des champs ne sert que si le fichier n'en déclare pas.
+    // The size `TLEN` declares is authoritative — it is the stride of a structure array; the sum
+    // of the fields is only used if the file declares none.
     let declared = lengths.get(kind).copied().unwrap_or(0);
     Ok(Layout {
         name: types.get(kind).ok_or_else(invalid)?.clone(),
@@ -113,8 +113,8 @@ pub(super) fn layout(
     })
 }
 
-/// Le nom nu d'un champ, sans les étoiles, les crochets ni les parenthèses d'un pointeur de
-/// fonction : c'est par ce nom que le lecteur demande un champ.
+/// The bare name of a field, without the stars, brackets or parentheses of a function pointer:
+/// it is by this name that the reader asks for a field.
 fn key(name: &str) -> &str {
     let start = name
         .find(|c: char| c.is_alphanumeric() || c == '_')
@@ -126,8 +126,8 @@ fn key(name: &str) -> &str {
     &rest[..end]
 }
 
-/// Le nombre d'éléments qu'un nom de champ déclare : le produit de ses dimensions, une pour un
-/// champ simple. Rien quand ce produit déborde — le nom ment alors sur ce que le fichier porte.
+/// The number of elements a field name declares: the product of its dimensions, one for a simple
+/// field. Nothing when that product overflows — the name then lies about what the file carries.
 fn elements(name: &str) -> Option<usize> {
     let mut total: usize = 1;
     let mut rest = name;

@@ -1,6 +1,6 @@
-// G1 : `autonomousGeometry.ts` détache par l'ensemble des pages effectivement attachées (`attachees`,
-// un `Set` tenu par `attach`/`detach`) au lieu de balayer `allPages` — tout le DAG — à chaque image.
-// Oracle : la version d'avant le lot G, recopiée telle quelle dans `bench/oracles/backend-autonome.mjs`.
+// G1: `autonomousGeometry.ts` detaches by the set of pages actually attached (`attachees`,
+// a `Set` held by `attach`/`detach`) instead of scanning `allPages` — the whole DAG — at each frame.
+// Oracle: the version before batch G, copied as is in `bench/oracles/backend-autonome.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -55,9 +55,9 @@ function environnement(scene: THREE.Scene, allPages: PageRec[], shown: PageRec[]
   };
 }
 
-/** Deux jeux de pages identiques (mêmes id, triangles), l'un pour l'implémentation optimisée, l'un
- *  pour l'oracle : chaque appel de `pilote` fait avancer les deux avec la même liste de pages
- *  affichées, puis compare l'ensemble attaché de la scène et le nombre de triangles soumis. */
+/** Two sets of identical pages (same id, triangles), one for optimized implementation, one
+ *  for the oracle: each `pilot` call moves both forward with the same list of pages
+ *  displayed, then compare the attached set of the scene and the number of triangles submitted. */
 function scenario(count: number) {
   const recsA = Array.from({ length: count }, (_, i) => makeRec(i, (i % 7) + 1));
   const recsB = Array.from({ length: count }, (_, i) => makeRec(i, (i % 7) + 1));
@@ -93,17 +93,17 @@ function scenario(count: number) {
   };
 }
 
-test('scène vide, coupe vide : rien à attacher ni détacher des deux côtés', () => {
+test('empty scene, empty cut: nothing to attach or detach on either side', () => {
   scenario(0).pilote([]);
 });
 
-test('une coupe vide alors que tout était attaché détache tout, à l’identique de l’oracle', () => {
+test('an empty cut when everything was attached detaches everything, identically to the oracle', () => {
   const s = scenario(6);
   s.pilote([0, 1, 2, 3, 4, 5]);
   s.pilote([]);
 });
 
-test('une coupe qui grossit puis rétrécit par à-coups reste identique image après image', () => {
+test('a cut that grows and then shrinks in jerks remains the same image after image', () => {
   const s = scenario(10);
   s.pilote([0, 1, 2]);
   s.pilote([0, 1, 2, 3, 4, 5, 6]);
@@ -113,19 +113,19 @@ test('une coupe qui grossit puis rétrécit par à-coups reste identique image a
   s.pilote([0, 9]);
 });
 
-test('des doublons dans la coupe affichée comptent deux fois les triangles, des deux côtés', () => {
+test('duplicates in the displayed cut count triangles twice, on both sides', () => {
   const s = scenario(4);
   s.pilote([0, 0, 1, 1, 1, 2]);
   s.pilote([2, 2]);
 });
 
-test('une page à zéro triangle attache sans fausser la somme', () => {
+test('a page with zero triangles attaches without distorting the sum', () => {
   const s = scenario(3);
   s.pilote([0]);
   s.pilote([0, 1]);
 });
 
-test('un grand DAG avec un churn aléatoire suit exactement l’oracle, coupe après coupe', () => {
+test('a large DAG with random churn matches the oracle exactly, cut after cut', () => {
   let seed = 0x9e3779b9;
   const rand = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;

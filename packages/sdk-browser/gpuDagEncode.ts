@@ -5,29 +5,28 @@ import type { createDagResources } from './gpuDagResources.ts';
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 
 /**
- * Les noyaux de la coupe, encodés dans l'ordre. Chaque lancement attend le précédent — la carte vide
- * sa file et ses caches entre deux —, et cette attente ne s'attribue à aucun noyau : c'est le nombre
- * de lancements qui la fixe, pas leur taille. Il n'en reste donc que ce que les dépendances exigent
- * vraiment : la préparation porte les seuils, les plans et les comptes de bloc d'un seul coup, le
- * compte de groupes de la liste vivante se tient au fil des ajouts, et le masque compte lui-même les
- * dessinées de son bloc.
+ * Cut kernels, encoded in order. Each dispatch waits for the previous — the GPU empties its queue
+ * and caches between two —, and that wait is attributed to no kernel: it is the number of
+ * dispatches that fixes it, not their size. So only what the dependencies actually require
+ * remains: prepare carries thresholds, planes and block counts in one go, the live list's group
+ * count holds as additions come, and the mask itself counts the drawn of its block.
  *
- * Deux passes et non une : le compte de groupes vit dans `work`, écrit par la première passe et lu
- * comme argument de répartition par la seconde, et WebGPU refuse un tampon à la fois écrit et lu
- * comme argument dans une même portée de synchronisation. La coupure ne porte que la recopie de ce
- * mot ; les deux autres mots de l'argument valent un et ne changent jamais.
+ * Two passes not one: the group count lives in `work`, written by the first pass and read as
+ * dispatch argument by the second, and WebGPU refuses a buffer both written and read as argument
+ * in the same synchronisation scope. The cut carries only the copy of that word; the other two
+ * argument words are one and never change.
  *
- * Cette recopie est CHÈRE — la mesure est auprès de `hierarchyLevelSizes` (`gpuDagHierarchy.ts`) —,
- * et il n'en reste que trois par image. Ce n'est pas que les trois listes concernées n'aient aucun
- * majorant : `pageCount` en est un pour toutes. C'est qu'il est GROSSIER, 1 959 792 pour 21 955
- * utiles sur le banc à douze instances, quand l'étage d'un niveau colle à sa file. Un armement
- * s'échange donc contre des fils, et le change ne vaut que si le majorant est serré.
+ * That copy is EXPENSIVE — the measurement sits next to `hierarchyLevelSizes` (`gpuDagHierarchy.ts`)
+ * —, and only three remain per frame. Not that the three lists have no upper bound: `pageCount` is
+ * one for all. It is COARSE, 1,959,792 for 21,955 useful on the twelve-instance bench, when a
+ * level's stage hugs its queue. An arming is therefore traded against threads, and the trade only
+ * pays if the bound is tight.
  */
 export function encodeDagKernels(encoder: GPUCommandEncoder, resources: DagResources) {
-  // Une variante de DIAGNOSTIC seule réencode la coupe. La répétition PRÉCÈDE la coupe qui compte :
-  // chaque noyau repart de la remise à zéro, l'état final est donc celui d'une exécution unique, et
-  // l'écart d'image mesure ce que la répétition a vraiment coûté — attentes entre lancements
-  // comprises, que nulle enveloppe de passe ne rapporte.
+  // A DIAGNOSTIC variant alone re-encodes the cut. The repeat PRECEDES the cut that counts: each
+  // kernel restarts from the clear, the final state is therefore that of a single run, and the
+  // frame delta measures what the repeat actually cost — waits between dispatches included, which
+  // no pass envelope reports.
   if (resources.repeat) {
     encodeOnce(encoder, resources, resources.repeat === 'tete', true);
     encodeOnce(encoder, resources, false, false);
@@ -64,8 +63,8 @@ function encodeOnce(
     drawScatterPipeline,
   } = resources;
   const groups = (count: number) => Math.max(1, Math.ceil(count / WORKGROUP));
-  // Le mot de tête de l'argument de répartition, recopié hors passe : les deux autres valent un
-  // depuis la création du tampon. C'est la seule raison des coupures entre les passes.
+  // Head word of the dispatch argument, copied outside a pass: the other two have been one since
+  // the buffer was created. That is the only reason for cuts between passes.
   const arm = (offset: number) => encoder.copyBufferToBuffer(work, offset, dispatchArgs, 0, 4);
   const alone = (pipeline: GPUComputePipeline) => {
     const pass = encoder.beginComputePass({ label: 'WG DAG selection' });
@@ -77,41 +76,41 @@ function encodeOnce(
   if (clear) arm(drawnGroupsOffset);
   const pass = encoder.beginComputePass({ label: 'WG DAG selection' });
   pass.setBindGroup(0, bindGroup);
-  // Les dessinées de l'image précédente, et elles seules, reprennent leur drapeau à zéro : plus
-  // aucun parcours de tous les drapeaux, et la préparation qui suit remet le journal à zéro.
+  // Previous frame's drawn pages, and they alone, take their flag back to zero: no more walk of
+  // every flag, and the prepare that follows clears the journal.
   if (clear) {
     pass.setPipeline(clearDrawnPipeline);
     pass.dispatchWorkgroupsIndirect(dispatchArgs, 0);
   }
   pass.setPipeline(preparePipeline);
   pass.dispatchWorkgroups(groups(Math.max(worldCount, blockCount)));
-  // Toute la descente dans CETTE passe : les lancements d'une même passe s'exécutent dans l'ordre et
-  // voient ce que les précédents ont écrit — la préparation et la passe 0 en dépendaient déjà. Rien
-  // d'autre ne coupait la descente que l'argument de répartition, et il n'y en a plus.
+  // The whole descent in THIS pass: dispatches of the same pass run in order and see what the
+  // previous ones wrote — prepare and pass 0 already depended on that. Nothing else cut the
+  // descent but the dispatch argument, and there is no more of it.
   //
-  // La passe 0 part d'une racine par primitive. Son compte est `worldCount` et NON `levelSizes[0]`,
-  // qui ne la majorerait pas toujours : `dagPrepare` pose une entrée par primitive, racine absente
-  // comprise — la passe 0 l'y lit et la rejette —, là où l'étage zéro ne compte que les racines qui
-  // existent. Une primitive dont l'appelant fournit une hiérarchie vide en ferait diverger les deux.
+  // Pass 0 starts from one root per primitive. Its count is `worldCount` and NOT `levelSizes[0]`,
+  // which would not always bound it: `dagPrepare` puts one entry per primitive, missing root
+  // included — pass 0 reads it there and rejects it —, where stage zero only counts roots that
+  // exist. A primitive whose caller supplies an empty hierarchy would make the two diverge.
   pass.setPipeline(levelPipelines[0]);
   pass.dispatchWorkgroups(groups(worldCount));
-  // Chaque niveau suivant ne lit que les nœuds que le précédent a retenus, et remplit la file
-  // suivante des trois — celle qu'un niveau plus tôt a remise à zéro. Le compte lancé est celui des
-  // nœuds de son étage, majorant connu du rangement.
+  // Each following level reads only the nodes the previous one kept, and fills the next of the
+  // three queues — the one a level earlier cleared. The dispatched count is that of its stage's
+  // nodes, an upper bound the layout knows.
   for (let level = 1; level < levelSizes.length; level++) {
     pass.setPipeline(levelPipelines[level % levelPipelines.length]);
     pass.dispatchWorkgroups(groups(levelSizes[level]));
   }
   pass.end();
-  // Les pages des feuilles retenues, et elles seules : une page sous un nœud rejeté n'est pas lue.
+  // Pages of kept leaves, and they alone: a page under a rejected node is not read.
   arm(candGroupsOffset);
   alone(wantedPipeline);
   if (headOnly) return;
   arm(liveGroupsOffset);
   const live = encoder.beginComputePass({ label: 'WG DAG selection' });
   live.setBindGroup(0, bindGroup);
-  // Ces noyaux ne visitent que les grappes vivantes, celles que `dagWanted` vient de lister :
-  // leur verdict est celui d'avant, il n'est plus prononcé sur celles dont il ne disait rien.
+  // These kernels visit only live clusters, those `dagWanted` has just listed: their verdict is
+  // the previous one, it is no longer spoken on those it said nothing about.
   const runLive = (pipeline: GPUComputePipeline) => {
     live.setPipeline(pipeline);
     live.dispatchWorkgroupsIndirect(dispatchArgs, 0);
@@ -121,8 +120,8 @@ function encodeOnce(
     runLive(checkPipeline);
   }
   runLive(maskPipeline);
-  // La liste des pages dessinables est compactée ici, dans l'ordre croissant : le relevé ne
-  // rapporte plus un drapeau par page mais le seul compte et ses rangs.
+  // The drawable-page list is compacted here, in increasing order: the snapshot no longer
+  // reports one flag per page but the count alone and its ranks.
   if (residentCut) {
     live.setPipeline(drawPrefixPipeline);
     live.dispatchWorkgroups(1);

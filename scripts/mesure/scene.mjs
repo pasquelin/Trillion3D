@@ -1,22 +1,22 @@
-// Les scènes de référence du banc, et le cache qui les porte. Le moteur ne nomme aucune scène : le
-// harnais déduit le nom du cache, et la campagne joue celles-ci quand on ne lui en donne pas.
+// Bench reference scenes, and the cache that carries them. The engine names no scene: the harness
+// infers the name from the cache, and the campaign plays these when none is given.
 import { existsSync, readdirSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 
-// Les assets du banc, en lecture seule : `<scène>/` (sources) et `<scène>-derived/` (cache
-// compilé, voir `README.md` § Assets) sous `.mesure/assets/` du dépôt, hors git. `WG_ASSETS`
-// pointe un autre dossier — une copie figée, ou celui d'un autre arbre de travail.
+// Bench assets, read-only: `<scene>/` (sources) and `<scene>-derived/` (compiled cache, see
+// `README.md` § Assets) under `.mesure/assets/` of the repo, off git. `WG_ASSETS` points at
+// another folder — a frozen copy, or that of another worktree.
 export const ASSETS = process.env.WG_ASSETS
   ? resolve(process.env.WG_ASSETS)
   : resolve(import.meta.dirname, '../../.mesure/assets');
 
-/** Repli du harnais quand aucun cache nommé ne lui donne de scène. */
+/** Harness fallback when no named cache gives it a scene. */
 export const DEFAULT_SCENE = 'emerald-square';
 
-/** Les deux scènes que la campagne joue, dans cet ordre, dès que leur cache est là. */
+/** The two scenes the campaign plays, in this order, as soon as their cache is there. */
 export const REFERENCE_SCENES = ['emerald-square', 'whisperwind-village'];
 
-/** Ce que le rapport doit dire d'une scène, et qui ne se lit pas dans un relevé. */
+/** What the report must say of a scene, and that a reading does not carry. */
 export const SCENE_NOTES = {
   'whisperwind-village':
     'Unreal FBX, heavy instancing (one wall × 1,292). 81 materials, 6 textured: the export omitted Megascans textures — not on us; re-export from Unreal.',
@@ -27,14 +27,14 @@ export const sceneDerived = (scene, assets = ASSETS) => join(assets, `${scene}-d
 const cachePret = (scene, assets) =>
   existsSync(join(sceneDerived(scene, assets), 'native/full/manifest.json'));
 
-/** Les scènes d'une campagne : `--scene a,b`, sinon les références dont le cache est prêt. */
+/** Scenes of a campaign: `--scene a,b`, otherwise the references whose cache is ready. */
 export function scenesOf(flags, assets = ASSETS) {
   const raw = flags.get('scene');
   if (raw && raw !== 'true') return raw.split(',').filter(Boolean);
   return REFERENCE_SCENES.filter((scene) => cachePret(scene, assets));
 }
 
-/** `--scene nom` pose le cache des assets sur chaque côté qui n'a pas le sien. */
+/** `--scene nom` sets the assets cache on each side that does not have its own. */
 export function applySceneFlag(flags, assets = ASSETS) {
   const scene = flags.get('scene');
   if (!scene || scene === 'true') return;
@@ -43,22 +43,22 @@ export function applySceneFlag(flags, assets = ASSETS) {
   if (flags.has('avant') && !flags.has('cache-avant')) flags.set('cache-avant', derived);
 }
 
-/** Le nom de la scène d'un côté, déduit du cache : le dossier « derived » porte `<nom>-derived`. */
+/** Scene name of a side, inferred from the cache: the "derived" folder carries `<name>-derived`. */
 export function sceneOf(cache) {
   if (!cache) return DEFAULT_SCENE;
   const name = basename(resolve(cache));
   return name.endsWith('-derived') ? name.slice(0, -'-derived'.length) : name;
 }
 
-/** L'URL du manifeste du cache d'une scène des assets. Exigé seulement si un côté le lit. */
+/** Manifest URL of an assets scene cache. Required only if a side reads it. */
 export function assetsManifest(scene, needed) {
   if (needed && !cachePret(scene, ASSETS)) throw new Error(`cache absent : ${sceneDerived(scene)}`);
   return `/benchmark-assets/${scene}-derived/native/full/manifest.json`;
 }
 
 /**
- * L'URL du glTF du témoin Three : le fichier des sources, sinon `source.gltf` écrit par le
- * compilateur à côté du cache — un FBX n'a pas de glTF dans le dossier source.
+ * glTF URL of the Three witness: the sources file, otherwise `source.gltf` written by the
+ * compiler next to the cache — an FBX has no glTF in the source folder.
  */
 export function gltfUrlIn(assets, scene) {
   const dossier = join(assets, scene);

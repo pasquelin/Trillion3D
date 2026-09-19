@@ -126,7 +126,7 @@ fn normalized_or_falls_back_under_the_guard_and_normalizes_above_it() {
 
 /// `node_bounds` (`dag/culling.rs`) is private; it is exercised through the public
 /// `build_culling_bvh`, which calls it once for the root span and once per queued node — the two
-/// blocks the relevé records as fused into it.
+/// blocks the survey records as fused into it.
 #[test]
 fn node_bounds_merges_a_rejection_node_from_its_clusters() {
     let positions: [f32; 6 * 3] = [

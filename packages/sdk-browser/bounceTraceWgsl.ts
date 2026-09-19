@@ -2,19 +2,19 @@ import { BOUNCE_SETTINGS, PROXY_CHILDREN, PROXY_TRIANGLE_FLOATS } from '../sdk-c
 import { BOUNCE_NODE_WGSL } from './bounceNodeWgsl.ts';
 
 /**
- * La traversée du proxy résident : un BVH à quatre enfants, ordonné par distance, avec sortie
- * anticipée.
+ * Traversal of the resident proxy: a four-child BVH, ordered by distance, with early
+ * exit.
  *
- * Un nœud teste ses quatre boîtes d'un coup, descend aussitôt sur la plus proche et empile les
- * autres. Un nœud dépilé est retesté contre la distance du plus proche triangle déjà touché : dès
- * qu'un rayon a touché quelque chose, tout ce qui est derrière tombe sans être ouvert. C'est ce qui
- * remplace la descente d'un cran par nœud de l'arbre binaire, où la borne de traversée s'épuisait
- * avant la feuille sur le proxy d'une ville.
+ * A node tests its four boxes at once, descends immediately on the nearest and stacks the
+ * others. A popped node is retested against the distance of the nearest triangle already
+ * hit: as soon as a ray has hit something, everything behind it drops without being
+ * opened. That is what replaces the one-step-per-node descent of the binary tree, where
+ * the traversal bound ran out before the leaf on a city's proxy.
  *
- * Trois bornes connues avant l'image (X2) : les nœuds visités, les triangles d'une feuille, et la
- * profondeur de la pile — un nœud large en empile trois au plus, et l'arbre est équilibré par
- * construction, si bien que la pile ne déborde pas ; si elle débordait, l'enfant en trop serait
- * abandonné, ce qui assombrit et ne fuit jamais.
+ * Three bounds known before the frame (X2): visited nodes, triangles of a leaf, and stack
+ * depth — a wide node stacks three at most, and the tree is balanced by construction, so
+ * the stack does not overflow; if it did, the extra child would be dropped, which darkens
+ * and never leaks.
  */
 export const BOUNCE_TRACE_WGSL = `
 const TRAVERSAL_STEPS:u32=${BOUNCE_SETTINGS.traversalSteps}u;
@@ -24,7 +24,7 @@ const CHILDREN:u32=${PROXY_CHILDREN}u;
 const STACK_DEPTH:u32=${BOUNCE_SETTINGS.traversalStack}u;
 struct ProxyHit{distance:f32,triangle:u32,found:bool,}
 ${BOUNCE_NODE_WGSL}
-/** Möller–Trumbore, double face : un mur n'a pas d'endroit ni d'envers pour la lumière. */
+/** Möller–Trumbore, two-sided: a wall has no front or back for light. */
 fn triangleHit(index:u32,origin:vec3f,direction:vec3f,limit:f32)->f32{
  let a=proxyVertex(index,0u);
  let edge0=proxyVertex(index,1u)-a;
@@ -43,7 +43,7 @@ fn triangleHit(index:u32,origin:vec3f,direction:vec3f,limit:f32)->f32{
  if(distance<=1e-4||distance>=limit){return limit;}
  return distance;
 }
-/** Le plus proche triangle touché, ou rien. La direction est supposée normalisée. */
+/** The nearest triangle hit, or nothing. The direction is assumed normalized. */
 fn traceProxy(origin:vec3f,direction:vec3f,limit:f32)->ProxyHit{
  var best=ProxyHit(limit,0u,false);
  if(proxyNodeCount()==0u){return best;}
@@ -85,7 +85,7 @@ fn traceProxy(origin:vec3f,direction:vec3f,limit:f32)->ProxyHit{
  }
  return best;
 }
-/** Vrai dès qu'un triangle coupe le segment : une ombre n'a pas besoin du plus proche. */
+/** True as soon as a triangle cuts the segment: a shadow does not need the nearest. */
 fn proxyBlocked(origin:vec3f,direction:vec3f,limit:f32)->bool{
  if(proxyNodeCount()==0u){return false;}
  let inverse=rayInverse(direction);

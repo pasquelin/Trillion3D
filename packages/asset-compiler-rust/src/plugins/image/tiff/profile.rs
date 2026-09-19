@@ -1,20 +1,20 @@
-//! Le profil d'un TIFF, lu dans son premier IFD avant tout décodage.
+//! Profile of a TIFF, read from its first IFD before any decode.
 //!
-//! TIFF est un conteneur de champs plutôt qu'un format : deux fichiers de même extension peuvent
-//! n'avoir en commun que leurs huit premiers octets. Le pilote lit donc l'IFD lui-même pour savoir,
-//! avant de décoder, s'il est devant l'un des profils qu'il déclare. Sans cette lecture la
-//! bibliothèque déciderait à sa place, et un 16 bits reviendrait rogné à huit sans que personne ne
-//! l'ait dit — exactement la perte que la politique d'import interdit d'ajouter.
+//! TIFF is a field container rather than a format: two files of the same extension may have
+//! only their first eight bytes in common. The driver therefore reads the IFD itself to know,
+//! before decoding, whether it is facing one of the profiles it declares. Without this read
+//! the library would decide in its place, and a 16-bit would come back clipped to eight
+//! without anyone having said so — exactly the loss the import policy forbids adding.
 //!
-//! Champs, types et valeurs par défaut suivent « TIFF Revision 6.0 » (Adobe Developers Association,
-//! 3 juin 1992), spécification publique. BigTIFF se reconnaît à son nombre magique 43.
+//! Fields, types and default values follow "TIFF Revision 6.0" (Adobe Developers Association,
+//! 3 June 1992), public specification. BigTIFF is recognized by its magic number 43.
 use super::{DEPTH, PROFILE, UNREADABLE};
 
-/// Les huit octets d'entête : ordre des octets, nombre magique, adresse du premier IFD.
+/// The eight header bytes: byte order, magic number, address of the first IFD.
 const HEADER: usize = 8;
-/// Une entrée d'IFD : tag, type, nombre de valeurs, puis la valeur ou son adresse.
+/// One IFD entry: tag, type, number of values, then the value or its address.
 const ENTRY: usize = 12;
-/// Le nombre magique du TIFF classique ; 43 est celui de BigTIFF, que ce pilote refuse.
+/// Magic number of classic TIFF; 43 is that of BigTIFF, which this driver refuses.
 const CLASSIC: u32 = 42;
 const BIG: u32 = 43;
 
@@ -26,14 +26,14 @@ const PLANAR: u32 = 284;
 const EXTRA_SAMPLES: u32 = 338;
 const SAMPLE_FORMAT: u32 = 339;
 
-/// Les compressions déclarées : aucune, LZW, Deflate — les deux tags qui le désignent — et
-/// PackBits. Toutes rendent les octets d'origine tels quels. JPEG (6 et 7) et les CCITT (2, 3, 4)
-/// en sont absents : le premier ajouterait une perte au décodage d'une source déjà perdue, les
-/// seconds ne décrivent que du bilevel, hors des profils annoncés.
+/// Declared compressions: none, LZW, Deflate — the two tags that name it — and PackBits.
+/// All return the original bytes as-is. JPEG (6 and 7) and CCITT (2, 3, 4) are absent: the
+/// first would add a loss on decoding an already-lossy source, the latter only describe
+/// bilevel, outside the announced profiles.
 const COMPRESSIONS: [u32; 5] = [1, 5, 8, 32773, 32946];
 
-/// Ce qu'une entrée d'IFD porte : son nombre de valeurs, et les quatre premières. Au-delà de quatre
-/// composantes on est hors des profils déclarés, il n'y a plus rien à lire pour décider.
+/// What an IFD entry carries: its number of values, and the first four. Beyond four
+/// components we are outside the declared profiles, there is nothing left to read to decide.
 struct Field {
     count: u32,
     values: [u32; 4],
@@ -45,7 +45,7 @@ struct Ifd<'a> {
 }
 
 impl Ifd<'_> {
-    /// Un entier non signé de `width` octets, dans l'ordre déclaré par l'entête.
+    /// An unsigned integer of `width` bytes, in the order the header declares.
     fn uint(&self, at: usize, width: usize) -> Option<u32> {
         let mut value = 0;
         for (index, byte) in self.bytes.get(at..at + width)?.iter().enumerate() {
@@ -59,9 +59,9 @@ impl Ifd<'_> {
         Some(value)
     }
 
-    /// Les valeurs d'une entrée. Elles logent dans les quatre octets du champ quand elles y tiennent
-    /// — cadrées à gauche —, sinon le champ porte leur adresse. Les types qui ne peuvent pas décrire
-    /// un profil, à commencer par les rationnels, ne sont pas lus.
+    /// Values of an entry. They live in the field's four bytes when they fit — left-aligned —,
+    /// otherwise the field carries their address. Types that cannot describe a profile,
+    /// starting with rationals, are not read.
     fn field(&self, entry: usize) -> Option<Field> {
         let width = match self.uint(entry + 2, 2)? {
             1 | 2 | 6 | 7 => 1,
@@ -82,7 +82,7 @@ impl Ifd<'_> {
         Some(Field { count, values })
     }
 
-    /// L'entrée qui porte ce tag dans l'IFD commençant à `first`, ou rien.
+    /// The entry that carries this tag in the IFD starting at `first`, or nothing.
     fn find(&self, first: usize, entries: usize, tag: u32) -> Option<Field> {
         (0..entries)
             .map(|index| first + 2 + index * ENTRY)
@@ -90,7 +90,8 @@ impl Ifd<'_> {
             .and_then(|entry| self.field(entry))
     }
 
-    /// La valeur unique de ce tag, ou celle que la spécification donne par défaut quand il manque.
+    /// The unique value of this tag, or the one the specification gives by default when it is
+    /// missing.
     fn single(&self, first: usize, entries: usize, tag: u32, default: u32) -> Option<u32> {
         match self.find(first, entries, tag) {
             None => Some(default),
@@ -100,7 +101,7 @@ impl Ifd<'_> {
     }
 }
 
-/// Le profil de ce fichier, ou la raison de le refuser. Rien n'est décodé ici : on lit des champs.
+/// This file's profile, or the reason to refuse it. Nothing is decoded here: fields are read.
 pub(super) fn check(bytes: &[u8]) -> std::result::Result<(), &'static str> {
     let big_endian = match bytes.get(..2) {
         Some(b"II") => false,
@@ -110,15 +111,15 @@ pub(super) fn check(bytes: &[u8]) -> std::result::Result<(), &'static str> {
     let ifd = Ifd { bytes, big_endian };
     match ifd.uint(2, 2) {
         Some(CLASSIC) => {}
-        // BigTIFF partage l'extension et presque l'entête, mais ses adresses tiennent sur huit
-        // octets : c'est un autre format, sans lecteur ici, et il se nomme plutôt qu'il ne casse.
+        // BigTIFF shares the extension and almost the header, but its addresses sit on eight
+        // bytes: it is another format, with no reader here, and it is named rather than broken.
         Some(BIG) => return Err(PROFILE),
         _ => return Err(UNREADABLE),
     }
     let first = ifd.uint(4, 4).ok_or(UNREADABLE)? as usize;
     let entries = ifd.uint(first, 2).ok_or(UNREADABLE)? as usize;
-    // Une page et une seule : d'un TIFF multi-pages la bibliothèque rendrait la première, et les
-    // autres disparaîtraient sans rapport.
+    // One page and only one: of a multi-page TIFF the library would return the first, and the
+    // others would vanish without a report.
     if ifd.uint(first + 2 + entries * ENTRY, 4).ok_or(UNREADABLE)? != 0 {
         return Err(PROFILE);
     }
@@ -130,17 +131,17 @@ pub(super) fn check(bytes: &[u8]) -> std::result::Result<(), &'static str> {
     if !COMPRESSIONS.contains(&ifd.single(first, entries, COMPRESSION, 1).ok_or(PROFILE)?) {
         return Err(PROFILE);
     }
-    // Entrelacé seulement : en configuration séparée les composantes vivent dans des bandes
-    // distinctes, c'est une autre organisation des données que ce pilote n'annonce pas lire.
+    // Interleaved only: in planar configuration the components live in distinct strips, that
+    // is another data organization this driver does not announce it reads.
     if ifd.single(first, entries, PLANAR, 1) != Some(1) {
         return Err(PROFILE);
     }
     Ok(())
 }
 
-/// Huit bits par composante, entiers non signés, et rien d'autre. Le 16 bits a sa propre raison :
-/// ce n'est pas un profil exotique, c'est de la précision que la sortie du contrat ne sait pas
-/// encore porter — la rogner en silence serait ajouter une perte.
+/// Eight bits per component, unsigned integers, and nothing else. 16-bit has its own reason:
+/// it is not an exotic profile, it is precision the contract output cannot yet carry —
+/// clipping it in silence would add a loss.
 fn depth(
     ifd: &Ifd<'_>,
     first: usize,
@@ -171,9 +172,9 @@ fn depth(
     Ok(())
 }
 
-/// Les trois interprétations déclarées : gris 8 bits noir à zéro, RGB8 et RGBA8 à alpha droit. La
-/// palette, le CMJN, le YCbCr et le CIELab n'ont pas de lecteur ici — la bibliothèque n'étend
-/// d'ailleurs pas les palettes TIFF, et rien ne serait rendu plutôt que mal rendu.
+/// The three declared interpretations: 8-bit greyscale black at zero, RGB8 and RGBA8 with
+/// straight alpha. Palette, CMYK, YCbCr and CIELab have no reader here — the library does
+/// not even expand TIFF palettes, and nothing would be returned rather than returned wrong.
 fn colors(
     ifd: &Ifd<'_>,
     first: usize,
@@ -186,9 +187,9 @@ fn colors(
     let extra = ifd.find(first, entries, EXTRA_SAMPLES);
     match (photometric, samples) {
         (1, 1) | (2, 3) if extra.is_none() => Ok(()),
-        // Le quatrième canal d'un RGB n'est un alpha qu'une fois déclaré tel, et seul l'alpha non
-        // associé (2) est droit : l'alpha associé (1) est prémultiplié, le rendre tel quel
-        // changerait les couleurs.
+        // The fourth channel of an RGB is an alpha only once declared as such, and only
+        // unassociated alpha (2) is straight: associated alpha (1) is premultiplied, returning
+        // it as-is would change the colours.
         (2, 4) => match extra {
             Some(field) if field.count == 1 && field.values[0] == 2 => Ok(()),
             _ => Err(PROFILE),

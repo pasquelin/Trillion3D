@@ -9,7 +9,7 @@ pub(crate) struct Column {
     pub(crate) bytes: Vec<u8>,
 }
 impl Column {
-    /// Une colonne dont la taille finale est connue n'est jamais réallouée pendant l'écriture.
+    /// A column whose final size is known is never reallocated during write.
     pub(crate) fn reserve(&mut self, bytes: usize) {
         self.bytes.reserve(bytes);
     }
@@ -37,7 +37,7 @@ impl Column {
         self.bytes.extend_from_slice(value.as_bytes());
         Ok(())
     }
-    /// Octets déjà au format de la colonne, copiés tels quels.
+    /// Bytes already in column format, copied as is.
     pub(super) fn raw(&mut self, value: &[u8]) {
         self.bytes.extend_from_slice(value);
     }
@@ -71,8 +71,8 @@ pub(super) fn text<'a>(value: Option<&'a Value>, what: &str) -> Result<&'a str> 
         .and_then(Value::as_str)
         .ok_or_else(|| bad(format!("{what} is not a string")))
 }
-/// Les `length` nombres d'un tableau, écrits droit dans la colonne : pas de `Vec` intermédiaire
-/// par sphère ni par paire de bornes, et les mêmes octets qu'une écriture valeur par valeur.
+/// `length` numbers of an array, written straight into the column: no intermediate `Vec`
+/// per sphere or per bounds pair, identical bytes to value-by-value writes.
 pub(crate) fn vector_into(
     value: Option<&Value>,
     length: usize,
@@ -87,8 +87,8 @@ pub(crate) fn vector_into(
         )));
     }
     for (i, item) in items.iter().enumerate() {
-        // Le nom de l'entrée fautive n'est construit que lorsqu'il y en a une : l'ancien chemin
-        // formatait une chaîne par nombre valide, sphère après sphère, page après page.
+        // Faulty entry name constructed only when there is one: former path
+        // formatted a string per valid number, sphere after sphere, page after page.
         let Some(value) = item.as_f64() else {
             return Err(bad(format!("{what}[{i}] is not a number")));
         };
@@ -96,9 +96,9 @@ pub(crate) fn vector_into(
     }
     Ok(())
 }
-/// Tous les nombres d'un tableau, écrits droit dans la colonne. Comme `vector_into`, le nom de
-/// l'entrée fautive n'est construit que lorsqu'il y en a une : l'ancien chemin formatait une chaîne
-/// par nombre valide, nœud de culling après nœud de culling, primitive après primitive.
+/// All numbers of an array, written straight into the column. Like `vector_into`, name of
+/// faulty entry is constructed only when there is one: former path formatted a string
+/// per valid number, culling node after culling node, primitive after primitive.
 pub(crate) fn numbers_into(items: &[Value], what: &str, column: &mut Column) -> Result<()> {
     for (i, item) in items.iter().enumerate() {
         let Some(value) = item.as_f64() else {

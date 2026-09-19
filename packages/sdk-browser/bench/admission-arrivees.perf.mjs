@@ -1,4 +1,4 @@
-// l'admission des transferts et le drain des arrivées.
+// transfer admission and draining arrivals.
 import { findAdmissible } from '../streamingQueueOrder.ts';
 import { sortStreamJobs } from '../streamingQueueOrderFixture.ts';
 import { createArrivalQueue } from '../arrivalQueue.ts';
@@ -55,11 +55,11 @@ function arrivees(fabrique) {
 }
 
 const resAdmission = await mesure({
-  nom: 'admission streaming',
+  name: 'admission streaming',
   fichier: 'packages/sdk-browser/streamingQueueOrder.ts',
   cas: [
-    { nom: '5 000 tâches ordonnées', entree: travaux, taille: 5000 },
-    { nom: 'aucune tâche', entree: [], taille: 0 },
+    { name: '5 000 ordered jobs', input: travaux, size: 5000 },
+    { name: 'no jobs', input: [], size: 0 },
   ],
   calcul: admission(optimiseeAdmission),
   attendu: admission(referenceAdmission),
@@ -67,25 +67,25 @@ const resAdmission = await mesure({
 });
 
 const resArrivees = await mesure({
-  nom: 'file des arrivées',
+  name: 'arrival queue',
   fichier: 'packages/sdk-browser/arrivalQueue.ts',
-  cas: [{ nom: '5 000 arrivées sur 8 cibles', entree: null, taille: 5000 }],
+  cas: [{ name: '5 000 arrivals on 8 targets', input: null, size: 5000 }],
   calcul: () => arrivees(createArrivalQueue),
   attendu: () => arrivees(referenceArrivalQueue),
   options: { tours: 60, budgetMs: 1500 },
 });
 
 await stress({
-  nom: 'createArrivalQueue extremes',
+  name: 'createArrivalQueue extremes',
   calcul: (size) => createArrivalQueue(size, 4096),
   extremes: [
-    { nom: 'petite', entree: 4096 },
-    { nom: 'grande', entree: 1 << 28 },
+    { name: 'small', input: 4096 },
+    { name: 'large', input: 1 << 28 },
   ],
 });
 
 rapport(
   'admission-arrivees',
   [resAdmission, resArrivees],
-  'A12 admet et livre exactement les mêmes pages',
+  'A12 admits and delivers the exact same pages',
 );

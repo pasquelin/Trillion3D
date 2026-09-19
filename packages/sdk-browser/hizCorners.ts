@@ -22,20 +22,20 @@ export function projectCornersInto(
     lowY = Infinity,
     highX = -Infinity,
     highY = -Infinity,
-    // En profondeur inversée, le coin le PLUS PROCHE est celui dont la profondeur est la PLUS
-    // GRANDE : la borne que le test d'occultation compare est donc un maximum.
+    // In reverse-Z, the NEAREST corner is the one whose depth is the GREATEST: the bound the
+    // occlusion test compares is therefore a maximum.
     nearestZ = -Infinity,
     clipsNear = false,
     projected = 0;
   const v = viewElements,
     e = viewProjElements;
-  // Une vue affine — quatrième ligne (0,0,0,1) — rend un dénominateur exactement 1 pour un coin
-  // fini : le produit scalaire n'est alors plus calculé, et `viewZ * 1` était déjà `viewZ`.
+  // An affine view — fourth row (0,0,0,1) — yields a denominator of exactly 1 for a finite
+  // corner: the dot product is then no longer computed, and `viewZ * 1` was already `viewZ`.
   const affine = v[3] === 0 && v[7] === 0 && v[11] === 0 && v[15] === 1;
-  // Une projection perspective a pour quatrième ligne (0,0,-1,0), dont `multiplyMatrices` fait
-  // exactement l'opposé de la troisième ligne de la vue : `cw` vaut alors `-viewZ` au bit près —
-  // la négation est exacte et `(-a) + (-b)` vaut `-(a + b)` —, un produit scalaire de moins par
-  // coin. Une projection quelconque, orthographique ou oblique, retombe sur le produit.
+  // A perspective projection has fourth row (0,0,-1,0), of which `multiplyMatrices` makes
+  // exactly the opposite of the view's third row: `cw` is then `-viewZ` to the bit — negation
+  // is exact and `(-a) + (-b)` equals `-(a + b)` —, one fewer dot product per corner. Any
+  // projection, orthographic or oblique, falls back on the product.
   const mirrored = e[3] === -v[2] && e[7] === -v[6] && e[11] === -v[10] && e[15] === -v[14];
   for (let i = 0; i < 8; i++) {
     const at = from + i * 3,
@@ -45,7 +45,7 @@ export function projectCornersInto(
     const viewZ = v[2] * x + v[6] * y + v[10] * z + v[14];
     const vd = affine ? 1 : v[3] * x + v[7] * y + v[11] * z + v[15];
     if (-(vd === 1 ? viewZ : viewZ * (1 / vd)) <= near) {
-      // Le résultat d'une boîte qui coupe le plan proche ne lit plus aucun coin : rien à projeter.
+      // The result of a box that clips the near plane no longer reads any corner: nothing to project.
       clipsNear = true;
       break;
     }
@@ -73,10 +73,10 @@ export function projectCornersInto(
     into[base + 5] = 1;
     return;
   }
-  // Le passage du repère normalisé à l'écran est monotone coordonnée par coordonnée — croissant en
-  // x, décroissant en y : l'extremum de l'image est l'image de l'extremum, au bit près. Les quatre
-  // conversions se font une fois par boîte au lieu de vingt-quatre. La profondeur, elle, est déjà
-  // dans `[0, 1]` : la projection du moteur n'en sort jamais autrement (`depthConvention.ts`).
+  // The NDC-to-screen passage is monotonic coordinate by coordinate — increasing in x,
+  // decreasing in y: the extremum of the image is the image of the extremum, to the bit. The
+  // four conversions happen once per box instead of twenty-four. Depth itself is already in
+  // `[0, 1]`: the engine projection never leaves it otherwise (`depthConvention.ts`).
   into[base] = Math.floor((lowX * 0.5 + 0.5) * width);
   into[base + 1] = Math.floor((1 - (highY * 0.5 + 0.5)) * height);
   into[base + 2] = Math.ceil((highX * 0.5 + 0.5) * width);

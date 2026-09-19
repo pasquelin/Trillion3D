@@ -112,10 +112,10 @@ export async function createTransparentCompaction(device: GPUDevice, table: Tran
     const groupOffsets = make('WG transparent group offsets', table.groupCount * 4);
     const instanceBuffer = make('WG transparent instances', table.capacity * 4);
     const spanBuffer = make('WG transparent cluster spans', table.capacity * 8);
-    // Le verdict d'occultation de chaque entrée, écrit par le test Hi-Z des transparents un peu plus
-    // tôt dans la même soumission. Zéro avant toute image, et zéro sur une image sans pyramide :
-    // rien n'est alors retiré de la table.
-    // `COPY_SRC` ne sert qu'à l'audit, qui relit les verdicts ; aucune image ne les copie.
+    // Occlusion verdict of each entry, written by the transparent Hi-Z test a little earlier in the
+    // same submission. Zero before any image, and zero on an image without a pyramid: nothing is then
+    // dropped from the table.
+    // `COPY_SRC` only serves the audit, which rereads the verdicts; no image copies them.
     const occludedBuffer = make(
       'WG transparent occlusion verdicts',
       table.capacity * 4,

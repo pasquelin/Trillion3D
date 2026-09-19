@@ -1,20 +1,20 @@
-//! Pilote Radiance HDR (RGBE), lecteur écrit ici depuis la spécification publique du format :
-//! « Real Pixels » de Greg Ward (Graphics Gems II, 1991), qui définit l'encodage RGBE et sa
-//! compression par plages, et le manuel Radiance (Lawrence Berkeley National Laboratory), qui
-//! définit l'entête, ses variables et sa ligne de résolution. Aucun SDK ni code d'éditeur, aucun
-//! décodeur tiers : la caisse `image` ne reconnaît que la signature `#?RADIANCE` et ne laisse pas
-//! nommer ce qu'elle refuse, deux choses que ce pilote doit faire.
+//! Radiance HDR (RGBE) driver, reader written here from the format's public specification:
+//! Greg Ward's "Real Pixels" (Graphics Gems II, 1991), which defines the RGBE encoding and its
+//! run-length compression, and the Radiance manual (Lawrence Berkeley National Laboratory),
+//! which defines the header, its variables and its resolution line. No vendor SDK or code, no
+//! third-party decoder: the `image` crate only recognizes the `#?RADIANCE` signature and does
+//! not let what it refuses be named, two things this driver must do.
 //!
-//! **On n'ajoute aucune perte.** Un RGBE porte trois mantisses de huit bits et un exposant commun ;
-//! la mantisse multipliée par `2^(e - 136)` est exactement le flottant que le fichier décrit, et
-//! `f32` le porte sans arrondi. Rien n'est ramené à huit bits, rien n'est reporté en tons — d'où la
-//! variante `DecodedImage::RgbaF32`. L'alpha est opaque : le format n'en a pas.
+//! **No extra loss is added.** An RGBE carries three eight-bit mantissas and a shared exponent;
+//! the mantissa multiplied by `2^(e - 136)` is exactly the float the file describes, and `f32`
+//! carries it without rounding. Nothing is reduced to eight bits, nothing is tone-mapped —
+//! hence the `DecodedImage::RgbaF32` variant. Alpha is opaque: the format has none.
 //!
-//! **Sous-ensemble accepté** : signature `#?RADIANCE` ou `#?RGBE`, `FORMAT=32-bit_rle_rgbe`
-//! (absent, c'est le défaut de Radiance), résolution `-Y hauteur +X largeur`, lignes brutes,
-//! compression par plages ancienne (marqueur `1,1,1,n`) comme nouvelle (entête `2,2,largeur`).
-//! Refusés et nommés : `32-bit_rle_xyze`, qui est un autre espace de couleur, et toute autre
-//! orientation que haut-en-bas gauche-à-droite, qui demanderait de retourner l'image.
+//! **Accepted subset**: signature `#?RADIANCE` or `#?RGBE`, `FORMAT=32-bit_rle_rgbe`
+//! (absent, that is Radiance's default), resolution `-Y height +X width`, raw lines, old
+//! run-length compression (marker `1,1,1,n`) as well as new (header `2,2,width`).
+//! Refused and named: `32-bit_rle_xyze`, which is another colour space, and any orientation
+//! other than top-to-bottom left-to-right, which would require flipping the image.
 use super::{float_budget, DecodedImage, ImageDecoded, ImageDecoder, Plugin, Transfer};
 
 mod scanlines;
@@ -22,25 +22,25 @@ mod scanlines;
 pub(super) static HDR: Hdr = Hdr;
 pub(super) struct Hdr;
 
-/// Les deux signatures que le format porte en tête. `#?RADIANCE` est celle qu'écrivent les outils
-/// d'aujourd'hui ; `#?RGBE` est celle des fichiers anciens et de plusieurs exporteurs.
+/// The two signatures the format carries at the front. `#?RADIANCE` is the one today's tools
+/// write; `#?RGBE` is that of old files and of several exporters.
 const SIGNATURES: [&[u8]; 2] = [b"#?RADIANCE", b"#?RGBE"];
-/// Le seul encodage de pixels de ce pilote. `32-bit_rle_xyze` décrit les mêmes octets dans l'espace
-/// CIE XYZ : le convertir en RGB demanderait une matrice et un choix de primaires.
+/// The only pixel encoding of this driver. `32-bit_rle_xyze` describes the same bytes in CIE
+/// XYZ space: converting it to RGB would require a matrix and a choice of primaries.
 const FORMAT_RGBE: &str = "32-bit_rle_rgbe";
-/// La variable d'entête qui nomme l'encodage.
+/// Header variable that names the encoding.
 const FORMAT_KEY: &str = "FORMAT=";
-/// Plafond de l'entête, en lignes : un fichier qui n'annonce toujours pas sa résolution après cela
-/// n'est pas un HDR, c'est un fichier texte que l'on refuse au lieu de le parcourir entier.
+/// Header ceiling, in lines: a file that still has not announced its resolution after that is
+/// not an HDR, it is a text file that is refused instead of being walked entirely.
 const MAX_HEADER_LINES: usize = 128;
 
-/// Entête absent, tronqué, illisible ou sans ligne de résolution valide.
+/// Header missing, truncated, unreadable or without a valid resolution line.
 const HEADER_INVALID: &str = "hdr-header-invalid";
-/// Un encodage de pixels hors du sous-ensemble : `32-bit_rle_xyze` aujourd'hui.
+/// A pixel encoding outside the subset: `32-bit_rle_xyze` today.
 const FORMAT_UNSUPPORTED: &str = "hdr-format-unsupported";
-/// Une orientation de balayage autre que `-Y … +X …`.
+/// A scan orientation other than `-Y … +X …`.
 const ORIENTATION: &str = "hdr-orientation-unsupported";
-/// L'image dépasse le plafond d'allocation reçu : un refus, jamais une allocation tentée.
+/// The image exceeds the received allocation ceiling: a refusal, never an attempted allocation.
 const TOO_LARGE: &str = "hdr-image-too-large";
 
 impl Plugin for Hdr {
@@ -50,9 +50,9 @@ impl Plugin for Hdr {
     fn version(&self) -> &'static str {
         "hdr-radiance-rgbe-1"
     }
-    /// `.hdr` est l'extension courante, `.rgbe` celle que posent quelques exporteurs, `.pic` celle
-    /// des fichiers Radiance d'origine. L'extension ne fait que désigner le pilote : ce sont les
-    /// octets qui décident, et un `.pic` d'un autre format ressort en format inconnu.
+    /// `.hdr` is the common extension, `.rgbe` the one some exporters put, `.pic` that of
+    /// original Radiance files. The extension only names the driver: the bytes decide, and a
+    /// `.pic` of another format comes back as unknown format.
     fn extensions(&self) -> &'static [&'static str] {
         &["hdr", "rgbe", "pic"]
     }
@@ -67,8 +67,8 @@ impl ImageDecoder for Hdr {
             .iter()
             .any(|signature| head.starts_with(signature))
     }
-    /// L'entête d'abord — il donne la taille, donc le plafond s'applique avant toute allocation —,
-    /// puis les lignes de pixels, chacune dans l'une des trois écritures du format.
+    /// The header first — it gives the size, so the ceiling applies before any allocation —,
+    /// then the pixel lines, each in one of the format's three writings.
     fn decode(
         &self,
         bytes: &[u8],
@@ -88,8 +88,8 @@ impl ImageDecoder for Hdr {
     }
 }
 
-/// L'entête : la signature, des lignes de variables et de commentaires, une ligne vide, puis la
-/// ligne de résolution. Rend la taille et les octets qui suivent — les pixels et rien d'autre.
+/// The header: the signature, variable and comment lines, an empty line, then the resolution
+/// line. Returns the size and the bytes that follow — the pixels and nothing else.
 fn header(bytes: &[u8]) -> std::result::Result<(u32, u32, &[u8]), &'static str> {
     if !SIGNATURES
         .iter()
@@ -114,8 +114,8 @@ fn header(bytes: &[u8]) -> std::result::Result<(u32, u32, &[u8]), &'static str> 
     Err(HEADER_INVALID)
 }
 
-/// Une ligne de l'entête, sans son saut de ligne, et ce qui la suit. L'entête est du texte : des
-/// octets qui n'en sont pas ne sont pas un entête Radiance.
+/// One header line, without its newline, and what follows it. The header is text: bytes that
+/// are not are not a Radiance header.
 fn next_line(bytes: &[u8]) -> std::result::Result<(&str, &[u8]), &'static str> {
     let end = bytes
         .iter()
@@ -125,10 +125,11 @@ fn next_line(bytes: &[u8]) -> std::result::Result<(&str, &[u8]), &'static str> {
     Ok((line.trim_end_matches('\r'), &bytes[end + 1..]))
 }
 
-/// La ligne de résolution. Seul `-Y hauteur +X largeur` est accepté : c'est le balayage haut-en-bas
-/// gauche-à-droite, celui dans lequel le contrat range ses pixels. Les sept autres combinaisons de
-/// signes et d'axes décrivent la même image écrite dans un autre sens ; les accepter voudrait dire
-/// la retourner, et un pilote qui retourne en silence est un pilote dont on doute.
+/// The resolution line. Only `-Y height +X width` is accepted: that is the top-to-bottom
+/// left-to-right scan, the one in which the contract stores its pixels. The other seven
+/// combinations of signs and axes describe the same image written in another direction;
+/// accepting them would mean flipping it, and a driver that flips in silence is a driver one
+/// doubts.
 fn size(line: &str) -> std::result::Result<(u32, u32), &'static str> {
     let fields: Vec<&str> = line.split_whitespace().collect();
     let [y_axis, height, x_axis, width] = fields[..] else {

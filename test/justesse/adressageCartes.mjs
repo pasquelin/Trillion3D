@@ -1,7 +1,6 @@
-// Défaut 8 : le matériau dont les six cartes n'ont pas le même mode d'adressage, et la ligne de
-// page que le vrai `createPageRowWriter` en écrit. Le banc GPU et le test de non-régression lisent
-// tous les deux cette fixture : un seul matériau éprouvé, donc une seule chose à relire quand les
-// modes changent.
+// Defect 8: the material whose six maps do not share the same wrap mode, and the page row the
+// real `createPageRowWriter` writes for it. The GPU bench and the non-regression test both read
+// this fixture: one material exercised, hence one thing to reread when the modes change.
 import * as THREE from 'three';
 import { createPageRowWriter } from '../../packages/sdk-browser/webgpuPageRow.ts';
 import { PAGE_INFO_STRIDE } from '../../packages/sdk-browser/visibilityTypes.ts';
@@ -15,26 +14,26 @@ const {
 } = THREE;
 
 /**
- * Une carte par emplacement du matériau, chacune sur un couple de modes différent : aucun mode n'est
- * partagé par deux cartes voisines, si bien qu'un mot d'adressage appliqué à la mauvaise carte se
- * voit tout de suite. `carte` est le rang de la carte dans le mot, tel que la production le publie.
+ * One map per material slot, each on a different pair of modes: no mode is shared by two
+ * neighbouring maps, so a wrap word applied to the wrong map is seen at once. `carte` is the map's
+ * rank in the word, as production publishes it.
  */
 export const CARTES = [
   { nom: 'base', champ: 'map', carte: WRAP_MAP.base, wrapS: REPETE, wrapT: REPETE },
-  { nom: 'rugosité', champ: 'roughnessMap', carte: WRAP_MAP.rough, wrapS: SERRE, wrapT: MIROIR },
-  { nom: 'métal', champ: 'metalnessMap', carte: WRAP_MAP.metal, wrapS: MIROIR, wrapT: SERRE },
+  { nom: 'roughness', champ: 'roughnessMap', carte: WRAP_MAP.rough, wrapS: SERRE, wrapT: MIROIR },
+  { nom: 'metal', champ: 'metalnessMap', carte: WRAP_MAP.metal, wrapS: MIROIR, wrapT: SERRE },
   { nom: 'normales', champ: 'normalMap', carte: WRAP_MAP.normal, wrapS: SERRE, wrapT: SERRE },
   { nom: 'occlusion', champ: 'aoMap', carte: WRAP_MAP.ao, wrapS: MIROIR, wrapT: MIROIR },
-  { nom: 'émissif', champ: 'emissiveMap', carte: WRAP_MAP.emissive, wrapS: REPETE, wrapT: SERRE },
+  { nom: 'emissive', champ: 'emissiveMap', carte: WRAP_MAP.emissive, wrapS: REPETE, wrapT: SERRE },
 ];
 
-/** L'image éprouvée : 4×5 texels tous distincts, celle des bancs d'adressage des lots 4 et 7. */
+/** The exercised image: 4×5 distinct texels, that of the wrap benches of batches 4 and 7. */
 export const TEXTURE = { largeur: 4, hauteur: 5, octets: Array.from(octetsTexture(4, 5)) };
 
 /**
- * Des coordonnées où les trois modes se séparent : entières, négatives, grandes, et le demi-texel
- * des deux bords d'une période, la couture que le lot 7 a apprise à reboucler. L'axe fixé tombe au
- * centre d'un texel, hors frontière, pour que seule la coordonnée éprouvée décide.
+ * Coordinates where the three modes part: integers, negatives, large values, and the half-texel
+ * of both edges of a period, the seam batch 7 learned to wrap. The fixed axis lands at a texel
+ * centre, off the border, so only the exercised coordinate decides.
  */
 const AXE = [-1001, -2.375, -0.625, 0.375, 0.625, 1.25, 2.625, 1000.625, 0, 0.02, 0.999, 2.98].map(
   Math.fround,
@@ -45,7 +44,7 @@ export const UV = AXE.flatMap((t) => [
   [t, t],
 ]);
 
-/** Le matériau à six cartes, chacune dans son mode, sans image : seuls les modes sont lus ici. */
+/** The six-map material, each in its mode, with no image: only the modes are read here. */
 export function materielMelange() {
   const mat = new THREE.MeshStandardMaterial({ alphaTest: 0.5 });
   for (const { champ, wrapS, wrapT } of CARTES)
@@ -54,8 +53,8 @@ export function materielMelange() {
 }
 
 /**
- * La ligne de page que la production écrit pour ce matériau : chaque carte occupe sa propre couche
- * d'atlas, si bien qu'aucun index nul ne fait retomber le nuanceur sur un chemin sans texture.
+ * The page row production writes for this material: each map occupies its own atlas layer, so no
+ * null index drops the shader onto a path without a texture.
  */
 export function ligneDePageMelangee() {
   const mat = materielMelange();
@@ -85,11 +84,11 @@ export function ligneDePageMelangee() {
     material: mat,
     attributes,
     matrix: new THREE.Matrix4(),
-    url: 'défaut8',
+    url: 'defect8',
     clusterId: 'c0',
     role: 'fine',
     depthLayer: 0,
-    // Une page écrite en ligne appartient à un placement : la disposition WebGPU le pose.
+    // A row-written page belongs to a placement: the WebGPU layout sets it.
     placementIndex: 0,
   };
   ecrire(rec, 0, 0, 0, new Uint32Array([0, 1, 2]), floats, ints);

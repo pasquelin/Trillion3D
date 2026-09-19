@@ -1,12 +1,12 @@
-//! A09 : un cycle dans la hiérarchie de nœuds glTF. Le parcours des matrices monde partait des
-//! seuls nœuds sans père ; un cycle fermé n'en a aucun, il n'était donc jamais parcouru — et la
-//! scène partait publiée, son cycle intact, prête à faire tourner sans fin le parcours du
-//! consommateur. Un nœud orphelin, lui, reste une scène juste : il a un père nulle part, pas un
-//! père en boucle.
+//! A09: a cycle in the glTF node hierarchy. World-matrix walk used to start from
+//! parentless nodes only; a closed cycle has none, so it was never walked — and
+//! the scene went out published, cycle intact, ready to send the consumer's walk
+//! into an endless loop. An orphan node remains a correct scene: it has a parent
+//! nowhere, not a parent in a loop.
 use super::*;
 
-/// Compile la fixture dont les nœuds sont ceux du cas, et rend le code de refus, ou `None` quand la
-/// compilation aboutit.
+/// Compiles the fixture whose nodes are those of the case, and returns the
+/// refusal code, or `None` when compilation succeeds.
 fn refusal(tag: &str, gltf_nodes: Value, scenes: Option<Value>) -> Option<String> {
     let (root, options) = fixture();
     let mut gltf = read_gltf(&options);
@@ -22,15 +22,15 @@ fn refusal(tag: &str, gltf_nodes: Value, scenes: Option<Value>) -> Option<String
     outcome
 }
 
-// Constat A09 : un nœud qui se déclare son propre enfant, et deux nœuds qui se déclarent enfants
-// l'un de l'autre, sont des hiérarchies impossibles. Elles sont refusées avant publication, par le
-// même code que toute autre contradiction du document.
+// Finding A09: a node that declares itself its own child, and two nodes that
+// declare each other children, are impossible hierarchies. They are refused
+// before publication, by the same code as any other contradiction of the document.
 #[test]
 fn un_cycle_de_noeuds_est_refuse_avant_publication() {
     assert_eq!(
         refusal("auto", json!([{"mesh":0,"children":[0]},{"mesh":0}]), None),
         Some("auto:INVALID_GLTF".into()),
-        "un nœud son propre enfant ferme un cycle"
+        "a node its own child closes a cycle"
     );
     assert_eq!(
         refusal(
@@ -39,10 +39,10 @@ fn un_cycle_de_noeuds_est_refuse_avant_publication() {
             None
         ),
         Some("paire:INVALID_GLTF".into()),
-        "deux nœuds enfants l'un de l'autre ferment un cycle"
+        "two nodes children of each other close a cycle"
     );
-    // Le cycle est refusé même quand la scène rendue ne le nomme pas : ce qui est publié porte
-    // toute la hiérarchie, pas seulement ce que la scène atteint.
+    // The cycle is refused even when the rendered scene does not name it: what is
+    // published carries the whole hierarchy, not only what the scene reaches.
     assert_eq!(
         refusal(
             "hors-scene",
@@ -50,12 +50,12 @@ fn un_cycle_de_noeuds_est_refuse_avant_publication() {
             Some(json!([{"nodes":[0]}]))
         ),
         Some("hors-scene:INVALID_GLTF".into()),
-        "un cycle qu'aucune scène n'atteint reste un cycle"
+        "a cycle no scene reaches remains a cycle"
     );
 }
 
-// L'autre bout : un nœud sans père qu'aucune scène ne nomme n'est pas un cycle. Il est ignoré,
-// comme il l'a toujours été, et la scène compile.
+// The other end: a parentless node no scene names is not a cycle. It is ignored,
+// as it always was, and the scene compiles.
 #[test]
 fn un_noeud_orphelin_reste_accepte() {
     assert_eq!(
@@ -65,6 +65,6 @@ fn un_noeud_orphelin_reste_accepte() {
             Some(json!([{"nodes":[0]}]))
         ),
         None,
-        "un nœud hors de la scène rendue n'est pas une hiérarchie impossible"
+        "a node outside the rendered scene is not an impossible hierarchy"
     );
 }

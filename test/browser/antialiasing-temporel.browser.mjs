@@ -1,10 +1,11 @@
-// Preuve par le rendu réel : l'antialiasing temporel adoucit les bords et rien d'autre.
+// Proof by real rendering: temporal antialiasing softens edges and nothing else.
 //
-// Un carreau rouge tourné sur un fond bleu, rendu par le vrai moteur WebGPU. Sans l'option, l'image
-// est celle d'avant le lot. Avec, le moteur rend un plein cycle d'images immobiles avant de tenir
-// l'image ; l'image tenue ne diffère de l'image sans accumulation qu'à deux pixels d'un bord — la
-// portée de la gigue et du filtre —, l'intérieur des surfaces reste identique, deux exécutions
-// donnent la même image au bit près, et un carreau déplacé ne laisse aucun fantôme là où il était.
+// A red tile rotated on a blue background, rendered by the real WebGPU engine. Without
+// the option, the image is the one from before the batch. With it, the engine renders a
+// full cycle of still frames before holding; the held image differs from the image
+// without accumulation only at two pixels of an edge — the reach of jitter and the
+// filter —, surface interiors stay identical, two runs give the same image to the bit,
+// and a moved tile leaves no ghost where it was.
 //
 //   node --experimental-strip-types test/browser/antialiasing-temporel.browser.mjs
 import assert from 'node:assert/strict';
@@ -14,16 +15,16 @@ import { estRouge } from '../appui/preuveSceneCommune.mjs';
 const resultat = await preuveDansLaPage(
   'antialiasingTemporelPage.mjs',
   'antialiasingTemporel',
-  'Antialiasing temporel : bords, tenue, témoin A/A, déplacement',
+  'Temporal antialiasing: edges, hold, A/A witness, motion',
 );
 preuveSaine(resultat);
 const [largeur, hauteur] = resultat.viewport;
 
-/** Portée de l'accumulation autour d'un bord, en pixels : une demi-gigue et le filtre 3×3 de
- *  l'image courante atteignent un pixel et demi, donc deux pixels entiers. */
+/** Reach of accumulation around an edge, in pixels: half a jitter and the current image's
+ *  3×3 filter cover one and a half pixels, hence two whole pixels. */
 const PORTEE = 2;
 
-/** Vrai quand, dans `pixels`, un pixel à moins de `PORTEE` de `(x, y)` a une autre couleur : un bord. */
+/** True when, in `pixels`, a pixel within `PORTEE` of `(x, y)` has another colour: an edge. */
 function auBord(pixels, x, y) {
   const i = (y * largeur + x) * 4;
   for (let dy = -PORTEE; dy <= PORTEE; dy++)
@@ -42,8 +43,8 @@ function auBord(pixels, x, y) {
   return false;
 }
 
-/** Les pixels où `a` et `b` diffèrent de plus de `tolerance` par canal, classés bord / intérieur
- *  d'après `b`, l'image sans accumulation. */
+/** Pixels where `a` and `b` differ by more than `tolerance` per channel, classed edge / interior
+ *  from `b`, the image without accumulation. */
 function ecarts(a, b, tolerance) {
   let bords = 0,
     interieur = 0,
@@ -77,60 +78,54 @@ console.log(
   ),
 );
 
-assert.equal(sans.capacites?.temporalAntialiasing, false, "sans l'option, rien n'est gréé");
-assert.equal(avec.capacites?.temporalAntialiasing, true, "avec l'option, la passe est gréée");
+assert.equal(sans.capacites?.temporalAntialiasing, false, 'without the option, nothing is wired');
+assert.equal(avec.capacites?.temporalAntialiasing, true, 'with the option, the pass is wired');
 assert.equal(avec.capacites?.motionVectors, 'derived');
 assert.ok(
   !avec.capacites?.unsupported?.includes('temporal antialiasing'),
-  'la capacité doit quitter la liste des non supportées',
+  'the capability must leave the unsupported list',
 );
 
 for (const [nom, execution] of [
-  ['sans', sans],
-  ['avec', avec],
-  ['témoin', temoin],
+  ['without', sans],
+  ['with', avec],
+  ['witness', temoin],
 ]) {
-  assert.ok(execution.arret.tenue, `${nom} : l'image n'a jamais été tenue à l'arrêt`);
-  assert.ok(execution.deplacement.tenue, `${nom} : l'image n'a jamais été tenue après déplacement`);
-  // L'image tenue est celle qui vient d'être rendue, réaffichée telle quelle.
-  assert.deepEqual(execution.arret.tenue, execution.arret.rendue, `${nom} : tenue ≠ rendue`);
+  assert.ok(execution.arret.tenue, `${nom}: the image was never held while still`);
+  assert.ok(execution.deplacement.tenue, `${nom}: the image was never held after motion`);
+  // The held image is the one just rendered, redisplayed as-is.
+  assert.deepEqual(execution.arret.tenue, execution.arret.rendue, `${nom}: held ≠ rendered`);
 }
-// Un plein cycle d'images immobiles précède la tenue avec accumulation ; sans, elle vient aussitôt.
-assert.ok(sans.arret.rendues <= 4, `sans accumulation, tenue après ${sans.arret.rendues} images`);
+// A full cycle of still frames precedes the hold with accumulation; without, it comes at once.
+assert.ok(sans.arret.rendues <= 4, `without accumulation, held after ${sans.arret.rendues} frames`);
 assert.ok(
   avec.arret.rendues >= 16 && avec.arret.rendues <= 24,
-  `avec accumulation, tenue après ${avec.arret.rendues} images ; un plein cycle est attendu`,
+  `with accumulation, held after ${avec.arret.rendues} frames; a full cycle is expected`,
 );
 
-// Témoin A/A : deux exécutions, la même image au bit près.
-assert.deepEqual(
-  temoin.arret.tenue,
-  avec.arret.tenue,
-  "deux exécutions identiques diffèrent à l'arrêt",
-);
+// A/A witness: two runs, the same image to the bit.
+assert.deepEqual(temoin.arret.tenue, avec.arret.tenue, 'two identical runs differ while still');
 assert.deepEqual(
   temoin.deplacement.tenue,
   avec.deplacement.tenue,
-  'deux exécutions identiques diffèrent après déplacement',
+  'two identical runs differ after motion',
 );
 
-// Avec contre sans : les bords changent, l'intérieur non.
+// With versus without: edges change, the interior does not.
 for (const [etape, cle] of [
-  ['arrêt', 'arret'],
-  ['déplacement', 'deplacement'],
+  ['still', 'arret'],
+  ['motion', 'deplacement'],
 ]) {
   const e = ecarts(avec[cle].tenue, sans[cle].tenue, 2);
-  console.log(
-    `${etape} : ${e.bords} pixels de bord changés, ${e.interieur} intérieurs, max ${e.max}`,
-  );
-  assert.ok(e.bords > 0, `${etape} : l'accumulation devrait changer des pixels de bord`);
-  assert.equal(e.interieur, 0, `${etape} : ${e.interieur} pixels intérieurs changés de plus de 2`);
+  console.log(`${etape}: ${e.bords} edge pixels changed, ${e.interieur} interior, max ${e.max}`);
+  assert.ok(e.bords > 0, `${etape}: accumulation should change edge pixels`);
+  assert.equal(e.interieur, 0, `${etape}: ${e.interieur} interior pixels changed by more than 2`);
 }
 
-// Reprojection : sous un panoramique, l'historique doit rester lisible. S'il était reprojeté de
-// travers, le bornage le rejetterait et l'image en mouvement retomberait sur la seule image
-// courante, aux bords durs ; on compte donc les pixels de bord intermédiaires — ni rouge ni fond —
-// pendant le mouvement, et on les compare à ceux de l'image convergée à l'arrêt.
+// Reprojection: under a pan, history must stay readable. If it were reprojected askew, clamping
+// would reject it and the moving image would fall back to the current frame alone, with hard
+// edges; so intermediate edge pixels — neither red nor background — are counted during motion
+// and compared to those of the still converged image.
 {
   const intermediaires = (pixels) => {
     let n = 0;
@@ -146,18 +141,16 @@ for (const [etape, cle] of [
   const repos = intermediaires(avec.arret.tenue),
     mouvement = intermediaires(avec.panoramique),
     dur = intermediaires(sans.panoramique);
-  console.log(
-    `bords intermédiaires : repos ${repos}, panoramique ${mouvement}, sans accumulation ${dur}`,
-  );
-  assert.ok(repos > 0, "aucun bord intermédiaire à l'arrêt : l'accumulation n'a rien lissé");
+  console.log(`intermediate edges: still ${repos}, pan ${mouvement}, without accumulation ${dur}`);
+  assert.ok(repos > 0, 'no intermediate edge while still: accumulation smoothed nothing');
   assert.ok(
     mouvement >= 0.7 * repos,
-    `sous panoramique, ${mouvement} bords intermédiaires contre ${repos} à l'arrêt : l'historique est rejeté`,
+    `under pan, ${mouvement} intermediate edges against ${repos} while still: history is rejected`,
   );
 }
 
-// Aucun fantôme : là où le carreau était avant le déplacement et n'est plus, les deux images du
-// déplacement — avec et sans accumulation — montrent le fond, à 2 par canal près.
+// No ghost: where the tile was before the move and no longer is, both motion images —
+// with and without accumulation — show the background, to 2 per channel.
 {
   let fantomes = 0;
   const avant = sans.arret.tenue,
@@ -166,8 +159,8 @@ for (const [etape, cle] of [
   for (let y = 1; y < hauteur - 1; y++)
     for (let x = 1; x < largeur - 1; x++) {
       const i = (y * largeur + x) * 4;
-      // Le rouge au sens large de `redCount` : un pixel de bord compte comme carreau ici, pour que
-      // toute la zone libérée soit examinée ; le compte des bords intermédiaires, lui, est strict.
+      // Red in the broad `redCount` sense: an edge pixel counts as tile here, so the whole
+      // freed region is examined; the intermediate-edge count itself is strict.
       const etaitRouge = estRouge(avant, i),
         estFond = !estRouge(apres, i);
       if (!etaitRouge || !estFond || auBord(apres, x, y)) continue;
@@ -177,5 +170,5 @@ for (const [etape, cle] of [
           break;
         }
     }
-  assert.equal(fantomes, 0, `${fantomes} pixels libérés par le déplacement gardent une trace`);
+  assert.equal(fantomes, 0, `${fantomes} pixels freed by the move keep a trace`);
 }

@@ -21,28 +21,28 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
     lastPrefetch = 0;
   let streamingPromise: Promise<void> | null = null,
     backgroundFetchController: AbortController | undefined;
-  // Un `Set` plutôt qu'un tableau : l'ordre d'insertion est le même, l'appartenance ne coûte plus
-  // un balayage par adresse ajoutée, et le doublon est écarté par la structure elle-même.
+  // A `Set` rather than an array: insertion order is the same, membership no longer costs a
+  // walk per added address, and the duplicate is dropped by the structure itself.
   const queuedFetch = new Set<string>();
   const decodeFailures = new Set<string>();
-  // Les arrivées de pages n'entrent plus dans l'image qui les découvre : la file les empile et un
-  // drain unique et borné, en tête de `render()`, les fait résider avant la sélection de l'image
-  // suivante. Le plafond est un TEMPS — 2 ms d'intégration par image ; 512 Kio d'index et 64 pages
-  // le doublent sans jamais le remplacer, parce qu'un paquet de streaming porte un nombre de
-  // clusters inconnu d'avance et qu'aucun compte d'octets ne borne alors la durée.
+  // Page arrivals no longer enter the frame that discovers them: the queue stacks them and a
+  // single bounded drain, at the head of `render()`, makes them resident before selection of
+  // the next frame. The ceiling is TIME — 2 ms of integration per frame; 512 KiB of index and 64 pages
+  // double it without ever replacing it, because a streaming packet carries a cluster count
+  // unknown in advance and no byte count then bounds the duration.
   const arrivals = createArrivalQueue(512 * 1024, 64, ARRIVAL_BUDGET_MS);
-  // Ce qu'une image empile au plus. La file n'en livre qu'une poignée par image : en empiler des
-  // milliers d'avance ne ferait qu'ajouter, à chaque image, autant de lectures du cache — et chaque
-  // lecture y remonte son adresse en tête de l'ordre de moindre usage. Le reste repart à l'image
-  // suivante, dans le même ordre de priorité.
+  // What a frame queues at most. The queue delivers only a handful per frame: stacking
+  // thousands ahead would only add, every frame, as many cache reads — and each read moves
+  // its address to the head of the least-recently-used order. The rest leaves on the next
+  // frame, in the same priority order.
   const queueCached = (backend: RenderBackend, missing: readonly string[]) => {
     let held = 0;
     for (let i = 0; i < missing.length && held < ARRIVAL_QUEUE_BATCH; i++) {
       const url = missing[i];
       if (geometryUrls.has(url)) continue;
       const cached = streamer.get(url);
-      // Le lot compte les pages que le cache TIENT, empilées à l'instant ou déjà en attente : sans
-      // cela une file en retard ferait rebalayer toute la liste à chaque image sans rien empiler.
+      // The batch counts the pages the cache HOLDS, stacked this instant or already waiting:
+      // without that a late queue would rewalk the whole list every frame without stacking anything.
       if (!cached) continue;
       held++;
       arrivals.queue(backend, url, cached);
@@ -63,8 +63,8 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
                 const decoded = await decodePageOffThread(bytes, controller.signal);
                 for (const b of backends) b.acceptGeometryPage?.(url, decoded);
               } catch (error) {
-                // Un refus du décodage est définitif pour cette adresse ; une annulation ne l'est
-                // pas : la page repartira avec la prochaine demande, sans quoi une caméra qui
+                // A decode refusal is final for this address; a cancellation is not: the page
+                // will leave again with the next request, otherwise a camera that
                 // change d'avis creuserait un trou permanent dans l'image.
                 if (!controller.signal.aborted) decodeFailures.add(url);
                 throw error;
@@ -103,7 +103,7 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
           );
           diagnose(
             'coverage-streaming-failed',
-            'Échec du chargement des pages ; couverture GPU de secours conservée si disponible',
+            'Page load failed; GPU fallback cover kept if available',
             {
               kind: 'error',
               version: 1,

@@ -20,7 +20,7 @@ export function createWebgpuPinUpdater(options: {
   sets: WebgpuResidencySets;
   bootstrapUrls: Set<string>;
   deferredDrops: Set<string>;
-  /** Les clusters que porte chaque requête : un abandon différé nomme la requête, pas le cluster. */
+  /** Clusters each request carries: a deferred drop names the request, not the cluster. */
   byUrl: Map<string, PageRec[]>;
   traceEnabled: boolean;
   traceDiagnostic: Trace;
@@ -30,9 +30,9 @@ export function createWebgpuPinUpdater(options: {
   /** Kept keys the cache cannot pin yet: their bytes have not arrived. */
   const waiting = createDenseKeySet(tracking.keyCount);
   /**
-   * Ce que le relevé des pins publie : la DIFFÉRENCE de l'image, jamais l'ensemble pinné. Le
-   * recopier et le filtrer coûtait quatre parcours de la coupe par image dès que la trace était
-   * demandée, alors que les pins changent d'une poignée de clés.
+   * What the pin sample publishes: the image's DELTA, never the pinned set. Copying and filtering
+   * it cost four walks of the cut per image as soon as trace was requested, while pins change by a
+   * handful of keys.
    */
   const added: string[] = [],
     removed: string[] = [];
@@ -80,10 +80,10 @@ export function createWebgpuPinUpdater(options: {
       }
       waiting.remove(key);
     }
-    // Les clés gardées sont des clusters, un abandon différé nomme la requête qui les porte. La
-    // question se pose donc requête par requête — une poignée — et non en recopiant l'ensemble gardé
-    // dans deux tables de chaînes à chaque image où un abandon attend, ce que le nombre de clusters
-    // d'une ville rend impraticable : le catalogue dit déjà quels clusters une requête porte.
+    // Kept keys are clusters; a deferred drop names the request that carries them. The question is
+    // therefore asked request by request — a handful — and not by copying the kept set into two
+    // string tables on every image where a drop waits, which the cluster count of a city makes
+    // impractical: the catalogue already says which clusters a request carries.
     for (const key of deferredDrops) {
       const recs = byUrl.get(key);
       let kept = false;
@@ -93,7 +93,7 @@ export function createWebgpuPinUpdater(options: {
       if (!kept) drop(key);
     }
     if (!traceEnabled || (!added.length && !removed.length)) return;
-    traceDiagnostic('residency-pins', 'Pins GPU mis à jour', () => ({
+    traceDiagnostic('residency-pins', 'GPU pins updated', () => ({
       frame,
       added: tracking.traceSet('pins.added', added),
       removed: tracking.traceSet('pins.removed', removed),

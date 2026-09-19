@@ -2,7 +2,7 @@ use crate::{CompilerError, Result};
 use std::collections::HashMap;
 
 pub const STRIDE: usize = 72;
-/// Les bits du masque d'attributs d'une page, un par attribut optionnel qu'elle porte.
+/// Attribute mask bits of page, one per optional attribute carried.
 pub const FLAG_NORMAL: u32 = 1;
 pub const FLAG_UV: u32 = 2;
 pub const FLAG_TANGENT: u32 = 4;
@@ -16,8 +16,8 @@ pub struct Attribute {
     pub values: Vec<f32>,
 }
 
-/// Renumérotation locale des sommets d'une page : la table et les deux listes partent à leur
-/// taille finale connue, une page ne portant jamais plus de 65 535 sommets ni plus de coins que
+/// Local vertex renumbering of page: table and both lists start at
+/// known final size, page carrying at most 65,535 vertices and no more corners than
 /// d'indices.
 pub(crate) fn localise(indices: &[u32], vertices: usize) -> Result<(Vec<u32>, Vec<u32>)> {
     let bound = indices.len().min(65_535);

@@ -1,18 +1,18 @@
 /**
- * L'écriture du RELEVÉ : ce que la carte rapporte au processeur, et le plafond qui le borne.
+ * SNAPSHOT write: what the GPU reports to the CPU, and the ceiling that bounds it.
  *
- * Le relevé est la seule chose qu'une image fasse redescendre de la carte. Le masque de dessin, lui,
- * reste sur place — le raster de calcul le lit là où `dagMask` l'a posé —, si bien que ce qui passe
- * ici ne sert jamais à dessiner : il sert à DIFFUSER. C'est de lui que l'hôte tire les pages qu'il
- * doit charger, épingler ou rendre au cache.
+ * The snapshot is the only thing a frame brings back down from the GPU. The draw mask stays
+ * in place — compute raster reads it where `dagMask` put it —, so what passes here never
+ * serves to draw: it serves to BROADCAST. From it the host takes the pages it must load, pin
+ * or return to the cache.
  *
- * Chaque rang est une DEMANDE : la page et la priorité que l'hôte lui donnera dans sa file de
- * téléversement, dans un seul mot (`gpuDagRequest.ts`).
+ * Each rank is a REQUEST: the page and the priority the host will give it in its upload queue,
+ * in a single word (`gpuDagRequest.ts`).
  *
- * Le plafond (`SELECTION_LIST_CAP`, `gpuDagLayout.ts`) borne ce que la copie d'image emporte. Un
- * rang refusé pose le bit 0 : le relevé est alors TRONQUÉ, et l'image le refuse en entier plutôt que
- * de l'adopter amputé. Les totaux d'image, eux, ne perdent rien — ils décrivent la coupe, pas la
- * liste qui la rapporte (`gpuDagTotalsWgsl.ts`).
+ * The ceiling (`SELECTION_LIST_CAP`, `gpuDagLayout.ts`) bounds what the frame copy takes. A
+ * refused rank sets bit 0: the snapshot is then TRUNCATED, and the frame refuses it whole
+ * rather than adopt it amputated. Frame totals lose nothing — they describe the cut, not the
+ * list that reports it (`gpuDagTotalsWgsl.ts`).
  */
 export const DAG_RELEVE_WGSL = `fn emitOne(page:u32,pixels:f32){
  let slot=atomicAdd(&out.count,1u);

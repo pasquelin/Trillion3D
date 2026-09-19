@@ -1,16 +1,16 @@
-// Oracles du lot F, côté table des lignes : `webgpuRowState.ts:5-14,46`, `webgpuRowCommit.ts:91-97`
-// et `webgpuRowSync.ts:79` d'avant le lot F, recopiés tels quels.
+// Batch F oracles, row-table side: `webgpuRowState.ts:5-14,46`, `webgpuRowCommit.ts:91-97`
+// and `webgpuRowSync.ts:79` from before batch F, copied as-is.
 import { PAGE_INFO_STRIDE, VIS_TRIANGLE_BITS } from '../../visibilityBuffer.ts';
 import { ROW_ID_BASE_WORD, ROW_HIZ_SLOT_WORD } from '../../webgpuPageRow.ts';
 import { createWebgpuRowJournal } from '../../webgpuRowJournal.ts';
 
-/** L'état des lignes avant le lot F : le rang d'une page vivait dans une table de hachage. */
+/** Row state before batch F: a page's rank lived in a hash table. */
 export function referenceRowState(packedPages, drawSlots) {
   const pageIndexByRec = new Map();
   for (let i = 0; i < packedPages.length; i++) pageIndexByRec.set(packedPages[i], i);
-  // Le journal des pages nommées et des résidences qui ont bougé pendant la passe : postérieur au
-  // lot F, il ne relève pas de l'optimisation que cet oracle départage, et il est repris tel quel
-  // pour que la synchronisation des rangs, partagée, s'exécute des deux côtés à l'identique.
+  // The journal of named pages and residencies that moved during the pass: later than
+  // batch F, it is not the optimisation this oracle splits, and it is taken as-is so
+  // the shared rank sync runs identically on both sides.
   const journal = createWebgpuRowJournal(packedPages.length);
   const etat = {
     ...journal,
@@ -36,7 +36,7 @@ export function referenceRowState(packedPages, drawSlots) {
     candidateOverflow: 0,
     packedCount: 0,
     rowsChanged: true,
-    // L'âge de l'allocateur de rangs, lui aussi postérieur au lot F.
+    // Age of the rank allocator, also later than batch F.
     rowsRevision: 0,
     pageTableFloats: undefined,
     pageTableInts: undefined,
@@ -49,7 +49,7 @@ export function referenceRowState(packedPages, drawSlots) {
   return etat;
 }
 
-/** `webgpuRowCommit.ts` avant le lot F : la queue réécrivait les quatre tableaux ligne par ligne. */
+/** `webgpuRowCommit.ts` before batch F: the queue rewrote the four arrays row by row. */
 export function referenceRowCommit(rows, writePageRow) {
   const commitRows = (count, monotone) => {
     const floats = rows.pageTableFloats,
@@ -124,9 +124,9 @@ export function referenceRowCommit(rows, writePageRow) {
     if (count !== rows.rowCount) rows.rowsChanged = true;
     rows.rowCount = count;
     rows.packedCount = count;
-    // Postérieur au lot F, comme le journal : la coupe processeur a posé ses propres rangs, donc
-    // l'allocateur incrémental repart du catalogue. Repris ici pour que les deux côtés avancent
-    // ensemble.
+    // Later than batch F, like the journal: the CPU cut has posed its own ranks, so
+    // the incremental allocator restarts from the catalogue. Taken here so both sides
+    // advance together.
     rows.rowsRevision++;
   };
   const sourceRowOf = (pageIndex, offsetWords) => {

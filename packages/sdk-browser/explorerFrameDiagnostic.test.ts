@@ -1,6 +1,6 @@
-// `emitExplorerFrameDiagnostic` (lot 3) : `camera.position` publié est la pose monde de la caméra du
-// moteur (`readCameraWorld(...).eye`), jamais `camera.position` lu directement sur la caméra hôte.
-// Sous un rig que personne d'autre ne remonte, seule la pose monde discrimine.
+// `emitExplorerFrameDiagnostic` (batch 3): published `camera.position` is the world pose of the
+// engine camera (`readCameraWorld(...).eye`), never `camera.position` read directly on the host camera.
+// Under a rig that no one else walks, only the world pose discriminates.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -8,14 +8,14 @@ import { emitExplorerFrameDiagnostic } from './explorerFrameDiagnostic.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { FrameMetrics } from '../sdk-core/index.ts';
 
-test('emitExplorerFrameDiagnostic : la caméra publiée est la pose monde, sous un rig que l’hôte ne remonte pas', () => {
+test('emitExplorerFrameDiagnostic: the published camera is the world pose, under a rig the host does not walk', () => {
   const rig = new THREE.Object3D();
   rig.position.set(-3, 8, 2);
   const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 50);
   rig.add(camera);
   rig.updateWorldMatrix(true, false);
   const attendu = camera.getWorldPosition(new THREE.Vector3()).toArray();
-  assert.notDeepEqual(attendu, camera.position.toArray(), 'témoin : le rig déplace bien l’œil');
+  assert.notDeepEqual(attendu, camera.position.toArray(), 'witness: the rig does move the eye');
 
   const events: Array<{ phase: string; context: Record<string, unknown> }> = [];
   const active = {

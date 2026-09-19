@@ -1,134 +1,134 @@
-# Tests et bancs de performance
+# Tests and Performance Benchmarks
 
-Une commande par intention, un emplacement par nature de test. Tout ce qui suit est vérifié :
-les comptes sont ceux de l'arborescence, et `test/test-gpu.test.mjs` tient la liste des sondes.
+One command per intent, one location per nature of test. Everything below is verified:
+counts reflect the repository tree, and `test/test-gpu.test.mjs` tracks the probe list.
 
-## 1. Arborescence
+## 1. Directory Tree
 
 ```
 packages/
-  sdk-core/            57 *.test.ts      — tests unitaires, collés à leur source
+  sdk-core/            57 *.test.ts      — unit tests, placed alongside source
     bench/
-      *.perf.mjs          6 bancs de performance
-      socle.mjs           l'entrée unique des bancs
+      *.perf.mjs          6 performance benchmarks
+      socle.mjs           single entry point for benchmarks
       socle/              mesure.mjs, rapport.mjs, ecart.mjs, ulp.mjs, baseline.mjs
-      oracles/            les implémentations de référence, recopiées telles quelles
+      oracles/            reference implementations, copied verbatim
   sdk-browser/        244 *.test.ts
     bench/
-      *.perf.mjs         38 bancs de performance
-      oracles/            oracles du paquet
-      appui/              28 modules d'appui : scènes, rejeux, jeux de cas
+      *.perf.mjs         38 performance benchmarks
+      oracles/            package oracles
+      appui/              28 support modules: scenes, replays, test cases
   sdk-node/             5 *.test.mjs
 test/
-  integration/         10 *.test.mjs     — architecture, frontières, contrats d'export
-  browser/             20 *.browser.mjs  — rendu dans un Chromium réel (18 lancés, 2 écartés)
-  justesse/            18 sondes GPU + 25 modules d'appui
-  appui/               27 modules partagés : serveur de fixtures, pages servies
-  fixtures/            scènes et données de test
-  assets/              le corpus de formats sources, hors dépôt (66 Mo, ignoré par git)
-  test-gpu.mjs         l'exécuteur des tests matériels, avec son test
+  integration/         10 *.test.mjs     — architecture, boundaries, export contracts
+  browser/             20 *.browser.mjs  — rendering in real Chromium (18 enabled, 2 skipped)
+  justesse/            18 GPU probes + 25 support modules
+  appui/               27 shared modules: fixtures server, served pages
+  fixtures/            scenes and test data
+  assets/              corpus of source formats, off-git (66 MB, ignored by git)
+  test-gpu.mjs         hardware test runner, with its own test
 scripts/
-  mesure/perf/          agrege.mjs (rapport), baseline-save.mjs (baselines)
+  mesure/perf/          agrege.mjs (report), baseline-save.mjs (baselines)
 ```
 
-Une règle : **le test unitaire vit à côté de sa source**, le reste vit sous `test/`, rangé par
-nature. Un banc va dans le paquet dont il mesure le code, et l'atteint par chemin relatif.
+One rule: **unit tests live next to their source**, everything else lives under `test/`, organized by
+nature. A benchmark belongs in the package whose code it measures, referenced by relative path.
 
-## 2. Les quatre commandes
+## 2. The Four Commands
 
-| Commande | Ce qu'elle lance |
+| Command | What it runs |
 |---|---|
-| `pnpm test` | les 306 tests unitaires, les 10 tests d'intégration et les tests des scripts |
-| `pnpm run test:gpu` | les 18 sondes de justesse GPU puis les preuves de rendu lançables, en série |
-| `pnpm run perf:all` | les 44 bancs, puis le rapport agrégé |
-| `pnpm run validate` | la porte complète avant fusion |
+| `pnpm test` | 306 unit tests, 10 integration tests and script tests |
+| `pnpm run test:gpu` | 18 GPU correctness probes followed by runnable rendering proofs, sequentially |
+| `pnpm run perf:all` | 44 benchmarks, then the aggregated report |
+| `pnpm run validate` | full pre-merge validation gate |
 
-`pnpm run test:changed` et `pnpm run check:changed` ne jouent que ce que les fichiers modifiés
-touchent ; aucun des deux ne remplace `validate`.
+`pnpm run test:changed` and `pnpm run check:changed` only execute what modified files
+touch; neither replaces `validate`.
 
-### Tests unitaires et d'intégration
+### Unit and Integration Tests
 
-Ils valident les algorithmes, les frontières de paquets et les contrats publics. Ils ne montent
-aucun appareil graphique et tournent partout.
+They validate algorithms, package boundaries, and public contracts. They do not initialize
+any graphics device and run anywhere.
 
-### Sondes de justesse GPU
+### GPU Correctness Probes
 
-`test/justesse/` vérifie ce que la carte calcule vraiment : précision des shaders WGSL, planchers
-d'erreur, matrices de projection, coordonnées de texels, relectures. Une sonde est un fichier dont
-le nom porte un tiret ; les autres fichiers du dossier sont ses modules d'appui, jamais lancés
-seuls. `test/browser/` rend des images dans un Chromium réel et les compare.
+`test/justesse/` verifies what the graphics device actually calculates: WGSL shader precision, error
+floors, projection matrices, texel coordinates, readbacks. A probe is a file whose name
+contains a hyphen; other files in the folder are its support modules, never run alone.
+`test/browser/` renders frames in real Chromium and compares them.
 
-Les deux dossiers se découvrent **par une règle, jamais par une liste tenue à la main** : tout
-`test/browser/*.browser.mjs` est lancé, et les noms suivent la même convention que les sondes et les
-bancs — kebab explicite, `coupe-gpu-tenue`, `normale-eclairage-petite-echelle`.
+Both folders are discovered **by rule, never by a hand-curated list**: every
+`test/browser/*.browser.mjs` is executed, and names follow the same convention as probes and
+benchmarks — explicit kebab-case, e.g. `coupe-gpu-tenue`, `normale-eclairage-petite-echelle`.
 
-Ce qui ne peut pas tourner est **déclaré** dans `BROWSER_ECARTES` (`test/test-gpu.mjs`) avec son
-genre et son motif, et la commande l'imprime avant de démarrer — jamais un silence :
+Anything that cannot run is **explicitly declared** in `BROWSER_ECARTES` (`test/test-gpu.mjs`) with its
+category and reason, and the command prints it before starting — never in silence:
 
-- **montage** — la preuve est bonne, la machine n'est pas prête : assets de `.mesure/assets/` à
-  recompiler, `LAB_URL` absent pour une preuve montée sur les pages du Lab, `timestamp-query`
-  indisponible.
-- **régression** — la preuve échoue parce qu'elle a raison. C'est une dette ouverte, portée par une
-  ligne de `TODO.md`, qui se retire en corrigeant le moteur.
-- **double périmé** — la preuve tient une copie à la main d'un contrat que la source a fait évoluer
-  sans elle. Le moteur est juste, le double a dérivé : il se répare en lisant le contrat plutôt qu'en
-  le recopiant.
+- **montage** (setup) — the proof is valid, but the machine is not ready: assets in `.mesure/assets/`
+  need recompilation, `LAB_URL` missing for a proof mounted on Lab pages, `timestamp-query`
+  unavailable.
+- **regression** — the proof fails because an issue exists. This is an open debt to be resolved by
+  fixing the engine.
+- **stale-double** — the proof maintains a manual copy of a contract that evolved in the source.
+  The engine is correct, the copy drifted: fix by reading the contract rather than duplicating it.
 
-`test/test-gpu.test.mjs` tient la garde symétrique des deux dossiers : **lancés ∪ écartés == le
-disque**, et aucun écart ne survit au fichier qu'il nomme. Sans elle, une preuve oubliée ne
-s'exécute jamais sans que rien ne le dise — ce qui est arrivé à dix d'entre elles.
+`test/test-gpu.test.mjs` enforces symmetric guarding across both directories: **executed ∪ excluded ==
+on-disk**, and no exclusion outlives the file it names. Without this guard, forgotten proofs would
+never execute without notice.
 
 ```bash
-pnpm run test:gpu                                  # tout
-node test/test-gpu.mjs test/justesse/reflexion-cone.mjs   # une cible
+pnpm run test:gpu                                  # run all
+node test/test-gpu.mjs test/justesse/reflexion-cone.mjs   # run single target
 ```
 
-### Bancs de performance
+### Performance Benchmarks
 
-Un banc mesure un calcul du paquet sur des cas nommés et **le confronte à un oracle** :
-l'implémentation d'avant l'optimisation, recopiée telle quelle sous `bench/oracles/`. Chaque ligne
-publiée porte sa médiane, son p95, ses nanosecondes par élément, ses opérations par seconde, son
-écart à la baseline, et le verdict de l'oracle.
+A benchmark measures a package computation against named cases and **compares it to an oracle**:
+the pre-optimization implementation, copied verbatim under `bench/oracles/`. Each published line
+includes its median, p95, nanoseconds per element, operations per second, baseline difference,
+and the oracle verdict.
 
-Trois formes de verdict, jamais un silence :
+Three verdict types, never silence:
 
-- **✓ / ✗** — l'égalité au bit près (`ecart.mjs` : `-0`, `NaN`, tableaux typés, `Map`, `Set`), ou la
-  tolérance que le banc déclare (`differences` + `tolere`, comptés en ULP par `ulp.mjs`).
-- **écart publié** (`ecartPublie`) — le banc mesure un candidat *refusé* et chiffre ce qu'il déplace,
-  au lieu de réclamer une égalité qui n'a pas lieu d'être. C'est le cas de C1 (`raster-tampon`) et de
-  C3 (`pages-anneau`).
-- **motif** — il n'y a pas d'oracle, et la ligne dit pourquoi et où la justesse est tenue. Un oracle
-  périmé est déclaré comme tel, jamais supprimé en silence.
+- **✓ / ✗** — bitwise equality (`ecart.mjs`: `-0`, `NaN`, typed arrays, `Map`, `Set`), or declared
+  tolerance (`differences` + `tolere`, counted in ULPs by `ulp.mjs`).
+- **published diff** (`ecartPublie`) — the benchmark measures a *rejected* candidate and quantifies
+  the displacement instead of expecting equality that does not apply. This is the case for C1
+  (`raster-tampon`) and C3 (`pages-anneau`).
+- **reason** — no oracle exists, and the line explains why and where correctness is held. A stale
+  oracle is explicitly declared, never silently removed.
 
-`mesure()` refuse de démarrer si le `fichier` qu'un banc dit mesurer n'existe pas.
+`mesure()` refuses to run if the file reported as measured by a benchmark does not exist.
 
-## 3. Baselines et rapport
+## 3. Baselines and Report
 
-`pnpm run perf:all` dépose un fragment par domaine dans `.mesure/perf/`, puis
-`scripts/mesure/perf/agrege.mjs` en tire un tableau unique, écrit sous
-`.mesure/out/perf/perf-<date>.md` et `.json`.
+`pnpm run perf:all` outputs a fragment per domain into `.mesure/perf/`, then
+`scripts/mesure/perf/agrege.mjs` aggregates them into a single table under
+`.mesure/out/perf/perf-<date>.md` and `.json`.
 
-`pnpm run perf:baseline` transforme les fragments en baselines sous `.mesure/baselines/`, une par
-domaine, chaque ligne repérée par le couple mesure/cas. Elles sont **hors du dépôt et propres à la
-machine** : un temps ne vaut que sur le matériel qui l'a relevé. Sans baseline, la colonne « vs
-baseline » affiche `—` et le rapport écrit « aucune baseline sur cette machine : rien de comparé »
-— il n'annonce jamais zéro régression faute d'avoir comparé.
+`pnpm run perf:baseline` converts fragments into baselines under `.mesure/baselines/`, one per domain,
+keyed by measurement/case pairs. They are **off-git and machine-specific**: timing is only valid on
+the hardware where it was recorded. Without a baseline, the "vs baseline" column shows `—` and the
+report indicates no baseline exists on this machine, rather than erroneously claiming zero regression.
+Fragments and baselines carry `version: 3` (rows keyed `name` / `size`, in English); a file of an
+older version is ignored, and `pnpm run perf:baseline` records it again.
 
-Le rapport signale une charge machine supérieure à 4 : au-dessus, les temps ne concluent rien.
+The report flags any machine load higher than 4: above this threshold, timings are inconclusive.
 
-### Ce que ces bancs ne mesurent pas
+### What Benchmarks Do Not Measure
 
-Le chronomètre tourne dans le processus qui vient d'appeler l'oracle, après une chauffe. C'est
-suffisant pour suivre une dérive d'un lot à l'autre sur la même machine ; ce n'est pas un relevé de
-campagne. Une campagne publiable se joue avec le harnais de `scripts/mesure/` (voir son README),
-machine calme, et se compare à budget, scène et pose identiques.
+Timers run in the process that just executed the oracle, following warmup. This is sufficient to
+track regressions between batches on the same machine; it is not a campaign measurement. A publishable
+campaign is run with the `scripts/mesure/` harness (see its README), on a quiet machine, comparing
+identical budgets, scenes, and poses.
 
-## 4. Portes qualité
+## 4. Quality Gates
 
-| Commande | Rôle |
+| Command | Role |
 |---|---|
-| `pnpm run check:lines` | 200 lignes physiques au plus par fichier JS/TS/Rust maintenu |
-| `pnpm run check:duplicates` | aucun bloc dupliqué de ≥ 12 lignes et ≥ 100 jetons |
-| `pnpm run check:structure` | étanchéité des frontières de paquets, sdk-core typé sans DOM |
-| `pnpm run check:unused` | exports et fichiers morts (`knip`) |
-| `pnpm run validate` | la porte complète : format, lint, tests, builds, structure, liens |
+| `pnpm run check:lines` | Maximum 200 physical lines per maintained JS/TS/Rust file |
+| `pnpm run check:duplicates` | No duplicated blocks ≥ 12 lines and ≥ 100 tokens |
+| `pnpm run check:structure` | Package boundary isolation, sdk-core typed without DOM |
+| `pnpm run check:unused` | Dead exports and files (`knip`) |
+| `pnpm run validate` | Complete gate: formatting, linting, tests, builds, structure, links |

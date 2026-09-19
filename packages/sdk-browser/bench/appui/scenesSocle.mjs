@@ -1,16 +1,16 @@
-// Les entrées du banc du socle mathématique : tirées à graine fixe et volontairement hostiles. Une
-// formule qui ne tiendrait que sur des matrices bien élevées se verrait ici — échelles négatives et
-// non uniformes, matrices singulières, NaN, zéros signés, infinis, dénormaux.
+// Inputs of the math-foundation bench: drawn from a seed and deliberately hostile. A
+// formula that would only hold on well-behaved matrices would fail here — negative and
+// non-uniform scales, singular matrices, NaN, signed zeros, infinities, denormals.
 import * as THREE from 'three';
 import { graine } from '../../../sdk-core/bench/socle.mjs';
 
 const alea = graine(0x50c1e);
-/** Les valeurs qu'un flottant peut prendre et qu'une formule doit traverser sans les lisser. */
+/** Values a float can take that a formula must traverse without smoothing them. */
 export const BORDS = [0, -0, 1, -1, Infinity, -Infinity, NaN, 5e-324, 1e308, -1e308, 0.5, -0.5];
 const bord = () => BORDS[Math.floor(alea() * BORDS.length)];
 const nombre = () => (alea() < 0.15 ? bord() : (alea() * 2 - 1) * 10 ** Math.floor(alea() * 8 - 4));
 
-/** Une pose rigide, puis une échelle tirée parmi : uniforme, non uniforme, négative, nulle. */
+/** A rigid pose, then a scale drawn from: uniform, non-uniform, negative, zero. */
 function pose(i) {
   const q = new THREE.Quaternion(alea() - 0.5, alea() - 0.5, alea() - 0.5, alea() - 0.5);
   q.normalize();
@@ -32,7 +32,7 @@ function pose(i) {
   return Float64Array.from(m.elements);
 }
 
-/** Matrices : poses affines, puis entièrement tirées, puis parsemées de bords sur toute la matrice. */
+/** Matrices: affine poses, then fully drawn, then sprinkled with edges across the whole matrix. */
 export const matrices = [];
 for (let i = 0; i < 400; i++) matrices.push(pose(i));
 for (let i = 0; i < 300; i++) {
@@ -45,30 +45,30 @@ for (let i = 0; i < 12 * 16; i++) {
   m[i % 16] = BORDS[i % BORDS.length];
   matrices.push(m);
 }
-/** Matrices de bords pures : zéros signés, unités et non-finis mêlés sur toutes les entrées. */
+/** Pure-edge matrices: signed zeros, units and non-finites mixed on every entry. */
 for (let i = 0; i < 200; i++) matrices.push(Float64Array.from({ length: 16 }, bord));
 matrices.push(new Float64Array(16), new Float64Array(16).fill(-0));
 
 /**
- * Les mêmes, ARRONDIES en simple précision mais tenues en double : c'est ainsi qu'un tampon de rendu
- * entre dans le socle depuis ce lot. Le produit ne lit et n'écrit qu'un seul type de tampon
- * (`mathMatrix4.ts`), et la conversion en simple précision se fait à l'ENVOI, sur le résultat. Les
- * valeurs, elles, sont exactement celles d'un `Float32Array`, donc les mêmes bits qu'avant.
+ * The same, ROUNDED to single precision but held in double: that is how a render buffer
+ * enters the foundation from this batch. The product only reads and writes one buffer type
+ * (`mathMatrix4.ts`), and conversion to single precision happens at SEND, on the result. The
+ * values themselves are exactly those of a `Float32Array`, hence the same bits as before.
  */
 const matrices32 = matrices.map((m) => Float64Array.from(Float32Array.from(m)));
 
-/** Les affines seules : dernière ligne `(0, 0, 0, 1)` exacte, le domaine d'une pose de nœud. */
+/** Affines only: last row exactly `(0, 0, 0, 1)`, the domain of a node pose. */
 export const affines = matrices.filter(
   (m) => m[3] === 0 && m[7] === 0 && m[11] === 0 && m[15] === 1,
 );
 
-/** Des points ordinaires, puis des points de bords. */
+/** Ordinary points, then edge points. */
 export const points = [];
 for (let i = 0; i < 1500; i++)
   points.push([alea() * 400 - 200, alea() * 400 - 200, alea() * 400 - 200]);
 for (let i = 0; i < 300; i++) points.push([nombre(), nombre(), nombre()]);
 for (const a of BORDS) for (const b of BORDS) points.push([a, b, -0]);
 
-/** Les paires de matrices que les produits reçoivent : chaque matrice contre une voisine. */
+/** Matrix pairs that the products receive: each matrix against a neighbour. */
 export const paires = matrices.map((a, i) => [a, matrices[(i * 7 + 3) % matrices.length]]);
 export const paires32 = matrices32.map((a, i) => [a, matrices32[(i * 7 + 3) % matrices32.length]]);

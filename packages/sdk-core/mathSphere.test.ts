@@ -1,5 +1,5 @@
-// Lot M2, mathSphere.ts : sphère englobante d'une boîte, confrontée à Box3.getBoundingSphere de
-// Three.js au bit près (Object.is), boîte vide comprise.
+// Batch M2, mathSphere.ts: bounding sphere of a box, checked against Box3.getBoundingSphere of
+// Three.js bit-exact (Object.is), empty box included.
 import test from 'node:test';
 import * as THREE from 'three';
 import { boxTransform, sphereFromBounds } from './index.ts';
@@ -10,10 +10,10 @@ const sphereRef = (b: ArrayLike<number>) => {
   return Float64Array.of(s.center.x, s.center.y, s.center.z, s.radius);
 };
 
-test('sphereFromBounds s’accorde avec Box3.getBoundingSphere pour des boîtes ordinaires, ponctuelles et extrêmes', () => {
+test('sphereFromBounds matches Box3.getBoundingSphere for ordinary, point and extreme boxes', () => {
   const boites = [
     [-1, -2, -3, 4, 5, 6],
-    [2, 3, 4, 2, 3, 4], // ponctuelle : rayon nul
+    [2, 3, 4, 2, 3, 4], // point box: zero radius
     [-1e308, -1e308, -1e308, 1e308, 1e308, 1e308],
     [-0, -0, -0, 0, 0, 0],
   ];
@@ -24,7 +24,7 @@ test('sphereFromBounds s’accorde avec Box3.getBoundingSphere pour des boîtes 
   }
 });
 
-test('une boîte vide (bornes inversées) rend la sphère vide : centre nul, rayon -1', () => {
+test('an empty box (inverted bounds) yields the empty sphere: zero centre, radius -1', () => {
   const inversee = [1, 1, 1, -1, -1, -1];
   const obtenu = new Float64Array(4);
   sphereFromBounds(
@@ -41,7 +41,7 @@ test('une boîte vide (bornes inversées) rend la sphère vide : centre nul, ray
   assertBits(obtenu, Float64Array.of(0, 0, 0, -1));
 });
 
-test('sphereFromBounds après boxTransform s’accorde avec Box3.applyMatrix4 puis getBoundingSphere', () => {
+test('sphereFromBounds after boxTransform matches Box3.applyMatrix4 then getBoundingSphere', () => {
   const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.6, 1.4, 0.2));
   const m = new THREE.Matrix4().compose(
     new THREE.Vector3(3, -2, 1),

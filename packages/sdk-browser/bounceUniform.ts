@@ -1,31 +1,31 @@
 import { BOUNCE_SETTINGS, type BounceCascades } from '../sdk-core/index.ts';
 
-/** Mots de quatre octets d'un niveau dans l'uniforme : deux `vec4f`, origine et maille de base. */
+/** Four-byte words of a level in the uniform: two `vec4f`, origin and base cell. */
 const LEVEL_WORDS = 8;
-/** Mots d'en-tête : portée et vue de diagnostic, tailles de la cascade, état de l'image. */
+/** Header words: range and diagnostic view, cascade sizes, frame state. */
 const HEADER_WORDS = 12;
 
 /**
- * Octets de `BounceGrid`, unique source de vérité : cet uniforme, la structure WGSL que les trois
- * nuanceurs du rebond déclarent, et le tampon de remplacement que lit une image sans rebond ont
- * tous la même taille. Un niveau de cascade ajouté la fait grandir des trois côtés à la fois, et
- * jamais d'un seul — un remplaçant plus petit que la structure fait échouer la liaison, donc perdre
- * l'appareil, et c'est exactement ce qu'un nombre écrit à la main a déjà coûté.
+ * Bytes of `BounceGrid`, the single source of truth: this uniform, the WGSL struct the three
+ * bounce shaders declare, and the substitute buffer a frame without bounce reads all have the
+ * same size. An added cascade level grows it on all three sides at once, never on one —
+ * a substitute smaller than the struct fails the binding, hence loses the device, and that
+ * is exactly what a hand-written number has already cost.
  */
 export const BOUNCE_GRID_BYTES = (HEADER_WORDS + BOUNCE_SETTINGS.cascadeLevels * LEVEL_WORDS) * 4;
 
 /**
- * L'uniforme que les trois nuanceurs du rebond partagent : la passe de sondes, celle du cache de
- * surfaces et la résolution différée lisent la même description des cascades, au même rang.
+ * The uniform the three bounce shaders share: the probe pass, the surface-cache pass and
+ * deferred resolve read the same cascade description, at the same slot.
  *
- * Il est écrit une fois à la construction pour ce qui ne bouge jamais — portée, tailles — et une
- * fois par image encodée pour ce qui bouge : les mailles de base des niveaux qui suivent la caméra,
- * et le lot que chacun reçoit. La résolution différée le relit à chaque image, même convergée,
- * quand plus aucune passe n'est encodée : c'est pourquoi il n'est jamais remis à zéro.
+ * It is written once at construction for what never moves — range, sizes — and once per
+ * encoded frame for what moves: the base cells of the levels that follow the camera, and
+ * the batch each receives. Deferred resolve rereads it every frame, even when converged,
+ * when no pass is encoded any more: that is why it is never zeroed.
  */
 export function createBounceUniform(device: GPUDevice, cascades: BounceCascades) {
-  // L'uniforme porte toujours le nombre de niveaux déclaré, même quand la scène en tient moins :
-  // la taille du tableau est une constante du nuanceur, et `counts.y` dit combien sont réels.
+  // The uniform always carries the declared level count, even when the scene holds fewer:
+  // the array size is a shader constant, and `counts.y` says how many are real.
   const packed = new ArrayBuffer(BOUNCE_GRID_BYTES);
   const floats = new Float32Array(packed),
     integers = new Uint32Array(packed);
@@ -45,24 +45,24 @@ export function createBounceUniform(device: GPUDevice, cascades: BounceCascades)
   return {
     buffer,
     bytes: packed.byteLength,
-    /** La vue de diagnostic d'irradiance : elle voyage dans le même uniforme que les cascades. */
+    /** Irradiance diagnostic view: it travels in the same uniform as the cascades. */
     setIrradianceView(on: boolean) {
       if (view === on) return;
       view = on;
       floats[1] = on ? 1 : 0;
       upload();
     },
-    /** L'état de l'image encodée : révision des lampes, groupes lancés, compteur d'images, niveaux. */
+    /** Encoded-frame state: light revision, dispatched groups, frame counter, levels. */
     write(generation: number, groups: number, frame: number) {
       integers[8] = generation;
       integers[9] = groups;
       integers[10] = frame;
-      // Mot par mot : cette écriture a lieu à chaque image encodée, et n'alloue donc rien.
+      // Word by word: this write happens every encoded frame, and therefore allocates nothing.
       cascades.levels.forEach((level, index) => {
         const at = HEADER_WORDS + index * LEVEL_WORDS;
         floats[at + 3] = level.spacing;
         for (let axis = 0; axis < 3; axis++) {
-          // `originSpacing.xyz` : le centre monde de la maille de base. `base.xyz` : cette maille.
+          // `originSpacing.xyz`: world centre of the base cell. `base.xyz`: that cell.
           floats[at + axis] = (level.base[axis] + 0.5) * level.spacing;
           floats[at + 4 + axis] = level.base[axis];
         }

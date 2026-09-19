@@ -1,4 +1,4 @@
-// Une série de mesure : un côté, une vue, un seuil. Écrit la capture et la coupe, rend la ligne.
+// A measurement series: one side, one view, one threshold. Writes the capture and the cut, returns the row.
 import { createHash } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -7,11 +7,11 @@ import { distribution, machineLoad } from './rapport.mjs';
 import { passesGpu } from './seriePasses.mjs';
 import { poolGeometrie, reservoirs } from './serieReservoirs.mjs';
 
-/** Une série : un côté, une vue, un seuil. Écrit sa capture, renvoie sa ligne de rapport. */
+/** A series: one side, one view, one threshold. Writes its capture, returns its report row. */
 export async function runSerie(ctx, page, side, view, pixelError, pose, captures, suffix = '') {
   const { MANIFEST, OUT, settings, lights, poses } = ctx;
-  // Le moteur du côté : `--moteur-<côté>` le distingue de celui de la campagne, et c'est ainsi que
-  // le moteur et le témoin Three se mesurent dans la même exécution.
+  // The side's engine: `--moteur-<side>` distinguishes it from the campaign's, and that is how
+  // the engine and the Three witness are measured in the same run.
   const ENGINE = side.engine;
   const captureFile = `${side.name}-${view}-e${pixelError}${suffix}.png`;
   const debut = machineLoad();
@@ -20,12 +20,12 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     manifestUrl: side.manifestUrl ?? MANIFEST,
     backend: ENGINE.backend,
     engineId: ENGINE.id,
-    autonome: ENGINE.autonome === true,
-    // Les modules que la page importe par URL, et le témoin : un moteur qui dessine par Three ne
-    // lit pas le magasin de lampes, l'hôte lui pose donc les mêmes lampes en Three.
+    autonomous: ENGINE.autonomous === true,
+    // Modules the page imports by URL, and the witness: an engine that draws through Three does
+    // not read the light store, so the host places the same lights in Three.
     modulesUrl: '/mesure/',
-    temoin: ENGINE.three === true,
-    // La page de mesure du moteur, et la source qu'elle charge quand ce n'est pas le cache.
+    witness: ENGINE.three === true,
+    // The engine measurement page, and the source it loads when it is not the cache.
     page: ENGINE.page,
     gltfUrl: side.sourceUrl ?? null,
     pose,
@@ -34,16 +34,16 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     pixelError,
     frames: settings.frames,
     warmup: settings.warmup,
-    // Les réservoirs de mémoire demandés au moteur, et leur réglage en session ; `null` = défaut.
+    // Memory reservoirs requested of the engine, and their in-session tuning; `null` = default.
     ...reservoirs(settings),
     instances: settings.instances,
     width: settings.width,
     height: settings.height,
     stageProfile: settings.stageProfile,
-    // La variante de diagnostic de ce côté : c'est elle qui fait de deux côtés deux variantes.
-    variante: side.variante ?? null,
-    // La métrique d'erreur écran de ce côté (EXPÉRIENCE) : `null` laisse la nôtre.
-    erreur: side.erreur ?? null,
+    // This side's diagnostic variant: it is what makes two sides two variants.
+    variant: side.variant ?? null,
+    // This side's screen-error metric (EXPERIMENT): `null` leaves ours.
+    errorMetric: side.errorMetric ?? null,
     trace: settings.trace === true,
     bounce: settings.bounce,
     importedLights: settings.importedLights,
@@ -53,7 +53,7 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     shadowBudgetMs: settings.shadowBudgetMs,
     shadowPages: settings.shadowPages,
     shadowDigest: settings.shadowDigest,
-    // Les textures lues dans le cache : seulement pour un moteur qui lit l'atlas, jamais le témoin.
+    // Textures read from the cache: only for an engine that reads the atlas, never the witness.
     textureSource: settings.textureSource,
     temporalAntialiasing: settings.temporalAntialiasing,
     mathPath: settings.mathPath === 'auto' ? null : settings.mathPath,
@@ -75,49 +75,49 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     cpuFrameMs: distribution(result.cpuFrameMs),
     cpuSelectMs: distribution(result.cpuSelectMs),
     moteur: ENGINE.id,
-    // L'enveloppe carte graphique d'une image, quand la page la relève (moteur WebGPU).
+    // GPU envelope of a frame, when the page records it (WebGPU engine).
     gpuFrameMs: result.gpuFrameMs?.length ? distribution(result.gpuFrameMs) : null,
-    // Temps mur d'une image synchronisée — rendu puis attente de la carte — quand la page le relève.
+    // Wall time of a synchronised frame — render then GPU wait — when the page records it.
     imageSyncMs: result.syncFrameMs?.length ? distribution(result.syncFrameMs) : null,
     rafIntervalMs: result.rafIntervalMs?.length ? distribution(result.rafIntervalMs) : null,
-    // Découpage par étape publié par le moteur : p50/p95, processeur et carte graphique séparés.
+    // Per-stage breakdown published by the engine: p50/p95, CPU and GPU separated.
     profilParEtape: result.stageProfile ?? null,
-    // Chaque passe de la carte et les blocs qu'un profil publié sait nommer, p50/p95 sur les
-    // relevés de la même boucle que le profil ; `null` sans relevé.
+    // Each GPU pass and the blocks a published profile can name, p50/p95 over the
+    // readings of the same loop as the profile; `null` with no reading.
     passesGpu: passesGpu(result.gpuPassSamples),
-    // La préparation chronométrée dans la page, et les octets passés sur le réseau depuis, par sorte
-    // de fichier ; `null` pour un dist d'avant ces deux relevés.
+    // Preparation timed in the page, and bytes transferred on the network since, by file
+    // kind; `null` for a dist older than these two readings.
     preparationMs: typeof result.preparationMs === 'number' ? result.preparationMs : null,
-    // Images rendues avant la capture pour que le moteur tienne la pose ; `null` s'il n'en tient pas.
+    // Frames rendered before the capture so the engine holds the pose; `null` if it holds none.
     imagesCalme: typeof result.imagesCalme === 'number' ? result.imagesCalme : null,
-    // Le réglage des réservoirs en session, tel que le moteur l'a rapporté ; `null` sans réglage.
+    // In-session reservoir tuning, as the engine reported it; `null` with no tuning.
     reglageVivant: result.reglageVivant ?? null,
     reseau: result.network ?? null,
-    variante: side.variante ?? null,
-    erreur: side.erreur ?? 'certifiee',
+    variante: side.variant ?? null,
+    erreur: side.errorMetric ?? 'certifiee',
     selectedTriangles: metrics.selectedTriangles ?? null,
     uncoveredTriangles: metrics.uncoveredTriangles ?? null,
-    // Triangles que l'image relevée a remis au dessin : la coupe moins son trou, comptée sans
-    // attendre le retour de la carte. Avec les deux voisins, `selected − drawn − uncovered` doit
-    // valoir zéro ; `resume.md` en fait sa colonne « couverture ». `null` hors de ce moteur.
+    // Triangles the recorded frame submitted to draw: the cut minus its hole, counted without
+    // waiting for the GPU return. With the two neighbours, `selected − drawn − uncovered` must
+    // be zero; `resume.md` makes it its "coverage" column. `null` outside this engine.
     drawnTriangles: metrics.drawnTriangles ?? null,
-    // Triangles réellement soumis au dessin, relevés sur la dernière image mesurée — `imageDuReleve`
-    // la nomme. `submittedTriangles` est la passe opaque, `totalSubmittedTriangles` y ajoute les
-    // passes transparentes. `null` quand le compte de la carte n'était pas encore revenu à ce
-    // moment-là : la coupe choisie sur la carte publie ses totaux après coup.
+    // Triangles actually submitted to draw, recorded on the last measured frame — `imageDuReleve`
+    // names it. `submittedTriangles` is the opaque pass, `totalSubmittedTriangles` adds the
+    // transparent passes. `null` when the GPU count had not yet returned at that
+    // moment: the GPU-chosen cut publishes its totals after the fact.
     submittedTriangles: metrics.submittedTriangles ?? null,
     totalSubmittedTriangles: metrics.totalSubmittedTriangles ?? null,
     imageDuReleve: settings.frames > 0 ? settings.frames - 1 : null,
-    // L'image relevée a-t-elle été tenue ? Une image tenue ne réencode qu'une présentation : ses
-    // triangles soumis valent zéro parce qu'elle n'a rien dessiné, non parce que rien n'a compté.
-    // Sans ce témoin, ce zéro-là ne se distingue pas d'une image vide. `null` hors de ce moteur.
+    // Was the recorded frame held? A held frame re-encodes only a present: its
+    // submitted triangles are zero because it drew nothing, not because nothing counted.
+    // Without this witness, that zero is indistinguishable from an empty frame. `null` outside this engine.
     imageTenue: metrics.frameHeld ?? null,
-    // Repli de la sélection : vrai quand ce moteur avait une coupe choisie sur la carte graphique et
-    // l'a abandonnée pour la coupe processeur de secours. `null` sur un moteur sans coupe GPU.
+    // Selection fallback: true when this engine had a GPU-chosen cut and
+    // abandoned it for the CPU backup cut. `null` on an engine with no GPU cut.
     repliSelectionGpu: metrics.gpuSelectionFallback ?? null,
-    // Compteurs d'occultation du contrat, sous leurs noms de contrat : le relevé les cherchait sous
-    // des noms qui n'ont jamais existé et publiait donc `null` là où le moteur comptait. `image`
-    // nomme celle qu'ils décrivent — antérieure sur le chemin GPU. `null` = non compté.
+    // Contract occlusion counters, under their contract names: the reading looked for them under
+    // names that never existed and therefore published `null` where the engine counted. `image`
+    // names the one they describe — earlier on the GPU path. `null` = not counted.
     hiZ: {
       tested: metrics.hizTestedClusters ?? null,
       rejected: metrics.hizRejectedClusters ?? null,
@@ -134,36 +134,36 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
         : null,
       taille: ids.length,
     },
-    // Mémoire de géométrie publiée par le moteur : octets tenus par le cache de pages et les
-    // tampons de sommets. `null` quand le moteur ne la publie pas, jamais déduite.
+    // Geometry memory published by the engine: bytes held by the page cache and the
+    // vertex buffers. `null` when the engine does not publish it, never inferred.
     geometrieOctets: metrics.geometryAllocationBytes ?? null,
     budgetPages: {
       demande: settings.maxPages ?? null,
       residentes: metrics.residentPages ?? null,
       couvertureLimiteeParBudget: metrics.coverageBudgetLimited ?? null,
     },
-    // Le pool de géométrie tel que le moteur l'a tenu : octets demandés, fentes, ce qui l'a borné,
-    // et les pages que la dernière image voulait sans qu'il puisse les prendre. `null` = non publié.
+    // The geometry pool as the engine held it: requested bytes, slots, what bounded it,
+    // and pages the last frame wanted that it could not take. `null` = unpublished.
     poolGeometrie: poolGeometrie(metrics),
-    // Le relevé du gouverneur de chemin de calcul : mode demandé, disponibilité du module, et pour
-    // chaque opération en lot le chemin réellement joué avec les médianes des deux. `null` quand le
-    // dist mesuré est antérieur au gouverneur — non mesuré, et non pas « chemin JavaScript ».
+    // Compute-path governor reading: requested mode, module availability, and for
+    // each batch operation the path actually run with both medians. `null` when the
+    // measured dist predates the governor — unmeasured, not "JavaScript path".
     cheminCalcul: result.mathBatch ?? null,
     lampes: lights ? lights.resume : null,
-    // Les lampes venues du fichier source, telles que le moteur les a déclarées à l'ouverture.
+    // Lights that came from the source file, as the engine declared them at open.
     lampesFichier: result.importedLights ?? null,
-    // Ce que le témoin Three a reçu du magasin ; `null` quand ce côté ne dessine pas par Three.
+    // What the Three witness received from the store; `null` when this side does not draw through Three.
     lampesTemoin: result.lampesTemoin ?? null,
-    // L'empreinte de l'atlas d'ombres, lue une fois la file d'attente vide. Deux exécutions dont
-    // seule `--ombres-pages` diffère doivent rendre la même : c'est la preuve que le dessin par
-    // pages est identique au bit près à un redessin complet.
+    // Shadow-atlas fingerprint, read once the queue is empty. Two runs that
+    // differ only by `--ombres-pages` must yield the same: that is the proof that drawing
+    // by pages is bit-identical to a full redraw.
     atlasOmbres: result.shadowAtlas ?? null,
     objetMobile: result.movingNode ?? null,
     charge: { debut, fin },
     png: capture ? captureFile : null,
     captureStatus: result.captureStatus,
     incidentsGpu: result.lost.length ? result.lost : null,
-    // Un DAG que le compilateur n'a pas fait monter, dit par le moteur à l'ouverture : `null` sans.
+    // A DAG the compiler did not mount, spoken by the engine at open: `null` with none.
     avertissementsDag: result.avertissementsDag ?? null,
     canvas: result.size,
     metrics,
@@ -172,17 +172,17 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     `${side.name} ${view} e${pixelError} : cpuFrame p50=${row.cpuFrameMs ? row.cpuFrameMs.p50.toFixed(2) : '—'} ` +
       `cpuSelect p50=${row.cpuSelectMs ? row.cpuSelectMs.p50.toFixed(2) : '—'} ` +
       `gpuFrame p50=${row.gpuFrameMs ? row.gpuFrameMs.p50.toFixed(2) : '—'} ` +
-      `coupe=${ids.length} (${row.selection.source}) png=${capture ? 'oui' : 'non'}\n`,
+      `coupe=${ids.length} (${row.selection.source}) png=${capture ? 'yes' : 'no'}\n`,
   );
   return { row, captureFile };
 }
 
 /**
- * La mesure jouée dans la page, et ce que la carte graphique a signalé quand elle échoue.
+ * The measurement run in the page, and what the GPU reported when it fails.
  *
- * Une image perdue remonte ici avec sa pile d'appels et rien d'autre : la cause — erreur de
- * validation, appareil perdu — n'a été vue que dans la page. Le harnais la relit donc sur la page
- * avant de renvoyer l'échec, pour que le banc nomme la cause au lieu de la laisser deviner.
+ * A lost frame comes up here with its call stack and nothing else: the cause — validation
+ * error, lost device — was only seen in the page. The harness therefore rereads it on the page
+ * before rethrowing, so the bench names the cause instead of leaving it to guess.
  */
 async function runInPage(page, payload) {
   try {
@@ -193,7 +193,7 @@ async function runInPage(page, payload) {
   } catch (error) {
     const incidents = await page.evaluate(() => globalThis.incidentsGpu ?? []).catch(() => []);
     if (!incidents.length) throw error;
-    throw new Error(`${error.message}\nIncidents carte graphique :\n${incidents.join('\n')}`, {
+    throw new Error(`${error.message}\nGPU incidents:\n${incidents.join('\n')}`, {
       cause: error,
     });
   }

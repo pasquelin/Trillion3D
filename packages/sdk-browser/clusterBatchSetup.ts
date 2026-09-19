@@ -103,9 +103,9 @@ export function setupClusterBatches(pages: readonly BatchPage[]) {
     group.transparent = entry.transparent;
     state.groups[order] = group;
   }
-  // Les deux passes du transparent double face sont figées par primitive : la géométrie est partagée
-  // par toutes les instances, donc les deux groupes ne peuvent être posés que si toutes les instances
-  // de cette primitive relèvent du même découpage.
+  // The two two-sided transparent passes are frozen per primitive: geometry is shared
+  // by all instances, so the two groups can be set only if every instance of this
+  // primitive falls under the same split.
   const splitable = new Map<PrimitiveIndex, boolean>();
   for (let order = 0; order < groupDrafts.length; order++) {
     const entry = groupDrafts[order];

@@ -4,20 +4,20 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     check(o)?;
     validate_compile_options(o)?;
     let started = Instant::now();
-    // Les compteurs de phase de ce travail, et d'aucun autre : ils suivent le fil jusqu'au retour.
+    // Phase counters of this job, and of no other: they follow the thread until return.
     let phases = perf::JobPhases::default();
     let _attached = phases.attach();
-    // Tenu jusqu'au retour : deux compilations simultanées d'un même cache s'effaceraient l'une
-    // l'autre, chacune purgeant ce que l'autre vient de publier.
+    // Held until return: two simultaneous compilations of one cache would erase each
+    // other, each pruning what the other just published.
     let _lock = CacheLock::acquire(o)?;
-    // Le routeur choisit le pilote du format et lui fait produire la scène intermédiaire ; tout ce
-    // qui suit ne lit qu'un glTF, sans savoir de quel format il vient.
+    // The router picks the format driver and has it produce the intermediate scene;
+    // everything after reads only a glTF, without knowing which format it came from.
     let progress = with_ratio(progress);
-    // Les réponses sur les découpes, lues avant toute conversion (`cutout.rs`).
+    // Cutout answers, read before any conversion (`cutout.rs`).
     let decisions = cutout::load_decisions(&o.cache, &o.source)?;
     let routed: RoutedSource = plugins::scene::prepare_source(o, &progress)?;
-    // La racine où les URI relatives d'images se résolvent, lue avant tout déplacement de `o.source`
-    // vers le cache : une scène convertie l'y a écrite, ses images sont restées où le pilote les a lues.
+    // Root where relative image URIs resolve, read before any move of `o.source`
+    // onto the cache: a converted scene wrote it there, its images stayed where the driver read them.
     let image_root = routed.scene.images(&o.source);
     let imported;
     let o = if let PreparedScene::Converted { directory, .. } = &routed.scene {
@@ -33,10 +33,10 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let bin = loaded.binary.bytes();
     let g_bytes = &loaded.g_bytes;
     let manifest = &loaded.manifest;
-    // Une hiérarchie qui se referme sur elle-même est refusée avant toute publication : le parcours
-    // des matrices monde part des nœuds sans père, et ne verrait jamais un cycle fermé.
+    // A hierarchy that closes on itself is refused before any publication: world
+    // matrix walk starts from parentless nodes, and would never see a closed cycle.
     compiler_nodes::check_acyclic(&loaded.g)?;
-    // L'ensemble des nœuds de la scène rendue, partagé par la sélection, le proxy et les lampes.
+    // Set of nodes of the rendered scene, shared by selection, the proxy and lights.
     let scene_nodes = compiler_nodes::scene_nodes(&loaded.g)?;
     let NodeSelection {
         chosen,
@@ -45,11 +45,11 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         meshes,
         mesh_map,
     } = select_nodes(o, &loaded.g, &scene_nodes)?;
-    // Les découpes tranchées passent en masqué avant que le moindre matériau soit lu (`cutout.rs`).
+    // Decided cutouts go to masked before any material is read (`cutout.rs`).
     let cutouts = cutout::apply_decisions(&mut loaded.g, bin, &image_root, &meshes, &decisions)?;
     let g = &loaded.g;
-    // L'identité du produit, et non les octets bruts de ce que la source déclare : les mesures d'une
-    // conversion en sortent, les images que la scène cite y entrent, les réponses aussi.
+    // Identity of the product, not the raw bytes of what the source declares:
+    // conversion timings leave it, images the scene cites enter it, answers too.
     let key = compiler_identity::cache_key(o, &loaded, &image_root, &cutouts.applied)?;
     let mesh_values = values(g, "meshes")?;
     let view_values = values(g, "bufferViews")?;
@@ -67,7 +67,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         json!({"phase":"import","completed":1,"total":1,"ms":import_ms,"primitives":jobs.len(),"nodes":chosen.len()}),
     );
     let cluster_start = Instant::now();
-    // La grappe naît et meurt avec ce travail : ses ouvriers adoptent ses compteurs, pas ceux d'un voisin.
+    // The pool is born and dies with this job: its workers adopt its counters, not a neighbour's.
     let pool = rayon::ThreadPoolBuilder::new()
         .num_threads(o.threads)
         .start_handler({
@@ -76,8 +76,8 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         })
         .build()?;
     // Compact per-page index storage is bounded independently from source size. Metadata is retained.
-    // L'échelle monde de chaque maillage est lue avant la boucle : le seuil du proxy est en mètres,
-    // et une primitive posée sous une échelle ne peut pas le savoir toute seule.
+    // World scale of each mesh is read before the loop: the proxy threshold is in
+    // metres, and a primitive placed under a scale cannot know it on its own.
     let mesh_scales = proxy::mesh_scales(g, &chosen)?;
     let primitive_inputs = PrimitiveInputs {
         o,
@@ -126,7 +126,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         output_views: &output_views,
         offset,
     })?;
-    // La chaîne de mips de chaque texture d'atlas et la feuille des découpes, sur la grappe.
+    // Mip chain of each atlas texture and the cutout sheet, on the pool.
     let (texture_previews, texture_preview_report, cutout_report) = stage_textures(
         &pool,
         &TextureStage {
@@ -142,7 +142,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         },
         &progress,
     )?;
-    // Le proxy résident : coupes grossières et aperçus en main, hiérarchie de nœuds encore là.
+    // Resident proxy: coarse cuts and previews in hand, node hierarchy still there.
     let scene_proxy = {
         let _t = perf::Timer::new(perf::Phase::Manifest);
         proxy::stage_proxy(&proxy::ProxyInputs {
@@ -158,14 +158,14 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     progress(
         json!({"phase":"proxy","completed":1,"total":1,"triangles":scene_proxy.triangle_count(),"nodes":scene_proxy.node_count(),"errorMetres":scene_proxy.error_metres}),
     );
-    // Le proxy est un objet de cache à son nom, et non une colonne du sidecar : un manifeste sans
-    // lui reste lisible mot pour mot, et ses dizaines de mégaoctets ne retardent pas la première
-    // image d'une scène qui ne déclare aucune lampe.
+    // The proxy is a cache object under its own name, not a sidecar column: a
+    // manifest without it stays readable word for word, and its tens of megabytes
+    // do not delay the first frame of a scene that declares no light.
     let proxy_bytes = scene_proxy.encode();
     let proxy_sha = hash(&proxy_bytes);
     let proxy_descriptor =
         scene_proxy.descriptor(proxy::SCENE_PROXY_FILE, &proxy_sha, proxy_bytes.len());
-    // Les lampes déclarées par le fichier source, en espace monde, dans le contrat du moteur.
+    // Lights declared by the source file, in world space, in the engine contract.
     stage_scene_lights(g, bin, &scene_nodes, &directory, &progress)?;
     let (autonomous_scene, autonomous_refusal) = compiler_autonomous::write_autonomous_scene(
         &directory,
@@ -187,9 +187,9 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         },
         &result,
     )?;
-    // La purge appartient au travail : ses suppressions et sa durée entrent dans ce qu'il annonce.
-    // Le manifeste, lui, est déjà écrit — il ne porte donc que `compileMs`, la durée qu'il pouvait
-    // connaître, et l'appelant reçoit `wallMs`, prise une fois le cache purgé.
+    // Prune belongs to the job: its deletions and duration enter what it announces.
+    // The manifest is already written — it therefore carries only `compileMs`, the
+    // duration it could know, and the caller receives `wallMs`, taken once the cache is pruned.
     let prune_start = Instant::now();
     let pruned = prune_cache(o, &key, &result, &texture_previews, &progress)?;
     result["metrics"]["pruneMs"] = json!(shared_math::elapsed_ms(prune_start));

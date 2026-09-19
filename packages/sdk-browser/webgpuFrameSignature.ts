@@ -1,16 +1,16 @@
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Nombre de valeurs de la signature d'image ; voir `sampleWebgpuFrame`. */
+/** Number of values in the frame signature; see `sampleWebgpuFrame`. */
 export const HOLD_SIGNATURE_VALUES = 24;
 
 /**
- * Tout ce qu'une image a produit d'observable, en vingt-quatre nombres.
+ * Everything a frame produced that can be observed, in twenty-four numbers.
  *
- * Deux images consécutives dont les trois révisions et ces vingt-quatre nombres sont identiques ont
- * fait exactement le même travail : mêmes lignes, même partition occulteurs/testés, mêmes appels de
- * dessin, mêmes triangles, mêmes verdicts d'occultation, mêmes ombres. C'est ce qui couvre les états
- * qui convergent sans être écrits — l'historique d'occulteurs que la moitié testée de l'image nourrit,
- * les verdicts relus avec un retard — sans avoir à en tenir la liste.
+ * Two consecutive frames whose three revisions and these twenty-four numbers match have done
+ * exactly the same work: same rows, same occluder/tested partition, same draw calls, same
+ * triangles, same occlusion verdicts, same shadows. That covers states that converge without
+ * being written — the occluder history the tested half of the frame feeds, verdicts reread
+ * with a delay — without having to keep a list of them.
  */
 export function sampleWebgpuFrame(rt: WebgpuPagesRuntime, into: Float64Array) {
   const { run, timing, lights } = rt,

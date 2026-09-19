@@ -8,8 +8,8 @@ export function resolvePixelError(
 ) {
   const base = context.pixelError ?? 0;
   const now = typeof performance !== 'undefined' ? performance.now() : 0;
-  // La vitesse est celle de l'œil dans le monde : un rig qui emporte la caméra la déplace aussi.
-  // La position vient de la caméra du moteur, ancêtres résolus par l'entrée d'image.
+  // Speed is that of the eye in the world: a rig that carries the camera moves it too.
+  // Position comes from the engine camera, ancestors resolved by the frame entry.
   const eye = cam.eye;
   let speed = 0;
   if (motion.last && motion.lastMs != null) {
@@ -29,7 +29,7 @@ export function resolvePixelError(
 export function pageRequestUrl<T extends { url: string; streamUrl?: string }>(rec: T) {
   return rec.streamUrl ?? rec.url;
 }
-/** Numérote les clés de requête distinctes une fois pour toutes ; renvoie leur nombre. */
+/** Number distinct request keys once and for all; returns their count. */
 export function indexPageRequests<
   T extends { url: string; streamUrl?: string; requestIndex?: number },
 >(pages: readonly T[]) {
@@ -46,8 +46,8 @@ export function indexPageRequests<
   return byKey.size;
 }
 /**
- * Dédoublonnage des clés de requête sans table de hachage : une estampille par rang, réutilisée d'une
- * image à l'autre. Une coupe de quinze mille pages est parcourue sans allouer ni hacher.
+ * Deduplicate request keys without a hash table: one stamp per rank, reused from one
+ * frame to the next. A cut of fifteen thousand pages is walked without allocating or hashing.
  */
 export class RequestStamps {
   private stamps: Int32Array;
@@ -55,11 +55,11 @@ export class RequestStamps {
   constructor(count: number) {
     this.stamps = new Int32Array(Math.max(0, count));
   }
-  /** Ouvre un passage : tout ce qui a été vu avant est oublié. */
+  /** Open a pass: everything seen before is forgotten. */
   begin() {
     this.current++;
   }
-  /** Vrai la première fois que ce rang est vu depuis `begin()`. Un rang inconnu n'est jamais filtré. */
+  /** True the first time this rank is seen since `begin()`. An unknown rank is never filtered. */
   first(index: number | undefined) {
     if (index === undefined || index < 0 || index >= this.stamps.length) return true;
     if (this.stamps[index] === this.current) return false;
@@ -67,11 +67,11 @@ export class RequestStamps {
     return true;
   }
   /**
-   * Ajoute à `into` l'adresse de requête de chaque enregistrement dont le rang n'a pas encore été vu
-   * depuis `begin()`. Le dédoublonnage et l'écriture tiennent dans une seule boucle, sur le tableau
-   * d'estampilles lu en champ et sur des rangs de `into` écrits directement : une coupe de cent
-   * mille enregistrements ne paie plus un appel ni un empilement par enregistrement. `missing`
-   * n'en garde que les pages sans octets — la liste des adresses encore attendues.
+   * Append to `into` the request address of each record whose rank has not yet been seen
+   * since `begin()`. Dedup and write fit in one loop, on the stamp array read as a field and
+   * on `into` ranks written directly: a cut of a hundred thousand records no longer pays a
+   * call or a stack frame per record. `missing` keeps only pages without bytes — the list of
+   * addresses still awaited.
    */
   mark(
     list: readonly {
@@ -100,10 +100,10 @@ export class RequestStamps {
   }
 }
 /**
- * Le rang d'une page du catalogue, ou `undefined` : le rang voyage sur la page elle-même plutôt que
- * dans une table de hachage relue par cluster et par image. Le catalogue a le dernier mot — un rang
- * posé par un autre moteur ne survit pas à la vérification, exactement comme une page absente de la
- * table ne rendait rien.
+ * Rank of a catalogue page, or `undefined`: the rank travels on the page itself rather than
+ * in a hash table reread per cluster and per frame. The catalogue has the last word — a rank
+ * set by another engine does not survive the check, exactly like a page missing from the
+ * table used to yield nothing.
  */
 export function catalogueIndexOf<T extends { packedIndex?: number }>(
   catalogue: readonly (T | undefined)[],
@@ -126,7 +126,7 @@ export function indexPagesByUrl<T extends { url: string; streamUrl?: string }>(
   }
   return byUrl;
 }
-/** Le repli sans estampilles : un seul ensemble pour tout l'hôte, vidé à chaque appel. */
+/** Fallback without stamps: one set for the whole host, cleared on each call. */
 const vuesSansEstampille = new Set<string>();
 export function collectPendingUrls<
   T extends { array?: Uint32Array; url: string; streamUrl?: string; requestIndex?: number },
@@ -136,7 +136,7 @@ export function collectPendingUrls<
     stamps.begin();
     return stamps.mark(shown, into, true);
   }
-  // Le repli sans estampilles : un hôte qui n'a pas numéroté ses requêtes déduplique par les chaînes.
+  // Fallback without stamps: a host that has not numbered its requests deduplicates by the strings.
   const seen = vuesSansEstampille;
   seen.clear();
   for (let i = 0; i < shown.length; i++) {

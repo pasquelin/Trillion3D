@@ -1,9 +1,9 @@
 import type { Job } from './streamingTypes.ts';
 
 /**
- * Le rang d'insertion d'une priorité dans une file déjà en ordre : le premier travail que celle-ci
- * précède. Une recherche dichotomique, donc un logarithme de comparaisons là où retrier toute la
- * file en coûtait `n log n` — et une caméra en mouvement empile des demandes à chaque image.
+ * Insertion rank of a priority in a queue already in order: the first job it precedes.
+ * A binary search, hence a logarithm of comparisons where re-sorting the whole queue
+ * cost `n log n` — and a moving camera stacks requests every frame.
  */
 function rangDInsertion(queue: readonly { priority: number }[], priority: number) {
   let low = 0,
@@ -17,8 +17,8 @@ function rangDInsertion(queue: readonly { priority: number }[], priority: number
 }
 
 /**
- * Pose un travail à sa place dans une file tenue en ordre. Son numéro d'arrivée est le plus grand
- * jamais posé : il va donc en queue de son groupe de priorité, et l'ordre est conservé sans tri.
+ * Place a job at its slot in a queue kept in order. Its arrival number is the largest
+ * ever set: it therefore goes to the tail of its priority group, and order is kept without a sort.
  */
 export function insereTravail(queue: Job[], job: Job) {
   const at = rangDInsertion(queue, job.priority);
@@ -27,9 +27,9 @@ export function insereTravail(queue: Job[], job: Job) {
 }
 
 /**
- * Retire de la file, en un seul passage et sans déranger l'ordre, les travaux qu'une annulation a
- * marqués. Une rafale d'annulations — ce qu'une caméra rapide produit à chaque image — payait
- * jusqu'ici un balayage de la file par demande abandonnée pour y retrouver sa place.
+ * Remove from the queue, in one pass and without disturbing order, the jobs a cancellation
+ * marked. A burst of cancellations — what a fast camera produces every frame — used to
+ * pay a sweep of the queue per abandoned request to find its place.
  */
 export function compacteFile(queue: Job[]) {
   let garde = 0;
@@ -39,8 +39,8 @@ export function compacteFile(queue: Job[]) {
 }
 
 /**
- * Le premier travail que le budget de transfert laisse partir, ou -1. Le premier transfert d'une
- * file part toujours : sans lui rien n'avancerait quand une seule page dépasse le budget.
+ * The first job the transfer budget lets go, or -1. The first transfer of a queue always
+ * leaves: without it nothing would move when a single page exceeds the budget.
  */
 export function findAdmissible(
   queue: readonly { url: string }[],

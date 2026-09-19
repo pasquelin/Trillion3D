@@ -16,27 +16,27 @@ export interface RenderBackend {
   capabilities: BackendCapabilities;
   setDiagnostic?(mode: DiagnosticMode): void;
   refreshSceneLighting?(): void;
-  /** Vrai quand la scène rendue porte au moins une lampe déclarée. Faux = vue sans éclairage, dont
-   *  la composition est l'identité (P6). Absent d'un moteur qui ne passe pas par Three. Lu à chaque
-   *  image : une lampe posée après la création du moteur change la réponse. */
+  /** True when the rendered scene carries at least one declared light. False = unlit view, whose
+   *  composition is identity (P6). Absent from an engine that does not go through Three. Read every
+   *  frame: a light placed after engine creation changes the answer. */
   sceneLit?(): boolean;
-  /** Le magasin de lampes du contrat a changé : l'image suivante le relira. Absent = lampes ignorées. */
+  /** The contract light store has changed: the next frame will reread it. Absent = lights ignored. */
   refreshSceneLights?(): void;
-  /** Ce qu'aucune signature ne dit de l'éclairage de ce moteur : ses ombres, et la phrase qui nomme
-   *  ce qu'il n'applique pas. Le reste des capacités se lit dans les méthodes présentes ; voir
-   *  `lightingCapabilitiesOf`. Absent d'un moteur qui n'a rien de plus à déclarer. */
+  /** What no signature says about this engine's lighting: its shadows, and the phrase that names
+   *  what it does not apply. The rest of the capabilities is read from the present methods; see
+   *  `lightingCapabilitiesOf`. Absent from an engine that has nothing more to declare. */
   lighting?: { shadows: boolean; reason?: string };
-  /** Déplace un nœud nommé de la scène préparée ; appliqué à l'image suivante, sans allocation (R8). */
+  /** Moves a named node of the prepared scene; applied to the next frame, without allocation (R8). */
   setTransform?(nodeName: string, matrix: Float32Array): void;
-  /** Règle les réservoirs de mémoire en cours de session ; rend ce que le moteur tient après. */
+  /** Sets memory pools during the session; returns what the engine holds afterwards. */
   setMemoryBudgets?(
     budgets: import('./webgpuPagesMemory.ts').MemoryBudgets,
   ): Promise<import('./webgpuPagesMemory.ts').MemoryBudgetsReport>;
   prepare(): Promise<void>;
   render(camera: HostCamera): void;
   readonly overBudget: boolean;
-  /** Vrai quand la dernière image rendue a été tenue : rien n'a été resélectionné ni remonté, et la
-   *  scène attachée EST cette image-ci. Lu par image ; absent d'un moteur qui ne tient rien. */
+  /** True when the last rendered frame was held: nothing was reselected or rebuilt, and the
+   *  attached scene IS this frame. Read per frame; absent from an engine that holds nothing. */
   readonly frameHeld?: boolean;
   scene: THREE.Scene;
   metrics(): BackendMetrics & {
@@ -47,18 +47,18 @@ export interface RenderBackend {
     pageRangeWrites?: number;
     subDraws?: number;
   };
-  /** Profil par étape de la fenêtre glissante : durées processeur et carte graphique séparées.
-   *  Absent d'un moteur qui n'en tient pas ; `enabled: false` quand l'hôte ne l'a pas demandé. */
+  /** Per-step profile of the sliding window: CPU and GPU durations kept separate.
+   *  Absent from an engine that does not hold one; `enabled: false` when the host did not ask. */
   stageProfile?(): StageProfile;
-  /** Oublie la fenêtre du profil : la chauffe et les premières images ne pèsent plus sur ses quantiles. */
+  /** Forgets the profile window: warmup and the first frames no longer weigh on its quantiles. */
   resetStageProfile?(): void;
-  /** Empreinte de l'atlas d'ombres, bit pour bit : la preuve du dessin par pages, jamais une image. */
+  /** Shadow-atlas fingerprint, bit for bit: the proof of drawing by pages, never an image. */
   shadowAtlasDigest?(): Promise<import('./gpuShadowDigest.ts').ShadowAtlasDigest | null>;
-  /** Ce que la partition GPU de la dernière image a écrit, et les entrées d'où elle l'a tiré : la
-   *  preuve, cluster par cluster, que ses rectangles et ses profondeurs sont conservateurs. */
+  /** What the GPU partition of the last frame wrote, and the inputs it drew it from: the
+   *  proof, cluster by cluster, that its rectangles and depths are conservative. */
   partitionAudit?(): Promise<import('./webgpuPartitionAudit.ts').PartitionAudit | null>;
-  /** Ce que le test d'occultation des transparents a rejeté, et la profondeur contre laquelle il
-   *  l'a fait : la preuve qu'aucune grappe retirée n'aurait posé de pixel. */
+  /** What the transparent occlusion test rejected, and the depth it rejected against:
+   *  the proof that no removed cluster would have written a pixel. */
   transparentOcclusionAudit?(): Promise<
     import('./webgpuTransparentOcclusionAudit.ts').TransparentOcclusionAudit | null
   >;
@@ -67,10 +67,10 @@ export interface RenderBackend {
    *  so a small camera move finds them already resident. */
   prefetchUrls?(): string[];
   pageUrls?(): string[];
-  /** Les mêmes épingles que `pageUrls`, dites par différence de rangs de requête : l'hôte n'a plus à
-   *  refaire un ensemble de chaînes par image. Un moteur qui ne l'implémente pas garde `pageUrls`. */
+  /** The same pins as `pageUrls`, spoken as a difference of request ranks: the host no longer has
+   *  to rebuild a set of strings every frame. An engine that does not implement it keeps `pageUrls`. */
   retainedRanks?(): import('./streamingTypes.ts').HostRetentionDelta;
-  /** La fiche d'entiers du catalogue pour une requête : ce que l'intégration hors fil planifie. */
+  /** The catalogue integer sheet for a request: what off-thread integration plans. */
   pageSpecs?(url: string): Int32Array | undefined;
   acceptPage?(
     url: string,
@@ -114,14 +114,14 @@ export interface BackendContext {
   metadata: ClusterManifest;
   indices: Map<string, Uint32Array>;
   associations: Map<THREE.Object3D, { meshes?: number; primitives?: number }>;
-  /** Rang glTF de chaque texture de la scène préparée, pour relier une couche d'atlas à son aperçu. */
+  /** glTF rank of each texture of the prepared scene, to tie an atlas layer to its preview. */
   textureIndices?: Map<THREE.Texture, number>;
-  /** Le lecteur des niveaux de texture cuits dans le cache ; absent d'un cache qui n'en a pas. */
+  /** Reader of texture levels baked in the cache; absent from a cache that has none. */
   readTextureLevel?: import('./textureLevelReader.ts').TextureLevelReader;
   signal?: AbortSignal;
   maxResidentPages?: number;
-  /** Ce que les moteurs à mémoire hôte gardent résident sans plafond de l'hôte ; le moteur WebGPU
-   *  l'ignore, son réservoir est en octets. */
+  /** What host-memory engines keep resident without a host ceiling; the WebGPU engine
+   *  ignores it, its pool is in bytes. */
   residentPagesDefault?: number;
   maxCachedPages?: number;
   /** Resident page/bundle bytes kept by the streamer. Defaults to DEFAULT_CACHED_BYTES. */
@@ -138,45 +138,45 @@ export interface BackendContext {
   gpuDevice?: GPUDevice;
   /** A host canvas dedicated to this WebGPU backend. */
   gpuCanvas?: HTMLCanvasElement;
-  /** Octets de tuiles de textures admis par image. */
+  /** Texture-tile bytes admitted per frame. */
   maxTextureTransferBytesPerFrame?: number;
-  /** Octets du pool de pages de géométrie, fixes quelle que soit la scène ; 512 Mio par défaut.
-   *  La couverture racine y tient toujours ; le reste s'affiche plus grossier quand il n'y entre
-   *  pas. Les cibles d'image ne sont pas budgétées : elles suivent la résolution. */
+  /** Geometry-page pool bytes, fixed regardless of the scene; 512 MiB by default.
+   *  The root cover always fits; the rest draws coarser when it does not fit. Image
+   *  targets are not budgeted: they follow resolution. */
   geometryPoolBytes?: number;
-  /** Le plus grand pool de géométrie qu'un `setMemoryBudgets` pourra demander en cours de session ;
-   *  le budget de départ sans lui. Les tables par page dessinable sont taillées une fois, à lui. */
+  /** The largest geometry pool a `setMemoryBudgets` may ask for during the session;
+   *  the starting budget without it. Per-drawable-page tables are sized once, to it. */
   geometryPoolCeilingBytes?: number;
-  /** Octets du pool de textures virtuelles, partagés entre l'atlas couleur et l'atlas de données ;
-   *  512 Mio par défaut. Ce qu'une vue demande de plus attend qu'une tuile moins regardée se
-   *  libère, et une tuile absente montre son niveau grossier. */
+  /** Virtual-texture pool bytes, shared between the colour atlas and the data atlas;
+   *  512 MiB by default. What a view asks beyond that waits for a less-looked-at tile
+   *  to free, and a missing tile shows its coarse level. */
   texturePoolBytes?: number;
-  /** L'antialiasing temporel, actif par défaut comme chez la référence : `false` rend l'image
-   *  échantillonnée au centre du pixel, sans gigue ni historique — le « avant » d'une comparaison. */
+  /** Temporal antialiasing, on by default as in the reference: `false` renders the
+   *  image sampled at the pixel centre, with no jitter and no history — the "before" of a comparison. */
   temporalAntialiasing?: boolean;
   sceneLighting?: THREE.Object3D;
-  /** Les lampes du contrat, possédées par l'hôte et partagées par tous les moteurs de la session. */
+  /** Contract lights, owned by the host and shared by every engine of the session. */
   sceneLights?: SceneLightStore;
-  /** Les identifiants des lampes que le fichier source portait, dans l'ordre du cache. L'hôte les
-   *  relit par `explorer.importedLights()` pour les régler ou les retirer une à une. */
+  /** Identifiers of the lights the source file carried, in cache order. The host rereads
+   *  them via `explorer.importedLights()` to set or remove them one by one. */
   importedLightIds?: string[];
-  /** La lumière qui rebondit. Éteinte par défaut : son étape reste au-dessus de la barre d'une
-   *  milliseconde mesurée sur les trois vues ; `true` l'allume pour toute la session. */
+  /** Bounced light. Off by default: its step stays above the one-millisecond bar measured
+   *  on the three views; `true` turns it on for the whole session. */
   bounce?: boolean;
-  /** Durée visée de l'étape « Rebond » sur la carte graphique, par image, en millisecondes.
-   *  Par défaut `BOUNCE_SETTINGS.budgetMs` (0,8 ms) : c'est une consigne, pas une promesse. */
+  /** Target duration of the "Bounce" step on the GPU, per frame, in milliseconds.
+   *  Default `BOUNCE_SETTINGS.budgetMs` (0.8 ms): a target, not a promise. */
   bounceBudgetMs?: number;
-  /** Chronométrer chaque étape de l'image. Éteint par défaut : seuls le banc et le harnais l'allument. */
+  /** Time every step of the frame. Off by default: only the bench and the harness turn it on. */
   stageProfile?: boolean;
-  /** La variante de DIAGNOSTIC retenue par l'hôte, déjà vérifiée (`diagnosticGpuVariant.ts`).
-   *  Absente en production : un moteur sans elle encode exactement ce qu'il encodait. */
+  /** DIAGNOSTIC variant kept by the host, already checked (`diagnosticGpuVariant.ts`).
+   *  Absent in production: an engine without it encodes exactly what it used to encode. */
   diagnosticGpuVariant?: DiagnosticGpuVariant;
-  /** Budget de l'étape Ombres, en millisecondes de carte graphique par image. Voir `LIGHT_SETTINGS`. */
+  /** Shadows-step budget, in GPU milliseconds per frame. See `LIGHT_SETTINGS`. */
   shadowBudgetMs?: number;
-  /** Invalidation des cartes d'ombre page par page. Allumée par défaut. */
+  /** Page-by-page shadow-map invalidation. On by default. */
   shadowPageInvalidation?: boolean;
-  /** Lit l'objet de cache du proxy résident. Absent quand le cache n'en porte pas ; appelé au plus
-   *  une fois, à la première image qui porte une lampe déclarée. */
+  /** Reads the resident-proxy cache object. Absent when the cache does not carry one;
+   *  called at most once, on the first frame that carries a declared light. */
   readSceneProxy?: () => Promise<import('../sdk-core/index.ts').SceneProxy>;
   /** Host-owned, validated page reader for the initial complete GPU fallback. */
   readPage?: (url: string) => Promise<Uint32Array>;

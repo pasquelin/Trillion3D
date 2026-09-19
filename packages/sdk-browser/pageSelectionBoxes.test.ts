@@ -1,6 +1,6 @@
-// Le comportement changé par ce lot : une racine déclare une fois que chacune de ses pages porte sa
-// boîte, et la coupe cesse de le vérifier par cluster sous un nœud entièrement dans le tronc. La
-// déclaration est un contrat ; ces trois tests en tiennent les deux bouts — qui l'écrit, qui la lit.
+// Behaviour this batch changed: a root declares once that each of its pages carries its box,
+// and the cut stops checking it per cluster under a node entirely in the frustum. The
+// declaration is a contract; these three tests hold both ends — who writes it, who reads it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { collectClusterPages, selectVisiblePages, type PageRec } from './pageSelection.ts';
@@ -12,8 +12,8 @@ import { cameraMoteur } from './cameraFixture.ts';
 
 const ASK = { pixelError: 0, viewport: [1280, 720] as [number, number], holdResident: true };
 
-/** Le DAG de test avec sa hiérarchie, dont la caméra large voit la racine entière : la descente y
- *  pose `inside` dès le premier nœud, et c'est le seul cas où la déclaration change quelque chose. */
+/** Test DAG with its hierarchy, whose wide camera sees the whole root: the descent sets
+ *  `inside` from the first node, and that is the only case where the declaration changes anything. */
 function racines() {
   const fixture = dagFixture();
   fixture.metadata.primitives[0].culling = dagCulling();
@@ -29,7 +29,7 @@ function racines() {
 const montres = (roots: ReadonlyArray<ClusterRoot<PageRec>>) =>
   selectVisiblePages(roots, cameraMoteur(wideCamera()), ASK).shown.map((page) => page.url);
 
-test('la collecte déclare des boîtes, ce qui est vrai de toutes ses pages', () => {
+test('collection declares boxes, which is true of all its pages', () => {
   const fixture = blendFixture();
   const { roots, allPages } = collectClusterPages(
     fixture.source,
@@ -47,7 +47,7 @@ test('la collecte déclare des boîtes, ce qui est vrai de toutes ses pages', ()
   fixture.material.dispose();
 });
 
-test('déclarer des boîtes ne change aucune coupe quand chaque page porte la sienne', () => {
+test('declaring boxes changes no cut when each page carries its own', () => {
   const { fixture, roots } = racines();
   const declare = montres(roots);
   roots[0].boxes = undefined;
@@ -56,15 +56,15 @@ test('déclarer des boîtes ne change aucune coupe quand chaque page porte la si
   fixture.geometry.dispose();
 });
 
-test('sans déclaration, une page sans boîte est écartée ; déclarée, la coupe ne la lit plus', () => {
+test('without a declaration, a page without a box is dropped; declared, the cut no longer reads it', () => {
   const { fixture, roots } = racines();
   const sansBoite = roots[0].pages[0];
   sansBoite.min = undefined as unknown as number[];
   sansBoite.max = undefined as unknown as number[];
   roots[0].boxes = undefined;
   assert.ok(!montres(roots).includes(sansBoite.url));
-  // La déclaration est crue : la page passe sans que sa boîte soit lue. C'est ce que le contrat
-  // achète, et ce qui rend une omission visible plutôt que silencieuse.
+  // The declaration is believed: the page passes without its box being read. That is what the
+  // contract buys, and what makes an omission visible rather than silent.
   roots[0].boxes = true;
   assert.ok(montres(roots).includes(sansBoite.url));
   fixture.geometry.dispose();

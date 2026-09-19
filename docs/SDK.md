@@ -59,6 +59,8 @@ FBX/OBJ sources are first imported into `<cache>/native/imports/<key>/` as `mode
 
 `createExplorer(canvas, { manifestUrl, scope, width, height, fov, pixelRatio, maxResidentPages, pageFetchWorkers, replicaCount, backends, pixelError, preload, comparisonLayout, comparisonPair, gpu, pointsOfInterest, ... })` owns neither the animation loop nor the canvas. Call `dispose()` when finished; hosted Orbit/Fly controls created through the explorer are disposed with it. The default camera is framed from the loaded bounding box (`near = radius / 10000`, no absolute floor). `pointsOfInterest()` returns that home pose; extra named poses come from the host `pointsOfInterest` option, not from the SDK. `pixelError` (default `0`) keeps the exact leaves; a positive threshold selects coarse QEM pages when the cache includes them. `preload: 'visible'` (default) streams detail for the current camera; WebGPU first loads a complete, camera-independent root cover before explorer creation resolves; `preload: 'all'` restores the previous eager load. `awaitPages()` must be called before the first official image when using the visible preload. Comparison layouts (`single`, `side-by-side`, `wipe`, `toggle`, `difference`) render backends A and B to detached targets with the same camera; they are not an official performance verdict.
 
+What the engine computes for itself — matrices, vectors, colours, its camera, the side of a material — it builds on `sdk-core` (`engineCamera.ts`, `materialSide.ts`), not on host-library objects — one exception left, the secondary capture view of `webgpuPagesSurfaceCapture.ts`, which enters the frame gate as a host camera until #78; the functions and their proofs are listed batch by batch in [`docs/API.md`](API.md). The host contract itself — the `THREE.Scene` handed to `createExplorer` and the `THREE.PerspectiveCamera` read once per frame — holds until the engine-owned scene model lands (#78).
+
 The host camera declares its own clip-depth convention through `camera.coordinateSystem`, and both are supported: `[-1, 1]` (WebGL, the default of the camera the explorer builds) and `[0, 1]` (WebGPU). It is read once per frame into the engine camera and applies to the frustum planes, the view-projection the GPU consumes, the Hi-Z bounds and the CPU visibility raster alike; a camera reaching the engine through `restoreAfterCampaign` or a backend's own `render(camera)` carries its convention with it. The engine never rewrites `coordinateSystem`; a projection matrix inconsistent with the declared convention is the host's own error.
 
 `autonomousGeometry: true` selects the prepared-page WebGL2 backend for wholly static opaque/masked assets. It reads `scene.gltf` and verified geometry pages without downloading the full source geometry buffer; a complete root cover is resident before rendering and useful detail streams afterward. The mode rejects caches without `autonomousScene`, BLEND/skinned/morph scenes and custom backend lists. Existing WebGPU and Three comparison paths still use `source.gltf` and its complete geometry buffer. Material images remain eager in this mode, and GPU-driven selection, indirect drawing and hybrid rasterization are not provided by this WebGL2 path.
@@ -177,7 +179,7 @@ proxy is the coarse cut of the cluster DAG whose certified geometric error stays
 (300 000 triangles, every instance placed), plus a BVH over it and one linear diffuse albedo per
 triangle. It carries geometry and materials, never light. The threshold it actually reached is
 published in the manifest as `proxy.errorMetres`; on a scene whose DAG does not simplify that far,
-the proxy is the DAG's root level and says so. A cache compiled before this lot carries no `proxy`
+the proxy is the DAG's root level and says so. A cache compiled before this change carries no `proxy`
 field and stays readable: the bounce is then unavailable and declares it.
 
 At run time two compute passes carry it (`explorer.bounceSettings` publishes every bound below).
@@ -236,11 +238,11 @@ error target is 10 %, so it is not met. Convergence after a light jumps: **22 fr
 
 The bounce stays **off by default**: measured on Emerald with eight point lights, the `bounce`
 stage costs **1.12 / 1.18 / 1.26 ms** (p50, the three bench views) against 2.22 / 2.22 / 2.26 ms
-before this lot, which is still above the one-millisecond bar that would have made it the default.
+before this change, which is still above the one-millisecond bar that would have made it the default.
 Most of that is fixed cost, not work: the millisecond budget drives the fraction down to its floor
 (2 %, 15 probes and 328 cache cells per frame) and the stage still reads 1.1 ms.
 `createExplorer({ bounce: true })` turns it on for the session. Left off, the deferred resolve
-compiles the direct-only program, exactly the shader of the previous lot, and the bounce declares
+compiles the direct-only program, exactly the shader of the previous change, and the bounce declares
 itself unavailable rather than appearing silently. Emission, transparency and specular are not
 bounced; the proxy carries diffuse albedo only.
 
@@ -254,7 +256,7 @@ order.
 
 `setEnvironment({ exposure })` sets camera exposure, applied to linear radiance immediately before ACES. It is not a light: it cannot brighten a surface no declared light reaches, and a scene without lights stays black whatever its value.
 
-The transparent path still uses the authored Three.js light graph and its fixed ambient, so `sceneLighting?: THREE.Object3D` still supplies that graph (falling back to the loaded glTF graph, then to a hemisphere/sun rig), still adapts directional, point, spot, hemisphere and ambient lights to a bounded buffer (maximum 256 visible lights; excess and unsupported types fail explicitly), and `explorer.refreshSceneLighting()` still applies after adding or removing lights there. Extending the no-implicit-light rule to transparents is a later lot. Environment-map lighting, area lights, probes and global illumination are not implemented.
+The transparent path still uses the authored Three.js light graph and its fixed ambient, so `sceneLighting?: THREE.Object3D` still supplies that graph (falling back to the loaded glTF graph, then to a hemisphere/sun rig), still adapts directional, point, spot, hemisphere and ambient lights to a bounded buffer (maximum 256 visible lights; excess and unsupported types fail explicitly), and `explorer.refreshSceneLighting()` still applies after adding or removing lights there. Extending the no-implicit-light rule to transparents is later work. Environment-map lighting, area lights, probes and global illumination are not implemented.
 
 For `backends: [webgpuPagesBackend]`, `createExplorer` presents directly to the host WebGPU canvas without creating its normal Three WebGL renderer. A mixed-backend explorer retains WebGL composition through an intermediate GPU canvas/`CanvasTexture`; this cross-API composition has a separate cost and must not be conflated with direct presentation. Neither normal path calls `copyTextureToBuffer` for the image. No physical zero-copy or performance gain is claimed without browser measurements. Geometry-selection feedback is separate from image readback and still exists.
 
@@ -311,7 +313,7 @@ LAB_URL=http://localhost:5174 node test/browser/emeraude-webgpu.browser.mjs
 LAB_URL=http://localhost:5174 node test/browser/presentation-gpu.browser.mjs
 ```
 
-The material check compares nine pixels on 18 fixtures with a two-level RGB tolerance and rejects missing diagnostics or GPU failures. The Emerald check replays ten banc 15 poses on the same source, camera, pixel error 1, and a 2496×1404 viewport — the internal resolution of the published profile `docs/REFERENCE_UE5.md` compares pass shapes against, declared once as `MEASURE_WIDTH`/`MEASURE_HEIGHT` in `test/appui/emeraldProvenance.mjs` and recorded in the provenance. What is matched is the internal render size, not their 4K output: that comes from a temporal upscale this engine does not have. It saves PNGs, per-view differences, source fingerprints and logs under `benchmark-runs/webgpu-visual/`. A successful runner execution is **not** a full-scene visual-parity verdict: inspect the measured differences and screenshots. Neither runner measures performance or proves memory stability.
+The material check compares nine pixels on 18 fixtures with a two-level RGB tolerance and rejects missing diagnostics or GPU failures. The Emerald check replays ten bench-15 poses on the same source, camera, pixel error 1, and a 2496×1404 viewport — the internal resolution of the published profile `docs/REFERENCE_UE5.md` compares pass shapes against, declared once as `MEASURE_WIDTH`/`MEASURE_HEIGHT` in `test/appui/emeraldProvenance.mjs` and recorded in the provenance. What is matched is the internal render size, not their 4K output: that comes from a temporal upscale this engine does not have. It saves PNGs, per-view differences, source fingerprints and logs under `benchmark-runs/webgpu-visual/`. A successful runner execution is **not** a full-scene visual-parity verdict: inspect the measured differences and screenshots. Neither runner measures performance or proves memory stability.
 
 The current WebGPU path still lacks per-texture transforms/UV channels/filter modes, environment maps, shadows and the full material contract. Padded texture-array boundaries, transparent compositing and full-scene pixel differences still need dedicated parity checks. The CPU shading oracle encodes linear lighting to sRGB without ACES; it is not a substitute for the displayed-image comparisons.
 

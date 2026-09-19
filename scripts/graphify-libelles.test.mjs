@@ -1,15 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  rendreLesNoms,
-  reecrireRapport,
-  apparier,
-  grouper,
-  renommerLesNoeuds,
+  assignNames,
+  rewriteReport,
+  matchNames,
+  groupNodes,
+  renameNodes,
 } from './graphify-libelles.mjs';
 
-/** Un graphe minuscule : deux communautés, des liens qui donnent un nœud dominant. */
-function graphe() {
+/** A tiny graph: two communities, links giving a dominant node. */
+function graph() {
   return {
     nodes: [
       { id: 'a', label: 'hiz.ts', community: 7, source_file: 'packages/sdk-browser/hiz.ts' },
@@ -41,55 +41,55 @@ function graphe() {
   };
 }
 
-test('un nom curé suit ses témoins même quand la communauté est renumérotée', () => {
-  const temoins = { 'Pyramide Hi-Z et occlusion': ['a', 'b', 'c'] };
-  const { libelles, repris } = rendreLesNoms(graphe(), temoins, process.cwd());
-  assert.equal(repris, 1);
-  assert.equal(libelles.get(7), 'Pyramide Hi-Z et occlusion');
+test('a curated name follows its witnesses even when the community is renumbered', () => {
+  const witnesses = { 'Hi-Z pyramid and occlusion': ['a', 'b', 'c'] };
+  const { labels, recovered } = assignNames(graph(), witnesses, process.cwd());
+  assert.equal(recovered, 1);
+  assert.equal(labels.get(7), 'Hi-Z pyramid and occlusion');
 });
 
-test('une communauté sans témoin prend son dossier et son nœud dominant', () => {
-  const { libelles } = rendreLesNoms(graphe(), {}, process.cwd());
-  assert.equal(libelles.get(3), 'image · png');
+test('a community without witnesses takes its folder and dominant node', () => {
+  const { labels } = assignNames(graph(), {}, process.cwd());
+  assert.equal(labels.get(3), 'image · png');
 });
 
-test('un recouvrement trop faible ne vole pas le nom', () => {
-  const temoins = { 'Décodage PNG': ['x', 'inconnu1', 'inconnu2', 'inconnu3', 'inconnu4'] };
-  const { repris } = rendreLesNoms(graphe(), temoins, process.cwd());
-  assert.equal(repris, 0);
+test('too weak overlap does not steal the name', () => {
+  const witnesses = { 'PNG decoding': ['x', 'inconnu1', 'inconnu2', 'inconnu3', 'inconnu4'] };
+  const { recovered } = assignNames(graph(), witnesses, process.cwd());
+  assert.equal(recovered, 0);
 });
 
-test('deux communautés scindées ne portent pas le même nom', () => {
-  const g = graphe();
+test('two split communities do not bear the same name', () => {
+  const g = graph();
   for (const n of g.nodes) n.community = n.id === 'x' || n.id === 'y' ? 3 : 7;
-  const temoins = {};
-  const { libelles } = rendreLesNoms(g, temoins, process.cwd());
-  assert.notEqual(libelles.get(3), libelles.get(7));
+  const witnesses = {};
+  const { labels } = assignNames(g, witnesses, process.cwd());
+  assert.notEqual(labels.get(3), labels.get(7));
 });
 
-test('le nom le plus franc est servi avant les autres', () => {
-  const { groupes } = grouper(graphe());
-  const apparies = apparier(groupes, { Faible: ['a', 'x', 'y'], Franc: ['a', 'b', 'c'] });
-  assert.equal(apparies.get(7), 'Franc');
+test('the strongest match is served before others', () => {
+  const { groups } = groupNodes(graph());
+  const matched = matchNames(groups, { Faible: ['a', 'x', 'y'], Franc: ['a', 'b', 'c'] });
+  assert.equal(matched.get(7), 'Franc');
 });
 
-test('le rapport ne voit réécrire que ses titres de communauté', () => {
-  const libelles = new Map([[7, 'Pyramide Hi-Z et occlusion']]);
-  const avant = '### Community 7 - "hiz.ts"\nCohesion: 0.12\n### Community 9 - "autre"\n';
-  const apres = reecrireRapport(avant, libelles);
-  assert.match(apres, /### Community 7 - "Pyramide Hi-Z et occlusion"/);
-  assert.match(apres, /### Community 9 - "autre"/);
-  assert.match(apres, /Cohesion: 0\.12/);
+test('the report sees only its community titles rewritten', () => {
+  const labels = new Map([[7, 'Hi-Z pyramid and occlusion']]);
+  const before = '### Community 7 - "hiz.ts"\nCohesion: 0.12\n### Community 9 - "other"\n';
+  const after = rewriteReport(before, labels);
+  assert.match(after, /### Community 7 - "Hi-Z pyramid and occlusion"/);
+  assert.match(after, /### Community 9 - "other"/);
+  assert.match(after, /Cohesion: 0\.12/);
 });
 
-test('le nom retourne dans chaque nœud, là où graphify query le lit', () => {
-  const g = graphe();
-  const libelles = new Map([
-    [7, 'Pyramide Hi-Z et occlusion'],
-    [3, 'Décodage PNG'],
+test('the name returns into each node, where graphify query reads it', () => {
+  const g = graph();
+  const labels = new Map([
+    [7, 'Hi-Z pyramid and occlusion'],
+    [3, 'PNG decoding'],
   ]);
-  assert.equal(renommerLesNoeuds(g, libelles), 5);
-  assert.equal(g.nodes.find((n) => n.id === 'a').community_name, 'Pyramide Hi-Z et occlusion');
-  assert.equal(g.nodes.find((n) => n.id === 'x').community_name, 'Décodage PNG');
-  assert.equal(renommerLesNoeuds(g, libelles), 0);
+  assert.equal(renameNodes(g, labels), 5);
+  assert.equal(g.nodes.find((n) => n.id === 'a').community_name, 'Hi-Z pyramid and occlusion');
+  assert.equal(g.nodes.find((n) => n.id === 'x').community_name, 'PNG decoding');
+  assert.equal(renameNodes(g, labels), 0);
 });

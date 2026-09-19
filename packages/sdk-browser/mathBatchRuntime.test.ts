@@ -1,8 +1,8 @@
-// Les deux noyaux de calcul en lot (`mathBatchRuntime.ts`), chemin JavaScript contre chemin
-// WebAssembly, sur de petits lots purement hostiles de `bench/casLotsWasm.mjs` (échelles négatives,
-// cisaillement, `w` nul, NaN, ±0, infinis, 1e308, 5e-324) : mêmes bits des deux côtés, `Object.is`
-// près — la même notion d'égalité que `bench/m5.bench.mjs` utilise pour la campagne complète, ici
-// sur un lot assez petit pour tourner dans `pnpm test`.
+// Initial two batch computation kernels (`mathBatchRuntime.ts`), JavaScript path vs
+// WebAssembly path, on small purely hostile batches from `bench/casLotsWasm.mjs` (negative scales,
+// shear, zero `w`, NaN, ±0, infinities, 1e308, 5e-324): exact same bits on both sides down to
+// `Object.is` — same notion of equality that `bench/m5.bench.mjs` uses for full benchmark, here
+// on a batch small enough to run in `pnpm test`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -12,30 +12,30 @@ import { prepareMathBatch } from './mathBatchState.ts';
 import { createBoxTransformLot, createMultiplyLot } from './mathBatchRuntime.ts';
 import { remplitBoites, remplitMatrices } from './bench/appui/casLotsWasm.mjs';
 
-// Petit lot : exactement 9 matrices hostiles × 7 boîtes hostiles, le produit croisé complet de
-// `casLotsWasm.mjs` une fois chacun — pas un seul élément de pseudo-aléatoire ordinaire. Un lot plus court
-// couperait avant les boîtes NaN et ±0 (les cinquième et sixième familles listées dans `BOITES`).
+// Small batch: exactly 9 hostile matrices × 7 hostile boxes, full Cartesian product of
+// `casLotsWasm.mjs` once each — zero ordinary pseudo-random element. A shorter batch
+// would cut before NaN and ±0 boxes (fifth and sixth families listed in `BOITES`).
 const N = 63;
 
 await prepareSdkWasm(readFileSync(join(import.meta.dirname, 'pageCodec.wasm')));
 
-/** La sortie du lot sur un chemin imposé, recopiée hors du tampon partagé. */
+/** Batch output on forced path, copied outside shared buffer. */
 async function sortie<T extends { run(): 'js' | 'wasm'; out: Float64Array }>(
   lot: T,
   chemin: 'js' | 'wasm',
 ) {
   await prepareMathBatch(chemin);
   const joue = lot.run();
-  assert.equal(joue, chemin, `chemin ${joue} joué alors que ${chemin} est imposé`);
+  assert.equal(joue, chemin, `path ${joue} played while ${chemin} is imposed`);
   return lot.out.slice();
 }
 
-test('boxTransformBatch : mêmes bits en JavaScript et en WebAssembly sur des boîtes hostiles', async () => {
+test('boxTransformBatch: same bits in JavaScript and WebAssembly on hostile boxes', async () => {
   const lot = await createBoxTransformLot(N);
   remplitBoites(lot, N);
   const parJs = await sortie(lot, 'js');
   const parWasm = await sortie(lot, 'wasm');
-  assert.equal(lot.shared, true, 'le lot doit travailler dans la mémoire du module');
+  assert.equal(lot.shared, true, 'batch must work in module memory');
   assert.equal(parJs.length, parWasm.length);
   for (let i = 0; i < parJs.length; i++)
     assert.ok(
@@ -45,12 +45,12 @@ test('boxTransformBatch : mêmes bits en JavaScript et en WebAssembly sur des bo
   lot.release();
 });
 
-test('boxTransformBatch : le départage ±0 de Math.min/Math.max se joue au même bit', async () => {
-  // Aucune des neuf matrices hostiles de `casLotsWasm.mjs` ne porte de translation à `-0` : croisées avec
-  // la boîte `[0, -0, 0, -0, 0, -0]`, leurs huit coins s'additionnent toujours à `+0` avant la
-  // réduction — l'addition IEEE-754 d'un `+0` et d'un `-0` rend `+0`, quel que soit l'ordre. Ce cas
-  // est construit à la main pour que le signe survive jusqu'à `js_min`/`js_max` : translation en x à
-  // `-0`, coins tous à `x = ±0`. `Math.min` doit y rendre `-0`, `Math.max` `+0`, comme en JavaScript.
+test('boxTransformBatch: ±0 resolution of Math.min/Math.max matches at bit level', async () => {
+  // None of 9 hostile matrices in `casLotsWasm.mjs` has translation at `-0`: crossed with
+  // box `[0, -0, 0, -0, 0, -0]`, their 8 corners always sum to `+0` before reduction —
+  // IEEE-754 addition of `+0` and `-0` yields `+0` regardless of order. Handcrafted case so
+  // sign survives to `js_min`/`js_max`: x translation at `-0`, corners all at `x = ±0`.
+  // `Math.min` must yield `-0`, `Math.max` `+0`, matching JavaScript.
   const matriceTranslationMoinsZero = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -0, 0, 0, 1];
   const boiteSigneeEnX = [0, -0, 0, -0, 0, -0];
   const lot = await createBoxTransformLot(1);
@@ -58,8 +58,8 @@ test('boxTransformBatch : le départage ±0 de Math.min/Math.max se joue au mêm
   lot.boxes.set(boiteSigneeEnX);
   const parJs = await sortie(lot, 'js');
   const parWasm = await sortie(lot, 'wasm');
-  assert.ok(Object.is(parJs[0], -0), 'référence JS : Math.min doit départager vers -0');
-  assert.ok(Object.is(parJs[3], 0) && !Object.is(parJs[3], -0), 'référence JS : Math.max vers +0');
+  assert.ok(Object.is(parJs[0], -0), 'JS reference: Math.min must resolve to -0');
+  assert.ok(Object.is(parJs[3], 0) && !Object.is(parJs[3], -0), 'JS reference: Math.max to +0');
   for (let i = 0; i < parJs.length; i++)
     assert.ok(
       Object.is(parJs[i], parWasm[i]),
@@ -68,12 +68,12 @@ test('boxTransformBatch : le départage ±0 de Math.min/Math.max se joue au mêm
   lot.release();
 });
 
-test('multiplyMatrix4Batch : mêmes bits en JavaScript et en WebAssembly sur des matrices hostiles', async () => {
+test('multiplyMatrix4Batch: same bits in JavaScript and WebAssembly on hostile matrices', async () => {
   const lot = await createMultiplyLot(N);
   remplitMatrices(lot, N);
   const parJs = await sortie(lot, 'js');
   const parWasm = await sortie(lot, 'wasm');
-  assert.equal(lot.shared, true, 'le lot doit travailler dans la mémoire du module');
+  assert.equal(lot.shared, true, 'batch must work in module memory');
   assert.equal(parJs.length, parWasm.length);
   for (let i = 0; i < parJs.length; i++)
     assert.ok(

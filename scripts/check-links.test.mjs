@@ -29,7 +29,7 @@ test('reports a broken link in an ordinary file but ignores the same broken link
   }
 });
 
-test('un suffixe `:ligne` ou `:ligne:colonne` désigne un endroit du fichier, pas un autre fichier', async () => {
+test('a `:line` or `:line:column` suffix designates a location in the file, not another file', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'wg-check-links-'));
   try {
     await mkdir(join(directory, 'docs'), { recursive: true });

@@ -1,5 +1,5 @@
-//! A02 : deux écritures d'un même cache dans un lot. Un cache ne garde qu'un pointeur par scope et
-//! se purge après chaque travail : deux travaux qui le visent s'effacent l'un l'autre.
+//! A02: two writes to the same cache in a batch. A cache only keeps one pointer per scope and
+//! purges after each job: two jobs targeting it erase each other.
 mod common;
 use common::fixture;
 use serde_json::{json, Value};
@@ -16,7 +16,7 @@ fn run_batch(spec_path: &Path) -> (Option<i32>, Value) {
         .output()
         .expect("run");
     let summary =
-        serde_json::from_str(String::from_utf8_lossy(&output.stdout).trim()).expect("résumé JSON");
+        serde_json::from_str(String::from_utf8_lossy(&output.stdout).trim()).expect("JSON summary");
     (output.status.code(), summary)
 }
 fn write_spec(spec_path: &Path, obj: &Path, first: &Path, second: &Path) {
@@ -29,7 +29,7 @@ fn write_spec(spec_path: &Path, obj: &Path, first: &Path, second: &Path) {
     )
     .expect("spec");
 }
-/// Le refus nomme les deux entrées du lot pour que l'hôte sache lesquelles fusionner.
+/// Refusal names both entries in the batch so the host knows which ones to merge.
 fn assert_refus_alias(code: Option<i32>, summary: &Value) {
     assert_eq!(code, Some(2), "{summary}");
     assert_eq!(summary["code"], "INVALID_BATCH", "{summary}");
@@ -40,8 +40,8 @@ fn assert_refus_alias(code: Option<i32>, summary: &Value) {
     );
 }
 
-/// A02 : `x` et `p/../x` désignent le même dossier absent. `canonicalize` échouait sur un chemin
-/// absent, le texte brut servait alors d'identité et les deux travaux étaient admis.
+/// A02: `x` and `p/../x` refer to the same missing folder. `canonicalize` failed on a missing
+/// path, raw text then served as identity and both jobs were admitted.
 #[test]
 fn a02_deux_ecritures_du_meme_cache_absent_sont_refusees() {
     let (root, obj, cache) = fixture("alias-absent");
@@ -56,7 +56,7 @@ fn a02_deux_ecritures_du_meme_cache_absent_sont_refusees() {
     assert_refus_alias(code, &summary);
     fs::remove_dir_all(root).ok();
 }
-/// A02 : la même paire, mais les dossiers existent déjà avant le lot.
+/// A02: the same pair, but the folders already exist before the batch.
 #[test]
 fn a02_deux_ecritures_du_meme_cache_existant_sont_refusees() {
     let (root, obj, cache) = fixture("alias-existant");
@@ -74,7 +74,7 @@ fn a02_deux_ecritures_du_meme_cache_existant_sont_refusees() {
     assert_refus_alias(code, &summary);
     fs::remove_dir_all(root).ok();
 }
-/// A02 : un lien symbolique existant vers le cache d'un autre travail est le même alias.
+/// A02: an existing symbolic link to another job's cache is the same alias.
 #[cfg(unix)]
 #[test]
 fn a02_un_lien_symbolique_vers_le_meme_cache_est_refuse() {

@@ -1,8 +1,8 @@
 use super::*;
 
-/// Les octets sources d'une image et d'où ils viennent, la vue nommée telle que `source.gltf` la
-/// publie. La provenance est la seule part qui demande la table de correspondance des vues : le
-/// reste sert aussi à l'étape des découpes, qui n'a que la scène d'entrée sous la main.
+/// Source bytes of an image and where they come from, the named view as
+/// `source.gltf` publishes it. Provenance is the only part that needs the view
+/// map: the rest also serves the cutout step, which only has the input scene.
 pub(super) fn image_bytes(
     inputs: &PreviewInputs<'_>,
     image: &Value,
@@ -11,7 +11,7 @@ pub(super) fn image_bytes(
     let Some(view) = view else {
         return Ok((bytes, PreviewSource::Uri));
     };
-    // La provenance nomme la vue telle que `source.gltf` la publie, pas celle de l'entrée.
+    // Provenance names the view as `source.gltf` publishes it, not the input one.
     let mapped = *inputs
         .view_map
         .get(&view)
@@ -20,9 +20,9 @@ pub(super) fn image_bytes(
     Ok((bytes, PreviewSource::BufferView(mapped)))
 }
 
-/// Les octets sources d'une image, et la vue du glTF D'ENTRÉE quand elle y est embarquée. Une image
-/// embarquée est une tranche du binaire déjà mappé, une image liée est lue une fois sous le dossier
-/// source, jamais écrite.
+/// Source bytes of an image, and the INPUT glTF view when it is embedded there.
+/// An embedded image is a slice of the already mapped binary; a linked image is
+/// read once under the source folder, never written.
 pub(crate) fn raw_image_bytes(
     g: &Value,
     bin: &[u8],

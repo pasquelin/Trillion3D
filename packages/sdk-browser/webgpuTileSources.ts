@@ -12,22 +12,21 @@ import {
   writeTileFromBitmap,
 } from './webgpuTileWrite.ts';
 
-/** Lectures de niveaux cuits en vol au plus : au-delà, une tuile attend l'image suivante. */
+/** Cooked-level reads in flight at most: beyond that, a tile waits for the next image. */
 const MAX_LEVEL_READS = 6;
-/** Textures de travail bâties au plus par passe — la source entière chacune ; les tuiles d'une
- *  troisième texture attendent la passe suivante. Elles vivent jusqu'à la soumission de la passe :
- *  une copie encodée nomme sa texture, qui ne peut pas être détruite avant. */
+/** Working textures built at most per pass — the whole source each; tiles of a third texture wait
+ *  for the next pass. They live until the pass is submitted: an encoded copy names its texture, which
+ *  cannot be destroyed before. */
 const MAX_SCRATCHES = 2;
-/** Octets hôte des niveaux cuits décodés, tenus pour en découper d'autres tuiles. */
+/** Host bytes of decoded cooked levels, held to cut more tiles from them. */
 const LEVEL_CACHE_BYTES = 192 * 1024 * 1024;
 
 /**
- * D'où les texels d'une tuile viennent, et comment ils atteignent le pool : un niveau cuit décodé
- * par le navigateur et tenu dans le cache de niveaux, ou une texture de travail bâtie depuis
- * l'image de l'hôte. Une tuile dont la source n'est pas encore en main n'est pas servie ; elle
- * repassera au retour suivant. La queue d'une texture de l'hôte passe par ici aussi, à la
- * préparation : sa texture de travail, la queue copiée, soumise, puis rendue — une source entière
- * à la fois, jamais toutes ensemble.
+ * Where a tile's texels come from, and how they reach the pool: a cooked level decoded by the
+ * browser and held in the level cache, or a working texture built from the host image. A tile whose
+ * source is not yet in hand is not served; it will come back on the next feedback. A host texture's
+ * queue goes through here too, at prepare: its working texture, the queue copied, submitted, then
+ * returned — one whole source at a time, never all together.
  */
 export function createTileSources(options: {
   device: GPUDevice;
@@ -77,8 +76,8 @@ export function createTileSources(options: {
   return {
     levels,
     /**
-     * Sert une tuile depuis sa source. `waiting` : ses octets ne sont pas encore là, elle repassera ;
-     * `refused` : le pool est plein pour cette vue, rien ne viendra — et rien n'a été lu pour elle.
+     * Serves a tile from its source. `waiting`: its bytes are not there yet, it will come back;
+     * `refused`: the pool is full for this view, nothing will come — and nothing was read for it.
      */
     serve(
       atlas: WebgpuTileAtlas,
@@ -110,7 +109,7 @@ export function createTileSources(options: {
       copyTileFromTexture(encoder(), atlas.pool.texture, place, scratch.texture, key.level, region);
       return 'served';
     },
-    /** La queue d'une texture de l'hôte, copiée depuis sa texture de travail et soumise. */
+    /** Queue of a host texture, copied from its working texture and submitted. */
     tail(atlas: WebgpuTileAtlas, slot: number, place: TilePlace) {
       const { layout } = atlas.textures[slot];
       const scratch = scratchOf(atlas, slot)!;
@@ -127,7 +126,7 @@ export function createTileSources(options: {
       device.queue.submit([encoder.finish()]);
       dropScratches();
     },
-    /** Fin de passe, après sa soumission : les textures de travail sont rendues. */
+    /** End of pass, after its submit: working textures are returned. */
     endPass: dropScratches,
     settled: () => levels?.settled() ?? Promise.resolve(),
     destroy() {
