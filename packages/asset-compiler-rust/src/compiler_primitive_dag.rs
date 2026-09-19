@@ -51,7 +51,7 @@ pub(super) fn build_dag_primitive(
 ) -> Result<DagResult> {
     let strategy = crate::dag::DagStrategy::named(&o.simplification);
     // Les uv, quand la primitive en porte : la soudure de repli du DAG ne franchit pas une couture.
-    let uvs = attributes.iter().find(|a| a.flag == 2);
+    let uvs = attributes.iter().find(|a| a.flag == geometry_page::FLAG_UV);
     let (dag, groups, tallies) = crate::dag::build_dag_tallied(
         pos,
         uvs.map(|a| &a.values[..]),
@@ -94,7 +94,15 @@ pub(super) fn build_dag_primitive(
     let (proxy_threshold, proxy_cut) = crate::proxy::cut::coarse_cut(&dag, pos, proxy_demand);
     let shape = compiler_primitive_warn::DagShape::of(&dag);
     let depth = shape.depth;
-    let group_stats:Vec<Value>=tallies.iter().enumerate().map(|(i,tally)|json!({"level":i+1,"reduced":tally.reduced,"welded":tally.welded,"relocked":tally.relocked,"tooSmall":tally.too_small,"noCollapse":tally.no_collapse,"borderLost":tally.border_lost,"unusableError":tally.unusable_error})).collect();
+    let group_stats: Vec<Value> = tallies
+        .iter()
+        .enumerate()
+        .map(|(i, tally)| {
+            let mut level = tally.json();
+            level["level"] = json!(i + 1);
+            level
+        })
+        .collect();
     let warnings = compiler_primitive_warn::dag_warnings(strategy, &shape, &tallies);
     let dag_report = json!({"depth":depth,"clusterTriangles":crate::dag::DAG_CLUSTER_TRIANGLES,"groupMin":crate::dag::DAG_GROUP_MIN,"groupMax":crate::dag::DAG_GROUP_MAX,"levels":compiler_primitive_warn::level_report(&dag, depth),"groups":group_stats,"warnings":warnings});
     // Pages follow the culling order so every hierarchy node owns a contiguous page range.

@@ -142,3 +142,8 @@ export function decodeManifestBinary(
     texturePreviews: decodeTexturePreviews(previews),
   } as ClusterManifest;
 }
+
+/** Les vignettes seules, sans matérialiser les pages : ce qu'une revue d'images a besoin de lire. */
+export function decodeManifestPreviews(slim: SlimClusterManifest, buffer: ArrayBuffer) {
+  return decodeTexturePreviews(readManifestColumns(slim, buffer).previews);
+}

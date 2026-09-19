@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, basename } from 'node:path';
 import type { CutoutModel, CutoutReviewOptions } from './contracts.ts';
 import type { PendingCutout } from './cutoutSheet.mts';
-import { alphaOf, type Thumbnail } from './cutoutThumb.mts';
+import { alphaOf, embeddedImages, type Thumbnail } from './cutoutThumb.mts';
 import { drawFile, drawThumbnail, encodePng, link, type ImageKind } from './cutoutDraw.mts';
 
 /**
@@ -21,13 +21,6 @@ export const LEGENDE = [
 ];
 
 /**
- * One cutout question on screen: what it looks like, what it measures, and where to see it whole.
- *
- * Kept apart from the pass that asks, because these are two different jobs — deciding what to show
- * is not deciding what to do with the answer — and because a panel in an application will want the
- * same facts arranged its own way.
- */
-/**
  * The picture to show and to offer, sharpest first: the texture's own file when the scene links one,
  * its own bytes drawn back out of the compiled scene when it embeds them instead, and only failing
  * both, the cache's 64-pixel thumbnail written out as an image. Whatever the source, the caller ends
@@ -40,6 +33,7 @@ export async function pictureOf(
   model: CutoutModel,
   pending: PendingCutout,
   thumbnail: Thumbnail | undefined,
+  embedded: EmbeddedImages = new Map(),
 ): Promise<string | null> {
   const source = join(dirname(model.source), pending.image);
   if (
@@ -51,7 +45,8 @@ export async function pictureOf(
     return source;
   // Les octets de l'image ne sont ouverts que pour une texture EMBARQUÉE, donc jamais pour une
   // scène qui lie ses fichiers : le `source.bin` d'un modèle pèse des dizaines de mégaoctets.
-  const own = thumbnail?.sourceBufferView === undefined ? null : await embeddedOf(model, thumbnail);
+  const own =
+    thumbnail?.sourceBufferView === undefined ? null : await embeddedOf(model, thumbnail, embedded);
   const bytes = own ?? (thumbnail && encodePng(thumbnail.width, thumbnail.height, thumbnail.rgba));
   if (!bytes) return null;
   const directory = join(tmpdir(), 'web-geometry-decoupes');
@@ -61,20 +56,25 @@ export async function pictureOf(
   return target;
 }
 
-/** Les images embarquées d'un modèle, ouvertes à la première qui en demande et pas avant. */
-const EMBARQUEES = new Map<string, Promise<(view: number) => Buffer | null>>();
-async function embeddedOf(model: CutoutModel, thumbnail: Thumbnail) {
-  const { embeddedImages } = await import('./cutoutThumb.mts');
-  let images = EMBARQUEES.get(model.cache);
+/**
+ * Les images embarquées des modèles d'une passe, par cache : ouvertes à la première question qui en
+ * demande et pas avant, et rendues avec la passe — un `source.bin` pèse des dizaines de mégaoctets,
+ * un hôte durable n'a pas à les garder d'un lot à l'autre.
+ */
+export type EmbeddedImages = Map<string, Promise<(view: number) => Buffer | null>>;
+async function embeddedOf(model: CutoutModel, thumbnail: Thumbnail, embedded: EmbeddedImages) {
+  let images = embedded.get(model.cache);
   if (!images) {
     images = embeddedImages(model.cache, model.scope);
-    EMBARQUEES.set(model.cache, images);
+    embedded.set(model.cache, images);
   }
   return (await images)(thumbnail.sourceBufferView ?? -1);
 }
 
 /**
- * One texture on screen: the picture, its alpha, its numbers, and where to open it in full.
+ * One texture on screen: the picture, its alpha, its numbers, and where to open it in full. Kept
+ * apart from the pass that asks — deciding what to show is not deciding what to do with the answer,
+ * and a panel in an application will want the same facts arranged its own way.
  *
  * The colour picture is the texture's own file when it is one — the terminal scales it into the box
  * itself, so what you judge is the real thing, not a 64-pixel echo. The alpha can only come from
