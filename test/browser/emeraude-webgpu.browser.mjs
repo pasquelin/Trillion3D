@@ -1,16 +1,23 @@
 import { emeraldProvenance, MEASURE_WIDTH, MEASURE_HEIGHT } from '../appui/emeraldProvenance.mjs';
 import { routeBaseline } from '../appui/emeraldBaseline.mjs';
-import { adresseDuLab } from '../appui/browserFixtureServer.mjs';
 import assert from 'node:assert/strict';
 import { launchChrome } from '../../scripts/mesure/chrome.mjs';
+import { startServer } from '../../scripts/mesure/serveur.mjs';
+import { resolveMounts } from '../../scripts/mesure/options.mjs';
 import { resolve } from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
+
+const ROOT = resolve(import.meta.dirname, '../..');
 const out = resolve(
   'benchmark-runs/webgpu-visual',
   process.argv[2] ?? new Date().toISOString().replaceAll(':', '-'),
 );
-const labUrl = adresseDuLab();
-const provenance = await emeraldProvenance(labUrl),
+// The harness page and its import map, the bench trajectory under `/mesure/`, and the engine
+// this run proves. `routeBaseline` intercepts `/dist/sdk-browser/`, so the engine keeps that prefix.
+const mounts = [...resolveMounts(ROOT, []), { prefix: '/dist/', dir: resolve(ROOT, 'dist') }];
+const server = await startServer({ port: 0, mounts, captures: new Map() });
+const harnessUrl = `http://127.0.0.1:${server.address().port}`;
+const provenance = await emeraldProvenance(harnessUrl),
   taa = process.env.WEBGPU_TAA !== 'off';
 await mkdir(out, { recursive: true });
 const browser = await launchChrome({ headless: true });
@@ -25,16 +32,19 @@ try {
   });
   if (process.env.WEBGPU_BASELINE_DIR)
     await routeBaseline(page, out, provenance, process.env.WEBGPU_BASELINE_DIR);
-  await page.goto(labUrl + '/?test=15-virtualized-integration');
+  await page.goto(harnessUrl + '/');
   await page.exposeFunction('saveImage', async (name, data) => {
     await writeFile(out + '/' + name + '.png', Buffer.from(data.split(',')[1], 'base64'));
     console.log('captured', name);
   });
   const result = await page.evaluate(
     async ({ sdkUrl, temporalAntialiasing, ...viewport }) => {
-      const { benchEngine } = await import('/15-virtualized-integration/implementation/engines.ts');
-      const { createExplorer } = await import(sdkUrl);
-      const { urbanPath, framesPerSegment } = await import('/src/lab/modelCampaign.ts');
+      const { createExplorer, referenceBackend, webgpuPagesBackend } = await import(sdkUrl);
+      const { urbanPath, FRAMES_PER_SEGMENT } = await import('/mesure/poses.mjs');
+      const backends = {
+        'three-webgl-reference': referenceBackend,
+        'webgpu-page-raster': webgpuPagesBackend,
+      };
       const results = [],
         images = [],
         events = [];
@@ -76,15 +86,14 @@ try {
           pixelError: 1,
           maxResidentPages: 100000,
           preload: 'visible',
-          backends: [benchEngine(id).factory],
+          backends: [backends[id]],
           textureSource: id === 'webgpu-page-raster' ? 'cache' : 'host', // the witness keeps its images
           temporalAntialiasing,
-
           clearColor: 0x2a303c,
           onDiagnostic: (event) => events.push({ id, ...event }),
         });
         e.select(id);
-        const path = urbanPath(e.bounds).filter((s, i) => i % framesPerSegment === 0);
+        const path = urbanPath(e.bounds).filter((s, i) => i % FRAMES_PER_SEGMENT === 0);
         for (const [i, s] of path.entries()) {
           e.setPose(s.pose);
           await e.awaitPages();
@@ -155,11 +164,7 @@ try {
       return { results, events, gpu, userAgent: navigator.userAgent };
     },
     // `WEBGPU_TAA=off` yields the `--avant` of the Lumiere 16 batch, with no jitter and no history.
-    {
-      sdkUrl: '/@fs' + resolve('dist/sdk-browser/index.js'),
-      temporalAntialiasing: taa,
-      ...viewport,
-    },
+    { sdkUrl: '/dist/sdk-browser/index.js', temporalAntialiasing: taa, ...viewport },
   );
   result.provenance = provenance;
   result.errors = errors;
@@ -191,4 +196,5 @@ try {
     );
 } finally {
   await browser.close();
+  server.close();
 }
