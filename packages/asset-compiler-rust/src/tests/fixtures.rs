@@ -44,6 +44,23 @@ pub(super) fn cube_fixture() -> (PathBuf, Options) {
     };
     (root, options)
 }
+const HALF_PI: f32 = std::f32::consts::FRAC_PI_2;
+
+/// A sine built from additions, multiplications and divisions only (Bhaskara's approximation), so
+/// the fixture's vertices are bit-identical on every platform. `f32::sin` is not: each libm rounds
+/// differently at the last bit, and a greedy DAG build turns that bit into a different root count.
+pub(super) fn portable_sin(t: f32) -> f32 {
+    let tau = std::f32::consts::TAU;
+    let x = t.rem_euclid(tau);
+    let (x, sign) = if x > std::f32::consts::PI {
+        (x - std::f32::consts::PI, -1.0)
+    } else {
+        (x, 1.0)
+    };
+    let a = x * (std::f32::consts::PI - x);
+    sign * 16.0 * a / (5.0 * std::f32::consts::PI * std::f32::consts::PI - 4.0 * a)
+}
+
 pub(super) fn grid_fixture_displaced(nx: usize, ny: usize, amplitude: f32) -> (PathBuf, Options) {
     let root = std::env::temp_dir().join(format!(
         "web-geometry-grid-{}-{}",
@@ -62,7 +79,7 @@ pub(super) fn grid_fixture_displaced(nx: usize, ny: usize, amplitude: f32) -> (P
             positions.extend([
                 x as f32,
                 y as f32,
-                (x as f32 * 0.31).sin() * (y as f32 * 0.27).cos() * amplitude,
+                portable_sin(x as f32 * 0.31) * portable_sin(y as f32 * 0.27 + HALF_PI) * amplitude,
             ]);
         }
     }

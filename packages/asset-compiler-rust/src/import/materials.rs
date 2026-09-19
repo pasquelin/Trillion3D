@@ -76,6 +76,11 @@ fn unconverted(material: &ufbx::Material, normal: &ufbx::MaterialMap, report: &m
     }
 }
 
+/// A factor at glTF's single precision, so a last-bit difference between platforms disappears.
+fn single(value: f64) -> f64 {
+    value as f32 as f64
+}
+
 pub(super) fn material_json(material: &ufbx::Material, textures: &mut TextureTable) -> Value {
     let pbr = &material.pbr;
     let base_factor = map_value(&pbr.base_factor, 1.0);
@@ -92,13 +97,17 @@ pub(super) fn material_json(material: &ufbx::Material, textures: &mut TextureTab
     let opacity = read_opacity(material);
     let alpha = opacity.alpha;
     let metallic = map_value(&pbr.metalness, 0.0).clamp(0.0, 1.0);
+    // The driver derives roughness from a specular exponent in C, and that arithmetic is not
+    // bit-identical across platforms (the compiler fuses multiply-adds on some targets). glTF
+    // factors are single-precision floats: rounding to f32 keeps the value the driver meant and
+    // makes the compiled output the same on every machine.
     let roughness = if pbr.roughness.has_value {
         let r = pbr.roughness.value_vec4.x;
-        if material.features.roughness_as_glossiness.enabled {
+        single(if material.features.roughness_as_glossiness.enabled {
             1.0 - r
         } else {
             r
-        }
+        })
     } else {
         0.6
     }
