@@ -2,7 +2,7 @@
 name = "web-geometry-compiler"
 version = "0.7.0"
 edition = "2021"
-license = "MIT"
+license = "PolyForm-Noncommercial-1.0.0"
 [lib]
 name = "web_geometry_compiler"
 path = "src/lib.rs"
