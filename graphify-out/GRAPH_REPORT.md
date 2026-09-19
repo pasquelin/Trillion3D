@@ -1,4 +1,4 @@
-# Graph Report - webGeometry-82-docs-portal  (2026-09-19)
+# Graph Report - webGeometry  (2026-09-19)
 
 ## Corpus Check
 - 1904 files · ~1,856,207 words
