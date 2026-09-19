@@ -84,7 +84,8 @@
 - **This repository is self-contained.** It builds, tests, measures and proves itself with only its
   own dependencies (`pnpm install`), the machine's Chrome and its own assets (`.mesure/assets/`, off
   git). No code, script, test or doc may read another project on disk — no neighbour path, no
-  external harness. Every test, visual proof and benchmark runs on the repository's standalone tools.
+  external harness. Every test, visual proof and benchmark runs on the repository's own standalone
+  tools. Never add host code to make the engine work, never write into a host's folders.
 - Keep React/Electron/Vite, DOM and platform filesystem APIs out of runtime-core/shared contracts;
   use browser/filesystem adapters. Consume public entry points; packages never import application
   internals.
