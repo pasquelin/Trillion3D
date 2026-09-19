@@ -1,25 +1,26 @@
-//! L'identité du produit compilé : ce dont la clé du cache est faite, et rien d'autre.
+//! Identity of the compiled product: what the cache key is made of, and nothing else.
 //!
-//! La clé nomme un dossier de cache que des consommateurs réutilisent sans le relire. Elle doit donc
-//! tenir deux promesses opposées : deux compilations qui rendraient les mêmes octets portent la même
-//! clé, et deux compilations qui rendraient des octets différents en portent deux. Un manifeste
-//! d'import haché tel quel trahissait la première — il porte le temps mesuré de la conversion et le
-//! chemin de la machine qui l'a faite, que deux passages n'accordent jamais. Les images liées de la
-//! scène, lues plus tard pour les aperçus, trahissaient la seconde — leurs pixels entrent dans le
-//! sidecar sans entrer dans l'identité qui le nomme.
+//! The key names a cache folder that consumers reuse without rereading it. It must
+//! therefore keep two opposite promises: two compilations that would yield the same
+//! bytes carry the same key, and two that would yield different bytes carry two.
+//! An import manifest hashed as-is betrayed the first — it carries the conversion
+//! timing and the path of the machine that did it, which two runs never agree on.
+//! Linked images of the scene, read later for previews, betrayed the second —
+//! their pixels enter the sidecar without entering the identity that names it.
 //!
-//! L'identité se construit donc en deux parts : ce que la source déclare, dépouillé de ses mesures
-//! et de sa provenance d'exécution, et l'empreinte des ressources que la compilation consomme
-//! vraiment — le binaire de géométrie et chaque fichier d'image que la scène cite.
+//! Identity is therefore built in two parts: what the source declares, stripped of
+//! its timings and run provenance, and the fingerprint of the resources compilation
+//! actually consumes — the geometry binary and each image file the scene cites.
 use super::*;
 
-/// Les champs qu'un manifeste porte pour l'exploitation et non pour l'identité : un temps mesuré, le
-/// chemin de la machine qui a converti. Ils sont retirés à tout niveau — un relevé par fichier
-/// d'entrée porte les siens — et le reste entre dans la clé, y compris ce qu'un pilote y ajoutera
-/// demain : oublier d'exclure resserre l'identité, oublier d'inclure la relâcherait.
+/// Fields a manifest carries for operations, not identity: a measured time, the
+/// path of the converting machine. They are stripped at every level — a per-input
+/// record carries its own — and the rest enters the key, including what a driver
+/// will add tomorrow: forgetting to exclude tightens identity, forgetting to
+/// include would loosen it.
 const VOLATILE: [&str; 4] = ["importMs", "ms", "parseMs", "path"];
 
-/// Recopie une valeur sans ses champs volatils, à tout niveau.
+/// Copies a value without its volatile fields, at every level.
 fn stable(value: &Value) -> Value {
     match value {
         Value::Object(fields) => Value::Object(
@@ -34,9 +35,10 @@ fn stable(value: &Value) -> Value {
     }
 }
 
-/// Les images que la scène cite par URI relative, dans son ordre, avec l'empreinte du fichier
-/// trouvé. `null` dit l'absence : une image qui apparaît change l'identité autant qu'une image dont
-/// les octets changent. Les images embarquées n'y sont pas — leurs octets sont déjà ceux du binaire.
+/// Images the scene cites by relative URI, in its order, with the fingerprint of
+/// the file found. `null` means absence: an image that appears changes identity as
+/// much as one whose bytes change. Embedded images are not here — their bytes are
+/// already those of the binary.
 fn linked_images(g: &Value, image_root: &Path) -> Vec<Value> {
     let Some(images) = g.get("images").and_then(Value::as_array) else {
         return Vec::new();
@@ -51,12 +53,13 @@ fn linked_images(g: &Value, image_root: &Path) -> Vec<Value> {
         .collect()
 }
 
-/// La clé du cache : l'identité de la source, celle des ressources qu'elle consomme, et les options
-/// qui décident du produit. Un consommateur qui réutilise par cette clé retrouve les mêmes octets.
-/// `image_root` est la racine où les URI relatives d'images se résolvent, que le routeur a nommée.
-/// `cutouts` est ce qu'une réponse a VRAIMENT changé dans la scène : les liaisons reclassées en
-/// découpe, qui changent le classement de leurs primitives donc les octets du produit. Une réponse
-/// sans effet — « vitre », refus, texture que la scène n'emploie pas — ne déplace pas la clé.
+/// Cache key: identity of the source, of the resources it consumes, and the
+/// options that decide the product. A consumer that reuses by this key finds the
+/// same bytes. `image_root` is the root where relative image URIs resolve, named
+/// by the router. `cutouts` is what an answer has REALLY changed in the scene:
+/// bindings reclassified as cutout, which change how their primitives are ranked
+/// and therefore the product bytes. An answer with no effect — "glass", refusal,
+/// a texture the scene does not use — does not move the key.
 pub(super) fn cache_key(
     o: &Options,
     loaded: &RuntimeSource,
@@ -80,8 +83,8 @@ pub(super) fn cache_key(
 mod tests {
     use super::*;
 
-    // Comportement : un temps mesuré ou un chemin de machine sort de l'identité, à tout niveau ; le
-    // reste du manifeste y entre tel quel.
+    // Behaviour: a measured time or a machine path leaves identity, at every
+    // level; the rest of the manifest enters as-is.
     #[test]
     fn les_mesures_et_la_provenance_sortent_de_lidentite() {
         let manifest = json!({"runtime":{"sha256":"abc"},

@@ -1,22 +1,23 @@
-//! Harnais commun des fixtures dorées : compiler une scène livrée avec le paquet dans un cache
-//! jetable, puis relire tout ce qu'un doré compare — la sortie de `compile`, le manifeste mince et
-//! le sidecar binaire. Chaque famille de dorées y ajoute son propre condensé, jamais son propre
-//! harnais : deux façons de compiler une fixture, ce sont deux vérités.
+//! Common harness of golden fixtures: compile a scene shipped with the package
+//! into a throwaway cache, then reread everything a golden compares — the output
+//! of `compile`, the slim manifest and the binary sidecar. Each golden family
+//! adds its own digest there, never its own harness: two ways to compile a
+//! fixture are two truths.
 use super::*;
 use std::{sync::atomic::AtomicU64, time::SystemTime, time::UNIX_EPOCH};
 
-/// Rang de racine jetable : l'horloge macOS s'arrête à la microseconde, deux dorées parallèles non.
+/// Throwaway root rank: the macOS clock stops at the microsecond, two parallel goldens do not.
 static NEXT: AtomicU64 = AtomicU64::new(0);
 
-/// Une fixture dorée compilée. Le cache jetable s'efface avec la structure, y compris quand
-/// l'assertion qui suit échoue et emporte le test.
+/// A compiled golden fixture. The throwaway cache is erased with the structure,
+/// including when the assertion that follows fails and takes the test with it.
 pub(super) struct GoldenRun {
     pub result: Value,
     pub slim: Value,
     pub binary: Vec<u8>,
-    /// Ce que la compilation a publié en chemin : l'étape d'un pilote se prouve dans son rapport.
+    /// What compilation published along the way: a driver's step is proven in its report.
     pub reports: Vec<Value>,
-    /// Le cache jetable : scène intermédiaire d'un pilote et produits publiés par le compilateur.
+    /// Throwaway cache: a driver's intermediate scene and products published by the compiler.
     pub(super) cache: PathBuf,
     root: PathBuf,
 }
@@ -26,22 +27,23 @@ impl Drop for GoldenRun {
     }
 }
 
-/// Le dossier d'une fixture dorée, nommé par son chemin sous `fixtures/`.
+/// Folder of a golden fixture, named by its path under `fixtures/`.
 pub(super) fn golden_dir(relative: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("fixtures")
         .join(relative)
 }
 
-/// Compile `<dir>/<name>.gltf` : la dorée d'une scène livrée telle quelle.
+/// Compiles `<dir>/<name>.gltf`: the golden of a scene delivered as-is.
 pub(super) fn compile_golden(dir: &Path, name: &str) -> GoldenRun {
     compile_golden_source(&dir.join(format!("{name}.gltf")), name)
 }
 
-/// Compile une source quelconque — un fichier d'un format qu'un pilote revendique, ou un dossier —
-/// aux mêmes options pour toutes les dorées : un seul fil et aucune simplification, pour que la
-/// sortie ne dépende que de la scène. La dorée d'un pilote entre donc par le routeur, comme tout
-/// appelant du compilateur, et ne sait pas plus que lui quel format elle lui donne.
+/// Compiles any source — a file of a format a driver claims, or a folder — with
+/// the same options for every golden: one thread and no simplification, so the
+/// output depends only on the scene. A driver's golden therefore enters through
+/// the router, like any compiler caller, and knows no more than it which format
+/// it is given.
 pub(super) fn compile_golden_source(source: &Path, name: &str) -> GoldenRun {
     let (options, root) = golden_options(source, name);
     let reports = std::sync::Mutex::new(Vec::new());
@@ -65,18 +67,19 @@ pub(super) fn compile_golden_source(source: &Path, name: &str) -> GoldenRun {
     }
 }
 
-/// Le code de refus d'une source que le compilateur n'accepte pas, aux mêmes options qu'une dorée :
-/// ce qu'un pilote refuse se fixe comme ce qu'il produit, et par le même chemin.
+/// Refusal code of a source the compiler does not accept, with the same options
+/// as a golden: what a driver refuses is fixed like what it produces, and by the
+/// same path.
 pub(super) fn refused_golden_source(source: &Path, name: &str) -> String {
     let (options, root) = golden_options(source, name);
     let refusal = compile(&options, |_| {})
         .err()
-        .unwrap_or_else(|| panic!("{name}: cette source devait être refusée"));
+        .unwrap_or_else(|| panic!("{name}: this source had to be refused"));
     let _ = fs::remove_dir_all(&root);
     refusal.code.to_string()
 }
 
-/// Les options communes, et la racine jetable qui les porte.
+/// Common options, and the throwaway root that carries them.
 fn golden_options(source: &Path, name: &str) -> (Options, PathBuf) {
     let root = std::env::temp_dir().join(format!(
         "wg-golden-{name}-{}-{}-{}",
@@ -102,8 +105,7 @@ fn golden_options(source: &Path, name: &str) -> (Options, PathBuf) {
 }
 
 impl GoldenRun {
-    /// La scène intermédiaire qu'un pilote nommé a écrite dans le cache : son manifeste et son
-    /// glTF. C'est ce que la dorée d'un pilote compare, avant que le compilateur ne la découpe.
+    /// Intermediate scene a named driver wrote in the cache: its manifest and glTF.
     pub(super) fn prepared(&self, plugin: &str) -> (Value, Value) {
         let directory = self.prepared_dir(plugin);
         let manifest = fs::read(directory.join("manifest.json")).expect("manifest.json");
@@ -114,8 +116,7 @@ impl GoldenRun {
         )
     }
 
-    /// Le dossier de cache où un pilote nommé a écrit sa scène intermédiaire. Une dorée qui veut
-    /// lire les octets de cette scène — son binaire — part de là, sans deviner la clé.
+    /// Cache folder where a named driver wrote its intermediate scene.
     pub(super) fn prepared_dir(&self, plugin: &str) -> PathBuf {
         let imports = self.cache.join("native").join("imports");
         let entries = fs::read_dir(&imports).expect("imports directory");
@@ -134,14 +135,13 @@ impl GoldenRun {
                 return entry.path();
             }
         }
-        panic!("aucune scène intermédiaire écrite par le pilote {plugin}");
+        panic!("no intermediate scene written by driver {plugin}");
     }
 }
 
-/// Ce que toute dorée de pilote de scène fixe, quel que soit le format : la provenance du pilote,
-/// ce qu'il a compté et refusé, la charpente de la scène intermédiaire qu'il a écrite, et les deux
-/// nombres que le compilateur en a retenus. Chaque famille y ajoute ensuite ce qui lui est propre —
-/// les matériaux d'un projet, les primitives d'un maillage — en écrivant ses champs sur le résultat.
+/// What every scene-driver golden fixes, whichever the format: driver provenance,
+/// what it counted and refused, the intermediate scene frame it wrote, and the two
+/// numbers the compiler kept of it. Each family then adds what is its own.
 pub(super) fn scene_digest(run: &GoldenRun, plugin: &str) -> (Value, Value, Value) {
     let (manifest, gltf) = run.prepared(plugin);
     let digest = json!({
@@ -164,7 +164,7 @@ pub(super) fn scene_digest(run: &GoldenRun, plugin: &str) -> (Value, Value, Valu
     (digest, manifest, gltf)
 }
 
-/// L'attendu versionné d'une fixture, sans les deux champs qui ne sont que de la prose.
+/// Versioned expected of a fixture, without the two fields that are only prose.
 pub(super) fn golden_expected(dir: &Path) -> Value {
     let mut expected: Value =
         serde_json::from_slice(&fs::read(dir.join("expected.json")).expect("expected.json"))
@@ -176,11 +176,9 @@ pub(super) fn golden_expected(dir: &Path) -> Value {
     expected
 }
 
-/// Écrit l'attendu d'une fixture qui se régénère : le condensé que le doré comparera, plus les deux
-/// champs de prose que `golden_expected` retire ensuite. Ceux-ci sont conservés tels qu'ils étaient
-/// quand le fichier existait — une phrase relue à la main ne se perd pas dans une régénération — et
-/// les valeurs données ne servent qu'à la première écriture. Deux fixtures qui se régénèrent, c'est
-/// la même écriture : elle ne s'écrit qu'une fois.
+/// Writes the expected of a fixture that regenerates: the digest the golden will
+/// compare, plus the two prose fields `golden_expected` then strips. Those are
+/// kept as they were when the file existed; given values serve only first write.
 pub(super) fn write_expected(dir: &Path, mut expected: Value, case: &str, rule: &str) {
     let previous: Option<Value> = fs::read(dir.join("expected.json"))
         .ok()
@@ -196,5 +194,5 @@ pub(super) fn write_expected(dir: &Path, mut expected: Value, case: &str, rule: 
     }
     let text = serde_json::to_vec_pretty(&expected).expect("attendu");
     fs::write(dir.join("expected.json"), &text).expect("expected.json");
-    println!("fixture écrite dans {}", dir.display());
+    println!("fixture written to {}", dir.display());
 }

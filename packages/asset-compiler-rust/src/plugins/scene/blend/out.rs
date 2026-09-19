@@ -1,19 +1,19 @@
-//! Les tables glTF que ce pilote remplit, et leur écriture dans le cache.
+//! The glTF tables this driver fills, and their writing into the cache.
 //!
-//! Le pilote lit une géométrie brute — des sommets, des coins, des faces — et n'a donc aucun
-//! accesseur à recopier : il en crée. Chaque tableau part dans le binaire par une vue alignée, et
-//! l'accesseur qui la nomme porte les bornes que le glTF exige des positions.
+//! The driver reads raw geometry — vertices, corners, faces — and therefore has no accessor to
+//! copy: it creates them. Each array goes into the binary through an aligned view, and the
+//! accessor that names it carries the bounds glTF requires of positions.
 use super::*;
 use crate::plugins::scene::SceneOutput;
 
-/// Le type de composant glTF d'un flottant simple, et celui d'un entier non signé de 32 bits.
+/// The glTF component type of a single float, and that of a 32-bit unsigned integer.
 const FLOAT: u32 = 5126;
 const UINT: u32 = 5125;
-/// Les cibles de vue glTF : attributs de sommet, et indices.
+/// glTF view targets: vertex attributes, and indices.
 const ARRAY_BUFFER: u32 = 34962;
 const ELEMENT_ARRAY_BUFFER: u32 = 34963;
 
-/// La scène intermédiaire en construction.
+/// The intermediate scene under construction.
 #[derive(Default)]
 pub(super) struct Out {
     pub(super) nodes: Vec<Value>,
@@ -23,18 +23,18 @@ pub(super) struct Out {
     pub(super) images: Vec<Value>,
     pub(super) samplers: Vec<Value>,
     pub(super) textures: Vec<Value>,
-    /// Les lampes déclarées par le fichier, dans l'ordre où les nœuds les instancient.
+    /// Lamps declared by the file, in the order nodes instantiate them.
     pub(super) lights: Vec<Value>,
     pub(super) bin: Bin,
     pub(super) report: Report,
     pub(super) counts: BTreeMap<&'static str, usize>,
-    /// Les nœuds sans père : la racine de conversion d'axes, et elle seule.
+    /// Nodes without a parent: the axis-conversion root, and it alone.
     pub(super) roots: Vec<usize>,
-    /// Les triangles instanciés : ceux de chaque nœud porteur de maillage, pas ceux des maillages.
+    /// Instanced triangles: those of each mesh-carrying node, not those of the meshes.
     pub(super) triangles: usize,
-    /// Ce que la clé de cache hache : le pilote, sa version et l'empreinte du fichier lu.
+    /// What the cache key hashes: the driver, its version and the digest of the file read.
     pub(super) key_material: String,
-    /// Le fichier lu, tel que le manifeste le publie.
+    /// The file read, as the manifest publishes it.
     pub(super) files: Value,
 }
 
@@ -42,7 +42,7 @@ impl Out {
     pub(super) fn count(&mut self, what: &'static str, by: usize) {
         *self.counts.entry(what).or_insert(0) += by;
     }
-    /// Un accesseur de flottants, d'un nombre de composants donné, versé dans le binaire.
+    /// A float accessor, of a given component count, poured into the binary.
     pub(super) fn floats(&mut self, values: &[f32], stride: usize, bounds: bool) -> usize {
         let kind = if stride == 2 { "VEC2" } else { "VEC3" };
         let view = self.bin.view(&f32_bytes(values), Some(ARRAY_BUFFER));
@@ -58,7 +58,7 @@ impl Out {
         self.accessors.push(accessor);
         self.accessors.len() - 1
     }
-    /// Un accesseur d'indices, versé dans le binaire.
+    /// An index accessor, poured into the binary.
     pub(super) fn indices(&mut self, values: &[u32]) -> usize {
         let mut bytes = Vec::with_capacity(values.len() * 4);
         for value in values {
@@ -71,7 +71,7 @@ impl Out {
         }));
         self.accessors.len() - 1
     }
-    /// Une image versée dans les tables, avec la texture qui la sert.
+    /// An image poured into the tables, with the texture that serves it.
     pub(super) fn image(&mut self, image: Value) -> usize {
         self.images.push(image);
         let sampler = self.sampler();
@@ -80,8 +80,8 @@ impl Out {
         self.count("textures", 1);
         self.textures.len() - 1
     }
-    /// L'unique échantillonneur du pilote : Blender répète ses textures par défaut, et ce pilote ne
-    /// lit pas les nœuds de coordonnées qui diraient autre chose.
+    /// The driver's only sampler: Blender repeats its textures by default, and this driver does
+    /// not read the coordinate nodes that would say otherwise.
     fn sampler(&mut self) -> usize {
         if self.samplers.is_empty() {
             self.samplers
@@ -147,7 +147,7 @@ impl SceneOutput for Out {
     }
 }
 
-/// Les bornes d'un tableau de vecteurs, composante par composante : le glTF les exige des positions.
+/// Bounds of a vector array, component by component: glTF requires them of positions.
 fn extent(values: &[f32], stride: usize) -> (Vec<f32>, Vec<f32>) {
     if values.is_empty() {
         return (vec![0.0; stride], vec![0.0; stride]);

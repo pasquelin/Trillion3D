@@ -6,7 +6,7 @@ import { createEngineCamera, readCameraWorld } from './cameraWorld.ts';
 import type { FrameMetrics } from '../sdk-core/index.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-test('audit opt-in : relevé borné, différé, sans modifier la sélection ni inventer le masque GPU', async (t) => {
+test('opt-in audit: bounded snapshot, deferred, without changing the selection or inventing the GPU mask', async (t) => {
   const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'location');
   const output: string[] = [];
   t.mock.method(console, 'info', (_label: string, payload: string) => output.push(payload));
@@ -48,31 +48,27 @@ test('audit opt-in : relevé borné, différé, sans modifier la sélection ni i
     const metrics = { cpuFrameMs: 42, drawCalls: 2 } as FrameMetrics;
     audit('test', 1, metrics, null);
     audit('test', 2, metrics, null);
-    assert.equal(output.length, 0, 'aucune console dans l’appel de rendu');
+    assert.equal(output.length, 0, 'no console during the measured render call');
     metrics.cpuFrameMs = 99;
     await Promise.resolve();
-    assert.equal(output.length, 1, 'un seul relevé dans la fenêtre de deux secondes');
-    assert.equal(
-      JSON.parse(output[0]).cpuFrameMs,
-      42,
-      'les valeurs appartiennent à la frame capturée',
-    );
+    assert.equal(output.length, 1, 'one snapshot in the two-second window');
+    assert.equal(JSON.parse(output[0]).cpuFrameMs, 42, 'values belong to the captured frame');
   } finally {
     if (descriptor) Object.defineProperty(globalThis, 'location', descriptor);
     else Reflect.deleteProperty(globalThis, 'location');
   }
 });
 
-test('gpuFrameCostSnapshot : la pose publiée est celle de la caméra du moteur (run.gate.cam), sous un rig', () => {
+test('gpuFrameCostSnapshot: the published pose is the engine camera’s (run.gate.cam), under a rig', () => {
   const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'location');
   Object.defineProperty(globalThis, 'location', {
     configurable: true,
     value: { search: '?wgFrameAudit=1' },
   });
   try {
-    // Rig à deux niveaux que personne ne remonte ailleurs : la caméra hôte locale reste triviale,
-    // seul le rig porte la translation. `run.lastCamera` n'est ici qu'un marqueur de vérité — sa
-    // forme ne doit jamais être lue pour la pose, seule `run.gate.cam` (déjà résolue) compte.
+    // Two-level rig nobody else walks: the local host camera stays trivial, only the rig carries
+    // the translation. `run.lastCamera` is only a truth marker here — its shape must never be read
+    // for the pose, only `run.gate.cam` (already resolved) counts.
     const rig = new THREE.Object3D();
     rig.position.set(3, -6, 9);
     const hostCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
@@ -90,7 +86,7 @@ test('gpuFrameCostSnapshot : la pose publiée est celle de la caméra du moteur 
     assert.notDeepEqual(
       snapshot.camera!.position,
       hostCamera.position.toArray(),
-      'la pose locale de la caméra hôte (l’origine sous ce rig) n’est pas la pose publiée',
+      'the host camera’s local pose (the origin under this rig) is not the published pose',
     );
     assert.equal(snapshot.camera!.fov, cam.fov);
     assert.equal(snapshot.camera!.near, cam.near);

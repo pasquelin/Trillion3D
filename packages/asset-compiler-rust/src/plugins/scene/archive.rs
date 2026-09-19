@@ -1,11 +1,11 @@
-//! Socle des pilotes de conteneur : un format qui ne porte pas une scène mais l'emballage d'une
-//! source. Un conteneur ne lit aucune géométrie. Il extrait sous le cache, puis rend le dossier
-//! extrait au routeur : c'est un pilote de scène ordinaire qui produit la scène intermédiaire, et
-//! le conteneur ne rend rien d'autre que ce que ce pilote rend.
+//! Base of the container drivers: a format that does not carry a scene but the wrapping of a
+//! source. A container reads no geometry. It extracts under the cache, then yields the extracted
+//! directory to the router: an ordinary scene driver produces the intermediate scene, and the
+//! container yields nothing other than what that driver yields.
 //!
-//! Ce module tient les protections et l'identité, qui ne dépendent d'aucun format : plafonds, refus
-//! nommés, refus de sortie de dossier, clé d'extraction. Son sous-module `container` tient le
-//! déroulé commun — extraire, marquer, router. Un second conteneur n'ajoute donc que sa lecture.
+//! This module holds the protections and the identity, which depend on no format: ceilings, named
+//! refusals, directory-escape refusal, extraction key. Its `container` submodule holds the common
+//! sequence — extract, mark, route. A second container therefore only adds its reading.
 use super::*;
 use crate::{hash, is_safe_source_name, CompilerError};
 use std::sync::atomic::Ordering;
@@ -17,41 +17,41 @@ pub(super) mod zip_reader;
 
 pub(super) use container::container;
 
-/// Plafonds d'une extraction. Au-delà, l'archive est refusée par son nom : une archive n'est jamais
-/// extraite à moitié, sans quoi le routeur verrait un dossier incomplet comme une scène.
+/// Ceilings of an extraction. Beyond them, the archive is refused by name: an archive is never
+/// extracted halfway, or the router would see an incomplete directory as a scene.
 pub(super) struct Limits {
-    /// Nombre maximal d'entrées lues dans une archive.
+    /// Maximum number of entries read in an archive.
     pub(super) entries: usize,
-    /// Total maximal des octets décompressés écrits dans le cache.
+    /// Maximum total of decompressed bytes written into the cache.
     pub(super) bytes: u64,
 }
 
-/// Les plafonds des conteneurs. Une place de marché livre des kits de plusieurs gigaoctets ; au-delà
-/// de ceux-ci, ce n'est plus un asset mais une archive piégée — cent octets qui en écrivent mille
-/// milliards, ou un million d'entrées qui saturent le cache.
+/// The container ceilings. A marketplace ships kits of several gigabytes; beyond these, it is no
+/// longer an asset but a trap archive — a hundred bytes that write a thousand billion, or a
+/// million entries that saturate the cache.
 pub(super) const LIMITS: Limits = Limits {
     entries: 20_000,
     bytes: 8 * 1024 * 1024 * 1024,
 };
 
-/// Une entrée sort du dossier d'extraction : chemin absolu, remontée, volume nommé.
+/// An entry leaves the extraction directory: absolute path, parent climb, named volume.
 pub(super) const PATH_ESCAPE: &str = "ARCHIVE_PATH_ESCAPE";
-/// L'archive ne se lit pas : tronquée, corrompue, ou un format de compression que ce binaire n'a pas.
+/// The archive cannot be read: truncated, corrupted, or a compression format this binary does not have.
 pub(super) const UNREADABLE: &str = "ARCHIVE_UNREADABLE";
-/// L'archive est bien formée mais ne porte aucune entrée.
+/// The archive is well formed but carries no entry.
 pub(super) const EMPTY: &str = "ARCHIVE_EMPTY";
-/// L'archive est chiffrée : la contourner est interdit, le compilateur refuse et le dit.
+/// The archive is encrypted: circumventing it is forbidden, the compiler refuses and says so.
 pub(super) const ENCRYPTED: &str = "ARCHIVE_ENCRYPTED";
-/// Une entrée est un lien symbolique : il n'est jamais suivi, il désigne hors de l'extraction.
+/// An entry is a symbolic link: it is never followed, it points outside the extraction.
 pub(super) const SYMLINK: &str = "ARCHIVE_SYMLINK";
-/// Le total décompressé dépasse `LIMITS.bytes`.
+/// The decompressed total exceeds `LIMITS.bytes`.
 pub(super) const TOO_LARGE: &str = "ARCHIVE_TOO_LARGE";
-/// Le nombre d'entrées dépasse `LIMITS.entries`.
+/// The entry count exceeds `LIMITS.entries`.
 pub(super) const TOO_MANY_ENTRIES: &str = "ARCHIVE_TOO_MANY_ENTRIES";
 
-/// Le dossier d'extraction d'une archive, sous le cache du compilateur. La clé tient le nom et la
-/// version du conteneur et l'empreinte de l'archive : une archive inchangée se réextrait jamais, une
-/// archive modifiée n'hérite jamais des fichiers de la précédente.
+/// The extraction directory of an archive, under the compiler cache. The key holds the container
+/// name and version and the archive digest: an unchanged archive is never re-extracted, a modified
+/// archive never inherits the previous one's files.
 pub(super) fn extraction_dir(
     request: &SceneRequest<'_>,
     container: &dyn ScenePlugin,
@@ -61,9 +61,9 @@ pub(super) fn extraction_dir(
     request.cache.join("native").join("archives").join(key)
 }
 
-/// Le chemin d'une entrée sous la racine d'extraction. Une entrée absolue, qui remonte, qui nomme un
-/// volume ou qui porte un séparateur inversé désigne un fichier hors de la racine : c'est la sortie
-/// de dossier par l'archive, refusée avant que le moindre octet soit écrit.
+/// The path of an entry under the extraction root. An absolute entry, one that climbs, that names
+/// a volume or that carries a backslash designates a file outside the root: that is directory
+/// escape by the archive, refused before any byte is written.
 pub(super) fn safe_join(root: &Path, name: &str) -> Result<PathBuf> {
     let refused = || {
         CompilerError::new(
@@ -87,8 +87,8 @@ pub(super) fn safe_join(root: &Path, name: &str) -> Result<PathBuf> {
     Ok(out)
 }
 
-/// L'unique archive que ce conteneur a reçue. Un dossier qui en porte plusieurs est une ambiguïté :
-/// le compilateur ne devine pas laquelle emballe la scène.
+/// The only archive this container received. A directory that holds several is an ambiguity: the
+/// compiler does not guess which one wraps the scene.
 pub(super) fn only_input<'a>(
     request: &SceneRequest<'a>,
     plugin: &dyn ScenePlugin,
@@ -107,7 +107,7 @@ pub(super) fn only_input<'a>(
     Ok(file)
 }
 
-/// Annulation, à vérifier à chaque entrée : une archive de dix mille fichiers s'arrête sur demande.
+/// Cancellation, to check at each entry: an archive of ten thousand files stops on request.
 pub(super) fn check(request: &SceneRequest<'_>) -> Result<()> {
     if request.cancelled.load(Ordering::Relaxed) {
         return Err(CompilerError::new("CANCELLED", "Compilation cancelled"));
@@ -115,13 +115,13 @@ pub(super) fn check(request: &SceneRequest<'_>) -> Result<()> {
     Ok(())
 }
 
-/// Le refus d'une archive que son lecteur n'ouvre pas : tronquée, corrompue, ou compressée par une
-/// méthode que ce binaire n'embarque pas. La raison du lecteur voyage telle quelle.
+/// The refusal of an archive its reader does not open: truncated, corrupted, or compressed by a
+/// method this binary does not ship. The reader's reason travels as-is.
 pub(super) fn unreadable(source: &Path, error: impl std::fmt::Display) -> CompilerError {
     CompilerError::new(UNREADABLE, format!("{}: {error}", source.to_string_lossy()))
 }
 
-/// Le refus d'une archive bien formée qui ne porte aucune entrée.
+/// The refusal of a well-formed archive that carries no entry.
 pub(super) fn empty(source: &Path) -> CompilerError {
     CompilerError::new(
         EMPTY,
@@ -129,7 +129,7 @@ pub(super) fn empty(source: &Path) -> CompilerError {
     )
 }
 
-/// Le plafond d'entrées, dès que le lecteur sait combien l'archive en porte.
+/// The entry ceiling, as soon as the reader knows how many the archive holds.
 pub(super) fn under_entry_limit(entries: usize) -> Result<()> {
     if entries > LIMITS.entries {
         return Err(CompilerError::new(
@@ -143,8 +143,8 @@ pub(super) fn under_entry_limit(entries: usize) -> Result<()> {
     Ok(())
 }
 
-/// Le plafond d'octets décompressés, sur le total annoncé par l'index puis sur le total écrit : une
-/// archive qui ment sur la taille de ses entrées est arrêtée par le même compte.
+/// The decompressed-byte ceiling, on the total announced by the index then on the total written:
+/// an archive that lies about its entry sizes is stopped by the same count.
 pub(super) fn under_byte_limit(bytes: u64) -> Result<()> {
     if bytes > LIMITS.bytes {
         return Err(CompilerError::new(

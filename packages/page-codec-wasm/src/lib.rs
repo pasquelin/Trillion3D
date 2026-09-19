@@ -1,16 +1,15 @@
-//! Décodeur d'une page de géométrie `.wgpg`, miroir exact de `packages/sdk-browser/geometryPage.ts`.
+//! Decoder of a `.wgpg` geometry page, exact mirror of `packages/sdk-browser/geometryPage.ts`.
 //!
-//! Le même code sert deux hôtes : le compilateur natif, qui s'en sert pour prouver que ce qu'il
-//! encode se relit à l'identique, et le module `wasm32-unknown-unknown` chargé par le navigateur.
-//! Les refus portent les mêmes causes, dans le même ordre, que le décodeur JavaScript : un octet
-//! qui passe ici passe là-bas, un octet qui tombe ici tombe là-bas.
+//! The same code serves two hosts: the native compiler, which uses it to prove that what it encodes
+//! rereads identically, and the `wasm32-unknown-unknown` module loaded by the browser. Refusals
+//! carry the same causes, in the same order, as the JavaScript decoder: a byte that passes here
+//! passes there, a byte that falls here falls there.
 //!
-//! Ce module WebAssembly est celui du SDK, et il n'y en a qu'un : une seule compilation
-//! (`pnpm run build:wasm`), une seule ressource livrée, une seule instanciation et une seule mémoire
-//! linéaire côté navigateur. À côté du décodeur de pages, il porte donc les noyaux de calcul en lot
-//! du socle mathématique (`math.rs`, ABI dans `wasm_math.rs`) et le tampon qu'ils partagent avec
-//! JavaScript. Un second module aurait voulu un second pipeline de compilation, un second
-//! chargement et une seconde mémoire, sans rien rendre de plus.
+//! This WebAssembly module is the SDK's, and there is only one: one compilation (`pnpm run
+//! build:wasm`), one shipped resource, one instantiation and one linear memory on the browser side.
+//! Beside the page decoder it therefore carries the math-foundation batch kernels (`math.rs`, ABI
+//! in `wasm_math.rs`) and the buffer they share with JavaScript. A second module would have wanted
+//! a second compilation pipeline, a second load and a second memory, without returning anything more.
 
 mod attributes;
 pub mod math;
@@ -26,8 +25,8 @@ pub const MAGIC: u32 = 0x3250_4757;
 pub const VERSION: u32 = 2;
 pub const STRIDE: usize = 72;
 
-/// Les causes de refus, dans l'ordre où le décodeur JavaScript les lève. Les valeurs numériques
-/// traversent l'ABI WebAssembly : le chargeur JS les retraduit en messages `GEOMETRY_PAGE_*`.
+/// Refusal causes, in the order the JavaScript decoder raises them. The numeric values cross the
+/// WebAssembly ABI: the JS loader retranslates them into `GEOMETRY_PAGE_*` messages.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 pub enum PageError {
@@ -39,7 +38,7 @@ pub enum PageError {
     Meshopt = 6,
 }
 
-/// Un sommet entrelacé tel que meshopt le rend : `STRIDE` octets, sans interprétation.
+/// An interleaved vertex as meshopt yields it: `STRIDE` bytes, without interpretation.
 #[derive(Clone, Copy)]
 pub(crate) struct Vertex(pub [u8; STRIDE]);
 impl Default for Vertex {
@@ -48,7 +47,7 @@ impl Default for Vertex {
     }
 }
 
-/// L'en-tête d'une page, une fois ses huit mots lus et toutes ses bornes acceptées.
+/// A page header, once its eight words have been read and every bound accepted.
 struct Header {
     vertex_count: usize,
     index_count: usize,
@@ -61,7 +60,7 @@ fn word(data: &[u8], at: usize) -> u32 {
     u32::from_le_bytes([data[at], data[at + 1], data[at + 2], data[at + 3]])
 }
 
-/// Les huit mots de l'en-tête et les bornes du décodeur JS, refusées dans le même ordre.
+/// The eight header words and the JS decoder's bounds, refused in the same order.
 fn header(data: &[u8], max_decoded_bytes: usize) -> Result<Header, PageError> {
     if data.len() < 32 {
         return Err(PageError::Header);
@@ -99,7 +98,7 @@ fn header(data: &[u8], max_decoded_bytes: usize) -> Result<Header, PageError> {
     })
 }
 
-/// Une page complète, décompressée puis désentrelacée : mêmes tampons que `decodeGeometryPage`.
+/// A complete page, decompressed then deinterleaved: the same buffers as `decodeGeometryPage`.
 pub fn decode(data: &[u8], max_decoded_bytes: usize) -> Result<DecodedPage, PageError> {
     let head = header(data, max_decoded_bytes)?;
     let compressed_indices = &data[32..32 + head.index_bytes];
@@ -125,7 +124,7 @@ mod tests {
         out
     }
 
-    /// Un en-tête dont toutes les bornes passent : seul le corps, vide, lui manque.
+    /// A header whose every bound passes: only the empty body is missing.
     fn page() -> Vec<u8> {
         mots([MAGIC, VERSION, 3, 6, 0, STRIDE as u32, 0, 0])
     }

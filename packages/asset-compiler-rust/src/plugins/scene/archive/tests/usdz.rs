@@ -1,8 +1,8 @@
-//! Le conteneur `.usdz` devant sa première entrée, que la spécification nomme la couche racine.
+//! The `.usdz` container facing its first entry, which the specification names the root layer.
 use super::*;
 use crate::plugins::scene::usdz::{ROOT_LAYER, USDZ};
 
-/// Une couche USD texte d'un seul triangle : de quoi qu'une scène ne soit pas vide.
+/// A text USD layer of a single triangle: enough that a scene is not empty.
 const LAYER: &[u8] = br#"#usda 1.0
 (
     defaultPrim = "Root"
@@ -19,10 +19,10 @@ def Xform "Root"
 }
 "#;
 
-/// Le même triangle écrit en OBJ : une scène pour le routeur, jamais une couche racine de paquet.
+/// The same triangle written as OBJ: a scene for the router, never a package root layer.
 const OBJ: &[u8] = b"v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n";
 
-/// Le pilote interne que le conteneur a publié au rapport.
+/// The inner driver the container published on the report.
 fn inner(run: &Outcome) -> String {
     run.reports
         .iter()
@@ -31,9 +31,9 @@ fn inner(run: &Outcome) -> String {
         .unwrap_or_default()
 }
 
-// Comportement 6 : la première entrée du paquet est sa couche racine. Un paquet qui n'en porte pas
-// une là est refusé sous son propre nom, quoi que portent les entrées suivantes — un OBJ dans un
-// `.usdz` n'est pas la scène du paquet.
+// Behaviour 6: the package's first entry is its root layer. A package that does not hold one
+// there is refused under its own name, whatever the following entries hold — an OBJ in a `.usdz`
+// is not the package's scene.
 #[test]
 fn a_usdz_whose_first_entry_is_not_a_usd_layer_is_refused_by_name() {
     for entries in [
@@ -55,9 +55,9 @@ fn a_usdz_whose_first_entry_is_not_a_usd_layer_is_refused_by_name() {
     }
 }
 
-// Comportement 6 : les entrées qui suivent la couche racine sont des ressources, jamais des scènes
-// candidates. Une seconde couche et un OBJ posés à côté ne rendent donc le paquet ni ambigu ni
-// muet : c'est la première entrée qui livre la scène.
+// Behaviour 6: entries that follow the root layer are resources, never candidate scenes. A
+// second layer and an OBJ placed beside it therefore make the package neither ambiguous nor
+// mute: it is the first entry that ships the scene.
 #[test]
 fn every_entry_after_the_root_layer_is_a_resource_not_a_scene() {
     let entries = [
@@ -71,7 +71,7 @@ fn every_entry_after_the_root_layer_is_a_resource_not_a_scene() {
         "paquet.usdz",
         &zip_bytes(&entries, true),
     );
-    assert_eq!(run.code, "accepté");
-    assert_eq!(inner(&run), "\"usd\"", "la couche racine livre la scène");
+    assert_eq!(run.code, "accepted");
+    assert_eq!(inner(&run), "\"usd\"", "the root layer ships the scene");
     cleanup(run.dir);
 }

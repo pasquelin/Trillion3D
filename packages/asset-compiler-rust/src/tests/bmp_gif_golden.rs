@@ -1,13 +1,14 @@
-//! Dorées des pilotes BMP et GIF, par le chemin complet : une scène glTF réelle dont l'unique
-//! texture couleur est un BMP bas-haut, puis un GIF indexé, compilée par le harnais commun.
+//! Goldens of the BMP and GIF drivers, by the full path: a real glTF scene whose
+//! only colour texture is a bottom-up BMP, then an indexed GIF, compiled by the
+//! common harness.
 //!
-//! Ce que ces dorées fixent, que les tests en éprouvette de `plugins/tests/` ne peuvent pas fixer,
-//! c'est l'image telle qu'un moteur la lira : les octets des aperçus progressifs, après que le
-//! compilateur entier soit passé. C'est là que l'ordre des lignes d'un BMP se prouve vraiment — une
-//! image stockée de bas en haut et remise à l'endroit ne se distingue d'une image retournée que
-//! lorsqu'on regarde les pixels arrivés au bout de la chaîne.
+//! What these goldens fix, which the in-vitro tests in `plugins/tests/` cannot,
+//! is the image as an engine will read it: the bytes of the progressive previews,
+//! after the whole compiler has run. That is where BMP row order is truly proven
+//! — an image stored bottom-up and put right-side-up is indistinguishable from a
+//! flipped image until one looks at the pixels that arrived at the end of the chain.
 //!
-//! Régénération de l'attendu, depuis la racine du dépôt :
+//! Regenerating the expected, from the repository root:
 //!
 //! ```text
 //! cargo test --release --manifest-path packages/asset-compiler-rust/Cargo.toml \
@@ -16,28 +17,31 @@
 //!   packages/asset-compiler-rust/fixtures/gif/expected.json
 //! ```
 //!
-//! Ignorée par défaut : elle écrit dans `fixtures/`. Le diff qu'elle produit se relit avant d'être
-//! commité — un attendu régénéré sans lecture ne surveille plus rien.
+//! Ignored by default: it writes into `fixtures/`. The diff it produces is
+//! re-read before being committed — an expected regenerated without reading no
+//! longer watches anything.
 use super::apercus_golden::previews_digest;
 use super::*;
 
-/// Les deux fixtures et la phrase qui dit ce que chacune met sous surveillance. La scène et son
-/// binaire sont les mêmes des deux côtés — un quad, deux triangles, la texture sur toute sa face —
-/// pour que la seule différence entre les deux attendus soit le format de l'image.
+/// The two fixtures and the sentence that says what each puts under watch. The
+/// scene and its binary are the same on both sides — a quad, two triangles, the
+/// texture on its whole face — so the only difference between the two expecteds
+/// is the image format.
 const FIXTURES: [(&str, &str); 2] = [
     (
         "bmp",
-        "Un quad dont la couleur de base est vraies-couleurs-24-bas.bmp, un BMP 4 × 2 en vraies couleurs 24 bits stocké de bas en haut, compilé par le harnais commun.",
+        "A quad whose base colour is vraies-couleurs-24-bas.bmp, a 4 × 2 24-bit true-colour BMP stored bottom-up, compiled by the common harness.",
     ),
     (
         "gif",
-        "Un quad dont la couleur de base est palette-globale.gif, un GIF 4 × 2 indexé sur une table de couleurs globale de huit entrées, compilé par le harnais commun.",
+        "A quad whose base colour is palette-globale.gif, a 4 × 2 GIF indexed on a global colour table of eight entries, compiled by the common harness.",
     ),
 ];
-const RULE: &str = "Chaque texture couleur porte la queue sans perte de sa chaîne de mips, du premier niveau dont aucun côté ne dépasse 64 jusqu'au 1×1, en RGBA8 sRGB à alpha droit. Ni le BMP ni le GIF n'ajoutent de perte : le premier est lu tel quel et remis dans l'ordre de l'image, le second est indexé, et une table de couleurs porte déjà du 8-8-8.";
+const RULE: &str = "Each colour texture carries the lossless tail of its mip chain, from the first level whose neither side exceeds 64 through 1×1, in RGBA8 sRGB with straight alpha. Neither BMP nor GIF adds loss: the first is read as-is and put back in image order, the second is indexed, and a colour table already carries 8-8-8.";
 
-// Comportement : les deux formats hérités du web traversent le compilateur entier, et chaque octet
-// de leurs aperçus est comparé à expected.json — provenance, géométrie des niveaux et pixels.
+// Behaviour: both web-legacy formats go through the whole compiler, and every
+// byte of their previews is compared to expected.json — provenance, level
+// geometry and pixels.
 #[test]
 fn les_apercus_des_deux_formats_herites_suivent_leur_expected_json() {
     for (format, _) in FIXTURES {
@@ -46,13 +50,13 @@ fn les_apercus_des_deux_formats_herites_suivent_leur_expected_json() {
         assert_eq!(
             previews_digest(&run),
             golden_expected(&dir),
-            "fixture {format} : les aperçus de texture divergent de expected.json"
+            "fixture {format}: texture previews diverge from expected.json"
         );
     }
 }
 
 #[test]
-#[ignore = "écrit dans fixtures/ ; se relance à la main, et son diff se relit"]
+#[ignore = "writes into fixtures/; rerun by hand, and its diff is re-read"]
 fn regenere_les_fixtures_bmp_et_gif() {
     for (format, case) in FIXTURES {
         let dir = golden_dir(format);

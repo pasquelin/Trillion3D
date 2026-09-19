@@ -1,13 +1,12 @@
-//! B4 — capacités réservées avant les boucles : compaction d'une région, fusion des indices d'un
-//! groupe, octets d'indices d'une partie importée. Références : les anciennes versions, francisées.
+//! B4 — capacities reserved before the loops: region compaction, group index merge,
+//! imported part index bytes. References: old versions, French names.
 use super::harness::{compare, Bits, Row};
 use super::inputs;
 use crate::import::mesh::index_bytes;
 use crate::qem::compact_region;
 
-/// Le tampon dimensionné d'avance ne se voit pas à cette taille : la fonction extraite reste, elle
-/// rend le point mesurable, mais le point n'est pas compté comme un gain.
-const NEUTRE: &str = "capacité neutre à cette taille (±0,3 %)";
+/// The pre-sized buffer is not visible at this size: the extracted function stays;
+const NEUTRE: &str = "neutral capacity at this size (±0.3 %)";
 
 type Compacte = (Vec<f32>, Vec<u32>, Vec<u32>);
 
@@ -113,9 +112,9 @@ pub(crate) fn rows() -> Vec<Row> {
     let longs: Vec<u32> = (0..600_000u32).map(|i| i % 65_536).collect();
     vec![
         compare(
-            "B4 compaction d'une région",
+            "B4 region compaction",
             "qem.rs",
-            "65 536 coins, 100 000 sommets, doublons et dégénérés".into(),
+            "65 536 corners, 100 000 vertices, duplicates and degenerates".into(),
             &mut || reference_compacte(&positions, region),
             &mut || compact_region(&positions, region),
             empreinte_compacte,

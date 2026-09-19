@@ -3,12 +3,12 @@ import { createPageIntegrationRunner } from './pageIntegrationTask.ts';
 import type { PageIntegrationRequest } from '../sdk-core/index.ts';
 
 /**
- * Point d'entrée du worker d'intégration des pages. Adaptateur de plateforme : ce fichier n'est
- * chargé que dans un `Worker` de module, il ne prend aucune décision, et il ne voit jamais les
- * octets d'une page — seulement la fiche de sa requête et la longueur du paquet arrivé.
+ * Entry point of the page-integration worker. Platform adapter: this file is loaded only in a
+ * module `Worker`, it takes no decision, and it never sees a page's bytes — only the request's
+ * card and the arrived packet's length.
  *
- * La portée d'un worker dédié n'est pas typée par la bibliothèque DOM du dépôt ; la forme minimale
- * dont ce fichier a besoin est déclarée ici plutôt que d'ajouter une bibliothèque entière.
+ * A dedicated worker's scope is not typed by the repository's DOM library; the minimal shape
+ * this file needs is declared here rather than adding a whole library.
  */
 type IntegrationWorkerScope = {
   onmessage: ((event: { data: unknown }) => void) | null;

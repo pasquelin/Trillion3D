@@ -22,22 +22,22 @@ import type { PageArena } from './pageDecodeShared.ts';
 import type { PageDecodeDone } from '../sdk-core/index.ts';
 
 /**
- * Une page décodée dans la région d'un créneau, et la même page relue par le fil principal.
+ * A decoded page in a slot's region, and the same page reread by the main thread.
  *
- * La région porte, dans cet ordre : les indices, chaque attribut dans l'ordre du décodage, puis les
- * noms d'attributs en UTF-8. Les longueurs vivent dans la zone de contrôle ; les noms voyagent tels
- * quels plutôt que déduits des drapeaux, pour qu'un attribut nouveau n'oblige à rien ici.
+ * The region carries, in this order: the indices, each attribute in decode order, then the
+ * attribute names in UTF-8. Lengths live in the control zone; names travel as-is rather than
+ * deduced from flags, so a new attribute obliges nothing here.
  *
- * Les indices et les attributs font un multiple de quatre octets, et la zone de contrôle aussi :
- * chaque vue typée tombe donc sur un alignement valide, sans remplissage.
+ * Indices and attributes make a multiple of four bytes, and the control zone too: each typed
+ * view therefore falls on a valid alignment, without padding.
  */
 const encoder = new TextEncoder(),
   decoder = new TextDecoder();
 
 /**
- * Écrit la page et publie le créneau. Faux — sans rien écrire — quand elle ne tient pas dans la
- * région ou porte plus d'attributs que le plan : l'appelant reprend alors le chemin de transfert,
- * qui rend exactement les mêmes octets.
+ * Writes the page and publishes the slot. False — without writing anything — when it does not
+ * fit in the region or carries more attributes than the plan: the caller then takes the
+ * transfer path, which returns exactly the same bytes.
  */
 export function writeSharedPage(arena: PageArena, slot: number, done: PageDecodeDone) {
   const page = done.decoded;
@@ -69,16 +69,16 @@ export function writeSharedPage(arena: PageArena, slot: number, done: PageDecode
     control[base + ATTR_BASE + 2 * k] = names[k].byteLength;
     control[base + ATTR_BASE + 2 * k + 1] = page.attributes[k].byteLength;
   }
-  // Ces deux écritures atomiques publient tout ce qui précède : un lecteur qui voit `ready` voit
-  // aussi la région et les longueurs, entières.
+  // These two atomic writes publish everything that precedes: a reader that sees `ready` also
+  // sees the region and the lengths, whole.
   Atomics.store(control, base + STATUS, SHARED_BY_REGION);
   Atomics.store(control, base + STATE, SHARED_READY);
   Atomics.notify(control, base + STATE);
   return true;
 }
 
-/** Les octets d'une tranche de la région, recopiés dans un tampon à soi. La région est réutilisée
- *  dès que le créneau redevient libre : rien de ce qui sort d'ici ne peut rester une vue dessus. */
+/** Bytes of a slice of the region, copied into a buffer of one's own. The region is reused as
+ *  soon as the slot is free again: nothing that leaves here can remain a view on it. */
 function copyOut(arena: PageArena, offset: number, bytes: number) {
   const copy = new Uint8Array(bytes);
   copy.set(new Uint8Array(arena.buffer, offset, bytes));
@@ -86,8 +86,9 @@ function copyOut(arena: PageArena, offset: number, bytes: number) {
 }
 
 /**
- * La page publiée dans un créneau, relue en réponse du contrat ; le créneau est libéré ensuite. Les tampons
- * rendus sont ceux d'une réponse ordinaire : l'appelant ne voit pas par où la page est passée.
+ * The page published in a slot, reread as a contract answer; the slot is released afterwards.
+ * The returned buffers are those of an ordinary answer: the caller does not see which way the
+ * page went.
  */
 export function readSharedPage(arena: PageArena, slot: number): PageDecodeDone {
   const control = arena.control,
@@ -123,8 +124,7 @@ export function readSharedPage(arena: PageArena, slot: number): PageDecodeDone {
       decodedBytes: control[base + DECODED],
     },
     wasm: control[base + WASM] === 1,
-    // Le temps de la tâche traverse la zone de contrôle en microsecondes entières : un compteur,
-    // jamais une valeur d'image.
+    // Task time crosses the control zone as whole microseconds: a counter, never a frame value.
     taskMs: control[base + TASK_US] / 1000,
   };
   return done;

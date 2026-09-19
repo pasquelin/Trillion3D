@@ -1,8 +1,8 @@
-//! Les surfaces non compressées du conteneur DDS : les mêmes seize pixels écrits dans les trois
-//! ordres d'octets déclarés. L'ordre est une façon d'écrire une image, jamais de la changer.
+//! Uncompressed surfaces of the DDS container: the same sixteen pixels written in the three
+//! declared byte orders. Order is a way of writing an image, never of changing it.
 use super::{bytes, check, SIDE};
 
-/// Les seize pixels de référence des surfaces non compressées, ligne du haut d'abord.
+/// The sixteen reference pixels of uncompressed surfaces, top row first.
 const PIXELS: [[u8; 4]; 16] = [
     [255, 0, 0, 255],
     [0, 255, 0, 128],
@@ -22,10 +22,10 @@ const PIXELS: [[u8; 4]; 16] = [
     [64, 96, 128, 160],
 ];
 
-// Contrat du pilote pour les surfaces non compressées : l'ordre des octets est une façon d'écrire
-// la même image, jamais de la changer, et `BGRX8` n'a pas d'alpha — sa surface est opaque.
+// Driver contract for uncompressed surfaces: byte order is a way of writing the same image,
+// never of changing it, and `BGRX8` has no alpha — its surface is opaque.
 #[test]
-fn les_surfaces_non_compressees_rendent_la_meme_image_dans_les_trois_ordres() {
+fn uncompressed_surfaces_yield_the_same_image_in_all_three_orders() {
     let rgba: Vec<u8> = PIXELS.iter().flatten().copied().collect();
     let bgra: Vec<u8> = PIXELS
         .iter()

@@ -1,12 +1,12 @@
-// Lot « compteurs honnêtes du harnais de mesure » : `resume()` gagne trois colonnes (triangles
-// soumis, image tenue, repli sélection GPU) et n'écrit jamais 0 pour une mesure absente — seul un
-// tiret le fait, comme pour les colonnes déjà en place (`num`, `mo`).
+// "honest measurement harness counters" batch: `resume()` gains three columns (submitted
+// triangles, held image, GPU selection fallback) and never writes 0 for an absent measurement — only a
+// dash does, as for columns already in place (`num`, `mo`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resume } from './rapport.mjs';
 
-/** Un rapport minimal : une série, un côté, juste ce que `resume()` lit. */
-function rapport(cote) {
+/** A minimal report: one series, one side, just what `resume()` reads. */
+function rapport(side) {
   return {
     engine: 'moteur-test',
     scene: 'scene-test',
@@ -23,13 +23,13 @@ function rapport(cote) {
         pixelError: 1,
         temoinAA: null,
         ecartAvantApres: null,
-        sides: { a: cote },
+        sides: { a: side },
       },
     ],
   };
 }
 
-const cotéDeBase = {
+const baseSide = {
   moteur: null,
   cpuFrameMs: null,
   cpuSelectMs: null,
@@ -49,17 +49,17 @@ const cotéDeBase = {
   charge: { debut: null, fin: null },
 };
 
-test('resume() publie les trois nouvelles colonnes, chacune sous son propre en-tête', () => {
-  const texte = resume(rapport({ ...cotéDeBase }));
-  assert.match(texte, /\| triangles soumis opaque\/total \| image tenue \|/);
-  assert.match(texte, /\| repli sélection GPU \|/);
-  assert.match(texte, /\| Hi-Z testés\/rejetés\/>16 \(image\) \|/);
+test('resume() publishes the three new columns, each under its own header', () => {
+  const texte = resume(rapport({ ...baseSide }));
+  assert.match(texte, /\| submitted triangles opaque\/total \| held image \|/);
+  assert.match(texte, /\| GPU selection fallback \|/);
+  assert.match(texte, /\| Hi-Z tested\/rejected\/>16 \(image\) \|/);
 });
 
-test('des compteurs mesurés s’affichent tels quels, jamais réduits à un tiret', () => {
+test('measured counters are displayed as is, never reduced to a dash', () => {
   const texte = resume(
     rapport({
-      ...cotéDeBase,
+      ...baseSide,
       submittedTriangles: 1500,
       totalSubmittedTriangles: 1800,
       imageTenue: true,
@@ -67,15 +67,19 @@ test('des compteurs mesurés s’affichent tels quels, jamais réduits à un tir
       hiZ: { tested: 200, rejected: 40, beyond16Texels: 5, image: 42 },
     }),
   );
-  assert.match(texte, /\| 1500\/1800 \| oui \|/, 'triangles soumis, opaque puis total');
-  assert.match(texte, /\| non \|/, 'repli sélection GPU à faux');
-  assert.match(texte, /\| 200\/40\/5 \(42\) \|/, 'Hi-Z testés/rejetés/>16, puis l’image comptée');
+  assert.match(texte, /\| 1500\/1800 \| yes \|/, 'submitted triangles, opaque then total');
+  assert.match(texte, /\| no \|/, 'GPU selection fallback at false');
+  assert.match(
+    texte,
+    /\| 200\/40\/5 \(42\) \|/,
+    'Hi-Z tested/rejected/>16, then the counted image',
+  );
 });
 
-test('un compteur absent est un tiret, jamais un zéro : `imageTenue`, `repliSelectionGpu`, triangles soumis, Hi-Z', () => {
+test('an absent counter is a dash, never a zero: `imageTenue`, `repliSelectionGpu`, submitted triangles, Hi-Z', () => {
   const texte = resume(
     rapport({
-      ...cotéDeBase,
+      ...baseSide,
       submittedTriangles: null,
       totalSubmittedTriangles: null,
       imageTenue: null,
@@ -86,43 +90,43 @@ test('un compteur absent est un tiret, jamais un zéro : `imageTenue`, `repliSel
   assert.match(
     texte,
     /\| —\/— \| — \|/,
-    'aucun triangle soumis compté : deux tirets, pas deux zéros',
+    'no submitted triangles counted: two dashes, not two zeros',
   );
-  assert.match(texte, /\| — \| —\/—\/— \(—\) \|/, 'ni repli GPU ni Hi-Z ne sont un zéro déduit');
-  assert.doesNotMatch(
+  assert.match(
     texte,
-    /\| 0\/0 \| non \|/,
-    'un `null` ne se lit jamais comme un `0` ou un `non`',
+    /\| — \| —\/—\/— \(—\) \|/,
+    'neither GPU fallback nor Hi-Z are an inferred zero',
   );
+  assert.doesNotMatch(texte, /\| 0\/0 \| no \|/, 'a `null` is never read as `0` or `no`');
 });
 
-test('l’image tenue à vrai se distingue de l’image tenue à faux, pas seulement de l’absence', () => {
-  const tenue = resume(rapport({ ...cotéDeBase, imageTenue: true }));
-  const relachee = resume(rapport({ ...cotéDeBase, imageTenue: false }));
-  assert.match(tenue, /\| oui \|/);
-  assert.match(relachee, /\| non \|/);
-  assert.notEqual(tenue, relachee);
+test('imageTenue set to true is distinguished from imageTenue set to false, not just from absence', () => {
+  const held = resume(rapport({ ...baseSide, imageTenue: true }));
+  const released = resume(rapport({ ...baseSide, imageTenue: false }));
+  assert.match(held, /\| yes \|/);
+  assert.match(released, /\| no \|/);
+  assert.notEqual(held, released);
 });
 
-// Lot triangles synchrones : la colonne « couverture » affiche `selected − drawn − uncovered`,
-// attendue à zéro, et un tiret dès qu'un des trois compteurs manque — jamais une valeur déduite.
-test('la colonne couverture affiche selected − drawn − uncovered, et drawnTriangles à côté', () => {
+// Synchronous triangles batch: "coverage" column displays `selected − drawn − uncovered`,
+// expected at zero, and a dash as soon as one of three counters is missing — never an inferred value.
+test('coverage column displays selected − drawn − uncovered, and drawnTriangles next to it', () => {
   const texte = resume(
     rapport({
-      ...cotéDeBase,
+      ...baseSide,
       selectedTriangles: 900,
       drawnTriangles: 800,
       uncoveredTriangles: 100,
     }),
   );
-  assert.match(texte, /\| drawnTriangles \| couverture \|/, 'les deux en-têtes, dans cet ordre');
-  assert.match(texte, /\| 900 \| 800 \| 0 \|/, 'selected, drawn, puis la couverture calculée');
+  assert.match(texte, /\| drawnTriangles \| coverage \|/, 'the two headers in that order');
+  assert.match(texte, /\| 900 \| 800 \| 0 \|/, 'selected, drawn, then computed coverage');
 });
 
-test('la couverture est un tiret dès qu’un seul des trois compteurs manque', () => {
+test('coverage is a dash as soon as a single counter of the three is missing', () => {
   const sansSelected = resume(
     rapport({
-      ...cotéDeBase,
+      ...baseSide,
       selectedTriangles: null,
       drawnTriangles: 800,
       uncoveredTriangles: 100,
@@ -130,7 +134,7 @@ test('la couverture est un tiret dès qu’un seul des trois compteurs manque', 
   );
   const sansDrawn = resume(
     rapport({
-      ...cotéDeBase,
+      ...baseSide,
       selectedTriangles: 900,
       drawnTriangles: null,
       uncoveredTriangles: 100,
@@ -138,37 +142,33 @@ test('la couverture est un tiret dès qu’un seul des trois compteurs manque', 
   );
   const sansUncovered = resume(
     rapport({
-      ...cotéDeBase,
+      ...baseSide,
       selectedTriangles: 900,
       drawnTriangles: 800,
       uncoveredTriangles: null,
     }),
   );
-  // Les trois cellules (selected, drawn, couverture) ensemble : un tiret pour la couverture, jamais
-  // une soustraction dont un opérande `null` a été traité comme zéro.
+  // All three cells (selected, drawn, coverage) together: dash for coverage, never
+  // a subtraction where a `null` operand was treated as zero.
   assert.match(sansSelected, /\| — \| 800 \| — \|/);
   assert.match(sansDrawn, /\| 900 \| — \| — \|/);
   assert.match(sansUncovered, /\| 900 \| 800 \| — \|/);
 });
 
-test('une couverture non nulle s’affiche telle quelle, sans être réduite à un tiret', () => {
+test('a non-zero coverage is displayed as is, without being reduced to a dash', () => {
   const texte = resume(
     rapport({
-      ...cotéDeBase,
+      ...baseSide,
       selectedTriangles: 900,
       drawnTriangles: 750,
       uncoveredTriangles: 100,
     }),
   );
-  assert.match(
-    texte,
-    /\| 50 \|/,
-    'selected − drawn − uncovered = 50, un vrai trou dans la relation',
-  );
+  assert.match(texte, /\| 50 \|/, 'selected − drawn − uncovered = 50, a real hole in the relation');
 });
 
-test('resume() ouvre la section du chemin de calcul, même quand aucun côté n’en publie', () => {
-  const texte = resume(rapport({ ...cotéDeBase }));
-  assert.match(texte, /## Chemin de calcul en lot/);
-  assert.match(texte, /\| relevé absent de ce dist \|/);
+test('resume() opens the computation path section, even when no side publishes it', () => {
+  const texte = resume(rapport({ ...baseSide }));
+  assert.match(texte, /## Batch compute path/);
+  assert.match(texte, /\| reading missing from this dist \|/);
 });

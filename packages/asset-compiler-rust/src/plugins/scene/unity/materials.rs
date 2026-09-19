@@ -1,16 +1,16 @@
-//! Un `.mat` Unity vers un matériau PBR glTF.
+//! A Unity `.mat` into a glTF PBR material.
 //!
-//! On lit les propriétés par leur nom, jamais par la famille de shader : Standard, URP Lit et HDRP
-//! Lit écrivent les mêmes grandeurs sous des noms voisins (`_Color` / `_BaseColor`, `_MainTex` /
-//! `_BaseMap` / `_BaseColorMap`, `_Glossiness` / `_Smoothness`), et un matériau qui n'en déclare
-//! aucune garde les valeurs par défaut du glTF. Rien n'est deviné d'après le nom d'un objet.
+//! Properties are read by name, never by shader family: Standard, URP Lit and HDRP Lit write
+//! the same quantities under neighbouring names (`_Color` / `_BaseColor`, `_MainTex` /
+//! `_BaseMap` / `_BaseColorMap`, `_Glossiness` / `_Smoothness`), and a material that declares
+//! none of them keeps glTF defaults. Nothing is guessed from an object name.
 //!
-//! La seule conversion de grandeur est `roughness = 1 − smoothness` : les deux vivent dans [0, 1],
-//! l'application est une bijection, l'aller-retour est exact, aucune information n'est perdue. La
-//! couleur de base reste un facteur multiplié par sa texture, comme chez Unity comme en glTF.
+//! The only quantity conversion is `roughness = 1 − smoothness`: both live in [0, 1], the map
+//! is a bijection, the round-trip is exact, no information is lost. Base colour remains a
+//! factor multiplied by its texture, as in Unity as in glTF.
 use super::*;
 
-/// Les noms d'une même grandeur chez Standard, URP et HDRP, du plus précis au plus ancien.
+/// Names of the same quantity in Standard, URP and HDRP, from the most precise to the oldest.
 const BASE_COLOR: [&str; 2] = ["_BaseColor", "_Color"];
 const BASE_MAP: [&str; 3] = ["_BaseColorMap", "_BaseMap", "_MainTex"];
 const NORMAL_MAP: [&str; 2] = ["_NormalMap", "_BumpMap"];
@@ -24,7 +24,7 @@ const ALPHA_CLIP: [&str; 2] = ["_AlphaCutoffEnable", "_AlphaClip"];
 const CULL: [&str; 2] = ["_CullMode", "_Cull"];
 const SURFACE: [&str; 2] = ["_SurfaceType", "_Surface"];
 
-/// Les tables de propriétés d'un `Material` sérialisé.
+/// Property tables of a serialized `Material`.
 struct Properties<'a> {
     floats: &'a [Yaml],
     colors: &'a [Yaml],
@@ -32,7 +32,7 @@ struct Properties<'a> {
     keywords: Vec<String>,
 }
 
-/// Convertit le corps d'un objet `Material` en matériau glTF.
+/// Converts the body of a `Material` object into a glTF material.
 pub(super) fn material_json(
     body: &Yaml,
     name: &str,
@@ -60,9 +60,9 @@ pub(super) fn material_json(
     if let Some(index) = properties.texture(&BASE_MAP, scene, project, table) {
         pbr["baseColorTexture"] = json!({"index":index});
     }
-    // Unity empaquette métal et lissage dans un seul plan (R et A, ou le masque HDRP) ; glTF les
-    // attend en G et B d'une même image. Les convertir voudrait réencoder les pixels : on garde les
-    // facteurs déclarés, exacts, et on compte la carte non convertie.
+    // Unity packs metal and smoothness in a single plane (R and A, or the HDRP mask); glTF
+    // expects them in G and B of the same image. Converting them would mean re-encoding the
+    // pixels: we keep the declared factors, exact, and count the unconverted map.
     if properties.named(&METALLIC_MAP).is_some() {
         scene.report.add("unity-metallic-map-unconverted");
     }
@@ -79,8 +79,8 @@ pub(super) fn material_json(
     out
 }
 
-/// L'émission : couleur HDR chez Unity, facteur borné à [0, 1] en glTF. Un matériau qui déclare ses
-/// mots-clés sans `_EMISSION` n'émet pas, quelle que soit la couleur enregistrée.
+/// Emission: HDR colour in Unity, factor bounded to [0, 1] in glTF. A material that declares
+/// its keywords without `_EMISSION` does not emit, whatever the recorded colour.
 fn emission(
     properties: &Properties<'_>,
     out: &mut Value,
@@ -112,16 +112,16 @@ fn emission(
     }
 }
 
-/// Le mode de rendu : `_Mode` chez Standard (0 opaque, 1 découpé, 2 fondu, 3 transparent),
-/// `_SurfaceType` ou `_Surface` chez URP et HDRP (0 opaque, 1 transparent) et le drapeau de découpe
-/// (`_AlphaCutoffEnable`, `_AlphaClip`) avec son seuil (`_AlphaCutoff`, `_Cutoff`). Un matériau qui
-/// ne déclare aucun de ces modes est opaque. La décision se prend sur ces propriétés seules, jamais
-/// sur un nom de matériau, un type d'objet ni l'alpha de la couleur de base : cet alpha est un
-/// facteur, que le glTF garde dans `baseColorFactor` et qu'un matériau opaque ne regarde pas. Un
-/// matériau déclaré transparent reste fondu, même quand il déclare aussi une découpe : `MASK`
-/// rendrait ses pixels opaques ou absents, et une transparence convertie en masquage est une perte
-/// d'image. La découpe alors non rendue est comptée, et son seuil n'est pas écrit — le glTF ne lit
-/// `alphaCutoff` que sous `MASK`.
+/// Render mode: `_Mode` in Standard (0 opaque, 1 cutout, 2 fade, 3 transparent), `_SurfaceType`
+/// or `_Surface` in URP and HDRP (0 opaque, 1 transparent) and the cutout flag
+/// (`_AlphaCutoffEnable`, `_AlphaClip`) with its threshold (`_AlphaCutoff`, `_Cutoff`). A
+/// material that declares none of these modes is opaque. The decision is taken on these
+/// properties alone, never on a material name, an object type or the alpha of the base colour:
+/// that alpha is a factor, which glTF keeps in `baseColorFactor` and which an opaque material
+/// does not look at. A material declared transparent stays blended, even when it also declares
+/// a cutout: `MASK` would make its pixels opaque or absent, and a transparency converted to
+/// masking is an image loss. The then unyielded cutout is counted, and its threshold is not
+/// written — glTF only reads `alphaCutoff` under `MASK`.
 fn alpha(properties: &Properties<'_>, out: &mut Value, scene: &mut Scene) {
     let mode = properties.float(&["_Mode"], 0.0);
     let surface = properties.float(&SURFACE, 0.0);
@@ -138,7 +138,7 @@ fn alpha(properties: &Properties<'_>, out: &mut Value, scene: &mut Scene) {
 }
 
 impl Properties<'_> {
-    /// La première des propriétés nommées qui existe, quelle que soit la famille de shader.
+    /// First of the named properties that exists, whatever the shader family.
     fn first<'b>(&self, list: &'b [Yaml], names: &[&str]) -> Option<&'b Yaml> {
         names.iter().find_map(|name| named(list, name))
     }
@@ -151,14 +151,14 @@ impl Properties<'_> {
         self.first(self.colors, names)
             .map_or(default, |value| vec4(value, ["r", "g", "b", "a"], default))
     }
-    /// L'entrée de texture nommée et la texture qu'elle désigne, si elle en désigne une.
+    /// Named texture entry and the texture it names, if it names one.
     fn named(&self, names: &[&str]) -> Option<(&Yaml, Ref)> {
         let entry = self.first(self.textures, names)?;
         let reference = reference(&entry["m_Texture"]);
         (!reference.is_null()).then_some((entry, reference))
     }
-    /// La texture liée à cette propriété. Une échelle ou un décalage d'UV non neutre est compté :
-    /// le glTF le porterait dans une extension que la scène intermédiaire n'écrit pas encore.
+    /// Texture bound to this property. A non-neutral UV scale or offset is counted: glTF would
+    /// carry it in an extension the intermediate scene does not write yet.
     fn texture(
         &self,
         names: &[&str],

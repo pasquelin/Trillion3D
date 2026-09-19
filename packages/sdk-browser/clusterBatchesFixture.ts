@@ -16,7 +16,7 @@ type Fixture = {
   arrays: Map<string, Uint32Array>;
 };
 
-/** Deux primitives ; la première est instanciée deux fois (renderOrder 0 et 1), la seconde une fois (2). */
+/** Two primitives; the first is instanced twice (renderOrder 0 and 1), the second once (2). */
 export function fixture(): Fixture {
   const material = new THREE.MeshBasicMaterial();
   const shared = attributes(64),

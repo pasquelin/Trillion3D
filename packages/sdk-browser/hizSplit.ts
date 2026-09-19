@@ -12,14 +12,14 @@ const splitKeyDouble = new Float64Array(1),
   splitKeyWords = new Uint32Array(splitKeyDouble.buffer);
 
 /**
- * Les clés ordonnables des boîtes qui ne coupent pas le plan proche, et leur nombre ;
- * `splitOrder[0..n-1]` porte leurs indices dans l'ordre des candidats. Image ordonnable d'un double :
- * tous les bits d'un négatif inversés, le bit de signe d'un positif posé, de sorte que la comparaison
- * non signée de (haut, bas) rende l'ordre des doubles.
+ * Sortable keys of boxes that do not clip the near plane, and their count; `splitOrder[0..n-1]`
+ * carries their indices in candidate order. Sortable image of a double: every bit of a negative
+ * inverted, the sign bit of a positive set, so the unsigned comparison of (high, low) yields
+ * the order of the doubles.
  *
- * La profondeur du moteur est INVERSÉE : le plus proche porte la plus grande profondeur. La clé est
- * donc celle de son OPPOSÉ, si bien que l'ordre croissant des clés reste celui du plus proche au
- * plus lointain — et que tout ce qui suit (tri stable, sélection de rang) ne change pas d'une ligne.
+ * Engine depth is REVERSE-Z: nearest carries the greatest depth. The key is therefore that of
+ * its OPPOSITE, so the increasing order of keys stays nearest to farthest — and everything that
+ * follows (stable sort, rank selection) does not change by a line.
  */
 function chargeCles(count: number, bounds: Float64Array) {
   if (splitLow.length < count) {
@@ -43,8 +43,8 @@ function chargeCles(count: number, bounds: Float64Array) {
 }
 
 /**
- * Classe par profondeur les mêmes boîtes, du plus proche au plus lointain. Tri radix stable, sans
- * allocation : les profondeurs égales retombent donc sur l'ordre des candidats, exactement comme
+ * Ranks the same boxes by depth, nearest to farthest. Stable radix sort, no allocation: equal
+ * depths therefore fall back on candidate order, exactly like
  * `a.nearest-b.nearest||a.index-b.index`.
  */
 function rangParProfondeur(count: number, bounds: Float64Array) {
@@ -77,17 +77,17 @@ function rangParProfondeur(count: number, bounds: Float64Array) {
 }
 
 /**
- * La moitié la plus proche devient les occulteurs de l'image : `rest[i]` vaut 0 pour un occulteur et
- * 1 sinon, et le nombre d'occulteurs est renvoyé. Les boîtes qui coupent le plan proche restent dans
- * le reste, où elles ne peuvent en cacher aucune autre.
+ * The nearest half becomes the frame's occluders: `rest[i]` is 0 for an occluder and 1 otherwise,
+ * and the occluder count is returned. Boxes that clip the near plane stay in the rest, where they
+ * cannot hide any other.
  *
- * Seul l'ensemble de cette moitié est lu, jamais son ordre : ce qu'il faut est donc une sélection,
- * pas un tri. Elle descend les octets du plus fort au plus faible, marque d'un coup les seaux entiers
- * qui tiennent sous le rang cherché et ne redescend que dans celui qui le contient — une passe sur
- * tous les candidats, puis sur un sur deux cent cinquante-six en moyenne, au lieu de huit passes de
- * dispersion. L'ensemble rendu est celui du tri stable, terme pour terme : tout ce qui est
- * strictement plus proche que la clé de rang, puis les premières clés égales dans l'ordre des
- * candidats — l'ordre que la partition par seau conserve, comme le tri stable le conservait.
+ * Only the set of this half is read, never its order: what is needed is therefore a selection,
+ * not a sort. It walks bytes from strongest to weakest, marks whole buckets that fit under the
+ * sought rank in one go and only descends into the one that contains it — one pass over every
+ * candidate, then over one in two hundred and fifty-six on average, instead of eight scatter
+ * passes. The returned set is that of the stable sort, term for term: everything strictly
+ * nearer than the rank key, then the first equal keys in candidate order — the order bucket
+ * partition keeps, as the stable sort kept it.
  */
 export function splitOccludersFlat(count: number, bounds: Float64Array, rest: Uint8Array) {
   for (let i = 0; i < count; i++) rest[i] = 1;
@@ -102,7 +102,7 @@ export function splitOccludersFlat(count: number, bounds: Float64Array, rest: Ui
       shift = (pass & 3) * 8;
     splitCounts.fill(0);
     for (let i = 0; i < inFront; i++) splitCounts[(keys[pool[i]] >>> shift) & 255]++;
-    // Le seau du rang cherché : tous ceux d'avant tiennent entièrement dessous.
+    // Bucket of the sought rank: all those before it fit entirely below.
     let below = 0,
       digit = 0;
     for (; digit < 255 && below + splitCounts[digit] < need; digit++) below += splitCounts[digit];
@@ -119,7 +119,7 @@ export function splitOccludersFlat(count: number, bounds: Float64Array, rest: Ui
     scratch = swap;
     inFront = kept;
   }
-  // Ce qui reste a les mêmes huit octets : l'ordre des candidats départage, comme dans le tri.
+  // What remains has the same eight bytes: candidate order breaks ties, as in the sort.
   for (let i = 0; i < need; i++) rest[pool[i]] = 0;
   splitOrder = pool;
   splitScratch = scratch;
@@ -127,9 +127,9 @@ export function splitOccludersFlat(count: number, bounds: Float64Array, rest: Ui
 }
 
 /**
- * Le même partage, rendu en pages plutôt qu'en drapeaux : `occluders` reçoit la moitié la plus
- * proche dans l'ordre du tri, `rest` le reste du tri puis les coupes du plan proche dans l'ordre des
- * candidats. Aucune page n'est projetée deux fois et rien n'est alloué par image.
+ * The same split, returned as pages rather than flags: `occluders` receives the nearest half in
+ * sort order, `rest` the rest of the sort then the near-plane clips in candidate order. No page
+ * is projected twice and nothing is allocated per frame.
  */
 export function splitOccludersInto<T extends HizPage>(
   pages: T[],

@@ -1,6 +1,6 @@
-// Oracle de la file de streaming du lot M1 « socle mathématique » : `orderPendingUrls` d'avant le
-// rattachement, recopié tel quel depuis `develop` au commit d016f88 (`streamingPriority.ts:46-129`),
-// avec le produit en boucle depuis zéro et le centre de vue écrits en ligne.
+// Streaming-queue oracle of batch M1 "math foundation": `orderPendingUrls` from before the
+// attachment, copied as-is from `develop` at commit d016f88 (`streamingPriority.ts:46-129`),
+// with the product in a loop from zero and the view centre written inline.
 import { clusterErrorPixels, maxStretch } from '../../../sdk-core/index.ts';
 import { referenceComposeView, referenceProject } from './socle-math.mjs';
 
@@ -14,7 +14,7 @@ function boundsSphere(record, out) {
   return out;
 }
 
-/** L'erreur et la distance de chaque enregistrement, telles que la file les comparait. */
+/** Error and distance of each record, as the queue compared them. */
 function referencePriorities(records, camera, pixelScale) {
   const focal = Math.max(pixelScale[0], pixelScale[1]),
     near = camera.near;
@@ -62,7 +62,7 @@ function referencePriorities(records, camera, pixelScale) {
   return Float64Array.from(sortie);
 }
 
-/** L'ordre rendu : erreur décroissante, puis distance croissante, le pire cluster par paquet. */
+/** The rendered order: decreasing error, then increasing distance, the worst cluster per bundle. */
 export function referenceOrder(records, camera, pixelScale) {
   const valeurs = referencePriorities(records, camera, pixelScale),
     slots = new Map();

@@ -1,17 +1,17 @@
-//! La fin de l'étape du proxy : des triangles monde déjà posés à la structure écrite en colonnes.
+//! End of proxy step: world triangles to column-structured format.
 use super::{
     bvh, simplify, wide, SceneProxy, PROXY_CELL_METRES, PROXY_ERROR_METRES, PROXY_TRIANGLE_BUDGET,
 };
 
-/// Simplifie les triangles posés, construit le BVH large et publie le seuil obtenu : le plus grand
-/// seuil de coupe demandé, plus ce que la maille de simplification y ajoute.
+/// Simplifies placed triangles, builds wide BVH, publishes obtained threshold: max
+/// requested cut threshold, plus simplification cell addition.
 pub(crate) fn assemble(
     thresholds: &[f64],
     mut triangles: Vec<f32>,
     mut colours: Vec<u32>,
 ) -> SceneProxy {
-    // La coupe du DAG s'arrête à sa racine ; la simplification du proxy, elle, va aussi loin qu'il
-    // le faut, et donne au passage des triangles de taille bornée au cache de surfaces.
+    // DAG cut stops at root; proxy simplification goes as far as
+    // needed, delivering bounded-size triangles to surface cache.
     let cell = simplify::plan_cell(&triangles, PROXY_CELL_METRES, PROXY_TRIANGLE_BUDGET);
     simplify::simplify(&mut triangles, &mut colours, cell);
     let (node_bounds, node_children) = wide::collapse(&bvh::build(&mut triangles, &mut colours));

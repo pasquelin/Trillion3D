@@ -1,10 +1,10 @@
-//! Les bornes du lecteur, prouvées sur des fichiers minimaux écrits ici depuis la description
-//! publique du format : un SDNA qui annonce plus que le fichier ne porte, une vue qui ne sort pas
-//! des octets de son bloc, et le plafond de taille, qui vaut quelle que soit l'enveloppe.
+//! The reader's bounds, proven on minimal files written here from the public description of the
+//! format: an SDNA that announces more than the file carries, a view that does not leave its
+//! block's bytes, and the size ceiling, which holds whatever the wrapping.
 use super::*;
 
-/// Un SDNA à l'ancienne disposition, dont chaque partie peut être posée de travers : les noms de
-/// champs — tous de type `float` —, et le nombre de structures que la section `STRC` annonce.
+/// An SDNA in the old layout, each part of which can be laid askew: the field names — all of
+/// type `float` —, and the number of structures the `STRC` section announces.
 fn sdna(names: &[&str], announced: u32) -> Vec<u8> {
     let zero = |list: &[&str]| -> Vec<Vec<u8>> {
         list.iter()
@@ -21,8 +21,7 @@ fn sdna(names: &[&str], announced: u32) -> Vec<u8> {
     out.extend_from_slice(&[0, 0]);
     out.extend_from_slice(b"STRC");
     out.extend_from_slice(&announced.to_le_bytes());
-    // La structure : son type `Thing`, son nombre de champs, puis chaque champ par son type et son
-    // nom.
+    // The structure: its `Thing` type, its field count, then each field by its type and its name.
     out.extend_from_slice(&2u16.to_le_bytes());
     out.extend_from_slice(&(names.len() as u16).to_le_bytes());
     for rank in 0..names.len() {
@@ -32,7 +31,7 @@ fn sdna(names: &[&str], announced: u32) -> Vec<u8> {
     out
 }
 
-/// Un fichier à l'ancienne disposition portant ce SDNA et un bloc de données de `held` octets.
+/// A file in the old layout carrying this SDNA and a data block of `held` bytes.
 fn file(sdna: &[u8], held: usize) -> Vec<u8> {
     let mut out = b"BLENDER-v405".to_vec();
     block(&mut out, b"DNA1", 0, 0, sdna);
@@ -41,22 +40,22 @@ fn file(sdna: &[u8], held: usize) -> Vec<u8> {
     out
 }
 
-// Constat 24 : un SDNA qui annonce des dimensions, une taille de champ ou un nombre de structures
-// que le fichier ne porte pas est refusé sous son nom. Les produits étaient posés sans borne : ils
-// débordaient — panique en débogage —, et le compte de `STRC` réservait avant d'être cru.
+// Finding 24: an SDNA that announces dimensions, a field size or a structure count the file does
+// not carry is refused under its name. Products were stored unbounded: they overflowed — panic
+// in debug —, and the `STRC` count reserved before being trusted.
 #[test]
 fn a_hostile_sdna_is_refused_by_name_never_by_panic() {
     for (case, bytes) in [
         (
-            "des dimensions dont le produit déborde",
+            "dimensions whose product overflows",
             file(&sdna(&["value[18446744073709551615][2]"], 1), 16),
         ),
         (
-            "un champ plus grand que la mémoire",
+            "a field larger than memory",
             file(&sdna(&["value[4611686018427387904]"], 1), 16),
         ),
         (
-            "plus de structures que le bloc n'en porte",
+            "more structures than the block carries",
             file(&sdna(&["value"], u32::MAX), 16),
         ),
     ] {
@@ -64,49 +63,49 @@ fn a_hostile_sdna_is_refused_by_name_never_by_panic() {
     }
 }
 
-// Constat 24 : une vue lit les champs de son bloc, et rien d'autre. Un bloc plus court que la
-// structure que son entête nomme rendait les octets du bloc suivant comme s'ils étaient les siens.
+// Finding 24: a view reads the fields of its block, and nothing else. A block shorter than the
+// structure its header names yielded the next block's bytes as if they were its own.
 #[test]
 fn a_view_never_reads_past_the_end_of_its_block() {
     let bytes = file(&sdna(&["value"], 1), 0);
-    let read = BlendFile::open(&bytes, MAX_BYTES).expect("un fichier minimal");
-    let block = read.of(*b"DATA").next().expect("le bloc de données");
-    let view = read.view(block).expect("sa vue");
+    let read = BlendFile::open(&bytes, MAX_BYTES).expect("a minimal file");
+    let block = read.of(*b"DATA").next().expect("the data block");
+    let view = read.view(block).expect("its view");
     assert_eq!(
         view.float("value", 7.0),
         7.0,
-        "un champ hors du bloc rend le défaut, jamais les octets du bloc suivant"
+        "a field outside the block yields the default, never the next block's bytes"
     );
 }
 
-/// Le code de refus de ces octets lus sous ce plafond.
+/// The refusal code of these bytes read under this ceiling.
 fn under(bytes: &[u8], ceiling: usize) -> &'static str {
     BlendFile::open(bytes, ceiling)
         .err()
-        .expect("ce fichier devait être refusé")
+        .expect("this file was expected to be refused")
         .code
 }
 
-// Constat 25 : le plafond de taille porte sur les octets déballés, quelle que soit l'enveloppe. Un
-// fichier nu passait tel quel, sans être mesuré : le plafond ne valait que pour les compressés.
+// Finding 25: the size ceiling applies to the unpacked bytes, whatever the wrapping. A bare file
+// passed as-is, without being measured: the ceiling only held for compressed ones.
 #[test]
 fn the_size_ceiling_holds_whatever_the_envelope() {
     let bare = file(&sdna(&["value"], 1), 0);
     let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
     std::io::Write::write_all(&mut encoder, &bare).expect("compression");
-    let zipped = encoder.finish().expect("trame gzip");
+    let zipped = encoder.finish().expect("gzip frame");
     for (case, bytes) in [("nu", &bare), ("gzip", &zipped)] {
         assert_eq!(
             under(bytes, bare.len() - 1),
             "blend-too-large",
-            "{case} : les octets déballés dépassent le plafond"
+            "{case}: the unpacked bytes exceed the ceiling"
         );
     }
-    BlendFile::open(&bare, bare.len()).expect("sous le plafond, le fichier nu s'ouvre");
+    BlendFile::open(&bare, bare.len()).expect("under the ceiling, the bare file opens");
 }
 
-// Constat 27 : l'annulation se relit à l'intérieur d'un maillage. Vérifiée entre objets seulement,
-// une scène d'un seul objet à un million de faces posait ce million avant de s'arrêter.
+// Finding 27: cancellation is reread inside a mesh. Checked between objects only, a scene of a
+// single object of a million faces posed that million before stopping.
 #[test]
 fn a_raised_token_stops_a_mesh_before_its_last_face() {
     let geometry = Geometry {
@@ -128,6 +127,6 @@ fn a_raised_token_stops_a_mesh_before_its_last_face() {
         &mut out,
         &AtomicBool::new(true),
     )
-    .expect_err("le maillage devait être abandonné");
+    .expect_err("the mesh was expected to be abandoned");
     assert_eq!(refusal.code, "CANCELLED");
 }

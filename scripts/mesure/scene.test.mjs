@@ -15,12 +15,12 @@ import {
 import { CAMPAGNE } from './campagne.mjs';
 import { parseArgs } from './options.mjs';
 
-test('REFERENCE_SCENES pose Whisperwind à côté d’Emerald', () => {
+test('REFERENCE_SCENES places Whisperwind next to Emerald', () => {
   assert.deepEqual(REFERENCE_SCENES, ['emerald-square', 'whisperwind-village']);
   assert.equal(DEFAULT_SCENE, 'emerald-square');
 });
 
-test('gltfUrlIn prend le glTF des sources s’il est là', () => {
+test('gltfUrlIn takes the glTF from the sources when it is there', () => {
   const root = join(tmpdir(), `wg-scene-gltf-${Date.now()}`);
   mkdirSync(join(root, 'ville'), { recursive: true });
   writeFileSync(join(root, 'ville', 'ville.gltf'), '{}');
@@ -31,7 +31,7 @@ test('gltfUrlIn prend le glTF des sources s’il est là', () => {
   }
 });
 
-test('gltfUrlIn retombe sur source.gltf du cache compilé', () => {
+test('gltfUrlIn falls back to source.gltf of the compiled cache', () => {
   const root = join(tmpdir(), `wg-scene-src-${Date.now()}`);
   const dir = join(root, 'village-derived', 'native', 'full', 'abc');
   mkdirSync(dir, { recursive: true });
@@ -46,7 +46,7 @@ test('gltfUrlIn retombe sur source.gltf du cache compilé', () => {
   }
 });
 
-test('applySceneFlag pose le cache derived sur les côtés sans le leur', () => {
+test('applySceneFlag sets the derived cache on sides that do not have one', () => {
   const flags = parseArgs(['--scene', 'whisperwind-village', '--avant', 'dist']);
   applySceneFlag(flags, '/assets');
   assert.equal(flags.get('cache-apres'), sceneDerived('whisperwind-village', '/assets'));
@@ -58,7 +58,7 @@ test('scenesOf lit --scene a,b et ignore le drapeau sans valeur', () => {
   assert.equal(sceneOf('/x/whisperwind-village-derived'), 'whisperwind-village');
 });
 
-test('la campagne porte le témoin Three LOD et la référence mobile', () => {
+test('the campaign carries the Three LOD witness and the moving reference', () => {
   const noms = CAMPAGNE.map(([n]) => n);
   assert.ok(noms.includes('three-lod'));
   assert.ok(noms.includes('three-nu'));

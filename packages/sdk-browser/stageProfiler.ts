@@ -6,10 +6,10 @@ import {
   type StageProfileEntry,
 } from '../sdk-core/index.ts';
 
-/** Fenêtre glissante par défaut : deux secondes à 60 images par seconde. */
+/** Default sliding window: two seconds at 60 images per second. */
 const DEFAULT_WINDOW = 120;
 
-/** Un anneau de valeurs récentes. L'ordre est sans importance : seuls les quantiles sont lus. */
+/** A ring of recent values. Order does not matter: only the quantiles are read. */
 function createRing(capacity: number) {
   const data = new Float64Array(capacity);
   let cursor = 0,
@@ -32,10 +32,10 @@ type Ring = ReturnType<typeof createRing>;
 export type StageAdd = (stage: string, ms: number) => void;
 
 /**
- * Le profil par étape d'un moteur : un anneau de durées par étape, côté processeur et côté carte
- * graphique, séparés et jamais additionnés. Une étape qui n'a rien déposé sur la fenêtre reste
- * « non mesuré » (`null`) ; elle ne vaut jamais zéro. Rien n'est alloué par image : les anneaux sont
- * des tableaux typés, et le coût du dépôt lui-même est chronométré dans `overheadMs`.
+ * Per-step profile of an engine: a ring of durations per step, CPU side and GPU side, separate
+ * and never added. A step that deposited nothing on the window stays "unmeasured" (`null`); it
+ * is never zero. Nothing is allocated per image: the rings are typed arrays, and the cost of the
+ * deposit itself is timed in `overheadMs`.
  */
 export function createStageProfiler(options: {
   backend: string;
@@ -61,8 +61,8 @@ export function createStageProfiler(options: {
     if (!ring) map.set(stage, (ring = createRing(capacity)));
     return ring;
   };
-  // Une étape peut être alimentée par plusieurs bornes d'une même image : elles sont sommées ici,
-  // puis déposées une seule fois. Sans cela, les quantiles mélangeraient des populations distinctes.
+  // A step may be fed by several bounds of the same image: they are summed here, then deposited
+  // once. Without that, the quantiles would mix distinct populations.
   const scratch = new Map<string, number>();
   const add: StageAdd = (stage, ms) => {
     if (Number.isFinite(ms) && ms >= 0) scratch.set(stage, (scratch.get(stage) ?? 0) + ms);
@@ -75,35 +75,35 @@ export function createStageProfiler(options: {
     overhead.push(performance.now() - started);
   };
   return {
-    /** Dépose les durées processeur d'une image, en se chronométrant lui-même. */
+    /** Deposits the CPU durations of an image, timing itself. */
     frameCpu(fill: (add: StageAdd) => void) {
       collect(cpu, fill);
       cpuFrames++;
     },
-    /** Dépose les durées d'un relevé carte graphique, qui décrit une image déjà passée. */
+    /** Deposits the durations of a GPU readback, which describes an image already past. */
     frameGpu(fill: (add: StageAdd) => void) {
       collect(gpu, fill);
       gpuSamples++;
     },
-    /** La durée de l'image entière, sur un moteur qui ne sait pas la découper en passes. */
+    /** Duration of the whole image, on an engine that cannot split it into passes. */
     pushImageGpu(ms: number) {
       if (Number.isFinite(ms) && ms >= 0) image.push(ms);
     },
-    /** Des compteurs attachés à une étape : ils ne sont pas des durées et ne s'additionnent à rien. */
+    /** Counters attached to a step: they are not durations and add to nothing. */
     setCounts(stage: string, values: Record<string, number>) {
       counts.set(stage, values);
     },
-    /** Pourquoi une étape n'a aucune durée, quand la raison est structurelle et non un oubli. */
+    /** Why a step has no duration, when the reason is structural and not an omission. */
     setReason(stage: string, reason: { cpu?: string; gpu?: string }) {
       if (reason.cpu) cpuReasons.set(stage, reason.cpu);
       if (reason.gpu) gpuReasons.set(stage, reason.gpu);
     },
-    /** Le moyen de mesure retenu par l'appareil, découvert à l'exécution. */
+    /** Measurement means the device kept, discovered at run time. */
     setGpuMethod(method: GpuTimingMethod | null, reason: string | null) {
       gpuMethod = method;
       gpuReason = reason;
     },
-    /** Oublie la fenêtre : ce qui précède (chauffe, premières images) ne pèse plus sur les quantiles. */
+    /** Forgets the window: what came before (warmup, first images) no longer weighs on the quantiles. */
     reset() {
       for (const ring of cpu.values()) ring.clear();
       for (const ring of gpu.values()) ring.clear();

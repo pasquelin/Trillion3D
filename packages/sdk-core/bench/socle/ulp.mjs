@@ -1,16 +1,16 @@
-// Mesurer un écart, pas seulement le constater. Certaines optimisations déplacent l'ordre des
-// opérations flottantes : ce fichier compte les valeurs qui diffèrent et dit de combien, en ULP,
-// pour que le tableau porte un chiffre là où l'égalité stricte ne porterait qu'un « non ».
-// La liste des types et la comparaison des clés viennent d'`ecart.mjs` : une seule règle pour deux
-// parcours, sinon l'un connaît un type que l'autre ignore.
+// Measure a discrepancy, not just observe it. Certain optimizations reorder
+// floating point operations: this file counts differing values and states by how much, in ULP,
+// so that the table displays a number where strict equality would only show a "no".
+// Type list and key comparison come from `ecart.mjs`: single rule for two
+// traversals, otherwise one knows a type that the other ignores.
 import { differenceDeCles, estTypedArray, memesCles } from './ecart.mjs';
 
 const vue = new DataView(new ArrayBuffer(8));
 
 /**
- * Rang monotone d'un flottant dans l'ordre des bits : la différence de deux rangs est l'écart ULP.
- * Le rang 32 bits tient dans un entier double, donc pas de `BigInt` sur ce chemin-là — c'est celui
- * des images et des `Float32Array`, appelé des centaines de milliers de fois par comparaison.
+ * Monotonic rank of a float in bit order: difference of two ranks is ULP discrepancy.
+ * 32-bit rank fits in a double int, so no `BigInt` on this path — it is used by
+ * images and `Float32Array`, called hundreds of thousands of times during comparison.
  */
 function rang32(x) {
   vue.setFloat32(0, x);
@@ -24,7 +24,7 @@ function rang64(x) {
   return b < 0n ? -9223372036854775808n - b : b;
 }
 
-/** Écart en ULP entre deux flottants. `Infinity` dès qu'un NaN ou un infini n'est pas partagé. */
+/** ULP discrepancy between two floats. `Infinity` as soon as NaN or infinity is not shared. */
 function ulpEntre(a, b, bits = 64) {
   if (Object.is(a, b)) return 0;
   if (!Number.isFinite(a) || !Number.isFinite(b)) return Infinity;
@@ -33,7 +33,7 @@ function ulpEntre(a, b, bits = 64) {
   return Number(d < 0n ? -d : d);
 }
 
-/** Compteur d'écarts : combien de valeurs diffèrent, de combien d'ULP au plus, et la première vue. */
+/** Discrepancy counter: how many values differ, by at most how many ULP, and first seen. */
 export function compteur() {
   return { nombre: 0, ulpMax: 0, premier: null };
 }
@@ -55,7 +55,7 @@ function rate(c, chemin, texte) {
 
 const liste = (v) => (v instanceof Set || v instanceof Map ? [...v] : v);
 
-/** Parcours générique : tableaux typés valeur par valeur, le reste champ par champ. */
+/** Generic traversal: typed arrays value by value, remainder field by field. */
 export function parcours(c, a, b, chemin = '', profondeur = 0) {
   if (Object.is(a, b)) return c;
   if (profondeur > 8) throw new Error('ECART_PROFONDEUR_MAX');

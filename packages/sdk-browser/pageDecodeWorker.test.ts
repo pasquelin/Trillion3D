@@ -1,6 +1,6 @@
-// Lot H2 : le point d'entrée réel du worker de décodage, exécuté par un vrai fil `worker_threads`
-// (le pont de `bench/oracles/pageDecodeNodeWorker.mjs`), sans toucher au fichier lui-même. Entrées
-// hostiles : un message d'une autre version du contrat, une annulation avant tout travail.
+// Lot H2: the real entry point of the decode worker, run by a real `worker_threads` thread
+// (the bridge of `bench/oracles/pageDecodeNodeWorker.mjs`), without touching the file itself.
+// Hostile inputs: a message of another contract version, a cancellation before any work.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PAGE_DECODE_PROTOCOL } from '../sdk-core/index.ts';
@@ -9,7 +9,7 @@ import type { PageDecodeAnswer } from '../sdk-core/index.ts';
 
 const SOURCE = new URL('./pageDecodeWorker.ts', import.meta.url);
 
-/** Le prochain message reçu du worker, ou un délai écoulé sans rien recevoir. Le délai est large : sur une machine chargée, le démarrage du worker dépasse la seconde, et les assertions portent sur l’identifiant reçu, jamais sur le temps. */
+/** The next message received from the worker, or a timeout elapsed with nothing received. The timeout is wide: on a loaded machine, worker startup exceeds a second, and assertions rest on the identifier received, never on time. */
 function next(worker: NodeDomWorker, timeoutMs = 10_000): Promise<PageDecodeAnswer | null> {
   return new Promise((resolve) => {
     const minuteur = setTimeout(() => resolve(null), timeoutMs);
@@ -20,7 +20,7 @@ function next(worker: NodeDomWorker, timeoutMs = 10_000): Promise<PageDecodeAnsw
   });
 }
 
-test('un message d’un autre protocole est ignoré, la requête valide suivante répond seule', async () => {
+test('a message of another protocol is ignored, the next valid request answers alone', async () => {
   const worker = new NodeDomWorker(SOURCE);
   try {
     worker.postMessage({ protocol: 999, id: 1, op: 'verify', source: new ArrayBuffer(8) }, []);
@@ -35,15 +35,15 @@ test('un message d’un autre protocole est ignoré, la requête valide suivante
       [],
     );
     const reponse = await next(worker);
-    assert.ok(reponse, 'aucune réponse reçue');
-    assert.equal(reponse!.id, 2, 'le message hors protocole a répondu à tort');
+    assert.ok(reponse, 'no answer received');
+    assert.equal(reponse!.id, 2, 'the off-protocol message answered wrongly');
     assert.equal(reponse!.ok, true);
   } finally {
     await worker.terminate();
   }
 });
 
-test('une annulation reçue avant le travail répond PAGE_DECODE_CANCELLED, jamais le décodage', async () => {
+test('a cancellation received before work answers PAGE_DECODE_CANCELLED, never the decode', async () => {
   const worker = new NodeDomWorker(SOURCE);
   try {
     worker.postMessage({ protocol: PAGE_DECODE_PROTOCOL, id: 7, op: 'cancel' }, []);
@@ -66,7 +66,7 @@ test('une annulation reçue avant le travail répond PAGE_DECODE_CANCELLED, jama
   }
 });
 
-test('une requête valide après l’annulation d’un autre identifiant se déroule normalement', async () => {
+test('a valid request after cancellation of another identifier proceeds normally', async () => {
   const worker = new NodeDomWorker(SOURCE);
   try {
     worker.postMessage({ protocol: PAGE_DECODE_PROTOCOL, id: 1, op: 'cancel' }, []);

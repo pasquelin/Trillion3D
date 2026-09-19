@@ -1,24 +1,25 @@
-//! Le déroulé d'un pilote de conteneur, le même pour tous : une archive et une seule, extraite sous
-//! le cache à sa clé, marquée quand elle est entière, puis routée comme n'importe quelle source.
+//! The sequence of a container driver, the same for all: one archive and only one, extracted
+//! under the cache at its key, marked when it is complete, then routed like any other source.
 //!
-//! Un format d'archive n'apporte ici que sa lecture — la fonction `extract` que son module écrit.
-//! Tout le reste, du refus d'une source ambiguë à la chaîne publiée au rapport, vit une seule fois.
+//! An archive format only brings its reading here — the `extract` function its module writes.
+//! Everything else, from the refusal of an ambiguous source to the chain published on the report,
+//! lives once.
 use super::*;
 use crate::atomic;
 use serde_json::json;
 use std::fs;
 
-/// La marque d'une extraction terminée, à côté du dossier extrait et jamais dedans : tant qu'elle
-/// n'est pas écrite, le dossier est un chantier que personne ne relit.
+/// Marker of a finished extraction, beside the extracted directory and never inside it: until it
+/// is written, the directory is a work in progress that nobody rereads.
 const MARKER: &str = "archive.json";
-/// Le dossier extrait, sous la clé d'extraction : la marque lui tient compagnie sans le polluer.
+/// The extracted directory, under the extraction key: the marker keeps it company without polluting it.
 const CONTENT: &str = "content";
-/// Le dossier où l'extraction écrit tant qu'elle dure : il devient le dossier extrait d'un seul
-/// renommage, et une extraction refusée l'emporte avec elle.
+/// The directory where extraction writes while it lasts: it becomes the extracted directory in a
+/// single rename, and a refused extraction takes it with it.
 const STAGING: &str = "chantier";
 
-/// Extrait puis route une archive. `extract` reçoit le fichier source et la racine d'extraction, et
-/// rend le nombre d'entrées et le total décompressé ; elle n'écrit rien quand elle refuse.
+/// Extracts then routes an archive. `extract` receives the source file and the extraction root,
+/// and yields the entry count and the decompressed total; it writes nothing when it refuses.
 pub(in super::super) fn container(
     request: &SceneRequest<'_>,
     plugin: &dyn ScenePlugin,
@@ -48,9 +49,9 @@ pub(in super::super) fn container(
     Ok(scene)
 }
 
-/// Extrait dans un dossier de chantier, puis le renomme d'un coup : le dossier extrait n'apparaît
-/// que complet. Une archive refusée n'en laisse donc aucune trace, pas même un fichier à moitié
-/// écrit — le routeur ne verra jamais un chantier là où il attend une scène.
+/// Extracts into a staging directory, then renames it at once: the extracted directory appears
+/// only complete. A refused archive therefore leaves no trace, not even a half-written file —
+/// the router will never see a work in progress where it expects a scene.
 fn whole(
     directory: &Path,
     content: &Path,
@@ -72,21 +73,21 @@ fn whole(
     }
 }
 
-/// La chaîne d'une extraction déjà faite, ou rien s'il faut (re)faire l'extraction.
+/// The chain of an extraction already done, or nothing if the extraction must be (re)done.
 fn ready(marker: &Path) -> Option<Value> {
     let marker: Value = serde_json::from_slice(&fs::read(marker).ok()?).ok()?;
     (marker["status"] == "ready").then(|| marker["chain"].clone())
 }
 
-/// Route le dossier extrait et lui fait produire la scène intermédiaire. Rend le pilote interne
-/// retenu, `None` quand le dossier portait déjà son manifeste — une extraction réutilisée.
+/// Routes the extracted directory and has it produce the intermediate scene. Yields the retained
+/// inner driver, `None` when the directory already carried its manifest — a reused extraction.
 fn compose(
     request: &SceneRequest<'_>,
     extracted: &Path,
     pinned: Option<&str>,
 ) -> Result<(PreparedScene, Option<&'static dyn ScenePlugin>)> {
-    // Un format qui nomme lui-même sa source ne laisse rien à choisir au routeur : les autres
-    // fichiers extraits sont ses ressources, jamais des scènes candidates.
+    // A format that names its own source leaves nothing for the router to choose: the other
+    // extracted files are its resources, never candidate scenes.
     let (root, source) = match pinned {
         Some(name) => (extracted.to_path_buf(), safe_join(extracted, name)?),
         None => {
@@ -113,8 +114,8 @@ fn compose(
     }
 }
 
-/// La chaîne du conteneur et de son pilote interne, telle qu'elle voyage dans le rapport et dans la
-/// marque d'extraction : deux pilotes sont intervenus, les deux se nomment et se versionnent.
+/// The chain of the container and its inner driver, as it travels in the report and in the
+/// extraction marker: two drivers intervened, both name and version themselves.
 fn chain(container: &dyn ScenePlugin, inner: Option<&dyn ScenePlugin>) -> Value {
     json!([
         crate::plugins::provenance(container),
@@ -122,20 +123,20 @@ fn chain(container: &dyn ScenePlugin, inner: Option<&dyn ScenePlugin>) -> Value 
     ])
 }
 
-/// Un glTF laissé en place par son pilote se lit à côté de la source ; dans une archive, la source
-/// est l'archive et non le dossier extrait. Le conteneur pose donc dans ce dossier le manifeste que
-/// le compilateur calculerait lui-même pour cette scène — les mêmes octets, donc la même identité de
-/// cache qu'hors archive — et rend le dossier comme scène intermédiaire. Les images de cette scène
-/// sont celles que l'extraction a écrites à côté d'elle : le dossier extrait est leur racine.
+/// A glTF left in place by its driver is read next to the source; in an archive, the source is
+/// the archive and not the extracted directory. The container therefore writes in this directory
+/// the manifest the compiler would itself compute for this scene — the same bytes, therefore the
+/// same cache identity as outside an archive — and yields the directory as an intermediate scene.
+/// This scene's images are those extraction wrote beside it: the extracted directory is their root.
 fn stage_in_place(root: &Path, name: &str) -> Result<PreparedScene> {
     let loaded = crate::load_model_file(root, name, None)?;
     atomic(&root.join("manifest.json"), &loaded.manifest_bytes)?;
     Ok(PreparedScene::converted(root.to_path_buf(), root))
 }
 
-/// Un unique dossier racine — `kit/` dans `kit.zip` — est traversé : l'archive livre l'arbre du
-/// projet, pas un dossier qui n'existe que pour l'emballage. Un dossier qui porte autre chose qu'un
-/// seul sous-dossier est la racine cherchée.
+/// A single root directory — `kit/` in `kit.zip` — is walked through: the archive ships the
+/// project tree, not a directory that exists only for wrapping. A directory that holds anything
+/// other than a single subdirectory is the sought root.
 fn single_root(extracted: &Path) -> PathBuf {
     let mut root = extracted.to_path_buf();
     while let Some(only) = only_child(&root) {
@@ -144,7 +145,7 @@ fn single_root(extracted: &Path) -> PathBuf {
     root
 }
 
-/// L'unique enfant d'un dossier quand c'en est un dossier, sinon rien.
+/// The only child of a directory when it is a directory, otherwise nothing.
 fn only_child(dir: &Path) -> Option<PathBuf> {
     let mut entries = std::fs::read_dir(dir).ok()?;
     let first = entries.next()?.ok()?.path();

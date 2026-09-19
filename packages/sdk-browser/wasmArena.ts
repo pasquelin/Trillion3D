@@ -1,32 +1,32 @@
 import type { SdkWasm } from './geometryPageWasm.ts';
 
 /**
- * Le tampon partagé : des blocs réservés dans la mémoire linéaire du module WebAssembly du SDK, sur
- * lesquels JavaScript pose ses vues typées. Les deux côtés lisent et écrivent les mêmes octets ;
- * rien n'est recopié sur le chemin de calcul.
+ * Shared buffer: blocks reserved in the linear memory of the SDK WebAssembly module, on which
+ * JavaScript lays its typed views. Both sides read and write the same bytes; nothing is copied
+ * on the compute path.
  *
- * LA CROISSANCE, TENUE PAR UNE GÉNÉRATION. `WebAssembly.Memory.grow` remplace le `ArrayBuffer` et
- * détache toutes les vues déjà construites : une vue caduque lit zéro sans rien signaler. N'importe
- * quelle allocation du module peut la provoquer — un décodage de page replié sur le fil principal
- * autant qu'une seconde réservation —, donc l'interdire ailleurs ne suffisait pas. Ici, `blocs()`
- * compare le tampon courant du module à celui qui portait les vues et les RECONSTRUIT toutes quand
- * il a changé, en comptant une génération de plus. Les octets, eux, survivent : `grow` recopie la
- * mémoire, et un bloc garde donc son offset et son contenu. Rien n'est jamais recopié par nous.
+ * GROWTH, HELD BY A GENERATION. `WebAssembly.Memory.grow` replaces the `ArrayBuffer` and detaches
+ * every view already built: a stale view reads zero without signalling anything. Any module
+ * allocation can trigger it — a page decode folded onto the main thread as much as a second
+ * reservation — so forbidding it elsewhere was not enough. Here `blocs()` compares the module's
+ * current buffer to the one that carried the views and REBUILDS them all when it has changed,
+ * counting one more generation. The bytes themselves survive: `grow` copies the memory, so a
+ * block keeps its offset and its contents. We never copy anything ourselves.
  *
- * Un appelant ne garde donc pas une vue d'une image à l'autre : il la redemande par `blocs()`, qui
- * ne coûte qu'une comparaison de tampon tant que la mémoire n'a pas bougé. Les offsets, eux, sont
- * stables pour toute la vie du tampon — ce sont eux que les fonctions du module reçoivent.
+ * A caller therefore does not keep a view from one frame to the next: it asks again through
+ * `blocs()`, which costs only a buffer comparison as long as memory has not moved. Offsets are
+ * stable for the whole life of the buffer — they are what the module functions receive.
  *
- * Un bloc porte son propre type : `Float64Array` pour les matrices, les boîtes, les sphères et les
- * erreurs, `Float32Array` pour ce qui arrive déjà en simple précision, `Uint32Array` pour les
- * drapeaux, les identifiants et les compteurs. Une sortie de taille variable se déclare en deux
- * blocs — un compteur d'un mot, une liste à sa taille maximale — et se relit avec `liste()`.
+ * A block carries its own type: `Float64Array` for matrices, boxes, spheres and errors,
+ * `Float32Array` for what already arrives in single precision, `Uint32Array` for flags, ids and
+ * counters. A variable-size output is declared as two blocks — a one-word counter, a list at its
+ * maximum size — and is reread with `liste()`.
  */
 
-/** Version du contrat du tampon et des lots. Un module qui rend autre chose est refusé. */
+/** Version of the buffer and lot contract. A module that yields anything else is refused. */
 export const WASM_ARENA_CONTRACT = 1;
 
-/** Alignement de chaque bloc, en octets : celui d'un `f64`, qui couvre aussi 32 bits. */
+/** Alignment of each block, in bytes: that of an `f64`, which also covers 32 bits. */
 const ALIGNEMENT = 8;
 
 type ArenaType = 'f64' | 'f32' | 'u32';
@@ -41,38 +41,38 @@ const CONSTRUCTEURS = {
 
 export interface ArenaDemande {
   readonly type: ArenaType;
-  /** Nombre d'éléments du bloc. Pour une sortie de taille variable, son maximum. */
+  /** Number of elements in the block. For a variable-size output, its maximum. */
   readonly longueur: number;
-  /** Pas des sous-vues, en éléments ; absent quand le bloc n'en a pas besoin. */
+  /** Stride of the subviews, in elements; absent when the block does not need them. */
   readonly pas?: number;
 }
 
 export interface ArenaBloc {
   readonly type: ArenaType;
-  /** Offset en OCTETS dans la mémoire linéaire : ce que les fonctions du module attendent. */
+  /** Offset in BYTES in linear memory: what the module functions expect. */
   readonly offset: number;
   readonly vue: ArenaView;
-  /** Sous-vues de `pas` éléments, ou `null` quand la demande n'en réclamait pas. */
+  /** Subviews of `pas` elements, or `null` when the request did not ask for them. */
   readonly vues: readonly ArenaView[] | null;
 }
 
 export interface Arena {
   /**
-   * Les blocs du tampon, leurs vues reconstruites si la mémoire du module a grandi depuis le dernier
-   * appel. Vide une fois le tampon rendu : plus aucune vue ne désigne une mémoire à nous.
+   * Blocks of the buffer, their views rebuilt if the module memory has grown since the last
+   * call. Empty once the buffer is released: no view still points at memory of ours.
    */
   blocs(): readonly ArenaBloc[];
-  /** Reconstructions subies depuis la réservation. Zéro dit que la mémoire n'a jamais bougé. */
+  /** Rebuilds undergone since reservation. Zero says memory has never moved. */
   generation(): number;
   readonly octets: number;
-  /** Les `n` premiers éléments d'un bloc : la partie utile d'une sortie à taille variable. */
+  /** First `n` elements of a block: the useful part of a variable-size output. */
   liste(index: number, n: number): ArenaView;
   libere(): void;
 }
 
 const aligne = (octets: number) => Math.ceil(octets / ALIGNEMENT) * ALIGNEMENT;
 
-/** Un bloc et ses sous-vues, quelle que soit la mémoire qui le porte. */
+/** A block and its subviews, whichever memory carries it. */
 function bloc(demande: ArenaDemande, offset: number, vue: ArenaView): ArenaBloc {
   const pas = demande.pas ?? 0;
   let vues: ArenaView[] | null = null;
@@ -85,8 +85,8 @@ function bloc(demande: ArenaDemande, offset: number, vue: ArenaView): ArenaBloc 
 }
 
 /**
- * Les mêmes blocs hors de la mémoire du module : ce sur quoi le chemin JavaScript travaille quand
- * WebAssembly manque. Leur `offset` vaut zéro — il ne désigne aucune mémoire linéaire.
+ * The same blocks outside the module memory: what the JavaScript path works on when
+ * WebAssembly is missing. Their `offset` is zero — it names no linear memory.
  */
 export function blocsJavaScript(demandes: readonly ArenaDemande[]): ArenaBloc[] {
   return demandes.map((demande) =>
@@ -95,8 +95,8 @@ export function blocsJavaScript(demandes: readonly ArenaDemande[]): ArenaBloc[] 
 }
 
 /**
- * Réserve les blocs demandés en une seule allocation et rend leurs vues. `null` quand le module
- * refuse la taille : l'appelant reste alors sur le chemin JavaScript, avec ses propres tableaux.
+ * Reserves the requested blocks in one allocation and returns their views. `null` when the
+ * module refuses the size: the caller then stays on the JavaScript path, with its own arrays.
  */
 export function reserveArena(wasm: SdkWasm, demandes: readonly ArenaDemande[]): Arena | null {
   const plan: { demande: ArenaDemande; debut: number }[] = [];
@@ -119,7 +119,7 @@ export function reserveArena(wasm: SdkWasm, demandes: readonly ArenaDemande[]): 
   let porteur = wasm.memory.buffer;
   let generation = 0;
   let rendu = false;
-  /** Les blocs à jour : une comparaison de tampon, et une reconstruction seulement s'il a changé. */
+  /** Up-to-date blocks: one buffer comparison, and a rebuild only if it has changed. */
   const actuels = () => {
     if (!rendu && wasm.memory.buffer !== porteur) {
       porteur = wasm.memory.buffer;

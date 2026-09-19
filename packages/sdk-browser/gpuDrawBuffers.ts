@@ -7,9 +7,9 @@ import {
 } from './gpuDrawContract.ts';
 
 /**
- * Les tampons d'une compaction : ils ne dépendent que du nombre de lignes et du nombre de couches
- * coplanaires, jamais de l'image. `slotUsed` part à un partout, si bien qu'un appelant qui ne
- * compte rien paie la compaction complète, exactement comme avant.
+ * Compact buffers: they depend only on the row count and the coplanar-layer count, never on the
+ * frame. `slotUsed` starts as one everywhere, so a caller that counts nothing still pays the full
+ * compact, exactly as before.
  */
 export function createGpuDrawBuffers(device: GPUDevice, slotCap: number, layerSlots: number) {
   const slots = slotCount(layerSlots);

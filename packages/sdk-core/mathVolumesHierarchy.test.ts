@@ -1,7 +1,7 @@
-// Lot M2, cas parent/enfant : une vraie chaîne d'Object3D de Three.js (profondeur ≥ 3, échelle
-// négative sur un axe, rotation parente sur échelle non uniforme) dont on prend `matrixWorld`, pour
-// vérifier que nos volumes égalent Box3.applyMatrix4 / getBoundingSphere / Frustum.intersectsBox au
-// bit près. Three n'est utilisé ici qu'en référence, jamais dans un fichier `math*.ts`.
+// Batch M2, parent/child cases: a real Three.js Object3D chain (depth ≥ 3, negative
+// scale on one axis, parent rotation on non-uniform scale) whose `matrixWorld` we take, to
+// check that our volumes match Box3.applyMatrix4 / getBoundingSphere / Frustum.intersectsBox
+// bit-exact. Three is used here only as a reference, never in a `math*.ts` file.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -13,7 +13,7 @@ import {
 } from './index.ts';
 import { assertBits } from './bench/oracles/volumes.mjs';
 
-/** Chaîne racine → parent tourné à échelle non uniforme → enfant à échelle négative → petit-enfant. */
+/** Chain root → rotated parent with non-uniform scale → child with negative scale → grandchild. */
 function chaineProfondeurQuatre() {
   const racine = new THREE.Object3D();
   racine.position.set(5, -3, 2);
@@ -22,19 +22,19 @@ function chaineProfondeurQuatre() {
 
   const parent = new THREE.Object3D();
   parent.position.set(-2, 4, 1);
-  parent.rotation.set(0.9, -1.2, 0.4); // rotation parente sur une échelle non uniforme
+  parent.rotation.set(0.9, -1.2, 0.4); // parent rotation on a non-uniform scale
   parent.scale.set(3, 0.25, 1.7);
   racine.add(parent);
 
   const enfant = new THREE.Object3D();
   enfant.position.set(1, 1, -1);
   enfant.rotation.set(-0.5, 0.3, 0.6);
-  enfant.scale.set(-1, 1, 1); // échelle négative sur un seul axe
+  enfant.scale.set(-1, 1, 1); // negative scale on a single axis
   parent.add(enfant);
 
   const petitEnfant = new THREE.Object3D();
   petitEnfant.position.set(0.3, -0.6, 0.9);
-  petitEnfant.scale.set(2, -0.5, -3); // échelle négative sur trois axes
+  petitEnfant.scale.set(2, -0.5, -3); // negative scale on three axes
   enfant.add(petitEnfant);
 
   racine.updateMatrixWorld(true);
@@ -47,7 +47,7 @@ const boitesLocales = [
   [0, 0, 0, 0, 0, 0], // ponctuelle
 ];
 
-test('boxTransform sous chaque matrixWorld d’une chaîne de profondeur ≥ 3 égale Box3.applyMatrix4 au bit près', () => {
+test('boxTransform under each matrixWorld of a depth ≥ 3 chain equals Box3.applyMatrix4 bit-exact', () => {
   const { parent, enfant, petitEnfant } = chaineProfondeurQuatre();
   for (const noeud of [parent, enfant, petitEnfant]) {
     assert.ok(noeud.matrixWorld.elements.some((v) => v !== 0));
@@ -73,7 +73,7 @@ test('boxTransform sous chaque matrixWorld d’une chaîne de profondeur ≥ 3 �
   }
 });
 
-test('sphereFromBounds après la matrixWorld d’un petit-enfant égale getBoundingSphere au bit près', () => {
+test('sphereFromBounds after a grandchild matrixWorld equals getBoundingSphere bit-exact', () => {
   const { petitEnfant } = chaineProfondeurQuatre();
   for (const b of boitesLocales) {
     const boxThree = new THREE.Box3(
@@ -107,14 +107,14 @@ test('sphereFromBounds après la matrixWorld d’un petit-enfant égale getBound
   }
 });
 
-test('frustumExcludesBox pour une caméra posée dans la hiérarchie égale !Frustum.intersectsBox sur les boîtes monde des descendants', () => {
+test('frustumExcludesBox for a camera posed in the hierarchy equals !Frustum.intersectsBox on descendant world boxes', () => {
   const { racine, parent, enfant, petitEnfant } = chaineProfondeurQuatre();
   const camera = new THREE.PerspectiveCamera(45, 1.5, 0.3, 300);
   camera.coordinateSystem = THREE.WebGPUCoordinateSystem;
   camera.position.set(2, 1, 6);
   camera.rotation.set(0.1, -0.4, 0);
   camera.updateProjectionMatrix();
-  enfant.add(camera); // la caméra est elle-même un enfant de la chaîne
+  enfant.add(camera); // the camera is itself a child of the chain
   racine.updateMatrixWorld(true);
 
   const vp = new THREE.Matrix4().multiplyMatrices(
@@ -141,7 +141,7 @@ test('frustumExcludesBox pour une caméra posée dans la hiérarchie égale !Fru
         monde.max.y,
         monde.max.z,
       );
-      assert.equal(obtenu, attenduExclue, `nœud ${noeud.id}, boîte ${b.join(',')}`);
+      assert.equal(obtenu, attenduExclue, `node ${noeud.id}, box ${b.join(',')}`);
     }
   }
 });

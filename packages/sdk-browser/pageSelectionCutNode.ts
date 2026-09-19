@@ -15,20 +15,20 @@ import {
 } from './pageSelectionCutBounds.ts';
 
 /**
- * Décision de coupe d'un sous-arbre entier : -1 rejet, 1 acceptation, 0 indécis.
+ * Cut decision of a whole subtree: -1 reject, 1 accept, 0 undecided.
  *
- * Le test par cluster retient un cluster assez fin que son remplaçant ne couvre plus. Les deux
- * membres se bornent séparément : un plafond sous le seuil vaut pour tout le sous-arbre, un
- * plancher au-dessus du seuil aussi. Rejeter demande qu'un des deux membres soit faux partout,
- * accepter que les deux soient vrais partout ; entre les deux on descend, et la décision rendue
- * est celle qu'aurait rendue la descente complète.
+ * The per-cluster test keeps a cluster fine enough that its replacement no longer covers it.
+ * The two members bound separately: a ceiling under the threshold holds for the whole subtree,
+ * a floor above the threshold too. Rejecting requires one of the two members to be false
+ * everywhere, accepting that both be true everywhere; in between one descends, and the returned
+ * decision is the one the full descent would have returned.
  *
- * Le plancher et le plafond de l'erreur propre partagent la profondeur de la même sphère ; la
- * distance à l'axe, et sa racine carrée, n'est prise que si le plancher n'a pas déjà rejeté, et la
- * sphère du remplaçant n'est projetée que si la décision en dépend encore.
+ * The own-error floor and ceiling share the depth of the same sphere; the distance to the axis,
+ * and its square root, is taken only if the floor has not already rejected, and the
+ * replacement's sphere is projected only if the decision still depends on it.
  *
- * Le rejet que le manifeste permet déjà — aucun remplaçant encore trop grossier dans le sous-arbre —
- * reste posé par l'appelant, avec les bornes du manifeste et sur les deux passes.
+ * The reject the manifest already allows — no replacement still too coarse in the subtree —
+ * remains set by the caller, with the manifest bounds and on both passes.
  */
 export function nodeDecision<T extends PageRecord>(
   s: SelectionState<T>,
@@ -41,9 +41,9 @@ export function nodeDecision<T extends PageRecord>(
     focal = s.flatFocal;
   const ownRadius = values[at + OWN_SPHERE + 3],
     ownDepth = viewDepth(values, at + OWN_SPHERE, e);
-  // Aucun cluster du sous-arbre n'est assez fin : la coupe n'en prend aucun.
+  // No cluster of the subtree is fine enough: the cut takes none of them.
   if (errorFloorAt(values[at + OWN_FLOOR], ownDepth, ownRadius, stretch, focal) > limit) return -1;
-  // Un cluster peut encore être trop grossier : on descend.
+  // A cluster may still be too coarse: one descends.
   const ownCeil = projectedErrorAt(
     values[at + OWN_CEIL],
     viewLateral(values, at + OWN_SPHERE, e),
@@ -54,7 +54,7 @@ export function nodeDecision<T extends PageRecord>(
     s.cam.near,
   );
   if (ownCeil > limit) return 0;
-  // Tous sont assez fins ; la coupe les retient si aucun remplaçant ne les couvre encore.
+  // All are fine enough; the cut keeps them if no replacement still covers them.
   return errorFloorAt(
     values[at + PARENT_FLOOR],
     viewDepth(values, at + PARENT_SPHERE, e),
@@ -66,25 +66,26 @@ export function nodeDecision<T extends PageRecord>(
     : 0;
 }
 
-/** Le plancher d'un sous-arbre est-il strictement positif, sans le projeter ? Voir `nodeDecisionAtZero`. */
+/** Is a subtree's floor strictly positive, without projecting it? See `nodeDecisionAtZero`. */
 function floorAboveZero(values: Float64Array, error: number, radiusAt: number) {
   return error === Infinity || (error > 0 && values[radiusAt] >= 0);
 }
 
 /**
- * `nodeDecision` quand le seuil vaut zéro, sans rien projeter.
+ * `nodeDecision` when the threshold is zero, without projecting anything.
  *
- * Même identité que `cutSelectsAtZero` : une erreur projetée n'est jamais négative, donc « > 0 »
- * vaut « ≠ 0 », et les deux bornes ne rendent zéro que sur une erreur nulle — ou, pour le plancher,
- * sur une sphère absente, qui ne certifie rien. Le plafond, lui, ne passe sous zéro que s'il est
- * nul. Les décisions d'un nœud à seuil nul ne dépendent donc ni de la caméra ni des sphères, mais
- * seulement des bornes que la préparation a réduites. L'appelant ne prend ce chemin que lorsque
- * l'étirement, la focale et le plan proche de l'image sont finis et strictement positifs.
+ * Same identity as `cutSelectsAtZero`: a projected error is never negative, so "> 0" equals
+ * "≠ 0", and both bounds return zero only on a null error — or, for the floor, on a missing
+ * sphere, which certifies nothing. The ceiling, for its part, only goes under zero if it is
+ * zero. A node's decisions at a null threshold therefore depend neither on the camera nor on
+ * the spheres, but only on the bounds preparation reduced. The caller takes this path only when
+ * the frame's stretch, focal length and near plane are finite and strictly positive.
  *
- * L'identité tient sous l'invariant que `cullingBounds` maintient et que
- * `pageSelectionCutNode.test.ts` vérifie : une borne finie strictement positive vient d'un cluster
- * qui portait sa sphère, donc d'un rayon positif ou nul. Sur une borne positive sans sphère — que
- * la préparation ne produit pas —, le chemin général refuserait la donnée là où celui-ci descend.
+ * The identity holds under the invariant that `cullingBounds` maintains and that
+ * `pageSelectionCutNode.test.ts` checks: a finite strictly positive bound comes from a cluster
+ * that carried its sphere, hence a positive or zero radius. On a positive bound without a
+ * sphere — which preparation does not produce — the general path would refuse the datum where
+ * this one descends.
  */
 export function nodeDecisionAtZero(values: Float64Array, at: number) {
   if (floorAboveZero(values, values[at + OWN_FLOOR], at + OWN_SPHERE + 3)) return -1;
@@ -93,15 +94,15 @@ export function nodeDecisionAtZero(values: Float64Array, at: number) {
 }
 
 /**
- * Décision d'un sous-arbre pour la passe en cours : -1 rejet, 1 acceptation, 0 indécis.
+ * Decision of a subtree for the current pass: -1 reject, 1 accept, 0 undecided.
  *
- * L'appelant ne l'appelle, sous repli par forçage, que sur un sous-arbre qu'aucun groupe forcé ne
- * touche. Là, `forced[source]` et `forced[group]` sont faux partout, et `drawnUnderForcing` se lit
- * « erreur propre sous le seuil, remplaçant au-dessus » — mot pour mot `cutSelects`, donc les deux
- * bornes du nœud décident à l'identique — à une exception près : une grappe que rien n'a produite
- * est dessinée quelle que soit son erreur propre. Le rejet, qui ne repose que sur cette erreur,
- * demande donc en plus que tout le sous-arbre ait un groupe producteur ; l'acceptation, qui ne
- * repose que sur le plafond propre et le plancher du remplaçant, n'a rien à demander de plus.
+ * The caller only calls it, under fallback by forcing, on a subtree that no forced group
+ * touches. There, `forced[source]` and `forced[group]` are false everywhere, and
+ * `drawnUnderForcing` reads "own error under the threshold, replacement above" — word for word
+ * `cutSelects`, so both node bounds decide identically — with one exception: a cluster nothing
+ * produced is drawn whatever its own error. Reject, which rests only on that error, therefore
+ * also requires the whole subtree to have a producing group; accept, which rests only on the
+ * own ceiling and the replacement floor, has nothing more to ask.
  */
 export function subtreeDecision<T extends PageRecord>(
   s: SelectionState<T>,

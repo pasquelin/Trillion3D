@@ -4,11 +4,11 @@ import { FEEDBACK_EVERY, FEEDBACK_STRIDE } from './webgpuTileFeedback.ts';
 const STRIDE_MASK = FEEDBACK_STRIDE - 1;
 
 /**
- * Le retour d'image des textures virtuelles : le rang de la tuile qu'un pixel DEMANDE, posé dans la
- * cible de retour de l'image et réduit en compteurs par une passe de calcul (`webgpuTileReduce.ts`)
- * pour un pixel sur seize. Le niveau et l'adresse sont ceux de la lecture (`slotLod`, `${k}Entry`) :
- * ce qu'un pixel demande est ce qu'il lit. Exige `TILE_POOL_WGSL` et les lectures de l'atlas
- * (`COLOR_SAMPLE_WGSL`, `DATA_SAMPLE_WGSL`) avant ce bloc.
+ * Virtual-texture image feedback: the rank of the tile a pixel ASKS for, posted in the image's
+ * feedback target and reduced to counters by a compute pass (`webgpuTileReduce.ts`) for one pixel in
+ * sixteen. Level and address are those of the read (`slotLod`, `${k}Entry`): what a pixel asks is
+ * what it reads. Requires `TILE_POOL_WGSL` and the atlas reads (`COLOR_SAMPLE_WGSL`,
+ * `DATA_SAMPLE_WGSL`) before this block.
  */
 const request = (
   k: string,
@@ -23,18 +23,17 @@ const request = (
 
 const m = WRAP_MAP;
 /**
- * Le rang de tuile qu'un pixel demande, plus un, ou zéro : `colorRequestIndex(slot, uv, wrap, ddx,
- * ddy, next)` et `dataRequestIndex(...)`, `next` choisissant le second niveau du mélange.
+ * Tile rank a pixel asks for, plus one, or zero: `colorRequestIndex(slot, uv, wrap, ddx, ddy, next)`
+ * and `dataRequestIndex(...)`, `next` choosing the blend's second level.
  *
- * Puis la règle commune aux deux passes qui écrivent la cible de retour — résolution opaque et
- * mélange — : un pixel ne parle que si c'est sa phase (`feedbackPhase`, tous pendant une
- * convergence), et il demande UNE carte, choisie par sa POSITION (`requestPick`) : une tuile couvre
- * des dizaines de pixels, donc chaque carte et chacun des deux niveaux du mélange est nommé par une
- * part d'entre eux, et deux images complètes d'une même pose nomment le même ensemble. Le rang de
- * choix est celui de `WRAP_MAP` ; une carte absente laisse parler la couleur de base
- * (`mapRequest`). Les hôtes construisent leurs slots depuis la fiche de page ou l'item transparent.
+ * Then the rule common to both passes that write the feedback target — opaque resolve and blend —:
+ * a pixel speaks only if it is its phase (`feedbackPhase`, all of them during a convergence), and it
+ * asks for ONE map, chosen by its POSITION (`requestPick`): a tile covers dozens of pixels, so each
+ * map and each of the two blend levels is named by a share of them, and two complete images of the
+ * same pose name the same set. The pick rank is `WRAP_MAP`'s; a missing map lets the base colour
+ * speak (`mapRequest`). Hosts build their slots from the page row or the transparent item.
  */
-/** Le nombre de cartes qu'un pixel peut nommer : le rang de `WRAP_MAP`, écrit une seule fois. */
+/** Number of maps a pixel can name: the rank of `WRAP_MAP`, written once. */
 const MAP_CHOICES = Object.keys(WRAP_MAP).length;
 export const TILE_REQUEST_WGSL = `const MAP_CHOICES:u32=${MAP_CHOICES}u;
 ${request('color')}
@@ -48,7 +47,7 @@ fn requestPick(pos:vec2f,choices:u32)->RequestPick{
  let px=u32(pos.x)+u32(pos.y);
  return RequestPick(px%choices,((px/choices)&1u)==1u);
 }
-/** \`color\` : base, émissif ; \`data\` : rugosité, métal, normales, occlusion. */
+/** \`color\`: base, emissive; \`data\`: roughness, metal, normals, occlusion. */
 fn mapRequest(sel:u32,color:vec2u,data:vec4u,uv:vec2f,wrap:u32,ddx:vec2f,ddy:vec2f,next:bool)->u32{
  var slot=color.x;var isColor=true;var map=${m.base}u;
  if(sel==${m.rough}u){slot=data.x;isColor=false;map=${m.rough}u;}

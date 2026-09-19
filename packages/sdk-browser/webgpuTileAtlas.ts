@@ -12,9 +12,9 @@ import { resizeTileAtlas } from './webgpuTileAtlasResize.ts';
 import { tailId, tileId, tileKeyOf } from './webgpuTileIds.ts';
 
 /**
- * D'où viennent les texels d'une texture. `bytes` : tout tient dans la queue du sidecar, rien n'est
- * diffusé. `baked` : la queue vient du sidecar, les niveaux diffusés se lisent cuits dans le cache.
- * `host` : ni l'un ni l'autre, l'image de l'hôte passe par une texture de travail.
+ * Where a texture's texels come from. `bytes`: everything fits in the sidecar tail, nothing is
+ * streamed. `baked`: the tail comes from the sidecar, streamed levels are read cooked from the
+ * cache. `host`: neither, the host image goes through a working texture.
  */
 type TileSource =
   | { kind: 'bytes'; tail: readonly Uint8Array[] }
@@ -24,9 +24,9 @@ type TileSource =
 export type TileTexture = { layout: TileLayout; source: TileSource };
 
 /**
- * Un atlas de textures virtuelles : son pool, sa table de pages et son catalogue. Il sait quelle
- * tuile réside où, laquelle céder sa place, et il tient la table à jour ; ce qu'une tuile contient
- * et d'où cela vient est l'affaire du diffuseur.
+ * A virtual-texture atlas: its pool, its page table and its catalogue. It knows which tile
+ * resides where, which to give its place up, and it keeps the table current; what a tile contains
+ * and where that comes from is the streamer's business.
  */
 export type WebgpuTileAtlas = {
   readonly kind: 'color' | 'data';
@@ -35,21 +35,21 @@ export type WebgpuTileAtlas = {
   readonly textures: readonly TileTexture[];
   readonly evictions: number;
   readonly refused: number;
-  /** Épingle la queue de chaque texture ; `fromHost` pose celle d'une texture sans queue en octets. */
+  /** Pins the tail of each texture; `fromHost` sets that of a texture with no tail in bytes. */
   pinTails(queue: GPUQueue, fromHost: (slot: number, place: TilePlace) => void): void;
-  /** Marque vue la tuile si elle réside ; dit si c'est le cas. */
+  /** Marks the tile seen if it resides; says whether that is so. */
   touch(key: TileKey, frame: number): boolean;
-  /** Une place pour une tuile qui arrive : libre, ou reprise à la moins regardée ; `undefined`
-   *  quand tout ce que le pool porte a été regardé dans cette image — refus compté. */
+  /** A place for an arriving tile: free, or taken back from the least looked-at; `undefined`
+   *  when everything the pool carries has been looked at in this image — refusal counted. */
   place(key: TileKey, frame: number): TilePlace | undefined;
-  /** Dit si `place` aurait une place à donner dans cette image, sans rien prendre ; faux compte un
-   *  refus. La résidence se décide AVANT de lire un niveau : un pool plein pour la vue ne lance
-   *  aucune lecture pour une tuile qu'il refuserait ensuite. */
+  /** Says whether `place` would have a place to give in this image, without taking anything;
+   *  false counts a refusal. Residency is decided BEFORE reading a level: a pool full for the
+   *  view launches no read for a tile it would then refuse. */
   roomFor(frame: number): boolean;
-  /** Le niveau qui sert une tuile aujourd'hui : le sien, un ancêtre, ou la queue. */
+  /** Level that serves a tile today: its own, an ancestor, or the tail. */
   servedLevel(key: TileKey): number;
   flush(device: Pick<GPUDevice, 'queue'>): void;
-  /** Change le pool de couches en gardant ses tuiles ; rend le compte des tuiles évincées. */
+  /** Changes the layer pool while keeping its tiles; returns the count of evicted tiles. */
   resize(
     device: Pick<GPUDevice, 'createTexture' | 'createCommandEncoder' | 'queue'>,
     layers: number,
@@ -83,7 +83,7 @@ export function createWebgpuTileAtlas(
   const resident = new Map<number, number>();
   let evictions = 0,
     refused = 0;
-  // Les candidates à l'éviction, calculées une fois par image et consommées dans l'ordre.
+  // Eviction candidates, computed once per image and consumed in order.
   let candidates: number[] = [],
     candidatesFrame = -1;
   const candidatesAt = (frame: number) => {
@@ -147,7 +147,7 @@ export function createWebgpuTileAtlas(
     },
     place(key, frame) {
       const id = tileId(key);
-      // Une place libre, sinon celle que la moins regardée vient de rendre.
+      // A free place, otherwise the one the least looked-at just gave back.
       let index = pool.acquire(id, frame);
       if (index === undefined && evict(frame) !== undefined) index = pool.acquire(id, frame);
       if (index === undefined) {

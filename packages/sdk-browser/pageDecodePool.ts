@@ -28,18 +28,18 @@ const workerError = (id: number): PageDecodeAnswer => ({
 });
 
 /**
- * Un pool borné de workers de module, un travail à la fois par worker, le reste en file. Adaptateur
- * navigateur : c'est le seul fichier qui construit un `Worker`.
+ * A bounded pool of module workers, one job at a time per worker, the rest queued. Browser
+ * adapter: this is the only file that constructs a `Worker`.
  *
- * `ready` est la porte du démarrage : le premier worker reçoit une requête d'épreuve, et tant que sa
- * réponse n'est pas revenue, aucun tampon réel n'est transféré. Un démarrage qui échoue — pas de
- * `Worker`, module introuvable, `crypto` absent — laisse donc l'appelant avec ses octets intacts et
- * son repli synchrone. Après le démarrage, la disparition d'un worker casse le pool : les travaux en
- * vol répondent `PAGE_DECODE_WORKER`, et tout ce qui suit repart sur le repli.
+ * `ready` is the startup gate: the first worker receives a probe request, and until its answer
+ * has come back, no real buffer is transferred. A start that fails — no `Worker`, module not
+ * found, `crypto` missing — therefore leaves the caller with its bytes intact and its
+ * synchronous fallback. After start, a worker's disappearance breaks the pool: in-flight work
+ * answers `PAGE_DECODE_WORKER`, and everything after that goes back to the fallback.
  *
- * Avec une arène, chaque worker reçoit à sa naissance un créneau et la région qui lui correspond, et
- * les pages décodées reviennent par là plutôt que par message. Le créneau porte l'indice du worker :
- * un worker, une région, un seul écrivain. Sans arène, rien ne change.
+ * With an arena, each worker receives at birth a slot and the matching region, and decoded
+ * pages come back that way rather than by message. The slot carries the worker index: one
+ * worker, one region, one writer. Without an arena, nothing changes.
  */
 export function createPageDecodePool(size: number, arena?: PageArena) {
   const idle: Worker[] = [],
@@ -50,9 +50,9 @@ export function createPageDecodePool(size: number, arena?: PageArena) {
   let nextId = 1,
     alive = true,
     retired = false;
-  // Le module du worker porte l'extension du module qui le lance : `.ts` dans un arbre de sources
-  // servi tel quel, `.js` dans un `dist/` construit. Une chaîne fixe viserait toujours le mauvais
-  // fichier d'un des deux côtés, et un worker introuvable renverrait tout au repli sans le dire.
+  // The worker module carries the extension of the module that launches it: `.ts` in a source
+  // tree served as-is, `.js` in a built `dist/`. A fixed string would always hit the wrong file
+  // on one of the two sides, and a missing worker would send everything to the fallback without saying so.
   const source = new URL(
     import.meta.url.endsWith('.ts') ? './pageDecodeWorker.ts' : './pageDecodeWorker.js',
     import.meta.url,
@@ -87,8 +87,8 @@ export function createPageDecodePool(size: number, arena?: PageArena) {
     else if (pending.size) worker.terminate();
     else breakPool();
   };
-  /** La page publiée dans le créneau, ou rien quand le worker l'a perdue ou répondue par message.
-   *  Le créneau redevient libre dans tous les cas : une mort en plein décodage ne le confisque pas. */
+  /** The page published in the slot, or nothing when the worker lost it or answered by message.
+   *  The slot becomes free again in every case: a death mid-decode does not confiscate it. */
   const collect = async (worker: Worker, shared: PageArena, slot: number, id: number) => {
     const state = await awaitSharedPage(shared, slot);
     const served =
@@ -151,7 +151,7 @@ export function createPageDecodePool(size: number, arena?: PageArena) {
     get workers() {
       return size;
     },
-    /** Vraie une fois qu'un worker a répondu à l'épreuve de démarrage ; fausse et pool clos sinon. */
+    /** True once a worker has answered the startup probe; false and the pool closed otherwise. */
     start() {
       ready ??= (async () => {
         try {
@@ -166,7 +166,7 @@ export function createPageDecodePool(size: number, arena?: PageArena) {
       return ready;
     },
     submit,
-    /** Demande l'abandon d'une requête encore en file. Sans effet sur un décodage déjà commencé. */
+    /** Asks to drop a request still in the queue. No effect on a decode already begun. */
     cancel(id: number) {
       const worker = owner.get(id);
       if (!alive || !worker) return;
@@ -176,7 +176,7 @@ export function createPageDecodePool(size: number, arena?: PageArena) {
         breakPool();
       }
     },
-    /** Ferme le pool sans couper un travail en vol : les workers oisifs s'arrêtent tout de suite. */
+    /** Closes the pool without cutting in-flight work: idle workers stop at once. */
     retire() {
       retired = true;
       for (const worker of idle.splice(0)) worker.terminate();

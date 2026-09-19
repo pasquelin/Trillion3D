@@ -26,7 +26,7 @@ export interface CompilerEvent {
   pointer?: ProgressPointer;
   mesh?: number;
   primitive?: number;
-  /** Les avertissements de DAG d'une primitive, portés par son événement `primitive`. */
+  /** DAG warnings of a primitive, carried by its `primitive` event. */
   warnings?: DagWarning[];
   [key: string]: unknown;
 }

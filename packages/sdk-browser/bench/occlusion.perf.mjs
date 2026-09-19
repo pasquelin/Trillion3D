@@ -1,4 +1,4 @@
-// partage des occulteurs et test d'occlusion d'une coupe entière.
+// Sharing occluders and occlusion test of an entire cut.
 import { createHizCounts } from '../hizCounts.ts';
 import { countUnoccluded } from '../hizUnoccluded.ts';
 import { splitOccludersInto } from '../hizSplit.ts';
@@ -17,12 +17,12 @@ const pyramide = buildHizPyramid(profondeur, LARGEUR, HAUTEUR);
 const cam = camera(6, 0.1, LARGEUR / HAUTEUR),
   viewport = [LARGEUR, HAUTEUR];
 const grande = boites({ count: 20000 }),
-  cas = (pages, nom) => ({ nom, entree: pages, taille: pages.length });
+  cas = (pages, name) => ({ name, input: pages, size: pages.length });
 const jeux = [
-  cas(grande, '20 000 boîtes dont dégénérées'),
-  cas(grande.slice(0, 1), 'une boîte'),
-  cas([], 'aucune boîte'),
-  cas(grande.filter((_, i) => i % 311 === 0).slice(0, 64), 'que des coupes du plan proche'),
+  cas(grande, '20 000 boxes including degenerate'),
+  cas(grande.slice(0, 1), 'one box'),
+  cas([], 'no box'),
+  cas(grande.filter((_, i) => i % 311 === 0).slice(0, 64), 'only near plane cuts'),
 ];
 
 const urls = (pages) => pages.map((page) => page.url);
@@ -30,7 +30,7 @@ const occluders = [],
   rest = [];
 
 const resSplit = await mesure({
-  nom: 'splitOccluders',
+  name: 'splitOccluders',
   fichier: 'packages/sdk-browser/hizSplit.ts',
   cas: jeux,
   calcul: (pages) => {
@@ -45,7 +45,7 @@ const resSplit = await mesure({
 });
 
 const resCount = await mesure({
-  nom: 'countUnoccluded',
+  name: 'countUnoccluded',
   fichier: 'packages/sdk-browser/hizUnoccluded.ts',
   cas: jeux,
   calcul: (pages) => {
@@ -66,13 +66,13 @@ const resCount = await mesure({
 });
 
 await stress({
-  nom: 'splitOccludersInto extremes',
+  name: 'splitOccludersInto extremes',
   calcul: (p) => splitOccludersInto(p, cameraMoteur(cam), viewport, [], []),
-  extremes: [{ nom: 'vide', entree: [] }],
+  extremes: [{ name: 'empty', input: [] }],
 });
 
 rapport(
   'occlusion',
   [resSplit, resCount],
-  'A3 et A4 isolent les mêmes occulteurs et rejettent les mêmes boîtes',
+  'A3 and A4 isolate exact same occluders and reject exact same boxes',
 );

@@ -1,33 +1,33 @@
 /**
- * Matrices 4×4 du socle mathématique : fonctions libres sur des tableaux colonne-major (`m[colonne ·
- * 4 + ligne]`), sortie passée en paramètre, aucune allocation. Le produit et l'inverse suivent terme
- * à terme les formules de la bibliothèque 3D de référence, dans le même ordre d'opérations
- * flottantes : un appel remplacé rend les mêmes bits. `sdk-browser/bench/socle-math.bench.mjs` le
- * prouve, et chiffre l'écart là où une formule du dépôt diffère de la référence.
+ * 4×4 matrices of the math kernel: free functions on column-major arrays (`m[column ·
+ * 4 + row]`), output passed in, no allocation. Product and inverse follow term
+ * by term the formulas of the reference 3D library, in the same floating-point
+ * operation order: a replaced call yields the same bits. `sdk-browser/bench/socle-math.bench.mjs`
+ * proves it, and quantifies the gap where a formula in this repo differs from the reference.
  */
 
-/** Ce qu'une sortie accepte : `Float32Array`, `Float64Array` ou tableau ordinaire. */
+/** What an output accepts: `Float32Array`, `Float64Array` or a plain array. */
 export type NumberSink = { [index: number]: number };
 
 /**
- * `out = a · b`. Les trente-deux entrées sont lues avant la première écriture, donc `out` peut être
- * `a` ou `b`. Chaque terme est la somme de quatre produits, sans zéro initial : une somme commencée
- * à `0` changerait le signe d'un zéro négatif.
+ * `out = a · b`. The thirty-two inputs are read before the first write, so `out` may be
+ * `a` or `b`. Each term is the sum of four products, with no initial zero: a sum started
+ * at `0` would change the sign of a negative zero.
  *
- * UN SEUL TYPE DE TAMPON, `Float64Array`, EN ENTRÉE COMME EN SORTIE. Les quarante-huit accès de ce
- * corps sont quarante-huit sites de lecture et d'écriture indexées, partagés par TOUS les appelants :
- * un seul appelant qui passe un `Float32Array` ou un tableau ordinaire les rend polymorphes, et les
- * boucles chaudes — les matrices monde d'une hiérarchie, les lots — le paient ensuite à chaque
- * élément. Les appelants qui partent d'une matrice de la bibliothèque hôte la recopient donc d'abord
- * dans un tampon possédé : seize nombres copiés une fois par racine ou par matrice distincte, contre
- * un site polymorphe pour des milliers de nœuds. La simple précision est une conversion d'ENVOI :
- * elle se fait en recopiant le résultat dans le tampon du GPU, jamais en écrivant ici, et ne change
- * aucun bit — chaque terme est calculé en double puis arrondi une fois, comme avant.
+ * ONE BUFFER TYPE ONLY, `Float64Array`, ON INPUT AND OUTPUT. The forty-eight accesses of this
+ * body are forty-eight indexed read and write sites, shared by ALL callers:
+ * a single caller that passes a `Float32Array` or a plain array makes them polymorphic, and the
+ * hot loops — a hierarchy's world matrices, the batches — then pay it on every
+ * element. Callers that start from a host-library matrix therefore copy it first
+ * into an owned buffer: sixteen numbers copied once per root or distinct matrix, against
+ * one polymorphic site for thousands of nodes. Single precision is a SEND conversion:
+ * it is done by copying the result into the GPU buffer, never by writing here, and changes
+ * no bit — each term is computed in double then rounded once, as before.
  *
- * Les seize indices d'écriture sont des constantes. Un décalage de sortie en paramètre les rendrait
- * calculés, donc payables d'une addition et d'un contrôle de bornes chacun : mesuré à 6 % du produit
- * entier. Un appelant qui compose dans un grand tampon lui passe une sous-vue, ou compose à part puis
- * recopie ses seize nombres.
+ * The sixteen write indices are constants. An output offset as a parameter would make them
+ * computed, hence payable of an add and a bounds check each: measured at 6% of the whole
+ * product. A caller that composes into a large buffer passes it a subview, or composes aside then
+ * copies its sixteen numbers.
  */
 export function multiplyMatrix4(out: Float64Array, a: Float64Array, b: Float64Array) {
   const a11 = a[0],
@@ -82,8 +82,8 @@ export function multiplyMatrix4(out: Float64Array, a: Float64Array, b: Float64Ar
 }
 
 /**
- * Déterminant 4×4, développé selon la dernière ligne comme la référence, parenthèses et signes
- * unaires compris. Sur une matrice affine, les trois premiers termes valent `0 · cofacteur`.
+ * 4×4 determinant, expanded along the last row like the reference, parentheses and unary
+ * signs included. On an affine matrix, the first three terms are `0 · cofactor`.
  */
 export function determinantMatrix4(m: ArrayLike<number>) {
   const n11 = m[0],
@@ -135,11 +135,11 @@ export function determinantMatrix4(m: ArrayLike<number>) {
 }
 
 /**
- * Déterminant de la seule partie linéaire (le bloc 3×3 des colonnes 0, 1 et 2) d'une matrice 4×4,
- * développé selon la première colonne. Son signe dit si la transformation renverse l'orientation,
- * donc quelle face un dessin doit éliminer. Ce n'est pas le développement de `determinantMatrix4` :
- * l'écart relatif est de quelques ulps, et le signe ne peut différer qu'au voisinage d'une matrice
- * singulière, où aucun des deux arrondis ne décide. Le banc chiffre les deux.
+ * Determinant of the linear part only (the 3×3 block of columns 0, 1 and 2) of a 4×4 matrix,
+ * expanded along the first column. Its sign says whether the transform reverses orientation,
+ * hence which face a draw must cull. This is not the expansion of `determinantMatrix4`:
+ * the relative gap is a few ulps, and the sign can differ only near a singular
+ * matrix, where neither rounding decides. The bench quantifies both.
  */
 export function linearPartDeterminant(m: ArrayLike<number>) {
   return (
@@ -149,15 +149,15 @@ export function linearPartDeterminant(m: ArrayLike<number>) {
   );
 }
 
-/** L'identité colonne-major, lue et jamais écrite : la pose d'un nœud ou d'une racine sans pose. */
+/** Column-major identity, read and never written: the pose of a node or a root with no pose. */
 export const IDENTITY_MATRIX4: Float64Array = new Float64Array([
   1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
 ]);
 
 /**
- * Recopie les seize flottants de `m` dans `out`, chacun à son décalage. Une boucle plutôt que
- * `TypedArray.prototype.set` : sur une vue, `set` coûte un appel natif, et les sorties ne sont pas
- * toutes typées (matrices de l'hôte, tampons GPU en simple précision — la seule conversion, ici).
+ * Copies the sixteen floats of `m` into `out`, each at its offset. A loop rather than
+ * `TypedArray.prototype.set`: on a view, `set` costs a native call, and the outputs are not
+ * all typed (host matrices, GPU single-precision buffers — the only conversion, here).
  */
 export function copyMatrix4(out: NumberSink, m: ArrayLike<number>, outAt = 0, mAt = 0) {
   for (let i = 0; i < 16; i++) out[outAt + i] = m[mAt + i];

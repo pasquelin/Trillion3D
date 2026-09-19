@@ -1,25 +1,24 @@
-//! Le découpage d'une surface en parties de matériau, et la primitive glTF que chacune donne.
+//! Splitting a surface into material parts, and the glTF primitive each one yields.
 //!
-//! Un `shadingEngine` réclame soit le maillage entier, soit les faces que sa liste de composants
-//! nomme. Une liaison entière ne prend donc que ce qu'aucune liaison par faces n'a pris : c'est
-//! ainsi qu'un maillage à plusieurs matériaux rend plusieurs primitives, sans qu'aucune face ne
-//! soit dessinée deux fois.
+//! A `shadingEngine` claims either the whole mesh, or the faces its component list names. A
+//! whole binding therefore takes only what no per-face binding has taken: that is how a mesh
+//! with several materials yields several primitives, without any face being drawn twice.
 //!
-//! Une primitive glTF porte ses attributs pour tous ses sommets ou pour aucun. Une part dont une
-//! face seulement porte des coordonnées de texture n'en porte donc aucune, et l'écart est compté :
-//! donner `(0, 0)` aux autres inventerait un placage que le fichier n'écrit pas. Ce que devient un
-//! coin de face, lui, se lit dans `corner`.
+//! A glTF primitive carries its attributes for all its vertices or for none. A part of which
+//! only one face carries texture coordinates therefore carries none, and the mismatch is
+//! counted: giving `(0, 0)` to the others would invent a mapping the file does not write. What
+//! a face corner becomes is read in `corner`.
 use super::*;
 use crate::import::{primitive, Vertices};
 use crate::plugins::scene::ngon::Ngon;
 
-/// Une part de matériau : son matériau glTF, et les faces qu'elle porte.
+/// A material part: its glTF material, and the faces it carries.
 struct Part {
     material: Option<usize>,
     faces: Vec<usize>,
 }
 
-/// Écrit les primitives de la surface et pose le maillage dans la table.
+/// Writes the surface primitives and places the mesh in the table.
 pub(super) fn emit(world: &mut World<'_>, node: usize, surface: &Surface) -> Option<usize> {
     let mut primitives = Vec::new();
     let mut triangles = 0usize;
@@ -43,8 +42,8 @@ pub(super) fn emit(world: &mut World<'_>, node: usize, surface: &Surface) -> Opt
     Some(world.scene.meshes.len() - 1)
 }
 
-/// Les parts de ce maillage. Sans aucune liaison, une seule part sans matériau porte toutes les
-/// faces : un maillage qu'aucun ensemble ne nuance reste visible.
+/// Parts of this mesh. With no binding, a single part without a material carries every face: a
+/// mesh that no set shades stays visible.
 fn parts(world: &mut World<'_>, node: usize, faces: usize) -> Vec<Part> {
     let binds: Vec<(Option<usize>, Option<Vec<usize>>)> = world
         .graph
@@ -79,8 +78,8 @@ fn parts(world: &mut World<'_>, node: usize, faces: usize) -> Vec<Part> {
         });
     }
     let rest: Vec<usize> = (0..faces).filter(|face| !taken[*face]).collect();
-    // Ce qu'aucune liaison par faces n'a pris revient à la liaison entière quand il y en a une,
-    // et sort sinon sans matériau : une face que le fichier écrit est une face de la scène.
+    // What no per-face binding has taken goes back to the whole binding when there is one, and
+    // otherwise comes out without a material: a face the file writes is a face of the scene.
     let whole = binds.iter().find(|(_, named)| named.is_none());
     if whole.is_none() {
         world
@@ -100,7 +99,7 @@ fn parts(world: &mut World<'_>, node: usize, faces: usize) -> Vec<Part> {
     out
 }
 
-/// Une part en primitive glTF, avec son nombre de triangles.
+/// A part as a glTF primitive, with its triangle count.
 fn build(world: &mut World<'_>, surface: &Surface, part: &Part) -> Option<(Value, usize)> {
     let carried = |face: &usize| surface.uv_slots.get(*face).is_some_and(|uv| !uv.is_empty());
     let textured = !surface.uvs.is_empty() && part.faces.iter().all(carried);
@@ -122,8 +121,8 @@ fn build(world: &mut World<'_>, surface: &Surface, part: &Part) -> Option<(Value
         if corners.len() != ring {
             continue;
         }
-        // Le découpeur relit le jeton par tranche de faces : un seul maillage énorme s'arrête
-        // aussi. Ce qui est déjà posé reste en place, et `convert` refuse la scène entière ensuite.
+        // The cutter rereads the token per face slice: a single huge mesh stops too. What is
+        // already placed stays, and `convert` then refuses the whole scene.
         match surface.cut(&mut cutter, *face, cancelled) {
             None => break,
             Some(false) => world.refuse(report::NGON_UNCUT),

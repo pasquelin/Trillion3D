@@ -71,16 +71,16 @@ export function pageCarriesClusterError(page: Page) {
 export function primitiveUsesClusterErrors(primitive: Pick<Primitive, 'pages'>) {
   return primitive.pages.length > 0 && primitive.pages.every(pageCarriesClusterError);
 }
-/** Le rangement d'une primitive que le compilateur garde d'un seul tenant, hors du DAG de clusters :
- *  un maillage entier, ordre source conservé. Trois propriétés de matériau y mènent aujourd'hui — la
- *  transmission, la peau et les cibles de morphing —, jamais un nom d'objet. */
+/** Layout of an unsplit primitive kept outside the cluster DAG by the compiler:
+ *  full mesh, source order preserved. Three material properties lead there today —
+ *  transmission, skinning, and morph targets —, never an object name. */
 export const UNSPLIT_PASS = 'shared-blend';
 /**
- * Une primitive que ce runtime sait dessiner. Deux formes, et deux seulement : un DAG dont chaque
- * cluster porte sa bande d'erreur d'écran, ou un maillage d'un seul tenant que le compilateur a
- * laissé hors du DAG — celui-là n'a aucune page, donc aucune bande, et c'est sa définition, pas une
- * lacune. Une primitive `shared-blend` qui porterait quand même des pages vient d'un compilateur
- * qu'on ne lit pas : elle est refusée comme un DAG sans bande.
+ * A primitive that this runtime can draw. Two forms, and two only: a DAG where each
+ * cluster carries its screen error band, or an unsplit mesh that the compiler
+ * left outside the DAG — that one has no pages, hence no band, which is its definition, not a
+ * gap. A shared-blend primitive that still carries pages comes from a compiler
+ * that we do not read: it is rejected like a DAG without band.
  */
 export function primitiveIsDrawable(primitive: Pick<Primitive, 'pages' | 'pass'>) {
   return primitive.pass === UNSPLIT_PASS
@@ -141,34 +141,34 @@ export interface Primitive {
   };
 }
 /**
- * La chaîne de mips d'une texture d'atlas : la queue dans le sidecar — du premier niveau dont aucun
- * côté ne dépasse `PREVIEW_BASE` au 1×1, en RGBA8 dans l'encodage de son atlas — et, au-dessus,
- * `bakedLevels` fichiers PNG sans perte dans le cache, un par niveau du 0 au `bakedLevels - 1`, à
- * l'adresse que `ClusterManifest.textures.url` gabarit. Le moteur écrit chaque niveau reçu dans le
- * niveau de mip de même rang de sa couche et échantillonne la queue résidente sans rien recalculer.
+ * The mip chain of an atlas texture: the tail in the sidecar — from the first level where no
+ * side exceeds PREVIEW_BASE down to 1x1, in RGBA8 in its atlas encoding — and, above it,
+ * bakedLevels lossless PNG files in the cache, one per level from 0 to bakedLevels - 1, at
+ * the address templated by ClusterManifest.textures.url. The engine writes each received level into the
+ * same-rank mip level of its layer and samples the resident tail without recalculating anything.
  */
 export interface TexturePreview {
-  /** Rang dans le tableau `textures` de la scène préparée. */
+  /** Index in the textures array of the prepared scene. */
   texture: number;
-  /** Rang dans son tableau `images`, où se lit l'`uri` source quand il y en a une. */
+  /** Index in its images array, where the source uri is read when present. */
   image: number;
   width: number;
   height: number;
-  /** 0 quand les octets venaient d'une `uri` d'image, 1 quand ils venaient de `sourceBufferView`. */
+  /** 0 when bytes came from an image uri, 1 when they came from sourceBufferView. */
   sourceKind: number;
-  /** Vue de tampon de la scène préparée, ou -1 pour une source `uri`. */
+  /** Buffer view of the prepared scene, or -1 for a uri source. */
   sourceBufferView: number;
-  /** SHA-256 des octets sources décodés. */
+  /** SHA-256 of decoded source bytes. */
   sha256: string;
-  /** L'atlas que cette entrée sert : `PREVIEW_ATLAS_COLOR` ou `PREVIEW_ATLAS_DATA`. */
+  /** The atlas this entry serves: PREVIEW_ATLAS_COLOR or PREVIEW_ATLAS_DATA. */
   atlas: number;
-  /** Rang du premier niveau porté dans la chaîne de mips de la source ; 0 quand elle tient déjà
-   *  sous `PREVIEW_BASE` et que le sidecar porte donc sa pleine résolution. */
+  /** Index of the first level carried in the source's mip chain; 0 when it already fits
+   *  under PREVIEW_BASE and the sidecar thus carries its full resolution. */
   firstLevel: number;
-  /** Niveaux cuits en fichiers dans le cache, du 0 au `bakedLevels - 1` ; `firstLevel` quand la
-   *  chaîne est entière, 0 quand rien n'a été écrit et que le moteur charge l'image source. */
+  /** Levels baked into files in the cache, from 0 to bakedLevels - 1; firstLevel when the
+   *  chain is complete, 0 when nothing was written and the engine loads the source image. */
   bakedLevels: number;
-  /** Les niveaux portés dans l'ordre, du plus fin au 1×1, chacun une vue sur les octets du sidecar. */
+  /** Levels carried in order, from finest to 1x1, each a view on sidecar bytes. */
   levels: Uint8Array<ArrayBuffer>[];
 }
 export interface ClusterManifest {
@@ -187,14 +187,14 @@ export interface ClusterManifest {
   totalNodes: number;
   autonomousScene?: string | null;
   primitives: Primitive[];
-  /** Une entrée par (texture, atlas) décodée, triée par texture puis par atlas ; vide sans image
-   *  décodable. */
+  /** One entry per decoded (texture, atlas), sorted by texture then by atlas; empty without a
+   *  decodable image. */
   texturePreviews?: TexturePreview[];
-  /** Le gabarit des niveaux cuits, relatif au manifeste : `{sha}` l'empreinte de l'image source,
-   *  `{kind}` le nom de l'atlas (`PREVIEW_ATLAS_NAMES`), `{level}` le rang du niveau. Absent d'un
-   *  cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du sidecar. */
+  /** Template for baked levels, relative to manifest: {sha} the source image digest,
+   *  {kind} the atlas name (PREVIEW_ATLAS_NAMES), {level} the level rank. Absent from a
+   *  cache compiled before baked levels, which this reader rejects via sidecar version. */
   textures?: { url: string };
-  /** Où lire le proxy résident de la scène et son BVH : la géométrie que les rayons touchent.
-   *  Absent d'un cache compilé avant le rebond, qui reste lisible tel quel. */
+  /** Where to read the resident scene proxy and its BVH: geometry hit by rays.
+   *  Absent from a cache compiled before bounce, which remains readable as is. */
   proxy?: SceneProxyDescriptor;
 }

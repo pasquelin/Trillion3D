@@ -4,33 +4,33 @@ import { BOUNCE_GRID_WGSL, INVERSE_PI_WGSL } from './bounceGridWgsl.ts';
 import { PROXY_ALBEDO_WGSL, residentProxyWgsl } from './bounceNodeWgsl.ts';
 import { BOUNCE_TRACE_WGSL } from './bounceTraceWgsl.ts';
 
-/** Fils d'un groupe de travail de la passe de cache : une maille par fil. */
+/** Threads of a cache-pass workgroup: one texel per thread. */
 export const SURFACE_WORKGROUP = 64;
-/** Mailles du cache de surfaces : deux faces par triangle du proxy, une au moins. */
+/** Surface-cache texels: two faces per proxy triangle, at least one. */
 export const surfaceCacheTexels = (triangleCount: number) => Math.max(1, triangleCount * 2);
 /**
- * Octets du cache, unique source de vérité : la passe qui le crée et le plan des liaisons lisent la
- * même formule. Une maille tient un `vec4f` — la radiance sortante de la face et son drapeau.
+ * Cache bytes, the single source of truth: the pass that creates it and the binding plan
+ * read the same formula. A texel holds a `vec4f` — the face's outgoing radiance and its flag.
  */
 export const surfaceCacheBytes = (triangleCount: number) => surfaceCacheTexels(triangleCount) * 16;
-/** Étiquette de la passe mesurée ; elle rejoint l'étape « Rebond » comme celle des sondes. */
+/** Label of the measured pass; it joins the "Bounce" step like the probe pass. */
 export const BOUNCE_SURFACE_PASS = 'WG bounce surface cache v1';
 
 /**
- * Le cache de surfaces du proxy (LR5) : une radiance sortante par triangle et par face.
+ * Proxy surface cache (LR5): one outgoing radiance per triangle and per face.
  *
- * Sans lui, chaque rayon de sonde qui touche une surface y rejouait toutes les lampes et tous leurs
- * rayons d'ombre : cinq traversées du proxy par rayon au lieu d'une, et le même point réévalué
- * autant de fois que des rayons le touchaient. Le cache paie ce travail une fois par maille, sur un
- * budget fixe par image, et le rayon n'a plus qu'une lecture à faire. Le rebond multiple devient
- * gratuit : la maille porte déjà l'indirect du tour précédent, relu dans la grille de sondes.
+ * Without it, every probe ray that hit a surface replayed every light and all of their
+ * shadow rays there: five proxy traversals per ray instead of one, and the same point
+ * re-evaluated as many times as rays hit it. The cache pays that work once per texel, on
+ * a fixed per-frame budget, and the ray has only a read left. Multiple bounce becomes
+ * free: the texel already carries the previous round's indirect, reread from the probe grid.
  *
- * La maille est le triangle du proxy lui-même, dont le compilateur borne la taille : c'est ce qui
- * donne au cache une résolution connue en mètres, sans atlas ni projection. Les deux faces sont
- * tenues séparément — un mur n'est pas éclairé pareil des deux côtés, et le proxy est double face.
+ * The texel is the proxy triangle itself, whose size the compiler bounds: that is what
+ * gives the cache a known resolution in metres, with no atlas and no projection. Both
+ * faces are held separately — a wall is not lit the same on both sides, and the proxy is two-sided.
  *
- * Rien n'est cuit : le cache est reconstruit par balayage dès qu'une lampe change, comme une carte
- * d'ombre est redessinée. Une scène immobile n'en met aucune maille à jour.
+ * Nothing is baked: the cache is rebuilt by sweep as soon as a light changes, the way a
+ * shadow map is redrawn. A still scene updates no texel.
  */
 export const BOUNCE_SURFACE_SHADER = `
 struct SurfaceSpan{span:vec4u,}
@@ -48,9 +48,9 @@ ${PROXY_ALBEDO_WGSL}
 const LIGHTS_PER_TEXEL:u32=${BOUNCE_SETTINGS.lightsPerRay}u;
 ${INVERSE_PI_WGSL}
 /**
- * L'irradiance des lampes déclarées en un point de maille. Les ombres sont tracées contre le proxy,
- * ce qui garde une porte fermée fermée pour le rebond comme pour le direct ; le nombre de rayons
- * d'ombre est plafonné, et ce qu'il écarte l'est dans l'ordre des lampes, donc de façon déterminée.
+ * Irradiance of the declared lights at a texel point. Shadows are traced against the proxy,
+ * which keeps a closed door closed for bounce as for the direct term; the shadow-ray count
+ * is capped, and what it skips is skipped in light order, hence deterministically.
  */
 fn directIrradiance(P:vec3f,N:vec3f,reach:f32)->vec3f{
  var total=vec3f(0.0);
@@ -79,13 +79,13 @@ fn updateSurface(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=cursor.span.y||total==0u){return;}
  let texel=(cursor.span.x+id.x)%total;
  let triangle=texel>>1u;
- // Face zéro : le côté de la normale géométrique. Face un : l'autre. Le sens d'enroulement de la
- // source n'entre jamais en jeu — il n'est fiable sur aucune scène importée.
+ // Face zero: the geometric-normal side. Face one: the other. The source winding
+ // order never comes into play — it is reliable on no imported scene.
  let normal=select(proxyNormal(triangle),-proxyNormal(triangle),(texel&1u)==1u);
  let point=proxyCentre(triangle);
  let reach=bounce.reach.x;
- // Direct exact de l'image, plus l'indirect que la grille a déjà convergé : c'est ce terme-là qui
- // ferme la série des rebonds, un ordre de plus à chaque balayage.
+ // Exact direct of the frame, plus the indirect the grid has already converged: that is
+ // the term that closes the bounce series, one more order on every sweep.
  let irradiance=directIrradiance(point,normal,reach)+sampleBounce(point,normal);
  surface[texel]=vec4f(proxyAlbedoOf(triangle)*irradiance*INVERSE_PI,1.0);
 }`;

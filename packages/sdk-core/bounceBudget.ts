@@ -1,42 +1,29 @@
 import { BOUNCE_SETTINGS } from './bounceContracts.ts';
 
 /**
- * Le budget du rebond, en millisecondes (X4, LR2).
+ * Bounce budget in milliseconds.
  *
- * La spécification demande une durée, pas un compte : « la cadence ne bouge jamais, c'est la lumière
- * qui converge ». Le lot précédent tenait un nombre de rayons fixe, réglé à la main sur une scène et
- * faux sur toutes les autres. Ici le moteur reçoit une durée cible par image, lit le chronomètre de
- * l'étape « Rebond » de la carte graphique — celui du profil par étape, pas une estimation — et
- * corrige la fraction de son plafond de travail qu'il encodera à l'image suivante.
+ * The specification mandates a time duration, not a fixed ray count: frame rate stays constant,
+ * while light converges progressively. The engine receives a target frame duration, measures GPU
+ * timestamps from the bounce pass, and dynamically adjusts the fraction of workload encoded next.
  *
- * La correction est multiplicative et lissée : la fraction visée est celle qui ramènerait la durée
- * mesurée sur la consigne, et l'on n'en reprend qu'une part à chaque relevé. Deux bornes tiennent
- * la boucle : la fraction ne dépasse jamais un — les plafonds publiés restent des bornes connues
- * avant l'image (X2) — et ne descend jamais sous son plancher, sous lequel la convergence
- * n'avancerait plus du tout.
- *
- * Approximation nommée : les relevés d'horodatage reviennent avec plusieurs images de retard et
- * n'arrivent qu'une image sur trois ou sur douze selon ce que l'hôte a demandé. La durée observée
- * décrit donc une image déjà encodée, à une fraction voisine de la fraction courante ; c'est le
- * lissage qui rend la boucle stable malgré ce retard. Sans chronomètre, la fraction reste à un et
- * le rebond se comporte exactement comme au lot précédent, ce qui est déclaré et non deviné.
+ * Adjustment is smoothed and bounded: the fraction never exceeds 1 (published ceilings remain
+ * strict upper limits) and never drops below the floor (ensuring convergence progress).
  */
 export interface BounceBudget {
-  /** Fraction du plafond de travail que l'image encodera : entre le plancher et un. */
+  /** Fraction of work ceiling to encode: bounded between floor and 1. */
   readonly load: number;
-  /** La dernière durée d'étape observée, ou `null` tant qu'aucune ne l'a été. */
+  /** Last observed stage duration, or `null` until recorded. */
   readonly lastMs: number | null;
-  /** Relevés retenus. Zéro veut dire que l'appareil ne sait pas chronométrer ses passes. */
+  /** Retained samples count. Zero means device does not support timestamp queries. */
   readonly samples: number;
-  /** La consigne, en millisecondes, telle que l'hôte l'a réglée. */
+  /** Target duration in milliseconds set by host. */
   readonly budgetMs: number;
   observe(ms: number | null): void;
 }
 
 /**
- * Le lot d'une image : la fraction du plafond publié que le budget tient, arrondie, jamais nulle.
- * La passe de sondes et celle du cache de surfaces plafonnent de la même façon — deux arrondis
- * séparés auraient fini par ne plus avancer au même rythme sous le même budget.
+ * Work batch for a frame: fraction of published ceiling sustainable under budget, non-zero.
  */
 export function bounceBatchOf(ceiling: number, load: number) {
   return Math.max(1, Math.round(ceiling * load));
@@ -45,7 +32,7 @@ export function bounceBatchOf(ceiling: number, load: number) {
 export function createBounceBudget(budgetMs: number): BounceBudget {
   const target = Number.isFinite(budgetMs) && budgetMs > 0 ? budgetMs : BOUNCE_SETTINGS.budgetMs;
   const { budgetSmoothing, budgetFloor } = BOUNCE_SETTINGS;
-  /** Les deux bornes de la boucle : jamais au-delà des plafonds publiés, jamais sous le plancher. */
+  /** Both loop bounds: never beyond published ceilings, never below the floor. */
   const bounded = (fraction: number) => Math.min(1, Math.max(budgetFloor, fraction));
   let load = 1,
     lastMs: number | null = null,
@@ -62,8 +49,8 @@ export function createBounceBudget(budgetMs: number): BounceBudget {
     },
     budgetMs: target,
     observe(ms) {
-      // Une étape qui n'a pas eu lieu, un relevé tronqué ou un appareil sans horodatage ne disent
-      // rien : la fraction ne bouge pas plutôt que de suivre un zéro qui n'est pas une mesure.
+      // Skipped passes, truncated queries or devices lacking timestamp support produce no data:
+      // the fraction remains unchanged rather than reacting to an artificial zero.
       if (ms === null || !Number.isFinite(ms) || ms <= 0) return;
       lastMs = ms;
       samples++;

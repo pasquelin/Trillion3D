@@ -1,18 +1,19 @@
-// Défaut 10 : « sous une réflexion, le rejet par cône supprime des faces visibles, en CPU comme en
-// GPU ». Ce script tranche la thèse laissée par le lot du défaut 6 en opposant trois lectures des
-// mêmes 6 916 cas, toutes mesurées, aucune supposée :
+// Defect 10: "under a reflection, cone rejection culls visible faces, on CPU as on
+// GPU". This script settles the thesis left by the defect-6 batch by opposing three
+// readings of the same 6,916 cases, all measured, none assumed:
 //
-//   1. l'orientation géométrique BRUTE des sommets transformés (`veriteTerrain`, celle du lot 6) ;
-//   2. ce que le GPU dessine vraiment — rasterisation réelle avec l'état de face du moteur, dont le
-//      `frontFace` que `windingCw` inverse sous réflexion, comme Three en WebGL ;
-//   3. ce que le rasteriseur CPU du tampon de visibilité dessine (`rasterVisibility`).
+//   1. RAW geometric orientation of the transformed vertices (`veriteTerrain`, that of batch 6);
+//   2. what the GPU actually draws — real rasterisation with the engine's face state,
+//      including the `frontFace` that `windingCw` flips under reflection, like Three in WebGL;
+//   3. what the CPU visibility-buffer rasteriser draws (`rasterVisibility`).
 //
-// Verdict : la thèse du lot 6 est FAUSSE. Le cône ne supprime aucun cluster que le GPU dessine
-// (0 sur 6 916, dont 3 456 réflexions) ; ses 54 « suppressions » sont des cas que la vérité brute
-// dit visibles et que le moteur ne dessine pas, parce qu'il échange la face éliminée sous réflexion.
-// Multiplier l'axe du cône par `sign(det)` ne corrigerait rien : cela casserait l'accord.
-// Le vrai défaut est ailleurs et il est bien en CPU : `visibilityRaster` était le seul chemin à ne
-// pas échanger la face éliminée, et il dessinait donc exactement les faces que le cône supprime.
+// Verdict: batch 6's thesis is FALSE. The cone culls no cluster that the GPU draws
+// (0 of 6,916, of which 3,456 are reflections); its 54 "drops" are cases that raw truth
+// calls visible and that the engine does not draw, because it swaps the culled face under
+// reflection. Multiplying the cone axis by `sign(det)` would fix nothing: it would break
+// the match. The real defect is elsewhere and it is on the CPU: `visibilityRaster` was the
+// only path that did not swap the culled face, and so it drew exactly the faces the cone
+// culls.
 //
 // node --experimental-strip-types \
 //   test/justesse/reflexion-cone.mjs
@@ -24,10 +25,10 @@ import { pageVisible, sensDuMoteur, VUE } from './reflexionCas.mjs';
 import { dessineParLeMoteur } from './inverseTransposeOracle.mjs';
 import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
 
-// --- Ce que le GPU dessine réellement : l'oracle d'orientation vraie, écrit une seule fois -------
+// --- What the GPU actually draws: the true-orientation oracle, written once ---------------------
 const gpu = await dessineParLeMoteur(tousLesCas);
 
-// --- Ce que le CPU dessine, et ce que le cône décide --------------------------------------------
+// --- What the CPU draws, and what the cone decides ----------------------------------------------
 const pixelsCpu = tousLesCas.map((cas) => {
   const { ids } = rasterVisibility([pageVisible(cas)], cameraMoteur(camera), VUE);
   let n = 0;
@@ -53,10 +54,10 @@ const mesure = {
   dessineParLeCpu: compte(dessineCpu),
   desaccordCpuGpu: compte((i) => dessineCpu(i) !== dessineGpu(i)),
   desaccordSansReflexion: compte((i) => dessineCpu(i) !== dessineGpu(i) && !miroir(i)),
-  // La thèse du lot 6, mesurée : le cône supprime-t-il ce que le moteur dessine ?
+  // Batch 6's thesis, measured: does the cone cull what the engine draws?
   coneSupprimeUnDessinGpu: compte((i) => rejette(i) && dessineGpu(i)),
   coneSupprimeUnDessinCpu: compte((i) => rejette(i) && dessineCpu(i)),
-  // Ce que le lot 6 comptait : le cône contre la vérité BRUTE, qui ignore l'échange de face.
+  // What batch 6 counted: the cone against RAW truth, which ignores the face swap.
   coneContreVeriteBrute: compte((i) => rejette(i) && verites[i].avantVisible),
   veriteBruteDitVisibleEtRienDeDessine: compte((i) => verites[i].avantVisible && !dessineGpu(i)),
   dontDesReflexions: compte((i) => verites[i].avantVisible && !dessineGpu(i) && miroir(i)),
@@ -64,49 +65,49 @@ const mesure = {
 };
 console.log(JSON.stringify(mesure, null, 2));
 
-// --- La thèse du lot 6 est réfutée --------------------------------------------------------------
-assert.ok(mesure.reflexions > 3000, 'l’échantillon doit contenir des milliers de réflexions');
+// --- Batch 6's thesis is refuted ----------------------------------------------------------------
+assert.ok(mesure.reflexions > 3000, 'the sample must contain thousands of reflections');
 assert.equal(
   mesure.coneSupprimeUnDessinGpu,
   0,
-  'le rejet par cône ne supprime aucun cluster que le GPU dessine : la thèse du défaut 10 est fausse',
+  "cone rejection culls no cluster that the GPU draws: defect 10's thesis is false",
 );
 assert.ok(
   mesure.coneContreVeriteBrute > 0,
-  'la vérité BRUTE, elle, accuse encore le cône — c’est elle qui ignore l’échange de face',
+  'RAW truth still accuses the cone — it is the one that ignores the face swap',
 );
 assert.equal(
   mesure.veriteBruteDitVisibleEtRienDeDessine,
   mesure.dontDesReflexions,
-  'tout écart entre la vérité brute et le dessin réel est une réflexion',
+  'every gap between raw truth and the actual draw is a reflection',
 );
 assert.ok(
   mesure.veriteBruteDitInvisibleEtDessine > 0,
-  'et l’écart joue dans les deux sens : le moteur dessine aussi ce que la vérité brute dit de dos',
+  'and the gap plays both ways: the engine also draws what raw truth calls back-facing',
 );
 
-// --- Le vrai défaut, et sa disparition ----------------------------------------------------------
+// --- The real defect, and its disappearance -----------------------------------------------------
 assert.equal(
   mesure.desaccordSansReflexion,
   0,
-  'hors réflexion, CPU et GPU dessinaient déjà pareil',
+  'outside reflection, CPU and GPU already drew the same',
 );
 assert.equal(
   mesure.desaccordCpuGpu,
   0,
-  'après le lot, le rasteriseur CPU échange la face éliminée sous réflexion comme le GPU',
+  'after the batch, the CPU rasteriser swaps the culled face under reflection as the GPU does',
 );
 assert.equal(
   mesure.coneSupprimeUnDessinCpu,
   0,
-  'et il ne dessine donc plus les faces que le rejet par cône supprime',
+  'and so it no longer draws the faces that cone rejection culls',
 );
-assert.equal(mesure.dessineParLeCpu, mesure.dessineParLeGpu, 'même nombre de clusters dessinés');
+assert.equal(mesure.dessineParLeCpu, mesure.dessineParLeGpu, 'same number of clusters drawn');
 
 console.error(
-  `Verdict : défaut 10 NON CONFIRMÉ tel qu'énoncé — 0/${mesure.totalCas} cluster dessiné par le ` +
-    `GPU supprimé par le cône, dont ${mesure.reflexions} réflexions. Les ${mesure.coneContreVeriteBrute} ` +
-    `« suppressions » du lot 6 sont un défaut de sa vérité terrain. Défaut réel trouvé et corrigé : ` +
-    `le rasteriseur CPU du tampon de visibilité n'échangeait pas la face éliminée sous réflexion. ` +
-    `Adaptateur ${mesure.adaptateurGpu}.`,
+  `Verdict: defect 10 NOT CONFIRMED as stated — 0/${mesure.totalCas} cluster drawn by the ` +
+    `GPU culled by the cone, of which ${mesure.reflexions} reflections. The ${mesure.coneContreVeriteBrute} ` +
+    `"drops" of batch 6 are a defect of its ground truth. Real defect found and fixed: ` +
+    `the CPU visibility-buffer rasteriser did not swap the culled face under reflection. ` +
+    `Adapter ${mesure.adaptateurGpu}.`,
 );

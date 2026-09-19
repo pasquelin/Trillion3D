@@ -43,7 +43,7 @@ export function rasterPageRecords(
 ) {
   const [width, height] = size,
     pixels = opaqueBackgroundRgba(width, height, BACKGROUND);
-  // Fonction appelable seule : elle résout sa propre pose (contrat : `cameraWorld.ts`).
+  // Callable function alone: it resolves its own pose (contract: `cameraWorld.ts`).
   resolveCameraWorld(camera);
   const viewProj = new THREE.Matrix4().multiplyMatrices(
     camera.projectionMatrix,
@@ -59,7 +59,7 @@ export function rasterPageRecords(
       position = geometry.getAttribute('position');
     if (!position) continue;
     const rgb = colorOf(mesh.material);
-    // Un lot multi-draw ne dessine que ses plages : l'oracle doit suivre la même coupe, pas tout le tampon.
+    // Un lot multi-draw ne dessine que ses plages : l'oracle doit suivre la same coupe, pas tout le tampon.
     const batch = mesh as THREE.Mesh & {
       isBatchedMesh?: boolean;
       _multiDrawStarts?: Int32Array;
@@ -103,7 +103,7 @@ export function rasterPages(
 ) {
   const [width, height] = viewport,
     pixels = opaqueBackgroundRgba(width, height, background);
-  // Fonction appelable seule : elle résout sa propre pose (contrat : `cameraWorld.ts`).
+  // Callable function alone: it resolves its own pose (contract: `cameraWorld.ts`).
   resolveCameraWorld(camera);
   const viewProj = new THREE.Matrix4().multiplyMatrices(
     camera.projectionMatrix,

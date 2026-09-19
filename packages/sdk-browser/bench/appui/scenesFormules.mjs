@@ -1,17 +1,17 @@
-// Les entrées du banc d'équivalence des formules communes : tirées à graine fixe, et volontairement
-// hostiles. Une factorisation qui ne tiendrait que sur des nombres bien élevés se verrait ici — NaN,
-// −0, infinis, dénormaux, matrices singulières, boîtes inversées, triangles d'aire nulle.
+// Inputs of the shared-formula equivalence bench: drawn from a seed, and deliberately
+// hostile. A factorization that would only hold on well-behaved numbers would fail here — NaN,
+// -0, infinities, denormals, singular matrices, inverted boxes, zero-area triangles.
 import { graine } from '../../../sdk-core/bench/socle.mjs';
 
 const alea = graine(40961);
-/** Les valeurs qu'un flottant peut prendre et qu'une formule doit traverser sans les lisser. */
+/** Values a float can take that a formula must traverse without smoothing them. */
 const BORDS = [0, -0, 1, -1, Infinity, -Infinity, NaN, 5e-324, Number.MIN_VALUE, 1e308, -1e308];
 const nombre = () => {
   if (alea() < 0.12) return BORDS[Math.floor(alea() * BORDS.length)];
   return (alea() * 2 - 1) * 10 ** Math.floor(alea() * 12 - 6);
 };
 
-/** Six plans par jeu, quelques-uns dégénérés, et la boîte que chacun teste. */
+/** Six planes per set, some degenerate, and the box each one tests. */
 export const casPlans = [];
 for (let i = 0; i < 400; i++) {
   const planes = new Float64Array(24);
@@ -24,7 +24,7 @@ for (let i = 0; i < 400; i++) {
   casPlans.push({ planes, boite });
 }
 
-/** Des triangles écran : ordinaires, hors champ, dégénérés, et certains à sommet non fini. */
+/** Screen triangles: ordinary, off-screen, degenerate, and some with non-finite vertex. */
 const point = (i) => ({
   x: i % 19 === 0 ? nombre() : alea() * 2000 - 500,
   y: i % 23 === 0 ? nombre() : alea() * 2000 - 500,
@@ -39,11 +39,11 @@ for (let i = 0; i < 3000; i++) {
   triangles.push({ a, b, c, x: alea() * 1000 - 100, y: alea() * 1000 - 100 });
 }
 
-/** Les rangs de ligne du tableau de pages, jusqu'au-delà du million. */
+/** Page table row ranks, up to over a million. */
 export const rangs = [];
 for (let i = 0; i < 2000; i++) rangs.push(i % 17 === 0 ? Math.floor(alea() * 1e7) : i);
 
-/** Les dimensions logiques et les rapports de pixels que l'hôte règle, `undefined` compris. */
+/** Logical sizes and pixel ratios the host sets, `undefined` included. */
 export const tailles = [];
 for (let i = 0; i < 2000; i++)
   tailles.push({
@@ -51,11 +51,11 @@ for (let i = 0; i < 2000; i++)
     ratio: i % 5 === 0 ? undefined : alea() * 4,
   });
 
-/** Les durées en nanosecondes que les deux chronomètres de carte graphique rendent. */
+/** Durations in nanoseconds that the two GPU timers yield. */
 export const durees = [];
 for (let i = 0; i < 2000; i++) durees.push(i % 7 === 0 ? nombre() : alea() * 1e12);
 
-/** Les emprises dont le banc tire le plancher du modèle, y compris celles qui enjambent zéro. */
+/** Extents from which the bench takes the model floor, including those that straddle zero. */
 export const emprises = [];
 for (let i = 0; i < 1000; i++) {
   const y0 = alea() * 20 - 10,

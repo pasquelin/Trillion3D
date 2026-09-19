@@ -17,7 +17,7 @@ export function projectBoxesFlat(
   world?: { corners: BoxCorners; pageIndex: Int32Array; epoch: number },
 ) {
   const [width, height] = viewport;
-  // Vue, vue-projection et plan proche viennent de la caméra du moteur : une image les pose une fois.
+  // View, view-projection and near plane come from the engine camera: a frame sets them once.
   const view = cam.view,
     elements = cam.viewProjection,
     near = cam.near;
@@ -55,8 +55,8 @@ export function projectBoxesFlat(
 }
 
 let boundsScratch = new Float64Array(HIZ_BOUNDS_VALUES);
-/** Les rectangles d'une image, dans un tampon qui ne grandit qu'avec la plus grosse coupe vue.
- *  Un seul appelant à la fois : les bornes ne survivent pas à la passe qui les a demandées. */
+/** Rectangles of a frame, in a buffer that grows only with the largest cut seen.
+ *  One caller at a time: bounds do not outlive the pass that asked for them. */
 export function boundsFor(count: number) {
   const need = Math.max(1, count) * HIZ_BOUNDS_VALUES;
   if (boundsScratch.length < need) boundsScratch = new Float64Array(need);

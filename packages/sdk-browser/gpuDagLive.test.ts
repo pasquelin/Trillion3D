@@ -1,7 +1,7 @@
-// La coupe ne visite plus aucune grappe à plat : la descente par niveaux se répartit sur la file que
-// le niveau précédent a remplie, `dagWanted` sur les seules pages candidates, et les noyaux qui le
-// suivent sur la liste des grappes vivantes. Ce fichier tient la liste que chaque noyau parcourt ;
-// `gpuDagEncode.test.ts` tient le nombre de commandes qu'une image ouvre.
+// The cut no longer visits any cluster flat: level descent dispatches over the queue
+// the previous level filled, `dagWanted` over candidate pages only, and the kernels
+// that follow over the live-cluster list. This file holds the list each kernel walks;
+// `gpuDagEncode.test.ts` holds the number of commands a frame opens.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { encodeDagKernels } from './gpuDagEncode.ts';
@@ -9,20 +9,20 @@ import { DAG_SELECTION_SHADER } from './gpuDagSelection.ts';
 import { ESCALATION_ROUNDS } from './pageSelectionTypes.ts';
 import { encodeurTemoin, ressources, ETAGES, LIVE, CAND } from './gpuDagEncodeFixture.ts';
 
-test('chaque noyau de la coupe se répartit sur la liste que le précédent a remplie', () => {
+test('each cut kernel dispatches over the list the previous one filled', () => {
   const { encoder, lancements } = encodeurTemoin();
   encodeDagKernels(encoder as unknown as GPUCommandEncoder, ressources(true));
   const parNoyau = new Map(lancements.map((l) => [l.noyau, l]));
-  // Les grappes vivantes : le verdict d'avant, prononcé sur elles seules.
+  // Live clusters: the previous verdict, spoken on them alone.
   for (const noyau of ['dagEscalate', 'dagCheck', 'dagMask', 'dagDrawScatter']) {
-    assert.equal(parNoyau.get(noyau)?.groupes, 'indirect', `${noyau} suit une liste`);
-    assert.equal(parNoyau.get(noyau)?.liste, LIVE, `${noyau} suit la liste des vivantes`);
+    assert.equal(parNoyau.get(noyau)?.groupes, 'indirect', `${noyau} follows a list`);
+    assert.equal(parNoyau.get(noyau)?.liste, LIVE, `${noyau} follows the live list`);
   }
-  // Les pages candidates, et elles seules : une page sous un nœud rejeté n'est plus lue.
+  // Candidate pages, and them alone: a page under a rejected node is no longer read.
   assert.equal(parNoyau.get('dagWanted')?.liste, CAND);
-  // La descente : la passe 0 part des racines, d'un compte connu du rangement, et chaque niveau
-  // suivant du nombre de nœuds de son étage — connu du rangement lui aussi. Aucune indirection, donc
-  // aucune recopie d'argument, et aucun niveau ne visite la hiérarchie entière.
+  // Descent: pass 0 starts from the roots, from a count known at packing, and each
+  // following level from its level's node count — known at packing too. No
+  // indirection, hence no argument recopy, and no level visits the whole hierarchy.
   assert.deepEqual(lancements.slice(2, 5), [
     { noyau: 'dagLevel0', groupes: 1 },
     { noyau: 'dagLevel1', groupes: Math.ceil(ETAGES[1] / 64) },
@@ -31,35 +31,35 @@ test('chaque noyau de la coupe se répartit sur la liste que le précédent a re
   const ordre = lancements.map((l) => l.noyau);
   assert.ok(ordre.indexOf('dagWanted') > ordre.lastIndexOf('dagLevel2'));
   assert.ok(ordre.indexOf('dagEscalate') > ordre.indexOf('dagWanted'));
-  // Le compte lancé à plat est celui des primitives, des blocs ou d'un étage de la hiérarchie :
-  // jamais celui des grappes.
+  // The count launched flat is that of primitives, blocks or a hierarchy level:
+  // never that of clusters.
   const plats = lancements.filter((l) => l.groupes !== 'indirect').map((l) => l.noyau);
   assert.deepEqual(plats, ['dagPrepare', 'dagLevel0', 'dagLevel1', 'dagLevel2', 'dagDrawPrefix']);
 });
 
-test("l'attente entre lancements ne dépend que de la profondeur, pas du nombre de grappes", () => {
+test('wait between launches depends only on depth, not on cluster count', () => {
   const { encoder, lancements } = encodeurTemoin();
   encodeDagKernels(encoder as unknown as GPUCommandEncoder, ressources(true));
-  // Effacement du journal, préparation, une passe par niveau, les candidates, trois escalades, la
-  // vérification, le masque, le préfixe et la compaction.
+  // Log clear, prepare, one pass per level, candidates, three escalations,
+  // check, mask, prefix and compaction.
   assert.equal(lancements.length, ESCALATION_ROUNDS + 7 + 3);
   const noyaux = lancements.map((l) => l.noyau);
   assert.ok(!noyaux.includes('dagArgs') && !noyaux.includes('dagDrawCount'));
   assert.equal(noyaux[0], 'dagClearDrawn');
   assert.equal(noyaux[1], 'dagPrepare');
-  // La préparation couvre à la fois les primitives et les blocs de la compaction.
+  // Prepare covers both the primitives and the compaction blocks.
   assert.equal(lancements[1].groupes, 1);
-  // Seize fois plus de grappes, autant de lancements : c'est la profondeur qui les compte.
+  // Sixteen times more clusters, as many launches: depth is what counts them.
   const large = encodeurTemoin();
   encodeDagKernels(large.encoder as unknown as GPUCommandEncoder, ressources(true, 3, 65536));
   assert.equal(large.lancements.length, lancements.length);
-  // Un niveau de plus, un lancement de plus.
+  // One more level, one more launch.
   const profond = encodeurTemoin();
   encodeDagKernels(profond.encoder as unknown as GPUCommandEncoder, ressources(true, 4));
   assert.equal(profond.lancements.length, lancements.length + 1);
 });
 
-test('sans coupe résidente, le masque suit la liste et les escalades ne sont pas encodées', () => {
+test('without a resident cut, the mask follows the list and escalations are not encoded', () => {
   const { encoder, lancements } = encodeurTemoin();
   encodeDagKernels(encoder as unknown as GPUCommandEncoder, ressources(false));
   const noyaux = lancements.map((l) => l.noyau);
@@ -68,17 +68,17 @@ test('sans coupe résidente, le masque suit la liste et les escalades ne sont pa
   const masque = lancements.find((l) => l.noyau === 'dagMask');
   assert.equal(masque?.groupes, 'indirect');
   assert.equal(masque?.liste, LIVE);
-  // La descente, elle, est encodée dans les deux cas : elle ne dépend pas de la résidence.
+  // Descent itself is encoded in both cases: it does not depend on residency.
   assert.ok(noyaux.includes('dagLevel0') && noyaux.includes('dagLevel1'));
   assert.ok(noyaux.includes('dagLevel2'));
 });
 
-test('les noyaux de la liste lisent leur grappe dans la liste, pas dans leur identifiant de fil', () => {
-  // Le rejet que ces noyaux faisaient eux-mêmes — `visible` — a disparu de leur corps : une grappe
-  // absente de la liste est exactement une grappe dont `visible` était faux.
+test('list kernels read their cluster from the list, not from their thread id', () => {
+  // The rejection these kernels used to do themselves — `visible` — has left their body: a cluster
+  // missing from the list is exactly a cluster whose `visible` was false.
   for (const noyau of ['dagEscalate', 'dagCheck', 'dagMask']) {
     const corps = DAG_SELECTION_SHADER.split(`fn ${noyau}(`)[1].split('\n}')[0];
-    assert.match(corps, /let i=liveAt\(s\);/, `${noyau} lit la liste`);
-    assert.doesNotMatch(corps, /visible\(/, `${noyau} ne refait pas le rejet`);
+    assert.match(corps, /let i=liveAt\(s\);/, `${noyau} reads the list`);
+    assert.doesNotMatch(corps, /visible\(/, `${noyau} does not redo the rejection`);
   }
 });

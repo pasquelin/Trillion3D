@@ -1,10 +1,10 @@
-// La section « une option, deux exécutions » du rapport global : les portes (antialiasing,
-// profil, textures, raster, chemin de calcul, isolation). Chaque ligne met deux relevés face à face et publie la différence
-// d'enveloppe et de pixels, sans jamais additionner processeur et carte.
+// The "one option, two runs" section of the global report: the gates (antialiasing,
+// profile, textures, raster, compute path, isolation). Each row puts two readings face to
+// face and publishes the envelope and pixel difference, without ever adding CPU and GPU.
 import { delta, nombre, pixels as px, tableau } from './rapportGlobalGraphes.mjs';
-import { DEUX_VUES, paire, trouve } from './rapportGlobalLecture.mjs';
+import { TWO_VIEWS, paire, trouve } from './rapportGlobalLecture.mjs';
 
-/** Une ligne de porte : deux relevés (a = référence, b = variante) et ce qui les sépare. */
+/** A gate row: two readings (a = reference, b = variant) and what separates them. */
 function porte(libelle, a, b, note = '') {
   return [
     libelle,
@@ -18,7 +18,7 @@ function porte(libelle, a, b, note = '') {
   ];
 }
 
-/** Les portes : l'exécution de référence, la variante, ce qu'on y lit. */
+/** The gates: the reference run, the variant, what is read there. */
 const PORTES = [
   [
     'mobile',
@@ -43,7 +43,7 @@ const PORTES = [
 ];
 
 export function sectionPortes(ex) {
-  const lignes = DEUX_VUES.flatMap((vue) =>
+  const lignes = TWO_VIEWS.flatMap((vue) =>
     PORTES.map(([ref, variante, libelle, note]) =>
       porte(`${vue} · ${libelle}`, trouve(ex, ref, vue, 1), trouve(ex, variante, vue, 1), note),
     ),
@@ -52,7 +52,7 @@ export function sectionPortes(ex) {
     ['raster-1248', '1248×702'],
     ['raster-2496', '2496×1404'],
   ])
-    for (const vue of DEUX_VUES) {
+    for (const vue of TWO_VIEWS) {
       const [calcul, materiel] = paire(ex, run, vue);
       lignes.push(
         porte(
@@ -64,7 +64,7 @@ export function sectionPortes(ex) {
       );
     }
   const temoins = ['mobile', ...PORTES.slice(0, 3).map(([, v]) => v)];
-  const aaPixels = DEUX_VUES.map((vue) => [
+  const aaPixels = TWO_VIEWS.map((vue) => [
     vue,
     ...temoins.map((run) => px(trouve(ex, run, vue, 1)?.temoinAA)),
   ]);

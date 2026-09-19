@@ -1,26 +1,26 @@
-// D'où viennent les triangles sélectionnés : la coupe de la vue générale au seuil 1 px, par
-// primitive et par niveau du DAG. C'est le chiffre à lire sur Whisperwind (feuillage).
+// Where selected triangles come from: the overview cut at the 1 px threshold, by
+// primitive and by DAG level. That is the figure to read on Whisperwind (foliage).
 import { html, nombre, tableau } from './rapportGlobalGraphes.mjs';
 import { trouve } from './rapportGlobalLecture.mjs';
-import { analyserFichier, coupeVoisine, derivedDuReleve } from './coupeAnalyse.mjs';
+import { analyseFile, neighboringCut, derivedFromReading } from './coupeAnalyse.mjs';
 import { join } from 'node:path';
 
 const part = (n, total) => (total > 0 ? nombre((100 * n) / total, 1, '%') : '—');
 
 const lignes = (liste, total, n) =>
-  liste.slice(0, n).map((e) => [e.nom, nombre(e.triangles, 0), part(e.triangles, total)]);
+  liste.slice(0, n).map((e) => [e.name, nombre(e.triangles, 0), part(e.triangles, total)]);
 
 function coupeDe(scene) {
   const r =
     trouve(scene.executions, 'mobile', 'generale', 1) ??
     trouve(scene.executions, 'mobile', 'sol', 1);
-  if (!r) return { scene: scene.nom, analyse: null, releve: null, vue: null };
+  if (!r) return { scene: scene.name, analyse: null, reading: null, view: null };
   const mesure = join(scene.dossier, r.run, 'mesure.json');
-  const analyse = analyserFichier(
-    coupeVoisine(scene.dossier, r.png),
-    derivedDuReleve(mesure, r.cote),
+  const analyse = analyseFile(
+    neighboringCut(scene.dossier, r.png),
+    derivedFromReading(mesure, r.side),
   );
-  return { scene: scene.nom, analyse, releve: r, vue: r.vue };
+  return { scene: scene.name, analyse, reading: r, view: r.vue };
 }
 
 function bloc({ scene, analyse, releve, vue }) {
@@ -45,7 +45,7 @@ function verdictWhisperwind(item) {
   return `<div class="verdict">${html(item.scene)}: ${nombre(total / 1e6, 1)} M triangles at the 1 px threshold. The top item is <strong>${html(tete.nom)}</strong> (${nombre((100 * tete.triangles) / total, 0)} %). A foliage card only shrinks by disappearing; the reference thins them and dithers the mask.</div>`;
 }
 
-/** Section « d'où viennent les triangles » : une coupe par scène, plus le verdict Whisperwind. */
+/** "Where triangles come from" section: one cut per scene, plus the Whisperwind verdict. */
 export function sectionCoupe(scenes) {
   const items = scenes.map(coupeDe);
   const whisper = items.find((i) => i.scene === 'whisperwind-village');

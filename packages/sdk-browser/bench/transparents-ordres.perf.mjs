@@ -1,8 +1,8 @@
-// GEO-2 : transparents en quelques ordres - passes de mélange et repli.
+// GEO-2: transparents in a few orders — blend passes and CPU fallback.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
-import { cote, FACES, glisse, ITEMS, pose, regimes } from './appui/scenesTransparents.mjs';
+import { benchSide, FACES, glisse, ITEMS, pose, regimes } from './appui/scenesTransparents.mjs';
 import { appelsEncodes, tours } from './appui/toursTransparents.mjs';
 import {
   argumentsReference,
@@ -10,21 +10,19 @@ import {
   encodeReference,
 } from './oracles/transparents-ordres.mjs';
 
-const scenes = FACES.map(([nom, side]) => {
-  const avant = cote(side),
-    apres = cote(side);
-  return { nom, avant, apres, ...tours(avant, apres) };
+const scenes = FACES.map(([name, side]) => {
+  const before = benchSide(side),
+    after = benchSide(side);
+  return { name, before, after, ...tours(before, after) };
 });
 
-const casDe = (images) => [
-  { nom: `8 images de ${ITEMS} items`, entree: images, taille: ITEMS * 8 },
-];
+const casDe = (images) => [{ name: `8 frames of ${ITEMS} items`, input: images, size: ITEMS * 8 }];
 const resultats = [];
 for (const scene of scenes) {
   for (const [regime, images] of regimes) {
     resultats.push(
       await mesure({
-        nom: `ordres et arguments — ${scene.nom}, ${regime}`,
+        name: `orders and arguments — ${scene.name}, ${regime}`,
         fichier: 'packages/sdk-browser/webgpuBlendDraw.ts',
         cas: casDe(images),
         calcul: scene.tourApres,
@@ -34,7 +32,7 @@ for (const scene of scenes) {
     );
     resultats.push(
       await mesure({
-        nom: `repli processeur — ${scene.nom}, ${regime}`,
+        name: `CPU fallback — ${scene.name}, ${regime}`,
         fichier: 'packages/sdk-browser/webgpuBlendExpandCpu.ts',
         cas: casDe(images),
         calcul: scene.tourApresSeq,
@@ -47,29 +45,29 @@ for (const scene of scenes) {
 
 function appelsDe(scene) {
   const image = glisse[0],
-    etat = scene.avant;
+    etat = scene.before;
   pose(etat, image);
   classementReference(etat.scene, etat.order, image.eye);
   argumentsReference(etat.scene, etat.args);
-  const avant = encodeReference(etat.scene, etat.order, etat.args, etat.sortie);
+  const before = encodeReference(etat.scene, etat.order, etat.args, etat.output);
   scene.tourApres([image]);
-  return { nom: scene.nom, avant: avant.encoded, apres: appelsEncodes() };
+  return { name: scene.name, before: before.encoded, after: appelsEncodes() };
 }
 
-test('GEO-2 : les appels de dessin, simple face et double face', () => {
+test('GEO-2: draw calls, single-sided and double-sided', () => {
   const comptes = scenes.map(appelsDe);
-  assert.ok(comptes[0].apres < comptes[0].avant / 100, 'simple face : quelques ordres');
-  assert.equal(comptes[1].apres, comptes[1].avant, 'double face : aucun appel retiré');
+  assert.ok(comptes[0].after < comptes[0].before / 100, 'single-sided: a few orders');
+  assert.equal(comptes[1].after, comptes[1].before, 'double-sided: no call removed');
 });
 
 await stress({
-  nom: 'blend draw extremes',
+  name: 'blend draw extremes',
   calcul: (imgs) => scenes[0].tourApres(imgs),
-  extremes: [{ nom: 'glisse standard', entree: glisse.slice(0, 1) }],
+  extremes: [{ name: 'standard slide', input: glisse.slice(0, 1) }],
 });
 
 rapport(
   'transparents-ordres',
   resultats,
-  'GEO-2 : les deux chemins peignent les mêmes plages, dans le même ordre',
+  'GEO-2: both paths paint the same ranges, in the same order',
 );

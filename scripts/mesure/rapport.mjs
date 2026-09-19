@@ -1,5 +1,5 @@
-// Statistiques, écarts d'images, charge machine et `resume.md`, pour `banc.mjs`.
-// Les calculs sont ceux du SDK : mêmes quantiles, même comparaison d'images partout.
+// Statistics, image deltas, machine load and `resume.md`, for `banc.mjs`.
+// The calculations are the SDK's: same quantiles, same image comparison everywhere.
 import { loadavg } from 'node:os';
 import { compareImages, summarize } from '../../packages/sdk-core/index.ts';
 import { cheminsCalcul } from './rapportCalcul.mjs';
@@ -7,53 +7,53 @@ import { p50p95, passes } from './rapportPasses.mjs';
 import { textures } from './rapportTextures.mjs';
 import { memoire } from './rapportMemoire.mjs';
 
-/** p50/p95/p99 d'une série, ou `null` si elle est vide : rien n'est déduit d'une série absente. */
+/** p50/p95/p99 of a series, or `null` if it is empty: nothing is inferred from an absent series. */
 export const distribution = (values) => summarize(values ?? []);
 
-/** Les trois moyennes de charge du système, lues telles quelles. */
+/** The three system load averages, read as-is. */
 export const machineLoad = () => loadavg();
 
-/** Écart entre deux captures RGBA : pixels différents et écart maximal sur un canal. */
+/** Delta between two RGBA captures: different pixels and maximum error on a channel. */
 export function imageDiff(a, b) {
   if (!a || !b) return null;
   if (a.w !== b.w || a.h !== b.h)
-    return { erreur: `tailles différentes ${a.w}×${a.h} / ${b.w}×${b.h}` };
+    return { erreur: `different sizes ${a.w}×${a.h} / ${b.w}×${b.h}` };
   const diff = compareImages(a.body, b.body);
   return { pixels: diff.differentPixels, maxCanal: diff.maxChannelError, total: a.w * a.h };
 }
 
 const ms = (d, key) => (d ? d[key].toFixed(3) : '—');
 const num = (value) => (value == null ? '—' : String(value));
-/** Des octets en mégaoctets, ou un tiret : un zéro ne serait pas distinct d'un relevé absent. */
+/** Bytes in megabytes, or a dash: a zero would not be distinct from an absent reading. */
 const mo = (value) => (value == null ? '—' : (value / (1024 * 1024)).toFixed(1));
-/** Un témoin à trois états : `oui`, `non`, ou un tiret quand ce moteur ne le publie pas. */
-const oui = (value) => (value == null ? '—' : value ? 'oui' : 'non');
-/** Les réservoirs demandés au moteur : en Mio quand le banc les a donnés, sinon ses défauts. */
-const pool = (bytes) => (bytes == null ? 'défaut du moteur' : `${mo(bytes)} Mio`);
+/** A three-state witness: `yes`, `no`, or a dash when this engine does not publish it. */
+const oui = (value) => (value == null ? '—' : value ? 'yes' : 'no');
+/** Reservoirs requested of the engine: in MiB when the bench gave them, otherwise its defaults. */
+const pool = (bytes) => (bytes == null ? 'engine default' : `${mo(bytes)} MiB`);
 const budgets = (settings) => {
   const parts = [
-    `pool géométrie ${pool(settings.geometryPoolBytes)}`,
-    `pool textures ${pool(settings.texturePoolBytes)}`,
+    `geometry pool ${pool(settings.geometryPoolBytes)}`,
+    `texture pool ${pool(settings.texturePoolBytes)}`,
   ];
-  if (settings.maxPages != null) parts.push(`plafond ${settings.maxPages} pages`);
+  if (settings.maxPages != null) parts.push(`ceiling ${settings.maxPages} pages`);
   return parts.join(', ');
 };
 const diffText = (d) =>
-  !d ? '—' : d.erreur ? d.erreur : `${d.pixels} px, max canal ${d.maxCanal}`;
+  !d ? '—' : d.erreur ? d.erreur : `${d.pixels} px, max channel ${d.maxCanal}`;
 /**
- * La relation de couverture d'un relevé : `selected − drawn − uncovered`. Zéro dit que chaque
- * triangle de la coupe est soit remis au dessin, soit compté comme trou ; autre chose dit qu'un des
- * trois compteurs décrit une autre image. Un tiret quand l'un des trois manque — rien n'est déduit.
+ * Coverage relation of a reading: `selected − drawn − uncovered`. Zero says every triangle
+ * of the cut is either submitted to draw or counted as a hole; anything else says one of
+ * the three counters describes another image. A dash when one of the three is missing — nothing is inferred.
  */
 const couverture = (r) =>
   r.selectedTriangles == null || r.drawnTriangles == null || r.uncoveredTriangles == null
     ? '—'
     : String(r.selectedTriangles - r.drawnTriangles - r.uncoveredTriangles);
 
-/** Le tableau de la série : une ligne par vue, par seuil et par côté. */
+/** The series table: one row per view, per threshold and per side. */
 function rows(report) {
   const lines = [
-    '| vue | pixelError | côté | cpuFrameMs p50/p95 | cpuSelectMs p50/p95 | gpuFrameMs p50 | selectedTriangles | drawnTriangles | couverture | triangles soumis opaque/total | image tenue | uncoveredTriangles | repli sélection GPU | Hi-Z testés/rejetés/>16 (image) | hash coupe | budget pages | géométrie (Mo) |',
+    '| view | pixelError | side | cpuFrameMs p50/p95 | cpuSelectMs p50/p95 | gpuFrameMs p50 | selectedTriangles | drawnTriangles | coverage | submitted triangles opaque/total | held image | uncoveredTriangles | GPU selection fallback | Hi-Z tested/rejected/>16 (image) | cut hash | page budget | geometry (MB) |',
     '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
   ];
   for (const serie of report.series)
@@ -68,20 +68,20 @@ function rows(report) {
           `| ${num(r.uncoveredTriangles)} | ${oui(r.repliSelectionGpu)} ` +
           `| ${num(hiz.tested)}/${num(hiz.rejected)}/${num(hiz.beyond16Texels)} (${num(hiz.image)}) ` +
           `| ${r.selection.sha256 ? r.selection.sha256.slice(0, 12) : '—'} (${num(r.selection.source)}) ` +
-          `| ${num(r.budgetPages.demande)} demandées, ${num(r.budgetPages.residentes)} résidentes ` +
+          `| ${num(r.budgetPages.demande)} requested, ${num(r.budgetPages.residentes)} resident ` +
           `| ${mo(r.geometrieOctets)} |`,
       );
     }
   return lines;
 }
 
-/** Les compteurs d'une étape, sur une seule ligne ; vide quand l'étape n'en porte pas. */
+/** Counters of a stage, on a single line; empty when the stage carries none. */
 const compteurs = (counts) =>
   Object.entries(counts ?? {})
     .map(([nom, valeur]) => `${nom} ${valeur}`)
     .join(', ');
 
-/** Le découpage par étape d'une série : une ligne par étape, processeur et carte graphique séparés. */
+/** Per-stage breakdown of a series: one line per stage, CPU and GPU separated. */
 function etapes(report) {
   const lines = [];
   for (const serie of report.series)
@@ -89,22 +89,22 @@ function etapes(report) {
       const titre = `### ${serie.view} · e${serie.pixelError} · ${side}`;
       const profile = resultat.profilParEtape;
       if (!profile || !profile.enabled) {
-        lines.push(`${titre} : profil par étape absent`, '');
+        lines.push(`${titre} : per-stage profile absent`, '');
         continue;
       }
       lines.push(
         titre,
         '',
-        `- Moteur \`${profile.backend}\`, ${profile.cpuFrames} images processeur, ` +
-          `${profile.gpuSamples} relevés carte graphique sur une fenêtre de ${profile.windowFrames}`,
-        `- Mesure carte graphique : ${profile.gpuMethod ?? 'non mesurée'}` +
+        `- Engine \`${profile.backend}\`, ${profile.cpuFrames} CPU frames, ` +
+          `${profile.gpuSamples} GPU readings on a window of ${profile.windowFrames}`,
+        `- GPU measurement: ${profile.gpuMethod ?? 'unmeasured'}` +
           (profile.gpuReason ? ` (${profile.gpuReason})` : ''),
-        `- Coût du profil lui-même : ${p50p95(profile.overheadMs)} ms par image`,
-        `- Image entière côté carte graphique (enveloppe) : ${p50p95(profile.gpuImageMs)} ms — les`,
-        '  durées par étape ne s’y additionnent pas : cet appareil peut faire se chevaucher deux passes,',
-        '  et une somme les compterait deux fois.',
+        `- Cost of the profile itself: ${p50p95(profile.overheadMs)} ms per frame`,
+        `- Whole image on the GPU (envelope): ${p50p95(profile.gpuImageMs)} ms — the`,
+        '  per-stage durations do not add up to it: this device may overlap two passes,',
+        '  and a sum would count them twice.',
         '',
-        '| étape | CPU ms p50/p95 | GPU ms p50/p95 | compteurs |',
+        '| stage | CPU ms p50/p95 | GPU ms p50/p95 | counters |',
         '|---|---|---|---|',
         ...profile.stages.map(
           (stage) =>
@@ -119,56 +119,56 @@ function etapes(report) {
   return lines;
 }
 
-/** `resume.md` : ce que la série a relevé, et rien d'autre. Un tiret est une absence, pas un zéro. */
+/** `resume.md`: what the series recorded, and nothing else. A dash is an absence, not a zero. */
 export function resume(report) {
   const lines = [
-    `# Mesure ${report.engine} — ${report.scene}`,
+    `# Measurement ${report.engine} — ${report.scene}`,
     '',
-    `- Harnais : \`${report.commande}\``,
-    `- HEAD du dépôt : \`${report.head}\` — côtés : ` +
+    `- Harness: \`${report.commande}\``,
+    `- Repository HEAD: \`${report.head}\` — sides: ` +
       Object.entries(report.sides)
         .map(([name, side]) => `${name} = ${side.from}`)
         .join(', '),
-    `- Images par série : ${report.settings.frames} (chauffe ${report.settings.warmup}), ` +
+    `- Frames per series: ${report.settings.frames} (warmup ${report.settings.warmup}), ` +
       `${report.settings.width}×${report.settings.height}, ${budgets(report.settings)}`,
-    `- Début ${report.startedAt}, fin ${report.finishedAt}`,
+    `- Start ${report.startedAt}, end ${report.finishedAt}`,
     '',
-    '## Relevés',
+    '## Readings',
     '',
     ...rows(report),
     '',
-    '## Coût par étape',
+    '## Cost per stage',
     '',
-    'Les deux colonnes ne sont jamais additionnées : le processeur et la carte graphique travaillent',
-    "en même temps. « non mesuré » n'est pas zéro.",
+    'The two columns are never added: the CPU and the GPU work',
+    'at the same time. "unmeasured" is not zero.',
     '',
     ...etapes(report),
-    '## Chemin de calcul en lot',
+    '## Batch compute path',
     '',
-    'Le chemin publié est celui que le gouverneur a choisi par la mesure, opération par opération :',
-    "aucun seuil n'est écrit dans le code, et « non mesuré » n'est pas zéro.",
+    'The published path is the one the governor chose by measurement, operation by operation:',
+    'no threshold is written in the code, and "unmeasured" is not zero.',
     '',
     ...cheminsCalcul(report),
     '',
-    '## Mémoire carte graphique',
+    '## GPU memory',
     '',
-    "Le total est ce que le moteur a alloué sur l'appareil et pas encore détruit, calculé depuis",
-    "chaque descripteur : WebGPU ne publie pas la mémoire occupée. « non mesuré » n'est pas zéro.",
+    'The total is what the engine allocated on the device and has not yet destroyed, computed from',
+    'each descriptor: WebGPU does not publish occupied memory. "unmeasured" is not zero.',
     '',
     ...memoire(report),
     '',
-    '## Témoin A/A et écart avant/après',
+    '## A/A witness and before/after delta',
     '',
-    '| vue | pixelError | témoin A/A (même côté, deux captures) | avant vs après |',
+    '| view | pixelError | A/A witness (same side, two captures) | before vs after |',
     '|---|---|---|---|',
     ...report.series.map(
       (s) =>
         `| ${s.view} | ${s.pixelError} | ${diffText(s.temoinAA)} | ${diffText(s.ecartAvantApres)} |`,
     ),
     '',
-    '## Charge machine',
+    '## Machine load',
     '',
-    '| vue | pixelError | côté | charge au début | charge à la fin |',
+    '| view | pixelError | side | load at start | load at end |',
     '|---|---|---|---|---|',
     ...report.series.flatMap((s) =>
       Object.entries(s.sides).map(
@@ -177,12 +177,12 @@ export function resume(report) {
       ),
     ),
     '',
-    "Aucune de ces durées n'est une mesure de performance tant que la charge machine n'a pas été",
-    "jugée acceptable par l'appelant : le harnais la relève, il ne la juge pas.",
+    'None of these durations is a performance measurement until the machine load has been',
+    'judged acceptable by the caller: the harness records it, it does not judge it.',
     '',
   ];
   if (report.errors.length) {
-    lines.push('## Erreurs de page', '');
+    lines.push('## Page errors', '');
     for (const error of report.errors.slice(0, 40))
       lines.push(`- ${error.kind} : ${error.message ?? error.status + ' ' + error.url}`);
     lines.push('');

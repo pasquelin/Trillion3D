@@ -1,9 +1,9 @@
-//! Ce qu'un nuanceur de Maya porte autour de ses images : le poids scalaire d'une couleur, le mode
-//! d'un `bump2d`, et le placage d'un `place2dTexture`.
+//! Maya shader parameters around images: scalar weight of color,
+//! `bump2d` mode, and `place2dTexture` placement.
 use super::*;
 use ma_driver::{compile_ma, shaded};
 
-/// Le nœud `file` de la scène et le `place2dTexture` qui lui donne ses coordonnées.
+/// Scene `file` node and `place2dTexture` giving coordinates.
 fn image(place: &str) -> String {
     format!(
         "createNode file -n \"Image\";\n\
@@ -13,19 +13,19 @@ fn image(place: &str) -> String {
     )
 }
 
-/// Le matériau glTF de ce nom dans une scène intermédiaire.
+/// glTF material of this name in intermediate scene.
 fn material<'a>(gltf: &'a Value, name: &str) -> &'a Value {
     gltf["materials"]
         .as_array()
         .expect("materials")
         .iter()
         .find(|material| material["name"] == json!(name))
-        .unwrap_or_else(|| panic!("aucun matériau nommé {name}"))
+        .unwrap_or_else(|| panic!("no material named {name}"))
 }
 
-// Constat 19 : une image branchée sur la couleur ne fait pas disparaître le poids scalaire qui la
-// multiplie. `.dc` d'un lambert et `.e` d'un `standardSurface` rendaient des facteurs blancs, donc
-// une surface deux fois trop claire ; ils passent maintenant au facteur, la texture restant en place.
+// Finding 19: image plugged into color does not hide multiplying scalar weight.
+// `.dc` of lambert and `.e` of `standardSurface` gave white factors (2x bright);
+// now passed to factor, texture remaining in place.
 #[test]
 fn the_scalar_weight_of_a_textured_colour_reaches_the_gltf_factor() {
     let body = format!(
@@ -48,21 +48,21 @@ fn the_scalar_weight_of_a_textured_colour_reaches_the_gltf_factor() {
     );
     assert!(
         diffuse["pbrMetallicRoughness"]["baseColorTexture"]["index"].is_number(),
-        "la texture reste accrochée : {diffuse}"
+        "the texture stays attached: {diffuse}"
     );
     let lit = material(&gltf, "Lueur");
     assert_eq!(
         lit["emissiveFactor"],
         json!([0.25, 0.25, 0.25]),
-        "le poids d'émission multiplie la texture : {lit}"
+        "the emission weight multiplies the texture: {lit}"
     );
     assert!(lit["emissiveTexture"]["index"].is_number(), "{lit}");
 }
 
-// Constat 20 : un `bump2d` n'est une carte de normales que lorsque `bumpInterp` le dit. Pris pour
-// tel quel qu'il soit, un relief en hauteur sortait en `normalTexture`, ce qui éclaire la surface
-// par une image qui n'en décrit pas l'orientation. Seul le mode tangent passe, `bumpDepth` portant
-// son échelle ; les deux autres sont comptés par leur nom.
+// Finding 20: `bump2d` is normal map only when `bumpInterp` says so. Taken
+// as-is, height bump output as `normalTexture`, lighting surface
+// with non-orientation image. Only tangent mode passes, `bumpDepth` carrying
+// scale; other two counted by name.
 #[test]
 fn only_a_tangent_space_bump_becomes_a_normal_texture() {
     let bump = |name: &str, interp: &str| {
@@ -91,7 +91,11 @@ fn only_a_tangent_space_bump_becomes_a_normal_texture() {
     assert!(material(&gltf, "Objet").get("normalTexture").is_none());
     let tangent = &material(&gltf, "Tangente")["normalTexture"];
     assert!(tangent["index"].is_number(), "{tangent}");
-    assert_eq!(tangent["scale"], json!(0.4), "`bumpDepth` porte l'échelle");
+    assert_eq!(
+        tangent["scale"],
+        json!(0.4),
+        "`bumpDepth` carries the scale"
+    );
     assert_eq!(manifest["unsupported"]["ma-bump-height-unsupported"], 1);
     assert_eq!(
         manifest["unsupported"]["ma-bump-object-space-unsupported"],
@@ -99,9 +103,9 @@ fn only_a_tangent_space_bump_becomes_a_normal_texture() {
     );
 }
 
-// Constat 21 : `wrapU` et `wrapV` sont deux attributs, et un échantillonneur glTF a deux axes. Seul
-// `wrapU` était lu, et `wrapV` le suivait : une texture répétée sur un axe et bornée sur l'autre
-// sortait bornée des deux côtés.
+// Finding 21: `wrapU` and `wrapV` two attributes, glTF sampler two axes. Only
+// `wrapU` read, `wrapV` followed: texture repeated on one axis clamped
+// output clamped on both.
 #[test]
 fn wrap_u_and_wrap_v_reach_the_two_axes_of_the_sampler() {
     let body = format!(
@@ -115,13 +119,13 @@ fn wrap_u_and_wrap_v_reach_the_two_axes_of_the_sampler() {
     assert_eq!(
         sampler["wrapT"],
         json!(10497),
-        "`wrapV` absent répète l'axe T : {sampler}"
+        "missing `wrapV` repeats the T axis: {sampler}"
     );
 }
 
-// Constat 21, l'autre bout : le placage d'un `place2dTexture` — répétition, décalage, rotation,
-// miroir — ne se porte pas dans un glTF que cet écrivain ne dote pas de `KHR_texture_transform`.
-// Ce qui ne passe pas est compté par son nom au lieu d'être perdu en silence.
+// Finding 21, other end: `place2dTexture` placement — repeat, offset, rotation,
+// mirror — not supported in glTF without `KHR_texture_transform`.
+// Unsupported items counted by name instead of silent loss.
 #[test]
 fn a_place2d_texture_placement_is_counted_rather_than_silently_dropped() {
     let body = format!(
