@@ -52,8 +52,9 @@ const compteTexte = (c) => `${c.nombre} écart(s), ${c.ulpMax} ULP au plus`;
 /**
  * Compare un cas à son oracle. Sans `differences`, l'égalité est stricte au bit près ; avec, le
  * compte d'écarts est publié tel quel — le banc mesure alors un candidat REFUSÉ et chiffre ce qu'il
- * déplace, au lieu de réclamer une égalité qui n'a pas lieu d'être. Sans oracle, la ligne porte le
- * motif qui dit pourquoi et où la justesse est tenue ; jamais un silence.
+ * déplace, au lieu de réclamer une égalité qui n'a pas lieu d'être. Le `motif` de l'appelant est
+ * toujours gardé : sans oracle il dit où la justesse est tenue, avec un oracle il dit ce que la
+ * comparaison laisse de côté ; jamais un silence.
  */
 async function verifie(item, { calcul, attendu, differences, motif }) {
   if (!attendu) return { correct: null, difference: null, motif: motif ?? null };
@@ -61,9 +62,10 @@ async function verifie(item, { calcul, attendu, differences, motif }) {
   const obt = await calcul(item.entree);
   if (!differences) {
     const diff = ecart(ref, obt, item.nom);
-    return { correct: diff === null, difference: diff, motif: null };
+    return { correct: diff === null, difference: diff, motif: motif ?? null };
   }
-  return { correct: null, difference: null, motif: compteTexte(differences(ref, obt, item.nom)) };
+  const compte = compteTexte(differences(ref, obt, item.nom));
+  return { correct: null, difference: null, motif: motif ? `${compte} ; ${motif}` : compte };
 }
 
 /**

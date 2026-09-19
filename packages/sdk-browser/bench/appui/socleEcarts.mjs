@@ -13,6 +13,7 @@ import {
   srgbToLinear,
 } from '../../../sdk-core/index.ts';
 import { noeudsHierarchie } from './socleEquivalence.mjs';
+import { SRGB_REFERENCE_GAP } from '../../../sdk-core/bench/oracles/three-duel.mjs';
 
 const normeColonne = (m, c) => Math.hypot(m[c * 4], m[c * 4 + 1], m[c * 4 + 2]);
 /** Plus grand cosinus entre deux colonnes linéaires : zéro sans cisaillement. */
@@ -105,7 +106,7 @@ test('sens des faces : déterminant linéaire et déterminant 4×4 de même sign
   assert.equal(opposes, 0);
 });
 
-test('sRGB : la courbe du dépôt et les constantes arrondies de la référence restent sous 1e-9', () => {
+test('sRGB : la courbe du dépôt et les constantes arrondies de la référence restent sous la borne déclarée', () => {
   let versLineaire = 0,
     allerRetour = 0;
   for (let i = 0; i <= 4096; i++) {
@@ -116,6 +117,6 @@ test('sRGB : la courbe du dépôt et les constantes arrondies de la référence 
   console.log(
     `  sRGB → linéaire : écart maximal ${versLineaire.toExponential(2)} ; aller-retour ${allerRetour.toExponential(2)}`,
   );
-  assert.ok(versLineaire < 1e-9);
+  assert.ok(versLineaire < SRGB_REFERENCE_GAP);
   assert.ok(allerRetour < 1e-12);
 });
