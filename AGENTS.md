@@ -10,7 +10,7 @@
   constraints (no hardware ray tracing, bounded and unreadable GPU memory, one browser frame).**
   Nanite, the temporal antialiasing and the memory budgets are the foundation; the lighting is what
   they are for. It is reached by stages, each measured, and the strategy lives in
-  `docs/SPEC_MOTEUR_SANS_THREE.md` §8. A stage that is out of order is not out of scope.
+  `docs/SPEC_ENGINE_WITHOUT_THREE.md` §8. A stage that is out of order is not out of scope.
 - **Never copy Unreal code, shaders or assets into this repository.** Not one line, ever. Unreal is
   not open source and its source is EULA-covered; reimplement from public material only — papers,
   talks, documentation, observed behaviour. Naming it as a reference is fine and expected; carrying
@@ -26,7 +26,7 @@
 - Measure the whole frame before a part of it: the engine publishes a per-step CPU profile
   (`webgpuPagesCpuSteps.ts`, `cpu-timing` diagnostic) and the repository has its own bench
   (`scripts/mesure/banc.mjs`, README alongside). Read them before choosing a target.
-- When a measurement contradicts a plan — including one in `TODO.md` — the measurement wins, and the
+- When a measurement contradicts a plan, the measurement wins, and the
   plan is corrected in the same batch.
 - Compare identical input, camera, quality, machine and resource budget. Record DPR, error threshold,
   resolution and commit. FPS = 1000 / rAF interval; state display cap. Never add CPU and GPU times.
@@ -59,6 +59,9 @@
   inspect dependants after deletions, public-export or configuration changes.
 - Before merge: `pnpm run validate` (format, JS/TS lint + Clippy, unused code/files/dependencies,
   TS/native builds, structure, declarations, links, JS/TS/Rust tests), then browser proof.
+- **All wording in the repository must be in English.** Comments, docstrings, documentation,
+  commit messages and test descriptions are strictly written in English. Only conversational
+  replies to the user remain in French.
 - Every maintained JS/TS/Rust source file, including variants, must fit 200 physical lines; no legacy
   exceptions. Split by responsibility, preserve public contracts. Gate: `pnpm run check:lines`.
 - `pnpm run check:duplicates` rejects blocks ≥12 lines and ≥100 tokens across JS/TS/Rust. Resolve
@@ -96,17 +99,14 @@
 - Never claim undelivered simplification, compression, hard memory enforcement, N-API bindings or
   platform releases.
 
-## Backlog and replies
+## Interaction and replies
 
-- `TODO.md` at the repository root holds the open tasks, grouped by category: one line per task, no
-  rules, no logs, no narratives or catalogues — rules belong here, history belongs in Git. Delete a
-  task once it is done. The engine target stays in `docs/SPEC_MOTEUR_SANS_THREE.md`.
 - Reply in simple, concise French: outcome first, usually 1–5 lines. Include necessary evidence,
   limitations or blockers; expand only when needed or requested. No filler, repeated summaries or
   command transcripts. One question at a time, never a menu of options.
 - Read this file first, then only the current task's handoff and relevant plan sections. Search
   before reading; avoid loading whole plans, unrelated sessions or old reports.
-- Do not start writing code until the user has asked for it. Explain, propose the backlog lines, wait.
+- Do not start writing code until the user has asked for it. Explain, wait.
 
 ## graphify
 
