@@ -23,7 +23,7 @@ import { adjugateFactor } from './mathSingular.ts';
  * `packages/sdk-browser/inverseTransposeWgsl.ts`, where it is written in full; the reference
  * returns zero on every singular matrix and loses the surface.
  */
-export function normalMatrix3<T extends NumberSink>(out: T, m: ArrayLike<number>) {
+export function normalMatrix3<T extends NumberSink>(out: T, m: ArrayLike<number>, outOffset = 0) {
   const n11 = m[0],
     n21 = m[1],
     n31 = m[2];
@@ -45,17 +45,17 @@ export function normalMatrix3<T extends NumberSink>(out: T, m: ArrayLike<number>
   // Zero, infinite or NaN scale: nine zeros, like the WGSL kernel which then replaces its adjugate.
   // The primitive has neither area nor normal left, and nothing non-finite goes into lighting.
   if (detInv === null) {
-    for (let i = 0; i < 9; i++) out[i] = 0;
+    for (let i = 0; i < 9; i++) out[outOffset + i] = 0;
     return out;
   }
-  out[0] = t11 * detInv;
-  out[3] = (n31 * n23 - n33 * n21) * detInv;
-  out[6] = (n32 * n21 - n31 * n22) * detInv;
-  out[1] = t12 * detInv;
-  out[4] = (n33 * n11 - n31 * n13) * detInv;
-  out[7] = (n31 * n12 - n32 * n11) * detInv;
-  out[2] = t13 * detInv;
-  out[5] = (n21 * n13 - n23 * n11) * detInv;
-  out[8] = (n22 * n11 - n21 * n12) * detInv;
+  out[outOffset] = t11 * detInv;
+  out[outOffset + 3] = (n31 * n23 - n33 * n21) * detInv;
+  out[outOffset + 6] = (n32 * n21 - n31 * n22) * detInv;
+  out[outOffset + 1] = t12 * detInv;
+  out[outOffset + 4] = (n33 * n11 - n31 * n13) * detInv;
+  out[outOffset + 7] = (n31 * n12 - n32 * n11) * detInv;
+  out[outOffset + 2] = t13 * detInv;
+  out[outOffset + 5] = (n21 * n13 - n23 * n11) * detInv;
+  out[outOffset + 8] = (n22 * n11 - n21 * n12) * detInv;
   return out;
 }

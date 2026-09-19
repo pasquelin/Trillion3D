@@ -1,4 +1,4 @@
-import { BOX_VALUES, boxTransform } from './mathBox.ts';
+import { BOX_VALUES, boxTransform, boxUnion } from './mathBox.ts';
 import { multiplyMatrix4 } from './mathMatrix4.ts';
 import { composeMatrix4 } from './mathMatrix4Trs.ts';
 
@@ -12,7 +12,29 @@ import { composeMatrix4 } from './mathMatrix4Trs.ts';
  * `boxCornersInto` read their inputs at constant indices, and a parameter offset would
  * make them computed — measured at 6% of full product (`mathMatrix4.ts`). Sub-views are
  * constructed once per batch, as the hierarchy already holds `worldViews` on `world`.
+ *
+ * The kernels this file does not hold are grouped by subject in `mathBatch*.ts` and re-exported
+ * here, so a host imports one name: the 200-line limit is what splits them, not their contract.
  */
+
+export {
+  SPHERE_VALUES,
+  frustumExcludesBoxBatch,
+  sphereFromBoundsBatch,
+} from './mathBatchCulling.ts';
+export {
+  NORMAL_MATRIX_VALUES,
+  composeMatrix4Batch,
+  decomposeMatrix4Batch,
+  invertMatrix4Batch,
+  normalMatrix3Batch,
+} from './mathBatchTransforms.ts';
+export {
+  transformDirectionsBatch,
+  transformPointsBatch,
+  transformPointsByMatricesBatch,
+} from './mathBatchPoints.ts';
+export { linearToSrgbBatch, srgbToLinearBatch } from './mathBatchColor.ts';
 
 /** Floats of a flat 4×4 matrix. */
 export const MATRIX_VALUES = 16;
@@ -41,6 +63,57 @@ export function multiplyMatrix4Batch(
   n: number,
 ) {
   for (let i = 0; i < n; i++) multiplyMatrix4(out[i], a[i], b[i]);
+}
+
+/**
+ * Reduces `n` bounding boxes into `into` by progressive union: `into = into ∪ boxes[0] ∪ … ∪ boxes[n - 1]`.
+ * `into` carries six numbers, `boxes` carries six numbers per element flat.
+ *
+ * Repeats `boxUnion`. Replaces Three.js loop: `for … box.union(b)`.
+ */
+export function boxUnionBatch(into: Float64Array, boxes: ArrayLike<number>, n: number): void {
+  for (let i = 0; i < n; i++) {
+    const at = i * BOX_VALUES;
+    boxUnion(
+      into,
+      0,
+      boxes[at],
+      boxes[at + 1],
+      boxes[at + 2],
+      boxes[at + 3],
+      boxes[at + 4],
+      boxes[at + 5],
+    );
+  }
+}
+
+const scratchUnionBox = new Float64Array(BOX_VALUES);
+
+/**
+ * Transforms `n` boxes by `n` matrices and unites them into `into` in a single pass without allocation.
+ *
+ * Repeats `boxTransform` then `boxUnion`. Replaces Three.js loop: `Box3.setFromObject`.
+ */
+export function boxTransformUnionBatch(
+  into: Float64Array,
+  boxes: ArrayLike<number>,
+  mats: readonly ArrayLike<number>[],
+  n: number,
+): void {
+  for (let i = 0; i < n; i++) {
+    const at = i * BOX_VALUES;
+    boxTransform(scratchUnionBox, 0, boxes, at, mats[i]);
+    boxUnion(
+      into,
+      0,
+      scratchUnionBox[0],
+      scratchUnionBox[1],
+      scratchUnionBox[2],
+      scratchUnionBox[3],
+      scratchUnionBox[4],
+      scratchUnionBox[5],
+    );
+  }
 }
 
 /** Floats of a position or scale, and a quaternion `(x, y, z, w)`, stored flat. */

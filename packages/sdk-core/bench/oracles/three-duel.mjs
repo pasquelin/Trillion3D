@@ -79,8 +79,22 @@ export function flatOf(objects, stride, out) {
  * engine's. Without `tolerance`, the two must be equal bit for bit; with it, the largest absolute
  * difference must stay under it and the line counts the values that differ. `motif` names what
  * the comparison leaves out, when it leaves something out.
+ *
+ * `slower` is for the one case where the two sides do not compute the same thing: `{ atMost, reason }`
+ * lets the engine's best time reach `atMost` times Three's, and the reason is printed on the line.
+ * It is a declaration, not a waiver — the ceiling still fails, and a line without `slower` must win.
  */
-export async function duel({ name, fichier, size = N, three, oracle, core, tolerance, motif }) {
+export async function duel({
+  name,
+  fichier,
+  size = N,
+  three,
+  oracle,
+  core,
+  tolerance,
+  motif,
+  slower,
+}) {
   const cas = [{ name, size, input: null }];
   const witness = await mesure({ name, fichier, cas, calcul: three, motif: 'Three.js witness' });
   let maxAbs = 0;
@@ -107,13 +121,16 @@ export async function duel({ name, fichier, size = N, three, oracle, core, toler
     engine.resultats[0].motif = `largest gap ${maxAbs.toExponential(1)} ; ${engine.resultats[0].motif}`;
   const t = { ...witness.resultats[0], name: `${name} · Three.js` },
     c = { ...engine.resultats[0], name: `${name} · sdk-core` };
+  if (slower) c.motif = `${(c.minMs / t.minMs).toFixed(2)}× Three.js: ${slower.reason}`;
   test(`${name}: same result as Three.js, at least as fast`, () => {
     if (tolerance !== undefined)
       assert.ok(maxAbs <= tolerance, `${name}: largest difference ${maxAbs} above ${tolerance}`);
     else assert.equal(c.correct, true, `${name}: ${c.difference}`);
+    const ceiling = slower ? t.minMs * slower.atMost : t.minMs;
     assert.ok(
-      c.minMs <= t.minMs,
-      `${name}: sdk-core best ${c.minMs.toFixed(3)} ms above Three.js ${t.minMs.toFixed(3)} ms`,
+      c.minMs <= ceiling,
+      `${name}: sdk-core best ${c.minMs.toFixed(3)} ms above ${ceiling.toFixed(3)} ms` +
+        (slower ? ` (${slower.atMost}× Three.js, ${slower.reason})` : ' of Three.js'),
     );
   });
   return { name, fichier, resultats: [t, c] };
