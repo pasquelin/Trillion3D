@@ -11,6 +11,7 @@ const steps = [
   'build:native',
   'check:structure',
   'check:dts',
+  'check:docs-demo',
   'check:links',
   'test',
   'test:native',

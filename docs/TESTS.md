@@ -20,7 +20,8 @@ packages/
       appui/              28 support modules: scenes, replays, test cases
   sdk-node/             5 *.test.mjs
 test/
-  integration/         10 *.test.mjs     — architecture, boundaries, export contracts
+  integration/         15 *.test.mjs     — architecture, boundaries, export contracts,
+                                        documentation portal
   browser/             20 *.browser.mjs  — rendering in real Chromium (18 enabled, 2 skipped)
   justesse/            18 GPU probes + 25 support modules
   appui/               27 shared modules: fixtures server, served pages
@@ -131,4 +132,5 @@ identical budgets, scenes, and poses.
 | `pnpm run check:duplicates` | No duplicated blocks ≥ 12 lines and ≥ 100 tokens |
 | `pnpm run check:structure` | Package boundary isolation, sdk-core typed without DOM |
 | `pnpm run check:unused` | Dead exports and files (`knip`) |
+| `pnpm run check:docs-demo` | The demo bundle committed under `docs/js/` is the current packages |
 | `pnpm run validate` | Complete gate: formatting, linting, tests, builds, structure, links |

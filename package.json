@@ -56,13 +56,14 @@
     "format": "prettier --write \"**/*.{js,cjs,mjs,ts,mts,tsx,json}\" && cargo fmt --all --manifest-path packages/asset-compiler-rust/Cargo.toml && cargo fmt --all --manifest-path packages/page-codec-wasm/Cargo.toml",
     "format:check": "prettier --check \"**/*.{js,cjs,mjs,ts,mts,tsx,json}\" && cargo fmt --all --manifest-path packages/asset-compiler-rust/Cargo.toml -- --check && cargo fmt --all --manifest-path packages/page-codec-wasm/Cargo.toml -- --check",
     "check:lines": "node scripts/check-file-lines.mjs",
-    "check:duplicates": "jscpd packages scripts test --format typescript,javascript,rust --cross-formats js-ts --min-lines 12 --min-tokens 100 --reporters console --exit-code 1 --no-tips",
+    "check:duplicates": "jscpd packages scripts test docs/js --format typescript,javascript,rust --cross-formats js-ts --min-lines 12 --min-tokens 100 --reporters console --exit-code 1 --no-tips",
     "check:unused": "knip",
     "validate": "node scripts/validate.mjs",
     "check:structure": "node --test test/integration/depot-autonome.test.mjs test/integration/structure-moteur.test.mjs test/integration/moteur-sans-three.test.mjs test/integration/moteur-sans-three-math.test.mjs && tsc -p tsconfig.core.json --noEmit",
     "check:links": "node scripts/check-links.mjs",
     "graphify:libelles": "node scripts/graphify-libelles.mjs",
     "check:dts": "node scripts/rewrite-dts-extensions.mjs --check",
+    "check:docs-demo": "node scripts/docs-demo-bundle.mjs --check",
     "perf:browser": "node --experimental-strip-types --test --test-concurrency=1 packages/sdk-browser/bench/*.perf.mjs",
     "perf:core": "node --experimental-strip-types --test --test-concurrency=1 packages/sdk-core/bench/*.perf.mjs",
     "perf:all": "node --experimental-strip-types --test --test-concurrency=1 packages/*/bench/*.perf.mjs && node scripts/mesure/perf/agrege.mjs",
@@ -70,7 +71,8 @@
   },
   "jscpd": {
     "ignore": [
-      "packages/*/bench/**"
+      "packages/*/bench/**",
+      "docs/js/engine.js"
     ]
   },
   "peerDependencies": {
