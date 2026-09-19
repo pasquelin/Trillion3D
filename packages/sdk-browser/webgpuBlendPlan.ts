@@ -120,12 +120,14 @@ export function buildBlendStatics(blendState: BlendState) {
 
 /** Two plan entries of a double-sided item, in the order the pass encoded: back, face. */
 function sidesOf(item: BlendGpuItem) {
+  // Read for `forceSinglePass` alone, under the double-sided test: an empty list declares front,
+  // so the element `sideOf` read is there whenever this value is touched.
   const material = Array.isArray(item.material) ? item.material[0] : item.material;
   // One determinant: the call used to yield the same value twice to pick the two faces.
   const renverse = matrixWindingCw(item.matrix.elements);
   const front = renverse ? PIPELINE_FRONT : PIPELINE_BACK,
     back = renverse ? PIPELINE_BACK : PIPELINE_FRONT;
-  const side = sideOf(material);
+  const side = sideOf(item.material);
   if (side === 'double' && !material.forceSinglePass) return [back, front];
   if (side === 'front') return [front];
   if (side === 'back') return [back];
