@@ -20,9 +20,12 @@ details summary{cursor:pointer;color:var(--encre-2);font-size:13px}.verdict{bord
 .scenes-cols{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}.scenes-cols .fiches{grid-template-columns:1fr}.scenes-cols .graphe{width:100%;height:auto}h3.scene{font-size:22px;margin:8px 0 12px}
 .fiches{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.fiche{display:grid;grid-template-columns:1fr;gap:12px;align-content:start;background:var(--surface);border:1px solid var(--bord);border-radius:12px;padding:24px 28px}.fiche.large{grid-column:1/-1}.fiche h3{margin:0 0 10px;font-size:23px;line-height:1.25;text-wrap:balance}.fiche figure{margin:0;border:0;padding:0;background:none}.fiche-verdict{margin:0 0 12px;font-size:17px;font-weight:600}.fiche-explication{font-size:17px;line-height:1.5;color:var(--encre-2);margin:0}.fiche .legende{font-size:15px}.graphe.grand text{font-size:15px}.graphe.grand .valeur{font-size:16px;font-weight:600}.pastille{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:8px;vertical-align:-1px}.pastille.bon{background:var(--bon)}.pastille.mauvais{background:var(--mauvais)}.pastille.moyen{background:#eda100}.pastille.neutre{background:var(--muet)}.trois li{margin:4px 0}
 @media (max-width:1100px){.fiches{grid-template-columns:1fr}.deux-cols{grid-template-columns:1fr}.scenes-cols{grid-template-columns:1fr}}
-code{font-size:.92em}.lacune{color:var(--encre-2)}
+code{font-size:.92em}.lacune{color:var(--encre-2)}.portail{font-size:14px;margin:0 0 12px}.portail a{color:var(--serie-1);text-decoration:none}.portail a:hover{text-decoration:underline}
 @media (max-width:640px){nav ol{columns:1}h1{font-size:22px}}
 `;
+
+/** Link back to the documentation portal published next to this report (`docs/index.html`). */
+const PORTAIL = '<p class="portail"><a href="./">← Documentation</a></p>';
 
 /** The whole page. `sections`: `[{ id, titre, corps }]`. */
 export function page({ titre, sousTitre, sections }) {
@@ -30,5 +33,5 @@ export function page({ titre, sousTitre, sections }) {
   const corps = sections
     .map((s) => `<section id="${s.id}"><h2>${html(s.titre)}</h2>${s.corps}</section>`)
     .join('');
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${html(titre)}</title><style>${STYLE}${STYLE_COMPARATEUR}${STYLE_BILAN}</style></head><body><main><h1>${html(titre)}</h1><p class="sous">${html(sousTitre)}</p><nav><ol>${sommaire}</ol></nav>${corps}</main><script>${SCRIPT_COMPARATEUR}</script></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${html(titre)}</title><style>${STYLE}${STYLE_COMPARATEUR}${STYLE_BILAN}</style></head><body><main>${PORTAIL}<h1>${html(titre)}</h1><p class="sous">${html(sousTitre)}</p><nav><ol>${sommaire}</ol></nav>${corps}</main><script>${SCRIPT_COMPARATEUR}</script></body></html>`;
 }
