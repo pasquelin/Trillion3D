@@ -1,5 +1,5 @@
-import * as THREE from 'three';
 import { matrixWindingCw } from '../sdk-core/index.ts';
+import { sideOf } from './materialSide.ts';
 import { blendChunkWords, blendVertexShift, planRegions, RUN_WORDS } from './webgpuBlendRuns.ts';
 import type { BlendGpuItem, createWebgpuBlendState } from './webgpuBlendState.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
@@ -125,9 +125,10 @@ function sidesOf(item: BlendGpuItem) {
   const renverse = matrixWindingCw(item.matrix.elements);
   const front = renverse ? PIPELINE_FRONT : PIPELINE_BACK,
     back = renverse ? PIPELINE_BACK : PIPELINE_FRONT;
-  if (material.side === THREE.DoubleSide && !material.forceSinglePass) return [back, front];
-  if (material.side === THREE.FrontSide) return [front];
-  if (material.side === THREE.BackSide) return [back];
+  const side = sideOf(material);
+  if (side === 'double' && !material.forceSinglePass) return [back, front];
+  if (side === 'front') return [front];
+  if (side === 'back') return [back];
   return [PIPELINE_NONE];
 }
 

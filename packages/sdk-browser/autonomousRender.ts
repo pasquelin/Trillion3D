@@ -1,9 +1,8 @@
-import type * as THREE from 'three';
 import { createSelectionResult, selectVisiblePages, type PageRec } from './pageSelection.ts';
 import type { BackendContext } from './backendTypes.ts';
 import type { installSceneLighting } from './sceneLighting.ts';
 import type { WebglFrameGate } from './webglFrameGate.ts';
-import type { CameraMotion } from './cameraWorld.ts';
+import type { CameraMotion, HostCamera } from './cameraWorld.ts';
 import type { HostWorldPlacements } from './hostWorldPlacements.ts';
 
 /** What the autonomous frame decided, and whether it was held. */
@@ -57,7 +56,7 @@ export function createAutonomousRender(options: {
     result: createSelectionResult<PageRec>(),
   };
   const sourcesDessinees = roots.map((root) => root.pages[0]);
-  return (camera: THREE.PerspectiveCamera) => {
+  return (camera: HostCamera) => {
     // Frame entry: the order and its guarantees live in `frameGateCore.ts`, which also copies
     // the host camera into the engine camera — the cut now reads only the latter.
     state.frameHeld = gate.enterFrame(
