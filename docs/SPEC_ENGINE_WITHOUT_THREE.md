@@ -153,7 +153,7 @@ configured by the engine's own `GPUCanvasContext` and the composition pass write
 image straight into the swap chain: there is no separate presentation pass to remove, and no
 object of the host's rendering library on that path. A host that composes several engines on a
 WebGL2 surface receives the engine's canvas as `presentedSurface` and copies it with the engine's
-own full-screen program (`webglCanvasBlit.ts`): the bytes go through unchanged, the rows are
+own full-screen program (`webglCanvasBlit.ts`, one owner for the frame and the capture alike): the bytes go through unchanged, the rows are
 reversed once, and the synchronous capture reads the same copy. What still belongs to the host
 library on the output side is the WebGL2 renderer itself — the batch engine written on host meshes
 and the composition host around it — and it is written by its own lot, not by this one.

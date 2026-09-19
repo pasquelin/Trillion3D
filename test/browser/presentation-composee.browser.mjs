@@ -15,7 +15,11 @@ const resultat = await preuveDansLaPage(
 console.log(JSON.stringify(resultat, null, 2));
 preuveSaine(resultat);
 
-assert.equal(resultat.glError, 0, `the copy raised WebGL error ${resultat.glError}`);
-assert.equal(resultat.maxCanal, 0, 'a channel of the presented image changed on the way');
-assert.equal(resultat.pixels, 0, `${resultat.pixels} pixels differ from the presented image`);
-console.log(`OK: ${resultat.total} pixels copied, not one channel apart`);
+const [copie] = resultat.checks;
+assert.ok(copie, 'the copy did not run');
+assert.equal(
+  copie.differentChannels,
+  0,
+  `${copie.differentChannels} channels differ (max ${copie.maxChannelError})`,
+);
+console.log(`OK: ${copie.bytes} channels copied, not one apart`);
