@@ -108,3 +108,9 @@ test('hslToLinearRgb: zero saturation yields a grey of the lightness, like the r
   assert.equal(out[0], out[1]);
   assert.equal(out[1], out[2]);
 });
+
+test('hslToLinearRgb returns the buffer it received, gray branch included', () => {
+  const out = new Float64Array(3);
+  assert.equal(hslToLinearRgb(out, 0, 0.25, 0.8, 0.5), out);
+  assert.equal(hslToLinearRgb(out, 0, 0.25, 0, 0.5), out, 'zero saturation returns early');
+});
