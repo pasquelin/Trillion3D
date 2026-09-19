@@ -71,3 +71,28 @@ export type {
   LightingExperimentRenderState,
   LightingExperimentRayDiagnostics,
 } from './lightingExperimentBackend.ts';
+
+export {
+  HIERARCHY_ROOT,
+  MATRIX_VALUES,
+  NORMAL_MATRIX_VALUES,
+  POSITION_VALUES,
+  QUATERNION_VALUES,
+  SPHERE_VALUES,
+  boxTransformBatch,
+  boxTransformUnionBatch,
+  boxUnionBatch,
+  composeMatrix4Batch,
+  decomposeMatrix4Batch,
+  frustumExcludesBoxBatch,
+  hierarchyUpdateBatch,
+  invertMatrix4Batch,
+  linearToSrgbBatch,
+  multiplyMatrix4Batch,
+  normalMatrix3Batch,
+  sphereFromBoundsBatch,
+  srgbToLinearBatch,
+  transformDirectionsBatch,
+  transformPointsBatch,
+  transformPointsByMatricesBatch,
+} from '../sdk-core/index.ts';
