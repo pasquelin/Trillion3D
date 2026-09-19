@@ -1,7 +1,7 @@
-// Les deux remplissages du visbuffer que le lot C compare, et la boucle d'image qui les appelle.
-// `fillReference` est le `fillIds` de `visibilityRaster.ts` recopié tel quel, ce que le paquet fait ;
-// `fillAffine` est le candidat refusé, une division par triangle et des pas constants. Les garder
-// côte à côte est ce qui rend le refus reproductible.
+// The two visbuffer fills that batch C compares, and the frame loop that calls them.
+// `fillReference` is `fillIds` from `visibilityRaster.ts` copied as-is, what the package does;
+// `fillAffine` is the rejected candidate, one division per triangle and constant steps.
+// Keeping them side by side is what makes the rejection reproducible.
 import * as THREE from 'three';
 import { DEPTH_CLEAR, depthNearer } from '../../depthConvention.ts';
 import { perspectiveBary, triangleAt, wrapTexel } from '../../visibilityMath.ts';
@@ -14,7 +14,7 @@ import {
   VIS_TRIANGLE_MASK,
 } from '../../visibilityTypes.ts';
 
-/** `visibilityRaster.ts` (`fillIds`) : une division par poids et par pixel, ce que le paquet fait. */
+/** `visibilityRaster.ts` (`fillIds`): one division per weight and per pixel, what the package does. */
 export function fillReference(ids, depth, width, height, a, b, c, packed, keep) {
   const area = (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
   if (area === 0) return;
@@ -56,7 +56,7 @@ export function fillReference(ids, depth, width, height, a, b, c, packed, keep) 
   }
 }
 
-/** Le candidat refusé : les poids sont affines, une seule division par triangle. */
+/** The rejected candidate: the weights are affine, a single division per triangle. */
 export function fillAffine(ids, depth, width, height, a, b, c, packed, keep) {
   const ax = a.x,
     ay = a.y,
@@ -101,7 +101,7 @@ export function fillAffine(ids, depth, width, height, a, b, c, packed, keep) {
   }
 }
 
-/** Le test alpha du remplissage, le même des deux côtés : il lit les poids qu'on lui passe. */
+/** The fill's alpha test, the same on both sides: it reads the weights it is given. */
 function alphaGarde(page, tri, mat, w0, w1, w2) {
   const uv = page.attributes.uv;
   const bary = perspectiveBary(tri.a, tri.b, tri.c, { w0, w1, w2 });
@@ -118,15 +118,15 @@ function alphaGarde(page, tri, mat, w0, w1, w2) {
   return rgba.data[(ty * rgba.width + tx) * 4 + 3] / 255 >= mat.alphaTest;
 }
 
-/** La boucle d'image de `visibilityRaster.ts`, sur le remplissage qu'on lui donne. */
+/** The frame loop of `visibilityRaster.ts`, on the fill it is given. */
 export function rasterAvec(fill) {
   return (pages, cam, viewport) => {
     const [width, height] = viewport,
       ids = new Uint32Array(width * height),
       depth = new Float32Array(width * height);
     depth.fill(-Infinity);
-    // Le sujet comparé est le REMPLISSAGE, pas la lecture de la caméra : la vue-projection et sa
-    // convention de profondeur viennent de la caméra du moteur, comme dans le paquet.
+    // The compared subject is the FILL, not the camera read: the view-projection and its
+    // depth convention come from the engine camera, as in the package.
     for (let pageIndex = 0; pageIndex < pages.length && pageIndex < VIS_MAX_PAGES; pageIndex++) {
       const page = pages[pageIndex],
         index = page.array;

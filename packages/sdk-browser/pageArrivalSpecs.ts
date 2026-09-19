@@ -9,18 +9,17 @@ import {
 } from '../sdk-core/index.ts';
 import type { ArrivalPlan } from './pageIntegrationHost.ts';
 
-/** Ce qu'un enregistrement doit à la fiche : sa place dans le paquet, sa taille, son rang de page. */
+/** What a record owes the spec: its place in the bundle, its size, its page rank. */
 type SpecRec = { streamOffset?: number; triangles: number };
-/** Ce qu'une arrivée écrit sur un enregistrement : sa vue sur le paquet et ce qu'elle pèse. */
+/** What an arrival writes on a record: its view of the bundle and what it weighs. */
 type ArrivalRec = SpecRec & { array?: Uint32Array; indexBytes: number };
 
 /**
- * La fiche d'une requête : trois entiers par enregistrement, tirés du seul catalogue.
+ * Spec of a request: three integers per record, taken from the catalogue alone.
  *
- * Elle ne dépend d'aucune arrivée — offset dans le paquet, triangles et rang de page sont posés par
- * le compilateur et par la table des pages — donc elle se construit une fois par adresse et se
- * relit ensuite. C'est tout ce que l'exécutant hors fil reçoit : les octets de la page restent chez
- * leur propriétaire.
+ * It depends on no arrival — offset in the bundle, triangles and page rank are set by the
+ * compiler and by the page table — so it is built once per address and re-read afterwards. That
+ * is all the off-thread worker receives: the page's bytes stay with their owner.
  */
 export function createArrivalSpecs<T extends SpecRec>(
   byUrl: ReadonlyMap<string, T[]>,
@@ -46,12 +45,12 @@ export function createArrivalSpecs<T extends SpecRec>(
 }
 
 /**
- * Pose les vues d'une arrivée depuis son plan, sans en recalculer une seule.
+ * Sets an arrival's views from its plan, without recomputing a single one.
  *
- * Le plan nomme, pour chaque enregistrement et dans l'ordre de la fiche, son premier mot et son
- * nombre de mots : la boucle ne fait plus que poser la vue. Rend faux quand aucun plan n'est arrivé
- * ou qu'il ne décrit pas cette liste — l'appelant refait alors le calcul d'origine, au même
- * résultat. Un plan qui déborderait le paquet arrivé est refusé de la même façon.
+ * The plan names, for each record and in spec order, its first word and its word count: the loop
+ * only sets the view. Returns false when no plan arrived or it does not describe this list — the
+ * caller then redoes the original computation, at the same result. A plan that would overflow the
+ * arrived bundle is refused the same way.
  */
 export function applyArrivalPlan<T extends ArrivalRec>(
   recs: readonly T[],

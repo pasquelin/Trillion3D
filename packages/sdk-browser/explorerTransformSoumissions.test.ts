@@ -1,7 +1,7 @@
-// Une transformation ne dessine pas. Elle marque la scène modifiée ; le rendu suivant la prend.
-// Avant ce lot, `setTransform` appelait `syncResident()` sur chaque moteur, et celui-ci rendait
-// tout de suite : dix poses posées avant une image coûtaient onze soumissions de carte graphique
-// au lieu d'une. Le compteur de ce test est celui d'un appareil simulé — `queue.submit`.
+// A transform does not draw. It marks the scene modified; the next render takes it.
+// Before this batch, `setTransform` called `syncResident()` on each engine, and that engine
+// rendered at once: ten poses set before a frame cost eleven GPU submits instead of one. This
+// test's counter is that of a simulated device — `queue.submit`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -12,8 +12,8 @@ import { setWebgpuTransform } from './webgpuPagesTransform.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Un moteur simulé qui soumet à la carte graphique dès qu'on lui demande une image. */
-function moteur() {
+/** A simulated engine that submits to the GPU as soon as a frame is asked of it. */
+function engine() {
   let submissions = 0;
   const device = { queue: { submit: () => submissions++ } };
   const backend = {
@@ -45,24 +45,24 @@ function api(backend: RenderBackend) {
 const pose = (x: number, y: number) =>
   new Float32Array(new THREE.Matrix4().makeTranslation(x, y, 0).elements);
 
-test('dix transformations puis une image : une soumission de rendu, pas onze', () => {
-  const m = moteur();
+test('ten transforms then one frame: one render submit, not eleven', () => {
+  const m = engine();
   const explorer = api(m.backend);
   for (let i = 0; i < 10; i++) explorer.setTransform(`n${i}`, pose(i, 0));
-  assert.equal(m.submissions, 0, 'aucune image soumise pendant les poses');
+  assert.equal(m.submissions, 0, 'no frame submitted during the poses');
   m.backend.render!(new THREE.PerspectiveCamera());
-  assert.equal(m.submissions, 1, 'le rendu explicite de l’hôte soumet une fois, et une seule');
+  assert.equal(m.submissions, 1, 'the host’s explicit render submits once, and only once');
 });
 
-test('un moteur qui ne sait pas déplacer un nœud refuse par une erreur nommée', () => {
+test('an engine that cannot move a node refuses with a named error', () => {
   const explorer = api({} as RenderBackend);
   assert.throws(
     () => explorer.setTransform('n0', pose(0, 0)),
-    /aucun moteur de cette session ne déplace un nœud nommé/,
+    /no engine of this session moves a named node/,
   );
 });
 
-/** Le strict minimum que `setWebgpuTransform` lit : une scène, une porte d'image, un ordonnanceur. */
+/** The strict minimum `setWebgpuTransform` reads: a scene, a frame gate, a scheduler. */
 function banc() {
   const source = new THREE.Object3D();
   const node = new THREE.Object3D();
@@ -79,7 +79,7 @@ function banc() {
   } as unknown as WebgpuPagesRuntime;
   const camera = new THREE.PerspectiveCamera();
   const drawn = [{ sourceMesh: node }];
-  /** Une image de la boucle : la porte décide de tenir, puis range ce qu'elle vient de produire. */
+  /** One loop frame: the gate decides to hold, then stores what it just produced. */
   const frame = () => {
     const held = gate.enterFrame({}, camera, {}, undefined, source, drawn);
     gate.hold.keep(gate.revisions);
@@ -88,29 +88,29 @@ function banc() {
   return { rt, node, rows, frame, worlds };
 }
 
-/** Ce que l'image dessinerait de ce nœud : la matrice monde que LE MOTEUR tient pour lui. */
+/** What the frame would draw of this node: the world matrix THE ENGINE holds for it. */
 const image = (b: { node: THREE.Object3D; worlds: HostWorldPlacements }) =>
   b.worlds.of(b.node).elements.join(',');
 
-test('une pose change l’image tenue : la porte refuse de resservir la précédente', () => {
+test('a pose changes the held frame: the gate refuses to serve the previous one again', () => {
   const b = banc();
   b.frame();
   b.frame();
-  assert.equal(b.frame(), true, 'rien n’a bougé : l’image est tenue');
-  const avant = image(b);
+  assert.equal(b.frame(), true, 'nothing has moved: the frame is held');
+  const before = image(b);
   setWebgpuTransform(b.rt, 'volet', pose(0, 1));
-  assert.equal(b.frame(), false, 'la pose posée, l’image tenue est refusée');
-  assert.notEqual(image(b), avant, 'et le nœud dessiné porte bien la nouvelle pose');
+  assert.equal(b.frame(), false, 'the pose set, the held frame is refused');
+  assert.notEqual(image(b), before, 'and the drawn node does carry the new pose');
 });
 
-test('la même pose reposée ne périme rien : l’image reste tenue', () => {
+test('the same pose set again invalidates nothing: the frame stays held', () => {
   const b = banc();
   setWebgpuTransform(b.rt, 'volet', pose(0, 1));
   b.frame();
   b.frame();
-  assert.equal(b.frame(), true, 'l’image est tenue');
+  assert.equal(b.frame(), true, 'the frame is held');
   const epoque = b.rows.tableEpoch;
   for (let i = 0; i < 10; i++) setWebgpuTransform(b.rt, 'volet', pose(0, 1));
-  assert.equal(b.rows.tableEpoch, epoque, 'dix poses identiques, aucune table refaite');
-  assert.equal(b.frame(), true, 'et l’image tenue le reste');
+  assert.equal(b.rows.tableEpoch, epoque, 'ten identical poses, no table rebuilt');
+  assert.equal(b.frame(), true, 'and the held frame stays held');
 });

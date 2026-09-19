@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { hashId } from './backendCommon.ts';
+import { materialSide } from './materialSide.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 
 const cache = new WeakMap<THREE.BufferGeometry, THREE.BufferGeometry>();
@@ -53,14 +54,10 @@ export function createTriangleDiagnosticMaterial(side: THREE.Side, _salt = 0) {
   return new THREE.MeshBasicMaterial({ vertexColors: true, side, toneMapped: false, fog: false });
 }
 
-export function materialSide(material: THREE.Material | THREE.Material[]) {
-  return Array.isArray(material) ? material[0].side : material.side;
-}
-
 /**
- * Rend à une copie sa géométrie et son matériau d'origine, gardés dans `userData`, puis, en mode
- * filaire, lui pose le coloriage par triangle. Le matériau créé entre dans `overlays`, à jeter avec
- * le mode.
+ * Give a copy back its original geometry and material, kept in `userData`, then, in wireframe
+ * mode, set its per-triangle colouring. The created material goes into `overlays`, to discard
+ * with the mode.
  */
 export function applyMeshDiagnostic(
   mesh: THREE.Mesh,

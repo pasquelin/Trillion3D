@@ -1,10 +1,10 @@
-// Preuve par le moteur réel : `setTransform` résout le parent d'un nœud AVANT d'inverser sa
-// matrice, même quand l'hôte a écrit directement la position, la rotation et l'échelle de ce parent
-// sans jamais appeler `updateMatrixWorld` ni repasser par `setTransform`. Sans cette résolution, la
-// même pose monde redemandée après un parent sali finirait ailleurs — l'inversion porterait sur une
-// matrice monde périmée — et une comparaison au pixel jugerait « sans effet » une demande qui,
-// pourtant, doit rester tenue. Rendre le parent singulier (une échelle à zéro) doit refuser la
-// demande par `SINGULAR_PARENT_TRANSFORM` plutôt que de poser silencieusement seize zéros.
+// Proof by the real engine: `setTransform` resolves a node's parent BEFORE inverting its
+// matrix, even when the host has written that parent's position, rotation and scale directly
+// without ever calling `updateMatrixWorld` or going through `setTransform` again. Without that
+// resolution, the same world pose asked again after a dirty parent would land elsewhere — the
+// inversion would bear on a stale world matrix — and a pixel comparison would judge "no effect"
+// a request that must nevertheless stay held. Making the parent singular (a zero scale) must
+// refuse the request with `SINGULAR_PARENT_TRANSFORM` rather than silently pose sixteen zeros.
 //
 //   node --experimental-strip-types test/browser/transform-parent-perime.browser.mjs
 import assert from 'node:assert/strict';
@@ -13,7 +13,7 @@ import { preuveDansLaPage, preuveSaine } from '../appui/preuvePageMoteur.mjs';
 const resultat = await preuveDansLaPage(
   'setTransformParentPerimePage.mjs',
   'setTransformParentPerime',
-  'Parent périmé',
+  'Stale parent',
 );
 console.log(
   JSON.stringify(
@@ -25,40 +25,36 @@ console.log(
 preuveSaine(resultat);
 
 for (const [passe, r] of Object.entries(resultat.passes)) {
-  const dit = (message) => `${passe} : ${message}`;
-  assert.ok(r.initialRouge > 0, dit('la pose initiale ne montre aucun pixel rouge'));
+  const dit = (message) => `${passe}: ${message}`;
+  assert.ok(r.initialRouge > 0, dit('the initial pose shows no red pixel'));
   assert.ok(
     r.etapes.some((e) => e.nom.startsWith('initial-') && e.tenue),
-    dit('l’image initiale ne s’est jamais tenue'),
+    dit('the initial image was never held'),
   );
   assert.equal(
     r.etapes.find((e) => e.nom === 'parent-dirty').tenue,
     false,
-    dit('la tenue n’a pas été cassée par le parent sali'),
+    dit('hold was not broken by the dirty parent'),
   );
   assert.equal(
     r.dirtyPixels,
     0,
-    dit('la même pose monde redemandée après un parent sali dessine ailleurs'),
+    dit('the same world pose asked again after a dirty parent draws elsewhere'),
   );
   assert.ok(
     r.etapes.some((e) => e.nom.startsWith('stable-') && e.tenue),
-    dit('l’image ne s’est jamais restabilisée'),
+    dit('the image never restabilised'),
   );
-  assert.equal(r.stablePixels, 0, dit('la stabilisation a bougé la pose tenue'));
-  assert.equal(
-    r.repeatPixels,
-    0,
-    dit('un second parent sali puis redemandé dessine encore ailleurs'),
-  );
-  assert.ok(r.movedPixels > 0, dit('une pose monde réellement différente n’a rien changé'));
+  assert.equal(r.stablePixels, 0, dit('stabilisation moved the held pose'));
+  assert.equal(r.repeatPixels, 0, dit('a second dirty then re-asked parent still draws elsewhere'));
+  assert.ok(r.movedPixels > 0, dit('a truly different world pose changed nothing'));
   assert.equal(
     r.singulier,
     'SINGULAR_PARENT_TRANSFORM',
-    dit('le parent singulier n’a pas été refusé'),
+    dit('the singular parent was not refused'),
   );
 }
 console.log(
-  `OK : 2 passes (paginée, non paginée) × ${Object.values(resultat.passes)[0].etapes.length} images ` +
-    `du moteur WebGPU réel — ${resultat.adaptateur}`,
+  `OK: 2 passes (paged, unpaged) × ${Object.values(resultat.passes)[0].etapes.length} frames ` +
+    `of the real WebGPU engine — ${resultat.adaptateur}`,
 );

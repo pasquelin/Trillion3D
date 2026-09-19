@@ -1,41 +1,42 @@
-//! Ce que le pilote `usd` reconnaît, triangule et compose. Les refus, eux, sont dans
-//! `usd_refus.rs` ; la scène dorée est dans `usd_golden.rs`.
+//! What the `usd` driver recognises, triangulates and composes. Refusals are in
+//! `usd_refus.rs`; the golden scene is in `usd_golden.rs`.
 //!
-//! Chaque cas est une couche `.usda` minuscule écrite ici même : c'est la seule façon d'isoler un
-//! comportement — une fixture réelle en mêlerait dix.
+//! Each case is a tiny `.usda` layer written here: that is the only way to isolate
+//! a behaviour — a real fixture would mix ten.
 use super::*;
 
-/// Le pilote de scène de ce nom dans le registre.
+/// The scene driver of this name in the registry.
 pub(super) fn plugin(name: &str) -> &'static dyn plugins::scene::ScenePlugin {
     plugins::scene::PLUGINS
         .iter()
         .copied()
         .find(|plugin| plugin.name() == name)
-        .unwrap_or_else(|| panic!("le registre ne porte pas le pilote {name}"))
+        .unwrap_or_else(|| panic!("the registry does not carry the driver {name}"))
 }
 
-/// Un dossier jetable, nommé par le cas qui l'utilise.
+/// A throwaway folder, named by the case that uses it.
 pub(super) fn temp_dir(tag: &str) -> PathBuf {
     scratch("usd", tag)
 }
 
-/// Écrit une couche jetable et la compile par le harnais commun. Le dossier source s'efface une
-/// fois la compilation faite : tout ce que la dorée relit est déjà dans son cache.
+/// Writes a throwaway layer and compiles it with the common harness. The source
+/// folder is erased once compilation is done: everything the golden rereads is
+/// already in its cache.
 pub(super) fn compile_layer(tag: &str, body: &str) -> GoldenRun {
     let dir = temp_dir(tag);
     let source = dir.join("scene.usda");
-    fs::write(&source, body).expect("couche");
+    fs::write(&source, body).expect("layer");
     let run = compile_golden_source(&source, tag);
     fs::remove_dir_all(&dir).ok();
     run
 }
 
-/// Une couche qui porte `body` entre les accolades de son prim racine.
+/// A layer that carries `body` between the braces of its root prim.
 pub(super) fn wrap(header: &str, body: &str) -> String {
     format!("#usda 1.0\n(\n    defaultPrim = \"Root\"\n{header})\n\ndef Xform \"Root\"\n{{\n{body}\n}}\n")
 }
 
-/// Un maillage carré, deux triangles, sans matériau : de quoi qu'une scène ne soit pas vide.
+/// A square mesh, two triangles, without a material: enough that a scene is not empty.
 pub(super) const QUAD: &str = r#"
     def Mesh "Quad"
     {
@@ -46,26 +47,23 @@ pub(super) const QUAD: &str = r#"
     }
 "#;
 
-// Comportement 29 : les deux sérialisations se reconnaissent à leur entête, et un ZIP n'est pas une
-// couche USD — c'est le conteneur `usdz` qui le revendique.
+// Behaviour 29: both serialisations are recognised by their header, and a ZIP is
+// not a USD layer — it is the `usdz` container that claims it.
 #[test]
 fn the_usd_plugin_recognises_both_serialisations_by_their_head() {
     let usd = plugin("usd");
-    assert!(usd.accepts_head(b"#usda 1.0\n"), "la couche texte");
-    assert!(usd.accepts_head(b"PXR-USDC\0\x08\0\0"), "la couche binaire");
-    assert!(
-        !usd.accepts_head(b"PK\x03\x04"),
-        "un ZIP n'est pas une couche"
-    );
+    assert!(usd.accepts_head(b"#usda 1.0\n"), "the text layer");
+    assert!(usd.accepts_head(b"PXR-USDC\0\x08\0\0"), "the binary layer");
+    assert!(!usd.accepts_head(b"PK\x03\x04"), "a ZIP is not a layer");
     assert_eq!(usd.extensions(), ["usd", "usda", "usdc"]);
     assert!(
         plugin("usdz").accepts_head(b"PK\x03\x04"),
-        "un paquet USDZ est un ZIP"
+        "a USDZ package is a ZIP"
     );
 }
 
-// Comportement 30 : un polygone à n côtés devient n − 2 triangles, en éventail depuis son premier
-// coin ; un maillage à sept coins ne perd donc aucune surface.
+// Behaviour 30: an n-sided polygon becomes n − 2 triangles, fanned from its first
+// corner; a seven-corner mesh therefore loses no surface.
 #[test]
 fn a_polygon_becomes_a_fan_of_triangles() {
     let mesh = r#"
@@ -80,12 +78,12 @@ fn a_polygon_becomes_a_fan_of_triangles() {
     let run = compile_layer("fan", &wrap("", mesh));
     assert_eq!(
         run.result["sourceTriangles"], 5,
-        "sept coins font cinq triangles"
+        "seven corners make five triangles"
     );
 }
 
-// Comportement 31 : un `GeomSubset` de la famille `materialBind` devient une primitive à part, et
-// les faces qu'aucun sous-ensemble ne réclame reviennent à la liaison du maillage.
+// Behaviour 31: a `GeomSubset` of the `materialBind` family becomes a primitive
+// of its own, and faces no subset claims return to the mesh binding.
 #[test]
 fn a_geom_subset_becomes_its_own_primitive_with_its_own_material() {
     let dir = golden_dir("usd");
@@ -94,22 +92,18 @@ fn a_geom_subset_becomes_its_own_primitive_with_its_own_material() {
     let primitives = gltf["meshes"][0]["primitives"]
         .as_array()
         .expect("primitives");
-    assert_eq!(primitives.len(), 2, "une partie par matériau");
+    assert_eq!(primitives.len(), 2, "one part per material");
     let materials: Vec<u64> = primitives
         .iter()
         .map(|primitive| primitive["material"].as_u64().expect("material"))
         .collect();
-    assert_eq!(
-        materials,
-        [0, 1],
-        "le sous-ensemble d'abord, le reste ensuite"
-    );
+    assert_eq!(materials, [0, 1], "the subset first, the rest after");
     assert_eq!(gltf["materials"][1]["alphaMode"], "OPAQUE");
-    assert_eq!(gltf["materials"][0]["alphaMode"], "BLEND", "opacité 0,5");
+    assert_eq!(gltf["materials"][0]["alphaMode"], "BLEND", "opacity 0.5");
 }
 
-// Comportement 32 : deux prims `instanceable` qui référencent la même définition partagent un seul
-// maillage glTF, chacun sous son propre nœud.
+// Behaviour 32: two `instanceable` prims that reference the same definition share
+// a single glTF mesh, each under its own node.
 #[test]
 fn two_instances_of_one_prototype_share_a_single_mesh() {
     let body = format!(
@@ -138,7 +132,7 @@ fn two_instances_of_one_prototype_share_a_single_mesh() {
     assert_eq!(
         gltf["meshes"].as_array().map(Vec::len),
         Some(1),
-        "les deux instances citent le même maillage"
+        "both instances cite the same mesh"
     );
     let cited: Vec<u64> = gltf["nodes"]
         .as_array()
@@ -149,28 +143,28 @@ fn two_instances_of_one_prototype_share_a_single_mesh() {
     assert_eq!(
         cited,
         [0, 0],
-        "les deux instances, le gabarit n'étant pas une scène"
+        "both instances, the prototype not being a scene"
     );
 }
 
-// Comportement 33 : l'unité et l'axe haut de la couche vivent sur la racine de la scène, jamais
-// dans les sommets : une couche en centimètres et en Z haut sort à l'échelle et en Y haut.
+// Behaviour 33: the layer's unit and up-axis live on the scene root, never in
+// the vertices: a layer in centimetres and Z-up comes out at scale and Y-up.
 #[test]
 fn the_layer_unit_and_up_axis_land_on_the_scene_root() {
     let header = "    metersPerUnit = 0.01\n    upAxis = \"Z\"\n";
     let run = compile_layer("axes", &wrap(header, QUAD));
     let (_, gltf) = run.prepared("usd");
     let nodes = gltf["nodes"].as_array().expect("nodes");
-    let root = nodes.last().expect("racine");
+    let root = nodes.last().expect("root");
     let matrix: Vec<f64> = root["matrix"]
         .as_array()
         .expect("matrix")
         .iter()
-        .map(|value| (value.as_f64().expect("nombre") * 1e6).round() / 1e6)
+        .map(|value| (value.as_f64().expect("number") * 1e6).round() / 1e6)
         .collect();
     assert_eq!(
         matrix,
         vec![0.01, 0., 0., 0., 0., 0., -0.01, 0., 0., 0.01, 0., 0., 0., 0., 0., 1.],
-        "l'échelle de la couche puis le passage de Z haut à Y haut"
+        "the layer's scale then the passage from Z-up to Y-up"
     );
 }

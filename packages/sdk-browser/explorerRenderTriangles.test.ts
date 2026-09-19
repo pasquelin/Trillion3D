@@ -1,6 +1,6 @@
 // `metricsScratch.triangles` (contrat `FrameMetrics.triangles: number | null`) : quand ni le moteur
-// (`totalSubmittedTriangles`) ni le renderer de l'hôte n'ont compté d'image, `createExplorerRender`
-// doit publier `null`, jamais `0` — un zéro se lirait comme une image vide.
+// (`totalSubmittedTriangles`) nor the host renderer have counted a frame, `createExplorerRender`
+// must publish `null`, never `0` — a zero would read as an empty frame.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -8,8 +8,8 @@ import { createExplorerRender } from './explorerRender.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { FrameMetrics } from '../sdk-core/index.ts';
 
-/** Un jeu minimal d'entrées pour `createExplorerRender` : dessin muet, diagnostic éteint, audit
- *  éteint (pas de `wgFrameAudit` dans l'URL de test). Seuls `directGpu` et le renderer varient. */
+/** A minimal set of inputs for `createExplorerRender`: mute draw, diagnostic off, audit
+ *  off (no `wgFrameAudit` in the test URL). Only `directGpu` and the renderer vary. */
 function harness(options: { directGpu: boolean; renderer?: { triangles: number } }) {
   const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 50);
   const active = { id: 'test-backend' } as unknown as RenderBackend;
@@ -56,31 +56,31 @@ function harness(options: { directGpu: boolean; renderer?: { triangles: number }
   return { render, metricsScratch };
 }
 
-test('triangles reste null quand ni le moteur ni le renderer de l’hôte n’ont compté (chemin GPU direct)', () => {
+test('triangles stays null when neither the engine nor the host renderer has counted (direct GPU path)', () => {
   const { render, metricsScratch } = harness({ directGpu: true });
   render();
-  assert.equal(metricsScratch.triangles, null, 'un zéro se lirait comme une image vide');
+  assert.equal(metricsScratch.triangles, null, 'a zero would read as an empty frame');
 });
 
-test('triangles reste null quand l’hôte n’a pas de renderer possédé, hors chemin GPU direct', () => {
+test('triangles stays null when the host has no owned renderer, off the direct GPU path', () => {
   const { render, metricsScratch } = harness({ directGpu: false });
   render();
   assert.equal(metricsScratch.triangles, null);
 });
 
-test('triangles reprend le compte du renderer de l’hôte quand il dessine et que le moteur n’a rien soumis', () => {
+test('triangles takes the host renderer count when it draws and the engine has submitted nothing', () => {
   const { render, metricsScratch } = harness({ directGpu: false, renderer: { triangles: 4200 } });
   render();
   assert.equal(metricsScratch.triangles, 4200);
 });
 
-test('triangles ignore le renderer de l’hôte sur le chemin GPU direct, même s’il compte encore', () => {
+test('triangles ignores the host renderer on the direct GPU path, even if it still counts', () => {
   const { render, metricsScratch } = harness({ directGpu: true, renderer: { triangles: 4200 } });
   render();
-  assert.equal(metricsScratch.triangles, null, 'le renderer possédé ne dessine rien en direct GPU');
+  assert.equal(metricsScratch.triangles, null, 'the owned renderer draws nothing on direct GPU');
 });
 
-test('triangles publie le total soumis du moteur dès qu’il existe, avant tout repli', () => {
+test('triangles publishes the engine submitted total as soon as it exists, before any fallback', () => {
   const { render, metricsScratch } = harness({ directGpu: false, renderer: { triangles: 999 } });
   (metricsScratch as unknown as { totalSubmittedTriangles: number }).totalSubmittedTriangles = 1234;
   render();

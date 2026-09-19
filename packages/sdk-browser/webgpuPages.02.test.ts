@@ -36,7 +36,7 @@ test('trace failure diagnostics retain bounded stack and cause context', async (
   }
 });
 
-test('les queues des textures sont épinglées à la préparation, et une texture qui tient dans sa queue ne diffuse rien', async () => {
+test('texture queues are pinned at prepare, and a texture that fits in its queue streams nothing', async () => {
   installGpuGlobals();
   const { device } = mockGpu();
   const fixture = quadScene();
@@ -59,16 +59,16 @@ test('les queues des textures sont épinglées à la préparation, et une textur
     maxTextureTransferBytesPerFrame: 16,
   });
   try {
-    // Trois queues par atlas — le texel de remplissage et deux textures —, posées avant toute
-    // image : ce que l'écran montre tant qu'aucune tuile n'est demandée.
+    // Three queues per atlas — the fill texel and two textures — placed before any image: what
+    // the screen shows while no tile is requested.
     await backend.prepare();
     const prepared = backend.metrics();
     assert.equal(prepared.textureTilesResident, 6);
     assert.equal(prepared.textureTilesServed, 0);
     assert.equal(prepared.textureTilesPending, 0);
-    assert.equal(prepared.texturePoolLayers, 4, '512 Mio, deux atlas, des couches de 63,5 Mio');
-    // Une texture de 2×2 tient dans sa queue : aucune tuile diffusée à demander, la barrière
-    // converge sans rien copier, et le pool ne bouge pas.
+    assert.equal(prepared.texturePoolLayers, 4, '512 MiB, two atlases, 63.5 MiB layers');
+    // A 2×2 texture fits in its queue: no streamed tile to request, the barrier converges
+    // without copying anything, and the pool does not move.
     backend.render(camera());
     await backend.flush();
     const settled = backend.metrics();
@@ -127,13 +127,13 @@ test('vis draws instance each packed page from the page table', async () => {
   fixture.material.dispose();
 });
 
-test('les pools de textures sont des destinations de copie, alloués une fois à la taille du budget', async () => {
+test('texture pools are copy destinations, allocated once at the budget size', async () => {
   installGpuGlobals();
   const { device, textures } = mockGpu();
   const { fixture, backend } = quadBackend(device);
   await backend.prepare();
   const pools = textures.filter((texture) => texture.width === 4080 && texture.height === 4080);
-  assert.equal(pools.length, 2, 'un pool couleur, un pool de données');
+  assert.equal(pools.length, 2, 'one colour pool, one data pool');
   const need =
     GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT;
   for (const pool of pools) {

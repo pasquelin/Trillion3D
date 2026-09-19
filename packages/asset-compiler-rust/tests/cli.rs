@@ -139,7 +139,7 @@ fn cancel_line_on_stdin_stops_the_job() {
     );
     fs::remove_dir_all(root).ok();
 }
-/// Le nom de chaque pilote d'une famille, dans l'ordre où le registre les publie.
+/// Name of each driver in a family, in the order published by the registry.
 fn plugin_names(plugins: &[Value]) -> Vec<&str> {
     plugins
         .iter()
@@ -156,7 +156,7 @@ fn version_flag_describes_the_build() {
     let v: Value =
         serde_json::from_str(String::from_utf8_lossy(&output.stdout).trim()).expect("json");
     assert_eq!(v["compilerVersion"], env!("CARGO_PKG_VERSION"));
-    // Le registre des pilotes voyage dans --version : un format par pilote, avec sa version.
+    // Driver registry travels in --version: one format per driver, with its version.
     let scene = v["plugins"]["scene"].as_array().expect("scene plugins");
     assert_eq!(
         plugin_names(scene).join(" "),

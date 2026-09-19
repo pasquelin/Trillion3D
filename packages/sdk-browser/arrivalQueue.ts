@@ -1,29 +1,30 @@
 /**
- * File d'arrivées de pages d'index : ce qui arrive du cache ou du réseau n'entre plus dans l'image
- * qui l'a découvert. Chaque arrivée est empilée, PLANIFIÉE hors du fil principal, puis un drain
- * unique et borné, en tête de l'image suivante, la fait résider avant la sélection. Une image ne
- * porte donc jamais plus que ce budget d'intégration, et la rafale d'un lot entier ne tombe plus au
- * milieu d'un `renderer.render`. L'ordre d'arrivée est conservé : un drain reprend exactement là où
- * le précédent s'est arrêté, et l'ordre dans lequel l'image a nommé ses pages manquantes est déjà
- * celui de sa priorité — le plus coûteux à manquer d'abord.
+ * Index-page arrival queue: what arrives from cache or network no longer enters the frame
+ * that discovered it. Each arrival is queued, PLANNED off the main thread, then a single
+ * bounded drain at the head of the next frame makes it resident before selection. A frame
+ * therefore never carries more than this integration budget, and a whole-batch burst no
+ * longer lands in the middle of a `renderer.render`. Arrival order is preserved: a drain
+ * resumes exactly where the previous one stopped, and the order in which the frame named
+ * its missing pages is already its priority order — the most costly to miss first.
  *
- * Le plan est ce que le fil principal ne calcule plus : pour chaque enregistrement du paquet, son
- * premier mot et son nombre de mots, et les rangs de page que l'arrivée remue, triés. Il part dès
- * l'empilement et revient avant le drain ; le destinataire n'a plus qu'à poser des vues et à écrire.
- * Aucun octet de page ne voyage pour cela — seulement la fiche d'entiers du catalogue. Quand il n'y
- * a rien à faire planifier, ou pas de fil pour le faire, le plan est là dès l'empilement : l'arrivée
- * est alors livrable dans le même tour, et aucune attente ne s'ajoute à ce que le lot a remplacé.
+ * The plan is what the main thread no longer computes: for each record in the packet, its
+ * first word and its word count, and the page ranks the arrival touches, sorted. It leaves
+ * at enqueue time and returns before the drain; the target only has to set views and write.
+ * No page bytes travel for that — only the catalogue integer sheet. When there is nothing
+ * to plan, or no worker to plan it, the plan is already there at enqueue: the arrival is
+ * then deliverable in the same turn, and no wait is added to what the batch replaced.
  *
- * Le plafond qui compte est celui du TEMPS. Une arrivée porte un paquet de streaming dont le nombre
- * de clusters n'est pas connu d'avance : ni les octets d'index, ni le nombre de pages ne bornent
- * donc la durée qu'elle coûte. Le drain relit l'horloge après chaque livraison et rend la main dès
- * le plafond atteint ; le reste attend l'image suivante. Une livraison au moins passe toujours, sans
- * quoi une page plus longue à intégrer que le plafond n'entrerait jamais.
+ * The ceiling that counts is TIME. An arrival carries a streaming packet whose cluster
+ * count is not known in advance: neither index bytes nor page count therefore bound the
+ * duration it costs. The drain rereads the clock after each delivery and yields as soon
+ * as the ceiling is reached; the rest waits for the next frame. At least one delivery
+ * always goes through, otherwise a page longer to integrate than the ceiling would never
+ * enter.
  */
 import { planArrival, planArrivalHere, type ArrivalPlan } from './pageIntegrationHost.ts';
 
-/** Ce que la file exige d'un destinataire : de quoi recevoir une page avant le prochain rendu, et
- *  la fiche du catalogue pour la requête — les entiers dont le plan se déduit, et rien d'autre. */
+/** What the queue requires of a target: a way to receive a page before the next render, and
+ *  the catalogue sheet for the request — the integers the plan is deduced from, and nothing else. */
 export type ArrivalTarget = {
   acceptPage?(url: string, array: Uint32Array, plan?: ArrivalPlan): void;
   pageSpecs?(url: string): Int32Array | undefined;
@@ -40,31 +41,31 @@ type Arrival = {
 };
 
 /**
- * Drains qu'une arrivée peut passer en tête de file sans que son plan soit revenu. Au-delà, l'image
- * ne l'attend plus : le plan se refait en ligne, sur le fil principal, plutôt que de laisser un
- * transport lent creuser un trou dans l'image. Deux images, pas une : un aller-retour de message
- * tient largement dans le temps qui sépare l'arrivée du drain suivant.
+ * Drains an arrival may spend at the head of the queue without its plan having returned. Beyond
+ * that, the frame no longer waits: the plan is rebuilt inline, on the main thread, rather than
+ * let a slow transport punch a hole in the frame. Two frames, not one: a message round-trip
+ * easily fits in the time that separates the arrival from the next drain.
  */
 const MAX_PLAN_WAITS = 2;
 
 export function createArrivalQueue(byteBudget: number, countBudget: number, msBudget = 2) {
   const items: Arrival[] = [];
-  // Une même page peut être vue par le cache puis par la fin de son téléchargement : tant qu'elle
-  // attend, elle ne s'empile qu'une fois par destinataire. L'attente est oubliée dès la livraison.
+  // The same page may be seen by the cache then by the end of its download: while it waits,
+  // it is queued only once per target. The wait is forgotten as soon as it is delivered.
   const waiting = new Map<ArrivalTarget, Set<string>>();
   let head = 0;
-  /** Livre une arrivée avec son plan, et retire son adresse des pages en attente. */
+  /** Delivers an arrival with its plan, and removes its address from the waiting pages. */
   const deliver = (item: Arrival) => {
     item.done = true;
     waiting.get(item.target)?.delete(item.url);
     item.target.acceptPage?.(item.url, item.array, item.plan);
   };
   return {
-    /** Arrivées encore en attente de drain. */
+    /** Arrivals still waiting to drain. */
     get pending() {
       return items.length - head;
     },
-    /** Empile une page pour un destinataire ; sans `acceptPage` il n'a rien à en faire. */
+    /** Queues a page for a target; without `acceptPage` it has nothing to do with it. */
     queue(target: ArrivalTarget, url: string, array: Uint32Array) {
       if (!target.acceptPage) return false;
       let urls = waiting.get(target);
@@ -85,11 +86,11 @@ export function createArrivalQueue(byteBudget: number, countBudget: number, msBu
       };
       items.push(item);
       const planned = planArrival(url, array.length, target.pageSpecs?.(url));
-      // Un plan déjà là — rien à planifier, ou pas de file hors fil — n'est pas une attente : il
-      // rend l'arrivée livrable dès son empilement. Seul un message réellement parti fait attendre.
+      // A plan already there — nothing to plan, or no off-thread queue — is not a wait: it
+      // makes the arrival deliverable as soon as it is queued. Only a message that actually left waits.
       if (planned instanceof Promise)
         void planned.then((plan) => {
-          // Une arrivée déjà livrée — l'image a cessé de l'attendre — ignore son plan tardif.
+          // An arrival already delivered — the frame stopped waiting for it — ignores its late plan.
           if (item.done) return;
           item.plan = plan;
           item.ready = true;
@@ -101,9 +102,9 @@ export function createArrivalQueue(byteBudget: number, countBudget: number, msBu
       return true;
     },
     /**
-     * Livre les arrivées jusqu'au budget — au plus `countBudget` pages, `byteBudget` octets d'index
-     * et `msBudget` millisecondes passées à les intégrer. Le rendu qui suit synchronise la résidence ;
-     * appeler `syncResident` ici pourrait dessiner une seconde image. Renvoie les pages livrées.
+     * Delivers arrivals up to the budget — at most `countBudget` pages, `byteBudget` index bytes
+     * and `msBudget` milliseconds spent integrating them. The following render synchronizes residency;
+     * calling `syncResident` here could draw a second frame. Returns the pages delivered.
      */
     drain() {
       if (head >= items.length) return 0;
@@ -113,10 +114,10 @@ export function createArrivalQueue(byteBudget: number, countBudget: number, msBu
       while (head < items.length && bytes < byteBudget && count < countBudget) {
         const item = items[head];
         if (!item.ready) {
-          // L'ordre est la priorité : une arrivée dont le plan n'est pas revenu retient celles qui
-          // la suivent, le temps de deux drains, puis se fait planifier en ligne et passe.
+          // Order is priority: an arrival whose plan has not returned holds back those that
+          // follow, for two drains, then is planned inline and goes through.
           if (item.waits++ < MAX_PLAN_WAITS) break;
-          // Même fonction, même résultat, sur le fil principal : le repli du contrat est synchrone.
+          // Same function, same result, on the main thread: the contract fallback is synchronous.
           item.plan = planArrivalHere(
             item.url,
             item.array.length,

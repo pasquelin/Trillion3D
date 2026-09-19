@@ -1,15 +1,15 @@
 /**
- * Le chronomètre carte graphique de WebGL2 : `EXT_disjoint_timer_query_webgl2`. Contrairement à
- * WebGPU, WebGL2 ne sait pas horodater une passe : il ne mesure qu'un intervalle de commandes. Ce
- * moteur soumet l'image entière en un seul `render`, donc l'intervalle mesuré est l'image entière —
- * et c'est ce qu'il annonce, sans jamais répartir cette durée sur des étapes qu'il n'a pas mesurées.
+ * WebGL2 GPU timer: `EXT_disjoint_timer_query_webgl2`. Unlike WebGPU, WebGL2 cannot timestamp a
+ * pass: it measures only a command interval. This engine submits the whole frame in one
+ * `render`, so the measured interval is the whole frame — and that is what it reports, never
+ * splitting that duration across steps it has not measured.
  *
- * La lecture ne bloque jamais : une requête est relue quelques images plus tard, et une requête
- * marquée « disjointe » par le pilote est jetée au lieu d'être publiée.
+ * The read never blocks: a query is reread a few frames later, and a query the driver marked
+ * “disjoint” is dropped instead of being published.
  */
 import { nanosecondsToMs } from './gpuTimingTypes.ts';
 
-/** Requêtes relues plus tard : au-delà, l'appareil ne suit pas et on cesse d'en ouvrir. */
+/** Queries reread later: beyond this, the device cannot keep up and no more are opened. */
 const MAX_PENDING = 4;
 
 type TimerExtension = {
@@ -19,7 +19,7 @@ type TimerExtension = {
 
 export function createWebglFrameTimer(gl: WebGL2RenderingContext | null | undefined) {
   const ext = gl?.getExtension('EXT_disjoint_timer_query_webgl2') as TimerExtension | null;
-  const reason = 'EXT_disjoint_timer_query_webgl2 absent de cet appareil';
+  const reason = 'EXT_disjoint_timer_query_webgl2 missing on this device';
   if (!gl || !ext)
     return {
       supported: false,
@@ -33,7 +33,7 @@ export function createWebglFrameTimer(gl: WebGL2RenderingContext | null | undefi
   return {
     supported: true,
     reason: null as string | null,
-    /** Ouvre l'intervalle ; une seule requête à la fois, la spécification n'en autorise pas deux. */
+    /** Opens the interval; one query at a time, the spec does not allow two. */
     begin() {
       if (open || pending.length > MAX_PENDING) return;
       const query = gl.createQuery();
@@ -46,23 +46,23 @@ export function createWebglFrameTimer(gl: WebGL2RenderingContext | null | undefi
       gl.endQuery(ext.TIME_ELAPSED_EXT);
       pending.push(open);
       open = null;
-      // Sans présentation à l'écran, le flot de commandes peut rester chez le pilote et la requête
-      // n'être jamais prête. `flush` le pousse sans jamais l'attendre — ce n'est pas un `finish`.
+      // Without on-screen present, the command stream can stay with the driver and the query never
+      // become ready. `flush` pushes it without ever waiting — this is not a `finish`.
       gl.flush();
     },
-    /** La durée d'une image déjà passée, ou la raison pour laquelle aucune n'est publiable. */
+    /** Duration of a past frame, or the reason none is publishable. */
     poll(): { ms: number | null; reason: string | null } {
-      if (!pending.length) return { ms: null, reason: 'aucune requête en attente' };
+      if (!pending.length) return { ms: null, reason: 'no pending query' };
       const query = pending[0];
       if (!gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE))
-        return { ms: null, reason: 'résultat pas encore prêt' };
+        return { ms: null, reason: 'result not ready yet' };
       pending.shift();
       const disjoint = gl.getParameter(ext.GPU_DISJOINT_EXT);
       const nanoseconds = gl.getQueryParameter(query, gl.QUERY_RESULT) as number;
       gl.deleteQuery(query);
       if (disjoint)
-        return { ms: null, reason: 'le pilote a interrompu la mesure (GPU_DISJOINT_EXT)' };
-      if (!Number.isFinite(nanoseconds)) return { ms: null, reason: 'durée illisible' };
+        return { ms: null, reason: 'the driver interrupted the measurement (GPU_DISJOINT_EXT)' };
+      if (!Number.isFinite(nanoseconds)) return { ms: null, reason: 'unreadable duration' };
       return { ms: nanosecondsToMs(nanoseconds), reason: null };
     },
   };

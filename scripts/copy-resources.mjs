@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Les ressources d'un paquet qui ne sont pas du code : `tsc` ne les connaît pas et ne les copie pas,
-// or un hôte qui sert le `dist/` construit tel quel les demande par leur URL, à côté du module qui
-// les charge. Sans cette étape, `pageCodec.wasm` manque du `dist/` et le décodeur WebAssembly
-// retombe en silence sur le décodeur JavaScript. Le fichier commis fait foi : cette étape ne
-// compile rien, elle recopie (`pnpm run build:wasm` est ce qui le reconstruit).
+// Non-code package resources: `tsc` does not know them and does not copy them,
+// yet a host serving the built `dist/` as-is requests them by URL alongside the module loading
+// them. Without this step, `pageCodec.wasm` is missing from `dist/` and the WebAssembly decoder
+// silently falls back to JavaScript decoder. The committed file is authoritative: this step
+// compiles nothing, it copies (`pnpm run build:wasm` is what rebuilds it).
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

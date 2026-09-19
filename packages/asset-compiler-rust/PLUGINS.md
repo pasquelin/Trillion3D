@@ -1,103 +1,56 @@
-# Ajouter un format au compilateur
+# Adding a Format to the Compiler
 
-Le compilateur ne connaît aucun format d'entrée. Il connaît des **pilotes** : un par format, chacun
-dans son module, tous listés dans un registre statique. Ajouter un format, c'est ajouter un module
-et une ligne ; enlever un format, c'est enlever les deux. Le cœur ne bouge pas.
+The compiler knows no input format. It knows **drivers**: one per format, each in its module, all listed in a static registry. Adding a format means adding a module and a line; removing a format means removing both. Core does not change.
 
-Ce que le pilote doit produire est toujours la même chose : la **scène intermédiaire**, un glTF 2.0
-et son binaire, que `compile` est seul à savoir lire. Les images suivent le même modèle, vers RGBA8
-ou, pour les formats à grande gamme dynamique, vers RGBA flottant linéaire.
+What the driver must produce is always the same: the **intermediate scene**, a glTF 2.0 and its binary, which `compile` alone knows how to read. Images follow the same model, toward RGBA8 or, for high dynamic range formats, toward RGBA linear float.
 
-La politique — quels formats sont admis, lesquels sont refusés, sous quelles conditions et sous
-quelle licence — est dans [`FORMATS.md`](FORMATS.md).
-Elle prime sur ce document : un pilote hors de cette liste ne se fusionne pas.
+The policy — which formats are admitted, which are rejected, under what conditions and under what license — is in [`FORMATS.md`](FORMATS.md).
+It takes precedence over this document: a driver outside this list will not be merged.
 
-## Un pilote de scène
+## A Scene Driver
 
-1. Un module dans `src/plugins/scene/<format>.rs`, nommé par le format, jamais par la bibliothèque
-   qui le lit. Deux formats lus par la même bibliothèque restent deux pilotes, deux noms, deux
-   versions ; le code commun va dans un module voisin, comme `ufbx_driver.rs` pour FBX et OBJ.
-2. `impl Plugin` : `name` (le format en minuscules), `version` (la changer invalide les caches, elle
-   nomme la bibliothèque et sa version), `extensions` (en minuscules, sans le point).
-3. `impl ScenePlugin` : `accepts_head` reconnaît l'entête du format — `false` pour un format texte
-   qui n'en a pas —, `prepare` rend `PreparedScene::InPlace` pour une entrée directe ou
-   `request.converted(directory)` pour ce que le pilote a écrit dans `request.cache`.
-4. Une ligne dans `scene::PLUGINS`.
+1. A module in `src/plugins/scene/<format>.rs`, named after the format, never after the library reading it. Two formats read by the same library remain two drivers, two names, two versions; shared code goes in a neighboring module, like `ufbx_driver.rs` for FBX and OBJ.
+2. `impl Plugin`: `name` (the format in lowercase), `version` (changing it invalidates caches, it names the library and its version), `extensions` (lowercase, without leading dot).
+3. `impl ScenePlugin`: `accepts_head` recognizes the format header — `false` for a text format without one —, `prepare` returns `PreparedScene::InPlace` for direct input or `request.converted(directory)` for what the driver wrote into `request.cache`.
+4. One line in `scene::PLUGINS`.
 
-Un pilote **de projet** — `unity` en est le premier — revendique en plus un dossier entier par
-`project_inputs` et prime alors sur les pilotes de fichiers trouvés dessous, dont les fichiers sont
-ses entrées et non des sources concurrentes ; deux projets pour un même dossier restent ambigus.
+A **project** driver — `unity` being the first — additionally claims an entire folder via `project_inputs` and then takes precedence over file drivers found underneath, whose files become its inputs rather than competing sources; two projects for the same folder remain ambiguous.
 
-`prepare` reçoit tous les fichiers du dossier que ce pilote revendique : c'est lui qui décide s'il en
-accepte un seul ou plusieurs, et il refuse avec `SOURCE_FORMAT_AMBIGUOUS` quand il n'en veut qu'un.
-Il vérifie `request.cancelled` à chaque frontière de travail bornée, publie ses étapes par
-`request.progress`, et n'écrit jamais à côté de la source — seulement sous `request.cache`.
+`prepare` receives all files from the folder claimed by this driver: it decides whether to accept one or several, and rejects with `SOURCE_FORMAT_AMBIGUOUS` when it only wants one.
+It checks `request.cancelled` at each bounded work boundary, publishes its progress via `request.progress`, and never writes alongside the source — only under `request.cache`.
 
-Le remplissage des tables glTF (nœuds, maillages, matériaux, accesseurs, images) est commun à
-`src/import/tables.rs` (`SceneTables`) ; l'émission d'une primitive depuis des sommets déjà
-dédupliqués est commune à `src/import/primitive.rs` (`Vertices`). Un pilote qui construit sa
-géométrie lui-même prend ces deux modules plutôt que de réécrire son propre remplissage de tables.
+Filling glTF tables (nodes, meshes, materials, accessors, images) is shared in `src/import/tables.rs` (`SceneTables`); emitting a primitive from deduplicated vertices is shared in `src/import/primitive.rs` (`Vertices`). A driver building its geometry uses these two modules rather than rewriting its own table filling.
 
-Les images ne suivent pas la scène dans le cache : elles restent là où le pilote les a lues. La
-racine où les URI relatives d'images se résolvent est donc `scene::image_root(request.source)` — le
-dossier source, ou le dossier extrait pour un conteneur —, et `request.converted` l'accroche à la
-scène convertie pour que le compilateur y relise les mêmes octets. Un pilote qui résout une image
-appelle cette fonction ; il n'en écrit pas une seconde version.
+Images do not follow the scene into the cache: they stay where the driver read them. The root where relative image URIs resolve is therefore `scene::image_root(request.source)` — the source folder, or the extracted folder for a container —, and `request.converted` attaches it to the converted scene so the compiler re-reads the same bytes. A driver resolving an image calls this function; it does not write a second version.
 
-## Un pilote de conteneur
+## A Container Driver
 
-Une archive n'est pas une scène : c'est l'emballage d'une source. Un conteneur est un pilote de
-scène ordinaire — `zip` en est le premier — qui extrait sous `request.cache`, traverse un unique
-dossier racine, puis **route le dossier extrait par le routeur** et rend ce que le pilote de scène
-retenu rend. Les règles du routeur valent telles quelles : inconnu ou ambigu, c'est un refus.
+An archive is not a scene: it is a container for a source. A container is an ordinary scene driver — `zip` being the first — that extracts under `request.cache`, traverses a single root folder, then **routes the extracted folder through the router** and returns what the selected scene driver returns. The router's rules apply as-is: unknown or ambiguous means rejection.
 
-Ce qui ne dépend pas du format d'archive vit dans `scene/archive.rs` — plafonds nommés (entrées et
-octets décompressés), refus de sortie du dossier d'extraction, clé d'extraction, composition avec le
-routeur. La lecture ZIP elle-même est commune à `scene/archive/zip_reader.rs`, partagée par `zip` et
-par `usdz` (un ZIP non compressé et aligné). Un second conteneur y ajoute son module de lecture, pas
-une seconde version de tout cela.
-Les protections ne sont pas négociables : aucun chemin absolu ni `..`, aucun lien symbolique suivi,
-aucune archive chiffrée ouverte, et un refus nommé — jamais une extraction à moitié.
+What does not depend on the archive format lives in `scene/archive.rs` — named ceilings (entries and uncompressed bytes), rejection of output outside extraction folder, extraction key, composition with the router. ZIP reading itself is shared in `scene/archive/zip_reader.rs`, used by `zip` and `usdz` (an uncompressed, aligned ZIP). A second container adds its reading module, not a second version of all this.
+Protections are non-negotiable: no absolute paths or `..`, no symlinks followed, no encrypted archives opened, and a named rejection — never half an extraction.
 
-## Un pilote d'image
+## An Image Driver
 
-1. Un module dans `src/plugins/image/<format>.rs`, même règle de nommage.
-2. `impl Plugin`, puis `impl ImageDecoder` : `mime`, `accepts_head` (le nombre magique du format) et
-   `decode`, qui rend `DecodedImage` sous le plafond d'allocation reçu.
-3. Une ligne dans `image::DECODERS`.
+1. A module in `src/plugins/image/<format>.rs`, same naming rule.
+2. `impl Plugin`, then `impl ImageDecoder`: `mime`, `accepts_head` (the format's magic number) and `decode`, which returns `DecodedImage` under the received allocation ceiling.
+3. One line in `image::DECODERS`.
 
-Un décodage impossible rend une raison de rapport — une chaîne stable comme `image-decode-failed` —
-jamais une erreur de compilation : une texture illisible laisse le moteur retomber sur son blanc.
-Le décodeur ne rend jamais d'image vide et ne panique jamais.
+An impossible decode returns a report reason — a stable string like `image-decode-failed` — never a compilation error: an unreadable texture lets the engine fall back to its default white.
+The decoder never returns an empty image and never panics.
 
-`DecodedImage` a deux variantes depuis `image-plugin-2` : `Rgba8`, et `RgbaF32` pour les formats à
-grande gamme dynamique. **Un pilote ne convertit jamais l'une en l'autre** : ramener du flottant à
-huit bits demanderait un report de tons, donc une perte que la source n'avait pas. C'est au
-consommateur de trancher, par un `match` et une raison nommée — `image-float-unsupported` pour les
-aperçus, qui sont du RGBA8 sRGB. Un pilote flottant vérifie le plafond d'allocation à **seize octets
-par pixel** avant d'allouer, par `float_budget`, et le refus porte son propre nom de format.
+`DecodedImage` has two variants since `image-plugin-2`: `Rgba8`, and `RgbaF32` for high dynamic range formats. **A driver never converts one to the other**: bringing float down to 8-bit requires tone mapping, i.e., loss that the source did not have. The consumer decides via a `match` and a named reason — `image-float-unsupported` for previews, which are RGBA8 sRGB. A float driver checks the allocation ceiling at **sixteen bytes per pixel** before allocating, via `float_budget`, and the rejection carries its own format name.
 
-## Ce qu'il faut fournir avec
+## What to Provide With It
 
-- **Une fixture dorée minimale** : le plus petit fichier du format que l'on possède ou que l'on peut
-  redistribuer, sous `fixtures/`, avec son `expected.json`, compilé par le harnais commun
-  (`src/tests/golden.rs`) — jamais par un harnais à soi. `GoldenRun::prepared_dir` retrouve le
-  dossier préparé d'un pilote et `scene_digest` en tire le triplet comparable à `expected.json` ;
-  les prendre plutôt que de relire soi-même les fichiers produits.
-- **Un test par comportement du pilote** : ce qu'il reconnaît, ce qu'il refuse, ce qu'il rapporte.
-  Les tests du routeur et du registre existent déjà : ne les recopiez pas par format. Pour lire le
-  résultat d'un décodage, prendre `rgba8()` ou `rgba_f32()` de `src/plugins/tests.rs` — jamais un
-  `let` irréfutable sur une variante de `DecodedImage` : le contrat a deux sorties, et un test qui
-  en suppose une seule doit le dire par un appel qui panique sur l'autre.
-- **La provenance** : d'où vient la spécification suivie, quelle bibliothèque, quelle licence. Elle
-  se met dans l'entête du module et dans le message de commit.
+- **A minimal golden fixture**: the smallest file of the format owned or redistributable, under `fixtures/`, with its `expected.json`, compiled by the shared harness (`src/tests/golden.rs`) — never by a custom harness. `GoldenRun::prepared_dir` finds a driver's prepared directory and `scene_digest` extracts the comparable triplet for `expected.json`; use these rather than re-reading produced files yourself.
+- **One test per driver behavior**: what it recognizes, what it rejects, what it reports. Router and registry tests already exist: do not duplicate them per format. To read a decode result, use `rgba8()` or `rgba_f32()` from `src/plugins/tests.rs` — never an irrefutable `let` on a `DecodedImage` variant: the contract has two outputs, and a test assuming one must state so via a call that panics on the other.
+- **Provenance**: where the spec comes from, which library, which license. Place it in the module header and commit message.
 
-## Interdit
+## Forbidden
 
-- Reprendre du code ou un SDK d'éditeur, même disponible : lecteur écrit depuis une spécification
-  publique ou depuis une bibliothèque permissive dont la licence est respectée et conservée.
-- Contourner un chiffrement, une protection ou une vérification de licence d'un format.
-- Réencoder une source avec perte, modifier ou écrire à côté des fichiers d'origine.
-- Mettre quoi que ce soit du format dans `main.rs`, `cli_batch.rs` ou `compiler_args.rs` : la CLI est
-  mince, elle ne nomme aucun format.
-- Ajouter un pilote vide « pour plus tard » : un format sans lecteur n'a pas de module.
+- Reusing code or an editor SDK, even if available: reader written from public specification or permissive library whose license is respected and preserved.
+- Bypassing encryption, protection or license check of a format.
+- Re-encoding a lossy source, modifying or writing alongside original files.
+- Placing anything format-specific in `main.rs`, `cli_batch.rs` or `compiler_args.rs`: the CLI is thin, naming no format.
+- Adding an empty driver "for later": a format without a reader has no module.

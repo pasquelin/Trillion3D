@@ -1,5 +1,5 @@
-// Lot M2, mathBox.ts : boîte vide et inversée, union, extension, transformation par matrice — chaque
-// fonction confrontée à l'arithmétique équivalente de Three.js Box3, au bit près (Object.is).
+// Batch M2, mathBox.ts: empty and inverted box, union, expansion, matrix transformation — each
+// function tested against equivalent Three.js Box3 arithmetic, bitwise (Object.is).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -13,20 +13,20 @@ import {
 } from './index.ts';
 import { aPlat, assertBits, boite3 } from './bench/oracles/volumes.mjs';
 
-test('boxEmpty pose des bornes inversées à l’infini, comme Box3.makeEmpty', () => {
+test('boxEmpty sets inverted bounds at infinity, like Box3.makeEmpty', () => {
   const out = new Float64Array(6);
   boxEmpty(out, 0);
   assertBits(out, aPlat(new THREE.Box3().makeEmpty()));
 });
 
-test('boxIsEmpty signale une boîte inversée, pas une boîte ponctuelle ni une borne NaN', () => {
-  assert.equal(boxIsEmpty([1, 1, 1, 0, 0, 0], 0), true); // inversée
-  assert.equal(boxIsEmpty([2, 3, 4, 2, 3, 4], 0), false); // ponctuelle : bornes égales
-  assert.equal(boxIsEmpty([NaN, 0, 0, 1, 1, 1], 0), false); // une borne NaN ne vide pas la boîte
+test('boxIsEmpty reports an inverted box, not a point box nor a NaN bound', () => {
+  assert.equal(boxIsEmpty([1, 1, 1, 0, 0, 0], 0), true); // inverted
+  assert.equal(boxIsEmpty([2, 3, 4, 2, 3, 4], 0), false); // point: equal bounds
+  assert.equal(boxIsEmpty([NaN, 0, 0, 1, 1, 1], 0), false); // a NaN bound does not empty the box
   assert.equal(boxIsEmpty([0, 0, 0, 1, NaN, 1], 0), false);
 });
 
-test('boxUnion s’accorde avec Box3.union, boîte vide, zéro signé et infinis compris', () => {
+test('boxUnion matches Box3.union, including empty box, signed zero, and infinities', () => {
   const cas: [number[], number[]][] = [
     [
       [-1, -1, -1, 1, 1, 1],
@@ -53,7 +53,7 @@ test('boxUnion s’accorde avec Box3.union, boîte vide, zéro signé et infinis
   }
 });
 
-test('boxExpandByPoint s’accorde avec Box3.expandByPoint, points NaN et infinis compris', () => {
+test('boxExpandByPoint matches Box3.expandByPoint, including NaN and infinite points', () => {
   const cas: [number[], number[]][] = [
     [
       [-1, -1, -1, 1, 1, 1],
@@ -66,7 +66,7 @@ test('boxExpandByPoint s’accorde avec Box3.expandByPoint, points NaN et infini
     [
       [1, 1, 1, 0, 0, 0],
       [0.5, 0.5, 0.5],
-    ], // boîte inversée en entrée
+    ], // input inverted box
   ];
   for (const [a, p] of cas) {
     const attendu = aPlat(boite3(a).expandByPoint(new THREE.Vector3(p[0], p[1], p[2])));
@@ -76,7 +76,7 @@ test('boxExpandByPoint s’accorde avec Box3.expandByPoint, points NaN et infini
   }
 });
 
-test('boxTransform s’accorde avec Box3.applyMatrix4 sous échelle négative sur un seul axe', () => {
+test('boxTransform matches Box3.applyMatrix4 under negative scale on a single axis', () => {
   const m = new THREE.Matrix4().makeScale(-2, 1, 1).setPosition(3, -1, 2);
   const b = [-1, -2, -3, 4, 5, 6];
   const attendu = aPlat(boite3(b).applyMatrix4(m));
@@ -85,7 +85,7 @@ test('boxTransform s’accorde avec Box3.applyMatrix4 sous échelle négative su
   assertBits(obtenu, attendu);
 });
 
-test('boxTransform s’accorde avec Box3.applyMatrix4 sous échelle non uniforme et rotation parente', () => {
+test('boxTransform matches Box3.applyMatrix4 under non-uniform scale and parent rotation', () => {
   const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.4, -1.1, 2.3));
   const m = new THREE.Matrix4().compose(
     new THREE.Vector3(1, 2, -3),
@@ -99,7 +99,7 @@ test('boxTransform s’accorde avec Box3.applyMatrix4 sous échelle non uniforme
   assertBits(obtenu, attendu);
 });
 
-test('boxTransform s’accorde avec Box3.applyMatrix4 sous échelle nulle sur un axe', () => {
+test('boxTransform matches Box3.applyMatrix4 under zero scale on an axis', () => {
   const m = new THREE.Matrix4().makeScale(1, 0, 1);
   const b = [-1, -1, -1, 1, 1, 1];
   const attendu = aPlat(boite3(b).applyMatrix4(m));
@@ -108,7 +108,7 @@ test('boxTransform s’accorde avec Box3.applyMatrix4 sous échelle nulle sur un
   assertBits(obtenu, attendu);
 });
 
-test('boxTransform s’accorde avec Box3.applyMatrix4 sous une matrice NaN, infinie ou nulle', () => {
+test('boxTransform matches Box3.applyMatrix4 under NaN, infinite, or zero matrix', () => {
   const cas = [new Array(16).fill(NaN), new Array(16).fill(Infinity), new Array(16).fill(0)];
   const b = [-1, -1, -1, 1, 1, 1];
   for (const m of cas) {
@@ -119,7 +119,7 @@ test('boxTransform s’accorde avec Box3.applyMatrix4 sous une matrice NaN, infi
   }
 });
 
-test('boxTransform écrit en place (out === box) rend le même résultat qu’une sortie neuve', () => {
+test('boxTransform in place (out === box) yields same result as a fresh output', () => {
   const m = new THREE.Matrix4().makeScale(2, -3, 0.5).setPosition(1, 1, 1);
   const b = [-1, -2, -3, 4, 5, 6];
   const frais = new Float64Array(6);
@@ -129,15 +129,15 @@ test('boxTransform écrit en place (out === box) rend le même résultat qu’un
   assertBits(surPlace, frais);
 });
 
-test('boxTransform garde une boîte vide inchangée, bornes comprises', () => {
+test('boxTransform keeps an empty box unchanged, bounds included', () => {
   const vide = new Float64Array(6);
   boxEmpty(vide, 0);
-  const avant = Float64Array.from(vide);
+  const before = Float64Array.from(vide);
   boxTransform(vide, 0, vide, 0, new THREE.Matrix4().makeScale(2, 2, 2).elements);
-  assertBits(vide, avant);
+  assertBits(vide, before);
 });
 
-test('boxCornersInto s’accorde avec Box3 appliquant Matrix4 à chaque coin', () => {
+test('boxCornersInto matches Box3 applying Matrix4 to each corner', () => {
   const m = new THREE.Matrix4().compose(
     new THREE.Vector3(2, -1, 0.5),
     new THREE.Quaternion().setFromEuler(new THREE.Euler(0.7, 0.2, -1.9)),

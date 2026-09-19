@@ -3,9 +3,9 @@ import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
- * Le chemin de repli des transparents : celui des appareils ou le tampon de visibilite n'a pas pu
- * etre monte. Il garde le nuanceur generique, son uniforme par primitive et sa selection
- * processeur — il n'est pas le chemin des images de production, et rien n'y a ete optimise.
+ * The transparent fallback path: the one for devices where the visibility buffer could not be
+ * set up. It keeps the generic shader, its per-primitive uniform and its CPU selection — it is not
+ * the path of production frames, and nothing in it has been optimised.
  */
 export function writeFallbackBlendUniforms(
   rt: WebgpuPagesRuntime,
@@ -43,7 +43,7 @@ export function writeFallbackBlendUniforms(
   );
 }
 
-/** Encode la passe de repli : un groupe de liaison et un decalage dynamique par primitive. */
+/** Encodes the fallback pass: one bind group and one dynamic offset per primitive. */
 export function drawFallbackBlendPass(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,

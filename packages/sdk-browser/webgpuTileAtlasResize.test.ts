@@ -11,7 +11,7 @@ installGpuGlobals();
 
 type Copy = { from?: number[]; to?: number[]; size: number[] };
 
-/** Un faux appareil de textures : il note les copies et les textures détruites. */
+/** A dummy texture device: it notes copies and destroyed textures. */
 function textureDevice() {
   const copies: Copy[] = [];
   let destroyed = 0;
@@ -37,7 +37,7 @@ function textureDevice() {
 
 const options = { kind: 'color' as const, format: 'rgba8unorm' as const };
 
-test('rétrécir le pool garde les couches qui survivent en une copie, place pour place, et évince le reste', () => {
+test('shrinking the pool keeps surviving layers in one copy, slot for slot, and evicts the rest', () => {
   const { gpu, copies, destroyed } = textureDevice();
   const layout = tileLayout(4096, 4096);
   const textures = [
@@ -46,24 +46,24 @@ test('rétrécir le pool garde les couches qui survivent en une copie, place pou
   ];
   const atlas = createWebgpuTileAtlas(gpu, { ...options, layers: 2, feedbackOffset: 0, textures });
   atlas.pinTails({ writeTexture() {} } as never, () => {});
-  // La couche 0 entière, puis cinq tuiles en couche 1 : 2 queues + 903 tuiles.
+  // The whole of layer 0, then five tiles in layer 1: 2 queues + 903 tiles.
   for (let i = 0, placed = 0; placed < TILES_PER_LAYER + 3; i++)
     if (atlas.place({ slot: 0, level: 0, tx: i % 32, ty: Math.floor(i / 32) }, 10 + i)) placed++;
   assert.equal(atlas.pool.resident, TILES_PER_LAYER + 5);
   const evicted = atlas.resize(gpu, 1);
   assert.equal(atlas.pool.layers, 1);
-  assert.equal(destroyed(), 1, 'l’ancien pool est détruit');
-  assert.equal(evicted, 5, 'les cinq tuiles de la couche disparue : rien de libre pour elles');
+  assert.equal(destroyed(), 1, 'the old pool is destroyed');
+  assert.equal(evicted, 5, 'the five tiles of the vanished layer: nothing free for them');
   assert.equal(atlas.pool.resident, TILES_PER_LAYER);
   assert.deepEqual(copies, [
     { from: undefined, to: undefined, size: [POOL_LAYER_SIDE, POOL_LAYER_SIDE, 1] },
   ]);
-  // Les survivantes n'ont pas bougé : la première tuile diffusée est toujours servie, place 2.
+  // Survivors have not moved: the first streamed tile is still served, slot 2.
   assert.equal(atlas.touch({ slot: 0, level: 0, tx: 0, ty: 0 }, 99), true);
-  assert.equal(atlas.touch({ slot: 0, level: 0, tx: 8, ty: 28 }, 99), false, 'tuile 904, évincée');
+  assert.equal(atlas.touch({ slot: 0, level: 0, tx: 8, ty: 28 }, 99), false, 'tile 904, evicted');
 });
 
-test('une tuile d’une couche disparue est déplacée dans une place libre — les queues d’abord —, copiée et réinscrite', () => {
+test('a tile from a vanished layer is moved into a free slot — queues first —, copied and re-registered', () => {
   const { gpu, copies } = textureDevice();
   const pool = createWebgpuTilePool(gpu, { ...options, layers: 2 });
   const calls: string[] = [];
@@ -74,8 +74,8 @@ test('une tuile d’une couche disparue est déplacée dans une place libre — 
       calls.push(`tile ${key.tx} → ${place.x},${place.y},${place.layer}`),
     clearTile: (key: { tx: number }) => calls.push(`clear ${key.tx}`),
   };
-  // Une queue en couche 1 (place 950), une tuile récente en couche 1 (951), une ancienne (952),
-  // et une tuile en couche 0 qui reste où elle est.
+  // A queue in layer 1 (slot 950), a recent tile in layer 1 (951), an old one (952),
+  // and a tile in layer 0 that stays where it is.
   const resident = new Map<number, number>();
   pool.adopt(5, tileId({ slot: 0, level: 0, tx: 5, ty: 0 }), 3);
   resident.set(tileId({ slot: 0, level: 0, tx: 5, ty: 0 }), 5);
@@ -87,20 +87,20 @@ test('une tuile d’une couche disparue est déplacée dans une place libre — 
   const result = resizeTileAtlas(gpu, { ...options, layers: 1 }, pool, pages as never, resident);
   assert.equal(result.evicted, 0, 'trois places libres suffisent');
   assert.equal(result.pool.resident, 4);
-  // Queue d'abord (place 0), puis la plus regardée (place 1), puis l'ancienne (place 2).
+  // Queue first (slot 0), then the most looked-at (slot 1), then the old one (slot 2).
   assert.deepEqual(calls, ['tail 1 → 0,0,0', 'tile 7 → 1,0,0', 'tile 6 → 2,0,0']);
-  assert.equal(copies.length, 1 + 3, 'la couche commune, puis une cellule par tuile déplacée');
+  assert.equal(copies.length, 1 + 3, 'the shared layer, then one cell per moved tile');
   assert.deepEqual(copies[1], {
-    // Place 950 = couche 1, ligne 1, colonne 20.
+    // Slot 950 = layer 1, row 1, column 20.
     from: [20 * TILE_PITCH, TILE_PITCH, 1],
     to: [0, 0, 0],
     size: [TILE_PITCH, TILE_PITCH, 1],
   });
   assert.equal(resident.get(tileId({ slot: 0, level: 0, tx: 7, ty: 0 })), 1);
-  assert.equal(resident.get(tileId({ slot: 0, level: 0, tx: 5, ty: 0 })), 5, 'pas bougé');
+  assert.equal(resident.get(tileId({ slot: 0, level: 0, tx: 5, ty: 0 })), 5, 'not moved');
 });
 
-test('agrandir le pool garde le compte des résidentes, et un pool plein pour la vue refuse avant toute lecture', () => {
+test('growing the pool keeps the resident count, and a pool full for the view refuses before any read', () => {
   const { gpu, copies } = textureDevice();
   const layout = tileLayout(4096, 4096);
   const textures = [{ layout, source: { kind: 'bytes' as const, tail: [] } }];
@@ -108,14 +108,14 @@ test('agrandir le pool garde le compte des résidentes, et un pool plein pour la
   atlas.pinTails({ writeTexture() {} } as never, () => {});
   for (let i = 0; i < TILES_PER_LAYER - 1; i++)
     atlas.place({ slot: 0, level: 0, tx: i % 32, ty: Math.floor(i / 32) }, 10);
-  assert.equal(atlas.pool.resident, TILES_PER_LAYER, 'plein : une queue et 899 tuiles');
-  // Tout a été regardé à l'image 10 : à l'image 11, rien n'est cédable — refus compté, sans place prise.
+  assert.equal(atlas.pool.resident, TILES_PER_LAYER, 'full: one queue and 899 tiles');
+  // Everything was looked at on image 10: on image 11, nothing is yieldable — refuse counted, no slot taken.
   assert.equal(atlas.roomFor(11), false);
   assert.equal(atlas.refused, 1);
-  // À l'image 12, ce qui date de l'image 10 est cédable.
+  // On image 12, what dates from image 10 is yieldable.
   assert.equal(atlas.roomFor(12), true);
-  assert.equal(atlas.resize(gpu, 2), 0, 'agrandir n’évince rien');
-  assert.equal(atlas.pool.resident, TILES_PER_LAYER, 'le compte survit à l’adoption');
+  assert.equal(atlas.resize(gpu, 2), 0, 'growing evicts nothing');
+  assert.equal(atlas.pool.resident, TILES_PER_LAYER, 'the count survives adoption');
   assert.equal(copies.length, 1);
-  assert.equal(atlas.roomFor(11), true, 'une couche libre');
+  assert.equal(atlas.roomFor(11), true, 'a free layer');
 });

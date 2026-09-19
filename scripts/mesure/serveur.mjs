@@ -1,6 +1,6 @@
-// Serveur statique du harnais, pour `banc.mjs`. Rien n'est écrit ici : le serveur
-// lit les dists, les dépendances du navigateur et les assets du banc, et encaisse les
-// captures RGBA que la page lui poste.
+// Static harness server, for `banc.mjs`. Nothing is written here: the server
+// reads the dists, the browser dependencies and the bench assets, and takes in the
+// RGBA captures the page posts to it.
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import http from 'node:http';
@@ -17,8 +17,8 @@ const MIME = {
   '.ktx2': 'image/ktx2',
 };
 
-/** La page du harnais : une carte d'imports, et rien d'autre. Tout le reste vient de `evaluate`. */
-const PAGE = `<!doctype html><meta charset="utf-8"><title>banc de mesure WebGeometry</title>
+/** The harness page: an import map, and nothing else. Everything else comes from `evaluate`. */
+const PAGE = `<!doctype html><meta charset="utf-8"><title>WebGeometry measurement bench</title>
 <script type="importmap">{"imports":{
  "three":"/vendor/three/build/three.module.js",
  "three/addons/":"/vendor/three/examples/jsm/",
@@ -31,12 +31,12 @@ function serveFile(mount, pathname, res) {
   const rest = decodeURIComponent(pathname.slice(mount.prefix.length));
   if (rest.includes('..')) {
     res.statusCode = 400;
-    return res.end('chemin refusé');
+    return res.end('path refused');
   }
   const file = join(mount.dir, rest);
   if (!file.startsWith(mount.dir) || !existsSync(file) || !statSync(file).isFile()) {
     res.statusCode = 404;
-    return res.end('introuvable');
+    return res.end('not found');
   }
   res.writeHead(200, {
     'content-type': MIME[extname(file)] ?? 'application/octet-stream',
@@ -61,10 +61,10 @@ function takeCapture(req, url, captures, res) {
 }
 
 /**
- * Les en-têtes qui isolent la page entre origines, et rien d'autre. Sans eux, `crossOriginIsolated`
- * est faux dans le navigateur et le SDK garde son chemin de transfert : c'est ce drapeau, et lui
- * seul, qui met le harnais du côté de la mémoire partagée. Faux par défaut, pour que la mesure de
- * référence ne change pas de chemin sans qu'on le demande.
+ * Headers that isolate the page across origins, and nothing else. Without them, `crossOriginIsolated`
+ * is false in the browser and the SDK keeps its transfer path: it is this flag, and it
+ * alone, that puts the harness on the shared-memory side. False by default, so the
+ * reference measurement does not change path unless asked.
  */
 const ISOLATION = {
   'cross-origin-opener-policy': 'same-origin',
@@ -72,8 +72,8 @@ const ISOLATION = {
   'cross-origin-resource-policy': 'same-origin',
 };
 
-/** Écoute sur `port`, sert `mounts`, dépose les captures dans `captures`. `isolation` pose COOP et
- *  COEP sur chaque réponse. */
+/** Listens on `port`, serves `mounts`, stores captures in `captures`. `isolation` sets COOP and
+ *  COEP on each response. */
 export function startServer({ port, mounts, captures, isolation = false }) {
   const server = http.createServer((req, res) => {
     if (isolation)
@@ -81,8 +81,8 @@ export function startServer({ port, mounts, captures, isolation = false }) {
     const url = new URL(req.url, 'http://127.0.0.1');
     if (req.method === 'POST' && url.pathname === '/capture')
       return takeCapture(req, url, captures, res);
-    // Le navigateur réclame une icône d'onglet que ce harnais n'a pas : répondre plutôt que
-    // laisser un 404 polluer les erreurs de page.
+    // The browser asks for a tab icon this harness does not have: answer rather than
+    // let a 404 pollute page errors.
     if (url.pathname === '/favicon.ico') {
       res.statusCode = 204;
       return res.end();
@@ -94,7 +94,7 @@ export function startServer({ port, mounts, captures, isolation = false }) {
     const mount = mounts.find((candidate) => url.pathname.startsWith(candidate.prefix));
     if (!mount) {
       res.statusCode = 404;
-      return res.end('aucun point de montage');
+      return res.end('no mount point');
     }
     serveFile(mount, url.pathname, res);
   });

@@ -1,8 +1,8 @@
-// Quand la coupe processeur publie la sienne dans les ensembles de résidence : APRÈS ses gardes, et
-// seulement pour une image qui dessine. Publier plus tôt faisait tenir au cache — et lui interdisait
-// de rendre — une coupe que l'image n'a jamais dessinée : toute la coupe processeur pendant que la
-// couverture épinglée dont il a besoin d'abord était encore en vol, ou une coupe refusée par une
-// garde et laissée derrière dans `run.desired`, `requested`, `keep` et les compteurs.
+// When the CPU cut publishes its own into the residency sets: AFTER its guards, and only for an
+// image that draws. Publishing earlier made the cache hold — and forbade it from reclaiming — a cut
+// the image never drew: the whole CPU cut while the pinned coverage it needs first was still in
+// flight, or a cut refused by a guard and left behind in `run.desired`, `requested`, `keep` and the
+// counters.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { collectClusterPages, createSelectionResult, type PageRec } from './pageSelection.ts';
@@ -12,7 +12,7 @@ import { createHizCounts } from './hiz.ts';
 import { renderCpuCut } from './webgpuPagesRenderCpu.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Un moteur réduit à ce que la coupe processeur traverse avant de dessiner. */
+/** An engine reduced to what the CPU cut walks before drawing. */
 function banc(options: { ready: boolean; resident: boolean }) {
   const fixture = blendFixture();
   const { roots, allPages } = collectClusterPages(
@@ -22,8 +22,8 @@ function banc(options: { ready: boolean; resident: boolean }) {
     fixture.associations,
   );
   const residents = new Map(options.resident ? allPages.map((page) => [page.url, page]) : []);
-  /** Ce que `run.desired` portait avant l'image : la coupe que l'image précédente a publiée. La
-   *  caméra du banc ne retient que `near`, donc `far` seul dit sans ambiguïté « rien n'a bougé ». */
+  /** What `run.desired` carried before the image: the cut the previous image published. The bench
+   *  camera only keeps `near`, so `far` alone says without ambiguity "nothing has moved". */
   const tenue = [allPages.find((page) => page.url === 'far')!];
   const journal: string[] = [];
   const run = {
@@ -96,7 +96,7 @@ function banc(options: { ready: boolean; resident: boolean }) {
       },
       queueCutResidency: () => {
         journal.push('file');
-        // L'image s'arrête ici : tout ce qui suit demande un appareil.
+        // The image stops here: everything that follows needs a device.
         throw new Error('BANC_ARRET');
       },
     },
@@ -106,28 +106,28 @@ function banc(options: { ready: boolean; resident: boolean }) {
 
 const image = (b: ReturnType<typeof banc>) => renderCpuCut(b.rt, b.cam, 0, 0, 0);
 
-test('l’amorçage en cours ne fait rien tenir de la coupe processeur', () => {
+test('bootstrap in progress makes the CPU cut hold nothing', () => {
   const b = banc({ ready: false, resident: false });
   image(b);
-  assert.deepEqual(b.journal, ['ressources', 'oubli'], 'ni publication ni mise en file');
-  assert.deepEqual(b.run.desired, b.tenue, 'la coupe demandée reste celle d’avant l’image');
+  assert.deepEqual(b.journal, ['ressources', 'oubli'], 'neither publish nor queue');
+  assert.deepEqual(b.run.desired, b.tenue, 'the requested cut stays the one from before the image');
 });
 
-test('une image qui lève ne laisse derrière elle aucune coupe rejetée', () => {
-  // Couverture prête, mais aucune page résidente : la coupe ne peut pas être couverte.
+test('an image that throws leaves no rejected cut behind', () => {
+  // Coverage ready, but no resident page: the cut cannot be covered.
   const b = banc({ ready: true, resident: false });
   assert.throws(() => image(b), /GPU_COVERAGE_INCOMPLETE/);
-  assert.deepEqual(b.journal, ['ressources', 'oubli'], 'rien n’a été publié');
-  assert.deepEqual(b.run.desired, b.tenue, 'la coupe demandée reste celle d’avant l’image');
+  assert.deepEqual(b.journal, ['ressources', 'oubli'], 'nothing was published');
+  assert.deepEqual(b.run.desired, b.tenue, 'the requested cut stays the one from before the image');
 });
 
-test('une image qui passe ses gardes publie sa coupe, juste avant de mettre la résidence en file', () => {
+test('an image that passes its guards publishes its cut, just before queuing residency', () => {
   const b = banc({ ready: true, resident: true });
-  assert.throws(() => image(b), /BANC_ARRET/, 'le banc s’arrête à la file, faute d’appareil');
-  assert.deepEqual(b.journal, ['ressources', 'oubli', 'publication', 'file'], 'dans cet ordre');
+  assert.throws(() => image(b), /BANC_ARRET/, 'the bench stops at the queue, for lack of a device');
+  assert.deepEqual(b.journal, ['ressources', 'oubli', 'publication', 'file'], 'in that order');
   assert.deepEqual(
     b.run.desired.map((page) => page.url),
     ['near'],
-    'et c’est la coupe choisie qui est publiée, pas celle d’avant',
+    'and it is the chosen cut that is published, not the previous one',
   );
 });

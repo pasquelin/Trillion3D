@@ -4,9 +4,9 @@ import { createGpuSunFarShadow } from './gpuSunFarShadow.ts';
 import { grantCapability } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Ce que la capacité déclare tant qu'aucune ombre lointaine n'est gréée sur cette scène. */
+/** What the capability declares while no far shadow is fitted on this scene. */
 const SUN_FAR_CAPABILITY = 'sun shadows beyond the last cascade';
-/** Approximations nommées de l'ombre lointaine, publiées dans le diagnostic (P5). */
+/** Named approximations of the far shadow, published in the diagnostic (P5). */
 const SUN_FAR_APPROXIMATIONS = [
   'the shadow ray hits the resident proxy, whose certified geometric error moves the shadow edge',
   'a shadow ray that exhausts the published traversal bound reports no blocker, which lights',
@@ -16,21 +16,21 @@ const SUN_FAR_APPROXIMATIONS = [
 ];
 
 /**
- * Grée l'ombre lointaine du soleil, à la première image qui porte une lampe déclarée.
+ * Fits the sun's far shadow, at the first image that carries a declared light.
  *
- * Le proxy résident est celui de la lumière qui rebondit quand elle est allumée : il est emprunté
- * tel quel, jamais rechargé, jamais tenu en double. Éteinte, ce module charge le sien — l'ombre du
- * soleil ne dépend pas d'un réglage de rebond, c'est de la fidélité du direct qu'il s'agit.
+ * The resident proxy is that of bouncing light when it is on: it is borrowed as-is, never reloaded,
+ * never held twice. Off, this module loads its own — the sun's shadow does not depend on a bounce
+ * setting; it is the fidelity of the direct that is at stake.
  *
- * Sans proxy dans le cache, rien n'est gréé : la surface au-delà de la dernière cascade reste
- * éclairée sans ombre portée, exactement comme avant ce lot, et le diagnostic le dit. Étirer la
- * dernière cascade jusqu'au lointain aurait divisé par cinq la densité de texels de toutes les
- * ombres proches, sur chaque axe : une baisse de qualité pour cacher une absence, refusée.
+ * With no proxy in the cache, nothing is fitted: the surface beyond the last cascade stays lit with
+ * no cast shadow, exactly as before this lot, and the diagnostic says so. Stretching the last cascade
+ * to the far field would have divided the texel density of every near shadow by five, on each axis: a
+ * quality drop to hide an absence, refused.
  */
 export function ensureSunFarShadow(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { sunFar, bounce, context } = rt;
   if (sunFar.gpu?.proxy) return;
-  // La lumière qui rebondit charge déjà ce proxy : on attend le sien plutôt que d'en tenir deux.
+  // Bouncing light already loads this proxy: we wait for its own rather than holding two.
   const shared = bounce.probes?.proxy;
   if (!shared && bounce.wanted && !bounce.reason) return;
   if (!sunFar.gpu) sunFar.gpu = createGpuSunFarShadow(device);
@@ -43,7 +43,7 @@ export function ensureSunFarShadow(rt: WebgpuPagesRuntime, device: GPUDevice) {
   }
   if (sunFar.pending || sunFar.reason) return;
   if (!context.readSceneProxy) {
-    sunFar.reason = 'ombre lointaine indisponible : le cache ne porte pas de proxy résident';
+    sunFar.reason = 'far shadow unavailable: the cache holds no resident proxy';
     return publish(rt);
   }
   sunFar.pending = context
@@ -55,17 +55,17 @@ export function ensureSunFarShadow(rt: WebgpuPagesRuntime, device: GPUDevice) {
       publish(rt);
     })
     .catch((error: unknown) => {
-      sunFar.reason = `ombre lointaine indisponible : proxy résident illisible (${String(error)})`;
+      sunFar.reason = `far shadow unavailable: resident proxy unreadable (${String(error)})`;
       rt.diag.diagnosticFailure('sun-far-shadow-unavailable', error);
       publish(rt);
     });
 }
 
-/** Ce que l'ombre lointaine a réellement obtenu. Jamais une estimation, jamais un zéro déduit. */
+/** What the far shadow actually obtained. Never an estimate, never a deduced zero. */
 function publish(rt: WebgpuPagesRuntime) {
   const { sunFar, diag } = rt,
-    // Le module gréé, et seulement une fois son proxy adopté : sans proxy, ses réglages ne
-    // décrivent aucun rayon, et c'est `null` qu'il faut publier, pas le zéro de leur naissance.
+    // The fitted module, and only once its proxy is adopted: without a proxy, its settings describe
+    // no ray, and it is `null` that must be published, not the zero of their birth.
     ready = sunFar.gpu?.proxy ? sunFar.gpu : undefined,
     proxy = ready?.proxy;
   if (sunFar.published && !proxy) return;
@@ -89,7 +89,7 @@ function publish(rt: WebgpuPagesRuntime) {
   });
 }
 
-/** L'état de l'ombre lointaine, tel que le profil par étape et le suivi de l'image le publient. */
+/** Far-shadow state, as the per-stage profile and image tracking publish it. */
 export function sunFarState(rt: WebgpuPagesRuntime) {
   const { gpu, reason } = rt.sunFar,
     counts = gpu?.counts();
@@ -103,8 +103,8 @@ export function sunFarState(rt: WebgpuPagesRuntime) {
 }
 
 /**
- * Les compteurs de l'étape « Ombres lointaines », ceux qui sont revenus seulement : un relevé qui
- * n'est pas revenu n'est pas déposé du tout, il n'existe pas de zéro déduit.
+ * Counts of the Far shadows stage, only those that came back: a sample that has not come back is not
+ * deposited at all, there is no deduced zero.
  */
 export function sunFarCounts(rt: WebgpuPagesRuntime) {
   const { proxyTriangles, pixelsTestes, pixelsAssombris, imageRelevee } = sunFarState(rt);

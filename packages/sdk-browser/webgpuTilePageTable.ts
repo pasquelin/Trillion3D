@@ -8,19 +8,18 @@ import {
 } from './textureTiles.ts';
 
 /**
- * La table de pages d'un atlas : pour chaque tuile de chaque niveau diffusé de chaque texture, la
- * place du pool qui la sert. C'est l'indirection que le nuanceur lit avant chaque échantillon.
+ * Page table of an atlas: for each tile of each streamed level of each texture, the pool place
+ * that serves it. That is the indirection the shader reads before every sample.
  *
- * Une entrée dont la tuile manque n'est pas vide : elle pointe la tuile résidente la plus fine
- * parmi ses ancêtres — remplie « vers le bas » à chaque arrivée, rendue à l'ancêtre suivant à chaque
- * départ —, et zéro dit « rien de diffusé, lis la queue ». Le nuanceur ne cherche donc jamais : une
- * lecture, une tuile, toujours montrable.
+ * An entry whose tile is missing is not empty: it points at the finest resident tile among its
+ * ancestors — filled "downward" on every arrival, handed back to the next ancestor on every
+ * departure — and zero means "nothing streamed, read the tail". The shader therefore never
+ * searches: one read, one tile, always showable.
  *
- * Un seul tampon par atlas, en mots : `[décalage de retour, textures, début des entrées, début des
- * niveaux]`, puis quatre mots par texture (`largeur | hauteur << 16`, premier niveau de la queue,
- * dernier niveau, place de la queue), puis seize mots par texture (le premier mot de chaque niveau
- * diffusé, absolu), puis les entrées. Les écritures partent par texture, sur la portée qu'elle a
- * touchée depuis le dernier envoi.
+ * One buffer per atlas, in words: `[feedback offset, textures, start of entries, start of
+ * levels]`, then four words per texture (`width | height << 16`, first tail level, last level,
+ * tail place), then sixteen words per texture (the first word of each streamed level, absolute),
+ * then the entries. Writes go out per texture, over the span it has touched since the last flush.
  */
 export const PAGE_HEADER_WORDS = 4;
 export const PAGE_SLOT_WORDS = 4;
@@ -31,15 +30,15 @@ export type WebgpuTilePageTable = {
   readonly words: Uint32Array<ArrayBuffer>;
   readonly entries: number;
   readonly buffer: GPUBuffer;
-  /** Le mot d'une tuile diffusée, tel que le nuanceur le lira après `flush`. */
+  /** Word of a streamed tile, as the shader will read it after `flush`. */
   entryOf(key: TileKey): number;
-  /** Le rang de retour d'image d'une tuile, et l'inverse — les deux bornes d'une même liste. */
+  /** Feedback rank of a tile, and the inverse — both ends of the same list. */
   feedbackIndexOf(key: TileKey): number;
   tileOf(feedbackIndex: number): TileKey;
   setTail(slot: number, place: TilePlace): void;
   setTile(key: TileKey, place: TilePlace): void;
   clearTile(key: TileKey): void;
-  /** Envoie à la carte ce qui a changé ; rien quand rien n'a bougé. */
+  /** Sends the GPU what has changed; nothing when nothing moved. */
   flush(device: Pick<GPUDevice, 'queue'>): void;
   destroy(): void;
 };
@@ -78,7 +77,7 @@ export function createWebgpuTilePageTable(
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
   device.queue.writeBuffer(buffer, 0, words);
-  // Par texture, la plus basse et la plus haute adresse touchées depuis le dernier envoi.
+  // Per texture, the lowest and highest addresses touched since the last flush.
   const dirty = new Map<number, [number, number]>();
   const touch = (slot: number, from: number, to: number) => {
     const span = dirty.get(slot);
@@ -100,7 +99,7 @@ export function createWebgpuTilePageTable(
     words[index] = word;
     touch(slot, index, index);
   };
-  /** Les entrées plus fines qu'une tuile, sous elle : celles que sa présence ou son départ sert. */
+  /** Entries finer than a tile, under it: those its presence or departure serves. */
   const descend = (key: TileKey, visit: (index: number) => void) => {
     const layout = layouts[key.slot];
     for (let level = key.level - 1; level >= 0; level--) {
@@ -145,8 +144,8 @@ export function createWebgpuTilePageTable(
     setTile(key, place) {
       const word = packEntry(place, key.level);
       write(key.slot, wordIndex(key), word);
-      // Vers le bas : toute entrée plus fine servie par un ancêtre plus grossier, ou par rien,
-      // est mieux servie par celle-ci.
+      // Downward: every finer entry served by a coarser ancestor, or by nothing, is better
+      // served by this one.
       descend(key, (index) => {
         const current = words[index];
         if (current === 0 || entryLevel(current) > key.level) write(key.slot, index, word);
@@ -156,8 +155,8 @@ export function createWebgpuTilePageTable(
       const own = wordIndex(key),
         leaving = words[own];
       const layout = layouts[key.slot];
-      // L'ancêtre résident le plus fin, ou rien : c'est lui qui reprend cette entrée et toutes
-      // celles, plus fines, que la tuile partante servait.
+      // The finest resident ancestor, or nothing: it is the one that takes back this entry and
+      // all the finer ones the leaving tile used to serve.
       let replacement = 0;
       for (let level = key.level + 1; level < layout.tail; level++) {
         const shift = level - key.level;

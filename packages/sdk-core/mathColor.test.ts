@@ -4,42 +4,42 @@ import * as THREE from 'three';
 import { hslToLinearRgb, linearToSrgb, srgbToLinear } from './mathColor.ts';
 import { assertBits } from './bench/oracles/volumes.mjs';
 
-/** `Color.setHSL` de la référence, dans son espace de travail par défaut (`srgb-linear`) : aucune
- *  courbe de transfert n'y est appliquée, comme `hslToLinearRgb`. */
+/** Reference `Color.setHSL`, in its default working space (`srgb-linear`): no
+ *  transfer curve is applied there, like `hslToLinearRgb`. */
 function colorSetHSL(h: number, s: number, l: number) {
   const c = new THREE.Color().setHSL(h, s, l);
   return [c.r, c.g, c.b];
 }
 
-test('srgbToLinear : bornes et branche linéaire au seuil 0,04045 inclus', () => {
+test('srgbToLinear: bounds and linear branch at the 0.04045 threshold inclusive', () => {
   assert.equal(srgbToLinear(0), 0);
   assert.equal(srgbToLinear(1), 1);
   assert.equal(srgbToLinear(0.04045), 0.04045 / 12.92);
 });
 
-test('linearToSrgb : bornes et branche linéaire au seuil 0,0031308 inclus', () => {
+test('linearToSrgb: bounds and linear branch at the 0.0031308 threshold inclusive', () => {
   assert.equal(linearToSrgb(0), 0);
   assert.equal(linearToSrgb(0.0031308), 12.92 * 0.0031308);
 });
 
-test('linearToSrgb : sous le seuil, la branche linéaire laisse passer un négatif sans le ramener à zéro', () => {
-  // Seul l'exposant (branche au-delà du seuil, où l'entrée est déjà positive) ramène les négatifs à
-  // zéro avant `Math.pow` ; la branche linéaire, elle, ne clippe rien.
+test('linearToSrgb: below the threshold, the linear branch lets a negative through without clamping to zero', () => {
+  // Only the exponent (branch beyond the threshold, where the input is already positive) clamps
+  // negatives to zero before `Math.pow`; the linear branch clips nothing.
   assert.equal(linearToSrgb(-0.5), 12.92 * -0.5);
 });
 
-test('aller-retour srgbToLinear puis linearToSrgb : identité à 1e-9 près sur tout [0, 1]', () => {
+test('round-trip srgbToLinear then linearToSrgb: identity within 1e-9 over all of [0, 1]', () => {
   let pire = 0;
   for (let i = 0; i <= 256; i++) {
     const c = i / 256;
     pire = Math.max(pire, Math.abs(linearToSrgb(srgbToLinear(c)) - c));
   }
-  assert.ok(pire < 1e-9, `écart aller-retour ${pire}`);
+  assert.ok(pire < 1e-9, `round-trip discrepancy ${pire}`);
 });
 
-// Lot M4a, hslToLinearRgb : `Color.setHSL` de la référence, au bit près, sur une grille dense de
-// teintes/saturations/luminosités puis sur les cas hostiles (hors de [0, 1], NaN, infinis).
-test('hslToLinearRgb s’accorde avec Color.setHSL au bit près sur une grille dense', () => {
+// Batch M4a, hslToLinearRgb: reference `Color.setHSL`, bit-exact, on a dense grid of
+// hues/saturations/lightness then on hostile cases (outside [0, 1], NaN, infinities).
+test('hslToLinearRgb matches Color.setHSL bit-exact on a dense grid', () => {
   const out = new Float64Array(3);
   for (let hi = 0; hi <= 12; hi++)
     for (let si = 0; si <= 8; si++)
@@ -52,7 +52,7 @@ test('hslToLinearRgb s’accorde avec Color.setHSL au bit près sur une grille d
       }
 });
 
-test('hslToLinearRgb écrit à partir du décalage `o` donné, sans toucher au reste du tampon', () => {
+test('hslToLinearRgb writes from the given offset `o`, without touching the rest of the buffer', () => {
   const out = new Float64Array(5).fill(-1);
   hslToLinearRgb(out, 1, 0.5, 0.5, 0.5);
   assertBits(out.subarray(1, 4), colorSetHSL(0.5, 0.5, 0.5));
@@ -60,7 +60,7 @@ test('hslToLinearRgb écrit à partir du décalage `o` donné, sans toucher au r
   assert.equal(out[4], -1);
 });
 
-test('hslToLinearRgb s’accorde avec Color.setHSL pour une teinte hors de [0, 1], positive ou négative', () => {
+test('hslToLinearRgb matches Color.setHSL for a hue outside [0, 1], positive or negative', () => {
   const out = new Float64Array(3);
   for (const h of [-2.5, -1, -0.25, 1.5, 3.75]) {
     hslToLinearRgb(out, 0, h, 0.6, 0.4);
@@ -68,7 +68,7 @@ test('hslToLinearRgb s’accorde avec Color.setHSL pour une teinte hors de [0, 1
   }
 });
 
-test('hslToLinearRgb s’accorde avec Color.setHSL quand saturation ou luminosité débordent de [0, 1]', () => {
+test('hslToLinearRgb matches Color.setHSL when saturation or lightness overflow [0, 1]', () => {
   const out = new Float64Array(3);
   for (const [s, l] of [
     [-1, 0.5],
@@ -83,7 +83,7 @@ test('hslToLinearRgb s’accorde avec Color.setHSL quand saturation ou luminosit
   }
 });
 
-test('hslToLinearRgb s’accorde avec Color.setHSL sur NaN et sur les infinis, chaque paramètre à tour de rôle', () => {
+test('hslToLinearRgb matches Color.setHSL on NaN and infinities, each parameter in turn', () => {
   const out = new Float64Array(3);
   const cas: [number, number, number][] = [
     [NaN, 0.5, 0.5],
@@ -101,7 +101,7 @@ test('hslToLinearRgb s’accorde avec Color.setHSL sur NaN et sur les infinis, c
   }
 });
 
-test('hslToLinearRgb : saturation nulle rend un gris de la luminosité, comme la référence', () => {
+test('hslToLinearRgb: zero saturation yields a grey of the lightness, like the reference', () => {
   const out = new Float64Array(3);
   hslToLinearRgb(out, 0, 0.77, 0, 0.33);
   assertBits(out, colorSetHSL(0.77, 0, 0.33));

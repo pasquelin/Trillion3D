@@ -9,7 +9,7 @@ import {
   taaJitter,
 } from './taaJitter.ts';
 
-test('la suite de Halton commence par les termes connus et reste dans [0, 1)', () => {
+test('the Halton sequence starts with the known terms and stays in [0, 1)', () => {
   assert.deepEqual(
     [1, 2, 3, 4].map((i) => halton(i, 2)),
     [0.5, 0.25, 0.75, 0.125],
@@ -24,33 +24,33 @@ test('la suite de Halton commence par les termes connus et reste dans [0, 1)', (
   }
 });
 
-test('huit gigues distinctes, centrées dans le pixel, déterministes et cycliques', () => {
+test('eight distinct jitters, centred in the pixel, deterministic and cyclic', () => {
   const out = new Float64Array(2),
     vues = new Set<string>();
   let sx = 0,
     sy = 0;
   for (let sample = 0; sample < TAA_SAMPLES; sample++) {
     const [x, y] = taaJitter(sample, out);
-    assert.ok(Math.abs(x) < 0.5 && Math.abs(y) < 0.5, `gigue ${sample} hors du pixel`);
+    assert.ok(Math.abs(x) < 0.5 && Math.abs(y) < 0.5, `jitter ${sample} outside the pixel`);
     vues.add(`${x},${y}`);
     sx += x;
     sy += y;
   }
-  assert.equal(vues.size, TAA_SAMPLES, 'deux images du cycle partagent une position');
-  // La moyenne du cycle reste près du centre : aucun biais d'un côté du pixel.
+  assert.equal(vues.size, TAA_SAMPLES, 'two frames of the cycle share a position');
+  // The cycle mean stays near the centre: no bias to one side of the pixel.
   assert.ok(Math.abs(sx / TAA_SAMPLES) < 0.1 && Math.abs(sy / TAA_SAMPLES) < 0.1);
-  // Le même rang rend la même gigue, et le cycle se referme : c'est ce qui rend deux exécutions
-  // identiques et le témoin A/A possible.
+  // The same rank yields the same jitter, and the cycle closes: that is what makes two runs
+  // identical and the A/A witness possible.
   assert.deepEqual([...taaJitter(3, out)], [...taaJitter(3 + TAA_SAMPLES, new Float64Array(2))]);
   assert.equal(TAA_STILL_FRAMES, 2 * TAA_SAMPLES);
 });
 
-test('la gigue est une translation en espace de clip, nulle quand le décalage est nul', () => {
+test('jitter is a translation in clip space, zero when the offset is zero', () => {
   const vp = new Float64Array(16);
   for (let i = 0; i < 16; i++) vp[i] = i + 1;
   const out = new Float64Array(16);
   jitterViewProjection(out, vp, 0, 0, 640, 480);
-  assert.deepEqual([...out], [...vp], 'une gigue nulle doit rendre la matrice au bit près');
+  assert.deepEqual([...out], [...vp], 'zero jitter must return the matrix to the bit');
   jitterViewProjection(out, vp, 0.25, -0.5, 640, 480);
   for (let column = 0; column < 4; column++) {
     const at = column * 4,
@@ -60,8 +60,8 @@ test('la gigue est une translation en espace de clip, nulle quand le décalage e
     assert.equal(out[at + 2], vp[at + 2]);
     assert.equal(out[at + 3], w);
   }
-  // Un point de clip (0, 0, z, 1) décalé d'un quart de pixel atterrit à 2·0,25/640 en NDC : la
-  // moitié d'un pixel de large vaut 2/640, le quart en est la moitié.
+  // A clip point (0, 0, z, 1) shifted by a quarter pixel lands at 2·0.25/640 in NDC: half
+  // a pixel of width is 2/640, a quarter is half of that.
   jitterViewProjection(out, IDENTITY_MATRIX4, 0.25, 0.25, 640, 480);
   assert.equal(out[12], (2 * 0.25) / 640);
   assert.equal(out[13], (2 * 0.25) / 480);

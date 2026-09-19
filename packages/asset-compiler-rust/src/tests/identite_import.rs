@@ -1,20 +1,21 @@
-//! A13 — La clé finale hachait tous les octets du manifeste d'import, métriques comprises. Le temps
-//! mesuré d'une conversion y entrait : trois compilations des mêmes fichiers, aux mêmes octets de
-//! glTF intermédiaire et à la même clé d'import, rendaient trois clés finales distinctes. Le chemin
-//! de la source y entrait aussi — la machine qui compile, et non la scène compilée.
+//! A13 — The final key hashed every byte of the import manifest, metrics included.
+//! Conversion timing entered it: three compilations of the same files, with the
+//! same intermediate glTF bytes and the same import key, yielded three distinct
+//! final keys. The source path entered too — the compiling machine, not the
+//! compiled scene.
 use super::usd_driver::{compile_layer, wrap, QUAD};
 use super::*;
 
-/// La clé exposée par une compilation de `source` dans un cache neuf : c'est de cache à cache, et
-/// non d'un cache déjà servi à lui-même, qu'une clé instable se voit.
+/// Key exposed by a compilation of `source` in a fresh cache: it is from cache
+/// to cache, not from a cache already served to itself, that an unstable key shows.
 fn cle_dans_un_cache_neuf(source: &Path, tag: &str) -> String {
     compile_golden_source(source, tag).result["key"]
         .as_str()
-        .expect("clé")
+        .expect("key")
         .to_string()
 }
 
-/// Trois clés de suite pour la même source, chacune dans son propre cache.
+/// Three keys in a row for the same source, each in its own cache.
 fn trois_cles(source: &Path, tag: &str) -> [String; 3] {
     [
         cle_dans_un_cache_neuf(source, tag),
@@ -23,27 +24,24 @@ fn trois_cles(source: &Path, tag: &str) -> [String; 3] {
     ]
 }
 
-// Comportement : un pilote natif — l'import ufbx d'un OBJ — rend la même clé à chaque conversion,
-// et une entrée modifiée la change.
+// Behaviour: a native driver — ufbx import of an OBJ — yields the same key on
+// every conversion, and a modified input changes it.
 #[test]
 fn trois_imports_dun_obj_rendent_la_meme_cle() {
     let root = scratch("identite", "obj");
     let obj = obj_source(&root, "obj", "newmtl Uni\nKd 1 1 1\n");
     let [une, deux, trois] = trois_cles(&obj, "identite-obj");
-    assert_eq!(
-        une, deux,
-        "deux conversions des mêmes octets, une seule clé"
-    );
-    assert_eq!(deux, trois, "la troisième non plus ne dérive pas");
+    assert_eq!(une, deux, "two conversions of the same bytes, one key");
+    assert_eq!(deux, trois, "the third does not drift either");
 
     fs::write(obj.with_file_name("scene.mtl"), "newmtl Uni\nKd 0 1 0\n").expect("mtl");
     let modifiee = cle_dans_un_cache_neuf(&obj, "identite-obj-mtl");
-    assert_ne!(une, modifiee, "une bibliothèque modifiée change la clé");
+    assert_ne!(une, modifiee, "a modified library changes the key");
     fs::remove_dir_all(root).expect("nettoyage");
 }
 
-// Comportement : un pilote de scène — la couche USD — rend lui aussi la même clé à chaque
-// conversion, et une couche modifiée la change.
+// Behaviour: a scene driver — the USD layer — also yields the same key on every
+// conversion, and a modified layer changes it.
 #[test]
 fn trois_imports_dune_couche_usd_rendent_la_meme_cle() {
     let couche = wrap("", QUAD);
@@ -51,12 +49,12 @@ fn trois_imports_dune_couche_usd_rendent_la_meme_cle() {
         .map(|_| {
             compile_layer("identite-usd", &couche).result["key"]
                 .as_str()
-                .expect("clé")
+                .expect("key")
                 .to_string()
         })
         .collect();
-    assert_eq!(cles[0], cles[1], "deux conversions, une seule clé");
-    assert_eq!(cles[1], cles[2], "la troisième non plus ne dérive pas");
+    assert_eq!(cles[0], cles[1], "two conversions, one key");
+    assert_eq!(cles[1], cles[2], "the third does not drift either");
 
     let autre = compile_layer(
         "identite-usd-autre",
@@ -64,19 +62,19 @@ fn trois_imports_dune_couche_usd_rendent_la_meme_cle() {
     );
     assert_ne!(
         cles[0],
-        autre.result["key"].as_str().expect("clé"),
-        "une couche modifiée change la clé"
+        autre.result["key"].as_str().expect("key"),
+        "a modified layer changes the key"
     );
 }
 
-// Comportement : les options du compilateur restent dans l'identité — deux budgets de triangles
-// donnent deux produits, donc deux clés.
+// Behaviour: compiler options stay in identity — two triangle budgets yield two
+// products, therefore two keys.
 #[test]
 fn une_option_modifiee_change_la_cle() {
     let (root, options) = fixture();
     let premiere = compile(&options, |_| {}).expect("compile")["key"]
         .as_str()
-        .expect("clé")
+        .expect("key")
         .to_string();
     let autres = Options {
         triangle_budget: options.triangle_budget + 1,
@@ -85,8 +83,8 @@ fn une_option_modifiee_change_la_cle() {
     };
     let seconde = compile(&autres, |_| {}).expect("compile")["key"]
         .as_str()
-        .expect("clé")
+        .expect("key")
         .to_string();
-    assert_ne!(premiere, seconde, "un budget changé change la clé");
+    assert_ne!(premiere, seconde, "a changed budget changes the key");
     fs::remove_dir_all(root).expect("nettoyage");
 }

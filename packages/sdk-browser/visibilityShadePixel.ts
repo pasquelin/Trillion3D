@@ -12,7 +12,7 @@ import type { EngineCamera } from './cameraWorld.ts';
 
 type Rgb = [number, number, number];
 
-/** 8 bits par canal : sRGB pour ce qui est texturé ou éclairé, échelle directe sinon. */
+/** 8 bits per channel: sRGB for what is textured or lit, direct scale otherwise. */
 function encode(c: Rgb, srgb: boolean): Rgb {
   return srgb
     ? [linearToSrgb8(c[0]), linearToSrgb8(c[1]), linearToSrgb8(c[2])]
@@ -23,8 +23,8 @@ function encode(c: Rgb, srgb: boolean): Rgb {
       ];
 }
 
-/** La couleur d'un pixel. Le triangle projeté et le matériau viennent de `frame`, qui les calcule
- *  une fois par image : le pixel ne reprojette rien et n'alloue aucune description de matériau. */
+/** Colour of a pixel. The projected triangle and the material come from `frame`, which computes
+ *  them once per image: the pixel reprojects nothing and allocates no material description. */
 export function shadePixel(
   frame: VisibilityFrame,
   id: number,

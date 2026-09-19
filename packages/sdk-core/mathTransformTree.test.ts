@@ -1,5 +1,5 @@
-// Lot M3a, mathTransformTree.ts : création de la hiérarchie, ajout de nœuds, setters de pose et de
-// matrice locale, marquage sale, `matrixAutoUpdate`, agrandissement de capacité et garde `assertNode`.
+// Batch M3a, mathTransformTree.ts: hierarchy creation, node add, pose and local-matrix
+// setters, dirty marking, `matrixAutoUpdate`, capacity growth and `assertNode` guard.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -19,7 +19,7 @@ import {
 
 const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 
-test('createTransformTree : arbre vide, capacité demandée, aucun nœud vivant', () => {
+test('createTransformTree: empty tree, requested capacity, no live node', () => {
   const tree = createTransformTree(8);
   assert.equal(tree.capacity, 8);
   assert.equal(tree.end, 0);
@@ -29,12 +29,12 @@ test('createTransformTree : arbre vide, capacité demandée, aucun nœud vivant'
   assert.equal(tree.worldViews.length, 8);
 });
 
-test('createTransformTree(0) : capacité plancher à 1, pas de division par zéro à l’agrandissement', () => {
+test('createTransformTree(0): floor capacity at 1, no division by zero on growth', () => {
   const tree = createTransformTree(0);
   assert.equal(tree.capacity, 1);
 });
 
-test('addTransformNode sans parent : état d’un objet neuf — position nulle, quaternion identité, échelle 1, matrices identité, mise à jour automatique', () => {
+test('addTransformNode without parent: state of a fresh object — zero position, identity quaternion, scale 1, identity matrices, automatic update', () => {
   const tree = createTransformTree(4);
   const node = addTransformNode(tree);
   assert.equal(node, 0);
@@ -51,26 +51,26 @@ test('addTransformNode sans parent : état d’un objet neuf — position nulle,
   assert.ok(flags & NODE_LOCAL_CHANGED);
 });
 
-test('addTransformNode(parent) : le nœud porte l’indice du parent, un parent inconnu lève', () => {
+test('addTransformNode(parent): the node carries the parent index, an unknown parent throws', () => {
   const tree = createTransformTree(4);
   const parent = addTransformNode(tree);
   const enfant = addTransformNode(tree, parent);
   assert.equal(tree.parent[enfant], parent);
-  assert.throws(() => addTransformNode(tree, 99), /nœud 99 absent/);
+  assert.throws(() => addTransformNode(tree, 99), /node 99 absent/);
 });
 
-test('assertNode : lève pour un indice hors bornes ou négatif, ne lève pas pour un nœud vivant', () => {
+test('assertNode: throws for an out-of-range or negative index, does not throw for a live node', () => {
   const tree = createTransformTree(2);
   const node = addTransformNode(tree);
   assert.doesNotThrow(() => assertNode(tree, node));
-  assert.throws(() => assertNode(tree, -1), /nœud -1 absent/);
-  assert.throws(() => assertNode(tree, 5), /nœud 5 absent/);
+  assert.throws(() => assertNode(tree, -1), /node -1 absent/);
+  assert.throws(() => assertNode(tree, 5), /node 5 absent/);
 });
 
-test('setNodePosition/Quaternion/Scale : écrivent les composantes et marquent NODE_TRS_DIRTY', () => {
+test('setNodePosition/Quaternion/Scale: write the components and mark NODE_TRS_DIRTY', () => {
   const tree = createTransformTree(2);
   const node = addTransformNode(tree);
-  tree.flags[node] &= ~NODE_TRS_DIRTY; // état propre imposé pour observer la remarque
+  tree.flags[node] &= ~NODE_TRS_DIRTY; // clean state imposed to observe the remake
   setNodePosition(tree, node, 1, 2, 3);
   assert.deepEqual([...tree.position.subarray(node * 3, node * 3 + 3)], [1, 2, 3]);
   assert.ok(tree.flags[node] & NODE_TRS_DIRTY);
@@ -86,10 +86,10 @@ test('setNodePosition/Quaternion/Scale : écrivent les composantes et marquent N
   assert.ok(tree.flags[node] & NODE_TRS_DIRTY);
 });
 
-test('setNodeLocalMatrix : copie les seize valeurs et marque NODE_LOCAL_CHANGED et NODE_TRS_DIRTY', () => {
+test('setNodeLocalMatrix: copies the sixteen values and marks NODE_LOCAL_CHANGED and NODE_TRS_DIRTY', () => {
   const tree = createTransformTree(2);
   const node = addTransformNode(tree);
-  tree.flags[node] = NODE_ALIVE; // état propre
+  tree.flags[node] = NODE_ALIVE; // clean state
   const m = [2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 2, 0, 5, 6, 7, 1];
   setNodeLocalMatrix(tree, node, m);
   assert.deepEqual([...tree.localViews[node]], m);
@@ -97,7 +97,7 @@ test('setNodeLocalMatrix : copie les seize valeurs et marque NODE_LOCAL_CHANGED 
   assert.ok(tree.flags[node] & NODE_TRS_DIRTY);
 });
 
-test('setNodeAutoUpdate : bascule NODE_AUTO_UPDATE sans toucher aux autres drapeaux', () => {
+test('setNodeAutoUpdate: toggles NODE_AUTO_UPDATE without touching the other flags', () => {
   const tree = createTransformTree(2);
   const node = addTransformNode(tree);
   const autresAvant = tree.flags[node] & ~NODE_AUTO_UPDATE;
@@ -108,12 +108,12 @@ test('setNodeAutoUpdate : bascule NODE_AUTO_UPDATE sans toucher aux autres drape
   assert.ok(tree.flags[node] & NODE_AUTO_UPDATE);
 });
 
-test('agrandissement de capacité : le contenu déjà écrit survit, la capacité double', () => {
+test('capacity growth: already written content survives, capacity doubles', () => {
   const tree = createTransformTree(1);
   const premier = addTransformNode(tree);
   setNodePosition(tree, premier, 9, 8, 7);
   assert.equal(tree.capacity, 1);
-  const second = addTransformNode(tree); // dépasse la capacité initiale : reserve(2)
+  const second = addTransformNode(tree); // exceeds initial capacity: reserve(2)
   assert.equal(tree.capacity, 2);
   assert.deepEqual([...tree.position.subarray(premier * 3, premier * 3 + 3)], [9, 8, 7]);
   assert.notEqual(second, premier);

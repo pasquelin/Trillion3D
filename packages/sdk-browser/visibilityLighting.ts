@@ -1,30 +1,30 @@
-import * as THREE from 'three';
-import { sampleLinear, sampleMap, triangleAt } from './visibilityMath.ts';
+import { srgbToLinear } from '../sdk-core/index.ts';
+import { backgroundRgb, sampleLinear, sampleMap, triangleAt } from './visibilityMath.ts';
 import { shadingNormal } from './visibilityShadingNormal.ts';
 import type { VisMaterial, VisPage } from './visibilityTypes.ts';
 import type { EngineCamera } from './cameraWorld.ts';
 
-/** L'éclairage hémisphérique fixe du chemin CPU : soleil normalisé, ciel et sol. Rien ici ne dépend
- *  du pixel, et tout y était pourtant recalculé — `Math.hypot` et `new THREE.Color` compris — à
- *  chaque pixel ombré. Mêmes opérandes, mêmes divisions, une seule fois au chargement du module. */
+/** Fixed hemispheric lighting of the CPU path: normalised sun, sky and ground. Nothing here
+ *  depends on the pixel, yet everything was still recomputed — `Math.hypot` and the ground colour
+ *  included — at each shaded pixel. Same operands, same divisions, once at module load. */
 const LRAW = [1, 3, 2] as const;
 const L_LEN = Math.hypot(LRAW[0], LRAW[1], LRAW[2]);
 const LX = LRAW[0] / L_LEN,
   LY = LRAW[1] / L_LEN,
   LZ = LRAW[2] / L_LEN;
-const GROUND_COLOR = new THREE.Color(0x495061);
+/** Ground `#495061`, an sRGB hex brought to linear by the exact curve (`srgbToLinear`). */
+const [GROUND_R, GROUND_G, GROUND_B] = backgroundRgb(0x495061).map(
+  (v) => srgbToLinear(v / 255) * 2,
+);
 const SKY_R = 2,
   SKY_G = 2,
   SKY_B = 2;
-const GROUND_R = GROUND_COLOR.r * 2,
-  GROUND_G = GROUND_COLOR.g * 2,
-  GROUND_B = GROUND_COLOR.b * 2;
-/** Émission neutre quand le matériau n'a pas de carte : lue seule, jamais écrite ni conservée. */
+/** Neutral emission when the material has no map: read only, never written nor kept. */
 const NO_EMISSIVE: readonly [number, number, number] = [1, 1, 1];
 
 /**
- * La BRDF du chemin CPU, et elle seule : le repère de normale du pixel est monté par
- * `shadingNormal`, et ce qui suit ne lit plus que la normale, la position monde et le matériau.
+ * The CPU-path BRDF, and it alone: the pixel's normal frame is built by
+ * `shadingNormal`, and what follows only reads the normal, world position and material.
  */
 export function shadeLit(
   page: VisPage,
@@ -48,7 +48,7 @@ export function shadeLit(
   const Nx = normal[0],
     Ny = normal[1],
     Nz = normal[2];
-  // L'œil en repère monde, pris dans la caméra du moteur que l'entrée d'image a recopiée.
+  // The eye in world space, taken from the engine camera that the frame entry copied.
   const eye = cam.eye;
   const vx = eye[0] - world[0],
     vy = eye[1] - world[1],

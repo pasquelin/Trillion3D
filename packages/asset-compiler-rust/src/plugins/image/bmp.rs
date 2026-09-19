@@ -1,78 +1,77 @@
-//! Pilote BMP (Windows Bitmap, *device-independent bitmap*), lu d'après les structures publiques
-//! `BITMAPFILEHEADER`, `BITMAPINFOHEADER` et leurs extensions V2 à V5 documentées par Microsoft
-//! (« Bitmap Header Types »), et décodé par la crate `image` (feature `bmp`, MIT ou Apache-2.0,
-//! notices conservées avec la dépendance). Aucun code ni SDK d'éditeur, aucun réencodage.
+//! BMP driver (Windows Bitmap, *device-independent bitmap*), read from the public structures
+//! `BITMAPFILEHEADER`, `BITMAPINFOHEADER` and their V2 to V5 extensions documented by Microsoft
+//! ("Bitmap Header Types"), and decoded by the `image` crate (`bmp` feature, MIT or Apache-2.0,
+//! notices kept with the dependency). No vendor code or SDK, no re-encoding.
 //!
-//! **Profils lus, tous sans perte vers RGBA8** : vraies couleurs 24 et 32 bits, palettes 1, 2, 4 et
-//! 8 bits, 16 bits par masques (5-5-5 comme 5-6-5), et les deux compressions par plages `BI_RLE8`
-//! et `BI_RLE4`, qui sont sans perte par construction. L'ordre des lignes est celui du format : une
-//! hauteur positive décrit un fichier bas-haut, que le décodeur remet dans l'ordre de l'image, et
-//! une hauteur négative un fichier haut-bas. Un `BI_RGB` 32 bits garde un alpha opaque : la
-//! spécification déclare son quatrième octet *inutilisé*, et le lire comme un alpha serait une
-//! supposition, pas une lecture.
+//! **Profiles read, all lossless to RGBA8**: 24- and 32-bit true colour, 1-, 2-, 4- and 8-bit
+//! palettes, 16-bit by masks (5-5-5 as 5-6-5), and both run-length compressions `BI_RLE8` and
+//! `BI_RLE4`, which are lossless by construction. Line order is the format's: a positive height
+//! describes a bottom-up file, which the decoder puts back into image order, and a negative
+//! height a top-down file. A 32-bit `BI_RGB` keeps opaque alpha: the specification declares its
+//! fourth byte *unused*, and reading it as alpha would be a guess, not a read.
 //!
-//! **Pourquoi les moins de huit bits par canal entrent sans perte.** Le décodeur porte chaque canal
-//! de `n` bits vers huit par une table `round(v × 255 / (2^n − 1))` — une mise à l'échelle
-//! proportionnelle arrondie au plus proche, et non une recopie de bits. Les deux conviennent ici
-//! pour la même raison : la table est *strictement croissante*, donc injective, donc inversible —
-//! les 32 valeurs d'un canal de 5 bits tombent sur 32 valeurs de 8 bits distinctes, et le chemin
-//! retour rend la valeur d'origine. Aucune information de la source n'est perdue.
+//! **Why fewer than eight bits per channel enter losslessly.** The decoder takes each `n`-bit
+//! channel to eight through a `round(v × 255 / (2^n − 1))` table — a proportional scale rounded
+//! to nearest, not a bit copy. Both work here for the same reason: the table is *strictly
+//! increasing*, hence injective, hence invertible — the 32 values of a 5-bit channel land on 32
+//! distinct 8-bit values, and the return path yields the original value. No source information
+//! is lost.
 //!
-//! **Ce qui est refusé, et pourquoi.** Un masque de plus de huit bits par canal — ce que les entêtes
-//! V4 et V5 autorisent, par exemple en 10-10-10 — serait, lui, tronqué de ses bits de poids faible
-//! par le décodeur : c'est une perte, elle est donc écartée avant tout décodage, par un nom. Les
-//! compressions qui emballent un autre format (`BI_JPEG`, `BI_PNG`) et celles hors du format lu
-//! (`BI_ALPHABITFIELDS`, les variantes CMJN) sont nommées de la même façon.
+//! **What is refused, and why.** A mask of more than eight bits per channel — which V4 and V5
+//! headers allow, for example 10-10-10 — would be truncated of its low bits by the decoder: that
+//! is a loss, so it is rejected before any decode, by name. Compressions that wrap another format
+//! (`BI_JPEG`, `BI_PNG`) and those outside the read format (`BI_ALPHABITFIELDS`, the CMYK
+//! variants) are named the same way.
 use super::{crate_image, ImageDecoded, ImageDecoder, Plugin};
 
 pub(super) static BMP: Bmp = Bmp;
 pub(super) struct Bmp;
 
-/// Une profondeur hors des profils portés sans perte vers RGBA8 : les 64 bits par pixel des entêtes
-/// récents, notamment, que le contrat `Rgba8` ne saurait pas porter sans rogner.
+/// A depth outside the profiles carried losslessly to RGBA8: the 64 bits per pixel of recent
+/// headers, in particular, which the `Rgba8` contract could not carry without clipping.
 const DEPTH: &str = "bmp-depth-unsupported";
-/// Un masque de canal plus large que huit bits. Le décodeur le ramènerait à huit en jetant ses bits
-/// de poids faible, ce qui ajouterait à la source une perte qu'elle n'avait pas.
+/// A channel mask wider than eight bits. The decoder would bring it back to eight by throwing
+/// away its low bits, which would add to the source a loss it did not have.
 const LOSSY_MASKS: &str = "bmp-bitfields-lossy";
-/// `BI_JPEG` ou `BI_PNG` : le fichier n'emballe pas des pixels mais un autre format entier. Le
-/// routeur d'images désigne un pilote par format ; en déballer un second ici le contournerait.
+/// `BI_JPEG` or `BI_PNG`: the file does not wrap pixels but another whole format. The image
+/// router names one driver per format; unpacking a second one here would bypass it.
 const EMBEDDED: &str = "bmp-embedded-codec-unsupported";
-/// Une compression hors du format lu, `BI_ALPHABITFIELDS` et les variantes CMJN comprises.
+/// A compression outside the read format, `BI_ALPHABITFIELDS` and the CMYK variants included.
 const COMPRESSION: &str = "bmp-compression-unsupported";
 
-/// L'entête de fichier : « BM », la taille, deux champs réservés, l'offset des pixels.
+/// The file header: "BM", the size, two reserved fields, the pixel offset.
 const FILE_HEADER_BYTES: usize = 14;
-/// La taille de l'entête DIB, premier champ après l'entête de fichier. C'est elle qui dit lequel des
-/// six entêtes le fichier porte.
+/// Size of the DIB header, first field after the file header. It is what says which of the six
+/// headers the file carries.
 const DIB_SIZE_AT: usize = FILE_HEADER_BYTES;
-/// `BITMAPCOREHEADER` : douze octets, et sa profondeur juste après ses dimensions sur deux octets.
+/// `BITMAPCOREHEADER`: twelve bytes, and its depth just after its two-byte dimensions.
 const CORE_SIZE: u32 = 12;
 const CORE_DEPTH_AT: usize = 24;
-/// `BITMAPINFOHEADER` et ses extensions : la profondeur puis la compression, aux mêmes rangs dans
-/// les six entêtes — les extensions ajoutent des champs *après* ces deux-là, jamais avant.
+/// `BITMAPINFOHEADER` and its extensions: depth then compression, at the same ranks in the six
+/// headers — the extensions add fields *after* those two, never before.
 const INFO_DEPTH_AT: usize = 28;
 const INFO_COMPRESSION_AT: usize = 30;
-/// Les masques de canaux, lus au même endroit pour tous les entêtes qui en portent : juste après les
-/// quarante octets du `BITMAPINFOHEADER`, que ce soit dans l'entête étendu ou derrière lui.
+/// Channel masks, read at the same place for every header that carries them: just after the
+/// forty bytes of `BITMAPINFOHEADER`, whether in the extended header or behind it.
 const MASKS_AT: usize = FILE_HEADER_BYTES + 40;
-/// Les entêtes qui portent un masque alpha : V3, V4 et V5. Les deux plus courts n'en ont pas.
+/// Headers that carry an alpha mask: V3, V4 and V5. The two shorter ones do not have one.
 const ALPHA_MASK_HEADERS: [u32; 3] = [56, 108, 124];
-/// Les profondeurs portées sans perte vers RGBA8.
+/// Depths carried losslessly to RGBA8.
 const DEPTHS: [u16; 7] = [1, 2, 4, 8, 16, 24, 32];
 
 impl Plugin for Bmp {
     fn name(&self) -> &'static str {
         "bmp"
     }
-    /// Le suffixe nomme la coupe que ce pilote tient : tout ce qu'il rend est sans perte, masques de
-    /// plus de huit bits refusés compris. Elle entre dans l'identité du cache parce qu'elle fait
-    /// partie de ce que le pilote produit — sans elle, une entrée écrite par un pilote plus laxiste
-    /// serait relue comme juste.
+    /// The suffix names the cut this driver holds: everything it returns is lossless, refused
+    /// masks of more than eight bits included. It enters the cache identity because it is part
+    /// of what the driver produces — without it, an entry written by a more lax driver would be
+    /// reread as correct.
     fn version(&self) -> &'static str {
         "bmp-image-0.25-sans-perte"
     }
-    /// `.bmp` est l'extension courante ; `.dib` désigne le même entête sans l'entête de fichier chez
-    /// quelques exporteurs, et `.rle` les deux compressions par plages du format.
+    /// `.bmp` is the common extension; `.dib` names the same header without the file header in
+    /// some exporters, and `.rle` the format's two run-length compressions.
     fn extensions(&self) -> &'static [&'static str] {
         &["bmp", "dib", "rle"]
     }
@@ -82,14 +81,14 @@ impl ImageDecoder for Bmp {
     fn mime(&self) -> &'static str {
         "image/bmp"
     }
-    /// Les deux octets « BM » de l'entête de fichier, et de quoi porter un entête DIB derrière.
+    /// The two "BM" bytes of the file header, and enough to carry a DIB header behind them.
     fn accepts_head(&self, head: &[u8]) -> bool {
         head.len() >= FILE_HEADER_BYTES + CORE_SIZE as usize && head.starts_with(b"BM")
     }
-    /// La coupe d'abord, les pixels ensuite : ce que le décodeur rognerait est écarté *avant* de le
-    /// lui tendre, parce qu'après il est trop tard — il rendrait des pixels déjà appauvris sans que
-    /// personne ne l'ait demandé. Tout le reste — fichier tronqué, masque non contigu, palette
-    /// illisible — ressort en raison de rapport, jamais en panique.
+    /// The cut first, the pixels next: what the decoder would clip is rejected *before* handing
+    /// it over, because afterwards it is too late — it would return already impoverished pixels
+    /// without anyone having asked. Everything else — truncated file, non-contiguous mask,
+    /// unreadable palette — comes back as a report reason, never as a panic.
     fn decode(
         &self,
         bytes: &[u8],
@@ -100,13 +99,14 @@ impl ImageDecoder for Bmp {
     }
 }
 
-/// Lit l'entête DIB et dit si ce fichier entre sans perte. Un entête trop court pour porter les
-/// champs jugés n'est pas refusé ici : il part au décodeur, qui le nomme tronqué comme tout autre.
+/// Reads the DIB header and says whether this file enters losslessly. A header too short to carry
+/// the judged fields is not refused here: it goes to the decoder, which names it truncated like
+/// any other.
 fn admitted(bytes: &[u8]) -> std::result::Result<(), &'static str> {
     let Some(header) = u32_at(bytes, DIB_SIZE_AT) else {
         return Ok(());
     };
-    // `BITMAPCOREHEADER` ne connaît aucune compression : sa seule question est la profondeur.
+    // `BITMAPCOREHEADER` knows no compression: its only question is depth.
     let depth_at = if header == CORE_SIZE {
         CORE_DEPTH_AT
     } else {
@@ -125,19 +125,19 @@ fn admitted(bytes: &[u8]) -> std::result::Result<(), &'static str> {
         return Ok(());
     };
     match compression {
-        // `BI_RGB`, `BI_RLE8` et `BI_RLE4` : des pixels, crus ou par plages, tous sans perte.
+        // `BI_RGB`, `BI_RLE8` and `BI_RLE4`: pixels, raw or run-length, all lossless.
         0..=2 => Ok(()),
-        // `BI_BITFIELDS` : les masques disent combien de bits chaque canal porte réellement.
+        // `BI_BITFIELDS`: the masks say how many bits each channel actually carries.
         3 => masks_are_lossless(bytes, header),
-        // `BI_JPEG` et `BI_PNG` : un autre format entier, qui a son propre pilote.
+        // `BI_JPEG` and `BI_PNG`: another whole format, which has its own driver.
         4..=5 => Err(EMBEDDED),
         _ => Err(COMPRESSION),
     }
 }
 
-/// Les trois — ou quatre — masques de canaux, chacun contre la largeur que huit bits peuvent porter
-/// sans rien jeter. Un masque absent ou nul ne dit rien de faux : le décodeur tranchera lui-même
-/// qu'il manque, et le nommera.
+/// The three — or four — channel masks, each against the width that eight bits can carry without
+/// throwing anything away. A missing or null mask says nothing false: the decoder will decide
+/// itself that it is missing, and name it.
 fn masks_are_lossless(bytes: &[u8], header: u32) -> std::result::Result<(), &'static str> {
     let channels = if ALPHA_MASK_HEADERS.contains(&header) {
         4
@@ -155,9 +155,9 @@ fn masks_are_lossless(bytes: &[u8], header: u32) -> std::result::Result<(), &'st
     Ok(())
 }
 
-/// Le nombre de bits qu'un masque contigu porte. Un masque troué n'est pas jugé ici — le décodeur le
-/// refuse déjà, et lui donner une largeur ici serait la lui inventer : on rend alors zéro, qui
-/// n'accuse rien.
+/// Number of bits a contiguous mask carries. A gapped mask is not judged here — the decoder
+/// already refuses it, and giving it a width here would invent one: zero is then returned, which
+/// accuses nothing.
 fn mask_width(mask: u32) -> u32 {
     if mask == 0 {
         return 0;

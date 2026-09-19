@@ -1,4 +1,4 @@
-// Banc des volumes : sdk-core contre Three.js.
+// Volume bench: sdk-core against Three.js.
 import { mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
 import { casBoites } from './appui/volumesCasBoites.mjs';
 import { casTronc } from './appui/volumesCasTronc.mjs';
@@ -7,13 +7,13 @@ import { boxEmpty } from '../../sdk-core/index.ts';
 const options = { chauffe: 1, tours: 10, budgetMs: 500 };
 const tousLesCas = [...casBoites, ...casTronc];
 
-// Un calcul sans `reference` est mesuré sans oracle, et sa ligne publie le `motif` qui dit
-// pourquoi et où sa justesse est tenue : elle n'est jamais simplement tue.
+// A computation without `reference` is measured without an oracle, and its line publishes the
+// `motif` that says why and where its correctness is held: it is never simply silenced.
 const resultats = [];
 for (const item of tousLesCas) {
   resultats.push(
     await mesure({
-      nom: item.calcul,
+      name: item.calcul,
       fichier: item.fichier,
       cas: item.cas,
       calcul: item.optimisee,
@@ -25,17 +25,17 @@ for (const item of tousLesCas) {
 }
 
 await stress({
-  nom: 'boxEmpty extremes',
+  name: 'boxEmpty extremes',
   calcul: () => {
     const b = new Float64Array(6);
     boxEmpty(b, 0);
     return b;
   },
-  extremes: [{ nom: 'appel', entree: null }],
+  extremes: [{ name: 'appel', input: null }],
 });
 
 rapport(
   'volumes',
   resultats,
-  'chaque volume de sdk-core rend exactement ce que rend Three.js, hiérarchies comprises',
+  'each sdk-core volume yields exactly what Three.js yields, hierarchies included',
 );

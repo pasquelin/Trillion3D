@@ -1,21 +1,22 @@
-//! G7 — l'étiquette d'erreur d'une colonne du manifeste, construite seulement lorsqu'il y a une
-//! erreur. Référence : l'ancienne boucle, qui formatait une `String` par nœud de culling valide.
-//! Les étiquettes littérales de `primitive.rs` (membres de groupe) et de `page.rs` (clés `page.*` et
-//! `page.geometry.*`) relèvent du même motif, sans allocation possible : elles ne sont pas mesurées.
+//! G7 — the error label of a manifest column, built only when there is an error.
+//! Reference: the old loop, which formatted a `String` per valid culling node.
+//! Literal labels in `primitive.rs` (group members) and `page.rs` (`page.*` and
+//! `page.geometry.*` keys) follow the same pattern, with no possible allocation:
+//! they are not measured.
 use super::harness::{compare, Bits, Row};
 use super::inputs::Xorshift;
 use crate::manifest_binary::format::{numbers_into, Column};
 use crate::{CompilerError, Result};
 use serde_json::{json, Value};
 
-/// Copie de l'ancien `number()` : le nom de la valeur arrive déjà construit.
+/// Copy of the old `number()`: the value name arrives already built.
 fn nombre_ancien(valeur: Option<&Value>, quoi: &str) -> Result<f64> {
     valeur
         .and_then(Value::as_f64)
         .ok_or_else(|| CompilerError::new("INVALID_MANIFEST", format!("{quoi} is not a number")))
 }
 
-/// Copie de l'ancienne boucle : une chaîne formatée à chaque nœud, valide ou non.
+/// Copy of the old loop: a formatted string at each node, valid or not.
 fn reference_nodes(nodes: &[Value], column: &mut Column) -> Result<()> {
     for (i, node) in nodes.iter().enumerate() {
         column.f64(nombre_ancien(
@@ -26,7 +27,7 @@ fn reference_nodes(nodes: &[Value], column: &mut Column) -> Result<()> {
     Ok(())
 }
 
-/// Les nombres plats d'une hiérarchie de culling, et un jeu dont la neuvième entrée n'en est pas un.
+/// Flat numbers of a culling hierarchy, and a set whose ninth entry is not one.
 fn noeuds(seed: u64, count: usize) -> (Vec<Value>, Vec<Value>) {
     let mut rng = Xorshift::new(seed);
     let mut sains = Vec::with_capacity(count);
@@ -55,26 +56,26 @@ fn empreinte(sortie: &Sortie) -> Bits {
 
 pub(crate) fn row() -> Row {
     let (sains, fautifs) = noeuds(0x6117, 20_000 * crate::CULLING_STRIDE);
-    let taille = format!("{} nœuds de culling, plus un jeu fautif", sains.len());
+    let taille = format!("{} culling nodes, plus a faulty set", sains.len());
     compare(
-        "G7 étiquettes des colonnes du manifeste",
+        "G7 labels of the manifest columns",
         "manifest_binary/primitive.rs, page.rs",
         taille,
         &mut || {
             let mut column = Column::default();
-            reference_nodes(&sains, &mut column).expect("nœuds sains");
+            reference_nodes(&sains, &mut column).expect("healthy nodes");
             let mut rate = Column::default();
             let message = reference_nodes(&fautifs, &mut rate)
-                .expect_err("nœud fautif")
+                .expect_err("faulty node")
                 .to_string();
             (column.bytes, message)
         },
         &mut || {
             let mut column = Column::default();
-            numbers_into(&sains, "primitive.culling.nodes", &mut column).expect("nœuds sains");
+            numbers_into(&sains, "primitive.culling.nodes", &mut column).expect("healthy nodes");
             let mut rate = Column::default();
             let message = numbers_into(&fautifs, "primitive.culling.nodes", &mut rate)
-                .expect_err("nœud fautif")
+                .expect_err("faulty node")
                 .to_string();
             (column.bytes, message)
         },
@@ -86,16 +87,16 @@ pub(crate) fn row() -> Row {
 mod tests {
     use super::*;
 
-    /// `reference_nodes` (une chaîne formatée par nœud valide, l'ancien chemin) et `numbers_into`
-    /// (l'étiquette n'existe que dans la branche d'erreur) doivent écrire les mêmes octets sur un
-    /// jeu sain, et rendre le même message sur un jeu fautif — quelle que soit la position du nœud
-    /// fautif dans le tableau.
+    /// `reference_nodes` (a formatted string per valid node, the old path) and
+    /// `numbers_into` (the label exists only in the error branch) must write the
+    /// same bytes on a healthy set, and yield the same message on a faulty set —
+    /// whatever the position of the faulty node in the array.
     fn memes_octets_et_message(sains: &[Value], fautifs: &[Value], label: &str) {
         let mut colonne_ref = Column::default();
-        reference_nodes(sains, &mut colonne_ref).expect("nœuds sains, référence");
+        reference_nodes(sains, &mut colonne_ref).expect("healthy nodes, reference");
         let mut colonne_neuve = Column::default();
         numbers_into(sains, "primitive.culling.nodes", &mut colonne_neuve)
-            .expect("nœuds sains, version neuve");
+            .expect("healthy nodes, new version");
         assert_eq!(colonne_ref.bytes, colonne_neuve.bytes, "{label}: octets");
 
         if fautifs.is_empty() {
@@ -103,11 +104,11 @@ mod tests {
         }
         let mut poubelle = Column::default();
         let message_ref = reference_nodes(fautifs, &mut poubelle)
-            .expect_err("jeu fautif, référence")
+            .expect_err("faulty set, reference")
             .to_string();
         let mut poubelle2 = Column::default();
         let message_neuf = numbers_into(fautifs, "primitive.culling.nodes", &mut poubelle2)
-            .expect_err("jeu fautif, version neuve")
+            .expect_err("faulty set, new version")
             .to_string();
         assert_eq!(message_ref, message_neuf, "{label}: message d'erreur");
     }

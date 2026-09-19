@@ -3,23 +3,23 @@ import type * as THREE from 'three';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 
 /**
- * La fiche d'un item transparent : tout ce qu'un appel de mélange lit sur LUI, et rien de ce qui
- * dépend de l'image.
+ * Record of a transparent item: everything a blend draw reads about IT, and nothing that
+ * depends on the frame.
  *
- * Ces mots ne bougent que si la scène bouge — une matrice déplacée, un matériau réécrit. Une caméra
- * qui tourne n'en change aucun. C'est ce qui permet de les ranger dans un tampon de stockage indexé
- * par le rang de l'item au lieu d'un uniforme à décalage dynamique : plus rien à écrire par image,
- * et plus un groupe de liaison par appel.
+ * These words move only if the scene moves — a matrix shifted, a material rewritten. A camera
+ * that turns changes none of them. That is why they live in a storage buffer indexed by item
+ * rank instead of a dynamically offset uniform: nothing left to write per frame, and no bind
+ * group per draw.
  */
 export const BLEND_ITEM_WORDS = 40;
 
-/** Les tables d'atlas que la fiche cite : le slot de chaque texture, par atlas. */
+/** Atlas tables the record cites: each texture's slot, per atlas. */
 export type BlendAtlasTables = {
   mapLayer: Map<THREE.Texture, number>;
   dataLayer: Map<THREE.Texture, number>;
 };
 
-/** Écrit la fiche d'un item à son rang. `floats` et `ints` sont deux vues du même tampon. */
+/** Writes an item's record at its rank. `floats` and `ints` are two views of the same buffer. */
 export function writeBlendItemRecord(
   floats: Float32Array,
   ints: Uint32Array,
@@ -35,8 +35,8 @@ export function writeBlendItemRecord(
   floats[base + 17] = item.rgba[1];
   floats[base + 18] = item.rgba[2];
   floats[base + 19] = item.rgba[3];
-  // Où l'instance lit ce qu'elle dessine, elle le tient de la liste étalée ; la fiche ne porte plus
-  // que ce qui appartient à l'item — ses indices, son premier sommet, ses drapeaux, ses cartes.
+  // Where the instance reads what it draws, it takes it from the expanded list; the record now
+  // carries only what belongs to the item — its indices, first vertex, flags, maps.
   ints[base + 20] = item.count;
   ints[base + 21] = item.vertexBase ?? 0;
   ints[base + 22] = item.flags;
@@ -59,5 +59,5 @@ export function writeBlendItemRecord(
   floats[base + 39] = 0;
 }
 
-/** La déclaration WGSL de la fiche, écrite une fois pour le nuanceur et pour la disposition. */
+/** WGSL declaration of the record, written once for the shader and for the layout. */
 export const BLEND_ITEM_WGSL = `struct BlendItem{world:mat4x4f,color:vec4f,indexCount:u32,vertexBase:u32,flags:u32,mapIndex:u32,emissiveIndex:u32,wrapModes:u32,alphaTest:f32,aoIntensity:f32,roughness:f32,metalness:f32,normalScale:vec2f,roughIndex:u32,metalIndex:u32,normalIndex:u32,aoIndex:u32,emissive:vec4f,}`;

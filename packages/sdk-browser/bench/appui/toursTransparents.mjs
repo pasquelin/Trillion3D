@@ -1,8 +1,8 @@
-// Les deux tours d'une scène du banc « transparents en quelques ordres », et ce qu'ils comptent.
+// The two laps of a "transparents in a few orders" bench scene, and what they count.
 //
-// Chaque scène a les siens : un tour partagé entre deux scènes est un site d'appel polymorphe, et
-// le chronomètre le paie. De même, chaque boucle est dans la fonction où le moteur la tient — une
-// boucle écrite en ligne dans le tour ralentit les autres, à travail strictement identique.
+// Each scene has its own: a lap shared between two scenes is a polymorphic call site, and
+// the timer pays for it. Likewise, each loop is in the function where the engine holds it —
+// a loop written inline in the lap slows the others, at strictly identical work.
 import { orderBlendPasses } from '../../webgpuBlendOrder.ts';
 import { expandBlendPlan, itemKept } from '../../webgpuBlendExpandCpu.ts';
 import { RUN_SHARED, RUN_WORDS, runOwner } from '../../webgpuBlendRuns.ts';
@@ -13,18 +13,18 @@ import {
   encodeReference,
 } from '../oracles/transparents-ordres.mjs';
 
-/** Ce que la boucle d'encodage a compté sur le dernier tour : lu par le relevé, pas par le tour. */
+/** What the encode loop counted on the last lap: read by the sample, not by the lap. */
 let comptes = 0;
 export const appelsEncodes = () => comptes;
 
 /**
- * LA BOUCLE D'ENCODAGE, comptée : une tranche qui nomme son item et que le tronc rejette n'est pas
- * encodée, une tranche qui en fusionne plusieurs l'est toujours (`webgpuBlendDraw.ts`).
+ * THE ENCODE LOOP, counted: a slice that names its item and that the frustum rejects is not
+ * encoded; a slice that merges several always is (`webgpuBlendDraw.ts`).
  *
- * Elle est dans SA fonction, comme dans le moteur, où elle vit dans la passe de dessin et non dans
- * le classement. Écrite en ligne dans le tour, elle ralentissait le tri que le tour appelle et que
- * la boucle ne touche pas : de +7,6 % à −7,6 % sur le saut de caméra double face, à travail
- * strictement identique. Un banc qui mesure autre chose que la forme livrée ne mesure rien.
+ * It is in ITS function, as in the engine, where it lives in the draw pass and not in
+ * ranking. Written inline in the lap, it slowed the sort the lap calls and that the
+ * loop does not touch: from +7.6% to −7.6% on the double-sided camera jump, at strictly
+ * identical work. A bench that measures something other than the shipped form measures nothing.
  */
 function compteAppels(blendState) {
   const runs = blendState.runs[0],
@@ -40,8 +40,8 @@ function compteAppels(blendState) {
   return encodes;
 }
 
-/** L'étalement du repli processeur, relu en plages d'indices : ce que le rasteriseur verrait. */
-function etale(blendState, miroir, sortie) {
+/** The CPU-fallback expansion, reread as index ranges: what the rasterizer would see. */
+function etale(blendState, miroir, output) {
   const items = blendState.blendGpu;
   const instances = expandBlendPlan({
     order: blendState.orders[0],
@@ -62,46 +62,46 @@ function etale(blendState, miroir, sortie) {
   for (let i = 0; i < instances; i++) {
     const item = miroir.expanded[i * 2],
       cle = miroir.expanded[i * 2 + 1];
-    sortie[at++] = item;
-    sortie[at++] = items[item].paged ? spans[cle * 2] : cle;
-    sortie[at++] = items[item].paged ? spans[cle * 2 + 1] : items[item].count - cle;
+    output[at++] = item;
+    output[at++] = items[item].paged ? spans[cle * 2] : cle;
+    output[at++] = items[item].paged ? spans[cle * 2 + 1] : items[item].count - cle;
   }
   return at;
 }
 
-/** Les quatre tours d'une scène, et les miroirs du repli processeur alloués hors tour. */
-export function tours(avant, apres) {
-  const blendState = apres.blendState;
+/** The four laps of a scene, and the CPU-fallback mirrors allocated outside the lap. */
+export function tours(before, after) {
+  const blendState = after.blendState;
   const miroir = {
     expanded: new Uint32Array(blendState.instanceCapacity * 2),
     args: new Uint32Array(blendState.maxPlanEntries * 8),
   };
-  /** Le chemin d'avant : classement, arguments de tous les items, un appel par entrée. */
+  /** The previous path: ranking, arguments of every item, one call per entry. */
   const reference = (images, sequence) => {
-    const sortie = [];
+    const output = [];
     for (const image of images) {
-      pose(avant, image);
-      classementReference(avant.scene, avant.order, image.eye);
-      argumentsReference(avant.scene, avant.args);
-      const rendu = encodeReference(avant.scene, avant.order, avant.args, avant.sortie);
-      sortie.push(sequence ? avant.sortie.subarray(0, rendu.length) : rendu.rejected);
+      pose(before, image);
+      classementReference(before.scene, before.order, image.eye);
+      argumentsReference(before.scene, before.args);
+      const rendu = encodeReference(before.scene, before.order, before.args, before.output);
+      output.push(sequence ? before.output.subarray(0, rendu.length) : rendu.rejected);
     }
-    return sortie;
+    return output;
   };
-  /** Le chemin du lot : classement, tronc et tranches, puis un appel par tranche. */
+  /** The batch path: ranking, frustum and slices, then one call per slice. */
   const optimisee = (images, sequence) => {
-    const sortie = [];
+    const output = [];
     for (const image of images) {
-      pose(apres, image);
+      pose(after, image);
       const rejets = orderBlendPasses(blendState, image.eye);
       if (sequence) {
-        sortie.push(apres.sortie.subarray(0, etale(blendState, miroir, apres.sortie)));
+        output.push(after.output.subarray(0, etale(blendState, miroir, after.output)));
         continue;
       }
       comptes = compteAppels(blendState);
-      sortie.push(rejets);
+      output.push(rejets);
     }
-    return sortie;
+    return output;
   };
   return {
     tourAvant: (images) => reference(images, false),

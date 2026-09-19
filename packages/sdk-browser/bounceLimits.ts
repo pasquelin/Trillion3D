@@ -1,11 +1,11 @@
 /**
- * Ce que le rebond va demander à l'appareil, confronté à ce que l'appareil déclare pouvoir tenir.
+ * What bounce will ask of the device, compared to what the device declares it can hold.
  *
- * Une liaison plus grande qu'une limite n'échoue pas là où elle est écrite : le tampon naît
- * invalide, l'erreur remonte sans être capturée, et c'est la première image qui lie le groupe qui
- * perd l'appareil — loin de la cause. Les tailles sont donc toutes calculées avant qu'un seul
- * tampon ne soit créé, comparées à `device.limits`, et une scène trop grande pour cet appareil se
- * voit refuser le rebond avec la mesure qui a manqué, jamais avec une devinette.
+ * A binding larger than a limit does not fail where it is written: the buffer is born
+ * invalid, the error bubbles uncaught, and it is the first frame that binds the group that
+ * loses the device — far from the cause. Sizes are therefore all computed before a single
+ * buffer is created, compared to `device.limits`, and a scene too large for this device is
+ * refused bounce with the measurement that missed, never with a guess.
  */
 
 import type { SceneProxy } from '../sdk-core/index.ts';
@@ -13,7 +13,7 @@ import { PROXY_HEADER_BYTES } from './bounceNodeWgsl.ts';
 import { surfaceCacheBytes } from './bounceSurfaceWgsl.ts';
 import { BOUNCE_GRID_BYTES } from './bounceUniform.ts';
 
-/** Une liaison prévue : son nom dans le diagnostic, ses octets, et la limite qui la borne. */
+/** A planned binding: its diagnostic name, its bytes, and the limit that bounds it. */
 type BounceBinding = {
   name: string;
   bytes: number;
@@ -21,8 +21,8 @@ type BounceBinding = {
 };
 
 /**
- * Le premier dépassement, écrit en clair, ou `null` quand tout tient. L'ordre des liaisons est
- * celui de leur création : le message nomme la première qui ne passe pas, pas la plus grosse.
+ * The first overflow, written in the clear, or `null` when everything fits. Binding order is
+ * creation order: the message names the first that does not pass, not the largest.
  */
 function bounceLimitFailure(device: GPUDevice, bindings: readonly BounceBinding[]) {
   const { limits } = device;
@@ -36,8 +36,8 @@ function bounceLimitFailure(device: GPUDevice, bindings: readonly BounceBinding[
 }
 
 /**
- * Les octets du proxy résident : son entête, puis ses trois colonnes bout à bout dans le tampon
- * unique que la traversée lie. Un proxy sans données garde les quatre mots de la liaison vide.
+ * Resident-proxy bytes: its header, then its three columns back to back in the single
+ * buffer the traversal binds. A proxy without data keeps the four words of the empty binding.
  */
 function residentProxyBytes(proxy: SceneProxy) {
   const data = proxy.data;
@@ -49,9 +49,9 @@ function residentProxyBytes(proxy: SceneProxy) {
 }
 
 /**
- * Les octets de chaque liaison que le rebond va créer, dans l'ordre où il les crée : le proxy
- * résident et son albédo, les deux copies des sondes, la file de l'image, le cache de surfaces et
- * l'uniforme des cascades.
+ * Bytes of each binding bounce will create, in the order it creates them: the resident
+ * proxy and its albedo, the two probe copies, the frame queue, the surface cache and
+ * the cascade uniform.
  */
 function plannedBindings(
   proxy: SceneProxy,
@@ -72,8 +72,8 @@ function plannedBindings(
 }
 
 /**
- * Refuse le rebond avant qu'un seul tampon ne soit créé quand cet appareil ne peut pas le tenir.
- * L'appelant remonte le message tel quel : c'est lui qui dit quelle liaison a manqué et de combien.
+ * Refuses bounce before a single buffer is created when this device cannot hold it.
+ * The caller surfaces the message as-is: it is the one that says which binding missed and by how much.
  */
 export function ensureBounceFits(
   device: GPUDevice,

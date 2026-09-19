@@ -1,7 +1,8 @@
-//! L écriture de la scène intermédiaire dans le cache, et l empreinte qui fait d un maillage répété
+//! Writing the intermediate scene into the cache, and the digest that makes a repeated mesh
+//! one instance.
 //!
-//! Deux objets dont les octets convertis sont les mêmes sont le même maillage posé deux fois : c est
-//! l instanciation, lue dans le contenu et non dans un champ que le format n écrit pas toujours.
+//! Two objects whose converted bytes are the same are the same mesh posed twice: that is
+//! instancing, read from the content and not from a field the format does not always write.
 use super::super::mesh::{FaceSet, Part};
 use super::super::*;
 use super::Scene;
@@ -56,8 +57,8 @@ impl SceneOutput for Scene {
     }
 }
 
-/// L'empreinte du contenu d'un maillage : ses octets d'attributs et les matériaux qu'il nomme. Deux
-/// objets qui la partagent sont le même maillage posé deux fois, quels que soient leurs noms.
+/// The digest of a mesh's content: its attribute bytes and the materials it names. Two objects
+/// that share it are the same mesh posed twice, whatever their names.
 pub(super) fn digest(parts: &[Part], facesets: &[FaceSet]) -> String {
     let mut material = Vec::new();
     for part in parts {

@@ -14,10 +14,9 @@ export type WebgpuResidencySets = ReturnType<typeof createWebgpuResidencySets>;
  * The sets an image decides residency with, carried from one image to the next instead of rebuilt.
  *
  * `desired` is what the image asks the cache for — the pinned cover and the cut — and `keep` adds
- * what the image draws, which the cache must not reclaim under it. La coupe arrive comme une
- * DIFFÉRENCE, qu'elle vienne du relevé de la carte ou de la coupe processeur : un même contrat pour
- * les deux, si bien qu'une caméra qui bouge coûte les pages qui ont changé et une caméra immobile
- * rien du tout. `tracking.wanted` is what the upload queue walks: the desired set itself, unless the
+ * what the image draws, which the cache must not reclaim under it. The cut arrives as a DELTA,
+ * whether from the GPU sample or the CPU cut: one contract for both, so a moving camera costs the
+ * pages that changed and a still camera nothing at all. `tracking.wanted` is what the upload queue walks: the desired set itself, unless the
  * page budget forces the coarser subset `applyBudget` computes.
  */
 export function createWebgpuResidencySets(options: {
@@ -117,8 +116,8 @@ export function createWebgpuResidencySets(options: {
      * The upload queue holds `room` records. A cut that fits is the queue, and the incremental set
      * already is that queue — nothing is walked. A cut that does not fit is ranked coarsest first and
      * cut to `room`: coarse clusters cover more surface per slot, so what survives is a complete
-     * cover plus as much detail as fits, never a truncated cut of the surface. Le classement lit les
-     * clés pesées rangées par niveau : il ne parcourt pas la coupe, seulement le budget.
+     * cover plus as much detail as fits, never a truncated cut of the surface. Ranking reads the
+     * weighted keys filed by level: it does not walk the cut, only the budget.
      *
      * A cut that ranks to the queue already held changes nothing, so nothing is written, and the
      * queue is rebuilt only where the two differ.

@@ -1,19 +1,19 @@
-//! Pilote `.unitypackage`, conteneur. Le paquet n'est pas une scène : c'est un projet Unity mis à
-//! plat, un dossier par asset. Ce pilote reconstruit l'arbre `Assets/…` sous le cache, puis route ce
-//! dossier comme n'importe quelle source — il rend ce que le pilote de scène retenu rend, en
-//! pratique `unity`. Rien n'est réencodé : chaque fichier ressort avec ses octets d'origine, et la
-//! licence de chaque fichier reste celle de son auteur.
+//! `.unitypackage` driver, a container. The package is not a scene: it is a Unity project laid
+//! flat, one directory per asset. This driver rebuilds the `Assets/…` tree under the cache, then
+//! routes that directory like any other source — it yields what the retained scene driver
+//! yields, in practice `unity`. Nothing is re-encoded: each file comes out with its original
+//! bytes, and each file's licence remains that of its author.
 //!
-//! Structure, telle que l'éditeur la documente : une archive tar compressée en gzip, dont chaque
-//! entrée de premier niveau est un dossier nommé par le GUID de l'asset. Ce dossier porte
-//! `pathname` — le chemin cible dans le projet, sur sa première ligne —, `asset` — les octets du
-//! fichier, absent quand l'entrée décrit un dossier du projet —, `asset.meta` — les métadonnées
-//! d'import — et parfois `preview.png`, vignette de l'éditeur laissée de côté : elle n'est pas du projet.
+//! Structure, as the editor documents it: a tar archive gzip-compressed, whose each first-level
+//! entry is a directory named by the asset's GUID. That directory carries `pathname` — the
+//! target path in the project, on its first line —, `asset` — the file's bytes, absent when the
+//! entry describes a project directory —, `asset.meta` — the import metadata — and sometimes
+//! `preview.png`, an editor thumbnail left aside: it is not of the project.
 //!
-//! Provenance : format d'archive ouvert (POSIX 1003.1-1988 ustar, RFC 1952 pour gzip), lu par les
-//! caisses `tar` 0.4.46 et `flate2` 1.1.10 (MIT OU Apache-2.0), en décompression seule, `flate2` sur
-//! son backend Rust pur et `tar` sans `xattr`. Aucun code, SDK ni bibliothèque d'éditeur n'entre ici,
-//! et rien n'est déchiffré ni contourné.
+//! Provenance: open archive format (POSIX 1003.1-1988 ustar, RFC 1952 for gzip), read by the
+//! `tar` 0.4.46 and `flate2` 1.1.10 crates (MIT OR Apache-2.0), decompression only, `flate2` on
+//! its pure-Rust backend and `tar` without `xattr`. No editor code, SDK or library enters here,
+//! and nothing is decrypted or circumvented.
 use super::*;
 use crate::{is_safe_source_name, CompilerError};
 use flate2::read::GzDecoder;
@@ -26,22 +26,22 @@ use std::{
 pub(super) static UNITYPACKAGE: UnityPackage = UnityPackage;
 pub(super) struct UnityPackage;
 
-/// Le nombre magique de gzip (RFC 1952) : tout paquet commence par là.
+/// gzip magic number (RFC 1952): every package starts there.
 const GZIP_MAGIC: &[u8] = b"\x1f\x8b";
-/// Le chemin cible de l'asset dans le projet, première ligne du fichier.
+/// Target path of the asset in the project, first line of the file.
 const PATHNAME: &str = "pathname";
-/// Les octets du fichier. Son absence dans un dossier de GUID désigne un dossier du projet.
+/// File bytes. Its absence in a GUID directory names a project directory.
 const ASSET: &str = "asset";
-/// Les métadonnées d'import, posées à côté de l'asset sous le nom que l'éditeur leur donne.
+/// Import metadata, placed beside the asset under the name the editor gives them.
 const META: &str = "asset.meta";
-/// Plafond de lecture d'un `pathname` : au-delà, l'entrée ne porte pas un chemin de projet.
+/// Read ceiling of a `pathname`: beyond it, the entry does not carry a project path.
 const MAX_PATHNAME_BYTES: u64 = 64 * 1024;
 
 impl Plugin for UnityPackage {
     fn name(&self) -> &'static str {
         "unitypackage"
     }
-    /// Le conteneur ne lit aucune géométrie : cette version nomme l'extracteur, pas un décodeur.
+    /// The container reads no geometry: this version names the extractor, not a decoder.
     fn version(&self) -> &'static str {
         "unitypackage-ustar-gzip-tar-0.4.46-flate2-1.1.10-extract-1"
     }
@@ -61,19 +61,19 @@ impl ScenePlugin for UnityPackage {
     }
 }
 
-/// Ce qu'un dossier de GUID annonce : le chemin cible, et s'il porte des octets d'asset.
+/// What a GUID directory announces: the target path, and whether it carries asset bytes.
 #[derive(Default)]
 struct Target {
     path: String,
     file: bool,
 }
 
-/// Reconstruit l'arbre du projet sous `root` et rend le nombre d'entrées et le total écrit.
+/// Rebuilds the project tree under `root` and yields the entry count and the total written.
 ///
-/// Deux passes, comme tout conteneur : la première lit le paquet entier pour juger ses chemins
-/// cibles et ses plafonds sans rien écrire, la seconde le relit pour écrire. Un paquet refusé ne
-/// laisse donc aucun fichier derrière lui. Le flux gzip n'étant pas rembobinable, la seconde passe
-/// rouvre le fichier plutôt que de garder les octets des assets en mémoire.
+/// Two passes, like any container: the first reads the whole package to judge its target paths
+/// and ceilings without writing anything, the second rereads it to write. A refused package
+/// therefore leaves no file behind. The gzip stream not being rewindable, the second pass
+/// reopens the file rather than keeping asset bytes in memory.
 fn extract(request: &SceneRequest<'_>, source: &Path, root: &Path) -> Result<(usize, u64)> {
     let (targets, entries) = index(request, source, root)?;
     if targets.is_empty() {
@@ -90,7 +90,7 @@ fn extract(request: &SceneRequest<'_>, source: &Path, root: &Path) -> Result<(us
         let Some(target) = targets.get(&guid) else {
             continue;
         };
-        // Le `.meta` de l'éditeur se pose à côté de ce qu'il décrit, dossier du projet compris.
+        // The editor's `.meta` sits beside what it describes, project directory included.
         let destination = match member.as_str() {
             ASSET => archive::safe_join(root, &target.path)?,
             META => archive::safe_join(root, &format!("{}.meta", target.path))?,
@@ -112,9 +112,9 @@ fn extract(request: &SceneRequest<'_>, source: &Path, root: &Path) -> Result<(us
     Ok((entries, written))
 }
 
-/// Première passe : le chemin cible de chaque GUID, jugé avant la moindre écriture, et le nombre
-/// d'entrées lues. Une entrée qui n'est pas un fichier ordinaire — lien symbolique ou matériel —
-/// arrête tout : elle désignerait hors de l'extraction.
+/// First pass: the target path of each GUID, judged before any write, and the number of entries
+/// read. An entry that is not an ordinary file — symbolic or hard link — stops everything: it
+/// would name outside the extraction.
 fn index(
     request: &SceneRequest<'_>,
     source: &Path,
@@ -146,8 +146,8 @@ fn index(
         match member.as_str() {
             PATHNAME => {
                 let path = first_line(&mut entry).map_err(unreadable(source))?;
-                // Le chemin cible vient du paquet : il est jugé ici, avant toute écriture, par la
-                // même règle que n'importe quelle entrée d'archive.
+                // The target path comes from the package: it is judged here, before any write,
+                // by the same rule as any archive entry.
                 archive::safe_join(root, &path)?;
                 targets.entry(guid).or_default().path = path;
             }
@@ -156,27 +156,27 @@ fn index(
         }
     }
     ended(archive, source)?;
-    // Un dossier de GUID sans `pathname` n'a pas de place dans le projet : il n'est pas écrit.
+    // A GUID directory without `pathname` has no place in the project: it is not written.
     targets.retain(|_, target| !target.path.is_empty());
     Ok((targets, entries))
 }
 
-/// Le paquet ouvert : le flux gzip déballé au fil de la lecture, lu comme une archive tar.
+/// Package opened: the gzip stream unpacked as reading proceeds, read as a tar archive.
 fn open(source: &Path) -> Result<tar::Archive<GzDecoder<BufReader<fs::File>>>> {
     let file = BufReader::new(fs::File::open(source)?);
     Ok(tar::Archive::new(GzDecoder::new(file)))
 }
 
-/// Lit ce qui reste du flux après la dernière entrée du tar : le pied de gzip, qui porte le condensé
-/// CRC32 des octets déballés et leur nombre (RFC 1952). `tar` s'arrête avant lui, et sans cette
-/// lecture un paquet tronqué ou au pied menteur passerait pour entier.
+/// Reads what remains of the stream after the last tar entry: the gzip footer, which carries
+/// the CRC32 digest of the unpacked bytes and their count (RFC 1952). `tar` stops before it,
+/// and without this read a truncated package or one with a lying footer would pass as whole.
 fn ended<R: Read>(archive: tar::Archive<R>, source: &Path) -> Result<()> {
     std::io::copy(&mut archive.into_inner(), &mut std::io::sink()).map_err(unreadable(source))?;
     Ok(())
 }
 
-/// Le GUID et le membre d'une entrée `<guid>/<membre>`. Une entrée plus profonde, posée à la racine
-/// du paquet ou nommée hors des noms de source sûrs n'est pas de la structure documentée : laissée.
+/// GUID and member of an entry `<guid>/<member>`. An entry deeper, placed at the package root
+/// or named outside safe source names is not the documented structure: left aside.
 fn split<R: Read>(entry: &tar::Entry<'_, R>) -> Option<(String, String)> {
     let path = entry.path().ok()?;
     let mut parts = path.components();
@@ -185,16 +185,16 @@ fn split<R: Read>(entry: &tar::Entry<'_, R>) -> Option<(String, String)> {
     (parts.next().is_none() && is_safe_source_name(&guid)).then_some((guid, member))
 }
 
-/// La première ligne de `pathname` : le chemin cible. La seconde, quand l'éditeur en écrit une, est
-/// l'ancien chemin d'un asset déplacé, dont le projet reconstruit n'a que faire.
+/// First line of `pathname`: the target path. The second, when the editor writes one, is the
+/// old path of a moved asset, which the rebuilt project has no use for.
 fn first_line(entry: &mut impl Read) -> std::io::Result<String> {
     let mut text = String::new();
     Read::take(entry, MAX_PATHNAME_BYTES).read_to_string(&mut text)?;
     Ok(text.lines().next().unwrap_or_default().trim().to_string())
 }
 
-/// Le refus d'un paquet illisible : un gzip tronqué ou corrompu arrive ici en erreur
-/// d'entrée-sortie, et sort nommé `ARCHIVE_UNREADABLE` sans qu'un octet reste écrit.
+/// Refusal of an unreadable package: a truncated or corrupt gzip arrives here as an I/O error,
+/// and comes out named `ARCHIVE_UNREADABLE` without a byte remaining written.
 fn unreadable(source: &Path) -> impl Fn(std::io::Error) -> CompilerError + '_ {
     move |error| archive::unreadable(source, error)
 }

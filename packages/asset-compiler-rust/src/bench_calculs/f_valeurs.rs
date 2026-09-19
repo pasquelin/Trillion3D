@@ -1,9 +1,8 @@
-//! Valeurs hostiles des bancs d'équivalence du lot F : NaN, infinis, zéros signés, dénormalisées,
-//! et des coordonnées ordinaires autour. Une factorisation n'est retenue que si elle rend les mêmes
-//! bits que la copie d'avant sur ces valeurs-là, pas seulement sur des nombres bien élevés.
+//! Hostile values of lot F equivalence benches: NaN, infinities, signed zeros,
+//! denormals. Reference: old version, French names.
 use super::inputs::Xorshift;
 
-/// Les flottants doubles qui font tomber une comparaison naïve, dans un ordre fixe.
+/// Double floats that make a naive comparison fall, in a fixed order.
 pub(crate) const POISON_F64: [f64; 10] = [
     f64::NAN,
     f64::INFINITY,
@@ -17,7 +16,7 @@ pub(crate) const POISON_F64: [f64; 10] = [
     f64::MAX,
 ];
 
-/// Les mêmes en simple précision.
+/// The same in single precision.
 pub(crate) const POISON_F32: [f32; 10] = [
     f32::NAN,
     f32::INFINITY,
@@ -31,7 +30,7 @@ pub(crate) const POISON_F32: [f32; 10] = [
     f32::MAX,
 ];
 
-/// `count` points doubles : un sur sept est empoisonné, coordonnée par coordonnée.
+/// `count` double points: one in seven is poisoned, coordinate by coordinate.
 pub(crate) fn points_f64(seed: u64, count: usize) -> Vec<[f64; 3]> {
     let mut rng = Xorshift::new(seed);
     (0..count)
@@ -49,7 +48,7 @@ pub(crate) fn points_f64(seed: u64, count: usize) -> Vec<[f64; 3]> {
         .collect()
 }
 
-/// `count` points simples, empoisonnés de la même façon.
+/// `count` single points, poisoned the same way.
 pub(crate) fn points_f32(seed: u64, count: usize) -> Vec<[f32; 3]> {
     let mut rng = Xorshift::new(seed);
     (0..count)
@@ -67,8 +66,9 @@ pub(crate) fn points_f32(seed: u64, count: usize) -> Vec<[f32; 3]> {
         .collect()
 }
 
-/// `count` boîtes, dont une sur onze est retournée (coin bas au-dessus du coin haut) : c'est là que
-/// comparer le coin bas au coin haut, ou l'inverse, ne rendrait plus la même boîte.
+/// `count` boxes, of which one in eleven is inverted (low corner above the high
+/// corner): that is where comparing the low corner to the high one, or the reverse,
+/// would no longer yield the same box.
 pub(crate) fn boxes_f64(seed: u64, count: usize) -> Vec<([f64; 3], [f64; 3])> {
     let points = points_f64(seed, count * 2);
     (0..count)

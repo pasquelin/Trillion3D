@@ -1,14 +1,15 @@
-//! A08 : le contrat de disponibilité de la scène autonome. Le cache annonçait `autonomousScene`
-//! dès que toutes ses primitives étaient exactes, puis écrivait un `scene.gltf` dont les animations
-//! avaient disparu : le consommateur choisissait ce mode et perdait le mouvement sans un mot. Une
-//! animation de nœud n'est ni du skinning ni du morphing, rien dans les passes ne la trahissait.
+//! A08: availability contract of the autonomous scene. The cache announced
+//! `autonomousScene` as soon as all its primitives were exact, then wrote a
+//! `scene.gltf` whose animations had vanished: the consumer chose that mode and
+//! lost motion without a word. A node animation is neither skinning nor morphing,
+//! nothing in the passes betrayed it.
 use super::*;
 
 /// Les deux tableaux que la fixture de base porte : neuf flottants de position, trois indices.
 const BASE_BYTES: usize = 48;
 
-/// Compile la fixture, animée ou non, et rend le résultat de la compilation et le glTF autonome
-/// quand il a été écrit.
+/// Compiles the fixture, animated or not, and returns the compilation result and
+/// the autonomous glTF when it was written.
 fn compile_scene(tag: &str, animated: bool) -> (Value, Option<Value>) {
     let (root, options) = fixture();
     let mut gltf = read_gltf(&options);
@@ -49,8 +50,9 @@ fn compile_scene(tag: &str, animated: bool) -> (Value, Option<Value>) {
     (result, written)
 }
 
-// Constat A08 : une scène qui porte une animation de nœud est soit rendue avec son animation, soit
-// déclarée hors du mode autonome sous une raison nommée. Ce qui est annoncé disponible doit l'être.
+// Finding A08: a scene that carries a node animation is either rendered with its
+// animation, or declared out of autonomous mode under a named reason. What is
+// announced available must be.
 #[test]
 fn une_scene_animee_ne_peut_pas_etre_annoncee_autonome_puis_figee() {
     let (result, scene) = compile_scene("animee", true);
@@ -63,30 +65,30 @@ fn une_scene_animee_ne_peut_pas_etre_annoncee_autonome_puis_figee() {
         assert_eq!(
             result["autonomousScene"],
             Value::Null,
-            "sans son animation, la scène autonome ne doit pas être annoncée"
+            "without its animation, the autonomous scene must not be announced"
         );
         assert!(
             result["unsupported"]
                 .as_array()
                 .expect("unsupported")
                 .contains(&json!("autonomous-scene-animated")),
-            "le mode refusé se compte par son nom : {}",
+            "the refused mode is counted by name: {}",
             result["unsupported"]
         );
     }
 }
 
-// L'autre bout : une scène sans animation garde son mode autonome, et rien n'est compté.
+// The other end: a scene without animation keeps its autonomous mode, and nothing is counted.
 #[test]
 fn une_scene_sans_animation_garde_sa_scene_autonome() {
     let (result, scene) = compile_scene("figee", false);
     assert_eq!(result["autonomousScene"], json!("scene.gltf"));
-    assert!(scene.is_some(), "le glTF autonome est écrit");
+    assert!(scene.is_some(), "the autonomous glTF is written");
     assert!(
         !result["unsupported"]
             .as_array()
             .expect("unsupported")
             .contains(&json!("autonomous-scene-animated")),
-        "rien à compter quand rien n'est perdu"
+        "nothing to count when nothing is lost"
     );
 }

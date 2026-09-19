@@ -80,9 +80,8 @@ export function mockDagDevice(
         setBindGroup(_i: number, group: typeof bind) {
           bind = group;
         },
-        // Les cinq noyaux qui suivent `dagWanted` se répartissent sur la liste des grappes vivantes :
-        // c'est la carte graphique qui en dimensionne la répartition, et le double rejoue le même
-        // noyau quel que soit le chemin par lequel il est lancé.
+        // The five kernels that follow `dagWanted` dispatch over the live-cluster list: the GPU
+        // sizes that dispatch, and the double replays the same kernel whichever path launched it.
         dispatchWorkgroupsIndirect(this: { dispatchWorkgroups(): void }) {
           this.dispatchWorkgroups();
         },
@@ -93,7 +92,7 @@ export function mockDagDevice(
           const byBinding = new Map(
             bind.entries.map((entry) => [entry.binding, entry.resource.buffer]),
           );
-          // La compaction relit les drapeaux de dessin, comme les trois noyaux qu'elle remplace.
+          // Compaction rereads draw flags, like the three kernels it replaces.
           if (stage === 'dagDrawScatter') {
             compactDrawnPages(
               byBinding.get(3)!.data,
@@ -104,8 +103,8 @@ export function mockDagDevice(
             return;
           }
           const { uniforms, residentCut } = readUniforms(byBinding.get(2)!.data);
-          // La résidence vit en bits derrière les enregistrements froids : le double la relit par
-          // le décodeur partagé, comme le nuanceur, plutôt qu'à un rang recopié ici.
+          // Residency lives as bits behind the cold records: the double rereads it through the
+          // shared decoder, like the shader, rather than at a rank copied here.
           const bits = new Uint32Array(
             packed.pageCones.buffer,
             packed.pageCones.byteOffset,
@@ -133,16 +132,16 @@ export function mockDagDevice(
         end() {},
       }),
       copyBufferToBuffer(src: Buf, s: number, dst: Buf, d: number, size: number) {
-        // Les recopies d'armement vont vers l'argument de répartition ; seule celle qui vise une
-        // fente relisible est le relevé, et c'est elle seule qu'une image paie en latence de carte.
+        // Arming copies go to the dispatch argument; only the one that targets a readable slot
+        // is the snapshot, and it alone is what a frame pays in GPU latency.
         if (dst.usage & 1) copyCount++;
         dst.data.set(src.data.subarray(s, s + size), d);
       },
       finish: () => ({}),
     }),
     queue: {
-      // La tranche écrite est celle que l'appelant nomme : la résidence n'envoie plus tous les cônes
-      // mais une plage contiguë, décrite par `dataOffset` et `size` comme le fait WebGPU.
+      // The written slice is the one the caller names: residency no longer sends every cone but
+      // a contiguous range, described by `dataOffset` and `size` as WebGPU does.
       writeBuffer(
         buffer: Buf,
         offset: number,
@@ -160,7 +159,7 @@ export function mockDagDevice(
   return {
     device: device as unknown as GPUDevice,
     uniformWrites: () => uniformWriteCount,
-    /** Les recopies vers une fente RELISIBLE : une par relecture due, jamais une par envoi. */
+    /** Copies to a READABLE slot: one per due readback, never one per send. */
     readbackCopies: () => copyCount,
   };
 }

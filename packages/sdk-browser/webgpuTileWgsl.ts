@@ -3,33 +3,32 @@ import { MAX_LEVELS, POOL_LAYER_SIDE, TILE_BORDER, TILE_PITCH, TILE_SIZE } from 
 import { PAGE_HEADER_WORDS, PAGE_SLOT_WORDS } from './webgpuTilePageTable.ts';
 
 /**
- * Les lectures de textures virtuelles partagées par toutes les passes : une indirection dans la
- * table de pages, puis un échantillon dans le pool. Le niveau se choisit comme la carte le
- * choisirait — le logarithme du plus grand des deux gradients — et le filtrage entre deux niveaux
- * se fait ici, par mélange, parce que le pool n'a pas de chaîne de mips : chaque niveau d'une
- * texture y vit dans ses propres tuiles.
+ * Virtual-texture reads shared by every pass: an indirection through the page table, then a sample
+ * from the pool. LOD is chosen the way the GPU would — the log of the larger of the two gradients —
+ * and filtering between two levels is done here, by mixing, because the pool has no mip chain: each
+ * level of a texture lives in its own tiles.
  *
- * Une tuile absente ne s'invente pas : la table pointe l'ancêtre résident le plus fin, la queue en
- * dernier ressort, et la lecture est la même qu'avec la tuile — sur un niveau plus grossier. C'est
- * la perte déclarée du pool, jamais un texel de remplissage. La passe d'ombres seule lit `finest` :
- * une tuile absente à son niveau lit la tuile résidente la plus fine sous ce texel — celle que la
- * caméra a fait venir —, jamais la queue tant qu'il y en a une, pour que l'ombre d'une feuille que
- * personne n'a demandée à son niveau reste une feuille et non une tache de 64 texels.
+ * A missing tile is never invented: the table points at the finest resident ancestor, the tail as
+ * last resort, and the read is the same as with the tile — at a coarser level. That is the pool's
+ * declared loss, never a fill texel. The shadow pass alone reads `finest`: a tile missing at its
+ * level reads the finest resident tile under that texel — the one the camera brought in — never the
+ * tail while one is available, so the shadow of a leaf nobody requested at that level stays a leaf
+ * and not a 64-texel blotch.
  *
- * L'en-tête d'une texture — taille, queue, dernier niveau, place de la queue — se lit UNE fois par
- * échantillon (`TileSlot`), pas une fois par prise : les deux prises d'un mélange n'ajoutent chacune
- * que l'adresse de leur niveau et leur entrée. Sur un pixel de feuillage, c'est la différence entre
- * une chaîne de douze lectures dépendantes et une de six. Deux variantes mesurées et écartées à
- * 2496×1404 sur Emerald (passe matériaux 5,64 ms) : la table liée en `vec4<u32>`, l'en-tête en un
- * mot — 5,70 ms, sans effet ; l'adresse de niveau recalculée en boucle au lieu d'être lue — 6,5 ms,
- * l'arithmétique divergente coûte plus que la lecture qu'elle évite.
+ * A texture's header — size, tail, last level, tail placement — is read ONCE per sample (`TileSlot`),
+ * not once per tap: each of the two taps of a mix only adds its level address and its entry. On a
+ * foliage pixel that is the difference between a chain of twelve dependent reads and a chain of six.
+ * Two variants measured and discarded at 2496×1404 on Emerald (materials pass 5.64 ms): the table
+ * bound as `vec4<u32>`, the header packed in one word — 5.70 ms, no effect; the level address
+ * recomputed in a loop instead of being read — 6.5 ms, the divergent arithmetic costs more than the
+ * read it avoids.
  *
- * Les coordonnées sont bornées au demi-texel du niveau lu : le filtrage linéaire ne sort donc jamais
- * des texels d'un niveau, ni d'une tuile de la queue vers sa voisine, et la couture d'une période en
- * répétition reste celle que `wrapUv` mêle à la main.
+ * Coordinates are clamped to the half-texel of the level being read: linear filtering therefore never
+ * leaves a level's texels, nor a tail tile toward its neighbour, and the seam of a repeating period
+ * remains the one `wrapUv` mixes by hand.
  *
- * Le nuanceur hôte déclare `colorPool`, `dataPool`, `mapsSampler`, `colorPages` et `dataPages`, aux
- * liaisons que `webgpuBindEntries.ts` publie.
+ * The host shader declares `colorPool`, `dataPool`, `mapsSampler`, `colorPages` and `dataPages`, at
+ * the bindings `webgpuBindEntries.ts` publishes.
  */
 export const TILE_POOL_WGSL = `${WRAP_COORD_WGSL}
 const TEXEL_TILE:f32=${TILE_SIZE}.0;
@@ -40,14 +39,14 @@ const PAGE_HEADER:u32=${PAGE_HEADER_WORDS}u;
 const PAGE_SLOT:u32=${PAGE_SLOT_WORDS}u;
 const PAGE_LEVELS:u32=${MAX_LEVELS}u;
 struct TileTap{uv:vec2f,layer:i32,}
-/** L'en-tête d'une texture : sa taille, son premier niveau de queue, son dernier niveau, le mot où
- *  commencent les adresses de ses niveaux, et la place de sa queue. */
+/** A texture header: size, first tail level, last level, the word where its level addresses begin,
+ *  and the tail's placement. */
 struct TileSlot{size:vec2f,tail:u32,last:u32,levels:u32,tailWord:u32,}
 fn atlasLod(px:vec2f,py:vec2f)->f32{return 0.5*log2(max(max(dot(px,px),dot(py,py)),1e-20));}
-/** Le niveau qu'une empreinte demande à une texture, borné à ses niveaux : la règle unique du choix
- *  de niveau, pour la lecture comme pour la demande. */
+/** LOD a footprint asks of a texture, clamped to its levels: the single rule for choosing a level,
+ *  for the read as for the request. */
 fn slotLod(s:TileSlot,ddx:vec2f,ddy:vec2f)->f32{return clamp(atlasLod(ddx*s.size,ddy*s.size),0.0,f32(s.last));}
-/** La coordonnée ramenée dans la texture par son quartet d'adressage, côté proche d'une couture. */
+/** Coordinate brought back into the texture by its addressing nibble, near side of a seam. */
 fn slotWrapped(s:TileSlot,uv:vec2f,wrap:u32)->vec2f{
  if(!wrapRepete(wrap)){return wrapReplie(uv,wrap);}
  return wrapUv(uv,wrap,s.size).proche;
@@ -58,24 +57,24 @@ fn placeLayer(word:u32)->i32{return i32((word>>16u)&0xffu);}
 fn sizeOf(word:u32)->vec2f{return vec2f(f32(word&0xffffu),f32(word>>16u));}
 fn levelSize(size:vec2f,level:u32)->vec2f{return max(floor(size/exp2(f32(level))),vec2f(1.0));}
 fn levelTexel(uv:vec2f,lsize:vec2f)->vec2f{return clamp(uv*lsize,vec2f(0.5),lsize-0.5);}
-/** L'entrée d'un texel dans son niveau : sa tuile, en lignes de tuiles. */
+/** Entry of a texel in its level: its tile, in tile rows. */
 fn tileEntry(texel:vec2f,lsize:vec2f)->u32{return u32(texel.y/TEXEL_TILE)*u32(ceil(lsize.x/TEXEL_TILE))+u32(texel.x/TEXEL_TILE);}
 `;
 
 /**
- * Les lectures d'un atlas, engendrées par nom : le tampon `${k}Pages` et le pool `${k}Pool` ne se
- * passent pas en argument en WGSL, donc chaque atlas a ses fonctions, du même texte.
+ * Atlas reads, generated by name: the `${k}Pages` buffer and the `${k}Pool` cannot be passed as
+ * WGSL arguments, so each atlas has its own functions, from the same text.
  */
 const kind = (k: string) => `fn ${k}Slot(slot:u32)->TileSlot{
  let h=PAGE_HEADER+slot*PAGE_SLOT;
  return TileSlot(sizeOf(${k}Pages[h]),${k}Pages[h+1u],${k}Pages[h+2u],${k}Pages[3]+slot*PAGE_LEVELS,${k}Pages[h+3u]);
 }
-/** Le mot de la table où vit la tuile d'un texel à un niveau diffusé. */
+/** Table word that holds the tile of a texel at a streamed level. */
 fn ${k}Entry(s:TileSlot,uv:vec2f,level:u32)->u32{
  let lsize=levelSize(s.size,level);
  return ${k}Pages[s.levels+level]+tileEntry(levelTexel(uv,lsize),lsize);
 }
-/** Où lire un texel dont le mot est connu : la tuile qu'il nomme, ou la queue au niveau demandé. */
+/** Where to read a texel whose word is known: the tile it names, or the tail at the requested level. */
 fn ${k}Place(s:TileSlot,uv:vec2f,level:u32,word:u32)->TileTap{
  if(word==0u){
   let res=max(level,s.tail);
@@ -97,7 +96,7 @@ fn ${k}Fetch(s:TileSlot,uv:vec2f,level:u32,finest:bool)->vec4f{
  let t=${k}Place(s,uv,level,word);
  return textureSampleLevel(${k}Pool,mapsSampler,t.uv,t.layer,0.0);
 }
-/** La lecture filtrée : les deux niveaux que l'empreinte encadre, mêlés par leur part. */
+/** Filtered read: the two levels the footprint straddles, mixed by their share. */
 fn ${k}Blend(s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f,finest:bool)->vec4f{
  let lod=slotLod(s,ddx,ddy);
  let l0=floor(lod);let t=lod-l0;
@@ -108,10 +107,10 @@ fn ${k}Blend(s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f,finest:bool)->vec4f{
 fn ${k}SampleAt(s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f)->vec4f{return ${k}Blend(s,uv,ddx,ddy,false);}`;
 
 /**
- * La lecture publique d'un atlas : `wrap` est le quartet d'adressage de la carte lue. L'en-tête se
- * lit une fois, puis une seule lecture hors couture, quatre mêlées sur la couture d'une période en
- * répétition, où la règle de l'échantillonneur mêlerait le dernier texel et le premier : c'est la
- * lecture qui reboucle, pas la coordonnée. `name + 'At'` est la lecture que `name` dispatche.
+ * Public atlas read: `wrap` is the addressing nibble of the map being sampled. The header is read
+ * once, then a single read off a seam, four mixed on the seam of a repeating period, where the
+ * sampler's rule would mix the last texel and the first: it is the read that wraps, not the
+ * coordinate. `name + 'At'` is the read that `name` dispatches.
  */
 const wrapped = (name: string, k: string, out: string) => {
   const at = `${name}At`,
@@ -129,26 +128,25 @@ const wrapped = (name: string, k: string, out: string) => {
 }`;
 };
 
-/** Lecture de l'atlas couleur : `colorSample(slot, uv, wrap, ddx, ddy)`. */
+/** Color-atlas sample: `colorSample(slot, uv, wrap, ddx, ddy)`. */
 export const COLOR_SAMPLE_WGSL = `${kind('color')}
 ${wrapped('colorSample', 'color', 'vec4f')}`;
 
 /**
- * La découpe d'un matériau à masque : `maskAlpha(slot, uv, wrap, ddx, ddy)`, l'alpha de la carte de
- * base lu exactement comme la passe matériaux lit sa couleur — même niveau, même mélange —, aux
- * dérivées de la passe qui lit. `finest` est la règle de repli de la passe d'ombres (voir en-tête) ;
- * le raster de la caméra ne l'a pas : ses tuiles sont celles qu'il a demandées. Exige
- * `COLOR_SAMPLE_WGSL`.
+ * Cutout of a masked material: `maskAlpha(slot, uv, wrap, ddx, ddy)`, the base-map alpha read
+ * exactly as the materials pass reads its colour — same level, same mix — at the derivatives of the
+ * pass that reads. `finest` is the shadow pass's fallback rule (see the header); the camera raster
+ * does not have it: its tiles are the ones it requested. Requires `COLOR_SAMPLE_WGSL`.
  */
 export const maskAlphaWgsl = (finest: boolean) =>
   `fn maskAlphaAt(s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f)->f32{return colorBlend(s,uv,ddx,ddy,${finest}).w;}
 ${wrapped('maskAlpha', 'color', 'f32')}`;
 
-/** Lecture de l'atlas de données : `dataSample(slot, uv, wrap, ddx, ddy)`. */
+/** Data-atlas sample: `dataSample(slot, uv, wrap, ddx, ddy)`. */
 export const DATA_SAMPLE_WGSL = `${kind('data')}
 ${wrapped('dataSample', 'data', 'vec4f')}`;
 
-/** Les déclarations d'un atlas : son pool et sa table de pages, aux liaisons que la disposition donne. */
+/** Atlas declarations: its pool and page table, at the bindings the layout gives. */
 export const tileDeclarations = (bindings: { pool: number; pages: number }, name: string) =>
   `@group(0) @binding(${bindings.pool}) var ${name}Pool:texture_2d_array<f32>;
 @group(0) @binding(${bindings.pages}) var<storage,read> ${name}Pages:array<u32>;`;

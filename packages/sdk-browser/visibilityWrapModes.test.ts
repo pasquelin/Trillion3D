@@ -1,8 +1,8 @@
-// Défaut 4 : un bit par axe, jamais les deux modes du même axe, aucun bit en serrage.
-// Défaut 8 : chaque carte d'un matériau adresse sa texture dans son propre mode. La fiche de page
-// porte donc un quartet par carte, et chaque lecture du nuanceur reçoit le quartet de la carte
-// qu'elle échantillonne — pas les drapeaux du matériau, qui n'en portaient qu'un pour toutes.
-// La preuve sur carte graphique réelle est le banc `test/justesse/adressage-cartes-gpu.mjs`.
+// Defect 4: one bit per axis, never both modes of the same axis, no bit in clamp.
+// Defect 8: each material map addresses its texture in its own wrap. The page record therefore
+// carries one nibble per map, and each shader read receives the nibble of the map it samples —
+// not the material flags, which carried only one for all of them.
+// Proof on a real GPU is the `test/justesse/adressage-cartes-gpu.mjs` bench.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -28,11 +28,11 @@ import {
 } from '../../test/justesse/adressageCartes.mjs';
 
 const carte = (wrapS: THREE.Wrapping, wrapT: THREE.Wrapping) => ({ wrapS, wrapT }) as THREE.Texture;
-/** Le quartet attendu d'une entrée de la fixture, recalculé depuis ses deux modes déclarés. */
+/** Expected nibble of a fixture entry, recomputed from its two declared wrap modes. */
 const attendu = (c: (typeof CARTES)[number]) => wrapNibble(carte(c.wrapS, c.wrapT));
 
-test('wrapNibble pose le bit de répétition ou de miroir par axe, aucun bit en serrage', () => {
-  assert.equal(wrapNibble(undefined), 0, 'aucune carte');
+test('wrapNibble sets the repeat or mirror bit per axis, no bit in clamp', () => {
+  assert.equal(wrapNibble(undefined), 0, 'no map');
   assert.equal(wrapNibble(carte(THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping)), 0);
   assert.equal(
     wrapNibble(carte(THREE.RepeatWrapping, THREE.RepeatWrapping)),
@@ -45,36 +45,36 @@ test('wrapNibble pose le bit de répétition ou de miroir par axe, aucun bit en 
   assert.equal(
     wrapNibble(carte(THREE.MirroredRepeatWrapping, THREE.RepeatWrapping)),
     WRAP_S_MIRROR | WRAP_T_REPEAT,
-    'un mode différent par axe pose un bit différent par axe',
+    'a different mode per axis sets a different bit per axis',
   );
   assert.equal(
     wrapNibble(carte(THREE.ClampToEdgeWrapping, THREE.MirroredRepeatWrapping)),
     WRAP_T_MIRROR,
-    'S en serrage ne pose aucun bit S',
+    'S in clamp sets no S bit',
   );
 });
 
-test('wrapModes range le quartet de chaque carte à son rang, six cartes dans un mot', () => {
+test('wrapModes stores each map nibble at its rank, six maps in one word', () => {
   const mot = wrapModes(visMaterial(materielMelange()));
   for (const entree of CARTES)
-    assert.equal(wrapOf(mot, entree.carte), attendu(entree), `carte ${entree.nom}`);
-  assert.equal(mot >>> 24, 0, 'six quartets tiennent dans les vingt-quatre bits bas');
+    assert.equal(wrapOf(mot, entree.carte), attendu(entree), `map ${entree.nom}`);
+  assert.equal(mot >>> 24, 0, 'six nibbles fit in the low twenty-four bits');
 });
 
-test('la fiche de page porte le mode de chaque carte, pas celui de la seule carte de base', () => {
+test('the page record carries each map wrap, not that of the base map alone', () => {
   const { ints } = ligneDePageMelangee();
   const lus = CARTES.map((entree) => wrapOf(ints[ROW_WRAP_MODES_WORD], entree.carte));
   for (const [i, entree] of CARTES.entries())
-    assert.equal(lus[i], attendu(entree), `carte ${entree.nom} dans la fiche de page`);
-  assert.equal(new Set(lus).size, CARTES.length, 'six cartes, six quartets distincts');
-  // Le mot des drapeaux ne porte plus d'adressage : ses bits 32, 64, 32768 et 65536 sont libres.
+    assert.equal(lus[i], attendu(entree), `map ${entree.nom} in the page record`);
+  assert.equal(new Set(lus).size, CARTES.length, 'six maps, six distinct nibbles');
+  // The flags word no longer carries wrap: its bits 32, 64, 32768 and 65536 are free.
   assert.equal(ints[23] & (32 | 64 | 32768 | 65536), 0);
 });
 
 /**
- * Le début de chaque lecture d'atlas des deux nuanceurs de production, jusqu'à son argument
- * d'adressage compris : c'est ce lien-là — cette carte-ci lue avec ce quartet-ci — que le défaut 8
- * rompait. Donner à une seule de ces lectures le quartet d'une autre carte fait échouer le test.
+ * Start of each atlas read of the two production shaders, including its wrap argument: that
+ * link — this map read with this nibble — is what defect 8 broke. Giving any one of these reads
+ * another map's nibble fails the test.
  */
 const APPELS = {
   SHADE_SHADER: [
@@ -85,9 +85,8 @@ const APPELS = {
     `dataSample(page.aoIndex,uv,wrapOf(page.wrapModes,${WRAP_MAP.ao}u)`,
     `colorSample(page.emissiveIndex,uv,wrapOf(page.wrapModes,${WRAP_MAP.emissive}u)`,
   ],
-  // Le mélange lit maintenant la fiche de l'item en variables plates : les rangs de cartes arrivent
-  // par `in.ids` et `in.maps`, et le mot d'adressage par `wrap`. Même lien vérifié : cette carte-ci
-  // lue avec ce quartet-ci.
+  // Blend now reads the item record as flat variables: map ranks arrive through `in.ids` and
+  // `in.maps`, and the wrap word through `wrap`. Same link checked: this map read with this nibble.
   BLEND_SHADER: [
     `colorSample(in.ids.x,in.uv,wrapOf(wrap,${WRAP_MAP.base}u)`,
     `dataSample(in.maps.x,in.uv,wrapOf(wrap,${WRAP_MAP.rough}u)`,
@@ -99,45 +98,45 @@ const APPELS = {
 };
 
 for (const [nom, texte] of Object.entries({ SHADE_SHADER, BLEND_SHADER }))
-  test(`${nom} donne à chaque lecture le quartet de sa propre carte`, () => {
+  test(`${nom} gives each read the nibble of its own map`, () => {
     for (const appel of APPELS[nom as keyof typeof APPELS])
-      assert.ok(texte.includes(appel), `lecture absente ou mal adressée : ${appel}`);
+      assert.ok(texte.includes(appel), `read missing or wrongly wrapped: ${appel}`);
     assert.doesNotMatch(
       texte,
       /(?:colorSample|colorAlpha|dataSample)\([^)]*\.flags/,
-      'aucune lecture ne doit reprendre les drapeaux du matériau comme adressage',
+      'no read must take the material flags as wrap',
     );
   });
 
-// `wrapModes` et les lectures des deux nuanceurs se dérivent maintenant de `WRAP_MAP`. Ce test tient
-// la dérivation par l'autre bout : tout rang du mot est lu par la lecture et par le retour d'image
-// qui la nomme, avec le même quartet — deux fois dans l'ombrage, une lecture et un rang de retour
-// dans le mélange, qui choisit sa carte par pixel. Une septième carte ajoutée à `WRAP_MAP` mais
-// jamais lue adresserait en serrage sans que rien ne le dise — c'est ce silence-là qui échoue ici.
-test('chaque rang de WRAP_MAP est lu par la lecture et par le retour d’image des deux nuanceurs', () => {
+// `wrapModes` and the two shaders' reads now derive from `WRAP_MAP`. This test holds the
+// derivation from the other end: every rank of the word is read by the sample and by the frame
+// feedback that names it, with the same nibble — twice in shading, one read and one feedback
+// rank in blend, which picks its map per pixel. A seventh map added to `WRAP_MAP` but never
+// read would wrap in clamp without anything saying so — that silence is what fails here.
+test('every WRAP_MAP rank is read by the sample and by the frame feedback of both shaders', () => {
   const fois = (texte: string, motif: string) => texte.split(motif).length - 1;
   for (const rang of Object.values(WRAP_MAP)) {
-    // Dans l'ombrage, chaque carte est lue par son quartet ; la base l'est une seconde fois par la
-    // demande de tuiles pour l'ombre du soleil (`visibilityShaderRequest.ts`), et les cartes de
-    // données comparent leur quartet à celui des cartes déjà lues pour les reprendre
-    // (`lectureDonnee`) : rugosité et occlusion deux comparaisons, métal deux. Le retour d'image,
-    // lui, adresse par la règle commune (`mapRequest`), sans quartet écrit par carte.
+    // In shading, each map is read by its nibble; the base is read a second time by the tile
+    // request for the sun shadow (`visibilityShaderRequest.ts`), and data maps compare their
+    // nibble to already-read maps to reuse them (`lectureDonnee`): roughness and occlusion two
+    // comparisons, metal two. Frame feedback addresses by the shared rule (`mapRequest`), with
+    // no nibble written per map.
     const attendu = { 0: 2, 1: 3, 2: 3, 3: 1, 4: 3, 5: 1 }[rang] ?? 1;
     assert.equal(
       fois(SHADE_SHADER, `wrapOf(page.wrapModes,${rang}u)`),
       attendu,
-      `rang ${rang}, ombrage`,
+      `rank ${rang}, shading`,
     );
-    assert.equal(fois(BLEND_SHADER, `wrapOf(wrap,${rang}u)`), 1, `rang ${rang}, lot transparent`);
+    assert.equal(fois(BLEND_SHADER, `wrapOf(wrap,${rang}u)`), 1, `rank ${rang}, transparent lot`);
     assert.equal(
       fois(BLEND_SHADER, `map=${rang}u;`),
       rang === WRAP_MAP.base ? 2 : 1,
-      `rang ${rang}, retour`,
+      `rank ${rang}, feedback`,
     );
   }
 });
 
-test('la découpe alpha adresse la carte de base par son quartet, jamais par les drapeaux', () => {
+test('alpha cut-out addresses the base map by its nibble, never by the flags', () => {
   assert.ok(
     MASK_KEEP_WGSL.includes(
       `maskAlpha(page.mapIndex,uv,wrapOf(page.wrapModes,${WRAP_MAP.base}u),ddx,ddy)`,

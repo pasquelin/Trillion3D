@@ -1,13 +1,13 @@
-// L'élagage PAR LE HAUT ne retire aucune grappe que la coupe aurait prise.
+// Top-down pruning removes no cluster the cut would have kept.
 //
-// La descente écarte un sous-arbre dont le PLANCHER d'erreur dépasse le seuil : aucune de ses
-// grappes n'est assez fine, donc aucune n'aurait été retenue. La borne est un minorant, et un
-// minorant SURESTIMÉ retire de la géométrie sans rien dire — c'est le seul risque du lot, et c'est
-// ce que ce fichier interdit.
+// The descent drops a subtree whose error FLOOR exceeds the threshold: none of its
+// clusters is fine enough, so none would have been kept. The bound is a lower bound, and an
+// OVERESTIMATED lower bound silently drops geometry — that is the batch's only risk, and it is
+// what this file forbids.
 //
-// La référence n'est pas une autre formule : c'est le MÊME oracle, ses nœuds tous ouverts. La coupe
-// obtenue avec la descente complète, page par page, doit être celle que la descente élaguée rend.
-// Les deux lisent les mêmes enregistrements f32 : ce qui les sépare est l'élagage, et rien d'autre.
+// The reference is not another formula: it is the SAME oracle, every node opened. The cut
+// obtained with the full page-by-page descent must be the one the pruned descent returns.
+// Both read the same f32 records: what separates them is the pruning, and nothing else.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -24,8 +24,8 @@ import { scenePages, sceneRoots } from './gpuDagCutFrontierScene.ts';
 const pages = scenePages(4096, 8);
 const cam = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 200);
 
-/** La coupe qu'une descente SANS élagage rendrait : tous les nœuds ouverts, donc le seul filtre
- *  restant est celui que `dagWanted` pose par grappe — tronc, cône, bande d'erreur. */
+/** The cut a descent WITHOUT pruning would return: every node opened, so the only remaining
+ *  filter is the one `dagWanted` sets per cluster — frustum, cone, error band. */
 function coupeSansElagage(packed: ReturnType<typeof packDagSelection>, uniforms: unknown) {
   const frames = dagViewFrames(packed, uniforms as Parameters<typeof dagViewFrames>[1]);
   const records = dagRecords(packed);
@@ -44,16 +44,16 @@ function coupeSansElagage(packed: ReturnType<typeof packDagSelection>, uniforms:
 }
 
 const POSES: Array<[string, number, number]> = [
-  ['face', 0, 16],
-  ['de biais', 9, 14],
-  ['de loin', 0, 60],
-  ['au contact', 1.5, 3],
+  ['front', 0, 16],
+  ['oblique', 9, 14],
+  ['far', 0, 60],
+  ['contact', 1.5, 3],
 ];
 const SEUILS = [0.25, 1, 4];
 
 for (const parNiveaux of [false, true]) {
-  const nomHierarchie = parNiveaux ? 'hiérarchie du compilateur' : 'hiérarchie du rangement';
-  test(`${nomHierarchie} : l'élagage par le haut ne retire aucune grappe retenue`, () => {
+  const nomHierarchie = parNiveaux ? 'compiler hierarchy' : 'packing hierarchy';
+  test(`${nomHierarchie}: top-down pruning removes no kept cluster`, () => {
     const roots = sceneRoots(
       pages,
       Array.from({ length: 4 }, () => new THREE.Matrix4()),
@@ -74,10 +74,10 @@ for (const parNiveaux of [false, true]) {
         const obtenu = [...evaluateDagSelectionKernel(packed, uniforms).pageIds].sort(
           (a, b) => a - b,
         );
-        assert.deepEqual(obtenu, attendu, `${nom} à ${seuil} px`);
+        assert.deepEqual(obtenu, attendu, `${nom} at ${seuil} px`);
         elagages += descenteComptee(packed, uniforms, true).plancherCoupe;
       }
-    // Sans élagage, la preuve serait vide : le seuil dit que la borne a bien tranché quelque part.
-    assert.ok(elagages > 0, `aucun sous-arbre élagué : la preuve ne porte sur rien`);
+    // Without pruning the proof would be empty: the threshold says the bound did cut somewhere.
+    assert.ok(elagages > 0, `no subtree pruned: the proof covers nothing`);
   });
 }

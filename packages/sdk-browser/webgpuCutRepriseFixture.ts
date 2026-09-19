@@ -1,10 +1,10 @@
-// Le dispositif du banc de reprise de coupe GPU, séparé de ses cas pour qu'aucun des deux fichiers
-// ne dépasse la limite de lignes. Les cas vivent dans `webgpuCutReprise.test.ts`.
-import * as THREE from 'three';
+// Setup of the GPU-cut resume bench, split from its cases so neither file exceeds the line
+// limit. Cases live in `webgpuCutReprise.test.ts`.
+import { IDENTITY_MATRIX4 } from '../sdk-core/index.ts';
 import { renderGpuCut } from './webgpuPagesGpuCut.ts';
 import { mountCutAdopter } from './webgpuCutAdopterFixture.ts';
 import { cameraSelectionUniforms, createSelectionUniforms } from './gpuSelection.ts';
-import { cameraMoteur } from './cameraFixture.ts';
+import { createEngineCamera, writeEngineCamera } from './engineCamera.ts';
 import type { GpuCut, GpuSelection } from './gpuSelection.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
@@ -12,16 +12,16 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 const VIEWPORT: [number, number] = [512, 512];
 
 /**
- * Un banc minimal autour de `renderGpuCut` : une page, une sélection GPU simulée et des services de
- * résidence simulés. La page n'a pas encore ses octets ; `arrive()` les lui donne, comme le ferait
- * le décodage d'un transfert processeur.
+ * A minimal bench around `renderGpuCut`: one page, a simulated GPU selection and simulated
+ * residency services. The page does not yet have its bytes; `arrive()` gives them to it, as a CPU
+ * transfer decode would.
  */
 export function banc(panne?: 'debordement' | 'envoi') {
-  const hote = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
-  hote.position.z = 5;
-  hote.updateMatrixWorld(true);
-  // Le noyau ne lit plus la caméra de l'hôte : l'entrée d'image la recopie une fois au contrat.
-  const camera = cameraMoteur(hote);
+  // The kernel reads the engine camera only: posed at z = 5, looking down the axis.
+  const camera = createEngineCamera();
+  camera.world.set(IDENTITY_MATRIX4);
+  camera.world[14] = 5;
+  writeEngineCamera(camera, { fov: 55, aspect: 1, near: 0.1, far: 100, zoom: 1 });
   const uniforms = createSelectionUniforms();
   cameraSelectionUniforms(camera, 0, VIEWPORT, uniforms);
   const page = {
@@ -33,7 +33,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
   const comptes = { queue: 0, sync: 0, residence: 0, envois: 0, attentes: 0, disposes: 0 };
   const codes: string[] = [];
   const residentFlags = new Uint32Array(1);
-  // Ce que la sélection GPU croit de la résidence, et le relevé qu'elle en tire à chaque envoi.
+  // What GPU selection believes of residency, and the shown list it takes from it at each dispatch.
   let vueResidence = 0;
   let releve: GpuCut = {
     uniforms,
@@ -58,7 +58,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
     dispatch() {
       comptes.envois++;
       if (panne === 'envoi') throw new Error('ENVOI_PERDU');
-      // La sélection calcule la complétude : une page voulue et résidente fait un relevé complet.
+      // Selection computes completeness: a wanted resident page makes a complete shown list.
       releve = {
         uniforms,
         result: {
@@ -80,7 +80,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
     selection: () => selection,
   });
   const rows = {
-    // Déjà posée : `ensurePageTable` n'a pas d'appareil à solliciter sur ce banc.
+    // Already set: `ensurePageTable` has no device to ask on this bench.
     pageTableFloats: new Float32Array(4),
     candidateOverflow: panne === 'debordement' ? 1 : 0,
     candidateCount: 1,
@@ -125,7 +125,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
       },
       syncRows: () => {
         comptes.sync++;
-        // La résidence suit les octets : une page décodée devient résidente pour la sélection.
+        // Residency follows the bytes: a decoded page becomes resident for selection.
         residentFlags[0] = page.array ? 1 : 0;
       },
       adoptGpuCut: () => {
@@ -144,7 +144,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
     image: () => renderGpuCut(rt, camera, 0, 0, 0),
     arrive: () => {
       page.array = new Uint32Array([0, 1, 2]);
-      // Les octets arrivent : ce que le journal des rangs ferait, le banc le fait à la main.
+      // The bytes arrive: what the rank journal would do, the bench does by hand.
       counts.touch(0);
     },
   };

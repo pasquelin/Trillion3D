@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { publierRapport } from './publierRapport.mjs';
 
-test('publierRapport pose index.html, les vignettes et .nojekyll', () => {
+test('publierRapport places index.html, thumbnails and .nojekyll', () => {
   const root = join(tmpdir(), `wg-pages-${Date.now()}`);
   const source = join(root, 'out');
   const dest = join(root, 'docs');
@@ -22,11 +22,11 @@ test('publierRapport pose index.html, les vignettes et .nojekyll', () => {
   }
 });
 
-test('publierRapport refuse un dossier sans rapport.html', () => {
+test('publierRapport rejects a directory without rapport.html', () => {
   const root = join(tmpdir(), `wg-pages-vide-${Date.now()}`);
   mkdirSync(root, { recursive: true });
   try {
-    assert.throws(() => publierRapport(root, join(root, 'docs')), /pas de rapport/);
+    assert.throws(() => publierRapport(root, join(root, 'docs')), /no report/);
     assert.equal(existsSync(join(root, 'docs', 'index.html')), false);
   } finally {
     rmSync(root, { recursive: true, force: true });

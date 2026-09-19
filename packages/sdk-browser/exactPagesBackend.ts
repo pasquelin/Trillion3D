@@ -40,7 +40,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
     desired: PageRec[] = [],
     attached: PageRec[] = [];
   const requestData = createExactPagesRequestData(allPages, requestCount);
-  // Un tampon d'index résident par primitive : la coupe visible n'est plus qu'une liste de plages.
+  // One resident index buffer per primitive: the visible cut is now only a list of ranges.
   const batches = new ClusterBatches(scene, allPages);
   for (const copy of blendCopies) {
     copy.userData.sourceGeometry = copy.geometry;
@@ -54,8 +54,8 @@ export const exactPagesBackend: BackendFactory = (context) => {
   let diagnostic: DiagnosticMode = 'beauty';
   const renderState = createExactPagesRenderState();
   const gate = createWebglFrameGate();
-  // Les lampes du contrat, traduites en lampes Three. Tant que l'hôte n'a ni déclaré de lampe ni
-  // demandé de vue, le graphe source éclaire seul et l'image est celle d'avant, au pixel près.
+  // Contract lights, translated into Three lights. As long as the host has neither declared a
+  // light nor asked for a view, the source graph lights alone and the image is the previous one, pixel for pixel.
   const contract = attachContractLights(scene, context.sceneLights, sceneLights, gate.sceneChanged);
   const motion: CameraMotion = {};
   const { profile: cpuProfile, methods: cpuMethods } = createExactPagesCpu(
@@ -175,7 +175,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
       return renderState.frameHeld;
     },
     ...sceneLightingApi(sceneLights, gate.sceneChanged),
-    /** L'image sort en lumière réelle dès que l'un des deux jeux de lampes en porte une. */
+    /** The image comes out in real light as soon as either light set carries one. */
     sceneLit: () => contract.lit,
     refreshSceneLights: contract.apply,
     lighting: CONTRACT_LIGHTS_LIGHTING,

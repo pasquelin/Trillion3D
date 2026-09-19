@@ -1,10 +1,10 @@
-// Défaut 2 (`setTransform` perd le cisaillement) : ce que le moteur envoie au GPU pour placer une
-// primitive est `root.world`, et le noyau WGSL de sélection ramène les plans du tronc dans l'espace
-// de cette matrice. Le test exécute ce noyau dans Chromium WebGPU sur la même page vue par la même
-// caméra, une fois avec la matrice demandée (cisaillée) et une fois avec sa recomposition
-// translation-rotation-échelle — ce que `setTransform` posait avant ce lot. Les deux verdicts
-// diffèrent : la perte du cisaillement n'était pas une approximation, elle changeait la page
-// sélectionnée. `selectionGpu` vient de `test/justesse/noyauSelectionGpu.mjs`.
+// Defect 2 (`setTransform` loses shear): what the engine sends the GPU to place a primitive is
+// `root.world`, and the WGSL selection kernel brings frustum planes into that matrix's space.
+// The test runs this kernel in Chromium WebGPU on the same page seen by the same camera, once
+// with the requested (sheared) matrix and once with its translation-rotation-scale recomposition
+// — what `setTransform` posed before this batch. The two verdicts differ: losing shear was not
+// an approximation, it changed the selected page. `selectionGpu` comes from
+// `test/justesse/noyauSelectionGpu.mjs`.
 //
 // node --experimental-strip-types test/browser/cisaillement-transform.browser.mjs
 import assert from 'node:assert/strict';
@@ -19,14 +19,14 @@ import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
 import { selectionGpu } from '../justesse/noyauSelectionGpu.mjs';
 
 const VIEWPORT = [1000, 1000];
-// Boîte locale unité : cisaillée, elle couvre x ∈ [-4, 4] ; recomposée en TRS, x ∈ [-2,364, 2,364].
+// Unit local box: sheared, it covers x ∈ [-4, 4]; recomposed as TRS, x ∈ [-2.364, 2.364].
 const MIN = [-1, -1, -1],
   MAX = [1, 1, 1];
 
-/** La matrice demandée : `y` pousse `x`, deux axes non orthogonaux. */
+/** The requested matrix: `y` pushes `x`, two non-orthogonal axes. */
 const cisaillee = () => new THREE.Matrix4().set(1, 3, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
 
-/** Ce que le défaut posait : la même matrice réduite à un produit translation-rotation-échelle. */
+/** What the defect posed: the same matrix reduced to a translation-rotation-scale product. */
 function recomposee(source) {
   const position = new THREE.Vector3(),
     rotation = new THREE.Quaternion(),
@@ -46,7 +46,7 @@ function empaquete(world, sphere) {
   ]);
 }
 
-/** Une vue étroite sur `x` : seule la boîte cisaillée y entre. */
+/** A narrow view on `x`: only the sheared box enters it. */
 function vue(x, fov) {
   const camera = new THREE.PerspectiveCamera(fov, 1, 0.1, 100);
   camera.position.set(x, 0, 10);
@@ -60,14 +60,14 @@ const exacte = cisaillee(),
 assert.notDeepEqual(
   Array.from(approchee.elements),
   Array.from(exacte.elements),
-  'la reproduction suppose deux matrices différentes',
+  'the reproduction assumes two different matrices',
 );
 
 const sphereEtroite = [3.5, 0, 0, 1],
   sphereLarge = [0, 0, 0, 5];
-/** Un appel du noyau : la page empaquetée DANS LE REPÈRE DE RENDU de sa vue — l'œil en est
- *  l'origine —, comme l'entrée d'image la porte à la carte. Empaqueter en monde absolu sous une vue
- *  relative mêlerait deux repères dans la même formule, et le tronc trancherait faux. */
+/** One kernel call: the page packed IN THE RENDER FRAME of its view — the eye is its origin —
+ *  as the frame input carries it to the GPU. Packing in absolute world under a relative view
+ *  would mix two frames in the same formula, and the frustum would cut wrongly. */
 const appel = (nom, world, sphere, uniforms) => ({
   nom,
   packed: packedWorldsToRenderOrigin(empaquete(world, sphere), [{ world }], uniforms.cameraWorld),
@@ -103,23 +103,23 @@ assert.equal(gpu.indisponible ?? null, null, String(gpu.indisponible));
 assert.deepEqual(gpu.compilation ?? [], []);
 assert.deepEqual(gpu.erreurs ?? [], []);
 
-assert.deepEqual(pages('large:exacte'), [0], 'témoin : de face et de loin, la page est retenue');
+assert.deepEqual(pages('large:exacte'), [0], 'witness: face-on and far, the page is kept');
 assert.deepEqual(
   pages('large:recomposee'),
   [0],
-  'témoin : le paquet recomposé est sain, il est retenu dans la vue large',
+  'witness: the recomposed pack is sound, it is kept in the wide view',
 );
 assert.deepEqual(
   pages('etroite:exacte'),
   [0],
-  'la matrice demandée porte la page jusque dans la vue étroite',
+  'the requested matrix carries the page into the narrow view',
 );
 assert.deepEqual(
   pages('etroite:recomposee'),
   [],
-  'défaut 2 : la recomposition TRS sort la page du tronc — le noyau WGSL ne sélectionne pas la même',
+  'defect 2: TRS recomposition takes the page out of the frustum — the WGSL kernel does not select the same',
 );
 
 console.log(
-  'OK : 2 matrices, 2 vues, 4 exécutions du noyau WGSL — voir test/browser/cisaillement-transform.browser.mjs',
+  'OK: 2 matrices, 2 views, 4 runs of the WGSL kernel — see test/browser/cisaillement-transform.browser.mjs',
 );

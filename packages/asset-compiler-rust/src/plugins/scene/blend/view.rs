@@ -1,30 +1,30 @@
-//! Lire un champ par son nom, dans les octets d'un bloc.
+//! Reading a field by its name, in the bytes of a block.
 //!
-//! Une vue, c'est une structure du SDNA posée sur un décalage du fichier. Tout passe par là :
-//! nombres, pointeurs, chaînes en place, structures imbriquées et structures pointées. Un champ
-//! absent de cette version du format ne fait jamais paniquer — il rend la valeur par défaut que
-//! l'appelant a donnée, et c'est à l'appelant de dire ce qu'il en fait.
+//! A view is an SDNA structure laid on an offset of the file. Everything goes through it:
+//! numbers, pointers, in-place strings, nested structures and pointed-to structures. A field
+//! absent from this version of the format never panics — it yields the default the caller gave,
+//! and it is the caller's job to say what it does with it.
 //!
-//! Une vue est bornée **au bloc** qu'elle lit, jamais au fichier : un bloc plus court que la
-//! structure que son entête nomme rendrait sinon les octets du bloc suivant comme s'ils étaient les
-//! siens. Un champ qui déborde du bloc est donc traité comme un champ absent.
+//! A view is bounded **to the block** it reads, never to the file: a block shorter than the
+//! structure its header names would otherwise yield the next block's bytes as if they were its
+//! own. A field that overruns the block is therefore treated as an absent field.
 use super::*;
 
-/// Une structure lue à un décalage du fichier.
+/// A structure read at an offset of the file.
 #[derive(Clone, Copy)]
 pub(super) struct At<'a> {
     pub(super) file: &'a BlendFile,
     pub(super) layout: &'a Layout,
     pub(super) base: usize,
-    /// La fin des octets du bloc atteint : aucun champ ne se lit au-delà.
+    /// The end of the reached block's bytes: no field is read beyond it.
     limit: usize,
-    /// L'adresse d'origine du bloc atteint : c'est par elle que les pointeurs du fichier se
-    /// comparent entre eux. Zéro pour une structure imbriquée, qui n'en a pas.
+    /// The original address of the reached block: it is by this that the file's pointers compare
+    /// with each other. Zero for a nested structure, which has none.
     pub(super) old: u64,
 }
 
 impl BlendFile {
-    /// La vue d'un bloc, typée par la structure que son entête nomme.
+    /// The view of a block, typed by the structure its header names.
     pub(super) fn view<'a>(&'a self, block: &Block) -> Option<At<'a>> {
         Some(At {
             file: self,
@@ -34,8 +34,8 @@ impl BlendFile {
             old: block.old,
         })
     }
-    /// La vue d'un bloc, forcée à une structure nommée : c'est ainsi qu'on lit ce qu'un `void *`
-    /// désigne, le bloc pointé ne portant alors pas le type utile dans son entête.
+    /// The view of a block, forced to a named structure: that is how one reads what a `void *`
+    /// designates, the pointed-to block then not carrying the useful type in its header.
     pub(super) fn view_as<'a>(&'a self, block: &Block, kind: &str) -> Option<At<'a>> {
         Some(At {
             file: self,
@@ -45,12 +45,12 @@ impl BlendFile {
             old: block.old,
         })
     }
-    /// Les octets d'un bloc désigné par une adresse d'origine.
+    /// The bytes of a block designated by an original address.
     pub(super) fn bytes_at(&self, pointer: u64) -> Option<&[u8]> {
         let block = self.at(pointer)?;
         self.bytes.get(block.start..block.start + block.len)
     }
-    /// La chaîne que porte un bloc désigné par un `char *`, sans son zéro terminal.
+    /// The string a block designated by a `char *` carries, without its terminating zero.
     pub(super) fn text_at(&self, pointer: u64) -> Option<String> {
         let bytes = self.bytes_at(pointer)?;
         let end = bytes
@@ -65,8 +65,8 @@ impl<'a> At<'a> {
     pub(super) fn has(&self, name: &str) -> bool {
         self.layout.field(name).is_some()
     }
-    /// Les octets d'un champ, bornés par le bloc. Un champ dont la fin déborde du bloc — ou dont le
-    /// produit taille par compte déborde — est traité comme absent.
+    /// The bytes of a field, bounded by the block. A field whose end overruns the block — or
+    /// whose size-by-count product overruns — is treated as absent.
     fn raw(&self, name: &str) -> Option<(&'a Field, &'a [u8])> {
         let field = self.layout.field(name)?;
         let from = self.base.checked_add(field.offset)?;
@@ -78,7 +78,7 @@ impl<'a> At<'a> {
         let bytes = self.file.bytes.get(from..end)?;
         Some((field, bytes))
     }
-    /// Un entier, quelle que soit sa largeur et sa signature déclarées.
+    /// An integer, whatever its declared width and signedness.
     pub(super) fn int(&self, name: &str, default: i64) -> i64 {
         let Some((field, bytes)) = self.raw(name) else {
             return default;
@@ -88,7 +88,7 @@ impl<'a> At<'a> {
     pub(super) fn float(&self, name: &str, default: f32) -> f32 {
         self.floats(name).first().copied().unwrap_or(default)
     }
-    /// Tous les flottants d'un champ, un pour un champ simple, davantage pour un tableau.
+    /// All the floats of a field, one for a simple field, more for an array.
     pub(super) fn floats(&self, name: &str) -> Vec<f32> {
         let Some((field, bytes)) = self.raw(name) else {
             return Vec::new();
@@ -98,7 +98,7 @@ impl<'a> At<'a> {
         }
         bytes::floats(bytes, field.count)
     }
-    /// L'adresse d'origine que porte un champ pointeur. Zéro quand il n'en porte pas.
+    /// The original address a pointer field carries. Zero when it carries none.
     pub(super) fn pointer(&self, name: &str) -> u64 {
         let Some((field, bytes)) = self.raw(name) else {
             return 0;
@@ -108,7 +108,7 @@ impl<'a> At<'a> {
         }
         u64::from_le_bytes(bytes[..POINTER].try_into().unwrap_or_default())
     }
-    /// Une chaîne écrite en place dans un tableau de caractères, sans son zéro terminal.
+    /// A string written in place in a character array, without its terminating zero.
     pub(super) fn text(&self, name: &str) -> String {
         let Some((field, bytes)) = self.raw(name) else {
             return String::new();
@@ -122,7 +122,7 @@ impl<'a> At<'a> {
             .unwrap_or(bytes.len());
         String::from_utf8_lossy(&bytes[..end]).into_owned()
     }
-    /// Une structure imbriquée, typée par le type que le SDNA donne au champ.
+    /// A nested structure, typed by the type the SDNA gives the field.
     pub(super) fn inner(&self, name: &str) -> Option<At<'a>> {
         let field = self.layout.field(name)?;
         let kind = self.file.dna.index(&field.kind)?;
@@ -134,22 +134,22 @@ impl<'a> At<'a> {
             old: 0,
         })
     }
-    /// La structure qu'un champ pointeur désigne, typée par l'entête du bloc atteint.
+    /// The structure a pointer field designates, typed by the header of the reached block.
     pub(super) fn follow(&self, name: &str) -> Option<At<'a>> {
         let block = self.file.at(self.pointer(name))?;
         self.file.view(block)
     }
-    /// La structure qu'un champ pointeur désigne, forcée à un type nommé — le cas d'un `void *`.
+    /// The structure a pointer field designates, forced to a named type — the case of a `void *`.
     pub(super) fn follow_as(&self, name: &str, kind: &str) -> Option<At<'a>> {
         let block = self.file.at(self.pointer(name))?;
         self.file.view_as(block, kind)
     }
-    /// Les octets du bloc qu'un champ pointeur désigne.
+    /// The bytes of the block a pointer field designates.
     pub(super) fn block(&self, name: &str) -> Option<&'a [u8]> {
         self.file.bytes_at(self.pointer(name))
     }
-    /// La vue d'un élément d'un tableau de structures : le bloc pointé porte `count` structures
-    /// d'affilée, et c'est la taille déclarée par le SDNA qui donne le pas.
+    /// The view of an element of a structure array: the pointed-to block holds `count` structures
+    /// in a row, and it is the size the SDNA declares that gives the stride.
     pub(super) fn item(&self, rank: usize) -> Option<At<'a>> {
         Some(At {
             file: self.file,
@@ -159,15 +159,15 @@ impl<'a> At<'a> {
             old: self.old,
         })
     }
-    /// Le nom d'un bloc de données identifié : Blender le range dans sa sous-structure `id`, avec
-    /// deux lettres de préfixe qui disent son genre.
+    /// The name of an identified data block: Blender stores it in its `id` sub-structure, with
+    /// two prefix letters that name its genre.
     pub(super) fn id_name(&self) -> String {
         self.inner("id")
             .map(|id| id.text("name"))
             .unwrap_or_default()
     }
-    /// Les maillons d'une `ListBase` : la liste chaînée que Blender écrit bloc par bloc, chaque
-    /// maillon commençant par son `next`. Bornée pour qu'un fichier abîmé ne tourne pas en rond.
+    /// The links of a `ListBase`: the linked list Blender writes block by block, each link
+    /// starting with its `next`. Bounded so a damaged file does not loop.
     pub(super) fn list(&self, name: &str) -> Vec<At<'a>> {
         let mut out = Vec::new();
         let Some(head) = self.inner(name) else {

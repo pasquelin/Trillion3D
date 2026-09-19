@@ -1,57 +1,57 @@
-//! Les profils colorimétriques que les fichiers portent, et que la sortie du contrat ne porte pas.
+//! Colour profiles files carry, and that the contract output does not carry.
 //!
-//! `into_rgba8` rend des octets que tout le reste de la chaîne lit comme du sRGB. Un fichier peut
-//! pourtant embarquer un profil ICC qui dit autre chose, et le pilote le laissait tomber sans un
-//! mot. Ce lot ne convertit rien — la gestion de couleur est un autre chantier — mais il compte.
+//! `into_rgba8` yields bytes the rest of the chain reads as sRGB. A file can nevertheless
+//! embed an ICC profile that says something else, and the driver used to drop it without a
+//! word. This batch converts nothing — colour management is another job — but it counts.
 //!
-//! Les trois chemins par lesquels un profil arrive sont couverts ici : le morceau `iCCP` d'un PNG,
-//! le segment APP2 d'un JPEG, et la ressource d'image 1039 d'un PSD.
+//! The three paths by which a profile arrives are covered here: a PNG's `iCCP` chunk, a JPEG's
+//! APP2 segment, and a PSD's image resource 1039.
 use super::super::image as registry;
 use super::{declared, fixture};
 use std::path::PathBuf;
 
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
-/// La raison que les trois chemins comptent.
+/// Reason the three paths count.
 const IGNORED: &str = "image-icc-profile-ignored";
 
-/// La description d'un profil qui n'est pas celui de la sortie, et celle d'un profil sRGB.
+/// Description of a profile that is not the output's, and that of an sRGB profile.
 const OTHER: &str = "Tirage papier";
 const SRGB: &str = "sRGB IEC61966-2.1";
 
-/// Les raisons nommées d'octets construits par le test.
+/// Named reasons of bytes built by the test.
 fn notes(case: &str, bytes: &[u8]) -> Vec<&'static str> {
     registry::decode(bytes, MAX_ALLOC)
         .unwrap_or_else(|reason| panic!("{case} : {reason}"))
         .notes
 }
 
-// Reproduction du constat 58, chemin PNG : le morceau `iCCP` porte le nom du profil en clair, puis
-// le profil compressé. Un nom qui n'est pas celui du sRGB de la sortie est compté ; le nom d'un
-// profil sRGB ne compte rien, puisqu'il n'y aurait rien à convertir.
+// Reproduction of finding 58, PNG path: the `iCCP` chunk carries the profile name in the open,
+// then the compressed profile. A name that is not that of the output's sRGB is counted; the
+// name of an sRGB profile counts nothing, since there would be nothing to convert.
 #[test]
-fn le_profil_icc_dun_png_est_compte_sauf_sil_se_nomme_srgb() {
+fn a_png_icc_profile_is_counted_unless_it_names_srgb() {
     assert_eq!(declared("png", "icc-autre.png", MAX_ALLOC).1, vec![IGNORED]);
     assert!(declared("png", "icc-srgb.png", MAX_ALLOC).1.is_empty());
-    // Les deux fixtures portent le dessin de référence : un profil ne change aucun pixel ici.
+    // Both fixtures carry the reference drawing: a profile changes no pixel here.
     assert!(declared("png", "rgb8.png", MAX_ALLOC).1.is_empty());
 }
 
-// Reproduction du constat 58, chemin JPEG : la spécification de l'ICC transporte le profil dans des
-// segments APP2 qui s'ouvrent sur « ICC_PROFILE\0 ». Le pilote les sautait tous.
+// Reproduction of finding 58, JPEG path: the ICC specification carries the profile in APP2
+// segments that open on “ICC_PROFILE\0”. The driver used to skip them all.
 #[test]
-fn le_profil_icc_dun_jpeg_est_compte_sauf_sil_se_nomme_srgb() {
+fn a_jpeg_icc_profile_is_counted_unless_it_names_srgb() {
     let base = jpeg_sans_profil();
-    assert!(notes("jpeg nu", &base).is_empty(), "aucun segment APP2");
+    assert!(notes("jpeg nu", &base).is_empty(), "no APP2 segment");
     assert_eq!(notes("jpeg autre", &avec_app2(&base, OTHER)), vec![IGNORED]);
     assert!(notes("jpeg sRGB", &avec_app2(&base, SRGB)).is_empty());
 }
 
-// Reproduction du constat 58, chemin PSD : la ressource d'image 1039 porte le profil ICC du
-// document. La section des ressources était sautée par sa longueur, sans qu'on y lise rien.
+// Reproduction of finding 58, PSD path: image resource 1039 carries the document's ICC
+// profile. The resources section was skipped by its length, without anything being read in it.
 #[test]
-fn le_profil_icc_dun_psd_est_compte_sauf_sil_se_nomme_srgb() {
+fn a_psd_icc_profile_is_counted_unless_it_names_srgb() {
     let base = fixture("psd", "rgb-brut.psd");
-    assert!(notes("psd nu", &base).is_empty(), "aucune ressource");
+    assert!(notes("psd nu", &base).is_empty(), "no resource");
     assert_eq!(
         notes("psd autre", &avec_ressource(&base, OTHER)),
         vec![IGNORED]
@@ -59,9 +59,9 @@ fn le_profil_icc_dun_psd_est_compte_sauf_sil_se_nomme_srgb() {
     assert!(notes("psd sRGB", &avec_ressource(&base, SRGB)).is_empty());
 }
 
-/// Les octets d'un profil, réduits à ce que le pilote y lit : sa description. Un vrai profil la
-/// porte dans son étiquette `desc`, entre son entête de cent vingt-huit octets et ses courbes ; rien
-/// d'autre n'entre dans la décision, et le reste n'est pas écrit ici.
+/// Bytes of a profile, reduced to what the driver reads there: its description. A real profile
+/// carries it in its `desc` tag, between its one-hundred-and-twenty-eight-byte header and its
+/// curves; nothing else enters the decision, and the rest is not written here.
 fn profil(description: &str) -> Vec<u8> {
     let mut out = Vec::from(*b"desc");
     out.extend_from_slice(&[0; 4]);
@@ -71,18 +71,18 @@ fn profil(description: &str) -> Vec<u8> {
     out
 }
 
-/// Le JPEG de la dorée des aperçus, qui ne porte aucun segment APP2.
+/// JPEG of the preview golden, which carries no APP2 segment.
 fn jpeg_sans_profil() -> Vec<u8> {
     let path =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixtures/apercus/atlas-couleur/lueur.jpg");
     std::fs::read(path).expect("lueur.jpg")
 }
 
-/// Le même JPEG, un segment APP2 porteur de profil inséré derrière sa signature de début d'image.
-/// Un décodeur saute les segments d'application qu'il ne connaît pas : l'image reste la même.
+/// The same JPEG, an APP2 segment carrying a profile inserted behind its start-of-image
+/// signature. A decoder skips application segments it does not know: the image stays the same.
 fn avec_app2(base: &[u8], description: &str) -> Vec<u8> {
     let mut payload = Vec::from(*b"ICC_PROFILE\0");
-    // Le numéro du morceau et leur compte : un seul morceau, qui porte tout le profil.
+    // Chunk number and their count: a single chunk, which carries the whole profile.
     payload.extend_from_slice(&[1, 1]);
     payload.extend_from_slice(&profil(description));
     let mut out = Vec::from(&base[..2]);
@@ -93,10 +93,9 @@ fn avec_app2(base: &[u8], description: &str) -> Vec<u8> {
     out
 }
 
-/// La fixture PSD, sa section de ressources vide remplacée par une section qui porte la ressource
-/// 1039. Un bloc de ressource est la signature `8BIM`, l'identifiant sur deux octets, un nom Pascal
-/// — vide ici, donc deux octets nuls —, la longueur des données, puis les données complétées jusqu'à
-/// une longueur paire.
+/// The PSD fixture, its empty resources section replaced by a section that carries resource
+/// 1039. A resource block is the `8BIM` signature, the identifier on two bytes, a Pascal name
+/// — empty here, so two null bytes —, the data length, then the data padded to an even length.
 fn avec_ressource(base: &[u8], description: &str) -> Vec<u8> {
     let profil = profil(description);
     let mut block = Vec::from(*b"8BIM");

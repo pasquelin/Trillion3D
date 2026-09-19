@@ -1,5 +1,10 @@
-import * as THREE from 'three';
-import { frustumExcludesBox, frustumPlanesToLocal, screenErrorBound } from '../sdk-core/index.ts';
+import {
+  copyMatrix4,
+  frustumExcludesBox,
+  frustumPlanesToLocal,
+  multiplyMatrix4,
+  screenErrorBound,
+} from '../sdk-core/index.ts';
 import { errorFloorAt, viewDepthOf, viewLateralOf } from './pageSelectionProjection.ts';
 import { DAG_NODE_FLOATS } from './gpuDagTypes.ts';
 import {
@@ -16,21 +21,22 @@ import {
 } from './gpuDagPackNodes.ts';
 import type { SelectionUniforms } from './gpuSelection.ts';
 
+/** Column-major 4×4 buffers rewritten per world, never reallocated. */
 export const dagScratch = {
-  view: new THREE.Matrix4(),
-  world: new THREE.Matrix4(),
-  viewMatrix: new THREE.Matrix4(),
+  view: new Float64Array(16),
+  world: new Float64Array(16),
+  viewMatrix: new Float64Array(16),
   cone: { axis: [0, 0, 1] as [number, number, number], angle: Math.PI },
   min: [0, 0, 0] as number[],
   max: [0, 0, 0] as number[],
 };
 
 /**
- * Miroir CPU de `projected` du nuanceur `gpuDagShader.ts` : mêmes gardes, mêmes opérandes, même
- * ordre. Le nuanceur ne lève pas, donc l'oracle ne lève pas non plus — une erreur négative ou NaN y
- * rend l'infini, là où `clusterErrorAtDepth` de sdk-core refuse ses paramètres. Ce sont deux
- * contrats différents de la même borne `screenErrorBound` : la fonction validante ne peut pas
- * remplacer celle-ci.
+ * CPU mirror of `projected` in the `gpuDagShader.ts` shader: same guards, same operands,
+ * same order. The shader does not throw, so the oracle does not either — a negative or
+ * NaN error returns infinity there, where sdk-core's `clusterErrorAtDepth` refuses its
+ * parameters. Those are two different contracts of the same `screenErrorBound` bound:
+ * the validating function cannot replace this one.
  */
 export function projectedError(
   error: number,
@@ -50,11 +56,11 @@ export function projectedError(
 }
 
 /**
- * Ce qu'une image pose par primitive avant toute descente : les plans du tronc ramenés dans l'espace
- * de la primitive, la matrice vue·monde, et l'étirement objet-vue. Deux descentes processeur le
- * demandaient mot pour mot — l'oracle (`gpuDagOracle.ts`) et le comptage de frontière
- * (`gpuDagCutFrontierFixture.ts`) — ; il n'est écrit qu'ici, si bien qu'aucune des deux ne peut
- * dériver du noyau sans que l'autre le fasse aussi.
+ * What a frame sets per primitive before any descent: trunk planes brought into the
+ * primitive's space, the view·world matrix, and object-view stretch. Two CPU descents
+ * asked for it word for word — the oracle (`gpuDagOracle.ts`) and frontier counting
+ * (`gpuDagCutFrontierFixture.ts`) — ; it is written only here, so neither can drift
+ * from the kernel without the other doing so too.
  */
 export type DagViewFrames = {
   planes: Float64Array[];
@@ -73,14 +79,14 @@ export function dagViewFrames(
     views: number[][] = [],
     stretches: number[] = [];
   const { view, world, viewMatrix } = dagScratch;
-  view.fromArray(uniforms.view);
+  copyMatrix4(view, uniforms.view);
   for (let w = 0; w < packed.worldCount; w++) {
-    world.fromArray(packed.worlds.subarray(w * 16, w * 16 + 16));
+    copyMatrix4(world, packed.worlds, 0, w * 16);
     const object = new Float64Array(24);
-    frustumPlanesToLocal(object, uniforms.planes, world.elements);
+    frustumPlanesToLocal(object, uniforms.planes, world);
     planes.push(object);
-    viewMatrix.multiplyMatrices(view, world);
-    views.push([...viewMatrix.elements]);
+    multiplyMatrix4(viewMatrix, view, world);
+    views.push(Array.from(viewMatrix));
     stretches.push(packed.worldStretch[w] * cameraStretch);
   }
   return {
@@ -93,9 +99,9 @@ export function dagViewFrames(
   };
 }
 
-/** Le verdict du noyau sur un nœud de coupe (`gpuDagLevelWgsl.ts`, `levelStep`) : `-1` rejeté —
- *  hors tronc, ou dont aucun remplaçant du sous-arbre n'est encore trop grossier —, sinon le nombre
- *  d'enfants qu'il ouvre, `0` désignant une feuille retenue. */
+/** Kernel verdict on a cut node (`gpuDagLevelWgsl.ts`, `levelStep`): `-1` rejected —
+ *  outside the trunk, or whose subtree replacement is not yet too coarse —, otherwise
+ *  the number of children it opens, `0` meaning a kept leaf. */
 export function dagNodeVerdict(
   f: DagViewFrames,
   nodes: ArrayLike<number>,
@@ -136,10 +142,10 @@ export function dagNodeVerdict(
 }
 
 /**
- * Le PLANCHER d'erreur du sous-arbre, projeté comme le noyau le projette (`gpuDagLevelWgsl.ts`,
- * `errorFloor`) : au-dessus du seuil, aucune de ses grappes n'est assez fine et la coupe n'en prend
- * aucune. Un sous-arbre qui porte une grappe que rien ne remplace en est exempt — le repli épinglé
- * la dessine sans consulter de seuil — et rend zéro, donc n'élague jamais.
+ * The subtree error FLOOR, projected as the kernel projects it (`gpuDagLevelWgsl.ts`,
+ * `errorFloor`): above the threshold none of its clusters is fine enough and the cut
+ * takes none. A subtree that carries a cluster nothing replaces is exempt — the pinned
+ * fallback draws it without consulting a threshold — and returns zero, so never prunes.
  */
 export function dagNodeFloor(
   f: DagViewFrames,

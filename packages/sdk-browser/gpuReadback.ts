@@ -1,13 +1,13 @@
 import { readbackBytesPerRow } from './gpuPresentation.ts';
 /**
- * Les deux relectures que les outils de preuve font, et qu'aucune image ne fait.
+ * The two readbacks the proof tools do, and that no frame does.
  *
- * Ni l'une ni l'autre n'est une passe du rendu : elles allouent leur tampon d'étape, soumettent leur
- * propre copie, attendent le mappage et rendent le tampon. Un moteur qui rend des images ne les
- * appelle jamais — seul un hôte qui veut vérifier ce que la carte a écrit les appelle.
+ * Neither is a render pass: they allocate their staging buffer, submit their own copy, wait for
+ * the mapping and return the buffer. An engine that renders frames never calls them — only a host
+ * that wants to check what the GPU wrote calls them.
  */
 
-/** Recopie `bytes` octets d'un tampon de la carte, ou `undefined` si l'appareil ne mappe pas. */
+/** Copies `bytes` bytes of a GPU buffer, or `undefined` if the device does not map. */
 export async function readGpuBuffer(
   device: GPUDevice,
   source: GPUBuffer,
@@ -33,10 +33,10 @@ export async function readGpuBuffer(
 }
 
 /**
- * Recopie une cible `r32float` en un flottant par texel, lignes jointives.
+ * Copies an `r32float` target as one float per texel, rows packed.
  *
- * Une copie de texture aligne chaque ligne sur deux cent cinquante-six octets : la largeur demandée
- * n'est presque jamais celle du tampon, et les lignes sont donc recollées ici.
+ * A texture copy aligns each row to two hundred and fifty-six bytes: the requested width is
+ * almost never the buffer's, so the rows are glued back here.
  */
 export async function readGpuTextureR32F(
   device: GPUDevice,

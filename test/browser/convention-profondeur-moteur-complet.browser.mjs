@@ -1,9 +1,9 @@
-// Preuve par le moteur réel : la même caméra physique (near 2,8, far 12), un carreau incliné qui
-// traverse le plan proche, rendue alors que l'hôte bascule sa convention de découpe — `[−1, 1]`
-// côté WebGL, `[0, 1]` côté WebGPU — donne la même image au pixel près, dans les deux sens.
-// Depuis le lot « Z inversé », le moteur ne lit plus cette convention : il compose sa propre
-// projection, en profondeur inversée et plan lointain infini. Le basculement ne change donc AUCUN
-// nombre du moteur, et l'image tenue doit le rester — c'est ce que ce test vérifie.
+// Proof by the real engine: the same physical camera (near 2.8, far 12), a tilted tile that
+// crosses the near plane, rendered while the host flips its clip convention — `[−1, 1]` on the
+// WebGL side, `[0, 1]` on the WebGPU side — yields the same image pixel for pixel, both ways.
+// Since the "reversed Z" batch, the engine no longer reads that convention: it composes its own
+// projection, in reversed depth and infinite far plane. The flip therefore changes NONE of the
+// engine's numbers, and the held image must stay held — that is what this test checks.
 //
 //   node --experimental-strip-types test/browser/convention-profondeur-moteur-complet.browser.mjs
 import assert from 'node:assert/strict';
@@ -25,7 +25,7 @@ preuveSaine(resultat);
 
 for (const [passe, r] of Object.entries(resultat.passes)) {
   const dit = (message) => `${passe} : ${message}`;
-  assert.ok(r.rougeWebgl > 0, dit('le carreau incliné n’est pas visible en convention WebGL'));
+  assert.ok(r.rougeWebgl > 0, dit('the tilted tile is not visible under the WebGL convention'));
   assert.ok(
     r.etapes.some((e) => e.nom.startsWith('webgl-') && e.tenue),
     dit('l’image WebGL ne s’est jamais tenue'),
@@ -41,9 +41,9 @@ for (const [passe, r] of Object.entries(resultat.passes)) {
     true,
     dit('le retour en WebGL a fait recalculer une image que rien ne change'),
   );
-  assert.equal(r.versRetour, 0, dit('le retour en WebGL ne redonne pas la même image'));
+  assert.equal(r.versRetour, 0, dit('the return to WebGL does not restore the same image'));
 }
 console.log(
-  `OK : 2 passes (paginée, non paginée) × ${Object.values(resultat.passes)[0].etapes.length} images ` +
-    `du moteur WebGPU réel — ${resultat.adaptateur}`,
+  `OK: 2 passes (paged, unpaged) × ${Object.values(resultat.passes)[0].etapes.length} frames ` +
+    `of the real WebGPU engine — ${resultat.adaptateur}`,
 );

@@ -1,17 +1,18 @@
-//! L'admission d'un lot : la mémoire que sa concurrence engage vraiment.
+//! Admission of a batch: the memory its concurrency actually commits.
 //!
-//! Un budget d'admission n'est pas une limite de RSS. Il refuse avant de commencer ce qui ne
-//! tiendrait manifestement pas, à partir de la taille de la source et de ce qui sera décodé ; il ne
-//! borne pas le processus, et la mémoire réellement occupée n'est pas mesurée. Encore faut-il qu'il
-//! compte ce qu'il engage : deux ouvriers dotés chacun de la part plancher engageaient deux fois
-//! cette part, quel que soit le total annoncé pour le lot.
+//! An admission budget is not an RSS limit. It refuses before starting what
+//! plainly would not fit, from the source size and what will be decoded; it does
+//! not bound the process, and occupied memory is not measured. It still has to
+//! count what it commits: two workers each given the floor share used to commit
+//! twice that share, whatever total the batch announced.
 use crate::Options;
 
-/// La part sous laquelle un travail n'a pas de quoi décoder la plus petite scène.
+/// Share under which a job has not enough to decode the smallest scene.
 pub const MIN_JOB_RAM_MB: usize = 64;
 
-/// La concurrence qu'un budget total permet de tenir, et la part qui revient alors à un travail qui
-/// n'en réclame pas. Un total sous le plancher d'un seul travail est refusé : rien n'y tiendrait.
+/// Concurrency a total budget can hold, and the share then given to a job that
+/// does not request one. A total under a single job's floor is refused: nothing
+/// would fit.
 pub fn batch_share(workers: usize, ram_total_mb: usize) -> Result<(usize, usize), String> {
     if ram_total_mb < MIN_JOB_RAM_MB {
         return Err(format!(
@@ -22,9 +23,9 @@ pub fn batch_share(workers: usize, ram_total_mb: usize) -> Result<(usize, usize)
     Ok((admitted, ram_total_mb / admitted))
 }
 
-/// La concurrence que les parts réclamées laissent tenir : les travaux les plus gourmands qui
-/// tournent de front doivent entrer ensemble dans le total. Un travail à lui seul plus gourmand que
-/// le lot entier est refusé en le nommant — aucune sérialisation ne le fera tenir.
+/// Concurrency that the requested shares leave room for: the greediest jobs that
+/// run in parallel must fit together in the total. A job greedier on its own than
+/// the whole batch is refused by name — no serialisation will make it fit.
 pub fn fit_workers(
     workers: usize,
     ram_total_mb: usize,
@@ -67,8 +68,8 @@ mod tests {
         (id.to_string(), options)
     }
 
-    // Comportement : deux ouvriers sous un total de 64 Mio, c'est un ouvrier à 64 Mio. La part ne
-    // descend jamais sous le plancher, donc c'est la concurrence qui cède.
+    // Behaviour: two workers under a 64 MiB total is one worker at 64 MiB. The
+    // share never goes below the floor, so it is concurrency that yields.
     #[test]
     fn deux_parts_plancher_sous_un_total_plancher_donnent_un_seul_ouvrier() {
         assert_eq!(batch_share(2, 64), Ok((1, 64)));
@@ -76,13 +77,13 @@ mod tests {
         assert_eq!(batch_share(4, 1024), Ok((4, 256)));
     }
 
-    // Comportement : un total qu'un seul travail ne pourrait pas honorer est refusé tout de suite.
+    // Behaviour: a total that a single job could not honour is refused at once.
     #[test]
     fn un_total_sous_le_plancher_est_refuse() {
         assert!(batch_share(1, 16).is_err());
     }
 
-    // Comportement : des parts réclamées qui ne tiennent pas ensemble réduisent la concurrence.
+    // Behaviour: requested shares that do not fit together reduce concurrency.
     #[test]
     fn des_parts_reclamees_trop_larges_reduisent_la_concurrence() {
         let jobs = [job("a", 200), job("b", 200)];
@@ -90,7 +91,7 @@ mod tests {
         assert_eq!(fit_workers(2, 400, &jobs), Ok(2));
     }
 
-    // Comportement : un travail plus gourmand que le lot entier est nommé, et le lot refusé.
+    // Behaviour: a job greedier than the whole batch is named, and the batch refused.
     #[test]
     fn un_travail_plus_gourmand_que_le_lot_est_nomme() {
         let jobs = [job("enorme", 4096)];

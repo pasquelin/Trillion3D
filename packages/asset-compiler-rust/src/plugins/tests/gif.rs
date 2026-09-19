@@ -1,14 +1,15 @@
-//! La dorée du pilote GIF : une image indexée rend ses couleurs telles quelles, que sa table soit
-//! globale ou locale, l'index déclaré transparent devient un alpha nul, et un fichier qui porte
-//! plus d'une image est refusé en le nommant. C'est ce refus qui compte le plus ici : choisir
-//! d'office laquelle des images d'une animation est *la* texture serait arbitraire.
+//! Golden of the GIF driver: an indexed image yields its colours as-is, whether its table is
+//! global or local, the declared transparent index becomes a zero alpha, and a file that
+//! carries more than one image is refused by naming it. It is that refusal that counts most
+//! here: choosing by default which of an animation's images is *the* texture would be
+//! arbitrary.
 use super::super::image as registry;
 use super::{assert_claims, assert_refusals, decoded_rgba8, fixture, rgba8};
 
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
 
-/// L'image de référence, ligne du haut d'abord. Le format étant indexé, ses couleurs sortent de la
-/// table sans arrondi : ce sont exactement les octets écrits dans la table.
+/// Reference image, top row first. The format being indexed, its colours come out of the table
+/// without rounding: they are exactly the bytes written in the table.
 const REFERENCE: [[u8; 3]; 8] = [
     [255, 0, 0],
     [0, 255, 0],
@@ -19,13 +20,13 @@ const REFERENCE: [[u8; 3]; 8] = [
     [16, 49, 239],
     [132, 239, 66],
 ];
-/// L'alpha du fichier à index transparent : le dernier pixel porte l'index déclaré transparent par
-/// l'extension de contrôle graphique, et lui seul.
+/// Alpha of the file with a transparent index: the last pixel carries the index declared
+/// transparent by the graphic control extension, and it alone.
 const ALPHA_TRANSPARENT: [u8; 8] = [255, 255, 255, 255, 255, 255, 255, 0];
 const OPAQUE: [u8; 8] = [255; 8];
 
-/// Où s'arrête la première image d'`anime.gif` : treize octets d'entête et de descripteur d'écran,
-/// vingt-quatre de table de couleurs globale, puis les dix-neuf du premier bloc d'image.
+/// Where the first image of `anime.gif` ends: thirteen bytes of header and screen descriptor,
+/// twenty-four of global colour table, then the nineteen of the first image block.
 const PREMIERE_IMAGE_FIN: usize = 13 + 24 + 19;
 
 fn expected(alpha: &[u8; 8]) -> Vec<u8> {
@@ -36,69 +37,69 @@ fn expected(alpha: &[u8; 8]) -> Vec<u8> {
         .collect()
 }
 
-/// L'image que le registre rend pour cette fixture, dimensions vérifiées au passage.
+/// Image the registry yields for this fixture, dimensions checked along the way.
 fn rendu(name: &str) -> image::RgbaImage {
     decoded_rgba8("gif", name, MAX_ALLOC, (4, 2))
 }
 
-// Dorée du pilote GIF : la table de couleurs globale et la table locale portent la même image et
-// rendent les mêmes octets — d'où vient la table ne change pas un pixel. L'index transparent, lui,
-// ne change que l'alpha : la couleur que la table lui donne reste là, elle n'est ni effacée ni
-// remplie de blanc, et rien n'est prémultiplié.
+// GIF driver golden: the global colour table and the local table carry the same image and yield
+// the same bytes — where the table comes from does not change a pixel. The transparent index,
+// for its part, only changes alpha: the colour the table gives it stays there, it is neither
+// erased nor filled with white, and nothing is premultiplied.
 #[test]
-fn les_deux_tables_de_couleurs_rendent_les_memes_pixels() {
+fn the_two_colour_tables_yield_the_same_pixels() {
     for name in ["palette-globale.gif", "palette-locale.gif"] {
         assert_eq!(
             rendu(name).as_raw(),
             &expected(&OPAQUE),
-            "{name} : les pixels divergent de la référence"
+            "{name}: pixels diverge from the reference"
         );
     }
     assert_eq!(
         rendu("transparence.gif").as_raw(),
         &expected(&ALPHA_TRANSPARENT),
-        "l'index transparent ne touche que l'alpha, jamais la couleur de la table"
+        "the transparent index touches only alpha, never the table colour"
     );
 }
 
-// Contrat du pilote : ce qu'il reconnaît, ce qu'il refuse, et sous quel nom il le rapporte. Un GIF
-// refusé laisse le moteur retomber sur son blanc ; il n'interrompt aucune compilation et ne panique
-// jamais. Une animation est écartée avant tout décodage, par la raison du pilote `webp` : un refus
-// d'animation est un refus d'animation, quel que soit le format qui la porte.
+// Driver contract: what it recognises, what it refuses, and under which name it reports it. A
+// refused GIF lets the engine fall back on its white; it interrupts no compilation and never
+// panics. An animation is dropped before any decoding, by the `webp` driver's reason: an
+// animation refusal is an animation refusal, whatever format carries it.
 #[test]
-fn un_gif_hors_politique_ressort_en_raison_de_rapport_jamais_en_panique() {
+fn a_gif_outside_policy_comes_out_as_a_report_reason_never_as_a_panic() {
     assert_claims("gif", "image/gif", &["gif", "GIF", "Gif"]);
     assert_refusals(
         "gif",
         MAX_ALLOC,
         &[
             ("anime.gif", "image-animation-unsupported"),
-            // Tronqué : la signature reste celle d'un GIF, donc le pilote est bien choisi, et le
-            // parcours des blocs s'arrête faute d'octets — sans conclure à une animation.
+            // Truncated: the signature remains that of a GIF, so the driver is chosen, and the
+            // walk of the blocks stops for lack of bytes — without concluding to an animation.
             ("tronque.gif", "image-decode-failed"),
         ],
     );
-    // Les deux versions du format portent la même structure : la 87a n'a pas d'extensions, et le
-    // parcours des blocs doit la traverser aussi bien que la 89a.
+    // Both versions of the format carry the same structure: 87a has no extensions, and the walk
+    // of the blocks must cross it as well as 89a.
     let mut ancienne = fixture("gif", "palette-globale.gif");
     ancienne[..6].copy_from_slice(b"GIF87a");
     assert_eq!(rendu_octets(&ancienne), expected(&OPAQUE));
-    // `anime.gif` coupé à la fin de sa première image : plus de bloc suivant, et plus d'octet de
-    // fin non plus. Le parcours ne conclut donc pas à l'animation, et le décodeur lit l'image
-    // entière qui reste — une image sans octet de fin est une image, pas une animation.
+    // `anime.gif` cut at the end of its first image: no next block, and no terminator either.
+    // The walk therefore does not conclude to animation, and the decoder reads the whole image
+    // that remains — an image without a terminator is an image, not an animation.
     let anime = fixture("gif", "anime.gif");
     assert_eq!(
         rendu_octets(&anime[..PREMIERE_IMAGE_FIN]),
         expected(&OPAQUE)
     );
-    // Quatre octets plus loin, le second séparateur d'image est là et son descripteur est coupé :
-    // cela suffit à prouver la seconde image, et c'est de l'animation que le fichier est refusé.
+    // Four bytes further, the second image separator is there and its descriptor is cut: that
+    // is enough to prove the second image, and it is as animation that the file is refused.
     assert_eq!(
         registry::decode(&anime[..PREMIERE_IMAGE_FIN + 4], MAX_ALLOC).err(),
         Some("image-animation-unsupported")
     );
-    // La signature est la seule marque du format : sans elle, ces octets ressortent en format
-    // inconnu plutôt qu'en GIF illisible.
+    // The signature is the only mark of the format: without it, these bytes come out as an
+    // unknown format rather than as an unreadable GIF.
     for head in [b"GIF89".as_slice(), b"GIF90a\x04\x00\x02\x00"] {
         assert!(registry::by_head(head).is_none());
         assert_eq!(
@@ -108,9 +109,9 @@ fn un_gif_hors_politique_ressort_en_raison_de_rapport_jamais_en_panique() {
     }
 }
 
-/// Les octets rendus par le registre pour des octets tenus en mémoire, sans passer par un fichier.
+/// Bytes the registry yields for bytes held in memory, without going through a file.
 fn rendu_octets(bytes: &[u8]) -> Vec<u8> {
-    rgba8(registry::decode(bytes, MAX_ALLOC).expect("décodé"))
+    rgba8(registry::decode(bytes, MAX_ALLOC).expect("decoded"))
         .as_raw()
         .clone()
 }

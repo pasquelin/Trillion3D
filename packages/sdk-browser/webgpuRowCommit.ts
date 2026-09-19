@@ -88,11 +88,10 @@ export function createWebgpuRowCommit(rows: Rows, writePageRow: Writer) {
       );
     }
     if (rewrites || moved) rows.rowsChanged = true;
-    // Une ligne qui a gardé sa place porte déjà sa page, son offset de mots, son époque et son rang
-    // inverse : `sourceRowOf` ne l'a rendue que parce que les quatre étaient encore exacts. Seules
-    // les lignes déplacées et les lignes reconstruites ont quelque chose à réécrire. Deux lignes qui
-    // nommeraient la même page auraient la même source, ce qui met `monotone` à faux : le raccourci
-    // ne peut pas laisser passer un rang inverse périmé.
+    // A row that kept its place already carries its page, word offset, epoch and inverse rank:
+    // `sourceRowOf` only returned it because all four were still exact. Only moved rows and rebuilt
+    // rows have something to rewrite. Two rows that would name the same page would have the same
+    // source, which sets `monotone` false: the shortcut cannot let a stale inverse rank through.
     const rowPageIndex = rows.rowPageIndex,
       rowOffsetWords = rows.rowOffsetWords,
       rowEpoch = rows.rowEpoch,
@@ -112,8 +111,8 @@ export function createWebgpuRowCommit(rows: Rows, writePageRow: Writer) {
     if (count !== rows.rowCount) rows.rowsChanged = true;
     rows.rowCount = count;
     rows.packedCount = count;
-    // La coupe processeur a posé ses propres rangs : l'allocateur incrémental ne peut plus croire à
-    // la correspondance page → rang qu'il tenait, et repart du catalogue à sa prochaine passe.
+    // The CPU cut posted its own ranks: the incremental allocator can no longer trust the page → rank
+    // mapping it held, and starts over from the catalogue on its next pass.
     rows.rowsRevision++;
   };
   /** Where the previous image wrote this page, or -1 when its row cannot be reused as it stands. */

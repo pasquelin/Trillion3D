@@ -11,8 +11,8 @@ fn linear(byte: u8) -> f32 {
     }
 }
 
-// Comportement 2 : chaque niveau après le premier est la moyenne 2×2 exacte du précédent, en
-// linéaire prémultiplié — ici alpha vaut 255 partout, donc prémultiplié == linéaire directement.
+// Behavior 2: level after first is exact 2x2 average of previous,
+// linear premultiplied — alpha 255 everywhere, premultiplied == linear directly.
 #[test]
 fn each_level_is_the_exact_2x2_average_of_the_previous_one() {
     let (width, height) = (32u32, 32u32);
@@ -25,7 +25,7 @@ fn each_level_is_the_exact_2x2_average_of_the_previous_one() {
         ]
     });
     let (first, pixels) = tail_of(&source, AtlasKind::Color);
-    assert_eq!(first, 0, "une source de 32 px tient déjà sous la base");
+    assert_eq!(first, 0, "a 32 px source already fits under the base");
     let count = preview_level_count(width, height) as usize;
     for index in 0..count - 1 {
         let (fine_side, _) = level_size(width, height, index);
@@ -56,12 +56,12 @@ fn each_level_is_the_exact_2x2_average_of_the_previous_one() {
     }
 }
 
-// Comportement 1 : nombre, tailles et octets des niveaux pour une texture non carrée dont les deux
-// côtés dépassent la base, et pour une texture assez grande pour saturer les sept niveaux et les
-// 21 844 octets maximum que le module documente.
+// Behavior 1: level count, sizes, bytes for non-square texture with both
+// sides exceeding base, and for texture large enough to saturate seven levels and
+// maximum 21,844 bytes documented by module.
 #[test]
 fn geometry_matches_expectations_for_a_non_square_and_a_maximal_texture() {
-    // 128×64 : exactement le double de la base sur chaque côté, un niveau sous le maximum.
+    // 128x64: exactly double base per side, one level under max.
     assert_eq!(preview_first_level(128, 64), 1);
     assert_eq!(preview_last_level(128, 64), 7);
     assert_eq!(preview_level_count(128, 64), 7);
@@ -69,7 +69,7 @@ fn geometry_matches_expectations_for_a_non_square_and_a_maximal_texture() {
     assert_eq!(preview_level_size(128, 64, 7), (1, 1));
     assert_eq!(preview_pixel_bytes(128, 64), 10_924);
 
-    // 4096×4096 : assez grande pour que le premier niveau porté tombe pile sur la base.
+    // 4096x4096: large enough for first carried level to land exactly on base.
     assert_eq!(preview_first_level(4096, 4096), 6);
     assert_eq!(preview_last_level(4096, 4096), 12);
     assert_eq!(preview_level_count(4096, 4096), PREVIEW_MAX_LEVELS);

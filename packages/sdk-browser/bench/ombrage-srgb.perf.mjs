@@ -1,4 +1,4 @@
-// sRGB vers linéaire dans l'échantillonnage de texture.
+// sRGB to linear in texture sampling.
 import * as THREE from 'three';
 import { sampleLinear, sampleMap, wrapTexel } from '../visibilityMath.ts';
 import { textureRgba } from '../visibilityTypes.ts';
@@ -48,16 +48,16 @@ const sansImage = new THREE.Texture();
 const atlas = texture(256, 256, 17, THREE.RepeatWrapping, THREE.RepeatWrapping);
 
 function parcours(sampler) {
-  return (entree) => {
-    const { map, coords } = entree;
-    const sortie = new Float64Array(coords.length * 3);
+  return (input) => {
+    const { map, coords } = input;
+    const output = new Float64Array(coords.length * 3);
     for (let i = 0; i < coords.length; i++) {
       const c = sampler(map, coords[i][0], coords[i][1]);
-      sortie[i * 3] = c[0];
-      sortie[i * 3 + 1] = c[1];
-      sortie[i * 3 + 2] = c[2];
+      output[i * 3] = c[0];
+      output[i * 3 + 1] = c[1];
+      output[i * 3 + 2] = c[2];
     }
-    return sortie;
+    return output;
   };
 }
 
@@ -66,12 +66,12 @@ const points = [];
 for (let i = 0; i < 4000; i++) points.push([alea() * 4 - 2, alea() * 4 - 2]);
 
 const cas = [
-  { nom: '4 000 échantillons sRGB', entree: { map: atlas, coords: points }, taille: 4000 },
-  { nom: 'sans image', entree: { map: sansImage, coords: points.slice(0, 10) }, taille: 10 },
+  { name: '4 000 sRGB samples', input: { map: atlas, coords: points }, size: 4000 },
+  { name: 'no image', input: { map: sansImage, coords: points.slice(0, 10) }, size: 10 },
 ];
 
 const resSrgb = await mesure({
-  nom: 'sRGB vers linéaire',
+  name: 'sRGB to linear',
   fichier: 'packages/sdk-browser/visibilityMath.ts',
   cas,
   calcul: parcours(sampleMap),
@@ -80,7 +80,7 @@ const resSrgb = await mesure({
 });
 
 const resLinear = await mesure({
-  nom: 'échantillonnage linéaire',
+  name: 'linear sampling',
   fichier: 'packages/sdk-browser/visibilityMath.ts',
   cas,
   calcul: parcours(sampleLinear),
@@ -89,13 +89,13 @@ const resLinear = await mesure({
 });
 
 await stress({
-  nom: 'sampleMap extremes',
+  name: 'sampleMap extremes',
   calcul: ([u, v]) => sampleMap(atlas, u, v),
   extremes: [
-    { nom: 'NaN', entree: [NaN, NaN] },
-    { nom: 'infini', entree: [Infinity, -Infinity] },
-    { nom: 'zero', entree: [0, 0] },
+    { name: 'NaN', input: [NaN, NaN] },
+    { name: 'infinity', input: [Infinity, -Infinity] },
+    { name: 'zero', input: [0, 0] },
   ],
 });
 
-rapport('ombrage-srgb', [resSrgb, resLinear], 'C7 rend exactement les mêmes composantes');
+rapport('ombrage-srgb', [resSrgb, resLinear], 'C7 yields the exact same components');

@@ -67,10 +67,10 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
   timing.transparentSpanUploadBytes = 0;
   if (!gpu.bindGroupLayout || !gpu.cache || !gpu.colorView || !gpu.depthView) return 0;
   const [width, height] = gpu.targetSize;
-  // Plans du tronc et vue-projection sont ceux que l'entrée d'image a posés : le moteur n'a qu'une
-  // convention de profondeur (`depthConvention.ts`), donc rien n'est converti en chemin.
+  // Frustum planes and view-projection are those image entry posted: the engine has one depth
+  // convention (`depthConvention.ts`), so nothing is converted along the path.
   blendState.blendPlanes.set(cam.planes);
-  // La matrice de rendu porte la gigue de l'antialiasing temporel ; la caméra n'en sait rien.
+  // The render matrix carries temporal-antialiasing jitter; the camera knows nothing of it.
   viewProj.set(taaRenderMatrix(rt, cam));
   ensurePageTable(rt, device);
   if (!run.gpuFrameActive) rt.services.syncRowsFromCut();

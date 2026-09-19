@@ -22,8 +22,8 @@ export async function createExplorerPageSources(
   const { pages, geometryPages, geometryUrls, pageIdByUrl } = indexManifestPages(metadata);
   const exactPages = pages.filter((page) => (page.role ?? 'exact') !== 'coarse');
   const preload = options.preload ?? 'visible';
-  // Ce que les moteurs à mémoire hôte gardent résident sans plafond de l'hôte, et ce que le
-  // diffuseur garde en cache ; le moteur WebGPU, lui, tient son propre réservoir en octets. A
+  // What host-memory engines keep resident without a host ceiling, and what the streamer
+  // keeps in cache; the WebGPU engine, for its part, holds its own pool in bytes. A
   // cluster DAG cuts far below its exact page count, but the cut moves every frame: the resident
   // set must be a superset of it or the cache thrashes. Twice the expected cut, floored at 32768.
   const bundles = indexManifestBundles(metadata);
@@ -38,7 +38,7 @@ export async function createExplorerPageSources(
     (dagPages
       ? Math.max(8192, bundles.length * 2)
       : Math.max(8192, Math.min(attachCap, DEFAULT_CACHED_PAGES)));
-  // Le pool de décodage ne dépasse jamais l'admission des transferts déjà en vigueur.
+  // The decode pool never exceeds the already-in-force transfer admission.
   configurePageDecoders(options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS);
   const streamer = createPageStreamer(
     [...pages, ...geometryPages, ...bundles],
@@ -64,13 +64,13 @@ export async function createExplorerPageSources(
       base,
       signal,
       (completed, total) =>
-        progress('pages', completed, total, 'Lecture et vérification des pages exactes et LOD'),
+        progress('pages', completed, total, 'Reading and checking exact and LOD pages'),
       options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS,
     );
     for (const [url, array] of all.indices) indices.set(url, array);
     loaded = all.loaded;
     pageBytesRead = all.pageBytesRead;
-  } else progress('pages', 0, pages.length, 'Hiérarchie prête · pages à la demande');
+  } else progress('pages', 0, pages.length, 'Hierarchy ready · pages on demand');
   return {
     pages,
     geometryPages,

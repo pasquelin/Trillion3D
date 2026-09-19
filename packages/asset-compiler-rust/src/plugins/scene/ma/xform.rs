@@ -1,20 +1,20 @@
-//! La matrice locale d'un `transform`, dans la convention de glTF : seize nombres par colonnes, un
-//! point transformé par `M · p`.
+//! Local matrix of a `transform`, in glTF's convention: sixteen numbers column-major, a point
+//! transformed by `M · p`.
 //!
-//! Maya documente la sienne dans l'ordre où un point la traverse, vecteur-ligne à gauche :
-//! `SP⁻¹ · S · SH · SP · ST · RP⁻¹ · RA · R · RP · RT · T`, puis la matrice du père décalé
-//! `offsetParentMatrix`. Transposée pour un vecteur-colonne, elle se lit de gauche à droite
-//! `OPM · T · RT · RP · R · RA · RP⁻¹ · ST · SP · SH · S · SP⁻¹` : chaque pivot déplace ce qu'il
-//! précède puis le remet en place, `rotateAxis` oriente l'axe local **avant** la rotation, et une
-//! pose sans pivot ni cisaillement retombe exactement sur `T · R · S`.
+//! Maya documents its own in the order a point walks it, row-vector on the left:
+//! `SP⁻¹ · S · SH · SP · ST · RP⁻¹ · RA · R · RP · RT · T`, then the offset parent matrix
+//! `offsetParentMatrix`. Transposed for a column vector, it reads left to right
+//! `OPM · T · RT · RP · R · RA · RP⁻¹ · ST · SP · SH · S · SP⁻¹`: each pivot moves what
+//! precedes it then puts it back, `rotateAxis` orients the local axis **before** the rotation,
+//! and a pose with no pivot or shear falls exactly on `T · R · S`.
 //!
-//! Maya écrit chacun de ces vecteurs d'un bloc — `.t` — ou composante par composante — `.tx` —,
-//! souvent les deux dans le même fichier : les deux écritures sont lues, la composante l'emportant.
+//! Maya writes each of these vectors as a block — `.t` — or component by component — `.tx` —,
+//! often both in the same file: both writings are read, the component winning.
 use super::*;
 use crate::compiler_world::{multiply, rotation_matrix, scaling, translation, Mat4, IDENTITY};
 
-/// Les six ordres d'application des rotations d'Euler que `rotateOrder` numérote, chacun donnant les
-/// axes **dans l'ordre où ils s'appliquent au point**.
+/// The six Euler rotation application orders that `rotateOrder` numbers, each giving the axes
+/// **in the order they apply to the point**.
 const ORDERS: [[usize; 3]; 6] = [
     [0, 1, 2],
     [1, 2, 0],
@@ -24,12 +24,12 @@ const ORDERS: [[usize; 3]; 6] = [
     [2, 1, 0],
 ];
 
-/// Les suffixes des composantes d'un vecteur d'axes, `.tx` pour `.t`.
+/// Suffixes of the components of an axis vector, `.tx` for `.t`.
 const AXES: [&str; 3] = ["x", "y", "z"];
-/// Ceux d'un cisaillement, qui nomme des plans et non des axes : `.shxy` pour `.sh`.
+/// Those of a shear, which names planes not axes: `.shxy` for `.sh`.
 const PLANES: [&str; 3] = ["xy", "xz", "yz"];
 
-/// La matrice locale de ce nœud, ou `None` quand elle est l'identité.
+/// Local matrix of this node, or `None` when it is identity.
 pub(super) fn local(node: &Node, degrees_per_unit: f64, report: &mut Report) -> Option<Mat4> {
     let rotate_pivot = triple(node, ["rp", "rotatePivot"], AXES, [0.0; 3]);
     let scale_pivot = triple(node, ["sp", "scalePivot"], AXES, [0.0; 3]);
@@ -61,13 +61,13 @@ pub(super) fn local(node: &Node, degrees_per_unit: f64, report: &mut Report) -> 
     (out != IDENTITY).then_some(out)
 }
 
-/// Ce nœud hérite-t-il de la pose de son père ? `inheritsTransform` à zéro coupe l'héritage : le
-/// nœud se pose dans le repère de la scène, et la pose de son père ne le suit pas.
+/// Does this node inherit its parent's pose? `inheritsTransform` at zero cuts inheritance: the
+/// node sits in the scene frame, and its parent's pose does not follow it.
 pub(super) fn inherits(node: &Node) -> bool {
     node.attr(&["it", "inheritsTransform"]).and_then(Attr::flag) != Some(false)
 }
 
-/// L'ordre d'application des rotations que `rotateOrder` déclare, `xyz` par défaut.
+/// Rotation application order that `rotateOrder` declares, `xyz` by default.
 fn order(node: &Node) -> [usize; 3] {
     node.attr(&["ro", "rotateOrder"])
         .and_then(Attr::scalar)
@@ -76,8 +76,8 @@ fn order(node: &Node) -> [usize; 3] {
         .unwrap_or(ORDERS[0])
 }
 
-/// Une rotation d'Euler du nœud, composée dans l'ordre donné. Les axes s'appliquent au point du
-/// premier au dernier, donc la matrice compose le dernier en premier.
+/// An Euler rotation of the node, composed in the given order. Axes apply to the point from
+/// first to last, so the matrix composes the last first.
 fn rotation(node: &Node, names: [&str; 2], order: [usize; 3], degrees_per_unit: f64) -> Mat4 {
     let angles = triple(node, names, AXES, [0.0; 3]);
     let mut out = IDENTITY;
@@ -87,8 +87,8 @@ fn rotation(node: &Node, names: [&str; 2], order: [usize; 3], degrees_per_unit: 
     out
 }
 
-/// La rotation de `degrees` autour de l'axe `axis` (0 = X, 1 = Y, 2 = Z), par son quaternion : la
-/// formule de rotation du compilateur est déjà écrite, et une seconde s'en écarterait.
+/// Rotation of `degrees` around axis `axis` (0 = X, 1 = Y, 2 = Z), by its quaternion: the
+/// compiler's rotation formula is already written, and a second one would drift from it.
 fn turn(axis: usize, degrees: f64) -> Mat4 {
     let half = degrees.to_radians() / 2.0;
     let mut quaternion = [0.0, 0.0, 0.0, half.cos()];
@@ -96,8 +96,8 @@ fn turn(axis: usize, degrees: f64) -> Mat4 {
     rotation_matrix(quaternion)
 }
 
-/// La matrice d'un cisaillement `(XY, XZ, YZ)` de Maya : l'axe `Y` penche vers `X`, l'axe `Z` vers
-/// `X` et vers `Y`. Une matrice de nœud glTF le porte tel quel, sans le mêler à la rotation.
+/// Matrix of a Maya shear `(XY, XZ, YZ)`: axis `Y` leans toward `X`, axis `Z` toward `X` and
+/// toward `Y`. A glTF node matrix carries it as-is, without mixing it into the rotation.
 fn shear([xy, xz, yz]: [f64; 3]) -> Mat4 {
     let mut out = IDENTITY;
     out[4] = xy;
@@ -106,10 +106,10 @@ fn shear([xy, xz, yz]: [f64; 3]) -> Mat4 {
     out
 }
 
-/// La matrice du père décalé, `offsetParentMatrix`, qui s'applique après la pose locale. Maya écrit
-/// ses seize nombres ligne par ligne pour un vecteur-ligne, ce qui est exactement l'écriture
-/// colonne par colonne de glTF : la transposée de l'une est l'autre, et les nombres ne bougent pas.
-/// Écrite autrement — la forme longue `xform` —, elle n'est pas devinée mais comptée.
+/// Offset parent matrix, `offsetParentMatrix`, which applies after the local pose. Maya writes
+/// its sixteen numbers row by row for a row-vector, which is exactly glTF's column-by-column
+/// writing: the transpose of one is the other, and the numbers do not move. Written otherwise —
+/// the long `xform` form — it is not guessed but counted.
 fn offset(node: &Node, report: &mut Report) -> Mat4 {
     let Some(written) = node.attr(&["opm", "offsetParentMatrix"]) else {
         return IDENTITY;
@@ -120,8 +120,8 @@ fn offset(node: &Node, report: &mut Report) -> Mat4 {
     })
 }
 
-/// Les trois nombres d'un vecteur du nœud : l'attribut composé quand il est écrit, puis chaque
-/// composante qu'un `setAttr` a écrite seule, qui l'emporte sur lui.
+/// Three numbers of a node vector: the compound attribute when it is written, then each
+/// component a `setAttr` wrote alone, which wins over it.
 fn triple(node: &Node, names: [&str; 2], parts: [&str; 3], default: [f64; 3]) -> [f64; 3] {
     let mut out = node.attr(&names).and_then(Attr::triple).unwrap_or(default);
     for (axis, part) in parts.iter().enumerate() {
@@ -137,8 +137,8 @@ fn triple(node: &Node, names: [&str; 2], parts: [&str; 3], default: [f64; 3]) ->
     out
 }
 
-/// La matrice de la racine de la scène : l'unité du fichier vers le mètre. Maya écrit ses scènes
-/// l'axe `Y` en haut, comme glTF : il n'y a donc aucune rotation à y ajouter.
+/// Scene-root matrix: the file's unit into metres. Maya writes its scenes with axis `Y` up, like
+/// glTF: there is therefore no rotation to add.
 pub(super) fn root(meters_per_unit: f64) -> Mat4 {
     scaling([meters_per_unit; 3])
 }

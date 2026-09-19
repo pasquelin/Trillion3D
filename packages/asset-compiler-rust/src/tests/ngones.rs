@@ -1,12 +1,13 @@
-//! Le polygone en U de l'audit, et ce que chaque pilote en rend.
+//! The audit's U polygon, and what each driver yields of it.
 //!
-//! Un éventail depuis le premier coin remplit le creux d'un polygone concave : ses triangles sortent
-//! de la face, et la somme de leurs aires dépasse l'aire écrite. Ce U d'aire sept en rendait onze
-//! dans les quatre pilotes qui écrivent eux-mêmes leur géométrie. La mesure est donc partagée ici,
-//! avec l'anneau, pour que chaque pilote se prouve sur le même polygone et la même aire.
+//! A fan from the first corner fills the hollow of a concave polygon: its
+//! triangles leave the face, and the sum of their areas exceeds the written area.
+//! This U of area seven used to yield eleven in the four drivers that write their
+//! own geometry. The measurement is therefore shared here, with the ring, so each
+//! driver proves itself on the same polygon and the same area.
 use super::*;
 
-/// Le polygone en U : huit coins, aire sept, un éventail à onze.
+/// The U polygon: eight corners, area seven, a fan of eleven.
 pub(crate) const U_RING: [[f64; 2]; 8] = [
     [0.0, 0.0],
     [3.0, 0.0],
@@ -18,7 +19,7 @@ pub(crate) const U_RING: [[f64; 2]; 8] = [
     [0.0, 3.0],
 ];
 
-/// L'aire d'un triangle, par la moitié de la longueur du produit vectoriel de deux de ses côtés.
+/// Area of a triangle, by half the length of the cross product of two of its sides.
 pub(crate) fn triangle_area(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> f64 {
     let edge = |x: [f64; 3], y: [f64; 3]| [y[0] - x[0], y[1] - x[1], y[2] - x[2]];
     let (u, v) = (edge(a, b), edge(a, c));
@@ -31,8 +32,9 @@ pub(crate) fn triangle_area(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> f64 {
     square.sqrt() / 2.0
 }
 
-/// L'aire rendue d'un maillage : la somme des aires, prises en valeur absolue, de ses triangles.
-/// Un triangle sorti du polygone ajoute la sienne au lieu de s'y fondre, et c'est ce qui se voit.
+/// Rendered area of a mesh: the sum of the areas, taken in absolute value, of its
+/// triangles. A triangle that left the polygon adds its own instead of merging,
+/// and that is what shows.
 pub(crate) fn rendered_area(positions: &[f32], indices: &[u32]) -> f64 {
     let point = |rank: u32| {
         let at = rank as usize * 3;
@@ -50,7 +52,7 @@ pub(crate) fn rendered_area(positions: &[f32], indices: &[u32]) -> f64 {
         .sum()
 }
 
-/// L'aire rendue d'un découpage donné en rangs d'un anneau.
+/// Rendered area of a cut given as ranks of a ring.
 pub(crate) fn cut_area(ring: &[[f64; 3]], triangles: &[[usize; 3]]) -> f64 {
     triangles
         .iter()
@@ -58,27 +60,25 @@ pub(crate) fn cut_area(ring: &[[f64; 3]], triangles: &[[usize; 3]]) -> f64 {
         .sum()
 }
 
-/// Les octets d'un accesseur dans le binaire de la scène, avec son type de composant.
+/// Bytes of an accessor in the scene binary, with its component type.
 fn accessor<'a>(gltf: &Value, bin: &'a [u8], rank: usize) -> (&'a [u8], u64) {
     let accessor = &gltf["accessors"][rank];
-    let rank = accessor["bufferView"].as_u64().expect("vue de tampon") as usize;
+    let rank = accessor["bufferView"].as_u64().expect("buffer view") as usize;
     let view = &gltf["bufferViews"][rank];
     let from = view["byteOffset"].as_u64().unwrap_or(0) as usize;
-    let length = view["byteLength"].as_u64().expect("longueur") as usize;
+    let length = view["byteLength"].as_u64().expect("length") as usize;
     (
         &bin[from..from + length],
-        accessor["componentType"]
-            .as_u64()
-            .expect("type de composant"),
+        accessor["componentType"].as_u64().expect("component type"),
     )
 }
 
-/// L'aire rendue de la première primitive du premier maillage qu'un pilote a écrit dans le cache.
+/// Rendered area of the first primitive of the first mesh a driver wrote in the cache.
 fn prepared_area(run: &GoldenRun, plugin: &str) -> f64 {
     let (_, gltf) = run.prepared(plugin);
     let bin = fs::read(run.prepared_dir(plugin).join("model.bin")).expect("model.bin");
     let primitive = &gltf["meshes"][0]["primitives"][0];
-    let rank = |value: &Value| value.as_u64().expect("accesseur") as usize;
+    let rank = |value: &Value| value.as_u64().expect("accessor") as usize;
     let (bytes, _) = accessor(&gltf, &bin, rank(&primitive["attributes"]["POSITION"]));
     let positions: Vec<f32> = bytes
         .as_chunks::<4>()
@@ -91,15 +91,15 @@ fn prepared_area(run: &GoldenRun, plugin: &str) -> f64 {
     let indices: Vec<u32> = bytes
         .chunks_exact(width)
         .map(|word| match width {
-            4 => u32::from_le_bytes(word.try_into().expect("indice")),
-            _ => u32::from(u16::from_le_bytes(word.try_into().expect("indice"))),
+            4 => u32::from_le_bytes(word.try_into().expect("index")),
+            _ => u32::from(u16::from_le_bytes(word.try_into().expect("index"))),
         })
         .collect();
     rendered_area(&positions, &indices)
 }
 
-/// Les coins du U, écrits en texte : chaque coin entre `open` et `close`, ses trois nombres
-/// séparés par `inner`, et les coins séparés par `outer`.
+/// Corners of the U, written as text: each corner between `open` and `close`, its
+/// three numbers separated by `inner`, and the corners separated by `outer`.
 fn corners(inner: &str, outer: &str, open: &str, close: &str) -> String {
     U_RING
         .iter()
@@ -108,8 +108,9 @@ fn corners(inner: &str, outer: &str, open: &str, close: &str) -> String {
         .join(outer)
 }
 
-// Comportement : le pilote `ma` rend l'aire du polygone qu'il lit. Le U d'aire sept sortait à onze,
-// l'éventail depuis son premier coin traversant le creux ; il sort maintenant à sept.
+// Behaviour: the `ma` driver yields the area of the polygon it reads. The U of
+// area seven used to come out as eleven, the fan from its first corner crossing
+// the hollow; it now comes out as seven.
 #[test]
 fn the_ma_driver_keeps_the_area_of_a_concave_polygon() {
     let edges: String = (0..8)
@@ -118,7 +119,7 @@ fn the_ma_driver_keeps_the_area_of_a_concave_polygon() {
         .join("  ");
     let scene = format!(
         "//Maya ASCII 2024 scene\n\
-         //Fixture écrite à la main depuis la documentation publique des commandes MEL : CC0-1.0.\n\
+         //Fixture written by hand from the public documentation of MEL commands: CC0-1.0.\n\
          requires maya \"2024\";\n\
          currentUnit -l centimeter -a degree -t film;\n\
          createNode transform -n \"U\";\n\
@@ -131,14 +132,17 @@ fn the_ma_driver_keeps_the_area_of_a_concave_polygon() {
     );
     let dir = scratch("ma", "ngone");
     let source = dir.join("u.ma");
-    fs::write(&source, scene).expect("scène");
+    fs::write(&source, scene).expect("scene");
     let run = compile_golden_source(&source, "ma-ngone");
     let area = prepared_area(&run, "ma");
     fs::remove_dir_all(&dir).ok();
-    assert!((area - 7.0).abs() < 1e-5, "aire rendue {area}, attendue 7");
+    assert!(
+        (area - 7.0).abs() < 1e-5,
+        "rendered area {area}, expected 7"
+    );
 }
 
-// Comportement : le pilote `usd` en fait autant. Le même U, écrit en couche `.usda`, sort à sept.
+// Behaviour: the `usd` driver does the same. The same U, written as a `.usda` layer, comes out as seven.
 #[test]
 fn the_usd_driver_keeps_the_area_of_a_concave_polygon() {
     let mesh = format!(
@@ -151,5 +155,8 @@ fn the_usd_driver_keeps_the_area_of_a_concave_polygon() {
     );
     let run = usd_driver::compile_layer("ngone", &usd_driver::wrap("", &mesh));
     let area = prepared_area(&run, "usd");
-    assert!((area - 7.0).abs() < 1e-5, "aire rendue {area}, attendue 7");
+    assert!(
+        (area - 7.0).abs() < 1e-5,
+        "rendered area {area}, expected 7"
+    );
 }

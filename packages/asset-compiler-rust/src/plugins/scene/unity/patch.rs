@@ -1,46 +1,46 @@
-//! Les retouches qu'une instance de prefab pose sur son prefab source.
+//! Overrides a prefab instance places on its source prefab.
 //!
-//! `m_Modifications` est une suite de `{target, propertyPath, value, objectReference}` : chaque
-//! entrée vise un objet du prefab source par son `fileID` et y remplace une propriété. Le pilote
-//! applique celles qui changent la géométrie ou le rendu — position, rotation, échelle, activité
-//! d'un objet, matériau d'un emplacement, activation d'un rendu — et compte les autres, propriété
-//! par propriété : le nombre d'un manque se lit au rapport plutôt que de se deviner.
+//! `m_Modifications` is a sequence of `{target, propertyPath, value, objectReference}`: each
+//! entry targets an object of the source prefab by its `fileID` and replaces a property there.
+//! The driver applies those that change geometry or rendering — position, rotation, scale, an
+//! object's activity, a slot's material, a renderer's enabled flag — and counts the others,
+//! property by property: the count of a gap is read in the report rather than guessed.
 use super::*;
 
-/// Ce qu'une instance remplace, visé par visé.
+/// What an instance replaces, target by target.
 #[derive(Default)]
 pub(super) struct Changes {
     transforms: BTreeMap<i64, Overrides>,
     active: BTreeMap<i64, bool>,
     enabled: BTreeMap<i64, bool>,
-    /// Les emplacements de matériau que l'instance remplace : `None` quand elle ne dit rien de
-    /// cet emplacement, `Some` quand elle le nomme — la référence vide comprise, qui vide
-    /// l'emplacement au lieu de garder celui du prefab.
+    /// Material slots the instance replaces: `None` when it says nothing of this slot, `Some`
+    /// when it names it — the empty reference included, which empties the slot instead of
+    /// keeping the prefab's.
     materials: BTreeMap<i64, Vec<Option<Ref>>>,
-    /// Le nom de la racine : la seule retouche de nom qu'une instance porte.
+    /// Root name: the only name override an instance carries.
     pub(super) name: Option<String>,
-    /// Les retouches que le pilote sait appliquer.
+    /// Overrides the driver knows how to apply.
     applied: usize,
-    /// Les autres, comptées par propriété.
+    /// The others, counted by property.
     ignored: BTreeMap<String, usize>,
-    /// Les retouches d'emplacement de matériau dont l'indice ne décrit aucun rendu.
+    /// Material-slot overrides whose index describes no renderer.
     unplaceable: usize,
-    /// Ce que l'instance change dans la structure de sa source, et non dans ses propriétés.
+    /// What the instance changes in its source's structure, not in its properties.
     pub(super) structure: Structure,
 }
 
-/// Les préfixes d'une transformation locale : les trois grandeurs que le glTF porte, et rien
-/// d'autre — l'indice d'angles d'Euler que l'éditeur garde à côté du quaternion n'en est pas une.
+/// Prefixes of a local transform: the three quantities glTF carries, and nothing else — the
+/// Euler-angle index the editor keeps beside the quaternion is not one.
 const TRANSFORM: [&str; 3] = ["m_LocalPosition.", "m_LocalRotation.", "m_LocalScale."];
 
 impl Changes {
-    /// Lit `m_Modifications`.
+    /// Reads `m_Modifications`.
     pub(super) fn read(modification: &Yaml) -> Changes {
         let mut changes = Changes::default();
         for change in sequence(modification, "m_Modifications") {
             let target = reference(&change["target"]).file_id;
             let Some(path) = change["propertyPath"].as_str() else {
-                changes.count("(sans propriété)");
+                changes.count("(no property)");
                 continue;
             };
             changes.read_one(target, path, change);
@@ -92,8 +92,8 @@ impl Changes {
         }
     }
 
-    /// Compte une retouche laissée de côté sous le nom de sa propriété, les indices de tableau
-    /// réduits à `[]` pour que le rapport garde un nombre borné d'entrées.
+    /// Counts an override left aside under its property name, array indices reduced to `[]` so
+    /// the report keeps a bounded number of entries.
     fn count(&mut self, path: &str) {
         let mut name = String::with_capacity(path.len());
         let mut in_index = false;
@@ -109,10 +109,10 @@ impl Changes {
         *self.ignored.entry(name).or_insert(0) += 1;
     }
 
-    /// Pose les retouches d'une instance extérieure par-dessus celles-ci : un prefab imbriqué
-    /// applique d'abord les siennes, puis celles de l'instance qui le contient — l'ordre de
-    /// nidification, le dernier mot à la plus extérieure. Le nom de racine ne se transmet pas : il
-    /// vise la racine de l'instance qui le porte, non celle du prefab qu'elle contient.
+    /// Places an outer instance's overrides on top of these: a nested prefab applies its own
+    /// first, then those of the instance that contains it — nesting order, last word to the
+    /// outermost. The root name is not forwarded: it targets the root of the instance that
+    /// carries it, not that of the prefab it contains.
     pub(super) fn overlay(&mut self, outer: &Changes) {
         for (target, values) in &outer.transforms {
             let mine = self.transforms.entry(*target).or_default();
@@ -147,22 +147,22 @@ impl Changes {
         self.materials.get(&target).map(Vec::as_slice)
     }
 
-    /// Les cibles des retouches de transformation, par `fileID` croissant : le même fichier se
-    /// relit dans le même ordre, et chaque suite de valeurs reste celle de son seul objet.
+    /// Targets of transform overrides, by increasing `fileID`: the same file rereads in the
+    /// same order, and each value sequence stays that of its only object.
     pub(super) fn transform_targets(&self) -> impl Iterator<Item = (i64, &Overrides)> {
         self.transforms
             .iter()
             .map(|(target, values)| (*target, values))
     }
-    /// De même pour les emplacements de matériau.
+    /// Likewise for material slots.
     pub(super) fn material_targets(&self) -> impl Iterator<Item = (i64, &[Option<Ref>])> {
         self.materials
             .iter()
             .map(|(target, slots)| (*target, slots.as_slice()))
     }
 
-    /// Ce que l'instance a changé, et ce qu'elle demandait que ce pilote ne rend pas : le total,
-    /// puis le détail par propriété, pour qu'un manque se voie et se chiffre.
+    /// What the instance changed, and what it asked that this driver does not yield: the total,
+    /// then the detail by property, so a gap is seen and numbered.
     pub(super) fn report(&self, scene: &mut Scene) {
         scene.count("prefabOverridesApplied", self.applied);
         scene.count(

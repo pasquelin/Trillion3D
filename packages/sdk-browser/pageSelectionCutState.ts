@@ -25,7 +25,7 @@ export interface SelectionState<T extends PageRecord> {
   isResident?: (page: T) => boolean;
   pixelError: number;
   frustumRejected: number;
-  /** Nœuds de hiérarchie dépilés par la coupe de cette image. */
+  /** Hierarchy nodes popped by this image's cut. */
   nodesTested: number;
   lodLevel: number;
   complete: boolean;
@@ -37,43 +37,43 @@ export interface SelectionState<T extends PageRecord> {
   flatStructure?: ClusterStructureIndex;
   flatForced?: Uint8Array;
   flatForcedList?: number[];
-  /** Ce que le rejet de cône lit de la racine et de la caméra, posé au premier cône de la racine. */
+  /** What cone rejection reads of the root and the camera, set at the root's first cone. */
   flatCone: ConeContext;
-  /** Cette racine déclare porter des cônes : le chemin par cluster lit `cone`. Une racine qui
-   *  déclare n'en porter aucun sort le cône de la boucle, sans changer une seule décision. */
+  /** This root declares it carries cones: the per-cluster path reads `cone`. A root that
+   *  declares it carries none takes the cone out of the loop, without changing a single decision. */
   flatCones: boolean;
-  /** Cette racine déclare que chacune de ses pages porte sa boîte : sous un nœud entièrement dans
-   *  le tronc, le chemin par cluster ne lit alors ni `min` ni `max`. */
+  /** This root declares that each of its pages carries its box: under a node entirely inside
+   *  the frustum, the per-cluster path then reads neither `min` nor `max`. */
   flatBoxes: boolean;
-  /** La règle de résidence de cette coupe, résolue une fois : `RESIDENT_ALL` quand rien n'est tenu
-   *  (tout est réputé résident), `RESIDENT_ASK` quand l'hôte fournit sa réponse, `RESIDENT_ARRAY`
-   *  quand la résidence est le tableau d'indices de la page. Le chemin par cluster lit ce mode au
-   *  lieu de relire `hold` et `isResident` sur l'état à chaque cluster retenu ; les replis l'appliquent
-   *  par `residentUnder`. */
+  /** Residency rule of this cut, resolved once: `RESIDENT_ALL` when nothing is held
+   *  (everything is deemed resident), `RESIDENT_ASK` when the host supplies its answer,
+   *  `RESIDENT_ARRAY` when residency is the page's index array. The per-cluster path reads this
+   *  mode instead of re-reading `hold` and `isResident` on the state at each kept cluster; fallbacks
+   *  apply it through `residentUnder`. */
   residentMode: number;
-  /** Le seuil de cette image vaut zéro et l'étirement, la focale et le plan proche sont sains : la
-   *  coupe se décide alors sans projeter, à l'identique. */
+  /** This image's threshold is zero and stretch, focal length and near plane are sound: the
+   *  cut then decides without projecting, identically. */
   flatExact: boolean;
   flatUseForcing: boolean;
   flatMissing: boolean;
   flatShort: boolean;
-  /** Ce que les deux listes portent vraiment. Les tableaux ne sont plus vidés par `length = 0` à
-   *  chaque image — ils y perdraient leur capacité et la repousseraient de zéro à quatre-vingt
-   *  mille — mais réécrits par indice, et leur longueur n'est posée qu'une fois la coupe finie.
-   *  Pendant la coupe, ces deux comptes sont la seule vérité : `length` est en retard. */
+  /** What the two lists actually hold. The arrays are no longer cleared with `length = 0` each
+   *  image — they would lose their capacity and grow it back from zero to eighty thousand — but
+   *  rewritten by index, and their length is set only once the cut is finished. During the cut,
+   *  these two counts are the only truth: `length` is behind. */
   shownCount: number;
   wantedCount: number;
-  /** Triangles des deux coupes, sommés à la retenue dans l'ordre des tableaux : la somme est celle
-   *  d'un balayage de `wanted` et de `shown`, au même ordre et aux mêmes bits. */
+  /** Triangles of both cuts, summed with a running total in array order: the sum is that of a
+   *  sweep of `wanted` and `shown`, in the same order and at the same bits. */
   wantedTriangles: number;
   shownTriangles: number;
-  /** Budget de pages au-delà duquel un passage n'a plus rien à dire ; `0` quand il n'y en a pas. */
+  /** Page budget beyond which a pass has nothing left to say; `0` when there is none. */
   budget: number;
-  /** Ce passage a dépassé le budget : son résultat est jeté, la descente s'arrête là. */
+  /** This pass overflowed the budget: its result is discarded, the descent stops there. */
   over: boolean;
 }
 
-/** Résultat de la coupe, rempli en place : l'appelant fournit l'objet, l'image n'en alloue aucun. */
+/** Cut result, filled in place: the caller supplies the object, the image allocates none. */
 export interface SelectionResult<T> {
   shown: T[];
   wanted: T[];
@@ -81,15 +81,15 @@ export interface SelectionResult<T> {
   selectedTriangles: number;
   displayedTriangles: number;
   frustumRejected: number;
-  /** Nœuds de hiérarchie dépilés par la coupe, ce que la sélection a réellement testé. */
+  /** Hierarchy nodes popped by the cut, what selection actually tested. */
   nodesTested: number;
   lodLevel: number;
   complete: boolean;
   pixelError: number;
 }
 
-/** Un résultat de coupe vide, à poser une fois par appelant chaud puis à réutiliser d'image en image :
- *  `selectVisiblePages` réécrit chaque champ, seule l'identité de l'objet compte. */
+/** An empty cut result, to set once per hot caller then reuse from image to image:
+ *  `selectVisiblePages` rewrites every field, only the object's identity matters. */
 export function createSelectionResult<T>(): SelectionResult<T> {
   return {
     shown: [],
@@ -105,21 +105,21 @@ export function createSelectionResult<T>(): SelectionResult<T> {
   };
 }
 
-/** Rien n'est tenu : la coupe n'a pas de résidence à tester. */
+/** Nothing is held: the cut has no residency to test. */
 export const RESIDENT_ALL = 0;
-/** L'hôte répond lui-même de la résidence d'une page. */
+/** The host itself answers for a page's residency. */
 export const RESIDENT_ASK = 1;
-/** La résidence d'une page est son tableau d'indices. */
+/** A page's residency is its index array. */
 export const RESIDENT_ARRAY = 2;
 
-/** La règle de résidence d'une coupe, dite une fois par appel : `keep` la reçoit en paramètre et ne
- *  relit plus l'état par cluster. Une seule écriture de la règle, pour le chemin chaud comme pour
- *  les replis. */
+/** Residency rule of a cut, stated once per call: `keep` receives it as a parameter and no longer
+ *  re-reads the state per cluster. A single write of the rule, for the hot path as for the
+ *  fallbacks. */
 export function residentModeOf(hold: boolean, isResident: unknown) {
   return !hold ? RESIDENT_ALL : isResident ? RESIDENT_ASK : RESIDENT_ARRAY;
 }
 
-/** La résidence d'une page sous un mode déjà résolu. */
+/** Residency of a page under an already-resolved mode. */
 export function residentUnder<T extends PageRecord>(
   s: SelectionState<T>,
   rec: T,
@@ -138,15 +138,15 @@ export const selectionScratch = {
   viewMax: [-Infinity, -Infinity, -Infinity] as [number, number, number],
   pixelScale: [1, 1] as [number, number],
   clip: new Float64Array(16),
-  /** Plans du tronc dans le repère de la racine en cours, bruts : ceux de la descente exacte. */
+  /** Frustum planes in the current root's space, raw: those of the exact descent. */
   planes: new Float64Array(FRUSTUM_PLANE_VALUES),
   stack: new Int32Array(4096),
 };
 export const fallbackScratch: unknown[] = [];
 export const forceScratch: number[] = [];
 
-/** L'état d'une coupe, posé une seule fois. La sélection est synchrone et non réentrante, comme
- *  `selectionScratch` : réutiliser cet état retire la dernière allocation par image. */
+/** State of a cut, set only once. Selection is synchronous and non-reentrant, like
+ *  `selectionScratch`: reusing this state removes the last per-image allocation. */
 const reusedState: SelectionState<PageRecord> = {
   cam: undefined as unknown as EngineCamera,
   hold: false,
@@ -180,8 +180,8 @@ const reusedState: SelectionState<PageRecord> = {
   over: false,
 };
 
-/** Ramène `shown` à un préfixe et sa somme de triangles avec lui : même ordre, mêmes bits que le
- *  balayage que cette somme remplace. Les replis sont les seuls à raccourcir la coupe. */
+/** Shrinks `shown` to a prefix and its triangle sum with it: same order, same bits as the
+ *  sweep this sum replaces. Fallbacks are the only ones that shorten the cut. */
 export function truncateShown<T extends PageRecord>(s: SelectionState<T>, to: number) {
   s.shownCount = to;
   let sum = 0;
@@ -189,7 +189,7 @@ export function truncateShown<T extends PageRecord>(s: SelectionState<T>, to: nu
   s.shownTriangles = sum;
 }
 
-/** L'état réutilisé, vu au type de pages demandé. */
+/** The reused state, viewed at the requested page type. */
 export function selectionState<T extends PageRecord>(): SelectionState<T> {
   return reusedState as unknown as SelectionState<T>;
 }

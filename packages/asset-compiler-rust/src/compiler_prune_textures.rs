@@ -1,12 +1,12 @@
-//! La purge des niveaux de texture cuits : un dossier `textures/<sha>/` que plus aucun manifeste
-//! survivant ne nomme s'en va, comme un objet de page. Sortie de `compiler_prune.rs` pour tenir la
-//! limite de lignes du dépôt.
+//! Prune of baked texture levels: a `textures/<sha>/` folder that no surviving
+//! manifest names goes away, like a page object. Split out of `compiler_prune.rs`
+//! to keep the repository line limit.
 use super::*;
 
-/// Supprime sous `native/textures/` chaque dossier d'empreinte que `keep` ne nomme pour aucun
-/// scope, et tout dossier d'une autre version de la règle que celle de ce compilateur : les
-/// manifestes survivants sont écrits par lui, donc rien ne lit plus ces niveaux-là. Rend les
-/// dossiers retirés et les octets rendus.
+/// Removes under `native/textures/` every fingerprint folder that `keep` names for
+/// no scope, and every folder of a rule version other than this compiler's: surviving
+/// manifests are written by it, so nothing reads those levels any more. Returns the
+/// folders removed and the bytes reclaimed.
 pub(super) fn prune_textures(native: &Path, keep: &BTreeSet<String>) -> Result<(usize, u64)> {
     let mut removed = 0usize;
     let mut bytes = 0u64;
@@ -40,7 +40,7 @@ pub(super) fn prune_textures(native: &Path, keep: &BTreeSet<String>) -> Result<(
     Ok((removed, bytes))
 }
 
-/// Les octets des fichiers d'un dossier, sous-dossiers compris ; zéro pour ce qui ne se lit pas.
+/// Bytes of the files in a folder, including subfolders; zero for what cannot be read.
 fn dir_bytes(dir: &Path) -> u64 {
     let Ok(entries) = fs::read_dir(dir) else {
         return 0;

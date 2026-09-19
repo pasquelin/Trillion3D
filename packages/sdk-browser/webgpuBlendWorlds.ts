@@ -3,14 +3,14 @@ import { readThreeBox } from './threeBounds.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 
 /**
- * La boîte monde d'un item transparent, refaite depuis la boîte LOCALE de sa géométrie et la
- * matrice qu'il porte — celle du maillage source, jamais une photo. Rien n'est cuit à la
- * préparation : la même fonction pose la boîte de la première image et celle qui suit un
- * déplacement, si bien qu'une boîte ne peut pas décrire un autre placement que le dessin.
+ * World box of a transparent item, rebuilt from the LOCAL box of its geometry and the
+ * matrix it carries — the source mesh's, never a snapshot. Nothing is baked at prepare: the
+ * same function sets the first frame's box and the one that follows a move, so a box cannot
+ * describe a placement other than the draw.
  *
- * `worldBox` est allouée une fois pour l'item et ne l'est jamais par image. Une boîte vide ou non
- * finie retire `bounds` : sans boîte, le tronc ne rejette jamais l'item — un transparent ne devient
- * pas invisible parce que ses bornes sont douteuses.
+ * `worldBox` is allocated once per item and never per frame. An empty or non-finite box drops
+ * `bounds`: without a box, the frustum never rejects the item — a transparent does not vanish
+ * because its bounds are doubtful.
  */
 export function refreshBlendBounds(item: BlendGpuItem) {
   const box = item.worldBox;
@@ -26,9 +26,9 @@ export function refreshBlendBounds(item: BlendGpuItem) {
 }
 
 /**
- * Les boîtes monde de la liste transparente, reprises quand la scène a changé de matrices. Les
- * matrices elles-mêmes ne sont pas reprises : chaque item lit déjà celle de son maillage source.
- * Rend le nombre d'items dont la boîte a été refaite.
+ * World boxes of the transparent list, refreshed when the scene's matrices have changed. The
+ * matrices themselves are not copied: each item already reads its source mesh's. Returns the
+ * number of items whose box was rebuilt.
  */
 export function refreshBlendWorlds(items: readonly BlendGpuItem[]) {
   let repris = 0;

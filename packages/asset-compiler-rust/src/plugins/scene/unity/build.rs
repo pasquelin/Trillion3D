@@ -1,9 +1,9 @@
-//! Le parcours de la scène : GameObject, Transform, hiérarchie, rendus et instances de prefab.
+//! Walk of the scene: GameObject, Transform, hierarchy, renderers and prefab instances.
 //!
-//! Un GameObject porte des composants ; on ne lit que ceux qui décrivent une surface — `MeshFilter`
-//! et `MeshRenderer` — et la hiérarchie des `Transform`. Tout le reste (lampes, caméras, terrains,
-//! particules, colliders, scripts) est compté au rapport et laissé de côté : des données, jamais un
-//! comportement. Un `LODGroup` ne garde que son niveau le plus fin ; les autres sont comptés.
+//! A GameObject carries components; only those that describe a surface are read — `MeshFilter`
+//! and `MeshRenderer` — and the `Transform` hierarchy. Everything else (lights, cameras,
+//! terrains, particles, colliders, scripts) is counted in the report and left aside: data,
+//! never behaviour. A `LODGroup` keeps only its finest level; the others are counted.
 use super::*;
 use std::collections::{HashMap, HashSet};
 
@@ -12,7 +12,7 @@ const TRANSFORM: u32 = 4;
 const RECT_TRANSFORM: u32 = 224;
 const LOD_GROUP: u32 = 205;
 const PREFAB_INSTANCE: u32 = 1001;
-/// Les composants connus que ce pilote ne rend pas : ils sont comptés sous ce nom.
+/// Known components this driver does not yield: they are counted under this name.
 const IGNORED: [(u32, &str); 8] = [
     (20, "unity-camera"),
     (108, "unity-light"),
@@ -23,7 +23,7 @@ const IGNORED: [(u32, &str); 8] = [
     (212, "unity-sprite-renderer"),
     (218, "unity-terrain"),
 ];
-/// Profondeur maximale d'une hiérarchie, prefabs imbriqués compris.
+/// Maximum depth of a hierarchy, nested prefabs included.
 const MAX_DEPTH: usize = 64;
 
 pub(super) struct Builder<'a, 'w> {
@@ -33,22 +33,22 @@ pub(super) struct Builder<'a, 'w> {
     pub(super) builtins: Builtins,
     pub(super) materials: HashMap<String, Option<usize>>,
     pub(super) documents: HashMap<PathBuf, Rc<Document>>,
-    /// Les maillages déjà liés à une suite de matériaux : par maillage du modèle, la variante que
-    /// chaque suite de matériaux demandée a reçue.
+    /// Meshes already bound to a material sequence: per model mesh, the variant each requested
+    /// material sequence received.
     pub(super) bound: HashMap<usize, HashMap<Vec<Option<usize>>, usize>>,
-    /// Les maillages de modèle qu'une première liaison a déjà pris.
+    /// Model meshes that a first binding has already taken.
     pub(super) claimed: HashSet<usize>,
-    /// Le maillage du modèle tel qu'il était avant sa première liaison, mis de côté pour que les
-    /// suivantes partent de l'original et non de la variante posée sur place.
+    /// Model mesh as it was before its first binding, set aside so later ones start from the
+    /// original and not from the variant placed in situ.
     pub(super) pristine: HashMap<usize, Value>,
-    /// Le nœud écrit pour chaque objet parcouru, par `fileID` de sa transformation et de son
-    /// GameObject : c'est là que se pose ce qu'une instance ajoute sous lui.
+    /// Node written for each walked object, by `fileID` of its transform and of its GameObject:
+    /// that is where what an instance adds under it sits.
     pub(super) placed: HashMap<i64, usize>,
 }
 
 impl Builder<'_, '_> {
-    /// Les racines d'un fichier : les transformations sans père, et les instances de prefab qui ne
-    /// sont accrochées à rien. Le reste est atteint par les enfants.
+    /// Roots of a file: transforms without a parent, and prefab instances that are hung on
+    /// nothing. The rest is reached through children.
     pub(super) fn roots(document: &Document) -> Vec<i64> {
         let mut roots = Vec::new();
         for class in [TRANSFORM, RECT_TRANSFORM] {
@@ -67,9 +67,9 @@ impl Builder<'_, '_> {
         roots
     }
 
-    /// Construit le nœud d'une transformation et de sa descendance. `changes` porte les retouches de
-    /// l'instance de prefab en cours de dépliage : chacune nomme l'objet qu'elle vise, donc elle
-    /// s'applique à la profondeur où cet objet se trouve.
+    /// Builds the node of a transform and its descendants. `changes` carries the overrides of
+    /// the prefab instance being unfolded: each names the object it targets, so it applies at
+    /// the depth where that object is found.
     pub(super) fn transform(
         &mut self,
         document: &Rc<Document>,
@@ -125,15 +125,15 @@ impl Builder<'_, '_> {
         }
         self.world.scene.count("gameObjects", 1);
         let index = self.world.scene.node(node);
-        // L'objet qu'une instance ajoute nomme celui de la source sous lequel il se pose, par le
-        // `fileID` de sa transformation ou par celui de son GameObject : les deux mènent ici.
+        // The object an instance adds names the source object under which it sits, by the
+        // `fileID` of its transform or by that of its GameObject: both lead here.
         self.placed.insert(id, index);
         self.placed.insert(object_id, index);
         Some(index)
     }
 
-    /// Les composants d'un GameObject : classe et fileID, dans l'ordre déclaré. Ceux qu'une
-    /// instance de prefab retire n'en font pas partie : pour le parcours, ils n'existent pas.
+    /// Components of a GameObject: class and fileID, in declared order. Those a prefab instance
+    /// removes are not part of them: for the walk, they do not exist.
     fn components(
         &mut self,
         document: &Document,
@@ -154,9 +154,9 @@ impl Builder<'_, '_> {
         out
     }
 
-    /// Les rendus qu'un `LODGroup` écarte : ceux que son niveau le plus fin ne cite pas. Un même
-    /// rendu peut figurer à plusieurs niveaux ; il est alors gardé au plus détaillé où il apparaît,
-    /// car l'écarter retirerait du niveau le plus fin une surface que la scène y montre.
+    /// Renderers a `LODGroup` drops: those its finest level does not cite. The same renderer
+    /// can appear at several levels; it is then kept at the most detailed where it appears,
+    /// because dropping it would remove from the finest level a surface the scene shows there.
     fn dropped_renderers(
         &mut self,
         document: &Document,
@@ -184,7 +184,7 @@ impl Builder<'_, '_> {
     }
 }
 
-/// Les rendus qu'un niveau de `LODGroup` cite, par `fileID`.
+/// Renderers a `LODGroup` level cites, by `fileID`.
 fn renderers(level: &Yaml) -> impl Iterator<Item = i64> + '_ {
     sequence(level, "renderers")
         .iter()

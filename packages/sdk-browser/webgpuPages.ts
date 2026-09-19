@@ -35,8 +35,8 @@ export { outputColorDiagnostic } from './webgpuPagesHelpers.ts';
 export const webgpuPagesBackend: BackendFactory = (context) => {
   const rt = createWebgpuPagesRuntime(context);
   const { run, setup, diag } = rt;
-  // La fiche d'entiers d'une requête, posée une fois par adresse : c'est tout ce que l'intégration
-  // hors fil reçoit d'une arrivée.
+  // Integer record of a request, set once per address: that is all off-thread integration
+  // receives from an arrival.
   const pageSpecs = createArrivalSpecs(setup.byUrl, rt.layout.rows.pageIndexOf);
   const onGpuError = (event: GPUUncapturedErrorEvent) => {
     diag.diagnosticFailure('gpu-uncaptured-error', event.error);
@@ -51,13 +51,13 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     },
     setDiagnostic(mode) {
       run.diagnostic = mode;
-      // La vue de diagnostic change les lignes de la table et l'ombrage : la scène est à refaire.
+      // The diagnostic view changes the table rows and the shading: the scene must be rebuilt.
       run.gate.sceneChanged();
     },
     refreshSceneLights() {
       refreshSceneLights(rt);
     },
-    /** Le seul moteur qui porte l'atlas d'ombres du contrat : tout le reste se lit dans ses méthodes. */
+    /** The only engine that carries the contract's shadow atlas: everything else is read in its methods. */
     lighting: { shadows: true },
     setTransform(nodeName, matrix) {
       setWebgpuTransform(rt, nodeName, matrix);
@@ -67,14 +67,14 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       context.signal?.throwIfAborted();
       const { gpuDevice } = setup;
       if (!gpuDevice) throw new Error('WEBGPU_UNAVAILABLE');
-      // Le registre des allocations se pose avant la première : tout ce qui suit y est compté.
+      // The allocation ledger is installed before the first one: everything that follows is counted in it.
       installGpuDeviceLedger(gpuDevice);
       prepareGpuTiming(rt, gpuDevice);
       watchGpuDevice(rt, gpuDevice, onGpuError);
       try {
         await prepareWebgpuPages(rt, gpuDevice);
-        // Le lot des boîtes monde des racines est réservé en dernier : la mémoire linéaire du
-        // module ne grandira plus derrière lui, et un déplacement de nœud n'allouera plus rien.
+        // The batch of root world boxes is reserved last: the module's linear memory will no
+        // longer grow behind it, and a node move will allocate nothing more.
         rt.layout.rootBoxes = await reserveRootBoxes(rt.layout.selectionRoots);
       } catch (error) {
         diag.diagnosticFailure('webgpu-prepare-failed', error);
@@ -138,7 +138,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     stageProfile() {
       return (
         rt.timing.stages?.profile() ??
-        disabledStageProfile('webgpu-page-raster', 'profil par étape non demandé par l’hôte')
+        disabledStageProfile('webgpu-page-raster', 'per-step profile not requested by the host')
       );
     },
     partitionAudit() {

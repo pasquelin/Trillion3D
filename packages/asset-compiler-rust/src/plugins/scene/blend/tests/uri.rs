@@ -1,17 +1,17 @@
-//! Le nom d'une image seulement désignée, tel qu'il entre dans la scène intermédiaire.
+//! The name of an image only designated, as it enters the intermediate scene.
 use super::*;
 
-/// Un nom de fichier légal sur le disque et interdit tel quel dans une URI.
+/// A file name legal on disk and forbidden as-is in a URI.
 const AWKWARD: &str = "co%lor #1 rouge.png";
 
-// Comportement : une image que le fichier désigne sans l'emporter est nommée par une URI, pas par
-// son chemin. `%`, `#` et l'espace s'échappent, sinon le consommateur relit un autre nom, ou rien ;
-// et ce qui est écrit se redécode exactement en ce que Blender avait écrit.
+// Behaviour: an image the file designates without carrying it is named by a URI, not by its
+// path. `%`, `#` and space are escaped, or the consumer rereads another name, or nothing; and
+// what is written decodes back exactly to what Blender had written.
 #[test]
 fn a_linked_image_is_named_by_an_escaped_uri() {
     let root = Path::new("/projet/scene");
     let declared = format!("//textures/{AWKWARD}");
-    let uri = images::linked(&declared, root).expect("l'image est sous la racine servie");
+    let uri = images::linked(&declared, root).expect("the image is under the served root");
     assert_eq!(uri, "textures/co%25lor%20%231%20rouge.png");
     assert_eq!(
         crate::uri::decode(&uri).as_deref(),
