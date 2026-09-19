@@ -9,7 +9,12 @@ export {
   multiplyMatrix4,
 } from './mathMatrix4.ts';
 export { invertMatrix4 } from './mathMatrix4Inverse.ts';
-export { composeMatrix4, decomposeMatrix4 } from './mathMatrix4Trs.ts';
+export {
+  basisMatrix4,
+  composeMatrix4,
+  decomposeMatrix4,
+  uniformScaleMatrix4,
+} from './mathMatrix4Trs.ts';
 export { normalMatrix3 } from './mathMatrix3.ts';
 export { SINGULAR_DETERMINANT_WGSL, linearPartScale } from './mathSingular.ts';
 export {

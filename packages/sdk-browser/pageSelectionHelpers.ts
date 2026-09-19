@@ -8,7 +8,8 @@ import {
   type ClusterStructure,
   type StreamCatalogue,
 } from '../sdk-core/index.ts';
-import * as THREE from 'three';
+import type * as THREE from 'three';
+import { sideOf } from './materialSide.ts';
 import {
   OPEN_CONE,
   coneContextFor,
@@ -19,9 +20,7 @@ import {
 import type { ClusterStructureIndex } from './pageSelectionTypes.ts';
 
 function pageIsDoubleSided(material: THREE.Material | THREE.Material[] | undefined) {
-  if (!material) return false;
-  const side = Array.isArray(material) ? material[0]?.side : material.side;
-  return side === THREE.DoubleSide;
+  return !!material && sideOf(material) === 'double';
 }
 
 /** The context is set at the root's first cone: a root without a cone never pays for it. */
