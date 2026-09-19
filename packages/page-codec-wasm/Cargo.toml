@@ -2,7 +2,7 @@
 name = "web-geometry-page-codec"
 version = "0.1.0"
 edition = "2021"
-license = "MIT"
+license = "PolyForm-Noncommercial-1.0.0"
 
 # `rlib` pour le compilateur natif, qui teste le décodeur contre son propre encodeur ;
 # `cdylib` pour `wasm32-unknown-unknown`, qui n'exporte que l'ABI de `wasm.rs`.
