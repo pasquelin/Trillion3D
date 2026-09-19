@@ -34,8 +34,8 @@ const m = WRAP_MAP;
  * choix est celui de `WRAP_MAP` ; une carte absente laisse parler la couleur de base
  * (`mapRequest`). Les hôtes construisent leurs slots depuis la fiche de page ou l'item transparent.
  */
-/** Le nombre de cartes qu'un pixel peut nommer : le rang de \`WRAP_MAP\`, une seule fois. */
-export const MAP_CHOICES = Object.keys(WRAP_MAP).length;
+/** Le nombre de cartes qu'un pixel peut nommer : le rang de `WRAP_MAP`, écrit une seule fois. */
+const MAP_CHOICES = Object.keys(WRAP_MAP).length;
 export const TILE_REQUEST_WGSL = `const MAP_CHOICES:u32=${MAP_CHOICES}u;
 ${request('color')}
 ${request('data')}
