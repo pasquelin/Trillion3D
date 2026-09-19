@@ -106,7 +106,7 @@ test('sens des faces : déterminant linéaire et déterminant 4×4 de même sign
   assert.equal(opposes, 0);
 });
 
-test('sRGB : la courbe du dépôt et les constantes arrondies de la référence restent sous la borne déclarée', () => {
+test('sRGB: the repository curve and the reference rounded constants stay under the declared bound', () => {
   let versLineaire = 0,
     allerRetour = 0;
   for (let i = 0; i <= 4096; i++) {

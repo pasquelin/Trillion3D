@@ -1,123 +1,16 @@
-// Three.js vs sdk-core, scene: the world-matrix update of a whole tree, moved or still, its
-// traversal, a camera turned towards a point, and the bounding box of a geometry. The engine's
-// world matrices are its own buffer, returned as is; Three's are read flat untimed.
-import assert from 'node:assert/strict';
+// Three.js vs sdk-core, scene: a camera turned towards a point, and the bounding box of a
+// geometry. Both sides store the camera's quaternion in the same loop, four numbers per target.
 import * as THREE from 'three';
-import {
-  addTransformNode,
-  createTransformTree,
-  setNodePosition,
-  setNodeQuaternion,
-  setNodeScale,
-} from '../mathTransformTree.ts';
-import { updateNodeMatrixWorld, updateNodeWorldMatrix } from '../mathTransformTreeUpdate.ts';
-import { visitSubtree } from '../mathTransformTreeStructure.ts';
+import { addTransformNode } from '../mathTransformTree.ts';
 import { lookAtNode } from '../mathTransformTreeLookAt.ts';
 import { boxEmpty, boxExpandByPoint } from '../mathBox.ts';
 import { rapport } from './socle.mjs';
 import { aPlat } from './oracles/volumes.mjs';
-import { N, alea, duel, flatOf, quaternion, rnd } from './oracles/three-duel.mjs';
+import { N, duel, rnd } from './oracles/three-duel.mjs';
+import { buildTrees } from './oracles/three-tree.mjs';
 
-const TREE = 'packages/sdk-core/mathTransformTreeUpdate.ts';
-
-// One tree of N nodes on each side, every node under a random earlier node, poses drawn once.
-// A fresh tree numbers its nodes in insertion order, so node `i` is `objects[i]`.
-const root = new THREE.Object3D(),
-  objects = [root];
-const tree = createTransformTree(N + 2),
-  rootNode = addTransformNode(tree, -1);
-for (let i = 1; i <= N; i++) {
-  const parent = Math.floor(alea() * i),
-    q = quaternion();
-  const o = new THREE.Object3D();
-  o.position.set(rnd(), rnd(), rnd());
-  o.quaternion.copy(q);
-  o.scale.set(rnd(0.5, 2), rnd(0.5, 2), rnd(0.5, 2));
-  objects[parent].add(o);
-  objects.push(o);
-  const n = addTransformNode(tree, parent);
-  assert.equal(n, i);
-  setNodePosition(tree, n, o.position.x, o.position.y, o.position.z);
-  setNodeQuaternion(tree, n, q.x, q.y, q.z, q.w);
-  setNodeScale(tree, n, o.scale.x, o.scale.y, o.scale.z);
-}
-const worlds = tree.world.subarray(0, objects.length * 16),
-  worldsThree = new Float64Array(objects.length * 16);
-const oracle = () =>
-  flatOf(
-    objects.map((o) => o.matrixWorld),
-    16,
-    worldsThree,
-  );
-
-const lines = [];
-lines.push(
-  await duel({
-    nom: 'Object3D.updateMatrixWorld, forced',
-    fichier: TREE,
-    three: () => root.updateMatrixWorld(true),
-    oracle,
-    core: () => {
-      updateNodeMatrixWorld(tree, rootNode, true);
-      return worlds;
-    },
-  }),
-);
-
-lines.push(
-  await duel({
-    nom: 'Object3D.updateMatrixWorld, still scene',
-    fichier: TREE,
-    three: () => root.updateMatrixWorld(),
-    oracle,
-    core: () => {
-      updateNodeMatrixWorld(tree, rootNode);
-      return worlds;
-    },
-  }),
-);
-
-// `updateWorldMatrix(true, false)`: the ancestors then the node, called once per node.
-lines.push(
-  await duel({
-    nom: 'Object3D.updateWorldMatrix, ancestors and node',
-    fichier: TREE,
-    three: () => {
-      for (let i = 1; i <= N; i++) objects[i].updateWorldMatrix(true, false);
-    },
-    oracle,
-    core: () => {
-      for (let i = 1; i <= N; i++) updateNodeWorldMatrix(tree, i, true, false);
-      return worlds;
-    },
-  }),
-);
-
-const count = new Float64Array(1),
-  countThree = new Float64Array(1);
-lines.push(
-  await duel({
-    nom: 'Object3D.traverse',
-    fichier: 'packages/sdk-core/mathTransformTreeStructure.ts',
-    three: () => {
-      countThree[0] = 0;
-      root.traverse(() => {
-        countThree[0]++;
-      });
-    },
-    oracle: () => countThree,
-    core: () => {
-      count[0] = 0;
-      visitSubtree(tree, rootNode, () => {
-        count[0]++;
-      });
-      return count;
-    },
-  }),
-);
-
-// A camera under the eighth node, turned towards N seeded targets; both sides store its
-// quaternion, four numbers per target.
+// A camera under the eighth node of a tree, turned towards N seeded targets.
+const { objects, tree } = buildTrees();
 const targets = Float64Array.from({ length: N * 3 }, () => rnd(-100, 100));
 const UP = new Float64Array([0, 1, 0]);
 const cameraThree = new THREE.Camera();
@@ -126,6 +19,7 @@ const camera = addTransformNode(tree, 7);
 const turned = new Float64Array(N * 4),
   turnedThree = new Float64Array(N * 4);
 
+const lines = [];
 lines.push(
   await duel({
     nom: 'Object3D.lookAt, camera',
@@ -182,5 +76,5 @@ lines.push(
 rapport(
   'three-vs-core-scene',
   lines,
-  'sdk-core scene tree and bounds give the same bits as Three.js, at least as fast',
+  'sdk-core camera and bounds give the same bits as Three.js, at least as fast',
 );
