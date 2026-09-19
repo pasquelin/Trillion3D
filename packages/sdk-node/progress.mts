@@ -140,9 +140,8 @@ export function createTerminalProgress({
         state.primitivesTotal = event.primitives;
       if (event.phase === 'primitive') state.primitives += 1;
       // Un DAG que le compilateur n'a pas fait monter : compté ici, dit en une ligne à la fin.
-      if (Array.isArray(event.warnings))
-        for (const warning of event.warnings as Array<Record<string, unknown>>)
-          dag.record(warning, `${event.mesh}/${event.primitive}`);
+      for (const warning of event.warnings ?? [])
+        dag.record(warning, `${event.mesh}/${event.primitive}`);
       state.phase = event.phase ?? event.event ?? '';
       const describe = PHASES[state.phase];
       if (describe) state.text = describe(event, state);

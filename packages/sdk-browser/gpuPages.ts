@@ -79,9 +79,6 @@ export function createGpuPageCache(
     get buffer() {
       return context.buffer;
     },
-    get slots() {
-      return context.slots;
-    },
     load,
     /**
      * Change la taille du réservoir en gardant ses pages, derrière les chargements en cours : rien

@@ -9,7 +9,7 @@ import {
 } from './cutoutSheet.mts';
 import { imageKind } from './cutoutDraw.mts';
 import { readThumbnails, type Thumbnail } from './cutoutThumb.mts';
-import { askAnswer, LEGENDE, pictureOf, show } from './cutoutShow.mts';
+import { askAnswer, LEGENDE, pictureOf, show, type EmbeddedImages } from './cutoutShow.mts';
 
 /**
  * The cutout questions of a whole batch, asked once and applied everywhere.
@@ -37,11 +37,12 @@ function nameOf(model: CutoutModel): string {
 
 /** Reads every sheet of the batch; a model with no sheet simply has nothing to answer. */
 async function sheetsOf(models: CutoutModel[]): Promise<Loaded[]> {
+  const sheets = await Promise.all(models.map((model) => readSheet(model.cache)));
   const loaded: Loaded[] = [];
-  for (const model of models) {
-    const sheet = await readSheet(model.cache);
+  sheets.forEach((sheet, index) => {
+    const model = models[index] as CutoutModel;
     if (sheet) loaded.push({ model, name: nameOf(model), sheet });
-  }
+  });
   return loaded;
 }
 
@@ -68,9 +69,10 @@ export async function reviewCutouts(
   // à montrer, et leur produit compilé pèse des dizaines de mégaoctets.
   const concerned = loaded.filter((one) => named.has(one.name));
   const answers = await ask(stream, options, concerned, pending);
-  const changed: CutoutModel[] = [];
-  for (const one of loaded)
-    if (await answerSheet(one.model.cache, one.sheet, answers)) changed.push(one.model);
+  const written = await Promise.all(
+    loaded.map((one) => answerSheet(one.model.cache, one.sheet, answers)),
+  );
+  const changed = loaded.filter((_, index) => written[index]).map((one) => one.model);
   const cutouts = [...answers.values()].filter(Boolean).length;
   stream.write(
     `\n  ${cutouts} découpe(s), ${answers.size - cutouts} vitre(s) · ${changed.length} modèle(s) à recompiler\n`,
@@ -81,9 +83,11 @@ export async function reviewCutouts(
 /** The thumbnails of the concerned models, by image: a texture two models share is read once. */
 async function thumbnailsOf(concerned: Loaded[]): Promise<Map<string, Thumbnail>> {
   const thumbnails = new Map<string, Thumbnail>();
-  for (const one of concerned)
-    for (const [sha, thumbnail] of await readThumbnails(one.model.cache, one.model.scope))
-      if (!thumbnails.has(sha)) thumbnails.set(sha, thumbnail);
+  const read = await Promise.all(
+    concerned.map((one) => readThumbnails(one.model.cache, one.model.scope)),
+  );
+  for (const found of read)
+    for (const [sha, thumbnail] of found) if (!thumbnails.has(sha)) thumbnails.set(sha, thumbnail);
   return thumbnails;
 }
 
@@ -99,17 +103,18 @@ async function ask(
   const kind = imageKind();
   const owners = new Map(concerned.map((one) => [one.name, one.model]));
   const thumbnails = await thumbnailsOf(concerned);
+  const embedded: EmbeddedImages = new Map();
   const answers = new Map<string, boolean>();
   for (const [index, one] of pending.entries()) {
     const owner = owners.get(one.models[0] ?? '');
     const thumbnail = thumbnails.get(one.sha256);
-    const picture = owner ? await pictureOf(owner, one, thumbnail) : null;
+    const picture = owner ? await pictureOf(owner, one, thumbnail, embedded) : null;
     await show(stream, kind, `${index + 1}/${pending.length}`, one, { thumbnail, picture });
-    let answer = await askAnswer(one.proposal, options.input ?? process.stdin);
+    let answer = await askAnswer(one.proposal, options.input);
     // Le rappel ne répond pas à la place de personne : il réaffiche la règle et repose la question.
     while (answer === 'help') {
       for (const ligne of LEGENDE) stream.write(`${ligne}\n`);
-      answer = await askAnswer(one.proposal, options.input ?? process.stdin);
+      answer = await askAnswer(one.proposal, options.input);
     }
     if (answer === 'quit') break;
     if (answer === 'rest') {

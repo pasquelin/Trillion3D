@@ -15,13 +15,6 @@ pub fn build_dag_tallied(
     checkpoint: &(dyn Fn() -> Result<()> + Sync),
 ) -> Result<(Vec<DagCluster>, Vec<DagGroup>, Vec<GroupTally>)> {
     checkpoint()?;
-    let (weld, weld_seam) = {
-        let _t = Timer::new(Phase::Weld);
-        (
-            weld_positions(positions, indices),
-            uvs.map(|uvs| weld_positions_and_uv(positions, uvs, indices)),
-        )
-    };
     // Rank of the source triangle each vertex first appears in, used to keep the draw order stable.
     let mut first_use = vec![u32::MAX; positions.len() / 3];
     for (offset, &vertex) in indices.iter().enumerate() {
@@ -60,6 +53,14 @@ pub fn build_dag_tallied(
     if strategy == DagStrategy::ExactClusters {
         return Ok((dag, reductions_kept, tallies));
     }
+    // Les soudures ne servent qu'à la réduction : après le retour des grappes exactes, pas avant.
+    let (weld, weld_seam) = {
+        let _t = Timer::new(Phase::Weld);
+        (
+            weld_positions(positions, indices),
+            uvs.map(|uvs| weld_positions_and_uv(positions, uvs, indices)),
+        )
+    };
     let mut current: Vec<usize> = (0..dag.len()).collect();
     for level in 1..=DAG_MAX_LEVELS {
         checkpoint()?;

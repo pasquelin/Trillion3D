@@ -21,7 +21,7 @@ test('le réservoir de pages rétrécit en gardant ses pages : copie, déplaceme
   const evicted = await cache.resize(3);
   // Fentes 0..2 gardées telles quelles (d, e, f) ; a (épinglée), b, c hors réservoir : rien de libre,
   // donc les non épinglées les plus anciennes partent d'abord — b et c —, a reste évincée aussi.
-  assert.equal(cache.slots, 3);
+  assert.equal(cache.stats().slots, 3);
   assert.equal(cache.stats().allocatedBytes, 24);
   assert.notEqual(cache.buffer, before);
   assert.equal(destroyed(), 1, 'l’ancien tampon est détruit');

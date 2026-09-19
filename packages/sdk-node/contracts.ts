@@ -1,4 +1,9 @@
-import type { AssetScope, JobSnapshot, PreparationProgress } from '../sdk-core/index.ts';
+import type {
+  AssetScope,
+  DagWarning,
+  JobSnapshot,
+  PreparationProgress,
+} from '../sdk-core/index.ts';
 
 /** One JSON event from the native compiler's stderr. */
 export interface CompilerEvent {
@@ -19,6 +24,10 @@ export interface CompilerEvent {
   removedBytes?: number;
   jobs?: number;
   pointer?: ProgressPointer;
+  mesh?: number;
+  primitive?: number;
+  /** Les avertissements de DAG d'une primitive, portés par son événement `primitive`. */
+  warnings?: DagWarning[];
   [key: string]: unknown;
 }
 
