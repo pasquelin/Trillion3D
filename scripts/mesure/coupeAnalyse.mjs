@@ -17,7 +17,7 @@ const ranger = (map) =>
     .sort((a, b) => b.triangles - a.triangles);
 
 /** Index SHA → { mesh, material, level, triangles }, une entrée par page du sidecar. */
-export function indexPages(slim, buffer) {
+function indexPages(slim, buffer) {
   const cols = readManifestColumns(slim, buffer);
   const pages = cols.pages.pageShaText,
     ints = cols.pages.ints;
@@ -39,7 +39,7 @@ export function indexPages(slim, buffer) {
 }
 
 /** Les noms de maillages d'un glTF, indexés comme `primitives[].mesh`. */
-export function nomsMaillages(gltfPath) {
+function nomsMaillages(gltfPath) {
   if (!existsSync(gltfPath)) return [];
   const meshes = JSON.parse(readFileSync(gltfPath, 'utf8')).meshes ?? [];
   return meshes.map((m, i) => m.name || `mesh ${i}`);
@@ -69,7 +69,7 @@ export function analyserCoupe(ids, index, meshNames = []) {
 const cacheIndex = new Map();
 
 /** Charge l'index d'un dossier derived (manifeste + sidecar + noms du source.gltf). */
-export function chargerIndex(derived) {
+function chargerIndex(derived) {
   const hit = cacheIndex.get(derived);
   if (hit) return hit;
   const full = join(derived, 'native/full');

@@ -197,7 +197,7 @@ stages, each measured before the next ([spec §8](docs/SPEC_MOTEUR_SANS_THREE.md
 | L5    | World radiance probes in cascades                                                   | planned                                                    |
 | L6    | Reflections through the distance field reading the cache                            | planned                                                    |
 
-Open tasks are listed in [`TODO.md`](TODO.md); a task is deleted once it is done.
+Open tasks are tracked as [GitHub issues](https://github.com/pasquelin/WebGeometry/issues); an issue is closed once it is done.
 
 ## Current limits
 

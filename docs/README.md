@@ -13,4 +13,4 @@ Le SDK livré est décrit par le [guide SDK](SDK.md), l'[architecture des paquet
 | [Tests et bancs de performance](TESTS.md)                        | Organisation des tests unitaires, sondes de justesse GPU et 39 bancs de performance                                                     |
 | [La référence en chiffres](REFERENCE_UE5.md)                     | Les constantes, les octets par triangle et le profil publiés par la référence, en regard des nôtres ; ce qui se compare et ce qui ne se compare pas |
 
-La cible du moteur (éditeur, cuisson finale, sortie de Three.js, exigences et critères de sortie) est tenue dans [`docs/SPEC_MOTEUR_SANS_THREE.md`](SPEC_MOTEUR_SANS_THREE.md). Le backlog des tâches ouvertes est dans [`TODO.md`](../TODO.md) ; une tâche terminée est supprimée.
+La cible du moteur (éditeur, cuisson finale, sortie de Three.js, exigences et critères de sortie) est tenue dans [`docs/SPEC_MOTEUR_SANS_THREE.md`](SPEC_MOTEUR_SANS_THREE.md). Le backlog des tâches ouvertes est tenu dans les [issues GitHub](https://github.com/pasquelin/WebGeometry/issues) ; une tâche terminée est fermée.
