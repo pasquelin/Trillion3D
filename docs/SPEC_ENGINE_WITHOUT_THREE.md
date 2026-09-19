@@ -153,9 +153,11 @@ configured by the engine's own `GPUCanvasContext` and the composition pass write
 image straight into the swap chain: there is no separate presentation pass to remove, and no
 object of the host's rendering library on that path. A host that composes several engines on a
 WebGL2 surface receives the engine's canvas as `presentedSurface` and copies it with the engine's
-own full-screen program (`webglCanvasBlit.ts`, one owner for the frame and the capture alike): the bytes go through unchanged, the rows are
-reversed once, and the synchronous capture reads the same copy. What still belongs to the host
-library on the output side is the WebGL2 renderer itself — the batch engine written on host meshes
+own full-screen program (`webglCanvasBlit.ts`, one owner for the frame and the capture alike): the
+rows are reversed once, the source is read in the encoding the destination writes — a host render
+target is sRGB, the page framebuffer is not — so nothing converts twice, and the synchronous
+capture reads the same copy. What still belongs to the host library on the output side is the
+WebGL2 renderer itself — the batch engine written on host meshes
 and the composition host around it — and it is written by its own lot, not by this one.
 
 R2. **Loader**: reads the binary manifest and packets; never a format field on the host side;
@@ -380,16 +382,16 @@ talks 2021–2022, documentation) and from what the engine already has.
 
 What the reference is made of, and our counterpart:
 
-| Reference piece | Role | What we have today | What is missing |
-| --- | --- | --- | --- |
-| Temporal antialiasing | denoises everything stochastic | shipped (Lumière 16), 0 px A/A | — |
-| Screen traces | first shot of every ray: image depth and normal, almost free | nothing | L1 |
-| Distance fields (per mesh, then global) | off-screen rays without hardware ray tracing | certified-error resident proxy, walked triangle by triangle | L4 |
-| Surface cache | radiance of off-screen surfaces, updated under budget | one radiance per triangle and proxy face, swept under budget | L4 |
-| Screen probes (16 px grid) + world radiance cache | final gather, temporally filtered | cascaded SH2 world probes; no screen probe | L5 |
-| Reflections | screen traces, then distance fields reading the cache | none | L1, L6 |
-| Virtual shadow maps | 16k shadow pages, only the views, cached | 4096 atlas, cascades, 1 ms budget | L3 |
-| Stochastic direct lighting | few samples per pixel, denoised | tiled culling shipped, sampling not | L2 |
+| Reference piece                                   | Role                                                         | What we have today                                           | What is missing |
+| ------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ | --------------- |
+| Temporal antialiasing                             | denoises everything stochastic                               | shipped (Lumière 16), 0 px A/A                               | —               |
+| Screen traces                                     | first shot of every ray: image depth and normal, almost free | nothing                                                      | L1              |
+| Distance fields (per mesh, then global)           | off-screen rays without hardware ray tracing                 | certified-error resident proxy, walked triangle by triangle  | L4              |
+| Surface cache                                     | radiance of off-screen surfaces, updated under budget        | one radiance per triangle and proxy face, swept under budget | L4              |
+| Screen probes (16 px grid) + world radiance cache | final gather, temporally filtered                            | cascaded SH2 world probes; no screen probe                   | L5              |
+| Reflections                                       | screen traces, then distance fields reading the cache        | none                                                         | L1, L6          |
+| Virtual shadow maps                               | 16k shadow pages, only the views, cached                     | 4096 atlas, cascades, 1 ms budget                            | L3              |
+| Stochastic direct lighting                        | few samples per pixel, denoised                              | tiled culling shipped, sampling not                          | L2              |
 
 What the web imposes, and the answer:
 

@@ -14,8 +14,8 @@ type HostSurface = {
  * hands over a scene is not this module's business: the call returns false and the host draws it.
  *
  * The copy is written into whatever framebuffer the host has bound, at the viewport it has set,
- * and the bytes go through unchanged: the presented image is already display encoded, and a
- * second colour conversion would brighten it. It goes around the host renderer's state cache, so
+ * and the bytes go through unchanged — `srgbDestination` says how that framebuffer encodes what
+ * is written to it, and the image is already display encoded. It goes around the renderer's cache, so
  * that renderer is told to forget it afterwards — which also unbinds the framebuffer, and the
  * caller re-asserts its render target before its next draw.
  *
@@ -23,12 +23,27 @@ type HostSurface = {
  */
 export function createBackendPresenter(host: HostSurface) {
   let blit: ReturnType<typeof createCanvasBlit> | undefined;
-  return (backend: { readonly presentedSurface?: HTMLCanvasElement }) => {
+  return (backend: { readonly presentedSurface?: HTMLCanvasElement }, srgbDestination = false) => {
     const surface = backend.presentedSurface;
     if (!surface) return false;
-    blit ??= createCanvasBlit(host.getContext() as WebGL2RenderingContext);
-    blit.draw(surface);
-    host.resetState();
+    const gl = host.getContext() as WebGL2RenderingContext;
+    // A lost context takes the program, the texture and the buffer with it. Nothing can be drawn
+    // until it comes back, and what comes back is rebuilt: the names of a dead context never
+    // work again.
+    if (gl.isContextLost()) {
+      blit = undefined;
+      return true;
+    }
+    if (!blit) {
+      blit = createCanvasBlit(gl);
+      gl.canvas.addEventListener('webglcontextlost', () => (blit = undefined), { once: true });
+    }
+    try {
+      blit.draw(surface, srgbDestination);
+    } finally {
+      // Even a failed copy left the host renderer's state cache wrong: it is told so either way.
+      host.resetState();
+    }
     return true;
   };
 }
