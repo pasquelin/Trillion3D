@@ -90,9 +90,9 @@ function coupeCpu(avecNoeud) {
     pixelError: SEUIL,
     viewport: VIEWPORT,
   });
-  return shown.map((rec) => (rec.id === 0 ? 'grossier' : 'fin'));
+  return shown.map((rec) => (rec.id === 0 ? 'coarse' : 'fine'));
 }
-const name = (ids) => ids.map((i) => (i === 0 ? 'grossier' : 'fin'));
+const name = (ids) => ids.map((i) => (i === 0 ? 'coarse' : 'fine'));
 
 const uniforms = cameraSelectionUniforms(cameraMoteur(camera), SEUIL, VIEWPORT);
 const empaquete = (avecNoeud) =>
@@ -154,6 +154,6 @@ for (const [side, outputs] of Object.entries({
   for (const cas of ['aPlat', 'avecNoeud'])
     assert.deepEqual(
       outputs[cas],
-      ['fin'],
+      ['fine'],
       `${side} ${cas}: the coarse cluster is wrongly accepted`,
     );

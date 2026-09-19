@@ -27,8 +27,7 @@ preuveSaine(resultat);
 const [GAUCHE, DROITE, COIN] = [0, 1, 2];
 
 for (const [passe, etapes] of Object.entries(resultat.passes)) {
-  const de = (nom) =>
-    etapes.find((e) => (e.name ?? e.nom) === nom) ?? assert.fail(`${passe}: ${nom} missing`);
+  const de = (nom) => etapes.find((e) => e.name === nom) ?? assert.fail(`${passe}: ${nom} missing`);
   const dit = (nom, message) => `${passe} / ${nom}: ${message}`;
   const gauche = de('gauche');
   assert.ok(gauche.rouge[GAUCHE], dit('gauche', 'the transparent is not on the left'));
@@ -51,7 +50,7 @@ for (const [passe, etapes] of Object.entries(resultat.passes)) {
   const retour = de('retour');
   assert.ok(retour.rouge[GAUCHE], dit('retour', 'the transparent did not come back'));
   assert.ok(retour.dessins >= 1, dit('retour', 'no return draw'));
-  const stables = etapes.filter((e) => (e.name ?? e.nom).startsWith('stabilisation-'));
+  const stables = etapes.filter((e) => e.name.startsWith('stabilisation-'));
   assert.ok(
     stables.some((e) => e.tenue),
     dit('stabilisation', 'the image was never held: the after-hold proof would be empty'),
