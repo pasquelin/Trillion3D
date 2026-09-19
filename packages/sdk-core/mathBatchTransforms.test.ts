@@ -62,3 +62,26 @@ test('composeMatrix4Batch and decomposeMatrix4Batch: roundtrip', () => {
   assert.ok(Math.abs(scaleOut[0][1] - 3) < 1e-10);
   assert.ok(Math.abs(scaleOut[0][2] - 4) < 1e-10);
 });
+
+test('composeMatrix4Batch: the flat form writes the same sixteen floats as the sub-view form', () => {
+  const positions = new Float64Array([1, 2, 3, -4, 5, -6]);
+  const quaternions = new Float64Array([0, 0, 0, 1, 0.5, 0.5, 0.5, 0.5]);
+  const scales = new Float64Array([2, 3, 4, 1, 1, 0.5]);
+  const flat = new Float64Array(32);
+  composeMatrix4Batch(flat, positions, quaternions, scales, 2);
+
+  const views = [new Float64Array(16), new Float64Array(16)];
+  composeMatrix4Batch(
+    views,
+    [positions.subarray(0, 3), positions.subarray(3, 6)],
+    [quaternions.subarray(0, 4), quaternions.subarray(4, 8)],
+    [scales.subarray(0, 3), scales.subarray(3, 6)],
+    2,
+  );
+  assert.deepEqual(Array.from(flat.subarray(0, 16)), Array.from(views[0]));
+  assert.deepEqual(Array.from(flat.subarray(16)), Array.from(views[1]));
+
+  // And both are what the unit function writes, which is the oracle of the batch.
+  const unit = composeMatrix4(new Float64Array(16), positions, quaternions, scales);
+  assert.deepEqual(Array.from(unit), Array.from(views[0]));
+});

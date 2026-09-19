@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import {
   SPHERE_VALUES,
   boxUnionBatch,
-  frustumExcludesBoxBatch,
+  frustumKeepsBoxBatch,
   sphereFromBoundsBatch,
   srgbToLinearBatch,
   transformDirectionsBatch,
@@ -154,7 +154,7 @@ lines.push(
     },
     oracle: () => outExThree,
     core: () => {
-      frustumExcludesBoxBatch(outExCore, planes, boxes, N);
+      frustumKeepsBoxBatch(outExCore, planes, boxes, N);
       return outExCore;
     },
   }),
