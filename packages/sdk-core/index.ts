@@ -144,4 +144,3 @@ export { RECTS_PER_SLICE, createShadowPlan } from './sceneLightShadowPlan.ts';
 export type { ShadowPlan } from './sceneLightShadowPlan.ts';
 export { SHADOW_PAGE, pageRowsOf } from './sceneLightShadowPages.ts';
 export { regionRect } from './sceneLightShadowVolume.ts';
-export * from './llm/index.ts';
