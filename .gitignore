@@ -4,7 +4,8 @@ dist/
 benchmark-runs/
 .idea/
 .mesure/
-.claude/
+.claude/*
+!.claude/agents/
 .agents/
 
 # Graphe de connaissance graphify : le dossier est commité pour que chaque poste démarre avec

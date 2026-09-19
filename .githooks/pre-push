@@ -1,0 +1,10 @@
+#!/bin/sh
+# stdin: <local ref> <local sha> <remote ref> <remote sha>, one line per ref being pushed.
+. "$(dirname "$0")/lib.sh"
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  target="${remote_ref#refs/heads/}"
+  if is_protected "$target"; then
+    refuse "no push to '$target': open a pull request instead."
+  fi
+done
+exit 0

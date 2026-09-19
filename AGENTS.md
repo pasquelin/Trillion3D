@@ -104,6 +104,20 @@
 - Never claim undelivered simplification, compression, hard memory enforcement, N-API bindings or
   platform releases.
 
+## Workflow
+
+- **Every change reaches `develop` through an issue and a pull request, whatever tool writes it.**
+  Branch `<issue>-<short-name>` from `develop`, commit messages cite the issue (`#123`), pull
+  request body follows `.github/PULL_REQUEST_TEMPLATE.md` and `Closes #<issue>`. Nothing is
+  committed on or pushed to `develop` or `main`: the git hooks in `.githooks/` (installed by
+  `pnpm install`) refuse it, and the GitHub rulesets refuse a direct or forced push and a merge
+  without the `validate` check green.
+- Two roles, tool-neutral, in `.agents/roles/`: `coder` implements one issue and opens the pull
+  request; `reviewer` reads the pull request, runs the gates and posts findings as comments,
+  without editing anything. Any AI tool takes a role by being told to follow its file; Claude Code
+  also has them as subagents in `.claude/agents/`, the reviewer without write tools.
+- Merging is the maintainer's decision, never an agent's. `gh pr merge` is not for agents.
+
 ## Interaction and replies
 
 - Reply in simple, concise French: outcome first, usually 1–5 lines. Include necessary evidence,

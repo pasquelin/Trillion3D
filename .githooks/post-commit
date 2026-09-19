@@ -1,0 +1,4 @@
+#!/bin/sh
+# Delegates to the tool-installed hook of the same name (graphify) so core.hooksPath hides nothing.
+. "$(dirname "$0")/lib.sh"
+run_local_hook post-commit "$@"
