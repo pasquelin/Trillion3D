@@ -125,7 +125,7 @@ function sidesOf(item: BlendGpuItem) {
   const renverse = matrixWindingCw(item.matrix.elements);
   const front = renverse ? PIPELINE_FRONT : PIPELINE_BACK,
     back = renverse ? PIPELINE_BACK : PIPELINE_FRONT;
-  const side = sideOf(material);
+  const side = sideOf(item.material);
   if (side === 'double' && !material.forceSinglePass) return [back, front];
   if (side === 'front') return [front];
   if (side === 'back') return [back];
