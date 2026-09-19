@@ -8,27 +8,27 @@ import { paire } from './rapportGlobalLecture.mjs';
 // nom de leur série. Le premier est la référence des verdicts (« mieux que Three »). Les exécutions
 // de la campagne d'un témoin portent son moteur en préfixe (`three-nu-1248`, `three-lod-lampes-4`).
 export const TEMOINS = [
-  { moteur: 'three-nu', serie: 'Three.js nu' },
+  { moteur: 'three-nu', serie: 'Three.js vanilla' },
   { moteur: 'three-lod', serie: 'Three.js LOD' },
 ];
 export const NOTRE = 'Web Geometry';
 // Les séries de chaque fiche : les témoins, notre moteur, Unreal. `valeurs(vue)` rend une valeur
 // par série ; un témoin non mesuré vaut `null` et sa barre l'écrit.
-const SERIES = [...TEMOINS.map((t) => t.serie), NOTRE, 'Unreal (sa console)'];
+const SERIES = [...TEMOINS.map((t) => t.serie), NOTRE, 'Unreal (its console)'];
 const NOUS = TEMOINS.length;
 
 /** Les vues du comparateur d'images : le suffixe d'exécution du témoin, la vue, le libellé. */
 const VUES_IMAGES = [
-  ['-sans-ombres', 'sol', 'Rue, sans ombres'],
-  ['-sans-ombres', 'generale', 'Vue de haut, sans ombres'],
-  ['', 'sol', 'Rue, avec ombres'],
-  ['', 'generale', 'Vue de haut, avec ombres'],
-  ['', 'rue', 'Carrefour, avec ombres'],
-  ['', 'detail', 'Trottoir, avec ombres'],
-  ['-lampes-4', 'sol', 'Rue, soleil et quatre lampes'],
-  ['-lampes-4', 'generale', 'Vue de haut, soleil et quatre lampes'],
-  ['-1248', 'sol', 'Rue, petit écran'],
-  ['-1248', 'generale', 'Vue de haut, petit écran'],
+  ['-sans-ombres', 'sol', 'Street, no shadows'],
+  ['-sans-ombres', 'generale', 'Overview, no shadows'],
+  ['', 'sol', 'Street, with shadows'],
+  ['', 'generale', 'Overview, with shadows'],
+  ['', 'rue', 'Street corner, with shadows'],
+  ['', 'detail', 'Sidewalk, with shadows'],
+  ['-lampes-4', 'sol', 'Street, sun and four lights'],
+  ['-lampes-4', 'generale', 'Overview, sun and four lights'],
+  ['-1248', 'sol', 'Street, small screen'],
+  ['-1248', 'generale', 'Overview, small screen'],
 ];
 
 /** Les paires d'images du comparateur : le témoin (avant) et le moteur (après), même exécution,
@@ -43,10 +43,10 @@ export const pairesImages = (ex) =>
 
 /** Le verdict d'un chiffre du moteur face au témoin de référence : plus petit est mieux. */
 function verdict(moteur, three) {
-  if (moteur === null || three === null) return ['neutre', 'pas de comparaison possible'];
-  if (moteur < three * 0.8) return ['bon', `mieux que Three (${nombre(three / moteur, 1)}×)`];
-  if (moteur <= three * 1.2) return ['moyen', 'pareil que Three'];
-  return ['mauvais', `moins bien que Three (${nombre(moteur / three, 1)}×)`];
+  if (moteur === null || three === null) return ['neutre', 'no comparison'];
+  if (moteur < three * 0.8) return ['bon', `faster than Three (${nombre(three / moteur, 1)}×)`];
+  if (moteur <= three * 1.2) return ['moyen', 'same as Three'];
+  return ['mauvais', `slower than Three (${nombre(moteur / three, 1)}×)`];
 }
 
 /** Une fiche, rendue par `grille` ; `large` la met d'office sur toute la largeur. */

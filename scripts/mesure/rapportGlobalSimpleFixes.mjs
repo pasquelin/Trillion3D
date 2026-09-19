@@ -14,10 +14,10 @@ const octetsParTriangle = (r) =>
 /** La fiche sans chiffre du banc, posée après le comparateur d'images. */
 export const FICHE_PETITE_MACHINE = fiche(
   'f-petite-machine',
-  'Et sur une petite machine, avec moins de mémoire ?',
-  `<ul class="trois"><li><strong>Three.js</strong>, nu ou LOD : tout ou rien. Si la ville ne tient pas, l’onglet meurt.</li><li><strong>${NOTRE}</strong> : il s’arrête avec une erreur.</li><li><strong>Unreal</strong> : il montre une image moins fine, mais il continue.</li></ul>`,
-  ['mauvais', 'il s’arrête au lieu de dégrader'],
-  'Le plus grave du rapport : quand la mémoire manque, le moteur casse au lieu de montrer une image moins belle. À corriger en premier.',
+  'And on a small machine, with less memory?',
+  `<ul class="trois"><li><strong>Three.js</strong>, vanilla or LOD: all or nothing. If the city does not fit, the tab dies.</li><li><strong>${NOTRE}</strong>: it stops with an error.</li><li><strong>Unreal</strong>: it shows a coarser image, but it keeps going.</li></ul>`,
+  ['mauvais', 'it stops instead of degrading'],
+  'The worst finding in the report: when memory runs out, the engine crashes instead of showing a coarser image. Fix this first.',
 );
 
 /**
@@ -28,10 +28,10 @@ export const FICHE_PETITE_MACHINE = fiche(
 export const fichesFixes = ({ temoins, fixe }) => [
   fiche(
     'f-octets',
-    'Combien de mémoire par triangle ?',
-    barresSeries('f-octets-g', 'octets par triangle', [
+    'How much memory per triangle?',
+    barresSeries('f-octets-g', 'bytes per triangle', [
       {
-        libelle: 'géométrie en mémoire',
+        libelle: 'geometry in memory',
         valeurs: [
           ...temoins.map(octetsParTriangle),
           OCTETS_PAR_TRIANGLE.nous,
@@ -39,23 +39,23 @@ export const fichesFixes = ({ temoins, fixe }) => [
         ],
       },
     ]),
-    ['mauvais', '5 fois plus lourd qu’Unreal'],
-    'Three : tout ce que le glTF porte (positions, normales, tangentes, deux jeux d’uv, index), mesuré ; ses niveaux de détail ajoutent leurs index. Nous : ~48, sans compression. Unreal : 8,7, tout est compressé.',
+    ['mauvais', '5× heavier than Unreal'],
+    'Three: everything the glTF carries (positions, normals, tangents, two UV sets, indices), measured; its LOD levels add their indices. Us: ~48, uncompressed. Unreal: 8.7, everything compressed.',
   ),
   fiche(
     'f-structure',
-    'Même découpage qu’Unreal ?',
-    `<ul class="trois"><li><strong>128 triangles par paquet</strong> : oui, pareil.</li><li><strong>Paquets groupés par 8 à 32</strong> : oui, pareil.</li><li><strong>Pages de 128 Ko</strong> : oui, pareil.</li><li><strong>Réserve mémoire fixe</strong> : Unreal 512 Mo ; nous, un nombre de pages, pas des octets.</li></ul>`,
-    ['bon', 'oui, aux mêmes chiffres'],
-    'Le moteur est construit comme Unreal, avec les mêmes nombres. Ce qui manque n’est pas la structure : c’est la compression et la mémoire bornée.',
+    'Same layout as Unreal?',
+    `<ul class="trois"><li><strong>128 triangles per cluster</strong>: yes, same.</li><li><strong>Clusters grouped 8 to 32</strong>: yes, same.</li><li><strong>128 KiB pages</strong>: yes, same.</li><li><strong>Fixed memory pool</strong>: Unreal 512 MB; we count pages, not bytes.</li></ul>`,
+    ['bon', 'yes, same numbers'],
+    'The engine is built like Unreal, with the same numbers. What is missing is not the structure: it is compression and a bounded pool.',
   ),
   // Les témoins viennent de leur exécution sans ombres, caméra fixe ; le moteur de `fixe`.
   fiche(
     'f-immobile',
-    'Quand rien ne bouge, le moteur travaille-t-il ?',
+    'When nothing moves, does the engine still work?',
     barresSeries('f-immobile-g', 'ms', [
       {
-        libelle: 'depuis la rue',
+        libelle: 'from the street',
         valeurs: [
           ...temoins.map((r) => r?.imageMs),
           fixe && fixe.gpuReleves === 0 ? 0 : fixe?.imageMs,
@@ -64,8 +64,8 @@ export const fichesFixes = ({ temoins, fixe }) => [
       },
     ]),
     fixe && fixe.gpuReleves === 0
-      ? ['bon', 'rien : l’image est gardée']
-      : ['mauvais', 'il redessine'],
-    'Three redessine tout, tout le temps. Le moteur garde l’image et ne fait rien, comme Unreal. Sur un portable, c’est la batterie.',
+      ? ['bon', 'nothing: the frame is held']
+      : ['mauvais', 'it redraws'],
+    'Three redraws everything, every frame. The engine holds the image and does nothing, like Unreal. On a laptop, that is battery life.',
   ),
 ];

@@ -9,8 +9,13 @@ import { VIEWS } from './poses.mjs';
 /** Les vues du banc et leur nom lisible, pour tout le rapport. */
 export const VUES = Object.keys(VIEWS);
 export const DEUX_VUES = ['generale', 'sol'];
-export const QUALITES = ['qualité maximale (0 px d’erreur)', 'qualité normale (1 px d’erreur)'];
-export const LIBELLE = { generale: 'Vue générale', sol: 'Sol', rue: 'Rue', detail: 'Détail' };
+export const QUALITES = ['maximum quality (0 px error)', 'normal quality (1 px error)'];
+export const LIBELLE = {
+  generale: 'Overview',
+  sol: 'Street',
+  rue: 'Street corner',
+  detail: 'Close-up',
+};
 
 const p50 = (stat) => stat?.p50 ?? null;
 const p95 = (stat) => stat?.p95 ?? null;

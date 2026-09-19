@@ -14,108 +14,108 @@ export function tableauReference({ mobile, fixe, instances12 }) {
   const cpu = mobile?.cpuP50 ?? null;
   const lignes = [
     [
-      'Triangles par grappe',
+      'Triangles per cluster',
       String(UNREAL.trianglesParGrappe),
       String(UNREAL.trianglesParGrappe),
-      'identique (constante vérifiée par le test)',
+      'identical (constant checked by the test)',
     ],
     [
-      'Grappes par groupe',
-      UNREAL.grappesParGroupe.join(' à '),
-      UNREAL.grappesParGroupe.join(' à '),
-      'identique ; le plancher 8 n’est pas appliqué (Géométrie 16)',
+      'Clusters per group',
+      UNREAL.grappesParGroupe.join(' to '),
+      UNREAL.grappesParGroupe.join(' to '),
+      'identical; the floor of 8 is not applied (Geometry 16)',
     ],
     [
-      'Page de diffusion',
-      `${UNREAL.pageKio} Kio (source secondaire)`,
-      `${UNREAL.pageKio} Kio`,
-      'identique',
+      'Streaming page',
+      `${UNREAL.pageKio} KiB (secondary source)`,
+      `${UNREAL.pageKio} KiB`,
+      'identical',
     ],
     [
-      'Budget de résidence',
-      `${UNREAL.poolMo} Mo, pages racines épinglées`,
+      'Residency budget',
+      `${UNREAL.poolMo} MB, root pages pinned`,
       mobile
-        ? `${nombre(mobile.pagesDemandees, 0)} pages demandées, ${nombre(mobile.pagesResidentes, 0)} résidentes, ${octets(mobile.geometrieOctets)}`
-        : 'non mesuré',
-      'compté en pages chez nous, en octets chez eux',
+        ? `${nombre(mobile.pagesDemandees, 0)} pages requested, ${nombre(mobile.pagesResidentes, 0)} resident, ${octets(mobile.geometrieOctets)}`
+        : 'not measured',
+      'counted in pages on our side, in bytes on theirs',
     ],
     [
-      'Géométrie en mémoire',
-      `${nombre(UNREAL.octetsParTriangle, 1)} octets par triangle`,
-      `~${OCTETS_PAR_TRIANGLE.nous} octets par triangle (docs/FORMAT.md, non mesuré ici)`,
-      'le banc publie des octets résidents, pas des octets par triangle : ~6× au-dessus par la doc',
+      'Geometry in memory',
+      `${nombre(UNREAL.octetsParTriangle, 1)} bytes per triangle`,
+      `~${OCTETS_PAR_TRIANGLE.nous} bytes per triangle (docs/FORMAT.md, not measured here)`,
+      'the bench publishes resident bytes, not bytes per triangle: ~6× above per the doc',
     ],
     [
-      'Triangles rastérisés par image',
-      `${nombre(UNREAL.trianglesParImage / 1e6, 0)} M quelle que soit la scène`,
-      mobile ? nombre(mobile.triangles, 0) : 'non mesuré',
-      'notre compte suit la scène et la qualité demandée, le leur est fixe',
+      'Triangles rasterized per frame',
+      `${nombre(UNREAL.trianglesParImage / 1e6, 0)} M regardless of scene`,
+      mobile ? nombre(mobile.triangles, 0) : 'not measured',
+      'our count follows the scene and requested quality, theirs is fixed',
     ],
     [
-      'Coût processeur par image',
-      '« presque nul »',
+      'CPU cost per frame',
+      '“almost zero”',
       nombre(cpu, 2, 'ms'),
-      'la seule milliseconde comparable d’une machine à l’autre',
+      'the only millisecond that compares across machines',
     ],
     [
-      'Tampon de visibilité (GPU)',
+      'Visibility buffer (GPU)',
       `~${nombre(UNREAL.visibiliteMs, 1)} ms (PS5, 2496×1404)`,
       nombre(sommePasses(mobile, visibilite), 2, 'ms'),
-      'même résolution, machine différente : forme du profil, pas verdict',
+      'same resolution, different machine: profile shape, not a verdict',
     ],
     [
-      'Passe matériaux (GPU)',
+      'Materials pass (GPU)',
       `~${nombre(UNREAL.materiauxMs, 1)} ms (Emit GBuffer)`,
       nombre(mobile?.passe('WG material surfaces v1')?.p50 ?? null, 2, 'ms'),
-      'même réserve',
+      'same caveat',
     ],
     [
-      'Appels de dessin',
-      'un par matériau',
-      mobile ? nombre(mobile.appelsDeDessin, 0) : 'non mesuré',
-      'un seul pour les grappes exactes ; un par item et par face pour le mélange',
+      'Draw calls',
+      'one per material',
+      mobile ? nombre(mobile.appelsDeDessin, 0) : 'not measured',
+      'one for exact clusters; one per item and face for blend',
     ],
     [
-      'Travail dans une scène immobile',
-      'aucun',
+      'Work in a still scene',
+      'none',
       fixe
         ? fixe.gpuReleves === 0 && fixe.imageTenue
-          ? 'aucune passe carte : image tenue'
-          : `${fixe.gpuReleves} relevés carte`
-        : 'non mesuré',
-      fixe ? `processeur ${nombre(fixe.cpuP50, 2, 'ms')} par image à caméra fixe` : '',
+          ? 'no GPU pass: frame held'
+          : `${fixe.gpuReleves} GPU samples`
+        : 'not measured',
+      fixe ? `CPU ${nombre(fixe.cpuP50, 2, 'ms')} per frame at a locked camera` : '',
     ],
     [
-      'Antialiasing temporel',
-      'non publié (rendu à 2496×1404, remonté en 4K)',
+      'Temporal antialiasing',
+      'not published (rendered at 2496×1404, upscaled to 4K)',
       nombre(mobile?.passe('WG temporal antialiasing')?.p50 ?? null, 2, 'ms'),
-      'à résolution native, sans remontée',
+      'native resolution, no upscale',
     ],
     [
       'Instances',
-      'une fiche par grappe, l’instance en index',
+      'one record per cluster, instance as an index',
       instances12
-        ? `12 copies : ${octets(instances12.geometrieOctets)} de géométrie`
-        : 'non mesuré',
-      'douze copies des grappes (Géométrie 5)',
+        ? `12 copies: ${octets(instances12.geometrieOctets)} of geometry`
+        : 'not measured',
+      'twelve copies of the clusters (Geometry 5)',
     ],
     [
       'Textures',
-      'pool physique fixe, comprimé à la cuisson (non sourcé)',
+      'fixed physical pool, compressed at cook time (unsourced)',
       mobile
-        ? `${octets(mobile.texturesEngagees)} engagés sur ${octets(mobile.texturesPool)} de pool RGBA brut`
-        : 'non mesuré',
-      'ni pool fixe ni compression (Textures T4, T5)',
+        ? `${octets(mobile.texturesEngagees)} committed on ${octets(mobile.texturesPool)} of raw RGBA pool`
+        : 'not measured',
+      'neither a fixed pool nor compression (Textures T4, T5)',
     ],
     [
-      'Matériaux du chemin virtualisé',
-      'opaque et masqué seulement',
-      'opaque, masqué et mélange',
-      'le mélange coûte un appel par item et par face (Compilateur 10)',
+      'Materials on the virtualized path',
+      'opaque and masked only',
+      'opaque, masked and blend',
+      'blend costs one call per item and face (Compiler 10)',
     ],
   ];
   return tableau(
-    ['Grandeur', 'La référence', 'Nous (cette campagne)', 'Lecture'],
+    ['Quantity', 'The reference', 'Us (this campaign)', 'Reading'],
     lignes,
     'reference',
   );
@@ -130,39 +130,39 @@ export function tableauProfilReference(mobile) {
       'ms',
     );
   const lignes = [
-    ['Clear VisBuffer', '0,066', nous((n) => n === 'WG clear')],
+    ['Clear VisBuffer', '0.066', nous((n) => n === 'WG clear')],
     [
       'InstanceCull + ClusterCull',
-      '0,514',
+      '0.514',
       nous((n) => /^WG (DAG selection|draw compaction|partition)$/.test(n)),
     ],
     [
-      'Rasterize (matériel + calcul)',
-      '1,148',
+      'Rasterize (hardware + compute)',
+      '1.148',
       nous((n) => /^WG (visibility|raster |small triangle|hybrid)/.test(n)),
     ],
-    ['BuildHZB', '0,099', nous((n) => n.startsWith('WG HiZ'))],
-    ['Post Pass (2e passe d’occultation)', '0,410', nous((n) => n === 'WG visibility secondary')],
+    ['BuildHZB', '0.099', nous((n) => n.startsWith('WG HiZ'))],
+    ['Post Pass (2nd occlusion pass)', '0.410', nous((n) => n === 'WG visibility secondary')],
     [
-      'Emit GBuffer / passe matériaux',
-      '2,084',
+      'Emit GBuffer / materials pass',
+      '2.084',
       nous((n) => /^WG (material surfaces|empty surfaces)/.test(n)),
     ],
     [
-      'Ombres (cartes d’ombre virtuelles)',
-      'non publié dans ce talk',
+      'Shadows (virtual shadow maps)',
+      'not published in that talk',
       nous((n) => /^WG shadow/.test(n)),
     ],
     [
-      'Éclairage différé',
-      'non publié dans ce talk',
+      'Deferred lighting',
+      'not published in that talk',
       nous((n) => /^WG (deferred lighting|light tiles)/.test(n)),
     ],
-    ['Antialiasing temporel', 'non publié', nous((n) => n === 'WG temporal antialiasing')],
-    ['Présentation', 'non publié', nous((n) => /^WG (HDR composition|direct present)/.test(n))],
+    ['Temporal antialiasing', 'not published', nous((n) => n === 'WG temporal antialiasing')],
+    ['Present', 'not published', nous((n) => /^WG (HDR composition|direct present)/.test(n))],
   ];
   return tableau(
-    ['Passe', 'Référence, ms (PS5, 2496×1404 → 4K)', 'Nous, ms p50 (vue sol, 2496×1404)'],
+    ['Pass', 'Reference, ms (PS5, 2496×1404 → 4K)', 'Us, ms p50 (street view, 2496×1404)'],
     lignes,
   );
 }
