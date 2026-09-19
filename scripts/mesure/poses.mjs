@@ -15,7 +15,15 @@ const POINTS = [
   [0.72, 28, 0.78],
 ];
 const FRAMES_PER_SEGMENT = 60;
-export { PATH_VERSION };
+export { PATH_VERSION, FRAMES_PER_SEGMENT };
+
+/** Complete bench trajectory in camera poses, framed from `bounds`. */
+export function urbanPath(bounds) {
+  const count = POINTS.length * FRAMES_PER_SEGMENT;
+  return Array.from({ length: count }, (_, index) => ({
+    pose: poseAt(bounds, index),
+  }));
+}
 
 /** Bench views this harness knows how to play, by index in the trajectory. */
 export const VIEWS = {

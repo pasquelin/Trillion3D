@@ -67,8 +67,7 @@ Anything that cannot run is **explicitly declared** in `BROWSER_ECARTES` (`test/
 category and reason, and the command prints it before starting — never in silence:
 
 - **montage** (setup) — the proof is valid, but the machine is not ready: assets in `.mesure/assets/`
-  need recompilation, `LAB_URL` missing for a proof mounted on Lab pages, `timestamp-query`
-  unavailable.
+  need recompilation, `timestamp-query` unavailable.
 - **regression** — the proof fails because an issue exists. This is an open debt to be resolved by
   fixing the engine.
 - **stale-double** — the proof maintains a manual copy of a contract that evolved in the source.
