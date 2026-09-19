@@ -17,6 +17,19 @@ export function shadowsFollowTextures(lights: WebgpuLightState) {
 }
 
 /**
+ * Serves tiles requested by the previous image, except during a pose barrier: the shadow
+ * drain replays the image without admitting new ones. An arriving tile invalidates every
+ * map (`shadowsFollowTextures`) and the queue would never empty (#25).
+ */
+export function pumpResidentTiles(
+  textures: { pump: (frame: number) => void } | undefined,
+  frame: number,
+  converging: boolean,
+) {
+  if (!converging) textures?.pump(frame);
+}
+
+/**
  * Vrai quand l'image doit être éclairée par les lampes déclarées. Faux dans la seule vue sans
  * éclairage : `unlit` demandée par l'hôte, ou `auto` sur une scène sans lampe — là, l'albédo brut
  * sort tel quel.

@@ -11,6 +11,7 @@ import { renderGpuCut } from './webgpuPagesGpuCut.ts';
 import { renderCpuCut } from './webgpuPagesRenderCpu.ts';
 import { setWindingEpoch } from './webgpuPagesWinding.ts';
 import { holdWebgpuFrame } from './webgpuFrameHold.ts';
+import { pumpResidentTiles } from './webgpuPagesLightResources.ts';
 import { refreshBlendWorlds } from './webgpuBlendWorlds.ts';
 import { refreshBlendScene } from './webgpuBlendResources.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
@@ -48,7 +49,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
   run.cutHeld = false;
   setWindingEpoch(rows.tableEpoch);
   // Ce que le retour d'image de l'image précédente a demandé devient résident, sous le budget.
-  vis.textures?.pump(run.frame);
+  pumpResidentTiles(vis.textures, run.frame, run.textureConverging);
   // Une matrice monde est fonction de la seule scène : une image que rien n'a touchée les
   // retrouverait toutes à l'identique. L'index du moteur n'est donc recalculé qu'à un changement de
   // révision de scène, et un nœud que `setWebgpuTransform` vient de déplacer l'a déjà recalculé.
