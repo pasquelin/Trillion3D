@@ -2,19 +2,24 @@
 
 ## The mission
 
-- **Build Unreal Engine 5's virtualized geometry for the web, with its performance.** The reference
-  is UE5: Nanite for the geometry, its temporal antialiasing for the image, its streaming and memory
-  budgets. Its techniques, its constraints, its numbers. At every trade-off, take its solution.
-- **The end goal is the whole image, not only the geometry: Lumen-class lighting — dynamic global
-  illumination, reflections and shadows — with the reference's performance, rebuilt for the web's
-  constraints (no hardware ray tracing, bounded and unreadable GPU memory, one browser frame).**
-  Nanite, the temporal antialiasing and the memory budgets are the foundation; the lighting is what
-  they are for. It is reached by stages, each measured, and the strategy lives in
-  `docs/SPEC_ENGINE_WITHOUT_THREE.md` §8. A stage that is out of order is not out of scope.
-- **Never copy Unreal code, shaders or assets into this repository.** Not one line, ever. Unreal is
-  not open source and its source is EULA-covered; reimplement from public material only — papers,
-  talks, documentation, observed behaviour. Naming it as a reference is fine and expected; carrying
-  its code is what creates a lawsuit. The same goes for any other engine.
+- **Build virtualized geometry for the web, at the performance of the best desktop engines.**
+  Geometry streamed by clusters, one cut through a DAG per frame, a visibility buffer, temporal
+  antialiasing for the image, fixed streaming and memory budgets. The techniques come from the
+  published literature (papers, talks, documentation); the desktop engines that ship them are
+  **points of comparison for the numbers**, nothing more. At every trade-off, take the solution the
+  published state of the art has proven.
+- **The end goal is the whole image, not only the geometry: real-time dynamic global illumination,
+  reflections and shadows, at that same performance, rebuilt for the web's constraints (no hardware
+  ray tracing, bounded and unreadable GPU memory, one browser frame).** The geometry, the temporal
+  antialiasing and the memory budgets are the foundation; the lighting is what they are for. It is
+  reached by stages, each measured, and the strategy lives in `docs/SPEC_ENGINE_WITHOUT_THREE.md`
+  §8. A stage that is out of order is not out of scope.
+- **Never copy another engine's code, shaders or assets into this repository.** Not one line, ever.
+  Commercial engines are not open source and their sources are licence-covered; reimplement from
+  public material only — papers, talks, documentation, observed behaviour. Third-party engines and
+  their feature names are trademarks of their owners: they may be cited as a benchmark in a
+  measurement or a comparison table, never in a mission statement, a tagline, a badge, a package
+  name or anything that presents this project as a port or a clone of them.
 - Parity means four things, and none of them is a pixel count: fixed memory and millisecond budgets,
   residency driven by what the frame actually reads, compression at cook time, no work in a still
   scene. A batch that misses these has not reached the reference, however good it looks.

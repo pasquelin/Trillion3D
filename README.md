@@ -25,12 +25,12 @@ _Géométrie virtualisée pour le web — un compilateur natif en Rust, un moteu
 
 ## Why Web Geometry
 
-Unreal Engine 5 changed what a scene can hold: geometry is streamed by clusters, one cut through a
-DAG per frame, drawn through a visibility buffer, resolved by temporal antialiasing, held under a
-fixed memory budget. None of that exists for the browser. **Web Geometry rebuilds it for the web's
-constraints** — no hardware ray tracing, bounded and unreadable GPU memory, one browser frame — with
-the reference's techniques, its constraints and its numbers, reimplemented from public material
-only. The geometry is the foundation; the lighting is what it is for.
+The best desktop engines changed what a scene can hold: geometry is streamed by clusters, one cut
+through a DAG per frame, drawn through a visibility buffer, resolved by temporal antialiasing, held
+under a fixed memory budget. None of that exists for the browser. **Web Geometry builds it for the
+web's constraints** — no hardware ray tracing, bounded and unreadable GPU memory, one browser frame —
+from the published literature only, and measures itself against the numbers those engines publish.
+The geometry is the foundation; the lighting is what it is for.
 
 Parity means four things, and none of them is a pixel count:
 
@@ -162,7 +162,7 @@ See [scripts/mesure/README.md](scripts/mesure/README.md) and [docs/TESTS.md](doc
 | `pnpm run test:gpu`         | browser proofs on a real GPU                                                                                                                                                                     |
 
 The engine stays generic: no scene names, no hardcoded lights or cameras, no object-type special
-cases. Not one line of Unreal — or any other engine's — code, shaders or assets enters this
+cases. Not one line of any other engine's code, shaders or assets enters this
 repository; everything is reimplemented from papers, talks, documentation and observed behaviour.
 
 ## Documentation
@@ -184,7 +184,7 @@ The documentation is written in **French**; the code, its identifiers and this p
 ## Roadmap
 
 The geometry, the temporal antialiasing and the memory budgets are the foundation. What they are
-for is **Lumen-class lighting** — dynamic global illumination, reflections and shadows — reached by
+for is **real-time dynamic global illumination, reflections and shadows** — reached by
 stages, each measured before the next ([spec §8](docs/SPEC_MOTEUR_SANS_THREE.md)):
 
 | Stage | Content                                                                             | State                                                      |
