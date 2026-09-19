@@ -57,7 +57,7 @@ export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
       continue;
     outsideItems++;
     const material = Array.isArray(item.material) ? item.material[0] : item.material;
-    outsideDraws += sideOf(material) === 'double' && !material.forceSinglePass ? 2 : 1;
+    outsideDraws += sideOf(item.material) === 'double' && !material.forceSinglePass ? 2 : 1;
   }
   return {
     selection: run.gpuFrameActive ? 'gpu' : 'cpu',
