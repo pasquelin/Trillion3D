@@ -33,5 +33,5 @@ test('analyserCoupe nomme les pages sans fiche et les niveaux absents', () => {
   assert.equal(r.total, 12);
   assert.equal(r.inconnues, 1);
   assert.equal(r.parPrimitive[0].nom, 'mesh 3');
-  assert.equal(r.parNiveau[0].nom, 'sans niveau');
+  assert.equal(r.parNiveau[0].nom, 'no level');
 });

@@ -21,25 +21,22 @@ export function verdicts(ex) {
     out.push(
       verdict(
         tient ? 'bon' : 'mauvais',
-        `<strong>À 2496×1404, l’image ${tient ? 'tient' : 'ne tient pas'} dans 16,7 ms côté carte graphique</strong> : p50 de ${ms(Math.min(...sous60.map((r) => r.gpuP50 ?? Infinity)))} à ${ms(Math.max(...sous60.map((r) => r.gpuP50 ?? 0)))} selon la vue, p95 jusqu’à ${ms(pire?.gpuP95)} (${html(pire?.vue ?? '')}). Soleil, ombres en cascade, caméra mobile, qualité normale.`,
+        `<strong>At 2496×1404, the frame ${tient ? 'fits' : 'does not fit'} in 16.7 ms on the GPU</strong>: p50 from ${ms(Math.min(...sous60.map((r) => r.gpuP50 ?? Infinity)))} to ${ms(Math.max(...sous60.map((r) => r.gpuP50 ?? 0)))} depending on the view, p95 up to ${ms(pire?.gpuP95)} (${html(pire?.vue ?? '')}). Sun, cascaded shadows, moving camera, normal quality.`,
       ),
     );
     out.push(
       verdict(
         sol.cpuP50 !== null && sol.cpuP50 < 3 ? 'bon' : 'mauvais',
-        `<strong>Le processeur coûte ${ms(sol.cpuP50, 2)} par image en vue sol</strong> (p95 ${ms(sol.cpuP95, 2)}), ${ms(gen?.cpuP50, 2)} en vue générale. La référence dit « presque nul » : c’est la seule milliseconde qui se compare d’une machine à l’autre, et elle n’est pas nulle (Géométrie 1).`,
+        `<strong>The CPU costs ${ms(sol.cpuP50, 2)} per frame in the street view</strong> (p95 ${ms(sol.cpuP95, 2)}), ${ms(gen?.cpuP50, 2)} in overview. The reference says “almost zero”: that is the only millisecond that compares across machines, and it is not zero (Geometry 1).`,
       ),
     );
-  } else
-    out.push(
-      verdict('mauvais', 'L’exécution `mobile` manque : aucune image entière de référence.'),
-    );
+  } else out.push(verdict('mauvais', 'The `mobile` run is missing: no whole-frame baseline.'));
 
   if (fixe)
     out.push(
       verdict(
         fixe.gpuReleves === 0 ? 'bon' : 'mauvais',
-        `<strong>Scène immobile : ${fixe.gpuReleves === 0 ? 'aucune passe carte graphique, l’image est tenue' : `${fixe.gpuReleves} relevés carte, l’image n’est pas tenue`}</strong> ; le processeur y passe encore ${ms(fixe.cpuP50, 2)} par image (p95 ${ms(fixe.cpuP95, 2)}). Le critère « aucun travail dans une scène immobile » ${fixe.gpuReleves === 0 && (fixe.cpuP50 ?? 1) < 0.5 ? 'est tenu' : 'n’est tenu que côté carte'}.`,
+        `<strong>Still scene: ${fixe.gpuReleves === 0 ? 'no GPU pass, the frame is held' : `${fixe.gpuReleves} GPU samples, the frame is not held`}</strong>; the CPU still spends ${ms(fixe.cpuP50, 2)} per frame (p95 ${ms(fixe.cpuP95, 2)}). The “no work in a still scene” criterion ${fixe.gpuReleves === 0 && (fixe.cpuP50 ?? 1) < 0.5 ? 'holds' : 'holds only on the GPU'}.`,
       ),
     );
 
@@ -50,7 +47,7 @@ export function verdicts(ex) {
     out.push(
       verdict(
         plusLent ? 'mauvais' : 'bon',
-        `<strong>À un quart des pixels (1248×702), l’image est ${plusLent ? `PLUS LENTE : ${ms(quart.gpuP50)} contre ${ms(sol.gpuP50)}` : `${ms(quart.gpuP50)} contre ${ms(sol.gpuP50)} à pleine résolution`}</strong>${plusLent ? ' — l’anomalie de Lumière 18 est toujours là.' : ' : l’anomalie de Lumière 18 ne se reproduit pas dans cette campagne.'}`,
+        `<strong>At a quarter of the pixels (1248×702), the frame is ${plusLent ? `SLOWER: ${ms(quart.gpuP50)} vs ${ms(sol.gpuP50)}` : `${ms(quart.gpuP50)} vs ${ms(sol.gpuP50)} at full resolution`}</strong>${plusLent ? ' — the Light 18 anomaly is still there.' : ': the Light 18 anomaly does not show in this campaign.'}`,
       ),
     );
   }
@@ -60,7 +57,7 @@ export function verdicts(ex) {
     out.push(
       verdict(
         rc.gpuP50 > rm.gpuP50 + BRUIT_MS ? 'mauvais' : 'bon',
-        `<strong>Raster de calcul contre raster matériel à 1248×702 : ${ms(rc.gpuP50)} contre ${ms(rm.gpuP50)}</strong> (${nombre(rc.gpuP50 / rm.gpuP50, 1)}×), écart d’image ${pixels(rc.ecart)}. Depuis Géométrie 26 le matériel est le défaut et le calcul une variante ; la référence garde le matériel pour les grands triangles et le calcul pour les petits.`,
+        `<strong>Compute raster vs hardware raster at 1248×702: ${ms(rc.gpuP50)} vs ${ms(rm.gpuP50)}</strong> (${nombre(rc.gpuP50 / rm.gpuP50, 1)}×), image delta ${pixels(rc.ecart)}. Since Geometry 26 hardware is the default and compute a variant; the reference keeps hardware for large triangles and compute for small ones.`,
       ),
     );
 
@@ -69,7 +66,7 @@ export function verdicts(ex) {
     out.push(
       verdict(
         '',
-        `<strong>L’antialiasing temporel coûte ${ms(sol.gpuP50 - aa.gpuP50)} d’enveloppe en vue sol</strong> (${ms(sol.gpuP50)} avec, ${ms(aa.gpuP50)} sans)${Math.abs(sol.gpuP50 - aa.gpuP50) < BRUIT_MS ? ', sous le bruit de mesure' : ''} ; témoin A/A ${nombre(sol.temoinAA?.pixels, 0)} px avec, ${nombre(aa.temoinAA?.pixels, 0)} px sans.`,
+        `<strong>Temporal antialiasing costs ${ms(sol.gpuP50 - aa.gpuP50)} of envelope in the street view</strong> (${ms(sol.gpuP50)} with, ${ms(aa.gpuP50)} without)${Math.abs(sol.gpuP50 - aa.gpuP50) < BRUIT_MS ? ', under measurement noise' : ''}; A/A witness ${nombre(sol.temoinAA?.pixels, 0)} px with, ${nombre(aa.temoinAA?.pixels, 0)} px without.`,
       ),
     );
 
@@ -78,7 +75,7 @@ export function verdicts(ex) {
     out.push(
       verdict(
         '',
-        `<strong>Le soleil et ses ombres coûtent ${ms(sol.gpuP50 - sansLum.gpuP50)} d’enveloppe en vue sol</strong> (albédo brut ${ms(sansLum.gpuP50)}, soleil ${ms(sol.gpuP50)}). Étape « Ombres » ${ms(sol.etape('shadows')?.gpuP50 ?? null, 2)}, éclairage différé ${ms(sol.passe('WG deferred lighting')?.p50 ?? null, 2)} par leurs étiquettes.`,
+        `<strong>The sun and its shadows cost ${ms(sol.gpuP50 - sansLum.gpuP50)} of envelope in the street view</strong> (raw albedo ${ms(sansLum.gpuP50)}, sun ${ms(sol.gpuP50)}). “Shadows” step ${ms(sol.etape('shadows')?.gpuP50 ?? null, 2)}, deferred lighting ${ms(sol.passe('WG deferred lighting')?.p50 ?? null, 2)} by their labels.`,
       ),
     );
 
@@ -86,7 +83,7 @@ export function verdicts(ex) {
     out.push(
       verdict(
         'mauvais',
-        `<strong>Mémoire : ${octets(sol.texturesEngagees)} de textures RGBA brutes engagées et ${octets(sol.geometrieOctets)} de géométrie</strong> en vue sol ; la référence tient un pool fixe et comprime à la cuisson. C’est le critère de parité le plus loin (Textures T4, T5 ; Géométrie 11).`,
+        `<strong>Memory: ${octets(sol.texturesEngagees)} of raw RGBA textures committed and ${octets(sol.geometrieOctets)} of geometry</strong> in the street view; the reference keeps a fixed pool and compresses at cook time. This is the farthest parity criterion (Textures T4, T5; Geometry 11).`,
       ),
     );
 
@@ -95,7 +92,7 @@ export function verdicts(ex) {
     out.push(
       verdict(
         '',
-        `<strong>Face à Three.js nu, sans ombres, vue sol : ${pixels(nu.ecart)} diffèrent d’au moins un niveau</strong> — les deux images sont visuellement les mêmes (<a href="#f-fidelite">côte à côte</a>) ; le banc ne compte pas avec seuil. Three nu rend cette vue en ${ms(nuT?.imageSyncP50)} de temps mur.`,
+        `<strong>Versus Three.js vanilla, no shadows, street view: ${pixels(nu.ecart)} differ by at least one level</strong> — the two images look the same (<a href="#f-fidelite">side by side</a>); the bench counts with no threshold. Vanilla Three renders this view in ${ms(nuT?.imageSyncP50)} wall time.`,
       ),
     );
   const [nuG, nuGm] = paire(ex, 'three-nu', 'generale');
@@ -108,7 +105,7 @@ export function verdicts(ex) {
           nuSm.gpuP50 > nuS.imageSyncP50 - BRUIT_MS
           ? 'mauvais'
           : 'bon',
-        `<strong>Face à Three.js nu avec soleil et ombres : vue générale ${ms(nuG.imageSyncP50)} (Three) contre ${ms(nuGm?.gpuP50)} (moteur) ; vue sol ${ms(nuS.imageSyncP50)} contre ${ms(nuSm?.gpuP50)}.</strong> De haut, la sélection paie ; au ras du sol, le moteur ne fait pas mieux qu’un rendu naïf de toute la scène — ce qui coûte là est plein-écran, pas géométrique.`,
+        `<strong>Versus Three.js vanilla with sun and shadows: overview ${ms(nuG.imageSyncP50)} (Three) vs ${ms(nuGm?.gpuP50)} (engine); street ${ms(nuS.imageSyncP50)} vs ${ms(nuSm?.gpuP50)}.</strong> From above, selection pays; at street level the engine is no better than a naive full-scene draw — the cost there is full-screen, not geometric.`,
       ),
     );
 
@@ -128,26 +125,26 @@ function orientation(ex) {
   const soleilSans = trouve(ex, 'soleil-sans-ombres', 'sol', 1);
   const mesures = [
     [
-      'Les ombres, soleil et quatre ponctuelles (`--ombres off` les coupe toutes)',
+      'Shadows, sun and four point lights (`--ombres off` cuts them all)',
       diff(l4, l4s),
-      'Lumière 13',
+      'Light 13',
     ],
-    ['Le soleil seul, cascades d’ombre comprises', diff(sol, sansLum), 'Lumière 13'],
-    ['Les cartes d’ombre du soleil (`--soleil --ombres off`)', diff(sol, soleilSans), 'Lumière 13'],
+    ['The sun alone, including shadow cascades', diff(sol, sansLum), 'Light 13'],
+    ['Sun shadow maps (`--soleil --ombres off`)', diff(sol, soleilSans), 'Light 13'],
     [
-      'Soleil et quatre ponctuelles SANS aucune ombre : l’éclairage lui-même',
+      'Sun and four point lights with NO shadows: lighting itself',
       diff(l4s, sansLum),
-      'peu de chose : ce sont les ombres qui coûtent, pas la lumière',
+      'little: shadows cost, not the light',
     ],
-    ['Le rebond', diff(trouve(ex, 'rebond', 'sol', 1), l4), 'Lumière 7'],
-    ['L’antialiasing temporel', diff(sol, trouve(ex, 'aa-off', 'sol', 1)), 'Lumière 16'],
+    ['Bounce', diff(trouve(ex, 'rebond', 'sol', 1), l4), 'Light 7'],
+    ['Temporal antialiasing', diff(sol, trouve(ex, 'aa-off', 'sol', 1)), 'Light 16'],
     [
-      'Le raster de calcul à la place du matériel (1248×702)',
+      'Compute raster instead of hardware (1248×702)',
       diff(...paire(ex, 'raster-1248', 'sol')),
-      'Géométrie 26',
+      'Geometry 26',
     ],
     [
-      'Les textures lues du cache plutôt que des images',
+      'Textures read from the cache rather than images',
       diff(sol, trouve(ex, 'textures-host', 'sol', 1)),
       'Textures T2bis',
     ],
@@ -156,9 +153,9 @@ function orientation(ex) {
     .sort((a, b) => b[1] - a[1]);
   // Les étiquettes qui absorbent leurs voisines sur cet appareil ne sont pas classées.
   const absorbees = new Set([
-    'Présentation',
-    'Antialiasing temporel',
-    'Éclairage (listes de lampes + différé)',
+    'Present',
+    'Temporal antialiasing',
+    'Lighting (light lists + deferred)',
   ]);
   const etiquettes = GROUPES.filter(([nom]) => !absorbees.has(nom))
     .map(([nom, garde, lot]) => [nom, sommePasses(sol, garde), lot])
@@ -168,5 +165,5 @@ function orientation(ex) {
     rows
       .map(([nom, v, lot]) => `<li><strong>${html(nom)}</strong> : ${ms(v, 2)} — ${html(lot)}</li>`)
       .join('');
-  return `<h3>Ce que les chiffres orientent</h3><p>Vue sol, qualité normale, pleine résolution, enveloppe ${ms(sol.gpuP50)}. D’abord ce qui se mesure par différence entre deux exécutions (la seule lecture sûre sur cet appareil ; sous ${ms(BRUIT_MS)} c’est du bruit) :</p><ol>${li(mesures)}</ol><p>Ensuite ce que disent les étiquettes de passes, à prendre avec la réserve de l’horodatage (la présentation, l’antialiasing et l’éclairage différé lisent 7 ms chacun parce qu’ils absorbent leurs voisines ; ils ne sont pas classés ici) :</p><ol>${li(etiquettes)}</ol><p>${sansLum ? `Sans aucune lampe, l’image vaut ${ms(sansLum.gpuP50)} : c’est le socle — visibilité, matériaux, présentation — et il est du même ordre qu’un rendu naïf de toute la scène par Three (<a href="#three-nu">face à Three.js nu</a>). Au ras du sol, la sélection ne rapporte rien ; ce qui coûte est plein-écran.` : ''} Côté mémoire, l’ordre est celui de la <a href="#memoire">section mémoire</a> : textures brutes d’abord, grappes dupliquées par instance ensuite, sommets non quantifiés enfin. Côté processeur, ${ms(sol.cpuP50, 2)} par image contre « presque nul » : les <a href="#etapes">étapes du processeur</a> disent où.</p>`;
+  return `<h3>What the numbers point to</h3><p>Street view, normal quality, full resolution, envelope ${ms(sol.gpuP50)}. First what two runs measure by envelope difference (the only safe reading on this device; under ${ms(BRUIT_MS)} is noise):</p><ol>${li(mesures)}</ol><p>Then what pass labels say, with the timestamp caveat (present, antialiasing and deferred lighting each read 7 ms because they absorb their neighbours; they are not ranked here):</p><ol>${li(etiquettes)}</ol><p>${sansLum ? `With no light, the frame is ${ms(sansLum.gpuP50)}: that is the base — visibility, materials, present — and it is in the same range as a naive full-scene Three draw (<a href="#three-nu">versus Three.js vanilla</a>). At street level, selection buys nothing; the cost is full-screen.` : ''} On memory, the order is that of the <a href="#memoire">memory section</a>: raw textures first, clusters duplicated per instance next, unquantized vertices last. On the CPU, ${ms(sol.cpuP50, 2)} per frame versus “almost zero”: the <a href="#etapes">CPU steps</a> say where.</p>`;
 }

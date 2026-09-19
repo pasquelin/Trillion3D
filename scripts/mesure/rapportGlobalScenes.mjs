@@ -70,8 +70,8 @@ export function enteteCampagne(scenes, { hostname, cpus, memoire, octets, tablea
     s.executions.map((e) => [
       prefixe ? `${s.nom}/${e.nom}` : e.nom,
       e.pourquoi,
-      e.absent ? 'absente' : `${e.releves.length} relevés`,
-      e.absent ? e.erreur : e.erreurs.length ? `${e.erreurs.length} erreur(s)` : 'ok',
+      e.absent ? 'missing' : `${e.releves.length} samples`,
+      e.absent ? e.erreur : e.erreurs.length ? `${e.erreurs.length} error(s)` : 'ok',
       e.absent || !e.fin ? '' : `${((new Date(e.fin) - new Date(e.debut)) / 1000).toFixed(0)} s`,
     ]),
   );
@@ -79,7 +79,7 @@ export function enteteCampagne(scenes, { hostname, cpus, memoire, octets, tablea
   const debut = tous.find((e) => e.debut)?.debut ?? '?';
   const fin = [...tous].reverse().find((e) => e.fin)?.fin ?? '?';
   return [
-    `<p>Scène${scenes.length > 1 ? 's' : ''} <code>${html(noms)}</code>, dépôt <code>${html(premier?.head?.slice(0, 8) ?? '?')}</code>, machine <code>${html(hostname)}</code> (${cpus} cœurs, ${octets(memoire)}), Chrome du poste, sans fenêtre sauf l’exécution <code>visible</code>. Campagne jouée du ${html(debut)} au ${html(fin)}. Les chiffres d’une machine ne valent que sur elle.</p>`,
-    tableau(['Exécution', 'Ce qu’elle isole', 'Relevés', 'État', 'Durée'], lignes),
+    `<p>Scene${scenes.length > 1 ? 's' : ''} <code>${html(noms)}</code>, repo <code>${html(premier?.head?.slice(0, 8) ?? '?')}</code>, machine <code>${html(hostname)}</code> (${cpus} cores, ${octets(memoire)}), local Chrome, no window except the <code>visible</code> run. Campaign ran from ${html(debut)} to ${html(fin)}. Numbers from one machine hold only on that machine.</p>`,
+    tableau(['Run', 'What it isolates', 'Samples', 'Status', 'Duration'], lignes),
   ].join('');
 }
