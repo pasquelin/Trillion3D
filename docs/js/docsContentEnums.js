@@ -1,179 +1,104 @@
-/**
- * Complete documentation for engine Constants and Enums.
- */
-export const ENUMS_CONTENT = {
-  IDENTITY_MATRIX4: {
-    title: 'IDENTITY_MATRIX4',
-    type: 'Constant',
-    category: 'Constants',
+/** Constants and enums of the image and its quality, each read from the file named in `module`. */
+const ENUM = { section: 'enums', kind: 'Type' };
+const CONST = { section: 'enums', kind: 'Constant' };
+
+export const ENUMS_IMAGE = [
+  {
+    ...CONST,
+    id: 'IDENTITY_MATRIX4',
+    module: 'packages/sdk-core/mathMatrix4.ts',
     signature: 'const IDENTITY_MATRIX4: Float64Array',
     description:
-      'Immutable 16-element Float64Array representing the standard 4×4 identity matrix in column-major order.',
-    notes:
-      'Replaces Three.js Matrix4.identity(). Used as an unmodifiable reference across scene transforms and fallback frames.',
+      'Column-major identity, read and never written: the pose of a node or of a root with no pose.',
     values: [
-      {
-        name: '[1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]',
-        desc: 'Diagonal ones, column-major storage layout.',
-      },
+      { name: '[1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]', desc: 'Sixteen numbers, column-major.' },
     ],
+    replaces: 'Matrix4.identity()',
     example: `import { IDENTITY_MATRIX4, copyMatrix4 } from '@web-geometry/sdk/core';
 
-// Reset local matrix to identity without allocating memory:
-copyMatrix4(nodeTransform, IDENTITY_MATRIX4);`,
+copyMatrix4(nodeTransform, IDENTITY_MATRIX4); // reset, no allocation`,
   },
-  Side: {
-    title: 'Side',
-    type: 'Type / Enum',
-    category: 'Enums',
-    signature: "type Side = 'front' | 'back' | 'double'",
-    description: 'Specifies which polygon faces of a surface are rendered and shaded.',
-    notes:
-      'Replaces Three.js FrontSide, BackSide, and DoubleSide constants. Evaluated during cluster cone culling and raster pass setup.',
-    values: [
-      {
-        name: "'front'",
-        desc: 'Only front-facing triangles are drawn (default for opaque meshes).',
-      },
-      { name: "'back'", desc: 'Only back-facing triangles are drawn (used for inside-out hulls).' },
-      { name: "'double'", desc: 'Both sides are rasterized (leaves, fabric, thin cutouts).' },
-    ],
-    example: `import { sideOf } from '@web-geometry/sdk/browser';
-
-const side = sideOf(material);
-if (side === 'double') {
-  // Rasterize without backface culling
-}`,
-  },
-  DiagnosticMode: {
-    title: 'DiagnosticMode',
-    type: 'Type / Enum',
-    category: 'Enums',
+  {
+    ...ENUM,
+    id: 'DiagnosticMode',
+    module: 'packages/sdk-core/diagnostics.ts',
     signature:
-      "type DiagnosticMode = 'none' | 'clusters' | 'triangles' | 'error' | 'overdraw' | 'cost' | 'normals' | 'uv' | 'depth' | 'wireframe' | 'cpu-timing'",
-    description: 'Selects the visual diagnostic overlay or analysis pipeline for GPU rendering.',
-    notes: 'Configured on the active RenderBackend via backend.setDiagnostic(mode).',
-    values: [
-      { name: "'none'", desc: 'Full beauty composition (standard PBR lighting).' },
-      { name: "'clusters'", desc: 'Colors each cluster with a deterministic pseudorandom hue.' },
-      { name: "'triangles'", desc: 'Heatmap of triangle counts drawn per cluster.' },
-      { name: "'error'", desc: 'Screen-space error metric visualized across clusters.' },
-      { name: "'overdraw'", desc: 'Fragment overdraw heatmap from visibility raster.' },
-      { name: "'cost'", desc: 'Relative execution duration per cluster.' },
-      { name: "'normals'", desc: 'Geometric world normals mapped to RGB colors.' },
-      { name: "'uv'", desc: 'Texture coordinate visualization.' },
-      { name: "'depth'", desc: 'Reversed float depth gradient.' },
-      { name: "'wireframe'", desc: 'Cluster triangle wireframe overlays.' },
-      { name: "'cpu-timing'", desc: 'Shows CPU step profiling overlay.' },
-    ],
-    example: `backend.setDiagnostic('clusters');`,
-  },
-  MathPathMode: {
-    title: 'MathPathMode & MathPath',
-    type: 'Type / Enum',
-    category: 'Enums',
-    signature: "type MathPath = 'js' | 'wasm';\ntype MathPathMode = MathPath | 'auto';",
-    description: 'Execution governor setting for batch mathematical operations.',
-    notes:
-      'Controls whether batches execute via optimized JavaScript loops or WebAssembly kernels.',
-    values: [
-      { name: "'auto'", desc: 'Governor dynamically selects fastest measured kernel (default).' },
-      { name: "'js'", desc: 'Forces pure JavaScript evaluation.' },
-      { name: "'wasm'", desc: 'Forces WebAssembly kernel evaluation.' },
-    ],
-    example: `import { setMathPathMode } from '@web-geometry/sdk/core';
-
-// Force WebAssembly SIMD math path for heavy transforms
-setMathPathMode('wasm');`,
-  },
-  LodQualityId: {
-    title: 'LodQualityId',
-    type: 'Type / Enum',
-    category: 'Enums',
-    signature: "type LodQualityId = 'cinematic' | 'epic' | 'high' | 'medium' | 'low'",
-    description: 'Predefined screen error tolerance levels governing DAG cluster cut selection.',
-    notes: 'Dictates target pixels-per-triangle and maximum allowable screen-space error.',
-    values: [
-      { name: "'cinematic'", desc: 'Sub-pixel fidelity (target ~1 triangle per pixel).' },
-      { name: "'epic'", desc: 'Target error threshold < 0.5 px.' },
-      { name: "'high'", desc: 'Target error threshold < 1.0 px (balanced default).' },
-      { name: "'medium'", desc: 'Target error threshold < 2.0 px for mobile / iGPU.' },
-      { name: "'low'", desc: 'Aggressive simplification for low-end hardware.' },
-    ],
-    example: `explorer.setQuality('epic');`,
-  },
-  JobStatus: {
-    title: 'JobStatus',
-    type: 'Type / Enum',
-    category: 'Enums',
-    signature: "type JobStatus = 'queued' | 'running' | 'completed' | 'cancelled' | 'failed'",
+      "type DiagnosticMode = 'beauty' | 'wireframe' | 'clusters' | 'lod' | 'screen-error' | 'visibility' | 'pages' | 'texture-mip' | 'overdraw'",
     description:
-      'Lifecycle status of background worker tasks (cluster decoding, mesh import, caching).',
-    notes: 'Reported by background job controllers and asset compilation workers.',
+      'What a frame draws. Availability describes real pipeline outputs, never synthetic overlays: `DIAGNOSTICS` gives, per mode, whether the backend can produce it and why not.',
     values: [
-      { name: "'queued'", desc: 'Job is waiting for an available worker thread.' },
-      { name: "'running'", desc: 'Actively processing in worker thread.' },
-      { name: "'completed'", desc: 'Execution succeeded; output data ready.' },
-      { name: "'cancelled'", desc: 'Job aborted by caller before completion.' },
-      { name: "'failed'", desc: 'Encountered error during decoding or processing.' },
-    ],
-    example: `job.on('status', (status: JobStatus) => console.log('Job status:', status));`,
-  },
-  CapabilityTier: {
-    title: 'CapabilityTier',
-    type: 'Type / Enum',
-    category: 'Enums',
-    signature: "type CapabilityTier = 'tier-0' | 'tier-1' | 'tier-2' | 'tier-3'",
-    description:
-      'Hardware capability classification determined upon WebGPU adapter initialization.',
-    notes: 'Restricts cluster memory budgets and optional features (shadow passes, TAA).',
-    values: [
-      { name: "'tier-0'", desc: 'Minimum WebGPU support (mobile / budget devices).' },
-      { name: "'tier-1'", desc: 'Baseline desktop iGPU / mid-tier mobile.' },
-      { name: "'tier-2'", desc: 'Mid-range discrete GPU (full feature set enabled).' },
-      { name: "'tier-3'", desc: 'High-end desktop GPU (maximum cluster resident cache).' },
-    ],
-    example: `const tier = explorer.capabilities.tier;`,
-  },
-  GpuTimingMethod: {
-    title: 'GpuTimingMethod',
-    type: 'Type / Enum',
-    category: 'Enums',
-    signature: "type GpuTimingMethod = 'timestamp-query' | 'EXT_disjoint_timer_query_webgl2'",
-    description: 'Hardware timer query mechanism used for pass-by-pass GPU execution profiling.',
-    values: [
-      { name: "'timestamp-query'", desc: 'Native WebGPU timestamp queries.' },
+      { name: "'beauty'", desc: 'The lit image, from the glTF materials.' },
       {
-        name: "'EXT_disjoint_timer_query_webgl2'",
-        desc: 'WebGL2 disjoint timer extension fallback.',
+        name: "'wireframe'",
+        desc: 'A filled unique colour per submitted triangle — not GL_LINES, not `MeshBasicMaterial.wireframe`.',
+      },
+      {
+        name: "'clusters'",
+        desc: 'Stable primitive/page identity, one colour per cluster; exact-cluster backend only.',
+      },
+      {
+        name: "'lod'",
+        desc: 'Level-0 clusters against the coarser DAG reductions actually selected this frame.',
+      },
+      {
+        name: "'screen-error'",
+        desc: 'The per-cluster error projected through the cluster sphere, as the cut uses it.',
+      },
+      {
+        name: "'visibility'",
+        desc: 'Selected visible pages; rejected hierarchy nodes are counted, not drawn.',
+      },
+      {
+        name: "'pages'",
+        desc: 'Attached index pages; missing pages are not drawn. Not physical VRAM.',
+      },
+      { name: "'texture-mip'", desc: 'Unavailable: texture mip residency is not instrumented.' },
+      { name: "'overdraw'", desc: 'Unavailable: no fragment counter.' },
+    ],
+    example: `import { DIAGNOSTICS } from '@web-geometry/sdk/core';
+
+explorer.setDiagnostic('clusters');
+console.log(DIAGNOSTICS['overdraw']); // { available: false, reason: 'No fragment counter' }`,
+  },
+  {
+    ...ENUM,
+    id: 'LodQualityId',
+    module: 'packages/sdk-core/lodPolicy.ts',
+    signature:
+      "type LodQualityId = 'source' | 'high' | 'balanced' | 'adaptive'\nconst LOD_QUALITY: Record<LodQualityId, { id, label, pixelError, anisotropy, adaptive }>",
+    description:
+      'Runtime LOD presets. `pixelError` is the screen-space threshold the exact-cluster selection consumes; `0` keeps the exact leaves.',
+    values: [
+      { name: "'source'", desc: 'Maximum source detail — `pixelError: 0`, source anisotropy.' },
+      { name: "'high'", desc: 'High quality — `pixelError: 1`, maximum anisotropy.' },
+      { name: "'balanced'", desc: 'Balanced — `pixelError: 4`.' },
+      {
+        name: "'adaptive'",
+        desc: 'Adaptive — `pixelError: 2`, raised with camera speed by `adaptivePixelError(base, speed, radius)`; a still view keeps the base.',
       },
     ],
-    example: `const method = backend.timingMethod;`,
+    example: `import { LOD_QUALITY, lodQuality } from '@web-geometry/sdk/core';
+
+const { pixelError } = lodQuality('balanced'); // 4; an unknown id throws
+explorer.setPixelError(pixelError);`,
   },
-  ColumnKind: {
-    title: 'ColumnKind',
-    type: 'Type / Enum',
-    category: 'Enums',
-    signature: "type ColumnKind = 'f64' | 'i32' | 'u32' | 'u8'",
-    description: 'Data column storage format within binary cluster manifest files.',
-    values: [
-      { name: "'f64'", desc: '64-bit IEEE-754 double precision float.' },
-      { name: "'i32'", desc: '32-bit signed integer.' },
-      { name: "'u32'", desc: '32-bit unsigned integer.' },
-      { name: "'u8'", desc: '8-bit unsigned byte.' },
-    ],
-    example: `const kind: ColumnKind = 'u32';`,
-  },
-  ScreenErrorVariant: {
-    title: 'ScreenErrorVariant',
-    type: 'Type / Enum',
-    category: 'Enums',
+  {
+    ...ENUM,
+    id: 'ScreenErrorVariant',
+    module: 'packages/sdk-core/screenErrorVariant.ts',
     signature: "type ScreenErrorVariant = 'certifiee' | 'reference'",
-    description: 'Algorithm variant used for projected screen-space error bounds.',
+    description:
+      'Which projection of the cluster error the cut compares to the threshold. Module state for the whole page, read by the CPU metric and inlined into the selection shader when it is compiled; each side of a bench runs in its own page. Public source of the formula: Karis, Stubbe and Wihlidal, SIGGRAPH 2021, "Advances in Real-Time Rendering in Games".',
     values: [
-      { name: "'certifiee'", desc: 'Rigorous bounding-box projection with zero false-negatives.' },
-      { name: "'reference'", desc: 'Direct center-radius sphere approximation.' },
+      {
+        name: "'certifiee'",
+        desc: 'Ours (the default): a bound that never under-estimates the error.',
+      },
+      { name: "'reference'", desc: 'The published formula, for the comparison bench.' },
     ],
-    example: `const variant: ScreenErrorVariant = 'certifiee';`,
+    example: `import { screenErrorVariant, setScreenErrorVariant } from '@web-geometry/sdk/core';
+
+setScreenErrorVariant('reference'); // null or undefined restores 'certifiee'
+console.log(screenErrorVariant());`,
   },
-};
+];
