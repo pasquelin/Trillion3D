@@ -39,13 +39,19 @@ function hueComponent(p: number, q: number, t: number) {
  * is applied — reference workspace is already linear, its conversion is
  * identity.
  */
-export function hslToLinearRgb(out: NumberSink, o: number, h: number, s: number, l: number) {
+export function hslToLinearRgb<T extends NumberSink>(
+  out: T,
+  o: number,
+  h: number,
+  s: number,
+  l: number,
+) {
   const hue = wrapUnit(h),
     saturation = Math.max(0, Math.min(1, s)),
     lightness = Math.max(0, Math.min(1, l));
   if (saturation === 0) {
     out[o] = out[o + 1] = out[o + 2] = lightness;
-    return;
+    return out;
   }
   const p =
       lightness <= 0.5
@@ -55,4 +61,5 @@ export function hslToLinearRgb(out: NumberSink, o: number, h: number, s: number,
   out[o] = hueComponent(q, p, hue + 1 / 3);
   out[o + 1] = hueComponent(q, p, hue);
   out[o + 2] = hueComponent(q, p, hue - 1 / 3);
+  return out;
 }
