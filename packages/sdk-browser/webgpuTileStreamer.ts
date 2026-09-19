@@ -101,15 +101,14 @@ export function createWebgpuTileStreamer(options: {
     },
     /**
      * Une passe : les tuiles demandées, servies dans l'ordre de leur poids sous le budget d'octets ;
-     * `unbounded` lève le budget. Rend ce qui a été servi, ce qui attend encore ses octets, et ce
-     * que le pool a refusé — un refus n'est pas une attente : rien ne viendra, le niveau grossier
-     * tient, et l'image peut se poser dessus.
+     * `unbounded` lève le budget. Rend ce qui a été servi et ce qui attend encore ses octets ; un
+     * refus du pool n'est ni l'un ni l'autre — rien ne viendra, le niveau grossier tient, et
+     * l'image peut se poser dessus — et se compte dans les métriques de l'atlas.
      */
     pump(frame: number, unbounded = false) {
       const started = performance.now();
       let served = 0,
         waiting = 0,
-        refused = 0,
         bytes = 0,
         colorServed = false,
         encoder: GPUCommandEncoder | undefined;
@@ -128,8 +127,7 @@ export function createWebgpuTileStreamer(options: {
           options.onFailure('texture-tile-failed', error);
         }
         if (verdict === 'waiting') waiting++;
-        else if (verdict === 'refused') refused++;
-        else {
+        else if (verdict !== 'refused') {
           served++;
           bytes += TILE_BYTES;
           if (request.atlas === color) colorServed = true;
@@ -143,7 +141,7 @@ export function createWebgpuTileStreamer(options: {
       counters.bytesLastFrame = bytes;
       counters.lastMs = performance.now() - started;
       if (colorServed) options.onColorChanged();
-      return { served, waiting, refused };
+      return { served, waiting };
     },
     /** Le retour d'une image part avec elle : la cible où ses pixels ont posé leurs demandes — quand
      *  une passe l'a écrite — est réduite en compteurs pour la phase, copiés vers leur lecture puis

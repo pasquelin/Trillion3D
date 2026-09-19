@@ -23,8 +23,6 @@ const HEADER_WORDS = 24;
 /** Mots de l'uniforme de la résolution : l'en-tête, puis la tranche du soleil. */
 export const SHADE_UNIFORM_WORDS = HEADER_WORDS + SHADOW_SLICE_FLOATS;
 export const SHADE_UNIFORM_BYTES = SHADE_UNIFORM_WORDS * 4;
-/** Les choix d'un pixel : six cartes au niveau de la caméra, puis une cascade du soleil chacune. */
-const CHOICES = 6 + LIGHT_SETTINGS.sunCascades;
 
 export const SHADE_REQUEST_WGSL = `const SUN_CASCADES:u32=${LIGHT_SETTINGS.sunCascades}u;
 /** La dérivée de la coordonnée par texel d'ombre de la cascade \`c\` (xy, zw), ou zéro si la cascade
@@ -47,10 +45,10 @@ fn cascadeGradient(c:u32,w0:vec4f,w1:vec4f,w2:vec4f,dUds:vec2f,dUdt:vec2f,wp:vec
 /** Le rang de tuile que ce pixel demande, plus un, ou zéro. */
 fn shadeRequest(page:PageInfo,pos:vec2f,uv:vec2f,ddx:vec2f,ddy:vec2f,w0:vec4f,w1:vec4f,w2:vec4f,i0:u32,i1:u32,i2:u32,wp:vec4f)->u32{
  if((page.flags&12u)!=12u||!feedbackPhase(pos,uni.feedback)){return 0u;}
- let p=requestPick(pos,${CHOICES}u);
- if(p.sel>=6u&&(page.flags&128u)!=0u){
+ let p=requestPick(pos,MAP_CHOICES+SUN_CASCADES);
+ if(p.sel>=MAP_CHOICES&&(page.flags&128u)!=0u){
   let uva=vertUv(page.vertexBase,i0);
-  let g=cascadeGradient(p.sel-6u,w0,w1,w2,vertUv(page.vertexBase,i1)-uva,vertUv(page.vertexBase,i2)-uva,wp);
+  let g=cascadeGradient(p.sel-MAP_CHOICES,w0,w1,w2,vertUv(page.vertexBase,i1)-uva,vertUv(page.vertexBase,i2)-uva,wp);
   if(any(g!=vec4f(0.0))){return colorRequestIndex(page.mapIndex,uv,${quartet('base')},g.xy,g.zw,p.next);}
  }
  return mapRequest(p.sel,vec2u(page.mapIndex,page.emissiveIndex),vec4u(page.roughnessIndex,page.metalnessIndex,page.normalIndex,page.aoIndex),uv,page.wrapModes,ddx,ddy,p.next);

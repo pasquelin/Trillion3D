@@ -72,18 +72,11 @@ pub(super) fn dag_warnings(
     } else {
         return Vec::new();
     };
-    let sum = |pick: fn(&crate::dag::GroupTally) -> usize| tallies.iter().map(pick).sum::<usize>();
     vec![json!({
         "code": code,
         "roots": roots,
         "pages": pages,
-        "groups": {
-            "reduced": sum(|t| t.reduced),
-            "tooSmall": sum(|t| t.too_small),
-            "noCollapse": sum(|t| t.no_collapse),
-            "borderLost": sum(|t| t.border_lost),
-            "unusableError": sum(|t| t.unusable_error),
-        },
+        "groups": crate::dag::GroupTally::total(tallies).json(),
     })]
 }
 

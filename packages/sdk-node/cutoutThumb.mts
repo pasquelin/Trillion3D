@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { DEFAULT_SCOPE } from '../sdk-core/index.ts';
 import {
-  decodeManifestBinary,
+  decodeManifestPreviews,
   previewLevelSize,
   type SlimClusterManifest,
 } from '../sdk-core/index.ts';
@@ -64,8 +64,7 @@ export async function readThumbnails(
   const thumbnails = new Map<string, Thumbnail>();
   const manifest = await manifestOf(cache, scope).catch(() => null);
   if (!manifest) return thumbnails;
-  for (const preview of decodeManifestBinary(manifest.slim, manifest.buffer).texturePreviews ??
-    []) {
+  for (const preview of decodeManifestPreviews(manifest.slim, manifest.buffer)) {
     const [width, height] = previewLevelSize(preview.width, preview.height, preview.firstLevel);
     const rgba = preview.levels[0];
     if (!rgba || rgba.length < width * height * 4) continue;

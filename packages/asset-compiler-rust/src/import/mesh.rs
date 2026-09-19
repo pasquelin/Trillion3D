@@ -66,7 +66,7 @@ pub(super) fn mesh_json(
                 }
                 if has_color {
                     let k = mesh.vertex_color.values[mesh.vertex_color.indices[c] as usize];
-                    values[8..12]
+                    values[CORNER_COLOR]
                         .copy_from_slice(&[k.x as f32, k.y as f32, k.z as f32, k.w as f32]);
                 }
                 let next = unique.len() as u32;
