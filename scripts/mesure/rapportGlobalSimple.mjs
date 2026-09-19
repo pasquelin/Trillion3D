@@ -17,8 +17,8 @@ const [REFERENCE] = TEMOINS;
 
 export function sectionSimple(ex, dossier) {
   const vues = [
-    ['generale', 'vue de haut'],
-    ['sol', 'depuis la rue'],
+    ['generale', 'overview'],
+    ['sol', 'from the street'],
   ];
   // Une exécution à deux côtés met le témoin en `avant` et le moteur en `apres` : `t` lit le
   // témoin, `m` le moteur, dans l'exécution du témoin de référence.
@@ -35,24 +35,24 @@ export function sectionSimple(ex, dossier) {
   const fiches = [
     fichePar(
       'f-image',
-      'Combien de temps pour dessiner une image ? (soleil et ombres)',
+      'How long to draw a frame? (sun and shadows)',
       'ms',
       vues,
       (v) => serie('', v, (r) => r?.imageMs, UNREAL.imageMs),
-      'Barre courte = rapide. Sous 16,7 ms, c’est fluide. De haut, le moteur gagne. Depuis la rue, il fait comme Three : à cause des ombres.',
+      'Shorter bar = faster. Under 16.7 ms is smooth. From above, the engine wins. From the street it matches Three: shadows.',
     ),
     fichePar(
       'f-cpu',
-      'Combien de temps le processeur travaille par image ?',
+      'How long does the CPU work per frame?',
       'ms',
       vues,
       (v) => serie('', v, (r) => r?.cpuP50, UNREAL.cpuMs),
-      'Le moteur laisse presque tout faire à la carte graphique, comme Unreal. Three fait trier des milliers d’objets par le processeur, LOD ou pas.',
+      'The engine leaves almost everything to the GPU, like Unreal. Three sorts thousands of objects on the CPU, LOD or not.',
       2,
     ),
     fichePar(
       'f-tri',
-      'Combien de triangles sont dessinés par image ?',
+      'How many triangles are drawn per frame?',
       'millions',
       vues,
       (v) =>
@@ -62,47 +62,47 @@ export function sectionSimple(ex, dossier) {
           (r) => en(r?.trianglesDessines ?? r?.triangles, 1e6),
           UNREAL.trianglesParImage / 1e6,
         ),
-      'Ce n’est pas une course : Unreal vise un triangle par pixel (25 M en 4K). Three dessine tout, même caché ; le LOD en enlève au loin ; nous choisissons par paquet.',
+      'Not a race: Unreal aims for one triangle per pixel (25 M at 4K). Three draws everything, even hidden; LOD drops distant meshes; we pick by cluster.',
     ),
     fichePar(
       'f-appels',
-      'Combien d’ordres de dessin par image ?',
-      'appels',
+      'How many draw calls per frame?',
+      'calls',
       vues,
-      (v) => serie('', v, (r) => r?.appelsDeDessin, 'un par matériau'),
-      'Un ordre = une demande à la carte graphique. Moins il y en a, mieux c’est. Le moteur en envoie 18, Three des centaines — le LOD n’y change rien.',
+      (v) => serie('', v, (r) => r?.appelsDeDessin, 'one per material'),
+      'A call is one request to the GPU. Fewer is better. The engine issues 18, Three hundreds — LOD does not change that.',
       0,
     ),
     fichePar(
       'f-ombres',
-      'Que coûtent les ombres de quatre lampes en plus du soleil ?',
+      'What do four extra shadowed lights cost on top of the sun?',
       'ms',
-      [['sol', 'depuis la rue']],
+      [['sol', 'from the street']],
       (v) => {
         const [avec, sans] = [
           serie('-lampes-4', v, (r) => r?.imageMs),
           serie('', v, (r) => r?.imageMs),
         ];
-        return [...avec.slice(0, -1).map((a, i) => moins(a, sans[i])), 'non publié'];
+        return [...avec.slice(0, -1).map((a, i) => moins(a, sans[i])), 'not published'];
       },
-      'Le temps en plus quand quatre lampes font de l’ombre. Le moteur s’en sort bien mieux que Three, mais c’est là qu’il perd le plus de temps.',
+      'The extra time when four lights cast shadows. The engine beats Three here, but this is still where it loses the most time.',
     ),
     fichePar(
       'f-petit',
-      'Et sur un petit écran (1248×702) ?',
+      'And on a small screen (1248×702)?',
       'ms',
       vues,
-      (v) => serie('-1248', v, (r) => r?.imageMs, 'non publié'),
-      'Un écran plus petit doit aller plus vite. C’est le cas pour tous.',
+      (v) => serie('-1248', v, (r) => r?.imageMs, 'not published'),
+      'A smaller screen should be faster. It is, for everyone.',
     ),
     fichePar(
       'f-textures',
-      'Combien de mémoire pour les textures ?',
-      'Go',
-      [['sol', 'depuis la rue']],
+      'How much memory for textures?',
+      'GB',
+      [['sol', 'from the street']],
       (v) =>
-        serie('-sans-ombres', v, (r) => en(r?.texturesEngagees, 1e9), 'réserve fixe, réglable'),
-      'Tous gardent toute la ville en mémoire, sans compresser. Unreal se fixe une réserve et compresse. C’est le plus gros retard.',
+        serie('-sans-ombres', v, (r) => en(r?.texturesEngagees, 1e9), 'fixed pool, configurable'),
+      'Everyone keeps the whole city in memory, uncompressed. Unreal sets a pool and compresses. That is the largest gap.',
       2,
     ),
     ...fichesFixes({
@@ -111,13 +111,13 @@ export function sectionSimple(ex, dossier) {
     }),
     fiche(
       'f-fidelite',
-      'Les images sont-elles les mêmes ?',
+      'Do the images match?',
       comparateur({ dossier, id: 'cmp-fidelite', paires: pairesImages(ex), notre: NOTRE }),
-      ['bon', 'à l’œil, oui'],
-      `Même scène, même caméra, même image de la trajectoire. Choisis le témoin : il est à gauche, ${NOTRE} toujours à droite, le trait suit la souris.`,
+      ['bon', 'to the eye, yes'],
+      `Same scene, same camera, same frame on the path. Pick the witness: it is on the left, ${NOTRE} always on the right; the slider follows the mouse.`,
       true,
     ),
     FICHE_PETITE_MACHINE,
   ];
-  return `${bilan(ex)}<p class="sous">Une barre par moteur et par question : <strong>Three.js nu</strong> (dessin simple, sans astuce), <strong>Three.js LOD</strong> (la méthode classique : trois niveaux de détail par objet), <strong>${html(NOTRE)}</strong>, <strong>Unreal</strong> (ses chiffres publiés, sur sa console). Barre courte = mieux. Vert = bien, jaune = pareil que Three, rouge = problème.</p><div class="fiches">${grille(fiches)}</div>`;
+  return `${bilan(ex)}<p class="sous">One bar per engine and per question: <strong>Three.js vanilla</strong> (plain draw, no tricks), <strong>Three.js LOD</strong> (the classic method: three detail levels per object), <strong>${html(NOTRE)}</strong>, <strong>Unreal</strong> (its published numbers, on its console). Shorter bar = better. Green = good, yellow = same as Three, red = a problem.</p><div class="fiches">${grille(fiches)}</div>`;
 }

@@ -23,23 +23,23 @@ const PORTES = [
   [
     'mobile',
     'aa-off',
-    'antialiasing temporel off',
-    'le coût de l’accumulation temporelle, par l’enveloppe',
+    'temporal antialiasing off',
+    'temporal accumulation cost, from the envelope',
   ],
   [
     'mobile',
     'profil-off',
-    'profil par étape off',
-    'le profil off ne publie pas d’enveloppe : lire le processeur',
+    'per-step profile off',
+    'profile off does not publish an envelope: read the CPU',
   ],
   [
     'mobile',
     'textures-host',
-    'textures depuis les images sources',
-    'contre la pyramide cuite du cache',
+    'textures from source images',
+    'versus the cooked pyramid in the cache',
   ],
-  ['mobile', 'isolation', 'page isolée (mémoire partagée)', ''],
-  ['math-js', 'math-wasm', 'calculs en lot : js → wasm', 'les deux chemins imposés, même scène'],
+  ['mobile', 'isolation', 'isolated page (shared memory)', ''],
+  ['math-js', 'math-wasm', 'batched math: js → wasm', 'both paths forced, same scene'],
 ];
 
 export function sectionPortes(ex) {
@@ -56,10 +56,10 @@ export function sectionPortes(ex) {
       const [calcul, materiel] = paire(ex, run, vue);
       lignes.push(
         porte(
-          `${vue} · ${res} · raster matériel (défaut) → raster de calcul (variante)`,
+          `${vue} · ${res} · hardware raster (default) → compute raster (variant)`,
           materiel,
           calcul,
-          `écart d’image ${px(calcul?.ecart)} ; coupe identique : ${calcul?.coupeIdentique ?? '—'}`,
+          `image delta ${px(calcul?.ecart)}; identical cut: ${calcul?.coupeIdentique ?? '—'}`,
         ),
       );
     }
@@ -69,21 +69,21 @@ export function sectionPortes(ex) {
     ...temoins.map((run) => px(trouve(ex, run, vue, 1)?.temoinAA)),
   ]);
   return [
-    '<p>Deux exécutions dont une seule option diffère. La colonne « Δ » est la différence des enveloppes p50 de la carte graphique, la seule lecture qui vaut sur cet appareil ; l’écart entre deux exécutions identiques est de l’ordre de 0,7 ms, rien de plus petit ne conclut.</p>',
+    '<p>Two runs that differ by a single option. The “Δ” column is the GPU p50 envelope difference, the only reading that holds on this device; the gap between two identical runs is about 0.7 ms, nothing smaller concludes.</p>',
     tableau(
       [
-        'Porte',
-        'GPU référence',
-        'GPU variante',
+        'Gate',
+        'GPU baseline',
+        'GPU variant',
         'Δ GPU',
-        'CPU référence',
-        'CPU variante',
+        'CPU baseline',
+        'CPU variant',
         'Δ CPU',
-        'Lecture',
+        'Reading',
       ],
       lignes,
     ),
-    '<h3>Le témoin A/A de chaque exécution</h3><p>Le même côté joué deux fois : des pixels qui bougent ici sont du bruit du moteur, pas une différence d’option.</p>',
-    tableau(['Vue', ...temoins], aaPixels),
+    '<h3>A/A witness of each run</h3><p>The same side played twice: pixels that move here are engine noise, not an option difference.</p>',
+    tableau(['View', ...temoins], aaPixels),
   ].join('');
 }

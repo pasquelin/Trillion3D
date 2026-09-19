@@ -15,33 +15,33 @@ export function tuiles(ex) {
     .sort((a, b) => (b.gpuP50 ?? 0) - (a.gpuP50 ?? 0))[0];
   return `<div class="tuiles">${[
     tuile(
-      'Image entière, carte graphique (vue sol, p50)',
+      'Whole frame, GPU (street view, p50)',
       nombre(sol?.gpuP50, 1, 'ms'),
-      `p95 ${nombre(sol?.gpuP95, 1, 'ms')} · 2496×1404, soleil, caméra mobile`,
+      `p95 ${nombre(sol?.gpuP95, 1, 'ms')} · 2496×1404, sun, moving camera`,
     ),
     tuile(
-      'Processeur par image (vue sol, p50)',
+      'CPU per frame (street view, p50)',
       nombre(sol?.cpuP50, 2, 'ms'),
-      `p95 ${nombre(sol?.cpuP95, 2, 'ms')} · la référence dit « presque nul »`,
+      `p95 ${nombre(sol?.cpuP95, 2, 'ms')} · the reference says “almost zero”`,
     ),
     tuile(
-      'Vue la plus chère',
-      pire ? `${LIBELLE[pire.vue]} : ${nombre(pire.gpuP50, 1, 'ms')}` : 'non mesuré',
-      'enveloppe carte graphique p50, qualité normale',
+      'Most expensive view',
+      pire ? `${LIBELLE[pire.vue]}: ${nombre(pire.gpuP50, 1, 'ms')}` : 'not measured',
+      'GPU envelope p50, normal quality',
     ),
     tuile(
-      'Triangles sélectionnés (vue générale)',
+      'Selected triangles (overview)',
       nombre(gen?.triangles, 0),
-      `la référence en rastérise ${nombre(UNREAL.trianglesParImage / 1e6, 0)} M par image, fixe`,
+      `the reference rasterizes ${nombre(UNREAL.trianglesParImage / 1e6, 0)} M per frame, fixed`,
     ),
     tuile(
-      'Scène immobile',
+      'Still scene',
       fixe
         ? fixe.gpuReleves === 0
-          ? 'aucun travail carte'
-          : `${fixe.gpuReleves} relevés carte`
-        : 'non mesuré',
-      fixe ? `processeur ${nombre(fixe.cpuP50, 2, 'ms')} par image` : '',
+          ? 'no GPU work'
+          : `${fixe.gpuReleves} GPU samples`
+        : 'not measured',
+      fixe ? `CPU ${nombre(fixe.cpuP50, 2, 'ms')} per frame` : '',
     ),
   ].join('')}</div>`;
 }
@@ -54,18 +54,18 @@ export function sectionVues(ex) {
       valeurs: [0, 1].map((s) => trouve(ex, 'mobile', v, s)?.[champ] ?? null),
     }));
   return [
-    '<p>Caméra mobile, soleil avec ses cascades d’ombre, textures cuites, 2496×1404, 60 images mesurées puis 120 images de profil. « Qualité » : l’erreur qu’on tolère à l’écran — 0 px, le moteur prend la géométrie la plus fine ; 1 px, il s’autorise un pixel d’écart, invisible à l’œil, et dessine moins. La vue « détail » est un segment immobile de la trajectoire (deux points identiques) : l’image y est tenue et la carte n’y fait rien, même avec la caméra « mobile ». Le seuil d’erreur 0 demande la géométrie la plus fine ; le seuil 1 tolère un pixel d’erreur à l’écran. L’« image entière » est l’enveloppe des passes de la carte, du premier horodatage au dernier : les passes se recouvrent sur cet appareil, une somme les compterait deux fois.</p>',
+    '<p>Moving camera, sun with shadow cascades, cooked textures, 2496×1404, 60 measured frames then 120 profile frames. “Quality”: error tolerated on screen — 0 px, the engine takes the finest geometry; 1 px, it allows one pixel of error, invisible, and draws less. The “close-up” view is a still segment of the path (two identical points): the frame is held and the GPU does nothing, even with a “moving” camera. Error threshold 0 asks for the finest geometry; threshold 1 allows one pixel of screen error. The “whole frame” is the GPU-pass envelope, first timestamp to last: passes overlap on this device, a sum would count them twice.</p>',
     deuxCols(
       barres({
         id: 'g-gpu-vues',
-        titre: 'Image entière, carte graphique, p50',
+        titre: 'Whole frame, GPU, p50',
         unite: 'ms',
         series: QUALITES,
         lignes: lignes('gpuP50'),
       }),
       barres({
         id: 'g-gpu-vues-p95',
-        titre: 'Image entière, carte graphique, p95',
+        titre: 'Whole frame, GPU, p95',
         unite: 'ms',
         series: QUALITES,
         lignes: lignes('gpuP95'),
@@ -74,15 +74,15 @@ export function sectionVues(ex) {
     deuxCols(
       barres({
         id: 'g-cpu-vues',
-        titre: 'Processeur par image, p50',
-        sousTitre: 'coupe, relevé, résidence, encodage compris',
+        titre: 'CPU per frame, p50',
+        sousTitre: 'cut, sample, residency, encode included',
         unite: 'ms',
         series: QUALITES,
         lignes: lignes('cpuP50'),
       }),
       barres({
         id: 'g-tri-vues',
-        titre: 'Triangles sélectionnés',
+        titre: 'Selected triangles',
         unite: 'triangles',
         decimales: 0,
         series: QUALITES,
@@ -91,15 +91,15 @@ export function sectionVues(ex) {
     ),
     tableau(
       [
-        'Vue',
-        'Qualité',
-        'Non couverts',
-        'Appels de dessin',
-        'Pages résidentes',
-        'Hi-Z testés / rejetés (grappes)',
-        'Témoin A/A (px)',
-        'Image tenue',
-        'Charge machine début → fin',
+        'View',
+        'Quality',
+        'Uncovered',
+        'Draw calls',
+        'Resident pages',
+        'Hi-Z tested / rejected (clusters)',
+        'A/A witness (px)',
+        'Frame held',
+        'Machine load start → end',
       ],
       VUES.flatMap((v) =>
         [0, 1]
@@ -107,16 +107,16 @@ export function sectionVues(ex) {
           .filter(Boolean)
           .map((r) => [
             LIBELLE[r.vue],
-            r.seuil === 0 ? 'maximale' : r.seuil === 1 ? 'normale' : 'réduite',
+            r.seuil === 0 ? 'maximum' : r.seuil === 1 ? 'normal' : 'reduced',
             nombre(r.trianglesNonCouverts, 0),
             nombre(r.appelsDeDessin, 0),
             nombre(r.pagesResidentes, 0),
-            r.hiZ ? `${nombre(r.hiZ.tested, 0)} / ${nombre(r.hiZ.rejected, 0)}` : 'non mesuré',
+            r.hiZ ? `${nombre(r.hiZ.tested, 0)} / ${nombre(r.hiZ.rejected, 0)}` : 'not measured',
             pixels(r.temoinAA),
-            r.imageTenue === null ? '—' : r.imageTenue ? 'oui' : 'non',
+            r.imageTenue === null ? '—' : r.imageTenue ? 'yes' : 'no',
             r.charge
               ? `${nombre(r.charge.debut[0], 1)} → ${nombre(r.charge.fin[0], 1)}`
-              : 'non mesuré',
+              : 'not measured',
           ]),
       ),
     ),

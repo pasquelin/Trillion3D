@@ -19,7 +19,7 @@ export const REFERENCE_SCENES = ['emerald-square', 'whisperwind-village'];
 /** Ce que le rapport doit dire d'une scène, et qui ne se lit pas dans un relevé. */
 export const SCENE_NOTES = {
   'whisperwind-village':
-    'FBX d’Unreal, instanciation lourde (un mur × 1 292). 81 matériaux dont 6 texturés : l’export n’a pas sorti les textures Megascans — ce n’est pas nous, à ré-exporter côté Unreal.',
+    'Unreal FBX, heavy instancing (one wall × 1,292). 81 materials, 6 textured: the export omitted Megascans textures — not on us; re-export from Unreal.',
 };
 
 export const sceneDerived = (scene, assets = ASSETS) => join(assets, `${scene}-derived`);

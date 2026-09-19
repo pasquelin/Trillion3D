@@ -5,7 +5,7 @@ import { trouve, VUES } from './rapportGlobalLecture.mjs';
 
 export function sectionMemoire(ex) {
   const inst = [
-    ['mobile', '1 copie'],
+    ['mobile', '1 copy'],
     ['instances-4', '4 copies'],
     ['instances-12', '12 copies'],
   ].map(([run, libelle]) => {
@@ -25,7 +25,7 @@ export function sectionMemoire(ex) {
     return [
       vue,
       `${nombre(a?.pagesResidentes, 0)} / ${nombre(a?.pagesDemandees, 0)}`,
-      `${nombre(b?.pagesResidentes, 0)} / ${nombre(b?.pagesDemandees, 0)}${b?.couvertureLimitee ? ' (couverture limitée)' : ''}`,
+      `${nombre(b?.pagesResidentes, 0)} / ${nombre(b?.pagesDemandees, 0)}${b?.couvertureLimitee ? ' (coverage limited)' : ''}`,
       nombre(a?.trianglesNonCouverts, 0),
       nombre(b?.trianglesNonCouverts, 0),
       octets(a?.geometrieOctets),
@@ -36,42 +36,35 @@ export function sectionMemoire(ex) {
   const r = trouve(ex, 'mobile', 'sol', 1);
   const h = trouve(ex, 'textures-host', 'sol', 1);
   const textures = [
-    ['pyramide cuite (cache)', r],
-    ['images sources (host)', h],
+    ['cooked pyramid (cache)', r],
+    ['source images (host)', h],
   ].map(([libelle, x]) => [
     libelle,
     octets(x?.texturesPool),
     octets(x?.texturesEngagees),
     `${nombre(x?.tuilesAuNiveau, 0)} / ${nombre(x?.tuilesDemandees, 0)}`,
     nombre(x?.texturesEvictions, 0),
-    x?.reseau ? `png ${octets(x.reseau.png)}, bin ${octets(x.reseau.bin)}` : 'non mesuré',
+    x?.reseau ? `png ${octets(x.reseau.png)}, bin ${octets(x.reseau.bin)}` : 'not measured',
     secondes(x?.preparationMs),
   ]);
   return [
-    '<p>La parité est un critère de mémoire autant que de vitesse : budgets fixes, résidence pilotée par l’image, compression à la cuisson. Voici ce que le moteur tient en mémoire sur cette scène.</p>',
+    '<p>Parity is a memory criterion as much as a speed one: fixed budgets, residency driven by the frame, compression at cook time. Here is what the engine holds in memory on this scene.</p>',
     '<h3>Instances</h3>',
     tableau(
-      [
-        'Copies',
-        'Géométrie résidente',
-        'Pages résidentes',
-        'Triangles sélectionnés',
-        'GPU p50',
-        'CPU p50',
-      ],
+      ['Copies', 'Resident geometry', 'Resident pages', 'Selected triangles', 'GPU p50', 'CPU p50'],
       inst,
     ),
-    '<h3>Budget de pages : 100 000 contre 3 000</h3>',
+    '<h3>Page budget: 100,000 vs 3,000</h3>',
     tableau(
       [
-        'Vue',
-        'Résidentes / demandées (100 000)',
-        'Résidentes / demandées (3 000)',
-        'Non couverts (100 000)',
-        'Non couverts (3 000)',
-        'Géométrie (100 000)',
-        'Géométrie (3 000)',
-        'GPU p50 (3 000)',
+        'View',
+        'Resident / requested (100,000)',
+        'Resident / requested (3,000)',
+        'Uncovered (100,000)',
+        'Uncovered (3,000)',
+        'Geometry (100,000)',
+        'Geometry (3,000)',
+        'GPU p50 (3,000)',
       ],
       budget,
     ),
@@ -79,12 +72,12 @@ export function sectionMemoire(ex) {
     tableau(
       [
         'Source',
-        'Pool de tuiles',
-        'Engagé',
-        'Tuiles au niveau voulu / demandées',
-        'Évictions',
-        'Réseau',
-        'Préparation',
+        'Tile pool',
+        'Committed',
+        'Tiles at requested level / requested',
+        'Evictions',
+        'Network',
+        'Prepare',
       ],
       textures,
     ),
@@ -97,9 +90,9 @@ export function sectionMoteurs(ex) {
     for (const [run, cote, libelle] of [
       ['mobile', null, 'WebGPU (webgpu-page-raster)'],
       ['webgl', null, 'WebGL (exact-cluster-pages)'],
-      ['webgl2', null, 'WebGL2 autonome'],
-      ['temoin-three', 'avant', 'Témoin Three, caméra fixe, sans ombres'],
-      ['temoin-three', 'apres', 'WebGPU, caméra fixe, sans ombres'],
+      ['webgl2', null, 'Standalone WebGL2'],
+      ['temoin-three', 'avant', 'Three witness, locked camera, no shadows'],
+      ['temoin-three', 'apres', 'WebGPU, locked camera, no shadows'],
     ]) {
       const r = trouve(ex, run, vue, 1, cote);
       if (!r) continue;
@@ -122,23 +115,21 @@ export function sectionMoteurs(ex) {
       e.absent ? e.erreur : e.erreurs.map((x) => x.message ?? JSON.stringify(x)).join(' · '),
     ]);
   return [
-    '<p>Les trois moteurs du dépôt sur la même trajectoire, et le témoin Three face au moteur WebGPU à pose fixe et sans ombres — le témoin n’en dessine pas —, ce qui donne un écart de fidélité en pixels et non une comparaison entre deux campagnes.</p>',
+    '<p>The three engines in the repo on the same path, and the Three witness versus the WebGPU engine at a locked pose with no shadows — the witness does not draw them — which gives a fidelity delta in pixels, not a comparison between two campaigns.</p>',
     tableau(
       [
-        'Moteur',
+        'Engine',
         'CPU p50',
-        'Sélection CPU p50',
+        'CPU select p50',
         'GPU p50',
         'Triangles',
-        'Appels',
-        'Pages décodées wasm',
-        'Témoin A/A',
-        'Écart avant/après',
+        'Calls',
+        'Wasm-decoded pages',
+        'A/A witness',
+        'Before/after delta',
       ],
       lignes,
     ),
-    refus.length
-      ? `<h3>Exécutions refusées ou en erreur</h3>${tableau(['Exécution', 'Raison'], refus)}`
-      : '',
+    refus.length ? `<h3>Refused or failed runs</h3>${tableau(['Run', 'Reason'], refus)}` : '',
   ].join('');
 }

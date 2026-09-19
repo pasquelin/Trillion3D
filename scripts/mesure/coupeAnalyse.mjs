@@ -60,7 +60,7 @@ export function analyserCoupe(ids, index, meshNames = []) {
     total += info.triangles;
     const nom = meshNames[info.mesh] ?? `mesh ${info.mesh}`;
     parPrimitive.set(nom, (parPrimitive.get(nom) ?? 0) + info.triangles);
-    const niveau = info.level < 0 ? 'sans niveau' : String(info.level);
+    const niveau = info.level < 0 ? 'no level' : String(info.level);
     parNiveau.set(niveau, (parNiveau.get(niveau) ?? 0) + info.triangles);
   }
   return { total, inconnues, parPrimitive: ranger(parPrimitive), parNiveau: ranger(parNiveau) };
