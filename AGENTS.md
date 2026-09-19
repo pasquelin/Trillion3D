@@ -84,10 +84,7 @@
 - **This repository is self-contained.** It builds, tests, measures and proves itself with only its
   own dependencies (`pnpm install`), the machine's Chrome and its own assets (`.mesure/assets/`, off
   git). No code, script, test or doc may read another project on disk — no neighbour path, no
-  `LAB_ROOT`. `render-tech-lab` is one ordinary host of `prepare()` and `createExplorer()`: it tests
-  the engine, the engine never leans on it. Never add host code to make the engine work, never
-  write into a host's folders. The only proofs that touch it are mounted on its pages, take its
-  address by `LAB_URL`, and are excluded from `test:gpu` by name.
+  external harness. Every test, visual proof and benchmark runs on the repository's standalone tools.
 - Keep React/Electron/Vite, DOM and platform filesystem APIs out of runtime-core/shared contracts;
   use browser/filesystem adapters. Consume public entry points; packages never import application
   internals.
