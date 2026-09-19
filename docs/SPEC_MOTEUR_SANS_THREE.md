@@ -187,7 +187,7 @@ Ce que le web impose, et la réponse :
 
 Étapes, chacune avec sa preuve (0 px A/A à l'arrêt, budget tenu, avant/après publié) :
 
-- **L0** — le soleil décomposé : les 4,6 ms d'ombres, tuiles et éclairage expliquées par différences d'enveloppe (Lumière 17). Rien n'est optimisé avant.
+- **L0** — fait (Lumière 17, campagne 18 sept. 2026, Emerald 2496×1404) : le soleil vaut 4,7 ms d'enveloppe en vue sol et 5,8 ms en vue rue (`mobile` − `sans-lumiere`) ; l'éclairage sans cartes ≤ 0,96 ms (`lampes-4-sans-ombres` − `sans-lumiere`) ; caméra fixe : 0 page redessinée, enveloppe pas plus basse. Ce qui reste est l'échantillonnage (L2 / Lumière 13), pas un anneau de cascades.
 - **L1** — traces écran : réflexions et rebond court depuis l'image HDR, la profondeur et la normale déjà rendues ; la pièce la moins chère de la référence, et la première.
 - **L2** — direct stochastique débruité par le TAA (Lumière 13) : des dizaines de lampes au prix d'une.
 - **L3** — ombres en pages virtuelles depuis le raster matériel (Lumière 2, 6, 12) : seules les pages vues, en cache. Le raster de calcul est éteint depuis Géométrie 26, mesure faite.

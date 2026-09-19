@@ -35,6 +35,7 @@ const LIGNES = `
 fixe | image tenue : caméra fixe, aucun travail carte attendu | TOUTES --pixelError 0,1,2 --soleil PLEINE
 mobile | référence de la campagne : caméra mobile, soleil, quatre vues, deux seuils | TOUTES --pixelError 0,1 MOBILE PLEINE
 sans-lumiere | albédo brut : le coût de l’éclairage par différence avec \`mobile\` | TOUTES --pixelError 1 --camera-mobile PLEINE
+soleil-sans-ombres | soleil sans cartes d’ombre : le coût des cascades par différence avec \`mobile\` | DEUX --pixelError 1 MOBILE PLEINE --ombres off
 res-1872 | résolution 1872×1053 | DEUX --pixelError 1 MOBILE --largeur 1872 --hauteur 1053
 res-1248 | résolution 1248×702 | DEUX --pixelError 1 MOBILE QUART
 res-624 | résolution 624×351 | DEUX --pixelError 1 MOBILE --largeur 624 --hauteur 351

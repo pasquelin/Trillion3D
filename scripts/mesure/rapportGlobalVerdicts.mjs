@@ -125,13 +125,15 @@ function orientation(ex) {
   const l4 = trouve(ex, 'lampes-4', 'sol', 1);
   const l4s = trouve(ex, 'lampes-4-sans-ombres', 'sol', 1);
   const sansLum = trouve(ex, 'sans-lumiere', 'sol', 1);
+  const soleilSans = trouve(ex, 'soleil-sans-ombres', 'sol', 1);
   const mesures = [
     [
       'Les ombres, soleil et quatre ponctuelles (`--ombres off` les coupe toutes)',
       diff(l4, l4s),
-      'Lumière 17 (cascades en cache, budget d’ombres)',
+      'Lumière 13',
     ],
-    ['Le soleil seul, cascades d’ombre comprises', diff(sol, sansLum), 'Lumière 17'],
+    ['Le soleil seul, cascades d’ombre comprises', diff(sol, sansLum), 'Lumière 13'],
+    ['Les cartes d’ombre du soleil (`--soleil --ombres off`)', diff(sol, soleilSans), 'Lumière 13'],
     [
       'Soleil et quatre ponctuelles SANS aucune ombre : l’éclairage lui-même',
       diff(l4s, sansLum),
