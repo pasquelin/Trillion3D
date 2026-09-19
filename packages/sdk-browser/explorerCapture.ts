@@ -11,7 +11,7 @@ type Inputs = Pick<ExplorerEmitters, 'diagnose'> & {
   renderer: THREE.WebGLRenderer;
   options: ExplorerOptions;
   directGpu: boolean;
-  presentBackend: (backend: RenderBackend) => boolean;
+  presentBackend: (backend: RenderBackend, srgbDestination?: boolean) => boolean;
   state: Pick<ExplorerHostState, 'active'>;
   check: () => void;
 };
@@ -70,7 +70,8 @@ export function createExplorerCapture(inputs: Inputs) {
     try {
       ownedRenderer.setRenderTarget(null);
       active.render(camera);
-      // Reading the composition means composing it first, by the same rule as a frame.
+      // Reading the composition means composing it first, by the same rule as a frame. The
+      // destination is the page's own framebuffer, which encodes nothing.
       if (!presentBackend(active)) ownedRenderer.render(active.scene, camera);
       const size = canvas.width * canvas.height * 4;
       captureSlot = (captureSlot + 1) % 3;

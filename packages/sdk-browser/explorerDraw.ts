@@ -19,7 +19,7 @@ type Inputs = {
   streaming: ReturnType<typeof createExplorerStreaming>;
   directGpu: boolean;
   renderer: THREE.WebGLRenderer;
-  presentBackend: (backend: RenderBackend) => boolean;
+  presentBackend: (backend: RenderBackend, srgbDestination?: boolean) => boolean;
   baseline: RenderBackend;
   state: Pick<ExplorerHostState, 'measuring' | 'fallbackReason' | 'active'>;
 };
@@ -53,9 +53,8 @@ export function empileEnAttente(attente: Set<string>, urls: readonly string[]) {
 
 export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
   const { scope, emit, diagnose } = session;
-  const { camera, geometryUrls, streamer, streaming, directGpu, presentBackend, baseline, state } =
-    inputs;
-  const ownedRenderer = inputs.renderer;
+  const { camera, geometryUrls, streamer, streaming, presentBackend, baseline, state } = inputs;
+  const { directGpu, renderer: ownedRenderer } = inputs;
   // WebGL2 cannot timestamp a pass: the timer wraps the whole-frame submit, and is only
   // mounted if the host asked for the per-step profile.
   const gpuTimer =
@@ -63,6 +62,9 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       ? createWebglFrameTimer(ownedRenderer.getContext() as WebGL2RenderingContext)
       : null;
   const heldFrame = createHeldFrame();
+  /** A host render target is sRGB encoded, the page canvas is not: the copy must know which. */
+  const srgb = (t: THREE.WebGLRenderTarget | null) =>
+    t?.texture.colorSpace === THREE.SRGBColorSpace;
   const drawingSize = new THREE.Vector2();
   /**
    * Display chain of the Three-rendered engine, set on the engine view — the same rule as the
@@ -163,8 +165,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       state.fallbackReason = fallbackReason;
       state.active = baseline;
       baseline.render(camera);
-      setDisplayChain(baseline);
-      ownedRenderer.render(baseline.scene, camera);
+      if (!presentBackend(baseline, srgb(target))) drawScene(baseline, target);
       emit({
         eventVersion: 1,
         type: 'fallback',
@@ -185,7 +186,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     gpuTimer?.begin();
     // An engine that presented its own surface is copied from it; the others hand their scene
     // over to the host renderer, the only case the held frame belongs to.
-    if (!presentBackend(backend)) drawScene(backend, target);
+    if (!presentBackend(backend, srgb(target))) drawScene(backend, target);
     gpuTimer?.end();
     steps.cpuStep?.('submitMs', performance.now() - retainEnd);
     if (gpuTimer) {

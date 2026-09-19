@@ -70,7 +70,7 @@ export function createExplorerHostState(
   const compositor = prepared.directGpu ? undefined : createComparisonCompositor(renderer!);
   // Same owner as the compositor: what puts an engine's image on the host surface, for the frame
   // and for the explicit capture alike.
-  const presentBackend = createBackendPresenter(renderer!);
+  const presentBackend = prepared.directGpu ? () => false : createBackendPresenter(renderer!);
   const targetOptions = { type: THREE.UnsignedByteType, colorSpace: THREE.SRGBColorSpace };
   const ensureTarget = (current?: THREE.WebGLRenderTarget) =>
     current ?? new THREE.WebGLRenderTarget(canvas.width, canvas.height, targetOptions);

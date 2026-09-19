@@ -112,15 +112,19 @@ export function createExplorerRender(session: ExplorerSession, inputs: Inputs) {
     metricsScratch.cpuFrameMs = frameEnd - start;
     // Draw calls of this frame: the engine's, or the host renderer's when it is the one
     // drawing. `null` when neither counts them — never zero.
+    // The host renderer counts only the frames it drew. On an engine that presented its own
+    // surface it drew nothing, and its counters still hold another engine's last frame: reading
+    // them would attribute that frame to this one.
+    const hostDrew = !directGpu && !state.active.presentedSurface;
     if (metricsScratch.drawCalls == null)
-      metricsScratch.drawCalls = ownedRenderer?.info.render.calls ?? null;
+      metricsScratch.drawCalls = hostDrew ? (ownedRenderer?.info.render.calls ?? null) : null;
     // Submitted triangles of this frame: those the engine counted, or those the host renderer
     // drew when it is the one drawing. `null` when neither has counted them —
     // a zero published here would read as an empty frame, and that is what the contract forbids.
     metricsScratch.triangles =
       metricsScratch.totalSubmittedTriangles ??
-      (directGpu ? null : (ownedRenderer?.info.render.triangles ?? null));
-    auditFrame(state.active.id, frameNumber, metricsScratch, directGpu ? null : ownedRenderer);
+      (hostDrew ? (ownedRenderer?.info.render.triangles ?? null) : null);
+    auditFrame(state.active.id, frameNumber, metricsScratch, hostDrew ? ownedRenderer : null);
     profiler.record(metricsScratch);
     emitExplorerFrameDiagnostic({
       diagnosticChannel,
