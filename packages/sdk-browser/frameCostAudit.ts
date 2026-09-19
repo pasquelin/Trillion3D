@@ -56,6 +56,8 @@ export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
     if (!frustumExcludesBox(blendState.blendPlanes, box[0], box[1], box[2], box[3], box[4], box[5]))
       continue;
     outsideItems++;
+    // Only read when the declared side is double, which an empty list never is: `material` is
+    // then the element `sideOf` itself read, never `undefined`.
     const material = Array.isArray(item.material) ? item.material[0] : item.material;
     outsideDraws += sideOf(item.material) === 'double' && !material.forceSinglePass ? 2 : 1;
   }

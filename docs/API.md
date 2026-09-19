@@ -45,7 +45,7 @@ numbers. Conventions shared by every entry:
 | `scaleVector3(out, s)`                                 | the three components multiplied in place                                    | `Vector3.multiplyScalar`        | bench `Vector3.multiplyScalar` (×4.3) |
 | `copyScaledVector3(out, a, s, outAt = 0, aAt = 0)`     | `out = a · s`                                                               | `Vector3.copy().multiplyScalar` | same line                             |
 | `transformAffinePoint(out, m, x, y, z, outAt = 0)`     | `M · (x, y, z, 1)` for an affine `M`, three components                      | `Vector3.applyMatrix4`          | bench `Vector3.applyMatrix4` (×2.4)   |
-| `normalizeVector3(v)`                                  | `v / ‖v‖` in place, a zero vector left unchanged                            | `Vector3.normalize`             | `mathVector.test.ts`                  |
+| `normalizeVector3(v)`                                  | `v / ‖v‖` in place, a zero vector left unchanged, nothing returned          | `Vector3.normalize`             | `mathVector.test.ts`                  |
 
 ### Colours — `packages/sdk-core/mathColor.ts`
 
