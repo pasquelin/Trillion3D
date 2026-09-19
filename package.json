@@ -58,7 +58,7 @@
     "check:duplicates": "jscpd packages scripts test --format typescript,javascript,rust --cross-formats js-ts --min-lines 12 --min-tokens 100 --reporters console --exit-code 1 --no-tips",
     "check:unused": "knip",
     "validate": "node scripts/validate.mjs",
-    "check:structure": "node --test test/integration/structure-moteur.test.mjs test/integration/moteur-sans-three.test.mjs test/integration/moteur-sans-three-math.test.mjs && tsc -p tsconfig.core.json --noEmit",
+    "check:structure": "node --test test/integration/depot-autonome.test.mjs test/integration/structure-moteur.test.mjs test/integration/moteur-sans-three.test.mjs test/integration/moteur-sans-three-math.test.mjs && tsc -p tsconfig.core.json --noEmit",
     "check:links": "node scripts/check-links.mjs",
     "graphify:libelles": "node scripts/graphify-libelles.mjs",
     "check:dts": "node scripts/rewrite-dts-extensions.mjs --check",
