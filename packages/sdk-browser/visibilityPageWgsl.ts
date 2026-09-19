@@ -2,28 +2,28 @@ import { WRAP_MAP } from './visibilityWrapModes.ts';
 import { VIS_BINDINGS } from './webgpuBindLayout.ts';
 
 /**
- * La géométrie d'une page telle que le GPU la lit : la description d'un cluster, l'uniforme de son
- * slot de dessin, et la résolution du rang de page d'une instance indirecte. Une seule déclaration,
- * partagée par le raster du visibility buffer et par les passes de profondeur des ombres — deux
- * copies de cette structure seraient deux chances de la voir dériver.
+ * Geometry of a page as the GPU reads it: the description of a cluster, the uniform of its draw
+ * slot, and the resolution of an indirect instance's page rank. A single declaration, shared by
+ * the visibility-buffer raster and by the shadow depth passes — two copies of this structure
+ * would be two chances of seeing it drift.
  */
-/** Les six `pad*Uv` sont les échelles uv d'atlas que les textures virtuelles ont rendues inutiles :
- *  une texture est lue dans son propre espace. Ils restent à zéro, jamais lus, jusqu'au recompactage
- *  de la fiche (backlog Textures). */
+/** The six `pad*Uv` are the atlas uv scales that virtual textures made useless: a texture is
+ *  read in its own space. They stay at zero, never read, until the record is recompacted
+ *  (Textures backlog). */
 export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,padBaseUv:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,padRoughUv:vec2f,padMetalUv:vec2f,padNormalUv:vec2f,aoIndex:u32,aoIntensity:f32,padAoUv:vec2f,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,padEmissiveUv:vec2f,normalScaleY:f32,pad1:f32,pad4:vec4f,depthBias:u32,wrapModes:u32,placement:u32,pad5d:u32,}`;
 
-/** L'uniforme d'une image du tampon de visibilité, le même mot à mot pour les deux rasters et les
- *  résolutions : `webgpuVisibilityUniforms.ts` l'écrit une fois par slot. */
+/** Uniform of a visibility-buffer image, the same word for word for both rasters and the
+ *  resolves: `webgpuVisibilityUniforms.ts` writes it once per slot. */
 export const VIS_UNIFORMS_WGSL = `struct Uniforms{viewProj:mat4x4f,viewport:vec2f,computeSpan:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,}`;
 
-/** La description d'un cluster, suivie de l'uniforme d'une passe de géométrie de page. */
+/** Description of a cluster, followed by the uniform of a page-geometry pass. */
 export const PAGE_INFO_WGSL = `${PAGE_INFO_STRUCT_WGSL}
 ${VIS_UNIFORMS_WGSL}`;
 
 /**
- * Les liaisons qu'une passe de géométrie de page partage, une par ligne. Elles sont nommées plutôt
- * que regroupées pour que chaque passe les compose dans son propre ordre : le raster du visibility
- * buffer garde ainsi, au caractère près, le texte de shader qu'il avait avant les ombres.
+ * Bindings a page-geometry pass shares, one per line. They are named rather than grouped so that
+ * each pass composes them in its own order: the visibility-buffer raster thus keeps, character
+ * for character, the shader text it had before shadows.
  */
 export const PAGE_BINDING = {
   indices: `@group(0) @binding(${VIS_BINDINGS.cache}) var<storage, read> indices:array<u32>;`,
@@ -34,25 +34,25 @@ export const PAGE_BINDING = {
   slotOffsets: `@group(0) @binding(${VIS_BINDINGS.slotOffsets}) var<storage, read> slotOffsets:array<u32>;`,
 } as const;
 
-/** Rang de page d'une instance : direct en dessin explicite, via la table des slots en indirect. */
+/** Page rank of an instance: direct in an explicit draw, via the slot table in indirect. */
 export const PAGE_LOOKUP_WGSL = `fn drawPage(instanceIndex:u32)->u32{
  if(uni.indirect!=0u){return instances[slotOffsets[uni.drawSlot]+instanceIndex];}
  return instanceIndex;
 }`;
 
-/** Position d'un sommet de page dans son espace local. */
+/** Position of a page vertex in its local space. */
 export const PAGE_VERTEX_WGSL = `fn vertPos(base:u32,idx:u32)->vec3f{let i=(base+idx)*3u;return vec3f(positions[i],positions[i+1u],positions[i+2u]);}`;
 
-/** Coordonnée de texture d'un sommet de page. */
+/** Texture coordinate of a page vertex. */
 export const PAGE_UV_WGSL = `fn vertUv(base:u32,idx:u32)->vec2f{let i=(base+idx)*2u;return vec2f(uvs[i],uvs[i+1u]);}`;
 
-/** Aire signée du triangle `(a,b,p)` en coordonnées écran ; le raster en tire ses barycentriques. */
+/** Signed area of the triangle `(a,b,p)` in screen coordinates; the raster takes its barycentrics from it. */
 export const EDGE_WGSL = `fn edge(a:vec2f,b:vec2f,p:vec2f)->f32{return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}`;
 
 /**
- * Les trois poids barycentriques affines du point `p`, l'aire signée étant déjà connue, pour
- * l'ombrage du tampon de visibilité. Le raster de calcul a les siens : il décide la couverture sur
- * ses trois arêtes, et un poids dérivé par `1-w0-w1` n'est pas étanche. Exige `EDGE_WGSL`.
+ * The three affine barycentric weights of the point `p`, the signed area already known, for
+ * visibility-buffer shading. The compute raster has its own: it decides coverage on its three
+ * edges, and a weight derived by `1-w0-w1` is not watertight. Requires `EDGE_WGSL`.
  */
 export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f,area:f32)->vec3f{
  let w0=edge(b,c,p)/area;let w1=edge(c,a,p)/area;
@@ -60,30 +60,31 @@ export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f
 }`;
 
 /**
- * La coordonnée de texture d'un sommet et le test de masque d'opacité d'un cluster, tels que le
- * raster du tampon de visibilité et la passe de profondeur des ombres les appliquent tous les deux.
- * Une seule écriture : une découpe qui ne serait pas la même des deux côtés ferait une ombre qui ne
- * correspond pas à la silhouette qu'on voit. `flags` : 4 = UV présentes, 8 = carte de base,
- * 128 = matériau à masque ; le seuil est `baseColor.w`, et le mode d'adressage de la carte de base
- * vient du mot par carte, jamais des drapeaux du matériau.
+ * Texture coordinate of a vertex and the opacity-mask test of a cluster, as both the
+ * visibility-buffer raster and the shadow depth pass apply them. A single write: a cutout that
+ * was not the same on both sides would make a shadow that does not match the silhouette one
+ * sees. `flags`: 4 = UVs present, 8 = base map, 128 = masked material; the threshold is
+ * `baseColor.w`, and the base map's addressing mode comes from the per-map word, never from the
+ * material flags.
  *
- * `ddx`, `ddy` sont les dérivées de la coordonnée par texel de la passe qui lit — pixel de la caméra
- * ou texel d'ombre — : chacune lit la carte au niveau de son empreinte, comme la passe matériaux
- * lit sa couleur (`maskAlpha`, `webgpuTileWgsl.ts`). Le raster de calcul, qui n'a pas de dérivées,
- * passe zéro et lit le niveau 0 — la tuile la plus fine résidente sous ce texel.
+ * `ddx`, `ddy` are the per-texel derivatives of the coordinate of the pass that reads — camera
+ * pixel or shadow texel —: each reads the map at the level of its footprint, as the materials
+ * pass reads its colour (`maskAlpha`, `webgpuTileWgsl.ts`). The compute raster, which has no
+ * derivatives, passes zero and reads level 0 — the finest resident tile under that texel.
  *
- * Le shader hôte déclare `uvs`, le pool couleur et sa table de pages, puis insère `TILE_POOL_WGSL`
- * (qui porte la règle d'adressage), `COLOR_SAMPLE_WGSL` et `maskAlphaWgsl(...)` avant ce bloc.
+ * The host shader declares `uvs`, the colour pool and its page table, then inserts
+ * `TILE_POOL_WGSL` (which carries the addressing rule), `COLOR_SAMPLE_WGSL` and
+ * `maskAlphaWgsl(...)` before this block.
  */
 export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f,ddx:vec2f,ddy:vec2f)->bool{
  if((page.flags&128u)==0u||(page.flags&8u)==0u){return true;}
- // Les niveaux de la chaîne prennent la MÉDIANE de l'alpha, jamais sa moyenne : un texel grossier
- // passe le seuil quand la moitié de ce qu'il recouvre le passait, donc la couverture du seuil
- // traverse les niveaux et la découpe reste juste à tout niveau. Une moyenne, elle, faisait grossir
- // la silhouette niveau après niveau et rendait le quad opaque pendant le chargement.
+ // Levels of the chain take the MEDIAN of alpha, never its mean: a coarse texel passes the
+ // threshold when half of what it covers passed it, so threshold coverage crosses the levels and
+ // the cutout stays right at every level. A mean, itself, made the silhouette grow level after
+ // level and made the quad opaque during loading.
  return maskAlpha(page.mapIndex,uv,wrapOf(page.wrapModes,${WRAP_MAP.base}u),ddx,ddy)>=page.baseColor.w;
 }`;
 
-/** Le test de masque précédé de la coordonnée de texture qu'un sommet de page lui fournit. */
+/** The mask test preceded by the texture coordinate a page vertex supplies it. */
 export const PAGE_MASK_WGSL = `${PAGE_UV_WGSL}
 ${MASK_KEEP_WGSL}`;

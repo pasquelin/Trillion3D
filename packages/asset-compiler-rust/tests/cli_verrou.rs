@@ -1,6 +1,6 @@
-//! A18 et A19 : le verrou d'un cache, vu de l'extérieur, par processus. Ce que ces épreuves
-//! tiennent : un verrou que plus personne ne détient ne bloque rien, un propriétaire vivant fait
-//! renoncer le second dans le délai annoncé, et l'attente relit le jeton d'annulation.
+//! A18 and A19: cache lock, viewed from the outside, per process. What these tests verify:
+//! a lock that no one holds does not block anything, a living owner causes a second process
+//! to give up within the announced timeout, and waiting re-reads the cancellation token.
 mod common;
 use common::{compiler, fixture, grid_fixture, lines};
 use serde_json::Value;
@@ -12,11 +12,11 @@ use std::{
     time::{Duration, Instant},
 };
 
-/// Le chemin du verrou sous le cache : un contrat, puisqu'un hôte peut le voir paraître.
+/// The lock path under the cache: a contract, as a host may see it appear.
 fn lock_path(cache: &Path) -> PathBuf {
     cache.join("native").join(".lock")
 }
-/// Le fichier de verrou ouvert comme l'ouvre une compilation : créé s'il manque, jamais tronqué.
+/// The lock file opened as a compilation opens it: created if missing, never truncated.
 fn open_lock(cache: &Path) -> File {
     fs::create_dir_all(cache.join("native")).expect("native");
     fs::OpenOptions::new()
@@ -24,23 +24,22 @@ fn open_lock(cache: &Path) -> File {
         .create(true)
         .truncate(false)
         .open(lock_path(cache))
-        .expect("ouverture du verrou")
+        .expect("lock open")
 }
-/// Le verrou pris comme le prend une compilation vivante. Le tenir depuis l'épreuve elle-même, et
-/// non depuis un processus qui compile, rend l'épreuve indépendante de toute durée.
+/// The lock acquired as a living compilation acquires it. Holding it from the test itself, and
+/// not from a process that compiles, makes the test independent of any duration.
 fn hold(cache: &Path) -> File {
     let file = open_lock(cache);
-    file.try_lock()
-        .expect("le verrou est libre avant l'épreuve");
+    file.try_lock().expect("the lock is free before the trial");
     file
 }
-/// L'unique ligne que le programme écrit sur sa sortie : le pointeur, ou le refus.
+/// The single line that the program writes to its output: the pointer, or the refusal.
 fn outcome(output: &Output) -> Value {
     let printed = lines(&String::from_utf8_lossy(&output.stdout));
     assert_eq!(printed.len(), 1, "une seule ligne de sortie");
     printed[0].clone()
 }
-/// Attend que le fichier de verrou paraisse, donc que la compilation soit entrée dans le cache.
+/// Waits for the lock file to appear, meaning the compilation has entered the cache.
 fn wait_for(path: &Path) {
     let deadline = Instant::now() + Duration::from_secs(60);
     while !path.exists() {
@@ -49,9 +48,9 @@ fn wait_for(path: &Path) {
     }
 }
 
-/// A18 : le propriétaire du verrou est tué net en pleine compilation. Personne ne détient plus rien,
-/// et le système l'a acté à la mort du processus : la relance doit prendre le verrou du premier
-/// coup. Attente nulle, donc l'épreuve ne mesure aucune durée : elle réussit, ou elle est refusée.
+/// A18: the lock owner is killed abruptly mid-compilation. No one holds anything anymore,
+/// and the system recorded it upon the process's death: the relaunch must take the lock on the first
+/// try. Zero wait, so the test measures no duration: it succeeds, or it is refused.
 #[test]
 fn a18_le_verrou_d_un_proprietaire_tue_ne_bloque_plus_le_cache() {
     let (root, source, cache) = grid_fixture("verrou-tue", 96);
@@ -60,13 +59,16 @@ fn a18_le_verrou_d_un_proprietaire_tue_ne_bloque_plus_le_cache() {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .expect("propriétaire");
+        .expect("owner");
     wait_for(&lock_path(&cache));
-    owner.kill().expect("arrêt forcé");
-    let status = owner.wait().expect("fin du propriétaire");
+    owner.kill().expect("forced stop");
+    let status = owner.wait().expect("owner ended");
     let pointer = cache.join("native").join("full").join("manifest.json");
-    assert!(!status.success(), "le propriétaire devait mourir en chemin");
-    assert!(!pointer.exists(), "rien n'a été publié avant l'arrêt forcé");
+    assert!(!status.success(), "the owner had to die mid-way");
+    assert!(
+        !pointer.exists(),
+        "nothing was published before the forced stop"
+    );
     let output = compiler(&source, &cache)
         .env("WG_CACHE_LOCK_WAIT_MS", "0")
         .stdin(Stdio::null())
@@ -78,8 +80,8 @@ fn a18_le_verrou_d_un_proprietaire_tue_ne_bloque_plus_le_cache() {
     fs::remove_dir_all(root).ok();
 }
 
-/// A18 : un propriétaire vivant, lui, garde le cache. Le second renonce, et dans le délai annoncé
-/// par la variable documentée, sans attendre les trente secondes par défaut.
+/// A18: a living owner, on the other hand, keeps the cache. The second gives up, and within the timeout announced
+/// by the documented variable, without waiting for the default thirty seconds.
 #[test]
 fn a18_un_proprietaire_vivant_fait_renoncer_le_second_dans_le_delai_annonce() {
     let (root, source, cache) = fixture("verrou-vivant");
@@ -102,8 +104,8 @@ fn a18_un_proprietaire_vivant_fait_renoncer_le_second_dans_le_delai_annonce() {
     fs::remove_dir_all(root).ok();
 }
 
-/// A19 : annulé pendant l'attente du verrou, le second sort en `CANCELLED`, et tout de suite, sans
-/// attendre l'échéance ; le verrou du propriétaire, lui, n'est pas touché.
+/// A19: cancelled while waiting for the lock, the second exits with `CANCELLED`, immediately, without
+/// waiting for the deadline; the owner's lock itself is not touched.
 #[test]
 fn a19_l_annulation_pendant_l_attente_du_verrou_sort_en_annule() {
     let (root, source, cache) = fixture("verrou-annule");
@@ -114,29 +116,29 @@ fn a19_l_annulation_pendant_l_attente_du_verrou_sort_en_annule() {
         .stderr(Stdio::piped())
         .spawn()
         .expect("second");
-    // Le travail accepté, le contrôle d'annulation d'entrée est passé : ce qui suit ne peut plus
-    // être qu'une annulation lue dans l'attente du verrou, et non au seuil de la compilation.
-    let mut events = BufReader::new(second.stderr.take().expect("événements"));
+    // Job accepted, initial cancellation check passed: what follows can only be
+    // a cancellation read while waiting for the lock, not at the compilation threshold.
+    let mut events = BufReader::new(second.stderr.take().expect("events"));
     let mut first = String::new();
-    events.read_line(&mut first).expect("premier événement");
-    let accepted: Value = serde_json::from_str(&first).expect("événement JSON");
+    events.read_line(&mut first).expect("first event");
+    let accepted: Value = serde_json::from_str(&first).expect("JSON event");
     assert_eq!(accepted["event"], "accepted", "{accepted}");
     std::thread::sleep(Duration::from_millis(200));
     let sent = Instant::now();
     second
         .stdin
         .take()
-        .expect("entrée")
+        .expect("stdin")
         .write_all(b"{\"cancel\":\"*\"}\n")
-        .expect("annulation");
+        .expect("cancel");
     let output = second.wait_with_output().expect("fin du second");
     let answered = sent.elapsed();
     let refusal = outcome(&output);
     assert_eq!(refusal["code"], "CANCELLED", "{refusal}");
-    assert!(answered < Duration::from_secs(3), "réponse : {answered:?}");
+    assert!(answered < Duration::from_secs(3), "answer: {answered:?}");
     assert!(
         open_lock(&cache).try_lock().is_err(),
-        "le verrou du propriétaire n'a pas bougé"
+        "the owner's lock did not move"
     );
     drop(held);
     fs::remove_dir_all(root).ok();

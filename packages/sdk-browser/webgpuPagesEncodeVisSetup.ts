@@ -39,23 +39,23 @@ export function encodeEmptySurfaces(
 }
 
 /**
- * Ce qu'une image donne au raster de calcul, tenu d'une image à l'autre : chacun de ses champs est
- * réécrit avant chaque encodage, et l'encodage le consomme avant de rendre la main. L'écrire en
- * clair à chaque image allouait un objet de dix-huit champs par image.
+ * What an image gives the compute raster, held from one image to the next: each of its fields is
+ * rewritten before every encode, and encode consumes it before returning. Writing it in the clear
+ * every image allocated an eighteen-field object per image.
  */
 const rasterInput = {} as GpuRasterInput;
 
 /**
- * Crée le raster de calcul une fois, et seulement sous une variante qui le demande — `raster-calcul`
- * ou `raster-hybride` : en production le matériel dessine (Géométrie 26). Une variante est une demande, pas une occasion — un appareil
- * sans calcul ou un budget de surfaces dépassé refuse, ils ne rendent pas en silence l'image du
- * matériel sous l'étiquette du calcul.
+ * Creates the compute raster once, and only under a variant that asks for it — `raster-calcul` or
+ * `raster-hybride`: in production the hardware draws (Geometry 26). A variant is a request, not an
+ * opportunity — a device without compute or an exceeded surface budget refuses; they do not silently
+ * render the hardware image under the compute label.
  */
 export function ensureGpuRaster(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vis } = rt;
   if (vis.gpuRaster || !requestsComputeRaster(rt.context?.diagnosticGpuVariant)) return;
   if (typeof device.createComputePipeline !== 'function')
-    throw new Error('COMPUTE_RASTER_UNAVAILABLE: raster-calcul demandé sans étage de calcul');
+    throw new Error('COMPUTE_RASTER_UNAVAILABLE: raster-calcul requested without a compute stage');
   const [width, height] = rt.gpu.targetSize;
   vis.gpuRaster = createGpuRaster(device, width, height, rt.layout.rasterCapacity);
 }
@@ -68,9 +68,9 @@ export function ensureVisBindings(rt: WebgpuPagesRuntime, device: GPUDevice, tab
 }
 
 /**
- * Le raster de calcul dessine cette image : il existe, et toutes ses ressources aussi. C'est LA
- * décision que l'uniforme du partage (`computeSpan`) et les étapes encodées lisent toutes les deux ;
- * une seule, sinon le matériel replierait des triangles que personne ne dessine.
+ * The compute raster draws this image: it exists, and so do all its resources. That is THE decision
+ * the split uniform (`computeSpan`) and the encoded stages both read; one only, or hardware would
+ * fold triangles nobody draws.
  */
 export function computeRasterReady(rt: WebgpuPagesRuntime) {
   const { vis, gpu } = rt;
@@ -100,9 +100,9 @@ export function computeRasterReady(rt: WebgpuPagesRuntime) {
 }
 
 /**
- * Les trois étapes du raster de calcul, prêtes à s'intercaler entre les passes du raster matériel :
- * la moitié occulteurs après la passe primaire, la moitié testée après la secondaire, les
- * identifiants pour clore — chacune fondue dans les attachements que le matériel a posés.
+ * The three compute-raster stages, ready to interleave between the hardware raster's passes:
+ * occluder half after the primary pass, tested half after the secondary, identifiers to close —
+ * each blended into the attachments hardware posted.
  */
 export function computeRasterStages(
   rt: WebgpuPagesRuntime,
@@ -116,8 +116,8 @@ export function computeRasterStages(
   const ready = computeRasterReady(rt);
   if (!ready) return null;
   const { raster } = ready;
-  // Le partage occulteurs/testés voyage par le mot de verdict que la partition a écrit : sans
-  // partition, ou sans pyramide, l'image lit des zéros et rastère toute la coupe en une fois.
+  // The occluder/tested split travels in the verdict word the partition wrote: without a partition,
+  // or without a pyramid, the image reads zeros and rasters the whole cut in one go.
   const hizFlags = twoPass && vis.gpuHiz ? vis.gpuHiz.flags : ready.zeroFlags;
   const key = (hizFlags === ready.zeroFlags ? 0 : 1) + (run.gpuFrameActive ? 2 : 0);
   const input = rasterInput;
@@ -125,7 +125,7 @@ export function computeRasterStages(
   input.positions = ready.concatPos;
   input.pages = ready.pageTable;
   input.hizFlags = hizFlags;
-  // L'uniforme est écrit avant toute passe (`ensureVisBindings`) : il existe quand on encode.
+  // The uniform is written before any pass (`ensureVisBindings`): it exists when we encode.
   input.uniform = vis.visUniform!;
   input.uvs = ready.concatUv;
   input.textures = ready.textures;
@@ -139,8 +139,8 @@ export function computeRasterStages(
   input.selection = run.gpuFrameActive ? run.gpuSelection : undefined;
   input.groups = vis.rasterGroups;
   input.groupKey = key;
-  // Les triangles plein écran des résolutions sont des appels de dessin comme les autres : celui
-  // qui clôt l'image, et celui de la pyramide quand la moitié testée existe. Le compte les porte.
+  // Full-screen resolve triangles are draw calls like the others: the one that closes the image,
+  // and the pyramid's when the tested half exists. The count carries them.
   return {
     occluders(encoder: GPUCommandEncoder) {
       run.gpuDrawCalls += input.tested ? 1 : 0;

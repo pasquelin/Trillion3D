@@ -2,9 +2,8 @@ import { createGpuPageCache } from './gpuPages.ts';
 import { type WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
- * Le cache de pages GPU du moteur, avec son branchement de trace. Les événements du cache ne sont
- * relevés que si la trace est demandée : sinon aucune fermeture n'est posée, et le cache n'a même
- * pas d'observateur à appeler.
+ * The engine's GPU page cache, with its trace hook. Cache events are sampled only if trace is
+ * requested: otherwise no closure is posted, and the cache does not even have an observer to call.
  */
 export function createWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { diag, run, services } = rt,

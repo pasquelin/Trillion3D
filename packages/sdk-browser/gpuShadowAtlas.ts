@@ -10,16 +10,16 @@ import { SHADOW_DEPTH_SHADER } from './gpuShadowShader.ts';
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
 import { DEPTH_COMPARE } from './depthConvention.ts';
 
-/** Étiquette de la passe mesurée ; `gpuShadowsMs` est lu sous ce nom. */
+/** Label of the measured pass; `gpuShadowsMs` is read under this name. */
 export const SHADOW_PASS = 'WG shadow atlas v1';
-/** Alignement d'un décalage dynamique d'uniforme : une région par entrée de 256 octets. */
+/** Alignment of a dynamic uniform offset: one region per 256-byte entry. */
 const FACE_STRIDE = 256;
-/** Octets réellement lus d'une entrée : la matrice, le rectangle d'atlas, l'enveloppe de la lampe. */
+/** Bytes actually read of an entry: the matrix, the atlas rectangle, the light envelope. */
 const FACE_BYTES = 96;
 /**
- * Régions au plus dans une image : le plafond des tampons, pas un réglage de qualité. Une face
- * entièrement périmée tient dans une seule région, donc ce plafond vaut au moins ce que l'ancien
- * plafond de quatre lampes autorisait ; le budget en millisecondes s'arrête presque toujours avant.
+ * Regions at most in a frame: the buffer cap, not a quality setting. A wholly stale face fits
+ * in a single region, so this cap is at least what the old four-light cap allowed; the
+ * millisecond budget almost always stops first.
  */
 export const MAX_SHADOW_REGIONS = LIGHT_SETTINGS.shadowUpdatesPerFrame * POINT_FACES;
 export const shadowAtlasBytes = () => LIGHT_SETTINGS.shadowAtlasSize ** 2 * 4;
@@ -27,9 +27,9 @@ export const shadowAtlasBytes = () => LIGHT_SETTINGS.shadowAtlasSize ** 2 * 4;
 export type GpuShadowAtlas = Awaited<ReturnType<typeof createGpuShadowAtlas>>;
 
 /**
- * L'atlas d'ombres de profondeur : une texture 4096², une tranche par lampe à ombre, six faces pour
- * une ponctuelle et une pour un projecteur. Le tampon de tranches est ce que la résolution différée
- * relit ; le tampon de faces porte les matrices de l'image, une par décalage dynamique.
+ * Depth shadow atlas: a 4096² texture, one slice per shadow light, six faces for a point light
+ * and one for a spotlight. The slice buffer is what deferred resolve rereads; the face buffer
+ * carries the frame's matrices, one per dynamic offset.
  */
 export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBindGroupLayout) {
   const size = LIGHT_SETTINGS.shadowAtlasSize;
@@ -37,8 +37,8 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
     label: 'WG shadow depth atlas v1',
     size: [size, size, 1],
     format: 'depth32float',
-    // `COPY_SRC` n'est là que pour la preuve : l'hôte peut relire l'atlas et comparer son empreinte
-    // entre un redessin par pages et un redessin complet. Aucune passe de l'image ne le copie.
+    // `COPY_SRC` is there only for the proof: the host can reread the atlas and compare its
+    // fingerprint between a page redraw and a full redraw. No frame pass copies it.
     usage:
       GPUTextureUsage.RENDER_ATTACHMENT |
       GPUTextureUsage.TEXTURE_BINDING |
@@ -67,7 +67,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       entries: [
         {
           binding: 0,
-          // Lu aussi au fragment : c'est lui qui écarte l'enveloppe de l'émetteur.
+          // Also read at the fragment: it is what discards the emitter envelope.
           visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
           buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: FACE_BYTES },
         },
@@ -83,8 +83,8 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       label: 'WG shadow depth v1',
       layout,
       vertex: { module, entryPoint: 'shadow_vs' },
-      // Aucune cible de couleur : l'étage de fragment n'existe que pour écarter la découpe d'un
-      // matériau à masque d'opacité, et ne rend rien.
+      // No colour target: the fragment stage exists only to discard an opacity-mask cutout, and
+      // returns nothing.
       fragment: { module, entryPoint: 'shadow_fs', targets: [] },
       primitive: { topology: 'triangle-list', cullMode: 'none' },
       depthStencil: depthState(DEPTH_COMPARE),
@@ -106,8 +106,8 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       texture,
       view,
       sliceBuffer,
-      /** Le miroir hôte du tampon de tranches : ce que la carte relit, faces jamais redessinées
-       *  comprises. La résolution matérielle en recopie la tranche du soleil dans son uniforme. */
+      /** Host mirror of the slice buffer: what the GPU rereads, never-redrawn faces included.
+       *  Hardware resolve copies the sun slice from it into its uniform. */
       sliceMirror: slicePacked as Readonly<Float32Array>,
       depth,
       clear,
@@ -115,16 +115,16 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       faceStride: FACE_STRIDE,
       allocationBytes: shadowAtlasBytes() + faceUniform.size + sliceBuffer.size,
       /**
-       * Écrit une région dans les deux tampons : celui des matrices de l'image, lu par décalage
-       * dynamique, et celui des tranches, relu par la résolution différée. La matrice est celle de
-       * la face entière, jamais celle de la région : c'est ce qui rend le dessin par pages identique
-       * au bit près. `matrices` la porte à `matrixBase` ; rien n'est copié dans un tableau
-       * intermédiaire, et deux régions d'une même face y réécrivent les mêmes nombres.
+       * Writes a region into both buffers: that of the frame matrices, read by dynamic offset,
+       * and that of the slices, reread by deferred resolve. The matrix is that of the whole
+       * face, never of the region: that is what makes the page draw identical to the bit.
+       * `matrices` carries it at `matrixBase`; nothing is copied into an intermediate array, and
+       * two regions of the same face rewrite the same numbers there.
        *
-       * `center` et `radius` disent l'enveloppe de la lampe au seul tampon qui la lit, celui du
-       * dessin : le shader d'ombre n'écrit aucune profondeur pour une surface qui y est enfermée.
-       * Une lampe sans enveloppe — une directionnelle, ou une lampe sans rayon déclaré — porte un
-       * rayon nul, et la comparaison ne retire alors rien.
+       * `center` and `radius` tell the light envelope to the only buffer that reads it, the
+       * draw one: the shadow shader writes no depth for a surface locked inside it. A light
+       * without an envelope — a directional, or a light with no declared radius — carries a
+       * zero radius, and the comparison then strips nothing.
        */
       writeRegion(
         index: number,
@@ -165,7 +165,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
         if (count)
           device.queue.writeBuffer(faceUniform, 0, facePacked, 0, (count * FACE_STRIDE) / 4);
       },
-      /** L'entête d'une tranche : faces, demi-ouverture tangente, côté en texels, plan proche. */
+      /** Slice header: faces, tangent half-angle, side in texels, near plane. */
       writeSliceInfo(slice: number, faces: number, tanHalfFov: number, side: number, near: number) {
         const base = slice * SHADOW_SLICE_FLOATS + POINT_FACES * SHADOW_FACE_FLOATS;
         slicePacked[base] = faces;
@@ -174,9 +174,9 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
         slicePacked[base + 3] = near;
       },
       /**
-       * Repousse les tranches que l'ordonnanceur vient de redessiner, et elles seules : les autres
-       * décrivent déjà l'image côté carte. L'atlas écrit ce qu'on lui donne et ne tient pas la liste
-       * de ce qu'il a écrit — celui qui décide quoi redessiner la connaît déjà.
+       * Pushes the slices the scheduler just redrew, and them alone: the others already describe
+       * the frame on the GPU. The atlas writes what it is given and does not keep the list of
+       * what it wrote — whoever decides what to redraw already knows it.
        */
       flushSlices(slices: Int32Array, count: number) {
         for (let i = 0; i < count; i++) {

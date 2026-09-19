@@ -4,19 +4,18 @@ import { PARTITION_CLASSIFY_WGSL } from './gpuPartitionClassifyWgsl.ts';
 import { PARTITION_PROJECT_WGSL } from './gpuPartitionProjectWgsl.ts';
 
 /**
- * Le module de la partition GPU : trois noyaux sur les mêmes huit tampons de stockage.
+ * GPU partition module: three kernels on the same eight storage buffers.
  *
- * `projectRows` projette chaque ligne résidente et histogramme sa profondeur ; `chooseSplit` lit cet
- * histogramme et pose la règle de partage de l'image ; `classifyRows` range chaque ligne dans sa
- * moitié, compte son slot indirect et empaquette la boîte testée. Le processeur n'encode que ces
- * trois lancements, dont le nombre ne dépend que du nombre de lignes, et ne relit rien.
+ * `projectRows` projects each resident row and histograms its depth; `chooseSplit` reads that
+ * histogram and sets the frame's split rule; `classifyRows` bins each row into its half, counts
+ * its indirect slot and packs the tested box. The CPU encodes only these three dispatches, whose
+ * count depends only on the row count, and reads nothing back.
  *
- * Huit tampons de stockage exactement, le plafond d'une étape : les bits de reste et les comptes par
- * slot sont ceux de la compaction de dessin, écrits ici plutôt que téléversés, et `flags` est le
- * tampon de verdicts : `projectRows` y lit ceux de l'image précédente, puis `classifyRows` y pose
- * ceux de celle-ci — `0` pour la moitié occulteurs, `2` pour la moitié testée, que le test Hi-Z
- * ramènera à `1` sur les lignes qu'il rejette. C'est par ce mot, et non par un tampon de plus, que le
- * raster de calcul apprend de quelle moitié une ligne est.
+ * Exactly eight storage buffers, a stage's cap: rest bits and per-slot counts are those of the
+ * draw compact, written here rather than uploaded, and `flags` is the verdict buffer:
+ * `projectRows` reads last frame's, then `classifyRows` writes this frame's — `0` for the occluder
+ * half, `2` for the tested half, which the Hi-Z test will set to `1` on rows it rejects. It is
+ * through this word, not an extra buffer, that the compute raster learns which half a row is in.
  */
 export const PARTITION_SHADER = `struct DrawItem{pageIndex:u32,bin:u32,selectionIndex:u32,layer:u32,triangles:u32,}
 ${PARTITION_UNI_WGSL}@group(0) @binding(0) var<storage, read> corners:array<f32>;

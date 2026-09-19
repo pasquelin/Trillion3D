@@ -18,10 +18,9 @@ export function projectedClusterError(
   focal: number,
   near: number,
 ) {
-  // Exact geometry and clusters with no replacement need no projection at all, which is most of them.
-  // Une seule garde de plus que `projectedErrorAt`, à qui la projection est laissée : l'absence de
-  // sphère. Les deux autres restent posées ici, avant les deux racines carrées de la projection,
-  // parce que le cas le plus fréquent de la coupe est justement un cluster d'erreur nulle.
+  // One extra guard over `projectedErrorAt`, which is left the projection: a missing sphere.
+  // The other two stay here, before the projection's two square roots, because the most common
+  // cut case is precisely a cluster with zero error.
   if (error === 0) return 0;
   if (error == null || error === Infinity || !sphere) return Infinity;
   return projectedErrorAt(
@@ -45,10 +44,10 @@ export function cutSelects(
   const sphere = rec.sphere,
     own = rec.lodError ?? 0,
     parent = rec.parentError;
-  // Un cluster dont le remplaçant n'a pas de sphère à lui reprend la sienne : les deux membres du
-  // test projetaient alors deux fois la même sphère, donc quatre racines carrées par enregistrement
-  // au lieu de deux. Une seule projection, partagée comme `nodeDecision` partage déjà la sienne ;
-  // `projectedErrorAt` reçoit les mêmes opérandes dans le même ordre que `projectedClusterError`.
+  // A cluster whose parent has no sphere of its own reuses its own: both sides of the test
+  // then projected the same sphere twice, hence four square roots per record instead of two.
+  // One projection, shared the way `nodeDecision` already shares its own;
+  // `projectedErrorAt` gets the same operands in the same order as `projectedClusterError`.
   if (sphere && own !== 0 && own !== Infinity && rec.parentSphere == null) {
     const lateral = viewLateral(sphere, 0, e),
       depth = viewDepth(sphere, 0, e),

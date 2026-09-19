@@ -1,28 +1,29 @@
-//! Une primvar USD et la façon dont elle se lit à un coin de face.
+//! A USD primvar and how it is read at a face corner.
 //!
-//! USD range une valeur par sommet, par coin, par face ou pour toute la surface, et peut en plus
-//! indexer le tableau. Une primvar est donc toujours lue en deux temps : de quel rang du tableau ce
-//! coin dépend, puis quelle valeur porte ce rang. C'est ce premier rang qui sert de clé de
-//! déduplication des sommets du glTF — deux coins qui citent le même rang partagent un sommet.
+//! USD stores a value per vertex, per corner, per face or for the whole surface, and can also
+//! index the array. A primvar is therefore always read in two steps: which rank of the array
+//! this corner depends on, then which value that rank carries. It is that first rank that
+//! serves as the glTF vertex deduplication key — two corners that cite the same rank share a
+//! vertex.
 use super::*;
 
-/// Comment une primvar se répartit sur la surface.
+/// How a primvar is spread over the surface.
 #[derive(Clone, Copy, PartialEq)]
 pub(super) enum Spread {
-    /// Une seule valeur pour toute la surface.
+    /// A single value for the whole surface.
     Constant,
-    /// Une valeur par face.
+    /// One value per face.
     Uniform,
-    /// Une valeur par point, citée par l'indice de sommet de la face.
+    /// One value per point, cited by the face's vertex index.
     Point,
-    /// Une valeur par coin de face.
+    /// One value per face corner.
     FaceVarying,
 }
 
 impl Spread {
-    /// La répartition que la couche déclare, ou celle que la longueur du tableau désigne quand elle
-    /// ne la déclare pas : une primvar aussi longue que les points suit les points, aussi longue que
-    /// les coins suit les coins. C'est ce que fait un lecteur qui refuse de deviner au hasard.
+    /// Spread the layer declares, or the one the array length names when it does not declare
+    /// it: a primvar as long as the points follows the points, as long as the corners follows
+    /// the corners. That is what a reader that refuses to guess at random does.
     pub(super) fn read(
         declared: Option<&str>,
         values: usize,
@@ -42,7 +43,7 @@ impl Spread {
     }
 }
 
-/// Une primvar lue : ses valeurs, ses indices quand elle en a, et sa répartition.
+/// A primvar as read: its values, its indices when it has some, and its spread.
 pub(super) struct Primvar<T> {
     values: Vec<T>,
     indices: Option<Vec<i64>>,
@@ -57,10 +58,10 @@ impl<T: Copy> Primvar<T> {
             spread,
         }
     }
-    /// Le rang du tableau dont ce coin dépend. `corner` est le rang du coin dans toute la surface,
-    /// `face` celui de sa face, `point` l'indice de point que la face cite à ce coin. Un rang qui
-    /// sort du tableau d'indices, ou un indice négatif, ne désigne rien : `None`, jamais le rang
-    /// zéro, qui donnerait à ce coin la valeur d'un autre.
+    /// Rank of the array this corner depends on. `corner` is the corner's rank in the whole
+    /// surface, `face` that of its face, `point` the point index the face cites at this corner.
+    /// A rank that leaves the index array, or a negative index, names nothing: `None`, never
+    /// rank zero, which would give this corner another corner's value.
     pub(super) fn slot(&self, corner: usize, face: usize, point: usize) -> Option<u32> {
         let raw = match self.spread {
             Spread::Constant => 0,
@@ -73,14 +74,14 @@ impl<T: Copy> Primvar<T> {
         };
         u32::try_from(*indices.get(raw)?).ok()
     }
-    /// La valeur d'un rang, ou `None` quand le tableau est plus court que ce que les indices disent.
+    /// Value of a rank, or `None` when the array is shorter than what the indices say.
     pub(super) fn get(&self, slot: u32) -> Option<T> {
         self.values.get(slot as usize).copied()
     }
 }
 
-/// Lit une primvar d'un prim : sa valeur, ses indices `<nom>:indices`, sa répartition déclarée.
-/// Rend aussi `true` quand l'une des deux valeurs vient d'un échantillon temporel.
+/// Reads a primvar of a prim: its value, its `<name>:indices`, its declared spread. Also yields
+/// `true` when either of the two values comes from a time sample.
 pub(super) fn read<T: Copy>(
     prim: &usd::Prim,
     name: &str,

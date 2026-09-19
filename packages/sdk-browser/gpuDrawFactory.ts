@@ -70,8 +70,8 @@ export async function createGpuDraw(
       encode(encoder, items, count, itemsFrom, itemsTo, maxVertexCount, selection) {
         if (disposed) return;
         const n = Math.min(count, slotCap);
-        // La plage que la table de lignes vient de réécrire, et elle seule : une image qui ne voit
-        // ni arrivée ni éviction de page n'envoie pas un octet de fiche.
+        // The range the row table just rewrote, and it alone: a frame that sees neither a page
+        // arrival nor an eviction sends not one byte of record.
         const last = Math.min(itemsTo, n - 1);
         if (last >= itemsFrom)
           device.queue.writeBuffer(

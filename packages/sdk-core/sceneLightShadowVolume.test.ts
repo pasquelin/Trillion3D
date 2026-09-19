@@ -1,7 +1,7 @@
-// `writeConeVolume` lit `faceBasis`, écrit par `composeFace` (voir `sceneLightShadowMath.test.ts` pour
-// le rattachement au socle et ses zéros signés) et son propre produit scalaire est passé à
-// `dotVector3`. Ce test vérifie que la sortie publique du cône reste identique à celle du code
-// d'avant sur des rectangles et directions hostiles aux zéros signés.
+// `writeConeVolume` reads `faceBasis`, written by `composeFace` (see `sceneLightShadowMath.test.ts` for
+// the kernel attachment and its signed zeros) and its own dot product is passed to
+// `dotVector3`. This test checks that the public cone output stays identical to that of the
+// previous code on rectangles and directions hostile to signed zeros.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { composeFace, shadowProjection } from './sceneLightShadowMath.ts';
@@ -25,16 +25,16 @@ const RECTS = [
   Float64Array.from([-0.3, 0.3, -0.2, 0.2]),
 ];
 
-test('writeConeVolume : rectangles et directions hostiles aux zéros signés — bit à bit contre le code d’avant', () => {
+test('writeConeVolume: rectangles and directions hostile to signed zeros — bit-exact against the previous code', () => {
   let compares = 0;
-  for (const avant of DIRECTIONS) {
+  for (const forward of DIRECTIONS) {
     const eye: [number, number, number] = [0, 0, 0];
     const proj = new Float32Array(16);
     referenceShadowProjection(proj, Math.PI / 2, 10);
     shadowProjection(Math.PI / 2, 10);
-    // Compose la face des deux côtés : `writeConeVolume` comme l'oracle lisent le dernier repère écrit.
-    referenceComposeFace(new Float32Array(16), 0, eye, avant, proj);
-    composeFace(new Float32Array(16), 0, eye, avant);
+    // Compose the face on both sides: `writeConeVolume` and the oracle read the last written basis.
+    referenceComposeFace(new Float32Array(16), 0, eye, forward, proj);
+    composeFace(new Float32Array(16), 0, eye, forward);
     for (const rect of RECTS) {
       const attendu = new Float32Array(8),
         recu = new Float32Array(8);
@@ -45,9 +45,9 @@ test('writeConeVolume : rectangles et directions hostiles aux zéros signés —
       for (let i = 4; i < 8; i++)
         assert.ok(
           Object.is(attendu[i], recu[i]),
-          `avant=${avant} rect=${[...rect]} i=${i} : ${attendu[i]} ≠ ${recu[i]}`,
+          `forward=${forward} rect=${[...rect]} i=${i}: ${attendu[i]} ≠ ${recu[i]}`,
         );
     }
   }
-  assert.ok(compares >= 12, `${compares} comparaisons, jeu trop petit`);
+  assert.ok(compares >= 12, `${compares} comparisons, set too small`);
 });

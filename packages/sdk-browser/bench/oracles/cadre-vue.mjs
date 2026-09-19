@@ -1,7 +1,7 @@
-// Oracles du lot F, côté image : `webgpuPagesEncodeVis.ts:93-98`, `autonomousInstances.ts:76-86`,
-// et `explorerDraw.ts:72-74` d'avant le lot F, recopiés tels quels.
+// Batch F oracles, frame side: `webgpuPagesEncodeVis.ts:93-98`, `autonomousInstances.ts:76-86`,
+// and `explorerDraw.ts:72-74` from before batch F, copied as-is.
 
-/** Les pièces jointes de couleur, reconstruites par image avant le lot F. */
+/** Colour attachments, rebuilt per frame before batch F. */
 export function referenceAttachments(surfaces) {
   return surfaces.views().map((view) => ({
     view,
@@ -11,7 +11,7 @@ export function referenceAttachments(surfaces) {
   }));
 }
 
-/** Le déplacement d'une instance avant le lot F : une table de hachage par appel. */
+/** Instance displacement before batch F: one hash table per call. */
 export function referenceUpdateInstance(instance, basePages, baseRoots, transform) {
   const mapped = new Map(basePages.map((base, i) => [instance.pages[i], base]));
   for (let i = 0; i < instance.roots.length; i++)
@@ -22,7 +22,7 @@ export function referenceUpdateInstance(instance, basePages, baseRoots, transfor
   }
 }
 
-/** L'anneau froid avant le lot F : tout l'anneau filtré, puis sa tête gardée. */
+/** The cold ring before batch F: the whole ring filtered, then its head kept. */
 export function referenceAnneauFroid(ring, streamer, limite) {
   return ring
     .filter((url) => !streamer.has(url) && !streamer.loading(url) && !streamer.failed(url))

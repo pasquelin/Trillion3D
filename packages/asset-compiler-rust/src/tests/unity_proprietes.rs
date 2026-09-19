@@ -1,13 +1,13 @@
-//! Les propriétés qu'un projet Unity déclare et que le pilote doit lire telles quelles : le mode
-//! alpha d'un matériau, les réglages d'import d'une texture, et le rapport du pilote qui a lu un
-//! modèle. Les cas d'instances et de maillages sont dans `unity_instances.rs`.
+//! Properties a Unity project declares and that the driver must read as-is: a
+//! material's alpha mode, a texture's import settings, and the report of the driver
+//! that read a model. Instance and mesh cases are in `unity_instances.rs`.
 use super::*;
 use unity_projet::{cube, instancie, mat, mat_blanc, material_named, Projet};
 
-/// Le GUID du modèle de chaque cas.
+/// GUID of the model of each case.
 const MODEL: &str = "0000000000000000000000000000000a";
 
-/// Une image d'un pixel, écrite ici même : le registre d'images la reconnaît par son extension.
+/// A one-pixel image, written here: the image registry recognises it by its extension.
 const PIXEL: [u8; 70] = [
     0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
     0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
@@ -16,9 +16,10 @@ const PIXEL: [u8; 70] = [
     0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
 ];
 
-// Constat 33 : le mode alpha d'un matériau vient de ses propriétés de rendu, jamais de l'alpha de sa
-// couleur. `_Mode: 0` déclare un matériau opaque : l'alpha reste dans le facteur de couleur de base,
-// et le matériau ne devient pas fondu parce que cette valeur est inférieure à un.
+// Finding 33: a material's alpha mode comes from its render properties, never from
+// the alpha of its colour. `_Mode: 0` declares an opaque material: the alpha stays
+// in the base-colour factor, and the material does not become blended because that
+// value is less than one.
 #[test]
 fn an_opaque_material_stays_opaque_whatever_the_alpha_of_its_colour() {
     let projet = Projet::new("opaque");
@@ -38,18 +39,19 @@ fn an_opaque_material_stays_opaque_whatever_the_alpha_of_its_colour() {
     assert_eq!(
         plein["alphaMode"],
         Value::Null,
-        "un matériau déclaré opaque le reste"
+        "a material declared opaque stays so"
     );
     assert_eq!(
         plein["pbrMetallicRoughness"]["baseColorFactor"][3],
         json!(0.5),
-        "l'alpha de la couleur reste le facteur de couleur de base"
+        "the colour's alpha remains the base colour factor"
     );
 }
 
-// Constat 34 : URP et HDRP déclarent le mode de rendu sous `_SurfaceType` plutôt que `_Mode`. Le
-// pilote lit les deux noms de la même grandeur : transparent donne `BLEND`, la découpe seule `MASK`
-// avec son seuil `_AlphaCutoff`, et un matériau qui ne déclare ni l'un ni l'autre reste opaque.
+// Finding 34: URP and HDRP declare the render mode under `_SurfaceType` rather than
+// `_Mode`. The driver reads both names as the same quantity: transparent gives
+// `BLEND`, cut-out alone `MASK` with its `_AlphaCutoff` threshold, and a material
+// that declares neither stays opaque.
 #[test]
 fn the_surface_type_of_an_hdrp_material_declares_its_alpha_mode() {
     let projet = Projet::new("surface-type");
@@ -89,13 +91,13 @@ fn the_surface_type_of_an_hdrp_material_declares_its_alpha_mode() {
     assert_eq!(
         material_named(&gltf, "Plein")["alphaMode"],
         Value::Null,
-        "ni `_Mode` ni `_SurfaceType` : le matériau est opaque"
+        "neither `_Mode` nor `_SurfaceType`: the material is opaque"
     );
 }
 
-// Constat 51 : le modèle qu'une scène cite est lu par le pilote de son format, qui compte lui aussi
-// ce qu'il n'a pas su rendre. Ce rapport appartient à la scène Unity : ses codes y remontent sous
-// leur propre nom, et deux modèles qui manquent la même chose s'additionnent.
+// Finding 51: the model a scene cites is read by the driver of its format, which
+// also counts what it could not yield. That report belongs to the Unity scene: its
+// codes rise there under their own name, and two models that miss the same thing add up.
 #[test]
 fn the_report_of_the_model_driver_reaches_the_unity_report() {
     let projet = Projet::new("rapport-modele");
@@ -109,14 +111,14 @@ fn the_report_of_the_model_driver_reaches_the_unity_report() {
     assert_eq!(
         manifest["unsupported"]["material-library-missing"],
         json!(1),
-        "le rapport du pilote modèle remonte tel quel: {}",
+        "the model driver's report comes up as-is: {}",
         manifest["unsupported"]
     );
 }
 
-// Constat 52 : le `.meta` d'une texture déclare comment l'échantillonner — la répétition de chaque
-// axe et le filtrage. L'échantillonneur glTF les porte : une texture bornée sur un axe et répétée
-// sur l'autre garde ses deux modes, et un filtrage au plus proche n'est pas lissé.
+// Finding 52: a texture's `.meta` declares how to sample it — wrap of each axis and
+// filtering. The glTF sampler carries them: a texture clamped on one axis and
+// repeated on the other keeps both modes, and nearest filtering is not smoothed.
 #[test]
 fn the_texture_importer_of_a_meta_gives_the_sampler_its_wrap_and_filter() {
     let projet = Projet::new("sampler");
@@ -138,17 +140,25 @@ fn the_texture_importer_of_a_meta_gives_the_sampler_its_wrap_and_filter() {
     projet.scene(&cube(100, "Boite", matiere));
     let (_, gltf) = projet.compile("unity-sampler").prepared("unity");
     let sampler = &gltf["samplers"][0];
-    assert_eq!(sampler["wrapS"], json!(33071), "`wrapU: 1` borne l'axe S");
-    assert_eq!(sampler["wrapT"], json!(10497), "`wrapV: 0` répète l'axe T");
+    assert_eq!(
+        sampler["wrapS"],
+        json!(33071),
+        "`wrapU: 1` clamps the S axis"
+    );
+    assert_eq!(
+        sampler["wrapT"],
+        json!(10497),
+        "`wrapV: 0` repeats the T axis"
+    );
     assert_eq!(
         sampler["magFilter"],
         json!(9728),
-        "`filterMode: 0` échantillonne au plus proche"
+        "`filterMode: 0` samples nearest"
     );
     assert_eq!(sampler["minFilter"], json!(9984));
 }
 
-/// Un `.mat` blanc dont la couleur de base porte la texture de ce GUID.
+/// A white `.mat` whose base colour carries the texture of this GUID.
 fn mat_blanc_texture(name: &str, image: &str) -> String {
     let body = mat_blanc(name, "");
     body.replace(

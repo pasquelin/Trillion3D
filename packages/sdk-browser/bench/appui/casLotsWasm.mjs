@@ -1,11 +1,10 @@
-// Les cas du banc M5 : ce qu'on donne à manger aux deux chemins pour qu'ils aient une chance de ne
-// pas rendre les mêmes bits. Tout ce qui sépare une arithmétique flottante d'une autre est là —
-// échelles négatives, cisaillement, division homogène par un `w` nul, NaN, zéros signés, infinis,
-// extrêmes de l'exposant — et le reste du lot est du pseudo-aléatoire à graine fixe, pour que deux
-// exécutions voient exactement les mêmes entrées.
+// The M5 bench cases: what we feed both paths so they have a chance not to yield the same bits.
+// Everything that separates one floating-point arithmetic from another is here — negative scales,
+// shear, homogeneous division by a zero `w`, NaN, signed zeros, infinities, exponent extremes —
+// and the rest of the batch is seeded pseudo-random, so two runs see the exact same inputs.
 import { graine } from '../../../sdk-core/bench/socle.mjs';
 
-/** Les tailles de lot mesurées : de ce qu'une image bouge à ce qu'une scène entière porte. */
+/** Measured batch sizes: from what a frame moves to what a whole scene carries. */
 export const TAILLES = [1_000, 10_000, 100_000];
 
 const identite = () => [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
@@ -55,7 +54,7 @@ const MATRICES = [
   ]),
 ];
 
-/** Boîtes hostiles : vide canonique, vide inversée, plate, NaN, zéros signés, infinies. */
+/** Hostile boxes: canonical empty, inverted empty, flat, NaN, signed zeros, infinities. */
 const BOITES = [
   [-1, -1, -1, 1, 1, 1],
   [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity],
@@ -66,10 +65,10 @@ const BOITES = [
   [0, 0, 0, 0, 0, 0],
 ];
 
-/** Les premiers éléments du lot croisent tous les cas hostiles ; au-delà, du tirage à graine fixe. */
+/** The first elements of the batch cross every hostile case; beyond that, a seeded draw. */
 const HOSTILES = MATRICES.length * BOITES.length;
 
-/** Une matrice ordinaire : rotation quelconque écrite à la main, translation et échelle non uniforme. */
+/** An ordinary matrix: a hand-written arbitrary rotation, translation and non-uniform scale. */
 function matriceOrdinaire(alea) {
   const c = Math.cos(alea() * 6.283185307179586),
     s = Math.sin(alea() * 6.283185307179586);
@@ -96,7 +95,7 @@ function matriceOrdinaire(alea) {
   ];
 }
 
-/** Remplit `boxes` (6 · n) et `mats` (16 · n) du lot de transformation de boîtes. */
+/** Fills `boxes` (6 · n) and `mats` (16 · n) of the box-transform batch. */
 export function remplitBoites(lot, n) {
   const alea = graine(0x4d35);
   for (let i = 0; i < n; i++) {
@@ -110,7 +109,7 @@ export function remplitBoites(lot, n) {
   }
 }
 
-/** Remplit `a` et `b` (16 · n chacun) du lot de produits 4×4. */
+/** Fills `a` and `b` (16 · n each) of the 4×4 product batch. */
 export function remplitMatrices(lot, n) {
   const alea = graine(0x7f21);
   for (let i = 0; i < n; i++) {

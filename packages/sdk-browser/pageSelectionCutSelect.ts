@@ -25,8 +25,8 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   s.flatElements = viewMatrix;
   s.flatStretch = worldStretch(root) * s.cameraStretch;
   s.flatFocal = Math.max(pixelScale[0], pixelScale[1]);
-  // Les chemins à seuil nul ne consultent ni caméra ni sphère : ils ne valent que si les trois
-  // scalaires de l'image sont ceux qu'un quotient strictement positif demande.
+  // Null-threshold paths consult neither camera nor sphere: they only hold if the frame's three
+  // scalars are those a strictly positive quotient asks for.
   const near = s.cam.near;
   s.flatExact =
     s.pixelError === 0 &&
@@ -36,22 +36,22 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
     Number.isFinite(s.flatFocal) &&
     near > 0 &&
     Number.isFinite(near);
-  // Le contexte de cône appartient à cette racine : il sera posé au premier cluster qui en a un.
+  // The cone context belongs to this root: it will be set at the first cluster that has one.
   (s.flatCone as ConeContext).ready = false;
-  // Une racine qui déclare n'avoir aucun cône sort le cône du chemin par cluster. Le silence vaut
-  // « je n'ai rien déclaré » : la coupe teste alors chaque page, comme avant ce lot.
+  // A root that declares it has no cone takes the cone out of the per-cluster path. Silence
+  // means "I declared nothing": the cut then tests each page, as before this batch.
   s.flatCones = root.cones !== false;
-  // Une racine qui déclare que toutes ses pages portent leur boîte sort cette vérification du
-  // chemin par cluster. Le silence vaut « je n'ai rien déclaré » : la coupe s'en assure comme avant.
+  // A root that declares all its pages carry their box takes that check out of the per-cluster
+  // path. Silence means "I declared nothing": the cut ensures it as before.
   s.flatBoxes = root.boxes === true;
   clipPlanesFromMatrix(planes, multiplyMatrix4(clip, s.cam.projection, viewMatrix));
-  // La projection du moteur n'a plus de plan lointain : le tronc garde celui que l'hôte déclare.
+  // The engine projection no longer has a far plane: the frustum keeps the one the host declares.
   frustumFarPlane(planes, 16, viewMatrix, s.cam.far, false);
   s.flatStructure = root.structure;
   s.flatForced = root.forced;
   s.flatForcedList = root.forcedList;
-  // Les marques de forçage de la coupe précédente tombent avec les groupes qui les portaient :
-  // elles se défont groupe par groupe, jamais par un balayage de tous les nœuds de la primitive.
+  // Force marks of the previous cut fall with the groups that carried them: they come undone
+  // group by group, never by a sweep of every node of the primitive.
   const links = root.culling?.links,
     marks = root.culling?.marks;
   if (s.flatForced && s.flatForcedList) clearForcedMarks(s, links, marks);
@@ -94,10 +94,10 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
     return;
   }
   truncateShown(s, startShown);
-  // La première descente est abandonnée : ses rejets par le tronc et ses nœuds visités le sont avec
-  // elle, comme les pages qu'elle avait retenues. Sans cela, deux images qui portent exactement la
-  // même coupe annoncent deux parcours différents selon que le repli s'est armé ou non, et le
-  // témoin d'image tenue ne les voit jamais identiques.
+  // The first descent is abandoned: its frustum rejects and visited nodes go with it, as do
+  // the pages it had kept. Without that, two frames that carry exactly the same cut announce
+  // two different walks depending on whether fallback armed or not, and the held-frame witness
+  // never sees them identical.
   s.frustumRejected = startRejected;
   s.nodesTested = startNodes;
   s.flatShort = false;

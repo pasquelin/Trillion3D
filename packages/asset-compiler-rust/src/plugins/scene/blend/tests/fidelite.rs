@@ -1,9 +1,9 @@
-//! La scène que le pilote retient, et la convention d'UV qu'il écrit.
+//! The scene the driver keeps, and the UV convention it writes.
 use super::*;
 
-// Comportement : un objet maillage qu'aucune collection de la scène active ne porte — orphelin,
-// resté d'une autre scène — n'entre pas dans la scène convertie. Il est compté par son code, et les
-// trois instances de la fixture sortent inchangées.
+// Behaviour: a mesh object that no collection of the active scene holds — orphaned, left from
+// another scene — does not enter the converted scene. It is counted by its code, and the three
+// instances of the fixture come out unchanged.
 #[test]
 fn an_object_no_collection_of_the_active_scene_holds_is_counted_and_left_out() {
     let bytes = surgery::with_stray_object(b"OBStray");
@@ -22,7 +22,7 @@ fn an_object_no_collection_of_the_active_scene_holds_is_counted_and_left_out() {
             "SharedMesh_1",
             "SharedMesh_2"
         ],
-        "l'objet hors collection n'entre pas dans la scène"
+        "the object outside a collection does not enter the scene"
     );
     assert_eq!(
         manifest["unsupported"]["blend-object-outside-scene"],
@@ -32,9 +32,9 @@ fn an_object_no_collection_of_the_active_scene_holds_is_counted_and_left_out() {
     );
 }
 
-// Comportement : Blender place l'origine des UV en bas à gauche, le glTF en haut à gauche. La
-// coordonnée V est donc retournée à l'écriture, exactement comme les pilotes ma, alembic et usd le
-// font, sans quoi toute texture importée sort à l'envers.
+// Behaviour: Blender places the UV origin at the bottom left, glTF at the top left. The V
+// coordinate is therefore flipped at write time, exactly as the ma, alembic and usd drivers do,
+// or every imported texture would come out upside down.
 #[test]
 fn the_v_coordinate_is_flipped_like_in_the_other_drivers() {
     let geometry = Geometry {
@@ -56,7 +56,7 @@ fn the_v_coordinate_is_flipped_like_in_the_other_drivers() {
         &mut out,
         &std::sync::atomic::AtomicBool::new(false),
     )
-    .expect("le maillage");
+    .expect("the mesh");
     let written: Vec<f32> = read(&out, &mesh["primitives"][0]["attributes"]["TEXCOORD_0"])
         .as_chunks::<4>()
         .0
@@ -66,6 +66,6 @@ fn the_v_coordinate_is_flipped_like_in_the_other_drivers() {
     assert_eq!(
         written,
         vec![0.0, 1.0, 1.0, 0.75, 0.5, 0.0],
-        "u est conservé, v est retourné"
+        "u is kept, v is flipped"
     );
 }

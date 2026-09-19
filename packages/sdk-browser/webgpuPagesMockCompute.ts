@@ -31,16 +31,16 @@ function simulateTransparentCompaction(bind: ComputeBind) {
 }
 
 /**
- * Rejoue l'étalement du plan trié : le même oracle que `BLEND_EXPAND_SHADER`, écrit une fois pour
- * les deux chemins (`webgpuBlendExpandCpu.ts`). Le double le rejoue au dernier des quatre noyaux,
- * quand toutes les entrées que la carte lirait sont là.
+ * Replays expansion of the sorted plan: the same oracle as `BLEND_EXPAND_SHADER`, written once for
+ * both paths (`webgpuBlendExpandCpu.ts`). The double replays it at the last of the four kernels,
+ * when every input the GPU would read is there.
  */
 function simulateBlendExpansion(bind: ComputeBind, offsets?: readonly number[]) {
   const byBinding = new Map(bind.entries.map((entry) => [entry.binding, entry.resource.buffer]));
   const uniBytes = byBinding.get(0)!.data;
   const uni = words(uniBytes).subarray((offsets?.[0] ?? 0) / 4);
   const plan = words(byBinding.get(1)!.data);
-  // La compaction écrit un argument indirect par item paginé ; l'étalement n'en lit que le compte.
+  // Compaction writes one indirect argument per paged item; expansion reads only the count.
   const indirect = words(byBinding.get(4)!.data);
   const itemCounts = new Uint32Array(indirect.length / 4);
   for (let item = 0; item < itemCounts.length; item++) itemCounts[item] = indirect[item * 4 + 1];
@@ -157,15 +157,15 @@ export function simulateComputeDispatch(
     cameraStretch: f32[51],
   };
   const residentCut = !!uniInts[47];
-  // La résidence vit en bits derrière les enregistrements froids : le double la relit par le
-  // décodeur partagé, dans le tampon que l'hôte écrit, là où le nuanceur la lit.
+  // Residency lives in bits behind the cold records: the double rereads it through the shared
+  // decoder, in the buffer the host writes, where the shader reads it.
   const resident = residentCut
     ? residentFlags(words(byBinding.get(8)!.data), packed.pageCount)
     : undefined;
-  // Les matrices monde se lisent DANS LE TAMPON lié, là où le nuanceur les lit : l'entrée d'image
-  // les y écrit ramenées à l'œil, et la vue comme les plans du même bloc d'uniformes sont de ce
-  // repère-là. Une copie faite à l'empaquetage y mettrait des mondes absolus sous une vue sans
-  // translation — deux repères dans une même formule, et plus une seule page retenue.
+  // World matrices are read IN THE BOUND BUFFER, where the shader reads them: image entry writes
+  // them there brought back to the eye, and the view and planes of the same uniform block are of
+  // that frame. A copy made at packing would put absolute worlds under a view with no translation
+  // — two frames in one formula, and not a single page kept.
   const tampon = byBinding.get(6)!.data;
   const worlds = new Float32Array(tampon.buffer, tampon.byteOffset, packed.worlds.length);
   const result = evaluateDagSelectionKernel({ ...packed, worlds }, uniforms, resident);
@@ -173,7 +173,7 @@ export function simulateComputeDispatch(
     const flags = new Uint32Array(byBinding.get(3)!.data.buffer);
     flags.fill(0, packed.nodeCount);
     for (const id of result.drawablePageIds ?? []) flags[packed.nodeCount + id] = 1;
-    // La coupe compacte ensuite ces drapeaux : le relevé ne rapporte que le compte et ses rangs.
+    // The cut then compacts these flags: the sample reports only the count and its ranks.
     compactDrawnPages(
       byBinding.get(3)!.data,
       byBinding.get(4)!.data,

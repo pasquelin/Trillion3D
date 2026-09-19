@@ -9,10 +9,10 @@ import type { HostCpuStep } from './hostCpuProfile.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
- * Les bornes processeur d'une image, dans l'ordre : pour chacune, son nom public et l'étape du
- * profil où elle se dépose. Le nom, l'étape et l'indice d'écriture sortent de cette seule table.
- * Les deux premières couvrent ce que l'image fait avant d'ouvrir son propre chronomètre ; les
- * quatre qui suivent l'encodage sont relevées par l'hôte, qui les dépose par leur nom.
+ * CPU bounds of an image, in order: for each, its public name and the profile stage it deposits
+ * into. Name, stage and write index all come from this one table. The first two cover what the image
+ * does before opening its own timer; the four after encode are sampled by the host, which deposits
+ * them by name.
  */
 const CPU = cpuStepTable([
   ['worldMs', 'animations'],
@@ -40,19 +40,19 @@ const CPU = cpuStepTable([
 ] as const);
 export const CPU_STEP_NAMES = CPU.names;
 export const CPU_STEP = CPU.at;
-/** L'étape de chaque borne, dans l'ordre de la ligne du profil ; `null` pour une somme. */
+/** Stage of each bound, in profile-row order; `null` for a sum. */
 export const CPU_STEP_STAGES = CPU.stages;
 
-/** Dépose les bornes processeur de l'image dans le profil public par étape, quand il est monté. */
+/** Deposits the image's CPU bounds into the public per-stage profile, when it is mounted. */
 function recordStages(rt: WebgpuPagesRuntime) {
   const { timing, lights, bounce } = rt,
     stages = timing.stages;
   if (!stages) return;
   stages.frameCpu((add) => {
     addCpuSteps(CPU.stages, timing.cpuProfile.row, add);
-    // La passe du diffuseur de tuiles, hors de la ligne des bornes processeur : elle se dépose ici,
-    // et seulement quand un retour d'image lui a donné du travail. Sans retour, elle n'a pas coûté
-    // zéro, elle n'a rien fait du tout — l'étape reste « non mesuré ».
+    // Tile streamer pass, outside the CPU-bound row: it deposits here, and only when image feedback
+    // gave it work. With no feedback it did not cost zero, it did nothing at all — the stage stays
+    // "unmeasured".
     const tiles = rt.vis.textures?.counters;
     if (tiles?.worked) add('textures', tiles.lastMs);
   });
@@ -67,14 +67,13 @@ function recordStages(rt: WebgpuPagesRuntime) {
     });
   if (!tiles?.worked)
     stages.setReason('textures', {
-      cpu: 'aucun retour d’image : aucune tuile à servir',
-      gpu: 'les transferts passent par la file de la carte, sans passe horodatée',
+      cpu: 'no image feedback: no tile to serve',
+      gpu: 'transfers go through the GPU queue, with no timestamped pass',
     });
-  // Ce que la passe d'ombres a réellement redessiné : des compteurs, jamais des durées. Les six
-  // compteurs d'avant sont gardés tels quels — le Lab les lit — et les pages s'y ajoutent :
-  // `pagesInvalidees` est ce qui est entré en file à cette image, `pagesRedessinees` ce que les
-  // régions retenues couvrent, `pagesEnAttente` ce que le budget a laissé pour plus tard, et
-  // `retardMaxMs` l'attente de la page la plus ancienne de cette file.
+  // What the shadow pass actually redrew: counts, never durations. The six earlier counts are kept
+  // as-is — the Lab reads them — and pages join them: `pagesInvalidees` is what entered the queue
+  // this image, `pagesRedessinees` what the kept regions cover, `pagesEnAttente` what the budget
+  // left for later, and `retardMaxMs` the wait of the oldest page in that queue.
   const { counts } = lights.plan;
   stages.setCounts('shadows', {
     lampesRedessinees: lights.shadowsUpdated,
@@ -91,41 +90,39 @@ function recordStages(rt: WebgpuPagesRuntime) {
     retardMaxImages: counts.waitedFrames,
   });
   stages.setCounts('lightLists', { lampesActives: lights.lightsActive });
-  // L'ombre lointaine du soleil : des compteurs relevés sur une image sur quinze, jamais une durée.
-  // Son rayon est tiré dans la résolution différée, donc ses millisecondes sont celles de l'étape
-  // « Éclairage (résolution) » — dire une durée ici en compterait une seconde fois.
+  // The sun's far shadow: counts sampled one image in fifteen, never a duration. Its ray is traced
+  // in deferred resolve, so its milliseconds are those of the Lighting (resolve) stage — stating a
+  // duration here would count it a second time.
   stages.setCounts('sunFarShadows', sunFarCounts(rt));
   stages.setReason('sunFarShadows', {
-    cpu: 'aucun travail processeur : le rayon lointain est tiré par la résolution différée',
-    gpu:
-      rt.sunFar.reason ??
-      'mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain',
+    cpu: 'no CPU work: the far ray is traced by deferred resolve',
+    gpu: rt.sunFar.reason ?? 'measured in the Lighting (resolve) stage, which traces the far ray',
   });
-  // Ce que le rebond a réellement fait : des sondes et des rayons, jamais une durée. Une scène
-  // immobile et convergée n'encode aucune passe, donc l'étape reste « non mesuré » et non zéro.
+  // What bounce actually did: probes and rays, never a duration. A still, converged scene encodes
+  // no pass, so the stage stays "unmeasured" and not zero.
   stages.setCounts('bounce', {
     sondesMisesAJour: bounce.probesUpdated,
     rayonsParImage: bounce.raysLaunched,
     sondesDesCascades: bounce.probes?.cascades.probes ?? 0,
     maillesMisesAJour: bounce.encoded ? (bounce.probes?.surface.lastTexels ?? 0) : 0,
     maillesDuCache: bounce.probes?.surface.texels ?? 0,
-    // La fraction du plafond que le budget en millisecondes tient, en millièmes : un compteur est
-    // un entier, et c'est la durée qui décide de ce compte, jamais l'inverse.
+    // Fraction of the ceiling the millisecond budget holds, in thousandths: a count is an integer,
+    // and it is the duration that decides this count, never the reverse.
     fractionDuBudget: Math.round((bounce.probes?.budget.load ?? 0) * 1000),
   });
   if (!bounce.probes)
     stages.setReason('bounce', {
-      cpu: bounce.reason ?? 'rebond absent',
-      gpu: bounce.reason ?? 'rebond absent',
+      cpu: bounce.reason ?? 'bounce absent',
+      gpu: bounce.reason ?? 'bounce absent',
     });
-  // Diagnostic seul : le comptage du surdessin des transparents, quand la variante le monte. Le
-  // maximum par pixel n'est pas mesurable par requête d'occlusion : il n'est pas publié.
+  // Diagnostic only: transparent overdraw count, when the variant mounts it. The per-pixel maximum
+  // is not measurable by occlusion query: it is not published.
   const overdraw = rt.blendState.overdraw;
   if (overdraw)
     stages.setCounts('transparents', overdraw.pull(rt.gpu.targetSize[0] * rt.gpu.targetSize[1]));
-  // Le taux d'occupation de la coupe : combien de grappes le DAG porte, combien le tronc et les
-  // nœuds en écartent, combien la coupe en retient. C'est ce rapport qui dit ce que coûte un noyau
-  // qui visite toutes les grappes plutôt que les seules vivantes.
+  // Occupancy of the cut: how many clusters the DAG holds, how many the frustum and nodes reject,
+  // how many the cut keeps. That ratio says what a kernel that visits every cluster costs versus
+  // only the live ones.
   stages.setCounts('selection', {
     grappesRejetees: rt.run.frustumRejected,
     pagesVoulues: rt.run.visible,
@@ -160,20 +157,19 @@ export function publishCpuProfile(rt: WebgpuPagesRuntime) {
     steps: timing.cpuProfile.summary(),
     audit: gpuFrameCostSnapshot(rt),
   };
-  diag.engineDiagnostic('cpu-timing', 'Durées CPU mesurées dans le moteur', details);
+  diag.engineDiagnostic('cpu-timing', 'CPU timings measured in the engine', details);
   logFrameCostAudit('webgpu-page-raster', { kind: 'cpu-profile', ...details });
 }
 
-/** Dépose la durée d'une étape relevée par l'hôte : arrivées, attente, rétention, soumission. */
+/** Deposits the duration of a host-sampled step: arrivals, wait, retain, submit. */
 export function hostCpuStep(rt: WebgpuPagesRuntime, step: HostCpuStep, ms: number) {
   rt.timing.cpuProfile.row[CPU.at[step]] = ms;
 }
 
 /**
- * Clôt l'image du côté de l'hôte : les bornes que l'hôte relève après le rendu appartiennent à
- * l'image qui vient de se dessiner, donc la ligne n'est classée qu'ici. Une image qui n'a pas
- * rempli de ligne — coupe processeur, image en attente de couverture — ne dépose rien plutôt
- * qu'une ligne de zéros.
+ * Closes the image on the host side: bounds the host samples after the render belong to the image
+ * that just drew, so the row is filed only here. An image that has not filled a row — CPU cut, image
+ * waiting for coverage — deposits nothing rather than a row of zeros.
  */
 export function endCpuFrame(rt: WebgpuPagesRuntime) {
   const { timing, run } = rt;

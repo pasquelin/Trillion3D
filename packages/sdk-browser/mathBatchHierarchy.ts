@@ -7,37 +7,36 @@ import {
 import { f64, joue, taille, tampon, u32, vuesF64, type MathLot } from './mathBatchLot.ts';
 
 /**
- * Le lot de la HIÉRARCHIE : `n` nœuds rangés parents avant enfants, dont les matrices monde sont
- * recalculées en une passe — matrice locale composée depuis la pose, puis multipliée par la matrice
- * monde du parent. C'est le travail de `mathTransformTreeUpdate.ts` sur une hiérarchie entière, le
- * cas du chargement et celui d'une scène qui bouge en bloc, où le coût est proportionnel aux nœuds.
+ * HIERARCHY batch: `n` nodes ordered parent before children, whose world matrices are
+ * recomputed in a single pass — local matrix composed from pose, then multiplied by parent's
+ * world matrix. This is the work of `mathTransformTreeUpdate.ts` across an entire hierarchy,
+ * during loading and for scene moving as a block, where cost is proportional to node count.
  *
- * Les cinq tampons vivent dans l'arène : le noyau WebAssembly les lit et les écrit sur place, sans
- * qu'un seul nombre traverse la frontière. `parents[i]` doit désigner un nœud d'indice strictement
- * inférieur à `i` ; `HIERARCHY_ROOT` — et toute autre valeur — fait du nœud une racine, des deux
- * côtés à la même règle.
+ * The five buffers live in the arena: WebAssembly kernel reads and writes them in place, without
+ * a single number crossing the boundary. `parents[i]` must designate a node index strictly
+ * smaller than `i`; `HIERARCHY_ROOT` — and any other value — turns node into root by same rule.
  */
 
-/** Le nom sous lequel le gouverneur tient ses médianes, et la clé du relevé publié. */
+/** Name under which governor holds medians, and key of published report. */
 const HIERARCHY_UPDATE_BATCH = 'hierarchyUpdateBatch';
 
 export interface HierarchyLot extends MathLot {
-  /** `3 · n` nombres : les positions locales. */
+  /** `3 · n` numbers: local positions. */
   readonly positions: Float64Array;
-  /** `4 · n` nombres : les quaternions locaux, rangés `(x, y, z, w)`. */
+  /** `4 · n` numbers: local quaternions, ordered `(x, y, z, w)`. */
   readonly rotations: Float64Array;
-  /** `3 · n` nombres : les échelles locales. */
+  /** `3 · n` numbers: local scales. */
   readonly scales: Float64Array;
-  /** `n` entiers : l'indice du parent, `HIERARCHY_ROOT` pour une racine. */
+  /** `n` integers: parent index, `HIERARCHY_ROOT` for root. */
   readonly parents: Uint32Array;
-  /** `16 · n` nombres : les matrices monde, colonne-major. */
+  /** `16 · n` numbers: world matrices, column-major. */
   readonly world: Float64Array;
 }
 
-/** La matrice locale du nœud courant, relue aussitôt : le lot n'alloue rien pendant qu'il tourne. */
+/** Current node local matrix, re-read immediately: batch allocates nothing during run. */
 const local = new Float64Array(MATRIX_VALUES);
 
-/** Un lot de `n` nœuds de hiérarchie, parents avant enfants. */
+/** A batch of `n` hierarchy nodes, parent before children. */
 export async function createHierarchyLot(n: number): Promise<HierarchyLot> {
   const { wasm, blocs, release } = await tampon([
     { type: 'f64', longueur: n * MATRIX_VALUES, pas: MATRIX_VALUES },

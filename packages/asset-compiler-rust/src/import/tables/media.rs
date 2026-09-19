@@ -1,12 +1,12 @@
-//! Les images et les textures des tables glTF : le registre partagé par les pilotes qui nomment
-//! leurs images par leur URI sous la racine des ressources.
+//! glTF table images and textures: shared registry for drivers naming
+//! images by URI under resource root.
 //!
-//! Une image n'est versée qu'une fois par URI, et une texture qu'une fois par couple
-//! (image, échantillonneur) : deux entrées de matériau qui montrent le même fichier de la même
-//! façon citent la même texture, quel que soit le pilote qui les écrit.
+//! Image added once per URI, texture once per pair
+//! (image, sampler): two material entries displaying same file same
+//! way cite same texture, regardless of writing driver.
 use super::*;
 
-/// Le type MIME du pilote d'image qui revendique cette URI sous la racine, quand le fichier y est.
+/// MIME type of image driver claiming URI under root, when file present.
 pub(crate) fn readable(root: &Path, uri: &str) -> Option<&'static str> {
     let path = root.join(uri);
     crate::plugins::image::by_extension(&path)
@@ -15,14 +15,14 @@ pub(crate) fn readable(root: &Path, uri: &str) -> Option<&'static str> {
 }
 
 impl SceneTables {
-    /// Le rang de l'image de cette URI relative, versée à la première demande.
+    /// Rank of image for relative URI, added on first request.
     pub(crate) fn image(&mut self, relative: String, mime: &'static str) -> usize {
         if let Some(known) = self.images_by_uri.get(&relative) {
             return *known;
         }
         let name = relative.rsplit('/').next().unwrap_or(&relative).to_string();
-        // Une URI glTF, pas le chemin sous la racine : `%`, `#`, l'espace et tout ce qui n'est pas
-        // un caractère non réservé s'échappe, sinon le consommateur relit un autre nom, ou rien.
+        // glTF URI, not path under root: `%`, `#`, space, non-unreserved chars
+        // escaped, otherwise consumer reads different name or nothing.
         let uri = crate::uri::encode_relative(Path::new(&relative));
         self.images
             .push(json!({"name":name,"mimeType":mime,"uri":uri}));
@@ -31,15 +31,15 @@ impl SceneTables {
         index
     }
 
-    /// Note au rapport la texture qu'aucun pilote d'image ne lit sous la racine, par le chemin que
-    /// la source en écrivait : la scène continue sans elle.
+    /// Reports texture no image driver reads under root, by source path:
+    /// scene continues without it.
     pub(crate) fn image_unreadable(&mut self, written: &str) {
         self.report.notes.push(format!(
             "texture illisible ou hors registre d'images: {written}"
         ));
     }
 
-    /// Le rang de la texture qui lie cette image à cet échantillonneur, versée une seule fois.
+    /// Rank of texture binding image to sampler, added once.
     pub(crate) fn texture(&mut self, source: usize, sampler: usize) -> usize {
         let entry = json!({"source":source,"sampler":sampler});
         if let Some(known) = self.textures.iter().position(|kept| *kept == entry) {

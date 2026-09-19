@@ -1,9 +1,9 @@
-// Oracle du lot 4 : `visibilityShadingNormal.ts` avant le passage au socle, recopié tel quel. Le
-// repère tangent y est monté avec les `Matrix3` et `Vector3` de la bibliothèque hôte —
+// Oracle for batch 4: `visibilityShadingNormal.ts` before refactoring to core, copied as is. The
+// tangent frame was assembled using host library `Matrix3` and `Vector3` —
 // `applyMatrix3`, `transformDirection`, `normalize`, `addScaledVector`, `crossVectors`,
-// `multiplyScalar`, `lengthSq`. C'est la référence bit à bit du nouveau code. Ce que des lots
-// antérieurs avaient déjà sorti de l'hôte — `matrixWindingCw`, `normalMatrix3` — reste tel quel des
-// deux côtés : la ligne ne prouve que l'algèbre des vecteurs déplacée par ce lot.
+// `multiplyScalar`, `lengthSq`. It serves as bit-by-bit reference for new code. What previous
+// batches already moved out of host — `matrixWindingCw`, `normalMatrix3` — remains as is on both
+// sides: this benchmark only proves vector algebra moved in this batch.
 import * as THREE from 'three';
 import { matrixWindingCw, normalMatrix3 } from '../../../sdk-core/index.ts';
 import { attr2, sampleLinear } from '../../visibilityMath.ts';

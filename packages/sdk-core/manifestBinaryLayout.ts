@@ -17,13 +17,13 @@ const digestRefuse = (sha: string) =>
   );
 const align8 = (value: number) => (value + 7) & ~7;
 
-/** Les 64 octets d'une empreinte, remplis puis posés : rien n'est écrit si l'empreinte est refusée. */
+/** The 64 bytes of a digest, filled then stored: nothing is written if the digest is rejected. */
 const digestScratch = new Uint8Array(64);
 
 /**
- * A digest as its 64 ASCII hexadecimal characters, at its slot in a sha column. La validation lit les
- * codes une fois et les garde : une expression régulière parcourait l'empreinte, puis la boucle
- * d'écriture la parcourait de nouveau, pour chacune des dizaines de milliers de pages d'un manifeste.
+ * A digest as its 64 ASCII hexadecimal characters, at its slot in a sha column. Validation reads the
+ * codes once and keeps them: a regular expression used to walk the digest, then the write loop
+ * walked it again, for each of the tens of thousands of pages in a manifest.
  */
 export function writeSha(target: Uint8Array, slot: number, sha: string) {
   if (sha.length !== 64) throw digestRefuse(sha);
@@ -56,7 +56,7 @@ export interface Counts {
   roots: number;
   bundles: number;
   previews: number;
-  /** Octets de la colonne des pixels, tous niveaux de toutes les entrées bout à bout. */
+  /** Bytes of the pixel column, every level of every entry concatenated. */
   previewBytes: number;
 }
 export function countManifest(manifest: ClusterManifest): Counts {

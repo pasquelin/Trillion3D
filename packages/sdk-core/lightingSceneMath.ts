@@ -9,7 +9,7 @@ export const scale = (v: Vec3, factor: number): Vec3 => [
 ];
 export const subtract = (a: Vec3, b: Vec3): Vec3 => add(a, scale(b, -1));
 export const cross = (a: Vec3, b: Vec3): Vec3 => crossVector3<Vec3>([0, 0, 0], a, b);
-/** `Math.hypot(a, b, c)` : l'étalement d'un `Vec3` allouait un tableau d'arguments par longueur. */
+/** `Math.hypot(a, b, c)`: spreading a `Vec3` allocated an arguments array per length. */
 export const length = (v: Vec3): number => Math.hypot(v[0], v[1], v[2]);
 export const normalized = (v: Vec3): Vec3 => scale(v, 1 / length(v));
 export const BLACK: Vec3 = [0, 0, 0];

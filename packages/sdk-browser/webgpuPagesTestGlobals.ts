@@ -4,9 +4,9 @@ import { BASE_SLOTS, PAGE_BIND_ALIGN } from './gpuDraw.ts';
 import type { MockDraw } from './webgpuPagesMockEncoder.ts';
 
 /**
- * Les commandes indirectes d'une image du raster matériel, avec les invariants qu'elles tiennent
- * toutes : au plus un appel par slot, la première instance à zéro, la table de pages liée à un
- * décalage aligné. Chaque test ne garde que ce qui lui est propre — instances, bacs, tampons.
+ * Indirect commands of a hardware-raster image, with the invariants they all hold: at most one call
+ * per slot, first instance at zero, page table bound at an aligned offset. Each test keeps only what
+ * is its own — instances, bins, buffers.
  */
 export function indirectDraws(draws: readonly MockDraw[]) {
   const vis = draws.filter((draw) => draw.indirect);
@@ -57,9 +57,9 @@ export function bytesOf(data: BufferSource, dataOffset = 0, size?: number) {
 }
 
 /**
- * Rejoue la compaction que la carte graphique fait des drapeaux de dessin : le compte, puis les
- * rangs des pages dessinables dans l'ordre croissant, comme les noyaux de `gpuDagCompactWgsl.ts`.
- * Elle prolonge le relevé, derrière les pages voulues, dans le même tampon.
+ * Replays the compaction the GPU does of draw flags: the count, then the ranks of drawable pages in
+ * increasing order, like the kernels of `gpuDagCompactWgsl.ts`. It extends the sample, behind the
+ * wanted pages, in the same buffer.
  */
 export function compactDrawnPages(
   flagBytes: Uint8Array,
@@ -77,10 +77,10 @@ export function compactDrawnPages(
 }
 
 /**
- * Les pages que le masque de l'IMAGE EN COURS nomme, lues là où la carte les pose :
- * `flags[nodeCount + id]` dans le tampon de la coupe. C'est la sélection que l'image dessine, quel
- * que soit le raster qui la consomme — le matériel par ses commandes indirectes, ou le calcul sur
- * place sous la variante `raster-calcul` —, et non le relevé d'une image passée.
+ * Pages the CURRENT IMAGE's mask names, read where the GPU posts them: `flags[nodeCount + id]` in
+ * the cut buffer. That is the selection the image draws, whichever raster consumes it — hardware by
+ * its indirect commands, or compute in place under the `raster-calcul` variant — and not a past
+ * image's sample.
  */
 export function drawnPageIds(
   buffers: ReadonlyArray<{ label?: string; data: Uint8Array }>,

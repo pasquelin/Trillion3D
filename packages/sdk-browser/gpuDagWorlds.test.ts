@@ -1,6 +1,6 @@
-// L'étirement objet → vue ne dépend que de la partie linéaire des matrices monde : un repère de
-// rendu qui suit l'œil n'en déplace que les translations, et ne doit donc rien recalculer ni
-// repousser. Oracle : le recalcul complet d'avant, `maxStretch` sur chaque matrice.
+// Object-to-view stretch depends only on the linear part of the world matrices: a render frame
+// that follows the eye only moves their translations, so it must recompute nothing and push
+// nothing. Oracle: the previous full recompute, `maxStretch` on each matrix.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { maxStretch } from '../sdk-core/index.ts';
@@ -9,7 +9,7 @@ import { refreshWorldStretch } from './gpuDagWorlds.ts';
 
 const WORLDS = 4;
 
-/** Quatre matrices monde d'échelles et de rotations distinctes, translations comprises. */
+/** Four world matrices with distinct scales and rotations, translations included. */
 function scene() {
   const worlds = new Float32Array(WORLDS * 16);
   for (let w = 0; w < WORLDS; w++) {
@@ -25,7 +25,7 @@ function scene() {
   }
   return worlds;
 }
-/** L'oracle : l'étirement de chaque primitive, recalculé sans rien regarder de ce qui a bougé. */
+/** Oracle: each primitive's stretch, recomputed without looking at what moved. */
 const reference = (worlds: Float32Array) =>
   Float32Array.from({ length: WORLDS }, (_, w) => maxStretch(worlds.subarray(w * 16, w * 16 + 16)));
 
@@ -33,14 +33,14 @@ function packedOf() {
   return { worldCount: WORLDS, worldStretch: new Float32Array(WORLDS) };
 }
 
-test('une origine déplacée ne recalcule aucun étirement et ne repousse aucun cadre', () => {
+test('a moved origin recomputes no stretch and pushes no frame', () => {
   const previous = scene(),
     packed = packedOf(),
     frameData = new Float32Array(WORLDS * FRAME_VEC4 * 4);
   assert.equal(refreshWorldStretch(new Float32Array(WORLDS * 16), previous, packed, frameData), 4);
   const stretch = packed.worldStretch.slice(),
     frames = frameData.slice();
-  // Le repère de rendu suit l'œil : seules les translations changent, d'une image à l'autre.
+  // The render frame follows the eye: only translations change, from one frame to the next.
   const next = previous.slice();
   for (let w = 0; w < WORLDS; w++) {
     next[w * 16 + 12] += 1000;
@@ -50,11 +50,11 @@ test('une origine déplacée ne recalcule aucun étirement et ne repousse aucun 
   assert.equal(refreshWorldStretch(previous, next, packed, frameData), 0);
   assert.deepEqual([...packed.worldStretch], [...stretch]);
   assert.deepEqual([...frameData], [...frames]);
-  // Et ce que le recalcul complet aurait écrit est bien ce qui est déjà là.
+  // And what the full recompute would have written is already there.
   assert.deepEqual([...packed.worldStretch], [...reference(next)]);
 });
 
-test('une seule primitive redimensionnée est la seule recalculée, au flottant près', () => {
+test('a single resized primitive is the only one recomputed, to the float', () => {
   const previous = scene(),
     packed = packedOf(),
     frameData = new Float32Array(WORLDS * FRAME_VEC4 * 4);

@@ -1,7 +1,7 @@
-// Lot F, F12 : `deplaceInstance` (autonomousInstances.ts) lit le couple page/page de base posé une
-// fois à la création (`instance.pages[i]` / `instance.bases[i]`) au lieu de reconstruire une table de
-// hachage page → page de base à chaque déplacement. L'oracle est la reconstruction d'avant le lot F,
-// recopiée telle quelle dans `oracles/cadre-vue.mjs`.
+// Batch F, F12: `deplaceInstance` (autonomousInstances.ts) reads the page/base-page pair set
+// once at creation (`instance.pages[i]` / `instance.bases[i]`) instead of rebuilding a
+// page → base-page hash table on every move. The oracle is the reconstruction from before
+// batch F, copied as-is into `oracles/cadre-vue.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -60,15 +60,15 @@ function memeResultat(transform: THREE.Matrix4, n: number, rootsCount: number, a
     assert.deepEqual(a.instRoots[i].world.toArray(), b.instRoots[i].world.toArray(), `root ${i}`);
 }
 
-test('aucune page ni racine : rien à déplacer, les deux côtés ne touchent à rien', () => {
+test('no page and no root: nothing to move, neither side touches anything', () => {
   memeResultat(new THREE.Matrix4().makeTranslation(5, 5, 5), 0, 0);
 });
 
-test('une seule page et une seule racine, transformation identité', () => {
+test('a single page and a single root, identity transform', () => {
   memeResultat(new THREE.Matrix4(), 1, 1);
 });
 
-test('plusieurs pages et racines, transformation composée (rotation + échelle + translation)', () => {
+test('several pages and roots, composed transform (rotation + scale + translation)', () => {
   const transform = new THREE.Matrix4()
     .makeRotationY(Math.PI / 3)
     .scale(new THREE.Vector3(2, 0.5, -1))
@@ -76,11 +76,11 @@ test('plusieurs pages et racines, transformation composée (rotation + échelle 
   memeResultat(transform, 8, 3);
 });
 
-test('un maillage attaché à la page reçoit lui aussi la même matrice que la référence', () => {
+test('a mesh attached to the page also receives the same matrix as the reference', () => {
   memeResultat(new THREE.Matrix4().makeTranslation(1, 2, 3), 4, 1, true);
 });
 
-test('une transformation dégénérée (échelle nulle) rend la même matrice des deux côtés', () => {
+test('a degenerate transform (zero scale) yields the same matrix on both sides', () => {
   const transform = new THREE.Matrix4().makeScale(0, 0, 0);
   memeResultat(transform, 3, 2);
 });

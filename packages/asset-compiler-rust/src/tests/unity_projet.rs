@@ -1,15 +1,15 @@
-//! Un projet Unity jetable, écrit fichier par fichier, puis compilé par le harnais commun des
-//! dorées. Chaque cas de fidélité pose le plus petit projet qui montre son comportement : une
-//! fixture réelle en mêlerait dix. Rien n'est écrit hors du dossier jetable, et les modèles sont
-//! des glTF binaires écrits ici même — des données, pas des assets d'éditeur.
+//! A throwaway Unity project, written file by file, then compiled by the common
+//! golden harness. Each fidelity case poses the smallest project that shows its
+//! behaviour: a real fixture would mix ten. Nothing is written outside the throwaway
+//! folder, and the models are binary glTF written here — data, not editor assets.
 use super::*;
 
-/// L'entête que l'éditeur écrit en tête de chaque fichier sérialisé.
+/// Header the editor writes at the start of every serialised file.
 pub(super) const HEAD: &str = "%YAML 1.1\n%TAG !u! tag:unity3d.com,2011:\n";
-/// Le GUID des ressources intégrées de l'éditeur, et le `fileID` du cube parmi elles.
+/// GUID of the editor's built-in resources, and the `fileID` of the cube among them.
 pub(super) const BUILTIN: &str = "{fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}";
 
-/// Un projet jetable et son dossier `Assets`.
+/// A throwaway project and its `Assets` folder.
 pub(super) struct Projet {
     root: PathBuf,
 }
@@ -27,12 +27,12 @@ impl Projet {
         Projet { root }
     }
 
-    /// Un asset quelconque sous `Assets`, ses dossiers créés au besoin, et le `.meta` que
-    /// l'éditeur pose à côté : son GUID suivi du corps que le cas déclare.
+    /// Any asset under `Assets`, its folders created as needed, and the `.meta` the
+    /// editor places beside it: its GUID followed by the body the case declares.
     pub(super) fn asset(&self, relative: &str, bytes: &[u8], guid: &str, meta: &str) {
         let path = self.root.join("Assets").join(relative);
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).expect("dossier");
+            fs::create_dir_all(parent).expect("folder");
         }
         fs::write(&path, bytes).expect("asset");
         let mut name = path.into_os_string();
@@ -40,24 +40,24 @@ impl Projet {
         fs::write(name, format!("fileFormatVersion: 2\nguid: {guid}\n{meta}")).expect("meta");
     }
 
-    /// Un fichier de données et le `.meta` qui lui donne son GUID.
+    /// A data file and the `.meta` that gives it its GUID.
     pub(super) fn data(&self, relative: &str, guid: &str, body: &str) {
         self.asset(relative, format!("{HEAD}{body}").as_bytes(), guid, "");
     }
 
-    /// Un modèle glTF binaire et le `.meta` de son `ModelImporter`. `names` porte les entrées de
-    /// `internalIDToNameTable`, écrites telles que l'éditeur les sérialise.
+    /// A binary glTF model and the `.meta` of its `ModelImporter`. `names` carries the
+    /// `internalIDToNameTable` entries, written as the editor serialises them.
     pub(super) fn model(&self, relative: &str, guid: &str, nodes: Value, names: &str) {
         self.model_bytes(relative, guid, &glb(nodes), names);
     }
 
-    /// De même, pour un modèle d'un autre format : le pilote qui le revendique le lit.
+    /// Likewise, for a model of another format: the driver that claims it reads it.
     pub(super) fn model_bytes(&self, relative: &str, guid: &str, bytes: &[u8], names: &str) {
         let meta = format!("ModelImporter:\n  serializedVersion: 22\n  internalIDToNameTable:\n{names}  externalObjects: {{}}\n");
         self.asset(relative, bytes, guid, &meta);
     }
 
-    /// La scène du projet, puis sa compilation par le harnais commun.
+    /// The project's scene, then its compilation by the common harness.
     pub(super) fn scene(&self, body: &str) {
         self.data("Map.unity", "000000000000000000000000000000e1", body);
     }
@@ -66,9 +66,9 @@ impl Projet {
     }
 }
 
-/// Un GameObject complet, transformation neutre sous le père que le cas nomme : `MeshFilter` sur ce
-/// maillage, `MeshRenderer` sur ces matériaux. `id` réserve quatre `fileID` consécutifs, l'objet
-/// puis ses trois composants.
+/// A complete GameObject, neutral transform under the parent the case names:
+/// `MeshFilter` on this mesh, `MeshRenderer` on these materials. `id` reserves four
+/// consecutive `fileID`s, the object then its three components.
 pub(super) fn objet(id: u32, name: &str, mesh: &str, materials: &str, father: u32) -> String {
     let (transform, filter, renderer) = (id + 1, id + 2, id + 3);
     format!(
@@ -77,46 +77,46 @@ pub(super) fn objet(id: u32, name: &str, mesh: &str, materials: &str, father: u3
     )
 }
 
-/// La `Transform` d'un objet, ses enfants et son père tels que le cas les nomme.
+/// The `Transform` of an object, its children and its parent as the case names them.
 pub(super) fn transformation(id: u32, object: u32, father: u32) -> String {
     enfants(id, object, father, "[]")
 }
 
-/// De même, pour une `Transform` qui porte des enfants.
+/// Likewise, for a `Transform` that carries children.
 pub(super) fn enfants(id: u32, object: u32, father: u32, children: &str) -> String {
     format!(
         "--- !u!4 &{id}\nTransform:\n  m_GameObject: {{fileID: {object}}}\n  m_LocalRotation: {{x: 0, y: 0, z: 0, w: 1}}\n  m_LocalPosition: {{x: 0, y: 0, z: 0}}\n  m_LocalScale: {{x: 1, y: 1, z: 1}}\n  m_Children: {children}\n  m_Father: {{fileID: {father}}}\n"
     )
 }
 
-/// La liste de matériaux d'un `MeshRenderer` : un seul, celui de ce GUID.
+/// Material list of a `MeshRenderer`: a single one, that of this GUID.
 pub(super) fn materiau(guid: &str) -> String {
     format!("\n  - {{fileID: 2100000, guid: {guid}, type: 2}}")
 }
 
-/// Un objet qui instancie le modèle entier, transformation neutre, sans matériau déclaré.
+/// An object that instantiates the whole model, neutral transform, no declared material.
 pub(super) fn instancie(name: &str, mesh: &str) -> String {
     objet(100, name, mesh, "[]", 0)
 }
 
-/// Un cube intégré de l'éditeur, portant le matériau de ce GUID.
+/// An editor built-in cube, carrying the material of this GUID.
 pub(super) fn cube(id: u32, name: &str, guid: &str) -> String {
     objet(id, name, BUILTIN, &materiau(guid), 0)
 }
 
-/// Un `.mat` dont les flottants et les couleurs sont ceux du cas.
+/// A `.mat` whose floats and colours are those of the case.
 pub(super) fn mat(name: &str, floats: &str, colors: &str) -> String {
     format!(
         "--- !u!21 &2100000\nMaterial:\n  serializedVersion: 8\n  m_Name: {name}\n  m_SavedProperties:\n    serializedVersion: 3\n    m_TexEnvs: []\n    m_Floats:\n{floats}    m_Colors:\n{colors}"
     )
 }
 
-/// Un `.mat` blanc opaque : seuls ses flottants distinguent le cas.
+/// An opaque white `.mat`: only its floats distinguish the case.
 pub(super) fn mat_blanc(name: &str, floats: &str) -> String {
     mat(name, floats, "    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}\n")
 }
 
-/// Un glTF binaire d'un seul triangle, dont les nœuds sont ceux que le cas demande.
+/// A binary glTF of a single triangle, whose nodes are those the case asks for.
 fn glb(nodes: Value) -> Vec<u8> {
     let mut bin = Vec::new();
     for value in [0f32, 0., 0., 1., 0., 0., 0., 1., 0.] {
@@ -142,7 +142,7 @@ fn glb(nodes: Value) -> Vec<u8> {
     encode_glb(&gltf, &bin)
 }
 
-/// Le nœud de ce nom dans la scène intermédiaire.
+/// The node of this name in the intermediate scene.
 pub(super) fn node_named<'a>(gltf: &'a Value, name: &str) -> Option<&'a Value> {
     gltf["nodes"]
         .as_array()
@@ -151,22 +151,22 @@ pub(super) fn node_named<'a>(gltf: &'a Value, name: &str) -> Option<&'a Value> {
         .find(|node| node["name"] == name)
 }
 
-/// Le rang du matériau de ce nom, tel qu'un maillage le cite.
+/// Rank of the material of this name, as a mesh cites it.
 pub(super) fn material_index(gltf: &Value, name: &str) -> Value {
     let rank = gltf["materials"]
         .as_array()
         .expect("materials")
         .iter()
         .position(|material| material["name"] == name);
-    json!(rank.unwrap_or_else(|| panic!("le matériau {name}")))
+    json!(rank.unwrap_or_else(|| panic!("the material {name}")))
 }
 
-/// Le matériau de ce nom, tel que le pilote l'a écrit.
+/// The material of this name, as the driver wrote it.
 pub(super) fn material_named<'a>(gltf: &'a Value, name: &str) -> &'a Value {
     gltf["materials"]
         .as_array()
         .expect("materials")
         .iter()
         .find(|material| material["name"] == name)
-        .unwrap_or_else(|| panic!("le matériau {name}"))
+        .unwrap_or_else(|| panic!("the material {name}"))
 }

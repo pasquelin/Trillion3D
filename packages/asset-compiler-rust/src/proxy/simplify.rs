@@ -1,30 +1,30 @@
-//! Simplification propre au proxy : des triangles de taille bornée, sous un seuil en mètres.
+//! Proxy-specific simplification: bounded size triangles, under meter threshold.
 //!
-//! La coupe du DAG s'arrête à son niveau racine : quand cette racine pèse déjà plus que le budget,
-//! doubler le seuil ne change plus rien et le proxy garde des millions de triangles. Le proxy se
-//! simplifie donc lui-même, par une règle qui ne dépend d'aucun DAG : les sommets sont ramenés sur
-//! une grille de pas `c`, les triangles dégénérés par ce rapprochement disparaissent, les doublons
-//! fusionnent, et ce qui reste plus grand que `c` est redécoupé jusqu'à ce que son plus long côté
+//! DAG cut stops at root level: when root weighs more than budget,
+//! doubling threshold changes nothing and proxy retains millions of triangles. Proxy
+//! simplifies itself by rule independent of DAG: vertices snapped to
+//! grid step `c`, degenerate triangles from snapping disappear, duplicates
+//! merge, and what remains larger than `c` is subdivided until longest side <= c.
 //! passe sous `c`.
 //!
-//! Les deux sens comptent. Vers le bas, la fusion fait tomber le nombre de triangles. Vers le haut,
-//! la découpe donne au cache de surfaces des mailles de taille connue : une lumière stockée par
-//! triangle n'a de sens que si le triangle est petit devant la pièce qu'il éclaire.
+//! Both directions count. Downwards, merge reduces triangle count. Upwards,
+//! subdivision gives surface cache known-size meshes: light per
+//! triangle makes sense only if triangle is small compared to room it illuminates.
 //!
-//! L'erreur géométrique ajoutée est bornée par la demi-diagonale d'une maille, publiée avec le
-//! proxy. La découpe, elle, est plane : elle n'ajoute aucune erreur.
+//! Added geometric error bounded by mesh cell half-diagonal, published with
+//! proxy. Subdivision is planar: adds no error.
 use super::PROXY_TRIANGLE_FLOATS;
 use std::collections::HashSet;
 
-/// Doublements du pas de grille avant d'abandonner : borne connue, comme l'échelle de `cut.rs`.
+/// Grid step doublings before giving up: known bound, like `cut.rs` scale.
 const CELL_LADDER: usize = 24;
-/// Demi-diagonale d'un cube unité : ce dont un sommet peut bouger en rejoignant un coin de maille.
+/// Unit cube half-diagonal: max vertex displacement joining grid cell corner.
 pub const CELL_ERROR_FACTOR: f64 = 0.866_025_403_784_438_6;
-/// Découpes d'un seul côté, au plus : une borne connue, pour qu'un triangle géant ne fasse pas
-/// exploser le compte pendant la recherche du pas.
+/// One-sided subdivisions at most: known bound, preventing giant triangle
+/// explosion during step search.
 const MAX_DIVISIONS: usize = 4096;
 
-/// La maille d'un sommet : trois entiers, le coin le plus proche de la grille de pas `size`.
+/// Vertex grid cell: three integers, nearest grid corner step `size`.
 fn cell_of(vertex: &[f32], size: f64) -> [i32; 3] {
     [
         (vertex[0] as f64 / size).round() as i32,
@@ -33,7 +33,7 @@ fn cell_of(vertex: &[f32], size: f64) -> [i32; 3] {
     ]
 }
 
-/// Le plus long côté d'un triangle, en mètres.
+/// Longest side of a triangle, in meters.
 fn longest_edge(t: &[f32]) -> f64 {
     let point = |i: usize| [t[i * 3] as f64, t[i * 3 + 1] as f64, t[i * 3 + 2] as f64];
     let span = |a: [f64; 3], b: [f64; 3]| {
@@ -43,7 +43,7 @@ fn longest_edge(t: &[f32]) -> f64 {
     span(a, b).max(span(b, c)).max(span(c, a))
 }
 
-/// Les découpes d'un côté : `n` donne `n²` sous-triangles, et `n` reste borné.
+/// Side subdivisions: `n` gives `n²` subtriangles, `n` bounded.
 fn divisions(edge: f64, size: f64) -> usize {
     if !(edge.is_finite() && size > 0.0) {
         return 1;
@@ -51,8 +51,8 @@ fn divisions(edge: f64, size: f64) -> usize {
     ((edge / size).ceil() as usize).clamp(1, MAX_DIVISIONS)
 }
 
-/// Les trois mailles d'un triangle, dans l'ordre canonique : c'est la clé d'un doublon. Un triangle
-/// dont deux sommets tombent dans la même maille n'a plus de surface et disparaît.
+/// Three grid cells of triangle, canonical order: duplicate key. Triangle
+/// with two vertices in same cell has no area and disappears.
 fn key_of(t: &[f32], size: f64) -> Option<[[i32; 3]; 3]> {
     let cells = [
         cell_of(&t[0..3], size),
@@ -67,7 +67,7 @@ fn key_of(t: &[f32], size: f64) -> Option<[[i32; 3]; 3]> {
     Some(sorted)
 }
 
-/// Le triangle ramené sur la grille, sommet par sommet.
+/// Triangle snapped to grid, vertex by vertex.
 fn snap(t: &[f32], size: f64) -> [f32; PROXY_TRIANGLE_FLOATS] {
     let mut out = [0f32; PROXY_TRIANGLE_FLOATS];
     for vertex in 0..3 {
@@ -79,9 +79,9 @@ fn snap(t: &[f32], size: f64) -> [f32; PROXY_TRIANGLE_FLOATS] {
     out
 }
 
-/// Les triangles que le pas `size` retient : ceux qui ont encore une surface et ne doublonnent pas,
-/// ramenés sur la grille, avec le nombre de découpes que leur plus long côté demande. C'est la seule
-/// lecture du proxy : compter et construire suivent exactement la même règle.
+/// Triangles step `size` retains: those with non-zero area and not duplicated,
+/// snapped to grid, with subdivision count required by longest side. Single
+/// proxy read pass: counting and building follow identical rule.
 fn kept(
     triangles: &[f32],
     size: f64,
@@ -102,7 +102,7 @@ fn kept(
         })
 }
 
-/// Combien de triangles le pas `size` laisserait, sans rien construire. S'arrête au dépassement.
+/// How many triangles step `size` would leave without building. Stops on overflow.
 fn count_at(triangles: &[f32], size: f64, budget: usize) -> usize {
     let mut total = 0usize;
     for (_, _, n) in kept(triangles, size) {
@@ -114,10 +114,10 @@ fn count_at(triangles: &[f32], size: f64, budget: usize) -> usize {
     total
 }
 
-/// Le pas de grille le plus fin qui tienne dans le budget de triangles, à partir du plancher publié.
+/// Finest grid step fitting triangle budget, starting from published floor.
 ///
-/// C'est une règle de taille, sans nom de scène : une petite pièce garde le plancher, une ville en
-/// prend un multiple, et celui qu'elle a pris est publié avec le proxy.
+/// Generic size rule, no scene name: small part keeps floor, city takes
+/// multiple, taken step published with proxy.
 pub fn plan_cell(triangles: &[f32], floor: f64, budget: usize) -> f64 {
     let mut size = floor.max(1e-4);
     for _ in 0..CELL_LADDER {
@@ -129,7 +129,7 @@ pub fn plan_cell(triangles: &[f32], floor: f64, budget: usize) -> f64 {
     size
 }
 
-/// Les sous-triangles d'un triangle découpé en `n` sur chaque côté, posés en barycentriques.
+/// Subtriangles of triangle subdivided into `n` per side, in barycentric coords.
 fn subdivide(t: &[f32], n: usize, out: &mut Vec<f32>) {
     let at = |u: f64, v: f64| {
         let w = 1.0 - u - v;
@@ -153,7 +153,7 @@ fn subdivide(t: &[f32], n: usize, out: &mut Vec<f32>) {
     }
 }
 
-/// Ramène le proxy à des triangles de taille bornée par `size`, l'albédo suivant son triangle.
+/// Reduces proxy to bounded size triangles by `size`, albedo following triangle.
 pub fn simplify(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>, size: f64) {
     let mut out: Vec<f32> = Vec::with_capacity(triangles.len());
     let mut colours: Vec<u32> = Vec::with_capacity(albedo.len());

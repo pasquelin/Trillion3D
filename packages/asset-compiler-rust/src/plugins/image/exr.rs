@@ -1,27 +1,27 @@
-//! Pilote OpenEXR, lu depuis les spécifications publiques de l'Academy Software Foundation
-//! (« Technical Introduction to OpenEXR » et « OpenEXR File Layout », openexr.com) pour le champ de
-//! version et le jeu de canaux, et décodé par la caisse `exr` 1.74.2 (BSD-3-Clause,
-//! `johannesvollmer/exrs`, Rust pur et sans `unsafe`, notices conservées avec la dépendance).
-//! Aucun SDK ni code d'éditeur, aucune bibliothèque C, aucun réencodage.
+//! OpenEXR driver, read from the Academy Software Foundation public specifications
+//! ("Technical Introduction to OpenEXR" and "OpenEXR File Layout", openexr.com) for the version
+//! field and the channel set, and decoded by the `exr` 1.74.2 crate (BSD-3-Clause,
+//! `johannesvollmer/exrs`, pure Rust and no `unsafe`, notices kept with the dependency).
+//! No vendor SDK or code, no C library, no re-encoding.
 //!
-//! **On n'ajoute aucune perte.** Les échantillons sortent en `f32` : un demi-flottant s'y étend
-//! exactement, un simple flottant y passe tel quel. Rien n'est ramené à huit bits, rien n'est
-//! reporté en tons, rien n'est remis à l'échelle — d'où la variante `DecodedImage::RgbaF32`.
+//! **No extra loss is added.** Samples leave as `f32`: a half-float expands into it exactly, a
+//! single-precision float passes through as-is. Nothing is reduced to eight bits, nothing is
+//! tone-mapped, nothing is rescaled — hence the `DecodedImage::RgbaF32` variant.
 //!
-//! **L'alpha d'un OpenEXR est associé.** La « Technical Introduction to OpenEXR » définit les
-//! composantes RGB comme déjà multipliées par l'alpha du pixel ; le contrat de sortie, lui, demande
-//! un alpha droit. Ce pilote divise donc chaque composante par l'alpha avant de rendre l'image —
-//! sans quoi l'aperçu, qui prémultiplie à son tour, prémultiplierait une seconde fois et assombrirait
-//! toute surface translucide. Un pixel d'alpha nul garde ses composantes : sous un alpha nul il n'y
-//! a pas de couleur droite à retrouver, et rien n'est divisé par zéro.
+//! **An OpenEXR's alpha is associated.** The "Technical Introduction to OpenEXR" defines the
+//! RGB components as already multiplied by the pixel's alpha; the output contract, itself,
+//! asks for straight alpha. This driver therefore divides each component by alpha before
+//! returning the image — otherwise the preview, which premultiplies in turn, would premultiply
+//! a second time and darken every translucent surface. A zero-alpha pixel keeps its components:
+//! under a null alpha there is no straight colour to recover, and nothing is divided by zero.
 //!
-//! **Sous-ensemble accepté**, déclaré ici et nulle part ailleurs : une seule partie, plate (non
-//! profonde), à son plus grand niveau de résolution, avec les canaux `R`, `G`, `B` et, s'il y en a
-//! un, `A` — en demi ou simple précision, sans sous-échantillonnage. Les canaux sont lus par leur
-//! nom, jamais par leur rang. Ce qui sort de là est un refus nommé : parties profondes, fichiers
-//! multi-parties, canaux absents, canaux d'un autre nom (AOV, `Y`/`RY`/`BY`, profondeur), entiers
-//! 32 bits, chroma sous-échantillonnée. Un fichier hors sous-ensemble laisse le moteur retomber sur
-//! son blanc ; il n'est jamais deviné ni approché.
+//! **Accepted subset**, declared here and nowhere else: a single part, flat (not deep), at its
+//! largest resolution level, with the `R`, `G`, `B` channels and, if there is one, `A` — in
+//! half or single precision, without subsampling. Channels are read by name, never by rank.
+//! Anything outside that is a named refusal: deep parts, multi-part files, missing channels,
+//! differently named channels (AOV, `Y`/`RY`/`BY`, depth), 32-bit integers, subsampled chroma.
+//! A file outside the subset lets the engine fall back to white; it is never guessed or
+//! approximated.
 use super::{float_budget, DecodedImage, ImageDecoded, ImageDecoder, Plugin, Transfer};
 use ::exr::math::Vec2;
 use ::exr::meta::attribute::SampleType;
@@ -32,39 +32,38 @@ mod samples;
 pub(super) static EXR: Exr = Exr;
 pub(super) struct Exr;
 
-/// Le nombre magique de quatre octets, entier 20 000 630 écrit en petit-boutien.
+/// Four-byte magic number, integer 20 000 630 written little-endian.
 const MAGIC: &[u8] = &[0x76, 0x2f, 0x31, 0x01];
-/// Le champ de version, quatre octets juste après le nombre magique : un numéro de version dans
-/// l'octet de poids faible, des drapeaux au-dessus.
+/// Version field, four bytes just after the magic number: a version number in the low byte,
+/// flags above it.
 const VERSION_FIELD: std::ops::Range<usize> = 4..8;
-/// Drapeau « le fichier contient au moins une partie qui n'est pas une image plate », c'est-à-dire
-/// des données profondes.
+/// Flag "the file contains at least one part that is not a flat image", i.e. deep data.
 const FLAG_DEEP: u32 = 0x0800;
-/// Drapeau « le fichier contient plusieurs parties ».
+/// Flag "the file contains several parts".
 const FLAG_MULTI_PART: u32 = 0x1000;
 
-/// Entête absent, tronqué ou incohérent : pour l'hôte, c'est le symptôme d'un décodage manqué.
+/// Header missing, truncated or inconsistent: for the host, that is a failed-decode symptom.
 const HEADER_INVALID: &str = "exr-header-invalid";
-/// Des données profondes : un pixel y porte une liste d'échantillons, pas une couleur. Les aplatir
-/// demanderait une composition, donc un choix que le compilateur n'a pas à faire.
+/// Deep data: a pixel carries a list of samples, not a colour. Flattening them would require
+/// a composition, hence a choice the compiler must not make.
 const DEEP: &str = "exr-deep-unsupported";
-/// Plusieurs parties : rien ne dit laquelle est la texture. On refuse plutôt que de choisir.
+/// Several parts: nothing says which is the texture. Refuse rather than choose.
 const MULTI_PART: &str = "exr-multipart-unsupported";
-/// Le jeu de canaux n'est pas celui qu'un pilote d'image sait rendre.
+/// The channel set is not one an image driver knows how to return.
 const CHANNELS: &str = "exr-channels-unsupported";
-/// L'image dépasse le plafond d'allocation reçu : un refus, jamais une allocation tentée.
+/// The image exceeds the received allocation ceiling: a refusal, never an attempted allocation.
 const TOO_LARGE: &str = "exr-image-too-large";
-/// L'entête est dans le sous-ensemble, mais les pixels ne se relisent pas : fichier coupé,
-/// compression inattendue, table de morceaux fausse.
+/// The header is in the subset, but the pixels cannot be reread: cut file, unexpected
+/// compression, wrong chunk table.
 const UNREADABLE: &str = "exr-data-unreadable";
 
 impl Plugin for Exr {
     fn name(&self) -> &'static str {
         "exr"
     }
-    /// Le suffixe nomme l'alpha rendu. Il a été ajouté avec la dé-prémultiplication, parce que la
-    /// version entre dans l'identité du cache : sans elle, une entrée écrite du temps où les
-    /// échantillons associés sortaient tels quels serait relue comme si elle était juste.
+    /// The suffix names the returned alpha. It was added with the un-premultiply, because the
+    /// version enters the cache identity: without it, an entry written when associated samples
+    /// left as-is would be reread as if it were correct.
     fn version(&self) -> &'static str {
         "exr-openexr-2.0-exrs-1.74.2-alpha-droit"
     }
@@ -77,13 +76,13 @@ impl ImageDecoder for Exr {
     fn mime(&self) -> &'static str {
         "image/x-exr"
     }
-    /// Le nombre magique suffit : il n'appartient qu'à ce format. Ce que l'entête annonce ensuite se
-    /// vérifie au décodage, où cela se rapporte au lieu de faire taire le pilote.
+    /// The magic number is enough: it belongs only to this format. What the header announces
+    /// next is checked at decode, where it is reported instead of silencing the driver.
     fn accepts_head(&self, head: &[u8]) -> bool {
         head.starts_with(MAGIC)
     }
-    /// L'entête d'abord, les pixels ensuite : un fichier hors sous-ensemble ne va jamais jusqu'au
-    /// décodeur, et la taille est connue — donc le plafond appliqué — avant la moindre allocation.
+    /// The header first, the pixels next: a file outside the subset never reaches the decoder,
+    /// and the size is known — hence the ceiling applied — before any allocation.
     fn decode(
         &self,
         bytes: &[u8],
@@ -94,9 +93,9 @@ impl ImageDecoder for Exr {
     }
 }
 
-/// Le sous-ensemble accepté, vérifié sur le champ de version puis sur l'entête, et la taille du
-/// calque qui en ressort. Les deux drapeaux se lisent sans la caisse : quatre octets de la
-/// spécification, et un fichier profond ou multi-parties est nommé avant toute autre lecture.
+/// The accepted subset, checked on the version field then on the header, and the size of the
+/// layer that comes out. Both flags are read without the crate: four bytes of the specification,
+/// and a deep or multi-part file is named before any other read.
 fn subset(bytes: &[u8], max_alloc: u64) -> std::result::Result<(u32, u32), &'static str> {
     let field: [u8; 4] = bytes
         .get(VERSION_FIELD)
@@ -123,9 +122,9 @@ fn subset(bytes: &[u8], max_alloc: u64) -> std::result::Result<(u32, u32), &'sta
     Ok((width, height))
 }
 
-/// Les canaux, par leur nom : exactement `R`, `G`, `B`, et au plus un `A`. Un canal de plus — une
-/// passe de rendu, une profondeur, une luminance — rend le fichier ambigu : lequel est la couleur,
-/// et que deviennent les autres ? On refuse plutôt que d'en jeter en silence.
+/// Channels, by name: exactly `R`, `G`, `B`, and at most one `A`. One more channel — a render
+/// pass, a depth, a luminance — makes the file ambiguous: which is the colour, and what becomes
+/// of the others? Refuse rather than drop them in silence.
 fn channels(header: &::exr::meta::header::Header) -> std::result::Result<(), &'static str> {
     let mut seen = [false; 3];
     for channel in &header.channels.list {
@@ -136,13 +135,13 @@ fn channels(header: &::exr::meta::header::Header) -> std::result::Result<(), &'s
             "A" => {}
             _ => return Err(CHANNELS),
         }
-        // Un canal sous-échantillonné n'a pas un échantillon par pixel : le remonter à la pleine
-        // résolution serait une interpolation, donc une image que la source ne contient pas.
+        // A subsampled channel does not have one sample per pixel: bringing it back to full
+        // resolution would be an interpolation, hence an image the source does not contain.
         if channel.sampling != Vec2(1, 1) {
             return Err(CHANNELS);
         }
-        // Les entiers 32 bits ne sont pas des couleurs : la spécification les réserve aux
-        // identifiants et aux masques, qu'aucune conversion en flottant ne représente.
+        // 32-bit integers are not colours: the specification reserves them for identifiers
+        // and masks, which no conversion to float represents.
         if channel.sample_type == SampleType::U32 {
             return Err(CHANNELS);
         }

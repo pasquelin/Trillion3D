@@ -1,5 +1,5 @@
-//! B3 — `refine_bisection` : la table `present` devient un `Vec<bool>` réutilisé au lieu d'un
-//! `HashSet<usize>` reconstruit à chaque coupe. Référence : l'ancienne version, noms francisés.
+//! B3 — `refine_bisection`: the `present` table becomes a reused `Vec<bool>` instead of
+//! `HashSet<usize>` rebuilt every cut. Reference: old version, French names.
 use super::harness::{compare, Bits, Row};
 use super::inputs::Xorshift;
 use crate::dag::groups::refine_bisection;
@@ -51,7 +51,7 @@ fn reference_affiner(
     }
 }
 
-/// Voisinage synthétique : chaque cluster touche jusqu'à huit voisins proches, poids 1 à 4.
+/// Synthetic neighborhood: each cluster touches up to eight close neighbors, weight 1 to 4.
 fn voisinage(seed: u64, count: usize) -> Vec<Vec<(u32, u32)>> {
     let mut rng = Xorshift::new(seed);
     (0..count)
@@ -66,7 +66,7 @@ fn voisinage(seed: u64, count: usize) -> Vec<Vec<(u32, u32)>> {
         .collect()
 }
 
-// Le type mesuré est un `Vec<u8>` : l'empreinte doit avoir la signature que `compare` attend.
+// The measured type is a `Vec<u8>`: the fingerprint must have the signature `compare` expects.
 #[allow(clippy::ptr_arg)]
 fn empreinte(cote: &Vec<u8>) -> Bits {
     let mut bits = Bits::default();

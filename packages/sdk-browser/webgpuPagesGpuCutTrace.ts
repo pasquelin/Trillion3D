@@ -24,7 +24,7 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
   steps[CPU_STEP.residencyUploadMs] = m.residencyUploadEnd - m.rowsEnd;
   steps[CPU_STEP.selectionDispatchMs] = m.selectionEnd - m.residencyUploadEnd;
   steps[CPU_STEP.partitionMs] = timing.lastPartitionMs;
-  // L'encodage restant exclut la soumission elle-même : les deux étapes ne se recouvrent jamais.
+  // Remaining encode excludes submit itself: the two steps never overlap.
   steps[CPU_STEP.encodeRestMs] = Math.max(
     0,
     submitMs -
@@ -35,8 +35,8 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
   );
   steps[CPU_STEP.queueSubmitMs] = timing.lastQueueSubmitMs;
   steps[CPU_STEP.encodeSubmitMs] = submitMs;
-  // Le total de la ligne couvre l'image entière du moteur, préparation comprise : la borne
-  // `cpuStart` n'ouvre que la partie que les lots précédents chronométraient.
+  // The row total covers the engine's whole image, prepare included: the `cpuStart` bound only
+  // opens the part previous lots timed.
   steps[CPU_STEP.totalMs] = m.cpuEnd - m.preStart;
   timing.rowFilled = true;
   timing.cpuSample = {
@@ -76,19 +76,15 @@ export function traceGpuCutFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
     { rows } = rt.layout,
     { tracking, slots } = rt.setup;
   if (!diag.traceEnabled) return;
-  diag.traceDiagnostic(
-    'gpu-selection-current-frame',
-    'Sélection GPU consommée par le dessin',
-    () => ({
-      frame: run.frame,
-      submission: run.imageRevision,
-      source: 'gpu',
-      decision: 'current-frame-mask',
-      residentCandidates: rows.candidateCount,
-      readbackPurpose: 'streaming-and-metrics',
-      metricsReady: run.gpuMetricsReady,
-    }),
-  );
+  diag.traceDiagnostic('gpu-selection-current-frame', 'GPU selection consumed by the draw', () => ({
+    frame: run.frame,
+    submission: run.imageRevision,
+    source: 'gpu',
+    decision: 'current-frame-mask',
+    residentCandidates: rows.candidateCount,
+    readbackPurpose: 'streaming-and-metrics',
+    metricsReady: run.gpuMetricsReady,
+  }));
   diag.traceDiagnostic('frame', 'Snapshot complet de la frame WebGPU', () =>
     frameTraceSnapshot(
       rt,
@@ -96,7 +92,7 @@ export function traceGpuCutFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
       { source: 'gpu', decision: 'current-frame-mask' },
       {
         coverage: {
-          // Trois relevés bornés : le mode trace ne recopie plus la coupe entière par image.
+          // Three bounded samples: trace mode no longer copies the whole cut per image.
           loaded: tracking.traceRecs('frame.loaded', rows.packedRecs, rows.packedCount),
           wanted: tracking.traceRecs('frame.wanted', run.desired),
           shown: run.gpuMetricsReady ? tracking.traceRecs('frame.shown', run.shown) : null,

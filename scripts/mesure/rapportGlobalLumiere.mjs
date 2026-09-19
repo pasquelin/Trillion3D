@@ -1,7 +1,7 @@
-// La section « lampes, ombres, rebond » du rapport global : ce que coûte la lumière, par différence
-// entre exécutions, et la porte d'identité des cartes d'ombre.
+// The "lights, shadows, bounce" section of the global report: what lighting costs, by
+// difference between runs, and the shadow-map identity gate.
 import { barres, deuxCols, nombre, pixels as px, tableau } from './rapportGlobalGraphes.mjs';
-import { DEUX_VUES, LIBELLE, trouve } from './rapportGlobalLecture.mjs';
+import { TWO_VIEWS, LIBELLE, trouve } from './rapportGlobalLecture.mjs';
 
 export function sectionLumiere(ex) {
   const runs = [
@@ -15,11 +15,11 @@ export function sectionLumiere(ex) {
   ];
   const enveloppe = runs.map(([run, libelle]) => ({
     libelle,
-    valeurs: DEUX_VUES.map((v) => trouve(ex, run, v, 1)?.gpuP50 ?? null),
+    valeurs: TWO_VIEWS.map((v) => trouve(ex, run, v, 1)?.gpuP50 ?? null),
   }));
   const ombres = runs.map(([run, libelle]) => ({
     libelle,
-    valeurs: DEUX_VUES.map((v) => trouve(ex, run, v, 1)?.etape('shadows')?.gpuP50 ?? null),
+    valeurs: TWO_VIEWS.map((v) => trouve(ex, run, v, 1)?.etape('shadows')?.gpuP50 ?? null),
   }));
   const compteurs = runs.map(([run, libelle]) => {
     const r = trouve(ex, run, 'sol', 1);
@@ -62,7 +62,7 @@ export function sectionLumiere(ex) {
         id: 'g-lum-env',
         titre: 'Whole frame by lighting, p50',
         unite: 'ms',
-        series: DEUX_VUES.map((v) => LIBELLE[v]),
+        series: TWO_VIEWS.map((v) => LIBELLE[v]),
         lignes: enveloppe,
       }),
       barres({
@@ -71,7 +71,7 @@ export function sectionLumiere(ex) {
         sousTitre: 'pass label: indicative, see the timestamp note',
         unite: 'ms',
         decimales: 3,
-        series: DEUX_VUES.map((v) => LIBELLE[v]),
+        series: TWO_VIEWS.map((v) => LIBELLE[v]),
         lignes: ombres,
       }),
     ),

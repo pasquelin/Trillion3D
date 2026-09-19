@@ -17,9 +17,9 @@ export function createHeldKeys(options: {
   onExit?: (id: number) => void;
 }) {
   const { keyCount, keyOfPageId, retain, release, onEnter, onExit } = options;
-  // Le compte de références EST l'appartenance : `refs[key] > 0` dit exactement « cette clé est
-  // tenue ». Une liste dense à côté ne dirait rien de plus, et se paierait sur chaque clé qui entre
-  // ou sort, à chaque image.
+  // The reference count IS membership: `refs[key] > 0` says exactly "this key is
+  // held". A dense list beside it would say nothing more, and would be paid on each key that
+  // enters or leaves, every frame.
   const refs = new Int32Array(Math.max(1, keyCount));
   return {
     apply(delta: CutDelta) {

@@ -1,10 +1,9 @@
-// Ce qui distingue un côté de la comparaison de l'autre : son moteur, son cache compilé et sa
-// variante de diagnostic. Séparé de `options.mjs`, qui ne lit plus que les réglages de campagne.
+// What distinguishes one side of the comparison from the other: its engine, compiled cache,
+// and diagnostic variant. Separated from `options.mjs`, which now only reads campaign settings.
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-// Drapeaux de Chromium du banc : un affichage jamais bridé en arrière-plan, la mesure GPU activée,
-// WebGPU ouvert. Toute mesure du dépôt lance le navigateur avec ces lignes, et seulement elles.
+// Benchmark Chromium flags: unbridled background rendering, enabled GPU benchmarking, WebGPU enabled.
 const BASE_FLAGS = [
   '--disable-backgrounding-occluded-windows',
   '--disable-renderer-backgrounding',
@@ -13,17 +12,10 @@ const BASE_FLAGS = [
 ];
 const WEBGPU_FLAGS = [...BASE_FLAGS, '--enable-unsafe-webgpu'];
 
-// Le moteur autonome WebGL2 est le seul des trois à décoder lui-même des pages de géométrie :
-// c'est par lui que `pagesDecodedWasm` cesse d'être nul en campagne. L'explorateur ne le choisit pas
-// par une liste de moteurs mais par le réglage `autonomousGeometry`, et il refuse qu'on lui nomme
-// les deux à la fois ; `autonome` porte cette différence jusqu'à la page de mesure, qui passe alors
-// le réglage au lieu de la liste. Il exige aussi un cache dont toutes les primitives sont des
-// clusters exacts — le compilateur n'écrit `autonomousScene` que dans ce cas — sinon l'explorateur
-// refuse par `AUTONOMOUS_SCENE_UNAVAILABLE`.
-// `three` dit que le moteur dessine par Three.js, donc qu'il recopie les lampes d'un graphe source
-// au lieu de lire le magasin du contrat : à celui-là seul, l'hôte pose les lampes en Three.
-// `page` est le module servi sous `/mesure/` dont `measureView` joue la série ; `source` dit ce que
-// la page charge : le cache compilé (`cache`) ou le glTF source des assets (`gltf`).
+// Standalone WebGL2 engine is the only one of the three decoding geometry pages itself.
+// `three` indicates the engine renders with Three.js.
+// `page` is the module served under `/mesure/` whose `measureView` plays the series;
+// `source` indicates what the page loads: compiled cache (`cache`) or source glTF from assets (`gltf`).
 export const ENGINES = {
   webgl: {
     backend: 'exactPagesBackend',
@@ -40,8 +32,7 @@ export const ENGINES = {
     page: 'pageEclairage.mjs',
     source: 'cache',
   },
-  // Le témoin Three.js nu : rien du SDK, le glTF source rendu par Three seul (`pageThreeNu.mjs`).
-  // C'est le rendu naïf face auquel le moteur se lit, et il survit au retrait de Three du moteur.
+  // Raw Three.js witness: no SDK, raw glTF rendered by Three alone (`pageThreeNu.mjs`).
   'three-nu': {
     backend: null,
     id: 'three-nu',
@@ -49,8 +40,7 @@ export const ENGINES = {
     page: 'pageThreeNu.mjs',
     source: 'gltf',
   },
-  // Le témoin Three.js à niveaux de détail : le Three nu plus un `THREE.LOD` par maillage, niveaux
-  // simplifiés par meshoptimizer au chargement (`pageThreeLod.mjs`). La méthode classique.
+  // Three.js witness with levels of detail: raw Three plus `THREE.LOD` per mesh (`pageThreeLod.mjs`).
   'three-lod': {
     backend: null,
     id: 'three-lod',
@@ -62,35 +52,33 @@ export const ENGINES = {
     backend: 'autonomousPagesBackend',
     id: 'autonomous-pages-webgl',
     flags: BASE_FLAGS,
-    autonome: true,
+    autonomous: true,
     three: true,
     page: 'pageEclairage.mjs',
     source: 'cache',
   },
 };
 
-/** Le cache, le moteur, la variante de diagnostic et la métrique d'erreur d'un côté. */
+/** Cache, engine, diagnostic variant, and error metric for one side. */
 export function equipSide(side, flags, settings) {
   side.cache = resolveCache(flags.get(`cache-${side.name}`));
   side.engine = engineOf(flags, side.name, settings.engine);
-  side.variante = variantOf(flags, side.name);
-  side.erreur = screenErrorOf(flags, side.name);
+  side.variant = variantOf(flags, side.name);
+  side.errorMetric = screenErrorOf(flags, side.name);
 }
 
 /**
- * La métrique d'erreur écran d'un côté : `--erreur-<côté>`, sinon `--erreur`, sinon la nôtre.
- * `certifiee` est notre borne, `reference` la projection simple de la référence externe. C'est
- * l'option de l'EXPÉRIENCE `calculs/exp-erreur-ecran` : deux côtés qui ne diffèrent que par elle
- * mesurent la même tête avec deux métriques.
+ * Screen error metric for one side: `--erreur-<side>`, otherwise `--erreur`, otherwise ours.
+ * `certifiee` is our bound, `reference` is standard external projection.
  */
 function screenErrorOf(flags, name) {
   const value = flags.get(`erreur-${name}`) ?? flags.get('erreur') ?? null;
   if (value !== null && value !== 'certifiee' && value !== 'reference')
-    throw new Error(`--erreur-${name} doit valoir certifiee ou reference`);
+    throw new Error(`--erreur-${name} must be certifiee or reference`);
   return value;
 }
 
-/** Ce qu'un côté publie de lui-même dans le relevé : son dist, son cache, son moteur, sa variante. */
+/** What a side publishes about itself in the report: dist, cache, engine, variant. */
 export const sideReport = (side) => [
   side.name,
   {
@@ -98,36 +86,31 @@ export const sideReport = (side) => [
     from: side.from,
     cache: side.cache ?? null,
     moteur: side.engine.id,
-    variante: side.variante,
-    erreur: side.erreur ?? 'certifiee',
+    variante: side.variant,
+    erreur: side.errorMetric ?? 'certifiee',
   },
 ];
 
-/** La variante de diagnostic d'un côté : `--variante-<côté>`, sinon celle de la campagne. Deux
- *  côtés qui ne diffèrent que par elle sont deux variantes d'une seule campagne. */
+/** Diagnostic variant of a side: `--variante-<side>`, otherwise campaign variant. */
 function variantOf(flags, name) {
   return flags.get(`variante-${name}`) ?? flags.get('variante') ?? null;
 }
 
-/** Le moteur d'un côté : `--moteur-<côté>` s'il est donné, sinon celui de la campagne. C'est ce qui
- *  met le moteur face au témoin en une seule exécution — mêmes poses, mêmes lampes, même cache. */
+/** Engine of a side: `--moteur-<side>` if provided, otherwise campaign engine. */
 export function engineOf(flags, name, fallback) {
   const engine = flags.get(`moteur-${name}`) ?? fallback;
   if (!ENGINES[engine])
-    throw new Error(`--moteur-${name} doit valoir ${Object.keys(ENGINES).join(', ')}`);
+    throw new Error(`--moteur-${name} must be ${Object.keys(ENGINES).join(', ')}`);
   return ENGINES[engine];
 }
 
 /**
- * Le cache d'un côté. La valeur nomme le dossier « derived » — celui qui contient `native/full` —
- * ou directement `native/full` ; c'est le dossier derived qui est rendu, parce que le manifeste
- * compilé désigne ses paquets par `../../objects/`, hors de `native/full`. Sans valeur, le côté
- * garde le cache des assets du banc (`scene.mjs`).
+ * Cache of a side. Value names the derived directory containing `native/full` or directly `native/full`.
  */
 export function resolveCache(value) {
   if (!value) return undefined;
   const dir = resolve(value);
   for (const candidate of [dir, join(dir, '../..')])
     if (existsSync(join(candidate, 'native/full/manifest.json'))) return resolve(candidate);
-  throw new Error(`cache sans native/full/manifest.json : ${dir}`);
+  throw new Error(`cache without native/full/manifest.json: ${dir}`);
 }

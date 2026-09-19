@@ -1,5 +1,6 @@
-//! Lecture de la scène intermédiaire : le glTF 2.0 et son conteneur GLB, que tout pilote de scène
-//! produit et que le compilateur est seul à consommer. Le choix du pilote, lui, est dans `plugins`.
+//! Reading the intermediate scene: the glTF 2.0 and its GLB container, which every
+//! scene driver produces and which only the compiler consumes. Driver choice lives
+//! in `plugins`.
 use super::*;
 
 pub(super) fn is_glb(bytes: &[u8]) -> bool {

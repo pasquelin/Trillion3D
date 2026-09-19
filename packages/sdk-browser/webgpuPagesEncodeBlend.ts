@@ -51,8 +51,8 @@ export function encodeBlend(
   );
   if (!textured && !gpu.bindGroupLayout) return;
   const cpuStart = performance.now();
-  // L'œil monde de l'image, celui-là même que l'uniforme de vue publie : sans caméra, aucune image
-  // n'est classée et les listes gardent l'ordre qu'elles avaient.
+  // World-space eye of the image, the same one the view uniform publishes: with no camera, no image
+  // is sorted and the lists keep the order they had.
   const eye = run.lastCamera ? run.gate.cam.eye : undefined;
   // The compaction reads the mask this very frame's cluster cut wrote, a few commands earlier in the
   // same buffer, and writes the instance list the pass below draws from.
@@ -72,20 +72,20 @@ export function encodeBlend(
     timing.transparentEncodeMs += performance.now() - cpuStart;
     return;
   }
-  // Le classement du plus lointain au plus proche, repris ici et à chaque image : un mélange ne pose
-  // pas de profondeur, donc rien d'autre que cet ordre ne départage deux surfaces transparentes. Le
-  // tronc est testé dans le même parcours, en double précision, et son verdict part sur la carte en
-  // un bit par item — c'est aussi LE compte de rejets de l'image, mesuré là où il retire l'appel.
+  // Far-to-near sort, taken here every image: a blend writes no depth, so nothing else splits two
+  // transparent surfaces. The frustum is tested in the same walk, in double precision, and its
+  // verdict goes to the GPU as one bit per item — that is also THE image's reject count, measured
+  // where it drops the draw.
   run.blendFrustumRejected = orderBlendPasses(blendState, eye);
   writeBlendView(rt, device);
-  // La carte étale ensuite le plan trié : une liste d'instances, un argument indirect par tranche,
-  // et plus rien par item. Sans étage de calcul, le processeur écrit les mêmes mots.
+  // The GPU then expands the sorted plan: an instance list, one indirect argument per slice, and
+  // nothing more per item. With no compute stage, the CPU writes the same words.
   encodeBlendExpansion(rt, device, encoder);
   const prepared = performance.now();
   timing.transparentPrepareMs += prepared - cpuStart;
   drawBlendPass(rt, device, encoder);
-  // La transmission vient apres les melanges, sur un fond fige : les deux copies separent les deux
-  // passes, si bien qu'aucune surface transmissive ne lit une image a demi composee.
+  // Transmission comes after blends, on a frozen backdrop: the two copies split the two passes, so
+  // no transmissive surface reads a half-composed image.
   if (blendState.transmissive && copyBackdrop(rt, encoder))
     drawBlendPass(rt, device, encoder, true);
   const finished = performance.now();
@@ -121,7 +121,7 @@ export function encodeSurfaceLighting(
     throw new Error('DEFERRED_UNAVAILABLE');
   const [width, height] = gpu.targetSize;
   invertMatrix4(inverseViewProj, viewProj);
-  // Les ombres et les listes de lampes s'encodent avant la résolution : elles en sont les entrées.
+  // Shadows and light lists encode before resolve: they are its inputs.
   const direct = encodeDirectLights(rt, device, encoder, cam, inverseViewProj);
   gpu.deferred.bind(
     gpu.surfaces,
@@ -131,7 +131,7 @@ export function encodeSurfaceLighting(
     directLightResources(rt),
     (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
   );
-  // L'entrée d'image a recopié la caméra, ancêtres compris : la position monde se lit sans recalcul.
+  // Image entry copied the camera, ancestors included: world position is read without recomputing.
   cameraWorldArray[0] = cam.eye[0];
   cameraWorldArray[1] = cam.eye[1];
   cameraWorldArray[2] = cam.eye[2];
@@ -147,11 +147,11 @@ export function encodeSurfaceLighting(
   gpu.deferred.light(encoder, gpu.hdrView);
   run.gpuDrawCalls++;
   encodeBlend(rt, device, encoder, uniformBase);
-  // L'accumulation temporelle lit l'image éclairée et mélangée, et rend ce que la composition lit
-  // — l'image telle quelle quand cette image n'accumule pas.
+  // Temporal accumulation reads the lit and blended image, and yields what composition reads — the
+  // image as-is when this image does not accumulate.
   const composed = encodeTaaPass(rt, device, encoder, cam, gpu.hdrView);
-  // Diagnostic seul : la variante hors écran ne demande pas la vue de la chaîne d'échange. La passe
-  // de composition reste la même, à une cible de couleur près — c'est ce qui isole la présentation.
+  // Diagnostic only: the off-screen variant does not ask for the swap-chain view. The composition
+  // pass stays the same, one colour target aside — that is what isolates presentation.
   const presentation =
     capture.secondaryCamera || composesOffscreen(rt.context.diagnosticGpuVariant)
       ? undefined

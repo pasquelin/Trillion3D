@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { lineCount, lineLimitViolations, nulSeparated } from './check-file-lines.mjs';
 
-test('le séparateur nul est une option, jamais un chemin derrière le `--`', () => {
-  // Le défaut réparé : `-z` posé en fin d'arguments devenait le seul chemin filtré, et la liste
-  // des fichiers modifiés revenait vide quoi qu'on change.
+test('the null separator is an option, never a path behind the `--`', () => {
+  // The fixed defect: `-z` placed at the end of arguments became the only filtered path, and the list
+  // of modified files returned empty whatever we change.
   assert.deepEqual(nulSeparated(['diff', '--name-only', 'develop', '--']), [
     'diff',
     '--name-only',

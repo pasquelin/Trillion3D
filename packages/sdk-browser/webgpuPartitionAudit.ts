@@ -1,48 +1,46 @@
 import { FLAG_CLIP, ROW_DATA_U32, ROW_FLAGS, ROW_NEAREST } from './gpuPartitionContract.ts';
 import { visLayerTop } from './webgpuVisibilityUniforms.ts';
 
-/** Doubles d'une boîte monde : huit coins de trois coordonnées, comme `createBoxCorners` les tient.
- *  C'est la disposition de la RÉFÉRENCE, pas celle du tampon en deux mots que le noyau lit. */
+/** Doubles of a world box: eight corners of three coordinates, as `createBoxCorners` holds them.
+ *  That is the REFERENCE layout, not that of the two-word buffer the kernel reads. */
 const BOX_CORNER_VALUES = 24;
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
- * Ce qu'une image a envoyé à la partition GPU, et ce que la partition en a écrit, ligne par ligne.
+ * What an image sent to the GPU partition, and what the partition wrote of it, row by row.
  *
- * C'est l'outil de preuve de la conservativité : le rectangle d'écran et la borne de profondeur que
- * la carte a calculés en simple précision, à côté des coins monde en double précision et des
- * matrices d'où ils sortent. Un appelant peut donc refaire le calcul de référence sur les MÊMES
- * entrées et vérifier, cluster par cluster, que le rectangle de la carte contient celui de la
- * référence, qu'une boîte coupée par le plan proche porte bien son drapeau, et que la profondeur de
- * la carte minore celle de la référence.
+ * This is the conservativeness proof tool: the screen rectangle and depth bound the GPU computed in
+ * single precision, beside the world corners in double precision and the matrices they come from. A
+ * caller can therefore redo the reference calculation on the SAME inputs and check, cluster by
+ * cluster, that the GPU rectangle contains the reference's, that a box cut by the near plane does
+ * carry its flag, and that the GPU depth underestimates the reference's.
  *
- * Ce n'est pas une passe de l'image : rien de tout cela n'existe tant que l'hôte ne le demande pas,
- * et la lecture n'a de sens qu'après une image rendue.
+ * This is not a pass of the image: none of this exists until the host asks for it, and the read only
+ * makes sense after a rendered image.
  */
 export interface PartitionAudit {
   rows: number;
   width: number;
   height: number;
   near: number;
-  /** Éléments de la vue et de la vue-projection en double précision, tels que l'image les a posés. */
+  /** View and view-projection elements in double precision, as the image posted them. */
   view: Float64Array;
   viewProj: Float64Array;
-  /** Coins monde en double précision, huit par ligne : l'entrée exacte des deux calculs. */
+  /** World corners in double precision, eight per row: the exact input of both calculations. */
   corners: Float64Array;
-  /** Couche coplanaire de chaque ligne, telle que la fiche de dessin la porte. */
+  /** Coplanar layer of each row, as the draw row carries it. */
   layers: Uint32Array;
-  /** Rectangle d'écran non découpé que la carte a écrit, quatre entiers par ligne. */
+  /** Unclipped screen rectangle the GPU wrote, four integers per row. */
   rect: Int32Array;
-  /** Borne de profondeur que la carte a écrite, biais de couche compris. */
+  /** Depth bound the GPU wrote, layer bias included. */
   nearest: Float32Array;
-  /** 1 quand la ligne porte le drapeau de coupe, donc ne peut jamais être rejetée. */
+  /** 1 when the row carries the cut flag, therefore can never be rejected. */
   clips: Uint8Array;
 }
 
 /**
- * Lit les rectangles et les profondeurs que la partition GPU a écrits pour la dernière image, avec
- * les entrées d'où elle les a tirés. `null` quand aucune partition ne tourne ou qu'aucune image ne
- * l'a encore encodée.
+ * Reads the rectangles and depths the GPU partition wrote for the last image, with the inputs it
+ * drew them from. `null` when no partition runs or no image has encoded it yet.
  */
 export async function readPartitionAudit(rt: WebgpuPagesRuntime): Promise<PartitionAudit | null> {
   const partition = rt.vis.gpuPartition,
@@ -69,8 +67,8 @@ export async function readPartitionAudit(rt: WebgpuPagesRuntime): Promise<Partit
     const rec = table.packedRecs[row];
     layers[row] = rec ? Math.min(rec.depthLayer, visLayerTop(rt.vis)) : 0;
     if (!rec) continue;
-    // Les coins que la carte a lus sont ceux-ci, arrondis en simple précision pour le transport :
-    // la référence part donc des mêmes doubles, et l'arrondi entre dans la borne d'erreur du noyau.
+    // The corners the GPU read are these, rounded to single precision for transport: the reference
+    // therefore starts from the same doubles, and the rounding enters the kernel's error bound.
     const at = boxCorners.at(table.packedPageIndex[row], rec, table.tableEpoch);
     for (let k = 0; k < BOX_CORNER_VALUES; k++)
       corners[row * BOX_CORNER_VALUES + k] = boxCorners.corners[at + k];

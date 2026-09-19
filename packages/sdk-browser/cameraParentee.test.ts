@@ -1,13 +1,13 @@
-// Défaut 5 : une caméra parentée doit donner la même pose à TOUS les sites du moteur.
+// Defect 5: a parented camera must give the same pose to ALL engine sites.
 //
-// Chaque site de `test/justesse/cameraSites.mjs` — uniformes de sélection, coupe, Hi-Z, rasters,
-// diagnostics, et les moteurs entiers sur le faux périphérique GPU — est appelé image après image
-// avec une caméra enfant d'un groupe d'hôte qui n'appartient à aucune scène préparée, puis avec la
-// caméra sans parent de même pose monde au bit près. Les deux relevés doivent être égaux.
+// Each site of `test/justesse/cameraSites.mjs` — selection uniforms, cut, Hi-Z, rasters,
+// diagnostics, and the whole engines on the fake GPU device — is called frame after frame
+// with a camera child of a host group that belongs to no prepared scene, then with the
+// parentless camera of the same world pose bit for bit. The two samples must be equal.
 //
-// Les deux contrats d'hôte sont exercés : celui qui remonte son rig avant l'image et celui qui ne le
-// fait pas. Le moteur doit être juste dans les deux cas, car un rig hors scène n'est remonté par
-// personne d'autre que lui.
+// Both host contracts are exercised: the one that walks its rig before the frame and the one
+// that does not. The engine must be correct in both cases, because an off-scene rig is walked
+// by no one but it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from '../../test/justesse/cameraRig.mjs';
@@ -20,7 +20,7 @@ type Site = {
   mesure: (etat: unknown, camera: unknown) => unknown;
 };
 
-/** Un site déroulé sur la séquence d'images, rendu en textes comparables au caractère près. */
+/** A site played over the frame sequence, rendered as texts comparable character for character. */
 async function releve(site: Site, camera: (pose: Pose) => unknown) {
   const etat = (await site.cree?.()) as
     { backend?: { dispose?: () => void }; dispose?: () => void } | undefined;
@@ -33,24 +33,28 @@ async function releve(site: Site, camera: (pose: Pose) => unknown) {
 }
 
 for (const hote of [false, true]) {
-  const contrat = hote ? 'remonté par l’hôte' : 'laissé tel quel par l’hôte';
+  const contrat = hote ? 'walked by the host' : 'left as-is by the host';
   for (const site of SITES as Site[])
-    test(`${site.nom} : caméra parentée, rig ${contrat}`, async () => {
+    test(`${site.nom}: parented camera, rig ${contrat}`, async () => {
       const rig = creeRig();
       const parentee = await releve(site, (pose) => poseRig(rig, pose, hote));
       const aplatie = await releve(site, (pose) => cameraAplatie(pose));
       for (let i = 0; i < POSES_PARENT.length; i++)
-        assert.equal(parentee[i], aplatie[i], `image ${i} : le rig ne donne pas la pose aplatie`);
+        assert.equal(
+          parentee[i],
+          aplatie[i],
+          `frame ${i}: the rig does not give the flattened pose`,
+        );
     });
 
-  test(`uniformes de sélection : vue relative et origine de rendu concordent, rig ${contrat}`, () => {
+  test(`selection uniforms: relative view and render origin agree, rig ${contrat}`, () => {
     const rig = creeRig();
     for (const pose of POSES_PARENT)
       assert.ok(
-        // Le seuil est celui de l'arrondi simple précision d'une sonde à quelques dizaines de
-        // mètres ; une pose fausse, elle, se compte en mètres.
+        // The threshold is that of the single-precision rounding of a probe a few tens of
+        // metres away; a wrong pose, for its part, is counted in metres.
         residuRepereDeRendu(poseRig(rig, pose, hote)) <= 1e-4,
-        'la vue relative et l’origine du repère de rendu décrivent deux caméras différentes',
+        'the relative view and the render-frame origin describe two different cameras',
       );
   });
 }

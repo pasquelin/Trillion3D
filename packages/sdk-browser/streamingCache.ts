@@ -22,7 +22,7 @@ export function createStreamingCache(context: StreamContext) {
       cache.delete(url);
       state.evictions++;
       evicted = true;
-      emit('page-cache-eviction', 'Page retirée du cache LRU', () => ({
+      emit('page-cache-eviction', 'Page evicted from the LRU cache', () => ({
         version: 1,
         url,
         reason: 'capacity',
@@ -36,27 +36,23 @@ export function createStreamingCache(context: StreamContext) {
     }
     if (!evicted && over()) {
       state.admissionBlocked++;
-      emit(
-        'page-cache-admission-blocked',
-        'Aucune page évictable pour respecter le budget',
-        () => ({
-          version: 1,
-          resident: cache.size,
-          residentBytes: state.cachedBytes,
-          maxPages: maxPages ?? null,
-          maxCachedBytes,
-          pinned: pinned.size,
-          loading: state.active,
-        }),
-      );
+      emit('page-cache-admission-blocked', 'No evictable page to meet the budget', () => ({
+        version: 1,
+        resident: cache.size,
+        residentBytes: state.cachedBytes,
+        maxPages: maxPages ?? null,
+        maxCachedBytes,
+        pinned: pinned.size,
+        loading: state.active,
+      }));
     }
   };
   /**
-   * Les adresses que l'image garde. L'ensemble épinglé est fonction de cette seule liste et du
-   * catalogue, qui ne bouge plus : une liste identique à celle de l'image précédente décrit donc
-   * exactement les épingles déjà posées, et la reposer une à une n'en changerait aucune. La
-   * comparaison est une passe d'identités de chaînes, sans hachage ; la reprise de place, elle,
-   * n'est pas sautée pour autant — chaque transfert terminé la rejoue de son côté.
+   * Addresses the frame keeps. The pinned set is a function of this one list and of the
+   * catalogue, which no longer moves: a list identical to the previous frame's therefore
+   * describes exactly the pins already set, and resetting them one by one would change none.
+   * The comparison is a pass of string identities, without hashing; reclaiming space is not
+   * skipped for all that — each finished transfer replays it on its side.
    */
   const retained: string[] = [];
   const same = (urls: readonly string[]) => {
@@ -64,14 +60,14 @@ export function createStreamingCache(context: StreamContext) {
     for (let i = 0; i < urls.length; i++) if (retained[i] !== urls[i]) return false;
     return true;
   };
-  /** L'émetteur de la dernière différence de rangs appliquée, ou `null` quand les épingles viennent
-   *  d'ailleurs — d'une liste d'adresses, ou d'un autre moteur. La différence suivante reprend alors
-   *  l'appartenance entière avant de suivre les rangs à nouveau. */
+  /** Emitter of the last rank delta applied, or `null` when pins come from
+   *  elsewhere — from an address list, or from another engine. The next delta then resets
+   *  full membership before following ranks again. */
   let rankOwner: readonly string[] | null = null;
-  /** Les épingles publiées en comptes : `added` et `removed` ne sont plus des listes recopiées à
-   *  chaque image, mais ce que la différence appliquée vient d'ajouter et de retirer. */
+  /** Pins published as counts: `added` and `removed` are no longer lists copied each
+   *  frame, but what the applied delta just added and removed. */
   const emitRetain = (requested: number, added: number, removed: number) =>
-    emit('page-retain', 'Épingles de pages mises à jour', () => ({
+    emit('page-retain', 'Page pins updated', () => ({
       version: 1,
       requested,
       retained: pinned.size,
@@ -79,7 +75,7 @@ export function createStreamingCache(context: StreamContext) {
       added,
       removed,
     }));
-  /** Repose l'appartenance entière : les épingles sont exactement les `urls` connues du catalogue. */
+  /** Reset full membership: pins are exactly the `urls` known to the catalogue. */
   const resetPins = (urls: Iterable<string>, requested: number) => {
     const before = pinned.size;
     pinned.clear();
@@ -88,7 +84,7 @@ export function createStreamingCache(context: StreamContext) {
     emitRetain(requested, pinned.size, before);
     return true;
   };
-  /** Les URL désignées par des rangs dans `urls` ; un rang hors table ne désigne rien. */
+  /** URLs designated by ranks in `urls`; a rank off the table designates nothing. */
   function* rankUrls(urls: readonly string[], ranks: ArrayLike<number>, count: number) {
     for (let i = 0; i < count; i++) {
       const url = urls[ranks[i]];
@@ -103,9 +99,9 @@ export function createStreamingCache(context: StreamContext) {
     return resetPins(urls, urls.length);
   };
   /**
-   * Les épingles par différence de rangs. Le cas courant ne touche que ce qui a bougé ; une image qui
-   * garde le même ensemble ne touche rien du tout. La reprise après un autre émetteur repose
-   * l'appartenance entière, une fois, puis repart en différence.
+   * Pins by rank delta. The common case only touches what moved; a frame that keeps the
+   * same set touches nothing at all. Resume after another emitter resets full membership
+   * once, then continues by delta.
    */
   const retainRanks = (delta: HostRetentionDelta) => {
     const { urls, entered, exited } = delta;

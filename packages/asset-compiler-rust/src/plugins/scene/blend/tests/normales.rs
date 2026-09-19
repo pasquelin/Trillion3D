@@ -1,17 +1,17 @@
-//! Les normales d'un maillage Blender : faces nettes, faces lisses, et les arêtes que le fichier
-//! marque dures. Un toit de deux versants suffit à les séparer toutes les trois.
+//! Normals of a Blender mesh: sharp faces, smooth faces, and the edges the file marks hard. A
+//! roof of two slopes is enough to separate all three.
 use super::*;
 
-/// Un toit de deux quadrilatères qui partagent l'arête de faîte, `v2`–`v3`. Les deux versants ont la
-/// même aire : leur moyenne au faîte est donc exactement verticale, ce qui se lit à l'œil nu.
+/// A roof of two quads that share the ridge edge, `v2`–`v3`. Both slopes have the same area:
+/// their average at the ridge is therefore exactly vertical, which reads by eye.
 fn roof(sharp_faces: Vec<bool>, sharp_corners: Vec<bool>) -> Geometry {
     Geometry {
         positions: vec![
-            0.0, 0.0, 0.0, // v0, égout gauche
+            0.0, 0.0, 0.0, // v0, left eave
             0.0, 1.0, 0.0, // v1
-            1.0, 0.0, 1.0, // v2, faîte
+            1.0, 0.0, 1.0, // v2, ridge
             1.0, 1.0, 1.0, // v3
-            2.0, 0.0, 0.0, // v4, égout droit
+            2.0, 0.0, 0.0, // v4, right eave
             2.0, 1.0, 0.0, // v5
         ],
         corners: vec![0, 2, 3, 1, 2, 4, 5, 3],
@@ -23,17 +23,17 @@ fn roof(sharp_faces: Vec<bool>, sharp_corners: Vec<bool>) -> Geometry {
     }
 }
 
-/// La normale d'un coin, telle que le calcul commun la rend.
+/// The normal of a corner, as the shared computation yields it.
 fn corner(shaded: &[f32], rank: usize) -> [f32; 3] {
     [shaded[rank * 3], shaded[rank * 3 + 1], shaded[rank * 3 + 2]]
 }
 
-/// Deux normales se ressemblent-elles au millionième près ?
+/// Do two normals look alike to a millionth?
 fn close(left: [f32; 3], right: [f32; 3]) -> bool {
     (0..3).all(|axis| (left[axis] - right[axis]).abs() < 1e-6)
 }
 
-/// La pente d'un versant, de longueur un : c'est la normale à plat de chaque face du toit.
+/// The slope of a roof side, of length one: it is the flat normal of each face of the roof.
 const LEFT: [f32; 3] = [
     -std::f32::consts::FRAC_1_SQRT_2,
     0.0,
@@ -45,8 +45,8 @@ const RIGHT: [f32; 3] = [
     std::f32::consts::FRAC_1_SQRT_2,
 ];
 
-// Comportement : une face nette garde sa propre normale sur chacun de ses coins ; deux faces lisses
-// qui partagent une arête douce moyennent la leur sur les coins de cette arête.
+// Behaviour: a sharp face keeps its own normal on each of its corners; two smooth faces that
+// share a soft edge average theirs on the corners of that edge.
 #[test]
 fn sharp_faces_keep_their_own_normal_and_smooth_faces_share_it() {
     let flat = normals::corners(&roof(vec![true, true], Vec::new()).surface()).normals;
@@ -56,12 +56,12 @@ fn sharp_faces_keep_their_own_normal_and_smooth_faces_share_it() {
         assert!(close(corner(&flat, rank + 4), RIGHT), "{flat:?}");
     }
     let smooth = normals::corners(&roof(vec![false, false], Vec::new()).surface()).normals;
-    // Les quatre coins du faîte — `v2` et `v3` dans chacune des deux faces — moyennent les deux
-    // versants : leur normale est verticale.
+    // The four ridge corners — `v2` and `v3` in each of the two faces — average the two slopes:
+    // their normal is vertical.
     for rank in [1, 2, 4, 7] {
         assert!(close(corner(&smooth, rank), [0.0, 0.0, 1.0]), "{smooth:?}");
     }
-    // Les égouts ne touchent qu'un versant : ils gardent sa pente.
+    // The eaves only touch one slope: they keep its grade.
     for rank in [0, 3] {
         assert!(close(corner(&smooth, rank), LEFT), "{smooth:?}");
     }
@@ -70,12 +70,12 @@ fn sharp_faces_keep_their_own_normal_and_smooth_faces_share_it() {
     }
 }
 
-// Constat 22 : une arête marquée dure sépare les deux faces qu'elle borde, même lisses. Le faîte du
-// toit rendait une normale verticale des deux côtés — une arête vive arrondie —, alors que le
-// fichier la déclare dure : chaque versant garde désormais sa propre pente sur ses quatre coins.
+// Finding 22: an edge marked hard separates the two faces it borders, even smooth ones. The
+// roof ridge yielded a vertical normal on both sides — a sharp edge rounded —, whereas the file
+// declares it hard: each slope now keeps its own grade on its four corners.
 #[test]
 fn a_hard_edge_splits_the_normals_of_the_two_smooth_faces_it_borders() {
-    // L'arête de faîte part du coin 1 dans la première face et du coin 7 dans la seconde.
+    // The ridge edge leaves corner 1 in the first face and corner 7 in the second.
     let mut hard = vec![false; 8];
     hard[1] = true;
     hard[7] = true;
@@ -83,24 +83,24 @@ fn a_hard_edge_splits_the_normals_of_the_two_smooth_faces_it_borders() {
     for rank in 0..4 {
         assert!(
             close(corner(&shaded.normals, rank), LEFT),
-            "le versant gauche garde sa pente : {:?}",
+            "the left slope keeps its grade: {:?}",
             shaded.normals
         );
         assert!(
             close(corner(&shaded.normals, rank + 4), RIGHT),
-            "le versant droit garde la sienne : {:?}",
+            "the right slope keeps its own: {:?}",
             shaded.normals
         );
     }
     assert_ne!(
         shaded.groups[1], shaded.groups[7],
-        "les deux coins du faîte ne sont plus du même éventail"
+        "the two ridge corners are no longer of the same fan"
     );
 }
 
-// Constat 22, côté fichier : c'est bien l'attribut `sharp_edge` de la fixture qui décide. La même
-// fixture, une fois toutes arêtes douces et une fois toutes arêtes dures, rendait exactement le même
-// maillage : la marque du fichier n'était jamais lue.
+// Finding 22, file side: it is indeed the fixture's `sharp_edge` attribute that decides. The
+// same fixture, once with all edges soft and once with all edges hard, yielded exactly the same
+// mesh: the file's mark was never read.
 #[test]
 fn the_sharp_edge_attribute_of_the_file_changes_the_normals_it_computes() {
     let vertices = |bytes: &[u8], tag: &str| {
@@ -112,13 +112,13 @@ fn the_sharp_edge_attribute_of_the_file_changes_the_normals_it_computes() {
             .iter()
             .flat_map(|mesh| mesh["primitives"].as_array().expect("primitives"))
             .filter_map(|part| part["attributes"]["NORMAL"].as_u64())
-            .map(|rank| accessors[rank as usize]["count"].as_u64().expect("compte"))
+            .map(|rank| accessors[rank as usize]["count"].as_u64().expect("count"))
             .sum::<u64>()
     };
     let soft = vertices(&surgery::with_sharp_edges(false), "aretes-douces");
     let hard = vertices(&surgery::with_sharp_edges(true), "aretes-dures");
     assert!(
         hard > soft,
-        "des arêtes toutes dures coupent les normales, donc écrivent plus de sommets : {soft} contre {hard}"
+        "all-hard edges split the normals, therefore write more vertices: {soft} against {hard}"
     );
 }

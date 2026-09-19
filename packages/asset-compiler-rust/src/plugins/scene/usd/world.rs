@@ -1,131 +1,131 @@
-//! Ce qu'un parcours de scène USD a sous la main, et les noms de tout ce qu'il ne rend pas.
+//! What a USD scene walk has at hand, and the names of everything it does not yield.
 //!
-//! Aucun de ces refus n'est un échec de compilation : un `PointInstancer` au milieu d'une scène ne
-//! doit pas empêcher d'en voir les murs. Ils sont comptés, publiés dans `unsupported` du manifeste,
-//! et le rapport dit combien de fois chacun a été rencontré. Une scène qui, après tout cela, ne
-//! porte aucune surface visible est refusée, elle, par `IMPORT_EMPTY`.
+//! None of these refusals is a compilation failure: a `PointInstancer` in the middle of a scene
+//! must not prevent seeing its walls. They are counted, published in the manifest's
+//! `unsupported`, and the report says how many times each was met. A scene that, after all
+//! that, carries no visible surface is refused, itself, by `IMPORT_EMPTY`.
 use super::*;
 
-/// Un `PointInstancer` : ses instances sont décrites par des tableaux parallèles et un prototype
-/// indexé, que ce pilote ne déplie pas.
+/// A `PointInstancer`: its instances are described by parallel arrays and an indexed prototype,
+/// which this driver does not unfold.
 pub(super) const POINT_INSTANCER: &str = "usd-point-instancer-unsupported";
-/// Des courbes (`BasisCurves`, `NurbsCurves`, `HermiteCurves`) : une courbe n'est pas une surface.
+/// Curves (`BasisCurves`, `NurbsCurves`, `HermiteCurves`): a curve is not a surface.
 pub(super) const CURVES: &str = "usd-curves-unsupported";
-/// Un volume (`Volume`, champs OpenVDB ou field3d) : pas une surface non plus.
+/// A volume (`Volume`, OpenVDB or field3d fields): not a surface either.
 pub(super) const VOLUME: &str = "usd-volume-unsupported";
-/// Un squelette ou une animation de squelette (`SkelRoot`, `Skeleton`, `SkelAnimation`, `BlendShape`).
+/// A skeleton or skeleton animation (`SkelRoot`, `Skeleton`, `SkelAnimation`, `BlendShape`).
 pub(super) const SKEL: &str = "usd-skel-unsupported";
-/// Une caméra : une scène importée n'en apporte pas, l'hôte place la sienne.
+/// A camera: an imported scene does not bring one, the host places its own.
 pub(super) const CAMERA: &str = "usd-camera-unsupported";
-/// Un schéma de `UsdLux` qui ne se ramène pas à une lampe ponctuelle du glTF — `DomeLight`,
-/// `CylinderLight`, `GeometryLight`, `PortalLight`, et tous les `LightFilter`. Les sphères, les
-/// disques, les rectangles et les lampes lointaines, eux, sont importés.
+/// A `UsdLux` schema that does not fold into a glTF point light — `DomeLight`, `CylinderLight`,
+/// `GeometryLight`, `PortalLight`, and every `LightFilter`. Spheres, disks, rectangles and
+/// distant lights, on the other hand, are imported.
 pub(super) const LIGHT: &str = "usd-light-unsupported";
-/// Une surface paramétrique que ce pilote ne pave pas (`NurbsPatch`).
+/// A parametric surface this driver does not tile (`NurbsPatch`).
 pub(super) const PATCH: &str = "usd-patch-unsupported";
-/// Un `Mesh` dont `subdivisionScheme` n'est pas `none` : les polygones sont rendus **plats**, sans
-/// la subdivision demandée, ce qui change la silhouette de la surface.
+/// A `Mesh` whose `subdivisionScheme` is not `none`: polygons are yielded **flat**, without the
+/// requested subdivision, which changes the surface silhouette.
 pub(super) const SUBDIVISION: &str = "usd-subdivision-unsupported";
-/// Un jeu de variantes est présent : seule la sélection par défaut de la composition est lue.
+/// A variant set is present: only the composition's default selection is read.
 pub(super) const VARIANTS: &str = "usd-variants-unsupported";
-/// Une référence, une charge (`payload`) ou une sous-couche que la composition n'a pas résolue —
-/// le fichier visé est absent, illisible, ou le chemin ne se résout pas.
+/// A reference, payload or sublayer that composition did not resolve — the target file is
+/// missing, unreadable, or the path does not resolve.
 pub(super) const COMPOSITION: &str = "usd-composition-invalid";
-/// Un attribut lu à son premier échantillon temporel, faute de valeur par défaut : la scène est
-/// figée sur cette valeur, aucune animation n'est portée.
+/// An attribute read at its first time sample, for lack of a default value: the scene is frozen
+/// on that value, no animation is carried.
 pub(super) const TIME_SAMPLE: &str = "usd-animation-first-sample";
-/// Un `Mesh` dont les tableaux obligatoires manquent ou se contredisent.
+/// A `Mesh` whose required tables are missing or contradict each other.
 pub(super) const MESH_INVALID: &str = "usd-mesh-invalid";
-/// Une face qu'un `Mesh` déclare et que ses tableaux ne portent pas : un indice hors du tableau de
-/// points, un indice négatif, moins de trois coins, ou un indice de primvar qui sort de son
-/// tableau. Elle est retirée de la surface plutôt que repliée sur le premier point.
+/// A face a `Mesh` declares and that its tables do not carry: an index outside the point table,
+/// a negative index, fewer than three corners, or a primvar index that leaves its table. It is
+/// removed from the surface rather than folded onto the first point.
 pub(super) const FACE_INVALID: &str = "usd-face-invalid";
-/// Une face que `holeIndices` nomme : OpenUSD la rend invisible, quel que soit le schéma de
-/// subdivision. Elle est retirée de l'émission plutôt que rendue pleine, et ce compte le dit.
+/// A face that `holeIndices` names: OpenUSD renders it invisible, whatever the subdivision
+/// scheme. It is removed from emission rather than rendered solid, and this count says so.
 pub(super) const FACE_HOLE: &str = "usd-face-hole";
-/// Une face que la coupe par oreilles n'a pas su découper entièrement : polygone qui se recoupe, ou
-/// sans plan — coins tous alignés, aire nulle. Elle sort en éventail depuis son premier coin, ce
-/// qui peut la remplir au-delà de sa silhouette, et c'est ce que ce compte dit.
+/// A face that ear clipping could not cut entirely: a self-intersecting polygon, or with no
+/// plane — corners all colinear, zero area. It comes out as a fan from its first corner, which
+/// may fill it beyond its silhouette, and that is what this count says.
 pub(super) const NGON_UNCUT: &str = "usd-ngon-untriangulable";
-/// Une opération de transformation que ce pilote ne compose pas (`!resetXformStack!`, inverse d'une
-/// matrice, opération de type inconnu).
+/// A transform operation this driver does not compose (`!resetXformStack!`, inverse of a
+/// matrix, operation of unknown type).
 pub(super) const XFORM_UNSUPPORTED: &str = "usd-xform-unsupported";
-/// Une transformation dont les nombres ne sont pas finis : le nœud reste à l'identité.
+/// A transform whose numbers are not finite: the node stays at identity.
 pub(super) const XFORM_INVALID: &str = "usd-xform-invalid";
-/// Un `Material` sans `UsdPreviewSurface` atteignable depuis `outputs:surface`.
+/// A `Material` without a `UsdPreviewSurface` reachable from `outputs:surface`.
 pub(super) const SURFACE_UNSUPPORTED: &str = "usd-surface-unsupported";
-/// Une texture dont le fichier est absent, ou hors du dossier de la source.
+/// A texture whose file is missing, or outside the source directory.
 pub(super) const TEXTURE_MISSING: &str = "usd-texture-missing";
-/// Une opacité portée par une image que la couleur de base ne porte pas : glTF ne lit l'alpha que
-/// dans `baseColorTexture`, et deux images distinctes ne s'y ramènent pas sans en recomposer une
-/// troisième. Le matériau garde alors l'opacité écrite, et rien de l'image d'opacité n'est versé.
+/// An opacity carried by an image that the base colour does not carry: glTF reads alpha only in
+/// `baseColorTexture`, and two distinct images do not fold into it without recomposing a third.
+/// The material then keeps the written opacity, and nothing of the opacity image is poured.
 pub(super) const OPACITY_TEXTURE: &str = "usd-opacity-texture-unsupported";
-/// Une entrée branchée sur un canal que glTF ne lit pas à cette place : sa carte métal/rugosité
-/// prend le métal dans le canal bleu et la rugosité dans le vert. La carte est portée telle quelle
-/// et l'écart est compté.
+/// An input wired onto a channel glTF does not read at that slot: its metal/roughness map takes
+/// metal in the blue channel and roughness in the green. The map is carried as-is and the
+/// mismatch is counted.
 pub(super) const TEXTURE_CHANNEL: &str = "usd-texture-channel-unsupported";
-/// Un mode de répétition que glTF n'a pas — `black`, qui borde l'image de transparent, ou
-/// `useMetadata`, qui laisse le fichier décider : la texture est répétée, comme USD le fait par
-/// défaut, et l'écart est compté.
+/// A wrap mode glTF does not have — `black`, which borders the image with transparent, or
+/// `useMetadata`, which lets the file decide: the texture is repeated, as USD does by default,
+/// and the mismatch is counted.
 pub(super) const TEXTURE_WRAP: &str = "usd-texture-wrap-unsupported";
-/// Un `scale` ou un `bias` de texture qu'un facteur glTF ne porte pas : glTF multiplie sa texture
-/// par un facteur et n'y ajoute rien, donc un `bias` non nul, un `scale` différent d'un canal de
-/// couleur à l'autre ou un `scale` d'alpha qui ne vaut pas un restent hors de la scène.
+/// A texture `scale` or `bias` that a glTF factor does not carry: glTF multiplies its texture by
+/// a factor and adds nothing, so a non-zero `bias`, a `scale` that differs from one colour
+/// channel to another, or an alpha `scale` that is not one stay out of the scene.
 pub(super) const TEXTURE_SCALE: &str = "usd-texture-scale-unsupported";
-/// Un `sourceColorSpace` contraire au rôle de l'entrée qui lit la texture : une couleur déclarée
-/// `raw`, ou une donnée déclarée `sRGB`. Les octets passent tels quels, aucun n'est réencodé.
+/// A `sourceColorSpace` contrary to the role of the input that reads the texture: a colour
+/// declared `raw`, or a datum declared `sRGB`. Bytes pass as-is, none is re-encoded.
 pub(super) const TEXTURE_COLOUR_SPACE: &str = "usd-texture-colour-space-unsupported";
-/// Un `UsdPreviewSurface` décrit par son flux de travail spéculaire — `useSpecularWorkflow` ou une
-/// couleur spéculaire écrite : le métal et la rugosité de glTF ne le portent pas, et l'approcher
-/// par eux réinventerait la surface.
+/// A `UsdPreviewSurface` described by its specular workflow — `useSpecularWorkflow` or a
+/// written specular colour: glTF metal and roughness do not carry it, and approximating it by
+/// them would reinvent the surface.
 pub(super) const SPECULAR_WORKFLOW: &str = "usd-specular-workflow-unsupported";
-/// Un vernis (`clearcoat` non nul, avec sa rugosité) : le glTF de base n'a pas cette couche.
+/// A clearcoat (`clearcoat` non-zero, with its roughness): base glTF has no such layer.
 pub(super) const CLEARCOAT: &str = "usd-clearcoat-unsupported";
-/// Un indice de réfraction autre que celui par défaut : le glTF de base n'en porte pas.
+/// An index of refraction other than the default: base glTF does not carry one.
 pub(super) const IOR: &str = "usd-ior-unsupported";
-/// Une normale écrite comme valeur, sans texture pour la porter : glTF n'a pas de normale
-/// constante par matériau, et la surface garde celle de sa géométrie.
+/// A normal written as a value, with no texture to carry it: glTF has no per-material constant
+/// normal, and the surface keeps that of its geometry.
 pub(super) const NORMAL_VALUE: &str = "usd-normal-value-unsupported";
-/// Une texture que ce pilote ne peut pas accrocher telle quelle : jeu d'UV autre que celui porté,
-/// motif `<UDIM>`, ou transformation d'UV déclarée.
+/// A texture this driver cannot hang as-is: a UV set other than the one carried, a `<UDIM>`
+/// pattern, or a declared UV transform.
 pub(super) const TEXTURE_UNSUPPORTED: &str = "usd-texture-unsupported";
 
-/// Ce qu'un parcours a sous la main : la scène en construction, la scène USD composée, et la racine
-/// où les URI d'images se résolvent.
+/// What a walk has at hand: the scene under construction, the composed USD stage, and the root
+/// where image URIs resolve.
 pub(super) struct World<'a> {
     pub(super) stage: &'a usd::Stage,
     pub(super) scene: &'a mut Scene,
-    /// Le dossier contre lequel les URI relatives d'images se résolvent, `scene::image_root`.
+    /// Directory against which relative image URIs resolve, `scene::image_root`.
     pub(super) images: &'a Path,
-    /// Le même dossier sous sa forme canonique : la composition résout les chemins d'asset sous
-    /// celle-là, et c'est elle qu'il faut retrancher pour retrouver l'URI d'une image.
+    /// The same directory in its canonical form: composition resolves asset paths under that
+    /// one, and it is the one that must be stripped to recover an image URI.
     pub(super) root: PathBuf,
-    /// Les matériaux déjà résolus, par chemin de prim ; `None` pour un matériau illisible.
+    /// Materials already resolved, by prim path; `None` for an unreadable material.
     pub(super) materials: HashMap<String, Option<usize>>,
-    /// Les maillages déjà construits, par (chemin de la donnée, matériaux liés) : deux instances du
-    /// même prototype aux mêmes matériaux citent le même maillage glTF.
+    /// Meshes already built, by (data path, bound materials): two instances of the same
+    /// prototype with the same materials cite the same glTF mesh.
     pub(super) meshes: HashMap<(String, Vec<Option<usize>>), usize>,
     pub(super) cancelled: &'a AtomicBool,
 }
 
 impl World<'_> {
-    /// L'annulation, vérifiée à chaque prim : le parcours s'arrête, `convert` refuse ensuite.
+    /// Cancellation, checked at each prim: the walk stops, `convert` then refuses.
     pub(super) fn check(&self) -> Option<()> {
         (!self.cancelled.load(Ordering::Relaxed)).then_some(())
     }
-    /// Compte un refus nommé une fois.
+    /// Counts a named refusal once.
     pub(super) fn refuse(&mut self, reason: &str) {
         self.scene.report.add(reason);
     }
-    /// Compte ce que le rapport publie en clair.
+    /// Counts what the report publishes in the open.
     pub(super) fn count(&mut self, what: &'static str, by: usize) {
         self.scene.count(what, by);
     }
 }
 
-/// Le refus nommé qu'appelle un type de prim que ce pilote ne rend pas, et `None` pour les types
-/// qu'il traverse ou lit. Un type inconnu n'est pas refusé : il est traversé comme un groupe, ce qui
-/// laisse passer les surfaces qu'il porte au lieu de couper une branche entière.
+/// Named refusal a prim type this driver does not yield calls, and `None` for types it walks or
+/// reads. An unknown type is not refused: it is walked as a group, which lets surfaces it
+/// carries through instead of cutting a whole branch.
 pub(super) fn refusal(type_name: &str) -> Option<&'static str> {
     Some(match type_name {
         "PointInstancer" => POINT_INSTANCER,

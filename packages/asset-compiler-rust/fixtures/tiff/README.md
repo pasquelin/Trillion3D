@@ -1,62 +1,62 @@
-# Fixture dorée — pilote TIFF
+# Golden fixture — TIFF driver
 
-TIFF est un conteneur de champs plutôt qu'un format : le pilote déclare ses profils un par un et
-refuse le reste en le nommant. La fixture suit cette coupe — sept fichiers que le pilote lit sans
-perte, sept qu'il doit refuser. La dorée `src/plugins/tests/tiff.rs` décode les premiers et compare
-les pixels RGBA8 **un par un** à une référence écrite en clair dans le test : une image de 4 × 2
-pixels dont on connaît les huit valeurs.
+TIFF is a field container rather than a format: the driver declares its profiles one by one and
+refuses the rest by name. The fixture follows that cut — seven files the driver reads
+losslessly, seven it must refuse. The golden `src/plugins/tests/tiff.rs` decodes the first set and compares
+the RGBA8 pixels **one by one** against a reference written in the clear in the test: a 4 × 2
+pixel image whose eight values are known.
 
-## Ce que le pilote lit
+## What the driver reads
 
-| fichier                  | profil        | compression | ce qu'il met sous surveillance                       |
-| ------------------------ | ------------- | ----------- | ---------------------------------------------------- |
-| `rgb8-brut-ii.tiff`      | RGB 8 bits    | aucune (1)  | IFD en petit-boutien, tableau `BitsPerSample` hors champ, alpha rempli à 255 |
-| `rgb8-brut-mm.tiff`      | RGB 8 bits    | aucune (1)  | le même fichier en gros-boutien : l'ordre des octets ne change pas un pixel |
-| `rgb8-lzw.tiff`          | RGB 8 bits    | LZW (5)     | codes à longueur variable, mêmes pixels que le brut   |
-| `rgb8-deflate.tiff`      | RGB 8 bits    | Deflate (8) | l'autre tag du même codec                             |
-| `rgb8-packbits.tiff`     | RGB 8 bits    | PackBits (32773) | paquets répétés et paquets bruts                 |
-| `rgba8-brut.tiff`        | RGBA 8 bits   | aucune (1)  | `ExtraSamples = 2` (alpha non associé) : les quatre octets passent tels quels, alpha nul compris |
-| `gris8-brut.tiff`        | gris 8 bits   | aucune (1)  | noir à zéro, valeur recopiée sur les trois canaux, alpha 255 |
+| file                     | profile       | compression | what it puts under watch                       |
+| ------------------------ | ------------- | ----------- | ---------------------------------------------- |
+| `rgb8-brut-ii.tiff`      | 8-bit RGB     | none (1)    | little-endian IFD, `BitsPerSample` array off-field, alpha filled to 255 |
+| `rgb8-brut-mm.tiff`      | 8-bit RGB     | none (1)    | the same file big-endian: byte order does not change a pixel |
+| `rgb8-lzw.tiff`          | 8-bit RGB     | LZW (5)     | variable-length codes, same pixels as the raw  |
+| `rgb8-deflate.tiff`      | 8-bit RGB     | Deflate (8) | the other tag of the same codec                |
+| `rgb8-packbits.tiff`     | 8-bit RGB     | PackBits (32773) | repeated packets and raw packets          |
+| `rgba8-brut.tiff`        | 8-bit RGBA    | none (1)    | `ExtraSamples = 2` (unassociated alpha): the four bytes pass as-is, including a zero alpha |
+| `gris8-brut.tiff`        | 8-bit grey    | none (1)    | black at zero, value copied onto the three channels, alpha 255 |
 
-## Ce que le pilote refuse, et sous quel nom
+## What the driver refuses, and under which name
 
-| fichier                      | refus                      | pourquoi                                             |
-| ---------------------------- | -------------------------- | ---------------------------------------------------- |
-| `gris16.tiff`                | `image-depth-unsupported`  | 16 bits par composante : `DecodedImage` n'a que `Rgba8`, l'abaisser en silence ajouterait une perte |
-| `palette8.tiff`              | `image-profile-unsupported`| `Photometric = 3` ; la bibliothèque de lecture n'étend pas les palettes TIFF |
-| `rgb8-jpeg.tiff`             | `image-profile-unsupported`| JPEG-in-TIFF (compression 7)                          |
-| `ccitt-g4.tiff`              | `image-profile-unsupported`| CCITT Group 4 (compression 4), bilevel                |
-| `deux-pages.tiff`            | `image-profile-unsupported`| deux IFD : une seule page serait rendue, l'autre disparaîtrait sans rapport |
-| `rgb8-plans-separes.tiff`    | `image-profile-unsupported`| `PlanarConfiguration = 2` : une bande par composante  |
-| `rgba8-alpha-associe.tiff`   | `image-profile-unsupported`| `ExtraSamples = 1`, alpha prémultiplié : le rendre tel quel changerait les couleurs |
-| `tronque.tif`                | `image-decode-failed`      | 31 octets sur 196 748 : l'entête est un entête TIFF, c'est la lecture qui échoue |
+| file                         | rejection                  | why                                              |
+| ---------------------------- | -------------------------- | ------------------------------------------------ |
+| `gris16.tiff`                | `image-depth-unsupported`  | 16 bits per component: `DecodedImage` has only `Rgba8`, silently narrowing would add loss |
+| `palette8.tiff`              | `image-profile-unsupported`| `Photometric = 3`; the reading library does not expand TIFF palettes |
+| `rgb8-jpeg.tiff`             | `image-profile-unsupported`| JPEG-in-TIFF (compression 7)                     |
+| `ccitt-g4.tiff`              | `image-profile-unsupported`| CCITT Group 4 (compression 4), bilevel           |
+| `deux-pages.tiff`            | `image-profile-unsupported`| two IFDs: a single page would be rendered, the other would vanish with no report |
+| `rgb8-plans-separes.tiff`    | `image-profile-unsupported`| `PlanarConfiguration = 2`: one strip per component |
+| `rgba8-alpha-associe.tiff`   | `image-profile-unsupported`| `ExtraSamples = 1`, premultiplied alpha: rendering it as-is would change the colours |
+| `tronque.tif`                | `image-decode-failed`      | 31 bytes out of 196,748: the header is a TIFF header, it is the read that fails |
 
-BigTIFF n'a pas de fichier : ses quatre premiers octets (`II+\0`, `MM\0+`) suffisent et sont écrits
-dans la dorée. Le pilote les revendique pour nommer le refus plutôt que de laisser le fichier sortir
-en format inconnu.
+BigTIFF has no file: its first four bytes (`II+\0`, `MM\0+`) suffice and are written
+in the golden. The driver claims them so the rejection is named rather than letting the file come out
+as an unknown format.
 
-## Provenance et licence
+## Provenance and licence
 
-Tous ces fichiers sont **CC0-1.0** (<https://creativecommons.org/publicdomain/zero/1.0/>), voir
-[LICENSE.txt](LICENSE.txt) — redistribuables sans condition, aucun contenu de tiers.
+All these files are **CC0-1.0** (<https://creativecommons.org/publicdomain/zero/1.0/>), see
+[LICENSE.txt](LICENSE.txt) — redistributable without condition, no third-party content.
 
-- `rgb8-brut-ii.tiff`, `rgb8-brut-mm.tiff`, `rgb8-plans-separes.tiff` et `rgba8-alpha-associe.tiff`
-  sont **écrits octet par octet** depuis la spécification publique « TIFF Revision 6.0 » (Adobe
-  Developers Association, 3 juin 1992) : entête, IFD unique trié par tag, tableaux hors champ,
-  bandes. Auteur : corpus WebGeometry, 2026-09-15.
-- Les compressées et les pièges (`rgb8-lzw`, `rgb8-deflate`, `rgb8-packbits`, `rgb8-jpeg`,
-  `rgba8-brut`, `gris8-brut`, `palette8`, `gris16`, `deux-pages`, `ccitt-g4`) sortent de **Pillow
-  12.2.0**, encodeur extérieur à la bibliothèque que le pilote emploie pour lire : un piège doit
-  venir d'ailleurs que du lecteur qu'il met à l'épreuve.
-- `tronque.tif` est repris tel quel de `test/assets/limites/truncated-tif/truncated.tif` (corpus
-  WebGeometry, généré par `test/assets/tools/texture_assets.py`). Le dossier `test/assets/` est
-  livré hors git : le fichier est copié ici pour que la dorée n'en dépende pas.
+- `rgb8-brut-ii.tiff`, `rgb8-brut-mm.tiff`, `rgb8-plans-separes.tiff` and `rgba8-alpha-associe.tiff`
+  are **written byte by byte** from the public specification “TIFF Revision 6.0” (Adobe
+  Developers Association, 3 June 1992): header, single IFD sorted by tag, off-field arrays,
+  strips. Author: WebGeometry corpus, 2026-09-15.
+- The compressed files and the traps (`rgb8-lzw`, `rgb8-deflate`, `rgb8-packbits`, `rgb8-jpeg`,
+  `rgba8-brut`, `gris8-brut`, `palette8`, `gris16`, `deux-pages`, `ccitt-g4`) come from **Pillow
+  12.2.0**, an encoder outside the library the driver uses to read: a trap must
+  come from somewhere other than the reader it puts on trial.
+- `tronque.tif` is taken as-is from `test/assets/limites/truncated-tif/truncated.tif` (WebGeometry
+  corpus, generated by `test/assets/tools/texture_assets.py`). The `test/assets/` folder is
+  shipped off git: the file is copied here so the golden does not depend on it.
 
-Les pixels des quatorze fichiers ont été relus par **Pillow**, décodeur indépendant, avant d'être
-commités : une erreur de l'encodeur et du décodeur à la fois ne passerait pas la double lecture.
+The pixels of the fourteen files were re-read by **Pillow**, an independent decoder, before being
+committed: an error in both the encoder and the decoder would not pass the double read.
 
-Les trois TIFF 256 × 256 de `test/assets/textures/tiff-matrix/` (RGB8 brut, RGB8 LZW, gris16) et un
-RGB8 en tuiles de 16 × 16 couvrent la même matrice à grande taille. Le pilote a été passé dessus
-pendant le développement — sha256 des pixels RGBA8 identique à celui de Pillow pour les trois cas
-lisibles, refus nommé pour le gris16. Ces fichiers ne sont pas commités ici : un quart de mégaoctet
-de pixels qu'on ne peut pas écrire en clair n'est pas une fixture minimale.
+The three 256 × 256 TIFFs of `test/assets/textures/tiff-matrix/` (raw RGB8, LZW RGB8, grey16) and one
+RGB8 in 16 × 16 tiles cover the same matrix at large size. The driver was run over them
+during development — sha256 of the RGBA8 pixels identical to Pillow's for the three readable
+cases, named rejection for grey16. These files are not committed here: a quarter of a megabyte
+of pixels that cannot be written in the clear is not a minimal fixture.

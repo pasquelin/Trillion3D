@@ -8,15 +8,15 @@ import type { HizPage, HizPyramid } from './hizTypes.ts';
 
 export type TemporalHizState = {
   pyramid?: HizPyramid;
-  /** La pyramide de la passe 1, distincte de celle de l'historique : les deux vivent dans la même
-   *  image, chacune garde son tampon d'une image sur l'autre. */
+  /** Pass-1 pyramid, distinct from the history's: both live in the same frame, each keeps its
+   *  buffer from one frame to the next. */
   passPyramid?: HizPyramid;
   camera?: EngineCamera;
   viewport?: [number, number];
 };
 
-/** Même tolérance, même parcours, sans allouer : `Array.prototype.every` demandait une fermeture
- *  par matrice comparée, deux fois par appel et à chaque image. */
+/** Same tolerance, same walk, without allocating: `Array.prototype.every` asked for a closure
+ *  per compared matrix, twice per call and every frame. */
 function presqueEgaux(a: ArrayLike<number>, b: ArrayLike<number>) {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) if (!(Math.abs(a[i] - b[i]) <= 1e-7)) return false;
@@ -26,17 +26,17 @@ function presqueEgaux(a: ArrayLike<number>, b: ArrayLike<number>) {
 /** Reuse depth only for an identical view. Any camera movement, cut or projection change starts a new history. */
 export function sameHizView(previous: EngineCamera | undefined, current: EngineCamera) {
   if (!previous) return false;
-  // `previous` est la caméra gardée par `holdCameraWorld` : les mêmes seize nombres de vue et de
-  // projection que l'entrée d'image a recopiés, sans rien à remonter ni à réinverser.
+  // `previous` is the camera `holdCameraWorld` holds: the same sixteen view and projection
+  // numbers the frame entry copied, with nothing to walk up or invert again.
   return (
     presqueEgaux(previous.view, current.view) &&
     presqueEgaux(previous.projection, current.projection)
   );
 }
 
-/** Retient l'image qui vient d'être rasterisée : la caméra est recopiée dans celle que l'historique
- *  garde déjà, jamais clonée, la pyramide réécrite dans son propre tampon et le viewport sur place.
- *  Même pose, même pyramide, sans allocation. */
+/** Holds the frame that was just rasterised: the camera is copied into the one history already
+ *  holds, never cloned, the pyramid rewritten in its own buffer and the viewport in place.
+ *  Same pose, same pyramid, no allocation. */
 function retiens(
   history: TemporalHizState,
   cam: EngineCamera,

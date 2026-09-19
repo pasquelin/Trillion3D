@@ -1,7 +1,6 @@
-// Les deux listes que l'hôte demande au moteur WebGPU après le rendu : mêmes adresses qu'un
-// dédoublonnage par ensemble de chaînes, et rendues telles quelles tant que rien de ce dont elles
-// dépendent n'a bougé. Celle des pages à charger ne parcourt plus la coupe : la différence tient
-// l'ensemble des pages qui attendent leurs octets, et c'est lui qui est lu.
+// The two lists the host asks the WebGPU engine after the render: same addresses as a string-set
+// dedup, and returned as-is while nothing they depend on has moved. The to-load page list no longer
+// walks the cut: the delta holds the set of pages waiting for their bytes, and that is what is read.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { RequestStamps, type PageRec } from './pageSelection.ts';
@@ -13,10 +12,10 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 const rec = (url: string, requestIndex: number, chargee = true) =>
   ({ url, requestIndex, array: chargee ? new Uint32Array(3) : undefined }) as unknown as PageRec;
 
-/** Ce que les deux listes lisent, et rien d'autre : un catalogue, trois listes, deux estampilles. */
+/** What the two lists read, and nothing else: a catalogue, three lists, two stamps. */
 function banc() {
   const bootstrap = [rec('a', 0)];
-  // Deux placements d'une même clé de requête (rangs 2 et 3), et trois pages sans octets.
+  // Two placements of the same request key (ranks 2 and 3), and three pages without bytes.
   const packedPages = [
     rec('a', 0),
     rec('b', 1),
@@ -50,7 +49,7 @@ function banc() {
     setup: { bootstrap, requestStamps: new RequestStamps(6) },
     services: { bootstrapState: { ready: true }, cutPending },
   } as unknown as WebgpuPagesRuntime;
-  /** Une coupe publiée comme le moteur la publie : par sa différence, lecteurs compris. */
+  /** A cut published as the engine publishes it: by its delta, readers included. */
   const publie = (ids: number[]) => {
     delta.apply(ids);
     cutPending.apply();
@@ -60,7 +59,7 @@ function banc() {
   return { rt, run, publie, cutPending, packedPages };
 }
 
-/** L'ancienne règle, mot pour mot : un ensemble de chaînes, dans l'ordre de rencontre. */
+/** The old rule, word for word: a string set, in encounter order. */
 const parEnsemble = (listes: readonly (readonly PageRec[])[]) => {
   const vus = new Set<string>(),
     urls: string[] = [];
@@ -73,48 +72,48 @@ const parEnsemble = (listes: readonly (readonly PageRec[])[]) => {
   return urls;
 };
 
-test('le suivi du rendu écrit dans son propre tableau, jamais dans la liste tenue', () => {
+test('render tracking writes into its own array, never into the held list', () => {
   const { rt, run } = banc();
   const attendue = pendingUrls(rt);
   run.cutHeld = true;
-  // Ce que `reportProgress` fait toutes les deux secondes, dans le tableau qui lui reste.
+  // What `reportProgress` does every two seconds, into the array left to it.
   run.pendingScratch.length = 0;
   run.pendingScratch.push('intrus');
-  assert.deepEqual(pendingUrls(rt), attendue, 'la liste tenue n’a pas été écrasée');
+  assert.deepEqual(pendingUrls(rt), attendue, 'the held list was not overwritten');
 });
 
-test('les deux listes rendent ce qu’un ensemble de chaînes rendait, dans le même ordre', () => {
+test('both lists return what a string set returned, in the same order', () => {
   const { rt, run } = banc();
   assert.deepEqual(pageUrls(rt), parEnsemble([rt.setup.bootstrap, run.shown, run.desired]));
   assert.deepEqual(pageUrls(rt), ['a', 'b', 'c', 'd']);
-  // Seules les pages sans octets sont attendues, dédoublonnées de la même façon.
+  // Only pages without bytes are waited for, deduped the same way.
   assert.deepEqual(pendingUrls(rt), ['d']);
-  // Le budget dépassé retire la coupe des deux listes, sans toucher au reste.
+  // An exceeded budget drops the cut from both lists, without touching the rest.
   run.coverageBudgetLimited = true;
   assert.deepEqual(pageUrls(rt), ['a', 'b']);
   assert.deepEqual(pendingUrls(rt), []);
 });
 
-test('un relevé tenu rend la liste déjà rendue, et tout le reste la refait', () => {
+test('a held sample returns the list already yielded, and everything else remakes it', () => {
   const { rt, run, publie } = banc();
   const urls = pageUrls(rt),
     pending = pendingUrls(rt);
-  // Un relevé tenu : les listes ne sont pas reparcourues, donc une coupe élargie en douce est ignorée.
+  // A held sample: the lists are not walked again, so a silently widened cut is ignored.
   run.cutHeld = true;
   const epoch = run.cutEpoch;
   publie([1, 2, 3, 4, 5]);
   run.cutEpoch = epoch;
-  assert.deepEqual(pageUrls(rt), urls, 'la liste rendue est celle de l’image précédente');
+  assert.deepEqual(pageUrls(rt), urls, "the returned list is the previous image's");
   assert.deepEqual(pendingUrls(rt), pending);
-  // Des octets arrivent ou partent : l'estampille avance et les deux listes repartent.
+  // Bytes arrive or leave: the stamp advances and both lists start over.
   run.pageArrayEpoch++;
   assert.deepEqual(pageUrls(rt), ['a', 'b', 'c', 'd', 'e']);
   assert.deepEqual(pendingUrls(rt), ['d', 'e']);
-  // Le drapeau de budget bascule : elles repartent aussi, relevé tenu ou non.
+  // The budget flag flips: they start over too, held sample or not.
   run.coverageBudgetLimited = true;
   assert.deepEqual(pageUrls(rt), ['a', 'b']);
   assert.deepEqual(pendingUrls(rt), []);
-  // Un relevé qui n'est plus tenu refait tout, sans rien d'autre pour le dire.
+  // A sample that is no longer held remakes everything, with nothing else to say so.
   run.coverageBudgetLimited = false;
   run.cutHeld = false;
   publie([1, 2, 3, 4]);
@@ -122,19 +121,19 @@ test('un relevé tenu rend la liste déjà rendue, et tout le reste la refait', 
   assert.deepEqual(pendingUrls(rt), ['d']);
 });
 
-test('une adoption qui réécrit les listes après coup les fait vieillir, même relevé tenu ensuite', () => {
+test('an adoption that rewrites the lists after the fact ages them, even with a held sample after', () => {
   const { rt, run, publie } = banc();
   const urls = pageUrls(rt),
     pending = pendingUrls(rt);
   assert.deepEqual(urls, ['a', 'b', 'c', 'd']);
-  // La vidange rejoue une adoption APRÈS que l'hôte a pris ses listes : elles bougent sous lui, et
-  // l'image suivante peut très bien relire le même relevé et se croire en droit de les tenir.
+  // Flush replays an adoption AFTER the host has taken its lists: they move under it, and the next
+  // image may well reread the same sample and believe it may hold them.
   publie([1, 2, 3, 4, 5]);
   run.cutHeld = true;
-  assert.deepEqual(pageUrls(rt), ['a', 'b', 'c', 'd', 'e'], 'la liste périmée n’est pas rendue');
+  assert.deepEqual(pageUrls(rt), ['a', 'b', 'c', 'd', 'e'], 'the stale list is not returned');
   assert.deepEqual(pendingUrls(rt), ['d', 'e']);
-  assert.notDeepEqual(pending, ['d'], 'le tableau tenu a bien été réécrit');
-  // Le même âge et le même relevé : là, et là seulement, la liste est rendue telle quelle.
+  assert.notDeepEqual(pending, ['d'], 'the held array was rewritten');
+  // The same age and the same sample: there, and only there, the list is returned as-is.
   const epoch = run.cutEpoch;
   publie([1, 2, 3, 4, 5, 6]);
   run.cutEpoch = epoch;
@@ -142,26 +141,26 @@ test('une adoption qui réécrit les listes après coup les fait vieillir, même
   assert.deepEqual(pendingUrls(rt), ['d', 'e']);
 });
 
-test('les octets d’une page de la coupe la font entrer et sortir de l’attente', () => {
+test('bytes of a cut page make it enter and leave the wait', () => {
   const { rt, run, cutPending, packedPages } = banc();
   assert.deepEqual(pendingUrls(rt), ['d']);
-  // Les octets arrivent : le journal des rangs nomme la page, l'ensemble en attente se vide.
+  // Bytes arrive: the rank journal names the page, the waiting set empties.
   packedPages[4].array = new Uint32Array(3);
   cutPending.touch(4);
   run.pageArrayEpoch++;
   assert.deepEqual(pendingUrls(rt), []);
-  // Et repartent : elle revient dans l'attente, sans que la coupe ait bougé d'un rang.
+  // And leave: it comes back into the wait, without the cut having moved by one rank.
   packedPages[4].array = undefined;
   cutPending.touch(4);
   run.pageArrayEpoch++;
   assert.deepEqual(pendingUrls(rt), ['d']);
 });
 
-test('la couverture d’amorçage décide seule de ce que l’image attend avant d’être prête', () => {
+test('bootstrap coverage alone decides what the image waits for before it is ready', () => {
   const { rt, run } = banc();
   (rt.services.bootstrapState as { ready: boolean }).ready = false;
   run.cutHeld = true;
-  assert.deepEqual(pendingUrls(rt), [], 'la racine tient déjà ses octets');
+  assert.deepEqual(pendingUrls(rt), [], 'the root already holds its bytes');
   (rt.services.bootstrapState as { ready: boolean }).ready = true;
-  assert.deepEqual(pendingUrls(rt), ['d'], 'la bascule refait la liste malgré le relevé tenu');
+  assert.deepEqual(pendingUrls(rt), ['d'], 'the flip remakes the list despite the held sample');
 });

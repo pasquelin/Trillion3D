@@ -1,6 +1,6 @@
-//! A15 — l'admission d'un lot tient dans le budget annoncé. Ce que ces épreuves tiennent : la
-//! concurrence admise multipliée par la part d'un travail ne dépasse jamais le budget total, et un
-//! travail qui réclame à lui seul plus que le lot entier est refusé avant que rien ne commence.
+//! A15 — batch admission stays within the announced budget. What these tests verify:
+//! admitted concurrency multiplied by a job's allocation never exceeds total budget, and a
+//! job requiring more than the entire batch budget by itself is refused before anything starts.
 mod common;
 use common::{fixture, lines};
 use serde_json::{json, Value};
@@ -10,23 +10,23 @@ use std::{
     process::{Command, Stdio},
 };
 
-/// Lance un lot décrit par `spec` et rend ses événements puis sa ligne de sortie.
+/// Launches a batch described by `spec` and returns its events then its output line.
 fn run_batch(root: &Path, spec: Value) -> (Vec<Value>, Value) {
     let path = root.join("jobs.json");
     fs::write(&path, spec.to_string()).expect("spec");
     let output = Command::new(env!("CARGO_BIN_EXE_web-geometry-compiler"))
-        .args(["--jobs", path.to_str().expect("chemin")])
+        .args(["--jobs", path.to_str().expect("path")])
         .stdin(Stdio::null())
         .output()
-        .expect("lot");
+        .expect("batch");
     let printed = lines(&String::from_utf8_lossy(&output.stdout));
-    assert_eq!(printed.len(), 1, "une seule ligne de sortie");
+    assert_eq!(printed.len(), 1, "single output line");
     (
         lines(&String::from_utf8_lossy(&output.stderr)),
         printed[0].clone(),
     )
 }
-/// La part de mémoire que chaque travail s'est vu accorder à son admission.
+/// Memory allocation granted to each job upon admission.
 fn accepted_shares(events: &[Value]) -> Vec<u64> {
     events
         .iter()
@@ -35,8 +35,8 @@ fn accepted_shares(events: &[Value]) -> Vec<u64> {
         .collect()
 }
 
-// Comportement : deux travaux de front sous un budget total de 64 Mio, c'est 128 Mio admis. Le lot
-// doit donc réduire sa concurrence — un travail à la fois — plutôt qu'accorder deux fois le total.
+// Behavior: two concurrent jobs allocated 64 MiB under a total budget of 64 MiB equals 128 MiB total.
+// The batch must reduce its concurrency — one job at a time — rather than granting twice the total.
 #[test]
 fn a15_la_concurrence_admise_tient_dans_le_budget_total() {
     let (root, obj, cache) = fixture("admission-total");
@@ -53,17 +53,17 @@ fn a15_la_concurrence_admise_tient_dans_le_budget_total() {
         .expect("batch");
     let workers = batch["workers"].as_u64().expect("workers");
     let shares = accepted_shares(&events);
-    assert_eq!(shares.len(), 2, "les deux travaux sont admis");
-    let largest = shares.iter().copied().max().expect("part");
+    assert_eq!(shares.len(), 2, "both jobs are admitted");
+    let largest = shares.iter().copied().max().expect("share");
     assert!(
         workers * largest <= 64,
-        "{workers} travaux de front à {largest} Mio sous un budget de 64 Mio"
+        "{workers} concurrent jobs at {largest} MiB under a 64 MiB budget"
     );
     fs::remove_dir_all(root).ok();
 }
 
-// Comportement : un travail qui réclame à lui seul plus que le budget du lot ne peut jamais tenir.
-// Le lot est refusé avant le premier travail, et le refus nomme le travail et les deux chiffres.
+// Behavior: a job requiring more than the batch budget by itself can never fit.
+// The batch is refused before the first job, and refusal names the job and both figures.
 #[test]
 fn a15_un_travail_plus_gourmand_que_le_lot_est_refuse() {
     let (root, obj, cache) = fixture("admission-travail");
@@ -80,6 +80,6 @@ fn a15_un_travail_plus_gourmand_que_le_lot_est_refuse() {
         message.contains("4096") && message.contains("256"),
         "{message}"
     );
-    assert!(!cache.join("a").exists(), "aucun travail n'a commencé");
+    assert!(!cache.join("a").exists(), "no work has started");
     fs::remove_dir_all(root).ok();
 }

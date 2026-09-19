@@ -1,72 +1,72 @@
-# Fixture dorée — pilote KTX 2.0
+# Golden fixture — KTX 2.0 driver
 
-La dorée travaille sur deux matières : les cinq fichiers de ce dossier, et les conteneurs minuscules
-que `src/plugins/tests/ktx2/bytes.rs` écrit champ par champ depuis la spécification de Khronos.
+The golden works on two materials: the five files in this folder, and the tiny containers
+that `src/plugins/tests/ktx2/bytes.rs` writes field by field from the Khronos specification.
 
-## 1. Les cinq fichiers
+## 1. The five files
 
-| fichier          | ce qu'il porte                                                        | ce qu'il prouve                                                                                                           |
+| file             | what it carries                                                       | what it proves                                                                                                            |
 | ---------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `base.ktx2`      | 4 × 4, `VK_FORMAT_R8G8B8A8_SRGB`, `supercompressionScheme` 0          | un niveau non compressé ressort octet pour octet ; ses seize texels sont écrits en clair dans `src/plugins/tests/ktx2.rs` |
-| `base-zstd.ktx2` | le même niveau sous `KTX_SS_ZSTD`                                     | la supercompression n'est qu'un emballage : défaite, elle rend exactement les mêmes texels                                |
-| `uastc.ktx2`     | 16 × 16, `VK_FORMAT_UNDEFINED`, charge UASTC LDR 4 × 4                | le chemin Basis Universal sans supercompression, seize blocs de seize octets                                              |
-| `basis.ktx2`     | 256 × 256, `VK_FORMAT_UNDEFINED`, charge ETC1S sous `KTX_SS_BASIS_LZ` | le chemin Basis Universal supercompressé, codebooks compris, tel qu'un encodeur tiers l'écrit                             |
-| `tronque.ktx2`   | quarante octets de `basis.ktx2`                                       | l'identifiant est là, l'entête non, et le refus est nommé                                                                 |
+| `base.ktx2`      | 4 × 4, `VK_FORMAT_R8G8B8A8_SRGB`, `supercompressionScheme` 0          | an uncompressed level comes out byte for byte; its sixteen texels are written in the clear in `src/plugins/tests/ktx2.rs` |
+| `base-zstd.ktx2` | the same level under `KTX_SS_ZSTD`                                    | supercompression is only a wrapper: undone, it yields exactly the same texels                                             |
+| `uastc.ktx2`     | 16 × 16, `VK_FORMAT_UNDEFINED`, UASTC LDR 4 × 4 payload               | the Basis Universal path without supercompression, sixteen blocks of sixteen bytes                                        |
+| `basis.ktx2`     | 256 × 256, `VK_FORMAT_UNDEFINED`, ETC1S payload under `KTX_SS_BASIS_LZ` | the supercompressed Basis Universal path, codebooks included, as a third-party encoder writes it                        |
+| `tronque.ktx2`   | forty bytes of `basis.ktx2`                                           | the identifier is there, the header is not, and the rejection is named                                                    |
 
-## 2. Les conteneurs du test
+## 2. The test containers
 
-Ils couvrent les `vkFormat` que le tableau des codecs nomme, un bloc par cas, avec les valeurs de
-référence de la spécification du codec plutôt que celles du décodeur. Depuis le lot « images
-fidélité », les deux formats EAC non signés y ont leur propre cas : un bloc écrit à la main dont
-trois valeurs sur onze bits — 4, 5 et 13 — deviennent les octets 0, 1 et 2 par arrondi au plus
-proche, là où la troncature du décodeur externe rendait 0, 0 et 1 et où sa lecture inversée du champ
-d'indices déplaçait les texels. Le bloc dit donc à la fois l'arrondi et la place des texels.
+They cover the `vkFormat` values the codec table names, one block per case, with the codec
+specification's reference values rather than the decoder's. Since the “image
+fidelity” batch, the two unsigned EAC formats have their own case there: a hand-written block whose
+three eleven-bit values — 4, 5 and 13 — become the bytes 0, 1 and 2 by rounding to nearest,
+where the external decoder's truncation yielded 0, 0 and 1 and where its reversed read of the
+index field displaced the texels. The block therefore states both the rounding and the place of the texels.
 
-Ils couvrent aussi ce qu'un conteneur **déclare** autour de ses texels : la fonction de transfert de
-son descripteur de format — la même charge utile déclarée linéaire puis sRGB —, le drapeau d'alpha
-prémultiplié du même descripteur, et les clés `KTXorientation` et `KTXswizzle`. Le pilote applique
-ce qui s'applique (dé-prémultiplication, retournement vertical pour `ru`) et compte le reste sous
-`ktx2-orientation-unsupported` ou `ktx2-swizzle-unsupported`. Les quatre fichiers du dossier
-déclarent tous `transferFunction` sRGB et aucun drapeau : leurs texels ne bougent pas.
+They also cover what a container **declares** around its texels: the transfer function of
+its format descriptor — the same payload declared linear then sRGB —, the premultiplied-alpha
+flag of the same descriptor, and the `KTXorientation` and `KTXswizzle` keys. The driver applies
+what applies (un-premultiplication, vertical flip for `ru`) and counts the rest under
+`ktx2-orientation-unsupported` or `ktx2-swizzle-unsupported`. The four files in the folder
+all declare an sRGB `transferFunction` and no flag: their texels do not move.
 
-`scene.gltf`, `scene.bin` et `expected.json` sont la dorée compilée : trois quads, un matériau
-opaque et une texture par fichier de la première moitié du tableau, passés par le compilateur entier.
-Leur régénération est décrite dans l'entête de `src/tests/ktx2_golden.rs`.
+`scene.gltf`, `scene.bin` and `expected.json` are the compiled golden: three quads, one opaque
+material and one texture per file of the first half of the table, taken through the whole compiler.
+Their regeneration is described in the header of `src/tests/ktx2_golden.rs`.
 
-## Provenance et licence
+## Provenance and licence
 
-Tout ce dossier est sous **CC0-1.0** (<https://creativecommons.org/publicdomain/zero/1.0/>), voir
+This whole folder is under **CC0-1.0** (<https://creativecommons.org/publicdomain/zero/1.0/>), see
 [LICENSE.txt](LICENSE.txt).
 
-- `basis.ktx2` est copié tel quel de `test/assets/textures/ktx2-matrix/basis.ktx2`, corpus
-  WebGeometry, écrit par `ktx create v4.4.2 / libktx v4.4.2` le 15 septembre 2026. Le dossier
-  `test/assets/` est livré hors git : le fichier est copié ici pour que la dorée n'en dépende pas.
-- `uastc.ktx2` est **découpé** dans `test/assets/textures/ktx2-matrix/uastc.ktx2` du même corpus :
-  les blocs UASTC font seize octets, sont indépendants les uns des autres et rangés par rangées, donc
-  les quatre premiers blocs des quatre premières rangées sont exactement le coin supérieur gauche de
-  16 × 16 texels de la source, sans le moindre réencodage. L'entête reprend celui de la source avec
-  `pixelWidth` et `pixelHeight` à 16, sans clés, le descripteur de format recopié à l'octet 104 et le
-  niveau à l'octet 160 — le multiple de seize que la spécification exige pour un bloc de seize octets.
-- `base.ktx2` et `base-zstd.ktx2` sont écrits depuis la spécification : entête de quatre-vingts
-  octets, index d'un niveau, descripteur de format R8G8B8A8 sRGB repris du corpus, puis le niveau à
-  l'octet 196. Leurs seize texels valent `[x·85, y·85, (x+y)·42, 255 − (x+y)·17]`. Le niveau de
-  `base-zstd.ktx2` est la même suite d'octets passée par un encodeur Zstandard de référence.
+- `basis.ktx2` is copied as-is from `test/assets/textures/ktx2-matrix/basis.ktx2`, WebGeometry
+  corpus, written by `ktx create v4.4.2 / libktx v4.4.2` on 15 September 2026. The
+  `test/assets/` folder is shipped off git: the file is copied here so the golden does not depend on it.
+- `uastc.ktx2` is **cut** from `test/assets/textures/ktx2-matrix/uastc.ktx2` of the same corpus:
+  UASTC blocks are sixteen bytes, independent of each other and laid out by rows, so
+  the first four blocks of the first four rows are exactly the top-left 16 × 16 texel
+  corner of the source, with no re-encoding at all. The header takes the source's with
+  `pixelWidth` and `pixelHeight` at 16, no keys, the format descriptor copied at byte 104 and the
+  level at byte 160 — the multiple of sixteen the specification requires for a sixteen-byte block.
+- `base.ktx2` and `base-zstd.ktx2` are written from the specification: an eighty-byte
+  header, a one-level index, an R8G8B8A8 sRGB format descriptor taken from the corpus, then the level at
+  byte 196. Their sixteen texels equal `[x·85, y·85, (x+y)·42, 255 − (x+y)·17]`. The level of
+  `base-zstd.ktx2` is the same byte sequence passed through a reference Zstandard encoder.
 
-## Provenance du lecteur
+## Provenance of the reader
 
-- Entête, index des sections et index des niveaux : écrits depuis « KTX File Format Specification,
-  version 2.0 » de Khronos. Aucun SDK d'éditeur.
-- Charges Basis Universal : crate `basisu` 0.1.0, Apache-2.0, `marcogomez/basisu`, Rust pur, portage
-  du transcodeur de référence de Binomial vérifié octet pour octet contre lui.
-- Blocs déjà compressés pour le GPU : crate `texture2ddecoder` 0.1.2, MIT ou Apache-2.0, par le socle
-  `image::blocks` partagé avec le pilote `dds`.
-- Supercompression Zstandard : crate `ruzstd` 0.7.3, MIT, Rust pur, décompression seule.
+- Header, section index and level index: written from Khronos “KTX File Format Specification,
+  version 2.0”. No editor SDK.
+- Basis Universal payloads: crate `basisu` 0.1.0, Apache-2.0, `marcogomez/basisu`, pure Rust, a port
+  of Binomial's reference transcoder verified byte for byte against it.
+- Blocks already compressed for the GPU: crate `texture2ddecoder` 0.1.2, MIT or Apache-2.0, through the
+  `image::blocks` foundation shared with the `dds` driver.
+- Zstandard supercompression: crate `ruzstd` 0.7.3, MIT, pure Rust, decompression only.
 
-## Ce que la dorée fixe, et ce qu'elle ne fixe pas
+## What the golden pins, and what it does not
 
-Les texels sont écrits en clair pour le non compressé, pour BC1 en trois couleurs — le seul cas où le
-bit d'alpha sépare `BC1_RGB` de `BC1_RGBA` — et pour un bloc ASTC 4 × 4 « void extent », dont la
-couleur est écrite en clair dans le bloc. Pour les autres codecs nommés par `vkFormat`, la dorée fixe
-le routage et la géométrie du bloc, prouvée par l'octet qui manque : l'interpolation entière des
-blocs BCn est déjà fixée bloc par bloc par la dorée du pilote `dds`, qui passe par le même socle et
-le même décodeur, et celle des ETC2, EAC et ASTC appartient à `texture2ddecoder`.
+The texels are written in the clear for the uncompressed case, for three-colour BC1 — the only case where the
+alpha bit separates `BC1_RGB` from `BC1_RGBA` — and for a 4 × 4 ASTC “void extent” block, whose
+colour is written in the clear in the block. For the other codecs named by `vkFormat`, the golden pins
+the routing and the block geometry, proved by the missing byte: BCn block integer interpolation is
+already pinned block by block by the `dds` driver golden, which goes through the same foundation and
+the same decoder, and that of ETC2, EAC and ASTC belongs to `texture2ddecoder`.

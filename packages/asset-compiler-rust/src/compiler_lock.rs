@@ -1,31 +1,32 @@
 use super::*;
 
-/// Le nom du verrou dans `<cache>/native`. La purge ne parcourt que `slice`, `full`, `imports` et
-/// `objects` : un fichier posé à côté d'eux ne peut pas être effacé par une compilation.
+/// Lock name in `<cache>/native`. Prune only walks `slice`, `full`, `imports` and
+/// `objects`: a file placed next to them cannot be deleted by a compilation.
 const CACHE_LOCK_FILE: &str = ".lock";
-/// Au-delà, une compilation en attente renonce plutôt que d'attendre sans fin.
+/// Beyond this, a waiting compilation gives up rather than waiting forever.
 const WAIT: std::time::Duration = std::time::Duration::from_secs(30);
-/// Raccourcit l'attente ci-dessus, en millisecondes : un hôte qui préfère un refus immédiat, ou une
-/// épreuve qui ne veut pas durer trente secondes, pose cette variable. Valeur illisible ignorée.
+/// Shortens the wait above, in milliseconds: a host that prefers an immediate
+/// refusal, or a trial that does not want to last thirty seconds, sets this
+/// variable. An unreadable value is ignored.
 const WAIT_ENV: &str = "WG_CACHE_LOCK_WAIT_MS";
-/// Un tour d'attente : assez court pour qu'une annulation soit lue sans délai sensible, assez long
-/// pour que l'attente ne coûte rien.
+/// One wait step: short enough that a cancellation is read without a noticeable
+/// delay, long enough that waiting costs nothing.
 const STEP: std::time::Duration = std::time::Duration::from_millis(20);
 
-/// Exclusion mutuelle sur un cache. Un cache ne garde qu'un pointeur par scope et se purge après
-/// chaque écriture : deux compilations qui l'écrivent en même temps effacent la clef et les objets
-/// que l'autre vient de publier.
+/// Mutual exclusion on a cache. A cache keeps only one pointer per scope and
+/// prunes after each write: two compilations writing it at the same time erase
+/// the key and the objects the other just published.
 ///
-/// L'exclusion est celle que le système tient sur le fichier `<cache>/native/.lock` : elle suit le
-/// processus et non le fichier, donc le système la relâche dès que son propriétaire meurt, y
-/// compris tué net ou emporté par un redémarrage. Le fichier, lui, n'est jamais effacé : son
-/// existence ne dit rien, seule sa prise compte, et effacer le fichier d'un vivant lui prendrait
-/// son cache.
+/// The exclusion is the one the system holds on `<cache>/native/.lock`: it
+/// follows the process, not the file, so the system releases it as soon as its
+/// owner dies, including killed outright or taken by a reboot. The file itself
+/// is never deleted: its existence says nothing, only holding it counts, and
+/// deleting a living owner's file would take its cache.
 pub(super) struct CacheLock {
     file: File,
 }
 
-/// L'attente avant de renoncer, telle que la variable d'environnement la fixe, sinon `WAIT`.
+/// The wait before giving up, as the environment variable sets it, otherwise `WAIT`.
 fn wait() -> std::time::Duration {
     std::env::var(WAIT_ENV)
         .ok()
@@ -49,8 +50,8 @@ impl CacheLock {
                 Err(fs::TryLockError::WouldBlock) => {}
                 Err(fs::TryLockError::Error(error)) => return Err(error.into()),
             }
-            // Attendre un verrou n'est pas une raison de rester sourd : l'hôte qui renonce est
-            // servi au tour suivant, et le verrou de celui qui compile n'est pas touché.
+            // Waiting for a lock is no reason to stay deaf: the host that gives up is
+            // served on the next step, and the compiling owner's lock is not touched.
             check(o)?;
             if Instant::now() >= deadline {
                 return Err(CompilerError::new(

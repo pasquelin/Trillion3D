@@ -7,13 +7,13 @@ import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
 import { depthLayerUnits } from '../sdk-core/index.ts';
 
-// Comportement 22 : writePageRow écrit le biais en unités positives à l'emplacement depthBias de
-// la ligne de table ; une ligne de couche 0 garde ce champ à zéro.
+// Behaviour 22: writePageRow writes the bias in positive units at the table row's depthBias
+// slot; a layer-0 row keeps that field at zero.
 test('writePageRow writes the layer bias in positive units at the table row depthBias slot', async () => {
   installGpuGlobals();
   const scene = quadScene();
-  // Le second cluster du quad porte la couche que l'étape coplanaire lui aurait attribuée ; le
-  // premier reste à sa couche 0 (le champ absent équivaut à 0, comme le décodage le laisse).
+  // The quad's second cluster carries the layer the coplanar step would have assigned; the first
+  // stays at layer 0 (a missing field equals 0, as decoding leaves it).
   (scene.metadata.primitives[0].pages[1] as { depthLayer?: number }).depthLayer = 5;
   const { device, buffers } = mockGpu();
   const backend = webgpuPagesBackend({

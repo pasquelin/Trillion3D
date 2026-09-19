@@ -1,9 +1,9 @@
-// Ce qui s'exécute DANS la page. Playwright sérialise cette fonction : elle ne peut lire aucune
-// variable ni appeler aucune fonction de module, tout lui arrive par son unique argument. C'est
-// la raison, et la seule, pour laquelle la création de l'explorateur est dupliquée entre
-// `readBounds` ci-dessous et `measureView` de `pageEclairage.mjs`, que la page importe par URL.
+// What runs INSIDE the page. Playwright serialises this function: it cannot read any variable or
+// call any module function; everything reaches it through its single argument. That is the reason,
+// and the only one, why explorer creation is duplicated between `readBounds` below and
+// `measureView` in `pageEclairage.mjs`, which the page imports by URL.
 
-/** Les bornes du modèle, lues sur un explorateur minuscule : elles donnent les poses du banc. */
+/** Model bounds, read on a tiny explorer: they give the bench poses. */
 export async function readBounds(options) {
   const sdk = await import(options.sdkUrl);
   const canvas = document.createElement('canvas');

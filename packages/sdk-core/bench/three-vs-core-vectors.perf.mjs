@@ -35,7 +35,7 @@ const scalar = new Float64Array(N),
 const lines = [];
 lines.push(
   await duel({
-    nom: 'Vector3.applyMatrix4',
+    name: 'Vector3.applyMatrix4',
     fichier: VECTORS,
     three: () => {
       for (let i = 0; i < N; i++) outThree[i].copy(u.three[i]).applyMatrix4(m.three[i]);
@@ -52,7 +52,7 @@ lines.push(
 
 lines.push(
   await duel({
-    nom: 'Vector3.crossVectors',
+    name: 'Vector3.crossVectors',
     fichier: VECTORS,
     three: () => {
       for (let i = 0; i < N; i++) outThree[i].crossVectors(u.three[i], v.three[i]);
@@ -67,7 +67,7 @@ lines.push(
 
 lines.push(
   await duel({
-    nom: 'Vector3.dot',
+    name: 'Vector3.dot',
     fichier: VECTORS,
     three: () => {
       for (let i = 0; i < N; i++) scalarThree[i] = u.three[i].dot(v.three[i]);
@@ -82,7 +82,7 @@ lines.push(
 
 lines.push(
   await duel({
-    nom: 'Vector3.length',
+    name: 'Vector3.length',
     fichier: VECTORS,
     three: () => {
       for (let i = 0; i < N; i++) scalarThree[i] = u.three[i].length();
@@ -97,7 +97,7 @@ lines.push(
 
 lines.push(
   await duel({
-    nom: 'Vector3.multiplyScalar',
+    name: 'Vector3.multiplyScalar',
     fichier: VECTORS,
     three: () => {
       for (let i = 0; i < N; i++) outThree[i].copy(u.three[i]).multiplyScalar(1.5);
@@ -123,7 +123,7 @@ const storeColor = (i) => {
 
 lines.push(
   await duel({
-    nom: 'Color.convertSRGBToLinear',
+    name: 'Color.convertSRGBToLinear',
     fichier: COLOR,
     three: () => {
       for (let i = 0; i < N; i++) {
@@ -145,7 +145,7 @@ lines.push(
 
 lines.push(
   await duel({
-    nom: 'Color.setHSL',
+    name: 'Color.setHSL',
     fichier: COLOR,
     three: () => {
       for (let i = 0; i < N; i++) {

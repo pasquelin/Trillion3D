@@ -1,42 +1,42 @@
 /**
- * LA RÈGLE « MATRICE SINGULIÈRE » DU MOTEUR, écrite une fois, pour le processeur ET pour la carte.
+ * THE ENGINE "SINGULAR MATRIX" RULE, written once, for the CPU AND for the GPU.
  *
- * LE FAIT. Une transformation est singulière quand elle écrase l'espace : son déterminant s'annule.
- * Le tester sur le déterminant BRUT ne dit rien, parce qu'un déterminant porte l'échelle au cube.
- * Une rotation d'échelle uniforme `s` a pour déterminant ±s³ : à `s = 1e-7`, parfaitement régulière,
- * le déterminant brut vaut 1e-21 et passe sous n'importe quel seuil absolu ; à `s = 1e7`, tout aussi
- * régulière, il vaut 1e21. Un seuil absolu juge donc l'échelle, jamais la dégénérescence.
+ * THE FACT. A transform is singular when it collapses space: its determinant vanishes.
+ * Testing it on the RAW determinant says nothing, because a determinant carries scale cubed.
+ * A uniform-scale rotation `s` has determinant ±s³: at `s = 1e-7`, perfectly regular,
+ * the raw determinant is 1e-21 and falls under any absolute threshold; at `s = 1e7`, equally
+ * regular, it is 1e21. An absolute threshold therefore judges scale, never degeneracy.
  *
- * LA RÈGLE, en une phrase. La partie linéaire est divisée par la somme des valeurs absolues de ses
- * neuf termes — son échelle — AVANT le déterminant ; elle est singulière quand ce déterminant
- * normalisé ne dépasse pas `SINGULAR_DETERMINANT`. Une échelle nulle, infinie ou NaN est singulière :
- * la division ne rend alors plus rien.
+ * THE RULE, in one sentence. The linear part is divided by the sum of the absolute values of its
+ * nine terms — its scale — BEFORE the determinant; it is singular when this normalised
+ * determinant does not exceed `SINGULAR_DETERMINANT`. A zero, infinite or NaN scale is singular:
+ * the division then yields nothing.
  *
- * OÙ ELLE S'APPLIQUE. `normalMatrix3` (`mathMatrix3.ts`) côté processeur, `invTranspose3Prep`
- * (`packages/sdk-browser/inverseTransposeWgsl.ts`) côté carte, qui insère `SINGULAR_DETERMINANT_WGSL`
- * dans son texte au lieu de réécrire le nombre. Les deux décident de la même chose, chacun dans sa
- * précision : le processeur en double, la carte en simple. Ce qu'une matrice singulière DEVIENT — la
- * convention des normales aplaties — est écrit une seule fois, dans `inverseTransposeWgsl.ts`.
+ * WHERE IT APPLIES. `normalMatrix3` (`mathMatrix3.ts`) on the CPU, `invTranspose3Prep`
+ * (`packages/sdk-browser/inverseTransposeWgsl.ts`) on the GPU, which inserts `SINGULAR_DETERMINANT_WGSL`
+ * into its text instead of rewriting the number. Both decide the same thing, each in its
+ * precision: the CPU in double, the GPU in single. What a singular matrix BECOMES — the
+ * flattened-normal convention — is written once, in `inverseTransposeWgsl.ts`.
  *
- * CE QU'ELLE NE COUVRE PAS. `invertMatrix4` (`mathMatrix4Inverse.ts`) est l'inverse 4×4 complet, tenu
- * aux bits de la bibliothèque 3D de référence, seuil `det === 0` compris ; il ne transporte aucune
- * normale, et son contrat est la parité avec la référence, pas cette règle.
+ * WHAT IT DOES NOT COVER. `invertMatrix4` (`mathMatrix4Inverse.ts`) is the full 4×4 inverse, held
+ * to the bits of the reference 3D library, `det === 0` threshold included; it transports no
+ * normal, and its contract is parity with the reference, not this rule.
  */
 
 /**
- * Le seuil, sur le déterminant NORMALISÉ. Sous 1e-12, le cube d'une échelle devient dénormal en
- * simple précision : seule la normalisation franchit ce plancher, et ce seuil-ci ne juge donc plus
- * que la forme de la matrice, jamais sa taille.
+ * The threshold, on the NORMALISED determinant. Under 1e-12, the cube of a scale becomes denormal in
+ * single precision: only normalisation crosses that floor, so this threshold no longer judges
+ * anything but the shape of the matrix, never its size.
  */
 export const SINGULAR_DETERMINANT = 1e-20;
 
-/** Le seuil tel que le WGSL l'écrit, rendu depuis la constante : un seul nombre, deux langages. */
+/** The threshold as WGSL writes it, rendered from the constant: one number, two languages. */
 export const SINGULAR_DETERMINANT_WGSL = SINGULAR_DETERMINANT.toExponential();
 
 /**
- * L'ÉCHELLE d'une partie linéaire : la somme des valeurs absolues des neuf termes du bloc 3×3 d'une
- * 4×4 colonne-major. C'est le diviseur de la normalisation, et la même somme que le test de
- * conformité lit (`packages/sdk-browser/pageCone.ts`) : une seule somme, un seul ordre de termes.
+ * The SCALE of a linear part: the sum of the absolute values of the nine terms of the 3×3 block of a
+ * column-major 4×4. This is the normalisation divisor, and the same sum the conformance
+ * test reads (`packages/sdk-browser/pageCone.ts`): one sum, one term order.
  */
 export function linearPartScale(m: ArrayLike<number>) {
   return (
@@ -53,11 +53,11 @@ export function linearPartScale(m: ArrayLike<number>) {
 }
 
 /**
- * Le déterminant de la partie linéaire NORMALISÉE, dans l'ordre du noyau WGSL : les trois colonnes
- * divisées par l'échelle, puis `a · (b × c)`. Les colonnes sont divisées AVANT le produit, jamais le
- * déterminant brut divisé par le cube de l'échelle : `t³` déborde au-delà de 1e103 et s'annule sous
- * 1e-103, c'est-à-dire exactement là où cette règle est censée décider. Une échelle nulle, infinie
- * ou NaN rend `NaN`, qu'aucune comparaison `> seuil` n'accepte.
+ * Determinant of the NORMALISED linear part, in the WGSL kernel order: the three columns
+ * divided by the scale, then `a · (b × c)`. Columns are divided BEFORE the product, never the
+ * raw determinant divided by the cube of the scale: `t³` overflows beyond 1e103 and vanishes under
+ * 1e-103, which is exactly where this rule is meant to decide. A zero, infinite
+ * or NaN scale yields `NaN`, which no `> threshold` comparison accepts.
  */
 export function normalizedLinearDeterminant(m: ArrayLike<number>) {
   const t = linearPartScale(m);
@@ -75,22 +75,23 @@ export function normalizedLinearDeterminant(m: ArrayLike<number>) {
 }
 
 /**
- * LA DÉCISION, dans la forme même du noyau WGSL (`invTranspose3Prep`) : le facteur qui multiplie
- * l'adjointe de la partie linéaire.
+ * THE DECISION, in the very form of the WGSL kernel (`invTranspose3Prep`): the factor that multiplies
+ * the adjugate of the linear part.
  *
- *  — `1 / determinant`, la matrice est RÉGULIÈRE : l'inverse-transposée, aux bits de la référence.
- *    Le déterminant passé est le déterminant BRUT que l'appelant a déjà ; seule la décision lit le
- *    déterminant normalisé, si bien qu'une matrice régulière rend exactement ce qu'elle rendait.
- *  — `1`, la matrice est SINGULIÈRE : l'adjointe telle quelle, sans facteur — il vaudrait ±∞. C'est
- *    le produit vectoriel des arêtes transformées, à un facteur positif près que le consommateur
- *    efface en normalisant. Un déterminant brut EXACTEMENT NUL tombe ici aussi, même quand la forme
- *    est régulière : la somme de ses six produits peut s'annuler par compensation là où la version
- *    normalisée, elle, ne s'annule pas, et un diviseur nul ne rend rien d'exploitable. C'est le cas
- *    que le moteur traitait déjà ainsi, à l'adjointe près, et il reste traité ainsi — la carte, qui
- *    divise par le déterminant NORMALISÉ, n'a pas ce cas et rend alors l'inverse-transposée.
- *  — `null`, l'échelle n'est ni finie ni strictement positive : l'adjointe elle-même ne vaut plus
- *    rien et doit être REMPLACÉE par zéro, comme `select(z, cross(…), fini)` du noyau. Un terme NaN
- *    ne se corrige pas en le multipliant par zéro, d'où le `null` plutôt qu'un facteur nul.
+ *  — `1 / determinant`, the matrix is REGULAR: the inverse-transpose, at the reference bits.
+ *    The passed determinant is the RAW determinant the caller already has; only the decision reads the
+ *    normalised determinant, so a regular matrix yields exactly what it used to.
+ *  — `1`, the matrix is SINGULAR: the adjugate as-is, with no factor — it would be ±∞. This is
+ *    the cross product of the transformed edges, up to a positive factor the consumer
+ *    erases by normalising. An EXACTLY ZERO raw determinant lands here too, even when the shape
+ *    is regular: the sum of its six products can cancel by compensation where the normalised
+ *    version does not, and a zero divisor yields nothing usable. This is the case
+ *    the engine already treated this way, adjugate aside, and it remains treated this way — the GPU,
+ *    which divides by the NORMALISED determinant, does not have this case and then yields the
+ *    inverse-transpose.
+ *  — `null`, the scale is neither finite nor strictly positive: the adjugate itself is no longer
+ *    worth anything and must be REPLACED by zero, like the kernel's `select(z, cross(…), finite)`.
+ *    A NaN term is not fixed by multiplying it by zero, hence `null` rather than a zero factor.
  */
 export function adjugateFactor(m: ArrayLike<number>, determinant: number) {
   const normalized = normalizedLinearDeterminant(m);

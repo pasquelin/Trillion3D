@@ -1,6 +1,6 @@
-// Les entrées des consommateurs rattachés au socle : faces d'ombre, file de streaming, transport
-// d'éclairage, couleurs. Tirées à graine fixe ; les directions alignées sur les axes portent des
-// zéros des deux signes, là où un produit commencé à zéro et un produit sans zéro initial divergent.
+// Inputs of consumers attached to the foundation: shadow faces, streaming queue, lighting
+// transport, colours. Drawn from a seed; axis-aligned directions carry signed zeros of
+// both signs, where a product started at zero and a product without an initial zero diverge.
 import * as THREE from 'three';
 import { graine } from '../../../sdk-core/bench/socle.mjs';
 import { POINT_FACE_AXES } from '../../../sdk-core/sceneLightShadowFaces.ts';
@@ -15,7 +15,7 @@ const unitaire = () => {
   return v.map((c) => c / n);
 };
 
-/** Directions : les six axes des faces ponctuelles, leurs variantes à zéros négatifs, et le reste. */
+/** Directions: six point face axes, negative zero variants, and the rest. */
 const avants = [...POINT_FACE_AXES.map((a) => [...a])];
 for (const a of POINT_FACE_AXES)
   for (let signes = 1; signes < 8; signes++)
@@ -25,7 +25,7 @@ for (let i = 0; i < 40; i++) avants.push([0, alea() < 0.5 ? -1 : 1, (alea() - 0.
 for (let i = 0; i < 40; i++) avants.push([bord(), bord(), bord()]);
 for (let i = 0; i < 20; i++) avants.push([alea() * 9 - 4, alea() * 9 - 4, alea() * 9 - 4]);
 
-export const directions = avants.map((avant, i) => {
+export const directions = avants.map((before, i) => {
   const fov = [Math.PI / 2, 0.3, 1.2, 2.5, Math.PI][i % 5];
   const rect = i % 3 ? Float64Array.from([alea() - 1, alea(), alea() - 1, alea()]) : FULL_FACE;
   return {
@@ -34,13 +34,13 @@ export const directions = avants.map((avant, i) => {
     portee: [10, 0.5, 1e4, 3][i % 4],
     demiEtendue: [4, 0.01, 1e3][i % 3],
     oeil: i % 9 === 0 ? [-0, 0, -0] : [alea() * 100 - 50, alea() * 100 - 50, alea() * 100 - 50],
-    avant,
+    before,
     demiChamp: fov / 2,
     rect,
   };
 });
 
-/** La file de streaming : caméra ordinaire, poses et matrices hostiles, sphères et boîtes. */
+/** Streaming queue: ordinary camera, hostile poses and matrices, spheres and boxes. */
 const camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 1000);
 camera.position.set(3, 4, 12);
 camera.lookAt(0, 0, 0);
@@ -76,11 +76,11 @@ export const enregistrements = {
   ],
 };
 
-/** Les valeurs linéaires que l'encodage 8 bits reçoit, bords compris. */
+/** Linear values 8-bit encoding receives, including boundary values. */
 export const octets = [];
 for (let i = 0; i < 1024; i++) octets.push(i % 11 === 0 ? bord() : alea() * 1.2 - 0.1);
 
-/** Rectangles de surface du transport : ordinaires, dégénérés, de bords. */
+/** Transport surface rectangles: ordinary, degenerate, edge. */
 const vecteur = (i) =>
   i % 13 === 0 ? [bord(), bord(), bord()] : [alea() * 4 - 2, alea() * 4 - 2, alea() * 4 - 2];
 export const rectangles = [];
@@ -90,7 +90,7 @@ for (let i = 0; i < 600; i++) {
   rectangles.push({ origin: vecteur(i + 2), u, v, columns: 1, rows: 1 });
 }
 
-/** Facettes du transport : normale unitaire ou de bords, tangente ordinaire, nulle ou de bords. */
+/** Transport facets: unit or edge normal, ordinary, zero or edge tangent. */
 export const facettes = [];
 for (let i = 0; i < 400; i++) {
   const normal = i % 9 === 0 ? [bord(), bord(), bord()] : unitaire();

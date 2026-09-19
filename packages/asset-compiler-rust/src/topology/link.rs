@@ -1,5 +1,5 @@
-/// Blocs de travail d'une classification : trois listes par sommet et la pile du parcours, prêtées
-/// d'un sommet au suivant. Un maillage de plusieurs millions de sommets les allouait autant de fois.
+/// Work blocks for a classification: three lists per vertex and the traversal stack, lent
+/// from one vertex to the next. A mesh of several million vertices allocated them that many times.
 #[derive(Default)]
 pub(crate) struct LinkScratch {
     ids: Vec<u32>,
@@ -22,7 +22,7 @@ pub(crate) fn classify_link(links: &[(u32, u32)], scratch: &mut LinkScratch) -> 
         seen,
         stack,
     } = scratch;
-    // Vidés à l'entrée : la fonction sort par une dizaine de chemins, dont plusieurs abandons.
+    // Cleared at entry: the function exits through a dozen paths, including several early returns.
     ids.clear();
     neighbours.clear();
     degree.clear();

@@ -1,39 +1,39 @@
 import { catalogueIndexOf, type PageRec } from './pageSelection.ts';
 
 /**
- * La différence publiée, et ce qu'on peut lui demander.
+ * Published difference, and what can be asked of it.
  *
- * Les comptes sont des CHAMPS, pas des accesseurs : leurs lecteurs les parcourent vingt mille fois
- * par image, un accesseur ne s'y inline pas, et chacun devait hisser la borne à la main — trois fois
- * le même geste et trois fois le même commentaire — pour retrouver le prix d'un champ. Le contrat le
- * donne maintenant une fois pour toutes. Les tampons sont réécrits sur place, jamais réalloués, et
- * ce que le lecteur en voit est valide jusqu'à la coupe suivante.
+ * Counts are FIELDS, not accessors: their readers walk them twenty thousand times per frame, an
+ * accessor does not inline there, and each had to hoist the bound by hand — three times the same
+ * gesture and three times the same comment — to recover the price of a field. The contract now
+ * gives it once and for all. Buffers are rewritten in place, never reallocated, and what the
+ * reader sees of them is valid until the next cut.
  */
 export type CutDelta = {
-  /** Les identifiants entrés et sortis depuis la coupe précédente, et leur nombre. */
+  /** Ids that entered and left since the previous cut, and their count. */
   readonly entered: Int32Array;
   readonly exited: Int32Array;
   readonly enteredCount: number;
   readonly exitedCount: number;
-  /** Les identifiants que la coupe retient. */
+  /** Ids the cut holds. */
   readonly count: number;
   /**
-   * Faux quand le relevé appliqué porte exactement la même suite d'identifiants que le précédent,
-   * dans le même ordre : `pages` a été réécrit avec les mêmes enregistrements, aux mêmes rangs.
-   * Ce n'est pas l'égalité des ensembles — un ordre différent, même à ensemble égal, est un
-   * changement — et c'est ce qu'il faut à qui lit `pages` dans l'ordre.
+   * False when the applied shown list carries exactly the same id sequence as the previous one,
+   * in the same order: `pages` was rewritten with the same records, at the same ranks. This is
+   * not set equality — a different order, even at equal set, is a change — and that is what
+   * whoever reads `pages` in order needs.
    */
   readonly changed: boolean;
-  /** Vrai quand l'identifiant appartient au relevé tenu. */
+  /** True when the id belongs to the held shown list. */
   has(id: number): boolean;
   /** Reports no difference: the cut is the one already held, records included. */
   hold(): void;
   /** Difference between `ids` and the cut held, and `pages` rewritten in the order of `ids`. */
   apply(ids: readonly number[]): void;
   /**
-   * La même différence, publiée par une coupe qui nomme ses enregistrements au lieu de leurs rangs
-   * — la coupe processeur. Le catalogue a le dernier mot, comme partout. Rien n'est alloué passé la
-   * première coupe.
+   * The same difference, published by a cut that names its records instead of their ranks — the
+   * CPU cut. The catalogue has the last word, as everywhere. Nothing is allocated past the first
+   * cut.
    */
   adoptRecords(records: readonly PageRec[]): void;
 };
@@ -44,62 +44,62 @@ export type CutDelta = {
  * instead of a list.
  *
  * `pages` — the record array the caller owns — is written in the order the cut published, which is
- * the order the host streams in, et cette différence en est le seul écrivain. Un appelant qui ne
- * veut que la différence l'omet : aucune liste d'enregistrements n'est alors bâtie, et le relevé ne
- * coûte plus que sa propre longueur.
+ * the order the host streams in, and this difference is its only writer. A caller that only wants
+ * the difference omits it: no record list is then built, and the shown list costs only its own
+ * length.
  *
- * Rien n'est alloué une fois la scène connue, et rien n'est appelé par page : l'appartenance est une
- * marque d'époque lue à même un tableau typé — l'époque du relevé pour le dédoublonnage, celle du
- * relevé précédent pour l'entrée —, les sorties se lisent sur la liste des retenues d'avant, et une
- * image qui adopte le relevé qu'elle tient déjà n'écrit rien du tout.
+ * Nothing is allocated once the scene is known, and nothing is called per page: membership is an
+ * epoch mark read on a typed array — the shown-list epoch for dedup, that of the previous shown
+ * list for entry —, exits are read on the previously held list, and a frame that adopts the shown
+ * list it already holds writes nothing at all.
  *
- * La coupe de la carte y arrive par ses identifiants (`apply`), celle du processeur par ses
- * enregistrements (`adoptRecords`) : un seul contrat, et les lecteurs ne savent pas laquelle décide.
+ * The GPU cut arrives there by its ids (`apply`), the CPU cut by its records (`adoptRecords`): one
+ * contract, and readers do not know which one decides.
  */
 export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[]): CutDelta {
   const capacity = Math.max(1, packedPages.length);
-  /** L'époque du relevé où l'identifiant a été retenu pour la dernière fois. */
+  /** Epoch of the shown list where the id was last held. */
   const mark = new Int32Array(capacity).fill(-1);
   const entered = new Int32Array(capacity),
     exited = new Int32Array(capacity);
-  /** Les identifiants retenus par le relevé précédent et par celui en cours : deux tampons échangés,
-   *  jamais réalloués, parce que les sorties se lisent sur l'ancien pendant que le neuf s'écrit. */
+  /** Ids held by the previous shown list and by the current one: two swapped buffers, never
+   *  reallocated, because exits are read on the old one while the new one is written. */
   let kept = new Int32Array(capacity),
     keptNext = new Int32Array(capacity);
-  /** La suite d'identifiants que le dernier relevé a publiée, pour la comparer telle quelle. */
+  /** Id sequence the last shown list published, to compare it as-is. */
   const published = new Int32Array(capacity);
   let epoch = 0,
     keptCount = 0,
     publishedCount = -1;
   /**
-   * Vrai quand `ids` est exactement la suite que le dernier relevé appliqué a publiée. Une passe
-   * d'entiers, sans une seule écriture : c'est elle qui autorise à ne rien refaire du tout — ni les
-   * marques, ni les retenues, ni les enregistrements — quand un relevé neuf republie la même coupe.
+   * True when `ids` is exactly the sequence the last applied shown list published. One integer
+   * pass, without a single write: it is what allows doing nothing at all — neither the marks, nor
+   * the held list, nor the records — when a new shown list republishes the same cut.
    */
   const samePublished = (ids: readonly number[]) => {
     if (ids.length !== publishedCount || ids.length > capacity) return false;
     for (let i = 0; i < ids.length; i++) if (published[i] !== ids[i]) return false;
     return true;
   };
-  /** Le relevé tenu : aucune différence n'est publiée, et la liste est déjà celle qu'il décrit. */
+  /** Held shown list: no difference is published, and the list is already the one it describes. */
   const hold = () => {
     state.changed = false;
     state.enteredCount = 0;
     state.exitedCount = 0;
   };
-  /** Les rangs de page d'une liste d'enregistrements. Vidé puis rempli par empilement, jamais
-   *  agrandi par sa longueur : un tableau agrandi ainsi reste troué à vie, et la boucle la plus
-   *  chaude du moteur le paie. Mesuré : 1,611 ms contre 1,737 ms pour un tampon typé équivalent. */
+  /** Page ranks of a record list. Emptied then filled by push, never grown by its length: an array
+   *  grown that way stays holed for life, and the engine's hottest loop pays for it. Measured:
+   *  1.611 ms against 1.737 ms for an equivalent typed buffer. */
   const recordIds: number[] = [];
   const apply = (ids: readonly number[]) => {
-    // Un relevé neuf qui republie la même suite décrit la coupe déjà tenue : elle est tenue, et
-    // pas une des quinze mille fiches n'est réécrite.
+    // A new shown list that republishes the same sequence describes the cut already held: it is
+    // held, and not one of the fifteen thousand records is rewritten.
     if (samePublished(ids)) return hold();
     const previous = epoch;
     epoch++;
     let enteredCount = 0,
       exitedCount = 0;
-    // Une suite plus longue que le catalogue ne se garde pas : elle est déclarée changée.
+    // A sequence longer than the catalogue is not kept: it is declared changed.
     let same = ids.length === publishedCount && ids.length <= capacity;
     publishedCount = ids.length <= capacity ? ids.length : -1;
     let keptNow = 0;

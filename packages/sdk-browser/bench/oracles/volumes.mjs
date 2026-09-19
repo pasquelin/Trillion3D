@@ -1,12 +1,12 @@
-// Références du banc des volumes qui n'ont pas de méthode Three.js toute faite : chacune est écrite
-// avec les objets de Three.js — `Vector3`, `Vector4`, `Matrix4` — dans l'ordre exact où le moteur
-// les appelait avant le lot M2.
+// Volume-bench references that have no ready-made Three.js method: each is written with
+// Three.js objects — `Vector3`, `Vector4`, `Matrix4` — in the exact order the engine
+// called them before batch M2.
 import * as THREE from 'three';
 import { coneRejects } from '../../../sdk-core/index.ts';
 
-/** L'ordre de plans de l'ancien `extractPlanes` : gauche, droite, bas, haut, proche, loin. */
+/** Plane order of the old `extractPlanes`: left, right, bottom, top, near, far. */
 const ANCIEN_ORDRE = [1, 0, 2, 3, 5, 4];
-/** Des plans rangés dans l'ordre de Three.js, remis dans l'ordre d'avant le lot M2. */
+/** Planes ordered as Three.js, put back in the order from before batch M2. */
 export const reordonne = (planes) => {
   const sortie = new Float64Array(24);
   ANCIEN_ORDRE.forEach((k, i) => sortie.set(planes.subarray(k * 4, k * 4 + 4), i * 4));
@@ -29,7 +29,7 @@ export function referencePlanesToLocal(planes, elements) {
 const axis = new THREE.Vector3(),
   center = new THREE.Vector3();
 
-/** `pageCone.ts` avant le lot M2, après ses gardes de matériau, de conformité et d'angle. */
+/** `pageCone.ts` before batch M2, after its material, conformal and angle guards. */
 export function referenceConeRejects(cone, world, min, max, normal, scale, cam) {
   center
     .set((min[0] + max[0]) * 0.5, (min[1] + max[1]) * 0.5, (min[2] + max[2]) * 0.5)

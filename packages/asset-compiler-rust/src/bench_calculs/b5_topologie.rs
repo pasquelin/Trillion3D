@@ -1,5 +1,5 @@
-//! B5 — `classify_link` : les trois `Vec` par sommet deviennent un bloc de travail réutilisé.
-//! Référence : l'ancienne version, noms francisés.
+//! B5 — `classify_link`: the three `Vec`s per vertex become a reused work block.
+//! Reference: old version, French names.
 use super::harness::{compare, Bits, Row};
 use super::inputs::Xorshift;
 use crate::topology::link::{classify_link, LinkScratch};
@@ -88,7 +88,7 @@ fn reference_classe(liens: &[(u32, u32)]) -> &'static str {
     }
 }
 
-/// Liens de 60 000 sommets : éventails fermés, éventails ouverts et voisinages non variétés.
+/// Links of 60,000 vertices: closed fans, open fans, non-manifold neighborhoods.
 fn liens(seed: u64, count: usize) -> Vec<Vec<(u32, u32)>> {
     let mut rng = Xorshift::new(seed);
     (0..count)
@@ -129,9 +129,9 @@ pub(crate) fn row() -> Row {
             .collect()
     };
     compare(
-        "B5 classify_link à blocs réutilisés",
+        "B5 classify_link with reused blocks",
         "topology/link.rs",
-        "60 000 sommets, degrés 3 à 8, éventails ouverts, fermés et non variétés".into(),
+        "60 000 vertices, degrees 3 to 8, open, closed and non-manifold fans".into(),
         &mut reference,
         &mut optimise,
         empreinte,

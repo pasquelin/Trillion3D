@@ -1,26 +1,26 @@
-//! Pilote de scène Alembic : un `.abc` de géométrie statique devient une scène intermédiaire glTF.
+//! Alembic scene driver: a static-geometry `.abc` becomes an intermediate glTF scene.
 //!
-//! **Provenance et licence, écrites ici comme dans le journal.** Le lecteur est écrit dans ce dépôt,
-//! depuis la spécification publique d'Alembic et ses sources de référence, sous licence
-//! BSD-3-Clause (Sony Pictures Imageworks, Lucasfilm) : conteneur Ogawa, métadonnées, objets,
-//! propriétés composées, scalaires et tableaux, échantillons. Aucune bibliothèque n'est ajoutée au
-//! dépôt pour ce format, aucun code ni SDK d'éditeur n'est repris, rien n'est déchiffré ni
-//! contourné. La seule caisse Rust publique candidate, `ogawa-rs` 0.4.0 (MIT OU Apache-2.0), a été
-//! évaluée et écartée : elle panique sur un type de donnée que ce corpus porte — le booléen d'un
-//! `.inherits` —, indexe ses groupes sans borne, et ne plafonne aucune allocation, là où ce dépôt
-//! exige qu'un fichier corrompu rende un refus nommé. La licence du contenu importé reste celle de
-//! son auteur : ce pilote n'en accorde ni n'en retire aucune.
+//! **Provenance and licence, written here as in `FORMATS.md`.** The reader is written in this
+//! repository from Alembic's public specification and its reference sources, under the
+//! BSD-3-Clause licence (Sony Pictures Imageworks, Lucasfilm): Ogawa container, metadata, objects,
+//! compound properties, scalars and arrays, samples. No library is added to the repository for
+//! this format, no vendor code or SDK is reused, nothing is deciphered or circumvented. The only
+//! public Rust crate candidate, `ogawa-rs` 0.4.0 (MIT OR Apache-2.0), was evaluated and rejected:
+//! it panics on a data type this corpus carries — the boolean of an `.inherits` —, indexes its
+//! groups unbounded, and ceilings no allocation, where this repository requires a corrupted file
+//! to yield a named refusal. The licence of the imported content remains that of its author: this
+//! driver neither grants nor withdraws any.
 //!
-//! **Ce qu'il lit.** La hiérarchie des `Xform` — premier échantillon, pile d'opérations composée,
-//! héritage déclaré —, les `PolyMesh` — positions, faces, normales et coordonnées de texture, quelle
-//! que soit leur portée —, les `SubD`, rendus comme les polygones plats qu'ils portent, et les
-//! `FaceSet`, dont chacun donne un matériau au maillage qui le porte. Alembic ne décrit aucun
-//! nuancier : un matériau y est un nom, et ce pilote ne lui invente donc ni couleur ni texture.
+//! **What it reads.** The `Xform` hierarchy — first sample, composed operation stack, declared
+//! inheritance —, `PolyMesh` — positions, faces, normals and texture coordinates, whatever their
+//! scope —, `SubD`, rendered as the flat polygons they carry, and `FaceSet`, each of which gives
+//! a material to the mesh that holds it. Alembic describes no shading network: a material is a
+//! name, and this driver therefore invents neither colour nor texture for it.
 //!
-//! **Ce qu'il compte au rapport sans le rendre** : courbes, points, surfaces NURBS, caméras,
-//! lampes, objets d'un autre schéma, instances par référence, animation — seul le premier
-//! échantillon est lu —, faces revendiquées par deux face sets, faces dégénérées, paramètres de
-//! géométrie incohérents, et `.arbGeomParams`, qui porte ce que l'exportateur a bien voulu y mettre.
+//! **What it counts on the report without returning it**: curves, points, NURBS surfaces, cameras,
+//! lamps, objects of another schema, instances by reference, animation — only the first sample is
+//! read —, faces claimed by two face sets, degenerate faces, inconsistent geometry parameters, and
+//! `.arbGeomParams`, which carries whatever the exporter chose to put there.
 use super::*;
 use crate::{hash_file, CompilerError};
 use serde_json::json;
@@ -46,32 +46,32 @@ use walk::World;
 
 pub(super) static ALEMBIC: Alembic = Alembic;
 pub(super) struct Alembic;
-/// Le nom du format, tel qu'il voyage dans le manifeste et dans la clé du cache.
+/// The format name, as it travels in the manifest and in the cache key.
 const NAME: &str = "alembic";
 
-/// Le fichier est un Alembic au conteneur HDF5 : un autre format d'emballage, que ce binaire ne lit
-/// pas et n'imite pas. Le refus le nomme plutôt que de laisser croire à un fichier corrompu.
+/// The file is an Alembic in the HDF5 container: another wrapping format, which this binary does
+/// not read and does not imitate. The refusal names it rather than looking like a corrupted file.
 pub(super) const HDF5_UNSUPPORTED: &str = "alembic-hdf5-unsupported";
-/// L'archive n'a pas été gelée : l'écrivain ne l'a pas close, et ce qu'elle porte est un chantier.
+/// The archive was never frozen: the writer did not close it, and what it holds is a work in progress.
 pub(super) const NOT_FROZEN: &str = "alembic-archive-unfrozen";
-/// L'entête déclare une version du format que ce lecteur ne lit pas.
+/// The header declares a format version this reader does not read.
 pub(super) const VERSION_UNSUPPORTED: &str = "alembic-version-unsupported";
-/// La structure du fichier ne tient pas : entête absente, bloc tronqué, pointeur hors du fichier.
+/// The file structure does not hold: missing header, truncated block, pointer outside the file.
 pub(super) const FILE_INVALID: &str = "alembic-file-invalid";
-/// Un bloc déclare plus d'octets ou d'enfants que le plafond d'allocation du pilote n'en admet.
+/// A block declares more bytes or children than the driver's allocation ceiling admits.
 pub(super) const SIZE_UNSUPPORTED: &str = "alembic-size-unsupported";
-/// Une transformation ne se compose pas : opération inconnue, ou valeurs en nombre insuffisant.
+/// A transform does not compose: unknown operation, or not enough values.
 pub(super) const VALUES_INVALID: &str = "alembic-values-invalid";
-/// La topologie d'un maillage se contredit : coins hors de la table des positions, faces au-delà
-/// des indices écrits, ou plus de coins que le plafond n'en admet.
+/// A mesh's topology contradicts itself: corners outside the position table, faces beyond the
+/// written indices, or more corners than the ceiling admits.
 pub(super) const TOPOLOGY_INVALID: &str = "alembic-topology-invalid";
 
 impl Plugin for Alembic {
     fn name(&self) -> &'static str {
         NAME
     }
-    /// La version nomme le lecteur — écrit ici, sur le conteneur Ogawa — et la génération de la
-    /// conversion : la changer invalide les caches, donc toute scène Alembic déjà compilée est relue.
+    /// The version names the reader — written here, on the Ogawa container — and the conversion
+    /// generation: changing it invalidates caches, so every already-compiled Alembic scene is reread.
     fn version(&self) -> &'static str {
         "alembic-ogawa-1-gltf-3"
     }
@@ -81,9 +81,9 @@ impl Plugin for Alembic {
 }
 
 impl ScenePlugin for Alembic {
-    /// L'entête du conteneur Ogawa, pour un fichier que son nom ne désigne pas. Un `.abc` au
-    /// conteneur HDF5 n'est pas reconnu ici : son extension l'amène au pilote, qui le refuse en le
-    /// nommant — c'est plus utile qu'un format inconnu.
+    /// The Ogawa container header, for a file its name does not designate. An HDF5 `.abc` is not
+    /// recognised here: its extension brings it to the driver, which refuses it by name — more
+    /// useful than an unknown format.
     fn accepts_head(&self, head: &[u8]) -> bool {
         head.starts_with(ogawa::MAGIC)
     }

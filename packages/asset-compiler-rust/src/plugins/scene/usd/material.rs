@@ -1,30 +1,30 @@
-//! Un `Material` USD vers un matériau glTF, par son `UsdPreviewSurface`.
+//! A USD `Material` into a glTF material, through its `UsdPreviewSurface`.
 //!
-//! `UsdPreviewSurface` et `pbrMetallicRoughness` décrivent la même chose sous deux noms : chaque
-//! entrée est ou bien une valeur, ou bien une connexion vers un `UsdUVTexture`, et une entrée
-//! connectée l'emporte sur le facteur, comme dans le reste du compilateur.
+//! `UsdPreviewSurface` and `pbrMetallicRoughness` describe the same thing under two names: each
+//! input is either a value, or a connection toward a `UsdUVTexture`, and a connected input wins
+//! over the factor, as in the rest of the compiler.
 //!
-//! La transparence suit la sémantique de USD et non un type d'objet ; elle est lue dans
-//! `opacity.rs`, qui dit aussi ce que glTF ne sait pas porter.
+//! Transparency follows USD semantics and not an object type; it is read in `opacity.rs`, which
+//! also says what glTF cannot carry.
 //!
-//! `doubleSided` est une propriété de la géométrie en USD et du matériau en glTF : c'est le
-//! maillage qui l'apporte, et deux maillages qui la déclarent autrement sur le même `Material`
-//! obtiennent deux matériaux glTF — un seul en aurait forcément trahi un.
+//! `doubleSided` is a property of the geometry in USD and of the material in glTF: it is the
+//! mesh that brings it, and two meshes that declare it differently on the same `Material` get
+//! two glTF materials — a single one would necessarily have betrayed one.
 use super::*;
 
-/// L'identifiant du nœud de surface que ce pilote lit.
+/// Identifier of the surface node this driver reads.
 const PREVIEW_SURFACE: &str = "UsdPreviewSurface";
-/// Le nom du matériau que les surfaces double face sans liaison partagent. Une clé de matériau
-/// résolu porte toujours un chemin de prim et un `#` : aucune ne se confond avec celle-ci.
+/// Name of the material that double-sided surfaces without a binding share. A resolved material
+/// key always carries a prim path and a `#`: none is mixed up with this one.
 const DOUBLE_SIDED: &str = "usd-double-sided";
-/// La couleur diffuse implicite d'un `UsdPreviewSurface`, telle que la spécification la pose : un
-/// gris, jamais le blanc — une surface lue blanche renvoie cinq fois trop de lumière.
+/// Implicit diffuse colour of a `UsdPreviewSurface`, as the specification sets it: a grey,
+/// never white — a surface read as white returns five times too much light.
 const DEFAULT_DIFFUSE: [f64; 3] = [0.18, 0.18, 0.18];
-/// Le canal où glTF lit le métal de sa carte partagée, et celui où il lit la rugosité.
+/// Channel where glTF reads metal from its shared map, and the one where it reads roughness.
 const METAL_CHANNEL: &str = "outputs:b";
 const ROUGH_CHANNEL: &str = "outputs:g";
 
-/// Le matériau glTF que ce chemin de prim désigne, versé dans les tables à sa première demande.
+/// glTF material this prim path names, poured into the tables on first request.
 pub(super) fn resolve(
     world: &mut World<'_>,
     path: &sdf::Path,
@@ -42,7 +42,8 @@ pub(super) fn resolve(
     built
 }
 
-/// Construit le matériau : le `Shader` atteint depuis `outputs:surface`, puis ses entrées.
+/// Builds the material: the `Shader` reached from the material's `outputs:surface`, then its
+/// inputs.
 fn build(world: &mut World<'_>, path: &sdf::Path, double_sided: bool) -> Option<usize> {
     let material = world.stage.prim(path.clone()).ok()?;
     let Some(shader) = surface_shader(world, &material) else {
@@ -73,9 +74,9 @@ fn build(world: &mut World<'_>, path: &sdf::Path, double_sided: bool) -> Option<
     Some(world.scene.materials.len() - 1)
 }
 
-/// Le matériau qu'une surface double face reçoit quand aucun `Material` ne la lie. `doubleSided`
-/// est une propriété de la géométrie en USD et du matériau en glTF : sans matériau pour la porter,
-/// les deux faces se perdraient. Un seul matériau sert à toutes les surfaces dans ce cas.
+/// Material a double-sided surface receives when no `Material` binds it. `doubleSided` is a
+/// property of the geometry in USD and of the material in glTF: without a material to carry it,
+/// both faces would be lost. A single material serves every surface in that case.
 pub(super) fn double_sided(world: &mut World<'_>) -> Option<usize> {
     if let Some(known) = world.materials.get(DOUBLE_SIDED) {
         return *known;
@@ -90,7 +91,7 @@ pub(super) fn double_sided(world: &mut World<'_>) -> Option<usize> {
     Some(rank)
 }
 
-/// Le `Shader` de type `UsdPreviewSurface` que `outputs:surface` du matériau atteint.
+/// `Shader` of type `UsdPreviewSurface` that the material's `outputs:surface` reaches.
 fn surface_shader(world: &World<'_>, material: &usd::Prim) -> Option<usd::Prim> {
     let target = connection(material, "outputs:surface")?;
     let shader = world.stage.prim(target.prim_path()).ok()?;
@@ -98,8 +99,8 @@ fn surface_shader(world: &World<'_>, material: &usd::Prim) -> Option<usd::Prim> 
     (id.as_deref() == Some(PREVIEW_SURFACE)).then_some(shader)
 }
 
-/// La couleur de base et son alpha : la texture connectée l'emporte sur la couleur écrite, et
-/// l'opacité entre dans le quatrième canal du facteur, comme glTF l'attend.
+/// Base colour and its alpha: the connected texture wins over the written colour, and opacity
+/// enters the fourth channel of the factor, as glTF expects.
 fn base_colour(world: &mut World<'_>, shader: &usd::Prim, pbr: &mut Value) -> opacity::Opacity {
     let diffuse = connection(shader, "inputs:diffuseColor");
     let textured = diffuse
@@ -121,13 +122,14 @@ fn base_colour(world: &mut World<'_>, shader: &usd::Prim, pbr: &mut Value) -> op
     transparency
 }
 
-/// Le métal et la rugosité. glTF n'a qu'une carte pour les deux ; deux textures distinctes ne s'y
-/// ramènent pas sans recomposer une image, ce qui serait inventer des octets : les facteurs sont
-/// alors seuls portés et l'écart est compté par son nom.
+/// Metal and roughness. glTF has only one map for both; two distinct textures do not fold into
+/// it without recomposing an image, which would invent bytes: the factors are then carried
+/// alone and the mismatch is counted by name.
 ///
-/// Une carte partagée, elle, l'emporte sur les facteurs écrits, que glTF multiplie par elle : ils
-/// valent un, sans quoi la carte serait annulée. Reste à savoir d'où chaque entrée tire son canal :
-/// glTF prend le métal dans le bleu et la rugosité dans le vert, et un autre canal ne s'y range pas.
+/// A shared map, for its part, wins over the written factors, which glTF multiplies by it: they
+/// are one, otherwise the map would be cancelled. What remains is where each input draws its
+/// channel from: glTF takes metal in blue and roughness in green, and another channel does not
+/// fit there.
 fn metallic_roughness(world: &mut World<'_>, shader: &usd::Prim, pbr: &mut Value) {
     let metal = connection(shader, "inputs:metallic");
     let rough = connection(shader, "inputs:roughness");
@@ -161,7 +163,7 @@ fn metallic_roughness(world: &mut World<'_>, shader: &usd::Prim, pbr: &mut Value
     }
 }
 
-/// La texture branchée sur une entrée du nœud de surface, et le rôle de cette entrée.
+/// Texture wired onto an input of the surface node, and the role of that input.
 pub(super) fn connected_texture(
     world: &mut World<'_>,
     shader: &usd::Prim,
@@ -172,17 +174,17 @@ pub(super) fn connected_texture(
     texture::resolve(world, &target, colour)
 }
 
-/// La première connexion d'un attribut.
+/// First connection of an attribute.
 pub(super) fn connection(prim: &usd::Prim, name: &str) -> Option<sdf::Path> {
     prim.attribute(name).connections().ok()?.into_iter().next()
 }
 
-/// La valeur écrite d'une entrée du nœud de surface.
+/// Written value of an input of the surface node.
 pub(super) fn value(shader: &usd::Prim, name: &str) -> Option<sdf::Value> {
     read::first(&shader.attribute(format!("inputs:{name}"))).map(|(value, _)| value)
 }
 
-/// Une entrée scalaire du nœud de surface.
+/// A scalar input of the surface node.
 pub(super) fn scalar(shader: &usd::Prim, name: &str) -> Option<f64> {
     value(shader, name).as_ref().and_then(read::number)
 }

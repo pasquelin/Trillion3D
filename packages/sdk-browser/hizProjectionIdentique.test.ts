@@ -5,11 +5,10 @@ import { HIZ_BOUNDS_VALUES } from './hiz.ts';
 import { projectCornersInto } from './hizCorners.ts';
 
 /**
- * L'arithmétique d'avant les raccourcis, écrite ici une fois : un produit scalaire pour le
- * dénominateur de vue, un autre pour `cw`, et la conversion écran appliquée à chaque coin. C'est la
- * référence bit à bit que les deux raccourcis — `cw = -viewZ` et la conversion hissée sur les
- * extrema — doivent rendre terme pour terme, quelle que soit la vue et quelle que soit la
- * projection.
+ * Arithmetic from before the shortcuts, written here once: one dot product for the view
+ * denominator, another for `cw`, and the screen conversion applied to each corner. This is the
+ * bit-for-bit reference that both shortcuts — `cw = -viewZ` and the conversion hoisted onto the
+ * extrema — must return term for term, whatever the view and whatever the projection.
  */
 function reference(
   corners: Float64Array,
@@ -23,7 +22,7 @@ function reference(
     minY = Infinity,
     maxX = -Infinity,
     maxY = -Infinity,
-    // Profondeur inversée : le coin le plus proche porte la profondeur la plus grande.
+    // Reverse-Z: the nearest corner carries the greatest depth.
     nearest = -Infinity;
   for (let i = 0; i < 8; i++) {
     const x = corners[i * 3],
@@ -53,7 +52,7 @@ function reference(
   ] as number[];
 }
 
-/** Un générateur à graine fixe : les mêmes boîtes à chaque exécution. */
+/** A fixed-seed generator: the same boxes on every run. */
 function graine(seed: number) {
   let state = seed >>> 0;
   return () => {
@@ -97,14 +96,14 @@ function compare(
     for (let k = 0; k < HIZ_BOUNDS_VALUES; k++)
       assert.ok(
         Object.is(into[k], expected[k]),
-        `${label} valeur ${k} : ${into[k]} au lieu de ${expected[k]}`,
+        `${label} value ${k}: ${into[k]} instead of ${expected[k]}`,
       );
     if (into[5] === 0) projected++;
   }
-  assert.ok(projected > boxes.length / 4, `${label} : trop peu de boîtes projetées (${projected})`);
+  assert.ok(projected > boxes.length / 4, `${label}: too few boxes projected (${projected})`);
 }
 
-test('la projection rend, bit pour bit, ce que rendait le produit scalaire complet par coin', () => {
+test('the projection returns, bit for bit, what the full per-corner dot product returned', () => {
   const boxes = boites(400);
   const perspective = new THREE.PerspectiveCamera(50, 1280 / 720, 0.1, 5000);
   perspective.position.set(3, 40, 160);
@@ -112,18 +111,18 @@ test('la projection rend, bit pour bit, ce que rendait le produit scalaire compl
   perspective.updateMatrixWorld(true);
   compare(perspective, perspective.matrixWorldInverse, perspective.near, 'perspective', boxes);
 
-  // Une projection orthographique n'a pas (0,0,-1,0) pour quatrième ligne : `cw` repasse par son
-  // produit scalaire, et la boîte doit sortir aux mêmes bits.
+  // An orthographic projection does not have (0,0,-1,0) for a fourth row: `cw` goes back through
+  // its dot product, and the box must come out at the same bits.
   const ortho = new THREE.OrthographicCamera(-200, 200, 120, -120, 0.1, 5000);
   ortho.position.set(3, 40, 160);
   ortho.updateMatrixWorld(true);
-  compare(ortho, ortho.matrixWorldInverse, ortho.near, 'orthographique', boxes);
+  compare(ortho, ortho.matrixWorldInverse, ortho.near, 'orthographic', boxes);
 
-  // Une vue dont la quatrième ligne n'est pas (0,0,0,1) : le dénominateur de vue revit.
+  // A view whose fourth row is not (0,0,0,1): the view denominator lives again.
   const oblique = perspective.matrixWorldInverse.clone();
   oblique.elements[3] = 1e-4;
   oblique.elements[7] = -2e-4;
   oblique.elements[11] = 3e-4;
   oblique.elements[15] = 1.0000001;
-  compare(perspective, oblique, perspective.near, 'vue non affine', boxes);
+  compare(perspective, oblique, perspective.near, 'non-affine view', boxes);
 });

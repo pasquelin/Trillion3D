@@ -6,13 +6,13 @@ import {
   VIS_BINDINGS,
 } from './webgpuBindLayout.ts';
 
-/** Ce que toute passe qui échantillonne un atlas a besoin de lier : le diffuseur, qui porte le
- *  pool et la table de pages de chaque atlas, et l'échantillonneur. */
+/** What every pass that samples an atlas needs to bind: the streamer, which holds each atlas's
+ *  pool and page table, and the sampler. */
 type AtlasResources = { textures: WebgpuTileStreamer; sampler: GPUSampler };
 
-/** Les ressources d'un groupe de la passe de visibilité : celles qui changent d'un constructeur à
- *  l'autre sont l'uniforme (son décalage de slot), les drapeaux Hi-Z et les deux tampons de slots,
- *  qui valent `zeroFlags` pour le chemin direct et les tampons indirects pour le chemin par slot. */
+/** Resources of a visibility-pass group: those that change from one constructor to the other are
+ *  the uniform (its slot offset), the Hi-Z flags and the two slot buffers, which are `zeroFlags`
+ *  on the direct path and the indirect buffers on the per-slot path. */
 export type VisBindResources = AtlasResources & {
   cache: GPUBuffer;
   position: GPUBuffer;
@@ -25,7 +25,7 @@ export type VisBindResources = AtlasResources & {
   slotOffsets: GPUBuffer;
 };
 
-/** Les ressources du groupe de résolution matérielle, identiques pour ses deux constructeurs. */
+/** Resources of the hardware-resolve group, identical for both of its constructors. */
 export type ShadeBindResources = AtlasResources & {
   visView: GPUTextureView;
   cache: GPUBuffer;
@@ -37,10 +37,10 @@ export type ShadeBindResources = AtlasResources & {
 };
 
 /**
- * L'éclairage que lit un maillage transparent : les lampes déclarées du contrat, leurs tranches
- * d'ombre, l'atlas et son échantillonneur, la grille de sondes et ses coefficients. Ce sont les
- * ressources de la résolution opaque, jamais une lumière propre au mélange (P6) ; celles qui
- * n'existent pas encore sont tenues par les remplaçants de la résolution différée.
+ * Lighting a transparent mesh reads: the contract's declared lamps, their shadow slices, the atlas
+ * and its sampler, the probe grid and its coefficients. These are the opaque-resolve resources,
+ * never a light of the blend's own (P6); those that do not exist yet are held by the deferred
+ * resolve's stand-ins.
  */
 export type BlendLighting = {
   directLights: GPUBuffer;
@@ -49,39 +49,39 @@ export type BlendLighting = {
   shadowSampler: GPUSampler;
   bounceGrid: GPUBuffer;
   probes: GPUBuffer;
-  /** Les listes de lampes par tuile : la passe de mélange lit la tranche qui la concerne. */
+  /** Per-tile lamp lists: the blend pass reads the slice that concerns it. */
   tileLights: GPUBuffer;
-  /** Le proxy résident : le même rayon d'ombre lointaine que la résolution opaque, pas un autre. */
+  /** The resident proxy: the same far-shadow ray as the opaque resolve, not another. */
   proxy: GPUBuffer;
 };
 
-/** Les ressources du groupe d'un maillage transparent : le maillage lui-même et la scène. */
+/** Resources of a transparent-mesh group: the mesh itself and the scene. */
 export type BlendBindResources = AtlasResources &
   BlendLighting & {
     indices: GPUBuffer;
     positions: GPUBuffer;
     uvs: GPUBuffer;
-    /** L'uniforme de VUE de l'image : projection, oeil, tuiles de lampes, drapeaux de diagnostic.
-     *  Un seul pour toute la passe, et il ne porte plus rien qui appartienne a un item. */
+    /** VIEW uniform of the image: projection, eye, lamp tiles, diagnostic flags. One for the
+     *  whole pass, and it no longer carries anything that belongs to an item. */
     uniform: GPUBuffer;
     uniformSize: number;
-    /** Les fiches d'items, indexees par le rang de l'item dans la scene (`webgpuBlendItems.ts`). */
+    /** Item records, indexed by the item's rank in the scene (`webgpuBlendItems.ts`). */
     items: GPUBuffer;
     normals: GPUBuffer;
-    /** Identité d'un cluster transparent, une par entrée de la table de dessin. */
+    /** Identity of a transparent cluster, one per draw-table entry. */
     clusterDiagnostic: GPUBuffer;
-    /** La liste d'instances étalée par l'image, et la portée de chaque grappe dans le cache. */
+    /** Instance list expanded for the image, and each cluster's span in the cache. */
     planInstances: GPUBuffer;
     clusterSpans: GPUBuffer;
-    /** Le volume du matériau, à décalage dynamique comme l'uniforme principal. */
+    /** Material volume, at a dynamic offset like the main uniform. */
     volume: GPUBuffer;
     volumeSize: number;
-    /** Le fond figé de la passe de transmission : couleur et profondeur déjà dessinées. */
+    /** Frozen backdrop of the transmission pass: colour and depth already drawn. */
     backdrop: GPUTextureView;
     backdropDepth: GPUTextureView;
   };
 
-/** Les ressources du raster logiciel des petits triangles : il ne lit que la découpe alpha. */
+/** Resources of the software raster of small triangles: it only reads the alpha cutout. */
 export type SmallBindResources = AtlasResources & {
   indices: GPUBuffer;
   positions: GPUBuffer;
@@ -90,12 +90,12 @@ export type SmallBindResources = AtlasResources & {
   uniform: GPUBuffer;
   uniformSize: number;
   uvs: GPUBuffer;
-  /** L'image du raster puis, juste après elle, la liste des petits triangles. */
+  /** The raster image then, right after it, the list of small triangles. */
   work: GPUBuffer;
   selectionMask: GPUBuffer;
 };
 
-/** Les deux entrées d'un atlas : son pool et sa table de pages. */
+/** The two entries of an atlas: its pool and its page table. */
 const atlasEntries = (
   bindings: { pool: number; pages: number },
   atlas: WebgpuTileStreamer['color'],
@@ -104,9 +104,9 @@ const atlasEntries = (
   { binding: bindings.pages, resource: { buffer: atlas.pages.buffer } },
 ];
 
-/** L'unique liste d'entrées de `visBindGroupLayout`. Ses deux constructeurs — le groupe direct et
- *  celui d'un slot indirect — passent par ici, si bien qu'une liaison ajoutée à la disposition ne
- *  peut plus manquer à l'un des deux. */
+/** The unique entry list of `visBindGroupLayout`. Both of its constructors — the direct group and
+ *  that of an indirect slot — go through here, so a binding added to the layout can no longer be
+ *  missing from either. */
 export function visBindEntries(r: VisBindResources): GPUBindGroupEntry[] {
   const b = VIS_BINDINGS;
   return [
@@ -123,8 +123,8 @@ export function visBindEntries(r: VisBindResources): GPUBindGroupEntry[] {
   ];
 }
 
-/** L'unique liste d'entrées de `shadeBindGroupLayout`, partagée par la construction de préparation
- *  et par la reconstruction après changement de tampon. */
+/** The unique entry list of `shadeBindGroupLayout`, shared by the prepare-time construction and by
+ *  the rebuild after a buffer change. */
 export function shadeBindEntries(r: ShadeBindResources): GPUBindGroupEntry[] {
   const b = SHADE_BINDINGS;
   return [
@@ -141,7 +141,7 @@ export function shadeBindEntries(r: ShadeBindResources): GPUBindGroupEntry[] {
   ];
 }
 
-/** L'unique liste d'entrées de `blendBindGroupLayout`. */
+/** The unique entry list of `blendBindGroupLayout`. */
 export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
   const b = BLEND_BINDINGS;
   return [
@@ -171,7 +171,7 @@ export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
   ];
 }
 
-/** L'unique liste d'entrées du groupe de calcul des petits triangles. */
+/** The unique entry list of the small-triangle compute group. */
 export function smallBindEntries(r: SmallBindResources): GPUBindGroupEntry[] {
   const b = SMALL_BINDINGS;
   return [

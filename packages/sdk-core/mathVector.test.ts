@@ -17,8 +17,8 @@ import {
 
 const proche = (a: number, b: number, tol = 1e-9) => Math.abs(a - b) <= tol;
 
-/** Vecteurs hostiles partagés : nul, NaN, ±0, infinis, dénormal — mêmes trois composantes lues des
- *  deux côtés, donc tout écart ne peut venir que de l'algèbre. */
+/** Shared hostile vectors: zero, NaN, ±0, infinities, denormal — same three components read on
+ *  both sides, so any gap can only come from the algebra. */
 const VECTEURS: [number, number, number][] = [
   [0, 0, 0],
   [-0, 0, -0],
@@ -30,29 +30,29 @@ const VECTEURS: [number, number, number][] = [
 ];
 const SCALAIRES = [0, -0, 1, -1, 2.5, NaN, Infinity, -Infinity];
 
-/** `Object.is` composante par composante : distingue -0/0 et traite NaN comme égal à lui-même. */
+/** `Object.is` component by component: distinguishes -0/0 and treats NaN as equal to itself. */
 function bitEqualVec3(out: ArrayLike<number>, v: THREE.Vector3, label: string) {
   assert.ok(Object.is(out[0], v.x), `${label}, x: ${out[0]} != ${v.x}`);
   assert.ok(Object.is(out[1], v.y), `${label}, y: ${out[1]} != ${v.y}`);
   assert.ok(Object.is(out[2], v.z), `${label}, z: ${out[2]} != ${v.z}`);
 }
 
-test('dotVector3 : produit scalaire des trois premières composantes seulement', () => {
+test('dotVector3: dot product of the first three components only', () => {
   assert.equal(dotVector3([1, 2, 3], [4, 5, 6]), 32);
   assert.equal(dotVector3([1, 0, 0], [0, 1, 0]), 0);
 });
 
-test('crossVector3 : x × y = z, règle de la main droite', () => {
+test('crossVector3: x × y = z, right-hand rule', () => {
   const out = crossVector3(new Float64Array(3), [1, 0, 0], [0, 1, 0]);
   assert.deepEqual([...out], [0, 0, 1]);
 });
 
-test('crossVector3 : vecteurs génériques, les trois composantes croisées', () => {
+test('crossVector3: generic vectors, the three components crossed', () => {
   const out = crossVector3(new Float64Array(3), [1, 2, 3], [4, 5, 6]);
   assert.deepEqual([...out], [-3, 6, -3]);
 });
 
-test("crossVector3 : la sortie peut aliasser l'une ou l'autre entrée, six lectures avant écriture", () => {
+test('crossVector3: the output may alias either input, six reads before write', () => {
   const a: [number, number, number] = [1, 2, 3],
     b: [number, number, number] = [4, 5, 6];
   const attendu = crossVector3(new Float64Array(3), a, b);
@@ -64,28 +64,28 @@ test("crossVector3 : la sortie peut aliasser l'une ou l'autre entrée, six lectu
   assert.deepEqual([...surB], [...attendu], 'out === b');
 });
 
-test('transformAffinePoint : identité laisse le point inchangé, translation seule décale', () => {
+test('transformAffinePoint: identity leaves the point unchanged, translation alone shifts', () => {
   const identite = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 6, 7, 1];
   const out = transformAffinePoint(new Float64Array(3), identite, 1, 2, 3);
   assert.deepEqual([...out], [6, 8, 10]);
 });
 
-test('transformAffinePoint : sans division perspective même sur une matrice non affine', () => {
-  // Dernière ligne (2, 0, 0, 1) au lieu de (0, 0, 0, 1) : la fonction ignore cette ligne par
-  // construction, donc son résultat ne dépend que des trois premières lignes.
+test('transformAffinePoint: no perspective divide even on a non-affine matrix', () => {
+  // Last row (2, 0, 0, 1) instead of (0, 0, 0, 1): the function ignores this row by
+  // construction, so its result depends only on the first three rows.
   const m = [1, 0, 0, 2, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
   const out = transformAffinePoint(new Float64Array(3), m, 3, 4, 5);
   assert.deepEqual([...out], [3, 4, 5]);
 });
 
-test('transformHomogeneousPoint : porte la quatrième composante, division laissée à l’appelant', () => {
+test('transformHomogeneousPoint: carries the fourth component, divide left to the caller', () => {
   // Matrice de projection perspective simple : w = -z.
   const proj = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, -1, 0, 0, 0, 0];
   const out = transformHomogeneousPoint(new Float64Array(4), proj, 2, 4, -10);
   assert.deepEqual([...out], [2, 4, -10, 10]);
 });
 
-test('normalizeVector3 : un vecteur nul reste nul, un vecteur ordinaire devient de longueur 1', () => {
+test('normalizeVector3: a zero vector stays zero, an ordinary vector becomes length 1', () => {
   const nul = new Float64Array([0, 0, 0]);
   normalizeVector3(nul);
   assert.deepEqual([...nul], [0, 0, 0]);
@@ -143,18 +143,18 @@ test('addScaledVector3 : contre out.addScaledVector(a, s), accumulation sur un o
       }
 });
 
-/** Matrices 3×3 colonne-major hostiles : identité, cisaillement, échelle négative et non uniforme,
- *  singulière (troisième colonne combinaison des deux autres). */
+/** Hostile column-major 3×3 matrices: identity, shear, negative and non-uniform scale,
+ *  singular (third column a combination of the other two). */
 const MATRICES_3X3: number[][] = [
   [1, 0, 0, 0, 1, 0, 0, 0, 1],
   [1, 0, 0, 0, -1, 0, 0, 0, 1],
   [2, 0, 0, 0, -3, 0, 0, 0, 0.5],
-  [1, 2, 0, 0, 1, 0, 0, 0.5, 1], // cisaillement
-  [1, 2, 3, 2, 4, 6, 3, 6, 9], // singulière : colonnes colinéaires
+  [1, 2, 0, 0, 1, 0, 0, 0.5, 1], // shear
+  [1, 2, 3, 2, 4, 6, 3, 6, 9], // singular: collinear columns
   [NaN, 0, 0, 0, 1, 0, 0, 0, -1],
 ];
 
-test('applyMatrix3Vector3 : contre v.applyMatrix3(m), cisaillement et échelle négative compris', () => {
+test('applyMatrix3Vector3: against v.applyMatrix3(m), shear and negative scale included', () => {
   for (const m of MATRICES_3X3)
     for (const v of VECTEURS) {
       const out = new Float64Array(3);
@@ -165,13 +165,13 @@ test('applyMatrix3Vector3 : contre v.applyMatrix3(m), cisaillement et échelle n
     }
 });
 
-/** Matrices 4×4 affines hostiles pour `transformDirection` : la translation (dernière colonne) est
- *  ignorée, seul le bloc 3×3 supérieur gauche compte, cisaillement et échelle négative compris. */
+/** Hostile affine 4×4 matrices for `transformDirection`: translation (last column) is
+ *  ignored, only the upper-left 3×3 block counts, shear and negative scale included. */
 const MATRICES_4X4: number[][] = [
   [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 9, -9, 9, 1],
   [-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1],
   [2, 0, 0, 0, 0, -3, 0, 0, 0, 0, 0.5, 0, 5, 6, 7, 1],
-  [1, 2, 0, 0, 0, 1, 0, 0, 0, 0.5, 1, 0, 0, 0, 0, 1], // cisaillement
+  [1, 2, 0, 0, 0, 1, 0, 0, 0, 0.5, 1, 0, 0, 0, 0, 1], // shear
   [NaN, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
 ];
 

@@ -1,52 +1,52 @@
 import { BOUNCE_TRACE_WGSL } from './bounceTraceWgsl.ts';
 
 /**
- * L'ombre du soleil au-delà de la dernière cascade, tirée contre le proxy résident de la scène.
+ * Sun shadow beyond the last cascade, traced against the scene's resident proxy.
  *
- * Les cascades couvrent une fraction publiée du lointain de la caméra ; plus loin, une surface
- * restait éclairée sans aucun test d'ombre — un intérieur vu de loin paraissait en plein jour, puis
- * devenait noir quand la caméra approchait et qu'une cascade le reprenait. Un rayon d'ombre par
- * pixel concerné supprime cette marche : le même rayon que les sondes lancent, contre la même
- * traversée du même proxy, sans une ligne de géométrie en double.
+ * Cascades cover a published fraction of the camera far plane; farther out, a surface
+ * stayed lit with no shadow test — an interior seen from afar looked like full daylight, then
+ * went black when the camera approached and a cascade took it over. One shadow ray per
+ * affected pixel removes that step: the same ray the probes fire, against the same
+ * traversal of the same proxy, without a line of geometry in duplicate.
  *
- * Le rayon est déterministe — sa direction est celle du soleil, son origine celle du pixel —, donc
- * deux images d'une caméra immobile donnent exactement la même ombre lointaine. Rien n'est accumulé
- * d'une image à l'autre : il n'y a ni retard, ni traînée, ni bruit propre à ce lot.
+ * The ray is deterministic — its direction is the sun's, its origin the pixel's — so
+ * two frames of a still camera yield exactly the same far shadow. Nothing is accumulated
+ * from one frame to the next: there is no lag, no trail, no noise of this batch's own.
  *
- * Les bornes sont celles de la traversée du rebond, publiées avec elle (X2) : un rayon qui épuise
- * ses nœuds ne trouve pas d'occulteur, donc il éclaire. C'est une approximation nommée de ce lot,
- * au même titre que l'erreur géométrique certifiée du proxy, qui déplace le contour de l'ombre.
+ * Bounds are those of the bounce traversal, published with it (X2): a ray that exhausts
+ * its nodes finds no occluder, so it lights. That is a named approximation of this batch,
+ * on the same footing as the proxy's certified geometric error, which shifts the shadow outline.
  *
- * Les deux passes qui éclairent reçoivent exactement ce code, sur exactement une liaison : le proxy
- * résident et ses réglages tiennent dans un seul tampon de stockage (`residentProxyWgsl`), si bien
- * qu'une surface de mélange lointaine est ombrée par le même rayon qu'une surface opaque. Il n'y a
- * plus de bouchon, plus de chemin qui rende un sans avoir cherché.
+ * Both lighting passes receive exactly this code, on exactly one binding: the resident
+ * proxy and its settings fit in a single storage buffer (`residentProxyWgsl`), so a far
+ * blend surface is shadowed by the same ray as an opaque surface. There is no plug left,
+ * no path that returns one without having searched.
  */
-/** Le rang de la liaison du proxy résident dans la disposition de la résolution différée. */
+/** Binding rank of the resident proxy in the deferred-resolution layout. */
 export const SUN_FAR_PROXY_BINDING = 13;
 
 /**
- * La fraction de soleil qui atteint un point qu'aucune cascade ne couvre : zéro si le proxy coupe
- * le rayon, un sinon. Le rayon part d'une maille de proxy plus loin, sans quoi la surface grossière
- * ombrerait la vraie surface qu'elle approche.
+ * Fraction of sun that reaches a point no cascade covers: zero if the proxy cuts the
+ * ray, one otherwise. The ray starts from a proxy cell farther along, or the coarse surface
+ * would shadow the true surface it approaches.
  *
- * Sans proxy dans le cache, present vaut zéro et la surface lointaine reste éclairée sans ombre,
- * exactement comme avant ce lot : l'indisponibilité est dite dans le diagnostic, jamais comblée par
- * une ombre inventée ni par une cascade étirée qui diviserait par cinq la densité des ombres proches.
+ * With no proxy in the cache, present is zero and the far surface stays lit without shadow,
+ * exactly as before this batch: unavailability is stated in the diagnostic, never filled by
+ * an invented shadow nor by a stretched cascade that would divide near-shadow density by five.
  *
- * `counting` n'ajoute que les deux compteurs du relevé, jamais une ligne de physique : le rayon, son
- * origine, ses bornes et sa réponse sont les mêmes des deux côtés, caractère pour caractère. Une
- * passe les prend quand elle peut écrire le proxy ; la passe de mélange ne le peut pas, parce qu'une
- * écriture de stockage dans son étage de fragments lui coûterait le rejet anticipé de profondeur, et
- * avec lui l'ombrage de milliers de fragments que la profondeur jette ensuite.
+ * `counting` only adds the two report counters, never a line of physics: the ray, its
+ * origin, its bounds and its answer are the same on both sides, character for character. One
+ * pass takes them when it can write the proxy; the blend pass cannot, because a storage
+ * write in its fragment stage would cost it early depth rejection, and with it the shading
+ * of thousands of fragments that depth then discards.
  */
 export const sunFarShadowWgsl = (counting: boolean) => `
 ${BOUNCE_TRACE_WGSL}
 fn sunFarShadowFactor(P:vec3f,N:vec3f,L:vec3f)->f32{
  if(proxy.present<0.5){return 1.0;}
-${counting ? ' let counting=proxy.counting>0u;\n if(counting){atomicAdd(&proxy.tested,1u);}\n' : ''} // Le rayon part d'une maille de proxy plus loin le long de sa propre direction : c'est ce départ,
- // et non un relèvement massif le long de la normale, qui saute la surface grossière sur laquelle
- // le point se tient. Le relèvement, lui, ne sert qu'à quitter son plan exact.
+${counting ? ' let counting=proxy.counting>0u;\n if(counting){atomicAdd(&proxy.tested,1u);}\n' : ''} // The ray starts from a proxy cell farther along its own direction: it is this start,
+ // not a massive lift along the normal, that skips the coarse surface the point sits on.
+ // The lift itself only leaves its exact plane.
  let origin=P+N*proxy.offsetMetres+L*proxy.startMetres;
  if(!proxyBlocked(origin,L,max(proxy.maxMetres-proxy.startMetres,0.0))){return 1.0;}
 ${counting ? ' if(counting){atomicAdd(&proxy.blocked,1u);}\n' : ''} return 0.0;

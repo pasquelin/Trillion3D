@@ -1,20 +1,20 @@
-// Preuve par le moteur réel : un rig d'hôte déplacé, scène immobile, coupe inchangée — les bornes
-// PROJETÉES envoyées au test Hi-Z sont celles de la nouvelle vue.
+// Proof on the real engine: a moved host rig, still scene, unchanged cut — the PROJECTED
+// bounds sent to the Hi-Z test are those of the new view.
 //
-// Ces bornes sont des rectangles d'écran, que la partition GPU calcule par image depuis les matrices
-// de vue que le processeur lui envoie. Sous un rig, la caméra n'a pas de pose locale nouvelle : sans
-// résolution de la chaîne d'ancêtres, ces matrices seraient celles de la vue précédente et le test
-// Hi-Z trancherait sur les rectangles d'une autre vue. Les deux moitiés de la preuve :
-//   (a) le rig bouge → l'image est celle d'un moteur neuf placé d'emblée à la même pose monde,
-//       octet pour octet ;
-//   (b) l'image qui suit, immobile, l'est encore — et elle n'a pas été tenue, donc elle a bien été
-//       dessinée depuis les mêmes matrices plutôt que recopiée.
+// Those bounds are screen rectangles, which GPU partition computes per frame from the view
+// matrices the CPU sends it. Under a rig the camera has no new local pose: without resolving
+// the ancestor chain those matrices would be the previous view's and Hi-Z would decide on
+// another view's rectangles. The two halves of the proof:
+//   (a) the rig moves → the image matches a fresh engine placed at the same world pose,
+//       byte for byte;
+//   (b) the following still image still matches — and it was not held, so it was drawn
+//       from the same matrices rather than copied.
 //
 //   node --experimental-strip-types test/browser/hiz-rig-camera.browser.mjs
 import assert from 'node:assert/strict';
 import { preuveDansLaPage, preuveSaine } from '../appui/preuvePageMoteur.mjs';
 
-const resultat = await preuveDansLaPage('hizRigPage.mjs', 'hizRig', 'Rig d’hôte déplacé');
+const resultat = await preuveDansLaPage('hizRigPage.mjs', 'hizRig', 'Moved host rig');
 console.log(
   JSON.stringify(
     { adaptateur: resultat.adaptateur ?? null, etapes: resultat.etapes, erreurs: resultat.erreurs },
@@ -25,41 +25,41 @@ console.log(
 preuveSaine(resultat);
 
 const etapes = resultat.etapes;
-assert.ok(etapes.length >= 4, 'la preuve doit compter plusieurs poses de rig');
+assert.ok(etapes.length >= 4, 'the proof must count several rig poses');
 for (const etape of etapes) {
   assert.equal(
     etape.clusters,
     etapes[0].clusters,
-    `la coupe a changé en ${etape.x} : la preuve exigeait des pages identiques`,
+    `the cut changed at ${etape.x}: the proof required identical pages`,
   );
   assert.equal(
     etape.ecart,
     0,
-    `en ${etape.x}, l’image du rig et celle du moteur neuf diffèrent sur ${etape.ecart} pixels : ` +
-      'des rectangles d’écran d’une vue précédente sont encore testés',
+    `at ${etape.x}, the rig image and the fresh engine differ on ${etape.ecart} pixels: ` +
+      'screen rectangles from a previous view are still being tested',
   );
 }
-// (a) et (b) : la partition traite toutes les lignes dessinables à chaque image, et les deux images
-// de chaque pose valent celle du témoin. Une image tenue n'encode rien et ne compte rien — elle ne
-// prouverait pas la résolution du rig, elle la contournerait.
+// (a) and (b): partition processes every drawable row each frame, and both images of each
+// pose match the witness. A held frame encodes nothing and counts nothing — it would not
+// prove rig resolution, it would bypass it.
 for (const etape of etapes) {
   assert.ok(
     etape.lignesApresDeplacement > 0 && etape.lignesImmobile === etape.lignesApresDeplacement,
-    `en ${etape.x}, la partition n’a pas traité les mêmes lignes aux deux images`,
+    `at ${etape.x}, partition did not process the same rows on both frames`,
   );
-  assert.equal(etape.tenueImmobile, false, `en ${etape.x}, l’image immobile a été tenue`);
+  assert.equal(etape.tenueImmobile, false, `at ${etape.x}, the still frame was held`);
   assert.equal(
     etape.ecartImmobile,
     0,
-    `en ${etape.x}, l’image immobile diffère du témoin sur ${etape.ecartImmobile} pixels : ` +
-      'des matrices d’une vue précédente sont encore projetées',
+    `at ${etape.x}, the still image differs from the witness on ${etape.ecartImmobile} pixels: ` +
+      'matrices from a previous view are still being projected',
   );
 }
-// Sans bascule d'occultation le long des poses, l'égalité avec le témoin ne prouverait rien : la
-// dalle lointaine doit être occultée quelque part et visible ailleurs.
+// Without an occlusion flip along the poses, equality with the witness would prove nothing:
+// the far slab must be occluded somewhere and visible elsewhere.
 const vues = etapes.map((etape) => etape.dalle);
-assert.equal(Math.min(...vues), 0, 'la dalle n’est jamais occultée : le test Hi-Z ne tranche rien');
-assert.ok(Math.max(...vues) > 0, 'la dalle n’est jamais visible : le test Hi-Z ne tranche rien');
+assert.equal(Math.min(...vues), 0, 'the slab is never occluded: the Hi-Z test decides nothing');
+assert.ok(Math.max(...vues) > 0, 'the slab is never visible: the Hi-Z test decides nothing');
 console.log(
-  `OK : ${etapes.length} poses de rig, image identique au témoin en mouvement et à l’arrêt — ${resultat.adaptateur}`,
+  `OK: ${etapes.length} rig poses, image identical to the witness moving and still — ${resultat.adaptateur}`,
 );

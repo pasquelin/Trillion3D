@@ -1,17 +1,17 @@
-//! Un coin de face vers un sommet glTF : ce qui l'identifie, et ce qu'il porte.
+//! A face corner into a glTF vertex: what identifies it, and what it carries.
 //!
-//! Un sommet glTF ne porte qu'une position, qu'une normale et qu'une coordonnée de texture. Deux
-//! coins d'un maillage Maya qui diffèrent par l'un des trois sont donc deux sommets, et deux coins
-//! qui les partagent tous les trois n'en font qu'un : c'est cette égalité, jamais un arrondi ni une
-//! distance, qui décide de ce qui se fond et de ce qui se dédouble.
+//! A glTF vertex carries one position, one normal and one texture coordinate. Two corners of a
+//! Maya mesh that differ by any of the three are therefore two vertices, and two corners that
+//! share all three are one: it is that equality, never a rounding nor a distance, that decides
+//! what merges and what splits.
 use super::*;
 use crate::import::Vertices;
 use crate::plugins::scene::ngon::Ngon;
 
 impl Surface {
-    /// Verse l'anneau d'une face dans le découpeur et le coupe. Rend `None` quand l'annulation
-    /// arrête le découpage, `Some(false)` quand la face n'a pas donné toutes ses oreilles : elle
-    /// sort alors en éventail, et l'appelant la compte.
+    /// Pours a face ring into the cutter and cuts it. Yields `None` when cancellation stops the
+    /// cut, `Some(false)` when the face did not yield all its ears: it then comes out as a fan,
+    /// and the caller counts it.
     pub(super) fn cut(
         &self,
         cutter: &mut Ngon,
@@ -26,10 +26,10 @@ impl Surface {
         cutter.cut(cancelled)
     }
 
-    /// Le sommet glTF d'un coin de face, créé à sa première rencontre. Trois rangs l'identifient :
-    /// sa position, sa coordonnée de texture et sa normale — l'endroit où elle se lit quand le
-    /// fichier l'écrit, son groupe de lissage quand ce pilote la calcule. Deux coins qui les
-    /// partagent tous les trois sont le même sommet.
+    /// glTF vertex of a face corner, created on first encounter. Three indices identify it: its
+    /// position, its texture coordinate and its normal — the place it is read when the file
+    /// writes it, its smoothing group when this driver computes it. Two corners that share all
+    /// three are the same vertex.
     pub(super) fn corner(
         &self,
         out: &mut Vertices,
@@ -47,8 +47,8 @@ impl Surface {
             Shading::Vertex => vertex as usize,
             Shading::Corner => self.bases.get(face)? + rank,
         };
-        // Deux coins d'un même groupe de lissage portent la même normale : ils ne font qu'un
-        // sommet, et c'est ainsi qu'une arête douce ne se paie pas en sommets doublés.
+        // Two corners of the same smoothing group carry the same normal: they are one vertex,
+        // and that is how a soft edge is not paid for in duplicated vertices.
         let shared = match self.groups.get(shade) {
             Some(group) => *group,
             None => u32::try_from(shade).ok()?,

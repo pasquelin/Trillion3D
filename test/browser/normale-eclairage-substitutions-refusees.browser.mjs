@@ -1,24 +1,26 @@
-// Ce fichier éprouve le CRITÈRE de la preuve (`verdictNormale`), pas seulement le nuanceur livré.
-// `SUBSTITUTIONS` (`normaleEclairageGpu.mjs`) altère la sortie de `xformNormal` à l'endroit exact où
-// l'éclairage la lit, sur le vrai texte compilé et exécuté dans Chromium WebGPU : `opposee` rend la
-// normale retournée (N→−N, le défaut le plus courant d'une inverse-transposée), `nulle` rend la
-// normale perdue (N→0). Si `verdictNormale` laissait passer l'une des deux, il ne protégerait rien
-// dans `test/browser/normal-transform-arithmetique.browser.mjs` — c'est exactement ce que l'ANCIEN critère
-// faisait : une valeur absolue sur le produit scalaire confondait N et −N, et `atan2(0, 0) = 0`
-// déclarait juste une normale perdue. `aucune` (le nuanceur intact) sert de témoin dans ce même
-// fichier : sans lui, un critère devenu trop strict passerait aussi inaperçu.
+// This file exercises the proof CRITERION (`verdictNormale`), not only the shipped shader.
+// `SUBSTITUTIONS` (`normaleEclairageGpu.mjs`) alters `xformNormal`'s output at the exact
+// place lighting reads it, on the real text compiled and run in Chromium WebGPU:
+// `opposee` returns the flipped normal (N→−N, the most common inverse-transpose defect),
+// `nulle` returns the lost normal (N→0). If `verdictNormale` let either through, it would
+// protect nothing in `test/browser/normal-transform-arithmetique.browser.mjs` — that is
+// exactly what the OLD criterion did: an absolute value on the dot product confused N and
+// −N, and `atan2(0, 0) = 0` declared a lost normal correct. `aucune` (the intact shader)
+// is the witness in this same file: without it, a criterion that had become too strict
+// would also go unnoticed.
 //
-// Les cas ordinaires (`CAS`) ne suffisent pas à couvrir le noyau : `APLATIES` éprouve les poses
-// singulières qui laissent à la face une aire monde, où le noyau doit rendre la normale de la FACE
-// transformée, et `REGULIERE_MINUSCULE` éprouve le témoin de non-gourmandise du garde — une
-// rotation minuscule mais régulière, que le garde ne doit pas confisquer. La substitution enveloppe
-// la sortie ENTIÈRE de la fonction, cas singuliers compris : les mêmes deux mutations doivent donc
-// y être refusées aussi sûrement que sur les cas ordinaires.
+// Ordinary cases (`CAS`) do not cover the kernel: `APLATIES` exercises the singular poses
+// that still leave the face a world area, where the kernel must return the transformed
+// FACE normal, and `REGULIERE_MINUSCULE` exercises the guard's non-greed witness — a
+// tiny but regular rotation, which the guard must not confiscate. The substitution wraps
+// the function's ENTIRE output, singular cases included: the same two mutations must
+// therefore be refused there as surely as on ordinary cases.
 //
-// `EFFONDREES` reste HORS des trois boucles, et c'est une propriété du critère, pas une commodité :
-// sur une face sans aire monde le nuanceur intact rend DÉJÀ le vecteur nul, donc la mutation N→0 ne
-// change rien et N→−N non plus. Une mutation qu'on ne peut pas voir ne prouve rien ; ces cas-là
-// sont éprouvés par leur valeur exacte dans `test/browser/normal-transform-arithmetique.browser.mjs`.
+// `EFFONDREES` stays OUTSIDE the three loops, and that is a property of the criterion,
+// not a convenience: on a face with no world area the intact shader ALREADY returns the
+// zero vector, so the N→0 mutation changes nothing and neither does N→−N. A mutation
+// that cannot be seen proves nothing; those cases are exercised by their exact value in
+// `test/browser/normal-transform-arithmetique.browser.mjs`.
 //
 // node --experimental-strip-types test/browser/normale-eclairage-substitutions-refusees.browser.mjs
 import assert from 'node:assert/strict';
@@ -32,16 +34,16 @@ import {
 } from '../justesse/normalTransformCas.mjs';
 import { SUBSTITUTIONS, eclairageGpu } from '../justesse/normaleEclairageGpu.mjs';
 
-/** Ordinaires, aplatis et témoin de non-gourmandise : les cas dont la normale a une DIRECTION. */
+/** Ordinary, flattened, and non-greed witness: the cases whose normal has a DIRECTION. */
 const TOUS = [...CAS, ...APLATIES, REGULIERE_MINUSCULE];
-/** Le nuanceur les voit aussi, pour que le texte exécuté soit exactement celui de l'autre preuve. */
+/** The shader sees them too, so the executed text is exactly that of the other proof. */
 const TOUTES = [...TOUS, ...EFFONDREES];
 
 async function verdicts(substitution) {
   const gpu = await eclairageGpu(TOUTES, { substitution });
   assert.equal(gpu.indisponible ?? null, null, String(gpu.indisponible));
-  assert.deepEqual(gpu.compilation ?? [], [], `substitution « ${substitution} » : compilation`);
-  assert.deepEqual(gpu.erreurs ?? [], [], `substitution « ${substitution} » : erreurs GPU`);
+  assert.deepEqual(gpu.compilation ?? [], [], `substitution "${substitution}": compilation`);
+  assert.deepEqual(gpu.erreurs ?? [], [], `substitution "${substitution}": GPU errors`);
   return TOUS.map((cas, i) => ({
     nom: cas.nom,
     verdict: verdictNormale(gpu.lignes[i].rendue, cas.vraie, DECROCHE_DEG),
@@ -65,35 +67,35 @@ console.log(
   ),
 );
 
-// N→−N : la normale retournée. Le critère orienté doit refuser CHAQUE cas, à ~180° de la vraie.
+// N→−N: the flipped normal. The oriented criterion must refuse EVERY case, at ~180° from the true one.
 for (const { nom, verdict } of opposee) {
-  assert.ok(!verdict.ok, `${nom} : N→−N passe le critère, il ne distingue plus N de −N`);
+  assert.ok(!verdict.ok, `${nom}: N→−N passes the criterion, it no longer distinguishes N from −N`);
   assert.ok(
     Math.abs(verdict.ecartDeg - 180) < 1e-2,
-    `${nom} : N→−N à ${verdict.ecartDeg}°, attendu ≈ 180°`,
+    `${nom}: N→−N at ${verdict.ecartDeg}°, expected ≈ 180°`,
   );
 }
 
-// N→0 : la normale perdue. `direction` la refuse avant tout angle — jamais un NaN qui passerait,
-// jamais un atan2(0,0) = 0 qui la déclarerait juste comme l'ancien critère.
+// N→0: the lost normal. `direction` refuses it before any angle — never a NaN that would pass,
+// never an atan2(0,0) = 0 that would declare it correct as the old criterion did.
 for (const { nom, verdict } of nulle) {
-  assert.ok(!verdict.ok, `${nom} : N→0 passe le critère, une normale perdue n'est plus détectée`);
+  assert.ok(!verdict.ok, `${nom}: N→0 passes the criterion, a lost normal is no longer detected`);
   assert.ok(
     Number.isNaN(verdict.ecartDeg),
-    `${nom} : N→0 donne un écart de ${verdict.ecartDeg}°, attendu NaN (sans direction)`,
+    `${nom}: N→0 yields a gap of ${verdict.ecartDeg}°, expected NaN (no direction)`,
   );
   assert.match(
     verdict.raison ?? '',
-    /sans direction/,
-    `${nom} : raison inattendue « ${verdict.raison} »`,
+    /no direction/,
+    `${nom}: unexpected reason "${verdict.raison}"`,
   );
 }
 
-// Le témoin : le nuanceur intact, sur les mêmes cas, reste vert — sinon le critère est trop strict.
+// The witness: the intact shader, on the same cases, stays green — otherwise the criterion is too strict.
 for (const { nom, verdict } of intacte)
-  assert.ok(verdict.ok, `${nom} : nuanceur intact refusé — ${verdict.raison}`);
+  assert.ok(verdict.ok, `${nom}: intact shader refused — ${verdict.raison}`);
 
 console.log(
-  `OK : ${TOUS.length} cas — N→−N refusés ${opposee.length}/${opposee.length}, N→0 refusés ` +
-    `${nulle.length}/${nulle.length}, intact accepté ${intacte.length}/${intacte.length}.`,
+  `OK: ${TOUS.length} cases — N→−N refused ${opposee.length}/${opposee.length}, N→0 refused ` +
+    `${nulle.length}/${nulle.length}, intact accepted ${intacte.length}/${intacte.length}.`,
 );

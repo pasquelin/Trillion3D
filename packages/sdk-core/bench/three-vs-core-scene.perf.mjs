@@ -22,7 +22,7 @@ const turned = new Float64Array(N * 4),
 const lines = [];
 lines.push(
   await duel({
-    nom: 'Object3D.lookAt, camera',
+    name: 'Object3D.lookAt, camera',
     fichier: 'packages/sdk-core/mathTransformTreeLookAt.ts',
     three: () => {
       for (let i = 0; i < N; i++) {
@@ -59,9 +59,9 @@ const box = new Float64Array(6);
 
 lines.push(
   await duel({
-    nom: 'BufferGeometry.computeBoundingBox',
+    name: 'BufferGeometry.computeBoundingBox',
     fichier: 'packages/sdk-core/mathBox.ts',
-    taille: POINTS,
+    size: POINTS,
     three: () => geometry.computeBoundingBox(),
     oracle: () => aPlat(geometry.boundingBox),
     core: () => {

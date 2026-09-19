@@ -1,9 +1,9 @@
-// le remplissage du visbuffer. La référence est `visibilityRaster.ts` recopié tel quel — deux
-// divisions et quatre produits par pixel — et le candidat évalue les mêmes poids sous leur forme
-// affine : une division par triangle, des pas constants par colonne et par ligne. Le candidat a été
-// refusé et son commit reverté ; le banc le garde pour que la raison du refus reste reproductible.
-// Un test vérifie que la référence recopiée est bien ce que le paquet rasterise aujourd'hui, sinon
-// la comparaison ne dirait plus rien.
+// filling the visbuffer. The reference is `visibilityRaster.ts` copied as-is — two
+// divisions and four products per pixel — and the candidate evaluates the same weights in
+// affine form: one division per triangle, constant steps per column and per row. The candidate
+// was rejected and its commit reverted; the bench keeps it so the reason for rejection stays
+// reproducible. A test checks that the copied reference is what the package rasterizes today,
+// otherwise the comparison would say nothing.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { rasterVisibility } from '../visibilityRaster.ts';
@@ -13,21 +13,21 @@ import { compteur, ecart, mesure, note, rapport, stress } from '../../sdk-core/b
 import { camera, coupe } from './appui/scenes.mjs';
 import { cameraMoteur } from '../cameraFixture.ts';
 
-/** L'écart d'une image : combien de pixels changent d'identifiant, combien changent de profondeur. */
-function differencesImage(attendu, obtenu, nom) {
+/** Delta of a frame: how many pixels change identifier, how many change depth. */
+function differencesImage(attendu, obtenu, name) {
   const c = compteur();
   for (let i = 0; i < attendu.ids.length; i++) {
     if (attendu.ids[i] !== obtenu.ids[i]) {
       c.nombre++;
-      c.premier ??= `${nom} identifiant [${i}]: ${attendu.ids[i]} ≠ ${obtenu.ids[i]}`;
+      c.premier ??= `${name} identifier [${i}]: ${attendu.ids[i]} ≠ ${obtenu.ids[i]}`;
     }
-    // Un identifiant est un entier : seule la profondeur a un écart qui se compte en ULP.
-    note(c, attendu.depth[i], obtenu.depth[i], `${nom} profondeur [${i}]`, 32);
+    // An identifier is an integer: only depth has a delta counted in ULPs.
+    note(c, attendu.depth[i], obtenu.depth[i], `${name} depth [${i}]`, 32);
   }
   return c;
 }
 
-// La caméra hôte du décor, et celle du moteur qui en découle : posées une fois, jamais par tour.
+// The host camera of the set, and the engine camera derived from it: posed once, never per lap.
 const hote = camera(6, 0.1, 16 / 9),
   hoteCarre = camera(3, 0.1, 1);
 const cam = cameraMoteur(hote);
@@ -35,7 +35,7 @@ const image = [1280, 720];
 const carre = cameraMoteur(hoteCarre);
 const grande = { pages: coupe({ pages: 400, triangles: 24, hostile: true, seed: 7 }), cam, image };
 const rase = {
-  pages: coupe({ pages: 24, triangles: 24, hostile: true, seed: 23, taille: 2.2 }),
+  pages: coupe({ pages: 24, triangles: 24, hostile: true, seed: 23, size: 2.2 }),
   cam,
   image,
 };
@@ -44,50 +44,50 @@ const diagonale = { pages: quadrillage(1, 1), cam: carre, image: [64, 64] };
 const damier = { pages: quadrillage(8, 0.25), cam: carre, image };
 const GRAINES = [11, 37, 97];
 const autresGraines = GRAINES.map((seed) => ({
-  pages: coupe({ pages: 120, triangles: 24, hostile: true, seed, taille: 0.5 }),
+  pages: coupe({ pages: 120, triangles: 24, hostile: true, seed, size: 0.5 }),
   cam,
   image,
 }));
 
-const tour = (fn) => (entree) => fn(entree.pages, entree.cam, entree.image);
+const tour = (fn) => (input) => fn(input.pages, input.cam, input.image);
 
 const resC1 = await mesure({
-  nom: 'visbuffer candidat affine contre perspective',
+  name: 'affine visbuffer candidate against perspective',
   fichier: 'packages/sdk-browser/visibilityRaster.ts',
   cas: [
-    { nom: '1280×720, 9 600 triangles dont dégénérés', entree: grande, taille: 9600 },
-    { nom: '1280×720, triangles rasants et derrière la caméra', entree: rase, taille: 576 },
-    { nom: 'aucune page', entree: vide, taille: 0 },
-    { nom: '64×64, diagonale partagée au centre du pixel', entree: diagonale, taille: 2 },
-    { nom: '1280×720, 64 quadrilatères en damier', entree: damier, taille: 128 },
-    ...autresGraines.map((entree, i) => ({
-      nom: `graine ${GRAINES[i]}, 2 880 triangles`,
-      entree,
-      taille: 2880,
+    { name: '1280×720, 9 600 triangles including degenerates', input: grande, size: 9600 },
+    { name: '1280×720, grazing triangles and behind the camera', input: rase, size: 576 },
+    { name: 'no pages', input: vide, size: 0 },
+    { name: '64×64, shared diagonal at pixel centre', input: diagonale, size: 2 },
+    { name: '1280×720, 64 checkerboard quads', input: damier, size: 128 },
+    ...autresGraines.map((input, i) => ({
+      name: `seed ${GRAINES[i]}, 2 880 triangles`,
+      input,
+      size: 2880,
       mesure: false,
     })),
   ],
   calcul: tour(rasterAvec(fillAffine)),
   attendu: tour(rasterAvec(fillReference)),
-  // Le candidat a été refusé : donner un comparateur d'écarts dit au socle de chiffrer ce qu'il
-  // déplace au lieu de réclamer une égalité qui n'a pas lieu d'être.
+  // The candidate was rejected: giving a delta comparator tells the foundation to quantify what
+  // it moves instead of demanding an equality that does not hold.
   differences: differencesImage,
   options: { chauffe: 2, tours: 12, budgetMs: 3000 },
 });
 
-// `ecart` compare les deux tampons valeur par valeur et nomme le premier pixel fautif ; c'est
-// `deepEqual`, sur un million de pixels, qui coûtait trop cher.
-test('la référence recopiée est bien ce que le paquet rasterise aujourd’hui', () => {
+// `ecart` compares the two buffers value by value and names the first faulty pixel; it is
+// `deepEqual`, on a million pixels, that cost too much.
+test('the copied reference is what the package rasterizes today', () => {
   const copie = tour(rasterAvec(fillReference));
-  const entrees = [grande, rase, diagonale, damier, ...autresGraines];
-  for (let i = 0; i < entrees.length; i++)
-    assert.equal(ecart(tour(rasterVisibility)(entrees[i]), copie(entrees[i]), `image ${i}`), null);
+  const inputs = [grande, rase, diagonale, damier, ...autresGraines];
+  for (let i = 0; i < inputs.length; i++)
+    assert.equal(ecart(tour(rasterVisibility)(inputs[i]), copie(inputs[i]), `frame ${i}`), null);
 });
 
 await stress({
-  nom: 'rasterVisibility extremes',
+  name: 'rasterVisibility extremes',
   calcul: (e) => rasterVisibility(e.pages, e.cam, e.image),
-  extremes: [{ nom: 'vide', entree: vide }],
+  extremes: [{ name: 'empty', input: vide }],
 });
 
-rapport('raster-tampon', [resC1], 'C1 a été mesuré et son écart à la référence est chiffré');
+rapport('raster-tampon', [resC1], 'C1 was measured and its delta from the reference is quantified');

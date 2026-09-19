@@ -1,5 +1,5 @@
-// Oracles purs de A2, sans effet de bord : `ombrage.bench.mjs` les mesure, les tests unitaires les
-// importent comme référence.
+// Pure A2 oracles, no side effects: `ombrage.bench.mjs` measures them; unit tests import
+// them as reference.
 import * as THREE from 'three';
 import { RASTER_BACKGROUND } from '../../pageRaster.ts';
 import {
@@ -16,11 +16,11 @@ import { shadeLit } from '../../visibilityLighting.ts';
 import { unpackVisibilityId, visMaterial } from '../../visibilityTypes.ts';
 import { createEngineCamera, readCameraWorld } from '../../cameraWorld.ts';
 
-/** L'oracle compare la mise en cache par image, pas la lecture de la caméra : il recopie la caméra
- *  de l'hôte comme l'entrée d'image le fait, et l'ombrage lit la même. */
+/** The oracle compares per-frame caching, not the camera read: it copies the host
+ *  camera as the frame input does, and shading reads the same. */
 const engineScratch = createEngineCamera();
 
-/** `visibilityShadePixel.ts:15-63` avant le lot A : `visMaterial` et le triangle par pixel. */
+/** `visibilityShadePixel.ts:15-63` before batch A: `visMaterial` and the triangle per pixel. */
 function referenceShadePixel(id, pages, cam, depthCam, width, height, x, y, background) {
   const unpacked = unpackVisibilityId(id);
   if (!unpacked) return backgroundRgb(background);
@@ -62,7 +62,7 @@ function referenceShadePixel(id, pages, cam, depthCam, width, height, x, y, back
   return encode(rgb);
 }
 
-/** `visibilityShade.ts:8-34` avant le lot A. */
+/** `visibilityShade.ts:8-34` before batch A. */
 export function referenceShadeVisibility(
   ids,
   pages,
@@ -77,8 +77,8 @@ export function referenceShadeVisibility(
     cam.projectionMatrix,
     cam.matrixWorldInverse,
   );
-  // L'oracle garde sa vue-projection de la bibliothèque hôte ; la convention de profondeur, elle,
-  // vient de la caméra du moteur, qui l'a lue sur la caméra hôte.
+  // The oracle keeps its view-projection from the host library; the depth convention
+  // comes from the engine camera, which read it on the host camera.
   const depthCam = { viewProjection: viewProj.elements };
   const bg = backgroundRgb(background);
   for (let y = 0; y < height; y++)

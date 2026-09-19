@@ -1,5 +1,5 @@
-//! L'union-recherche des coins d'un maillage : deux coins réunis sont du même éventail, donc de
-//! même normale. Rien de propre au lissage ici, seulement la structure qui le porte.
+//! Union-find of a mesh's corners: two united corners belong to the same fan, and therefore share
+//! a normal. Nothing here is specific to smoothing, only the structure that carries it.
 
 pub(super) struct Join {
     parent: Vec<u32>,
@@ -11,7 +11,7 @@ impl Join {
             parent: (0..count as u32).collect(),
         }
     }
-    /// Le représentant du groupe de ce coin, le chemin étant raccourci au passage.
+    /// Representative of this corner's group, with the path shortened along the way.
     pub(super) fn root(&mut self, mut node: u32) -> u32 {
         while self.parent[node as usize] != node {
             let up = self.parent[node as usize];
@@ -20,7 +20,7 @@ impl Join {
         }
         node
     }
-    /// Réunit deux groupes sous le plus petit de leurs représentants.
+    /// Unites two groups under the smaller of their representatives.
     pub(super) fn unite(&mut self, left: u32, right: u32) {
         let (left, right) = (self.root(left), self.root(right));
         if left != right {

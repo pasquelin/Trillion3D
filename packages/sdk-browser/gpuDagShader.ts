@@ -14,8 +14,8 @@ import { CONE_LENGTH_RATIO_WGSL, CONE_ORTHO_EPS_WGSL, HALF_PI_WGSL } from '../sd
 
 export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,worldIndex:u32,flags:u32,}
 struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,floorSphere:vec4f,errorFloor:f32,nodeFlags:u32,pad0:u32,pad1:u32,}
-// \`view\`, \`planes\` et \`worlds\` sont ceux du repere de rendu ; \`cameraWorld\` en est l'origine, que le
-// noyau n'a pas a lire puisque la camera y est posee a zero : elle voyage pour le nommer a qui releve le bloc.
+// \`view\`, \`planes\` and \`worlds\` are those of the render frame; \`cameraWorld\` is its origin, which
+// the kernel need not read since the camera sits at zero there: it is sent so the block's reader can name it.
 struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,listCap:u32,pad0:u32,pad1:u32,pad2:u32,}
 struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,selectedTriangles:atomic<u32>,transparentTriangles:atomic<u32>,drawnTriangles:atomic<u32>,uncoveredTriangles:atomic<u32>,pages:array<u32>,}
 @group(0) @binding(0) var<storage, read> clusters:array<Cluster>;
@@ -32,7 +32,7 @@ struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>
 const INF:f32=3.4e38;
 const FRAME:u32=7u;
 /** Frustum planes live in the primitive's own space, so no box is ever transformed.
- *  Miroir GPU de \`frustumExcludesBox\` (sdk-core, mathFrustumBox.ts) : memes coins, meme somme. */
+ *  GPU mirror of \`frustumExcludesBox\` (sdk-core, mathFrustumBox.ts): same corners, same sum. */
 fn outsideFrustum(base:u32,bmin:vec3f,bmax:vec3f)->bool{
  for(var i=0u;i<6u;i++){
   let plane=frames[base+i];
@@ -41,8 +41,8 @@ fn outsideFrustum(base:u32,bmin:vec3f,bmax:vec3f)->bool{
  }
  return false;
 }
-/** Miroir GPU de \`isConformal\` (pageCone.ts) : 3x3 divisee par la somme de ses valeurs absolues,
- *  tolerances relatives seules ; somme nulle, infinie ou NaN (lue au bit) : cluster conserve. */
+/** GPU mirror of \`isConformal\` (pageCone.ts): 3x3 divided by the sum of its absolute values,
+ *  relative tolerances only; null, infinite or NaN sum (read at the bit): cluster kept. */
 fn isConformal(m:mat3x3f)->bool{
  let s=abs(m[0])+abs(m[1])+abs(m[2]);let t=s.x+s.y+s.z;
  if(!(t>0.0)||(bitcast<u32>(t)&0x7f800000u)==0x7f800000u){return false;}
@@ -53,10 +53,10 @@ fn isConformal(m:mat3x3f)->bool{
  let eps=maxl*${CONE_ORTHO_EPS_WGSL};
  return abs(dot(a,b))<=eps&&abs(dot(a,c))<=eps&&abs(dot(b,c))<=eps;
 }
-/** Miroir GPU de \`coneCullsPageWith\` (pageCone.ts) : memes tolerances (mathCone.ts), memes operandes.
- *  \`world\` est une matrice monde du REPERE DE RENDU, ou la camera est l'origine : le vecteur qui va
- *  du centre de la boite vers l'oeil est l'oppose de ce centre, et la soustraction de deux positions
- *  lointaines n'existe plus. Meme geometrie que le miroir processeur, lui en monde absolu. */
+/** GPU mirror of \`coneCullsPageWith\` (pageCone.ts): same tolerances (mathCone.ts), same operands.
+ *  \`world\` is a world matrix of the RENDER FRAME, where the camera is the origin: the vector from
+ *  the box centre to the eye is the opposite of that centre, and subtracting two distant positions
+ *  no longer happens. Same geometry as the CPU mirror, which works in absolute world space. */
 fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,world:mat4x4f)->bool{
  if(cone.w>=${HALF_PI_WGSL}){return false;}
  let m=mat3x3f(world[0].xyz,world[1].xyz,world[2].xyz);
@@ -82,11 +82,10 @@ fn coneRejects(index:u32,cluster:Cluster)->bool{
  if(hasBox(index)==0.0){return false;}
  return coneRejectsBox(coneOf(index),boxMin(index),boxMax(index),worlds[cluster.worldIndex]);
 }
-/** Le rejet par cone ne depend que de la page, de son monde et de la camera : il vaut donc la meme
- *  chose pour les cinq passes d'une meme image. \`dagWanted\` le calcule une fois par page visible et
- *  le depose derriere les drapeaux de dessin ; les passes suivantes le relisent au lieu de refaire
- *  \`asin\`, \`sin\` et les deux \`length\`. Elles ne le lisent que pour une page visible, la seule pour
- *  laquelle il a ete ecrit. */
+/** Cone reject depends only on the page, its world and the camera: it is therefore the same for
+ *  the five passes of one frame. \`dagWanted\` computes it once per visible page and stores it
+ *  behind the draw flags; later passes reread it instead of redoing \`asin\`, \`sin\` and the two
+ *  \`length\`s. They only read it for a visible page, the only one it was written for. */
 fn coneCache(index:u32)->u32{return uni.nodeCount+uni.clusterCount+index;}
 fn coneRejected(index:u32)->bool{return flags[coneCache(index)]!=0u;}
 fn visible(index:u32,cluster:Cluster)->bool{
@@ -95,25 +94,25 @@ fn visible(index:u32,cluster:Cluster)->bool{
 }
 fn stretchOf(world:u32)->f32{return frames[world*FRAME+6u].x*uni.cameraStretch;}
 /** Raise the primitive's threshold to the replacement band, or demand the pinned cover.
- *  Le seuil est posé STRICTEMENT au-dessus de l'erreur du parent (marge \`ESCALATION_SLACK\`) : les
- *  passes qui le relisent recalculent cette erreur dans un autre point d'entrée, où le pilote ne
- *  rend pas le même f32 au dernier bit près. Une égalité exacte y laissait le cluster absent
- *  retenu par \`dagMask\` — page non résidente dessinée, donc couverture déclarée incomplète. */
+ *  The threshold is set STRICTLY above the parent's error (\`ESCALATION_SLACK\` slack): passes that
+ *  reread it recompute that error in another entry point, where the driver does not return the
+ *  same f32 to the last bit. An exact equality there left the missing cluster kept by \`dagMask\`
+ *  — a non-resident page drawn, hence coverage declared incomplete. */
 fn escalate(world:u32,parentPixels:f32){
  let raised=parentPixels*${ESCALATION_SLACK};
  if(parentPixels>0.0&&raised<INF){atomicMax(&work[world],bitcast<u32>(raised));}
  else{atomicOr(&work[uni.worldCount+world],1u);}
 }
-/** La remise à zéro et les plans par primitive : deux noyaux hier, un seul lancement aujourd'hui.
- *  Rien ne les liait — le premier écrit les seuils, les compteurs de sortie et les comptes de bloc
- *  que \`dagMask\` accumule, le second les plans du tronc —, et seule la descente lit le second. */
+/** Reset and per-primitive planes: two kernels yesterday, a single dispatch today.
+ *  Nothing tied them — the first writes the thresholds, output counters and block counts that
+ *  \`dagMask\` accumulates, the second the frustum planes — and only the descent reads the second. */
 @compute @workgroup_size(64)
 fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  let w=id.x;
  if(w==0u){atomicStore(&out.count,0u);atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);atomicStore(&out.overflow,0u);resetTotaux();resetCounters();}
  if(w<blockCount()){atomicStore(&work[blockBase()+w],0u);}
  if(w>=uni.worldCount){return;}
- // La racine de la primitive ouvre la descente : un fil, une racine, aucun compteur à disputer.
+ // The primitive's root opens the descent: one thread, one root, no counter to contend for.
  flags[queueBase(0u)+w]=rootOf(w);
  atomicStore(&work[w],bitcast<u32>(resetPrune(w)));
  atomicStore(&work[uni.worldCount+w],0u);
@@ -122,8 +121,8 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
 }
 @compute @workgroup_size(64)
 fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lid:u32){
- // Les totaux se somment d'abord dans le groupe (\`gpuDagTotalsWgsl.ts\`), donc TOUS les fils du
- // groupe franchissent les deux barrières : le fil sans grappe ne sort pas tôt, il ne fait rien.
+ // Totals are summed in the workgroup first (\`gpuDagTotalsWgsl.ts\`), so EVERY thread in the
+ // group crosses both barriers: a thread with no cluster does not return early, it does nothing.
  ouvreTotaux(lid);
  let s=id.x;
  if(s<liveCount()){
@@ -147,7 +146,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_ind
   let posee=select(0u,1u,draw);
   flags[uni.nodeCount+i]=posee;
   noteImage(i,cluster.flags,draw||trou,draw,trou);
-  // Le compte de dessinées du bloc de cette page, tenu ici plutôt que relu ensuite page par page.
+  // Drawn count of this page's block, held here rather than reread later page by page.
   if(posee!=0u){atomicAdd(&work[blockBase()+i/BLOCK],1u);drawnAppend(i);}
  }
  verseTotaux(lid);

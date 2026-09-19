@@ -1,40 +1,40 @@
-// La règle de réflexion n'est plus écrite qu'une fois : `matrixWindingCw` remplace les
-// `matrix.determinant() < 0` sur la 4×4 du raster CPU éclairé et de la passe de mélange.
+// The reflection rule is now written only once: `matrixWindingCw` replaces
+// `matrix.determinant() < 0` on the 4x4 of the lit CPU raster and blend pass.
 //
-// LES DEUX VERDICTS COMPARÉS, mot pour mot :
-//   — `matrixWindingCw(m.elements)` : le signe du déterminant de la 3×3 supérieure gauche, développé
-//     en f64 par cofacteurs sur la première ligne (`matrixOrientation.ts`) ;
-//   — `m.determinant() < 0` : le signe du déterminant 4×4 complet de Three, développé sur les seize
+// BOTH VERDICTS COMPARED, word for word:
+//   — `matrixWindingCw(m.elements)`: sign of upper-left 3x3 determinant, expanded
+//     in f64 by cofactors on the first row (`matrixOrientation.ts`);
+//   — `m.determinant() < 0`: sign of complete 4x4 determinant from Three, expanded across sixteen
 //     coefficients.
-// Sur une matrice monde affine — dernière ligne (0, 0, 0, 1) — les deux déterminants sont le MÊME
-// nombre réel : les trois cofacteurs de la dernière ligne sont multipliés par zéro. Ils ne sont pas
-// pour autant le même calcul flottant, et c'est là que la substitution peut se voir.
+// On an affine world matrix — last row (0, 0, 0, 1) — both determinants are the SAME
+// real number: the three cofactors of the last row are multiplied by zero. They are not,
+// however, the same floating point calculation, which is where the substitution is visible.
 //
-// CE QUE CE FICHIER MESURE, et ce qu'il ne mesure pas. Quatre populations, 2 400 000 matrices, AUCUN
-// cas écarté d'aucune : un cas mesuré qui gêne est compté, jamais retiré de la population.
-//   A. 1 000 000 de poses composées (position, rotation, échelle signée de 1e-3 à 1e3) : 0 désaccord.
-//   B. 1 000 000 d'affines quelconques, cisaillement compris : 0 désaccord.
-//   C.   200 000 SINGULIÈRES construites (3ᵉ colonne = combinaison des deux autres) : 62 069
-//        désaccords, soit 31 % — c'est la population que le compte rendu précédent citait sans dire
-//        qu'elle ne faisait pas partie du million. Les deux affirmations d'alors, « 1 000 000 de
-//        matrices, 0 verdict différent » et « désaccords sur des singulières », portaient sur deux
-//        populations distinctes ; réunies en une phrase, elles se contredisaient.
-//   D.   200 000 à échelle aplatie (un axe exactement nul, ce qu'un importateur produit vraiment) :
-//        0 désaccord — les deux déterminants valent zéro exactement, et `0 < 0` est faux des deux
-//        côtés.
-// Ce qu'il advient des singulières de C dans le moteur : rien ne les écarte. `matrixWindingCw` est
-// lue telle quelle par `visibilityRaster`, `visibilityShadingNormal`, `webgpuPagesWinding` et
-// `webgpuBlendDraw` pour choisir la face éliminée. Une matrice de rang 2 aplatit la primitive sur un
-// plan qui reste VISIBLE : le verdict décide donc lequel de ses deux côtés est montré, et le
-// désaccord y a bien une conséquence observable. Mais le déterminant mathématique de ces matrices
-// est nul : les deux écritures n'y comparent que du bruit d'arrondi, et aucune des deux n'a raison
-// contre l'autre. Le test borne ce bruit au lieu de l'excuser — voir le dernier test.
+// WHAT THIS FILE MEASURES, and what it does not measure. Four populations, 2 400 000 matrices, ZERO
+// discarded cases in any: an inconvenient measured case is counted, never removed from population.
+//   A. 1 000 000 composed poses (position, rotation, signed scale 1e-3 to 1e3): 0 disagreements.
+//   B. 1 000 000 arbitrary affines, including shear: 0 disagreements.
+//   C.   200 000 CONSTRUCTED SINGULARS (3rd column = combination of first two): 62 069
+//        disagreements, i.e. 31% — the population that the previous summary cited without stating
+//        that it was not part of the million. The two claims at the time, "1 000 000
+//        matrices, 0 differing verdict" and "disagreements on singulars", concerned two
+//        distinct populations; combined in one sentence, they contradicted each other.
+//   D.   200 000 flattened scale (one axis exactly zero, what an importer actually produces):
+//        0 disagreements — both determinants equal zero exactly, and `0 < 0` is false on both
+//        sides.
+// What happens to singulars from C in the engine: nothing discards them. `matrixWindingCw` is
+// read as is by `visibilityRaster`, `visibilityShadingNormal`, `webgpuPagesWinding` and
+// `webgpuBlendDraw` to choose culled face. A rank 2 matrix flattens primitive onto a
+// plane that remains VISIBLE: verdict decides which of its two sides is shown, and
+// disagreement has an observable consequence. But mathematical determinant of these matrices
+// is zero: both implementations only compare rounding noise, and neither is correct
+// over the other. The test bounds this noise instead of excusing it — see last test.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { matrixWindingCw } from './matrixOrientation.ts';
 
-/** Suite déterministe : le même balayage à chaque exécution, sur cette machine et ailleurs. */
+/** Deterministic sequence: same sweep on every run, on this machine and elsewhere. */
 function tirage(graine: number) {
   let etat = graine >>> 0;
   return () => {
@@ -44,10 +44,10 @@ function tirage(graine: number) {
 }
 
 /**
- * Le conditionnement d'une pose : |det 3×3| rapporté au produit des normes de ses trois colonnes.
- * 1 pour une matrice orthogonale, 0 pour une singulière, indépendant de l'échelle. C'est la seule
- * façon de dire « cette matrice est singulière » sans lire une échelle : le déterminant brut d'une
- * rotation d'échelle 1e-3 vaut 1e-9 sans être dégénéré pour autant.
+ * Conditioning of a pose: |det 3x3| over product of norms of its three columns.
+ * 1 for an orthogonal matrix, 0 for a singular, independent of scale. This is the only
+ * way to say "this matrix is singular" without reading scale: raw determinant of a
+ * rotation with scale 1e-3 is 1e-9 without being degenerate.
  */
 function conditionnement(e: ArrayLike<number>) {
   const det =
@@ -59,7 +59,7 @@ function conditionnement(e: ArrayLike<number>) {
   return produit > 0 ? Math.abs(det) / produit : 0;
 }
 
-/** Une population : `n` matrices remplies par `poser`, les deux verdicts comptés sur chacune. */
+/** A population: `n` matrices filled by `poser`, both verdicts counted on each. */
 function balayage(n: number, graine: number, poser: (m: THREE.Matrix4, s: () => number) => void) {
   const suivant = tirage(graine);
   const m = new THREE.Matrix4();
@@ -87,7 +87,7 @@ const position = new THREE.Vector3(),
   echelle = new THREE.Vector3(),
   euler = new THREE.Euler();
 
-/** Position, rotation et échelle signée de 1e-3 à 1e3 : instances, miroirs et modèles importés. */
+/** Position, rotation and signed scale from 1e-3 to 1e3: instances, mirrors and imported models. */
 function poseComposee(m: THREE.Matrix4, s: () => number, aplatir: number | null = null) {
   position.set((s() - 0.5) * 2e3, (s() - 0.5) * 2e3, (s() - 0.5) * 2e3);
   euler.set((s() - 0.5) * 6.3, (s() - 0.5) * 6.3, (s() - 0.5) * 6.3);
@@ -98,58 +98,58 @@ function poseComposee(m: THREE.Matrix4, s: () => number, aplatir: number | null 
   m.compose(position, rotation, echelle);
 }
 
-test('la règle est le signe du déterminant 3×3, pas une lecture d’échelle', () => {
+test('the rule is the sign of the 3x3 determinant, not a scale reading', () => {
   const identite = new THREE.Matrix4();
   assert.equal(matrixWindingCw(identite.elements), false);
-  // Un seul axe retourné renverse l'orientation ; deux la rétablissent.
+  // A single inverted axis flips orientation; two restore it.
   const unMiroir = new THREE.Matrix4().makeScale(1, -1, 1);
   assert.equal(matrixWindingCw(unMiroir.elements), true);
   const deuxMiroirs = new THREE.Matrix4().makeScale(-1, -1, 1);
   assert.equal(matrixWindingCw(deuxMiroirs.elements), false);
-  // Une rotation ne renverse rien, quelle que soit la translation qui l'accompagne.
+  // A rotation flips nothing, regardless of accompanying translation.
   const tournee = new THREE.Matrix4()
     .makeRotationY(1.2)
     .premultiply(new THREE.Matrix4().makeTranslation(9, -4, 3));
   assert.equal(matrixWindingCw(tournee.elements), false);
 });
 
-test('A — 1 000 000 de poses composées : aucun verdict ne se sépare, aucun cas écarté', () => {
+test('A — 1 000 000 composed poses: no verdict separates, no case discarded', () => {
   const releve = balayage(1_000_000, 20260916, (m, s) => poseComposee(m, s));
-  assert.equal(releve.desaccords, 0, `${releve.desaccords} désaccords sur ${releve.n} poses`);
-  assert.ok(releve.cw > 4e5 && releve.cw < 6e5, 'le balayage doit contenir les deux verdicts');
-  // Aucune pose composée d'échelles non nulles n'est singulière : rien à écarter, et rien d'écarté.
-  assert.ok(releve.pireAccord > 1e-3, `pose quasi singulière inattendue : ${releve.pireAccord}`);
+  assert.equal(releve.desaccords, 0, `${releve.desaccords} disagreements on ${releve.n} poses`);
+  assert.ok(releve.cw > 4e5 && releve.cw < 6e5, 'sweep must contain both verdicts');
+  // No composed pose of non-zero scales is singular: nothing to discard, nothing discarded.
+  assert.ok(releve.pireAccord > 1e-3, `unexpected quasi-singular pose: ${releve.pireAccord}`);
 });
 
-test('B — 1 000 000 d’affines quelconques, cisaillement compris : aucun verdict ne se sépare', () => {
-  // La dernière ligne d'une matrice monde ne pèse pas : la partie linéaire seule décide.
+test('B — 1 000 000 arbitrary affines, shear included: no verdict separates', () => {
+  // Last row of world matrix does not weigh: linear part alone decides.
   const releve = balayage(1_000_000, 7, (m, s) => {
     for (let colonne = 0; colonne < 4; colonne++)
       for (let ligne = 0; ligne < 4; ligne++)
         m.elements[colonne * 4 + ligne] =
           colonne === 3 ? (ligne === 3 ? 1 : (s() - 0.5) * 1e3) : ligne === 3 ? 0 : s() - 0.5;
   });
-  assert.equal(releve.desaccords, 0, `${releve.desaccords} désaccords sur ${releve.n} affines`);
-  assert.ok(releve.cw > 4e5 && releve.cw < 6e5, 'le balayage doit contenir les deux verdicts');
-  // Le tirage descend jusqu'à 1e-7 de conditionnement sans séparer les deux écritures.
-  assert.ok(releve.pireAccord < 1e-6, `tirage trop sage : pire accord à ${releve.pireAccord}`);
+  assert.equal(releve.desaccords, 0, `${releve.desaccords} disagreements on ${releve.n} affines`);
+  assert.ok(releve.cw > 4e5 && releve.cw < 6e5, 'sweep must contain both verdicts');
+  // Sampling reaches down to 1e-7 conditioning without separating both implementations.
+  assert.ok(releve.pireAccord < 1e-6, `sampling too mild: worst agreement at ${releve.pireAccord}`);
 });
 
-test('D — 200 000 échelles aplaties, un axe exactement nul : les deux verdicts sont faux', () => {
+test('D — 200 000 flattened scales, one axis exactly zero: both verdicts are false', () => {
   const releve = balayage(200_000, 1234, (m, s) => poseComposee(m, s, Math.floor(s() * 3)));
-  assert.equal(releve.desaccords, 0, `${releve.desaccords} désaccords sur ${releve.n} aplaties`);
-  // Les deux déterminants valent zéro exactement : `0 < 0` est faux, donc aucun retournement.
-  assert.equal(releve.cw, 0, 'une matrice d’échelle nulle ne doit renverser aucune orientation');
+  assert.equal(releve.desaccords, 0, `${releve.desaccords} disagreements on ${releve.n} flattened`);
+  // Both determinants equal zero exactly: 0 < 0 is false, so no flip.
+  assert.equal(releve.cw, 0, 'a zero scale matrix must not flip any orientation');
 });
 
-// C — la population qui sépare les deux écritures, comptée et bornée, jamais écartée. Une 3×3 dont
-// la troisième colonne est combinaison des deux premières est singulière par construction : son
-// déterminant réel est nul, et les deux écritures n'y comparent que leur propre bruit d'arrondi.
-// Ce qui doit rester vrai, et que ce test tient : le désaccord ne franchit JAMAIS le bruit. Au-delà
-// d'un conditionnement de 1e-15 — un millier de fois l'epsilon du f64 — les deux verdicts sont
-// toujours d'accord, donc aucune matrice que le moteur peut encore montrer sous un côté déterminé
-// ne change de face en passant d'une écriture à l'autre.
-test('C — 200 000 singulières construites : le désaccord reste sous le bruit d’arrondi', () => {
+// C — population separating the two implementations, counted and bounded, never discarded. A 3x3 whose
+// third column is a linear combination of the first two is singular by construction: its
+// real determinant is zero, and both implementations only compare their own rounding noise.
+// What must remain true, and what this test holds: disagreement NEVER exceeds noise. Beyond
+// conditioning of 1e-15 — 1000 times f64 epsilon — both verdicts are
+// always in agreement, so no matrix the engine can still display under a determined side
+// changes face when switching implementations.
+test('C — 200 000 constructed singulars: disagreement stays below rounding noise', () => {
   const releve = balayage(200_000, 99, (m, s) => {
     const c1 = [s() - 0.5, s() - 0.5, s() - 0.5];
     const c2 = [s() - 0.5, s() - 0.5, s() - 0.5];
@@ -163,14 +163,14 @@ test('C — 200 000 singulières construites : le désaccord reste sous le bruit
       m.elements[12 + k] = (s() - 0.5) * 1e3;
     }
   });
-  // Le désaccord existe : le dire, et le compter, plutôt que construire une population qui l'évite.
+  // Disagreement exists: state it and count it, rather than building a population that avoids it.
   assert.ok(
     releve.desaccords > 5e4,
-    `la population doit rester celle qui sépare les deux écritures : ${releve.desaccords}`,
+    `population must remain the one separating both implementations: ${releve.desaccords}`,
   );
   assert.ok(
     releve.pireConditionnementEnDesaccord < 1e-15,
-    `un désaccord à ${releve.pireConditionnementEnDesaccord} de conditionnement : ce n'est plus du ` +
-      'bruit d’arrondi, les deux écritures se séparent sur une matrice que le moteur peut montrer',
+    `disagreement at ${releve.pireConditionnementEnDesaccord} conditioning: no longer rounding ` +
+      'noise, both implementations separate on a matrix the engine can display',
   );
 });

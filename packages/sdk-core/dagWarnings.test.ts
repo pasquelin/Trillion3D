@@ -6,9 +6,9 @@ import { dagWarningsDiagnostic } from './dagWarnings.ts';
 const primitive = (mesh: number, dag: Primitive['dag']): Primitive =>
   ({ mesh, primitive: 0, pass: 'exact-clusters', pages: [], dag }) as Primitive;
 
-// Comportement : les avertissements écrits par le compilateur remontent en un diagnostic nommé,
-// rattachés à leur primitive ; un cache sans avertissement n'en produit aucun.
-test('les avertissements de DAG du cache remontent en un diagnostic à l’ouverture', () => {
+// Behavior: compiler warnings surface as a named diagnostic attached to their primitive;
+// a clean cache produces no diagnostic.
+test('DAG warnings from cache surface as a diagnostic on open', () => {
   const flat = { code: 'DAG_FLAT' as const, roots: 98, pages: 98, groups: { noCollapse: 4 } };
   const diagnostic = dagWarningsDiagnostic([
     primitive(0, { warnings: [] }),

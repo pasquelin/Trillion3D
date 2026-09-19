@@ -6,10 +6,10 @@ import {
 } from './cameraWorld.ts';
 
 /**
- * La caméra du moteur d'une caméra d'hôte de test : ce que l'entrée d'image fait à chaque image, en
- * un appel. Idempotente — une caméra du moteur se rend elle-même —, pour qu'un banc ou un test
- * puisse l'appliquer sans savoir ce qu'il tient. Elle alloue : le chemin par image, lui, réécrit la
- * caméra que le moteur possède déjà (`run.cam`).
+ * Engine camera of a test host camera: what frame entry does every frame, in one call.
+ * Idempotent — an engine camera returns itself — so a bench or a test can apply it without
+ * knowing what it holds. It allocates: the per-frame path rewrites the camera the engine
+ * already owns (`run.cam`).
  */
 export function cameraMoteur(source: HostCamera | EngineCamera): EngineCamera {
   return 'viewProjection' in source ? source : readCameraWorld(createEngineCamera(), source);

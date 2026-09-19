@@ -22,11 +22,11 @@ export function packed(fixture: ReturnType<typeof dagFixture>) {
 const helperCam = createEngineCamera();
 
 /**
- * Les uniformes du noyau ET le repère de rendu où ses matrices monde sont posées : les deux ne se
- * fabriquent jamais l'un sans l'autre, pas plus ici que dans le moteur, où l'entrée d'image rebase
- * les matrices sur l'œil avant de les porter à la carte. Un montage qui ne poserait que les
- * uniformes laisserait des matrices monde absolues sous une vue sans translation : deux repères
- * dans la même formule, et une coupe fausse sans rien qui le dise.
+ * The kernel uniforms AND the render frame where its world matrices are set: the two are
+ * never built one without the other, no more here than in the engine, where frame entry
+ * rebases the matrices on the eye before carrying them to the GPU. A setup that only set
+ * the uniforms would leave absolute world matrices under a view with no translation: two
+ * frames in the same formula, and a wrong cut with nothing to say so.
  */
 export function kernelUniforms(
   dag: ReturnType<typeof packDagSelection>,

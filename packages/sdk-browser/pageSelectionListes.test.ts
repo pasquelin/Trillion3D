@@ -1,7 +1,7 @@
-// Le comportement changé par ce lot : les deux listes de la coupe ne sont plus vidées par
-// `length = 0` à chaque image — elles y perdaient leur capacité et la repoussaient de zéro à
-// quatre-vingt mille — mais réécrites par indice, leur longueur posée une seule fois à la fin.
-// Ce qui doit rester vrai : une coupe plus courte que la précédente ne laisse rien traîner.
+// Behaviour changed by this batch: the two cut lists are no longer cleared with
+// `length = 0` each frame — they lost their capacity and grew it back from zero to
+// eighty thousand — but rewritten by index, their length set once at the end.
+// What must stay true: a cut shorter than the previous one leaves nothing behind.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -24,7 +24,7 @@ function racines() {
   return { fixture, roots };
 }
 
-/** Une caméra qui ne voit rien du modèle : sa coupe est vide. */
+/** A camera that sees none of the model: its cut is empty. */
 function ailleurs() {
   const cam = new THREE.PerspectiveCamera(20, 16 / 9, 0.1, 1000);
   cam.position.set(1000, 1000, 1000);
@@ -33,7 +33,7 @@ function ailleurs() {
   return cam;
 }
 
-test('les listes réutilisées ne gardent rien de la coupe précédente, plus courte ou vide', () => {
+test('reused lists keep nothing from the previous cut, shorter or empty', () => {
   const { fixture, roots } = racines();
   const shown: PageRec[] = [],
     wanted: PageRec[] = [];
@@ -47,12 +47,12 @@ test('les listes réutilisées ne gardent rien de la coupe précédente, plus co
   assert.equal(vide.wanted.length, 0);
   assert.equal(shown.length, 0);
   assert.equal(wanted.length, 0);
-  // Ni trou ni reste : ce que l'hôte parcourt est exactement la coupe de cette image.
+  // Neither hole nor leftover: what the host walks is exactly this frame's cut.
   assert.deepEqual([...shown], []);
   assert.equal(vide.selectedTriangles, 0);
   assert.equal(vide.displayedTriangles, 0);
 
-  // Et la liste repart à sa pleine longueur sans garder de trace du passage à vide.
+  // And the list returns to its full length without keeping a trace of the empty pass.
   const encore = selectVisiblePages(roots, cameraMoteur(wideCamera()), { ...ASK, wanted }, shown);
   assert.equal(encore.shown.length, pleine);
   assert.deepEqual(

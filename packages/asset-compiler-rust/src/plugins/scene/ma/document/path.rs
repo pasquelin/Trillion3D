@@ -1,21 +1,21 @@
-//! L'identité d'un nœud de la scène : son chemin, et le nœud qu'un nom écrit désigne.
+//! Identity of a scene node: its path, and the node a written name refers to.
 //!
-//! Maya nomme ses nœuds par leur chemin complet — `|A|M` — et n'exige l'unicité du nom court que
-//! sous un même père : deux `transform` nommés `M`, l'un sous `A` et l'autre sous `B`, sont deux
-//! nœuds. Un fichier les désigne par le nom court tant qu'il n'y en a qu'un, et par le chemin dès
-//! qu'il y en a deux ; les confondre ferait que le second écrase le premier.
+//! Maya names nodes by their full path — `|A|M` — and requires uniqueness of the short name only
+//! under the same parent: two `transform` nodes named `M`, one under `A` and one under `B`, are
+//! two nodes. A file refers to them by the short name while there is only one, and by the path as
+//! soon as there are two; mixing them up would let the second overwrite the first.
 use super::*;
 
-/// Le chemin complet d'un nœud de ce nom sous ce père, tel que Maya l'écrit.
+/// Full path of a node of this name under this parent, as Maya writes it.
 pub(super) fn under(document: &Document, parent: Option<usize>, name: &str) -> String {
     let head = parent.map_or("", |parent| document.nodes[parent].path.as_str());
     format!("{head}|{}", leaf(name))
 }
 
 impl Document {
-    /// Le nœud qu'un nom écrit désigne, et s'il en désignait plusieurs. Un nom qui porte un `|` est
-    /// un chemin : seuls les nœuds dont le chemin se termine par lui répondent. Un nom court retient
-    /// tous ses homonymes, et c'est alors le premier écrit qui répond.
+    /// The node a written name refers to, and whether it referred to several. A name that carries
+    /// a `|` is a path: only nodes whose path ends with it match. A short name keeps every
+    /// namesake, and it is then the first written that matches.
     fn named(&self, written: &str) -> (Option<usize>, bool) {
         let ranks = self
             .by_name
@@ -29,8 +29,8 @@ impl Document {
         (first, found.next().is_some())
     }
 
-    /// Le nœud qu'un nom écrit désigne, l'ambiguïté comptée quand plusieurs y répondent : le
-    /// fichier aurait dû écrire un chemin, et prendre l'un des deux au hasard changerait la scène.
+    /// The node a written name refers to, with ambiguity counted when several match: the file
+    /// should have written a path, and picking one of the two at random would change the scene.
     pub(in super::super) fn find(&mut self, written: &str) -> Option<usize> {
         let (found, ambiguous) = self.named(written);
         if ambiguous {
@@ -39,7 +39,7 @@ impl Document {
         found
     }
 
-    /// Range un nœud neuf sous son nom court : ses homonymes se suivent dans l'ordre du fichier.
+    /// Records a new node under its short name: namesakes follow one another in file order.
     pub(super) fn remember(&mut self, name: &str, rank: usize) {
         self.by_name
             .entry(leaf(name).to_string())

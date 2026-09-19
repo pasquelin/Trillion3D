@@ -1,36 +1,36 @@
-//! Ce que la coupe par oreilles garantit : l'aire d'un polygone simple, l'éventail sur un polygone
-//! convexe, et une sortie comptée plutôt qu'une panique sur un anneau que rien ne rend découpable.
+//! What ear clipping guarantees: the area of a simple polygon, the fan on a convex polygon, and
+//! a counted output rather than a panic on a ring that nothing makes cuttable.
 //!
-//! L'anneau en U et la mesure d'aire sont ceux des pilotes, dans `crate::tests::ngones` : une seule
-//! définition du polygone de l'audit, et une seule façon de mesurer ce qu'il en sort.
+//! The U ring and the area measure are those of the drivers, in `crate::tests::ngones`: one
+//! definition of the audit polygon, and one way to measure what comes out of it.
 use super::*;
 use crate::tests::ngones::{cut_area, U_RING};
 
-/// Un anneau plan, posé dans le plan `z = 0`.
+/// A planar ring, placed in the plane `z = 0`.
 fn flat_ring(points: &[[f64; 2]]) -> Vec<[f64; 3]> {
     points.iter().map(|[x, y]| [*x, *y, 0.0]).collect()
 }
 
-/// La coupe d'un anneau : ses triangles, et le fait qu'elle soit exacte.
+/// Cut of a ring: its triangles, and whether it is exact.
 fn cut(ring: &[[f64; 3]]) -> (Vec<[usize; 3]>, bool) {
     let mut ngon = Ngon::default();
     ngon.begin();
     for point in ring {
         ngon.corner(*point);
     }
-    let exact = ngon.cut(&AtomicBool::new(false)).expect("jeton au repos");
+    let exact = ngon.cut(&AtomicBool::new(false)).expect("token at rest");
     (ngon.triangles().to_vec(), exact)
 }
 
-// Comportement : un polygone concave garde exactement son aire. L'éventail depuis le premier coin
-// remplissait le creux du U et rendait onze pour sept ; les oreilles ne coupent que des triangles
-// vides, donc la somme des aires retombe sur l'aire écrite.
+// Behaviour: a concave polygon keeps exactly its area. The fan from the first corner filled the
+// hollow of the U and yielded eleven for seven; ears only cut empty triangles, so the sum of
+// areas falls back on the written area.
 #[test]
 fn a_concave_polygon_keeps_its_own_area() {
     let ring = flat_ring(&U_RING);
     let (triangles, exact) = cut(&ring);
-    assert!(exact, "un U simple se découpe entièrement en oreilles");
-    assert_eq!(triangles.len(), 6, "huit coins font six triangles");
+    assert!(exact, "a simple U cuts entirely into ears");
+    assert_eq!(triangles.len(), 6, "eight corners make six triangles");
     assert!(
         (cut_area(&ring, &triangles) - 7.0).abs() < 1e-9,
         "{triangles:?}"
@@ -38,12 +38,12 @@ fn a_concave_polygon_keeps_its_own_area() {
     let fan: Vec<[usize; 3]> = (1..7).map(|step| [0, step, step + 1]).collect();
     assert!(
         (cut_area(&ring, &fan) - 11.0).abs() < 1e-9,
-        "l'éventail, lui, rendait onze"
+        "the fan, for its part, yielded eleven"
     );
 }
 
-// Comportement : un polygone convexe est découpé exactement comme l'éventail depuis son premier
-// coin, indice par indice. Une scène qui n'a que des faces convexes sort donc inchangée.
+// Behaviour: a convex polygon is cut exactly like the fan from its first corner, index by
+// index. A scene that has only convex faces therefore comes out unchanged.
 #[test]
 fn a_convex_polygon_is_cut_exactly_like_the_fan() {
     for sides in 3..12usize {
@@ -56,14 +56,14 @@ fn a_convex_polygon_is_cut_exactly_like_the_fan() {
         let ring = flat_ring(&points);
         let (triangles, exact) = cut(&ring);
         let fan: Vec<[usize; 3]> = (1..sides - 1).map(|step| [0, step, step + 1]).collect();
-        assert!(exact, "{sides} côtés convexes");
-        assert_eq!(triangles, fan, "{sides} côtés : la coupe suit l'éventail");
+        assert!(exact, "{sides} convex sides");
+        assert_eq!(triangles, fan, "{sides} sides: the cut follows the fan");
     }
 }
 
-// Comportement : des coins alignés ne bloquent pas la coupe. Le carré dont chaque côté porte un
-// sommet de plus garde son aire, et l'anneau dont tous les coins sont alignés — aire nulle, aucun
-// plan — sort compté plutôt qu'en panique.
+// Behaviour: collinear corners do not stall the cut. The square whose each side carries one
+// more vertex keeps its area, and the ring whose every corner is collinear — zero area, no
+// plane — comes out counted rather than as a panic.
 #[test]
 fn collinear_corners_do_not_stall_the_cut() {
     let square = [
@@ -76,7 +76,7 @@ fn collinear_corners_do_not_stall_the_cut() {
     ];
     let ring = flat_ring(&square);
     let (triangles, exact) = cut(&ring);
-    assert!(exact, "un carré à coins alignés reste simple");
+    assert!(exact, "a square with collinear corners stays simple");
     assert!(
         (cut_area(&ring, &triangles) - 4.0).abs() < 1e-9,
         "{triangles:?}"
@@ -84,23 +84,23 @@ fn collinear_corners_do_not_stall_the_cut() {
 
     let line = flat_ring(&[[0.0, 0.0], [1.0, 0.0], [2.0, 0.0], [3.0, 0.0]]);
     let (degenerate, exact) = cut(&line);
-    assert!(!exact, "un anneau sans plan est dit non découpable");
-    assert_eq!(degenerate.len(), 2, "il sort tout de même en éventail");
-    assert!(cut_area(&line, &degenerate) < 1e-12, "d'aire nulle");
+    assert!(!exact, "a ring with no plane is said uncuttable");
+    assert_eq!(degenerate.len(), 2, "it still comes out as a fan");
+    assert!(cut_area(&line, &degenerate) < 1e-12, "of zero area");
 }
 
-// Comportement : un anneau qui se recoupe n'a pas toujours d'oreille. La coupe finit quand même,
-// rend autant de triangles qu'un éventail, et un anneau de moins de trois coins n'en rend aucun.
+// Behaviour: a self-crossing ring does not always have an ear. The cut finishes anyway, yields
+// as many triangles as a fan, and a ring of fewer than three corners yields none.
 #[test]
 fn a_self_crossing_ring_is_cut_rather_than_looping() {
     let bow = flat_ring(&[[0.0, 0.0], [2.0, 2.0], [2.0, 0.0], [0.0, 2.0]]);
-    assert_eq!(cut(&bow).0.len(), 2, "quatre coins font deux triangles");
-    assert_eq!(cut(&[]).0.len(), 0, "un anneau vide ne rend rien");
-    assert_eq!(cut(&bow[..2]).0.len(), 0, "deux coins non plus");
+    assert_eq!(cut(&bow).0.len(), 2, "four corners make two triangles");
+    assert_eq!(cut(&[]).0.len(), 0, "an empty ring yields nothing");
+    assert_eq!(cut(&bow[..2]).0.len(), 0, "two corners neither");
 }
 
-// Comportement : la somme de Newell d'un anneau plan est normale à son plan, et sa longueur vaut
-// deux fois l'aire du polygone — y compris quand il est concave.
+// Behaviour: the Newell sum of a planar ring is normal to its plane, and its length is twice
+// the polygon's area — including when it is concave.
 #[test]
 fn the_newell_sum_measures_the_polygon() {
     let normal = newell(&flat_ring(&U_RING));
@@ -109,14 +109,15 @@ fn the_newell_sum_measures_the_polygon() {
     assert!((normal[2] - 14.0).abs() < 1e-9, "{normal:?}");
 }
 
-/// L'aire signée d'un triangle de l'anneau, lue dans le plan `z = 0` : positive dans le sens direct.
+/// Signed area of a triangle of the ring, read in the plane `z = 0`: positive in the direct
+/// sense.
 fn signed(ring: &[[f64; 3]], face: [usize; 3]) -> f64 {
     let [a, b, c] = face.map(|rank| ring[rank]);
     ((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) / 2.0
 }
 
-/// Le centre d'un triangle tombe-t-il dans l'anneau ? Un rayon vers la droite compte les côtés qu'il
-/// traverse : un nombre impair le dit dedans.
+/// Does the centre of a triangle fall in the ring? A ray to the right counts the sides it
+/// crosses: an odd number says inside.
 fn inside(ring: &[[f64; 3]], face: [usize; 3]) -> bool {
     let point: Vec<f64> = (0..2)
         .map(|axis| face.iter().map(|rank| ring[*rank][axis]).sum::<f64>() / 3.0)
@@ -132,9 +133,10 @@ fn inside(ring: &[[f64; 3]], face: [usize; 3]) -> bool {
     crossings % 2 == 1
 }
 
-// Comportement : une diagonale qui passe par un autre coin vivant n'est pas une oreille. Ce polygone
-// simple d'aire treize pose son dernier coin sur la diagonale du premier triangle candidat ; coupé
-// là, il rendait quatorze et son dernier triangle partait à l'envers, sans rien compter au rapport.
+// Behaviour: a diagonal that passes through another living corner is not an ear. This simple
+// polygon of area thirteen places its last corner on the diagonal of the first candidate
+// triangle; cut there, it yielded fourteen and its last triangle started backwards, without
+// counting anything in the report.
 #[test]
 fn a_diagonal_through_a_corner_is_not_an_ear() {
     let mut walk = [
@@ -147,8 +149,8 @@ fn a_diagonal_through_a_corner_is_not_an_ear() {
     for _ in 0..2 {
         let ring = flat_ring(&walk);
         let (triangles, exact) = cut(&ring);
-        assert!(exact, "un polygone simple se découpe en oreilles");
-        assert_eq!(triangles.len(), 3, "cinq coins font trois triangles");
+        assert!(exact, "a simple polygon cuts into ears");
+        assert_eq!(triangles.len(), 3, "five corners make three triangles");
         assert!(
             (cut_area(&ring, &triangles) - 13.0).abs() < 1e-9,
             "{triangles:?}"
@@ -157,9 +159,9 @@ fn a_diagonal_through_a_corner_is_not_an_ear() {
         for face in &triangles {
             assert!(
                 signed(&ring, *face) * turn > 0.0,
-                "{face:?} part à l'envers"
+                "{face:?} starts backwards"
             );
-            assert!(inside(&ring, *face), "{face:?} sort de la face");
+            assert!(inside(&ring, *face), "{face:?} leaves the face");
         }
         walk.reverse();
     }

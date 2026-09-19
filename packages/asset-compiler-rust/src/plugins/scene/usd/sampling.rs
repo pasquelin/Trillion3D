@@ -1,31 +1,30 @@
-//! Ce qu'un `UsdUVTexture` déclare autour de son fichier : la répétition de chacun de ses deux
-//! axes, le `scale` et le `bias` qu'il applique aux octets lus, et l'espace de couleur dans lequel
-//! il les lit.
+//! What a `UsdUVTexture` declares around its file: wrap of each of its two axes, the `scale` and
+//! `bias` it applies to the bytes read, and the colour space in which it reads them.
 //!
-//! glTF ne porte rien de cela sur la texture : la répétition va à l'échantillonneur, l'échelle au
-//! facteur du matériau quand elle s'y ramène, et ce qui ne s'y range pas est compté par son nom.
-//! Rien n'est réencodé ici — un pilote qui recalculerait des octets inventerait l'image.
+//! glTF carries none of that on the texture: wrap goes to the sampler, scale to the material
+//! factor when it folds into it, and what does not fit is counted by name. Nothing is re-encoded
+//! here — a driver that recomputed bytes would invent the image.
 use super::*;
 
-/// Les trois modes de répétition de glTF : répéter, borner, refléter.
+/// The three glTF wrap modes: repeat, clamp, mirror.
 const REPEAT: u32 = 10497;
 const CLAMP: u32 = 33071;
 const MIRROR: u32 = 33648;
 
-/// Les deux espaces de couleur qu'un `UsdUVTexture` nomme en clair ; `auto` laisse le fichier dire.
+/// The two colour spaces a `UsdUVTexture` names plainly; `auto` lets the file say.
 const RAW: &str = "raw";
 const SRGB: &str = "sRGB";
 
-/// L'échantillonneur de cette texture : un mode par axe, jamais un seul pour les deux — un format
-/// qui borne un axe et répète l'autre replierait son image si on les confondait.
+/// Sampler of this texture: one mode per axis, never a single one for both — a format that
+/// clamps one axis and repeats the other would fold its image if they were mixed up.
 pub(super) fn sampler(world: &mut World<'_>, shader: &usd::Prim) -> usize {
     let across = wrap(world, shader, "inputs:wrapS");
     let along = wrap(world, shader, "inputs:wrapT");
     world.scene.sampler_uv(across, along)
 }
 
-/// Le mode de répétition d'un axe. `black` borde l'image de transparent et `useMetadata` laisse le
-/// fichier décider : glTF n'a ni l'un ni l'autre, la texture répète et le compte le dit.
+/// Wrap mode of one axis. `black` borders the image with transparent and `useMetadata` lets the
+/// file decide: glTF has neither, the texture repeats and the count says so.
 fn wrap(world: &mut World<'_>, shader: &usd::Prim, axis: &str) -> u32 {
     let mode = read::first(&shader.attribute(axis))
         .and_then(|(value, _)| read::text(&value))
@@ -41,9 +40,9 @@ fn wrap(world: &mut World<'_>, shader: &usd::Prim, axis: &str) -> u32 {
     }
 }
 
-/// Le facteur unique auquel `scale` et `bias` se ramènent, ou `None` quand ils n'y tiennent pas.
-/// glTF multiplie sa texture par un facteur et n'y ajoute rien : il faut donc un `bias` nul et un
-/// `scale` égal sur les trois canaux de couleur, le quatrième — l'alpha — restant à un.
+/// Unique factor that `scale` and `bias` fold into, or `None` when they do not fit. glTF
+/// multiplies its texture by a factor and adds nothing: so `bias` must be zero and `scale` equal
+/// on the three colour channels, the fourth — alpha — remaining one.
 pub(super) fn scale(shader: &usd::Prim) -> Option<f64> {
     let scale = channels(shader, "inputs:scale", 1.0);
     let bias = channels(shader, "inputs:bias", 0.0);
@@ -51,8 +50,8 @@ pub(super) fn scale(shader: &usd::Prim) -> Option<f64> {
     (uniform && bias == [0.0; 4] && scale[3] == 1.0).then_some(scale[0])
 }
 
-/// Les quatre canaux d'une entrée que la spécification écrit en `float4` : une valeur unique vaut
-/// pour les trois canaux de couleur, et tout canal que la couche n'écrit pas prend la valeur neutre.
+/// Four channels of an input the specification writes as `float4`: a single value applies to the
+/// three colour channels, and any channel the layer does not write takes the neutral value.
 fn channels(shader: &usd::Prim, name: &str, neutral: f64) -> [f64; 4] {
     let written = read::first(&shader.attribute(name))
         .and_then(|(value, _)| read::components(&value))
@@ -64,9 +63,9 @@ fn channels(shader: &usd::Prim, name: &str, neutral: f64) -> [f64; 4] {
     }
 }
 
-/// L'espace de couleur déclaré, comparé au rôle de l'entrée qui lit la texture : une couleur lue en
-/// linéaire éclaircit la surface, une donnée lue comme une couleur la courbe. Le pilote ne
-/// réencode pas les octets, il compte l'écart.
+/// Declared colour space, compared to the role of the input that reads the texture: a colour
+/// read as linear lightens the surface, a datum read as a colour curves it. The driver does not
+/// re-encode the bytes; it counts the mismatch.
 pub(super) fn colour_space(world: &mut World<'_>, shader: &usd::Prim, colour: bool) {
     let declared = read::first(&shader.attribute("inputs:sourceColorSpace"))
         .and_then(|(value, _)| read::text(&value));

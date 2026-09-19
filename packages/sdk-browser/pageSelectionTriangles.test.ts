@@ -1,20 +1,20 @@
-// Les deux sommes de triangles sont tenues à la retenue, plus balayées après la coupe. Elles
-// doivent rester, terme pour terme et dans le même ordre, celles des tableaux rendus — y compris
-// quand un repli raccourcit `shown` puis le reremplit.
+// Both triangle sums are kept at retain time, no longer swept after the cut. They
+// must stay, term for term and in the same order, those of the returned arrays — including
+// when a fallback shortens `shown` then fills it again.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { collectClusterPages, selectVisiblePages, type PageRec } from './pageSelection.ts';
 import { dagFixture, wideCamera } from './pageSelectionDagFixture.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 
-/** La somme que les balayages d'avant ce lot calculaient : de gauche à droite, sans réassociation. */
+/** The sum the sweeps from before this batch computed: left to right, without reassociation. */
 function sum(pages: readonly PageRec[]) {
   let total = 0;
   for (let i = 0; i < pages.length; i++) total += pages[i].triangles;
   return total;
 }
 
-test('les sommes de triangles rendues sont celles des tableaux rendus, repli compris', () => {
+test('returned triangle sums are those of the returned arrays, fallback included', () => {
   const fixture = dagFixture();
   const { roots, allPages } = collectClusterPages(
     fixture.source,
@@ -23,8 +23,8 @@ test('les sommes de triangles rendues sont celles des tableaux rendus, repli com
     fixture.associations,
   );
   const cam = wideCamera();
-  // Chaque sous-ensemble résident : la coupe demandée, celle qu'on peut montrer, les replis par
-  // groupe forcé et la couverture de secours passent tous par ce produit.
+  // Every resident subset: the requested cut, the one that can be shown, forced-group
+  // fallbacks and the emergency cover all go through this product.
   let vus = 0,
     replis = 0;
   for (let mask = 0; mask < 1 << allPages.length; mask += 7)
@@ -43,21 +43,21 @@ test('les sommes de triangles rendues sont celles des tableaux rendus, repli com
         if (result.shown.length !== result.wanted.length) replis++;
         assert.ok(
           Object.is(result.displayedTriangles, sum(result.shown)),
-          `triangles affichés, masque ${mask}, seuil ${pixelError}`,
+          `displayed triangles, mask ${mask}, threshold ${pixelError}`,
         );
         assert.ok(
           Object.is(
             result.selectedTriangles,
             result.wanted.length ? sum(result.wanted) : sum(result.shown),
           ),
-          `triangles demandés, masque ${mask}, seuil ${pixelError}`,
+          `requested triangles, mask ${mask}, threshold ${pixelError}`,
         );
       }
-  assert.ok(vus > 100, `seulement ${vus} coupes`);
-  assert.ok(replis > 0, 'aucune coupe où `shown` et `wanted` divergent');
+  assert.ok(vus > 100, `only ${vus} cuts`);
+  assert.ok(replis > 0, 'no cut where `shown` and `wanted` diverge');
 });
 
-test('le budget de pages ne fausse pas les sommes du passage retenu', () => {
+test('the page budget does not skew the sums of the kept pass', () => {
   const fixture = dagFixture();
   const { roots } = collectClusterPages(
     fixture.source,
@@ -81,7 +81,7 @@ test('le budget de pages ne fausse pas les sommes du passage retenu', () => {
         result.selectedTriangles,
         result.wanted.length ? sum(result.wanted) : sum(result.shown),
       ),
-      `budget ${pageBudget}, demandés`,
+      `budget ${pageBudget}, requested`,
     );
   }
 });

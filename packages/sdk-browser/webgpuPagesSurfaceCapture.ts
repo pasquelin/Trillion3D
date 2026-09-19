@@ -45,8 +45,8 @@ function copySurfaces(
     allocationBytes: reserve,
     depth,
     inverseViewProjection: [...invertMatrix4(new Float64Array(16), viewProj)],
-    // La vue secondaire vient d'entrer par le contrat : son œil monde est celui que la caméra du
-    // moteur porte, sans relire la caméra de l'hôte ni rien recalculer.
+    // The secondary view has just entered through the contract: its world eye is the one the engine
+    // camera carries, without rereading the host camera or recomputing anything.
     cameraWorld: [eye[0], eye[1], eye[2]],
     selectedTriangles: rt.run.selectedTriangles,
     dispose() {
@@ -56,7 +56,7 @@ function copySurfaces(
       depth.destroy();
       capture.captureAllocationBytes = 0;
       capture.surfaceCapture = undefined;
-      diag.engineDiagnostic('surface-capture-released', 'Capture GPU libérée', {
+      diag.engineDiagnostic('surface-capture-released', 'GPU capture released', {
         allocationBytes: reserve,
       });
     },
@@ -93,7 +93,7 @@ export async function captureSurfaceView(
     throw new Error('SURFACE_CAPTURE_BUSY: dispose the previous capture first');
   if (run.lost || !gpuDevice || !rt.vis.visEnabled || !run.lastCamera)
     throw new Error('SURFACE_CAPTURE_UNAVAILABLE');
-  // L'historique de l'antialiasing temporel reste alloué pendant la capture : il compte avec elle.
+  // Temporal-antialiasing history stays allocated during capture: it counts with it.
   const reserve =
     checkSurfaceSize(gpuDevice, options.width, options.height, 32) +
     (rt.gpu.temporal?.historyBytes ?? 0);
@@ -103,8 +103,8 @@ export async function captureSurfaceView(
     diagnostic: run.diagnostic,
     motion: { ...run.motion },
   };
-  // Entrée de capture : la caméra vient de l'hôte comme celle d'une image. La copie détachée garde
-  // la pose monde ; un clone la ramènerait à sa pose locale sous un rig.
+  // Capture entry: the camera comes from the host like an image's. The detached copy keeps the
+  // world pose; a clone would bring it back to its local pose under a rig.
   resolveCameraWorld(camera);
   const view = holdHostCamera(new THREE.PerspectiveCamera(), camera);
   view.aspect = options.width / options.height;
@@ -118,7 +118,7 @@ export async function captureSurfaceView(
   let result: SurfaceCapture | undefined;
   capture.secondaryCamera = view;
   capture.captureAllocationBytes = reserve;
-  diag.engineDiagnostic('surface-capture-start', 'Capture GPU depuis une seconde caméra', {
+  diag.engineDiagnostic('surface-capture-start', 'GPU capture from a second camera', {
     width: options.width,
     height: options.height,
     allocationBytes: reserve,

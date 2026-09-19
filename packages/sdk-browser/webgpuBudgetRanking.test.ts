@@ -1,7 +1,7 @@
-// Le classement du budget de pages ne parcourt plus la coupe : les clés pesées sont rangées par
-// niveau à mesure qu'elles entrent et sortent, et le préfixe se lit des niveaux les plus grossiers
-// jusqu'au budget. Ce qu'il contient est inchangé en nature — les niveaux grossiers entiers, puis
-// autant du niveau qui chevauche le budget que celui-ci en porte, et rien de plus fin.
+// Page-budget ranking no longer walks the cut: weighed keys are stored by level as they enter
+// and leave, and the prefix is read from the coarsest levels up to the budget. What it contains
+// is unchanged in kind — whole coarse levels, then as much of the level that straddles the
+// budget as that budget carries, and nothing finer.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { PageRec } from './pageSelection.ts';
@@ -15,9 +15,9 @@ const rec = (key: number, level: number | undefined, tag: string) =>
 const weighed = (cut: readonly PageRec[], cover: Uint8Array) =>
   new Set(cut.filter((page) => !cover[keyOf(page)]).map(keyOf));
 
-/** Ce que le préfixe doit contenir, niveau par niveau : les grossiers entiers, puis le reste du
- *  budget pris au niveau qui le chevauche, et rien en dessous. Un ensemble par niveau, pas un
- *  ordre : l'ordre interne d'un niveau est celui des entrées, et il n'est plus une promesse. */
+/** What the prefix must contain, level by level: whole coarse ones, then the rest of the budget
+ *  taken from the level that straddles it, and nothing below. A set per level, not an order: a
+ *  level's internal order is that of the entries, and it is no longer a promise. */
 function reference(cut: readonly PageRec[], cover: Uint8Array, room: number) {
   const byLevel = new Map<number, Set<number>>();
   for (const page of cut) {
@@ -38,7 +38,7 @@ function reference(cut: readonly PageRec[], cover: Uint8Array, room: number) {
   return { byLevel, taken };
 }
 
-/** Le préfixe rendu, vérifié contre la référence : compte par niveau, appartenance, unicité. */
+/** Returned prefix, checked against the reference: count per level, membership, uniqueness. */
 function check(
   ranking: ReturnType<typeof createBudgetRanking>,
   cut: readonly PageRec[],
@@ -47,22 +47,22 @@ function check(
   label: string,
 ) {
   const records = ranking.rank(room);
-  assert.equal(records, weighed(cut, cover).size, `${label} : pages pesées`);
+  assert.equal(records, weighed(cut, cover).size, `${label}: weighed pages`);
   if (records <= room) return;
   const want = reference(cut, cover, room);
   const keys = [...ranking.keys.subarray(0, ranking.length)];
-  assert.equal(keys.length, room, `${label} : le préfixe vaut le budget`);
-  assert.equal(new Set(keys).size, room, `${label} : une entrée par page`);
+  assert.equal(keys.length, room, `${label}: the prefix equals the budget`);
+  assert.equal(new Set(keys).size, room, `${label}: one entry per page`);
   const counted = new Map<number, number>();
   keys.forEach((key, index) => {
     const page = ranking.ranked[index];
-    assert.equal(keyOf(page), key, `${label} : l'enregistrement est celui de la clé`);
+    assert.equal(keyOf(page), key, `${label}: the record is that of the key`);
     const level = page.level ?? 0;
-    assert.ok(want.byLevel.get(level)?.has(key), `${label} : clé pesée à son niveau`);
+    assert.ok(want.byLevel.get(level)?.has(key), `${label}: key weighed at its level`);
     counted.set(level, (counted.get(level) ?? 0) + 1);
   });
   for (const [level, count] of want.taken)
-    assert.equal(counted.get(level) ?? 0, count, `${label} : pages prises au niveau ${level}`);
+    assert.equal(counted.get(level) ?? 0, count, `${label}: pages taken at level ${level}`);
 }
 
 /** A reproducible pseudo-random stream: the sweep below has to be the same on every run. */
@@ -71,7 +71,7 @@ function stream(seed: number) {
   return () => (state = (state * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
 }
 
-test('le préfixe garde les niveaux grossiers entiers et coupe dans celui qui chevauche', () => {
+test('the prefix keeps whole coarse levels and cuts in the one that straddles', () => {
   const next = stream(20260915);
   for (let trial = 0; trial < 200; trial++) {
     const keyCount = 1 + Math.floor(next() * 40);
@@ -91,7 +91,7 @@ test('le préfixe garde les niveaux grossiers entiers et coupe dans celui qui ch
     const room = Math.floor(next() * (count + 3));
     const ranking = createBudgetRanking({ keyCount, bootstrapKey: cover, keyOf });
     for (const page of cut) ranking.add(page);
-    check(ranking, cut, cover, room, `essai ${trial}`);
+    check(ranking, cut, cover, room, `trial ${trial}`);
   }
 });
 
@@ -121,7 +121,7 @@ test('a placement that leaves is subtracted, and the rank follows the cut that r
   assert.deepEqual([...ranking.keys.subarray(0, ranking.length)], [4, 3]);
 });
 
-test('un classement que rien ne fait bouger rend deux fois le même préfixe', () => {
+test('a ranking that nothing moves yields the same prefix twice', () => {
   const cover = new Uint8Array(8);
   const cut = [0, 1, 2, 3, 4, 5, 6, 7].map((key) => rec(key, key % 3, `p${key}`));
   const ranking = createBudgetRanking({ keyCount: 8, bootstrapKey: cover, keyOf });
@@ -130,13 +130,13 @@ test('un classement que rien ne fait bouger rend deux fois le même préfixe', (
   const premier = [...ranking.keys.subarray(0, ranking.length)],
     pages = ranking.ranked.slice(0, ranking.length);
   ranking.rank(5);
-  assert.deepEqual([...ranking.keys.subarray(0, ranking.length)], premier, 'même ordre');
+  assert.deepEqual([...ranking.keys.subarray(0, ranking.length)], premier, 'same order');
   assert.equal(
     ranking.matches(Int32Array.from(premier), premier.length, pages),
     true,
-    'la file qui tient déjà ce préfixe est reconnue, donc jamais réécrite',
+    'the queue that already holds this prefix is recognised, so never rewritten',
   );
-  assert.equal(ranking.matches(Int32Array.from(premier), 4, pages), false, 'longueur différente');
+  assert.equal(ranking.matches(Int32Array.from(premier), 4, pages), false, 'different length');
 });
 
 test('levels beyond the first band grow the counters without disturbing the rank', () => {
@@ -144,6 +144,6 @@ test('levels beyond the first band grow the counters without disturbing the rank
   const cut = [rec(0, 0, 'zero'), rec(1, 40, 'haut'), rec(2, 9, 'milieu')];
   const ranking = createBudgetRanking({ keyCount: 3, bootstrapKey: cover, keyOf });
   for (const page of cut) ranking.add(page);
-  check(ranking, cut, cover, 2, 'niveaux hauts');
+  check(ranking, cut, cover, 2, 'high levels');
   assert.deepEqual([...ranking.keys.subarray(0, ranking.length)], [1, 2]);
 });

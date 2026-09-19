@@ -1,21 +1,21 @@
-//! La chaîne de mips de chaque texture d'atlas, cuite une fois pour toutes.
+//! Mip chain of each atlas texture, baked once for all.
 //!
-//! Le moteur écrivait la queue de la chaîne — du niveau dont aucun côté ne dépasse `PREVIEW_BASE`
-//! jusqu'au 1×1 — depuis le sidecar, puis attendait la pleine résolution et régénérait TOUT le
-//! reste sur la carte graphique. Entre 64 px et la source il n'existait donc aucun niveau : une
-//! texture qui voulait un 256 px devait charger et décoder son 2048², et la résidence ne pouvait
-//! pas suivre ce que l'écran demande. Ici, chaque niveau existe : la queue reste dans le sidecar,
-//! en RGBA8 ; les niveaux au-dessus sont des PNG sans perte dans le cache, un fichier par niveau,
-//! adressés par l'empreinte des octets sources et par atlas (`textures/<sha>/<srgb|linear>-<k>.png`),
-//! donc partagés par toute scène qui partage l'image, et jamais réécrits s'ils existent déjà.
+//! Engine wrote tail of chain — from level with no side exceeding `PREVIEW_BASE`
+//! to 1x1 — from sidecar, then waited for full resolution and regenerated ALL
+//! rest on GPU. Between 64 px and source no level existed: texture
+//! needing 256 px had to load and decode 2048², residence could
+//! not keep up with screen. Here, every level exists: tail in sidecar,
+//! RGBA8; levels above are lossless PNGs in cache, one file per level,
+//! addressed by source byte hash and atlas (`textures/<sha>/<srgb|linear>-<k>.png`),
+//! shared across scenes sharing image, never rewritten if present.
 //!
-//! La règle de réduction est celle que la carte appliquait (`reduce.rs`) : cuire au lieu de
-//! régénérer ne change pas l'image. Les deux atlas du moteur sont couverts — couleur de base et
-//! émissif dans l'un, métal-rugosité, normale et occlusion dans l'autre —, chacun par sa courbe.
+//! Reduction rule matches GPU (`reduce.rs`): baking instead of
+//! regenerating does not change image. Covers both engine atlases — base color
+//! and emissive in one, metallic-roughness, normal, occlusion in other —, each by own curve.
 //!
-//! Un décodage impossible — un format hors du registre des pilotes d'image, un PNG corrompu, une
-//! image absente — est une entrée de rapport nommée et aucun niveau : la compilation n'échoue
-//! jamais pour une texture, et le moteur retombe sur son blanc.
+//! Failed decode — format outside image driver registry, corrupt PNG, missing
+//! image — is named report entry and zero levels: compilation never fails
+//! for texture, engine falls back to default white.
 use super::*;
 use std::sync::atomic::AtomicUsize;
 
@@ -29,29 +29,29 @@ pub(crate) mod source;
 mod tests;
 pub use levels::*;
 
-/// Contrat de la section : bouger l'échelle des niveaux, leur ordre, la règle de réduction ou
-/// l'espace colorimétrique impose d'incrémenter ce numéro et celui du sidecar binaire qui la
-/// transporte. La 3 est la règle de la carte graphique et la chaîne entière, deux atlas compris.
+/// Section contract: moving level scale, order, reduction rule, or
+/// color space requires incrementing this version and binary sidecar version
+/// carrying it. Version 3 is GPU rule and full chain, both atlases included.
 pub const TEXTURE_PREVIEW_VERSION: u32 = 3;
 pub use bake::{texture_version_dir, TEXTURE_DIR};
 pub use reduce::AtlasKind;
-/// Le gabarit d'un niveau cuit, relativement à `native/` ; `bake::level_path` le remplit.
+/// Baked level template path, relative to `native/`; `bake::level_path` populates.
 pub fn level_template() -> String {
     format!(
         "{}/{{sha}}/{{kind}}-{{level}}.png",
         bake::texture_version_dir()
     )
 }
-/// Plus grand côté qu'un niveau porté par le sidecar peut avoir. Le choix borne la section : au plus
-/// 21 844 octets par texture, contre les mégaoctets qu'un niveau 256 ou 512 y ajouterait.
+/// Largest side sidecar level can have. Choice bounds section: at most
+/// 21,844 bytes per texture vs megabytes a 256/512 level would add.
 pub const PREVIEW_BASE: u32 = 64;
-/// Niveaux qu'une entrée porte au plus : 64, 32, 16, 8, 4, 2, 1.
+/// Max levels entry carries: 64, 32, 16, 8, 4, 2, 1.
 pub const PREVIEW_MAX_LEVELS: u32 = 7;
-/// Plafond d'allocation d'un décodage. Une image plus grande est une entrée de rapport, pas un échec.
+/// Decode memory allocation ceiling. Larger image is report entry, not failure.
 const PREVIEW_MAX_ALLOC: u64 = 512 * 1024 * 1024;
 
-/// D'où viennent les octets sources d'un aperçu. L'`uri` elle-même n'est pas recopiée : elle se lit
-/// dans `source.gltf` à `images[image]`, que cette entrée nomme.
+/// Origin of preview source bytes. `uri` itself not copied: read
+/// in `source.gltf` at `images[image]`, which entry names.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum PreviewSource {
     Uri,
@@ -72,9 +72,9 @@ impl PreviewSource {
     }
 }
 
-/// Une entrée de la section : la texture qu'elle couvre, sa provenance et les octets de ses niveaux.
-/// `first_level` et le nombre de niveaux se redéduisent de `width` et `height` ; les porter dans
-/// l'entrée laisse un lecteur refuser une entrée qui ne s'accorde pas avec ses propres dimensions.
+/// Section entry: texture covered, origin, level bytes.
+/// `first_level` and level count re-deduced from `width` and `height`; carrying in
+/// entry lets reader refuse entry contradicting own dimensions.
 pub struct TexturePreview {
     pub texture: u32,
     pub image: u32,
@@ -82,36 +82,36 @@ pub struct TexturePreview {
     pub height: u32,
     pub source: PreviewSource,
     pub sha256: String,
-    /// L'atlas que cette entrée sert : la même texture peut en avoir une par atlas.
+    /// Atlas entry serves: same texture can have one per atlas.
     pub kind: AtlasKind,
     pub first_level: u32,
-    /// Niveaux écrits dans le cache comme fichiers PNG, du 0 au `baked_levels - 1` : `first_level`
-    /// quand la chaîne est entière, 0 quand rien n'a pu être écrit.
+    /// Levels written in cache as PNG files, 0 to `baked_levels - 1`: `first_level`
+    /// when chain complete, 0 when nothing could be written.
     pub baked_levels: u32,
     pub pixels: Vec<u8>,
 }
 
-/// Tout ce que l'étape lit. `view_map` traduit les vues du glTF d'entrée vers celles écrites dans
-/// `source.gltf`, pour que la provenance nomme l'index que le moteur voit.
+/// Everything step reads. `view_map` translates input glTF views to those written in
+/// `source.gltf`, so origin names index engine sees.
 pub(super) struct PreviewInputs<'a> {
     pub o: &'a Options,
     pub g: &'a Value,
     pub bin: &'a [u8],
-    /// La racine de résolution des images de la scène intermédiaire, que `plugins::scene` nomme :
-    /// le dossier source, ou le dossier extrait d'un conteneur — jamais celui du cache.
+    /// Resolution root of intermediate scene images, named by `plugins::scene`:
+    /// source folder, or extracted folder of container — never cache folder.
     pub image_root: &'a Path,
     pub meshes: &'a BTreeSet<usize>,
     pub view_map: &'a BTreeMap<usize, usize>,
-    /// Les textures dont l'alpha est à mesurer au passage, que `cutout` a désignées : cette étape
-    /// sait ce qu'elle décode, pas ce qu'est une découpe.
+    /// Textures whose alpha to measure on pass, designated by `cutout`: this step
+    /// knows what it decodes, not what cutout is.
     pub to_measure: &'a BTreeSet<usize>,
 }
 
-/// Calcule la chaîne de chaque texture d'atlas des maillages retenus, une image décodée une seule
-/// fois quelles que soient les textures qui la citent. Rend les entrées triées par texture puis par
-/// atlas, la forme de l'alpha des textures candidates à la découpe — mesurée dans ce décodage,
-/// jamais dans un second — et le rapport de l'étape. Les images se traitent en parallèle sur la
-/// grappe de l'appelant, chacune dans la limite d'allocation d'un décodage.
+/// Calculates chain for each atlas texture of retained meshes, single image decode
+/// once regardless of citing textures. Returns entries sorted by texture then
+/// atlas, candidate cutout alpha shape — measured in this decode,
+/// never second —, and step report. Images processed in parallel on
+/// caller pool, each within decode allocation limit.
 pub(super) fn stage_texture_previews(
     inputs: &PreviewInputs<'_>,
     progress: &(impl Fn(Value) + Sync),
@@ -128,8 +128,8 @@ pub(super) fn stage_texture_previews(
         let report = bake::report(&wanted, &[], &BTreeMap::new(), &BTreeMap::new());
         return Ok((Vec::new(), BTreeMap::new(), report));
     };
-    // Par image : les (texture, atlas) qui la lisent. Une texture sans image est une entrée de
-    // rapport, pas une image à décoder.
+    // Per image: (texture, atlas) reading it. Texture without image is report
+    // entry, not image to decode.
     let mut by_image: BTreeMap<usize, Vec<collect::AtlasTexture>> = BTreeMap::new();
     let mut skipped: BTreeMap<&'static str, usize> = BTreeMap::new();
     for entry in &wanted {

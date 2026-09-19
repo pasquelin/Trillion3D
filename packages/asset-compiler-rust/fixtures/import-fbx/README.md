@@ -1,18 +1,18 @@
-# Fixture d'import FBX — l'opacité d'un matériau classique
+# FBX import fixture — classic-material opacity
 
-`riviere.fbx` est un FBX 7400 **ASCII** de 3 Ko écrit à la main : un quad, un matériau `M_Riviere`
-en `phong`, deux textures. Il reproduit au plus court la forme exacte que prend l'opacité dans
-`Village2.fbx` (Whisperwind Village, 409 Mo, hors dépôt) :
+`riviere.fbx` is a 3 KB **ASCII** FBX 7400 written by hand: a quad, a `phong` material `M_Riviere`,
+two textures. It reproduces as short as possible the exact shape opacity takes in
+`Village2.fbx` (Whisperwind Village, 409 MB, off repository):
 
-- `ShadingModel: "phong"` — donc `ufbx` classe le matériau en `FbxPhong`, `features.pbr` reste
-  éteint et **`pbr.opacity` n'a ni valeur ni texture** ;
-- `TransparentColor` porte la transparence *et* la carte d'opacité (`C: "OP",5000,3000,
-  "TransparentColor"`), `TransparencyFactor` le facteur.
+- `ShadingModel: "phong"` — so `ufbx` classifies the material as `FbxPhong`, `features.pbr` stays
+  off and **`pbr.opacity` has neither a value nor a texture**;
+- `TransparentColor` carries the transparency *and* the opacity map (`C: "OP",5000,3000,
+  "TransparentColor"`), `TransparencyFactor` the factor.
 
-Les deux images (`albedo.png`, `opacite.png`) ne sont pas versionnées : le test les écrit à côté de
-la copie jetable du FBX, comme les fixtures OBJ. La seule chose qui compte ici est le chemin que
-prend l'opacité, pas le contenu des pixels.
+The two images (`albedo.png`, `opacite.png`) are not versioned: the test writes them beside the
+throwaway copy of the FBX, like the OBJ fixtures. The only thing that counts here is the path
+opacity takes, not the pixel contents.
 
-Pour brancher la même texture sur la couleur de base et sur l'opacité, le test remplace la dernière
-connexion par `C: "OP",4000,3000, "TransparentColor"` ; c'est le cas où glTF peut porter l'alpha
-dans `baseColorTexture`.
+To wire the same texture onto base colour and opacity, the test replaces the last
+connection with `C: "OP",4000,3000, "TransparentColor"`; that is the case where glTF can carry the alpha
+in `baseColorTexture`.

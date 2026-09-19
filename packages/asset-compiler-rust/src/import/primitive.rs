@@ -1,13 +1,13 @@
-//! L'émission d'une primitive glTF à partir de sommets déjà dédupliqués, partagée par les pilotes
-//! de scène qui construisent leur géométrie eux-mêmes.
+//! Emission of a glTF primitive from deduplicated vertices, shared by scene drivers
+//! that build their geometry themselves.
 //!
-//! Ce qui est ici ne dépend d'aucun format : des tableaux parallèles de sommets et une suite
-//! d'indices deviennent des vues de binaire, des accesseurs et la primitive qui les cite. Ce qui
-//! dépend du format — comment on arrive à ces tableaux — reste chez le pilote.
+//! Format-independent: parallel vertex arrays and an index sequence
+//! become binary views, accessors, and primitive citing them. What
+//! depends on format — how to obtain arrays — stays in driver.
 use super::*;
 
-/// Les sommets d'une primitive, dédupliqués par le pilote. `positions` est obligatoire ; un tableau
-/// vide dit que cet attribut n'existe pas sur cette primitive et n'est donc pas écrit.
+/// Primitive vertices, deduplicated by driver. `positions` mandatory; empty array
+/// means attribute does not exist on primitive and is not written.
 #[derive(Default)]
 pub(crate) struct Vertices {
     pub(crate) positions: Vec<f32>,
@@ -18,17 +18,17 @@ pub(crate) struct Vertices {
 }
 
 impl Vertices {
-    /// Le nombre de sommets, déduit des positions.
+    /// Vertex count, deduced from positions.
     pub(crate) fn count(&self) -> usize {
         self.positions.len() / 3
     }
 }
 
-/// Écrit les sommets dans `bin`, pousse leurs accesseurs et rend la primitive glTF qui les cite.
-/// `material` est le rang du matériau de cette primitive, `None` quand elle n'en porte aucun.
+/// Writes vertices into `bin`, pushes accessors, returns citing glTF primitive.
+/// `material` is material index, `None` when primitive has no material.
 ///
-/// Les bornes de `POSITION` sont calculées ici sur les positions écrites, comme le veut glTF : un
-/// accesseur de position sans `min`/`max` n'est pas lisible par un moteur qui découpe la scène.
+/// `POSITION` bounds computed here from written positions as glTF requires: position
+/// accessor without `min`/`max` cannot be read by scene-culling engine.
 pub(crate) fn primitive(
     vertices: &Vertices,
     bin: &mut Bin,
@@ -66,7 +66,7 @@ pub(crate) fn primitive(
     primitive
 }
 
-/// Les bornes d'un tableau de positions, par axe.
+/// Position array bounds, per axis.
 fn bounds(positions: &[f32]) -> ([f32; 3], [f32; 3]) {
     let mut min = [f32::MAX; 3];
     let mut max = [f32::MIN; 3];

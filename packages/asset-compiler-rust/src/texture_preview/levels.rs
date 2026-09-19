@@ -1,9 +1,10 @@
-//! Géométrie de la pyramide progressive d'une texture, partagée par le calcul, l'écriture du
-//! sidecar et le lecteur TypeScript (`packages/sdk-core/texturePreviewLevels.ts`).
+//! Geometry of a texture's progressive pyramid, shared by the computation, sidecar
+//! writing and the TypeScript reader (`packages/sdk-core/texturePreviewLevels.ts`).
 //!
-//! Un niveau `k` est exactement le niveau de mip `k` de la source : la division entière de ses deux
-//! côtés par `2^k`, jamais moins d'un texel. Le moteur peut donc écrire le niveau `k` reçu dans le
-//! niveau de mip `k` de sa couche d'atlas sans rien recalculer, et l'échantillonner tel quel.
+//! A level `k` is exactly mip level `k` of the source: integer division of both
+//! sides by `2^k`, never less than one texel. The engine can therefore write the
+//! received level `k` into mip level `k` of its atlas layer without recomputing
+//! anything, and sample it as-is.
 use super::*;
 
 /// Dimensions du niveau `level` d'une image `width`×`height`.
@@ -12,8 +13,9 @@ pub fn preview_level_size(width: u32, height: u32, level: u32) -> (u32, u32) {
     ((width >> shift).max(1), (height >> shift).max(1))
 }
 
-/// Niveau le plus fin que le sidecar porte : le premier dont aucun côté ne dépasse `PREVIEW_BASE`.
-/// Au-dessus de lui il n'y a que la pleine résolution, que le moteur charge déjà comme image source.
+/// Finest level the sidecar carries: the first whose neither side exceeds
+/// `PREVIEW_BASE`. Above it there is only full resolution, which the engine
+/// already loads as the source image.
 pub fn preview_first_level(width: u32, height: u32) -> u32 {
     let mut level = 0;
     while level < 31 {
@@ -26,17 +28,17 @@ pub fn preview_first_level(width: u32, height: u32) -> u32 {
     level
 }
 
-/// Dernier niveau porté : celui où les deux côtés valent un texel.
+/// Last carried level: the one where both sides are one texel.
 pub fn preview_last_level(width: u32, height: u32) -> u32 {
     31 - width.max(height).max(1).leading_zeros()
 }
 
-/// Niveaux portés par une entrée, du plus fin au 1×1 compris. Vaut au plus `PREVIEW_MAX_LEVELS`.
+/// Levels carried by an entry, from the finest through 1×1 inclusive. At most `PREVIEW_MAX_LEVELS`.
 pub fn preview_level_count(width: u32, height: u32) -> u32 {
     preview_last_level(width, height) - preview_first_level(width, height) + 1
 }
 
-/// Octets RGBA8 de tous les niveaux portés, bout à bout dans l'ordre du plus fin au plus grossier.
+/// RGBA8 bytes of every carried level, end to end from finest to coarsest.
 pub fn preview_pixel_bytes(width: u32, height: u32) -> usize {
     let mut bytes = 0usize;
     for level in preview_first_level(width, height)..=preview_last_level(width, height) {

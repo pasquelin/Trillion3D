@@ -1,12 +1,13 @@
-//! G10 — la géométrie d'une entrée de preview, déduite d'un seul couple de bornes au lieu de trois
-//! appels qui repartent chacun des dimensions source. Le candidat est écrit ici et non dans la
-//! bibliothèque : il rend exactement les mêmes nombres, mais ne gagne rien. `preview_first_level`
-//! et `preview_last_level` sont de petites fonctions pures que le compilateur natif intègre puis
-//! factorise lui-même, si bien que la redondance du source n'existe déjà plus dans le binaire.
+//! G10 — geometry of a preview entry, deduced from a single pair of bounds instead
+//! of three calls that each restart from the source dimensions. The candidate is
+//! written here, not in the library: it yields exactly the same numbers, but gains
+//! nothing. `preview_first_level` and `preview_last_level` are small pure functions
+//! that the native compiler inlines then factors itself, so the source redundancy
+//! already no longer exists in the binary.
 use super::harness::{compare, Bits, Row};
 use crate::texture_preview::{preview_first_level, preview_last_level, preview_level_size};
 
-/// Le candidat : les deux bornes prises une fois, les trois nombres déduits d'elles.
+/// The candidate: both bounds taken once, the three numbers deduced from them.
 fn preview_geometry(width: u32, height: u32) -> (u32, u32, usize) {
     let first = preview_first_level(width, height);
     let last = preview_last_level(width, height);
@@ -18,7 +19,7 @@ fn preview_geometry(width: u32, height: u32) -> (u32, u32, usize) {
     (first, last - first + 1, bytes)
 }
 
-/// Copie de l'ancien `preview_pixel_bytes` : les deux bornes y étaient recalculées.
+/// Copy of the old `preview_pixel_bytes`: both bounds were recomputed there.
 fn reference_pixel_bytes(width: u32, height: u32) -> usize {
     let mut bytes = 0usize;
     for level in preview_first_level(width, height)..=preview_last_level(width, height) {
@@ -37,7 +38,7 @@ fn reference_geometry(width: u32, height: u32) -> (u32, u32, usize) {
     )
 }
 
-/// Dimensions source : côtés dégénérés, limites d'un u32, tailles courantes et carrés de puissance.
+/// Source dimensions: degenerate sides, u32 limits, common sizes and power-of-two squares.
 fn dimensions() -> Vec<(u32, u32)> {
     let base = [
         (0u32, 0u32),
@@ -69,9 +70,9 @@ fn empreinte(sortie: &Trois) -> Bits {
 pub(crate) fn row() -> Row {
     let tailles = dimensions();
     compare(
-        "G10 géométrie d'une entrée de preview",
+        "G10 geometry of a preview entry",
         "texture_preview/levels.rs, reduce.rs, manifest_binary/preview.rs",
-        "4 000 entrées, dix tailles dont les limites d'un u32".into(),
+        "4 000 entries, ten sizes including the limits of a u32".into(),
         &mut || {
             tailles
                 .iter()
@@ -87,7 +88,7 @@ pub(crate) fn row() -> Row {
         empreinte,
     )
     .ecarte(
-        "mêmes nombres, aucun gain mesurable : le compilateur natif intègre et factorise déjà les \
-         bornes recalculées, le candidat n'est donc pas entré dans la bibliothèque",
+        "same numbers, no measurable gain: the native compiler already inlines and factors \
+         the recomputed bounds, so the candidate did not enter the library",
     )
 }

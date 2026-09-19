@@ -54,8 +54,8 @@ export async function createWebgpuVisibilityShaders(
     size: uniformSlots * 256,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
-  // Sans variante, les deux modules sont exactement ceux d'avant : la production ne compile aucun
-  // étage de diagnostic.
+  // With no variant, the two modules are exactly those from before: production compiles no
+  // diagnostic stage.
   const visModule = device.createShaderModule({
     code: variesVisibility(variant) ? VIS_SHADER + DIAGNOSTIC_VIS_WGSL : VIS_SHADER,
   });

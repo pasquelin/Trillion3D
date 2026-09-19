@@ -1,30 +1,31 @@
-//! Pilote DDS (DirectDraw Surface), lu depuis la spécification publique de Microsoft
-//! « DDS — Programming Guide » (`DDS_HEADER`, `DDS_PIXELFORMAT`, `DDS_HEADER_DXT10`, énumération
-//! `DXGI_FORMAT`), écrite à la main d'après cette documentation : aucun SDK ni code d'éditeur.
-//! Les blocs compressés sont développés par la crate `texture2ddecoder` 0.1.2 (MIT ou Apache-2.0,
-//! `UniversalGameExtraction/texture2ddecoder`, Rust pur, notices conservées avec la dépendance).
+//! DDS driver (DirectDraw Surface), read from Microsoft's public specification
+//! "DDS — Programming Guide" (`DDS_HEADER`, `DDS_PIXELFORMAT`, `DDS_HEADER_DXT10`,
+//! `DXGI_FORMAT` enumeration), written by hand from that documentation: no vendor SDK or code.
+//! Compressed blocks are expanded by the `texture2ddecoder` 0.1.2 crate (MIT or Apache-2.0,
+//! `UniversalGameExtraction/texture2ddecoder`, pure Rust, notices kept with the dependency).
 //!
-//! **On n'ajoute aucune perte.** Un DDS BCn a déjà perdu ce qu'il devait perdre chez son encodeur ;
-//! le pilote se contente de l'interpolation entière que la spécification définit, bloc par bloc,
-//! sans filtre, sans arrondi de plus, sans réencodage. Le fichier source n'est jamais modifié.
+//! **No extra loss is added.** A BCn DDS has already lost what it had to lose at its encoder;
+//! the driver only does the integer interpolation the specification defines, block by block,
+//! with no filter, no extra rounding, no re-encoding. The source file is never modified.
 //!
-//! **Le décodage est un repli, pas la destination.** La règle du dépôt veut qu'une texture reçue
-//! déjà compressée pour le GPU garde ses blocs compressés sur le GPU quand la machine les accepte.
-//! Ce lot ne construit pas cette chaîne — transport, atlas et GPU sont un autre chantier. `DecodedImage`
-//! a aujourd'hui deux variantes, `Rgba8` et `RgbaF32` (`image-plugin-2`), et ce pilote ne rend que la
-//! première. Ce qu'il faudra ajouter, exactement : une troisième variante
-//! `DecodedImage::Blocks { codec, width, height, data }`, un `match` chez le consommateur
-//! (`src/texture_preview.rs:134`, aujourd'hui `Rgba8` lu et `RgbaF32` refusé par
-//! `image-float-unsupported`) qui la demande explicitement, et un pilote qui la rend. Le pilote est
-//! déjà découpé pour cela : `codec` nomme le codec et sa géométrie de bloc, `header` rend la surface
-//! et l'offset de ses octets bruts, `blocks` n'est que la reconstruction — la seule partie qui
-//! deviendra le repli. BC6H (HDR flottant) n'attend donc plus le contrat, qui a déjà sa sortie
-//! flottante : il attend cette variante `Blocks`, comme les autres codecs bruts.
+//! **Decoding is a fallback, not the destination.** The repository rule is that a texture
+//! received already compressed for the GPU keeps its compressed blocks on the GPU when the
+//! machine accepts them. This batch does not build that chain — transport, atlas and GPU are
+//! another job. `DecodedImage` currently has two variants, `Rgba8` and `RgbaF32`
+//! (`image-plugin-2`), and this driver only returns the first. What will need adding, exactly:
+//! a third variant `DecodedImage::Blocks { codec, width, height, data }`, a `match` at the
+//! consumer (`src/texture_preview.rs:134`, today `Rgba8` read and `RgbaF32` refused by
+//! `image-float-unsupported`) that asks for it explicitly, and a driver that returns it. The
+//! driver is already split for that: `codec` names the codec and its block geometry, `header`
+//! returns the surface and the offset of its raw bytes, `blocks` is only the reconstruction —
+//! the only part that will become the fallback. BC6H (float HDR) therefore no longer waits on
+//! the contract, which already has its float output: it waits on this `Blocks` variant, like
+//! the other raw codecs.
 //!
-//! Codecs déclarés un par un : BC1, BC2, BC3, BC4, BC5, BC7, et les surfaces non compressées
-//! RGBA8, BGRA8 et BGRX8. Tout le reste — BC6H flottant, variantes signées, `DXT2`/`DXT4` à alpha
-//! prémultiplié, formats 16 bits, YUV, cubes, volumes, tableaux — est un refus nommé, jamais une
-//! panique : une texture illisible laisse le moteur retomber sur son blanc.
+//! Codecs declared one by one: BC1, BC2, BC3, BC4, BC5, BC7, and the uncompressed surfaces
+//! RGBA8, BGRA8 and BGRX8. Everything else — float BC6H, signed variants, premultiplied-alpha
+//! `DXT2`/`DXT4`, 16-bit formats, YUV, cubes, volumes, arrays — is a named refusal, never a
+//! panic: an unreadable texture lets the engine fall back to white.
 use super::{ImageDecoded, ImageDecoder, Plugin};
 
 mod blocks;
@@ -34,29 +35,29 @@ mod header;
 pub(super) static DDS: Dds = Dds;
 pub(super) struct Dds;
 
-/// Le nombre magique de quatre octets que tout DDS porte avant son entête.
+/// Four-byte magic number that every DDS carries before its header.
 const MAGIC: &[u8] = b"DDS ";
 
-/// Moins d'octets que l'entête n'en exige : le fichier est coupé avant d'avoir tout dit.
+/// Fewer bytes than the header requires: the file is cut before it has said everything.
 const HEADER_TRUNCATED: &str = "dds-header-truncated";
-/// Un entête présent mais hors domaine : taille annoncée fausse, dimension nulle, mips absurdes.
+/// A header present but out of domain: announced size wrong, null dimension, absurd mips.
 const HEADER_INVALID: &str = "dds-header-invalid";
-/// Un codec hors de la liste déclarée. Le pilote ne devine jamais : il refuse en le nommant.
+/// A codec outside the declared list. The driver never guesses: it refuses by naming it.
 const CODEC_UNSUPPORTED: &str = "dds-codec-unsupported";
-/// Une disposition hors du plan simple : cube, volume, tableau, pas de ligne inattendu.
+/// A layout outside the simple plane: cube, volume, array, unexpected stride.
 const LAYOUT_UNSUPPORTED: &str = "dds-layout-unsupported";
-/// L'entête est cohérent mais les pixels annoncés ne sont pas tous là.
+/// The header is consistent but the announced pixels are not all there.
 const DATA_TRUNCATED: &str = "dds-data-truncated";
-/// L'image dépasse le plafond d'allocation reçu : un refus, jamais une allocation tentée.
+/// The image exceeds the received allocation ceiling: a refusal, never an attempted allocation.
 const TOO_LARGE: &str = "dds-image-too-large";
 
 impl Plugin for Dds {
     fn name(&self) -> &'static str {
         "dds"
     }
-    /// Le suffixe nomme la fonction de transfert portée jusqu'à la sortie. Il a été ajouté avec
-    /// elle, parce que la version entre dans l'identité du cache : une entrée écrite du temps où
-    /// toute surface était rendue sRGB porte un aperçu décodé deux fois.
+    /// The suffix names the transfer function carried through to the output. It was added with
+    /// it, because the version enters the cache identity: an entry written when every surface
+    /// was returned as sRGB carries a preview decoded twice.
     fn version(&self) -> &'static str {
         "dds-texture2ddecoder-0.1.2-transfert"
     }
@@ -69,13 +70,13 @@ impl ImageDecoder for Dds {
     fn mime(&self) -> &'static str {
         "image/vnd.ms-dds"
     }
-    /// Le nombre magique suffit : il n'appartient qu'à ce conteneur. La cohérence de l'entête est
-    /// vérifiée au décodage, où elle se rapporte au lieu de faire taire le pilote.
+    /// The magic number is enough: it belongs only to this container. Header consistency is
+    /// checked at decode, where it is reported instead of silencing the driver.
     fn accepts_head(&self, head: &[u8]) -> bool {
         head.starts_with(MAGIC)
     }
-    /// Seul le niveau 0 est consommé ; la chaîne de mips annoncée est comptée et doit tenir dans le
-    /// fichier — un DDS qui promet neuf niveaux et n'en porte que deux est tronqué, pas à moitié bon.
+    /// Only level 0 is consumed; the announced mip chain is counted and must fit in the file —
+    /// a DDS that promises nine levels and carries only two is truncated, not half-good.
     fn decode(
         &self,
         bytes: &[u8],

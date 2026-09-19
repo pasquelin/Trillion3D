@@ -6,23 +6,24 @@ pub(super) struct DagResult {
     /// The plane each cluster lies in, by page index, when it lies in one. Read by the coplanar
     /// stage once every primitive is compiled; never written to the cache on its own.
     pub cluster_planes: Vec<Option<crate::coplanar::ClusterPlane>>,
-    /// Les sommets de la coupe grossière du proxy résident, en espace objet, trois par sommet.
+    /// Vertices of the resident proxy coarse cut, in object space, three per vertex.
     pub proxy_cut: Vec<f32>,
-    /// Le seuil d'erreur, en mètres, que cette coupe a demandé pour tenir dans sa part du budget.
+    /// Error threshold, in metres, that this cut requested to fit its budget share.
     pub proxy_threshold: f64,
     pub reused: i32,
     pub dag_report: Value,
-    /// Ce que le DAG a de mauvais à dire, nommé : vide quand il est monté jusqu'à sa racine.
+    /// What the DAG has to complain about, named: empty when it rose to its root.
     pub warnings: Vec<Value>,
     pub culling_report: Value,
     pub structure_report: Value,
     pub stream_report: Value,
 }
 
-/// Le minimum, la médiane et le maximum des erreurs d'un niveau du DAG. Trois statistiques d'ordre
-/// ne demandent pas un tri complet : une sélection partielle met au rang médian l'élément exact que
-/// le tri y aurait mis — `total_cmp` est un ordre total — et les deux moitiés qu'elle laisse bornent
-/// le minimum et le maximum. Les trois nombres publiés sont bit à bit ceux du tri complet.
+/// Minimum, median and maximum of a DAG level's errors. Three order statistics
+/// do not need a full sort: a partial selection puts at the median rank the exact
+/// element a sort would have put there — `total_cmp` is a total order — and the
+/// two halves it leaves bound the minimum and the maximum. The three published
+/// numbers are bit-identical to those of a full sort.
 pub(super) fn level_error_stats(errors: &mut [f64]) -> (f64, f64, f64) {
     let (lower, median, upper) = errors.select_nth_unstable_by(errors.len() / 2, f64::total_cmp);
     let median = *median;
@@ -89,8 +90,8 @@ pub(super) fn build_dag_primitive(
             "Level 0 clusters are not the source triangles",
         ));
     }
-    // La coupe grossière du proxy se lit ici, où le DAG et les positions sont tous deux en main;
-    // plus loin, les clusters n'existent plus que comme objets de cache.
+    // The proxy coarse cut is read here, where the DAG and the positions are both
+    // at hand; further on, clusters exist only as cache objects.
     let (proxy_threshold, proxy_cut) = crate::proxy::cut::coarse_cut(&dag, pos, proxy_demand);
     let shape = compiler_primitive_warn::DagShape::of(&dag);
     let depth = shape.depth;

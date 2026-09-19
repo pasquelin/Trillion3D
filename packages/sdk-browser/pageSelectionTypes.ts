@@ -34,7 +34,7 @@ export type PageRec = {
   sourceMesh?: THREE.Mesh;
   sourceOrder?: number;
   matrix: THREE.Matrix4;
-  /** Sens de parcours mémorisé et époque de la matrice monde qui l'a donné (`webgpuPagesWinding`). */
+  /** Cached winding and epoch of the world matrix that produced it (`webgpuPagesWinding`). */
   windingCw?: boolean;
   windingEpoch?: number;
   renderOrder: number;
@@ -43,16 +43,16 @@ export type PageRec = {
   attached: boolean;
   resident?: boolean;
   cone?: NormalCone;
-  /** Rang de la clé de requête, posé une fois par `indexPageRequests` : dédoublonnage sans hachage. */
+  /** Rank of the request key, set once by `indexPageRequests`: deduplication without hashing. */
   requestIndex?: number;
-  /** Rang de la clé de cluster dans le catalogue de l'hôte, posé une fois : résidence et épinglage sans
-   *  hachage. L'hôte le pose, personne d'autre ne le lit. */
+  /** Rank of the cluster key in the host catalogue, set once: residency and pinning without
+   *  hashing. The host sets it, nobody else reads it. */
   keyIndex?: number;
-  /** Rang de la page dans le catalogue empaqueté d'un moteur WebGPU, posé une fois. Un autre moteur
-   *  qui le réécrit ne trompe personne : le lecteur vérifie que le catalogue rend bien cette page. */
+  /** Rank of the page in a WebGPU engine's packed catalogue, set once. Another engine that
+   *  rewrites it fools nobody: the reader checks that the catalogue actually yields this page. */
   packedIndex?: number;
-  /** Rang de la racine — le placement — dans les racines de sélection d'un moteur WebGPU, posé une
-   *  fois par sa disposition : c'est ce que la fiche porte pour retrouver le mouvement du placement. */
+  /** Rank of the root — the placement — in a WebGPU engine's selection roots, set once by its
+   *  layout: that is what the record carries to look up the placement's motion. */
   placementIndex?: number;
 };
 /**
@@ -82,9 +82,9 @@ export type ClusterStructureIndex = {
 export type ClusterRoot<T> = {
   world: THREE.Matrix4;
   pages: T[];
-  /** `bounds` : bornes par nœud dérivées des nœuds et des pages, une fois à la préparation.
-   *  `links` : parent de chaque nœud et nœud feuille de chaque cluster, même préparation partagée.
-   *  `marks` : les nœuds que le forçage touche, propres à ce placement et remis à zéro par image. */
+  /** `bounds`: per-node bounds derived from the nodes and the pages, once at prepare time.
+   *  `links`: parent of each node and leaf node of each cluster, the same shared prepare.
+   *  `marks`: the nodes forcing touches, owned by this placement and zeroed each image. */
   culling?: {
     nodes: Float64Array;
     stride: number;
@@ -92,46 +92,46 @@ export type ClusterRoot<T> = {
     links?: CullingLinks;
     marks?: Int32Array;
   };
-  /** Boîte monde de la racine, six bornes à plat (`mathBox.ts`). */
+  /** Root world box, six bounds flat (`mathBox.ts`). */
   worldBox?: Float64Array;
-  /** La boîte locale dont `worldBox` est l'image : ce qu'un déplacement de nœud reprojette (R8). */
+  /** The local box of which `worldBox` is the image: what a node move reprojects (R8). */
   localBox?: Float64Array;
   stretch?: number;
   stretchKey?: Float64Array;
   structure?: ClusterStructureIndex;
   forced?: Uint8Array;
   forcedList?: number[];
-  /** Ce que la racine déclare de ses cônes de normales, une fois pour toutes à la préparation :
-   *  `false` dit qu'aucune de ses pages n'en porte, et la coupe cesse alors de lire `cone` par
-   *  cluster. Absent ou `true`, la coupe teste chaque page comme avant. Qui pose un cône sur une
-   *  page pose ce drapeau sur sa racine : c'est le seul contrat qui rend l'omission visible. */
+  /** What the root declares of its normal cones, once and for all at prepare time: `false` says
+   *  none of its pages carry one, and the cut then stops reading `cone` per cluster. Absent or
+   *  `true`, the cut tests every page as before. Whoever sets a cone on a page sets this flag on
+   *  its root: that is the only contract that makes the omission visible. */
   cones?: boolean;
-  /** Ce que la racine déclare des boîtes de ses pages, une fois pour toutes à la préparation :
-   *  `true` dit que chacune porte `min` et `max`, et la coupe cesse alors de s'en assurer par
-   *  cluster sous un nœud entièrement dans le tronc. Absent ou `false`, elle teste chaque page
-   *  comme avant. Qui construit une page sans boîte ne déclare rien : c'est le seul contrat qui
-   *  rend l'omission visible. */
+  /** What the root declares of its pages' boxes, once and for all at prepare time: `true` says
+   *  each carries `min` and `max`, and the cut then stops checking them per cluster under a node
+   *  entirely inside the frustum. Absent or `false`, it tests every page as before. Whoever
+   *  builds a page without a box declares nothing: that is the only contract that makes the
+   *  omission visible. */
   boxes?: boolean;
 };
 
 /**
- * Tours de montée vers un ancêtre résident avant que la couverture racine épinglée ne prenne le
- * relais. La coupe plate et la coupe du DAG de clusters escaladent le même nombre de fois : deux
- * valeurs séparées se seraient réglées l'une sans l'autre.
+ * Rounds of climb toward a resident ancestor before the pinned root cover takes over. The flat
+ * cut and the cluster-DAG cut escalate the same number of times: two separate values would have
+ * been tuned one without the other.
  */
 export const ESCALATION_ROUNDS = 3;
 
 /**
- * Marge relative ajoutée au seuil quand la coupe monte vers un ancêtre résident.
+ * Relative slack added to the threshold when the cut climbs toward a resident ancestor.
  *
- * L'escalade pose `seuil = erreur écran du parent` pour que le cluster absent cesse d'être retenu
- * (`erreur parent > seuil` devient faux à l'égalité) et que son parent le remplace (`erreur parent
- * <= seuil` vrai à la même égalité). Les deux bascules tiennent donc sur une égalité EXACTE entre
- * une valeur écrite par une passe et la même valeur recalculée par une autre. En f32 cette égalité
- * ne tient pas : le compilateur du pilote contracte les mêmes opérandes différemment d'un point
- * d'entrée à l'autre, et la valeur relue dérive de quelques unités du dernier bit — le cluster
- * absent redevient retenu, et son parent ne le remplace pas. Le seuil est donc posé strictement
- * au-dessus, d'une marge qui couvre largement cette dérive tout en restant quatre ordres de
- * grandeur sous le pixel : les deux bascules deviennent strictes.
+ * Escalation sets `threshold = parent's screen error` so the missing cluster stops being kept
+ * (`parent error > threshold` becomes false at equality) and its parent replaces it (`parent
+ * error <= threshold` true at the same equality). Both flips therefore rest on an EXACT equality
+ * between a value written by one pass and the same value recomputed by another. In f32 that
+ * equality does not hold: the driver compiler contracts the same operands differently from one
+ * entry point to another, and the re-read value drifts by a few units in the last bit — the
+ * missing cluster becomes kept again, and its parent does not replace it. The threshold is
+ * therefore set strictly above, by a slack that amply covers that drift while remaining four
+ * orders of magnitude under a pixel: both flips become strict.
  */
 export const ESCALATION_SLACK = 1 + 2 ** -14;

@@ -3,25 +3,24 @@ import { HIZ_FAR_WGSL, HIZ_LEVEL_WGSL } from './gpuHizRectWgsl.ts';
 import { PARTITION_WORKGROUP } from './gpuPartitionContract.ts';
 
 /**
- * Le test d'occultation des grappes transparentes, une entrée de la table par fil.
+ * Occlusion test of transparent clusters, one table entry per thread.
  *
- * C'est la MÊME règle que celle des opaques, à la lettre : la même projection conservatrice
- * (`projectBox`), le même uniforme — le tampon que la partition a écrit pour cette image-ci —, le
- * même choix de mip (`hizLevelFor`) et le même dépouillement de la pyramide (`pyramidFar`), sur la
- * pyramide Hi-Z que l'image vient de construire. Rien n'y est propre aux transparents sauf ce que
- * la fidélité exige :
+ * This is the SAME rule as the opaques', to the letter: the same conservative projection
+ * (`projectBox`), the same uniform — the buffer the partition wrote for this frame —, the same
+ * mip choice (`hizLevelFor`) and the same pyramid walk (`pyramidFar`), on the Hi-Z pyramid the
+ * frame just built. Nothing is proper to transparents except what fidelity requires:
  *
- *  - le biais de couche coplanaire est celui de la couche la PLUS HAUTE que l'image nomme, pour
- *    toutes les entrées. Une grappe n'annonce pas la sienne ici, et le biais ne fait que RAPPROCHER
- *    la borne de profondeur : le prendre maximal rejette moins, jamais plus ;
- *  - une boîte qui coupe le plan proche, un rectangle vide hors écran, une image sans pyramide
- *    (`uni.levels == 0`) et une empreinte qu'aucun mip ne couvre ne rejettent rien du tout ;
- *  - le verdict est écrit pour CHAQUE entrée à chaque image, jamais accumulé : une image qui
- *    n'encode pas ce noyau n'en laisse aucun reste (l'appelant remet alors le tampon à zéro).
+ *  - the coplanar-layer bias is that of the HIGHEST layer the frame names, for every entry. A
+ *    cluster does not announce its own here, and the bias only BRINGS the depth bound closer:
+ *    taking it maximal rejects less, never more;
+ *  - a box that clips the near plane, an empty off-screen rectangle, a frame without a pyramid
+ *    (`uni.levels == 0`) and a footprint no mip covers reject nothing at all;
+ *  - the verdict is written for EVERY entry every frame, never accumulated: a frame that does
+ *    not encode this kernel leaves no remainder of it (the caller then clears the buffer).
  *
- * Le verdict ne retire que des grappes ENTIÈREMENT derrière l'opaque déjà dessiné. Il ne réordonne
- * rien : la compaction garde l'ordre de sa table, dont les entrées rejetées sortent comme sortent
- * celles que la coupe n'a pas sélectionnées.
+ * The verdict only drops clusters ENTIRELY behind already-drawn opaque. It reorders nothing:
+ * the compact keeps its table order, whose rejected entries leave as those the cut did not
+ * select leave.
  */
 export function transparentOcclusionShader(entryCount: number) {
   return `${PARTITION_UNI_WGSL}@group(0) @binding(0) var<storage, read> corners:array<f32>;
@@ -37,8 +36,8 @@ fn testTransparentClusters(@builtin(global_invocation_id) id:vec3u){
  var reject=0u;
  let box=projectBox(i,uni.layerTop);
  if(box.clips==0u&&uni.levels>0u){
-  // Le rectangle découpé au viewport, exprimé en texels du mip qui le couvre : miroir exact de
-  // l'empaquetage des bornes de la moitié testée opaque (\`gpuPartitionClassifyWgsl.ts\`).
+  // Rectangle clipped to the viewport, expressed in texels of the mip that covers it: exact
+  // mirror of packing the opaque tested-half bounds (\`gpuPartitionClassifyWgsl.ts\`).
   let x0=max(box.rect.x,0);let y0=max(box.rect.y,0);
   let x1=min(box.rect.z,i32(uni.width)-1);let y1=min(box.rect.w,i32(uni.height)-1);
   if(x1>=x0&&y1>=y0){

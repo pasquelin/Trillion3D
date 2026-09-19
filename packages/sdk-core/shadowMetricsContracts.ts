@@ -1,28 +1,28 @@
 /**
- * Les compteurs d'éclairage et d'ombres d'une image, séparés de `FrameMetrics` par responsabilité.
- * `FrameMetrics` les hérite via `extends` : le contrat public vu des consommateurs (sdk-core/index.ts,
- * le Lab) est inchangé, ces champs restent des propriétés directes de `FrameMetrics`.
+ * Lighting and shadow counters of a frame, split from `FrameMetrics` by responsibility.
+ * `FrameMetrics` inherits them via `extends`: the public contract seen by consumers (sdk-core/index.ts,
+ * the Lab) is unchanged, these fields remain direct properties of `FrameMetrics`.
  */
 export interface ShadowFrameMetrics {
-  /** Lampes du contrat `SceneLight` que l'image a éclairées. Null sur un moteur qui les ignore. */
+  /** `SceneLight` contract lights that the frame lit. Null on an engine that ignores them. */
   lightsActive?: number | null;
-  /** Tranches d'ombre redessinées par cette image, au plus le plafond publié de l'ordonnanceur.
-   *  Zéro est la valeur normale d'une scène immobile : une lampe fixe garde sa tranche. */
+  /** Shadow slices redrawn by this frame, at most the scheduler's published ceiling.
+   *  Zero is the normal value of a still scene: a fixed light keeps its slice. */
   shadowsUpdated?: number | null;
   /**
-   * Durées GPU des trois passes de l'éclairage direct, lues par leur étiquette dans le même relevé
-   * d'horodatage que `gpuPassMs` : listes de lampes par tuile, atlas d'ombres, résolution différée.
-   * Elles décrivent donc l'image de `gpuPassMs.frame`, pas l'image courante, et vaut `null` dès que
-   * l'appareil n'expose pas d'horodatage, que le relevé a été tronqué, ou que la passe n'a pas eu
-   * lieu — une image sans lampe ne lance ni listes ni ombres. Jamais additionnées à un `cpu*`.
+   * GPU durations of the three direct-lighting passes, read by their label in the same
+   * timestamp sample as `gpuPassMs`: per-tile light lists, shadow atlas, deferred resolve.
+   * They therefore describe the frame of `gpuPassMs.frame`, not the current frame, and are `null` as
+   * soon as the device exposes no timestamps, the sample was truncated, or the pass did not
+   * run — a frame without a light launches neither lists nor shadows. Never added to a `cpu*`.
    */
-  /** Ce que la passe d'ombres a redessiné : faces (vues) et appels de dessin réellement encodés.
-   *  C'est le coût par lampe à ombre, séparé du reste. Null sur un moteur qui ne dessine pas d'ombre. */
+  /** What the shadow pass redrew: faces (views) and draw calls actually encoded.
+   *  This is the cost per shadow light, split from the rest. Null on an engine that draws no shadow. */
   shadowFacesDrawn?: number | null;
   shadowDrawCalls?: number | null;
-  /** Ce que l'invalidation par pages a produit : pages redessinées par l'image, pages restées en
-   *  file faute de budget, et le retard en millisecondes de la plus ancienne d'entre elles. Zéro
-   *  partout est la valeur normale d'une scène immobile ; `null` sur un moteur sans atlas d'ombres. */
+  /** What page invalidation produced: pages redrawn by the frame, pages left in
+   *  the queue for lack of budget, and the lag in milliseconds of the oldest of them. Zero
+   *  everywhere is the normal value of a still scene; `null` on an engine without a shadow atlas. */
   shadowPagesDrawn?: number | null;
   shadowPagesPending?: number | null;
   shadowWaitMs?: number | null;

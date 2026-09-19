@@ -1,7 +1,7 @@
-// Oracle de l'uniforme de partition, réécrit d'après le contrat : un double devient un f32 haut
-// plus un f32 de reste ; une matrice ancrée garde ses trois colonnes et voit sa translation
-// recalculée à l'ancre ; les niveaux Hi-Z absents valent décalage 0 et largeur 1. La disposition
-// vient du contrat, pour que l'oracle ne dérive pas en silence.
+// Oracle of the partition uniform, rewritten from the contract: a double becomes a high f32
+// plus a remainder f32; an anchored matrix keeps its three columns and sees its translation
+// recomputed at the anchor; missing Hi-Z levels default to offset 0 and width 1. The layout
+// comes from the contract, so the oracle does not drift in silence.
 import {
   MAX_HIZ_LEVELS,
   UNIFORM_U32,

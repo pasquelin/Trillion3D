@@ -1,5 +1,5 @@
-//! B3 — contrôle du bord d'un groupe réduit : deux `HashSet<u32>` par groupe remplacés par deux
-//! listes triées et une fusion. Référence : l'ancienne version, noms francisés.
+//! B3 — border check of a reduced group: two `HashSet<u32>` per group replaced by two
+//! sorted lists and a merge. Reference: old version, French names.
 use super::harness::{compare, Bits, Row};
 use super::inputs::Xorshift;
 use crate::dag::border::border_survived;
@@ -25,7 +25,7 @@ fn empreinte(garde: &bool) -> Bits {
 }
 
 pub(crate) fn row() -> Row {
-    // Un groupe de 32 clusters de 128 triangles, un sommet sur quatre verrouillé, soudure dense.
+    // Group of 32 clusters of 128 triangles, one in four vertices locked, dense weld.
     const SOMMETS: usize = 200_000;
     let mut rng = Xorshift::new(0xB0D3);
     let fusion: Vec<u32> = (0..32 * 128 * 3)

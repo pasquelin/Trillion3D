@@ -1,18 +1,18 @@
-// Un moteur rendu par Three ne soumet rien lui-même : une image tenue redessinait la scène entière
-// alors que le moteur venait de dire qu'elle ne pouvait pas changer. Elle est désormais réaffichée
-// par un quad plein écran sur une copie explicite du tampon de dessin — le canevas ne garde rien
-// d'une image à l'autre, `preserveDrawingBuffer` étant faux.
+// A Three-rendered engine submits nothing itself: a held frame redrew the whole scene while
+// the engine had just said it could not change. It is now redisplayed by a fullscreen quad
+// on an explicit copy of the drawing buffer — the canvas keeps nothing from frame to frame,
+// `preserveDrawingBuffer` being false.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createHeldFrame } from './explorerHeldFrame.ts';
 
-/** Une doublure de rendu : ce qu'elle a copié du tampon de dessin, et ce qu'elle a dessiné. */
+/** A render double: what it copied from the drawing buffer, and what it drew. */
 function rendu() {
   const copies: THREE.Texture[] = [];
   const dessins: THREE.Scene[] = [];
-  // L'espace de sortie en vigueur au moment de chaque dessin : c'est lui qui dit si la commande
-  // réencode ce qu'elle repose.
+  // Output space in force at each draw: that is what says whether the command re-encodes
+  // what it puts back.
   const sorties: string[] = [];
   const renderer = {
     outputColorSpace: THREE.SRGBColorSpace,
@@ -27,44 +27,44 @@ function rendu() {
 
 const taille = (x: number, y: number) => new THREE.Vector2(x, y);
 
-test('rien n’est gardé tant qu’aucune image complète n’a été copiée', () => {
+test('nothing is kept until a complete frame has been copied', () => {
   const held = createHeldFrame();
-  assert.equal(held.holds(taille(1280, 720)), false, 'la première image doit être dessinée');
+  assert.equal(held.holds(taille(1280, 720)), false, 'the first frame must be drawn');
 });
 
-test('l’image gardée est réaffichée par une seule commande, et rien de la scène', () => {
+test('the kept frame is redisplayed by a single command, and nothing of the scene', () => {
   const { renderer, copies, dessins } = rendu();
   const held = createHeldFrame();
   held.keep(renderer, taille(1280, 720));
-  assert.equal(copies.length, 1, 'l’image complète est copiée une fois');
+  assert.equal(copies.length, 1, 'the complete frame is copied once');
   assert.equal(held.holds(taille(1280, 720)), true);
   held.present(renderer);
-  assert.equal(dessins.length, 1, 'une commande, pas une scène reparcourue');
+  assert.equal(dessins.length, 1, 'one command, not a scene walked again');
   held.present(renderer);
-  assert.equal(dessins.length, 2, 'chaque image tenue coûte exactement une commande');
-  assert.equal(copies.length, 1, 'une image tenue ne recopie rien : elle relit ce qu’elle a posé');
-  // Ce qui est dessiné est le quad de l'image gardée, jamais la scène du moteur.
+  assert.equal(dessins.length, 2, 'each held frame costs exactly one command');
+  assert.equal(copies.length, 1, 'a held frame copies nothing: it rereads what it set');
+  // What is drawn is the kept-frame quad, never the engine scene.
   assert.equal(dessins[0], dessins[1]);
-  assert.equal(dessins[0].children.length, 1, 'un seul objet : le quad plein écran');
+  assert.equal(dessins[0].children.length, 1, 'a single object: the fullscreen quad');
 });
 
-test('la présentation ne retouche pas la couleur : la sortie est déjà encodée', () => {
+test('presentation does not retouch colour: the output is already encoded', () => {
   const { renderer, copies, dessins, sorties } = rendu();
   const held = createHeldFrame();
   held.keep(renderer, taille(1280, 720));
   held.present(renderer);
   const texture = copies[0]!;
   const materiau = (dessins[0]!.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial;
-  // La copie reste un relevé brut : une texture sRGB ne peut pas recevoir le tampon de dessin.
+  // The copy stays a raw sample: an sRGB texture cannot receive the drawing buffer.
   assert.equal(texture.colorSpace, THREE.NoColorSpace);
-  assert.equal(materiau.toneMapped, false, 'la correction de tonalité a déjà été appliquée');
-  assert.equal(materiau.map, texture, 'le quad présente bien la copie de l’image complète');
-  // La commande qui repose la copie ne la réencode pas, et la chaîne du moteur est rendue ensuite.
+  assert.equal(materiau.toneMapped, false, 'tone mapping has already been applied');
+  assert.equal(materiau.map, texture, 'the quad does present the complete-frame copy');
+  // The command that puts the copy back does not re-encode it, and the engine chain is restored afterwards.
   assert.deepEqual(sorties, [THREE.LinearSRGBColorSpace]);
   assert.equal(renderer.outputColorSpace, THREE.SRGBColorSpace);
 });
 
-test('un redimensionnement retire l’image gardée : elle ne décrit plus la cible', () => {
+test('a resize drops the kept frame: it no longer describes the target', () => {
   const { renderer } = rendu();
   const held = createHeldFrame();
   held.keep(renderer, taille(1280, 720));

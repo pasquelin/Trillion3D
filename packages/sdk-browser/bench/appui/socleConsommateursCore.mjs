@@ -1,6 +1,6 @@
-// Première partie du banc du socle, consommateurs de `sdk-core` : chaque calcul rattaché au socle
-// opposé au code qu'il était avant, recopié dans `oracles/socle-math*.mjs`. Une seule valeur
-// différente et la ligne tombe : le rattachement ne change aucun bit.
+// First part of the foundation bench, `sdk-core` consumers: each computation attached to
+// the foundation, opposed to the code it was before, copied in `oracles/socle-math*.mjs`.
+// A single different value and the line fails: the attachment changes no bit.
 import { cross } from '../../../sdk-core/lightingSceneMath.ts';
 import { packSurface } from '../../../sdk-core/lightingTransportIntersections.ts';
 import { fillPatchRays } from '../../../sdk-core/lightingTransportRays.ts';
@@ -16,17 +16,17 @@ import { points } from './scenesSocle.mjs';
 import { directions, facettes, rectangles } from './scenesSocleConsommateurs.mjs';
 import { essaie, ligne } from './socleLigne.mjs';
 
-/** La levée d'avant, écrite comme `essaie` écrit celle d'aujourd'hui. */
-const leve = (v) => (v === 'INVALID_SCENE' ? 'levée : INVALID_SCENE' : v);
+/** The previous raise, written as `essaie` writes today's. */
+const leve = (v) => (v === 'INVALID_SCENE' ? 'raise: INVALID_SCENE' : v);
 
-/** Une face d'ombre des deux côtés : matrice composée puis cône de sa région, perspective ou non. */
+/** A shadow face on both sides: composed matrix then cone of its region, perspective or not. */
 function faceNouvelle(c) {
   const matrice = new Float32Array(20),
     cull = new Float32Array(8);
   const plans = c.perspective
     ? shadowProjection(c.fov, c.portee)
     : shadowOrthographic(c.demiEtendue, c.portee);
-  composeFace(matrice, 4, c.oeil, c.avant);
+  composeFace(matrice, 4, c.oeil, c.before);
   writeConeVolume(cull, 0, c.oeil, plans.far, c.demiChamp, c.rect);
   return [matrice, cull.slice(4)];
 }
@@ -35,7 +35,7 @@ function faceAncienne(c) {
     proj = new Float32Array(16);
   if (c.perspective) ombres.referenceShadowProjection(proj, c.fov, c.portee);
   else ombres.referenceShadowOrthographic(proj, c.demiEtendue, c.portee);
-  ombres.referenceComposeFace(matrice, 4, c.oeil, c.avant, proj);
+  ombres.referenceComposeFace(matrice, 4, c.oeil, c.before, proj);
   const cone =
     c.demiChamp >= Math.PI / 2
       ? [...ombres.referenceFaceBasis.slice(6), Math.PI]
@@ -46,15 +46,15 @@ function faceAncienne(c) {
 export async function lignesConsommateursCore() {
   return [
     await ligne(
-      'faces d’ombre : vue, produit et cône',
+      'shadow faces: view, product and cone',
       'packages/sdk-core/sceneLightShadowMath.ts',
-      'yeux, directions et régions hostiles',
+      'hostile eyes, directions and regions',
       directions,
       (l) => l.map(faceAncienne),
       (l) => l.map(faceNouvelle),
     ),
     await ligne(
-      'produit vectoriel de la scène d’éclairage',
+      'cross product of the lighting scene',
       'packages/sdk-core/lightingSceneMath.ts',
       'vecteurs hostiles',
       points,
@@ -62,7 +62,7 @@ export async function lignesConsommateursCore() {
       (l) => l.map((p, i) => cross(p, l[(i * 7 + 1) % l.length])),
     ),
     await ligne(
-      'surface empaquetée du transport',
+      'packed transport surface',
       'packages/sdk-core/lightingTransportIntersections.ts',
       'rectangles hostiles',
       rectangles,

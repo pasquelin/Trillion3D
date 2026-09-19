@@ -5,24 +5,25 @@ import type { BlendGpuItem, createWebgpuBlendState } from './webgpuBlendState.ts
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
 /**
- * L'ORDRE DE PEINTURE DES SURFACES TRANSPARENTES, REPRIS À CHAQUE IMAGE.
+ * PAINT ORDER OF TRANSPARENT SURFACES, REDONE EVERY FRAME.
  *
- * Un pipeline de mélange n'écrit pas la profondeur (`webgpuBlendPipelines.ts`) : deux surfaces
- * transparentes ne sont donc départagées par rien d'autre que l'ordre où elles sont encodées. Le
- * plan d'encodage, lui, est un objet de SCÈNE — l'ordre source, refait seulement quand les matrices
- * bougent — et ne peut pas porter cette décision, qui dépend de l'œil. C'est ce fichier qui la
- * porte : il ne touche pas au plan, il ordonne la liste d'entrées que la passe parcourt.
+ * A blend pipeline does not write depth (`webgpuBlendPipelines.ts`): two transparent surfaces are
+ * therefore separated by nothing other than the order they are encoded in. The encoding plan is a
+ * SCENE object — source order, rebuilt only when matrices move — and cannot carry this decision,
+ * which depends on the eye. This file carries it: it does not touch the plan, it orders the entry
+ * list the pass walks.
  *
- * CE SUR QUOI ON CLASSE : le carré de la distance de l'œil au centre de la boîte MONDE de l'item,
- * décroissant — le plus lointain d'abord, le plus proche en dernier. Une distance franche, jamais
- * une profondeur normalisée : la convention du moteur est inversée (`depthConvention.ts`) et le sens
- * d'un classement sur elle se lit à l'envers. Le carré suffit, il est monotone en la distance.
+ * WHAT WE RANK ON: the square of the eye-to-WORLD-box-centre distance of the item, decreasing —
+ * farthest first, nearest last. A frank distance, never a normalised depth: the engine convention
+ * is inverted (`depthConvention.ts`) and ranking on it would read backwards. The square is enough,
+ * it is monotonic in the distance.
  *
- * L'ÉCART EST PRIS RELATIVEMENT À L'ŒIL, borne par borne, avant d'être moyenné : c'est l'espace du
- * reste du chemin, et un centre monde absolu perdrait ses bits utiles loin de l'origine.
+ * THE GAP IS TAKEN RELATIVE TO THE EYE, bound by bound, before being averaged: that is the space
+ * of the rest of the path, and an absolute world centre would lose its useful bits far from the
+ * origin.
  */
 
-/** La clé d'un item : sans boîte exploitable, l'origine monde de son maillage en tient lieu. */
+/** Key of an item: without a usable box, the world origin of its mesh stands in. */
 function eyeKey(item: BlendGpuItem, ex: number, ey: number, ez: number) {
   const box = item.bounds,
     m = item.matrix.elements;
@@ -32,7 +33,7 @@ function eyeKey(item: BlendGpuItem, ex: number, ey: number, ez: number) {
   return x * x + y * y + z * z;
 }
 
-/** Pose la clé et le rang source de chaque item. Rien n'est alloué : deux champs réécrits. */
+/** Sets each item's key and source rank. Nothing is allocated: two fields rewritten. */
 function refreshEyeKeys(blendState: BlendState, eye: ArrayLike<number>) {
   const items = blendState.blendGpu,
     ex = eye[0],
@@ -46,15 +47,15 @@ function refreshEyeKeys(blendState: BlendState, eye: ArrayLike<number>) {
 }
 
 /**
- * LE VERDICT DU TRONC DE L'IMAGE : une boîte contre six plans, en double précision et par la
- * référence elle-même. Il part sur la carte en un bit par item, et l'étalement du plan met à zéro
- * les instances de ce qu'il rejette (`webgpuBlendExpandWgsl.ts`) — un item hors champ ne coûte plus
- * un appel, il ne coûte plus une instance. Sans boîte exploitable, l'item n'est jamais rejeté.
+ * FRUSTUM VERDICT OF THE FRAME: a box against six planes, in double precision and by the
+ * reference itself. It goes to the GPU as one bit per item, and plan expansion zeros the
+ * instances of what it rejects (`webgpuBlendExpandWgsl.ts`) — an out-of-view item no longer costs
+ * a draw, it no longer costs an instance. Without a usable box, the item is never rejected.
  *
- * Un SECOND parcours des mêmes items, et non une ligne de plus dans celui des clés : le travail est
- * le même, mais la boucle fusionnée ralentissait le tri qui la suit de quatre à neuf pour cent au
- * saut de caméra, mesuré par `transparents-ordres.bench.mjs` et reproduit sur cinq exécutions. Le
- * mécanisme n'est pas prouvé ; le remède, lui, est mesuré.
+ * A SECOND walk of the same items, not one more line in the key walk: the work is the same, but
+ * the fused loop slowed the sort that follows by four to nine percent on a camera jump, measured
+ * by `transparents-ordres.bench.mjs` and reproduced over five runs. The mechanism is not proven;
+ * the remedy is measured.
  */
 function rejectByFrustum(blendState: BlendState) {
   const items = blendState.blendGpu,
@@ -63,8 +64,8 @@ function rejectByFrustum(blendState: BlendState) {
   let rejected = 0,
     bouge = false,
     mot = 0;
-  // Le masque se compose mot par mot, et un mot n'est écrit que s'il a changé : une pose immobile
-  // n'en change aucun, et c'est ce qui dispense l'image de le repousser sur la carte.
+  // The mask is composed word by word, and a word is written only if it has changed: a still pose
+  // changes none, and that is what spares the frame from pushing it to the GPU again.
   const pose = (rang: number) => {
     if (keep[rang] !== mot >>> 0) {
       keep[rang] = mot;
@@ -85,22 +86,22 @@ function rejectByFrustum(blendState: BlendState) {
 }
 
 /**
- * L'ordre total que les DEUX chemins produisent : clé décroissante, puis rang source croissant.
+ * Total order both paths produce: decreasing key, then increasing source rank.
  *
- * Le rang départage les clés égales, si bien que le résultat ne dépend ni de l'image précédente, ni
- * de l'ordre d'arrivée, ni de la machine — deux items superposés ne peuvent pas permuter d'une image
- * à l'autre, donc l'image ne scintille pas. `true` dit que l'entrée déjà placée doit reculer.
+ * Rank breaks equal keys, so the result depends neither on the previous frame, nor on arrival
+ * order, nor on the machine — two overlapping items cannot swap from one frame to the next, so
+ * the image does not flicker. `true` says the already-placed entry must recede.
  */
 const precedes = (keyA: number, rankA: number, keyB: number, rankB: number) =>
   keyA < keyB || (keyA === keyB && rankA > rankB);
 
 /**
- * Le tri par insertion du plan, sur le tampon que l'image précédente a laissé.
+ * Insertion sort of the plan, on the buffer the previous frame left.
  *
- * Une caméra qui bouge peu laisse la liste presque triée : l'insertion la reprend en un parcours et
- * quelques décalages, là où un tri complet la refait entièrement. Le tampon est celui de la scène,
- * réécrit sur place, et les deux entrées d'un item double face portent le même rang — elles ne se
- * dépassent donc jamais, et le dos reste devant la face.
+ * A camera that moves little leaves the list almost sorted: insertion takes it back in one walk
+ * and a few shifts, where a full sort remakes it entirely. The buffer is the scene's, rewritten
+ * in place, and both entries of a double-sided item carry the same rank — they therefore never
+ * overtake each other, and the back stays in front of the face.
  */
 function sortPlanFarToNear(order: Uint32Array, items: readonly BlendGpuItem[]) {
   let shifted = false;
@@ -117,24 +118,24 @@ function sortPlanFarToNear(order: Uint32Array, items: readonly BlendGpuItem[]) {
       j--;
     }
     order[j + 1] = entry;
-    // Une seule question par entrée, et non une écriture par décalage : un saut de caméra décale
-    // des millions de fois, et le tri ne doit rien payer de plus qu'avant pour le dire.
+    // One question per entry, not one write per shift: a camera jump shifts millions of times, and
+    // the sort must pay nothing more than before to say so.
     if (j + 1 !== i) shifted = true;
   }
   return shifted;
 }
 
 /**
- * Le classement du chemin de production, et le découpage en tranches qu'il commande.
+ * Ranking of the production path, and the run slicing it commands.
  *
- * Les tranches ne dépendent que de l'ordre : un classement qui n'a rien bougé les laisse telles
- * quelles, et la carte n'a alors rien à relire. Rend le nombre d'items que le tronc a rejetés.
+ * Runs depend only on order: a ranking that moved nothing leaves them as they are, and the GPU
+ * then has nothing to reread. Returns the number of items the frustum rejected.
  *
- * SANS ŒIL, RIEN N'EST PEINT, et les tranches sont explicitement vidées. Cette fonction ne tient
- * plus seulement l'ordre : elle tient le verdict du tronc et le découpage, et des tranches laissées
- * là décriraient un ordre que l'image n'a pas classé — pire, un plan re-semé d'une autre longueur
- * depuis les indexerait hors de lui. Une image sans caméra n'a pas d'ordre de peinture ; elle ne
- * peint donc pas.
+ * WITHOUT AN EYE, NOTHING IS PAINTED, and the runs are explicitly emptied. This function no
+ * longer holds only the order: it holds the frustum verdict and the slicing, and leftover runs
+ * would describe an order the frame did not rank — worse, a plan reseeded to another length
+ * since would index them out of itself. A frame without a camera has no paint order; it therefore
+ * does not paint.
  */
 export function orderBlendPasses(blendState: BlendState, eye: ArrayLike<number> | undefined) {
   if (!eye || !blendState.blendGpu.length) {
@@ -149,16 +150,16 @@ export function orderBlendPasses(blendState: BlendState, eye: ArrayLike<number> 
   for (let pass = 0; pass < orders.length; pass++) {
     if (!sortPlanFarToNear(orders[pass], items) && !blendState.orderMoved[pass]) continue;
     blendState.orderMoved[pass] = true;
-    // La passe de transmission garde une tranche par entrée : chacune décale encore son volume.
+    // The transmission pass keeps one run per entry: each still offsets its volume.
     blendState.runCount[pass] = buildBlendRuns(orders[pass], pass === 0, blendState.runs[pass]);
   }
   return rejected;
 }
 
 /**
- * Le même classement pour le chemin de repli, dont la liste de dessin est faite d'items et non
- * d'entrées de plan. La comparaison est celle d'au-dessus : les deux chemins peignent dans le même
- * ordre, et une machine sans tampon de visibilité ne voit pas une autre image.
+ * The same ranking for the fallback path, whose draw list is made of items and not of plan
+ * entries. The comparison is the one above: both paths paint in the same order, and a machine
+ * without a visibility buffer does not see another image.
  */
 export function orderVisibleBlend(blendState: BlendState, eye: ArrayLike<number> | undefined) {
   if (!eye || !blendState.blendGpu.length) return;

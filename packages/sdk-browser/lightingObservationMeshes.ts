@@ -14,9 +14,9 @@ export function createObservationMeshes(
   const { surfaceCount, expectedIds, uniforms, scene } = resources;
   const shader = fragmentShader(surfaceCount);
   const materials: THREE.ShaderMaterial[] = [];
-  // La pose de repos est un tampon POSSÉDÉ, comme les trois tampons de travail ci-dessous : le
-  // produit et l'inverse du socle ne lisent et n'écrivent que des `Float64Array` (`mathMatrix4.ts`),
-  // et les matrices de la bibliothèque hôte sont des tableaux ordinaires, recopiés aux frontières.
+  // The rest pose is an OWNED buffer, like the three work buffers below: the core's product and
+  // inverse only read and write `Float64Array`s (`mathMatrix4.ts`), and the host library's
+  // matrices are ordinary arrays, copied at the boundaries.
   const copies: { mesh: THREE.Mesh; surface: number; restTransform: Float64Array }[] = [];
   const hostWorld = new Float64Array(16),
     basisWorld = new Float64Array(16),
@@ -66,7 +66,7 @@ export function createObservationMeshes(
       mesh.matrix.copy(original.matrixWorld);
       mesh.renderOrder = meshIndex;
       scene.add(mesh);
-      // La pose de repos relative à la base, `base⁻¹ · monde`, que chaque image recompose avec la base.
+      // Rest pose relative to the base, `base⁻¹ · world`, which each frame recomposes with the base.
       const restTransform = new Float64Array(16);
       invertMatrix4(
         restTransform,

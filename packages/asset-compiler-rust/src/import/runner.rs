@@ -1,6 +1,6 @@
 use super::*;
 
-/// Le dossier d'une scène convertie est-il réutilisable tel quel par ce pilote ?
+/// Can this driver reuse a converted scene folder as-is?
 fn reusable(directory: &Path, plugin: &dyn ScenePlugin) -> bool {
     let Ok(bytes) = fs::read(directory.join("manifest.json")) else {
         return false;
@@ -14,7 +14,7 @@ fn reusable(directory: &Path, plugin: &dyn ScenePlugin) -> bool {
         && directory.join("model.bin").is_file()
 }
 
-/// Le dossier depuis lequel le lecteur résout les fichiers que la source cite.
+/// Folder from which the reader resolves files the source cites.
 fn source_root(inputs: &[PathBuf]) -> PathBuf {
     inputs
         .first()
@@ -23,8 +23,8 @@ fn source_root(inputs: &[PathBuf]) -> PathBuf {
         .to_path_buf()
 }
 
-/// La base de la clé : le pilote, sa version, le nom et les octets de chaque entrée revendiquée.
-/// Ce que l'import ouvre en plus — bibliothèques de matériaux, caches — s'y ajoute ensuite.
+/// Key base: the driver, its version, the name and bytes of each claimed input.
+/// What import opens besides that — material libraries, caches — is added next.
 fn base_key(plugin: &dyn ScenePlugin, inputs: &[PathBuf], hashes: &[String]) -> String {
     let mut material = format!("{}:{}", plugin.name(), plugin.version());
     for (input, digest) in inputs.iter().zip(hashes) {
@@ -36,10 +36,11 @@ fn base_key(plugin: &dyn ScenePlugin, inputs: &[PathBuf], hashes: &[String]) -> 
     hash(material.as_bytes())
 }
 
-/// Convertit les fichiers revendiqués par `plugin` dans `<cache>/native/imports/<clé>/` et rend ce
-/// dossier. La clé hache les octets d'entrée, le nom et la version du pilote, **et tout fichier que
-/// la lecture ouvre en plus** — le `.mtl` d'un OBJ en premier : une source inchangée lue par le même
-/// pilote se réutilise, un pilote reversionné ou une bibliothèque touchée reconvertit.
+/// Converts the files claimed by `plugin` into `<cache>/native/imports/<key>/` and
+/// returns that folder. The key hashes the input bytes, the driver name and
+/// version, **and every extra file the read opens** — an OBJ's `.mtl` first: an
+/// unchanged source read by the same driver is reused; a re-versioned driver or a
+/// touched library reconverts.
 pub fn import_source(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Result<PathBuf> {
     let (inputs, cache) = (request.inputs, request.cache);
     let (cancelled, progress) = (request.cancelled, request.progress);
@@ -61,13 +62,14 @@ pub fn import_source(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Re
         .collect::<Result<Vec<memmap2::Mmap>>>()?;
     let hashes: Vec<String> = mapped.iter().map(|m| hash(m)).collect();
     let base = base_key(plugin, inputs, &hashes);
-    // Le dossier qui résout les dépendances de la source : c'est lui, et non les seuls octets
-    // d'entrée, qui dit quels fichiers externes la lecture ouvrira.
+    // Folder that resolves the source's dependencies: it, not the input bytes
+    // alone, says which external files the read will open.
     let root = source_root(inputs);
     let root = fs::canonicalize(&root).unwrap_or(root);
     let imports = cache.join("native").join("imports");
-    // Le relevé de la conversion précédente donne la clé sans relire la source. Quand il se trompe —
-    // une bibliothèque qui change de nom —, la conversion écrit la vraie clé et le corrige.
+    // The previous conversion's record gives the key without re-reading the source.
+    // When it is wrong — a library that changes name — conversion writes the true
+    // key and corrects it.
     let key = external::key(&base, &external::expected(cache, &base, &root));
     let directory = imports.join(&key);
     if reusable(&directory, plugin) {
@@ -124,7 +126,7 @@ pub fn import_source(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Re
         json!({"phase":"import-source","step":"write","plugin":plugin.name(),"bytes":importer.bin.bytes.len()+gltf_bytes.len()}),
     );
     let (triangles, mesh_nodes) = (importer.triangles, importer.mesh_nodes);
-    // La clé définitive, celle des fichiers réellement ouverts : c'est sous elle que la scène vit.
+    // The definitive key, that of the files actually opened: the scene lives under it.
     let externals = importer.externals.drain();
     let key = external::key(&base, &externals);
     let directory = imports.join(&key);

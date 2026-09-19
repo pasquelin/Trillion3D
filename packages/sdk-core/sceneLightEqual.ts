@@ -1,6 +1,6 @@
 import type { SceneEnvironment, SceneLight } from './sceneLightContracts.ts';
 
-/** Deux vecteurs optionnels du contrat : absents tous les deux, ou identiques composante à composante. */
+/** Two optional contract vectors: both absent, or identical component by component. */
 function sameVector(a: readonly number[] | undefined, b: readonly number[] | undefined) {
   if (a === b) return true;
   if (!a || !b || a.length !== b.length) return false;
@@ -9,14 +9,14 @@ function sameVector(a: readonly number[] | undefined, b: readonly number[] | und
 }
 
 /**
- * Vrai quand deux lampes validées décrivent exactement la même lumière — tableaux compris.
+ * True when two validated lights describe exactly the same light — arrays included.
  *
- * Une mutation qui repose les valeurs déjà tenues ne change rien à l'image : republier sa révision
- * et l'époque du magasin ferait repartir les pages d'ombre de cette lampe et refuserait l'image
- * tenue, pour un résultat identique au pixel près. Un hôte qui renvoie ses lampes fixes à chaque
- * image — le cas courant — paierait ainsi une invalidation par image et par lampe.
+ * A mutation that resets already-held values changes nothing in the image: republishing its revision
+ * and the store epoch would restart this light's shadow pages and refuse the held
+ * frame, for a pixel-identical result. A host that returns its fixed lights every
+ * frame — the common case — would thus pay an invalidation per frame and per light.
  *
- * L'identifiant n'est pas comparé : les deux lampes sont celles d'un même emplacement.
+ * The identifier is not compared: the two lights are those of the same slot.
  */
 export function sameSceneLight(a: SceneLight, b: SceneLight) {
   return (
@@ -32,7 +32,7 @@ export function sameSceneLight(a: SceneLight, b: SceneLight) {
   );
 }
 
-/** Même règle pour l'environnement : une exposition reposée à l'identique ne périme aucune image. */
+/** Same rule for the environment: an exposure reset identically stales no frame. */
 export function sameSceneEnvironment(a: SceneEnvironment, b: SceneEnvironment) {
   return a.exposure === b.exposure;
 }

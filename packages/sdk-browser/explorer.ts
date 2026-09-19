@@ -10,7 +10,7 @@ import { createExplorerApi } from './explorerApi.ts';
 export async function createExplorer(canvas: HTMLCanvasElement, options: ExplorerOptions) {
   const { diagnosticChannel, emit, diagnose, preparationStart, signal, scope, progress } =
     createExplorerSession(options);
-  progress('manifest', 0, 1, 'Lecture du cache');
+  progress('manifest', 0, 1, 'Reading the cache');
   const { manifestUrl } = options;
   const { metadata, metadataUrl, loadedBase } = await loadExplorerManifest(
     manifestUrl,
@@ -52,7 +52,7 @@ export async function createExplorer(canvas: HTMLCanvasElement, options: Explore
     });
     const runtime = createExplorerHostRuntime(session, { prepared, resources, backends });
     const { profiler } = runtime;
-    progress('ready', 1, 1, 'Explorateur prêt');
+    progress('ready', 1, 1, 'Explorer ready');
     if (typeof window !== 'undefined') {
       (window as unknown as { __webGeometry: unknown }).__webGeometry = {
         profiler,

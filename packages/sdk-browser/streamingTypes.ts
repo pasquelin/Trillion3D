@@ -1,14 +1,14 @@
 import type { BackendDiagnostic } from './backendTypes.ts';
 
 /**
- * Ce qu'une image dit au cache des pages qu'elle garde : une différence de RANGS de requête, pas une
- * liste d'adresses. Le rang est posé une fois pour toutes par le catalogue, `urls` le traduit, et
- * seules les entrées et les sorties sont parcourues — une coupe de quinze mille pages qui n'en
- * change que dix ne coûte donc plus dix mille hachages de chaînes par image. `held` porte
- * l'appartenance entière : elle sert à reprendre la main quand un autre moteur a écrit les épingles.
+ * What a frame tells the page cache it keeps: a REQUEST RANK delta, not an address list.
+ * Rank is set once and for all by the catalogue, `urls` translates it, and only entries and
+ * exits are walked — a cut of fifteen thousand pages that changes only ten therefore no
+ * longer costs ten thousand string hashes per frame. `held` carries full membership: it is
+ * used to take over when another engine wrote the pins.
  */
 export interface HostRetentionDelta {
-  /** Rang de requête → adresse. La même table pour la vie de la scène : son identité dit l'émetteur. */
+  /** Request rank → address. The same table for the life of the scene: its identity names the emitter. */
   readonly urls: readonly string[];
   readonly entered: Int32Array;
   readonly enteredCount: number;
@@ -28,7 +28,7 @@ export type Job = {
   priority: number;
   order: number;
   controller: AbortController;
-  /** `dropped` : plus aucun consommateur, la file le laisse tomber au prochain passage de `pump`. */
+  /** `dropped`: no consumer left, the queue drops it on the next `pump` pass. */
   state: 'queued' | 'active' | 'dropped';
   consumers: Set<symbol>;
   promise: Promise<Uint8Array>;
@@ -62,7 +62,7 @@ export type StreamContext = {
     loaded: number;
     evictions: number;
     admissionBlocked: number;
-    /** Travaux marqués abandonnés mais encore dans le tableau de la file. */
+    /** Jobs marked abandoned but still in the queue array. */
     dropped: number;
     disposed: boolean;
     cachedBytes: number;

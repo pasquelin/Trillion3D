@@ -1,7 +1,7 @@
-// La vidange ne retire plus le témoin d'image tenue d'office : un hôte qui vide à chaque image —
-// le harnais de mesure, le Lab — n'aurait sinon jamais d'image tenue, alors que rien de ce dont
-// l'image dépend n'a bougé. Seul un drainage qui change réellement l'image le retire, en
-// incrémentant la révision qui nomme ce qu'il a changé.
+// Flush no longer drops the held-image witness by default: a host that flushes every image — the
+// measurement harness, the Lab — would otherwise never hold an image, even when nothing the image
+// depends on has moved. Only a drain that actually changes the image drops it, by incrementing the
+// revision that names what it changed.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createFrameGateCore } from './frameGateCore.ts';
@@ -9,11 +9,11 @@ import { HOLD_SIGNATURE_VALUES } from './webgpuFrameSignature.ts';
 import { flushWebgpuPages } from './webgpuPagesFlush.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Un état de vidange minimal : aucune carte, aucune texture, aucune résidence en vol. */
+/** A minimal flush state: no GPU, no texture, no in-flight residency. */
 function vidange(adopte?: () => boolean, arme = true) {
   const gate = createFrameGateCore(HOLD_SIGNATURE_VALUES);
   const { hold: frameHold, revisions } = gate;
-  // Deux images consécutives identiques : le témoin est armé et stable, comme après deux rendus.
+  // Two identical consecutive images: the witness is armed and stable, as after two renders.
   if (arme) {
     frameHold.keep(revisions);
     frameHold.keep(revisions);
@@ -59,40 +59,40 @@ function vidange(adopte?: () => boolean, arme = true) {
   return { rt, gate, frameHold, revisions };
 }
 
-test('une vidange qui ne draine rien laisse le témoin d’image tenue debout', async () => {
+test('a flush that drains nothing leaves the held-image witness standing', async () => {
   const { rt, gate, revisions } = vidange();
-  assert.equal(gate.held(), true, 'le témoin part armé');
+  assert.equal(gate.held(), true, 'the witness starts armed');
   await flushWebgpuPages(rt);
   await flushWebgpuPages(rt);
-  assert.equal(gate.held(), true, 'la vidange a retiré le témoin sans rien avoir drainé');
-  assert.equal(gate.hold.same(revisions), true, 'les révisions n’ont pas bougé');
+  assert.equal(gate.held(), true, 'the flush dropped the witness without having drained anything');
+  assert.equal(gate.hold.same(revisions), true, 'the revisions have not moved');
 });
 
-test('une vidange dont l’adoption change la coupe retire le témoin', async () => {
+test('a flush whose adoption changes the cut drops the witness', async () => {
   const { rt, gate } = vidange(() => true);
   await flushWebgpuPages(rt);
-  assert.equal(gate.held(), false, 'la coupe a changé sous l’image tenue');
+  assert.equal(gate.held(), false, 'the cut changed under the held image');
 });
 
-test('une vidange dont l’adoption ne change rien laisse le témoin debout', async () => {
+test('a flush whose adoption changes nothing leaves the witness standing', async () => {
   const { rt, gate } = vidange(() => false);
   await flushWebgpuPages(rt);
-  assert.equal(gate.held(), true, 'aucune liste réécrite, aucune raison de refaire l’image');
+  assert.equal(gate.held(), true, 'no list rewritten, no reason to redo the image');
 });
 
-test('trois images et trois vidanges sans écriture : la troisième est tenue', async () => {
-  // Ce que fait un hôte qui vide par image — le harnais, le Lab : rendre, vider, recommencer. La
-  // carte rend un relevé par image, identique à pose immobile, donc l'adoption ne réécrit rien.
+test('three images and three flushes with no write: the third is held', async () => {
+  // What a host that flushes per image does — the harness, the Lab: render, flush, repeat. The GPU
+  // returns one sample per image, identical at a still pose, so adoption rewrites nothing.
   let adoptions = 0;
   const { rt, gate, frameHold, revisions } = vidange(() => (adoptions++, false), false);
   let tenues = 0;
   for (let image = 0; image < 3; image++) {
-    // Une image complète : elle est rangée avec la signature de ce qu'elle a produit.
+    // A complete image: it is stored with the signature of what it produced.
     if (gate.held()) tenues++;
     else frameHold.keep(revisions);
     await flushWebgpuPages(rt);
   }
-  assert.equal(adoptions, 3, 'la vidange rejoue bien une adoption par image');
-  assert.equal(tenues, 1, 'la troisième image doit être tenue');
-  assert.equal(gate.held(), true, 'le témoin a survécu aux trois vidanges');
+  assert.equal(adoptions, 3, 'the flush does replay one adoption per image');
+  assert.equal(tenues, 1, 'the third image must be held');
+  assert.equal(gate.held(), true, 'the witness survived the three flushes');
 });

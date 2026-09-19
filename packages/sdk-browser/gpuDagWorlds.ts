@@ -2,21 +2,21 @@ import { maxStretch } from '../sdk-core/index.ts';
 import { FRAME_VEC4, type PackedDag } from './gpuDagTypes.ts';
 
 /**
- * Rangs de la partie linéaire d'une matrice monde rangée en colonnes, et seuls rangs que `maxStretch`
- * lit (`projectionOracles.ts`). La translation — rangs 12 à 14 — n'en est pas, et la dernière ligne
- * non plus.
+ * Indices of the linear part of a column-major world matrix, and the only indices `maxStretch`
+ * reads (`projectionOracles.ts`). Translation — indices 12 to 14 — is not among them, nor is the
+ * last row.
  */
 const LINEAR = [0, 1, 2, 4, 5, 6, 8, 9, 10];
 
 /**
- * L'étirement objet → vue des primitives dont la partie linéaire a bougé, recalculé pour elles
- * seules ; rend leur nombre.
+ * Object-to-view stretch of primitives whose linear part moved, recomputed for them only; returns
+ * their count.
  *
- * Le repère de rendu suit l'œil : à chaque pas de la caméra, les seize flottants de chaque matrice
- * monde sont réécrits alors que seule leur translation change. L'étirement ne dépend pourtant que des
- * neuf coefficients linéaires — `maxStretch` ne lit qu'eux —, si bien qu'une origine déplacée le
- * recalculait pour redonner exactement le même flottant, puis faisait repousser tout le tampon des
- * cadres. Zéro rendu ici veut dire « aucun étirement n'a changé » : le tampon n'a rien à recevoir.
+ * The render frame follows the eye: at each camera step, all sixteen floats of each world matrix
+ * are rewritten while only their translation changes. Stretch depends only on the nine linear
+ * coefficients — `maxStretch` reads only those — so a moved origin used to recompute it, yield
+ * the exact same float, then push the whole frame buffer again. Zero returned here means "no
+ * stretch changed": the buffer has nothing to receive.
  */
 export function refreshWorldStretch(
   previous: Float32Array,

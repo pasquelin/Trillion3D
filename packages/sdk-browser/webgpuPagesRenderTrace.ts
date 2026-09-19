@@ -46,7 +46,7 @@ export function traceCpuSelection(
 ) {
   const { run, diag } = rt,
     { tracking } = rt.setup;
-  diag.traceDiagnostic('cpu-selection', 'Sélection CPU de référence', () => ({
+  diag.traceDiagnostic('cpu-selection', 'CPU reference selection', () => ({
     frame: run.frame,
     submission: run.imageRevision,
     scope: 'cpu/selectVisiblePages',

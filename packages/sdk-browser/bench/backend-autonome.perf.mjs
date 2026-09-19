@@ -1,4 +1,4 @@
-// le backend autonome détache par le delta de la coupe au lieu de balayer tout le DAG.
+// the autonomous backend detaches by cut delta instead of sweeping the whole DAG.
 import * as THREE from 'three';
 import { createAutonomousGeometry } from '../autonomousGeometry.ts';
 import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
@@ -34,9 +34,9 @@ const empreinte = (m, triangles) => ({
 
 function coupes(total, tailles, depart) {
   const alea = graine(depart);
-  return tailles.map((taille) => {
+  return tailles.map((size) => {
     const cut = [];
-    for (let i = 0; i < taille; i++) cut.push(Math.floor(alea() * total) % Math.max(1, total));
+    for (let i = 0; i < size; i++) cut.push(Math.floor(alea() * total) % Math.max(1, total));
     return [...new Set(cut)];
   });
 }
@@ -49,7 +49,7 @@ const passe = (m, sync, etat, suite) =>
     return empreinte(m, etat.submittedTriangles);
   });
 
-function cas(nom, total, tailles, mesure = true) {
+function cas(name, total, tailles, mesure = true) {
   const suite = coupes(total, tailles, 0x5eed ^ total);
   const gauche = monde(total, 0x9e37 ^ total),
     droite = monde(total, 0x9e37 ^ total);
@@ -64,10 +64,10 @@ function cas(nom, total, tailles, mesure = true) {
     modifiedPages: new Set(),
   });
   return {
-    nom,
-    taille: total,
+    name,
+    size: total,
     mesure,
-    entree: {
+    input: {
       reference: () => passe(gauche, oracle.sync, oracle.state, suite),
       optimisee: () => passe(droite, paquet.sync, paquet.state, suite),
     },
@@ -75,22 +75,22 @@ function cas(nom, total, tailles, mesure = true) {
 }
 
 const resAutonome = await mesure({
-  nom: 'coupe du backend autonome',
+  name: 'autonomous backend cut',
   fichier: 'packages/sdk-browser/autonomousGeometry.ts',
   cas: [
-    cas('20 000 pages, coupes de 200', 20000, [200, 200, 200, 200]),
-    cas('4 000 pages, coupe entière puis vide', 4000, [4000, 0, 4000, 0]),
-    cas('une seule page', 1, [1, 0, 1]),
-    cas('aucune page', 0, [0, 0]),
-    cas('sept pages aux triangles hostiles', 7, [7, 3, 7, 0]),
+    cas('20 000 pages, cuts of 200', 20000, [200, 200, 200, 200]),
+    cas('4 000 pages, full cut then empty', 4000, [4000, 0, 4000, 0]),
+    cas('a single page', 1, [1, 0, 1]),
+    cas('no pages', 0, [0, 0]),
+    cas('seven pages with hostile triangles', 7, [7, 3, 7, 0]),
   ],
-  calcul: (entree) => entree.optimisee(),
-  attendu: (entree) => entree.reference(),
+  calcul: (input) => input.optimisee(),
+  attendu: (input) => input.reference(),
   options: { tours: 30, budgetMs: 1500 },
 });
 
 await stress({
-  nom: 'createAutonomousGeometry extremes',
+  name: 'createAutonomousGeometry extremes',
   calcul: (m) =>
     createAutonomousGeometry({
       ...m,
@@ -102,12 +102,12 @@ await stress({
       modifiedPages: new Set(),
     }).sync(),
   extremes: [
-    { nom: 'vide', entree: { scene: new THREE.Scene(), allPages: [], shown: [], desired: [] } },
+    { name: 'empty', input: { scene: new THREE.Scene(), allPages: [], shown: [], desired: [] } },
   ],
 });
 
 rapport(
   'backend-autonome',
   [resAutonome],
-  'G1 attache et détache exactement les mêmes pages, dans le même ordre de scène',
+  'G1 attaches and detaches the exact same pages, in the same scene order',
 );

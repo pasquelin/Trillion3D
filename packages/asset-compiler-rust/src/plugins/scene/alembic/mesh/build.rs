@@ -1,8 +1,8 @@
-//! Un morceau de maillage en construction : les coins déjà émis, et les sommets qu'ils ont donnés.
+//! A mesh part under construction: the corners already emitted, and the vertices they gave.
 //!
-//! Un coin est un triplet (sommet, normale, coordonnée de texture). Deux coins qui portent le même
-//! triplet sont un seul sommet du glTF ; deux coins qui n'en portent pas le même en font deux, car
-//! le format n'a qu'un tableau de normales et un de coordonnées, indexés comme les positions.
+//! A corner is a triplet (vertex, normal, texture coordinate). Two corners that carry the same
+//! triplet are one glTF vertex; two corners that do not make two, because the format has only one
+//! normal array and one coordinate array, indexed like the positions.
 use super::super::geom::Geometry;
 use super::super::TOPOLOGY_INVALID;
 use super::Part;
@@ -10,12 +10,12 @@ use crate::plugins::scene::{cancel, ngon::Ngon};
 use crate::{CompilerError, Result};
 use std::{collections::HashMap, sync::atomic::AtomicBool};
 
-/// Un morceau en construction, avec la table des coins déjà émis.
+/// A part under construction, with the table of corners already emitted.
 #[derive(Default)]
 pub(super) struct Builder {
     unique: HashMap<(u32, u32, u32), u32>,
-    /// Le découpeur de polygones et les sommets de la face courante, réutilisés d'une face à
-    /// l'autre : un maillage de mille faces n'alloue pas mille anneaux.
+    /// The polygon cutter and the current face's vertices, reused from one face to the next: a
+    /// mesh of a thousand faces does not allocate a thousand rings.
     cutter: Ngon,
     ring: Vec<u32>,
     positions: Vec<f32>,
@@ -28,10 +28,10 @@ pub(super) struct Builder {
 }
 
 impl Builder {
-    /// Ajoute une face, lue à l'envers et découpée en oreilles. Rend `false` quand la face n'a pas
-    /// donné toutes ses oreilles : elle sort alors en éventail, et l'appelant la compte. Le
-    /// découpeur relit le jeton d'annulation par tranche de faces : un seul maillage énorme
-    /// s'arrête aussi, et la conversion se refuse alors entière.
+    /// Adds a face, read backwards and ear-clipped. Yields `false` when the face did not give
+    /// all its ears: it then comes out fanned, and the caller counts it. The cutter rereads the
+    /// cancellation token by face slice: a single huge mesh stops too, and the conversion then
+    /// refuses whole.
     pub(super) fn face(
         &mut self,
         geometry: &Geometry,
@@ -39,8 +39,8 @@ impl Builder {
         corners: std::ops::Range<usize>,
         cancelled: &AtomicBool,
     ) -> Result<bool> {
-        // La face se lit à l'envers, coin par coin : chaque coin est émis une fois, dans cet ordre,
-        // avant que le découpage ne dise quels triangles les relient.
+        // The face is read backwards, corner by corner: each corner is emitted once, in this
+        // order, before the cut says which triangles join them.
         self.ring.clear();
         self.cutter.begin();
         for corner in corners.rev() {
@@ -58,7 +58,7 @@ impl Builder {
         Ok(exact)
     }
 
-    /// Le rang glTF de ce coin, émis une seule fois par triplet distinct.
+    /// The glTF rank of this corner, emitted once per distinct triplet.
     fn corner(&mut self, geometry: &Geometry, face: usize, corner: usize) -> Result<u32> {
         let vertex = geometry
             .corners
@@ -90,7 +90,7 @@ impl Builder {
         Ok(rank)
     }
 
-    /// Écrit les valeurs d'un nouveau sommet, et suit l'étendue des positions.
+    /// Writes the values of a new vertex, and tracks the position extent.
     fn push(&mut self, geometry: &Geometry, vertex: usize, normal: u32, uv: u32) {
         let position = &geometry.positions[vertex * 3..vertex * 3 + 3];
         for (axis, value) in position.iter().enumerate() {
@@ -106,15 +106,15 @@ impl Builder {
         if let Some(values) = geometry.normals.as_ref().and_then(|p| p.value(normal)) {
             self.normals.extend_from_slice(values);
         }
-        // Le glTF place l'origine des coordonnées de texture en haut à gauche, Alembic en bas à
-        // gauche : seule la seconde coordonnée change de sens, et l'aller-retour est exact.
+        // glTF places the texture-coordinate origin at the top left, Alembic at the bottom left:
+        // only the second coordinate changes direction, and the round-trip is exact.
         if let Some(values) = geometry.uv.as_ref().and_then(|p| p.value(uv)) {
             self.uvs.extend_from_slice(&[values[0], 1.0 - values[1]]);
         }
     }
 
-    /// Le morceau fini. Un tableau d'attribut qui ne couvre pas tous les sommets n'entre pas dans le
-    /// glTF, où chaque attribut a exactement autant d'éléments que de positions.
+    /// The finished part. An attribute array that does not cover every vertex does not enter
+    /// glTF, where each attribute has exactly as many elements as positions.
     pub(super) fn finish(self, faceset: Option<usize>) -> Part {
         let vertices = self.positions.len() / 3;
         let full = |values: Vec<f32>, width: usize| {
@@ -136,8 +136,8 @@ impl Builder {
     }
 }
 
-/// La position du sommet d'un coin, en double, telle que le découpage la lit. Un coin hors des
-/// tables donne l'origine : `corner` a déjà refusé le fichier dont les tableaux se contredisent.
+/// The position of a corner's vertex, as doubles, as the cutter reads it. A corner outside the
+/// tables yields the origin: `corner` has already refused the file whose arrays contradict.
 fn point(geometry: &Geometry, corner: usize) -> [f64; 3] {
     let vertex = geometry
         .corners

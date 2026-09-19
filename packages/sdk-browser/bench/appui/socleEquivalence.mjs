@@ -1,6 +1,6 @@
-// Première partie du banc du socle, contre la référence : chaque fonction opposée à la méthode
-// qu'elle remplace, sur les entrées hostiles, puis les hiérarchies parent/enfant nœud par nœud. Une
-// seule valeur différente au sens d'`Object.is` et la ligne tombe.
+// First part of the foundation bench, against the reference: each function opposed to the
+// method it replaces, on the hostile inputs, then parent/child hierarchies node by node. A
+// single different value in the sense of `Object.is` and the line fails.
 import * as THREE from 'three';
 import {
   crossVector3,
@@ -18,14 +18,14 @@ import { affines, matrices, paires, paires32, points } from './scenesSocle.mjs';
 
 const v3 = (p) => new THREE.Vector3(p[0], p[1], p[2]);
 const echantillon = points.filter((_, i) => i % 29 === 0);
-/** Chaque matrice contre chaque point de l'échantillon. */
+/** Each matrix against each sample point. */
 const croise = (liste, fn) => liste.flatMap((m) => echantillon.map((p) => fn(m, p)));
 const fini = (p) => Number.isFinite(p[0] + p[1] + p[2]);
 
 async function lignesOperations() {
   return [
     await ligne(
-      'produit 4×4, double précision',
+      '4×4 product, double precision',
       'packages/sdk-core/mathMatrix4.ts',
       'paires hostiles',
       paires,
@@ -33,7 +33,7 @@ async function lignesOperations() {
       (l) => l.map(([a, b]) => multiplyMatrix4(new Float64Array(16), a, b)),
     ),
     await ligne(
-      'produit 4×4 écrit sur son entrée',
+      '4×4 product written on its input',
       'packages/sdk-core/mathMatrix4.ts',
       'paires hostiles',
       paires,
@@ -45,7 +45,7 @@ async function lignesOperations() {
         }),
     ),
     await ligne(
-      'produit 4×4 vers la simple précision',
+      '4×4 product toward single precision',
       'packages/sdk-core/mathMatrix4.ts',
       'paires arrondies',
       paires32,
@@ -56,7 +56,7 @@ async function lignesOperations() {
       (l) => l.map(([a, b]) => Float32Array.from(multiplyMatrix4(new Float64Array(16), a, b))),
     ),
     await ligne(
-      'inverse 4×4, singulières comprises',
+      '4×4 inverse, singulars included',
       'packages/sdk-core/mathMatrix4Inverse.ts',
       'matrices hostiles',
       matrices,
@@ -68,7 +68,7 @@ async function lignesOperations() {
         }),
     ),
     await ligne(
-      'déterminant 4×4',
+      '4×4 determinant',
       'packages/sdk-core/mathMatrix4.ts',
       'matrices hostiles',
       matrices,
@@ -84,7 +84,7 @@ async function lignesOperations() {
       (l) => l.map((m) => normalMatrix3(new Float64Array(9), m)),
     ),
     await ligne(
-      'décomposition TRS',
+      'TRS decomposition',
       'packages/sdk-core/mathMatrix4Trs.ts',
       'matrices hostiles',
       matrices,
@@ -103,7 +103,7 @@ async function lignesOperations() {
         ),
     ),
     await ligne(
-      'point homogène en espace de découpe',
+      'homogeneous point in clip space',
       'packages/sdk-core/mathVector.ts',
       'matrices × points',
       matrices,
@@ -131,7 +131,7 @@ async function lignesOperations() {
         }),
     ),
     await ligne(
-      'déplacement de nœud : parent⁻¹ · monde, puis TRS',
+      'node displacement: parent⁻¹ · world, then TRS',
       'packages/sdk-browser/webgpuPagesTransform.ts',
       'paires hostiles',
       paires,
@@ -172,9 +172,9 @@ export async function lignesEquivalence() {
   return [
     ...(await lignesOperations()),
     await ligne(
-      'hiérarchies : monde, position, quaternion, échelle, déterminant et signe, normale, inverse',
+      'hierarchies: world, position, quaternion, scale, determinant and sign, normal, inverse',
       'packages/sdk-core/mathMatrix4Trs.ts',
-      `${noeudsHierarchie.length} nœuds, profondeurs 1 à 6 et branches`,
+      `${noeudsHierarchie.length} nodes, depths 1 to 6 and branches`,
       noeudsHierarchie,
       (l) => l.map(lectureReference),
       (l) => l.map(lectureSocle),

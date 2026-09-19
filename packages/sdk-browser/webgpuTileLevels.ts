@@ -1,28 +1,28 @@
 import type { TextureLevelReader } from './textureLevelReader.ts';
 
 /**
- * Les niveaux cuits décodés, tenus le temps d'en découper les tuiles.
+ * Decoded cooked levels, held long enough to cut tiles from them.
  *
- * Une tuile se lit dans le niveau entier du cache, décodé par le navigateur ; les tuiles voisines
- * d'un même niveau arrivent en général dans les mêmes images, et redécoder un niveau 2048² pour
- * chacune coûterait plus que le transfert. Les niveaux décodés restent donc ici, sous un budget
- * d'octets hôte fixe, la moins récemment lue partant la première. C'est la seule mémoire hôte de la
- * chaîne, et elle ne dépend pas de la scène.
+ * A tile is read in the cache's whole level, decoded by the browser; neighbouring tiles of the same
+ * level generally arrive in the same images, and re-decoding a 2048² level for each would cost more
+ * than the transfer. Decoded levels therefore stay here, under a fixed host-byte budget, the least
+ * recently read leaving first. That is the chain's only host memory, and it does not depend on the
+ * scene.
  *
- * Une lecture en vol n'est jamais doublée, et un échec est rendu à l'appelant, jamais retenté en
- * silence : la tuile restera servie par son niveau grossier, et le diagnostic le dira.
+ * An in-flight read is never doubled, and a failure is returned to the caller, never retried in
+ * silence: the tile will stay served by its coarse level, and the diagnostic will say so.
  */
 export type LevelKey = { sha256: string; atlas: number; level: number };
 
 export type WebgpuTileLevels = {
-  /** Le niveau décodé s'il est là, en le marquant lu ; sinon `undefined`, sans rien lancer. */
+  /** The decoded level if it is there, marking it read; otherwise `undefined`, launching nothing. */
   get(key: LevelKey, frame: number): ImageBitmap | undefined;
-  /** Lance la lecture si elle n'est ni là ni en vol. */
+  /** Starts the read if it is neither there nor in flight. */
   request(key: LevelKey, frame: number): void;
   readonly inFlight: number;
   readonly fetched: number;
   readonly bytes: number;
-  /** Tenue quand toutes les lectures en vol ont abouti ou échoué. */
+  /** Held when every in-flight read has succeeded or failed. */
   settled(): Promise<void>;
   destroy(): void;
 };
@@ -45,7 +45,7 @@ export function createWebgpuTileLevels(options: {
     bytes -= entry.bytes;
     entry.bitmap.close();
   };
-  /** Fait de la place pour `needed` octets : la moins récemment lue part la première. */
+  /** Makes room for `needed` bytes: the least recently read leaves first. */
   const makeRoom = (needed: number) => {
     while (bytes + needed > options.budgetBytes && held.size) {
       let oldest: string | undefined,

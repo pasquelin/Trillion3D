@@ -1,14 +1,14 @@
 /**
- * `out = m⁻¹` par les cofacteurs. Un déterminant exactement nul rend la matrice nulle, comme la
- * référence : l'appelant qui doit distinguer ce cas teste le déterminant, jamais la sortie. C'est la
- * PARITÉ AVEC LA RÉFÉRENCE qui fixe ce seuil, et non la règle de singularité du moteur
- * (`mathSingular.ts`), qui ne vaut que là où une normale est transportée. Les seize entrées sont lues
- * avant la première écriture, donc `out` peut être `m`.
+ * `out = m⁻¹` by cofactors. An exactly zero determinant yields the zero matrix, like the
+ * reference: the caller that must distinguish this case tests the determinant, never the output. It
+ * is PARITY WITH THE REFERENCE that sets this threshold, not the engine singularity rule
+ * (`mathSingular.ts`), which only applies where a normal is transported. The sixteen inputs are read
+ * before the first write, so `out` may be `m`.
  *
- * La sortie est un `Float64Array` possédé, comme celle du produit : un inverse sert d'entrée à un
- * produit, et les deux doivent écrire dans le même type de tampon. L'entrée reste une lecture
- * quelconque — une matrice de l'hôte s'inverse une fois par image, là où le produit tourne par
- * millier.
+ * The output is an owned `Float64Array`, like that of the product: an inverse is an input to a
+ * product, and both must write into the same buffer type. The input remains an arbitrary
+ * read — a host matrix is inverted once per frame, where the product runs by the
+ * thousand.
  */
 export function invertMatrix4(out: Float64Array, m: ArrayLike<number>) {
   const n11 = m[0],

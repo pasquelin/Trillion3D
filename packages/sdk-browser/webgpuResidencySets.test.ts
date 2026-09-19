@@ -26,17 +26,17 @@ test('a cut wider than the page budget keeps the same coarse subset as the whole
     check(world2, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 16, 17, 18, 19], room, `budget ${room}`);
     check(world2, [4, 5, 6, 7, 8, 9, 10, 11, 16, 17], room, `budget ${room} bis`);
     // Back under the budget: the queue is the desired set again.
-    check(world2, [0, 1, 16], 64, `budget ${room} relâché`);
+    check(world2, [0, 1, 16], 64, `budget ${room} released`);
   }
   assert.equal(world.tracking.wanted.count, 0);
 });
 
-test('la coupe processeur passe par la même différence, et la carte reprend contre elle', () => {
+test('the CPU cut goes through the same delta, and the GPU resumes against it', () => {
   const world = scene();
   const { sets, tracking, delta, packed, bootstrapKey } = world;
   frame(world, [0, 1, 2, 3, 16], 64);
-  // Elle nomme ses enregistrements et non des rangs ; la différence en tire les mêmes rangs, et les
-  // ensembles bougent de ce qui a bougé — ni vidés, ni rebâtis.
+  // It names its records and not ranks; the delta draws the same ranks from them, and the sets move
+  // by what moved — neither emptied nor rebuilt.
   delta.adoptRecords([packed[10], packed[11], packed[19]]);
   sets.applyCut(delta);
   sets.applyBudget(64);
@@ -46,8 +46,8 @@ test('la coupe processeur passe par la même différence, et la carte reprend co
       [packed[10], packed[11], packed[19]].map(tracking.keyOf).filter((k) => !bootstrapKey[k]),
     ),
   );
-  assert.equal(delta.exitedCount, 5, 'les cinq pages de la coupe précédente sont sorties');
-  // La carte reprend l'image : sa différence part de ce que le processeur a laissé, pas de zéro.
+  assert.equal(delta.exitedCount, 5, 'the five pages of the previous cut have left');
+  // The GPU takes the image back: its delta starts from what the CPU left, not from zero.
   check(world, [0, 1, 16], 64, 'retour coupe GPU');
 });
 

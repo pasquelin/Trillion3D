@@ -1,14 +1,13 @@
-//! Les formes d'un `transform` : celles qui entrent dans la scène, et ce que le fichier n'y met pas.
+//! Shapes of a `transform`: those that enter the scene, and what the file does not put there.
 //!
-//! Un nœud `mesh` de Maya n'est pas toujours une surface à dessiner. Une forme **intermédiaire**
-//! est l'entrée d'un historique de construction — la boîte d'origine sous la déformation qui la
-//! plie —, que Maya n'affiche jamais ; une forme dont la visibilité est éteinte est cachée par le
-//! fichier lui-même. Émettre l'une ou l'autre ferait apparaître une géométrie que la scène cache.
+//! A Maya `mesh` node is not always a surface to draw. An **intermediate** shape is the input
+//! of a construction history — the original box under the deformation that bends it —, which
+//! Maya never displays; a shape whose visibility is off is hidden by the file itself.
+//! Emitting either would make geometry appear that the scene hides.
 use super::*;
 
-/// Les maillages glTF que ce transform porte : ses formes filles, puis celles qu'un `parent -add`
-/// lui accroche. Chaque forme n'est construite qu'une fois, quel que soit le nombre de transforms
-/// qui la citent.
+/// glTF meshes this transform carries: its child shapes, then those a `parent -add` hangs
+/// on it. Each shape is built only once, whatever the number of transforms that cite it.
 pub(super) fn shapes(world: &mut World<'_>, node: usize) -> Vec<usize> {
     let own: Vec<usize> = world.kids[node]
         .iter()
@@ -25,8 +24,8 @@ pub(super) fn shapes(world: &mut World<'_>, node: usize) -> Vec<usize> {
     out
 }
 
-/// Cette forme entre-t-elle dans la scène ? Une forme intermédiaire et une forme invisible sont
-/// comptées chacune sous son nom, et ni l'une ni l'autre n'est convertie.
+/// Does this shape enter the scene? An intermediate shape and an invisible shape are each
+/// counted under their name, and neither is converted.
 fn drawn(world: &mut World<'_>, shape: usize) -> bool {
     let document = world.document;
     let flag = |names: &[&str]| document.nodes[shape].attr(names).and_then(Attr::flag);
@@ -40,8 +39,8 @@ fn drawn(world: &mut World<'_>, shape: usize) -> bool {
     !intermediate && !hidden
 }
 
-/// Compte, par son type, chaque nœud que ce pilote ne convertit pas : caméras, lampes, surfaces
-/// paramétriques, squelettes, nœuds d'outil, nœuds de script. Rien de tout cela n'est un échec.
+/// Counts, by its type, each node this driver does not convert: cameras, lights, parametric
+/// surfaces, skeletons, tool nodes, script nodes. None of that is a failure.
 pub(super) fn ignored(world: &mut World<'_>) {
     let document = world.document;
     for node in document.nodes.iter().filter(|node| {
@@ -54,8 +53,8 @@ pub(super) fn ignored(world: &mut World<'_>) {
     }
 }
 
-/// Ce nœud décrit-il le nuançage — un nuanceur, un ensemble, une image, un placage ? Ces nœuds
-/// n'entrent pas dans la hiérarchie : les matériaux les lisent, et ils ne sont donc pas comptés.
+/// Does this node describe shading — a shader, a set, an image, a placement? These nodes do
+/// not enter the hierarchy: materials read them, and they are therefore not counted.
 fn shades(kind: &str) -> bool {
     report::is_shader(kind)
         || matches!(

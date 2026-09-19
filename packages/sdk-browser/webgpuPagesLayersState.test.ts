@@ -17,10 +17,10 @@ import { dropVis } from './webgpuPagesDrops.ts';
 import { createWebgpuRunState } from './webgpuPagesStateRun.ts';
 import { createWebgpuBlendState } from './webgpuBlendState.ts';
 
-// Le lot des couches coplanaires a été réappliqué dans onze modules WebGPU ; chaque test ci-dessous
-// exerce la couche dans un module que `webgpuPages.19.test.ts` (le biais de `writePageRow`) ne
-// couvre pas. `webgpuPageRow.ts` reste couvert là-bas et n'a pas de test ici. La suite continue dans
-// `webgpuVisibilityDrawLayers.test.ts` pour les modules du dessin par image.
+// The coplanar-layer lot was reapplied in eleven WebGPU modules; each test below exercises the
+// layer in a module that `webgpuPages.19.test.ts` (`writePageRow` bias) does not cover.
+// `webgpuPageRow.ts` stays covered there and has no test here. The suite continues in
+// `webgpuVisibilityDrawLayers.test.ts` for the per-image draw modules.
 
 const fakeSetup = (overrides: Partial<WebgpuPagesSetup> = {}) =>
   ({
@@ -40,10 +40,10 @@ test('createWebgpuVisState starts with drawLayerSlots at one and no coplanar lay
 });
 
 // webgpuPagesLayout.ts
-test('createWebgpuPagesLayout dimensionne les coins monde par ligne dessinable, pour la partition GPU', () => {
+test('createWebgpuPagesLayout sizes world corners per drawable row, for the GPU partition', () => {
   const layout = createWebgpuPagesLayout(fakeSetup());
-  // Les comptes par slot ne vivent plus ici : la partition GPU les écrit dans le tampon de la
-  // compaction. Ce que la disposition tient encore, ce sont les coins que cette partition lit.
+  // Per-slot counts no longer live here: the GPU partition writes them into the compaction buffer.
+  // What the layout still holds is the corners that partition reads.
   assert.equal(layout.cornerPacked.length, layout.drawSlots * CORNER_VALUES);
   assert.equal(layout.drawItemWords.length, layout.drawSlots * DRAW_ITEM_U32);
 });

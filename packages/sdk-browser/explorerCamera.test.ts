@@ -1,5 +1,5 @@
-// Lot M4a, explorerCamera.ts : cadrage par bornes à plat et `sphereFromBounds` du socle au lieu de
-// `Box3`/`getCenter`/`getSize().length()/2` de Three. Confronté au bit près (Object.is) à l'ancien
+// Batch M4a, explorerCamera.ts: framing by flat bounds and core `sphereFromBounds` instead of
+// Three's `Box3`/`getCenter`/`getSize().length()/2`. Confronted bit for bit (Object.is) with the old
 // chemin, autonome et non autonome, sur des bornes hostiles.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -13,7 +13,7 @@ const canvas = { width: 800, height: 450 } as unknown as HTMLCanvasElement;
 /** L'ancien chemin non autonome : `expandByObject` par maillage, `getCenter`/`getSize().length()/2`. */
 function referenceFraming(source: THREE.Object3D) {
   const bounds = new THREE.Box3();
-  source.updateMatrixWorld(true); // l'ancien `objects()` de sceneMeshes.ts résolvait le sous-arbre avant de le parcourir
+  source.updateMatrixWorld(true); // the old `objects()` of sceneMeshes.ts resolved the subtree before walking it
   source.traverse((o) => {
     if ((o as THREE.Mesh).isMesh) bounds.expandByObject(o as THREE.Mesh);
   });
@@ -22,7 +22,7 @@ function referenceFraming(source: THREE.Object3D) {
   return { bounds, center, radius };
 }
 
-/** Sous-arbre hostile, profondeur 3 : échelle négative puis non uniforme. */
+/** Hostile subtree, depth 3: negative then non-uniform scale. */
 function hostileScene() {
   const racine = new THREE.Group();
   racine.scale.set(-3, 1, 1);
@@ -39,7 +39,7 @@ function hostileScene() {
   return racine;
 }
 
-test('createExplorerCamera (non autonome) rend les mêmes bornes, centre et rayon que expandByObject + getCenter/getSize().length()/2', () => {
+test('createExplorerCamera (non-autonomous) yields the same bounds, centre and radius as expandByObject + getCenter/getSize().length()/2', () => {
   const source = hostileScene();
   const { bounds: b, center, radius } = referenceFraming(source);
   const rendu = createExplorerCamera(
@@ -62,7 +62,7 @@ test('createExplorerCamera (non autonome) rend les mêmes bornes, centre et rayo
   assert.ok(Object.is(rendu.radius, radius), `rayon : ${rendu.radius} !== ${radius}`);
 });
 
-test('createExplorerCamera (autonome) rend les mêmes bornes, centre et rayon que exactPagesBounds/expandByObject de référence', () => {
+test('createExplorerCamera (autonomous) yields the same bounds, centre and radius as the reference exactPagesBounds/expandByObject', () => {
   const geometry = new THREE.BufferGeometry();
   const source = new THREE.Group();
   const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial());
@@ -75,8 +75,8 @@ test('createExplorerCamera (autonome) rend les mêmes bornes, centre et rayon qu
     [mesh, { meshes: 0, primitives: 0 }],
   ]);
   const rendu = createExplorerCamera(source, true, associations, metadata, canvas, {});
-  // Référence : la même page transformée par la matrice monde du maillage, via Box3.applyMatrix4.
-  // Le témoin résout le graphe lui-même : depuis le lot 8, le moteur ne compose plus celui de l'hôte.
+  // Reference: the same page transformed by the mesh world matrix, via Box3.applyMatrix4.
+  // The witness resolves the graph itself: since batch 8, the engine no longer composes the host's.
   source.updateMatrixWorld(true);
   const attendu = new THREE.Box3(
     new THREE.Vector3(-1, -1, -1),
@@ -88,7 +88,7 @@ test('createExplorerCamera (autonome) rend les mêmes bornes, centre et rayon qu
   assert.ok(Object.is(rendu.radius, radius));
 });
 
-test('createExplorerCamera lève sur une scène sans géométrie, bornes vides', () => {
+test('createExplorerCamera throws on a scene with no geometry, empty bounds', () => {
   const source = new THREE.Group();
   source.add(new THREE.Group());
   assert.throws(

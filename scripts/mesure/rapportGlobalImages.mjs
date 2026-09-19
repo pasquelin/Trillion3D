@@ -1,6 +1,6 @@
-// Les captures du rapport : chaque PNG de la campagne est converti une fois en JPEG (qualité 90,
-// `sips` de macOS) sous `vignettes/` à côté du rapport, et la page y renvoie par chemin relatif.
-// Rien n'est incrusté dans la page : dix paires d'images pleine taille la feraient peser 30 Mo.
+// Report captures: each campaign PNG is converted once to JPEG (quality 90, macOS `sips`) under
+// `vignettes/` next to the report, and the page points there by relative path.
+// Nothing is inlined in the page: ten full-size image pairs would make it weigh 30 MB.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';

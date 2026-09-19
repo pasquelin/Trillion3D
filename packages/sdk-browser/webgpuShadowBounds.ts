@@ -3,13 +3,14 @@ import type { PageRec } from './pageSelection.ts';
 import type { WebgpuLightState } from './webgpuPagesStateLights.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Flottants d'une sphère monde de cluster : centre puis rayon. */
+/** Floats of a cluster world sphere: centre then radius. */
 const CLUSTER_SPHERE_FLOATS = 4;
 
 /**
- * La sphère monde d'un cluster : le centre de sa boîte locale transformé par sa matrice monde, et
- * le rayon de la sphère circonscrite à la boîte transformée, majoré terme à terme. C'est un
- * majorant, jamais un minorant — un cluster n'est écarté qu'en étant certainement hors du volume.
+ * World sphere of a cluster: the centre of its local box transformed by its world matrix, and the
+ * radius of the sphere circumscribed to the transformed box, overestimated term by term. It is an
+ * overestimate, never an underestimate — a cluster is dropped only by being certainly outside the
+ * volume.
  */
 function writeClusterSphere(rec: PageRec, out: Float32Array, base: number) {
   const e = rec.matrix.elements;
@@ -27,7 +28,7 @@ function writeClusterSphere(rec: PageRec, out: Float32Array, base: number) {
   );
 }
 
-/** Écrit les sphères des lignes `[from, to]` ; une ligne sans fiche prend un rayon nul. */
+/** Writes the spheres of rows `[from, to]`; a row without a record takes a zero radius. */
 export function packClusterSpheres(
   packedRecs: ArrayLike<PageRec | undefined>,
   packed: Float32Array,
@@ -44,12 +45,12 @@ export function packClusterSpheres(
 }
 
 /**
- * La sphère monde de chaque ligne dessinable, dans l'ordre des lignes de la table de pages.
+ * World sphere of every drawable row, in page-table row order.
  *
- * C'est la seule donnée géométrique dont la passe d'ombres a besoin pour écarter un cluster : sa
- * sphère contre la portée d'une lampe et contre le cône d'une face. Elle est écrite exactement sur
- * l'intervalle de lignes que la table de pages vient de déclarer sale — une ligne déplacée, une
- * ligne réécrite, un nœud déplacé — et jamais autrement : une image sans changement n'écrit rien.
+ * That is the only geometric datum the shadow pass needs to drop a cluster: its sphere against a
+ * light's range and against a face's cone. It is written exactly on the row interval the page table
+ * just declared dirty — a moved row, a rewritten row, a moved node — and never otherwise: an image
+ * with no change writes nothing.
  */
 function ensureClusterSpheres(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { lights } = rt,
@@ -66,7 +67,7 @@ function ensureClusterSpheres(rt: WebgpuPagesRuntime, device: GPUDevice) {
   return lights.spheres;
 }
 
-/** Écrit les sphères des lignes `[from, to]` et pousse exactement cet intervalle au GPU. */
+/** Writes the spheres of rows `[from, to]` and pushes exactly that interval to the GPU. */
 export function uploadClusterSpheres(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -77,7 +78,7 @@ export function uploadClusterSpheres(
   const last = Math.min(to, spheres.rows - 1);
   if (last < from) return;
   packClusterSpheres(rt.layout.rows.packedRecs, spheres.packed, from, last);
-  // Décalage et taille comptés en flottants : c'est ce que `writeBuffer` attend d'un tableau typé.
+  // Offset and size counted in floats: that is what `writeBuffer` expects of a typed array.
   device.queue.writeBuffer(
     spheres.buffer,
     from * CLUSTER_SPHERE_FLOATS * 4,
@@ -92,11 +93,11 @@ const sphereScratch = new Float32Array(CLUSTER_SPHERE_FLOATS),
   boxMax = [0, 0, 0];
 
 /**
- * Une page entre dans la résidence ou en sort : la géométrie du monde a changé là où elle est, donc
- * les cartes d'ombre des lampes dont la portée touche cette boîte ne décrivent plus la scène et
- * redeviennent candidates. Sans cela, une carte en cache continuerait d'afficher l'ombre d'un
- * cluster parti, ou d'ignorer celle d'un cluster arrivé. La boîte déclarée est celle de la sphère
- * monde du cluster : un majorant, jamais un minorant.
+ * A page enters residency or leaves it: world geometry has changed where it is, so the shadow maps
+ * of lights whose range touches this box no longer describe the scene and become candidates again.
+ * Without that, a cached map would keep showing the shadow of a cluster that left, or ignore that of
+ * a cluster that arrived. The declared box is that of the cluster's world sphere: an overestimate,
+ * never an underestimate.
  */
 export function noteResidenceChange(lights: WebgpuLightState, rec: PageRec) {
   const { store, plan } = lights;

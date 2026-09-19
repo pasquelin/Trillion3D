@@ -46,7 +46,7 @@ pub(super) fn fixture_named(gltf_name: &str, bin_name: &str) -> (PathBuf, Option
     (root, options)
 }
 
-/// Un dossier jetable, nommé par le pilote qui le demande et le cas qui l'utilise.
+/// A throwaway folder, named by the driver that asks for it and the case that uses it.
 pub(super) fn scratch(prefix: &str, tag: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!(
         "wg-{prefix}-{tag}-{}-{}",
@@ -92,8 +92,8 @@ pub(super) fn written_gltf(options: &Options, key: &str) -> Value {
     )
 }
 
-/// Un OBJ minuscule, un triangle, un matériau, et la bibliothèque qu'il cite, posés dans un dossier
-/// nommé : c'est ce dossier qui résout la bibliothèque.
+/// A tiny OBJ, one triangle, one material, and the library it cites, placed in a
+/// named folder: that folder is what resolves the library.
 pub(super) fn obj_source(root: &Path, folder: &str, mtl: &str) -> PathBuf {
     let source = root.join(folder);
     fs::create_dir_all(&source).expect("dossier obj");
@@ -108,19 +108,19 @@ pub(super) fn obj_source(root: &Path, folder: &str, mtl: &str) -> PathBuf {
     source.join("scene.obj")
 }
 
-/// Compile et rend la clé de la scène intermédiaire avec ce que l'import en a écrit. La clé se lit
-/// dans l'avancement du pilote : c'est elle que le cache réutilise, ou non.
+/// Compiles and returns the intermediate-scene key with what import wrote of it.
+/// The key is read in the driver's progress: that is what the cache reuses, or not.
 pub(super) fn import_key(options: &Options) -> (String, Value, Value) {
     let keys = std::sync::Mutex::new(Vec::new());
     compile(options, |report| {
         if report["phase"] == "import-source" {
             if let Some(key) = report["key"].as_str() {
-                keys.lock().expect("clés").push(key.to_string());
+                keys.lock().expect("keys").push(key.to_string());
             }
         }
     })
     .expect("compile obj");
-    let key = keys.into_inner().expect("clés").pop().expect("une clé");
+    let key = keys.into_inner().expect("keys").pop().expect("a key");
     let directory = options.cache.join("native").join("imports").join(&key);
     (
         key,

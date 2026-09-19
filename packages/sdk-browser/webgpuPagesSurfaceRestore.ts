@@ -8,7 +8,7 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 /** Renders through the backend while the secondary camera is set, which `render` otherwise refuses. */
 export function renderForCapture(rt: WebgpuPagesRuntime, camera: HostCamera) {
   rt.capture.surfaceRenderAllowed = true;
-  // Une capture rend depuis une autre caméra et rétablit ensuite l'image : rien n'y est tenu.
+  // A capture renders from another camera and then restores the image: nothing is held there.
   rt.run.gate.viewReplaced();
   try {
     renderWebgpuPages(rt, camera);
@@ -18,10 +18,10 @@ export function renderForCapture(rt: WebgpuPagesRuntime, camera: HostCamera) {
 }
 
 /**
- * Attend que chaque page de la coupe affichée soit résidente, puis la dessine pour la vue de
- * l'image en cours. Aucune caméra n'entre ici : `renderForCapture` vient de faire entrer la sienne
- * par le contrat, et l'encodage ne lit que la caméra du moteur. Les crochets laissent une capture
- * refuser une coupe que le budget ou l'hôte a abandonnée, avant tout envoi et tout tirage.
+ * Waits until every page of the displayed cut is resident, then draws it for the current image's
+ * view. No camera enters here: `renderForCapture` has just entered its own through the contract, and
+ * encode reads only the engine camera. The hooks let a capture refuse a cut the budget or the host
+ * has dropped, before any send and any draw.
  */
 export async function drawResidentCut(
   rt: WebgpuPagesRuntime,
@@ -69,7 +69,7 @@ export async function restoreMainView(
       gpuDevice.queue.submit([encoder.finish()]);
     }
     if (gpu.canvasTexture) gpu.canvasTexture.needsUpdate = true;
-    diag.engineDiagnostic('surface-main-restored', 'Vue principale restaurée', {
+    diag.engineDiagnostic('surface-main-restored', 'Main view restored', {
       width: saved.size[0],
       height: saved.size[1],
     });

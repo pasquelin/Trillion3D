@@ -1,9 +1,9 @@
-//! Le nom sous lequel une lampe se règle depuis l'hôte. Il sort du fichier source et doit rester le
-//! même d'une compilation à l'autre : l'hôte s'en sert pour retrouver la lampe qu'il éteint.
+//! The name under which a light is adjusted from the host. It comes from the source file and must stay the
+//! same from one compilation to another: the host uses it to find the light it turns off.
 use super::*;
 
-/// Un identifiant unique et stable : le nom de la lampe ou du nœud, sinon son rang, et un suffixe
-/// quand deux nœuds portent le même nom. L'hôte s'en sert pour régler ou retirer la lampe.
+/// A unique and stable identifier: the light's or node's name, otherwise its rank, and a suffix
+/// when two nodes bear the same name. The host uses it to adjust or remove the light.
 pub(super) fn unique_id(
     light: &Value,
     node: &Value,

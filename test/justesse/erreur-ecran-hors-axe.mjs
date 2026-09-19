@@ -1,11 +1,12 @@
-// Justesse de l'erreur écran hors axe : un cluster simplifié accepté à tort au seuil 0,4 px.
+// Correctness of off-axis screen error: a simplified cluster wrongly accepted at the 0.4 px
+// threshold.
 //
-// Un triangle fin placé hors axe, centre de vue (8, 0, −10), et son remplaçant grossier : le même
-// triangle déplacé verticalement de ε. ε est choisi pour que l'ancienne formule annonce 0,39 px ;
-// le vrai déplacement écran des sommets est de 0,5 px. Au seuil 0,4 px, la coupe doit donc garder
-// le triangle fin. Le script interroge la vraie coupe CPU (`selectVisiblePages`, à plat et avec un
-// nœud de culling et ses bornes), l'oracle Node du noyau et le noyau WGSL réellement exécuté dans
-// Chromium WebGPU, puis échoue si l'un d'eux retient le grossier.
+// A fine triangle placed off-axis, view centre (8, 0, −10), and its coarse replacement: the same
+// triangle shifted vertically by ε. ε is chosen so the old formula announces 0.39 px; the true
+// screen displacement of the vertices is 0.5 px. At the 0.4 px threshold, the cut must therefore
+// keep the fine triangle. The script queries the real CPU cut (`selectVisiblePages`, flat and
+// with a culling node and its bounds), the kernel's Node oracle and the WGSL kernel actually run
+// in Chromium WebGPU, then fails if any of them keeps the coarse one.
 //
 // node --experimental-strip-types test/justesse/erreur-ecran-hors-axe.mjs
 import assert from 'node:assert/strict';
@@ -30,7 +31,7 @@ const world = new THREE.Matrix4();
 const focal = (VIEWPORT[1] * camera.projectionMatrix.elements[5]) / 2;
 
 const fin = [8, 0, -10, 8.01, 0, -10, 8, 0.01, -10];
-/** Sphère englobante d'une liste de sommets : centre de la boîte, rayon au sommet le plus loin. */
+/** Bounding sphere of a vertex list: box centre, radius to the farthest vertex. */
 function sphereDe(sommets) {
   const box = new THREE.Box3().setFromArray(sommets);
   const c = box.getCenter(new THREE.Vector3());
@@ -39,7 +40,7 @@ function sphereDe(sommets) {
     r = Math.max(r, c.distanceTo(new THREE.Vector3().fromArray(sommets, i)));
   return { sphere: [c.x, c.y, c.z, r], min: box.min.toArray(), max: box.max.toArray() };
 }
-// ε tel que l'ancienne formule, `ε·f / (|C| − r)`, annonce 0,39 px pour la sphère du grossier.
+// ε such that the old formula, `ε·f / (|C| − r)`, announces 0.39 px for the coarse sphere.
 const approche = sphereDe([...fin, 8, 0.006, -10]);
 const [ax, ay, az, ar] = approche.sphere;
 const EPS = (0.39 * (Math.hypot(ax, ay, az) - ar)) / focal;
@@ -47,7 +48,7 @@ const grossier = fin.map((v, i) => (i % 3 === 1 ? v + EPS : v));
 const boiteFin = sphereDe(fin),
   boiteGrossier = sphereDe([...fin, ...grossier]);
 
-/** Déplacement écran réel, en pixels, entre les sommets fins et grossiers. */
+/** True screen displacement, in pixels, between the fine and coarse vertices. */
 function reel() {
   let pire = 0;
   for (let i = 0; i < fin.length; i += 3) {
@@ -77,7 +78,7 @@ const pages = [
   page(0, boiteGrossier, EPS, null, null),
   page(1, boiteFin, 0, EPS, boiteGrossier.sphere),
 ];
-/** Un nœud feuille qui range les deux clusters : boîte, sphère, remplaçant absent (−1). */
+/** A leaf node that stores the two clusters: box, sphere, missing replacement (−1). */
 const nodes = new Float64Array(15);
 nodes.set([...boiteGrossier.min, ...boiteGrossier.max, ...boiteGrossier.sphere, -1, 0, 0, 0, 2]);
 const culling = { nodes, stride: 15 };
@@ -91,12 +92,12 @@ function coupeCpu(avecNoeud) {
   });
   return shown.map((rec) => (rec.id === 0 ? 'grossier' : 'fin'));
 }
-const nom = (ids) => ids.map((i) => (i === 0 ? 'grossier' : 'fin'));
+const name = (ids) => ids.map((i) => (i === 0 ? 'grossier' : 'fin'));
 
 const uniforms = cameraSelectionUniforms(cameraMoteur(camera), SEUIL, VIEWPORT);
 const empaquete = (avecNoeud) =>
-  // Le noyau travaille dans le repère de rendu : les matrices monde empaquetées sont ramenées à
-  // l'œil, comme le moteur les lui porte, sans quoi vue relative et monde absolu se mêleraient.
+  // The kernel works in the render frame: packed world matrices are brought to the eye, as the
+  // engine carries them, otherwise relative view and absolute world would mix.
   packedWorldsToRenderOrigin(
     packDagSelection([{ world, pages, culling: avecNoeud ? culling : undefined }]),
     [{ world }],
@@ -105,12 +106,12 @@ const empaquete = (avecNoeud) =>
 const aPlat = empaquete(false),
   avecNoeud = empaquete(true);
 const gpu = await selectionGpu([
-  { nom: 'aPlat', packed: aPlat, uniforms },
-  { nom: 'avecNoeud', packed: avecNoeud, uniforms },
+  { name: 'aPlat', packed: aPlat, uniforms },
+  { name: 'avecNoeud', packed: avecNoeud, uniforms },
 ]);
 const pagesGpu = (cas) => {
-  const pagesLues = gpu.resultats?.find((r) => r.nom === cas)?.pages;
-  return pagesLues ? nom(pagesLues) : null;
+  const pagesLues = gpu.resultats?.find((r) => r.name === cas)?.pages;
+  return pagesLues ? name(pagesLues) : null;
 };
 const rapport = {
   epsilon: EPS,
@@ -128,8 +129,8 @@ const rapport = {
   seuil: SEUIL,
   cpu: { aPlat: coupeCpu(false), avecNoeud: coupeCpu(true) },
   oracleNoyau: {
-    aPlat: nom(evaluateDagSelectionKernel(aPlat, uniforms).pageIds),
-    avecNoeud: nom(evaluateDagSelectionKernel(avecNoeud, uniforms).pageIds),
+    aPlat: name(evaluateDagSelectionKernel(aPlat, uniforms).pageIds),
+    avecNoeud: name(evaluateDagSelectionKernel(avecNoeud, uniforms).pageIds),
   },
   gpu: {
     adaptateur: gpu.adaptateur ?? null,
@@ -141,14 +142,18 @@ const rapport = {
 };
 console.log(JSON.stringify(rapport, null, 2));
 
-assert.ok(rapport.deplacementReelPixels > SEUIL, 'le cas doit dépasser le seuil pour de vrai');
+assert.ok(rapport.deplacementReelPixels > SEUIL, 'the case must actually exceed the threshold');
 assert.equal(rapport.gpu.indisponible, null);
 assert.deepEqual(rapport.gpu.erreurs, []);
-assert.ok(rapport.annonceCpuPixels >= rapport.deplacementReelPixels, 'CPU : erreur sous-estimée');
-for (const [cote, sorties] of Object.entries({
+assert.ok(rapport.annonceCpuPixels >= rapport.deplacementReelPixels, 'CPU: underestimated error');
+for (const [side, outputs] of Object.entries({
   cpu: rapport.cpu,
   oracleNoyau: rapport.oracleNoyau,
   gpu: rapport.gpu,
 }))
   for (const cas of ['aPlat', 'avecNoeud'])
-    assert.deepEqual(sorties[cas], ['fin'], `${cote} ${cas} : le grossier est accepté à tort`);
+    assert.deepEqual(
+      outputs[cas],
+      ['fin'],
+      `${side} ${cas}: the coarse cluster is wrongly accepted`,
+    );

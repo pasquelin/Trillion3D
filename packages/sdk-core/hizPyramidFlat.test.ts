@@ -1,9 +1,9 @@
-// C2 : la pyramide Hi-Z du chemin par image passe d'un `number[][][]` réalloué à un seul
-// `Float32Array` repris d'une image à l'autre (hizPyramidFlat.ts). La référence est l'implémentation
-// d'avant le lot C, toujours présente et inchangée : `hizBuildPyramid`/`hizFootprintFar` de
-// `hizOracles.ts`, exportées telles quelles pour continuer à servir d'oracle. L'égalité attendue est
-// bit à bit (`Object.is`), sans tolérance : la réduction est un minimum, jamais une
-// opération arithmétique qui pourrait arrondir différemment.
+// C2: per-frame Hi-Z pyramid shifts from a reallocated `number[][][]` to a single
+// `Float32Array` reused from frame to frame (hizPyramidFlat.ts). Reference is the pre-batch C
+// implementation, still present and unchanged: `hizBuildPyramid`/`hizFootprintFar` from
+// `hizOracles.ts`, exported as is to continue serving as oracle. Expected equality is
+// bitwise (`Object.is`), without tolerance: reduction is a minimum, never an
+// arithmetic operation that could round differently.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -15,7 +15,7 @@ import {
   type HizFlat,
 } from './index.ts';
 
-/** Les niveaux imbriqués attendus, comparés valeur par valeur au tampon plat. */
+/** Expected nested levels, compared value by value with the flat buffer. */
 function assertSamePyramid(flat: HizFlat, nested: number[][][], message: string) {
   assert.equal(flat.count, nested.length, `${message} : nombre de niveaux`);
   for (let level = 0; level < flat.count; level++) {
@@ -44,13 +44,13 @@ function rows(depth: Float32Array, width: number, height: number) {
   return out;
 }
 
-test('une image de taille nulle est rejetée, plate comme imbriquée', () => {
+test('a zero-size image is rejected, flat as well as nested', () => {
   assert.throws(() => hizFlatLayout(0, 4), /HIZ_DEPTH_SIZE/);
   assert.throws(() => hizFlatLayout(4, 0), /HIZ_DEPTH_SIZE/);
   assert.throws(() => hizBuildFlat(new Float32Array(0), 0, 0), /HIZ_DEPTH_SIZE/);
 });
 
-test('une image 1×1 ne réduit rien, des deux côtés', () => {
+test('a 1×1 image reduces nothing, on both sides', () => {
   const depth = new Float32Array([0.42]);
   const flat = hizBuildFlat(depth, 1, 1);
   const nested = hizBuildPyramid(rows(depth, 1, 1));
@@ -58,7 +58,7 @@ test('une image 1×1 ne réduit rien, des deux côtés', () => {
   assert.equal(flat.count, 1);
 });
 
-test('des dimensions impaires (33×19) réduisent identiquement', () => {
+test('odd dimensions (33×19) reduce identically', () => {
   const depth = new Float32Array(33 * 19);
   for (let i = 0; i < depth.length; i++) depth[i] = Math.sin(i * 0.37) * 0.5 + 0.5;
   const flat = hizBuildFlat(depth, 33, 19);
@@ -66,7 +66,7 @@ test('des dimensions impaires (33×19) réduisent identiquement', () => {
   assertSamePyramid(flat, nested, '33×19');
 });
 
-test('NaN, Infinity, -Infinity et -0 se propagent à l’identique', () => {
+test('NaN, Infinity, -Infinity and -0 propagate identically', () => {
   const depth = new Float32Array(8 * 8);
   depth.fill(0.3);
   const hostiles = [NaN, Infinity, -Infinity, -0];
@@ -76,7 +76,7 @@ test('NaN, Infinity, -Infinity et -0 se propagent à l’identique', () => {
   assertSamePyramid(flat, nested, 'valeurs hostiles');
 });
 
-test('`into` est repris d’une image à l’autre sans changer le résultat', () => {
+test('`into` is reused from image to image without changing result', () => {
   const first = new Float32Array(4 * 4);
   first.fill(0.1);
   let into = hizBuildFlat(first, 4, 4);
@@ -85,12 +85,12 @@ test('`into` est repris d’une image à l’autre sans changer le résultat', (
   second.fill(0.9);
   second[5] = NaN;
   into = hizBuildFlat(second, 4, 4, into);
-  assert.equal(into.data, buffer, 'même tampon réutilisé');
+  assert.equal(into.data, buffer, 'same buffer reused');
   const nested = hizBuildPyramid(rows(second, 4, 4));
-  assertSamePyramid(into, nested, 'image reprise');
+  assertSamePyramid(into, nested, 'reused frame');
 });
 
-test('hizFootprintFarFlat rend le même verdict que hizFootprintFar, y compris hors champ', () => {
+test('hizFootprintFarFlat yields same verdict as hizFootprintFar, including out of bounds', () => {
   const depth = new Float32Array(33 * 19);
   for (let i = 0; i < depth.length; i++) depth[i] = ((i * 31) % 97) / 97;
   depth[18 * 33 + 32] = 1;

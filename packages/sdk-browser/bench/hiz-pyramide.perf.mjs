@@ -1,4 +1,4 @@
-// la pyramide Hi-Z du chemin par image.
+// the Hi-Z pyramid of the per-frame path.
 import { hizBuildPyramid, hizFootprintFar, hizOccluded } from '../../sdk-core/index.ts';
 import { buildHizPyramid } from '../hizDepth.ts';
 import { hizRejects, hizTestRect, HIZ_TEST_VALUES } from '../hizOcclusion.ts';
@@ -63,10 +63,10 @@ function cas(width, height, pages, seed) {
   return { depth, width, height, bounds, complet: false };
 }
 
-function passeReference(entree) {
-  const pyramid = referenceBuild(entree.depth, entree.width, entree.height);
+function passeReference(input) {
+  const pyramid = referenceBuild(input.depth, input.width, input.height);
   let niveaux = null;
-  if (entree.complet) {
+  if (input.complet) {
     let total = 0;
     for (const level of pyramid.levels) total += level.length * level[0].length;
     niveaux = new Float64Array(total);
@@ -75,48 +75,48 @@ function passeReference(entree) {
       for (let y = 0; y < level.length; y++)
         for (let x = 0; x < level[y].length; x++) niveaux[at++] = level[y][x];
   }
-  const verdicts = new Uint8Array(entree.bounds.length);
-  for (let i = 0; i < entree.bounds.length; i++)
-    verdicts[i] = referenceRejects(pyramid, entree.bounds[i]) ? 1 : 0;
+  const verdicts = new Uint8Array(input.bounds.length);
+  for (let i = 0; i < input.bounds.length; i++)
+    verdicts[i] = referenceRejects(pyramid, input.bounds[i]) ? 1 : 0;
   return { niveaux, verdicts };
 }
 
 const reprise = new Map();
-function passeOptimisee(entree) {
-  const cle = `${entree.width}x${entree.height}`;
+function passeOptimisee(input) {
+  const cle = `${input.width}x${input.height}`;
   const existante = reprise.get(cle);
-  const pyramid = buildHizPyramid(entree.depth, entree.width, entree.height, existante);
+  const pyramid = buildHizPyramid(input.depth, input.width, input.height, existante);
   reprise.set(cle, pyramid);
   let niveaux = null;
-  if (entree.complet) {
+  if (input.complet) {
     let total = 0;
     for (let l = 0; l < pyramid.count; l++) total += pyramid.widths[l] * pyramid.heights[l];
     niveaux = new Float64Array(total);
     for (let i = 0; i < total; i++) niveaux[i] = pyramid.data[i];
   }
-  const verdicts = new Uint8Array(entree.bounds.length);
-  for (let i = 0; i < entree.bounds.length; i++)
-    verdicts[i] = hizRejects(pyramid, entree.bounds[i]) ? 1 : 0;
+  const verdicts = new Uint8Array(input.bounds.length);
+  for (let i = 0; i < input.bounds.length; i++)
+    verdicts[i] = hizRejects(pyramid, input.bounds[i]) ? 1 : 0;
   return { niveaux, verdicts };
 }
 
 const scene = coupe({ pages: 300, triangles: 24, hostile: true, seed: 7 });
-const petite = coupe({ pages: 12, triangles: 16, hostile: true, seed: 53, taille: 0.4 });
+const petite = coupe({ pages: 12, triangles: 16, hostile: true, seed: 53, size: 0.4 });
 const image = cas(1280, 720, scene, 101);
 const impaire = cas(33, 19, petite, 103);
 const unique = cas(1, 1, petite, 107);
-const plein = (entree) => ({ ...entree, complet: true });
+const plein = (input) => ({ ...input, complet: true });
 
 const resHiz = await mesure({
-  nom: 'pyramide Hi-Z',
+  name: 'Hi-Z pyramid',
   fichier: 'packages/sdk-browser/hizDepth.ts',
   cas: [
-    { nom: '1280×720, tous les niveaux', entree: plein(image), taille: 921600, mesure: false },
-    { nom: '33×19, tous les niveaux', entree: plein(impaire), taille: 627, mesure: false },
-    { nom: '1×1, tous les niveaux', entree: plein(unique), taille: 1, mesure: false },
-    { nom: '1280×720, 4 000 rectangles', entree: image, taille: 921600 },
-    { nom: '33×19, tailles impaires', entree: impaire, taille: 627 },
-    { nom: '1×1', entree: unique, taille: 1 },
+    { name: '1280×720, every level', input: plein(image), size: 921600, mesure: false },
+    { name: '33×19, every level', input: plein(impaire), size: 627, mesure: false },
+    { name: '1×1, every level', input: plein(unique), size: 1, mesure: false },
+    { name: '1280×720, 4 000 rectangles', input: image, size: 921600 },
+    { name: '33×19, odd sizes', input: impaire, size: 627 },
+    { name: '1×1', input: unique, size: 1 },
   ],
   calcul: passeOptimisee,
   attendu: passeReference,
@@ -124,9 +124,9 @@ const resHiz = await mesure({
 });
 
 await stress({
-  nom: 'buildHizPyramid extremes',
+  name: 'buildHizPyramid extremes',
   calcul: (e) => buildHizPyramid(e.depth, e.width, e.height),
-  extremes: [{ nom: '1x1', entree: { depth: new Float32Array(1), width: 1, height: 1 } }],
+  extremes: [{ name: '1x1', input: { depth: new Float32Array(1), width: 1, height: 1 } }],
 });
 
-rapport('hiz-pyramide', [resHiz], 'C2 a été mesuré et son écart est décrit');
+rapport('hiz-pyramide', [resHiz], 'C2 was measured and its delta is described');

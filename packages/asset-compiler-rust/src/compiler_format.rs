@@ -11,8 +11,8 @@ pub const CLUSTERED_BLEND_FORMAT_VERSION: u32 = 4;
 /// Format of a prepared source manifest the compiler reads. An input format, not an output one.
 pub const SOURCE_FORMAT_VERSION: u32 = 1;
 
-/// Le format du cache que cette compilation écrit : une seule primitive en BLEND groupé suffit à
-/// demander au lecteur le format extérieur qui le porte.
+/// Cache format this compilation writes: a single clustered BLEND primitive is
+/// enough to ask the reader for the outer format that carries it.
 pub(crate) fn cache_format(primitives: &[Value]) -> u32 {
     match primitives
         .iter()
@@ -23,8 +23,9 @@ pub(crate) fn cache_format(primitives: &[Value]) -> u32 {
     }
 }
 
-/// Ce que cette compilation n'a pas rendu : les limites permanentes du compilateur, la
-/// simplification quand elle n'a pas été demandée, et la raison nommée d'un mode autonome refusé.
+/// What this compilation did not deliver: the compiler's permanent limits,
+/// simplification when it was not requested, and the named reason of a refused
+/// autonomous mode.
 pub(crate) fn unsupported(
     simplification: &str,
     autonomous: Option<&'static str>,

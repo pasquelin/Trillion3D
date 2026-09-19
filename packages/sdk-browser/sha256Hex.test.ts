@@ -1,6 +1,6 @@
-// A14 : `toHex`/`sha256Hex` lisent une table de 256 chaînes hexadécimales déjà écrites au lieu d'un
-// `toString(16).padStart(2, '0')` par octet. Oracle : la version par `toString`, d'avant le lot A,
-// dans `bench/oracles/attributs-telemetrie.mjs`.
+// A14: `toHex`/`sha256Hex` read a table of 256 hexadecimal strings already written instead of a
+// `toString(16).padStart(2, '0')` per byte. Oracle: the `toString` version from before batch A,
+// in `bench/oracles/attributs-telemetrie.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { toHex } from './sha256Hex.ts';

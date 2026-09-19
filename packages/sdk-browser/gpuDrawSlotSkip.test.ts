@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { drawShader } from './gpuDrawShader.ts';
 
-// La compaction indirecte reçoit, par slot, le nombre de lignes que la partition GPU y a comptées
-// (`classifyRows`, gpuPartitionClassifyWgsl.ts). Un slot que ce compte dit vide n'a aucune raison
-// d'être parcouru par le shader : `slotUsed` porte cette information et la garde de chaque passe
-// s'en sert pour sortir avant de parcourir quoi que ce soit pour ce slot.
+// Indirect compact receives, per slot, the row count the GPU partition wrote there
+// (`classifyRows`, gpuPartitionClassifyWgsl.ts). A slot that count says is empty has no reason
+// to be scanned by the shader: `slotUsed` carries that fact, and each pass's guard uses it to
+// return before scanning anything for that slot.
 
 test('drawShader(k) guards both the counting and the prefix pass by slotUsed before they scan anything for that slot', () => {
   for (const k of [1, 2, 3, 5]) {

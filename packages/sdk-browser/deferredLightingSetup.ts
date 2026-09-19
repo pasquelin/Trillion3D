@@ -5,17 +5,17 @@ import { SUN_FAR_PROXY_BINDING } from './sunFarShadowWgsl.ts';
 import { DEPTH_COMPARE } from './depthConvention.ts';
 
 /**
- * Le remplaçant du proxy résident : un entête de zéros et quatre mots derrière lui. La présence y
- * vaut zéro, le nombre de nœuds aussi, donc aucun rayon d'ombre lointaine n'est tiré et la surface
- * lointaine reste éclairée exactement comme avant que ce rayon existe.
+ * Substitute of the resident proxy: a header of zeros and four words behind it. Presence
+ * is zero there, node count too, so no distant-shadow ray is fired and the distant surface
+ * stays lit exactly as before that ray existed.
  */
 const PLACEHOLDER_PROXY_BYTES = PROXY_HEADER_BYTES + 16;
 
 /**
- * Les liaisons de la passe différée. La vue sans éclairage s'arrête aux surfaces et à l'uniforme ;
- * le programme du contrat ajoute les lampes déclarées, leurs listes par tuile, leurs tranches
- * d'ombre et l'atlas ; celui du rebond y ajoute la grille de sondes. Aucun des trois ne lit de
- * lumière écrite dans la scène : il n'y en a plus.
+ * Bindings of the deferred pass. The unlit view stops at the surfaces and the uniform;
+ * the contract program adds the declared lights, their per-tile lists, their shadow slices
+ * and the atlas; the bounce one adds the probe grid. None of the three reads a light written
+ * in the scene: there is none left.
  */
 export function createDeferredLayouts(device: GPUDevice, direct: boolean, bounce = false) {
   const entries: GPUBindGroupLayoutEntry[] = [0, 1, 2, 3, 4].map((binding) => ({
@@ -33,17 +33,17 @@ export function createDeferredLayouts(device: GPUDevice, direct: boolean, bounce
       { binding: 8, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
       { binding: 9, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'depth' } },
       { binding: 10, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'comparison' } },
-      // Le proxy résident de l'ombre lointaine du soleil : une seule liaison, qui porte à la fois
-      // les colonnes qu'un rayon traverse, les réglages de ce rayon et les deux compteurs de
-      // l'image relevée. C'est ce qui permet à la passe de mélange de la lier aussi.
+      // Resident proxy of the sun's distant shadow: a single binding, which carries both
+      // the columns a ray traverses, that ray's settings and the two counters of the
+      // counted frame. That is what lets the blend pass bind it too.
       {
         binding: SUN_FAR_PROXY_BINDING,
         visibility: GPUShaderStage.FRAGMENT,
         buffer: { type: 'storage' },
       },
     );
-  // La grille de sondes et leurs coefficients : liées seulement par le programme du rebond, si
-  // bien qu'une session sans rebond garde exactement la disposition d'avant.
+  // Probe grid and their coefficients: bound only by the bounce program, so a session
+  // without bounce keeps exactly the previous layout.
   if (bounce)
     entries.push(
       { binding: 11, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
@@ -65,12 +65,12 @@ export function createDeferredLayouts(device: GPUDevice, direct: boolean, bounce
 }
 
 /**
- * Les ressources de remplacement du contrat : une liste de tuiles vide, une tranche d'ombre invalide,
- * un atlas d'un texel, et une grille de sondes à zéro. Un appareil qui refuse le vrai atlas garde
- * ainsi des liaisons valides, et la lampe reste simplement sans ombre au lieu de faire échouer
- * l'image ; une image sans rebond lit une grille dont le compte de sondes est nul, donc une
- * irradiance indirecte exactement nulle. La passe de mélange emprunte les mêmes remplaçants : une
- * seule définition de ce que vaut une ressource absente.
+ * Contract substitute resources: an empty tile list, an invalid shadow slice, a one-texel
+ * atlas, and a probe grid at zero. A device that refuses the real atlas thus keeps valid
+ * bindings, and the light simply stays without shadow instead of failing the frame; a frame
+ * without bounce reads a grid whose probe count is zero, hence an indirect irradiance of
+ * exactly zero. The blend pass borrows the same substitutes: one definition of what an
+ * absent resource is worth.
  */
 export function createDeferredPlaceholders(device: GPUDevice) {
   const tiles = device.createBuffer({
@@ -89,17 +89,17 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     format: 'depth32float',
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
   });
-  // La comparaison de l'atlas d'ombres est celle du moteur : profondeur inversée, donc `greater`.
+  // Shadow-atlas comparison is the engine's: reversed depth, hence `greater`.
   const sampler = device.createSampler({
     label: 'WG shadow comparison',
     compare: DEPTH_COMPARE,
     magFilter: 'linear',
     minFilter: 'linear',
   });
-  // Le remplaçant porte la taille de `BounceGrid`, lue là où la structure est écrite : une liaison
-  // plus petite que ce que le nuanceur déclare est refusée par la validation, et l'appareil est
-  // perdu. À zéro, le compte de sondes l'est aussi et `sampleBounce` sort sans lire un coefficient ;
-  // le tampon de sondes tient une sonde entière, pour que sa taille aussi suive la structure.
+  // The substitute carries the size of `BounceGrid`, read where the struct is written: a binding
+  // smaller than what the shader declares is refused by validation, and the device is lost.
+  // At zero, the probe count is too and `sampleBounce` returns without reading a coefficient;
+  // the probe buffer holds a whole probe, so its size also follows the struct.
   const bounceGrid = device.createBuffer({
     label: 'WG empty bounce grid',
     size: BOUNCE_GRID_BYTES,
@@ -110,9 +110,9 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     size: PROBE_FLOATS * 4,
     usage: GPUBufferUsage.STORAGE,
   });
-  // Le proxy absent : un entête de zéros, que le nuanceur lit comme un arbre sans nœud et comme une
-  // ombre lointaine absente. Les deux passes qui éclairent lient le même, si bien qu'une session
-  // sans proxy rend exactement la même image sur l'opaque et sur le mélange.
+  // The absent proxy: a header of zeros, which the shader reads as a tree with no node and as
+  // an absent distant shadow. Both lighting passes bind the same one, so a session without
+  // proxy renders exactly the same image on opaque and on blend.
   const proxy = device.createBuffer({
     label: 'WG empty resident proxy',
     size: PLACEHOLDER_PROXY_BYTES,

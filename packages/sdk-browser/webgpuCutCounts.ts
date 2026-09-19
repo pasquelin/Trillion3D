@@ -4,20 +4,20 @@ import type { CutDelta } from './webgpuCutDelta.ts';
 export type CutCounts = ReturnType<typeof createCutCounts>;
 
 /**
- * Les totaux de triangles du relevé de coupe, tenus d'une image à l'autre au lieu d'être resommés.
+ * Triangle totals of the cut shown list, held from frame to frame instead of being resommed.
  *
- * `selectedTriangles` est la coupe dessinable entière, `uncoveredTriangles` le trou — une grappe que
- * le noyau veut dessiner et dont la ligne de résidence ou les octets manquent —, `drawnTriangles` ce
- * qui reste et part au dessin, `transparentTriangles` la part en mélange. Leur relation reste
- * `selected − drawn − uncovered = 0`, et c'est la seule façon honnête de dire le trou.
+ * `selectedTriangles` is the whole drawable cut, `uncoveredTriangles` the hole — a cluster the
+ * kernel wants to draw whose residency row or bytes are missing —, `drawnTriangles` what remains
+ * and goes to draw, `transparentTriangles` the blend share. Their relation stays
+ * `selected − drawn − uncovered = 0`, and that is the only honest way to state the hole.
  *
- * Ils étaient resommés sur toute la coupe à chaque adoption, y compris quand l'image relisait le
- * relevé qu'elle tenait déjà. Ici ils ne bougent que de ce qui bouge : les pages que la différence
- * nomme, et celles dont la couverture vient de basculer — octets reçus ou perdus, ligne de résidence
- * prise ou rendue. Une image qui n'entre ni ne sort aucune page ne touche pas un compteur.
+ * They used to be resommed over the whole cut at every adoption, including when the frame reread
+ * the shown list it already held. Here they move only by what moves: the pages the difference
+ * names, and those whose coverage just flipped — bytes received or lost, residency row taken or
+ * released. A frame that enters and exits no page touches no counter.
  *
- * L'appartenance n'est pas retenue une seconde fois ici : c'est celle de la différence, qui la tient
- * déjà et à qui ces totaux sont attachés une fois pour toutes.
+ * Membership is not stored a second time here: it is the difference's, which already holds it
+ * and to which these totals are attached once and for all.
  */
 export function createCutCounts(
   packedPages: readonly PageRec[],
@@ -25,7 +25,7 @@ export function createCutCounts(
   delta: CutDelta,
 ) {
   const capacity = Math.max(1, packedPages.length);
-  /** Ce qui a été compté comme trou : ce qui a été ajouté est exactement ce qui sera retiré. */
+  /** What was counted as a hole: what was added is exactly what will be removed. */
   const holed = new Uint8Array(capacity);
   const totals = {
     selectedTriangles: 0,
@@ -39,15 +39,15 @@ export function createCutCounts(
   const publish = () => {
     totals.selectedTriangles = selected;
     totals.uncoveredTriangles = uncovered;
-    // Une soustraction hors boucle, sur deux compteurs déjà tenus.
+    // One subtraction outside the loop, on two counters already held.
     totals.drawnTriangles = selected - uncovered;
     totals.transparentTriangles = transparent;
   };
-  /** Vrai quand la page manque à l'image : pas de ligne de résidence, ou pas d'octets. */
+  /** True when the page is missing from the frame: no residency row, or no bytes. */
   const holes = (id: number, rec: PageRec) => residentOffsetWords[id] < 0 || !rec.array;
   return {
     totals,
-    /** La différence qui vient d'être appliquée : les sorties d'abord, les entrées ensuite. */
+    /** The difference that has just been applied: exits first, entries next. */
     apply() {
       const exits = delta.exited,
         entries = delta.entered;
@@ -74,7 +74,7 @@ export function createCutCounts(
       publish();
       return totals;
     },
-    /** La couverture d'une page vient de bouger ; hors de la coupe, elle ne pèse sur rien. */
+    /** A page's coverage has just moved; outside the cut, it weighs on nothing. */
     touch(id: number) {
       if (!delta.has(id)) return;
       const rec = packedPages[id],

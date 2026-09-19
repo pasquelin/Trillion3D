@@ -1,8 +1,8 @@
-//! Contrat des pilotes de scène : reconnaître une source, en produire la scène intermédiaire.
+//! Scene driver contract: recognize a source, produce the intermediate scene from it.
 //!
-//! La scène intermédiaire est toujours la même chose — un glTF 2.0 et son binaire — que le pilote la
-//! trouve telle quelle sous la source ou qu'il l'écrive dans le cache. Le compilateur ne lit rien
-//! d'autre, et ne sait pas de quel format elle vient.
+//! The intermediate scene is always the same thing — a glTF 2.0 and its binary — whether the
+//! driver finds it as-is under the source or writes it into the cache. The compiler reads
+//! nothing else, and does not know which format it comes from.
 use super::Plugin;
 use crate::{CompilerError, Options, Result};
 use serde_json::{json, Value};
@@ -33,10 +33,10 @@ mod zip;
 
 pub use route::{prepare_source, route, Routed, RoutedSource};
 
-/// Version du contrat des pilotes de scène. La changer impose de relire chaque pilote.
+/// Version of the scene driver contract. Changing it requires rereading every driver.
 pub const VERSION: &str = "scene-plugin-2";
 
-/// Le registre : un pilote par format. Ajouter un format, c'est un module et une ligne ici.
+/// The registry: one driver per format. Adding a format means a module and a line here.
 pub static PLUGINS: &[&dyn ScenePlugin] = &[
     &gltf::GLTF,
     &fbx::FBX,
@@ -51,27 +51,28 @@ pub static PLUGINS: &[&dyn ScenePlugin] = &[
     &ma::MA,
 ];
 
-/// Tout ce qu'un pilote reçoit pour préparer une scène.
+/// Everything a driver receives to prepare a scene.
 pub struct SceneRequest<'a> {
-    /// Le chemin donné au compilateur : un fichier ou un dossier.
+    /// Path given to the compiler: a file or a directory.
     pub source: &'a Path,
-    /// Les fichiers que ce pilote revendique, triés. Une source fichier n'en porte qu'un.
+    /// Files this driver claims, sorted. A file source carries only one.
     pub inputs: &'a [PathBuf],
-    /// Le cache où écrire une scène convertie. Rien n'est jamais écrit à côté de la source.
+    /// Cache where a converted scene is written. Nothing is ever written beside the source.
     pub cache: &'a Path,
-    /// Annulation à vérifier à chaque frontière de travail bornée.
+    /// Cancellation to check at every bounded-work boundary.
     pub cancelled: &'a AtomicBool,
-    /// Rapport d'avancement nommé : un pilote publie ses étapes sous sa propre `phase`.
+    /// Named progress report: a driver publishes its steps under its own `phase`.
     pub progress: &'a (dyn Fn(Value) + Sync),
 }
 
-/// Le dossier contre lequel les URI relatives d'images d'une source se résolvent : la source
-/// elle-même quand c'est un dossier, le dossier qui la porte quand c'est un fichier.
+/// Directory against which relative image URIs of a source resolve: the source itself when it
+/// is a directory, the directory that carries it when it is a file.
 ///
-/// C'est la seule règle du dépôt sur ce point, et elle vaut des deux côtés : un pilote y trouve les
-/// octets des images qu'il référence et en tire des URI relatives à cette racine, le compilateur y
-/// relit ces mêmes octets pour en calculer les aperçus. Un pilote qui écrit sa scène intermédiaire
-/// ailleurs — dans le cache — n'y déplace pas ses images : la scène convertie emporte donc sa racine.
+/// That is the repository's only rule on this point, and it holds on both sides: a driver
+/// finds there the bytes of the images it references and derives from them URIs relative to
+/// this root, the compiler rereads those same bytes there to compute the previews. A driver
+/// that writes its intermediate scene elsewhere — in the cache — does not move its images
+/// there: the converted scene therefore carries its root with it.
 pub fn image_root(source: &Path) -> PathBuf {
     if !source.is_file() {
         return source.to_path_buf();
@@ -82,14 +83,14 @@ pub fn image_root(source: &Path) -> PathBuf {
         .map_or_else(|| PathBuf::from("."), Path::to_path_buf)
 }
 
-/// Des tables glTF en construction, telles que `finish` les écrit : leurs nœuds, ce que le rapport
-/// publie en clair, la clé de cache de la conversion, et l'écriture elle-même.
+/// glTF tables under construction, as `finish` writes them: their nodes, what the report
+/// publishes in the clear, the conversion's cache key, and the write itself.
 pub(crate) trait SceneOutput {
     fn nodes(&self) -> &[Value];
     fn counts(&self) -> &BTreeMap<&'static str, usize>;
-    /// La clé de cache : l'empreinte du pilote, de sa version et de tout ce qu'il a lu.
+    /// Cache key: fingerprint of the driver, of its version and of everything it has read.
     fn key(&self) -> String;
-    /// Écrit la scène dans `directory` et rend ce dossier.
+    /// Writes the scene into `directory` and returns that folder.
     fn write(
         self,
         plugin: &dyn ScenePlugin,
@@ -99,9 +100,9 @@ pub(crate) trait SceneOutput {
     ) -> Result<PathBuf>;
 }
 
-/// La fin commune des pilotes qui remplissent eux-mêmes leurs tables : une conversion annulée ou
-/// sans surface est refusée par son nom avant d'écrire quoi que ce soit ; sinon la scène part dans
-/// le cache à sa clé, et l'avancement publie ses comptes une fois le dossier écrit.
+/// Common end of the drivers that fill their tables themselves: a cancelled conversion or one
+/// without a surface is refused by name before writing anything; otherwise the scene goes
+/// into the cache at its key, and progress publishes its counts once the folder is written.
 fn finish(
     scene: impl SceneOutput,
     request: &SceneRequest<'_>,
@@ -130,27 +131,27 @@ fn finish(
     Ok(written)
 }
 
-/// La scène intermédiaire, prête à charger.
+/// The intermediate scene, ready to load.
 pub enum PreparedScene {
-    /// La source portait déjà `manifest.json` : elle est la scène intermédiaire, aucun pilote.
+    /// The source already carried `manifest.json`: it is the intermediate scene, no driver.
     Manifest,
-    /// Le fichier glTF nommé se lit tel quel sous la source : le pilote n'a rien converti.
+    /// The named glTF file is read as-is under the source: the driver converted nothing.
     InPlace(String),
-    /// Le pilote a écrit `model.gltf`, `model.bin` et leur manifeste dans `directory`, sous le
-    /// cache. `images` reste la racine où ses URI d'images se résolvent, qui n'a pas bougé.
+    /// The driver wrote `model.gltf`, `model.bin` and their manifest into `directory`, under
+    /// the cache. `images` remains the root where its image URIs resolve, which has not moved.
     Converted { directory: PathBuf, images: PathBuf },
 }
 
 impl PreparedScene {
-    /// Une scène écrite dans `directory`, dont les URI d'images se résolvent sous `images`.
+    /// A scene written into `directory`, whose image URIs resolve under `images`.
     pub fn converted(directory: PathBuf, images: &Path) -> Self {
         Self::Converted {
             directory,
             images: images.to_path_buf(),
         }
     }
-    /// La racine de résolution des images de cette scène. `source` est le chemin donné au
-    /// compilateur, dont une scène non convertie ne s'écarte jamais.
+    /// Image-resolution root of this scene. `source` is the path given to the compiler, which
+    /// an unconverted scene never leaves.
     pub fn images(&self, source: &Path) -> PathBuf {
         match self {
             Self::Converted { images, .. } => images.clone(),
@@ -159,17 +160,17 @@ impl PreparedScene {
     }
 }
 
-/// Un pilote de scène. Les erreurs sortent en `CompilerError` avec un code, jamais en panique ;
-/// ce qui n'est pas interprétable est une entrée de rapport nommée, pas un échec silencieux.
+/// A scene driver. Errors come out as `CompilerError` with a code, never as a panic;
+/// what is not interpretable is a named report entry, not a silent failure.
 pub trait ScenePlugin: Plugin + Sync {
-    /// Reconnaît une source à ses premiers octets, pour un fichier dont l'extension ne dit rien.
-    /// Un format texte, sans entête, rend `false` : seule son extension le désigne.
+    /// Recognizes a source from its first bytes, for a file whose extension says nothing.
+    /// A text format, with no header, returns `false`: only its extension names it.
     fn accepts_head(&self, head: &[u8]) -> bool;
-    /// Produit la scène intermédiaire à partir des fichiers revendiqués.
+    /// Produces the intermediate scene from the claimed files.
     fn prepare(&self, request: &SceneRequest<'_>) -> Result<PreparedScene>;
-    /// Les entrées d'un dossier que ce pilote revendique comme **projet** : un arbre entier dont il
-    /// est la source, et dont les fichiers trouvés dessous ne sont que des entrées. Un pilote de
-    /// fichiers, le cas ordinaire, rend `None` et laisse le routeur regarder les fichiers.
+    /// Entries of a directory that this driver claims as a **project**: a whole tree of which
+    /// it is the source, and whose files found underneath are only entries. A file driver,
+    /// the ordinary case, returns `None` and lets the router look at the files.
     fn project_inputs(&self, _directory: &Path) -> Option<Vec<PathBuf>> {
         None
     }
@@ -189,8 +190,8 @@ impl<'a> SceneRequest<'a> {
             progress,
         }
     }
-    /// La scène que ce pilote vient d'écrire dans `directory`, avec la racine où les URI d'images
-    /// qu'il y a inscrites se résolvent : celle de la source qu'il a lue, pas celle du cache.
+    /// Scene this driver has just written into `directory`, with the root where the image
+    /// URIs it inscribed there resolve: that of the source it read, not that of the cache.
     pub fn converted(&self, directory: PathBuf) -> PreparedScene {
         PreparedScene::converted(directory, &image_root(self.source))
     }

@@ -2,26 +2,25 @@ import * as THREE from 'three';
 import type { VisMaterial } from './visibilityTypes.ts';
 
 /**
- * Le mode d'adressage d'une carte, un quartet de bits par carte, six cartes dans un seul mot, et la
- * règle qui ramène une coordonnée dans la texture. Le mot et la règle qu'il commande vivent
- * ensemble : personne n'a à ouvrir deux fichiers pour lire un adressage.
+ * Addressing mode of a map, a nibble of bits per map, six maps in a single word, and the rule that
+ * brings a coordinate back into the texture. The word and the rule it commands live together:
+ * nobody has to open two files to read an addressing.
  *
- * Un matériau ne règle pas ses cartes ensemble : la couleur peut se répéter là où les normales se
- * serrent, et le miroir ne porter que sur l'occlusion. Un mode par matériau adressait donc cinq
- * cartes sur six dans le mode d'une autre — c'est ce que ce mot corrige. Les bits d'un quartet :
- * 1 = S se répète, 2 = S se répète en miroir, 4 et 8 les mêmes sur T. Les deux bits d'un axe
- * s'excluent, donc `wrapAxis` n'a jamais à arbitrer entre eux, et aucun bit ne dit « serrage » :
- * c'est le quartet nul.
+ * A material does not set its maps together: colour may repeat where normals clamp, and the
+ * mirror may only apply to occlusion. A per-material mode therefore addressed five maps out of
+ * six in another map's mode — that is what this word corrects. Bits of a nibble: 1 = S repeats,
+ * 2 = S repeats mirrored, 4 and 8 the same on T. The two bits of an axis exclude each other, so
+ * `wrapAxis` never has to arbitrate between them, and no bit says "clamp": that is the zero nibble.
  */
 export const WRAP_S_REPEAT = 1,
   WRAP_S_MIRROR = 2,
   WRAP_T_REPEAT = 4,
   WRAP_T_MIRROR = 8;
 
-/** Les deux bits de répétition : sans eux, aucune période ne reboucle, donc aucune couture. */
+/** The two repeat bits: without them, no period wraps, so no seam. */
 const WRAP_REPEATS = WRAP_S_REPEAT | WRAP_T_REPEAT;
 
-/** Rang de chaque carte dans le mot : quatre bits chacune, vingt-quatre bits employés sur trente-deux. */
+/** Rank of each map in the word: four bits each, twenty-four bits used out of thirty-two. */
 export const WRAP_MAP = {
   base: 0,
   rough: 1,
@@ -32,8 +31,8 @@ export const WRAP_MAP = {
 } as const;
 
 /**
- * La carte de `VisMaterial` que chaque rang du mot décrit. Un rang ajouté à `WRAP_MAP` sans sa
- * source ne compile pas : sinon la carte nouvelle adresserait en serrage sans que rien ne le dise.
+ * The `VisMaterial` map each rank of the word describes. A rank added to `WRAP_MAP` without its
+ * source does not compile: otherwise the new map would address in clamp without anything saying so.
  */
 const WRAP_SOURCE = {
   base: 'map',
@@ -44,7 +43,7 @@ const WRAP_SOURCE = {
   emissive: 'emissiveMap',
 } as const satisfies Record<keyof typeof WRAP_MAP, keyof VisMaterial>;
 
-/** Le quartet d'une carte : aucun bit en serrage, un bit par axe sinon, jamais les deux du même axe. */
+/** Nibble of a map: no bit when clamping, one bit per axis otherwise, never both of the same axis. */
 export function wrapNibble(map: THREE.Texture | undefined) {
   if (!map) return 0;
   const axis = (wrap: THREE.Wrapping, repeat: number, mirror: number) =>
@@ -58,16 +57,16 @@ export function wrapNibble(map: THREE.Texture | undefined) {
   );
 }
 
-/** Les couples nom/rang de `WRAP_MAP`, lus une fois : le mot d'un matériau est écrit par ligne de
- *  page, et `Object.entries` en rendait un tableau neuf à chacune. */
+/** Name/rank pairs of `WRAP_MAP`, read once: a material's word is written per page row, and
+ *  `Object.entries` used to yield a fresh array at each. */
 const WRAP_ENTRIES = Object.entries(WRAP_MAP) as [keyof typeof WRAP_MAP, number][];
 
 /**
- * Le mot d'adressage d'un matériau : le quartet de chacune de ses cartes à son rang. Écrit par
- * `webgpuPageRow.ts` dans la fiche de page et par `webgpuBlendPrepare.ts` dans l'uniforme d'un lot
- * transparent — une page et un lot transparent portant des mots différents adresseraient les mêmes
- * textures de deux façons. Les rangs viennent de `WRAP_MAP` même, jamais d'une seconde liste écrite
- * à la main, qui laisserait passer une carte de plus en silence.
+ * Addressing word of a material: the nibble of each of its maps at its rank. Written by
+ * `webgpuPageRow.ts` into the page record and by `webgpuBlendPrepare.ts` into a transparent batch
+ * uniform — a page and a transparent batch carrying different words would address the same
+ * textures two ways. Ranks come from `WRAP_MAP` itself, never from a second list written by hand,
+ * which would let an extra map through in silence.
  */
 export function wrapModes(mat: VisMaterial) {
   let mot = 0;
@@ -75,30 +74,30 @@ export function wrapModes(mat: VisMaterial) {
   return mot;
 }
 
-/** Miroir processeur de `wrapOf` (WGSL) : le quartet de la carte `map` dans le mot. */
+/** CPU mirror of `wrapOf` (WGSL): the nibble of map `map` in the word. */
 export const wrapOf = (modes: number, map: number) => (modes >>> (4 * map)) & 15;
 
-/** `wrapOf` tel que le nuanceur le lit, déclaré une fois avec la règle d'adressage qui l'emploie. */
+/** `wrapOf` as the shader reads it, declared once with the addressing rule that uses it. */
 const WRAP_OF_WGSL = `fn wrapOf(modes:u32,map:u32)->u32{return (modes>>(map*4u))&15u;}`;
 
 /**
- * La coordonnée de texture ramenée dans [0, 1] selon le mode de chaque axe, pour un échantillonneur
- * en serrage. Le miroir lit les périodes impaires à rebours : `p` parcourt [0, 2) et `2 - p` est
- * exact, donc le filtrage linéaire rend la couleur de l'échantillonneur `mirror-repeat` de Three.
+ * Texture coordinate brought back into [0, 1] according to each axis's mode, for a clamp sampler.
+ * Mirror reads odd periods backwards: `p` walks [0, 2) and `2 - p` is exact, so linear filtering
+ * yields the colour of Three's `mirror-repeat` sampler.
  *
- * `wrapUv` reçoit le quartet de la carte lue, pas les drapeaux du matériau : la couleur d'une page
- * peut se répéter là où ses normales se serrent.
+ * `wrapUv` receives the nibble of the map being read, not the material flags: a page's colour may
+ * repeat where its normals clamp.
  *
- * Replier la coordonnée suffit au plus proche et au miroir, jamais à la répétition en filtrage
- * linéaire : dans le demi-texel des deux bords d'une période, la règle de l'échantillonneur mêle le
- * dernier texel et le premier, que le repli sépare. `wrapUv` rend donc les deux prises et leur
- * poids — `proche` seule hors couture, puis `loin` et `poids` sur la couture, où l'appelant mêle
- * lui-même les quatre lectures. `proche` reste le texel que le repli désignait, donc une lecture au
- * plus proche ne bouge pas ; les deux prises tombent au centre exact d'un texel de bord, si bien que
- * la lecture ne dépend plus de l'interpolation de la carte mais du mélange que l'appelant écrit.
+ * Folding the coordinate is enough for nearest and mirror, never for repeat under linear
+ * filtering: in the half-texel of both edges of a period, the sampler's rule mixes the last texel
+ * and the first, which the fold separates. `wrapUv` therefore yields both taps and their weight —
+ * `proche` alone off a seam, then `loin` and `poids` on the seam, where the caller mixes the four
+ * reads itself. `proche` remains the texel the fold named, so a nearest read does not move; both
+ * taps land at the exact centre of an edge texel, so the read no longer depends on the GPU's
+ * interpolation but on the mix the caller writes.
  *
- * Sans bit de répétition, aucune période ne reboucle et la couture ne peut pas être vraie :
- * `wrapReplie` rend alors la coordonnée seule, et l'appelant s'épargne de compter les texels.
+ * With no repeat bit, no period wraps and the seam cannot be true: `wrapReplie` then yields the
+ * coordinate alone, and the caller is spared counting texels.
  */
 export const WRAP_COORD_WGSL = `${WRAP_OF_WGSL}
 fn wrapCoord(t:f32,repeat:bool,mirror:bool)->f32{
@@ -110,12 +109,11 @@ fn wrapRepete(wrap:u32)->bool{return (wrap&${WRAP_REPEATS}u)!=0u;}
 fn wrapReplie(uv:vec2f,wrap:u32)->vec2f{
  return vec2f(wrapCoord(uv.x,false,(wrap&${WRAP_S_MIRROR}u)!=0u),wrapCoord(uv.y,false,(wrap&${WRAP_T_MIRROR}u)!=0u));
 }
-// Limite connue, non corrigée : le demi-texel est pris sur textureDimensions(maps_i,0), la période
-// du niveau 0, alors que textureSampleGrad lit le niveau que le gradient choisit. Sous
-// minification, la couture d'un niveau de mip lit donc encore le bord serré ; seule la
-// magnification est corrigée. La lever ne se fait pas ici : il faut que le compilateur d'atlas pose,
-// par niveau, une gouttière de texels de bord répliqués, pour que l'échantillonneur rende lui-même
-// la couleur de la couture à tous les niveaux.
+// Known, uncorrected limit: the half-texel is taken on textureDimensions(maps_i,0), the period
+// of level 0, while textureSampleGrad reads the level the gradient chooses. Under minification,
+// a mip level's seam therefore still reads the clamped edge; only magnification is corrected.
+// Lifting it is not done here: the atlas compiler must lay, per level, a gutter of replicated
+// edge texels, so the sampler itself yields the seam colour at every level.
 fn wrapAxis(t:f32,repeat:bool,mirror:bool,texels:f32)->vec4f{
  let c=wrapCoord(t,repeat,mirror);
  let demi=0.5/texels;
@@ -130,12 +128,12 @@ fn wrapUv(uv:vec2f,wrap:u32,texels:vec2f)->WrapTaps{
 }`;
 
 /**
- * Miroir processeur de `wrapAxis`, juste au-dessus : les deux texels qu'un filtrage linéaire mêle
- * sur un axe de `size` texels, le plus proche d'abord, et le poids du second. Hors de la couture
- * d'une période, ce sont les voisins que l'échantillonneur en serrage donne déjà, bornés comme il
- * les borne ; sur la couture en répétition, la règle de l'échantillonneur mêle le dernier texel et
- * le premier, que le repli de la coordonnée sépare — les prises rebouclent alors la période.
- * Deux langages, une règle : le texte de nuanceur ne se partage pas avec TypeScript.
+ * CPU mirror of `wrapAxis`, just above: the two texels a linear filter mixes on an axis of `size`
+ * texels, the nearest first, and the weight of the second. Off a period's seam, they are the
+ * neighbours the clamp sampler already gives, bounded as it bounds them; on a repeating seam, the
+ * sampler's rule mixes the last texel and the first, which folding the coordinate separates —
+ * the taps then wrap the period. Two languages, one rule: the shader text is not shared with
+ * TypeScript.
  */
 export function wrapLinear(
   t: number,

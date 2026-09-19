@@ -1,19 +1,19 @@
-//! La matrice monde d'un objet Blender.
+//! The world matrix of a Blender object.
 //!
-//! Depuis Blender 4, la matrice d'un objet n'est plus écrite dans le fichier : elle est recalculée à
-//! l'ouverture depuis la position, la rotation et l'échelle, leurs valeurs différées, et la chaîne
-//! des pères. Ce pilote refait ce calcul — et, quand un fichier plus ancien écrit bien sa matrice,
-//! il la prend telle quelle, le SDNA disant lequel des deux cas s'applique.
+//! Since Blender 4, an object's matrix is no longer written in the file: it is recomputed at
+//! open time from position, rotation and scale, their deferred values, and the parent chain.
+//! This driver repeats that computation — and, when an older file does write its matrix, it
+//! takes it as-is, the SDNA saying which of the two cases applies.
 //!
-//! Composition, dans l'ordre : l'échelle, puis la rotation, puis la translation ; puis, s'il y a un
-//! père, sa matrice monde et la matrice inverse que l'objet a retenue au moment de l'accrochage.
-//! Les matrices sont écrites colonne par colonne, comme Blender les range et comme le glTF les
-//! attend : aucune transposition n'est faite nulle part.
+//! Composition, in order: scale, then rotation, then translation; then, if there is a parent,
+//! its world matrix and the inverse matrix the object kept at parenting time. Matrices are
+//! written column by column, as Blender stores them and as glTF expects them: no transpose is
+//! done anywhere.
 use super::*;
 
-/// Le type d'objet qui porte un maillage.
+/// The object type that holds a mesh.
 pub(super) const OB_MESH: i64 = 1;
-/// Modes de rotation : quaternion, six ordres d'angles d'Euler, et axe-angle.
+/// Rotation modes: quaternion, six Euler-angle orders, and axis-angle.
 const QUATERNION: i64 = 0;
 const AXIS_ANGLE: i64 = -1;
 const ORDERS: [[usize; 3]; 6] = [
@@ -24,7 +24,7 @@ const ORDERS: [[usize; 3]; 6] = [
     [2, 0, 1],
     [2, 1, 0],
 ];
-/// Profondeur maximale d'une chaîne de pères, cycle compris.
+/// Maximum depth of a parent chain, cycle included.
 const MAX_DEPTH: usize = 64;
 
 pub(super) type Matrix = [f32; 16];
@@ -33,7 +33,7 @@ const IDENTITY: Matrix = [
     1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
 ];
 
-/// La matrice monde d'un objet, en repère Blender.
+/// The world matrix of an object, in Blender space.
 pub(super) fn world(object: &At<'_>, depth: usize) -> Matrix {
     for written in ["obmat", "object_to_world"] {
         if object.has(written) {
@@ -51,7 +51,7 @@ pub(super) fn world(object: &At<'_>, depth: usize) -> Matrix {
     multiply(&multiply(&world(&parent, depth + 1), &inverse), &local)
 }
 
-/// La matrice locale : échelle, rotation, translation, dans cet ordre.
+/// The local matrix: scale, rotation, translation, in that order.
 fn local(object: &At<'_>) -> Matrix {
     let scale = triple(object, "size", 1.0);
     let delta = if object.has("dscale") {
@@ -68,7 +68,7 @@ fn local(object: &At<'_>) -> Matrix {
     matrix
 }
 
-/// La rotation d'un objet, selon le mode qu'il déclare, différée comprise.
+/// An object's rotation, according to the mode it declares, deferred included.
 fn rotation(object: &At<'_>) -> Matrix {
     let mode = object.int("rotmode", QUATERNION);
     let own = match mode {
@@ -90,7 +90,7 @@ fn rotation(object: &At<'_>) -> Matrix {
     multiply(&differed, &own)
 }
 
-/// Les angles d'Euler d'un ordre donné : chaque axe tourne à son tour, le premier nommé d'abord.
+/// Euler angles of a given order: each axis turns in turn, the first named first.
 fn euler(angles: &[f32; 3], mode: i64) -> Matrix {
     let order = ORDERS[usize::try_from(mode - 1).unwrap_or(0).min(5)];
     let mut matrix = IDENTITY;
@@ -100,7 +100,7 @@ fn euler(angles: &[f32; 3], mode: i64) -> Matrix {
     matrix
 }
 
-/// La rotation d'un angle autour d'un axe du repère.
+/// Rotation of an angle around a space axis.
 fn turn(axis: usize, angle: f32) -> Matrix {
     let (sin, cos) = angle.sin_cos();
     let mut matrix = IDENTITY;
@@ -112,7 +112,7 @@ fn turn(axis: usize, angle: f32) -> Matrix {
     matrix
 }
 
-/// La rotation d'un quaternion écrit (w, x, y, z), comme Blender le range.
+/// Rotation of a quaternion written (w, x, y, z), as Blender stores it.
 fn quaternion(value: &[f32; 4]) -> Matrix {
     let (w, x, y, z) = (value[0], value[1], value[2], value[3]);
     let length = (w * w + x * x + y * y + z * z).sqrt();
@@ -133,7 +133,7 @@ fn quaternion(value: &[f32; 4]) -> Matrix {
     matrix
 }
 
-/// La rotation d'un angle autour d'un axe quelconque.
+/// Rotation of an angle around an arbitrary axis.
 fn axis_angle(axis: &[f32; 3], angle: f32) -> Matrix {
     let length = (axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]).sqrt();
     if !length.is_finite() || length == 0.0 {
@@ -157,7 +157,7 @@ fn scaling(scale: &[f32; 3], delta: &[f32; 3]) -> Matrix {
     matrix
 }
 
-/// Le produit de deux matrices, la première appliquée après la seconde.
+/// The product of two matrices, the first applied after the second.
 fn multiply(left: &Matrix, right: &Matrix) -> Matrix {
     let mut out = [0.0f32; 16];
     for column in 0..4 {
@@ -170,7 +170,7 @@ fn multiply(left: &Matrix, right: &Matrix) -> Matrix {
     out
 }
 
-/// Une matrice écrite en place dans un champ de seize flottants.
+/// A matrix written in place in a field of sixteen floats.
 fn square(object: &At<'_>, name: &str) -> Matrix {
     let values = object.floats(name);
     let mut matrix = IDENTITY;

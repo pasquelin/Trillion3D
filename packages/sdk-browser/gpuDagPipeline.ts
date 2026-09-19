@@ -35,9 +35,9 @@ export async function createDagPipeline(device: GPUDevice, buffers: DagBuffers) 
       { binding: 8, visibility: GPUShaderStage.COMPUTE, buffer: readOnly },
     ],
   });
-  // La variante d'erreur écran est figée à la compilation du nuanceur : elle ne change plus de
-  // l'ouverture de la session à sa fermeture, et le texte par défaut est rendu caractère pour
-  // caractère (`withScreenErrorVariant`).
+  // The screen-error variant is frozen at shader compile: it no longer changes from
+  // session open to session close, and the default text is rendered character for
+  // character (`withScreenErrorVariant`).
   const module = device.createShaderModule({
     code: withScreenErrorVariant(DAG_SELECTION_SHADER, screenErrorVariant()),
   });
@@ -70,8 +70,8 @@ export async function createDagPipeline(device: GPUDevice, buffers: DagBuffers) 
     ],
   });
   return {
-    /** La disposition de liaison, rendue avec les étapes : le banc des lancements monte la coupe
-     *  d'avant sur EXACTEMENT celle-ci, au lieu d'en retaper une quatrième copie. */
+    /** Bind layout, returned with the stages: the dispatch bench mounts the previous
+     *  cut on EXACTLY this one, instead of retyping a fourth copy. */
     layout,
     preparePipeline,
     clearDrawnPipeline,

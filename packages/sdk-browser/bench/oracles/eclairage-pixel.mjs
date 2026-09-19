@@ -1,6 +1,6 @@
-// Oracle du point G3 : `visibilityLighting.ts` avant le lot G, recopié tel quel. Les constantes de
-// l'éclairage hémisphérique — direction du soleil, longueur, couleur du sol, couleur du ciel — y sont
-// recalculées et réallouées à chaque pixel, et les canaux passent par des tableaux temporaires.
+// Oracle for point G3: `visibilityLighting.ts` before batch G, copied as-is. Hemispheric
+// lighting constants — sun direction, length, ground colour, sky colour — are recomputed
+// and reallocated every pixel, and channels go through temporary arrays.
 import * as THREE from 'three';
 import { attr2, sampleLinear, sampleMap } from '../../visibilityMath.ts';
 

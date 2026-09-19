@@ -1,5 +1,5 @@
-// Comparaison bit à bit récursive de deux structures de données arbitraires.
-// `Object.is` sépare -0 de +0 et identifie NaN. Vérifie TypedArray, Array, Set, Map, Object.
+// Recursive bitwise comparison of arbitrary data structures.
+// `Object.is` separates -0 from +0 and identifies NaN. Checks TypedArray, Array, Set, Map, Object.
 const TYPES = [
   Float64Array,
   Float32Array,
@@ -11,15 +11,15 @@ const TYPES = [
   Uint8Array,
 ];
 
-/** Sans `some` : ce test est sur le chemin chaud, une fermeture par nœud visité coûterait plus. */
+/** Without `some`: this test is on the hot path, a closure per visited node would cost more. */
 export function estTypedArray(v) {
   for (let i = 0; i < TYPES.length; i++) if (v instanceof TYPES[i]) return true;
   return false;
 }
 
 /**
- * Les clés de deux objets, dans le même ordre, ou `null` si elles diffèrent. Les chaînes ne sont
- * jointes que dans la branche de divergence : en régime nominal ce test ne construit rien.
+ * Keys of two objects, in the same order, or `null` if they differ. Strings are
+ * joined only on the divergence branch: in nominal execution this test constructs nothing.
  */
 export function memesCles(a, b) {
   const clesA = Object.keys(a).sort(),
@@ -32,7 +32,7 @@ export function memesCles(a, b) {
 export const differenceDeCles = (a, b) =>
   `champs ${Object.keys(a).sort().join(',')} ≠ ${Object.keys(b).sort().join(',')}`;
 
-/** Premier écart bit à bit entre deux valeurs, ou `null` si strictement identiques. */
+/** First bitwise discrepancy between two values, or `null` if strictly identical. */
 export function ecart(a, b, chemin = '', profondeur = 0) {
   if (profondeur > 8) throw new Error('ECART_PROFONDEUR_MAX');
   if (Object.is(a, b)) return null;
@@ -43,14 +43,14 @@ export function ecart(a, b, chemin = '', profondeur = 0) {
   if (estTypedArray(a) || estTypedArray(b)) {
     if (a.constructor !== b.constructor)
       return `${chemin}: ${a.constructor?.name} ≠ ${b.constructor?.name}`;
-    if (a.length !== b.length) return `${chemin}: longueur ${a.length} ≠ ${b.length}`;
+    if (a.length !== b.length) return `${chemin}: length ${a.length} ≠ ${b.length}`;
     for (let i = 0; i < a.length; i++)
       if (!Object.is(a[i], b[i])) return `${chemin}[${i}]: ${a[i]} ≠ ${b[i]}`;
     return null;
   }
   if (Array.isArray(a) || Array.isArray(b)) {
-    if (!Array.isArray(a) || !Array.isArray(b)) return `${chemin}: tableau attendu des deux côtés`;
-    if (a.length !== b.length) return `${chemin}: longueur ${a.length} ≠ ${b.length}`;
+    if (!Array.isArray(a) || !Array.isArray(b)) return `${chemin}: array expected on both sides`;
+    if (a.length !== b.length) return `${chemin}: length ${a.length} ≠ ${b.length}`;
     for (let i = 0; i < a.length; i++) {
       const e = ecart(a[i], b[i], `${chemin}[${i}]`, profondeur + 1);
       if (e) return e;
@@ -58,11 +58,11 @@ export function ecart(a, b, chemin = '', profondeur = 0) {
     return null;
   }
   if (a instanceof Set || b instanceof Set) {
-    if (!(a instanceof Set) || !(b instanceof Set)) return `${chemin}: Set attendu des deux côtés`;
+    if (!(a instanceof Set) || !(b instanceof Set)) return `${chemin}: Set expected on both sides`;
     return ecart([...a], [...b], `${chemin}(Set)`, profondeur + 1);
   }
   if (a instanceof Map || b instanceof Map) {
-    if (!(a instanceof Map) || !(b instanceof Map)) return `${chemin}: Map attendu des deux côtés`;
+    if (!(a instanceof Map) || !(b instanceof Map)) return `${chemin}: Map expected on both sides`;
     return ecart([...a], [...b], `${chemin}(Map)`, profondeur + 1);
   }
   const cles = memesCles(a, b);

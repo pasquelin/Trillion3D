@@ -10,12 +10,12 @@ export type GpuPassBlockTotals = {
 };
 
 /**
- * La durée carte graphique de chaque bloc d'un relevé (`stageMapping.ts` dit lequel est lequel).
+ * GPU duration of each block in a sample (`stageMapping.ts` says which is which).
  *
- * `null` partout pour un relevé absent ou tronqué, et `null` pour un bloc dont une passe n'a pas de
- * durée utilisable : une somme partielle passerait pour une mesure. `null` aussi pour un bloc que
- * l'image n'a pas eu — un zéro se lirait comme « mesuré à zéro ». La somme des trois blocs vaut
- * `totalMs` du relevé quand les trois sont mesurés, et ne s'ajoute jamais à une durée processeur.
+ * `null` everywhere for a missing or truncated sample, and `null` for a block whose pass has no
+ * usable duration: a partial sum would pass for a measurement. `null` also for a block the frame
+ * never ran — a zero would read as "measured at zero". The three blocks sum to the sample's
+ * `totalMs` when all three are measured, and are never added to a CPU duration.
  */
 export function gpuPassBlockTotals(sample: GpuPassTimings | null | undefined): GpuPassBlockTotals {
   const totals = gpuTotalsBy(sample, gpuPassBlockOf);

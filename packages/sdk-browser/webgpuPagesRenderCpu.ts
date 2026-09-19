@@ -94,12 +94,12 @@ export function renderCpuCut(
     { bootstrapUrls, slots, viewport } = rt.setup,
     gpuDevice = rt.setup.gpuDevice!,
     cache = gpu.cache!;
-  // La coupe processeur réécrit les listes elle-même : aucune image tenue ne s'appuie sur la sienne.
+  // The CPU cut rewrites the lists itself: no held image leans on its own.
   run.gate.resourcesChanged();
-  // Le relevé de la carte ne décrit plus les tableaux de l'image : cette coupe-ci va les écrire.
+  // The GPU sample no longer describes the image's arrays: this cut will write them.
   services.forgetReadback();
-  // Cette image écrit `shown` et `drawn` elle-même, et peut sortir par une erreur entre les deux :
-  // le drapeau tombe avant la première écriture, jamais après.
+  // This image writes `shown` and `drawn` itself, and may exit by an error between the two: the
+  // flag falls before the first write, never after.
   markDrawnDiverged(run);
   run.pagesEntered = null;
   run.pagesExited = null;
@@ -107,10 +107,10 @@ export function renderCpuCut(
   const selected = selectCpuCut(rt, cam, pixelError, false);
   run.cpuSelectMs = performance.now() - cpuSelectionStarted;
   traceCpuSelection(rt, selected, run.cpuSelectMs);
-  // La coupe choisie, pas encore publiée. L'admission la pèse ici, mais les ensembles de résidence
-  // ne la reçoivent qu'une fois les trois gardes de l'image passées, plus bas : la publier avant
-  // ferait tenir au cache — et lui interdirait de rendre — une coupe que l'image n'a peut-être
-  // jamais dessinée, pendant que la couverture épinglée dont il a besoin d'abord est encore en vol.
+  // The chosen cut, not yet published. Admission weighs it here, but the residency sets receive it
+  // only once the image's three guards have passed, below: publishing earlier would make the cache
+  // hold — and forbid it from reclaiming — a cut the image may never have drawn, while the pinned
+  // coverage it needs first is still in flight.
   const wanted = selected.wanted;
   run.overBudget = false;
   run.visible = selected.visible;
@@ -167,9 +167,9 @@ export function renderCpuCut(
   const culled = cullWithTemporalHiz(rt, cam);
   const selectionEnd = performance.now();
   const queueStarted = performance.now();
-  // Ici, et pas plus tôt : l'image a passé ses gardes et `shown` est définitif, repli épinglé
-  // compris. La coupe processeur publie alors la sienne par la même différence que le relevé de la
-  // carte — une fois, et une seule, pour une image qui dessine.
+  // Here, and no earlier: the image has passed its guards and `shown` is final, pinned fallback
+  // included. The CPU cut then publishes its own by the same delta as the GPU sample — once, and
+  // only once, for an image that draws.
   services.adoptCpuCut(wanted, run.shown);
   services.queueCutResidency(run.coverageBudgetLimited);
   const queueEnd = performance.now();
@@ -181,8 +181,8 @@ export function renderCpuCut(
   run.blendPagedTriangles = triangleSum(run.drawn, true);
   // The CPU cut draws what it selected; what the Hi-Z pass drops is occluded, not missing.
   run.uncoveredTriangles = 0;
-  // Aucune grappe sans résidence n'a survécu aux vérifications ci-dessus : la coupe entière part au
-  // dessin, et le rejet d'occultation ne s'en retire pas ici — `hizRejectedTriangles` le compte.
+  // No cluster without residency has survived the checks above: the whole cut goes to draw, and
+  // occlusion reject does not drop out here — `hizRejectedTriangles` counts it.
   run.drawnTriangles = run.selectedTriangles;
   traceDrawnVerify(rt, performance.now() - drawnVerifyStarted);
   const [width, height] = viewport ?? gpu.targetSize,

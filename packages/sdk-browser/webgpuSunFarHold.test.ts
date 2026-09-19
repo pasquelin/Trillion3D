@@ -1,8 +1,8 @@
-// GEO-02, deuxième origine : l'ombre lointaine adopte son proxy à la résolution d'une promesse,
-// donc entre deux images, sans qu'aucune étape de l'image en cours ne l'écrive. Sans révision, deux
-// images identiques figeaient la surface lointaine sans ombre portée alors que le proxy était là.
-// `ensureSunFarShadow` incrémente maintenant les ressources et casse la tenue à chaque adoption,
-// empruntée comme chargée.
+// GEO-02, second origin: the far shadow adopts its proxy at a promise's resolution, therefore
+// between two images, without any step of the current image writing it. Without a revision, two
+// identical images froze the far surface with no cast shadow even though the proxy was there.
+// `ensureSunFarShadow` now increments resources and breaks the hold on every adoption, borrowed as
+// loaded.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ensureSunFarShadow } from './webgpuPagesPrepareSunFar.ts';
@@ -14,7 +14,7 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 installGpuGlobals();
 
-/** Un dispositif factice qui rend ce qu'on lui demande de créer, mappage compris. */
+/** A dummy device that returns what it is asked to create, mapping included. */
 const fakeDevice = () =>
   ({
     createBuffer: ({ size }: { size: number }) => {
@@ -24,7 +24,7 @@ const fakeDevice = () =>
     queue: { writeBuffer() {} },
   }) as unknown as GPUDevice;
 
-/** Le proxy résident tel que le cache le rend : des colonnes vides suffisent à l'adoption. */
+/** Resident proxy as the cache returns it: empty columns are enough for adoption. */
 const sceneProxy = () =>
   ({
     bounds: [0, 0, 0, 1, 1, 1],
@@ -41,11 +41,11 @@ const sceneProxy = () =>
     },
   }) as unknown as SceneProxy;
 
-/** Le `rt` réduit à ce que `ensureSunFarShadow` lit et écrit : l'état, les compteurs et la tenue. */
+/** `rt` reduced to what `ensureSunFarShadow` reads and writes: state, counts and the hold. */
 function sunFarRt(readSceneProxy?: () => Promise<SceneProxy>) {
   const run = { gate: createFrameGateCore(1) };
-  // Une image gardée puis une deuxième identique : la tenue est armée et stable, comme avant
-  // l'adoption d'un proxy dans une scène qui ne bouge plus.
+  // One kept image then a second identical one: the hold is armed and stable, as before adopting a
+  // proxy in a scene that no longer moves.
   run.gate.hold.keep(run.gate.revisions);
   run.gate.hold.keep(run.gate.revisions);
   const rt = {
@@ -59,36 +59,36 @@ function sunFarRt(readSceneProxy?: () => Promise<SceneProxy>) {
   return rt as unknown as WebgpuPagesRuntime & typeof rt;
 }
 
-/** Ce qu'une adoption doit avoir produit : un proxy gréé, un compteur de plus, une tenue cassée. */
-function assertAdoption(rt: ReturnType<typeof sunFarRt>, avant: number) {
-  assert.ok(rt.sunFar.gpu?.proxy, 'le proxy est gréé');
+/** What an adoption must have produced: a fitted proxy, one more counter, a broken hold. */
+function assertAdoption(rt: ReturnType<typeof sunFarRt>, before: number) {
+  assert.ok(rt.sunFar.gpu?.proxy, 'the proxy is fitted');
   assert.equal(
     rt.run.gate.revisions.resources,
-    avant + 1,
-    'le proxy adopté est une ressource de plus',
+    before + 1,
+    'the adopted proxy is one more resource',
   );
-  // `resourcesChanged()` ne touche pas `stable` — un fait historique sur les deux dernières
-  // images gardées — mais casse `same()`, donc `held()` : c'est `held()` que `holdWebgpuFrame`
-  // consulte pour décider de refaire l'image.
-  assert.equal(rt.run.gate.held(), false, 'la tenue est cassée');
-  assert.equal(rt.run.gate.hold.same(rt.run.gate.revisions), false, 'les révisions ont bougé');
+  // `resourcesChanged()` does not touch `stable` — a historical fact on the last two kept images —
+  // but breaks `same()`, therefore `held()`: it is `held()` that `holdWebgpuFrame` consults to decide
+  // whether to redo the image.
+  assert.equal(rt.run.gate.held(), false, 'the hold is broken');
+  assert.equal(rt.run.gate.hold.same(rt.run.gate.revisions), false, 'the revisions have moved');
 }
 
-test('GEO-02 : le proxy chargé pour l’ombre lointaine annonce son adoption', async () => {
+test('GEO-02: the proxy loaded for the far shadow announces its adoption', async () => {
   const rt = sunFarRt(async () => sceneProxy());
-  assert.equal(rt.run.gate.hold.stable, true, 'la tenue est armée avant l’adoption');
-  const avant = rt.run.gate.revisions.resources;
+  assert.equal(rt.run.gate.hold.stable, true, 'the hold is armed before adoption');
+  const before = rt.run.gate.revisions.resources;
   ensureSunFarShadow(rt, fakeDevice());
   await rt.sunFar.pending;
-  assertAdoption(rt, avant);
+  assertAdoption(rt, before);
 });
 
-test('GEO-02 : le proxy emprunté au rebond annonce lui aussi son adoption', () => {
+test('GEO-02: the proxy borrowed from bounce also announces its adoption', () => {
   const rt = sunFarRt();
   const emprunte = { bounds: [0, 0, 0, 1, 1, 1], cellMetres: 0.5, nodeCount: 1 };
   rt.bounce.probes = { proxy: emprunte } as unknown as WebgpuPagesRuntime['bounce']['probes'];
-  const avant = rt.run.gate.revisions.resources;
+  const before = rt.run.gate.revisions.resources;
   ensureSunFarShadow(rt, fakeDevice());
-  assert.equal(rt.sunFar.borrowed, true, 'le proxy du rebond est emprunté, jamais rechargé');
-  assertAdoption(rt, avant);
+  assert.equal(rt.sunFar.borrowed, true, 'the bounce proxy is borrowed, never reloaded');
+  assertAdoption(rt, before);
 });

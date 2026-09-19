@@ -1,11 +1,11 @@
-// Lot M3a, mathTransformTreeLookAt.ts : `lookAt` pour un objet et pour une caméra, cas limite de la
-// visée colinéaire au haut, retrait de la rotation du parent, et parent d'échelle nulle (aucune
-// division par zéro qui ferait lever).
+// Batch M3a, mathTransformTreeLookAt.ts: `lookAt` for an object and for a camera, edge case of
+// the aim collinear with up, removal of the parent rotation, and zero-scale parent (no
+// division by zero that would throw).
 //
-// Lot M4a : `lookAtRows` garde le carré de la norme au lieu de le recalculer (sauf branche
-// dégénérée), et `extractRotationRows` lit la matrice du parent dans le tampon plat de l'arbre à un
-// décalage plutôt que par `worldViews`. Les trois tests ci-dessous confrontent ces chemins au bit
-// près (Object.is) à `Object3D.lookAt`/`Camera.lookAt` de la référence.
+// Batch M4a: `lookAtRows` keeps the squared length instead of recomputing it (except the
+// degenerate branch), and `extractRotationRows` reads the parent matrix in the tree's flat buffer at
+// an offset rather than through `worldViews`. The three tests below confront these paths bit-exact
+// (Object.is) with the reference `Object3D.lookAt`/`Camera.lookAt`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -30,16 +30,16 @@ const direction = (tree: ReturnType<typeof createTransformTree>, node: number, v
   return [...out];
 };
 
-test('lookAt d’une caméra : la direction de vue (-z) pointe vers la cible', () => {
+test('camera lookAt: the view direction (-z) points toward the target', () => {
   const tree = createTransformTree(4);
   const camera = addTransformNode(tree);
-  updateNodeMatrixWorld(tree, camera, true); // pose la caméra à l’origine d’abord
+  updateNodeMatrixWorld(tree, camera, true); // pose the camera at the origin first
   lookAtNode(tree, camera, 0, 0, -10, HAUT, true);
   const d = direction(tree, camera, true);
   assert.ok(proche(d[0], 0) && proche(d[1], 0) && proche(d[2], -1));
 });
 
-test('lookAt d’un objet : la direction présentée (+z) pointe vers la cible, à l’opposé de la caméra pour la même visée', () => {
+test('object lookAt: the presented direction (+z) points toward the target, opposite the camera for the same aim', () => {
   const tree = createTransformTree(4);
   const objet = addTransformNode(tree);
   lookAtNode(tree, objet, 0, 0, -10, HAUT, false);
@@ -47,34 +47,34 @@ test('lookAt d’un objet : la direction présentée (+z) pointe vers la cible, 
   assert.ok(proche(d[0], 0) && proche(d[1], 0) && proche(d[2], -1));
 });
 
-test('lookAt : l’œil déjà sur la cible ne lève pas, l’axe z retombe sur (0,0,1)', () => {
+test('lookAt: the eye already on the target does not throw, the z axis falls back to (0,0,1)', () => {
   const tree = createTransformTree(4);
   const node = addTransformNode(tree);
   assert.doesNotThrow(() => lookAtNode(tree, node, 0, 0, 0, HAUT, true));
 });
 
-test('lookAt : visée colinéaire au haut ne lève pas et rend un axe de vue non nul', () => {
+test('lookAt: aim collinear with up does not throw and yields a non-zero view axis', () => {
   const tree = createTransformTree(4);
   const node = addTransformNode(tree);
   updateNodeMatrixWorld(tree, node, true);
-  lookAtNode(tree, node, 0, -10, 0, HAUT, true); // cible droit sous le haut (0,1,0)
+  lookAtNode(tree, node, 0, -10, 0, HAUT, true); // target straight under up (0,1,0)
   const d = direction(tree, node, true);
   const norme = Math.hypot(d[0], d[1], d[2]);
-  assert.ok(proche(norme, 1), `direction non normalisée : ${d}`);
+  assert.ok(proche(norme, 1), `direction not normalised: ${d}`);
 });
 
-test('lookAt sous un parent tourné : la rotation locale retire celle du parent', () => {
+test("lookAt under a rotated parent: the local rotation removes the parent's", () => {
   const tree = createTransformTree(4);
   const parent = addTransformNode(tree);
-  setNodeQuaternion(tree, parent, 0, 1, 0, 0); // demi-tour du parent autour de y
+  setNodeQuaternion(tree, parent, 0, 1, 0, 0); // parent half-turn around y
   const enfant = addTransformNode(tree, parent);
   lookAtNode(tree, enfant, 0, 0, -10, HAUT, true);
   const d = direction(tree, enfant, true);
-  // Malgré le demi-tour du parent, la direction monde de la caméra vise toujours -z.
-  assert.ok(proche(d[0], 0) && proche(d[1], 0) && proche(d[2], -1), `direction : ${d}`);
+  // Despite the parent's half-turn, the camera world direction still aims at -z.
+  assert.ok(proche(d[0], 0) && proche(d[1], 0) && proche(d[2], -1), `direction: ${d}`);
 });
 
-test('lookAt sous un parent d’échelle nulle : ne lève pas (extractRotationRows divise par une norme de colonne, pas par l’échelle)', () => {
+test('lookAt under a zero-scale parent: does not throw (extractRotationRows divides by a column length, not by scale)', () => {
   const tree = createTransformTree(4);
   const parent = addTransformNode(tree);
   setNodeScale(tree, parent, 0, 1, 1);
@@ -83,7 +83,7 @@ test('lookAt sous un parent d’échelle nulle : ne lève pas (extractRotationRo
   assert.doesNotThrow(() => lookAtNode(tree, enfant, 1, 1, 1, HAUT, false));
 });
 
-/** Le quaternion local `(x, y, z, w)` que `lookAtNode` a posé sur `node`. */
+/** The local quaternion `(x, y, z, w)` that `lookAtNode` set on `node`. */
 const quat = (tree: ReturnType<typeof createTransformTree>, node: number) => [
   tree.quaternion[node * 4],
   tree.quaternion[node * 4 + 1],
@@ -91,7 +91,7 @@ const quat = (tree: ReturnType<typeof createTransformTree>, node: number) => [
   tree.quaternion[node * 4 + 3],
 ];
 
-test('lookAt d’une caméra sous un parent profond (3), tourné et mis à l’échelle : quaternion local identique au bit près à Camera.lookAt (carré de la norme gardé, parent lu à un décalage)', () => {
+test('lookAt of a camera under a deep (3) rotated and scaled parent: local quaternion bit-exact with Camera.lookAt (squared length kept, parent read at an offset)', () => {
   const tree = createTransformTree(8);
   const grandParent = addTransformNode(tree);
   setNodePosition(tree, grandParent, 2, 0, 0);
@@ -102,9 +102,9 @@ test('lookAt d’une caméra sous un parent profond (3), tourné et mis à l’�
   setNodeScale(tree, parent, 2, 2, 2);
   const camera = addTransformNode(tree, parent);
   setNodePosition(tree, camera, 1, -1, 2);
-  // Rotation locale initiale, distincte de celle du parent : si `extractRotationRows` lisait la
-  // matrice monde de la caméra elle-même au lieu de celle du parent, cette valeur fuirait dans le
-  // résultat au lieu d'être entièrement écrasée, comme le fait la référence.
+  // Initial local rotation, distinct from the parent's: if `extractRotationRows` read the
+  // camera's own world matrix instead of the parent's, this value would leak into the
+  // result instead of being fully overwritten, as the reference does.
   setNodeQuaternion(tree, camera, 0.7071067811865476, 0, 0, 0.7071067811865476);
   updateNodeMatrixWorld(tree, camera, true);
   lookAtNode(tree, camera, 5, 5, -5, HAUT, true);
@@ -131,12 +131,12 @@ test('lookAt d’une caméra sous un parent profond (3), tourné et mis à l’�
   ]);
 });
 
-test('lookAt : branche dégénérée (visée colinéaire au haut) identique au bit près à Object3D.lookAt/Camera.lookAt, caméra et objet', () => {
+test('lookAt: degenerate branch (aim collinear with up) bit-exact with Object3D.lookAt/Camera.lookAt, camera and object', () => {
   for (const viewer of [true, false]) {
     const tree = createTransformTree(4);
     const node = addTransformNode(tree);
     updateNodeMatrixWorld(tree, node, true);
-    lookAtNode(tree, node, 0, -10, 0, HAUT, viewer); // cible droit sous le haut (0, 1, 0)
+    lookAtNode(tree, node, 0, -10, 0, HAUT, viewer); // target straight under up (0, 1, 0)
     const obj = viewer ? new THREE.PerspectiveCamera() : new THREE.Object3D();
     obj.lookAt(0, -10, 0);
     assertBits(quat(tree, node), [
@@ -148,12 +148,12 @@ test('lookAt : branche dégénérée (visée colinéaire au haut) identique au b
   }
 });
 
-test('lookAt : branche dégénérée avec un haut vertical (0,0,1) identique au bit près à la référence (l’autre sous-branche, `zx += 0,0001`)', () => {
+test('lookAt: degenerate branch with a vertical up (0,0,1) bit-exact with the reference (the other sub-branch, `zx += 0.0001`)', () => {
   const HAUT_Z = [0, 0, 1];
   const tree = createTransformTree(4);
   const node = addTransformNode(tree);
   updateNodeMatrixWorld(tree, node, true);
-  lookAtNode(tree, node, 0, 0, -10, HAUT_Z, true); // cible colinéaire à ce haut
+  lookAtNode(tree, node, 0, 0, -10, HAUT_Z, true); // target collinear with this up
   const cam = new THREE.PerspectiveCamera();
   cam.up.set(0, 0, 1);
   cam.lookAt(0, 0, -10);

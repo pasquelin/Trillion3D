@@ -1,40 +1,40 @@
-//! Les attributs nommés d'un maillage.
+//! Named attributes of a mesh.
 //!
-//! Depuis Blender 5, un maillage ne porte plus ses tableaux dans des champs dédiés : il porte un
-//! magasin d'attributs — un nom, un domaine (sommet, arête, face, coin), un type et des valeurs.
-//! `position`, `.corner_vert`, `material_index`, `sharp_face` et les couches d'UV y vivent côte à
-//! côte. Un attribut peut être **unique** — une seule valeur pour tout le domaine — plutôt qu'un
-//! tableau ; le lecteur le dit, et l'appelant répète la valeur.
+//! Since Blender 5, a mesh no longer holds its arrays in dedicated fields: it holds an attribute
+//! store — a name, a domain (vertex, edge, face, corner), a type and values. `position`,
+//! `.corner_vert`, `material_index`, `sharp_face` and the UV layers live there side by side. An
+//! attribute can be **single** — one value for the whole domain — rather than an array; the
+//! reader says so, and the caller repeats the value.
 //!
-//! Les identifiants de type et de domaine sont ceux que le format écrit ; ce lecteur les croise avec
-//! le pas réel des valeurs, et laisse tomber l'attribut quand les deux ne s'accordent pas.
+//! Type and domain identifiers are those the format writes; this reader crosses them with the
+//! actual stride of the values, and drops the attribute when the two do not agree.
 use super::*;
 
-/// Types d'attribut retenus par ce pilote, avec le nombre d'octets que chacun occupe.
+/// Attribute types this driver keeps, with the number of bytes each occupies.
 pub(super) const BOOLEAN: i64 = 0;
 pub(super) const INT32: i64 = 3;
 pub(super) const FLOAT2: i64 = 6;
 pub(super) const FLOAT3: i64 = 7;
-/// Domaines : sommet, arête, face, coin de face.
+/// Domains: vertex, edge, face, face corner.
 pub(super) const POINT: i64 = 0;
 pub(super) const EDGE: i64 = 1;
 pub(super) const FACE: i64 = 2;
 pub(super) const CORNER: i64 = 3;
-/// Plafond du nombre d'attributs lus dans un maillage : au-delà, le magasin n'en est pas un.
+/// Ceiling of the number of attributes read in a mesh: beyond it, the store is not one.
 const MAX_ATTRIBUTES: usize = 4096;
 
-/// Un attribut du maillage, tel qu'il se lit.
+/// An attribute of the mesh, as it is read.
 pub(super) struct Attr<'a> {
     pub(super) domain: i64,
     pub(super) kind: i64,
     pub(super) values: &'a [u8],
-    /// Le nombre d'éléments : un pour un attribut unique, que l'appelant répète.
+    /// The element count: one for a single attribute, which the caller repeats.
     pub(super) count: usize,
     pub(super) single: bool,
 }
 
 impl Attr<'_> {
-    /// Le nombre d'octets d'un élément de ce type, ou rien si ce pilote ne lit pas ce type.
+    /// The number of bytes of an element of this type, or nothing if this driver does not read this type.
     pub(super) fn width(kind: i64) -> Option<usize> {
         match kind {
             BOOLEAN => Some(1),
@@ -44,21 +44,21 @@ impl Attr<'_> {
             _ => None,
         }
     }
-    /// Les valeurs flottantes de l'attribut, répétées quand il est unique.
+    /// The float values of the attribute, repeated when it is single.
     pub(super) fn floats(&self, repeat: usize, stride: usize) -> Vec<f32> {
         if self.single {
             return bytes::floats(self.values, stride).repeat(repeat);
         }
         bytes::floats(self.values, self.count * stride)
     }
-    /// Les entiers de l'attribut, répétés de la même façon.
+    /// The integers of the attribute, repeated the same way.
     pub(super) fn ints(&self, repeat: usize) -> Vec<i32> {
         if !self.single {
             return bytes::ints(self.values, self.count);
         }
         vec![bytes::ints(self.values, 1).first().copied().unwrap_or(0); repeat]
     }
-    /// Les booléens de l'attribut, un octet chacun.
+    /// The booleans of the attribute, one byte each.
     pub(super) fn bools(&self, repeat: usize) -> Vec<bool> {
         if self.single {
             return vec![self.values.first().is_some_and(|byte| *byte != 0); repeat];
@@ -71,8 +71,8 @@ impl Attr<'_> {
     }
 }
 
-/// Les attributs d'un maillage, par nom, dans l'ordre où le magasin les déclare. Un magasin absent
-/// rend une table vide : c'est l'appelant qui décide que le maillage est alors illisible.
+/// The attributes of a mesh, by name, in the order the store declares them. An absent store
+/// yields an empty table: it is the caller that decides the mesh is then unreadable.
 pub(super) fn attributes<'a>(mesh: &At<'a>) -> Vec<(String, Attr<'a>)> {
     let mut out = Vec::new();
     let Some(storage) = mesh.inner("attribute_storage") else {

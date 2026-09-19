@@ -1,4 +1,4 @@
-// Banc d'équivalence du lot « formules communes TS ».
+// Equivalence bench for the "shared TS formulas" batch.
 import { DEFAULT_PIXEL_RATIO, devicePixels } from '../backendCommon.ts';
 import { frustumExcludesBox } from '../../sdk-core/index.ts';
 import { nanosecondsToMs } from '../gpuTimingTypes.ts';
@@ -20,78 +20,78 @@ import {
 } from './oracles/formules-ts.mjs';
 import { casPlans, durees, emprises, rangs, tailles, triangles } from './appui/scenesFormules.mjs';
 
-const un = (nom, entree, taille) => [{ nom, entree, taille }];
+const un = (name, input, size) => [{ name, input, size }];
 const options = { chauffe: 2, tours: 12, budgetMs: 500 };
 
 const resPlanes = await mesure({
-  nom: 'boîte hors des six plans',
+  name: 'box outside the six planes',
   fichier: 'packages/sdk-core/mathFrustumBox.ts',
-  cas: un('400 jeux de plans × 400 boîtes hostiles', casPlans, casPlans.length),
+  cas: un('400 plane sets × 400 hostile boxes', casPlans, casPlans.length),
   calcul: (liste) => liste.map((c) => frustumExcludesBox(c.planes, ...c.boite)),
   attendu: (liste) => liste.map((c) => referenceOutsidePlanes(c.planes, ...c.boite)),
   options,
 });
 
 const resArea = await mesure({
-  nom: 'aire signée du triangle écran',
+  name: 'signed screen-triangle area',
   fichier: 'packages/sdk-browser/visibilityProjection.ts',
-  cas: un('3 000 triangles hostiles', triangles, triangles.length),
+  cas: un('3 000 hostile triangles', triangles, triangles.length),
   calcul: (liste) => liste.map((t) => signedArea(t.a, t.b, t.c)),
   attendu: (liste) => liste.map((t) => referenceSignedArea(t.a, t.b, t.c)),
   options,
 });
 
 const resWeights = await mesure({
-  nom: 'poids barycentriques affines',
+  name: 'affine barycentric weights',
   fichier: 'packages/sdk-browser/visibilityProjection.ts',
-  cas: un('3 000 triangles hostiles', triangles, triangles.length),
+  cas: un('3 000 hostile triangles', triangles, triangles.length),
   calcul: (liste) => {
-    const sortie = new Float64Array(liste.length * 3);
+    const output = new Float64Array(liste.length * 3);
     for (let i = 0; i < liste.length; i++) {
       const t = liste[i];
       const p = barycentricAt(t.a, t.b, t.c, t.x, t.y, signedArea(t.a, t.b, t.c));
-      sortie[i * 3] = p.w0;
-      sortie[i * 3 + 1] = p.w1;
-      sortie[i * 3 + 2] = p.w2;
+      output[i * 3] = p.w0;
+      output[i * 3 + 1] = p.w1;
+      output[i * 3 + 2] = p.w2;
     }
-    return sortie;
+    return output;
   },
   attendu: (liste) => {
-    const sortie = new Float64Array(liste.length * 3);
+    const output = new Float64Array(liste.length * 3);
     for (let i = 0; i < liste.length; i++) {
       const t = liste[i];
       const p = referenceWeights(t.a, t.b, t.c, t.x, t.y, referenceSignedArea(t.a, t.b, t.c));
-      sortie[i * 3] = p.w0;
-      sortie[i * 3 + 1] = p.w1;
-      sortie[i * 3 + 2] = p.w2;
+      output[i * 3] = p.w0;
+      output[i * 3 + 1] = p.w1;
+      output[i * 3 + 2] = p.w2;
     }
-    return sortie;
+    return output;
   },
   options,
 });
 
 const resBary = await mesure({
-  nom: 'barycentriques visbuffer',
+  name: 'barycentriques visbuffer',
   fichier: 'packages/sdk-browser/visibilityMath.ts',
-  cas: un('3 000 triangles hostiles', triangles, triangles.length),
+  cas: un('3 000 hostile triangles', triangles, triangles.length),
   calcul: (liste) => liste.map((t) => barycentric(t.a, t.b, t.c, t.x, t.y)),
   attendu: (liste) => liste.map((t) => referenceBarycentric(t.a, t.b, t.c, t.x, t.y)),
   options,
 });
 
 const resRow = await mesure({
-  nom: "socle d'identifiant de ligne",
+  name: 'row-identifier foundation',
   fichier: 'packages/sdk-browser/webgpuPageRow.ts',
-  cas: un('2 000 rangs', rangs, rangs.length),
+  cas: un('2 000 ranks', rangs, rangs.length),
   calcul: (liste) => liste.map((row) => packedRowBase(row)),
   attendu: (liste) => liste.map((row) => referencePackedRowBase(row, VIS_TRIANGLE_BITS)),
   options,
 });
 
 const resPixels = await mesure({
-  nom: "pixels d'appareil dimension logique",
+  name: 'device pixels from logical size',
   fichier: 'packages/sdk-browser/backendCommon.ts',
-  cas: un('2 000 tailles et rapports', tailles, tailles.length),
+  cas: un('2 000 sizes and ratios', tailles, tailles.length),
   calcul: (liste) => liste.map((t) => devicePixels(t.logical, t.ratio)),
   attendu: (liste) =>
     liste.map((t) => referenceDevicePixels(t.logical, t.ratio, DEFAULT_PIXEL_RATIO)),
@@ -99,34 +99,34 @@ const resPixels = await mesure({
 });
 
 const resNs = await mesure({
-  nom: 'nanosecondes vers millisecondes',
+  name: 'nanoseconds to milliseconds',
   fichier: 'packages/sdk-browser/gpuTimingTypes.ts',
-  cas: un('2 000 durées', durees, durees.length),
+  cas: un('2 000 durations', durees, durees.length),
   calcul: (liste) => liste.map((ns) => nanosecondsToMs(ns)),
   attendu: (liste) => liste.map((ns) => referenceNsToMs(ns)),
   options,
 });
 
 const resFloor = await mesure({
-  nom: 'plancher du modèle',
+  name: 'model floor',
   fichier: 'scripts/mesure/poses.mjs',
-  cas: un('1 000 emprises', emprises, emprises.length),
+  cas: un('1 000 extents', emprises, emprises.length),
   calcul: (liste) => liste.map((b) => plancherDuModele(b)),
   attendu: (liste) => liste.map((b) => referenceFloorOf(b)),
   options,
 });
 
 await stress({
-  nom: 'devicePixels extremes',
+  name: 'devicePixels extremes',
   calcul: ([l, r]) => devicePixels(l, r),
   extremes: [
-    { nom: 'zero', entree: [0, 1] },
-    { nom: 'ratio 0', entree: [100, 0] },
+    { name: 'zero', input: [0, 1] },
+    { name: 'ratio 0', input: [100, 0] },
   ],
 });
 
 rapport(
   'formules-ts',
   [resPlanes, resArea, resWeights, resBary, resRow, resPixels, resNs, resFloor],
-  'chaque formule commune rend exactement ce que rendaient les copies qu elle remplace',
+  'each shared formula yields exactly what the copies it replaces used to yield',
 );

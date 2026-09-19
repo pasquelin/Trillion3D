@@ -1,6 +1,6 @@
-// La variante d'EXPÉRIENCE de la métrique d'erreur écran : par défaut la nôtre, inchangée au bit
-// près, et sur demande la projection simple de la référence externe, processeur et texte WGSL au
-// même résultat. `screenErrorVariant.ts` porte la formule et sa source publique.
+// The EXPERIMENT variant of the screen-error metric: by default ours, unchanged bit-exact,
+// and on request the simple projection of the external reference, CPU and WGSL text at
+// the same result. `screenErrorVariant.ts` carries the formula and its public source.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -17,27 +17,27 @@ const CAS = [
   [0.02, 2, 0.5, 3, 0.25, 700, 0.1],
 ] as const;
 
-test('la variante par défaut est la nôtre, et la borne ne bouge pas d un bit', () => {
+test('the default variant is ours, and the bound does not move by a bit', () => {
   assert.equal(screenErrorVariant(), 'certifiee');
-  const avant = CAS.map((c) => screenErrorBound(...c));
+  const before = CAS.map((c) => screenErrorBound(...c));
   setScreenErrorVariant('reference');
   setScreenErrorVariant(null);
   assert.equal(screenErrorVariant(), 'certifiee');
   assert.deepEqual(
     CAS.map((c) => screenErrorBound(...c)),
-    avant,
+    before,
   );
-  // Les deux métriques partagent l'étirement : la borne certifiée reste alors toujours au-dessus
-  // de celle de la référence, qui n'a ni terme latéral, ni rayon, ni déplacement au dénominateur.
+  // Both metrics share stretch: the certified bound then stays always above
+  // that of the reference, which has neither a lateral term, nor a radius, nor a displacement in the denominator.
   for (const [error, stretch, lateral, depth, radius, focal, near] of CAS)
     assert.ok(
       screenErrorBound(error, stretch, lateral, depth, radius, focal, near) >=
         referenceScreenError(error, stretch, depth, focal, near),
-      `borne sous la référence pour ε=${error}`,
+      `bound under the reference for ε=${error}`,
     );
 });
 
-test('la variante reference rend δ × focale / profondeur, l infini au plan proche', () => {
+test('the reference variant yields δ × focal / depth, infinity at the near plane', () => {
   setScreenErrorVariant('reference');
   try {
     assert.equal(screenErrorVariant(), 'reference');
@@ -46,7 +46,7 @@ test('la variante reference rend δ × focale / profondeur, l infini au plan pro
         screenErrorBound(error, stretch, lateral, depth, radius, focal, near),
         (error * stretch * focal) / depth,
       );
-    // Ni le rayon englobant ni la distance à l'axe n'entrent dans la métrique.
+    // Neither the bounding radius nor the distance to the axis enter the metric.
     assert.equal(screenErrorBound(0.5, 3, 40, 12, 9, 900, 0.1), (0.5 * 3 * 900) / 12);
     assert.equal(screenErrorBound(0.5, 1, 0, 0.05, 0, 900, 0.1), Infinity);
     assert.equal(screenErrorBound(0.5, 1, 0, -4, 0, 900, 0.1), Infinity);
@@ -55,7 +55,7 @@ test('la variante reference rend δ × focale / profondeur, l infini au plan pro
   }
 });
 
-test('une variante inconnue est refusée et ne remplace pas celle en place', () => {
-  assert.throws(() => setScreenErrorVariant('rapide' as never), /Variante d erreur ecran inconnue/);
+test('an unknown variant is rejected and does not replace the one in place', () => {
+  assert.throws(() => setScreenErrorVariant('rapide' as never), /Unknown screen-error variant/);
   assert.equal(screenErrorVariant(), 'certifiee');
 });

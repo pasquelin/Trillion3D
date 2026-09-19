@@ -7,7 +7,7 @@ pub fn group_clusters(
 ) -> Vec<Vec<usize>> {
     let mut groups = Vec::new();
     let mut side = vec![0u8; centres.len()];
-    // Une seule table d'appartenance pour toutes les coupes : elle repart vide de chaque appel.
+    // Single membership table for all cuts: cleared on entry each call.
     let mut present = vec![false; centres.len()];
     let mut members: Vec<usize> = (0..centres.len()).collect();
     let mut stack = vec![(0usize, members.len())];
@@ -36,8 +36,8 @@ pub fn group_clusters(
     groups
 }
 
-/// `present` arrive et repart entièrement à `false` : la coupe ne marque que ses propres membres,
-/// ce qui remplace le `HashSet` reconstruit à chaque appel par une table indexée réutilisée.
+/// `present` arrives and leaves entirely `false`: cut marks only own members,
+/// replacing per-call reconstructed `HashSet` with reused indexed table.
 pub(crate) fn refine_bisection(
     slice: &[usize],
     side: &mut [u8],

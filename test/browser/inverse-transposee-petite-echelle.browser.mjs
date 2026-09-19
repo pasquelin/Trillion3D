@@ -1,9 +1,9 @@
-// Défaut 6 (seuil de `inverseTranspose3`, gpuDagShader.ts) : le noyau WGSL réellement exécuté dans
-// Chromium WebGPU doit garder un cluster dont les deux triangles sont de face après une rotation de
-// 180°, à toute échelle uniforme — y compris sous s ≈ 2,15e-7, où le seuil absolu `abs(det)<1e-20`
-// sur le déterminant brut rendait l'axe local non tourné et supprimait la page. Le rejet légitime
-// (mêmes triangles, dos à la caméra) doit rester, à ces mêmes échelles. La campagne complète, ses
-// chiffres et sa version d'avant le lot sont dans
+// Defect 6 (`inverseTranspose3` threshold, gpuDagShader.ts): the WGSL kernel actually run in
+// Chromium WebGPU must keep a cluster whose two triangles face the camera after a 180° rotation,
+// at every uniform scale — including under s ≈ 2.15e-7, where the absolute threshold
+// `abs(det)<1e-20` on the raw determinant left the local axis unrotated and dropped the page.
+// Legitimate rejection (same triangles, backs to the camera) must remain, at those same scales.
+// The full campaign, its figures and the pre-batch version live in
 // `test/justesse/inverse-transposee-petite-echelle.mjs`.
 //
 // node --experimental-strip-types test/browser/inverse-transposee-petite-echelle.browser.mjs
@@ -19,7 +19,7 @@ import {
 } from '../justesse/inverseTransposeCas.mjs';
 import { selectionGpu } from '../justesse/noyauSelectionGpu.mjs';
 
-/** Rotation de 180° : les faces regardent la caméra. Sans rotation : elles lui tournent le dos. */
+/** 180° rotation: faces look at the camera. Without rotation: they turn their backs on it. */
 const ECHELLES = [1e-3, 1e-6, 2e-7, 1e-7, 1e-8, 1e-12, 1e-16];
 const cas = ECHELLES.flatMap((s) =>
   [180, 0].map((angleDeg) => ({
@@ -61,20 +61,16 @@ for (const ligne of lignes) {
   assert.equal(
     ligne.gpuRejette,
     ligne.cpuRejette,
-    `${ligne.nom} : le noyau WGSL doit décider comme la coupe CPU`,
+    `${ligne.nom}: the WGSL kernel must decide like the CPU cut`,
   );
   if (ligne.faceVisible)
-    assert.equal(
-      ligne.gpuRejette,
-      false,
-      `${ligne.nom} : face visible supprimée par le noyau WGSL`,
-    );
+    assert.equal(ligne.gpuRejette, false, `${ligne.nom}: visible face dropped by the WGSL kernel`);
   else
-    assert.equal(ligne.gpuRejette, true, `${ligne.nom} : rejet légitime perdu par le noyau WGSL`);
+    assert.equal(ligne.gpuRejette, true, `${ligne.nom}: legitimate reject lost by the WGSL kernel`);
 }
-assert.equal(lignes.filter((l) => l.faceVisible).length, ECHELLES.length, 'moitié des cas de face');
+assert.equal(lignes.filter((l) => l.faceVisible).length, ECHELLES.length, 'half the cases face-on');
 
 console.log(
-  `OK : ${lignes.length} cas, une exécution du noyau WGSL — voir` +
+  `OK: ${lignes.length} cases, one run of the WGSL kernel — see` +
     ' test/browser/inverse-transposee-petite-echelle.browser.mjs',
 );

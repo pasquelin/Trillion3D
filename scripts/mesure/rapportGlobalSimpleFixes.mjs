@@ -1,17 +1,17 @@
-// Les fiches de la première page qui ne se lisent pas dans une exécution à deux côtés : les octets
-// par triangle (mesurés chez les témoins qui comptent leurs triangles uniques, chiffres de format
-// pour nous et Unreal), le découpage face à Unreal, le travail à scène immobile, la petite
-// machine. Une valeur par série, dans l'ordre des barres : les témoins, notre moteur, Unreal.
+// First-page cards that are not read from a two-side run: bytes per triangle (measured at
+// witnesses that count their unique triangles, format figures for us and Unreal), the
+// split against Unreal, work in a still scene, the small machine. One value per series, in
+// bar order: the witnesses, our engine, Unreal.
 import { barresSeries, fiche, NOTRE } from './rapportGlobalFiches.mjs';
 import { OCTETS_PAR_TRIANGLE, UNREAL } from './rapportGlobalChiffres.mjs';
 
-/** Les octets de géométrie par triangle unique d'un relevé, ou `null` sans les deux chiffres. */
+/** Geometry bytes per unique triangle of a reading, or `null` without both figures. */
 const octetsParTriangle = (r) =>
   typeof r?.geometrieOctets === 'number' && r?.trianglesUniques > 0
     ? r.geometrieOctets / r.trianglesUniques
     : null;
 
-/** La fiche sans chiffre du banc, posée après le comparateur d'images. */
+/** The card with no bench figure, placed after the image comparator. */
 export const FICHE_PETITE_MACHINE = fiche(
   'f-petite-machine',
   'And on a small machine, with less memory?',
@@ -21,9 +21,9 @@ export const FICHE_PETITE_MACHINE = fiche(
 );
 
 /**
- * Les trois fiches à poser avant le comparateur d'images. `temoins` : le relevé « depuis la rue,
- * caméra fixe, sans ombres » de chaque témoin, dans l'ordre des barres ; `fixe` celui du moteur à
- * caméra fixe.
+ * The three cards to place before the image comparator. `temoins`: the "from the street,
+ * still camera, no shadows" reading of each witness, in bar order; `fixe` that of the
+ * engine at a still camera.
  */
 export const fichesFixes = ({ temoins, fixe }) => [
   fiche(
@@ -49,7 +49,7 @@ export const fichesFixes = ({ temoins, fixe }) => [
     ['bon', 'yes, same numbers'],
     'The engine is built like Unreal, with the same numbers. What is missing is not the structure: it is compression and a bounded pool.',
   ),
-  // Les témoins viennent de leur exécution sans ombres, caméra fixe ; le moteur de `fixe`.
+  // Witnesses come from their run without shadows, still camera; the engine from `fixe`.
   fiche(
     'f-immobile',
     'When nothing moves, does the engine still work?',

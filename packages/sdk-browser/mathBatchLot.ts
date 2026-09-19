@@ -4,39 +4,37 @@ import { mathClock, mathBatchWasm, mathGovernor, loadMathBatch } from './mathBat
 import { blocsJavaScript, reserveArena, type ArenaBloc, type ArenaDemande } from './wasmArena.ts';
 
 /**
- * Ce que tout lot de calcul partage : son tampon, son exécution chronométrée, et la forme de son
- * interface. Les lots eux-mêmes sont dans `mathBatchRuntime.ts` et `mathBatchHierarchy.ts`.
+ * What all math batches share: buffer, timed execution, and interface shape.
+ * The batches themselves are in `mathBatchRuntime.ts` and `mathBatchHierarchy.ts`.
  *
- * Un lot est un TAMPON, pas un appel : l'appelant réserve ses blocs une fois, écrit ses entrées
- * directement dans les vues rendues, appelle `run()` autant de fois qu'il veut, puis rend le tampon.
- * Rien n'est recopié entre JavaScript et WebAssembly — c'est la même mémoire quand le module est là,
- * et de simples tableaux typés quand il ne l'est pas. Le chemin joué est celui que le gouverneur
- * nomme, et `run()` lui rapporte ce que l'exécution a coûté.
+ * A batch is a BUFFER, not a function call: caller reserves blocks once, writes inputs
+ * directly into returned views, calls `run()` as many times as needed, then releases buffer.
+ * Nothing is copied between JavaScript and WebAssembly — same memory when module present,
+ * plain typed arrays when absent. Executed path is named by governor, and `run()` reports cost.
  *
- * Les vues se redemandent à chaque usage par `blocs()` : une allocation du module, faite n'importe
- * où, a pu faire grandir sa mémoire et détacher les précédentes. `wasmArena.ts` les reconstruit
- * alors sur les mêmes octets, aux mêmes offsets, sans rien recopier.
+ * Views are re-queried on each use via `blocs()`: module allocation anywhere might grow
+ * its memory and detach previous views. `wasmArena.ts` rebuilds them on same bytes and offsets.
  */
 
 export interface MathLot {
   readonly n: number;
-  /** Vrai quand les vues sont dans la mémoire du module : le calcul se fait sans aucune copie. */
+  /** True when views live in module memory: computation executes zero copies. */
   readonly shared: boolean;
-  /** Vrai quand le lot porte EXACTEMENT `n` éléments et n'a pas été rendu. */
+  /** True when batch holds EXACTLY `n` elements and has not been released. */
   holds(n: number): boolean;
-  /** Joue le lot et rend le chemin RÉELLEMENT exécuté, qui peut différer de celui demandé. */
+  /** Runs batch and returns ACTUAL executed path, which may differ from requested path. */
   run(): MathPath;
   release(): void;
 }
 
 export interface Tampon {
-  /** Le module quand les blocs vivent dans sa mémoire, `null` quand ils sont dans le tas JavaScript. */
+  /** Module when blocks live in its memory, `null` when in JavaScript heap. */
   readonly wasm: SdkWasm | null;
   blocs(): readonly ArenaBloc[];
   release(): void;
 }
 
-/** Les blocs du lot, dans la mémoire du module si possible, sinon dans le tas JavaScript. */
+/** Batch blocks in module memory if available, otherwise in JavaScript heap. */
 export async function tampon(demandes: readonly ArenaDemande[]): Promise<Tampon> {
   await loadMathBatch();
   const wasm = mathBatchWasm();
@@ -47,8 +45,8 @@ export async function tampon(demandes: readonly ArenaDemande[]): Promise<Tampon>
 }
 
 /**
- * Une exécution : le gouverneur choisit, le chronomètre encadre, le gouverneur enregistre. Un chemin
- * WebAssembly demandé mais non gréé retombe sur JavaScript, et c'est ce chemin-là qui est rapporté.
+ * Execution helper: governor chooses, clock bounds, governor records. Requested WebAssembly
+ * path unequipped falls back to JavaScript, reporting that actual path.
  */
 export function joue(
   operation: string,
@@ -70,5 +68,5 @@ export const f64 = (bloc: ArenaBloc) => bloc.vue as Float64Array;
 export const u32 = (bloc: ArenaBloc) => bloc.vue as Uint32Array;
 export const vuesF64 = (bloc: ArenaBloc) => (bloc.vues ?? []) as readonly Float64Array[];
 
-/** Les `longueur` éléments du bloc `index`, ou zéro quand le tampon a été rendu. */
+/** The `longueur` elements of block `index`, or zero when buffer released. */
 export const taille = (blocs: readonly ArenaBloc[], index: number) => blocs[index]?.vue.length ?? 0;

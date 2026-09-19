@@ -98,8 +98,8 @@ test('GPU streaming exposes wanted pages after readback and draws an atomic resi
     render();
     await backend.flush();
     assert.deepEqual(backend.selectedPageIds(), ['2']);
-    // Le repli grossier est la seule page dessinable : le masque de l'image le dit, avant même
-    // que la commande indirecte n'en fasse son compte d'instances.
+    // The coarse fallback is the only drawable page: the frame mask says so, even before the
+    // indirect command turns it into its instance count.
     assert.equal(drawnPageIds(buffers, packed.nodeCount, packed.pageCount).length, 1);
     backend.acceptPage!('1', fixture.indices.get('1')!);
     render();

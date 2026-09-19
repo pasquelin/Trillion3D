@@ -1,8 +1,8 @@
-// Cas 4 de la convention des normales singulières (lot normales singulières) : une pose hôte non
-// finie n'entre jamais dans le moteur. `loadPreparedScene` la refuse au chargement, avant qu'elle ne
-// ressorte en normale nulle ou en surface éteinte loin de sa cause. Le refus au déplacement
-// (`setWebgpuTransform`) est dans `webgpuTransformFiniteTransform.test.ts`. À part pour tenir
-// `explorerScene.test.ts` sous 200 lignes.
+// Case 4 of the singular-normals convention (singular-normals batch): a non-finite host
+// pose never enters the engine. `loadPreparedScene` refuses it at load, before it would
+// come out as a null normal or a darkened surface far from its cause. Refusal on move
+// (`setWebgpuTransform`) is in `webgpuTransformFiniteTransform.test.ts`. Split out to keep
+// `explorerScene.test.ts` under 200 lines.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -12,7 +12,7 @@ import { EngineError, type ClusterManifest } from '../sdk-core/index.ts';
 
 const manifest = { primitives: [] } as unknown as ClusterManifest;
 
-test('loadPreparedScene refuse une matrice monde non finie (NON_FINITE_TRANSFORM)', async (t) => {
+test('loadPreparedScene refuses a non-finite world matrix (NON_FINITE_TRANSFORM)', async (t) => {
   const scene = new THREE.Group();
   const mesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial());
   mesh.name = 'cible';
@@ -39,6 +39,6 @@ test('loadPreparedScene refuse une matrice monde non finie (NON_FINITE_TRANSFORM
       erreur instanceof EngineError &&
       erreur.code === 'NON_FINITE_TRANSFORM' &&
       erreur.details.nodeName === 'cible',
-    'une matrice monde NaN doit lever NON_FINITE_TRANSFORM, nom du nœud compris',
+    'a NaN world matrix must throw NON_FINITE_TRANSFORM, node name included',
   );
 });

@@ -3,8 +3,8 @@ import { BASE_SLOTS, PAGE_BIND_ALIGN, slotCount } from './gpuDrawContract.ts';
 import type { DrawItem, CompactResult, SlotLayout } from './gpuDrawContract.ts';
 
 /** A slot is a cull mode, an occluder/tested half and a coplanar layer, in that order.
- *  Miroir CPU de `slotOf` (gpuDrawShader.ts) : même produit, même somme, même plafond de couche.
- *  Deux langages, deux écritures ; `gpuDrawPrefixEquivalence.test.ts` les oppose. */
+ *  CPU mirror of `slotOf` (gpuDrawShader.ts): same product, same sum, same layer cap.
+ *  Two languages, two writings; `gpuDrawPrefixEquivalence.test.ts` opposes them. */
 function slotOf(item: DrawItem, layerSlots: number) {
   return item.rest * 3 + item.bin + BASE_SLOTS * Math.min(item.layer ?? 0, layerSlots - 1);
 }

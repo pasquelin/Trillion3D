@@ -1,5 +1,5 @@
-// l'uniforme de la passe de partition, empaqueté à chaque image : les deux matrices ancrées,
-// l'ancre en double flottant et les seize niveaux de la pyramide Hi-Z, bit à bit contre l'oracle.
+// the partition-pass uniform, packed every frame: the two anchored matrices, the
+// split-double anchor, and the sixteen Hi-Z pyramid levels, bit-exact against the oracle.
 import { UNIFORM_U32, writeSplitDouble } from '../gpuPartitionContract.ts';
 import { packPartitionUniform } from '../gpuPartitionUniform.ts';
 import { graine, mesure, rapport } from '../../sdk-core/bench/socle.mjs';
@@ -25,25 +25,25 @@ const HOSTILES = [
   1 / 3,
 ];
 
-// La sortie appartient au cas : le chronomètre n'encadre que les écritures.
-const doubles = (valeurs) => ({ valeurs, sortie: new Float32Array(valeurs.length * 2) });
+// The output belongs to the case: the timer only frames the writes.
+const doubles = (valeurs) => ({ valeurs, output: new Float32Array(valeurs.length * 2) });
 const decompose =
   (ecrit) =>
-  ({ valeurs, sortie }) => {
-    for (let i = 0; i < valeurs.length; i++) ecrit(sortie, i * 2, i * 2 + 1, valeurs[i]);
-    return sortie;
+  ({ valeurs, output }) => {
+    for (let i = 0; i < valeurs.length; i++) ecrit(output, i * 2, i * 2 + 1, valeurs[i]);
+    return output;
   };
 
 const mesureSplit = await mesure({
-  nom: 'décomposition split-double',
+  name: 'split-double decomposition',
   fichier: 'packages/sdk-browser/gpuPartitionContract.ts',
   cas: [
     {
-      nom: '50 000 doubles',
-      entree: doubles(Float64Array.from({ length: 50000 }, double)),
-      taille: 50000,
+      name: '50 000 doubles',
+      input: doubles(Float64Array.from({ length: 50000 }, double)),
+      size: 50000,
     },
-    { nom: 'hostiles', entree: doubles(HOSTILES), taille: HOSTILES.length },
+    { name: 'hostiles', input: doubles(HOSTILES), size: HOSTILES.length },
   ],
   calcul: decompose(writeSplitDouble),
   attendu: decompose(referenceSplitDouble),
@@ -71,11 +71,11 @@ const words = new Uint32Array(UNIFORM_U32),
   floats = new Float32Array(words.buffer);
 
 const mesureUniforme = await mesure({
-  nom: 'uniforme de partition',
+  name: 'partition uniform',
   fichier: 'packages/sdk-browser/gpuPartitionUniform.ts',
   cas: [
-    { nom: '12 niveaux Hi-Z', entree: image(12), taille: 1 },
-    { nom: '0 niveau', entree: image(0), taille: 1 },
+    { name: '12 Hi-Z levels', input: image(12), size: 1 },
+    { name: '0 levels', input: image(0), size: 1 },
   ],
   calcul: (frame) => {
     packPartitionUniform(words, floats, frame, frame.rows);
@@ -88,5 +88,5 @@ const mesureUniforme = await mesure({
 rapport(
   'partition-uniforme',
   [mesureSplit, mesureUniforme],
-  "l'uniforme de partition et les doubles rendent les mêmes bits",
+  'the partition uniform and the doubles yield the same bits',
 );

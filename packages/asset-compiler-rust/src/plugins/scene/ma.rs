@@ -1,36 +1,35 @@
-//! Pilote de scène `ma` (Maya ASCII) : un fichier de commandes MEL devient une scène intermédiaire
-//! glTF. **Aucune commande n'est exécutée** : le fichier est lu comme des données.
+//! `ma` (Maya ASCII) scene driver: a MEL command file becomes an intermediate glTF scene.
+//! **No command is executed**: the file is read as data.
 //!
-//! **Provenance et licence, écrites ici comme dans `FORMATS.md`.** Ce lecteur est écrit dans ce dépôt
-//! depuis la documentation publique d'Autodesk : la forme d'un `.ma` — une suite de commandes MEL
-//! terminées par `;` —, les commandes `requires`, `currentUnit`, `createNode`, `setAttr`,
-//! `connectAttr`, `parent` et `fileInfo`, et les noms d'attributs des nœuds `transform`, `mesh`,
-//! `lambert`, `phong`, `blinn`, `standardSurface`, `file`, `place2dTexture`, `bump2d` et
-//! `shadingEngine`. **Aucune ligne de code ni aucun SDK d'Autodesk n'est repris**, aucune caisse
-//! n'est ajoutée au dépôt pour ce format, rien n'est déchiffré ni contourné. La licence de la scène
-//! importée reste celle de son auteur.
+//! **Provenance and licence, written here as in `FORMATS.md`.** This reader is written in this
+//! repository from Autodesk's public documentation: the form of a `.ma` — a sequence of MEL
+//! commands ended by `;` —, the commands `requires`, `currentUnit`, `createNode`, `setAttr`,
+//! `connectAttr`, `parent` and `fileInfo`, and the attribute names of `transform`, `mesh`,
+//! `lambert`, `phong`, `blinn`, `standardSurface`, `file`, `place2dTexture`, `bump2d` and
+//! `shadingEngine` nodes. **No Autodesk code or SDK is reused**, no crate is added to the
+//! repository for this format, nothing is deciphered or circumvented. The licence of the
+//! imported scene remains that of its author.
 //!
-//! **Sûreté.** Un `.ma` est un programme : il peut porter des scripts. Ce pilote n'en est pas un
-//! interpréteur. Il ne reconnaît que les commandes du sous-ensemble ci-dessus et **compte toutes les
-//! autres par leur nom** dans `unsupported` du manifeste — `python`, `eval`, `source`, `scriptJob`
-//! et tout inconnu compris. Aucune substitution, aucune expression, aucun script n'est évalué ; un
-//! nœud `scriptNode` est un nœud compté comme un autre, son texte n'est jamais lu comme du code.
+//! **Safety.** A `.ma` is a program: it can carry scripts. This driver is not an interpreter.
+//! It only recognizes the commands of the subset above and **counts all the others by their
+//! name** in the manifest's `unsupported` — `python`, `eval`, `source`, `scriptJob` and every
+//! unknown included. No substitution, no expression, no script is evaluated; a `scriptNode`
+//! is a node counted like any other, its text is never read as code.
 //!
-//! **Ce qu'il lit.** La hiérarchie des `transform`, chacun identifié par son chemin de scène
-//! `|pere|enfant` comme dans Maya, et posé par la composition complète du format — matrice du père
-//! décalé, translation, pivots, rotation dans l'ordre déclaré par `rotateOrder`, axe de rotation,
-//! cisaillement, échelle, chacun écrit d'un bloc ou composante par composante —, `inheritsTransform`
-//! et la visibilité comprises ; les `mesh` par leurs sommets `.vt`, leurs arêtes `.ed`, leurs faces
-//! `.fc` (découpées par oreilles dans le plan de leur normale), le premier jeu
-//! d'UV `.uvst[0].uvsp`, les normales `.n` quand elles y sont et le drapeau de dureté de chaque
-//! arête sinon ; les matériaux `lambert`, `phong`,
-//! `blinn` et `standardSurface` vers `pbrMetallicRoughness` ; les nœuds `file` liés par
-//! `connectAttr`, avec le mode de répétition de leur `place2dTexture` ; la liaison matériau ↔
-//! maillage par les `shadingEngine` (`.iog` vers `.dsm`), y compris par groupes de faces ; et
-//! `currentUnit -l`, dont le facteur vers le mètre est porté par la racine de la scène. Maya écrit
-//! ses scènes l'axe `Y` en haut, comme glTF.
+//! **What it reads.** The `transform` hierarchy, each identified by its scene path
+//! `|parent|child` as in Maya, and posed by the format's full composition — offset-parent
+//! matrix, translation, pivots, rotation in the order `rotateOrder` declares, rotation axis,
+//! shear, scale, each written as a block or component by component —, `inheritsTransform`
+//! and visibility included; `mesh` nodes by their `.vt` vertices, `.ed` edges, `.fc` faces
+//! (ear-clipped in the plane of their normal), the first UV set `.uvst[0].uvsp`, `.n`
+//! normals when they are there and each edge's hardness flag otherwise; `lambert`, `phong`,
+//! `blinn` and `standardSurface` materials to `pbrMetallicRoughness`; `file` nodes linked by
+//! `connectAttr`, with the wrap mode of their `place2dTexture`; the material ↔ mesh binding
+//! through `shadingEngine` nodes (`.iog` to `.dsm`), including by face groups; and
+//! `currentUnit -l`, whose factor to the metre is carried by the scene root. Maya writes
+//! its scenes with the `Y` axis up, like glTF.
 //!
-//! **Ce qu'il compte au rapport sans le rendre** : voir les constantes `ma-*` de `report.rs`.
+//! **What it counts on the report without returning it**: see the `ma-*` constants of `report.rs`.
 use super::*;
 use crate::import::{Report, SceneTables as Scene};
 use crate::CompilerError;
@@ -65,29 +64,29 @@ use value::Attr;
 pub(super) static MA: Ma = Ma;
 pub(super) struct Ma;
 
-/// Le nom du format, tel qu'il voyage dans le manifeste et dans la clé du cache.
+/// Format name, as it travels in the manifest and in the cache key.
 const NAME: &str = "ma";
-/// La première ligne qu'Autodesk écrit en tête d'un fichier Maya ASCII.
+/// First line Autodesk writes at the front of a Maya ASCII file.
 const HEADER: &str = "//Maya ASCII";
 
-/// Le fichier n'est pas un Maya ASCII : sa première ligne ne l'annonce pas, ou une chaîne littérale
-/// n'est jamais refermée — un fichier coupé au milieu d'un nom ne se lit pas jusqu'au bout.
+/// The file is not a Maya ASCII: its first line does not announce it, or a string literal is
+/// never closed — a file cut in the middle of a name is not read through to the end.
 pub(super) const FILE_INVALID: &str = "ma-file-invalid";
-/// Le fichier, ou l'un de ses tableaux, dépasse le plafond d'allocation du pilote.
+/// The file, or one of its arrays, exceeds the driver's allocation ceiling.
 pub(super) const SIZE_UNSUPPORTED: &str = "ma-size-unsupported";
 
-/// Le plafond du fichier lu : un texte de commandes au-delà n'est pas chargé en mémoire.
+/// Ceiling of the file read: a command text beyond it is not loaded into memory.
 const MAX_BYTES: u64 = 512 * 1024 * 1024;
-/// Le plafond d'un tableau d'attribut, en éléments : un indice absurde ne fait pas allouer.
+/// Ceiling of an attribute array, in elements: an absurd index does not cause allocation.
 pub(super) const MAX_ELEMENTS: usize = 16 << 20;
 
 impl Plugin for Ma {
     fn name(&self) -> &'static str {
         NAME
     }
-    /// La version nomme le lecteur — écrit ici, sur le sous-ensemble de commandes MEL documenté — et
-    /// la génération de la conversion : la changer invalide les caches, donc toute scène Maya ASCII
-    /// déjà compilée est relue.
+    /// The version names the reader — written here, on the documented MEL command subset —
+    /// and the conversion generation: changing it invalidates caches, so every already
+    /// compiled Maya ASCII scene is reread.
     fn version(&self) -> &'static str {
         "ma-mel-subset-1-gltf-8"
     }
@@ -97,8 +96,8 @@ impl Plugin for Ma {
 }
 
 impl ScenePlugin for Ma {
-    /// Maya annonce ses fichiers texte par une première ligne fixe : un fichier que son nom ne
-    /// désigne pas est donc reconnu quand même.
+    /// Maya announces its text files by a fixed first line: a file that its name does not
+    /// designate is therefore recognized anyway.
     fn accepts_head(&self, head: &[u8]) -> bool {
         head.starts_with(HEADER.as_bytes())
     }
@@ -107,8 +106,8 @@ impl ScenePlugin for Ma {
     }
 }
 
-/// Le fichier demandé. Un dossier qui porte plusieurs `.ma` est une ambiguïté : le compilateur ne
-/// choisit pas la scène à la place de l'appelant, qui lui désigne un fichier précis comme source.
+/// The requested file. A directory that carries several `.ma` is an ambiguity: the compiler
+/// does not choose the scene in the caller's place, who names a precise file as source.
 fn source_file(inputs: &[PathBuf]) -> Result<&Path> {
     if let [one] = inputs {
         return Ok(one.as_path());

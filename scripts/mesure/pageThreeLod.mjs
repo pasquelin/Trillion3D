@@ -1,38 +1,39 @@
-// Le témoin Three.js à NIVEAUX DE DÉTAIL : la méthode classique d'avant Nanite. Chaque maillage du
-// glTF devient un `THREE.LOD` à trois niveaux — l'original, puis deux versions simplifiées à la
-// volée par meshoptimizer (la dépendance de dev du banc, servie sous `/vendor/meshoptimizer/`) —
-// et Three choisit le niveau à la distance, objet par objet. C'est ce qu'un projet Three soigné
-// fait à la main ; c'est le repère entre le Three nu (tout, toujours) et le moteur (par grappe).
+// The Three.js LEVEL-OF-DETAIL witness: the classic method from before clustered geometry.
+// Each glTF mesh becomes a three-level `THREE.LOD` — the original, then two versions simplified
+// on the fly by meshoptimizer (the bench's dev dependency, served under `/vendor/meshoptimizer/`)
+// — and Three picks the level by distance, object by object. That is what a careful Three
+// project does by hand; it is the marker between bare Three (everything, always) and the
+// engine (by cluster).
 //
-// Règle unique, aucune scène nommée : un niveau moins fin dès que l'objet fait moins de
-// `PIXELS[i]` pixels de haut à l'écran — la distance se déduit du rayon de l'objet, de la hauteur
-// de l'image et du champ de la pose. Un niveau qui ne retire pas au moins un quart des triangles
-// du précédent est abandonné : la simplification n'a rien donné sur ce maillage, et le dire vaut
-// mieux qu'un niveau de plus qui coûte autant. Coût déclaré : la silhouette simplifiée s'écarte de
-// l'original (`ERREUR` relative à la taille du maillage), ce que la capture montre.
+// One rule, no named scene: a coarser level as soon as the object is less than `PIXELS[i]`
+// pixels high on screen — distance is deduced from the object's radius, the image height and
+// the pose field of view. A level that does not drop at least a quarter of the previous
+// level's triangles is abandoned: simplification gave nothing on that mesh, and saying so
+// is better than one more level that costs the same. Declared cost: the simplified silhouette
+// diverges from the original (`ERREUR` relative to the mesh size), which the capture shows.
 import * as THREE from 'three';
 import { MeshoptSimplifier } from 'meshoptimizer';
 import { mesurerThree } from './pageThreeMesure.mjs';
 
-/** Chaque niveau au-delà de l'original : part des triangles visée, erreur tolérée (relative à la
- *  taille du maillage), et hauteur à l'écran en pixels sous laquelle il remplace le précédent. */
+/** Each level beyond the original: target triangle fraction, tolerated error (relative to
+ *  mesh size), and on-screen height in pixels under which it replaces the previous one. */
 const NIVEAUX = [
   { part: 0.25, erreur: 0.02, pixels: 200 },
   { part: 0.06, erreur: 0.08, pixels: 50 },
 ];
 const GAIN_MINIMUM = 0.75;
 
-/** La géométrie simplifiée à `part` de ses triangles, ou `null` si le gain est trop faible. */
+/** Geometry simplified to `part` of its triangles, or `null` if the gain is too small. */
 function simplifier(geometrie, part, erreur) {
   const positions = geometrie.attributes.position.array;
   const indices = geometrie.index.array;
   const cible = Math.max(3, Math.floor((indices.length * part) / 3) * 3);
-  // meshoptimizer rend l'index dans le type reçu : un maillage en 16 bits le reste à chaque niveau.
+  // meshoptimizer returns the index in the received type: a 16-bit mesh stays so at each level.
   const [nouveaux] = MeshoptSimplifier.simplify(indices, positions, 3, cible, erreur);
   if (nouveaux.length > indices.length * GAIN_MINIMUM) return null;
-  // Les sommets restent ceux de l'original, partagés : seul l'index change d'un niveau à l'autre.
-  // Les bornes aussi : un sous-ensemble des mêmes sommets tient dans celles que le chargeur a
-  // posées, et Three n'a pas à les recalculer sur trois millions de sommets par niveau.
+  // Vertices stay those of the original, shared: only the index changes from one level to
+  // the next. Bounds too: a subset of the same vertices fits in those the loader placed,
+  // and Three does not have to recompute them on three million vertices per level.
   const g = new THREE.BufferGeometry();
   for (const [nom, attribut] of Object.entries(geometrie.attributes)) g.setAttribute(nom, attribut);
   g.setIndex(new THREE.BufferAttribute(nouveaux, 1));
@@ -41,7 +42,7 @@ function simplifier(geometrie, part, erreur) {
   return g;
 }
 
-/** Les niveaux d'une géométrie : l'original, puis chaque niveau simplifié depuis le précédent. */
+/** Levels of a geometry: the original, then each level simplified from the previous. */
 function construireNiveaux(geometrie) {
   const niveaux = [geometrie];
   for (const { part, erreur } of NIVEAUX) {
@@ -52,13 +53,13 @@ function construireNiveaux(geometrie) {
   return niveaux;
 }
 
-/** La distance à laquelle un objet de rayon `rayon` fait `pixels` pixels de haut. */
+/** Distance at which an object of radius `rayon` is `pixels` pixels high. */
 const distancePour = (rayon, pixels, hauteur, fov) =>
   (rayon * hauteur) / (2 * pixels * Math.tan((fov * Math.PI) / 360));
 
 /**
- * Remplace chaque maillage indexé de `racine` par un `THREE.LOD` à ses niveaux, même matériau,
- * même transformation. Rend ce que le relevé publie : niveaux construits et triangles par niveau.
+ * Replaces each indexed mesh of `racine` with a `THREE.LOD` at its levels, same material,
+ * same transform. Returns what the reading publishes: levels built and triangles per level.
  */
 export async function niveauxDeDetail(racine, options) {
   await MeshoptSimplifier.ready;
@@ -74,7 +75,7 @@ export async function niveauxDeDetail(racine, options) {
   });
   racine.updateMatrixWorld(true);
   for (const mesh of maillages) {
-    // Une géométrie partagée par des instances n'est simplifiée, et comptée, qu'une fois.
+    // A geometry shared by instances is simplified, and counted, only once.
     let niveaux = cache.get(mesh.geometry);
     if (!niveaux) {
       niveaux = construireNiveaux(mesh.geometry);
@@ -85,8 +86,8 @@ export async function niveauxDeDetail(racine, options) {
       sansNiveau++;
       continue;
     }
-    // La sphère que le chargeur glTF a posée depuis les bornes de l'accesseur, sinon la calculer ;
-    // l'échelle monde se lit sur la première colonne de la matrice, sans décomposer.
+    // The sphere the glTF loader placed from the accessor bounds, otherwise compute it;
+    // world scale is read on the first matrix column, without decomposing.
     if (!mesh.geometry.boundingSphere) mesh.geometry.computeBoundingSphere();
     const e = mesh.matrixWorld.elements;
     const rayon = mesh.geometry.boundingSphere.radius * Math.hypot(e[0], e[1], e[2]);
@@ -107,5 +108,5 @@ export async function niveauxDeDetail(racine, options) {
   return { lodObjets: objets, lodSansNiveau: sansNiveau, lodTrianglesParNiveau: triangles };
 }
 
-/** Une vue, un seuil (ignoré : Three n'a pas de seuil), la capture. Même contrat que `measureView`. */
+/** One view, one threshold (ignored: Three has no threshold), the capture. Same contract as `measureView`. */
 export const measureView = (options) => mesurerThree(options, niveauxDeDetail);

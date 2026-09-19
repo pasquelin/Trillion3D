@@ -1,22 +1,22 @@
-// L'ouverture d'un appareil WebGPU dans la page, écrite une seule fois pour toutes les
-// reproductions « GPU réellement exécuté » : noyau de sélection du DAG, rasterisation, normales
-// d'éclairage, caméra parentée et lots d'adressage. Cinq copies du même prologue avaient déjà
-// divergé — l'une d'elles ne filtrait pas les messages de compilation et n'attendait pas la file.
+// Opening a WebGPU device in the page, written once for every "GPU actually run" reproduction:
+// DAG selection kernel, rasterisation, lighting normals, parented camera and wrap batches. Five
+// copies of the same prologue had already drifted — one of them did not filter compilation
+// messages and did not wait for the queue.
 //
-// Ce module ne connaît que le navigateur : `pageWebgpu.mjs` injecte le texte de `ouvrirAppareil`
-// dans la page (`toString`), et la page empaquetée par esbuild (`cameraParenteeGpuPage.mjs`)
-// l'importe. Une seule écriture pour les deux chemins, donc un seul contrat.
+// This module knows only the browser: `pageWebgpu.mjs` injects the text of `ouvrirAppareil` into
+// the page (`toString`), and the page bundled by esbuild (`cameraParenteeGpuPage.mjs`) imports
+// it. One writing for both paths, hence one contract.
 
 /**
- * Ouvre l'appareil, branche la collecte des erreurs non capturées, et rend de quoi compiler et
- * refermer proprement. Rend `null` quand la page n'a pas d'adaptateur WebGPU.
+ * Opens the device, hooks collection of uncaptured errors, and returns what is needed to compile
+ * and close cleanly. Returns `null` when the page has no WebGPU adapter.
  *
- * - `compile(code)` rend `{ module, compilation }` ; `compilation` ne retient que les messages de
- *   type `error`, les avertissements du compilateur WGSL n'étant pas des écarts de justesse.
- * - `fermer()` attend la file (`onSubmittedWorkDone`) avant de lire `adapter.info` et de détruire
- *   l'appareil, puis rend le relevé de la carte sous ses deux formes : `court` (constructeur et
- *   architecture) et `complet` (les quatre champs renseignés). `adapter.info` n'est pas clonable,
- *   seules ces chaînes traversent le pont de la page.
+ * - `compile(code)` returns `{ module, compilation }`; `compilation` keeps only messages of type
+ *   `error`, WGSL compiler warnings not being correctness discrepancies.
+ * - `fermer()` waits for the queue (`onSubmittedWorkDone`) before reading `adapter.info` and
+ *   destroying the device, then returns the GPU reading in its two forms: `court` (vendor and
+ *   architecture) and `complet` (the four filled fields). `adapter.info` is not cloneable, only
+ *   these strings cross the page bridge.
  */
 export async function ouvrirAppareil() {
   const adapter = await navigator.gpu?.requestAdapter();

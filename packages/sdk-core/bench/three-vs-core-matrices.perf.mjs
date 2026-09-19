@@ -20,7 +20,7 @@ const out = new Float64Array(N * 16),
 const lines = [];
 lines.push(
   await duel({
-    nom: 'Matrix4.multiplyMatrices',
+    name: 'Matrix4.multiplyMatrices',
     fichier: 'packages/sdk-core/mathMatrix4.ts',
     three: () => {
       for (let i = 0; i < N; i++) outThree[i].multiplyMatrices(a.three[i], b.three[i]);
@@ -35,7 +35,7 @@ lines.push(
 
 lines.push(
   await duel({
-    nom: 'Matrix4.invert',
+    name: 'Matrix4.invert',
     fichier: 'packages/sdk-core/mathMatrix4Inverse.ts',
     three: () => {
       for (let i = 0; i < N; i++) outThree[i].copy(a.three[i]).invert();
@@ -66,7 +66,7 @@ const pViews = views(position.flat, 3),
 
 lines.push(
   await duel({
-    nom: 'Matrix4.compose',
+    name: 'Matrix4.compose',
     fichier: TRS,
     three: () => {
       for (let i = 0; i < N; i++)
@@ -93,7 +93,7 @@ const ep = new Float64Array(3),
 
 lines.push(
   await duel({
-    nom: 'Matrix4.decompose',
+    name: 'Matrix4.decompose',
     fichier: TRS,
     three: () => {
       for (let i = 0; i < N; i++) {

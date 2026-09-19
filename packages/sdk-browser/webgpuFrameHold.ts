@@ -3,7 +3,7 @@ import { CPU_STEP } from './webgpuPagesCpuSteps.ts';
 import { beginTaaFrame, taaSettled } from './taaFrame.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Ce qui peut encore changer l'image, un bit chacun ; `unsettledReasons` les nomme. */
+/** What can still change the frame, one bit each; `unsettledReasons` names them. */
 const REASONS = [
   'lost',
   'secondaryCamera',
@@ -32,11 +32,11 @@ export const TEXTURES_PENDING = BIT.texturesPending,
   SHADOWS_PENDING = BIT.shadowsPending;
 
 /**
- * Ce qui empêche encore l'image de ne dépendre que d'une écriture de l'hôte, en bits : un chargement
- * en cours, un relevé encore à adopter, un historique d'occultation à établir, une texture en vol,
- * une ombre en attente, une sonde à converger. Zéro quand plus rien ne bouge. Tout doute se tranche
- * du côté « refaire le travail » : chaque condition manquante pose son bit. Aucune allocation : la
- * tenue le lit à chaque image, la barrière s'en sert de prédicat d'arrêt.
+ * What still keeps the frame from depending only on a host write, in bits: a load in progress, a
+ * shown list still to adopt, an occlusion history to establish, a texture in flight, a pending
+ * shadow, a probe to converge. Zero when nothing moves any more. Every doubt is settled on the
+ * “redo the work” side: each missing condition sets its bit. No allocation: hold reads it every
+ * frame, the barrier uses it as a stop predicate.
  */
 export function unsettledMask(rt: WebgpuPagesRuntime) {
   const { run, vis, lights, bounce, capture, services, timing } = rt,
@@ -62,32 +62,32 @@ export function unsettledMask(rt: WebgpuPagesRuntime) {
     rows.candidateOverflow
   )
     mask |= BIT.rowsDirty;
-  // Une tuile demandée et pas encore servie changera l'image quand elle arrivera ; et une
-  // convergence doit rendre pour lire ce que la pose demande, jamais tenir.
+  // A requested tile not yet served will change the frame when it arrives; and a settle must
+  // render to read what the pose asks for, never hold.
   if (vis.textures?.counters.pending || run.textureConverging) mask |= BIT.texturesPending;
   if (lights.plan.counts.pendingPages > 0) mask |= BIT.shadowsPending;
-  // Chaque page de la coupe demandée porte ses octets. Une page encore attendue peut encore
-  // changer la coupe, donc l'image : tenir celle-ci ouvrirait un trou. Ce compte est tenu par la
-  // différence de la coupe, jamais relu sur la liste.
+  // Every page of the requested cut carries its bytes. A still-pending page can still change the
+  // cut, hence the frame: holding it would open a hole. This count is held by the cut difference,
+  // never reread on the list.
   if (services.cutPending.count) mask |= BIT.cutPending;
-  // Les sondes de la lumière qui rebondit convergent d'image en image : leur état n'est écrit par
-  // aucune révision, et une image tenue le figerait avant la convergence.
+  // Bounce-light probes converge from frame to frame: their state is written by no revision, and
+  // a held frame would freeze it before convergence.
   if (bounce.probes) mask |= BIT.bounceProbes;
   return mask;
 }
 
-/** Les noms des bits posés : ce que la barrière publie quand la pose ne se pose pas. */
+/** Names of the bits that are set: what the barrier publishes when the pose does not settle. */
 export const unsettledReasons = (mask: number) =>
   REASONS.filter((reason) => (mask & BIT[reason]) !== 0);
 
 /**
- * Ce qu'une image tenue a réellement fait, publié comme tel.
+ * What a held frame actually did, published as such.
  *
- * Elle n'a encodé qu'une présentation : aucun cluster n'a été dessiné, aucune passe n'a tourné,
- * aucune étape processeur n'a été exécutée. Republier les compteurs de dessin et les durées du
- * dernier rendu complet décrirait un travail que cette image-ci n'a pas fait. Les métriques de la
- * COUPE — pages retenues, triangles sélectionnés, rejet par le tronc, pages résidentes — restent
- * intactes : c'est la même coupe, réaffichée, et elle décrit toujours ce que l'image montre.
+ * It encoded only a present: no cluster was drawn, no pass ran, no CPU step was executed.
+ * Republishing the draw counters and the step durations of the last full render would describe
+ * work this frame did not do. CUT metrics — held pages, selected triangles, frustum rejection,
+ * resident pages — stay intact: it is the same cut, redisplayed, and it still describes what the
+ * frame shows.
  */
 function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitMs: number) {
   const { run, timing } = rt;
@@ -97,7 +97,7 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
   run.submittedTriangles = 0;
   run.blendSubmittedTriangles = 0;
   run.cpuSelectMs = null;
-  // Aucune passe n'a été chronométrée sur l'appareil : « non mesuré », jamais la durée d'une autre.
+  // No pass was timed on the device: “unmeasured”, never the duration of another one.
   timing.lastGpuPassMs = null;
   timing.lastGpuFrameMs = null;
   timing.lastGpuHostGapMs = null;
@@ -109,25 +109,25 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
   steps[CPU_STEP.submitMs] = submitMs;
   steps[CPU_STEP.totalMs] = submitMs;
   timing.rowFilled = true;
-  // Le relevé détaillé décrit une image encodée ; celle-ci n'en est pas une, et n'en republie pas.
+  // The detailed sample describes an encoded frame; this one is not, and does not republish one.
   timing.cpuSample = undefined;
 }
 
 /**
- * L'image tenue. Aucune étape processeur n'est exécutée et rien n'est réencodé : la cible couleur de
- * l'image précédente EST cette image-ci, au bit près, puisque rien de ce dont elle dépend n'a bougé.
- * Elle est simplement réaffichée.
+ * The held frame. No CPU step is executed and nothing is re-encoded: the previous frame's colour
+ * target IS this frame, to the bit, since nothing it depends on has moved. It is simply
+ * redisplayed.
  *
- * Un `GPUCommandBuffer` déjà soumis ne se resoumet pas, et un `GPURenderBundle` ne peut porter ni les
- * passes de calcul de l'image — sélection, pyramide Hi-Z, petits triangles, listes de lampes,
- * résolution différée — ni ses copies : rejouer les seuls paquets de rendu ne redonnerait pas
- * l'image. Réafficher la cible intacte la redonne exactement, et c'est la seule commande encodée.
+ * A `GPUCommandBuffer` already submitted is not resubmitted, and a `GPURenderBundle` can carry
+ * neither the frame's compute passes — selection, Hi-Z pyramid, small triangles, light lists,
+ * deferred resolve — nor its copies: replaying the render bundles alone would not yield the frame.
+ * Redisplaying the intact target yields it exactly, and that is the only command encoded.
  */
 export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { run, gpu } = rt;
-  // Image calme : rien de ce dont elle dépend n'a bougé et rien n'est en vol. C'est l'entrée
-  // d'image de l'accumulation temporelle, qui y repart en phase fixe et converge sur un plein cycle
-  // de ces images-là avant que l'une d'elles puisse être tenue (`TAA_STILL_FRAMES`).
+  // Still frame: nothing it depends on has moved and nothing is in flight. That is the frame
+  // input of temporal accumulation, which restarts there in a fixed phase and converges over a
+  // full cycle of those frames before one of them can be held (`TAA_STILL_FRAMES`).
   const quiet = run.gate.held() && unsettledMask(rt) === 0;
   beginTaaFrame(rt, run.gate.cam, quiet);
   if (!quiet || !taaSettled(rt)) {
@@ -139,7 +139,7 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const start = performance.now();
   let presented = false;
   if (gpu.presenter && gpu.colorTexture) {
-    const encoder = device.createCommandEncoder({ label: 'WG image tenue' });
+    const encoder = device.createCommandEncoder({ label: 'WG held frame' });
     gpu.presenter.present(encoder, gpu.colorTexture, gpu.targetSize[0], gpu.targetSize[1]);
     device.queue.submit([encoder.finish()]);
     run.imageRevision++;
@@ -150,9 +150,9 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
   return true;
 }
 
-/** Range l'image qui vient d'être encodée et soumise en entier : elle seule autorise une tenue.
- *  Une image de convergence rejoue la dernière image ordinaire : le témoin ne la voit pas, et deux
- *  images ordinaires identiques restent deux images consécutives à ses yeux. */
+/** Stores the frame that has just been fully encoded and submitted: it alone allows a hold. A
+ *  settle frame replays the last ordinary frame: the witness does not see it, and two identical
+ *  ordinary frames remain two consecutive frames in its eyes. */
 export function keepWebgpuFrame(rt: WebgpuPagesRuntime) {
   const { gate, textureConverging } = rt.run;
   if (textureConverging) return;

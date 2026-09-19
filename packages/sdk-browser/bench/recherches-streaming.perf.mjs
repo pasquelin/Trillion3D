@@ -1,4 +1,4 @@
-// les deux recherches linéaires du chemin de streaming.
+// the two linear searches of the streaming path.
 import { compacteFile } from '../streamingQueueOrder.ts';
 import { empileEnAttente } from '../explorerDraw.ts';
 import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
@@ -35,20 +35,20 @@ function passeOptimisee({ urls, vises }) {
 
 function adresses(total, depart) {
   const alea = graine(depart);
-  const sortie = [];
+  const output = [];
   for (let i = 0; i < total; i++)
-    sortie.push(
-      alea() < 0.3 && sortie.length ? sortie[Math.floor(alea() * sortie.length)] : `p/${i}.bin`,
+    output.push(
+      alea() < 0.3 && output.length ? output[Math.floor(alea() * output.length)] : `p/${i}.bin`,
     );
-  return sortie;
+  return output;
 }
 
 const resG5 = await mesure({
-  nom: 'retrait demande annulée de file',
+  name: 'removing a cancelled request from the queue',
   fichier: 'packages/sdk-browser/streamingQueue.ts',
   cas: [
-    { nom: '4 000 travaux, 2 000 annulations', entree: rafale(4000, 2000, 0x51), taille: 4000 },
-    { nom: '4 000 travaux, une annulation', entree: rafale(4000, 1, 0x52), taille: 4000 },
+    { name: '4 000 jobs, 2 000 cancellations', input: rafale(4000, 2000, 0x51), size: 4000 },
+    { name: '4 000 jobs, one cancellation', input: rafale(4000, 1, 0x52), size: 4000 },
   ],
   calcul: passeOptimisee,
   attendu: passeReference,
@@ -57,9 +57,9 @@ const resG5 = await mesure({
 
 const urlsEmpilees = adresses(4000, 0x61);
 const resG6 = await mesure({
-  nom: 'empilement en attente',
+  name: 'pending stack',
   fichier: 'packages/sdk-browser/explorerDraw.ts',
-  cas: [{ nom: '4 000 adresses à empiler', entree: urlsEmpilees, taille: 4000 }],
+  cas: [{ name: '4 000 addresses to stack', input: urlsEmpilees, size: 4000 }],
   calcul: (urls) => {
     const arr = [];
     const set = new Set();
@@ -75,13 +75,13 @@ const resG6 = await mesure({
 });
 
 await stress({
-  nom: 'compacteFile extremes',
+  name: 'compacteFile extremes',
   calcul: (q) => compacteFile(q),
-  extremes: [{ nom: 'vide', entree: [] }],
+  extremes: [{ name: 'empty', input: [] }],
 });
 
 rapport(
   'recherches-streaming',
   [resG5, resG6],
-  'G5 et G6 retirent et empilent exactement les mêmes adresses',
+  'G5 and G6 remove and stack the exact same addresses',
 );

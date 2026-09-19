@@ -1,31 +1,33 @@
-//! Doré et refus du pilote Unity : un projet CC0 passe par le routeur, le pilote, puis le
-//! compilateur, et la scène intermédiaire qu'il a écrite est comparée à `expected.json` — nombre
-//! d'instances, hiérarchie, transformations converties et matériaux PBR, valeur par valeur. Les
-//! autres cas fixent ce que le pilote reconnaît et ce qu'il refuse.
+//! Golden and refusals of the Unity driver: a CC0 project goes through the
+//! router, the driver, then the compiler, and the intermediate scene it wrote is
+//! compared to `expected.json` — instance count, hierarchy, converted transforms
+//! and PBR materials, value by value. The other cases fix what the driver
+//! recognises and what it refuses.
 use super::*;
 
-/// Le projet CC0 et sa scène, tels que `fixtures/unity/README.md` les décrit.
+/// The CC0 project and its scene, as `fixtures/unity/README.md` describes them.
 fn fixture() -> PathBuf {
     golden_dir("unity/cc0-import-project")
         .join("Assets")
         .join("Map.unity")
 }
 
-// Comportement 25 : la scène Unity dorée passe par le compilateur et tout ce que le pilote en a
-// tiré — instances, hiérarchie, transformations, matériaux — est comparé exactement à expected.json.
+// Behaviour 25: the golden Unity scene goes through the compiler and everything
+// the driver drew from it — instances, hierarchy, transforms, materials — is
+// compared exactly to expected.json.
 #[test]
 fn the_unity_scene_matches_its_golden_expected_json() {
     let run = compile_golden_source(&fixture(), "unity");
     assert_eq!(
         unity_digest(&run),
         golden_expected(&golden_dir("unity/cc0-import-project")),
-        "fixture unity: la scène intermédiaire diverge de expected.json"
+        "fixture unity: the intermediate scene diverges from expected.json"
     );
 }
 
-/// Ce que la dorée fixe : le rapport du pilote, puis la scène intermédiaire elle-même — chaque
-/// nœud avec son nom, sa transformation convertie, ses enfants et son maillage, chaque matériau
-/// avec ses facteurs PBR, et les nombres que le compilateur en a retenus.
+/// What the golden fixes: the driver report, then the intermediate scene itself
+/// — each node with its name, converted transform, children and mesh, each
+/// material with its PBR factors, and the numbers the compiler kept of it.
 fn unity_digest(run: &GoldenRun) -> Value {
     let (mut digest, _, gltf) = scene_digest(run, "unity");
     let triangles: Vec<usize> = gltf["meshes"]

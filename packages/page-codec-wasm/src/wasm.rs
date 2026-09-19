@@ -1,12 +1,12 @@
-//! ABI brute du module WebAssembly : pas de `wasm-bindgen`, rien que des entiers et des offsets
-//! dans la mémoire linéaire. Le chargeur JavaScript écrit la page à l'offset rendu par `page_alloc`,
-//! appelle `page_decode`, lit le bloc de résultat, puis rend tout avec `page_release`.
+//! Raw WebAssembly ABI: no `wasm-bindgen`, only integers and offsets in linear memory. The
+//! JavaScript loader writes the page at the offset returned by `page_alloc`, calls `page_decode`,
+//! reads the result block, then releases everything with `page_release`.
 
 use crate::{decode, OPTIONAL};
 
-/// Le bloc de résultat, en mots de 32 bits :
-/// 0 état (0 = décodée), 1 sommets, 2 indices, 3 drapeaux, 4 octets décompressés,
-/// 5 offset des indices, 6 offset des positions, 7 à 11 offsets des attributs facultatifs (0 = absent).
+/// Result block, in 32-bit words:
+/// 0 status (0 = decoded), 1 vertices, 2 indices, 3 flags, 4 decompressed bytes,
+/// 5 index offset, 6 position offset, 7 to 11 optional-attribute offsets (0 = absent).
 const RESULT_WORDS: usize = 12;
 
 pub(crate) fn fuite<T>(valeurs: Vec<T>) -> u32 {
@@ -14,14 +14,14 @@ pub(crate) fn fuite<T>(valeurs: Vec<T>) -> u32 {
     Box::into_raw(boite) as *mut T as u32
 }
 
-/// Rend une allocation faite par `fuite` : la capacité d'une boîte tranchée vaut sa longueur.
+/// Releases an allocation made by `fuite`: a sliced box's capacity equals its length.
 pub(crate) unsafe fn rends<T>(offset: u32, len: usize) {
     if offset != 0 {
         drop(Vec::from_raw_parts(offset as *mut T, len, len));
     }
 }
 
-/// Réserve `len` octets pour la page compressée. Rend 0 si la taille est absurde.
+/// Reserves `len` bytes for the compressed page. Returns 0 if the size is absurd.
 #[no_mangle]
 pub extern "C" fn page_alloc(len: usize) -> u32 {
     if len == 0 || len > 1 << 30 {
@@ -30,19 +30,19 @@ pub extern "C" fn page_alloc(len: usize) -> u32 {
     fuite(vec![0u8; len])
 }
 
-/// Rend une réservation de `page_alloc`.
+/// Releases a `page_alloc` reservation.
 ///
 /// # Safety
-/// `offset` doit venir de `page_alloc` avec ce même `len`, et n'avoir pas déjà été rendu.
+/// `offset` must come from `page_alloc` with this same `len`, and must not already have been released.
 #[no_mangle]
 pub unsafe extern "C" fn page_free(offset: u32, len: usize) {
     rends::<u8>(offset, len);
 }
 
-/// Décode la page écrite à `offset` et rend l'offset du bloc de résultat, ou 0 si la mémoire manque.
+/// Decodes the page written at `offset` and returns the result-block offset, or 0 if memory is short.
 ///
 /// # Safety
-/// `offset` et `len` doivent décrire une réservation vivante de `page_alloc`.
+/// `offset` and `len` must describe a live `page_alloc` reservation.
 #[no_mangle]
 pub unsafe extern "C" fn page_decode(offset: u32, len: usize, max_decoded_bytes: usize) -> u32 {
     let data = core::slice::from_raw_parts(offset as *const u8, len);
@@ -64,10 +64,10 @@ pub unsafe extern "C" fn page_decode(offset: u32, len: usize, max_decoded_bytes:
     fuite(bloc)
 }
 
-/// Rend le bloc de résultat et tous les tampons qu'il désigne.
+/// Releases the result block and every buffer it names.
 ///
 /// # Safety
-/// `offset` doit venir de `page_decode` et n'avoir pas déjà été rendu.
+/// `offset` must come from `page_decode` and must not already have been released.
 #[no_mangle]
 pub unsafe extern "C" fn page_release(offset: u32) {
     if offset == 0 {

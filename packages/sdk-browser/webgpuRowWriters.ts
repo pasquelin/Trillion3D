@@ -8,15 +8,15 @@ type Rows = ReturnType<typeof createWebgpuRowState>;
 type Writer = ReturnType<typeof createPageRowWriter>;
 
 /**
- * Les deux seules façons dont un rang de la table de lignes change d'occupant : une page y est posée,
- * ou une ligne entière y est déplacée. Toutes deux tiennent à jour les tableaux parallèles qui disent
- * qui occupe quoi, et lèvent `state.changed` pour que l'image sache qu'elle doit renvoyer la table.
+ * The only two ways a row-table rank changes occupant: a page is posted there, or a whole row is
+ * moved there. Both keep the parallel arrays that say who occupies what up to date, and raise
+ * `state.changed` so the image knows it must send the table again.
  */
 export function createWebgpuRowWriters(rows: Rows, packedPages: PageRec[], writePageRow: Writer) {
   const rowWords = PAGE_INFO_STRIDE / 4;
   const state = { changed: false };
 
-  /** Pose la page `page` au rang `row` : la ligne est écrite, donc déclarée sale, par l'écrivain. */
+  /** Posts page `page` at rank `row`: the row is written, therefore declared dirty, by the writer. */
   const assign = (row: number, page: number, offsetWords: number) => {
     const rec = packedPages[page];
     rows.packedRecs[row] = rec;
@@ -38,7 +38,7 @@ export function createWebgpuRowWriters(rows: Rows, packedPages: PageRec[], write
     );
   };
 
-  /** Déplace la ligne `from` au rang `to` : les mots de la ligne, puis les deux qui SONT le rang. */
+  /** Moves row `from` to rank `to`: the row's words, then the two that ARE the rank. */
   const moveRow = (from: number, to: number) => {
     const ints = rows.pageTableInts!,
       page = rows.packedPageIndex[from],

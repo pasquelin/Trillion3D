@@ -1,8 +1,6 @@
-# Banc de mesure commun
+# Shared Benchmark Harness
 
-Un seul harnais pour tous les lots. Une commande, aucun serveur à lancer à la main, rien d'autre
-que ce dépôt sur la machine : Playwright et esbuild sont ses dépendances de dev, Chrome celui du
-poste, les assets vivent sous `.mesure/assets/` (§ Assets).
+A single harness for all test batches. One command, no server to start manually, only this repository on the machine: Playwright and esbuild are its dev dependencies, Chrome is the system browser, assets live under `.mesure/assets/`.
 
     node scripts/mesure/banc.mjs --moteur webgl --avant <ref-git|dist> --apres <ref-git|dist> \
          --vues generale,sol,rue --images 60 --pixelError 0,1
@@ -10,262 +8,89 @@ poste, les assets vivent sous `.mesure/assets/` (§ Assets).
     node scripts/mesure/campagne.mjs
     node scripts/mesure/rapportGlobal.mjs
 
-- `--moteur` : `webgl` (exact-cluster-pages), `webgpu` (webgpu-page-raster) ou `webgl2`
-  (autonomous-pages-webgl, le moteur autonome qui décode lui-même les pages de géométrie, donc le
-  seul qui fait monter `pagesDecodedWasm`) ; il choisit aussi les drapeaux de Chromium
-  (`optionsCote.mjs`). `webgl2` exige un cache dont toutes les
-  primitives sont des clusters exacts : sans cela le compilateur laisse `autonomousScene` nul et
-  l'explorateur refuse la série par `AUTONOMOUS_SCENE_UNAVAILABLE`.
-  Les témoins, à mettre d'un côté par `--moteur-avant` : `three-nu` (Three.js seul, tout dessiné à
-  chaque image) et `three-lod` (Three.js plus un `THREE.LOD` à trois niveaux par maillage,
-  simplifiés par meshoptimizer au chargement : la méthode classique).
-- `--avant` / `--apres` : un dossier `dist/` construit, ou une référence git, extraite hors du dépôt
-  et construite. Sans `--avant`, un seul côté est mesuré ; `--apres` vaut le `dist/` du dépôt.
-- `--moteur-avant` / `--moteur-apres` : le moteur d'un seul côté, qui l'emporte sur `--moteur`. C'est
-  ainsi qu'on met **le moteur face au témoin Three dans une seule exécution** — mêmes poses, mêmes
-  lampes, mêmes caches, même serveur —, et que `ecartAvantApres` devient un chiffre de fidélité et
-  non plus une comparaison entre deux campagnes. Les drapeaux de Chromium sont alors la réunion de
-  ceux dont les deux côtés ont besoin, et chaque côté publie son moteur dans `mesure.json`.
-- `--scene <nom>` : la scène des assets (`emerald-square` ou `whisperwind-village`). Pose le cache
-  `derived` sur chaque côté qui n'a pas `--cache-<côté>`. Sans l'option, le harnais déduit le nom du
-  cache, ou retombe sur `emerald-square`.
-- `--cache-avant` / `--cache-apres` : le dossier « derived » d'un cache compilé (celui qui contient
-  `native/full`), pour comparer deux compilateurs sur la même scène. Sans l'option, le côté lit le
-  cache de la scène (`--scene`, sinon la référence) dans les assets. Chaque cache nommé est rendu
-  sous `/cache/<côté>/`.
-- `--ressources <dossier>` : le dossier que le glTF d'un cache compilé désigne par chemin relatif,
-  monté sous `/assets/`. Sans lui, un cache compilé sans base de ressources sort ses textures en 404
-  et la mesure porterait sur des matériaux sans texture — ce ne serait plus la scène.
-- `--vues` parmi `generale`, `sol`, `rue`, `detail` (trajectoire `poses.mjs`, `PATH_VERSION` 5,
-  dont le dépôt est la source) ; `--pixelError` prend une liste ; aussi `--chauffe`, `--largeur`, `--hauteur`, `--out` et `--port` (libre par défaut).
-- `--rebond on|off` (par défaut `off`) : allume la lumière qui rebondit, éteinte par défaut dans
-  le moteur. Sans elle, l'étape « Rebond » vaut « non mesuré » et l'image est celle d'avant le lot.
-- `--textures cache|host` (par défaut `host`) : `cache` fait lire au moteur WebGPU les niveaux de
-  texture cuits dans le cache compilé, sans que le chargeur glTF ouvre les images sources ; le
-  témoin Three garde ses images quoi qu'il arrive. Un dist d'avant cette option l'ignore, ce qui
-  permet de la laisser sur une comparaison avant/après.
-- `--antialiasing on|off` (par défaut `on`) : `off` fait rendre le moteur WebGPU sans gigue ni
-  historique — l'image d'avant le lot Lumière 16, échantillonnée au centre du pixel. Deux exécutions
-  dont seule cette option diffère donnent le coût et l'écart en pixels de l'accumulation temporelle ;
-  le coût se lit sur l'ENVELOPPE de l'image, pas sur l'étiquette de la passe (sur apple metal-3,
-  l'horodatage des dernières passes absorbe celles qui les précèdent). Un dist d'avant l'option
-  l'ignore.
-- `--profil on|off` (par défaut `on`) : demande au moteur son découpage par étape. `off` rejoue
-  exactement la même série sans ce chronométrage — deux exécutions dont seule cette option diffère
-  donnent la porte de fidélité et le coût du profil.
-- `--lampes N` : allume N lampes ponctuelles du contrat, posées par la règle générique de
-  `lampes.mjs` — une grille régulière dans l'emprise horizontale du modèle, à hauteur fixe au-dessus
-  de son plancher, portée déduite de la maille. Aucune scène n'est nommée. `--ombres on|off` (par
-  défaut `on`) dit si elles projettent une ombre ; `--lampe-mobile` déplace la première d'entre elles
-  d'un petit cercle à chaque image, sans lui faire quitter sa maille. `--intensite N` (40 par
-  défaut) règle ce qu'une ponctuelle émet, de la même façon pour tout modèle : sur un modèle dont
-  la maille fait des dizaines de mètres, l'indirect d'une ponctuelle à intensité de rue tombe sous
-  le quantum des huit bits de la capture et l'écart à l'oracle n'a plus rien à mesurer. La même
-  option existe sur `oracle.mjs`.
-- `--soleil` : ajoute la lampe directionnelle générique de `lampes.mjs` — direction, couleur et
-  intensité fixes, les mêmes pour n'importe quel modèle — avec ses cascades d'ombre, soumises à
-  `--ombres` comme les ponctuelles. Combinable avec `--lampes`.
-- `--camera-mobile` : la pose avance d'un cran de la trajectoire du banc à chaque image mesurée, au
-  lieu de rejouer la même. C'est ce qui distingue une scène immobile d'une caméra qui bouge — et
-  donc, pour le soleil, une cascade en cache d'une cascade redessinée à chaque image. C'est aussi la
-  seule façon de voir le coût d'une sélection : à pose figée, tout ce qui est tenu d'une image sur
-  l'autre est gratuit et n'apparaît nulle part. Sur Emerald, vue générale, la sélection GPU des
-  transparents fait passer `cpuFrameMs` p50 de 17,6 à 12,1 ms au seuil 0 et de 7,2 à 4,5 ms au
-  seuil 1 — un écart invisible à caméra fixe. Le hash de coupe relevé peut différer d'un côté à
-  l'autre sous cette option sans que l'image bouge : il vient d'une relecture asynchrone, en retard
-  d'une image sur la coupe qu'il décrit.
-- Sans `--lampes` ni `--soleil`, aucune lampe n'est déclarée : le moteur rend alors sa vue sans
-  éclairage, l'albédo brut des matériaux. C'est son comportement par défaut, pas une option du banc.
+- `--moteur`: `webgl` (exact-cluster-pages), `webgpu` (webgpu-page-raster), or `webgl2`
+  (autonomous-pages-webgl, the autonomous engine decoding geometry pages itself, hence the only one incrementing `pagesDecodedWasm`); it also sets Chromium flags (`optionsCote.mjs`). `webgl2` requires a cache where all primitives are exact clusters: otherwise the compiler leaves `autonomousScene` null and the explorer rejects the run with `AUTONOMOUS_SCENE_UNAVAILABLE`.
+  Witnesses to pit on one side via `--moteur-avant`: `three-nu` (Three.js alone, everything drawn every frame) and `three-lod` (Three.js with a three-level `THREE.LOD` per mesh, simplified by meshoptimizer at load: the classic method).
+- `--avant` / `--apres`: a built `dist/` directory, or a git ref. Without `--avant`, a single side is measured; `--apres` defaults to `dist/`.
+- `--moteur-avant` / `--moteur-apres`: per-side engine overrides. This is how the engine is pitted against the Three witness in a single execution — same poses, same lights, same caches, same server —, making `ecartAvantApres` a fidelity metric rather than a cross-campaign comparison. Chromium flags are the union of both sides' requirements.
+- `--scene <name>`: asset scene (`emerald-square` or `whisperwind-village`). Sets the `derived` cache for each side without `--cache-<side>`. Omission infers cache name or defaults to `emerald-square`.
+- `--cache-avant` / `--cache-apres`: path to compiled cache output (`native/full`), to compare two compilers on the same scene. Omission reads the scene cache from assets.
+- `--ressources <dir>`: directory for glTF resources mounted under `/assets/`. Without it, un-based compiled caches yield 404 textures.
+- `--vues` among `generale`, `sol`, `rue`, `detail` (`poses.mjs`, `PATH_VERSION` 5); `--pixelError` accepts a list; also `--chauffe`, `--largeur`, `--hauteur`, `--out`, and `--port`.
+- `--rebond on|off` (default `off`): enables bounce lighting.
+- `--textures cache|host` (default `host`): `cache` makes WebGPU engine read baked texture mips from cache without opening source images.
+- `--antialiasing on|off` (default `on`): toggles TAA jitter and accumulation.
+- `--profil on|off` (default `on`): requests per-step timing breakdown.
+- `--lampes N`: enables N point lights in the scene. `--ombres on|off` toggles shadow casting; `--lampe-mobile` animates the first light in a circle. `--intensite N` sets light intensity.
+- `--soleil`: adds directional sun light with shadow cascades. Combines with `--lampes`.
+- `--camera-mobile`: the pose advances by one step along the benchmark trajectory at each measured frame, instead of replaying the same one. This is what distinguishes a still scene from a moving camera — and thus, for the sun, a cached cascade from a re-rendered cascade at each frame. It is also the only way to observe selection cost: with a fixed pose, everything retained frame-to-frame is free and appears nowhere. On Emerald, general view, GPU transparent selection drops `cpuFrameMs` p50 from 17.6 to 12.1 ms at threshold 0 and from 7.2 to 4.5 ms at threshold 1 — an invisible difference with a static camera. The recorded cut hash may differ between sides under this option without the image moving: it comes from asynchronous readback, one frame behind the cut it describes.
+- Without `--lampes` or `--soleil`, no lights are declared: the engine renders unlit material albedo. This is its default behavior, not a harness option.
 
-## Le témoin Three et les lampes du contrat
+## The Three Witness and Contract Lights
 
-Les adaptateurs Three ne lisent pas le magasin `SceneLight` : ils recopient les lampes du graphe
-source, et rien d'autre. Le harnais est un hôte comme un autre — il pose donc lui-même, en Three,
-les lampes que le magasin déclare, par l'option publique `sceneLighting` de `createExplorer`
-(`pageTemoin.mjs`, servi à la page sous `/mesure/` et importé par son URL). Rien n'est écrit à la
-main : tout vient de `explorer.lights()`, donc du cache compilé et du contrat — les lampes du
-fichier importé comme celles du banc —, et aucune scène n'est nommée.
+Three adapters do not read `SceneLight` store: they copy lights from the source scene graph and nothing else. The harness is an ordinary host — it creates in Three the lights declared in the store via the public `sceneLighting` option of `createExplorer` (`pageTemoin.mjs`, served to page under `/mesure/` and imported by URL). Nothing is hardcoded: everything comes from `explorer.lights()`, thus from compiled cache and contract — imported scene lights as well as benchmark lights —, and no scene is named.
 
-La correspondance est exacte dans les unités de Three : couleur linéaire, intensité radiométrique
-sans facteur, `distance` = portée et `decay` = 2, ce qui donne le carré inverse fenêtré de
-`directIncidence` ; le bord de cône d'un projecteur est reproduit par la pénombre. Chaque côté
-publie dans son relevé `lampesTemoin` ce qu'il a reçu, ou `null` s'il ne dessine pas par Three.
+The mapping is exact in Three units: linear color, unscaled radiometric intensity, `distance` = range, `decay` = 2, yielding windowed inverse square of `directIncidence`; spotlight cone edge is matched by penumbra. Each side publishes in its `lampesTemoin` record what it received, or `null` if not rendered with Three.
 
-Ce que le témoin ne rend pas, nommé plutôt que deviné : **aucune ombre portée** — le renderer Three
-du SDK n'allume pas ses cartes d'ombre. Une campagne de fidélité se joue donc `--ombres off` des
-deux côtés, sinon l'écart mesuré porte d'abord les ombres que seul le moteur dessine.
+What the witness does not render, named rather than guessed: **no shadow casting** — the SDK's Three renderer does not enable shadow maps. A fidelity campaign is run `--ombres off` on both sides, otherwise measured delta reflects shadows rendered solely by our engine.
 
-- `--budget-ombres <ms>` : le budget de l'étape Ombres, en millisecondes de carte graphique par
-  image. Sans l'option, le moteur garde le sien (1,0 ms). Les pages invalidées au-delà attendent leur
-  tour ; le profil publie `pagesEnAttente` et `retardMaxMs`.
-- `--ombres-pages off` : fait repartir la face d'ombre entière dès qu'un objet bouge dans la portée
-  d'une lampe, au lieu des seules pages que sa boîte projetée recouvre. C'est la porte d'identité des
-  cartes : deux exécutions dont seule cette option diffère doivent rendre la **même empreinte**
-  d'atlas et la même image.
-- `--empreinte-ombres` : vide la file des pages d'ombre, relit l'atlas de profondeur et publie son
-  empreinte dans `series[].sides[].atlasOmbres` (`hash`, `written`, `pagesEnAttente`, `images`).
-  Éteint par défaut : c'est une lecture de 64 Mo, pas une mesure d'image. À n'employer qu'avec des
-  poses et des lampes déterministes, sinon les deux côtés ne décrivent pas la même scène.
-- `--instances N` (1, 4, 9 ou 12) : le SDK pose N copies de l'objet en grille (`replicaCount`).
-  Par défaut 1. Un lot qui touche aux instances se mesure aux deux nombres, et le rapport porte
-  dans chaque ligne la mémoire de géométrie publiée par le moteur (colonne « géométrie (Mo) » :
-  octets du cache de pages plus tampons de sommets, `null` si le moteur ne la publie pas).
-- `--chemin-math auto|js|wasm` (par défaut `auto`) : le chemin des calculs en lot du socle. `auto`
-  laisse le gouverneur arbitrer par la mesure — aucun seuil n'est écrit dans le code —, `js` et
-  `wasm` l'imposent pour toute la campagne, ce qui met les deux chemins face à face à scène, poses
-  et cache identiques. Le tableau « Chemin de calcul en lot » de `resume.md` publie, par côté et par
-  opération, le chemin réellement joué, les deux médianes en nanosecondes par élément, les bascules
-  et les éléments traités ; le relevé complet est dans `series[].sides[].cheminCalcul`. Une médiane
-  qu'aucune exécution n'a nourrie vaut « non mesuré », jamais zéro.
-- `--visible` : ouvre une vraie fenêtre. Sans fenêtre, l'affichage plafonne à 60 Hz sur ce Mac.
-- `--images-profil` (120 par défaut) : les images de la boucle de profil, jouée après la boucle
-  mesurée et sans la remplacer. Elle rend la main au navigateur entre deux images, parce que les
-  relevés d'horodatage reviennent par une promesse : une boucle qui n'attend jamais n'en récupère
-  presque aucun. La fenêtre du profil est vidée avant cette boucle.
+- `--budget-ombres <ms>`: Shadow stage budget in GPU milliseconds per frame. Without the option, engine keeps its default (1.0 ms). Invalidated pages beyond the budget wait their turn; profile reports `pagesEnAttente` and `retardMaxMs`.
+- `--ombres-pages off`: invalidates entire shadow face as soon as an object moves within light range, rather than only pages covered by its projected bounding box. This is the shadow map identity check: two runs differing only by this option must render the **same atlas footprint** and the same image.
+- `--empreinte-ombres`: flushes shadow page queue, re-reads depth atlas, and publishes footprint in `series[].sides[].atlasOmbres` (`hash`, `written`, `pagesEnAttente`, `images`). Disabled by default: this is a 64 MB read, not an image timing. Use only with deterministic poses and lights.
+- `--instances N` (1, 4, 9 or 12): SDK places N grid copies of the object (`replicaCount`). Default 1. Runs affecting instancing should measure both counts, and the report shows published geometry memory per line ("geometry (MB)" column: page cache bytes plus vertex buffers, `null` if unrecorded).
+- `--chemin-math auto|js|wasm` (default `auto`): execution path for core batch computations. `auto` lets governor decide by measurement — no hardcoded threshold in code —, `js` and `wasm` force it for the entire run, comparing paths on identical scene, poses and cache. The "Batch Math Path" table in `resume.md` publishes, per side and per operation, the path taken, medians in nanoseconds per item, transitions, and item count; full report in `series[].sides[].cheminCalcul`. Unexecuted operation median is "unmeasured", never zero.
+- `--visible`: opens a real window. Without a window, display caps at 60 Hz on macOS.
+- `--images-profil` (default 120): frame count for profile loop, executed after measured loop without replacing it. Yields to browser between frames because timestamp readbacks arrive asynchronously: an un-yielding loop misses timestamps. Profile window is cleared prior to this loop.
 
-Sorties dans `--out` (par défaut `.mesure/out/<moteur>-<horodatage>/`, hors de git et du lint) :
-`mesure.json`, `resume.md`, et par vue, par seuil et par côté un `.png`, un `.coupe.txt` et une ligne
-de relevés — `cpuFrameMs` et `cpuSelectMs` p50/p95, `gpuFrameMs` p50 (WebGPU), triangles sélectionnés
-et non couverts, compteurs Hi-Z, hash de l'ensemble sélectionné, budget de pages, charge machine au
-début et à la fin —, plus le témoin A/A (même côté joué deux fois) et l'écart avant/après en pixels
-et par canal. `null` = non mesuré, jamais déduit ; tout ce qui est lancé est arrêté, même sur erreur.
+Outputs in `--out` (default `.mesure/out/<engine>-<timestamp>/`, gitignored and un-linted):
+`mesure.json`, `resume.md`, and per view, threshold, and side: `.png`, `.coupe.txt`, and metrics line — `cpuFrameMs` and `cpuSelectMs` p50/p95, `gpuFrameMs` p50 (WebGPU), selected and unrendered triangles, Hi-Z counters, selection hash, page budget, system load —, plus A/A check (same side run twice) and before/after delta per channel. `null` = unmeasured, never inferred; all launched tasks exit cleanly.
 
-### Les compteurs de triangles et de repli
+### Triangle and Fallback Counters
 
-Tous sont lus sur **une seule image** : la dernière de la boucle mesurée, dont l'indice est publié à
-côté d'eux dans `series[].sides[].imageDuReleve`. Aucun n'est cumulé sur la série.
+All are read on **a single frame**: the last frame of the measured loop, indexed in `series[].sides[].imageDuReleve`. None are accumulated over the run.
 
-- `selectedTriangles` : les triangles de la coupe de clusters que cette image a choisie, avant tout
-  rejet postérieur (tronc de vision, occultation). `null` si le moteur ne tient pas de coupe.
-- `drawnTriangles` : les triangles que cette image remet au dessin — la coupe publiée, opaques et
-  transparents de la hiérarchie confondus, moins les grappes qu'aucune page résidente ne porte
-  (`uncoveredTriangles`). Il est compté **sur l'image du relevé elle-même**, au moment où la coupe
-  est adoptée, sans attendre aucun retour de la carte graphique : c'est ce qui le distingue de
-  `submittedTriangles`, et pourquoi il ne vaut jamais `null` faute de temps. Le rejet d'occultation
-  ne s'en retire pas ; `hiZ.rejectedTriangles` le compte à part. `null` hors de ce moteur.
-- `couverture` (colonne de `resume.md`, calculée par le rapport) :
-  `selectedTriangles − drawnTriangles − uncoveredTriangles`. **Zéro est la valeur attendue** : chaque
-  triangle de la coupe est soit remis au dessin, soit compté comme trou. Autre chose signifie que
-  l'un des trois compteurs décrit une autre image. Un tiret quand l'un des trois manque.
-- `submittedTriangles` : un compte tout autre — les triangles que cette image a réellement soumis au
-  dessin de la passe opaque, relevés par la carte graphique elle-même et non sur la coupe ; l'occultation en rejette une part après la soumission, ils y sont donc comptés. `null`
-  quand le moteur choisit sa coupe sur la carte graphique et que le compte n'en était pas encore
-  revenu au moment du relevé — un chiffre plus tard n'est pas un chiffre de cette image-là.
-- `totalSubmittedTriangles` : le même compte de la carte, les passes transparentes en plus. `null`
-  aux mêmes conditions — sur banc à caméra mobile, la coupe change à chaque image et ce retour
-  asynchrone n'arrive jamais : les deux valent alors `null` là où `drawnTriangles` est chiffré. C'est lui, et lui seul, que `metrics.triangles` reprend, pour les hôtes qui lisent
-  encore ce nom ; il vaut `null` quand rien ne l'a compté, et jamais zéro.
-- `imageTenue` (contrat `frameHeld`) : vrai quand l'image relevée a été **tenue** — rien n'avait
-  bougé, le moteur n'a réencodé qu'une présentation. Elle n'a alors dessiné aucun cluster, donc ses
-  triangles soumis valent zéro : c'est le compte exact de ce qu'elle a fait, et non une mesure
-  absente. Un banc à caméra fixe tient presque toujours sa dernière image ; lire `submittedTriangles`
-  sans lire cette colonne fait prendre une image tenue pour une image vide. `null` hors de ce moteur.
-- `uncoveredTriangles` : les triangles que la coupe publiée nomme mais que l'image ne peut pas
-  dessiner — aucune page résidente, aucun ancêtre couvrant. C'est un trou dans l'image : zéro est la
-  seule valeur saine. `null` sur un moteur qui dessine exactement ce qu'il a sélectionné.
-- `hiZ` (contrat `hiz*Clusters`, `hiz*Triangles`, `hizCountedFrame`) : ce que le test d'occultation
-  a reçu, éliminé et renvoyé vers un mip plus grossier, en clusters et en triangles. Sur le chemin
-  GPU ils décrivent une image **antérieure** à celle du relevé : `hiZ.image` la nomme, et le tableau
-  la met entre parenthèses. `null` quand aucune image n'a encore été comptée.
-- `repliSelectionGpu` (contrat `gpuSelectionFallback`) : vrai quand ce moteur avait une coupe choisie
-  sur la carte graphique et l'a abandonnée pour la coupe processeur de secours — tout ce qui est
-  mesuré ensuite décrit ce secours, pas la coupe GPU. `null` sur un moteur sans coupe GPU, le témoin
-  WebGL par exemple ; `resume.md` l'affiche en `oui` / `non` / `—`.
+- `selectedTriangles`: triangles from cluster cut chosen for this frame, before downstream rejection (frustum, occlusion). `null` if engine maintains no cut.
+- `drawnTriangles`: triangles submitted for rendering — published cut, opaque and transparent hierarchy combined, minus clusters with no resident page (`uncoveredTriangles`). Counted **on the reported frame itself** when cut is committed, without waiting for GPU readback: distinguishes it from `submittedTriangles`, never `null` due to timing. Occlusion rejection is not subtracted; `hiZ.rejectedTriangles` counts it separately. `null` outside this engine.
+- `coverage` (`resume.md` column, calculated by report generator):
+  `selectedTriangles − drawnTriangles − uncoveredTriangles`. **Zero is expected**: every cut triangle is either rendered or counted as missing. Non-zero means counters desynchronized across frames. Dash when any of the three is missing.
+- `submittedTriangles`: separate hardware count — triangles actually submitted to opaque raster pass, reported by GPU; occlusion rejects a portion after submission. `null` when engine selects cut on GPU and readback has not returned — later numbers do not represent this frame.
+- `totalSubmittedTriangles`: same hardware count including transparent passes. `null` under same conditions — on moving camera benchmark, cut changes every frame and async readback never returns: both read `null` where `drawnTriangles` has a value. This, and only this, is mapped to `metrics.triangles` for legacy hosts; `null` when unrecorded, never zero.
+- `imageTenue` (`frameHeld` contract): true when reported frame was **held** — unchanged scene, engine only re-encoded presentation. Zero clusters drawn, submitted triangles equal zero: exact record of activity, not missing measurement. Fixed camera benchmark almost always holds final frame; reading `submittedTriangles` without checking this column misinterprets held frame as empty frame. `null` outside this engine.
+- `uncoveredTriangles`: triangles in published cut that cannot be rendered — no resident page, no covering ancestor. Represents a visual hole: zero is the only valid number. `null` on engines rendering exactly what is selected.
+- `hiZ` (`hiz*Clusters`, `hiz*Triangles`, `hizCountedFrame` contracts): occlusion test input, rejected, and downsampled to coarser mip. On GPU path, represents an **earlier** frame: `hiZ.image` records its index, shown in parentheses. `null` before first frame counted.
+- `repliSelectionGpu` (`gpuSelectionFallback` contract): true when GPU cut selection fell back to CPU cut fallback — subsequent metrics describe fallback, not GPU cut. `null` on engines without GPU selection (e.g. WebGL witness); `resume.md` shows `yes` / `no` / `—`.
 
-`resume.md` porte aussi la section « Coût par étape » : une ligne par étape de l'image, colonne CPU
-et colonne GPU en p50/p95, jamais additionnées, plus les compteurs d'ombres (lampes, faces
-redessinées, appels de dessin), le moyen de mesure carte graphique retenu par l'appareil et le coût
-du profil lui-même. Le même découpage est enregistré tel quel dans `mesure.json`, sous
-`series[].sides[].profilParEtape`, pour comparer lot à lot. « non mesuré » n'est pas zéro.
+`resume.md` also features "Per-stage Cost": one line per frame stage, CPU and GPU p50/p95 columns (never summed), plus shadow metrics (lights, re-rendered faces, draw calls), device timing method, and profiling overhead. Stored as-is in `mesure.json` under `series[].sides[].profilParEtape`. "Unmeasured" is not zero.
 
-La section « Mémoire carte graphique » donne, par côté et par vue, ce que le moteur a alloué sur
-l'appareil et pas encore détruit — chaque texture et chaque tampon, comptés par un registre posé sur
-l'appareil et calculés depuis leur descripteur, WebGPU ne publiant pas la mémoire occupée —, avec
-trois familles nommées (atlas de textures calculé, géométrie allouée face à son réservoir, cibles
-d'image qui suivent la résolution), le reste par différence, et les étiquettes les plus lourdes ; le relevé
-complet par étiquette est dans `series[].sides[].metrics.gpuAllocatedByLabel`. Les seize compteurs
-des textures virtuelles sont sous chaque étape, lignes « Textures », « Retour d'image » et
-« Diffuseur » : le pool est fixe, « résident » est ce que la vue occupe.
+"GPU Memory" section reports allocated and un-freed VRAM per side and view — textures and buffers tracked via device wrapper register, WebGPU having no native VRAM query —, split into three named categories (computed texture atlas, allocated geometry pool, resolution-dependent render targets), remaining by difference, with top labeled allocations; full breakdown in `series[].sides[].metrics.gpuAllocatedByLabel`. The sixteen virtual texture counters appear under each stage ("Textures", "Image Feedback", "Broadcaster"): pool is fixed, "resident" is active view usage.
 
-La capture est celle d'une **pose calme** : après la barrière, la pose est rendue jusqu'à ce que le
-moteur tienne l'image — accumulation temporelle convergée, plus rien en vol —, au plus soixante-quatre
-images (`poseCalme`, `pageMesure.mjs`). Une capture prise en pleine accumulation porterait l'histoire
-de la trajectoire, dont l'arrivée des tuiles de textures ne se rejoue pas à l'identique d'une
-exécution à l'autre. `series[].sides[].imagesCalme` dit combien d'images il a fallu, `null` pour un
-moteur qui ne tient pas d'image (le témoin Three).
+Capture is taken on a **still pose**: after warmup, pose renders until held — temporal accumulation converged, no pending work —, max 64 frames (`poseCalme`, `pageMesure.mjs`). Mid-accumulation captures reflect trajectory history with non-deterministic tile streaming across runs. `series[].sides[].imagesCalme` records required frame count, `null` if engine does not hold frames (Three witness).
 
-Chaque série est jouée dans une page neuve, fermée juste après. Une scène Emerald laisse plusieurs
-centaines de mégaoctets vivants dans la page qui l'a jouée : en enchaînant les séries sur une seule
-page, `new THREE.WebGLRenderer` finit par ne plus obtenir de contexte (« Error creating WebGL
-context », relevé au passage de la vue `generale` à `sol` le 14 septembre 2026). Fermer la page rend
-au navigateur le contexte WebGL et le tas de la série précédente.
+Each series runs in a fresh page, closed immediately after. Emerald scene leaves hundreds of MBs active; reusing pages causes `new THREE.WebGLRenderer` to fail context creation ("Error creating WebGL context", observed Sept 14, 2026). Closing page restores WebGL context and heap to browser.
 
 ## Assets
 
-Le harnais sert `.mesure/assets/` (hors git ; `WG_ASSETS` pointe un autre dossier) sous
-`/benchmark-assets/`. Deux scènes de référence, chacune `<nom>/` (sources) et `<nom>-derived/`
-(cache compilé, `native/full/manifest.json`) :
-
-- `emerald-square` — glTF `emerald-day.gltf` et ses textures.
-- `whisperwind-village` — FBX d'Unreal (`Village2.fbx`). L'export n'a pas sorti les textures
-  Megascans : 81 matériaux, 6 texturés ; ce n'est pas nous, à ré-exporter côté Unreal. Le témoin
-  Three lit `source.gltf` écrit par le compilateur dans le cache.
-
-Le cache se recompile depuis les sources avec notre compilateur :
+Harness serves `.mesure/assets/` (gitignored; `WG_ASSETS` points to alternative path) under `/benchmark-assets/`. Expects reference scene `emerald-square`: `emerald-square/` (glTF and textures, `emerald-day.gltf`) and `emerald-square-derived/` (compiled cache, `native/full/manifest.json`). Recompile cache from source:
 
     pnpm run build && pnpm run build:native
     WEB_GEOMETRY_COMPILER_BIN=packages/asset-compiler-rust/target/release/web-geometry-compiler \
     node dist/sdk-node/cli.mjs .mesure/assets/emerald-square/emerald-day.gltf \
          .mesure/assets/emerald-square-derived full 150000 /benchmark-assets/emerald-square/
 
-La base des ressources est l'URL sous laquelle le harnais sert les sources : c'est là que le glTF
-compilé va chercher ses textures. L'empreinte du cache est la clé `key` de `manifest.json`, et
-`mesure.json` la consigne : deux relevés ne se comparent qu'à clé égale.
+Resource base URL is where harness serves sources for compiled glTF texture fetch. Cache fingerprint is `key` in `manifest.json`, recorded in `mesure.json`: comparisons require identical keys.
 
-## Campagne des deux scènes
+## Measuring Another Scene
 
-`campagne.mjs` joue chaque ligne sur les deux scènes de référence (`--scene a,b` pour n'en garder
-qu'une). Chaque exécution va sous `--out/<scène>/<nom>/` ; `rapportGlobal.mjs` pose une colonne par
-scène, les quatre barres (Three nu, Three LOD, Web Geometry, Unreal) et la coupe au seuil 1 px
-décomposée par primitive et par niveau du DAG.
+Harness is scene-agnostic: measures provided caches, pose bounds read from page model bounds. Three setup steps:
 
-## Mesurer une autre scène
+1. **Compile glTF** as shown above (§ Assets), to `<name>-derived/` folder — under `.mesure/assets/` or elsewhere, gitignored.
+2. **Name cache for both sides**: `--cache-avant <dir>` and `--cache-apres <dir>`. Scene name derived from `derived` directory; defaulting to reference scene cache if omitted.
+3. **Mount resources**: `--ressources <dir>` sets relative glTF resource folder. Omission yields 404 textures. Caches compiled with absolute `resourceBaseUrl` fetch directly from URL; logged errors indicate per-page resolution.
 
-Le harnais mesure celle des caches qu'on lui donne, et ses poses viennent des bornes du modèle
-lues dans la page, pas d'une table. Trois choses à fournir.
+Memory pools match engine fixed byte budgets: `--pool-geometrie <MiB>` (geometry pages, default 512 MiB) and `--pool-textures <MiB>` (texture tiles, default 512 MiB). Extreme values test degradation behavior, logged in metrics (`poolGeometrie.borne`, `poolGeometrie.saturees`, `coverageBudgetLimited`, `textureTilesRefused`). `--max-pages` remains a PAGE cap for test scenes. Recorded in metrics; comparisons require matching pool sizes.
 
-1. **Compiler le glTF** comme ci-dessus (§ Assets), vers un dossier `<nom>-derived/` — sous
-   `.mesure/assets/` ou ailleurs, jamais dans un dossier suivi par git.
-2. **Nommer ce cache aux deux côtés** : `--cache-avant <dossier>` et `--cache-apres <dossier>`. Le
-   nom de la scène est déduit du dossier `derived` ; sans aucune de ces deux options, le harnais lit
-   le cache de la scène de référence et retombe dessus. Ce cache n'est exigé que lorsqu'un côté au
-   moins n'a pas le sien.
-3. **Monter les ressources** : `--ressources <dossier>` est le dossier que le glTF du cache désigne
-   par chemin relatif. Sans lui, les textures sortent en 404 et la mesure ne porte plus sur la
-   scène. Un cache compilé avec un `resourceBaseUrl` absolu, lui, va chercher ses textures à cette
-   URL — sous `/benchmark-assets/` pour les caches des assets —, et `--ressources` ne le concerne pas :
-   c'est le journal d'erreurs du relevé qui dit lequel des deux cas on est, page par page.
+IN-SESSION adjustment (app slider via `explorer.setMemoryBudgets`) measured via `--pool-geometrie-vivant <MiB>` and `--pool-textures-vivant <MiB>`: post-warmup, harness resizes pools and logs engine response (`series[].sides[].reglageVivant`: retained pools, evicted items, resize duration, pre-resize residency) and frame count to recover held pose (`imagesReprise`, `null` if unrecoverable — pool smaller than view). Long warmup (`--chauffe 60`) fills pools before adjustment. To GROW geometry pool in-session, `--pool-geometrie-plafond <MiB>` declares max session pool ceiling.
 
-Les réservoirs de mémoire sont ceux du moteur — fixes, en octets, comme les variables de la
-référence : `--pool-geometrie <Mio>` (pages de géométrie, 512 Mio par défaut) et
-`--pool-textures <Mio>` (tuiles de textures, 512 Mio par défaut). Une valeur extrême est un cas de
-mesure, pas une erreur : le moteur dégrade et le relevé le dit (`poolGeometrie.borne`,
-`poolGeometrie.saturees`, `coverageBudgetLimited`, `textureTilesRefused`). `--max-pages` reste un
-plafond en PAGES pour les scènes de test. Le relevé consigne les réservoirs employés ; une
-comparaison n'a de sens qu'à réservoirs égaux des deux côtés.
+## Performance Benchmarks
 
-Le réglage EN SESSION — ce qu'un curseur d'application fait par `explorer.setMemoryBudgets` — se
-mesure par `--pool-geometrie-vivant <Mio>` et `--pool-textures-vivant <Mio>` : après la chauffe, le
-banc règle les réservoirs et relève ce que le moteur en dit (`series[].sides[].reglageVivant` :
-réservoirs tenus, pages et tuiles évincées, millisecondes du réglage, ce qui résidait juste avant)
-et le nombre d'images pour que la pose se tienne de nouveau (`imagesReprise`, `null` si elle ne se
-tient plus — un réservoir plus petit que la vue). Une chauffe longue (`--chauffe 60`) remplit le
-réservoir avant le réglage ; sans elle, rien n'a à être évincé. Pour faire GRANDIR le pool de géométrie en session,
-`--pool-geometrie-plafond <Mio>` déclare le plus grand pool que la session pourra atteindre.
-
-## Bancs de performance
-
-Ils vivent dans le paquet mesuré, sous `packages/<paquet>/bench/`, et se lancent par
-`pnpm run perf:all`. Leur fonctionnement, leurs oracles et leurs baselines sont décrits dans
-[`docs/TESTS.md`](../../docs/TESTS.md) ; ce README-ci ne couvre que le harnais de campagne
-ci-dessus, celui qui mesure une scène réelle dans un navigateur.
+Located per package under `packages/<package>/bench/`, executed via `pnpm run perf:all`. Operation, oracles, and baselines documented in [`docs/TESTS.md`](../../docs/TESTS.md); this README covers the campaign harness measuring real scenes in-browser.

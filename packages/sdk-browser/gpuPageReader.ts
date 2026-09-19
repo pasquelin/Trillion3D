@@ -23,12 +23,12 @@ export function createGpuPageReader(
   };
   const readBytes = (key: string, combined: AbortSignal, attempt: number) => {
     const started = now();
-    emit('gpu-page-read-start', 'Lecture de page GPU démarrée', () => ({
+    emit('gpu-page-read-start', 'GPU page read started', () => ({
       version: 1,
       key,
       attempt,
     }));
-    emit('gpu-page-attempt-start', 'Tentative de lecture de page GPU', () => ({
+    emit('gpu-page-attempt-start', 'GPU page read attempt', () => ({
       version: 1,
       key,
       attempt,
@@ -42,7 +42,7 @@ export function createGpuPageReader(
     }
     const job = Promise.resolve(raw).then(
       (bytes) => {
-        emit('gpu-page-read-end', 'Lecture de page GPU terminée', () => ({
+        emit('gpu-page-read-end', 'GPU page read finished', () => ({
           version: 1,
           key,
           attempt,
@@ -51,7 +51,7 @@ export function createGpuPageReader(
           actualBytes: bytes.byteLength,
           durationMs: report ? performance.now() - started : null,
         }));
-        emit('gpu-page-attempt-end', 'Tentative de lecture GPU réussie', () => ({
+        emit('gpu-page-attempt-end', 'GPU read attempt succeeded', () => ({
           version: 1,
           key,
           attempt,
@@ -63,7 +63,7 @@ export function createGpuPageReader(
         return bytes;
       },
       (error) => {
-        emit('gpu-page-read-end', 'Lecture de page GPU échouée', () => ({
+        emit('gpu-page-read-end', 'GPU page read failed', () => ({
           version: 1,
           key,
           attempt,
@@ -71,7 +71,7 @@ export function createGpuPageReader(
           error: String(error),
           durationMs: report ? performance.now() - started : null,
         }));
-        emit('gpu-page-attempt-end', 'Tentative de lecture GPU échouée', () => ({
+        emit('gpu-page-attempt-end', 'GPU read attempt failed', () => ({
           version: 1,
           key,
           attempt,
@@ -87,7 +87,7 @@ export function createGpuPageReader(
   const fetchBytes = (key: string, combined: AbortSignal) => {
     const existing = fetches.get(key);
     if (existing) {
-      emit('gpu-page-read-coalesced', 'Lecture GPU jointe à une demande en cours', () => ({
+      emit('gpu-page-read-coalesced', 'GPU read joined to an in-flight request', () => ({
         version: 1,
         key,
         loading: fetches.size,
