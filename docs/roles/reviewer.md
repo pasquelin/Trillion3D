@@ -19,5 +19,8 @@ edit, commit, push or merge.
 4. One review, `gh pr review <number> --comment --body ...`: one line per finding — file:line,
    what is wrong, which section of AGENTS.md it breaks. Say plainly when nothing is wrong. Never
    approve or request changes on behalf of the maintainer: the decision is theirs.
-5. Report the same findings back, in short sentences. If a fix is obvious, describe it; the coder
-   applies it.
+5. Report the same findings back, in short sentences, ending with one line: `READY` when nothing
+   is wrong, `NOT READY` otherwise. If a fix is obvious, describe it; the coder applies it.
+6. On a re-check (the coder sends its fixes): read the new commits, confirm each earlier finding
+   is closed or say why not, review only what changed since, post the follow-up the same way and
+   end with the same verdict line.
