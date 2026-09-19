@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { determinantMatrix4, linearPartDeterminant, multiplyMatrix4 } from './mathMatrix4.ts';
+import {
+  copyMatrix4,
+  determinantMatrix4,
+  linearPartDeterminant,
+  multiplyMatrix4,
+} from './mathMatrix4.ts';
 
 const IDENTITY = Float64Array.from([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 const translation = (x: number, y: number, z: number) =>
@@ -69,4 +74,14 @@ test('linearPartDeterminant: same sign and same value to the ulp as determinantM
     lineaire = linearPartDeterminant(m);
   assert.equal(Math.sign(complet), Math.sign(lineaire));
   assert.ok(Math.abs(complet - lineaire) <= 1e-9 * Math.abs(complet), `${complet} vs ${lineaire}`);
+});
+
+test('copyMatrix4: the sixteen numbers land at their offsets, and the buffer given comes back', () => {
+  const m = Float64Array.from([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53]);
+  const out = new Float64Array(18).fill(-1);
+  // The documented convention of the family: the output is returned, so a call can be an
+  // expression — `const world = copyMatrix4(new Float64Array(16), src)`.
+  assert.equal(copyMatrix4(out, m, 2), out);
+  assert.deepEqual(out.subarray(2), m);
+  assert.deepEqual([...out.subarray(0, 2)], [-1, -1]);
 });

@@ -96,3 +96,32 @@ test('gpuFrameCostSnapshot: the published pose is the engine camera’s (run.gat
     else Reflect.deleteProperty(globalThis, 'location');
   }
 });
+
+test('an item that declares no material is counted as one draw, the host default side', () => {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'location');
+  Object.defineProperty(globalThis, 'location', {
+    configurable: true,
+    value: { search: '?wgFrameAudit=1' },
+  });
+  try {
+    // An empty material array declares nothing: the side read is the host default, front, and the
+    // item costs one draw. Reading the extracted first element instead would throw here.
+    const item = { bounds: [10, 0, 0, 11, 1, 1], material: [] };
+    const rt = {
+      blendState: {
+        visibleBlend: [item],
+        blendGpu: [item],
+        blendPlanes: [-1, 0, 0, 1, ...new Array(20).fill(0)],
+      },
+      run: { blendDrawCalls: 0 },
+      timing: {},
+      gpu: { targetSize: [32, 32] },
+    } as unknown as WebgpuPagesRuntime;
+    const snapshot = gpuFrameCostSnapshot(rt)!;
+    assert.equal(snapshot.listedOutsideFrustum, 1);
+    assert.equal(snapshot.outsideDrawsIfTextured, 1, 'front, not two faces and not a crash');
+  } finally {
+    if (descriptor) Object.defineProperty(globalThis, 'location', descriptor);
+    else Reflect.deleteProperty(globalThis, 'location');
+  }
+});
