@@ -1,157 +1,154 @@
-/**
- * Documentation portal router and application controller.
- */
-import { MENU_SECTIONS } from './menuData.js';
-import { GUIDES_CONTENT } from './docsContentGuides.js';
-import { ENUMS_CONTENT } from './docsContentEnums.js';
-import { VECTOR_CONTENT } from './docsContentMathVector.js';
-import { MATRIX_CONTENT } from './docsContentMathMatrix.js';
-import { CAMERA_COLOR_CONTENT } from './docsContentMathCameraColor.js';
-import { BATCH_LIFECYCLE_CONTENT } from './docsContentBatch.js';
-import { renderDemoShell, renderEntryHtml } from './viewRenderer.js';
+/** Router, sidebar and search of the documentation portal. One entry per hash route. */
+import { SECTIONS, searchText } from './docsModel.js';
+import { EXAMPLES, GUIDES } from './docsContentGuides.js';
+import { ENUMS_IMAGE } from './docsContentEnums.js';
+import { ENUMS_RUNTIME } from './docsContentEnumsRuntime.js';
+import { LIFECYCLE } from './docsContentLifecycle.js';
+import { CAMERA, HOST_CAMERA } from './docsContentCamera.js';
+import { MATRICES } from './docsContentMatrix.js';
+import { COLORS, VECTORS } from './docsContentVector.js';
+import { BOUNDS } from './docsContentBounds.js';
+import { BATCHES, TREE } from './docsContentTree.js';
+import { renderDemoShell, renderEntry } from './viewRenderer.js';
 import { initWebGpuDemo, setDemoFov } from './demoWebgpu.js';
 
-const ALL_ENTRIES = {
-  ...GUIDES_CONTENT,
-  ...ENUMS_CONTENT,
-  ...VECTOR_CONTENT,
-  ...MATRIX_CONTENT,
-  ...CAMERA_COLOR_CONTENT,
-  ...BATCH_LIFECYCLE_CONTENT,
+const DEMO = {
+  id: 'webgpu-demo',
+  section: 'demo',
+  kind: 'Demo',
+  title: 'Live WebGPU viewport',
+  description: 'A frame drawn by the engine kernels themselves, bundled from packages/sdk-core.',
 };
 
-let currentFilter = '';
+const ENTRIES = new Map(
+  [
+    ...GUIDES,
+    ...EXAMPLES,
+    DEMO,
+    ...ENUMS_IMAGE,
+    ...ENUMS_RUNTIME,
+    ...LIFECYCLE,
+    ...CAMERA,
+    ...HOST_CAMERA,
+    ...MATRICES,
+    ...VECTORS,
+    ...COLORS,
+    ...BOUNDS,
+    ...TREE,
+    ...BATCHES,
+  ].map((entry) => [entry.id, entry]),
+);
 
-function initApp() {
-  renderSidebar();
-  setupSearch();
-  setupTheme();
-  window.addEventListener('hashchange', handleRoute);
-  handleRoute();
+const HOME = GUIDES[0].id;
+let filter = '';
+
+function entryOf(hash) {
+  const id = hash.replace(/^#/, '').split('/').pop();
+  return ENTRIES.get(id) ?? ENTRIES.get(HOME);
+}
+
+function sidebarHtml() {
+  const query = filter.trim().toLowerCase();
+  const matches = [...ENTRIES.values()].filter(
+    (entry) => !query || searchText(entry).includes(query),
+  );
+  const active = entryOf(location.hash).id;
+  let html = '';
+  for (const section of SECTIONS) {
+    const items = matches.filter((entry) => entry.section === section.id);
+    if (items.length === 0) continue;
+    html += `<li class="menu-title text-xs uppercase tracking-wider mt-3 first:mt-0">${section.title}</li>`;
+    for (const entry of items) {
+      const label = entry.title || entry.id;
+      const badge = entry.issue
+        ? `<span class="badge badge-warning badge-xs shrink-0">#${entry.issue}</span>`
+        : '';
+      html +=
+        `<li><a href="#${section.id}/${entry.id}" class="flex items-center gap-2 py-1.5${entry.id === active ? ' active' : ''}">` +
+        `<span class="truncate font-mono text-xs">${label}</span>${badge}</a></li>`;
+    }
+  }
+  return html || '<li class="px-3 py-2 text-sm opacity-60">No entry matches.</li>';
 }
 
 function renderSidebar() {
-  const menuEl = document.getElementById('sidebar-menu');
-  if (!menuEl) return;
-  const q = currentFilter.toLowerCase().trim();
-
-  let html = '';
-  for (const sec of MENU_SECTIONS) {
-    const items = sec.items.filter(
-      (it) =>
-        !q ||
-        it.title.toLowerCase().includes(q) ||
-        (ALL_ENTRIES[it.id]?.description || '').toLowerCase().includes(q),
-    );
-    if (items.length === 0) continue;
-
-    html += `
-      <li class="menu-title text-xs uppercase tracking-wider text-base-content/60 mt-3 first:mt-0 font-bold">${sec.title}</li>
-      ${items
-        .map(
-          (it) => `
-        <li>
-          <a href="#${sec.id}/${it.id}" id="nav-${it.id}" class="flex items-center justify-between text-sm py-1.5 px-3 rounded-lg hover:bg-base-200">
-            <span class="truncate font-mono">${it.title}</span>
-            ${it.tag ? `<span class="badge badge-xs ${it.tag === 'Enum' ? 'badge-primary' : it.tag === 'Guide' ? 'badge-info' : 'badge-ghost'}">${it.tag}</span>` : ''}
-          </a>
-        </li>
-      `,
-        )
-        .join('')}
-    `;
-  }
-  menuEl.innerHTML = html;
-  highlightActiveNav();
+  const menu = document.getElementById('sidebar-menu');
+  if (menu) menu.innerHTML = sidebarHtml();
 }
 
-function handleRoute() {
-  const hash = window.location.hash.slice(1) || 'guides/quick-start';
-  const parts = hash.split('/');
-  const entryId = parts.length > 1 ? parts[1] : parts[0];
-  const contentEl = document.getElementById('main-content');
-  if (!contentEl) return;
-
-  highlightActiveNav();
-
-  if (entryId === 'webgpu-demo') {
-    contentEl.innerHTML = renderDemoShell();
-    const canvas = document.getElementById('demo-canvas');
-    const statsEl = document.getElementById('demo-stats');
-    const modeSelect = document.getElementById('demo-shading-mode');
-    const fovRange = document.getElementById('demo-fov-range');
-    const fovVal = document.getElementById('demo-fov-val');
-
-    if (fovRange) {
-      fovRange.oninput = (e) => {
-        const val = Number(e.target.value);
-        if (fovVal) fovVal.textContent = `${val}°`;
-        setDemoFov(val);
-      };
-    }
-    initWebGpuDemo(canvas, statsEl, () => modeSelect?.value || 'clusters');
-    return;
+function startDemo() {
+  const fov = document.getElementById('demo-fov');
+  const fovValue = document.getElementById('demo-fov-value');
+  if (fov) {
+    fov.oninput = () => {
+      if (fovValue) fovValue.textContent = `${fov.value}°`;
+      setDemoFov(Number(fov.value));
+    };
   }
+  const mode = document.getElementById('demo-mode');
+  initWebGpuDemo(
+    document.getElementById('demo-canvas'),
+    document.getElementById('demo-stats'),
+    () => mode?.value ?? 'faces',
+  );
+}
 
-  const entry = ALL_ENTRIES[entryId] || {
-    title: entryId,
-    category: 'Documentation',
-    html: '<p class="text-base-content/70">Documentation for this entry is being compiled.</p>',
-  };
-
-  contentEl.innerHTML = renderEntryHtml(entry);
+function route() {
+  const entry = entryOf(location.hash);
+  const main = document.getElementById('main-content');
+  if (!main) return;
+  main.innerHTML = entry.id === DEMO.id ? renderDemoShell() : renderEntry(entry);
+  if (entry.id === DEMO.id) startDemo();
+  renderSidebar();
+  const drawer = document.getElementById('drawer-toggle');
+  if (drawer) drawer.checked = false;
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
-function highlightActiveNav() {
-  const hash = window.location.hash.slice(1) || 'guides/quick-start';
-  const parts = hash.split('/');
-  const entryId = parts.length > 1 ? parts[1] : parts[0];
-
-  document
-    .querySelectorAll('#sidebar-menu a')
-    .forEach((el) => el.classList.remove('active', 'bg-primary', 'text-primary-content'));
-  const activeEl = document.getElementById(`nav-${entryId}`);
-  if (activeEl) {
-    activeEl.classList.add('active', 'bg-primary', 'text-primary-content');
-  }
-}
-
 function setupSearch() {
-  const inputs = [
-    document.getElementById('search-input'),
-    document.getElementById('search-input-mobile'),
-  ].filter(Boolean);
+  const inputs = ['search-input', 'search-input-mobile']
+    .map((id) => document.getElementById(id))
+    .filter(Boolean);
   for (const input of inputs) {
-    input.addEventListener('input', (e) => {
-      currentFilter = e.target.value;
-      for (const other of inputs) if (other !== input) other.value = currentFilter;
+    input.addEventListener('input', () => {
+      filter = input.value;
+      for (const other of inputs) if (other !== input) other.value = filter;
       renderSidebar();
     });
   }
-  window.addEventListener('keydown', (e) => {
-    const desktopInput = document.getElementById('search-input');
-    if (e.key === '/' && desktopInput && document.activeElement !== desktopInput) {
-      e.preventDefault();
-      desktopInput.focus();
+  window.addEventListener('keydown', (event) => {
+    const desktop = document.getElementById('search-input');
+    if (event.key === '/' && desktop && document.activeElement !== desktop) {
+      event.preventDefault();
+      desktop.focus();
     }
   });
 }
 
 function setupTheme() {
   const toggle = document.getElementById('theme-toggle');
-  const saved =
-    localStorage.getItem('wg-docs-theme') ||
-    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  document.documentElement.setAttribute('data-theme', saved);
-  if (toggle) {
-    toggle.checked = saved === 'dark';
-    toggle.addEventListener('change', (e) => {
-      const theme = e.target.checked ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-theme', theme);
-      localStorage.setItem('wg-docs-theme', theme);
-    });
+  let saved = null;
+  try {
+    saved = localStorage.getItem('wg-docs-theme');
+  } catch {
+    /* Private window or blocked storage: the media query decides. */
   }
+  const dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  if (!toggle) return;
+  toggle.checked = dark;
+  toggle.addEventListener('change', () => {
+    const theme = toggle.checked ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', theme);
+    try {
+      localStorage.setItem('wg-docs-theme', theme);
+    } catch {
+      /* Nothing to remember: the page still renders in the chosen theme. */
+    }
+  });
 }
 
-document.addEventListener('DOMContentLoaded', initApp);
+setupTheme();
+setupSearch();
+window.addEventListener('hashchange', route);
+route();

@@ -1,10 +1,14 @@
 /**
- * Interactive WebGPU 3D viewport demo with live matrix and camera calculations.
+ * The live viewport: one mesh, drawn from matrices the engine's own kernels compute
+ * (`sdkCoreMath.js`, bundled from `packages/sdk-core`). Reversed depth, infinite far plane —
+ * the depth test is therefore `greater-equal` and the buffer is cleared to 0.
  */
-import { composeMatrix4, multiplyMatrix4, perspectiveProjection } from './mathKernels.js';
+import { composeMatrix4, multiplyMatrix4, perspectiveProjection } from './sdkCoreMath.js';
 import { buildCubeGeometry, WGSL_SHADER } from './demoGeometry.js';
 
 let animationId = null;
+/** The device of the previous visit: leaving the page must not leak one per visit. */
+let currentDevice = null;
 let rotX = 0.35,
   rotY = 0.55;
 let isDragging = false,
@@ -14,14 +18,22 @@ let fovDeg = 50;
 
 export async function initWebGpuDemo(canvas, statsEl, modeGetter) {
   if (animationId) cancelAnimationFrame(animationId);
+  if (currentDevice) {
+    currentDevice.destroy();
+    currentDevice = null;
+  }
   setupMouseControls(canvas);
   if (!navigator.gpu) {
-    statsEl.innerHTML = '<span class="text-warning">WebGPU not available in this browser.</span>';
+    statsEl.textContent = 'WebGPU is unavailable in this browser: nothing is drawn.';
     return;
   }
   const adapter = await navigator.gpu.requestAdapter();
-  if (!adapter) return;
+  if (!adapter) {
+    statsEl.textContent = 'No WebGPU adapter answered: nothing is drawn.';
+    return;
+  }
   const device = await adapter.requestDevice();
+  currentDevice = device;
   const ctx = canvas.getContext('webgpu');
   const format = navigator.gpu.getPreferredCanvasFormat();
   ctx.configure({ device, format, alphaMode: 'premultiplied' });
@@ -85,9 +97,11 @@ export async function initWebGpuDemo(canvas, statsEl, modeGetter) {
   const mvp32 = new Float32Array(20);
   let lastTime = performance.now(),
     frames = 0,
-    fps = 60;
+    fps = 60,
+    mathMs = 0;
 
   function render(now) {
+    if (device !== currentDevice) return; // a later visit owns the canvas now
     if (canvas.clientWidth !== canvas.width || canvas.clientHeight !== canvas.height) {
       canvas.width = canvas.clientWidth;
       canvas.height = canvas.clientHeight;
@@ -102,9 +116,9 @@ export async function initWebGpuDemo(canvas, statsEl, modeGetter) {
     const q = [qx * qwY, qy * qwX, -qx * qy, qwX * qwY];
     composeMatrix4(modelM, [0, 0, -2.8], q, [1, 1, 1]);
     const aspect = canvas.width / Math.max(1, canvas.height);
-    perspectiveProjection(projM, fovDeg, aspect, 0.1);
+    perspectiveProjection(projM, fovDeg, aspect, 0.1, 1);
     multiplyMatrix4(mvpM, projM, modelM);
-    const mathUs = ((performance.now() - t0) * 1000).toFixed(1);
+    mathMs += performance.now() - t0;
 
     for (let i = 0; i < 16; i++) mvp32[i] = mvpM[i];
     mvp32[16] = modeGetter() === 'normals' ? 1 : 0;
@@ -137,9 +151,14 @@ export async function initWebGpuDemo(canvas, statsEl, modeGetter) {
     frames++;
     if (now - lastTime >= 500) {
       fps = Math.round((frames * 1000) / (now - lastTime));
+      // The three kernels are often quicker than one tick of the page clock: say so
+      // rather than publish a rounded zero as a measurement.
+      const maths =
+        mathMs > 0 ? `${((mathMs / frames) * 1000).toFixed(1)} µs/frame` : 'under the clock tick';
+      statsEl.textContent = `${fps} FPS · engine maths ${maths} (CPU) · reversed Z`;
       frames = 0;
+      mathMs = 0;
       lastTime = now;
-      statsEl.textContent = `${fps} FPS · math: ${mathUs} µs · Reversed-Z WebGPU`;
     }
     animationId = requestAnimationFrame(render);
   }
