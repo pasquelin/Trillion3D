@@ -1,18 +1,18 @@
-//! Le corps émissif lié à une lampe, et le rayon qu'il mesure.
+//! The emissive body linked to a light, and the radius it measures.
 //!
-//! Le lien est la parenté du graphe, jamais un nom ni une classe d'objet : le nœud parent de la
-//! lampe, ou l'un de ses frères directs, porte le maillage du luminaire. L'émission se lit sur le
-//! matériau — facteur ou texture — et sur lui seul, si bien que n'importe quelle scène importée
-//! donne le même verdict. Le corps est parcouru sommet par sommet et non par son emprise : celle
-//! d'une sphère déborde d'un facteur racine de trois, et exclurait des occultants que l'enveloppe
-//! ne contient pas — exactement ce que `docs/SDK.md` reproche au plan proche.
+//! The link is graph parentage, never a name nor object class: the light's parent node,
+//! or one of its direct siblings, carries the luminaire mesh. Emission is read on the
+//! material — factor or texture — and on it alone, so that any imported scene
+//! yields the same result. The body is traversed vertex by vertex and not by its bounding box: a sphere's
+//! bounding box overflows by a square root of three factor, and would exclude shadow casters that the envelope
+//! does not contain — exactly what  reproaches to the near plane.
 use super::*;
 use crate::compiler_accessor_create::accessor;
 use crate::compiler_world::transform_point;
 
-/// Le rayon de l'enveloppe autour de `centre`, si un corps émissif est lié à la lampe du nœud.
-/// Plusieurs corps liés à la même lampe : la sphère la plus serrée l'emporte, parce qu'exclure
-/// au-delà de l'enveloppe rejette des occultants qu'elle n'a jamais contenus.
+/// Radius of the envelope around , if an emissive body is linked to the node's light.
+/// Multiple bodies linked to the same light: the tightest sphere wins, because excluding
+/// beyond the envelope rejects shadow casters that it never contained.
 pub(super) fn radius(e: &Emitter, node: usize, centre: [f64; 3]) -> Option<f64> {
     bound_nodes(e, node)
         .into_iter()
@@ -20,8 +20,8 @@ pub(super) fn radius(e: &Emitter, node: usize, centre: [f64; 3]) -> Option<f64> 
         .min_by(f64::total_cmp)
 }
 
-/// Les nœuds qui peuvent porter l'enveloppe : le parent de la lampe et ses frères directs. Une
-/// lampe sans parent a pour frères les autres racines de la scène.
+/// Nodes that can carry the envelope: the light's parent and its direct siblings. A
+/// light without a parent has the scene's other roots as siblings.
 fn bound_nodes(e: &Emitter, node: usize) -> Vec<usize> {
     let parent = e.parents[node];
     let siblings = (0..e.parents.len()).filter(|id| e.parents[*id] == parent);
@@ -32,9 +32,9 @@ fn bound_nodes(e: &Emitter, node: usize) -> Vec<usize> {
         .collect()
 }
 
-/// La distance la plus grande de `centre` à un sommet du corps émissif que ce nœud porte, en espace
-/// monde. `None` quand le nœud ne porte pas de maillage, qu'aucun de ses matériaux n'émet, ou que
-/// les positions ne se lisent pas : une lampe sans enveloppe lisible n'en déclare aucune.
+/// Largest distance from  to a vertex of the emissive body carried by this node, in world
+/// space.  when the node carries no mesh, none of its materials emit, or
+/// positions cannot be read: a light without a readable envelope declares none.
 fn reach(e: &Emitter, node: usize, centre: [f64; 3]) -> Option<f64> {
     let mesh = e.g.pointer("/nodes")?.get(node)?.get("mesh")?.as_u64()?;
     let materials = e.g.get("materials").and_then(Value::as_array);
@@ -65,8 +65,8 @@ fn reach(e: &Emitter, node: usize, centre: [f64; 3]) -> Option<f64> {
     farthest
 }
 
-/// Un matériau émet quand son facteur d'émission n'est pas nul ou qu'il porte une texture
-/// d'émission. C'est une propriété de matériau, la seule chose que le compilateur regarde ici.
+/// A material emits when its emission factor is non-zero or it carries an emission
+/// texture. This is a material property, the only thing the compiler looks at here.
 fn emits(material: &Value) -> bool {
     let factor = material
         .get("emissiveFactor")

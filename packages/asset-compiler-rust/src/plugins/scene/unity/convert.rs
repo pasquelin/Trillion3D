@@ -1,8 +1,8 @@
-//! De la scène demandée à la scène intermédiaire écrite dans le cache.
+//! From the requested scene to the intermediate scene written into the cache.
 use super::*;
 
-/// La scène demandée. Un dossier qui porte plusieurs scènes est une ambiguïté : le compilateur ne
-/// choisit pas à la place de l'appelant, qui lui désigne un `.unity` précis comme source.
+/// The requested scene. A directory that carries several scenes is an ambiguity: the compiler
+/// does not choose in the caller's place, who names a specific `.unity` as the source.
 fn scene_file(inputs: &[PathBuf]) -> Result<&Path> {
     let scenes: Vec<&PathBuf> = inputs
         .iter()
@@ -37,12 +37,12 @@ fn scene_file(inputs: &[PathBuf]) -> Result<&Path> {
     }
 }
 
-/// Lit la scène et écrit sa conversion dans le cache. Rien n'est écrit à côté de la source.
+/// Reads the scene and writes its conversion into the cache. Nothing is written beside the source.
 pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Result<PathBuf> {
     let started = Instant::now();
     let file = scene_file(request.inputs)?;
-    // La racine sous laquelle les URI d'images de la scène se résolvent, la même que celle où le
-    // compilateur relira ces images : une seule règle pour tous les pilotes.
+    // Root under which the scene's image URIs resolve, the same as the one where the compiler
+    // will reread those images: one rule for every driver.
     let source_dir = crate::plugins::scene::image_root(request.source);
     let project = Project::index(&assets_root(file), &source_dir, request.cancelled)?;
     (request.progress)(
@@ -60,8 +60,8 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         traverse(&mut world, file)?;
         world.scene.count("metaFiles", project.meta_files);
     }
-    // La clé tient l'empreinte de chaque fichier de données lu et celle de chaque modèle importé :
-    // une scène inchangée se réécrit à l'identique, au même endroit.
+    // The key holds the digest of each data file read and that of each imported model: an
+    // unchanged scene rewrites identically, in the same place.
     super::finish(
         scene,
         request,
@@ -72,7 +72,7 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
     )
 }
 
-/// Parcourt la scène depuis ses racines.
+/// Walks the scene from its roots.
 fn traverse(world: &mut World<'_>, file: &Path) -> Result<()> {
     let mut builder = Builder {
         world,

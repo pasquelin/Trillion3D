@@ -1,20 +1,20 @@
-// Les repères hostiles du banc du lot 4 : poses, attributs de sommet et poids barycentriques choisis
-// pour tomber sur tous les cas limites du repère tangent — vecteur nul que la normalisation laisse
-// nul, matrice singulière dont la matrice des normales est nulle, échelle négative qui retourne la
-// face, cisaillement, échelle non uniforme, NaN, ±0 et infinis.
+// Hostile frames of the batch-4 bench: poses, vertex attributes and barycentric weights chosen
+// to hit every edge case of the tangent frame — a zero vector that normalization leaves
+// zero, a singular matrix whose normal matrix is zero, a negative scale that flips the
+// face, shear, non-uniform scale, NaN, ±0 and infinities.
 //
-// Deux couples sont là pour que l'ordre des termes se voie. Une pose porte une ligne qui s'annule
-// (`1e16`, `−1e16`, `3`) que des sommets tout à un traversent : la somme vaut 3 dans l'ordre de la
-// référence et 4 dans l'autre. Une seconde pose a pour matrice des normales exactement
-// `[[1, 1, 1], [0, 1, 0], [0, 0, 1]]`, et les normales de sommet qui l'accompagnent valent
-// `(1e16, 1, 1)` : là encore la somme dépend de l'ordre. Sans ces deux-là, toutes les poses sont
-// assez creuses pour qu'une addition réassociée passe inaperçue.
+// Two pairs are there so term order is visible. One pose carries a cancelling row
+// (`1e16`, `−1e16`, `3`) that all-ones vertices walk: the sum is 3 in the reference
+// order and 4 in the other. A second pose has a normal matrix of exactly
+// `[[1, 1, 1], [0, 1, 0], [0, 0, 1]]`, and the vertex normals that go with it are
+// `(1e16, 1, 1)`: again the sum depends on order. Without those two, every pose is
+// sparse enough that a reassociated add would go unnoticed.
 //
-// Les attributs sont en simple précision, comme une géométrie importée : les deux côtés lisent donc
-// les mêmes valeurs arrondies, et l'écart éventuel ne peut venir que de l'algèbre.
+// Attributes are in single precision, like imported geometry: both sides therefore
+// read the same rounded values, and any delta can only come from the algebra.
 import * as THREE from 'three';
 
-/** Poses hostiles, en colonne-major : cisaillement, singulière et ligne qui s'annule comprises. */
+/** Hostile poses, column-major: shear, singular and cancelling row included. */
 const POSES = [
   [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
   [-1, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0.25, 0, 5, -2, 7, 1],
@@ -28,7 +28,7 @@ const POSES = [
   [1, -1, -1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
 ];
 
-/** Triplets de normales de sommet : unitaires, nuls, signés, non finis, tout à un, très étalés. */
+/** Vertex-normal triplets: unit, zero, signed, non-finite, all-ones, very spread. */
 const NORMALES = [
   [0, 1, 0, 0, 1, 0, 0, 1, 0],
   [0, 0, 0, 1, 0, 0, 0, 0, 1],
@@ -39,7 +39,7 @@ const NORMALES = [
   [1e16, 1, 1, 1e16, 1, 1, 1e16, 1, 1],
 ];
 
-/** Triplets de tangentes `(x, y, z, w)` : `w` porte le signe de la bitangente. */
+/** Tangent triplets `(x, y, z, w)`: `w` carries the bitangent sign. */
 const TANGENTES = [
   [1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1],
   [0, 0, 0, -1, 1, 0, 0, -1, 0, 1, 0, 1],
@@ -47,21 +47,21 @@ const TANGENTES = [
   [1, 1, 1, 1, 1, 1, 1, -1, 1, 1, 1, 1],
 ];
 
-/** Coordonnées de texture : plates (dégénérées), ordinaires, et non finies. */
+/** Texture coordinates: flat (degenerate), ordinary, and non-finite. */
 const UVS = [
   [0, 0, 1, 0, 0, 1],
   [0.25, 0.25, 0.25, 0.25, 0.25, 0.25],
   [-0, 0, NaN, 1, 2, Infinity],
 ];
 
-/** Sommets monde : un triangle ordinaire, un triangle plat, un triangle non fini. */
+/** World vertices: an ordinary triangle, a flat triangle, a non-finite triangle. */
 const TRIANGLES = [
   [0, 0, 0, 1, 0, 0, 0, 1, 0],
   [2, 3, 4, 2, 3, 4, 2, 3, 4],
   [-0, 0, 0, 1e30, 0, 0, 0, NaN, 0],
 ];
 
-/** Poids barycentriques hostiles : zéro signé, NaN, infinis, dénormal. */
+/** Hostile barycentric weights: signed zero, NaN, infinities, denormal. */
 const POIDS = [
   [0.25, 0.25, 0.5],
   [1, 0, -0],
@@ -70,7 +70,7 @@ const POIDS = [
   [5e-324, 1, -1],
 ];
 
-/** Les garnitures retenues : `[normales, tangentes, coordonnées]`, la dernière tout à un. */
+/** The retained fittings: `[NORMALES, TANGENTES, UVS]`, the last all-ones. */
 const GARNITURES = [
   [0, 0, 0],
   [1, 1, 1],
@@ -81,9 +81,9 @@ const GARNITURES = [
   [6, 3, 0],
 ];
 
-const attribut = (valeurs, taille) => new THREE.BufferAttribute(Float32Array.from(valeurs), taille);
+const attribut = (valeurs, size) => new THREE.BufferAttribute(Float32Array.from(valeurs), size);
 
-/** Les quatre jeux d'attributs d'une garniture : avec tangentes, sans, sans normales, sans UV. */
+/** The four attribute sets of a fitting: with tangents, without, without normals, without UV. */
 function attributs([n, t, u]) {
   const normal = () => attribut(NORMALES[n], 3),
     tangent = () => attribut(TANGENTES[t], 4),
@@ -96,12 +96,12 @@ function attributs([n, t, u]) {
   ];
 }
 
-/** Un sommet projeté tel que le rasteriseur le rend : seule la position monde est lue ici. */
+/** A projected vertex as the rasterizer yields it: only the world position is read here. */
 const sommet = (v, at) => ({ worldX: v[at], worldY: v[at + 1], worldZ: v[at + 2] });
 
 /**
- * Le produit complet : chaque pose, chaque garniture, chaque triangle, chaque jeu de poids. Les
- * indices de sommet tournent pour que les trois coins ne lisent pas toujours la même ligne.
+ * The full product: each pose, each fitting, each triangle, each weight set. Vertex
+ * indices rotate so the three corners do not always read the same row.
  */
 export function reperes() {
   const lot = [];

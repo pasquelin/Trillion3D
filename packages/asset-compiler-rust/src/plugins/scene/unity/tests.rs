@@ -1,15 +1,15 @@
-//! Ce que seul l'intérieur du pilote peut prouver : le nom qu'un asset du projet porte dans la
-//! scène intermédiaire. Ce que le pilote produit d'un vrai projet se prouve dans `src/tests/`.
+//! What only the driver's interior can prove: the name a project asset carries in the
+//! intermediate scene. What the driver produces from a real project is proven in `src/tests/`.
 use super::*;
 
-/// Un nom de fichier légal sur le disque et interdit tel quel dans une URI.
+/// A filename legal on disk and forbidden as-is in a URI.
 const AWKWARD: &str = "co%lor #1 rouge.png";
-/// Le GUID que le `.meta` de cette image déclare.
+/// The GUID this image's `.meta` declares.
 const GUID: &str = "00000000000000000000000000000001";
 
-// Comportement : une texture du projet est nommée par une URI, pas par son chemin. `%`, `#` et
-// l'espace s'échappent, sinon le moteur demanderait un autre fichier, ou rien ; et ce qui est écrit
-// se redécode exactement en ce que l'auteur avait nommé.
+// Behaviour: a project texture is named by a URI, not by its path. `%`, `#` and space are
+// escaped, otherwise the engine would request another file, or none; and what is written
+// re-decodes exactly to what the author named.
 #[test]
 fn a_project_asset_is_named_by_an_escaped_uri() {
     let root = std::env::temp_dir().join(format!(
@@ -17,11 +17,11 @@ fn a_project_asset_is_named_by_an_escaped_uri() {
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .expect("horloge")
+            .expect("clock")
             .as_nanos()
     ));
     let assets = root.join("Assets").join("Textures");
-    fs::create_dir_all(&assets).expect("dossier");
+    fs::create_dir_all(&assets).expect("directory");
     let image = assets.join(AWKWARD);
     fs::write(&image, b"\x89PNG\r\n\x1a\n").expect("image");
     fs::write(
@@ -30,15 +30,13 @@ fn a_project_asset_is_named_by_an_escaped_uri() {
     )
     .expect("meta");
     let source = root.join("Assets");
-    let project = Project::index(&source, &source, &AtomicBool::new(false)).expect("projet");
-    let asset = project.asset(GUID).expect("l'image est indexée");
-    let uri = project
-        .relative_uri(asset)
-        .expect("elle est sous la racine");
+    let project = Project::index(&source, &source, &AtomicBool::new(false)).expect("project");
+    let asset = project.asset(GUID).expect("the image is indexed");
+    let uri = project.relative_uri(asset).expect("it is under the root");
     assert_eq!(uri, "Textures/co%25lor%20%231%20rouge.png");
     assert_eq!(
         crate::uri::decode(&uri).as_deref(),
         Some(format!("Textures/{AWKWARD}").as_str())
     );
-    fs::remove_dir_all(&root).expect("nettoyage");
+    fs::remove_dir_all(&root).expect("cleanup");
 }

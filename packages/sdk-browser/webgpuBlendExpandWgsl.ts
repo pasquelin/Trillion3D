@@ -1,7 +1,7 @@
 import { DRAW_UNPAGED, PLAN_SHARED_BIT, PLAN_SHIFT } from './webgpuBlendPlan.ts';
 import { EXPAND_GROUP, expandUniformWgsl, RUN_WORDS } from './webgpuBlendRuns.ts';
 
-/** Les huit tampons de stockage du noyau, dans l'ordre des rangs que le nuanceur déclare. */
+/** The kernel's eight storage buffers, in the rank order the shader declares. */
 export const STORAGE_TYPES: GPUBufferBindingType[] = [
   'read-only-storage',
   'read-only-storage',
@@ -14,11 +14,11 @@ export const STORAGE_TYPES: GPUBufferBindingType[] = [
 ];
 
 /**
- * Les quatre lancements du noyau : un groupe de fils par paquet d'entrées, UN seul pour la somme
- * courante sur les paquets, un fil par entrée, un fil par tranche. Écrits une fois pour l'encodage
- * de production et pour la preuve « carte = modèle » qui rejoue le noyau.
+ * The kernel's four dispatches: one thread group per entry packet, ONE for the running sum over
+ * packets, one thread per entry, one thread per run. Written once for production encoding and for
+ * the “GPU = model” proof that replays the kernel.
  */
-/** Les quatre points d'entrée du noyau, dans l'ordre où ils s'enchaînent. */
+/** The kernel's four entry points, in the order they chain. */
 export const BLEND_EXPAND_ENTRIES = [
   'countBlendGroups',
   'scanBlendGroups',
@@ -36,24 +36,23 @@ export function blendExpandDispatch(out: number[], entries: number, runs: number
 }
 
 /**
- * L'ÉTALEMENT DU PLAN TRIÉ, SUR LA CARTE.
+ * EXPANSION OF THE SORTED PLAN, ON THE GPU.
  *
- * Le processeur ne donne plus qu'une chose par image : l'ordre de peinture, ses tranches et le
- * verdict du tronc, un bit par item. Le reste — combien d'instances chaque entrée porte, où chacune
- * va dans la liste, et l'argument indirect de chaque tranche — est calculé ici, à partir des
- * comptes que la compaction transparente vient d'écrire dans la même soumission.
+ * The CPU now gives only one thing per frame: the paint order, its runs and the frustum verdict,
+ * one bit per item. The rest — how many instances each entry carries, where each goes in the
+ * list, and each run's indirect argument — is computed here, from the counts transparent
+ * compaction has just written in the same submission.
  *
- * Quatre lancements : un groupe de fils par paquet d'entrées, qui compte et scanne le paquet chez
- * lui ; la somme courante sur les paquets, à deux niveaux ; la place absolue de chaque entrée suivie
- * de l'écriture de ses instances ; puis l'argument de chaque tranche. Aucun fil ne recompte ce qu'un
- * autre vient de calculer. La
- * sémantique de référence est celle de `webgpuBlendExpandCpu.ts`, que suit le repli processeur, et
- * le banc `transparents-ordres.bench.mjs` compare les deux sorties mot pour mot.
+ * Four dispatches: one thread group per entry packet, which counts and scans the packet locally;
+ * the running sum over packets, at two levels; each entry's absolute place followed by writing
+ * its instances; then each run's argument. No thread recounts what another has just computed.
+ * The reference semantics is that of `webgpuBlendExpandCpu.ts`, which the CPU fallback follows,
+ * and the `transparents-ordres.bench.mjs` bench compares both outputs word for word.
  *
- * `scratch` porte la place de chaque entrée puis celle de chaque paquet, dans cet ordre. Les deux
- * passes — mélange puis transmission — s'enchaînent dans la même passe de calcul et se le repassent,
- * puisque leurs lancements sont ordonnés ; leurs instances et leurs arguments, eux, vivent dans deux
- * régions disjointes que l'uniforme désigne.
+ * `scratch` holds each entry's place then each packet's, in that order. The two passes — blend
+ * then transmission — chain in the same compute pass and hand it back to each other, since their
+ * dispatches are ordered; their instances and arguments live in two disjoint regions the uniform
+ * names.
  */
 export const BLEND_EXPAND_SHADER = `${expandUniformWgsl()}
 @group(0) @binding(0) var<uniform> uni:Uni;
@@ -69,8 +68,8 @@ const GROUP=${EXPAND_GROUP}u;
 var<workgroup> tuile:array<u32,${EXPAND_GROUP}>;
 fn itemOf(i:u32)->u32{return plan[uni.orderBase+i]>>${PLAN_SHIFT}u;}
 fn kept(item:u32)->bool{return (keep[item>>5u]&(1u<<(item&31u)))!=0u;}
-/** Ce qu'une entrée de plan étale : les grappes que la compaction lui a gardées, les morceaux
- *  qu'une primitive non paginée porte, rien du tout si le tronc a rejeté son item. */
+/** What a plan entry expands: the clusters compaction kept for it, the chunks an unpaged
+ *  primitive carries, nothing at all if the frustum rejected its item. */
 fn instancesOf(i:u32)->u32{
  let item=itemOf(i);
  if(!kept(item)){return 0u;}
@@ -78,7 +77,7 @@ fn instancesOf(i:u32)->u32{
  if(d.x==${DRAW_UNPAGED}u){return d.y;}
  return counts[d.x*4u+1u];
 }
-/** La somme préfixe inclusive des soixante-quatre valeurs du paquet, en six étapes de doublement. */
+/** Inclusive prefix sum of the packet's sixty-four values, in six doubling steps. */
 fn scanTuile(k:u32){
  for(var pas=1u;pas<GROUP;pas=pas<<1u){
   var pris=0u;
@@ -88,8 +87,8 @@ fn scanTuile(k:u32){
   workgroupBarrier();
  }
 }
-/** Un groupe de fils par paquet d'entrées : chacun compte SON entrée une fois, et le paquet en tire
- *  d'un coup la place de chacune chez lui et son total. */
+/** One thread group per entry packet: each counts ITS entry once, and the packet takes from that
+ *  in one go each local place and its total. */
 @compute @workgroup_size(${EXPAND_GROUP})
 fn countBlendGroups(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_id) lid:vec3u,@builtin(workgroup_id) wid:vec3u){
  let i=id.x;
@@ -102,8 +101,8 @@ fn countBlendGroups(@builtin(global_invocation_id) id:vec3u,@builtin(local_invoc
  if(i<uni.entryCount){scratch[i]=tuile[k]-mien;}
  if(k==GROUP-1u){scratch[uni.entryCount+wid.x]=tuile[k];}
 }
-/** La somme courante sur les paquets, à deux niveaux : chaque fil en prend une tranche, le paquet
- *  scanne les soixante-quatre sous-totaux, puis chaque fil repose les siens. */
+/** Running sum over packets, at two levels: each thread takes a slice, the packet scans the
+ *  sixty-four subtotals, then each thread puts its own back. */
 @compute @workgroup_size(${EXPAND_GROUP})
 fn scanBlendGroups(@builtin(local_invocation_id) lid:vec3u){
  let k=lid.x;
@@ -122,7 +121,7 @@ fn scanBlendGroups(@builtin(local_invocation_id) lid:vec3u){
   curseur=curseur+tenu;
  }
 }
-/** La place absolue de chaque entrée, puis ses instances : la place chez soi est déjà comptée. */
+/** Absolute place of each entry, then its instances: the local place is already counted. */
 @compute @workgroup_size(${EXPAND_GROUP})
 fn placeBlendEntries(@builtin(global_invocation_id) id:vec3u){
  let i=id.x;
@@ -148,13 +147,13 @@ fn writeBlendRuns(@builtin(global_invocation_id) id:vec3u){
  let entries=plan[at+1u];
  let last=first+entries-1u;
  let base=scratch[first];
- // La tranche qui fusionne dessine des grappes, au pas de la table ; celle qui n'a gardé qu'une
- // entree dessine ce que SON item porte. Le propriétaire se lit sur l'entrée, comme au processeur.
+ // The merging run draws clusters, at the table stride; the one that kept a single entry draws
+ // what ITS item carries. The owner is read on the entry, as on the CPU.
  let entry=plan[uni.orderBase+first];
  let fusionne=entries>1u&&(entry&${PLAN_SHARED_BIT}u)!=0u;
  var vertexCount=uni.maxVertexWords;
- // Une seule lecture de la description de dessin : elle fait seize octets, et les deux champs lus
- // en sortent ensemble.
+ // One read of the draw description: it is sixteen bytes, and the two fields read come out of it
+ // together.
  let dessin=draws[entry>>${PLAN_SHIFT}u];
  if(!fusionne&&dessin.x==${DRAW_UNPAGED}u){vertexCount=dessin.w;}
  let o=uni.argsBase+r*4u;

@@ -20,41 +20,41 @@ export interface WebgpuGpuState {
   depthView: GPUTextureView | undefined;
   hdrTexture: GPUTexture | undefined;
   hdrView: GPUTextureView | undefined;
-  /** Ce que les transparents demandent aux textures virtuelles, un rang de tuile par pixel : une
-   *  cible, jamais une écriture de l'étage de fragments, qui coûterait le rejet anticipé. */
+  /** What transparents ask of virtual textures, one tile rank per pixel: a target, never a fragment-
+   *  stage write, which would cost early-z reject. */
   feedbackTexture: GPUTexture | undefined;
   feedbackView: GPUTextureView | undefined;
-  /** Le fond figé que la passe de transmission relit : une copie de la cible HDR et de la
-   *  profondeur, prises après les opaques et les mélanges. Un texel 1×1 tant que la scène ne porte
-   *  aucune surface transmissive — la liaison existe alors sans rien coûter. */
+  /** Frozen backdrop the transmission pass rereads: a copy of the HDR target and of depth, taken
+   *  after opaques and blends. A 1×1 texel while the scene carries no transmissive surface — the
+   *  binding then exists without costing anything. */
   backdrop: TransmissionBackdrop | undefined;
   surfaces: SurfaceBuffer | undefined;
-  /** Le dernier relevé adopté déclarait une page voulue non encore arrivée : l'image attend cette
-   *  page, elle ne retombe pas sur la coupe processeur. */
+  /** The last adopted sample declared a wanted page not yet arrived: the image waits for that page,
+   *  it does not fall back to the CPU cut. */
   cutIncomplete: boolean;
-  /** Le dernier relevé adopté dépassait le plafond : l'image ne peut pas s'en servir. */
+  /** The last adopted sample exceeded the ceiling: the image cannot use it. */
   cutTruncated: boolean;
-  /** La sélection GPU a été abandonnée pour la session : ce qui est mesuré depuis est la coupe
-   *  processeur de secours. Publié dans les métriques sous `gpuSelectionFallback`. */
+  /** GPU selection has been dropped for the session: what is measured since is the fallback CPU cut.
+   *  Published in the metrics under `gpuSelectionFallback`. */
   selectionFallback: boolean;
   targetSize: [number, number];
-  /** Les octets des cibles d'image de cette taille, ceux que le budget d'image a admis. */
+  /** Bytes of the image targets of this size, those the image budget admitted. */
   targetBytes: number;
   positionBuffers: Map<THREE.BufferGeometry['attributes'], GPUBuffer>;
-  /** Indices, UV et normales des transparents, tenus par la géométrie source : deux instances d'un
-   *  même objet partagent la même géométrie, donc les mêmes tampons. `undefined` retenu dans la
-   *  table dit « cette géométrie n'a pas cet attribut », et se distingue d'une absence d'entrée. */
+  /** Indices, UVs and normals of transparents, held by the source geometry: two instances of the same
+   *  object share the same geometry, therefore the same buffers. `undefined` kept in the table says
+   *  "this geometry does not have this attribute", and is distinct from a missing entry. */
   blendIndexBuffers: Map<THREE.BufferAttribute | THREE.InterleavedBufferAttribute, GPUBuffer>;
   blendUvBuffers: Map<THREE.BufferGeometry['attributes'], GPUBuffer | undefined>;
   blendNormalBuffers: Map<THREE.BufferGeometry['attributes'], GPUBuffer | undefined>;
-  /** Octets de sommets tenus au fil des allocations : tampons de positions, puis index, UV et
-   *  normales des maillages transparents. Le relevé les lit au lieu de les resommer par image. */
+  /** Vertex bytes held through allocations: position buffers, then indices, UVs and normals of
+   *  transparent meshes. The sample reads them instead of resuming them per image. */
   vertexBytes: number;
   positionIds: WeakMap<GPUBuffer, number>;
   nextPositionId: number;
   uniformBuffer: GPUBuffer | undefined;
   uniformPacked: Float32Array<ArrayBuffer>;
-  /** Le volume glTF d'un item transparent par entrée, lu à décalage dynamique comme l'uniforme. */
+  /** glTF volume of a transparent item per entry, read at a dynamic offset like the uniform. */
   volumeBuffer: GPUBuffer | undefined;
   bindGroups: Map<number, GPUBindGroup>;
   clusterRgbCache: Map<string, [number, number, number]>;
@@ -65,18 +65,18 @@ export interface WebgpuGpuState {
   blitMaterial: THREE.ShaderMaterial | undefined;
   blit: THREE.Mesh | undefined;
   deferred: Awaited<ReturnType<typeof createDeferredLighting>> | undefined;
-  /** La passe d'antialiasing temporel et ses deux cibles d'historique ; absente quand l'hôte la
-   *  refuse ou que l'appareil ne l'héberge pas. */
+  /** Temporal-antialiasing pass and its two history targets; absent when the host refuses it or the
+   *  device does not host it. */
   temporal: TemporalAntialiasing | undefined;
 }
 
-/** Les deux copies que la passe de transmission lit, et leurs vues. */
+/** The two copies the transmission pass reads, and their views. */
 export interface TransmissionBackdrop {
   color: GPUTexture;
   colorView: GPUTextureView;
   depth: GPUTexture;
   depthView: GPUTextureView;
-  /** Vrai quand les copies sont à la taille de la cible et que la copie vaut la peine. */
+  /** True when the copies are at the target size and the copy is worth it. */
   active: boolean;
 }
 

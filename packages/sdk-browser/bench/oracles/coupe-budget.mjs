@@ -1,9 +1,9 @@
-// Oracles de la coupe WebGL2 d'avant le lot 4c : le chemin général, celui qui projette. Les tests
-// unitaires les importent pour vérifier que les chemins à seuil nul rendent exactement la même
-// décision, et que la distance partagée ne change pas un bit.
+// Oracles of the WebGL2 cut from before batch 4c: the general path, the one that projects.
+// Unit tests import them to check that the zero-threshold paths yield the exact same
+// decision, and that the shared distance does not change a bit.
 import { clusterErrorPixels } from '../../../sdk-core/index.ts';
 
-/** `pageSelectionMath.ts` avant le lot 4c : le centre projeté dans un tampon partagé. */
+/** `pageSelectionMath.ts` before batch 4c: the centre projected into a shared buffer. */
 const centre = new Float64Array(3);
 export function referenceProjectCentre(sphere, offset, e) {
   const cx = sphere[offset],
@@ -15,7 +15,7 @@ export function referenceProjectCentre(sphere, offset, e) {
   return centre;
 }
 
-/** `projectedClusterError` d'avant le lot 4c : une racine carrée par borne, dans `clusterErrorPixels`. */
+/** `projectedClusterError` from before batch 4c: one square root per bound, in `clusterErrorPixels`. */
 export function referenceProjectedClusterError(error, sphere, offset, e, stretch, focal, near) {
   if (error === 0) return 0;
   if (error == null || error === Infinity) return Infinity;
@@ -24,9 +24,9 @@ export function referenceProjectedClusterError(error, sphere, offset, e, stretch
   return clusterErrorPixels(error, stretch, c[0], c[1], c[2], sphere[offset + 3], focal, near);
 }
 
-/** `errorFloorPixels` d'avant le lot 4c, sur la profondeur que la borne corrigée du défaut 3
- *  utilise (`−vue(C).z`) là où l'ancienne prenait la distance à l'œil : le plancher reste le
- *  minorant d'un sous-arbre, la preuve est au site de `errorFloorAt`. */
+/** `errorFloorPixels` from before batch 4c, on the depth that defect-3's corrected bound
+ *  uses (`−vue(C).z`) where the old one took the distance to the eye: the floor stays the
+ *  lower bound of a subtree; the proof is at the `errorFloorAt` site. */
 export function referenceErrorFloorPixels(error, stretch, c, radius, focal) {
   if (error === 0) return 0;
   if (error === Infinity) return Infinity;
@@ -36,7 +36,7 @@ export function referenceErrorFloorPixels(error, stretch, c, radius, focal) {
   return (error * stretch * focal) / far;
 }
 
-/** `cutSelects` d'avant le lot 4c : deux projections, quel que soit le seuil. */
+/** `cutSelects` from before batch 4c: two projections, whatever the threshold. */
 export function referenceCutSelects(rec, e, stretch, focal, near, pixelError) {
   if (
     referenceProjectedClusterError(rec.lodError ?? 0, rec.sphere, 0, e, stretch, focal, near) >
@@ -56,7 +56,7 @@ export function referenceCutSelects(rec, e, stretch, focal, near, pixelError) {
   );
 }
 
-/** `nodeDecision` d'avant le lot 4c, bornes lues aux mêmes décalages. */
+/** `nodeDecision` from before batch 4c, bounds read at the same offsets. */
 export function referenceNodeDecision(values, at, slots, e, stretch, focal, near, limit) {
   const { ownFloor, ownCeil, parentFloor, ownSphere, parentSphere } = slots;
   const own = referenceProjectCentre(values, at + ownSphere, e),

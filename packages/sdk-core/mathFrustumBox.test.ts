@@ -1,9 +1,9 @@
-// Lot M2, mathFrustumBox.ts : boîte contre le tronc de vue — dedans, dehors, à cheval, et une boîte
-// qui coupe le plan proche —, confrontée à Frustum.intersectsBox et Frustum.containsPoint de Three.js.
+// Lot M2, mathFrustumBox.ts: box against viewing frustum — inside, outside, straddling, and a box
+// intersecting the near plane —, compared against Three.js Frustum.intersectsBox and Frustum.containsPoint.
 //
-// La découpe est `[0, 1]` des deux côtés ; seul le SENS de la profondeur diffère, ce qui échange le
-// plan PROCHE et le plan LOIN. Les six plans sont donc le même ensemble, dans un autre ordre — et
-// un verdict de boîte ne lit qu'un ensemble.
+// Clipping is `[0, 1]` on both sides; only depth DIRECTION differs, which swaps the
+// NEAR plane and the FAR plane. The six planes are therefore the same set, in another order — and
+// a box verdict only reads a set.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -31,7 +31,7 @@ frustumPlanesFromMatrix(plans, vp.elements);
 const brut = new Float64Array(24);
 clipPlanesFromMatrix(brut, vp.elements);
 
-/** État à trois voies bâti avec les primitives publiques de Three, indépendant de mathFrustumBox.ts. */
+/** Three-way state built with public Three primitives, independent of mathFrustumBox.ts. */
 function etatThree(b: number[]) {
   const box = boite3(b);
   if (!tronc.intersectsBox(box)) return 0;
@@ -41,9 +41,9 @@ function etatThree(b: number[]) {
   return coins.every((c) => tronc.containsPoint(c)) ? 2 : 1;
 }
 
-// La caméra est en z = 10, regarde vers l'origine : le plan proche (near = 0.5) coupe le monde à
-// z = 9.5, l'intérieur du tronc est du côté z < 9.5.
-test('une boîte entièrement dedans, avant le plan proche, rend 2 et n’est pas exclue', () => {
+// Camera is at z = 10, looking at origin: near plane (near = 0.5) cuts world at
+// z = 9.5, inside of frustum is on z < 9.5 side.
+test('box entirely inside, in front of near plane, yields 2 and is not excluded', () => {
   const b = [-0.15, -0.15, 9.0, 0.15, 0.15, 9.3];
   assert.equal(etatThree(b), 2);
   assert.equal(
@@ -56,7 +56,7 @@ test('une boîte entièrement dedans, avant le plan proche, rend 2 et n’est pa
   );
 });
 
-test('une boîte entièrement dehors, loin sur le côté, rend 0 et est exclue', () => {
+test('box entirely outside, far to the side, yields 0 and is excluded', () => {
   const b = [500, 500, 500, 501, 501, 501];
   assert.equal(etatThree(b), 0);
   assert.equal(
@@ -69,7 +69,7 @@ test('une boîte entièrement dehors, loin sur le côté, rend 0 et est exclue',
   );
 });
 
-test('une boîte à cheval sur le plan gauche, loin du plan proche, rend 1 et n’est pas exclue', () => {
+test('box straddling left plane, far from near plane, yields 1 and is not excluded', () => {
   const b = [5, -0.5, -1, 7, 0.5, 1];
   assert.equal(etatThree(b), 1);
   assert.equal(
@@ -82,7 +82,7 @@ test('une boîte à cheval sur le plan gauche, loin du plan proche, rend 1 et n�
   );
 });
 
-test('une boîte qui coupe le plan proche (z = 9.5) rend 1, jamais 0 ni 2', () => {
+test('box intersecting near plane (z = 9.5) yields 1, never 0 nor 2', () => {
   const b = [-0.3, -0.3, 9.3, 0.3, 0.3, 9.7];
   assert.equal(etatThree(b), 1);
   const etat = frustumClipBox(plans, ...(b as [number, number, number, number, number, number]));
@@ -93,7 +93,7 @@ test('une boîte qui coupe le plan proche (z = 9.5) rend 1, jamais 0 ni 2', () =
   );
 });
 
-test('le verdict est le même avec les plans bruts (non normalisés) qu’avec les plans normalisés', () => {
+test('verdict is identical with raw (unnormalized) planes and normalized planes', () => {
   const boites = [
     [-0.15, -0.15, 9.0, 0.15, 0.15, 9.3],
     [500, 500, 500, 501, 501, 501],
@@ -107,7 +107,7 @@ test('le verdict est le même avec les plans bruts (non normalisés) qu’avec l
   }
 });
 
-test('une boîte hostile (bornes NaN ou inversées) ne rejette jamais : une comparaison avec NaN échoue toujours', () => {
+test('hostile box (NaN or inverted bounds) never rejects: comparison with NaN always fails', () => {
   assert.equal(frustumExcludesBox(plans, NaN, 0, 9, 0, 0, 10), false);
-  assert.equal(frustumExcludesBox(plans, 1, 1, 1, -1, -1, -1), false); // inversée
+  assert.equal(frustumExcludesBox(plans, 1, 1, 1, -1, -1, -1), false); // inverted
 });

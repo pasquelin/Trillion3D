@@ -1,40 +1,40 @@
-# Fixture dorée — pilote WebP, sans perte uniquement
+# Golden fixture — WebP driver, lossless only
 
-La politique d'import n'admet WebP que **sans perte** : un flux avec perte n'est ni réencodé ni
-décodé, il est refusé en le nommant. La fixture suit cette coupe — deux fichiers que le pilote lit,
-trois qu'il doit refuser. La dorée `src/plugins/tests/webp.rs` décode les premiers, compare les deux
-écritures du même flux **octet pour octet** et vérifie cinq texels écrits en clair dans le test.
+The import policy admits WebP **lossless only**: a lossy stream is neither re-encoded nor
+decoded, it is refused by name. The fixture follows that cut — two files the driver reads,
+three it must refuse. The golden `src/plugins/tests/webp.rs` decodes the first set, compares the two
+writings of the same stream **byte for byte** and checks five texels written in the clear in the test.
 
-## Ce que le pilote lit
+## What the driver reads
 
-| fichier                  | conteneur                | ce qu'il met sous surveillance                                        |
-| ------------------------ | ------------------------ | --------------------------------------------------------------------- |
-| `sans-perte.webp`        | `VP8L` seul              | 256 × 256 RGBA8, alpha nul et alpha opaque mêlés : rien n'est rempli d'office ni prémultiplié |
-| `etendu-sans-perte.webp` | `VP8X` + `ICCP` + `VP8L` | les chunks de métadonnées sont franchis sans toucher un pixel : les octets rendus sont ceux du `VP8L` seul |
+| file                     | container                | what it puts under watch                                       |
+| ------------------------ | ------------------------ | -------------------------------------------------------------- |
+| `sans-perte.webp`        | `VP8L` alone             | 256 × 256 RGBA8, zero alpha and opaque alpha mixed: nothing is filled by default nor premultiplied |
+| `etendu-sans-perte.webp` | `VP8X` + `ICCP` + `VP8L` | the metadata chunks are walked without touching a pixel: the yielded bytes are those of the `VP8L` alone |
 
-## Ce que le pilote refuse, et sous quel nom
+## What the driver refuses, and under which name
 
-| fichier            | refus                          | pourquoi                                                          |
-| ------------------ | ------------------------------ | ----------------------------------------------------------------- |
-| `avec-perte.webp`  | `image-lossy-unsupported`      | `VP8X` + `ALPH` + `VP8 ` : le flux avec perte est *derrière* des chunks facultatifs, le pilote doit parcourir le conteneur et non regarder le premier chunk |
-| `anime.webp`       | `image-animation-unsupported`  | `VP8X` + `ANIM` + `ANMF` : aplatir une animation sur une image choisie d'office serait arbitraire, pas une lecture fidèle |
-| `tronque.webp`     | `image-decode-failed`          | 40 des 192 octets : la taille annoncée par `RIFF` dépasse ce que le fichier porte, on ne tend pas au décodeur un flux amputé |
+| file               | rejection                      | why                                                           |
+| ------------------ | ------------------------------ | ------------------------------------------------------------- |
+| `avec-perte.webp`  | `image-lossy-unsupported`      | `VP8X` + `ALPH` + `VP8 `: the lossy stream is *behind* optional chunks, the driver must walk the container and not look at the first chunk |
+| `anime.webp`       | `image-animation-unsupported`  | `VP8X` + `ANIM` + `ANMF`: flattening an animation onto a frame chosen by default would be arbitrary, not a faithful read |
+| `tronque.webp`     | `image-decode-failed`          | 40 of 192 bytes: the size announced by `RIFF` exceeds what the file carries, an amputated stream is not handed to the decoder |
 
-Le test ajoute deux cas qui n'ont pas besoin de fichier : un `VP8L` dont le nom de chunk est réécrit
-en `VP8 ` — le flux avec perte sans conteneur étendu, refusé par le même chemin — et un entête RIFF
-d'un autre type de formulaire, que le pilote ne revendique pas du tout.
+The test adds two cases that need no file: a `VP8L` whose chunk name is rewritten
+to `VP8 ` — the lossy stream without an extended container, refused by the same path — and a RIFF
+header of another form type, which the driver does not claim at all.
 
-## Provenance et licences
+## Provenance and licences
 
-- `sans-perte.webp` et `avec-perte.webp` sont repris tels quels de
-  `test/assets/textures/legacy-web-matrix/` (`lossless.webp`, 184 octets, et `lossy.webp`), corpus
-  WebGeometry produit par `test/assets/tools/texture_assets.py`, **CC0-1.0**, voir
-  [LICENSE.txt](LICENSE.txt). `test/assets/` est livré hors git : les octets sont recopiés ici pour
-  que la dorée tienne sans lui.
-- `etendu-sans-perte.webp`, `anime.webp` et `tronque.webp` sont **dérivés de `sans-perte.webp`** :
-  son chunk `VP8L` remis dans un conteneur étendu, puis dans une image d'animation, et le fichier
-  coupé. Même licence, même origine. Ils se régénèrent en réassemblant les chunks RIFF d'après la
-  « WebP Container Specification » publique — aucun encodeur n'intervient, aucun pixel n'est réécrit.
-- Les pixels de `sans-perte.webp` et de `etendu-sans-perte.webp` ont été vérifiés identiques par un
-  décodeur indépendant (Pillow 12.2.0) avant d'être commis ; les cinq texels écrits en clair dans la
-  dorée en viennent.
+- `sans-perte.webp` and `avec-perte.webp` are taken as-is from
+  `test/assets/textures/legacy-web-matrix/` (`lossless.webp`, 184 bytes, and `lossy.webp`), WebGeometry
+  corpus produced by `test/assets/tools/texture_assets.py`, **CC0-1.0**, see
+  [LICENSE.txt](LICENSE.txt). `test/assets/` is shipped off git: the bytes are copied here so
+  the golden holds without it.
+- `etendu-sans-perte.webp`, `anime.webp` and `tronque.webp` are **derived from `sans-perte.webp`**:
+  its `VP8L` chunk put back into an extended container, then into an animation image, and the file
+  cut. Same licence, same origin. They are regenerated by reassembling the RIFF chunks from the
+  public “WebP Container Specification” — no encoder is involved, no pixel is rewritten.
+- The pixels of `sans-perte.webp` and `etendu-sans-perte.webp` were checked identical by an
+  independent decoder (Pillow 12.2.0) before being committed; the five texels written in the clear in the
+  golden come from them.

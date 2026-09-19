@@ -1,22 +1,22 @@
 #!/usr/bin/env node
-// Une scène synthétique minuscule qui porte ses propres lampes : une pièce fermée et deux lampes
-// `KHR_lights_punctual` déclarées dans le fichier. Elle sert de preuve au lot « import des lampes
-// depuis les fichiers » — aucune scène réelle n'est nommée, la géométrie est calculée ici.
+// A tiny synthetic scene carrying its own lights: an enclosed room and two `KHR_lights_punctual`
+// lights declared in the file. It serves as proof for the "light import from files" feature —
+// no actual scene file is needed, geometry is calculated here.
 //
 //   node scripts/mesure/fixtureLampes.mjs --out .mesure/fixture-lampes
 //
-// Écrit `scene.gltf` et `scene.bin`. Le compilateur natif la lit comme n'importe quel glTF.
+// Writes `scene.gltf` and `scene.bin`. The native compiler reads it like any glTF.
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { parseArgs } from './options.mjs';
 
-/** La pièce : une boîte creuse dont les normales regardent vers l'intérieur, subdivisée `n` fois. */
+/** The room: a hollow box with inward-facing normals, subdivided `n` times. */
 function room(size, height, n) {
   const positions = [],
     normals = [],
     indices = [];
   const half = size / 2;
-  // Six faces : le sol, le plafond et quatre murs. Chacune est un quadrillage `n × n`.
+  // Six faces: floor, ceiling, and four walls. Each is an `n × n` grid.
   const faces = [
     { origin: [-half, 0, -half], u: [size, 0, 0], v: [0, 0, size], normal: [0, 1, 0] },
     { origin: [-half, height, half], u: [size, 0, 0], v: [0, 0, -size], normal: [0, -1, 0] },
@@ -48,7 +48,7 @@ function room(size, height, n) {
   return { positions, normals, indices };
 }
 
-/** Le glTF et son binaire : trois accesseurs, un maillage, un nœud, deux lampes. */
+/** The glTF and its binary: three accessors, one mesh, one node, two lights. */
 function gltfOf(size, height, subdivisions, intensity) {
   const { positions, normals, indices } = room(size, height, subdivisions);
   const positionBytes = new Float32Array(positions),
@@ -65,7 +65,7 @@ function gltfOf(size, height, subdivisions, intensity) {
     name,
     type: 'point',
     color,
-    // En candela, comme le glTF l'exige. Le compilateur divise par la constante de la candela.
+    // In candela, as glTF requires. The compiler divides by the candela constant.
     intensity,
   });
   const gltf = {
@@ -144,7 +144,7 @@ const out = resolve(flags.get('out') ?? '.mesure/fixture-lampes');
 const size = Number(flags.get('cote') ?? 8),
   height = Number(flags.get('hauteur') ?? 4),
   subdivisions = Number(flags.get('subdivisions') ?? 8),
-  // Une lampe de studio : 68 300 cd valent exactement 100 W/sr après la conversion du compilateur.
+  // Studio light: 68,300 cd equals exactly 100 W/sr after compiler conversion.
   intensity = Number(flags.get('candela') ?? 68300);
 const { gltf, binary } = gltfOf(size, height, subdivisions, intensity);
 await mkdir(out, { recursive: true });

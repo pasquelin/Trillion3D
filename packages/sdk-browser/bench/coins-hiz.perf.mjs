@@ -1,4 +1,4 @@
-// coins monde de la coupe Hi-Z (évaluation avec/sans cache).
+// world-space corners of the Hi-Z cut (evaluation with/without cache).
 import { HIZ_BOUNDS_VALUES, createBoxCorners, projectBoxesFlat } from '../hiz.ts';
 import { mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
 import { boites, camera } from './appui/scenes.mjs';
@@ -16,12 +16,12 @@ const hostiles = grande.slice(0, 9).map((page, i) => ({
   max: [[0, NaN, -Infinity][i % 3], 0, 1.7976931348623157e308],
 }));
 
-function cas(pages, nom) {
+function cas(pages, name) {
   const pageIndex = new Int32Array(pages.length).map((_, i) => i);
   return {
-    nom,
-    taille: pages.length,
-    entree: {
+    name,
+    size: pages.length,
+    input: {
       pages,
       sansCache: new Float64Array(Math.max(1, pages.length) * HIZ_BOUNDS_VALUES),
       avecCache: new Float64Array(Math.max(1, pages.length) * HIZ_BOUNDS_VALUES),
@@ -30,14 +30,14 @@ function cas(pages, nom) {
   };
 }
 const jeux = [
-  cas(grande, '20 000 boîtes dont dégénérées'),
-  cas(grande.slice(0, 1), 'une boîte'),
-  cas([], 'aucune boîte'),
-  cas(hostiles, 'bornes hostiles'),
+  cas(grande, '20 000 boxes including degenerates'),
+  cas(grande.slice(0, 1), 'one box'),
+  cas([], 'no boxes'),
+  cas(hostiles, 'hostile bounds'),
 ];
 
 const resCoins = await mesure({
-  nom: 'coins monde de la coupe Hi-Z',
+  name: 'world-space corners of the Hi-Z cut',
   fichier: ['packages/sdk-browser/hizUnoccluded.ts', 'packages/sdk-browser/hizSplit.ts'],
   cas: jeux,
   calcul: (e) => {
@@ -52,10 +52,10 @@ const resCoins = await mesure({
 });
 
 await stress({
-  nom: 'projectBoxesFlat extremes',
+  name: 'projectBoxesFlat extremes',
   calcul: (b) =>
     projectBoxesFlat(b, b.length, cameraMoteur(cam), viewport, new Float64Array(HIZ_BOUNDS_VALUES)),
-  extremes: [{ nom: 'vide', entree: [] }],
+  extremes: [{ name: 'empty', input: [] }],
 });
 
-rapport('coins-hiz', [resCoins], 'G2 les deux projections calculent les mêmes rectangles');
+rapport('coins-hiz', [resCoins], 'G2 both projections compute the same rectangles');

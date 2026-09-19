@@ -28,6 +28,6 @@ test('a source without a declared light installs no light at all', () => {
   assert.equal(
     scene.children.filter((object) => (object as THREE.Light).isLight).length,
     0,
-    'aucune lumière sans source déclarée : ni hémisphérique ni soleil de remplacement',
+    'no light without a declared source: neither a hemisphere nor a replacement sun',
   );
 });

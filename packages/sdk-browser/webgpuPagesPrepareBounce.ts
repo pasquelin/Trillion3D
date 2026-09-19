@@ -3,9 +3,9 @@ import { createGpuBounceProbes } from './gpuBounceProbes.ts';
 import { grantCapability } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Ce que la capacité déclare tant que la lumière qui rebondit n'est pas gréée sur cet appareil. */
+/** What the capability declares while bouncing light is not rigged on this device. */
 export const BOUNCE_CAPABILITY = 'global illumination and surface cache';
-/** Approximations nommées du rebond, publiées dans le diagnostic (P5). */
+/** Named approximations of the bounce, published in the diagnostic (P5). */
 const BOUNCE_APPROXIMATIONS = [
   'the cascades interpolate irradiance between eight probes, so a detail smaller than a cell is lost',
   'order-2 spherical harmonics carry the irradiance, so a sharp directional change is smoothed',
@@ -23,15 +23,16 @@ const BOUNCE_APPROXIMATIONS = [
 ];
 
 /**
- * Grée la lumière qui rebondit, à la première image qui porte une lampe déclarée.
+ * Rigs bouncing light, at the first image that carries a declared lamp.
  *
- * Rien n'est chargé avant : une scène sans lampe n'a rien à faire rebondir, et l'objet de cache du
- * proxy pèse des dizaines de mégaoctets qui retarderaient sa première image pour rien. Une fois
- * qu'il arrive, le proxy monte en mémoire graphique en entier et la grille de sondes est allouée
- * sur son emprise — indépendante de la caméra, comme le proxy lui-même (LC1).
+ * Nothing is loaded before: a scene without a lamp has nothing to bounce, and the proxy's cache
+ * object weighs tens of megabytes that would delay its first image for nothing. Once it arrives,
+ * the proxy goes into GPU memory whole and the probe grid is allocated on its extent —
+ * independent of the camera, like the proxy itself (LC1).
  *
- * Tout est facultatif : un cache sans proxy, un appareil qui refuse la passe ou un hôte qui n'en
- * veut pas gardent une image correcte et une capacité manquante déclarée. Rien n'est jeté en silence.
+ * Everything is optional: a cache without a proxy, a device that refuses the pass or a host that
+ * does not want it keep a correct image and a declared missing capability. Nothing is dropped in
+ * silence.
  */
 export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { bounce, lights, context } = rt;
@@ -56,8 +57,8 @@ export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
         publish(rt);
       },
       (error: unknown) => {
-        // Le proxy absent n'est plus la seule cause : un appareil trop petit pour les liaisons du
-        // rebond refuse ici aussi, et le message porte la liaison et les octets qui ont manqué.
+        // A missing proxy is no longer the only cause: a device too small for the bounce bindings
+        // refuses here too, and the message carries the binding and the bytes that were missing.
         bounce.reason = `bounce unavailable: ${String(error)}`;
         rt.diag.diagnosticFailure('bounce-unavailable', error);
         publish(rt);
@@ -65,11 +66,11 @@ export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
     );
 }
 
-/** Ce que le rebond a réellement obtenu : taille du proxy, grille, budget. Jamais une estimation. */
+/** What the bounce actually obtained: proxy size, grid, budget. Never an estimate. */
 function publish(rt: WebgpuPagesRuntime) {
   const { bounce, diag } = rt,
     probes = bounce.probes;
-  diag.engineDiagnostic('bounce-lighting', 'Lumière qui rebondit gréée', {
+  diag.engineDiagnostic('bounce-lighting', 'Bouncing light rigged', {
     version: 1,
     settings: { ...BOUNCE_SETTINGS },
     proxyTriangles: probes?.proxy.triangleCount ?? null,
@@ -84,13 +85,13 @@ function publish(rt: WebgpuPagesRuntime) {
     cascadeSize: probes?.cascades.size ?? null,
     cascadeSpacings: probes?.cascades.levels.map((level) => level.spacing) ?? null,
     probes: probes?.cascades.probes ?? null,
-    // Ce que la carte d'occupation retient : les mailles du niveau le plus fin qui touchent de la
-    // géométrie, sur toutes celles de l'emprise, et ce que la carte coûte en mémoire.
+    // What the occupancy map keeps: the finest-level cells that touch geometry, over all those
+    // of the extent, and what the map costs in memory.
     occupiedCells: probes?.occupancy.marked ?? null,
     mapCells: probes?.occupancy.cells ?? null,
     mapBytes: probes?.occupancy.bytes ?? null,
     probeBytes: probes ? probes.cascades.probes * PROBE_FLOATS * 4 : null,
-    // La cible, la fraction que l'asservissement tient, et la dernière durée qu'il a vue.
+    // The target, the fraction the servo holds, and the last duration it saw.
     budgetMs: probes?.budget.budgetMs ?? bounce.budgetMs,
     budgetLoad: probes?.budget.load ?? null,
     budgetLastMs: probes?.budget.lastMs ?? null,

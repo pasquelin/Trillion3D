@@ -165,7 +165,7 @@ test('flat projection and split reproduce the object forms to the bit, including
       pageIndex,
       epoch: 1,
     });
-    assert.deepEqual([...cached], [...flat], `image ${pass} avec coins gardés`);
+    assert.deepEqual([...cached], [...flat], `frame ${pass} with corners kept`);
   }
   const rest = new Uint8Array(pages.length),
     occluders = splitOccludersFlat(pages.length, flat, rest);

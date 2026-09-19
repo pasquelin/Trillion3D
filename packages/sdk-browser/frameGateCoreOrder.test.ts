@@ -1,8 +1,8 @@
-// `frameGateCore.ts` garantit un ORDRE : `enterFrame` recopie la pose caméra (`readCameraWorld`)
-// AVANT le seuil adaptatif et AVANT l'empreinte de vue. `cameraContrat.test.ts` le prouve en
-// appelant `resolveCameraWorld` puis `viewChanged`/`readScene` à la main — jamais `enterFrame`
-// lui-même. Ces tests bouclent sur l'entrée publique complète, pour que l'ordre soit celui que
-// `enterFrame` applique réellement, pas celui qu'un test recompose.
+// `frameGateCore.ts` guarantees an ORDER: `enterFrame` copies the camera pose (`readCameraWorld`)
+// BEFORE the adaptive threshold and BEFORE the view fingerprint. `cameraContrat.test.ts` proves it
+// by calling `resolveCameraWorld` then `viewChanged`/`readScene` by hand — never `enterFrame`
+// itself. These tests loop on the full public entry, so the order is the one `enterFrame` actually
+// applies, not the one a test recomposes.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -17,45 +17,45 @@ type Rig = { parent: THREE.Object3D; camera: THREE.PerspectiveCamera };
 const VIEWPORT: [number, number] = [800, 600];
 const DEPLACE_ET_TOURNE = POSES_PARENT[2] as Pose;
 
-test('enterFrame recopie la pose avant l’empreinte de vue : un rig déplacé seul, jamais remonté par l’hôte, rejoue l’image', () => {
+test('enterFrame copies the pose before the view fingerprint: a rig moved alone, never walked by the host, replays the frame', () => {
   const gate = createWebglFrameGate();
   const source = new THREE.Object3D();
   const rig = creeRig() as Rig;
   const motion: CameraMotion = {};
   const image = () => {
-    // `hote = false` : personne ne remonte le rig, comme le contrat l'annonce pour un parent hors
-    // scène préparée. Si `enterFrame` lisait la pose locale, ou la résolvait APRÈS l'empreinte de
-    // vue, ce déplacement n'y changerait rien et l'image resterait tenue à tort.
+    // `hote = false`: nobody walks the rig, as the contract announces for a parent outside the
+    // prepared scene. If `enterFrame` read the local pose, or resolved it AFTER the view
+    // fingerprint, this move would change nothing there and the frame would stay held wrongly.
     const held = gate.enterFrame({}, rig.camera, motion, VIEWPORT, source, []);
     gate.keep(0, 0, [], 0, false);
     return held;
   };
   poseRig(rig, POSES_PARENT[0] as Pose, false);
-  assert.equal(image(), false, 'la première image n’a rien à tenir');
-  assert.equal(image(), false, 'une seule image identique ne prouve encore rien');
-  assert.equal(image(), true, 'rien n’a bougé : l’image précédente EST celle-ci');
+  assert.equal(image(), false, 'the first frame has nothing to hold');
+  assert.equal(image(), false, 'a single identical frame still proves nothing');
+  assert.equal(image(), true, 'nothing moved: the previous frame IS this one');
   poseRig(rig, DEPLACE_ET_TOURNE, false);
-  assert.equal(image(), false, 'le rig a bougé seul : l’image ne peut pas être tenue');
-  assert.equal(image(), false, 'la nouvelle vue n’a pas encore d’image jumelle');
-  assert.equal(image(), true, 'immobile à nouveau : l’image redevient tenable');
+  assert.equal(image(), false, 'the rig moved alone: the frame cannot be held');
+  assert.equal(image(), false, 'the new view has no twin frame yet');
+  assert.equal(image(), true, 'still again: the frame becomes holdable');
 });
 
-test('enterFrame résout la pose avant le seuil adaptatif : la vitesse mesurée est celle de l’œil monde', () => {
+test('enterFrame resolves the pose before the adaptive threshold: the measured speed is that of the world eye', () => {
   const gate = createFrameGateCore(1);
   const source = new THREE.Object3D();
   const rig = creeRig() as Rig;
   const motion: CameraMotion = {};
-  poseRig(rig, DEPLACE_ET_TOURNE, false); // jamais remonté : seule `enterFrame` peut le voir.
+  poseRig(rig, DEPLACE_ET_TOURNE, false); // never walked: only `enterFrame` can see it.
   gate.enterFrame({ pixelError: 1, lodAdaptive: true }, rig.camera, motion, VIEWPORT, source, []);
   const eyeAplatie = [...cameraMoteur(cameraAplatie(DEPLACE_ET_TOURNE)).eye];
   assert.deepEqual(
     [...(motion.last ?? [])],
     eyeAplatie,
-    'la vitesse doit partir de la position de l’œil dans le monde, ancêtres compris',
+    'speed must start from the eye position in the world, ancestors included',
   );
   assert.notDeepEqual(
     [...(motion.last ?? [])],
     rig.camera.position.toArray(),
-    'témoin : sans résolution préalable, ce serait la pose locale sous le rig',
+    'witness: without prior resolution, this would be the local pose under the rig',
   );
 });

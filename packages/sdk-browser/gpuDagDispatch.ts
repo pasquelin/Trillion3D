@@ -41,9 +41,9 @@ export function createDagDispatch(
     output,
     readback,
   } = resources;
-  // Une fente de relecture, un jeu de tableaux : le relevé les réécrit au lieu de les rallouer. Le
-  // couple rendu à l'appelant reste neuf à chaque relecture, pour qu'il distingue toujours deux
-  // relevés par identité — c'est ce que l'adoption compare pour savoir si la coupe a bougé.
+  // One readback slot, one set of arrays: the snapshot rewrites them instead of reallocating.
+  // The pair returned to the caller stays new on every readback, so it always distinguishes two
+  // snapshots by identity — that is what adoption compares to know if the cut moved.
   const scratch = [createDagOutputScratch(), createDagOutputScratch()];
   const dispatch: GpuSelection['dispatch'] = (next, shared) => {
     if (state.disposed || state.dead) return;
@@ -79,7 +79,7 @@ export function createDagDispatch(
       state.submittedResidencyRevision = state.residencyRevision;
     }
     if (copy) {
-      // Le relevé et la liste compactée se suivent dans le même tampon : une seule copie.
+      // Snapshot and compacted list follow each other in the same buffer: a single copy.
       encoder.copyBufferToBuffer(output, 0, readback[i], 0, readbackBytes);
     }
     const captured = copy ? copySelectionUniforms(next) : undefined;

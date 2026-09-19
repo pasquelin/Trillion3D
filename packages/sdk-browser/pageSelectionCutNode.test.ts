@@ -1,7 +1,7 @@
-// Lot 4c : à seuil nul, la décision d'un nœud se prend sur les seules bornes, sans projeter. Elle
-// n'est identique au chemin général que sous l'invariant que `cullingBounds` maintient — une borne
-// finie strictement positive vient toujours d'un cluster qui avait sa sphère —, et c'est le second
-// test qui le prouve. Oracle : `nodeDecision` d'avant le lot, dans `bench/oracles/coupe-budget.mjs`.
+// Lot 4c: at threshold zero, a node's decision is taken on the bounds alone, without projecting.
+// It matches the general path only under the invariant `cullingBounds` maintains — a finite
+// strictly positive bound always comes from a cluster that had its sphere — and the second
+// test proves that. Oracle: `nodeDecision` from before the lot, in `bench/oracles/coupe-budget.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -45,20 +45,20 @@ const ABSENTE = [0, 0, 0, -1];
 const PROCHE = [0, 0, 20, 2],
   LOIN = [-40, 5, 90, 30];
 
-/** Une borne finie strictement positive impose sa sphère : c'est ce que la préparation garantit. */
+/** A finite strictly positive bound requires its sphere: that is what preparation guarantees. */
 function coherente(bound: number, sphere: number[]) {
   return !(bound > 0 && bound !== Infinity) || sphere[3] >= 0;
 }
 
-test('à seuil nul, la décision de nœud sans projection est celle du chemin général', () => {
+test('at threshold zero, the node decision without projection matches the general path', () => {
   let vus = 0;
   for (const floor of [0, 1e-6, 3, Infinity])
     for (const ceil of [0, 1e-6, 3, Infinity])
       for (const parentFloor of [0, 1e-6, 3, Infinity])
         for (const own of [PROCHE, LOIN, ABSENTE])
           for (const band of [PROCHE, LOIN, ABSENTE]) {
-            // Le plafond borne le plancher par construction : un nœud dont le plancher dépasse son
-            // plafond ne sort jamais de `cullingBounds`.
+            // The ceiling bounds the floor by construction: a node whose floor exceeds its
+            // ceiling never leaves `cullingBounds`.
             if (floor > ceil) continue;
             if (!coherente(floor, own) || !coherente(ceil, own) || !coherente(parentFloor, band))
               continue;
@@ -79,13 +79,17 @@ test('à seuil nul, la décision de nœud sans projection est celle du chemin g�
               camera.near,
               0,
             );
-            assert.equal(nodeDecision(state, values, 0), reference, `général ${floor}/${ceil}`);
-            assert.equal(nodeDecisionAtZero(values, 0), reference, `seuil nul ${floor}/${ceil}`);
+            assert.equal(nodeDecision(state, values, 0), reference, `general ${floor}/${ceil}`);
+            assert.equal(
+              nodeDecisionAtZero(values, 0),
+              reference,
+              `zero threshold ${floor}/${ceil}`,
+            );
           }
-  assert.ok(vus > 50, `seulement ${vus} nœuds cohérents`);
+  assert.ok(vus > 50, `only ${vus} coherent nodes`);
 });
 
-/** Les clusters que la préparation peut produire, plus ceux qu'elle laisse sans bande d'erreur. */
+/** Clusters preparation can produce, plus those it leaves without an error band. */
 function pages(): PageRecord[] {
   const out: PageRecord[] = [];
   for (const lodError of [0, 1e-6, 2, undefined])
@@ -103,9 +107,9 @@ function pages(): PageRecord[] {
   return out;
 }
 
-test('une borne de nœud finie et positive vient toujours d’un cluster qui avait sa sphère', () => {
+test('a finite positive node bound always comes from a cluster that had its sphere', () => {
   const all = pages();
-  // Une hiérarchie à deux niveaux : la racine, puis quatre feuilles qui se partagent les clusters.
+  // A two-level hierarchy: the root, then four leaves that share the clusters.
   const stride = 15,
     count = 5;
   const nodes = new Float64Array(count * stride);
@@ -122,8 +126,8 @@ test('une borne de nœud finie et positive vient toujours d’un cluster qui ava
     const at = node * BOUND_STRIDE;
     const own = [0, 0, 0, values[at + OWN_SPHERE + 3]],
       band = [0, 0, 0, values[at + PARENT_SPHERE + 3]];
-    assert.ok(coherente(values[at + OWN_FLOOR], own), `plancher propre du nœud ${node}`);
-    assert.ok(coherente(values[at + OWN_CEIL], own), `plafond propre du nœud ${node}`);
-    assert.ok(coherente(values[at + PARENT_FLOOR], band), `plancher du remplaçant, nœud ${node}`);
+    assert.ok(coherente(values[at + OWN_FLOOR], own), `own floor of node ${node}`);
+    assert.ok(coherente(values[at + OWN_CEIL], own), `own ceiling of node ${node}`);
+    assert.ok(coherente(values[at + PARENT_FLOOR], band), `replacement floor, node ${node}`);
   }
 });

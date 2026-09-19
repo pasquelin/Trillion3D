@@ -1,6 +1,5 @@
-//! Lot F — bancs d'équivalence des boîtes englobantes factorisées. La référence est la boucle
-//! recopiée telle qu'elle vivait dans `dag/bounds.rs`, `dag/culling.rs`, `dag/groups.rs`,
-//! `coplanar/*.rs`, `import/mesh.rs` et `proxy/bvh.rs` ; la version mesurée appelle `shared_math`.
+//! Lot F — equivalence benches of the factored bounding boxes. The reference is
+//! the loop. Reference: old version, French names.
 use super::f_valeurs::{boxes_f64, points_f32, points_f64};
 use super::harness::{compare, Bits, Row};
 use super::inputs::Xorshift;
@@ -8,6 +7,7 @@ use crate::shared_math::{bisect_centres, extend_aabb, extend_aabb_f32, merge_aab
 
 const COUNT: usize = 200_000;
 
+/// Copy of old method: `spheres.iter().map(...).collect()`.
 fn empreinte_f64(boite: &([f64; 3], [f64; 3])) -> Bits {
     let mut bits = Bits::default();
     for value in boite.0.iter().chain(boite.1.iter()) {
@@ -34,13 +34,13 @@ fn empreinte_ordre(ordre: &Vec<usize>) -> Bits {
     bits
 }
 
-/// F1 — la boîte d'un nuage de points, la boucle de `bounding_sphere` contre `extend_aabb`.
+/// F1 — the box of a point cloud, the `bounding_sphere` loop against `extend_aabb`.
 pub(crate) fn row_points() -> Row {
     let points = points_f64(0x0F01_B01E, COUNT);
     compare(
-        "F1 boîte d'un nuage de points (extend_aabb)",
+        "F1 box of a point cloud (extend_aabb)",
         "shared_math.rs",
-        format!("{COUNT} points doubles, un sur sept empoisonné"),
+        format!("{COUNT} double points, one in seven poisoned"),
         &mut || {
             let mut low = [f64::INFINITY; 3];
             let mut high = [f64::NEG_INFINITY; 3];
@@ -64,13 +64,13 @@ pub(crate) fn row_points() -> Row {
     )
 }
 
-/// F2 — la boîte d'une suite de boîtes, la boucle de `build_culling_bvh` contre `merge_aabb`.
+/// F2 — the box of a sequence of boxes, the `build_culling_bvh` loop against `merge_aabb`.
 pub(crate) fn row_boites() -> Row {
     let boxes = boxes_f64(0x0F02_B0C5, COUNT);
     compare(
-        "F2 boîte de boîtes (merge_aabb)",
+        "F2 box of boxes (merge_aabb)",
         "shared_math.rs",
-        format!("{COUNT} boîtes, une sur onze retournée"),
+        format!("{COUNT} boxes, one in eleven inverted"),
         &mut || {
             let mut low = [f64::INFINITY; 3];
             let mut high = [f64::NEG_INFINITY; 3];
@@ -94,13 +94,13 @@ pub(crate) fn row_boites() -> Row {
     )
 }
 
-/// F3 — la variante simple précision, celle d'`import/mesh.rs` et de `proxy/bvh.rs`.
+/// F3 — the single-precision variant, that of `import/mesh.rs` and `proxy/bvh.rs`.
 pub(crate) fn row_simple() -> Row {
     let points = points_f32(0x0F03_5137, COUNT);
     compare(
-        "F3 boîte en simple précision (extend_aabb_f32)",
+        "F3 single-precision box (extend_aabb_f32)",
         "shared_math.rs",
-        format!("{COUNT} points simples, un sur sept empoisonné"),
+        format!("{COUNT} single points, one in seven poisoned"),
         &mut || {
             let mut low = [f32::MAX; 3];
             let mut high = [f32::MIN; 3];
@@ -124,7 +124,7 @@ pub(crate) fn row_simple() -> Row {
     )
 }
 
-/// F4 — le choix d'axe et la coupe médiane, la boucle de `group_clusters` contre `bisect_centres`.
+/// F4 — axis choice and median cut, the `group_clusters` loop against `bisect_centres`.
 pub(crate) fn row_bisection() -> Row {
     const GROUPS: usize = 40_000;
     let centres = points_f64(0x0F04_B15E, GROUPS);
@@ -137,9 +137,9 @@ pub(crate) fn row_bisection() -> Row {
         order
     };
     compare(
-        "F4 coupe médiane sur l'axe le plus long (bisect_centres)",
+        "F4 median cut on the longest axis (bisect_centres)",
         "shared_math.rs",
-        format!("{GROUPS} barycentres empoisonnés, ordre de départ mélangé"),
+        format!("{GROUPS} poisoned centroids, shuffled start order"),
         &mut || {
             let mut slice = depart.clone();
             let mut low = [f64::INFINITY; 3];

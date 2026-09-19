@@ -4,15 +4,15 @@ import { generateMaterialMips, mipLevelCountFor } from './textureMips.ts';
 import { writeRgba } from './webgpuTileWrite.ts';
 
 /**
- * La texture de travail d'une texture de l'hôte : la source entière, transférée une fois, et sa
- * chaîne de mips fabriquée par la carte avec la règle des matériaux (moyenne en couleur, médiane en
- * alpha). Les tuiles en sont ensuite copiées dans le pool, niveau par niveau.
+ * Working texture of a host texture: the whole source, transferred once, and its mip chain built
+ * by the GPU with the materials rule (mean in colour, median in alpha). Tiles are then copied
+ * into the pool, level by level.
  *
- * C'est le chemin d'une texture SANS chaîne cuite — celle qu'un hôte a décodée lui-même, ou une
- * scène d'essai qui donne ses texels en mémoire. Il coûte la source entière à chaque fois qu'une
- * tuile de cette texture manque, et c'est voulu : la mémoire graphique tenue reste celle du pool,
- * et le prix se paie en transfert, mesuré, jamais en octets résidents. La chaîne cuite du cache
- * est le chemin de la référence ; celui-ci n'existe que pour ne refuser aucune scène.
+ * This is the path of a texture WITHOUT a cooked chain — one a host decoded itself, or a test
+ * scene that gives its texels in memory. It costs the whole source every time a tile of that
+ * texture is missing, and that is intended: GPU memory held stays that of the pool, and the
+ * price is paid in transfer, measured, never in resident bytes. The cache's cooked chain is the
+ * reference path; this one exists only so that no scene is refused.
  */
 export type TileScratch = { texture: GPUTexture; destroy(): void };
 

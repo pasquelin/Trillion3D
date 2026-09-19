@@ -1,7 +1,7 @@
 use super::*;
 
-// Comportement 23 : les cinq fixtures dorées passent par le compilateur et leur sortie est
-// comparée exactement à expected.json (hors champs "case"/"rule", qui ne sont que documentaires).
+// Behavior 23: five golden fixtures pass through compiler, output
+// compared bit for bit with expected.json (excluding documentary "case"/"rule" fields).
 #[test]
 fn coplanar_fixtures_match_their_golden_expected_json() {
     let names = [
@@ -17,13 +17,13 @@ fn coplanar_fixtures_match_their_golden_expected_json() {
         assert_eq!(
             coplanar_digest(&run),
             golden_expected(&fixture_dir),
-            "fixture {name}: la sortie compilée diverge de expected.json"
+            "fixture {name}: compiled output diverges from expected.json"
         );
     }
 }
 
-/// Ce qu'une dorée coplanaire fixe : le rapport de l'étape, la couche de profondeur de chaque page
-/// et l'identité des objets qui en ont reçu une.
+/// What coplanar golden fixes: step report, depth layer of each page,
+/// and identity of objects receiving one.
 fn coplanar_digest(run: &GoldenRun) -> Value {
     let depth_layer_per_page: Vec<Value> = run.result["primitives"]
         .as_array()

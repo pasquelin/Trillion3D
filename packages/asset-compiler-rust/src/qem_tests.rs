@@ -69,9 +69,9 @@ fn compact_region_renumbers_each_vertex_once_and_maps_back() {
         }
     }
 }
-// Lot B4 : compact_region part de la borne connue (pas plus de sommets que de coins ni que le
-// maillage n'en porte) au lieu de doubler ses listes en route. Mêmes sorties sur des entrées
-// hostiles : maillage vide, un triangle, triangle dégénéré, indices hors des positions.
+// Lot B4: compact_region starts from known bound (no more vertices than corners or
+// mesh carries) instead of doubling lists en route. Same outputs on hostile
+// inputs: empty mesh, one triangle, degenerate triangle, out-of-bounds indices.
 #[test]
 fn compact_region_on_an_empty_mesh_returns_empty_lists() {
     let (positions, indices, remap) = compact_region(&[], &[]);
@@ -91,7 +91,7 @@ fn compact_region_on_a_single_triangle_keeps_every_vertex_once() {
 #[test]
 fn compact_region_on_a_degenerate_triangle_renumbers_the_repeated_vertex_once() {
     let positions = [0., 0., 0., 1., 0., 0., 0., 1., 0.];
-    // Un triangle dégénéré : les trois coins pointent sur le même sommet.
+    // Degenerate triangle: three corners point to same vertex.
     let indices = [0u32, 0, 0];
     let (compact_pos, compact_idx, remap) = compact_region(&positions, &indices);
     assert_eq!(remap, vec![0]);
@@ -100,8 +100,8 @@ fn compact_region_on_a_degenerate_triangle_renumbers_the_repeated_vertex_once() 
 }
 #[test]
 fn compact_region_falls_back_to_zero_for_an_index_beyond_the_positions() {
-    // Le maillage ne porte qu'un sommet, mais l'indice en référence un second : la source garde
-    // son identifiant d'origine dans remap, la position manquante devient [0,0,0].
+    // Mesh carries single vertex, index references second: source retains
+    // original id in remap, missing position becomes [0,0,0].
     let positions = [1., 2., 3.];
     let indices = [0u32, 5];
     let (compact_pos, compact_idx, remap) = compact_region(&positions, &indices);

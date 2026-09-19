@@ -1,5 +1,5 @@
-// Les passes de la carte graphique résumées par le harnais : une distribution par passe, une par
-// bloc comparable, et « aucun relevé » qui reste `null` — jamais un zéro ni un tableau vide.
+// Graphics card passes summarized by harness: one distribution per pass, one per
+// comparable block, and "no metrics" remaining `null` — never a zero or empty array.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { passesGpu } from './seriePasses.mjs';
@@ -12,7 +12,7 @@ const releve = (frame, liste, truncated = false) => ({
   passes: liste.map(([name, gpuMs]) => ({ name, gpuMs })),
 });
 
-test('chaque passe a sa distribution, chaque bloc la sienne, sur les relevés où tout est mesuré', () => {
+test('each pass has its distribution, each block its own, on metrics where everything is measured', () => {
   const resume = passesGpu([
     releve(12, [
       ['WG DAG selection', 0.25],
@@ -35,22 +35,22 @@ test('chaque passe a sa distribution, chaque bloc la sienne, sur les relevés o�
   ]);
   assert.equal(resume.releves, 3);
   const parNom = Object.fromEntries(resume.passes.map((p) => [p.name, p]));
-  // Le rang p50 du harnais est celui de `summarize` : sur deux valeurs, la plus basse.
+  // Harness p50 rank is that of `summarize`: on two values, the lower one.
   assert.deepEqual(
     [parNom['WG DAG selection'].gpuMs.p50, parNom['WG DAG selection'].gpuMs.max],
     [0.25, 0.75],
-    'le relevé sans durée ne compte pas pour zéro',
+    'reading without duration does not count as zero',
   );
   assert.equal(parNom['WG DAG selection'].bloc, 'visibility');
   assert.equal(parNom['WG deferred lighting'].bloc, 'other');
-  assert.equal(resume.passes[0].name, 'WG deferred lighting', 'la plus lourde d’abord');
-  // Le bloc visibilité n'est mesuré que sur les deux relevés où la sélection a une durée.
+  assert.equal(resume.passes[0].name, 'WG deferred lighting', 'heaviest first');
+  // Visibility block is measured only on the two metrics where selection has a duration.
   assert.deepEqual([resume.blocs.visibilityMs.p50, resume.blocs.visibilityMs.max], [1.25, 2.25]);
-  assert.equal(resume.blocs.materialsMs.p50, 2.5, 'les trois relevés comptent pour ce bloc');
+  assert.equal(resume.blocs.materialsMs.p50, 2.5, 'all three metrics count for this block');
   assert.equal(resume.blocs.otherMs.p50, 7);
 });
 
-test('un relevé tronqué est ignoré en entier, et sans aucun relevé le résumé est null', () => {
+test('a truncated metric is ignored completely, and without any metric summary is null', () => {
   const resume = passesGpu([
     releve(12, [['WG visibility primary', 1]], true),
     releve(24, [['WG visibility primary', 3.0]]),
@@ -61,7 +61,7 @@ test('un relevé tronqué est ignoré en entier, et sans aucun relevé le résum
   assert.equal(passesGpu(undefined), null);
 });
 
-test('le résumé lisible nomme les blocs en millisecondes p50/p95 et « non mesuré » sans inventer', () => {
+test('readable summary names blocks in p50/p95 milliseconds and "unmeasured" without inventing', () => {
   const lignes = passes(
     passesGpu([
       releve(12, [
@@ -70,9 +70,9 @@ test('le résumé lisible nomme les blocs en millisecondes p50/p95 et « non mes
       ]),
     ]),
   );
-  assert.match(lignes[0], /Tampon de visibilité 1\.234 \/ 1\.234/);
-  assert.match(lignes[0], /Passe matériaux non mesuré/);
-  assert.match(lignes[0], /Le reste non mesuré/);
+  assert.match(lignes[0], /Visibility buffer 1\.234 \/ 1\.234/);
+  assert.match(lignes[0], /Materials pass unmeasured/);
+  assert.match(lignes[0], /The rest unmeasured/);
   assert.ok(lignes.includes('| WG visibility primary | 1.234 / 1.234 | visibility |'));
-  assert.deepEqual(passes(null), ['- Passes carte graphique : aucun relevé', '']);
+  assert.deepEqual(passes(null), ['- GPU passes: no reading', '']);
 });

@@ -1,14 +1,14 @@
-//! Le découpage d'un fichier Maya ASCII en commandes, sans en exécuter aucune.
+//! Splitting a Maya ASCII file into commands, without executing any.
 //!
-//! Un `.ma` est un texte de commandes séparées par `;`. Ce module n'en connaît que la forme —
-//! commentaires `//` et `/* */`, chaînes entre guillemets avec échappements, mots nus — et rend une
-//! suite de jetons par commande. Il ne sait pas ce qu'une commande veut dire et n'évalue rien : ni
-//! substitution par accents graves, ni expression, ni script. Une chaîne jamais refermée est un
-//! refus nommé, et non une lecture qui avale le reste du fichier comme s'il en faisait partie.
+//! A `.ma` is text of commands separated by `;`. This module knows only the form — `//` and
+//! `/* */` comments, quoted strings with escapes, bare words — and yields a sequence of tokens
+//! per command. It does not know what a command means and evaluates nothing: no backtick
+//! substitution, no expression, no script. A never-closed string is a named refusal, not a read
+//! that swallows the rest of the file as if it were part of it.
 use super::*;
 
-/// Un jeton d'une commande : un mot nu, ou une chaîne littérale déjà déséchappée. La distinction
-/// compte : `-n` nu est un drapeau, `"-n"` entre guillemets est une valeur.
+/// A command token: a bare word, or a literal string already unescaped. The distinction
+/// matters: a bare `-n` is a flag, `"-n"` in quotes is a value.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum Token {
     Word(String),
@@ -16,14 +16,14 @@ pub(super) enum Token {
 }
 
 impl Token {
-    /// Le texte du jeton, quelle que soit son écriture.
+    /// Text of the token, whatever its writing.
     pub(super) fn text(&self) -> &str {
         match self {
             Self::Word(word) | Self::Text(word) => word,
         }
     }
-    /// Le nom du drapeau que ce jeton porte : un tiret nu suivi d'une lettre. Un nombre négatif
-    /// n'en est pas un, et une chaîne littérale non plus.
+    /// Name of the flag this token carries: a bare dash followed by a letter. A negative number
+    /// is not one, and a literal string is not one either.
     pub(super) fn flag(&self) -> Option<&str> {
         let Self::Word(word) = self else {
             return None;
@@ -34,19 +34,19 @@ impl Token {
     }
 }
 
-/// Une commande lue : son nom et ses jetons, tels qu'ils sont écrits.
+/// A command as read: its name and its tokens, as they are written.
 pub(super) struct Statement {
     pub(super) name: String,
     pub(super) tokens: Vec<Token>,
 }
 
-/// Les commandes d'un texte, lues à la demande : le document se remplit au fil de la lecture, et
-/// rien ne garde en mémoire la totalité des jetons d'un fichier.
+/// Commands of a text, read on demand: the document fills as reading proceeds, and nothing
+/// keeps every token of a file in memory.
 pub(super) struct Reader<'a> {
     rest: &'a str,
 }
 
-/// Le lecteur de commandes d'un texte Maya ASCII.
+/// Command reader of Maya ASCII text.
 pub(super) fn read(text: &str) -> Reader<'_> {
     Reader { rest: text }
 }
@@ -75,9 +75,9 @@ impl Iterator for Reader<'_> {
 }
 
 impl Reader<'_> {
-    /// Les jetons de la commande suivante, jusqu'au `;` qui la termine ou jusqu'à la fin du texte.
-    /// Un fichier dont la dernière commande n'est pas terminée rend quand même ses jetons : c'est
-    /// une écriture incomplète, pas une raison d'oublier ce qui précède.
+    /// Tokens of the next command, up to the `;` that ends it or to the end of the text. A file
+    /// whose last command is unfinished still yields its tokens: that is incomplete writing, not
+    /// a reason to forget what precedes.
     fn tokens(&mut self) -> Result<Vec<Token>> {
         let mut out = Vec::new();
         loop {
@@ -96,7 +96,7 @@ impl Reader<'_> {
         }
     }
 
-    /// Les blancs et les commentaires : `//` jusqu'à la fin de la ligne, `/* */` jusqu'à sa clôture.
+    /// Whitespace and comments: `//` to the end of the line, `/* */` until its close.
     fn skip(&mut self) {
         loop {
             self.rest = self.rest.trim_start();
@@ -112,7 +112,7 @@ impl Reader<'_> {
         }
     }
 
-    /// Une chaîne littérale, déséchappée.
+    /// A literal string, unescaped.
     fn string(&mut self) -> Result<String> {
         let mut out = String::new();
         let mut escaped = false;
@@ -142,7 +142,7 @@ impl Reader<'_> {
         ))
     }
 
-    /// Un mot nu : tout ce qui n'est ni blanc, ni `;`, ni guillemet.
+    /// A bare word: anything that is neither whitespace, nor `;`, nor a quote.
     fn word(&mut self) -> String {
         let end = self
             .rest

@@ -1,12 +1,12 @@
-// Défaut 8, côté carte graphique : un matériau dont les cartes n'ont pas le même mode d'adressage.
-// La ligne de page est écrite par le vrai `createPageRowWriter`, et le mot d'adressage que le
-// nuanceur donne à chaque carte en est relu par `wrapOf`, le miroir processeur du `wrapOf` WGSL.
-// Chaque carte est ensuite lue par le WGSL d'adressage du moteur, dans Chromium, et comparée à
-// l'échantillonneur natif réglé sur le mode de cette carte-là — la référence des lots 4 et 7.
+// Defect 8, GPU side: a material whose maps do not share the same wrap mode.
+// The page row is written by the real `createPageRowWriter`, and the wrap word the shader gives
+// each map is reread by `wrapOf`, the CPU mirror of the WGSL `wrapOf`. Each map is then sampled
+// by the engine's wrap WGSL, in Chromium, and compared to the native sampler set to that map's
+// mode — the reference of batches 4 and 7.
 //   node --experimental-strip-types \
 //     test/justesse/adressage-cartes-gpu.mjs
-// Bloquant : tout écart bit à bit hors couture de période, et sur la couture toute lecture qui
-// s'écarte de la règle exacte de plus d'un demi niveau sur 255.
+// Blocking: any bit-for-bit discrepancy off a period seam, and on the seam any read that
+// departs from the exact rule by more than half a level in 255.
 import { wrapOf } from '../../packages/sdk-browser/visibilityWrapModes.ts';
 import { ROW_WRAP_MODES_WORD } from '../../packages/sdk-browser/webgpuPageRow.ts';
 import { ADRESSE, regleNormalisee, surCouture, TOLERANCE } from './adressageCas.mjs';
@@ -29,12 +29,12 @@ const sorties = await executerDansChromium({
   lots,
 });
 
-/** La couleur exacte de la règle sur l'axe de la composante `k`, les deux texels mêlés. */
+/** The rule's exact colour on component `k`'s axis, the two texels blended. */
 const regle = (uv, wrap, k) => regleNormalisee(uv[k], k ? TEXTURE.hauteur : TEXTURE.largeur, wrap);
 
 let bloquants = 0,
   couturesEprouvees = 0;
-console.log("\nDéfaut 8 : une carte par mode, lue par le WGSL d'adressage du moteur");
+console.log('\nDefect 8: one map per mode, read by the engine wrap WGSL');
 CARTES.forEach(({ nom, wrapS, wrapT }, rang) => {
   const { moteur, three } = sorties[rang];
   let ecarts = 0,
@@ -49,7 +49,7 @@ CARTES.forEach(({ nom, wrapS, wrapT }, rang) => {
         if (Object.is(lu, three[i * 4 + k])) continue;
         ecarts++;
         pire = Math.max(pire, Math.abs(lu - three[i * 4 + k]) * 255);
-        exemple ??= `uv=(${uv}) composante ${k} : moteur=${lu * 255} carte=${three[i * 4 + k] * 255}`;
+        exemple ??= `uv=(${uv}) component ${k}: engine=${lu * 255} map=${three[i * 4 + k] * 255}`;
         continue;
       }
       couturesEprouvees++;
@@ -57,16 +57,16 @@ CARTES.forEach(({ nom, wrapS, wrapT }, rang) => {
       if (Math.abs(lu - attendu) * 255 <= TOLERANCE) continue;
       ecarts++;
       pire = Math.max(pire, Math.abs(lu - attendu) * 255);
-      exemple ??= `uv=(${uv}) composante ${k} : moteur=${lu * 255} règle=${attendu * 255}`;
+      exemple ??= `uv=(${uv}) component ${k}: engine=${lu * 255} rule=${attendu * 255}`;
     }
   });
   bloquants += ecarts;
   const modes = `${ADRESSE.get(wrapS)}/${ADRESSE.get(wrapT)}`;
   console.log(
-    `  ${nom.padEnd(10)} ${modes.padEnd(28)} ${String(ecarts).padStart(3)} écarts / ${UV.length * 2}` +
-      `${ecarts ? `  pire ${pire.toFixed(2)}/255  ex. ${exemple}` : ''}`,
+    `  ${nom.padEnd(10)} ${modes.padEnd(28)} ${String(ecarts).padStart(3)} discrepancies / ${UV.length * 2}` +
+      `${ecarts ? `  worst ${pire.toFixed(2)}/255  e.g. ${exemple}` : ''}`,
   );
 });
-console.log(`\n${couturesEprouvees} composantes éprouvées sur la couture d'une période`);
-console.log(`GPU, une carte par mode : ${bloquants} écarts bloquants`);
+console.log(`\n${couturesEprouvees} components exercised on a period seam`);
+console.log(`GPU, one map per mode: ${bloquants} blocking discrepancies`);
 process.exitCode = bloquants ? 1 : 0;

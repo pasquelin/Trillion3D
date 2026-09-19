@@ -11,8 +11,7 @@ import { materialSide } from './triangleDiagnostic.ts';
 import { windingCw } from './webgpuPagesWinding.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
-/** Ordre des slots indirects de la couche 0 : les trois pipelines non testés, puis leurs jumeaux
- *  testés par la Hi-Z. */
+/** Order of layer-0 indirect slots: the three untested pipelines, then their Hi-Z-tested twins. */
 const VIS_SLOTS = [
   'visPipelineBack',
   'visPipelineNone',
@@ -28,8 +27,8 @@ export function pipelineFor(rt: WebgpuPagesCore, rec: PageRec) {
   return windingCw(rec) ? rt.gpu.pipelineBackCw : rt.gpu.pipelineBack;
 }
 
-/** Rang du mode de face d'un cluster dans un jeu de couche : dos, aucune, face, dos inversé, face
- *  inversée. Le même ordre que `LAYER_CULLS` construit. */
+/** Rank of a cluster's face mode in a layer set: back, none, front, inverted back, inverted front.
+ *  The same order `LAYER_CULLS` builds. */
 const visCullSlot = (rec: PageRec) => {
   const side = materialSide(rec.material);
   if (side === THREE.DoubleSide) return 1;
@@ -37,8 +36,8 @@ const visCullSlot = (rec: PageRec) => {
   return windingCw(rec) ? 3 : 0;
 };
 
-/** Le pipeline d'un slot indirect : la couche 0 garde les siens, chaque couche suivante a les mêmes
- *  états plus son décalage de profondeur. Le rang de face d'un slot est son `bin`. */
+/** Pipeline of an indirect slot: layer 0 keeps its own, each later layer has the same states plus
+ *  its depth bias. A slot's face rank is its `bin`. */
 export function visSlotPipeline(rt: WebgpuPagesCore, slot: number) {
   const { vis } = rt;
   const layer = Math.floor(slot / BASE_SLOTS),
@@ -47,8 +46,8 @@ export function visSlotPipeline(rt: WebgpuPagesCore, slot: number) {
   return vis.visLayerPipelines[visLayerPipelineIndex(layer, within >= 3, within % 3)];
 }
 
-/** Le pipeline d'un cluster dessiné SANS compaction indirecte. Ce chemin-là ne connaît pas la
- *  moitié testée : sans compaction il n'y a pas de partition, et l'image tient en une passe. */
+/** Pipeline of a cluster drawn WITHOUT indirect compaction. That path does not know the tested
+ *  half: without compaction there is no partition, and the image fits in one pass. */
 export function visPipelineFor(rt: WebgpuPagesCore, rec: PageRec) {
   const { vis } = rt;
   const layer = Math.min(rec.depthLayer, vis.drawLayerSlots - 1);

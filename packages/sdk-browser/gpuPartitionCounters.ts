@@ -15,11 +15,11 @@ import {
 } from './gpuPartitionContract.ts';
 
 /**
- * Ce qu'une image a décidé et compté, et le numéro de cette image.
+ * What a frame decided and counted, and that frame's number.
  *
- * Tous ces nombres sont écrits par la carte : le processeur ne les relève qu'une image sur quinze,
- * par la relecture périodique. Ils décrivent donc une image antérieure à celle qui les rend, comme
- * `gpuPassMs`, et restent `undefined` tant qu'aucun relevé n'est revenu. Rien n'y est déduit.
+ * All these numbers are written by the GPU: the CPU samples them only one frame in fifteen, via
+ * the periodic readback. They therefore describe a frame earlier than the one that returns them,
+ * like `gpuPassMs`, and stay `undefined` until a sample has come back. Nothing is inferred.
  */
 export type PartitionCountsFrame = {
   frame: number;
@@ -32,7 +32,7 @@ export type PartitionCountsFrame = {
   oversizedTriangles: number;
   historyOccluders: number;
   inFront: number;
-  /** 1 quand l'image a partagé par l'historique d'occulteurs, 0 quand elle a partagé par la médiane. */
+  /** 1 when the frame split by occluder history, 0 when it split by the median. */
   fromHistory: number;
   twoPass: number;
 };
@@ -52,7 +52,7 @@ const empty = (): PartitionCountsFrame => ({
   twoPass: 0,
 });
 
-/** Le relevé périodique des compteurs de partition : une copie, un mappage, aucune attente. */
+/** Periodic sample of partition counters: one copy, one mapping, no wait. */
 export function createPartitionCounters(device: GPUDevice) {
   const counted = empty();
   let sampledFrame = -1;
@@ -72,7 +72,7 @@ export function createPartitionCounters(device: GPUDevice) {
     counted.twoPass = words[ST_TWO_PASS];
   });
 
-  /** Le tampon de relevé, fait à la première image relevée et jamais une fois par image. */
+  /** Sample buffer, made on the first sampled frame and never once per frame. */
   const ensure = () => {
     if (reader.buffer) return true;
     if (typeof device.createBuffer !== 'function') return false;

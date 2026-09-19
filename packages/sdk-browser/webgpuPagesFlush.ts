@@ -13,7 +13,7 @@ function reportProgress(rt: WebgpuPagesRuntime) {
   const { run, gpu, blendState, diag, services, context } = rt;
   if (performance.now() - run.lastProgressMs < 2000) return;
   run.lastProgressMs = performance.now();
-  diag.engineDiagnostic('render-progress', 'Suivi du rendu GPU', {
+  diag.engineDiagnostic('render-progress', 'GPU render progress', {
     frame: run.frame,
     coverage: {
       version: 1,
@@ -60,13 +60,13 @@ async function readBackImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
         if (run.outputDiagnosticLogged) return;
         run.outputDiagnosticLogged = true;
         const colors = outputColorDiagnostic(pixels, width, height, clearColor, 'bottom-left');
-        diag.engineDiagnostic('first-readback', 'Premier relevé explicite de la cible WebGPU', {
+        diag.engineDiagnostic('first-readback', 'First explicit readback of the WebGPU target', {
           width,
           height,
           origin: 'bottom-left',
           ...colors,
         });
-        diag.engineDiagnostic('presentation-capture', 'Capture explicite du rendu WebGPU', {
+        diag.engineDiagnostic('presentation-capture', 'Explicit capture of the WebGPU render', {
           width,
           height,
           origin: 'bottom-left',
@@ -87,7 +87,7 @@ async function readBackImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
     capture.captureDeferralLogged = true;
     diag.engineDiagnostic(
       'capture-streaming-deferred',
-      'Mise à jour du streaming reportée au rendu suivant pendant la capture',
+      'Streaming update deferred to the next render during capture',
       {
         imageRevision: capture.capturedRevision,
         deferredUpdates: capture.captureStreamingDeferrals,
@@ -102,33 +102,32 @@ async function readBackImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
 export async function flushWebgpuPages(rt: WebgpuPagesRuntime) {
   const { run, gpu, capture, timing, diag, services } = rt,
     { gpuDevice } = rt.setup;
-  // Le témoin d'image tenue n'est PAS retiré d'office : un hôte qui vide à chaque image n'aurait
-  // alors jamais d'image tenue. Chaque drainage qui change réellement l'image l'annonce lui-même —
-  // une texture qui arrive et une page qui entre ou sort de la résidence incrémentent la révision
-  // des ressources, une sélection abandonnée retire le témoin. Reste l'adoption d'un relevé, qui se
-  // rejoue ici après que l'hôte a pris ses listes : elle est retirée plus bas, et seulement quand
-  // elle a changé quelque chose.
+  // The held-image witness is NOT removed by default: a host that drains every image would then
+  // never have a held image. Every drain that actually changes the image announces it itself — a
+  // texture that arrives and a page that enters or leaves residency increment the resource
+  // revision, an abandoned selection removes the witness. What remains is adoption of a readback,
+  // which is replayed here after the host has taken its lists: it is removed below, and only when
+  // it has changed something.
   await Promise.resolve();
-  // Le programme du contrat d'éclairage se compile hors de l'image. Si une lampe l'attendait, la
-  // pose est redessinée avec lui avant toute lecture : une pose vidée est une pose éclairée.
+  // The lighting-contract program compiles outside the image. If a lamp was waiting for it, the
+  // pose is redrawn with it before any read: a drained pose is a lit pose.
   if (gpu.deferred && wantsContractLighting(rt) && !gpu.deferred.usesContract) {
     await gpu.deferred.settle();
     if (run.lastCamera && !capture.secondaryCamera && !run.lost)
       renderWebgpuPages(rt, run.lastCamera);
   }
-  // Les tuiles de textures font partie de la préparation d'une pose, pas d'une décoration par
-  // image : une surface lue sur un niveau grossier changera quand sa tuile arrivera. `render`
-  // n'admet qu'un budget d'octets par image ; la barrière fait converger le reste ici, hors de la
-  // boucle mesurée, puis vide les cartes d'ombre, et recommence tant qu'un drainage a redessiné
-  // quelque chose (`settlePose`) : une pose vidée est une pose servie au mieux de ce que le pool
-  // peut donner, dont l'ombre décrit l'image.
+  // Texture tiles are part of preparing a pose, not of a per-image decoration: a surface read at
+  // a coarse level will change when its tile arrives. `render` only admits a byte budget per
+  // image; the barrier converges the rest here, outside the measured loop, then drains the shadow
+  // maps, and starts again as long as a drain redrew something (`settlePose`): a drained pose is
+  // a pose served as well as the pool can give, whose shadow describes the image.
   await settlePose(rt, gpuDevice);
   await services.bootstrapState.ensure();
   await services.residency.pending;
   if (run.coverageBudgetEvent) {
     diag.engineDiagnostic(
       'coverage-budget',
-      'Admission de la coupe demandée',
+      'Admission of the requested cut',
       run.coverageBudgetEvent,
     );
     run.coverageBudgetEvent = undefined;
@@ -138,12 +137,12 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime) {
   if (run.gpuSelection) {
     try {
       await run.gpuSelection.flush();
-      if (run.gpuSelection.failed()) fallbackToCpuCut(rt, 'relevé de sélection en échec');
-      // Origine du changement de ressources : l'adoption d'un relevé a réécrit les listes de coupe.
+      if (run.gpuSelection.failed()) fallbackToCpuCut(rt, 'selection readback failed');
+      // Origin of the resource change: adoption of a readback rewrote the cut lists.
       else if (run.gpuFrameActive && services.adoptGpuCut()) run.gate.resourcesChanged();
     } catch (error) {
       diag.diagnosticFailure('gpu-selection-flush-failed', error);
-      fallbackToCpuCut(rt, 'vidange de la sélection en erreur');
+      fallbackToCpuCut(rt, 'selection drain failed');
     }
   }
   if (

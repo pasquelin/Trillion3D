@@ -1,13 +1,13 @@
 /**
- * Les numéros de liaison des quatre dispositions du chemin WebGPU, unique source de vérité : la
- * disposition elle-même, le code WGSL qui déclare ses variables et la liste d'entrées de son
- * constructeur les lisent tous ici. Une liaison ajoutée à un atlas décale donc les numéros des
- * trois côtés à la fois, et jamais d'un seul — le défaut que la fusion des lots 1 et 2 a coûté.
+ * Binding numbers of the four WebGPU-path layouts, the single source of truth: the layout
+ * itself, the WGSL that declares its variables and the entry list of its constructor all read
+ * them here. A binding added to an atlas therefore shifts the numbers on all three sides at
+ * once, never on one alone — the defect merging lots 1 and 2 cost.
  */
-/** Les deux liaisons d'un atlas de textures virtuelles : son pool et sa table de pages. */
+/** Two bindings of a virtual-texture atlas: its pool and its page table. */
 const atlas = (pool: number) => ({ pool, pages: pool + 1 });
 
-/** Les deux formes de liaison que les dispositions répètent, écrites une fois pour toutes. */
+/** Two binding shapes the layouts repeat, written once and for all. */
 export const readOnly: GPUBufferBindingLayout = { type: 'read-only-storage' };
 export const atlasLayoutEntries = (
   bindings: { pool: number; pages: number },
@@ -55,42 +55,42 @@ export const BLEND_BINDINGS = {
   sampler: 6,
   data: atlas(7),
   normals: 9,
-  /** Les lampes déclarées du contrat, celles-là mêmes que relit la résolution opaque (P6). */
+  /** Declared contract lights, the very ones the opaque resolve rereads (P6). */
   directLights: 10,
   clusterDiagnostic: 11,
-  /** La liste d'instances que l'étalement du plan a écrite : deux mots par instance, l'item qui
-   *  la porte et ce qu'elle dessine (`webgpuBlendExpandWgsl.ts`). */
+  /** Instance list the plan expansion wrote: two words per instance, the item that carries it
+   *  and what it draws (`webgpuBlendExpandWgsl.ts`). */
   planInstances: 12,
   clusterSpans: 13,
-  /** Les tranches d'ombre, leur atlas et l'échantillonneur de comparaison qui les lit. */
+  /** Shadow slices, their atlas and the comparison sampler that reads them. */
   shadowSlices: 14,
   shadowAtlas: 15,
   shadowSampler: 16,
-  /** La grille de sondes et leurs coefficients : l'irradiance de l'opaque, sans passe de plus. */
+  /** Probe grid and their coefficients: the opaque irradiance, with no extra pass. */
   bounceGrid: 17,
   probes: 18,
-  /** Le volume du matériau transmissif, et le fond figé que sa passe relit : la couleur et la
-   *  profondeur déjà dessinées, copiées avant elle. Liées pour tout item, lues par le seul
-   *  fragment qui porte le drapeau de transmission. */
+  /** Transmissive material volume, and the frozen background its pass rereads: colour and depth
+   *  already drawn, copied before it. Bound for every item, read by the only fragment that
+   *  carries the transmission flag. */
   volume: 19,
   backdrop: 20,
   backdropDepth: 21,
-  /** Les listes de lampes par tuile, celles-là mêmes que lit la résolution opaque : la passe de
-   *  mélange y lit sa propre tranche de profondeur, du plan proche au fond opaque. */
+  /** Per-tile light lists, the very ones the opaque resolve reads: the blend pass reads its own
+   *  depth slice there, from the near plane to the opaque background. */
   tileLights: 22,
-  /** Le proxy résident, celui-là même que traverse la résolution opaque : l'ombre du soleil
-   *  au-delà de la dernière cascade se tire ici par le même rayon, sur une seule liaison. */
+  /** Resident proxy, the very one the opaque resolve traces: the sun shadow beyond the last
+   *  cascade is taken here by the same ray, on a single binding. */
   proxy: 23,
-  /** Les paramètres de chaque item transparent, indexés par son rang dans la scène : la matrice
-   *  monde, la couleur, les six cartes et leurs facteurs. Ils ne dépendent pas de l'image, si
-   *  bien qu'un appel n'a plus ni décalage dynamique ni groupe de liaison à lui. */
+  /** Parameters of each transparent item, indexed by its rank in the scene: world matrix, colour,
+   *  the six maps and their factors. They do not depend on the frame, so a draw no longer has a
+   *  dynamic offset or a bind group of its own. */
   items: 24,
 };
 
 /**
- * Le raster logiciel tient tout entier dans l'étage de calcul, où WebGPU ne garantit que huit
- * tampons de stockage : l'image et la liste des petits triangles vivent donc dans un seul tampon,
- * `work`, l'image d'abord et la liste juste après elle. Une liaison de moins, et le compte tient.
+ * The software raster lives entirely in the compute stage, where WebGPU guarantees only eight
+ * storage buffers: the image and the small-triangle list therefore share one buffer, `work`,
+ * the image first and the list right after it. One binding less, and the count holds.
  */
 export const SMALL_BINDINGS = {
   indices: 0,

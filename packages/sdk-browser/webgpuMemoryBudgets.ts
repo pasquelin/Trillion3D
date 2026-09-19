@@ -2,22 +2,22 @@ import { POOL_LAYER_BYTES } from './textureTiles.ts';
 import { pageBufferCap } from './gpuPageResize.ts';
 
 /**
- * Les budgets de mémoire du moteur, comme chez la référence : des réservoirs de taille FIXE, réglés
- * par l'hôte et jamais lus sur la machine — la mémoire libre change à chaque instant, un budget lu
- * au démarrage serait faux cinq minutes après. Ce qu'une vue demande de plus que le réservoir
- * s'affiche plus grossier ; rien ne refuse, rien ne s'arrête. Une valeur qui ne peut pas être
- * tenue telle quelle est ramenée à ce qui peut l'être, et la raison est publiée (`clamp`).
+ * Engine memory budgets, as in the reference: FIXED-size pools, set by the host and never read off
+ * the machine — free memory changes every instant, a budget read at startup would be wrong five
+ * minutes later. What a view asks beyond the pool renders coarser; nothing is refused, nothing
+ * stops. A value that cannot be held as-is is brought back to what can, and the reason is published
+ * (`clamp`).
  */
 export const DEFAULT_GEOMETRY_POOL_BUDGET = 512 * 1024 * 1024;
-/** 512 Mio, à parts égales entre l'atlas couleur et l'atlas de données, en couches de 63,5 Mio. */
+/** 512 MiB, split equally between the colour atlas and the data atlas, in 63.5 MiB layers. */
 export const DEFAULT_TEXTURE_POOL_BUDGET = 512 * 1024 * 1024;
 
-/** Pourquoi un réservoir ne fait pas la taille demandée, ou `null` quand il la fait. */
+/** Why a pool does not make the requested size, or `null` when it does. */
 type PoolClamp =
   'root-cover' | 'scene' | 'page-cap' | 'device-limit' | 'minimum' | 'ceiling' | null;
 
 export type GeometryPool = {
-  /** Octets demandés par l'hôte, et fentes de page que le réservoir en tire. */
+  /** Bytes requested by the host, and the page slots the pool draws from them. */
   budgetBytes: number;
   slots: number;
   pageBytes: number;
@@ -30,13 +30,13 @@ const checkBudget = (bytes: number, name: string) => {
 };
 
 /**
- * Les fentes du pool de pages de géométrie pour un budget en octets — `r.Nanite.Streaming.
- * StreamingPoolSize` chez la référence, 512 Mo par défaut. La couverture racine y tient toujours,
- * comme ses pages racines résidentes hors pool : un budget plus petit qu'elle est relevé jusqu'à
- * elle, nommément. Une scène plus petite que le budget ne prend que ce qu'elle a, et un plafond en
- * pages (`maxResidentPages`, celui des bancs et des tests) borne aussi, comme le plafond de la
- * session (`ceilingSlots`, ce que les tables par page dessinable ont taillé). Seule la limite de
- * l'APPAREIL peut refuser, quand même la couverture racine n'y entre pas.
+ * Geometry page-pool slots for a budget in bytes — `r.Nanite.Streaming.
+ * StreamingPoolSize` in the reference, 512 MB by default. Root coverage always fits, like its
+ * resident root pages outside the pool: a budget smaller than that cover is raised to it, by name.
+ * A scene smaller than the budget takes only what it has, and a page cap (`maxResidentPages`, the
+ * one benches and tests use) also bounds it, as does the session ceiling (`ceilingSlots`, what the
+ * drawable-page tables have sized). Only the DEVICE limit can refuse, when even root coverage does
+ * not fit.
  */
 export function geometryPoolFor(options: {
   budgetBytes: number;
@@ -83,16 +83,16 @@ export function geometryPoolFor(options: {
 
 export type TexturePool = {
   budgetBytes: number;
-  /** Couches par atlas, et octets des deux atlas. */
+  /** Layers per atlas, and bytes of both atlases. */
   layers: number;
   allocatedBytes: number;
   clamp: PoolClamp;
 };
 
 /**
- * Les couches par atlas que le budget du pool de textures donne. Sous une couche par atlas — le
- * minimum pour que chaque texture montre sa queue —, le réservoir est relevé à une couche, nommément
- * ; au-dessus de ce que l'appareil accepte de couches, il est ramené à cette limite, nommément.
+ * Layers per atlas that the texture-pool budget yields. Below one layer per atlas — the minimum for
+ * every texture to show its queue — the pool is raised to one layer, by name; above the layer count
+ * the device accepts, it is brought back to that limit, by name.
  */
 export function texturePoolFor(
   budgetBytes: number,

@@ -1,9 +1,9 @@
-// Les frontières du contrat de pose caméra (`cameraWorld.ts`), pas les fonctions prises une à une.
+// Boundaries of the camera-pose contract (`cameraWorld.ts`), not the functions taken one by one.
 //
-// Trois frontières, et rien d'autre : ce qu'une entrée d'image résout, ce que la porte d'image en
-// déduit pour tenir ou rejouer, et ce qu'une fonction appelée seule doit faire elle-même. Chaque
-// test échoue si le contrat est rompu : le rig d'hôte est déplacé ET tourné, et jamais remonté par
-// personne — c'est le seul cas où lire la pose locale d'une caméra passe encore pour juste.
+// Three boundaries, and nothing else: what frame entry resolves, what the frame gate infers
+// from it to hold or replay, and what a function called alone must do itself. Each test fails
+// if the contract is broken: the host rig is moved AND rotated, and never walked by anyone —
+// that is the only case where reading a camera's local pose still looks right.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -19,10 +19,10 @@ import { createEngineCamera, type CameraMotion } from './cameraWorld.ts';
 type Pose = (typeof POSES_PARENT)[number];
 type Rig = { parent: THREE.Object3D; camera: THREE.PerspectiveCamera };
 const VIEWPORT: [number, number] = [1280, 720];
-/** Déplacé de +5 en X ET tourné de 0,6 rad : ni la translation ni la rotation ne se devinent. */
+/** Moved by +5 in X AND rotated by 0.6 rad: neither translation nor rotation can be guessed. */
 const DEPLACE_ET_TOURNE = POSES_PARENT[2] as Pose;
 
-/** Une caméra sous un rig que l'hôte ne remonte pas, et sa jumelle sans parent de même pose monde. */
+/** A camera under a rig the host does not walk, and its parentless twin of the same world pose. */
 function sousRig(pose: Pose) {
   const rig = creeRig() as Rig;
   return {
@@ -32,35 +32,35 @@ function sousRig(pose: Pose) {
   };
 }
 
-test('contrat : la pose résolue sous un parent déplacé et tourné est la pose monde', () => {
+test('contract: the pose resolved under a moved and rotated parent is the world pose', () => {
   const { camera, aplatie } = sousRig(DEPLACE_ET_TOURNE);
   resolveCameraWorld(camera);
   assert.deepEqual(
     [...camera.matrixWorld.elements],
     [...aplatie.matrixWorld.elements],
-    'la matrice monde résolue doit être celle de la caméra aplatie, au bit près',
+    'the resolved world matrix must be that of the flattened camera, bit for bit',
   );
   assert.deepEqual(
     [...cameraMoteur(camera).eye],
     [...cameraMoteur(aplatie).eye],
-    'la position lue par le contrat doit être celle de l’œil dans le monde',
+    'the position read by the contract must be that of the eye in the world',
   );
-  // Le test discrimine : la pose locale, elle, nomme un point qui n'existe pas dans le monde.
+  // The test discriminates: the local pose, for its part, names a point that does not exist in the world.
   assert.notDeepEqual(camera.position.toArray(), [...cameraMoteur(aplatie).eye]);
 });
 
-test('contrat : la pose publiée est la pose monde, jamais la pose locale', () => {
+test('contract: the published pose is the world pose, never the local pose', () => {
   const { camera, aplatie } = sousRig(DEPLACE_ET_TOURNE);
   assert.deepEqual(enginePose(cameraMoteur(camera)), enginePose(cameraMoteur(aplatie)));
   assert.notDeepEqual(enginePose(cameraMoteur(camera)).position, camera.position.toArray());
 });
 
-test('frontière : la porte d’image tenue voit bouger un rig que l’hôte n’a pas remonté', () => {
+test('boundary: the held-frame gate sees a rig move that the host has not walked', () => {
   const gate = createWebglFrameGate();
   const source = new THREE.Object3D();
   const rig = creeRig() as Rig;
   const viewport: [number, number] = [800, 600];
-  /** Une image d'un moteur rendu par Three, réduite à ce que la pose y décide. */
+  /** A frame of a Three-rendered engine, reduced to what pose decides there. */
   const image = () => {
     resolveCameraWorld(rig.camera);
     gate.viewChanged(cameraMoteur(rig.camera), viewport, 1);
@@ -70,57 +70,57 @@ test('frontière : la porte d’image tenue voit bouger un rig que l’hôte n�
     return tenue;
   };
   poseRig(rig, POSES_PARENT[0] as Pose, false);
-  assert.equal(image(), false, 'la première image n’a rien à tenir');
-  assert.equal(image(), false, 'une seule image identique ne prouve encore rien');
-  assert.equal(image(), true, 'rien n’a bougé : l’image précédente EST celle-ci');
-  // Le rig bouge SEUL : la caméra n'est pas touchée, son parent l'est, et personne ne le remonte.
+  assert.equal(image(), false, 'the first frame has nothing to hold');
+  assert.equal(image(), false, 'a single identical frame still proves nothing');
+  assert.equal(image(), true, 'nothing has moved: the previous frame IS this one');
+  // The rig moves ALONE: the camera is not touched, its parent is, and no one walks it.
   poseRig(rig, DEPLACE_ET_TOURNE, false);
-  assert.equal(image(), false, 'la vue a bougé : l’image ne peut pas être tenue');
-  assert.equal(image(), false, 'la nouvelle vue n’a pas encore d’image jumelle');
-  assert.equal(image(), true, 'immobile à nouveau : l’image redevient tenable');
+  assert.equal(image(), false, 'the view has moved: the frame cannot be held');
+  assert.equal(image(), false, 'the new view does not yet have a twin frame');
+  assert.equal(image(), true, 'still again: the frame becomes holdable once more');
 });
 
-test('frontière : l’historique de vue gèle la pose monde, pas la pose locale', () => {
+test('boundary: the view history freezes the world pose, not the local pose', () => {
   const { rig, camera, aplatie } = sousRig(POSES_PARENT[1] as Pose);
   const gelee = holdCameraWorld(createEngineCamera(), cameraMoteur(resolveCameraWorld(camera)));
   assert.deepEqual([...gelee.world], [...aplatie.matrixWorld.elements]);
   assert.equal(
     sameHizView(cameraMoteur(gelee), cameraMoteur(camera)),
     true,
-    'relu aussitôt, l’historique décrit cette vue-ci',
+    'reread at once, the history describes this view',
   );
   poseRig(rig, DEPLACE_ET_TOURNE, false);
   assert.equal(
     sameHizView(cameraMoteur(gelee), cameraMoteur(camera)),
     false,
-    'un rig qui bouge seul périme l’historique : la pose locale, elle, n’a pas changé',
+    'a rig that moves alone invalidates the history: the local pose, for its part, has not changed',
   );
 });
 
-/** Une lecture d'uniformes recopiée aussitôt : le tampon de travail est partagé entre deux appels. */
+/** A uniforms read copied at once: the work buffer is shared between two calls. */
 const uniformes = (camera: THREE.PerspectiveCamera) => {
   const u = cameraSelectionUniforms(cameraMoteur(camera), 1, VIEWPORT);
   return { view: [...u.view], planes: [...u.planes], cameraWorld: [...u.cameraWorld] };
 };
 
-test('frontière : une fonction appelée seule résout sa propre pose', () => {
+test('boundary: a function called alone resolves its own pose', () => {
   for (const pose of POSES_PARENT as Pose[]) {
     const { camera, aplatie } = sousRig(pose);
     assert.deepEqual(
       uniformes(camera),
       uniformes(aplatie),
-      'les uniformes de sélection doivent décrire la même caméra que la pose aplatie',
+      'selection uniforms must describe the same camera as the flattened pose',
     );
   }
 });
 
-test('frontière : le seuil adaptatif appelé seul mesure la vitesse de l’œil dans le monde', () => {
+test('boundary: the adaptive threshold called alone measures the eye velocity in the world', () => {
   const contexte = { pixelError: 1, lodAdaptive: true };
   const rig = creeRig() as Rig,
     sousRigMotion: CameraMotion = {},
     aplatieMotion: CameraMotion = {};
   for (const pose of POSES_PARENT as Pose[]) {
-    // Aucune entrée d'image ici : la caméra du rig n'a jamais été remontée par qui que ce soit.
+    // No frame entry here: the rig camera has never been walked by anyone.
     resolvePixelError(
       contexte,
       cameraMoteur(poseRig(rig, pose, false) as THREE.PerspectiveCamera),
@@ -134,9 +134,9 @@ test('frontière : le seuil adaptatif appelé seul mesure la vitesse de l’œil
     assert.deepEqual(
       [...(sousRigMotion.last ?? [])],
       [...(aplatieMotion.last ?? [])],
-      'la position retenue pour la vitesse doit être celle de l’œil dans le monde',
+      'the position kept for velocity must be that of the eye in the world',
     );
   }
-  // Le test discrimine : sans résolution, la vitesse serait celle de la caméra dans son rig.
+  // The test discriminates: without resolve, the velocity would be that of the camera in its rig.
   assert.notDeepEqual([...(sousRigMotion.last ?? [])], rig.camera.position.toArray());
 });

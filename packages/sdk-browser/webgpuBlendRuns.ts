@@ -7,52 +7,52 @@ import {
 } from './webgpuBlendPlan.ts';
 
 /**
- * LES TRANCHES DE LA PASSE TRANSPARENTE : ce qui remplace un appel par item.
+ * RUNS OF THE TRANSPARENT PASS: what replaces a draw per item.
  *
- * Le plan trié du plus lointain au plus proche (`webgpuBlendOrder.ts`) reste la contrainte de
- * correction : un mélange n'écrit pas la profondeur, et seul l'ordre où les primitives passent le
- * rasteriseur départage deux surfaces. Or cet ordre est GARANTI À L'INTÉRIEUR D'UN APPEL : les
- * primitives d'un appel sont rasterisées instance par instance, et dans chaque instance sommet par
- * sommet. Une suite d'entrées de plan qui pose le même pipeline et lit les mêmes tampons peut donc
- * tenir dans UN SEUL appel dont les instances sont, dans l'ordre, celles de chaque entrée.
+ * The sorted plan, farthest to nearest (`webgpuBlendOrder.ts`), remains the correctness constraint:
+ * a blend does not write depth, and only the order in which primitives pass the rasterizer
+ * separates two surfaces. That order is GUARANTEED INSIDE A DRAW: a draw's primitives are
+ * rasterized instance by instance, and in each instance vertex by vertex. A stretch of plan
+ * entries that set the same pipeline and read the same buffers can therefore fit in ONE draw whose
+ * instances are, in order, those of each entry.
  *
- * Une tranche s'arrête sur trois choses, et sur rien d'autre :
- * - le pipeline change (le dos et la face d'un item double face en posent deux) ;
- * - l'item n'est pas paginé : il porte ses propres tampons d'indices, de positions et d'UV, donc
- *   son propre groupe de liaison, et ne peut pas partager l'appel de ses voisins ;
- * - la passe de transmission demande une tranche par entrée, parce que chacune décale encore
- *   l'uniforme de volume de son matériau (`webgpuTransmission.ts`).
+ * A run stops on three things, and on nothing else:
+ * - the pipeline changes (the back and the face of a double-sided item set two);
+ * - the item is not paged: it carries its own index, position and UV buffers, hence its own bind
+ *   group, and cannot share its neighbours' draw;
+ * - the transmission pass asks for one run per entry, because each still offsets its material
+ *   volume uniform (`webgpuTransmission.ts`).
  *
- * Le pire cas rend donc exactement les appels d'avant ; le cas ordinaire — des primitives paginées
- * qui partagent un pipeline — les rend tous en un.
+ * The worst case therefore yields exactly the previous draws; the ordinary case — paged primitives
+ * that share a pipeline — yields them all in one.
  */
 
-/** Les deux passes : le mélange, puis la transmission sur le fond figé. */
+/** The two passes: blend, then transmission over the frozen background. */
 export const EXPAND_PASSES = 2;
-/** Les entrées de plan qu'un GROUPE de fils du noyau couvre, et donc ses fils : le nuanceur
- *  interpole cette valeur dans ses `@workgroup_size`, si bien que les deux ne peuvent pas diverger. */
+/** Plan entries a kernel thread GROUP covers, and therefore its threads: the shader interpolates
+ *  this value in its `@workgroup_size`, so the two cannot diverge. */
 export const EXPAND_GROUP = 64;
 /**
- * DEUX mots par tranche : sa première entrée et leur nombre, et rien de plus.
+ * TWO words per run: its first entry and their count, and nothing more.
  *
- * Le pipeline et l'item propriétaire se lisent sur la première entrée du plan, qui les porte déjà
- * dans ses trois bits bas. Les écrire aussi dans la tranche doublait ce que l'image écrit sur une
- * scène qui ne fusionne rien — une scène double face, où chaque tranche ne tient qu'une entrée.
+ * Pipeline and owner item are read on the plan's first entry, which already carries them in its
+ * low three bits. Writing them in the run as well doubled what the frame writes on a scene that
+ * merges nothing — a double-sided scene, where each run holds only one entry.
  */
 export const RUN_WORDS = 2;
-/** Une tranche partagée n'appartient à aucun item : son groupe de liaison est celui des paginés. */
+/** A shared run belongs to no item: its bind group is that of the paged ones. */
 export const RUN_SHARED = 0xffffffff;
 
 /**
- * Le pas d'adressage d'une instance : la puissance de deux qui sépare deux instances dans l'espace
- * des indices de sommet.
+ * Addressing stride of an instance: the power of two that separates two instances in vertex-index
+ * space.
  *
- * L'appel indirect d'une tranche commence au sommet `base << shift`, où `base` est le rang de sa
- * première instance dans la liste étendue. Le nuanceur retrouve donc ce rang dans les bits hauts de
- * l'indice de sommet et son rang local dans les bas — le même tour que l'ancien plan jouait avec le
- * rang de l'item. `firstInstance` aurait dit la même chose, mais WebGPU ne l'autorise dans un appel
- * indirect que sous une extension ; `firstVertex`, lui, est toujours libre quand aucun tampon de
- * sommets n'est lié, et c'est le cas de cette passe.
+ * A run's indirect draw starts at vertex `base << shift`, where `base` is the rank of its first
+ * instance in the expanded list. The shader therefore finds that rank in the high bits of the
+ * vertex index and its local rank in the low bits — the same trick the old plan played with the
+ * item rank. `firstInstance` would have said the same thing, but WebGPU allows it in an indirect
+ * draw only under an extension; `firstVertex` is always free when no vertex buffer is bound, and
+ * that is the case of this pass.
  */
 export function blendVertexShift(maxVertexWords: number) {
   let shift = 2;
@@ -60,18 +60,18 @@ export function blendVertexShift(maxVertexWords: number) {
   return shift;
 }
 
-/** Les sommets qu'une instance d'une primitive NON paginée dessine : le plus grand multiple de
- *  trois que le pas d'adressage laisse passer, et jamais plus que ce que la primitive porte. */
+/** Vertices an instance of an UNPAGED primitive draws: the largest multiple of three the
+ *  addressing stride lets through, and never more than the primitive carries. */
 export function blendChunkWords(shift: number, indexCount: number) {
   return Math.max(3, Math.min(indexCount, 3 * Math.floor((1 << shift) / 3)));
 }
 
 /**
- * Écrit les tranches du plan trié et rend leur nombre.
+ * Writes the runs of the sorted plan and returns their count.
  *
- * `merge` faux donne une tranche par entrée : c'est la passe de transmission, dont chaque item
- * garde son décalage dynamique. `out` appartient à la scène et fait `RUN_WORDS` mots par entrée du
- * plan — le pire cas —, si bien que rien n'est alloué par image.
+ * `merge` false gives one run per entry: that is the transmission pass, where each item keeps its
+ * dynamic offset. `out` belongs to the scene and is `RUN_WORDS` words per plan entry — the worst
+ * case — so nothing is allocated per frame.
  */
 export function buildBlendRuns(order: Uint32Array, merge: boolean, out: Uint32Array) {
   let runs = 0,
@@ -79,8 +79,8 @@ export function buildBlendRuns(order: Uint32Array, merge: boolean, out: Uint32Ar
   while (first < order.length) {
     const pipeline = planPipeline(order[first]);
     const shared = merge && planShared(order[first]);
-    // Une entrée prolonge la tranche quand elle porte le même pipeline ET le bit de partage : les
-    // deux tiennent dans les trois bits bas, et le plan se parcourt sans jamais suivre un rang.
+    // An entry extends the run when it carries the same pipeline AND the share bit: both fit in the
+    // low three bits, and the plan is walked without ever following a rank.
     const suite = PLAN_SHARED_BIT | pipeline;
     let end = first + 1;
     if (shared) while (end < order.length && (order[end] & PLAN_LOW_MASK) === suite) end++;
@@ -94,17 +94,17 @@ export function buildBlendRuns(order: Uint32Array, merge: boolean, out: Uint32Ar
 }
 
 /**
- * L'ITEM QU'UNE TRANCHE NOMME, ou `RUN_SHARED` quand elle en fusionne plusieurs.
+ * ITEM A RUN NAMES, or `RUN_SHARED` when it merges several.
  *
- * Une tranche n'est sans propriétaire que si elle fusionne : celle qui n'a gardé qu'une entrée
- * nomme son item, et l'image peut alors ne pas l'encoder du tout quand le tronc le rejette —
- * exactement ce que faisait un appel par item. Les trois chemins la lisent ici : l'encodage, le
- * noyau d'étalement et son modèle processeur.
+ * A run is ownerless only if it merges: the one that kept a single entry names its item, and the
+ * frame can then skip encoding it altogether when the frustum rejects it — exactly what a draw
+ * per item used to do. The three paths read it here: encoding, the expansion kernel and its CPU
+ * model.
  */
 export const runOwner = (entry: number, entries: number) =>
   entries > 1 && planShared(entry) ? RUN_SHARED : planItem(entry);
 
-/** Ce que chaque passe occupe : son ordre et ses tranches dans le plan, ses arguments indirects. */
+/** What each pass occupies: its order and runs in the plan, its indirect arguments. */
 export function planRegions(maxEntries: number) {
   const regions = [];
   for (let pass = 0; pass < EXPAND_PASSES; pass++)
@@ -117,12 +117,12 @@ export function planRegions(maxEntries: number) {
 }
 
 /**
- * LES DOUZE MOTS D'UNIFORME DU NOYAU D'ÉTALEMENT, écrits une seule fois.
+ * THE TWELVE UNIFORM WORDS OF THE EXPANSION KERNEL, written once.
  *
- * Trois écritures et une lecture les partagent : l'encodage de production, la preuve « carte =
- * modèle », le double de test, et la structure que le nuanceur déclare. Réordonner un mot dans
- * l'une des quatre laissait les trois autres compiler et passer en lisant les mauvais champs — soit
- * exactement les dispositifs censés attraper la dérive. Ils lisent tous ici.
+ * Three writes and one read share them: production encoding, the “GPU = model” proof, the test
+ * double, and the struct the shader declares. Reordering a word in one of the four let the other
+ * three compile and pass while reading the wrong fields — exactly the devices meant to catch the
+ * drift. They all read here.
  */
 const UNI_FIELDS = [
   'entryCount',
@@ -140,11 +140,11 @@ export const EXPAND_UNI = Object.fromEntries(UNI_FIELDS.map((nom, rang) => [nom,
   (typeof UNI_FIELDS)[number],
   number
 >;
-/** La déclaration WGSL de ces mots, dans le même ordre, remplissage compris. */
+/** WGSL declaration of these words, in the same order, padding included. */
 export const expandUniformWgsl = () =>
   `struct Uni{${UNI_FIELDS.map((nom) => `${nom}:u32,`).join('')}pad0:u32,pad1:u32,pad2:u32,}`;
 
-/** Les écrit dans `out`, au rang que chacun occupe. */
+/** Writes them into `out`, at the rank each occupies. */
 export function blendExpandUniform(
   out: Uint32Array,
   counts: { entries: number; runs: number; instanceBase: number },
@@ -163,7 +163,7 @@ export function blendExpandUniform(
   return out;
 }
 
-/** Les mots que le plan et la mémoire de travail du noyau occupent pour toute la scène. */
+/** Words the plan and the kernel scratch occupy for the whole scene. */
 export const planWords = (maxEntries: number) => maxEntries * (1 + RUN_WORDS) * EXPAND_PASSES;
 export const scratchWords = (maxEntries: number) =>
   maxEntries + Math.ceil(maxEntries / EXPAND_GROUP);

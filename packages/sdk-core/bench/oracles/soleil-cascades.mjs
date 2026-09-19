@@ -1,8 +1,8 @@
-// Oracle du point G8 : `sceneLightSunCascades.ts` avant le lot G — les bornes refaites à chaque
-// face —, avec le plancher de découpe du lot « ombres lointaines », que le point G8 ne mesure pas.
+// Oracle for point G8: `sceneLightSunCascades.ts` before batch G — bounds recomputed at each
+// face —, with the split floor from the "distant shadows" batch, which point G8 does not measure.
 import { LIGHT_SETTINGS } from '../../sceneLightContracts.ts';
 
-/** `sceneLightSunCascades.ts` : les bornes étaient refaites à chaque face, pour la même vue. */
+/** `sceneLightSunCascades.ts`: bounds were recomputed at each face for the same view. */
 function sunCascadeSplits(view, out) {
   const count = LIGHT_SETTINGS.sunCascades;
   const camera = Math.max(1e-3, view.near),

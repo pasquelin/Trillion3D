@@ -4,11 +4,11 @@ export const SDK_VERSION = '0.1.0';
  *  column and are refused rather than half-read. */
 export const FORMAT_VERSION = 3;
 /**
- * La feuille de réponses des découpes, miroir de `packages/asset-compiler-rust/src/cutout.rs`.
+ * Cutout response sheet, mirroring `packages/asset-compiler-rust/src/cutout.rs`.
  *
- * Le compilateur écrit ce fichier et le relit ; un hôte le réécrit avec les réponses d'un humain.
- * C'est donc le seul format que les deux langages ÉCRIVENT tous les deux, et sa version gouverne ce
- * qu'un lecteur y répond, rien d'autre : un numéro inconnu est refusé plutôt que deviné.
+ * The compiler writes this file and re-reads it; a host updates it with human responses.
+ * It is the only format written by both languages, and its version governs how a reader
+ * interprets it: unknown versions are rejected rather than guessed.
  */
 export const CUTOUT_SHEET_FILE = 'decoupes.json';
 export const CUTOUT_SHEET_VERSION = 1;

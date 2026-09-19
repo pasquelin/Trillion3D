@@ -1,15 +1,15 @@
-// Justesse de l'erreur écran : l'erreur annoncée par `clusterErrorPixels` majore-t-elle le vrai
-// déplacement, en pixels, de tout point de la sphère déplacé d'au plus ε, après projection
-// perspective ?
+// Correctness of screen error: does the error announced by `clusterErrorPixels` bound the true
+// displacement, in pixels, of every sphere point displaced by at most ε, after perspective
+// projection?
 //
-// Chaque cas tire une vue (rotation, échelle non uniforme ou uniforme), une sphère objet dont le
-// centre de vue va jusqu'aux bords du champ, une erreur ε, puis cherche le pire couple (point de la
-// sphère, déplacement) : points extrêmes et tirés, direction de vue par famille ramenée en objet à
-// la longueur ε, puis montée locale. Familles : déplacement perpendiculaire à l'axe de vue,
-// en profondeur (vers la caméra et à l'opposé), oblique (quelconque, et la pire direction
-// analytique), et sphère dont le point le plus proche frôle le plan proche. Le pire rapport
-// réel/annoncé est donné pour l'ancienne formule (`ε·s·f / (|C| − r·s)`, recopiée ici) et pour le
-// moteur ; la monotonie (distance le long du rayon, rayon croissant) est vérifiée sur le moteur.
+// Each case draws a view (rotation, non-uniform or uniform scale), an object sphere whose view
+// centre goes to the field edges, an error ε, then seeks the worst pair (sphere point,
+// displacement): extreme and drawn points, view direction per family brought into object at
+// length ε, then local lift. Families: displacement perpendicular to the view axis, in depth
+// (toward the camera and opposite), oblique (arbitrary, and the worst analytic direction), and
+// a sphere whose nearest point grazes the near plane. The worst true/announced ratio is given
+// for the old formula (`ε·s·f / (|C| − r·s)`, copied here) and for the engine; monotonicity
+// (distance along the ray, growing radius) is checked on the engine.
 //
 // node --experimental-strip-types test/justesse/erreur-ecran-borne.mjs [cas]
 import assert from 'node:assert/strict';
@@ -27,13 +27,13 @@ const unitaire = () => {
 const norme = (v) => Math.hypot(v[0], v[1], v[2]);
 const applique = (m, v) => [0, 1, 2].map((i) => m[i][0] * v[0] + m[i][1] * v[1] + m[i][2] * v[2]);
 
-/** L'ancienne formule, telle que le moteur l'appliquait avant la correction. */
+/** The old formula, as the engine applied it before the fix. */
 function ancienne(error, stretch, c, radius, focal, near) {
   const distance = norme(c) - radius * stretch;
   return distance > near ? (error * stretch * focal) / distance : Infinity;
 }
 
-/** Une vue tirée : linéaire L = R·S, son inverse, étirement, focales et centre de vue imposé. */
+/** A drawn view: linear L = R·S, its inverse, stretch, focals and imposed view centre. */
 function tirerCas(famille) {
   const q = unitaire(),
     angle = entre(0, Math.PI),
@@ -71,7 +71,7 @@ function tirerCas(famille) {
   return { L, Linv, stretch, fx, fy, near, radius, error, centre };
 }
 
-/** Déplacement écran réel du point de vue `p` déplacé de `d` (vue), en pixels. */
+/** True screen displacement of view point `p` displaced by `d` (view), in pixels. */
 function reel(k, p, d) {
   const z0 = -p[2],
     z1 = -(p[2] + d[2]);
@@ -81,7 +81,7 @@ function reel(k, p, d) {
   return Math.hypot(du, dv);
 }
 
-/** Direction de vue de la famille, ramenée à un déplacement objet de longueur ε puis en vue. */
+/** Family view direction, brought to an object displacement of length ε then into view. */
 function deplacement(k, famille, p, graineDir) {
   let d;
   if (famille === 'perpendiculaire') {
@@ -137,7 +137,7 @@ const familles = ['perpendiculaire', 'profondeur', 'oblique', 'planProche'];
 const rapport = { cas: CAS, familles: {} };
 let violationsMoteur = 0,
   monotonie = 0;
-/** Pire rapport réel/annoncé, médian, premier décile (borne la plus large) et violations. */
+/** Worst true/announced ratio, median, first decile (widest bound) and violations. */
 const serie = () => ({ rapports: [], violations: 0 });
 const ajoute = (s, vrai, annonce) => {
   if (!Number.isFinite(annonce)) return;
@@ -155,35 +155,35 @@ const resume = (s) => {
   };
 };
 for (const famille of familles) {
-  const series = { ancienne: serie(), moteur: serie(), ancienneSpherePetite: serie() };
+  const series = { ancienne: serie(), engine: serie(), ancienneSpherePetite: serie() };
   series.moteurSpherePetite = serie();
   for (let i = 0; i < CAS; i++) {
     const k = tirerCas(famille);
     const focal = Math.max(k.fx, k.fy),
       [cx, cy, cz] = k.centre;
-    const moteur = (m, r) =>
+    const engine = (m, r) =>
       clusterErrorPixels(k.error, k.stretch, cx * m, cy * m, cz * m, r, focal, k.near);
-    const annonce = moteur(1, k.radius);
-    const avant = ancienne(k.error, k.stretch, k.centre, k.radius, focal, k.near);
+    const annonce = engine(1, k.radius);
+    const before = ancienne(k.error, k.stretch, k.centre, k.radius, focal, k.near);
     const vrai = pireDuCas(k, famille);
-    ajoute(series.ancienne, vrai, avant);
-    ajoute(series.moteur, vrai, annonce);
-    // Régime courant : la sphère étirée tient dans 2 % de sa profondeur.
+    ajoute(series.ancienne, vrai, before);
+    ajoute(series.engine, vrai, annonce);
+    // Current regime: the stretched sphere fits in 2 % of its depth.
     if (k.radius * k.stretch < -cz * 0.02) {
-      ajoute(series.ancienneSpherePetite, vrai, avant);
+      ajoute(series.ancienneSpherePetite, vrai, before);
       ajoute(series.moteurSpherePetite, vrai, annonce);
     }
-    const loin = moteur(2, k.radius),
-      grand = moteur(1, k.radius * 1.5);
+    const loin = engine(2, k.radius),
+      grand = engine(1, k.radius * 1.5);
     if (!(loin <= annonce) || !(grand >= annonce)) monotonie++;
   }
-  violationsMoteur += series.moteur.violations;
+  violationsMoteur += series.engine.violations;
   rapport.familles[famille] = Object.fromEntries(
-    Object.entries(series).map(([nom, s]) => [nom, resume(s)]),
+    Object.entries(series).map(([name, s]) => [name, resume(s)]),
   );
 }
 rapport.violationsMoteur = violationsMoteur;
 rapport.monotonieRompue = monotonie;
 console.log(JSON.stringify(rapport, null, 2));
-assert.equal(monotonie, 0, 'monotonie rompue : distance le long du rayon ou rayon croissant');
-assert.equal(violationsMoteur, 0, 'le moteur annonce moins que le déplacement écran réel');
+assert.equal(monotonie, 0, 'broken monotonicity: distance along the ray or growing radius');
+assert.equal(violationsMoteur, 0, 'the engine announces less than the true screen displacement');

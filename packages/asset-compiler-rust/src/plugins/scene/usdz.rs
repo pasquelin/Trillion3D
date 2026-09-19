@@ -1,38 +1,38 @@
-//! Pilote USDZ, conteneur. Un `.usdz` est un ZIP **non compressé** dont chaque charge commence sur
-//! un multiple de soixante-quatre octets : l'emballage sert à lire une couche USD et ses images en
-//! place, jamais à les réduire. Ce pilote l'extrait sous le cache, puis rend au routeur ce qu'il a
-//! extrait ; il ne lit aucune géométrie et ne réencode rien.
+//! USDZ driver, a container. A `.usdz` is an **uncompressed** ZIP whose every payload starts on
+//! a multiple of sixty-four bytes: the wrapping serves to read a USD layer and its images in
+//! place, never to shrink them. This driver extracts it under the cache, then yields to the
+//! router what it extracted; it reads no geometry and re-encodes nothing.
 //!
-//! Provenance : *OpenUSD Core Specification* de l'AOUSD pour la disposition du paquet, APPNOTE
-//! 6.3.10 de PKWARE pour le conteneur, lu par `archive/zip_reader.rs`, partagé avec le pilote `zip`.
+//! Provenance: AOUSD *OpenUSD Core Specification* for the package layout, PKWARE APPNOTE
+//! 6.3.10 for the container, read by `archive/zip_reader.rs`, shared with the `zip` driver.
 //!
-//! Le dossier extrait porte la couche et les images à côté d'elle : le routeur y reconnaît le pilote
-//! `usd`, qui résout les URI d'images contre ce même dossier. Une archive sans couche USD est
-//! refusée par `SOURCE_FORMAT_UNKNOWN`, une archive qui en porte plusieurs par
-//! `SOURCE_FORMAT_AMBIGUOUS` : c'est au paquet de dire quelle couche il livre, pas au compilateur de
-//! la deviner.
+//! The extracted directory carries the layer and the images beside it: the router recognises
+//! the `usd` driver there, which resolves image URIs against that same directory. An archive
+//! without a USD layer is refused by `SOURCE_FORMAT_UNKNOWN`, an archive that carries several
+//! by `SOURCE_FORMAT_AMBIGUOUS`: it is the package that says which layer it delivers, not the
+//! compiler that guesses it.
 use super::*;
 use crate::CompilerError;
 
 pub(super) static USDZ: Usdz = Usdz;
 pub(super) struct Usdz;
 
-/// L'alignement que la spécification impose à la charge de chaque entrée.
+/// Alignment the specification requires of each entry's payload.
 const ALIGNMENT: u64 = 64;
-/// La méthode de compression que la spécification impose : aucune.
+/// Compression method the specification requires: none.
 const STORED: ::zip::CompressionMethod = ::zip::CompressionMethod::Stored;
-/// Le paquet n'est pas disposé comme la spécification le demande : une entrée est compressée, ou sa
-/// charge ne commence pas sur un multiple de soixante-quatre octets.
+/// The package is not laid out as the specification asks: an entry is compressed, or its
+/// payload does not start on a multiple of sixty-four bytes.
 const LAYOUT: &str = "USDZ_LAYOUT_INVALID";
-/// La première entrée du paquet n'est pas une couche USD : le paquet ne dit donc pas quelle scène
-/// il livre, et les entrées suivantes ne sont que ses ressources.
+/// The first entry of the package is not a USD layer: the package therefore does not say which
+/// scene it delivers, and later entries are only its resources.
 pub(super) const ROOT_LAYER: &str = "USDZ_ROOT_LAYER_MISSING";
 
 impl Plugin for Usdz {
     fn name(&self) -> &'static str {
         "usdz"
     }
-    /// Le conteneur ne lit aucune géométrie : cette version nomme l'extracteur, pas un décodeur.
+    /// The container reads no geometry: this version names the extractor, not a decoder.
     fn version(&self) -> &'static str {
         "usdz-aousd-1.0-zip-8.6.0-extract-1"
     }
@@ -42,9 +42,9 @@ impl Plugin for Usdz {
 }
 
 impl ScenePlugin for Usdz {
-    /// Un paquet USDZ est un ZIP : il commence par l'entête d'une entrée locale. Un paquet vide
-    /// n'existe pas — il lui faut au moins sa couche —, mais l'entête d'index vide est reconnue
-    /// quand même, pour que le paquet soit refusé en le disant plutôt qu'ignoré par le routeur.
+    /// A USDZ package is a ZIP: it starts with the header of a local entry. An empty package
+    /// does not exist — it needs at least its layer — but the empty index header is recognised
+    /// anyway, so the package is refused by saying so rather than ignored by the router.
     fn accepts_head(&self, head: &[u8]) -> bool {
         archive::zip_reader::accepts_head(head)
     }
@@ -57,11 +57,11 @@ impl ScenePlugin for Usdz {
     }
 }
 
-/// Juge la disposition du paquet avant qu'un octet soit écrit, et rend la couche racine qu'il
-/// déclare. Chaque entrée est stockée telle quelle et sa charge est alignée ; une entrée dont la
-/// charge ne s'annonce pas est refusée aussi, c'est un entête local que le lecteur n'a pas su
-/// placer. La spécification veut ensuite que la **première** entrée soit la couche USD du paquet :
-/// c'est elle qui porte la scène, et tout ce qui la suit n'en est qu'une ressource.
+/// Judges the package layout before a byte is written, and yields the root layer it declares.
+/// Each entry is stored as-is and its payload is aligned; an entry whose payload is not
+/// announced is refused too, that is a local header the reader could not place. The
+/// specification then wants the **first** entry to be the package's USD layer: it is the one
+/// that carries the scene, and everything that follows it is only a resource.
 fn layout(source: &Path) -> Result<String> {
     let mut archive = archive::zip_reader::open(source)?;
     let mut first: Option<String> = None;
@@ -91,15 +91,15 @@ fn layout(source: &Path) -> Result<String> {
         .ok_or_else(|| missing(source))
 }
 
-/// Ce nom est-il celui d'une couche USD ? Ce sont les extensions du pilote `usd` qui le disent :
-/// c'est lui qui lira la couche, et elles ne se déclarent qu'une fois.
+/// Is this name that of a USD layer? It is the `usd` driver's extensions that say so: it is
+/// that driver that will read the layer, and they are declared only once.
 fn is_layer(name: &str) -> bool {
     super::super::extension_of(name)
         .is_some_and(|extension| super::usd::USD.extensions().contains(&extension.as_str()))
 }
 
-/// Le refus d'un paquet dont la première entrée n'est pas une couche USD : il ne dit donc pas quelle
-/// scène il livre, et le compilateur ne la cherche pas parmi ses ressources.
+/// Refusal of a package whose first entry is not a USD layer: it therefore does not say which
+/// scene it delivers, and the compiler does not look for it among its resources.
 fn missing(source: &Path) -> CompilerError {
     CompilerError::new(
         ROOT_LAYER,
@@ -110,7 +110,7 @@ fn missing(source: &Path) -> CompilerError {
     )
 }
 
-/// Le refus d'un paquet mal disposé, nommant l'entrée en cause.
+/// Refusal of a badly laid-out package, naming the entry at fault.
 fn refused(name: &str, why: &str) -> CompilerError {
     CompilerError::new(
         LAYOUT,

@@ -14,23 +14,23 @@ import { BASE_SLOTS, slotCount } from './gpuDrawContract.ts';
  * a coplanar layer that no cluster of the batch — or of this half of the image — reaches costs the
  * compaction nothing at all.
  *
- * Le préfixe répartit les slots sur les soixante-quatre fils d'un seul groupe de travail plutôt que
- * de les parcourir l'un après l'autre : chaque fil totalise les slots qui lui reviennent par pas de
- * 64, une barrière de groupe de travail sépare cette phase du calcul des décalages, puis chaque fil
- * reconstruit son curseur en resommant les totaux des slots qui le précèdent. Le résultat est celui
- * du parcours en série terme pour terme — l'addition en u32 est associative, et le curseur d'un slot
- * ne dépend que des totaux des slots d'indice inférieur, qu'un slot inutilisé laisse à zéro.
+ * The prefix spreads slots over the sixty-four threads of a single workgroup rather than walking
+ * them one after another: each thread totals the slots that fall to it in steps of 64, a workgroup
+ * barrier separates this phase from the offset computation, then each thread rebuilds its cursor
+ * by re-summing the totals of the slots that precede it. The result is that of the serial walk
+ * term for term — u32 addition is associative, and a slot's cursor depends only on the totals of
+ * lower-index slots, which an unused slot leaves at zero.
  * `bench/oracles/gpuDrawPrefixOracle.ts` porte les deux noyaux et `gpuDrawPrefixEquivalence.test.ts`
  * la preuve.
  */
-/** `GPUShaderStage.COMPUTE`, écrit en clair : ce module est aussi lu depuis Node, sans ce global. */
+/** `GPUShaderStage.COMPUTE`, written in the clear: this module is also read from Node, without that global. */
 const COMPUTE = 4;
 
 /**
- * Les liaisons du groupe 0, publiées sous le WGSL qui les déclare. La disposition de production et
- * la preuve navigateur les LISENT ici — aucune ne les recopie, donc aucune ne peut prendre du
- * retard sur le nuanceur. C'est cet écart qui avait rendu `dessin-webgpu.browser.mjs` rouge : sa
- * copie s'arrêtait à `@binding(6)` pendant que `restBits` et `slotUsed` entraient en 7 et 8.
+ * Group-0 bindings, published under the WGSL that declares them. The production layout and the
+ * browser proof READ them here — none copies them, so none can lag behind the shader. That lag
+ * is what turned `dessin-webgpu.browser.mjs` red: its copy stopped at `@binding(6)` while
+ * `restBits` and `slotUsed` entered at 7 and 8.
  */
 export function drawBindEntries(): GPUBindGroupLayoutEntry[] {
   const lecture = { type: 'read-only-storage' } as const;

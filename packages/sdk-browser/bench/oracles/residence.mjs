@@ -1,10 +1,10 @@
-// Oracles purs de A11, sans effet de bord : `residence.bench.mjs` les mesure, les tests unitaires
-// les importent comme référence.
+// Pure A11 oracles, no side effects: `residence.bench.mjs` measures them; unit tests import
+// them as reference.
 const CONE_FLOATS = 12,
   FLAG = 11;
 
-/** `gpuDagRuntime.ts:94-101` avant le lot A : la colonne de résidence lue à travers les cônes, un
- *  flottant par grappe. La résidence en bits pose les mêmes verdicts sur bien moins d'octets. */
+/** `gpuDagRuntime.ts:94-101` before batch A: the residency column read through the cones, one
+ *  float per cluster. Bit residency poses the same verdicts on far fewer bytes. */
 export function referenceUpdateResidency(next, pageCones) {
   let changed = false;
   for (let j = 0; j < next.length; j++) {
@@ -18,7 +18,7 @@ export function referenceUpdateResidency(next, pageCones) {
   return changed;
 }
 
-/** La même résidence, relue depuis les bits : un mot pour trente-deux grappes. */
+/** The same residency, reread from the bits: one word for thirty-two clusters. */
 export function residencyColumn(bits, base, count) {
   const column = new Float32Array(count);
   for (let j = 0; j < count; j++)
@@ -26,7 +26,7 @@ export function residencyColumn(bits, base, count) {
   return column;
 }
 
-/** `gpuDagUniforms.ts:31-52` avant le lot A : spread d'un tableau typé et `push` sans capacité. */
+/** `gpuDagUniforms.ts:31-52` before batch A: spread of a typed array and `push` without capacity. */
 export function referenceParseDagOutput(bytes, byteOffset, byteLength, maskPageCount) {
   const ints = new Uint32Array(bytes, byteOffset, Math.floor(byteLength / 4));
   if (((ints[3] ?? 0) & 1) !== 0) return null;

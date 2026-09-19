@@ -8,10 +8,9 @@ import type { WebgpuResidencySets } from './webgpuResidencySets.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
 /**
- * Ce que le journal des rangs prévient quand une page change de couverture. Posé hors de la
- * publication pour ne rien capturer d'autre que les deux compteurs qu'il touche : le journal le
- * garde aussi longtemps que le moteur, et une fermeture prise dans la publication y retiendrait
- * tout son contexte.
+ * What the rank journal notifies when a page changes coverage. Set outside publication so that
+ * nothing else is captured besides the two counters it touches: the journal keeps it as long as
+ * the engine, and a closure taken inside publication would hold its whole context there.
  */
 const coverageWatcher = (counts: CutCounts, pending: CutPending) => (page: number) => {
   counts.touch(page);
@@ -19,14 +18,13 @@ const coverageWatcher = (counts: CutCounts, pending: CutPending) => (page: numbe
 };
 
 /**
- * La publication d'une coupe, par qui que ce soit qui la décide.
+ * Publication of a cut, whoever decides it.
  *
- * Une coupe n'est jamais rendue comme une liste neuve : elle est publiée comme une DIFFÉRENCE — ce
- * qui vient d'entrer, ce qui vient de sortir —, et les lecteurs qui en vivent mettent à jour leurs
- * compteurs sans reparcourir quoi que ce soit. Le relevé de la carte y arrive par ses identifiants,
- * la coupe processeur par ses enregistrements, et le contrat est le même des deux côtés : c'est ce
- * qui permet à la carte, quand elle reprend l'image, de différer contre ce que le processeur a
- * laissé plutôt que de tout redemander.
+ * A cut is never handed out as a fresh list: it is published as a DIFFERENCE — what just entered,
+ * what just left — and the readers that live off it update their counters without walking anything
+ * again. GPU readback arrives there by its identifiers, the CPU cut by its records, and the
+ * contract is the same on both sides: that is what lets the GPU, when it takes the image back,
+ * diff against what the CPU left rather than ask for everything again.
  */
 export function createWebgpuCutPublication(
   rt: WebgpuPagesCore,
@@ -35,14 +33,14 @@ export function createWebgpuCutPublication(
   const { run, gpu } = rt,
     { rows, packedPages } = rt.layout;
   const cutDelta = createCutDelta(packedPages, run.desired);
-  // La coupe dessinable écrit ses fiches elle-même, en lisant sa suite une seule fois : `run.shown`
-  // n'en est plus qu'une recopie, et seulement quand l'image adopte le relevé qui l'a produite.
+  // The drawable cut writes its records itself, reading its sequence once: `run.shown` is then
+  // only a copy of it, and only when the image adopts the readback that produced it.
   const drawnPages: PageRec[] = [];
   const drawnDelta = createCutDelta(packedPages, drawnPages);
   const cutCounts = createCutCounts(packedPages, rows.residentOffsetWords, drawnDelta);
   const cutPending = createCutPending(packedPages, cutDelta);
-  // Les trois façons dont la couverture d'une grappe bascule — octets reçus, octets rendus, place de
-  // cache prise ou rendue — passent toutes par le journal des rangs, qui les nomme une à une.
+  // The three ways a cluster's coverage flips — bytes received, bytes released, a cache slot taken
+  // or given back — all go through the rank journal, which names them one by one.
   rows.watchTouched(coverageWatcher(cutCounts, cutPending));
   const publishCut = () => {
     residencySets.applyCut(cutDelta);
@@ -73,19 +71,19 @@ export function createWebgpuCutPublication(
     },
   });
   // Before the first readback the image asks the cache for the pinned cover and nothing else.
-  // Lu ici et non retenu : la portée de cette publication vit aussi longtemps que le moteur, et une
-  // liste qui ne sert qu'à l'amorçage n'a pas à y rester accrochée.
+  // Read here and not retained: this publication's lifetime is that of the engine, and a list that
+  // only serves bootstrap has no reason to stay hooked on it.
   cutDelta.adoptRecords(rt.layout.gpuWanted);
   publishCut();
-  /** Adopte le relevé et dit si l'IMAGE en est changée : si les listes affichées ont été réécrites.
-   *  Un relevé neuf republiant les mêmes identifiants dans le même ordre n'en réécrit aucune. */
+  /** Adopts the readback and says whether the IMAGE changed: whether the displayed lists were
+   *  rewritten. A fresh readback republishing the same identifiers in the same order rewrites none. */
   const adoptGpuCut = () => {
     const adopted = cutAdopter.adopt(),
       metrics = cutAdopter.metrics;
     run.cutHeld = metrics.cutHeld;
     gpu.cutIncomplete = metrics.incomplete;
     gpu.cutTruncated = metrics.truncated;
-    // Une adoption qui réécrit les listes les fait changer d'âge, au rendu comme dans la vidange.
+    // An adoption that rewrites the lists ages them, at render as in the drain.
     if (metrics.listsRewritten) run.cutEpoch++;
     if (!adopted) return metrics.listsRewritten;
     run.visible = metrics.visible;
@@ -100,16 +98,16 @@ export function createWebgpuCutPublication(
     return metrics.listsRewritten;
   };
   return {
-    /** Les pages de la coupe demandée qui attendent encore leurs octets. */
+    /** Pages of the requested cut that are still waiting for their bytes. */
     cutPending,
     adoptGpuCut,
     /**
-     * La coupe processeur publie la sienne par les mêmes différences : `wanted` écrit `run.desired`
-     * lui-même, et les mêmes lecteurs suivent. Appelée une fois par image qui dessine, et seulement
-     * une fois ses gardes passées : ce qu'elle pose, l'image le tient. L'appelant a déjà oublié le
-     * relevé et fait vieillir les listes avant de choisir — c'est lui qui couvre la sortie par
-     * erreur de la coupe, comme il le fait pour la recopie de `drawn` —, donc rien de tout cela
-     * n'est refait ici. La republier telle quelle ne change rien : la différence est vide.
+     * The CPU cut publishes its own through the same differences: `wanted` writes `run.desired`
+     * itself, and the same readers follow. Called once per image that draws, and only once its
+     * guards have passed: what it sets, the image holds. The caller has already forgotten the
+     * readback and aged the lists before choosing — it is the caller that covers an erroneous
+     * exit of the cut, as it does for the copy of `drawn` — so none of that is redone here.
+     * Republishing it as-is changes nothing: the difference is empty.
      */
     adoptCpuCut(wanted: readonly PageRec[], shown: readonly PageRec[]) {
       cutDelta.adoptRecords(wanted);
@@ -117,7 +115,7 @@ export function createWebgpuCutPublication(
       drawnDelta.adoptRecords(shown);
       publishDrawn();
     },
-    /** Le relevé tenu ne décrit plus les listes de l'image : la suivante le relira en entier. */
+    /** The held readback no longer describes the image's lists: the next one will re-read it whole. */
     forgetReadback: () => (run.cutEpoch++, cutAdopter.forgetReadback()),
   };
 }

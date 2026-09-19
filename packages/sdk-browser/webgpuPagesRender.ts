@@ -30,41 +30,41 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
   const marks = rt.timing.marks;
   marks.preStart = performance.now();
   run.lastCamera = camera;
-  // Entrée d'image : l'ordre et ses garanties vivent dans `frameGateCore.ts`, qui recopie aussi la
-  // caméra de l'hôte dans celle du moteur — tout ce qui suit ne lit plus que celle-ci. La liste des
-  // nœuds que l'hôte peut écrire n'est construite qu'à un changement de scène, jamais par image —
-  // douze instances d'un même modèle relisent ce modèle une fois.
+  // Image entry: order and its guarantees live in `frameGateCore.ts`, which also copies the host
+  // camera into the engine's — everything that follows only reads the latter. The list of nodes
+  // the host can write is only built at a scene change, never per image — twelve instances of the
+  // same model re-read that model once.
   run.gate.enterFrame(context, camera, run.motion, rt.setup.viewport, source, () => [
     ...selectionRoots.map((root) => root.pages[0]),
     ...blendState.blendGpu,
   ]);
   const pixelError = run.gate.pixelError,
     cam = run.gate.cam;
-  // Ni la scène, ni la vue, ni les ressources n'ont bougé, et rien n'est en vol : l'image précédente
-  // est celle-ci. Aucune étape processeur n'est exécutée en dessous.
+  // Neither the scene, nor the view, nor the resources have moved, and nothing is in flight: the
+  // previous image is this one. No CPU step is run below.
   if (holdWebgpuFrame(rt, gpuDevice)) return;
   run.diagnosticPixelError = pixelError;
-  // Rien n'est tenu par défaut : seule l'adoption d'un relevé déjà lu le déclare, et tout chemin
-  // qui n'y passe pas — coupe processeur, capture de surface, image en attente — refait tout.
+  // Nothing is held by default: only adoption of an already-read readback declares it, and every
+  // path that does not go through it — CPU cut, surface capture, pending image — remakes everything.
   run.cutHeld = false;
   setWindingEpoch(rows.tableEpoch);
-  // Ce que le retour d'image de l'image précédente a demandé devient résident, sous le budget.
+  // What the previous image's feedback requested becomes resident, under the budget.
   pumpResidentTiles(vis.textures, run.frame, run.textureConverging);
-  // Une matrice monde est fonction de la seule scène : une image que rien n'a touchée les
-  // retrouverait toutes à l'identique. L'index du moteur n'est donc recalculé qu'à un changement de
-  // révision de scène, et un nœud que `setWebgpuTransform` vient de déplacer l'a déjà recalculé.
+  // A world matrix is a function of the scene alone: an image that nothing touched would find
+  // them all identical. The engine index is therefore only recomputed at a scene-revision change,
+  // and a node that `setWebgpuTransform` just moved has already recomputed it.
   run.gate.updateWorlds(rt.setup.worlds);
   const worldsMoved = run.worldUploadRevision !== run.gate.revisions.scene;
-  // Ce qui part vers le noyau de coupe est ramené à l'œil (`cameraRenderOrigin.ts`) : une caméra
-  // qui bouge change donc ces seize nombres tout autant qu'un nœud déplacé. Les deux causes mènent
-  // au même renvoi, mais elles ne périment pas la même chose — une surface a bougé dans un cas,
-  // dans l'autre on réécrit le même point dans un repère plus proche, et rien de ce que les fiches
-  // ou les occulteurs décrivent n'a changé.
+  // What leaves toward the cut kernel is brought back to the eye (`cameraRenderOrigin.ts`): a
+  // camera that moves therefore changes these sixteen numbers just as much as a moved node. Both
+  // causes lead to the same resend, but they do not invalidate the same thing — a surface moved
+  // in one case, in the other the same point is rewritten in a closer frame, and nothing the
+  // records or the occluders describe has changed.
   const originMoved = !sameRenderOrigin(run.worldUploadOrigin, cam.eye);
   if (worldsMoved || originMoved) {
     run.worldUploadRevision = run.gate.revisions.scene;
     run.worldUploadOrigin.set(cam.eye);
-    // La soustraction se fait en double, l'arrondi simple précision vient après elle.
+    // The subtraction is done in double, the single-precision rounding comes after it.
     rootWorldsToRenderOrigin(worldUpdates, selectionRoots, cam.eye);
     // A moved root invalidates every row's world matrix, which is the only shared input to a row the
     // scene can still change after `prepare()`.
@@ -74,27 +74,27 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
     }
   }
   if (!sameHizView(run.previousHizView, cam)) {
-    // Une caméra qui bouge périme la pyramide temporelle, pas la moitié occulteuse : celle-ci nomme
-    // des pages, elle ne choisit que la passe où un cluster est dessiné, et la pyramide de cette
-    // image-ci reste seule juge de ce qui est retiré. La garder évite de projeter toutes les boîtes
-    // et de les reclasser à chaque image de déplacement.
+    // A camera that moves invalidates the temporal pyramid, not the occluder half: the latter
+    // names pages, it only chooses the pass where a cluster is drawn, and this image's pyramid
+    // remains the sole judge of what is withdrawn. Keeping it avoids projecting every box and
+    // reclassifying them at every moving image.
     invalidateTemporalPyramid(run);
-    // La pose monde est recopiée dans la caméra déjà gardée : même comparaison, sans clone par image.
+    // The world pose is copied into the already-held camera: the same comparison, without a clone per image.
     run.previousHizView = holdCameraWorld(run.previousHizView ?? createEngineCamera(), cam);
   }
   marks.blendStart = performance.now();
-  // Un item transparent LIT la matrice monde de son maillage source : rien n'est à recopier. Seule
-  // sa boîte monde, qui est un calcul, se refait — et seulement quand la scène a changé de matrices.
+  // A transparent item READS the world matrix of its source mesh: nothing is to be copied. Only
+  // its world box, which is a computation, is remade — and only when the scene has changed matrices.
   if (worldsMoved && gpuDevice) {
     refreshBlendWorlds(blendState.blendGpu);
-    // Les fiches, les boites et le plan suivent la scene, pas la camera : c'est ici, et nulle part
-    // dans l'image, que la liste transparente se reparcourt.
+    // Records, boxes and the plan follow the scene, not the camera: it is here, and nowhere in
+    // the image, that the transparent list is walked again.
     refreshBlendScene(rt, gpuDevice);
   }
   const cpuStart = performance.now();
-  // Plus aucune lumière de scène n'est empaquetée par image : les lampes déclarées vivent dans un
-  // magasin que l'encodage ne repousse au GPU que si sa révision a bougé (P6). L'étape CPU
-  // « Lumières » vaut donc zéro parce que le travail a disparu, pas parce qu'il n'est pas mesuré.
+  // No more scene light is packed per image: declared lamps live in a store that encoding only
+  // pushes to the GPU if its revision has moved (P6). The CPU "Lights" step is therefore zero
+  // because the work has disappeared, not because it is not measured.
   const lightsEnd = cpuStart;
   run.overBudget = false;
   run.submittedTriangles = 0;
@@ -107,7 +107,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
   run.gpuFrameActive = false;
   run.hizPyramidFresh = false;
   run.gpuMetricsReady = false;
-  if (run.gpuSelection?.failed()) fallbackToCpuCut(rt, 'relevé de sélection en échec');
+  if (run.gpuSelection?.failed()) fallbackToCpuCut(rt, 'selection readback failed');
   if (!capture.secondaryCamera && run.gpuSelection?.residentCut && vis.gpuDraw && vis.visEnabled) {
     if (!renderGpuCut(rt, cam, pixelError, cpuStart, lightsEnd)) renderWebgpuPages(rt, camera);
   } else renderCpuCut(rt, cam, pixelError, cpuStart, lightsEnd);

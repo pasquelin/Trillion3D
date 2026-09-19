@@ -7,16 +7,15 @@ import type { GpuDraw } from './gpuDraw.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
- * Les cinq mots d'une fiche de dessin — la ligne, son bac de pipeline, son index de page dans le
- * catalogue, sa couche coplanaire et ses triangles — sont des propriétés de la LIGNE, pas de
- * l'image. Une caméra qui bouge n'en change aucun ; seule une page qui arrive, qui part ou qui
- * change de rang le fait, et la table de lignes nomme déjà cet intervalle-là (`rows.dirtyFrom`,
- * `rows.dirtyTo`).
+ * The five words of a draw record — the row, its pipeline bin, its page index in the catalogue, its
+ * coplanar layer and its triangles — are properties of the ROW, not of the image. A moving camera
+ * changes none of them; only a page that arrives, leaves or changes rank does, and the row table
+ * already names that interval (`rows.dirtyFrom`, `rows.dirtyTo`).
  *
- * Ce témoin garde donc les mots d'une image à l'autre et n'accumule que la plage contiguë que la
- * carte n'a pas encore reçue. Il tient au passage le TOTAL des triangles des lignes dessinables, mis
- * à jour sur cette seule plage et sur les lignes qui entrent ou sortent du rang dessinable : c'est
- * ce que l'image soumet, exactement, sans qu'aucune image ne reparcoure les lignes résidentes.
+ * This witness therefore keeps the words from one image to the next and only accumulates the
+ * contiguous range the GPU has not yet received. Along the way it holds the TOTAL of drawable-row
+ * triangles, updated on that range alone and on rows that enter or leave the drawable rank: that is
+ * what the image submits, exactly, without any image walking the resident rows again.
  */
 export function createDrawItemWordsHold(slots: number) {
   return {
@@ -24,9 +23,9 @@ export function createDrawItemWordsHold(slots: number) {
     target: undefined as GpuDraw | undefined,
     from: 0,
     to: -1,
-    /** Triangles de chaque ligne, tels qu'ils sont entrés dans le total. */
+    /** Triangles of each row, as they entered the total. */
     triangles: new Uint32Array(Math.max(1, slots)),
-    /** Somme des triangles des lignes `[0, heldCount)`. */
+    /** Sum of triangles of rows `[0, heldCount)`. */
     total: 0,
     heldCount: 0,
   };
@@ -34,10 +33,9 @@ export function createDrawItemWordsHold(slots: number) {
 export type DrawItemWordsHold = ReturnType<typeof createDrawItemWordsHold>;
 
 /**
- * Réécrit les mots des lignes que la table vient de déclarer sales, et élargit d'autant la plage
- * restant à téléverser. Un plafond de couches coplanaires nouveau, ou un tampon de compaction neuf
- * dont les octets ne sont pas les nôtres, redemandent toute la table : dans les deux cas ce que la
- * carte tient ne décrit plus rien.
+ * Rewrites the words of the rows the table just declared dirty, and widens the remaining upload
+ * range by as much. A new coplanar-layer ceiling, or a fresh compaction buffer whose bytes are not
+ * ours, ask for the whole table again: in both cases what the GPU holds no longer describes anything.
  */
 export function refreshDrawItemWords(
   rt: WebgpuPagesRuntime,
@@ -47,14 +45,14 @@ export function refreshDrawItemWords(
   const { rows, drawItemWords, itemWordsHold: hold } = rt.layout;
   const rowWords = PAGE_INFO_STRIDE / 4,
     ints = rows.pageTableInts;
-  // Les lignes qui viennent de sortir du rang dessinable quittent le total : une boucle bornée par
-  // ce qui a changé, jamais par le nombre de lignes résidentes.
+  // Rows that just left the drawable rank leave the total: a loop bounded by what changed, never by
+  // the resident-row count.
   for (let row = rows.packedCount; row < hold.heldCount; row++) {
     hold.total -= hold.triangles[row];
     hold.triangles[row] = 0;
   }
-  // Une ligne qui entre dans le rang dessinable y entre avec ses mots : elle est sale, ou elle vient
-  // d'être écrite. Élargir la plage jusqu'à elle coûte ce que le rang a grandi, et rien de plus.
+  // A row that enters the drawable rank enters with its words: it is dirty, or it has just been
+  // written. Widening the range to it costs what the rank grew, and nothing more.
   const stale = hold.layerSlots !== layerSlots || hold.target !== target;
   if (stale) {
     hold.layerSlots = layerSlots;
@@ -67,11 +65,11 @@ export function refreshDrawItemWords(
     drawItemWords[word] = row;
     drawItemWords[word + 1] = visBin(rec);
     drawItemWords[word + 2] = rows.packedPageIndex[row];
-    // La couche coplanaire appartient à la ligne de la table, pas à l'image : elle voyage avec l'item.
+    // The coplanar layer belongs to the table row, not to the image: it travels with the item.
     drawItemWords[word + 3] = Math.min(rec.depthLayer, layerSlots);
-    // Les triangles que la ligne dessine sont ceux de sa ligne du tableau de pages — ce que la carte
-    // dessine vraiment —, et non ceux que le cluster déclare. La partition GPU pèse un rejet
-    // d'occultation avec, et le total de la table s'en déduit sans parcours par image.
+    // Triangles the row draws are those of its page-table row — what the GPU actually draws — not
+    // those the cluster declares. The GPU partition weighs an occlusion reject with them, and the
+    // table total follows without a per-image walk.
     const triangles = ints ? ints[row * rowWords + ROW_INDEX_WORDS] / 3 : 0;
     drawItemWords[word + 4] = triangles;
     hold.total += triangles - hold.triangles[row];
@@ -85,7 +83,7 @@ export function refreshDrawItemWords(
   return hold;
 }
 
-/** Les mots de la plage viennent d'être envoyés : plus rien n'est en attente. */
+/** The range's words have just been sent: nothing is pending any more. */
 export function clearDrawItemWords(hold: DrawItemWordsHold) {
   hold.from = 0;
   hold.to = -1;

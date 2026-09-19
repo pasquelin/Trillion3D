@@ -1,13 +1,13 @@
-//! Ce que le fichier Maya ASCII dit de sa scène et que le pilote doit rendre tel quel : deux nœuds
-//! homonymes sous deux pères, les faces qu'aucun ensemble ne réclame, et les formes que Maya ne
-//! dessine jamais.
+//! What the Maya ASCII file says of its scene and that the driver must yield
+//! as-is: two homonymous nodes under two parents, the faces no engine claims, and
+//! the shapes Maya never draws.
 //!
-//! La pose d'un `transform` a son propre fichier, `ma_xform.rs` ; la scène dorée est dans
+//! A `transform`'s pose has its own file, `ma_xform.rs`; the golden scene is in
 //! `ma_golden.rs`.
 use super::*;
 use ma_driver::{compile_ma, quad, translations};
 
-/// Un maillage de quatre triangles indépendants, de quoi qu'une liaison partielle en laisse.
+/// A mesh of four independent triangles, enough that a partial binding leaves some.
 fn four_triangles(name: &str, parent: &str) -> String {
     let vertices: String = (0..4)
         .map(|face| format!("{face} 0 0  {} 0 0  {face} 1 0  ", face + 1))
@@ -30,9 +30,9 @@ fn four_triangles(name: &str, parent: &str) -> String {
     )
 }
 
-// Constat 10 : deux transforms nommés `M` sous deux pères différents sont deux nœuds. Maya les
-// distingue par leur chemin complet — `|A|M` et `|B|M` —, et les confondre faisait que le second
-// écrasait le premier : un `setAttr` visant l'un tombait sur l'autre.
+// Finding 10: two transforms named `M` under two different parents are two nodes.
+// Maya distinguishes them by their full path — `|A|M` and `|B|M` — and confusing
+// them made the second overwrite the first: a `setAttr` aimed at one landed on the other.
 #[test]
 fn two_transforms_of_the_same_name_under_two_parents_stay_two_nodes() {
     let body = format!(
@@ -48,19 +48,20 @@ fn two_transforms_of_the_same_name_under_two_parents_stay_two_nodes() {
     let run = compile_ma("ma-homonymes", &body);
     assert_eq!(
         run.result["sourceTriangles"], 4,
-        "les deux formes homonymes sont rendues"
+        "both homonymous shapes are rendered"
     );
     let (_, gltf) = run.prepared("ma");
     let moved = translations(&gltf, "M");
-    assert_eq!(moved.len(), 2, "chaque père garde son propre `M`");
+    assert_eq!(moved.len(), 2, "each parent keeps its own `M`");
     assert!(
         moved.contains(&[10.0, 0.0, 0.0]) && moved.contains(&[0.0, 20.0, 0.0]),
-        "chaque `setAttr` tombe sur le nœud que son chemin nomme, pas sur l'autre : {moved:?}"
+        "each `setAttr` lands on the node its path names, not the other: {moved:?}"
     );
 }
 
-// Constat 11 : un `shadingEngine` qui ne réclame qu'une partie des faces ne fait pas disparaître
-// les autres. Celles qu'aucun ensemble ne nomme sortent dans une primitive sans matériau, comptées.
+// Finding 11: a `shadingEngine` that claims only part of the faces does not make
+// the others vanish. Those no engine names come out in a primitive without a
+// material, counted.
 #[test]
 fn the_faces_no_shading_group_claims_still_reach_the_scene() {
     let body = format!(
@@ -75,29 +76,33 @@ fn the_faces_no_shading_group_claims_still_reach_the_scene() {
     let run = compile_ma("ma-liaison-partielle", &body);
     assert_eq!(
         run.result["sourceTriangles"], 4,
-        "les quatre faces sortent, liées ou non"
+        "all four faces come out, bound or not"
     );
     let (manifest, gltf) = run.prepared("ma");
     let primitives = gltf["meshes"][0]["primitives"]
         .as_array()
         .expect("primitives");
-    assert_eq!(primitives.len(), 2, "une part liée, une part sans matériau");
+    assert_eq!(
+        primitives.len(),
+        2,
+        "one bound part, one without a material"
+    );
     assert_eq!(
         primitives
             .iter()
             .filter(|part| part.get("material").is_none())
             .count(),
         1,
-        "les faces sans liaison forment une primitive sans matériau"
+        "unbound faces form a primitive without a material"
     );
     assert_eq!(
         manifest["unsupported"]["ma-face-material-missing"], 2,
-        "les deux faces qu'aucun ensemble ne réclame sont comptées"
+        "the two faces no engine claims are counted"
     );
 }
 
-// Constat 12 : une forme intermédiaire est un état de travail que Maya ne dessine jamais, et une
-// forme invisible est cachée par le fichier. Ni l'une ni l'autre n'entre dans la scène.
+// Finding 12: an intermediate shape is a work state Maya never draws, and an
+// invisible shape is hidden by the file. Neither enters the scene.
 #[test]
 fn an_intermediate_or_invisible_shape_never_reaches_the_scene() {
     let body = format!(
@@ -109,7 +114,7 @@ fn an_intermediate_or_invisible_shape_never_reaches_the_scene() {
     let run = compile_ma("ma-formes-cachees", &body);
     assert_eq!(
         run.result["sourceTriangles"], 2,
-        "seule la forme que Maya dessine est rendue"
+        "only the shape Maya draws is rendered"
     );
     let (manifest, gltf) = run.prepared("ma");
     let names: Vec<&str> = gltf["meshes"]
@@ -118,14 +123,19 @@ fn an_intermediate_or_invisible_shape_never_reaches_the_scene() {
         .iter()
         .filter_map(|mesh| mesh["name"].as_str())
         .collect();
-    assert_eq!(names, ["TShape"], "ni la forme de travail ni la cachée");
+    assert_eq!(
+        names,
+        ["TShape"],
+        "neither the work shape nor the hidden one"
+    );
     assert_eq!(manifest["unsupported"]["ma-shape-intermediate"], 1);
     assert_eq!(manifest["source"]["counts"]["invisible"], 1);
 }
 
-// Constat 23 : une face qui cite l'arête `i64::MIN` est refusée sous son nom. Maya écrit `-(i + 1)`
-// pour une arête parcourue à l'envers, et la valeur la plus basse n'a pas d'opposé : la nier
-// débordait, ce qui arrêtait la compilation par une panique au lieu d'un refus compté.
+// Finding 23: a face that cites the edge `i64::MIN` is refused under its name.
+// Maya writes `-(i + 1)` for an edge walked backwards, and the lowest value has
+// no opposite: negating it overflowed, which stopped compilation with a panic
+// instead of a counted refusal.
 #[test]
 fn a_face_citing_the_lowest_edge_index_is_refused_by_name() {
     let body = format!(
@@ -142,11 +152,11 @@ fn a_face_citing_the_lowest_edge_index_is_refused_by_name() {
     let run = compile_ma("ma-arete-minimale", &body);
     assert_eq!(
         run.result["sourceTriangles"], 2,
-        "seule la forme saine est rendue"
+        "only the healthy shape is rendered"
     );
     let (manifest, _) = run.prepared("ma");
     assert_eq!(
         manifest["unsupported"]["ma-mesh-invalid"], 1,
-        "l'arête hors table est comptée sous son nom"
+        "the out-of-table edge is counted under its name"
     );
 }

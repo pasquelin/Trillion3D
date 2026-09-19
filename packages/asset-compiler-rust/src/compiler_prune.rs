@@ -30,8 +30,9 @@ pub(super) fn referenced_objects(
     }
     walk(json, into);
     if let Some(bytes) = binary {
-        // Un sidecar d'une autre version range ses colonnes autrement : le lire comme « aucun objet
-        // référencé » ferait supprimer des pages encore utilisées, donc le format inconnu est refusé.
+        // A sidecar of another version lays out its columns differently: reading it
+        // as "no object referenced" would delete pages still in use, so an unknown
+        // format is refused.
         into.extend(manifest_binary::digests(bytes).map_err(|e| {
             CompilerError::new(
                 "UNSUPPORTED_FORMAT",
@@ -41,10 +42,10 @@ pub(super) fn referenced_objects(
     }
     Ok(())
 }
-/// Les objets et les empreintes d'images qu'un scope qu'on ne recompile pas nomme. Ses pages et ses
-/// niveaux de texture ne vivent que dans les colonnes de son sidecar, lu une fois pour les deux :
-/// sans sidecar lisible, aucune purge ne peut décider quoi garder, donc elle échoue et ne supprime
-/// rien plutôt que de compter ce scope pour zéro objet.
+/// Objects and image fingerprints named by a scope that is not recompiled. Its
+/// pages and texture levels live only in its sidecar columns, read once for both:
+/// without a readable sidecar, prune cannot decide what to keep, so it fails and
+/// deletes nothing rather than counting that scope as zero objects.
 fn other_scope(
     dir: &Path,
     objects: &mut BTreeSet<String>,
@@ -100,8 +101,9 @@ pub(super) fn prune_cache(
                 .and_then(|b| serde_json::from_slice::<Value>(&b).ok())
                 .and_then(|p| p["key"].as_str().map(str::to_owned))
         };
-        // L'autre scope est lu avant la moindre suppression : un sidecar absent ou d'une autre
-        // version arrête la purge, cache intact, au lieu d'effacer les pages qu'il utilise encore.
+        // The other scope is read before any deletion: a missing sidecar or one of
+        // another version stops prune, cache intact, instead of erasing pages it
+        // still uses.
         if scope != o.scope {
             if let Some(name) = current.as_deref() {
                 other_scope(&dir.join(name), &mut keep, &mut keep_textures)?;

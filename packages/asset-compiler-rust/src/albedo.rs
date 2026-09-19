@@ -1,21 +1,21 @@
-//! Albédo diffus d'un matériau glTF, en linéaire, partagé par le proxy et par l'oracle.
+//! Diffuse albedo of a glTF material, in linear, shared by the proxy and the oracle.
 //!
-//! Les deux lisent le même matériau et doivent en tirer exactement la même couleur : si l'un
-//! comptait le métal et l'autre non, la comparaison à l'oracle mesurerait deux lectures de matériau
-//! au lieu du transport de la lumière. Seule la moyenne d'une texture les sépare — le proxy la lit
-//! dans l'aperçu que le compilateur a déjà réduit, l'oracle la refait sur l'image source — et c'est
-//! l'appelant qui la fournit.
+//! Both read the same material and must draw exactly the same colour from it: if
+//! one counted metal and the other did not, the oracle comparison would measure
+//! two material reads instead of light transport. Only a texture average separates
+//! them — the proxy reads it in the preview the compiler already reduced, the
+//! oracle remakes it on the source image — and the caller supplies it.
 use serde_json::Value;
 use std::collections::BTreeMap;
 
-/// L'albédo diffus de chaque matériau, empaqueté RGBA8 linéaire, dans l'ordre du glTF.
+/// Diffuse albedo of each material, packed RGBA8 linear, in glTF order.
 pub struct Palette {
     colours: Vec<u32>,
     default: u32,
 }
 impl Palette {
-    /// L'albédo d'une primitive par son champ `material`. Une primitive sans matériau prend le
-    /// matériau opaque par défaut de glTF, c'est-à-dire un blanc diffus.
+    /// Albedo of a primitive by its `material` field. A primitive with no material
+    /// takes glTF's default opaque material, i.e. a diffuse white.
     pub fn of(&self, material: Option<&Value>) -> u32 {
         material
             .and_then(Value::as_u64)
@@ -24,19 +24,20 @@ impl Palette {
     }
 }
 
-/// Une couleur linéaire dans quatre octets. L'alpha vaut toujours 255 : ni transparence ni émission
-/// ne voyagent ici, et c'est dit dans le rapport plutôt que deviné.
+/// A linear colour in four bytes. Alpha is always 255: neither transparency nor
+/// emission travels here, and that is said in the report rather than guessed.
 pub fn pack(colour: [f64; 3]) -> u32 {
     let byte = |value: f64| (value.clamp(0.0, 1.0) * 255.0).round() as u32;
     byte(colour[0]) | (byte(colour[1]) << 8) | (byte(colour[2]) << 16) | (255 << 24)
 }
 
-/// Un octet sRGB ramené en linéaire, la même courbe que le reste de la chaîne (P1).
+/// An sRGB byte brought back to linear, the same curve as the rest of the chain (P1).
 ///
-/// Deux autres exemplaires de cette courbe existent, et aucun n'est celui-ci : la table de
-/// `texture_preview/curves.rs::srgb_table` la calcule en `f32` — 214 des 256 entrées diffèrent du
-/// `f64` arrondi, donc la table ne se construit pas d'ici — et `deferredLightingShaders.ts` la
-/// porte côté moteur. Trois précisions, trois emplacements, aucun partage.
+/// Two other copies of this curve exist, and neither is this one: the table in
+/// `texture_preview/curves.rs::srgb_table` computes it in `f32` — 214 of the 256
+/// entries differ from rounded `f64`, so the table is not built from here — and
+/// `deferredLightingShaders.ts` carries it on the engine side. Three precisions,
+/// three locations, no sharing.
 pub fn srgb_to_linear(byte: u8) -> f64 {
     let value = byte as f64 / 255.0;
     if value <= 0.04045 {
@@ -57,8 +58,9 @@ fn factor(material: &Value) -> [f64; 3] {
         .unwrap_or([1.0, 1.0, 1.0])
 }
 
-/// Un métal pur n'a pas d'albédo diffus : ce qu'il renvoie est spéculaire, et le rebond diffus de
-/// ce lot ne le porte pas. La part diffuse vaut donc `1 - metallic`, exactement comme le nuanceur.
+/// A pure metal has no diffuse albedo: what it reflects is specular, and this
+/// lot's diffuse bounce does not carry it. The diffuse share is therefore
+/// `1 - metallic`, exactly like the shader.
 fn diffuse_share(material: &Value) -> f64 {
     1.0 - material
         .pointer("/pbrMetallicRoughness/metallicFactor")
@@ -67,11 +69,12 @@ fn diffuse_share(material: &Value) -> f64 {
         .clamp(0.0, 1.0)
 }
 
-/// La palette d'une scène. `mean` rend la couleur moyenne linéaire d'une texture de couleur de
-/// base, ou rien quand elle n'est pas lisible ; le facteur du matériau vaut alors seul.
+/// Palette of a scene. `mean` returns the linear mean colour of a base-colour
+/// texture, or nothing when it is unreadable; the material factor then stands
+/// alone.
 ///
-/// Une texture n'est moyennée qu'une fois : sans cette mémoire, une scène de milliers de matériaux
-/// qui partagent quelques textures paierait le produit des deux tailles.
+/// A texture is averaged only once: without this memory, a scene of thousands of
+/// materials that share a few textures would pay the product of both sizes.
 pub fn palette(g: &Value, mut mean: impl FnMut(u64) -> Option<[f64; 3]>) -> Palette {
     let mut known: BTreeMap<u64, Option<[f64; 3]>> = BTreeMap::new();
     let materials = g

@@ -34,12 +34,12 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
   const { pages, geometryPages, cacheCap } = pageSources;
   let gpuDevice: GPUDevice | undefined;
   let renderer: THREE.WebGLRenderer | undefined;
-  // Le chemin des calculs en lot est décidé ici, avec les autres capacités, et jamais en silence :
-  // module absent, contrat de calcul inconnu ou horloge trop grossière laissent tout sur le chemin
-  // JavaScript, et le relevé publié plus bas en porte la raison. Le chargement du module part tout
-  // de suite mais n'est attendu qu'au moment de publier : il se recouvre avec la détection des
-  // capacités et la demande d'appareil graphique, qui durent bien davantage, et ne retarde donc pas
-  // la première image.
+  // The batched-compute path is decided here, with the other capabilities, and never in
+  // silence: missing module, unknown compute contract or too-coarse clock leave everything
+  // on the JavaScript path, and the sample published below carries the reason. Module load
+  // starts at once but is only awaited at publish time: it overlaps with capability
+  // detection and the GPU-device request, which last much longer, and therefore does not
+  // delay the first frame.
   const calculEnLot = prepareMathBatch(options.mathPath ?? 'auto');
   const capabilities = await detectCapabilities('webgl', canvas);
   if (!capabilities.renderer) {
@@ -160,8 +160,8 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
       bytes: page.bytes,
     })),
     mathBatch: mathBatchMetrics(),
-    // Le chemin des pages décodées : `partage` quand la page est isolée entre origines et que la
-    // mémoire partagée existe, `transfert` partout ailleurs. Annoncé, jamais deviné.
+    // Decoded-page path: `partage` when the page is isolated between origins and shared
+    // memory exists, `transfert` everywhere else. Announced, never guessed.
     pageDecode: pageDecodeTransport(),
     provenance: {
       sdk: SDK_BUILD_PROVENANCE,

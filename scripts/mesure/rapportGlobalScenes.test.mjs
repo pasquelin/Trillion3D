@@ -14,14 +14,14 @@ function campagneVide(root, scene, run) {
   );
 }
 
-test('lireScenes range Emerald puis Whisperwind sous un dossier de campagne', () => {
+test('lireScenes orders Emerald then Whisperwind under a campaign folder', () => {
   const root = join(tmpdir(), `wg-scenes-${Date.now()}`);
   campagneVide(root, 'whisperwind-village', 'mobile');
   campagneVide(root, 'emerald-square', 'mobile');
   try {
-    const scenes = lireScenes(root, [['mobile', 'référence', []]]);
+    const scenes = lireScenes(root, [['mobile', 'reference', []]]);
     assert.deepEqual(
-      scenes.map((s) => s.nom),
+      scenes.map((s) => s.name),
       ['emerald-square', 'whisperwind-village'],
     );
     assert.match(scenes[1].note, /Megascans/);
@@ -30,7 +30,7 @@ test('lireScenes range Emerald puis Whisperwind sous un dossier de campagne', ()
   }
 });
 
-test('lireScenes lit l’ancien plat comme une seule scène', () => {
+test('lireScenes reads the old flat layout as a single scene', () => {
   const root = join(tmpdir(), `wg-plat-${Date.now()}`);
   mkdirSync(join(root, 'mobile'), { recursive: true });
   writeFileSync(
@@ -45,13 +45,13 @@ test('lireScenes lit l’ancien plat comme une seule scène', () => {
   try {
     const scenes = lireScenes(root, null);
     assert.equal(scenes.length, 1);
-    assert.equal(scenes[0].nom, 'emerald-square');
+    assert.equal(scenes[0].name, 'emerald-square');
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
 
-test('lireScenes garde l’Emerald plat à côté d’un dossier Whisperwind', () => {
+test('lireScenes keeps flat Emerald next to a Whisperwind folder', () => {
   const root = join(tmpdir(), `wg-mixte-${Date.now()}`);
   mkdirSync(join(root, 'mobile'), { recursive: true });
   writeFileSync(
@@ -60,9 +60,9 @@ test('lireScenes garde l’Emerald plat à côté d’un dossier Whisperwind', (
   );
   campagneVide(root, 'whisperwind-village', 'mobile');
   try {
-    const scenes = lireScenes(root, [['mobile', 'référence', []]]);
+    const scenes = lireScenes(root, [['mobile', 'reference', []]]);
     assert.deepEqual(
-      scenes.map((s) => s.nom),
+      scenes.map((s) => s.name),
       ['emerald-square', 'whisperwind-village'],
     );
   } finally {
@@ -70,11 +70,11 @@ test('lireScenes garde l’Emerald plat à côté d’un dossier Whisperwind', (
   }
 });
 
-test('colonnesSimple pose une colonne par scène', () => {
+test('colonnesSimple places one column per scene', () => {
   const html = colonnesSimple(
     [
-      { nom: 'emerald-square', note: '', executions: [], dossier: 'a' },
-      { nom: 'whisperwind-village', note: 'Megascans', executions: [], dossier: 'b' },
+      { name: 'emerald-square', note: '', executions: [], dossier: 'a' },
+      { name: 'whisperwind-village', note: 'Megascans', executions: [], dossier: 'b' },
     ],
     () => '<p>barres</p>',
   );

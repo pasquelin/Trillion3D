@@ -6,10 +6,10 @@ export const MAX_LINES = 200;
 const sourceFile = /\.(?:[cm]?js|[cm]?ts|jsx|tsx|rs)$/;
 
 /**
- * `-z` est une option, pas un chemin. Placé après le `--` qui ouvre la liste des fichiers, il est
- * lu comme un chemin à filtrer : `diff --name-only <ref> -- -z` ne rend alors aucun nom, et la
- * porte de lignes déclarait « aucun fichier modifié » quoi qu'on change. Il est donc inséré avant
- * le séparateur, ou en fin d'arguments quand il n'y en a pas.
+ * `-z` is an option, not a path. Placed after the `--` that opens the list of files, it is
+ * read as a path to filter: `diff --name-only <ref> -- -z` then returns no names, and the
+ * line check declared "no files modified" whatever we change. It is therefore inserted before
+ * the separator, or at the end of arguments when there is none.
  */
 export function nulSeparated(args) {
   const separator = args.indexOf('--');

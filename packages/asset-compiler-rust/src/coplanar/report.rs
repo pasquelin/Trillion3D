@@ -86,8 +86,8 @@ const MAX_LISTED: usize = 256;
 /// Everything the stage had to leave out, counted rather than hidden.
 #[derive(Default)]
 pub struct Counts {
-    /// Clusters distincts qui portent une couche. Une primitive posée plusieurs fois ne compte
-    /// qu'une fois : c'est le nombre de lignes du manifeste que l'étape a écrites.
+    /// Distinct clusters carrying a layer. A primitive placed multiple times counts
+    /// only once: number of manifest rows written by the step.
     pub layered_pages: usize,
     pub planes: usize,
     pub candidate_planes: usize,

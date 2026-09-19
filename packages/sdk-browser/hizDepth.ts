@@ -7,9 +7,9 @@ import type { HizPyramid } from './hizTypes.ts';
 import type { EngineCamera } from './cameraWorld.ts';
 
 /**
- * Pyramide Hi-Z du visbuffer : fond au lointain, réduction vers le plus lointain. La pyramide est plate :
- * un seul tampon pour tous les niveaux. `into` la reprend d'une image sur l'autre — même taille,
- * mêmes décalages, aucune ligne réallouée ; sinon une pyramide neuve est posée.
+ * Visbuffer Hi-Z pyramid: far background, reduce toward farthest. The pyramid is flat: one buffer
+ * for every level. `into` reuses it from frame to frame — same size, same offsets, no row
+ * reallocated; otherwise a new pyramid is placed.
  */
 export function buildHizPyramid(
   depth: Float32Array,
@@ -21,8 +21,8 @@ export function buildHizPyramid(
   return hizBuildFlat(depth, width, height, into);
 }
 
-/** NDC z of the visbuffer winner. Background pixels stay at the far value. Les sommets d'un triangle ne sont
- *  projetés qu'une fois par image, jamais une fois par pixel : mêmes opérandes, moins souvent. */
+/** NDC z of the visbuffer winner. Background pixels stay at the far value. A triangle's vertices
+ *  are projected once per frame, never once per pixel: the same operands, less often. */
 export function visibilityDepth(
   ids: Uint32Array,
   pages: VisPage[],

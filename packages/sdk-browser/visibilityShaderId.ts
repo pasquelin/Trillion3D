@@ -16,10 +16,10 @@ import { HIZ_REJECTED_WGSL } from './gpuPartitionContract.ts';
 import { COMPUTE_ALL, COMPUTE_TAKES_WGSL } from './gpuRasterContract.ts';
 
 /**
- * Le raster matériel du tampon de visibilité, producteur de l'image opaque et masquée. Sous le
- * partage de la référence (`uni.computeSpan`), il laisse au raster de calcul les triangles que
- * celui-ci prend — le même prédicat, lu sur les mêmes sommets — et dessine tous les autres ; à
- * zéro, il dessine toute la coupe sans lire un sommet de plus.
+ * Hardware raster of the visibility buffer, producer of the opaque and masked image. Under the
+ * reference's share (`uni.computeSpan`), it leaves to the compute raster the triangles that
+ * one takes — the same predicate, read on the same vertices — and draws all the others; at
+ * zero, it draws the whole cut without reading one more vertex.
  */
 export const VIS_SHADER = `${PAGE_INFO_WGSL}
 ${PAGE_BINDING.indices}
@@ -41,8 +41,8 @@ struct VSOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) i
 ${PAGE_VERTEX_WGSL}
 ${PAGE_MASK_WGSL}
 ${COMPUTE_TAKES_WGSL}
-/** Vrai quand le matériel ne dessine pas ce sommet : hors de la page, ou d'un triangle que le
- *  raster de calcul prend. Sans partage, ni sous \`COMPUTE_ALL\`, aucun sommet de plus n'est lu. */
+/** True when hardware does not draw this vertex: off the page, or of a triangle the
+ *  compute raster takes. Without a share, nor under COMPUTE_ALL, no extra vertex is read. */
 fn hardwareSkips(page:PageInfo,vertexIndex:u32)->bool{
  if(vertexIndex>=page.indexCount||uni.computeSpan>=${COMPUTE_ALL}){return true;}
  if(uni.computeSpan<=0.0){return false;}

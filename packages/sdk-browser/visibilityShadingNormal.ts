@@ -24,17 +24,17 @@ const frameN = new Float64Array(3),
   frameOut = new Float64Array(3);
 
 /**
- * La normale monde d'un pixel ombré : normale géométrique du triangle, remplacée par les normales
- * de sommets quand la primitive en porte, puis tournée par la carte de normales dans le repère
- * tangent — celui des tangentes de sommets quand elles existent, sinon celui que les coordonnées de
- * texture du triangle donnent. Le repère est monté ici, la BRDF le lit dans `visibilityLighting.ts`.
+ * World normal of a shaded pixel: the triangle's geometric normal, replaced by vertex normals
+ * when the primitive carries them, then rotated by the normal map in the tangent frame — the
+ * vertex-tangent frame when they exist, otherwise the one the triangle's texture coordinates
+ * give. The frame is built here; the BRDF reads it in `visibilityLighting.ts`.
  *
- * Aucune allocation : tous les vecteurs sont des vecteurs de travail du module, et le résultat est
- * rendu dans l'un d'eux — à lire avant le pixel suivant.
+ * No allocation: every vector is a module scratch vector, and the result is returned in one of
+ * them — to be read before the next pixel.
  *
- * `screenFace` est le signe de l'aire écran du triangle, que le rasteriseur connaît seul ; `face`
- * s'en déduit avec l'orientation de la matrice monde, et décide de quel côté une surface à deux
- * faces est vue.
+ * `screenFace` is the sign of the triangle's screen area, which only the rasterizer knows;
+ * `face` is deduced from it with the world-matrix orientation, and decides which side of a
+ * two-sided surface is seen.
  */
 export function shadingNormal(
   page: VisPage,
@@ -75,9 +75,9 @@ export function shadingNormal(
       scaleVector3(n, side);
     }
   if (vertexNormals) {
-    // Interpolation, normalisation et côté tenus en scalaires : mêmes opérations dans le même
-    // ordre que `copyScaledVector3`, `addScaledVector3`, `normalizeVector3` et `scaleVector3`,
-    // sans les aller-retours par un tampon dont la valeur n'est jamais relue.
+    // Interpolation, normalisation and side kept as scalars: the same operations in the same
+    // order as `copyScaledVector3`, `addScaledVector3`, `normalizeVector3` and `scaleVector3`,
+    // without round-trips through a buffer whose value is never reread.
     const v0 = vertexNormals[0],
       v1 = vertexNormals[1],
       v2 = vertexNormals[2];
@@ -104,8 +104,8 @@ export function shadingNormal(
   }
   if (mat.normalMap) {
     const nrm = sampleLinear(mat.normalMap, uv[0], uv[1]);
-    // Les trois composantes de la carte en scalaires : un tableau ici, c'est une allocation par
-    // pixel ombré d'une surface qui porte une carte de normales.
+    // The three map components as scalars: an array here is an allocation per shaded pixel of a
+    // surface that carries a normal map.
     const mapX = (nrm[0] * 2 - 1) * mat.normalScale,
       mapY = (nrm[1] * 2 - 1) * mat.normalScaleY,
       mapZ = nrm[2] * 2 - 1;
@@ -144,7 +144,7 @@ export function shadingNormal(
         dv1 = uvb[1] - uva[1],
         du2 = uvc[0] - uva[0],
         dv2 = uvc[1] - uva[1];
-      // `q1` occupe `frameN`, comme le repère de l'hôte ; c'est sa seule écriture de la passe.
+      // `q1` occupies `frameN`, like the host frame; that is its only write of the pass.
       frameN[0] = cy * Nz - cz * Ny;
       frameN[1] = cz * Nx - cx * Nz;
       frameN[2] = cx * Ny - cy * Nx;
@@ -163,8 +163,8 @@ export function shadingNormal(
       scaleVector3(T, face);
       scaleVector3(B, face);
     }
-    // La normale géométrique est déjà en scalaires : la recopier dans un tampon pour l'ajouter ne
-    // servait qu'à passer par `addScaledVector3`.
+    // The geometric normal is already scalars: copying it into a buffer to add it only served to
+    // go through `addScaledVector3`.
     scaleVector3(T, mapX);
     addScaledVector3(T, B, mapY);
     let tx = T[0] + Nx * mapZ,

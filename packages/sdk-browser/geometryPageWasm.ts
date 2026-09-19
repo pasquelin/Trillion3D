@@ -1,24 +1,23 @@
 import type { DecodedGeometryPage } from './geometryPage.ts';
 
 /**
- * Chargeur du module WebAssembly du SDK (`packages/page-codec-wasm`) et décodeur de pages qui s'en
- * sert. Il n'y a qu'un module, donc qu'une instanciation et qu'une mémoire linéaire pour tout le
- * process : `prepareSdkWasm` la mémorise, et les noyaux de calcul en lot du socle
- * (`wasmArena.ts`, `mathBatchRuntime.ts`) travaillent dans cette même mémoire.
+ * Loader of the SDK WebAssembly module (`packages/page-codec-wasm`) and page decoder that uses it.
+ * There is only one module, hence one instantiation and one linear memory for the whole process:
+ * `prepareSdkWasm` remembers it, and the core batch kernels (`wasmArena.ts`, `mathBatchRuntime.ts`)
+ * work in that same memory.
  *
- * Le module n'importe rien et n'exporte que sa mémoire linéaire et ses fonctions : la page
- * compressée est écrite dans cette mémoire, le décodeur y dépose ses tampons et rend leurs offsets.
- * Rien n'est recopié entre les deux. Les tampons rendus à l'appelant, eux, sont bien des copies :
- * ils survivent au `page_release` et peuvent être transférés à un autre fil.
+ * The module imports nothing and exports only its linear memory and its functions: the compressed
+ * page is written into that memory, the decoder deposits its buffers there and returns their
+ * offsets. Nothing is copied between the two. Buffers returned to the caller, though, are copies:
+ * they survive `page_release` and can be transferred to another thread.
  *
- * Si `WebAssembly` manque ou si l'instanciation échoue, le décodeur JavaScript reprend la main —
- * mêmes tampons, mêmes refus, seulement plus lentement. Il est chargé à ce moment-là et pas avant :
- * il tire la bibliothèque de décompression, nommée par un spécificateur nu, qu'un worker dédié ne
- * sait pas résoudre sans empaqueteur. En le laissant hors du graphe statique, ce chargeur reste
- * utilisable là où seul le module WebAssembly l'est.
+ * If `WebAssembly` is missing or instantiation fails, the JavaScript decoder takes over — same
+ * buffers, same refusals, only slower. It is loaded then and not before: it pulls the decompression
+ * library, named by a bare specifier, which a dedicated worker cannot resolve without a bundler.
+ * Leaving it out of the static graph, this loader stays usable where only the WebAssembly module is.
  */
 
-/** Les attributs facultatifs, dans l'ordre et sous les noms du décodeur JavaScript. */
+/** Optional attributes, in the order and under the names of the JavaScript decoder. */
 const OPTIONNELS: ReadonlyArray<readonly [string, number]> = [
   ['normal', 3],
   ['uv', 2],
@@ -26,7 +25,7 @@ const OPTIONNELS: ReadonlyArray<readonly [string, number]> = [
   ['uv2', 2],
   ['color', 4],
 ];
-/** Les causes de refus du décodeur Rust, à l'index de leur code. */
+/** Refusal causes of the Rust decoder, at the index of their code. */
 const CAUSES = [
   '',
   'GEOMETRY_PAGE_HEADER',
@@ -38,7 +37,7 @@ const CAUSES = [
 ];
 const MOTS = 12;
 
-/** Les exports du module, décodeur de pages et calcul en lot confondus. */
+/** Module exports, page decoder and batch compute together. */
 export type SdkWasm = {
   memory: WebAssembly.Memory;
   page_alloc(len: number): number;
@@ -64,7 +63,7 @@ type SourceWasm = BufferSource | (() => Promise<BufferSource>);
 
 let attente: Promise<SdkWasm | null> | null = null;
 
-/** La ressource livrée à côté du module : le navigateur la prend par son URL, pas par le disque. */
+/** Resource shipped next to the module: the browser takes it by URL, not from disk. */
 async function ressource(): Promise<BufferSource> {
   const reponse = await fetch(new URL('./pageCodec.wasm', import.meta.url));
   if (!reponse.ok) throw new Error('GEOMETRY_PAGE_WASM');
@@ -83,15 +82,15 @@ async function instancie(source: SourceWasm): Promise<SdkWasm | null> {
 }
 
 /**
- * Instancie le module une fois pour toutes et dit s'il est disponible. L'hôte peut fournir les
- * octets — c'est ce que fait Node, qui ne sait pas suivre une URL de fichier avec `fetch`.
+ * Instantiates the module once and for all and says whether it is available. The host may supply
+ * the bytes — that is what Node does, which cannot follow a file URL with `fetch`.
  */
 export function prepareSdkWasm(source: SourceWasm = ressource): Promise<SdkWasm | null> {
   attente ??= instancie(source);
   return attente;
 }
 
-/** Les tampons du bloc de résultat, copiés hors de la mémoire linéaire avant qu'elle ne bouge. */
+/** Result-block buffers, copied out of linear memory before it moves. */
 function copie(codec: SdkWasm, bloc: number): DecodedGeometryPage {
   const mots = new Uint32Array(codec.memory.buffer, bloc, MOTS);
   if (mots[0]) throw new Error(CAUSES[mots[0]] ?? 'GEOMETRY_PAGE_BOUNDS');
@@ -115,7 +114,7 @@ function copie(codec: SdkWasm, bloc: number): DecodedGeometryPage {
   return { indices, attributes, vertexCount, flags, decodedBytes };
 }
 
-/** Même signature, mêmes tampons et mêmes refus que `decodeGeometryPage`. */
+/** Same signature, same buffers and same refusals as `decodeGeometryPage`. */
 export async function decodeGeometryPageWasm(
   data: Uint8Array,
   maxDecodedBytes = 16 * 1024 * 1024,
@@ -126,11 +125,11 @@ export async function decodeGeometryPageWasm(
     return decodeGeometryPage(data, maxDecodedBytes);
   }
   if (data.byteLength < 32) throw new Error('GEOMETRY_PAGE_HEADER');
-  const entree = codec.page_alloc(data.byteLength);
-  if (!entree) throw new Error('GEOMETRY_PAGE_BOUNDS');
-  new Uint8Array(codec.memory.buffer, entree, data.byteLength).set(data);
-  const bloc = codec.page_decode(entree, data.byteLength, maxDecodedBytes);
-  codec.page_free(entree, data.byteLength);
+  const inputPtr = codec.page_alloc(data.byteLength);
+  if (!inputPtr) throw new Error('GEOMETRY_PAGE_BOUNDS');
+  new Uint8Array(codec.memory.buffer, inputPtr, data.byteLength).set(data);
+  const bloc = codec.page_decode(inputPtr, data.byteLength, maxDecodedBytes);
+  codec.page_free(inputPtr, data.byteLength);
   if (!bloc) throw new Error('GEOMETRY_PAGE_BOUNDS');
   try {
     return copie(codec, bloc);

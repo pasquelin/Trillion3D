@@ -1,7 +1,7 @@
-// Le majorant sur lequel chaque passe de la descente est lancée à plat. C'est lui qui remplace
-// l'armement de l'argument de répartition et la coupure qu'il impose (mesure : `gpuDagHierarchy.ts`),
-// et c'est donc lui qui doit être sûr : une file plus longue que son étage laisserait des nœuds retenus
-// sans passe pour les lire, et la coupe perdrait de la géométrie sans que rien ne le dise.
+// Upper bound on which each descent pass dispatches flat. It is what replaces arming the
+// dispatch argument and the cut it imposes (measurement: `gpuDagHierarchy.ts`), and it is
+// therefore what must be safe: a queue longer than its stage would leave kept nodes with no
+// pass to read them, and the cut would lose geometry without anything saying so.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { flatHierarchy, hierarchyLevelSizes } from './gpuDagHierarchy.ts';
@@ -9,7 +9,7 @@ import { DAG_NODE_FLOATS } from './gpuDagTypes.ts';
 import { dagFixture } from './pageSelectionDagFixture.ts';
 import { packed } from './gpuDagSelectionTestHelpers.ts';
 
-/** L'étage de chaque nœud du DAG rangé, lu comme la descente le lit : les racines à l'étage zéro. */
+/** Stage of each packed DAG node, read as the descent reads it: roots at stage zero. */
 function etages(dag: ReturnType<typeof packed>['dag']) {
   const ints = new Uint32Array(dag.nodes.buffer);
   const etage = new Int32Array(Math.max(1, dag.nodeCount)).fill(-1);
@@ -18,7 +18,7 @@ function etages(dag: ReturnType<typeof packed>['dag']) {
   for (let niveau = 0; frontier.length; niveau++) {
     const suivante: number[] = [];
     for (const node of frontier) {
-      assert.equal(etage[node], -1, 'un nœud n’appartient qu’à un étage');
+      assert.equal(etage[node], -1, 'a node belongs to only one stage');
       etage[node] = niveau;
       const base = node * DAG_NODE_FLOATS;
       for (let c = 0; c < ints[base + 15]; c++) suivante.push(ints[base + 3] + c);
@@ -28,7 +28,7 @@ function etages(dag: ReturnType<typeof packed>['dag']) {
   return etage;
 }
 
-test("le compte d'un étage majore la file de sa passe, et la somme couvre tous les nœuds", () => {
+test("a stage's count bounds its pass's queue, and the sum covers every node", () => {
   const { dag } = packed(dagFixture());
   const etage = etages(dag);
   const compte = new Int32Array(dag.levelSizes.length);
@@ -39,8 +39,8 @@ test("le compte d'un étage majore la file de sa passe, et la somme couvre tous 
       atteints++;
     }
   assert.deepEqual(Array.from(dag.levelSizes), Array.from(compte));
-  // Un nœud qu'aucune racine n'atteint n'est jamais lu : la somme des étages est donc ce que la
-  // descente peut voir, et rien de plus.
+  // A node no root reaches is never read: the sum of stages is therefore what the descent can
+  // see, and nothing more.
   assert.equal(
     Array.from(dag.levelSizes).reduce((a, b) => a + b, 0),
     atteints,
@@ -48,15 +48,15 @@ test("le compte d'un étage majore la file de sa passe, et la somme couvre tous 
   assert.ok(atteints > 0);
 });
 
-test('les étages de la hiérarchie du rangement se comptent racine comprise', () => {
-  // Trente-trois pages : deux feuilles de trente-deux et une, puis leur nœud. Deux étages.
+test('packed-hierarchy stages are counted with the root included', () => {
+  // Thirty-three pages: two leaves of thirty-two and one, then their node. Two stages.
   const pages = Array.from({ length: 33 }, (_, i) => ({ min: [i, 0, 0], max: [i + 1, 1, 1] }));
   const { nodes, stride } = flatHierarchy(pages);
   assert.deepEqual(hierarchyLevelSizes(nodes, stride), [1, 2]);
-  // Une seule feuille : la racine EST la feuille, un seul étage.
+  // One leaf: the root IS the leaf, a single stage.
   const petite = flatHierarchy(pages.slice(0, 4));
   assert.deepEqual(hierarchyLevelSizes(petite.nodes, petite.stride), [1]);
-  // Aucune page : une racine feuille vide, toujours un étage, jamais zéro passe.
+  // No page: an empty leaf root, always one stage, never zero passes.
   const vide = flatHierarchy([]);
   assert.deepEqual(hierarchyLevelSizes(vide.nodes, vide.stride), [1]);
   assert.deepEqual(hierarchyLevelSizes(new Float64Array(0), stride), []);

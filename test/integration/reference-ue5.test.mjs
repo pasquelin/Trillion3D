@@ -2,30 +2,30 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-// LE TABLEAU DE PARITÉ NE DOIT PAS ROUILLER.
+// THE PARITY TABLE MUST NOT RUST.
 //
-// `docs/REFERENCE_UE5.md` met les constantes de structure de la référence en regard des nôtres.
-// Un tableau de ce genre ne vaut que tant que la colonne « chez nous » dit la vérité : le jour où
-// une constante bouge dans le code sans que la ligne bouge, le document devient une affirmation
-// fausse sur l'état du moteur, et personne ne le voit. Ce test relit les constantes à la source et
-// refuse cet écart. Il ne juge PAS la colonne « la référence » — celle-là tient à ses sources,
-// citées en bas du document — ni les millisecondes, qui ne sont pas des constantes.
+// `docs/REFERENCE_UE5.md` puts reference structural constants side by side with ours.
+// A table of this kind is only valuable as long as "our side" column tells the truth: the day
+// a constant changes in code without the row changing, the document becomes a false statement
+// about the engine state, and nobody notices. This test re-reads constants at source and
+// rejects this deviation. It does NOT judge "the reference" column — which relies on its sources,
+// cited at document bottom — nor milliseconds, which are not constants.
 
 const racine = new URL('../../', import.meta.url);
 const doc = new URL('docs/REFERENCE_UE5.md', racine);
 const sources = new URL('packages/asset-compiler-rust/src/', racine);
 
-const UNITES = { Kio: 1024, Mio: 1024 * 1024 };
+const UNITES = { Kio: 1024, Mio: 1024 * 1024, KiB: 1024, MiB: 1024 * 1024 };
 
 const nombre = (cellule) => {
-  const trouve = /^([\d\u202f\u00a0 ]+)(?:\s+(Kio|Mio))?$/u.exec(cellule.trim());
+  const trouve = /^([\d\u202f\u00a0 ]+)(?:\s+(Kio|Mio|KiB|MiB))?$/u.exec(cellule.trim());
   if (!trouve) return null;
   const brut = Number(trouve[1].replaceAll(/[\u202f\u00a0 ]/gu, ''));
   if (!Number.isFinite(brut)) return null;
   return brut * (trouve[2] ? UNITES[trouve[2]] : 1);
 };
 
-// Les lignes vérifiables du tableau : celles dont la colonne « preuve » nomme `fichier:CONSTANTE`.
+// Verifiable table rows: those whose "proof" column names `file:CONSTANT`.
 const lignesVerifiables = (texte) =>
   texte
     .split('\n')
@@ -38,7 +38,7 @@ const lignesVerifiables = (texte) =>
     })
     .filter(Boolean);
 
-// `pub const NAME: usize = 128 * 1024;` — produits d'entiers seulement, rien à évaluer d'autre.
+// `pub const NAME: usize = 128 * 1024;` — integer products only, nothing else to evaluate.
 const valeurConstante = (texte, constante) => {
   const trouve = new RegExp(String.raw`pub const ${constante}:\s*\w+\s*=\s*([^;]+);`, 'u').exec(
     texte,
@@ -52,47 +52,53 @@ const valeurConstante = (texte, constante) => {
     .reduce((produit, facteur) => produit * facteur, 1);
 };
 
-test('chaque constante de structure du tableau de parité est celle du code', async () => {
+test('each structural constant in the parity table matches the code', async () => {
   const lignes = lignesVerifiables(await readFile(doc, 'utf8'));
-  // Sans ce plancher, une expression régulière cassée rendrait un tableau vide, donc un test vert
-  // qui ne vérifie rien. Le compte n'a pas à être exact : il a à ne pas s'effondrer en silence.
+  // Without this threshold, a broken regex would yield an empty array, thus a passing test
+  // verifying nothing. The count does not need to be exact: it must not collapse silently.
   assert.ok(
     lignes.length >= 5,
-    `docs/REFERENCE_UE5.md : ${lignes.length} ligne(s) vérifiable(s), le tableau en portait six`,
+    `docs/REFERENCE_UE5.md: ${lignes.length} verifiable line(s), the table used to carry six`,
   );
   const textes = new Map();
   for (const { grandeur, attendu, fichier, constante } of lignes) {
-    assert.notEqual(attendu, null, `${grandeur} : la colonne « chez nous » n'est pas un nombre`);
+    assert.notEqual(attendu, null, `${grandeur}: the "us" column is not a number`);
     if (!textes.has(fichier))
       textes.set(fichier, await readFile(new URL(fichier, sources), 'utf8'));
     const valeur = valeurConstante(textes.get(fichier), constante);
-    assert.notEqual(valeur, null, `${fichier} : ${constante} introuvable ou non littérale`);
+    assert.notEqual(valeur, null, `${fichier}: ${constante} missing or not a literal`);
     assert.equal(
       valeur,
       attendu,
-      `${grandeur} : ${constante} vaut ${valeur}, le tableau dit ${attendu}`,
+      `${grandeur}: ${constante} is ${valeur}, the table says ${attendu}`,
     );
   }
 });
 
-// Les trois écarts que le §1 déclare sont des faits sur le code, pas des opinions : le jour où l'un
-// d'eux est corrigé, le document ment dans l'autre sens. Le test tient donc aussi ce côté-là.
-test('les écarts déclarés au tableau de parité sont encore vrais', async () => {
+// The three deviations declared in §1 are code facts, not opinions: the day one
+// is fixed, the document lies in the other direction. The test keeps that side covered too.
+test('deviations declared in the parity table are still true', async () => {
   const texte = await readFile(doc, 'utf8');
   const groupes = await readFile(new URL('dag/groups.rs', sources), 'utf8');
   const lib = await readFile(new URL('lib.rs', sources), 'utf8');
-  if (texte.includes('Le plancher de groupe n’est pas appliqué')) {
+  if (
+    texte.includes('Group floor is not applied') ||
+    texte.includes('Le plancher de groupe n’est pas appliqué')
+  ) {
     assert.doesNotMatch(
       groupes,
       /DAG_GROUP_MIN/u,
-      'dag/groups.rs applique désormais le plancher : retirer cet écart de docs/REFERENCE_UE5.md',
+      'dag/groups.rs now applies the floor: remove this discrepancy from docs/REFERENCE_UE5.md',
     );
   }
-  if (texte.includes('`CLUSTER_TRIANGLES = 256` vit encore')) {
+  if (
+    texte.includes('`CLUSTER_TRIANGLES = 256` remains') ||
+    texte.includes('`CLUSTER_TRIANGLES = 256` vit encore')
+  ) {
     assert.match(
       lib,
       /pub const CLUSTER_TRIANGLES:\s*usize\s*=\s*256;/u,
-      'la constante morte a disparu : retirer cet écart de docs/REFERENCE_UE5.md',
+      'the dead constant is gone: remove this discrepancy from docs/REFERENCE_UE5.md',
     );
   }
 });

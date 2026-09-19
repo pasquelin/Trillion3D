@@ -1,23 +1,23 @@
-/** Pages sautées qu'une même écriture couvre plutôt que d'en ouvrir une seconde. */
+/** Skipped pages one write covers rather than opening a second. */
 const RESIDENCY_RANGE_GAP = 64;
-/** Plages au plus par vidange : au-delà, tout est écrit d'un coup. Des milliers de petites écritures
- *  coûtent plus que la seule qu'elles remplacent. */
+/** Ranges at most per flush: beyond that, everything is written at once. Thousands of small writes
+ *  cost more than the one they replace. */
 export const RESIDENCY_RANGE_MAX = 32;
 
 /**
- * Regroupe des index de page croissants en plages contiguës, écrites dans `into` par couples
- * `[premier, dernier]`. Deux plages séparées par moins de `RESIDENCY_RANGE_GAP` pages n'en font
- * qu'une : les pages intermédiaires sont réécrites avec leur valeur actuelle, ce qui ne change rien
- * et évite une seconde écriture. Rend le nombre de plages, ou `1` couvrant tout quand il y en aurait
- * plus que `RESIDENCY_RANGE_MAX`.
+ * Groups increasing page indices into contiguous ranges, written into `into` as `[first, last]`
+ * pairs. Two ranges separated by fewer than `RESIDENCY_RANGE_GAP` pages become one: the in-between
+ * pages are rewritten with their current value, which changes nothing and avoids a second write.
+ * Returns the range count, or `1` covering everything when there would be more than
+ * `RESIDENCY_RANGE_MAX`.
  */
 export function coalesceResidencyRanges(sorted: Int32Array, count: number, into: Int32Array) {
   if (count <= 0) return 0;
   let ranges = 0,
     from = sorted[0],
     to = sorted[0];
-  /** Écrit la plage courante et rend vrai. Rend faux quand il y en aurait une de plus que
-   *  `RESIDENCY_RANGE_MAX` : la seule plage couvrant tout est alors écrite à sa place. */
+  /** Writes the current range and returns true. Returns false when there would be one more than
+   *  `RESIDENCY_RANGE_MAX`: the single range covering everything is then written in its place. */
   const close = () => {
     if (ranges === RESIDENCY_RANGE_MAX) {
       into[0] = sorted[0];

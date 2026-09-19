@@ -50,11 +50,11 @@ export interface WebgpuPagesRuntime {
   layout: WebgpuPagesLayout;
   gpu: WebgpuGpuState;
   vis: WebgpuVisState;
-  /** Les lampes du contrat, leurs listes par tuile et leur atlas d'ombres. */
+  /** Contract lights, their per-tile lists and their shadow atlas. */
   lights: WebgpuLightState;
-  /** Le proxy résident et la grille de sondes de la lumière qui rebondit. */
+  /** Resident proxy and probe grid of bouncing light. */
   bounce: WebgpuBounceState;
-  /** L'ombre du soleil au-delà de la dernière cascade, tirée contre le proxy résident. */
+  /** The sun's shadow beyond the last cascade, traced against the resident proxy. */
   sunFar: WebgpuSunFarState;
   run: WebgpuRunState;
   capture: WebgpuCaptureState;

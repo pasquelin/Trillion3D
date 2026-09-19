@@ -1,8 +1,8 @@
-//! Pilote OBJ, d'après la spécification publiée, lu par ufbx. Le `.mtl` voisin est suivi par le
-//! lecteur lui-même à partir de la ligne `mtllib` du fichier : ce n'est pas une source à part.
+//! OBJ driver, from the published specification, read by ufbx. The neighbouring `.mtl` is followed
+//! by the reader itself from the file's `mtllib` line: it is not a separate source.
 use super::ufbx_driver::UfbxDriver;
 
-/// OBJ est un format texte sans entête : aucun nombre magique ne le reconnaît, seule l'extension.
+/// OBJ is a headerless text format: no magic number recognises it, only the extension.
 pub(super) static OBJ: UfbxDriver = UfbxDriver {
     name: "obj",
     version: "obj-ufbx-0.11.3-gltf-7",

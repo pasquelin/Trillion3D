@@ -1,21 +1,21 @@
 /**
- * De quoi la descente est faite, image par image : sa FRONTIÈRE — les nœuds où elle s'arrête, feuille
- * retenue ou sous-arbre rejeté — et les nœuds INTERNES qu'elle traverse pour y arriver.
+ * What the descent is made of, frame by frame: its FRONTIER — the nodes where it stops, kept
+ * leaf or rejected subtree — and the INTERNAL nodes it walks to get there.
  *
- * C'est la mesure qui décide de la sélection persistante. Une coupe gardée d'une image à l'autre ne
- * peut économiser que les internes : la frontière, elle, doit être réexaminée à chaque image, puisque
- * l'erreur écran de chaque nœud change dès que la caméra bouge. Dans un arbre à `b` enfants les
- * internes valent `frontière / (b-1)`, et c'est donc le plafond de ce qu'une persistance exacte peut
- * rendre. Un nœud rejeté est seul à pouvoir se refermer sur son parent — les deux rejets sont
- * monotones vers le bas, donc un parent rejeté rejette tout son sous-arbre, et réciproquement un nœud
- * retenu a forcément un parent retenu, qu'il est inutile de tester.
+ * That is the measurement that decides persistent selection. A cut kept from one frame to the
+ * next can only save the internals: the frontier itself must be re-examined every frame, because
+ * each node's screen error changes as soon as the camera moves. In a tree with `b` children the
+ * internals equal `frontier / (b-1)`, and that is therefore the ceiling of what exact persistence
+ * can return. A rejected node is the only one that can close back onto its parent — both
+ * rejections are monotone downward, so a rejected parent rejects its whole subtree, and
+ * conversely a kept node necessarily has a kept parent, which is useless to test.
  *
- * Elle compte aussi l'autre moitié du problème : le rejet PAR LE HAUT. Le nœud porte le PLAFOND
- * d'erreur du remplaçant depuis le manifeste — de quoi rejeter un sous-arbre trop fin — et, depuis
- * ce lot, le PLANCHER de l'erreur propre, que `cullingBounds` dérive des pages à la préparation et
- * que `packCullingNodes` range dans le nœud : de quoi rejeter aussi le trop grossier, comme la
- * coupe processeur le fait déjà (`pageSelectionCutNode.ts`). Rien du compilateur, rien du format.
- * Les deux descentes se lancent d'ici pour que la différence soit mesurée, pas déduite.
+ * It also counts the other half of the problem: TOP-DOWN rejection. The node carries the
+ * replacement error CEILING from the manifest — enough to reject a too-fine subtree — and, since
+ * this batch, the own-error FLOOR, which `cullingBounds` derives from the pages at prepare time
+ * and `packCullingNodes` stores in the node: enough to reject the too-coarse as well, as the
+ * CPU cut already does (`pageSelectionCutNode.ts`). Nothing from the compiler, nothing from the
+ * format. Both descents are launched from here so the difference is measured, not deduced.
  */
 import { DAG_NODE_FLOATS, type PackedDag } from './gpuDagTypes.ts';
 import { dagNodeFloor, dagNodeVerdict, dagViewFrames, projectedError } from './gpuDagOracleMath.ts';
@@ -29,21 +29,22 @@ export type Descente = {
   frontiereFeuilles: number;
   frontiereRejetees: number;
   candidats: number;
-  /** Nœuds que le PLANCHER d'erreur du sous-arbre a rejetés, quand `plancher` est demandé. */
+  /** Nodes the subtree error FLOOR rejected, when `plancher` is requested. */
   plancherCoupe: number;
-  /** Candidates réellement trop grossières, page par page : ce que le rejet par le haut VISE. */
+  /** Candidates that are actually too coarse, page by page: what top-down rejection AIMS AT. */
   tropGrossieres: number;
 };
 
 /**
- * La descente du noyau, rejouée au verdict près (`gpuDagLevelWgsl.ts`, `levelStep`), et comptée.
- * Elle ne sert pas à produire une coupe — l'oracle le fait déjà — mais à dire ce que chaque image
- * relit, et sous quelle forme.
+ * The kernel descent, replayed verdict for verdict (`gpuDagLevelWgsl.ts`, `levelStep`), and
+ * counted. It does not produce a cut — the oracle already does — but says what each frame
+ * rereads, and in what form.
  *
- * `plancher` ajoute le rejet PAR LE HAUT et le fait vraiment : l'appelant lance les deux descentes et
- * soustrait. Compter le sous-arbre d'un nœud rejeté aurait surestimé la différence — les rejets plus
- * bas, tronc et plafond, y retirent déjà des pages que la descente n'aurait jamais listées. Le
- * plancher se lit dans le NŒUD EMPAQUETÉ, là où la carte le lit : le rangement est donc mesuré avec.
+ * `plancher` adds TOP-DOWN rejection and actually does it: the caller launches both descents
+ * and subtracts. Counting a rejected node's subtree would overestimate the difference — lower
+ * rejections, frustum and ceiling, already drop pages the descent would never have listed. The
+ * floor is read in the PACKED NODE, where the GPU reads it: packing is therefore measured with
+ * it.
  */
 export function descenteComptee(
   packed: PackedDag,
@@ -52,8 +53,8 @@ export function descenteComptee(
 ): Descente {
   const { nodes } = packed;
   const ints = new Uint32Array(nodes.buffer);
-  // Le prologue par primitive et le verdict par nœud viennent de `gpuDagOracleMath.ts`, écrits une
-  // seule fois pour l'oracle et pour ce comptage : ni l'un ni l'autre ne peut dériver du noyau seul.
+  // The per-primitive prologue and the per-node verdict come from `gpuDagOracleMath.ts`, written
+  // once for the oracle and for this count: neither can drift from the kernel alone.
   const frames = dagViewFrames(packed, uniforms);
   const compte: Descente = {
     visites: 0,
@@ -76,8 +77,8 @@ export function descenteComptee(
         compte.frontiereRejetees++;
         continue;
       }
-      // Le PLANCHER d'erreur du sous-arbre, que le nœud ne porte pas encore comme il porte son
-      // plafond : aucune de ses grappes n'est assez fine, il n'en sortira pas une candidate.
+      // The subtree error FLOOR, which the node does not yet carry as it carries its ceiling:
+      // none of its clusters is fine enough, so no candidate will come out of it.
       if (plancher && dagNodeFloor(frames, nodes, ints, n) > frames.pixelError) {
         compte.plancherCoupe++;
         compte.frontiereRejetees++;
@@ -92,8 +93,8 @@ export function descenteComptee(
       compte.frontiereFeuilles++;
       const at = n * DAG_NODE_FLOATS;
       compte.candidats += ints[at + NODE_PAGE_COUNT];
-      // Ce que le rejet par le haut vise : une grappe dont l'erreur propre dépasse encore le seuil
-      // est trop grossière, la coupe ne la prendra pas, et la descente l'a pourtant listée.
+      // What top-down rejection aims at: a cluster whose own error still exceeds the threshold
+      // is too coarse, the cut will not take it, and the descent listed it anyway.
       for (let p = 0; p < ints[at + NODE_PAGE_COUNT]; p++) {
         const i = ints[at + NODE_FIRST_PAGE] + p,
           w = worldOf(records, i),

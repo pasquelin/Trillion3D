@@ -27,24 +27,23 @@ const viewpoint: ShadowViewpoint & {
 };
 const rectScratch = new Float64Array(4);
 /**
- * Par région : le ciseau qui la borne, puis le cadre de sa face entière. Le cadre est celui de la
- * face et non celui de la région — c'est lui qui décide où un sommet atterrit, et le garder entier
- * est ce qui rend le dessin par pages identique au bit près à un redessin complet. Seul le ciseau
- * change. Alloués une fois pour le budget d'une image.
+ * Per region: the scissor that bounds it, then the viewport of its whole face. The viewport is the
+ * face's, not the region's — it decides where a vertex lands, and keeping it whole is what makes
+ * page drawing bit-identical to a full redraw. Only the scissor changes. Allocated once for an
+ * image's budget.
  */
 export const regionScissor = new Int32Array(MAX_SHADOW_REGIONS * 4);
 export const regionViewport = new Int32Array(MAX_SHADOW_REGIONS * 3);
 const flushedSlices = new Int32Array(MAX_SHADOW_REGIONS);
 
 /**
- * La vue que l'ordonnanceur lit : position, axe, demi-champ vertical, rapport d'image, plans proche
- * et lointain. Les cascades du soleil en dérivent entièrement — elles suivent la caméra et rien
- * d'autre.
+ * View the scheduler reads: position, axis, vertical half-fov, aspect, near and far planes. The
+ * sun's cascades derive entirely from it — they follow the camera and nothing else.
  */
 function shadowViewpointOf(cam: EngineCamera) {
-  // Lues dans la matrice monde que l'entrée d'image a recopiée, ancêtres compris : l'axe est celui
-  // de `Camera.getWorldDirection`, troisième colonne normalisée puis opposée — même division par la
-  // longueur, même signe, mêmes bits.
+  // Read in the world matrix image entry copied, ancestors included: the axis is that of
+  // `Camera.getWorldDirection`, third column normalised then negated — same divide by length, same
+  // sign, same bits.
   const world = cam.world;
   viewpoint.position[0] = cam.eye[0];
   viewpoint.position[1] = cam.eye[1];
@@ -65,9 +64,9 @@ function shadowViewpointOf(cam: EngineCamera) {
 }
 
 /**
- * Choisit les régions d'ombre de cette image — des rectangles de pages, pas des faces entières — et
- * écrit, pour chacune, sa matrice et le volume que le rejet lui oppose. Rend leur nombre ; le
- * rectangle d'atlas de chaque face est déjà réservé par l'ordonnanceur.
+ * Picks this image's shadow regions — page rectangles, not whole faces — and writes, for each, its
+ * matrix and the volume culling opposes to it. Returns their count; each face's atlas rectangle is
+ * already reserved by the scheduler.
  */
 export function planShadowRegions(
   rt: WebgpuPagesRuntime,
@@ -136,8 +135,8 @@ export function planShadowRegions(
     regionViewport[viewport] = faceX;
     regionViewport[viewport + 1] = faceY;
     regionViewport[viewport + 2] = slices.rects[rect + 2];
-    // Les régions d'une même face se suivent : un changement de paire tranche/face est une face de
-    // plus redessinée, et c'est ce que le profil publie à côté des pages.
+    // Regions of the same face follow each other: a change of slice/face pair is one more redrawn
+    // face, and that is what the profile publishes next to the pages.
     if (slice !== lastSlice || face !== lastFace) {
       lastSlice = slice;
       lastFace = face;

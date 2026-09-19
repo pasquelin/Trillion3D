@@ -2,7 +2,7 @@ import { emeraldProvenance, MEASURE_WIDTH, MEASURE_HEIGHT } from '../appui/emera
 import { routeBaseline } from '../appui/emeraldBaseline.mjs';
 import { adresseDuLab } from '../appui/browserFixtureServer.mjs';
 import assert from 'node:assert/strict';
-import { lancerChrome } from '../../scripts/mesure/chrome.mjs';
+import { launchChrome } from '../../scripts/mesure/chrome.mjs';
 import { resolve } from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 const out = resolve(
@@ -13,9 +13,9 @@ const labUrl = adresseDuLab();
 const provenance = await emeraldProvenance(labUrl),
   taa = process.env.WEBGPU_TAA !== 'off';
 await mkdir(out, { recursive: true });
-const browser = await lancerChrome({ headless: true });
+const browser = await launchChrome({ headless: true });
 try {
-  // La fenêtre tient la résolution de relevé, que le canevas soit dimensionné explicitement ou non.
+  // The window holds the measurement resolution, whether the canvas is sized explicitly or not.
   const viewport = { width: MEASURE_WIDTH, height: MEASURE_HEIGHT };
   const page = await browser.newPage({ viewport });
   const errors = [];
@@ -77,7 +77,7 @@ try {
           maxResidentPages: 100000,
           preload: 'visible',
           backends: [benchEngine(id).factory],
-          textureSource: id === 'webgpu-page-raster' ? 'cache' : 'host', // le témoin garde ses images
+          textureSource: id === 'webgpu-page-raster' ? 'cache' : 'host', // the witness keeps its images
           temporalAntialiasing,
 
           clearColor: 0x2a303c,
@@ -88,9 +88,9 @@ try {
         for (const [i, s] of path.entries()) {
           e.setPose(s.pose);
           await e.awaitPages();
-          // Chauffe : un moteur qui publie `frameHeld` rend jusqu'à l'image tenue — un plein cycle
-          // d'images calmes après la dernière arrivée de texture, 64 au plus : à 24, huit poses sur
-          // dix étaient relevées avant convergence —, le témoin quatre images comme toujours.
+          // Warmup: an engine that publishes `frameHeld` renders until the held image — a full
+          // cycle of still frames after the last texture arrival, 64 at most: at 24, eight poses
+          // in ten were recorded before convergence — the witness four frames as always.
           let metrics = { ...e.render() };
           for (let w = 1; w < ('frameHeld' in metrics ? 64 : 4) && !metrics.frameHeld; w++) {
             await e.flush();
@@ -154,7 +154,7 @@ try {
       }
       return { results, events, gpu, userAgent: navigator.userAgent };
     },
-    // `WEBGPU_TAA=off` rend le « avant » du lot Lumière 16, sans gigue ni historique.
+    // `WEBGPU_TAA=off` yields the `--avant` of the Lumiere 16 batch, with no jitter and no history.
     {
       sdkUrl: '/@fs' + resolve('dist/sdk-browser/index.js'),
       temporalAntialiasing: taa,

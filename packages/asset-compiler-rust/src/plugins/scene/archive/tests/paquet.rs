@@ -1,11 +1,11 @@
-//! Le conteneur `.unitypackage` devant un flux gzip qui ne se termine pas comme il le promet.
+//! The `.unitypackage` container facing a gzip stream that does not end as it promises.
 use super::*;
 use crate::plugins::scene::unitypackage::UNITYPACKAGE;
 
-/// Le GUID d'un asset du paquet, tel que l'éditeur en écrit un.
+/// The GUID of a package asset, as the editor writes one.
 const GUID: &str = "00000000000000000000000000000001";
 
-/// Un paquet sain : un dossier de GUID, son chemin cible et ses octets.
+/// A healthy package: a GUID directory, its target path and its bytes.
 fn package() -> Vec<u8> {
     let mut builder = tar::Builder::new(flate2::write::GzEncoder::new(
         Vec::new(),
@@ -20,34 +20,34 @@ fn package() -> Vec<u8> {
         header.set_size(bytes.len() as u64);
         builder
             .append_data(&mut header, format!("{GUID}/{member}"), bytes)
-            .expect("entrée du paquet");
+            .expect("package entry");
     }
     builder
         .into_inner()
-        .expect("fin du tar")
+        .expect("end of tar")
         .finish()
-        .expect("fin du gzip")
+        .expect("end of gzip")
 }
 
-/// Les mêmes octets, dont le pied gzip ment : chaque variante est celle d'un transfert interrompu
-/// ou d'un disque qui a rendu autre chose que ce qu'on lui avait confié.
+/// The same bytes, whose gzip footer lies: each variant is that of an interrupted transfer or of
+/// a disk that returned something other than what it had been given.
 fn damaged(kind: &str) -> Vec<u8> {
     let mut bytes = package();
     let end = bytes.len();
     match kind {
-        // Le flux s'arrête avant son pied : les derniers octets n'ont jamais été écrits.
+        // The stream stops before its footer: the last bytes were never written.
         "tronque" => bytes.truncate(end - 8),
-        // Le condensé du pied ne vaut plus celui des octets décompressés.
+        // The footer's digest no longer matches that of the decompressed bytes.
         "crc" => bytes[end - 8] ^= 0xff,
-        // La taille annoncée par le pied ne vaut plus celle des octets décompressés.
+        // The size announced by the footer no longer matches that of the decompressed bytes.
         _ => bytes[end - 4] ^= 0xff,
     }
     bytes
 }
 
-// Comportement 4 : un paquet sain va jusqu'au routage de ce qu'il porte — ici une image, qu'aucun
-// pilote de scène ne revendique —, et aucune des trois formes de pied menteur n'y arrive : le flux
-// est lu jusqu'au bout, et ce qui ne s'y termine pas est refusé sous le nom des archives illisibles.
+// Behaviour 4: a healthy package reaches routing of what it holds — here an image, which no
+// scene driver claims —, and none of the three lying-footer forms gets there: the stream is
+// read to the end, and what does not finish is refused under the unreadable-archive name.
 #[test]
 fn a_package_whose_gzip_footer_lies_is_refused_as_unreadable() {
     let sain = outcome(
@@ -58,13 +58,13 @@ fn a_package_whose_gzip_footer_lies_is_refused_as_unreadable() {
     );
     assert_eq!(
         sain.code, "SOURCE_FORMAT_UNKNOWN",
-        "le paquet sain se lit entier"
+        "the healthy package reads whole"
     );
     cleanup(sain.dir);
     for kind in ["tronque", "crc", "isize"] {
         let abime = outcome(kind, &UNITYPACKAGE, "abime.unitypackage", &damaged(kind));
-        assert_eq!(abime.code, UNREADABLE, "pied gzip « {kind} »");
-        assert!(extracted(&abime.dir).is_empty(), "pied gzip « {kind} »");
+        assert_eq!(abime.code, UNREADABLE, "gzip footer « {kind} »");
+        assert!(extracted(&abime.dir).is_empty(), "gzip footer « {kind} »");
         cleanup(abime.dir);
     }
 }

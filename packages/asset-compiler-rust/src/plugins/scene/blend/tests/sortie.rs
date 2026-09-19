@@ -1,22 +1,22 @@
-//! Ce que le pilote a produit, lu comme un appelant le lirait : la scène compilée dans un dossier
-//! jetable, puis les valeurs que les tests comparent.
+//! What the driver produced, read as a caller would read it: the scene compiled in a throwaway
+//! directory, then the values the tests compare.
 use super::*;
 use std::sync::atomic::AtomicBool;
 
-/// Compile ces octets par le pilote dans un dossier jetable, et rend le glTF et le manifeste qu'il
-/// a écrits — le manifeste porte les comptes et les codes du rapport.
+/// Compiles these bytes through the driver in a throwaway directory, and yields the glTF and the
+/// manifest it wrote — the manifest carries the counts and the report codes.
 pub(super) fn compiled(bytes: &[u8], tag: &str) -> (Value, Value) {
     let root = std::env::temp_dir().join(format!(
         "wg-blend-{tag}-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .expect("horloge")
+            .expect("clock")
             .as_nanos()
     ));
     let source = root.join("scene.blend");
-    fs::create_dir_all(&root).expect("dossier");
-    fs::write(&source, bytes).expect("écriture");
+    fs::create_dir_all(&root).expect("directory");
+    fs::write(&source, bytes).expect("write");
     let cache = root.join("cache");
     let directory = convert::convert(
         &SceneRequest {
@@ -33,21 +33,21 @@ pub(super) fn compiled(bytes: &[u8], tag: &str) -> (Value, Value) {
         serde_json::from_slice(&fs::read(directory.join(name)).expect(name)).expect(name)
     };
     let pair = (read("model.gltf"), read("manifest.json"));
-    fs::remove_dir_all(&root).expect("nettoyage");
+    fs::remove_dir_all(&root).expect("cleanup");
     pair
 }
 
-/// Le matériau glTF de ce nom, dans une scène compilée.
+/// The glTF material of this name, in a compiled scene.
 pub(super) fn material<'a>(gltf: &'a Value, name: &str) -> &'a Value {
     gltf["materials"]
         .as_array()
         .expect("materials")
         .iter()
         .find(|material| material["name"] == json!(name))
-        .unwrap_or_else(|| panic!("aucun matériau nommé {name}"))
+        .unwrap_or_else(|| panic!("no material named {name}"))
 }
 
-/// Les facteurs d'un matériau glTF, lus en nombres pour être comparés à la tolérance d'un f32.
+/// The factors of a glTF material, read as numbers to be compared to an f32 tolerance.
 pub(super) fn factors(material: &Value, path: &[&str]) -> Vec<f64> {
     let mut found = material;
     for step in path {
@@ -55,9 +55,9 @@ pub(super) fn factors(material: &Value, path: &[&str]) -> Vec<f64> {
     }
     found
         .as_array()
-        .unwrap_or_else(|| panic!("{path:?} n'est pas un tableau: {material}"))
+        .unwrap_or_else(|| panic!("{path:?} is not an array: {material}"))
         .iter()
-        .map(|part| part.as_f64().expect("un nombre"))
+        .map(|part| part.as_f64().expect("a number"))
         .collect()
 }
 

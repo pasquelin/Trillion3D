@@ -1,10 +1,10 @@
 import { validateSceneLight, type SceneLight, type SceneLightStore } from '../sdk-core/index.ts';
 
-/** Le produit de cache des lampes, à côté du manifeste qui le voisine. Sa version lui est propre. */
+/** Lights cache product, next to the neighbouring manifest. Its version is its own. */
 const IMPORTED_LIGHTS_FILE = 'lights.json';
 const IMPORTED_LIGHTS_VERSION = 1;
 
-/** Ce que le cache déclare : la liste des lampes du fichier source et le compte de celles refusées. */
+/** What the cache declares: the source file's light list and the count of those refused. */
 type ImportedLightsFile = {
   version?: number;
   lights?: unknown;
@@ -12,10 +12,10 @@ type ImportedLightsFile = {
 };
 
 /**
- * Lit les lampes que le fichier source portait, converties par le compilateur dans le contrat du
- * moteur. La lecture est tolérante par construction : un cache compilé avant ce produit, un fichier
- * absent, une version inconnue ou un corps illisible valent zéro lampe importée — donc exactement
- * le comportement d'avant, vue `unlit` par défaut. Ce n'est jamais une erreur de préparation.
+ * Reads the lights the source file carried, converted by the compiler into the engine contract.
+ * The read is tolerant by construction: a cache compiled before this product, a missing file, an
+ * unknown version or an unreadable body equal zero imported lights — hence exactly the previous
+ * behaviour, `unlit` view by default. This is never a prepare error.
  */
 export async function loadImportedLights(
   base: string,
@@ -35,8 +35,8 @@ export async function loadImportedLights(
   const lights: SceneLight[] = [];
   const rejected: Record<string, number> = { ...(file.rejected ?? {}) };
   for (const candidate of file.lights) {
-    // Une lampe importée passe la validation publiée du contrat, `validateSceneLight`, celle-là
-    // même que le magasin applique aux lampes de l'hôte : ce chemin n'en tient aucune copie.
+    // An imported light goes through the contract's published validation, `validateSceneLight`,
+    // the same one the store applies to host lights: this path holds no copy of it.
     try {
       lights.push(validateSceneLight(candidate as SceneLight));
     } catch {
@@ -47,9 +47,9 @@ export async function loadImportedLights(
 }
 
 /**
- * Les `room` lampes qui portent le plus loin, rendues dans l'ordre du cache : les directionnelles
- * d'abord, puis les plus fortes par intensité maximale de canal. Le tri de JavaScript est stable,
- * si bien que deux lampes de même portée gardent leur rang d'origine.
+ * The `room` lights that reach farthest, returned in cache order: directionals first, then the
+ * strongest by max channel intensity. JavaScript's sort is stable, so two lights of the same
+ * reach keep their original rank.
  */
 function withinBudget(imported: readonly SceneLight[], room: number): readonly SceneLight[] {
   if (imported.length <= room) return imported;
@@ -68,11 +68,11 @@ function withinBudget(imported: readonly SceneLight[], room: number): readonly S
 }
 
 /**
- * Déclare les lampes importées dans le magasin de la session, à l'ouverture et sans que l'hôte ait
- * rien à faire : une scène importée arrive avec ses lumières. L'ombre vient du drapeau que le
- * fichier portait — le runtime plafonne déjà le nombre de cartes remises à jour par image. Le
- * contrat n'accepte que `maxLights` lampes ; au-delà, les moins portantes sont comptées dans
- * `dropped` et publiées par le diagnostic, jamais silencieusement perdues.
+ * Declares the imported lights in the session store, at open and without the host having to do
+ * anything: an imported scene arrives with its lights. Shadow comes from the flag the file
+ * carried — the runtime already caps the number of maps refreshed per frame. The contract
+ * accepts only `maxLights` lights; beyond that, the least reaching are counted in `dropped` and
+ * published by the diagnostic, never silently lost.
  */
 export function declareImportedLights(
   store: SceneLightStore,

@@ -1,57 +1,57 @@
-//! L'entête DDS et son extension DX10, lus champ par champ depuis la spécification publique de
-//! Microsoft. Les décalages sont ceux des structures `DDS_HEADER` (124 octets après le nombre
-//! magique), `DDS_PIXELFORMAT` (32 octets à l'intérieur) et `DDS_HEADER_DXT10` (20 octets de plus).
+//! The DDS header and its DX10 extension, read field by field from Microsoft's public
+//! specification. Offsets are those of the `DDS_HEADER` (124 bytes after the magic number),
+//! `DDS_PIXELFORMAT` (32 bytes inside it) and `DDS_HEADER_DXT10` (20 more bytes) structures.
 //!
-//! Ce module ne lit aucun pixel : il rend la surface — codec, dimensions, nombre de niveaux et
-//! offset du niveau 0 — ou un refus nommé. Il vérifie aussi que la chaîne de mips annoncée tient
-//! dans le fichier : un DDS qui promet neuf niveaux et n'en porte que deux est tronqué.
+//! This module reads no pixel: it returns the surface — codec, dimensions, level count and
+//! level-0 offset — or a named refusal. It also checks that the announced mip chain fits in
+//! the file: a DDS that promises nine levels and carries only two is truncated.
 use super::codec::{self, Codec};
 use super::{
     CODEC_UNSUPPORTED, DATA_TRUNCATED, HEADER_INVALID, HEADER_TRUNCATED, LAYOUT_UNSUPPORTED, MAGIC,
 };
 use crate::plugins::image::{Transfer, MAX_LEVELS};
 
-/// Fin de `DDS_HEADER` : quatre octets de nombre magique et cent vingt-quatre d'entête.
+/// End of `DDS_HEADER`: four magic-number bytes and one hundred and twenty-four of header.
 const HEADER_END: usize = 128;
-/// Fin de `DDS_HEADER_DXT10`, quand le `dwFourCC` vaut `DX10`.
+/// End of `DDS_HEADER_DXT10`, when `dwFourCC` is `DX10`.
 const DX10_END: usize = HEADER_END + 20;
-/// Taille qu'annoncent les deux structures. Une autre valeur n'est pas un DDS que l'on sait lire.
+/// Size the two structures announce. Any other value is not a DDS we know how to read.
 const HEADER_SIZE: u32 = 124;
 const PIXEL_FORMAT_SIZE: u32 = 32;
-/// `DDSD_PITCH` : `dwPitchOrLinearSize` porte alors le pas de ligne en octets.
+/// `DDSD_PITCH`: `dwPitchOrLinearSize` then carries the line stride in bytes.
 const DDSD_PITCH: u32 = 0x8;
-/// `DDPF_FOURCC` et `DDPF_RGB` : les deux façons dont `DDS_PIXELFORMAT` nomme son contenu.
+/// `DDPF_FOURCC` and `DDPF_RGB`: the two ways `DDS_PIXELFORMAT` names its contents.
 const DDPF_FOURCC: u32 = 0x4;
 const DDPF_RGB: u32 = 0x40;
-/// `DDSCAPS2_CUBEMAP` et `DDSCAPS2_VOLUME` : des dispositions que ce pilote ne déclare pas.
+/// `DDSCAPS2_CUBEMAP` and `DDSCAPS2_VOLUME`: layouts this driver does not declare.
 const DDSCAPS2_CUBEMAP: u32 = 0x200;
 const DDSCAPS2_VOLUME: u32 = 0x0020_0000;
-/// `D3D10_RESOURCE_DIMENSION_TEXTURE2D` : la seule dimension de ressource déclarée.
+/// `D3D10_RESOURCE_DIMENSION_TEXTURE2D`: the only declared resource dimension.
 const TEXTURE_2D: u32 = 3;
-/// `DDS_RESOURCE_MISC_TEXTURECUBE`, et le masque d'alpha de `miscFlags2` avec sa valeur
-/// `DDS_ALPHA_MODE_PREMULTIPLIED` : le contrat d'image demande un alpha droit.
+/// `DDS_RESOURCE_MISC_TEXTURECUBE`, and the `miscFlags2` alpha mask with its
+/// `DDS_ALPHA_MODE_PREMULTIPLIED` value: the image contract asks for straight alpha.
 const MISC_TEXTURECUBE: u32 = 0x4;
 const ALPHA_MODE_MASK: u32 = 0x7;
 const ALPHA_MODE_PREMULTIPLIED: u32 = 2;
 
-/// La surface que le pilote va lire : son codec, sa taille, sa chaîne et où commence le niveau 0.
+/// Surface the driver will read: its codec, its size, its chain and where level 0 starts.
 pub(super) struct Surface {
     pub(super) codec: Codec,
     pub(super) width: u32,
     pub(super) height: u32,
     pub(super) data: usize,
-    /// La fonction de transfert que le fichier déclare. Seul l'entête DX10 la nomme, par la variante
-    /// `_SRGB` ou `_UNORM` de son `dxgiFormat` ; un DDS hérité se tait, et la convention lui prête
-    /// le sRGB — Direct3D 9 n'avait pas de format sRGB, et ses textures de couleur portent la courbe.
+    /// Transfer function the file declares. Only the DX10 header names it, through the `_SRGB`
+    /// or `_UNORM` variant of its `dxgiFormat`; a legacy DDS stays silent, and convention lends
+    /// it sRGB — Direct3D 9 had no sRGB format, and its colour textures carry the curve.
     pub(super) transfer: Transfer,
 }
 
-/// Le mot de trente-deux bits à ce décalage, petit-boutien comme tout le format.
+/// The thirty-two-bit word at this offset, little-endian like the whole format.
 fn word(bytes: &[u8], at: usize) -> u32 {
     u32::from_le_bytes([bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]])
 }
 
-/// La dimension d'un niveau de mip : chaque niveau divise par deux et s'arrête à un pixel.
+/// Dimension of a mip level: each level halves and stops at one pixel.
 fn level_size(size: u32, level: u32) -> u32 {
     (size >> level.min(31)).max(1)
 }
@@ -71,7 +71,7 @@ pub(super) fn parse(bytes: &[u8]) -> std::result::Result<Surface, &'static str> 
     if width == 0 || height == 0 || levels > MAX_LEVELS {
         return Err(HEADER_INVALID);
     }
-    // Profondeur, cube et volume : le pilote ne déclare que la surface plane unique.
+    // Depth, cube and volume: the driver only declares the single planar surface.
     if word(bytes, 24) > 1 || word(bytes, 112) & (DDSCAPS2_CUBEMAP | DDSCAPS2_VOLUME) != 0 {
         return Err(LAYOUT_UNSUPPORTED);
     }
@@ -99,7 +99,7 @@ pub(super) fn parse(bytes: &[u8]) -> std::result::Result<Surface, &'static str> 
     } else {
         return Err(CODEC_UNSUPPORTED);
     };
-    // Un pas de ligne rembourré décalerait chaque ligne : on le refuse au lieu de rendre du bruit.
+    // A padded line stride would shift every line: refuse it instead of returning noise.
     if codec.is_uncompressed()
         && word(bytes, 8) & DDSD_PITCH != 0
         && u64::from(word(bytes, 20)) != u64::from(width) * 4
@@ -116,7 +116,7 @@ pub(super) fn parse(bytes: &[u8]) -> std::result::Result<Surface, &'static str> 
     })
 }
 
-/// L'entête DX10 : dimension de ressource, tableau, cube et mode d'alpha, puis le `dxgiFormat`.
+/// The DX10 header: resource dimension, array, cube and alpha mode, then the `dxgiFormat`.
 fn dx10(bytes: &[u8]) -> std::result::Result<(Codec, Transfer), &'static str> {
     if bytes.len() < DX10_END {
         return Err(HEADER_TRUNCATED);
@@ -133,8 +133,8 @@ fn dx10(bytes: &[u8]) -> std::result::Result<(Codec, Transfer), &'static str> {
     codec::from_dxgi(word(bytes, 128)).ok_or(CODEC_UNSUPPORTED)
 }
 
-/// La chaîne annoncée doit tenir dans ce qui reste du fichier. C'est le seul usage du nombre de
-/// niveaux : on ne lit que le niveau 0, mais on refuse de le lire dans un fichier qui ment.
+/// The announced chain must fit in what remains of the file. That is the only use of the level
+/// count: only level 0 is read, but it is refused in a file that is lying.
 fn chain_fits(
     codec: Codec,
     width: u32,

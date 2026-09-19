@@ -1,10 +1,10 @@
-// L'exécuteur des tests matériels : les sondes de justesse de `test/justesse/` puis les preuves de
-// rendu de `test/browser/`, un par un. Les chemins sont résolus depuis la racine du dépôt, jamais
-// depuis le répertoire courant : la commande donne le même résultat d'où qu'on la lance.
+// The hardware-test runner: correctness probes from `test/justesse/` then render proofs from
+// `test/browser/`, one by one. Paths are resolved from the repo root, never from the current
+// directory: the command gives the same result wherever it is launched from.
 //
-// Les deux dossiers sont découverts par une règle, jamais par une liste tenue à la main : un
-// fichier qu'on oublie d'ajouter ne s'exécute pas, et rien ne le dit. Ce qui ne peut pas tourner
-// ici est déclaré ci-dessous avec son motif — écarté à voix haute, jamais en silence.
+// Both folders are discovered by a rule, never by a hand-held list: a file one forgets to add
+// does not run, and nothing says so. What cannot run here is declared below with its reason —
+// excluded out loud, never in silence.
 import { spawnSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -14,31 +14,31 @@ export const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..');
 const JUSTESSE = 'test/justesse';
 const BROWSER = 'test/browser';
 
-/** Un montage que l'exécuteur ne fournit pas : la preuve est bonne, la machine n'est pas prête. */
-export const MONTAGE = 'montage';
-/** Un défaut du moteur : la preuve échoue parce qu'elle a raison. Chacun porte une ligne de TODO. */
-export const REGRESSION = 'régression';
+/** A setup the runner does not provide: the proof is sound, the machine is not ready. */
+export const MONTAGE = 'setup';
+/** An engine defect: the proof fails because it is right. Each one carries a TODO line. */
+export const REGRESSION = 'regression';
 /**
- * La preuve tient une copie à la main d'un contrat que la source a fait évoluer sans elle. Le moteur
- * est juste, le double a dérivé : il se répare en lisant le contrat au lieu de le recopier.
+ * The proof holds a hand copy of a contract that the source evolved without it. The engine is
+ * correct, the duplicate drifted: it is repaired by reading the contract instead of recopying it.
  */
-export const DOUBLE_PERIME = 'double périmé';
+export const DOUBLE_PERIME = 'stale duplicate';
 
 /**
- * Les preuves de rendu que `pnpm run test:gpu` ne lance pas, et pourquoi. Une entrée `REGRESSION`
- * est une dette ouverte, pas une dispense : elle se retire en corrigeant le moteur.
+ * Render proofs that `pnpm run test:gpu` does not launch, and why. A `REGRESSION` entry is an
+ * open debt, not a waiver: it is removed by fixing the engine.
  */
-/** Les preuves montées sur les pages du Lab : elles prennent son adresse par `LAB_URL`. */
-const SUR_LE_LAB = 'montée sur les pages du Lab (`LAB_URL`)';
+/** Proofs mounted on the Lab pages: they take its address from `LAB_URL`. */
+const SUR_LE_LAB = 'mounted on the Lab pages (`LAB_URL`)';
 export const BROWSER_ECARTES = new Map([
-  ['beaute-webgpu', [MONTAGE, `${SUR_LE_LAB} ; ses assets à recompiler`]],
-  ['emeraude-webgpu', [MONTAGE, `${SUR_LE_LAB} ; à remonter sur le serveur du harnais`]],
-  ['presentation-gpu', [MONTAGE, `${SUR_LE_LAB} ; ses assets à recompiler`]],
+  ['beaute-webgpu', [MONTAGE, `${SUR_LE_LAB}; its assets need recompiling`]],
+  ['emeraude-webgpu', [MONTAGE, `${SUR_LE_LAB}; remount on the harness server`]],
+  ['presentation-gpu', [MONTAGE, `${SUR_LE_LAB}; its assets need recompiling`]],
 ]);
 
 /**
- * Les sondes exécutables de `test/justesse/` : celles dont le nom porte un tiret. Les autres
- * fichiers du dossier sont leurs modules d'appui, importés par elles et jamais lancés seuls.
+ * Executable probes of `test/justesse/`: those whose name carries a hyphen. The other files in
+ * the folder are their support modules, imported by them and never launched alone.
  */
 export function listJustesseTests() {
   return readdirSync(join(RACINE, JUSTESSE))
@@ -47,26 +47,26 @@ export function listJustesseTests() {
     .map((fichier) => `${JUSTESSE}/${fichier}`);
 }
 
-/** Tout `*.browser.mjs` présent sur le disque, écartés compris : la référence du dossier. */
+/** Every `*.browser.mjs` present on disk, excluded ones included: the folder's reference. */
 export function listBrowserFiles() {
   return readdirSync(join(RACINE, BROWSER))
     .filter((fichier) => fichier.endsWith('.browser.mjs'))
     .sort();
 }
 
-/** Les preuves de rendu que l'exécuteur lance : le dossier, moins ce qui est déclaré écarté. */
+/** Render proofs the runner launches: the folder, minus what is declared excluded. */
 export function listBrowserTests() {
   return listBrowserFiles()
     .filter((fichier) => !BROWSER_ECARTES.has(fichier.slice(0, -'.browser.mjs'.length)))
     .map((fichier) => `${BROWSER}/${fichier}`);
 }
 
-/** Ce que la commande n'a pas prouvé, dit avant de lancer quoi que ce soit. */
+/** What the command did not prove, stated before launching anything. */
 export function ecartsRapportes() {
   return [...BROWSER_ECARTES].map(([nom, [genre, motif]]) => `  ${genre} — ${nom} : ${motif}`);
 }
 
-/** Les arguments de `node` : les drapeaux, puis la cible demandée ou la liste complète. */
+/** `node` arguments: the flags, then the requested target or the full list. */
 export function buildTestGpuArgs(cliArgs = []) {
   const flags = ['--experimental-strip-types', '--test', '--test-concurrency=1'];
   if (cliArgs.length > 0) return [...flags, ...cliArgs];
@@ -76,7 +76,7 @@ export function buildTestGpuArgs(cliArgs = []) {
 export function runGpuTests(args = process.argv.slice(2)) {
   if (args.length === 0 && BROWSER_ECARTES.size > 0)
     console.log(
-      `${BROWSER_ECARTES.size} preuves de rendu écartées :\n${ecartsRapportes().join('\n')}\n`,
+      `${BROWSER_ECARTES.size} render proofs excluded:\n${ecartsRapportes().join('\n')}\n`,
     );
   const resultat = spawnSync('node', buildTestGpuArgs(args), { stdio: 'inherit', cwd: RACINE });
   if (resultat.error) throw resultat.error;

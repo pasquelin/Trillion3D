@@ -1,13 +1,13 @@
-// Le témoin Three.js NU : un rendu naïf de la même scène, sans rien du SDK. Ce module est SERVI à la
-// page (montage `/mesure/`) et n'importe que `three`, depuis `/vendor/three/`, donc depuis les
-// dépendances de dev du banc — jamais du moteur. Le jour où les adaptateurs Three quittent
-// `packages/`, cette page ne bouge pas : c'est ce qui la rend indépendante.
+// The BARE Three.js witness: a naive render of the same scene, with nothing of the SDK. This
+// module is SERVED to the page (`/mesure/` mount) and imports only `three`, from `/vendor/three/`,
+// hence from the bench's dev dependencies — never from the engine. The day the Three adapters
+// leave `packages/`, this page does not move: that is what makes it independent.
 //
-// Ce qu'il rend : le glTF source chargé tel quel, `MeshStandardMaterial` de Three, tout dessiné à
-// chaque image sans sélection ni diffusion, les lampes du contrat posées en Three. Ce qu'il ne rend
-// pas, nommé : ni cascades, ni antialiasing temporel, ni rebond, ni instances, ni niveau de détail.
-// La boucle de mesure et ce qu'elle relève sont dans `pageThreeMesure.mjs`.
+// What it renders: the source glTF loaded as-is, Three's `MeshStandardMaterial`, everything drawn
+// every frame with no selection and no streaming, the contract lights placed in Three. What it
+// does not render, named: no cascades, no temporal antialiasing, no bounce, no instances, no
+// level of detail. The measurement loop and what it records are in `pageThreeMesure.mjs`.
 import { mesurerThree } from './pageThreeMesure.mjs';
 
-/** Une vue, un seuil (ignoré : Three n'a pas de seuil), la capture. Même contrat que `measureView`. */
+/** One view, one threshold (ignored: Three has none), the capture. Same contract as `measureView`. */
 export const measureView = (options) => mesurerThree(options);

@@ -5,27 +5,27 @@ import { createPageArena, sharedPagesAllowed } from './pageDecodeShared.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
 import type { PageDecodeAnswer, PageDecodeOp } from '../sdk-core/index.ts';
 
-/** Le plafond d'octets décodés d'une page, identique à celui du chemin synchrone d'origine. */
+/** Decoded-byte ceiling of a page, identical to the original synchronous path. */
 const MAX_DECODED_BYTES = 16 * 1024 * 1024;
 const counters = { tasks: 0, offThread: 0, wasm: 0, decodeMs: 0 };
 let admissionLimit = 1,
   pool: PageDecodePool | undefined;
-/** `undefined` tant que l'épreuve de démarrage n'a pas répondu, puis son verdict. */
+/** `undefined` until the startup check has answered, then its verdict. */
 let started: boolean | undefined;
 
-/** Borne le pool sur l'admission déjà en vigueur pour les transferts de pages. À appeler avant le
- *  premier décodage ; un appel plus tard ne redimensionne pas un pool déjà ouvert. */
+/** Bounds the pool to the admission already in force for page transfers. Call before the
+ *  first decode; a later call does not resize an already-open pool. */
 export function configurePageDecoders(limit: number) {
   admissionLimit = limit;
 }
 
 /**
- * Le pool si son épreuve de démarrage a déjà réussi, `undefined` sinon. L'épreuve est lancée mais
- * **jamais attendue** : tant qu'elle n'a pas répondu, et pour toujours si elle ne répond pas, le
- * décodage reste sur le fil principal. Une page ne dépend donc jamais du démarrage d'un worker, et
- * aucun tampon réel n'est transféré avant qu'un worker ait prouvé qu'il vit — un démarrage raté
- * (plateforme sans `Worker`, module introuvable, dépendance que l'hôte ne sait pas résoudre) laisse
- * à l'appelant ses octets intacts.
+ * The pool if its startup probe has already succeeded, `undefined` otherwise. The probe is
+ * launched but **never awaited**: until it has answered, and always if it does not, decode
+ * stays on the main thread. A page therefore never depends on a worker starting, and no
+ * real buffer is transferred before a worker has proved it lives — a failed start
+ * (platform without `Worker`, missing module, host-unresolved dependency) leaves the
+ * caller its bytes intact.
  */
 function openPool() {
   if (started === false) return undefined;
@@ -37,8 +37,8 @@ function openPool() {
     const cores = (globalThis.navigator as { hardwareConcurrency?: number } | undefined)
       ?.hardwareConcurrency;
     const workers = pageDecodeWorkerCount(cores, admissionLimit);
-    // L'arène n'est allouée que là où la plateforme la permet, et seulement à l'ouverture du pool :
-    // une page qui ne décode jamais rien ne paie pas la mémoire partagée.
+    // The arena is allocated only where the platform allows it, and only at pool open:
+    // a page that never decodes anything does not pay for shared memory.
     pool = createPageDecodePool(
       workers,
       sharedPagesAllowed() ? createPageArena(workers) : undefined,
@@ -48,8 +48,8 @@ function openPool() {
       if (!ok) pool = undefined;
     });
   }
-  // Un pool cassé après son démarrage ne revient pas : ses workers sont partis, et relancer l'épreuve
-  // à chaque page transformerait une panne en boucle. Le repli reprend la main pour de bon.
+  // A pool broken after start does not come back: its workers are gone, and relaunching
+  // the probe on every page would turn a failure into a loop. Fallback takes over for good.
   if (started && !pool.alive) started = false;
   return started ? pool : undefined;
 }
@@ -66,8 +66,8 @@ function count(answer: PageDecodeAnswer, offThread: boolean) {
 function refuse(answer: PageDecodeAnswer): never {
   throw new Error(answer.ok ? 'PAGE_DECODE_FAILED' : answer.message);
 }
-/** Le tampon d'une vue, sans copie quand la vue le couvre en entier — ce que fait toute page du
- *  cache — et une copie sinon : la tâche lit un `ArrayBuffer`, jamais un reste de tampon partagé. */
+/** A view's buffer, without a copy when the view covers it as an integer — what every cache
+ *  page does — and a copy otherwise: the task reads an `ArrayBuffer`, never a leftover shared buffer. */
 function ownBuffer(bytes: Uint8Array) {
   return (
     bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength
@@ -75,7 +75,7 @@ function ownBuffer(bytes: Uint8Array) {
       : bytes.slice().buffer
   ) as ArrayBuffer;
 }
-/** Le repli : la tâche du contrat, la même fonction, exécutée sur le fil principal. */
+/** Fallback: the contract task, the same function, run on the main thread. */
 async function onThread(op: PageDecodeOp, source: ArrayBuffer) {
   const { answer } = await runPageDecodeTask({
     protocol: PAGE_DECODE_PROTOCOL,
@@ -88,9 +88,10 @@ async function onThread(op: PageDecodeOp, source: ArrayBuffer) {
 }
 
 /**
- * L'empreinte SHA-256 d'une page fraîchement lue. **L'appelant cède son tampon** : le worker le
- * reçoit transféré, donc sans copie, et le rend transféré lui aussi. C'est le tampon rendu — celui de
- * la valeur de retour — qu'il faut lire ensuite ; la référence d'origine est détachée.
+ * SHA-256 digest of a freshly read page. **The caller yields its buffer**: the worker
+ * receives it transferred, hence without a copy, and returns it transferred too. It is
+ * the returned buffer — the return value's — that must be read next; the original
+ * reference is detached.
  */
 export async function verifyPageBytes(source: ArrayBuffer) {
   const open = openPool();
@@ -102,13 +103,13 @@ export async function verifyPageBytes(source: ArrayBuffer) {
 }
 
 /**
- * Les indices et les attributs d'une page de géométrie, décodés hors du fil principal quand la
- * plateforme le permet, et par la même fonction sur le fil principal sinon.
+ * Indices and attributes of a geometry page, decoded off the main thread when the
+ * platform allows, and by the same function on the main thread otherwise.
  *
- * Le worker reçoit une copie des octets compressés, et non le tampon du cache : détacher une entrée
- * du cache de pages fausserait sa comptabilité d'octets, que l'éviction lit sur le fil principal
- * pendant l'aller-retour. La copie porte la page compressée ; ce qui revient — les tampons décodés,
- * bien plus gros — est transféré sans copie.
+ * The worker receives a copy of the compressed bytes, not the cache buffer: detaching
+ * a page-cache entry would break its byte accounting, which eviction reads on the
+ * main thread during the round-trip. The copy carries the compressed page; what
+ * comes back — the decoded buffers, much larger — is transferred without a copy.
  */
 export async function decodePageOffThread(
   bytes: Uint8Array,
@@ -125,8 +126,8 @@ export async function decodePageOffThread(
     } finally {
       signal?.removeEventListener('abort', cancel);
     }
-    // Un worker disparu, ou un worker sans décodeur, ne perd rien : les octets compressés sont
-    // restés chez l'appelant, et le fil principal sait faire le même travail.
+    // A vanished worker, or a worker without a decoder, loses nothing: the compressed
+    // bytes stayed with the caller, and the main thread can do the same work.
     if (
       !answer.ok &&
       (answer.code === 'PAGE_DECODE_WORKER' || answer.code === 'PAGE_DECODE_UNAVAILABLE')
@@ -139,8 +140,8 @@ export async function decodePageOffThread(
   return restorePageDecode(answer.decoded);
 }
 
-/** Pages décodées hors fil, pages décodées par le module WebAssembly, temps cumulé des décodages,
- *  taille du pool. `null` quand rien n'a été décodé : une métrique non mesurée n'est pas un zéro. */
+/** Off-thread decoded pages, pages decoded by the WebAssembly module, cumulative decode
+ *  time, pool size. `null` when nothing was decoded: an unmeasured metric is not a zero. */
 export function pageDecodeStats() {
   if (!counters.tasks) return { offThread: null, wasm: null, decodeMs: null, workers: null };
   return {
@@ -151,7 +152,7 @@ export function pageDecodeStats() {
   };
 }
 
-/** Ferme le pool sans couper un décodage en vol et remet les compteurs à leur état non mesuré. */
+/** Closes the pool without cutting an in-flight decode and resets counters to unmeasured. */
 export function releasePageDecoders() {
   pool?.retire();
   pool = undefined;

@@ -1,9 +1,9 @@
-//! Banc de comparaison des calculs du compilateur natif (lot B).
+//! Comparison bench of the native compiler's computations (lot B).
 //!
-//! Pour chaque point optimisé, le banc garde une copie de l'implémentation d'avant (`reference_…`,
-//! aux noms francisés) et la fait tourner sur exactement les mêmes entrées que celle de la
-//! bibliothèque. Il compare d'abord les deux résultats bit à bit, puis mesure la médiane de chacune.
-//! Lancement : `pnpm run bench:calculs:natif`.
+//! For each optimised point, the bench keeps a copy of the previous implementation
+//! (`reference_…`, French names) and runs it on exactly the same inputs as the
+//! library. It first compares both results bit for bit, then measures the median
+//! of each. Launch: `pnpm run bench:calculs:natif`.
 mod b1_monde;
 mod b2_manifeste;
 mod b3_bisection;
@@ -38,35 +38,35 @@ fn rows() -> Vec<Row> {
     rows.extend(b4_capacites::rows());
     rows.push(b5_topologie::row());
     rows.push(b5_page::row());
-    // La table de hachage a été mesurée à 52,0 ms contre 28,8 ms pour le tri global : écartée.
-    // La ligne compare donc la copie du banc à une bibliothèque inchangée et sert de témoin.
+    // The hash table was measured at 52.0 ms against 28.8 ms for the global sort: dropped.
+    // The row therefore compares the bench copy to an unchanged library and is the control.
     rows.push(b6_adjacence::row().ecarte(
-        "table de hachage mesurée à 52,0 ms contre 28,8 ms pour le tri global, sans SmallVec que \
-         le verrou de Cargo.lock interdit : changement écarté, la ligne est le témoin du banc",
+        "hash table measured at 52.0 ms against 28.8 ms for the global sort, without SmallVec \
+         which the Cargo.lock lock forbids: change dropped, the row is the bench control",
     ));
     rows.push(Row::note(
-        "B7 digests SHA-256 réutilisés",
+        "B7 reused SHA-256 digests",
         "compiler_primitive*.rs",
-        "reporté : le seul recalcul est la relecture d'un objet déjà en cache, qui valide \
-         l'entrée persistée",
+        "deferred: the only recomputation is re-reading an object already in cache, which \
+         validates the persisted entry",
     ));
     rows.push(Row::note(
-        "B8 CornerHasher par mots de 32 bits",
+        "B8 CornerHasher by 32-bit words",
         "import.rs",
-        "déjà fait : write_u32 est déjà redéfini",
+        "already done: write_u32 is already redefined",
     ));
     rows.push(b9_vecteurs::row().ecarte(
-        "l'écart entre la copie du banc et la bibliothèque change de signe d'une exécution à \
-         l'autre : aucun gain à prouver, les attributs n'ont pas été posés",
+        "the gap between the bench copy and the library changes sign from one run to \
+         another: no gain to prove, the attributes were not applied",
     ));
     rows.push(h3_proxy::row());
     rows.extend(formules());
     rows
 }
 
-/// Lot F — équivalence des formules factorisées dans `shared_math.rs`. Ces lignes ne cherchent pas
-/// un gain : elles prouvent que le seul exemplaire restant rend les mêmes bits que chaque copie
-/// qu'il remplace, valeurs hostiles comprises. Une ligne « non » vaut retour en arrière.
+/// Lot F — equivalence of the formulas factored into `shared_math.rs`. These rows
+/// do not seek a gain: they prove that the one remaining copy yields the same bits
+/// as each copy it replaces, hostile values included. A "no" row means rollback.
 fn formules() -> Vec<Row> {
     let mut rows = vec![
         f_boites::row_points(),
@@ -78,21 +78,22 @@ fn formules() -> Vec<Row> {
     ];
     for row in &mut rows {
         if row.note.is_empty() {
-            row.note = "factorisation à résultat identique : aucun gain attendu".into();
+            row.note = "factorisation to identical result: no gain expected".into();
         }
     }
     rows.push(Row::note(
         "F7 secondes vers millisecondes (elapsed_ms)",
         "shared_math.rs",
-        "hors banc : l'entrée est une durée mesurée, jamais deux fois la même ; la formule est le \
-         seul `as_secs_f64() * 1000.0` du compilateur, déplacé sans changement",
+        "off-bench: the input is a measured duration, never twice the same; the formula is the \
+         compiler's only `as_secs_f64() * 1000.0`, moved unchanged",
     ));
     rows
 }
 
-/// Les points du lot G portés par le compilateur natif. Leurs lignes sont déposées au format des
-/// fragments du banc JavaScript : `scripts/mesure/calculs/agrege-g.mjs` assemble les douze points
-/// du lot en un seul tableau, sans distinguer ce qui vient de Rust de ce qui vient de Node.
+/// Lot G points carried by the native compiler. Their rows are written in the
+/// JavaScript bench fragment format: `scripts/mesure/calculs/agrege-g.mjs` assembles
+/// the twelve points of the lot into one table, without distinguishing what comes
+/// from Rust from what comes from Node.
 #[test]
 #[ignore]
 fn bench_calculs_g() {
@@ -110,7 +111,7 @@ fn bench_calculs_g() {
         .filter(|row| row.identique == Some(false))
         .map(|row| row.calcul.as_str())
         .collect();
-    assert!(ecarts.is_empty(), "résultats différents : {ecarts:?}");
+    assert!(ecarts.is_empty(), "different results: {ecarts:?}");
 }
 
 #[test]
@@ -121,11 +122,11 @@ fn bench_calculs() {
     rapport::write(&measured);
     let (total, path) = fixture::run();
     println!("\n{table}");
-    println!("Fixtures dorées : {total:.1} ms au total, relevé dans {path}\n");
+    println!("Golden fixtures: {total:.1} ms in total, survey in {path}\n");
     let ecarts: Vec<&str> = measured
         .iter()
         .filter(|row| row.identique == Some(false))
         .map(|row| row.calcul.as_str())
         .collect();
-    assert!(ecarts.is_empty(), "résultats différents : {ecarts:?}");
+    assert!(ecarts.is_empty(), "different results: {ecarts:?}");
 }

@@ -1,18 +1,18 @@
 use super::*;
 
-/// Section des niveaux progressifs : une entrée de longueur fixe par texture couleur décodée, et
-/// une plage d'octets à elle dans la colonne des pixels.
+/// Progressive levels section: one fixed-length entry per decoded color texture, and
+/// its own byte range in pixel column.
 ///
-/// Une entrée nomme la texture et l'image de `source.gltf` qu'elle couvre, les dimensions de la
-/// source, le genre de provenance — 0 pour une `uri`, 1 pour une vue de tampon dont l'index suit —
-/// puis le rang du premier niveau porté, leur nombre, le début et la longueur de ses pixels, l'atlas
-/// qu'elle sert — 0 couleur, 1 données — et le nombre de niveaux cuits en fichiers sous
+/// Entry names texture and `source.gltf` image it covers, source
+/// dimensions, origin kind — 0 for `uri`, 1 for buffer view whose index follows —
+/// then rank of first carried level, count, pixel start and length, atlas
+/// it serves — 0 color, 1 data — and count of levels baked into files under
 /// `textures/<sha>/`, du 0 au `baked - 1`.
-/// L'`uri` elle-même n'est pas recopiée : elle se lit dans `images[image]`, que l'entrée nomme, et
-/// la dupliquer serait deux vérités. Les niveaux, eux, ne sont pas décrits un par un : leurs
-/// dimensions se redéduisent des dimensions de la source, si bien qu'un lecteur recalcule la
-/// géométrie annoncée au lieu de la croire. Les entrées sont strictement croissantes par index de
-/// texture puis par atlas, et leurs plages se suivent sans trou, ce qu'un lecteur revérifie.
+/// `uri` itself not copied: read from `images[image]` named by entry,and
+/// duplicating it would create two truths. Levels not described one by one: their
+/// dimensions re-deduced from source dimensions, so reader recomputes
+/// declared geometry instead of trusting it. Entries strictly increasing by texture index
+/// then atlas, ranges contiguous without gaps, re-checked by reader.
 pub(super) fn encode_previews(previews: &[TexturePreview], columns: &mut [Column]) -> Result<()> {
     let mut previous: Option<(u32, u32)> = None;
     let mut offset: u32 = 0;

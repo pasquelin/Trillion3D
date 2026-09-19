@@ -1,12 +1,12 @@
 import type { GpuShadowAtlas } from './gpuShadowAtlas.ts';
 
-/** Ce qu'une lecture de l'atlas d'ombres publie : sa taille, ce qui y est écrit, son empreinte. */
+/** What a shadow-atlas read publishes: its size, what is written there, its fingerprint. */
 export interface ShadowAtlasDigest {
   size: number;
   texels: number;
-  /** Texels dont la profondeur n'est pas le zéro d'origine : ce que les cartes occupent réellement. */
+  /** Texels whose depth is not the origin zero: what the maps actually occupy. */
   written: number;
-  /** Empreinte FNV-1a 32 bits des profondeurs brutes, bit pour bit. */
+  /** 32-bit FNV-1a fingerprint of the raw depths, bit for bit. */
   hash: number;
 }
 
@@ -14,15 +14,14 @@ const OFFSET = 0x811c9dc5,
   PRIME = 0x01000193;
 
 /**
- * Lit l'atlas d'ombres de profondeur et en rend l'empreinte, bit pour bit.
+ * Reads the depth shadow atlas and returns its fingerprint, bit for bit.
  *
- * C'est l'outil de preuve du dessin par pages : deux exécutions de la même scène, l'une redessinant
- * les faces entières et l'autre seulement les pages invalidées, doivent rendre **la même empreinte**.
- * La lecture n'a de sens qu'une fois la file d'attente vide — une page encore en attente porte
- * évidemment l'ancienne profondeur.
+ * This is the proof tool of the page draw: two runs of the same scene, one redrawing whole faces
+ * and the other only the invalidated pages, must return **the same fingerprint**. The read only
+ * makes sense once the queue is empty — a page still pending obviously carries the old depth.
  *
- * Ce n'est pas une passe de l'image : elle alloue son tampon, lit, et le rend. Rien de tout cela ne
- * se produit tant que l'hôte ne le demande pas.
+ * This is not a frame pass: it allocates its buffer, reads, and returns it. None of that happens
+ * until the host asks for it.
  */
 export async function readShadowAtlasDigest(
   device: GPUDevice,
@@ -45,7 +44,7 @@ export async function readShadowAtlasDigest(
     device.queue.submit([encoder.finish()]);
     await buffer.mapAsync(GPUMapMode.READ);
     const words = new Uint32Array(buffer.getMappedRange());
-    // La longueur est lue avant `unmap` : celui-ci détache le tampon et la mettrait à zéro.
+    // Length is read before `unmap`: that detaches the buffer and would zero it.
     const texels = words.length;
     let hash = OFFSET,
       written = 0;

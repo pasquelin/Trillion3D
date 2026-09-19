@@ -1,48 +1,48 @@
 import { LIGHT_SETTINGS, type ShadowViewpoint } from './sceneLightContracts.ts';
 
-/** La sphère qu'une cascade couvre, et la boîte que sa carte dessine, toutes deux en mètres. */
+/** Sphere a cascade covers, and the box its map draws, both in metres. */
 interface SunCascade {
   center: [number, number, number];
   radius: number;
-  /** Centre de la boîte de la projection : ce à quoi le rejet rapporte la région qu'il découpe. */
+  /** Centre of the projection box: what reject reports the region it cuts to. */
   boxCenter: [number, number, number];
 }
 
 /**
- * Le plan proche de la caméra, au plancher d'un millimètre : une vue qui déclare zéro, ou moins,
- * n'ouvre pas la découpe sur une distance nulle. Le plancher n'est écrit qu'ici, et la distance
- * d'ombre ci-dessous le relit plutôt que d'en garder le sien.
+ * Camera near plane, at a one-millimetre floor: a view that declares zero, or less,
+ * does not open the split on a zero distance. The floor is written only here, and the shadow
+ * distance below rereads it rather than keeping its own.
  */
 function cameraNearMetres(view: ShadowViewpoint) {
   return Math.max(1e-3, view.near);
 }
 
 /**
- * La distance d'ombre du soleil : la borne au-delà de laquelle aucune cascade ne teste plus rien.
- * C'est une fraction publiée du lointain de la caméra, tenue au-dessus de son plan proche pour que
- * la découpe garde un intervalle à partager même quand la vue n'en laisse aucun.
+ * Sun shadow distance: the bound beyond which no cascade tests anything.
+ * It is a published fraction of the camera far, held above its near plane so that
+ * the split keeps an interval to share even when the view leaves none.
  */
 function sunShadowFarMetres(view: ShadowViewpoint) {
   return Math.max(cameraNearMetres(view) * 1.001, view.far * LIGHT_SETTINGS.sunShadowFarFraction);
 }
 
 /**
- * Les bornes des cascades le long de l'axe de la caméra : une suite géométrique, la seule qui donne
- * la même erreur relative partout, donc la même densité de texels d'une cascade à l'autre. La
- * dernière borne est la distance d'ombre, une fraction publiée du lointain.
+ * Cascade bounds along the camera axis: a geometric sequence, the only one that gives
+ * the same relative error everywhere, hence the same texel density from one cascade to the next. The
+ * last bound is the shadow distance, a published fraction of the far.
  *
- * La découpe ne part plus du plan proche de la caméra, qui vaut un dix-millième du lointain : la
- * suite géométrique y prenait un rapport de quatorze par cascade, et les deux premières se
- * perdaient sous le mètre ; un mélange avec une suite uniforme les rattrapait, au prix de coutures
- * déséquilibrées — deux fois entre les premières, près de cinq fois avant la dernière. Le plancher
- * est maintenant chiffré par le rapport publié : `distance d'ombre / rapport^cascades`, et la suite
- * est géométrique de bout en bout. Une caméra dont le plan proche dépasse ce plancher garde le sien,
- * et le rapport n'en est que plus serré.
+ * The split no longer starts from the camera near plane, which is a ten-thousandth of the far: the
+ * geometric sequence took a ratio of fourteen per cascade there, and the first two
+ * vanished under a metre; a mix with a uniform sequence caught them up, at the cost of unbalanced
+ * seams — twice between the first ones, nearly five times before the last. The floor
+ * is now figured from the published ratio: `shadow distance / ratio^cascades`, and the sequence
+ * is geometric end to end. A camera whose near plane exceeds this floor keeps its own,
+ * and the ratio is only tighter.
  *
- * La première borne, elle, reste le plan proche de la caméra : le plancher redistribue les bornes
- * intérieures, il ne creuse aucun trou sous le nez de l'observateur. La sphère de la première
- * cascade est dominée par sa borne lointaine, si bien que la couvrir depuis le plan proche ne lui
- * coûte presque aucun texel.
+ * The first bound, for its part, remains the camera near plane: the floor redistributes the inner
+ * bounds, it digs no hole under the observer's nose. The first cascade's
+ * sphere is dominated by its far bound, so covering it from the near plane
+ * costs it almost no texel.
  */
 function sunCascadeSplits(view: ShadowViewpoint, out: Float64Array) {
   const count = LIGHT_SETTINGS.sunCascades;
@@ -55,8 +55,8 @@ function sunCascadeSplits(view: ShadowViewpoint, out: Float64Array) {
 }
 
 const splits = new Float64Array(LIGHT_SETTINGS.sunCascades + 1);
-/** Ce dont `splits` dépend, tel qu'il était au dernier calcul : les deux distances de la vue et les
- *  trois réglages de la découpe. `pretes` distingue « jamais calculé » d'un `NaN` gardé. */
+/** What `splits` depends on, as it was at the last calculation: the two view distances and the
+ *  three split settings. `pretes` distinguishes "never computed" from a kept `NaN`. */
 let pretes = false,
   vuNear = 0,
   vuFar = 0,
@@ -65,10 +65,10 @@ let pretes = false,
   vuRatio = 0;
 
 /**
- * Les bornes de la vue courante, recalculées seulement si la vue ou la découpe ont changé. Elles ne
- * dépendent ni de la face ni du soleil : les quatre cascades d'une image les partagent, là où
- * chacune refaisait les quatre `Math.pow` pour retrouver les mêmes nombres. `Object.is` compare,
- * donc `-0` et `NaN` sont traités comme le calcul les traiterait.
+ * Bounds of the current view, recomputed only if the view or the split have changed. They
+ * depend on neither the face nor the sun: the four cascades of a frame share them, where
+ * each used to redo the four `Math.pow` to recover the same numbers. `Object.is` compares,
+ * so `-0` and `NaN` are treated as the calculation would treat them.
  */
 function splitsDe(view: ShadowViewpoint) {
   const count = LIGHT_SETTINGS.sunCascades,
@@ -101,10 +101,10 @@ const cascade: SunCascade = {
 };
 
 /**
- * La sphère circonscrite au tronc de caméra entre deux distances, centrée sur l'axe de la vue. Une
- * sphère, et non la boîte exacte, parce qu'elle ne dépend pas de l'orientation du soleil : la carte
- * garde alors la même emprise quand la caméra tourne, donc la même densité de texels et aucun
- * scintillement de bord. C'est l'approximation nommée de la cascade (P5).
+ * Sphere circumscribed to the camera frustum between two distances, centred on the view axis. A
+ * sphere, not the exact box, because it does not depend on the sun's orientation: the map
+ * then keeps the same extent when the camera turns, hence the same texel density and no
+ * edge shimmer. This is the named cascade approximation (P5).
  */
 function frustumSphere(view: ShadowViewpoint, near: number, far: number) {
   const tanY = Math.tan(view.halfFovY),
@@ -123,12 +123,12 @@ function frustumSphere(view: ShadowViewpoint, near: number, far: number) {
 }
 
 /**
- * La cascade `index` d'une lampe directionnelle : sa sphère, puis la boîte que sa carte dessine —
- * la sphère reculée vers le soleil de `sunCascadeDepthScale` rayons, pour que ce qui se tient entre
- * la cascade et le soleil y projette son ombre. Le centre est aligné sur la grille de texels de la
- * carte : sans cet alignement, un pas de caméra d'un demi-texel ferait frémir tous les contours.
+ * Cascade `index` of a directional light: its sphere, then the box its map draws —
+ * the sphere pulled back toward the sun by `sunCascadeDepthScale` radii, so that what sits between
+ * the cascade and the sun casts its shadow there. The centre is aligned on the map's texel
+ * grid: without that alignment, a camera step of half a texel would make every contour shiver.
  *
- * L'objet rendu est réutilisé d'un appel à l'autre : l'ordonnanceur n'alloue rien par image.
+ * The returned object is reused from one call to the next: the scheduler allocates nothing per frame.
  */
 export function sunCascadeOf(
   view: ShadowViewpoint,
@@ -141,13 +141,13 @@ export function sunCascadeOf(
   const texel = (2 * radius) / Math.max(1, side);
   for (let a = 0; a < 3; a++) {
     const value = view.position[a] + view.forward[a] * distance;
-    // L'alignement se fait sur les axes du monde : ceux de la carte tournent avec la cascade, ceux
-    // du monde ne bougent jamais, et c'est la stabilité d'une image à l'autre qu'on cherche.
+    // Alignment is on the world axes: those of the map turn with the cascade, those
+    // of the world never move, and it is frame-to-frame stability that is sought.
     cascade.center[a] = Math.round(value / texel) * texel;
   }
   cascade.radius = radius;
-  // Boîte de la projection : côté `2r`, profondeur `(depthScale + 1)·r`, donc un centre reculé de
-  // `(depthScale − 1)·r/2` vers le soleil par rapport au centre de la sphère.
+  // Projection box: side `2r`, depth `(depthScale + 1)·r`, hence a centre pulled back by
+  // `(depthScale − 1)·r/2` toward the sun relative to the sphere centre.
   const back = (radius * (LIGHT_SETTINGS.sunCascadeDepthScale - 1)) / 2;
   for (let a = 0; a < 3; a++) cascade.boxCenter[a] = cascade.center[a] - axis[a] * back;
   return cascade;

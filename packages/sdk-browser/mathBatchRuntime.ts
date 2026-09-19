@@ -7,25 +7,25 @@ import {
 import { f64, joue, taille, tampon, vuesF64, type MathLot } from './mathBatchLot.ts';
 
 /**
- * Les deux lots de départ : la transformation de boîtes et le produit de matrices 4×4, les deux
- * opérations dont le coût du moteur est proportionnel au nombre d'éléments. `mathBatchLot.ts` porte
- * le tampon, l'exécution chronométrée et la forme commune.
+ * Initial two batches: box transformation and 4×4 matrix product, both operations
+ * whose engine cost is proportional to element count. `mathBatchLot.ts` holds buffer,
+ * timed execution, and common shape.
  *
- * Les tampons sont exposés en ACCESSEURS et non en champs figés : chaque lecture redemande les vues
- * au tampon, qui les reconstruit si la mémoire du module a grandi entre-temps. Un appelant écrit
- * donc toujours dans des octets vivants, sans jamais savoir qu'une croissance a eu lieu.
+ * Buffers are exposed via ACCESSORS rather than fixed fields: each read re-queries views from
+ * buffer, which rebuilds them if module memory grew in between. A caller thus always writes
+ * to live bytes without needing to know that memory growth occurred.
  */
 
-/** Les noms sous lesquels le gouverneur tient ses médianes, et les clés du relevé publié. */
+/** Names under which governor holds medians, and keys of published report. */
 const BOX_TRANSFORM_BATCH = 'boxTransformBatch';
 const MULTIPLY_MATRIX4_BATCH = 'multiplyMatrix4Batch';
 
 export interface BoxTransformLot extends MathLot {
-  /** `6 · n` nombres : les boîtes d'entrée, `minX, minY, minZ, maxX, maxY, maxZ` par élément. */
+  /** `6 · n` numbers: input boxes, `minX, minY, minZ, maxX, maxY, maxZ` per element. */
   readonly boxes: Float64Array;
-  /** `16 · n` nombres : les matrices colonne-major. */
+  /** `16 · n` numbers: column-major matrices. */
   readonly mats: Float64Array;
-  /** `6 · n` nombres : les boîtes transformées. */
+  /** `6 · n` numbers: transformed boxes. */
   readonly out: Float64Array;
 }
 
@@ -35,15 +35,17 @@ export interface MultiplyLot extends MathLot {
   readonly out: Float64Array;
 }
 
-/** Un lot de `n` boîtes transformées par `n` matrices. */
+/** A batch of `n` boxes transformed by `n` matrices. */
 export async function createBoxTransformLot(n: number): Promise<BoxTransformLot> {
   const { wasm, blocs, release } = await tampon([
     { type: 'f64', longueur: n * BOX_VALUES },
     { type: 'f64', longueur: n * MATRIX_VALUES, pas: MATRIX_VALUES },
     { type: 'f64', longueur: n * BOX_VALUES },
   ]);
-  const [entree, matrices, sortie] = blocs().map((bloc) => bloc.offset);
-  const wasmRun = wasm ? () => wasm.math_box_transform_batch(sortie, entree, matrices, n) : null;
+  const [inputOffset, matrices, outputOffset] = blocs().map((bloc) => bloc.offset);
+  const wasmRun = wasm
+    ? () => wasm.math_box_transform_batch(outputOffset, inputOffset, matrices, n)
+    : null;
   return {
     n,
     shared: wasm !== null,
@@ -67,12 +69,14 @@ export async function createBoxTransformLot(n: number): Promise<BoxTransformLot>
   };
 }
 
-/** Un lot de `n` produits `out[i] = a[i] · b[i]`. */
+/** A batch of `n` products `out[i] = a[i] · b[i]`. */
 export async function createMultiplyLot(n: number): Promise<MultiplyLot> {
   const demande = { type: 'f64', longueur: n * MATRIX_VALUES, pas: MATRIX_VALUES } as const;
   const { wasm, blocs, release } = await tampon([demande, demande, demande]);
-  const [gauche, droite, sortie] = blocs().map((bloc) => bloc.offset);
-  const wasmRun = wasm ? () => wasm.math_multiply_matrix4_batch(sortie, gauche, droite, n) : null;
+  const [gauche, droite, outputOffset] = blocs().map((bloc) => bloc.offset);
+  const wasmRun = wasm
+    ? () => wasm.math_multiply_matrix4_batch(outputOffset, gauche, droite, n)
+    : null;
   return {
     n,
     shared: wasm !== null,

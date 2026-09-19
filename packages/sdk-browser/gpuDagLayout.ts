@@ -1,32 +1,32 @@
 /**
- * La disposition compacte de la coupe, écrite une fois par le rangement et relue par deux lecteurs :
- * le nuanceur (`gpuDagShader.ts`, `gpuDagRecordWgsl.ts`) et l'oracle (`gpuDagOracle*.ts`). Les deux
- * passent par ce seul module, si bien qu'aucun rang de champ n'est écrit deux fois — c'est ce qui
- * garantit que l'oracle rend le même verdict que la carte graphique, au bit près.
+ * Compact cut layout, written once by packing and reread by two readers: the shader
+ * (`gpuDagShader.ts`, `gpuDagRecordWgsl.ts`) and the oracle (`gpuDagOracle*.ts`). Both
+ * go through this module alone, so no field rank is written twice — that is what
+ * guarantees the oracle returns the same verdict as the GPU, to the bit.
  *
- * Deux enregistrements par grappe, séparés par ce que l'image relit :
+ * Two records per cluster, split by what the frame rereads:
  *
- * - le chaud (`CLUSTER_WORDS` mots, tampon `clusters`) ne porte que ce que les cinq passes d'une
- *   image lisent toutes : la sphère de la grappe et celle de son parent, les deux erreurs, la
- *   primitive et les drapeaux — niveau compris, dans leurs bits hauts ;
- * - le froid (`COLD_WORDS` mots, tampon `pageCones`) porte ce que la seule passe d'ouverture lit :
- *   le cône normal, la boîte, et l'adresse du nœud de coupe qui possède la page, dont seul l'oracle
- *   se sert pour rejouer la descente.
+ * - hot (`CLUSTER_WORDS` words, `clusters` buffer) only holds what all five passes of
+ *   a frame read: the cluster sphere and its parent's, both errors, the primitive and
+ *   the flags — level included, in their high bits;
+ * - cold (`COLD_WORDS` words, `pageCones` buffer) holds what the open pass alone reads:
+ *   the normal cone, the box, and the address of the cut node that owns the page, which
+ *   only the oracle uses to replay descent.
  *
- * La résidence prolonge le froid en bits, un mot pour trente-deux pages : les passes qui la lisent
- * n'ont plus à traverser un enregistrement de quarante-huit octets pour un seul drapeau, et l'hôte
- * n'en réécrit que les mots que ses changements touchent.
+ * Residency extends the cold as bits, one word for thirty-two pages: passes that read
+ * it no longer walk a forty-eight-byte record for a single flag, and the host only
+ * rewrites the words its changes touch.
  */
 
-/** Mots de l'enregistrement chaud ; le nuanceur déclare `struct Cluster` avec exactement ces champs. */
+/** Words of the hot record; the shader declares `struct Cluster` with exactly these fields. */
 export const CLUSTER_WORDS = 12;
-/** Mots de l'enregistrement froid ; `PAGE_CONE_FLOATS` de `gpuSelection.ts` en est le miroir public. */
+/** Words of the cold record; `PAGE_CONE_FLOATS` in `gpuSelection.ts` is the public mirror. */
 const COLD_WORDS = 13;
 export const CLUSTER_ROOT = 1,
   CLUSTER_NEVER = 2,
-  /** La grappe est en mélange : sa part des triangles est comptée à part, comme sur le processeur. */
+  /** The cluster is blended: its triangle share is counted apart, as on the CPU. */
   CLUSTER_TRANSPARENT = 4;
-/** Le niveau de détail voyage dans les bits hauts des drapeaux : une seule passe le lit, à l'émission. */
+/** Detail level travels in the flags' high bits: a single pass reads it, at emit. */
 export const CLUSTER_LEVEL_SHIFT = 8;
 const CLUSTER_LEVEL_MAX = 0xffffff;
 
@@ -48,36 +48,37 @@ export function packClusterFlags(
 export const clusterLevel = (flags: number) => flags >>> CLUSTER_LEVEL_SHIFT;
 
 /**
- * Le PLAFOND du relevé, en rangs, pour chacune de ses deux moitiés.
+ * Readout CAP, in ranks, for each of its two halves.
  *
- * Le tampon de relevé était taillé sur `pageCount` — le pire cas, une coupe qui retiendrait le
- * catalogue entier —, et la copie d'image en emportait la totalité : 15,2 Mo par image à 1 992 187
- * grappes, pour une coupe qui en retient de l'ordre du centième. Mesuré sur apple metal-3
- * (`test/justesse/releve-coupe-gpu.mjs`) : 1,17 ms par image pour le relevé complet contre 0,52 ms
- * pour un relevé plafonné, quand les noyaux eux-mêmes en coûtent 0,99.
+ * The readout buffer was sized on `pageCount` — the worst case, a cut that would keep
+ * the whole catalogue — and the frame copy took all of it: 15.2 MiB per frame at
+ * 1,992,187 clusters, for a cut that keeps about a hundredth. Measured on apple metal-3
+ * (`test/justesse/releve-coupe-gpu.mjs`): 1.17 ms per frame for the full readout vs
+ * 0.52 ms for a capped readout, when the kernels themselves cost 0.99.
  *
- * Le plafond est LARGE devant une coupe réelle : le même banc retient 7 812 rangs de 1 992 187 à
- * seuil 64, 31 250 à seuil 16. Un dépassement reste donc possible — une caméra posée dans la
- * géométrie à seuil minuscule — et il est DIT : le noyau pose le bit de débordement, le relevé est
- * déclaré tronqué et l'image repasse par la coupe processeur, qui sait choisir un sous-ensemble
- * représentable. Jamais un relevé tronqué n'est adopté comme s'il était entier.
+ * The cap is WIDE next to a real cut: the same bench keeps 7,812 ranks of 1,992,187 at
+ * threshold 64, 31,250 at threshold 16. Overflow remains possible — a camera placed in
+ * the geometry at a tiny threshold — and it is SAID: the kernel sets the overflow bit,
+ * the readout is declared truncated and the frame falls back to the CPU cut, which
+ * knows how to pick a representable subset. A truncated readout is never adopted as if
+ * it were whole.
  */
 export const SELECTION_LIST_CAP = 262144;
-/** Le plafond d'une scène : jamais plus que son catalogue, qu'aucune coupe ne peut dépasser. */
+/** Cap of a scene: never more than its catalogue, which no cut can exceed. */
 export const selectionListCap = (pageCount: number) =>
   Math.min(Math.max(0, pageCount), SELECTION_LIST_CAP);
 
 /**
- * L'entête du relevé, en mots, devant chacune de ses deux moitiés.
+ * Readout header, in words, in front of each of its two halves.
  *
- * Les quatre premiers sont ceux de toujours — le compte, le rejet par le tronc, le niveau atteint,
- * les drapeaux. Les quatre suivants portent les TOTAUX DE TRIANGLES, que le processeur sommait
- * jusqu'ici en parcourant la différence de coupe (`webgpuCutCounts.ts`). Ils sont tenus par les
- * noyaux, là où le verdict est prononcé : `dagWanted` sait ce que la coupe retient, `dagMask` sait
- * ce qui part au dessin et ce qui manque. Leur relation reste `selected − drawn − uncovered = 0`.
+ * The first four are the usual — count, trunk reject, reached level, flags. The next
+ * four carry the TRIANGLE TOTALS, which the CPU used to sum by walking the cut
+ * difference (`webgpuCutCounts.ts`). The kernels hold them where the verdict is
+ * spoken: `dagWanted` knows what the cut keeps, `dagMask` knows what goes to draw
+ * and what is missing. Their relation stays `selected − drawn − uncovered = 0`.
  *
- * C'est la condition pour que le relevé cesse un jour de porter des LISTES : un total tenu par la
- * carte survit à la disparition de la liste dont il était somme.
+ * That is the condition for the readout to one day stop carrying LISTS: a total
+ * held by the GPU survives the disappearance of the list it was the sum of.
  */
 export const SELECTION_HEADER_WORDS = 8;
 export const OUT_COUNT = 0,
@@ -90,10 +91,10 @@ export const OUT_COUNT = 0,
   OUT_UNCOVERED_TRIANGLES = 7;
 
 /**
- * Les quatre totaux de triangles posés dans l'entête, dans l'ordre que CE fichier fixe. `dagMask`
- * les y écrit sur la carte (`gpuDagTotalsWgsl.ts`) ; tout ce qui tient lieu de carte doit les y
- * écrire pareil, sans quoi l'adoption — qui lit la carte d'abord — prendrait un entête vide pour
- * une image sans triangles.
+ * The four triangle totals placed in the header, in the order THIS file fixes. `dagMask`
+ * writes them on the GPU (`gpuDagTotalsWgsl.ts`); anything that stands in for the GPU
+ * must write them the same way, or else adoption — which reads the GPU first — would
+ * take an empty header for a frame without triangles.
  */
 export function writeTriangleTotals(
   ints: Uint32Array,
@@ -110,32 +111,32 @@ export function writeTriangleTotals(
   ints[OUT_UNCOVERED_TRIANGLES] = totaux.uncoveredTriangles ?? 0;
 }
 
-/** Premier mot de la résidence, derrière l'enregistrement froid de toutes les grappes. */
+/** First residency word, behind the cold record of every cluster. */
 export const residentBase = (pageCount: number) => pageCount * COLD_WORDS;
-/** Mots de résidence : un bit par grappe, trente-deux grappes par mot. */
+/** Residency words: one bit per cluster, thirty-two clusters per word. */
 export const residentWords = (pageCount: number) => (Math.max(0, pageCount) + 31) >>> 5;
 export const residentBit = (bits: Uint32Array, base: number, page: number) =>
   (bits[base + (page >>> 5)] & (1 << (page & 31))) !== 0;
 
-/** Rangs des champs chauds, dans l'ordre où `struct Cluster` du nuanceur les déclare. */
+/** Hot field ranks, in the order `struct Cluster` of the shader declares them. */
 export const HOT_SPHERE = 0,
   HOT_PARENT_SPHERE = 4,
   HOT_LOD_ERROR = 8,
   HOT_PARENT_ERROR = 9,
   HOT_WORLD = 10,
   HOT_FLAGS = 11;
-/** Rangs des champs froids, dans l'ordre où `gpuDagRecordWgsl.ts` les lit au mot. */
+/** Cold field ranks, in the order `gpuDagRecordWgsl.ts` reads them by word. */
 export const COLD_CONE = 0,
   COLD_MIN = 4,
   COLD_HAS_BOX = 7,
   COLD_MAX = 8,
   COLD_OWNER = 11,
-  /** Les triangles de la grappe, lus au mot ENTIER : ce sont eux que les totaux accumulent. */
+  /** Cluster triangles, read as an INTEGER word: those are what the totals accumulate. */
   COLD_TRIANGLES = 12;
 
 /**
- * Les quatre vues d'un rangement : le décodeur unique que l'oracle et le double de tampon partagent.
- * Aucun rang n'est réécrit chez eux, donc aucun ne peut y diverger de celui que la carte lit.
+ * The four views of a packing: the single decoder the oracle and the buffer double share.
+ * No rank is rewritten on their side, so none can diverge from the one the GPU reads.
  */
 export type DagRecords = {
   hot: Float32Array;
@@ -158,13 +159,13 @@ export function dagRecords(packed: {
 
 export const worldOf = (r: DagRecords, i: number) => r.hotInts[i * CLUSTER_WORDS + HOT_WORLD];
 export const flagsOf = (r: DagRecords, i: number) => r.hotInts[i * CLUSTER_WORDS + HOT_FLAGS];
-/** Le nœud de coupe qui possède la page : au froid, car seul l'oracle rejoue la descente. */
+/** Cut node that owns the page: on the cold, because only the oracle replays descent. */
 export const ownerOf = (r: DagRecords, i: number) => r.coldInts[i * COLD_WORDS + COLD_OWNER];
 export const hasBoxOf = (r: DagRecords, i: number) => r.cold[i * COLD_WORDS + COLD_HAS_BOX];
-/** Les triangles de la grappe, au mot entier : `trianglesOf` du nuanceur en est le miroir. */
+/** Cluster triangles, as an integer word: the shader's `trianglesOf` is the mirror. */
 export const trianglesOf = (r: DagRecords, i: number) =>
   r.coldInts[i * COLD_WORDS + COLD_TRIANGLES];
-/** `at` vaut 0 pour la bande de la grappe, 1 pour celle de son parent : mêmes couples qu'au nuanceur. */
+/** `at` is 0 for the cluster's band, 1 for its parent's: same pairs as in the shader. */
 export const bandError = (r: DagRecords, i: number, at: number) =>
   r.hot[i * CLUSTER_WORDS + (at === 0 ? HOT_LOD_ERROR : HOT_PARENT_ERROR)];
 export const bandSphere = (r: DagRecords, i: number, at: number) =>
@@ -184,8 +185,8 @@ export function coneInto(r: DagRecords, i: number, cone: { axis: number[]; angle
 }
 
 /**
- * La colonne de résidence rendue à l'oracle, un mot par grappe : ce que les doubles de tampon lisent
- * dans le même tampon froid que le nuanceur, au lieu d'un rang recopié chez eux.
+ * Residency column returned to the oracle, one word per cluster: what the buffer
+ * doubles read in the same cold buffer as the shader, instead of a rank copied on their side.
  */
 export function residentFlags(bits: Uint32Array, pageCount: number) {
   const base = residentBase(pageCount);

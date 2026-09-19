@@ -21,48 +21,47 @@ test('sdk-core excludes browser, UI and filesystem dependencies', async () => {
   }
 });
 
-// LA FRONTIÈRE DU CONTRAT DE POSE CAMÉRA (`packages/sdk-browser/cameraWorld.ts`).
+// THE CAMERA POSE CONTRACT BOUNDARY (`packages/sdk-browser/cameraWorld.ts`).
 //
-// Le moteur ne possède pas la caméra : l'hôte la lui tend, et elle peut être l'enfant d'un rig que
-// personne d'autre que lui ne remonte. Un module qui résout la pose lui-même, ou qui lit une pose
-// LOCALE de caméra, décrit alors une autre caméra que celle depuis laquelle l'image est dessinée.
-// Ces trois listes sont la frontière : hors d'elles, la pose ne se lit que par le contrat. Y ajouter
-// un fichier est une décision, pas un oubli — c'est ce qui manquait quand `explorerFrameDiagnostic`
-// s'est mis à publier `camera.position`.
+// The engine does not own the camera: the host hands it over, and it may be the child of a rig
+// that nobody else ascends. A module that resolves the pose itself, or reads a LOCAL camera pose,
+// then describes a different camera than the one from which the frame is rendered.
+// These three lists are the boundary: outside them, pose is read only through the contract. Adding
+// a file is a decision, not an oversight.
 
-/** Qui a le droit de RÉSOUDRE une pose monde, et pour quel sujet. */
+/** Who is allowed to RESOLVE a world pose, and for which subject. */
 const RESOLVENT = {
-  'cameraWorld.ts': 'le contrat lui-même : la seule résolution de pose caméra du paquet',
-  'sceneLighting.ts': 'cible de lampe, pas de caméra',
-  'webgpuPagesTransform.ts': 'sous-arbre de scène déplacé par l’hôte, pas de caméra',
+  'cameraWorld.ts': 'the contract itself: the package’s only camera-pose resolution',
+  'sceneLighting.ts': 'light target, not a camera',
+  'webgpuPagesTransform.ts': 'scene subtree moved by the host, not a camera',
 };
 
-/** Qui a le droit de toucher une pose LOCALE de caméra, ou de la résoudre par un accesseur Three. */
+/** Who is allowed to touch a LOCAL camera pose, or resolve it via a Three accessor. */
 const POSE_LOCALE = {
-  'cameraWorld.ts': 'le contrat : c’est lui qui traduit la pose locale en pose monde',
-  'explorerCamera.ts': 'l’hôte POSE sa caméra ; la pose locale est ce qu’il écrit',
-  'explorerCameraApi.ts': 'aller-retour d’hôte : `homePose` rend ce que `setCameraPose` réécrit',
-  'explorerHostState.ts': 'l’hôte restaure la pose locale qu’il avait enregistrée',
-  'gpuDagOraclePredicates.ts': 'l’oracle POSE une caméra sans parent depuis une position monde',
-  'pageSelectionDagFixture.ts': 'monteur de scène de test : il pose la caméra',
-  'pageSelectionBlendFixture.ts': 'monteur de scène de test : il pose la caméra',
-  'visibilityBufferFixture.ts': 'monteur de scène de test : il pose la caméra',
-  'webgpuCutRepriseFixture.ts': 'monteur de scène de test : il pose la caméra',
-  'pagesBackendScenes.ts': 'monteur de scène de test : il pose la caméra',
-  'webgpuPagesTestScenes.ts': 'monteur de scène de test : il pose la caméra',
+  'cameraWorld.ts': 'the contract: it is what translates local pose into world pose',
+  'explorerCamera.ts': 'the host POSES its camera; the local pose is what it writes',
+  'explorerCameraApi.ts': 'host round-trip: `homePose` returns what `setCameraPose` rewrites',
+  'explorerHostState.ts': 'the host restores the local pose it had recorded',
+  'gpuDagOraclePredicates.ts': 'the oracle POSES a parentless camera from a world position',
+  'pageSelectionDagFixture.ts': 'test scene builder: it poses the camera',
+  'pageSelectionBlendFixture.ts': 'test scene builder: it poses the camera',
+  'visibilityBufferFixture.ts': 'test scene builder: it poses the camera',
+  'webgpuCutRepriseFixture.ts': 'test scene builder: it poses the camera',
+  'pagesBackendScenes.ts': 'test scene builder: it poses the camera',
+  'webgpuPagesTestScenes.ts': 'test scene builder: it poses the camera',
 };
 
 /**
- * Qui LIT la pose monde résolue, et par où elle lui arrive.
+ * Who READS the resolved world pose, and how it reaches them.
  *
- * Depuis le lot M3b, le chemin par image ne lit plus la pose sur une caméra de l'hôte : l'entrée
- * d'image la recopie UNE FOIS dans la caméra du moteur (`readCameraWorld`), et tout l'aval lit cette
- * structure — `test/integration/moteur-sans-three.test.mjs` interdit à ces fichiers d'importer la bibliothèque hôte.
- * Il ne reste donc ici que le contrat et l'oracle qui parcourt le graphe de l'hôte.
+ * Since batch M3b, the per-frame path no longer reads the pose on a host camera: per-frame input
+ * copies it ONCE into the engine camera (`readCameraWorld`), and downstream reads this structure —
+ * `test/integration/moteur-sans-three.test.mjs` forbids these files from importing host library.
+ * Only the contract and the oracle traversing host graph remain here.
  */
 const LISENT_LA_POSE = {
-  'cameraWorld.ts': 'le contrat',
-  'pageRaster.ts': 'oracle raster du graphe hôte — résout (appelable seule)',
+  'cameraWorld.ts': 'the contract',
+  'pageRaster.ts': 'host-graph raster oracle — resolves (callable alone)',
 };
 
 const RESOUT = /\.updateWorldMatrix\s*\(/;
@@ -72,29 +71,29 @@ const POSE_DIRECTE = new RegExp(
 );
 const POSE_MONDE = new RegExp(`${RECEVEUR}\\??\\.matrixWorld(?:Inverse)?\\b`);
 
-/** Les lignes qui déclenchent un motif, commentaires exclus : un commentaire cite, il ne lit pas. */
+/** Lines triggering a pattern, comments excluded. */
 const lignesFautives = (text, motif) =>
   text
     .split('\n')
     .filter((line) => !/^\s*(?:\/\/|\*|\/\*)/.test(line) && motif.test(line))
     .map((line) => line.trim());
 
-test('la pose de la caméra ne se lit que par le contrat `cameraWorld.ts`', async () => {
+test('camera pose is read only through the `cameraWorld.ts` contract', async () => {
   const fichiers = (await readdir(browser)).filter(
     (name) => name.endsWith('.ts') && !name.endsWith('.test.ts'),
   );
-  assert.ok(fichiers.length > 100, 'le paquet navigateur doit être trouvé');
+  assert.ok(fichiers.length > 100, 'the browser package must be found');
   const fuites = [];
   for (const file of fichiers) {
     const text = await readFile(new URL(file, browser), 'utf8');
     for (const [motif, permis, faute] of [
-      [RESOUT, RESOLVENT, 'résout la pose lui-même au lieu d’appeler `resolveCameraWorld`'],
-      [POSE_DIRECTE, POSE_LOCALE, 'touche la pose locale d’une caméra hors du contrat'],
-      [POSE_MONDE, LISENT_LA_POSE, 'lit la pose monde sans être un consommateur déclaré'],
+      [RESOUT, RESOLVENT, 'resolves the pose itself instead of calling `resolveCameraWorld`'],
+      [POSE_DIRECTE, POSE_LOCALE, 'touches a camera local pose outside the contract'],
+      [POSE_MONDE, LISENT_LA_POSE, 'reads world pose without being a declared consumer'],
     ]) {
       if (permis[file]) continue;
       for (const ligne of lignesFautives(text, motif)) fuites.push(`${file} ${faute} : ${ligne}`);
     }
   }
-  assert.deepEqual(fuites, [], `frontière du contrat déclarée dans ${import.meta.url}`);
+  assert.deepEqual(fuites, [], `contract boundary declared in ${import.meta.url}`);
 });

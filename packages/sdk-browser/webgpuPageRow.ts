@@ -20,18 +20,18 @@ import {
 
 export const ROW_ID_BASE_WORD = 27,
   ROW_HIZ_SLOT_WORD = 31;
-/** Mot où vit l'adressage des cartes de la page, un quartet chacune (`visibilityWrapModes.ts`).
- *  Il occupe un des mots de remplissage de la fiche : la fiche ne grossit pas d'un octet. */
+/** Word that holds wrap addressing for the page's maps, one nibble each (`visibilityWrapModes.ts`).
+ *  It occupies one of the row's padding words: the row does not grow by a byte. */
 export const ROW_WRAP_MODES_WORD = 61;
-/** Le mot de la fiche qui porte le placement de la ligne (`PageInfo.placement`). */
+/** Row word that carries the line's placement (`PageInfo.placement`). */
 export const ROW_PLACEMENT_WORD = 62;
-/** Mot de la ligne où vit le nombre d'indices que la page dessine : ce que la carte lit pour la
- *  dessiner, et donc le seul compte de sommets qu'un parcours d'image a besoin de relire. */
+/** Row word that holds how many indices the page draws: what the GPU reads to draw it, and so the
+ *  only vertex count an image walk needs to reread. */
 export const ROW_INDEX_WORDS = 25;
 /**
- * Le socle d'identifiant d'une ligne du tableau de pages : son rang décalé des bits du triangle,
- * zéro restant libre pour le fond. La première écriture d'une ligne et le retassage qui la déplace
- * le reposent tous les deux ; deux écritures de la même valeur, une seule formule.
+ * Identifier base of a page-table row: its rank shifted by the triangle bits, leaving zero free for
+ * the background. The first write of a row and the compact that moves it both rest on it; two writes
+ * of the same value, one formula.
  */
 export const packedRowBase = (row: number) => ((row + 1) << VIS_TRIANGLE_BITS) >>> 0;
 type GeometryBlock = {
@@ -55,7 +55,7 @@ export function createPageRowWriter({
   dataLayer,
   markRowDirty,
 }: PageRowResources) {
-  // Ce que le catalogue fixe une fois pour toutes ne se recalcule pas à chaque page qui arrive.
+  // What the catalogue fixes once and for all is not recomputed for every arriving page.
   const constants = createPageRowConstants();
   return (
     rec: PageRec,
@@ -121,15 +121,14 @@ export function createPageRowWriter({
     floats[base + 54] = mat.normalScaleY;
     floats[base + 55] = rec.role === 'coarse' ? 1 : 0;
     floats[base + 56] = 0;
-    // Unités de profondeur à ajouter pour la couche coplanaire de ce cluster — la profondeur du
-    // moteur est inversée : zéro pour la couche 0, une seule source de calcul pour le chemin
-    // matériel comme pour le raster logiciel.
+    // Depth units to add for this cluster's coplanar layer — engine depth is reversed: zero for
+    // layer 0, one calculation source for the hardware path and the software raster alike.
     ints[base + 60] = depthLayerUnits(rec.depthLayer);
-    // Chaque carte adresse sa texture dans son propre mode : la couleur peut se répéter là où les
-    // normales se serrent, et le nuanceur lit le quartet de la carte qu'il échantillonne.
+    // Each map addresses its texture in its own wrap mode: colour may repeat where normals clamp,
+    // and the shader reads the nibble of the map it samples.
     ints[base + ROW_WRAP_MODES_WORD] = material.wrap;
-    // Le placement de la ligne : la passe temporelle y lit la matrice de mouvement du pixel. Une
-    // page sans placement n'existe pas dans une disposition WebGPU : c'est un invariant, pas zéro.
+    // Row placement: the temporal pass reads the pixel motion matrix there. A page without a
+    // placement does not exist in a WebGPU layout: that is an invariant, not zero.
     if (rec.placementIndex === undefined) throw new Error('PAGE_PLACEMENT_MISSING');
     ints[base + ROW_PLACEMENT_WORD] = rec.placementIndex;
     markRowDirty(row);

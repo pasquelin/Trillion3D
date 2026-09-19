@@ -36,16 +36,16 @@ export function submitColorCopy(
   presented = false,
 ) {
   const { run, gpu, timing, capture, context } = rt;
-  // La variante hors écran ne touche la chaîne d'échange d'aucune façon : ni cible de composition,
-  // ni passe de présentation séparée. C'est ce qui isole ce que « Présentation » contient vraiment.
+  // The off-screen variant does not touch the swap chain in any way: neither a composition target
+  // nor a separate presentation pass. That is what isolates what Presentation actually contains.
   const offscreen = composesOffscreen(context.diagnosticGpuVariant);
   if (!presented && !offscreen && gpu.presenter && gpu.colorTexture && !capture.secondaryCamera) {
     gpu.presenter.present(encoder, gpu.colorTexture, width, height);
     run.gpuDrawCalls++;
   }
   const owned = encoder === timing.frameEncoder;
-  // Le retour d'image des textures part avec l'image : la cible où les pixels ont posé leurs
-  // demandes est réduite en compteurs, copiés vers leur lecture puis remis à zéro.
+  // Texture image feedback leaves with the image: the target where pixels posted their requests is
+  // reduced to counts, copied to their readback then zeroed.
   if (!capture.secondaryCamera && gpu.feedbackView)
     rt.vis.textures?.publishRequests(
       encoder,
@@ -53,15 +53,15 @@ export function submitColorCopy(
       gpu.targetSize,
       run.textureConverging,
     );
-  // La soumission est chronométrée seule : l'encodage qui la précède ne la porte plus.
+  // Submit is timed alone: the encode that precedes it no longer carries it.
   const submitStart = performance.now();
   const command = encoder.finish();
   device.queue.submit([command]);
   timing.lastQueueSubmitMs = performance.now() - submitStart;
-  // Les compteurs d'une image relevée ne se mappent qu'une fois l'image qui les a copiés soumise.
+  // Counts of a sampled image are mapped only once the image that copied them is submitted.
   rt.vis.gpuPartition?.countsSubmitted();
   if (!capture.secondaryCamera) rt.vis.textures?.feedback.submitted();
-  // Idem pour les compteurs de l'ombre lointaine : leur copie ne se mappe qu'une fois soumise.
+  // Same for the far-shadow counts: their copy is mapped only once submitted.
   rt.sunFar.gpu?.submitted();
   run.imageRevision++;
   if (owned) {
@@ -77,8 +77,8 @@ export function submitColorCopy(
     width,
     height,
     drawCalls: run.gpuDrawCalls,
-    // Compteur synchrone de la coupe, tenu là où le trou l'est : rien n'attend ici le retour du
-    // compte de la carte, et la garde qui le masquait ne portait donc sur rien.
+    // Synchronous cut count, held where the hole is: nothing here waits for the GPU count readback,
+    // so the guard that hid it covered nothing.
     drawnTriangles: run.drawnTriangles,
     transparent: { drawCalls: run.blendDrawCalls, submittedTriangles: run.blendSubmittedTriangles },
     presentation: capture.secondaryCamera

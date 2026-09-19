@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // =====================================================================================
-// Le rapport global d'une campagne : un seul fichier HTML, lisible sans serveur, qui met tous les
-// relevés de `campagne.mjs` en regard — une colonne par scène de référence, l'image entière par
-// vue, les résolutions, les passes, les étapes, les portes, la lumière, la mémoire, la fidélité,
-// les autres moteurs, la référence — et dit ce que les chiffres orientent.
+// The global report of a campaign: a single HTML file, readable without a server, that
+// puts every reading of `campagne.mjs` side by side — one column per reference scene, the
+// whole image per view, resolutions, passes, stages, gates, lighting, memory, fidelity,
+// the other engines, the reference — and says what the figures point to.
 //
 //   node scripts/mesure/rapportGlobal.mjs [--dossier .mesure/out/global]
 //
-// Aucun chiffre n'est calculé hors des relevés ; ce qui manque est écrit « non mesuré ».
+// No figure is computed outside the readings; what is missing is written "unmeasured".
 // =====================================================================================
 import { writeFileSync } from 'node:fs';
 import { hostname, cpus, totalmem } from 'node:os';
@@ -56,7 +56,7 @@ const lacunesDe = (ex) => {
       );
   }
   const bruyants = ex
-    .flatMap((e) => e.releves)
+    .flatMap((e) => e.readings)
     .filter((r) => r.temoinAA && r.temoinAA.pixels > r.temoinAA.total * 0.01);
   if (bruyants.length)
     items.push(
@@ -158,13 +158,13 @@ const sections = [
   },
 ];
 
-const sortie = join(dossier, 'rapport.html');
+const output = join(dossier, 'rapport.html');
 writeFileSync(
-  sortie,
+  output,
   page({
     titre: 'The engine, measured',
-    sousTitre: `Full campaign on ${scenes.map((s) => s.nom).join(', ')} — ${jouees.length} runs, ${tous.reduce((n, e) => n + e.releves.length, 0)} samples`,
+    sousTitre: `Full campaign on ${scenes.map((s) => s.name).join(', ')} — ${jouees.length} runs, ${tous.reduce((n, e) => n + e.releves.length, 0)} samples`,
     sections,
   }),
 );
-console.log(`Report: ${sortie}`);
+console.log(`Report: ${output}`);

@@ -31,8 +31,8 @@ function findMarkdownFiles(root) {
     }
     for (const entry of entries) {
       const full = join(dir, entry.name);
-      // Le nom seul ne suffit pas : une exclusion peut porter un chemin (`test/assets`), et le
-      // corpus hors dépôt ne doit pas être parcouru sous prétexte qu'il s'appelle `assets`.
+      // Name alone is not enough: an exclusion can carry a path (`test/assets`), and corpus
+      // outside the repo must not be traversed under the pretext that it is named `assets`.
       if (excludedDirs.has(entry.name) || excludedDirs.has(relative(root, full))) continue;
       if (entry.isDirectory()) walk(full);
       else if (entry.isFile() && entry.name.endsWith('.md')) results.push(full);
@@ -92,8 +92,8 @@ function splitTarget(t) {
   }
   const query = path.indexOf('?');
   if (query !== -1) path = path.slice(0, query);
-  // `chemin.ts:42` ou `chemin.ts:42:7` : la ligne et la colonne désignent un endroit du fichier,
-  // pas un autre fichier. Seul le chemin doit exister.
+  // `path.ts:42` or `path.ts:42:7`: line and column designate a location inside the file,
+  // not another file. Only the path must exist.
   path = path.replace(/(:\d+){1,2}$/, '');
   return { path, fragment };
 }

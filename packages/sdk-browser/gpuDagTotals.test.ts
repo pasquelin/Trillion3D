@@ -1,11 +1,11 @@
-// Les totaux de triangles ont changé de côté : le processeur les sommait en parcourant la différence
-// de coupe (`webgpuCutCounts.ts`), la carte les tient désormais dans `dagMask` (`gpuDagTotalsWgsl.ts`).
+// Triangle totals have switched sides: the CPU used to sum them by walking the cut delta
+// (`webgpuCutCounts.ts`), the GPU now holds them in `dagMask` (`gpuDagTotalsWgsl.ts`).
 //
-// Ce test tient les deux moitiés du contrat :
-// ① l'invariant que le processeur documentait — `selected − drawn − uncovered = 0` — sur une image
-//    où la résidence creuse VRAIMENT un trou, sans quoi il se vérifierait sur zéro ;
-// ② l'accord avec la somme processeur, là où les deux définitions coïncident : une coupe dont toutes
-//    les pages dessinables ont leurs octets et leur ligne. C'est ce qui autorise à retirer la somme.
+// This test holds both halves of the contract:
+// ① the invariant the CPU documented — `selected − drawn − uncovered = 0` — on a frame where
+//    residency REALLY digs a hole, without which it would hold on zeros;
+// ② agreement with the CPU sum, where the two definitions coincide: a cut whose every drawable
+//    page has its bytes and its row. That is what authorises dropping the sum.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -23,20 +23,20 @@ import type { PageRec } from './pageSelection.ts';
 
 const VIEWPORT: [number, number] = [1280, 720];
 
-/** La scène du comptage de frontière, dont chaque page porte un compte de triangles variable, et
- *  dont une sur sept est en mélange : sans cela, `transparentTriangles` s'accorderait sur zéro. */
+/** The frontier-count scene, whose every page carries a varying triangle count, and of which one
+ *  in seven is blended: without that, `transparentTriangles` would agree on zero. */
 function scene(seuil: number, z = 16) {
   const pages = scenePages(4096, 8).map((page, i) => ({ ...page, transparent: i % 7 === 0 }));
   const roots = sceneRoots(pages, [new THREE.Matrix4()], true);
   const packed = packDagSelection(roots);
   const uni = uniforms(seuil, z);
-  // Le noyau travaille dans le repère de rendu : sans rebasage, vue relative et monde absolu se
-  // mêleraient et la coupe serait vide — elle le serait en silence, ce qui vérifierait tout sur rien.
+  // The kernel works in the render frame: without rebasing, a relative view and an absolute world
+  // would mix and the cut would be empty — silently, which would check everything on nothing.
   packedWorldsToRenderOrigin(packed, roots, uni.cameraWorld);
   return { pages, packed, uni };
 }
 
-/** Le catalogue que la somme processeur lit : mêmes rangs que la coupe, mêmes triangles. */
+/** The catalogue the CPU sum reads: same ranks as the cut, same triangles. */
 const catalogue = (pages: ReturnType<typeof scene>['pages']) =>
   pages.map(
     (page, id) =>
@@ -57,40 +57,37 @@ function uniforms(seuil: number, z = 16) {
   return cameraSelectionUniforms(cameraMoteur(camera), seuil, VIEWPORT);
 }
 
-test('les trois totaux sont pris sur la coupe dessinable entière, trou compris', () => {
+test('the three totals are taken on the full drawable cut, hole included', () => {
   const { pages, packed, uni } = scene(1);
-  // Une page sur trois résidente : la coupe voudra dessiner ce qui manque, et le trou sera réel.
+  // One page in three resident: the cut will want to draw what is missing, and the hole will be real.
   const resident = Uint32Array.from({ length: packed.pageCount }, (_, id) => (id % 3 ? 0 : 1));
   const releve = evaluateDagSelectionKernel(packed, uni, resident);
   const { selectedTriangles, drawnTriangles, uncoveredTriangles, drawablePageIds } = releve;
-  assert.ok(
-    uncoveredTriangles! > 0,
-    'la résidence doit creuser un trou, sinon l’invariant est vide',
-  );
-  assert.ok(drawnTriangles! > 0, 'et l’image doit quand même dessiner');
+  assert.ok(uncoveredTriangles! > 0, 'residency must dig a hole, otherwise the invariant is empty');
+  assert.ok(drawnTriangles! > 0, 'and the frame must still draw');
   assert.equal(selectedTriangles! - drawnTriangles! - uncoveredTriangles!, 0);
-  // `drawn` est exactement la somme des pages que le relevé déclare dessinables — ni plus, ni moins.
+  // `drawn` is exactly the sum of the pages the readback declares drawable — no more, no less.
   const somme = (ids: readonly number[]) =>
     ids.reduce((total, id) => total + (pages[id].triangles as number), 0);
   assert.equal(drawnTriangles, somme(drawablePageIds!));
 });
 
-test('la part en mélange est prise sur le même ensemble que le total', () => {
+test('the blended share is taken on the same set as the total', () => {
   const { pages, packed, uni } = scene(1);
   const releve = evaluateDagSelectionKernel(packed, uni);
   const dessinables = releve.drawablePageIds!;
   const attendu = dessinables
     .filter((id) => pages[id].transparent)
     .reduce((total, id) => total + (pages[id].triangles as number), 0);
-  assert.ok(attendu > 0, 'la scène doit porter des grappes en mélange');
+  assert.ok(attendu > 0, 'the scene must carry blended clusters');
   assert.equal(releve.transparentTriangles, attendu);
-  assert.ok(releve.transparentTriangles! < releve.selectedTriangles!, 'et pas toutes');
+  assert.ok(releve.transparentTriangles! < releve.selectedTriangles!, 'and not all of them');
 });
 
-test('la carte et la somme processeur donnent les mêmes totaux quand rien ne manque au processeur', () => {
+test('the GPU and the CPU sum give the same totals when the CPU is missing nothing', () => {
   const recs = catalogue(scene(1).pages);
-  // Toutes les pages ont leur ligne et leurs octets : le trou du processeur est vide, et sa
-  // définition rejoint alors celle de la carte — la coupe dessinable entière.
+  // Every page has its row and its bytes: the CPU's hole is empty, and its definition then meets
+  // the GPU's — the full drawable cut.
   const offsets = new Int32Array(recs.length).fill(0);
   const drawnDelta = createCutDelta(recs);
   const counts = createCutCounts(recs, offsets, drawnDelta);
@@ -99,13 +96,13 @@ test('la carte et la somme processeur donnent les mêmes totaux quand rien ne ma
     const releve = evaluateDagSelectionKernel(packed, uni);
     drawnDelta.apply(releve.drawablePageIds!);
     const totaux = counts.apply();
-    assert.equal(totaux.selectedTriangles, releve.selectedTriangles, `seuil ${seuil} : coupe`);
-    assert.equal(totaux.drawnTriangles, releve.drawnTriangles, `seuil ${seuil} : dessin`);
-    assert.equal(totaux.uncoveredTriangles, releve.uncoveredTriangles, `seuil ${seuil} : trou`);
+    assert.equal(totaux.selectedTriangles, releve.selectedTriangles, `threshold ${seuil}: cut`);
+    assert.equal(totaux.drawnTriangles, releve.drawnTriangles, `threshold ${seuil}: draw`);
+    assert.equal(totaux.uncoveredTriangles, releve.uncoveredTriangles, `threshold ${seuil}: hole`);
     assert.equal(
       totaux.transparentTriangles,
       releve.transparentTriangles,
-      `seuil ${seuil} : mélange`,
+      `threshold ${seuil}: blend`,
     );
   }
 });

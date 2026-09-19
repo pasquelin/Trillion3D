@@ -31,29 +31,28 @@ import {
 } from './gpuPartitionContract.ts';
 
 /**
- * Le partage occulteurs/testés et l'empaquetage des bornes du test Hi-Z, par ligne résidente.
+ * Occluder/tested split and packing of the Hi-Z test bounds, per resident row.
  *
- * **La règle de partage change, et ne peut pas changer l'image.** Le processeur classait par une
- * médiane exacte des profondeurs normalisées (sélection de rang radix, `splitOccludersFlat`). Ici
- * l'image histogramme elle-même les profondeurs de VUE de ses boîtes sur quatre mille quatre-vingt-
- * seize seaux, et le seau où le rang médian tombe devient le seuil : tout le seau frontière part
- * chez les occulteurs. Le partage n'est donc plus exactement une moitié, mais il reste un partage —
- * et la partition ne décide que l'ORDRE de dessin. Un pixel ne peut changer que par le test Hi-Z,
- * dont la borne de profondeur et le rectangle restent conservateurs quelle que soit la moitié où la
- * ligne tombe.
+ * **The split rule changes, and cannot change the frame.** The CPU ranked by an exact median of
+ * normalised depths (radix rank selection, `splitOccludersFlat`). Here the frame itself
+ * histograms the VIEW depths of its boxes over four thousand and ninety-six buckets, and the
+ * bucket the median rank falls in becomes the threshold: the whole boundary bucket goes to the
+ * occluders. The split is therefore no longer exactly a half, but it remains a split — and the
+ * partition only decides DRAW ORDER. A pixel can change only through the Hi-Z test, whose depth
+ * bound and rectangle stay conservative whichever half the row falls in.
  *
- * L'historique d'occulteurs reste préféré quand il partage quelque chose, et il reste alimenté par
- * le verdict Hi-Z de l'image précédente : `projectRows` relit `flags` avant que le test de cette
- * image-ci ne les remette à zéro. Il est tenu PAR LIGNE et non plus par clé de cluster, et
- * l'appelant le déclare caduc dès que la table de lignes change d'âge.
+ * Occluder history is still preferred when it splits something, and it is still fed by the
+ * previous frame's Hi-Z verdict: `projectRows` rereads `flags` before this frame's test clears
+ * them. It is held PER ROW and no longer by cluster key, and the caller declares it stale as
+ * soon as the row table changes age.
  */
 export const PARTITION_CLASSIFY_WGSL = `
 var<workgroup> blockTotals:array<u32,${PARTITION_WORKGROUP}>;
 @compute @workgroup_size(${PARTITION_WORKGROUP})
 fn chooseSplit(@builtin(local_invocation_id) lid:vec3u){
- // Balayage à deux niveaux de l'histogramme : chaque fil totalise ses seaux, puis un seul fil
- // parcourt les soixante-quatre totaux pour trouver le bloc du rang cherché, et enfin les seaux de
- // ce bloc. Le résultat est celui d'un parcours en série — l'addition en u32 est associative.
+ // Two-level histogram sweep: each thread totals its buckets, then one thread walks the sixty-
+ // four totals to find the block of the sought rank, and finally that block's buckets. The
+ // result is that of a serial walk — u32 addition is associative.
  let lane=lid.x;
  var total=0u;
  for(var k=0u;k<${HISTO_BLOCK}u;k++){
@@ -67,7 +66,7 @@ fn chooseSplit(@builtin(local_invocation_id) lid:vec3u){
   var mode=${MODE_MEDIAN}u;var threshold=${HISTO_BUCKETS - 1}u;var occluders=history;
   if(uni.historyValid!=0u&&history>0u&&history<rows){mode=${MODE_HISTORY}u;}
   else{
-   // Le rang cherché parmi les boîtes qui ne coupent pas le plan proche, comme la sélection CPU.
+   // Sought rank among boxes that do not clip the near plane, like the CPU selection.
    let need=max(1u,atomicLoad(&state[${ST_IN_FRONT}u])/2u);
    var below=0u;var block=0u;
    loop{
@@ -103,22 +102,22 @@ fn classifyRows(@builtin(global_invocation_id) id:vec3u){
   if(atomicLoad(&state[${ST_MODE}u])==${MODE_HISTORY}u){
    rest=select(1u,0u,(held&${FLAG_HISTORY}u)!=0u);
   }else{
-   // Une boîte qui coupe le plan proche reste dans le reste, où elle n'en cache aucune autre.
+   // A box that clips the near plane stays in the rest, where it hides no other.
    let bucket=rowData[base+${ROW_KEY}u]>>${32 - HISTO_BITS}u;
    rest=select(0u,1u,clips||bucket>atomicLoad(&state[${ST_THRESHOLD}u]));
   }
  }
  rowData[base+${ROW_FLAGS}u]=(held&~${FLAG_PREV_REST}u)|select(0u,${FLAG_PREV_REST}u,rest!=0u);
- // Le verdict que le raster de calcul lit : la moitié d'une ligne, avant tout test d'occultation.
+ // Verdict the compute raster reads: a row's half, before any occlusion test.
  flags[i]=select(${VERDICT_OCCLUDER}u,${VERDICT_KEPT}u,rest!=0u);
  if(rest!=0u){atomicOr(&restBits[i>>5u],1u<<(i&31u));}
  else{atomicAdd(&state[${ST_OCCLUDERS}u],1u);}
  let item=items[i];
  atomicAdd(&slotUsed[rest*3u+item.bin+${BASE_SLOTS}u*min(item.layer,uni.layerTop)],1u);
  if(rest==0u||!twoPass){return;}
- // Seule la moitié testée voyage jusqu'au noyau, chaque boîte nommant la ligne dont elle répond.
- // Le rectangle est déjà découpé au viewport et exprimé en texels du mip qui le couvre exactement :
- // miroir de \`hizTestRect\` puis de l'empaquetage que le processeur faisait boîte par boîte.
+ // Only the tested half travels to the kernel, each box naming the row it answers for.
+ // The rectangle is already clipped to the viewport and expressed in texels of the mip that
+ // covers it exactly: mirror of \`hizTestRect\` then of the packing the CPU did box by box.
  let unclipped=vec4i(bitcast<i32>(rowData[base]),bitcast<i32>(rowData[base+1u]),
   bitcast<i32>(rowData[base+2u]),bitcast<i32>(rowData[base+3u]));
  let x0=max(unclipped.x,0);let y0=max(unclipped.y,0);
@@ -146,8 +145,8 @@ fn classifyRows(@builtin(global_invocation_id) id:vec3u){
  tested[slot+4u]=rowData[base+${ROW_NEAREST}u];
  tested[slot+8u]=item.triangles;
  atomicAdd(&state[${ST_TESTED_TRIANGLES}u],item.triangles);
- // Une empreinte plus large que le noyau de niveau 0 répond depuis un mip plus grossier : elle se
- // compte sur le rectangle NON découpé, comme \`hizOversized\`.
+ // A footprint wider than the level-0 kernel answers from a coarser mip: it is counted on the
+ // UNCLIPPED rectangle, like \`hizOversized\`.
  if(!clips&&(unclipped.z-unclipped.x>=${HIZ_KERNEL_TEXELS}||unclipped.w-unclipped.y>=${HIZ_KERNEL_TEXELS})){
   atomicAdd(&state[${ST_OVERSIZED}u],1u);
   atomicAdd(&state[${ST_OVERSIZED_TRIANGLES}u],item.triangles);

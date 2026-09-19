@@ -6,24 +6,25 @@ import { hostWorldTree } from './hostWorldTree.ts';
 import type { HierarchyLot } from './mathBatchHierarchy.ts';
 
 /**
- * Bornes monde d'un sous-arbre de l'hôte, calculées par le socle sur des boîtes à plat.
+ * World bounds of a host subtree, computed by the core on flat boxes.
  *
- * C'est la règle de `Box3.setFromObject` de la référence, terme à terme : tout objet du sous-arbre
- * qui porte une géométrie donne sa boîte locale, transformée par sa matrice monde, et l'union des
- * huit coins est prise. La matrice monde est celle que LE MOTEUR calcule depuis les poses locales de
- * l'hôte (`hostWorldTree.ts`), jamais celle que sa bibliothèque compose. Un objet qui tient sa propre boîte — les maillages instanciés — la préfère à
- * celle de sa géométrie, comme chez elle. La transformation et l'union sont celles de `mathBox.ts` :
- * les mêmes bits, boîtes vides, NaN et infinis compris.
+ * This is the reference's `Box3.setFromObject` rule, term for term: every object of the subtree
+ * that carries a geometry gives its local box, transformed by its world matrix, and the union of
+ * the eight corners is taken. The world matrix is the one THE ENGINE computes from the host's
+ * local poses (`hostWorldTree.ts`), never the one its library composes. An object that holds its
+ * own box — instanced meshes — prefers it to that of its geometry, as the reference does. The
+ * transform and the union are those of `mathBox.ts`: the same bits, empty boxes, NaN and
+ * infinities included.
  */
 
-/** Une boîte à plat vide, prête pour une union : bornes basses à `+∞`, hautes à `−∞`. */
+/** An empty flat box, ready for a union: low bounds at `+∞`, high at `−∞`. */
 export function emptyWorldBox() {
   const box = new Float64Array(BOX_VALUES);
   boxEmpty(box, 0);
   return box;
 }
 
-/** Objet de l'hôte tel que la règle des bornes le lit : une géométrie, parfois sa propre boîte. */
+/** Host object as the bounds rule reads it: a geometry, sometimes its own box. */
 type Bounded = THREE.Object3D & {
   geometry?: THREE.BufferGeometry;
   boundingBox?: THREE.Box3 | null;
@@ -31,9 +32,9 @@ type Bounded = THREE.Object3D & {
 };
 
 /**
- * La boîte LOCALE que porte `object`, ou `undefined` s'il n'en a pas. Comme la référence, la boîte
- * de l'objet l'emporte sur celle de sa géométrie, et une boîte absente est calculée à la demande —
- * c'est une dérivée des sommets que l'hôte possède, pas une transformation.
+ * LOCAL box that `object` carries, or `undefined` if it has none. As in the reference, the
+ * object's box wins over that of its geometry, and a missing box is computed on demand — it is
+ * a derivative of the vertices the host owns, not a transform.
  */
 function localBoxOf(object: Bounded) {
   if (object.boundingBox !== undefined) {
@@ -46,7 +47,7 @@ function localBoxOf(object: Bounded) {
   return geometry.boundingBox ?? undefined;
 }
 
-/** Objets bornés du sous-arbre : la taille EXACTE que le lot de boîtes doit porter. */
+/** Bounded objects of the subtree: the EXACT size the box lot must carry. */
 function bornes(source: THREE.Object3D) {
   let n = 0;
   source.traverse((object) => {
@@ -55,18 +56,18 @@ function bornes(source: THREE.Object3D) {
   return n;
 }
 
-/** Le lot qui porte les boîtes de ce sous-arbre, ou `null` quand il n'en a aucune. */
+/** Lot that carries this subtree's boxes, or `null` when it has none. */
 export async function hostBoundsLot(source: THREE.Object3D) {
   const n = bornes(source);
   return n ? await createBoxTransformLot(n) : null;
 }
 
 /**
- * Union des bornes monde de `source` et de sa descendance dans `into`, qui doit arriver vide ou
- * déjà commencée. Les matrices monde du sous-arbre sont calculées une fois, en une passe : `worlds`
- * est le tampon de hiérarchie réservé pour lui, et sans lui la passe se fait sur l'arbre du socle.
- * Quand `lot` porte exactement ces boîtes, elles partent EN LOT par le gouverneur ; sinon chacune
- * passe seule, par le même `boxTransform` et sur les mêmes entrées.
+ * Union of the world bounds of `source` and its descendants into `into`, which must arrive empty
+ * or already started. The subtree's world matrices are computed once, in one pass: `worlds` is
+ * the hierarchy buffer reserved for it, and without it the pass runs on the core tree. When
+ * `lot` carries exactly these boxes, they go AS A LOT through the governor; otherwise each
+ * goes alone, by the same `boxTransform` and on the same inputs.
  */
 export function hostWorldBounds(
   source: THREE.Object3D,
