@@ -1,11 +1,12 @@
-// Les verdicts du rapport global : des phrases écrites à partir des relevés, et rien d'autre. Chaque
-// verdict nomme la mesure qui le porte ; quand la mesure manque, il dit « non mesuré » plutôt que
-// de supposer. La dernière partie classe les coûts pour orienter les lots, dans l'ordre des chiffres.
+// Verdicts of the global report: sentences written from the readings, and nothing else.
+// Each verdict names the measurement that carries it; when the measurement is missing, it
+// says "unmeasured" rather than assuming. The last part ranks costs to steer batches, in
+// the order of the figures.
 import { html, moins, ms, nombre, octets, pixels } from './rapportGlobalGraphes.mjs';
-import { paire, trouve, VUES } from './rapportGlobalLecture.mjs';
+import { paire, trouve, VIEW_IDS } from './rapportGlobalLecture.mjs';
 import { GROUPES, sommePasses } from './rapportGlobalChiffres.mjs';
 
-const BRUIT_MS = 0.7; // l'écart observé entre deux exécutions identiques sur cette machine
+const BRUIT_MS = 0.7; // observed delta between two identical runs on this machine
 const verdict = (classe, texte) => `<div class="verdict ${classe}">${texte}</div>`;
 
 export function verdicts(ex) {
@@ -15,7 +16,7 @@ export function verdicts(ex) {
   const fixe = trouve(ex, 'fixe', 'sol', 1);
 
   if (sol) {
-    const sous60 = VUES.map((v) => trouve(ex, 'mobile', v, 1)).filter(Boolean);
+    const sous60 = VIEW_IDS.map((v) => trouve(ex, 'mobile', v, 1)).filter(Boolean);
     const pire = sous60.toSorted((a, b) => (b.gpuP95 ?? 0) - (a.gpuP95 ?? 0))[0];
     const tient = sous60.every((r) => r.gpuP95 !== null && r.gpuP95 < 16.7);
     out.push(
@@ -113,8 +114,8 @@ export function verdicts(ex) {
   return out.join('');
 }
 
-/** Le classement des coûts en vue sol, et ce qu'il dit à faire — d'abord ce que deux exécutions
- *  mesurent par différence d'enveloppe, ensuite ce que seules les étiquettes de passes disent. */
+/** Ranking of costs in the ground view, and what it says to do — first what two runs
+ *  measure by envelope difference, then what only pass labels say. */
 function orientation(ex) {
   const sol = trouve(ex, 'mobile', 'sol', 1);
   if (!sol) return '';
@@ -151,19 +152,21 @@ function orientation(ex) {
   ]
     .filter(([, v]) => v !== null)
     .sort((a, b) => b[1] - a[1]);
-  // Les étiquettes qui absorbent leurs voisines sur cet appareil ne sont pas classées.
+  // Labels that absorb their neighbours on this device are not ranked.
   const absorbees = new Set([
     'Present',
     'Temporal antialiasing',
     'Lighting (light lists + deferred)',
   ]);
-  const etiquettes = GROUPES.filter(([nom]) => !absorbees.has(nom))
-    .map(([nom, garde, lot]) => [nom, sommePasses(sol, garde), lot])
+  const etiquettes = GROUPES.filter(([name]) => !absorbees.has(name))
+    .map(([name, garde, lot]) => [name, sommePasses(sol, garde), lot])
     .filter(([, v]) => v !== null)
     .sort((a, b) => b[1] - a[1]);
   const li = (rows) =>
     rows
-      .map(([nom, v, lot]) => `<li><strong>${html(nom)}</strong> : ${ms(v, 2)} — ${html(lot)}</li>`)
+      .map(
+        ([name, v, lot]) => `<li><strong>${html(name)}</strong>: ${ms(v, 2)} — ${html(lot)}</li>`,
+      )
       .join('');
   return `<h3>What the numbers point to</h3><p>Street view, normal quality, full resolution, envelope ${ms(sol.gpuP50)}. First what two runs measure by envelope difference (the only safe reading on this device; under ${ms(BRUIT_MS)} is noise):</p><ol>${li(mesures)}</ol><p>Then what pass labels say, with the timestamp caveat (present, antialiasing and deferred lighting each read 7 ms because they absorb their neighbours; they are not ranked here):</p><ol>${li(etiquettes)}</ol><p>${sansLum ? `With no light, the frame is ${ms(sansLum.gpuP50)}: that is the base — visibility, materials, present — and it is in the same range as a naive full-scene Three draw (<a href="#three-nu">versus Three.js vanilla</a>). At street level, selection buys nothing; the cost is full-screen.` : ''} On memory, the order is that of the <a href="#memoire">memory section</a>: raw textures first, clusters duplicated per instance next, unquantized vertices last. On the CPU, ${ms(sol.cpuP50, 2)} per frame versus “almost zero”: the <a href="#etapes">CPU steps</a> say where.</p>`;
 }

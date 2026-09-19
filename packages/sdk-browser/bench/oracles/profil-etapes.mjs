@@ -1,7 +1,7 @@
-// Oracle de `stageMapping.ts`, réécrit d'après son contrat : une borne se dépose sur son étape
-// sauf si celle-ci est `null` ; une passe se dépose par son étiquette, une étiquette inconnue va à
-// « geometry » ; une durée `null` rend toute son étape non mesurée, un relevé tronqué ou absent ne
-// dépose rien.
+// Oracle of `stageMapping.ts`, rewritten from its contract: a bound is deposited on its
+// stage unless that stage is `null`; a pass is deposited by its label, an unknown label goes
+// to "geometry"; a `null` duration leaves its stage unmeasured, a truncated or missing sample
+// deposits nothing.
 const ETAPE_DE = {
   'WG DAG selection': 'selection',
   'WG partition': 'partition',

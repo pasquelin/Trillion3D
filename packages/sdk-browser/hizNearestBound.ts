@@ -4,33 +4,32 @@ const scratch = new Float32Array(1),
   scratchWords = new Uint32Array(scratch.buffer);
 
 /**
- * De combien la borne est montée avant d'être arrondie en simple précision.
+ * How much the bound is raised before it is rounded to single precision.
  *
- * La profondeur du moteur est INVERSÉE (`depthConvention.ts`) : une boîte n'est cachée que si sa
- * borne la plus proche est PLUS PETITE que l'occulteur le plus lointain. Une borne sûre MAJORE donc
- * ce que le cluster écrira. `Math.fround` arrondit au plus proche : il peut faire **descendre** la
- * valeur d'un demi-ulp, et une borne qui descend d'un bit suffit à faire rejeter un cluster qui
- * peint encore son pixel. Monter d'un ulp entier avant l'arrondi retourne définitivement le sens :
- * pour `x > 0`, le produit vaut au moins `x(1 + 2⁻²⁴)(1 − 2⁻⁵³)` et son arrondi au moins
- * `x(1 + 2⁻⁴⁸)(1 − 2⁻⁵³)`, donc strictement plus que `x`. Un multiplicateur et un arrondi, pas de
- * manipulation de bits par boîte.
+ * Engine depth is REVERSE-Z (`depthConvention.ts`): a box is hidden only if its nearest bound is
+ * SMALLER than the farthest occluder. A safe bound therefore OVERSTATES what the cluster will
+ * write. `Math.fround` rounds to nearest: it can **lower** the value by half an ulp, and a bound
+ * that drops by one bit is enough to reject a cluster that still paints its pixel. Raising by a
+ * whole ulp before rounding definitively flips the sense: for `x > 0`, the product is at least
+ * `x(1 + 2⁻²⁴)(1 − 2⁻⁵³)` and its rounding at least `x(1 + 2⁻⁴⁸)(1 − 2⁻⁵³)`, hence strictly
+ * more than `x`. One multiplier and one rounding, no per-box bit manipulation.
  */
 const GROW = 1 + 2 ** -24;
 
 /**
- * La borne de profondeur qu'une boîte porte jusqu'au noyau d'occultation : un MAJORANT de ce que le
- * cluster écrira s'il est dessiné, en simple précision comme le noyau la lit.
+ * Depth bound a box carries to the occlusion kernel: an OVERESTIMATE of what the cluster will
+ * write if drawn, in single precision as the kernel reads it.
  *
- * Deux écarts séparent le coin le plus proche de la boîte, calculé en double, de la profondeur que
- * la carte écrira. Le premier est l'arrondi du transport, redressé par `GROW`. Le second est le
- * **biais de couche coplanaire** : un cluster de couche non nulle est dessiné de seize unités
- * matérielles par couche plus près de l'œil, donc plus proche que son propre coin ;
- * `biasedDepthBits` — la fonction que le raster logiciel applique déjà à sa clé — ajoute exactement
- * ces unités aux bits de la borne. Avec ces deux redressements, `nearest < far` implique que le
- * cluster est derrière tout ce que la pyramide a vu, quelle que soit sa couche.
+ * Two gaps separate the box's nearest corner, computed in double, from the depth the GPU will
+ * write. The first is transport rounding, corrected by `GROW`. The second is the **coplanar
+ * layer bias**: a non-zero-layer cluster is drawn sixteen hardware units per layer closer to the
+ * eye, hence nearer than its own corner; `biasedDepthBits` — the function the software raster
+ * already applies to its key — adds exactly those units to the bound's bits. With these two
+ * corrections, `nearest < far` implies the cluster is behind everything the pyramid saw,
+ * whatever its layer.
  *
- * Une borne nulle ou négative est rendue telle quelle : elle décrit le lointain, où rien n'est
- * dessiné, et rien n'a besoin d'être redressé.
+ * A null or negative bound is returned as-is: it describes the far, where nothing is drawn, and
+ * nothing needs correcting.
  */
 export function hizNearestBound(nearest: number, depthLayer: number) {
   if (!(nearest > 0)) return nearest;

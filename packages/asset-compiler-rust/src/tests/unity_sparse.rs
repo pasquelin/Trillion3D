@@ -1,22 +1,22 @@
-//! A07 : ce qu'un modèle versé dans une scène Unity garde de ses renvois de table. La fusion
-//! décalait le `bufferView` direct d'un accesseur, et lui seul : les deux vues d'un accesseur creux
-//! et les cibles de morphing d'une primitive continuaient de désigner les rangs du modèle. Un
-//! modèle seul compilait donc, et le même modèle posé après un cube intégré — dont les vues
-//! prennent les premiers rangs — était refusé ou lisait les octets d'un autre.
+//! A07: what a model poured into a Unity scene keeps of its table references. The
+//! merge shifted an accessor's direct `bufferView`, and that alone: the two views of
+//! a sparse accessor and a primitive's morph targets kept naming the model's ranks.
+//! A model alone therefore compiled, and the same model placed after a built-in cube
+//! — whose views take the first ranks — was refused or read another mesh's bytes.
 use super::*;
 use unity_projet::{cube, mat_blanc, objet, Projet};
 
 const MAT: &str = "000000000000000000000000000000a1";
 const MODEL: &str = "0000000000000000000000000000000a";
-/// Les positions écrites en clair dans le modèle, avant l'accesseur creux.
+/// Positions written plainly in the model, before the sparse accessor.
 const DENSE: [[f32; 3]; 3] = [[0., 0., 0.], [1., 0., 0.], [0., 1., 0.]];
-/// Ce que l'accesseur creux remplace : le troisième sommet, et lui seul.
+/// What the sparse accessor replaces: the third vertex, and that alone.
 const SPARSE_POINT: [f32; 3] = [0., 5., 0.];
-/// Le déplacement que la cible de morphing porte sur chaque sommet.
+/// Displacement the morph target carries on each vertex.
 const DELTA: [f32; 3] = [0., 0., 1.];
 
-/// Le glTF binaire du modèle et son binaire : un triangle dont le troisième sommet est écrit dans
-/// un accesseur creux, et dont la primitive porte une cible de morphing.
+/// The model's binary glTF and its binary: a triangle whose third vertex is written
+/// in a sparse accessor, and whose primitive carries a morph target.
 fn model() -> (Value, Vec<u8>) {
     let mut bin = Vec::new();
     for point in DENSE {
@@ -59,8 +59,8 @@ fn model() -> (Value, Vec<u8>) {
     (gltf, bin)
 }
 
-/// Compile une scène où un cube intégré précède le modèle : ses vues prennent les premiers rangs de
-/// la scène, ce qui décale tous ceux du modèle.
+/// Compiles a scene where a built-in cube precedes the model: its views take the
+/// first ranks of the scene, which shifts all of the model's.
 fn compile_after_cube(tag: &str) -> (Value, Vec<u8>) {
     let (gltf, bin) = model();
     let projet = Projet::new(tag);
@@ -83,12 +83,12 @@ fn compile_after_cube(tag: &str) -> (Value, Vec<u8>) {
     ));
     let run = projet.compile(tag);
     let (_, merged) = run.prepared("unity");
-    let uri = merged["buffers"][0]["uri"].as_str().expect("le binaire");
-    let bytes = fs::read(run.prepared_dir("unity").join(uri)).expect("le sidecar");
+    let uri = merged["buffers"][0]["uri"].as_str().expect("the binary");
+    let bytes = fs::read(run.prepared_dir("unity").join(uri)).expect("the sidecar");
     (merged, bytes)
 }
 
-/// Les octets d'une vue.
+/// Bytes of a view.
 fn view_bytes<'a>(gltf: &Value, bin: &'a [u8], view: usize) -> &'a [u8] {
     let view = &gltf["bufferViews"][view];
     let at = view["byteOffset"].as_u64().unwrap_or(0) as usize;
@@ -96,7 +96,7 @@ fn view_bytes<'a>(gltf: &Value, bin: &'a [u8], view: usize) -> &'a [u8] {
     &bin[at..at + length]
 }
 
-/// Les `count` premiers triplets de flottants de ces octets.
+/// The first `count` float triples of these bytes.
 fn triples(bytes: &[u8], count: usize) -> Vec<[f32; 3]> {
     bytes[..count * 12]
         .as_chunks::<12>()
@@ -104,15 +104,15 @@ fn triples(bytes: &[u8], count: usize) -> Vec<[f32; 3]> {
         .iter()
         .map(|word| {
             let read = |axis: usize| {
-                f32::from_le_bytes(word[axis * 4..axis * 4 + 4].try_into().expect("flottant"))
+                f32::from_le_bytes(word[axis * 4..axis * 4 + 4].try_into().expect("float"))
             };
             [read(0), read(1), read(2)]
         })
         .collect()
 }
 
-/// Les points d'un accesseur, son remplacement creux appliqué : ce que le format déclare, et ce
-/// qu'aucune fusion n'a le droit de changer.
+/// Points of an accessor, its sparse replacement applied: what the format declares,
+/// and what no merge has the right to change.
 fn resolved(gltf: &Value, bin: &[u8], accessor: usize) -> Vec<[f32; 3]> {
     let accessor = &gltf["accessors"][accessor];
     let count = accessor["count"].as_u64().expect("count") as usize;
@@ -145,26 +145,26 @@ fn resolved(gltf: &Value, bin: &[u8], accessor: usize) -> Vec<[f32; 3]> {
     out
 }
 
-/// La primitive du maillage versé par le modèle, dans la scène fusionnée.
+/// Primitive of the mesh poured by the model, in the merged scene.
 fn merged_primitive(gltf: &Value) -> Value {
     gltf["meshes"]
         .as_array()
         .expect("meshes")
         .iter()
         .find(|mesh| mesh["name"] == "Creux")
-        .expect("le maillage du modèle")["primitives"][0]
+        .expect("the model's mesh")["primitives"][0]
         .clone()
 }
 
-// Constat A07 : les positions du modèle sont les mêmes qu'il soit seul ou versé derrière un autre.
+// Finding A07: the model's positions are the same whether it is alone or poured behind another.
 #[test]
-fn les_vues_dun_accesseur_creux_suivent_le_modele_dans_la_scene() {
+fn sparse_accessor_views_follow_the_model_into_the_scene() {
     let (gltf, bin) = model();
     let seul = resolved(&gltf, &bin, 0);
     assert_eq!(
         seul,
         vec![DENSE[0], DENSE[1], SPARSE_POINT],
-        "le modèle seul : le creux remplace le troisième sommet"
+        "the model alone: the sparse replaces the third vertex"
     );
     let (merged, bytes) = compile_after_cube("unity-creux");
     let position = merged_primitive(&merged)["attributes"]["POSITION"]
@@ -173,21 +173,21 @@ fn les_vues_dun_accesseur_creux_suivent_le_modele_dans_la_scene() {
     assert_eq!(
         resolved(&merged, &bytes, position),
         seul,
-        "versé derrière un cube, le modèle garde ses positions"
+        "poured behind a cube, the model keeps its positions"
     );
 }
 
-// L'autre renvoi que la fusion oubliait : les cibles de morphing d'une primitive, dont les rangs
-// d'accesseur appartiennent au modèle comme les autres.
+// The other reference the merge forgot: a primitive's morph targets, whose accessor
+// ranks belong to the model like the others.
 #[test]
-fn les_cibles_de_morphing_suivent_le_modele_dans_la_scene() {
+fn morph_targets_follow_the_model_into_the_scene() {
     let (merged, bytes) = compile_after_cube("unity-morphing");
     let target = merged_primitive(&merged)["targets"][0]["POSITION"]
         .as_u64()
-        .expect("cible POSITION") as usize;
+        .expect("POSITION target") as usize;
     assert_eq!(
         resolved(&merged, &bytes, target),
         vec![DELTA; 3],
-        "la cible désigne bien les déplacements du modèle"
+        "the target does name the model's displacements"
     );
 }

@@ -10,7 +10,7 @@ const OPTIONAL = [
   ['color', 4, 16],
 ] as const;
 
-/** Les vues typées ne se lisent qu'en boutien natif ; ailleurs le `DataView` reste le chemin. */
+/** Typed views are only read in native endianness; elsewhere `DataView` remains the path. */
 const PETIT_BOUTIEN = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
 
 export type DecodedGeometryPage = {
@@ -22,12 +22,12 @@ export type DecodedGeometryPage = {
 };
 
 /**
- * Les indices et les attributs d'une page, à partir des tampons que meshopt vient de décompresser.
+ * Indices and attributes of a page, from the buffers meshopt has just decompressed.
  *
- * Le plan de lecture — chaque attribut présent, sa largeur, son décalage en flottants dans le
- * sommet — est le même pour les 65 535 sommets d'une page : il est calculé une fois, et non refait
- * avec une fermeture à chaque sommet. Les indices seize bits et les flottants sont lus par vue
- * typée quand la machine est en petit boutien, par `DataView` sinon : mêmes valeurs, mêmes refus.
+ * The read plan — each present attribute, its width, its offset in floats within the vertex — is
+ * the same for the 65,535 vertices of a page: it is computed once, and not rebuilt with a closure
+ * at every vertex. Sixteen-bit indices and floats are read by typed view when the machine is
+ * little-endian, by `DataView` otherwise: same values, same refusals.
  */
 export function decodePageAttributes(
   indexData: Uint8Array,

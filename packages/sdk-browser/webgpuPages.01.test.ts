@@ -53,8 +53,8 @@ test('WebGPU forwards its internal color diagnostics to the host report sink', a
   });
   assert.deepEqual(events[0], {
     phase: 'clear-color-input',
-    message: 'Couleur de fond reçue par WebGeometry WebGPU',
-    context: { pipelineVersion: 1, clearColor: '#2a303c', value: 0x2a303c, source: 'hôte' },
+    message: 'Background colour received by WebGeometry WebGPU',
+    context: { pipelineVersion: 1, clearColor: '#2a303c', value: 0x2a303c, source: 'host' },
   });
   await backend.prepare();
   backend.render(camera());
@@ -89,8 +89,8 @@ test('trace diagnostics retain one bounded snapshot for every rendered frame', a
     await backend.flush();
     backend.render(camera());
     await backend.flush();
-    // Deux images de l'hôte, et aucune image de convergence : sans texture diffusée, la barrière
-    // n'a rien à faire converger et ne rend rien.
+    // Two host images, and no convergence image: with no streamed texture, the barrier has
+    // nothing to converge and yields nothing.
     const frames = events.filter((event) => event.phase === 'frame');
     assert.equal(frames.length, 2);
     assert.deepEqual(

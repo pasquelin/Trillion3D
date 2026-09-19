@@ -2,13 +2,13 @@ import { transformAffinePoint, transformHomogeneousPoint } from '../sdk-core/ind
 import type { DepthCamera } from './depthConvention.ts';
 import type { MatrixElements } from './matrixElements.ts';
 
-/** Le sommet monde du dernier point projeté, et son point en espace de découpe : relus aussitôt,
- *  jamais conservés. Une matrice monde est affine, quatrième ligne `(0, 0, 0, 1)` : la
- *  transformation affine du socle est alors bit pour bit la projective, dont `1 / w` vaut 1. */
+/** World vertex of the last projected point, and its clip-space point: re-read at once, never
+ *  kept. A world matrix is affine, fourth row `(0, 0, 0, 1)`: the base's affine transform is then
+ *  bit for bit the projective one, whose `1 / w` is 1. */
 const worldScratch = new Float64Array(3);
 const clipScratch = new Float64Array(4);
 
-/** Les trois coordonnées d'un sommet, telles que les rend un attribut de géométrie de l'hôte. */
+/** The three coordinates of a vertex, as a host geometry attribute yields them. */
 export type VertexReader = {
   getX(index: number): number;
   getY(index: number): number;
@@ -57,24 +57,24 @@ export type Projected = {
   worldZ: number;
 };
 
-/** Un sommet dont seules les deux coordonnées écran comptent : un projeté, ou un point de raster. */
+/** A vertex whose only two screen coordinates matter: a projected one, or a raster point. */
 type ScreenPoint = { x: number; y: number };
 
 /**
- * Aire signée du triangle écran `(a, b, c)` : le dénominateur des barycentriques, et le signe qui
- * dit de quel côté on voit la face. Le raster du tampon de visibilité, la profondeur reconstruite
- * et le raster de référence des pages en tiraient chacun leur copie de la même ligne.
+ * Signed area of the screen triangle `(a, b, c)`: the barycentric denominator, and the sign that
+ * says from which side the face is seen. The visibility-buffer raster, reconstructed depth and the
+ * page reference raster each used to take their own copy of the same line.
  */
 export function signedArea(a: ScreenPoint, b: ScreenPoint, c: ScreenPoint) {
   return (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
 }
 
 /**
- * Les trois poids barycentriques affines du point `(x, y)`, l'aire signée étant déjà connue.
+ * The three affine barycentric weights of the point `(x, y)`, the signed area already known.
  *
- * Le résultat est un objet de travail réutilisé d'un appel à l'autre : un raster le lit par pixel,
- * et allouer trois nombres par pixel coûterait plus que le calcul lui-même. L'appelant le lit avant
- * l'appel suivant, ou en recopie les champs, comme le fait `barycentric`.
+ * The result is a work object reused from one call to the next: a raster reads it per pixel, and
+ * allocating three numbers per pixel would cost more than the computation itself. The caller reads
+ * it before the next call, or copies its fields, as `barycentric` does.
  */
 const poids = { w0: 0, w1: 0, w2: 0 };
 export function barycentricAt(

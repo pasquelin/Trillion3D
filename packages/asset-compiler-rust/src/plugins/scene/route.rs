@@ -1,4 +1,4 @@
-//! Le routeur : quel pilote pour cette source, et un refus explicite quand la réponse n'est pas une.
+//! The router: which driver for this source, and an explicit refusal when the answer is not one.
 use super::*;
 use crate::{is_safe_source_name, CompilerError};
 use std::{collections::BTreeMap, fs, io::Read};
@@ -6,25 +6,25 @@ use std::{collections::BTreeMap, fs, io::Read};
 #[cfg(test)]
 mod tests;
 
-/// Octets lus en tête d'un fichier dont l'extension n'est revendiquée par aucun pilote.
+/// Bytes read at the head of a file whose extension no driver claims.
 const HEAD_BYTES: usize = 32;
 
-/// Ce que le routeur a reconnu dans une source.
+/// What the router recognised in a source.
 pub enum Routed {
-    /// Le dossier porte `manifest.json` : c'est déjà la scène intermédiaire, aucun pilote.
+    /// The directory carries `manifest.json`: it is already the intermediate scene, no driver.
     Manifest,
-    /// Un pilote et les fichiers qu'il revendique, triés.
+    /// A driver and the files it claims, sorted.
     Driver(&'static dyn ScenePlugin, Vec<PathBuf>),
 }
 
-/// La scène intermédiaire et le pilote qui l'a produite, pour la provenance et le rapport.
+/// Intermediate scene and the driver that produced it, for provenance and the report.
 pub struct RoutedSource {
     pub scene: PreparedScene,
-    /// `None` quand la source portait déjà `manifest.json` : aucun pilote n'est intervenu.
+    /// `None` when the source already carried `manifest.json`: no driver intervened.
     pub plugin: Option<&'static dyn ScenePlugin>,
 }
 
-/// Route la source vers son pilote, puis lui fait produire la scène intermédiaire.
+/// Routes the source to its driver, then has it produce the intermediate scene.
 pub fn prepare_source(o: &Options, progress: &(dyn Fn(Value) + Sync)) -> Result<RoutedSource> {
     match route(&o.source)? {
         Routed::Manifest => Ok(RoutedSource {
@@ -38,14 +38,14 @@ pub fn prepare_source(o: &Options, progress: &(dyn Fn(Value) + Sync)) -> Result<
     }
 }
 
-/// Interroge le registre. Un fichier est routé sur lui seul ; un dossier l'est sur tous les fichiers
-/// **ordinaires** qu'un même pilote revendique — un sous-dossier n'est jamais une source, quel que
-/// soit son nom, et `textures.fbx` reste donc le dossier de ressources qu'il est. Deux pilotes
-/// servis par le même dossier, c'est une ambiguïté : le compilateur refuse plutôt que de deviner
-/// lequel porte la scène.
+/// Queries the registry. A file is routed on itself alone; a directory is routed on every
+/// **ordinary** file a single driver claims — a subdirectory is never a source, whatever its
+/// name, so `textures.fbx` remains the resource folder it is. Two drivers served by the same
+/// directory is an ambiguity: the compiler refuses rather than guessing which one carries the
+/// scene.
 ///
-/// Un pilote **de projet** passe avant : il revendique le dossier entier, et les fichiers trouvés
-/// dessous sont ses entrées, pas des sources concurrentes.
+/// A **project** driver goes first: it claims the whole directory, and the files found under it
+/// are its inputs, not competing sources.
 pub fn route(source: &Path) -> Result<Routed> {
     if source.is_file() {
         let name = source
@@ -93,10 +93,10 @@ pub fn route(source: &Path) -> Result<Routed> {
     Ok(Routed::Driver(plugin, inputs))
 }
 
-/// Le pilote de projet qui revendique ce dossier entier, s'il y en a un. Un projet est reconnu au
-/// niveau du dossier : les fichiers trouvés dessous sont ses entrées, et il prime donc sur les
-/// pilotes de fichiers, qui ne verraient là que des sources concurrentes. Deux projets pour un même
-/// dossier restent une ambiguïté, comme deux formats.
+/// Project driver that claims this whole directory, if there is one. A project is recognised at
+/// directory level: files found under it are its inputs, so it takes precedence over file
+/// drivers, which would only see competing sources there. Two projects for the same directory
+/// remain an ambiguity, like two formats.
 fn project(source: &Path) -> Result<Option<Routed>> {
     let mut claimed: Vec<(&'static dyn ScenePlugin, Vec<PathBuf>)> = PLUGINS
         .iter()
@@ -117,8 +117,8 @@ fn project(source: &Path) -> Result<Option<Routed>> {
     }))
 }
 
-/// Le refus d'un dossier que plusieurs pilotes revendiquent : le compilateur ne devine pas lequel
-/// porte la scène.
+/// Refusal of a directory that several drivers claim: the compiler does not guess which one
+/// carries the scene.
 fn ambiguous(names: &[&str]) -> CompilerError {
     CompilerError::new(
         "SOURCE_FORMAT_AMBIGUOUS",
@@ -129,9 +129,9 @@ fn ambiguous(names: &[&str]) -> CompilerError {
     )
 }
 
-/// Le pilote qui revendique ce fichier : son extension d'abord, son nombre magique ensuite — un
-/// fichier sans extension connue peut rester lisible, un fichier illisible n'est revendiqué par
-/// personne et le routeur le passe.
+/// Driver that claims this file: its extension first, its magic number next — a file without a
+/// known extension can still be readable, an unreadable file is claimed by nobody and the
+/// router skips it.
 fn claim(name: &str, path: &Path) -> Option<&'static dyn ScenePlugin> {
     if let Some(found) =
         super::super::extension_of(name).and_then(|ext| super::super::claiming(PLUGINS, &ext))
@@ -145,7 +145,7 @@ fn claim(name: &str, path: &Path) -> Option<&'static dyn ScenePlugin> {
         .find(|plugin| plugin.accepts_head(&head))
 }
 
-/// Les premiers octets d'un fichier. Un dossier ou un fichier illisible en rend zéro.
+/// First bytes of a file. A directory or an unreadable file yields zero.
 fn head_bytes(path: &Path) -> Vec<u8> {
     let mut head = Vec::new();
     if let Ok(file) = fs::File::open(path) {
@@ -154,7 +154,7 @@ fn head_bytes(path: &Path) -> Vec<u8> {
     head
 }
 
-/// Le refus d'une source qu'aucun pilote ne revendique, avec la liste de ce qui est accepté.
+/// Refusal of a source no driver claims, with the list of what is accepted.
 fn unknown(what: &str) -> CompilerError {
     let accepted: Vec<String> = PLUGINS
         .iter()

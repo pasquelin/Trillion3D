@@ -1,10 +1,10 @@
-//! Un `Mesh` USD vers un maillage glTF : les tableaux obligatoires, le découpage en parties de
-//! matériau, et l'identité qui fait qu'une instance réutilise le maillage de son prototype.
+//! A USD `Mesh` into a glTF mesh: the required tables, the split into material parts, and the
+//! identity that lets an instance reuse its prototype's mesh.
 use super::*;
 
-/// Construit le maillage d'un prim `Mesh`, ou le retrouve quand une instance l'a déjà fait. `key`
-/// est le chemin de la donnée — celui du prototype pour une instance — et fait, avec la liste des
-/// matériaux, l'identité du maillage partagé.
+/// Builds the mesh of a `Mesh` prim, or finds it again when an instance already did. `key` is
+/// the data path — the prototype's for an instance — and makes, with the material list, the
+/// identity of the shared mesh.
 pub(super) fn build(world: &mut World<'_>, prim: &usd::Prim, key: &str) -> Option<usize> {
     let points = array(world, prim, "points", read::triples)?;
     let counts = array(world, prim, "faceVertexCounts", read::integers)?;
@@ -40,7 +40,7 @@ pub(super) fn build(world: &mut World<'_>, prim: &usd::Prim, key: &str) -> Optio
     emit(world, prim, &surface, &parts, identity)
 }
 
-/// Écrit les primitives de chaque partie et pose le maillage dans la table.
+/// Writes the primitives of each part and places the mesh in the table.
 fn emit(
     world: &mut World<'_>,
     prim: &usd::Prim,
@@ -72,8 +72,8 @@ fn emit(
     Some(mesh)
 }
 
-/// Le rang du premier coin de chaque face et son nombre de coins, ou `None` quand les comptes ne
-/// tombent pas sur le tableau d'indices : un maillage qui se contredit n'est pas interprété.
+/// Rank of the first corner of each face and its corner count, or `None` when the counts do not
+/// fall on the index table: a mesh that contradicts itself is not interpreted.
 fn spans(counts: &[i64], corners: usize) -> Option<Vec<(usize, usize)>> {
     let mut out = Vec::with_capacity(counts.len());
     let mut start = 0usize;
@@ -85,7 +85,7 @@ fn spans(counts: &[i64], corners: usize) -> Option<Vec<(usize, usize)>> {
     (start == corners).then_some(out)
 }
 
-/// Un tableau obligatoire du maillage, compté comme invalide quand il manque ou ne se convertit pas.
+/// A required mesh array, counted as invalid when it is missing or does not convert.
 fn array<T>(
     world: &mut World<'_>,
     prim: &usd::Prim,
@@ -108,10 +108,10 @@ fn array<T>(
     }
 }
 
-/// Les faces que `holeIndices` nomme. OpenUSD les rend invisibles, et le schéma de subdivision n'y
-/// change rien : une face invisible l'est avant toute subdivision. Chaque face retirée est comptée
-/// une fois — un indice répété ne retire qu'une face —, et un indice qui sort du tableau des faces
-/// est compté comme toute face qu'un maillage déclare et que ses tableaux ne portent pas.
+/// Faces that `holeIndices` names. OpenUSD renders them invisible, and the subdivision scheme
+/// changes nothing: an invisible face is so before any subdivision. Each removed face is counted
+/// once — a repeated index removes only one face — and an index that leaves the face table is
+/// counted as any face a mesh declares and that its tables do not carry.
 fn holes(world: &mut World<'_>, prim: &usd::Prim, faces: usize) -> BTreeSet<usize> {
     let mut out = BTreeSet::new();
     let Some((value, sampled)) = read::first(&prim.attribute("holeIndices")) else {
@@ -134,7 +134,7 @@ fn holes(world: &mut World<'_>, prim: &usd::Prim, faces: usize) -> BTreeSet<usiz
     out
 }
 
-/// Un attribut du maillage lu en texte — `subdivisionScheme`, `orientation`.
+/// A mesh attribute read as text — `subdivisionScheme`, `orientation`.
 pub(super) fn scheme(prim: &usd::Prim, name: &str) -> Option<String> {
     read::first(&prim.attribute(name)).and_then(|(value, _)| read::text(&value))
 }

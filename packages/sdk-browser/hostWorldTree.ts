@@ -16,35 +16,35 @@ import { hostLocalInto } from './hostWorldMatrices.ts';
 import { createHierarchyLot, type HierarchyLot } from './mathBatchHierarchy.ts';
 
 /**
- * Les matrices monde d'un SOUS-ARBRE de l'hôte, calculées par le moteur depuis les poses locales.
+ * World matrices of a HOST SUBTREE, computed by the engine from local poses.
  *
- * L'index couvre le sous-arbre de `source` ET la chaîne d'ancêtres de sa racine, rangés parents
- * avant enfants : chaque nœud compose sa matrice locale, puis la multiplie par la matrice monde de
- * son parent. C'est la règle de `updateMatrixWorld(true)` de la référence, avec les formules du
- * socle dans le même ordre — les mêmes bits.
+ * The index covers the subtree of `source` AND the ancestor chain of its root, parents before
+ * children: each node composes its local matrix, then multiplies it by its parent's world
+ * matrix. This is the reference's `updateMatrixWorld(true)` rule, with the core formulas in the
+ * same order — the same bits.
  *
- * DEUX CHEMINS, UNE SEULE VÉRITÉ. Quand tout le sous-arbre recompose sa pose et qu'un lot de
- * hiérarchie le porte exactement, la passe part EN LOT : les poses sont écrites dans les tampons de
- * l'arène, le gouverneur choisit JavaScript ou WebAssembly, et les matrices monde restent là où le
- * noyau les a écrites — rien n'est recopié, et les vues sont reconstruites quand la mémoire du
- * module a grandi. Sinon — un nœud dont l'hôte a coupé la recomposition porte une matrice posée, que
- * le lot ne sait pas recevoir — la passe se fait sur l'arbre du socle, qui accepte les deux.
+ * TWO PATHS, ONE TRUTH. When the whole subtree recomposes its pose and a hierarchy lot carries
+ * it exactly, the pass goes AS A LOT: poses are written into the arena buffers, the governor
+ * chooses JavaScript or WebAssembly, and world matrices stay where the kernel wrote them —
+ * nothing is copied, and views are rebuilt when the module memory has grown. Otherwise — a node
+ * whose host cut recomposition carries a set matrix, which the lot cannot receive — the pass
+ * runs on the core tree, which accepts both.
  *
- * Le moteur garde SA copie : aucune `matrixWorld` de l'hôte n'est écrite, ni même lue.
+ * The engine keeps ITS copy: no host `matrixWorld` is written, nor even read.
  */
 
 export interface HostWorldTree {
-  /** Nœuds indexés : le sous-arbre, et les ancêtres de sa racine. */
+  /** Indexed nodes: the subtree, and the ancestors of its root. */
   readonly n: number;
-  /** Vrai quand le dernier recalcul est parti en lot ; faux quand il est passé par l'arbre. */
+  /** True when the last recompute went as a lot; false when it went through the tree. */
   readonly batched: boolean;
-  /** La matrice monde que le MOTEUR a calculée pour `node`. Lève pour un nœud hors de l'index. */
+  /** World matrix the ENGINE computed for `node`. Throws for a node outside the index. */
   world(node: THREE.Object3D): Float64Array;
-  /** Recalcule tout l'index depuis les poses locales que l'hôte porte à cet instant. */
+  /** Recomputes the whole index from the local poses the host carries at this instant. */
   refresh(): void;
 }
 
-/** Nœuds du sous-arbre et des ancêtres de sa racine : la taille EXACTE que le lot doit porter. */
+/** Nodes of the subtree and of its root's ancestors: the EXACT size the lot must carry. */
 function hostWorldNodeCount(source: THREE.Object3D) {
   let n = 0;
   for (let walk = source.parent; walk; walk = walk.parent) n++;
@@ -52,18 +52,18 @@ function hostWorldNodeCount(source: THREE.Object3D) {
   return n;
 }
 
-/** Le lot de hiérarchie qui porte ce sous-arbre, ou `null` quand il est vide. */
+/** Hierarchy lot that carries this subtree, or `null` when it is empty. */
 export async function hostWorldLot(source: THREE.Object3D) {
   const n = hostWorldNodeCount(source);
   return n ? await createHierarchyLot(n) : null;
 }
 
-/** Les nœuds rangés parents avant enfants, et l'indice du parent de chacun (`-1` pour la racine). */
+/** Nodes ranked parents before children, and each one's parent index (`-1` for the root). */
 function collect(source: THREE.Object3D) {
   const nodes: THREE.Object3D[] = [];
   for (let walk = source.parent; walk; walk = walk.parent) nodes.push(walk);
   nodes.reverse();
-  // `traverse` de la référence est un parcours préfixe : un parent est toujours vu avant ses enfants.
+  // The reference's `traverse` is a prefix walk: a parent is always seen before its children.
   source.traverse((object) => nodes.push(object));
   const index = new Map<THREE.Object3D, number>();
   for (let rank = 0; rank < nodes.length; rank++) index.set(nodes[rank], rank);
@@ -75,7 +75,7 @@ function collect(source: THREE.Object3D) {
   return { nodes, index, parents };
 }
 
-/** L'arbre du socle qui reçoit les poses : chaque nœud porte la matrice locale que le moteur a lue. */
+/** Core tree that receives the poses: each node carries the local matrix the engine read. */
 function socle(nodes: readonly THREE.Object3D[], parents: Int32Array) {
   const tree = createTransformTree(Math.max(1, nodes.length));
   for (let rank = 0; rank < nodes.length; rank++)
@@ -85,14 +85,14 @@ function socle(nodes: readonly THREE.Object3D[], parents: Int32Array) {
 
 const scratch = new Float64Array(MATRIX_VALUES);
 
-/** Les poses locales lues, posées dans l'arbre, puis tout le sous-arbre remonté en une passe. */
+/** Local poses read, set in the tree, then the whole subtree walked up in one pass. */
 function parArbre(nodes: readonly THREE.Object3D[], tree: TransformTree) {
   for (let rank = 0; rank < nodes.length; rank++)
     setNodeLocalMatrix(tree, rank, hostLocalInto(scratch, nodes[rank]));
   updateNodeMatrixWorld(tree, 0, true);
 }
 
-/** Les poses locales écrites dans les tampons de l'arène, puis le lot joué par le gouverneur. */
+/** Local poses written into the arena buffers, then the lot run by the governor. */
 function parLot(nodes: readonly THREE.Object3D[], parents: Int32Array, lot: HierarchyLot) {
   const positions = lot.positions,
     rotations = lot.rotations,
@@ -117,15 +117,15 @@ function parLot(nodes: readonly THREE.Object3D[], parents: Int32Array, lot: Hier
   lot.run();
 }
 
-/** Vrai quand chaque nœud recompose sa matrice locale : la seule forme que le lot sait recevoir. */
+/** True when each node recomposes its local matrix: the only shape the lot can receive. */
 function composent(nodes: readonly THREE.Object3D[]) {
   for (const node of nodes) if (!node.matrixAutoUpdate) return false;
   return true;
 }
 
 /**
- * L'index des matrices monde de `source`, recalculé une première fois avant d'être rendu. `lot` est
- * le tampon de hiérarchie réservé pour ce sous-arbre ; sans lui, la passe est celle de l'arbre.
+ * World-matrix index of `source`, recomputed a first time before it is returned. `lot` is the
+ * hierarchy buffer reserved for this subtree; without it, the pass is that of the tree.
  */
 export function hostWorldTree(source: THREE.Object3D, lot?: HierarchyLot | null): HostWorldTree {
   const { nodes, index, parents } = collect(source);
@@ -134,7 +134,7 @@ export function hostWorldTree(source: THREE.Object3D, lot?: HierarchyLot | null)
     batched = false,
     porteur: ArrayBufferLike | null = null,
     views: Float64Array[] = [];
-  /** Les vues par nœud du tampon du lot, reconstruites quand la mémoire du module a grandi. */
+  /** Per-node views of the lot buffer, rebuilt when the module memory has grown. */
   const vuesDuLot = (monde: Float64Array) => {
     if (monde.buffer !== porteur) {
       porteur = monde.buffer;
@@ -153,7 +153,7 @@ export function hostWorldTree(source: THREE.Object3D, lot?: HierarchyLot | null)
     world(node) {
       const rank = index.get(node);
       if (rank === undefined)
-        throw new EngineError('UNKNOWN_TRANSFORM_NODE', `${node.name}: nœud hors de l’index`, {
+        throw new EngineError('UNKNOWN_TRANSFORM_NODE', `${node.name}: node outside the index`, {
           nodeName: node.name,
         });
       return batched && enLot ? vuesDuLot(enLot.world)[rank] : arbre().worldViews[rank];

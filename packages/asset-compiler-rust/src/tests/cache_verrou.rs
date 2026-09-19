@@ -1,8 +1,8 @@
 use super::*;
 
-/// La cohérence qu'un cache doit tenir quoi qu'il arrive : le pointeur publié nomme une clef dont
-/// le dossier existe, et chaque page que les colonnes de son sidecar nomment est encore sur le
-/// disque. C'est exactement ce qu'une purge concurrente détruit.
+/// Cache consistency held regardless of outcome: published pointer names key whose
+/// folder exists, and each page named by sidecar columns is still on
+/// disk. Exactly what concurrent purge destroys.
 fn assert_cache_coherent(cache: &Path, scope: &str) {
     let pointer = read_json(&cache.join("native").join(scope).join("manifest.json"));
     let key = pointer["key"].as_str().expect("clef du pointeur");
@@ -23,10 +23,10 @@ fn assert_cache_coherent(cache: &Path, scope: &str) {
     }
 }
 
-/// A02 : deux compilations simultanées d'un même cache. Le cache ne garde qu'un pointeur par scope
-/// et se purge après chaque écriture : sans exclusion mutuelle, la purge de l'une efface la clef et
-/// les objets que l'autre vient de publier. Chaque compilation doit donc réussir ou être refusée,
-/// et le cache rester lisible dans les deux cas.
+/// A02: two concurrent compilations of same cache. Cache keeps single pointer per scope
+/// and purges after each write: without mutual exclusion, one purge erases key and
+/// objects other just published. Each compilation must succeed or be refused,
+/// cache remaining readable in both cases.
 #[test]
 fn a02_deux_fils_sur_un_meme_cache_laissent_un_pointeur_lisible() {
     for _ in 0..4 {

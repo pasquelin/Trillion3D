@@ -9,10 +9,11 @@ pub(super) struct BufferPlan {
     pub estimated_working_bytes: usize,
 }
 
-/// Les octets qu'un accessor occupera une fois décodé en tableau dense : `count` éléments de
-/// `composantes` valeurs de quatre octets. Un accessor sans `bufferView`, ou dont un sparse porte
-/// seules quelques valeurs, s'étend pareillement : c'est cette expansion qu'une allocation
-/// demandera, jamais les octets stockés, et elle seule peut faire déborder un entier.
+/// Bytes an accessor will occupy once decoded into a dense array: `count` elements
+/// of `components` four-byte values. An accessor without a `bufferView`, or whose
+/// sparse carries only a few values, expands the same way: that expansion is what
+/// an allocation will request, never the stored bytes, and it alone can overflow
+/// an integer.
 fn dense_bytes(acc: &Value) -> Result<usize> {
     let components = match acc.get("type").and_then(Value::as_str) {
         Some("SCALAR") => 1,

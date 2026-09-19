@@ -1,10 +1,10 @@
 import { coneRejects } from './projectionOracles.ts';
 
 /**
- * Tolérances du rejet de cône, partagées par le miroir processeur (`pageCone.ts`) et le nuanceur
- * (`gpuDagShader.ts`) : une transformation est conforme quand ses colonnes ont la même longueur à
- * `CONE_LENGTH_RATIO` près et sont orthogonales à `CONE_ORTHO_EPS` près, en relatif ; un cône d'angle
- * ≥ `HALF_PI` ne rejette jamais. Les variantes `_WGSL` sont le texte inséré dans le nuanceur, comme
+ * Cone rejection tolerances, shared by the processor mirror (`pageCone.ts`) and the shader
+ * (`gpuDagShader.ts`): a transformation is conformal when its columns have the same length within
+ * `CONE_LENGTH_RATIO` and are orthogonal within `CONE_ORTHO_EPS`, relatively; a cone with angle
+ * ≥ `HALF_PI` never rejects. The `_WGSL` variants are the text inserted into the shader, like
  * `SINGULAR_DETERMINANT_WGSL` (`mathSingular.ts`).
  */
 export const CONE_LENGTH_RATIO = 1.0001;
@@ -15,8 +15,8 @@ export const CONE_ORTHO_EPS_WGSL = CONE_ORTHO_EPS.toExponential();
 export const HALF_PI_WGSL = HALF_PI.toString();
 
 /**
- * Demi-angle sous lequel une sphère est vue depuis un point : `asin(r / d)`, borné à [0, 1] avant
- * l'arc sinus. Un point dans la sphère, ou une distance NaN, la voit de partout : π.
+ * Half-angle under which a sphere is seen from a point: `asin(r / d)`, clamped to [0, 1] before
+ * arcsine. A point inside the sphere, or a NaN distance, sees it from everywhere: π.
  */
 function sphereSpreadAngle(
   cx: number,
@@ -34,14 +34,14 @@ function sphereSpreadAngle(
 }
 
 /**
- * Rejet d'une boîte locale par son cône de normales, vu d'un point du monde.
+ * Rejection of a local box by its normal cone, viewed from a world point.
  *
- * La boîte est remplacée par sa sphère : centre `(min + max) * 0.5` transformé par `world`
- * (4×4 colonne-major, division homogène), rayon `hypot((max − min) * 0.5) * scale` — l'échelle
- * d'une transformation conforme. L'axe du cône passe par `normal` (3×3 colonne-major, la matrice
- * normale de `world`) puis est normalisé ; un axe ou une direction de vue nuls ne rejettent pas.
- * Le verdict est `coneRejects` du produit scalaire borné, de l'angle du cône et de l'étalement
- * perspectif de la sphère ; un paramètre qu'il refuse ne rejette pas non plus.
+ * The box is replaced by its sphere: center `(min + max) * 0.5` transformed by `world`
+ * (4x4 column-major, homogeneous division), radius `hypot((max - min) * 0.5) * scale` — the scale
+ * of a conformal transformation. The cone axis passes through `normal` (3x3 column-major, the normal
+ * matrix of `world`) and is then normalized; a zero axis or view direction does not reject.
+ * The verdict is `coneRejects` of the clamped dot product, the cone angle, and the sphere's
+ * perspective spread; a parameter it refuses does not reject either.
  */
 export function boxConeRejects(
   axis: ArrayLike<number>,

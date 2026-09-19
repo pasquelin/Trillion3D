@@ -1,10 +1,10 @@
-// Oracles du lot M1 « socle mathématique » : le code d'avant le rattachement au socle, recopié tel
-// quel depuis `develop` au commit d016f88. Ces copies sont des doublons voulus — c'est contre elles
-// que les consommateurs rattachés sont opposés, valeur par valeur, par `Object.is`.
+// Oracles of batch M1 "math foundation": the code from before the attachment to the
+// foundation, copied as-is from `develop` at commit d016f88. These copies are wanted
+// duplicates — it is against them that attached consumers are opposed, value by value, by `Object.is`.
 import * as THREE from 'three';
 import { EPSILON } from '../../../sdk-core/lightingTransportIntersections.ts';
 
-/** `streamingPriority.ts:27-45` d'avant : produit en boucle depuis zéro, puis centre de vue. */
+/** `streamingPriority.ts:27-45` from before: product in a loop from zero, then view centre. */
 export function referenceComposeView(view, camera, world) {
   for (let column = 0; column < 4; column++)
     for (let row = 0; row < 4; row++) {
@@ -23,7 +23,7 @@ export function referenceProject(view, sphere, out) {
   out[3] = sphere[3];
 }
 
-/** `webgpuShadowBounds.ts:13-28` d'avant : la sphère monde d'un cluster. */
+/** `webgpuShadowBounds.ts:13-28` from before: the world-space sphere of a cluster. */
 export function referenceClusterSphere(rec, out, base) {
   const e = rec.matrix.elements;
   const cx = (rec.min[0] + rec.max[0]) / 2,
@@ -42,7 +42,7 @@ export function referenceClusterSphere(rec, out, base) {
   );
 }
 
-/** `webgpuPagesWinding.ts:23-28` d'avant : le sens de parcours, déterminant développé en ligne. */
+/** `webgpuPagesWinding.ts:23-28` from before: winding, determinant expanded inline. */
 export function referenceWindingCw(e) {
   return (
     e[0] * (e[5] * e[10] - e[6] * e[9]) -
@@ -52,7 +52,7 @@ export function referenceWindingCw(e) {
   );
 }
 
-/** `visibilityProjection.ts:5-34` d'avant : l'espace de découpe écrit en ligne. */
+/** `visibilityProjection.ts:5-34` from before: clip space written inline. */
 const projectScratch = new THREE.Vector3();
 export function referenceProjectVisibilityVertex(matrix, position, vi, viewProj, width, height) {
   const v = projectScratch
@@ -78,7 +78,7 @@ export function referenceProjectVisibilityVertex(matrix, position, vi, viewProj,
   };
 }
 
-/** `visibilityMath.ts:97-106` d'avant : la table sRGB et l'encodage 8 bits écrits en ligne. */
+/** `visibilityMath.ts:97-106` from before: the sRGB table and 8-bit encoding written inline. */
 export function referenceSrgb8Linear(octet) {
   const c = octet / 255;
   return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
@@ -88,14 +88,14 @@ export function referenceLinearToSrgb8(c) {
   return Math.max(0, Math.min(255, Math.round(s * 255)));
 }
 
-/** `lightingSceneMath.ts:9-13` d'avant. */
+/** `lightingSceneMath.ts:9-13` from before. */
 export const referenceCross = (a, b) => [
   a[1] * b[2] - a[2] * b[1],
   a[2] * b[0] - a[0] * b[2],
   a[0] * b[1] - a[1] * b[0],
 ];
 
-/** `lightingTransportIntersections.ts:7-31` d'avant, sans la levée : la garde est inchangée. */
+/** `lightingTransportIntersections.ts:7-31` from before, without the raise: the guard is unchanged. */
 export function referencePackedSurface(surface) {
   const u = surface.u,
     v = surface.v;
@@ -117,7 +117,7 @@ export function referencePackedSurface(surface) {
   ]);
 }
 
-/** `lightingTransportRays.ts:6-50` d'avant, garde de tangente dégénérée comprise. */
+/** `lightingTransportRays.ts:6-50` from before, degenerate-tangent guard included. */
 function radicalInverse(value) {
   let inverse = 0,
     place = 0.5;

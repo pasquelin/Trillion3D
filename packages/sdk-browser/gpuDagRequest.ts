@@ -1,29 +1,29 @@
 /**
- * La DEMANDE DE DIFFUSION : ce qu'une image fait redescendre de la carte pour que l'hôte sache quoi
- * charger, et dans quel ordre.
+ * The BROADCAST REQUEST: what a frame brings back down from the GPU so the host knows what to
+ * load, and in which order.
  *
- * La coupe ordonnait ses rangs par un compteur atomique, donc par rien : l'hôte téléversait dans
- * l'ordre où les fils avaient gagné la course. Le chemin WebGL2, lui, classe depuis toujours par
- * l'ERREUR D'ÉCRAN DU REMPLAÇANT (`streamingPriority.ts`, `orderPendingUrls`) — une grappe absente
- * est dessinée par un ancêtre plus grossier, et l'erreur de cet ancêtre est exactement ce que
- * l'œil voit : c'est elle qui décide qui arrive d'abord. La carte porte maintenant la même valeur,
- * calculée par la même formule (`projected`, miroir prouvé de `clusterErrorPixels`).
+ * The cut ordered its ranks by an atomic counter, hence by nothing: the host uploaded in the
+ * order the threads had won the race. The WebGL2 path has always ranked by the REPLACEMENT'S
+ * SCREEN ERROR (`streamingPriority.ts`, `orderPendingUrls`) — a missing cluster is drawn by a
+ * coarser ancestor, and that ancestor's error is exactly what the eye sees: it is what decides
+ * who arrives first. The GPU now carries the same value, computed by the same formula
+ * (`projected`, proven mirror of `clusterErrorPixels`).
  *
- * Un MOT par demande, pour que la copie d'image reste ce qu'elle est : la page dans les 22 bits
- * bas — 4 194 304 grappes, contre 1 959 792 sur la plus grosse scène mesurée —, la priorité
- * quantifiée dans les 10 hauts. La quantification est LOGARITHMIQUE et monotone : elle ne sert qu'à
- * ordonner, et un pas relatif constant garde autant de finesse sur une erreur d'un pixel que sur une
- * erreur de mille. Deux erreurs voisines peuvent tomber dans le même pas — l'ordre entre elles est
- * alors indifférent, comme il l'est chez la référence, qui ne départage pas non plus.
+ * One WORD per request, so the frame copy stays what it is: the page in the low 22 bits —
+ * 4,194,304 clusters, against 1,959,792 on the largest measured scene —, the quantized
+ * priority in the high 10. Quantization is LOGARITHMIC and monotone: it only ranks, and a
+ * constant relative step keeps as much precision on a one-pixel error as on a thousand-pixel
+ * one. Two neighbouring errors may fall in the same step — order between them is then
+ * indifferent, as it is on the reference, which does not break ties either.
  */
 const REQUEST_PAGE_BITS = 22;
 export const REQUEST_PAGE_MAX = 1 << REQUEST_PAGE_BITS;
 export const REQUEST_PRIORITY_MAX = 1023;
-/** Pas de la quantification : seize pas par doublement de l'erreur, sur soixante-quatre doublements. */
+/** Quantization step: sixteen steps per error doubling, over sixty-four doublings. */
 export const REQUEST_PRIORITY_SCALE = 16;
 
-/** La priorité d'une erreur en pixels, monotone croissante et bornée. `Infinity` prend le plus haut
- *  pas : une grappe que rien ne remplace est ce qui manque le plus. */
+/** Priority of an error in pixels, monotone increasing and bounded. `Infinity` takes the
+ *  highest step: a cluster nothing replaces is what is missing most. */
 export function quantizeRequestPriority(pixels: number) {
   if (!(pixels > 0)) return 0;
   if (!Number.isFinite(pixels)) return REQUEST_PRIORITY_MAX;
@@ -37,10 +37,10 @@ export const requestPage = (word: number) => word & (REQUEST_PAGE_MAX - 1);
 export const requestPriority = (word: number) => word >>> REQUEST_PAGE_BITS;
 
 /**
- * Miroir WGSL, au bit près. `log2` de WGSL et `Math.log2` de JavaScript ne rendent pas forcément le
- * même dernier bit, et l'arrondi peut donc séparer deux pas voisins : l'ordre publié reste celui des
- * erreurs, la frontière entre deux pas seule est flottante. C'est pourquoi la preuve compare des
- * ORDRES et non des mots.
+ * WGSL mirror, bit for bit. WGSL `log2` and JavaScript `Math.log2` need not return the same
+ * last bit, so rounding may split two neighbouring steps: the published order remains that of
+ * the errors, only the boundary between two steps is floating. That is why the proof compares
+ * ORDERS and not words.
  */
 export const DAG_REQUEST_WGSL = `const PAGE_BITS:u32=${REQUEST_PAGE_BITS}u;
 fn quantizePriority(pixels:f32)->u32{

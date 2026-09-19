@@ -1,27 +1,27 @@
 /**
- * Couleurs du socle mathématique : la courbe de transfert sRGB par morceaux, telle que le dépôt
- * l'écrit partout (seuils 0,04045 et 0,0031308, pente 12,92, exposant 2,4), la même que le
- * compilateur Rust et que la composition WGSL. La bibliothèque 3D de référence arrondit ses
- * constantes (`c · 0,0773993808`, `c · 0,9478672986 + 0,0521327014`) : l'écart est chiffré au banc
- * `sdk-browser/bench/socle-math.bench.mjs`, et ce n'est pas elle qui décide ici.
+ * Math foundation colors: piecewise sRGB transfer curve as written across the repo
+ * (thresholds 0.04045 and 0.0031308, slope 12.92, exponent 2.4), identical to
+ * Rust compiler and WGSL composition. Reference 3D library rounds its
+ * constants (`c · 0.0773993808`, `c · 0.9478672986 + 0.0521327014`): deviation is benchmarked in
+ * `sdk-browser/bench/socle-math.bench.mjs`, and it is not the decision maker here.
  */
 
 import type { NumberSink } from './mathMatrix4.ts';
 
-/** Valeur sRGB encodée dans `[0, 1]` vers sa valeur linéaire. */
+/** Encoded sRGB value in `[0, 1]` to its linear value. */
 export function srgbToLinear(c: number) {
   return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
 }
 
-/** Valeur linéaire vers sa valeur sRGB encodée, négatifs ramenés à zéro avant l'exposant. */
+/** Linear value to its encoded sRGB value, negative numbers clamped to zero before exponent. */
 export function linearToSrgb(c: number) {
   return c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(Math.max(c, 0), 1 / 2.4) - 0.055;
 }
 
-/** `t` ramené dans `[0, 1[` par le modulo euclidien de la référence : `((t % 1) + 1) % 1`. */
+/** `t` wrapped into `[0, 1[` via reference Euclidean modulo: `((t % 1) + 1) % 1`. */
 const wrapUnit = (t: number) => ((t % 1) + 1) % 1;
 
-/** Une composante de la conversion TSL → RVB, la rampe par morceaux de la référence. */
+/** A component of HSL to RGB conversion, reference piecewise ramp. */
 function hueComponent(p: number, q: number, t: number) {
   if (t < 0) t += 1;
   if (t > 1) t -= 1;
@@ -32,12 +32,12 @@ function hueComponent(p: number, q: number, t: number) {
 }
 
 /**
- * Teinte, saturation et luminosité vers trois composantes linéaires écrites en `out[o..o+2]`.
+ * Hue, saturation, and lightness to three linear components written to `out[o..o+2]`.
  *
- * C'est `setHSL` de la référence, terme à terme : teinte repliée, saturation et luminosité bornées à
- * `[0, 1]`, saturation nulle rendue en gris, puis la rampe par morceaux. Aucune courbe de transfert
- * n'est appliquée — l'espace de travail de la référence est déjà linéaire, sa conversion y est
- * l'identité.
+ * Reference `setHSL` term by term: wrapped hue, saturation and lightness clamped to
+ * `[0, 1]`, zero saturation returned as gray, then piecewise ramp. No transfer curve
+ * is applied — reference workspace is already linear, its conversion is
+ * identity.
  */
 export function hslToLinearRgb(out: NumberSink, o: number, h: number, s: number, l: number) {
   const hue = wrapUnit(h),

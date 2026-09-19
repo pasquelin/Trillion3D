@@ -1,12 +1,12 @@
-// Oracles du lot F, côté vecteurs de sdk-core : `lightingSceneMath.ts:15` et
-// `lightingTransportValidation.ts:68` recopiés tels quels. Le point F20 sur `sceneLightShadowFaces.ts`
-// (`multiply4`) est sans objet : le lot ombres, sur develop, a supprimé cette fonction.
+// Oracles for batch F, vector side of sdk-core: `lightingSceneMath.ts:15` and
+// `lightingTransportValidation.ts:68` copied as is. Point F20 on `sceneLightShadowFaces.ts`
+// (`multiply4`) is non-applicable: the shadows batch on develop removed this function.
 
-/** `lightingSceneMath.ts` avant le lot F : la longueur passait par un étalement d'arguments. */
+/** `lightingSceneMath.ts` before batch F: length was computed via argument spreading. */
 export const referenceLength = (v) => Math.hypot(...v);
 
-/** `lightingTransportValidation.ts` avant le lot F : même étalement sur la normale d'une facette.
- *  La validation entière est recopiée : c'est elle que le banc appelle. */
+/** `lightingTransportValidation.ts` before batch F: same spreading on a facet's normal.
+ *  The full validation is copied: it is what the benchmark calls. */
 function finiteVector(value, field) {
   if (value.length !== 3 || !value.every(Number.isFinite))
     throw new Error(`${field} must contain three finite numbers`);

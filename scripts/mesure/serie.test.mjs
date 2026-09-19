@@ -1,7 +1,7 @@
-// Lot « compteurs honnêtes du harnais de mesure » : `runSerie` lit les triangles soumis, le témoin
-// d'image tenue, le repli de sélection GPU et les compteurs Hi-Z du contrat (`hizTestedClusters`…,
-// jamais `hiZTested`… qui n'a jamais existé) depuis l'objet `metrics` que la page a relevé, et
-// publie `null` sans en déduire zéro quand ce moteur ne les compte pas.
+// "honest measurement harness counters" batch: `runSerie` reads submitted triangles, held
+// image indicator, GPU selection fallback, and Hi-Z counters from contract (`hizTestedClusters`…,
+// never `hiZTested`… which never existed) from the `metrics` object reported by the page, and
+// publishes `null` without inferring zero when the engine does not count them.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -9,8 +9,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runSerie } from './serie.mjs';
 
-/** Un `page` Playwright de doublure : `evaluate` rend directement le relevé qu'on lui donne, sans
- *  jamais entrer dans une page — `measureView` (`pageEclairage.mjs`) n'y tourne pas. */
+/** A mock Playwright `page`: `evaluate` directly returns the metrics provided to it, without
+ *  ever entering a page — `measureView` (`pageEclairage.mjs`) does not run there. */
 function page(metrics) {
   return {
     evaluate: async () => ({
@@ -44,7 +44,7 @@ async function contexte() {
   return { ctx, side, OUT };
 }
 
-test('runSerie publie submittedTriangles, totalSubmittedTriangles, imageTenue et repliSelectionGpu depuis les métriques', async () => {
+test('runSerie publishes submittedTriangles, totalSubmittedTriangles, imageTenue and repliSelectionGpu from metrics', async () => {
   const { ctx, side, OUT } = await contexte();
   try {
     const { row } = await runSerie(
@@ -65,13 +65,17 @@ test('runSerie publie submittedTriangles, totalSubmittedTriangles, imageTenue et
     assert.equal(row.totalSubmittedTriangles, 1200);
     assert.equal(row.imageTenue, true);
     assert.equal(row.repliSelectionGpu, false);
-    assert.equal(row.imageDuReleve, ctx.settings.frames - 1, 'nomme l’image que le relevé décrit');
+    assert.equal(
+      row.imageDuReleve,
+      ctx.settings.frames - 1,
+      'names the frame described by metrics',
+    );
   } finally {
     await rm(OUT, { recursive: true, force: true });
   }
 });
 
-test('runSerie publie null, jamais 0 ou false déduits, quand ce moteur ne compte rien de tout cela', async () => {
+test('runSerie publishes null, never inferred 0 or false, when engine counts none of these', async () => {
   const { ctx, side, OUT } = await contexte();
   try {
     const { row } = await runSerie(
@@ -92,9 +96,9 @@ test('runSerie publie null, jamais 0 ou false déduits, quand ce moteur ne compt
   }
 });
 
-// Lot triangles synchrones : `drawnTriangles` est lu depuis `metrics.drawnTriangles`, comme les
-// autres compteurs de triangles — présent quand le moteur le publie, `null` sinon, jamais déduit.
-test('runSerie publie drawnTriangles depuis les métriques, et null quand ce moteur ne le compte pas', async () => {
+// Synchronous triangles batch: `drawnTriangles` is read from `metrics.drawnTriangles`, like
+// other triangle counters — present when engine publishes it, `null` otherwise, never inferred.
+test('runSerie publishes drawnTriangles from metrics, and null when engine does not count it', async () => {
   const { ctx, side, OUT } = await contexte();
   try {
     const { row: avecCompteur } = await runSerie(
@@ -122,7 +126,7 @@ test('runSerie publie drawnTriangles depuis les métriques, et null quand ce mot
   }
 });
 
-test('runSerie lit les six compteurs Hi-Z sous leurs noms de contrat, avec l’image qu’ils décrivent', async () => {
+test('runSerie reads the six Hi-Z counters under contract names, with frame described', async () => {
   const { ctx, side, OUT } = await contexte();
   try {
     const { row } = await runSerie(
@@ -135,8 +139,8 @@ test('runSerie lit les six compteurs Hi-Z sous leurs noms de contrat, avec l’i
         hizRejectedTriangles: 21000,
         hizOversizedTriangles: 1200,
         hizCountedFrame: 17,
-        // Les anciens noms, jamais lus par le contrat : s'ils l'étaient, ces valeurs distinctes
-        // remonteraient dans `row.hiZ` et le test suivant les détecterait.
+        // Old names, never read by contract: if they were, these distinct values
+        // would propagate to `row.hiZ` and the next test would detect them.
         hiZTested: 999,
         hiZRejected: 999,
         hiZBeyond16Texels: 999,
@@ -161,7 +165,7 @@ test('runSerie lit les six compteurs Hi-Z sous leurs noms de contrat, avec l’i
   }
 });
 
-test('runSerie ne lit plus les anciens noms Hi-Z : sans les noms de contrat, tout reste null', async () => {
+test('runSerie no longer reads old Hi-Z names: without contract names, everything remains null', async () => {
   const { ctx, side, OUT } = await contexte();
   try {
     const { row } = await runSerie(

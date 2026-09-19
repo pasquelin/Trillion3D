@@ -24,9 +24,9 @@ type Inputs = {
 };
 
 /**
- * Les adresses de l'anneau que rien ne détient encore, au plus `limite`. L'anneau porte des milliers
- * d'adresses et le lot en prend quelques-unes : la boucle s'arrête au lot plein, là où un filtre de
- * l'anneau entier construisait un tableau complet pour n'en garder que la tête.
+ * Addresses of the ring that nothing holds yet, at most `limite`. The ring carries thousands
+ * of addresses and the batch takes a few: the loop stops at a full batch, where a filter of
+ * the whole ring built a complete array only to keep its head.
  */
 export function anneauFroid(
   ring: readonly string[],
@@ -42,9 +42,9 @@ export function anneauFroid(
 }
 
 /**
- * Les adresses qu'une requête déjà partie fera repartir ensuite. Mêmes adresses et même ordre
- * d'ajout qu'un tableau dédoublonné à la main : l'appartenance est celle de la structure, là où un
- * `includes` rebalayait toute la liste pour chaque adresse, image après image.
+ * Addresses that a request already gone will send again later. Same addresses and same add
+ * order as a hand-deduped array: membership is that of the structure, where an `includes`
+ * rewalked the whole list for every address, frame after frame.
  */
 export function empileEnAttente(attente: Set<string>, urls: readonly string[]) {
   for (const url of urls) attente.add(url);
@@ -54,21 +54,21 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
   const { scope, emit, diagnose } = session;
   const { camera, geometryUrls, streamer, streaming, directGpu, baseline, state } = inputs;
   const ownedRenderer = inputs.renderer;
-  // WebGL2 ne sait pas horodater une passe : le chronomètre entoure la soumission de l'image entière,
-  // et n'est monté que si l'hôte a demandé le profil par étape.
+  // WebGL2 cannot timestamp a pass: the timer wraps the whole-frame submit, and is only
+  // mounted if the host asked for the per-step profile.
   const gpuTimer =
     session.options.stageProfile === true && !directGpu && ownedRenderer
       ? createWebglFrameTimer(ownedRenderer.getContext() as WebGL2RenderingContext)
       : null;
   /**
-   * La chaîne d'affichage du moteur rendu par Three, réglée sur la vue du moteur — la même règle que
-   * le chemin du contrat. Une scène sans lampe déclarée compose par l'identité : du linéaire vers
-   * sRGB et rien d'autre, l'albédo tel quel (P6). Dès qu'une lampe existe, l'exposition et ACES
-   * reviennent, derniers maillons de la chaîne (P4). Le drapeau vient des lampes installées, jamais
-   * d'un réglage d'hôte, et n'est écrit que lorsqu'il change : Three recompile ses programmes sinon.
+   * Display chain of the Three-rendered engine, set on the engine view — the same rule as the
+   * contract path. A scene with no declared light composes by identity: from linear to sRGB
+   * and nothing else, albedo as-is (P6). As soon as a light exists, exposure and ACES come
+   * back, last links of the chain (P4). The flag comes from the installed lights, never from
+   * a host setting, and is written only when it changes: Three otherwise recompiles its programs.
    */
-  // La dernière image complète, gardée pour qu'une image tenue la réaffiche au lieu de redessiner
-  // la scène entière. Voir `createHeldFrame` : le canevas ne garde rien d'une image à l'autre.
+  // Last complete frame, kept so a held frame redisplays it instead of redrawing the whole
+  // scene. See `createHeldFrame`: the canvas keeps nothing from frame to frame.
   const heldFrame = createHeldFrame();
   const drawingSize = new THREE.Vector2();
   const setDisplayChain = (backend: RenderBackend) => {
@@ -83,12 +83,12 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     const missing = backend.pendingUrls?.() ?? [];
     if (missing.length > 0) {
       streaming.queueCached(backend, missing);
-      // Budget par image sur les demandes aussi : à cache froid la liste des manquantes compte les
-      // pages de toute la ville, et en faire chaque image un tableau filtré puis une promesse par
-      // adresse coûtait plus que le rendu. La liste est ordonnée par priorité — l'absence la plus
-      // coûteuse d'abord —, donc la tête suffit ; ce qui reste repart à l'image suivante, plus court
-      // de ce qui vient d'arriver. Le balayage, lui, va jusqu'au bout : une adresse en échec ne
-      // consomme pas le lot et ne bloque donc jamais celles qui la suivent.
+      // Per-frame budget on requests too: on a cold cache the missing list counts the pages
+      // of the whole city, and making each frame a filtered array then a promise per address
+      // cost more than the render. The list is ordered by priority — the most costly miss
+      // first — so the head is enough; the rest leaves on the next frame, shorter by what
+      // just arrived. The walk, for its part, goes to the end: a failed address does not
+      // consume the batch and therefore never blocks those that follow.
       const needFetch: string[] = [];
       for (let i = 0; i < missing.length && needFetch.length < PAGE_REQUEST_BATCH; i++) {
         const url = missing[i];
@@ -132,8 +132,8 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     steps.cpuStep?.('pendingMs', pendingEnd - renderEnd);
     steps.cpuStep?.('retainMs', retainEnd - pendingEnd);
     if (directGpu) {
-      // Le moteur dessine dans le canevas de la page : rien à composer, mais l'image se clôt ici,
-      // là où les bornes que l'hôte vient de relever appartiennent encore à elle.
+      // The engine draws into the page canvas: nothing to compose, but the frame closes here,
+      // where the bounds the host just sampled still belong to it.
       steps.cpuFrameEnd?.();
       if (backend.overBudget)
         throw new EngineError('PAGE_BUDGET', 'Visible pages exceed the resident budget');
@@ -171,9 +171,9 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     }
     setDisplayChain(backend);
     gpuTimer?.begin();
-    // Une image tenue ne peut pas différer de la précédente : le moteur vient de le dire. Elle est
-    // réaffichée d'une commande, et la scène n'est pas reparcourue. Sans image gardée à cette
-    // taille — la première, ou un redimensionnement — l'image est dessinée puis gardée.
+    // A held frame cannot differ from the previous one: the engine just said so. It is
+    // redisplayed in one command, and the scene is not walked again. With no kept frame at
+    // this size — the first, or a resize — the frame is drawn then kept.
     ownedRenderer.getDrawingBufferSize(drawingSize);
     const tenue = backend.frameHeld === true && !target && heldFrame.holds(drawingSize);
     if (tenue) heldFrame.present(ownedRenderer);
@@ -184,7 +184,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     gpuTimer?.end();
     steps.cpuStep?.('submitMs', performance.now() - retainEnd);
     if (gpuTimer) {
-      // Une requête relue quelques images plus tard : la lecture ne bloque jamais l'image en cours.
+      // A query reread a few frames later: the read never blocks the current frame.
       const read = gpuTimer.poll();
       steps.gpuImageMs?.(read.ms, gpuTimer.supported, read.reason ?? gpuTimer.reason);
     }

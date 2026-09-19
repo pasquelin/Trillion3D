@@ -15,8 +15,8 @@ import type { EngineCamera } from './cameraWorld.ts';
 const NONE = 0xffffffff,
   UNIFORM_BYTES = 256,
   WORKGROUP = 64;
-/** Mots par grappe de l'enregistrement froid partagé — cône, boîte, nœud propriétaire, triangles.
- *  Miroir public de `COLD_WORDS` (`gpuDagLayout.ts`), qui en est la seule source. */
+/** Words per cluster of the shared cold record — cone, box, owning node, triangles.
+ *  Public mirror of `COLD_WORDS` (`gpuDagLayout.ts`), which is its only source. */
 export const PAGE_CONE_FLOATS = 13,
   SELECTION_NONE = NONE,
   SELECTION_UNIFORM_BYTES = UNIFORM_BYTES,
@@ -25,10 +25,10 @@ export const PAGE_CONE_FLOATS = 13,
 /**
  * `cameraStretch` is the camera half of the cut's object-to-view stretch.
  *
- * `view` et `planes` sont ceux du repère de rendu, et `cameraWorld` — la position monde de l'œil,
- * ancêtres résolus — en est l'ORIGINE : c'est elle que les matrices monde du noyau ont déjà perdue.
- * La caméra est donc à zéro dans le repère où le noyau travaille, et ce triplet ne sert plus qu'à
- * nommer ce repère pour un relevé ou un oracle.
+ * `view` and `planes` are those of the render frame, and `cameraWorld` — the eye's world
+ * position, ancestors resolved — is its ORIGIN: that is what the kernel's world matrices have
+ * already lost. The camera is therefore at zero in the frame the kernel works in, and this
+ * triplet only names that frame for a sample or an oracle.
  */
 export type SelectionUniforms = {
   planes: Float32Array;
@@ -41,29 +41,29 @@ export type SelectionUniforms = {
 };
 export type SelectionResult = {
   pageIds: number[];
-  /** La priorité de chaque demande, au même rang que `pageIds` : l'erreur d'écran du remplaçant,
-   *  quantifiée (`gpuDagRequest.ts`). Seul l'ORACLE la publie, pour le banc de justesse qui compare
-   *  les deux classements ; le chemin carte ne rend que l'ordre, qui est ce que l'hôte consomme. */
+  /** Priority of each request, at the same rank as `pageIds`: the replacement's screen error,
+   *  quantized (`gpuDagRequest.ts`). Only the ORACLE publishes it, for the correctness bench that
+   *  compares the two rankings; the GPU path returns only the order, which is what the host consumes. */
   requestPriorities?: number[];
   frustumRejected: number;
   lodLevel: number;
   complete?: boolean;
   drawablePageIds?: number[];
-  /** Les totaux de triangles TENUS PAR LA CARTE, là où le verdict est prononcé : la coupe entière,
-   *  ce qui part au dessin, le trou — une grappe voulue dont les octets ou la ligne manquent — et
-   *  la part en mélange. `selected − drawn − uncovered = 0`. */
+  /** Triangle totals HELD BY THE GPU, where the verdict is given: the whole cut, what goes to
+   *  draw, the hole — a wanted cluster whose bytes or row are missing — and the blend share.
+   *  `selected − drawn − uncovered = 0`. */
   selectedTriangles?: number;
   drawnTriangles?: number;
   uncoveredTriangles?: number;
   transparentTriangles?: number;
-  /** Vrai quand la coupe dépassait le plafond du relevé : les listes sont amputées, et l'image doit
-   *  repasser par la coupe processeur plutôt que de les adopter (`gpuDagLayout.ts`). */
+  /** True when the cut exceeded the sample cap: the lists are truncated, and the frame must go
+   *  back through the CPU cut rather than adopt them (`gpuDagLayout.ts`). */
   truncated?: boolean;
 };
 export type GpuCut = { uniforms: SelectionUniforms; result: SelectionResult };
 /**
- * Les pages dont le drapeau de résidence vient de changer, dans l'ordre croissant. `sorted` faux dit
- * que la liste ne décrit plus l'ensemble : le lecteur repart alors de toutes les pages.
+ * Pages whose residency flag just changed, in increasing order. `sorted` false means the list
+ * no longer describes the set: the reader then starts over from every page.
  */
 export type ResidencyChanges = { pages: Int32Array; count: number; sorted: boolean };
 /** Told `true` when the shared command buffer reached the queue, `false` when the image dropped it. */
@@ -94,7 +94,7 @@ export type GpuSelection = {
 const planeScratch = new Float32Array(FRUSTUM_PLANE_VALUES),
   viewScratch = new Float32Array(16);
 
-/** Le bloc d'uniformes d'une coupe, alloué une fois : l'image le réécrit, elle ne le refait pas. */
+/** Uniform block of a cut, allocated once: the frame rewrites it, it does not remake it. */
 export function createSelectionUniforms(): SelectionUniforms {
   return {
     planes: new Float32Array(FRUSTUM_PLANE_VALUES),
@@ -157,11 +157,11 @@ export function cameraSelectionUniforms(
 ): SelectionUniforms {
   const planes = into?.planes ?? planeScratch;
   const view = into?.view ?? viewScratch;
-  // Vue et plans sont ceux du REPÈRE DE RENDU (`cameraRenderOrigin.ts`) : le noyau compose
-  // `vue · monde` en simple précision, et les matrices monde qu'on lui donne sont ramenées à
-  // `cameraWorld`. Prendre ici la vue absolue mélangerait les deux repères dans la même formule.
-  // Ancêtres compris : l'entrée d'image a posé les deux moitiés une fois dans la caméra du moteur.
-  // La simple précision n'arrondit qu'ici, comme avant : tout est calculé en double au-dessus.
+  // View and planes are those of the RENDER FRAME (`cameraRenderOrigin.ts`): the kernel composes
+  // `view · world` in single precision, and the world matrices given to it are brought back to
+  // `cameraWorld`. Taking the absolute view here would mix the two frames in the same formula.
+  // Ancestors included: the frame entry set both halves once in the engine camera.
+  // Single precision only rounds here, as before: everything above is computed in double.
   planes.set(cam.planesRelative);
   view.set(cam.viewRelative);
   const pixelScale = pixelScaleOf(
@@ -179,7 +179,7 @@ export function cameraSelectionUniforms(
   cameraWorld[1] = position[1];
   cameraWorld[2] = position[2];
   // The flat cut multiplies this by each primitive's own stretch, exactly like `selectVisiblePages`.
-  // L'étirement ne lit que la partie linéaire, que le repère de rendu ne touche pas : mêmes bits.
+  // Stretch reads only the linear part, which the render frame does not touch: same bits.
   const cameraStretch = maxStretch(cam.viewRelative);
   if (into) {
     into.pixelError = pixelError;

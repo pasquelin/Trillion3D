@@ -4,12 +4,12 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import { packBoxCorners } from './webgpuVisibilityCorners.ts';
 
 /**
- * Monte le test d'occultation des grappes transparentes, une fois que tout ce qu'il emprunte existe.
+ * Mounts the occlusion test of transparent clusters, once everything it borrows exists.
  *
- * Il n'est ni un repli ni une option : sans pyramide, sans partition ou sans compaction GPU il n'y a
- * simplement rien à dépouiller, et la table transparente garde alors toutes ses entrées — l'image
- * est la même, au prix qu'elle avait. Le tampon de verdicts appartient à la compaction et vaut zéro
- * tant que personne ne l'écrit.
+ * It is neither a fallback nor an option: without a pyramid, without a partition or without GPU
+ * compaction there is simply nothing to strip, and the transparent table then keeps all its entries
+ * — the image is the same, at the cost it had. The verdict buffer belongs to compaction and stays
+ * zero while nobody writes it.
  */
 export async function prepareTransparentOcclusion(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vis, blendState } = rt,
@@ -28,13 +28,13 @@ export async function prepareTransparentOcclusion(rt: WebgpuPagesRuntime, device
 }
 
 /**
- * Les huit coins monde de chaque entrée de la table transparente, dans le tampon que le test lit.
+ * The eight world corners of every transparent-table entry, in the buffer the test reads.
  *
- * Une grappe transparente ne réclame aucune ligne du tampon de visibilité : ses coins ne voyagent
- * donc pas avec la plage sale de la table de lignes, et c'est ici qu'ils partent. Comme pour les
- * opaques, un coin ne change que quand la matrice monde de sa page change, et l'âge de la table
- * nomme exactement ce moment-là : une caméra qui bouge n'en réécrit aucun. Les doubles sont ceux de
- * `createBoxCorners`, portés chacun par deux simples précisions — l'arrondi et son résidu.
+ * A transparent cluster claims no visibility-buffer row: its corners therefore do not travel with
+ * the row table's dirty range, and it is here they leave. As for opaques, a corner changes only when
+ * its page's world matrix changes, and the table's age names exactly that moment: a moving camera
+ * rewrites none. The doubles are those of `createBoxCorners`, each carried by two single-precision
+ * values — the rounding and its residue.
  */
 export function refreshTransparentCorners(rt: WebgpuPagesRuntime) {
   const { blendState, layout } = rt,
@@ -48,8 +48,8 @@ export function refreshTransparentCorners(rt: WebgpuPagesRuntime) {
   for (let entry = 0; entry < table.capacity; entry++) {
     const base = entry * CORNER_VALUES,
       page = table.pageOfEntry[entry];
-    // Une entrée d'alignement ne nomme aucune page : ses coins restent nuls, et la compaction la
-    // retire avant même de lire son verdict.
+    // An alignment entry names no page: its corners stay zero, and compaction drops it even before
+    // reading its verdict.
     if (page < 0) {
       packed.fill(0, base, base + CORNER_VALUES);
       continue;

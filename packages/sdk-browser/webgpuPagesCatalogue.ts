@@ -1,15 +1,15 @@
 import type { PageRec } from './pageSelection.ts';
 
-// Deux parcours du catalogue des pages, faits une fois au chargement : la table des pages par
-// adresse et les compteurs du diagnostic des textures.
+// Two walks of the page catalogue, done once at load: the page table by address and the texture
+// diagnostic counters.
 
 /**
- * Les octets d'index de chaque page, vus comme des octets, par adresse de cluster.
+ * Index bytes of each page, seen as bytes, by cluster address.
  *
- * Douze placements d'un même objet partagent l'adresse de leurs clusters : une table « une page par
- * adresse » ne peut pas dire lequel porte les octets à l'instant où le cache les demande. La table
- * est donc tenue par adresse, posée au chargement depuis les pages déjà servies, complétée à chaque
- * arrivée et vidée à chaque abandon — une vue par cluster, jamais une copie.
+ * Twelve placements of the same object share their cluster addresses: a "one page per address" table
+ * cannot say which one holds the bytes at the moment the cache asks. The table is therefore held by
+ * address, set at load from already-served pages, completed on every arrival and cleared on every
+ * drop — one view per cluster, never a copy.
  */
 export function indexSourceBytes(allPages: readonly PageRec[]) {
   const sourceBytes = new Map<string, Uint8Array>();
@@ -20,15 +20,15 @@ export function indexSourceBytes(allPages: readonly PageRec[]) {
   return sourceBytes;
 }
 
-/** Les octets d'index d'une page, vus comme des octets, ou `undefined` tant qu'elle n'en a pas. */
+/** Index bytes of a page, seen as bytes, or `undefined` until it has some. */
 export function pageSourceBytes(rec: PageRec | undefined) {
   const array = rec?.array;
   return array && new Uint8Array(array.buffer, array.byteOffset, array.byteLength);
 }
 
 /**
- * Les trois nombres que le diagnostic des textures publie, pris en un parcours : un `map` de toutes
- * les pages et deux copies de la table des géométries étaient alloués rien que pour les lire.
+ * The three numbers the texture diagnostic publishes, taken in one walk: a `map` of all pages and two
+ * copies of the geometry table were allocated just to read them.
  */
 export function compteMateriauxEtTangentes(
   allPages: readonly PageRec[],

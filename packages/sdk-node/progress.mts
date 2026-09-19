@@ -31,9 +31,9 @@ const PHASES: Record<string, (event: CompilerEvent, state: PhaseState) => string
   primitive: (e, s) =>
     `clustering ${s.primitives}${s.primitivesTotal ? `/${s.primitivesTotal}` : ''} primitives`,
   bootstrap: (e) => `root bundles ${e.completed}/${e.total}`,
-  // Les découpes se tranchent à la main, et les questions viennent à la fin du lot : la ligne ne
-  // fait que dire qu'il y en aura. Rien à trancher est une ligne aussi — la feuille de réponses
-  // existe pour tous les modèles, et c'est elle qui dit si une relecture est due.
+  // Cutouts are decided by hand, and the questions come at the end of the batch: the line only
+  // says there will be some. Nothing to decide is a line too — the answer sheet exists for every
+  // model, and it is what says whether a review is due.
   cutouts: (e) =>
     Number(e.pending ?? 0) > 0 ? `${e.pending} cutout(s) to review` : 'cutouts up to date',
   prune: (e) => `pruning cache (${e.removedKeys} keys, ${mb(e.removedBytes)})`,
@@ -109,7 +109,7 @@ export function createTerminalProgress({
       state.timer = null;
     }
   };
-  // Une ligne qui reste : la barre est effacée d'abord sur un terminal, écrite telle quelle ailleurs.
+  // A line that stays: the bar is erased first on a terminal, written as-is elsewhere.
   const persist = (text: string) => stream.write(`${tty ? '\r\x1b[K' : ''}${text}\n`);
   const dag = dagWarningsTally();
   const finish = (mark: string, summary: string) => {
@@ -139,7 +139,7 @@ export function createTerminalProgress({
       if (event.phase === 'import' && typeof event.primitives === 'number')
         state.primitivesTotal = event.primitives;
       if (event.phase === 'primitive') state.primitives += 1;
-      // Un DAG que le compilateur n'a pas fait monter : compté ici, dit en une ligne à la fin.
+      // A DAG the compiler did not raise: counted here, stated in one line at the end.
       for (const warning of event.warnings ?? [])
         dag.record(warning, `${event.mesh}/${event.primitive}`);
       state.phase = event.phase ?? event.event ?? '';

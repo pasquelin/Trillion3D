@@ -1,57 +1,56 @@
-//! Reproduire un défaut sur la fixture CC0, sans Blender et sans écrire dans `fixtures/`.
+//! Reproducing a defect on the CC0 fixture, without Blender and without writing into `fixtures/`.
 //!
-//! La fixture est déballée de son enveloppe, puis retouchée **par le SDNA qu'elle porte
-//! elle-même** : aucun décalage n'est écrit en dur ici non plus, chaque champ est retrouvé par son
-//! nom comme le pilote le fait. Un pointeur réécrit, un flottant réécrit, un bloc dupliqué : ce
-//! sont des fichiers que Blender aurait pu écrire, et le pilote les relit par le même chemin que
-//! la fixture d'origine.
+//! The fixture is unpacked from its wrapping, then patched **through the SDNA it itself carries**:
+//! no offset is hardcoded here either, each field is found by its name as the driver does. A
+//! rewritten pointer, a rewritten float, a duplicated block: these are files Blender could have
+//! written, and the driver rereads them by the same path as the original fixture.
 use super::*;
 
-/// L'entête d'un bloc à champs de soixante-quatre bits, celui de la fixture.
+/// The header of a sixty-four-bit-field block, that of the fixture.
 const HEADER: usize = 32;
-/// L'adresse d'origine donnée au bloc ajouté : elle n'appartient à aucun bloc de la fixture.
+/// The original address given to the added block: it belongs to no block of the fixture.
 const SPARE: u64 = 0xB1E0_0000_0000_0001;
 
-/// Les octets de la fixture CC0, déballés de leur enveloppe Zstandard.
+/// The bytes of the CC0 fixture, unpacked from their Zstandard wrapping.
 pub(super) fn fixture() -> Vec<u8> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("fixtures/blend/procedural-materials/scene.blend");
     let raw = fs::read(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
-    envelope::unwrap(&raw, MAX_BYTES).expect("l'enveloppe de la fixture")
+    envelope::unwrap(&raw, MAX_BYTES).expect("the fixture wrapping")
 }
 
-/// L'adresse d'origine du bloc identifié par ce nom, préfixe de genre compris.
+/// The original address of the block identified by this name, genre prefix included.
 pub(super) fn named(file: &BlendFile, name: &str) -> u64 {
     file.blocks
         .iter()
         .find(|block| file.view(block).is_some_and(|view| view.id_name() == name))
         .map(|block| block.old)
-        .unwrap_or_else(|| panic!("aucun bloc nommé {name}"))
+        .unwrap_or_else(|| panic!("no block named {name}"))
 }
 
-/// Le rang, dans les octets du fichier, où commence un champ d'un bloc — le chemin traversant les
-/// structures imbriquées, comme `["id", "name"]`.
+/// The rank, in the file's bytes, where a field of a block starts — the path walking nested
+/// structures, such as `["id", "name"]`.
 pub(super) fn field(file: &BlendFile, old: u64, path: &[&str]) -> usize {
-    let block = file.at(old).expect("le bloc demandé");
-    let mut layout = file.dna.layout(block.sdna).expect("sa disposition");
+    let block = file.at(old).expect("the requested block");
+    let mut layout = file.dna.layout(block.sdna).expect("its layout");
     let mut at = block.start;
     for (rank, step) in path.iter().enumerate() {
-        let field = layout.field(step).unwrap_or_else(|| panic!("champ {step}"));
+        let field = layout.field(step).unwrap_or_else(|| panic!("field {step}"));
         at += field.offset;
         if rank + 1 < path.len() {
-            let kind = file.dna.index(&field.kind).expect("type du champ");
-            layout = file.dna.layout(kind).expect("sa disposition");
+            let kind = file.dna.index(&field.kind).expect("field type");
+            layout = file.dna.layout(kind).expect("its layout");
         }
     }
     at
 }
 
-/// Réécrit des octets à un rang donné du fichier.
+/// Rewrites bytes at a given rank of the file.
 pub(super) fn put(bytes: &mut [u8], at: usize, value: &[u8]) {
     bytes[at..at + value.len()].copy_from_slice(value);
 }
 
-/// L'adresse d'une entrée ou d'une sortie nommée d'un nœud du graphe d'un matériau.
+/// The address of a named input or output of a node of a material's graph.
 pub(super) fn socket(
     file: &BlendFile,
     material: &str,
@@ -66,31 +65,31 @@ pub(super) fn socket(
         .flat_map(|held| held.list(side))
         .find(|held| held.text("identifier") == wanted)
         .map(|held| held.old)
-        .unwrap_or_else(|| panic!("{node} n'a pas de {side} nommée {wanted}"))
+        .unwrap_or_else(|| panic!("{node} has no {side} named {wanted}"))
 }
 
-/// Le rang d'un champ d'un lien du graphe, le lien étant retrouvé par l'entrée qu'il alimente.
+/// The rank of a field of a graph link, the link being found by the input it feeds.
 pub(super) fn link_field(file: &BlendFile, material: &str, tosock: u64, name: &str) -> usize {
     let link = tree(file, material)
         .list("links")
         .into_iter()
         .find(|link| link.pointer("tosock") == tosock)
-        .expect("le lien demandé");
+        .expect("the requested link");
     field(file, link.old, &[name])
 }
 
-/// Le rang de la valeur déclarée d'une entrée de nœud : elle vit dans le bloc que son champ
-/// `default_value` désigne.
+/// The rank of the declared value of a node input: it lives in the block its `default_value`
+/// field designates.
 pub(super) fn declared_field(file: &BlendFile, socket: u64, name: &str) -> usize {
     let held = file
         .at(socket)
         .and_then(|block| file.view(block))
-        .expect("l'entrée");
+        .expect("the input");
     field(file, held.pointer("default_value"), &[name])
 }
 
-/// La fixture dont le SDNA ne décrit plus le champ nommé : son nom est réécrit dans la section des
-/// noms, à longueur égale. C'est exactement ce que porte un fichier écrit avant ce champ.
+/// The fixture whose SDNA no longer describes the named field: its name is rewritten in the name
+/// section, at equal length. That is exactly what a file written before this field carries.
 pub(super) fn without_field(name: &str) -> Vec<u8> {
     let mut bytes = fixture();
     let needle: Vec<u8> = format!("{name}\0").into_bytes();
@@ -103,33 +102,33 @@ pub(super) fn without_field(name: &str) -> Vec<u8> {
         .filter(|(_, window)| *window == needle.as_slice())
         .map(|(at, _)| at)
         .collect();
-    assert!(!found.is_empty(), "le SDNA ne nomme pas {name}");
+    assert!(!found.is_empty(), "the SDNA does not name {name}");
     for at in found {
         put(&mut bytes, at, &renamed);
     }
     bytes
 }
 
-/// Le graphe de nœuds d'un matériau nommé.
+/// The node graph of a named material.
 fn tree<'a>(file: &'a BlendFile, material: &str) -> At<'a> {
     file.at(named(file, material))
         .and_then(|block| file.view(block))
-        .expect("le matériau")
+        .expect("the material")
         .follow("nodetree")
-        .expect("son graphe")
+        .expect("its graph")
 }
 
-/// La fixture augmentée d'un objet maillage qu'aucune collection de la scène ne porte : le bloc
-/// d'un objet existant, recopié sous une autre adresse et un autre nom, glissé avant `ENDB`.
+/// The fixture augmented with a mesh object that no collection of the scene holds: the block of
+/// an existing object, copied under another address and another name, slipped in before `ENDB`.
 pub(super) fn with_stray_object(name: &[u8]) -> Vec<u8> {
     let mut bytes = fixture();
     let (mut data, sdna, at, end) = {
-        let file = BlendFile::open(&bytes, MAX_BYTES).expect("la fixture");
+        let file = BlendFile::open(&bytes, MAX_BYTES).expect("the fixture");
         let old = named(&file, "OBSharedMesh_0");
-        let block = file.at(old).expect("son bloc");
+        let block = file.at(old).expect("its block");
         let data = bytes[block.start..block.start + block.len].to_vec();
         let at = field(&file, old, &["id", "name"]) - block.start;
-        let end = file.of(*b"ENDB").next().expect("le bloc ENDB").start - HEADER;
+        let end = file.of(*b"ENDB").next().expect("the ENDB block").start - HEADER;
         (data, block.sdna as u32, at, end)
     };
     data[at..at + name.len()].copy_from_slice(name);
@@ -144,33 +143,33 @@ pub(super) fn with_stray_object(name: &[u8]) -> Vec<u8> {
     bytes
 }
 
-/// La fixture dont l'attribut `sharp_face` du premier maillage devient un `sharp_edge` : même
-/// magasin, même bloc de valeurs, seuls le nom et le domaine sont réécrits — par le SDNA du
-/// fichier, comme partout ici. `hard` dit si les arêtes ainsi marquées le sont toutes ou aucune.
+/// The fixture whose first mesh's `sharp_face` attribute becomes a `sharp_edge`: same store,
+/// same value block, only the name and the domain are rewritten — through the file's SDNA, as
+/// everywhere here. `hard` says whether the edges thus marked all are, or none.
 pub(super) fn with_sharp_edges(hard: bool) -> Vec<u8> {
     let mut bytes = fixture();
     let (name_at, domain_at, width, values_at, count) = {
-        let file = BlendFile::open(&bytes, MAX_BYTES).expect("la fixture");
+        let file = BlendFile::open(&bytes, MAX_BYTES).expect("the fixture");
         let mesh = file
             .of(*b"ME\0\0")
             .next()
             .and_then(|block| file.view(block))
-            .expect("un maillage de la fixture");
+            .expect("a mesh of the fixture");
         let storage = mesh
             .inner("attribute_storage")
-            .expect("son magasin d'attributs");
-        let head = storage.follow("dna_attributes").expect("ses attributs");
+            .expect("its attribute store");
+        let head = storage.follow("dna_attributes").expect("its attributes");
         let entry = (0..storage.int("dna_attributes_num", 0).max(0) as usize)
             .filter_map(|rank| head.item(rank))
             .find(|entry| {
                 entry.file.text_at(entry.pointer("name")).as_deref() == Some("sharp_face")
             })
-            .expect("l'attribut sharp_face de la fixture");
-        let domain = entry.layout.field("domain").expect("le champ domain");
-        let data = entry.follow("data").expect("le bloc de valeurs");
-        let values = file.at(data.pointer("data")).expect("ses octets");
+            .expect("the fixture's sharp_face attribute");
+        let domain = entry.layout.field("domain").expect("the domain field");
+        let data = entry.follow("data").expect("the value block");
+        let values = file.at(data.pointer("data")).expect("its bytes");
         (
-            file.at(entry.pointer("name")).expect("le nom").start,
+            file.at(entry.pointer("name")).expect("the name").start,
             entry.base + domain.offset,
             domain.unit,
             values.start,

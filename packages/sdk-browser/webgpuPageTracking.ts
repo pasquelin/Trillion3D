@@ -1,9 +1,9 @@
 import type { PageRec } from './pageSelection.ts';
 import { createDenseKeySet } from './webgpuDenseKeys.ts';
 
-/** Adresses qu'un relevé de trace nomme, au plus, quelle que soit la taille de l'ensemble décrit. */
+/** Addresses a trace sample names, at most, whatever the size of the described set. */
 const TRACE_SAMPLE = 16;
-/** Une liste d'enregistrements telle qu'un relevé la lit : la table de lignes en porte de vides. */
+/** A record list as a sample reads it: the row table holds empty slots. */
 type PageList = ArrayLike<PageRec | undefined>;
 
 /** Stable numeric page keys keep the hot residency path out of string hash tables. */
@@ -43,13 +43,13 @@ export function createWebgpuPageTracking(allPages: PageRec[]) {
   };
   const traceSets = new Map<string, { revision: number; count: number; sample: string[] }>();
   /**
-   * Un relevé de trace ne parcourt jamais une liste proportionnelle à la coupe ou au catalogue : il
-   * publie le NOMBRE d'entrées, déjà tenu, et un sondage d'au plus `TRACE_SAMPLE` adresses réparties
-   * régulièrement sur la liste. Comparer et recopier ce sondage borne le coût du mode trace, là où
-   * la liste entière le rendait proportionnel à l'image — et allouait autant de tableaux par image.
+   * A trace sample never walks a list proportional to the cut or the catalogue: it publishes the
+   * NUMBER of entries, already held, and a probe of at most `TRACE_SAMPLE` addresses spaced evenly
+   * over the list. Comparing and copying that probe bounds the cost of trace mode, where the full
+   * list made it proportional to the image — and allocated as many arrays per image.
    *
-   * L'âge ne monte donc que sur un changement que le sondage voit ; c'est ce qu'un diagnostic borné
-   * promet, et jamais l'inventaire exact d'un ensemble.
+   * Age therefore rises only on a change the probe sees; that is what a bounded diagnostic promises,
+   * and never the exact inventory of a set.
    */
   const scratch: string[] = [];
   const publish = (name: string, count: number, urlAt: (index: number) => string) => {
@@ -77,11 +77,11 @@ export function createWebgpuPageTracking(allPages: PageRec[]) {
   };
   const traceSet = (name: string, urls: readonly string[]) =>
     publish(name, urls.length, (index) => urls[index]);
-  /** Le même relevé, tiré des enregistrements eux-mêmes : aucune liste d'adresses n'est construite
-   *  pour lui. `count` borne la liste quand seul son début est valable, comme la table de lignes. */
+  /** The same sample, taken from the records themselves: no address list is built for it. `count`
+   *  bounds the list when only its start is valid, like the row table. */
   const traceRecs = (name: string, pages: PageList, count = pages.length) =>
     publish(name, count, (index) => pages[index]?.url ?? '');
-  /** Le même relevé, tiré d'un ensemble dense de clés, sans en recopier une seule adresse. */
+  /** The same sample, taken from a dense key set, without copying a single address from it. */
   const traceKeys = (name: string, set: { list: Int32Array; count: number }) =>
     publish(name, set.count, (index) => pageCatalog[set.list[index]]);
   return {

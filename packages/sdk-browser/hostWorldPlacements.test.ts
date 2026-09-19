@@ -1,8 +1,8 @@
-// hostWorldPlacements.ts : les matrices monde que le MOTEUR tient pour les nœuds dessinés. Le
-// contenant est une matrice de la bibliothèque hôte — ce que l'hôte attache et ce que les témoins
-// dessinent —, mais ses seize nombres viennent du socle : ils sont confrontés au bit près
-// (Object.is) à `matrixWorld` après `updateMatrixWorld(true)` de la référence, sur une scène à
-// parents, échelles négatives et non uniformes, et un nœud dont l'hôte a posé la matrice lui-même.
+// hostWorldPlacements.ts: the world matrices the ENGINE holds for the drawn nodes. The container
+// is a host-library matrix — what the host attaches and what witnesses draw — but its sixteen
+// numbers come from the core: they are compared bit-for-bit (Object.is) to `matrixWorld` after
+// the reference's `updateMatrixWorld(true)`, on a scene with parents, negative and non-uniform
+// scales, and a node whose host set the matrix itself.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -12,8 +12,8 @@ import { hostWorldPlacements } from './hostWorldPlacements.ts';
 import { blendFixture } from './pageSelectionBlendFixture.ts';
 import { assertBits } from '../sdk-core/bench/oracles/volumes.mjs';
 
-/** Une scène de l'hôte que PERSONNE n'a remontée : racine tournée, parent à échelle négative et non
- *  uniforme, feuille cisaillée par cette échelle, plus un nœud dont la matrice est posée. */
+/** A host scene that NOBODY has walked up: rotated root, parent with negative and non-uniform
+ *  scale, leaf sheared by that scale, plus a node whose matrix is set. */
 function scene() {
   const racine = new THREE.Group(),
     parent = new THREE.Group(),
@@ -33,17 +33,17 @@ function scene() {
   return { racine, parent, feuille, pose };
 }
 
-test('la matrice rendue porte, au bit près, le monde que la référence compose depuis les mêmes poses', () => {
+test('the returned matrix carries, to the bit, the world the reference composes from the same poses', () => {
   const { racine, parent, feuille, pose } = scene();
   const worlds = hostWorldPlacements(racine);
   const obtenus = [parent, feuille, pose].map((node) => Array.from(worlds.of(node).elements));
-  // Le témoin passe APRÈS : tant qu'il n'a pas remonté le graphe, l'hôte n'a composé aucune matrice.
+  // The witness runs AFTER: until it has walked the graph, the host has composed no matrix.
   racine.updateMatrixWorld(true);
   for (const [rang, node] of [parent, feuille, pose].entries())
     assertBits(obtenus[rang], Array.from(node.matrixWorld.elements));
 });
 
-test('la matrice monde de l’hôte n’est ni lue ni écrite : elle reste l’identité qu’il a laissée', () => {
+test("the host's world matrix is neither read nor written: it stays the identity it left", () => {
   const { racine, feuille } = scene();
   const worlds = hostWorldPlacements(racine);
   const monde = worlds.of(feuille);
@@ -51,40 +51,40 @@ test('la matrice monde de l’hôte n’est ni lue ni écrite : elle reste l’i
   assert.deepEqual(
     Array.from(feuille.matrixWorld.elements),
     Array.from(new THREE.Matrix4().elements),
-    'le moteur n’a rien écrit dans la scène de l’hôte',
+    'the engine wrote nothing into the host scene',
   );
   assert.notDeepEqual(
     Array.from(monde.elements),
     Array.from(feuille.matrixWorld.elements),
-    'et ce qu’il tient n’est pas ce que l’hôte porte',
+    'and what it holds is not what the host carries',
   );
 });
 
-test('`refresh` réécrit la matrice rendue au lieu d’en rendre une autre : le porteur voit le déplacement', () => {
+test('`refresh` rewrites the returned matrix instead of returning another: the holder sees the move', () => {
   const { racine, parent, feuille } = scene();
   const worlds = hostWorldPlacements(racine);
   const monde = worlds.of(feuille);
   const avant = Array.from(monde.elements);
   parent.position.set(10, -8, 6);
   worlds.refresh();
-  assert.equal(worlds.of(feuille), monde, 'la même matrice, jamais une seconde');
-  assert.notDeepEqual(Array.from(monde.elements), avant, 'le parent déplacé est dans le monde');
+  assert.equal(worlds.of(feuille), monde, 'the same matrix, never a second one');
+  assert.notDeepEqual(Array.from(monde.elements), avant, 'the moved parent is in the world');
   racine.updateMatrixWorld(true);
   assertBits(Array.from(monde.elements), Array.from(feuille.matrixWorld.elements));
 });
 
-test('un nœud hors du sous-arbre indexé est refusé par une erreur nommée', () => {
+test('a node outside the indexed subtree is refused by a named error', () => {
   const { racine } = scene();
   const worlds = hostWorldPlacements(racine);
   const etranger = new THREE.Group();
-  etranger.name = 'étranger';
+  etranger.name = 'foreign';
   assert.throws(
     () => worlds.of(etranger),
     (erreur: unknown) => erreur instanceof EngineError && erreur.code === 'UNKNOWN_TRANSFORM_NODE',
   );
 });
 
-test('les fiches de page et les racines de cluster portent la matrice du moteur, pas celle de l’hôte', () => {
+test("page records and cluster roots carry the engine's matrix, not the host's", () => {
   const fixture = blendFixture();
   const parent = new THREE.Group();
   parent.scale.set(2, -1, 0.5);
@@ -97,10 +97,10 @@ test('les fiches de page et les racines de cluster portent la matrice du moteur,
     fixture.associations,
   );
   const monde = worlds.of(fixture.mesh);
-  assert.equal(roots[0].world, monde, 'la racine porte la matrice du moteur');
-  for (const page of allPages) assert.equal(page.matrix, monde, 'la fiche porte la même');
-  assert.notEqual(monde, fixture.mesh.matrixWorld, 'ce n’est pas la matrice vivante de l’hôte');
-  // Le témoin passe après : la collecte n'a jamais demandé à l'hôte de composer quoi que ce soit.
+  assert.equal(roots[0].world, monde, 'the root carries the engine matrix');
+  for (const page of allPages) assert.equal(page.matrix, monde, 'the record carries the same');
+  assert.notEqual(monde, fixture.mesh.matrixWorld, "it is not the host's live matrix");
+  // The witness runs after: collection never asked the host to compose anything.
   parent.updateMatrixWorld(true);
   assertBits(Array.from(monde.elements), Array.from(fixture.mesh.matrixWorld.elements));
   fixture.geometry.dispose();

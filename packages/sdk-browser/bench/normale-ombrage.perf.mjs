@@ -1,4 +1,4 @@
-// Banc du lot 4 : normale d'ombrage.
+// Benchmark for batch 4: shading normal.
 import * as THREE from 'three';
 import { shadingNormal } from '../visibilityShadingNormal.ts';
 import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
@@ -59,24 +59,24 @@ function preparerLot() {
 
 const lot = preparerLot();
 const passe = (normale, lit) => (items) => {
-  const sortie = new Float64Array(items.length * 3);
+  const output = new Float64Array(items.length * 3);
   for (let i = 0; i < items.length; i++) {
     const p = items[i];
     const n = normale(p.page, p.tri, p.bary, p.uv, p.mat, p.screenFace);
-    sortie[i * 3] = lit(n, 0);
-    sortie[i * 3 + 1] = lit(n, 1);
-    sortie[i * 3 + 2] = lit(n, 2);
+    output[i * 3] = lit(n, 0);
+    output[i * 3 + 1] = lit(n, 1);
+    output[i * 3 + 2] = lit(n, 2);
   }
-  return sortie;
+  return output;
 };
 
 const res = await mesure({
-  nom: 'shadingNormal repères hostiles',
+  name: 'shadingNormal hostile frames',
   fichier: 'packages/sdk-browser/visibilityShadingNormal.ts',
   cas: [
-    { nom: `${lot.length} repères hostiles`, entree: lot, taille: lot.length },
-    { nom: 'un repère', entree: lot.slice(0, 1), taille: 1 },
-    { nom: 'aucun repère', entree: [], taille: 0 },
+    { name: `${lot.length} hostile frames`, input: lot, size: lot.length },
+    { name: 'one frame', input: lot.slice(0, 1), size: 1 },
+    { name: 'no frame', input: [], size: 0 },
   ],
   calcul: passe(shadingNormal, (n, c) => n[c]),
   attendu: passe(referenceShadingNormal, (n, c) => (c === 0 ? n.x : c === 1 ? n.y : n.z)),
@@ -84,12 +84,12 @@ const res = await mesure({
 });
 
 await stress({
-  nom: 'shadingNormal extremes',
+  name: 'shadingNormal extremes',
   calcul: (p) => shadingNormal(p.page, p.tri, p.bary, p.uv, p.mat, p.screenFace),
   extremes: [
-    { nom: 'premier', entree: lot[0] },
-    { nom: 'dernier', entree: lot[lot.length - 1] },
+    { name: 'first', input: lot[0] },
+    { name: 'last', input: lot[lot.length - 1] },
   ],
 });
 
-rapport('normale-ombrage', [res], 'shadingNormal rend exactement les mêmes composantes');
+rapport('normale-ombrage', [res], 'shadingNormal returns exact same components');

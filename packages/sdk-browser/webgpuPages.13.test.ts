@@ -68,10 +68,10 @@ test('clustered transparency submits only visible pages in one two-sided mesh dr
 test('clustered transparency reads the opaque geometry instead of copying it', async () => {
   installGpuGlobals();
   const allocations: number[] = [];
-  // La passe transparente paginée lit la géométrie CONCATÉNÉE, celle que la passe opaque lit déjà :
-  // c'est ce qui lui permet de partager un seul groupe de liaison pour tous ses items. La même
-  // primitive doit donc coûter exactement la même chose, qu'on la dessine opaque ou transparente ;
-  // une copie propre aux transparents se verrait ici comme un supplément d'octets.
+  // The paged transparent pass reads the CONCATENATED geometry, the one the opaque pass already
+  // reads: that is what lets it share a single bind group for all its items. The same primitive
+  // must therefore cost exactly the same, drawn opaque or transparent; a copy owned by transparents
+  // would show up here as extra bytes.
   for (const pass of ['exact-clusters', 'clustered-blend']) {
     const fixture = quadScene(),
       { device } = mockGpu();
@@ -153,16 +153,16 @@ test('clustered transparency switches LOD with resident coverage and retains bot
   }
 });
 
-/** Le matériau d'un transparent appartient à l'hôte, qui le partage avec le maillage et peut le
- *  passer en double face entre deux images. L'item pose alors DEUX entrées de plan au lieu d'une,
- *  et sa liste étalée doit tenir les instances des deux — sans quoi le noyau jette ses écritures
- *  hors bornes en silence, et la géométrie transparente disparaît sans une erreur. */
-test('un transparent passé en double face étale encore toutes ses instances', async () => {
+/** A transparent's material belongs to the host, which shares it with the mesh and can switch it
+ *  to double-sided between two images. The item then posts TWO plan entries instead of one, and
+ *  its expanded list must hold instances of both — otherwise the kernel silently drops out-of-bounds
+ *  writes, and the transparent geometry vanishes without an error. */
+test('a transparent switched to double-sided still expands all its instances', async () => {
   installGpuGlobals();
   const fixture = quadScene(),
     { device, draws, buffers } = mockGpu();
   fixture.material.transparent = true;
-  // Simple face à la préparation : une seule entrée de plan, et la moitié de la place.
+  // Single-sided at prepare: one plan entry, and half the room.
   fixture.material.side = THREE.FrontSide;
   fixture.metadata.primitives[0].pass = 'clustered-blend';
   const mesh = fixture.source.children[0] as THREE.Mesh;
@@ -177,19 +177,19 @@ test('un transparent passé en double face étale encore toutes ses instances', 
     backend.render(camera());
     await backend.flush();
     fixture.material.side = THREE.DoubleSide;
-    // Un déplacement, et la scène refait son plan : c'est là que l'item gagne sa seconde entrée.
+    // A move, and the scene rebuilds its plan: that is where the item gains its second entry.
     mesh.position.x = 0.1;
     mesh.updateMatrixWorld(true);
     draws.length = 0;
     backend.render(camera());
     const blend = draws.filter((draw) => draw.indirect && draw.entryPoint === 'vs');
-    assert.equal(blend.length, 2, 'les deux faces sont encodées');
+    assert.equal(blend.length, 2, 'both faces are encoded');
     const instances = blend.reduce((total, draw) => total + (draw.instanceCount ?? 0), 0);
-    assert.ok(instances > 0, 'les deux faces étalent des instances');
+    assert.ok(instances > 0, 'both faces expand instances');
     const etale = buffers.find((buffer) => buffer.label === 'WG blend expanded instances');
     assert.ok(
       etale && etale.data.length >= instances * 8,
-      `la liste étalée tient ${instances} instances`,
+      `the expanded list holds ${instances} instances`,
     );
   } finally {
     await backend.dispose();

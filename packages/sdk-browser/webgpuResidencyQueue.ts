@@ -10,7 +10,7 @@ type Tracking = ReturnType<typeof createWebgpuPageTracking>;
 type QueueOptions = {
   tracking: Tracking;
   sets: WebgpuResidencySets;
-  /** Les fentes que la file peut demander au-delà de la couverture racine, lues à chaque coupe. */
+  /** Slots the queue can ask beyond root coverage, read every cut. */
   room: () => number;
   getCache: () => Cache | undefined;
   getFrame: () => number;
@@ -40,7 +40,7 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
     updatePins();
     scheduled = true;
     if (traceEnabled)
-      traceDiagnostic('residency-queue', 'Résidence GPU mise en file', () => ({
+      traceDiagnostic('residency-queue', 'GPU residency queued', () => ({
         frame: jobFrame,
         jobId,
         pages: tracking.traceSet(
@@ -59,7 +59,7 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
     running = true;
     pending = Promise.resolve().then(async () => {
       const started = performance.now();
-      traceDiagnostic('residency-job-start', 'Job de résidence GPU démarré', () => ({
+      traceDiagnostic('residency-job-start', 'GPU residency job started', () => ({
         frame: jobFrame,
         jobId,
         scope: 'async-residency-job',
@@ -83,14 +83,14 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
         throw error;
       } finally {
         running = false;
-        traceDiagnostic('residency-job-end', 'Job de résidence GPU terminé', () => ({
+        traceDiagnostic('residency-job-end', 'GPU residency job finished', () => ({
           frame: jobFrame,
           jobId,
           scope: 'async-residency-job',
           durationMs: performance.now() - started,
           elapsedMs: performance.now() - queuedAt,
-          // L'ensemble demandé est relevé par sondage borné, et ce que le cache en tient est le
-          // compte qu'il tient déjà : filtrer l'ensemble entier le parcourait deux fois de plus.
+          // The requested set is sampled by a bounded probe, and what the cache holds of it is the count
+          // it already holds: filtering the whole set walked it twice more.
           pages: tracking.traceKeys('job', tracking.wanted),
           residentPages: getCache()?.stats().residentPages ?? null,
           queueWaitMs: started - queuedAt,
@@ -105,12 +105,11 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
   return {
     items,
     /**
-     * La coupe a déjà appliqué sa différence ; il ne reste que le budget de pages à faire respecter.
-     * `limited` dit que la couverture demandée ne tient pas dans les fentes : le budget est alors
-     * nul, la file se vide, et l'image s'en tient à la couverture épinglée. Les deux chemins de
-     * coupe n'en disent pas la même chose et le disent chacun, sans valeur par défaut : la coupe de
-     * la carte, elle, grossit son erreur écran jusqu'à ce que la couverture tienne et continue donc
-     * de charger à plein budget.
+     * The cut has already applied its delta; only the page budget remains to be enforced. `limited`
+     * says the requested coverage does not fit in the slots: the budget is then zero, the queue
+     * empties, and the image sticks to pinned coverage. The two cut paths do not say the same thing
+     * about it and each says it, with no default: the GPU cut, itself, grows its screen error until
+     * coverage fits and therefore keeps loading at full budget.
      */
     queueCutResidency(limited: boolean) {
       sets.applyBudget(limited ? 0 : options.room());
@@ -123,7 +122,7 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
     get pending() {
       return pending;
     },
-    /** Vrai tant qu'un téléversement est en cours ou en file : la résidence peut encore changer. */
+    /** True while an upload is in flight or queued: residency can still change. */
     get busy() {
       return running || scheduled;
     },

@@ -14,7 +14,7 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import type { EngineCamera } from './cameraWorld.ts';
 import type { TaaInputs } from './temporalAntialiasing.ts';
 
-/** Le strict nécessaire d'un moteur : la passe factice, ses entrées, la caméra et les révisions. */
+/** The strict minimum of an engine: the fake pass, its inputs, the camera and the revisions. */
 function runtime() {
   const encoded: unknown[] = [],
     uniforms: Float32Array[] = [];
@@ -57,7 +57,7 @@ function runtime() {
   } as unknown as GPUDevice;
   const cam = { viewProjection: IDENTITY_MATRIX4, eye: [0, 0, 0] } as unknown as EngineCamera;
   const hdr = rt.gpu.hdrView!;
-  /** Une image entière : entrée, matrice de rendu, passe ; rend l'uniforme écrit, ou `null`. */
+  /** A whole frame: input, render matrix, pass; returns the written uniform, or `null`. */
   const frame = (quiet: boolean) => {
     beginTaaFrame(rt, cam, quiet);
     taaRenderMatrix(rt, cam);
@@ -68,7 +68,7 @@ function runtime() {
   return { rt, cam, temporal, encoded, frame };
 }
 
-test("sans accumulation cette image, la matrice de rendu est celle de la caméra et la composition lit l'image éclairée", () => {
+test("without accumulation this frame, the render matrix is the camera's and composition reads the lit image", () => {
   const { rt, cam, encoded, frame } = runtime();
   rt.capture.secondaryCamera = {} as never;
   assert.equal(frame(false), null);
@@ -78,41 +78,33 @@ test("sans accumulation cette image, la matrice de rendu est celle de la caméra
   rt.run.diagnostic = 'screen-error' as never;
   assert.equal(frame(false), null);
   assert.equal(taaRenderMatrix(rt, cam), cam.viewProjection);
-  // Sans passe gréée du tout, l'image est tenue comme avant le lot.
+  // With no pass rigged at all, the frame is held as before the batch.
   rt.gpu.temporal = undefined;
   assert.equal(taaSettled(rt), true);
 });
 
-test('une image accumulée avance la gigue, écrit l’uniforme et rend la cible écrite', () => {
+test('an accumulated frame advances jitter, writes the uniform and returns the written target', () => {
   const { rt, cam, temporal, encoded, frame } = runtime();
   let u = frame(false)!;
   assert.notEqual(
     taaRenderMatrix(rt, cam),
     cam.viewProjection,
-    'la matrice de rendu porte la gigue',
+    'the render matrix carries the jitter',
   );
   assert.equal(encoded.length, 1);
-  assert.equal(
-    temporal.motion.resets,
-    1,
-    "la première image n'a pas d'historique : les poses sont prises",
-  );
-  // Sans historique, `params.y` vaut 0 ; l'image suivante l'a, et personne n'a bougé (`params.z`).
+  assert.equal(temporal.motion.resets, 1, 'the first frame has no history: poses are taken');
+  // Without history, `params.y` is 0; the next frame has it, and nobody moved (`params.z`).
   assert.equal(u[37], 0);
   u = frame(false)!;
   assert.equal(u[37], 1);
   assert.equal(u[38], 0);
-  assert.deepEqual(
-    temporal.motion.updates,
-    [false],
-    'scène inchangée : aucune comparaison de poses',
-  );
+  assert.deepEqual(temporal.motion.updates, [false], 'unchanged scene: no pose comparison');
   assert.equal(temporal.frame.sample, 2);
-  // Les neuf poids du filtre somment à un.
+  // The nine filter weights sum to one.
   let sum = 0;
   for (let k = 0; k < 9; k++) sum += u[40 + k];
   assert.ok(Math.abs(sum - 1) < 1e-5);
-  // Un changement de scène fait comparer les poses, et un placement qui a bougé se dit à la passe.
+  // A scene change makes poses be compared, and a placement that moved is told to the pass.
   rt.run.gate.revisions.scene++;
   temporal.motion.moved = true;
   u = frame(false)!;
@@ -120,35 +112,35 @@ test('une image accumulée avance la gigue, écrit l’uniforme et rend la cible
   assert.equal(u[38], 1);
 });
 
-test('la tenue attend un plein cycle d’images calmes, moyennées uniformément depuis une phase fixe', () => {
+test('hold waits for a full cycle of still frames, averaged uniformly from a fixed phase', () => {
   const { rt, temporal, frame } = runtime();
-  // Trois images en mouvement : accumulation exponentielle à un huitième, la gigue avance.
+  // Three moving frames: exponential accumulation at one eighth, jitter advances.
   for (let i = 0; i < 3; i++) frame(false);
   assert.equal(temporal.frame.sample, 3);
   assert.equal(Math.fround(frame(false)![36]), Math.fround(1 / 8));
   assert.equal(taaSettled(rt), false);
-  // Première image calme : l'historique est abandonné, la gigue repart de zéro.
+  // First still frame: history is dropped, jitter restarts from zero.
   let u = frame(true)!;
-  assert.equal(u[37], 0, 'sans historique : la passe rend l’image courante filtrée');
-  assert.equal(temporal.frame.sample, 1, 'phase zéro rejouée');
+  assert.equal(u[37], 0, 'without history: the pass returns the filtered current image');
+  assert.equal(temporal.frame.sample, 1, 'phase zero replayed');
   assert.equal(temporal.frame.stillFrames, 1);
-  // Les suivantes pèsent 1/k : la seizième donne la moyenne uniforme de seize images.
+  // The following weigh 1/k: the sixteenth gives the uniform average of sixteen frames.
   u = frame(true)!;
   assert.equal(u[37], 1);
   assert.equal(Math.fround(u[36]), Math.fround(1 / 2));
   for (let k = 3; k < TAA_STILL_FRAMES; k++) u = frame(true)!;
   assert.equal(Math.fround(u[36]), Math.fround(1 / (TAA_STILL_FRAMES - 1)));
-  assert.equal(taaSettled(rt), false, 'une image avant le cycle complet, rien n’est tenu');
+  assert.equal(taaSettled(rt), false, 'one frame before the full cycle, nothing is held');
   u = frame(true)!;
   assert.equal(Math.fround(u[36]), Math.fround(1 / TAA_STILL_FRAMES));
   assert.equal(taaSettled(rt), true);
-  // Quelque chose bouge : le compte repart, l'historique reste et se mêle à un huitième.
+  // Something moves: the count restarts, history stays and mixes at one eighth.
   u = frame(false)!;
   assert.equal(temporal.frame.stillFrames, 0);
   assert.equal(u[37], 1);
   assert.equal(Math.fround(u[36]), Math.fround(1 / 8));
   assert.equal(taaSettled(rt), false);
-  // Des cibles réallouées perdent l'historique et le compte.
+  // Reallocated targets lose history and the count.
   for (let i = 0; i < TAA_STILL_FRAMES; i++) frame(true);
   assert.equal(taaSettled(rt), true);
   dropTaaHistory(rt);
@@ -156,9 +148,9 @@ test('la tenue attend un plein cycle d’images calmes, moyennées uniformément
   assert.equal(taaSettled(rt), false);
 });
 
-// Une image de convergence — la barrière qui rerend la même pose pour montrer les tuiles arrivées —
-// rejoue la dernière image ordinaire : même gigue, même calme, au lieu d'accumuler une fois de plus.
-test('une image de convergence rejoue la dernière image ordinaire au lieu d’avancer la gigue', () => {
+// A convergence frame — the barrier that re-renders the same pose to show arrived tiles —
+// replays the last ordinary frame: same jitter, same stillness, instead of accumulating once more.
+test('a convergence frame replays the last ordinary frame instead of advancing jitter', () => {
   const { rt, temporal, frame } = runtime();
   let replayed = 0,
     checkpoints = 0;
@@ -170,12 +162,12 @@ test('une image de convergence rejoue la dernière image ordinaire au lieu d’a
     return true;
   };
   frame(false);
-  assert.equal(checkpoints, 1, 'une image ordinaire retient d’où elle part');
+  assert.equal(checkpoints, 1, 'an ordinary frame remembers where it started');
   assert.equal(replayed, 0);
   rt.run.textureConverging = true;
   frame(false);
-  assert.equal(replayed, 1, 'une image de convergence rejoue');
-  assert.equal(checkpoints, 1, 'et ne retient rien de neuf');
-  // Le calme rejoué est celui de l'image de référence, pas celui que les tuiles ont troublé.
+  assert.equal(replayed, 1, 'a convergence frame replays');
+  assert.equal(checkpoints, 1, 'and remembers nothing new');
+  // The replayed stillness is that of the reference frame, not the one the tiles disturbed.
   assert.equal(temporal.frame.stillFrames, 1);
 });

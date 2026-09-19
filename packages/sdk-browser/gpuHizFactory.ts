@@ -8,7 +8,7 @@ const WORKGROUP = 8,
   UNIFORM_BYTES = 256,
   MAX_LEVELS = 16;
 
-/** Hi-Z de l'image : profondeur inversée, réduction au minimum. Sans calcul, rend `undefined`. */
+/** Frame Hi-Z: reverse-Z, reduce to the minimum. Without compute, returns `undefined`. */
 export async function createGpuHiz(
   device: GPUDevice,
   width: number,
@@ -18,7 +18,7 @@ export async function createGpuHiz(
   if (typeof device.createComputePipeline !== 'function' || width < 1 || height < 1)
     return undefined;
   const cap = Math.max(1, maxBounds);
-  // `COPY_SRC` ne sert qu'aux outils de preuve, qui relisent la profondeur ; aucune image ne copie.
+  // `COPY_SRC` serves only the proof tools, which reread depth; no frame copies.
   const level0Usage =
     GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC;
   const uniData = new Float32Array(UNIFORM_BYTES / 4);
@@ -30,7 +30,7 @@ export async function createGpuHiz(
     bindGroup: GPUBindGroup | undefined;
   let sizes: Array<[number, number]> = [],
     offsets: number[] = [];
-  // La table des mips ne dépend que de la taille de la cible : bâtie à l'allocation, relue telle.
+  // The mip table depends only on the target size: built at allocation, reread as-is.
   let levelTable: Array<{ offset: number; width: number }> | undefined;
   try {
     const pipelines = await createHizPipelines(device, UNIFORM_BYTES);
@@ -41,8 +41,8 @@ export async function createGpuHiz(
       size: UNIFORM_BYTES * uniformSlots,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
-    // Les boîtes testées et l'état de l'image appartiennent à la partition GPU, qui n'existe pas
-    // encore : jusqu'à `attach`, le groupe de liaison pointe sur ce tampon de veille, que rien ne lit.
+    // Tested boxes and the frame state belong to the GPU partition, which does not exist yet:
+    // until `attach`, the bind group points at this idle buffer, which nothing reads.
     const idle = device.createBuffer({
       label: 'WG HiZ idle bounds v1',
       size: TESTED_U32 * 4,
@@ -134,14 +134,14 @@ export async function createGpuHiz(
           WORKGROUP,
         );
       },
-      /** Les boîtes testées et l'état de l'image viennent de la partition GPU, montée après nous. */
+      /** Tested boxes and the frame state come from the GPU partition, mounted after us. */
       attach(nextBounds: GPUBuffer, nextState: GPUBuffer) {
         bounds = nextBounds;
         state = nextState;
         if (pyramid && level0View) bind(pyramid, level0View);
       },
-      /** Les mips de la pyramide, avec leur décalage et leur largeur : ce que la partition lit pour
-       *  exprimer un rectangle d'écran en texels du mip qui le couvre exactement. */
+      /** Pyramid mips, with their offset and width: what the partition reads to express a
+       *  screen rectangle in texels of the mip that covers it exactly. */
       levels: () =>
         (levelTable ??= sizes.map((size, level) => ({ offset: offsets[level], width: size[0] }))),
       pyramidBuffer: () => (disposed ? undefined : pyramid),
@@ -158,8 +158,8 @@ export async function createGpuHiz(
           [gpu.width, gpu.height, rows, biasBits],
           testSlot * UNIFORM_BYTES,
         );
-        // Le nombre de boîtes compactées vit dans l'état : le lancement couvre toutes les lignes
-        // dessinables et les fils au-delà du compte sortent au premier test.
+        // The compacted box count lives in the state: the dispatch covers every drawable row
+        // and threads past the count leave at the first test.
         const pass = encoder.beginComputePass({ label: 'WG HiZ test' });
         pass.setPipeline(testPipeline);
         pass.setBindGroup(0, bindGroup, [testSlot * UNIFORM_BYTES]);

@@ -1,11 +1,12 @@
-// Le comparateur d'images du rapport, deux colonnes de blocs, un bloc par vue : en grand, le
-// curseur — les deux images l'une sur l'autre, le trait suit la souris et découvre le témoin à
-// gauche, notre moteur à droite — et, replié dessous, les deux images côte à côte. Quand les paires
-// viennent de plusieurs témoins, un choix en tête montre un témoin à la fois, nommé par son moteur.
+// The report image comparator, two columns of blocks, one block per view: large, the
+// cursor — the two images stacked, the line follows the mouse and reveals the witness on
+// the left, our engine on the right — and, folded underneath, the two images side by side.
+// When pairs come from several witnesses, a choice at the top shows one witness at a time,
+// named by its engine.
 import { html } from './rapportGlobalGraphes.mjs';
 import { capture } from './rapportGlobalImages.mjs';
 
-/** Un bloc : le curseur, sa légende nommant les deux moteurs, les deux images repliées dessous. */
+/** One block: the cursor, its legend naming the two engines, the two images folded underneath. */
 const bloc = (id, { libelle, a, b, temoin }, notre) => {
   const nom = html(temoin);
   return `<div class="cmp" id="${id}">
@@ -16,9 +17,9 @@ const bloc = (id, { libelle, a, b, temoin }, notre) => {
 };
 
 /**
- * Le bloc HTML ; `paires` : `[{ temoin, libelle, a, b }]`, chemins de captures dans `dossier`,
- * `temoin` le nom du moteur à gauche, `notre` celui de droite. Les paires sans les deux images
- * sont tues.
+ * The HTML block; `paires`: `[{ temoin, libelle, a, b }]`, capture paths in `dossier`,
+ * `temoin` the engine name on the left, `notre` the one on the right. Pairs without both
+ * images are silenced.
  */
 export function comparateur({ dossier, id, paires, notre }) {
   const groupes = Map.groupBy(

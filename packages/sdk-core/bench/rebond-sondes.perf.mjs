@@ -1,43 +1,43 @@
-// le lot de sondes qu'une image de rebond encode, et l'asservissement de ce lot sur la durée de
-// l'étape « Rebond » relevée sur la carte graphique.
+// the probe batch encoded by a bounce image, and the control loop of this batch on the
+// "Bounce" stage duration measured on the GPU.
 import { bounceBatchOf, createBounceBudget } from '../bounceBudget.ts';
 import { graine, mesure, rapport } from './socle.mjs';
 import { referenceBounceBatch, referenceBudgetSequence } from './oracles/rebond-sondes.mjs';
 
 const alea = graine(101);
 
-// La sortie appartient au cas : le chronomètre n'encadre que les appels du moteur.
-const paires = (liste) => ({ liste, sortie: new Float64Array(liste.length) });
+// Output belongs to the test case: the timer only measures engine calls.
+const paires = (liste) => ({ liste, output: new Float64Array(liste.length) });
 const lot =
   (calcule) =>
-  ({ liste, sortie }) => {
-    for (let i = 0; i < liste.length; i++) sortie[i] = calcule(liste[i].ceiling, liste[i].load);
-    return sortie;
+  ({ liste, output }) => {
+    for (let i = 0; i < liste.length; i++) output[i] = calcule(liste[i].ceiling, liste[i].load);
+    return output;
   };
 
 const mesureLot = await mesure({
-  nom: 'lot de rebond',
+  name: 'bounce batch',
   fichier: 'packages/sdk-core/bounceBudget.ts',
   cas: [
     {
-      nom: '10 000 paires',
-      entree: paires(
+      name: '10 000 pairs',
+      input: paires(
         Array.from({ length: 10000 }, () => ({
           ceiling: 100 + Math.floor(alea() * 1000),
           load: alea(),
         })),
       ),
-      taille: 10000,
+      size: 10000,
     },
     {
-      nom: 'extrêmes',
-      entree: paires([
+      name: 'extremes',
+      input: paires([
         { ceiling: 0, load: 0 },
         { ceiling: -1, load: -1 },
         { ceiling: NaN, load: 0 },
         { ceiling: Infinity, load: 1 },
       ]),
-      taille: 4,
+      size: 4,
     },
   ],
   calcul: lot(bounceBatchOf),
@@ -45,9 +45,9 @@ const mesureLot = await mesure({
   options: { tours: 100 },
 });
 
-// Les relevés arrivent une image sur trois ou sur douze, parfois pas du tout, parfois faux : la
-// suite mêle des durées, des `null`, des zéros et des non-finis, et l'oracle rejoue la boucle
-// fermée relevé par relevé. Trois tableaux de sortie, un par champ publié.
+// Samples arrive once every three or twelve frames, sometimes not at all, sometimes bad: the
+// sequence mixes durations, nulls, zeroes and non-finites, and the oracle replays the closed
+// loop sample by sample. Three output arrays, one per published field.
 const SANS_RELEVE = [null, 0, -1, NaN, Infinity];
 const observations = (nombre) => ({
   liste: Array.from({ length: nombre }, () =>
@@ -57,23 +57,23 @@ const observations = (nombre) => ({
   lasts: new Float64Array(nombre),
   samples: new Float64Array(nombre),
 });
-const suit = (observe) => (entree) => {
+const suit = (observe) => (input) => {
   const budget = observe(2);
-  for (let i = 0; i < entree.liste.length; i++) {
-    budget.observe(entree.liste[i]);
-    entree.loads[i] = budget.load;
-    entree.lasts[i] = budget.lastMs ?? -1;
-    entree.samples[i] = budget.samples;
+  for (let i = 0; i < input.liste.length; i++) {
+    budget.observe(input.liste[i]);
+    input.loads[i] = budget.load;
+    input.lasts[i] = budget.lastMs ?? -1;
+    input.samples[i] = budget.samples;
   }
-  return [entree.loads, entree.lasts, entree.samples];
+  return [input.loads, input.lasts, input.samples];
 };
 
 const mesureBudget = await mesure({
-  nom: 'asservissement du budget',
+  name: 'budget control loop',
   fichier: 'packages/sdk-core/bounceBudget.ts',
   cas: [
-    { nom: '100 observations', entree: observations(100), taille: 100 },
-    { nom: 'aucun relevé', entree: observations(20), taille: 20 },
+    { name: '100 observations', input: observations(100), size: 100 },
+    { name: 'no sample', input: observations(20), size: 20 },
   ],
   calcul: suit(createBounceBudget),
   attendu: suit(referenceBudgetSequence),
@@ -83,5 +83,5 @@ const mesureBudget = await mesure({
 rapport(
   'rebond-sondes',
   [mesureLot, mesureBudget],
-  'le lot et le budget de rebond rendent les mêmes valeurs',
+  'the bounce batch and budget return the same values',
 );

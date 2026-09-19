@@ -1,14 +1,14 @@
-//! Le nom d'une image dans la scène intermédiaire des pilotes `ma` et `usd` : une URI relative,
-//! jamais le chemin brut. Un nom de fichier légal sur le disque porte `%`, `#` ou l'espace, que la
-//! référence relative d'une URI n'admet pas tels quels.
+//! Name of an image in the intermediate scene of the `ma` and `usd` drivers: a
+//! relative URI, never the raw path. A filename legal on disk carries `%`, `#` or
+//! space, which a URI relative reference does not admit as-is.
 use super::*;
 
-/// Un nom de fichier légal sur le disque et interdit tel quel dans une URI.
+/// A filename legal on disk and forbidden as-is in a URI.
 const AWKWARD: &str = "co%lor #1 rouge.png";
-/// La même chose une fois échappée, telle que la scène intermédiaire doit la porter.
+/// The same thing once escaped, as the intermediate scene must carry it.
 const ESCAPED: &str = "co%25lor%20%231%20rouge.png";
 
-/// Un dossier jetable portant l'image au nom malcommode, et la source que le cas y écrit.
+/// A throwaway folder carrying the awkwardly named image, and the source the case writes there.
 fn source(tag: &str, name: &str, body: &str) -> (PathBuf, PathBuf) {
     let dir = scratch("uri", tag);
     fs::write(dir.join(AWKWARD), b"\x89PNG\r\n\x1a\n").expect("image");
@@ -17,25 +17,25 @@ fn source(tag: &str, name: &str, body: &str) -> (PathBuf, PathBuf) {
     (dir, file)
 }
 
-/// L'URI de l'unique image de la scène intermédiaire qu'un pilote a écrite.
+/// URI of the only image of the intermediate scene a driver wrote.
 fn only_image_uri(run: &GoldenRun, plugin: &str) -> String {
     let images = run.prepared(plugin).1["images"]
         .as_array()
         .expect("images")
         .clone();
-    assert_eq!(images.len(), 1, "une seule image dans cette scène");
+    assert_eq!(images.len(), 1, "only one image in this scene");
     images[0]["uri"].as_str().expect("uri").to_string()
 }
 
-/// Ce que l'URI écrite vaut, et ce qu'elle redonne une fois décodée.
+/// What the written URI is worth, and what it yields once decoded.
 fn assert_round_trip(uri: &str) {
     assert_eq!(uri, ESCAPED);
     assert_eq!(uri::decode(uri).as_deref(), Some(AWKWARD));
 }
 
-// Comportement 2 : le pilote `ma` nomme sa texture par une URI. Maya écrit un chemin ; la scène
-// intermédiaire porte la référence relative que glTF attend, sinon le compilateur relit un autre
-// nom, ou rien.
+// Behaviour 2: the `ma` driver names its texture by a URI. Maya writes a path;
+// the intermediate scene carries the relative reference glTF expects, otherwise
+// the compiler rereads another name, or nothing.
 #[test]
 fn the_maya_driver_writes_an_escaped_image_uri() {
     let body = format!(
@@ -57,7 +57,7 @@ fn the_maya_driver_writes_an_escaped_image_uri() {
     fs::remove_dir_all(&dir).expect("nettoyage");
 }
 
-// Comportement 2 : le pilote `usd` nomme sa texture par une URI, par la même aide et la même règle.
+// Behaviour 2: the `usd` driver names its texture by a URI, by the same helper and the same rule.
 #[test]
 fn the_usd_driver_writes_an_escaped_image_uri() {
     let body = format!(

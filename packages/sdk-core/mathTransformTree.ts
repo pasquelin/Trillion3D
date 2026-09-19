@@ -2,17 +2,17 @@ import { EngineError } from './cacheContracts.ts';
 import { IDENTITY_MATRIX4, copyMatrix4 } from './mathMatrix4.ts';
 
 /**
- * Hiérarchie de transformations du moteur, orientée données : un nœud est un indice dans des
- * tableaux plats — parent, drapeaux, position, quaternion `(x, y, z, w)`, échelle, matrice locale et
- * matrice monde colonne-major. `localViews[i]` et `worldViews[i]` sont des vues de seize nombres sur
- * `local` et `world`, créées à l'agrandissement et jamais pendant une mise à jour : le GPU lit le
- * tampon entier, les formules du socle lisent la vue d'un nœud. Les écritures passent par les setters,
- * qui marquent ce qu'elles changent. Un agrandissement remplace tous les tableaux : un appelant relit
- * `tree.world` ou `tree.worldViews` après un ajout.
+ * Engine transform hierarchy, data-oriented: a node is an index into flat
+ * arrays — parent, flags, position, quaternion `(x, y, z, w)`, scale, local matrix and
+ * column-major world matrix. `localViews[i]` and `worldViews[i]` are sixteen-number views on
+ * `local` and `world`, created at growth and never during an update: the GPU reads the
+ * whole buffer, the kernel formulas read a node's view. Writes go through the setters,
+ * which mark what they change. A growth replaces every array: a caller rereads
+ * `tree.world` or `tree.worldViews` after an add.
  */
 export interface TransformTree {
   capacity: number;
-  /** Indices servis : tout nœud vivant est sous cette borne. */
+  /** Indices served: every live node is under this bound. */
   end: number;
   parent: Int32Array;
   flags: Uint8Array;
@@ -23,18 +23,18 @@ export interface TransformTree {
   world: Float64Array;
   localViews: Float64Array[];
   worldViews: Float64Array[];
-  /** Nombre de recalculs de la matrice monde, et celui du parent lu au dernier recalcul. */
+  /** World-matrix recalculation count, and the parent's at the last recalculation. */
   version: Uint32Array;
   seen: Uint32Array;
-  /** Indices libérés, réutilisés avant d'étendre `end`. */
+  /** Freed indices, reused before extending `end`. */
   free: Int32Array;
   freeCount: number;
-  /** Ordre de mise à jour, parents avant enfants, et rang de chaque nœud dans cet ordre. */
+  /** Update order, parents before children, and each node's rank in that order. */
   order: Int32Array;
   orderAt: Int32Array;
   orderCount: number;
   orderDirty: boolean;
-  /** Tampons de travail des parcours : profondeur, chaîne d'ancêtres, seaux, marques. */
+  /** Traversal work buffers: depth, ancestor chain, buckets, stamps. */
   depth: Int32Array;
   chain: Int32Array;
   buckets: Int32Array;
@@ -42,13 +42,13 @@ export interface TransformTree {
   call: number;
 }
 
-/** `matrixAutoUpdate` : la matrice locale est recomposée depuis la position, la rotation, l'échelle. */
+/** `matrixAutoUpdate`: the local matrix is recomposed from position, rotation, scale. */
 export const NODE_AUTO_UPDATE = 1;
-/** Pose ou matrice locale écrite depuis la dernière composition. */
+/** Pose or local matrix written since the last composition. */
 export const NODE_TRS_DIRTY = 2;
-/** Matrice locale ou parent changé depuis le dernier calcul de la matrice monde. */
+/** Local matrix or parent changed since the last world-matrix calculation. */
 export const NODE_LOCAL_CHANGED = 4;
-/** `matrixWorldNeedsUpdate` de la référence, que seule sa règle de mise à jour lit. */
+/** Reference `matrixWorldNeedsUpdate`, which only its update rule reads. */
 export const NODE_WORLD_NEEDS_UPDATE = 8;
 export const NODE_ALIVE = 16;
 
@@ -66,7 +66,7 @@ function grown<T extends Int32Array | Uint8Array | Uint32Array | Float64Array>(
   return next;
 }
 
-/** Porte la capacité à `capacity` nœuds, contenu conservé. */
+/** Grows capacity to `capacity` nodes, content kept. */
 function reserve(tree: TransformTree, capacity: number) {
   tree.capacity = capacity;
   tree.parent = grown(tree.parent, Int32Array, capacity);
@@ -89,25 +89,25 @@ function reserve(tree: TransformTree, capacity: number) {
   tree.stamp = grown(tree.stamp, Uint32Array, capacity);
 }
 
-/** Une hiérarchie vide, prête pour `capacity` nœuds sans agrandissement. */
+/** An empty hierarchy, ready for `capacity` nodes without growth. */
 export function createTransformTree(capacity = 64): TransformTree {
   const tree = { end: 0, freeCount: 0, orderCount: 0, orderDirty: false, call: 0 } as TransformTree;
   reserve(tree, Math.max(1, capacity));
   return tree;
 }
 
-/** Lève si `node` n'est pas un nœud vivant de l'arbre. */
+/** Throws if `node` is not a live node of the tree. */
 export function assertNode(tree: TransformTree, node: number) {
   if (!(node >= 0 && node < tree.end && tree.flags[node] & NODE_ALIVE))
-    throw new EngineError('UNKNOWN_TRANSFORM_NODE', `nœud ${node} absent de la hiérarchie`, {
+    throw new EngineError('UNKNOWN_TRANSFORM_NODE', `node ${node} absent from the hierarchy`, {
       node,
     });
 }
 
 /**
- * Ajoute un nœud sous `parent` (`-1` pour une racine) et rend son indice. État d'un objet neuf de la
- * référence : position nulle, rotation identité, échelle 1, matrices identité, mise à jour
- * automatique.
+ * Adds a node under `parent` (`-1` for a root) and returns its index. State of a fresh object of the
+ * reference: zero position, identity rotation, scale 1, identity matrices, automatic
+ * update.
  */
 export function addTransformNode(tree: TransformTree, parent = -1) {
   if (parent !== -1) assertNode(tree, parent);
@@ -126,8 +126,8 @@ export function addTransformNode(tree: TransformTree, parent = -1) {
   tree.worldViews[node].set(IDENTITY_MATRIX4);
   tree.version[node] = 0;
   tree.seen[node] = 0;
-  // Un ordre à jour contient déjà le parent : le nouveau venu se range après lui, en fin d'ordre. Un
-  // ordre périmé sera reconstruit en entier.
+  // An up-to-date order already contains the parent: the newcomer slots after it, at the end of the
+  // order. A stale order will be rebuilt in full.
   if (!tree.orderDirty) {
     tree.orderAt[node] = tree.orderCount;
     tree.order[tree.orderCount++] = node;
@@ -177,8 +177,8 @@ export function setNodeScale(tree: TransformTree, node: number, x: number, y: nu
 }
 
 /**
- * Pose la matrice locale. Sous mise à jour automatique, la prochaine mise à jour la recompose depuis
- * position, rotation et échelle, comme la référence écrase `matrix`.
+ * Sets the local matrix. Under automatic update, the next update recomposes it from
+ * position, rotation and scale, as the reference overwrites `matrix`.
  */
 export function setNodeLocalMatrix(tree: TransformTree, node: number, m: ArrayLike<number>) {
   copyMatrix4(tree.localViews[node], m);
@@ -186,8 +186,8 @@ export function setNodeLocalMatrix(tree: TransformTree, node: number, m: ArrayLi
 }
 
 /**
- * `matrixAutoUpdate`. Rien d'autre à marquer en la réactivant : une matrice locale qui diffère de sa
- * composition porte déjà `NODE_TRS_DIRTY`, posé par `setNodeLocalMatrix` ou par un setter de pose.
+ * `matrixAutoUpdate`. Nothing else to mark when re-enabling it: a local matrix that differs from its
+ * composition already carries `NODE_TRS_DIRTY`, set by `setNodeLocalMatrix` or by a pose setter.
  */
 export function setNodeAutoUpdate(tree: TransformTree, node: number, auto: boolean) {
   if (auto) tree.flags[node] |= NODE_AUTO_UPDATE;

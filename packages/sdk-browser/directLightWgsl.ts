@@ -1,14 +1,14 @@
 import { LIGHT_KIND, LIGHT_SETTINGS, POINT_FACES } from '../sdk-core/index.ts';
 
 /**
- * Les structures partagées par la passe de listes de lampes et par la résolution différée : une seule
- * déclaration du contrat `SceneLight` côté GPU, et une seule atténuation physique. Les bornes du
- * shader viennent des réglages publiés, jamais de constantes écrites à la main.
+ * Structures shared by the light-list pass and deferred resolve: a single GPU-side
+ * declaration of the `SceneLight` contract, and a single physical attenuation. Shader
+ * bounds come from the published settings, never from hand-written constants.
  */
 export const DIRECT_LIGHT_WGSL = `
 const TILE_SIZE:u32=${LIGHT_SETTINGS.tileSize}u;
-/** Une tuile porte deux listes : quatre mots d'entête — retenues et demandées de chacune —, la
- *  liste des opaques, puis celle du mélange, qui couvre une tranche de profondeur plus profonde. */
+/** A tile carries two lists: four header words — kept and requested of each —, the
+ *  opaque list, then the blend one, which covers a deeper depth slice. */
 const TILE_STRIDE:u32=${LIGHT_SETTINGS.maxLightsPerTile * 2 + 4}u;
 const TILE_BLEND_BASE:u32=${LIGHT_SETTINGS.maxLightsPerTile + 4}u;
 const MAX_TILE_LIGHTS:u32=${LIGHT_SETTINGS.maxLightsPerTile}u;
@@ -20,20 +20,20 @@ const KIND_SUN:f32=${LIGHT_KIND.directional}.0;
 const SUN_CASCADES:u32=${LIGHT_SETTINGS.sunCascades}u;
 struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,params:vec4f,}
 struct DirectLights{count:u32,pad0:u32,pad1:u32,pad2:u32,items:array<DirectLight>,}
-/** Le rang du type est un flottant dans le tampon : un seul endroit sait le relire. */
+/** The type rank is a float in the buffer: a single place knows how to reread it. */
 fn isSun(light:DirectLight)->bool{return light.params.x>KIND_SUN-0.5;}
-/** Direction normalisée vers la lampe et atténuation ; w à zéro quand le point est hors portée. */
+/** Normalized direction toward the light and attenuation; w at zero when the point is out of range. */
 fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
- // Une lampe directionnelle n'a ni position ni portée : la même irradiance en tout point, jamais
- // atténuée par la distance. Sa direction est celle de la propagation, donc l'incidence en est
- // l'opposée. Le contrat l'a déjà normalisée.
+ // A directional light has neither position nor range: the same irradiance at every point, never
+ // attenuated by distance. Its direction is that of propagation, so incidence is the opposite.
+ // The contract has already normalized it.
  if(isSun(light)){return vec4f(-light.directionCone.xyz,1.0);}
  let offset=light.positionRange.xyz-P;
  let distance=length(offset);
  let range=light.positionRange.w;
  if(distance>=range){return vec4f(0.0);}
  let L=offset/max(distance,1e-6);
- // Carré inverse physique, fenêtré par la portée : l'énergie s'annule exactement à la portée.
+ // Physical inverse square, windowed by range: energy cancels exactly at range.
  let ratio=distance/range;
  let window=pow(clamp(1.0-ratio*ratio*ratio*ratio,0.0,1.0),2.0);
  var attenuation=window/max(distance*distance,1e-4);
@@ -44,7 +44,7 @@ fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
  }
  return vec4f(L,attenuation);
 }
-/** L'axe majeur de la direction lampe vers le point, dans l'ordre de POINT_FACE_AXES. */
+/** Major axis of the light-to-point direction, in POINT_FACE_AXES order. */
 fn pointFaceOf(direction:vec3f)->u32{
  let a=abs(direction);
  if(a.x>=a.y&&a.x>=a.z){return select(1u,0u,direction.x>0.0);}

@@ -1,31 +1,31 @@
 import { createFrameGateCore } from './frameGateCore.ts';
 
-/** Ce qu'une image WebGL a produit d'observable : voir `keep` ci-dessous. */
+/** What a WebGL image has produced that is observable: see `keep` below. */
 const WEBGL_HOLD_VALUES = 6;
 
 export type WebglFrameGate = ReturnType<typeof createWebglFrameGate>;
 
 /**
- * La porte d'image des moteurs rendus par Three : le noyau commun (`frameGateCore.ts`), et la seule
- * chose qui leur appartienne en propre, la signature de l'image qu'ils viennent de produire.
+ * Image gate of the engines rendered by Three: the shared core (`frameGateCore.ts`), and the only
+ * thing that belongs to them, the signature of the image they have just produced.
  *
- * Un moteur WebGL ne soumet rien lui-même — l'hôte rend le graphe qu'il tient. Une image tenue n'a
- * donc rien à réémettre : la scène attachée EST déjà l'image, et ne rien faire la redonne au pixel
- * près. Ce qui est supprimé est la coupe, la remontée des matrices et la mise à jour des lampes.
+ * A WebGL engine submits nothing itself — the host renders the graph it holds. A held image
+ * therefore has nothing to re-emit: the attached scene IS already the image, and doing nothing
+ * gives it back to the pixel. What is skipped is the cut, the matrix climb and the lamp update.
  */
 export function createWebglFrameGate() {
   const core = createFrameGateCore(WEBGL_HOLD_VALUES);
-  // Le noyau est complété, jamais recopié : un étalement figerait la valeur de ses accesseurs.
+  // The core is completed, never copied: spreading it would freeze the value of its accessors.
   return Object.assign(core, {
     /**
-     * Range l'image qui vient d'être produite. Les six nombres décrivent la COUPE, et rien du
-     * parcours qui l'a trouvée : deux images qui les partagent ont attaché exactement les mêmes
-     * clusters, dans le même ordre, donc dessinent la même image.
+     * Stores the image that has just been produced. The six numbers describe the CUT, and nothing
+     * of the walk that found it: two images that share them have attached exactly the same
+     * clusters, in the same order, so they draw the same image.
      *
-     * L'identité de la coupe est le hachage des identifiants affichés, pas un compteur de parcours.
-     * Un rejet par le tronc compte des nœuds visités : le repli par forçage redescend l'arbre et en
-     * comptait deux fois, si bien que deux images à coupe identique paraissaient différentes et
-     * qu'une pose immobile ne convergeait jamais.
+     * Identity of the cut is the hash of the displayed identifiers, not a walk counter. A frustum
+     * reject counts visited nodes: the forcing fallback redescends the tree and used to count
+     * them twice, so two images with an identical cut looked different and a still pose never
+     * converged.
      */
     keep(
       visible: number,

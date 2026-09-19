@@ -1,9 +1,10 @@
-//! Pilote FBX. Lecture par ufbx (MIT), jamais par le SDK Autodesk ; la version d'ufbx est figée
-//! dans `Cargo.toml` et nommée dans la version du pilote, pour que l'identité du cache la suive.
+//! FBX driver. Read through ufbx (MIT), never through the Autodesk SDK; ufbx's version is
+//! pinned in `Cargo.toml` and named in the driver's version, so that the cache identity
+//! follows it.
 use super::ufbx_driver::UfbxDriver;
 
-/// « Kaydara FBX Binary » ouvre tout FBX binaire. Un FBX ASCII n'a pas cet entête : son extension
-/// seule le désigne, ce que le routeur essaie en premier.
+/// "Kaydara FBX Binary" opens every binary FBX. An ASCII FBX has no such header: its
+/// extension alone names it, which the router tries first.
 pub(super) static FBX: UfbxDriver = UfbxDriver {
     name: "fbx",
     version: "fbx-ufbx-0.11.3-gltf-7",

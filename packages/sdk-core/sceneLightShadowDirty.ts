@@ -13,24 +13,24 @@ import {
 const FACES = MAX_SHADOW_SLICES * POINT_FACES;
 
 /**
- * Les pages périmées de chaque face, et depuis quand.
+ * Stale pages of each face, and since when.
  *
- * L'état d'une carte d'ombre n'est plus « à jour ou non » mais « quelles pages sont à refaire » : une
- * lampe qui bouge périme sa carte entière, un objet qui bouge ne périme que les pages que sa boîte
- * projetée recouvre. Le moment où une face propre est redevenue sale est gardé tel quel : c'est lui
- * qui donne le retard publié, et il ne repart qu'une fois la dernière page de la face redessinée.
+ * The state of a shadow map is no longer "up to date or not" but "which pages are to remake": a
+ * moving light stales its whole map, a moving object only stales the pages its projected
+ * box covers. The moment a clean face became dirty again is kept as-is: it is what
+ * gives the published lag, and it only restarts once the last page of the face is redrawn.
  *
- * Tout est alloué une fois : 64 tranches × 6 faces × 8 octets de masque.
+ * Everything is allocated once: 64 slices × 6 faces × 8 mask bytes.
  */
 export function createShadowDirty() {
   const mask = new Uint8Array(SHADOW_MASK_BYTES);
   const since = new Float64Array(FACES),
     sinceFrame = new Float64Array(FACES),
     dirty = new Uint8Array(FACES);
-  /** Pages entrées en file depuis le début de l'image : un compte brut, jamais une différence. */
+  /** Pages that entered the queue since the start of the frame: a raw count, never a difference. */
   let added = 0;
   const indexOf = (slice: number, face: number) => slice * POINT_FACES + face;
-  /** La face attend depuis maintenant, si elle n'attendait pas déjà : le retard ne repart jamais. */
+  /** The face has been waiting since now, if it was not already: lag never restarts. */
   const waitFrom = (slice: number, face: number, nowMs: number, frame: number) => {
     const index = indexOf(slice, face);
     if (dirty[index]) return;
@@ -38,13 +38,13 @@ export function createShadowDirty() {
     since[index] = nowMs;
     sinceFrame[index] = frame;
   };
-  /** La face n'attend plus rien : son horodatage repart de zéro avec elle. */
+  /** The face no longer waits: its timestamp restarts from zero with it. */
   const forget = (index: number) => {
     dirty[index] = 0;
     since[index] = 0;
     sinceFrame[index] = 0;
   };
-  /** Des pages viennent d'entrer en file : elles sont comptées, et la face se met à attendre. */
+  /** Pages have just entered the queue: they are counted, and the face starts waiting. */
   const entered = (
     slice: number,
     face: number,
@@ -57,16 +57,16 @@ export function createShadowDirty() {
     waitFrom(slice, face, nowMs, frame);
   };
   return {
-    /** Pages réellement entrées en file depuis le dernier `beginFrame`. */
+    /** Pages that actually entered the queue since the last `beginFrame`. */
     get invalidated() {
       return added;
     },
     beginFrame() {
       added = 0;
     },
-    /** Vrai si la face porte au moins une page en attente. */
+    /** True if the face carries at least one waiting page. */
     isDirty: (slice: number, face: number) => dirty[indexOf(slice, face)] === 1,
-    /** Retard de la page la plus ancienne de la face, en millisecondes et en images. */
+    /** Lag of the oldest page of the face, in milliseconds and in frames. */
     waitedMs: (slice: number, face: number, nowMs: number) => {
       const index = indexOf(slice, face);
       return dirty[index] ? nowMs - since[index] : 0;
@@ -77,14 +77,14 @@ export function createShadowDirty() {
     },
     pages: (slice: number, face: number) => countPages(mask, maskBase(slice, face)),
     row: (slice: number, face: number, row: number) => mask[maskBase(slice, face) + row],
-    /** Toute la face est à refaire : lampe déplacée, tranche réallouée, cascade déplacée, première image. */
+    /** The whole face is to remake: moved light, reallocated slice, moved cascade, first frame. */
     whole(slice: number, face: number, rows: number, nowMs: number, frame: number) {
       const base = maskBase(slice, face);
       const before = countPages(mask, base);
       markWholeFace(mask, base, rows);
       entered(slice, face, base, before, nowMs, frame);
     },
-    /** Les pages que la boîte monde recouvre dans cette face, et elles seules. */
+    /** The pages the world box covers in this face, and those alone. */
     box(
       slice: number,
       face: number,
@@ -102,16 +102,16 @@ export function createShadowDirty() {
       entered(slice, face, base, before, nowMs, frame);
       return true;
     },
-    /** Une région vient d'être redessinée : ses pages ne sont plus en attente. */
+    /** A region has just been redrawn: its pages are no longer waiting. */
     drew(slice: number, face: number, x0: number, x1: number, y0: number, y1: number) {
       const base = maskBase(slice, face);
       setRect(mask, base, x0, x1, y0, y1, false);
       if (!faceDirty(mask, base)) forget(indexOf(slice, face));
     },
     /**
-     * La région n'a finalement pas été dessinée — la passe n'a pas pu être encodée — : ses pages
-     * retournent en file. Sans cela, une carte garderait une profondeur périmée sans que rien ne le
-     * dise.
+     * The region was not drawn after all — the pass could not be encoded —: its pages
+     * return to the queue. Without that, a map would keep a stale depth without anything
+     * saying so.
      */
     undrew(
       slice: number,
@@ -124,11 +124,11 @@ export function createShadowDirty() {
       frame: number,
     ) {
       setRect(mask, maskBase(slice, face), x0, x1, y0, y1, true);
-      // Ces pages avaient déjà été comptées à leur entrée en file : elles y reviennent, sans
-      // repasser par `added`, qui compte les entrées et non les allers-retours.
+      // These pages had already been counted at their queue entry: they come back, without
+      // going through `added` again, which counts entries and not round-trips.
       waitFrom(slice, face, nowMs, frame);
     },
-    /** La tranche est libérée ou reprise : plus aucune page ne l'attend. */
+    /** The slice is released or retaken: no page waits for it anymore. */
     reset(slice: number) {
       for (let face = 0; face < POINT_FACES; face++) {
         clearFace(mask, maskBase(slice, face));

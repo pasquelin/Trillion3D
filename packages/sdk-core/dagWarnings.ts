@@ -1,13 +1,11 @@
 import type { DagWarning } from './dagContracts.ts';
 import type { Primitive } from './geometryContracts.ts';
 
-/** Un avertissement du compilateur, rattaché à la primitive qui le porte. */
+/** A compiler warning attached to the primitive carrying it. */
 export type PrimitiveDagWarning = DagWarning & { index: number; mesh: number; primitive: number };
 
 /**
- * Le diagnostic `dag-warnings` d'un cache : un seul, avec toutes les primitives que le compilateur
- * a nommées, ou aucun. Le moteur ne juge rien ici : il relit ce que le compilateur a écrit, pour
- * le dire à l'ouverture plutôt que de dessiner fin à toute distance sans un mot.
+ * The `dag-warnings` diagnostic of a cache: reports primitives flagged by the compiler.
  */
 export function dagWarningsDiagnostic(primitives: readonly Primitive[]) {
   const warnings: PrimitiveDagWarning[] = primitives.flatMap((p, index) =>
@@ -16,7 +14,7 @@ export function dagWarningsDiagnostic(primitives: readonly Primitive[]) {
   if (!warnings.length) return null;
   return {
     phase: 'dag-warnings',
-    message: `${warnings.length} primitive(s) sans racine unique : le compilateur les a nommées`,
+    message: `${warnings.length} primitive(s) without unique root: flagged by compiler`,
     context: { count: warnings.length, primitives: warnings },
   };
 }

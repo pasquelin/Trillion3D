@@ -6,7 +6,7 @@ import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 
 installGpuGlobals();
 
-/** Un faux appareil : il retient le descripteur de la texture qu'on lui demande. */
+/** A dummy device: it keeps the descriptor of the texture it is asked for. */
 function fakeDevice() {
   const created: GPUTextureDescriptor[] = [];
   const device = {
@@ -21,7 +21,7 @@ function fakeDevice() {
   return { device, created };
 }
 
-test('le pool alloue ses couches une fois, à la taille fixe, et compte ses tuiles', () => {
+test('the pool allocates its layers once, at the fixed size, and counts its tiles', () => {
   const { device, created } = fakeDevice();
   const pool = createWebgpuTilePool(device, {
     kind: 'color',
@@ -40,7 +40,7 @@ test('le pool alloue ses couches une fois, à la taille fixe, et compte ses tuil
   );
 });
 
-test('prendre, toucher, rendre : la clé suit la place, et un pool plein refuse sans jeter', () => {
+test('take, touch, return: the key follows the slot, and a full pool refuses without dropping', () => {
   const { device } = fakeDevice();
   const pool = createWebgpuTilePool(device, { kind: 'data', format: 'rgba8unorm', layers: 1 });
   const first = pool.acquire(41, 3)!;
@@ -53,10 +53,10 @@ test('prendre, toucher, rendre : la clé suit la place, et un pool plein refuse 
   assert.equal(pool.resident, 0);
   assert.throws(() => pool.keyOf(first), /TEXTURE_TILE_FREE/);
   for (let i = 0; i < TILES_PER_LAYER; i++) assert.notEqual(pool.acquire(i, 1), undefined);
-  assert.equal(pool.acquire(999, 1), undefined, 'plein : rien à donner, et rien de cassé');
+  assert.equal(pool.acquire(999, 1), undefined, 'full: nothing to give, and nothing broken');
 });
 
-test('les candidates à l’éviction sont les tuiles non épinglées que ni l’image ni la précédente n’ont vues, la plus ancienne d’abord', () => {
+test('eviction candidates are unpinned tiles that neither this image nor the previous one has seen, oldest first', () => {
   const { device } = fakeDevice();
   const pool = createWebgpuTilePool(device, { kind: 'color', format: 'rgba8unorm', layers: 1 });
   const tail = pool.acquire(1, 1, true)!;
@@ -64,7 +64,7 @@ test('les candidates à l’éviction sont les tuiles non épinglées que ni l�
   const older = pool.acquire(3, 1)!;
   const fresh = pool.acquire(4, 7)!;
   assert.deepEqual(pool.candidates(7), [older, old]);
-  assert.deepEqual(pool.candidates(8), [older, old], 'vue à l’image d’avant : gardée');
+  assert.deepEqual(pool.candidates(8), [older, old], 'seen on the previous image: kept');
   assert.deepEqual(pool.candidates(9), [older, old, fresh]);
   assert.equal(pool.candidates(2).length, 0);
   pool.release(tail);

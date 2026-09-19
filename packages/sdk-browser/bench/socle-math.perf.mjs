@@ -1,4 +1,4 @@
-// Banc de performance : socle mathématique (sdk-core contre Three.js).
+// Performance bench: math foundation (sdk-core against Three.js).
 import { rapport } from '../../sdk-core/bench/socle.mjs';
 import { lignesEquivalence, noeudsHierarchie } from './appui/socleEquivalence.mjs';
 import { lignesConsommateursCore } from './appui/socleConsommateursCore.mjs';
@@ -13,5 +13,5 @@ const lignes = [
 rapport(
   'socle-math',
   lignes,
-  `le socle rend les bits de la référence et du code qu'il remplace (${noeudsHierarchie.length} nœuds hiérarchiques)`,
+  `the foundation yields the bits of the reference and of the code it replaces (${noeudsHierarchie.length} hierarchy nodes)`,
 );

@@ -1,15 +1,13 @@
-/** Un DAG que le compilateur n'a pas fait monter : le niveau le plus grossier est ce qui se
- *  dessine au loin, une primitive sans racine unique se dessine fine à toute distance. `DAG_FLAT`
- *  n'a aucun niveau grossier, `DAG_ROOTS` garde plus d'une racine par huit pages ; `groups` compte
- *  les groupes par issue. */
+/** A DAG that the compiler did not coarsen: the coarsest level is what renders in the distance;
+ *  a primitive without a single root renders finely at any distance. `DAG_FLAT` has no coarse levels;
+ *  `DAG_ROOTS` retains more than one root per 8 pages; `groups` counts groups by outcome. */
 export interface DagWarning {
   code: 'DAG_FLAT' | 'DAG_ROOTS';
   roots: number;
   pages: number;
   groups: Record<string, number>;
 }
-/** Le rapport du DAG d'une primitive, jamais un contrat : seuls ses avertissements sont lus par
- *  le moteur. */
+/** DAG report for a primitive; only its warnings are consumed by the runtime engine. */
 export interface DagReport {
   warnings?: DagWarning[];
 }

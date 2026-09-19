@@ -7,7 +7,7 @@ import { DEFAULT_FOV } from './backendCommon.ts';
 import type { BackendContext, ExplorerOptions } from './backendTypes.ts';
 import { sphereFromBounds, type ClusterManifest } from '../sdk-core/index.ts';
 
-/** Centre et rayon de cadrage : le milieu des bornes et la demi-diagonale, relus d'une seule sphère. */
+/** Framing centre and radius: midpoint of the bounds and the half-diagonal, reread from a single sphere. */
 const framingSphere = new Float64Array(4);
 
 export function createExplorerCamera(
@@ -17,7 +17,7 @@ export function createExplorerCamera(
   metadata: ClusterManifest,
   canvas: HTMLCanvasElement,
   options: ExplorerOptions,
-  /** Le tampon des boîtes du cadrage, réservé au chargement ; `null` le laisse en JavaScript. */
+  /** Framing-box buffer, reserved at load; `null` leaves it in JavaScript. */
   lot?: BoxTransformLot | null,
 ) {
   const flat = emptyWorldBox();
@@ -34,9 +34,9 @@ export function createExplorerCamera(
     framing.near,
     framing.far,
   );
-  // La boîte et le centre repartent chez l'hôte — `explorer.bounds` et `explorer.center` sont son
-  // API, et ses contrôles veulent une cible : ils sont construits ici, une fois, à la frontière.
-  // Aucun calcul n'y est fait ; tout vient du socle, en nombres.
+  // The box and the centre go back to the host — `explorer.bounds` and `explorer.center` are its
+  // API, and its controls want a target: they are built here, once, at the boundary.
+  // No computation is done there; everything comes from the core, as numbers.
   const bounds = new THREE.Box3(
     new THREE.Vector3(flat[0], flat[1], flat[2]),
     new THREE.Vector3(flat[3], flat[4], flat[5]),

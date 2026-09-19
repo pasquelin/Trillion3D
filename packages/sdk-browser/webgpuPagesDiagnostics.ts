@@ -25,7 +25,7 @@ export function createWebgpuDiagnostics(
       try {
         onDiagnostic?.({
           phase: 'diagnostic-loss',
-          message: 'Diagnostics trace supprimés pour respecter la borne mémoire',
+          message: 'Trace diagnostics dropped to stay within the memory bound',
           context: {
             pipelineVersion: 1,
             backend: 'webgpu-page-raster',
@@ -92,7 +92,7 @@ export function createWebgpuDiagnostics(
     const occurrence = (failureOccurrences.get(phase) ?? 0) + 1;
     failureOccurrences.set(phase, occurrence);
     if (traceEnabled) {
-      traceDiagnostic(phase, 'Échec du chemin WebGPU', () => ({
+      traceDiagnostic(phase, 'WebGPU path failed', () => ({
         ...details,
         name: objectError?.name ? String(objectError.name) : undefined,
         stack: objectError?.stack ? String(objectError.stack).slice(0, 8192) : undefined,
@@ -104,7 +104,7 @@ export function createWebgpuDiagnostics(
     }
     if (loggedFailures.has(phase)) return;
     loggedFailures.add(phase);
-    engineDiagnostic(phase, 'Échec du chemin WebGPU', details);
+    engineDiagnostic(phase, 'WebGPU path failed', details);
   };
   return { traceDiagnostic, engineDiagnostic, diagnosticFailure, drainTraceNow };
 }

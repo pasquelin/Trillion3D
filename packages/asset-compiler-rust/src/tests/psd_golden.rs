@@ -1,13 +1,15 @@
-//! Doré du pilote `psd` : la seule couverture du chemin complet glTF réel → `compile()` → cache →
-//! sidecar binaire pour une texture Photoshop. Les tests en éprouvette de `plugins/tests/psd.rs`
-//! fixent ce que le pilote rend pixel par pixel ; celui-ci fixe les octets qu'un moteur lira
-//! vraiment, une fois le composite aplati passé par le compilateur entier.
+//! Golden of the `psd` driver: the only coverage of the full path real glTF →
+//! `compile()` → cache → binary sidecar for a Photoshop texture. The in-vitro
+//! tests in `plugins/tests/psd.rs` fix the decode; this one fixes the image as an
+//! engine will really read it, once the flattened composite has gone through the
+//! whole compiler.
 //!
-//! La scène est le quad de la dorée flottante, sa couleur de base remplacée par `rgb-brut.psd` :
-//! une texture PSD entre dans les aperçus progressifs comme n'importe quelle source de huit bits,
-//! sans refus et sans perte ajoutée. La provenance de la fixture est dans `fixtures/psd/README.md`.
+//! The scene is the floating golden's quad, its base colour replaced by
+//! `rgb-brut.psd`: a PSD texture enters progressive previews like any eight-bit
+//! source, without refusal and without added loss. Fixture provenance is in
+//! `fixtures/psd/README.md`.
 //!
-//! Régénération de l'attendu, depuis la racine du dépôt :
+//! Regenerating the expected, from the repository root:
 //!
 //! ```text
 //! cargo test --release --manifest-path packages/asset-compiler-rust/Cargo.toml \
@@ -15,16 +17,18 @@
 //! npx prettier --write packages/asset-compiler-rust/fixtures/psd/expected.json
 //! ```
 //!
-//! Ignorée par défaut : elle écrit dans `fixtures/`. Le diff qu'elle produit se relit avant d'être
-//! commité — un attendu régénéré sans lecture ne surveille plus rien.
+//! Ignored by default: it writes into `fixtures/`. The diff it produces is
+//! re-read before being committed — an expected regenerated without reading no
+//! longer watches anything.
 use super::apercus_golden::previews_digest;
 use super::*;
 
-const CASE: &str = "Un quad dont la couleur de base est rgb-brut.psd, un composite Photoshop aplati de 4 × 2 en RVB huit bits à surface brute, compilé par le harnais commun.";
-const RULE: &str = "Un composite aplati de huit bits par canal entre dans les aperçus progressifs comme toute autre source RGBA8 : la queue sans perte de sa chaîne de mips est produite, aucune raison n'est portée au rapport, et les pixels sont ceux que le fichier portait déjà — jamais des calques recomposés.";
+const CASE: &str = "A quad whose base colour is rgb-brut.psd, a flattened 4 × 2 Photoshop composite in eight-bit RGB with a raw surface, compiled by the common harness.";
+const RULE: &str = "A flattened composite of eight bits per channel enters progressive previews like any other RGBA8 source: the lossless tail of its mip chain is produced, no reason is carried in the report, and the pixels are those the file already carried — never recomposed layers.";
 
-// Comportement : la fixture dorée à texture PSD passe par le compilateur et chaque octet de ses
-// aperçus est comparé à expected.json — provenance, géométrie des niveaux, pixels et couverture.
+// Behaviour: the golden PSD-texture fixture goes through the compiler and every
+// byte of its previews is compared to expected.json — provenance, level geometry,
+// pixels and coverage.
 #[test]
 fn psd_texture_previews_match_their_golden_expected_json() {
     let dir = golden_dir("psd");
@@ -32,12 +36,12 @@ fn psd_texture_previews_match_their_golden_expected_json() {
     assert_eq!(
         previews_digest(&run),
         golden_expected(&dir),
-        "fixture psd : les aperçus de texture divergent de expected.json"
+        "fixture psd: texture previews diverge from expected.json"
     );
 }
 
 #[test]
-#[ignore = "écrit dans fixtures/ ; se relance à la main, et son diff se relit"]
+#[ignore = "writes into fixtures/; rerun by hand, and its diff is re-read"]
 fn regenere_la_fixture_psd() {
     let dir = golden_dir("psd");
     let run = compile_golden(&dir, "scene");

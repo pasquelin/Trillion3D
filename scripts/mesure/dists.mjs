@@ -1,38 +1,38 @@
-// Le dist d'un côté de la comparaison : un dossier `dist/` déjà construit, ou une référence git
-// extraite hors du dépôt puis construite. Séparé de `options.mjs` : résoudre un côté, c'est du
-// travail de dépôt et de build, pas de la lecture d'arguments.
+// The dist of one side of the comparison: an already built `dist/` directory, or a git reference
+// extracted outside the repository then built. Separated from `options.mjs`: resolving a side is
+// repository and build work, not reading arguments.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { commandePnpm } from '../only-pnpm.mjs';
+import { pnpmCommand } from '../only-pnpm.mjs';
 
 const buildDist = (dir) =>
-  execFileSync(...commandePnpm('run', 'build'), { cwd: dir, stdio: 'inherit' });
+  execFileSync(...pnpmCommand('run', 'build'), { cwd: dir, stdio: 'inherit' });
 
-/** Les côtés demandés : « après » toujours, « avant » seulement s'il a été nommé. */
-export function resolveSides({ apres, avant, root }) {
-  const target = apres ?? join(root, 'dist');
+/** Requested sides: "apres" always, "avant" only if named. */
+export function resolveSides({ after, before, root }) {
+  const target = after ?? join(root, 'dist');
   if (target === join(root, 'dist') && !existsSync(join(target, 'sdk-browser/index.js')))
     buildDist(root);
   const sides = [{ name: 'apres', ...resolveDist(target, 'apres', root) }];
-  if (avant) sides.push({ name: 'avant', ...resolveDist(avant, 'avant', root) });
+  if (before) sides.push({ name: 'avant', ...resolveDist(before, 'avant', root) });
   return sides;
 }
 
-/** Résout un côté : un dossier `dist` existant, ou une référence git extraite puis construite.
- *  L'arbre extrait va hors du dépôt : un second `tsconfig.json` sous la racine casserait le lint. */
+/** Resolves a side: an existing `dist` folder, or a git reference extracted then built.
+ *  The extracted tree goes outside the repository: a second `tsconfig.json` under root would break linting. */
 function resolveDist(value, label, root) {
   if (existsSync(join(value, 'sdk-browser/index.js')))
-    return { dist: resolve(value), from: 'dossier' };
+    return { dist: resolve(value), from: 'folder' };
   if (existsSync(join(value, 'dist/sdk-browser/index.js')))
-    return { dist: resolve(value, 'dist'), from: 'dossier' };
+    return { dist: resolve(value, 'dist'), from: 'folder' };
   const ref = execFileSync('git', ['-C', root, 'rev-parse', '--verify', `${value}^{commit}`], {
     encoding: 'utf8',
   }).trim();
   const dir = join(tmpdir(), 'web-geometry-mesure', `${label}-${ref.slice(0, 12)}`);
   if (existsSync(join(dir, 'dist/sdk-browser/index.js')))
-    return { dist: join(dir, 'dist'), from: `git ${ref.slice(0, 12)} (réutilisé)` };
+    return { dist: join(dir, 'dist'), from: `git ${ref.slice(0, 12)} (reused)` };
   mkdirSync(dir, { recursive: true });
   execFileSync('/bin/sh', ['-c', `git -C '${root}' archive ${ref} | tar -x -C '${dir}'`]);
   execFileSync('ln', ['-sfn', join(root, 'node_modules'), join(dir, 'node_modules')]);

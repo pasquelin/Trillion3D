@@ -15,12 +15,16 @@ test('what the image draws is held even when the cut never asked for it', () => 
   frame(world, [4, 6], 64);
   drawn.apply([12]);
   sets.applyDrawn(drawn);
-  assert.equal(tracking.keep.has(at(12)), true, 'ancêtre dessiné gardé');
-  assert.equal(tracking.wanted.has(at(12)), false, 'ancêtre dessiné non demandé');
+  assert.equal(tracking.keep.has(at(12)), true, 'drawn ancestor kept');
+  assert.equal(tracking.wanted.has(at(12)), false, 'drawn ancestor not requested');
   // The fine clusters arrive and take the image: the ancestor leaves it, and the hold leaves with it.
   drawn.apply([4, 6]);
   sets.applyDrawn(drawn);
-  assert.equal(tracking.keep.has(at(12)), false, 'ancêtre relâché dès qu’il n’est plus dessiné');
+  assert.equal(
+    tracking.keep.has(at(12)),
+    false,
+    'ancestor released as soon as it is no longer drawn',
+  );
   assert.equal(tracking.keep.has(at(4)), true);
   // A drawable cut that does not move touches nothing at all.
   drawn.apply([4, 6]);

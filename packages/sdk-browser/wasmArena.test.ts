@@ -1,7 +1,7 @@
-// Le tampon partagé (`wasmArena.ts`) : une seule allocation par lot, des vues qui restent valides
-// même quand la mémoire linéaire grandit — que ce soit la réservation elle-même ou une allocation
-// faite ailleurs bien après —, `liste()` qui relit un compteur puis sa liste, `blocsJavaScript()`
-// qui rend la même forme hors de tout module, et aucune allocation pendant un appel de calcul.
+// The shared buffer (`wasmArena.ts`): a single allocation per batch, views that stay valid even
+// when linear memory grows — whether that is the reservation itself or an allocation made
+// elsewhere well after —, `liste()` which re-reads a counter then its list, `blocsJavaScript()`
+// which yields the same shape outside any module, and no allocation during a compute call.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -16,12 +16,12 @@ async function wasmFrais(): Promise<SdkWasm> {
     prepareSdkWasm: typeof prepareSdkWasm;
   };
   const wasm = await module.prepareSdkWasm(MODULE);
-  if (!wasm) throw new Error('le module réel doit s’instancier');
+  if (!wasm) throw new Error('the real module must instantiate');
   return wasm;
 }
 wasmFrais.compteur = 0;
 
-/** Compte les appels à `arena_alloc` sur le module donné, sans changer son comportement. */
+/** Counts calls to `arena_alloc` on the given module, without changing its behaviour. */
 function compteAllocations(wasm: SdkWasm) {
   const compteur = { valeur: 0 };
   const espionne: SdkWasm = {
@@ -34,7 +34,7 @@ function compteAllocations(wasm: SdkWasm) {
   return { espionne, compteur };
 }
 
-test('reserveArena ne fait qu’une seule allocation pour tous les blocs demandés', async () => {
+test('reserveArena makes only one allocation for all requested blocks', async () => {
   const wasm = await wasmFrais();
   const { espionne, compteur } = compteAllocations(wasm);
   const demandes: ArenaDemande[] = [
@@ -48,18 +48,17 @@ test('reserveArena ne fait qu’une seule allocation pour tous les blocs demand�
   arena.libere();
 });
 
-test('les vues restent valides après la croissance de mémoire que leur propre réservation a causée', async () => {
+test('views stay valid after the memory growth their own reservation caused', async () => {
   const wasm = await wasmFrais();
-  // Un grand lot force `arena_alloc` à faire grandir la mémoire linéaire, ce qui détache tout
-  // `ArrayBuffer` déjà construit ailleurs. Les vues rendues ici sont construites APRÈS cette
-  // allocation : elles doivent donc pointer sur le tampon courant du module, pas sur un tampon
-  // caduque.
+  // A large batch forces `arena_alloc` to grow linear memory, which detaches every `ArrayBuffer`
+  // already built elsewhere. The views yielded here are built AFTER that allocation: they must
+  // therefore point at the module's current buffer, not at a stale one.
   const arena = reserveArena(wasm, [{ type: 'f64', longueur: 200_000 }]);
   assert.ok(arena);
   const [bloc] = arena.blocs();
-  assert.equal(bloc.vue.buffer, wasm.memory.buffer, 'la vue doit porter sur le tampon courant');
-  // Écriture et relecture de valeurs hostiles : la vue est bien utilisable, pas seulement de la
-  // même longueur.
+  assert.equal(bloc.vue.buffer, wasm.memory.buffer, 'the view must point at the current buffer');
+  // Write and re-read of hostile values: the view is actually usable, not merely of the same
+  // length.
   const vue = bloc.vue as Float64Array;
   vue[0] = -0;
   vue[1] = NaN;
@@ -70,7 +69,7 @@ test('les vues restent valides après la croissance de mémoire que leur propre 
   arena.libere();
 });
 
-test('les vues sont reconstruites quand une allocation ULTÉRIEURE fait grandir la mémoire', async () => {
+test('views are rebuilt when a LATER allocation grows memory', async () => {
   const wasm = await wasmFrais();
   const arena = reserveArena(wasm, [{ type: 'f64', longueur: 4 }]);
   assert.ok(arena);
@@ -78,30 +77,30 @@ test('les vues sont reconstruites quand une allocation ULTÉRIEURE fait grandir 
   (arena.blocs()[0].vue as Float64Array).set(valeurs);
   const avant = arena.blocs()[0].vue,
     offsetAvant = arena.blocs()[0].offset;
-  assert.equal(arena.generation(), 0, 'rien n’a encore fait grandir la mémoire');
-  // Une allocation qui n'a rien à voir avec ce tampon — un décodage de page replié sur le fil
-  // principal en fait autant — remplace le `ArrayBuffer` du module et détache la vue précédente.
+  assert.equal(arena.generation(), 0, 'nothing has grown memory yet');
+  // An allocation that has nothing to do with this buffer — a page decode folded onto the main
+  // thread does as much — replaces the module's `ArrayBuffer` and detaches the previous view.
   const gros = wasm.arena_alloc(64 * 1024 * 1024);
-  assert.ok(gros, 'la grande réservation doit aboutir');
-  assert.equal(avant.length, 0, 'la vue d’avant doit bien avoir été détachée par la croissance');
+  assert.ok(gros, 'the large reservation must succeed');
+  assert.equal(avant.length, 0, 'the previous view must have been detached by the growth');
   const apres = arena.blocs()[0];
-  assert.equal(arena.generation(), 1, 'une reconstruction, et une seule');
-  assert.equal(apres.vue.buffer, wasm.memory.buffer, 'la vue doit porter sur le tampon courant');
-  assert.equal(apres.offset, offsetAvant, 'l’offset du bloc ne bouge pas');
+  assert.equal(arena.generation(), 1, 'one rebuild, and only one');
+  assert.equal(apres.vue.buffer, wasm.memory.buffer, 'the view must point at the current buffer');
+  assert.equal(apres.offset, offsetAvant, 'the block offset does not move');
   const relues = Array.from(apres.vue as Float64Array);
   for (let i = 0; i < valeurs.length; i++)
     assert.ok(Object.is(relues[i], valeurs[i]), `bloc[${i}] : ${relues[i]} ≠ ${valeurs[i]}`);
-  assert.equal(arena.blocs()[0], apres, 'sans nouvelle croissance, les blocs ne sont pas refaits');
+  assert.equal(arena.blocs()[0], apres, 'without further growth, the blocks are not rebuilt');
   wasm.arena_free(gros, 64 * 1024 * 1024);
   arena.libere();
-  assert.deepEqual(arena.blocs(), [], 'un tampon rendu ne porte plus aucune vue');
+  assert.deepEqual(arena.blocs(), [], 'a released buffer no longer carries any view');
 });
 
-test('liste() relit un compteur écrit dans un bloc puis la liste d’un autre', async () => {
+test('liste() re-reads a counter written in one block then the list of another', async () => {
   const wasm = await wasmFrais();
   const arena = reserveArena(wasm, [
-    { type: 'u32', longueur: 1 }, // le compteur
-    { type: 'f64', longueur: 8 }, // la liste, à sa taille maximale
+    { type: 'u32', longueur: 1 }, // the counter
+    { type: 'f64', longueur: 8 }, // the list, at its maximum size
   ]);
   assert.ok(arena);
   const [compteurBloc, listeBloc] = arena.blocs();
@@ -114,7 +113,7 @@ test('liste() relit un compteur écrit dans un bloc puis la liste d’un autre',
   arena.libere();
 });
 
-test('blocsJavaScript() rend la même forme que reserveArena() pour les mêmes demandes', async () => {
+test('blocsJavaScript() yields the same shape as reserveArena() for the same requests', async () => {
   const wasm = await wasmFrais();
   const demandes: ArenaDemande[] = [
     { type: 'u32', longueur: 4 },
@@ -125,8 +124,8 @@ test('blocsJavaScript() rend la même forme que reserveArena() pour les mêmes d
   assert.ok(arena);
   const horsModule = blocsJavaScript(demandes);
   assert.equal(horsModule.length, arena.blocs().length);
-  // Formes attendues, indépendantes des deux implémentations : deux sous-vues de 16 pour le
-  // deuxième bloc, trois de 3 pour le troisième, aucune pour le premier.
+  // Expected shapes, independent of both implementations: two subviews of 16 for the second
+  // block, three of 3 for the third, none for the first.
   const attendu = [{ vues: undefined }, { vues: [16, 16] }, { vues: [3, 3, 3] }] as const;
   const blocs = arena.blocs();
   for (let i = 0; i < demandes.length; i++) {
@@ -141,7 +140,7 @@ test('blocsJavaScript() rend la même forme que reserveArena() pour les mêmes d
   arena.libere();
 });
 
-test('un appel de calcul n’alloue rien : math_box_transform_batch travaille dans le tampon réservé', async () => {
+test('a compute call allocates nothing: math_box_transform_batch works in the reserved buffer', async () => {
   const wasm = await wasmFrais();
   const arena = reserveArena(wasm, [
     { type: 'f64', longueur: 6 },
@@ -155,7 +154,7 @@ test('un appel de calcul n’alloue rien : math_box_transform_batch travaille da
   const { espionne, compteur } = compteAllocations(wasm);
   compteur.valeur = 0;
   espionne.math_box_transform_batch(out.offset, boxes.offset, mats.offset, 1);
-  assert.equal(compteur.valeur, 0, 'le calcul ne doit provoquer aucune allocation');
+  assert.equal(compteur.valeur, 0, 'the computation must cause no allocation');
   assert.deepEqual(Array.from(out.vue as Float64Array), [-1, -1, -1, 1, 1, 1]);
   arena.libere();
 });

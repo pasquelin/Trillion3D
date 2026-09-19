@@ -1,7 +1,7 @@
 use crate::coplanar::overlap::{cover, shared, Footprint, Rect};
 
-// Comportement 6 : cover/shared comptent les cellules communes et ignorent deux surfaces qui ne
-// se touchent que par un bord.
+// Behavior 6: cover/shared count common cells and ignore two surfaces touching
+// only at border.
 
 fn square(x0: f64, y0: f64, x1: f64, y1: f64) -> Footprint {
     Footprint {
@@ -11,8 +11,8 @@ fn square(x0: f64, y0: f64, x1: f64, y1: f64) -> Footprint {
 
 #[test]
 fn cover_and_shared_count_the_cells_two_surfaces_really_share() {
-    // Deux carrés qui se recouvrent sur le quart [3,6]x[3,6] : chaque cellule de la zone commune a
-    // son centre dans les deux carrés, donc `shared` compte la grille entière.
+    // Two squares overlapping on quarter [3,6]x[3,6]: each cell in common zone has
+    // center in both squares, `shared` counts entire grid.
     let a = square(0.0, 0.0, 6.0, 6.0);
     let b = square(3.0, 3.0, 9.0, 9.0);
     let rect: Rect = ([3.0, 3.0], [6.0, 6.0]);
@@ -26,9 +26,9 @@ fn cover_and_shared_count_the_cells_two_surfaces_really_share() {
 
 #[test]
 fn cover_and_shared_ignore_two_triangles_that_only_touch_along_an_edge() {
-    // Deux triangles qui pavent le carré [0,4.3]x[0,4.3] de part et d'autre de l'hypoténuse
-    // x+y=4.3 : ils ne se recouvrent nulle part, seulement ce bord. 4.3 n'est jamais la somme de
-    // deux demi-entiers, donc aucun centre de cellule ne tombe exactement sur ce bord.
+    // Two triangles tiling square [0,4.3]x[0,4.3] on either side of hypotenuse
+    // x+y=4.3: overlap nowhere, only border. 4.3 never sum of
+    // two half-integers, so no cell center lands on border.
     let a = Footprint {
         points: vec![[0.0, 0.0], [4.3, 0.0], [0.0, 4.3]],
     };
@@ -45,7 +45,7 @@ fn cover_and_shared_ignore_two_triangles_that_only_touch_along_an_edge() {
         shared(&buffer_a, &buffer_b) == 0,
         "un bord commun ne partage aucune cellule"
     );
-    // Les deux triangles couvrent bel et bien des cellules, sinon le test serait vide de sens.
+    // Both triangles cover cells, test meaningless otherwise.
     assert!(buffer_a.iter().any(|word| *word != 0));
     assert!(buffer_b.iter().any(|word| *word != 0));
 }

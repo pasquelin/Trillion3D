@@ -4,7 +4,7 @@ import { DEFAULT_GEOMETRY_POOL_BUDGET, geometryPoolFor } from './webgpuMemoryBud
 
 const MIB = 1024 * 1024;
 
-test('le pool de géométrie est un réservoir fixe en octets, 512 Mio par défaut comme la référence', () => {
+test('the geometry pool is a fixed byte reservoir, 512 MiB by default like the reference', () => {
   assert.equal(DEFAULT_GEOMETRY_POOL_BUDGET, 512 * MIB);
   const pool = geometryPoolFor({
     budgetBytes: DEFAULT_GEOMETRY_POOL_BUDGET,
@@ -17,7 +17,7 @@ test('le pool de géométrie est un réservoir fixe en octets, 512 Mio par défa
   assert.equal(pool.clamp, null);
 });
 
-test('le réservoir se ramène à la scène ou au plafond en pages, et se relève jusqu’à la couverture racine', () => {
+test('the pool shrinks to the scene or the page cap, and rises to root coverage', () => {
   const small = geometryPoolFor({
     budgetBytes: 512 * MIB,
     pageBytes: 1500,
@@ -33,7 +33,7 @@ test('le réservoir se ramène à la scène ou au plafond en pages, et se relèv
     maxResidentPages: 64,
   });
   assert.deepEqual([capped.slots, capped.clamp], [64, 'page-cap']);
-  // Le plafond de la session, ce que les tables par page dessinable ont taillé.
+  // Session ceiling, what the drawable-page tables have sized.
   const ceiled = geometryPoolFor({
     budgetBytes: 512 * MIB,
     pageBytes: 1500,
@@ -42,8 +42,8 @@ test('le réservoir se ramène à la scène ou au plafond en pages, et se relèv
     ceilingSlots: 300,
   });
   assert.deepEqual([ceiled.slots, ceiled.clamp], [300, 'ceiling']);
-  // Un budget de 8 Mio sur des pages de 1 500 octets fait 5 592 fentes : sous 6 000 racines, il est
-  // relevé jusqu'à elles — les racines sont toujours résidentes, comme hors pool chez la référence.
+  // An 8 MiB budget on 1,500-byte pages makes 5,592 slots: under 6,000 roots it is
+  // raised to them — roots are always resident, as they are outside the pool in the reference.
   const roots = geometryPoolFor({
     budgetBytes: 8 * MIB,
     pageBytes: 1500,
@@ -57,7 +57,7 @@ test('le réservoir se ramène à la scène ou au plafond en pages, et se relèv
   );
 });
 
-test('seule la limite de l’appareil borne le réservoir, et ne refuse que si même les racines n’y entrent pas', () => {
+test('only the device limit bounds the pool, and it refuses only when even the roots do not fit', () => {
   const limits = { maxBufferSize: 1 * MIB, maxStorageBufferBindingSize: 4 * MIB };
   const pool = geometryPoolFor({
     budgetBytes: 512 * MIB,

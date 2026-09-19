@@ -1,9 +1,10 @@
-//! A03 — `simplification = none` promet les clusters exacts et rien d'autre. Ce que le DAG construit
-//! au-dessus du niveau zéro n'est pas une optimisation : c'est une géométrie que la source n'a pas.
+//! A03 — `simplification = none` promises exact clusters and nothing else. What
+//! the DAG builds above level zero is not an optimisation: it is geometry the
+//! source does not have.
 use super::*;
 
-/// Le DAG de la même grille, compilée dans un mode donné : profondeur, triangles des racines, et
-/// nombre de triangles portés par le niveau zéro.
+/// DAG of the same grid, compiled in a given mode: depth, root triangles, and
+/// triangle count carried by level zero.
 fn dag_of(mode: &str) -> (u64, usize, u64) {
     let (root, mut options) = grid_fixture_displaced(64, 64, 3.0);
     options.simplification = mode.into();
@@ -11,10 +12,10 @@ fn dag_of(mode: &str) -> (u64, usize, u64) {
     assert_eq!(
         result["simplification"],
         json!(mode != "none"),
-        "le manifeste annonce le mode demandé"
+        "the manifest announces the requested mode"
     );
     let primitive = &result["primitives"][0];
-    let depth = primitive["dag"]["depth"].as_u64().expect("profondeur");
+    let depth = primitive["dag"]["depth"].as_u64().expect("depth");
     let pages = primitive["pages"].as_array().expect("pages");
     let racines: usize = pages
         .iter()
@@ -30,24 +31,24 @@ fn dag_of(mode: &str) -> (u64, usize, u64) {
     (depth, racines, niveau_zero)
 }
 
-// Comportement : en `none`, le DAG tient sur son seul niveau zéro, qui couvre exactement les
-// triangles de la source. Aucun remplacement simplifié n'est écrit, donc aucune racine grossière.
+// Behaviour: in `none`, the DAG holds on its only level zero, which covers
+// exactly the source triangles. No simplified replacement is written, so no coarse root.
 #[test]
 fn simplification_none_ne_construit_aucun_niveau_grossier() {
     let (depth, racines, niveau_zero) = dag_of("none");
     assert_eq!(depth, 0, "un seul niveau : les clusters exacts");
-    assert_eq!(niveau_zero, 8192, "le niveau zéro couvre toute la source");
+    assert_eq!(niveau_zero, 8192, "level zero covers the whole source");
     assert_eq!(
         racines, 8192,
         "les clusters exacts sont les racines : rien ne les remplace"
     );
 }
 
-// Comportement : `qem-endpoints` garde le DAG qu'il construisait — même profondeur, même racine.
+// Behaviour: `qem-endpoints` keeps the DAG it used to build — same depth, same root.
 #[test]
 fn simplification_qem_endpoints_garde_son_dag() {
     let (depth, racines, niveau_zero) = dag_of("qem-endpoints");
-    assert_eq!(depth, 6, "profondeur inchangée");
-    assert_eq!(niveau_zero, 8192, "le niveau zéro couvre toute la source");
-    assert_eq!(racines, 127, "racine inchangée");
+    assert_eq!(depth, 6, "depth unchanged");
+    assert_eq!(niveau_zero, 8192, "level zero covers the whole source");
+    assert_eq!(racines, 127, "root unchanged");
 }

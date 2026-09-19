@@ -37,10 +37,10 @@ pub fn bounding_sphere(positions: &[f32], indices: &[u32]) -> [f64; 4] {
     [centre[0], centre[1], centre[2], radius]
 }
 
-/// Fusion de deux sphères englobantes. Le miroir côté moteur est `growSphere` dans
-/// `packages/sdk-browser/pageSelectionCutBounds.ts` : même formule, deux langages, aucun code
-/// partagé. Le repli est séquentiel et non commutatif — l'ordre des sphères décide du résultat,
-/// donc `enclosing_sphere` ne réordonne ni ne parallélise sa liste.
+/// Merging two bounding spheres. Engine side mirror is `growSphere` in
+/// `packages/sdk-browser/pageSelectionCutBounds.ts`: same formula, two languages, no code
+/// shared. Fallback is sequential and non-commutative — sphere order decides result,
+/// so `enclosing_sphere` neither reorders nor parallelizes its list.
 pub(super) fn merge_spheres(left: [f64; 4], right: [f64; 4]) -> [f64; 4] {
     if right[3] < 0.0 {
         return left;

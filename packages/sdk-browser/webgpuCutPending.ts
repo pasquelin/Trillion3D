@@ -3,34 +3,34 @@ import type { CutDelta } from './webgpuCutDelta.ts';
 import { createDenseKeySet } from './webgpuDenseKeys.ts';
 
 /**
- * Les pages de la coupe demandée qui n'ont pas encore leurs octets, tenues d'une image à l'autre.
+ * Pages of the requested cut that do not yet have their bytes, held from one image to the next.
  *
- * Deux lecteurs en vivent, et tous deux parcouraient la coupe entière pour n'en tirer, presque
- * toujours, rien : l'image tenue, qui refuse de tenir tant qu'une page attendue peut encore changer
- * la coupe, et la liste des adresses que l'hôte doit aller chercher. Quinze mille enregistrements
- * relus par image pour répondre « aucune ».
+ * Two readers live off it, and both used to walk the whole cut to get, almost always, nothing:
+ * the held image, which refuses to hold while an awaited page can still change the cut, and the
+ * list of addresses the host must go fetch. Fifteen thousand records re-read per image to answer
+ * "none".
  *
- * L'ensemble ne bouge ici que de ce qui bouge : les pages que la différence de la coupe nomme, et
- * celles dont les octets viennent d'arriver ou de partir — que le journal des rangs nomme déjà.
- * `records` est la liste des fiches qui manquent, et elle seule est parcourue : la règle qui en tire
- * des adresses est celle de tout le monde (`collectPendingUrls`), pas une recopie. L'appartenance à
- * la coupe est celle de la différence, à qui cet ensemble est attaché une fois pour toutes.
+ * The set only moves here of what moves: the pages the cut difference names, and those whose
+ * bytes just arrived or left — which the rank journal already names. `records` is the list of
+ * missing records, and it alone is walked: the rule that turns them into addresses is everyone's
+ * (`collectPendingUrls`), not a copy. Membership in the cut is that of the difference, to which
+ * this set is attached once and for all.
  */
 export type CutPending = ReturnType<typeof createCutPending>;
 
 export function createCutPending(packedPages: readonly PageRec[], delta: CutDelta) {
-  /** Les fiches des pages qui manquent, tenues au rang de leur clé par l'ensemble lui-même. */
+  /** Records of the missing pages, held at their key rank by the set itself. */
   const records: PageRec[] = [];
   const missing = createDenseKeySet(packedPages.length, records);
-  /** Les rangs de l'ensemble : lus à même le tableau, l'appel est réservé à ce qui bouge. */
+  /** Ranks of the set: read straight from the array, the call is reserved for what moves. */
   const slots = missing.slots;
   return {
-    /** Les fiches encore attendues, et leur nombre : l'image tenue ne lit que ce nombre. */
+    /** Records still awaited, and their count: the held image only reads that count. */
     records,
     get count() {
       return missing.count;
     },
-    /** La différence qui vient d'être appliquée : les sorties d'abord, les entrées ensuite. */
+    /** The difference that has just been applied: exits first, entries next. */
     apply() {
       const exits = delta.exited,
         entries = delta.entered;
@@ -44,7 +44,7 @@ export function createCutPending(packedPages: readonly PageRec[], delta: CutDelt
         if (!rec.array && slots[id] < 0) missing.add(id, rec);
       }
     },
-    /** Les octets d'une page viennent d'arriver ou de partir ; hors de la coupe, rien à en dire. */
+    /** A page's bytes have just arrived or left; outside the cut, nothing to say of it. */
     touch(id: number) {
       if (!delta.has(id)) return;
       const rec = packedPages[id];

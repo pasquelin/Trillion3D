@@ -10,9 +10,9 @@ import {
 import type { GpuBounceProxy } from './gpuBounceProxy.ts';
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
 
-/** Ce que la passe de cache lie : la grille, le proxy et son albédo, les lampes, les sondes figées,
- *  le cache. Le proxy est en écriture parce que son entête porte des compteurs `atomic` ; cette
- *  passe n'y écrit rien. */
+/** What the cache pass binds: the grid, the proxy and its albedo, lights, frozen probes, the
+ *  cache. The proxy is writable because its header carries `atomic` counters; this pass writes
+ *  nothing there. */
 const SURFACE_TYPES: (GPUBufferBindingType | null)[] = [
   'uniform',
   'storage',
@@ -26,11 +26,11 @@ const SURFACE_TYPES: (GPUBufferBindingType | null)[] = [
 export type GpuBounceSurface = Awaited<ReturnType<typeof createGpuBounceSurface>>;
 
 /**
- * Le cache de surfaces du proxy et la passe qui le balaie (LR5).
+ * Proxy surface cache and the pass that sweeps it (LR5).
  *
- * Une maille par triangle et par face, mise à jour sur un budget fixe de mailles par image. Le
- * balayage repart dès qu'une lampe change — c'est la même invalidation qu'une carte d'ombre — et
- * s'arrête de lui-même quand plus rien ne bouge : une scène immobile n'encode pas cette passe.
+ * One cell per triangle and per face, updated on a fixed cell budget per frame. The sweep
+ * restarts as soon as a light changes — the same invalidation as a shadow map — and stops by
+ * itself when nothing moves: a still scene does not encode this pass.
  */
 export async function createGpuBounceSurface(
   device: GPUDevice,
@@ -88,28 +88,28 @@ export async function createGpuBounceSurface(
   return {
     buffer,
     texels,
-    /** Ce que le cache occupe en mémoire graphique, publié dans le diagnostic. */
+    /** What the cache occupies in GPU memory, published in the diagnostic. */
     bytes,
-    /** Images d'un balayage complet du cache au lot courant : l'autre moitié du retard. */
+    /** Frames of a full cache sweep at the current batch: the other half of the lag. */
     get sweepFrames() {
       return Math.max(1, Math.ceil(texels / Math.max(1, batch)));
     },
-    /** Balayages complets depuis la dernière invalidation. */
+    /** Full sweeps since the last invalidation. */
     get sweeps() {
       return sweeps;
     },
-    /** Mailles mises à jour par la dernière image encodée. */
+    /** Cells updated by the last encoded frame. */
     get lastTexels() {
       return updated;
     },
-    /** Une lampe a changé : le cache entier est périmé, le balayage reprend là où il en était.
-     *  Reculer le curseur ne referait que les mêmes mailles à chaque image d'une lampe mobile. */
+    /** A light changed: the whole cache is stale, the sweep resumes where it was.
+     *  Rewinding the cursor would only redo the same cells every frame of a moving light. */
     restart() {
       sweeps = 0;
     },
     /**
-     * Encode un lot de mailles, dont la taille est la fraction du plafond que le budget en
-     * millisecondes a retenue. La passe porte son étiquette : elle est mesurée à part.
+     * Encodes a cell batch whose size is the fraction of the ceiling the millisecond budget
+     * kept. The pass carries its label: it is measured separately.
      */
     encode(encoder: GPUCommandEncoder, load: number) {
       batch = bounceBatchOf(ceiling, load);

@@ -1,32 +1,31 @@
-//! Noyaux de calcul en lot du socle mathématique, en f64, aux bits de la version JavaScript.
+//! Batch calculation kernels of the math foundation, in f64, to the bits of the JavaScript version.
 //!
-//! Chaque fonction reproduit terme à terme, parenthèses comprises, l'ordre des opérations
-//! flottantes de son homologue de `packages/sdk-core/` : `mathMatrix4.ts::multiplyMatrix4` et
-//! `mathBox.ts::boxTransform` (qui appelle `boxCornersInto`, `boxEmpty` et `boxExpandByPoint`).
+//! Each function reproduces term by term, parentheses included, the floating-point operation order
+//! of its counterpart in `packages/sdk-core/`: `mathMatrix4.ts::multiplyMatrix4` and
+//! `mathBox.ts::boxTransform` (which calls `boxCornersInto`, `boxEmpty` and `boxExpandByPoint`).
 //!
-//! L'égalité est structurelle, pas espérée. WebAssembly n'a aucune instruction de
-//! multiplication-addition fusionnée : ni le jeu de base, ni `simd128` n'en portent, et
-//! `relaxed-simd`, la seule extension qui en ait une, est refusée puis vérifiée par
-//! `scripts/build-wasm.mjs`. Son arithmétique f64 est celle d'IEEE-754, correctement arrondie,
-//! exactement celle des nombres de JavaScript. Et rustc n'active jamais de réassociation flottante :
-//! il n'a pas d'équivalent de `-ffast-math`, donc `lto`, `opt-level` et la vectorisation automatique
-//! ne peuvent que réordonner des voies indépendantes, jamais réassocier une somme.
+//! Equality is structural, not hoped for. WebAssembly has no fused multiply-add instruction:
+//! neither the base set nor `simd128` carries one, and `relaxed-simd`, the only extension that
+//! has one, is refused then verified by `scripts/build-wasm.mjs`. Its f64 arithmetic is IEEE-754,
+//! correctly rounded, exactly that of JavaScript numbers. And rustc never enables floating-point
+//! reassociation: it has no equivalent of `-ffast-math`, so `lto`, `opt-level` and automatic
+//! vectorisation can only reorder independent lanes, never reassociate a sum.
 //!
-//! `Math.min` et `Math.max` de JavaScript ne sont pas `f64::min` et `f64::max` de Rust : le premier
-//! propage NaN là où le second l'écarte, et JavaScript départage `-0` de `+0` là où Rust ne le
-//! promet pas. Les deux sont réécrits ici.
+//! JavaScript's `Math.min` and `Math.max` are not Rust's `f64::min` and `f64::max`: the former
+//! propagate NaN where the latter discard it, and JavaScript distinguishes `-0` from `+0` where
+//! Rust does not promise to. Both are rewritten here.
 
-/// Flottants d'une boîte rangée à plat, comme `BOX_VALUES` de `mathBox.ts`.
+/// Floats of a box laid out flat, like `BOX_VALUES` in `mathBox.ts`.
 pub const BOX_VALUES: usize = 6;
-/// Flottants d'une matrice 4×4 colonne-major.
+/// Floats of a column-major 4×4 matrix.
 pub const MATRIX_VALUES: usize = 16;
-/// Flottants des huit coins transformés d'une boîte.
+/// Floats of a box's eight transformed corners.
 const CORNER_VALUES: usize = 24;
 
-/// `Math.min` : NaN contamine, et `-0` l'emporte sur `+0`. C'est `minimum` d'IEEE-754-2019, que
-/// `f64::min` de Rust n'est PAS — celui-là est `minNum`, qui écarte un NaN au lieu de le propager —
-/// et que `f64::minimum` sera quand il sortira du provisoire. En attendant, la comparaison d'abord :
-/// sur des coordonnées ordinaires, l'un des deux premiers tests répond, et la suite ne coûte rien.
+/// `Math.min`: NaN contaminates, and `-0` wins over `+0`. That is IEEE-754-2019 `minimum`, which
+/// Rust's `f64::min` is NOT — that one is `minNum`, which discards a NaN instead of propagating it —
+/// and which `f64::minimum` will be once it leaves nightly. Meanwhile, the comparison first: on
+/// ordinary coordinates, one of the first two tests answers, and the rest costs nothing.
 #[inline]
 fn js_min(a: f64, b: f64) -> f64 {
     if a < b {
@@ -34,19 +33,19 @@ fn js_min(a: f64, b: f64) -> f64 {
     } else if b < a {
         b
     } else if a == b {
-        // Égaux : seul `-0` contre `+0` reste à départager, et JavaScript rend `-0`.
+        // Equal: only `-0` versus `+0` remains to be distinguished, and JavaScript returns `-0`.
         if a.is_sign_negative() {
             a
         } else {
             b
         }
     } else {
-        // Aucune comparaison vraie : l'un des deux est NaN, et `Math.min` le propage.
+        // No comparison is true: one of the two is NaN, and `Math.min` propagates it.
         f64::NAN
     }
 }
 
-/// `Math.max` : NaN contamine, et `+0` l'emporte sur `-0`. `maximum` d'IEEE-754-2019.
+/// `Math.max`: NaN contaminates, and `+0` wins over `-0`. IEEE-754-2019 `maximum`.
 #[inline]
 fn js_max(a: f64, b: f64) -> f64 {
     if a > b {
@@ -64,8 +63,8 @@ fn js_max(a: f64, b: f64) -> f64 {
     }
 }
 
-/// `boxTransform` d'une boîte : `out` et `boxes` portent six flottants, `m` seize. Une boîte vide
-/// — une borne haute sous sa borne basse — est recopiée telle quelle, bornes comprises.
+/// `boxTransform` of one box: `out` and `boxes` hold six floats, `m` sixteen. An empty box —
+/// an upper bound below its lower bound — is copied as-is, bounds included.
 fn box_transform_one(out: &mut [f64], boxes: &[f64], m: &[f64]) {
     let (min_x, min_y, min_z) = (boxes[0], boxes[1], boxes[2]);
     let (max_x, max_y, max_z) = (boxes[3], boxes[4], boxes[5]);
@@ -105,9 +104,9 @@ fn box_transform_one(out: &mut [f64], boxes: &[f64], m: &[f64]) {
     }
 }
 
-/// `multiplyMatrix4` d'une paire : les trente-deux entrées sont lues avant la première écriture, et
-/// chaque terme est la somme de quatre produits sans zéro initial — une somme commencée à `0`
-/// changerait le signe d'un zéro négatif.
+/// `multiplyMatrix4` of a pair: the thirty-two inputs are read before the first write, and each
+/// term is the sum of four products with no initial zero — a sum started at `0` would change the
+/// sign of a negative zero.
 pub(crate) fn multiply_matrix4_one(out: &mut [f64], a: &[f64], b: &[f64]) {
     let (a11, a12, a13, a14) = (a[0], a[4], a[8], a[12]);
     let (a21, a22, a23, a24) = (a[1], a[5], a[9], a[13]);
@@ -135,7 +134,7 @@ pub(crate) fn multiply_matrix4_one(out: &mut [f64], a: &[f64], b: &[f64]) {
     out[15] = a41 * b14 + a42 * b24 + a43 * b34 + a44 * b44;
 }
 
-/// `n` boîtes transformées par `n` matrices, les trois tampons rangés à plat et disjoints.
+/// `n` boxes transformed by `n` matrices, the three buffers laid out flat and disjoint.
 pub fn box_transform_batch(out: &mut [f64], boxes: &[f64], mats: &[f64], n: usize) {
     for i in 0..n {
         let o = i * BOX_VALUES;
@@ -148,7 +147,7 @@ pub fn box_transform_batch(out: &mut [f64], boxes: &[f64], mats: &[f64], n: usiz
     }
 }
 
-/// `n` produits `out[i] = a[i] · b[i]`, les trois tampons rangés à plat et disjoints.
+/// `n` products `out[i] = a[i] · b[i]`, the three buffers laid out flat and disjoint.
 pub fn multiply_matrix4_batch(out: &mut [f64], a: &[f64], b: &[f64], n: usize) {
     for i in 0..n {
         let at = i * MATRIX_VALUES;

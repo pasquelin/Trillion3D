@@ -1,45 +1,45 @@
 /**
- * Contrat de l'intégration d'une page arrivée, hors du fil principal, version 1.
+ * Contract of integrating an arrived page, off the main thread, version 1.
  *
- * Le décodage est déjà hors fil ; ce contrat-ci porte ce qui vient APRÈS : le plan d'intégration
- * d'un paquet de streaming. Rien ici ne touche la plateforme — ni `Worker`, ni horloge, ni DOM.
- * L'adaptateur navigateur porte le transport ; ce fichier ne porte que la forme des messages.
+ * Decode is already off-thread; this contract carries what comes AFTER: the integration plan
+ * of a streaming pack. Nothing here touches the platform — no `Worker`, no clock, no DOM.
+ * The browser adapter carries the transport; this file only carries the message shape.
  *
- * Ce que l'exécutant reçoit est une DESCRIPTION, jamais les octets de la page : la fiche d'une
- * requête ne tient que des entiers déjà connus du catalogue (offset dans le paquet, triangles, rang
- * de la page), et la longueur du paquet arrivé suffit au reste. Aucun tampon de cache n'est donc ni
- * copié ni détaché pour être planifié — la question du transfert ne se pose pas.
+ * What the executor receives is a DESCRIPTION, never the page bytes: a request
+ * sheet holds only integers already known from the catalogue (offset in the pack, triangles, page
+ * rank), and the arrived pack length is enough for the rest. No cache buffer is therefore
+ * copied or detached to be planned — the transfer question does not arise.
  */
 export const PAGE_INTEGRATION_PROTOCOL = 1;
 
-/** Entiers par enregistrement dans la fiche d'une requête. */
+/** Integers per record in a request sheet. */
 export const PAGE_SPEC_STRIDE = 3;
-/** Offset d'octets de l'enregistrement dans le paquet, ou `-1` quand la requête ne porte qu'une page. */
+/** Byte offset of the record in the pack, or `-1` when the request carries only one page. */
 export const SPEC_STREAM_OFFSET = 0;
-/** Triangles de l'enregistrement : trois mots d'index chacun. */
+/** Triangles of the record: three index words each. */
 export const SPEC_TRIANGLES = 1;
-/** Rang de la page dans la table, ou `-1` quand elle n'y figure pas. */
+/** Rank of the page in the table, or `-1` when it is not in it. */
 export const SPEC_PAGE_INDEX = 2;
 
-/** Entiers par enregistrement dans le plan rendu. */
+/** Integers per record in the returned plan. */
 export const PAGE_SLICE_STRIDE = 3;
-/** Premier mot de l'enregistrement dans le paquet. */
+/** First word of the record in the pack. */
 export const SLICE_OFFSET_WORDS = 0;
-/** Mots d'index de l'enregistrement. */
+/** Index words of the record. */
 export const SLICE_WORDS = 1;
-/** Rang de la page, recopié de la fiche : le fil principal ne le cherche plus. */
+/** Page rank, copied from the sheet: the main thread no longer looks it up. */
 export const SLICE_PAGE_INDEX = 2;
 
 export interface PageIntegrationRequest {
   protocol: number;
   id: number;
-  /** Adresse de la requête arrivée : la clé sous laquelle l'exécutant retient sa fiche. */
+  /** Address of the arrived request: the key under which the executor keeps its sheet. */
   url: string;
-  /** Longueur du paquet arrivé, en mots d'index. */
+  /** Length of the arrived pack, in index words. */
   words: number;
   /**
-   * La fiche de la requête, transférée à la première arrivée de cette adresse et `null` ensuite :
-   * elle ne dépend que du catalogue, qui ne bouge pas, et l'exécutant la garde.
+   * The request sheet, transferred on the first arrival of this address and `null` afterwards:
+   * it depends only on the catalogue, which does not move, and the executor keeps it.
    */
   specs: ArrayBuffer | null;
 }
@@ -49,21 +49,21 @@ export interface PageIntegrationDone {
   id: number;
   ok: true;
   url: string;
-  /** `PAGE_SLICE_STRIDE` entiers par enregistrement, dans l'ordre de la fiche. Transféré. */
+  /** `PAGE_SLICE_STRIDE` integers per record, in the sheet order. Transferred. */
   slices: ArrayBuffer;
-  /** Enregistrements décrits par `slices`. */
+  /** Records described by `slices`. */
   count: number;
-  /** Rangs de page distincts et croissants que l'arrivée fait bouger. Transféré. */
+  /** Distinct and increasing page ranks that the arrival moves. Transferred. */
   pages: ArrayBuffer;
   pageCount: number;
-  /** Temps de la tâche, mesuré par l'exécutant lui-même. */
+  /** Task time, measured by the executor itself. */
   taskMs: number;
 }
 
 /**
- * Liste close des refus. `PAGE_INTEGRATION_UNKNOWN` répond à une arrivée dont l'exécutant n'a pas la
- * fiche — un message perdu, ou un exécutant relancé ; `PAGE_INTEGRATION_WORKER` à un exécutant
- * disparu. Les deux autorisent le repli en ligne, qui refait le même plan sur le fil principal.
+ * Closed list of rejections. `PAGE_INTEGRATION_UNKNOWN` answers an arrival whose executor has no
+ * sheet — a lost message, or a restarted executor; `PAGE_INTEGRATION_WORKER` an executor that
+ * vanished. Both allow the in-line fallback, which remakes the same plan on the main thread.
  */
 export const PAGE_INTEGRATION_FAILURES = [
   'PAGE_INTEGRATION_UNKNOWN',

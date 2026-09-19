@@ -1,7 +1,7 @@
-//! Ce que les conteneurs refusent, et ce qu'ils laissent derrière eux quand ils refusent.
+//! What containers refuse, and what they leave behind when they refuse.
 //!
-//! Les archives piégées sont construites ici même, octet par octet : une archive qui met un lecteur
-//! à l'épreuve ne doit pas venir de ce lecteur. Rien n'est écrit hors du dossier jetable du cas.
+//! Trap archives are built here, byte by byte: an archive that puts a reader to the test must
+//! not come from that reader. Nothing is written outside the case's throwaway directory.
 use super::*;
 use std::fs;
 
@@ -9,35 +9,35 @@ mod paquet;
 mod usdz;
 mod zip;
 
-/// Un dossier jetable, nommé par le cas qui l'utilise.
+/// A throwaway directory, named by the case that uses it.
 fn scratch(tag: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!(
         "wg-conteneur-{tag}-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .expect("horloge")
+            .expect("clock")
             .as_nanos()
     ));
-    fs::create_dir_all(&dir).expect("dossier de test");
+    fs::create_dir_all(&dir).expect("test directory");
     dir
 }
 
-/// Ce qu'un conteneur a fait des octets qu'on lui a donnés.
+/// What a container did with the bytes it was given.
 struct Outcome {
-    /// Le dossier jetable : la source et le cache y vivent.
+    /// The throwaway directory: the source and the cache live there.
     dir: PathBuf,
-    /// Le code du refus, ou `accepté` quand le conteneur a produit une scène.
+    /// The refusal code, or `accepted` when the container produced a scene.
     code: String,
-    /// Ce que le conteneur a publié en chemin, dont la chaîne des pilotes.
+    /// What the container published along the way, including the driver chain.
     reports: Vec<Value>,
 }
 
-/// Fait lire ces octets à ce conteneur, dans un dossier jetable à lui seul.
+/// Has this container read these bytes, in a throwaway directory of its own.
 fn outcome(tag: &str, plugin: &dyn ScenePlugin, name: &str, bytes: &[u8]) -> Outcome {
     let dir = scratch(tag);
     let source = dir.join(name);
-    fs::write(&source, bytes).expect("archive de test");
+    fs::write(&source, bytes).expect("test archive");
     let cache = dir.join("cache");
     let inputs = [source.clone()];
     let cancelled = std::sync::atomic::AtomicBool::new(false);
@@ -47,20 +47,20 @@ fn outcome(tag: &str, plugin: &dyn ScenePlugin, name: &str, bytes: &[u8]) -> Out
         inputs: &inputs,
         cache: &cache,
         cancelled: &cancelled,
-        progress: &|report| reports.lock().expect("rapports").push(report),
+        progress: &|report| reports.lock().expect("reports").push(report),
     }) {
-        Ok(_) => "accepté".to_string(),
+        Ok(_) => "accepted".to_string(),
         Err(error) => error.code.to_string(),
     };
     Outcome {
         dir,
         code,
-        reports: reports.into_inner().expect("rapports"),
+        reports: reports.into_inner().expect("reports"),
     }
 }
 
-/// Le dossier extrait qu'un conteneur laisse visible sous ce cache, s'il y en a un. Une extraction
-/// refusée n'en laisse aucun : le routeur ne doit jamais voir un chantier comme une scène.
+/// The extracted directory a container leaves visible under this cache, if there is one. A
+/// refused extraction leaves none: the router must never see a work in progress as a scene.
 fn extracted(dir: &Path) -> Vec<PathBuf> {
     let archives = dir.join("cache").join("native").join("archives");
     let Ok(entries) = fs::read_dir(&archives) else {
@@ -73,24 +73,24 @@ fn extracted(dir: &Path) -> Vec<PathBuf> {
         .collect()
 }
 
-/// Le paquet ou l'archive une fois le cas fini.
+/// The package or archive once the case is done.
 fn cleanup(dir: PathBuf) {
-    fs::remove_dir_all(&dir).expect("nettoyage");
+    fs::remove_dir_all(&dir).expect("cleanup");
 }
 
-/// Une entrée d'une archive ZIP écrite ici même.
+/// An entry of a ZIP archive written here.
 struct Entry<'a> {
     name: &'a str,
-    /// Les octets tels qu'ils entrent dans l'archive.
+    /// The bytes as they enter the archive.
     data: &'a [u8],
-    /// La méthode déclarée : zéro stockée, huit `deflate`.
+    /// The declared method: zero stored, eight `deflate`.
     method: u16,
-    /// La taille décompressée annoncée, qui n'est celle des octets que pour une entrée stockée.
+    /// The announced decompressed size, which is that of the bytes only for a stored entry.
     size: u32,
 }
 
 impl<'a> Entry<'a> {
-    /// Une entrée stockée telle quelle, la seule que la disposition USDZ admette.
+    /// An entry stored as-is, the only one the USDZ layout admits.
     fn stored(name: &'a str, data: &'a [u8]) -> Entry<'a> {
         Entry {
             name,
@@ -101,9 +101,9 @@ impl<'a> Entry<'a> {
     }
 }
 
-/// Une archive ZIP écrite octet par octet, depuis l'APPNOTE : entête local, charge, index central,
-/// fin d'index. `aligned` bourre le champ « extra » de chaque entrée pour que sa charge commence
-/// sur un multiple de soixante-quatre octets, comme la disposition USDZ l'exige.
+/// A ZIP archive written byte by byte, from the APPNOTE: local header, payload, central directory,
+/// end of directory. `aligned` pads each entry's "extra" field so its payload starts on a multiple
+/// of sixty-four bytes, as the USDZ layout requires.
 fn zip_bytes(entries: &[Entry<'_>], aligned: bool) -> Vec<u8> {
     let mut out: Vec<u8> = Vec::new();
     let mut central: Vec<u8> = Vec::new();
@@ -139,8 +139,8 @@ fn zip_bytes(entries: &[Entry<'_>], aligned: bool) -> Vec<u8> {
     out
 }
 
-/// Le champ « extra » qui aligne une charge commençant à ce rang. Il porte son propre entête de
-/// quatre octets, donc un bourrage plus court qu'eux se reporte à l'alignement suivant.
+/// The "extra" field that aligns a payload starting at this rank. It carries its own four-byte
+/// header, so a pad shorter than that rolls over to the next alignment.
 fn padding(head: usize, aligned: bool) -> Vec<u8> {
     let mut length = match aligned {
         true => (64 - head % 64) % 64,
@@ -158,7 +158,7 @@ fn padding(head: usize, aligned: bool) -> Vec<u8> {
     out
 }
 
-/// Des entiers de seize bits à la suite, tels que le format les écrit.
+/// Sixteen-bit integers in sequence, as the format writes them.
 fn put(out: &mut Vec<u8>, values: &[u16]) {
     out.extend(values.iter().flat_map(|value| value.to_le_bytes()));
 }

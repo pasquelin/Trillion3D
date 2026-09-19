@@ -6,16 +6,15 @@ import {
 } from './webgpuPagesRuntime.ts';
 
 /**
- * La pyramide temporelle ne décrit plus cette image. Elle n'est relue que pour une vue identique au
- * bit près, donc un mouvement de caméra la retire ; l'historique des occulteurs, lui, ne nomme que
- * des pages et ne dépend d'aucune vue.
+ * The temporal pyramid no longer describes this image. It is reread only for a view identical to the
+ * bit, so a camera move drops it; the occluder history names pages only and depends on no view.
  */
 export function invalidateTemporalPyramid(run: WebgpuRunState) {
   run.temporalHizState.pyramid = undefined;
   run.temporalHizState.camera = undefined;
 }
 
-/** Ni les occulteurs de l'image précédente ni sa pyramide ne décrivent celle-ci. */
+/** Neither the previous image's occluders nor its pyramid describe this one. */
 export function invalidateOccluderHistory(run: WebgpuRunState) {
   run.noOccluderHistory = true;
   invalidateTemporalPyramid(run);
@@ -33,11 +32,10 @@ export function resetHizHistory(run: WebgpuRunState) {
 }
 
 /**
- * Le repli sur la coupe processeur, annoncé. La sélection GPU n'est abandonnée que sur un échec
- * réel — capacité des identifiants, envoi en erreur, encodage perdu, relevé en échec —, jamais
- * parce qu'une page voulue n'est pas encore arrivée. Un banc qui mesurerait la coupe processeur en
- * croyant mesurer la coupe GPU le lit dans `gpuSelectionFallback` et dans ce diagnostic, émis une
- * seule fois par session.
+ * Fallback to the CPU cut, announced. GPU selection is dropped only on a real failure — identifier
+ * capacity, send error, lost encode, failed sample — never because a wanted page has not arrived yet.
+ * A bench that would measure the CPU cut while thinking it measures the GPU cut reads it in
+ * `gpuSelectionFallback` and in this diagnostic, emitted once per session.
  */
 export function fallbackToCpuCut(
   rt: WebgpuPagesRuntime,
@@ -48,7 +46,7 @@ export function fallbackToCpuCut(
     rt.gpu.selectionFallback = true;
     rt.diag.engineDiagnostic(
       'gpu-selection-fallback',
-      'Avertissement : sélection GPU abandonnée, la coupe processeur dessine désormais',
+      'Warning: GPU selection dropped, the CPU cut now draws',
       { reason, ...details },
     );
   }
@@ -56,18 +54,18 @@ export function fallbackToCpuCut(
 }
 
 export function dropGpuSelection(rt: WebgpuPagesRuntime) {
-  // Origine du changement de ressources : la sélection par la carte n'est plus une capacité de ce
-  // moteur, et l'image suivante refait sa coupe sans elle.
+  // Origin of the resource change: GPU selection is no longer a capability of this engine, and the
+  // next image rebuilds its cut without it.
   rt.run.gate.resourcesChanged();
   rt.run.gpuSelection?.dispose();
   rt.run.gpuSelection = undefined;
   rt.capabilities.gpuDriven = false;
 }
 
-/** La partition vit avec la pyramide et la compaction : elle écrit dans l'une et lit dans l'autre. */
+/** The partition lives with the pyramid and compaction: it writes one and reads the other. */
 function dropGpuPartition(rt: WebgpuPagesRuntime) {
-  // Le test d'occultation des transparents lit l'uniforme de la partition : il part avec elle, et
-  // la table transparente retrouve toutes ses entrées.
+  // The transparent occlusion test reads the partition uniform: it leaves with it, and the
+  // transparent table gets all its entries back.
   rt.blendState.occlusion?.dispose();
   rt.blendState.occlusion = undefined;
   rt.blendState.occlusionEpoch = -1;
@@ -90,7 +88,7 @@ export function dropGpuHiz(rt: WebgpuPagesRuntime) {
 
 function dropGpuDraw(rt: WebgpuPagesRuntime) {
   dropGpuPartition(rt);
-  // La compaction de la moitié testée ne nomme que les tampons de la compaction de dessin.
+  // Compaction of the tested half names only the draw-compaction buffers.
   rt.vis.gpuRestCompact?.dispose();
   rt.vis.gpuRestCompact = undefined;
   rt.vis.gpuDraw?.dispose();
@@ -100,10 +98,9 @@ function dropGpuDraw(rt: WebgpuPagesRuntime) {
 }
 
 /**
- * Les groupes de liaison qui nomment les ressources partagées du dessin — tampon du réservoir de
- * pages, table de pages, pools de tuiles, uniformes — : l'une d'elles vient de changer d'identité,
- * ils sont refaits à l'image suivante. Les groupes des régions d'ombre sont indexés par l'identité
- * de ce qu'ils tiennent et se refont seuls.
+ * Bind groups that name the shared draw resources — page-pool buffer, page table, tile pools,
+ * uniforms —: one of them just changed identity, they are rebuilt next image. Shadow-region groups
+ * are indexed by the identity of what they hold and rebuild themselves.
  */
 export function dropPoolBindGroups(rt: Pick<WebgpuPagesRuntime, 'vis' | 'gpu' | 'blendState'>) {
   const { vis, gpu, blendState } = rt;
@@ -120,7 +117,7 @@ export function dropPoolBindGroups(rt: Pick<WebgpuPagesRuntime, 'vis' | 'gpu' | 
 export function dropVis(rt: WebgpuPagesRuntime) {
   const { vis, capabilities } = rt,
     { rows, drawSlots } = rt.layout;
-  // Origine du changement de ressources : le tampon de visibilité n'est plus une capacité.
+  // Origin of the resource change: the visibility buffer is no longer a capability.
   rt.run.gate.resourcesChanged();
   vis.visEnabled = false;
   vis.visPipelineBack = undefined;

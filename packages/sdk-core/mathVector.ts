@@ -1,19 +1,19 @@
 import type { NumberSink } from './mathMatrix4.ts';
 
 /**
- * Vecteurs 3 et 4 du socle mathématique : produits et transformations par une matrice 4×4
- * colonne-major, sortie passée en paramètre. Les formules sont celles de la bibliothèque 3D de
- * référence, terme à terme et dans le même ordre, donc les mêmes bits.
+ * 3 and 4 vectors of the math kernel: products and transforms by a column-major 4×4
+ * matrix, output passed in. The formulas are those of the reference 3D
+ * library, term by term and in the same order, hence the same bits.
  */
 
-/** `a · b` sur les trois premières composantes. */
+/** `a · b` on the first three components. */
 export function dotVector3(a: ArrayLike<number>, b: ArrayLike<number>) {
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
 /**
- * `out[outOffset..outOffset + 2] = a × b`. Les six composantes sont lues avant la première écriture,
- * donc `out` peut être `a` ou `b`.
+ * `out[outOffset..outOffset + 2] = a × b`. The six components are read before the first write,
+ * so `out` may be `a` or `b`.
  */
 export function crossVector3<T extends NumberSink>(
   out: T,
@@ -33,9 +33,9 @@ export function crossVector3<T extends NumberSink>(
 }
 
 /**
- * `out[outOffset..outOffset + 2] = M · (x, y, z, 1)`, sans division perspective : la forme d'une
- * matrice affine, dont la dernière ligne vaut `(0, 0, 0, 1)`. Pour une telle matrice et un point
- * fini, c'est bit pour bit la transformation projective, dont le facteur `1 / w` vaut alors 1.
+ * `out[outOffset..outOffset + 2] = M · (x, y, z, 1)`, without perspective divide: the form of an
+ * affine matrix, whose last row is `(0, 0, 0, 1)`. For such a matrix and a finite
+ * point, this is bit for bit the projective transform, whose `1 / w` factor is then 1.
  */
 export function transformAffinePoint<T extends NumberSink>(
   out: T,
@@ -52,9 +52,9 @@ export function transformAffinePoint<T extends NumberSink>(
 }
 
 /**
- * `out[outOffset..outOffset + 3] = M · (x, y, z, 1)`, les quatre composantes homogènes et sans
- * division : le point en espace de découpe quand `M` est une vue-projection. L'appelant divise par
- * la quatrième, après avoir écarté celle qui est nulle ou non finie.
+ * `out[outOffset..outOffset + 3] = M · (x, y, z, 1)`, the four homogeneous components and without
+ * divide: the point in clip space when `M` is a view-projection. The caller divides by
+ * the fourth, after discarding the one that is zero or non-finite.
  */
 export function transformHomogeneousPoint<T extends NumberSink>(
   out: T,
@@ -69,7 +69,7 @@ export function transformHomogeneousPoint<T extends NumberSink>(
   return out;
 }
 
-/** `v.normalize()` de la référence : chaque composante multipliée par `1 / (longueur || 1)`. */
+/** Reference `v.normalize()`: each component multiplied by `1 / (length || 1)`. */
 export function normalizeVector3(v: NumberSink) {
   const inverse = 1 / (Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) || 1);
   v[0] *= inverse;
@@ -77,12 +77,12 @@ export function normalizeVector3(v: NumberSink) {
   v[2] *= inverse;
 }
 
-/** `v.lengthSq()` : la somme des trois carrés, dans l'ordre de la référence. */
+/** `v.lengthSq()`: the sum of the three squares, in the reference order. */
 export function lengthSqVector3(v: ArrayLike<number>) {
   return v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
 }
 
-/** `v.multiplyScalar(s)` : les trois composantes de `out` multipliées sur place. */
+/** `v.multiplyScalar(s)`: the three components of `out` multiplied in place. */
 export function scaleVector3<T extends NumberSink>(out: T, s: number) {
   out[0] *= s;
   out[1] *= s;
@@ -90,7 +90,7 @@ export function scaleVector3<T extends NumberSink>(out: T, s: number) {
   return out;
 }
 
-/** `out.copy(a).multiplyScalar(s)` : la copie puis le facteur, donc `out = a · s` composante à composante. */
+/** `out.copy(a).multiplyScalar(s)`: the copy then the factor, hence `out = a · s` component by component. */
 export function copyScaledVector3<T extends NumberSink>(out: T, a: ArrayLike<number>, s: number) {
   out[0] = a[0] * s;
   out[1] = a[1] * s;
@@ -107,8 +107,8 @@ export function addScaledVector3<T extends NumberSink>(out: T, a: ArrayLike<numb
 }
 
 /**
- * `v.applyMatrix3(m)` : `out = M · (x, y, z)`, `m` colonne-major sur neuf nombres. Les trois
- * composantes sont lues en paramètre, donc `out` peut être le vecteur d'entrée lui-même.
+ * `v.applyMatrix3(m)`: `out = M · (x, y, z)`, `m` column-major on nine numbers. The three
+ * components are read as parameters, so `out` may be the input vector itself.
  */
 export function applyMatrix3Vector3<T extends NumberSink>(
   out: T,
@@ -124,8 +124,8 @@ export function applyMatrix3Vector3<T extends NumberSink>(
 }
 
 /**
- * `v.transformDirection(m)` : le bloc 3×3 d'une matrice 4×4 affine appliqué à une direction, puis la
- * normalisation de la référence. La translation est ignorée, comme pour tout vecteur de direction.
+ * `v.transformDirection(m)`: the 3×3 block of an affine 4×4 applied to a direction, then the
+ * reference normalisation. Translation is ignored, as for any direction vector.
  */
 export function transformDirectionVector3<T extends NumberSink>(
   out: T,

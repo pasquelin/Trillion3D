@@ -1,14 +1,14 @@
 import { PROXY_NODE_FLOATS, type SceneProxy } from '../sdk-core/index.ts';
 import { PROXY_HEADER_WORDS, PROXY_LAYOUT_WORD } from './bounceNodeWgsl.ts';
 
-/** Les mots d'un tableau, quel que soit son type : une colonne est une suite de mots, rien de plus. */
+/** Words of an array, whatever its type: a column is a sequence of words, nothing more. */
 const words = (data: Float32Array | Uint32Array) =>
   new Uint32Array(data.buffer, data.byteOffset, data.length);
 
-/** Le tampon résident de l'albédo : écrit une fois, à la préparation, jamais touché par une image. */
+/** Resident albedo buffer: written once, at prepare, never touched by a frame. */
 function albedoBuffer(device: GPUDevice, data: Uint32Array) {
-  // Une liaison de stockage ne peut pas être vide : un proxy absent garde quatre octets de zéro,
-  // et le nuanceur le voit comme un arbre sans nœud, donc comme un rayon qui ne touche rien.
+  // A storage binding cannot be empty: an absent proxy keeps four bytes of zero, and the shader
+  // sees it as a tree with no node, hence a ray that hits nothing.
   const buffer = device.createBuffer({
     label: 'WG bounce proxy albedo v2',
     size: Math.max(4, data.byteLength),
@@ -23,17 +23,17 @@ function albedoBuffer(device: GPUDevice, data: Uint32Array) {
 export type GpuBounceProxy = ReturnType<typeof createGpuBounceProxy>;
 
 /**
- * Le proxy résident en mémoire graphique : les triangles du monde, les deux colonnes de son BVH et
- * l'entête qui dit où chacune commence, dans **un seul tampon** ; l'albédo dans un second. Écrit
- * une fois pour toutes, jamais rechargé, jamais dépendant de la caméra (LC1) — c'est ce que les
- * rayons des sondes touchent, et il ne change que si le cache change.
+ * Resident GPU-memory proxy: world triangles, the two columns of its BVH and the header that
+ * says where each starts, in **one buffer**; albedo in a second. Written once for all, never
+ * reloaded, never camera-dependent (LC1) — that is what probe rays hit, and it changes only if
+ * the cache changes.
  *
- * Une seule liaison pour la traversée, c'est ce qui permet aux **deux** passes qui éclairent de
- * tirer le rayon d'ombre lointaine : l'étage de fragments de la passe de mélange n'avait qu'un
- * tampon de stockage libre sur les huit que la norme garantit.
+ * One binding for the traversal is what lets **both** lighting passes fire the far-shadow ray:
+ * the blend pass's fragment stage had only one free storage buffer of the eight the spec
+ * guarantees.
  *
- * Aucune lumière n'y est écrite : de la géométrie et un albédo, rien d'autre. Les quatre réglages
- * du rayon d'ombre et ses deux compteurs vivent dans l'entête, écrits par `gpuSunFarShadow`.
+ * No light is written there: geometry and an albedo, nothing else. The four shadow-ray settings
+ * and its two counters live in the header, written by `gpuSunFarShadow`.
  */
 export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
   const data = proxy.data;
@@ -42,8 +42,8 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
     words(data?.nodeBounds ?? new Float32Array(0)),
     words(data?.nodeChildren ?? new Uint32Array(0)),
   ];
-  // Le rang de départ de chaque colonne, compté depuis le premier mot qui suit l'entête : c'est ce
-  // que le nuanceur ajoute à un index de triangle ou de nœud.
+  // Start rank of each column, counted from the first word after the header: that is what the
+  // shader adds to a triangle or node index.
   const starts = [0, columns[0].length, columns[0].length + columns[1].length];
   const total = starts[2] + columns[2].length;
   const buffer = device.createBuffer({
@@ -53,8 +53,8 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
     mappedAtCreation: true,
   });
   const mapped = new Uint32Array(buffer.getMappedRange());
-  // Le nombre de nœuds se lit dans la colonne des bornes, comme le faisait `arrayLength` avant que
-  // les trois colonnes tiennent dans un tampon : la même valeur, à la même source.
+  // Node count is read from the bounds column, as `arrayLength` did before the three columns
+  // fit in one buffer: the same value, from the same source.
   mapped[PROXY_LAYOUT_WORD] = columns[1].length / PROXY_NODE_FLOATS;
   for (let index = 0; index < 3; index++) {
     mapped[PROXY_LAYOUT_WORD + 1 + index] = starts[index];
@@ -65,7 +65,7 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
   return {
     buffer,
     albedo,
-    /** Ce que le proxy occupe réellement en mémoire graphique, publié dans le diagnostic. */
+    /** What the proxy actually occupies in GPU memory, published in the diagnostic. */
     bytes: total * 4 + (data?.albedo.byteLength ?? 0),
     triangleCount: proxy.triangles,
     nodeCount: proxy.nodes,

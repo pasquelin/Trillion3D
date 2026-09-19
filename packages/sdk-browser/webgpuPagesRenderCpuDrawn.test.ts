@@ -1,7 +1,7 @@
-// Lot triangles synchrones, chemin processeur (`renderCpuCut`, `webgpuPagesRenderCpu.ts`) : la coupe
-// processeur dessine tout ce qu'elle a sélectionné — aucune grappe résidente ne peut y manquer, les
-// vérifications de résidence la font échouer avant le dessin. `uncoveredTriangles` vaut donc toujours
-// zéro sur ce chemin, et `drawnTriangles` reprend `selectedTriangles` tel quel.
+// Synchronous-triangles lot, CPU path (`renderCpuCut`, `webgpuPagesRenderCpu.ts`): the CPU cut draws
+// everything it selected — no resident cluster can be missing, residency checks make it fail before
+// the draw. `uncoveredTriangles` is therefore always zero on this path, and `drawnTriangles` takes
+// `selectedTriangles` as-is.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
@@ -10,8 +10,8 @@ import { camera, quadBackend } from './webgpuPagesTestScenes.ts';
 
 test('coupe processeur (visibility buffer indisponible) : drawnTriangles = selectedTriangles, uncoveredTriangles = 0', async () => {
   installGpuGlobals();
-  // `rejectR32 = true` : la cible r32uint du visbuffer échoue, le moteur retombe sur le raster de
-  // page et la coupe processeur — même repli que dans webgpuPages.08.test.ts.
+  // `rejectR32 = true`: the visbuffer r32uint target fails, the engine falls back to the page raster
+  // and the CPU cut — the same fallback as in webgpuPages.08.test.ts.
   const { device } = mockGpu(undefined, undefined, false, true);
   const { fixture, backend } = quadBackend(device);
   await backend.prepare();
@@ -20,10 +20,7 @@ test('coupe processeur (visibility buffer indisponible) : drawnTriangles = selec
   await backend.flush();
   backend.render(camera());
   const metrics = backend.metrics();
-  assert.ok(
-    (metrics.selectedTriangles ?? 0) > 0,
-    'témoin : la coupe a bien sélectionné des triangles',
-  );
+  assert.ok((metrics.selectedTriangles ?? 0) > 0, 'witness: the cut did select triangles');
   assert.equal(metrics.uncoveredTriangles, 0);
   assert.equal(metrics.drawnTriangles, metrics.selectedTriangles);
   backend.dispose();

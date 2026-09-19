@@ -8,17 +8,16 @@ const RESOLVE_DEPTH = {
 };
 
 /**
- * Les résolutions matérielles plein écran du tampon de visibilité.
+ * Full-screen hardware resolves of the visibility buffer.
  *
- * Le raster matériel ouvre et efface les attachements — identifiants, profondeur opaque, niveau
- * zéro de la pyramide — et y pose ses triangles ; ces résolutions y fondent ensuite ceux du raster
- * de calcul, sous le même test de profondeur, en gardant ce qui s'y trouve (`load`). Un pixel que
- * les deux producteurs atteignent revient au plus proche, et à égalité au calcul, qui passe en
- * dernier : `greater-equal`, sinon la seconde résolution perdrait la profondeur que la première
- * venait de poser.
+ * The hardware raster opens and clears the attachments — identifiers, opaque depth, pyramid
+ * level zero — and writes its triangles there; these resolves then merge those of the compute
+ * raster, under the same depth test, keeping what is already there (`load`). A pixel both
+ * producers reach goes to the nearest, and on a tie to compute, which runs last:
+ * `greater-equal`, otherwise the second resolve would lose the depth the first just wrote.
  *
- * `encodeHiz` sert entre les deux moitiés : elle pose la profondeur des occulteurs du calcul dans
- * le niveau zéro et le tampon, avant qu'aucun identifiant ne soit départagé.
+ * `encodeHiz` serves between the two halves: it writes compute occluder depth into level zero
+ * and the buffer, before any identifier is resolved.
  */
 export function createRasterResolves(
   device: GPUDevice,
@@ -68,7 +67,7 @@ export function createRasterResolves(
         { binding: 1, resource: { buffer: uniform, offset: 0, size: 96 } },
       ],
     }));
-  /** Une pièce jointe de couleur gardée telle que le raster matériel l'a laissée. */
+  /** A colour attachment kept as the hardware raster left it. */
   const kept = (view: GPUTextureView) => ({
     view,
     loadOp: 'load' as const,
@@ -80,17 +79,16 @@ export function createRasterResolves(
     depthStoreOp: 'store' as const,
   });
   /**
-   * Les deux descripteurs de passe, gardés tels quels jusqu'au prochain jeu de vues. Ils ne
-   * dépendent que des vues, et les vues ne changent qu'au redimensionnement de la cible — qui
-   * libère ce raster tout entier. Les reconstruire par image allouait sept objets pour réécrire
-   * les mêmes champs.
+   * The two pass descriptors, kept as-is until the next set of views. They depend only on the
+   * views, and the views change only on target resize — which releases this whole raster.
+   * Rebuilding them per frame allocated seven objects to rewrite the same fields.
    */
   let idsFor: GPUTextureView | undefined,
     depthFor: GPUTextureView | undefined,
     hizFor: GPUTextureView | undefined,
     hizPass: GPURenderPassDescriptor | undefined,
     finalPass: GPURenderPassDescriptor | undefined;
-  /** Refait les deux descripteurs quand, et seulement quand, une des trois vues a changé. */
+  /** Rebuilds both descriptors when, and only when, one of the three views has changed. */
   const refresh = (input: GpuRasterInput) => {
     if (idsFor === input.idsView && depthFor === input.depthView && hizFor === input.hizView)
       return;
@@ -111,8 +109,8 @@ export function createRasterResolves(
     };
   };
   return {
-    /** La profondeur des occulteurs du calcul, dans le niveau zéro que la pyramide réduit et dans le
-     *  tampon de profondeur ; aucun identifiant. */
+    /** Compute occluder depth, in the level zero the pyramid reduces and in the depth
+     *  buffer; no identifier. */
     encodeHiz(encoder: GPUCommandEncoder, input: GpuRasterInput, width: number, height: number) {
       refresh(input);
       const pass = encoder.beginRenderPass(hizPass!);
@@ -122,7 +120,7 @@ export function createRasterResolves(
       pass.draw(3);
       pass.end();
     },
-    /** L'image close : identifiants, profondeur, et la pyramide remise à la coupe entière. */
+    /** Closed frame: identifiers, depth, and the pyramid reset to the whole cut. */
     encodeFinal(encoder: GPUCommandEncoder, input: GpuRasterInput, width: number, height: number) {
       refresh(input);
       const pass = encoder.beginRenderPass(finalPass!);

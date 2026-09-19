@@ -1,12 +1,12 @@
 /**
- * Oracle D1/D2 : produit `viewProj * world` calculé une fois et relu pour plusieurs sommets, contre
- * le même produit refait pour chacun. Les deux shaders (gpuRasterShader.ts,
- * visibilityShaderId.ts) appliquent exactement cette transformation ; ce module porte l'algèbre en
- * JS (mat4x4f colonne-majeure, comme WGSL) pour la vérifier sur des matrices hostiles — miroir,
- * quasi-singulière, à grande échelle — sans dépendre d'une exécution GPU.
+ * Oracle D1/D2: `viewProj * world` product computed once and re-read for multiple vertices, against
+ * the same product recomputed for each vertex. Both shaders (gpuRasterShader.ts,
+ * visibilityShaderId.ts) apply exactly this transformation; this module holds the JS algebra
+ * (column-major mat4x4f, like WGSL) to verify it on hostile matrices — mirrored,
+ * near-singular, large scale — without depending on GPU execution.
  */
 
-export type Mat4 = readonly number[]; // 16 nombres, colonne-majeure : m[col*4+row]
+export type Mat4 = readonly number[]; // 16 numbers, column-major: m[col*4+row]
 type Vec3 = readonly [number, number, number];
 export type Vec4 = readonly [number, number, number, number];
 
@@ -28,7 +28,7 @@ function mat4MulVec4(m: Mat4, v: Vec4): Vec4 {
   return out as unknown as Vec4;
 }
 
-/** determinant(mat3x3f(world[0].xyz, world[1].xyz, world[2].xyz)) : les trois premières colonnes. */
+/** determinant(mat3x3f(world[0].xyz, world[1].xyz, world[2].xyz)): first three columns. */
 export function upperLeftDeterminant(world: Mat4): number {
   const c0: Vec3 = [world[0], world[1], world[2]];
   const c1: Vec3 = [world[4], world[5], world[6]];
@@ -39,21 +39,21 @@ export function upperLeftDeterminant(world: Mat4): number {
   return c0[0] * crossX + c0[1] * crossY + c0[2] * crossZ;
 }
 
-/** Le produit calculé une fois (`vp`), appliqué à chaque sommet — le noyau du lot D1/D2. */
+/** Product computed once (`vp`), applied to each vertex — kernel of batch D1/D2. */
 export function hoisted(viewProj: Mat4, world: Mat4, vertices: readonly Vec4[]): Vec4[] {
   const vp = mat4Multiply(viewProj, world);
   return vertices.map((v) => mat4MulVec4(vp, v));
 }
 
-/** Le produit refait pour chaque sommet — l'ancien noyau que D1/D2 remplacent. */
+/** Product recomputed for each vertex — legacy kernel replaced by D1/D2. */
 export function perVertex(viewProj: Mat4, world: Mat4, vertices: readonly Vec4[]): Vec4[] {
   return vertices.map((v) => mat4MulVec4(mat4Multiply(viewProj, world), v));
 }
 
 export const IDENTITY: Mat4 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-/** Miroir sur X : déterminant négatif, comme un cluster importé avec une échelle négative. */
+/** Mirror on X: negative determinant, like an imported cluster with negative scale. */
 export const MIRROR_X: Mat4 = [-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 2, 3, -5, 1];
-/** Quasi-singulière : une colonne presque colinéaire à une autre. */
+/** Near-singular: column nearly collinear to another. */
 export const NEAR_SINGULAR: Mat4 = [
   1,
   0,
@@ -72,5 +72,5 @@ export const NEAR_SINGULAR: Mat4 = [
   100,
   1,
 ];
-/** Grande échelle, comme un monde importé en millimètres puis composé avec une caméra lointaine. */
+/** Large scale, like a world imported in millimeters then composed with a distant camera. */
 export const LARGE_SCALE: Mat4 = [1e5, 0, 0, 0, 0, 1e5, 0, 0, 0, 0, 1e5, 0, -1e6, 2e6, 3e6, 1];

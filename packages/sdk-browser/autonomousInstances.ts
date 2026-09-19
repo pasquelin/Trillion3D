@@ -14,14 +14,14 @@ type InstanceEnvironment = {
   colorMaterials: Map<THREE.Material, THREE.Material>;
   geometryStore: ReturnType<typeof createAutonomousGeometry>;
   cap: number;
-  /** Prévenu par chaque point d'entrée qui écrit la scène : c'est là qu'est l'origine. */
+  /** Notified by every entry point that writes the scene: that is where the origin is. */
   sceneChanged: () => void;
 };
 
 /**
- * Repose une instance : ses racines et ses pages reprennent la transformation appliquée à leurs
- * modèles. `pages[i]` est le clone de `bases[i]`, posé une fois à la création, là où le déplacement
- * reconstruisait une table de hachage page → page de base à chaque appel.
+ * Re-places an instance: its roots and pages take back the transform applied to their
+ * models. `pages[i]` is the clone of `bases[i]`, set once at creation, where the move
+ * used to rebuild a page → base-page hash table on every call.
  */
 export function deplaceInstance(
   instance: { pages: PageRec[]; bases: PageRec[]; roots: ClusterRoot<PageRec>[] },
@@ -53,8 +53,8 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     cap,
     sceneChanged,
   } = env;
-  // `pages[i]` est le clone de `bases[i]` : le couple est posé à la création, pas reconstruit en table
-  // de hachage à chaque déplacement de l'instance.
+  // `pages[i]` is the clone of `bases[i]`: the pair is set at creation, not rebuilt as a
+  // hash table on every instance move.
   const instances = new Map<
     string,
     { roots: ClusterRoot<PageRec>[]; pages: PageRec[]; bases: PageRec[]; bootstrap: PageRec[] }

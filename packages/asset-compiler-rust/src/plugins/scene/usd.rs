@@ -1,25 +1,24 @@
-//! Pilote de scène USD : une couche `.usda` (texte), `.usdc` (binaire « crate ») ou `.usd` devient
-//! la scène intermédiaire glTF. La composition — sous-couches, références, héritages, variantes,
-//! instances — est faite avant lecture, et ce module ne lit que la scène composée.
+//! USD scene driver: a `.usda` (text), `.usdc` (binary “crate”) or `.usd` layer becomes the
+//! glTF intermediate scene. Composition — sublayers, references, inherits, variants, instances
+//! — is done before reading, and this module reads only the composed scene.
 //!
-//! **Provenance.** Spécification publique : *OpenUSD Core Specification* de l'AOUSD, dont la
-//! grammaire du texte et le format « crate » binaire. Lecture par la caisse `openusd` 0.7.0 (MIT,
-//! dépôt `mxpv/openusd`), version figée dans `Cargo.toml` : implémentation Rust native, sans
-//! dépendance C++, qui lit `usda`, `usdc` et compose les couches. Aucun code ni SDK d'éditeur n'est
-//! repris, et rien n'est réencodé : ce pilote lit, il n'écrit jamais à côté de la source.
+//! **Provenance.** Public specification: the AOUSD *OpenUSD Core Specification*, including the
+//! text grammar and the binary “crate” format. Read by the `openusd` 0.7.0 crate (MIT,
+//! `mxpv/openusd` repository), version pinned in `Cargo.toml`: native Rust implementation, no
+//! C++ dependency, which reads `usda`, `usdc` and composes layers. No editor code or SDK is
+//! reused, and nothing is re-encoded: this driver reads, it never writes beside the source.
 //!
-//! **Pourquoi une caisse plutôt qu'un lecteur écrit ici.** Les deux voies étaient ouvertes. Le
-//! format « crate » est une base de données compressée — tables de jetons, de chaînes, de champs, de
-//! chemins et de spécifications, entiers compressés et LZ4 — et la composition USD (LIVRPS,
-//! édition de listes, instanciation) est un moteur à elle seule : la réécrire ici aurait fait
-//! plusieurs milliers de lignes pour un résultat moins sûr. `openusd` est permissive, en Rust pur,
-//! maintenue, et ses propres dépendances le sont toutes (MIT ou Apache-2.0).
+//! **Why a crate rather than a reader written here.** Both paths were open. The “crate” format
+//! is a compressed database — token, string, field, path and spec tables, compressed integers
+//! and LZ4 — and USD composition (LIVRPS, list editing, instancing) is an engine of its own:
+//! rewriting it here would have been several thousand lines for a less sure result. `openusd`
+//! is permissive, pure Rust, maintained, and its own dependencies all are (MIT or Apache-2.0).
 //!
-//! **Ce qu'il rend** : la hiérarchie `Xform` et `Scope`, les `Mesh` polygonaux triangulés, leurs
-//! normales et leur `primvars:st`, les `GeomSubset` de la famille `materialBind` en primitives
-//! distinctes, les instances (un maillage glTF par prototype), les matériaux `UsdPreviewSurface` et
-//! leurs textures `UsdUVTexture`, le `defaultPrim`, `metersPerUnit` et `upAxis`.
-//! **Ce qu'il compte au rapport sans le rendre** : voir les constantes `usd-*` de `world.rs`.
+//! **What it yields**: the `Xform` and `Scope` hierarchy, triangulated polygonal `Mesh`, their
+//! normals and `primvars:st`, `GeomSubset` of the `materialBind` family as distinct primitives,
+//! instances (one glTF mesh per prototype), `UsdPreviewSurface` materials and their
+//! `UsdUVTexture` textures, `defaultPrim`, `metersPerUnit` and `upAxis`.
+//! **What it counts in the report without yielding**: see the `usd-*` constants of `world.rs`.
 use super::*;
 use crate::import::SceneTables as Scene;
 use crate::CompilerError;
@@ -55,19 +54,19 @@ use world::World;
 pub(super) static USD: Usd = Usd;
 pub(super) struct Usd;
 
-/// Le nom du format, tel qu'il voyage dans le manifeste et dans la clé du cache.
+/// Format name, as it travels in the manifest and in the cache key.
 const NAME: &str = "usd";
-/// L'entête d'une couche USD texte. La spécification impose cette ligne en tête du fichier.
+/// Header of a USD text layer. The specification requires this line at the head of the file.
 const TEXT_MAGIC: &[u8] = b"#usda ";
-/// L'entête d'une couche USD binaire, format « crate ».
+/// Header of a USD binary layer, “crate” format.
 const CRATE_MAGIC: &[u8] = b"PXR-USDC";
 
 impl Plugin for Usd {
     fn name(&self) -> &'static str {
         NAME
     }
-    /// La version nomme le lecteur et la génération de la conversion : la changer invalide les
-    /// caches, donc toute scène USD déjà compilée est relue.
+    /// The version names the reader and the conversion generation: changing it invalidates
+    /// caches, so every already compiled USD scene is reread.
     fn version(&self) -> &'static str {
         "usd-openusd-0.7.0-gltf-8"
     }
@@ -77,8 +76,8 @@ impl Plugin for Usd {
 }
 
 impl ScenePlugin for Usd {
-    /// `.usd` ne dit pas laquelle des deux sérialisations le fichier porte : les deux entêtes sont
-    /// reconnues, et un fichier sans extension connue l'est par elles seules.
+    /// `.usd` does not say which of the two serialisations the file carries: both headers are
+    /// recognised, and a file without a known extension is recognised by them alone.
     fn accepts_head(&self, head: &[u8]) -> bool {
         head.starts_with(TEXT_MAGIC) || head.starts_with(CRATE_MAGIC)
     }
@@ -87,8 +86,8 @@ impl ScenePlugin for Usd {
     }
 }
 
-/// La couche demandée. Un dossier qui porte plusieurs fichiers USD est une ambiguïté : le
-/// compilateur ne choisit pas la couche racine à la place de l'appelant, qui lui en désigne une.
+/// The requested layer. A directory that carries several USD files is an ambiguity: the
+/// compiler does not choose the root layer in the caller's place, who names one.
 fn source_file(inputs: &[PathBuf]) -> Result<&Path> {
     match inputs {
         [one] => Ok(one.as_path()),

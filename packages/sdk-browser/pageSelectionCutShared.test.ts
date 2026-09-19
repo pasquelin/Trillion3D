@@ -1,8 +1,8 @@
-// Ce que le partage de projection de `cutSelects` doit préserver : un remplaçant sans sphère à lui
-// reprend celle du cluster, et la coupe ne projette plus cette sphère qu'une fois. Le verdict doit
-// rester celui que rendait la double projection — la même sphère écrite deux fois —, et les gardes
-// que `projectedClusterError` ne pose plus lui-même doivent rester posées par `projectedErrorAt` et
-// par `clusterErrorAtDepth`.
+// What the projection sharing of `cutSelects` must preserve: a stand-in without a sphere of its
+// own takes the cluster's, and the cut no longer projects that sphere more than once. The verdict
+// must stay the one the double projection used to yield — the same sphere written twice — and the
+// guards `projectedClusterError` no longer poses itself must stay posed by `projectedErrorAt` and
+// by `clusterErrorAtDepth`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -18,7 +18,7 @@ const STRETCH = 1.7,
   FOCAL = 940,
   NEAR = cam.near;
 
-test('un remplaçant sans sphère à lui rend le verdict de la sphère propre écrite deux fois', () => {
+test('a stand-in without a sphere of its own yields the verdict of the own sphere written twice', () => {
   for (const sphere of [
     [0, 0, 0, 1],
     [3.5, -2, -14, 0.25],
@@ -29,8 +29,8 @@ test('un remplaçant sans sphère à lui rend le verdict de la sphère propre é
       for (const parent of [0, 1e-6, 0.05, 9, Infinity, null, undefined])
         for (const seuil of [0, 1e-9, 0.5, 4, 1e6]) {
           const partage = { lodError: own, sphere, parentError: parent };
-          // La même donnée, mais avec une sphère de remplaçant explicite et distincte en mémoire :
-          // c'est le chemin qui projette deux fois, celui d'avant le lot.
+          // The same data, but with an explicit stand-in sphere distinct in memory: that is the
+          // path that projects twice, the one from before the lot.
           const explicite = { ...partage, parentSphere: [...sphere] };
           assert.equal(
             cutSelects(partage, E, STRETCH, FOCAL, NEAR, seuil),
@@ -40,7 +40,7 @@ test('un remplaçant sans sphère à lui rend le verdict de la sphère propre é
         }
 });
 
-test('sans sphère, seule une erreur nulle reste nulle : tout le reste est l’infini', () => {
+test('without a sphere, only a null error stays null: everything else is infinity', () => {
   for (const sphere of [null, undefined]) {
     assert.equal(projectedClusterError(0, sphere, 0, E, STRETCH, FOCAL, NEAR), 0);
     for (const err of [1e-9, 2, Infinity, null, undefined, -1, NaN])
@@ -48,16 +48,16 @@ test('sans sphère, seule une erreur nulle reste nulle : tout le reste est l’i
   }
 });
 
-test('une erreur mal formée avec sphère est toujours refusée, par la garde restée en aval', () => {
+test('a malformed error with a sphere is always refused, by the guard left downstream', () => {
   const sphere = [1, 2, -9, 0.5];
   for (const err of [-1, NaN])
     assert.throws(
       () => projectedClusterError(err, sphere, 0, E, STRETCH, FOCAL, NEAR),
-      /Parametres de cluster invalides/,
+      /Invalid cluster parameters/,
     );
 });
 
-test('un centre non fini est toujours refusé, sans garde propre à clusterErrorPixels', () => {
+test("a non-finite centre is always refused, without a guard of clusterErrorPixels's own", () => {
   for (const [x, y] of [
     [NaN, 0],
     [0, NaN],
@@ -67,10 +67,10 @@ test('un centre non fini est toujours refusé, sans garde propre à clusterError
   ])
     assert.throws(
       () => clusterErrorPixels(0.5, 1, x, y, -10, 0.25, 900, 0.1),
-      /Parametres de cluster invalides/,
+      /Invalid cluster parameters/,
       `centre (${x}, ${y})`,
     );
-  // Les deux court-circuits restent devant la garde : ils ne lisent pas le centre.
+  // Both short-circuits stay in front of the guard: they do not read the centre.
   assert.equal(clusterErrorPixels(0, 1, NaN, NaN, -10, 0.25, 900, 0.1), 0);
   assert.equal(clusterErrorPixels(Infinity, 1, NaN, NaN, -10, 0.25, 900, 0.1), Infinity);
 });

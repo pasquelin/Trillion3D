@@ -1,29 +1,29 @@
-//! La section clé-valeur d'un KTX 2.0, et les deux clés que ce pilote lit.
+//! Key-value section of a KTX 2.0, and the two keys this driver reads.
 //!
-//! La spécification de Khronos la décrit entrée par entrée : chaque entrée porte sa longueur sur
-//! quatre octets, puis sa clé terminée par un zéro, puis sa valeur, le tout complété jusqu'au
-//! multiple de quatre. Les clés y sont des chaînes UTF-8 ; celles que ce module cherche portent des
-//! valeurs ASCII de quelques caractères.
+//! Khronos's specification describes it entry by entry: each entry carries its length over
+//! four bytes, then its null-terminated key, then its value, the whole padded to a multiple
+//! of four. Keys there are UTF-8 strings; those this module looks up carry ASCII values of a
+//! few characters.
 //!
-//! `KTXorientation` dit dans quel sens le fichier a écrit ses texels — `rd`, vers la droite et vers
-//! le bas, est l'orientation du contrat d'image. `KTXswizzle` dit quelle permutation de canaux
-//! appliquer avant de lire la couleur. Les ignorer sans un mot retournait une texture ou échangeait
-//! ses canaux sans que rien ne le signale.
+//! `KTXorientation` says in which direction the file wrote its texels — `rd`, to the right
+//! and downward, is the image-contract orientation. `KTXswizzle` says which channel
+//! permutation to apply before reading the colour. Ignoring them without a word flipped a
+//! texture or swapped its channels with nothing signalling it.
 use std::collections::BTreeMap;
 
-/// Les deux mots de l'entête qui désignent la section : son décalage puis sa longueur.
+/// The two header words that name the section: its offset then its length.
 const OFFSET: usize = 56;
 const LENGTH: usize = 60;
-/// La longueur d'une entrée, sur quatre octets, et le multiple sur lequel elles s'alignent.
+/// Length of an entry, over four bytes, and the multiple they align on.
 const ENTRY_LENGTH: usize = 4;
 const ALIGN: usize = 4;
 
-/// Les clés que ce pilote lit, avec leur valeur telle que le fichier l'écrit.
+/// Keys this driver reads, with their value as the file writes it.
 pub(super) const ORIENTATION: &str = "KTXorientation";
 pub(super) const SWIZZLE: &str = "KTXswizzle";
 
-/// Les entrées de la section, par leur clé. Une section absente, tronquée ou mal alignée rend une
-/// table vide : ce module ne refuse rien, il lit ce qui est lisible.
+/// The section's entries, by their key. A missing, truncated or misaligned section returns
+/// an empty table: this module refuses nothing, it reads what is readable.
 pub(super) fn read(bytes: &[u8]) -> BTreeMap<&str, &str> {
     let mut out = BTreeMap::new();
     let Some(mut rest) = section(bytes) else {
@@ -41,7 +41,7 @@ pub(super) fn read(bytes: &[u8]) -> BTreeMap<&str, &str> {
     out
 }
 
-/// La section clé-valeur telle que l'entête la désigne, bornée par la longueur du fichier.
+/// The key-value section as the header names it, bounded by the file length.
 fn section(bytes: &[u8]) -> Option<&[u8]> {
     let word = |at: usize| {
         let field: [u8; 4] = bytes.get(at..at + 4)?.try_into().ok()?;
@@ -51,8 +51,8 @@ fn section(bytes: &[u8]) -> Option<&[u8]> {
     bytes.get(at..at.checked_add(length)?)
 }
 
-/// L'entrée suivante, le curseur passé derrière elle et derrière son alignement. Une longueur qui
-/// sort de la section arrête le parcours : elle ne lit jamais à côté.
+/// The next entry, the cursor moved past it and past its alignment. A length that falls
+/// outside the section stops the walk: it never reads beside it.
 fn next<'a>(rest: &mut &'a [u8]) -> Option<&'a [u8]> {
     let field: [u8; 4] = rest.get(..ENTRY_LENGTH)?.try_into().ok()?;
     let length = usize::try_from(u32::from_le_bytes(field)).ok()?;
@@ -62,7 +62,7 @@ fn next<'a>(rest: &mut &'a [u8]) -> Option<&'a [u8]> {
     Some(entry)
 }
 
-/// La valeur sans le zéro terminal que la spécification lui donne, ni le remplissage d'alignement.
+/// The value without the trailing null the specification gives it, or the alignment padding.
 fn trimmed(value: &[u8]) -> &[u8] {
     let end = value
         .iter()

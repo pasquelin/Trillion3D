@@ -4,12 +4,12 @@ import { enginePose, type EngineCamera } from './cameraWorld.ts';
 import { SDK_BUILD_PROVENANCE } from './buildProvenance.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** La question posée à l'URL, et la réponse qu'elle a donnée : la chaîne est relue à chaque appel —
- *  l'audit est interrogé par image — mais elle n'est analysée qu'une fois par chaîne. */
+/** The question asked of the URL, and the answer it gave: the string is reread on every call —
+ *  the audit is queried per frame — but it is parsed only once per string. */
 let auditSearch: string | undefined,
   auditEnabled = false;
 
-/** Audit opt-in, sans trace par image : ajouter `wgFrameAudit=1` à l'URL de l'hôte. */
+/** Opt-in audit, no per-frame trace: add `wgFrameAudit=1` to the host URL. */
 export function frameCostAuditEnabled() {
   const search = typeof location === 'undefined' ? undefined : location.search;
   if (search !== auditSearch) {
@@ -19,19 +19,19 @@ export function frameCostAuditEnabled() {
   return auditEnabled;
 }
 
-/** La sérialisation et la console restent hors de l'appel de rendu mesuré. */
+/** Serialisation and the console stay outside the measured render call. */
 export function logFrameCostAudit(backend: string, context: Record<string, unknown>) {
   if (!frameCostAuditEnabled()) return;
   queueMicrotask(() => {
     try {
       console.info('[WG frame audit]', JSON.stringify({ backend, ...context }));
     } catch {
-      // Un observateur ne doit jamais interrompre le rendu.
+      // An observer must never interrupt the render.
     }
   });
 }
 
-/** La vue telle que l'audit la publie : la pose monde de la caméra du moteur, et son champ. */
+/** The view as the audit publishes it: the engine camera’s world pose, and its field. */
 const poseDeLaVue = (cam: EngineCamera) => ({
   ...enginePose(cam),
   fov: cam.fov,
@@ -39,8 +39,8 @@ const poseDeLaVue = (cam: EngineCamera) => ({
   far: cam.far,
 });
 
-/** Compte une fois par relevé les commandes dont la boîte est entièrement hors champ.
- * Ce minorant n'invente pas les résultats du masque GPU et ne modifie aucune sélection. */
+/** Counts once per snapshot the commands whose box is entirely out of frustum.
+ * This lower bound does not invent GPU-mask results and does not change any selection. */
 export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
   if (!frameCostAuditEnabled()) return undefined;
   let outsideItems = 0,
@@ -61,8 +61,8 @@ export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
   }
   return {
     selection: run.gpuFrameActive ? 'gpu' : 'cpu',
-    // La pose publiée est celle de la caméra du moteur, que l'entrée d'image vient de recopier :
-    // aucune caméra de l'hôte n'est relue ici, et rien n'est lu tant qu'aucune image n'a été rendue.
+    // The published pose is the engine camera’s, which frame entry has just copied:
+    // no host camera is reread here, and nothing is read until a frame has been rendered.
     camera: run.lastCamera && poseDeLaVue(run.gate.cam),
     resolution: [...rt.gpu.targetSize],
     pixelError: run.diagnosticPixelError,
@@ -86,15 +86,15 @@ export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
   };
 }
 
-/** Les compteurs que le renderer de l'hôte tient. Lus par leur forme : aucun calcul n'en sort, et
- *  l'audit n'a pas à nommer le type d'une bibliothèque qu'il ne fait que consulter. */
+/** Counters the host renderer holds. Read by their shape: no computation comes out of them, and
+ *  the audit does not have to name the type of a library it only consults. */
 type HostRenderer = {
   info: { render: { calls: number; triangles: number } };
   extensions: { has(name: string): boolean };
 };
 
-/** Vue hôte, avec vrais compteurs Three quand ce moteur possède le rendu WebGL.
- * Les percentiles CPU détaillés sont publiés séparément par les profils existants. */
+/** Host view, with real Three counters when this engine owns the WebGL render.
+ * Detailed CPU percentiles are published separately by the existing profiles. */
 export function createHostFrameCostAudit() {
   let last = -Infinity;
   return (backend: string, frame: number, metrics: FrameMetrics, renderer: HostRenderer | null) => {

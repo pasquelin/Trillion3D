@@ -1,4 +1,4 @@
-// comptage des pages résidentes et sélection GPU.
+// counting resident pages and GPU selection.
 import { maxStretch } from '../../sdk-core/index.ts';
 import { comptePagesResidentes } from '../autonomousResidency.ts';
 import { updateResidencyBits } from '../gpuDagRuntime.ts';
@@ -31,9 +31,9 @@ for (let j = 0; j < PAGES; j++)
   if (conesReference[j * CONE_FLOATS + FLAG] >= 0.5) bits[base + (j >>> 5)] |= 1 << (j & 31);
 
 const colonne = (cones) => {
-  const sortie = new Float32Array(PAGES);
-  for (let j = 0; j < PAGES; j++) sortie[j] = cones[j * CONE_FLOATS + FLAG];
-  return sortie;
+  const output = new Float32Array(PAGES);
+  for (let j = 0; j < PAGES; j++) output[j] = cones[j * CONE_FLOATS + FLAG];
+  return output;
 };
 
 const mondes = new Float32Array(64 * 16);
@@ -48,11 +48,11 @@ for (let i = 0; i < 12000; i++) sortieGpu[4 + i] = i * 3;
 for (let i = 0; i < 20000; i++) sortieGpu[4 + 12000 + i] = i % 7 ? 1 : 0;
 
 const resCompte = await mesure({
-  nom: 'pages résidentes',
+  name: 'resident pages',
   fichier: 'packages/sdk-browser/autonomousResidency.ts',
   cas: [
-    { nom: '40 000 pages', entree: pages, taille: pages.length },
-    { nom: 'aucune page', entree: [], taille: 0 },
+    { name: '40 000 pages', input: pages, size: pages.length },
+    { name: 'no pages', input: [], size: 0 },
   ],
   calcul: (liste) => comptePagesResidentes(liste),
   attendu: (liste) => liste.filter((rec) => !!rec.array).length,
@@ -60,9 +60,9 @@ const resCompte = await mesure({
 });
 
 const resResidencyBits = await mesure({
-  nom: 'mise à jour bits de résidence',
+  name: 'residency-bit update',
   fichier: 'packages/sdk-browser/gpuDagRuntime.ts',
-  cas: [{ nom: '8 images, 20 000 pages', entree: images, taille: PAGES * 8 }],
+  cas: [{ name: '8 frames, 20 000 pages', input: images, size: PAGES * 8 }],
   calcul: (imgs) => ({
     drapeaux: imgs.map((next) => updateResidencyBits(next, bits, base, undefined, motsTouches) > 0),
     colonne: residencyColumn(bits, base, PAGES),
@@ -75,49 +75,49 @@ const resResidencyBits = await mesure({
 });
 
 const resParseDag = await mesure({
-  nom: 'lecture de coupe GPU',
+  name: 'GPU cut read',
   fichier: 'packages/sdk-browser/gpuDagUniforms.ts',
   cas: [
-    { nom: 'lecture coupe, 12 000 pages', entree: 20000, taille: 12000 },
-    { nom: 'coupe vide', entree: 0, taille: 0 },
+    { name: 'cut read, 12 000 pages', input: 20000, size: 12000 },
+    { name: 'empty cut', input: 0, size: 0 },
   ],
   calcul: (masque) => parseDagOutput(sortieGpu.buffer, 0, sortieGpu.byteLength, masque),
-  // L'oracle d'avant le lot A prenait un masque d'un drapeau par page ; le moteur reçoit désormais
-  // une liste déjà compactée et un décalage de mots. Les deux ne décrivent plus la même sortie :
-  // la justesse de `parseDagOutput` est tenue par `gpuDagUniforms.test.ts`, pas par ce banc.
+  // The oracle from before batch A took a per-page flag mask; the engine now receives a
+  // already-compacted list and a word offset. The two no longer describe the same output:
+  // correctness of `parseDagOutput` is held by `gpuDagUniforms.test.ts`, not by this bench.
   attendu: null,
-  motif: 'oracle d’avant le lot A périmé — justesse dans gpuDagUniforms.test.ts',
+  motif: 'oracle from before batch A is stale — correctness in gpuDagUniforms.test.ts',
   options: { tours: 100, budgetMs: 1000 },
 });
 
-// `maxStretch` lit désormais la vue du tampon de mondes sans la recopier : l'oracle est le même
-// calcul sur une copie, et la ligne tombe si la lecture en place en change un seul bit.
+// `maxStretch` now reads the world-buffer view without copying it: the oracle is the same
+// computation on a copy, and the line fails if the in-place read changes a single bit.
 const etirements = (lecture) => () => {
-  const sortie = new Float64Array(64);
-  for (let w = 0; w < 64; w++) sortie[w] = maxStretch(lecture(w));
-  return sortie;
+  const output = new Float64Array(64);
+  for (let w = 0; w < 64; w++) output[w] = maxStretch(lecture(w));
+  return output;
 };
 
 const resEtirement = await mesure({
-  nom: 'étirement maximal des mondes',
+  name: 'maximum world stretch',
   fichier: 'packages/sdk-core/projectionOracles.ts',
-  cas: [{ nom: '64 mondes', entree: null, taille: 64 }],
+  cas: [{ name: '64 worlds', input: null, size: 64 }],
   calcul: etirements((w) => mondes.subarray(w * 16, w * 16 + 16)),
   attendu: etirements((w) => Array.from(mondes.subarray(w * 16, w * 16 + 16))),
   options: { tours: 100, budgetMs: 1000 },
 });
 
 await stress({
-  nom: 'comptePagesResidentes extremes',
+  name: 'comptePagesResidentes extremes',
   calcul: comptePagesResidentes,
   extremes: [
-    { nom: 'vide', entree: [] },
-    { nom: 'sans array', entree: [{ array: undefined }] },
+    { name: 'empty', input: [] },
+    { name: 'without array', input: [{ array: undefined }] },
   ],
 });
 
 rapport(
   'residence',
   [resCompte, resResidencyBits, resParseDag, resEtirement],
-  'A8 et A11 rendent exactement les mêmes comptes, drapeaux, coupes et étirements',
+  'A8 and A11 yield the exact same counts, flags, cuts and stretches',
 );

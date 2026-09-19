@@ -1,18 +1,18 @@
 /**
- * Ce qu'un moteur sait réellement faire des lampes du contrat. Un appel accepté par le magasin n'est
- * pas une preuve d'éclairage : un moteur qui ne relit pas le magasin laisse l'image telle quelle, et
- * l'hôte doit pouvoir le savoir avant de croire son image. Chaque champ est ce que le moteur ACTIF
- * applique, jamais ce que le contrat publie.
+ * What an engine can actually do with the contract lights. A call accepted by the store is
+ * not proof of lighting: an engine that does not reread the store leaves the image as-is, and
+ * the host must be able to know that before believing its image. Each field is what the ACTIVE
+ * engine applies, never what the contract publishes.
  */
 export interface LightingCapabilities {
-  /** Les lampes déclarées éclairent réellement l'image de ce moteur. */
+  /** Declared lights actually light this engine's image. */
   sceneLights: boolean;
-  /** `setLightingView` change réellement l'image de ce moteur. */
+  /** `setLightingView` actually changes this engine's image. */
   lightingView: boolean;
-  /** Les lampes de ce moteur portent des ombres. */
+  /** This engine's lights carry shadows. */
   shadows: boolean;
-  /** `setTransform` déplace réellement un nœud nommé sur ce moteur. */
+  /** `setTransform` actually moves a named node on this engine. */
   transforms: boolean;
-  /** Ce que le moteur ne fait pas et pourquoi, en une phrase ; absent quand tout est appliqué. */
+  /** What the engine does not do and why, in one sentence; absent when everything is applied. */
   reason?: string;
 }

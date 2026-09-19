@@ -1,26 +1,26 @@
 /**
- * Plans d'un tronc de vue, rangés à plat : vingt-quatre flottants, quatre par plan `a, b, c, d`,
- * tournés vers l'intérieur — un point est dedans quand `a·x + b·y + c·z + d >= 0` pour les six.
+ * Planes of a viewing frustum, stored flat: twenty-four floats, four per plane `a, b, c, d`,
+ * facing inward — a point is inside when `a*x + b*y + c*z + d >= 0` for all six.
  *
- * Ordre des plans, celui de la référence : droite (`w − x`), gauche (`w + x`), bas (`w + y`), haut
- * (`w − y`), loin, proche. La profondeur du moteur est INVERSÉE dans `[0, 1]` — plan proche à 1,
- * lointain à 0 (`mathCamera.ts`) — donc le plan LOIN est `z >= 0` et le plan PROCHE `w − z >= 0`,
- * l'inverse exact des rôles qu'ils ont en profondeur directe. Les lignes combinées sont celles de
- * la matrice colonne-major `m` : `x = (m0, m4, m8, m12)`, `w = (m3, m7, m11, m15)`.
+ * Plane order matches the reference: right (`w - x`), left (`w + x`), bottom (`w + y`), top
+ * (`w - y`), far, near. Engine depth is REVERSED in `[0, 1]` — near plane at 1,
+ * far plane at 0 (`mathCamera.ts`) — so the FAR plane is `z >= 0` and the NEAR plane is `w - z >= 0`,
+ * the exact inverse of their roles in standard depth. The combined rows are those of the
+ * column-major matrix `m`: `x = (m0, m4, m8, m12)`, `w = (m3, m7, m11, m15)`.
  *
- * Plan lointain infini : la ligne `z` de la projection est `(0, 0, 0, near)`, donc le plan LOIN
- * sort de normale nulle et, normalisé, de composantes non numériques — aucune comparaison ne le
- * satisfait, donc il ne rejette rien, ce qui est exactement ce que le lointain infini veut dire.
- * `frustumFarPlane` le remplace par le lointain que l'hôte déclare quand il y en a un.
+ * Infinite far plane: the `z` row of projection is `(0, 0, 0, near)`, so the FAR plane
+ * ends up with a zero normal and, normalized, non-numeric components — no comparison
+ * satisfies it, so it rejects nothing, which is exactly what an infinite far plane means.
+ * `frustumFarPlane` replaces it with the far plane declared by the host when present.
  */
 
-/** Flottants des six plans d'un tronc. */
+/** Float count for the six planes of a frustum. */
 export const FRUSTUM_PLANE_VALUES = 24;
 
-/** Écrit un plan, normalisé au besoin : les quatre composantes multipliées par `1 / ‖(a, b, c)‖`.
- *  Tout est calculé en double avant l'écriture, pour qu'une sortie simple précision arrondisse
- *  une seule fois. Les composantes passent en arguments et non par un tampon de module : mesuré
- *  deux fois plus rapide, le compilateur intègre l'appel et aucune n'est encapsulée. */
+/** Writes a plane, normalized if required: the four components multiplied by `1 / ‖(a, b, c)‖`.
+ *  Everything is computed in double precision before writing, so single precision output rounds
+ *  only once. Components are passed as arguments rather than via a module buffer: measured
+ *  twice as fast, the compiler inlines the call and none are wrapped. */
 function writePlane(
   out: Float32Array | Float64Array,
   at: number,
@@ -69,32 +69,32 @@ function writePlanes(out: Float32Array | Float64Array, m: ArrayLike<number>, nor
 }
 
 /**
- * Les six plans normalisés du tronc d'une matrice de découpe — une vue-projection, ou une
- * projection seule pour des plans en repère de vue. Normaux unitaires : `a·x + b·y + c·z + d` est
- * une distance signée. Une matrice dégénérée rend des plans NaN ou infinis, sans lever.
+ * The six normalized planes of the frustum of a clip matrix — a view-projection, or a
+ * projection alone for planes in view space. Unit normals: `a*x + b*y + c*z + d` is
+ * a signed distance. A degenerate matrix yields NaN or infinite planes without throwing.
  */
 export function frustumPlanesFromMatrix(out: Float32Array | Float64Array, m: ArrayLike<number>) {
   writePlanes(out, m, true);
 }
 
 /**
- * Les mêmes six plans sans normalisation : les sommes et différences brutes des lignes de `m`. Le
- * signe de `a·x + b·y + c·z + d` décide seul, sans racine carrée ni division — c'est la forme du
- * test exact d'une coupe, où normaliser déplacerait l'arrondi.
+ * The same six planes without normalization: the raw sums and differences of the rows of `m`. The
+ * sign of `a*x + b*y + c*z + d` alone decides, without square root or division — this is the form of
+ * the exact clip test, where normalizing would shift rounding.
  */
 export function clipPlanesFromMatrix(out: Float64Array, m: ArrayLike<number>) {
   writePlanes(out, m, false);
 }
 
 /**
- * Le plan LOINTAIN d'un tronc dont la projection n'en a pas, écrit dans `out` à `at`.
+ * The FAR plane of a frustum whose projection does not have one, written into `out` at `at`.
  *
- * La projection du moteur a un plan lointain INFINI : sa ligne de profondeur ne borne plus rien et
- * `writePlanes` en tire un plan nul, qui ne rejette personne. Le tronc, lui, garde le lointain que
- * l'hôte DÉCLARE — sans quoi une scène gagnerait d'un coup tous les objets que la caméra ne montrait
- * pas. Ce plan-là ne se lit pas dans la matrice de découpe mais dans la VUE, dont la troisième ligne
- * donne la profondeur de vue `z` : un point est dedans quand `far + z >= 0`. Un `far` non fini laisse
- * le plan nul en place, c'est-à-dire un lointain réellement sans borne.
+ * Engine projection has an INFINITE far plane: its depth row no longer bounds anything and
+ * `writePlanes` extracts a zero plane from it, which rejects nothing. The frustum, however, keeps the far plane
+ * DECLARED by the host — otherwise a scene would suddenly gain all objects that the camera was not showing.
+ * That plane is not read from the clip matrix but from the VIEW matrix, whose third row
+ * gives view depth `z`: a point is inside when `far + z >= 0`. A non-finite `far` leaves
+ * the zero plane in place, meaning a truly unbounded far plane.
  */
 export function frustumFarPlane(
   out: Float32Array | Float64Array,
@@ -108,9 +108,9 @@ export function frustumFarPlane(
 }
 
 /**
- * Ramène des plans dans le repère local d'une transformation `m` (4×4 colonne-major) : chaque plan
- * `p` devient `p · m`, si bien qu'un point local `q` donne `p · (m q)`. Une boîte locale se teste
- * alors sans être transformée.
+ * Transforms planes back into the local space of a transformation `m` (4x4 column-major): each plane
+ * `p` becomes `p · m`, so a local point `q` yields `p · (m q)`. A local box can then be
+ * tested without being transformed.
  */
 export function frustumPlanesToLocal(
   out: Float64Array,

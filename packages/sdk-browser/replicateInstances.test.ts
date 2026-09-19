@@ -1,6 +1,6 @@
-// Lot M4a, replicateInstances.ts : matrices monde des copies calculées par `multiplyMatrix4` du
-// socle, bornes à plat. Confrontées au bit près (Object.is) à l'ancien chemin Three
-// (`Matrix4.copy` puis `group.updateMatrixWorld`), hiérarchie hostile comprise.
+// Batch M4a, replicateInstances.ts: world matrices of copies calculated by core's
+// `multiplyMatrix4`, flat bounds. Compared bit-by-bit (Object.is) to legacy Three path
+// (`Matrix4.copy` then `group.updateMatrixWorld`), including hostile hierarchy.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -9,7 +9,7 @@ import { ENGINE_OWNED } from './hostSceneWatch.ts';
 import { hostWorldBounds } from './hostWorldBounds.ts';
 import { assertBits } from '../sdk-core/bench/oracles/volumes.mjs';
 
-/** Deux maillages sous une racine à échelle négative et un enfant à échelle non uniforme. */
+/** Two meshes under negative scale root and non-uniform scale child. */
 function hostileSource() {
   const racine = new THREE.Group();
   racine.scale.set(-1, 1, 1);
@@ -26,7 +26,7 @@ function hostileSource() {
   return { racine, a, b };
 }
 
-/** L'ancien chemin, avant le lot M4a : `Matrix4.copy` puis `group.updateMatrixWorld`. */
+/** Legacy path, before batch M4a: `Matrix4.copy` then `group.updateMatrixWorld`. */
 function referenceReplicate(
   source: THREE.Object3D,
   associations: Map<THREE.Object3D, unknown>,
@@ -57,7 +57,7 @@ function referenceReplicate(
   return group;
 }
 
-test('replicateInstances(count=1) rend la source elle-même, sans copie', () => {
+test('replicateInstances(count=1) returns source itself, without copying', () => {
   const { racine } = hostileSource();
   const associations = new Map();
   const rendu = replicateInstances(racine, associations, 1);
@@ -65,7 +65,7 @@ test('replicateInstances(count=1) rend la source elle-même, sans copie', () => 
 });
 
 for (const count of [4, 9, 12] as const) {
-  test(`replicateInstances(count=${count}) : matrices monde des copies bit à bit identiques à l’ancien chemin Three, source hostile`, () => {
+  test(`replicateInstances(count=${count}) : world matrices of copies bit-for-bit identical to legacy Three path, hostile source`, () => {
     const obtenu = hostileSource();
     const attendu = hostileSource();
     const groupeObtenu = replicateInstances(obtenu.racine, new Map(), count) as THREE.Group;
@@ -79,7 +79,7 @@ for (const count of [4, 9, 12] as const) {
   });
 }
 
-test('replicateInstances marque chaque copie ENGINE_OWNED et fige sa matrice (matrixAutoUpdate à faux)', () => {
+test('replicateInstances flags each copy ENGINE_OWNED and freezes its matrix (matrixAutoUpdate to false)', () => {
   const { racine } = hostileSource();
   const groupe = replicateInstances(racine, new Map(), 4) as THREE.Group;
   for (const copie of groupe.children as THREE.Mesh[]) {
@@ -88,7 +88,7 @@ test('replicateInstances marque chaque copie ENGINE_OWNED et fige sa matrice (ma
   }
 });
 
-test('replicateInstances reporte l’association de chaque maillage source sur ses copies', () => {
+test('replicateInstances transfers association of each source mesh onto its copies', () => {
   const { racine, a, b } = hostileSource();
   const associations = new Map<THREE.Object3D, { meshes: number }>([
     [a, { meshes: 0 }],
@@ -96,15 +96,14 @@ test('replicateInstances reporte l’association de chaque maillage source sur s
   ]);
   const groupe = replicateInstances(racine, associations, 4) as THREE.Group;
   for (const copie of groupe.children as THREE.Mesh[])
-    assert.ok(associations.get(copie), 'chaque copie porte l’association de son maillage source');
+    assert.ok(associations.get(copie), 'each copy carries association of its source mesh');
 });
 
-test('replicateInstances utilise `preparedBounds` telles quelles, sans recalculer les bornes', () => {
+test('replicateInstances uses `preparedBounds` as is, without recalculating bounds', () => {
   const { racine } = hostileSource();
   const reelles = hostWorldBounds(racine);
-  // Bornes délibérément fausses (deux fois plus larges) : si la fonction les ignorait pour
-  // recalculer les siennes, l’espacement de la grille correspondrait aux bornes réelles, pas à
-  // celles-ci.
+  // Deliberately incorrect bounds (twice as wide): if function ignored them to recalculate
+  // its own, grid spacing would match real bounds, not these.
   const fausses = Float64Array.from([
     reelles[0] * 2,
     reelles[1],
@@ -119,18 +118,14 @@ test('replicateInstances utilise `preparedBounds` telles quelles, sans recalcule
   const premiere = (groupe.children[0] as THREE.Mesh).matrixWorld.elements[12];
   const derniereColonne = (groupe.children[groupe.children.length - 2] as THREE.Mesh).matrixWorld
     .elements[12];
-  assert.notEqual(
-    attenduEspacement,
-    reelEspacement,
-    'le test doit utiliser des bornes différentes',
-  );
+  assert.notEqual(attenduEspacement, reelEspacement, 'test must use different bounds');
   assert.ok(
     Math.abs(Math.abs(derniereColonne - premiere) - attenduEspacement) < 1e-9,
-    'l’espacement suit `preparedBounds`, pas les bornes réelles',
+    'spacing follows `preparedBounds`, not real bounds',
   );
 });
 
-test('un décompte de copies invalide lève', () => {
+test('invalid replica count throws', () => {
   const { racine } = hostileSource();
   assert.throws(() => replicateInstances(racine, new Map(), 2 as 1));
 });

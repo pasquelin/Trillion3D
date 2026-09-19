@@ -1,42 +1,45 @@
-//! Les fichiers que le lecteur ouvre **en plus** du fichier de scène : la bibliothèque de matériaux
-//! d'un OBJ, un cache de géométrie. Sans eux, la clé du cache ne couvrait que le fichier revendiqué,
-//! et un `.mtl` modifié laissait servir la scène d'avant.
+//! Files the reader opens **besides** the scene file: an OBJ material library, a
+//! geometry cache. Without them, the cache key covered only the claimed file, and
+//! a modified `.mtl` left the previous scene in service.
 //!
-//! Ils entrent donc dans la clé, absence comprise : un fichier qui apparaît la change autant qu'un
-//! fichier dont le contenu change. Le relevé d'une conversion précédente sert d'avance — il donne la
-//! clé sans relire la source —, et quand il se trompe la conversion qui suit écrit la vraie clé.
+//! They therefore enter the key, absence included: a file that appears changes it
+//! as much as a file whose content changes. A previous conversion's record serves
+//! as a preview — it gives the key without rereading the source — and when it is
+//! wrong the conversion that follows writes the true key.
 //!
-//! Les textures liées y entrent aussi, sans être ouvertes. L'import ne lit pas leurs octets : il
-//! constate quel candidat existe pour écrire une URI, et c'est ce constat — le chemin essayé, sa
-//! présence, son empreinte quand il est là — qui décide du contenu du glTF intermédiaire. Laissé
-//! hors de la clé, une image ajoutée à côté d'une source inchangée laissait servir la scène d'avant.
+//! Linked textures enter too, without being opened. Import does not read their
+//! bytes: it notes which candidate exists to write a URI, and that finding — the
+//! path tried, its presence, its fingerprint when it is there — decides the
+//! intermediate glTF. Left out of the key, an image added next to an unchanged
+//! source left the previous scene in service.
 use super::*;
 use std::{fs::File, sync::Mutex};
 
-/// Une bibliothèque de matériaux citée par la source — le `.mtl` d'un OBJ.
+/// A material library cited by the source — an OBJ's `.mtl`.
 pub(super) const MATERIAL_LIBRARY: &str = "material-library";
-/// Un cache de géométrie, que la source cite pour la déformation d'un maillage.
+/// A geometry cache, which the source cites for mesh deformation.
 const GEOMETRY_CACHE: &str = "geometry-cache";
-/// Le fichier de scène lui-même, celui que le lecteur ouvre le premier.
+/// The scene file itself, the one the reader opens first.
 const MAIN_MODEL: &str = "model";
-/// Les natures de fichier externe qu'un lecteur peut demander, dans l'ordre du contrat ufbx.
+/// Kinds of external file a reader may request, in ufbx contract order.
 const KINDS: [&str; 3] = [MATERIAL_LIBRARY, GEOMETRY_CACHE, MAIN_MODEL];
-/// Un chemin d'image essayé pendant la résolution d'une texture. Jamais ouvert par le lecteur : son
-/// état seul — présent ou non, et alors son empreinte — décide de l'URI que la scène portera.
+/// An image path tried during texture resolution. Never opened by the reader: its
+/// state alone — present or not, and then its fingerprint — decides the URI the
+/// scene will carry.
 pub(super) const TEXTURE_CANDIDATE: &str = "texture-candidate";
 
-/// Un fichier ouvert pendant l'import, et l'empreinte de ce qu'il contenait.
+/// A file opened during import, and the fingerprint of what it contained.
 pub(super) struct External {
-    /// Le chemin complet, tel que le lecteur l'a demandé : c'est lui qu'on rehache au passage
-    /// suivant. Il ne sort jamais du cache — il nomme la machine qui a compilé, pas la scène.
+    /// Full path, as the reader asked for it: it is what is rehashed on the next
+    /// pass. It never leaves the cache — it names the compiling machine, not the scene.
     path: String,
-    /// Le nom seul, celui qui entre dans la clé et dans le manifeste.
+    /// The name alone, the one that enters the key and the manifest.
     name: String,
     kind: &'static str,
-    /// `None` quand l'ouverture a échoué.
+    /// `None` when opening failed.
     digest: Option<String>,
-    /// Une bibliothèque texte dont la dernière ligne n'est pas terminée : le fichier est coupé au
-    /// milieu d'une déclaration, et le lecteur en retient une valeur incomplète sans se plaindre.
+    /// A text library whose last line is not terminated: the file is cut mid
+    /// declaration, and the reader keeps an incomplete value without complaining.
     truncated: bool,
 }
 
@@ -55,9 +58,9 @@ fn kind_named(name: &str) -> Option<&'static str> {
         .find(|kind| *kind == name)
 }
 
-/// Ce qu'on sait d'un fichier externe maintenant : son empreinte, ou son absence. La passe de
-/// hachage rend aussi le dernier octet du fichier : une bibliothèque texte qui ne finit pas par une
-/// fin de ligne a été coupée, et le fichier n'est pas rouvert pour le constater.
+/// What we know of an external file now: its fingerprint, or its absence. The
+/// hashing pass also returns the last byte of the file: a text library that does
+/// not end with a newline has been cut, and the file is not reopened to notice it.
 fn describe(path: &Path, kind: &'static str) -> External {
     let read = crate::hash_file_tail(path).ok();
     let truncated = kind == MATERIAL_LIBRARY
@@ -79,14 +82,14 @@ fn describe(path: &Path, kind: &'static str) -> External {
     }
 }
 
-/// Le relevé des ouvertures d'un import. Le lecteur appelle sa callback depuis son fil de lecture :
-/// le verrou ne sert qu'à rendre le relevé partageable, il n'est jamais disputé.
+/// Record of an import's openings. The reader calls its callback from its read
+/// thread: the lock only makes the record shareable, it is never contended.
 #[derive(Default)]
 pub(super) struct Externals(Mutex<Vec<External>>);
 
 impl Externals {
-    /// La callback d'ouverture du lecteur : elle note le fichier et son empreinte, puis rend le
-    /// flux. Rien n'est mis en mémoire — le lecteur lit le fichier lui-même.
+    /// The reader's open callback: it notes the file and its fingerprint, then
+    /// returns the stream. Nothing is held in memory — the reader reads the file itself.
     pub(super) fn open(&self, path: &str, info: &ufbx::OpenFileInfo) -> Option<ufbx::Stream> {
         let path = Path::new(path);
         let mut entry = describe(path, kind_of(info.type_));
@@ -95,24 +98,25 @@ impl Externals {
             entry.digest = None;
             entry.truncated = false;
         }
-        self.0.lock().expect("fichiers externes").push(entry);
+        self.0.lock().expect("external files").push(entry);
         opened.map(ufbx::Stream::File)
     }
-    /// Note un chemin d'image essayé et ce qu'on y a trouvé. Rien n'est ouvert pour le lecteur :
-    /// c'est la décision de résolution, et non des octets consommés, qui entre ainsi dans la clé.
+    /// Notes an image path tried and what was found there. Nothing is opened for
+    /// the reader: it is the resolution decision, not consumed bytes, that thus
+    /// enters the key.
     pub(super) fn note_texture(&self, path: &Path) {
         let entry = describe(path, TEXTURE_CANDIDATE);
-        self.0.lock().expect("fichiers externes").push(entry);
+        self.0.lock().expect("external files").push(entry);
     }
-    /// Le nombre de fichiers déjà ouverts : une borne pour ne rapporter qu'un fichier de scène.
+    /// Number of files already opened: a bound so only one scene file is reported.
     pub(super) fn opened(&self) -> usize {
-        self.0.lock().expect("fichiers externes").len()
+        self.0.lock().expect("external files").len()
     }
-    /// Ce qu'une bibliothèque de matériaux n'a pas rendu, compté par son nom. `declared` dit que la
-    /// source citait bien une bibliothèque : le lecteur cherche aussi un `.mtl` de son propre chef,
-    /// et un fichier qu'il invente ne manque à personne quand il n'existe pas.
+    /// What a material library did not yield, counted by name. `declared` says the
+    /// source did cite a library: the reader also looks for a `.mtl` of its own
+    /// accord, and a file it invents is missing to no one when it does not exist.
     pub(super) fn report_since(&self, from: usize, declared: bool, report: &mut Report) {
-        let files = self.0.lock().expect("fichiers externes");
+        let files = self.0.lock().expect("external files");
         let libraries: Vec<&External> = files[from.min(files.len())..]
             .iter()
             .filter(|file| file.kind == MATERIAL_LIBRARY)
@@ -123,14 +127,15 @@ impl Externals {
         let truncated = libraries.iter().filter(|file| file.truncated).count();
         report.add_count("material-library-truncated", truncated);
     }
-    /// Retire le relevé pour en faire la clé et le manifeste.
+    /// Takes the record to make the key and the manifest from it.
     pub(super) fn drain(&self) -> Vec<External> {
-        std::mem::take(&mut *self.0.lock().expect("fichiers externes"))
+        std::mem::take(&mut *self.0.lock().expect("external files"))
     }
 }
 
-/// La clé de cache : la base — pilote, version, entrées revendiquées — puis chaque fichier externe,
-/// nom et empreinte. Un `.mtl` modifié, disparu ou apparu donne une autre clé, donc une autre scène.
+/// Cache key: the base — driver, version, claimed inputs — then each external
+/// file, name and fingerprint. A `.mtl` modified, gone or appeared gives another
+/// key, therefore another scene.
 pub(super) fn key(base: &str, files: &[External]) -> String {
     let mut material = base.to_string();
     for file in files {
@@ -144,9 +149,9 @@ pub(super) fn key(base: &str, files: &[External]) -> String {
     hash(material.as_bytes())
 }
 
-/// Ce que le manifeste publie de chaque fichier **ouvert** : jamais son chemin complet. Les chemins
-/// d'image essayés restent dans la clé seule — ils se comptent par dizaines et ne sont la source de
-/// rien : ce que la résolution a retenu se lit dans `images` du glTF.
+/// What the manifest publishes of each **opened** file: never its full path.
+/// Tried image paths stay in the key alone — they count in tens and are the
+/// source of nothing: what resolution kept is read in the glTF `images`.
 pub(super) fn manifest(files: &[External]) -> Value {
     Value::Array(
         files

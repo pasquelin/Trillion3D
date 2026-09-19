@@ -11,9 +11,9 @@ import {
   slotCount,
 } from './gpuDrawContract.ts';
 
-// Les tampons d'une compaction dépendent du nombre de lignes (slotCap) et du nombre de couches
-// coplanaires (layerSlots), jamais de l'image : ce fichier fixe leurs tailles et leurs alignements,
-// dont le cas layerSlots = 1 qui doit reproduire exactement les tailles d'avant les couches.
+// Compact buffers depend on the row count (slotCap) and the coplanar-layer count (layerSlots),
+// never on the frame: this file pins their sizes and alignments, including the layerSlots = 1
+// case which must reproduce the sizes from before layers.
 
 test('createGpuDrawBuffers sizes the item, rest and instance buffers from slotCap alone, for layerSlots = 1', () => {
   installGpuGlobals();

@@ -1,14 +1,14 @@
-// Pose immobile, cache qui applique les arrivées : la coupe doit converger vers UNE couverture et
-// cesser de demander. Deux couvertures équivalentes se relayaient au gré des arrivées, avec des
-// requêtes permanentes — l'anneau de préchargement, demandé même quand la coupe visible était
-// incomplète, se disputait le cache avec ce que l'image montre.
+// Still pose, cache that applies arrivals: the cut must converge to ONE cover and stop
+// asking. Two equivalent covers took turns as arrivals landed, with permanent requests —
+// the prefetch ring, asked even when the visible cut was incomplete, fought the cache with
+// what the frame shows.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { exactPagesBackend } from './index.ts';
 import { dagFixture, wideCamera } from './pageSelectionDagFixture.ts';
 
-/** Le moteur Three sur la fixture DAG, sans aucune page en mémoire au départ. */
-function moteur() {
+/** The Three engine on the DAG fixture, with no page in memory at the start. */
+function engine() {
   const fixture = dagFixture();
   const backend = exactPagesBackend({
     source: fixture.source,
@@ -21,14 +21,14 @@ function moteur() {
   return { backend, octets: fixture.indices, dispose: () => fixture.geometry.dispose() };
 }
 
-/** La couverture affichée, dans l'ordre : c'est elle qui doit être un point fixe. */
+/** Displayed cover, in order: that is what must be a fixed point. */
 const couverture = (backend: ReturnType<typeof exactPagesBackend>) =>
   backend.scene.children
     .filter((child) => child.type === 'Mesh')
     .map((child) => child.uuid)
     .join(',');
 
-/** Une image : coupe, puis arrivée de ce que le moteur a demandé, comme un cache qui répond. */
+/** One frame: cut, then arrival of what the engine asked for, like a cache that answers. */
 function image(
   backend: ReturnType<typeof exactPagesBackend>,
   octets: Map<string, Uint32Array>,
@@ -44,10 +44,10 @@ function image(
   return demandes;
 }
 
-test('pose immobile : la coupe converge vers une couverture et cesse de demander', () => {
-  const { backend, octets, dispose } = moteur();
+test('still pose: the cut converges to a cover and stops asking', () => {
+  const { backend, octets, dispose } = engine();
   const camera = wideCamera();
-  // Dix images suffisent largement à drainer une hiérarchie de sept pages.
+  // Ten frames are plenty to drain a seven-page hierarchy.
   for (let i = 0; i < 10; i++) image(backend, octets, camera);
   const converge = backend.metrics().clusters;
   const couvertures = new Set<string>();
@@ -55,28 +55,28 @@ test('pose immobile : la coupe converge vers une couverture et cesse de demander
   for (let i = 0; i < 8; i++) {
     demandesApres += image(backend, octets, camera).length;
     couvertures.add(couverture(backend));
-    assert.equal(backend.metrics().clusters, converge, 'le nombre de clusters a changé');
+    assert.equal(backend.metrics().clusters, converge, 'the cluster count has changed');
   }
-  assert.equal(couvertures.size, 1, `la coupe alterne entre ${couvertures.size} couvertures`);
-  assert.equal(demandesApres, 0, 'le moteur demande encore alors que sa coupe est complète');
+  assert.equal(couvertures.size, 1, `the cut alternates between ${couvertures.size} covers`);
+  assert.equal(demandesApres, 0, 'the engine is still asking while its cut is complete');
   backend.dispose();
   dispose();
 });
 
-test('l’anneau de préchargement ne se dispute pas le cache avec la coupe visible', () => {
-  const { backend, octets, dispose } = moteur();
+test('the prefetch ring does not fight the cache with the visible cut', () => {
+  const { backend, octets, dispose } = engine();
   const camera = wideCamera();
   backend.render(camera);
-  assert.ok(backend.pendingUrls!().length > 0, 'la coupe visible doit être incomplète ici');
+  assert.ok(backend.pendingUrls!().length > 0, 'the visible cut must be incomplete here');
   assert.deepEqual(
     backend.prefetchUrls!(),
     [],
-    'l’anneau est demandé alors que l’image montre encore des trous : il pousse dehors ce que ' +
-      'l’image attend, la coupe retombe sur un remplaçant plus grossier, et rien ne converge',
+    'the ring is asked while the frame still shows holes: it pushes out what the frame ' +
+      'is waiting for, the cut falls back on a coarser substitute, and nothing converges',
   );
-  // Une fois la coupe visible complète, l'anneau reprend son rôle : précharger le voisinage.
+  // Once the visible cut is complete, the ring resumes its role: prefetch the neighbourhood.
   for (let i = 0; i < 10; i++) image(backend, octets, camera);
-  assert.deepEqual(backend.pendingUrls!(), [], 'la coupe visible est complète');
+  assert.deepEqual(backend.pendingUrls!(), [], 'the visible cut is complete');
   backend.dispose();
   dispose();
 });

@@ -24,7 +24,7 @@ function pageIsDoubleSided(material: THREE.Material | THREE.Material[] | undefin
   return side === THREE.DoubleSide;
 }
 
-/** Le contexte est posé au premier cône de la racine : une racine sans cône ne le paie jamais. */
+/** The context is set at the root's first cone: a root without a cone never pays for it. */
 export function coneSkipsPage(
   rec: {
     cone?: NormalCone;
@@ -50,18 +50,18 @@ export function cullingNodes(culling: CullingHierarchy | null | undefined, pageC
   if (!culling || !Array.isArray(culling.nodes) || culling.stride < 15 || culling.count < 1)
     return undefined;
   if (culling.nodes.length !== culling.count * culling.stride)
-    throw new Error('Hierarchie de culling incoherente');
+    throw new Error('Inconsistent culling hierarchy');
   const nodes = Float64Array.from(culling.nodes);
   for (let node = 0; node < culling.count; node++) {
     const base = node * culling.stride,
       children = nodes[base + 12];
     if (children > 0) {
       if (nodes[base + 11] + children > culling.count)
-        throw new Error('Hierarchie de culling incoherente');
+        throw new Error('Inconsistent culling hierarchy');
       continue;
     }
     if (nodes[base + 13] + nodes[base + 14] > pageCount)
-      throw new Error('Hierarchie de culling incoherente');
+      throw new Error('Inconsistent culling hierarchy');
   }
   return { nodes, stride: culling.stride };
 }
@@ -95,11 +95,11 @@ export function clusterErrorFields(page: Page): {
     throw new Error(`Page ${page.id}: parentError sans parentSphere`);
   if (parent !== null && parent < page.lodError!)
     throw new Error(`Page ${page.id}: parentError sous lodError`);
-  // La sphère du remplaçant passe par la même règle que la sphère propre de la page : refusée ici,
-  // à la préparation, jamais au milieu d'une image. Une erreur nulle ne projette rien et ne lit
-  // pas sa sphère, elle n'a rien à valider.
+  // The parent sphere uses the same rule as the page's own sphere: rejected here,
+  // at prepare time, never mid-frame. A zero error projects nothing and does not read
+  // its sphere; it has nothing to validate.
   if (parent !== null && parent > 0 && !clusterSphereValid(page.parentSphere))
-    throw new Error('Parametres de cluster invalides');
+    throw new Error('Invalid cluster parameters');
   return {
     level: page.level,
     lodError: page.lodError,
@@ -155,7 +155,7 @@ export function structureIndex(
   }
   for (const root of structure.roots)
     if (!(root >= 0 && root < pageCount && owners[root] < 0))
-      throw new Error('Racine de structure invalide');
+      throw new Error('Invalid structure root');
   return {
     groupCount,
     childOffsets,
@@ -188,6 +188,6 @@ export function streamPlacement(
     : undefined;
 }
 
-/** Les maillages d'un graphe hôte résolu. Une seule traversée dans le paquet, celle de
- *  `sceneMeshes.ts` : la sélection lisait la même, mot pour mot. */
+/** Meshes of a resolved host graph. One traversal in the package, that of
+ *  `sceneMeshes.ts`: selection used to read the same one, word for word. */
 export { meshes as objects } from './sceneMeshes.ts';

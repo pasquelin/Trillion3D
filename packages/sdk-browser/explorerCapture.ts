@@ -39,7 +39,7 @@ export function createExplorerCapture(inputs: Inputs) {
     try {
       const gl = ownedRenderer.getContext();
       gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
-      diagnose('visible-presentation', 'Premier relevé du framebuffer WebGL visible', {
+      diagnose('visible-presentation', 'First sample of the visible WebGL framebuffer', {
         kind: 'presentation',
         engine: active.id,
         ...presentationColorDiagnostic(
@@ -51,7 +51,7 @@ export function createExplorerCapture(inputs: Inputs) {
         ),
       });
     } catch (error) {
-      diagnose('visible-presentation', 'Lecture du framebuffer WebGL visible indisponible', {
+      diagnose('visible-presentation', 'Visible WebGL framebuffer read unavailable', {
         kind: 'error',
         engine: active.id,
         error: String(error),
@@ -77,7 +77,7 @@ export function createExplorerCapture(inputs: Inputs) {
       gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
       if (!presentationDiagnostics.has(active.id)) {
         presentationDiagnostics.add(active.id);
-        diagnose('presentation-capture', 'Premier relevé de la composition finale WebGL', {
+        diagnose('presentation-capture', 'First sample of the final WebGL composition', {
           kind: 'presentation',
           engine: active.id,
           ...presentationColorDiagnostic(

@@ -1,9 +1,10 @@
-//! Le niveau 0 d'un KTX 2.0 dont le `vkFormat` nomme le codec : sa supercompression défaite, puis
-//! sa reconstruction vers RGBA8 par le socle commun `image::blocks`.
+//! Level 0 of a KTX 2.0 whose `vkFormat` names the codec: its supercompression undone, then
+//! its reconstruction to RGBA8 by the shared `image::blocks` base.
 //!
-//! Rien n'est alloué avant d'avoir été borné : l'image finale contre le plafond reçu, le tampon de
-//! décompression contre ce plafond et contre la longueur que l'index annonce. Une supercompression
-//! qui rendrait autre chose que cette longueur est un refus, pas un tampon à moitié rempli.
+//! Nothing is allocated before it has been bounded: the final image against the received
+//! ceiling, the decompression buffer against that ceiling and against the length the index
+//! announces. A supercompression that would return something other than that length is a
+//! refusal, not a half-filled buffer.
 use super::format::{self, Layout};
 use super::header::{self, Surface};
 use super::{DATA_TRUNCATED, FORMAT_UNSUPPORTED, TOO_LARGE};
@@ -36,10 +37,10 @@ pub(super) fn decode(
     shared::image(surface.width, surface.height, rgba, DATA_TRUNCATED)
 }
 
-/// Les octets du niveau une fois sa supercompression défaite. Sans supercompression, ce sont ceux
-/// du fichier, empruntés tels quels ; en Zstandard, l'index annonce la longueur attendue, qui borne
-/// à la fois l'allocation et la lecture — un flux plus long est tronqué à cette borne, donc rendu
-/// trop court, donc refusé juste après.
+/// The level's bytes once its supercompression is undone. Without supercompression, they are
+/// the file's, borrowed as-is; in Zstandard, the index announces the expected length, which
+/// bounds both the allocation and the read — a longer stream is truncated at that bound, hence
+/// returned too short, hence refused just after.
 fn plain<'a>(
     surface: &Surface,
     bytes: &'a [u8],

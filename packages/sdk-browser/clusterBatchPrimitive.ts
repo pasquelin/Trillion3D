@@ -5,22 +5,23 @@ import { ClusterDrawMesh } from './clusterBatchMesh.ts';
 
 type PageSlot = { offset: number; length: number };
 
-/** Tampon d'index résident d'une primitive : géométrie unique partagée par toutes ses instances. */
+/** Resident index buffer of a primitive: unique geometry shared by all its instances. */
 export class PrimitiveIndex {
   geometry = new THREE.BufferGeometry();
   array: Uint32Array;
   attribute: THREE.BufferAttribute;
   allocator: IndexRangeAllocator;
-  /** Une plage par URL distincte de la primitive ; `undefined` tant que la page n'est pas résidente. */
+  /** One range per distinct URL of the primitive; `undefined` while the page is not resident. */
   slots: Array<PageSlot | undefined>;
-  /** id de page -> rang d'URL distincte : accès O(1) sans table de hachage par image. */
+  /** page id -> distinct-URL rank: O(1) access without a per-frame hash table. */
   urlIndexByPage: Int32Array;
-  /** Marquage d'image par URL distincte, pour dédupliquer la liste des pages sans Set. */
+  /** Per-frame stamp by distinct URL, to dedupe the page list without a Set. */
   stamps: Int32Array;
   /**
-   * Plages écrites et pas encore envoyées au GPU. Une plage qui prolonge la précédente la rallonge sur
-   * place, ce qui est le cas courant : l'allocateur sert les pages d'un même paquet à la suite. Le coût
-   * d'un envoi ne dépend donc que des octets réellement arrivés, jamais de la taille du tampon.
+   * Ranges written and not yet sent to the GPU. A range that continues the previous one
+   * lengthens it in place, which is the common case: the allocator serves pages of the same
+   * packet in a row. The cost of a send therefore depends only on bytes that actually arrived,
+   * never on the buffer size.
    */
   private pendingStarts = new Int32Array(64);
   private pendingEnds = new Int32Array(64);
@@ -44,7 +45,7 @@ export class PrimitiveIndex {
     this.geometry.setIndex(this.attribute);
     setGeometryBounds(this.geometry, min, max);
   }
-  /** Recrée le tampon plus grand : filet de sécurité si une page dépasse la taille annoncée par le manifeste. */
+  /** Recreates the buffer larger: safety net if a page exceeds the size announced by the manifest. */
   private growTo(capacity: number) {
     const array = new Uint32Array(capacity);
     array.set(this.array);
@@ -62,8 +63,8 @@ export class PrimitiveIndex {
       offset = this.allocator.allocate(array.length);
     }
     this.array.set(array, offset);
-    // L'envoi est différé au dessin de la primitive : une page arrivée pour une primitive hors champ
-    // attend son tour sans rien coûter, et les plages accumulées partent ensemble.
+    // The send is deferred to the primitive's draw: a page arrived for an off-screen primitive
+    // waits its turn at no cost, and the accumulated ranges leave together.
     this.addPending(offset, array.length);
     const slot: PageSlot = { offset, length: array.length };
     this.slots[urlIndex] = slot;
@@ -87,8 +88,8 @@ export class PrimitiveIndex {
     this.pendingEnds[count] = offset + length;
     this.pendingCount = count + 1;
   }
-  /** Appelé juste avant le rendu de la primitive : Three.js consommera l'envoi dans la foulée. Il trie
-   *  et fusionne lui-même les plages voisines avant de les émettre. */
+  /** Called just before the primitive's render: Three.js will consume the send right after. It
+   *  sorts and merges neighbouring ranges itself before emitting them. */
   flush() {
     if (!this.pendingCount) return;
     for (let i = 0; i < this.pendingCount; i++)
@@ -111,7 +112,7 @@ export class PrimitiveIndex {
   }
 }
 
-/** Un groupe = une instance de primitive, c'est-à-dire un `renderOrder`, exactement comme avant. */
+/** One group = one primitive instance, i.e. one `renderOrder`, exactly as before. */
 export class BatchGroup {
   primitive: PrimitiveIndex;
   ranges = new DrawRanges();
@@ -121,12 +122,12 @@ export class BatchGroup {
   touched = false;
   triangles = 0;
   transparent = false;
-  /** Paire dos/face figée quand le matériau est transparent double face ; sinon indéfinie. */
+  /** Frozen back/front pair when the material is two-sided transparent; otherwise undefined. */
   split: [THREE.Material, THREE.Material] | undefined;
-  /** Matériau à biais de profondeur figé, sur les sous-lots d'une couche coplanaire supérieure à 0.
-   *  Indéfini sur le lot de couche 0, qui dessine exactement comme avant. */
+  /** Frozen depth-bias material, on the sub-batches of a coplanar layer above 0.
+   *  Undefined on the layer-0 batch, which draws exactly as before. */
   biased: THREE.Material | undefined;
-  /** Couche coplanaire de ce lot. 0 = le lot ordinaire. */
+  /** Coplanar layer of this batch. 0 = the ordinary batch. */
   layer = 0;
   pending: BatchPage[] = [];
   pendingCount = 0;

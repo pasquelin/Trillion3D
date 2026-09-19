@@ -1,12 +1,12 @@
-// L'isolement entre origines du serveur du harnais : c'est lui, et lui seul, qui décide si le SDK
-// prendra son chemin de mémoire partagée. Défaut fermé : une campagne de référence ne change pas de
-// chemin sans qu'on l'écrive.
+// Cross-origin isolation of harness server: it, and it alone, decides whether SDK
+// takes its shared memory path. Closed default: a reference campaign does not change
+// paths unless explicitly written.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { startServer } from './serveur.mjs';
 import { readOptions } from './options.mjs';
 
-/** L'en-tête `nom` rendu par un serveur du harnais lancé avec ces options, puis refermé. */
+/** The header `nom` returned by a harness server launched with these options, then closed. */
 async function entete(options, nom) {
   const server = await startServer({ port: 0, mounts: [], captures: new Map(), ...options });
   try {
@@ -18,17 +18,17 @@ async function entete(options, nom) {
   }
 }
 
-test('sans isolement — le défaut — aucune en-tête COOP/COEP ne sort du serveur', async () => {
+test('without isolation — default — no COOP/COEP header leaves the server', async () => {
   assert.equal(await entete({}, 'cross-origin-opener-policy'), null);
   assert.equal(await entete({ isolation: false }, 'cross-origin-embedder-policy'), null);
 });
 
-test('avec isolement, COOP et COEP sortent sur chaque réponse', async () => {
+test('with isolation, COOP and COEP leave on every response', async () => {
   assert.equal(await entete({ isolation: true }, 'cross-origin-opener-policy'), 'same-origin');
   assert.equal(await entete({ isolation: true }, 'cross-origin-embedder-policy'), 'require-corp');
 });
 
-test('--isolation ne vaut que on ou off, et vaut off quand on ne dit rien', () => {
+test('--isolation is only on or off, and defaults to off when unstated', () => {
   assert.equal(readOptions([], process.cwd()).settings.isolation, false);
   assert.equal(readOptions(['--isolation', 'on'], process.cwd()).settings.isolation, true);
   assert.equal(readOptions(['--isolation', 'off'], process.cwd()).settings.isolation, false);

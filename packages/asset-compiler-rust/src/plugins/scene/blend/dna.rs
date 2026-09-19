@@ -1,23 +1,23 @@
-//! Le SDNA : la description que chaque fichier Blender porte de ses propres structures.
+//! The SDNA: the description each Blender file carries of its own structures.
 //!
-//! Le bloc `DNA1` est l'auto-description publique du format. Il enchaîne quatre sections repérées
-//! par une étiquette de quatre octets et alignées sur quatre : `NAME` les noms de champs,
-//! `TYPE` les noms de types, `TLEN` la taille de chaque type, `STRC` les structures — pour chacune,
-//! son type puis ses champs, donnés par un index de type et un index de nom.
+//! The `DNA1` block is the format's public self-description. It chains four sections tagged by a
+//! four-byte label and aligned on four: `NAME` the field names, `TYPE` the type names, `TLEN` the
+//! size of each type, `STRC` the structures — for each, its type then its fields, given by a type
+//! index and a name index.
 //!
-//! C'est de là que ce pilote tire tous ses décalages : **aucun décalage n'est écrit en dur**. Un
-//! champ se demande par son nom, et une structure qui perd, gagne ou déplace un champ d'une version
-//! de Blender à l'autre reste lisible tant que les noms utilisés ici existent.
+//! This is where this driver takes all its offsets from: **no offset is hardcoded**. A field is
+//! asked for by its name, and a structure that loses, gains or moves a field from one Blender
+//! version to another stays readable as long as the names used here exist.
 use super::*;
 
 mod read;
 
 use read::{count, layout, strings, tag, word};
 
-/// La taille d'un pointeur, celle des seuls fichiers que ce lecteur ouvre.
+/// Pointer size, that of the only files this reader opens.
 pub(super) const POINTER: usize = 8;
 
-/// Un champ d'une structure : où il commence, ce qu'il porte, combien de fois.
+/// A field of a structure: where it starts, what it carries, how many times.
 pub(super) struct Field {
     pub(super) offset: usize,
     pub(super) kind: String,
@@ -26,14 +26,14 @@ pub(super) struct Field {
     pub(super) pointer: bool,
 }
 
-/// Une structure du fichier : son nom de type, sa taille et ses champs par nom.
+/// A structure of the file: its type name, its size and its fields by name.
 pub(super) struct Layout {
     pub(super) name: String,
     pub(super) size: usize,
     pub(super) fields: HashMap<String, Field>,
 }
 
-/// Toutes les structures décrites par le fichier, et de quoi les retrouver par leur nom.
+/// All the structures the file describes, and enough to look them up by name.
 pub(super) struct Dna {
     pub(super) structs: Vec<Layout>,
     by_name: HashMap<String, usize>,
@@ -52,8 +52,8 @@ impl Dna {
         }
         at = (at + 3) & !3;
         tag(bytes, &mut at, b"STRC")?;
-        // Une structure pèse au moins son type et son nombre de champs : le compte est borné par ce
-        // que le bloc porte encore, et rien n'est réservé avant de l'avoir cru.
+        // A structure weighs at least its type and its field count: the count is bounded by what
+        // the block still carries, and nothing is reserved before that is trusted.
         let total = count(bytes, &mut at, 4)?;
         let mut structs = Vec::with_capacity(total);
         for _ in 0..total {
@@ -66,7 +66,7 @@ impl Dna {
             .collect();
         Ok(Dna { structs, by_name })
     }
-    /// Le rang d'une structure nommée, quand ce fichier la décrit.
+    /// The rank of a named structure, when this file describes it.
     pub(super) fn index(&self, name: &str) -> Option<usize> {
         self.by_name.get(name).copied()
     }

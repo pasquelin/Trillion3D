@@ -4,19 +4,15 @@ import { readFile, readdir } from 'node:fs/promises';
 
 const browser = new URL('../../packages/sdk-browser/', import.meta.url);
 
-// LA FRONTIÈRE DES CALCULS DU CHARGEMENT ET DE L'EXPLORATEUR (lot M4a).
-//
-// Les nombres du moteur sont calculés par le socle de `sdk-core`, jamais par la bibliothèque 3D de
-// l'hôte : mêmes formules, même ordre d'opérations flottantes, tampons plats, aucune allocation par
-// image. Ce que l'hôte POSSÈDE reste à lui — sa scène, sa caméra, ses matériaux —, et le moteur n'a
-// plus le droit de CALCULER par elle : recomposer une matrice monde, transformer une boîte, extraire
-// une position, inverser, décomposer. Il ne LIT plus non plus les matrices monde qu'elle compose :
-// les siennes viennent des poses locales (`hostWorldChain.ts` pour une chaîne, `hostWorldTree.ts`
-// pour un sous-arbre, `hostWorldPlacements.ts` pour celles que les pages portent), et la seule mise
-// à jour qui subsiste sert la scène de l'hôte. Chaque ligne qui garde un calcul est nommée ici avec
-// sa raison : y ajouter une ligne est une décision, pas un oubli.
+// COMPUTATION BOUNDARY OF LOADING AND EXPLORER (M4a batch).
+// Engine numbers are computed by `sdk-core`, never by the host 3D library: same formulas,
+// same float operation order, flat buffers, no allocations per frame. What the host OWNS remains its own
+// (scene, camera, materials), and engine can no longer COMPUTE using it: recomposing world matrix,
+// box transformation, position extraction, inversion, decomposition. It also no longer READS world matrices
+// composed by host: engine's come from local poses (`hostWorldChain.ts`, `hostWorldTree.ts`, `hostWorldPlacements.ts`),
+// and the only remaining update serves host scene. Every line keeping a computation is named here with its rationale.
 
-/** Les fichiers du lot : chargement d'une scène, explorateur, et leurs contrats. */
+/** Batch files: scene loading, explorer, and their contracts. */
 const M4A = [
   'awaitBackendPages',
   'backendCommon',
@@ -56,7 +52,7 @@ const M4A = [
   'webgpuPresentationSetup',
 ].map((nom) => `${nom}.ts`);
 
-/** Les méthodes et constructeurs de CALCUL de la bibliothèque hôte, remplacés par le socle. */
+/** Host library COMPUTATION methods and constructors, replaced by core. */
 const CALCULS = [
   '.updateMatrixWorld(',
   '.updateWorldMatrix(',
@@ -78,42 +74,42 @@ const CALCULS = [
   'new THREE.Sphere',
 ];
 
-/** Fichier → ligne exacte → pourquoi cette ligne est une frontière de l'hôte et non un calcul. */
+/** File -> exact line -> why this line is a host boundary and not a computation. */
 const FRONTIERE = {
   'hostWorldPlacements.ts': {
-    'const matrix = new THREE.Matrix4();': 'le contenant qu’une page porte, rempli par le socle',
+    'const matrix = new THREE.Matrix4();': 'the container a page carries, filled by the foundation',
   },
   'hostWorldMatrices.ts': {
     'node.updateMatrixWorld(true);':
-      'la scène est à l’hôte : elle reste à jour POUR LUI, et le moteur n’en lit plus rien',
+      'the scene belongs to the host: it stays up to date FOR IT, and the engine no longer reads it',
   },
   'explorerCamera.ts': {
     'const bounds = new THREE.Box3(':
-      '`explorer.bounds` est rendu à l’hôte : le banc y calcule sa trajectoire',
-    'new THREE.Vector3(flat[0], flat[1], flat[2]),': 'borne basse de cette boîte rendue à l’hôte',
-    'new THREE.Vector3(flat[3], flat[4], flat[5]),': 'borne haute de cette boîte rendue à l’hôte',
+      '`explorer.bounds` is returned to the host: the bench computes its trajectory from it',
+    'new THREE.Vector3(flat[0], flat[1], flat[2]),': 'low bound of this box returned to the host',
+    'new THREE.Vector3(flat[3], flat[4], flat[5]),': 'high bound of this box returned to the host',
     'const center = new THREE.Vector3(framingSphere[0], framingSphere[1], framingSphere[2]);':
-      '`explorer.center` est rendu à l’hôte, et ses contrôles veulent une cible',
+      '`explorer.center` is returned to the host, and its controls want a target',
     'const homeOffset = new THREE.Vector3().fromArray(framing.offset);':
-      'le décalage de la pose d’origine, que `resetHome` réécrit dans la caméra de l’hôte',
-    'camera.updateMatrixWorld();': 'l’hôte POSE sa caméra ; la pose écrite est résolue une fois',
+      'home-pose offset, which `resetHome` rewrites into the host camera',
+    'camera.updateMatrixWorld();': 'the host SETS its camera; the written pose is resolved once',
   },
   'explorerCameraApi.ts': {
-    'camera.updateMatrixWorld();': 'retour à la pose d’origine : la caméra de l’hôte, reposée',
+    'camera.updateMatrixWorld();': 'return to the home pose: the host camera, reset',
   },
   'explorerHostState.ts': {
     'const lookAtTarget = new THREE.Vector3().copy(center);':
-      'la cible que l’hôte relit et réécrit entre deux poses',
-    'camera.updateMatrixWorld();': 'l’hôte restaure une pose enregistrée dans sa caméra',
+      'the target the host rereads and rewrites between two poses',
+    'camera.updateMatrixWorld();': 'the host restores a recorded pose into its camera',
   },
   'explorerViewportApi.ts': {
     'const captureTarget = new THREE.Vector3();':
-      'cible reprise d’une capture à l’autre : posée, jamais allouée par appel',
-    'view.updateMatrixWorld();': 'la vue de capture est une caméra de l’hôte, posée puis résolue',
+      'target reused from one capture to the next: set, never allocated per call',
+    'view.updateMatrixWorld();': 'the capture view is a host camera, set then resolved',
   },
 };
 
-/** Les lignes qui déclenchent un motif, commentaires exclus : un commentaire cite, il ne calcule pas. */
+/** Lines triggering a pattern, comments excluded. */
 const lignesFautives = (texte) =>
   texte
     .split('\n')
@@ -121,7 +117,7 @@ const lignesFautives = (texte) =>
     .map((ligne) => ligne.trim())
     .filter((ligne) => CALCULS.some((motif) => ligne.includes(motif)));
 
-test('le chargement et l’explorateur ne calculent plus par la bibliothèque de l’hôte', async () => {
+test('loading and explorer no longer compute using the host library', async () => {
   const fuites = [],
     inutiles = [];
   for (const file of M4A) {
@@ -130,53 +126,49 @@ test('le chargement et l’explorateur ne calculent plus par la bibliothèque de
       vues = new Set();
     for (const ligne of lignesFautives(texte)) {
       if (permis[ligne]) vues.add(ligne);
-      else fuites.push(`${file} calcule par la bibliothèque de l’hôte : ${ligne}`);
+      else fuites.push(`${file} computes through the host library: ${ligne}`);
     }
     for (const ligne of Object.keys(permis))
       if (!vues.has(ligne))
-        inutiles.push(`${file} déclare une frontière qui n’existe plus : ${ligne}`);
+        inutiles.push(`${file} declares a boundary that no longer exists: ${ligne}`);
   }
-  assert.deepEqual(fuites, [], `frontière déclarée dans ${import.meta.url}`);
-  assert.deepEqual(inutiles, [], 'une frontière disparue se retire de la liste');
+  assert.deepEqual(fuites, [], `boundary declared in ${import.meta.url}`);
+  assert.deepEqual(inutiles, [], 'a vanished boundary is removed from the list');
 });
 
-test('chaque fichier du lot M4a existe encore sous son nom', async () => {
+test('each file in M4a batch still exists under its name', async () => {
   for (const file of M4A)
     await assert.doesNotReject(
       readFile(new URL(file, browser), 'utf8'),
-      `${file} a été renommé ou supprimé : la liste du lot M4a doit suivre`,
+      `${file} was renamed or deleted: the M4a lot list must follow`,
     );
 });
 
-// LA MATRICE D'UNE PAGE EST RECOPIÉE, JAMAIS CALCULÉE.
-//
-// `PageRec.matrix` et `ClusterRoot.world` sont des matrices de la bibliothèque hôte remplies par le
-// MOTEUR (`hostWorldPlacements.ts`) ; `RenderBackend.addInstance/updateInstance` en reçoit de
-// l'hôte. Les aplatir obligerait l'hôte à changer ce qu'il tend. Ce que le moteur en fait est fermé :
-// il lit les seize flottants de `.elements` et les donne au socle. Aucune multiplication, inversion,
-// décomposition ni recopie par la bibliothèque hôte ne survit hors des témoins et des lignes nommées
-// ici, qui ÉCRIVENT une pose de l'hôte.
+// PAGE MATRIX IS COPIED, NEVER COMPUTED.
+// `PageRec.matrix` and `ClusterRoot.world` are host library matrices filled by ENGINE (`hostWorldPlacements.ts`);
+// `RenderBackend.addInstance/updateInstance` receives them from host. What engine does with them is closed:
+// it reads the sixteen floats from `.elements` and passes them to core.
 const CALCULE_UNE_MATRICE =
   /\.(?:matrix|matrixWorld|world|transform|normalMatrix)\??\.(?:clone|copy|multiply|premultiply|multiplyMatrices|invert|decompose|compose|applyMatrix4|transformDirection|setFromMatrixPosition|extractRotation|transpose|setPosition|makeRotationFromQuaternion)\s*\(/;
 
-/** Les témoins sont écrits avec la bibliothèque hôte : la règle ne les vise pas. */
+/** Witness files are written with host library: rule does not target them. */
 const TEMOINS =
   /^(?:referenceBackend|threeLod|threeBounds|exactPages|autonomous|clusterBatch|blendCopyMesh|comparison|lightingObservation)/;
 
-/** Fichier → ligne exacte → pourquoi elle POSE une matrice de l'hôte au lieu d'en calculer une. */
+/** File -> exact line -> why it SETS a host matrix instead of computing one. */
 const ECRIT_L_HOTE = {
   'cameraWorld.ts': {
     'into.matrix.copy(camera.matrixWorld);':
-      'la copie détachée d’une caméra hôte : elle POSE la pose monde, elle ne la calcule pas',
-    'into.matrixWorld.copy(into.matrix);': 'la même copie, résolue sur place faute de parent',
+      'detached copy of a host camera: it SETS the world pose, it does not compute it',
+    'into.matrixWorld.copy(into.matrix);': 'the same copy, resolved in place for lack of a parent',
   },
 };
 
-test('le moteur lit la matrice de l’hôte, il ne calcule pas avec', async () => {
+test('engine reads the host matrix, it does not compute with it', async () => {
   const fichiers = (await readdir(browser)).filter(
     (nom) => nom.endsWith('.ts') && !nom.endsWith('.test.ts'),
   );
-  assert.ok(fichiers.length > 100, 'le paquet navigateur doit être trouvé');
+  assert.ok(fichiers.length > 100, 'the browser package must be found');
   const fuites = [],
     inutiles = [];
   for (const file of fichiers) {
@@ -189,12 +181,12 @@ test('le moteur lit la matrice de l’hôte, il ne calcule pas avec', async () =
       .filter((l) => !/^\s*(?:\/\/|\*|\/\*)/.test(l) && CALCULE_UNE_MATRICE.test(l))
       .map((l) => l.trim())) {
       if (permis[ligne]) vues.add(ligne);
-      else fuites.push(`${file} calcule une matrice de l’hôte : ${ligne}`);
+      else fuites.push(`${file} computes a host matrix: ${ligne}`);
     }
     for (const ligne of Object.keys(permis))
       if (!vues.has(ligne))
-        inutiles.push(`${file} déclare une écriture qui n’existe plus : ${ligne}`);
+        inutiles.push(`${file} declares a write that no longer exists: ${ligne}`);
   }
-  assert.deepEqual(fuites, [], `frontière déclarée dans ${import.meta.url}`);
-  assert.deepEqual(inutiles, [], 'une écriture disparue se retire de la liste');
+  assert.deepEqual(fuites, [], `boundary declared in ${import.meta.url}`);
+  assert.deepEqual(inutiles, [], 'a vanished write is removed from the list');
 });

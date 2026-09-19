@@ -1,10 +1,11 @@
-//! Les lampes déclarées par le fichier source, converties dans le contrat `SceneLight` du moteur.
+//! Lights declared by the source file, converted into the engine `SceneLight` contract.
 //!
-//! Le glTF les porte dans `KHR_lights_punctual` ; l'importeur ufbx réécrit celles d'un FBX sous
-//! cette extension, si bien qu'un seul lecteur sert les deux formats — un OBJ n'en déclare aucune,
-//! et le produit de cache sort vide. Le glTF est photométrique (candela, lux), le moteur est
-//! radiométrique (W/sr, W/m²) : la conversion est une division par `LUMENS_PER_WATT`, sans aucune
-//! hypothèse de spectre, et l'hôte règle l'exposition, jamais l'import. Détail dans `docs/SDK.md`.
+//! glTF carries them in `KHR_lights_punctual`; the ufbx importer rewrites those of
+//! an FBX under that extension, so one reader serves both formats — an OBJ
+//! declares none, and the cache product comes out empty. glTF is photometric
+//! (candela, lux), the engine is radiometric (W/sr, W/m²): conversion is a
+//! division by `LUMENS_PER_WATT`, with no spectrum assumption, and the host sets
+//! exposure, never import. Detail in `docs/SDK.md`.
 use super::*;
 use crate::compiler_world::{world_matrices, Mat4};
 
@@ -15,16 +16,18 @@ use emitter::Emitter;
 use fields::{axis, colour_of, cone_of, number, range_of};
 use naming::unique_id;
 
-/// Efficacité lumineuse de la conversion photométrique → radiométrique, en lumens par watt. C'est
-/// `K_cd`, la constante de définition de la candela (683 lm/W à 540 THz). Une candela vaut donc
-/// 1/683 W/sr et un lux 1/683 W/m². Choix publié dans `docs/SDK.md`, pas une constante enfouie.
+/// Luminous efficacy of photometric → radiometric conversion, in lumens per watt.
+/// This is `K_cd`, the candela definition constant (683 lm/W at 540 THz). One
+/// candela is therefore 1/683 W/sr and one lux 1/683 W/m². Choice published in
+/// `docs/SDK.md`, not a buried constant.
 const LUMENS_PER_WATT: f64 = 683.0;
-/// Réglage : irradiance en dessous de laquelle une ponctuelle sans `range` est déclarée éteinte, en
-/// W/m². Le contrat exige une portée finie, le glTF autorise l'infini : `range` vaut `sqrt(I/seuil)`.
-/// Un centième de watt par mètre carré tient sous le plancher d'une image de huit bits, et garde la
-/// portée — donc la carte d'ombre — à une taille utile.
+/// Setting: irradiance below which a punctual light without `range` is declared
+/// off, in W/m². The contract requires a finite range, glTF allows infinity:
+/// `range` is `sqrt(I/threshold)`. A hundredth of a watt per square metre sits
+/// under an eight-bit image floor, and keeps the range — hence the shadow map —
+/// at a useful size.
 const RANGE_CUTOFF_IRRADIANCE: f64 = 1e-2;
-/// Portée maximale, déclarée ou déduite, en mètres : au-delà, la lampe couvre toute scène jouable.
+/// Maximum range, declared or deduced, in metres: beyond it, the light covers any playable scene.
 const MAX_RANGE: f64 = 1.0e4;
 /// Version du produit de cache `lights.json`. Il vit hors du manifeste : sa version lui est propre.
 const SCENE_LIGHTS_VERSION: u32 = 1;
@@ -32,14 +35,16 @@ const SCENE_LIGHTS_FILE: &str = "lights.json";
 /// Version du contrat `SceneLight` que ce produit remplit (`packages/sdk-core/sceneLightContracts`).
 const SCENE_LIGHT_CONTRACT: u32 = 2;
 const QUARTER_PI: f64 = std::f64::consts::FRAC_PI_4;
-/// Ce qu'une unité d'intensité FBX vaut dans l'unité photométrique du glTF — le seul endroit où ce
-/// réglage se prend. FBX n'a pas d'unité : son `Intensity` est un pourcentage, que ufbx rend en
-/// fraction. Une ponctuelle ou un projecteur prend l'ampoule de 1000 lm dans 4π sr (≈ 79,6 cd par
-/// unité), une directionnelle l'éclairement d'une journée couverte (10 000 lux).
-/// L'intensité photométrique du glTF — candela ou lux — d'une grandeur radiométrique en W/sr ou
-/// W/m². C'est l'inverse exact de la division que ce module fait à la relecture : un pilote dont le
-/// format est radiométrique, comme `UsdLux` et Blender, passe par là plutôt que par un facteur à
-/// lui, et la valeur écrite dans le glTF revient au watt d'origine.
+/// What one FBX intensity unit is worth in glTF's photometric unit — the only
+/// place this setting is taken. FBX has no unit: its `Intensity` is a percentage,
+/// which ufbx yields as a fraction. A punctual or spot takes the 1000 lm bulb in
+/// 4π sr (≈ 79.6 cd per unit), a directional the illuminance of an overcast day
+/// (10 000 lux).
+/// Photometric intensity of glTF — candela or lux — of a radiometric quantity in
+/// W/sr or W/m². Exact inverse of the division this module does on reread: a
+/// driver whose format is radiometric, like `UsdLux` and Blender, goes through
+/// here rather than its own factor, and the value written in the glTF returns to
+/// the original watt.
 pub(crate) fn photometric(radiometric: f64) -> f64 {
     radiometric * LUMENS_PER_WATT
 }
@@ -50,7 +55,7 @@ pub(crate) fn fbx_intensity_scale(kind: &str) -> f64 {
         1000.0 / (4.0 * std::f64::consts::PI)
     }
 }
-/// Une lampe glTF posée par une matrice monde, dans le contrat du moteur, ou la raison du refus.
+/// A glTF light placed by a world matrix, in the engine contract, or the refusal reason.
 fn convert(light: &Value, m: &Mat4, id: String) -> std::result::Result<Value, &'static str> {
     if !m.iter().all(|v| v.is_finite()) {
         return Err("light-invalid-transform");
@@ -64,16 +69,16 @@ fn convert(light: &Value, m: &Mat4, id: String) -> std::result::Result<Value, &'
         return Err("light-non-positive-intensity");
     }
     let colour = colour_of(light);
-    // Le drapeau d'ombre d'un format qui en porte un (FBX) voyage dans `extras` ; sinon une lampe
-    // importée projette une ombre, et le plafond par image du runtime en borne déjà le coût (X5).
+    // Shadow flag of a format that carries one (FBX) travels in `extras`; otherwise
+    // an imported light casts a shadow, and the runtime per-image ceiling already bounds the cost (X5).
     let shadow = light
         .pointer("/extras/castsShadow")
         .and_then(Value::as_bool)
         .unwrap_or(true);
     let mut entry =
         json!({"id":id,"kind":kind,"color":colour,"intensity":radiant,"castsShadow":shadow});
-    // Une ponctuelle rayonne partout : pas d'axe, et le contrat n'en attend pas. Le soleil et le
-    // projecteur en exigent un, et une matrice qui l'écrase les refuse.
+    // A punctual light radiates everywhere: no axis, and the contract expects none.
+    // The sun and the spot require one, and a matrix that flattens it refuses them.
     if kind != "point" {
         entry["direction"] = json!(axis(m).ok_or("light-degenerate-axis")?);
     }
@@ -87,16 +92,18 @@ fn convert(light: &Value, m: &Mat4, id: String) -> std::result::Result<Value, &'
     }
     Ok(entry)
 }
-/// `rejected` compte les lampes laissées de côté, `counts` ce qui a été renseigné ou omis sur une
-/// lampe retenue : le rapport dit d'où sort chaque valeur écrite sans rien retirer au lecteur.
+/// `rejected` counts lights left aside, `counts` what was filled or omitted on a
+/// kept light: the report says where each written value comes from without taking
+/// anything from the reader.
 type Tally = BTreeMap<&'static str, usize>;
 fn report(lights: Vec<Value>, rejected: Tally, counts: Tally) -> Value {
     json!({"version":SCENE_LIGHTS_VERSION,"sceneLightVersion":SCENE_LIGHT_CONTRACT,"units":{"lumensPerWatt":LUMENS_PER_WATT,"rangeCutoffIrradiance":RANGE_CUTOFF_IRRADIANCE,"maxRange":MAX_RANGE},"count":lights.len(),"lights":lights,"rejected":rejected,"counts":counts})
 }
-/// Les lampes du glTF, dans l'ordre des nœuds qui les instancient, en espace monde. Seuls les nœuds
-/// de la scène rendue comptent : une lampe posée dans une autre scène n'éclaire pas celle-ci. Une
-/// lampe dont le type, la matrice ou l'intensité ne tient pas le contrat est comptée dans `rejected`
-/// et laissée de côté : une compilation ne meurt jamais sur une lampe, elle le dit.
+/// glTF lights, in the order of the nodes that instantiate them, in world space.
+/// Only nodes of the rendered scene count: a light placed in another scene does
+/// not light this one. A light whose type, matrix or intensity fails the contract
+/// is counted in `rejected` and left aside: a compilation never dies on a light,
+/// it says so.
 fn scene_lights(g: &Value, bin: &[u8], scene_nodes: &BTreeSet<usize>) -> Result<Value> {
     let (mut rejected, mut counts) = (Tally::new(), Tally::new());
     let (Some(nodes), Some(declared)) = (
@@ -135,8 +142,9 @@ fn scene_lights(g: &Value, bin: &[u8], scene_nodes: &BTreeSet<usize>) -> Result<
     }
     Ok(report(lights, rejected, counts))
 }
-/// L'étape de compilation : les lampes sortent en produit de cache à leur nom, hors du manifeste.
-/// Sa version ne bouge donc pas, et un lecteur qui ignore ce fichier lit le cache comme avant.
+/// Compilation stage: lights come out as a cache product under their name, outside
+/// the manifest. Its version therefore does not move, and a reader that ignores
+/// this file reads the cache as before.
 pub(super) fn stage_scene_lights(
     g: &Value,
     bin: &[u8],

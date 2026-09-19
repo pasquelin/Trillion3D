@@ -71,8 +71,8 @@ pub(super) fn encode_primitive(
                     "group.sphere",
                     &mut columns[GROUP_SPHERE],
                 )?;
-                // Les étiquettes des deux clés sont des littéraux : elles ne sont plus formatées
-                // par groupe, ni — pour « member » — par membre de groupe.
+                // Labels for both keys are literals: no longer formatted
+                // per group, nor — for "member" — per group member.
                 for (key, labels, count_column, flat_column) in [
                     (
                         "children",

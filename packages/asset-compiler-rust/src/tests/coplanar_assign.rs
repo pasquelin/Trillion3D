@@ -1,8 +1,8 @@
 use crate::coplanar::assign::{self, Overlap};
 use crate::coplanar::Surface;
 
-// Comportement 7 : assign::layers donne le plus long chemin de recouvrements, pas un rang : deux
-// surfaces disjointes au-dessus d'une même surface partagent la couche 1.
+// Behavior 7: assign::layers yields longest overlap path, not rank: two
+// disjoint surfaces above same surface share layer 1.
 
 fn bare_surface(area: f64, priority: i64, order: usize, primitive: usize) -> Surface {
     Surface {
@@ -52,16 +52,16 @@ fn assign_layers_gives_the_longest_overlap_chain_not_a_rank() {
     );
     assert_eq!(
         assigned[2], 1,
-        "deux surfaces disjointes au-dessus du même sol partagent la couche 1"
+        "two disjoint surfaces above the same ground share layer 1"
     );
 }
 
-// Comportement 8 : assign::layers respecte coplanarPriority avant l'aire, et l'ordre source à
-// aire égale.
+// Behavior 8: assign::layers respects coplanarPriority before area, and source order at
+// equal area.
 #[test]
 fn assign_layers_respects_priority_over_area() {
-    // La grande surface (aire 100) a une priorité plus haute que la petite (aire 1) : sans
-    // priorité elle resterait dessous, avec priorité elle passe dessus.
+    // Large surface (area 100) higher priority than small (area 1): without
+    // priority stays below, with priority passes above.
     let big_but_low_priority = bare_surface(100.0, 5, 0, 0);
     let small_but_high_priority = bare_surface(1.0, 0, 1, 1);
     let surfaces = vec![big_but_low_priority, small_but_high_priority];
@@ -74,11 +74,11 @@ fn assign_layers_respects_priority_over_area() {
     let (assigned, _) = assign::layers(&surfaces, &overlaps, 15);
     assert_eq!(
         assigned[1], 0,
-        "priorité 0 : la petite surface reste dessous malgré son aire"
+        "priority 0: the small surface stays underneath despite its area"
     );
     assert_eq!(
         assigned[0], 1,
-        "priorité 5 : la grande surface passe dessus malgré son aire"
+        "priority 5: the large surface goes on top despite its area"
     );
 }
 
@@ -96,19 +96,19 @@ fn assign_layers_breaks_area_ties_by_source_order() {
     let (assigned, _) = assign::layers(&surfaces, &overlaps, 15);
     assert_eq!(
         assigned[0], 0,
-        "l'objet source le plus ancien reste dessous à aire égale"
+        "the oldest source object stays underneath at equal area"
     );
     assert_eq!(
         assigned[1], 1,
-        "l'objet source le plus récent passe dessus à aire égale"
+        "the newest source object goes on top at equal area"
     );
 }
 
-// Comportement 9 : assign::layers plafonne à 15 et compte le débordement.
+// Behavior 9: assign::layers caps at 15 and counts overflow.
 #[test]
 fn assign_layers_caps_at_fifteen_and_counts_the_overflow() {
-    // Une chaîne de 18 surfaces, chacune posée sur la précédente, aires strictement décroissantes
-    // pour fixer l'ordre sans ambiguïté.
+    // Chain of 18 surfaces, each placed on previous, strictly decreasing areas
+    // to fix order unambiguously.
     let surfaces: Vec<Surface> = (0..18)
         .map(|i| bare_surface(100.0 - i as f64, 0, i, i))
         .collect();
@@ -123,16 +123,13 @@ fn assign_layers_caps_at_fifteen_and_counts_the_overflow() {
     let (assigned, overflow) = assign::layers(&surfaces, &overlaps, 15);
     assert_eq!(
         assigned[14], 14,
-        "sous le plafond, la couche suit la profondeur de la chaîne"
+        "under the ceiling, the layer follows the chain depth"
     );
     assert_eq!(
         assigned[15], 15,
-        "à la limite : couche 15, pas encore de débordement"
+        "at the limit: layer 15, not yet overflowing"
     );
-    assert_eq!(assigned[16], 15, "au-delà : plafonné à 15");
-    assert_eq!(assigned[17], 15, "toujours plafonné à 15");
-    assert_eq!(
-        overflow, 2,
-        "deux surfaces (16 et 17) ont dépassé le plafond"
-    );
+    assert_eq!(assigned[16], 15, "beyond: capped at 15");
+    assert_eq!(assigned[17], 15, "still capped at 15");
+    assert_eq!(overflow, 2, "two surfaces (16 and 17) exceeded the ceiling");
 }

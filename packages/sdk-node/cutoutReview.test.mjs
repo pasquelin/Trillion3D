@@ -41,9 +41,9 @@ async function passe(models, keys) {
   }
 }
 
-// Comportement : hors terminal — un journal, un enchaînement automatique — rien n'est demandé. La
-// liste est écrite et le lot s'arrête là, sans jamais bloquer sur une question que personne ne lit.
-test('hors terminal, la liste est écrite et rien n’est demandé', async () => {
+// Behaviour: off a terminal — a log, an automated chain — nothing is asked. The list is written
+// and the batch stops there, never blocking on a question nobody reads.
+test('off a terminal, the list is written and nothing is asked', async () => {
   const one = await model('emerald', { abc: leaf(3) });
   const written = [];
   const summary = await reviewCutouts([one], {
@@ -53,11 +53,10 @@ test('hors terminal, la liste est écrite et rien n’est demandé', async () =>
   assert.match(written.join(''), /feuillage\.png/);
 });
 
-// Comportement : Entrée accepte la proposition, `v` la refuse, et la réponse tombe dans TOUTES les
-// feuilles qui connaissent la texture — c'est ce qui fait qu'on ne répond qu'une fois pour un
-// feuillage partagé. La passe REND les modèles changés et n'en recompile aucun : c'est l'appelant
-// qui compile, avec ses propres options.
-test('une réponse remplit toutes les feuilles concernées et rend les modèles changés', async () => {
+// Behaviour: Enter accepts the proposal, `v` refuses it, and the answer lands in EVERY sheet that
+// knows the texture — that is why a shared leaf is answered only once. The pass RETURNS the
+// changed models and recompiles none of them: the caller compiles, with its own options.
+test('an answer fills every concerned sheet and returns the changed models', async () => {
   const shared = await model('emerald', { abc: leaf(3), def: { ...leaf(1), image: 'vitre.png' } });
   const other = await model('bistro', { abc: leaf(5) });
   const untouched = await model('ville', { zzz: { ...leaf(0), cutout: true } });
@@ -66,43 +65,43 @@ test('une réponse remplit toutes les feuilles concernées et rend les modèles 
   assert.deepEqual(
     summary.changed.map((one) => one.id).sort(),
     ['bistro', 'emerald'],
-    'le modèle déjà tranché n’est pas touché',
+    'the already-answered model is left alone',
   );
   const sheet = await sheetOf(shared);
-  assert.equal(sheet.textures.abc.cutout, true, 'Entrée a pris la proposition');
-  assert.equal(sheet.textures.def.cutout, false, '`v` a répondu vitre');
+  assert.equal(sheet.textures.abc.cutout, true, 'Enter took the proposal');
+  assert.equal(sheet.textures.def.cutout, false, '`v` answered blend');
   assert.equal(
     (await sheetOf(other)).textures.abc.cutout,
     true,
-    'la même image est répondue partout',
+    'the same image is answered everywhere',
   );
 });
 
-// Comportement : la règle est rappelée avant la première question, et `?` la réaffiche sans
-// répondre à la place de personne — la question est reposée telle quelle.
-test('la règle est rappelée d’entrée, et `?` la réaffiche', async () => {
+// Behaviour: the rule is recalled before the first question, and `?` redisplays it without
+// answering for anyone — the question is asked again as it was.
+test('the rule is recalled at the start, and `?` redisplays it', async () => {
   const one = await model('emerald', { a: leaf(9) });
   const { summary, ecran } = await passe([one], ['?', 'v']);
-  assert.equal(summary.answered, 1, '`?` n’a rien répondu, `v` a tranché');
-  assert.match(ecran, /Une DÉCOUPE est présente ou absente/);
+  assert.equal(summary.answered, 1, '`?` answered nothing, `v` decided');
+  assert.match(ecran, /A CUTOUT is present or absent/);
   assert.equal(
-    ecran.split('Une VITRE laisse passer').length - 1,
+    ecran.split('A BLEND lets light through').length - 1,
     2,
-    'la règle est écrite deux fois : à l’entrée, puis sur demande',
+    'the rule is written twice: at the start, then on demand',
   );
 });
 
-// Comportement : `t` accepte tout le reste d'un coup.
-test('`t` accepte tout le reste d’un coup', async () => {
+// Behaviour: `t` accepts the rest in one go.
+test('`t` accepts the rest in one go', async () => {
   const one = await model('emerald', { a: leaf(9), b: leaf(8), c: leaf(7) });
   const { summary } = await passe([one], ['t']);
-  assert.equal(summary.answered, 3, 'les trois sont tranchées après une seule touche');
+  assert.equal(summary.answered, 3, 'all three are decided after a single key');
 });
 
-// Comportement : `q` arrête la passe en gardant ce qui est déjà répondu.
-test('`q` arrête sans perdre les réponses données', async () => {
+// Behaviour: `q` stops the pass while keeping what is already answered.
+test('`q` stops without losing the answers already given', async () => {
   const one = await model('bistro', { a: leaf(9), b: leaf(8) });
   const { summary } = await passe([one], ['d', 'q']);
-  assert.equal(summary.answered, 1, 'ce qui était répondu est gardé');
-  assert.equal((await sheetOf(one)).textures.b.cutout, null, 'le reste attend toujours');
+  assert.equal(summary.answered, 1, 'what was already answered is kept');
+  assert.equal((await sheetOf(one)).textures.b.cutout, null, 'the rest is still waiting');
 });

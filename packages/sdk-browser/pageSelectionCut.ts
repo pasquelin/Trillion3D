@@ -15,9 +15,9 @@ import { pixelScaleOf } from './streamingPriority.ts';
 import type { EngineCamera } from './cameraWorld.ts';
 
 /**
- * La pose monde d'une racine recopiée dans un tampon possédé, une fois par racine et par passage :
- * le produit du socle ne lit et n'écrit que des `Float64Array` (`mathMatrix4.ts`), et les matrices
- * de la bibliothèque hôte sont des tableaux ordinaires.
+ * World pose of a root copied into an owned buffer, once per root and per pass: the base product
+ * only reads and writes `Float64Array`s (`mathMatrix4.ts`), and host-library matrices are ordinary
+ * arrays.
  */
 const rootWorld = new Float64Array(16);
 
@@ -41,14 +41,13 @@ export function selectVisiblePages<T extends PageRecord>(
     hold = !!options.holdResident;
   const budget = options.pageBudget && options.pageBudget > 0 ? options.pageBudget : 0;
   const { viewMatrix } = selectionScratch;
-  // Les plans du tronc monde sont ceux que l'entrée d'image a posés, dans la convention de
-  // profondeur de l'hôte : une image les calcule une fois, pour tous ses consommateurs, et rien
-  // n'est recopié ici.
+  // World frustum planes are those image entry set, in the host's depth convention: an image
+  // computes them once, for all of its consumers, and nothing is copied here.
   const worldPlanes = cam.planes;
   pixelScaleOf(cam.projection, viewport, selectionScratch.pixelScale);
   const shown = into ?? ([] as T[]);
   const wanted = options.wanted ?? ([] as T[]);
-  // L'état de la coupe est posé sur l'objet réutilisé : une image de rendu n'alloue rien ici.
+  // Cut state is set on the reused object: a render image allocates nothing here.
   const state = selectionState<T>();
   state.cam = cam;
   state.hold = hold;
@@ -56,8 +55,8 @@ export function selectVisiblePages<T extends PageRecord>(
   state.wanted = wanted;
   state.shown = shown;
   state.isResident = options.isResident;
-  // La règle de résidence ne dépend que de la demande : la dire ici, c'est retirer de la boucle
-  // par cluster deux relectures de l'état et un appel indirect, sans toucher à la réponse.
+  // The residency rule depends only on the request: stating it here takes two re-reads of the
+  // state and one indirect call out of the per-cluster loop, without touching the answer.
   state.residentMode = residentModeOf(hold, options.isResident);
   state.pixelError = options.pixelError ?? 0;
   state.cameraStretch = maxStretch(cam.view);
@@ -96,10 +95,10 @@ export function selectVisiblePages<T extends PageRecord>(
     }
   };
   sweep();
-  // Un passage au-dessus du budget n'apporte qu'une chose : le seuil suivant. La coupe abandonnée
-  // s'arrête donc à la page qui dépasse, et seul le passage qui tient le budget est mené au bout.
-  // Quand même le seuil le plus grossier dépasse, la coupe entière est refaite : le drapeau de
-  // dépassement se lève sur une couverture complète, jamais sur une coupe tronquée.
+  // A pass above the budget brings only one thing: the next threshold. The abandoned cut
+  // therefore stops at the overflowing page, and only the pass that holds the budget is taken to
+  // the end. When even the coarsest threshold overflows, the whole cut is redone: the overflow
+  // flag rises on a complete cover, never on a truncated cut.
   for (let attempt = 0; budget && state.over && attempt < 16; attempt++) {
     state.pixelError = state.pixelError > 0 ? state.pixelError * 2 : 1;
     sweep();
@@ -109,15 +108,15 @@ export function selectVisiblePages<T extends PageRecord>(
     sweep();
   }
   state.budget = 0;
-  // La coupe est finie : les deux listes prennent ici leur longueur, et une seule fois. Elles
-  // gardent ainsi leur capacité d'une image à l'autre, au lieu de la reperdre à chaque passage.
+  // The cut is finished: both lists take their length here, and only once. They thus keep their
+  // capacity from one image to the next, instead of losing it again at every pass.
   shown.length = state.shownCount;
   wanted.length = state.wantedCount;
-  // Les deux sommes sont tenues à la retenue : plus aucun balayage des fiches après la coupe.
+  // Both sums are held as a running total: no more sweep of the records after the cut.
   const displayedTriangles = state.shownTriangles;
   let selectedTriangles = state.wantedTriangles;
   if (!wanted.length) selectedTriangles = displayedTriangles;
-  // Le résultat est écrit dans l'objet de l'appelant quand il en fournit un : rien n'est alloué.
+  // The result is written into the caller's object when it supplies one: nothing is allocated.
   const result = options.result ?? createSelectionResult<T>();
   result.shown = shown;
   result.wanted = wanted;
@@ -129,7 +128,7 @@ export function selectVisiblePages<T extends PageRecord>(
   result.lodLevel = state.lodLevel;
   result.complete = state.complete;
   result.pixelError = state.pixelError;
-  // L'état réutilisé ne garde aucune prise sur la scène de cette image.
+  // The reused state keeps no hold on this image's scene.
   state.isResident = undefined;
   state.flatStructure = undefined;
   state.flatForced = undefined;

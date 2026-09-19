@@ -1,28 +1,28 @@
-//! Les maillages primitifs que Unity fournit sans fichier.
+//! Primitive meshes Unity provides without a file.
 //!
-//! Une scène peut poser un cube sans qu'aucun asset ne porte sa géométrie : le `MeshFilter` renvoie
-//! au GUID des ressources intégrées de l'éditeur. Aucun octet de Unity n'est redistribué ni lu ici :
-//! le cube unité est une forme géométrique, reconstruite depuis sa définition — un mètre d'arête,
-//! centré sur l'origine, six faces à normale constante, enroulement direct dans l'espace glTF. Les
-//! autres primitives (sphère, capsule, cylindre, plan) ont une tessellation propre à l'éditeur que
-//! l'on ne peut pas reproduire fidèlement : elles sont comptées au rapport, jamais approchées.
+//! A scene can place a cube without any asset carrying its geometry: the `MeshFilter` points to
+//! the GUID of the editor's built-in resources. No Unity byte is redistributed or read here:
+//! the unit cube is a geometric shape, rebuilt from its definition — one metre of edge, centred
+//! on the origin, six faces of constant normal, front winding in glTF space. The other
+//! primitives (sphere, capsule, cylinder, plane) have an editor-specific tessellation that
+//! cannot be reproduced faithfully: they are counted in the report, never approximated.
 use super::*;
 use std::collections::HashMap;
 
-/// Le GUID des ressources intégrées de l'éditeur, tel qu'il apparaît dans les scènes.
+/// GUID of the editor's built-in resources, as it appears in scenes.
 pub(super) const BUILTIN_GUID: &str = "0000000000000000e000000000000000";
-/// Le `fileID` du cube parmi elles, relevé sur le corpus de test CC0 `unity/cc0-import-project`.
+/// `fileID` of the cube among them, taken from the CC0 test corpus `unity/cc0-import-project`.
 const CUBE: i64 = 10202;
 const HALF: f32 = 0.5;
 
-/// Les cubes déjà versés, un par matériau : deux instances du même couple partagent leur maillage.
+/// Cubes already poured, one per material: two instances of the same pair share their mesh.
 #[derive(Default)]
 pub(super) struct Builtins {
     by_material: HashMap<Option<usize>, usize>,
 }
 
 impl Builtins {
-    /// Le rang du maillage pour cette primitive intégrée, ou `None` si elle n'est pas reproductible.
+    /// Mesh rank for this built-in primitive, or `None` if it is not reproducible.
     pub(super) fn mesh(
         &mut self,
         file_id: i64,
@@ -32,7 +32,7 @@ impl Builtins {
         if file_id != CUBE {
             scene.report.add("unity-builtin-mesh-unsupported");
             scene.report.notes.push(format!(
-                "primitive intégrée non reproduite: fileID {file_id}"
+                "built-in primitive not reproduced: fileID {file_id}"
             ));
             return None;
         }
@@ -45,8 +45,8 @@ impl Builtins {
     }
 }
 
-/// Les six faces du cube unité : normale, puis les deux directions du plan, choisies pour que leur
-/// produit vectoriel redonne la normale — l'enroulement est direct, vu de l'extérieur.
+/// Six faces of the unit cube: normal, then the two directions of the plane, chosen so their
+/// cross product yields the normal — winding is front, seen from outside.
 const FACES: [([f32; 3], [f32; 3], [f32; 3]); 6] = [
     ([1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]),
     ([-1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 0.0]),

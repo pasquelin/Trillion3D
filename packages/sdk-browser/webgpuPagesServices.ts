@@ -43,8 +43,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     dataLayer: rt.vis.dataLayer,
     markRowDirty: rows.markRowDirty,
   });
-  // Le miroir de résidence est le seul état incrémental de ce chemin : son journal est vérifié
-  // contre le cache à chaque vidange, et reconstruit au moindre désaccord plutôt que de dériver.
+  // The residency mirror is the only incremental state of this path: its journal is checked against
+  // the cache on every flush, and rebuilt at the slightest disagreement rather than drifting.
   const commit = createWebgpuRowCommit(rows, writePageRow);
   const { syncRows, syncRowsFromCut } = createWebgpuRowSync(
     rows,
@@ -54,7 +54,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     drawSlots,
     () => !!gpu.cache,
     commit,
-    // Origine du changement de ressources : la page entre dans la résidence ou en sort.
+    // Origin of the resource change: the page enters residency or leaves it.
     (rec) => (run.gate.resourcesChanged(), noteResidenceChange(rt.lights, rec)),
   );
   const read = async (key: string) =>

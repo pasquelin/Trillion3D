@@ -20,9 +20,9 @@ export function createExplorerSceneApi(inputs: Inputs) {
   const { check, active: getActive, backends, render, flush, capture, scope, canvas } = inputs;
   return {
     /**
-     * Règle les réservoirs de mémoire du moteur actif en cours de session — ce qu'un curseur de
-     * réglage appelle. Le moteur garde ce qui tient dans le nouveau réservoir, et le rapport dit ce
-     * qu'il tient vraiment (`clamp` quand la valeur a été ramenée) et ce que le réglage a coûté.
+     * Sets memory pools of the active engine during the session — what a settings slider
+     * calls. The engine keeps what fits in the new pool, and the report says what it really
+     * holds (`clamp` when the value was brought back) and what the setting cost.
      */
     async setMemoryBudgets(budgets: MemoryBudgets) {
       check();

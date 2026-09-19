@@ -86,12 +86,12 @@ test('a cache with no cluster error falls back on the screen footprint of the bo
   assert.deepEqual(order([small, big]), ['big', 'small']);
 });
 
-// `orderPendingUrls` composait sa vue par un produit 4×4 écrit en ligne (accumulateur à `0`) ; il
-// utilise maintenant `multiplyMatrix4`, qui n'a aucune somme initiale et peut donc rendre -0 là où
-// l'ancien rendait toujours +0 (voir `packages/sdk-core/mathMatrix4.test.ts`). Ce test vérifie que
-// l'ordre public rendu par la file reste identique à celui du code d'avant sur des matrices hostiles
-// aux zéros signés ; l'oracle est `referenceOrder`, la copie du code d'avant du rattachement.
-test('orderPendingUrls : matrices hostiles aux zéros signés (axes alignés, ±0) — même ordre que le code d’avant', () => {
+// `orderPendingUrls` used to compose its view with a 4×4 product written inline (accumulator at `0`);
+// it now uses `multiplyMatrix4`, which has no initial sum and can therefore yield -0 where
+// the old one always yielded +0 (see `packages/sdk-core/mathMatrix4.test.ts`). This test checks that
+// the public order the queue returns stays identical to the previous code on matrices hostile
+// to signed zeros; the oracle is `referenceOrder`, the copy of the previous code from the attach.
+test('orderPendingUrls: matrices hostile to signed zeros (aligned axes, ±0) — same order as previous code', () => {
   const pixelScale = [500, 500];
   const record2 = (url: string, matrice: number[], sphere?: number[]): PriorityRecord => ({
     url,

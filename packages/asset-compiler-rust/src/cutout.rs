@@ -1,16 +1,16 @@
-//! Les découpes déclarées en mélange : mesurer, proposer, obéir.
+//! Cutouts declared in blend: measure, propose, obey.
 //!
-//! La géométrie virtualisée de la référence n'accepte que l'opaque et le masqué. Un feuillage
-//! déclaré en mélange ne passe donc pas par son chemin rapide — et chez elle, un humain ouvre le
-//! matériau et coche « masqué » avant de livrer. Nous importons les fichiers des autres : personne
-//! n'a coché la case. Le compilateur tient ce rôle, mais sans jamais deviner en silence.
+//! Reference virtualized geometry accepts only opaque and masked. Foliage
+//! declared in blend bypasses fast path — user opens material and checks "masked" before delivery.
+//! We import other people's files: nobody ticked the box. The compiler takes that
+//! role, but never guesses in silence.
 //!
-//! Le mécanisme est donc en deux temps. Le compilateur MESURE l'alpha de chaque texture candidate,
-//! dans le décodage que les aperçus font déjà, et PROPOSE un verdict ; il écrit sa feuille de
-//! réponses à côté du modèle compilé, à chaque compilation, qu'il y ait ou non quelque chose à
-//! trancher. Il n'applique ensuite que ce que cette feuille lui répond, rangé par empreinte
-//! d'image : une réponse vaut donc pour toute scène qui partage la texture. Sans réponse, rien ne
-//! change, et le mélange reste du mélange.
+//! Two-stage mechanism. Compiler MEASURES alpha of candidate texture,
+//! during preview decoding, and PROPOSES verdict; writes answer sheet
+//! alongside compiled model, every compilation, whether items to decide or not.
+//! Applies only what sheet answers, ordered by image fingerprint:
+//! answer holds for any scene sharing texture. Without answer, nothing
+//! changes, blend remains blend.
 use super::*;
 
 mod apply;
@@ -23,20 +23,20 @@ pub(crate) use apply::{apply_decisions, CutoutApplied};
 pub(crate) use measure::{measure, AlphaShape};
 pub(crate) use sheet::{build_sheet, draw_weights, entries, write_sheet};
 
-/// Le nom de la feuille de réponses, à la racine du modèle compilé : un chemin stable, que la clé
-/// de compilation ne déplace pas et que la purge du cache ne touche pas. Le compilateur ne dessine
-/// rien — il publie ses textures en attente, et c'est l'appelant, terminal ou application, qui les
-/// présente et récolte les réponses.
+/// Answer sheet name, at compiled model root: stable path, compilation key
+/// does not move and cache purge does not touch. Compiler renders
+/// nothing — publishes pending textures, caller (terminal or app)
+/// presents and collects answers.
 pub const DECISIONS_FILE: &str = "decoupes.json";
-/// Version du contrat de la feuille, publiée dans le rapport de compilation : elle gouverne les
-/// RÉPONSES qu'un lecteur y écrit, et rien d'autre. Un numéro inconnu est refusé plutôt que deviné,
-/// une réponse mal lue changerait l'image sans que personne l'ait demandé.
+/// Sheet contract version, published in compilation report: governs
+/// ANSWERS reader writes, nothing else. Unknown version refused,
+/// misread answer would alter image unrequested.
 pub const SHEET_VERSION: u64 = 1;
-/// Le seuil auquel un matériau reclassé découpe, celui de glTF par défaut.
+/// Cutout threshold for reclassified material, glTF default.
 pub(crate) const CUTOUT_ALPHA: f64 = 0.5;
 
-/// Les réponses lues, rangées par empreinte d'image. Aucune feuille, ou une feuille où personne ne
-/// s'est prononcé, est un cas ordinaire : la scène reste telle qu'elle est déclarée.
+/// Read answers, indexed by image fingerprint. Missing sheet, or sheet where no one
+/// decided, is normal case: scene stays as declared.
 pub(crate) struct Decisions {
     path: PathBuf,
     found: bool,
@@ -44,7 +44,7 @@ pub(crate) struct Decisions {
 }
 
 impl Decisions {
-    /// La réponse donnée pour cette image, ou `None` quand personne ne s'est prononcé.
+    /// Answer for this image, or `None` when undecided.
     pub fn verdict(&self, sha256: &str) -> Option<bool> {
         self.by_image.get(sha256).copied()
     }
@@ -58,9 +58,9 @@ impl Decisions {
     }
 }
 
-/// Lit la feuille du modèle compilé. Quand il n'en a pas encore — première compilation, cache
-/// effacé —, une feuille posée à côté de la source l'amorce : un fournisseur peut livrer ses
-/// réponses avec son modèle. La source, elle, n'est jamais écrite.
+/// Reads compiled model sheet. When missing — first compilation, cache
+/// cleared —, sheet delivered with source seeds it: vendor can deliver
+/// answers with model. Source never written.
 pub(crate) fn load_decisions(cache: &Path, source: &Path) -> Result<Decisions> {
     let path = cache.join(DECISIONS_FILE);
     let seed = source_directory(source).join(DECISIONS_FILE);
@@ -85,8 +85,8 @@ pub(crate) fn load_decisions(cache: &Path, source: &Path) -> Result<Decisions> {
     })
 }
 
-/// Le dossier où une feuille livrée avec la source se trouverait : celui de la scène préparée, ou
-/// celui du fichier à importer.
+/// Folder where sheet delivered with source would lie: prepared scene folder or
+/// file to import.
 fn source_directory(source: &Path) -> PathBuf {
     if source.is_dir() {
         return source.to_path_buf();
@@ -94,9 +94,8 @@ fn source_directory(source: &Path) -> PathBuf {
     source.parent().unwrap_or(Path::new(".")).to_path_buf()
 }
 
-/// Les réponses d'une feuille. Une feuille illisible, d'une version inconnue ou dont une réponse
-/// n'est ni vraie, ni fausse, ni `null` est une ERREUR : la réponse de l'utilisateur ne se perd
-/// jamais en silence.
+/// Sheet answers. An unreadable sheet, unknown version, or non-boolean/non-null
+/// answer is an error: a user answer is never dropped in silence.
 fn read_answers(path: &Path, bytes: &[u8]) -> Result<BTreeMap<String, bool>> {
     let refuse = |message: String| CompilerError::new("INVALID_CUTOUT_DECISIONS", message);
     let parsed: Value = serde_json::from_slice(bytes)

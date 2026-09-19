@@ -1,5 +1,5 @@
-//! Les empreintes que le sidecar nomme, lues depuis son en-tête. Sorties de `manifest_binary.rs`
-//! pour tenir la limite de lignes du dépôt, sans rien changer à ce qu'elles lisent.
+//! Fingerprints named by sidecar, read from its header. Split from `manifest_binary.rs`
+//! to respect repository line limit, without changing what they read.
 use super::{
     bad, Result, BUNDLE_SHA, GEOMETRY_SHA, HEADER_WORDS, MANIFEST_BINARY_MAGIC,
     MANIFEST_BINARY_VERSION, PAGE_SHA, TEXTURE_PREVIEW_SHA,

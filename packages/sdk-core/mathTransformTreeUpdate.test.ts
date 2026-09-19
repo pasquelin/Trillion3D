@@ -1,7 +1,7 @@
-// Lot M3a, mathTransformTreeUpdate.ts : `updateMatrixWorld(force)` (nœud propre non recalculé, parent
-// sale qui propage, `matrixAutoUpdate` à faux qui gèle un nœud tant que `force` ne l'atteint pas) et
-// `updateWorldMatrix(updateParents, updateChildren)`. Allocation : les vues sont les mêmes objets
-// avant et après une mise à jour à chaud.
+// Batch M3a, mathTransformTreeUpdate.ts: `updateMatrixWorld(force)` (clean node not recalculated,
+// dirty parent that propagates, `matrixAutoUpdate` false that freezes a node until `force` reaches
+// it) and `updateWorldMatrix(updateParents, updateChildren)`. Allocation: views are the same objects
+// before and after a hot update.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -13,7 +13,7 @@ import {
 import { reparentTransformNode } from './mathTransformTreeStructure.ts';
 import { updateNodeMatrixWorld, updateNodeWorldMatrix } from './mathTransformTreeUpdate.ts';
 
-test('updateNodeMatrixWorld : compose et copie la matrice locale d’une racine, la version passe à 1', () => {
+test('updateNodeMatrixWorld: composes and copies a root local matrix, version goes to 1', () => {
   const tree = createTransformTree(4);
   const racine = addTransformNode(tree);
   setNodePosition(tree, racine, 3, -4, 5);
@@ -25,39 +25,39 @@ test('updateNodeMatrixWorld : compose et copie la matrice locale d’une racine,
   assert.equal(tree.version[racine], 1);
 });
 
-test('un nœud propre n’est pas recalculé : la version ne bouge plus au second appel sans rien changer', () => {
+test('a clean node is not recalculated: version no longer moves on the second call with nothing changed', () => {
   const tree = createTransformTree(4);
   const racine = addTransformNode(tree);
   updateNodeMatrixWorld(tree, racine);
   const version = tree.version[racine];
   updateNodeMatrixWorld(tree, racine);
-  assert.equal(tree.version[racine], version, 'rien n’a changé : pas de recalcul');
+  assert.equal(tree.version[racine], version, 'nothing changed: no recalculation');
 });
 
-test('un parent sale propage aux descendants même non marqués eux-mêmes', () => {
+test('a dirty parent propagates to descendants even if they are not marked themselves', () => {
   const tree = createTransformTree(4);
   const racine = addTransformNode(tree);
   const enfant = addTransformNode(tree, racine);
   setNodePosition(tree, enfant, 1, 0, 0);
   updateNodeMatrixWorld(tree, racine);
   const versionEnfantAvant = tree.version[enfant];
-  setNodePosition(tree, racine, 10, 0, 0); // seule la racine est marquée sale
+  setNodePosition(tree, racine, 10, 0, 0); // only the root is marked dirty
   updateNodeMatrixWorld(tree, racine);
-  assert.notEqual(tree.version[enfant], versionEnfantAvant, 'l’enfant doit être recalculé');
-  assert.equal(tree.worldViews[enfant][12], 11, 'monde enfant = monde parent (10) + local (1)');
+  assert.notEqual(tree.version[enfant], versionEnfantAvant, 'the child must be recalculated');
+  assert.equal(tree.worldViews[enfant][12], 11, 'child world = parent world (10) + local (1)');
 });
 
-test('matrixAutoUpdate à faux : sans force, un nœud jamais marqué garde sa matrice monde de départ', () => {
+test('matrixAutoUpdate false: without force, a never-marked node keeps its starting world matrix', () => {
   const tree = createTransformTree(4);
   const racine = addTransformNode(tree);
   setNodeAutoUpdate(tree, racine, false);
-  setNodePosition(tree, racine, 7, 7, 7); // pose écrite, mais rien ne l’atteint sans force
+  setNodePosition(tree, racine, 7, 7, 7); // pose written, but nothing reaches it without force
   updateNodeMatrixWorld(tree, racine, false);
-  assert.equal(tree.version[racine], 0, 'jamais atteint : aucun calcul');
+  assert.equal(tree.version[racine], 0, 'never reached: no calculation');
   assert.deepEqual([tree.worldViews[racine][12], tree.worldViews[racine][13]], [0, 0]);
 });
 
-test('matrixAutoUpdate à faux : `force=true` atteint le nœud une première fois', () => {
+test('matrixAutoUpdate false: `force=true` reaches the node a first time', () => {
   const tree = createTransformTree(4);
   const racine = addTransformNode(tree);
   setNodeAutoUpdate(tree, racine, false);
@@ -66,7 +66,7 @@ test('matrixAutoUpdate à faux : `force=true` atteint le nœud une première foi
   assert.equal(tree.version[racine], 1);
 });
 
-test('force=true sur une hiérarchie déjà propre ne recalcule toujours rien (recalcul conditionné par un vrai changement)', () => {
+test('force=true on an already clean hierarchy still recalculates nothing (recalculation gated by a real change)', () => {
   const tree = createTransformTree(4);
   const racine = addTransformNode(tree);
   const enfant = addTransformNode(tree, racine);
@@ -77,29 +77,29 @@ test('force=true sur une hiérarchie déjà propre ne recalcule toujours rien (r
   assert.equal(tree.version[enfant], v2);
 });
 
-test('updateWorldMatrix(true, false) : met à jour les ancêtres périmés jusqu’au nœud, pas ses enfants', () => {
+test('updateWorldMatrix(true, false): updates stale ancestors up to the node, not its children', () => {
   const tree = createTransformTree(4);
   const racine = addTransformNode(tree);
   const enfant = addTransformNode(tree, racine);
   const petitEnfant = addTransformNode(tree, enfant);
   updateNodeMatrixWorld(tree, racine, true);
-  setNodePosition(tree, racine, 2, 0, 0); // périme racine, enfant et petitEnfant
+  setNodePosition(tree, racine, 2, 0, 0); // stales root, child and grandchild
   updateNodeWorldMatrix(tree, enfant, true, false);
-  assert.equal(tree.worldViews[racine][12], 2, 'l’ancêtre a été rattrapé');
-  assert.equal(tree.version[petitEnfant], 1, 'le petit-enfant, hors demande, garde sa version');
+  assert.equal(tree.worldViews[racine][12], 2, 'the ancestor was caught up');
+  assert.equal(tree.version[petitEnfant], 1, 'the grandchild, out of request, keeps its version');
 });
 
-test('updateWorldMatrix(false, true) : met à jour le nœud et son sous-arbre', () => {
+test('updateWorldMatrix(false, true): updates the node and its subtree', () => {
   const tree = createTransformTree(4);
   const racine = addTransformNode(tree);
   const enfant = addTransformNode(tree, racine);
   updateNodeMatrixWorld(tree, racine, true);
   setNodePosition(tree, racine, 5, 0, 0);
   updateNodeWorldMatrix(tree, racine, false, true);
-  assert.equal(tree.worldViews[enfant][12], 5, 'l’enfant a suivi le sous-arbre mis à jour');
+  assert.equal(tree.worldViews[enfant][12], 5, 'the child followed the updated subtree');
 });
 
-test('un rattachement marque le nœud sale : sa matrice monde suit son nouveau parent à la mise à jour suivante', () => {
+test('a reparent marks the node dirty: its world matrix follows its new parent at the next update', () => {
   const tree = createTransformTree(4);
   const a = addTransformNode(tree);
   const b = addTransformNode(tree);
@@ -109,10 +109,10 @@ test('un rattachement marque le nœud sale : sa matrice monde suit son nouveau p
   updateNodeMatrixWorld(tree, b, true);
   reparentTransformNode(tree, enfant, b);
   updateNodeMatrixWorld(tree, b, true);
-  assert.equal(tree.worldViews[enfant][12], 100, 'l’enfant suit désormais b, pas a');
+  assert.equal(tree.worldViews[enfant][12], 100, 'the child now follows b, not a');
 });
 
-test('allocation : les vues de matrice monde restent les mêmes objets d’une mise à jour à l’autre', () => {
+test('allocation: world-matrix views stay the same objects from one update to the next', () => {
   const tree = createTransformTree(4);
   const racine = addTransformNode(tree);
   const vueAvant = tree.worldViews[racine];

@@ -1,8 +1,8 @@
-// Oracles du lot « coupe par différence » : le code d'avant, recopié tel quel. Les quatre lecteurs
-// de la coupe reparcouraient la liste publiée par le relevé à chaque image ; le banc les compare à
-// ceux qui ne lisent plus qu'une différence. Les copies sont des doublons voulus : c'est l'oracle.
+// Oracles of the "cut by delta" batch: the previous code, copied as-is. The four cut
+// readers rewalked the list published by the sample every frame; the bench compares them
+// to those that now read only a delta. The copies are wanted duplicates: that is the oracle.
 
-/** `webgpuPagesHelpers.ts:shownFromGpu` avant le lot : quatre totaux d'une passe sur toute la coupe. */
+/** `webgpuPagesHelpers.ts:shownFromGpu` before the batch: four totals of one pass over the whole cut. */
 export function referenceCutCounts(pages, ids, residentOffsetWords) {
   let selected = 0,
     uncovered = 0,
@@ -23,13 +23,13 @@ export function referenceCutCounts(pages, ids, residentOffsetWords) {
   };
 }
 
-/** `webgpuFrameHold.ts:cutComplete` avant le lot : la coupe entière relue pour un seul verdict. */
+/** `webgpuFrameHold.ts:cutComplete` before the batch: the whole cut reread for a single verdict. */
 export function referenceCutComplete(desired) {
   for (let i = 0; i < desired.length; i++) if (!desired[i].array) return false;
   return true;
 }
 
-/** `webgpuPagesHostApi.ts:pendingUrls` avant le lot : `collectPendingUrls` sur toute la coupe. */
+/** `webgpuPagesHostApi.ts:pendingUrls` before the batch: `collectPendingUrls` on the whole cut. */
 export function referencePendingUrls(desired, stamps, into) {
   into.length = 0;
   stamps.begin();
@@ -37,9 +37,9 @@ export function referencePendingUrls(desired, stamps, into) {
 }
 
 /**
- * `webgpuBudgetRanking.ts` avant le lot, recopié tel quel : les comptes par niveau étaient déjà
- * tenus par `add`/`remove`, seul le préfixe était écrit en parcourant la coupe entière, une
- * estampille par clé pour le dédoublonnage. Seul ce parcours change, et c'est lui que le banc pèse.
+ * `webgpuBudgetRanking.ts` before the batch, copied as-is: per-level counts were already
+ * held by `add`/`remove`; only the prefix was written by walking the whole cut, one
+ * stamp per key for dedup. Only that walk changes, and it is what the bench weighs.
  */
 export function createReferenceRanking({ keyCount, bootstrapKey, keyOf }) {
   const levelOf = (page) => page.level ?? 0;
@@ -136,8 +136,8 @@ export function createReferenceRanking({ keyCount, bootstrapKey, keyOf }) {
   };
 }
 
-/** Le préfixe résumé par ce que les deux versions doivent rendre identique : autant de pages prises
- *  à chaque niveau. L'ordre interne d'un niveau, lui, n'est plus une promesse. */
+/** The prefix summarized by what both versions must yield identically: as many pages taken
+ *  at each level. A level's internal order is no longer a promise. */
 export function levelHistogram(keys, length, levelOfKey) {
   const levels = [];
   for (let i = 0; i < length; i++) {

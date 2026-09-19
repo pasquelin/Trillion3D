@@ -1,13 +1,13 @@
 /**
- * Les liaisons des passes de calcul du rebond, décrites par leur seul type.
+ * Bindings of the bounce compute passes, described by their type alone.
  *
- * Les deux passes — cache de surfaces et sondes — lisent les mêmes colonnes du proxy aux mêmes
- * rangs : une seule façon de décrire une liaison évite que les deux nuanceurs et les deux groupes
- * dérivent l'un de l'autre. Un rang laissé vide n'est pas déclaré du tout : une passe qui n'a plus
- * besoin des lampes ne les lie pas.
+ * Both passes — surface cache and probes — read the same proxy columns at the same slots:
+ * one way to describe a binding keeps the two shaders and the two groups from drifting
+ * apart. An unused slot is not declared at all: a pass that no longer needs lights does
+ * not bind them.
  */
 
-/** La disposition d'une passe : un type par rang, `null` pour un rang que la passe n'utilise pas. */
+/** Layout of a pass: one type per slot, `null` for a slot the pass does not use. */
 export function bounceLayout(device: GPUDevice, types: (GPUBufferBindingType | null)[]) {
   return device.createBindGroupLayout({
     entries: types.flatMap((type, binding) =>
@@ -16,7 +16,7 @@ export function bounceLayout(device: GPUDevice, types: (GPUBufferBindingType | n
   });
 }
 
-/** Le groupe correspondant : un tampon par rang déclaré, dans le même ordre. */
+/** Matching group: one buffer per declared slot, in the same order. */
 export function bounceGroup(
   device: GPUDevice,
   layout: GPUBindGroupLayout,

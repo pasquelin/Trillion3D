@@ -45,8 +45,8 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
   draws.length = 0;
   computes.length = 0;
   backend.render(cam);
-  // Les occulteurs vident la cible, la moitié testée la recharge ; copie de profondeur, réduction
-  // puis test, dans cet ordre, entre les deux.
+  // Occluders clear the target, the tested half reloads it; depth copy, reduce, then test, in
+  // that order, between the two.
   const visPasses = passes.filter(
     (pass) => pass.label === 'WG visibility primary' || pass.label === 'WG visibility secondary',
   );

@@ -1,4 +1,4 @@
-//! Lecture d'un travail d'oracle. Un champ absent est une erreur nommée, jamais une valeur devinée.
+//! Reading an oracle job. A missing field is a named error, never a guessed value.
 use super::{
     OracleCamera, OracleJob, OracleLight, KIND_POINT, KIND_SPOT, KIND_SUN, ORACLE_VERSION,
 };
@@ -80,7 +80,7 @@ fn light_of(value: &Value) -> Result<OracleLight> {
     })
 }
 
-/// Le travail relu et revérifié. Un champ absent est une erreur nommée, jamais une valeur devinée.
+/// Job re-read and re-checked. A missing field is a named error, never a guessed value.
 pub fn job_of(value: &Value) -> Result<OracleJob> {
     if value.get("version").and_then(Value::as_u64) != Some(ORACLE_VERSION as u64) {
         return Err(bad(format!("oracle job version must be {ORACLE_VERSION}")));

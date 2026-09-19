@@ -9,9 +9,9 @@ fn meshes_using(materials: &[i64]) -> Value {
     json!([{"primitives": primitives}])
 }
 
-// Comportement 5 (a) : chaque liaison va à son atlas, comme `collectWebgpuMaterialTextures` — la
-// couleur de base et l'émissif à l'atlas couleur ; métal-rugosité, normale et occlusion à celui
-// des données. Triées par texture puis par atlas.
+// Behavior 5 (a): each binding goes to its atlas, as `collectWebgpuMaterialTextures` —
+// base color and emissive to color atlas; metallic-roughness, normal, occlusion to
+// data atlas. Sorted by texture then atlas.
 #[test]
 fn every_binding_goes_to_its_atlas() {
     let g = json!({
@@ -37,9 +37,9 @@ fn every_binding_goes_to_its_atlas() {
     );
 }
 
-// Comportement 5 (b) : une texture lue par les deux atlas — la même image comme couleur de base
-// ici et comme occlusion là — a une entrée PAR ATLAS, parce que chaque atlas la réduit par sa
-// propre courbe ; et deux matériaux qui partagent une liaison ne la comptent qu'une fois.
+// Behavior 5 (b): texture read by both atlases — same image as base color
+// here and occlusion there — has entry PER ATLAS, because each atlas reduces by
+// own curve; two materials sharing binding count it once.
 #[test]
 fn a_texture_read_by_both_atlases_has_one_entry_per_atlas() {
     let g = json!({
@@ -65,7 +65,7 @@ fn a_texture_read_by_both_atlases_has_one_entry_per_atlas() {
     );
 }
 
-// Comportement 5 (c) : seuls les matériaux des maillages retenus comptent.
+// Behavior 5 (c): only materials of retained meshes count.
 #[test]
 fn only_materials_of_selected_meshes_are_collected() {
     let g = json!({

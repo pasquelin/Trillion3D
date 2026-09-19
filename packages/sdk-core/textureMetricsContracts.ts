@@ -1,49 +1,49 @@
 /**
- * Ce que les textures virtuelles publient sur une image : le pool, les tuiles, le retour d'image.
+ * What virtual textures publish on a frame: the pool, the tiles, the image feedback.
  *
- * Ces champs vivent à part de `FrameMetrics` parce qu'ils décrivent une autre file que l'image :
- * les tuiles arrivent à leur rythme, bornées par octets et par image, et le pool est dimensionné
- * une fois. Tous facultatifs : un moteur sans textures les laisse absents, `null` dit « non
- * mesuré », jamais une estimation.
+ * These fields live apart from `FrameMetrics` because they describe another queue than the frame:
+ * tiles arrive at their own pace, bounded by bytes and by frame, and the pool is sized
+ * once. All optional: an engine without textures leaves them absent, `null` says "unmeasured",
+ * never an estimate.
  */
 export interface TextureFrameMetrics {
   /**
-   * Le pool physique, fixe pour la session : ses octets — CALCULÉS depuis ses dimensions et son
-   * format, WebGPU ne publiant pas la mémoire occupée —, ses couches par atlas, et ce qu'il porte.
-   * `texturePoolBytes` ne dépend pas de la scène ; `textureResidentBytes` en est la part occupée,
-   * queues épinglées comprises.
+   * The physical pool, fixed for the session: its bytes — COMPUTED from its dimensions and
+   * format, WebGPU not publishing occupied memory —, its layers per atlas, and what it holds.
+   * `texturePoolBytes` does not depend on the scene; `textureResidentBytes` is the occupied share,
+   * pinned tails included.
    */
   texturePoolBytes?: number | null;
   texturePoolLayers?: number | null;
   textureTilesResident?: number | null;
   textureResidentBytes?: number | null;
   /**
-   * Le retour d'image : ce que les pixels ont demandé au dernier relevé. `textureTilesRequested` :
-   * tuiles distinctes nommées ; `textureTilesAtLevel` : celles servies au niveau même que le pixel
-   * appelle ; `textureMissingLevels` : niveaux de retard en moyenne sur les tuiles demandées — zéro
-   * quand l'image est celle que le pool peut donner de mieux ; `textureTilesPending` : demandées
-   * et pas encore servies à la fin de la passe.
+   * Image feedback: what the pixels asked for at the last sample. `textureTilesRequested`:
+   * distinct named tiles; `textureTilesAtLevel`: those served at the very level the pixel
+   * calls; `textureMissingLevels`: lag levels on average over the requested tiles — zero
+   * when the image is the best the pool can give; `textureTilesPending`: requested
+   * and not yet served at the end of the pass.
    */
   textureTilesRequested?: number | null;
   textureTilesAtLevel?: number | null;
   textureMissingLevels?: number | null;
   textureTilesPending?: number | null;
   /**
-   * Le diffuseur, depuis le début de la session. `textureTilesServed` : tuiles copiées dans le pool.
-   * `textureTilesEvicted` : places reprises à une tuile moins regardée. `textureTilesRefused` :
-   * tuiles qu'aucune place ne pouvait accueillir, tout ce que le pool porte ayant été regardé dans
-   * l'image — le pool est trop petit pour la vue, et c'est publié, jamais compensé.
-   * `textureBytesLastFrame` : octets de tuiles admis par la dernière passe.
+   * The streamer, since the start of the session. `textureTilesServed`: tiles copied into the pool.
+   * `textureTilesEvicted`: slots taken back from a less-watched tile. `textureTilesRefused`:
+   * tiles that no slot could take, everything the pool holds having been watched in
+   * the frame — the pool is too small for the view, and that is published, never compensated.
+   * `textureBytesLastFrame`: tile bytes admitted by the last pass.
    */
   textureTilesServed?: number | null;
   textureTilesEvicted?: number | null;
   textureTilesRefused?: number | null;
   textureBytesLastFrame?: number | null;
   /**
-   * Les sources. `textureLevelReads` : niveaux cuits en lecture dans le cache. `textureLevelsDecoded`
-   * : niveaux cuits décodés depuis le début. `textureLevelCacheBytes` : octets hôte des niveaux
-   * décodés tenus pour en découper d'autres tuiles, sous un budget fixe. `textureScratchBuilds` :
-   * textures de travail bâties pour une texture sans chaîne cuite, la source entière chaque fois.
+   * The sources. `textureLevelReads`: baked levels being read in the cache. `textureLevelsDecoded`:
+   * baked levels decoded since the start. `textureLevelCacheBytes`: host bytes of decoded
+   * levels held to cut further tiles from them, under a fixed budget. `textureScratchBuilds`:
+   * work textures built for a texture without a baked chain, the whole source each time.
    */
   textureLevelReads?: number | null;
   textureLevelsDecoded?: number | null;

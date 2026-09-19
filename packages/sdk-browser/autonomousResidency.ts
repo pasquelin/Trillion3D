@@ -12,8 +12,8 @@ type ResidencyEnvironment = {
   geometryStore: ReturnType<typeof createAutonomousGeometry>;
 };
 
-/** Combien de pages portent leurs indices. Un comptage, pas un tableau intermédiaire de dizaines de
- *  milliers d'entrées alloué puis jeté à chaque relevé de métriques, c'est-à-dire à chaque image. */
+/** How many pages carry their indices. A count, not an intermediate array of tens of
+ *  thousands of entries allocated then thrown away on every metrics sample, i.e. every frame. */
 export function comptePagesResidentes(pages: readonly PageRec[]) {
   let residentes = 0;
   for (let i = 0; i < pages.length; i++) if (pages[i].array) residentes++;
@@ -25,8 +25,8 @@ export function createAutonomousResidency(env: ResidencyEnvironment) {
     env;
   const { detach } = geometryStore;
   const state = { cacheEvictions: 0 };
-  // Deux ensembles pour la vie de l'hôte : une image les remplit et les vide, elle n'en alloue pas.
-  const vues = new Set<string>(),
+  // Two sets for the life of the host: a frame fills and clears them, it does not allocate them.
+  const seen = new Set<string>(),
     uniques = new Set<string>();
   return {
     get cacheEvictions() {
@@ -34,10 +34,10 @@ export function createAutonomousResidency(env: ResidencyEnvironment) {
     },
     pendingUrls() {
       pending.length = 0;
-      vues.clear();
+      seen.clear();
       for (const rec of desired)
-        if (!rec.array && !vues.has(rec.url)) {
-          vues.add(rec.url);
+        if (!rec.array && !seen.has(rec.url)) {
+          seen.add(rec.url);
           pending.push(rec.url);
         }
       return pending;

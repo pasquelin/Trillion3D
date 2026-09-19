@@ -1,5 +1,5 @@
-// Les chemins du socle de mesure, écrits une fois : la racine du dépôt, le dossier des fragments
-// déposés par les bancs, celui des baselines, et la règle qui fait d'un domaine un nom de fichier.
+// Measurement base paths, written once: repo root, fragment directory
+// deposited by benchmarks, baseline directory, and rule mapping domain to filename.
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -7,7 +7,7 @@ export const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 
 export const FRAGMENTS = join(RACINE, '.mesure', 'perf');
 const BASELINES = join(RACINE, '.mesure', 'baselines');
 
-/** Assainit un nom de domaine pour l'employer comme nom de fichier. */
+/** Sanitizes a domain name for use as a filename. */
 const assainir = (domaine) => domaine.replace(/[/\\]/g, '-').replace(/^-+|-+$/g, '');
 
 export const cheminFragment = (domaine) => join(FRAGMENTS, `${assainir(domaine)}.json`);

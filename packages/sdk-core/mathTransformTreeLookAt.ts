@@ -3,11 +3,11 @@ import { setNodeQuaternion, type TransformTree } from './mathTransformTree.ts';
 import { updateNodeWorldMatrix } from './mathTransformTreeUpdate.ts';
 
 /**
- * `lookAt` de la référence sur un nœud de la hiérarchie : la rotation locale qui tourne le nœud vers
- * un point monde. Même ordre d'opérations flottantes, cas limites compris : œil sur la cible (l'axe
- * `z` vaut alors `(0, 0, 1)`), direction colinéaire au haut (l'axe `z` est poussé de `0,0001` puis
- * renormalisé), rotation du parent retirée par son quaternion conjugué. Comme la référence, un parent
- * à échelle non uniforme ou cisaillé n'est pas compensé exactement.
+ * Reference `lookAt` on a hierarchy node: the local rotation that turns the node toward
+ * a world point. Same floating-point operation order, edge cases included: eye on the target (the
+ * `z` axis is then `(0, 0, 1)`), direction collinear with up (the `z` axis is pushed by `0.0001` then
+ * renormalised), parent rotation removed by its conjugate quaternion. Like the reference, a parent
+ * with non-uniform or sheared scale is not compensated exactly.
  */
 
 const rows = new Float64Array(9),
@@ -15,9 +15,9 @@ const rows = new Float64Array(9),
   parentRotation = new Float64Array(4);
 
 /**
- * Base `lookAt` de `Matrix4` : `z = eye − target`, `x = up × z`, `y = z × x`, rangée dans `rows`.
- * Tout en scalaires : le haut est lu une fois, et aucun appel ne partage ses retours de type avec
- * d'autres appelants.
+ * `Matrix4` `lookAt` basis: `z = eye − target`, `x = up × z`, `y = z × x`, stored in `rows`.
+ * All in scalars: up is read once, and no call shares its typed returns with
+ * other callers.
  */
 function lookAtRows(
   world: Float64Array,
@@ -31,15 +31,15 @@ function lookAtRows(
   const ux = up[0],
     uy = up[1],
     uz = up[2];
-  // Une caméra ou une lampe vise de l'œil vers la cible, un objet de la cible vers l'œil.
+  // A camera or a light aims from the eye toward the target, an object from the target toward the eye.
   const wx = world[at + 12],
     wy = world[at + 13],
     wz = world[at + 14];
   let zx = viewer ? wx - x : x - wx,
     zy = viewer ? wy - y : y - wy,
     zz = viewer ? wz - z : z - wz;
-  // Le carré de la norme est gardé : la référence le calcule deux fois de suite (`lengthSq` puis
-  // `normalize`), et il ne change que dans la branche dégénérée, qui le recalcule.
+  // The squared length is kept: the reference computes it twice in a row (`lengthSq` then
+  // `normalize`), and it only changes in the degenerate branch, which recomputes it.
   let carre = zx * zx + zy * zy + zz * zz;
   if (carre === 0) {
     zz = 1;
@@ -81,9 +81,9 @@ function lookAtRows(
 }
 
 /**
- * `extractRotation` de la matrice monde rangée en `world[at..at+15]` : chaque colonne multipliée par
- * `1 / sa longueur`. La matrice est lue dans le tampon plat de l'arbre, jamais par la vue du nœud :
- * une lecture de moins, et un seul type de tableau pour toute la fonction.
+ * `extractRotation` of the world matrix stored in `world[at..at+15]`: each column multiplied by
+ * `1 / its length`. The matrix is read from the tree's flat buffer, never through the node view:
+ * one less read, and a single array type for the whole function.
  */
 function extractRotationRows(world: Float64Array, at: number) {
   for (let column = 0; column < 3; column++) {
@@ -99,9 +99,9 @@ function extractRotationRows(world: Float64Array, at: number) {
 }
 
 /**
- * Tourne `node` vers le point monde `(x, y, z)`. `viewer` vaut vrai pour une caméra ou une lampe, qui
- * regardent vers leur `−z`, faux pour un objet, qui présente son `+z`. `up` est le haut du nœud,
- * `(0, 1, 0)` par défaut dans la référence. Met d'abord à jour les ancêtres et le nœud.
+ * Turns `node` toward the world point `(x, y, z)`. `viewer` is true for a camera or a light, which
+ * look toward their `−z`, false for an object, which presents its `+z`. `up` is the node's up,
+ * `(0, 1, 0)` by default in the reference. First updates the ancestors and the node.
  */
 export function lookAtNode(
   tree: TransformTree,
@@ -120,7 +120,7 @@ export function lookAtNode(
   if (parent >= 0) {
     extractRotationRows(world, parent * 16);
     writeRotationQuaternion(parentRotation, rows);
-    // Conjugué du parent, puis produit `conjugué × propre` de `premultiply`.
+    // Parent conjugate, then `conjugate × own` product of `premultiply`.
     const ax = -parentRotation[0],
       ay = -parentRotation[1],
       az = -parentRotation[2],

@@ -6,9 +6,9 @@ import { splitOccludersFlat } from './hizSplit.ts';
 const keyDouble = new Float64Array(1),
   keyWords = new Uint32Array(keyDouble.buffer);
 
-/** L'image ordonnable d'une profondeur : ce sur quoi le partage ordonne, et rien d'autre. La
- *  profondeur du moteur est inversée — le plus proche est le plus grand —, donc la clé est celle de
- *  l'OPPOSÉ, et l'ordre croissant des clés reste celui du plus proche au plus lointain. */
+/** Sortable image of a depth: what the split orders on, and nothing else. Engine depth is
+ *  reverse-Z — nearest is greatest — so the key is that of the OPPOSITE, and the increasing
+ *  order of keys stays nearest to farthest. */
 function orderable(value: number) {
   keyDouble[0] = -value;
   const low = keyWords[0],
@@ -21,9 +21,9 @@ function orderable(value: number) {
 }
 
 /**
- * La moitié la plus proche telle que le tri stable la donnait : les candidats classés sur la clé
- * ordonnable, les égalités départagées par leur indice, puis la première moitié. C'est la référence
- * que la sélection doit rendre terme pour terme.
+ * The nearest half as the stable sort gave it: candidates ranked on the sortable key, ties
+ * broken by their index, then the first half. This is the reference the selection must return
+ * term for term.
  */
 function moitieTriee(count: number, bounds: Float64Array) {
   const candidates: number[] = [];
@@ -41,7 +41,7 @@ function moitieTriee(count: number, bounds: Float64Array) {
   return { rest, occluders };
 }
 
-/** Une coupe décrite par ses seules profondeurs ; `null` coupe le plan proche. */
+/** A cut described by its depths alone; `null` clips the near plane. */
 function bounds(depths: readonly (number | null)[]) {
   const flat = new Float64Array(Math.max(1, depths.length) * HIZ_BOUNDS_VALUES);
   for (let i = 0; i < depths.length; i++) {
@@ -57,27 +57,27 @@ function memeEnsemble(depths: readonly (number | null)[], why: string) {
   const attendu = moitieTriee(depths.length, flat);
   const obtenu = new Uint8Array(Math.max(1, depths.length));
   const occluders = splitOccludersFlat(depths.length, flat, obtenu);
-  assert.equal(occluders, attendu.occluders, `nombre d'occulteurs — ${why}`);
+  assert.equal(occluders, attendu.occluders, `occluder count — ${why}`);
   assert.deepEqual(
     [...obtenu.subarray(0, depths.length)],
     [...attendu.rest],
-    `moitié la plus proche — ${why}`,
+    `nearest half — ${why}`,
   );
 }
 
-test('la sélection de la moitié la plus proche rend l’ensemble du tri stable', () => {
-  memeEnsemble([], 'aucune boîte');
-  memeEnsemble([null, null], 'toutes coupent le plan proche');
-  memeEnsemble([0.5], 'une seule boîte');
-  memeEnsemble([0.9, 0.1, 0.5, 0.3], 'profondeurs distinctes');
-  memeEnsemble([0.4, 0.4, 0.4, 0.4, 0.4], 'toutes égales : l’indice départage');
-  memeEnsemble([0.2, null, 0.2, 0.1, null, 0.9], 'égalités et coupes mêlées');
-  memeEnsemble([-0, 0, -0, 0], 'zéro signé : les deux ne sont pas la même clé');
-  memeEnsemble([Infinity, -Infinity, 0, NaN, 1e-320, -1e-320], 'valeurs extrêmes');
-  memeEnsemble([NaN, NaN, 1, 2], 'NaN, qu’aucune comparaison numérique n’ordonne');
+test('nearest-half selection returns the set of the stable sort', () => {
+  memeEnsemble([], 'no box');
+  memeEnsemble([null, null], 'all clip the near plane');
+  memeEnsemble([0.5], 'a single box');
+  memeEnsemble([0.9, 0.1, 0.5, 0.3], 'distinct depths');
+  memeEnsemble([0.4, 0.4, 0.4, 0.4, 0.4], 'all equal: the index breaks ties');
+  memeEnsemble([0.2, null, 0.2, 0.1, null, 0.9], 'ties and clips mixed');
+  memeEnsemble([-0, 0, -0, 0], 'signed zero: the two are not the same key');
+  memeEnsemble([Infinity, -Infinity, 0, NaN, 1e-320, -1e-320], 'extreme values');
+  memeEnsemble([NaN, NaN, 1, 2], 'NaN, which no numeric comparison orders');
 });
 
-test('la sélection tient sur des coupes larges, à clés rares comme à clés denses', () => {
+test('the selection holds on large cuts, on rare keys as on dense keys', () => {
   let seed = 20260916;
   const rand = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
   for (const distinct of [1, 2, 7, 1000, 0]) {
@@ -91,6 +91,6 @@ test('la sélection tient sur des coupes larges, à clés rares comme à clés d
             ? rand() * 2 - 1
             : Math.floor(rand() * distinct) / distinct,
       );
-    memeEnsemble(depths, `${count} boîtes, ${distinct || 'toutes'} clés`);
+    memeEnsemble(depths, `${count} boxes, ${distinct || 'all'} keys`);
   }
 });

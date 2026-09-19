@@ -142,7 +142,7 @@ test('perspective uniform object split is not screen uniform', () => {
 test('a cluster error projects as the certified screen bound of its sphere', () => {
   // Sphere of radius 1 centred 10 in front (view depth -z): minimum depth 9, side reach 1, the
   // moved point no closer than 8.5. The bound is (delta*focal/9) * (sqrt(81 + 1) / 8.5).
-  // La même sphère de référence à chaque appel : seul ce qui est nommé en diffère.
+  // The same reference sphere on every call: only what is named differs.
   const px = (error: number, { stretch = 1, x = 0, z = -10, radius = 1 } = {}) =>
     clusterErrorPixels(error, stretch, x, 0, z, radius, 600, 0.1);
   const axial = ((0.5 * 600) / 9) * (Math.sqrt(9 * 9 + 1) / 8.5);
@@ -160,7 +160,7 @@ test('a cluster error projects as the certified screen bound of its sphere', () 
   assert.equal(px(Infinity), Infinity, 'a cluster with no replacement always wins');
   assert.equal(px(0.5, { z: -1 }), Infinity, 'a sphere reaching the near plane refines');
   assert.equal(px(0.5, { z: 10 }), Infinity, 'a sphere behind the eye refines');
-  assert.throws(() => px(-1), /invalides/);
+  assert.throws(() => px(-1), /Invalid cluster parameters/);
   // Monotone in the error and in an enclosing sphere, which is what keeps one cut per chain.
   assert.ok(px(0.6) > px(0.5));
   assert.ok(px(0.5, { radius: 2 }) > px(0.5));
@@ -168,13 +168,13 @@ test('a cluster error projects as the certified screen bound of its sphere', () 
 
 test('maxStretch rejects non-finite matrix elements', () => {
   const withNaN = [NaN, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0];
-  assert.throws(() => maxStretch(withNaN), /Matrice invalide/);
+  assert.throws(() => maxStretch(withNaN), /Invalid matrix/);
 
   const withInfinityPos = [1, 0, 0, 0, Infinity, 0, 0, 0, 1, 0, 0];
-  assert.throws(() => maxStretch(withInfinityPos), /Matrice invalide/);
+  assert.throws(() => maxStretch(withInfinityPos), /Invalid matrix/);
 
   const withInfinityNeg = [1, 0, 0, 0, 1, 0, 0, 0, -Infinity, 0, 0];
-  assert.throws(() => maxStretch(withInfinityNeg), /Matrice invalide/);
+  assert.throws(() => maxStretch(withInfinityNeg), /Invalid matrix/);
 });
 
 test('maxStretch accepts all finite matrix elements and returns finite positive stretch', () => {

@@ -17,14 +17,13 @@ import { cullingBounds } from './pageSelectionCutBounds.ts';
 import { cullingLinks, type CullingLinks } from './pageSelectionCutForced.ts';
 
 /**
- * Ce qu'un objet source porte une fois, quel que soit le nombre de fois qu'on le pose dans la
- * scène : bandes d'erreur, paquets de streaming, identités de clusters, hiérarchie de culling et
- * ses bornes, liens de groupes, boîte locale. Rien là-dedans ne dépend de la matrice monde d'un
- * placement — deux instances d'un même objet en tenaient jusqu'ici deux copies. Les placements
- * gardent ce qui leur appartient : une matrice, un rang de dessin, un maillage.
+ * What a source object carries once, however many times it is placed in the scene: error bands,
+ * streaming bundles, cluster identities, the culling hierarchy and its bounds, group links, local
+ * box. None of that depends on a placement's world matrix — two instances of the same object used
+ * to hold two copies of it. Placements keep what belongs to them: a matrix, a draw rank, a mesh.
  *
- * L'ordre des vérifications est celui d'avant, placement par placement : page absente, couverture
- * des indices, puis bande d'erreur du cache. Seul leur nombre change.
+ * The order of checks is the previous one, placement by placement: missing page, index coverage,
+ * then the cache's error band. Only their count changes.
  */
 type Template = {
   pages: Array<{
@@ -47,8 +46,8 @@ type Shape = {
   local: Float64Array;
 };
 
-/** Multiensemble des triangles d'un tableau d'indices : la couverture est une identité de
- *  multiensemble, jamais une identité d'ordre — le DAG réordonne les triangles. */
+/** Multiset of the triangles of an index array: coverage is a multiset identity, never an
+ *  order identity — the DAG reorders the triangles. */
 function triangleCounts(arr: ArrayLike<number>) {
   const map = new Map<string, number>();
   for (let i = 0; i < arr.length; i += 3) {
@@ -58,7 +57,7 @@ function triangleCounts(arr: ArrayLike<number>) {
   return map;
 }
 
-/** La boîte locale d'une primitive : celle de la racine de sa hiérarchie, ou l'union de ses pages. */
+/** Local box of a primitive: that of the root of its hierarchy, or the union of its pages. */
 function localBox(primitive: Primitive, culling: ReturnType<typeof cullingNodes>) {
   const local = new Float64Array(BOX_VALUES);
   if (culling) {
@@ -80,11 +79,11 @@ function localBox(primitive: Primitive, culling: ReturnType<typeof cullingNodes>
   return local;
 }
 
-/** Les gabarits des primitives d'une scène : chacun calculé au premier placement, relu ensuite. */
+/** Templates of a scene's primitives: each computed at the first placement, re-read afterwards. */
 export function createPrimitiveTemplates(indices: Map<string, Uint32Array>, allowMissing: boolean) {
   const held = new Map<Primitive, Template>();
   return {
-    /** Les pages d'une primitive : tableau d'indices, bande d'erreur, paquet, identité. */
+    /** Pages of a primitive: index array, error band, bundle, identity. */
     pagesOf(primitive: Primitive): Template {
       const kept = held.get(primitive);
       if (kept) return kept;
@@ -103,8 +102,8 @@ export function createPrimitiveTemplates(indices: Map<string, Uint32Array>, allo
       });
       const template: Template = {
         pages,
-        // Le rang source d'un cluster ne dépend que de la primitive ; seul un maillage transparent
-        // le lit, et il le lit à l'identique sous chacune de ses instances.
+        // The source rank of a cluster depends only on the primitive; only a transparent mesh
+        // reads it, and it reads it identically under each of its instances.
         sourceOrder: primitive.pages.map((page, index) => page.start ?? index),
         sourceOffset,
         complete: primitive.pages.every(
@@ -116,8 +115,8 @@ export function createPrimitiveTemplates(indices: Map<string, Uint32Array>, allo
       held.set(primitive, template);
       return template;
     },
-    /** La couverture, vérifiée une fois par couple primitive / indices source : deux placements
-     *  d'un même objet posent la même géométrie, donc le même tableau d'indices. */
+    /** Coverage, checked once per primitive / source-indices pair: two placements of the same
+     *  object set the same geometry, therefore the same index array. */
     checkCoverage(primitive: Primitive, template: Template, src: ArrayLike<number>) {
       if (!template.complete || template.checked === src) return;
       const exact = primitive.pages.filter((page) => (page.role ?? 'exact') !== 'coarse');
@@ -137,8 +136,8 @@ export function createPrimitiveTemplates(indices: Map<string, Uint32Array>, allo
         if (fromPages.get(key) !== n) throw new Error('Page/source index mismatch');
       template.checked = src;
     },
-    /** Hiérarchie de culling, bornes par nœud, liens de groupes et boîte locale : la forme du DAG,
-     *  partagée par toutes les instances de l'objet. */
+    /** Culling hierarchy, per-node bounds, group links and local box: the DAG's shape, shared
+     *  by every instance of the object. */
     shapeOf(primitive: Primitive, template: Template): Shape {
       if (template.shape) return template.shape;
       if (!primitiveUsesClusterErrors(primitive))

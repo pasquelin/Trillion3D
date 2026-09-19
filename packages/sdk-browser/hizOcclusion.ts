@@ -3,17 +3,17 @@ import { HIZ_BOUNDS_VALUES } from './hizCorners.ts';
 import { HIZ_KERNEL_TEXELS } from './hizCounts.ts';
 import type { HizBounds, HizPyramid } from './hizTypes.ts';
 
-// Le noyau de test est une puissance de deux : `premierNiveau` en dépend pour borner la recherche.
+// The test kernel is a power of two: `premierNiveau` depends on that to bound the search.
 const KERNEL_LOG2 = Math.log2(HIZ_KERNEL_TEXELS);
 if (!Number.isInteger(KERNEL_LOG2)) throw new Error('HIZ_KERNEL_TEXELS');
 
 /**
- * Premier niveau de mip qui peut encore tenir dans le noyau, pour un côté de `span` texels.
+ * First mip level that can still fit in the kernel, for a side of `span` texels.
  *
- * `floor(x1/2^L) - floor(x0/2^L)` vaut `floor(span/2^L)` ou un de plus, donc un niveau où
- * `floor(span/2^L) >= noyau` ne peut pas répondre : la recherche saute ces niveaux au lieu de les
- * essayer un par un. Le niveau rendu est une borne inférieure exacte, jamais le niveau retenu :
- * la boucle évalue ensuite le même prédicat qu'avant, sur les mêmes entiers.
+ * `floor(x1/2^L) - floor(x0/2^L)` equals `floor(span/2^L)` or one more, so a level where
+ * `floor(span/2^L) >= kernel` cannot answer: the search skips those levels instead of trying
+ * them one by one. The returned level is an exact lower bound, never the kept level: the loop
+ * then evaluates the same predicate as before, on the same integers.
  */
 function premierNiveau(span: number) {
   if (span < HIZ_KERNEL_TEXELS) return 0;
@@ -115,7 +115,7 @@ function hizTestRectFlat(
 
 const rejectScratch = new Int32Array(HIZ_TEST_VALUES);
 
-/** `hizRejects` sur la disposition plate qu'écrit `projectBoxesFlat`. */
+/** `hizRejects` on the flat layout `projectBoxesFlat` writes. */
 export function hizRejectsFlat(pyramid: HizPyramid, bounds: Float64Array, base: number, bias = 0) {
   if (
     !hizTestRectFlat(

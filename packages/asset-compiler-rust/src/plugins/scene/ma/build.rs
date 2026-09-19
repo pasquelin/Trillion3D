@@ -1,46 +1,46 @@
-//! Le parcours du document : la hiérarchie des `transform`, leurs formes, et la racine de la scène.
+//! Walk of the document: the `transform` hierarchy, their shapes, and the scene root.
 //!
-//! Un `transform` de Maya porte la pose ; c'est sa forme fille, le nœud `mesh`, qui porte la
-//! géométrie. Un nœud glTF réunit les deux quand il n'y en a qu'une, et prend un enfant par forme
-//! supplémentaire — dont celles qu'un `parent -add` lui accroche, qui citent alors le même maillage
-//! glTF que leur transform d'origine : ce sont des instances, et la géométrie n'est écrite qu'une
-//! fois. Un transform invisible n'est pas parcouru : ce que le fichier cache ne s'affiche pas.
+//! A Maya `transform` carries the pose; it is its child shape, the `mesh` node, that carries
+//! the geometry. A glTF node unites the two when there is only one, and takes one child per
+//! extra shape — including those a `parent -add` hangs on it, which then cite the same glTF
+//! mesh as their original transform: they are instances, and the geometry is written only
+//! once. An invisible transform is not walked: what the file hides is not displayed.
 use super::*;
 
 mod shape;
 
-/// Profondeur maximale d'une hiérarchie : un fichier dont les pères bouclent ne fait pas déborder
-/// la pile, il est coupé et compté.
+/// Maximum depth of a hierarchy: a file whose parents loop does not overflow the stack, it
+/// is cut and counted.
 const MAX_DEPTH: usize = 256;
 
-/// Ce qu'un parcours a sous la main : le document lu, son graphe de nuançage, et la scène en cours.
+/// What a walk has at hand: the document read, its shading graph, and the scene in progress.
 pub(super) struct World<'a> {
     pub(super) document: &'a Document,
     pub(super) graph: &'a Graph,
     pub(super) scene: &'a mut Scene,
-    /// Le dossier contre lequel les URI relatives d'images se résolvent, `scene::image_root`.
+    /// Directory against which relative image URIs resolve, `scene::image_root`.
     pub(super) images: &'a Path,
-    /// Les enfants de chaque nœud du document, par rang de père.
+    /// Children of each document node, by parent rank.
     kids: Vec<Vec<usize>>,
-    /// Les formes qu'un `parent -add` accroche à chaque nœud, par rang d'hôte.
+    /// Shapes a `parent -add` hangs on each node, by host rank.
     added: Vec<Vec<usize>>,
-    /// Les matériaux déjà construits, par rang de nœud nuanceur.
+    /// Materials already built, by shader-node rank.
     pub(super) materials: HashMap<usize, Option<usize>>,
-    /// Les maillages déjà construits, par rang de nœud `mesh`.
+    /// Meshes already built, by `mesh` node rank.
     pub(super) meshes: HashMap<usize, Option<usize>>,
-    /// Les nœuds glTF qui n'héritent pas de leur père : la racine de la scène les reprend.
+    /// glTF nodes that do not inherit from their parent: the scene root takes them back.
     detached: Vec<usize>,
     pub(super) cancelled: &'a AtomicBool,
 }
 
 impl World<'_> {
-    /// Compte un refus nommé une fois.
+    /// Counts a named refusal once.
     pub(super) fn refuse(&mut self, reason: &str) {
         self.scene.report.add(reason);
     }
 }
 
-/// Remplit les tables de la scène depuis le document.
+/// Fills the scene tables from the document.
 pub(super) fn scene(
     document: &Document,
     graph: &Graph,
@@ -85,7 +85,7 @@ pub(super) fn scene(
     }));
 }
 
-/// Le nœud glTF d'un `transform` et de sa descendance, ou rien quand il ne porte aucune surface.
+/// glTF node of a `transform` and its descendants, or nothing when it carries no surface.
 fn visit(world: &mut World<'_>, node: usize, depth: usize) -> Option<usize> {
     if world.cancelled.load(Ordering::Relaxed) {
         return None;
@@ -106,7 +106,7 @@ fn visit(world: &mut World<'_>, node: usize, depth: usize) -> Option<usize> {
     let name = entry.name.clone();
     let matrix = xform::local(entry, document.degrees_per_unit, &mut world.scene.report);
     let meshes = shape::shapes(world, node);
-    // Les enfants sont posés avant leur père : un nœud glTF cite ses enfants par leur rang.
+    // Children are laid down before their parent: a glTF node cites its children by their rank.
     let mut children: Vec<usize> = meshes
         .iter()
         .skip(1)
@@ -131,8 +131,8 @@ fn visit(world: &mut World<'_>, node: usize, depth: usize) -> Option<usize> {
         out["children"] = json!(children);
     }
     let rank = world.scene.node(out);
-    // Un nœud qui n'hérite pas de son père se pose dans le repère de la scène : la racine le
-    // reprend, elle qui ne porte que l'unité du fichier, et son père ne le cite pas.
+    // A node that does not inherit from its parent is posed in the scene's frame: the root
+    // takes it back, it which only carries the file's unit, and its parent does not cite it.
     if !xform::inherits(entry) {
         world.detached.push(rank);
         return None;

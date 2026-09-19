@@ -11,9 +11,9 @@ export interface ManifestBinaryDescriptor {
   pageUrl: string;
   geometryUrl: string;
   bundleUrl: string;
-  /** Entrées de la section des niveaux progressifs; zéro quand la source n'a aucune image décodable. */
+  /** Entries of the progressive-level section; zero when the source has no decodable image. */
   texturePreviews: number;
-  /** Octets de la colonne des pixels : les entrées n'ayant pas de pas fixe, leur total s'écrit ici. */
+  /** Bytes of the pixel column: entries have no fixed stride, so their total is written here. */
   texturePreviewBytes: number;
 }
 interface SlimCulling {

@@ -2,54 +2,53 @@ import { DEPTH_CLEAR, DEPTH_NEAR } from './depthConvention.ts';
 import { wgslFloat } from './gpuPartitionMargins.ts';
 
 /**
- * Ce qu'un pixel du tampon de visibilité reçoit, et le départage de deux triangles qui tombent
- * exactement à la même profondeur.
+ * What a visibility-buffer pixel receives, and the resolve of two triangles that fall at exactly
+ * the same depth.
  *
- * **Le départage.** WebGPU n'a pas d'atomique soixante-quatre bits : on ne peut pas écrire d'un seul
- * coup « cette profondeur ET cet identifiant ». Deux passes le font sans verrou et sans dépendre de
- * l'ordre des fils :
+ * **The resolve.** WebGPU has no sixty-four-bit atomic: one cannot write in one go "this depth
+ * AND this identifier". Two passes do it without a lock and without depending on thread order:
  *
- * 1. toutes les classes posent leur profondeur par `atomicMax` sur les bits IEEE-754 — pour une
- *    profondeur positive ces bits croissent avec la valeur, et la profondeur du moteur est
- *    INVERSÉE (1 au plan proche, 0 à l'infini), donc le maximum entier est le plus proche ;
- * 2. toutes les classes relisent la profondeur devenue définitive et, pour le seul triangle dont la
- *    profondeur est EXACTEMENT celle-là, posent leur identifiant par `atomicMin`.
+ * 1. every class writes its depth by `atomicMax` on the IEEE-754 bits — for a positive depth
+ *    those bits grow with the value, and engine depth is REVERSE-Z (1 at the near plane, 0 at
+ *    infinity), so the integer maximum is the nearest;
+ * 2. every class rereads the now-final depth and, for the only triangle whose depth is EXACTLY
+ *    that, writes its identifier by `atomicMin`.
  *
- * `max` et `min` sont commutatifs et associatifs : le résultat ne dépend ni de l'ordre des fils, ni
- * de l'ordre des lancements, ni du découpage en classes. Et comme l'identifiant vaut
- * `(ligne+1)<<8 | triangle`, le minimum est le plus petit rang de ligne, puis le plus petit
- * triangle : à profondeur égale, le gagnant est toujours le même, d'une image à l'autre et d'une
- * machine à l'autre. C'est le seul endroit où l'image peut différer d'un raster matériel, qui
- * départage, lui, par l'ordre de soumission.
+ * `max` and `min` are commutative and associative: the result depends neither on thread order,
+ * nor on dispatch order, nor on the class split. And since the identifier is
+ * `(row+1)<<8 | triangle`, the minimum is the smallest row rank, then the smallest triangle:
+ * at equal depth, the winner is always the same, from frame to frame and from machine to
+ * machine. This is the only place the frame can differ from a hardware raster, which resolves
+ * by submission order.
  *
- * La couche coplanaire du cluster est un décalage entier sur la clé de profondeur, appliqué avant
- * l'empaquetage : en profondeur inversée, AJOUTER des unités rapproche exactement d'autant de
- * derniers bits, plafonné aux bits du plan proche. Zéro pour la couche 0.
+ * The cluster's coplanar layer is an integer offset on the depth key, applied before packing:
+ * in reverse-Z, ADDING units brings closer by exactly that many last bits, capped at the near-
+ * plane bits. Zero for layer 0.
  *
- * **La couverture est étanche.** Un pixel est couvert quand ses trois fonctions d'arête ont le signe
- * de l'aire — jamais par des poids dérivés, dont la division et le \`1-w0-w1\` arrondissent assez
- * pour laisser un pixel d'arête partagée à personne, ou en accepter loin d'un éclat de coupe.
- * Chaque arête est évaluée dans l'ordre CANONIQUE de ses deux sommets, donc avec les mêmes opérandes
- * dans le même ordre pour les deux triangles qui la partagent : ils lisent la même valeur au signe
- * près, et un pixel exactement sur l'arête revient à celui des deux dont l'intérieur est du côté
- * positif du sens canonique — une règle haut-gauche, un seul propriétaire. Les mêmes trois valeurs
- * font les poids, normalisés sur leur somme : un poids qui ne somme pas à un décale toute la
- * profondeur d'une surface plate, assez pour perdre le départage d'une couche coplanaire.
+ * **Coverage is watertight.** A pixel is covered when its three edge functions have the sign of
+ * the area — never by derived weights, whose division and \`1-w0-w1\` round enough to leave a
+ * shared-edge pixel to nobody, or to accept one far from a clip sliver. Each edge is evaluated
+ * in the CANONICAL order of its two vertices, hence with the same operands in the same order
+ * for the two triangles that share it: they read the same value up to sign, and a pixel exactly
+ * on the edge goes to the one of the two whose interior is on the positive side of the
+ * canonical sense — a top-left rule, one owner. The same three values make the weights,
+ * normalised on their sum: a weight that does not sum to one shifts the whole depth of a flat
+ * surface, enough to lose a coplanar-layer resolve.
  */
 export const RASTER_PIXEL_WGSL = `
-/** L'ordre canonique de deux sommets d'écran : le plus haut, puis le plus à gauche, en premier. */
+/** Canonical order of two screen vertices: highest first, then leftmost. */
 fn canonBefore(a:vec2f,b:vec2f)->bool{return a.y<b.y||(a.y==b.y&&a.x<b.x);}
-/** \`edge(a,b,p)\` calculé dans l'ordre canonique : les deux triangles d'une arête lisent les mêmes bits. */
+/** \`edge(a,b,p)\` computed in canonical order: both triangles of an edge read the same bits. */
 fn canonEdge(a:vec2f,b:vec2f,p:vec2f,before:bool)->f32{
  if(before){return edge(a,b,p);}
  return -edge(b,a,p);
 }
-/** Vrai quand la valeur \`e\` de l'arête \`a→b\` laisse le pixel du côté intérieur d'un triangle d'aire \`area\`. */
+/** True when edge \`a→b\` value \`e\` leaves the pixel on the interior side of a triangle of area \`area\`. */
 fn edgeCovers(e:f32,before:bool,inside:bool)->bool{
  if(e==0.0){return before==inside;}
  return (e>0.0)==inside;
 }
-/** Les poids barycentriques du pixel dans le triangle \`(a,b,c)\` s'il le couvre ; \`w<0\` : non. */
+/** Barycentric weights of the pixel in triangle \`(a,b,c)\` if it covers it; \`w<0\`: no. */
 fn coverTri(a:vec2f,b:vec2f,c:vec2f,area:f32,p:vec2f)->vec4f{
  let bc=canonBefore(b,c);let ca=canonBefore(c,a);let ab=canonBefore(a,b);
  let e0=canonEdge(b,c,p,bc);let e1=canonEdge(c,a,p,ca);let e2=canonEdge(a,b,p,ab);
@@ -57,7 +56,7 @@ fn coverTri(a:vec2f,b:vec2f,c:vec2f,area:f32,p:vec2f)->vec4f{
  if(area==0.0||!edgeCovers(e0,bc,inside)||!edgeCovers(e1,ca,inside)||!edgeCovers(e2,ab,inside)){return vec4f(0.0,0.0,0.0,-1.0);}
  return vec4f(vec3f(e0,e1,e2)/(e0+e1+e2),1.0);
 }
-/** Les poids du pixel dans le sous-triangle qui le couvre, et lequel ; \`w<0\` : aucun. */
+/** Weights of the pixel in the sub-triangle that covers it, and which one; \`w<0\`: none. */
 fn coverAt(t:Tri,sample:vec2f)->vec4f{
  let first=coverTri(t.a,t.b,t.c,t.area0,sample);
  if(first.w>=0.0){return vec4f(first.xyz,0.0);}
@@ -68,10 +67,10 @@ fn coverAt(t:Tri,sample:vec2f)->vec4f{
  return vec4f(0.0,0.0,0.0,-1.0);
 }
 fn rasterPixel(t:Tri,pixel:vec2i,writeId:bool){
- // La seule borne d'image de tout le raster : les pavés de fils dépassent la boîte du triangle dès
- // qu'elle n'en fait pas un compte rond, et la boîte est déjà serrée au dernier pixel de l'image.
- // Sans cette borne, un triangle au bord droit ou bas replie ses écritures sur la ligne suivante,
- // voire hors du plan des identifiants, où elles écrasent l'en-tête des listes de triangles.
+ // The only frame bound of the whole raster: thread tiles overshoot the triangle box as soon as
+ // it is not a round count, and the box is already clamped to the last pixel of the frame.
+ // Without this bound, a triangle at the right or bottom edge wraps its writes onto the next
+ // row, even out of the identifier plane, where they overwrite the triangle-list header.
  if(pixel.x>i32(t.hi.x)||pixel.y>i32(t.hi.y)){return;}
  let sample=vec2f(pixel)+vec2f(0.5);
  let cov=coverAt(t,sample);
@@ -80,7 +79,7 @@ fn rasterPixel(t:Tri,pixel:vec2i,writeId:bool){
  if(cov.w>0.5){qb=t.cc;qc=t.cd;nb=t.uc;nc=t.ud;}
  let wa=cov.x;let wb=cov.y;let wc=cov.z;
  let depth=wa*t.ca.z/t.ca.w+wb*qb.z/qb.w+wc*qc.z/qc.w;
- // Le plan lointain est infini : la profondeur descend vers le lointain sans jamais l'atteindre.
+ // The far plane is infinite: depth falls toward far without ever reaching it.
  if(depth<=${wgslFloat(DEPTH_CLEAR)}||depth>${wgslFloat(DEPTH_NEAR)}){return;}
  let page=pages[t.row];
  if((page.flags&128u)!=0u){

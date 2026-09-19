@@ -7,10 +7,10 @@ const K = wgslFloat(ERR_K),
   GROW = wgslFloat(DEPTH_GROW);
 
 /**
- * L'uniforme que TOUS les noyaux de projection partagent, à l'octet près : la partition l'écrit une
- * fois par image (`gpuPartitionUniform.ts`) et le test d'occultation des transparents lit le MÊME
- * tampon. Deux boîtes de la même image entrent donc dans la même arithmétique, avec la même ancre,
- * les mêmes matrices et la même table de mips — aucune règle conservatrice ne peut diverger.
+ * Uniform that ALL projection kernels share, byte for byte: the partition writes it once per frame
+ * (`gpuPartitionUniform.ts`) and the transparent occlusion test reads the SAME buffer. Two boxes
+ * of the same frame therefore enter the same arithmetic, with the same anchor, the same matrices
+ * and the same mip table — no conservative rule can diverge.
  */
 export const PARTITION_UNI_WGSL = `struct Uni{
  view:mat4x4f,
@@ -25,36 +25,36 @@ export const PARTITION_UNI_WGSL = `struct Uni{
 `;
 
 /**
- * La projection d'une boîte monde en rectangle d'écran et en borne de profondeur, faite par le GPU
- * en simple précision, **conservatrice par construction**.
+ * Projection of a world box into a screen rectangle and a depth bound, done by the GPU in single
+ * precision, **conservative by construction**.
  *
- * Le processeur projetait les huit coins monde en double précision. Ici la même arithmétique tourne
- * en `f32`, donc chaque produit scalaire porte une erreur d'arrondi. Elle n'est pas supposée : elle
- * est BORNÉE, terme par terme, par la somme des valeurs absolues des quatre produits qui composent
- * ce produit scalaire, plus la part des arrondis d'entrée (`gpuPartitionMargins.ts` porte les deux
- * démonstrations). Les coins entrent RELATIVEMENT à un point d'ancrage — la pose de la caméra —,
- * chacun porté par deux simples précisions, et les matrices reçues sont déjà composées avec cette
- * translation : sans quoi la borne, qui ne sait pas que les termes d'un modèle urbain se compensent,
- * rendrait des rectangles de centaines de texels et le test d'occultation ne trancherait plus rien.
+ * The CPU projected the eight world corners in double precision. Here the same arithmetic runs in
+ * `f32`, so each dot product carries rounding error. It is not assumed: it is BOUNDED, term by
+ * term, by the sum of absolute values of the four products that make that dot product, plus the
+ * share of input rounding (`gpuPartitionMargins.ts` carries both proofs). Corners enter RELATIVE
+ * to an anchor — the camera pose —, each carried by two single-precision values, and the received
+ * matrices are already composed with that translation: otherwise the bound, which does not know
+ * that terms of an urban model cancel, would yield rectangles of hundreds of texels and the
+ * occlusion test would decide nothing.
  *
- * De cette borne découlent les trois règles :
- *  1. chaque coin élargit son point normalisé de son propre écart avant d'entrer dans le minimum et
- *     le maximum, puis le passage à l'écran retire ou ajoute la marge d'écran avant `floor` et
- *     `ceil` : le rectangle rendu CONTIENT donc celui que la double précision calculait ;
- *  2. une boîte qui touche ou traverse le plan proche — ou dont un dénominateur n'est pas sûrement
- *     positif — porte le drapeau de coupe, et une boîte qui le porte n'est jamais rejetée ;
- *  3. la profondeur la plus proche MONTE de l'écart de chaque coin, puis de deux ulps entiers avant
- *     le biais de couche : la profondeur du moteur étant inversée, c'est la MAJORER qui rend le
- *     rejet sûr, exactement comme `hizNearestBound` le garantit en double précision.
+ * From that bound follow the three rules:
+ *  1. each corner widens its normalised point by its own slack before entering min and max, then
+ *     the screen mapping subtracts or adds the screen margin before `floor` and `ceil`: the
+ *     returned rectangle therefore CONTAINS the one double precision computed;
+ *  2. a box that touches or crosses the near plane — or whose denominator is not surely positive —
+ *     carries the clip flag, and a box that carries it is never rejected;
+ *  3. nearest depth RISES by each corner's slack, then by two integer ulps before the layer bias:
+ *     engine depth being reversed, it is RAISING it that makes rejection safe, exactly as
+ *     `hizNearestBound` guarantees in double precision.
  */
 export const BOX_PROJECT_WGSL = `
-/** Ce qu'une boîte projetée rend : son rectangle non découpé, sa borne de profondeur, la profondeur
- *  de VUE de son coin le plus proche, et le drapeau de coupe qui interdit tout rejet. */
+/** What a projected box returns: its unclipped rectangle, its depth bound, the VIEW depth of its
+ *  nearest corner, and the clip flag that forbids any rejection. */
 struct BoxProj{rect:vec4i,nearest:f32,lowView:f32,clips:u32,}
 /**
- * Un produit scalaire de quatre termes sur un point ancré, et de quoi borner son erreur :
- * la valeur, la somme des valeurs absolues des termes, et la part des arrondis d'entrée —
- * \`Σ|m_i| · 3u|d_i|\`, où \`d\` est l'écart du coin à l'ancre.
+ * A four-term dot product on an anchored point, and enough to bound its error: the value, the
+ * sum of absolute values of the terms, and the share of input rounding —
+ * \`Σ|m_i| · 3u|d_i|\`, where \`d\` is the corner's offset from the anchor.
  */
 fn dot4(a0:f32,a1:f32,a2:f32,a3:f32,d:vec3f,mag:vec3f)->vec3f{
  let p=vec3f(a0*d.x,a1*d.y,a2*d.z);
@@ -63,44 +63,44 @@ fn dot4(a0:f32,a1:f32,a2:f32,a3:f32,d:vec3f,mag:vec3f)->vec3f{
   abs(p.x)+abs(p.y)+abs(p.z)+abs(a3),
   abs(a0)*mag.x+abs(a1)*mag.y+abs(a2)*mag.z);
 }
-/** L'écart majorant d'un produit scalaire : arrondis de calcul et arrondis d'entrée réunis. */
+/** Upper slack of a dot product: compute rounding and input rounding together. */
 fn slackOf(term:vec3f)->f32{return ${K}*term.y+${IN}*term.z;}
-/** Écart majorant d'un quotient dont le numérateur et le dénominateur portent chacun le leur. */
+/** Upper slack of a quotient whose numerator and denominator each carry their own. */
 fn quotientSlack(value:f32,num:vec3f,den:vec3f)->f32{
  return (slackOf(num)+abs(value)*slackOf(den))/den.x+${K}*abs(value);
 }
-/** Le biais de couche coplanaire sur les bits d'une profondeur : miroir de \`biasedDepthBits\`.
- *  Profondeur inversée : rapprocher de l'œil, c'est AJOUTER des unités, plafonnées aux bits de 1. */
+/** Coplanar layer bias on the bits of a depth: mirror of \`biasedDepthBits\`.
+ *  Reversed depth: moving closer to the eye is ADDING units, capped at the bits of 1. */
 fn biasedDepth(value:f32,layer:u32)->f32{
  if(layer==0u){return value;}
  let units=min(layer,15u)*16u;
  return bitcast<f32>(min(0x3f800000u,bitcast<u32>(value)+units));
 }
-/** Image ordonnable d'un flottant : la comparaison non signée des clés rend l'ordre des flottants. */
+/** Sortable image of a float: unsigned comparison of the keys yields float order. */
 fn depthKey(value:f32)->u32{
  let bits=bitcast<u32>(value);
  return select(bits^0x80000000u,~bits,(bits&0x80000000u)!=0u);
 }
 fn projectBox(slot:u32,layer:u32)->BoxProj{
  var lowX=1.0e30;var highX=-1.0e30;var lowY=1.0e30;var highY=-1.0e30;
- // Profondeur inversee : le coin le plus PROCHE est celui dont la profondeur est la plus GRANDE.
+ // Reversed depth: the NEAREST corner is the one whose depth is the LARGEST.
  var nearestZ=-1.0e30;
- // La profondeur de VUE du coin le plus proche : la clé de partage, jamais celle du test Hi-Z.
+ // VIEW depth of the nearest corner: the split key, never the Hi-Z test's.
  var lowView=1.0e30;
  var clips=false;
  let m=uni.viewProj;let v=uni.view;
  for(var k=0u;k<8u;k++){
   let at=slot*${CORNER_VALUES}u+k*6u;
-  // Le coin en deux mots, rapporté à l'ancre elle aussi en deux mots : la magnitude monde ne
-  // survit à aucune de ces soustractions, et la borne d'entrée ne dépend plus que de l'écart.
+  // Corner in two words, relative to the anchor also in two words: world magnitude survives
+  // none of these subtractions, and the input bound now depends only on the offset.
   let high=vec3f(corners[at],corners[at+1u],corners[at+2u]);
   let low=vec3f(corners[at+3u],corners[at+4u],corners[at+5u]);
   let d=(high-uni.anchorHigh)+(low-uni.anchorLow);
   let mag=abs(d);
   let vz=dot4(v[0][2],v[1][2],v[2][2],v[3][2],d,mag);
   let vd=dot4(v[0][3],v[1][3],v[2][3],v[3][3],d,mag);
-  // Un dénominateur de vue qui n'est pas sûrement positif rend la profondeur de vue indécidable :
-  // la boîte part en coupe, où rien ne la rejette.
+  // A view denominator that is not surely positive makes view depth undecidable: the box
+  // goes to clip, where nothing rejects it.
   if(!(vd.x>slackOf(vd))){clips=true;break;}
   let depth=-(vz.x/vd.x);
   if(depth-quotientSlack(depth,vz,vd)<=uni.near){clips=true;break;}

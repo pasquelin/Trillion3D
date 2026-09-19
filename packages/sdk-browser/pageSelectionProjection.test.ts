@@ -1,5 +1,5 @@
-// Lot 4c : les chemins à seuil nul décident sans projeter, et la distance partagée ne change pas
-// un bit. Oracle : le chemin général d'avant le lot, recopié dans `bench/oracles/coupe-budget.mjs`.
+// Lot 4c: the zero-threshold paths decide without projecting, and the shared distance does not
+// change a bit. Oracle: the general path from before the lot, copied into `bench/oracles/coupe-budget.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -29,12 +29,12 @@ const view = camera.matrixWorldInverse.elements;
 const STRETCH = 1.25,
   FOCAL = 640,
   NEAR = camera.near;
-/** Les sphères que la préparation accepte, plus celles qu'elle rejette : le domaine et ses bords. */
+/** Spheres prepare accepts, plus those it rejects: the domain and its edges. */
 const SPHERES: Array<number[] | null | undefined> = [
   [0, 0, 0, 1],
   [40, -3, 120, 0],
   [-1e5, 0, 1e5, 250],
-  // Une sphère centrée derrière l'œil, et une qui touche le plan proche.
+  // A sphere centred behind the eye, and one that touches the near plane.
   [0, 0, 20, 2],
   [3, 2, 9, 0.5],
   null,
@@ -42,7 +42,7 @@ const SPHERES: Array<number[] | null | undefined> = [
 ];
 const ERRORS = [0, -0, 1e-6, 0.5, 4, 1e9, Infinity, undefined, null];
 
-/** Toutes les fiches du produit, sans filtre : le test ne juge que l'accord des deux chemins. */
+/** Every record of the product, unfiltered: the test only judges agreement of the two paths. */
 function* records(): Generator<ClusterCut> {
   for (const lodError of ERRORS)
     for (const sphere of SPHERES)
@@ -56,7 +56,7 @@ function* records(): Generator<ClusterCut> {
           };
 }
 
-/** Le verdict d'un chemin : sa valeur, ou le fait qu'il a refusé la donnée. */
+/** Verdict of a path: its value, or the fact that it refused the data. */
 function verdict(run: () => boolean) {
   try {
     return { value: run(), threw: false };
@@ -65,7 +65,7 @@ function verdict(run: () => boolean) {
   }
 }
 
-/** Une fiche que la préparation laisserait passer : erreur finie positive avec sa sphère valide. */
+/** A record prepare would let through: a finite positive error with its valid sphere. */
 function prepared(rec: ClusterCut) {
   const page = { lodError: rec.lodError, sphere: rec.sphere } as unknown as Parameters<
     typeof pageCarriesClusterError
@@ -78,7 +78,7 @@ function prepared(rec: ClusterCut) {
   return parent === 0 || clusterSphereValid(rec.parentSphere ?? rec.sphere);
 }
 
-test('le chemin général de la coupe est celui d’avant le lot, aux mêmes bits', () => {
+test('the general cut path is the pre-lot one, at the same bits', () => {
   for (const rec of records())
     for (const limit of [0, 1, 7.5]) {
       const optimise = verdict(() => cutSelects(rec, view, STRETCH, FOCAL, NEAR, limit));
@@ -87,7 +87,7 @@ test('le chemin général de la coupe est celui d’avant le lot, aux mêmes bit
     }
 });
 
-test('à seuil nul, la coupe sans projection décide comme celle qui projette', () => {
+test('at a zero threshold, the cut without projection decides like the one that projects', () => {
   let vus = 0;
   for (const rec of records()) {
     if (!prepared(rec)) continue;
@@ -96,11 +96,11 @@ test('à seuil nul, la coupe sans projection décide comme celle qui projette', 
     const avec = verdict(() => cutSelects(rec, view, STRETCH, FOCAL, NEAR, 0));
     assert.deepEqual(sansProjection, avec, JSON.stringify(rec));
   }
-  // La garde du test lui-même : le domaine préparé n'est pas vide.
-  assert.ok(vus > 100, `seulement ${vus} fiches préparées`);
+  // Guard of the test itself: the prepared domain is not empty.
+  assert.ok(vus > 100, `only ${vus} prepared records`);
 });
 
-test('une erreur propre mal formée est refusée des deux côtés quand la sphère est là', () => {
+test('a malformed own error is refused on both sides when the sphere is there', () => {
   for (const lodError of [-1, Number.NaN]) {
     const rec: ClusterCut = { lodError, sphere: [0, 0, 20, 1], parentError: 1 };
     assert.throws(() => cutSelectsAtZero(rec));
@@ -108,7 +108,7 @@ test('une erreur propre mal formée est refusée des deux côtés quand la sphè
   }
 });
 
-test('les grandeurs partagées rendent les projections du chemin général, aux mêmes bits', () => {
+test("the shared quantities yield the general path's projections, at the same bits", () => {
   for (const sphere of SPHERES) {
     if (!sphere) continue;
     const lateral = viewLateral(sphere, 0, view),
@@ -146,20 +146,20 @@ test('les grandeurs partagées rendent les projections du chemin général, aux 
             FOCAL,
           ),
         ),
-        `plancher ${error} ${sphere}`,
+        `floor ${error} ${sphere}`,
       );
       assert.ok(
         Object.is(
           projectedClusterError(error as number, sphere, 0, view, STRETCH, FOCAL, NEAR),
           referenceProjectedClusterError(error, sphere, 0, view, STRETCH, FOCAL, NEAR),
         ) || !Number.isFinite(error as number),
-        `erreur projetée ${error} ${sphere}`,
+        `projected error ${error} ${sphere}`,
       );
     }
   }
 });
 
-test('composante par composante, l axe et la profondeur valent ceux tirés de la sphère', () => {
+test('component by component, the axis and the depth equal those taken from the sphere', () => {
   for (const sphere of SPHERES) {
     if (!sphere) continue;
     assert.equal(
@@ -170,7 +170,7 @@ test('composante par composante, l axe et la profondeur valent ceux tirés de la
   }
 });
 
-test('l axe et la profondeur se propagent en NaN et valent zéro à l’origine du repère', () => {
+test('axis and depth propagate as NaN and equal zero at the origin of the frame', () => {
   assert.ok(Number.isNaN(viewLateralOf(NaN, 0, 0, view)));
   assert.ok(Number.isNaN(viewDepthOf(0, 0, NaN, view)));
   const originView = new THREE.Matrix4().identity().elements;

@@ -1,48 +1,48 @@
-# Fixture de correction — pilote `unitypackage`, conteneur
+# Correction fixture — `unitypackage` driver, container
 
-Un conteneur ne doit rien changer au projet qu'il emballe. La fixture est donc double : le même
-projet Unity **dans** son `.unitypackage` et **à plat** hors de lui. Le doré
-(`../../src/tests/unitypackage_golden.rs`) compile les deux par le harnais commun, compare la
-seconde à la première, puis compare la première à `expected.json`.
+A container must change nothing about the project it wraps. The fixture is therefore double: the same
+Unity project **inside** its `.unitypackage` and **flat** outside it. The golden
+(`../../src/tests/unitypackage_golden.rs`) compiles both through the shared harness, compares the
+second against the first, then compares the first against `expected.json`.
 
-| fichier                          | ce qu'il fixe                                                                                        |
+| file                             | what it pins                                                                                         |
 | -------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `test.unitypackage`              | le paquet : 11 dossiers de GUID, chacun avec `pathname`, `asset` et `asset.meta` — scène, prefabs, matériaux, FBX, texture TGA |
-| `hors-paquet/Assets/`            | le contenu de `test.unitypackage`, reconstruit une fois pour toutes : le même projet sans conteneur   |
-| `sortie-de-dossier.unitypackage` | un `pathname` `../escape/Map.unity` : la sortie du dossier d'extraction, refusée `ARCHIVE_PATH_ESCAPE` |
-| `tronque.unitypackage`           | 31 des 26 432 octets de `test.unitypackage` : le flux gzip s'arrête, refus `ARCHIVE_UNREADABLE`       |
-| `vide.unitypackage`              | les 63 octets d'un tar.gz sans entrée : refus `ARCHIVE_EMPTY`                                         |
+| `test.unitypackage`              | the package: 11 GUID folders, each with `pathname`, `asset` and `asset.meta` — scene, prefabs, materials, FBX, TGA texture |
+| `hors-paquet/Assets/`            | the contents of `test.unitypackage`, rebuilt once and for all: the same project without a container  |
+| `sortie-de-dossier.unitypackage` | a `pathname` `../escape/Map.unity`: escape from the extraction folder, refused `ARCHIVE_PATH_ESCAPE` |
+| `tronque.unitypackage`           | 31 of the 26,432 bytes of `test.unitypackage`: the gzip stream stops, rejection `ARCHIVE_UNREADABLE` |
+| `vide.unitypackage`              | the 63 bytes of a tar.gz with no entry: rejection `ARCHIVE_EMPTY`                                    |
 
-Ce que chaque choix met sous surveillance :
+What each choice puts under watch:
 
-- **l'arbre reconstruit** : le paquet ne porte aucun chemin de projet dans ses entrées, seulement un
-  dossier par GUID ; `Assets/Materials/Standard.mat` n'existe que parce que le pilote a lu le
-  `pathname` du GUID et y a recopié `asset`, et `Assets/Map.unity.meta` que parce qu'il y a recopié
-  `asset.meta` ;
-- **les `.meta` de tout le projet** : l'attendu fixe `metaFiles: 11`, donc les onze `.meta` sont
-  reconstruits au bon endroit — un seul manquant et le pilote Unity ne résoudrait plus son GUID ;
-- **un routage qui traverse** : l'extraction ne porte qu'un dossier racine, `Assets/`, que le socle
-  traverse avant de router ; le routeur y voit un `.unity` au premier niveau et les `.fbx` rangés
-  sous `Models/`, donc un seul pilote revendique et la chaîne `unitypackage` → `unity` se referme ;
-- **l'empreinte de chaque fichier lu** : `files` porte le nom, la taille et le sha256 de chaque
-  fichier de données ; un octet déplacé par l'extraction s'y verrait ;
-- **les trois paquets piégés** : chacun est refusé par son propre code, et rien n'est extrait.
+- **the rebuilt tree**: the package carries no project path in its entries, only a
+  folder per GUID; `Assets/Materials/Standard.mat` exists only because the driver read the
+  GUID's `pathname` and copied `asset` there, and `Assets/Map.unity.meta` only because it copied
+  `asset.meta` there;
+- **the `.meta` of the whole project**: the expected pins `metaFiles: 11`, so the eleven `.meta` files are
+  rebuilt in the right place — one missing and the Unity driver would no longer resolve its GUID;
+- **a routing that traverses**: extraction carries only a root folder, `Assets/`, which the foundation
+  traverses before routing; the router sees a `.unity` at the first level and the `.fbx` files nested
+  under `Models/`, so a single driver claims and the `unitypackage` → `unity` chain closes;
+- **the fingerprint of each file read**: `files` carries the name, size and sha256 of each
+  data file; a byte moved by extraction would show there;
+- **the three trap packages**: each is refused by its own code, and nothing is extracted.
 
-## Provenance et licences
+## Provenance and licences
 
-- `test.unitypackage` et `hors-paquet/` : corpus WebGeometry
-  (`test/assets/unity/cc0-unitypackage`, généré par `test/assets/tools/unity_assets.py`),
-  **CC0-1.0**, voir [LICENSE.txt](LICENSE.txt). `test/assets/` n'est pas suivi par git : ces octets
-  sont recopiés ici pour que la dorée tienne sans lui. Le contenu du paquet garde la licence de son
-  auteur — ce pilote n'en accorde ni n'en retire aucune.
-- `tronque.unitypackage` : corpus WebGeometry (`test/assets/limites/truncated-unitypackage`),
-  **CC0-1.0**, même notice.
-- `hors-paquet/` est la reconstruction du paquet, **au script C# près** : `Assets/Editor/`
-  n'en porte que le `.meta`, pas le `.cs`. Ce pilote ne lit que des données et aucun script n'a sa
-  place dans une fixture ; le `.meta` reste pour que le projet à plat compte les mêmes onze `.meta`
-  que le projet reconstruit, donc pour que les deux compilations soient comparables.
-- `sortie-de-dossier.unitypackage` et `vide.unitypackage` : synthétiques, écrits pour ce test, sans
-  contenu d'aucun tiers. Ils se régénèrent par
+- `test.unitypackage` and `hors-paquet/`: WebGeometry corpus
+  (`test/assets/unity/cc0-unitypackage`, generated by `test/assets/tools/unity_assets.py`),
+  **CC0-1.0**, see [LICENSE.txt](LICENSE.txt). `test/assets/` is not tracked by git: these bytes
+  are copied here so the golden holds without it. The package contents keep their author's
+  licence — this driver grants none and withdraws none.
+- `tronque.unitypackage`: WebGeometry corpus (`test/assets/limites/truncated-unitypackage`),
+  **CC0-1.0**, same notice.
+- `hors-paquet/` is the reconstruction of the package, **C# script excepted**: `Assets/Editor/`
+  carries only the `.meta`, not the `.cs`. This driver reads data only and no script has a
+  place in a fixture; the `.meta` stays so the flat project counts the same eleven `.meta`
+  as the rebuilt project, and therefore so the two compilations are comparable.
+- `sortie-de-dossier.unitypackage` and `vide.unitypackage`: synthetic, written for this test, with
+  no third-party content. They are regenerated by
 
   ```sh
   python3 -c "import tarfile; tarfile.open('vide.unitypackage','w:gz').close()"
@@ -57,15 +57,15 @@ Ce que chaque choix met sous surveillance :
   "
   ```
 
-  Ils sont écrits par un outil extérieur, et non par les caisses que le pilote utilise pour lire :
-  un paquet piégé doit venir d'ailleurs que du lecteur qu'il met à l'épreuve.
+  They are written by an external tool, and not by the crates the driver uses to read:
+  a trap package must come from somewhere other than the reader it puts on trial.
 
 ## `expected.json`
 
-Le pilote retenu, la chaîne `unitypackage` → pilote interne publiée au rapport, les trois codes de
-refus, et la scène — version de format, fichiers lus avec leur empreinte, comptes du pilote Unity,
-version du sidecar binaire, sha256 de `clusters.bin`, comptes de primitives, de nœuds et de
-triangles. La clé de compilation n'y figure pas : le manifeste d'une scène convertie porte sa durée
-d'import, donc cette clé change d'un passage à l'autre sans que la scène bouge. C'est `files` qui
-tient lieu d'identité, et c'est sur lui que repose l'égalité des deux compilations. `case` et `rule`
-ne sont que de la prose, le test les retire avant de comparer.
+The selected driver, the `unitypackage` → inner driver chain published in the report, the three rejection
+codes, and the scene — format version, files read with their fingerprint, Unity driver counts,
+binary sidecar version, sha256 of `clusters.bin`, primitive, node and
+triangle counts. The compilation key does not appear in it: a converted scene's manifest carries its
+import duration, so that key changes from one run to the next without the scene moving. It is `files` that
+stands in for identity, and it is on it that equality of the two compilations rests. `case` and `rule`
+are prose only, the test strips them before comparing.

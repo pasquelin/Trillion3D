@@ -1,14 +1,14 @@
-// Lot « compteurs honnêtes du harnais de mesure » : le relevé de `measureView` gardait autrefois
-// seulement les mesures `number`/`boolean` du dernier `explorer.render()` — un compteur absent
-// (`null`) disparaissait du relevé, indistinguable pour un lecteur d'un compteur jamais posé à la
-// question. Il conserve désormais `null` explicitement, et continue de filtrer ce qui n'est ni un
-// nombre, ni un booléen, ni `null` (objets, tableaux, `undefined`).
+// "honest measurement harness counters" batch: `measureView` metrics previously kept
+// only `number`/`boolean` values from the last `explorer.render()` — an absent counter
+// (`null`) disappeared from the report, indistinguishable to a reader from a counter never asked
+// about. It now explicitly preserves `null`, and continues to filter out what is neither a
+// number, nor a boolean, nor `null` (objects, arrays, `undefined`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { measureView } from './pageEclairage.mjs';
 
-/** Le faux SDK que `measureView` importe par URL : un `createExplorer` qui rend la doublure posée
- *  sur `globalThis` avant l'appel, comme Playwright sérialise `measureView` dans la vraie page. */
+/** The fake SDK that `measureView` imports by URL: a `createExplorer` returning the mock set
+ *  on `globalThis` before the call, as Playwright serializes `measureView` into the real page. */
 const FAKE_SDK_URL =
   'data:text/javascript,' +
   encodeURIComponent(
@@ -20,7 +20,7 @@ function canvasMock() {
   return { width: 8, height: 8, addEventListener: () => {}, remove: () => {} };
 }
 
-/** Doublure d'explorateur : `render()` répond le relevé et enregistre la pose vue. */
+/** Explorer mock: `render()` returns the reading and records the pose it saw. */
 function explorerMock(metrics) {
   const seen = [];
   return {
@@ -68,40 +68,33 @@ async function mesurer(metrics) {
   }
 }
 
-test('measureView garde un `null` explicite dans le relevé, au lieu de l’effacer', async () => {
+test('measureView keeps an explicit `null` in metrics instead of erasing it', async () => {
   const { metrics } = await mesurer({ triangles: null, gpuSelectionFallback: null, drawCalls: 3 });
-  assert.equal(metrics.triangles, null, '`null` doit rester, pas disparaître du relevé');
+  assert.equal(metrics.triangles, null, '`null` must stay, not disappear from the reading');
   assert.equal(metrics.gpuSelectionFallback, null);
-  assert.equal(metrics.drawCalls, 3, 'un nombre mesuré passe toujours');
-  assert.ok(
-    'triangles' in metrics,
-    'la clé elle-même doit être présente, pas seulement `undefined`',
-  );
+  assert.equal(metrics.drawCalls, 3, 'a measured number always passes');
+  assert.ok('triangles' in metrics, 'the key itself must be present, not only `undefined`');
 });
 
-test('measureView garde un `false` explicite, distinct d’un compteur absent', async () => {
+test('measureView keeps an explicit `false`, distinct from an absent counter', async () => {
   const { metrics } = await mesurer({ frameHeld: false, imageTenue: true });
   assert.equal(metrics.frameHeld, false);
   assert.equal(metrics.imageTenue, true);
 });
 
-test('measureView garde une table de nombres — octets par étiquette — et filtre le reste', async () => {
+test('measureView keeps a table of numbers — bytes per label — and filters the rest', async () => {
   const { metrics } = await mesurer({
     triangles: 500,
-    gpuAllocatedByLabel: { 'WG display color': 4, 'sans étiquette': 8 },
+    gpuAllocatedByLabel: { 'WG display color': 4, unlabelled: 8 },
     scene: { nested: { deep: 1 } },
-    pending: [1, 'deux'],
+    pending: [1, 'two'],
     absent: undefined,
   });
   assert.equal(metrics.triangles, 500);
-  assert.deepEqual(metrics.gpuAllocatedByLabel, { 'WG display color': 4, 'sans étiquette': 8 });
-  assert.equal(
-    'scene' in metrics,
-    false,
-    'un objet dont une valeur n’est pas un nombre ne passe pas',
-  );
-  assert.equal('pending' in metrics, false, 'un tableau non plus');
-  assert.equal('absent' in metrics, false, '`undefined` reste une absence, pas une valeur publiée');
+  assert.deepEqual(metrics.gpuAllocatedByLabel, { 'WG display color': 4, unlabelled: 8 });
+  assert.equal('scene' in metrics, false, 'an object with a non-number value does not pass');
+  assert.equal('pending' in metrics, false, 'an array neither');
+  assert.equal('absent' in metrics, false, '`undefined` stays an absence, not a published value');
 });
 
 test('stage profile after a moving camera keeps the last measured pose, never poseAt(0)', async () => {

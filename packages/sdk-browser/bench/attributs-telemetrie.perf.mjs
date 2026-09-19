@@ -1,4 +1,4 @@
-// lecture des attributs d'une page décompressée et télémétrie.
+// reading attributes of a decompressed page, and telemetry.
 import * as meshoptimizer from 'meshoptimizer';
 import { frameStatistics } from '../../sdk-core/index.ts';
 import { encodeGeometryPage } from '../../page-codec/geometryPage.mjs';
@@ -66,11 +66,11 @@ for (let i = 0; i < 2000; i++) {
 }
 
 const resDecode = await mesure({
-  nom: 'decodePageAttributes',
+  name: 'decodePageAttributes',
   fichier: 'packages/sdk-browser/geometryPage.ts',
   cas: [
-    { nom: '30 000 sommets, 4 attributs', entree: grande, taille: 30000 },
-    { nom: '9 sommets', entree: petite, taille: 9 },
+    { name: '30 000 vertices, 4 attributes', input: grande, size: 30000 },
+    { name: '9 vertices', input: petite, size: 9 },
   ],
   calcul: (args) => decodePageAttributes(...args),
   attendu: (args) => referenceDecode(...args),
@@ -78,11 +78,11 @@ const resDecode = await mesure({
 });
 
 const resTelemetry = await mesure({
-  nom: 'intervalles et hexadécimal',
+  name: 'intervals and hexadecimal',
   fichier: 'packages/sdk-browser/telemetry.ts',
   cas: [
-    { nom: '2 000 images, 2 000 empreintes', entree: { intervalles, digests }, taille: 2000 },
-    { nom: 'aucune image', entree: { intervalles: [], digests: [] }, taille: 0 },
+    { name: '2 000 frames, 2 000 digests', input: { intervalles, digests }, size: 2000 },
+    { name: 'no frames', input: { intervalles: [], digests: [] }, size: 0 },
   ],
   calcul: ({ intervalles: valeurs, digests: liste }) => {
     const profil = new EngineProfiler(120);
@@ -98,17 +98,17 @@ const resTelemetry = await mesure({
 });
 
 await stress({
-  nom: 'toHex extremes',
+  name: 'toHex extremes',
   calcul: toHex,
   extremes: [
-    { nom: 'zero bytes', entree: new Uint8Array(0) },
-    { nom: 'one byte', entree: new Uint8Array([255]) },
-    { nom: 'all zeros', entree: new Uint8Array(32) },
+    { name: 'zero bytes', input: new Uint8Array(0) },
+    { name: 'one byte', input: new Uint8Array([255]) },
+    { name: 'all zeros', input: new Uint8Array(32) },
   ],
 });
 
 rapport(
   'attributs-telemetrie',
   [resDecode, resTelemetry],
-  'A13 et A14 rendent exactement les mêmes valeurs',
+  'A13 and A14 yield the exact same values',
 );

@@ -57,9 +57,9 @@ export function setupVisibility(
   });
   const mapsView = maps.createView({ dimension: '2d-array' }),
     sampler = device.createSampler();
-  // Les numéros ne sont pas recopiés : ils viennent de `VIS_BINDINGS` (`webgpuBindLayout.ts`), la
-  // source que le WGSL interpole déjà. Une liaison d'atlas de plus décale les trois côtés ensemble —
-  // c'est ce décalage, manqué ici seul, qui rendait cette preuve rouge sur la table de pages.
+  // The numbers are not copied: they come from `VIS_BINDINGS` (`webgpuBindLayout.ts`), the source
+  // the WGSL already interpolates. One more atlas binding shifts all three sides together —
+  // that shift, missed here alone, is what made this proof fail on the page table.
   const b = visBindings;
   const lecture = (binding) => ({
     binding,

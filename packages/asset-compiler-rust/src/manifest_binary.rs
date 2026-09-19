@@ -64,11 +64,12 @@ const TEXTURE_PREVIEW_U32: usize = 21;
 const TEXTURE_PREVIEW_SHA: usize = 22;
 const TEXTURE_PREVIEW_PIXELS: usize = 23;
 const COLUMNS: usize = 24;
-/// Nombres par entrée de niveaux : texture, image, largeur, hauteur, genre et vue de provenance,
-/// puis le premier niveau porté, leur nombre, et le début et la longueur de ses pixels.
+/// Numbers per level entry: texture, image, width, height, kind and provenance
+/// view, then the first carried level, their count, and the start and length of
+/// its pixels.
 const PREVIEW_WORDS: usize = 12;
 
-/// Octets qu'une page écrit dans chaque colonne de page, quelle que soit la page.
+/// Bytes a page writes in each page column, whichever the page.
 const PAGE_COLUMN_WIDTHS: [(usize, usize); 10] = [
     (PAGE_BOUNDS, 48),
     (PAGE_SPHERE, 32),
@@ -115,8 +116,8 @@ pub fn split(
         "manifest.primitives",
     )?;
     let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
-    // Les colonnes par page ont une largeur fixe : une page en écrit toujours le même nombre
-    // d'octets, donc le total est connu avant la première écriture.
+    // Page columns have a fixed width: a page always writes the same number of
+    // bytes, so the total is known before the first write.
     let pages_total = primitives
         .iter()
         .filter_map(|primitive| primitive.get("pages").and_then(Value::as_array))

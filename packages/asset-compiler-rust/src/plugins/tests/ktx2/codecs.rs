@@ -1,17 +1,17 @@
-//! Ce que le `vkFormat` décide : quel décodeur lit le niveau, et sur quelle géométrie de bloc. Le
-//! registre Vulkan fixe les deux, et l'octet qui manque le prouve format par format — un bloc plus
-//! court d'un octet ne couvre plus la surface annoncée, donc le niveau est refusé.
+//! What `vkFormat` decides: which decoder reads the level, and on which block geometry. The
+//! Vulkan registry fixes both, and the missing byte proves it format by format — a block one
+//! byte shorter no longer covers the announced surface, so the level is refused.
 //!
-//! L'autre moitié est la supercompression Zstandard : la longueur que l'index annonce borne à la
-//! fois l'allocation et la lecture, et un flux qui ne rend pas cette longueur est un refus, jamais
-//! un tampon à moitié plein.
+//! The other half is Zstandard supercompression: the length the index announces bounds both
+//! allocation and reading, and a stream that does not yield that length is a refusal, never a
+//! half-full buffer.
 use super::super::super::image as registry;
 use super::super::fixture;
 use super::{bytes, ASTC_4X4, BC1_RGBA, MAX_ALLOC, SIDE};
 
-/// Les `vkFormat` compressés déclarés et les octets de leur bloc de 4 × 4 texels, dans l'ordre du
-/// registre Vulkan : BC1 sans puis avec alpha, BC2, BC3, BC4, BC5, BC7, les trois ETC2, les deux
-/// EAC et l'ASTC 4 × 4, chacun avec sa variante `_SRGB` quand le registre en publie une.
+/// Declared compressed `vkFormat` and the bytes of their 4 × 4 texel block, in Vulkan registry
+/// order: BC1 without then with alpha, BC2, BC3, BC4, BC5, BC7, the three ETC2, the two EAC and
+/// ASTC 4 × 4, each with its `_SRGB` variant when the registry publishes one.
 const BLOCKS: [(u32, usize); 22] = [
     (131, 8),
     (132, 8),
@@ -37,57 +37,57 @@ const BLOCKS: [(u32, usize); 22] = [
     (158, 16),
 ];
 
-// Contrat du pilote sur les codecs déclarés : chaque `vkFormat` compressé mène au décodeur dont la
-// géométrie de bloc est celle du registre Vulkan, et rien de ce qui est déclaré ne panique.
+// Driver contract on the declared codecs: each compressed `vkFormat` leads to the decoder whose
+// block geometry is that of the Vulkan registry, and nothing that is declared panics.
 #[test]
-fn chaque_vkformat_compresse_declare_porte_la_geometrie_de_bloc_du_registre() {
+fn each_declared_compressed_vkformat_carries_the_registry_block_geometry() {
     for (format, block) in BLOCKS {
         let full = bytes::container(format, SIDE, SIDE, &vec![0u8; block]);
         let image = super::super::rgba8(
             registry::decode(&full, MAX_ALLOC)
-                .unwrap_or_else(|reason| panic!("format {format} : {reason}")),
+                .unwrap_or_else(|reason| panic!("format {format}: {reason}")),
         );
         assert_eq!((image.width(), image.height()), (SIDE, SIDE), "{format}");
         let short = bytes::container(format, SIDE, SIDE, &vec![0u8; block - 1]);
         assert_eq!(
             registry::decode(&short, MAX_ALLOC).err(),
             Some("ktx2-data-truncated"),
-            "format {format} : un bloc de {block} octets, pas de {}",
+            "format {format}: a block of {block} bytes, not of {}",
             block - 1
         );
     }
-    // Les deux formats compressés dont la dorée écrit les texels en clair sont bien dans la liste.
+    // The two compressed formats whose texels the golden writes in the open are indeed in the list.
     for format in [BC1_RGBA, ASTC_4X4] {
         assert!(BLOCKS.iter().any(|(declared, _)| *declared == format));
     }
 }
 
-// Contrat du pilote sur la supercompression Zstandard : la longueur annoncée borne la lecture et
-// l'allocation, et ce qui n'en sort pas exactement est un refus nommé.
+// Driver contract on Zstandard supercompression: the announced length bounds reading and
+// allocation, and what does not come out of it exactly is a named refusal.
 #[test]
-fn la_supercompression_zstandard_est_bornee_par_la_longueur_annoncee() {
+fn zstandard_supercompression_is_bounded_by_the_announced_length() {
     let file = fixture("ktx2", "base-zstd.ktx2");
     for (case, patched, ceiling, reason) in [
         (
-            "annonce trop courte pour la surface",
+            "announcement too short for the surface",
             bytes::patched64(file.clone(), bytes::HEADER_END + 16, 32),
             MAX_ALLOC,
             "ktx2-data-truncated",
         ),
         (
-            "annonce au-delà du plafond",
+            "announcement beyond the ceiling",
             bytes::patched64(file.clone(), bytes::HEADER_END + 16, 1000),
             64,
             "ktx2-image-too-large",
         ),
         (
-            "trame coupée",
+            "cut frame",
             bytes::patched64(file.clone(), bytes::HEADER_END + 8, 20),
             MAX_ALLOC,
             "ktx2-data-truncated",
         ),
         (
-            "trame qui n'en est pas une",
+            "frame that is not one",
             bytes::patched(file.clone(), ZSTD_DATA, 0),
             MAX_ALLOC,
             "ktx2-data-truncated",
@@ -101,29 +101,30 @@ fn la_supercompression_zstandard_est_bornee_par_la_longueur_annoncee() {
     }
 }
 
-/// Le niveau 0 de `base-zstd.ktx2` commence après l'entête, l'index d'un niveau et un descripteur
-/// de format de quatre-vingt-douze octets.
+/// Level 0 of `base-zstd.ktx2` starts after the header, a one-level index and a
+/// ninety-two-byte format descriptor.
 const ZSTD_DATA: usize = 196;
 
-/// `VK_FORMAT_EAC_R11_UNORM_BLOCK` et `VK_FORMAT_EAC_R11G11_UNORM_BLOCK`.
+/// `VK_FORMAT_EAC_R11_UNORM_BLOCK` and `VK_FORMAT_EAC_R11G11_UNORM_BLOCK`.
 const EAC_R11: u32 = 153;
 const EAC_RG11: u32 = 155;
-/// La table 13 de la spécification, `{-1, -2, -3, -10, 0, 1, 2, 9}` : ses trois premiers
-/// modificateurs positifs valent 0, 1 et 2, les plus petits pas que le format sache écrire, donc
-/// exactement ceux qu'une troncature de trois bits efface.
+/// Table 13 of the specification, `{-1, -2, -3, -10, 0, 1, 2, 9}`: its first three positive
+/// modifiers are 0, 1 and 2, the smallest steps the format can write, so exactly those a
+/// three-bit truncation erases.
 const TABLE_13: u8 = 13;
 
-// Reproduction du constat 55 : un canal EAC porte onze bits, le contrat huit. Le décodeur externe
-// les ramenait par `val >> 3`, une troncature qui abaisse une valeur sur huit d'un cran, et lisait
-// le champ d'indices à l'envers, ce qui mélangeait les seize texels d'un bloc. Le pilote développe
-// désormais ces deux formats lui-même, en onze bits, puis arrondit au plus proche.
+// Reproduction of finding 55: an EAC channel carries eleven bits, the contract eight. The
+// external decoder used to bring them down by `val >> 3`, a truncation that lowers one value
+// in eight by one step, and read the index field backwards, which mixed the sixteen texels of
+// a block. The driver now expands these two formats itself, in eleven bits, then rounds to
+// nearest.
 //
-// Le bloc écrit ici a pour mot de base 0 et pour multiplicateur 0 — que la spécification lit comme
-// un —, donc ses valeurs valent `4 + modificateur`. Le texel 0 prend l'indice 5 (modificateur 1,
-// valeur 5), le texel 15 l'indice 7 (modificateur 9, valeur 13), les quatorze autres l'indice 4
-// (modificateur 0, valeur 4). Une troncature rendrait 0, 1 et 0 ; l'arrondi rend 1, 2 et 0.
+// The block written here has base word 0 and multiplier 0 — which the specification reads as
+// one — so its values are `4 + modifier`. Texel 0 takes index 5 (modifier 1, value 5), texel
+// 15 index 7 (modifier 9, value 13), the other fourteen index 4 (modifier 0, value 4). A
+// truncation would yield 0, 1 and 0; rounding yields 1, 2 and 0.
 #[test]
-fn les_onze_bits_dun_canal_eac_sont_arrondis_et_les_texels_restent_en_place() {
+fn the_eleven_bits_of_an_eac_channel_are_rounded_and_texels_stay_in_place() {
     let mut indices = [4u8; 16];
     indices[0] = 5;
     indices[15] = 7;
@@ -137,20 +138,20 @@ fn les_onze_bits_dun_canal_eac_sont_arrondis_et_les_texels_restent_en_place() {
         .collect();
     let file = bytes::container(EAC_R11, SIDE, SIDE, &rouge);
     let image = super::super::rgba8(
-        registry::decode(&file, MAX_ALLOC).unwrap_or_else(|reason| panic!("eac r11 : {reason}")),
+        registry::decode(&file, MAX_ALLOC).unwrap_or_else(|reason| panic!("eac r11: {reason}")),
     );
     let canal = |at: usize| -> Vec<u8> { image.pixels().map(|pixel| pixel.0[at]).collect() };
-    assert_eq!(canal(0), attendu, "le rouge d'un EAC R11");
-    assert_eq!(canal(1), vec![0; 16], "le vert d'un EAC R11 reste nul");
-    assert_eq!(canal(3), vec![255; 16], "l'alpha d'un EAC est opaque");
-    // Le second canal d'un RG11 est un bloc de plus, lu au même titre et rendu en vert.
+    assert_eq!(canal(0), attendu, "red of an EAC R11");
+    assert_eq!(canal(1), vec![0; 16], "green of an EAC R11 stays zero");
+    assert_eq!(canal(3), vec![255; 16], "alpha of an EAC is opaque");
+    // The second channel of an RG11 is one more block, read the same way and yielded as green.
     let mut deux = rouge.clone();
     deux.extend_from_slice(&bytes::eac(0, 0, TABLE_13, indices));
     let paire = bytes::container(EAC_RG11, SIDE, SIDE, &deux);
     let image = super::super::rgba8(
-        registry::decode(&paire, MAX_ALLOC).unwrap_or_else(|reason| panic!("eac rg11 : {reason}")),
+        registry::decode(&paire, MAX_ALLOC).unwrap_or_else(|reason| panic!("eac rg11: {reason}")),
     );
     let canal = |at: usize| -> Vec<u8> { image.pixels().map(|pixel| pixel.0[at]).collect() };
-    assert_eq!(canal(0), attendu, "le rouge d'un EAC RG11");
-    assert_eq!(canal(1), attendu, "le vert d'un EAC RG11");
+    assert_eq!(canal(0), attendu, "red of an EAC RG11");
+    assert_eq!(canal(1), attendu, "green of an EAC RG11");
 }

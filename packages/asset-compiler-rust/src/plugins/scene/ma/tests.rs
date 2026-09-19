@@ -1,37 +1,37 @@
-//! Ce que seul l'intérieur du pilote peut prouver : la forme du texte lue par le découpage en
-//! commandes, et les règles d'écriture d'un attribut par tranches. Tout le reste — géométrie,
-//! matériaux, textures, refus — se prouve depuis la dorée, par le compilateur entier.
+//! What only the driver's interior can prove: the shape of the text read by the command split,
+//! and the rules for writing an attribute by slices. Everything else — geometry, materials,
+//! textures, refusals — is proven from the golden, by the whole compiler.
 use super::*;
 
-/// Le document d'un texte, entête comprise.
+/// Document of a text, header included.
 fn read_document(body: &str) -> Document {
     document::read(&format!("{HEADER} 2024 scene\n{body}")).expect("document")
 }
 
-// Comportement : une chaîne jamais refermée arrête la lecture par un refus nommé, au lieu d'avaler
-// le reste du fichier comme s'il faisait partie du nom.
+// Behaviour: a never-closed string stops the read by a named refusal, instead of swallowing the
+// rest of the file as if it were part of the name.
 #[test]
 fn an_unclosed_string_is_refused_by_name() {
     let error = document::read(&format!("{HEADER}\ncreateNode transform -n \"Sans fin;\n"))
         .err()
-        .expect("refus");
+        .expect("refusal");
     assert_eq!(error.code, FILE_INVALID);
 }
 
-// Comportement : un fichier qui ne s'ouvre pas sur l'entête de Maya n'est pas lu.
+// Behaviour: a file that does not open on Maya's header is not read.
 #[test]
 fn a_file_without_the_maya_header_is_refused() {
     let error = document::read("createNode transform -n \"X\";\n")
         .err()
-        .expect("refus");
+        .expect("refusal");
     assert_eq!(error.code, FILE_INVALID);
 }
 
-// Comportement : les commentaires des deux formes et les points-virgules vides ne font pas de
-// commande, et une commande hors sous-ensemble est comptée sous son propre nom, jamais exécutée.
+// Behaviour: comments of both forms and empty semicolons make no command, and a command outside
+// the subset is counted under its own name, never executed.
 #[test]
 fn a_command_outside_the_subset_is_counted_under_its_own_name() {
-    let read = read_document("// un mot\n/* un autre */;;\npython \"print(1)\";\n");
+    let read = read_document("// a word\n/* another */;;\npython \"print(1)\";\n");
     assert_eq!(read.nodes.len(), 0);
     assert_eq!(
         read.report.unsupported.get("ma-command-ignored:python"),
@@ -39,8 +39,8 @@ fn a_command_outside_the_subset_is_counted_under_its_own_name() {
     );
 }
 
-// Comportement : un `setAttr` écrit une tranche d'un tableau, la foulée venant du type quand il la
-// fixe et du nombre de valeurs par élément de l'intervalle sinon.
+// Behaviour: a `setAttr` writes a slice of an array, the stride coming from the type when it
+// fixes it and from the number of values per element of the range otherwise.
 #[test]
 fn set_attr_writes_one_slice_of_an_array_at_a_time() {
     let read = read_document(concat!(
@@ -51,16 +51,17 @@ fn set_attr_writes_one_slice_of_an_array_at_a_time() {
     ));
     let mesh = &read.nodes[0];
     assert_eq!(
-        mesh.attr(&["vt"]).expect("sommets").numbers(),
+        mesh.attr(&["vt"]).expect("vertices").numbers(),
         [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0]
     );
     assert_eq!(
-        mesh.attr(&["ed"]).expect("arêtes").numbers(),
+        mesh.attr(&["ed"]).expect("edges").numbers(),
         [0.0, 1.0, 0.0, 1.0, 2.0, 0.0, 2.0, 0.0, 0.0]
     );
 }
 
-// Comportement : un `setAttr` sans nœud courant est compté, et ne se verse sur aucun nœud au hasard.
+// Behaviour: a `setAttr` without a current node is counted, and does not pour onto any node at
+// random.
 #[test]
 fn an_attribute_without_a_node_is_counted() {
     let read = read_document("select -ne :time1;\nsetAttr \".o\" 1;\n");
@@ -70,8 +71,8 @@ fn an_attribute_without_a_node_is_counted() {
     );
 }
 
-// Comportement : l'unité linéaire du fichier devient le facteur vers le mètre, et l'unité angulaire
-// le facteur vers le degré.
+// Behaviour: the file's linear unit becomes the factor into metres, and the angular unit the
+// factor into degrees.
 #[test]
 fn the_declared_units_become_the_factors_of_the_scene() {
     assert_eq!(
@@ -86,8 +87,8 @@ fn the_declared_units_become_the_factors_of_the_scene() {
     assert_eq!(read_document("").meters_per_unit, 0.01);
 }
 
-// Comportement : une face cite ses arêtes, et son coin de rang `k` est le sommet de départ de la
-// `k`-ième — le second sommet quand l'indice est écrit négatif.
+// Behaviour: a face cites its edges, and its corner of rank `k` is the start vertex of the
+// `k`-th — the second vertex when the index is written negative.
 #[test]
 fn a_face_corner_is_the_start_vertex_of_its_signed_edge() {
     let edges = [[0.0, 1.0, 0.0], [1.0, 2.0, 0.0], [2.0, 0.0, 0.0]];
@@ -96,8 +97,7 @@ fn a_face_corner_is_the_start_vertex_of_its_signed_edge() {
     assert_eq!(mesh::corner(&edges, 9, 3), None);
 }
 
-// Comportement : une liste de composants rend les faces qu'elle nomme, et compte ce qui n'en
-// nomme aucune.
+// Behaviour: a component list yields the faces it names, and counts what names none.
 #[test]
 fn a_component_list_names_faces_and_counts_what_is_not_one() {
     let list = [

@@ -42,9 +42,10 @@ impl SparseAccessor<'_> {
         Ok(index)
     }
 }
-/// Réservation faillible d'une expansion dense. Une capacité qu'aucune machine ne peut adresser
-/// décrit un fichier invalide, un défaut d'allocation un dépassement du budget mémoire : ni l'une ni
-/// l'autre ne doit terminer le processus, ce que `Vec::with_capacity` faisait.
+/// Fallible reservation of a dense expansion. A capacity no machine can address
+/// describes an invalid file; an allocation failure describes a memory-budget
+/// overrun: neither must terminate the process, which is what `Vec::with_capacity`
+/// used to do.
 pub(super) fn reserve<T>(n: usize) -> Result<Vec<T>> {
     if n.checked_mul(size_of::<T>())
         .is_none_or(|bytes| bytes > isize::MAX as usize)

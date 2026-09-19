@@ -1,12 +1,12 @@
-// Cohérence CPU/GPU de la décision de coupe sur un échantillon hors axe.
+// CPU/GPU consistency of the cut decision on an off-axis sample.
 //
-// Des milliers de clusters tirés dans une primitive tournée et étirée de façon non uniforme : centre
-// de vue jusqu'aux bords du champ, profondeurs jusqu'au voisinage du plan proche, erreurs choisies
-// pour que l'erreur projetée tombe autour du seuil. Les boîtes couvrent tout le tronc : seule la
-// décision d'erreur est comparée. Trois décisions par cluster : `cutSelects` de la coupe CPU
-// (valeurs f64 d'origine), l'oracle Node du noyau (valeurs empaquetées en f32, calcul en f64) et le
-// noyau WGSL réellement exécuté dans Chromium WebGPU (tout en f32). Chaque écart est listé avec sa
-// marge relative au seuil, la mesure de ce que l'arrondi f32 peut basculer.
+// Thousands of clusters drawn in a primitive rotated and stretched non-uniformly: view centre to
+// the field edges, depths to the neighbourhood of the near plane, errors chosen so the projected
+// error falls around the threshold. Boxes cover the whole frustum: only the error decision is
+// compared. Three decisions per cluster: `cutSelects` of the CPU cut (original f64 values), the
+// kernel's Node oracle (values packed as f32, computed in f64) and the WGSL kernel actually run
+// in Chromium WebGPU (all f32). Each discrepancy is listed with its margin relative to the
+// threshold, the measure of what f32 rounding can flip.
 //
 // node --experimental-strip-types test/justesse/erreur-ecran-cpu-gpu.mjs [n]
 import assert from 'node:assert/strict';
@@ -68,9 +68,9 @@ for (let i = 0; i < N; i++) {
   pages[i].max = [GRAND, GRAND, GRAND];
 }
 const packed = packDagSelection([{ world, pages }]);
-// Le noyau travaille dans le repère de rendu : les matrices monde empaquetées sont ramenées à
-// l'œil, exactement comme le moteur les lui porte, sans quoi vue relative et monde absolu se
-// mêleraient dans la même formule.
+// The kernel works in the render frame: packed world matrices are brought to the eye, exactly as
+// the engine carries them, otherwise relative view and absolute world would mix in the same
+// formula.
 packedWorldsToRenderOrigin(packed, [{ world }], uniforms.cameraWorld);
 const gpu = await selectionGpu([{ nom: 'echantillon', packed, uniforms }]);
 assert.equal(gpu.indisponible ?? null, null);
@@ -116,5 +116,5 @@ console.log(
     2,
   ),
 );
-// Un écart n'est admis que dans la bande que l'arrondi f32 des sphères et des matrices peut basculer.
-assert.ok(pireMarge(cpuGpu) < 1e-5, 'écart CPU/GPU hors de la bande d’arrondi f32');
+// A discrepancy is admitted only in the band that f32 rounding of spheres and matrices can flip.
+assert.ok(pireMarge(cpuGpu) < 1e-5, 'CPU/GPU discrepancy outside the f32 rounding band');

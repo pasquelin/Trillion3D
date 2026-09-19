@@ -1,26 +1,26 @@
-// Le chemin de calcul en lot, tel que le gouverneur l'a publié, pour `resume.md`.
+// The batch calculation path, as the governor published it, for `resume.md`.
 
-/** Une médiane, ou « non mesuré » : un tiret ne serait pas distinct d'un zéro mesuré. */
-const ns = (value) => (value == null ? 'non mesuré' : value.toFixed(1));
+/** A median, or "unmeasured": a dash would not be distinct from a measured zero. */
+const ns = (value) => (value == null ? 'unmeasured' : value.toFixed(1));
 
-/** L'état du module WebAssembly d'un côté, avec la cause quand il n'est pas jouable. */
+/** WebAssembly module state of a side, with the cause when it is not playable. */
 function module(releve) {
-  if (!releve.wasmAvailable) return releve.unavailableReason ?? 'indisponible';
+  if (!releve.wasmAvailable) return releve.unavailableReason ?? 'unavailable';
   return (
-    `chargé${releve.wasmSimd ? ', simd128' : ''}` +
-    (releve.clockCoarse ? ', horloge trop grossière pour arbitrer' : '')
+    `loaded${releve.wasmSimd ? ', simd128' : ''}` +
+    (releve.clockCoarse ? ', clock too coarse to arbitrate' : '')
   );
 }
 
 /**
- * Le chemin de calcul de chaque côté : ce que le gouverneur a CHOISI, opération par opération, et
- * les deux médianes qui l'ont décidé. Une campagne `--chemin-math js|wasm` y relit son mode imposé,
- * `auto` y relit l'arbitrage. Rien n'est déduit : un côté sans relevé le dit, un côté qui n'a joué
- * aucun lot le dit aussi.
+ * The calculation path of each side: what the governor CHOSE, operation by operation, and the two
+ * medians that decided it. A `--chemin-math js|wasm` campaign rereads its forced mode there,
+ * `auto` rereads the arbitration. Nothing is inferred: a side without a reading says so, a side
+ * that ran no batch says so too.
  */
 export function cheminsCalcul(report) {
   const lines = [
-    '| vue | pixelError | côté | mode | module | opération | chemin | js ns/élt | wasm ns/élt | bascules | éléments |',
+    '| view | pixelError | side | mode | module | operation | path | js ns/elt | wasm ns/elt | switches | elements |',
     '|---|---|---|---|---|---|---|---|---|---|---|',
   ];
   for (const serie of report.series)
@@ -28,13 +28,13 @@ export function cheminsCalcul(report) {
       const releve = resultat.cheminCalcul;
       const tete = `| ${serie.view} | ${serie.pixelError} | ${side} `;
       if (!releve) {
-        lines.push(`${tete}| — | relevé absent de ce dist | — | — | — | — | — | — |`);
+        lines.push(`${tete}| — | reading missing from this dist | — | — | — | — | — | — |`);
         continue;
       }
       const etat = `| ${releve.mode} | ${module(releve)} `;
       const operations = Object.entries(releve.operations ?? {});
       if (!operations.length) {
-        lines.push(`${tete}${etat}| aucun lot joué | — | — | — | — | — |`);
+        lines.push(`${tete}${etat}| no batch run | — | — | — | — | — |`);
         continue;
       }
       for (const [nom, o] of operations)

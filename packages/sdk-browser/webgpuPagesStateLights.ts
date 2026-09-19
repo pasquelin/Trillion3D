@@ -10,9 +10,9 @@ import type { GpuShadowCull } from './gpuShadowCull.ts';
 import type { GpuLightTiles } from './gpuLightTiles.ts';
 
 /**
- * L'état de l'éclairage direct du contrat : le magasin de lampes (partagé avec l'hôte), les listes
- * par tuile, l'atlas d'ombres et l'ordonnanceur. Les tampons de matrices de face sont alloués une
- * fois pour le budget d'une image ; une image n'alloue rien.
+ * Direct-lighting state of the contract: the light store (shared with the host), per-tile lists, the
+ * shadow atlas and the scheduler. Face-matrix buffers are allocated once for an image's budget; an
+ * image allocates nothing.
  */
 export interface WebgpuLightState {
   store: SceneLightStore;
@@ -20,41 +20,41 @@ export interface WebgpuLightState {
   buffer: GPUBuffer | undefined;
   tiles: GpuLightTiles | undefined;
   shadows: GpuShadowAtlas | undefined;
-  /** Le rejet par face et les sphères monde qu'il lit ; absents tant que l'atlas n'existe pas. */
+  /** Per-face cull and the world spheres it reads; absent while the atlas does not exist. */
   cull: GpuShadowCull | undefined;
   spheres: { buffer: GPUBuffer; packed: Float32Array<ArrayBuffer>; rows: number } | undefined;
-  /** Groupes de liaison des faces d'ombre, et les ressources sur lesquelles ils ont été bâtis. */
+  /** Bind groups of shadow faces, and the resources they were built on. */
   shadowGroups: Array<GPUBindGroup | undefined>;
   shadowGroupsKey: unknown[];
-  /** Révision du magasin déjà poussée au GPU : une image sans changement n'écrit rien. */
+  /** Store revision already pushed to the GPU: an image with no change writes nothing. */
   uploadedEpoch: number;
-  /** Matrices des faces de l'image, une par face remise à jour. */
+  /** Face matrices of the image, one per updated face. */
   faceMatrices: Float32Array;
-  /** Lampes du contrat retenues par la dernière image, et lampes dont une carte a été redessinée.
-   *  La file d'attente et son retard se lisent sur l'ordonnanceur (`plan.counts`). */
+  /** Contract lights kept by the last image, and lights whose map was redrawn. The wait queue and its
+   *  lag are read on the scheduler (`plan.counts`). */
   lightsActive: number;
   shadowsUpdated: number;
-  /** Faces réellement touchées par la dernière image, toutes régions confondues. */
+  /** Faces actually touched by the last image, all regions together. */
   shadowFaces: number;
-  /** Régions redessinées et pages qu'elles couvrent : l'unité de travail et celle du budget. */
+  /** Redrawn regions and pages they cover: the unit of work and that of the budget. */
   shadowRegions: number;
   shadowPages: number;
-  /** Pages redessinées par image, par rang d'image : le chronomètre GPU revient avec du retard et
-   *  doit retrouver le travail de l'image qu'il décrit pour en déduire le coût d'une page. */
+  /** Pages redrawn per image, by image rank: the GPU timer comes back late and must find the work of
+   *  the image it describes to deduce the cost of a page. */
   pagesByFrame: Uint32Array;
-  /** Part de ces faces qui sont des cascades de soleil : le coût du soleil, séparé des ponctuelles. */
+  /** Share of those faces that are sun cascades: the sun's cost, split from punctuals. */
   sunCascades: number;
   shadowDraws: number;
-  /** Appels de dessin réellement encodés par la passe d'ombres : une remise au fond et un dessin
-   *  indirect par face redessinée. C'est le coût par lampe à ombre. */
+  /** Draw calls actually encoded by the shadow pass: a clear-to-far and an indirect draw per redrawn
+   *  face. That is the cost per shadow light. */
   shadowDrawCalls: number;
-  /** Pourquoi l'atlas d'ombres n'existe pas, quand il n'existe pas. */
+  /** Why the shadow atlas does not exist, when it does not. */
   shadowReason: string | null;
-  /** La configuration de la première image éclairée par le contrat n'est journalisée qu'une fois. */
+  /** Configuration of the first image lit by the contract is logged only once. */
   firstFrameLogged: boolean;
 }
 
-/** Images gardées dans l'anneau des pages : bien au-delà du retard d'un relevé d'horodatage. */
+/** Images kept in the page ring: well beyond the lag of a timestamp sample. */
 export const PAGES_RING = 64;
 
 export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightState {
@@ -84,7 +84,7 @@ export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightStat
   };
 }
 
-/** Le tampon de lampes du contrat, à taille fixe : jamais réalloué, jamais indexé au-delà. */
+/** Contract light buffer, fixed size: never reallocated, never indexed beyond. */
 export function createSceneLightContractBuffer(device: GPUDevice) {
   return device.createBuffer({
     label: 'WG direct lights v1',
@@ -93,7 +93,7 @@ export function createSceneLightContractBuffer(device: GPUDevice) {
   });
 }
 
-/** Pousse le magasin au GPU si et seulement si sa révision a changé depuis la dernière image. */
+/** Pushes the store to the GPU if and only if its revision has changed since the last image. */
 export function uploadSceneLights(device: GPUDevice, lights: WebgpuLightState) {
   const { store, buffer } = lights;
   if (!buffer) return false;

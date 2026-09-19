@@ -1,4 +1,4 @@
-// Le bilan en tête du rapport : ce qu'il faut faire, dans l'ordre. Une ligne par point, chaque chiffre pris dans les relevés de la campagne.
+// The summary at the head of the report: what to do, in order. One line per point, each figure taken from the campaign readings.
 import { moins, ms, nombre } from './rapportGlobalGraphes.mjs';
 import { paire, trouve } from './rapportGlobalLecture.mjs';
 import { OCTETS_PAR_TRIANGLE, UNREAL } from './rapportGlobalChiffres.mjs';
@@ -6,7 +6,7 @@ const li = (points) => points.map((p) => `<li>${p}</li>`).join('');
 
 export function bilan(ex) {
   const [nuS, mS] = paire(ex, 'three-nu', 'sol');
-  // Les octets par triangle de Three, mesurés sur la scène telle qu'il la lit (tout le glTF).
+  // Three's bytes per triangle, measured on the scene as it reads it (the whole glTF).
   const nuSans = trouve(ex, 'three-nu-sans-ombres', 'sol', 1, 'avant');
   const octetsThree =
     nuSans?.trianglesUniques > 0 ? nuSans.geometrieOctets / nuSans.trianglesUniques : null;

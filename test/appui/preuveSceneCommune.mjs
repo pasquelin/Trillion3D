@@ -1,12 +1,12 @@
-// Ce que les scènes des preuves navigateur partagent : un carré indexé, le plus petit DAG légal
-// qui le décrit, et la caméra de face. Rien n'y nomme une scène du banc — le moteur ne voit que des
-// passes et des matériaux, comme pour n'importe quelle scène importée.
+// What the browser-proof scenes share: an indexed square, the smallest legal DAG
+// that describes it, and the face-on camera. Nothing names a bench scene — the engine
+// only sees passes and materials, as for any imported scene.
 import * as THREE from 'three';
 import { ouvrirAppareil } from '../justesse/appareilWebgpu.mjs';
 
 export const VIEWPORT = [96, 96];
 
-/** Un carré indexé de demi-côté `demi` dans le plan `z = 0`, ses deux triangles déjà bornés. */
+/** An indexed square of half-side `demi` in the plane `z = 0`, its two triangles already bounded. */
 export function carre(demi) {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute(
@@ -22,8 +22,8 @@ export function carre(demi) {
 }
 
 /**
- * Le bâtisseur d'une scène préparée : chaque maillage ajouté devient une primitive de deux clusters
- * de niveau 0 que rien ne remplace — le plus petit DAG légal —, un triangle chacun.
+ * Builder of a prepared scene: each added mesh becomes a primitive of two level-0
+ * clusters that nothing replaces — the smallest legal DAG — one triangle each.
  */
 export function batisseur() {
   const source = new THREE.Group(),
@@ -84,11 +84,11 @@ export function batisseur() {
   };
 }
 
-/** Une matrice de la bibliothèque hôte, colonne-major, prête pour `setTransform`. */
+/** A host-library matrix, column-major, ready for `setTransform`. */
 export const versApi = (matrice) => new Float32Array(matrice.elements);
 
-/** La caméra des preuves : de face, translatée sur `x` sans changer d'axe optique — une glissade
- *  pure, où la parallaxe seule sépare le proche du lointain. */
+/** The proofs camera: face-on, translated on `x` without changing the optical axis — a pure
+ *  slide, where parallax alone separates near from far. */
 export function cameraFace(x = 0) {
   const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
   camera.position.set(x, 0, 3);
@@ -97,11 +97,11 @@ export function cameraFace(x = 0) {
   return camera;
 }
 
-/** Le moteur WebGPU réel monté sur une scène bâtie, avec sa propre toile. `options` complète le
- *  contexte de l'hôte — `stageProfile: true` pour lire les compteurs publics par étape. Les preuves
- *  d'ici comparent des images au pixel près et attendent une image tenue en quelques images :
- *  l'antialiasing temporel est coupé, sauf pour la preuve qui le choisit. */
-export function moteur(webgpuPagesBackend, scene, device, onDiagnostic, options = {}) {
+/** The real WebGPU engine mounted on a built scene, with its own canvas. `options` completes
+ *  the host context — `stageProfile: true` to read the public per-stage counters. Proofs
+ *  here compare images pixel for pixel and wait for a held image in a few frames:
+ *  temporal antialiasing is off, except for the proof that chooses it. */
+export function engine(webgpuPagesBackend, scene, device, onDiagnostic, options = {}) {
   const canvas = document.createElement('canvas');
   document.body.append(canvas);
   const backend = webgpuPagesBackend({
@@ -122,8 +122,8 @@ export function moteur(webgpuPagesBackend, scene, device, onDiagnostic, options 
   return { backend, canvas };
 }
 
-/** Rend une image et relit ses pixels et ses compteurs publics. La borne d'image est refermée comme
- *  le fait un hôte : c'est elle qui publie les compteurs par étape. */
+/** Renders a frame and rereads its pixels and public counters. The frame bound is closed as
+ *  a host does: that is what publishes the per-stage counters. */
 export async function image(backend, camera) {
   backend.render(camera);
   backend.cpuFrameEnd?.();
@@ -131,13 +131,13 @@ export async function image(backend, camera) {
   return { pixels: backend.capture(), metriques: backend.metrics() };
 }
 
-/** Les compteurs publics d'une étape du profil, ou `null` quand l'hôte ne l'a pas demandé. */
+/** Public counters of a profile stage, or `null` when the host did not ask for it. */
 export function comptesEtape(backend, etape) {
   const profil = backend.stageProfile?.();
-  return profil?.stages?.find((entree) => entree.stage === etape)?.counts ?? null;
+  return profil?.stages?.find((input) => input.stage === etape)?.counts ?? null;
 }
 
-/** Libère la scène et le moteur d'une preuve. */
+/** Releases the scene and the engine of a proof. */
 export function libere(backend, canvas, scene) {
   backend.dispose();
   canvas.remove();
@@ -145,7 +145,7 @@ export function libere(backend, canvas, scene) {
   for (const m of scene.materials) m.dispose();
 }
 
-/** Combien de quadruplets RGBA diffèrent entre deux images de même taille. */
+/** How many RGBA quadruplets differ between two images of the same size. */
 export function difference(a, b) {
   let n = 0;
   for (let i = 0; i < a.length; i += 4)
@@ -154,10 +154,10 @@ export function difference(a, b) {
   return n;
 }
 
-/** Vrai quand le pixel à `i` porte le rouge du carreau et non le bleu du fond. */
+/** True when the pixel at `i` carries the tile's red and not the background's blue. */
 export const estRouge = (pixels, i) => pixels[i] > 110 && pixels[i] > pixels[i + 2] + 40;
 
-/** Le nombre de pixels qui portent le rouge du carreau plutôt que le bleu du fond. */
+/** The number of pixels that carry the tile's red rather than the background's blue. */
 export function redCount(pixels) {
   let n = 0;
   for (let i = 0; i < pixels.length; i += 4) if (estRouge(pixels, i)) n++;
@@ -165,14 +165,14 @@ export function redCount(pixels) {
 }
 
 /**
- * L'enveloppe commune d'une preuve à deux passes (paginée, non paginée) : ouvre l'appareil, exécute
- * `sequence(device, pagine, evenements)` pour chacune, referme l'appareil. `sequence` porte toute la
- * mise en scène propre à la preuve ; cette fonction ne porte que ce que chaque preuve à deux passes
- * répète à l'identique.
+ * Common envelope of a two-pass proof (paged, unpaged): opens the device, runs
+ * `sequence(device, pagine, evenements)` for each, closes the device. `sequence` carries all
+ * staging proper to the proof; this function only carries what every two-pass proof
+ * repeats identically.
  */
 export async function executerPasses(sequence) {
   const appareil = await ouvrirAppareil();
-  if (!appareil) return { indisponible: 'aucun adaptateur WebGPU' };
+  if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
   const evenements = [],
     passes = {};

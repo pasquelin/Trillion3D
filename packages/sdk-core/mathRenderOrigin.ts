@@ -2,32 +2,32 @@ import { copyMatrix4, type NumberSink } from './mathMatrix4.ts';
 import { transformHomogeneousPoint } from './mathVector.ts';
 
 /**
- * LE REPÈRE DE RENDU. Une scène posée loin de l'origine du monde tremble : la carte graphique
- * compose `vue · monde` en simple précision, et deux nombres de l'ordre de 50 km qui s'annulent
- * presque n'y laissent que quelques millimètres de chiffres justes. À chaque image la caméra bouge
- * un peu, l'annulation ne tombe pas au même endroit, et la surface frissonne.
+ * THE RENDER FRAME. A scene posed far from the world origin shimmers: the GPU
+ * composes `view · world` in single precision, and two numbers on the order of 50 km that almost
+ * cancel leave only a few millimetres of correct digits. Each frame the camera moves
+ * a little, the cancellation does not land in the same place, and the surface shivers.
  *
- * LA RÈGLE. Le processeur travaille en double précision, où 50 km laissent encore le micromètre :
- * c'est donc lui, et lui seul, qui retire la position de l'œil. La vue perd sa translation, chaque
- * matrice monde voit la sienne ramenée à l'œil, et le produit `vueRelative · mondeRelatif` vaut,
- * en arithmétique exacte, le `vue · monde` d'avant — la soustraction s'y simplifie terme à terme.
- * Ce qui part en simple précision ne porte alors plus que des nombres de la taille de la scène
- * VISIBLE, et non de sa distance à l'origine : le tremblement disparaît.
+ * THE RULE. The CPU works in double precision, where 50 km still leave the micrometre:
+ * so it, and it alone, subtracts the eye position. The view loses its translation, each
+ * world matrix has its own brought back to the eye, and the product `relativeView · relativeWorld`
+ * equals, in exact arithmetic, the previous `view · world` — the subtraction cancels term by term.
+ * What then goes to single precision carries only numbers the size of the VISIBLE
+ * scene, not of its distance to the origin: the shimmer disappears.
  *
- * LA CONTRAINTE. Une formule change de repère entière ou pas du tout : un opérande relatif et un
- * opérande absolu dans la même somme est un défaut, jamais une approximation. Une position monde
- * qui reste en double précision côté processeur n'a, elle, rien à changer.
+ * THE CONSTRAINT. A formula changes frame entirely or not at all: a relative operand and an
+ * absolute operand in the same sum is a defect, never an approximation. A world position
+ * that stays in double precision on the CPU has nothing to change.
  *
- * L'ORIGINE est la position de l'œil de l'image, et rien d'autre. Caméra à l'origine du monde, la
- * soustraction rend les mêmes bits qu'aucune soustraction : l'image ne change pas.
+ * THE ORIGIN is the eye position of the frame, and nothing else. Camera at the world origin, the
+ * subtraction yields the same bits as no subtraction: the image does not change.
  */
 
 /**
- * Écrit `world` avec sa translation ramenée à `origin`. La soustraction se fait dans la précision
- * des entrées — le double des matrices monde du moteur — et l'écriture d'un tampon simple précision
- * arrondit APRÈS elle, jamais avant : c'est tout ce qui sépare une image nette d'une image qui
- * frissonne. `at` est le rang du premier des seize nombres écrits, pour qu'un tampon de plusieurs
- * matrices se remplisse sans en découper une vue par matrice et par image.
+ * Writes `world` with its translation brought back to `origin`. The subtraction is done in the
+ * precision of the inputs — the double of the engine world matrices — and writing a single-precision
+ * buffer rounds AFTER it, never before: that is all that separates a sharp image from one that
+ * shivers. `at` is the rank of the first of the sixteen numbers written, so a buffer of several
+ * matrices fills without slicing a view per matrix and per frame.
  */
 export function worldToRenderOrigin<T extends NumberSink>(
   out: T,
@@ -43,10 +43,10 @@ export function worldToRenderOrigin<T extends NumberSink>(
 }
 
 /**
- * Écrit `m · T(origin)` : la même matrice, appliquée à un point rapporté à `origin`. Seule la
- * quatrième colonne change, et elle vaut `m · (origin, 1)` — calculée dans la précision des entrées
- * avant l'arrondi de l'écriture, si bien que la composition n'ajoute aucune erreur à celle que le
- * noyau borne déjà. `at` comme ci-dessus.
+ * Writes `m · T(origin)`: the same matrix, applied to a point referred to `origin`. Only the
+ * fourth column changes, and it equals `m · (origin, 1)` — computed in the precision of the inputs
+ * before the write rounding, so the composition adds no error beyond what the
+ * kernel already bounds. `at` as above.
  */
 export function matrixAtRenderOrigin<T extends NumberSink>(
   out: T,
@@ -59,9 +59,9 @@ export function matrixAtRenderOrigin<T extends NumberSink>(
 }
 
 /**
- * Écrit `view` sans sa translation : la vue d'une caméra de même orientation posée à l'origine du
- * repère de rendu. C'est l'exacte contrepartie de `worldToRenderOrigin` — la translation de la vue
- * est l'image de l'œil par la partie linéaire, et le monde relatif la porte déjà.
+ * Writes `view` without its translation: the view of a camera of the same orientation posed at the
+ * origin of the render frame. This is the exact counterpart of `worldToRenderOrigin` — the view
+ * translation is the image of the eye by the linear part, and the relative world already carries it.
  */
 export function viewToRenderOrigin<T extends NumberSink>(out: T, view: ArrayLike<number>) {
   copyMatrix4(out, view);

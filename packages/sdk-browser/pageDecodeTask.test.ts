@@ -1,5 +1,5 @@
-// Lot H2 : la tâche partagée du contrat — le travail exécuté tel quel par le worker et par le repli
-// sur le fil principal. Entrées hostiles : une page tronquée avant son en-tête, un magique retourné.
+// Batch H2: the contract's shared task — the work run as-is by the worker and by the fallback
+// on the main thread. Hostile inputs: a page truncated before its header, a flipped magic.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PAGE_DECODE_PROTOCOL } from '../sdk-core/index.ts';
@@ -19,7 +19,7 @@ function requete(overrides: Partial<PageDecodeRequest>): PageDecodeRequest {
   };
 }
 
-/** Une page complète avec ses six attributs, une valeur `-0` glissée dans la position. */
+/** A complete page with its six attributes, a `-0` value slipped into the position. */
 async function pageAvecMoinsZero() {
   const position = new Float32Array([-0, 0, 0, 1, 1, 1, 2, 2, 2]);
   const normal = new Float32Array([0, 1, 0, 0, 1, 0, 0, 1, 0]);
@@ -32,7 +32,7 @@ async function pageAvecMoinsZero() {
   return data as Uint8Array;
 }
 
-test('verify rend l’empreinte, le tampon d’origine octet pour octet, et wasm à faux', async () => {
+test('verify returns the fingerprint, the origin buffer byte for byte, and wasm false', async () => {
   const octets = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
   const { answer, transfer } = await runPageDecodeTask(
     requete({ op: 'verify', source: octets.buffer as ArrayBuffer, id: 42 }),
@@ -48,7 +48,7 @@ test('verify rend l’empreinte, le tampon d’origine octet pour octet, et wasm
   for (let i = 0; i < octets.length; i++) assert.ok(Object.is(rendus[i], octets[i]));
 });
 
-test('decode rend les mêmes tampons que le décodage en place, attributs et -0 compris', async () => {
+test('decode returns the same buffers as in-place decode, attributes and -0 included', async () => {
   const donnees = await pageAvecMoinsZero();
   const surPlace = await decodeGeometryPage(donnees.slice(), 16 * 1024 * 1024);
   const { answer, transfer } = await runPageDecodeTask(
@@ -74,7 +74,7 @@ test('decode rend les mêmes tampons que le décodage en place, attributs et -0 
   assert.ok(Object.is(restauree.attributes.position[0], -0));
 });
 
-test('une page tronquée avant son en-tête refuse GEOMETRY_PAGE_HEADER, message d’origine intact', async () => {
+test('a page truncated before its header refuses GEOMETRY_PAGE_HEADER, origin message intact', async () => {
   const { answer } = await runPageDecodeTask(requete({ source: new ArrayBuffer(10) }));
   assert.equal(answer.ok, false);
   const mauvais = answer as PageDecodeFailed;
@@ -82,16 +82,16 @@ test('une page tronquée avant son en-tête refuse GEOMETRY_PAGE_HEADER, message
   assert.equal(mauvais.message, 'GEOMETRY_PAGE_HEADER');
 });
 
-test('un magique ou une version altérée refuse GEOMETRY_PAGE_VERSION', async () => {
+test('an altered magic or version refuses GEOMETRY_PAGE_VERSION', async () => {
   const donnees = await pageAvecMoinsZero();
   const alteree = donnees.slice();
-  alteree[0] ^= 0xff; // Le premier octet du magique `WGP2`.
+  alteree[0] ^= 0xff; // First byte of the `WGP2` magic.
   const { answer } = await runPageDecodeTask(requete({ source: alteree.buffer as ArrayBuffer }));
   assert.equal(answer.ok, false);
   assert.equal((answer as PageDecodeFailed).code, 'GEOMETRY_PAGE_VERSION');
 });
 
-test('un identifiant de requête arbitraire revient inchangé dans chaque forme de réponse', async () => {
+test('an arbitrary request identifier comes back unchanged in every form of answer', async () => {
   const { answer: ok } = await runPageDecodeTask(
     requete({ op: 'verify', source: new ArrayBuffer(4), id: 777 }),
   );

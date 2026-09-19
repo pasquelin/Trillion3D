@@ -4,13 +4,13 @@ import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 
 /**
- * La résolution de relevé, déclarée une fois et consignée dans la provenance.
+ * The measurement resolution, declared once and recorded in the provenance.
  *
- * 2496 × 1404, la résolution interne du profil publié auquel `docs/REFERENCE_UE5.md` compare la
- * forme des passes — comparer des millisecondes prises à deux résolutions différentes ne veut rien
- * dire. Ce qu'on n'égale PAS, et qu'il ne faut pas laisser croire : eux remontent cette image en 4K
- * par leur sur-échantillonnage temporel ; le nôtre accumule à résolution native et ne remonte rien.
- * C'est le rendu interne qui est à la même taille, pas la sortie.
+ * 2496 × 1404, the internal resolution of the published profile that `docs/REFERENCE_UE5.md`
+ * compares the pass shapes against — comparing milliseconds taken at two different resolutions
+ * means nothing. What we do NOT match, and must not let anyone believe: they upsample that image
+ * to 4K by their temporal super-sampling; ours accumulates at native resolution and upsamples
+ * nothing. It is the internal render that is the same size, not the output.
  */
 export const MEASURE_WIDTH = 2496;
 export const MEASURE_HEIGHT = 1404;

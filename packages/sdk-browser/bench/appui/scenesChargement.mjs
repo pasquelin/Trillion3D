@@ -1,13 +1,13 @@
-// Fixtures du lot F : un manifeste de clusters et la scène Three.js qui va avec, tirés d'un
-// générateur à graine fixe. Le chargement les lit une fois, donc la fixture doit être grande : des
-// centaines de primitives, des milliers de pages, et la couverture exacte que le collecteur vérifie.
+// Batch F fixtures: a cluster manifest and the Three.js scene that goes with it, drawn from a
+// seeded generator. Loading reads them once, so the fixture must be large: hundreds of
+// primitives, thousands of pages, and the exact coverage the collector checks.
 import * as THREE from 'three';
 import { graine } from '../../../sdk-core/bench/socle.mjs';
 
 const materiau = (index) =>
   new THREE.MeshStandardMaterial({ color: 0x808080 + index * 7, roughness: 0.5 });
 
-/** Une page : bornes, erreur de cluster, sphère, et le triplet d'index qu'elle couvre. */
+/** A page: bounds, cluster error, sphere, and index triplet it covers. */
 function pageDe(alea, id, url, triangles, role, depart) {
   const cx = (alea() - 0.5) * 20,
     cy = (alea() - 0.5) * 12,
@@ -34,9 +34,9 @@ function pageDe(alea, id, url, triangles, role, depart) {
 }
 
 /**
- * Un manifeste et sa scène. `primitives` maillages, `pages` pages exactes chacun, plus une page
- * grossière sur quatre primitives ; une primitive sur cinq porte une hiérarchie de culling, ce qui
- * exerce les deux branches de l'union de boîtes.
+ * A manifest and its scene. `primitives` meshes, `pages` exact pages each, plus one coarse
+ * page every four primitives; one primitive in five carries a culling hierarchy, which
+ * exercises both branches of the box union.
  */
 export function manifesteEtScene({
   primitives = 200,
@@ -94,7 +94,7 @@ export function manifesteEtScene({
   return { source, associations, metadata: { primitives: liste }, indices };
 }
 
-/** Les pages d'un manifeste vues comme le catalogue d'un moteur : octets, matériaux, attributs. */
+/** Pages of a manifest seen as an engine catalogue: bytes, materials, attributes. */
 export function catalogueDePages({ pages = 20000, materiaux = 60, seed = 5309 } = {}) {
   const alea = graine(seed);
   const liste = [];

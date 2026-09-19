@@ -5,24 +5,22 @@ import { DIRECT_LIGHT_WGSL } from './directLightWgsl.ts';
 const WORDS = Math.ceil(LIGHT_SETTINGS.maxLights / 32);
 
 /**
- * Listes de lampes par tuile d'écran de 16 × 16 pixels. Un groupe de travail par tuile : les 256
- * fils réduisent la profondeur minimale et maximale de la tuile, le fil zéro en déduit les boîtes
- * englobantes monde de la tuile, chaque fil teste une lampe, puis chaque fil retenu écrit son rang à
- * la place que le compte de bits avant lui désigne — l'ordre reste croissant et déterminé, donc
- * l'image l'est aussi. Aucune boucle non bornée : chaque liste s'arrête à `maxLightsPerTile`, et le
- * nombre demandé est écrit à côté du nombre retenu.
+ * Light lists per 16 × 16 pixel screen tile. One workgroup per tile: the 256 threads reduce the
+ * tile's min and max depth, thread zero derives the tile's world bounding boxes, each thread
+ * tests one light, then each kept thread writes its rank at the place the bit count before it
+ * names — order stays increasing and determined, so the frame is too. No unbounded loop: each
+ * list stops at `maxLightsPerTile`, and the requested count is written next to the kept count.
  *
- * **Deux listes par tuile, deux tranches de profondeur.** La liste des opaques couvre la tranche
- * entre les deux profondeurs de la tuile, la plus serrée qui soit, et la résolution différée n'y
- * perd ni une lampe ni une milliseconde. La liste du mélange couvre la tranche du plan proche au
- * fond opaque, et le monde entier là où nul opaque ne couvre la tuile : une surface de mélange est
- * dessinée **devant** l'opaque de son pixel, et une boîte qui commence à sa profondeur lui
- * retirerait des lampes déclarées — un feuillage devant le ciel n'en garderait aucune. Une seule
- * passe, une seule réduction de profondeur, deux compactions.
+ * **Two lists per tile, two depth slices.** The opaque list covers the slice between the tile's
+ * two depths, the tightest there is, and deferred resolve loses neither a light nor a
+ * millisecond. The blend list covers the slice from the near plane to the opaque background,
+ * and the whole world where no opaque covers the tile: a blend surface is drawn **in front of**
+ * its pixel's opaque, and a box that starts at its depth would strip declared lights — foliage
+ * in front of the sky would keep none. One pass, one depth reduce, two compacts.
  *
- * La profondeur est INVERSÉE (`depthConvention.ts`) : le plus proche est le plus GRAND, le fond
- * vaut zéro, et le plan lointain est infini — une tuile sans opaque n'a donc aucune borne arrière
- * à déprojeter, et prend le monde entier plutôt qu'un point à l'infini.
+ * Depth is REVERSE-Z (`depthConvention.ts`): nearest is GREATEST, background is zero, and the
+ * far plane is infinite — a tile without opaque therefore has no back bound to unproject, and
+ * takes the whole world rather than a point at infinity.
  */
 export const LIGHT_TILES_SHADER = `
 struct TileView{inverseViewProjection:mat4x4f,viewport:vec4f,counts:vec4f,}
@@ -35,10 +33,9 @@ struct Box{lo:vec3f,hi:vec3f,}
 var<workgroup> nearest:atomic<u32>;
 var<workgroup> farthest:atomic<u32>;
 var<workgroup> covered:atomic<u32>;
-/** Un seul masque, deux tranches : les ${WORDS} premiers mots sont ceux de la liste opaque, les
- *  suivants ceux de la liste du mélange. Une seule fonction de rang sait les lire, indexée par le
- *  début de sa tranche — aucun pointeur vers la mémoire de groupe, que tous les appareils ne
- *  prennent pas en paramètre. */
+/** One mask, two slices: the first ${WORDS} words are the opaque list's, the next those of
+ *  the blend list. One rank function knows how to read them, indexed by the start of its
+ *  slice — no pointer into workgroup memory, which not every device takes as a parameter. */
 const OPAQUE_MASK:u32=0u;
 const BLEND_MASK:u32=${WORDS}u;
 var<workgroup> hits:array<atomic<u32>,${2 * WORDS}u>;
@@ -48,7 +45,7 @@ fn unproject(ndc:vec3f)->vec3f{
  let point=view.inverseViewProjection*vec4f(ndc,1.0);
  return point.xyz/point.w;
 }
-/** Boîte monde de la tuile entre deux profondeurs : huit coins, jamais un rayon. */
+/** World box of the tile between two depths: eight corners, never a radius. */
 fn tileBox(tile:vec2u,front:f32,back:f32)->Box{
  let size=view.viewport.xy;
  let x0=f32(tile.x*TILE_SIZE)/size.x*2.0-1.0;
@@ -73,7 +70,7 @@ fn sphereTouchesBox(box:Box,centre:vec3f,radius:f32)->bool{
  let clamped=max(outside,vec3f(0.0));
  return dot(clamped,clamped)<=radius*radius;
 }
-/** Le rang d'une lampe retenue : le nombre de bits retenus avant elle dans la même tranche. */
+/** Rank of a kept light: the number of kept bits before it in the same slice. */
 fn rankBefore(mask:u32,lane:u32)->u32{
  let word=mask+lane/32u;
  var rank=0u;
@@ -114,7 +111,7 @@ fn lightTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_index)
    opaqueBox=tileBox(tile.xy,front,back);
    blendBox=tileBox(tile.xy,${DEPTH_NEAR}.0,back);
   }else{
-   // Rien à déprojeter au fond : le monde entier, où aucune lampe n'est rejetée.
+   // Nothing to unproject at the back: the whole world, where no light is rejected.
    var whole:Box;whole.lo=vec3f(-1.0e30);whole.hi=vec3f(1.0e30);
    opaqueBox=whole;blendBox=whole;
   }
@@ -123,8 +120,8 @@ fn lightTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_index)
  let count=min(lights.count,MAX_LIGHTS);
  if(lane<count){
   let light=lights.items[lane];
-  // Une lampe directionnelle porte partout : aucune boîte de tuile ne peut la rejeter. Les autres
-  // ne sont retenues que si leur sphère de portée touche la boîte monde de la tranche.
+  // A directional light reaches everywhere: no tile box can reject it. The others are kept
+  // only if their range sphere touches the slice's world box.
   let sun=isSun(light);
   let bit=1u<<(lane%32u);
   if(atomicLoad(&covered)==1u&&(sun||sphereTouchesBox(opaqueBox,light.positionRange.xyz,light.positionRange.w))){
@@ -135,8 +132,8 @@ fn lightTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_index)
   }
  }
  workgroupBarrier();
- // Compaction en parallele : chaque fil ecrit sa lampe a son rang, donc chaque liste porte les
- // memes rangs de lampe dans le meme ordre croissant que la boucle d'un seul fil qu'elle remplace.
+ // Parallel compact: each thread writes its light at its rank, so each list carries the same
+ // light ranks in the same increasing order as the single-thread loop it replaces.
  let base=(tile.y*u32(view.viewport.z)+tile.x)*TILE_STRIDE;
  if(lane<count&&maskHolds(OPAQUE_MASK,lane)){
   let rank=rankBefore(OPAQUE_MASK,lane);

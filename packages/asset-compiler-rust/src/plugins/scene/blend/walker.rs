@@ -1,25 +1,24 @@
-//! Le parcours des objets du fichier, et ce qu'il verse dans les tables glTF.
+//! Walking the file's objects, and what it pours into the glTF tables.
 //!
-//! Chaque bloc `OB` de type maillage devient un nœud ; chaque bloc `ME` un maillage glTF, versé une
-//! seule fois — plusieurs objets qui partagent un maillage partagent le même, et n'en diffèrent que
-//! par leur matrice. Les matériaux d'un maillage sont ceux de ses emplacements ; un objet qui en
-//! remplace un est compté au rapport, le pilote suivant le maillage. Tout ce qui n'est pas rendu est
-//! compté, jamais tu.
+//! Each mesh-type `OB` block becomes a node; each `ME` block a glTF mesh, poured once — several
+//! objects that share a mesh share the same one, and differ only by their matrix. A mesh's
+//! materials are those of its slots; an object that replaces one is counted on the report, the
+//! driver following the mesh. Everything that is not rendered is counted, never silenced.
 use super::*;
 
-/// Ce que le parcours a sous la main.
+/// What the walk has at hand.
 pub(super) struct Scene<'a> {
     pub(super) out: Out,
     pub(super) images: Images,
-    /// Le rang glTF d'un matériau, par l'adresse de son bloc.
+    /// The glTF rank of a material, by the address of its block.
     pub(super) materials: HashMap<u64, Option<usize>>,
-    /// Le rang glTF d'un maillage et ses triangles, par l'adresse de son bloc.
+    /// The glTF rank of a mesh and its triangles, by the address of its block.
     pub(super) meshes: HashMap<u64, Option<(usize, usize)>>,
     pub(super) root: &'a Path,
     pub(super) cancelled: &'a AtomicBool,
 }
 
-/// Le nom d'un bloc identifié, sans les deux lettres de genre que Blender lui préfixe.
+/// The name of an identified block, without the two genre letters Blender prefixes it with.
 fn short(view: &At<'_>, fallback: &str) -> String {
     let name = view.id_name();
     let trimmed = name.get(2..).unwrap_or_default();
@@ -30,7 +29,7 @@ fn short(view: &At<'_>, fallback: &str) -> String {
 }
 
 impl Scene<'_> {
-    /// Un objet : son maillage s'il en porte un, et ce qu'on ne rend pas, compté.
+    /// An object: its mesh if it holds one, and what is not rendered, counted.
     pub(super) fn object(&mut self, object: &At<'_>) -> Result<()> {
         if object.pointer("instance_collection") != 0 || object.pointer("dup_group") != 0 {
             self.out.report.add("blend-collection-instance-unsupported");
@@ -76,8 +75,8 @@ impl Scene<'_> {
         Ok(())
     }
 
-    /// La lampe d'un objet de type lampe : un nœud de plus sous la racine, à la matrice de
-    /// l'objet. Blender oriente ses lampes vers leur `-Z`, comme le glTF : rien à tourner.
+    /// The lamp of a lamp-type object: one more node under the root, at the object's matrix.
+    /// Blender orients its lamps toward their `-Z`, like glTF: nothing to rotate.
     fn light(&mut self, object: &At<'_>) {
         let matrix = object::world(object, 0);
         let scale = crate::shared_math::uniform_scale(&matrix.map(f64::from));
@@ -95,7 +94,7 @@ impl Scene<'_> {
         }
     }
 
-    /// Le maillage glTF d'un bloc `ME`, versé à la première demande.
+    /// The glTF mesh of an `ME` block, poured on first request.
     fn mesh(&mut self, mesh: &At<'_>) -> Result<Option<(usize, usize)>> {
         if let Some(known) = self.meshes.get(&mesh.old) {
             return Ok(*known);
@@ -120,7 +119,7 @@ impl Scene<'_> {
         Ok(built)
     }
 
-    /// Les matériaux des emplacements d'un maillage, dans l'ordre des emplacements.
+    /// The materials of a mesh's slots, in slot order.
     fn slots(&mut self, mesh: &At<'_>) -> Vec<Option<usize>> {
         let total = mesh.int("totcol", 0).max(0) as usize;
         let table = mesh.block("mat").unwrap_or_default();
@@ -129,7 +128,7 @@ impl Scene<'_> {
             .collect()
     }
 
-    /// Le rang glTF d'un matériau, versé à la première demande.
+    /// The glTF rank of a material, poured on first request.
     fn material(&mut self, file: &BlendFile, pointer: u64) -> Option<usize> {
         if pointer == 0 {
             return None;
@@ -151,7 +150,7 @@ impl Scene<'_> {
         found
     }
 
-    /// Un objet qui remplace un matériau de son maillage : le pilote suit le maillage, et le dit.
+    /// An object that replaces a material of its mesh: the driver follows the mesh, and says so.
     fn overridden(&self, object: &At<'_>) -> bool {
         let bits = object.block("matbits").unwrap_or_default();
         let table = object.block("mat").unwrap_or_default();
@@ -160,7 +159,7 @@ impl Scene<'_> {
     }
 }
 
-/// Le pointeur de rang `rank` dans un bloc de pointeurs.
+/// The pointer of rank `rank` in a pointer block.
 fn pointer_at(bytes: &[u8], rank: usize) -> u64 {
     bytes
         .get(rank * POINTER..rank * POINTER + POINTER)

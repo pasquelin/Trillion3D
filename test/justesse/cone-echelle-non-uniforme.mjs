@@ -1,11 +1,11 @@
-// Justesse du rejet par cône sous une transformation non uniforme à petite échelle.
+// Correctness of cone rejection under a non-uniform transform at small scale.
 //
-// Deux vrais triangles aux grandes coordonnées locales, placés par une échelle (1e-8, 1e-6, 1e-6) :
-// un objet de deux unités dans le monde, face à la caméra, entièrement dans le tronc. Une telle
-// transformation n'est pas conforme (longueurs ×100) : le cône de normales ne s'y transporte pas,
-// le cluster doit être conservé. Le script interroge le vrai `coneCullsPageWith`, le vrai
-// `selectVisiblePages`, l'oracle Node du noyau et le noyau WGSL réellement exécuté dans Chromium
-// WebGPU, puis échoue si l'un d'eux retire les triangles.
+// Two real triangles at large local coordinates, placed by a scale (1e-8, 1e-6, 1e-6): a two-unit
+// object in the world, facing the camera, entirely in the frustum. Such a transform is not
+// conformal (lengths ×100): the normal cone does not transport, the cluster must be kept. The
+// script queries the real `coneCullsPageWith`, the real `selectVisiblePages`, the kernel's Node
+// oracle and the WGSL kernel actually run in Chromium WebGPU, then fails if any of them drops
+// the triangles.
 //
 // node --experimental-strip-types test/justesse/cone-echelle-non-uniforme.mjs
 import assert from 'node:assert/strict';
@@ -40,7 +40,7 @@ camera.lookAt(0, 0, -0.5);
 camera.updateMatrixWorld(true);
 const VIEWPORT = [1000, 1000];
 
-/** Ce que voit la caméra, calculé sur les sommets monde : la face est visible, et grande. */
+/** What the camera sees, computed on world vertices: the face is visible, and large. */
 function temoin() {
   const sommets = [0, 1, 2].map((i) =>
     new THREE.Vector3().fromArray(positions, i * 3).applyMatrix4(world),
@@ -62,7 +62,7 @@ function temoin() {
   return { face, airePixels: aire, dansLeTronc };
 }
 
-/** La coupe CPU du moteur, cônes actifs ou non. */
+/** The engine's CPU cut, cones on or off. */
 function coupeCpu(cones) {
   const box = new THREE.Box3(new THREE.Vector3(...min), new THREE.Vector3(...max)).applyMatrix4(
     world,
@@ -88,7 +88,7 @@ function coupeCpu(cones) {
     .displayedTriangles;
 }
 
-/** Le même cluster pour le noyau GPU : racine du DAG, erreur nulle, toujours dans sa bande. */
+/** The same cluster for the GPU kernel: DAG root, null error, always in its band. */
 function empaquete(coneDuCluster) {
   const sphere = [0, 0, -0.5, 2];
   return packDagSelection([
@@ -101,8 +101,8 @@ function empaquete(coneDuCluster) {
 
 const uniforms = cameraSelectionUniforms(cameraMoteur(camera), 0, VIEWPORT);
 const context = coneContextFor(createConeContext(), world, cameraMoteur(camera).eye);
-// Le noyau travaille dans le repère de rendu : les matrices monde empaquetées sont ramenées à
-// l'œil, comme le moteur les lui porte, sans quoi vue relative et monde absolu se mêleraient.
+// The kernel works in the render frame: packed world matrices are brought to the eye, as the
+// engine carries them, otherwise relative view and absolute world would mix.
 const rebase = (packed) => packedWorldsToRenderOrigin(packed, [{ world }], uniforms.cameraWorld);
 const avecCone = rebase(empaquete(cone)),
   sansCone = rebase(empaquete(OPEN_CONE));
@@ -135,12 +135,12 @@ const rapport = {
 console.log(JSON.stringify(rapport, null, 2));
 
 const { face, airePixels, dansLeTronc } = rapport.temoin;
-assert.ok(face > 0 && airePixels > 100 && dansLeTronc, 'le cas doit montrer une face visible');
+assert.ok(face > 0 && airePixels > 100 && dansLeTronc, 'the case must show a visible face');
 assert.equal(rapport.gpu.indisponible, null);
 assert.deepEqual(rapport.gpu.erreurs, []);
 assert.equal(rapport.cpu.trianglesSansCone, TRIANGLES);
 assert.equal(rapport.gpu.trianglesSansCone, TRIANGLES);
-assert.equal(rapport.cpu.coneRejette, false, 'CPU : coneCullsPageWith rejette une face visible');
-assert.equal(rapport.cpu.trianglesAvecCone, TRIANGLES, 'CPU : selectVisiblePages perd la face');
-assert.deepEqual(rapport.oracleNoyau.pagesAvecCone, [0], 'oracle du noyau : la page est rejetée');
-assert.equal(rapport.gpu.trianglesAvecCone, TRIANGLES, 'GPU : le noyau WGSL rejette la face');
+assert.equal(rapport.cpu.coneRejette, false, 'CPU: coneCullsPageWith rejects a visible face');
+assert.equal(rapport.cpu.trianglesAvecCone, TRIANGLES, 'CPU: selectVisiblePages loses the face');
+assert.deepEqual(rapport.oracleNoyau.pagesAvecCone, [0], 'kernel oracle: the page is rejected');
+assert.equal(rapport.gpu.trianglesAvecCone, TRIANGLES, 'GPU: the WGSL kernel rejects the face');

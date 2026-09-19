@@ -1,10 +1,10 @@
-//! La scène intermédiaire en construction, et son écriture dans le cache.
+//! The intermediate scene under construction, and its writing into the cache.
 //!
-//! Alembic ne porte ni image, ni texture, ni nuancier : un face set y nomme un matériau, sans rien
-//! en dire. Les tables écrites ici sont donc celles de la géométrie seule — nœuds, maillages,
-//! matériaux neutres, accesseurs — et un maillage dont les octets sont ceux d'un maillage déjà écrit
-//! n'est pas écrit deux fois : un fichier qui répète le même objet ne pèse qu'une fois dans la
-//! scène, et ses répétitions ne sont plus que des nœuds.
+//! Alembic carries neither image, texture, nor shading network: a face set names a material,
+//! without saying anything about it. The tables written here are therefore those of geometry
+//! alone — nodes, meshes, neutral materials, accessors — and a mesh whose bytes are those of a
+//! mesh already written is not written twice: a file that repeats the same object weighs only
+//! once in the scene, and its repetitions are only nodes.
 use self::write::digest;
 use super::mesh::{FaceSet, Part};
 use super::*;
@@ -14,35 +14,35 @@ use std::collections::{BTreeMap, HashMap};
 
 mod write;
 
-/// Le facteur de rugosité d'un matériau sans nuancier : une surface diffuse, ni métal ni miroir.
+/// Roughness factor of a material with no shading network: a diffuse surface, neither metal nor mirror.
 const NEUTRAL: [f64; 2] = [0.0, 1.0];
 
-/// Les tables du glTF en cours d'écriture.
+/// The glTF tables being written.
 #[derive(Default)]
 pub(super) struct Scene {
     pub(super) nodes: Vec<Value>,
     pub(super) meshes: Vec<Value>,
-    /// Le nombre de triangles de chaque maillage, par rang de `meshes`.
+    /// Triangle count of each mesh, by rank of `meshes`.
     mesh_triangles: Vec<usize>,
     pub(super) materials: Vec<Value>,
     accessors: Vec<Value>,
     bin: Bin,
     pub(super) report: Report,
-    /// Ce que le rapport publie en clair : objets, maillages, face sets, refus comptés.
+    /// What the report publishes in the clear: objects, meshes, face sets, counted refusals.
     pub(super) counts: BTreeMap<&'static str, usize>,
-    /// Les racines de la scène, dans l'ordre où le parcours les a trouvées.
+    /// Scene roots, in the order the walk found them.
     pub(super) roots: Vec<usize>,
-    /// Le matériau de chaque nom de face set : deux maillages qui nomment le même en partagent un.
+    /// The material of each face-set name: two meshes that name the same one share it.
     material_ids: HashMap<String, usize>,
-    /// Le maillage de chaque empreinte de contenu : la géométrie répétée n'est écrite qu'une fois.
+    /// The mesh of each content digest: repeated geometry is written only once.
     mesh_ids: HashMap<String, usize>,
-    /// Les nœuds porteurs de maillage et leurs triangles, suivis à mesure qu'ils sont posés.
+    /// Mesh-carrying nodes and their triangles, tracked as they are posed.
     pub(super) instanced: (usize, usize),
     key_material: String,
 }
 
 impl Scene {
-    /// Une scène vide, dont la clé de cache part du nom et de la version du pilote.
+    /// An empty scene, whose cache key starts from the driver's name and version.
     pub(super) fn new(plugin: &dyn ScenePlugin) -> Scene {
         Scene {
             key_material: format!("{}:{}", plugin.name(), plugin.version()),
@@ -54,8 +54,8 @@ impl Scene {
         *self.counts.entry(what).or_insert(0) += by;
     }
 
-    /// Ajoute un nœud et rend son rang. Un nœud porteur de maillage compte aussi ses triangles :
-    /// la même géométrie posée deux fois pèse deux fois dans ce que le moteur affichera.
+    /// Adds a node and yields its rank. A mesh-carrying node also counts its triangles: the same
+    /// geometry posed twice weighs twice in what the engine will display.
     pub(super) fn node(&mut self, node: Value) -> usize {
         if let Some(mesh) = node["mesh"].as_u64() {
             self.instanced.0 += 1;
@@ -65,9 +65,9 @@ impl Scene {
         self.nodes.len() - 1
     }
 
-    /// Le matériau que ce face set nomme. Alembic ne porte aucun nuancier : le matériau est neutre,
-    /// et seul son nom vient du fichier. Lui inventer une couleur serait ajouter ce que la source
-    /// n'a pas.
+    /// The material this face set names. Alembic carries no shading network: the material is
+    /// neutral, and only its name comes from the file. Inventing a colour for it would add what
+    /// the source does not have.
     fn material(&mut self, name: &str) -> usize {
         if let Some(known) = self.material_ids.get(name) {
             return *known;
@@ -81,7 +81,7 @@ impl Scene {
         id
     }
 
-    /// Écrit un maillage et rend son rang, ou rend celui d'un maillage aux mêmes octets.
+    /// Writes a mesh and yields its rank, or yields that of a mesh with the same bytes.
     pub(super) fn mesh(&mut self, name: &str, parts: &[Part], facesets: &[FaceSet]) -> usize {
         let digest = digest(parts, facesets);
         if let Some(known) = self.mesh_ids.get(&digest).copied() {
@@ -106,8 +106,8 @@ impl Scene {
         id
     }
 
-    /// Une primitive et ses accesseurs. Un attribut absent de la source reste absent du glTF : rien
-    /// n'est calculé à la place de ce que le fichier n'a pas écrit.
+    /// A primitive and its accessors. An attribute absent from the source stays absent from glTF:
+    /// nothing is computed in place of what the file did not write.
     fn primitive(&mut self, part: &Part, material: Option<usize>) -> Value {
         let vertices = part.positions.len() / 3;
         let mut attributes = json!({});
@@ -142,7 +142,7 @@ impl Scene {
         primitive
     }
 
-    /// Note un fichier lu : son nom, sa taille et son empreinte entrent dans la clé du cache.
+    /// Notes a file read: its name, size and digest enter the cache key.
     pub(super) fn read_file(&mut self, name: &str, bytes: usize, digest: &str) {
         self.key_material
             .push_str(&format!("\n{name}:{bytes}:{digest}"));

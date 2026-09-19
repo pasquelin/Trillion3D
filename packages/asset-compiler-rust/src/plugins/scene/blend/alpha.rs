@@ -1,41 +1,41 @@
-//! La transparence d'un matériau Blender, telle que le glTF la porte : un facteur, un mode, et
-//! parfois un seuil de découpe.
+//! Transparency of a Blender material, as glTF carries it: a factor, a mode, and sometimes a
+//! cut-off threshold.
 //!
-//! Rien ici ne regarde le type de l'objet ni le nom de la scène. Le facteur vient de l'entrée
-//! `Alpha` du nuanceur ; l'image qui la porte ne passe que si c'est le canal alpha de l'image que
-//! la couleur de base porte déjà, car glTF ne lit l'opacité que là. Une autre image, un autre canal
-//! ou un calcul ne s'y ramènent pas sans recomposer des octets : ils sont comptés par leur nom, et
-//! la valeur déclarée reprend la main, exacte.
+//! Nothing here looks at the object type or the scene name. The factor comes from the shader's
+//! `Alpha` input; the image that carries it only passes if it is the alpha channel of the image
+//! the base colour already holds, because glTF only reads opacity there. Another image, another
+//! channel or a computation cannot be reduced to that without recomposing bytes: they are counted
+//! by their name, and the declared value takes over, exact.
 //!
-//! Le mode, lui, dépend de l'âge du fichier. Jusqu'à Blender 4.1, le matériau déclarait son mode de
-//! mélange, découpe comprise, et le glTF le reprend tel quel. Depuis 4.2, le champ qui décrit le
-//! rendu de surface remplace cette déclaration : il n'y a plus de découpe, et c'est l'alpha seul
-//! qui dit si la surface se mélange. C'est le SDNA du fichier qui dit lequel des deux cas
-//! s'applique, jamais un numéro de version écrit ici.
+//! The mode depends on the age of the file. Until Blender 4.1, the material declared its blend
+//! method, cut-off included, and glTF takes it as-is. Since 4.2, the field that describes surface
+//! rendering replaces that declaration: there is no cut-off any more, and alpha alone says
+//! whether the surface blends. It is the file's SDNA that says which of the two cases applies,
+//! never a version number written here.
 use super::*;
 
-/// Le canal de l'image que glTF lit comme opacité : l'alpha de la texture de couleur de base.
+/// The image channel glTF reads as opacity: the alpha of the base-colour texture.
 const ALPHA_CHANNEL: &str = "Alpha";
-/// Le champ par lequel Blender 4.2 et au-delà décrivent leur rendu de surface.
+/// The field by which Blender 4.2 and later describe their surface rendering.
 const RENDER_METHOD: &str = "surface_render_method";
-/// Les modes de mélange qu'un fichier antérieur déclare lui-même.
+/// Blend methods an older file declares itself.
 const SOLID: i64 = 0;
 const CLIP: i64 = 3;
-/// Une opacité prise sur une image que la couleur de base ne porte pas, ou sur un calcul.
+/// Opacity taken from an image the base colour does not hold, or from a computation.
 const ALPHA_TEXTURE: &str = "blend-alpha-texture-unsupported";
-/// Une opacité prise sur un canal de cette image que glTF ne lit pas à cette place.
+/// Opacity taken from a channel of that image that glTF does not read at this place.
 const TEXTURE_CHANNEL: &str = "blend-texture-channel-unsupported";
 
-/// Ce que l'entrée `Alpha` a donné : le facteur qui entre dans `baseColorFactor`, et si l'alpha
-/// d'une image le module encore.
+/// What the `Alpha` input gave: the factor that enters `baseColorFactor`, and whether an image's
+/// alpha still modulates it.
 pub(super) struct Alpha {
     pub(super) factor: f32,
     textured: bool,
 }
 
-/// L'opacité du nuanceur, connaissant l'entrée de couleur de base et la texture qu'elle a donnée.
-/// Une entrée branchée l'emporte sur la valeur écrite : quand l'alpha de la texture de couleur de
-/// base porte l'opacité, le facteur vaut un et laisse passer l'image.
+/// The shader's opacity, knowing the base-colour input and the texture it gave. A linked input
+/// wins over the written value: when the alpha of the base-colour texture carries the opacity,
+/// the factor is one and lets the image through.
 pub(super) fn of(
     node: &At<'_>,
     tree: &shading::Tree<'_>,
@@ -73,7 +73,7 @@ pub(super) fn of(
     }
 }
 
-/// Le mode de transparence du matériau, écrit dans le glTF quand il n'est pas l'opacité.
+/// The material's transparency mode, written in glTF when it is not opaque.
 pub(super) fn mode(material: &At<'_>, alpha: &Alpha, gltf: &mut Value) {
     if material.has(RENDER_METHOD) {
         if alpha.textured || alpha.factor < 1.0 {

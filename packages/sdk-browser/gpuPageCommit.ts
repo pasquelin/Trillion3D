@@ -1,7 +1,7 @@
 import type { GpuPageContext, ResidentPage } from './gpuPageTypes.ts';
 
-/** Une page quitte la résidence : le journal des changements et le relevé le disent, d'où que
- *  vienne le départ. La fente n'est pas rendue ici — l'appelant sait ce qu'il en fait. */
+/** A page leaves residency: the change log and the sample both say so, wherever the
+ *  departure came from. The slot is not returned here — the caller knows what it does with it. */
 export function evictResident(
   context: GpuPageContext,
   page: ResidentPage,
@@ -13,7 +13,7 @@ export function evictResident(
   changeKeys.push(page.key);
   changeSlots.push(-1);
   state.evictions++;
-  context.reader.emit('gpu-page-eviction', 'Page retirée de la résidence GPU', () => ({
+  context.reader.emit('gpu-page-eviction', 'Page removed from GPU residency', () => ({
     version: 1,
     key: page.key,
     slot: page.slot,
@@ -38,8 +38,8 @@ export function commitGpuPage(
   let slot = free.pop();
   if (slot === undefined) {
     let victim: ResidentPage | undefined;
-    // Tout est épinglé : dit en O(1), sans parcourir la résidence — c'est l'état d'un réservoir
-    // plein pour la vue, qui se répète à chaque salve tant que la coupe n'a pas grossi.
+    // Everything is pinned: stated in O(1), without walking residency — this is a pool full
+    // for the view, repeating every burst until the cut has grown.
     if (pins.size < resident.size)
       for (const page of resident.values()) {
         if (!pins.has(page.key)) {
@@ -48,7 +48,7 @@ export function commitGpuPage(
         }
       }
     if (!victim) {
-      emit('gpu-page-admission-blocked', 'Aucun slot GPU évictable', () => ({
+      emit('gpu-page-admission-blocked', 'No evictable GPU slot', () => ({
         version: 1,
         key,
         reason: 'all-pages-pinned',
@@ -62,11 +62,11 @@ export function commitGpuPage(
     slot = victim.slot;
   }
   const uploadStarted = now();
-  // Un slot fait la taille du PLUS GROS cluster de la scène. Écrire le slot entier ferait payer à
-  // chaque page — même minuscule — un effacement, une recopie et un transfert de cette taille-là,
-  // alors que rien ne lit jamais la queue du slot : une ligne de la table de pages nomme son offset
-  // et son nombre de triangles, et la passe de visibilité ne sort pas de cette plage. Seuls les
-  // octets de la page partent donc, complétés jusqu'au multiple de quatre que `writeBuffer` exige.
+  // A slot is the size of the scene's LARGEST cluster. Writing the whole slot would charge every
+  // page — even a tiny one — a clear, a copy and a transfer of that size, while nothing ever
+  // reads the slot's tail: a page-table row names its offset and triangle count, and the
+  // visibility pass does not leave that range. Only the page's bytes go, padded to the multiple
+  // of four that `writeBuffer` requires.
   const size = bytes.byteLength,
     padded = size + (size % 4 ? 4 - (size % 4) : 0);
   staging.set(bytes);
@@ -84,7 +84,7 @@ export function commitGpuPage(
   resident.set(key, page);
   changeKeys.push(key);
   changeSlots.push(page.offset / 4);
-  emit('gpu-page-upload', 'Page écrite dans un slot GPU', () => ({
+  emit('gpu-page-upload', 'Page written into a GPU slot', () => ({
     version: 1,
     key,
     slot,
@@ -96,7 +96,7 @@ export function commitGpuPage(
     gpuMs: null,
     drawDetached: false,
   }));
-  emit('gpu-page-load-end', 'Chargement GPU terminé', () => ({
+  emit('gpu-page-load-end', 'GPU load finished', () => ({
     version: 1,
     key,
     slot,

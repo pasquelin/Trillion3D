@@ -1,5 +1,5 @@
-// Géométrie, caméra, vérité terrain et décision CPU partagées par la reproduction du défaut 6
-// (`inverseTranspose3`, gpuDagShader.ts). Séparé de l'orchestration pour tenir `check:lines`.
+// Geometry, camera, ground truth and CPU decision shared by the defect-6 reproduction
+// (`inverseTranspose3`, gpuDagShader.ts). Split from the orchestration to hold `check:lines`.
 import * as THREE from 'three';
 import {
   frustumExcludesBox,
@@ -21,21 +21,21 @@ import { poseMonde } from './normaleEclairageCas.mjs';
 import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
 
 export const VIEWPORT = [1000, 1000];
-// Caméra fixe : sur -Z, elle regarde l'origine où chaque objet est recentré quelle que soit sa
-// rotation (voir `construireCas`), pour que seule l'orientation varie d'un cas à l'autre.
+// Fixed camera: on -Z, it looks at the origin where each object is recentred whatever its
+// rotation (see `construireCas`), so that only orientation varies from case to case.
 export const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
 camera.position.set(0, 0, -9);
 camera.lookAt(0, 0, 0);
 camera.updateMatrixWorld(true);
-/** La caméra du moteur de ce décor, posée une fois : le CPU et le noyau GPU lisent la même. */
+/** This fixture's engine camera, posed once: CPU and GPU kernel read the same one. */
 export const vue = cameraMoteur(camera);
 const WORLD_PLANES = new Float64Array(24);
 frustumPlanesFromMatrix(WORLD_PLANES, vue.viewProjection);
 
 /**
- * Deux triangles partageant l'origine locale, comme le lot 1 : normales (±1,0,1)/√2, cône local
- * d'axe (0,0,1) et de demi-angle 45°. `L` fixe l'échelle des coordonnées locales ; le monde reste
- * de taille `worldSize` quel que soit `s` puisque `L = worldSize / s`.
+ * Two triangles sharing the local origin, as in batch 1: normals (±1,0,1)/√2, local cone
+ * of axis (0,0,1) and half-angle 45°. `L` fixes the scale of local coordinates; the world stays
+ * of size `worldSize` whatever `s` since `L = worldSize / s`.
  */
 function geometrieLocale(L) {
   const positions = [0, 0, 0, L, 0, -L, 0, L, 0, 0, 0, 0, -L, 0, -L, 0, -L, 0];
@@ -44,10 +44,10 @@ function geometrieLocale(L) {
 }
 
 /**
- * Rotation + échelle (uniforme ou non), recentrées à l'origine monde quelle que soit la rotation.
- * `miroir` inverse la troisième colonne de la 3×3 : la transformation reste conforme (colonnes
- * orthogonales de même longueur) mais son déterminant change de signe. La pose vient de
- * `poseMonde` : les défauts 6 et 9 éprouvent la même famille de matrices.
+ * Rotation + scale (uniform or not), recentred at the world origin whatever the rotation.
+ * `miroir` negates the third column of the 3×3: the transform stays conformal (orthogonal
+ * columns of equal length) but its determinant changes sign. The pose comes from
+ * `poseMonde`: defects 6 and 9 exercise the same family of matrices.
  */
 export function construireCas({ s, kind, worldSize, axis, angleDeg, miroir = false }) {
   const L = worldSize / s;
@@ -65,10 +65,11 @@ export function construireCas({ s, kind, worldSize, axis, angleDeg, miroir = fal
 }
 
 /**
- * Orientation géométrique BRUTE : vrais sommets transformés, `cross(e1, e2)` contre la caméra,
- * champ, aire en pixels. Ce n'est pas ce que le moteur dessine — sous réflexion il échange la face
- * éliminée (`windingCw`), et `avantVisible` désigne alors la face opposée à celle qui sort à
- * l'écran. Pour la vérité du moteur, mesurée par rasterisation réelle, voir `reflexion-cone.mjs`.
+ * RAW geometric orientation: true transformed vertices, `cross(e1, e2)` against the camera,
+ * frustum, area in pixels. This is not what the engine draws — under reflection it swaps the
+ * culled face (`windingCw`), and `avantVisible` then names the face opposite the one that
+ * comes out on screen. For the engine's truth, measured by real rasterisation, see
+ * `reflexion-cone.mjs`.
  */
 export function veriteTerrain(cas) {
   const triangles = [
@@ -102,7 +103,7 @@ export function veriteTerrain(cas) {
   return { triangles, avantVisible };
 }
 
-/** Ce qu'une page de cas porte toujours : sa boîte locale, son cône, une erreur de niveau nulle. */
+/** What a case page always carries: its local box, its cone, a null level error. */
 const pageDuCas = (cas) => ({
   url: '0',
   lodError: 0,
@@ -112,11 +113,11 @@ const pageDuCas = (cas) => ({
 });
 
 /**
- * Les cas empaquetés pour le noyau GPU : une racine par cas, une page par racine, la sphère du cas
- * pour rayon. Écrit une seule fois pour la campagne comme pour la preuve `test/` du défaut 6.
+ * Cases packed for the GPU kernel: one root per case, one page per root, the case's sphere
+ * for radius. Written once for the campaign as for defect 6's `test/` proof.
  */
-// Le noyau travaille dans le repère de rendu : les matrices monde empaquetées sont ramenées à
-// l'œil, comme le moteur les lui porte, sans quoi vue relative et monde absolu se mêleraient.
+// The kernel works in the render frame: packed world matrices are brought back to
+// the eye, as the engine feeds them, or else relative view and absolute world would mix.
 export const empaqueteCas = (liste) =>
   packedWorldsToRenderOrigin(
     packDagSelection(
@@ -129,14 +130,14 @@ export const empaqueteCas = (liste) =>
     vue.eye,
   );
 
-/** Le cluster est-il dans le champ (boîte locale contre les plans ramenés en repère local) ? */
+/** Is the cluster in the frustum (local box against the planes brought into local space)? */
 export function dansLeChamp(cas) {
   const local = new Float64Array(24);
   frustumPlanesToLocal(local, WORLD_PLANES, cas.world.elements);
   return !frustumExcludesBox(local, ...cas.min, ...cas.max);
 }
 
-/** `coneCullsPageWith` et `selectVisiblePages`, comme le lot 1 : la même page, les deux entrées. */
+/** `coneCullsPageWith` and `selectVisiblePages`, as in batch 1: the same page, both entries. */
 export function decisionCpu(cas) {
   const ctx = coneContextFor(createConeContext(), cas.world, vue.eye);
   const coneRejette = coneCullsPageWith(ctx, cas.cone, cas.world, cas.min, cas.max);

@@ -16,18 +16,19 @@ export async function createDagResources(
   const pageCount = packed.pageCount,
     nodeCount = packed.nodeCount,
     worldCount = Math.max(1, packed.worldCount);
-  // La liste compactée des pages dessinables prolonge le relevé : un entête, puis les rangs. Une seule copie contiguë rapporte les deux. Chacune est bornée par le PLAFOND
-  // et non par le catalogue : c'est ce que l'image recopie et mappe, et le pire cas n'arrive jamais
-  // (`gpuDagLayout.ts`, mesuré par `test/justesse/releve-coupe-gpu.mjs`).
+  // The compacted drawable-page list extends the snapshot: a header, then the ranks. One
+  // contiguous copy reports both. Each is bounded by the CEILING and not by the catalogue: that
+  // is what the frame copies and maps, and the worst case never happens (`gpuDagLayout.ts`,
+  // measured by `test/justesse/releve-coupe-gpu.mjs`).
   const listCap = selectionListCap(pageCount),
     headBytes = SELECTION_HEADER_WORDS * 4,
     outputBytes = headBytes + listCap * 4,
     drawnBytes = headBytes + listCap * 4,
-    // Le même compte de blocs que `blockCount()` du noyau, au mot près : deux compteurs vivent
-    // derrière eux dans `work` et le second est recopié vers l'argument de répartition.
+    // The same block count as the kernel's `blockCount()`, word for word: two counters live
+    // behind them in `work` and the second is copied to the dispatch argument.
     blockCount = Math.ceil(pageCount / SELECTION_WORKGROUP),
-    // La disposition de `work` vient de `dagWorkLayout`, qui la pose pour le noyau comme pour les
-    // bancs ; ici on n'en tire que les décalages d'octets qu'une copie vers l'argument demande.
+    // Layout of `work` comes from `dagWorkLayout`, which sets it for the kernel as for the
+    // benches; here only the byte offsets a copy to the argument asks for are taken.
     travail = dagWorkLayout(blockCount, worldCount),
     liveGroupsOffset = travail.liveGroups * 4,
     candGroupsOffset = travail.candGroups * 4,
@@ -38,8 +39,8 @@ export async function createDagResources(
     frameInts = new Uint32Array(frameData.buffer);
   for (let w = 0; w < packed.worldCount; w++) {
     frameData[(w * FRAME_VEC4 + 6) * 4] = packed.worldStretch[w];
-    // La racine de la primitive voyage avec son étirement : la préparation la dépose dans la file de
-    // la passe 0 sans qu'un tampon de stockage de plus soit lié à l'étape.
+    // The primitive's root travels with its stretch: prepare deposits it in pass 0's queue
+    // without one more storage buffer bound to the stage.
     frameInts[(w * FRAME_VEC4 + 6) * 4 + 1] = packed.rootNodes[w];
   }
   const buffers: GPUBuffer[] = [];
@@ -58,17 +59,17 @@ export async function createDagResources(
       size: UNIFORM_BYTES,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
-    // La file 0 de la descente, puis les drapeaux de dessin, puis le rejet par cone retenu par
-    // `dagWanted` pour les quatre passes qui le relisent, puis la liste des grappes vivantes, puis la
-    // liste des candidates — qui sert aussi de journal des dessinées de l'image précédente —, puis
-    // les files qui restent : jamais lus par le CPU, qui ne copie toujours que les drapeaux de dessin.
+    // Descent queue 0, then draw flags, then the cone rejection kept by `dagWanted` for the four
+    // passes that reread it, then the live-cluster list, then the candidate list — which also
+    // serves as the previous frame's drawn journal —, then the remaining queues: never read by
+    // the CPU, which still only copies draw flags.
     const flags = device.createBuffer({
       label: 'WG DAG flags',
       size: Math.max(16, (nodeCount * LEVEL_QUEUES + pageCount * 4) * 4),
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
-    // Trois mots d'argument, dont les deux derniers valent un une fois pour toutes : seul le premier
-    // est recopié, une fois par répartition indirecte. Les passes se suivant, un seul tampon suffit.
+    // Three argument words, of which the last two are one once and for all: only the first is
+    // copied, once per indirect dispatch. Passes following each other, one buffer is enough.
     const dispatchArgs = device.createBuffer({
       size: 16,
       usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
@@ -79,8 +80,8 @@ export async function createDagResources(
       size: readbackBytes,
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
-    // Aucun tampon de stockage de plus, le plafond d'une étape est déjà atteint ; les mots d'armement
-    // partent vers l'argument de répartition, d'où la source de copie.
+    // No extra storage buffer, a stage's ceiling is already reached; arming words go to the
+    // dispatch argument, hence the copy source.
     const work = device.createBuffer({
       label: 'WG DAG work',
       size: Math.max(8, travail.words * 4),

@@ -12,7 +12,7 @@ import {
 } from './gpuHiz.ts';
 import { VERDICT_KEPT, VERDICT_REJECTED } from './gpuPartitionContract.ts';
 
-/** Le verdict d'une boîte seule, la pyramide ramenée à son niveau zéro. */
+/** Verdict of a single box, the pyramid reduced to its level zero. */
 const verdictAtLevelZero = (pyramid: Parameters<typeof levelZero>[0], bounds: HizBounds) =>
   evaluateHizTest(packHizPyramid(levelZero(pyramid)), [bounds])[0];
 

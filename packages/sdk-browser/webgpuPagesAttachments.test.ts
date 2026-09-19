@@ -1,7 +1,7 @@
-// Lot F, F10 : `surfaceColorAttachments` (webgpuPagesAttachments.ts) garde les quatre descripteurs
-// de pièce jointe tant que `surfaces.views()` rend le même tableau, au lieu d'en allouer cinq objets
-// à chaque image. `views()` reste appelé à chaque image ; seule la reconstruction est conditionnelle.
-// L'oracle est la reconstruction inconditionnelle d'avant le lot F, recopiée telle quelle dans
+// Lot F, F10: `surfaceColorAttachments` (webgpuPagesAttachments.ts) keeps the four attachment
+// descriptors while `surfaces.views()` returns the same array, instead of allocating five objects
+// every image. `views()` is still called every image; only reconstruction is conditional.
+// The oracle is the unconditional reconstruction from before lot F, copied as-is into
 // `oracles/cadre-vue.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -16,46 +16,46 @@ function memeContenu(obtenu: readonly unknown[], attendu: readonly unknown[]) {
   assert.deepEqual(obtenu, attendu);
 }
 
-test('aucune vue : les deux côtés rendent un tableau de pièces jointes vide', () => {
+test('no view: both sides return an empty attachment array', () => {
   const surfaces = surfacesWith([]);
   memeContenu(surfaceColorAttachments(surfaces), referenceAttachments(surfaces));
 });
 
-test('un jeu de vues stable rend des descripteurs identiques à la reconstruction inconditionnelle', () => {
+test('a stable view set returns descriptors identical to the unconditional reconstruction', () => {
   const views = [{ label: 'a' }, { label: 'b' }, { label: 'c' }] as unknown as GPUTextureView[];
   const surfaces = surfacesWith(views);
   memeContenu(surfaceColorAttachments(surfaces), referenceAttachments(surfaces));
 });
 
-test('deux images sur le même jeu de vues rendent le même tableau de pièces jointes (mémoïsation)', () => {
+test('two images on the same view set return the same attachment array (memoisation)', () => {
   const views = [{ label: 'a' }] as unknown as GPUTextureView[];
   const surfaces = surfacesWith(views);
   const premiere = surfaceColorAttachments(surfaces);
   const seconde = surfaceColorAttachments(surfaces);
-  assert.equal(seconde, premiere, 'le même tableau de pièces jointes est réutilisé');
+  assert.equal(seconde, premiere, 'the same attachment array is reused');
   memeContenu(seconde, referenceAttachments(surfaces));
 });
 
-test('un redimensionnement (nouveau tableau de vues) reconstruit les pièces jointes, sans dériver de la référence', () => {
+test('a resize (new view array) rebuilds the attachments, without deriving from the reference', () => {
   const surfaces1 = surfacesWith([{ label: 'a' }] as unknown as GPUTextureView[]);
   const premiere = surfaceColorAttachments(surfaces1);
   const views2 = [{ label: 'a2' }, { label: 'b2' }] as unknown as GPUTextureView[];
   const surfaces2 = surfacesWith(views2);
   const seconde = surfaceColorAttachments(surfaces2);
-  assert.notEqual(seconde, premiere, 'un nouveau jeu de vues reconstruit le tableau');
+  assert.notEqual(seconde, premiere, 'a new view set rebuilds the array');
   memeContenu(seconde, referenceAttachments(surfaces2));
 });
 
-test('un moteur qui revient à un jeu de vues déjà vu ailleurs reconstruit quand même (identité de tableau, pas de contenu)', () => {
-  // `attachmentsFor !== views` compare des identités de tableau : deux tableaux de contenu identique
-  // mais d'identité différente (deux `SurfaceBuffer` distincts) ne doivent jamais être confondus.
+test('an engine that returns to a view set already seen elsewhere still rebuilds (array identity, not content)', () => {
+  // `attachmentsFor !== views` compares array identities: two arrays of identical content but
+  // different identity (two distinct `SurfaceBuffer`s) must never be confused.
   const viewsA = [{ label: 'x' }] as unknown as GPUTextureView[];
   const viewsB = [{ label: 'x' }] as unknown as GPUTextureView[];
   const surfacesA = surfacesWith(viewsA);
   const surfacesB = surfacesWith(viewsB);
   const attA = surfaceColorAttachments(surfacesA);
   const attB = surfaceColorAttachments(surfacesB);
-  assert.notEqual(attB, attA, 'deux identités de vues distinctes ne partagent pas leur cache');
+  assert.notEqual(attB, attA, 'two distinct view identities do not share their cache');
   memeContenu(attA, referenceAttachments(surfacesA));
   memeContenu(attB, referenceAttachments(surfacesB));
 });

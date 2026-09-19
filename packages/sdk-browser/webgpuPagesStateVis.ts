@@ -34,14 +34,14 @@ export interface WebgpuVisState {
   visHizRestNone: GPURenderPipeline | undefined;
   visHizRestFront: GPURenderPipeline | undefined;
   /**
-   * Pipelines des couches coplanaires au-dessus de 0 : mêmes modules et mêmes états que la couche 0,
-   * plus le décalage de profondeur de la couche en unités matérielles. Une scène sans surface
-   * coplanaire empilée n'en crée aucun et dessine exactement comme avant.
+   * Pipelines of coplanar layers above 0: same modules and same states as layer 0, plus the layer's
+   * depth bias in hardware units. A scene with no stacked coplanar surface creates none and draws
+   * exactly as before.
    */
   visLayerPipelines: Array<GPURenderPipeline | undefined>;
-  /** Une de plus que la couche coplanaire la plus profonde de la scène ; 1 quand il n'y en a pas. */
+  /** One more than the scene's deepest coplanar layer; 1 when there is none. */
   drawLayerSlots: number;
-  /** La partition GPU de l'image : projection, partage et bornes d'occultation par ligne. */
+  /** GPU partition of the image: projection, split and occlusion bounds per row. */
   gpuPartition: GpuPartition | undefined;
   visBindGroupLayout: GPUBindGroupLayout | undefined;
   visBindGroup: GPUBindGroup | undefined;
@@ -54,7 +54,7 @@ export interface WebgpuVisState {
   pipelineBlendFront: GPURenderPipeline | undefined;
   pipelineBlendBack: GPURenderPipeline | undefined;
   gpuDraw: GpuDraw | undefined;
-  /** La compaction de la moitié testée, entre le test d'occultation et la seconde passe. */
+  /** Compaction of the tested half, between the occlusion test and the second pass. */
   gpuRestCompact: GpuRestCompact | undefined;
   shadeBindGroupLayout: GPUBindGroupLayout | undefined;
   shadeBindGroup: GPUBindGroup | undefined;
@@ -67,7 +67,7 @@ export interface WebgpuVisState {
   concatNrm: GPUBuffer | undefined;
   pageTable: GPUBuffer | undefined;
   shadeUniform: GPUBuffer | undefined;
-  /** Les textures virtuelles : les deux pools, leurs tables de pages, le retour d'image. */
+  /** Virtual textures: the two pools, their page tables, image feedback. */
   textures: WebgpuTileStreamer | undefined;
   mapsSampler: GPUSampler | undefined;
   shadeUniPacked: Float32Array<ArrayBuffer>;

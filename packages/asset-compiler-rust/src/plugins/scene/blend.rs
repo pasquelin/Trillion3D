@@ -1,44 +1,42 @@
-//! Pilote de scène `blend` : un fichier Blender lu par sa propre description, vers un glTF 2.0.
+//! `blend` scene driver: a Blender file read by its own description, to a glTF 2.0.
 //!
-//! **Provenance et licence, écrites ici comme au journal.** Ce lecteur est écrit depuis la
-//! description publique du format — l'entête `BLENDER`, la suite de blocs, et le bloc `DNA1` par
-//! lequel chaque fichier décrit lui-même ses structures, leurs champs et leurs types. **Aucune
-//! ligne, aucun en-tête et aucun algorithme du code source de Blender n'est repris** : le dépôt
-//! n'en a pas besoin, le format s'auto-décrit. Lire un `.blend` n'impose aucune licence au lecteur
-//! ni au contenu lu ; la licence de la scène importée reste celle de son auteur. Les deux seules
-//! bibliothèques employées ne font que décompresser une enveloppe : `flate2` 1.1.10 (MIT OU
-//! Apache-2.0, backend Rust pur) pour gzip, `ruzstd` 0.7.3 (MIT, Rust pur) pour Zstandard, toutes
-//! deux déjà au `Cargo.toml` avec leur notice. Rien n'est déchiffré ni contourné.
+//! **Provenance and licence, written here as in `FORMATS.md`.** This reader is written from the
+//! public description of the format — the `BLENDER` header, the sequence of blocks, and the `DNA1`
+//! block by which each file describes its own structures, their fields and their types. **No
+//! line, header or algorithm of Blender's source code is reused**: the repository does not need
+//! it, the format describes itself. Reading a `.blend` imposes no licence on the reader nor on
+//! the content read; the licence of the imported scene remains that of its author. The only two
+//! libraries used only decompress a wrapping: `flate2` 1.1.10 (MIT OR Apache-2.0, pure-Rust
+//! backend) for gzip, `ruzstd` 0.7.3 (MIT, pure Rust) for Zstandard, both already in `Cargo.toml`
+//! with their notice. Nothing is deciphered or circumvented.
 //!
-//! **Ce qu'il lit.** La scène active du fichier — celle que son bloc global désigne —, par sa
-//! collection maîtresse et les collections filles que la couche de vue n'exclut pas : les objets de
-//! type maillage qu'elles portent et leur matrice monde — position, rotation
-//! (quaternion, six ordres d'Euler, axe-angle), échelle, valeurs différées, chaîne des pères et
-//! matrice d'accrochage —, les maillages par leurs attributs nommés (`position`, `.corner_vert`,
-//! offsets de faces, `material_index`, `sharp_face`, première couche d'UV de l'auteur, dont la
-//! coordonnée V est retournée pour l'origine du glTF), triangulés en éventail ; les matériaux par leur nœud `Principled BSDF` — couleur de base, métallicité,
-//! rugosité, alpha, émission, normale — atteint depuis la sortie active du graphe, et les images
-//! qu'ils lient, y compris **empaquetées**, dont
-//! les octets partent dans le binaire de la scène sans être touchés. Plusieurs objets qui partagent
-//! un maillage partagent le maillage glTF : ce sont des instances.
+//! **What it reads.** The file's active scene — the one its global block designates —, by its
+//! master collection and the child collections the view layer does not exclude: the mesh-type
+//! objects they hold and their world matrix — position, rotation (quaternion, six Euler orders,
+//! axis-angle), scale, deferred values, parent chain and parenting matrix —, meshes by their named
+//! attributes (`position`, `.corner_vert`, face offsets, `material_index`, `sharp_face`, the
+//! author's first UV layer, whose V coordinate is flipped for glTF's origin), fan-triangulated;
+//! materials by their `Principled BSDF` node — base colour, metallic, roughness, alpha, emission,
+//! normal — reached from the graph's active output, and the images they link, including **packed**
+//! ones, whose bytes go into the scene binary untouched. Several objects that share a mesh share
+//! the glTF mesh: they are instances.
 //!
-//! Les lampes des quatre types que Blender écrit — ponctuelle, soleil, projecteur, surface — sont
-//! importées avec leur puissance, leur couleur, leur cône et le rayon d'émetteur que leur bloc
-//! `Lamp` déclare.
+//! Lamps of the four types Blender writes — point, sun, spot, area — are imported with their
+//! power, colour, cone and the emitter radius their `Lamp` block declares.
 //!
-//! **Ce qu'il refuse, par son nom.** Un fichier à pointeurs de 32 bits ou en boutisme gros, une
-//! variante d'entête de bloc qu'il ne décrit pas, un fichier tronqué ou plus gros que son plafond,
-//! un `DNA1` illisible, un maillage hors de la disposition par attributs — celle de Blender 4.4 et
-//! au-delà ; les fichiers plus anciens, qui rangeaient leur géométrie dans `MPoly`/`MLoop` et
-//! `CustomData`, ne sont pas lus, faute de fichier de cette époque pour le prouver.
+//! **What it refuses, by name.** A file with 32-bit pointers or big-endian, a block-header variant
+//! it does not describe, a truncated file or one larger than its ceiling, an unreadable `DNA1`, a
+//! mesh outside the attribute layout — that of Blender 4.4 and beyond; older files, which stored
+//! their geometry in `MPoly`/`MLoop` and `CustomData`, are not read, for lack of a file of that
+//! era to prove it.
 //!
-//! **Ce qu'il compte au rapport sans le rendre.** Objets qui ne sont pas des maillages (courbes,
-//! textes, métaballes, armatures, caméras), collections instanciées, modificateurs non
-//! appliqués — le maillage de base sort alors tel quel —, entrées de nuanceur alimentées par un
-//! calcul, émission au-delà de un, images hors de la racine servie ou hors du registre d'images,
-//! remplacement de matériau par un objet, scènes au-delà de la première, objets qu'aucune
-//! collection de la scène active ne porte, nuanceur de surface sans équivalent PBR, et opacité
-//! prise sur une autre image ou un autre canal que l'alpha de la couleur de base.
+//! **What it counts on the report without returning it.** Objects that are not meshes (curves,
+//! texts, metaballs, armatures, cameras), instanced collections, unapplied modifiers — the base
+//! mesh then comes out as-is —, shader inputs fed by a computation, emission beyond one, images
+//! outside the served root or outside the image register, material replacement by an object,
+//! scenes beyond the first, objects that no collection of the active scene holds, a surface
+//! shader without a PBR equivalent, and opacity taken from another image or another channel than
+//! the alpha of the base colour.
 use super::*;
 use crate::import::{f32_bytes, normalise, write_scene, Bin, Report, Tables};
 use crate::plugins::scene::{cancel, normals};
@@ -81,15 +79,15 @@ use view::At;
 
 pub(super) static BLEND: Blend = Blend;
 pub(super) struct Blend;
-/// Le nom du format, tel qu'il voyage dans le manifeste et dans la clé du cache.
+/// The format name, as it travels in the manifest and in the cache key.
 const NAME: &str = "blend";
-/// Plafond de déballage d'un fichier : au-delà, l'enveloppe est refusée sans allouer.
+/// Unpacking ceiling of a file: beyond it, the wrapping is refused without allocating.
 const MAX_BYTES: usize = 1024 * 1024 * 1024;
-/// Plafond de parcours d'une liste chaînée, pour qu'un fichier abîmé ne tourne pas en rond.
+/// Ceiling of a linked-list walk, so a damaged file does not loop.
 const MAX_LIST: usize = 1 << 20;
 
-/// Un refus nommé du pilote. Tout ce que ce lecteur ne sait pas lire sort par là, avec un code
-/// stable que `docs/COMPILER.md` décrit — jamais par une panique.
+/// A named refusal of the driver. Everything this reader cannot read comes out here, with a
+/// stable code that `docs/COMPILER.md` describes — never by a panic.
 fn refused(code: &'static str, message: impl Into<String>) -> CompilerError {
     CompilerError::new(code, message)
 }
@@ -98,8 +96,8 @@ impl Plugin for Blend {
     fn name(&self) -> &'static str {
         NAME
     }
-    /// La version nomme la disposition lue et les deux décompresseurs : la changer invalide les
-    /// caches, donc tout `.blend` déjà compilé est relu.
+    /// The version names the layout read and the two decompressors: changing it invalidates
+    /// caches, so every already-compiled `.blend` is reread.
     fn version(&self) -> &'static str {
         "blend-sdna-attributes-flate2-1.1.10-ruzstd-0.7.3-gltf-9"
     }
@@ -109,9 +107,9 @@ impl Plugin for Blend {
 }
 
 impl ScenePlugin for Blend {
-    /// L'entête d'un fichier non compressé. Un `.blend` compressé commence par l'entête de son
-    /// enveloppe — gzip ou Zstandard —, que d'autres formats portent aussi : il n'est donc reconnu
-    /// que par son extension, jamais par un nombre magique qu'il ne possède pas en propre.
+    /// The header of an uncompressed file. A compressed `.blend` starts with the header of its
+    /// wrapping — gzip or Zstandard —, which other formats also carry: it is therefore recognised
+    /// only by its extension, never by a magic number it does not own.
     fn accepts_head(&self, head: &[u8]) -> bool {
         head.starts_with(envelope::MAGIC)
     }

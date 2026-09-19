@@ -1,15 +1,15 @@
-// Le Chrome de la machine, lancé d'une seule façon pour le banc, l'oracle et les preuves de rendu.
+// System Chrome, launched in a uniform way for the benchmark, oracle, and rendering proofs.
 //
-// Playwright le trouve lui-même par son canal (`channel: 'chrome'`), sur Windows, macOS ou Linux :
-// aucun chemin n'est écrit ici, et un poste sans Chrome installé reçoit l'erreur de Playwright,
-// qui nomme ce qui manque. C'est le Chrome du poste qui est lancé, jamais le Chromium de
-// Playwright : les mesures et les preuves portent sur le navigateur que l'utilisateur a.
+// Playwright locates it via channel (`channel: 'chrome'`) on Windows, macOS, or Linux:
+// no path is hardcoded here, and a machine without Chrome installed receives Playwright's error,
+// which names what is missing. The system Chrome is launched, never Playwright's Chromium:
+// measurements and proofs run on the browser used by end users.
 import { chromium } from 'playwright';
 
 /**
- * Lance le Chrome de la machine. `options` sont celles de `chromium.launch` — `headless`, `args` —,
- * le canal étant posé ici et nulle part ailleurs.
+ * Launches system Chrome. `options` are those of `chromium.launch` — `headless`, `args` —,
+ * with the channel set here and nowhere else.
  */
-export function lancerChrome(options = {}) {
+export function launchChrome(options = {}) {
   return chromium.launch({ channel: 'chrome', ...options });
 }

@@ -1,8 +1,8 @@
-//! De la source demandée à la scène intermédiaire écrite dans le cache.
+//! From the requested source to the intermediate scene written in the cache.
 use super::*;
 
-/// Le fichier demandé. Un dossier qui porte plusieurs `.abc` est une ambiguïté : le compilateur ne
-/// choisit pas à la place de l'appelant, qui lui désigne un fichier précis comme source.
+/// The requested file. A directory that holds several `.abc` is an ambiguity: the compiler does
+/// not choose in the caller's place, who designates a precise file as the source.
 fn source_file(inputs: &[PathBuf]) -> Result<&Path> {
     match inputs {
         [one] => Ok(one.as_path()),
@@ -16,7 +16,7 @@ fn source_file(inputs: &[PathBuf]) -> Result<&Path> {
     }
 }
 
-/// Lit l'archive et écrit sa conversion dans le cache. Rien n'est écrit à côté de la source.
+/// Reads the archive and writes its conversion into the cache. Nothing is written next to the source.
 pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Result<PathBuf> {
     let started = Instant::now();
     let file = source_file(request.inputs)?;
@@ -39,8 +39,8 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
             world.scene.roots.extend(attached);
         }
     }
-    // La clé tient l'empreinte du fichier lu : une archive inchangée se réécrit à l'identique, au
-    // même endroit, et une archive modifiée n'hérite jamais de ce que la précédente avait écrit.
+    // The key holds the digest of the file read: an unchanged archive is rewritten identically, at
+    // the same place, and a modified archive never inherits what the previous one had written.
     super::finish(
         scene,
         request,

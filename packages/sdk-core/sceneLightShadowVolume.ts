@@ -2,16 +2,16 @@ import { dotVector3 } from './mathVector.ts';
 import { faceBasis } from './sceneLightShadowMath.ts';
 
 /**
- * Le rectangle d'une région, en coordonnées normalisées de la face : `u0, u1, v0, v1`. La face
- * entière est `−1, 1, −1, 1`, et le volume qu'elle produit est alors exactement celui d'avant ce
- * lot : le cône circonscrit au carré, ou la sphère circonscrite à la boîte de la cascade.
+ * Rectangle of a region, in normalised face coordinates: `u0, u1, v0, v1`. The whole
+ * face is `−1, 1, −1, 1`, and the volume it produces is then exactly that from before this
+ * batch: the cone circumscribed to the square, or the sphere circumscribed to the cascade box.
  */
 export const FULL_FACE = new Float64Array([-1, 1, -1, 1]);
 
 const axis = new Float64Array(3),
   corner = new Float64Array(3);
 
-/** Direction monde du point `(u, v)` du plan de projection, repère de la dernière face composée. */
+/** World direction of point `(u, v)` of the projection plane, frame of the last composed face. */
 function direction(out: Float64Array, u: number, v: number, t: number) {
   let length = 0;
   for (let a = 0; a < 3; a++) {
@@ -23,14 +23,14 @@ function direction(out: Float64Array, u: number, v: number, t: number) {
 }
 
 /**
- * Le cône que le rejet oppose à une région d'une face en perspective : la lampe pour sommet, la
- * direction du centre de la région pour axe, et l'angle du plus écarté de ses quatre coins pour
- * demi-angle.
+ * Cone that reject opposes to a region of a perspective face: the light as apex, the
+ * direction of the region centre as axis, and the angle of the most offset of its four corners as
+ * half-angle.
  *
- * C'est exact, jamais une approximation de qualité : l'image projetée d'un rectangle plan est
- * sphériquement convexe, donc la calotte qui contient ses quatre coins contient tout le rectangle.
- * Un cluster écarté ne pouvait rien écrire dans la région, et la région sort texel pour texel comme
- * si tous les clusters lui avaient été présentés.
+ * This is exact, never a quality approximation: the projected image of a planar rectangle is
+ * spherically convex, so the cap that contains its four corners contains the whole rectangle.
+ * A discarded cluster could write nothing in the region, and the region comes out texel for texel as
+ * if every cluster had been presented to it.
  */
 export function writeConeVolume(
   cull: Float32Array,
@@ -44,7 +44,7 @@ export function writeConeVolume(
   cull[base + 1] = position[1];
   cull[base + 2] = position[2];
   cull[base + 3] = far;
-  // Un demi-champ au-delà du quart de tour couvre déjà tout l'espace : le cône n'exclut plus rien.
+  // A half-field beyond a quarter turn already covers all of space: the cone excludes nothing more.
   if (halfFov >= Math.PI / 2) {
     cull[base + 4] = faceBasis[6];
     cull[base + 5] = faceBasis[7];
@@ -67,10 +67,10 @@ export function writeConeVolume(
 }
 
 /**
- * La sphère que le rejet oppose à une région d'une cascade. Une orthographie n'a pas de sommet : la
- * région y découpe une sous-boîte de la boîte de la cascade, décalée dans le plan de la carte de la
- * part que la région occupe, et la sphère qui la circonscrit est le volume. Demi-angle π : le rejet
- * ne fait que le test de distance, comme pour la cascade entière.
+ * Sphere that reject opposes to a region of a cascade. An orthography has no apex: the
+ * region cuts a sub-box of the cascade box, shifted in the map plane by the
+ * share the region occupies, and the sphere that circumscribes it is the volume. Half-angle π:
+ * reject only does the distance test, as for the whole cascade.
  */
 export function writeSphereVolume(
   cull: Float32Array,
@@ -95,7 +95,7 @@ export function writeSphereVolume(
   cull[base + 7] = Math.PI;
 }
 
-/** Le rectangle normalisé d'une région de pages dans sa face : `y` descend dans le cadre de dessin. */
+/** Normalised rectangle of a page region in its face: `y` goes down in the draw frame. */
 export function regionRect(
   out: Float64Array,
   rows: number,

@@ -1,15 +1,15 @@
-// Défaut 4, côté carte graphique : le WGSL d'adressage du moteur exécuté dans Chromium WebGPU, sur
-// une vraie texture à texels distincts, à côté du vrai échantillonneur réglé comme Three règle le
-// sien (mode de la carte → `addressMode`). Deux filtrages : au plus proche (le texel choisi) et
-// linéaire (le filtrage réel de l'échantillonneur du moteur, comparé bit à bit).
+// Defect 4, GPU side: the engine addressing WGSL run in Chromium WebGPU, on
+// a real texture with distinct texels, beside the real sampler set as Three sets
+// its own (map mode → `addressMode`). Two filterings: nearest (the chosen texel) and
+// linear (the engine sampler's actual filtering, compared bit for bit).
 //   node --experimental-strip-types \
 //     test/justesse/adressage-gpu.mjs [sortie.json]
-// Bloquant : tout écart au plus proche hors frontière ; tout écart linéaire bit à bit hors couture ;
-// et, sur la couture d'une période, toute lecture qui s'écarte de la règle exacte de plus d'un demi
-// niveau sur 255 — le mélange que le moteur écrit lui-même ne peut pas retrouver, bit pour bit, le
-// poids que l'échantillonneur quantifie, mais il doit rendre la même couleur à ce niveau près.
-// Pour mémoire seulement : au plus proche sur une frontière exacte, le texel dépend de l'arrondi
-// 32 bits de u·taille.
+// Blocking: any nearest gap off a boundary; any bit-for-bit linear gap off a seam;
+// and, on a period seam, any read that leaves the exact rule by more than half a
+// level in 255 — the blend the engine writes itself cannot recover, bit for bit, the
+// weight the sampler quantises, but it must return the same colour to that level.
+// For the record only: nearest on an exact boundary, the texel depends on the 32-bit
+// rounding of u·size.
 import { writeFileSync } from 'node:fs';
 import { wrapNibble } from '../../packages/sdk-browser/visibilityWrapModes.ts';
 import {
@@ -25,8 +25,8 @@ import {
 } from './adressageCas.mjs';
 import { executerDansChromium, MELANGE, NUANCEUR_PRISES } from './adressageGpuPage.mjs';
 
-/** Le quartet d'adressage d'une carte, celui que `webgpuPageRow.ts` et `webgpuBlendPrepare.ts`
- *  rangent dans le mot de la page, par la même fonction. */
+/** The addressing nibble of a map, the one `webgpuPageRow.ts` and `webgpuBlendPrepare.ts`
+ *  store in the page word, by the same function. */
 const drapeaux = (c) => wrapNibble({ wrapS: c.wrapS, wrapT: c.wrapT });
 
 const tous = cas();
@@ -72,7 +72,7 @@ const sorties = await executerDansChromium({
   })),
 });
 
-/** Chaque cas retrouve sa ligne relue, au plus proche puis en linéaire (même ordre de lots). */
+/** Each case finds its read-back row, nearest then linear (same lot order). */
 const lecture = { nearest: new Map(), linear: new Map() };
 lots.forEach((lot, l) =>
   lot.membres.forEach((c, i) => lecture[lot.filtre].set(c, { ...sorties[l], i })),
@@ -90,17 +90,17 @@ const lineaire = (c, k) => {
     b = three[i * 4 + k];
   return Object.is(a, b) ? null : exemple(c, `moteur=${a * 255}`, `Three=${b * 255}`);
 };
-/** La couleur exacte de la règle : les deux texels de l'axe `k`, mêlés en double précision. */
+/** The exact colour of the rule: the two texels of axis `k`, blended in double precision. */
 const regle = (c, k) =>
   melange(lineaireThree(k ? c.v : c.u, k ? c.hauteur : c.largeur, k ? c.wrapT : c.wrapS));
-/** L'écart d'un côté à la règle exacte, en niveaux sur 255 ; `null` sous la tolérance. */
+/** Gap of one side to the exact rule, in levels of 255; `null` under the tolerance. */
 const contreRegle = (cote) => (c, k) => {
   const { i, [cote]: valeurs } = lecture.linear.get(c);
   const lu = valeurs[i * 4 + k] * 255,
     attendu = regle(c, k);
-  return Math.abs(lu - attendu) <= TOLERANCE ? null : exemple(c, `lu=${lu}`, `règle=${attendu}`);
+  return Math.abs(lu - attendu) <= TOLERANCE ? null : exemple(c, `lu=${lu}`, `rule=${attendu}`);
 };
-/** Le pire écart d'un côté à la règle, toutes composantes éprouvées : le bruit propre du filtrage. */
+/** Worst gap of one side to the rule, every component exercised: the filtering's own noise. */
 const pire = (cote) =>
   tous.reduce((m, c) => {
     const { i, [cote]: valeurs } = lecture.linear.get(c);
@@ -109,39 +109,31 @@ const pire = (cote) =>
   }, 0);
 
 const n = tous.length;
-bilan(
-  `Échantillonneur de Three au plus proche contre la règle de référence (${n} cas)`,
-  tous,
-  texel('three'),
-);
-const proches = bilan(
-  `WGSL du moteur au plus proche contre Three (${n} cas)`,
-  tous,
-  texel('moteur'),
-);
+bilan(`Three sampler nearest against the reference rule (${n} cases)`, tous, texel('three'));
+const proches = bilan(`Engine WGSL nearest against Three (${n} cases)`, tous, texel('moteur'));
 const lineaires = bilan(
-  `WGSL du moteur en linéaire contre Three, bit à bit (${n} cas)`,
+  `Engine WGSL linear against Three, bit for bit (${n} cases)`,
   tous,
   lineaire,
 );
 bilan(
-  `Échantillonneur de Three en linéaire contre la règle exacte, ±${TOLERANCE}/255 (${n} cas)`,
+  `Three sampler linear against the exact rule, ±${TOLERANCE}/255 (${n} cases)`,
   tous,
   contreRegle('three'),
 );
 const exacts = bilan(
-  `WGSL du moteur en linéaire contre la règle exacte, ±${TOLERANCE}/255 (${n} cas)`,
+  `Engine WGSL linear against the exact rule, ±${TOLERANCE}/255 (${n} cases)`,
   tous,
   contreRegle('moteur'),
 );
 console.log(
-  `\nPire écart à la règle exacte : moteur ${pire('moteur').toFixed(4)}/255,` +
-    ` échantillonneur de Three ${pire('three').toFixed(4)}/255`,
+  `\nWorst gap to the exact rule: engine ${pire('moteur').toFixed(4)}/255,` +
+    ` Three sampler ${pire('three').toFixed(4)}/255`,
 );
 const bloquants =
-  somme(proches, (cle) => !cle.includes('frontière')) +
+  somme(proches, (cle) => !cle.includes('frontiere')) +
   somme(lineaires, (cle) => !cle.includes('couture')) +
   somme(exacts);
 if (process.argv[2]) writeFileSync(process.argv[2], JSON.stringify(sorties.map((s) => s.moteur)));
-console.log(`\nGPU : ${bloquants} écarts bloquants`);
+console.log(`\nGPU: ${bloquants} blocking gaps`);
 process.exitCode = bloquants ? 1 : 0;

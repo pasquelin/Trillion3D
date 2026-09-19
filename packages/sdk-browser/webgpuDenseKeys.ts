@@ -8,12 +8,12 @@
  * a sort. An optional `mirror` array rides along: entry `i` of the mirror belongs to `list[i]`, so a
  * caller can keep the records beside the keys without a second index.
  *
- * `slots` est la table des rangs elle-même : rang du membre, ou -1. Une différence qui renouvelle
- * toute une coupe nomme vingt mille clés dont presque aucune n'est membre ; les tester à même le
- * tableau, et n'appeler `add` ou `remove` que pour celles qui bougent vraiment, vaut 2,65 ms contre
- * 3,26 ms sur huit images de ce genre — le prix de vingt mille appels qui ne font rien. Sur une
- * caméra qui glisse, où la différence est courte, l'écart tombe dans le bruit (1,23 contre 1,26), et
- * un appel isolé comme `touch` n'a donc rien à y gagner. Personne d'autre que ce module ne l'écrit.
+ * `slots` is the rank table itself: member rank, or -1. A delta that renews a whole cut
+ * names twenty thousand keys of which almost none is a member; testing them against the
+ * array, and calling `add` or `remove` only for those that really move, is 2.65 ms against
+ * 3.26 ms on eight frames of that kind — the price of twenty thousand calls that do nothing.
+ * On a sliding camera, where the delta is short, the gap falls into the noise (1.23 vs 1.26),
+ * and an isolated call like `touch` therefore has nothing to gain. Nobody but this module writes it.
  */
 export type DenseKeySet = ReturnType<typeof createDenseKeySet>;
 

@@ -3,9 +3,9 @@ import type { BlendLighting } from './webgpuBindEntries.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
- * Les ressources d'éclairage que la passe de mélange lie : exactement celles que la résolution
- * opaque vient de résoudre, et les remplaçants de la résolution différée pour celles qui n'existent
- * pas encore. Une seule résolution pour les deux passes, donc aucune lumière propre au mélange (P6).
+ * Lighting resources the blend pass binds: exactly those the opaque resolve just resolved,
+ * and the deferred-resolve placeholders for those that do not exist yet. One resolve for both
+ * passes, so the blend pass owns no light of its own (P6).
  */
 export function blendLightResources(rt: WebgpuPagesRuntime): BlendLighting {
   const { placeholders } = rt.gpu.deferred!,
@@ -22,7 +22,7 @@ export function blendLightResources(rt: WebgpuPagesRuntime): BlendLighting {
   };
 }
 
-/** Vrai quand deux résolutions successives ont donné exactement les mêmes ressources. */
+/** True when two successive resolves yielded exactly the same resources. */
 export function sameLighting(previous: BlendLighting | undefined, current: BlendLighting) {
   return (
     !!previous &&

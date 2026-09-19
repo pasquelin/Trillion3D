@@ -3,46 +3,46 @@ import { RUN_SHARED, RUN_WORDS, runOwner } from './webgpuBlendRuns.ts';
 import type { createWebgpuBlendState } from './webgpuBlendState.ts';
 
 /**
- * Tout ce que l'étalement du plan lit et écrit, sans un seul objet graphique : c'est la SÉMANTIQUE
- * de référence du noyau de `webgpuBlendExpandWgsl.ts`, et c'est aussi le chemin qu'emprunte, tel
- * quel, un appareil sans étage de calcul.
+ * Everything plan expansion reads and writes, without a single GPU object: that is the reference
+ * SEMANTICS of the `webgpuBlendExpandWgsl.ts` kernel, and it is also the path a device without a
+ * compute stage takes, as-is.
  */
 export type BlendExpansion = {
-  /** Le plan trié du plus lointain au plus proche, et les tranches qui le découpent. */
+  /** Sorted plan, farthest to nearest, and the runs that slice it. */
   order: Uint32Array;
   runs: Uint32Array;
   runCount: number;
-  /** Quatre mots par item : rang paginé, instances statiques, base de table, sommets par instance. */
+  /** Four words per item: paged rank, static instances, table base, vertices per instance. */
   draws: Uint32Array;
-  /** Un bit par item : zéro pour l'item que le tronc rejette, qui n'étale aucune instance. */
+  /** One bit per item: zero for the item the frustum rejects, which expands no instance. */
   keep: Uint32Array;
-  /** Les instances que la compaction a gardées par item paginé, et sa liste d'entrées. */
+  /** Instances compaction kept per paged item, and its entry list. */
   itemCounts: Uint32Array;
   instances: Uint32Array;
-  /** Les sommets d'une grappe paginée, et le pas d'adressage des instances. */
+  /** Vertices of a paged cluster, and the instance addressing stride. */
   maxVertexWords: number;
   vertexShift: number;
-  /** Où la passe étale ses instances, et où elle écrit ses arguments : deux régions par passe. */
+  /** Where the pass expands its instances, and where it writes its arguments: two regions per pass. */
   instanceBase: number;
   argsBase: number;
-  /** Les sorties : deux mots par instance, quatre mots d'argument indirect par tranche. */
+  /** Outputs: two words per instance, four indirect-argument words per run. */
   expanded: Uint32Array;
   args: Uint32Array;
 };
 
-/** Le tronc a-t-il gardé cet item ? Un bit par item, écrit par le classement de l'image. */
+/** Did the frustum keep this item? One bit per item, written by the frame's ranking. */
 export const itemKept = (keep: Uint32Array, item: number) =>
   (keep[item >>> 5] & (1 << (item & 31))) !== 0;
 
 /**
- * Étale le plan trié en une liste d'instances et un argument indirect par tranche.
+ * Expands the sorted plan into an instance list and one indirect argument per run.
  *
- * Une instance dit deux choses : l'item qui la porte, et ce qu'elle dessine — l'entrée de table
- * d'une grappe paginée, le premier indice de son morceau pour une primitive qui ne l'est pas. La
- * liste suit l'ordre du plan, donc l'ordre de peinture, et l'appel d'une tranche commence au sommet
- * `base << vertexShift` pour que le nuanceur y retrouve le rang de sa première instance.
+ * An instance says two things: the item that carries it, and what it draws — the table entry of
+ * a paged cluster, the first index of its chunk for a primitive that is not. The list follows
+ * plan order, hence paint order, and a run's draw starts at vertex `base << vertexShift` so the
+ * shader finds the rank of its first instance there.
  *
- * Rend le nombre d'instances écrites.
+ * Returns the number of instances written.
  */
 export function expandBlendPlan(x: BlendExpansion) {
   const { order, runs, draws, keep, itemCounts, instances, expanded, args } = x;
@@ -53,8 +53,8 @@ export function expandBlendPlan(x: BlendExpansion) {
       entries = runs[at + 1],
       owner = runOwner(order[first], entries),
       base = cursor;
-    // Une tranche partagée dessine des grappes, toutes au pas de la table ; une tranche d'un seul
-    // item non paginé dessine ses morceaux, au pas que sa géométrie lui a donné.
+    // A shared run draws clusters, all at the table stride; a run of a single unpaged item draws
+    // its chunks, at the stride its geometry gave it.
     const vertexCount =
       owner !== RUN_SHARED && draws[owner * 4] === DRAW_UNPAGED
         ? draws[owner * 4 + 3]
@@ -91,11 +91,11 @@ export function expandBlendPlan(x: BlendExpansion) {
 }
 
 /**
- * Le repli d'un appareil sans étage de calcul : la MÊME sémantique, écrite par le processeur.
+ * Fallback of a device without a compute stage: the SAME semantics, written by the CPU.
  *
- * La coupe processeur a déjà rempli la liste d'instances et les comptes par item
- * (`webgpuBlendSelection.ts`) ; il ne reste qu'à étaler le plan des deux passes et à pousser les
- * deux régions écrites. Un item que le tronc rejette n'y met rien, exactement comme sur la carte.
+ * The CPU cut has already filled the instance list and the per-item counts
+ * (`webgpuBlendSelection.ts`); all that remains is to expand both passes' plans and push the two
+ * written regions. An item the frustum rejects writes nothing there, exactly as on the GPU.
  */
 export function writeBlendExpansionCpu(
   blendState: ReturnType<typeof createWebgpuBlendState>,
@@ -103,8 +103,8 @@ export function writeBlendExpansionCpu(
 ) {
   const { expandedBuffer, argsBuffer } = blendState;
   if (!expandedBuffer || !argsBuffer) return;
-  // Les deux miroirs processeur n'existent QUE sur ce chemin : un appareil à étage de calcul ne
-  // garde pas en mémoire vive une liste d'instances que la carte écrit toute seule.
+  // The two CPU mirrors exist ONLY on this path: a device with a compute stage does not keep in
+  // host memory an instance list the GPU writes on its own.
   if (blendState.expandedPacked.length < blendState.instanceCapacity * 2)
     blendState.expandedPacked = new Uint32Array(blendState.instanceCapacity * 2);
   if (blendState.argsPacked.length < blendState.maxPlanEntries * 8)
@@ -137,8 +137,8 @@ export function writeBlendExpansionCpu(
         bases[pass] * 8,
         written * 8,
       );
-    // Seules les tranches de CETTE image sont poussées : quelques dizaines d'octets, là où un
-    // argument par item en réécrivait quatre par item et par image.
+    // Only THIS frame's runs are pushed: a few dozen bytes, where an argument per item rewrote
+    // four per item and per frame.
     if (blendState.runCount[pass])
       device.queue.writeBuffer(
         argsBuffer,

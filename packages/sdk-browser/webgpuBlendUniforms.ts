@@ -6,13 +6,13 @@ import { wantsContractLighting } from './webgpuPagesLightResources.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Le pas des uniformes du chemin de repli, qui garde un enregistrement par primitive. */
+/** Uniform stride of the fallback path, which keeps one record per primitive. */
 export const UNIFORM_STRIDE = 256;
-/** `viewProj`, l'oeil, les tuiles de lampes, les drapeaux de vue, le décalage d'item, la phase du
- *  retour d'image des textures et trois mots d'alignement : 112 octets. */
+/** `viewProj`, the eye, lamp tiles, view flags, the item offset, the texture-feedback phase and
+ *  three alignment words: 112 bytes. */
 export const BLEND_VIEW_SIZE = 112;
 
-/** Les bits de diagnostic que TOUTE la passe porte : ils ne dependent pas de l'item. */
+/** Diagnostic bits that the WHOLE pass carries: they do not depend on the item. */
 function diagnosticBits(diagnostic: DiagnosticMode) {
   if (diagnostic === 'beauty') return 0;
   const mode =
@@ -29,13 +29,13 @@ function diagnosticBits(diagnostic: DiagnosticMode) {
 }
 
 /**
- * L'uniforme de VUE de la passe transparente : cent douze octets, une fois par image.
+ * VIEW uniform of the transparent pass: one hundred and twelve bytes, once per image.
  *
- * Tout ce qui appartenait a un item — sa matrice, sa couleur, ses six cartes — vit maintenant dans
- * la fiche que le nuanceur lit au rang porte par l'indice de sommet (`webgpuBlendItems.ts`). Il ne
- * reste ici que ce qui change d'une image a l'autre et vaut pour tous les items a la fois : la
- * projection, l'oeil, les tuiles de lampes de cette image et les drapeaux de diagnostic. Aucune
- * boucle sur les items, aucune allocation, une seule ecriture de tampon.
+ * Everything that belonged to an item — its matrix, its colour, its six maps — now lives in the
+ * record the shader reads at the rank the vertex index carries (`webgpuBlendItems.ts`). What
+ * remains here is only what changes from one image to the next and holds for every item at once:
+ * the projection, the eye, this image's lamp tiles and the diagnostic flags. No loop over items,
+ * no allocation, a single buffer write.
  */
 export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { run, blendState } = rt,
@@ -45,8 +45,8 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
     ints = blendState.viewInts;
   const { diagnostic, lastCamera, diagnosticPixelError } = run,
     { viewport } = rt.setup;
-  // L'oeil en repere monde, pris dans la camera du moteur : la position locale d'une camera
-  // parentee n'est pas ou elle regarde.
+  // The eye in world space, taken from the engine camera: the local position of a parented
+  // camera is not where it looks.
   const eye = lastCamera ? run.gate.cam.eye : undefined;
   const tiles = directTiles();
   writeBlendDiagnostic(
@@ -62,15 +62,15 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
   packed[17] = eye?.[1] ?? 0;
   packed[18] = eye?.[2] ?? 0;
   packed[19] = 1;
-  // Les tuiles de lampes de cette image-ci : sans elles, la boucle du pixel retombe sur les lampes
-  // declarees. Zero quand aucune liste n'a ete encodee, jamais celles d'une autre image.
+  // Lamp tiles of this image: without them the pixel loop falls back on the declared lamps.
+  // Zero when no list has been encoded, never those of another image.
   packed[20] = tiles[1];
   packed[21] = tiles[2];
-  // Une seule question par image, pas par maillage : l'image est-elle eclairee par des lampes
-  // declarees ? Sinon les transparents sortent leur albedo brut, comme les opaques (P6).
+  // One question per image, not per mesh: is the image lit by declared lamps? If not, transparents
+  // output their raw albedo, like the opaques (P6).
   ints[22] = ((wantsContractLighting(rt) ? 0 : FLAG_UNLIT_VIEW) | diagnosticBits(diagnostic)) >>> 0;
   ints[23] = blendState.vertexShift;
-  // La phase du retour d'image des textures : la même que la résolution opaque, cette image-ci.
+  // Texture-feedback phase: the same as the opaque resolve, this image.
   ints[24] = rt.vis.textures?.feedback.phaseWord(run.textureConverging) ?? 0;
   device.queue.writeBuffer(
     buffer,

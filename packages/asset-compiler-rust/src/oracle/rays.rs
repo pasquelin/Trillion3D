@@ -4,12 +4,12 @@ use super::trace::{direct, scene_reach, trace};
 use super::OracleJob;
 use std::f64::consts::PI;
 
-/// Rayons d'un rebond secondaire, rapportés à ceux du premier : la variance qui compte est celle du
-/// premier rebond, et le second n'a pas besoin d'autant de chemins pour la même erreur.
+/// Secondary bounce rays, relative to primary ones: variance that matters is first bounce,
+/// and the second bounce needs fewer paths for the same error.
 const SECONDARY_SHARE: usize = 8;
 
-/// Un entier mélangé puis ramené dans [0,1). La graine vient du pixel et du rang de l'échantillon,
-/// donc deux exécutions rendent la même image, quel que soit le nombre de fils.
+/// Hash-mixed integer mapped into [0,1). Seed comes from pixel and sample index,
+/// so two runs output the same image, regardless of thread count.
 fn hash_unit(seed: u64) -> f64 {
     let mut x = seed.wrapping_mul(0x9e37_79b9_7f4a_7c15);
     x = (x ^ (x >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
@@ -17,8 +17,8 @@ fn hash_unit(seed: u64) -> f64 {
     ((x ^ (x >> 31)) >> 11) as f64 / (1u64 << 53) as f64
 }
 
-/// Une direction tirée sous la loi du cosinus autour de `n` : c'est l'échantillonnage qui annule le
-/// facteur cosinus de l'intégrale, si bien que l'estimateur est la moyenne des radiances fois π.
+/// Direction sampled cosine-weighted around : sampling cancels the
+/// cosine factor in the integral, so estimator is mean radiance times π.
 fn cosine_direction(n: [f64; 3], u1: f64, u2: f64) -> [f64; 3] {
     let radius = u1.sqrt();
     let angle = 2.0 * PI * u2;
@@ -37,11 +37,11 @@ fn cosine_direction(n: [f64; 3], u1: f64, u2: f64) -> [f64; 3] {
     ])
 }
 
-/// L'irradiance indirecte en un point : ce qui arrive après au moins un rebond sur une surface.
+/// Indirect irradiance at a point: what arrives after at least one surface bounce.
 ///
-/// C'est exactement la quantité que la grille de sondes du moteur livre, et c'est donc elle que le
-/// harnais compare. Le direct n'y entre jamais — il est mesuré ailleurs, et les composantes sont
-/// partitionnées (P3).
+/// Exactly the quantity delivered by the engine probe grid, so the harness
+/// compares it. Direct light never enters here — it is measured elsewhere, and
+/// the components are partitioned (P3).
 pub fn indirect(
     job: &OracleJob,
     world: &World,
@@ -59,8 +59,8 @@ pub fn indirect(
     ];
     let mut total = [0.0f64; 3];
     for sample in 0..samples {
-        // Un tirage stratifié sur le premier nombre, mélangé sur le second : la couverture de
-        // l'hémisphère ne dépend pas de la chance qu'a eue le générateur.
+        // Stratified sampling on first number, mixed on second: hemisphere coverage
+        // does not depend on random generator luck.
         let u1 = (sample as f64 + hash_unit(seed ^ 0x51_7c_c1_b7)) / samples as f64;
         let u2 = hash_unit(seed.wrapping_add(sample as u64).wrapping_mul(0x2545_f491));
         let ray = cosine_direction(n, u1.min(1.0 - 1e-9), u2);
@@ -89,7 +89,7 @@ pub fn indirect(
             total[axis] += albedo[axis] / PI * arriving[axis];
         }
     }
-    // Tirage en cosinus : l'intégrale de L·cos vaut π fois la moyenne des radiances.
+    // Cosine sampling: integral of L·cos equals π times mean radiance.
     let normalisation = PI / samples as f64;
     [
         total[0] * normalisation,
@@ -98,8 +98,8 @@ pub fn indirect(
     ]
 }
 
-/// La direction du rayon primaire d'un pixel. Même convention que la caméra du moteur : champ de
-/// vision vertical, y vers le haut, et le pixel visé en son centre.
+/// Primary ray direction of a pixel. Same convention as engine camera: vertical
+/// field of view, y up, pixel targeted at its center.
 fn camera_ray(job: &OracleJob, x: usize, y: usize) -> [f64; 3] {
     let camera = &job.camera;
     let forward = normalise(sub(camera.target, camera.position));
@@ -116,8 +116,8 @@ fn camera_ray(job: &OracleJob, x: usize, y: usize) -> [f64; 3] {
     ])
 }
 
-/// Une ligne de l'image : un rayon primaire par pixel, puis l'irradiance indirecte de ce qu'il a
-/// touché. Un pixel qui ne touche rien vaut exactement zéro, comme le fond du moteur.
+/// Image row: one primary ray per pixel, then indirect irradiance of what it
+/// hit. A pixel hitting nothing equals zero, like engine background.
 pub fn render_row(job: &OracleJob, world: &World, y: usize, row: &mut [f32]) {
     let reach = scene_reach(world);
     for x in 0..job.width {

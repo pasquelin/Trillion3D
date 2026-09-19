@@ -8,13 +8,13 @@ import { createWebgpuLightState } from './webgpuPagesStateLights.ts';
 import { referenceVertexBytes } from './bench/oracles/metriques-octets.mjs';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-// Lot triangles synchrones : `drawnTriangles` est recopié tel quel depuis `run.drawnTriangles`, sans
-// la garde `pending` (`gpuFrameActive && !gpuMetricsReady`) qui masque `submittedTriangles` — il n'a
-// jamais attendu de retour de la carte, donc jamais `null` faute de temps là où une coupe existe.
-test('metricsOf publie drawnTriangles depuis run.drawnTriangles, même quand submittedTriangles est encore en attente', () => {
+// Synchronous-triangles lot: `drawnTriangles` is copied as-is from `run.drawnTriangles`, without
+// the `pending` guard (`gpuFrameActive && !gpuMetricsReady`) that hides `submittedTriangles` — it
+// never waited for a GPU readback, so never `null` for lack of time where a cut exists.
+test('metricsOf publishes drawnTriangles from run.drawnTriangles, even when submittedTriangles is still pending', () => {
   const run = createWebgpuRunState();
   run.gpuFrameActive = true;
-  run.gpuMetricsReady = false; // Une image encore en vol : submittedTriangles doit valoir null.
+  run.gpuMetricsReady = false; // An image still in flight: submittedTriangles must be null.
   run.drawnTriangles = 4321;
   const rt = {
     run,
@@ -29,10 +29,10 @@ test('metricsOf publie drawnTriangles depuis run.drawnTriangles, même quand sub
 
   const metrics = metricsOf(rt);
   assert.equal(metrics.drawnTriangles, 4321);
-  assert.equal(metrics.submittedTriangles, null, 'témoin : la garde pending masque bien celui-ci');
+  assert.equal(metrics.submittedTriangles, null, 'witness: the pending guard does hide this one');
 });
 
-test('les métriques de textures sont celles du diffuseur, et `null` tant qu’il n’est pas bâti', () => {
+test("texture metrics are the streamer's, and `null` until it is built", () => {
   const rt = {
     run: createWebgpuRunState(),
     gpu: { positionBuffers: new Map() },
@@ -44,28 +44,20 @@ test('les métriques de textures sont celles du diffuseur, et `null` tant qu’i
     lights: createWebgpuLightState(),
   } as unknown as WebgpuPagesRuntime;
   const before = metricsOf(rt) as Record<string, unknown>;
-  assert.equal(
-    'texturePoolBytes' in before,
-    false,
-    'aucun pool : rien n’est publié, pas même zéro',
-  );
+  assert.equal('texturePoolBytes' in before, false, 'no pool: nothing is published, not even zero');
   rt.vis.textures = {
     metrics: () => ({ texturePoolBytes: 512, textureTilesResident: 3, textureLevelReads: null }),
   } as unknown as typeof rt.vis.textures;
   const metrics = metricsOf(rt);
   assert.equal(metrics.texturePoolBytes, 512);
   assert.equal(metrics.textureTilesResident, 3);
-  assert.equal(
-    metrics.textureLevelReads,
-    null,
-    'sans lecteur de niveaux : non mesuré, jamais zéro',
-  );
+  assert.equal(metrics.textureLevelReads, null, 'without a level reader: unmeasured, never zero');
 });
 
-// G4 : `vertexBytesOf` lit un total tenu à l'allocation (`gpu.vertexBytes`, incrémenté par
-// `ensureWebgpuPositionBuffer` et `prepareWebgpuBlend`) au lieu de resommer, à chaque relevé, tous
-// les tampons de positions résidents et tous les maillages transparents. Oracle : la resommation
-// complète d'avant le lot G, recopiée telle quelle dans `bench/oracles/metriques-octets.mjs`.
+// G4: `vertexBytesOf` reads a total held at allocation (`gpu.vertexBytes`, incremented by
+// `ensureWebgpuPositionBuffer` and `prepareWebgpuBlend`) instead of resuming, every sample, every
+// resident position buffer and every transparent mesh. Oracle: the full resummation from before lot
+// G, copied as-is into `bench/oracles/metriques-octets.mjs`.
 {
   function buffer(size: number) {
     return { size } as unknown as GPUBuffer;
@@ -100,19 +92,19 @@ test('les métriques de textures sont celles du diffuseur, et `null` tant qu’i
     );
   }
 
-  test('aucun tampon résident, aucun maillage transparent : les deux valent zéro', () => {
+  test('no resident buffer, no transparent mesh: both are zero', () => {
     scenario([], [undefined, undefined, undefined], []);
   });
 
-  test('des tampons de positions résidents seuls, tailles variées et zéro compris', () => {
+  test('resident position buffers alone, mixed sizes including zero', () => {
     scenario([0, 4096, 12], [undefined, undefined, undefined], []);
   });
 
-  test('les trois tampons concaténés du visbuffer présents ou partiellement absents', () => {
+  test('the three concatenated visbuffer buffers present or partly missing', () => {
     scenario([1024], [2048, undefined, 512], []);
   });
 
-  test('des maillages transparents avec un canal manquant chacun', () => {
+  test('transparent meshes with one missing channel each', () => {
     scenario(
       [],
       [undefined, undefined, undefined],
@@ -124,7 +116,7 @@ test('les métriques de textures sont celles du diffuseur, et `null` tant qu’i
     );
   });
 
-  test('un relevé complet avec tampons résidents, visbuffer et maillages transparents ensemble', () => {
+  test('a complete sample with resident buffers, visbuffer and transparent meshes together', () => {
     scenario(
       [256, 0, 8192],
       [4096, 4096, 2048],
@@ -135,7 +127,7 @@ test('les métriques de textures sont celles du diffuseur, et `null` tant qu’i
     );
   });
 
-  test('des tailles proches de Number.MAX_SAFE_INTEGER ne divergent pas entre les deux sommes', () => {
+  test('sizes near Number.MAX_SAFE_INTEGER do not diverge between the two sums', () => {
     const big = Number.MAX_SAFE_INTEGER / 8;
     scenario([big, big], [big, undefined, undefined], [[big, undefined, undefined]]);
   });
