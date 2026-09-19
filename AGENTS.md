@@ -118,8 +118,10 @@
   step 6 names the commands per tool). The pull request says what each pass found under "Local
   review before push"; the CI refuses an empty section.
 - Two tool-neutral roles in `docs/roles/`: `coder` implements one issue and opens the pull
-  request; `reviewer` checks it against this file and comments, without editing. Claude Code has
-  them as subagents in `.claude/agents/`, the reviewer without write tools.
+  request; `reviewer` checks it against this file and comments, without editing. The coder hands
+  every pull request to the reviewer in its own session, as a separate agent with a fresh context,
+  and fixes the findings before reporting. Claude Code has them as subagents in `.claude/agents/`,
+  the reviewer without write tools.
 - Merging is the maintainer's decision, never an agent's. `gh pr merge` is not for agents.
 
 ## Interaction and replies
