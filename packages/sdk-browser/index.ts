@@ -84,7 +84,7 @@ export {
   boxUnionBatch,
   composeMatrix4Batch,
   decomposeMatrix4Batch,
-  frustumExcludesBoxBatch,
+  frustumKeepsBoxBatch,
   hierarchyUpdateBatch,
   invertMatrix4Batch,
   linearToSrgbBatch,

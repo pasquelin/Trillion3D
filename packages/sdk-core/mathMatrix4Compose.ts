@@ -1,9 +1,5 @@
 import type { NumberSink } from './mathMatrix4.ts';
-
-/** Floats of a position or scale, and of a quaternion `(x, y, z, w)`, stored flat. */
-const POSITION_STRIDE = 3;
-const QUATERNION_STRIDE = 4;
-const MATRIX_STRIDE = 16;
+import { MATRIX_VALUES, POSITION_VALUES, QUATERNION_VALUES } from './mathBatchStrides.ts';
 
 /**
  * `out = T · R · S`, written at `at`, from a position at `pi`, a quaternion at `qi` and a scale
@@ -74,13 +70,27 @@ export function composeMatrix4<T extends NumberSink>(
 }
 
 /**
- * Composes `n` matrices. Every argument is read either as one flat buffer of `n` elements or as
- * `n` sub-views — `mathBatch.ts` explains why a matrix travels as a sub-view. The form is settled
- * BEFORE the loop, never inside it: a ternary per element costs 6% on two hundred thousand
- * compositions, measured against Three's own loop by `three-vs-core-batch-matrices.perf.mjs`.
+ * Composes `n` matrices. Two forms, and only two: everything flat, or everything as `n` sub-views
+ * — `mathBatch.ts` explains why a matrix travels as a sub-view. The form is settled BEFORE the
+ * loop, never inside it: a ternary per element costs 6% on two hundred thousand compositions,
+ * measured against Three's own loop by `three-vs-core-batch-matrices.perf.mjs`.
  *
  * Repeats `composeMatrix4`; replaces Three's `for … m.compose(p, q, s)`.
  */
+export function composeMatrix4Batch(
+  out: NumberSink,
+  positions: ArrayLike<number>,
+  quaternions: ArrayLike<number>,
+  scales: ArrayLike<number>,
+  n: number,
+): void;
+export function composeMatrix4Batch(
+  out: readonly NumberSink[],
+  positions: readonly ArrayLike<number>[],
+  quaternions: readonly ArrayLike<number>[],
+  scales: readonly ArrayLike<number>[],
+  n: number,
+): void;
 export function composeMatrix4Batch(
   out: NumberSink | readonly NumberSink[],
   positions: ArrayLike<number> | readonly ArrayLike<number>[],
@@ -88,36 +98,20 @@ export function composeMatrix4Batch(
   scales: ArrayLike<number> | readonly ArrayLike<number>[],
   n: number,
 ): void {
-  const o = Array.isArray(out) ? (out as readonly NumberSink[]) : null;
-  const p = Array.isArray(positions) ? (positions as readonly ArrayLike<number>[]) : null;
-  const q = Array.isArray(quaternions) ? (quaternions as readonly ArrayLike<number>[]) : null;
-  const s = Array.isArray(scales) ? (scales as readonly ArrayLike<number>[]) : null;
-  if (!o && !p && !q && !s) {
-    const dst = out as NumberSink,
-      pf = positions as ArrayLike<number>,
-      qf = quaternions as ArrayLike<number>,
-      sf = scales as ArrayLike<number>;
-    for (let i = 0; i < n; i++) {
-      const pi = i * POSITION_STRIDE;
-      composeAt(dst, i * MATRIX_STRIDE, pf, pi, qf, i * QUATERNION_STRIDE, sf, pi);
-    }
-    return;
-  }
-  if (o && p && q && s) {
+  if (Array.isArray(out)) {
+    const o = out as readonly NumberSink[],
+      p = positions as readonly ArrayLike<number>[],
+      q = quaternions as readonly ArrayLike<number>[],
+      s = scales as readonly ArrayLike<number>[];
     for (let i = 0; i < n; i++) composeAt(o[i], 0, p[i], 0, q[i], 0, s[i], 0);
     return;
   }
+  const dst = out as NumberSink,
+    pf = positions as ArrayLike<number>,
+    qf = quaternions as ArrayLike<number>,
+    sf = scales as ArrayLike<number>;
   for (let i = 0; i < n; i++) {
-    const pi = i * POSITION_STRIDE;
-    composeAt(
-      o ? o[i] : (out as NumberSink),
-      o ? 0 : i * MATRIX_STRIDE,
-      p ? p[i] : (positions as ArrayLike<number>),
-      p ? 0 : pi,
-      q ? q[i] : (quaternions as ArrayLike<number>),
-      q ? 0 : i * QUATERNION_STRIDE,
-      s ? s[i] : (scales as ArrayLike<number>),
-      s ? 0 : pi,
-    );
+    const pi = i * POSITION_VALUES;
+    composeAt(dst, i * MATRIX_VALUES, pf, pi, qf, i * QUATERNION_VALUES, sf, pi);
   }
 }

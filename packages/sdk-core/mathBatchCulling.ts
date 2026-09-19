@@ -1,25 +1,23 @@
 import { BOX_VALUES } from './mathBox.ts';
 import { frustumExcludesBox } from './mathFrustumBox.ts';
 import { sphereFromBounds } from './mathSphere.ts';
-
-/** Floats of a bounding sphere (x, y, z, radius) stored flat. */
-export const SPHERE_VALUES = 4;
+import { SPHERE_VALUES } from './mathBatchStrides.ts';
 
 /**
- * Tests `n` bounding boxes against the 6 frustum planes (24 floats).
+ * Tests `n` bounding boxes against the six frustum planes (24 floats), and writes what is KEPT:
+ * `kept[i]` is 1 where the box intersects the frustum or sits inside it, 0 where it is excluded.
+ * Returns how many were kept. The name says keep because that is what the array holds — it
+ * repeats `frustumExcludesBox` negated, which is the polarity Three's `intersectsBox` answers in.
  *
- * For each box, `out[i]` receives 1 if the box is kept (intersects or inside the frustum),
- * or 0 if excluded. Returns the total count of kept boxes.
- *
- * Repeats `frustumExcludesBox`. Replaces Three.js loop: `for … frustum.intersectsBox(box)`.
+ * Replaces Three's `for … frustum.intersectsBox(box)`.
  */
-export function frustumExcludesBoxBatch(
-  out: Uint8Array,
+export function frustumKeepsBoxBatch(
+  kept: Uint8Array,
   planes: Float64Array,
   boxes: ArrayLike<number>,
   n: number,
 ): number {
-  let kept = 0;
+  let count = 0;
   for (let i = 0; i < n; i++) {
     const at = i * BOX_VALUES;
     const excluded = frustumExcludesBox(
@@ -31,14 +29,10 @@ export function frustumExcludesBoxBatch(
       boxes[at + 4],
       boxes[at + 5],
     );
-    if (!excluded) {
-      out[i] = 1;
-      kept++;
-    } else {
-      out[i] = 0;
-    }
+    kept[i] = excluded ? 0 : 1;
+    if (!excluded) count++;
   }
-  return kept;
+  return count;
 }
 
 /**

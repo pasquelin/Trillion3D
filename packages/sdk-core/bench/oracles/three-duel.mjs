@@ -81,8 +81,9 @@ export function flatOf(objects, stride, out) {
  * the comparison leaves out, when it leaves something out.
  *
  * `slower` is for the one case where the two sides do not compute the same thing: `{ atMost, reason }`
- * lets the engine's best time reach `atMost` times Three's, and the reason is printed on the line.
- * It is a declaration, not a waiver — the ceiling still fails, and a line without `slower` must win.
+ * lets the engine reach `atMost` times Three, on the MEDIAN — the statistic the table prints — and
+ * the measured ratio and the reason go on the line. It is a declaration, not a waiver: the ceiling
+ * still fails the test, and a line without `slower` is gated on its best time and must win.
  */
 export async function duel({
   name,
@@ -121,17 +122,25 @@ export async function duel({
     engine.resultats[0].motif = `largest gap ${maxAbs.toExponential(1)} ; ${engine.resultats[0].motif}`;
   const t = { ...witness.resultats[0], name: `${name} · Three.js` },
     c = { ...engine.resultats[0], name: `${name} · sdk-core` };
-  if (slower) c.motif = `${(c.minMs / t.minMs).toFixed(2)}× Three.js: ${slower.reason}`;
+  const ratio = slower ? c.medianeMs / t.medianeMs : null;
+  if (slower)
+    c.motif = [`${ratio.toFixed(2)}× Three.js (median): ${slower.reason}`, c.motif]
+      .filter(Boolean)
+      .join(' ; ');
   test(`${name}: same result as Three.js, at least as fast`, () => {
     if (tolerance !== undefined)
       assert.ok(maxAbs <= tolerance, `${name}: largest difference ${maxAbs} above ${tolerance}`);
     else assert.equal(c.correct, true, `${name}: ${c.difference}`);
-    const ceiling = slower ? t.minMs * slower.atMost : t.minMs;
-    assert.ok(
-      c.minMs <= ceiling,
-      `${name}: sdk-core best ${c.minMs.toFixed(3)} ms above ${ceiling.toFixed(3)} ms` +
-        (slower ? ` (${slower.atMost}× Three.js, ${slower.reason})` : ' of Three.js'),
-    );
+    if (slower)
+      assert.ok(
+        ratio <= slower.atMost,
+        `${name}: sdk-core median ${ratio.toFixed(2)}× Three.js, above the declared ${slower.atMost}× (${slower.reason})`,
+      );
+    else
+      assert.ok(
+        c.minMs <= t.minMs,
+        `${name}: sdk-core best ${c.minMs.toFixed(3)} ms above Three.js ${t.minMs.toFixed(3)} ms`,
+      );
   });
   return { name, fichier, resultats: [t, c] };
 }

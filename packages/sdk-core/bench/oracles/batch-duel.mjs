@@ -57,7 +57,7 @@ export function prepareBatchData() {
     planes[i * 4 + 2] = p.normal.z;
     planes[i * 4 + 3] = p.constant;
   }
-  // One keep flag per box, the type `frustumExcludesBoxBatch` writes into.
+  // One keep flag per box, the type `frustumKeepsBoxBatch` writes into.
   const outExThree = new Uint8Array(N),
     outExCore = new Uint8Array(N);
 

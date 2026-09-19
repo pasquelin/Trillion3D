@@ -1,4 +1,5 @@
 import { BOX_VALUES, boxTransform, boxUnion } from './mathBox.ts';
+import { MATRIX_VALUES } from './mathBatchStrides.ts';
 import { multiplyMatrix4 } from './mathMatrix4.ts';
 import { composeMatrix4 } from './mathMatrix4Trs.ts';
 
@@ -18,12 +19,14 @@ import { composeMatrix4 } from './mathMatrix4Trs.ts';
  */
 
 export {
-  SPHERE_VALUES,
-  frustumExcludesBoxBatch,
-  sphereFromBoundsBatch,
-} from './mathBatchCulling.ts';
-export {
+  MATRIX_VALUES,
   NORMAL_MATRIX_VALUES,
+  POSITION_VALUES,
+  QUATERNION_VALUES,
+  SPHERE_VALUES,
+} from './mathBatchStrides.ts';
+export { frustumKeepsBoxBatch, sphereFromBoundsBatch } from './mathBatchCulling.ts';
+export {
   composeMatrix4Batch,
   decomposeMatrix4Batch,
   invertMatrix4Batch,
@@ -35,9 +38,6 @@ export {
   transformPointsByMatricesBatch,
 } from './mathBatchPoints.ts';
 export { linearToSrgbBatch, srgbToLinearBatch } from './mathBatchColor.ts';
-
-/** Floats of a flat 4×4 matrix. */
-export const MATRIX_VALUES = 16;
 
 /**
  * `n` boxes transformed by `n` matrices: `out[i] = boxTransform(boxes[i], mats[i])`. `out` and
@@ -115,10 +115,6 @@ export function boxTransformUnionBatch(
     );
   }
 }
-
-/** Floats of a position or scale, and a quaternion `(x, y, z, w)`, stored flat. */
-export const POSITION_VALUES = 3;
-export const QUATERNION_VALUES = 4;
 
 /**
  * FULL HIERARCHY updated in one pass: `n` nodes ordered parents before children, each
