@@ -1,9 +1,13 @@
 /**
- * Geometry buffers and WGSL shader definitions for interactive demo.
+ * The mesh and the shader of the live demo: a unit cube, one colour and one normal per face.
+ * Its size is the `scale` argument the demo hands to `composeMatrix4`, never baked in here.
  */
 
 export const WGSL_SHADER = `
-struct Uniforms { mvp: mat4x4<f32>, mode: u32, pad: vec3<u32> };
+// 64 bytes of matrix then one u32; the struct's 16-byte alignment rounds it to the 80 the
+// uniform buffer holds. A trailing vec3<u32> would push the requirement to 96 and every draw
+// would be rejected.
+struct Uniforms { mvp: mat4x4<f32>, mode: u32 };
 @group(0) @binding(0) var<uniform> u: Uniforms;
 struct VertexIn { @location(0) pos: vec3<f32>, @location(1) n: vec3<f32>, @location(2) col: vec3<f32> };
 struct VertexOut { @builtin(position) p: vec4<f32>, @location(0) col: vec3<f32>, @location(1) n: vec3<f32> };
@@ -15,7 +19,7 @@ struct VertexOut { @builtin(position) p: vec4<f32>, @location(0) col: vec3<f32>,
   return o;
 }
 @fragment fn fs(o: VertexOut) -> @location(0) vec4<f32> {
-  let light = max(dot(normalize(o.n), normalize(vec3<f32>(0.5, 0.8, 0.6))), 0.2);
+  let light = max(dot(normalize(o.n), normalize(vec3<f32>(0.4, 0.7, 0.9))), 0.35);
   return vec4<f32>(o.col * light, 1.0);
 }
 `;
@@ -70,7 +74,7 @@ export function buildCubeGeometry() {
     const idxs = [0, 1, 2, 0, 2, 3];
     for (const i of idxs) {
       const [vx, vy, vz] = p[f * 4 + i];
-      verts.push(vx * 0.8, vy * 0.8, vz * 0.8, nx, ny, nz, cr, cg, cb);
+      verts.push(vx, vy, vz, nx, ny, nz, cr, cg, cb);
     }
   }
   return new Float32Array(verts);

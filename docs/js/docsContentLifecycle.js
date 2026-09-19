@@ -6,6 +6,7 @@ export const LIFECYCLE = [
   {
     ...NODE,
     id: 'prepare',
+    exports: ['prepare'],
     title: 'prepare()',
     signature:
       'prepare(input: string, output: string, scope = DEFAULT_SCOPE, budget = 150000, options: PrepareOptions): Promise<CompilationResult>',
@@ -36,6 +37,7 @@ console.log(result.metrics.wallMs);`,
   {
     ...NODE,
     id: 'prepareMany',
+    exports: ['prepareMany'],
     title: 'prepareMany()',
     signature: 'prepareMany(jobs: BatchJob[], options: BatchOptions = {}): Promise<BatchSummary>',
     description:
@@ -57,6 +59,7 @@ const summary = await prepareMany(jobs, { workers: 2, onEvent: createBatchProgre
   {
     ...BROWSER,
     id: 'createExplorer',
+    exports: ['createExplorer'],
     title: 'createExplorer()',
     module: 'packages/sdk-browser/explorer.ts',
     signature:
@@ -99,6 +102,7 @@ explorer.dispose();`,
   {
     ...BROWSER,
     id: 'createExplorerJob',
+    exports: ['createExplorerJob'],
     title: 'createExplorerJob()',
     module: 'packages/sdk-browser/index.ts',
     signature: 'createExplorerJob(id: string, canvas: HTMLCanvasElement, options: ExplorerOptions)',
@@ -111,6 +115,7 @@ const explorer = await job.promise;`,
   {
     ...BROWSER,
     id: 'createJob',
+    exports: ['createJob'],
     title: 'createJob()',
     module: 'packages/sdk-core/jobs.ts',
     signature:
@@ -125,6 +130,7 @@ const explorer = await job.promise;`,
   {
     ...BROWSER,
     id: 'detectCapabilities',
+    exports: ['detectCapabilities'],
     title: 'detectCapabilities()',
     module: 'packages/sdk-browser/capabilities.ts',
     signature:
@@ -137,6 +143,7 @@ console.log(capabilities.tier, capabilities.renderer, capabilities.reason);`,
   {
     ...BROWSER,
     id: 'runCameraPath',
+    exports: ['runCameraPath'],
     title: 'runCameraPath()',
     module: 'packages/sdk-browser/cameraPath.ts',
     signature:
@@ -148,6 +155,7 @@ console.log(capabilities.tier, capabilities.renderer, capabilities.reason);`,
   {
     ...BROWSER,
     id: 'replicateInstances',
+    exports: ['replicateInstances'],
     title: 'replicateInstances()',
     module: 'packages/sdk-browser/replicateInstances.ts',
     signature: 'replicateInstances(...)',
@@ -157,6 +165,7 @@ console.log(capabilities.tier, capabilities.renderer, capabilities.reason);`,
   {
     ...BROWSER,
     id: 'createGpuPageCache',
+    exports: ['createGpuPageCache', 'httpPageSource'],
     title: 'createGpuPageCache() · httpPageSource()',
     module: 'packages/sdk-browser/gpuPages.ts',
     signature: 'createGpuPageCache(...) · httpPageSource(...)',

@@ -1,188 +1,156 @@
 /**
  * The live viewport: one mesh, drawn from matrices the engine's own kernels compute
- * (`sdkCoreMath.js`, bundled from `packages/sdk-core`). Reversed depth, infinite far plane —
- * the depth test is therefore `greater-equal` and the buffer is cleared to 0.
+ * (`engine.js`, bundled from the packages). Reversed depth and infinite far plane come
+ * from the engine's own constants, so this page cannot show a convention the engine abandoned.
+ *
+ * The device, the pipeline and the buffers are built on the first visit and reused: a visitor
+ * who walks the sidebar does not pay a pipeline compilation per page.
  */
-import { composeMatrix4, multiplyMatrix4, perspectiveProjection } from './sdkCoreMath.js';
+import {
+  composeMatrix4,
+  multiplyMatrix4,
+  perspectiveProjection,
+  DEPTH_CLEAR,
+  DEPTH_COMPARE_OR_EQUAL,
+} from './engine.js';
 import { buildCubeGeometry, WGSL_SHADER } from './demoGeometry.js';
+import { createGpuResources } from './demoPipeline.js';
 
 let animationId = null;
-/** The device of the previous visit: leaving the page must not leak one per visit. */
-let currentDevice = null;
-let rotX = 0.35,
-  rotY = 0.55;
-let isDragging = false,
-  lastMouseX = 0,
-  lastMouseY = 0;
-let fovDeg = 50;
+let gpu = null;
+/** Which visit owns the loop and the device: a second visit invalidates the first. */
+let visit = 0;
+let rotX = 0.5,
+  rotY = 0.7;
+let dragging = false,
+  lastX = 0,
+  lastY = 0;
 
-export async function initWebGpuDemo(canvas, statsEl, modeGetter) {
+/** Per-frame operands, allocated once: the demo claims no allocation, and keeps its word. */
+const modelM = new Float64Array(16);
+const projM = new Float64Array(16);
+const mvpM = new Float64Array(16);
+const uniforms = new Float32Array(20);
+/** The shader reads slot 16 as a `u32`: writing a float there would send its bit pattern. */
+const uniformWords = new Uint32Array(uniforms.buffer);
+const position = new Float64Array([0, 0, -4.2]);
+const rotation = new Float64Array(4);
+const scale = new Float64Array([0.8, 0.8, 0.8]);
+
+export function stopWebGpuDemo() {
+  visit++;
   if (animationId) cancelAnimationFrame(animationId);
-  if (currentDevice) {
-    currentDevice.destroy();
-    currentDevice = null;
-  }
-  setupMouseControls(canvas);
+  animationId = null;
+}
+
+export async function initWebGpuDemo(canvas, statsEl, options) {
+  stopWebGpuDemo();
+  const mine = visit;
+  setupPointer(canvas);
   if (!navigator.gpu) {
     statsEl.textContent = 'WebGPU is unavailable in this browser: nothing is drawn.';
     return;
   }
-  const adapter = await navigator.gpu.requestAdapter();
-  if (!adapter) {
-    statsEl.textContent = 'No WebGPU adapter answered: nothing is drawn.';
-    return;
-  }
-  const device = await adapter.requestDevice();
-  currentDevice = device;
-  const ctx = canvas.getContext('webgpu');
-  const format = navigator.gpu.getPreferredCanvasFormat();
-  ctx.configure({ device, format, alphaMode: 'premultiplied' });
-
-  const mod = device.createShaderModule({ code: WGSL_SHADER });
-  const geomData = buildCubeGeometry();
-  const vBuf = device.createBuffer({
-    size: geomData.byteLength,
-    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-  });
-  device.queue.writeBuffer(vBuf, 0, geomData);
-
-  const uBuf = device.createBuffer({
-    size: 80,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
-  const bLayout = device.createBindGroupLayout({
-    entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } }],
-  });
-  const bindGroup = device.createBindGroup({
-    layout: bLayout,
-    entries: [{ binding: 0, resource: { buffer: uBuf } }],
-  });
-
-  const pipeline = device.createRenderPipeline({
-    layout: device.createPipelineLayout({ bindGroupLayouts: [bLayout] }),
-    vertex: {
-      module: mod,
-      entryPoint: 'vs',
-      buffers: [
-        {
-          arrayStride: 36,
-          attributes: [
-            { shaderLocation: 0, offset: 0, format: 'float32x3' },
-            { shaderLocation: 1, offset: 12, format: 'float32x3' },
-            { shaderLocation: 2, offset: 24, format: 'float32x3' },
-          ],
-        },
-      ],
-    },
-    fragment: { module: mod, entryPoint: 'fs', targets: [{ format }] },
-    primitive: { topology: 'triangle-list', cullMode: 'back' },
-    depthStencil: { depthWriteEnabled: true, depthCompare: 'greater-equal', format: 'depth24plus' },
-  });
-
-  let depthTex = null;
-  function ensureDepth() {
-    if (!depthTex || depthTex.width !== canvas.width || depthTex.height !== canvas.height) {
-      if (depthTex) depthTex.destroy();
-      depthTex = device.createTexture({
-        size: [Math.max(1, canvas.width), Math.max(1, canvas.height)],
-        format: 'depth24plus',
-        usage: GPUTextureUsage.RENDER_ATTACHMENT,
-      });
+  if (!gpu) {
+    const adapter = await navigator.gpu.requestAdapter();
+    if (!adapter) {
+      statsEl.textContent = 'No WebGPU adapter answered: nothing is drawn.';
+      return;
     }
-  }
-
-  const modelM = new Float64Array(16),
-    projM = new Float64Array(16),
-    mvpM = new Float64Array(16);
-  const mvp32 = new Float32Array(20);
-  let lastTime = performance.now(),
-    frames = 0,
-    fps = 60,
-    mathMs = 0;
-
-  function render(now) {
-    if (device !== currentDevice) return; // a later visit owns the canvas now
-    if (canvas.clientWidth !== canvas.width || canvas.clientHeight !== canvas.height) {
-      canvas.width = canvas.clientWidth;
-      canvas.height = canvas.clientHeight;
-    }
-    ensureDepth();
-    if (!isDragging) rotY += 0.008;
-    const t0 = performance.now();
-    const qx = Math.sin(rotX * 0.5),
-      qwX = Math.cos(rotX * 0.5);
-    const qy = Math.sin(rotY * 0.5),
-      qwY = Math.cos(rotY * 0.5);
-    const q = [qx * qwY, qy * qwX, -qx * qy, qwX * qwY];
-    composeMatrix4(modelM, [0, 0, -2.8], q, [1, 1, 1]);
-    const aspect = canvas.width / Math.max(1, canvas.height);
-    perspectiveProjection(projM, fovDeg, aspect, 0.1, 1);
-    multiplyMatrix4(mvpM, projM, modelM);
-    mathMs += performance.now() - t0;
-
-    for (let i = 0; i < 16; i++) mvp32[i] = mvpM[i];
-    mvp32[16] = modeGetter() === 'normals' ? 1 : 0;
-    device.queue.writeBuffer(uBuf, 0, mvp32);
-
-    const encoder = device.createCommandEncoder();
-    const pass = encoder.beginRenderPass({
-      colorAttachments: [
-        {
-          view: ctx.getCurrentTexture().createView(),
-          clearValue: { r: 0.06, g: 0.07, b: 0.09, a: 1 },
-          loadOp: 'clear',
-          storeOp: 'store',
-        },
-      ],
-      depthStencilAttachment: {
-        view: depthTex.createView(),
-        depthClearValue: 0.0,
-        depthLoadOp: 'clear',
-        depthStoreOp: 'store',
-      },
+    const device = await adapter.requestDevice();
+    if (mine !== visit) return device.destroy(); // a later visit already owns the demo
+    gpu = createGpuResources(device, {
+      shader: WGSL_SHADER,
+      geometry: buildCubeGeometry(),
+      format: navigator.gpu.getPreferredCanvasFormat(),
+      depthCompare: DEPTH_COMPARE_OR_EQUAL,
     });
-    pass.setPipeline(pipeline);
-    pass.setBindGroup(0, bindGroup);
-    pass.setVertexBuffer(0, vBuf);
-    pass.draw(36);
-    pass.end();
-    device.queue.submit([encoder.finish()]);
-
-    frames++;
-    if (now - lastTime >= 500) {
-      fps = Math.round((frames * 1000) / (now - lastTime));
-      // The three kernels are often quicker than one tick of the page clock: say so
-      // rather than publish a rounded zero as a measurement.
-      const maths =
-        mathMs > 0 ? `${((mathMs / frames) * 1000).toFixed(1)} µs/frame` : 'under the clock tick';
-      statsEl.textContent = `${fps} FPS · engine maths ${maths} (CPU) · reversed Z`;
-      frames = 0;
-      mathMs = 0;
-      lastTime = now;
-    }
-    animationId = requestAnimationFrame(render);
   }
-  animationId = requestAnimationFrame(render);
+  if (mine !== visit) return;
+  const context = canvas.getContext('webgpu');
+  context.configure({ device: gpu.device, format: gpu.format, alphaMode: 'premultiplied' });
+  loop(canvas, context, statsEl, options, mine);
 }
 
-function setupMouseControls(canvas) {
-  canvas.onmousedown = (e) => {
-    isDragging = true;
-    lastMouseX = e.clientX;
-    lastMouseY = e.clientY;
-  };
-  window.onmouseup = () => {
-    isDragging = false;
-  };
-  window.onmousemove = (e) => {
-    if (!isDragging) return;
-    rotY += (e.clientX - lastMouseX) * 0.01;
-    rotX += (e.clientY - lastMouseY) * 0.01;
-    lastMouseX = e.clientX;
-    lastMouseY = e.clientY;
-  };
+function loop(canvas, context, statsEl, options, mine) {
+  let windowStart = performance.now(),
+    frames = 0;
+
+  function frame(now) {
+    if (mine !== visit) return; // a later visit owns the loop now
+    if (!canvas.isConnected) return stopWebGpuDemo(); // the visitor left the demo page
+    resize(canvas);
+    if (!dragging) rotY += 0.008;
+    writeMatrices(canvas, options.fov());
+    uniforms.set(mvpM);
+    uniformWords[16] = options.mode() === 'normals' ? 1 : 0;
+    gpu.draw(context, canvas, uniforms, DEPTH_CLEAR);
+    frames++;
+    if (now - windowStart >= 500) {
+      report(statsEl, frames, now - windowStart);
+      frames = 0;
+      windowStart = now;
+    }
+    animationId = requestAnimationFrame(frame);
+  }
+  animationId = requestAnimationFrame(frame);
 }
 
-export function setDemoFov(fov) {
-  fovDeg = fov;
+/** Model, projection and their product, from the engine kernels, into the three owned buffers. */
+function writeMatrices(canvas, fovDegrees) {
+  const halfX = rotX * 0.5,
+    halfY = rotY * 0.5;
+  const sx = Math.sin(halfX),
+    cx = Math.cos(halfX),
+    sy = Math.sin(halfY),
+    cy = Math.cos(halfY);
+  rotation[0] = sx * cy;
+  rotation[1] = cx * sy;
+  rotation[2] = -sx * sy;
+  rotation[3] = cx * cy;
+  composeMatrix4(modelM, position, rotation, scale);
+  perspectiveProjection(projM, fovDegrees, canvas.width / Math.max(1, canvas.height), 0.1, 1);
+  multiplyMatrix4(mvpM, projM, modelM);
+}
+
+/**
+ * Frames per second, and nothing else about time: three kernel calls fall below the page
+ * clock's resolution, and a figure that swings with its tick is not a measurement.
+ * `pnpm run perf:core` is where these kernels are timed against the host library.
+ */
+function report(statsEl, frames, spanMs) {
+  const fps = Math.round((frames * 1000) / spanMs);
+  statsEl.textContent = `${fps} FPS · 3 engine kernel calls per frame · reversed Z, depth cleared to ${DEPTH_CLEAR}`;
+}
+
+function resize(canvas) {
+  const width = Math.max(1, canvas.clientWidth);
+  const height = Math.max(1, canvas.clientHeight);
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+}
+
+function setupPointer(canvas) {
+  canvas.onpointerdown = (event) => {
+    dragging = true;
+    lastX = event.clientX;
+    lastY = event.clientY;
+    canvas.setPointerCapture(event.pointerId);
+  };
+  const release = (event) => {
+    dragging = false;
+    // Only the capture we took is released: a pointer pressed outside the canvas never had one.
+    if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+  };
+  canvas.onpointerup = release;
+  canvas.onpointercancel = release;
+  canvas.onpointermove = (event) => {
+    if (!dragging) return;
+    rotY += (event.clientX - lastX) * 0.01;
+    rotX += (event.clientY - lastY) * 0.01;
+    lastX = event.clientX;
+    lastY = event.clientY;
+  };
 }

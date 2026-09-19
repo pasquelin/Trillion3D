@@ -17,11 +17,12 @@ export function escapeHtml(text) {
     .replace(/"/g, '&quot;');
 }
 
-/** `code` spans and **bold** in a description, on escaped text: no other markup is honoured. */
+/** `code`, **bold** and *italic* in a description, on escaped text: no other markup is honoured. */
 export function inlineMarkup(text) {
   return escapeHtml(text)
     .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>');
 }
 
 function header(entry) {
@@ -46,7 +47,7 @@ function inDevelopment(entry) {
     </div>`;
 }
 
-function block(title, body) {
+function block(title, body = '') {
   return `<h2 class="text-lg font-bold mt-8 mb-2">${title}</h2>${body}`;
 }
 
@@ -97,12 +98,23 @@ function notes(entry) {
     .join('')}</div>`;
 }
 
-export function renderEntry(entry) {
+/** Where the live demo goes: filled by `app.js` when the entry has one. */
+function liveSlot(hasDemo) {
+  if (!hasDemo) return '';
+  return `${block('It runs, here')}
+    <p class="text-sm opacity-70 -mt-1 mb-2">Move the controls: the numbers below come from this
+    very function, called in your browser from <code>docs/js/engine.js</code> — the engine's own
+    code, bundled from <code>packages/</code>.</p>
+    <div data-demo class="card bg-base-200 border border-base-300 p-4"></div>`;
+}
+
+export function renderEntry(entry, hasDemo = false) {
   return [
     header(entry),
     inDevelopment(entry),
     entry.html ? `<div class="wg-prose mt-4">${entry.html}</div>` : '',
     signature(entry),
+    liveSlot(hasDemo),
     values(entry),
     example(entry),
     notes(entry),
@@ -139,5 +151,6 @@ export function renderDemoShell() {
       </div>
     </div>
     <p class="text-sm opacity-70 mt-3">Drag to turn the mesh. The counter reports frames per second
-    and the time the three kernels take per frame — a CPU figure, never added to a GPU one.</p>`;
+    and nothing else about time: three kernel calls fall below the page clock's resolution, and the
+    kernels are timed by <code>pnpm run perf:core</code> against the host library, not here.</p>`;
 }

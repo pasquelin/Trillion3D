@@ -1,5 +1,7 @@
-// The portal may only name what the repository delivers: every entry without an `issue` badge
-// must point at a file that exists and export the symbols its signature shows.
+// The portal may only name what the repository delivers: every entry that is not marked as
+// carried by an open issue declares the symbols it documents, each must be exported by the file
+// it names, and a documented signature must take the arguments the function really takes. An
+// entry that is marked must name an issue the portal lists. Every demo must belong to an entry.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -8,49 +10,100 @@ import { join, resolve } from 'node:path';
 const ROOT = resolve(import.meta.dirname, '../..');
 const DOCS = join(ROOT, 'docs/js');
 
-async function entries() {
-  const files = readdirSync(DOCS).filter((name) => name.startsWith('docsContent'));
-  const loaded = await Promise.all(files.map((name) => import(join(DOCS, name))));
-  return loaded.flatMap((module) => Object.values(module).flat());
+const modules = await Promise.all(
+  readdirSync(DOCS)
+    .filter((name) => name.startsWith('docsContent'))
+    .map((name) => import(join(DOCS, name))),
+);
+const ENTRIES = modules.flatMap((module) => Object.values(module).flat());
+const { ISSUES, SECTIONS } = await import(join(DOCS, 'docsModel.js'));
+
+/** Names a file declares or re-exports, read once per file. */
+const exportsOf = new Map();
+function exported(module) {
+  const known = exportsOf.get(module);
+  if (known) return known;
+  const source = readFileSync(join(ROOT, module), 'utf8');
+  const names = new Set([
+    ...[
+      ...source.matchAll(/export\s+(?:async\s+)?(?:function|const|class|type|interface)\s+(\w+)/g),
+    ].map((match) => match[1]),
+    ...[...source.matchAll(/export\s+(?:type\s+)?\{([^}]*)\}/g)].flatMap((match) =>
+      match[1].split(',').map((name) =>
+        name
+          .trim()
+          .split(/\s+as\s+|\s+/)
+          .pop(),
+      ),
+    ),
+  ]);
+  exportsOf.set(module, names);
+  return names;
 }
 
-/** The identifiers a signature declares: `name(` or `name =`, one per documented symbol. */
-function symbolsOf(signature) {
-  return [...signature.matchAll(/([A-Za-z_][A-Za-z0-9_]*)\s*(?:<[^>]*>)?\s*(?:\(|=|:)/g)]
-    .map((match) => match[1])
-    .filter((name) => !['type', 'const', 'function', 'Promise', 'Record'].includes(name));
-}
-
-test('every delivered entry names a file that exists', async () => {
-  for (const entry of await entries()) {
+test('every delivered entry names a file that exists', () => {
+  for (const entry of ENTRIES) {
     if (!entry.module || entry.issue) continue;
     assert.ok(existsSync(join(ROOT, entry.module)), `${entry.id}: missing ${entry.module}`);
   }
 });
 
-test('every delivered signature names symbols that module exports', async () => {
-  for (const entry of await entries()) {
-    if (!entry.module || !entry.signature || entry.issue) continue;
-    const source = readFileSync(join(ROOT, entry.module), 'utf8');
-    const exported = new Set(
-      [...source.matchAll(/export\s+(?:async\s+)?(?:function|const|type|interface)\s+(\w+)/g)].map(
-        (match) => match[1],
-      ),
-    );
-    const found = symbolsOf(entry.signature).filter((name) => exported.has(name));
-    assert.ok(found.length > 0, `${entry.id}: ${entry.module} exports none of its signature`);
+test('every symbol a delivered entry documents is exported by the file it names', () => {
+  for (const entry of ENTRIES) {
+    if (entry.issue) continue;
+    if (!entry.exports) {
+      assert.ok(!entry.module, `${entry.id}: names a module without declaring its symbols`);
+      continue;
+    }
+    assert.ok(entry.exports.length > 0, `${entry.id}: an empty symbol list checks nothing`);
+    const names = exported(entry.module);
+    for (const symbol of entry.exports)
+      assert.ok(names.has(symbol), `${entry.id}: ${entry.module} does not export ${symbol}`);
   }
 });
 
-test('an entry in development names an open issue, and the sections are the declared ones', async () => {
-  const { ISSUES, SECTIONS } = await import(join(DOCS, 'docsModel.js'));
+/** The parameters a `name(a, b, c)` line of a signature declares, in order. */
+function signatureArguments(signature, name) {
+  const match = new RegExp(`\\b${name}\\s*(?:<[^>]*>)?\\s*\\(([^)]*)\\)`).exec(signature);
+  if (!match) return null;
+  const inside = match[1].trim();
+  return inside === '' ? [] : inside.split(',').map((argument) => argument.trim());
+}
+
+test('a documented signature takes the arguments the function really takes', async () => {
+  const engine = await import(join(ROOT, 'docs/js/engine.js'));
+  for (const entry of ENTRIES) {
+    if (entry.issue || !entry.signature || !entry.exports) continue;
+    for (const symbol of entry.exports) {
+      const shown = signatureArguments(entry.signature, symbol);
+      const real = engine[symbol];
+      if (shown === null || typeof real !== 'function') continue;
+      const optional = shown.filter((argument) => argument.includes('=') || argument.includes('?'));
+      assert.ok(
+        shown.length >= real.length && shown.length - optional.length <= real.length,
+        `${entry.id}: ${symbol} shows ${shown.length} arguments, the engine takes ${real.length}`,
+      );
+    }
+  }
+});
+
+test('every demo belongs to an entry of the portal', async () => {
+  const { DEMOS } = await import(join(DOCS, 'demoRegistry.js'));
+  const ids = new Set(ENTRIES.map((entry) => entry.id));
+  for (const id of Object.keys(DEMOS)) assert.ok(ids.has(id), `demo ${id} has no entry`);
+});
+
+test('an entry in development names a listed issue, and every section is filled', () => {
   const sections = new Set(SECTIONS.map((section) => section.id));
+  const filled = new Set();
   const ids = new Set();
-  for (const entry of await entries()) {
+  for (const entry of ENTRIES) {
     assert.ok(sections.has(entry.section), `${entry.id}: unknown section ${entry.section}`);
     assert.ok(!ids.has(entry.id), `duplicate entry id ${entry.id}`);
     ids.add(entry.id);
+    filled.add(entry.section);
     if (entry.issue) assert.ok(ISSUES[entry.issue], `${entry.id}: issue #${entry.issue} unlisted`);
   }
-  assert.ok(ids.size > 40);
+  // The live demo is the one section the router fills, not a content file.
+  for (const section of sections) assert.ok(filled.has(section) || section === 'demo', section);
 });
