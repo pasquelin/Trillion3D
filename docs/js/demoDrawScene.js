@@ -1,6 +1,6 @@
 /**
  * The little world the selection demos share, seen from above: the camera at the origin
- * looking down +z, its field of view, and the boxes coloured by the verdict the engine
+ * looking down its own −z, its field of view, and the boxes coloured by the verdict the engine
  * function returned — nothing here decides anything, it only draws what it was handed.
  */
 const KEPT = '#199e70';
