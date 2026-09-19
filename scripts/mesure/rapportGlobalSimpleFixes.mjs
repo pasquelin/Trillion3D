@@ -2,7 +2,7 @@
 // par triangle (mesurés chez les témoins qui comptent leurs triangles uniques, chiffres de format
 // pour nous et Unreal), le découpage face à Unreal, le travail à scène immobile, la petite
 // machine. Une valeur par série, dans l'ordre des barres : les témoins, notre moteur, Unreal.
-import { barresSeries, fiche } from './rapportGlobalFiches.mjs';
+import { barresSeries, fiche, NOTRE } from './rapportGlobalFiches.mjs';
 import { OCTETS_PAR_TRIANGLE, UNREAL } from './rapportGlobalChiffres.mjs';
 
 /** Les octets de géométrie par triangle unique d'un relevé, ou `null` sans les deux chiffres. */
@@ -15,7 +15,7 @@ const octetsParTriangle = (r) =>
 export const FICHE_PETITE_MACHINE = fiche(
   'f-petite-machine',
   'Et sur une petite machine, avec moins de mémoire ?',
-  `<ul class="trois"><li><strong>Three.js</strong>, nu ou LOD : tout ou rien. Si la ville ne tient pas, l’onglet meurt.</li><li><strong>Notre moteur</strong> : il s’arrête avec une erreur.</li><li><strong>Unreal</strong> : il montre une image moins fine, mais il continue.</li></ul>`,
+  `<ul class="trois"><li><strong>Three.js</strong>, nu ou LOD : tout ou rien. Si la ville ne tient pas, l’onglet meurt.</li><li><strong>${NOTRE}</strong> : il s’arrête avec une erreur.</li><li><strong>Unreal</strong> : il montre une image moins fine, mais il continue.</li></ul>`,
   ['mauvais', 'il s’arrête au lieu de dégrader'],
   'Le plus grave du rapport : quand la mémoire manque, le moteur casse au lieu de montrer une image moins belle. À corriger en premier.',
 );

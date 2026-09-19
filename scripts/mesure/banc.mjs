@@ -48,6 +48,9 @@ async function main() {
   });
   // Chaque côté a son cache compilé (`--cache-<côté>`, sinon celui des assets du banc), son moteur
   // (`--moteur-<côté>`, les drapeaux de Chromium étant la réunion) et sa variante (`--variante-<côté>`).
+  // `--scene nom` pose le cache des assets avant d'équiper les côtés : la campagne joue ainsi
+  // chaque scène de référence sans répéter les chemins `--cache-*`.
+  options.applySceneFlag(flags);
   for (const side of sides) options.equipSide(side, flags, settings);
   const FLAGS = [...new Set(sides.flatMap((side) => side.engine.flags))];
   // La scène mesurée est celle des caches nommés ; sans aucun, la scène de référence du banc.

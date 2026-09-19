@@ -3,7 +3,7 @@
 // dire. Aucun jargon : les détails sont plus bas dans le rapport. Les chiffres d'Unreal sont ceux
 // de `rapportGlobalReference.mjs` ; quand un témoin n'a rien publié, sa barre l'écrit au lieu de
 // se taire. Les fiches sans chiffre du banc sont dans `rapportGlobalSimpleFixes.mjs`.
-import { moins } from './rapportGlobalGraphes.mjs';
+import { html, moins } from './rapportGlobalGraphes.mjs';
 import { trouve } from './rapportGlobalLecture.mjs';
 import { comparateur } from './rapportGlobalComparateur.mjs';
 import { bilan } from './rapportGlobalBilan.mjs';
@@ -114,10 +114,10 @@ export function sectionSimple(ex, dossier) {
       'Les images sont-elles les mêmes ?',
       comparateur({ dossier, id: 'cmp-fidelite', paires: pairesImages(ex), notre: NOTRE }),
       ['bon', 'à l’œil, oui'],
-      'Même scène, même caméra, même image de la trajectoire. Choisis le témoin : il est à gauche, notre moteur toujours à droite, le trait suit la souris.',
+      `Même scène, même caméra, même image de la trajectoire. Choisis le témoin : il est à gauche, ${NOTRE} toujours à droite, le trait suit la souris.`,
       true,
     ),
     FICHE_PETITE_MACHINE,
   ];
-  return `${bilan(ex)}<p class="sous">Une barre par moteur et par question : <strong>Three.js nu</strong> (dessin simple, sans astuce), <strong>Three.js LOD</strong> (la méthode classique : trois niveaux de détail par objet), <strong>notre moteur</strong>, <strong>Unreal</strong> (ses chiffres publiés, sur sa console). Barre courte = mieux. Vert = bien, jaune = pareil que Three, rouge = problème.</p><div class="fiches">${grille(fiches)}</div>`;
+  return `${bilan(ex)}<p class="sous">Une barre par moteur et par question : <strong>Three.js nu</strong> (dessin simple, sans astuce), <strong>Three.js LOD</strong> (la méthode classique : trois niveaux de détail par objet), <strong>${html(NOTRE)}</strong>, <strong>Unreal</strong> (ses chiffres publiés, sur sa console). Barre courte = mieux. Vert = bien, jaune = pareil que Three, rouge = problème.</p><div class="fiches">${grille(fiches)}</div>`;
 }

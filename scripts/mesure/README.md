@@ -7,6 +7,9 @@ poste, les assets vivent sous `.mesure/assets/` (§ Assets).
     node scripts/mesure/banc.mjs --moteur webgl --avant <ref-git|dist> --apres <ref-git|dist> \
          --vues generale,sol,rue --images 60 --pixelError 0,1
 
+    node scripts/mesure/campagne.mjs
+    node scripts/mesure/rapportGlobal.mjs
+
 - `--moteur` : `webgl` (exact-cluster-pages), `webgpu` (webgpu-page-raster) ou `webgl2`
   (autonomous-pages-webgl, le moteur autonome qui décode lui-même les pages de géométrie, donc le
   seul qui fait monter `pagesDecodedWasm`) ; il choisit aussi les drapeaux de Chromium
@@ -23,9 +26,13 @@ poste, les assets vivent sous `.mesure/assets/` (§ Assets).
   lampes, mêmes caches, même serveur —, et que `ecartAvantApres` devient un chiffre de fidélité et
   non plus une comparaison entre deux campagnes. Les drapeaux de Chromium sont alors la réunion de
   ceux dont les deux côtés ont besoin, et chaque côté publie son moteur dans `mesure.json`.
+- `--scene <nom>` : la scène des assets (`emerald-square` ou `whisperwind-village`). Pose le cache
+  `derived` sur chaque côté qui n'a pas `--cache-<côté>`. Sans l'option, le harnais déduit le nom du
+  cache, ou retombe sur `emerald-square`.
 - `--cache-avant` / `--cache-apres` : le dossier « derived » d'un cache compilé (celui qui contient
   `native/full`), pour comparer deux compilateurs sur la même scène. Sans l'option, le côté lit le
-  cache de la scène de référence dans les assets. Chaque cache nommé est rendu sous `/cache/<côté>/`.
+  cache de la scène (`--scene`, sinon la référence) dans les assets. Chaque cache nommé est rendu
+  sous `/cache/<côté>/`.
 - `--ressources <dossier>` : le dossier que le glTF d'un cache compilé désigne par chemin relatif,
   monté sous `/assets/`. Sans lui, un cache compilé sans base de ressources sort ses textures en 404
   et la mesure porterait sur des matériaux sans texture — ce ne serait plus la scène.
@@ -196,9 +203,15 @@ au navigateur le contexte WebGL et le tas de la série précédente.
 ## Assets
 
 Le harnais sert `.mesure/assets/` (hors git ; `WG_ASSETS` pointe un autre dossier) sous
-`/benchmark-assets/`. Il y attend, pour la scène de référence `emerald-square` : `emerald-square/`
-(le glTF et ses textures, `emerald-day.gltf`) et `emerald-square-derived/` (le cache compilé,
-`native/full/manifest.json`). Le cache se recompile depuis les sources avec notre compilateur :
+`/benchmark-assets/`. Deux scènes de référence, chacune `<nom>/` (sources) et `<nom>-derived/`
+(cache compilé, `native/full/manifest.json`) :
+
+- `emerald-square` — glTF `emerald-day.gltf` et ses textures.
+- `whisperwind-village` — FBX d'Unreal (`Village2.fbx`). L'export n'a pas sorti les textures
+  Megascans : 81 matériaux, 6 texturés ; ce n'est pas nous, à ré-exporter côté Unreal. Le témoin
+  Three lit `source.gltf` écrit par le compilateur dans le cache.
+
+Le cache se recompile depuis les sources avec notre compilateur :
 
     pnpm run build && pnpm run build:native
     WEB_GEOMETRY_COMPILER_BIN=packages/asset-compiler-rust/target/release/web-geometry-compiler \
@@ -209,10 +222,17 @@ La base des ressources est l'URL sous laquelle le harnais sert les sources : c'e
 compilé va chercher ses textures. L'empreinte du cache est la clé `key` de `manifest.json`, et
 `mesure.json` la consigne : deux relevés ne se comparent qu'à clé égale.
 
+## Campagne des deux scènes
+
+`campagne.mjs` joue chaque ligne sur les deux scènes de référence (`--scene a,b` pour n'en garder
+qu'une). Chaque exécution va sous `--out/<scène>/<nom>/` ; `rapportGlobal.mjs` pose une colonne par
+scène, les quatre barres (Three nu, Three LOD, Web Geometry, Unreal) et la coupe au seuil 1 px
+décomposée par primitive et par niveau du DAG.
+
 ## Mesurer une autre scène
 
-Le harnais ne connaît aucune scène : il mesure celle des caches qu'on lui donne, et ses poses
-viennent des bornes du modèle lues dans la page, pas d'une table. Trois choses à fournir.
+Le harnais mesure celle des caches qu'on lui donne, et ses poses viennent des bornes du modèle
+lues dans la page, pas d'une table. Trois choses à fournir.
 
 1. **Compiler le glTF** comme ci-dessus (§ Assets), vers un dossier `<nom>-derived/` — sous
    `.mesure/assets/` ou ailleurs, jamais dans un dossier suivi par git.

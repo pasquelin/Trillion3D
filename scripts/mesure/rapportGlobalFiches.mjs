@@ -11,7 +11,7 @@ export const TEMOINS = [
   { moteur: 'three-nu', serie: 'Three.js nu' },
   { moteur: 'three-lod', serie: 'Three.js LOD' },
 ];
-export const NOTRE = 'Notre moteur';
+export const NOTRE = 'Web Geometry';
 // Les séries de chaque fiche : les témoins, notre moteur, Unreal. `valeurs(vue)` rend une valeur
 // par série ; un témoin non mesuré vaut `null` et sa barre l'écrit.
 const SERIES = [...TEMOINS.map((t) => t.serie), NOTRE, 'Unreal (sa console)'];
