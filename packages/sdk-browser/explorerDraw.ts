@@ -5,7 +5,7 @@ import { PRIORITY_PREFETCH } from './streamingPriority.ts';
 import { createWebglFrameTimer } from './webglFrameTimer.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { HostCpuProfile } from './hostCpuProfile.ts';
-import { createHeldFrame } from './explorerHeldFrame.ts';
+import { createSceneDrawer } from './explorerDrawScene.ts';
 import { retainVisiblePages } from './retainVisiblePages.ts';
 import type { createPageStreamer } from './streamingPages.ts';
 import type { createExplorerStreaming } from './explorerStreaming.ts';
@@ -61,35 +61,10 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     session.options.stageProfile === true && !directGpu && ownedRenderer
       ? createWebglFrameTimer(ownedRenderer.getContext() as WebGL2RenderingContext)
       : null;
-  const heldFrame = createHeldFrame();
+  const drawScene = createSceneDrawer(ownedRenderer, camera);
   /** A host render target is sRGB encoded, the page canvas is not: the copy must know which. */
   const srgb = (t: THREE.WebGLRenderTarget | null) =>
     t?.texture.colorSpace === THREE.SRGBColorSpace;
-  const drawingSize = new THREE.Vector2();
-  /**
-   * Display chain of the Three-rendered engine, set on the engine view — the same rule as the
-   * contract path. A scene with no declared light composes by identity: from linear to sRGB
-   * and nothing else, albedo as-is (P6). As soon as a light exists, exposure and ACES come
-   * back, last links of the chain (P4). The flag comes from the installed lights, never from
-   * a host setting, and is written only when it changes: Three otherwise recompiles its programs.
-   */
-  const setDisplayChain = (backend: RenderBackend) => {
-    const tone = backend.sceneLit?.() === false ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
-    if (ownedRenderer.toneMapping !== tone) ownedRenderer.toneMapping = tone;
-  };
-  /** Hands an engine's scene to the host renderer. A held frame cannot differ from the previous
-   *  one — the engine just said so — and is redisplayed in one command, the scene not walked
-   *  again; with none kept at this size, the first or after a resize, it is drawn then kept. */
-  const drawScene = (backend: RenderBackend, target: THREE.WebGLRenderTarget | null) => {
-    setDisplayChain(backend);
-    ownedRenderer.getDrawingBufferSize(drawingSize);
-    if (backend.frameHeld === true && !target && heldFrame.holds(drawingSize))
-      heldFrame.present(ownedRenderer);
-    else {
-      ownedRenderer.render(backend.scene, camera);
-      if (!target) heldFrame.keep(ownedRenderer, drawingSize);
-    }
-  };
   const drawBackend = (backend: RenderBackend, target: THREE.WebGLRenderTarget | null) => {
     const { measuring } = state;
     const steps = backend as HostCpuProfile;
@@ -165,7 +140,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       state.fallbackReason = fallbackReason;
       state.active = baseline;
       baseline.render(camera);
-      if (!presentBackend(baseline, srgb(target))) drawScene(baseline, target);
+      if (!presentBackend(baseline, srgb(target))) drawScene(baseline, target, false);
       emit({
         eventVersion: 1,
         type: 'fallback',

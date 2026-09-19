@@ -10,9 +10,16 @@ import type { FrameMetrics } from '../sdk-core/index.ts';
 
 /** A minimal set of inputs for `createExplorerRender`: mute draw, diagnostic off, audit
  *  off (no `wgFrameAudit` in the test URL). Only `directGpu` and the renderer vary. */
-function harness(options: { directGpu: boolean; renderer?: { triangles: number } }) {
+function harness(options: {
+  directGpu: boolean;
+  renderer?: { triangles: number };
+  presentedSurface?: boolean;
+}) {
   const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 50);
-  const active = { id: 'test-backend' } as unknown as RenderBackend;
+  const active = {
+    id: 'test-backend',
+    ...(options.presentedSurface ? { presentedSurface: {} as HTMLCanvasElement } : {}),
+  } as unknown as RenderBackend;
   const metricsScratch = { drawCalls: 0, totalSubmittedTriangles: null } as unknown as FrameMetrics;
   const session = {
     scope: 'default' as never,
@@ -85,4 +92,16 @@ test('triangles publishes the engine submitted total as soon as it exists, befor
   (metricsScratch as unknown as { totalSubmittedTriangles: number }).totalSubmittedTriangles = 1234;
   render();
   assert.equal(metricsScratch.triangles, 1234);
+});
+
+test('triangles ignores the host renderer for an engine that presented its own surface', () => {
+  // The host renderer drew nothing that frame: its counters still hold the last frame ANOTHER
+  // engine drew, and publishing them would attribute that frame to this one.
+  const { render, metricsScratch } = harness({
+    directGpu: false,
+    renderer: { triangles: 4200 },
+    presentedSurface: true,
+  });
+  render();
+  assert.equal(metricsScratch.triangles, null, 'a count of a frame the host did not draw');
 });
