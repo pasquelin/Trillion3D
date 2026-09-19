@@ -14,8 +14,9 @@ edit, commit, push or merge.
    - §Quality and evidence, §Engine and package boundaries, §Native compiler: line limit,
      duplicates, English, dead code, claims, format versions, repository self-containment;
    - §Workflow: "Local review before push" filled with what the two passes found.
-3. When the diff touches code: `gh pr checkout <number>`, `pnpm run check:changed`,
-   `pnpm run test:changed`.
+3. When the diff touches code, run `pnpm run check:changed` and `pnpm run test:changed` on the
+   branch — in a worktree of your own (`git worktree add`) unless it is already checked out where
+   you work; never switch the branch of a checkout the coder may be using.
 4. One review, `gh pr review <number> --comment --body ...`: one line per finding — file:line,
    what is wrong, which section of AGENTS.md it breaks. Say plainly when nothing is wrong. Never
    approve or request changes on behalf of the maintainer: the decision is theirs.

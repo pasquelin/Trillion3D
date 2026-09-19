@@ -12,16 +12,12 @@ jobs:
   validate:
     runs-on: ubuntu-24.04
     steps:
+      - uses: actions/checkout@v7
       - name: Pull request body — issue linked, local review filled
         if: github.event_name == 'pull_request'
         env:
           BODY: ${{ github.event.pull_request.body }}
-        run: |
-          body=$(printf '%s\n' "$BODY" | perl -0pe 's/<!--.*?-->//gs')
-          printf '%s\n' "$body" | grep -Eq '^Closes #[0-9]+' || { echo 'The body must start with "Closes #<issue>".'; exit 1; }
-          section=$(printf '%s\n' "$body" | sed -n '/^## Local review before push/,/^## /p' | sed '1d;/^## /d' | tr -d '[:space:]')
-          [ -n "$section" ] || { echo 'The section "Local review before push" is empty: run the simplification and correctness passes first.'; exit 1; }
-      - uses: actions/checkout@v7
+        run: printf '%s\n' "$BODY" | scripts/check-pr-body.sh
       # pnpm BEFORE setup-node: `cache: pnpm` asks it where the store is, and it reads the version
       # from the `packageManager` field of `package.json`.
       - uses: pnpm/action-setup@v6
