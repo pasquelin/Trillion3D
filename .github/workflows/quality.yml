@@ -9,13 +9,13 @@ on:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      # pnpm AVANT setup-node : c'est lui que `cache: pnpm` interroge pour trouver le magasin, et il
-      # lit la version dans le champ `packageManager` de `package.json`.
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      # pnpm BEFORE setup-node: `cache: pnpm` asks it where the store is, and it reads the version
+      # from the `packageManager` field of `package.json`.
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '22.18.0'
           cache: pnpm
