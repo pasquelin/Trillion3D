@@ -67,11 +67,6 @@ test('MASK_KEEP_WGSL déclare fn maskKeep une seule fois dans le raster et les d
   eachOnce(MASK_KEEP_WGSL, { SMALL_SHADER, VIS_SHADER, SHADOW_DEPTH_SHADER });
 });
 
-test('near the cutoff, maskKeep follows a hash of the UV, not the GPU sample (#25)', () => {
-  assert.match(MASK_KEEP_WGSL, /abs\(a-t\)>0\.02/);
-  assert.match(MASK_KEEP_WGSL, /n>=0\.5/);
-});
-
 test('BARY_WEIGHTS_WGSL déclare fn baryWeights une seule fois dans l’ombrage, jamais dans le raster', () => {
   assert.match(BARY_WEIGHTS_WGSL, /fn baryWeights\(/);
   eachOnce(BARY_WEIGHTS_WGSL, { SHADE_SHADER });

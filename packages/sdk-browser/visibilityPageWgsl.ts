@@ -81,14 +81,7 @@ export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f,ddx:vec2f,ddy:
  // passe le seuil quand la moitié de ce qu'il recouvre le passait, donc la couverture du seuil
  // traverse les niveaux et la découpe reste juste à tout niveau. Une moyenne, elle, faisait grossir
  // la silhouette niveau après niveau et rendait le quad opaque pendant le chargement.
- let a=maskAlpha(page.mapIndex,uv,wrapOf(page.wrapModes,${WRAP_MAP.base}u),ddx,ddy);
- let t=page.baseColor.w;
- // Near the cutoff a GPU sample can land on either side (four pixels on the ground view, two
- // attractors, same triangle and tile counts — #25). When close, the keep/discard follows a
- // hash of the UV only, the same in every run.
- let n=fract(52.9829189*fract(dot(floor(uv*vec2f(8192.0)),vec2f(0.06711056,0.00583715))));
- if(abs(a-t)>0.02){return a>=t;}
- return n>=0.5;
+ return maskAlpha(page.mapIndex,uv,wrapOf(page.wrapModes,${WRAP_MAP.base}u),ddx,ddy)>=page.baseColor.w;
 }`;
 
 /** Le test de masque précédé de la coordonnée de texture qu'un sommet de page lui fournit. */
