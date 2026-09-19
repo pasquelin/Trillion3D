@@ -128,7 +128,7 @@ const AUTORISES = {
   webgpuPagesHelpers: 'host colours and colour management',
   webgpuPagesPrepare: 'host geometry attributes',
   webgpuPagesSetup: 'meshes of the host scene',
-  webgpuPagesStateGpu: 'contract: host geometries, textures and presentation mesh',
+  webgpuPagesStateGpu: 'contract: host geometries and textures',
   webgpuPagesStateVis: 'contract: host geometries and textures',
   webgpuPositions: 'position attribute of the host geometry',
 };

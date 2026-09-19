@@ -8,21 +8,27 @@ type HostSurface = {
 };
 
 /**
- * Host composition of an engine that presented its own surface. The engine wrote its image with
- * WebGPU on its canvas; the host surface is WebGL2, so the image is copied by the engine's own
- * program — no texture, material or mesh of the host's rendering library takes part in it.
+ * The one place that knows how an engine's image reaches the host surface. An engine that
+ * presented its own canvas is copied from it by the engine's own program — no texture, material
+ * or mesh of the host's rendering library takes part — and the call returns true. An engine that
+ * hands over a scene is not this module's business: the call returns false and the host draws it.
  *
  * The copy is written into whatever framebuffer the host has bound, at the viewport it has set,
  * and the bytes go through unchanged: the presented image is already display encoded, and a
- * second colour conversion would brighten it. The host's renderer caches the state it set, so it
- * is told to forget it afterwards. The program lives as long as the context does, and leaves with
- * it — like the held frame drawn beside it.
+ * second colour conversion would brighten it. It goes around the host renderer's state cache, so
+ * that renderer is told to forget it afterwards — which also unbinds the framebuffer, and the
+ * caller re-asserts its render target before its next draw.
+ *
+ * The program lives as long as the context does and leaves with it, like the held frame beside it.
  */
-export function createSurfaceComposer(host: HostSurface) {
+export function createBackendPresenter(host: HostSurface) {
   let blit: ReturnType<typeof createCanvasBlit> | undefined;
-  return (surface: HTMLCanvasElement) => {
+  return (backend: { readonly presentedSurface?: HTMLCanvasElement }) => {
+    const surface = backend.presentedSurface;
+    if (!surface) return false;
     blit ??= createCanvasBlit(host.getContext() as WebGL2RenderingContext);
     blit.draw(surface);
     host.resetState();
+    return true;
   };
 }
