@@ -43,7 +43,7 @@ const faces = (cascadeDe) => (views) => {
 };
 
 const cas = [
-  { name: '400 vues qui bougent', input: images, size: 400 },
+  { name: '400 moving views', input: images, size: 400 },
   { name: '400 images vue immobile', input: immobiles, size: 400 },
   { name: 'distances hostiles', input: hostiles, size: hostiles.length },
   { name: 'une seule vue', input: [images[0]], size: 1 },

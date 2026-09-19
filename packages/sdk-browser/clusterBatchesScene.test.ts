@@ -118,10 +118,10 @@ test('a transparent group draws its pages in source order whatever the order of 
   const forward = drawOf(scene, 0)!;
   batches.update([pages[2], pages[0], pages[1]]);
   const shuffled = drawOf(scene, 0)!;
-  assert.deepEqual(shuffled.starts, forward.starts, 'ordre de dessin stable');
+  assert.deepEqual(shuffled.starts, forward.starts, 'stable draw order');
   assert.deepEqual(shuffled.counts, forward.counts);
-  // sourceOrder = [2,0,1] -> page 1 (plage 3), page 2 (plage 6), page 0 (plage 0) ;
-  // les plages 3 et 6 se suivent, elles fusionnent en un seul sous-dessin sans changer l'ordre.
+  // sourceOrder = [2,0,1] -> page 1 (range 3), page 2 (range 6), page 0 (range 0);
+  // ranges 3 and 6 follow each other, they merge into a single sub-draw without changing the order.
   assert.deepEqual(forward.starts, [3 * 4, 0]);
   assert.deepEqual(forward.counts, [6, 3]);
 });

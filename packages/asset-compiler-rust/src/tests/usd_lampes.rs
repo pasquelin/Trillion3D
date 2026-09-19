@@ -20,7 +20,7 @@ fn close(light: &Value, key: &str, expected: f64) {
         .unwrap_or(f64::NAN);
     assert!(
         (found - expected).abs() <= expected.abs() * 1e-12,
-        "{}{key} vaut {found}, attendu {expected}",
+        "{}{key} is {found}, expected {expected}",
         light["name"]
     );
 }

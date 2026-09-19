@@ -53,7 +53,7 @@ test('applySceneFlag sets the derived cache on sides that do not have one', () =
   assert.equal(flags.get('cache-avant'), sceneDerived('whisperwind-village', '/assets'));
 });
 
-test('scenesOf lit --scene a,b et ignore le drapeau sans valeur', () => {
+test('scenesOf reads --scene a,b and ignores valueless flag', () => {
   assert.deepEqual(scenesOf(parseArgs(['--scene', 'a,b'])), ['a', 'b']);
   assert.equal(sceneOf('/x/whisperwind-village-derived'), 'whisperwind-village');
 });

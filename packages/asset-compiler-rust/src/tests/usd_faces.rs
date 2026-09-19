@@ -109,7 +109,7 @@ fn les_faces_de_holeindices_sortent_de_la_surface_et_sont_comptees() {
             unsupported(&subdivided)["usd-subdivision-unsupported"].clone()
         ),
         (json!(2), json!(1), json!(1)),
-        "le trou vaut aussi sous une subdivision non rendue"
+        "the hole holds under an unrendered subdivision too"
     );
 
     let outside = mesh_layer("trou-hors", &ribbon("7"), "none");
@@ -120,6 +120,6 @@ fn les_faces_de_holeindices_sortent_de_la_surface_et_sont_comptees() {
             unsupported(&outside)["usd-face-invalid"].clone()
         ),
         (json!(4), Value::Null, json!(1)),
-        "un indice de trou hors du tableau des faces est une face invalide, pas un trou"
+        "a hole index outside the face array is an invalid face, not a hole"
     );
 }
