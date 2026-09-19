@@ -7,8 +7,9 @@ numbers. Conventions shared by every entry:
 - **Column-major 4×4 matrices** in sixteen consecutive numbers, `[12..14]` the translation —
   the layout of the reference library, so a host matrix copies without reordering.
 - **Output first, allocation never.** A function writes into the `out` buffer it receives and
-  returns it; a call on a per-frame path allocates nothing. `outAt`/`aAt` offsets let one large
-  buffer hold many operands.
+  returns it; one that writes in place or fills several named buffers — `normalizeVector3`,
+  `decomposeMatrix4` — returns nothing, and its row says so. A call on a per-frame path allocates
+  nothing. `outAt`/`aAt` offsets let one large buffer hold many operands.
 - **`Float64Array` for what is computed**, `ArrayLike<number>` for what is only read: a host
   matrix, a plain array or a `Float32Array` enters as-is.
 - **Same bits as the reference**, proven by `pnpm run perf:core`
@@ -29,7 +30,7 @@ numbers. Conventions shared by every entry:
 | `copyMatrix4(out, m, outAt = 0, mAt = 0)`           | sixteen numbers copied at offsets, a loop rather than `set` so untyped outputs work | `Matrix4.copy`, `fromArray`, `toArray` | pure copy, bit equality in every bench line |
 | `IDENTITY_MATRIX4`                                  | the identity, read and never written                                                | `Matrix4.identity`                     | —                                           |
 | `composeMatrix4(out, position, quaternion, scale)`  | `out = T · R · S`, quaternion `(x, y, z, w)`                                        | `Matrix4.compose`                      | bench `Matrix4.compose` (×1.4)              |
-| `decomposeMatrix4(m, position, quaternion, scale)`  | the reverse, the sign of the determinant carried by the x scale                     | `Matrix4.decompose`                    | bench `Matrix4.decompose` (×1.1)            |
+| `decomposeMatrix4(m, position, quaternion, scale)`  | the reverse, the sign of the determinant carried by the x scale, nothing returned   | `Matrix4.decompose`                    | bench `Matrix4.decompose` (×1.1)            |
 | `basisMatrix4(out, u, v, n, origin, outAt = 0)`     | columns `u`, `v`, `n`, then the origin, last row `(0, 0, 0, 1)`                     | `Matrix4.makeBasis` + `setPosition`    | bench `Matrix4.makeBasis` (×1.7)            |
 | `uniformScaleMatrix4(out, s, center, outAt = 0)`    | uniform scale `s` placed at `center`                                                | `Matrix4.makeScale` + `setPosition`    | bench `Matrix4.makeScale` (×2.3)            |
 | `determinantMatrix4(m)`, `linearPartDeterminant(m)` | the 4×4 determinant, and that of the upper 3×3 (sign of a reflection)               | `Matrix4.determinant`                  | `mathMatrix4.test.ts`                       |
@@ -44,7 +45,7 @@ numbers. Conventions shared by every entry:
 | `scaleVector3(out, s)`                                 | the three components multiplied in place                                    | `Vector3.multiplyScalar`        | bench `Vector3.multiplyScalar` (×4.3) |
 | `copyScaledVector3(out, a, s, outAt = 0, aAt = 0)`     | `out = a · s`                                                               | `Vector3.copy().multiplyScalar` | same line                             |
 | `transformAffinePoint(out, m, x, y, z, outAt = 0)`     | `M · (x, y, z, 1)` for an affine `M`, three components                      | `Vector3.applyMatrix4`          | bench `Vector3.applyMatrix4` (×2.4)   |
-| `normalizeVector3(v)`                                  | `v / ‖v‖` in place, a zero vector left unchanged                            | `Vector3.normalize`             | `mathVector.test.ts`                  |
+| `normalizeVector3(v)`                                  | `v / ‖v‖` in place, a zero vector left unchanged, nothing returned          | `Vector3.normalize`             | `mathVector.test.ts`                  |
 
 ### Colours — `packages/sdk-core/mathColor.ts`
 
