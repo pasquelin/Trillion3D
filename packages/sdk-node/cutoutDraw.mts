@@ -96,13 +96,6 @@ export function drawFile(bytes: Buffer, kind: ImageKind): string[] | null {
   return null;
 }
 
-/**
- * A PNG writer, in the few lines PNG actually needs: a header, one deflated image block, an end.
- *
- * Two callers want it — the terminals whose inline-image protocol takes a file format rather than
- * raw texels, and the link the question offers to open the picture in the system's own viewer. Node
- * carries the compression and the checksum, so this stays cheaper than a dependency.
- */
 /** Un morceau PNG : longueur, type, charge, et le CRC que `node:zlib` sait déjà calculer. */
 function chunk(kind: string, body: Uint8Array): Buffer {
   const head = Buffer.alloc(8);
@@ -113,13 +106,22 @@ function chunk(kind: string, body: Uint8Array): Buffer {
   return Buffer.concat([head, body, tail]);
 }
 
-/** Straight RGBA8 to PNG bytes, one filter byte per row and no interlacing. */
-function encodePng(width: number, height: number, rgba: Uint8Array): Buffer {
+/**
+ * A PNG writer, in the few lines PNG actually needs: a header, one deflated image block, an end.
+ * Straight RGBA8, one filter byte per row and no interlacing.
+ *
+ * Two callers want it — the terminals whose inline-image protocol takes a file format rather than
+ * raw texels, and the link the question offers to open the picture in the system's own viewer. Node
+ * carries the compression and the checksum, so this stays cheaper than a dependency.
+ */
+export function encodePng(width: number, height: number, rgba: Uint8Array, flipY = false): Buffer {
   const stride = 1 + width * 4;
   const raw = Buffer.alloc(height * stride);
   for (let y = 0; y < height; y++) {
+    // `flipY` : des texels d'origine bas-gauche, comme une lecture de carte graphique les rend.
+    const row = flipY ? height - 1 - y : y;
     raw[y * stride] = 0;
-    raw.set(rgba.subarray(y * width * 4, (y + 1) * width * 4), y * stride + 1);
+    raw.set(rgba.subarray(row * width * 4, (row + 1) * width * 4), y * stride + 1);
   }
   const header = Buffer.alloc(13);
   header.writeUInt32BE(width, 0);
@@ -133,8 +135,6 @@ function encodePng(width: number, height: number, rgba: Uint8Array): Buffer {
     chunk('IEND', new Uint8Array(0)),
   ]);
 }
-
-export { encodePng };
 
 /** A clickable link where a terminal supports one, its plain path where it does not. */
 export function link(label: string, path: string): string {

@@ -129,11 +129,11 @@ pub(super) fn compile_primitive(
     let mut attributes = Vec::<geometry_page::Attribute>::new();
     if !unsplit {
         for (name, width, offset, flag) in [
-            ("NORMAL", 3, 12, 1),
-            ("TEXCOORD_0", 2, 24, 2),
-            ("TANGENT", 4, 32, 4),
-            ("TEXCOORD_1", 2, 48, 8),
-            ("COLOR_0", 4, 56, 16),
+            ("NORMAL", 3, 12, geometry_page::FLAG_NORMAL),
+            ("TEXCOORD_0", 2, 24, geometry_page::FLAG_UV),
+            ("TANGENT", 4, 32, geometry_page::FLAG_TANGENT),
+            ("TEXCOORD_1", 2, 48, geometry_page::FLAG_UV1),
+            ("COLOR_0", 4, 56, geometry_page::FLAG_COLOR),
         ] {
             if let Some(id) = p
                 .get("attributes")

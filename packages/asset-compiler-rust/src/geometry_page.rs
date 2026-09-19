@@ -2,6 +2,12 @@ use crate::{CompilerError, Result};
 use std::collections::HashMap;
 
 pub const STRIDE: usize = 72;
+/// Les bits du masque d'attributs d'une page, un par attribut optionnel qu'elle porte.
+pub const FLAG_NORMAL: u32 = 1;
+pub const FLAG_UV: u32 = 2;
+pub const FLAG_TANGENT: u32 = 4;
+pub const FLAG_UV1: u32 = 8;
+pub const FLAG_COLOR: u32 = 16;
 pub struct Attribute {
     pub offset: usize,
     pub width: usize,
@@ -151,7 +157,7 @@ mod tests {
             offset: 56,
             width: 4,
             source_width: 3,
-            flag: 16,
+            flag: FLAG_COLOR,
             values: vec![1., 0., 0., 0., 1., 0., 0., 0., 1.],
         };
         let (bytes, flags, vertex_count) =

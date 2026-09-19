@@ -107,39 +107,6 @@ pub struct DagGroup {
     pub children: Vec<usize>,
     pub outputs: Vec<usize>,
 }
-/// Why a group did not produce a coarser level. Its clusters then become roots.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum GroupOutcome {
-    Reduced,
-    TooSmall,
-    NoCollapse,
-    BorderLost,
-    UnusableError,
-}
-/// Per-level tally of group outcomes, reported by the compiler so a stalled DAG is visible.
-/// `welded` and `relocked` count, among the reduced groups, those that needed a retry.
-#[derive(Clone, Copy, Default, Debug)]
-pub struct GroupTally {
-    pub reduced: usize,
-    pub welded: usize,
-    pub relocked: usize,
-    pub too_small: usize,
-    pub no_collapse: usize,
-    pub border_lost: usize,
-    pub unusable_error: usize,
-}
-impl GroupTally {
-    fn record(&mut self, outcome: GroupOutcome) {
-        match outcome {
-            GroupOutcome::Reduced => self.reduced += 1,
-            GroupOutcome::TooSmall => self.too_small += 1,
-            GroupOutcome::NoCollapse => self.no_collapse += 1,
-            GroupOutcome::BorderLost => self.border_lost += 1,
-            GroupOutcome::UnusableError => self.unusable_error += 1,
-        }
-    }
-}
-
 struct GroupReductionInput<'a> {
     positions: &'a [f32],
     locks: &'a [bool],
@@ -188,6 +155,7 @@ pub(crate) mod clusters;
 mod culling;
 pub(crate) mod groups;
 pub(crate) mod reduce;
+mod tally;
 #[cfg(test)]
 mod tests;
 
@@ -197,3 +165,4 @@ use clusters::*;
 pub use culling::build_culling_bvh;
 use groups::*;
 use reduce::*;
+pub use tally::{GroupOutcome, GroupTally};

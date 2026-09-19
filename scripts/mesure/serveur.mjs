@@ -3,8 +3,8 @@
 // captures RGBA que la page lui poste.
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
-import { crc32, deflateSync } from 'node:zlib';
 import http from 'node:http';
+import { encodePng } from '../../packages/sdk-node/cutoutDraw.mts';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -104,27 +104,5 @@ export function startServer({ port, mounts, captures, isolation = false }) {
 
 /** RGBA d'origine bas-gauche, comme `capture()` le rend, vers un PNG 8 bits sans perte. */
 export function pngFromRgba(rgba, w, h) {
-  const stride = w * 4,
-    raw = Buffer.alloc((stride + 1) * h);
-  for (let y = 0; y < h; y++)
-    rgba.copy(raw, y * (stride + 1) + 1, (h - 1 - y) * stride, (h - y) * stride);
-  const chunk = (type, data) => {
-    const length = Buffer.alloc(4);
-    length.writeUInt32BE(data.length);
-    const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
-    const crc = Buffer.alloc(4);
-    crc.writeUInt32BE(crc32(body));
-    return Buffer.concat([length, body, crc]);
-  };
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(w, 0);
-  ihdr.writeUInt32BE(h, 4);
-  ihdr[8] = 8;
-  ihdr[9] = 6;
-  return Buffer.concat([
-    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-    chunk('IHDR', ihdr),
-    chunk('IDAT', deflateSync(raw, { level: 6 })),
-    chunk('IEND', Buffer.alloc(0)),
-  ]);
+  return encodePng(w, h, rgba, true);
 }

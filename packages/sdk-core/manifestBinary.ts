@@ -23,4 +23,4 @@ export type {
 export { manifestBinaryRanges } from './manifestBinaryLayout.ts';
 export { encodeManifestBinary } from './manifestBinaryEncode.ts';
 /** Rebuilds the pages and primitives a backend consumes from validated binary columns. */
-export { decodeManifestBinary } from './manifestBinaryDecode.ts';
+export { decodeManifestBinary, decodeManifestPreviews } from './manifestBinaryDecode.ts';

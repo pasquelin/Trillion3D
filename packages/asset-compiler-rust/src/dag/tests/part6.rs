@@ -19,14 +19,7 @@ fn soup(n: usize) -> (Vec<f32>, Vec<u32>) {
 #[test]
 fn a_vertex_soup_still_climbs_to_a_single_root() {
     let (positions, indices) = soup(64);
-    let (dag, _, tallies) = build_dag_tallied(
-        &positions,
-        None,
-        &indices,
-        DagStrategy::QemEndpoints,
-        &|| Ok(()),
-    )
-    .expect("dag");
+    let (dag, _, tallies) = build_of(&positions, &indices);
     let depth = dag.iter().map(|c| c.level).max().unwrap_or(0);
     assert!(depth > 0, "la soupe doit avoir des niveaux grossiers");
     assert_eq!(
