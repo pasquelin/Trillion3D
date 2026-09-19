@@ -60,9 +60,18 @@ export function createCanvasBlit(gl: WebGL2RenderingContext) {
   gl.useProgram(program);
   gl.uniform1i(image, 0);
   return {
-    /** Uploads `source` and draws it over the whole viewport. Depth, blending and culling are
-     *  turned off here: the copy owes nothing to the state the host left behind. */
-    draw(source: HTMLCanvasElement) {
+    /**
+     * Uploads `source` and draws it over the whole viewport. Depth, blending and culling are
+     * turned off here: the copy owes nothing to the state the host left behind.
+     *
+     * `srgbDestination` says that the bound attachment is sRGB encoded, as a host render target
+     * is. The hardware encodes every fragment written there, with no way to turn it off, so the
+     * source is then read as sRGB and decoded by the hardware too: the two conversions cancel and
+     * the byte arrives as it left. Declared linear — the default framebuffer — nothing converts
+     * on either side, and the byte arrives as it left as well. Getting this wrong brightens the
+     * image once.
+     */
+    draw(source: HTMLCanvasElement, srgbDestination = false) {
       gl.disable(gl.DEPTH_TEST);
       gl.disable(gl.BLEND);
       gl.disable(gl.CULL_FACE);
@@ -76,7 +85,8 @@ export function createCanvasBlit(gl: WebGL2RenderingContext) {
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
       gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
       gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, source);
+      const format = srgbDestination ? gl.SRGB8_ALPHA8 : gl.RGBA8;
+      gl.texImage2D(gl.TEXTURE_2D, 0, format, gl.RGBA, gl.UNSIGNED_BYTE, source);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     },
     dispose() {
