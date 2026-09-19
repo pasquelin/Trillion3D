@@ -18,7 +18,7 @@ lines.push(
     // Not the same computation: Three's `invert()` leaves a singular matrix as sixteen silent
     // zeros, the batch reads the determinant to name it in `singular` and write the identity.
     slower: {
-      atMost: 1.3,
+      atMost: 1.2,
       reason: 'reads the determinant to report the singular case Three leaves silent',
     },
     three: () => {
@@ -62,7 +62,10 @@ lines.push(
 // 3. NormalMatrix3 batch
 const outNormals = new Float64Array(N * 9),
   outThreeNormals = new Float64Array(N * 9);
-const scratchNormal = new THREE.Matrix3();
+// One Matrix3 per element, like the other lines keep one Three object per element: reading the
+// nine floats out of them belongs to the oracle, not to the chronometer, or Three would be timed
+// on a flatten the engine never does and the ratio would flatter the engine.
+const threeNormals = Array.from({ length: N }, () => new THREE.Matrix3());
 lines.push(
   await duel({
     name: 'NormalMatrix3 batch',
@@ -70,18 +73,20 @@ lines.push(
     // Not the same computation: `normalMatrix3` carries the singularity decision the WGSL kernel
     // mirrors (`mathSingular.ts`, `inverseTransposeWgsl.ts`), which `getNormalMatrix` does not have.
     slower: {
-      atMost: 1.5,
+      atMost: 2.2,
       reason: 'carries the singularity decision the WGSL kernel mirrors, which Three has not',
     },
     three: () => {
+      for (let i = 0; i < N; i++) threeNormals[i].getNormalMatrix(mats.three[i]);
+    },
+    oracle: () => {
       for (let i = 0; i < N; i++) {
-        scratchNormal.getNormalMatrix(mats.three[i]);
-        const e = scratchNormal.elements,
+        const e = threeNormals[i].elements,
           at = i * 9;
         for (let k = 0; k < 9; k++) outThreeNormals[at + k] = e[k];
       }
+      return outThreeNormals;
     },
-    oracle: () => outThreeNormals,
     core: () => {
       normalMatrix3Batch(outNormals, mats.views, N);
       return outNormals;

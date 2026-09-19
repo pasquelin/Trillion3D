@@ -6,7 +6,7 @@ import {
   boxTransformBatch,
   boxTransformUnionBatch,
   boxUnionBatch,
-  frustumExcludesBoxBatch,
+  frustumKeepsBoxBatch,
   linearToSrgbBatch,
   sphereFromBoundsBatch,
   srgbToLinearBatch,
@@ -18,7 +18,7 @@ import { composeMatrix4 } from './mathMatrix4Trs.ts';
 import { frustumPlanesFromMatrix } from './mathFrustum.ts';
 import { perspectiveProjection } from './mathCamera.ts';
 
-test('frustumExcludesBoxBatch: culls boxes and returns kept count', () => {
+test('frustumKeepsBoxBatch: culls boxes and returns kept count', () => {
   const proj = new Float64Array(16);
   perspectiveProjection(proj, 60, 1, 0.1, 1);
   const planes = new Float64Array(24);
@@ -28,7 +28,7 @@ test('frustumExcludesBoxBatch: culls boxes and returns kept count', () => {
     -1, -1, -5, 1, 1, -3, -1, -1, 5, 1, 1, 10, 100, -1, -5, 105, 1, -3,
   ]);
   const out = new Uint8Array(3);
-  const kept = frustumExcludesBoxBatch(out, planes, boxes, 3);
+  const kept = frustumKeepsBoxBatch(out, planes, boxes, 3);
   assert.equal(kept, 1);
   assert.equal(out[0], 1);
   assert.equal(out[1], 0);
@@ -118,7 +118,7 @@ test('docs example: cull 10 000 boxes then transform the survivors', () => {
   frustumPlanesFromMatrix(planes, proj);
 
   const keptMask = new Uint8Array(N);
-  const keptCount = frustumExcludesBoxBatch(keptMask, planes, boxes, N);
+  const keptCount = frustumKeepsBoxBatch(keptMask, planes, boxes, N);
   assert.equal(keptCount, 5000);
 
   const survivorBoxes = new Float64Array(keptCount * BOX_VALUES);
