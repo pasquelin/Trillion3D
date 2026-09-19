@@ -1,6 +1,6 @@
-import * as THREE from 'three';
 import { frustumExcludesBox, type FrameMetrics } from '../sdk-core/index.ts';
 import { enginePose, type EngineCamera } from './cameraWorld.ts';
+import { sideOf } from './materialSide.ts';
 import { SDK_BUILD_PROVENANCE } from './buildProvenance.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -57,7 +57,7 @@ export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
       continue;
     outsideItems++;
     const material = Array.isArray(item.material) ? item.material[0] : item.material;
-    outsideDraws += material.side === THREE.DoubleSide && !material.forceSinglePass ? 2 : 1;
+    outsideDraws += sideOf(material) === 'double' && !material.forceSinglePass ? 2 : 1;
   }
   return {
     selection: run.gpuFrameActive ? 'gpu' : 'cpu',

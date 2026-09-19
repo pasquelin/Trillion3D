@@ -1,6 +1,6 @@
-import * as THREE from 'three';
 import { signedArea, type Projected } from './visibilityProjection.ts';
 import { matrixWindingCw } from '../sdk-core/index.ts';
+import { sideOf } from './materialSide.ts';
 import { DEPTH_CLEAR, depthNearer } from './depthConvention.ts';
 import { triangleAt, perspectiveBary, wrapTexel } from './visibilityMath.ts';
 import {
@@ -76,23 +76,19 @@ export function rasterVisibility(pages: VisPage[], cam: EngineCamera, viewport: 
     const page = pages[pageIndex],
       index = page.array;
     if (!page.attributes.position) continue;
-    const side = visMaterial(page.material).doubleSided
-      ? THREE.DoubleSide
-      : Array.isArray(page.material)
-        ? page.material[0].side
-        : page.material.side;
+    const side = sideOf(page.material),
+      mat = visMaterial(page.material);
     // A reflection reverses the walk direction on screen: the face to drop is the other one, as
     // `visBin` does for WebGPU pipelines and Three for WebGL (`frontFaceCW`). Without this
     // flip, this rasterizer drew under reflection exactly the faces that cone rejection
     // drops — and its own shading (`visibilityLighting`) already flipped the sign.
-    const positif = (side === THREE.BackSide) !== matrixWindingCw(page.matrix.elements);
+    const positif = (side === 'back') !== matrixWindingCw(page.matrix.elements);
     const triangles = assertVisibilityPageTriangles((index.length / 3) | 0);
     for (let t = 0; t < triangles && t <= VIS_TRIANGLE_MASK; t++) {
       const tri = triangleAt(page, t, cam, width, height);
       if (!tri) continue;
       const area = signedArea(tri.a, tri.b, tri.c);
-      if (side !== THREE.DoubleSide && (positif ? area <= 0 : area >= 0)) continue;
-      const mat = visMaterial(page.material);
+      if (side !== 'double' && (positif ? area <= 0 : area >= 0)) continue;
       if (mat.alphaTest > 0 && mat.map) {
         const uv = page.attributes.uv;
         fillIds(
