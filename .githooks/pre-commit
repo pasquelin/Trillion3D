@@ -1,6 +1,8 @@
 #!/bin/sh
 . "$(dirname "$0")/lib.sh"
-branch="$(current_branch)"
-if is_protected "$branch"; then
-  refuse "no commit on '$branch': branch <issue>-<short-name> from an issue, then open a pull request."
-fi
+case "$(git rev-parse --abbrev-ref HEAD)" in
+  [0-9]*-*) ;;
+  HEAD) ;; # detached: rebase, bisect, cherry-pick in progress
+  *) refuse "commits belong on a branch named <issue>-<short-name>, cut from develop for one GitHub issue." ;;
+esac
+run_local_hook pre-commit "$@"

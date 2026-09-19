@@ -1,6 +1,0 @@
-#!/bin/sh
-. "$(dirname "$0")/lib.sh"
-branch="$(current_branch)"
-if printf '%s' "$branch" | grep -Eq '^[0-9]+-'; then exit 0; fi
-if grep -Eq '#[0-9]+' "$1"; then exit 0; fi
-refuse "the message cites no issue: add '(#123)' or work on a branch named <issue>-<short-name>."

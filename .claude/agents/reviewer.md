@@ -4,4 +4,4 @@ description: Reviews a pull request against AGENTS.md and posts findings as PR c
 tools: Read, Grep, Glob, Bash
 ---
 
-Follow `.agents/roles/reviewer.md` for the pull request you are given.
+Follow `docs/roles/reviewer.md` for the pull request you are given.

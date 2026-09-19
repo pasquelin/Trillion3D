@@ -39,7 +39,7 @@
     "packages/README.md"
   ],
   "scripts": {
-    "prepare": "git config core.hooksPath .githooks",
+    "prepare": "[ -n \"$CI\" ] || ! git rev-parse --is-inside-work-tree >/dev/null 2>&1 || git config core.hooksPath .githooks",
     "preinstall": "node scripts/only-pnpm.mjs",
     "build": "tsc -p tsconfig.json && node scripts/rewrite-dts-extensions.mjs && node scripts/copy-resources.mjs && node scripts/write-build-provenance.mjs",
     "build:native": "cargo build --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml",
