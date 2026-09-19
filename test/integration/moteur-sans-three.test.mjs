@@ -28,7 +28,6 @@ const AUTORISES = {
   autonomousGeometry: 'autonomous witness: it mounts its meshes with the host library',
   autonomousInstances: 'autonomous witness: its instances carry host matrices',
   autonomousPages: 'autonomous witness: its pages are host geometries',
-  autonomousRender: 'autonomous witness: it renders through the host renderer',
   blendCopyMesh: 'witness: the transparent copy is a host mesh',
   clusterBatches: 'batch witness: it groups host geometries',
   clusterBatchesFixture: 'batch-witness mount',
@@ -49,7 +48,6 @@ const AUTORISES = {
   exactPagesRequests: 'exact witness: its requests start from its host graph',
   lightingObservationMeshes: 'lighting witness: observed host meshes',
   lightingObservationResources: 'lighting witness: its resources are the host’s',
-  lightingObservationTransforms: 'lighting witness: rest poses of the host graph',
   referenceBackend: 'reference witness: the host engine, as-is',
   threeBounds: 'witness: bounds as the host library computes them',
   threeLod: 'witness: the host level-of-detail selection, `LOD.update` included',
@@ -89,14 +87,12 @@ const AUTORISES = {
   webgpuPagesTransform: 'boundary: the host moves a subtree of its scene',
 
   // 2 bis. Test-scene mounts and oracles that walk the host graph.
-  gpuDagOracleMath: 'oracle: it SETS a host camera to derive the engine camera',
   pageRaster: 'raster oracle: it reads meshes, materials and colours of the host graph',
   pageSelectionBlendFixture: 'test-scene mount: it sets the camera and materials',
   pageSelectionDagFixture: 'test-scene mount: it sets the camera and materials',
   pagesBackendFixture: 'test mount: it counts what host meshes draw',
   pagesBackendScenes: 'test-scene mount: it sets the camera',
   visibilityBufferFixture: 'test-scene mount: it sets the camera and pages',
-  webgpuCutRepriseFixture: 'test mount: it sets the host camera that cameraMoteur maps',
   webgpuPagesTestOccluder: 'test-scene mount: the occluder and its camera',
   webgpuPagesTestScenes: 'test-scene mounts: meshes and materials',
   webgpuTransformCisaillementFixture:
@@ -108,17 +104,15 @@ const AUTORISES = {
   explorerDiagnosticApi: 'it replaces host materials and geometries with diagnostic ones',
   explorerSceneApi: 'contract: materials and poses the host rewrites on its scene',
   explorerViewportApi: 'boundary: the capture view is a host camera',
-  frameCostAudit: 'host-material face constant, and its renderer counters',
   gpuDagTypes: 'contract: materials and matrices the host writes',
-  gpuSelection: 'host-material face constants',
-  pageCone: 'host-material face constants',
+  gpuSelection: 'host material type carried by a page',
+  materialSide: 'host-material face constants, read once into the engine `Side`',
+  pageCone: 'host material type carried by a page',
   pageSelectionCutState: 'host material carried by a page',
-  pageSelectionHelpers: 'host-material face constant',
+  pageSelectionHelpers: 'host material type carried by a page',
   pageSelectionTypes: 'contract: geometries, materials and matrices the host writes',
   triangleDiagnostic: 'it colours a host geometry in a host material',
-  visibilityLighting: 'host-material colour',
   visibilityMath: 'host attributes, textures and wrap modes',
-  visibilityRaster: 'host-material face constants',
   visibilityTypes: 'contract: host materials, textures and colours',
   visibilityWrapModes: 'host-texture wrap modes',
   webgpuTileAtlas: 'host texture as a tile source',
@@ -126,14 +120,12 @@ const AUTORISES = {
   webgpuTileScratch: 'host image transferred into the working texture',
   webgpuBlendBuffers: 'host geometry attributes',
   webgpuBlendItems: 'contract: host textures stored by an item record',
-  webgpuBlendPlan: 'host-material face constants',
   webgpuBlendPrepare: 'host meshes and materials to prepare',
   webgpuBlendState: 'contract: geometries, materials and matrices the host writes',
   webgpuGeometryPrepare: 'host geometries to prepare',
   webgpuMaterialTextures: 'host-material textures',
   webgpuPageRow: 'host geometry and textures of a row',
   webgpuPagesHelpers: 'host colours and colour management',
-  webgpuPagesPipelineFor: 'host-material face constants',
   webgpuPagesPrepare: 'host geometry attributes',
   webgpuPagesSetup: 'meshes of the host scene',
   webgpuPagesStateGpu: 'contract: host geometries, textures and presentation mesh',
@@ -176,6 +168,7 @@ test('`cameraWorld.ts` remains the only translation from host camera to engine c
   const texte = await readFile(new URL('cameraWorld.ts', browser), 'utf8');
   assert.match(texte, /export type HostCamera = THREE\.PerspectiveCamera/);
   assert.match(texte, /export function readCameraWorld\(/);
+  const moteur = await readFile(new URL('engineCamera.ts', browser), 'utf8');
   for (const champ of ['world', 'projection', 'view', 'viewProjection', 'planes', 'eye'])
-    assert.match(texte, new RegExp(`\\b${champ}\\b`), champ);
+    assert.match(moteur, new RegExp(`\\b${champ}\\b`), champ);
 });

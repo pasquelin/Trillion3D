@@ -1,18 +1,14 @@
 import * as THREE from 'three';
-import {
-  createCameraFrame,
-  decomposeMatrix4,
-  perspectiveProjection,
-  updateCameraFrame,
-  type CameraFrame,
-} from '../sdk-core/index.ts';
+import { decomposeMatrix4 } from '../sdk-core/index.ts';
 import { copyElements } from './matrixElements.ts';
-import {
-  createRenderOriginFrame,
-  holdRenderOriginFrame,
-  updateRenderOriginFrame,
-  type RenderOriginFrame,
-} from './cameraRenderOrigin.ts';
+import { writeEngineCamera, type EngineCamera } from './engineCamera.ts';
+
+export {
+  createEngineCamera,
+  defaultEngineCamera,
+  holdCameraWorld,
+  type EngineCamera,
+} from './engineCamera.ts';
 
 /**
  * THE CAMERA-POSE CONTRACT. Unique home of a camera's world pose in `sdk-browser`;
@@ -35,9 +31,9 @@ import {
  *     reads local matrices the engine does not write, so calling it again downstream changes
  *     no number. That is what lets the two uses coexist without contradicting each other.
  *  2. COPY. `readCameraWorld` resolves then copies, once per frame, the host camera's world
- *     matrix and projection matrix into an `EngineCamera` the engine owns — allocated once,
- *     rewritten every frame. Derived matrices (view, view-projection, frustum planes, world
- *     position) are set there, once for the whole frame.
+ *     matrix and declared optics into an `EngineCamera` the engine owns (`engineCamera.ts`) —
+ *     allocated once, rewritten every frame. Derived matrices (projection, view,
+ *     view-projection, frustum planes, world position) are set there, once for the whole frame.
  *  3. READ. Everything downstream reads the `EngineCamera`. `cameraWorldPosition` and
  *     `cameraPose` remain the pose reads of traces and test hosts. A direct read of
  *     `camera.position` is a defect, never an optimisation — under a rig it names a point
@@ -61,40 +57,6 @@ export type CameraMotion = { last?: Float64Array; lastMs?: number };
 /** The camera the host hands to the engine. Only this file names it. */
 export type HostCamera = THREE.PerspectiveCamera;
 
-/**
- * The engine camera: the numbers of a frame, in owned buffers rewritten in place.
- * No host-library structure crosses a signature downstream of `readCameraWorld`.
- */
-export interface EngineCamera extends CameraFrame, RenderOriginFrame {
-  /** Host-camera world matrix, copied as-is. */
-  world: Float64Array;
-  /** Engine projection, composed from the optics the host declared: reversed depth, infinite
-   *  far plane (`depthConvention.ts`). This is NOT the host camera's matrix. */
-  projection: Float64Array;
-  /** Eye position in the world: the translation of `world`. It is not named `position`,
-   *  which everywhere else means the LOCAL pose the contract forbids reading. */
-  eye: Float64Array;
-  near: number;
-  far: number;
-  /** Vertical field in degrees and aspect ratio, as the host declares them. */
-  fov: number;
-  aspect: number;
-}
-
-export function createEngineCamera(): EngineCamera {
-  return {
-    ...createCameraFrame(),
-    ...createRenderOriginFrame(),
-    world: new Float64Array(16),
-    projection: new Float64Array(16),
-    eye: new Float64Array(3),
-    near: 0,
-    far: 0,
-    fov: 0,
-    aspect: 1,
-  };
-}
-
 export function resolveCameraWorld<T extends THREE.Camera>(camera: T): T {
   camera.updateWorldMatrix(true, false);
   return camera;
@@ -106,33 +68,14 @@ export function resolveCameraWorld<T extends THREE.Camera>(camera: T): T {
  * (field, aspect, near plane, zoom) in its own depth convention — reversed, infinite far
  * plane — because the host matrix carries its library's and a finite far plane. `camera.far`
  * is still read as-is for what still depends on it (adaptive threshold, shadow range) and
- * for the frustum far plane, which keeps it; it no longer enters any depth. `updateCameraFrame`
+ * for the frustum far plane, which keeps it; it no longer enters any depth. `writeEngineCamera`
  * then rebuilds the view by inverting the world matrix, the view-projection and the six
  * frustum planes, once for the whole frame.
  */
 export function readCameraWorld(into: EngineCamera, camera: HostCamera): EngineCamera {
   resolveCameraWorld(camera);
   copyElements(into.world, camera.matrixWorld.elements);
-  into.near = camera.near;
-  into.far = camera.far;
-  into.fov = camera.fov;
-  into.aspect = camera.aspect;
-  perspectiveProjection(into.projection, camera.fov, camera.aspect, camera.near, camera.zoom);
-  updateCameraFrame(into, into.projection, into.world, into.far);
-  // The render frame is set here, in the same pass: what leaves in single precision will read
-  // the view without translation, never an absolute view accompanied by relative worlds.
-  updateRenderOriginFrame(into, into.view, into.projection, into.far);
-  into.eye[0] = into.world[12];
-  into.eye[1] = into.world[13];
-  into.eye[2] = into.world[14];
-  return into;
-}
-
-let defaultEngine: EngineCamera | undefined;
-/** Engine camera a fresh host camera yields: the fallback of oracles the host calls
- *  before the first frame, where the engine has not yet copied any camera. */
-export function defaultEngineCamera() {
-  return (defaultEngine ??= readCameraWorld(createEngineCamera(), new THREE.PerspectiveCamera()));
+  return writeEngineCamera(into, camera);
 }
 
 const poseTranslation = new Float64Array(3),
@@ -166,26 +109,5 @@ export function holdHostCamera(into: HostCamera, camera: HostCamera): HostCamera
   into.matrix.copy(camera.matrixWorld);
   into.matrixWorld.copy(into.matrix);
   into.matrixWorldInverse.copy(into.matrixWorld).invert();
-  return into;
-}
-
-/**
- * Copies an engine camera into another, which then keeps the view bit for bit. A view held
- * from frame to frame (Hi-Z history) or rendered aside (second capture view) thus describes
- * the view actually drawn, even when the source is the child of a rig. Nothing is recomputed:
- * derived matrices are already set on the source.
- */
-export function holdCameraWorld(into: EngineCamera, from: EngineCamera): EngineCamera {
-  into.world.set(from.world);
-  into.projection.set(from.projection);
-  into.view.set(from.view);
-  into.viewProjection.set(from.viewProjection);
-  into.planes.set(from.planes);
-  holdRenderOriginFrame(into, from);
-  into.eye.set(from.eye);
-  into.near = from.near;
-  into.far = from.far;
-  into.fov = from.fov;
-  into.aspect = from.aspect;
   return into;
 }
