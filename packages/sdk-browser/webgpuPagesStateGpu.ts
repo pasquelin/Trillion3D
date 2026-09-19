@@ -61,9 +61,9 @@ export interface WebgpuGpuState {
   zeroUv: GPUBuffer | undefined;
   synchronousCapture: ReturnType<typeof createSynchronousCanvasCapture> | undefined;
   presenter: ReturnType<typeof createGpuPresenter> | undefined;
-  canvasTexture: THREE.CanvasTexture | undefined;
-  blitMaterial: THREE.ShaderMaterial | undefined;
-  blit: THREE.Mesh | undefined;
+  /** Canvas the engine presented into when the host surface is not its own; the host composes
+   *  from it. Undefined when the engine presents straight into the host canvas. */
+  composedCanvas: HTMLCanvasElement | undefined;
   deferred: Awaited<ReturnType<typeof createDeferredLighting>> | undefined;
   /** Temporal-antialiasing pass and its two history targets; absent when the host refuses it or the
    *  device does not host it. */
@@ -118,9 +118,7 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     zeroUv: undefined,
     synchronousCapture: undefined,
     presenter: undefined,
-    canvasTexture: undefined,
-    blitMaterial: undefined,
-    blit: undefined,
+    composedCanvas: undefined,
     deferred: undefined,
     temporal: undefined,
   };

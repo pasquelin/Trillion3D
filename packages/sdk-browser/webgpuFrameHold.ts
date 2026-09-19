@@ -143,7 +143,6 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     gpu.presenter.present(encoder, gpu.colorTexture, gpu.targetSize[0], gpu.targetSize[1]);
     device.queue.submit([encoder.finish()]);
     run.imageRevision++;
-    if (gpu.canvasTexture) gpu.canvasTexture.needsUpdate = true;
     presented = true;
   }
   recordHeldFrameWork(rt, presented, performance.now() - start);

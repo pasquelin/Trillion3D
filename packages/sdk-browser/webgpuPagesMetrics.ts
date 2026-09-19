@@ -157,9 +157,7 @@ export function disposeWebgpuPages(
   rt.lights.plan.reset();
   gpu.presenter?.dispose();
   gpu.synchronousCapture?.dispose();
-  gpu.canvasTexture?.dispose();
-  gpu.blitMaterial?.dispose();
-  gpu.blit?.geometry.dispose();
+  gpu.composedCanvas = undefined;
   const closing = gpu.cache?.dispose();
   gpu.cache = undefined;
   scene.clear();

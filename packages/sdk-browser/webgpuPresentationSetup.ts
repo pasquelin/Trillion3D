@@ -1,38 +1,19 @@
-import * as THREE from 'three';
 import { createGpuPresenter } from './gpuPresentation.ts';
 
-/** Sets up direct presentation or the canvas used by the WebGL composition host. */
+/**
+ * Presentation surface of the WebGPU engine. With a host canvas, the engine configures it and
+ * presents into it. Without one, it presents into a canvas of its own and publishes it: a host
+ * whose surface is WebGL2 composes from that canvas (`createCanvasBlit`), and the engine builds
+ * no object of the host's rendering library to get its image across.
+ */
 export function prepareWebgpuPresentation(
   device: GPUDevice,
-  scene: THREE.Scene,
   gpuCanvas: HTMLCanvasElement | undefined,
 ) {
   const outputCanvas =
     gpuCanvas ?? (typeof document !== 'undefined' ? document.createElement('canvas') : undefined);
   const presenter = outputCanvas ? createGpuPresenter(device, outputCanvas) : undefined;
-  let canvasTexture: THREE.CanvasTexture | undefined;
-  let blitMaterial: THREE.ShaderMaterial | undefined;
-  let blit: THREE.Mesh | undefined;
-  if (outputCanvas && !gpuCanvas) {
-    canvasTexture = new THREE.CanvasTexture(outputCanvas);
-    canvasTexture.colorSpace = THREE.SRGBColorSpace;
-    canvasTexture.flipY = false;
-    canvasTexture.generateMipmaps = false;
-    canvasTexture.minFilter = THREE.NearestFilter;
-    canvasTexture.magFilter = THREE.NearestFilter;
-    blitMaterial = new THREE.ShaderMaterial({
-      uniforms: { image: { value: canvasTexture } },
-      vertexShader: 'void main(){gl_Position=vec4(position.xy,0.0,1.0);}',
-      fragmentShader:
-        'uniform sampler2D image;void main(){ivec2 sz=textureSize(image,0);gl_FragColor=texelFetch(image,ivec2(int(gl_FragCoord.x),sz.y-1-int(gl_FragCoord.y)),0);\n#include <colorspace_fragment>\n}',
-      depthTest: false,
-      depthWrite: false,
-      toneMapped: false,
-    });
-    blit = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), blitMaterial);
-    blit.frustumCulled = false;
-    blit.userData.blit = true;
-    scene.add(blit);
-  }
-  return { presenter, canvasTexture, blitMaterial, blit };
+  // Published only when it is the engine's own: a host canvas needs no composition, the engine
+  // already presented into it.
+  return { presenter, composedCanvas: gpuCanvas ? undefined : outputCanvas };
 }
