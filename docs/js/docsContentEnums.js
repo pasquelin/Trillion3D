@@ -6,6 +6,7 @@ export const ENUMS_IMAGE = [
   {
     ...CONST,
     id: 'IDENTITY_MATRIX4',
+    exports: ['IDENTITY_MATRIX4'],
     module: 'packages/sdk-core/mathMatrix4.ts',
     signature: 'const IDENTITY_MATRIX4: Float64Array',
     description:
@@ -21,6 +22,7 @@ copyMatrix4(nodeTransform, IDENTITY_MATRIX4); // reset, no allocation`,
   {
     ...ENUM,
     id: 'DiagnosticMode',
+    exports: ['DiagnosticMode', 'DIAGNOSTICS'],
     module: 'packages/sdk-core/diagnostics.ts',
     signature:
       "type DiagnosticMode = 'beauty' | 'wireframe' | 'clusters' | 'lod' | 'screen-error' | 'visibility' | 'pages' | 'texture-mip' | 'overdraw'",
@@ -63,6 +65,7 @@ console.log(DIAGNOSTICS['overdraw']); // { available: false, reason: 'No fragmen
   {
     ...ENUM,
     id: 'LodQualityId',
+    exports: ['LodQualityId', 'LOD_QUALITY', 'lodQuality', 'adaptivePixelError'],
     module: 'packages/sdk-core/lodPolicy.ts',
     signature:
       "type LodQualityId = 'source' | 'high' | 'balanced' | 'adaptive'\nconst LOD_QUALITY: Record<LodQualityId, { id, label, pixelError, anisotropy, adaptive }>",
@@ -85,6 +88,7 @@ explorer.setPixelError(pixelError);`,
   {
     ...ENUM,
     id: 'ScreenErrorVariant',
+    exports: ['ScreenErrorVariant', 'setScreenErrorVariant', 'screenErrorVariant'],
     module: 'packages/sdk-core/screenErrorVariant.ts',
     signature: "type ScreenErrorVariant = 'certifiee' | 'reference'",
     description:
