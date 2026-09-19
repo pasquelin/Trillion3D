@@ -1,29 +1,29 @@
-//! Le graphe de nuanceur d'un matériau, réduit à ce qui sert.
+//! A material's shader graph, reduced to what is used.
 //!
-//! Un lien de Blender part d'une sortie de nœud et arrive sur une entrée ; ce module n'en retient
-//! que ce dont le glTF a besoin : quel nœud alimente quelle entrée, et si ce nœud est une image.
-//! Les entrées sont demandées par leur identifiant, jamais par leur rang, et leur valeur déclarée
-//! se lit par le nom de champ que le SDNA donne au type de l'entrée.
+//! A Blender link leaves a node output and arrives on an input; this module only keeps what glTF
+//! needs: which node feeds which input, and whether that node is an image. Inputs are asked for
+//! by their identifier, never by their rank, and their declared value is read by the field name
+//! the SDNA gives the input's type.
 use super::*;
 
 const TEX_IMAGE: &str = "ShaderNodeTexImage";
 const NORMAL_MAP: &str = "ShaderNodeNormalMap";
 
-/// Le graphe d'un matériau : quel nœud alimente quelle entrée, et par quelle sortie.
+/// A material's graph: which node feeds which input, and through which output.
 pub(super) struct Tree<'a> {
     links: HashMap<u64, (u64, u64)>,
     file: &'a BlendFile,
 }
 
-/// Ce qu'un lien apporte à une entrée : le nœud d'où il part, et l'identifiant de sa sortie — le
-/// canal, quand ce nœud est une image.
+/// What a link brings to an input: the node it leaves, and the identifier of its output — the
+/// channel, when that node is an image.
 pub(super) struct Link<'a> {
     pub(super) node: At<'a>,
     pub(super) socket: String,
 }
 
-/// Une grandeur scalaire : la valeur déclarée, et un compte quand une entrée branchée la remplace
-/// par un calcul que la scène intermédiaire ne porte pas.
+/// A scalar quantity: the declared value, and a count when a linked input replaces it with a
+/// computation the intermediate scene does not carry.
 pub(super) fn factor(
     node: &At<'_>,
     tree: &Tree<'_>,
@@ -40,12 +40,12 @@ pub(super) fn factor(
     value(&socket, default)[0]
 }
 
-/// L'émission : couleur multipliée par son intensité, bornée à [0, 1] comme le glTF l'exige.
+/// Emission: colour multiplied by its strength, clamped to [0, 1] as glTF requires.
 ///
-/// Une image branchée sur la couleur d'émission **remplace** la couleur déclarée, que Blender
-/// n'évalue alors plus : le facteur du glTF ne porte plus que l'intensité, que le glTF multiplie
-/// par l'image. Prendre la couleur remplacée éteindrait l'émission dès que l'auteur y a laissé du
-/// noir.
+/// An image linked on the emission colour **replaces** the declared colour, which Blender then
+/// no longer evaluates: the glTF factor then only carries the strength, which glTF multiplies
+/// by the image. Taking the replaced colour would extinguish the emission as soon as the author
+/// left black there.
 pub(super) fn emission(
     node: &At<'_>,
     tree: &Tree<'_>,
@@ -81,8 +81,8 @@ pub(super) fn emission(
     }
 }
 
-/// La texture de normales : l'entrée `Normal` passe par un nœud de carte de normales, dont l'entrée
-/// couleur porte l'image.
+/// The normal texture: the `Normal` input goes through a normal-map node, whose colour input
+/// holds the image.
 pub(super) fn normal_texture(
     node: &At<'_>,
     tree: &Tree<'_>,
@@ -98,7 +98,7 @@ pub(super) fn normal_texture(
     texture(&socket(&source, "Color")?, tree, root, images, out)
 }
 
-/// L'image branchée sur une entrée, quand c'est bien une image qui l'alimente.
+/// The image linked on an input, when it is indeed an image that feeds it.
 pub(super) fn texture(
     socket: &At<'_>,
     tree: &Tree<'_>,
@@ -115,14 +115,14 @@ pub(super) fn texture(
     images.texture(&image, root, out)
 }
 
-/// L'entrée nommée d'un nœud : par son identifiant, à défaut par son libellé.
+/// The named input of a node: by its identifier, failing that by its label.
 pub(super) fn socket<'a>(node: &At<'a>, wanted: &str) -> Option<At<'a>> {
     node.list("inputs")
         .into_iter()
         .find(|socket| socket.text("identifier") == wanted || socket.text("name") == wanted)
 }
 
-/// Les valeurs déclarées d'une entrée : un flottant, une couleur ou un vecteur, selon son type.
+/// The declared values of an input: a float, a colour or a vector, according to its type.
 pub(super) fn value(socket: &At<'_>, default: f32) -> Vec<f32> {
     let found = socket
         .follow("default_value")
@@ -139,7 +139,7 @@ pub(super) fn socket_value(node: &At<'_>, name: &str, default: f32) -> f32 {
 }
 
 impl<'a> Tree<'a> {
-    /// Les liens du graphe, indexés par l'entrée qu'ils alimentent.
+    /// The graph's links, indexed by the input they feed.
     pub(super) fn read(graph: &At<'a>) -> Tree<'a> {
         let mut links = HashMap::new();
         for link in graph.list("links") {
@@ -153,11 +153,11 @@ impl<'a> Tree<'a> {
             file: graph.file,
         }
     }
-    /// Le nœud qui alimente cette entrée, s'il y en a un.
+    /// The node that feeds this input, if there is one.
     pub(super) fn source(&self, socket: &At<'a>) -> Option<At<'a>> {
         self.link(socket).map(|link| link.node)
     }
-    /// Le lien qui alimente cette entrée : son nœud et la sortie d'où il part.
+    /// The link that feeds this input: its node and the output it leaves.
     pub(super) fn link(&self, socket: &At<'a>) -> Option<Link<'a>> {
         let (node, from) = self.links.get(&socket.old)?;
         let node = self.file.view(self.file.at(*node)?)?;

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { DEPTH_LAYER_BIAS_UNITS, depthLayerUnits, biasedDepthBits } from './depthLayer.ts';
 import { assertFormat } from './cacheContracts.ts';
 
-// Comportement 14 : depthLayerUnits rend 0 pour 0/undefined/négatif et 16 × couche sinon
+// Behavior 14: depthLayerUnits returns 0 for 0/undefined/negative and 16 × layer otherwise
 test('depthLayerUnits returns 0 for undefined or non-positive layers', () => {
   assert.equal(depthLayerUnits(undefined), 0);
   assert.equal(depthLayerUnits(0), 0);
@@ -22,7 +22,7 @@ test('depthLayerUnits computes a positive magnitude for positive layers', () => 
   assert.equal(depthLayerUnits(1000), 15 * DEPTH_LAYER_BIAS_UNITS); // Capped at 15
 });
 
-// Comportement 15 : profondeur inversée — biasedDepthBits AJOUTE les unités et sature aux bits de 1
+// Behavior 15: reversed depth — biasedDepthBits ADDS units and clamps at 1.0 bits
 test('biasedDepthBits adds the layer units to the bits', () => {
   const bits = 1000;
   assert.equal(biasedDepthBits(bits, 1), bits + depthLayerUnits(1));
@@ -40,7 +40,7 @@ test('biasedDepthBits preserves bits for layer 0 or undefined', () => {
   assert.equal(biasedDepthBits(bits, undefined), bits >>> 0);
 });
 
-// Comportement 12 : assertFormat accepte 3 et 4, refuse 1, 2 et tout autre
+// Behavior 12: assertFormat accepts 3 and 4, rejects 1, 2, and others
 test('assertFormat accepts format version 3', () => {
   assert.doesNotThrow(() => assertFormat(3));
 });

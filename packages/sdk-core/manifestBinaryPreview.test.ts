@@ -61,16 +61,16 @@ function encode(previews: TexturePreview[]) {
   const buffer = binary.buffer.slice(binary.byteOffset, binary.byteOffset + binary.byteLength);
   return { slim, buffer };
 }
-/** Les mots `texturePreviewU32` de l'entrée `entry`, à même le tampon fini : le seul moyen de
- *  fabriquer un sidecar dont la géométrie ou la plage d'octets ment sans passer par l'encodeur, qui
- *  la refuserait lui-même. */
+/** The `texturePreviewU32` words of entry `entry`, on the finished buffer: the only way to
+ *  build a sidecar whose geometry or byte range lies without going through the encoder, which
+ *  would reject it itself. */
 function previewWord(buffer: ArrayBuffer, entry: number, field: number) {
   const header = new Uint32Array(buffer, 0, MANIFEST_BINARY_HEADER_WORDS + COLUMN_NAMES.length * 2);
   const index = COLUMN_NAMES.indexOf('texturePreviewU32');
   const offset = header[MANIFEST_BINARY_HEADER_WORDS + index * 2];
   return new Uint32Array(buffer, offset + (entry * PREVIEW_WORDS + field) * 4, 1);
 }
-// Les rangs des mots, écrits ici en dur et non importés : le test fige la disposition du sidecar.
+// Word ranks, hardcoded here rather than imported: the test freezes the sidecar layout.
 const PREVIEW_FIRST_LEVEL = 6,
   PREVIEW_PIXEL_OFFSET = 8,
   PREVIEW_PIXEL_BYTES = 9,
@@ -83,7 +83,7 @@ function refused(buffer: ArrayBuffer, slim: SlimClusterManifest) {
   );
 }
 
-// Comportement 5 : un sidecar version 4 fait l'aller-retour, et son lecteur refuse une version 3.
+// Behaviour 5: a version-4 sidecar round-trips, and its reader rejects a version 3.
 test('a version 3 sidecar (the fixed-length preview entries) is refused, never read as version 4', () => {
   const { slim, buffer } = encode([preview(0, 32, 16, 1)]);
   const header = new Uint32Array(buffer, 0, 2);
@@ -94,8 +94,8 @@ test('a version 3 sidecar (the fixed-length preview entries) is refused, never r
   );
 });
 
-// Comportement 5 : la géométrie déclarée est recalculée depuis les dimensions, jamais crue — un
-// premier niveau ou une longueur de pixels qui ne s'accordent pas avec elles sont refusés.
+// Behaviour 5: declared geometry is recomputed from the dimensions, never trusted — a
+// first level or pixel length that disagrees with them is rejected.
 test('a declared first level that disagrees with the source dimensions is refused', () => {
   const { slim, buffer } = encode([preview(0, 128, 128, 1)]);
   previewWord(buffer, 0, PREVIEW_FIRST_LEVEL)[0] += 1;
@@ -107,8 +107,8 @@ test('a declared pixel byte count that disagrees with the source dimensions is r
   refused(buffer, slim);
 });
 
-// Comportement 5 : la plage d'octets d'une entrée doit suivre la précédente sans trou ni
-// chevauchement — un décalage qui ment dans un sens ou dans l'autre est refusé.
+// Behaviour 5: an entry's byte range must follow the previous one with no gap or
+// overlap — an offset that lies in either direction is rejected.
 test('a pixel range offset that opens a gap after the previous entry is refused', () => {
   const { slim, buffer } = encode([preview(0, 4, 4, 1), preview(1, 4, 4, 2)]);
   previewWord(buffer, 1, PREVIEW_PIXEL_OFFSET)[0] += 8;
@@ -152,7 +152,7 @@ test('an unknown atlas, or more baked levels than lie above the tail, is refused
     () => encode([{ ...preview(0, 256, 256, 1), bakedLevels: 3 }]),
     /more levels than lie above its tail/,
   );
-  // Un sidecar dont le mot a été forcé après coup est refusé à la lecture, pas seulement à l'écriture.
+  // A sidecar whose word was forced after the fact is rejected on read, not only on write.
   const { slim, buffer } = encode([preview(0, 256, 256, 1)]);
   previewWord(buffer, 0, PREVIEW_ATLAS)[0] = 7;
   refused(buffer, slim);

@@ -1,19 +1,20 @@
-//! Ce qu'un `UsdPreviewSurface` déclare hors de `pbrMetallicRoughness` : l'occlusion, que glTF
-//! range dans sa propre carte, et les entrées auxquelles le glTF de base n'a pas de place.
+//! What a `UsdPreviewSurface` declares outside `pbrMetallicRoughness`: occlusion, which glTF
+//! puts in its own map, and inputs for which base glTF has no slot.
 //!
-//! Une entrée écrite à sa valeur par défaut ne change rien à la surface : elle n'est pas un écart
-//! et n'entre pas au rapport. C'est l'écart qui compte, jamais la présence de l'attribut.
+//! An input written at its default value changes nothing on the surface: it is not a mismatch
+//! and does not enter the report. It is the mismatch that counts, never the presence of the
+//! attribute.
 use super::*;
 
-/// L'indice de réfraction implicite d'un `UsdPreviewSurface`, et sa normale implicite : celle qui
-/// laisse la surface telle que sa géométrie la donne.
+/// Implicit index of refraction of a `UsdPreviewSurface`, and its implicit normal: the one that
+/// leaves the surface as its geometry gives it.
 const DEFAULT_IOR: f64 = 1.5;
 const DEFAULT_NORMAL: [f64; 3] = [0.0, 0.0, 1.0];
-/// Le canal où glTF lit l'occlusion de sa carte.
+/// Channel where glTF reads occlusion from its map.
 const OCCLUSION_CHANNEL: &str = "outputs:r";
 
-/// L'occlusion texturée. glTF la lit dans le canal rouge de sa propre carte ; un autre canal de la
-/// même image donnerait une occlusion lue ailleurs qu'écrite, et la carte reste portée telle quelle.
+/// Textured occlusion. glTF reads it in the red channel of its own map; another channel of the
+/// same image would give an occlusion read elsewhere than written, and the map stays carried as-is.
 pub(super) fn occlusion(world: &mut World<'_>, shader: &usd::Prim, out: &mut Value) {
     let Some(target) = material::connection(shader, "inputs:occlusion") else {
         return;
@@ -30,9 +31,9 @@ pub(super) fn occlusion(world: &mut World<'_>, shader: &usd::Prim, out: &mut Val
     out["occlusionTexture"] = bound.plain(world);
 }
 
-/// Ce que ce nœud de surface écarte de sa valeur par défaut et que le glTF de base ne porte pas :
-/// le flux de travail spéculaire, le vernis, l'indice de réfraction, une normale écrite plutôt que
-/// texturée. Rien n'est approché par une autre entrée, chacun est compté par son nom.
+/// What this surface node departs from its default and that base glTF does not carry: the
+/// specular workflow, clearcoat, index of refraction, a written rather than textured normal.
+/// Nothing is approximated by another input; each is counted by name.
 pub(super) fn counted(world: &mut World<'_>, shader: &usd::Prim) {
     if specular(shader) {
         world.refuse(world::SPECULAR_WORKFLOW);
@@ -48,16 +49,16 @@ pub(super) fn counted(world: &mut World<'_>, shader: &usd::Prim) {
     }
 }
 
-/// Cette surface est-elle décrite par son flux de travail spéculaire ? `useSpecularWorkflow` le
-/// demande, et une couleur spéculaire écrite le dit aussi : ni l'un ni l'autre ne se ramène au
-/// métal et à la rugosité de glTF sans réinventer la surface.
+/// Is this surface described by its specular workflow? `useSpecularWorkflow` asks for it, and a
+/// written specular colour says so too: neither folds into glTF metal and roughness without
+/// reinventing the surface.
 fn specular(shader: &usd::Prim) -> bool {
     let asked = material::scalar(shader, "useSpecularWorkflow").is_some_and(|flow| flow != 0.0);
     asked || material::value(shader, "specularColor").is_some()
 }
 
-/// Une normale écrite à la main, hors de sa valeur par défaut et sans texture pour la porter :
-/// glTF n'a pas de normale constante par matériau.
+/// A hand-written normal, off its default and with no texture to carry it: glTF has no
+/// per-material constant normal.
 fn written_normal(shader: &usd::Prim) -> bool {
     if material::connection(shader, "inputs:normal").is_some() {
         return false;
@@ -68,8 +69,8 @@ fn written_normal(shader: &usd::Prim) -> bool {
         .is_some_and(|normal| normal != DEFAULT_NORMAL)
 }
 
-/// L'émission : la carte connectée l'emporte sur la couleur écrite, que glTF multiplierait par
-/// elle, et la couleur écrite ne voyage que lorsqu'elle éclaire vraiment.
+/// Emission: the connected map wins over the written colour, which glTF would multiply by it,
+/// and the written colour travels only when it actually lights.
 pub(super) fn emissive(world: &mut World<'_>, shader: &usd::Prim, out: &mut Value) {
     let colour = match material::connected_texture(world, shader, "emissiveColor", true) {
         Some(bound) => {

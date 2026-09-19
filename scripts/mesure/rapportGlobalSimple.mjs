@@ -1,8 +1,9 @@
-// La première page du rapport global : une question par fiche, une barre par série — les témoins
-// Three.js (nu, à niveaux de détail), notre moteur, Unreal — et une phrase qui dit ce que ça veut
-// dire. Aucun jargon : les détails sont plus bas dans le rapport. Les chiffres d'Unreal sont ceux
-// de `rapportGlobalReference.mjs` ; quand un témoin n'a rien publié, sa barre l'écrit au lieu de
-// se taire. Les fiches sans chiffre du banc sont dans `rapportGlobalSimpleFixes.mjs`.
+// The first page of the global report: one question per card, one bar per series — the
+// Three.js witnesses (bare, with levels of detail), our engine, Unreal — and a sentence
+// that says what that means. No jargon: the details are lower in the report. Unreal
+// figures are those of `rapportGlobalReference.mjs`; when a witness published nothing,
+// its bar writes it instead of staying silent. Cards without a bench figure are in
+// `rapportGlobalSimpleFixes.mjs`.
 import { html, moins } from './rapportGlobalGraphes.mjs';
 import { trouve } from './rapportGlobalLecture.mjs';
 import { comparateur } from './rapportGlobalComparateur.mjs';
@@ -11,7 +12,7 @@ import { fiche, fichePar, grille, NOTRE, pairesImages, TEMOINS } from './rapport
 import { FICHE_PETITE_MACHINE, fichesFixes } from './rapportGlobalSimpleFixes.mjs';
 import { UNREAL } from './rapportGlobalChiffres.mjs';
 
-/** `v / div`, ou `null` si la valeur manque. */
+/** `v / div`, or `null` if the value is missing. */
 const en = (v, div) => (typeof v === 'number' ? v / div : null);
 const [REFERENCE] = TEMOINS;
 
@@ -20,12 +21,12 @@ export function sectionSimple(ex, dossier) {
     ['generale', 'overview'],
     ['sol', 'from the street'],
   ];
-  // Une exécution à deux côtés met le témoin en `avant` et le moteur en `apres` : `t` lit le
-  // témoin, `m` le moteur, dans l'exécution du témoin de référence.
+  // A two-side run puts the witness in `avant` and the engine in `apres`: `t` reads the
+  // witness, `m` the engine, in the reference witness's run.
   const t = (run, v) => trouve(ex, run, v, 1, 'avant');
   const m = (run, v) => trouve(ex, run, v, 1, 'apres');
-  // Les valeurs d'une fiche : chaque témoin dans son exécution `<moteur><suffixe>`, notre moteur
-  // dans celle de la référence, puis Unreal ; `lire` prend un relevé (ou `null`).
+  // Values of a card: each witness in its `<moteur><suffixe>` run, our engine in that of
+  // the reference, then Unreal; `lire` takes a reading (or `null`).
   const serie = (suffixe, v, lire, unreal) => [
     ...TEMOINS.map((w) => lire(t(w.moteur + suffixe, v))),
     lire(m(REFERENCE.moteur + suffixe, v)),

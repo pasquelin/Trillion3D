@@ -1,32 +1,32 @@
 import * as THREE from 'three';
 import { readLightInto, LIGHT_SLOTS } from './hostSceneLightState.ts';
 
-/** Place réservée à un nœud : visibilité, drapeau de recomposition, et seize valeurs de pose — sa
- *  matrice posée, ou sa translation, sa rotation et son échelle. Une place fixe, pour que la boucle
- *  n'ait ni à mesurer ni à décaler quoi que ce soit. */
+/** Slot reserved for a node: visibility, recomposition flag, and sixteen pose values — its set
+ *  matrix, or its translation, rotation and scale. A fixed slot, so the loop has neither to
+ *  measure nor to offset anything. */
 const NODE_SLOTS = 18;
 
 /**
- * Marque d'un nœud que le moteur a créé lui-même — une copie d'instance, par exemple. L'hôte ne l'a
- * jamais reçu et ne peut donc pas l'écrire : le relire serait payer une comparaison pour une valeur
- * dont on sait qu'elle ne bouge pas.
+ * Mark of a node the engine created itself — an instance copy, for example. The host never
+ * received it and therefore cannot write it: rereading it would pay a comparison for a value
+ * known not to move.
  */
 export const ENGINE_OWNED = 'webGeometryEngineOwned';
 
-/** La pose d'un nœud qui recompose sa matrice, relue sans allocation. */
+/** Pose of a node that recomposes its matrix, reread without allocation. */
 const poseScratch = new Float64Array(10);
 
-/** Ce que le moteur dessine, vu d'ici : chaque entrée nomme le nœud source dont elle sort. Une page
- *  d'une racine de sélection, un maillage mélangé hors DAG : la même clé, le même traitement. */
+/** What the engine draws, seen from here: each entry names the source node it comes from. A
+ *  page of a selection root, a blended mesh outside the DAG: the same key, the same treatment. */
 export type WatchedSources = ReadonlyArray<unknown>;
 
-/** Le nœud source d'une entrée, quand elle en nomme un. */
+/** Source node of an entry, when it names one. */
 function sourceOf(entry: unknown) {
   const shaped = entry as { sourceMesh?: THREE.Object3D } | undefined | null;
   return shaped ? shaped.sourceMesh : undefined;
 }
 
-/** Remonte la chaîne d'un nœud jusqu'à la racine : la pose d'un ancêtre est celle du nœud. */
+/** Walks a node's chain up to the root: an ancestor's pose is the node's. */
 function withAncestors(node: THREE.Object3D | undefined, into: Set<THREE.Object3D>) {
   let walk: THREE.Object3D | null = node ?? null;
   while (walk && !into.has(walk)) {
@@ -36,24 +36,23 @@ function withAncestors(node: THREE.Object3D | undefined, into: Set<THREE.Object3
 }
 
 /**
- * Ce que l'hôte peut écrire dans le graphe source sans passer par le moteur.
+ * What the host can write into the source graph without going through the engine.
  *
- * Le contrat l'autorise à déplacer un nœud (`mesh.position.x = 100`), à le cacher, à changer
- * l'intensité ou la pose d'une lampe. Aucune API du moteur n'est appelée : aucune révision ne
- * l'annonce, et une image tenue sur ces révisions montrerait une scène périmée. La seule façon
- * honnête de le savoir est de relire ce que le contrat laisse écrire et de le comparer à ce que la
- * dernière image a lu.
+ * The contract lets it move a node (`mesh.position.x = 100`), hide it, change a light's intensity
+ * or pose. No engine API is called: no revision announces it, and a frame held on those
+ * revisions would show a stale scene. The only honest way to know is to reread what the
+ * contract lets write and compare it to what the last frame read.
  *
- * Ce qui est relu est borné deux fois. Par les NŒUDS SOURCE d'abord : une entrée dessinée nomme le
- * nœud dont elle sort, et plusieurs entrées du même nœud ne le relisent qu'une fois. Par la pose
- * LOCALE ensuite : aucune matrice monde n'est remontée ni multipliée pour savoir si quelque chose a
- * bougé, puisqu'une matrice monde est un produit de locales.
+ * What is reread is bounded twice. By SOURCE NODES first: a drawn entry names the node it comes
+ * from, and several entries of the same node reread it only once. By the LOCAL pose next: no
+ * world matrix is walked up or multiplied to know if something moved, since a world matrix is a
+ * product of locals.
  *
- * La lecture et la comparaison sont la même passe, dans un tableau plat, sans allocation ni appel
- * par nœud : l'image ne paie qu'une comparaison par valeur relue. La comparaison est exacte — les
- * valeurs sont gardées, pas une empreinte — et idempotente : elle compare un état à celui qu'elle
- * garde, si bien qu'une écriture passée par l'API du moteur, qui a déjà incrémenté la révision de
- * scène, n'en déclenche pas une seconde.
+ * Read and compare are the same pass, in a flat array, with neither allocation nor a per-node
+ * call: the frame pays only one comparison per reread value. The comparison is exact — values
+ * are kept, not a fingerprint — and idempotent: it compares a state to the one it holds, so a
+ * write that went through the engine API, which already incremented the scene revision, does
+ * not trigger a second one.
  */
 export function createHostSceneWatch() {
   let watched: THREE.Object3D[] = [],
@@ -62,9 +61,9 @@ export function createHostSceneWatch() {
     posed = false;
   return {
     /**
-     * Pose la liste des nœuds relus : les modèles source de ce que le moteur dessine, les lampes,
-     * et les ancêtres des uns et des autres. À rappeler quand la scène change de forme — une
-     * instance de plus, une lampe posée après coup —, jamais par image.
+     * Sets the list of reread nodes: the source models of what the engine draws, the lights,
+     * and the ancestors of both. To be called when the scene changes shape — one more instance,
+     * a light set after the fact — never per frame.
      */
     observe(source: THREE.Object3D, drawn: WatchedSources) {
       const set = new Set<THREE.Object3D>();
@@ -79,19 +78,19 @@ export function createHostSceneWatch() {
       });
       for (const entry of drawn) withAncestors(sourceOf(entry), set);
       for (const node of set) if (node.userData[ENGINE_OWNED]) set.delete(node);
-      // Sans racine ni lampe déclarée, il n'y a rien à relire : le graphe entier n'est pas un défaut.
+      // With neither a declared root nor a light, there is nothing to reread: the whole graph is not a default.
       if (!set.size) withAncestors(source, set);
       watched = [...set];
       const need = watched.length * NODE_SLOTS + lights.length * LIGHT_SLOTS;
-      // L'état gardé survit à une liste reposée à l'identique : sans quoi chaque annonce en
-      // provoquerait une autre et la scène ne se tairait jamais. Une liste d'une autre taille le
-      // retire, et la première comparaison qui suit annonce un changement, ce qui est exact.
+      // Held state survives a list reset identically: otherwise each announcement would trigger
+      // another and the scene would never go quiet. A list of another size drops it, and the
+      // first comparison that follows announces a change, which is exact.
       if (held.length !== need) {
         held = new Float64Array(need);
         posed = false;
       }
     },
-    /** Dit si l'hôte a écrit un des nœuds relus depuis la lecture précédente. Ne remonte rien. */
+    /** Says whether the host wrote one of the reread nodes since the previous read. Walks nothing up. */
     changed() {
       const h = held;
       let moved = !posed,
@@ -112,7 +111,7 @@ export function createHostSceneWatch() {
         }
         at += 2;
         if (auto) {
-          // Le nœud recompose sa matrice à partir de ces dix valeurs : ce sont elles que l'hôte écrit.
+          // The node recomposes its matrix from these ten values: those are what the host writes.
           const { position: p, quaternion: q, scale: s } = node;
           poseScratch[0] = p.x;
           poseScratch[1] = p.y;
@@ -129,8 +128,8 @@ export function createHostSceneWatch() {
               h[at + k] = poseScratch[k];
               moved = true;
             }
-          // Les six dernières places appartiennent à la matrice posée : ce nœud ne la lit pas, et
-          // le drapeau qui le dirait a déjà annoncé le changement le jour où il basculerait.
+          // The last six slots belong to the set matrix: this node does not read it, and the
+          // flag that would say so already announced the change the day it would switch.
         } else {
           const e = node.matrix.elements;
           for (let k = 0; k < 16; k++)

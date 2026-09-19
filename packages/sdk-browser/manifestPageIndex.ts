@@ -6,10 +6,10 @@ import type {
 } from '../sdk-core/index.ts';
 
 /**
- * Les pages du manifeste dédoublonnées par adresse, en un seul parcours. Quatre `flatMap` en
- * construisaient quatre copies complètes avant d'en dédoublonner trois. Les tables gardent, comme
- * `new Map(entrées)`, la dernière valeur d'une adresse à la place de sa première apparition, et
- * `values()` rend cet ordre d'apparition : l'ordre et le contenu ne bougent pas.
+ * Manifest pages deduplicated by URL in a single pass. Four `flatMap` built four complete
+ * copies before deduplicating three of them. Tables preserve, as `new Map(entries)`, the last value
+ * of a URL instead of its first appearance, and `values()` returns that appearance order: order
+ * and contents remain unchanged.
  */
 export function indexManifestPages(metadata: ClusterManifest) {
   const pageByUrl = new Map<string, Page>();
@@ -35,7 +35,7 @@ export function indexManifestPages(metadata: ClusterManifest) {
   };
 }
 
-/** Les paquets de streaming du manifeste, dédoublonnés par adresse, dans leur ordre d'apparition. */
+/** Manifest streaming bundles, deduplicated by URL, in order of appearance. */
 export function indexManifestBundles(metadata: ClusterManifest) {
   const bundleByUrl = new Map<string, StreamBundle>();
   for (const primitive of metadata.primitives)

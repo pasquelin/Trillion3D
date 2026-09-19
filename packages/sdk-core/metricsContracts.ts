@@ -43,18 +43,18 @@ export interface FrameMetrics
   cpuFrameMs: number;
   cpuSubmitMs: number | null;
   gpuMs: number | null;
-  /** Appels de dessin de cette image. `null` quand ni le moteur ni le renderer de l'hôte ne les
-   *  compte : un zéro se lirait comme une image sans aucun dessin. */
+  /** Draw calls of this frame. `null` when neither the engine nor the host renderer
+   *  counts them: a zero would read as a frame with no draw. */
   drawCalls: number | null;
-  /** Triangles soumis au dessin de cette image, tels que `totalSubmittedTriangles` les compte, ou
-   *  tels que le renderer de l'hôte les a dessinés quand c'est lui qui dessine. `null` quand ni
-   *  l'un ni l'autre n'a compté : un zéro se lirait comme une image vide. */
+  /** Triangles submitted to this frame's draw, as `totalSubmittedTriangles` counts them, or
+   *  as the host renderer drew them when it is the one drawing. `null` when neither
+   *  has counted: a zero would read as an empty frame. */
   triangles: number | null;
   clusters: number | null;
   selectedTriangles: number | null;
   residentPages: number | null;
-  /** Triangles soumis : sur le chemin WebGPU par pages, toutes les lignes dessinables — l'occultation
-   *  rejette après la soumission —, tenues par la table, donc exact et de cette image-ci. */
+  /** Submitted triangles: on the WebGPU-by-pages path, every drawable row — occlusion
+   *  rejects after submit —, held by the table, hence exact and of this frame. */
   submittedTriangles?: number | null;
   /** All submitted triangles, including transparent passes. Null when a backend cannot count them. */
   totalSubmittedTriangles?: number | null;
@@ -73,12 +73,12 @@ export interface FrameMetrics
   cacheHits?: number | null;
   cacheMisses?: number | null;
   /**
-   * Ce que la coupe a écarté sans le retenir. Sur la coupe graphique du DAG, qui descend la
-   * hiérarchie de culling niveau par niveau, ce sont les nœuds écartés par la descente — hors du
-   * tronc, ou dont le plafond d'erreur du remplaçant passe déjà sous le seuil — plus les pages
-   * candidates qu'un test par page écarte ensuite. Un nœud écarté compte pour un, quel que soit le
-   * nombre de pages de son sous-arbre : ces pages ne sont jamais visitées, donc jamais comptées.
-   * La coupe processeur, elle, compte ses propres nœuds testés et ses propres rejets.
+   * What the cut discarded without keeping. On the GPU DAG cut, which walks the
+   * culling hierarchy level by level, these are the nodes discarded by the descent — outside the
+   * frustum, or whose replacement error ceiling already falls under the threshold — plus the
+   * candidate pages that a per-page test then discards. A discarded node counts as one, whatever the
+   * number of pages of its subtree: those pages are never visited, hence never counted.
+   * The CPU cut, for its part, counts its own tested nodes and its own rejects.
    */
   frustumRejected?: number | null;
   lodLevel?: number | null;
@@ -98,20 +98,20 @@ export interface FrameMetrics
   /** Requested detail cannot coexist with the pinned fallback within the GPU page budget. */
   coverageBudgetLimited?: boolean | null;
   /**
-   * Vrai quand l'image a été tenue : ni la scène, ni la vue, ni les ressources n'ont bougé, aucun
-   * travail asynchrone n'était en attente, et aucune étape processeur n'a été exécutée. Les pixels
-   * affichés sont ceux de l'image d'origine, au bit près.
+   * True when the frame was held: neither the scene, nor the view, nor the resources moved, no
+   * asynchronous work was pending, and no CPU stage ran. The displayed
+   * pixels are those of the original frame, bit-exact.
    *
-   * Ce que l'image tenue a FAIT est publié comme tel, jamais recopié du dernier rendu complet :
-   * `drawCalls`, `triangles`, `submittedTriangles` et `totalSubmittedTriangles` ne comptent que la
-   * présentation, et les durées processeur et graphiques d'étape valent zéro quand l'étape n'a pas
-   * tourné, `null` quand rien ne l'a chronométrée. Un moteur qui ne soumet pas lui-même son image —
-   * l'hôte redessinant le graphe qu'il tient — compte en revanche les appels que cet hôte émet.
+   * What the held frame DID is published as-is, never copied from the last complete render:
+   * `drawCalls`, `triangles`, `submittedTriangles` and `totalSubmittedTriangles` count only
+   * present, and per-stage CPU and GPU durations are zero when the stage did not
+   * run, `null` when nothing timed it. An engine that does not submit its own frame —
+   * the host redrawing the graph it holds — on the other hand counts the calls that host emits.
    *
-   * Ce que l'image tenue MONTRE reste décrit par la coupe qu'elle réaffiche : `clusters`,
-   * `selectedTriangles`, `frustumRejected`, `lodLevel` et `residentPages` sont ceux de l'image
-   * d'origine, puisque c'est la même coupe.
-   * Absent d'un moteur qui ne tient pas ses images.
+   * What the held frame SHOWS remains described by the cut it redisplays: `clusters`,
+   * `selectedTriangles`, `frustumRejected`, `lodLevel` and `residentPages` are those of the
+   * original frame, since it is the same cut.
+   * Absent from an engine that does not hold its frames.
    */
   frameHeld?: boolean | null;
   /** Sticky loading error; failed URLs require an explorer reload after three attempts. */
@@ -128,53 +128,53 @@ export interface FrameMetrics
    *  cannot tell (it draws the cut it selected, so it never has one). */
   uncoveredTriangles?: number | null;
   /**
-   * Triangles que l'IMAGE COURANTE remet au dessin : sa coupe de clusters, opaques et transparents de
-   * la hiérarchie confondus, moins les grappes sans page résidente que `uncoveredTriangles` compte.
-   * Les maillages transparents hors hiérarchie n'y sont pas (`transparentSubmittedTriangles`), et le
-   * rejet d'occultation ne s'en retire pas (`hizRejectedTriangles`). Compté sur la même passe que
-   * `uncoveredTriangles`, à l'adoption de la coupe : aucun retour asynchrone de la carte n'est
-   * attendu, donc il ne vaut jamais `null` faute de temps, contrairement à `submittedTriangles`.
-   * Relation de couverture attendue sur ce relevé : `selected − drawn − uncovered = 0`.
+   * Triangles the CURRENT FRAME hands to the draw: its cluster cut, opaque and transparent of
+   * the hierarchy combined, minus the clusters without a resident page that `uncoveredTriangles`
+   * counts. Transparent meshes outside the hierarchy are not in it (`transparentSubmittedTriangles`),
+   * and occlusion reject is not subtracted (`hizRejectedTriangles`). Counted on the same pass as
+   * `uncoveredTriangles`, at cut adoption: no asynchronous GPU readback is
+   * waited for, so it is never `null` for lack of time, unlike `submittedTriangles`.
+   * Expected coverage relation on this sample: `selected − drawn − uncovered = 0`.
    */
   drawnTriangles?: number | null;
-  /** Temps CPU de la coupe de clusters de cette image, mesuré autour de la sélection seule.
-   *  Null sur un moteur qui ne choisit pas sa coupe sur le processeur. */
+  /** CPU time of this frame's cluster cut, measured around selection alone.
+   *  Null on an engine that does not choose its cut on the CPU. */
   cpuSelectMs?: number | null;
-  /** Vrai quand le moteur avait une sélection GPU et l'a abandonnée : ce qui est mesuré depuis est la
-   *  coupe processeur de secours. Un repli émet aussi le diagnostic `gpu-selection-fallback`, une
-   *  fois ; l'hôte le recopie tel quel, et il est absent d'un moteur sans sélection GPU. */
+  /** True when the engine had a GPU selection and dropped it: what is measured since is the
+   *  fallback CPU cut. A fallback also emits the `gpu-selection-fallback` diagnostic, once;
+   *  the host copies it as-is, and it is absent from an engine without GPU selection. */
   gpuSelectionFallback?: boolean;
-  /** Nœuds de hiérarchie sur lesquels la coupe de cette image a posé un test — tronc de vision ou
-   *  décision de niveau de détail. Un nœud déjà tranché et entièrement visible n'en reçoit aucun :
-   *  il est traversé, pas testé. C'est la mesure du travail réel d'une coupe hiérarchique ; une
-   *  coupe à plat en teste zéro et parcourt tous les clusters.
-   *  Null sur un moteur qui ne choisit pas sa coupe sur le processeur, ou qui ne le compte pas. */
+  /** Hierarchy nodes on which this frame's cut posed a test — frustum or
+   *  level-of-detail decision. A node already decided and fully visible receives none:
+   *  it is traversed, not tested. This is the measure of the real work of a hierarchical cut; a
+   *  flat cut tests zero of them and walks every cluster.
+   *  Null on an engine that does not choose its cut on the CPU, or that does not count it. */
   cpuSelectNodesTested?: number | null;
   /**
-   * Le décodage des pages hors du fil principal. `pagesDecodedOffThread` compte les tâches — contrôle
-   * d'intégrité SHA-256 ou lecture des attributs par sommet — qu'un worker a menées à bien, jamais
-   * celles que le repli a exécutées sur le fil principal. `pageDecodeMs` est le temps cumulé de ces
-   * tâches, mesuré par l'exécutant lui-même, quel que soit le fil : c'est du temps de décodage, il
-   * n'est jamais additionné à un `cpu*` ni à un `gpu*` par image. Les deux valent `null` tant
-   * qu'aucune page n'a été décodée — non mesuré, et non pas zéro.
+   * Off-main-thread page decode. `pagesDecodedOffThread` counts the tasks — SHA-256 integrity
+   * check or per-vertex attribute read — that a worker completed, never
+   * those the fallback ran on the main thread. `pageDecodeMs` is the cumulative time of those
+   * tasks, measured by the executor itself, whichever the thread: it is decode time, it
+   * is never added to a per-frame `cpu*` or `gpu*`. Both are `null` as long as
+   * no page has been decoded — unmeasured, not zero.
    */
   pagesDecodedOffThread?: number | null;
-  /** Pages dont les attributs ont été lus par le décodeur compilé en WebAssembly plutôt que par le
-   *  décodeur JavaScript. Les deux rendent les mêmes octets ; ce compteur dit seulement lequel a
-   *  tourné, donc si la ressource `.wasm` a bien été trouvée et instanciée par cet hôte. */
+  /** Pages whose attributes were read by the WebAssembly-compiled decoder rather than the
+   *  JavaScript decoder. Both yield the same bytes; this counter only says which one
+   *  ran, hence whether the `.wasm` resource was found and instantiated by this host. */
   pagesDecodedWasm?: number | null;
   pageDecodeMs?: number | null;
-  /** L'état du gouverneur de chemin de calcul (`mathPathGovernor.ts`) : chemin courant de chaque
-   *  opération en lot, médianes des deux chemins, bascules. `null` sur un hôte qui n'a pas ouvert
-   *  de lot — non mesuré, et non pas « chemin JavaScript ». */
+  /** State of the compute-path governor (`mathPathGovernor.ts`): current path of each
+   *  batch operation, medians of both paths, switches. `null` on a host that has not opened
+   *  a batch — unmeasured, not "JavaScript path". */
   mathBatch?: MathPathMetrics | null;
   /**
-   * L'intégration des pages hors du fil principal. `pagesPlannedOffThread` compte les arrivées dont
-   * le plan — la place de chaque cluster dans le paquet et les rangs de page qu'il remue — a été
-   * calculé par un worker, jamais celles que le repli a planifiées sur le fil principal.
-   * `pagePlanMs` est le temps cumulé de ces plans, mesuré par l'exécutant lui-même, quel que soit le
-   * fil : il n'est jamais additionné à un `cpu*` ni à un `gpu*` par image. Les deux valent `null`
-   * tant qu'aucune arrivée n'a été planifiée — non mesuré, et non pas zéro.
+   * Off-main-thread page integration. `pagesPlannedOffThread` counts arrivals whose
+   * plan — each cluster's place in the pack and the page ranks it moves — was
+   * computed by a worker, never those the fallback planned on the main thread.
+   * `pagePlanMs` is the cumulative time of those plans, measured by the executor itself, whichever
+   * the thread: it is never added to a per-frame `cpu*` or `gpu*`. Both are `null`
+   * as long as no arrival has been planned — unmeasured, not zero.
    */
   pagesPlannedOffThread?: number | null;
   pagePlanMs?: number | null;

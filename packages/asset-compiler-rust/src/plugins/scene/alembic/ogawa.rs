@@ -1,51 +1,51 @@
-//! Le conteneur Ogawa, lu ici depuis la spécification publique d'Alembic et ses sources de
-//! référence (BSD-3-Clause, `lib/Alembic/Ogawa`) : aucune bibliothèque tierce, aucun SDK d'éditeur.
+//! The Ogawa container, read here from Alembic's public specification and its reference sources
+//! (BSD-3-Clause, `lib/Alembic/Ogawa`): no third-party library, no vendor SDK.
 //!
-//! Un fichier Ogawa est un arbre de deux sortes de blocs, qu'un entier de soixante-quatre bits
-//! désigne et dont le bit de poids fort dit la sorte : un **groupe** — un nombre d'enfants, puis
-//! autant de pointeurs — et une **donnée** — une longueur, puis ses octets. L'entête tient en seize
-//! octets : `Ogawa`, un drapeau de gel, la version du format, la position du groupe racine.
+//! An Ogawa file is a tree of two kinds of blocks, designated by a sixty-four-bit integer whose
+//! high bit names the kind: a **group** — a child count, then that many pointers — and a **data**
+//! block — a length, then its bytes. The header is sixteen bytes: `Ogawa`, a freeze flag, the
+//! format version, the root-group position.
 //!
-//! Tout ce qui est lu ici est borné deux fois : par la taille du fichier, et par un plafond nommé.
-//! Un pointeur corrompu ne fait donc ni paniquer ni allouer un gigaoctet — il rend un refus nommé.
+//! Everything read here is bounded twice: by the file size, and by a named ceiling. A corrupted
+//! pointer therefore neither panics nor allocates a gigabyte — it yields a named refusal.
 use super::{FILE_INVALID, HDF5_UNSUPPORTED, NOT_FROZEN, SIZE_UNSUPPORTED, VERSION_UNSUPPORTED};
 use crate::{CompilerError, Result};
 use memmap2::Mmap;
 use std::{fs::File, path::Path};
 
-/// Les cinq octets qui ouvrent tout fichier Ogawa.
+/// The five bytes that open every Ogawa file.
 pub(super) const MAGIC: &[u8] = b"Ogawa";
-/// L'entête du conteneur HDF5, l'emballage historique d'Alembic, que ce pilote ne lit pas.
+/// The HDF5 container header, Alembic's historical wrapping, which this driver does not read.
 const HDF5_MAGIC: &[u8] = b"\x89HDF";
-/// L'octet que l'écrivain pose en refermant l'archive : elle est alors complète, donc lisible.
+/// The byte the writer writes when closing the archive: it is then complete, therefore readable.
 const FROZEN: u8 = 0xff;
-/// La seule version du format que ce lecteur lit, et la seule que le format ait publiée.
+/// The only format version this reader reads, and the only one the format has published.
 const VERSION: u16 = 1;
-/// Le bit qui distingue une donnée d'un groupe dans un pointeur d'enfant.
+/// The bit that distinguishes a data block from a group in a child pointer.
 const DATA_BIT: u64 = 0x8000_0000_0000_0000;
-/// Le reste du pointeur : l'adresse du bloc dans le fichier.
+/// The rest of the pointer: the block address in the file.
 const ADDRESS: u64 = 0x7fff_ffff_ffff_ffff;
-/// Enfants au plus dans un groupe. Un fichier sain en compte quelques dizaines par objet ; au-delà,
-/// c'est une adresse corrompue lue comme un compte, et la lire allouerait des mégaoctets pour rien.
+/// Children at most in a group. A healthy file counts a few dozen per object; beyond that, it is
+/// a corrupted address read as a count, and reading it would allocate megabytes for nothing.
 const MAX_CHILDREN: u64 = 1 << 22;
-/// Octets au plus dans un bloc de données lu d'un coup — un échantillon de géométrie, pas une scène.
+/// Bytes at most in a data block read at once — a geometry sample, not a scene.
 const MAX_DATA_BYTES: u64 = 1 << 30;
 
-/// Un fichier Ogawa ouvert en lecture seule, projeté en mémoire.
+/// An Ogawa file opened read-only, mapped in memory.
 pub(super) struct Ogawa {
     map: Mmap,
-    /// La version du format Alembic que l'entête déclare.
+    /// The Alembic format version the header declares.
     pub(super) version: u16,
-    /// Le groupe racine : les six blocs que toute archive Alembic porte.
+    /// The root group: the six blocks every Alembic archive holds.
     pub(super) root: Vec<u64>,
 }
 
-/// Le refus d'un fichier dont la structure ne tient pas : tronqué, corrompu, ou pas un Ogawa.
+/// The refusal of a file whose structure does not hold: truncated, corrupted, or not Ogawa.
 pub(super) fn invalid(what: impl Into<String>) -> CompilerError {
     CompilerError::new(FILE_INVALID, what.into())
 }
 
-/// Ce pointeur désigne-t-il une donnée plutôt qu'un groupe ?
+/// Does this pointer designate a data block rather than a group?
 pub(super) fn is_data(child: u64) -> bool {
     child & DATA_BIT != 0
 }
@@ -57,11 +57,11 @@ fn read_u64(bytes: &[u8], at: u64) -> Option<u64> {
 }
 
 impl Ogawa {
-    /// Ouvre le fichier et lit son entête. La source n'est jamais modifiée.
+    /// Opens the file and reads its header. The source is never modified.
     pub(super) fn open(path: &Path) -> Result<Ogawa> {
         let file = File::open(path)?;
-        // SÛRETÉ : projection en lecture seule d'un fichier que le compilateur n'écrit jamais, comme
-        // pour toute autre source ; les lectures qui suivent sont bornées par `map.len()`.
+        // SAFETY: read-only mapping of a file the compiler never writes, as for any other source;
+        // the reads that follow are bounded by `map.len()`.
         let map = unsafe { memmap2::MmapOptions::new().map(&file)? };
         let name = path.display();
         if map.starts_with(HDF5_MAGIC) {
@@ -73,9 +73,9 @@ impl Ogawa {
         if !map.starts_with(MAGIC) {
             return Err(invalid(format!("{name}: no Ogawa header")));
         }
-        // Les trois octets qui suivent `Ogawa` : le drapeau de gel, puis la version sur seize bits
-        // en gros-boutien — le format écrit `00 01` pour la version un, que lire à l'envers
-        // donnerait deux cent cinquante-six.
+        // The three bytes after `Ogawa`: the freeze flag, then the version on sixteen bits
+        // big-endian — the format writes `00 01` for version one, which reading backwards would
+        // yield two hundred and fifty-six.
         let Some(&[frozen, high, low]) = map.get(5..8) else {
             return Err(invalid(format!("{name}: header is truncated")));
         };
@@ -103,7 +103,7 @@ impl Ogawa {
         Ok(archive)
     }
 
-    /// Les enfants du groupe à cette adresse. Un groupe vide se note par l'adresse zéro.
+    /// The children of the group at this address. An empty group is noted by address zero.
     fn read_group(&self, at: u64) -> Result<Vec<u64>> {
         let at = at & ADDRESS;
         if at == 0 {
@@ -127,7 +127,7 @@ impl Ogawa {
             .collect()
     }
 
-    /// Les enfants du groupe que ce pointeur désigne. Une donnée lue comme un groupe est un refus.
+    /// The children of the group this pointer designates. A data block read as a group is a refusal.
     pub(super) fn group(&self, child: u64) -> Result<Vec<u64>> {
         if is_data(child) {
             return Err(invalid(
@@ -137,7 +137,7 @@ impl Ogawa {
         self.read_group(child)
     }
 
-    /// Les octets du bloc de données que ce pointeur désigne, sans sa longueur.
+    /// The bytes of the data block this pointer designates, without its length.
     pub(super) fn data(&self, child: u64) -> Result<&[u8]> {
         if !is_data(child) {
             return Err(invalid(
@@ -165,7 +165,7 @@ impl Ogawa {
             .ok_or_else(|| invalid("a data block is truncated by the end of the file"))
     }
 
-    /// La taille du fichier, publiée dans le rapport de provenance.
+    /// The file size, published in the provenance report.
     pub(super) fn bytes(&self) -> usize {
         self.map.len()
     }

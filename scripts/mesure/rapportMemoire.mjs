@@ -1,20 +1,20 @@
 import { go, mo } from './rapportTextures.mjs';
 
 const num = (v) => (typeof v === 'number' ? v : null);
-/** Les étiquettes publiées dans le résumé : au-delà, le relevé complet est dans `mesure.json`. */
+/** Labels published in the summary: beyond them, the full reading is in `mesure.json`. */
 const PLUS_LOURDES = 8;
 
 /**
- * La mémoire de la carte graphique par côté et par vue, lue dans le registre d'allocations que le
- * moteur publie : le total est ce qu'il a alloué et pas détruit, calculé depuis chaque descripteur
- * — WebGPU ne publie pas la mémoire occupée. Les trois familles nommées viennent des compteurs du
- * moteur (pool de textures calculé, géométrie allouée et le réservoir demandé, cibles d'image qui
- * suivent la résolution) ; le reste est la différence. Un côté sans registre est « non mesuré »,
- * jamais zéro. Un réservoir que le moteur n'a pas pu tenir tel quel dit pourquoi, entre parenthèses.
+ * GPU memory per side and per view, read from the allocation registry the engine publishes: the
+ * total is what it allocated and did not destroy, computed from each descriptor — WebGPU does not
+ * publish occupied memory. The three named families come from the engine counters (computed texture
+ * pool, allocated geometry and the requested reservoir, frame targets that follow resolution);
+ * the rest is the difference. A side without a registry is "unmeasured", never zero. A reservoir
+ * the engine could not hold as requested says why, in parentheses.
  */
 export function memoire(report) {
   const lines = [
-    '| vue | seuil | côté | total alloué | pool de textures | géométrie / pool | cibles d’image | reste |',
+    '| view | threshold | side | total allocated | texture pool | geometry / pool | frame targets | rest |',
     '|---|---|---|---|---|---|---|---|',
   ];
   const details = [];
@@ -37,7 +37,7 @@ export function memoire(report) {
 
 const borne = (m) => (m.geometryPoolClamp ? ` (${m.geometryPoolClamp})` : '');
 
-/** Les allocations les plus lourdes d'un côté, par étiquette, et l'aveu d'un format inconnu. */
+/** The heaviest allocations of a side, by label, and the admission of an unknown format. */
 function plusLourdes(serie, side, m) {
   if (typeof m.gpuAllocatedBytes !== 'number') return [];
   const inconnues = num(m.gpuAllocationsUnknownFormat);
@@ -46,9 +46,9 @@ function plusLourdes(serie, side, m) {
     .map(([label, bytes]) => `${label} ${mo(bytes)}`)
     .join(', ');
   return [
-    `- ${serie.view} · e${serie.pixelError} · ${side}, les plus lourdes : ${parEtiquette || 'aucune'}` +
+    `- ${serie.view} · e${serie.pixelError} · ${side}, heaviest: ${parEtiquette || 'none'}` +
       (inconnues
-        ? ` — ${inconnues} texture(s) d'un format inconnu du registre, comptées pour zéro : ce total n'est pas une preuve`
+        ? ` — ${inconnues} texture(s) of a format unknown to the registry, counted as zero: this total is not a proof`
         : ''),
   ];
 }

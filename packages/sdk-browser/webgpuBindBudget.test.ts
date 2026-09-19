@@ -7,7 +7,7 @@ import { createWebgpuBlendPipelines } from './webgpuBlendPipelines.ts';
 import { createGpuRaster } from './gpuRaster.ts';
 import { createTemporalAntialiasing } from './temporalAntialiasing.ts';
 
-/** Le dispositif factice des dispositions : il ne garde que ce qu'on lui demande de créer. */
+/** Fake device for layouts: it keeps only what it is asked to create. */
 function recordingDevice() {
   return {
     createBuffer: ({ size, usage }: { size: number; usage: number }) => ({ size, usage }),
@@ -22,24 +22,24 @@ function recordingDevice() {
   } as unknown as GPUDevice;
 }
 
-// Le défaut que ce test attrape : une disposition gagne un tampon de stockage de plus que le
-// minimum garanti par WebGPU, et le dispositif refuse de la créer — « The number of storage buffers
-// (9) in the Compute stage exceeds the maximum per-stage limit (8) » — puis se perd. Aucune porte
-// ne le voyait : les tests bâtissent les dispositions sur un dispositif factice, sans limites.
+// Defect this test catches: a layout gains one more storage buffer than WebGPU's guaranteed
+// minimum, and the device refuses to create it — “The number of storage buffers (9) in the
+// Compute stage exceeds the maximum per-stage limit (8)” — then is lost. No gate saw it: tests
+// build layouts on a fake device, with no limits.
 const GUARANTEED_STORAGE_BUFFERS_PER_STAGE = 8;
 
-test('aucune disposition ne dépasse les huit tampons de stockage garantis par étage', async () => {
+test('no layout exceeds the eight storage buffers guaranteed per stage', async () => {
   installGpuGlobals();
   const device = recordingDevice();
   const { visBindGroupLayout } = await createWebgpuVisibilityShaders(device, 8);
   const { shadeBindGroupLayout } = await createWebgpuShadePipeline(device, {} as GPUShaderModule);
   const { blendBindGroupLayout } = await createWebgpuBlendPipelines(device, []);
   const layouts: Array<[string, unknown]> = [
-    ['visibilité', visBindGroupLayout],
-    ['résolution matérielle', shadeBindGroupLayout],
+    ['visibility', visBindGroupLayout],
+    ['hardware resolve', shadeBindGroupLayout],
     ['transparents', blendBindGroupLayout],
-    ['petits triangles', await firstLayout(device, (d) => createGpuRaster(d, 4, 4, 8))],
-    ['antialiasing temporel', await firstLayout(device, (d) => createTemporalAntialiasing(d, []))],
+    ['small triangles', await firstLayout(device, (d) => createGpuRaster(d, 4, 4, 8))],
+    ['temporal antialiasing', await firstLayout(device, (d) => createTemporalAntialiasing(d, []))],
   ];
   const stages = {
     VERTEX: GPUShaderStage.VERTEX,
@@ -58,13 +58,13 @@ test('aucune disposition ne dépasse les huit tampons de stockage garantis par �
       ).length;
       assert.ok(
         count <= GUARANTEED_STORAGE_BUFFERS_PER_STAGE,
-        `${name} lie ${count} tampons de stockage à l’étage ${stage}, au-dessus des ${GUARANTEED_STORAGE_BUFFERS_PER_STAGE} garantis`,
+        `${name} binds ${count} storage buffers at stage ${stage}, above the ${GUARANTEED_STORAGE_BUFFERS_PER_STAGE} guaranteed`,
       );
     }
   }
 });
 
-/** La première disposition qu'un constructeur crée sur le dispositif factice. */
+/** First layout a constructor creates on the fake device. */
 async function firstLayout(device: GPUDevice, build: (recording: GPUDevice) => unknown) {
   const layouts: unknown[] = [];
   const recording = {

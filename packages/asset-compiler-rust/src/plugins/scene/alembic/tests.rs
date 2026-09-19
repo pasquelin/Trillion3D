@@ -1,5 +1,5 @@
-//! Ce que le lecteur Alembic reconnaît, compose et refuse, sans passer par le compilateur entier.
-//! Ce qu'il produit d'une vraie archive se prouve dans la dorée `src/tests/alembic_golden.rs`.
+//! What the Alembic reader recognises, composes and refuses, without going through the whole compiler.
+//! What it produces from a real archive is proven in the golden `src/tests/alembic_golden.rs`.
 
 use super::kind::{kind_of, Kind};
 use super::ogawa::MAGIC;
@@ -8,7 +8,7 @@ use super::*;
 mod geometry;
 use std::fs;
 
-/// Un fichier jetable portant ces octets, nommé par le cas qui l'utilise.
+/// A throwaway file carrying these bytes, named by the case that uses it.
 fn written(tag: &str, bytes: &[u8]) -> std::path::PathBuf {
     let path = std::env::temp_dir().join(format!(
         "wg-alembic-{tag}-{}-{}.abc",
@@ -18,24 +18,24 @@ fn written(tag: &str, bytes: &[u8]) -> std::path::PathBuf {
             .expect("clock")
             .as_nanos()
     ));
-    fs::write(&path, bytes).expect("fichier de test");
+    fs::write(&path, bytes).expect("test file");
     path
 }
 
-/// Le code de refus de ces octets lus comme une archive.
+/// The refusal code of these bytes read as an archive.
 fn refused(tag: &str, bytes: &[u8]) -> &'static str {
     let path = written(tag, bytes);
     let code = Archive::open(&path)
         .err()
-        .unwrap_or_else(|| panic!("{tag} : ces octets devaient être refusés"))
+        .unwrap_or_else(|| panic!("{tag}: these bytes were expected to be refused"))
         .code;
-    fs::remove_file(&path).expect("nettoyage");
+    fs::remove_file(&path).expect("cleanup");
     code
 }
 
-// Comportement : l'entête du conteneur HDF5, l'emballage historique d'Alembic, est refusé sous son
-// propre nom — pas comme un fichier corrompu, puisque le fichier est sain et simplement d'un autre
-// emballage, et pas comme un format inconnu, puisque son extension l'a bien amené ici.
+// Behaviour: the HDF5 container header, Alembic's historical wrapping, is refused under its own
+// name — not as a corrupted file, since the file is healthy and simply of another wrapping, and
+// not as an unknown format, since its extension did bring it here.
 #[test]
 fn an_hdf5_alembic_file_is_refused_under_its_own_name() {
     assert_eq!(
@@ -44,9 +44,9 @@ fn an_hdf5_alembic_file_is_refused_under_its_own_name() {
     );
 }
 
-// Comportement : un fichier tronqué ou sans entête Ogawa est refusé sans paniquer, quelle que soit
-// la troncature — après le nombre magique, au milieu de l'adresse de la racine, ou dans le groupe
-// racine lui-même.
+// Behaviour: a truncated file or one without an Ogawa header is refused without panicking,
+// whatever the truncation — after the magic number, in the middle of the root address, or in
+// the root group itself.
 #[test]
 fn a_truncated_archive_is_refused_without_panicking() {
     assert_eq!(refused("empty", b""), FILE_INVALID);
@@ -55,17 +55,17 @@ fn a_truncated_archive_is_refused_without_panicking() {
         FILE_INVALID
     );
     assert_eq!(refused("head", b"Ogawa\xff\x00\x01\x00\x00"), FILE_INVALID);
-    // Entête complète, mais le groupe racine est au-delà de la fin du fichier.
+    // Complete header, but the root group is beyond the end of the file.
     assert_eq!(
         refused("root", b"Ogawa\xff\x00\x01\x40\x00\x00\x00\x00\x00\x00\x00"),
         FILE_INVALID
     );
 }
 
-// Comportement 26 : l'entête Ogawa dit trois choses et les trois sont lues. Le drapeau de gel dit
-// que l'écrivain a fini — une archive laissée en plan ne se lit pas —, et la version, écrite sur
-// seize bits en gros-boutien, dit le format : celle du corpus est la première, pas la deux cent
-// cinquante-sixième que donnerait la même paire d'octets lue à l'envers.
+// Behaviour 26: the Ogawa header says three things and all three are read. The freeze flag says
+// the writer has finished — an archive left in progress is not read —, and the version, written
+// on sixteen bits big-endian, names the format: the corpus one is the first, not the two hundred
+// and fifty-sixth that the same byte pair read backwards would give.
 #[test]
 fn the_ogawa_header_names_a_frozen_archive_of_a_known_version() {
     let head = |frozen: u8, version: [u8; 2]| {
@@ -78,18 +78,15 @@ fn the_ogawa_header_names_a_frozen_archive_of_a_known_version() {
     };
     assert_eq!(refused("non-gelee", &head(0x00, [0, 1])), NOT_FROZEN);
     assert_eq!(refused("version", &head(0xff, [0, 2])), VERSION_UNSUPPORTED);
-    // La même paire d'octets lue à l'envers vaudrait deux cent cinquante-six : elle est refusée.
+    // The same byte pair read backwards would be two hundred and fifty-six: it is refused.
     assert_eq!(refused("envers", &head(0xff, [1, 0])), VERSION_UNSUPPORTED);
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/alembic/limites/cases.abc");
-    let archive = Archive::open(&path).expect("le corpus s'ouvre");
-    assert_eq!(
-        archive.file.version, 1,
-        "la version du corpus est la première"
-    );
+    let archive = Archive::open(&path).expect("the corpus opens");
+    assert_eq!(archive.file.version, 1, "the corpus version is the first");
 }
 
-// Comportement : un groupe qui déclare plus d'enfants que le plafond d'allocation n'en admet est
-// refusé par son nom, sans que la lecture tente de réserver la mémoire annoncée.
+// Behaviour: a group that declares more children than the allocation ceiling admits is refused
+// by name, without the read attempting to reserve the announced memory.
 #[test]
 fn a_group_above_the_allocation_ceiling_is_refused_by_name() {
     let mut bytes = b"Ogawa\xff\x00\x01".to_vec();
@@ -98,8 +95,8 @@ fn a_group_above_the_allocation_ceiling_is_refused_by_name() {
     assert_eq!(refused("ceiling", &bytes), SIZE_UNSUPPORTED);
 }
 
-// Comportement : le schéma déclaré dans la métadonnée dit ce qu'un objet est, et ce que le pilote
-// ne convertit pas porte le nom sous lequel le rapport le comptera.
+// Behaviour: the schema declared in the metadata names what an object is, and what the driver
+// does not convert carries the name under which the report will count it.
 #[test]
 fn the_schema_metadata_names_what_each_object_is() {
     let kinds = [
@@ -138,21 +135,21 @@ fn the_schema_metadata_names_what_each_object_is() {
     }
 }
 
-// Comportement : la pile d'opérations d'un `Xform` compose la matrice du glTF. Une opération
-// `matrix` entre telle quelle — les deux conventions se compensent —, et une pile translation,
-// rotation, échelle met bien à l'échelle avant de tourner puis de déplacer.
+// Behaviour: an `Xform` operation stack composes the glTF matrix. A `matrix` operation enters
+// as-is — the two conventions cancel —, and a translation, rotation, scale stack does scale
+// before rotating then translating.
 #[test]
 fn an_xform_operation_stack_composes_the_gltf_matrix() {
     let raw: Vec<f64> = (0..16).map(f64::from).collect();
-    let matrix = xform::matrix(&[0x30], &raw).expect("matrice");
-    assert_eq!(matrix.to_vec(), raw, "une matrice entre telle quelle");
+    let matrix = xform::matrix(&[0x30], &raw).expect("matrix");
+    assert_eq!(matrix.to_vec(), raw, "a matrix enters as-is");
 
-    // Translation (1, 2, 3), quart de tour autour de Y, échelle 2 : un point sur X passe en Z.
+    // Translation (1, 2, 3), quarter turn around Y, scale 2: a point on X lands on Z.
     let stack = xform::matrix(
         &[0x10, 0x20, 0x00],
         &[1.0, 2.0, 3.0, 0.0, 1.0, 0.0, 90.0, 2.0, 2.0, 2.0],
     )
-    .expect("pile");
+    .expect("stack");
     let point = |x: f64, y: f64, z: f64| {
         (0..3)
             .map(|row| stack[row] * x + stack[4 + row] * y + stack[8 + row] * z + stack[12 + row])
@@ -165,15 +162,16 @@ fn an_xform_operation_stack_composes_the_gltf_matrix() {
     );
 }
 
-// Comportement : une opération inconnue ou une pile plus longue que ses valeurs est refusée par son
-// nom plutôt que composée de travers.
+// Behaviour: an unknown operation or a stack longer than its values is refused by name rather
+// than composed askew.
 #[test]
 fn a_malformed_operation_stack_is_refused_by_name() {
     for (ops, values) in [
         (&[0x70u8][..], &[0.0f64][..]),
         (&[0x10][..], &[1.0, 2.0][..]),
     ] {
-        let refusal = xform::matrix(ops, values).expect_err("cette pile devait être refusée");
+        let refusal =
+            xform::matrix(ops, values).expect_err("this stack was expected to be refused");
         assert_eq!(refusal.code, VALUES_INVALID);
     }
 }

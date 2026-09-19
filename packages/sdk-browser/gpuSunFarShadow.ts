@@ -8,15 +8,15 @@ import {
 import type { GpuBounceProxy } from './gpuBounceProxy.ts';
 import { createGpuPeriodicReadback } from './gpuPeriodicReadback.ts';
 
-/** Les deux compteurs relevés, en octets : la taille de la copie comme celle du mappage. */
+/** The two sampled counters, in bytes: the copy size as well as the mapping size. */
 const COUNT_BYTES = PROXY_COUNTS * 4;
-/** Les rangs des quatre réglages dans l'entête, dans l'ordre où le nuanceur les lit. */
+/** Ranks of the four settings in the header, in the order the shader reads them. */
 const OFFSET = 0,
   START = 1,
   MAX_DISTANCE = 2,
   PRESENT = 3;
 
-/** Ce que la dernière image relevée a compté, et le numéro de cette image. */
+/** What the last sampled frame counted, and that frame's number. */
 export interface SunFarCounts {
   frame: number;
   tested: number;
@@ -26,19 +26,18 @@ export interface SunFarCounts {
 export type GpuSunFarShadow = ReturnType<typeof createGpuSunFarShadow>;
 
 /**
- * Les réglages et les compteurs de l'ombre lointaine du soleil, écrits dans l'**entête du proxy
- * résident** : le même tampon que les deux passes qui éclairent lient pour le traverser. Les
- * colonnes ne sont jamais recopiées ; l'entête dit seulement qu'il y a un proxy, de combien relever
- * l'origine d'un rayon, et jusqu'où le pousser.
+ * Settings and counters of the sun's far shadow, written in the **resident proxy header**: the
+ * same buffer the two lighting passes bind to walk it. Columns are never copied; the header
+ * only says there is a proxy, how much to lift a ray origin, and how far to push it.
  *
- * Sans proxy adopté, il n'y a rien à écrire : les passes lient le remplaçant de la résolution
- * différée, un entête de zéros où la présence vaut zéro, et la surface lointaine reste éclairée sans
- * ombre portée exactement comme avant que ce rayon existe.
+ * Without an adopted proxy there is nothing to write: the passes bind the deferred-resolve
+ * replacement, a zero header where presence is zero, and the far surface stays lit without a
+ * cast shadow exactly as before this ray existed.
  *
- * Le comptage est un diagnostic, donc il reste hors de la passe mesurée : le drapeau de relevé ne
- * passe à un que sur une image sur quinze, et il retombe à zéro dès la suivante, si bien que les
- * quatorze autres n'exécutent aucun `atomicAdd`. Le relevé lui-même est une copie de huit octets et
- * une promesse, jamais une attente dans l'image.
+ * Counting is a diagnostic, so it stays outside the measured pass: the sample flag goes to one
+ * only one frame in fifteen, and falls back to zero on the next, so the other fourteen execute
+ * no `atomicAdd`. The sample itself is an eight-byte copy and a promise, never a wait in the
+ * frame.
  */
 export function createGpuSunFarShadow(device: GPUDevice) {
   const params = new Float32Array(PROXY_PARAM_FLOATS);
@@ -70,9 +69,9 @@ export function createGpuSunFarShadow(device: GPUDevice) {
 
   return {
     /**
-     * Le tampon à lier, ou rien tant qu'aucun proxy n'est résident. C'est celui du proxy lui-même,
-     * rendu tel quel : les deux passes comparent la ressource qu'on leur donne à celle qu'elles ont
-     * liée, si bien qu'un tampon neuf à chaque image leur ferait refaire leur groupe pour rien.
+     * Buffer to bind, or nothing until a proxy is resident. It is the proxy's own, returned
+     * as-is: the two passes compare the resource given to them to the one they bound, so a new
+     * buffer every frame would make them rebuild their group for nothing.
      */
     buffer(): GPUBuffer | undefined {
       return proxy?.buffer;
@@ -80,11 +79,11 @@ export function createGpuSunFarShadow(device: GPUDevice) {
     get proxy() {
       return proxy;
     },
-    /** Le décalage de l'origine d'un rayon, en mètres : publié dans le diagnostic tel qu'employé. */
+    /** Offset of a ray origin, in metres: published in the diagnostic as used. */
     get offsetMetres() {
       return params[OFFSET];
     },
-    /** Le départ du rayon le long de sa direction, en mètres : une maille du proxy chargé. */
+    /** Ray start along its direction, in metres: one cell of the loaded proxy. */
     get startMetres() {
       return params[START];
     },
@@ -92,9 +91,9 @@ export function createGpuSunFarShadow(device: GPUDevice) {
       return params[MAX_DISTANCE];
     },
     /**
-     * Adopte un proxy résident. `owns` dit si ce module l'a chargé pour lui : celui de la lumière
-     * qui rebondit est emprunté, jamais recopié ni libéré ici. Le départ du rayon suit la maille
-     * réellement obtenue par le cache, pas une constante : un proxy plus grossier part plus loin.
+     * Adopts a resident proxy. `owns` says whether this module loaded it for itself: the bounce
+     * light's is borrowed, never copied nor released here. The ray start follows the cell the
+     * cache actually obtained, not a constant: a coarser proxy starts farther.
      */
     adopt(resident: GpuBounceProxy, owns: boolean) {
       proxy = resident;
@@ -102,17 +101,17 @@ export function createGpuSunFarShadow(device: GPUDevice) {
       const [x0, y0, z0, x1, y1, z1] = resident.bounds;
       params[OFFSET] = LIGHT_SETTINGS.sunFarShadowOffsetMetres;
       params[START] = resident.cellMetres * LIGHT_SETTINGS.sunFarShadowStartCells;
-      // La portée d'un rayon d'ombre : la diagonale de l'emprise du proxy. Au-delà, il n'y a plus
-      // rien à couper, et un soleil est assez loin pour que tout occulteur tienne dedans.
+      // Range of a shadow ray: the diagonal of the proxy extent. Beyond, there is nothing left
+      // to cut, and a sun is far enough that every occluder fits inside.
       params[MAX_DISTANCE] = Math.hypot(x1 - x0, y1 - y0, z1 - z0);
       params[PRESENT] = resident.nodeCount > 0 ? 1 : 0;
       device.queue.writeBuffer(resident.buffer, 0, params);
-      // L'entête neuf porte un drapeau de relevé à zéro : c'est aussi l'état que ce module tient.
+      // The new header carries a sample flag of zero: that is also the state this module holds.
       counting = false;
     },
     /**
-     * Ce que l'image doit encoder avant sa passe d'éclairage : le relevé de l'image précédente,
-     * puis, une image sur quinze, la remise à zéro des compteurs et l'allumage du drapeau.
+     * What the frame must encode before its lighting pass: the previous frame's sample, then,
+     * one frame in fifteen, clearing the counters and raising the flag.
      */
     prepare(encoder: GPUCommandEncoder, frame: number) {
       if (!proxy) return;
@@ -120,7 +119,7 @@ export function createGpuSunFarShadow(device: GPUDevice) {
         reader.copy(encoder, proxy.buffer, PROXY_COUNT_OFFSET, COUNT_BYTES);
         copyOwed = false;
       }
-      // Un proxy sans nœud laisse ce drapeau à zéro : il n'y a alors ni rayon tiré ni rien à compter.
+      // A proxy without a node leaves this flag at zero: there is then neither a fired ray nor anything to count.
       const sample = params[PRESENT] > 0 && reader.due(frame);
       setCounting(sample);
       if (!sample) return;
@@ -129,9 +128,9 @@ export function createGpuSunFarShadow(device: GPUDevice) {
       counted.frame = frame;
       reader.sampled(frame);
     },
-    /** Demande le mappage du relevé, une fois l'image qui l'a copié soumise. */
+    /** Requests mapping of the sample, once the frame that copied it is submitted. */
     submitted: reader.submitted,
-    /** Les compteurs de la dernière image relevée, ou rien tant qu'aucune n'est revenue. */
+    /** Counters of the last sampled frame, or nothing until one has come back. */
     counts(): SunFarCounts | undefined {
       return reader.ready ? counted : undefined;
     },

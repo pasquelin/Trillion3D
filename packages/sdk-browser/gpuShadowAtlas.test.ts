@@ -7,9 +7,9 @@ import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 installGpuGlobals();
 
 /**
- * Un `GPUDevice` réduit à ce que `createGpuShadowAtlas` en demande : de quoi construire ses
- * ressources sans carte réelle, et un `queue.writeBuffer` qui capture ce qu'il reçoit. Aucun de ces
- * appels n'a besoin d'un appareil : seul `flushRegions` écrit vraiment, et c'est lui qu'on observe.
+ * A `GPUDevice` reduced to what `createGpuShadowAtlas` asks of it: enough to build its resources
+ * without a real GPU, and a `queue.writeBuffer` that captures what it receives. None of these
+ * calls needs a device: only `flushRegions` actually writes, and that is what we observe.
  */
 function fakeDevice() {
   const writes: Float32Array[] = [];
@@ -45,7 +45,7 @@ function fakeDevice() {
   return { device, writes, bindGroupLayouts, bindGroups };
 }
 
-test('le groupe de liaison des faces déclare 96 octets, lus au fragment comme au sommet', async () => {
+test('the face bind group declares 96 bytes, read at the fragment as at the vertex', async () => {
   const { device, bindGroupLayouts, bindGroups } = fakeDevice();
   await createGpuShadowAtlas(device, {} as GPUBindGroupLayout);
   const entry = (bindGroupLayouts[0] as { entries: Array<Record<string, unknown>> }).entries[0];
@@ -56,7 +56,7 @@ test('le groupe de liaison des faces déclare 96 octets, lus au fragment comme a
   assert.equal(resource.size, 96);
 });
 
-test("l'uniforme d'une face porte la matrice, le rectangle, puis le centre et le rayon de l'émetteur", async () => {
+test("a face's uniform carries the matrix, the rectangle, then the emitter's centre and radius", async () => {
   const { device, writes } = fakeDevice();
   const atlas = await createGpuShadowAtlas(device, {} as GPUBindGroupLayout);
   const matrices = new Float32Array(16);
@@ -69,15 +69,15 @@ test("l'uniforme d'une face porte la matrice, le rectangle, puis le centre et le
   atlas.flushRegions(1);
   assert.equal(writes.length, 1);
   const entry = writes[0];
-  // Les seize premiers flottants sont la matrice telle quelle, jamais recomposée.
+  // The first sixteen floats are the matrix as-is, never recomposed.
   assert.deepEqual(Array.from(entry.slice(0, 16)), Array.from(matrices));
-  // Rectangle d'atlas : x, y normalisés puis span, et le côté en texels tel quel (pas une passe).
+  // Atlas rectangle: normalised x, y then span, and the side in texels as-is (not a pass).
   assert.deepEqual(Array.from(entry.slice(16, 20)), [512 / 4096, 256 / 4096, 1024 / 4096, 1024]);
-  // Centre puis rayon de l'enveloppe, aux octets 80 à 95 (indices 20 à 23).
+  // Envelope centre then radius, at bytes 80 to 95 (indices 20 to 23).
   assert.deepEqual(Array.from(entry.slice(20, 24)), [1, 2, 3, 0.5]);
 });
 
-test('une lampe sans enveloppe — directionnelle, ou rayon nul — porte un centre et un rayon nuls', async () => {
+test('a light without an envelope — directional, or zero radius — carries a zero centre and radius', async () => {
   const { device, writes } = fakeDevice();
   const atlas = await createGpuShadowAtlas(device, {} as GPUBindGroupLayout);
   const matrices = new Float32Array(16);

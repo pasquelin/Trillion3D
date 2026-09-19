@@ -1,5 +1,5 @@
-// Le rendu d'un banc : la garde des chemins cités, l'assertion d'exactitude, la comparaison à la
-// baseline du domaine, le fragment déposé dans `.mesure/perf/` et la ligne affichée en console.
+// Benchmark rendering: path checking of cited files, accuracy assertion, comparison with
+// domain baseline, fragment stored in `.mesure/perf/` and row printed to console.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -8,18 +8,18 @@ import { chargeBaseline, cleDeLigne } from './baseline.mjs';
 import { FRAGMENTS, RACINE, cheminFragment } from './chemins.mjs';
 import { ligneMd } from './tableau.mjs';
 
-/** Les chemins mesurés doivent exister : une ligne qui cite un fichier mort ne mesure plus rien. */
+/** Measured paths must exist: a row citing a dead file measures nothing. */
 function verifieFichiers(mesures) {
   for (const m of mesures)
     for (const chemin of [].concat(m.fichier ?? []))
       if (!existsSync(join(RACINE, chemin)))
-        throw new Error(`Banc ${m.nom} : le fichier mesuré « ${chemin} » n'existe pas`);
+        throw new Error(`Bench ${m.name}: measured file "${chemin}" does not exist`);
 }
 
 /**
- * Les lignes du domaine, chacune augmentée de son écart à la baseline. La clé est le couple
- * mesure/cas : deux bancs qui touchent le même fichier source ne s'écrasent plus. Rien n'est muté —
- * ce qui part sur disque n'est pas ce que le banc tient encore en main.
+ * Domain rows, each augmented by its deviation from the baseline. Key is the measurement/case
+ * pair: two benchmarks touching the same source file no longer overwrite each other. Nothing is mutated —
+ * what goes to disk is not what the benchmark still holds.
  */
 function confronteBaseline(domaine, mesures) {
   const baseline = chargeBaseline(domaine);
@@ -27,7 +27,7 @@ function confronteBaseline(domaine, mesures) {
   return mesures.map((m) => ({
     ...m,
     resultats: m.resultats.map((r) => {
-      const base = connus.get(cleDeLigne(m.nom, r.nom));
+      const base = connus.get(cleDeLigne(m.name, r.name));
       const comparable = base?.medianeMs && r.medianeMs !== null;
       return {
         ...r,
@@ -38,8 +38,8 @@ function confronteBaseline(domaine, mesures) {
 }
 
 /**
- * Dépose le fragment du domaine et vérifie son intitulé sous `node:test` : une seule ligne fausse
- * fait tomber le banc.
+ * Stores domain fragment and verifies its description under `node:test`: a single false line
+ * fails the benchmark.
  */
 export function rapport(domaine, mesures, intitule) {
   const brutes = Array.isArray(mesures) ? mesures : [mesures];
@@ -49,24 +49,24 @@ export function rapport(domaine, mesures, intitule) {
 
   if (intitule)
     test(intitule, () => {
-      for (const r of lignes) if (r.correct === false) assert.fail(`${r.nom} : ${r.difference}`);
+      for (const r of lignes) if (r.correct === false) assert.fail(`${r.name} : ${r.difference}`);
     });
 
   mkdirSync(FRAGMENTS, { recursive: true });
   writeFileSync(
     cheminFragment(domaine),
-    JSON.stringify({ version: 2, domaine, mesures: tous }, null, 2) + '\n',
+    JSON.stringify({ version: 3, domaine, mesures: tous }, null, 2) + '\n',
   );
   for (const r of lignes) console.log(ligneMd(r));
 }
 
-/** Les fragments déposés par une exécution complète des bancs, pour leurs deux lecteurs. */
+/** Fragments deposited by a complete run of benchmarks, for their two readers. */
 export function lisFragments() {
   try {
     return readdirSync(FRAGMENTS)
       .filter((n) => n.endsWith('.json'))
       .map((n) => JSON.parse(readFileSync(join(FRAGMENTS, n), 'utf8')))
-      .filter((f) => f.version === 2);
+      .filter((f) => f.version === 3);
   } catch {
     return [];
   }

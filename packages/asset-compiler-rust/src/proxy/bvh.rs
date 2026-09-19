@@ -1,7 +1,7 @@
 use super::{PROXY_LEAF_TRIANGLES, PROXY_TRIANGLE_FLOATS};
 
-/// Un nœud binaire en construction : ses bornes, et soit un intervalle de triangles, soit son
-/// enfant droit — l'enfant gauche est toujours le nœud suivant.
+/// A binary node being built: its bounds, and either a triangle range or its
+/// right child — left child is always next node.
 pub struct Node {
     pub low: [f32; 3],
     pub high: [f32; 3],
@@ -13,8 +13,8 @@ impl Node {
     pub fn leaf(&self) -> bool {
         self.count > 0
     }
-    /// L'aire de la boîte, à un facteur deux près : ce qui décide quel enfant s'ouvre en premier
-    /// quand un nœud large cherche à se remplir.
+    /// Box area, up to a factor of two: decides which child opens first
+    /// when a wide node seeks to fill itself.
     pub fn area(&self) -> f32 {
         let span = [
             (self.high[0] - self.low[0]).max(0.0),
@@ -25,7 +25,7 @@ impl Node {
     }
 }
 
-/// Bornes d'un intervalle de triangles, lues une fois par nœud.
+/// Bounds of a triangle range, read once per node.
 fn bounds_of(triangles: &[f32], order: &[usize], range: (usize, usize)) -> ([f32; 3], [f32; 3]) {
     let mut low = [f32::INFINITY; 3];
     let mut high = [f32::NEG_INFINITY; 3];
@@ -40,17 +40,17 @@ fn bounds_of(triangles: &[f32], order: &[usize], range: (usize, usize)) -> ([f32
     (low, high)
 }
 
-/// Barycentre d'un triangle sur un axe : ce que la médiane trie.
+/// Triangle centroid on an axis: what median sorts.
 fn centre(triangles: &[f32], slot: usize, axis: usize) -> f32 {
     let base = slot * PROXY_TRIANGLE_FLOATS;
     (triangles[base + axis] + triangles[base + 3 + axis] + triangles[base + 6 + axis]) / 3.0
 }
 
-/// Construit l'arbre par médiane sur l'axe le plus long, feuille à `PROXY_LEAF_TRIANGLES`.
+/// Builds tree by median on longest axis, leaf at `PROXY_LEAF_TRIANGLES`.
 ///
-/// La médiane donne un arbre équilibré, donc une profondeur en logarithme du nombre de triangles :
-/// le moteur peut annoncer une borne de traversée connue avant l'image. Une division qui ne sépare
-/// rien — tous les barycentres confondus — coupe en deux parts égales plutôt que de boucler.
+/// Median gives balanced tree, depth logarithmic in triangle count:
+/// engine can announce known traversal bound before frame. A split separating
+/// nothing — all centroids coincident — splits into two equal parts rather than looping.
 fn split(triangles: &[f32], order: &mut [usize], range: (usize, usize), nodes: &mut Vec<Node>) {
     let (low, high) = bounds_of(triangles, order, range);
     let at = nodes.len();
@@ -64,9 +64,9 @@ fn split(triangles: &[f32], order: &mut [usize], range: (usize, usize), nodes: &
     if range.1 - range.0 <= PROXY_LEAF_TRIANGLES {
         return;
     }
-    // Ce choix d'axe n'est pas celui de `shared_math::longest_axis` : `max_by` garde le dernier axe
-    // à égalité là où le `>` du DAG garde le premier, et `total_cmp` classe les NaN au lieu de les
-    // ignorer. La coupe qui suit diffère aussi — `select_nth_unstable_by` contre un tri complet.
+    // Axis choice differs from `shared_math::longest_axis`: `max_by` keeps last axis
+    // on tie where DAG's `>` keeps first, `total_cmp` ranks NaNs instead of
+    // ignoring. Following split also differs — `select_nth_unstable_by` vs full sort.
     let axis = (0..3)
         .max_by(|a, b| (high[*a] - low[*a]).total_cmp(&(high[*b] - low[*b])))
         .unwrap_or(0);
@@ -81,8 +81,8 @@ fn split(triangles: &[f32], order: &mut [usize], range: (usize, usize), nodes: &
     nodes[at].right = right;
 }
 
-/// Construit l'arbre binaire et réordonne les triangles et leurs albédos pour que chaque feuille
-/// nomme un intervalle contigu. C'est `wide::collapse` qui en tire les nœuds larges du cache.
+/// Builds binary tree and reorders triangles and albedos so each leaf
+/// names contiguous range. `wide::collapse` extracts cache wide nodes from it.
 pub fn build(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>) -> Vec<Node> {
     let count = triangles.len() / PROXY_TRIANGLE_FLOATS;
     if count == 0 {
@@ -103,7 +103,7 @@ pub fn build(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>) -> Vec<Node> {
     nodes
 }
 
-/// L'emprise monde du proxy. Un proxy vide garde une emprise nulle, jamais une emprise infinie.
+/// World extent of proxy. Empty proxy keeps zero extent, never infinite.
 pub fn extent(triangles: &[f32]) -> [f64; 6] {
     if triangles.is_empty() {
         return [0.0; 6];
@@ -117,9 +117,9 @@ pub fn extent(triangles: &[f32]) -> [f64; 6] {
     [low[0], low[1], low[2], high[0], high[1], high[2]]
 }
 
-/// L'arbre binaire aplati en sauts de sous-arbre : six nombres de bornes et trois entiers par
-/// nœud — saut, premier triangle, nombre de triangles. C'est la forme que l'oracle trace sur le
-/// processeur, où une traversée sans pile vaut mieux qu'un nœud large ; le cache du proxy, lui,
+/// Binary tree flattened into subtree skips: six bound numbers and three integers per
+/// node — skip, first triangle, triangle count. Form CPU oracle traces,
+/// where stackless traversal beats wide node; proxy cache itself uses wide nodes.
 /// porte la forme large de `wide::collapse`.
 pub fn flatten(nodes: &[Node]) -> (Vec<f32>, Vec<u32>) {
     let mut escape = vec![0u32; nodes.len()];

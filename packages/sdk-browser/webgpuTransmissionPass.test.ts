@@ -19,7 +19,7 @@ const device = {
   queue: { writeBuffer: () => {} },
 } as unknown as GPUDevice;
 
-/** Un triangle par maillage : seule la classe de matériau distingue les trois copies. */
+/** One triangle per mesh: only the material class distinguishes the three copies. */
 function copy(material: THREE.Material, order: number) {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute(
@@ -63,22 +63,22 @@ function prepared() {
     copy(new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.2 }), 2),
   ];
   blendState.transmissive = prepareWebgpuBlend(device, copies, gpu, blendState, new THREE.Scene());
-  // La liste transparente de la scène EST la liste de dessin : les tables statiques et le plan
-  // d'encodage se bâtissent avec elle, comme le fait `prepareBlendResources`.
+  // The scene's transparent list IS the draw list: static tables and the encode plan are built with
+  // it, as `prepareBlendResources` does.
   buildBlendStatics(blendState);
   refreshBlendPlan(blendState);
-  // Le classement de l'image pose les clés, le verdict du tronc et les tranches que la passe encode.
-  // Les trois copies sont au même endroit : leurs clés sont égales, et l'ordre source les départage.
+  // The image sort posts the keys, the frustum verdict and the slices the pass encodes.
+  // The three copies are at the same place: their keys are equal, and source order splits them.
   orderBlendPasses(blendState, [0, 0, 0]);
   blendState.visibleBlend.push(...blendState.blendGpu);
   blendState.volumePacked = new Float32Array(blendState.blendGpu.length * (VOLUME_STRIDE / 4));
   return { blendState, gpu };
 }
 
-test('une surface transmissive est préparée comme les autres mélanges, et marquée', () => {
+test('a transmissive surface is prepared like the other blends, and marked', () => {
   const { blendState } = prepared();
-  assert.equal(blendState.transmissive, 1, 'une seule des trois copies transmet');
-  assert.equal(blendState.blendGpu.length, 3, 'aucune copie n’est laissée de côté');
+  assert.equal(blendState.transmissive, 1, 'only one of the three copies transmits');
+  assert.equal(blendState.blendGpu.length, 3, 'no copy is left aside');
   assert.deepEqual(
     blendState.blendGpu.map((item) => (item.flags & FLAG_TRANSMISSIVE) !== 0),
     [false, true, false],
@@ -89,7 +89,7 @@ test('une surface transmissive est préparée comme les autres mélanges, et mar
   );
 });
 
-test('le volume glTF du matériau arrive au nuanceur, entrée par entrée', () => {
+test("the material's glTF volume reaches the shader, entry by entry", () => {
   const { blendState, gpu } = prepared();
   const rt = { gpu, blendState } as unknown as WebgpuPagesRuntime;
   writeVolumeRecords(rt, device);
@@ -98,12 +98,12 @@ test('le volume glTF du matériau arrive au nuanceur, entrée par entrée', () =
   const arrondi = (value: number) => Math.round(value * 100) / 100;
   assert.deepEqual(Array.from(volume.subarray(0, 4)).map(arrondi), [1, 1.33, 2.5, 6]);
   assert.deepEqual(Array.from(volume.subarray(4, 7)).map(arrondi), [0.35, 0.72, 0.68]);
-  // Un mélange sans transmission remplit quand même son entrée : le nuanceur ne la lit pas, et sa
-  // valeur ne dépend jamais du voisin.
+  // A blend without transmission still fills its entry: the shader does not read it, and its value
+  // never depends on the neighbour.
   assert.equal(blendState.volumePacked[0], 0);
 });
 
-/** Rejoue les deux passes et rend, pour chacune, les rangs des items qu'elle a dessinés. */
+/** Replays the two passes and returns, for each, the ranks of the items it drew. */
 function passes(blendState: ReturnType<typeof prepared>['blendState'], gpu: WebgpuGpuState) {
   const drawn: number[][] = [];
   let current: number[] = [];
@@ -127,7 +127,7 @@ function passes(blendState: ReturnType<typeof prepared>['blendState'], gpu: Webg
     },
     copyTextureToTexture: () => {},
   } as unknown as GPUCommandEncoder;
-  // Les arguments indirects sont écrits par la carte : la passe ne fait que les relire.
+  // Indirect arguments are written by the GPU: the pass only rereads them.
   blendState.argsBuffer = buffer();
   const rt = {
     vis: {
@@ -139,7 +139,7 @@ function passes(blendState: ReturnType<typeof prepared>['blendState'], gpu: Webg
     gpu,
     lights: { buffer: {}, shadows: undefined, store: { count: 0, unlit: false } },
     bounce: { probes: undefined },
-    // Vue `lit` sans lampe : le contrat éclaire, donc la passe lie ses ressources par défaut.
+    // `lit` view with no light: the contract lights, so the pass binds its resources by default.
     sunFar: { gpu: undefined },
     blendState,
     run: {
@@ -150,8 +150,8 @@ function passes(blendState: ReturnType<typeof prepared>['blendState'], gpu: Webg
       blendSubmittedTriangles: 0,
     },
   } as unknown as WebgpuPagesRuntime;
-  // Les groupes sont déjà bâtis sur ces ressources d'éclairage : la passe n'a donc pas à les
-  // refaire, et ce test observe l'ordre de dessin, pas la construction des groupes.
+  // Groups are already built on these lighting resources: the pass therefore need not rebuild them,
+  // and this test observes draw order, not group construction.
   const { placeholders } = gpu.deferred!;
   blendState.lighting = {
     directLights: rt.lights.buffer!,
@@ -161,15 +161,15 @@ function passes(blendState: ReturnType<typeof prepared>['blendState'], gpu: Webg
     bounceGrid: placeholders.bounceGrid,
     probes: placeholders.probes,
   };
-  // Aucun item paginé ici, et le groupe partagé est posé d'avance pour la même raison.
+  // No paged item here, and the shared group is posted ahead for the same reason.
   blendState.pagedGroup = {} as GPUBindGroup;
   drawBlendPass(rt, device, encoder);
-  assert.equal(copyBackdrop(rt, encoder), true, 'le fond est figé entre les deux passes');
+  assert.equal(copyBackdrop(rt, encoder), true, 'the backdrop is frozen between the two passes');
   drawBlendPass(rt, device, encoder, true);
   return drawn;
 }
 
-test('la transmission est une passe à part, après les mélanges, dans l’ordre source', () => {
+test('transmission is a separate pass, after blends, in source order', () => {
   const { blendState, gpu } = prepared();
   Object.assign(gpu, {
     hdrView: {},
@@ -184,10 +184,10 @@ test('la transmission est une passe à part, après les mélanges, dans l’ordr
     },
   });
   const drawn = passes(blendState, gpu);
-  assert.deepEqual(drawn, [[0, 2], [1]], 'les mélanges d’abord, la transmission ensuite');
+  assert.deepEqual(drawn, [[0, 2], [1]], 'blends first, transmission after');
 });
 
-test('sans copie du fond, la passe de transmission n’est pas encodée', () => {
+test('with no backdrop copy, the transmission pass is not encoded', () => {
   const { blendState, gpu } = prepared();
   Object.assign(gpu, { targetSize: [8, 8], backdrop: undefined });
   const rt = { gpu, blendState } as unknown as WebgpuPagesRuntime;

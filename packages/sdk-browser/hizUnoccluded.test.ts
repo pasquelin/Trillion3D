@@ -1,6 +1,6 @@
-// A3 et A4 : splitOccludersInto rend les pages du tri radix flat, et countUnoccluded projette par
-// projectBoxesFlat avec cache d'époque au lieu d'un HizBounds alloué par page et par image. Oracle :
-// la référence d'avant le lot A dans `bench/oracles/occlusion.mjs`.
+// A3 and A4: splitOccludersInto returns the radix-sort pages flat, and countUnoccluded projects
+// through projectBoxesFlat with an epoch cache instead of a HizBounds allocated per page and
+// per frame. Oracle: the reference from before batch A in `bench/oracles/occlusion.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -59,7 +59,7 @@ test('countUnoccluded on an empty pyramid-worthy cut matches the reference, epoc
     viewport: [number, number] = [48, 48];
   const depth = new Float32Array(48 * 48);
   depth.fill(0.3);
-  // Un trou de fond — le lointain, zéro — hors de l'empreinte de la petite boîte, qui reste rejetée.
+  // A background hole — far, zero — outside the small box's footprint, which stays rejected.
   depth[0] = DEPTH_CLEAR;
   const pyramid = buildHizPyramid(depth, 48, 48);
   const pages = [

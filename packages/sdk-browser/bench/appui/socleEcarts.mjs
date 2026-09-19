@@ -1,6 +1,6 @@
-// Les écarts expliqués du banc du socle : là où le dépôt calcule autrement que la référence, ou là où
-// l'opération elle-même ne peut pas rendre son entrée. Chaque écart est chiffré en console et borné
-// par une assertion : il ne se lit jamais comme une égalité, et ne se cache jamais.
+// Explained deltas of the foundation bench: where the deposit computes differently from the
+// reference, or where the operation itself cannot yield its input. Each delta is quantified
+// in the console and bounded by an assertion: it is never read as equality, and never hidden.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SRGBToLinear } from 'three/src/math/ColorManagement.js';
@@ -16,7 +16,7 @@ import { noeudsHierarchie } from './socleEquivalence.mjs';
 import { SRGB_REFERENCE_GAP } from '../../../sdk-core/bench/oracles/three-duel.mjs';
 
 const normeColonne = (m, c) => Math.hypot(m[c * 4], m[c * 4 + 1], m[c * 4 + 2]);
-/** Plus grand cosinus entre deux colonnes linéaires : zéro sans cisaillement. */
+/** Largest cosine between two linear columns: zero without shear. */
 function cisaillement(m) {
   let pire = 0;
   for (const [a, b] of [
@@ -29,7 +29,7 @@ function cisaillement(m) {
   }
   return pire;
 }
-/** Écart relatif maximal entre `m` et la recomposition de sa décomposition, partie linéaire seule. */
+/** Maximum relative delta between `m` and the recomposition of its decomposition, linear part only. */
 function recomposition(m) {
   const p = new Float64Array(3),
     q = new Float64Array(4),
@@ -42,7 +42,7 @@ function recomposition(m) {
   return pire;
 }
 
-test('hiérarchies : la décomposition rend la matrice monde sans cisaillement, pas avec', () => {
+test('hierarchies: decomposition yields the world matrix without shear, not with', () => {
   const classes = { rigide: [], cisaillee: [], nonFinie: [] };
   for (const { monde } of noeudsHierarchie) {
     const normes = [0, 1, 2].map((c) => normeColonne(monde, c));
@@ -56,9 +56,9 @@ test('hiérarchies : la décomposition rend la matrice monde sans cisaillement, 
   const pireRigide = Math.max(0, ...classes.rigide),
     pireCisaillee = Math.max(0, ...classes.cisaillee);
   console.log(
-    `  décomposition : ${classes.rigide.length} nœuds sans cisaillement (écart relatif ≤ ${pireRigide.toExponential(2)}), ` +
-      `${classes.cisaillee.length} cisaillés (écart jusqu'à ${pireCisaillee.toExponential(2)}, inhérent à T·R·S), ` +
-      `${classes.nonFinie.length} singuliers ou hors du double (NaN attendus, identiques à la référence)`,
+    `  decomposition: ${classes.rigide.length} nodes without shear (relative delta ≤ ${pireRigide.toExponential(2)}), ` +
+      `${classes.cisaillee.length} sheared (delta up to ${pireCisaillee.toExponential(2)}, inherent to T·R·S), ` +
+      `${classes.nonFinie.length} singular or outside double (expected NaN, identical to the reference)`,
   );
   assert.ok(pireRigide <= 1e-9, `recomposition sans cisaillement ${pireRigide}`);
   assert.ok(
@@ -67,7 +67,7 @@ test('hiérarchies : la décomposition rend la matrice monde sans cisaillement, 
   );
 });
 
-test('hiérarchies : échelle négative portée par x seul, déterminant de même signe que la source', () => {
+test('hierarchies: negative scale carried by x only, determinant of the same sign as the source', () => {
   let renverses = 0;
   for (const { monde } of noeudsHierarchie) {
     const det = determinantMatrix4(monde);
@@ -78,13 +78,11 @@ test('hiérarchies : échelle négative portée par x seul, déterminant de mêm
     assert.ok(s[1] > 0 && s[2] > 0);
     if (det < 0) renverses++;
   }
-  console.log(
-    `  échelle négative : ${renverses} nœuds renversés, signe porté par x, y et z positifs`,
-  );
+  console.log(`  negative scale: ${renverses} flipped nodes, sign carried by x, y and z positive`);
   assert.ok(renverses > 0);
 });
 
-test('sens des faces : déterminant linéaire et déterminant 4×4 de même signe hors matrice singulière', () => {
+test('face winding: linear determinant and 4×4 determinant of the same sign outside a singular matrix', () => {
   let pire = 0,
     opposes = 0,
     compares = 0;
@@ -100,9 +98,9 @@ test('sens des faces : déterminant linéaire et déterminant 4×4 de même sign
     if (Math.sign(a) !== Math.sign(b) && Math.abs(b) / echelle > 1e-12) opposes++;
   }
   console.log(
-    `  déterminants : ${compares} nœuds, écart relatif maximal ${pire.toExponential(2)}, signes opposés ${opposes}`,
+    `  determinants: ${compares} nodes, maximum relative delta ${pire.toExponential(2)}, opposite signs ${opposes}`,
   );
-  assert.ok(pire <= 64 * Number.EPSILON, `écart relatif ${pire}`);
+  assert.ok(pire <= 64 * Number.EPSILON, `relative delta ${pire}`);
   assert.equal(opposes, 0);
 });
 
@@ -115,7 +113,7 @@ test('sRGB: the repository curve and the reference rounded constants stay under 
     allerRetour = Math.max(allerRetour, Math.abs(linearToSrgb(srgbToLinear(c)) - c));
   }
   console.log(
-    `  sRGB → linéaire : écart maximal ${versLineaire.toExponential(2)} ; aller-retour ${allerRetour.toExponential(2)}`,
+    `  sRGB → linear: maximum delta ${versLineaire.toExponential(2)}; round-trip ${allerRetour.toExponential(2)}`,
   );
   assert.ok(versLineaire < SRGB_REFERENCE_GAP);
   assert.ok(allerRetour < 1e-12);

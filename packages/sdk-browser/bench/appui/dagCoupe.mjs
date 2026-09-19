@@ -1,15 +1,15 @@
-// Un DAG de clusters pour le lot C : des niveaux de plus en plus grossiers, chacun remplaçant deux
-// clusters du niveau au-dessous. Chaque cluster porte son erreur propre et celle de son remplaçant,
-// donc la coupe en choisit exactement un par région, et un seuil deux fois plus grand en choisit
-// deux fois moins. Tout vient du générateur à graine fixe du banc commun.
+// A cluster DAG for batch C: coarser and coarser levels, each replacing two clusters of the
+// level below. Each cluster carries its own error and that of its replacement, so the cut
+// picks exactly one per region, and a threshold twice as large picks twice as few. Everything
+// comes from the shared bench's seeded generator.
 import * as THREE from 'three';
 import { BOX_VALUES, boxEmpty, boxExpandByPoint } from '../../../sdk-core/index.ts';
 import { graine } from '../../../sdk-core/bench/socle.mjs';
 
 /**
- * `feuilles` clusters au niveau 0, moitié moins à chaque niveau jusqu'au cluster unique. Les pages
- * sont rangées du plus grossier au plus fin, comme les porte un manifeste. `residentes` dit quelle
- * part d'entre elles a son tableau d'indices : le reste manque, ce que la coupe doit voir.
+ * `feuilles` clusters at level 0, half as many at each level until the unique cluster. Pages
+ * are ordered from coarsest to finest, as a manifest carries them. `residentes` says what
+ * share of them has its index array: the rest is missing, which the cut must see.
  */
 export function dag({ feuilles = 10000, seed = 61, residentes = 1, etendue = 3 } = {}) {
   const alea = graine(seed);
@@ -22,10 +22,10 @@ export function dag({ feuilles = 10000, seed = 61, residentes = 1, etendue = 3 }
       rayon = etendue / Math.max(1, Math.sqrt(compte)),
       erreur = 2 ** level * 0.01;
     const parent = level + 1 < niveaux.length ? 2 ** (level + 1) * 0.01 : null;
-    const cote = Math.ceil(Math.sqrt(compte));
+    const gridSide = Math.ceil(Math.sqrt(compte));
     for (let i = 0; i < compte; i++) {
-      const cx = ((i % cote) / cote - 0.5) * etendue * 2,
-        cy = (Math.floor(i / cote) / cote - 0.5) * etendue * 2,
+      const cx = ((i % gridSide) / gridSide - 0.5) * etendue * 2,
+        cy = (Math.floor(i / gridSide) / gridSide - 0.5) * etendue * 2,
         cz = (alea() - 0.5) * 0.5;
       pages.push({
         url: `n${level}-${i}.bin`,
@@ -46,7 +46,7 @@ export function dag({ feuilles = 10000, seed = 61, residentes = 1, etendue = 3 }
   return pages;
 }
 
-/** Une racine de sélection sans hiérarchie de culling : la descente prend les pages dans l'ordre. */
+/** A selection root without a culling hierarchy: descent takes the pages in order. */
 export function racine(pages) {
   const monde = new THREE.Matrix4();
   const box = new Float64Array(BOX_VALUES);
@@ -58,7 +58,7 @@ export function racine(pages) {
   return { world: monde, pages, worldBox: box, localBox: box };
 }
 
-/** L'état visible d'une coupe : les pages affichées et demandées dans l'ordre, et ses compteurs. */
+/** The visible state of a cut: displayed and requested pages in order, and its counters. */
 export function etatDeCoupe(result) {
   return {
     shown: result.shown.map((rec) => rec.url),

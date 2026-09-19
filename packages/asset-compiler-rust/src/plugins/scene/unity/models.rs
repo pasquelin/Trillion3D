@@ -1,9 +1,9 @@
-//! Les modèles référencés par la scène, importés par le pilote de leur format.
+//! Models referenced by the scene, imported by the driver of their format.
 //!
-//! Le pilote Unity ne lit aucun maillage : il demande au registre quel pilote reconnaît le fichier
-//! que le GUID désigne, lui fait produire sa scène intermédiaire, puis verse celle-ci dans la
-//! sienne. Un modèle n'est importé qu'une fois, quel que soit le nombre d'instances qui le citent,
-//! et un modèle qui serait lui-même une scène Unity est refusé : un pilote ne se rappelle pas.
+//! The Unity driver reads no mesh: it asks the registry which driver recognises the file the
+//! GUID names, has it produce its intermediate scene, then pours that into its own. A model is
+//! imported only once, whatever the number of instances that cite it, and a model that would
+//! itself be a Unity scene is refused: a driver does not call itself.
 use super::*;
 use std::collections::HashMap;
 
@@ -14,7 +14,7 @@ pub(super) struct Models {
 }
 
 impl Models {
-    /// Les nœuds porteurs de maillage de ce modèle, versés dans la scène à la première demande.
+    /// Mesh-bearing nodes of this model, poured into the scene on first request.
     pub(super) fn parts(&mut self, asset: &Path, world: &mut World<'_>) -> Option<Parts> {
         let meta = self.meta(asset);
         self.imported
@@ -23,7 +23,7 @@ impl Models {
             .clone()
     }
 
-    /// Les réglages d'import déclarés par le `.meta` de ce modèle, lus une seule fois.
+    /// Import settings declared by this model's `.meta`, read once.
     pub(super) fn meta(&mut self, asset: &Path) -> Rc<ModelImport> {
         self.metas
             .entry(asset.to_path_buf())
@@ -40,7 +40,7 @@ fn import(asset: &Path, world: &mut World<'_>, meta: &ModelImport) -> Option<Par
             .scene
             .report
             .notes
-            .push(format!("modèle non lu: {name}"));
+            .push(format!("model not read: {name}"));
         return None;
     };
     if plugin.name() == NAME {
@@ -79,8 +79,8 @@ fn import(asset: &Path, world: &mut World<'_>, meta: &ModelImport) -> Option<Par
         ),
         PreparedScene::Manifest => return None,
     };
-    // Le manifeste que le pilote du modèle a écrit porte l'unité du fichier et son rapport. Un
-    // modèle lu sur place n'en écrit pas : son dossier est celui de la source, pas une conversion.
+    // The manifest the model's driver wrote carries the file unit and its report. A model read
+    // in place writes none: its directory is the source's, not a conversion.
     let manifest = match prepared {
         PreparedScene::Converted { .. } => read_manifest(&directory),
         _ => None,
@@ -96,8 +96,8 @@ fn import(asset: &Path, world: &mut World<'_>, meta: &ModelImport) -> Option<Par
             return None;
         }
     };
-    // Les images du modèle sont nommées relativement à son propre dossier ; la scène les sert
-    // depuis la racine donnée au compilateur, il faut donc les préfixer de ce chemin.
+    // The model's images are named relative to its own directory; the scene serves them from
+    // the root given to the compiler, so they must be prefixed with that path.
     let prefix = asset
         .parent()
         .and_then(|parent| world.project.relative_uri(parent))
@@ -108,14 +108,14 @@ fn import(asset: &Path, world: &mut World<'_>, meta: &ModelImport) -> Option<Par
     Some(scaled(parts, meta.scale(unit)))
 }
 
-/// Le manifeste qu'un pilote de scène a écrit à côté de sa conversion.
+/// Manifest a scene driver wrote beside its conversion.
 fn read_manifest(directory: &Path) -> Option<Value> {
     let bytes = fs::read(directory.join("manifest.json")).ok()?;
     serde_json::from_slice(&bytes).ok()
 }
 
-/// L'unité déclarée par le fichier modèle, telle que son pilote l'a consignée. Un modèle dont le
-/// manifeste ne la dit pas est en mètres, comme le glTF.
+/// Unit declared by the model file, as its driver recorded it. A model whose manifest does not
+/// say it is in metres, like glTF.
 fn unit_meters(manifest: &Value) -> f64 {
     manifest["source"]["files"][0]["originalUnitMeters"]
         .as_f64()
@@ -123,9 +123,9 @@ fn unit_meters(manifest: &Value) -> f64 {
         .unwrap_or(1.0)
 }
 
-/// Ce que le pilote du modèle n'a pas su rendre appartient aussi à la scène qui le cite : ses codes
-/// remontent sous leur propre nom — deux modèles auxquels la même chose manque s'additionnent — et
-/// ses notes prennent le nom du modèle, sans quoi on ne saurait pas duquel elles parlent.
+/// What the model's driver could not yield also belongs to the scene that cites it: its codes
+/// come up under their own name — two models missing the same thing add up — and its notes take
+/// the model's name, otherwise one would not know which they speak of.
 fn carry_report(manifest: &Value, name: &str, scene: &mut Scene) {
     if let Some(unsupported) = manifest["unsupported"].as_object() {
         for (code, count) in unsupported {
@@ -141,9 +141,9 @@ fn carry_report(manifest: &Value, name: &str, scene: &mut Scene) {
     }
 }
 
-/// Applique le facteur d'échelle d'import du modèle : la géométrie reste exactement celle que son
-/// pilote a rendue, seule la transformation de chaque nœud versé la met à l'échelle. La matrice
-/// étant en colonnes, mettre les lignes `x`, `y` et `z` à l'échelle laisse la dernière ligne intacte.
+/// Applies the model's import scale factor: geometry stays exactly that its driver yielded,
+/// only the transform of each poured node scales it. The matrix being column-major, scaling
+/// rows `x`, `y` and `z` leaves the last row intact.
 fn scaled(parts: Parts, scale: f64) -> Parts {
     if scale == 1.0 {
         return parts;
@@ -176,8 +176,8 @@ fn scaled(parts: Parts, scale: f64) -> Parts {
     Parts { nodes }
 }
 
-/// Le glTF d'un modèle et ses binaires. Un tampon en `data:` n'est pas lu : le pilote le compte au
-/// rapport plutôt que d'en décoder le contenu à l'aveugle.
+/// glTF of a model and its binaries. A `data:` buffer is not read: the driver counts it in the
+/// report rather than decoding its content blindly.
 fn load_gltf(directory: &Path, file: &str) -> Option<(Value, Vec<Vec<u8>>)> {
     let bytes = fs::read(directory.join(file)).ok()?;
     if crate::is_glb(&bytes) {

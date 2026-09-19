@@ -91,10 +91,10 @@ fn compile_leaves_transmission_unsplit() {
         .is_empty());
     fs::remove_dir_all(root).expect("cleanup");
 }
-/// Les quatre classes de matériau et le rangement de chacune. La transmission entre par la même
-/// porte que la peau — une primitive d'un seul tenant, hors du DAG — et son arrivée ne déplace
-/// aucune des trois autres : opaque et découpe restent des clusters exacts, le mélange reste
-/// groupé. Rien n'est lu que des propriétés de matériau.
+/// The four material classes and how each is ranked. Transmission enters through
+/// the same door as skin — a one-piece primitive, outside the DAG — and its
+/// arrival displaces none of the other three: opaque and cutout stay exact
+/// clusters, blend stays clustered. Nothing is read but material properties.
 #[test]
 fn compile_ranks_every_material_class_by_its_own_property() {
     for (material, pass, paged) in [
@@ -129,7 +129,7 @@ fn compile_ranks_every_material_class_by_its_own_property() {
         fs::remove_dir_all(root).expect("cleanup");
     }
 }
-/// Une transmission nulle n'est pas une transmission : le matériau retombe dans sa classe alphaMode.
+/// A zero transmission is not a transmission: the material falls back to its alphaMode class.
 #[test]
 fn compile_ranks_a_zero_transmission_by_its_alpha_mode() {
     let (root, options) = fixture();

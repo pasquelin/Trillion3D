@@ -5,10 +5,10 @@ import { LIGHT_SETTINGS, createSceneLightStore } from '../sdk-core/index.ts';
 import { attachContractLights } from './exactPagesContractLights.ts';
 import { installSceneLighting } from './sceneLighting.ts';
 
-/** Les coordonnées d'un vecteur, le zéro négatif ramené à zéro : `−0` n'est pas une position. */
+/** Coordinates of a vector, negative zero brought back to zero: `−0` is not a position. */
 const coords = (vector: THREE.Vector3) => vector.toArray().map((value) => value + 0);
 
-/** Un moteur rendu par Three, réduit à ce que le contrat lui demande : sa scène et son graphe source. */
+/** A Three-rendered engine, reduced to what the contract asks of it: its scene and its source graph. */
 function harness(sourceLights: THREE.Light[] = []) {
   const scene = new THREE.Scene();
   const source = new THREE.Object3D();
@@ -20,7 +20,7 @@ function harness(sourceLights: THREE.Light[] = []) {
     scene,
     store,
     contract,
-    /** Les lampes que le rendu verrait : celles qu'un parcours de la scène collecte, visibles seules. */
+    /** Lights the render would see: those a scene walk collects, visible ones only. */
     visibleLights() {
       const found: THREE.Light[] = [];
       scene.traverseVisible((object) => {
@@ -31,7 +31,7 @@ function harness(sourceLights: THREE.Light[] = []) {
   };
 }
 
-test("sans lampe ni vue demandée, le graphe source éclaire seul et l'image ne change pas", () => {
+test('with no light and no requested view, the source graph lights alone and the image does not change', () => {
   const sun = new THREE.DirectionalLight(0xffffff, 2);
   const bench = harness([sun]);
   assert.equal(bench.contract.lit, true);
@@ -40,7 +40,7 @@ test("sans lampe ni vue demandée, le graphe source éclaire seul et l'image ne 
   assert.equal((lights[0] as THREE.DirectionalLight).intensity, 2);
 });
 
-test('une ponctuelle du contrat éclaire, et son retrait rend la vue éclairée noire', () => {
+test('a contract point light lights, and removing it makes the lit view black', () => {
   const bench = harness();
   bench.store.add({
     id: 'lampe',
@@ -56,10 +56,10 @@ test('une ponctuelle du contrat éclaire, et son retrait rend la vue éclairée 
   assert.equal(lights.length, 1);
   const point = lights[0] as THREE.PointLight;
   assert.ok(point.isPointLight);
-  // Intensité radiométrique et couleur linéaire reprises telles quelles : aucun facteur d'ajustement.
+  // Radiometric intensity and linear colour taken as-is: no adjustment factor.
   assert.equal(point.intensity, 7);
   assert.deepEqual([point.color.r, point.color.g, point.color.b], [1, 0.5, 0.25]);
-  // `decay = 2` et `distance = range` : l'atténuation de Three est celle du shader différé.
+  // `decay = 2` and `distance = range`: Three's attenuation is that of the deferred shader.
   assert.equal(point.decay, 2);
   assert.equal(point.distance, 10);
   assert.deepEqual(coords(point.position), [1, 2, 3]);
@@ -68,12 +68,12 @@ test('une ponctuelle du contrat éclaire, et son retrait rend la vue éclairée 
   bench.store.setView('lit');
   bench.store.remove('lampe');
   bench.contract.apply();
-  // Vue éclairée sans aucune lampe : rien n'éclaire, et rien ne prétend éclairer.
+  // Lit view with no light at all: nothing lights, and nothing claims to light.
   assert.equal(bench.visibleLights().length, 0);
   assert.equal(bench.contract.lit, true);
 });
 
-test("la vue `unlit` rend l'albédo par une irradiance de π, sans aucune lampe du contrat", () => {
+test('the `unlit` view yields albedo by an irradiance of π, with no contract light', () => {
   const bench = harness();
   bench.store.add({
     id: 'lampe',
@@ -94,7 +94,7 @@ test("la vue `unlit` rend l'albédo par une irradiance de π, sans aucune lampe 
   assert.equal(bench.contract.lit, false);
 });
 
-test('un projecteur reprend son cône, et sa pénombre égale le bord adouci du contrat', () => {
+test('a spotlight takes back its cone, and its penumbra equals the contract softened edge', () => {
   const bench = harness();
   const coneAngle = 0.6;
   bench.store.add({
@@ -119,7 +119,7 @@ test('un projecteur reprend son cône, et sa pénombre égale le bord adouci du 
   );
 });
 
-test('une directionnelle prend sa direction de propagation, jamais une position inventée', () => {
+test('a directional takes its propagation direction, never an invented position', () => {
   const bench = harness();
   bench.store.add({
     id: 'soleil',
@@ -132,13 +132,13 @@ test('une directionnelle prend sa direction de propagation, jamais une position 
   bench.contract.apply();
   const sun = bench.visibleLights()[0] as THREE.DirectionalLight;
   assert.ok(sun.isDirectionalLight);
-  // Three prend la direction d'incidence par `position − cible` : elle vaut l'opposé du contrat.
+  // Three takes the incidence direction as `position − target`: it equals the opposite of the contract.
   assert.deepEqual(coords(sun.position), [0, 1, 0]);
   assert.deepEqual(coords(sun.target.position), [0, 0, 0]);
   assert.equal(sun.intensity, 4);
 });
 
-test('le contrat efface les lampes du graphe source dès qu il gouverne, et les rend ensuite', () => {
+test('the contract hides the source-graph lights as soon as it governs, and restores them afterwards', () => {
   const sun = new THREE.DirectionalLight(0xffffff, 1);
   const bench = harness([sun]);
   bench.store.add({

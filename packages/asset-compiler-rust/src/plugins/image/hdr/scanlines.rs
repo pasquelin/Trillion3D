@@ -1,34 +1,35 @@
-//! Les lignes de pixels d'un Radiance HDR, dans les trois écritures que la spécification définit,
-//! et la conversion RGBE → flottant linéaire.
+//! Pixel lines of a Radiance HDR, in the three writings the specification defines, and the
+//! RGBE → linear float conversion.
 //!
-//! Une ligne est soit brute — quatre octets par pixel —, soit compressée par plages. La compression
-//! « ancienne » de « Real Pixels » répète le pixel précédent par un marqueur `1,1,1,n` ; la
-//! « nouvelle », apparue avec Radiance 2.0 et annoncée par l'entête `2, 2, largeur`, compresse les
-//! quatre composantes séparément, chacune en paquets bruts (compte ≤ 128) et en plages (compte
-//! > 128). Les deux écrivent exactement les mêmes pixels : c'est la même ligne dite autrement.
+//! A line is either raw — four bytes per pixel —, or run-length compressed. The "old"
+//! compression of "Real Pixels" repeats the previous pixel by a `1,1,1,n` marker; the "new"
+//! one, which appeared with Radiance 2.0 and is announced by the `2, 2, width` header,
+//! compresses the four components separately, each in raw packets (count ≤ 128) and runs
+//! (count > 128). Both write exactly the same pixels: it is the same line said another way.
 
-/// Les octets annoncés ne sont pas tous là, une plage déborde de sa ligne, ou un paquet n'avance
-/// pas. Pour l'hôte, c'est le symptôme d'un fichier coupé, et la texture retombe sur son blanc.
+/// The announced bytes are not all there, a run overflows its line, or a packet does not
+/// advance. For the host, that is the symptom of a cut file, and the texture falls back to
+/// white.
 const TRUNCATED: &str = "hdr-data-truncated";
-/// Largeurs dans lesquelles la nouvelle compression peut s'écrire : en dehors, un entête `2,2,…`
-/// est un pixel ordinaire dont la mantisse rouge vaut 2, pas une annonce de compression.
+/// Widths in which the new compression can be written: outside, a `2,2,…` header is an
+/// ordinary pixel whose red mantissa is 2, not a compression announcement.
 const NEW_RLE_WIDTHS: std::ops::RangeInclusive<usize> = 8..=0x7fff;
-/// Au-delà de ce compte, un paquet de la nouvelle compression est une plage, et sa longueur est la
-/// différence ; en deçà ou à égalité, c'est un paquet brut de `compte` octets.
+/// Beyond this count, a packet of the new compression is a run, and its length is the
+/// difference; at or below, it is a raw packet of `count` bytes.
 const RUN_MARK: u8 = 128;
-/// Le marqueur de plage de l'ancienne compression : les trois mantisses à un.
+/// Run marker of the old compression: the three mantissas at one.
 const OLD_RUN_MARKER: [u8; 3] = [1, 1, 1];
-/// Décalage de l'exposant RGBE : la mantisse est une fraction sur huit bits et l'exposant est
-/// biaisé de 128, d'où `valeur = mantisse × 2^(e - 128 - 8)`.
+/// RGBE exponent offset: the mantissa is an eight-bit fraction and the exponent is biased
+/// by 128, hence `value = mantissa × 2^(e - 128 - 8)`.
 const EXPONENT_BIAS: i32 = 136;
-/// Décalage et biais de l'exposant d'un flottant double, pour écrire `2^k` sans passer par une
-/// fonction de puissance : à ces exposants-là, le résultat doit être exact.
+/// Offset and bias of a double-float exponent, to write `2^k` without going through a power
+/// function: at those exponents, the result must be exact.
 const F64_MANTISSA_BITS: u32 = 52;
 const F64_EXPONENT_BIAS: i32 = 1023;
 
-/// Les `height` lignes de `width` pixels, en RGBA flottant, ligne du haut d'abord. L'alpha est
-/// opaque partout : le format ne porte pas de canal de transparence, et en inventer un serait
-/// mentir — d'où le tampon rempli de 1 dont seuls les trois premiers canaux sont réécrits.
+/// The `height` lines of `width` pixels, as float RGBA, top row first. Alpha is opaque
+/// everywhere: the format carries no transparency channel, and inventing one would be lying —
+/// hence the buffer filled with 1 of which only the first three channels are rewritten.
 pub(super) fn decode(
     body: &[u8],
     width: u32,
@@ -48,7 +49,7 @@ pub(super) fn decode(
     Ok(out)
 }
 
-/// Une ligne, dans l'écriture que ses quatre premiers octets annoncent.
+/// One line, in the writing its first four bytes announce.
 fn scanline<'a>(
     body: &'a [u8],
     row: &mut [[u8; 4]],
@@ -65,9 +66,9 @@ fn scanline<'a>(
     old_rle(body, row)
 }
 
-/// La nouvelle compression : les quatre composantes l'une après l'autre, chacune en paquets bruts
-/// et en plages, jusqu'à ce que la ligne soit pleine. Un paquet vide n'avancerait pas, un paquet
-/// qui déborde de la ligne ment sur sa longueur : les deux sont des refus.
+/// The new compression: the four components one after another, each in raw packets and runs,
+/// until the line is full. An empty packet would not advance, a packet that overflows the line
+/// is lying about its length: both are refusals.
 fn new_rle<'a>(
     mut body: &'a [u8],
     row: &mut [[u8; 4]],
@@ -102,9 +103,9 @@ fn new_rle<'a>(
     Ok(body)
 }
 
-/// L'ancienne compression, qui est aussi le cas brut : des pixels tels quels, et un marqueur
-/// `1,1,1,n` qui répète le précédent. Des marqueurs consécutifs se multiplient par 256, ce qui
-/// permet des plages plus longues que 255 ; le premier pixel d'une ligne ne peut pas en être un.
+/// The old compression, which is also the raw case: pixels as-is, and a `1,1,1,n` marker that
+/// repeats the previous one. Consecutive markers multiply by 256, which allows runs longer
+/// than 255; the first pixel of a line cannot be one.
 fn old_rle<'a>(
     mut body: &'a [u8],
     row: &mut [[u8; 4]],
@@ -140,10 +141,10 @@ fn old_rle<'a>(
     Ok(body)
 }
 
-/// Un pixel RGBE vers trois flottants linéaires. L'exposant nul est le zéro du format, pas une
-/// petite valeur. L'échelle `2^(e - 136)` est construite bit à bit en double précision — son
-/// exposant tient entre -135 et 119, donc toujours normal — puis le produit n'est arrondi qu'une
-/// fois, au passage en simple précision : la valeur rendue est celle que le fichier décrit.
+/// An RGBE pixel to three linear floats. A null exponent is the format's zero, not a small
+/// value. The scale `2^(e - 136)` is built bit by bit in double precision — its exponent sits
+/// between -135 and 119, hence always normal — then the product is rounded only once, on the
+/// way to single precision: the returned value is the one the file describes.
 fn to_linear(pixel: [u8; 4]) -> [f32; 3] {
     if pixel[3] == 0 {
         return [0.0; 3];

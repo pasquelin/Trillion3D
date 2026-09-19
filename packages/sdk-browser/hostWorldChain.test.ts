@@ -1,21 +1,21 @@
-// hostWorldChain.ts : la matrice monde d'UN nœud, calculée par le moteur depuis les poses locales de
-// sa chaîne d'ancêtres, confrontée au bit près (Object.is) à `updateWorldMatrix(true, false)` de la
-// référence — chaînes hostiles comprises : échelles négatives, nulle, non uniformes sous une
-// rotation (cisaillement), `-0`, demi-tour, matrice posée à la main, NaN et infinis.
+// hostWorldChain.ts: the world matrix of ONE node, computed by the engine from the local poses
+// of its ancestor chain, compared bit-for-bit (Object.is) to the reference's
+// `updateWorldMatrix(true, false)` — hostile chains included: negative scales, a null scale,
+// non-uniform under a rotation (shear), `-0`, half-turn, a hand-set matrix, NaN and infinities.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { hostWorldChainInto } from './hostWorldChain.ts';
 import { assertBits } from '../sdk-core/bench/oracles/volumes.mjs';
 
-/** Chaîne racine → enfant posé → petit-enfant → feuille, poses hostiles comprises. */
+/** Root → posed child → grandchild → leaf chain, hostile poses included. */
 function chaineHostile() {
   const racine = new THREE.Group();
   racine.position.set(1, -2, 3);
   racine.scale.set(-1, 2, 0.5);
-  racine.quaternion.set(0, 1, 0, 0); // demi-tour : w = 0
+  racine.quaternion.set(0, 1, 0, 0); // half-turn: w = 0
   const enfant = new THREE.Group();
-  enfant.matrixAutoUpdate = false; // l'hôte POSE la matrice locale : rien ne la recompose
+  enfant.matrixAutoUpdate = false; // the host SETS the local matrix: nothing recomposes it
   enfant.matrix.set(1, 0.7, 0, 5, 0, 1, 0, -2, 0, 0, 3, 0, 0, 0, 0, 1);
   racine.add(enfant);
   const petitEnfant = new THREE.Group();
@@ -31,7 +31,7 @@ function chaineHostile() {
 
 const CLEFS = ['racine', 'enfant', 'petitEnfant', 'feuille'] as const;
 
-test('hostWorldChainInto rend les mêmes bits que `updateWorldMatrix(true, false)`, chaîne hostile comprise', () => {
+test('hostWorldChainInto returns the same bits as `updateWorldMatrix(true, false)`, hostile chain included', () => {
   const scene = chaineHostile(),
     reference = chaineHostile();
   const obtenu = new Float64Array(16);
@@ -42,7 +42,7 @@ test('hostWorldChainInto rend les mêmes bits que `updateWorldMatrix(true, false
   }
 });
 
-test('hostWorldChainInto n’écrit rien chez l’hôte : les matrices monde de la chaîne restent intactes', () => {
+test('hostWorldChainInto writes nothing on the host: the chain world matrices stay intact', () => {
   const { racine, feuille, enfant, petitEnfant } = chaineHostile();
   const avant = [racine, enfant, petitEnfant, feuille].map((n) => n.matrixWorld.elements.slice());
   hostWorldChainInto(new Float64Array(16), feuille);
@@ -50,9 +50,9 @@ test('hostWorldChainInto n’écrit rien chez l’hôte : les matrices monde de 
     assertBits(node.matrixWorld.elements, avant[rang]);
 });
 
-test('hostWorldChainInto reprend un ancêtre périmé, comme la référence qui remonte la chaîne', () => {
-  // Chaîne nette, sans échelle extrême : un déplacement de la racine doit se voir dans la
-  // translation de la feuille, sinon le test ne prouverait rien.
+test('hostWorldChainInto retakes a stale ancestor, like the reference that walks the chain', () => {
+  // Clean chain, no extreme scale: a root move must show in the leaf translation, otherwise
+  // the test would prove nothing.
   const chaine = () => {
     const racine = new THREE.Group();
     racine.position.set(1, -2, 3);
@@ -64,20 +64,20 @@ test('hostWorldChainInto reprend un ancêtre périmé, comme la référence qui 
   };
   const scene = chaine(),
     reference = chaine();
-  scene.racine.updateMatrixWorld(true); // matrices monde posées une première fois
+  scene.racine.updateMatrixWorld(true); // world matrices set a first time
   const perimee = scene.feuille.matrixWorld.elements.slice();
-  scene.racine.position.set(100, 100, 100); // la racine devient périmée sans être recalculée
+  scene.racine.position.set(100, 100, 100); // the root becomes stale without being recomputed
   reference.racine.position.set(100, 100, 100);
   const obtenu = new Float64Array(16);
   hostWorldChainInto(obtenu, scene.feuille);
   reference.feuille.updateWorldMatrix(true, false);
   assertBits(obtenu, reference.feuille.matrixWorld.elements);
-  assert.notEqual(obtenu[12], perimee[12], 'la pose périmée a bien bougé : le test n’est pas vide');
+  assert.notEqual(obtenu[12], perimee[12], 'the stale pose did move: the test is not empty');
 });
 
-test('hostWorldChainInto tient une chaîne plus profonde que son tampon de départ, sans perdre un bit', () => {
-  // Le tableau des ancêtres part à soixante-quatre places : deux cent cinquante nœuds l'obligent à
-  // grandir trois fois, et le résultat doit rester celui de la référence.
+test('hostWorldChainInto holds a chain deeper than its starting buffer, without losing a bit', () => {
+  // The ancestor array starts at sixty-four slots: two hundred and fifty nodes force it to grow
+  // three times, and the result must stay that of the reference.
   let node = new THREE.Group();
   const racine = node;
   for (let rang = 1; rang < 250; rang++) {
@@ -93,7 +93,7 @@ test('hostWorldChainInto tient une chaîne plus profonde que son tampon de dépa
   assertBits(obtenu, node.matrixWorld.elements);
 });
 
-test('hostWorldChainInto sur une racine rend sa seule matrice locale, comme la référence', () => {
+test('hostWorldChainInto on a root returns its local matrix alone, like the reference', () => {
   const racine = new THREE.Group();
   racine.position.set(-0, 4, 5);
   racine.scale.set(-1, -1, -1);

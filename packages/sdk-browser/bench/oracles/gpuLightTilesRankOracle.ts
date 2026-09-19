@@ -1,13 +1,13 @@
 /**
- * Oracle D4 : deux portages fidèles, ligne à ligne, de la compaction de fin de `lightTiles` dans
- * gpuLightTilesShader.ts. `compactSerial` est l'ancien noyau (le fil zéro seul, une boucle
- * `index<count`). `compactRank` est le noyau du lot D4 : chaque fil retenu lit son rang par
- * `countOneBits` sur le masque déjà construit (mot par mot avant le sien, puis les bits avant lui
- * dans son mot) et écrit sa lampe à cette place, sans dépendre de l'ordre d'exécution des fils.
+ * Oracle D4: two faithful, line-by-line ports of the end compaction of `lightTiles` in
+ * gpuLightTilesShader.ts. `compactSerial` is the old kernel (thread zero alone, a loop
+ * `index<count`). `compactRank` is the D4-batch kernel: each kept thread reads its rank by
+ * `countOneBits` on the already-built mask (word by word before its own, then the bits before
+ * it in its word) and writes its lamp at that place, without depending on thread execution order.
  *
- * `hits` est le masque de bits retenus, un u32 par tranche de 32 lampes, exactement comme
- * `var<workgroup> hits`. Une lampe hors de `[0, count)` n'a jamais son bit posé, comme le fait la
- * garde `lane<count` avant l'écriture du masque côté shader.
+ * `hits` is the kept-bit mask, one u32 per slice of 32 lamps, exactly like
+ * `var<workgroup> hits`. A lamp outside `[0, count)` never has its bit set, as the
+ * `lane<count` guard does before the mask write on the shader side.
  */
 
 export type CompactResult = { kept: number[]; requested: number };

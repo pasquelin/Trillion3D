@@ -1,24 +1,24 @@
 /**
- * La scène du comptage de frontière : une pyramide de niveaux de détail, autant de poses, et la
- * hiérarchie de coupe que le rangement leur donne. Aucune dépendance à la bibliothèque de l'hôte —
- * la matrice monde vient de l'appelant —, `test/integration/moteur-sans-three.test.mjs` l'interdisant à ce fichier.
+ * Frontier-count scene: a pyramid of detail levels, as many poses, and the cut
+ * hierarchy packing gives them. No host-library dependency — the world matrix
+ * comes from the caller — `test/integration/moteur-sans-three.test.mjs` forbids it here.
  */
 import { flatHierarchy } from './gpuDagHierarchy.ts';
 import { BOUND_STRIDE, cullingBounds, PARENT_SPHERE } from './pageSelectionCutBounds.ts';
 import { CULL_STRIDE, type DagRoot } from './gpuDagTypes.ts';
 
-/** Une page de niveau `level`, posée sur une grille, avec la bande d'erreur de son remplaçant. */
-function page(level: number, i: number, cote: number, etendue: number) {
-  const rayon = etendue / cote;
-  const cx = ((i % cote) / cote - 0.5) * etendue * 2,
-    cy = (Math.floor(i / cote) / cote - 0.5) * etendue * 2;
+/** A page of level `level`, placed on a grid, with its replacement's error band. */
+function page(level: number, i: number, gridSide: number, etendue: number) {
+  const rayon = etendue / gridSide;
+  const cx = ((i % gridSide) / gridSide - 0.5) * etendue * 2,
+    cy = (Math.floor(i / gridSide) / gridSide - 0.5) * etendue * 2;
   const parent = level + 1 < 8 ? 2 ** (level + 1) * 0.01 : null;
   return {
     url: `n${level}-${i}`,
     level,
-    // Un compte de triangles par grappe, VARIABLE : c'est lui que les totaux d'image accumulent, et
-    // une scène qui les laisserait tous égaux — ou tous nuls — ferait accorder la carte et l'oracle
-    // sur rien. La formule ne dépend que du rang et de l'étage, donc la scène reste reproductible.
+    // A VARIABLE triangle count per cluster: frame totals accumulate it, and a scene that
+    // left them all equal — or all zero — would make GPU and oracle agree on nothing.
+    // The formula depends only on rank and level, so the scene stays reproducible.
     triangles: 64 + ((i * 7 + level * 13) % 129),
     min: [cx - rayon, cy - rayon, -rayon],
     max: [cx + rayon, cy + rayon, rayon],
@@ -30,14 +30,15 @@ function page(level: number, i: number, cote: number, etendue: number) {
 }
 
 /**
- * La hiérarchie du rangement, dont le plafond d'erreur ET la sphère du remplaçant sont remplis :
- * `flatHierarchy` laisse le premier à -1 et la seconde à zéro, ce qui interdit tout élagage par
- * l'erreur. Les nœuds sont numérotés par niveaux, donc les enfants suivent leur parent : un
- * parcours à rebours suffit à remonter le maximum du sous-arbre.
+ * Packing hierarchy, with replacement error ceiling AND sphere filled:
+ * `flatHierarchy` leaves the first at -1 and the second at zero, which forbids any
+ * error pruning. Nodes are numbered by levels, so children follow their parent: a
+ * reverse walk is enough to take the subtree maximum.
  *
- * La sphère vient de `cullingBounds`, qui englobe déjà celles des remplaçants du sous-arbre : le
- * plafond du manifeste est projeté à travers elle, et une sphère laissée à zéro le projetterait
- * depuis l'origine de la primitive — un plafond sous-estimé, donc un sous-arbre écarté à tort.
+ * The sphere comes from `cullingBounds`, which already encloses those of the
+ * subtree replacements: the manifest ceiling is projected through it, and a sphere
+ * left at zero would project it from the primitive origin — an underestimated
+ * ceiling, hence a subtree dropped by mistake.
  */
 function culling(pages: ReturnType<typeof page>[], parNiveaux: boolean) {
   const { nodes, stride } = parNiveaux ? hierarchieParNiveaux(pages) : flatHierarchy(pages);
@@ -63,27 +64,27 @@ function culling(pages: ReturnType<typeof page>[], parNiveaux: boolean) {
   return { nodes, stride };
 }
 
-/** `niveaux` étages de détail, chacun deux fois moins peuplé que le précédent. */
+/** `niveaux` detail levels, each half as populated as the previous. */
 export function scenePages(feuilles: number, niveaux: number) {
   const pages: ReturnType<typeof page>[] = [];
   for (let level = niveaux - 1; level >= 0; level--) {
     const compte = Math.max(1, feuilles >> level),
-      cote = Math.ceil(Math.sqrt(compte));
-    for (let i = 0; i < compte; i++) pages.push(page(level, i, cote, 3));
+      gridSide = Math.ceil(Math.sqrt(compte));
+    for (let i = 0; i < compte; i++) pages.push(page(level, i, gridSide, 3));
   }
   return pages;
 }
 
 /**
- * La hiérarchie que le compilateur produit (`dag/culling.rs`, `build_culling_bvh`) : la racine est
- * partagée en UN NŒUD PAR ÉTAGE DE DÉTAIL, puis chaque étage reçoit sa propre hiérarchie spatiale.
- * Tout nœud sous la racine ne porte donc qu'un seul étage — c'est ce qui décide si un rejet par le
- * plancher d'erreur peut porter, un nœud à cheval sur deux étages ayant pour plancher celui de son
- * étage le plus fin. Les pages arrivent déjà rangées par étage.
+ * Hierarchy the compiler produces (`dag/culling.rs`, `build_culling_bvh`): the root is
+ * split into ONE NODE PER DETAIL LEVEL, then each level gets its own spatial hierarchy.
+ * Every node under the root therefore carries only one level — that is what decides
+ * whether an error-floor reject can hold, a node straddling two levels having as floor
+ * that of its finest level. Pages arrive already sorted by level.
  *
- * Renumérotation : le nœud `j` du bloc `k` va en `1+k` s'il est la racine du bloc, sinon derrière
- * toutes ces racines. Les enfants d'un nœud restent contigus et derrière lui, ce que `cullingBounds`
- * et `hierarchyLevelSizes` demandent tous deux.
+ * Renumbering: node `j` of block `k` goes to `1+k` if it is the block root, otherwise
+ * behind all those roots. A node's children stay contiguous and behind it, which
+ * `cullingBounds` and `hierarchyLevelSizes` both require.
  */
 function hierarchieParNiveaux(pages: ReturnType<typeof page>[]) {
   const STRIDE = CULL_STRIDE;
@@ -131,8 +132,8 @@ function hierarchieParNiveaux(pages: ReturnType<typeof page>[]) {
   return { nodes, stride: STRIDE };
 }
 
-/** Les poses de la scène. La matrice monde vient de l'appelant : ce module ne connaît pas la
- *  bibliothèque de l'hôte, et la liste fermée de `test/integration/moteur-sans-three.test.mjs` le lui interdit. */
+/** Scene poses. The world matrix comes from the caller: this module does not know the
+ *  host library, and the closed list in `test/integration/moteur-sans-three.test.mjs` forbids it. */
 export function sceneRoots(
   pages: ReturnType<typeof page>[],
   mondes: DagRoot['world'][],

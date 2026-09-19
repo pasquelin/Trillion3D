@@ -44,7 +44,7 @@ test('the kernel projects a cluster error exactly like clusterErrorPixels', () =
       vy = e[1] * cx + e[5] * cy + e[9] * cz + e[13],
       vz = e[2] * cx + e[6] * cy + e[10] * cz + e[14];
     const expected = clusterErrorPixels(error, stretch, vx, vy, vz, radius, focal, cam.near);
-    // `projected` de `gpuDagShaderError.ts`, recopié : mêmes opérandes, même ordre.
+    // `projected` from `gpuDagShaderError.ts`, copied: same operands, same order.
     const reach = radius * stretch,
       shift = error * stretch;
     const nearest = -vz - reach,
@@ -165,8 +165,8 @@ test('GPU selection readback page ids match the CPU oracle for the same camera',
   const fixture = dagFixture();
   const { dag, roots } = packed(fixture);
   const cam = wideCamera();
-  // Le repère de rendu se pose AVANT la création : la carte reçoit les matrices déjà ramenées à
-  // l'œil, comme le moteur les lui porte par image.
+  // The render frame is set BEFORE creation: the GPU receives matrices already brought back to
+  // the eye, as the engine carries them each frame.
   const uniforms = kernelUniforms(dag, roots, cam, 3.4);
   const selection = await createGpuDagSelection(mockDagDevice(dag).device, dag);
   assert.ok(selection);

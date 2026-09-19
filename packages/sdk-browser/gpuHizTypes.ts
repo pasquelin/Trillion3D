@@ -6,22 +6,22 @@ export type GpuHiz = {
   flags: GPUBuffer;
   encodePyramid(encoder: GPUCommandEncoder): void;
   /**
-   * Adopte les boîtes testées et l'état de l'image que la partition GPU écrit. Elle est montée après
-   * la pyramide — elle lit `flags` —, si bien que le groupe de liaison ne les connaît qu'ici. Sans
-   * cet appel, `encodeTest` n'encode rien : aucune ligne n'est alors testée, donc aucune rejetée.
+   * Adopts the tested boxes and the frame state the GPU partition writes. It is mounted after the
+   * pyramid — it reads `flags` — so the bind group only knows them here. Without this call,
+   * `encodeTest` encodes nothing: no row is then tested, so none is rejected.
    */
   attach(bounds: GPUBuffer, state: GPUBuffer): void;
-  /** Les mips de la pyramide, décalage et largeur : ce que la partition lit pour exprimer un
-   *  rectangle d'écran en texels du mip qui le couvre exactement. */
+  /** Pyramid mips, offset and width: what the partition reads to express a screen
+   *  rectangle in texels of the mip that covers it exactly. */
   levels(): Array<{ offset: number; width: number }>;
-  /** Le tampon de la pyramide elle-même, que le test d'occultation des transparents dépouille avec
-   *  la table de `levels()`. Il change d'identité à chaque redimensionnement de la cible. */
+  /** The pyramid buffer itself, which the transparent occlusion test walks with
+   *  the `levels()` table. It changes identity on every target resize. */
   pyramidBuffer(): GPUBuffer | undefined;
   /**
-   * Teste les boîtes que la partition a compactées ; leur nombre vit dans l'état, et le processeur
-   * ne le lit pas. `maxRows` borne le lancement — toute ligne dessinable peut avoir été testée —, et
-   * `flagRows` entrées de verdict sont remises à zéro d'abord, si bien qu'une ligne que cette image
-   * ne teste pas lit 0 au lieu du verdict d'une image antérieure.
+   * Tests the boxes the partition compacted; their count lives in the state, and the CPU does not
+   * read it. `maxRows` bounds the dispatch — any drawable row may have been tested — and
+   * `flagRows` verdict entries are cleared first, so a row this frame does not test reads 0
+   * instead of a previous frame's verdict.
    */
   encodeTest(
     device: GPUDevice,

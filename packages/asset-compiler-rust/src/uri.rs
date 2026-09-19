@@ -1,19 +1,20 @@
-//! Les URI relatives d'images d'une scène intermédiaire : l'échappement qui les écrit et le
-//! décodage qui les relit, côte à côte parce qu'ils doivent être exactement l'inverse l'un de
-//! l'autre. Un nom de fichier qui porte `%`, `#` ou `?` est légal sur disque et interdit tel quel
-//! dans une URI : écrit brut, il se relisait en un autre nom, ou en rien.
+//! Relative URIs of images in an intermediate scene: the escaping that writes
+//! them and the decoding that reads them back, side by side because they must
+//! be exact inverses of each other. A filename that carries `%`, `#` or `?` is
+//! legal on disk and forbidden as-is in a URI: written raw, it would re-read as
+//! a different name, or as nothing.
 //!
-//! La règle est celle de glTF 2.0, qui veut une référence relative RFC 3986 : tout octet hors des
-//! caractères non réservés `A-Z a-z 0-9 - . _ ~` s'écrit `%XX`, et le séparateur de composants est
-//! le seul `/` qui subsiste.
+//! The rule is glTF 2.0's: an RFC 3986 relative reference. Every byte outside
+//! the unreserved characters `A-Z a-z 0-9 - . _ ~` is written `%XX`, and the
+//! only component separator that remains is `/`.
 use std::path::{Path, PathBuf};
 
-/// Les caractères qu'une URI porte sans échappement.
+/// Characters a URI carries without escaping.
 fn unreserved(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~')
 }
 
-/// Un composant de chemin — un nom de fichier ou de dossier — en composant d'URI.
+/// A path component — a file or folder name — as a URI component.
 fn component(name: &str) -> String {
     let mut out = String::with_capacity(name.len());
     for byte in name.as_bytes() {
@@ -26,7 +27,7 @@ fn component(name: &str) -> String {
     out
 }
 
-/// Un chemin relatif en URI relative : chaque composant échappé, joints par des barres obliques.
+/// A relative path as a relative URI: each component escaped, joined by slashes.
 pub(crate) fn encode_relative(path: &Path) -> String {
     path.components()
         .map(|part| component(&part.as_os_str().to_string_lossy()))
@@ -34,8 +35,9 @@ pub(crate) fn encode_relative(path: &Path) -> String {
         .join("/")
 }
 
-/// Décode les échappements `%XX` d'une URI glTF. Rend `None` sur un échappement tronqué ou invalide,
-/// et sur une suite d'octets qui n'est pas de l'UTF-8 : un nom illisible n'est pas deviné.
+/// Decodes the `%XX` escapes of a glTF URI. Returns `None` on a truncated or
+/// invalid escape, and on a byte sequence that is not UTF-8: an unreadable name
+/// is not guessed.
 pub(crate) fn decode(uri: &str) -> Option<String> {
     let raw = uri.as_bytes();
     let mut out = Vec::with_capacity(raw.len());
@@ -54,10 +56,11 @@ pub(crate) fn decode(uri: &str) -> Option<String> {
     String::from_utf8(out).ok()
 }
 
-/// Le fichier qu'une URI d'image de glTF désigne sous une racine de résolution, sans jamais en
-/// sortir : chaque composant doit être un nom de fichier ordinaire, ni `.`, ni `..`, ni racine, ni
-/// séparateur de plateforme. Le refus est nommé — c'est une ligne de rapport pour l'appelant qui en
-/// tient un, et l'absence d'empreinte pour celui qui calcule une identité.
+/// The file a glTF image URI designates under a resolution root, without ever
+/// leaving it: each component must be an ordinary filename, neither `.`, nor
+/// `..`, nor a root, nor a platform separator. The refusal is named — a report
+/// line for the caller that keeps one, and a missing fingerprint for the one
+/// that computes an identity.
 pub(crate) fn resolve_under(root: &Path, uri: &str) -> Result<PathBuf, &'static str> {
     if !crate::relative_image_uri(uri) {
         return Err("image-uri-not-relative");
@@ -77,7 +80,7 @@ pub(crate) fn resolve_under(root: &Path, uri: &str) -> Result<PathBuf, &'static 
 mod tests {
     use super::*;
 
-    // Comportement : ce qui est écrit se relit à l'identique, y compris les caractères réservés.
+    // Behaviour: what is written re-reads identically, including reserved characters.
     #[test]
     fn lechappement_et_le_decodage_sont_inverses() {
         for name in [
@@ -97,8 +100,9 @@ mod tests {
         }
     }
 
-    // Comportement : un nom sans caractère à échapper ne change pas, et la barre oblique reste le
-    // seul séparateur — une URI déjà écrite par un pilote ne bouge pas sous ce changement.
+    // Behaviour: a name with no character to escape does not change, and the slash
+    // remains the only separator — a URI already written by a driver does not move
+    // under this change.
     #[test]
     fn un_nom_ordinaire_ne_change_pas() {
         assert_eq!(
@@ -107,7 +111,7 @@ mod tests {
         );
     }
 
-    // Comportement : un échappement tronqué ou invalide ne se devine pas.
+    // Behaviour: a truncated or invalid escape is not guessed.
     #[test]
     fn un_echappement_invalide_ne_se_decode_pas() {
         assert_eq!(decode("a%"), None);

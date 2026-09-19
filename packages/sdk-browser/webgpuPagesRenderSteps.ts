@@ -11,13 +11,13 @@ export function traceAdmission(
 ) {
   const { run, diag } = rt,
     { tracking, slots } = rt.setup;
-  diag.traceDiagnostic('residency-admission', 'Admission des ensembles demandés', () => ({
+  diag.traceDiagnostic('residency-admission', 'Admission of the requested sets', () => ({
     frame: run.frame,
     scope: 'cpu/residency-admission',
     elapsedMs: performance.now() - started,
     requested: tracking.traceSet('admission.requested', [...requested]),
-    // La coupe que l'admission pèse est celle qui vient d'être choisie ; `run.desired` porte encore
-    // celle que l'image précédente a publiée, et ne décrit donc pas ce passage-ci.
+    // The cut admission weighs is the one just chosen; `run.desired` still carries the one the previous
+    // image published, and therefore does not describe this pass.
     wanted: tracking.traceSet('admission.wanted', urlsOf(wanted)),
     loaded: tracking.traceSet('admission.loaded', urlsOf(run.drawn)),
     slots,
@@ -33,7 +33,7 @@ export function traceTransition(
 ) {
   const { run, diag } = rt,
     { tracking, slots } = rt.setup;
-  diag.traceDiagnostic('residency-transition', 'Transition de couverture calculée', () => ({
+  diag.traceDiagnostic('residency-transition', 'Coverage transition computed', () => ({
     frame: run.frame,
     scope: 'cpu/residency-transition',
     elapsedMs: performance.now() - started,
@@ -49,38 +49,30 @@ export function traceQueueReconstruct(rt: WebgpuPagesRuntime, elapsedMs: number)
   const { run, diag } = rt,
     { tracking } = rt.setup,
     { residency } = rt.services;
-  diag.traceDiagnostic(
-    'residency-queue-reconstruct',
-    'Ensembles de résidence reconstruits',
-    () => ({
-      frame: run.frame,
-      scope: 'cpu/residency-queue-reconstruct',
-      elapsedMs,
-      requested: tracking.traceSet('reconstruct.requested', urlsOf(run.desired)),
-      queued: tracking.traceSet('reconstruct.queued', urlsOf(residency.items)),
-      job: residency.job,
-    }),
-  );
+  diag.traceDiagnostic('residency-queue-reconstruct', 'Residency sets rebuilt', () => ({
+    frame: run.frame,
+    scope: 'cpu/residency-queue-reconstruct',
+    elapsedMs,
+    requested: tracking.traceSet('reconstruct.requested', urlsOf(run.desired)),
+    queued: tracking.traceSet('reconstruct.queued', urlsOf(residency.items)),
+    job: residency.job,
+  }));
 }
 
 export function traceDrawnVerify(rt: WebgpuPagesRuntime, elapsedMs: number) {
   const { run, gpu, diag } = rt,
     { tracking } = rt.setup;
-  diag.traceDiagnostic(
-    'residency-drawn-verify',
-    'Couverture résidente vérifiée avant encodage',
-    () => ({
-      frame: run.frame,
-      scope: 'cpu/residency-drawn-copy',
-      elapsedMs,
-      shown: tracking.traceSet('drawn.shown', urlsOf(run.shown)),
-      drawn: tracking.traceSet('drawn', urlsOf(run.drawn)),
-      loaded: tracking.traceSet(
-        'drawn.loaded',
-        urlsOf(run.drawn.filter((page) => !!gpu.cache!.get(page.url))),
-      ),
-    }),
-  );
+  diag.traceDiagnostic('residency-drawn-verify', 'Resident coverage checked before encode', () => ({
+    frame: run.frame,
+    scope: 'cpu/residency-drawn-copy',
+    elapsedMs,
+    shown: tracking.traceSet('drawn.shown', urlsOf(run.shown)),
+    drawn: tracking.traceSet('drawn', urlsOf(run.drawn)),
+    loaded: tracking.traceSet(
+      'drawn.loaded',
+      urlsOf(run.drawn.filter((page) => !!gpu.cache!.get(page.url))),
+    ),
+  }));
 }
 
 export function traceTargetsEnsured(
@@ -89,7 +81,7 @@ export function traceTargetsEnsured(
   height: number,
   started: number,
 ) {
-  rt.diag.traceDiagnostic('targets-ensure', 'Cibles GPU assurées', () => ({
+  rt.diag.traceDiagnostic('targets-ensure', 'GPU targets ensured', () => ({
     frame: rt.run.frame,
     scope: 'cpu/ensureTargets',
     elapsedMs: performance.now() - started,
@@ -138,7 +130,7 @@ export function cpuSampleOf(
     transparentIncludedIn: 'encodeSubmitMs',
     asyncResidencyWaitMs: null,
     /** Pages the residency path had to touch: the cut's difference, not its size. Null on a CPU cut :
-     *  sa différence est celle de la coupe, pas celle que la résidence a remuée. */
+     *  its delta is the cut's, not the one residency stirred. */
     residencyPagesEntered: run.pagesEntered,
     residencyPagesExited: run.pagesExited,
   };

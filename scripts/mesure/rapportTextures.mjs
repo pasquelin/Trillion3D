@@ -1,13 +1,13 @@
-export const go = (b) => (typeof b === 'number' ? `${(b / 1e9).toFixed(3)} Go` : 'non mesuré');
-export const mo = (b) => (typeof b === 'number' ? `${(b / 1e6).toFixed(1)} Mo` : 'non mesuré');
-const n = (v) => (typeof v === 'number' ? String(v) : 'non mesuré');
-const n2 = (v) => (typeof v === 'number' ? v.toFixed(2) : 'non mesuré');
+export const go = (b) => (typeof b === 'number' ? `${(b / 1e9).toFixed(3)} GB` : 'unmeasured');
+export const mo = (b) => (typeof b === 'number' ? `${(b / 1e6).toFixed(1)} MB` : 'unmeasured');
+const n = (v) => (typeof v === 'number' ? String(v) : 'unmeasured');
+const n2 = (v) => (typeof v === 'number' ? v.toFixed(2) : 'unmeasured');
 
 /**
- * Les textures virtuelles d'un côté, lues dans les seize compteurs que le moteur publie. Le pool est
- * CALCULÉ depuis ses dimensions et son format — WebGPU ne publie pas la mémoire occupée — et il est
- * fixe : « résident sur pool » dit ce que la vue occupe, jamais ce que la scène pèse. Le retour
- * d'image dit ce que les pixels ont demandé et ce qui leur manque ; « non mesuré » n'est pas zéro.
+ * Virtual textures of one side, read from the sixteen counters the engine publishes. The pool is
+ * COMPUTED from its dimensions and format — WebGPU does not publish occupied memory — and it is
+ * fixed: "resident on pool" says what the view occupies, never what the scene weighs. Image
+ * feedback says what the pixels asked for and what they are missing; "unmeasured" is not zero.
  */
 export function textures(metrics, resultat = {}) {
   const m = metrics ?? {};
@@ -16,22 +16,22 @@ export function textures(metrics, resultat = {}) {
         .sort((a, b) => b[1] - a[1])
         .map(([kind, bytes]) => `${kind} ${go(bytes)}`)
         .join(', ')
-    : 'non mesuré';
+    : 'unmeasured';
   const preparation =
     typeof resultat.preparationMs === 'number'
       ? `${(resultat.preparationMs / 1000).toFixed(2)} s`
-      : 'non mesurée';
+      : 'unmeasured';
   return [
-    `- Textures : pool ${go(m.texturePoolBytes)} calculés, ${n(m.texturePoolLayers)} couche(s) par ` +
-      `atlas ; résident ${go(m.textureResidentBytes)} en ${n(m.textureTilesResident)} tuiles`,
-    `- Retour d'image : ${n(m.textureTilesRequested)} tuiles demandées, ${n(m.textureTilesAtLevel)} ` +
-      `servies au niveau demandé, ${n2(m.textureMissingLevels)} niveau(x) de retard en moyenne, ` +
-      `${n(m.textureTilesPending)} en attente`,
-    `- Diffuseur : ${n(m.textureTilesServed)} tuiles servies, ${n(m.textureTilesEvicted)} évincées, ` +
-      `${n(m.textureTilesRefused)} refusées ; dernière passe ${mo(m.textureBytesLastFrame)} ; ` +
-      `niveaux cuits ${n(m.textureLevelReads)} en lecture, ${n(m.textureLevelsDecoded)} décodés, ` +
-      `${mo(m.textureLevelCacheBytes)} tenus ; ${n(m.textureScratchBuilds)} textures de travail`,
-    `- Préparation ${preparation} ; réseau depuis la préparation : ${reseau}`,
+    `- Textures: pool ${go(m.texturePoolBytes)} computed, ${n(m.texturePoolLayers)} layer(s) per ` +
+      `atlas; resident ${go(m.textureResidentBytes)} in ${n(m.textureTilesResident)} tiles`,
+    `- Image feedback: ${n(m.textureTilesRequested)} tiles requested, ${n(m.textureTilesAtLevel)} ` +
+      `served at the requested level, ${n2(m.textureMissingLevels)} missing level(s) on average, ` +
+      `${n(m.textureTilesPending)} pending`,
+    `- Streamer: ${n(m.textureTilesServed)} tiles served, ${n(m.textureTilesEvicted)} evicted, ` +
+      `${n(m.textureTilesRefused)} refused; last pass ${mo(m.textureBytesLastFrame)}; ` +
+      `baked levels ${n(m.textureLevelReads)} in read, ${n(m.textureLevelsDecoded)} decoded, ` +
+      `${mo(m.textureLevelCacheBytes)} held; ${n(m.textureScratchBuilds)} scratch textures`,
+    `- Prepare ${preparation}; network since prepare: ${reseau}`,
     '',
   ];
 }

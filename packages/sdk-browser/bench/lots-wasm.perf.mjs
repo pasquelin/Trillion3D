@@ -1,4 +1,4 @@
-// Banc de performance : calcul par lots en WebAssembly (WASM contre JavaScript).
+// Performance bench: batched computation in WebAssembly (WASM against JavaScript).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -18,7 +18,7 @@ const LOTS = [
 ];
 
 const etat = mathBatchMetrics();
-test('le module WebAssembly est chargé et son contrat de calcul accepté', () =>
+test('the WebAssembly module is loaded and its compute contract accepted', () =>
   assert.equal(etat.wasmAvailable, true, etat.unavailableReason ?? ''));
 
 const resultats = [];
@@ -28,15 +28,15 @@ for (const { operation, cree, remplit } of LOTS) {
     const lot = await cree(n);
     remplit(lot, n);
     cas.push({
-      nom: `${n} éléments`,
-      entree: lot,
-      taille: n,
+      name: `${n} elements`,
+      input: lot,
+      size: n,
     });
   }
 
   resultats.push(
     await mesure({
-      nom: `lots-wasm ${operation}`,
+      name: `lots-wasm ${operation}`,
       fichier: 'packages/sdk-browser/mathBatchRuntime.ts',
       cas,
       calcul: async (lot) => {
@@ -54,4 +54,4 @@ for (const { operation, cree, remplit } of LOTS) {
   );
 }
 
-rapport('lots-wasm', resultats, 'le calcul en lot WebAssembly rend les mêmes bits que JavaScript');
+rapport('lots-wasm', resultats, 'batched WebAssembly compute yields the same bits as JavaScript');

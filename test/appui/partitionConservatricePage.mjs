@@ -1,10 +1,10 @@
-// Côté page de la preuve « la partition GPU est conservatrice ».
+// Page side of the proof "GPU partition is conservative".
 //
-// Le moteur réel dessine la scène du banc, caméra en mouvement le long de la trajectoire du banc.
-// Après chaque image, `partitionAudit()` rend ce que la carte a écrit — rectangle d'écran et borne
-// de profondeur de CHAQUE ligne résidente — avec les coins monde en double précision et les matrices
-// d'où elle l'a tiré. La référence est recalculée sur ces mêmes entrées et les deux sont comparées
-// cluster par cluster (`partitionReference.mjs`).
+// The real engine draws the bench scene, camera moving along the bench trajectory. After each
+// frame, `partitionAudit()` returns what the GPU wrote — screen rectangle and depth bound of
+// EVERY resident row — with world corners in double precision and the matrices it drew them
+// from. The reference is recomputed on those same inputs and the two are compared
+// cluster by cluster (`partitionReference.mjs`).
 
 import { compareAudit, emptyTotals } from './partitionReference.mjs';
 import { checkOcclusionAudit, emptyOcclusionTotals } from './transparentOcclusionReference.mjs';
@@ -40,8 +40,8 @@ export async function auditPoses(options) {
   const violationsOccultation = [];
   const images = [];
   try {
-    // Chauffe : la résidence se remplit avant que la première pose ne soit auditée, si bien que
-    // l'audit porte sur des lignes dessinées et non sur une table encore vide.
+    // Warmup: residency fills before the first pose is audited, so the audit bears on drawn
+    // rows and not on a still-empty table.
     explorer.setPose(options.poses[0]);
     for (let i = 0; i < options.warmup; i++) {
       explorer.render(options.poses[0]);
@@ -51,11 +51,11 @@ export async function auditPoses(options) {
       const frame = explorer.render(pose);
       await explorer.flush();
       const audit = await explorer.partitionAudit();
-      if (!audit) return { erreur: 'aucune partition GPU : l’audit n’a rien rendu', evenements };
+      if (!audit) return { erreur: 'no GPU partition: the audit returned nothing', evenements };
       const avant = { ...total };
       compareAudit(audit, total);
-      // Les grappes transparentes ne sont pas des lignes : leur audit est à part, et il porte sur
-      // ce que la carte a RETIRÉ de la table — chacune doit rester rejetée par la référence.
+      // Transparent clusters are not rows: their audit is separate, and it bears on what the GPU
+      // REMOVED from the table — each must stay rejected by the reference.
       const rejets = await explorer.transparentOcclusionAudit();
       const avantRejets = occultation.rejetees;
       if (rejets) violationsOccultation.push(...checkOcclusionAudit(rejets, occultation));

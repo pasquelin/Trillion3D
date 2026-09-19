@@ -1,5 +1,5 @@
-//! B5 — renumérotation locale d'une page de géométrie : table et listes dimensionnées d'avance.
-//! Référence : l'ancienne version, noms francisés.
+//! B5 — local renumbering of a geometry page: table and lists sized in advance.
+//! Reference: old version, French names.
 use super::harness::{compare, Bits, Row};
 use super::inputs;
 use crate::geometry_page::localise;
@@ -11,12 +11,12 @@ fn reference_localise(indices: &[u32], sommets: usize) -> Locale {
     let mut table = std::collections::HashMap::<u32, u32>::new();
     let mut locaux = Vec::<u32>::with_capacity(indices.len());
     for &source in indices {
-        assert!((source as usize) < sommets, "indice hors des positions");
+        assert!((source as usize) < sommets, "index outside positions");
         let identifiant = if let Some(&identifiant) = table.get(&source) {
             identifiant
         } else {
             let identifiant = sources.len();
-            assert!(identifiant < 65535, "limite de sommets");
+            assert!(identifiant < 65535, "vertex limit");
             sources.push(source);
             table.insert(source, identifiant as u32);
             identifiant as u32
@@ -38,15 +38,15 @@ fn empreinte(valeur: &Locale) -> Bits {
 }
 
 pub(crate) fn row() -> Row {
-    // 128 triangles par page, 20 000 pages : le volume d'une primitive entière.
+    // 128 triangles per page, 20,000 pages: volume of an entire primitive.
     let (positions, indices) = inputs::mesh(0x9A_9E5, 128 * 20_000);
     let sommets = positions.len() / 3;
     let pages: Vec<&[u32]> = indices.chunks(128 * 3).collect();
     compare(
-        "B5 renumérotation d'une page",
+        "B5 page renumbering",
         "geometry_page.rs",
-        "20 000 pages de 128 triangles".into(),
-        // `fold` force le passage sur chaque page ; seule la dernière sert d'empreinte.
+        "20 000 pages of 128 triangles".into(),
+        // `fold` forces a pass over every page; only the last is used as fingerprint.
         &mut || {
             pages
                 .iter()

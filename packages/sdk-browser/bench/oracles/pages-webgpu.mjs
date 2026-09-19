@@ -1,7 +1,7 @@
-// Oracle pur de A9, sans effet de bord : `pages.bench.mjs` le mesure, les tests unitaires
-// l'importent comme référence.
+// Pure A9 oracle, no side effects: `pages.bench.mjs` measures it; unit tests import it as
+// reference.
 
-/** `webgpuPagesPipelineFor.ts:22-30` avant le lot A : un déterminant 3×3 par appel. */
+/** `webgpuPagesPipelineFor.ts:22-30` before batch A: one 3×3 determinant per call. */
 export function referenceWindingCw(rec) {
   const e = rec.matrix.elements;
   return (

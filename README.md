@@ -4,8 +4,6 @@
 
 ### Virtualized geometry for the web — a native Rust compiler, a WebGPU/WebGL2 runtime in TypeScript, and a bench that proves every number.
 
-_Géométrie virtualisée pour le web — un compilateur natif en Rust, un moteur WebGPU/WebGL2 en TypeScript, et un banc qui prouve chaque chiffre._
-
 [![Rust](https://img.shields.io/badge/Rust-native%20compiler-2b2d30?logo=rust&logoColor=dea584)](packages/asset-compiler-rust)
 [![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-2b2d30?logo=typescript&logoColor=3178c6)](packages/sdk-core)
 [![WebGPU](https://img.shields.io/badge/WebGPU-page%20raster%20%2B%20compute-2b2d30?logo=webgpu&logoColor=6fa8dc)](#what-it-does)
@@ -173,19 +171,19 @@ repository; everything is reimplemented from papers, talks, documentation and ob
 | [Cache format](docs/FORMAT.md)                                        | Pointer, `clusters.json` and its binary annex, cluster DAG, culling hierarchy, streaming bundles, SHA objects |
 | [SDK guide](docs/SDK.md)                                              | Lifecycle, compatibility and fallback contracts                                                               |
 | [Architecture](packages/README.md)                                    | Package contracts and remaining work                                                                          |
-| [Product principles](docs/architecture/PRINCIPES_DU_PRODUIT.md)       | Portable core, capabilities, source ownership, fallback                                                       |
+| [Product principles](docs/architecture/PRODUCT_PRINCIPLES.md)         | Portable core, capabilities, source ownership, fallback                                                       |
 | [Web / Electron / Node integration](docs/architecture/INTEGRATION.md) | Who owns the canvas, the loop, the preparation and the fallback                                               |
 | [Tests and benches](docs/TESTS.md)                                    | Unit tests, GPU correctness probes, performance benches                                                       |
 | [The reference in numbers](docs/REFERENCE_UE5.md)                     | The reference's published constants, bytes per triangle and profile, against ours                             |
-| [Engine target](docs/SPEC_MOTEUR_SANS_THREE.md)                       | Editor, final cook, exit from Three.js, requirements, exit criteria, lighting strategy                        |
+| [Engine target](docs/SPEC_ENGINE_WITHOUT_THREE.md)                    | Editor, final cook, exit from Three.js, requirements, exit criteria, lighting strategy                        |
 
-The documentation is written in **French**; the code, its identifiers and this page are in English.
+The documentation, the code, its identifiers and this page are in English.
 
 ## Roadmap
 
 The geometry, the temporal antialiasing and the memory budgets are the foundation. What they are
 for is **real-time dynamic global illumination, reflections and shadows** — reached by
-stages, each measured before the next ([spec §8](docs/SPEC_MOTEUR_SANS_THREE.md)):
+stages, each measured before the next ([spec §8](docs/SPEC_ENGINE_WITHOUT_THREE.md)):
 
 | Stage | Content                                                                             | State                                                      |
 | ----- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------- |

@@ -13,14 +13,13 @@ const levelOf = (page: PageRec) => page.level ?? 0;
  * depended on how the placements happened to be distributed, so the resident set depended on the
  * order the network had filled it in.
  *
- * Le classement ne parcourt plus la coupe. Les clés pesées sont rangées PAR NIVEAU au moment où elles
- * entrent et sortent — la seule chose qui les fasse bouger —, si bien que le préfixe s'écrit en
- * lisant les niveaux les plus grossiers d'abord et en s'arrêtant au budget : son coût est celui du
- * budget, jamais celui de la coupe. Ce que le préfixe contient est inchangé en nature — une
- * couverture complète plus autant de détail que le budget en porte, jamais une coupe tronquée de la
- * surface —, et son ordre interne est désormais stable d'une image à l'autre, là où l'ordre de
- * publication du relevé, tiré d'un compteur atomique, le remettait en cause à chaque image et
- * faisait réécrire la file pour rien.
+ * Ranking no longer walks the cut. Weighed keys are stored PER LEVEL at the moment they enter
+ * and leave — the only thing that moves them — so the prefix is written by reading the coarsest
+ * levels first and stopping at the budget: its cost is that of the budget, never that of the
+ * cut. What the prefix contains is unchanged in kind — a full cover plus as much detail as the
+ * budget carries, never a truncated surface cut — and its internal order is now stable from
+ * frame to frame, where the shown-list publication order, taken from an atomic counter, used to
+ * reshuffle it every frame and rewrite the queue for nothing.
  *
  * Nothing is allocated once the budget and the levels of a scene are known.
  */
@@ -30,15 +29,15 @@ export function createBudgetRanking(options: {
   keyOf: (page: PageRec) => number;
 }) {
   const { keyCount, bootstrapKey, keyOf } = options;
-  /** Non-cover pages of the opaque cut, per level: leur nombre, et la liste de leurs clés. */
+  /** Non-cover pages of the opaque cut, per level: their count, and the list of their keys. */
   let held = new Int32Array(8);
   const lists: Int32Array[] = [];
   /** Placements holding each key, and where the key sits: a key counts once however many hold it. */
   const refs = new Int32Array(Math.max(1, keyCount));
   const slotOf = new Int32Array(Math.max(1, keyCount));
-  /** Le premier placement qui a nommé la clé : l'enregistrement par lequel elle sera cherchée. */
-  // Rempli à la construction : un tableau agrandi sans l'être reste troué à vie, et le classement
-  // le paie à chaque lecture. Même mesure que `webgpuCutDelta.ts`, même geste.
+  /** First placement that named the key: the record through which it will be looked up. */
+  // Filled at construction: an array grown without that stays holed for life, and ranking pays
+  // for it at every read. Same measure as `webgpuCutDelta.ts`, same gesture.
   const pageOfKey: (PageRec | undefined)[] = new Array(Math.max(1, keyCount)).fill(undefined);
   /** The ranked prefix, one entry per page, and the keys beside it. Sized to the budget once. */
   const ranked: PageRec[] = [];
@@ -86,10 +85,10 @@ export function createBudgetRanking(options: {
     remove(page: PageRec) {
       const key = keyOf(page);
       if (bootstrapKey[key] || refs[key] <= 0 || --refs[key] > 0) return;
-      // Le niveau appartient à la page, pas au placement : celui qui sort est celui qui est entré.
+      // The level belongs to the page, not the placement: the one that leaves is the one that entered.
       const level = levelOf(page),
         list = lists[level];
-      // La dernière clé du niveau prend la place libérée : la liste reste dense, sans être triée.
+      // The last key of the level takes the freed slot: the list stays dense, without being sorted.
       const last = list[--held[level]];
       list[slotOf[key]] = last;
       slotOf[last] = slotOf[key];
@@ -128,8 +127,8 @@ export function createBudgetRanking(options: {
         }
         taken += held[level];
       }
-      // Deux boucles et pas une fermeture : celle-ci était allouée à chaque classement et sortait
-      // son curseur des registres, sur autant d'itérations que le budget porte de pages.
+      // Two loops and not a closure: that one was allocated at every ranking and pushed its cursor
+      // out of registers, over as many iterations as the budget carries pages.
       let at = 0;
       for (let level = held.length - 1; level >= floor; level--) {
         const list = lists[level],

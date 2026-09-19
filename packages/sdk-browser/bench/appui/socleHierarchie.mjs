@@ -1,7 +1,7 @@
-// Les hiérarchies parent/enfant du banc du socle : de vrais `Object3D` de la référence, mis à jour par
-// `updateMatrixWorld(true)`, et leur miroir tenu par le socle — composition TRS locale, puis produit
-// parent × local dans l'ordre de la référence. Les deux côtés lisent les mêmes position, quaternion et
-// échelle, nœud par nœud.
+// Parent/child hierarchies of the foundation bench: real `Object3D` of the reference, updated
+// by `updateMatrixWorld(true)`, and their mirror held by the foundation — local TRS composition,
+// then parent × local in the reference order. Both sides read the same position, quaternion
+// and scale, node by node.
 import * as THREE from 'three';
 import {
   composeMatrix4,
@@ -13,7 +13,7 @@ import {
 import { graine } from '../../../sdk-core/bench/socle.mjs';
 import { f64, normaleReference, trs } from './socleLigne.mjs';
 
-/** Un nœud des deux côtés : l'objet de la référence et les tampons du socle. */
+/** A node on both sides: the reference object and the foundation buffers. */
 function noeud(p, q, s) {
   const objet = new THREE.Object3D();
   objet.position.fromArray(p);
@@ -30,13 +30,13 @@ function noeud(p, q, s) {
   };
 }
 
-/** Rattache `enfant` à `parent` des deux côtés ; les indices croissent des parents vers les enfants. */
+/** Attaches `enfant` to `parent` on both sides; indices grow from parents toward children. */
 function relie(noeuds, enfant, parent) {
   noeuds[parent].objet.add(noeuds[enfant].objet);
   noeuds[enfant].parent = parent;
 }
 
-/** La mise à jour du socle, dans l'ordre des indices : un parent est toujours à jour avant ses enfants. */
+/** The foundation update, in index order: a parent is always up to date before its children. */
 function metAJour(noeuds) {
   for (let i = 0; i < noeuds.length; i++) {
     const n = noeuds[i];
@@ -46,7 +46,7 @@ function metAJour(noeuds) {
   }
 }
 
-/** Échelles hostiles : négatives sur un axe ou trois, non uniformes, nulle, extrêmes. */
+/** Hostile scales: negative on one axis or three, non-uniform, zero, extremes. */
 const ECHELLES = [
   [1, 1, 1],
   [-1, 1, 1],
@@ -66,7 +66,7 @@ const tourne = () =>
   new THREE.Quaternion(alea() - 0.5, alea() - 0.5, alea() - 0.5, alea() - 0.5)
     .normalize()
     .toArray();
-/** Rotations : identité, quelconques, demi-tour (`w = 0`), angle minuscule. */
+/** Rotations: identity, arbitrary, half-turn (`w = 0`), tiny angle. */
 const ROTATIONS = [
   [0, 0, 0, 1],
   tourne(),
@@ -76,7 +76,7 @@ const ROTATIONS = [
   new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 1, 0).normalize(), 1e-9).toArray(),
   tourne(),
 ];
-/** Positions : origine, zéros négatifs, ordinaires, extrêmes. */
+/** Positions: origin, negative zeros, ordinary, extremes. */
 const POSITIONS = [
   [0, 0, 0],
   [-0, -0, -0],
@@ -86,9 +86,9 @@ const POSITIONS = [
 ];
 
 /**
- * Les chaînes hostiles : profondeurs 1 à 6, chaque niveau tirant son échelle, sa rotation et sa
- * position dans les listes ci-dessus, puis une branche à cinq enfants portant chacun une chaîne de
- * trois. Une échelle non uniforme sous une rotation parente cisaille la matrice monde.
+ * Hostile chains: depths 1 to 6, each level drawing its scale, rotation and
+ * position from the lists above, then a branch of five children each carrying a chain of
+ * three. A non-uniform scale under a parent rotation shears the world matrix.
  */
 export function chainesHostiles() {
   const noeuds = [],
@@ -122,7 +122,7 @@ export function chainesHostiles() {
   return noeuds;
 }
 
-/** Ce que la référence rend d'un nœud mis à jour, et ce que le socle rend de son miroir. */
+/** What the reference yields of an updated node, and what the foundation yields of its mirror. */
 export function lectureReference(n) {
   const o = n.objet;
   return [

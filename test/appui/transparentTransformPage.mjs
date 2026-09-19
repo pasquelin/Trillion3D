@@ -1,6 +1,6 @@
-// Côté page de la preuve : le vrai moteur WebGPU (`webgpuPagesBackend`), un vrai appareil, une vraie
-// image relue. Aucun état interne n'est inspecté — l'appel public `setTransform` d'un côté, les
-// pixels et les compteurs publics de l'autre.
+// Page side of the proof: the real WebGPU engine (`webgpuPagesBackend`), a real device, a real
+// reread image. No internal state is inspected — the public `setTransform` call on one side,
+// pixels and public counters on the other.
 import * as THREE from 'three';
 import { webgpuPagesBackend } from '../../packages/sdk-browser/webgpuPages.ts';
 import {
@@ -10,14 +10,14 @@ import {
   executerPasses,
   image,
   libere,
-  moteur,
+  engine,
   versApi,
 } from './preuveSceneCommune.mjs';
 import { sceneTransparente } from './transparentTransformScene.mjs';
 
 const point = new THREE.Vector3();
 
-/** La couleur lue là où le point monde `(x, y, z)` se projette. Origine bas-gauche, comme `capture`. */
+/** Colour read where world point `(x, y, z)` projects. Bottom-left origin, like `capture`. */
 function couleurEn(pixels, camera, x, y, z = 0) {
   point.set(x, y, z).project(camera);
   const [w, h] = VIEWPORT;
@@ -27,25 +27,25 @@ function couleurEn(pixels, camera, x, y, z = 0) {
   return [pixels[i], pixels[i + 1], pixels[i + 2]];
 }
 
-/** Vrai quand la couleur lue porte le rouge du carreau et non le bleu du fond. */
+/** True when the read colour carries the tile's red and not the background blue. */
 const rouge = (c) => estRouge(c, 0);
 
-/** Translation pure sur `x`. */
+/** Pure translation on `x`. */
 function translation(x) {
   return versApi(new THREE.Matrix4().makeTranslation(x, 0, 0));
 }
 
-/** Une matrice cisaillée : `y` pousse `x`. Aucune décomposition translation-rotation-échelle ne la
- *  rend, et le carreau penché couvre un coin qu'un carreau droit ne couvre pas. */
+/** A sheared matrix: `y` pushes `x`. No translation-rotation-scale decomposition yields it, and
+ *  the leaning tile covers a corner a straight tile does not. */
 function cisaillement(x, facteur) {
   const m = new THREE.Matrix4().set(1, facteur, 0, x, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
   return versApi(m);
 }
 
-/** Un relevé nommé : où le rouge se trouve, et ce que les compteurs disent du mélange. */
-function releve(nom, backend, camera, pixels, metriques, sondes) {
+/** A named reading: where the red sits, and what the counters say of the blend. */
+function releve(name, backend, camera, pixels, metriques, sondes) {
   return {
-    nom,
+    name,
     rouge: sondes.map(([x, y]) => rouge(couleurEn(pixels, camera, x, y))),
     dessins: metriques.transparentDrawCalls,
     rejetes: metriques.transparentFrustumRejected,
@@ -55,25 +55,25 @@ function releve(nom, backend, camera, pixels, metriques, sondes) {
 }
 
 /**
- * La séquence de la preuve pour une passe donnée : départ, déplacement du nœud, déplacement par le
- * parent, cisaillement, sortie du champ, retour, puis stabilisation et déplacement après tenue.
+ * Proof sequence for a given pass: start, node move, parent move, shear, out of view, return,
+ * then stabilisation and a move after hold.
  */
 async function sequence(device, pagine, evenements) {
   const s = sceneTransparente(pagine);
-  const { backend, canvas } = moteur(webgpuPagesBackend, s, device, (e) =>
+  const { backend, canvas } = engine(webgpuPagesBackend, s, device, (e) =>
     evenements.push({ pagine, ...e }),
   );
   const camera = cameraFace(),
     etapes = [];
-  // Trois sondes : à gauche, à droite, et le coin haut-droit que seul un carreau cisaillé couvre.
+  // Three probes: left, right, and the top-right corner only a sheared tile covers.
   const sondes = [
     [-0.8, 0],
     [0.8, 0],
     [0.5, 0.3],
   ];
-  const etape = async (nom) => {
+  const etape = async (name) => {
     const { pixels, metriques } = await image(backend, camera);
-    etapes.push(releve(nom, backend, camera, pixels, metriques, sondes));
+    etapes.push(releve(name, backend, camera, pixels, metriques, sondes));
   };
   try {
     await backend.prepare();
@@ -81,7 +81,7 @@ async function sequence(device, pagine, evenements) {
     await etape('gauche');
     backend.setTransform('vitre', translation(0.8));
     await etape('droite');
-    // Le nœud revient chez lui ; c'est le PARENT qui porte le déplacement.
+    // The node comes home; it is the PARENT that carries the move.
     backend.setTransform('vitre', translation(0));
     backend.setTransform('pivot', translation(-0.8));
     await etape('parent-gauche');
@@ -92,8 +92,8 @@ async function sequence(device, pagine, evenements) {
     await etape('hors-champ');
     backend.setTransform('vitre', translation(-0.8));
     await etape('retour');
-    // Stabilisation : deux images identiques, puis l'image tenue. Le déplacement qui suit doit la
-    // casser et montrer le nouvel emplacement.
+    // Stabilisation: two identical frames, then the held image. The move that follows must
+    // break it and show the new location.
     for (let i = 0; i < 6; i++) await etape('stabilisation-' + i);
     backend.setTransform('vitre', translation(0.8));
     await etape('apres-tenue');

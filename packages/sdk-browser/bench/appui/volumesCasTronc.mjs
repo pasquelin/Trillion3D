@@ -1,7 +1,7 @@
-// Cas d'équivalence du lot M2, tronc de vue et cône : plans, test de boîte, plans en repère local et
-// rejet de cône de `sdk-core` contre Three.js, sur les entrées hostiles de `scenesVolumes.mjs`. Le
-// test à trois états est aussi opposé à l'ancien `boxClip` dans l'ordre de plans d'avant : réordonner
-// les plans ne change aucun verdict. Seule la colonne « identique » décide, au bit près.
+// Equivalence cases of batch M2, view frustum and cone: planes, box test, local-space planes
+// and cone reject of `sdk-core` against Three.js, on the hostile inputs of `scenesVolumes.mjs`.
+// The three-state test is also opposed to the old `boxClip` in the previous plane order:
+// reordering the planes changes no verdict. Only the "identical" column decides, bit-exact.
 import {
   boxConeRejects,
   clipPlanesFromMatrix,
@@ -20,66 +20,67 @@ import {
 import { referenceBoxClip } from '../oracles/selection.mjs';
 import { referenceConeRejects, referencePlanesToLocal, reordonne } from '../oracles/volumes.mjs';
 
-const un = (nom, entree) => [{ nom, entree, taille: entree.length }];
-const deux = (nom, entree, nomH, entreeH) => [...un(nom, entree), ...un(nomH, entreeH)];
+const un = (name, input) => [{ name, input, size: input.length }];
+const deux = (name, input, nomH, entreeH) => [...un(name, input), ...un(nomH, entreeH)];
 const plans = (vp, webgpu, Type = Float64Array) => {
-  const sortie = new Type(24);
-  frustumPlanesFromMatrix(sortie, vp);
-  return sortie;
+  const output = new Type(24);
+  frustumPlanesFromMatrix(output, vp);
+  return output;
 };
-/** Les plans simple précision des uniformes de sélection, ramenés sous chaque placement. */
-const locaux = (vues, mondes, pas) =>
-  vues.flatMap(({ vp, webgpu }, v) =>
+/** Single-precision planes of the selection uniforms, brought under each placement. */
+const locaux = (views, mondes, pas) =>
+  views.flatMap(({ vp, webgpu }, v) =>
     mondes
       .filter((_, j) => j % pas === v % pas)
       .map((m) => ({ planes: plans(vp, webgpu, Float32Array), m })),
   );
 
-/** Les lignes d'équivalence du tronc et du cône, sans options de chronomètre. */
-// L'oracle Three de ces trois calculs date d'avant la convention de profondeur inversée (Z inversé,
-// plan lointain infini) : il ne décrit plus la même sortie. Leur justesse est tenue par
-// `mathFrustum.test.ts` et `mathFrustumBox.test.ts`, et la ligne du banc le publie.
-const Z_INVERSE = 'oracle Three d’avant le Z inversé — justesse dans mathFrustum.test.ts';
+/** Equivalence lines of the frustum and the cone, without timer options. */
+// The Three oracle of these three computations predates the reversed-depth convention
+// (reversed Z, infinite far plane): it no longer describes the same output. Their
+// correctness is held by `mathFrustum.test.ts` and `mathFrustumBox.test.ts`, and the bench
+// line publishes it.
+const Z_INVERSE = 'Three oracle from before reversed Z — correctness in mathFrustum.test.ts';
 
 export const casTronc = [
   {
-    calcul: "plans normalisés du tronc d'une vue-projection",
+    calcul: 'normalized frustum planes of a view-projection',
     motif: Z_INVERSE,
     fichier: 'packages/sdk-core/mathFrustum.ts',
     cas: deux(
       'vues WebGL, WebGPU et hostiles',
       vuesProjections,
-      'caméras dans la hiérarchie',
+      'cameras in the hierarchy',
       vuesHierarchiques,
     ),
     optimisee: (liste) =>
       liste.flatMap(({ vp, webgpu }) => [plans(vp, webgpu), plans(vp, webgpu, Float32Array)]),
   },
   {
-    calcul: "plans bruts d'une matrice de découpe",
+    calcul: 'raw planes of a clip matrix',
     motif: Z_INVERSE,
     fichier: 'packages/sdk-core/mathFrustum.ts',
     cas: deux(
       'vues WebGL, WebGPU et hostiles',
       vuesProjections,
-      'caméras dans la hiérarchie',
+      'cameras in the hierarchy',
       vuesHierarchiques,
     ),
     optimisee: (liste) =>
       liste.map(({ vp }) => {
-        const sortie = new Float64Array(24);
-        clipPlanesFromMatrix(sortie, vp);
-        return sortie;
+        const output = new Float64Array(24);
+        clipPlanesFromMatrix(output, vp);
+        return output;
       }),
   },
   {
-    calcul: 'boîte hors du tronc',
+    calcul: 'box outside the frustum',
     motif: Z_INVERSE,
     fichier: 'packages/sdk-core/mathFrustumBox.ts',
     cas: deux(
-      'boîtes par vue, plan proche traversé',
+      'boxes per view, near plane crossed',
       boitesDeVue,
-      'boîtes monde et caméras hiérarchiques',
+      'world boxes and hierarchical cameras',
       boitesDeVueHierarchiques,
     ),
     optimisee: (liste) =>
@@ -88,12 +89,12 @@ export const casTronc = [
       ),
   },
   {
-    calcul: 'boîte contre le tronc en trois états',
+    calcul: 'box against the frustum in three states',
     fichier: 'packages/sdk-core/mathFrustumBox.ts',
     cas: deux(
-      'boîtes par vue, plans bruts et normalisés',
+      'boxes per view, raw and normalized planes',
       boitesDeVue,
-      'boîtes monde et caméras hiérarchiques',
+      'world boxes and hierarchical cameras',
       boitesDeVueHierarchiques,
     ),
     reference: (liste) =>
@@ -113,30 +114,30 @@ export const casTronc = [
       }),
   },
   {
-    calcul: 'plans du tronc en repère local',
+    calcul: 'frustum planes in local space',
     fichier: 'packages/sdk-core/mathFrustum.ts',
     cas: deux(
       'plans × placements hostiles',
       locaux(vuesProjections, matrices, 11),
-      'plans × matrices monde hiérarchiques',
+      'planes × hierarchical world matrices',
       locaux(vuesHierarchiques, mondesHierarchiques, 3),
     ),
     reference: (liste) =>
       liste.map(({ planes, m }) => Float64Array.from(referencePlanesToLocal(planes, m))),
     optimisee: (liste) =>
       liste.map(({ planes, m }) => {
-        const sortie = new Float64Array(24);
-        frustumPlanesToLocal(sortie, planes, m);
-        return sortie;
+        const output = new Float64Array(24);
+        frustumPlanesToLocal(output, planes, m);
+        return output;
       }),
   },
   {
-    calcul: "rejet d'une boîte par son cône de normales",
+    calcul: 'rejection of a box by its normal cone',
     fichier: 'packages/sdk-core/mathCone.ts',
     cas: deux(
-      'cônes, placements conformes, œil dans la sphère',
+      'cones, conformal placements, eye in the sphere',
       casCones,
-      'cônes sous matrices monde hiérarchiques',
+      'cones under hierarchical world matrices',
       conesHierarchiques,
     ),
     reference: (liste) =>

@@ -1,6 +1,6 @@
-// Les pages du banc H2b. Elles sortent de l'encodeur de référence `packages/page-codec`, celui-là
-// même qui sert d'oracle au décodeur JavaScript : ce que le banc compare est donc bien deux
-// lectures d'une page réelle, pas deux lectures d'un tampon fabriqué pour l'occasion.
+// Pages of the H2b bench. They come out of the reference encoder `packages/page-codec`, the
+// same one that serves as oracle to the JavaScript decoder: what the bench compares is thus
+// two reads of a real page, not two reads of a buffer made for the occasion.
 import * as meshoptimizer from 'meshoptimizer';
 import { encodeGeometryPage } from '../../../page-codec/geometryPage.mjs';
 import { graine } from '../../../sdk-core/bench/socle.mjs';
@@ -8,20 +8,20 @@ import { graine } from '../../../sdk-core/bench/socle.mjs';
 const STRIDE = 72;
 const alea = graine(20260915);
 
-/** Des flottants finis mais hostiles : zéro signé, dénormaux, extrêmes, et du bruit entre les deux. */
+/** Finite but hostile floats: signed zero, denormals, extremes, and noise in between. */
 function hostiles(n) {
-  const sortie = new Float32Array(n);
+  const output = new Float32Array(n);
   for (let i = 0; i < n; i++) {
     const tirage = Math.floor(alea() * 8);
-    if (tirage === 0) sortie[i] = 0;
-    else if (tirage === 1) sortie[i] = -0;
-    else if (tirage === 2) sortie[i] = 1.175494e-38;
-    else if (tirage === 3) sortie[i] = -7e-45;
-    else if (tirage === 4) sortie[i] = 3.4028234e38;
-    else if (tirage === 5) sortie[i] = -3.4028234e38;
-    else sortie[i] = (alea() - 0.5) * 2048;
+    if (tirage === 0) output[i] = 0;
+    else if (tirage === 1) output[i] = -0;
+    else if (tirage === 2) output[i] = 1.175494e-38;
+    else if (tirage === 3) output[i] = -7e-45;
+    else if (tirage === 4) output[i] = 3.4028234e38;
+    else if (tirage === 5) output[i] = -3.4028234e38;
+    else output[i] = (alea() - 0.5) * 2048;
   }
-  return sortie;
+  return output;
 }
 
 const LARGEURS = [
@@ -32,12 +32,12 @@ const LARGEURS = [
   ['COLOR_0', 3],
 ];
 
-/** Une page de `sommets` sommets, avec ou sans ses cinq attributs facultatifs. */
+/** A page of `sommets` vertices, with or without its five optional attributes. */
 export async function page(sommets, tousLesAttributs) {
   const attributes = { POSITION: { itemSize: 3, array: hostiles(sommets * 3) } };
   if (tousLesAttributs)
-    for (const [nom, largeur] of LARGEURS)
-      attributes[nom] = { itemSize: largeur, array: hostiles(sommets * largeur) };
+    for (const [name, largeur] of LARGEURS)
+      attributes[name] = { itemSize: largeur, array: hostiles(sommets * largeur) };
   const indices = new Uint32Array(sommets * 3);
   for (let i = 0; i < sommets; i++) {
     indices[i * 3] = i;
@@ -49,8 +49,8 @@ export async function page(sommets, tousLesAttributs) {
 }
 
 /**
- * Une page assemblée à la main, pour y glisser ce que l'encodeur refuse d'écrire : un indice hors
- * borne, un flottant non fini. Les deux décodeurs doivent la refuser pour la même raison.
+ * A hand-assembled page, to slip in what the encoder refuses to write: an out-of-bounds
+ * index, a non-finite float. Both decoders must reject it for the same reason.
  */
 export async function pageBrute(sommets, locaux, declare, flags) {
   await meshoptimizer.MeshoptEncoder.ready;
@@ -74,7 +74,7 @@ export async function pageBrute(sommets, locaux, declare, flags) {
   return data;
 }
 
-/** Trois sommets nuls, dont un porte `valeur` en deuxième flottant si on le demande. */
+/** Three zero vertices, one of which carries `valeur` in the second float if asked. */
 export function sommetsPlats(valeur) {
   const sommets = new Uint8Array(3 * STRIDE);
   if (valeur !== undefined) new DataView(sommets.buffer).setFloat32(STRIDE + 4, valeur, true);

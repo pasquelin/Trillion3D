@@ -1,9 +1,9 @@
 import type { Primitive } from '../sdk-core/index.ts';
 
 /**
- * Les primitives du manifeste retrouvées par leur association de maillage. Un `find` par maillage
- * parcourait tout le manifeste : le chargement d'une scène à N primitives en payait N². La première
- * primitive d'une clé l'emporte, comme `find` ; une clé NaN ne trouve rien, comme `===`.
+ * Manifest primitives looked up by their mesh association. A `find` per mesh walked the whole
+ * manifest: loading a scene with N primitives paid N². The first primitive of a key wins,
+ * like `find`; a NaN key finds nothing, like `===`.
  */
 export function primitiveFinder(primitives: readonly Primitive[]) {
   const byMesh = new Map<unknown, Map<unknown, Primitive>>();

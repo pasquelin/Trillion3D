@@ -1,16 +1,16 @@
-//! Ce que le pilote `usd` ne rend pas mais compte par son nom. Aucun de ces cas n'est un échec de
-//! compilation tant qu'une surface reste : une scène qui porte un `PointInstancer` et un mur doit
-//! rendre le mur et compter l'instancieur. Les refus durs sont dans `usd_refus.rs`.
+//! What `usd` driver does not render but counts by name. None of these cases is a compilation
+//! failure as long as a surface remains: scene carrying `PointInstancer` and a wall must
+//! render wall and count instancer. Hard refusals in `usd_refus.rs`.
 use super::*;
 use usd_driver::{compile_layer, wrap, QUAD};
 
-/// Le rapport d'une couche : les raisons nommées et leur compte.
+/// Layer report: named reasons and count.
 fn unsupported(run: &GoldenRun) -> Value {
     run.prepared("usd").0["unsupported"].clone()
 }
 
-// Comportement 34 : tout ce que ce pilote ne rend pas est compté par son nom, et la surface qui
-// l'accompagne est rendue quand même.
+// Behavior 34: everything this driver does not render counted by name, surface
+// accompanying rendered anyway.
 #[test]
 fn everything_this_driver_does_not_carry_is_counted_by_its_name() {
     let menagerie = format!(
@@ -62,15 +62,15 @@ fn everything_this_driver_does_not_carry_is_counted_by_its_name() {
             "usd-light-unsupported": 1,
             "usd-subdivision-unsupported": 1,
         }),
-        "le rapport de la ménagerie a bougé"
+        "the menagerie report has moved"
     );
     assert_eq!(
         run.result["sourceTriangles"], 4,
-        "le quad et la surface subdivisée sont rendus plats"
+        "the quad and the subdivided surface are rendered flat"
     );
 }
 
-// Comportement 35 : un jeu de variantes n'est lu qu'à sa sélection par défaut, et le dit.
+// Behavior 35: variant set read only at default selection, states so.
 #[test]
 fn a_variant_set_is_read_at_its_default_selection_and_says_so() {
     let body = format!(
@@ -93,16 +93,16 @@ fn a_variant_set_is_read_at_its_default_selection_and_says_so() {
     assert_eq!(
         unsupported(&run)["usd-variants-unsupported"],
         1,
-        "le jeu de variantes est compté"
+        "the variant set is counted"
     );
     assert_eq!(
         run.result["sourceTriangles"], 2,
-        "la sélection par défaut est rendue"
+        "the default selection is rendered"
     );
 }
 
-// Comportement 36 : un attribut sans valeur par défaut est lu à son premier échantillon temporel,
-// la scène est figée là, et le rapport le dit — une animation n'est pas portée en silence.
+// Behavior 36: attribute without default value read at first time sample,
+// scene frozen there, report states so — animation not carried silently.
 #[test]
 fn an_attribute_without_a_default_is_read_at_its_first_time_sample() {
     let mesh = r#"
@@ -122,18 +122,18 @@ fn an_attribute_without_a_default_is_read_at_its_first_time_sample() {
         unsupported(&run)["usd-animation-first-sample"]
             .as_u64()
             .is_some(),
-        "le premier échantillon est signalé"
+        "the first sample is reported"
     );
     let (_, gltf) = run.prepared("usd");
     assert_eq!(
         gltf["accessors"][0]["max"],
         json!([1.0, 1.0, 0.0]),
-        "c'est l'échantillon du temps le plus bas qui est figé"
+        "it is the sample of the lowest time that is frozen"
     );
 }
 
-// Comportement 37 : une référence vers un fichier absent est comptée, pas devinée, et ce qui reste
-// de la scène est compilé.
+// Behavior 37: reference to missing file counted, not guessed, remaining
+// scene compiled.
 #[test]
 fn a_reference_to_a_missing_file_is_counted_and_the_rest_still_compiles() {
     let body = format!(
@@ -150,16 +150,16 @@ fn a_reference_to_a_missing_file_is_counted_and_the_rest_still_compiles() {
             .as_u64()
             .unwrap_or(0)
             > 0,
-        "la référence non résolue est comptée"
+        "the unresolved reference is counted"
     );
     assert_eq!(
         run.result["sourceTriangles"], 2,
-        "le reste de la scène est rendu"
+        "the rest of the scene is rendered"
     );
 }
 
-// Comportement 38 : une texture dont le fichier n'est pas là est comptée, et le matériau reste —
-// le moteur retombera sur son blanc plutôt que de perdre la surface.
+// Behavior 38: texture with missing file counted, material remains —
+// engine falls back to default white rather than losing surface.
 #[test]
 fn a_texture_whose_file_is_missing_is_counted_and_the_material_stays() {
     let body = r#"    def Mesh "Quad" (
@@ -195,5 +195,5 @@ fn a_texture_whose_file_is_missing_is_counted_and_the_material_stays() {
     assert_eq!(unsupported(&run)["usd-texture-missing"], 1);
     let (_, gltf) = run.prepared("usd");
     assert_eq!(gltf["materials"].as_array().map(Vec::len), Some(1));
-    assert!(gltf.get("images").is_none(), "aucune image versée");
+    assert!(gltf.get("images").is_none(), "no image poured in");
 }

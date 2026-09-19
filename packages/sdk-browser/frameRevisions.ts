@@ -1,18 +1,17 @@
 /**
- * Les trois révisions d'une image, et le témoin qui dit si l'image suivante peut être tenue.
+ * The three revisions of a frame, and the witness that says whether the next frame can be held.
  *
- * Chaque compteur est incrémenté à l'origine du changement — là où la scène, la vue ou les
- * ressources sont réellement écrites — et jamais déduit d'un parcours : un parcours pour savoir s'il
- * faut parcourir coûte ce qu'il prétend éviter. Les trois sont séparés parce que les étapes d'une
- * image n'en lisent pas les mêmes : une boîte monde ne dépend que de `scene` et `resources`, son
- * rectangle d'écran dépend des trois.
+ * Each counter is incremented at the origin of the change — where the scene, the view or the
+ * resources are actually written — and never deduced from a walk: a walk to know whether to walk
+ * costs what it claims to avoid. The three are separate because a frame's steps do not read the
+ * same ones: a world box depends only on `scene` and `resources`, its screen rectangle on all three.
  */
 export interface FrameRevisions {
-  /** Matrices monde, matériaux, géométrie source, lampes : tout ce que la scène porte. */
+  /** World matrices, materials, source geometry, lights: everything the scene carries. */
   scene: number;
-  /** Caméra, projection, résolution et réglages de qualité : tout ce que le point de vue porte. */
+  /** Camera, projection, resolution and quality settings: everything the viewpoint carries. */
   view: number;
-  /** Arrivée ou éviction de page, téléversement de texture, résidence, tampons. */
+  /** Page arrival or eviction, texture upload, residency, buffers. */
   resources: number;
 }
 
@@ -29,38 +28,38 @@ export const bumpResources = (revisions: FrameRevisions) => {
 };
 
 /**
- * Le témoin d'une image tenue : les trois révisions de la dernière image produite, et la signature
- * de ce qu'elle a produit.
+ * Witness of a held frame: the three revisions of the last frame produced, and the signature of
+ * what it produced.
  *
- * `stable` n'est vrai qu'après deux images consécutives dont les révisions ET la signature sont
- * identiques. C'est la seule façon honnête de couvrir les états qui convergent d'image en image sans
- * qu'aucune écriture ne les annonce — l'historique d'occulteurs, la pyramide temporelle, les
- * verdicts d'occultation relus avec un retard. Deux images qui ont produit exactement le même
- * travail en produiraient une troisième identique ; une seule ne prouve rien.
+ * `stable` is true only after two consecutive frames whose revisions AND signature are identical.
+ * That is the only honest way to cover states that converge from frame to frame without any write
+ * announcing them — occluder history, the temporal pyramid, occlusion verdicts reread with a lag.
+ * Two frames that produced exactly the same work would produce an identical third; one alone
+ * proves nothing.
  *
- * Rien n'oublie ce témoin sans dire pourquoi : ce qui change l'image incrémente la révision qui
- * nomme ce qu'il a changé, et `same` devient faux du même coup.
+ * Nothing forgets this witness without saying why: what changes the frame increments the revision
+ * that names what it changed, and `same` becomes false at the same time.
  */
 export function createFrameHold(values: number) {
   const held = new Float64Array(values);
-  /** Là où l'appelant écrit la signature de l'image qu'il vient de produire. */
+  /** Where the caller writes the signature of the frame it has just produced. */
   const sample = new Float64Array(values);
   let scene = -1,
     view = -1,
     resources = -1,
     stable = false;
-  // Aucune image retenue : les trois révisions gardées valent `-1`, qu'aucun compteur n'atteint.
+  // No frame retained: the three kept revisions are `-1`, which no counter reaches.
   const same = (revisions: FrameRevisions) =>
     scene === revisions.scene && view === revisions.view && resources === revisions.resources;
   return {
     sample,
-    /** Vrai quand les révisions n'ont pas bougé depuis l'image retenue. */
+    /** True when the revisions have not moved since the retained frame. */
     same,
-    /** Vrai quand les deux dernières images retenues ont produit exactement le même travail. */
+    /** True when the last two retained frames produced exactly the same work. */
     get stable() {
       return stable;
     },
-    /** Range l'image qui vient d'être produite : ses révisions et sa signature. */
+    /** Stores the frame that has just been produced: its revisions and its signature. */
     keep(revisions: FrameRevisions) {
       let repeated = same(revisions);
       for (let i = 0; repeated && i < values; i++) repeated = held[i] === sample[i];

@@ -1,4 +1,4 @@
-// décodage hors du fil principal et hachage d'intégrité.
+// off-main-thread decode and integrity hashing.
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
@@ -17,8 +17,7 @@ import { sha256Hex } from '../sha256Hex.ts';
 const MAX_DECODED_BYTES = 16 * 1024 * 1024;
 const alea = graine(211);
 const MODULE = readFileSync(join(RACINE, 'packages', 'sdk-browser', 'pageCodec.wasm'));
-if (!(await prepareSdkWasm(MODULE)))
-  throw new Error('H2_WASM_ABSENT : lancer `pnpm run build:wasm`');
+if (!(await prepareSdkWasm(MODULE))) throw new Error('H2_WASM_ABSENT: run `pnpm run build:wasm`');
 
 async function page(sommets) {
   const position = new Float32Array(sommets * 3),
@@ -83,7 +82,7 @@ const horsFil = (op, source) =>
     );
   });
 
-test('H2 : le worker rend exactement la page et les octets du fil principal', async () => {
+test('H2: the worker yields the exact same page and bytes as the main thread', async () => {
   const surPlace = await decodeGeometryPage(grande, MAX_DECODED_BYTES);
   const decodee = await horsFil('decode', grande.slice().buffer);
   assert.equal(decodee.ok, true, decodee.message);
@@ -93,16 +92,16 @@ test('H2 : le worker rend exactement la page et les octets du fil principal', as
   const verifiee = await horsFil('verify', grande.slice().buffer);
   assert.equal(verifiee.ok, true, verifiee.message);
   assert.equal(verifiee.sha256, attendu);
-  assert.equal(ecart(grande, new Uint8Array(verifiee.source), 'octets rendus'), null);
+  assert.equal(ecart(grande, new Uint8Array(verifiee.source), 'returned bytes'), null);
   await worker.terminate();
 });
 
 const resDecode = await mesure({
-  nom: 'décodage contrat WebAssembly',
+  name: 'WebAssembly decode contract',
   fichier: 'packages/sdk-browser/pageDecodeHost.ts',
   cas: [
-    { nom: '30 000 sommets, 6 attributs', entree: grande, taille: 30000 },
-    { nom: '9 sommets', entree: petite, taille: 9 },
+    { name: '30 000 vertices, 6 attributes', input: grande, size: 30000 },
+    { name: '9 vertices', input: petite, size: 9 },
   ],
   calcul: (data) => decodePageOffThread(data),
   attendu: (data) => decodeGeometryPage(data, MAX_DECODED_BYTES),
@@ -110,11 +109,11 @@ const resDecode = await mesure({
 });
 
 const resHash = await mesure({
-  nom: 'hachage intégrité contrat',
+  name: 'integrity-hash contract',
   fichier: 'packages/sdk-browser/pageDecodeHost.ts',
   cas: [
-    { nom: '30 000 sommets, compressée', entree: grande.buffer, taille: grande.byteLength },
-    { nom: '9 sommets', entree: petite.buffer, taille: petite.byteLength },
+    { name: '30 000 vertices, compressed', input: grande.buffer, size: grande.byteLength },
+    { name: '9 vertices', input: petite.buffer, size: petite.byteLength },
   ],
   calcul: async (source) => (await verifyPageBytes(source)).sha256,
   attendu: (source) => sha256Hex(source),
@@ -122,9 +121,9 @@ const resHash = await mesure({
 });
 
 await stress({
-  nom: 'verifyPageBytes extremes',
+  name: 'verifyPageBytes extremes',
   calcul: (buf) => verifyPageBytes(buf),
-  extremes: [{ nom: 'tampon vide', entree: new ArrayBuffer(0) }],
+  extremes: [{ name: 'empty buffer', input: new ArrayBuffer(0) }],
 });
 
-rapport('decodage-worker', [resDecode, resHash], 'H1 et H2 rendent exactement les mêmes valeurs');
+rapport('decodage-worker', [resDecode, resHash], 'H1 and H2 yield the exact same values');

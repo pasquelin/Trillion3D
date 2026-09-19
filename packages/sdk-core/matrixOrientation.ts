@@ -1,23 +1,23 @@
 /**
- * Orientation d'une transformation monde, seize nombres en entrée et rien d'autre : ni Three, ni
- * GPU, ni DOM. Rangée ici, à côté de `maxStretch`, elle se teste sans navigateur et le rasteriseur
- * CPU du tampon de visibilité n'a plus à la lire dans un module `webgpu*`.
+ * Orientation of a world transformation, sixteen numbers input and nothing else: no Three, no
+ * GPU, no DOM. Stored here alongside `maxStretch`, it tests without a browser and the CPU
+ * visbuffer rasterizer no longer needs to import it from a `webgpu*` module.
  */
 import { linearPartDeterminant } from './mathMatrix4.ts';
 
 /**
- * La transformation renverse-t-elle l'orientation ? Le déterminant de la 3×3 d'une matrice monde
- * est négatif, donc la face à éliminer est l'autre.
+ * Does the transformation flip orientation? The determinant of the 3x3 of a world matrix
+ * is negative, so the culled face is the opposite one.
  *
- * `elements` est une 4×4 rangée par colonnes comme le fait une bibliothèque 3D : la partie linéaire
- * occupe les indices 0,1,2 / 4,5,6 / 8,9,10. La dernière ligne d'une matrice monde affine valant
- * (0, 0, 0, 1), ce déterminant 3×3 EST celui de la 4×4 : les trois cofacteurs de la dernière ligne
- * y sont multipliés par zéro. Neuf multiplications au lieu d'une trentaine, et le même verdict —
- * sauf sur une matrice singulière à l'arrondi près, qui aplatit la primitive sur un plan ou une
- * droite et n'a plus de face à montrer.
+ * `elements` is a 4x4 stored column-major like standard 3D libraries: the linear part
+ * occupies indices 0,1,2 / 4,5,6 / 8,9,10. With the last row of an affine world matrix equal to
+ * (0, 0, 0, 1), this 3x3 determinant IS that of the 4x4: the three cofactors of the last row
+ * are multiplied by zero. Nine multiplications instead of ~30, yielding the exact same verdict —
+ * except on a matrix singular up to rounding error, which flattens the primitive onto a plane or
+ * line and no longer has a face to show.
  *
- * Ce déterminant n'est écrit qu'une fois, dans `linearPartDeterminant` du socle mathématique :
- * mêmes produits, mêmes sommes, même ordre, donc le même signe aux mêmes bits.
+ * This determinant is written once in `linearPartDeterminant` of the math foundation:
+ * same products, same sums, same order, hence the same sign down to identical bits.
  */
 export function matrixWindingCw(elements: ArrayLike<number>) {
   return linearPartDeterminant(elements) < 0;

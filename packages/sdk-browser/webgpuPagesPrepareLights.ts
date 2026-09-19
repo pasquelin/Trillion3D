@@ -5,9 +5,9 @@ import { createGpuShadowCull } from './gpuShadowCull.ts';
 import { grantCapability } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Ce que la capacité déclare quand le contrat d'éclairage direct n'est pas gréé sur cet appareil. */
+/** What the capability declares when the direct-lighting contract is not fitted on this device. */
 const DIRECT_LIGHT_CAPABILITY = 'contract scene lights with shadow atlas';
-/** Approximation nommée du chemin d'ombres, publiée dans le diagnostic (P5). */
+/** Named approximation of the shadow path, published in the diagnostic (P5). */
 const SHADOW_APPROXIMATIONS = [
   'blended clusters hold no visibility row, so they reach no shadow draw table and cast no shadow; only the opaque path casts a real cutout, and an attenuated tinted shadow is a later lot',
   'tile light lists bound the per-pixel loop of the opaque path to the published per-tile budget; the blend pass loops over the declared lights instead, bounded by maxLights',
@@ -18,9 +18,9 @@ const SHADOW_APPROXIMATIONS = [
 ];
 
 /**
- * Grée le contrat d'éclairage direct : listes de lampes par tuile et atlas d'ombres. Les deux sont
- * facultatifs — un appareil sans calcul, ou qui refuse l'atlas, garde une image correcte, les lampes
- * du contrat restent éteintes et la capacité manquante est déclarée. Rien n'est jeté en silence.
+ * Fits the direct-lighting contract: per-tile light lists and the shadow atlas. Both are optional —
+ * a device without compute, or that refuses the atlas, keeps a correct image, the contract lights
+ * stay off and the missing capability is declared. Nothing is dropped in silence.
  */
 export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { lights, vis, capabilities, diag } = rt,
@@ -38,8 +38,8 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
     diag.diagnosticFailure('light-tiles-unavailable', error);
     return;
   }
-  // L'atlas et le rejet par face vont ensemble : la passe d'ombres dessine par la liste que le
-  // rejet produit. L'un sans l'autre n'éclairerait rien, donc l'échec de l'un rend les deux.
+  // The atlas and per-face cull go together: the shadow pass draws from the list cull produces.
+  // One without the other would light nothing, so failure of one yields both.
   try {
     lights.shadows = await createGpuShadowAtlas(device, vis.visBindGroupLayout);
     lights.cull = await createGpuShadowCull(device, drawSlots);
@@ -52,7 +52,7 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
     diag.diagnosticFailure('shadow-atlas-unavailable', error);
   }
   if (lights.tiles && lights.shadows) grantCapability(capabilities, DIRECT_LIGHT_CAPABILITY);
-  diag.engineDiagnostic('direct-lighting', 'Éclairage direct du contrat gréé', {
+  diag.engineDiagnostic('direct-lighting', 'Direct lighting of the contract, fitted', {
     version: 1,
     settings: { ...LIGHT_SETTINGS },
     tileLists: !!lights.tiles,

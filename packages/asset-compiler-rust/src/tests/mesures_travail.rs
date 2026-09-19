@@ -1,16 +1,16 @@
-//! A14 — les mesures publiées décrivent un travail, et lui seul. Ce que ces épreuves tiennent :
-//! aucune phase d'un travail ne reparaît dans le manifeste d'un autre, ni à la suite ni côte à côte,
-//! et la durée annoncée contient tout ce que le travail a fait, purge comprise.
+//! A14 — published measurements describe single job. Tests verify:
+//! no job phase reappears in another manifest, sequentially or in parallel,
+//! announced duration contains everything job performed, purge included.
 use super::*;
 use std::time::Duration;
 
-/// Les millisecondes cumulées d'une phase nommée, telles que le manifeste les publie.
+/// Cumulative milliseconds of named phase, as manifest publishes.
 fn phase(result: &Value, name: &str) -> f64 {
     result["metrics"]["phaseElapsedMs"][name]
         .as_f64()
         .unwrap_or_else(|| panic!("phase {name} absente de {}", result["metrics"]))
 }
-/// La plus longue des phases cumulées d'un travail, avec son nom.
+/// Longest cumulative phase of job, with name.
 fn longest_phase(result: &Value) -> (String, f64) {
     result["metrics"]["phaseElapsedMs"]
         .as_object()
@@ -20,13 +20,13 @@ fn longest_phase(result: &Value) -> (String, f64) {
         .max_by(|a, b| a.1.total_cmp(&b.1))
         .expect("au moins une phase")
 }
-/// La grille qui simplifie : elle porte assez de groupes pour que la phase de simplification dure.
+/// Simplifying grid: carries enough groups for simplification phase to take time.
 fn grid_that_simplifies() -> (PathBuf, Options) {
     let (root, mut options) = grid_fixture_displaced(64, 64, 3.0);
     options.simplification = "qem-endpoints".into();
     (root, options)
 }
-/// Attend qu'un jalon soit franchi, sans jamais attendre sans fin.
+/// Waits for milestone to cross, never waiting endlessly.
 fn wait_for(flag: &AtomicBool) {
     let deadline = Instant::now() + Duration::from_secs(300);
     while !flag.load(Ordering::Relaxed) {
@@ -35,8 +35,8 @@ fn wait_for(flag: &AtomicBool) {
     }
 }
 
-// Comportement : deux travaux se suivent dans le même processus. Le second n'a aucun groupe à
-// simplifier ; son manifeste doit donc annoncer zéro, et non la simplification de la grille d'avant.
+// Behavior: two jobs follow in same process. Second has no group to
+// simplify; manifest must announce zero, not prior grid simplification.
 #[test]
 fn a14_un_travail_ne_publie_pas_les_phases_du_precedent() {
     let (root_grille, grille) = grid_that_simplifies();
@@ -50,20 +50,20 @@ fn a14_un_travail_ne_publie_pas_les_phases_du_precedent() {
     assert_eq!(
         phase(&second, "simplifyMs"),
         0.0,
-        "deux triangles n'ont aucun groupe à simplifier"
+        "two triangles have no group to simplify"
     );
     let wall = second["metrics"]["wallMs"].as_f64().expect("wallMs");
     let (name, longest) = longest_phase(&second);
     assert!(
         wall >= longest,
-        "durée annoncée {wall} ms sous la phase {name} de {longest} ms"
+        "announced duration {wall} ms under phase {name} of {longest} ms"
     );
     fs::remove_dir_all(root_grille).expect("nettoyage");
     fs::remove_dir_all(root_petit).expect("nettoyage");
 }
 
-// Comportement : les deux travaux se chevauchent. La grille retient sa publication le temps que le
-// petit maillage compile entièrement à côté d'elle ; aucun des deux manifestes ne décrit l'autre.
+// Behavior: jobs overlap. Grid holds publication while
+// small mesh compiles alongside; neither manifest describes other.
 #[test]
 fn a14_deux_travaux_paralleles_ne_melangent_pas_leurs_phases() {
     let (root_grille, grille) = grid_that_simplifies();
@@ -73,8 +73,8 @@ fn a14_deux_travaux_paralleles_ne_melangent_pas_leurs_phases() {
     let (long, court) = std::thread::scope(|scope| {
         let long = scope.spawn(|| {
             compile(&grille, |event| {
-                // Les paquets de racines s'assemblent une fois toutes les primitives groupées et
-                // simplifiées : les compteurs de la grille sont pleins, et elle attend ici.
+                // Root bundles assemble once all primitives grouped and
+                // simplified: grid counters full, waiting here.
                 if event["phase"] == "bootstrap" {
                     simplifie.store(true, Ordering::Relaxed);
                     wait_for(&petit_fini);
@@ -89,7 +89,7 @@ fn a14_deux_travaux_paralleles_ne_melangent_pas_leurs_phases() {
     assert_eq!(
         phase(&court, "simplifyMs"),
         0.0,
-        "le petit maillage ne simplifie rien, même pendant la grille"
+        "the small mesh simplifies nothing, even during the grid"
     );
     assert!(
         phase(&long, "simplifyMs") > 0.0,
@@ -99,14 +99,14 @@ fn a14_deux_travaux_paralleles_ne_melangent_pas_leurs_phases() {
     fs::remove_dir_all(root_petit).expect("nettoyage");
 }
 
-// Comportement : la durée annoncée est prise après la purge, et non au moment où le manifeste est
-// mis en forme. L'épreuve mesure elle-même l'intervalle entre l'import et la purge.
+// Behavior: announced duration taken after purge, not when manifest
+// formatted. Test measures interval between import and purge.
 #[test]
 fn a14_la_duree_annoncee_contient_la_publication_et_la_purge() {
     let (root, mut options) = grid_fixture_displaced(48, 48, 2.0);
-    // Une première clé dans le cache, sous un autre mode, donne du travail à la purge de la seconde.
+    // First cache key in other mode gives work to second purge.
     options.simplification = "none".into();
-    compile(&options, |_| {}).expect("première");
+    compile(&options, |_| {}).expect("first");
     options.simplification = "qem-endpoints".into();
     let marks: std::sync::Mutex<(Option<Instant>, Option<Instant>)> =
         std::sync::Mutex::new((None, None));
@@ -126,15 +126,15 @@ fn a14_la_duree_annoncee_contient_la_publication_et_la_purge() {
     let floor = import_ms + observed.as_secs_f64() * 1000.0;
     assert!(
         wall >= floor,
-        "durée annoncée {wall} ms sous le plancher observé {floor} ms"
+        "announced duration {wall} ms under the observed floor {floor} ms"
     );
     fs::remove_dir_all(root).expect("nettoyage");
 }
 
-// Constat V03 : ces durées sont du temps écoulé, jamais du temps de processeur. L'épreuve le montre
-// et le fixe : une attente franche tenue dans le rappel d'un jalon de la phase coplanaire s'ajoute à
-// cette phase, alors qu'aucun processeur n'a travaillé pendant ce temps. Le nom publié dit donc
-// « écoulé », et `cpuMs` reste `null` tant que personne ne le mesure vraiment.
+// Finding V03: durations are wall time, never CPU time. Test demonstrates:
+// explicit wait in coplanar phase milestone callback adds to
+// phase, while no CPU worked. Published name says "wall",
+// `cpuMs` remains `null` until actually measured.
 #[test]
 fn v03_une_attente_dans_un_rappel_entre_dans_la_duree_ecoulee_de_la_phase() {
     let (root, options) = fixture();
@@ -152,7 +152,7 @@ fn v03_une_attente_dans_un_rappel_entre_dans_la_duree_ecoulee_de_la_phase() {
     );
     assert!(
         result["metrics"]["cpuMs"].is_null(),
-        "le temps de processeur n'est pas mesuré, il reste nul"
+        "CPU time is not measured, it stays null"
     );
     fs::remove_dir_all(root).expect("nettoyage");
 }

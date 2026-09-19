@@ -1,13 +1,13 @@
-// Les entrées du banc d'équivalence des volumes (lot M2) : tirées à graine fixe, et volontairement
-// hostiles. Boîtes vides, inversées, ponctuelles, infinies, à borne NaN ou à zéro signé ; matrices
-// de placement à échelle négative ou non uniforme, singulières, projectives, pleines de NaN ; vues
-// perspective et orthographique dans les deux conventions de profondeur ; boîtes qui contiennent
-// l'œil, donc coupent le plan proche.
+// Inputs of the volume-equivalence bench (batch M2): drawn from a seed, and deliberately
+// hostile. Empty, inverted, point, infinite boxes, NaN or signed-zero bounds; placement
+// matrices with negative or non-uniform scale, singular, projective, full of NaN;
+// perspective and orthographic views in both depth conventions; boxes that contain
+// the eye, hence clip the near plane.
 import * as THREE from 'three';
 import { graine } from '../../../sdk-core/bench/socle.mjs';
 
 const alea = graine(52021);
-/** Les valeurs qu'un flottant peut prendre et qu'un volume doit traverser sans les lisser. */
+/** Values a float can take that a volume must traverse without smoothing them. */
 const BORDS = [0, -0, 1, -1, Infinity, -Infinity, NaN, 5e-324, 1e308, -1e308];
 const nombre = () => {
   if (alea() < 0.15) return BORDS[Math.floor(alea() * BORDS.length)];
@@ -15,7 +15,7 @@ const nombre = () => {
 };
 const dans = (etendue) => (alea() * 2 - 1) * etendue;
 
-/** Six bornes : ordinaires, puis les formes dégénérées que le moteur peut recevoir d'un manifeste. */
+/** Six bounds: ordinary, then the degenerate shapes the engine may receive from a manifest. */
 export const boites = [
   [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity],
   [1, 1, 1, 0, 0, 0],
@@ -48,7 +48,7 @@ const placement = (sx, sy, sz) => {
     .toArray();
 };
 
-/** Matrices de placement 4×4 colonne-major. */
+/** 4×4 column-major placement matrices. */
 export const matrices = [
   new THREE.Matrix4().toArray(),
   new Array(16).fill(0),
@@ -66,7 +66,7 @@ for (let i = 0; i < 40; i++) {
   matrices.push(hostile);
 }
 
-/** Vues-projections : perspectives et orthographiques, profondeur WebGL puis WebGPU, et hostiles. */
+/** View-projections: perspective and orthographic, WebGL then WebGPU depth, and hostile. */
 export const vuesProjections = [];
 for (let i = 0; i < 60; i++) {
   const camera =
@@ -88,7 +88,7 @@ for (let i = 0; i < 60; i++) {
 vuesProjections.push({ vp: new Array(16).fill(0), webgpu: false, oeil: [0, 0, 0] });
 vuesProjections.push({ vp: new Array(16).fill(NaN), webgpu: true, oeil: [0, 0, 0] });
 
-/** Chaque vue contre des boîtes : les communes, et une boîte autour de l'œil qui coupe le plan proche. */
+/** Each view against boxes: the shared ones, and a box around the eye that clips the near plane. */
 export const boitesDeVue = vuesProjections.flatMap(({ vp, webgpu, oeil }, v) => {
   const [x, y, z] = oeil;
   const autour = [x - 1, y - 1, z - 1, x + 1, y + 1, z + 1];
@@ -99,7 +99,7 @@ export const boitesDeVue = vuesProjections.flatMap(({ vp, webgpu, oeil }, v) => 
   }));
 });
 
-/** Rejets de cône : placement conforme, cône, boîte, œil — parfois dans la sphère, parfois hostile. */
+/** Cone rejections: conformal placement, cone, box, eye — sometimes in the sphere, sometimes hostile. */
 export const casCones = [];
 for (let i = 0; i < 1500; i++) {
   const u = i % 13 === 0 ? nombre() : alea() * 3 + 0.01;

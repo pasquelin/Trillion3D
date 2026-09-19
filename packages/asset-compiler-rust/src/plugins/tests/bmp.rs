@@ -1,15 +1,15 @@
-//! La dorée du pilote BMP : huit écritures du format rendent la même image de quatre par deux, et
-//! ce que le décodeur rognerait est refusé avant d'être lu. C'est la seconde moitié qui compte : un
-//! masque de plus de huit bits par canal n'entre pas, parce qu'entrer lui coûterait ses bits de
-//! poids faible — une perte que la source n'avait pas.
+//! Golden of the BMP driver: eight writings of the format yield the same four-by-two image, and
+//! what the decoder would clip is refused before being read. It is the second half that counts:
+//! a mask of more than eight bits per channel does not enter, because entering would cost it
+//! its low bits — a loss the source did not have.
 use super::super::image as registry;
 use super::{assert_claims, assert_refusals, decoded_rgba8, fixture};
 
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
 
-/// L'image de référence, ligne du haut d'abord : quatre couleurs franches puis trois mélanges dont
-/// chaque composante est exactement portée par cinq bits, et chaque vert aussi par six. C'est ce qui
-/// permet aux deux écritures 16 bits de rendre ces octets-là et pas leurs voisins.
+/// Reference image, top row first: four frank colours then three mixes whose each component is
+/// exactly carried by five bits, and each green also by six. That is what lets both 16-bit
+/// writings yield those bytes and not their neighbours.
 const REFERENCE: [[u8; 3]; 8] = [
     [255, 0, 0],
     [0, 255, 0],
@@ -20,7 +20,7 @@ const REFERENCE: [[u8; 3]; 8] = [
     [16, 49, 239],
     [132, 239, 66],
 ];
-/// Un bit ne porte que deux couleurs : ce fichier a sa propre référence, un damier.
+/// One bit carries only two colours: this file has its own reference, a checkerboard.
 const DAMIER: [[u8; 3]; 8] = [
     [255, 255, 255],
     [0, 0, 0],
@@ -31,12 +31,12 @@ const DAMIER: [[u8; 3]; 8] = [
     [0, 0, 0],
     [255, 255, 255],
 ];
-/// L'alpha du seul fichier qui en porte un : les masques de l'entête V3 le déclarent, et le pilote
-/// le rend droit — ni prémultiplié, ni rempli d'office.
+/// Alpha of the only file that carries one: the V3 header masks declare it, and the driver
+/// yields it straight — neither premultiplied, nor filled in by default.
 const ALPHA_32: [u8; 8] = [255, 255, 255, 255, 255, 255, 128, 0];
 const OPAQUE: [u8; 8] = [255; 8];
 
-/// Les octets RGBA8 qu'une fixture doit rendre : la référence, et l'alpha qui lui est propre.
+/// RGBA8 bytes a fixture must yield: the reference, and the alpha that is its own.
 fn expected(colours: &[[u8; 3]; 8], alpha: &[u8; 8]) -> Vec<u8> {
     colours
         .iter()
@@ -45,17 +45,17 @@ fn expected(colours: &[[u8; 3]; 8], alpha: &[u8; 8]) -> Vec<u8> {
         .collect()
 }
 
-/// L'image que le registre rend pour cette fixture, dimensions vérifiées au passage.
+/// Image the registry yields for this fixture, dimensions checked along the way.
 fn rendu(name: &str) -> image::RgbaImage {
     decoded_rgba8("bmp", name, MAX_ALLOC, (4, 2))
 }
 
-// Dorée du pilote BMP : huit écritures du format — deux profondeurs de vraies couleurs, trois
-// palettes, une compression par plages et deux répartitions de bits sur seize — portent la même
-// image, et rendent les mêmes octets. L'ordre des lignes en fait partie : la 24 bits est stockée
-// bas-haut et la 32 bits haut-bas, et c'est bien la même image qui en ressort.
+// BMP driver golden: eight writings of the format — two true-colour depths, three palettes, one
+// run-length compression and two bit layouts on sixteen — carry the same image, and yield the
+// same bytes. Line order is part of it: 24-bit is stored bottom-up and 32-bit top-down, and it
+// is indeed the same image that comes out.
 #[test]
-fn toutes_les_ecritures_du_format_rendent_les_memes_pixels() {
+fn all_writings_of_the_format_yield_the_same_pixels() {
     for name in [
         "vraies-couleurs-24-bas.bmp",
         "palette-8.bmp",
@@ -67,59 +67,59 @@ fn toutes_les_ecritures_du_format_rendent_les_memes_pixels() {
         assert_eq!(
             rendu(name).as_raw(),
             &expected(&REFERENCE, &OPAQUE),
-            "{name} : les pixels divergent de la référence"
+            "{name}: pixels diverge from the reference"
         );
     }
-    // La seule fixture à porter un alpha : hauteur négative, donc stockée haut-bas, et masques de
-    // l'entête V3 — dont le masque alpha, que les entêtes plus courts n'ont pas.
+    // The only fixture to carry an alpha: negative height, so stored top-down, and V3 header
+    // masks — including the alpha mask, which shorter headers do not have.
     assert_eq!(
         rendu("vraies-couleurs-32-haut.bmp").as_raw(),
         &expected(&REFERENCE, &ALPHA_32),
-        "l'alpha des 32 bits doit être rendu droit, sans remplissage ni prémultiplication"
+        "32-bit alpha must be yielded straight, without filling or premultiplication"
     );
     assert_eq!(
         rendu("palette-1.bmp").as_raw(),
         &expected(&DAMIER, &OPAQUE),
-        "une palette d'un bit porte deux couleurs, et les deux doivent être les bonnes"
+        "a one-bit palette carries two colours, and both must be the right ones"
     );
 }
 
-// Contrat du pilote : ce qu'il reconnaît, ce qu'il refuse, et sous quel nom il le rapporte. Un BMP
-// refusé laisse le moteur retomber sur son blanc ; il n'interrompt aucune compilation et ne panique
-// jamais. La règle de fidélité écarte ici tout ce que le décodeur aurait rogné : un masque plus
-// large que huit bits perdrait ses bits de poids faible, et une charge JPEG ou PNG embarquée n'est
-// pas du BMP mais un autre format, qui a son propre pilote.
+// Driver contract: what it recognises, what it refuses, and under which name it reports it. A
+// refused BMP lets the engine fall back on its white; it interrupts no compilation and never
+// panics. The fidelity rule here drops everything the decoder would have clipped: a mask wider
+// than eight bits would lose its low bits, and an embedded JPEG or PNG payload is not BMP but
+// another format, which has its own driver.
 #[test]
-fn un_bmp_hors_politique_ressort_en_raison_de_rapport_jamais_en_panique() {
+fn a_bmp_outside_policy_comes_out_as_a_report_reason_never_as_a_panic() {
     assert_claims("bmp", "image/bmp", &["bmp", "BMP", "dib", "rle"]);
     assert_refusals(
         "bmp",
         MAX_ALLOC,
         &[
-            // Masques 10-10-10 : le décodeur ne garderait que les huit bits de poids fort de chaque
-            // canal. Refusé avant tout décodage, donc sans jamais produire les pixels appauvris.
+            // 10-10-10 masks: the decoder would keep only the eight high bits of each channel.
+            // Refused before any decoding, so without ever producing the impoverished pixels.
             ("masques-10-bits.bmp", "bmp-bitfields-lossy"),
             ("jpeg-embarque.bmp", "bmp-embedded-codec-unsupported"),
-            // Tronqué : l'entête reste un entête BMP, donc le pilote est bien choisi, et c'est la
-            // lecture des pixels qui s'arrête faute d'octets.
+            // Truncated: the header remains a BMP header, so the driver is chosen, and it is
+            // the pixel read that stops for lack of bytes.
             ("tronque.bmp", "image-decode-failed"),
         ],
     );
-    // Deux entêtes réécrits sur une fixture lisible, pour les refus qu'aucun fichier ne porte : une
-    // profondeur hors des profils sans perte, et une compression hors du format lu.
+    // Two headers rewritten on a readable fixture, for the refusals no file carries: a depth
+    // outside lossless profiles, and a compression outside the format read.
     let profondeur_at = 28;
     let compression_at = 30;
     for (at, valeur, raison) in [
         (profondeur_at, 64u32, "bmp-depth-unsupported"),
-        // `BI_ALPHABITFIELDS`, que ce pilote ne lit pas.
+        // `BI_ALPHABITFIELDS`, which this driver does not read.
         (compression_at, 6, "bmp-compression-unsupported"),
     ] {
         let mut altere = fixture("bmp", "vraies-couleurs-24-bas.bmp");
         altere[at..at + 4].copy_from_slice(&valeur.to_le_bytes());
         assert_eq!(registry::decode(&altere, MAX_ALLOC).err(), Some(raison));
     }
-    // « BM » est la seule signature que ce pilote revendique : sans elle, ces octets ressortent en
-    // format inconnu plutôt qu'en BMP illisible.
+    // “BM” is the only signature this driver claims: without it, these bytes come out as an
+    // unknown format rather than as an unreadable BMP.
     for head in [
         b"BA\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00".as_slice(),
         b"BM",

@@ -1,41 +1,43 @@
-//! Doré et refus du pilote Alembic : une archive Ogawa CC0 passe par le routeur, le pilote, puis le
-//! compilateur, et la scène intermédiaire qu'il a écrite est comparée à `expected.json` — hiérarchie,
-//! matrices, primitives, matériaux des face sets, sommets découpés par coin, valeur par valeur. Les
-//! autres cas fixent ce que le pilote reconnaît et ce qu'il refuse.
+//! Golden and refusals of the Alembic driver: a CC0 Ogawa archive goes through
+//! the router, the driver, then the compiler, and the intermediate scene it wrote
+//! is compared to `expected.json` — hierarchy, matrices, primitives, face-set
+//! materials, vertices split per corner, value by value. The other cases fix what
+//! the driver recognises and what it refuses.
 //!
-//! Régénération de l'attendu, depuis la racine du dépôt :
+//! Regenerating the expected, from the repository root:
 //!
 //! ```text
 //! cargo test --manifest-path packages/asset-compiler-rust/Cargo.toml \
 //!   -- --ignored regenere_la_fixture_alembic --nocapture
 //! ```
 //!
-//! Ignorée par défaut : elle écrit dans `fixtures/`, et le diff qu'elle produit se relit avant
-//! d'être commité.
+//! Ignored by default: it writes into `fixtures/`, and the diff it produces is
+//! re-read before being committed.
 use super::*;
 
-const CASE: &str = "Trois cubes Alembic de huit sommets, posés par des Xform en x = 0, 3 et 6 sous une racine commune ; six faces de quatre côtés chacun, normales et coordonnées de texture par coin de face, et trois face sets nommés Emissive, Opaque et Transparent.";
-const RULE: &str = "Une face Alembic est enroulée dans l'ordre horaire, une face glTF dans l'ordre inverse : chaque face est lue à l'envers, découpée en éventail, et ses coins distincts deviennent des sommets distincts. Un face set donne son nom à un matériau neutre et découpe une primitive. Trois objets aux mêmes octets sont un seul maillage et trois nœuds.";
+const CASE: &str = "Three Alembic cubes of eight vertices, placed by Xforms at x = 0, 3 and 6 under a shared root; six faces of four sides each, normals and texture coordinates per face corner, and three face sets named Emissive, Opaque and Transparent.";
+const RULE: &str = "An Alembic face is wound clockwise, a glTF face counter-clockwise: each face is read backwards, fan-triangulated, and its distinct corners become distinct vertices. A face set gives its name to a neutral material and splits a primitive. Three objects with the same bytes are one mesh and three nodes.";
 
 fn fixture() -> PathBuf {
     golden_dir("alembic/procedural-static")
 }
 
-// Comportement 27 : la scène Alembic dorée passe par le compilateur et tout ce que le pilote en a
-// tiré — hiérarchie, matrices, primitives, matériaux, sommets — est comparé à expected.json.
+// Behaviour 27: the golden Alembic scene goes through the compiler and everything
+// the driver drew from it — hierarchy, matrices, primitives, materials, vertices
+// — is compared to expected.json.
 #[test]
 fn the_alembic_scene_matches_its_golden_expected_json() {
     let run = compile_golden_source(&fixture().join("scene.abc"), "alembic");
     assert_eq!(
         alembic_digest(&run),
         golden_expected(&fixture()),
-        "fixture alembic : la scène intermédiaire diverge de expected.json"
+        "fixture alembic: the intermediate scene diverges from expected.json"
     );
 }
 
-// Comportement 28 : un `.abc` au conteneur HDF5 et une archive tronquée sont refusés au travers du
-// compilateur entier, chacun sous son propre nom — l'appelant apprend ce qui cloche, pas seulement
-// que la source n'a pas compilé.
+// Behaviour 28: an HDF5-container `.abc` and a truncated archive are refused
+// through the whole compiler, each under its own name — the caller learns what
+// is wrong, not only that the source did not compile.
 #[test]
 fn an_hdf5_container_and_a_truncated_archive_are_refused_by_name() {
     let limits = golden_dir("alembic/limites");
@@ -49,26 +51,27 @@ fn an_hdf5_container_and_a_truncated_archive_are_refused_by_name() {
     );
 }
 
-// Comportement 29 : un `.abc` va au pilote alembic, par son extension comme par son entête Ogawa,
-// et un dossier qui en porte un s'y route sans qu'on lui désigne quoi que ce soit.
+// Behaviour 29: an `.abc` goes to the alembic driver, by its extension as by its
+// Ogawa header, and a folder that carries one routes there without being told what.
 #[test]
 fn an_ogawa_file_routes_to_the_alembic_plugin() {
     let routed = |path: &Path| match plugins::scene::route(path).expect("route") {
         plugins::scene::Routed::Driver(plugin, _) => plugin.name().to_string(),
-        plugins::scene::Routed::Manifest => panic!("routé vers le manifeste"),
+        plugins::scene::Routed::Manifest => panic!("routed to the manifest"),
     };
     assert_eq!(routed(&fixture().join("scene.abc")), "alembic");
     let dir = std::env::temp_dir().join(format!("wg-alembic-route-{}", std::process::id()));
     fs::create_dir_all(&dir).expect("dossier");
     fs::copy(fixture().join("scene.abc"), dir.join("nameless")).expect("copie");
-    assert_eq!(routed(&dir.join("nameless")), "alembic", "entête seule");
+    assert_eq!(routed(&dir.join("nameless")), "alembic", "header alone");
     assert_eq!(routed(&dir), "alembic", "dossier");
     fs::remove_dir_all(&dir).expect("nettoyage");
 }
 
-// Comportement 30 : ce que le pilote ne convertit pas, il le compte — courbes, subdivision rendue
-// en polygones plats, animation dont seul le premier échantillon est lu, normales absentes — et un
-// `Xform` qui n'hérite pas de son père devient une racine de la scène, avec sa propre matrice.
+// Behaviour 30: what the driver does not convert, it counts — curves, subdivision
+// rendered as flat polygons, animation of which only the first sample is read,
+// missing normals — and an `Xform` that does not inherit from its parent becomes
+// a scene root, with its own matrix.
 #[test]
 fn what_the_plugin_leaves_aside_is_counted_and_a_detached_xform_becomes_a_root() {
     let run = compile_golden_source(&golden_dir("alembic/limites").join("cases.abc"), "alembic");
@@ -79,16 +82,16 @@ fn what_the_plugin_leaves_aside_is_counted_and_a_detached_xform_becomes_a_root()
                "alembic-normals-missing": 3, "alembic-subd-as-polygons": 1,
                "alembic-transform-not-inherited": 1})
     );
-    // Deux racines : le `Xform` porteur, et celui qui refuse d'hériter.
+    // Two roots: the carrying `Xform`, and the one that refuses to inherit.
     assert_eq!(gltf["scenes"][0]["nodes"], json!([2, 4]));
     assert_eq!(gltf["nodes"][4]["name"], "Detached");
     assert_eq!(
         gltf["nodes"][4]["matrix"],
         json!([1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 10.0, 0.0, 0.0, 1.0]),
-        "la translation de l'opération reste, seul l'héritage tombe"
+        "the operation's translation stays, only inheritance drops"
     );
-    // Un pentagone donne trois triangles, une face de subdivision à quatre côtés en donne deux, et
-    // un maillage sans normales n'en porte aucune dans le glTF.
+    // A pentagon yields three triangles, a four-sided subdivision face yields two,
+    // and a mesh without normals carries none in the glTF.
     let triangles = |mesh: usize| {
         let id = gltf["meshes"][mesh]["primitives"][0]["indices"]
             .as_u64()
@@ -100,18 +103,18 @@ fn what_the_plugin_leaves_aside_is_counted_and_a_detached_xform_becomes_a_root()
 }
 
 #[test]
-#[ignore = "écrit dans fixtures/ ; se relance à la main, et son diff se relit"]
+#[ignore = "writes into fixtures/; rerun by hand, and its diff is re-read"]
 fn regenere_la_fixture_alembic() {
     let run = compile_golden_source(&fixture().join("scene.abc"), "alembic");
     write_expected(&fixture(), alembic_digest(&run), CASE, RULE);
 }
 
-/// Ce que la dorée fixe : le rapport du pilote, puis la scène intermédiaire elle-même — chaque nœud
-/// avec son nom, sa matrice et ses enfants, chaque primitive avec son matériau et ses sommets, et
-/// les valeurs qui prouvent l'enroulement, le découpage des coins et la conversion des coordonnées.
+/// What the golden fixes: the driver report, then the intermediate scene itself —
+/// each node with its name, matrix and children, each primitive with its material
+/// and vertices, and the values that prove winding, corner splitting and coordinate conversion.
 fn alembic_digest(run: &GoldenRun) -> Value {
     let (mut digest, _, gltf) = scene_digest(run, "alembic");
-    let accessor = |id: &Value| gltf["accessors"][id.as_u64().expect("accesseur") as usize].clone();
+    let accessor = |id: &Value| gltf["accessors"][id.as_u64().expect("accessor") as usize].clone();
     let primitives: Vec<Value> = gltf["meshes"]
         .as_array()
         .expect("meshes")
@@ -134,12 +137,12 @@ fn alembic_digest(run: &GoldenRun) -> Value {
     digest
 }
 
-/// Les valeurs de la première primitive, lues dans le binaire : positions, normales, coordonnées de
-/// texture et indices. C'est là que l'enroulement inversé et la seconde coordonnée retournée se
-/// voient en clair, nombre par nombre.
+/// Values of the first primitive, read from the binary: positions, normals,
+/// texture coordinates and indices. That is where reversed winding and the
+/// flipped second coordinate show in the clear, number by number.
 fn first_primitive(gltf: &Value, run: &GoldenRun) -> Value {
     let bytes = fs::read(run.prepared_dir("alembic").join("model.bin")).expect("model.bin");
-    // Le début d'un accesseur dans le binaire, et le nombre d'éléments qu'il annonce.
+    // Start of an accessor in the binary, and the element count it announces.
     let span = |id: &Value| {
         let accessor = &gltf["accessors"][id.as_u64().expect("accesseur") as usize];
         let view = &gltf["bufferViews"][accessor["bufferView"].as_u64().expect("vue") as usize];

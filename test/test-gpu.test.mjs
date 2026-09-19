@@ -15,25 +15,22 @@ import {
   listJustesseTests,
 } from './test-gpu.mjs';
 
-test('chaque sonde listée existe et porte le nom que la convention exige', () => {
+test('each listed probe exists and bears the name required by convention', () => {
   const sondes = listJustesseTests();
-  assert.ok(sondes.length > 0, 'aucune sonde trouvée');
+  assert.ok(sondes.length > 0, 'no probe found');
   for (const sonde of sondes) {
     assert.match(sonde, /^test\/justesse\/.*-.*\.mjs$/);
     assert.ok(existsSync(join(RACINE, sonde)), `${sonde} n'existe pas`);
   }
 });
 
-// La garde qui compte : un fichier de `test/justesse/` que le tiret écarte doit être le module
-// d'appui de quelqu'un — importé, ou donné en entrée à esbuild pour la page du navigateur. Sans
-// elle, une sonde mal nommée ne serait jamais lancée, en silence. Répliquer ici le filtre de
-// `listJustesseTests` ne l'attraperait pas : le test se comparerait au code qu'il vérifie.
-test('aucun fichier de test/justesse ne reste orphelin : lancé, ou nommé par une sonde', () => {
+// The count that matters: a file in `test/justesse/` skipped by hyphen must be someone's support module —
+// imported, or given as input to esbuild for the browser page. Without it, a misnamed probe would never run, silently.
+test('no test/justesse file remains orphaned: run, or named by a probe', () => {
   const dossier = join(RACINE, 'test/justesse');
   const tous = readdirSync(dossier).filter((f) => f.endsWith('.mjs'));
   const lances = new Set(listJustesseTests().map((s) => s.slice('test/justesse/'.length)));
-  // Les consommateurs d'un module d'appui ne sont pas tous dans le dossier : les jeux de cas
-  // partagés sont relus par des tests unitaires et par les tests de rendu.
+  // Support module consumers are not all in the directory: shared case sets are re-read by unit tests and render tests.
   const suivis = execFileSync('git', ['ls-files'], { cwd: RACINE, encoding: 'utf8' })
     .trim()
     .split('\n')
@@ -44,23 +41,22 @@ test('aucun fichier de test/justesse ne reste orphelin : lancé, ou nommé par u
     const nomme = suivis.some(
       (autre) => !autre.endsWith(`/${fichier}`) && textes.get(autre).includes(fichier),
     );
-    assert.ok(nomme, `${fichier} n'est ni lancé ni nommé ailleurs : il ne s'exécute jamais`);
+    assert.ok(nomme, `${fichier} is neither launched nor named elsewhere: it never runs`);
   }
 });
 
-test('chaque preuve de rendu lancée existe et porte le nom que la convention exige', () => {
+test('each run render proof exists and bears the name required by convention', () => {
   const lancees = listBrowserTests();
-  assert.ok(lancees.length > 0, 'aucune preuve de rendu trouvée');
+  assert.ok(lancees.length > 0, 'no render proof found');
   for (const cible of lancees) {
     assert.match(cible, /^test\/browser\/[a-z0-9]+(-[a-z0-9]+)*\.browser\.mjs$/);
     assert.ok(existsSync(join(RACINE, cible)), `${cible} n'existe pas`);
   }
 });
 
-// La garde qui compte, jumelle de celle de `test/justesse` : le dossier tout entier est soit lancé,
-// soit écarté avec un motif. Sans elle, une preuve oubliée ne s'exécute jamais, en silence — ce qui
-// est arrivé à dix d'entre elles pendant la réorganisation des tests.
-test('aucune preuve de rendu ne disparaît : chaque fichier est lancé ou écarté avec son motif', () => {
+// The count that matters, twin of `test/justesse`: the entire directory is either run or excluded with a reason.
+// Without it, a forgotten proof never executes, silently — which happened to ten of them during test reorganization.
+test('no render proof disappears: each file is run or discarded with its reason', () => {
   const surDisque = listBrowserFiles().map((f) => f.slice(0, -'.browser.mjs'.length));
   const lancees = new Set(
     listBrowserTests().map((c) => c.slice('test/browser/'.length, -'.browser.mjs'.length)),
@@ -68,15 +64,15 @@ test('aucune preuve de rendu ne disparaît : chaque fichier est lancé ou écart
   for (const nom of surDisque)
     assert.ok(
       lancees.has(nom) || BROWSER_ECARTES.has(nom),
-      `${nom} n'est ni lancé ni écarté : il ne s'exécute jamais`,
+      `${nom} is neither launched nor excluded: it never runs`,
     );
   assert.equal(lancees.size + BROWSER_ECARTES.size, surDisque.length);
 });
 
-test("aucun écart ne survit au fichier qu'il nomme, et chacun dit son genre", () => {
+test('no exclusion outlives the file it names, and each states its category', () => {
   const surDisque = new Set(listBrowserFiles().map((f) => f.slice(0, -'.browser.mjs'.length)));
   for (const [nom, [genre, motif]] of BROWSER_ECARTES) {
-    assert.ok(surDisque.has(nom), `${nom} est écarté mais n'existe plus : retirer l'entrée`);
+    assert.ok(surDisque.has(nom), `${nom} is excluded but no longer exists: remove the entry`);
     assert.ok(
       [MONTAGE, REGRESSION, DOUBLE_PERIME].includes(genre),
       `${nom} : genre inconnu ${genre}`,
@@ -85,7 +81,7 @@ test("aucun écart ne survit au fichier qu'il nomme, et chacun dit son genre", (
   }
 });
 
-test('buildTestGpuArgs construit la liste complète par défaut, en série', () => {
+test('buildTestGpuArgs builds the complete list by default, serially', () => {
   const args = buildTestGpuArgs([]);
   assert.deepEqual(args.slice(0, 3), [
     '--experimental-strip-types',
@@ -97,7 +93,7 @@ test('buildTestGpuArgs construit la liste complète par défaut, en série', () 
   assert.equal(args.length, 3 + listJustesseTests().length + listBrowserTests().length);
 });
 
-test('buildTestGpuArgs transmet les cibles fournies en ligne de commande', () => {
+test('buildTestGpuArgs passes targets provided on the command line', () => {
   assert.deepEqual(buildTestGpuArgs(['test/justesse/reflexion-cone.mjs']), [
     '--experimental-strip-types',
     '--test',

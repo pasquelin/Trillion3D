@@ -1,22 +1,17 @@
 /**
- * La valeur qu'un dépouillement rend quand il n'a lu aucun texel : elle ne peut rien cacher.
+ * Value returned when no texels are read: cannot occlude anything.
  *
- * La profondeur du moteur est INVERSÉE — proche à 1, lointain à 0 (`mathCamera.ts`) — et une boîte
- * n'est occultée que si sa borne la plus proche est PLUS LOINTAINE que l'occulteur, donc plus
- * petite. Un moins l'infini ne peut donc jamais rejeter, et `hizOccluded` l'écarte de toute façon
- * comme non fini. C'est la seule valeur qui n'ait besoin d'aucun accord avec la valeur d'effacement.
+ * Engine depth is REVERSED — near is 1, far is 0 (`mathCamera.ts`). A bounding box is occluded
+ * only if its nearest depth bound is FARTHER (smaller value) than the occluder depth.
  */
 export const HIZ_NOTHING = Number.NEGATIVE_INFINITY;
 
-/** Réduction pyramidale Hi-Z conservatrice : le PLUS LOINTAIN d'un carré de 2×2, donc le minimum
- *  en profondeur inversée.
- *  Témoin indépendant de `hizBuildFlat` (hizPyramidFlat.ts) : les deux écritures de la même
- *  réduction sont ce que le test d'équivalence oppose, les fusionner supprimerait la preuve. */
+/** Conservative Hi-Z pyramid reduction: FARTHEST depth of a 2×2 quad (minimum value in reversed depth). */
 export function hizReduceCeil(depth: readonly (readonly number[])[]): number[][] {
   const height = depth.length;
   const width = height > 0 ? depth[0].length : 0;
   if (width === 0 || depth.some((row) => row.length !== width)) {
-    throw new Error('Image vide ou non rectangulaire');
+    throw new Error('Empty or non-rectangular image');
   }
   const result: number[][] = [];
   for (let startRow = 0; startRow < height; startRow += 2) {
@@ -81,8 +76,8 @@ export function hizFootprintFar(
   return far;
 }
 
-/** Profondeur inversée : la boîte est cachée si sa borne la plus proche est encore derrière
- *  l'occulteur le plus lointain de son empreinte, marge comprise. */
+/** Reversed depth: box is occluded if its nearest bound is still behind
+ *  the farthest occluder of its footprint, including margin. */
 export function hizOccluded(nearest: number, far: number, bias = 0): boolean {
   if (!Number.isFinite(nearest) || !Number.isFinite(far) || !Number.isFinite(bias) || bias < 0)
     return false;

@@ -1,24 +1,23 @@
-// Une page Chromium locale où WebGPU est disponible, écrite une seule fois pour toutes les
-// reproductions « GPU réellement exécuté » : le noyau de sélection du DAG (`noyauSelectionGpu.mjs`),
-// la rasterisation (`noyauRasterGpu.mjs`), les normales d'éclairage (`normaleEclairageGpu.mjs`), les
-// lots d'adressage (`adressageGpuPage.mjs`) et la caméra parentée (`camera-parentee-gpu.mjs`)
-// l'utilisent. Playwright et esbuild sont des dépendances de dev du dépôt : le moteur se prouve
-// seul, sans autre projet sur la machine.
+// A local Chromium page where WebGPU is available, written once for every "GPU actually run"
+// reproduction: the DAG selection kernel (`noyauSelectionGpu.mjs`), rasterisation
+// (`noyauRasterGpu.mjs`), lighting normals (`normaleEclairageGpu.mjs`), wrap batches
+// (`adressageGpuPage.mjs`) and the parented camera (`camera-parentee-gpu.mjs`) use it. Playwright
+// and esbuild are the repo's dev dependencies: the engine proves itself, with no other project
+// on the machine.
 import { createServer } from 'node:http';
 import * as esbuild from 'esbuild';
-import { lancerChrome } from '../../scripts/mesure/chrome.mjs';
+import { launchChrome } from '../../scripts/mesure/chrome.mjs';
 import { ouvrirAppareil } from './appareilWebgpu.mjs';
 
 /**
- * Empaquette un module de page pour le navigateur et rend le texte du paquet : en IIFE sous
- * `nomGlobal` pour `dansPageWebgpu`, ou en module ES (`format: 'esm'`) quand la page le charge par
- * `import()`. Les options de paquetage — cible, plateforme — sont celles de toutes les
- * reproductions : les écrire ici est ce qui empêche deux d'entre elles de compiler pour deux cibles
- * différentes sans que rien ne le dise.
+ * Bundles a page module for the browser and returns the bundle text: as an IIFE under `nomGlobal`
+ * for `dansPageWebgpu`, or as an ES module (`format: 'esm'`) when the page loads it via `import()`.
+ * Bundle options — target, platform — are those of every reproduction: writing them here is what
+ * stops two of them compiling for two different targets with nothing saying so.
  */
-export async function empaquetePage(entree, nomGlobal, { format = 'iife' } = {}) {
+export async function empaquetePage(input, nomGlobal, { format = 'iife' } = {}) {
   const paquet = await esbuild.build({
-    entryPoints: [entree],
+    entryPoints: [input],
     bundle: true,
     write: false,
     format,
@@ -31,14 +30,14 @@ export async function empaquetePage(entree, nomGlobal, { format = 'iife' } = {})
 }
 
 /**
- * Sert une page vide sur un port libre, l'ouvre dans Chromium et y évalue `fonction(argument)`.
- * `fonction` s'exécute dans la page : elle ne voit que son argument, sérialisé, et rend du JSON.
- * `globalThis.ouvrirAppareil` y est installé d'avance (`appareilWebgpu.mjs`), puisqu'une fonction
- * sérialisée ne voit pas la portée de son module.
+ * Serves an empty page on a free port, opens it in Chromium and evaluates `fonction(argument)`
+ * there. `fonction` runs in the page: it sees only its argument, serialised, and returns JSON.
+ * `globalThis.ouvrirAppareil` is installed ahead of time (`appareilWebgpu.mjs`), since a
+ * serialised function does not see its module's scope.
  *
- * Options : `titre` (celui de la page), `script` (un paquet servi sur `/page.js` et chargé par la
- * page, pour les reproductions qui ont besoin des vrais modules du moteur) et `erreursPage` (un
- * tableau que les erreurs non rattrapées de la page viennent remplir).
+ * Options: `titre` (the page title), `script` (a bundle served on `/page.js` and loaded by the
+ * page, for reproductions that need the engine's real modules) and `erreursPage` (an array that
+ * uncaught page errors come to fill).
  */
 export async function dansPageWebgpu(fonction, argument, options = {}) {
   const { titre = 'WebGeometry WebGPU', script = null, erreursPage = null } = options;
@@ -50,7 +49,7 @@ export async function dansPageWebgpu(fonction, argument, options = {}) {
     response.end(sert ? script : html);
   });
   await new Promise((ready) => server.listen(0, '127.0.0.1', ready));
-  const browser = await lancerChrome({ headless: true });
+  const browser = await launchChrome({ headless: true });
   try {
     const page = await browser.newPage();
     if (erreursPage) page.on('pageerror', (error) => erreursPage.push(error.message));

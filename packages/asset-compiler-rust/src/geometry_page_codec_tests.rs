@@ -1,10 +1,10 @@
-//! Test doré du décodeur partagé : ce que `geometry_page::encode` écrit, `web_geometry_page_codec`
-//! le relit — mêmes indices, mêmes flottants au bit près, mêmes refus.
+//! Shared decoder golden test: what `geometry_page::encode` writes, `web_geometry_page_codec`
+//! re-reads — same indices, same floats bit for bit, same refusals.
 
 use crate::geometry_page::{encode, localise, Attribute, STRIDE};
 use web_geometry_page_codec as codec;
 
-/// Les cinq attributs facultatifs d'une page, avec les décalages que pose `compiler_primitive.rs`.
+/// Five optional page attributes, with offsets set by `compiler_primitive.rs`.
 const PLAN: [(usize, usize, usize, u32); 5] = [
     (12, 3, 3, 1),
     (24, 2, 2, 2),
@@ -20,8 +20,8 @@ fn xorshift(etat: &mut u32) -> u32 {
     *etat
 }
 
-/// Des flottants hostiles mais finis : l'encodeur refuse NaN et l'infini, le reste doit passer.
-/// Zéro négatif, dénormaux, extrêmes et motifs de bits quelconques se retrouvent tels quels.
+/// Hostile but finite floats: encoder refuses NaN and Infinity, rest passes.
+/// Negative zero, denormals, extremes, bit patterns retained as is.
 fn hostile(etat: &mut u32) -> f32 {
     let brut = xorshift(etat);
     match brut % 8 {
@@ -54,7 +54,7 @@ fn attributs(count: usize, etat: &mut u32) -> Vec<Attribute> {
         .collect()
 }
 
-/// Un maillage dont chaque sommet est touché, avec des triangles répétés et des sommets partagés.
+/// Mesh with every vertex touched, repeated triangles and shared vertices.
 fn maillage(vertices: usize, etat: &mut u32) -> (Vec<u32>, Vec<f32>) {
     let positions = (0..vertices * 3).map(|_| hostile(etat)).collect();
     let mut indices = Vec::with_capacity(vertices * 3);
@@ -66,8 +66,8 @@ fn maillage(vertices: usize, etat: &mut u32) -> (Vec<u32>, Vec<f32>) {
     (indices, positions)
 }
 
-/// Chaque flottant de la page décodée, comparé au bit près à sa valeur source. Un attribut plus
-/// large que sa source porte 1.0 en dernière place, comme l'écrit l'encodeur.
+/// Each float of decoded page, compared bit for bit to source value. Attribute wider
+/// than source carries 1.0 in last position, as encoder writes.
 fn verifie(page: &codec::DecodedPage, original: &[u32], positions: &[f32], attrs: &[Attribute]) {
     for (i, &source) in original.iter().enumerate() {
         let source = source as usize;
@@ -79,7 +79,7 @@ fn verifie(page: &codec::DecodedPage, original: &[u32], positions: &[f32], attrs
             );
         }
         for (rang, attribute) in attrs.iter().enumerate() {
-            let sortie = page.optional[rang].as_ref().expect("attribut décodé");
+            let sortie = page.optional[rang].as_ref().expect("decoded attribute");
             for c in 0..attribute.width {
                 let attendu = if c < attribute.source_width {
                     attribute.values[source * attribute.source_width + c]
@@ -96,10 +96,10 @@ fn verifie(page: &codec::DecodedPage, original: &[u32], positions: &[f32], attrs
     }
 }
 
-/// Le codec d'indices de meshopt garde les triangles et leur ordre, mais choisit lui-même la
-/// rotation de chacun : c'est une propriété du format, pas du décodeur, et le décodeur JavaScript
-/// rend exactement les mêmes indices. Le test exige donc triangle par triangle une rotation, et
-/// rien de moins — même sommets, même sens de parcours, même rang.
+/// Meshopt index codec preserves triangles and order, but chooses own
+/// rotation for each: format property, not decoder, JavaScript decoder
+/// yields exact same indices. Test requires triangle-by-triangle rotation,
+/// same vertices, same traversal direction, same rank.
 fn memes_triangles(local: &[u32], decodes: &[u32]) {
     assert_eq!(local.len(), decodes.len());
     for (t, triangle) in local.chunks(3).enumerate() {

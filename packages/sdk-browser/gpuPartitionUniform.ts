@@ -11,36 +11,36 @@ import {
 } from './gpuPartitionContract.ts';
 import { matrixAtRenderOrigin } from '../sdk-core/index.ts';
 
-/** Ce qu'une image dit à la partition, et rien de plus : deux matrices, une ancre, sept entiers. */
+/** What a frame tells the partition, and nothing more: two matrices, an anchor, seven integers. */
 export type PartitionFrame = {
-  /** Éléments de la vue et de la vue-projection en double précision, en coordonnées MONDE. */
+  /** View and view-projection elements in double precision, in WORLD coordinates. */
   view: ArrayLike<number>;
   viewProj: ArrayLike<number>;
   /**
-   * Le point auquel la projection GPU rapporte les coins, en double précision : la pose de la
-   * caméra. Les matrices envoyées au noyau sont composées avec cette translation, si bien qu'un
-   * coin proche de la caméra n'y entre plus par ses coordonnées monde — c'est ce qui garde la borne
-   * d'erreur serrée sur un modèle dont les coordonnées valent des dizaines de milliers.
+   * Point the GPU projection reports corners relative to, in double precision: the camera pose.
+   * Matrices sent to the kernel are composed with this translation, so a corner near the camera
+   * no longer enters through its world coordinates — that is what keeps the error bound tight on
+   * a model whose coordinates are tens of thousands.
    */
   anchor: readonly [number, number, number];
   near: number;
   rows: number;
   width: number;
   height: number;
-  /** Mips de la pyramide Hi-Z, avec leur décalage et leur largeur ; vide quand il n'y en a pas. */
+  /** Hi-Z pyramid mips, with their offset and width; empty when there are none. */
   levels: Array<{ offset: number; width: number }>;
-  /** Couche coplanaire la plus haute qu'un slot indirect nomme. */
+  /** Highest coplanar layer an indirect slot names. */
   layerTop: number;
-  /** Faux dès que la table de lignes a changé d'âge : l'historique par ligne ne décrit plus rien. */
+  /** False as soon as the row table has changed age: per-row history describes nothing. */
   historyValid: boolean;
-  /** Faux quand aucun pipeline ne sait dessiner la moitié testée : l'image reste en une passe. */
+  /** False when no pipeline can draw the tested half: the frame stays a single pass. */
   hasRest: boolean;
 };
 
 /**
- * Les mots de l'uniforme d'une image, écrits dans un tampon que l'appelant tient. `rows` arrive à
- * part : l'appelant le plafonne à la capacité du tampon, et le passer ainsi évite de recopier
- * l'image entière dans un objet neuf à chaque appel.
+ * Words of a frame's uniform, written into a buffer the caller holds. `rows` arrives separately:
+ * the caller caps it at the buffer's capacity, and passing it this way avoids copying the whole
+ * frame into a new object on every call.
  */
 export function packPartitionUniform(
   words: Uint32Array,
@@ -48,11 +48,11 @@ export function packPartitionUniform(
   frame: PartitionFrame,
   rows: number,
 ) {
-  // Ancrées sur l'œil : la composition n'ajoute aucune erreur à celle que le noyau borne déjà.
+  // Anchored on the eye: the composition adds no error beyond what the kernel already bounds.
   matrixAtRenderOrigin(floats, frame.view, frame.anchor, UNI_VIEW);
   matrixAtRenderOrigin(floats, frame.viewProj, frame.anchor, UNI_VIEW_PROJ);
-  // L'ancre part elle aussi en deux mots : le noyau retranche les deux, et l'écart qu'il obtient
-  // vaut celui du double d'origine à un ulp au carré près.
+  // The anchor also leaves as two words: the kernel subtracts both, and the gap it gets equals
+  // that of the original double to within an ulp squared.
   for (let i = 0; i < 3; i++)
     writeSplitDouble(floats, UNI_ANCHOR + i, UNI_ANCHOR_LOW + i, frame.anchor[i]);
   floats[UNI_ANCHOR + 3] = frame.near;
@@ -72,7 +72,7 @@ export function packPartitionUniform(
   }
 }
 
-/** Le tampon d'uniforme réutilisé d'une image à l'autre : un écrivain, aucune allocation. */
+/** Uniform buffer reused from frame to frame: one writer, no allocation. */
 export function createPartitionUniformWriter() {
   const words = new Uint32Array(UNIFORM_U32),
     floats = new Float32Array(words.buffer);

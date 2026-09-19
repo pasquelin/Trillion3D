@@ -1,37 +1,37 @@
-//! La couche Alembic au-dessus des blocs Ogawa : métadonnées, objets, hiérarchie.
+//! The Alembic layer above Ogawa blocks: metadata, objects, hierarchy.
 //!
-//! Le groupe racine d'une archive porte six blocs — version, version de fichier, groupe des objets,
-//! métadonnées de la racine, échantillonnages de temps, métadonnées indexées. Un **objet** est un
-//! groupe dont le premier enfant tient ses propriétés, les suivants ses objets enfants, et le
-//! dernier le bloc qui nomme ces enfants. Chaque nom s'accompagne d'une métadonnée, écrite en clair
-//! ou désignée par son rang dans la table indexée ; c'est elle qui dit le schéma — `AbcGeom_Xform`,
-//! `AbcGeom_PolyMesh`, `AbcGeom_FaceSet` — donc ce que l'objet est.
+//! An archive's root group holds six blocks — version, file version, object group, root metadata,
+//! time samplings, indexed metadata. An **object** is a group whose first child holds its
+//! properties, the next ones its child objects, and the last the block that names those children.
+//! Each name comes with a metadata string, written inline or designated by its rank in the indexed
+//! table; that is what names the schema — `AbcGeom_Xform`, `AbcGeom_PolyMesh`, `AbcGeom_FaceSet`
+//! — and therefore what the object is.
 use super::ogawa::{invalid, is_data, Ogawa};
 use crate::Result;
 use std::path::Path;
 
-/// Les trente-deux derniers octets d'un bloc d'en-têtes d'objets sont des empreintes, pas des noms.
+/// The last thirty-two bytes of an object-header block are digests, not names.
 const DIGEST_BYTES: usize = 32;
-/// Un rang de métadonnée égal à cette valeur annonce une métadonnée écrite en clair à la suite.
+/// A metadata rank equal to this value announces a metadata string written inline afterwards.
 pub(super) const META_INLINE: usize = 0xff;
-/// Profondeur maximale d'une hiérarchie : au-delà, le fichier boucle ou ment sur sa structure.
+/// Maximum hierarchy depth: beyond it, the file loops or lies about its structure.
 pub(super) const MAX_DEPTH: usize = 64;
 
-/// Une archive ouverte : le fichier, et ce que sa racine déclare une fois pour toutes.
+/// An open archive: the file, and what its root declares once and for all.
 pub(super) struct Archive {
     pub(super) file: Ogawa,
-    /// Les métadonnées indexées, citées par rang dans tous les en-têtes du fichier.
+    /// Indexed metadata, cited by rank in every header of the file.
     metas: Vec<String>,
 }
 
-/// Un objet de la hiérarchie : son nom, sa métadonnée — qui porte son schéma — et son groupe.
+/// A hierarchy object: its name, its metadata — which carries its schema — and its group.
 pub(super) struct Object {
     pub(super) name: String,
     pub(super) meta: String,
     pub(super) group: Vec<u64>,
 }
 
-/// Un curseur borné sur un bloc d'en-têtes : il rend `None` au lieu de sortir du bloc.
+/// A bounded cursor on a header block: it yields `None` instead of walking off the block.
 pub(super) struct Cursor<'a> {
     bytes: &'a [u8],
     at: usize,
@@ -59,8 +59,8 @@ impl<'a> Cursor<'a> {
         self.at += 4;
         Some(u32::from_le_bytes(slice.try_into().ok()?))
     }
-    /// Les `length` octets suivants, lus comme du texte. Un octet illisible devient le caractère de
-    /// remplacement : un nom mal encodé ne fait pas échouer une scène entière.
+    /// The next `length` bytes, read as text. An unreadable byte becomes the replacement
+    /// character: a badly encoded name does not fail a whole scene.
     pub(super) fn text(&mut self, length: u32) -> Option<String> {
         let length = usize::try_from(length).ok()?;
         let slice = self.bytes.get(self.at..self.at.checked_add(length)?)?;
@@ -70,7 +70,7 @@ impl<'a> Cursor<'a> {
 }
 
 impl Archive {
-    /// Ouvre l'archive et lit sa table de métadonnées.
+    /// Opens the archive and reads its metadata table.
     pub(super) fn open(path: &Path) -> Result<Archive> {
         let file = Ogawa::open(path)?;
         if file.root.len() < 6 {
@@ -84,12 +84,12 @@ impl Archive {
         Ok(Archive { file, metas })
     }
 
-    /// La métadonnée que ce rang désigne dans la table indexée.
+    /// The metadata this rank designates in the indexed table.
     pub(super) fn meta(&self, index: usize) -> String {
         self.metas.get(index).cloned().unwrap_or_default()
     }
 
-    /// L'objet racine : le sommet de la hiérarchie, sans nom et sans schéma.
+    /// The root object: the top of the hierarchy, with no name and no schema.
     pub(super) fn root_object(&self) -> Result<Object> {
         Ok(Object {
             name: String::new(),
@@ -98,7 +98,7 @@ impl Archive {
         })
     }
 
-    /// Les objets enfants de celui-ci, dans l'ordre où le fichier les déclare.
+    /// The child objects of this one, in the order the file declares them.
     pub(super) fn children(&self, object: &Object) -> Result<Vec<Object>> {
         let Some(last) = object.group.last().copied() else {
             return Ok(Vec::new());
@@ -126,8 +126,8 @@ impl Archive {
             .collect()
     }
 
-    /// Les noms et métadonnées d'un bloc d'en-têtes d'objets, dont les empreintes finales sont
-    /// laissées de côté : ce pilote lit une scène, il ne rejoue pas les condensés de l'écrivain.
+    /// Names and metadata of an object-header block, whose trailing digests are left aside: this
+    /// driver reads a scene, it does not replay the writer's checksums.
     fn object_headers(&self, block: &[u8]) -> Result<Vec<(String, String)>> {
         let Some(body) = block
             .len()
@@ -157,8 +157,8 @@ impl Archive {
     }
 }
 
-/// La table des métadonnées indexées : une longueur d'un octet, puis son texte. Le rang zéro est la
-/// métadonnée vide, que le format ne écrit pas.
+/// The indexed metadata table: a one-byte length, then its text. Rank zero is the empty
+/// metadata, which the format does not write.
 fn indexed_metas(block: &[u8]) -> Vec<String> {
     let mut out = vec![String::new()];
     let mut cursor = Cursor::new(block);
@@ -172,7 +172,7 @@ fn indexed_metas(block: &[u8]) -> Vec<String> {
     out
 }
 
-/// La valeur d'une clé d'une métadonnée Alembic, écrite en `clé=valeur;clé=valeur`.
+/// The value of a key in an Alembic metadata string, written as `key=value;key=value`.
 pub(super) fn meta_value<'a>(meta: &'a str, key: &str) -> Option<&'a str> {
     meta.split(';').find_map(|pair| {
         let (name, value) = pair.split_once('=')?;
