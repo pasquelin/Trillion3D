@@ -151,6 +151,7 @@ async function executer({ shader, cas, workgroup, entete, totaux, bitsPage }) {
     compteurs.unmap();
     const count = Math.min(ints[0], c.pageCount);
     resultats.push({
+      name: c.nom,
       nom: c.nom,
       // Request words in the ORDER THE GPU WROTE THEM: that is what ranking rereads.
       // `pages` stays sorted, for proofs that compare sets.
@@ -184,7 +185,7 @@ export async function selectionGpu(cas, shader = DAG_SELECTION_SHADER) {
   // header layout therefore travels with it, instead of being reread from a module the page lacks.
   return await dansPageWebgpu(executer, {
     shader,
-    cas: cas.map(({ nom, packed, uniforms }) => versPage(nom, packed, uniforms)),
+    cas: cas.map((c) => versPage(c.name ?? c.nom, c.packed, c.uniforms)),
     workgroup: SELECTION_WORKGROUP,
     entete: SELECTION_HEADER_WORDS,
     bitsPage: REQUEST_PAGE_MAX,

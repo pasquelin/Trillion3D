@@ -37,7 +37,7 @@ fn trois_imports_dun_obj_rendent_la_meme_cle() {
     fs::write(obj.with_file_name("scene.mtl"), "newmtl Uni\nKd 0 1 0\n").expect("mtl");
     let modifiee = cle_dans_un_cache_neuf(&obj, "identite-obj-mtl");
     assert_ne!(une, modifiee, "a modified library changes the key");
-    fs::remove_dir_all(root).expect("nettoyage");
+    fs::remove_dir_all(root).expect("cleanup");
 }
 
 // Behaviour: a scene driver — the USD layer — also yields the same key on every
@@ -86,5 +86,5 @@ fn une_option_modifiee_change_la_cle() {
         .expect("key")
         .to_string();
     assert_ne!(premiere, seconde, "a changed budget changes the key");
-    fs::remove_dir_all(root).expect("nettoyage");
+    fs::remove_dir_all(root).expect("cleanup");
 }

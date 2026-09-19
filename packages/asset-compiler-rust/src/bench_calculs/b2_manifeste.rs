@@ -27,7 +27,7 @@ fn nombre_ancien(valeur: Option<&Value>, quoi: &str) -> f64 {
 /// name of each entry formatted on the way, valid or not.
 fn vecteur_ancien(valeur: Option<&Value>, longueur: usize, quoi: &str) -> Vec<f64> {
     let entrees = valeur.and_then(Value::as_array).expect("tableau");
-    assert_eq!(entrees.len(), longueur, "longueur du vecteur");
+    assert_eq!(entrees.len(), longueur, "vector length");
     entrees
         .iter()
         .enumerate()
@@ -87,7 +87,7 @@ fn empreinte(colonnes: &Vec<Vec<u8>>) -> Bits {
 pub(crate) fn row() -> Row {
     let pages = inputs::pages(0x2B_A11E, 20_000);
     compare(
-        "B2 colonnes du manifeste binaire",
+        "B2 binary manifest columns",
         "manifest_binary/format.rs, page.rs",
         "20 000 pages, bounds + sphere + parent sphere".into(),
         &mut || reference_colonnes(&pages),

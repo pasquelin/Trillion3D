@@ -81,10 +81,7 @@ mod tests {
         let identiques = attendu.0.to_bits() == obtenu.0.to_bits()
             && attendu.1.to_bits() == obtenu.1.to_bits()
             && attendu.2.to_bits() == obtenu.2.to_bits();
-        assert!(
-            identiques,
-            "{label}: attendu {attendu:?}, obtenu {obtenu:?}"
-        );
+        assert!(identiques, "{label}: expected {attendu:?}, got {obtenu:?}");
     }
 
     #[test]
@@ -95,22 +92,22 @@ mod tests {
     }
 
     #[test]
-    fn deux_elements_choisissent_la_meme_moitie_haute_comme_mediane() {
-        memes_stats(vec![3.0, 1.0], "deux elements decroissants");
-        memes_stats(vec![1.0, 1.0], "deux elements egaux");
-        memes_stats(vec![f64::INFINITY, f64::NEG_INFINITY], "deux infinis");
+    fn two_elements_pick_the_same_upper_half_as_median() {
+        memes_stats(vec![3.0, 1.0], "two decreasing elements");
+        memes_stats(vec![1.0, 1.0], "two equal elements");
+        memes_stats(vec![f64::INFINITY, f64::NEG_INFINITY], "two infinities");
     }
 
     #[test]
-    fn des_doublons_et_le_poison_ne_font_pas_diverger_le_triplet() {
-        memes_stats(vec![5.0, 5.0, 5.0, 5.0, 5.0], "que des doublons");
-        memes_stats(erreurs(0xA11, 7), "sept, poison inclus");
-        memes_stats(erreurs(0xA22, 8), "huit, pair, poison inclus");
-        memes_stats(erreurs(0xA33, 211), "une periode complete de poison");
+    fn duplicates_and_poison_do_not_diverge_the_triplet() {
+        memes_stats(vec![5.0, 5.0, 5.0, 5.0, 5.0], "only duplicates");
+        memes_stats(erreurs(0xA11, 7), "seven, poison included");
+        memes_stats(erreurs(0xA22, 8), "eight, even, poison included");
+        memes_stats(erreurs(0xA33, 211), "full poison period");
     }
 
     #[test]
-    fn un_grand_niveau_avec_beaucoup_de_poison_reste_identique() {
-        memes_stats(erreurs(0xA44, 6000), "six mille, poison inclus");
+    fn a_large_level_with_heavy_poison_remains_identical() {
+        memes_stats(erreurs(0xA44, 6000), "six thousand, poison included");
     }
 }

@@ -35,9 +35,9 @@ pub(crate) fn row() -> Row {
     let verrous: Vec<bool> = (0..SOMMETS).map(|i| i % 4 == 0).collect();
     let soudure: Vec<u32> = (0..SOMMETS).map(|i| (i - i % 2) as u32).collect();
     compare(
-        "B3 bord du groupe sans HashSet",
+        "B3 group border without HashSet",
         "dag/border.rs",
-        "groupe de 32 clusters, 12 288 coins, 200 000 sommets".into(),
+        "group of 32 clusters, 12 288 corners, 200 000 vertices".into(),
         &mut || reference_bordure(&fusion, &reduit, &verrous, &soudure),
         &mut || border_survived(&fusion, &reduit, &verrous, &soudure),
         empreinte,

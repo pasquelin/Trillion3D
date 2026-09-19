@@ -56,7 +56,7 @@ export async function lignesConsommateursCore() {
     await ligne(
       'cross product of the lighting scene',
       'packages/sdk-core/lightingSceneMath.ts',
-      'vecteurs hostiles',
+      'hostile vectors',
       points,
       (l) => l.map((p, i) => ancien.referenceCross(p, l[(i * 7 + 1) % l.length])),
       (l) => l.map((p, i) => cross(p, l[(i * 7 + 1) % l.length])),
@@ -64,7 +64,7 @@ export async function lignesConsommateursCore() {
     await ligne(
       'packed transport surface',
       'packages/sdk-core/lightingTransportIntersections.ts',
-      'rectangles hostiles',
+      'hostile rectangles',
       rectangles,
       (l) => l.map((s) => leve(ancien.referencePackedSurface(s))),
       (l) =>
@@ -77,9 +77,9 @@ export async function lignesConsommateursCore() {
         ),
     ),
     await ligne(
-      'rayons d’une facette du transport',
+      'rays of one transport facet',
       'packages/sdk-core/lightingTransportRays.ts',
-      'facettes hostiles',
+      'hostile facets',
       facettes,
       (l) =>
         l.map((scene) => leve(ancien.referenceFillPatchRays(scene, 0, 16, new Float64Array(96)))),

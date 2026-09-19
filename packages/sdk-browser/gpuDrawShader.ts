@@ -20,8 +20,8 @@ import { BASE_SLOTS, slotCount } from './gpuDrawContract.ts';
  * by re-summing the totals of the slots that precede it. The result is that of the serial walk
  * term for term — u32 addition is associative, and a slot's cursor depends only on the totals of
  * lower-index slots, which an unused slot leaves at zero.
- * `bench/oracles/gpuDrawPrefixOracle.ts` porte les deux noyaux et `gpuDrawPrefixEquivalence.test.ts`
- * la preuve.
+ * `bench/oracles/gpuDrawPrefixOracle.ts` carries both kernels and `gpuDrawPrefixEquivalence.test.ts`
+ * the proof.
  */
 /** `GPUShaderStage.COMPUTE`, written in the clear: this module is also read from Node, without that global. */
 const COMPUTE = 4;
@@ -68,7 +68,7 @@ fn selected(item:DrawItem)->bool{
  if(uni.selectionEnabled==0u){return true;}
  return selectionMask[uni.selectionOffset+item.selectionIndex]!=0u;
 }
-/** Miroir GPU de \`slotOf\` (gpuDrawCpu.ts) : meme produit, meme somme, meme plafond de couche. */
+/** GPU mirror of \`slotOf\` (gpuDrawCpu.ts): same product, same sum, same layer ceiling. */
 fn slotOf(i:u32,item:DrawItem)->u32{return restAt(i)*3u+item.bin+${BASE_SLOTS}u*min(item.layer,${top}u);}
 fn matches(i:u32,slot:u32)->bool{let item=items[i];return slotOf(i,item)==slot&&selected(item);}
 fn writeCmd(slot:u32,count:u32){

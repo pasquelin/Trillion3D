@@ -26,12 +26,12 @@ const RULE: &str = "Each colour texture carries the lossless tail of its mip cha
 #[ignore = "writes into fixtures/; rerun by hand, and its diff is re-read"]
 fn regenere_la_fixture_des_apercus() {
     let dir = golden_dir("apercus/atlas-couleur");
-    fs::create_dir_all(&dir).expect("dossier de fixture");
+    fs::create_dir_all(&dir).expect("fixture dir");
     let mask = encode_mask();
     let bin = scene_bytes(&mask);
-    fs::write(dir.join("base-degrade.png"), encode_gradient()).expect("png de base");
+    fs::write(dir.join("base-degrade.png"), encode_gradient()).expect("base png");
     fs::write(dir.join("lueur.jpg"), encode_glow()).expect("shared jpeg");
-    fs::write(dir.join("atlas-couleur.bin"), &bin).expect("binaire");
+    fs::write(dir.join("atlas-couleur.bin"), &bin).expect("binary");
     let gltf = serde_json::to_vec_pretty(&scene(bin.len(), mask.len())).expect("glTF");
     fs::write(dir.join("atlas-couleur.gltf"), &gltf).expect("scene");
     let run = compile_golden(&dir, "atlas-couleur");

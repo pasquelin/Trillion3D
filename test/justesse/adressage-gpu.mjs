@@ -131,8 +131,8 @@ console.log(
     ` Three sampler ${pire('three').toFixed(4)}/255`,
 );
 const bloquants =
-  somme(proches, (cle) => !cle.includes('frontiere')) +
-  somme(lineaires, (cle) => !cle.includes('couture')) +
+  somme(proches, (cle) => !cle.includes('boundary') && !cle.includes('frontiere')) +
+  somme(lineaires, (cle) => !cle.includes('seam') && !cle.includes('couture')) +
   somme(exacts);
 if (process.argv[2]) writeFileSync(process.argv[2], JSON.stringify(sorties.map((s) => s.moteur)));
 console.log(`\nGPU: ${bloquants} blocking gaps`);

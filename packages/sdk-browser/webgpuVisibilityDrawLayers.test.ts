@@ -56,11 +56,7 @@ test("a row's coplanar layer goes into its record word, capped, and its triangle
     2,
     'a layer deeper than the scene has slots pinches to the last',
   );
-  assert.equal(
-    layout.drawItemWords[4],
-    1,
-    'les triangles de la ligne sortent de sa ligne de table',
-  );
+  assert.equal(layout.drawItemWords[4], 1, 'the row triangles leave their table row');
   assert.equal(layout.drawItemWords[DRAW_ITEM_U32 + 4], 3);
   assert.equal(hold.total, 4, 'the drawable-triangle total follows the two rows');
 });

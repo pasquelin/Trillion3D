@@ -125,7 +125,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   for (let i = 0; i < blendState.table.pagedItems.length; i++)
     blendState.table.pagedItems[i].pagedIndex = i;
   blendState.compaction = await createTransparentCompaction(gpuDevice, blendState.table);
-  diag.engineDiagnostic('transparent-clusters', 'Table des clusters transparents', {
+  diag.engineDiagnostic('transparent-clusters', 'Transparent cluster table', {
     version: 1,
     items: blendState.table.pagedItems.length,
     clusters: blendState.table.length,

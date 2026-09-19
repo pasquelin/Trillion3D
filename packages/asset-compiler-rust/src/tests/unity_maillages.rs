@@ -5,11 +5,11 @@ use unity_projet::{
     enfants, mat_blanc, material_index, materiau, node_named, objet, Projet, BUILTIN,
 };
 
-/// Les GUID des fichiers de chaque cas.
+/// The file GUIDs for each case.
 const MAT: &str = "000000000000000000000000000000a1";
 const MODEL: &str = "0000000000000000000000000000000a";
 
-/// Un `.mat` uni, le plus court que le pilote lise.
+/// A solid `.mat`, the shortest that the driver reads.
 fn matiere(name: &str) -> String {
     mat_blanc(name, "    - _Metallic: 0\n")
 }
@@ -73,7 +73,7 @@ fn a_renderer_listed_in_two_lod_levels_is_kept_at_the_finest_one() {
     let (manifest, gltf) = projet.compile("unity-lod-partage").prepared("unity");
     for name in ["Fine", "Partagee"] {
         assert!(
-            !node_named(&gltf, name).expect("l'objet du niveau")["mesh"].is_null(),
+            !node_named(&gltf, name).expect("the level's object")["mesh"].is_null(),
             "{name} is cited by the finest level: its mesh is kept"
         );
     }
@@ -87,7 +87,7 @@ fn a_renderer_listed_in_two_lod_levels_is_kept_at_the_finest_one() {
 /// Material carried by the mesh of this node's first child.
 fn material_of_child(gltf: &Value, name: &str) -> Value {
     let node = node_named(gltf, name).unwrap_or_else(|| panic!("the node {name}"));
-    let child = node["children"][0].as_u64().expect("un enfant") as usize;
-    let mesh = gltf["nodes"][child]["mesh"].as_u64().expect("un maillage") as usize;
+    let child = node["children"][0].as_u64().expect("a child") as usize;
+    let mesh = gltf["nodes"][child]["mesh"].as_u64().expect("a mesh") as usize;
     gltf["meshes"][mesh]["primitives"][0]["material"].clone()
 }

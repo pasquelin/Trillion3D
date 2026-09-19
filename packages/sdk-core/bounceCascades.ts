@@ -27,7 +27,7 @@ export interface BounceCascadeLevel {
 }
 
 export interface BounceCascades {
-  /** Sondes sur un axe et par niveau. */
+  /** Probes along one axis and per level. */
   size: number;
   probesPerLevel: number;
   probes: number;

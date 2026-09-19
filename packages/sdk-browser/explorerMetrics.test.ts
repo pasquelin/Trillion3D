@@ -1,4 +1,4 @@
-// Lot triangles synchrones : `drawnTriangles` entre dans `BACKEND_METRIC_KEYS`, donc `fillMetrics`
+// Synchronous triangles batch: `drawnTriangles` enters `BACKEND_METRIC_KEYS`, so `fillMetrics`
 // copies it like any other engine measurement — `null` before the first frame (no cut),
 // never `null` once an engine has published a cut and its drawn-triangle count.
 import test from 'node:test';
