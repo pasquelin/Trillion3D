@@ -1,5 +1,7 @@
 # Documentation de Web Geometry
 
+Le site GitHub Pages (`/docs` sur `main`) sert le dernier rapport de campagne : `index.html` et `vignettes/`, posés par `node scripts/mesure/publierRapport.mjs` après `rapportGlobal.mjs`. `.nojekyll` empêche Jekyll de transformer cette page.
+
 Le SDK livré est décrit par le [guide SDK](SDK.md), l'[architecture des paquets](../packages/README.md), le [compilateur natif](COMPILER.md) et le [format de cache](FORMAT.md). Tout ce qui n'est pas listé ici n'est pas livré.
 
 | Document | Rôle |
