@@ -1,0 +1,5 @@
+#!/bin/sh
+# Generic hook: only hands over to the tool-installed hook of the same name. post-commit and
+# post-checkout are symbolic links to this file.
+. "$(dirname "$0")/lib.sh"
+run_local_hook "$(basename "$0")" "$@"
