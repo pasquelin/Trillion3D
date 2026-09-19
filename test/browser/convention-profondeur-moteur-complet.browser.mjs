@@ -27,17 +27,17 @@ for (const [passe, r] of Object.entries(resultat.passes)) {
   const dit = (message) => `${passe}: ${message}`;
   assert.ok(r.rougeWebgl > 0, dit('the tilted tile is not visible under the WebGL convention'));
   assert.ok(
-    r.etapes.some((e) => (e.name ?? e.nom).startsWith('webgl-') && e.tenue),
+    r.etapes.some((e) => e.name.startsWith('webgl-') && e.tenue),
     dit('the WebGL image was never held'),
   );
   assert.equal(
-    r.etapes.find((e) => (e.name ?? e.nom) === 'webgpu-0').tenue,
+    r.etapes.find((e) => e.name === 'webgpu-0').tenue,
     true,
     dit('switching to WebGPU triggered recomputing an image that nothing changed'),
   );
   assert.equal(r.versWebgpu, 0, dit('the WebGPU convention draws something different than WebGL'));
   assert.equal(
-    r.etapes.find((e) => (e.name ?? e.nom) === 'retour-0').tenue,
+    r.etapes.find((e) => e.name === 'retour-0').tenue,
     true,
     dit('returning to WebGL triggered recomputing an image that nothing changed'),
   );

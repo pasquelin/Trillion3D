@@ -72,7 +72,7 @@ const packed = packDagSelection([{ world, pages }]);
 // the engine carries them, otherwise relative view and absolute world would mix in the same
 // formula.
 packedWorldsToRenderOrigin(packed, [{ world }], uniforms.cameraWorld);
-const gpu = await selectionGpu([{ nom: 'echantillon', packed, uniforms }]);
+const gpu = await selectionGpu([{ name: 'echantillon', packed, uniforms }]);
 assert.equal(gpu.indisponible ?? null, null);
 assert.deepEqual([...(gpu.compilation ?? []), ...(gpu.erreurs ?? [])], []);
 
