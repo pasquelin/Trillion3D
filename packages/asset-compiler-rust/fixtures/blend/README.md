@@ -1,43 +1,43 @@
-# Fixtures Blender
+# Blender fixtures
 
 ## `procedural-materials`
 
-Scène Blender originale **CC0-1.0**, reprise telle quelle du corpus local
-`test/assets/blend/procedural-materials` (corpus WebGeometry, génération procédurale, 15 septembre
-2026, écrite par Blender 5.2.1 LTS). Le dépôt ignore `test/assets/` : le fichier dont le pilote a
-besoin est copié ici avec sa notice, `LICENSE.txt`. Aucun fichier n'est produit par le dépôt et
-aucune installation de Blender n'est nécessaire pour rejouer la dorée.
+Original Blender scene **CC0-1.0**, taken as-is from the local corpus
+`test/assets/blend/procedural-materials` (WebGeometry corpus, procedural generation, 15 September
+2026, written by Blender 5.2.1 LTS). The repository ignores `test/assets/`: the file the driver
+needs is copied here with its notice, `LICENSE.txt`. No file is produced by the repository and
+no Blender install is required to replay the golden.
 
-`scene.blend` (92 065 octets, compressé en Zstandard comme Blender le fait par défaut) porte :
+`scene.blend` (92,065 bytes, Zstandard-compressed as Blender does by default) carries:
 
-- un objet vide `HierarchyRoot` — compté et non rendu — et **trois objets maillage**
-  `SharedMesh_0`, `SharedMesh_1` et `SharedMesh_2`, accrochés à lui, posés en (0, 0, 0), (3, 0, 0)
-  et (6, 0, 0) : la matrice monde se compose donc par la chaîne des pères, la matrice d'accrochage
-  et la transformation locale, aucune matrice n'étant écrite dans un fichier de cette génération ;
-- **un seul maillage** `Cube` pour les trois objets — huit sommets, six faces à quatre coins,
-  vingt-quatre coins —, ce qui fait de ces objets des instances : le glTF n'écrit le maillage
-  qu'une fois ;
-- des **indices de matériau par face** (0, 1, 2, 0, 1, 2), donc trois primitives dans le maillage ;
-- une couche d'**UV** par coin, nommée `UVMap`, et un `sharp_face` unique à vrai : toutes les faces
-  sont nettes, les normales sont donc calculées à plat ;
-- **trois matériaux** à nœud `Principled BSDF` : `Emissive` (couleur d'émission d'intensité 3, donc
-  bornée par le glTF et comptée), `Opaque` (couleur de base branchée sur une image) et
-  `Transparent` (couleur de base et alpha branchés sur la même image) ;
-- **une image PNG empaquetée** dans le fichier (`checker_rgba.png`, 291 octets), dont le chemin
-  déclaré sort de l'arborescence servie : ce sont les octets empaquetés qui servent, versés tels
-  quels dans le binaire de la scène intermédiaire par une vue de tampon.
+- an empty object `HierarchyRoot` — counted and not rendered — and **three mesh objects**
+  `SharedMesh_0`, `SharedMesh_1` and `SharedMesh_2`, parented to it, placed at (0, 0, 0), (3, 0, 0)
+  and (6, 0, 0): the world matrix is therefore composed through the parent chain, the parenting
+  matrix and the local transform, no matrix being written in a file of this generation;
+- **a single mesh** `Cube` for the three objects — eight vertices, six four-corner faces,
+  twenty-four corners —, which makes these objects instances: the glTF writes the mesh
+  only once;
+- **per-face material indices** (0, 1, 2, 0, 1, 2), hence three primitives in the mesh;
+- one **UV** layer per corner, named `UVMap`, and a single `sharp_face` at true: every face
+  is sharp, so the normals are computed flat;
+- **three materials** with a `Principled BSDF` node: `Emissive` (emission colour of intensity 3, therefore
+  clamped by glTF and counted), `Opaque` (base colour wired to an image) and
+  `Transparent` (base colour and alpha wired to the same image);
+- **one PNG image packed** in the file (`checker_rgba.png`, 291 bytes), whose declared path
+  leaves the served tree: it is the packed bytes that are used, poured as-is
+  into the intermediate scene binary through a buffer view.
 
-L'attendu de la dorée est dans `procedural-materials/expected.json`.
+The golden's expected is in `procedural-materials/expected.json`.
 
 ## `limites`
 
-`truncated.blend` : les 4 096 premiers octets du même fichier une fois déballé — un entête valide
-suivi d'un bloc qui n'est pas entier. Le pilote doit le refuser par `blend-truncated`, sans panique
-ni allocation non bornée. Même licence CC0-1.0, notice dans `LICENSE.txt`.
+`truncated.blend`: the first 4,096 bytes of the same file once unwrapped — a valid header
+followed by a block that is not whole. The driver must refuse it as `blend-truncated`, without panic
+or unbounded allocation. Same CC0-1.0 licence, notice in `LICENSE.txt`.
 
-## Ce que le dépôt ne possède pas
+## What the repository does not own
 
-Aucun fichier écrit par un Blender antérieur à la disposition par attributs nommés, ni par un
-Blender 32 bits ou sur une machine en boutisme gros. Les refus correspondants sont donc prouvés sur
-un fichier minimal écrit dans le test à partir de la description du format
-(`src/plugins/scene/blend/tests.rs`), jamais sur une fixture commise.
+No file written by a Blender older than the named-attribute layout, nor by a
+32-bit Blender or on a big-endian machine. The matching rejections are therefore proved on
+a minimal file written in the test from the format description
+(`src/plugins/scene/blend/tests.rs`), never on a committed fixture.

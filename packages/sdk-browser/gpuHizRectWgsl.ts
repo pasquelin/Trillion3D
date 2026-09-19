@@ -1,24 +1,23 @@
 import { HIZ_KERNEL_TEXELS } from './hizCounts.ts';
 
 /**
- * Le choix du mip qui répond pour un rectangle d'écran DÉJÀ découpé au viewport : miroir GPU de
- * `premierNiveau` puis de la recherche que `hizTestRect` faisait boîte par boîte sur le processeur.
+ * Choice of the mip that answers for a screen rectangle ALREADY clipped to the viewport: GPU
+ * mirror of `premierNiveau` then of the search `hizTestRect` did box by box on the CPU.
  *
- * Ce bout de code n'est écrit qu'une fois parce que deux noyaux en dépendent — l'empaquetage des
- * bornes de la moitié testée opaque et le test d'occultation des grappes transparentes —, et que
- * deux écritures de la même règle finiraient par différer. Aucun des deux ne lit la pyramide ici :
- * seul le niveau et son existence sortent, et un rectangle qu'aucun mip ne couvre n'est jamais
- * rejeté.
+ * This snippet is written once because two kernels depend on it — packing the opaque tested-half
+ * bounds and the transparent-cluster occlusion test — and two writings of the same rule would
+ * eventually diverge. Neither reads the pyramid here: only the level and whether it exists come
+ * out, and a rectangle no mip covers is never rejected.
  */
 export const HIZ_LEVEL_WGSL = `
-/** Miroir de \`premierNiveau\` (hizOcclusion.ts) : plus bas mip qui puisse tenir dans le noyau. */
+/** Mirror of \`premierNiveau\` (hizOcclusion.ts): lowest mip that can fit in the kernel. */
 fn firstLevel(span:i32)->u32{
  if(span<${HIZ_KERNEL_TEXELS}){return 0u;}
  let level=31u-countLeadingZeros(u32(span))-${Math.log2(HIZ_KERNEL_TEXELS) - 1}u;
  return select(level,0u,level>31u);
 }
-/** Le mip qui couvre le rectangle en moins de seize texels, et s'il en existe un : \`(niveau, 1)\`,
- *  ou \`(0, 0)\` quand la pyramide n'en porte aucun d'assez grossier. */
+/** The mip that covers the rectangle in fewer than sixteen texels, and whether one exists:
+ *  \`(level, 1)\`, or \`(0, 0)\` when the pyramid holds none coarse enough. */
 fn hizLevelFor(rect:vec4i,levels:u32)->vec2u{
  var l=firstLevel(max(rect.z-rect.x,rect.w-rect.y));
  loop{
@@ -32,10 +31,9 @@ fn hizLevelFor(rect:vec4i,levels:u32)->vec2u{
 }
 `;
 
-/** La profondeur la plus LOINTAINE de l'empreinte d'une boîte dans un mip de la pyramide — donc,
- *  en profondeur inversée, le MINIMUM. Un rectangle vide ou plus large que le noyau rend
- *  `HIZ_NOTHING`, la valeur qui ne rejette jamais. Le noyau hôte déclare `pyramid`, le seul tampon
- *  que cette fonction lit. */
+/** The FARTHEST depth of a box's footprint in a pyramid mip — hence, in reverse-Z, the
+ *  MINIMUM. An empty rectangle or one wider than the kernel returns `HIZ_NOTHING`, the value
+ *  that never rejects. The host kernel declares `pyramid`, the only buffer this function reads. */
 export const HIZ_FAR_WGSL = `
 const HIZ_NOTHING:f32=-1.0e30;
 fn pyramidFar(minX:i32,minY:i32,maxX:i32,maxY:i32,offset:u32,width:u32)->f32{

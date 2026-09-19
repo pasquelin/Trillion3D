@@ -1,11 +1,11 @@
-// Le témoin Three reçoit les lampes du contrat : un test par comportement, sans navigateur.
+// The Three reference witness receives lights from contract: one test per behavior, headless.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { creerEclairageTemoin } from './mesure/pageTemoin.mjs';
 
 const DOUCEUR = 0.02;
 
-/** Un explorateur de papier : le magasin de lampes, les réglages publiés, les moteurs à prévenir. */
+/** A paper explorer: light store, published settings, backends to notify. */
 function explorateur(lights, backends = []) {
   return {
     lights: () => lights.map((light) => ({ ...light })),
@@ -43,7 +43,7 @@ const PROJECTEUR = {
   castsShadow: false,
 };
 
-test('une ponctuelle du contrat devient une lampe Three de même portée et décroissance', () => {
+test('a point light from contract becomes a Three light with same range and decay', () => {
   const eclairage = creerEclairageTemoin();
   eclairage.suivre(explorateur([PONCTUELLE]));
   const [lampe] = eclairage.groupe.children;
@@ -55,12 +55,12 @@ test('une ponctuelle du contrat devient une lampe Three de même portée et déc
   assert.deepStrictEqual([lampe.color.r, lampe.color.g, lampe.color.b], [1, 0.5, 0.25]);
 });
 
-test('une directionnelle est posée à l’opposé de sa propagation, cible à l’origine', () => {
+test('a directional light is placed opposite to its propagation, target at origin', () => {
   const eclairage = creerEclairageTemoin();
   eclairage.suivre(explorateur([SOLEIL]));
   const [lampe] = eclairage.groupe.children;
   assert.ok(lampe.isDirectionalLight);
-  // `-0` et `0` sont la même position : la comparaison porte sur les valeurs, pas leur signe.
+  // `-0` and `0` are the same position: comparison concerns values, not sign.
   assert.deepStrictEqual(
     lampe.position.toArray().map((valeur) => valeur + 0),
     [0, 1, 0],
@@ -68,26 +68,26 @@ test('une directionnelle est posée à l’opposé de sa propagation, cible à l
   assert.deepStrictEqual(lampe.target.position.toArray(), [0, 0, 0]);
 });
 
-test('un projecteur reprend le demi-angle et le bord de cône du moteur', () => {
+test('a spot light preserves half-angle and edge softness from engine', () => {
   const eclairage = creerEclairageTemoin();
   eclairage.suivre(explorateur([PROJECTEUR]));
   const [lampe] = eclairage.groupe.children;
   assert.ok(lampe.isSpotLight);
   assert.strictEqual(lampe.angle, 0.5);
-  // Three adoucit de `cos(angle)` à `cos(angle(1 − pénombre))` ; le moteur, de `cos θ` à `cos θ + douceur`.
+  // Three softens from `cos(angle)` to `cos(angle(1 − penumbra))`; engine from `cos θ` to `cos θ + softness`.
   const bord = Math.cos(lampe.angle * (1 - lampe.penumbra));
   assert.ok(Math.abs(bord - (Math.cos(0.5) + DOUCEUR)) < 1e-9, `bord ${bord}`);
   assert.deepStrictEqual(lampe.target.position.toArray(), [0, -5, 0]);
 });
 
-test('aucune ombre portée côté témoin : le renderer Three du SDK n’a pas de cartes', () => {
+test('no cast shadows on witness side: SDK Three renderer has no maps', () => {
   const eclairage = creerEclairageTemoin();
   const resume = eclairage.suivre(explorateur([PONCTUELLE, SOLEIL]));
   assert.strictEqual(resume.ombres, false);
   for (const lampe of eclairage.groupe.children) assert.strictEqual(lampe.castShadow, false);
 });
 
-test('le résumé compte les lampes reçues par type, dans l’ordre du magasin', () => {
+test('summary counts received lights by type in store order', () => {
   const eclairage = creerEclairageTemoin();
   const resume = eclairage.suivre(explorateur([PONCTUELLE, SOLEIL, PROJECTEUR]));
   assert.deepStrictEqual(resume, {
@@ -100,7 +100,7 @@ test('le résumé compte les lampes reçues par type, dans l’ordre du magasin'
   });
 });
 
-test('un déplacement ne demande pas de reprise, un ajout en demande une', () => {
+test('moving a light does not trigger a scene refresh, adding one does', () => {
   let reprises = 0;
   const backend = { refreshSceneLighting: () => reprises++ };
   const lights = [{ ...PONCTUELLE }];
@@ -118,7 +118,7 @@ test('un déplacement ne demande pas de reprise, un ajout en demande une', () =>
   assert.strictEqual(eclairage.groupe.children.length, 2);
 });
 
-test('un dist antérieur au contrat rend null, jamais un compte inventé', () => {
+test('a dist prior to contract returns null, never an invented count', () => {
   const eclairage = creerEclairageTemoin();
   assert.strictEqual(eclairage.suivre({ backends: [] }), null);
   assert.strictEqual(eclairage.groupe.children.length, 0);

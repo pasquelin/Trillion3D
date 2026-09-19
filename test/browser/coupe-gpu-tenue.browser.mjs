@@ -1,11 +1,11 @@
-// Preuve par le moteur réel : une page voulue qui n'est pas encore résidente ne jette pas la
-// sélection GPU. Le budget de résidence de la scène est trop petit pour ses feuilles, donc le noyau
-// réclame des pages absentes et la coupe monte vers l'ancêtre résident.
+// Proof by the real engine: a wanted page that is not yet resident does not throw away GPU
+// selection. The scene's residency budget is too small for its leaves, so the kernel asks for
+// missing pages and the cut climbs to the resident ancestor.
 //
-// Avant le correctif, une telle image levait `GPU_COVERAGE_INCOMPLETE` et la sélection GPU était
-// abandonnée pour toute la session : `cpuSelectMs` passait de `null` à une durée sans que l'hôte en
-// soit averti. La preuve exige les deux moitiés : la coupe GPU choisit encore (`cpuSelectMs` nul) et
-// aucun repli n'a été déclaré (`gpuSelectionFallback` faux).
+// Before the fix, such a frame raised `GPU_COVERAGE_INCOMPLETE` and GPU selection was abandoned
+// for the whole session: `cpuSelectMs` went from `null` to a duration without the host being
+// told. The proof requires both halves: GPU cut still chooses (`cpuSelectMs` null) and no
+// fallback has been declared (`gpuSelectionFallback` false).
 //
 //   node --experimental-strip-types test/browser/coupe-gpu-tenue.browser.mjs
 import assert from 'node:assert/strict';
@@ -14,7 +14,7 @@ import { preuveDansLaPage, preuveSaine } from '../appui/preuvePageMoteur.mjs';
 const resultat = await preuveDansLaPage(
   'coupeGpuTenuePage.mjs',
   'coupeGpuTenue',
-  'Coupe GPU tenue malgré une page absente',
+  'GPU cut held despite a missing page',
 );
 console.log(
   JSON.stringify(
@@ -26,26 +26,26 @@ console.log(
 preuveSaine(resultat);
 
 const images = resultat.images ?? [];
-assert.equal(images.length, 30, 'la preuve mesure trente images après le chargement');
+assert.equal(images.length, 30, 'the proof measures thirty frames after load');
 for (const image of images) {
   assert.equal(
     image.cpuSelectMs,
     null,
-    `image ${image.i} : la coupe processeur a choisi (${image.cpuSelectMs} ms), ` +
-      'la sélection GPU a donc été jetée',
+    `frame ${image.i}: the CPU cut chose (${image.cpuSelectMs} ms), ` +
+      'so GPU selection was thrown away',
   );
   assert.equal(
     image.gpuSelectionFallback,
     false,
-    `image ${image.i} : le moteur déclare un repli sur la coupe processeur`,
+    `frame ${image.i}: the engine declares a fallback to the CPU cut`,
   );
-  assert.equal(image.uncoveredTriangles, 0, `image ${image.i} : trou dans la couverture`);
-  // La preuve ne vaut que si la résidence est bien le goulot : sinon rien n'escalade et elle est
-  // vide de sens. Le budget tient moins de pages que le DAG n'en compte.
-  assert.ok(image.residentPages <= 2, `image ${image.i} : ${image.residentPages} pages résidentes`);
-  assert.ok(image.clusters > 0, `image ${image.i} : coupe vide`);
+  assert.equal(image.uncoveredTriangles, 0, `frame ${image.i}: hole in coverage`);
+  // The proof only holds if residency is the bottleneck: otherwise nothing escalates and it is
+  // empty of meaning. The budget holds fewer pages than the DAG counts.
+  assert.ok(image.residentPages <= 2, `frame ${image.i}: ${image.residentPages} resident pages`);
+  assert.ok(image.clusters > 0, `frame ${image.i}: empty cut`);
 }
-// Le repli n'est pas seulement absent des compteurs : il aurait aussi été annoncé.
+// Fallback is not only absent from the counters: it would also have been announced.
 assert.ok(
   !(resultat.evenements ?? []).some((e) => e.phase === 'gpu-selection-fallback'),
   JSON.stringify(resultat.evenements),

@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 // =====================================================================================
-// La campagne complète : tout ce que le banc sait mesurer, joué d'une seule commande, chaque
-// scène de référence (`emerald-square`, `whisperwind-village`) puis chaque exécution sous
-// `--out/<scène>/<nom>/` (par défaut `.mesure/out/global/`). Une exécution dont le dossier porte
-// déjà un `mesure.json` est sautée, pour reprendre une campagne interrompue.
+// The complete benchmark campaign: everything the benchmark can measure, run in a single command,
+// each reference scene (`emerald-square`, `whisperwind-village`) then each run under
+// `--out/<scene>/<name>/` (default `.mesure/out/global/`). A run whose directory already
+// contains a `mesure.json` is skipped to resume an interrupted campaign.
 //
-//   node scripts/mesure/campagne.mjs [--out .mesure/out/global] [--scene a,b] [--seulement nom,nom] [--liste]
+//   node scripts/mesure/campagne.mjs [--out .mesure/out/global] [--scene a,b] [--seulement name,name] [--liste]
 //
-// Chaque ligne nomme ce qu'elle isole : une seule option la distingue de sa voisine, et c'est cette
-// différence qui se lit dans `rapportGlobal.mjs`. Les résolutions, la caméra, le soleil et les
-// textures cuites sont ceux des relevés du backlog, pour que les chiffres se comparent.
+// Each line names what it isolates: a single option distinguishes it from its neighbor, and it is
+// this difference that is read in `rapportGlobal.mjs`. Resolutions, camera, sun, and baked textures
+// are those of the backlog measurements so numbers remain comparable.
 // =====================================================================================
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, appendFileSync } from 'node:fs';
@@ -17,21 +17,21 @@ import { join, resolve } from 'node:path';
 import { parseArgs, scenesOf } from './options.mjs';
 
 const ROOT = resolve(import.meta.dirname, '../..');
-// Les groupes d'arguments que les lignes nomment en un mot, remplacés au lancement.
+// Argument groups that lines name in one word, replaced at execution.
 const GROUPES = {
   PLEINE: '--largeur 2496 --hauteur 1404',
   QUART: '--largeur 1248 --hauteur 702',
   TOUTES: '--vues generale,sol,rue,detail',
   DEUX: '--vues generale,sol',
   MOBILE: '--soleil --camera-mobile',
-  // Deux côtés sur le même dist : le premier porte la variante ou le moteur qui fait la différence.
+  // Two sides on the same dist: the first carries the variant or engine making the difference.
   DEUX_COTES: '--avant dist --apres dist',
   NU: '--moteur-avant three-nu --moteur-apres webgpu --avant dist --apres dist',
   LOD: '--moteur-avant three-lod --moteur-apres webgpu --avant dist --apres dist',
 };
 const SOCLE = '--moteur webgpu --images 60 --textures cache';
 
-// Une ligne par exécution : `nom | ce qu'elle isole | arguments`, groupes en majuscules.
+// One line per execution: `name | what it isolates | arguments`, uppercase groups.
 const LIGNES = `
 fixe | held frame: locked camera, no GPU work expected | TOUTES --pixelError 0,1,2 --soleil PLEINE
 mobile | campaign baseline: moving camera, sun, four views, two thresholds | TOUTES --pixelError 0,1 MOBILE PLEINE
@@ -76,14 +76,14 @@ three-lod-lampes-4 | Three LOD vs the engine, sun and four shadowed point lights
 visible | window open: cadence not capped at 60 Hz | DEUX --pixelError 1 MOBILE PLEINE --visible
 `;
 
-/** Les mots d'une ligne d'arguments, groupes remplacés. */
+/** Words in an argument line, groups replaced. */
 const mots = (texte) =>
   texte
     .split(/\s+/)
     .filter(Boolean)
     .flatMap((mot) => (GROUPES[mot] ? GROUPES[mot].split(' ') : [mot]));
 
-/** Les exécutions, dans l'ordre : `[nom, pourquoi, arguments au-delà du socle]`. */
+/** Executions in order: `[name, why, arguments beyond base]`. */
 export const CAMPAGNE = LIGNES.trim()
   .split('\n')
   .map((ligne) => ligne.split('|').map((champ) => champ.trim()))
@@ -91,7 +91,7 @@ export const CAMPAGNE = LIGNES.trim()
 
 function run(name, args, out, log, scene) {
   const dir = join(out, scene, name);
-  if (existsSync(join(dir, 'mesure.json'))) return 'déjà mesuré';
+  if (existsSync(join(dir, 'mesure.json'))) return 'already measured';
   mkdirSync(dir, { recursive: true });
   const argv = [
     'scripts/mesure/banc.mjs',
@@ -109,7 +109,7 @@ function run(name, args, out, log, scene) {
     env: process.env,
   });
   appendFileSync(join(dir, 'campagne.log'), `${result.stdout ?? ''}\n${result.stderr ?? ''}`);
-  const status = result.status === 0 ? 'ok' : `échec (${result.status})`;
+  const status = result.status === 0 ? 'ok' : `failed (${result.status})`;
   appendFileSync(
     log,
     `${new Date().toISOString()} ${scene}/${name} ${status} ${((Date.now() - started) / 1000).toFixed(0)} s\n`,

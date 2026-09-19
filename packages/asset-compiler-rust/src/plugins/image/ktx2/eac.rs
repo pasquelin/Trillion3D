@@ -1,19 +1,19 @@
-//! Les deux formats EAC non signés d'un KTX 2.0 — R11 et RG11 —, développés ici en onze bits, puis
-//! ramenés aux huit du contrat par un arrondi au plus proche.
+//! The two unsigned EAC formats of a KTX 2.0 — R11 and RG11 —, expanded here to eleven bits,
+//! then brought back to the contract's eight by a round-to-nearest.
 //!
-//! Pourquoi ne pas s'en remettre à `texture2ddecoder`, qui développe tous les autres blocs ? Parce
-//! que son chemin EAC rend directement des octets, par `val >> 3` : les trois bits de poids faible
-//! des onze disparaissent par troncature, et une valeur sur huit ressort d'un cran trop bas. Il lit
-//! de plus le champ d'indices par `u64::from_le_bytes` là où son propre chemin d'alpha ETC2, qui
-//! suit le même ordre d'écriture, lit `from_be_bytes` : les seize texels d'un bloc en sortent
-//! mélangés. Les deux défauts tombent avec ce décodeur, écrit depuis la spécification publique
-//! d'OpenGL ES 3.0 (« ETC2/EAC Compressed Texture Image Formats »).
+//! Why not rely on `texture2ddecoder`, which expands all the other blocks? Because its EAC
+//! path returns bytes directly, by `val >> 3`: the three low bits of the eleven disappear by
+//! truncation, and one value in eight comes out one step too low. It also reads the index
+//! field by `u64::from_le_bytes` where its own ETC2 alpha path, which follows the same write
+//! order, reads `from_be_bytes`: the sixteen texels of a block come out shuffled. Both
+//! defects fall with this decoder, written from the OpenGL ES 3.0 public specification
+//! ("ETC2/EAC Compressed Texture Image Formats").
 //!
-//! Le reste du pilote n'en sait rien : ces deux fonctions ont la signature que `image::blocks`
-//! attend d'un décodeur de blocs, et s'inscrivent dans la même table de codecs que les autres.
+//! The rest of the driver knows nothing of it: these two functions have the signature
+//! `image::blocks` expects of a block decoder, and sit in the same codec table as the others.
 
-/// Les seize jeux de huit modificateurs de la spécification, désignés par les quatre bits de poids
-/// faible du second octet du bloc.
+/// The specification's sixteen sets of eight modifiers, named by the four low bits of the
+/// block's second byte.
 const MODIFIERS: [[i8; 8]; 16] = [
     [-3, -6, -9, -15, 2, 5, 8, 14],
     [-3, -7, -10, -13, 2, 6, 9, 12],
@@ -33,22 +33,22 @@ const MODIFIERS: [[i8; 8]; 16] = [
     [-3, -5, -7, -9, 2, 4, 6, 8],
 ];
 
-/// Les octets d'un bloc d'un canal, et le côté d'un bloc en texels.
+/// Bytes of a one-channel block, and the side of a block in texels.
 const BLOCK: usize = 8;
 const SIDE: usize = 4;
-/// Le champ d'indices occupe les quarante-huit bits de poids faible du bloc, trois par texel, le
-/// premier texel dans les bits de poids fort : son décalage est donc 45.
+/// The index field occupies the forty-eight low bits of the block, three per texel, the first
+/// texel in the high bits: its shift is therefore 45.
 const TOP: u32 = 45;
 const INDEX_BITS: u32 = 3;
-/// La plus grande valeur d'un canal sur onze bits.
+/// Largest value of an eleven-bit channel.
 const MAX: i32 = 2047;
-/// Où va un canal dans le mot de trente-deux bits d'un pixel, dont les octets sont B, G, R, A.
+/// Where a channel goes in a pixel's thirty-two-bit word, whose bytes are B, G, R, A.
 const RED: usize = 2;
 const GREEN: usize = 1;
-/// Le niveau ne porte pas tous les blocs que ses dimensions annoncent.
+/// The level does not carry all the blocks its dimensions announce.
 const SHORT: &str = "eac-level-short";
 
-/// `VK_FORMAT_EAC_R11_UNORM_BLOCK` : un seul canal, rendu en rouge.
+/// `VK_FORMAT_EAC_R11_UNORM_BLOCK`: a single channel, returned as red.
 pub(super) fn r11(
     level: &[u8],
     width: usize,
@@ -58,7 +58,7 @@ pub(super) fn r11(
     planes(level, width, height, image, &[RED])
 }
 
-/// `VK_FORMAT_EAC_R11G11_UNORM_BLOCK` : deux canaux consécutifs, rouge puis vert.
+/// `VK_FORMAT_EAC_R11G11_UNORM_BLOCK`: two consecutive channels, red then green.
 pub(super) fn rg11(
     level: &[u8],
     width: usize,
@@ -68,9 +68,9 @@ pub(super) fn rg11(
     planes(level, width, height, image, &[RED, GREEN])
 }
 
-/// Les blocs du niveau, rangée par rangée, chacun développé dans l'image. Un bloc déborde du bord
-/// quand la largeur ou la hauteur n'est pas un multiple de quatre : les texels hors image sont
-/// simplement laissés de côté, comme la spécification le prescrit.
+/// The level's blocks, row by row, each expanded into the image. A block overflows the edge
+/// when the width or height is not a multiple of four: texels outside the image are simply
+/// left aside, as the specification requires.
 fn planes(
     level: &[u8],
     width: usize,
@@ -86,7 +86,7 @@ fn planes(
     for row in 0..rows {
         for column in 0..columns {
             let at = (row * columns + column) * stride;
-            // L'alpha d'un format EAC est opaque : ni R11 ni RG11 n'en portent.
+            // Alpha of an EAC format is opaque: neither R11 nor RG11 carry one.
             let mut texels = [[0, 0, 0, u8::MAX]; SIDE * SIDE];
             for (plane, target) in targets.iter().enumerate() {
                 let block = &level[at + plane * BLOCK..at + (plane + 1) * BLOCK];
@@ -103,14 +103,14 @@ fn planes(
     Ok(())
 }
 
-/// Un canal d'un bloc : le mot de base, le multiplicateur, la table de modificateurs, puis les seize
-/// indices de trois bits. Les texels d'un bloc EAC se suivent colonne par colonne — le texel `n` est
-/// à la colonne `n / 4`, ligne `n % 4` —, et `texels` les range en ordre de lecture.
+/// One channel of a block: the base word, the multiplier, the modifier table, then the
+/// sixteen three-bit indices. Texels of an EAC block follow column by column — texel `n` is
+/// at column `n / 4`, row `n % 4` —, and `texels` stores them in reading order.
 fn channel(block: &[u8], texels: &mut [[u8; 4]; SIDE * SIDE], target: usize) {
     let base = i32::from(block[0]) * 8 + 4;
     let declared = i32::from(block[1] >> 4);
-    // Un multiplicateur nul ne veut pas dire « pas de modificateur » : la spécification le lit
-    // comme un, ce qui donne le pas le plus fin que le format sait écrire.
+    // A null multiplier does not mean "no modifier": the specification reads it as one,
+    // which gives the finest step the format can write.
     let multiplier = if declared == 0 { 1 } else { declared * 8 };
     let table = MODIFIERS[usize::from(block[1] & 0xf)];
     let indices = u64::from_be_bytes(block[..BLOCK].try_into().unwrap_or([0; BLOCK]));
@@ -122,10 +122,10 @@ fn channel(block: &[u8], texels: &mut [[u8; 4]; SIDE * SIDE], target: usize) {
     }
 }
 
-/// Onze bits ramenés à huit par l'arrondi au plus proche que la conversion de plage demande :
-/// `v * 255 / 2047`, le demi ajouté avant la division entière. La troncature `v >> 3`, elle,
-/// abaissait une valeur sur huit d'un cran — et 2047, la valeur pleine, n'y tombait juste que par
-/// hasard.
+/// Eleven bits brought back to eight by the round-to-nearest that the range conversion asks:
+/// `v * 255 / 2047`, half added before the integer division. Truncation `v >> 3`, itself,
+/// lowered one value in eight by one step — and 2047, the full value, only landed right there
+/// by chance.
 fn eight_bits(value: i32) -> u8 {
     ((value as u32 * 255 + 1023) / 2047) as u8
 }

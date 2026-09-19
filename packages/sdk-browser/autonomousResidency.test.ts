@@ -1,6 +1,6 @@
-// A7 : les ensembles d'urls de résidence (pendingUrls, pageUrls, collectPendingUrls) vivent aussi
-// longtemps que l'hôte au lieu d'être reconstruits par image ; A8 : comptePagesResidentes compte au
-// lieu d'allouer un tableau intermédiaire. Oracle : les versions d'avant le lot A, dans
+// A7: residency url sets (pendingUrls, pageUrls, collectPendingUrls) live as long as the
+// host instead of being rebuilt every frame; A8: comptePagesResidentes counts instead of
+// allocating an intermediate array. Oracle: the versions from before batch A, in
 // `bench/oracles/selection.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';

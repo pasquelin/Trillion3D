@@ -1,10 +1,11 @@
-//! L'opacité d'un FBX classique. `ufbx` ne la range dans `pbr.opacity` que pour les shaders qui
-//! déclarent une opacité ; un matériau `phong` la porte dans `fbx.transparency_*`. La fixture
-//! `fixtures/import-fbx/riviere.fbx` reproduit cette forme, celle du Village.
+//! Opacity of a classic FBX. `ufbx` only puts it in `pbr.opacity` for shaders that
+//! declare an opacity; a `phong` material carries it in `fbx.transparency_*`. The
+//! fixture `fixtures/import-fbx/riviere.fbx` reproduces that shape, the Village's.
 use super::*;
 
-/// Copie la fixture FBX dans un dossier jetable avec ses deux images. `shared_texture` rebranche la
-/// carte d'opacité sur la texture de couleur de base, le seul cas que glTF sait porter.
+/// Copies the FBX fixture into a throwaway folder with its two images.
+/// `shared_texture` rewires the opacity map onto the base-colour texture, the
+/// only case glTF can carry.
 pub(super) fn fbx_fixture(shared_texture: bool) -> (PathBuf, Options) {
     let (root, mut options) = fixture();
     let source = root.join("fbx");
@@ -27,13 +28,13 @@ pub(super) fn fbx_fixture(shared_texture: bool) -> (PathBuf, Options) {
     (root, options)
 }
 
-/// Le glTF importé et le manifeste d'import de la fixture.
+/// The imported glTF and the fixture's import manifest.
 pub(super) fn import_of(options: &Options) -> (Value, Value) {
     compile(options, |_| {}).expect("compile fbx");
     let imports = options.cache.join("native/imports");
     let entry = fs::read_dir(&imports)
         .expect("imports")
-        .map(|e| e.expect("entrée").path())
+        .map(|e| e.expect("entry").path())
         .next()
         .expect("un import");
     (
@@ -48,16 +49,16 @@ fn la_transparence_fbx_classique_devient_un_materiau_mele() {
     let (gltf, manifest) = import_of(&options);
     let material = &gltf["materials"][0];
     assert_eq!(material["name"], "M_Riviere");
-    // TransparentColor blanc pondéré par TransparencyFactor 0,25 : il reste 0,75 d'opacité.
+    // White TransparentColor weighted by TransparencyFactor 0.25: 0.75 opacity remains.
     assert_eq!(
         material["pbrMetallicRoughness"]["baseColorFactor"][3],
         json!(0.75)
     );
     assert_eq!(material["alphaMode"], "BLEND", "{material}");
-    // Jamais de découpe : un transparent masqué serait une perte de fidélité.
+    // Never a cutout: a masked transparent would be a fidelity loss.
     assert!(material["alphaCutoff"].is_null(), "{material}");
-    // La carte d'opacité n'est pas celle de la couleur de base : glTF ne peut pas la porter, donc
-    // le rapport la signale au lieu de l'avaler.
+    // The opacity map is not the base-colour one: glTF cannot carry it, so the
+    // report flags it instead of swallowing it.
     assert_eq!(
         manifest["unsupported"]["material-separate-opacity-texture"],
         json!(1),
@@ -85,7 +86,7 @@ fn une_carte_dopacite_partagee_avec_la_couleur_de_base_se_branche_sans_rapport()
     fs::remove_dir_all(root).expect("nettoyage");
 }
 
-/// La convention FBX classique, isolée : `TransparentColor` est une transparence, pas une opacité.
+/// Classic FBX convention, isolated: `TransparentColor` is a transparency, not an opacity.
 #[test]
 fn transparent_color_noir_vaut_opaque() {
     use crate::import::opacity::opacity_from_transparency as opacity;
@@ -93,7 +94,7 @@ fn transparent_color_noir_vaut_opaque() {
     assert_eq!(opacity([0.0, 0.0, 0.0], 1.0), 1.0);
     assert_eq!(opacity([1.0, 1.0, 1.0], 0.25), 0.75);
     assert_eq!(opacity([1.0, 1.0, 1.0], 1.0), 0.0);
-    // Hors bornes des deux côtés : l'opacité reste entre 0 et 1.
+    // Out of bounds on both sides: opacity stays between 0 and 1.
     assert_eq!(opacity([2.0, 2.0, 2.0], 1.0), 0.0);
     assert_eq!(opacity([-1.0, -1.0, -1.0], 1.0), 1.0);
 }

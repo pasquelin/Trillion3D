@@ -1,11 +1,11 @@
-// Oracles mathématiques et algorithmes de référence pour Web Geometry : TypeScript pur, sans DOM
-// ni dépendance plateforme.
+// Mathematical oracles and reference algorithms for Web Geometry: pure TypeScript, no DOM
+// and no platform dependency.
 import { referenceScreenError, screenErrorVariant } from './screenErrorVariant.ts';
 
-/** Produit scalaire de deux vecteurs de même dimension. */
+/** Dot product of two vectors of the same dimension. */
 export function dot(left: readonly number[], right: readonly number[]): number {
   if (left.length !== right.length) {
-    throw new Error('Dimensions incompatibles');
+    throw new Error('Incompatible dimensions');
   }
   let sum = 0;
   for (let i = 0; i < left.length; i++) {
@@ -45,7 +45,7 @@ export function maxStretch(elements: ArrayLike<number>): number {
     !Number.isFinite(h) ||
     !Number.isFinite(i)
   )
-    throw new Error('Matrice invalide');
+    throw new Error('Invalid matrix');
   const m00 = a * a + d * d + g * g,
     m11 = b * b + e * e + h * h,
     m22 = c * c + f * f + i * i;
@@ -72,35 +72,35 @@ export function maxStretch(elements: ArrayLike<number>): number {
 }
 
 /**
- * Erreur écran certifiée d'un cluster (C4) : un majorant, en pixels, du déplacement à l'écran de
- * tout point d'une sphère déplacé d'au plus ε, sous projection perspective, hors axe compris.
+ * Certified screen error of a cluster (C4): a majorant, in pixels, of the on-screen displacement of
+ * any point of a sphere moved by at most ε, under perspective projection, off-axis included.
  *
- * Repère de vue : œil à l'origine, regard vers −z, profondeur d = −z ; pixel (f_x·x/d, f_y·y/d),
- * f = max(f_x, f_y). La primitive passe en vue par une application affine d'étirement maximal s :
- * la sphère objet (c, r) tient dans la boule de vue (C, ρ = r·s), un déplacement objet d'au plus ε
- * y devient un déplacement Δ d'au plus δ = ε·s.
+ * View frame: eye at the origin, looking toward −z, depth d = −z; pixel (f_x·x/d, f_y·y/d),
+ * f = max(f_x, f_y). The primitive goes to view by an affine map of max stretch s:
+ * the object sphere (c, r) sits in the view ball (C, ρ = r·s), an object displacement of at most ε
+ * becomes a displacement Δ of at most δ = ε·s.
  *
- * 1. Un point P = (x, y, d) de la boule va en P' = P + Δ, de profondeur d' = d + Δd. Avec
- *    q = (x, y)/d : π(P') − π(P) = f·(Δxy − q·Δd)/d'. L'application Δ ↦ Δxy − q·Δd a pour norme
- *    √(1 + |q|²) (valeurs propres de I + q·qᵀ : 1 et 1 + |q|²) ; donc, quelle que soit la direction
- *    de Δ — perpendiculaire à l'axe, en profondeur vers la caméra ou à l'opposé, oblique —,
+ * 1. A point P = (x, y, d) of the ball goes to P' = P + Δ, of depth d' = d + Δd. With
+ *    q = (x, y)/d: π(P') − π(P) = f·(Δxy − q·Δd)/d'. The map Δ ↦ Δxy − q·Δd has norm
+ *    √(1 + |q|²) (eigenvalues of I + q·qᵀ: 1 and 1 + |q|²); so, whatever the direction
+ *    of Δ — perpendicular to the axis, in depth toward the camera or away, oblique —,
  *    |π(P') − π(P)| ≤ f·δ·√(1 + |q|²) / d'.
- * 2. Sur la boule : d ≥ m = −C_z − ρ, la profondeur minimale ; |(x, y)| ≤ ℓ + ρ, où ℓ = |(C_x, C_y)|
- *    est la distance du centre à l'axe de vue ; donc |q| ≤ (ℓ + ρ)/m, et d' ≥ m − δ.
- * 3. Si m − δ > near (donc > 0) : E = f·δ·√(m² + (ℓ + ρ)²) / (m·(m − δ)). Sinon la boule, ou l'un
- *    de ses points déplacé, atteint le plan proche : infini, qui raffine.
+ * 2. On the ball: d ≥ m = −C_z − ρ, the minimum depth; |(x, y)| ≤ ℓ + ρ, where ℓ = |(C_x, C_y)|
+ *    is the centre's distance to the view axis; hence |q| ≤ (ℓ + ρ)/m, and d' ≥ m − δ.
+ * 3. If m − δ > near (hence > 0): E = f·δ·√(m² + (ℓ + ρ)²) / (m·(m − δ)). Else the ball, or one
+ *    of its displaced points, reaches the near plane: infinity, which refines.
  *
- * Monotonie de la coupe : m est l'infimum de la profondeur sur la boule et ℓ + ρ le supremum de la
- * distance à l'axe ; une boule contenue dans une autre annonce donc moins, une erreur plus grande
- * plus. Le long du rayon (C → k·C, k > 1, profondeur du centre C_d > 0), (kℓ + ρ)/(k·C_d − ρ) et
- * 1/(k·C_d − ρ − δ) décroissent : l'erreur annoncée décroît avec la distance. Les deux bornes de
- * l'étape 2 viennent de deux points différents de la boule : E est serrée pour une petite sphère,
- * large quand la boule frôle le plan proche loin de l'axe (`test/justesse/erreur-ecran-borne.mjs`).
+ * Cut monotonicity: m is the infimum of depth on the ball and ℓ + ρ the supremum of
+ * distance to the axis; a ball contained in another therefore announces less, a larger error
+ * more. Along the ray (C → k·C, k > 1, centre depth C_d > 0), (kℓ + ρ)/(k·C_d − ρ) and
+ * 1/(k·C_d − ρ − δ) decrease: the announced error decreases with distance. The two bounds of
+ * step 2 come from two different points of the ball: E is tight for a small sphere,
+ * loose when the ball grazes the near plane far from the axis (`test/justesse/erreur-ecran-borne.mjs`).
  *
- * Aucune garde ici : l'appelant a déjà traité l'erreur nulle, infinie ou invalide. Une profondeur
- * ou une distance à l'axe non finie rend l'infini. L'ordre des opérations, (δ·f)/m puis un facteur
- * √/(m − δ) ≥ 1, garde le résultat arrondi au-dessus du plancher `errorFloorAt` de sdk-browser.
- * Miroir WGSL : `projected` de `gpuDagShader.ts`, mêmes opérandes, même ordre.
+ * No guard here: the caller has already handled a null, infinite or invalid error. A non-finite
+ * depth or distance to the axis yields infinity. Operation order, (δ·f)/m then a factor
+ * √/(m − δ) ≥ 1, keeps the rounded result above sdk-browser's `errorFloorAt` floor.
+ * WGSL mirror: `projected` of `gpuDagShader.ts`, same operands, same order.
  */
 export function screenErrorBound(
   error: number,
@@ -111,7 +111,7 @@ export function screenErrorBound(
   focal: number,
   near: number,
 ): number {
-  // Commutateur d'EXPÉRIENCE (`screenErrorVariant.ts`), lu ici pour toute la sélection processeur.
+  // EXPERIMENT switch (`screenErrorVariant.ts`), read here for the whole CPU selection.
   if (screenErrorVariant() !== 'certifiee')
     return referenceScreenError(error, stretch, depth, focal, near);
   const reach = radius * stretch,
@@ -119,7 +119,7 @@ export function screenErrorBound(
   const nearest = depth - reach,
     closest = nearest - shift,
     side = lateral + reach;
-  // Le plan proche d'abord : la racine de l'hypoténuse était prise puis jetée quand il est atteint.
+  // The near plane first: the hypotenuse root used to be taken then discarded when it is reached.
   if (!(closest > near)) return Infinity;
   const slant = Math.sqrt(nearest * nearest + side * side);
   if (!(slant >= nearest && slant < Infinity)) return Infinity;
@@ -127,9 +127,9 @@ export function screenErrorBound(
 }
 
 /**
- * `screenErrorBound` d'un cluster dont le centre de vue est donné, paramètres validés. Une erreur
- * nulle rend 0 partout, plan proche compris, et une erreur infinie (aucun remplaçant) l'infini :
- * les deux restent sélectionnables. `radius` est en unités objet, étiré comme l'erreur.
+ * `screenErrorBound` of a cluster whose view centre is given, parameters validated. A zero
+ * error yields 0 everywhere, near plane included, and an infinite error (no replacement) infinity:
+ * both stay selectable. `radius` is in object units, stretched like the error.
  */
 export function clusterErrorPixels(
   clusterError: number,
@@ -143,15 +143,15 @@ export function clusterErrorPixels(
 ): number {
   if (clusterError === 0) return 0;
   if (clusterError === Infinity) return Infinity;
-  // Aucune garde sur le centre : un NaN ou un ±infini en x ou en y rend un `lateral` que
-  // `clusterErrorAtDepth` refuse du même message, ses deux court-circuits étant déjà posés ici.
+  // No guard on the centre: a NaN or ±infinity in x or y yields a `lateral` that
+  // `clusterErrorAtDepth` rejects with the same message, its two short-circuits already set here.
   const lateral = Math.sqrt(centreX * centreX + centreY * centreY);
   return clusterErrorAtDepth(clusterError, stretch, lateral, -centreZ, radius, focal, near);
 }
 
 /**
- * La même erreur projetée quand la distance du centre à l'axe de vue et sa profondeur (−z de vue)
- * sont déjà connues : un nœud qui pose plancher et plafond sur la même sphère partage sa profondeur.
+ * The same projected error when the centre's distance to the view axis and its depth (−z of view)
+ * are already known: a node that sets floor and ceiling on the same sphere shares its depth.
  */
 export function clusterErrorAtDepth(
   clusterError: number,
@@ -178,12 +178,12 @@ export function clusterErrorAtDepth(
     !(lateral >= 0 && lateral < Infinity) ||
     !Number.isFinite(depth)
   ) {
-    throw new Error('Parametres de cluster invalides');
+    throw new Error('Invalid cluster parameters');
   }
   return screenErrorBound(clusterError, stretch, lateral, depth, radius, focal, near);
 }
 
-/** Rejet de cône normal pour le culling de faces arrière. */
+/** Normal-cone reject for back-face culling. */
 export function coneRejects(axisDotView: number, angle: number, directionSpread = 0): boolean {
   if (
     axisDotView < -1 ||
@@ -193,7 +193,7 @@ export function coneRejects(axisDotView: number, angle: number, directionSpread 
     directionSpread < 0 ||
     directionSpread > Math.PI
   ) {
-    throw new Error('Cone invalide');
+    throw new Error('Invalid cone');
   }
   const totalAngle = angle + directionSpread;
   return totalAngle < Math.PI / 2 && axisDotView < -Math.sin(totalAngle);

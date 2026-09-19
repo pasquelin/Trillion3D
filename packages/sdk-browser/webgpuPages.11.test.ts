@@ -64,9 +64,9 @@ test('transparent frustum selection preserves intersections, transformed bounds 
       await backend.prepare();
       backend.render(camera());
       const metrics = backend.metrics();
-      // La scène porte son item et la coupe écrit le nombre d'instances de chaque appel ; un item
-      // entièrement hors champ n'est pas encodé du tout, un item partiellement visible garde ses
-      // deux faces. Le compte de rejets, lui, est relu à part.
+      // The scene carries its item and the cut writes the instance count of each draw; an item
+      // entirely out of frustum is not encoded at all, a partly visible item keeps both faces.
+      // The reject count is reread on its own.
       assert.equal(metrics.submittedTriangles, 4, item.name);
       assert.equal(metrics.transparentMeshes, 1, item.name);
       assert.equal(metrics.transparentFrustumRejected, item.visible ? 0 : 1, item.name);
@@ -77,7 +77,7 @@ test('transparent frustum selection preserves intersections, transformed bounds 
       assert.equal(
         actual.reduce((sum, draw) => sum + ((draw.instanceCount ?? 0) * draw.vertexCount) / 3, 0),
         item.visible ? 4 : 0,
-        item.name + ' triangles réellement dessinés',
+        item.name + ' triangles actually drawn',
       );
     } finally {
       backend.dispose();
@@ -99,8 +99,8 @@ test('transparent selection follows each camera without retaining an old rejecte
     maxResidentPages: 2,
     viewport: [32, 32],
   });
-  // Les triangles que la dernière image a réellement dessinés : le plan est le même d'une image à
-  // l'autre, seul le nombre d'instances que la coupe écrit change.
+  // Triangles the last image actually drew: the plan is the same from one image to the next,
+  // only the instance count the cut writes changes.
   const dessines = () => {
     const image = draws.splice(0, draws.length).filter((draw) => draw.entryPoint === 'vs');
     return image.reduce((sum, draw) => sum + ((draw.instanceCount ?? 0) * draw.vertexCount) / 3, 0);
@@ -115,13 +115,13 @@ test('transparent selection follows each camera without retaining an old rejecte
     cam.lookAt(100, 0, 5);
     cam.updateMatrixWorld();
     backend.render(cam);
-    assert.equal(backend.metrics().transparentFrustumRejected, 1, 'le tronc rejette');
-    assert.equal(dessines(), 0, 'la caméra détournée ne dessine plus rien');
+    assert.equal(backend.metrics().transparentFrustumRejected, 1, 'the frustum rejects');
+    assert.equal(dessines(), 0, 'the turned-away camera draws nothing');
     cam.lookAt(0, 0, 0);
     cam.updateMatrixWorld();
     backend.render(cam);
-    assert.equal(backend.metrics().transparentFrustumRejected, 0, 'aucune liste de rejet gardée');
-    assert.equal(dessines(), 2, 'l’item revient sans rien avoir perdu');
+    assert.equal(backend.metrics().transparentFrustumRejected, 0, 'no leftover reject list');
+    assert.equal(dessines(), 2, 'the item comes back having lost nothing');
   } finally {
     backend.dispose();
     fixture.geometry.dispose();

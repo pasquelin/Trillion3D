@@ -1,11 +1,13 @@
-//! Conversion ufbx, partagée par les pilotes de scène servis par ufbx (FBX, OBJ). Une scène ufbx
-//! devient une paire glTF 2.0 (`model.gltf` + `model.bin`) et son manifeste dans le cache, que
-//! `compile` consomme exactement comme un glTF écrit à la main. Les textures sont référencées
-//! relativement au dossier source (servi sous `resourceBaseUrl`) ou embarquées en vues de binaire
-//! quand le fichier en porte les octets. Rien n'est jamais écrit à côté de la source.
+//! ufbx conversion, shared by the scene drivers served by ufbx (FBX, OBJ). A ufbx
+//! scene becomes a glTF 2.0 pair (`model.gltf` + `model.bin`) and its manifest in
+//! the cache, which `compile` consumes exactly like a hand-written glTF. Textures
+//! are referenced relative to the source folder (served under `resourceBaseUrl`)
+//! or embedded as binary views when the file carries their bytes. Nothing is ever
+//! written next to the source.
 //!
-//! Ce module n'est pas un pilote : il n'a ni nom ni version de format. Le pilote qui l'appelle donne
-//! les siens, et ce sont eux qui entrent dans la clé du cache et dans le manifeste.
+//! This module is not a driver: it has neither a format name nor a version. The
+//! driver that calls it gives its own, and those enter the cache key and the
+//! manifest.
 use crate::plugins::scene::{ScenePlugin, SceneRequest};
 use crate::{atomic, hash, runtime_manifest, CompilerError, Result};
 use serde_json::{json, Value};
@@ -51,9 +53,10 @@ impl std::hash::Hasher for CornerHasher {
         self.0 = (self.0.rotate_left(5) ^ (v as u64)).wrapping_mul(0x517cc1b727220a95);
     }
 }
-/// Les valeurs d'un coin — position, normale, uv, couleur : douze flottants, nuls quand l'attribut
-/// manque. Deux coins aux mêmes bits sont un seul sommet, quel que soit le rang que le fichier leur
-/// donne. Le hachage passe mot par mot : la clé n'a ni longueur à hacher ni octets à parcourir.
+/// Values of a corner — position, normal, uv, colour: twelve floats, zero when the
+/// attribute is missing. Two corners with the same bits are one vertex, whatever
+/// index the file gives them. Hashing walks word by word: the key has neither a
+/// length to hash nor bytes to walk.
 const CORNER_VALUES: usize = 12;
 const CORNER_POSITION: std::ops::Range<usize> = 0..3;
 const CORNER_NORMAL: std::ops::Range<usize> = 3..6;
@@ -69,8 +72,8 @@ impl std::hash::Hash for CornerKey {
     }
 }
 type CornerMap = HashMap<CornerKey, u32, std::hash::BuildHasherDefault<CornerHasher>>;
-/// Le binaire d'une scène intermédiaire en construction, partagé avec les pilotes de scène qui
-/// écrivent leur propre glTF : une vue par bloc d'octets, alignée sur quatre.
+/// Binary of an intermediate scene under construction, shared with scene drivers
+/// that write their own glTF: one view per byte block, aligned to four.
 #[derive(Default)]
 pub(crate) struct Bin {
     pub(crate) bytes: Vec<u8>,
@@ -98,8 +101,8 @@ pub(crate) fn f32_bytes(values: &[f32]) -> Vec<u8> {
     out
 }
 
-/// Ce qu'une conversion n'a pas su rendre : des raisons nommées et comptées, jamais un échec
-/// silencieux. Partagé avec les pilotes de scène, dont les manifestes publient les mêmes champs.
+/// What a conversion could not deliver: named and counted reasons, never a silent
+/// failure. Shared with scene drivers, whose manifests publish the same fields.
 #[derive(Default)]
 pub(crate) struct Report {
     pub(crate) unsupported: BTreeMap<String, usize>,
@@ -153,7 +156,7 @@ struct Importer<'a> {
     triangles: usize,
     mesh_nodes: usize,
     files: Vec<Value>,
-    /// Les fichiers ouverts en plus des entrées revendiquées : ils entrent dans la clé du cache.
+    /// Files opened besides the claimed inputs: they enter the cache key.
     externals: external::Externals,
     cancelled: &'a AtomicBool,
     progress: &'a (dyn Fn(Value) + Sync),

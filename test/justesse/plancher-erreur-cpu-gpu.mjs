@@ -1,15 +1,15 @@
-// Cohérence CPU/GPU de l'ÉLAGAGE PAR LE HAUT : le plancher d'erreur du sous-arbre, rangé dans le
-// nœud par `packCullingNodes` et projeté par `errorFloor` en WGSL, ne doit retirer aucune grappe
-// que la coupe aurait prise.
+// CPU/GPU consistency of TOP-DOWN PRUNING: the subtree error floor, stored in the
+// node by `packCullingNodes` and projected by `errorFloor` in WGSL, must not drop any
+// cluster the cut would have taken.
 //
-// La borne est un minorant de l'erreur projetée de tout le sous-arbre : au-dessus du seuil, aucune
-// grappe n'est assez fine. Un minorant SURESTIMÉ retire de la géométrie sans rien dire. Le miroir
-// processeur (`errorFloorAt`) travaille en f64 sur les valeurs empaquetées, le noyau en f32 : c'est
-// cet écart-là que le banc mesure, sur la carte, et non sur un double.
+// The bound is a lower bound of the projected error of the whole subtree: above the
+// threshold, no cluster is fine enough. An OVERESTIMATED lower bound silently drops
+// geometry. The CPU mirror (`errorFloorAt`) works in f64 on the packed values, the
+// kernel in f32: that is the gap this bench measures, on the GPU, not on a double.
 //
-// Trois coupes comparées, sur une pyramide de huit étages de détail et quatre poses : la coupe
-// processeur (`selectVisiblePages`), l'oracle Node du noyau et le noyau WGSL exécuté dans Chromium.
-// Le compte des sous-arbres élagués est publié : sans élagage, la preuve ne porterait sur rien.
+// Three cuts compared, on an eight-LOD pyramid and four poses: the CPU cut
+// (`selectVisiblePages`), the kernel's Node oracle, and the WGSL kernel run in Chromium.
+// The pruned-subtree count is published: without pruning, the proof would cover nothing.
 //
 // node --experimental-strip-types test/justesse/plancher-erreur-cpu-gpu.mjs
 import assert from 'node:assert/strict';
@@ -28,16 +28,16 @@ import { selectionGpu } from './noyauSelectionGpu.mjs';
 import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
 
 const VIEWPORT = [1280, 720];
-/** Le quatrième champ est le seuil ; le cinquième, les profondeurs où la pyramide est POSÉE. Une
- *  seule profondeur ne retient qu'un étage de détail, donc une seule bande d'erreur et une seule
- *  priorité : l'égalité des priorités s'y vérifierait sur une suite constante. Éloignées, les
- *  copies se résolvent à des étages différents, comme dans une scène réelle. */
+/** Fourth field is the threshold; fifth, the depths at which the pyramid is PLACED. A
+ *  single depth keeps only one LOD, hence one error band and one priority: priority
+ *  equality would then be checked on a constant sequence. Far apart, the copies resolve
+ *  to different LODs, as in a real scene. */
 const POSES = [
-  ['face, 1 px', 0, 16, 1, [0]],
-  ['face, 4 px', 0, 16, 4, [0]],
-  ['de biais, 1 px', 9, 14, 1, [0]],
-  ['de loin, 0,25 px', 0, 60, 0.25, [0]],
-  ['quatre profondeurs, 1 px', 0, 16, 1, [0, 12, 30, 70]],
+  ['head-on, 1 px', 0, 16, 1, [0]],
+  ['head-on, 4 px', 0, 16, 4, [0]],
+  ['oblique, 1 px', 9, 14, 1, [0]],
+  ['from afar, 0.25 px', 0, 60, 0.25, [0]],
+  ['four depths, 1 px', 0, 16, 1, [0, 12, 30, 70]],
 ];
 const pages = scenePages(4096, 8);
 const camera = new THREE.PerspectiveCamera(55, VIEWPORT[0] / VIEWPORT[1], 0.1, 200);
@@ -50,10 +50,10 @@ for (const [nom, x, z, seuil, profondeurs] of POSES) {
   camera.lookAt(x, 0, 0);
   camera.updateMatrixWorld(true);
   const uniforms = cameraSelectionUniforms(cameraMoteur(camera), seuil, VIEWPORT);
-  // Le noyau travaille dans le repère de rendu : les matrices monde empaquetées y sont ramenées,
-  // comme le moteur les lui porte, sans quoi vue relative et monde absolu se mêleraient.
+  // The kernel works in the render frame: packed world matrices are brought there, as the
+  // engine carries them, otherwise relative view and absolute world would mix.
   const packed = packedWorldsToRenderOrigin(packDagSelection(roots), roots, uniforms.cameraWorld);
-  // La coupe processeur prend les mêmes nœuds avec ses propres bornes, en f64 : c'est la référence.
+  // The CPU cut takes the same nodes with its own bounds, in f64: that is the reference.
   const bornes = cullingBounds(roots[0].culling, pages);
   const cpu = selectVisiblePages(
     mondes.map((monde) => ({
@@ -89,24 +89,24 @@ const lignes = cas.map((c) => {
     retenuesOracle: c.oracle.pageIds.length,
     retenuesGpu: lu?.pages.length ?? null,
     ecartOracleGpu: lu ? Math.abs(lu.pages.length - c.oracle.pageIds.length) : null,
-    // Les totaux de triangles que la carte tient, contre ceux que l'oracle rejoue au même endroit.
-    // Sans résidence, tout ce que la coupe retient part au dessin et rien ne creuse de trou.
+    // Triangle totals the GPU holds, against those the oracle replays at the same place.
+    // Without residency, everything the cut keeps goes to draw and nothing opens a hole.
     trianglesOracle: c.oracle.selectedTriangles,
     trianglesGpu: lu?.selectedTriangles ?? null,
     dessinesGpu: lu?.drawnTriangles ?? null,
     trouGpu: lu?.uncoveredTriangles ?? null,
-    // L'ORDRE que la carte publie, contre celui de l'oracle : la priorité de chaque demande décide
-    // qui l'hôte téléverse d'abord, et un ordre qui ne serait pas celui-là ne servirait à rien.
-    // Comparés sur la suite des priorités, pas sur les pages : deux pages d'un même pas sont
-    // interchangeables des deux côtés, et le pas est ce que le classement lit.
-    // La carte écrit ses demandes dans l'ordre d'un compteur atomique, donc dans aucun : c'est la
-    // relecture qui classe (`parseDagOutput`). Ce qui se compare ici est donc la SUITE DES
-    // PRIORITÉS une fois classée, de part et d'autre.
+    // The ORDER the GPU publishes, against the oracle's: each request's priority decides
+    // who the host uploads first, and an order that was not that one would serve nothing.
+    // Compared on the priority sequence, not the pages: two pages of the same step are
+    // interchangeable on both sides, and the step is what ranking reads.
+    // The GPU writes its requests in atomic-counter order, i.e. in none: reread is what
+    // sorts (`parseDagOutput`). What is compared here is therefore the PRIORITY SEQUENCE
+    // once sorted, on both sides.
     prioritesGpu: lu ? lu.demandes.map((mot) => mot >>> 22).sort((a, b) => b - a) : null,
     prioritesOracle: c.oracle.requestPriorities,
   };
 });
-// Les suites de priorités font des milliers d'entrées : publiées en résumé, comparées en entier.
+// Priority sequences run to thousands of entries: published as a summary, compared in full.
 const resume = (suite) =>
   suite && { pas: new Set(suite).size, haute: suite[0], basse: suite[suite.length - 1] };
 console.log(
@@ -124,33 +124,33 @@ console.log(
     2,
   ),
 );
-// Au moins une pose doit porter PLUSIEURS pas de priorité : sur une suite constante, l'égalité des
-// priorités ne dirait rien, et le banc deviendrait vert sans plus rien prouver.
+// At least one pose must carry SEVERAL priority steps: on a constant sequence, priority
+// equality would say nothing, and the bench would go green without proving anything more.
 assert.ok(
   lignes.some((ligne) => new Set(ligne.prioritesGpu).size > 1),
-  'aucune pose ne porte plus d’un pas de priorité',
+  'no pose carries more than one priority step',
 );
 for (const ligne of lignes) {
-  assert.ok(ligne.sousArbresElagues > 0, `${ligne.pose} : aucun sous-arbre élagué`);
-  assert.equal(ligne.ecartOracleGpu, 0, `${ligne.pose} : la carte et l'oracle divergent`);
-  assert.equal(ligne.retenuesGpu, ligne.retenuesCpu, `${ligne.pose} : la carte perd de la coupe`);
-  assert.ok(ligne.trianglesGpu > 0, `${ligne.pose} : aucun triangle compté`);
+  assert.ok(ligne.sousArbresElagues > 0, `${ligne.pose}: no subtree pruned`);
+  assert.equal(ligne.ecartOracleGpu, 0, `${ligne.pose}: GPU and oracle diverge`);
+  assert.equal(ligne.retenuesGpu, ligne.retenuesCpu, `${ligne.pose}: GPU loses from the cut`);
+  assert.ok(ligne.trianglesGpu > 0, `${ligne.pose}: no triangle counted`);
   assert.equal(
     ligne.trianglesGpu,
     ligne.trianglesOracle,
-    `${ligne.pose} : les totaux de la carte et de l'oracle divergent`,
+    `${ligne.pose}: GPU and oracle totals diverge`,
   );
-  // L'invariant que le processeur sommait : la coupe vaut le dessin plus le trou.
+  // The invariant the CPU used to sum: the cut equals draw plus hole.
   assert.equal(
     ligne.trianglesGpu - ligne.dessinesGpu - ligne.trouGpu,
     0,
-    `${ligne.pose} : selected − drawn − uncovered ≠ 0`,
+    `${ligne.pose}: selected − drawn − uncovered ≠ 0`,
   );
-  // La priorité de chaque demande décide qui l'hôte téléverse d'abord : la carte et l'oracle
-  // doivent donner la même suite, sans quoi l'ordre livré ne serait pas celui qui a été prouvé.
+  // Each request's priority decides who the host uploads first: GPU and oracle must give
+  // the same sequence, otherwise the shipped order would not be the one that was proved.
   assert.deepEqual(
     ligne.prioritesGpu,
     ligne.prioritesOracle,
-    `${ligne.pose} : la carte et l'oracle ne donnent pas les mêmes priorités`,
+    `${ligne.pose}: GPU and oracle do not give the same priorities`,
   );
 }

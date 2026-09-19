@@ -20,7 +20,7 @@ type Inputs = {
   options: ExplorerOptions;
 };
 
-/** La cible de la vue capturée, reprise d'une capture à l'autre : rien n'est alloué par appel. */
+/** Target of the captured view, reused from capture to capture: nothing is allocated per call. */
 const captureTarget = new THREE.Vector3();
 
 export function createExplorerViewportApi(inputs: Inputs) {

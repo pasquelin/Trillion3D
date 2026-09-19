@@ -1,23 +1,23 @@
-// L'ORACLE D'ORIENTATION VRAIE des cas du défaut 6 : non pas un modèle de ce que le moteur devrait
-// dessiner, mais ce qu'il dessine — les cas rasterisés dans Chromium WebGPU avec l'état de face du
-// moteur (`cullMode:'back'` et le `frontFace` que `windingCw` inverse sous réflexion, comme Three en
-// WebGL), un compteur de fragments par cas. `noyauRasterGpu.mjs` pour la rasterisation,
-// `reflexionCas.mjs` pour la charge.
+// TRUE ORIENTATION ORACLE of defect 6's cases: not a model of what the engine should draw, but
+// what it draws — the cases rasterised in Chromium WebGPU with the engine's face state
+// (`cullMode:'back'` and the `frontFace` that `windingCw` flips under reflection, as Three does on
+// WebGL), one fragment counter per case. `noyauRasterGpu.mjs` for rasterisation,
+// `reflexionCas.mjs` for the payload.
 //
-// Pourquoi il faut celui-là et pas `veriteTerrain` : l'orientation géométrique brute des sommets
-// transformés (`cross(e1,e2)` contre la caméra) ignore que le moteur échange la face éliminée quand
-// le déterminant est négatif. Sur une réflexion, elle dit « de face » la face que le moteur ne
-// dessine pas. Un cluster supprimé par la coupe n'est donc un DÉFAUT que si le moteur, lui, en
-// dessinait des fragments ; sinon la suppression est correcte. Les deux populations vivaient
-// jusqu'ici sous le même mot « suppression » et sous le même compte.
+// Why this one and not `veriteTerrain`: the raw geometric orientation of transformed vertices
+// (`cross(e1,e2)` against the camera) ignores that the engine swaps the culled face when the
+// determinant is negative. On a reflection, it says "face-on" of the face the engine does not
+// draw. A cluster dropped by the cut is therefore a DEFECT only if the engine itself drew
+// fragments of it; otherwise the drop is correct. The two populations lived until now under the
+// same word "drop" and the same count.
 import assert from 'node:assert/strict';
 import { rasterGpu } from './noyauRasterGpu.mjs';
 import { chargeRaster } from './reflexionCas.mjs';
 
-/** Pour chaque cas : le moteur en dessine-t-il au moins un fragment ? Plus l'adaptateur employé. */
+/** For each case: does the engine draw at least one fragment of it? Plus the adapter used. */
 export async function dessineParLeMoteur(cas) {
   const gpu = await rasterGpu(chargeRaster(cas));
-  assert.equal(gpu.indisponible ?? null, null, `GPU indisponible : ${gpu.indisponible}`);
+  assert.equal(gpu.indisponible ?? null, null, `GPU unavailable: ${gpu.indisponible}`);
   assert.deepEqual([...(gpu.compilation ?? []), ...(gpu.erreurs ?? [])], [], 'WGSL');
   return {
     adaptateur: gpu.adaptateur,
@@ -27,15 +27,15 @@ export async function dessineParLeMoteur(cas) {
 }
 
 /**
- * Le classement des rejets de coupe contre l'oracle ci-dessus. Le compte d'autrefois — « la vérité
- * brute dit de face et la coupe rejette » — n'est pas remplacé en silence : il est gardé sous
- * `brutes` et ouvert en deux, et ce que la vérité brute NE voyait PAS est compté à côté.
- *   — `fausses` : la coupe rejette un cluster dont le moteur dessine des fragments. LE défaut.
- *   — `brutesDessinees` : la part de l'ancien compte qui était bien un défaut.
- *   — `brutesNonDessinees` : la part qui n'en était pas un — le moteur n'en dessine rien.
- *   — `manqueesParLaVeriteBrute` : les défauts que l'ancien compte ne voyait pas du tout, parce
- *     que la vérité brute les dit de dos alors que le moteur les dessine (l'échange de face sous
- *     réflexion joue dans les deux sens).
+ * Classification of cut rejects against the oracle above. The old count — "raw truth says
+ * face-on and the cut rejects" — is not silently replaced: it is kept under `brutes` and split
+ * in two, and what the raw truth did NOT see is counted beside it.
+ *   — `fausses`: the cut rejects a cluster whose engine draws fragments. THE defect.
+ *   — `brutesDessinees`: the part of the old count that was indeed a defect.
+ *   — `brutesNonDessinees`: the part that was not — the engine draws nothing of it.
+ *   — `manqueesParLaVeriteBrute`: defects the old count did not see at all, because raw truth
+ *     says they are back-facing while the engine draws them (face swap under reflection plays
+ *     both ways).
  * Invariants : `brutes = brutesDessinees + brutesNonDessinees` et
  * `fausses = brutesDessinees + manqueesParLaVeriteBrute`.
  */

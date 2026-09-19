@@ -1,6 +1,6 @@
-// Cas parent/enfant du socle : de vraies chaînes `Object3D` de `three`, mises à jour par
-// `updateMatrixWorld(true)`, recomposées nœud par nœud avec `composeMatrix4` et `multiplyMatrix4`
-// (`chainesHostiles`, déjà écrite pour le banc du lot, réutilisée ici pour la vérité bit à bit).
+// Parent/child cases of the math kernel: real `Object3D` chains from `three`, updated by
+// `updateMatrixWorld(true)`, recomposed node by node with `composeMatrix4` and `multiplyMatrix4`
+// (`chainesHostiles`, already written for the batch bench, reused here for bit-exact truth).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -11,16 +11,16 @@ import {
 
 const CHAMPS = [
   'matrixWorld',
-  'position monde',
-  'quaternion monde',
-  'échelle monde',
-  'déterminant',
-  'signe du déterminant',
-  'matrice normale',
+  'world position',
+  'world quaternion',
+  'world scale',
+  'determinant',
+  'determinant sign',
+  'normal matrix',
   'inverse',
 ];
 
-/** `Object.is` composante par composante ; `NaN` accepté des deux côtés à la même place. */
+/** `Object.is` component by component; `NaN` accepted on both sides at the same place. */
 function memeValeurs(a: unknown, b: unknown, chemin: string) {
   if (typeof a === 'number') {
     assert.ok(Object.is(a, b), `${chemin} : ${a} ≠ ${b}`);
@@ -33,9 +33,9 @@ function memeValeurs(a: unknown, b: unknown, chemin: string) {
     assert.ok(Object.is(ta[i], tb[i]), `${chemin}[${i}] : ${ta[i]} ≠ ${tb[i]}`);
 }
 
-test('chaînes parent/enfant hostiles : la fixture couvre bien les cas exigés', () => {
+test('hostile parent/child chains: the fixture covers the required cases', () => {
   const noeuds = chainesHostiles();
-  assert.ok(noeuds.length > 100, `${noeuds.length} nœuds, jeu trop petit`);
+  assert.ok(noeuds.length > 100, `${noeuds.length} nodes, set too small`);
 
   const profondeur = (n: (typeof noeuds)[number]) => {
     let p = n,
@@ -46,23 +46,23 @@ test('chaînes parent/enfant hostiles : la fixture couvre bien les cas exigés',
     }
     return d;
   };
-  assert.ok(Math.max(...noeuds.map(profondeur)) >= 3, 'aucune chaîne de profondeur ≥ 3');
+  assert.ok(Math.max(...noeuds.map(profondeur)) >= 3, 'no chain of depth ≥ 3');
 
   const enfantsPar = new Map<number, number>();
   for (const n of noeuds)
     if (n.parent >= 0) enfantsPar.set(n.parent, (enfantsPar.get(n.parent) ?? 0) + 1);
   assert.ok(
     [...enfantsPar.values()].some((c) => c >= 2),
-    'aucune branche à deux enfants ou plus',
+    'no branch with two or more children',
   );
 
   assert.ok(
     noeuds.some((n) => n.echelle.filter((c) => c < 0).length === 1),
-    'aucune échelle négative sur un seul axe',
+    'no negative scale on a single axis',
   );
   assert.ok(
     noeuds.some((n) => [...n.echelle].some((c) => c === 0)),
-    'aucune échelle nulle',
+    'no zero scale',
   );
   assert.ok(
     noeuds.some(
@@ -71,16 +71,16 @@ test('chaînes parent/enfant hostiles : la fixture couvre bien les cas exigés',
         noeuds[n.parent].rotation.some((c, i) => c !== (i === 3 ? 1 : 0)) &&
         new Set(n.echelle).size > 1,
     ),
-    'aucun nœud à échelle non uniforme sous une rotation parente',
+    'no node with non-uniform scale under a parent rotation',
   );
 });
 
-test('chaînes parent/enfant hostiles : monde, position, quaternion, échelle, déterminant, normale et inverse — bit à bit contre `three`', () => {
+test('hostile parent/child chains: world, position, quaternion, scale, determinant, normal and inverse — bit-exact against `three`', () => {
   const noeuds = chainesHostiles();
   for (const [index, n] of noeuds.entries()) {
     const ref = lectureReference(n),
       socle = lectureSocle(n);
     for (let champ = 0; champ < CHAMPS.length; champ++)
-      memeValeurs(ref[champ], socle[champ], `nœud ${index}, ${CHAMPS[champ]}`);
+      memeValeurs(ref[champ], socle[champ], `node ${index}, ${CHAMPS[champ]}`);
   }
 });

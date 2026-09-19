@@ -1,6 +1,6 @@
-// Première partie du banc du socle, consommateurs de `sdk-browser` : chaque calcul rattaché au socle
-// opposé au code qu'il était avant, recopié dans `oracles/socle-math*.mjs`. Une seule valeur
-// différente et la ligne tombe : le rattachement ne change aucun bit.
+// First part of the foundation bench, `sdk-browser` consumers: each computation attached to
+// the foundation, opposed to the code it was before, copied in `oracles/socle-math*.mjs`.
+// A single different value and the line fails: the attachment changes no bit.
 import * as THREE from 'three';
 import { srgbToLinear } from '../../../sdk-core/index.ts';
 import { orderPendingUrls } from '../../streamingPriority.ts';
@@ -17,17 +17,17 @@ import { createEngineCamera, readCameraWorld } from '../../cameraWorld.ts';
 
 export async function lignesConsommateursBrowser() {
   const { liste, camera, echelle } = enregistrements;
-  // L'ordre du moteur lit la caméra qu'il possède ; l'oracle garde celle de la bibliothèque hôte.
+  // The engine order reads the camera it owns; the oracle keeps that of the host library.
   const vue = readCameraWorld(createEngineCamera(), camera);
   const paquets = [];
   for (let i = 0; i < liste.length; i += 30) paquets.push(liste.slice(i, i + 30));
   const attribut = new THREE.BufferAttribute(Float32Array.from(points.flat()), 3);
-  // Le sujet comparé est la projection d'un sommet, pas la lecture d'une convention : les couples
-  // vue-projection/convention sont montés une fois, hors des boucles mesurées.
+  // The compared subject is the projection of a vertex, not the read of a convention: the
+  // view-projection/convention pairs are built once, outside the measured loops.
   const vuesProjetees = matrices.map((e) => ({ viewProjection: e }));
   return [
     await ligne(
-      'file de streaming : ordre rendu',
+      'streaming queue: rendered order',
       'packages/sdk-browser/streamingPriority.ts',
       'enregistrements hostiles, par paquets de 30',
       paquets,
@@ -35,9 +35,9 @@ export async function lignesConsommateursBrowser() {
       (l) => l.map((p) => essaie(() => orderPendingUrls(p, vue, echelle, []))),
     ),
     await ligne(
-      'sphère monde d’un cluster pour les ombres',
+      'world-space cluster sphere for shadows',
       'packages/sdk-browser/webgpuShadowBounds.ts',
-      'poses × boîtes',
+      'poses × boxes',
       liste,
       (l) =>
         l.map((r) => {
@@ -71,7 +71,7 @@ export async function lignesConsommateursBrowser() {
         }),
     ),
     await ligne(
-      'sommet projeté du tampon de visibilité',
+      'projected vertex of the visibility buffer',
       'packages/sdk-browser/visibilityProjection.ts',
       'poses × vues-projections × sommets',
       affines.slice(0, 60),

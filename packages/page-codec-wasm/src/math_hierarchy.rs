@@ -1,23 +1,23 @@
-//! La hiérarchie entière mise à jour en une passe, aux bits de `mathBatch.ts::hierarchyUpdateBatch`.
+//! The whole hierarchy updated in one pass, to the bits of `mathBatch.ts::hierarchyUpdateBatch`.
 //!
-//! Même règle qu'en JavaScript, terme à terme : les nœuds sont rangés parents avant enfants, chacun
-//! compose sa matrice locale depuis sa position, son quaternion et son échelle
-//! (`mathMatrix4Trs.ts::composeMatrix4`), puis la multiplie par la matrice monde de son parent
-//! (`mathMatrix4.ts::multiplyMatrix4`). Les produits du quaternion sont doublés par addition
-//! (`x + x`), jamais multipliés par deux, et la dernière ligne est écrite `(0, 0, 0, 1)` exactement.
+//! Same rule as in JavaScript, term by term: nodes are ordered parents before children, each
+//! composes its local matrix from its position, quaternion and scale
+//! (`mathMatrix4Trs.ts::composeMatrix4`), then multiplies it by its parent's world matrix
+//! (`mathMatrix4.ts::multiplyMatrix4`). Quaternion products are doubled by addition (`x + x`),
+//! never multiplied by two, and the last row is written `(0, 0, 0, 1)` exactly.
 //!
-//! `parents[i]` doit désigner un nœud déjà mis à jour, donc d'indice strictement inférieur à `i` ;
-//! toute autre valeur — la sentinelle `0xffff_ffff` comprise — fait du nœud une racine, dont la
-//! matrice monde est sa matrice locale. C'est la règle du chemin JavaScript, et c'est aussi ce qui
-//! garde ce noyau sûr : aucun indice hors du travail déjà fait n'est jamais lu.
+//! `parents[i]` must name a node already updated, hence of index strictly less than `i`; any
+//! other value — the sentinel `0xffff_ffff` included — makes the node a root, whose world matrix
+//! is its local matrix. That is the JavaScript path's rule, and it is also what keeps this kernel
+//! safe: no index outside work already done is ever read.
 
 use crate::math::{multiply_matrix4_one, MATRIX_VALUES};
 
-/// Flottants d'une position ou d'une échelle, et d'un quaternion `(x, y, z, w)`.
+/// Floats of a position or a scale, and of a quaternion `(x, y, z, w)`.
 pub const POSITION_VALUES: usize = 3;
 pub const QUATERNION_VALUES: usize = 4;
 
-/// `composeMatrix4` d'un nœud : `out = T · R · S`, seize flottants colonne-major.
+/// `composeMatrix4` of a node: `out = T · R · S`, sixteen column-major floats.
 fn compose_matrix4_one(out: &mut [f64], position: &[f64], quaternion: &[f64], scale: &[f64]) {
     let (x, y, z, w) = (quaternion[0], quaternion[1], quaternion[2], quaternion[3]);
     let (x2, y2, z2) = (x + x, y + y, z + z);
@@ -43,7 +43,7 @@ fn compose_matrix4_one(out: &mut [f64], position: &[f64], quaternion: &[f64], sc
     out[15] = 1.0;
 }
 
-/// Les `n` nœuds, dans l'ordre des indices : matrice locale composée, puis matrice monde écrite.
+/// The `n` nodes, in index order: local matrix composed, then world matrix written.
 pub fn hierarchy_update_batch(
     world: &mut [f64],
     positions: &[f64],
@@ -68,7 +68,7 @@ pub fn hierarchy_update_batch(
             world[at..at + MATRIX_VALUES].copy_from_slice(&local);
             continue;
         }
-        // Le parent est déjà écrit et se trouve avant `at` : les deux emprunts sont disjoints.
+        // The parent is already written and sits before `at`: the two borrows are disjoint.
         let (fait, reste) = world.split_at_mut(at);
         let depuis = parent * MATRIX_VALUES;
         multiply_matrix4_one(
@@ -83,13 +83,13 @@ pub fn hierarchy_update_batch(
 mod tests {
     use super::*;
 
-    /// Une chaîne de trois nœuds : une racine, son enfant, le petit-enfant, échelles non uniformes.
+    /// A chain of three nodes: a root, its child, the grandchild, non-uniform scales.
     fn chaine() -> (Vec<f64>, Vec<f64>, Vec<f64>, Vec<u32>) {
         let positions = vec![1.0, 2.0, 3.0, -1.0, 0.5, 0.25, 0.0, -0.0, 7.0];
         let rotations = vec![
-            0.0, 0.0, 0.0, 1.0, // identité
-            0.5, 0.5, 0.5, 0.5, // quart de tour composé
-            0.0, 1.0, 0.0, 0.0, // demi-tour, w nul
+            0.0, 0.0, 0.0, 1.0, // identity
+            0.5, 0.5, 0.5, 0.5, // composed quarter turn
+            0.0, 1.0, 0.0, 0.0, // half turn, zero w
         ];
         let scales = vec![2.0, 0.5, 3.0, -1.0, 1.0, 1.0, 1e-8, 1.0, 1e150];
         (positions, rotations, scales, vec![u32::MAX, 0, 1])
@@ -125,7 +125,7 @@ mod tests {
         );
         multiply_matrix4_one(&mut attendu, &world[..MATRIX_VALUES], &local);
         assert_eq!(world[MATRIX_VALUES..2 * MATRIX_VALUES], attendu[..]);
-        // Le petit-enfant compose bien depuis le MONDE de son parent, pas depuis sa locale.
+        // The grandchild does compose from its parent's WORLD, not from its local.
         compose_matrix4_one(
             &mut local,
             &positions[6..9],
@@ -144,7 +144,7 @@ mod tests {
     fn un_parent_qui_ne_precede_pas_son_enfant_fait_une_racine() {
         let (positions, rotations, scales, _) = chaine();
         let mut world = vec![0f64; 3 * MATRIX_VALUES];
-        // `2` ne précède pas le nœud 1, et `7` sort du lot : les deux sont des racines.
+        // `2` does not precede node 1, and `7` is outside the batch: both are roots.
         let parents = vec![u32::MAX, 2, 7];
         hierarchy_update_batch(&mut world, &positions, &rotations, &scales, &parents, 3);
         let mut local = [0f64; MATRIX_VALUES];

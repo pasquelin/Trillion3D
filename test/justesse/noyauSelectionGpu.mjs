@@ -1,6 +1,6 @@
-// Le noyau WGSL de sélection du DAG réellement exécuté dans Chromium WebGPU : les tampons empaquetés
-// par `packDagSelection`, les uniformes de `writeDagUniforms`, les passes `dagPrepare` à `dagMask`
-// dans l'ordre du moteur (coupe non résidente), puis la relecture de la sortie du GPU.
+// The DAG selection WGSL kernel actually run in Chromium WebGPU: buffers packed
+// by `packDagSelection`, uniforms from `writeDagUniforms`, passes `dagPrepare` through `dagMask`
+// in engine order (non-resident cut), then a readback of the GPU output.
 import { DAG_SELECTION_SHADER } from '../../packages/sdk-browser/gpuDagShader.ts';
 import { dansPageWebgpu } from './pageWebgpu.mjs';
 import { writeDagUniforms } from '../../packages/sdk-browser/gpuDagUniforms.ts';
@@ -21,7 +21,7 @@ import {
 
 const octets = (vue) => Array.from(new Uint8Array(vue.buffer, vue.byteOffset, vue.byteLength));
 
-/** Un cas empaqueté, prêt à traverser vers la page : octets bruts, les entiers des clusters compris. */
+/** A packed case, ready to cross into the page: raw bytes, including cluster integers. */
 function versPage(nom, packed, uniforms) {
   const uni = new Float32Array(SELECTION_UNIFORM_BYTES / 4);
   writeDagUniforms(uni, packed, uniforms, false);
@@ -29,7 +29,7 @@ function versPage(nom, packed, uniforms) {
   const frameInts = new Uint32Array(frames.buffer);
   for (let w = 0; w < packed.worldCount; w++) {
     frames[(w * FRAME_VEC4 + 6) * 4] = packed.worldStretch[w];
-    // La racine de la primitive voyage avec son étirement : la descente par niveaux part d'elle.
+    // The primitive's root travels with its stretch: level descent starts from it.
     frameInts[(w * FRAME_VEC4 + 6) * 4 + 1] = packed.rootNodes[w];
   }
   const blockCount = Math.ceil(Math.max(1, packed.pageCount) / SELECTION_WORKGROUP);
@@ -49,10 +49,10 @@ function versPage(nom, packed, uniforms) {
   };
 }
 
-/** Exécuté dans la page : un pipeline, tous les cas, la sortie `Output` relue pour chacun. */
+/** Run in the page: one pipeline, every case, the `Output` read back for each. */
 async function executer({ shader, cas, workgroup, entete, totaux, bitsPage }) {
   const appareil = await globalThis.ouvrirAppareil();
-  if (!appareil) return { indisponible: 'aucun adaptateur WebGPU' };
+  if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
   const { module, compilation } = await appareil.compile(shader);
   if (compilation.length) return { compilation, erreurs };
@@ -68,8 +68,8 @@ async function executer({ shader, cas, workgroup, entete, totaux, bitsPage }) {
   const etape = (entryPoint) =>
     device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
   const preparePipeline = etape('dagPrepare');
-  // La descente par niveaux : la passe 0 part des racines, chaque passe suivante tourne sur les
-  // trois files que `levelStep` remplit à tour de rôle (piste : `gpuDagLevelWgsl.ts`).
+  // Level descent: pass 0 starts from the roots, each following pass runs on the
+  // three queues `levelStep` fills in turn (see `gpuDagLevelWgsl.ts`).
   const levelPipelines = [etape('dagLevel0'), etape('dagLevel1'), etape('dagLevel2')];
   const wantedPipeline = etape('dagWanted');
   const maskPipeline = etape('dagMask');
@@ -87,8 +87,8 @@ async function executer({ shader, cas, workgroup, entete, totaux, bitsPage }) {
   for (const c of cas) {
     const sortieOctets = entete * 4 + c.pageCount * 4;
     const blockCount = groupes(c.pageCount);
-    // La disposition de `work` est celle que le moteur pose, calculée côté Node et portée avec le
-    // cas : la page n'a pas de module à importer, et le banc ne peut pas en dériver une autre.
+    // The `work` layout is the one the engine lays down, computed on the Node side and
+    // carried with the case: the page has no module to import, and the bench cannot derive another.
     const travail = c.travail;
     const buffers = [
       tampon(64, c.clusters),
@@ -105,8 +105,8 @@ async function executer({ shader, cas, workgroup, entete, totaux, bitsPage }) {
       size: sortieOctets,
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
     });
-    // Les compteurs de l'image : ce que la descente a listé en candidates, et ce que `dagWanted` en
-    // a gardé de vivant. C'est la taille des deux listes que les cinq passes suivantes relisent.
+    // Frame counters: what descent listed as candidates, and what `dagWanted` kept
+    // live. Those two list sizes are what the five following passes reread.
     const octetsTravail = Math.max(8, travail.words * 4);
     const compteurs = device.createBuffer({
       size: octetsTravail,
@@ -121,9 +121,9 @@ async function executer({ shader, cas, workgroup, entete, totaux, bitsPage }) {
     tete.setBindGroup(0, group);
     tete.setPipeline(preparePipeline);
     tete.dispatchWorkgroups(groupes(Math.max(c.worldCount, blockCount)));
-    // Toute la descente dans cette passe, comme le moteur l'encode : les lancements d'une même passe
-    // s'exécutent dans l'ordre et voient ce que les précédents ont écrit. Chacun est lancé à plat, sur
-    // un majorant du nombre de nœuds de son étage.
+    // The whole descent in this pass, as the engine encodes it: launches in the same pass
+    // run in order and see what the previous ones wrote. Each is dispatched flat, over
+    // an upper bound on its level's node count.
     tete.setPipeline(levelPipelines[0]);
     tete.dispatchWorkgroups(groupes(c.nodeCount));
     for (let niveau = 1; niveau < c.levelCount; niveau++) {
@@ -131,8 +131,8 @@ async function executer({ shader, cas, workgroup, entete, totaux, bitsPage }) {
       tete.dispatchWorkgroups(groupes(c.nodeCount));
     }
     tete.end();
-    // Les pages des feuilles retenues, puis leur verdict : les deux passes finales visitent au plus
-    // `pageCount` grappes, un majorant sûr de la liste des candidates et de celle des vivantes.
+    // Pages of the kept leaves, then their verdict: the two final passes visit at most
+    // `pageCount` clusters, a safe upper bound on the candidate list and the live list.
     const fin = encoder.beginComputePass();
     fin.setBindGroup(0, group);
     fin.setPipeline(wantedPipeline);
@@ -152,15 +152,15 @@ async function executer({ shader, cas, workgroup, entete, totaux, bitsPage }) {
     const count = Math.min(ints[0], c.pageCount);
     resultats.push({
       nom: c.nom,
-      // Les mots de demande dans l'ORDRE OÙ LA CARTE LES A ÉCRITS : c'est lui que le classement
-      // relit. `pages` reste trié, pour les preuves qui comparent des ensembles.
+      // Request words in the ORDER THE GPU WROTE THEM: that is what ranking rereads.
+      // `pages` stays sorted, for proofs that compare sets.
       demandes: Array.from(ints.subarray(entete, entete + count)),
       pages: Array.from(ints.subarray(entete, entete + count))
         .map((mot) => mot & (bitsPage - 1))
         .sort((a, b) => a - b),
       frustumRejected: ints[1],
       overflow: ints[3],
-      // Les totaux que la carte tient : c'est ici qu'ils se comparent à ceux de l'oracle.
+      // Totals the GPU holds: this is where they are compared to the oracle's.
       selectedTriangles: ints[totaux.selected],
       transparentTriangles: ints[totaux.transparent],
       drawnTriangles: ints[totaux.drawn],
@@ -175,13 +175,13 @@ async function executer({ shader, cas, workgroup, entete, totaux, bitsPage }) {
 }
 
 /**
- * Lance le noyau GPU sur chaque `{ nom, packed, uniforms }` et rend les pages que le GPU a
- * sélectionnées, avec la taille des deux listes que l'image relit : les candidates de la descente et
- * les vivantes de `dagWanted`. `shader` remplace le texte du noyau pour comparer deux versions.
+ * Run the GPU kernel on each `{ nom, packed, uniforms }` and return the pages the GPU
+ * selected, with the sizes of the two lists the frame rereads: descent candidates and
+ * `dagWanted` live ones. `shader` replaces the kernel text to compare two versions.
  */
 export async function selectionGpu(cas, shader = DAG_SELECTION_SHADER) {
-  // La fonction est SÉRIALISÉE dans la page : elle ne voit que son argument. La disposition de
-  // l'entête du relevé y voyage donc, au lieu d'être relue d'un module que la page n'a pas.
+  // The function is SERIALIZED into the page: it only sees its argument. The readback
+  // header layout therefore travels with it, instead of being reread from a module the page lacks.
   return await dansPageWebgpu(executer, {
     shader,
     cas: cas.map(({ nom, packed, uniforms }) => versPage(nom, packed, uniforms)),

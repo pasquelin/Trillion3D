@@ -1,12 +1,14 @@
-//! Doré du pilote `unitypackage` : un conteneur ne doit rien changer au projet qu'il emballe. La
-//! fixture est donc double — le même projet Unity CC0 **dans** son paquet et **à plat** hors de lui
-//! — et le doré compare les deux compilations l'une à l'autre avant de comparer la première à
-//! `expected.json`. Il fixe aussi ce que le pilote refuse : un `pathname` qui sort du dossier
-//! d'extraction, un paquet tronqué et un paquet sans aucune entrée, chacun par son code.
+//! Golden of the `unitypackage` driver: a container must change nothing of the
+//! project it packs. The fixture is therefore double — the same CC0 Unity project
+//! **inside** its package and **flat** outside it — and the golden compares the
+//! two compilations to each other before comparing the first to `expected.json`.
+//! It also fixes what the driver refuses: a `pathname` that leaves the extraction
+//! folder, a truncated package and a package with no entry, each by its code.
 use super::*;
 
-// Comportement 25 : un projet Unity lu à travers son `.unitypackage` est exactement le même projet
-// lu à plat, la chaîne des deux pilotes est consignée, et les trois paquets piégés sont refusés.
+// Behaviour 25: a Unity project read through its `.unitypackage` is exactly the
+// same project read flat, the two-driver chain is recorded, and the three trapped
+// packages are refused.
 #[test]
 fn a_packaged_unity_project_compiles_to_the_same_scene_as_the_project_on_disk() {
     let dir = golden_dir("unitypackage");
@@ -16,21 +18,21 @@ fn a_packaged_unity_project_compiles_to_the_same_scene_as_the_project_on_disk() 
     assert_eq!(
         scene_digest(&inside),
         scene_digest(&outside),
-        "le projet reconstruit depuis le paquet diverge du même projet à plat"
+        "the project rebuilt from the package diverges from the same project on disk"
     );
     assert_eq!(
         package_digest(&dir, &inside),
         golden_expected(&dir),
-        "fixture unitypackage : la sortie compilée diverge de expected.json"
+        "fixture unitypackage: compiled output diverges from expected.json"
     );
     assert_eq!(
         outside.result["scenePlugin"]["name"], "unity",
-        "hors paquet, c'est le pilote Unity qui répond"
+        "outside the package, it is the Unity driver that answers"
     );
 }
 
-/// Ce que la dorée fixe : le pilote retenu, la chaîne publiée au rapport, les codes de refus des
-/// paquets piégés, et la scène elle-même.
+/// What the golden fixes: the retained driver, the chain published in the report,
+/// the refusal codes of the trapped packages, and the scene itself.
 fn package_digest(dir: &Path, run: &GoldenRun) -> Value {
     json!({
       "scenePlugin": run.result["scenePlugin"],
@@ -44,12 +46,13 @@ fn package_digest(dir: &Path, run: &GoldenRun) -> Value {
     })
 }
 
-/// L'identité du projet compilé. `files` est la matière même de la clé de la scène intermédiaire :
-/// le nom, la taille et l'empreinte de chaque fichier de données lu, et la clé d'import de chaque
-/// modèle — rien qui dépende de l'endroit où le projet se trouve. Deux compilations qui rendent ce
-/// condensé à l'identique ont lu les mêmes octets et produit la même scène. La clé de compilation,
-/// elle, n'y figure pas : le manifeste d'une scène convertie porte sa durée d'import, donc la clé
-/// change d'un passage à l'autre sans que la scène bouge.
+/// Identity of the compiled project. `files` is the very matter of the
+/// intermediate-scene key: name, size and fingerprint of each data file read, and
+/// the import key of each model — nothing that depends on where the project sits.
+/// Two compilations that yield this digest identically have read the same bytes
+/// and produced the same scene. The compilation key is not in it: a converted
+/// scene's manifest carries its import duration, so the key changes from one run
+/// to the next without the scene moving.
 fn scene_digest(run: &GoldenRun) -> Value {
     let (manifest, _) = run.prepared("unity");
     json!({
@@ -69,11 +72,11 @@ fn scene_digest(run: &GoldenRun) -> Value {
     })
 }
 
-/// La chaîne `unitypackage` → pilote interne, telle que le conteneur l'a publiée au rapport.
+/// The `unitypackage` → inner driver chain, as the container published it in the report.
 fn chain_report(run: &GoldenRun) -> Value {
     run.reports
         .iter()
         .find(|report| report["phase"] == "archive" && report["step"] == "routed")
         .map(|report| report["chain"].clone())
-        .expect("le conteneur publie la chaîne des pilotes")
+        .expect("the container publishes the driver chain")
 }

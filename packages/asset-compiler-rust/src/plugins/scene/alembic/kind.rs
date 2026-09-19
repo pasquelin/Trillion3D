@@ -1,22 +1,22 @@
-//! Ce qu un objet Alembic est, d après le schéma que sa métadonnée déclare.
+//! What an Alembic object is, from the schema its metadata declares.
 //!
-//! Ce pilote convertit les transformations, les maillages polygonaux, les surfaces de subdivision —
-//! en polygones plats — et les face sets. Tout le reste porte ici le nom sous lequel il sera compté.
+//! This driver converts transforms, polygonal meshes, subdivision surfaces — as flat polygons —
+//! and face sets. Everything else carries here the name under which it will be counted.
 use super::archive::meta_value;
 
-/// Ce qu'un objet est, d'après le schéma que sa métadonnée déclare.
+/// What an object is, from the schema its metadata declares.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Kind {
     Xform,
     Mesh,
-    /// Une surface de subdivision, rendue comme les polygones plats qu'elle porte.
+    /// A subdivision surface, rendered as the flat polygons it carries.
     SubD,
     FaceSet,
-    /// Un objet que ce pilote ne convertit pas, compté au rapport sous ce nom.
+    /// An object this driver does not convert, counted on the report under this name.
     Skipped(&'static str),
 }
 
-/// Le schéma d'une métadonnée, tel qu'Alembic l'écrit.
+/// The schema of a metadata string, as Alembic writes it.
 pub(super) fn kind_of(meta: &str) -> Kind {
     if meta_value(meta, "isInstance") == Some("1") {
         return Kind::Skipped("alembic-instance-unsupported");

@@ -1,14 +1,13 @@
-//! Les KTX 2.0 minuscules de la dorée, écrits ici octet par octet depuis la spécification publique
-//! de Khronos. Aucun encodeur n'est appelé : l'identifiant, les neuf champs de l'entête, l'index des
-//! trois sections et l'index des niveaux sont posés à la main, et chaque bloc porte des valeurs dont
-//! on connaît le décodage exact. C'est la seule façon d'affirmer « sans perte » sans croire le
-//! décodeur sur parole.
+//! Tiny KTX 2.0 of the golden, written here byte by byte from Khronos's public specification. No
+//! encoder is called: the identifier, the nine header fields, the index of the three sections
+//! and the level index are set by hand, and each block carries values whose exact decoding is
+//! known. That is the only way to assert “lossless” without taking the decoder's word for it.
 //!
-//! Ces conteneurs ne portent ni descripteur de format, ni clés, ni donnée globale de
-//! supercompression : le pilote ne les lit pas quand le `vkFormat` nomme le codec, et les fichiers
-//! de `fixtures/ktx2/` couvrent le cas où il les lit.
+//! These containers carry neither a format descriptor, nor keys, nor global supercompression
+//! data: the driver does not read them when `vkFormat` names the codec, and the files of
+//! `fixtures/ktx2/` cover the case where it reads them.
 
-/// Décalages absolus des champs que la dorée modifie après coup, identifiant compris.
+/// Absolute offsets of the fields the golden later modifies, identifier included.
 pub(super) const FORMAT: usize = 12;
 pub(super) const TYPE_SIZE: usize = 16;
 pub(super) const WIDTH: usize = 20;
@@ -18,12 +17,13 @@ pub(super) const LAYERS: usize = 32;
 pub(super) const FACES: usize = 36;
 pub(super) const LEVELS: usize = 40;
 pub(super) const SUPERCOMPRESSION: usize = 44;
-/// Fin de l'entête fixe, index des trois sections compris ; puis le début de l'index des niveaux.
+/// End of the fixed header, index of the three sections included; then the start of the level
+/// index.
 pub(super) const HEADER_END: usize = 80;
-/// Une entrée de l'index des niveaux : décalage, longueur, longueur une fois décompressée.
+/// An entry of the level index: offset, length, length once decompressed.
 const LEVEL_ENTRY: usize = 24;
 
-/// Les douze octets d'identifiant : « KTX 20 » entre guillemets français, CR, LF, SUB, LF.
+/// Twelve identifier bytes: “KTX 20” between French quotes, CR, LF, SUB, LF.
 const MAGIC: [u8; 12] = [
     0xab, b'K', b'T', b'X', b' ', b'2', b'0', 0xbb, 0x0d, 0x0a, 0x1a, 0x0a,
 ];
@@ -36,21 +36,21 @@ fn put64(into: &mut Vec<u8>, value: u64) {
     into.extend_from_slice(&value.to_le_bytes());
 }
 
-/// Un conteneur d'un seul niveau, sans supercompression : le cas que presque toute la dorée veut,
-/// et celui que les refus modifient ensuite champ par champ.
+/// A one-level container, without supercompression: the case almost the whole golden wants, and
+/// the one refusals then modify field by field.
 pub(super) fn container(format: u32, width: u32, height: u32, level: &[u8]) -> Vec<u8> {
     chain(format, width, height, level, 1)
 }
 
-/// Le même, dont l'entête annonce `levels` niveaux alors qu'un seul est écrit : les entrées
-/// supplémentaires pointent au-delà de la fin du fichier, donc la chaîne annoncée ment.
+/// The same, whose header announces `levels` levels while only one is written: extra entries
+/// point beyond the end of the file, so the announced chain lies.
 pub(super) fn chain(format: u32, width: u32, height: u32, level: &[u8], levels: u32) -> Vec<u8> {
     described(format, width, height, level, levels, None, &[])
 }
 
-/// Le même conteneur, avec le descripteur de format et les clés que le pilote lit pour savoir ce
-/// que le fichier déclare autour de ses pixels. `dfd` donne le `transferFunction` et les `flags` du
-/// bloc de base ; `keys` donne les entrées de la section clé-valeur, dans l'ordre.
+/// The same container, with the format descriptor and the keys the driver reads to know what
+/// the file declares around its pixels. `dfd` gives the `transferFunction` and the `flags` of
+/// the basic block; `keys` gives the key-value section entries, in order.
 pub(super) fn described(
     format: u32,
     width: u32,
@@ -98,23 +98,23 @@ pub(super) fn described(
     out
 }
 
-/// Le descripteur de format, réduit à son bloc de base sans échantillon : sa taille totale, puis le
-/// bloc lui-même — identifiant du fournisseur et type, version et taille du bloc, modèle de
-/// couleur, primaires, fonction de transfert, drapeaux, géométrie du bloc de texels et poids des
-/// plans. Seuls les deux octets du milieu intéressent le pilote.
+/// Format descriptor, reduced to its basic block without a sample: its total size, then the
+/// block itself — vendor identifier and type, version and block size, colour model, primaries,
+/// transfer function, flags, texel-block geometry and plane weights. Only the two middle bytes
+/// interest the driver.
 fn block(transfer: u8, flags: u8) -> Vec<u8> {
     let mut out = Vec::new();
     put(&mut out, 28);
     put(&mut out, 0);
     put(&mut out, 24 << 16 | 2);
-    // Modèle RVB avec alpha, primaires BT.709, puis la fonction de transfert et les drapeaux.
+    // RGB model with alpha, BT.709 primaries, then the transfer function and flags.
     out.extend_from_slice(&[1, 1, transfer, flags]);
     out.extend_from_slice(&[0; 12]);
     out
 }
 
-/// La section clé-valeur : chaque entrée porte sa longueur sur quatre octets, puis sa clé terminée
-/// par un zéro, puis sa valeur terminée par un zéro, le tout complété jusqu'au multiple de quatre.
+/// Key-value section: each entry carries its length on four bytes, then its key terminated by a
+/// zero, then its value terminated by a zero, the whole padded to a multiple of four.
 fn key_values(keys: &[(&str, &str)]) -> Vec<u8> {
     let mut out = Vec::new();
     for (key, value) in keys {
@@ -131,22 +131,22 @@ fn key_values(keys: &[(&str, &str)]) -> Vec<u8> {
     out
 }
 
-/// Le même fichier, un mot de trente-deux bits remplacé. Les refus s'écrivent ainsi : un conteneur
-/// valide, puis exactement le champ que le cas met en défaut.
+/// The same file, a thirty-two-bit word replaced. Refusals are written that way: a valid
+/// container, then exactly the field the case puts in fault.
 pub(super) fn patched(mut file: Vec<u8>, at: usize, value: u32) -> Vec<u8> {
     file[at..at + 4].copy_from_slice(&value.to_le_bytes());
     file
 }
 
-/// Le même fichier, un mot de soixante-quatre bits de l'index des niveaux remplacé.
+/// The same file, a sixty-four-bit word of the level index replaced.
 pub(super) fn patched64(mut file: Vec<u8>, at: usize, value: u64) -> Vec<u8> {
     file[at..at + 8].copy_from_slice(&value.to_le_bytes());
     file
 }
 
-/// Un bloc BC1 de 4 × 4 : deux bornes en 565 puis seize indices de deux bits. Quand `first` est
-/// inférieur à `second`, la spécification passe le bloc en trois couleurs, et l'indice 3 y désigne
-/// un texel noir transparent — c'est ce qui sépare `BC1_RGB` de `BC1_RGBA`.
+/// A 4 × 4 BC1 block: two 565 bounds then sixteen two-bit indices. When `first` is less than
+/// `second`, the specification puts the block in three colours, and index 3 names a transparent
+/// black texel there — that is what separates `BC1_RGB` from `BC1_RGBA`.
 pub(super) fn bc1(first: u16, second: u16, indices: [u8; 16]) -> Vec<u8> {
     let mut block = Vec::from(first.to_le_bytes());
     block.extend_from_slice(&second.to_le_bytes());
@@ -156,9 +156,9 @@ pub(super) fn bc1(first: u16, second: u16, indices: [u8; 16]) -> Vec<u8> {
     block
 }
 
-/// Un bloc ASTC 4 × 4 « void extent » : la spécification le réserve à une couleur unique, et ses
-/// quatre canaux y sont écrits en clair sur seize bits chacun. Aucune interpolation n'entre donc
-/// dans la référence — le bloc vaut exactement la couleur qu'on y met.
+/// An ASTC 4 × 4 “void extent” block: the specification reserves it for a unique colour, and
+/// its four channels are written there in the open on sixteen bits each. No interpolation
+/// therefore enters the reference — the block is exactly the colour put in it.
 pub(super) fn astc_void_extent(color: [u8; 4]) -> Vec<u8> {
     let mut block = vec![0xfc, 0xfd, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff];
     for channel in color {
@@ -167,10 +167,10 @@ pub(super) fn astc_void_extent(color: [u8; 4]) -> Vec<u8> {
     block
 }
 
-/// Un bloc EAC d'un canal, écrit depuis la spécification d'OpenGL ES 3.0 : le mot de base sur huit
-/// bits, puis le multiplicateur et la table de modificateurs sur quatre bits chacun, puis seize
-/// indices de trois bits — le texel 0 dans les bits de poids fort des quarante-huit qui restent.
-/// Les texels s'y suivent colonne par colonne : le texel `n` est à la colonne `n / 4`, ligne `n % 4`.
+/// A one-channel EAC block, written from the OpenGL ES 3.0 specification: the eight-bit base
+/// word, then the multiplier and the modifier table on four bits each, then sixteen three-bit
+/// indices — texel 0 in the high bits of the remaining forty-eight. Texels follow there column
+/// by column: texel `n` is at column `n / 4`, row `n % 4`.
 pub(super) fn eac(base: u8, multiplier: u8, table: u8, indices: [u8; 16]) -> Vec<u8> {
     let mut field = 0u64;
     for (texel, index) in indices.into_iter().enumerate() {

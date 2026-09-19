@@ -1,5 +1,5 @@
-//! Les tests du lot des découpes, en éprouvette : la forme de l'alpha sur des images construites en
-//! mémoire, puis la lecture des réponses et ce qu'elles changent dans une scène.
+//! Cutout test suite: alpha shape on synthetic images in memory,
+//! then answer reading and what they change in a scene.
 use super::*;
 
 mod feuille;

@@ -1,57 +1,57 @@
-# Fixture dorée — pilote Radiance HDR (RGBE)
+# Golden fixture — Radiance HDR (RGBE) driver
 
-Sept fichiers minuscules et une scène. Quatre portent la même image écrite de quatre façons ; trois
-sont là pour être refusés, chacun par son nom.
+Seven tiny files and a scene. Four carry the same image written four ways; three
+are there to be refused, each by name.
 
-| fichier                   | ce qu'il porte                                 | ce qu'il met sous surveillance                                                         |
-| ------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `plat.hdr`                | 4 × 2, lignes brutes                           | quatre octets par pixel, sans aucun marqueur                                           |
-| `rle-ancienne.hdr`        | 4 × 2, marqueurs `1,1,1,n`                     | la compression de « Real Pixels » : mêmes pixels que `plat.hdr`                        |
-| `signature-rgbe.hdr`      | 4 × 2, signature `#?RGBE`                      | la seconde signature du format, que les fichiers anciens portent                       |
-| `rle-nouvelle.hdr`        | 8 × 1, entête `2, 2, largeur`                  | la compression par composantes, ses plages **et** ses paquets bruts dans la même ligne |
-| `xyze.hdr`                | `FORMAT=32-bit_rle_xyze`                       | un autre espace de couleur : refus `hdr-format-unsupported`                            |
-| `bas-en-haut.hdr`         | résolution `+Y 2 +X 4`                         | une orientation qu'il faudrait retourner : refus `hdr-orientation-unsupported`         |
-| `tronque.hdr`             | 7 des 32 octets de pixels                      | refus `hdr-data-truncated`, jamais une ligne à moitié                                  |
-| `scene.gltf`, `scene.bin` | un quad dont la couleur de base est `plat.hdr` | le chemin complet jusqu'au rapport des aperçus, où la texture flottante est nommée     |
+| file                      | what it carries                                | what it puts under watch                                                        |
+| ------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------- |
+| `plat.hdr`                | 4 × 2, raw scanlines                           | four bytes per pixel, with no marker at all                                     |
+| `rle-ancienne.hdr`        | 4 × 2, `1,1,1,n` markers                       | the “Real Pixels” compression: same pixels as `plat.hdr`                        |
+| `signature-rgbe.hdr`      | 4 × 2, `#?RGBE` signature                      | the format's second signature, which old files carry                            |
+| `rle-nouvelle.hdr`        | 8 × 1, `2, 2, width` header                    | per-component compression, its runs **and** its raw packets in the same scanline |
+| `xyze.hdr`                | `FORMAT=32-bit_rle_xyze`                       | another colour space: rejection `hdr-format-unsupported`                        |
+| `bas-en-haut.hdr`         | resolution `+Y 2 +X 4`                         | an orientation that would have to be flipped: rejection `hdr-orientation-unsupported` |
+| `tronque.hdr`             | 7 of the 32 pixel bytes                        | rejection `hdr-data-truncated`, never a half scanline                           |
+| `scene.gltf`, `scene.bin` | a quad whose base colour is `plat.hdr`         | the full path through to the preview report, where the float texture is named   |
 
-`src/plugins/tests/hdr.rs` compare les valeurs **une par une** à une référence écrite en clair dans
-le test. Les quatre quadruplets RGBE employés ont des exposants lisibles à l'œil — `2^-8`, `2^-7`,
-`2^0`, `2^4` — et des mantisses qui tombent juste : toutes les valeurs attendues sont exactes en
-simple précision, donc un écart ne peut venir que du pilote.
+`src/plugins/tests/hdr.rs` compares the values **one by one** against a reference written in the clear in
+the test. The four RGBE quadruplets used have exponents readable by eye — `2^-8`, `2^-7`,
+`2^0`, `2^4` — and mantissas that land exactly: every expected value is exact in
+single precision, so a mismatch can only come from the driver.
 
-Les trois fichiers 4 × 2 portent la même image : c'est la preuve que la compression et la signature
-ne changent pas un bit du résultat. La fixture 8 × 1 en porte une autre, parce que la nouvelle
-compression ne s'écrit qu'à partir de huit pixels de large — sa ligne mêle une plage de quatre
-pixels identiques et des valeurs isolées, pour que les deux sortes de paquets soient exercées.
+The three 4 × 2 files carry the same image: that is the proof that compression and signature
+do not change a bit of the result. The 8 × 1 fixture carries another, because the new
+compression is only written from eight pixels of width — its scanline mixes a run of four
+identical pixels and isolated values, so both kinds of packet are exercised.
 
 ## `expected.json`
 
-Le contrat d'image que ce binaire publie, le rapport des aperçus progressifs — un `skipped` qui
-nomme `image-float-unsupported`, et aucun aperçu — et la scène : version de format, version du
-sidecar binaire, sha256 de `clusters.bin`, primitives et triangles. `case` et `rule` ne sont que de
-la prose, le test les retire avant de comparer.
+The image contract this binary publishes, the progressive-preview report — a `skipped` that
+names `image-float-unsupported`, and no preview — and the scene: format version, binary sidecar
+version, sha256 of `clusters.bin`, primitives and triangles. `case` and `rule` are
+prose only, the test strips them before comparing.
 
-## Provenance et licence
+## Provenance and licence
 
-- Les sept HDR sont **écrits ici**, octet par octet, depuis la spécification publique du format :
-  « Real Pixels » de Greg Ward (Graphics Gems II, 1991) pour l'encodage RGBE et ses deux
-  compressions, et le manuel Radiance (Lawrence Berkeley National Laboratory) pour l'entête et la
-  ligne de résolution. L'encodeur qui les a produits ne partage aucune ligne avec le décodeur du
-  pilote. Aucun outil d'éditeur, aucun SDK. Auteur : corpus WebGeometry, 2026-09-15. Licence :
+- The seven HDRs are **written here**, byte by byte, from the public specification of the format:
+  Greg Ward's “Real Pixels” (Graphics Gems II, 1991) for the RGBE encoding and its two
+  compressions, and the Radiance manual (Lawrence Berkeley National Laboratory) for the header and the
+  resolution line. The encoder that produced them shares no line with the driver's decoder.
+  No editor tool, no SDK. Author: WebGeometry corpus, 2026-09-15. Licence:
   **CC0-1.0** (<https://creativecommons.org/publicdomain/zero/1.0/>).
-- La scène `scene.gltf` et son binaire sont écrits ici de la même façon, **CC0-1.0**.
+- The `scene.gltf` scene and its binary are written here the same way, **CC0-1.0**.
 
-Le `test/assets/textures/hdr-matrix/environment.hdr` (512 × 256, CC0-1.0, produit par un encodeur
-tiers et relu par FFmpeg au moment de son entrée au corpus) couvre le cas d'un fichier écrit
-ailleurs, avec la nouvelle compression sur une vraie largeur. Le pilote a été passé dessus pendant
-le développement ; il n'est pas commis ici — un demi-mégaoctet de pixels qu'on ne peut pas écrire en
-clair ne fait pas une fixture minimale. Il se décode en 512 × 256, avec des valeurs RGB comprises
-entre 0 et 8 exactement — la même rampe linéaire 0..8 que le manifeste du corpus annonce et que
-FFmpeg avait relue — et un alpha opaque partout.
+The `test/assets/textures/hdr-matrix/environment.hdr` (512 × 256, CC0-1.0, produced by a third-party
+encoder and re-read by FFmpeg at the time it entered the corpus) covers the case of a file written
+elsewhere, with the new compression on a real width. The driver was run over it during
+development; it is not committed here — half a megabyte of pixels that cannot be written
+in the clear does not make a minimal fixture. It decodes as 512 × 256, with RGB values between
+0 and 8 exactly — the same linear 0..8 ramp that the corpus manifest announces and that
+FFmpeg had re-read — and an opaque alpha everywhere.
 
-## Provenance du lecteur
+## Provenance of the reader
 
-Lecteur écrit ici, dans `src/plugins/image/hdr.rs` et `src/plugins/image/hdr/scanlines.rs`, depuis
-les mêmes sources publiques. Aucune bibliothèque tierce : la caisse `image` ne reconnaît que la
-signature `#?RADIANCE` et ne laisse pas nommer ce qu'elle refuse, deux choses dont le pilote a
-besoin.
+Reader written here, in `src/plugins/image/hdr.rs` and `src/plugins/image/hdr/scanlines.rs`, from
+the same public sources. No third-party library: the `image` crate recognises only the
+`#?RADIANCE` signature and does not let what it refuses be named, two things the driver
+needs.

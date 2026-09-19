@@ -5,33 +5,32 @@ import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { BLEND_SHADER } from './webgpuBlendShader.ts';
 
 /**
- * Le rejet anticipé de profondeur de la passe de mélange, gardé par son étage de fragments.
+ * Early depth rejection of the blend pass, guarded by its fragment stage.
  *
- * Sur un processeur graphique à tuiles, un étage de fragments qui peut écrire en mémoire doit être
- * exécuté avant le test de profondeur — l'effet de bord doit avoir lieu même pour un fragment que la
- * profondeur jette. La passe de mélange dessine des milliers d'appels entièrement cachés derrière
- * l'opaque : les laisser s'ombrer coûtait 44 ms au lieu de 21, et 22 ms de présentation au lieu de
- * 0,7 (vue `rue`, caméra mobile, image identique au pixel près).
+ * On a tile GPU, a fragment stage that can write memory must run before the depth test — the
+ * side effect must happen even for a fragment depth discards. The blend pass draws thousands of
+ * calls fully hidden behind opaque: letting them shade cost 44 ms instead of 21, and 22 ms of
+ * present instead of 0.7 (view `rue`, moving camera, image identical to the pixel).
  *
- * Ce que ce test garde n'est donc pas une ligne, c'est une propriété de l'étage : aucune écriture,
- * d'aucune sorte, ni dans le nuanceur ni dans la disposition qu'il déclare. Le `discard` de
- * l'alpha-test, lui, reste : mesuré à part, le retirer des deux chemins ne rend que 0,4 ms sur
- * 21 — dans le bruit du témoin A/A de la même campagne. Il n'empêche pas le rejet anticipé quand la
- * profondeur n'est pas écrite, et une variante de pipeline pour l'éviter serait du code sans gain.
+ * What this test guards is therefore not a line, it is a property of the stage: no write of any
+ * kind, neither in the shader nor in the layout it declares. The alpha-test `discard` stays:
+ * measured separately, dropping it on both paths yields only 0.4 ms of 21 — inside the A/A
+ * witness noise of the same campaign. It does not block early rejection when depth is not
+ * written, and a pipeline variant to avoid it would be code with no gain.
  */
-test("l'étage de fragments du mélange n'écrit rien en mémoire", () => {
+test('the blend fragment stage writes nothing to memory', () => {
   const fragment = BLEND_SHADER.slice(BLEND_SHADER.indexOf('@fragment fn fs('));
-  assert.ok(fragment.length > 0, 'le module porte bien un étage de fragments');
+  assert.ok(fragment.length > 0, 'the module does carry a fragment stage');
   for (const interdit of [/textureStore/, /atomic/, /@builtin\(frag_depth\)/]) {
-    assert.doesNotMatch(fragment, interdit, `${interdit} interdit dans l'étage de fragments`);
+    assert.doesNotMatch(fragment, interdit, `${interdit} forbidden in the fragment stage`);
   }
-  // Aucune liaison de stockage accessible en écriture, où qu'elle soit déclarée : c'est la
-  // déclaration, pas l'usage, que le pilote lit pour décider du rejet anticipé.
+  // No writable storage binding, wherever it is declared: the driver reads the declaration,
+  // not the use, to decide early rejection.
   assert.doesNotMatch(BLEND_SHADER, /var<storage,\s*read_write>/);
-  assert.match(BLEND_SHADER, /var<storage,read> proxy:/, 'le proxy reste lu, le rayon est tiré');
+  assert.match(BLEND_SHADER, /var<storage,read> proxy:/, 'the proxy stays read, the ray is traced');
 });
 
-test('la disposition du mélange ne déclare aucun tampon de stockage inscriptible', async () => {
+test('the blend layout declares no writable storage buffer', async () => {
   installGpuGlobals();
   const device = {
     createBindGroupLayout: (descriptor: unknown) => descriptor,
@@ -46,10 +45,10 @@ test('la disposition du mélange ne déclare aucun tampon de stockage inscriptib
     (entry) =>
       (entry.visibility & GPUShaderStage.FRAGMENT) !== 0 && entry.buffer?.type === 'storage',
   );
-  assert.deepEqual(inscriptibles, [], 'une seule suffirait à coûter le rejet anticipé');
-  // Le proxy y est bien, et en lecture seule : la surface lointaine garde son ombre de soleil.
+  assert.deepEqual(inscriptibles, [], 'a single one would be enough to lose early rejection');
+  // The proxy is there, and read-only: the far surface keeps its sun shadow.
   assert.ok(
     entries.some((entry) => entry.buffer?.type === 'read-only-storage'),
-    'les tampons de stockage du mélange sont tous lus',
+    'the blend storage buffers are all read',
   );
 });

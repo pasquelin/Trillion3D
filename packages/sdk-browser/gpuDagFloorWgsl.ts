@@ -1,43 +1,45 @@
 /**
- * L'ÉLAGAGE PAR LE HAUT : le plancher d'erreur du sous-arbre, et les deux mots par primitive qui le
- * rendent sûr sous l'escalade de résidence.
+ * TOP-DOWN PRUNING: the subtree error floor, and the two words per primitive that keep it
+ * safe under residency escalation.
  *
- * Le nœud porte depuis le manifeste le PLAFOND d'erreur du remplaçant, de quoi écarter un sous-arbre
- * trop FIN. Il porte depuis `packCullingNodes` le PLANCHER de l'erreur propre, de quoi écarter aussi
- * le trop GROSSIER : au-dessus du seuil, aucune de ses grappes n'est assez fine, donc aucune ne
- * serait retenue et la descente n'a pas à les lister. C'est la moitié que la coupe processeur posait
- * déjà (`pageSelectionCutNode.ts`) et que la carte ne posait pas.
+ * The node carries from the manifest the replacement error CEILING, enough to drop a subtree
+ * that is too FINE. It carries from `packCullingNodes` the own-error FLOOR, enough to drop
+ * the too COARSE as well: above the threshold none of its clusters is fine enough, so none
+ * would be kept and the descent need not list them. That is the half the CPU cut already
+ * applied (`pageSelectionCutNode.ts`) and the GPU did not.
  *
- * DEUX MOTS PAR PRIMITIVE, parce que l'escalade de résidence monte le seuil APRÈS la descente. Un
- * étage grossier écarté au seuil de l'image est exactement celui que l'escalade réclamerait ensuite
- * pour remplacer une grappe absente : sans garde, la primitive n'aurait plus rien à dessiner.
+ * TWO WORDS PER PRIMITIVE, because residency escalation raises the threshold AFTER descent.
+ * A coarse level dropped at the frame's threshold is exactly the one escalation would then
+ * ask for to replace a missing cluster: without a guard the primitive would have nothing to
+ * draw.
  *
- * - `pruneSlot(w)` — le seuil auquel la descente élague. `dagPrepare` y porte le seuil FINAL de
- *   l'image précédente, qui vit encore dans `work[w]` au moment où il l'efface : une primitive qui
- *   escalade garde ses étages grossiers candidats tant qu'elle escalade, et redescend seule quand
- *   elle redevient complète. Aucun état de plus à tenir, aucune passe de plus.
- * - `floorSlot(w)` — le plus petit plancher que la descente a écarté. Si l'escalade passe au-dessus,
- *   `dagMask` arme le repli épinglé plutôt que de dessiner une couverture qu'il sait incomplète.
- *   Les grappes que rien ne remplace ne sont jamais élaguées (`NODE_HAS_ROOT`), si bien que ce repli
- *   a toujours de quoi couvrir la primitive.
+ * - `pruneSlot(w)` — the threshold at which descent prunes. `dagPrepare` stores the previous
+ *   frame's FINAL threshold, still in `work[w]` when it clears it: a primitive that escalates
+ *   keeps its coarse candidate levels while it escalates, and descends again on its own when
+ *   it becomes complete. No extra state, no extra pass.
+ * - `floorSlot(w)` — the smallest floor descent dropped. If escalation goes above it,
+ *   `dagMask` arms the pinned fallback rather than drawing coverage it knows is incomplete.
+ *   Clusters nothing replaces are never pruned (`NODE_HAS_ROOT`), so that fallback always
+ *   has something to cover the primitive.
  */
-/** Les deux mots par primitive que l'élagage ajoute derrière les neuf compteurs d'image de `work` :
- *  son seuil, et le plus petit plancher qu'il a écarté. `gpuDagResources.ts` les alloue. */
+/** The two words per primitive pruning adds after `work`'s nine frame counters: its
+ *  threshold, and the smallest floor it dropped. `gpuDagResources.ts` allocates them. */
 const LEVEL_WORLD_WORDS = 2;
 
 /**
- * La disposition du tampon `work`, en mots, telle que le noyau la lit — `blockBase()`,
- * `liveCounter()` et les neuf compteurs d'image de `gpuDagLevelWgsl.ts`, puis les mots par
- * primitive de l'élagage. Posée ICI et nulle part ailleurs : le moteur l'alloue
- * (`gpuDagResources.ts`) et les bancs qui montent le noyau à la main la relisent, si bien qu'un mot
- * ajouté au noyau ne peut plus laisser un appelant avec un tampon trop court — où les compteurs
- * lus hors bornes rendent zéro, et où l'élagage par le haut écarterait alors tout.
+ * Layout of the `work` buffer, in words, as the kernel reads it — `blockBase()`,
+ * `liveCounter()` and the nine frame counters from `gpuDagLevelWgsl.ts`, then the
+ * per-primitive pruning words. Set HERE and nowhere else: the engine allocates it
+ * (`gpuDagResources.ts`) and benches that mount the kernel by hand reread it, so a
+ * word added to the kernel can no longer leave a caller with a buffer that is too
+ * short — where out-of-bounds counters read as zero, and top-down pruning would
+ * then drop everything.
  */
 export function dagWorkLayout(blockCount: number, worldCount: number) {
   const base = worldCount * 2 + blockCount * 2;
   return {
     base,
-    /** Les neuf compteurs de l'image, dans l'ordre où `gpuDagLevelWgsl.ts` les nomme. */
+    /** The nine frame counters, in the order `gpuDagLevelWgsl.ts` names them. */
     liveCounter: base,
     liveGroups: base + 1,
     candCounter: base + 5,
@@ -53,14 +55,14 @@ import { NODE_HAS_ROOT } from './gpuDagPackNodes.ts';
 export const DAG_FLOOR_WGSL = `fn extraBase()->u32{return liveCounter()+9u;}
 fn pruneSlot(w:u32)->u32{return extraBase()+w;}
 fn floorSlot(w:u32)->u32{return extraBase()+uni.worldCount+w;}
-/** L'infini en f32 : aucun plancher fini ne lui est supérieur, donc rien n'est franchi tant que rien
- *  n'a été écarté. \`atomicMin\` sur les bits vaut \`min\` sur les flottants, tous positifs ici. */
+/** f32 infinity: no finite floor is greater, so nothing is crossed until something
+ *  has been dropped. \`atomicMin\` on the bits is \`min\` on the floats, all positive here. */
 const FLOOR_NONE:u32=0x7f800000u;
 fn pruneCrossed(w:u32)->bool{return bitcast<f32>(atomicLoad(&work[w]))>bitcast<f32>(atomicLoad(&work[floorSlot(w)]));}
-/** Miroir GPU de \`errorFloorAt\` (pageSelectionProjection.ts) : mêmes gardes, mêmes opérandes, même
- *  ordre. La plus petite erreur du sous-arbre vue à la profondeur la plus lointaine que sa sphère
- *  englobante autorise — jamais au-dessus de la valeur vraie d'une de ses grappes. Sans sphère,
- *  rayon négatif, il ne certifie rien et rend zéro. Preuve sur carte :
+/** GPU mirror of \`errorFloorAt\` (pageSelectionProjection.ts): same guards, same operands, same
+ *  order. The smallest subtree error seen at the farthest depth its bounding sphere allows —
+ *  never above the true value of one of its clusters. Without a sphere, negative radius, it
+ *  certifies nothing and returns zero. GPU proof:
  *  \`test/justesse/plancher-erreur-cpu-gpu.mjs\`. */
 fn errorFloor(error:f32,depth:f32,radius:f32,stretch:f32,focal:f32)->f32{
  if(error==0.0){return 0.0;}
@@ -69,10 +71,10 @@ fn errorFloor(error:f32,depth:f32,radius:f32,stretch:f32,focal:f32)->f32{
  if(!(far>0.0)){return INF;}
  return (error*stretch*focal)/far;
 }
-/** L'ouverture d'image de l'élagage : le seuil de l'image précédente devient celui auquel la
- *  descente élague, jamais sous celui de l'image, et le plancher écarté repart à \`FLOOR_NONE\`.
- *  \`work[w]\` porte encore le seuil final de l'image d'avant : l'appelant l'efface APRÈS, avec le
- *  seuil de l'image que ceci lui rend. */
+/** Pruning's frame open: the previous frame's threshold becomes the one descent prunes at,
+ *  never below this frame's, and the dropped floor resets to \`FLOOR_NONE\`.
+ *  \`work[w]\` still holds the previous frame's final threshold: the caller clears it AFTER,
+ *  with the frame threshold this returns. */
 fn resetPrune(w:u32)->f32{
  let seuil=max(uni.pixelError,0.0);
  let carried=bitcast<f32>(atomicLoad(&work[w]));
@@ -80,11 +82,11 @@ fn resetPrune(w:u32)->f32{
  atomicStore(&work[floorSlot(w)],FLOOR_NONE);
  return seuil;
 }
-/** Le verdict d'un nœud : son sous-arbre est-il trop grossier pour le seuil d'élagage de sa
- *  primitive ? Un sous-arbre qui porte une grappe que rien ne remplace ne l'est jamais. */
+/** A node's verdict: is its subtree too coarse for its primitive's prune threshold?
+ *  A subtree that carries a cluster nothing replaces never is. */
 fn floorPrunes(w:u32,flags:u32,sphere:vec4f,error:f32,e:mat4x4f,stretch:f32,focal:f32)->bool{
  if((flags&${NODE_HAS_ROOT}u)!=0u){return false;}
- // Seule la profondeur sert : le produit complet en jetterait les trois quarts. Même forme que
+ // Depth only: the full product would throw three quarters away. Same form as
  // \`viewDepthOf\` (pageSelectionProjection.ts), quatre multiplications au lieu de seize.
  let depth=-(e[0].z*sphere.x+e[1].z*sphere.y+e[2].z*sphere.z+e[3].z);
  let low=errorFloor(error,depth,sphere.w,stretch,focal);

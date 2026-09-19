@@ -1,7 +1,7 @@
-// GEO-03 : l'hôte a le droit d'écrire le graphe source directement — `mesh.position.x = 100`,
-// l'intensité et la pose d'une lampe — sans appeler la moindre API du moteur. Aucune révision ne
-// l'annonçait, et l'image était tenue sur une scène périmée. La relecture du graphe est ce qui
-// l'annonce ; elle est exacte, bornée par les nœuds et les lampes, et idempotente.
+// GEO-03: the host is allowed to write the source graph directly — `mesh.position.x = 100`,
+// a lamp's intensity and pose — without calling any engine API. No revision
+// announced it, and the frame was held on a stale scene. Rereading the graph is what
+// announces it; it is exact, bounded by the nodes and the lamps, and idempotent.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -20,7 +20,7 @@ function graphe() {
   return { source, mesh, lampe, soleil };
 }
 
-/** Les nœuds relus : les modèles source de ce qui est dessiné, les lampes, et leurs ancêtres. */
+/** The reread nodes: the source models of what is drawn, the lamps, and their ancestors. */
 const dessine = (...meshes: THREE.Object3D[]) => meshes.map((sourceMesh) => ({ sourceMesh }));
 
 function veille(source: THREE.Object3D, ...meshes: THREE.Object3D[]) {
@@ -29,24 +29,24 @@ function veille(source: THREE.Object3D, ...meshes: THREE.Object3D[]) {
   return watch;
 }
 
-test('la première lecture annonce un changement, la suivante n’annonce rien', () => {
+test('the first read announces a change, the next one announces nothing', () => {
   const { source } = graphe();
   const watch = veille(source);
-  assert.equal(watch.changed(), true, 'rien n’est encore connu de ce graphe');
-  assert.equal(watch.changed(), false, 'une relecture sans écriture doit être muette');
-  assert.equal(watch.changed(), false, 'et le rester');
+  assert.equal(watch.changed(), true, 'nothing is known of this graph yet');
+  assert.equal(watch.changed(), false, 'a reread with no write must be silent');
+  assert.equal(watch.changed(), false, 'and stay so');
 });
 
-test('une pose écrite directement par l’hôte est vue, une seule fois', () => {
+test('a pose written directly by the host is seen, once only', () => {
   const { source, mesh } = graphe();
   const watch = veille(source, mesh);
   watch.changed();
   mesh.position.x = 100;
-  assert.equal(watch.changed(), true, 'le déplacement direct doit être vu');
-  assert.equal(watch.changed(), false, 'et ne pas être annoncé deux fois');
+  assert.equal(watch.changed(), true, 'the direct move must be seen');
+  assert.equal(watch.changed(), false, 'and must not be announced twice');
 });
 
-test('la visibilité écrite directement par l’hôte est vue', () => {
+test('visibility written directly by the host is seen', () => {
   const { source, mesh } = graphe();
   const watch = veille(source, mesh);
   watch.changed();
@@ -55,7 +55,7 @@ test('la visibilité écrite directement par l’hôte est vue', () => {
   assert.equal(watch.changed(), false);
 });
 
-test('l’intensité, la couleur, la portée et la pose d’une lampe sont vues', () => {
+test("a lamp's intensity, colour, range and pose are seen", () => {
   const { source, lampe } = graphe();
   const watch = veille(source);
   for (const ecriture of [
@@ -67,35 +67,35 @@ test('l’intensité, la couleur, la portée et la pose d’une lampe sont vues'
   ]) {
     watch.changed();
     ecriture();
-    assert.equal(watch.changed(), true, `écriture non vue : ${ecriture}`);
-    assert.equal(watch.changed(), false, 'annoncée deux fois');
+    assert.equal(watch.changed(), true, `write not seen: ${ecriture}`);
+    assert.equal(watch.changed(), false, 'announced twice');
   }
 });
 
-test('la cible d’une lampe directionnelle, hors du graphe source, est vue', () => {
+test("a directional lamp's target, outside the source graph, is seen", () => {
   const { source, soleil } = graphe();
   const watch = veille(source);
   watch.changed();
   soleil.target.position.set(0, -5, 0);
-  assert.equal(watch.changed(), true, 'la direction du soleil a changé');
+  assert.equal(watch.changed(), true, 'the sun direction has changed');
   assert.equal(watch.changed(), false);
 });
 
-test('un nœud ajouté ou retiré par l’hôte est vu', () => {
+test('a node added or removed by the host is seen', () => {
   const { source } = graphe();
   const watch = veille(source);
   watch.changed();
   const ajout = new THREE.PointLight(0xff0000, 2);
   source.add(ajout);
   watch.observe(source, []);
-  assert.equal(watch.changed(), true, 'une lampe de plus');
+  assert.equal(watch.changed(), true, 'one more lamp');
   source.remove(ajout);
   watch.observe(source, []);
-  assert.equal(watch.changed(), true, 'une lampe de moins');
+  assert.equal(watch.changed(), true, 'one fewer lamp');
   assert.equal(watch.changed(), false);
 });
 
-test('la porte d’image ne tient plus une image quand l’hôte a écrit la scène', () => {
+test('the frame gate no longer holds a frame when the host has written the scene', () => {
   const gate = createWebglFrameGate();
   const { source, mesh } = graphe();
   const coupe = [{ id: 1 }] as Array<{ id: number }>;
@@ -105,14 +105,14 @@ test('la porte d’image ne tient plus une image quand l’hôte a écrit la sc�
   gate.readScene(source, dessins);
   gate.keep(1, 3, coupe, 0, false);
   gate.readScene(source, dessins);
-  assert.equal(gate.held(), true, 'sans écriture, l’image doit être tenue');
+  assert.equal(gate.held(), true, 'with no write, the frame must be held');
   mesh.position.x = 100;
   gate.readScene(source, dessins);
-  assert.equal(gate.held(), false, 'la scène a bougé sous l’image tenue');
+  assert.equal(gate.held(), false, 'the scene moved under the held frame');
 });
 
-/** Le moteur Three avec une lampe déclarée dans le graphe source, que l'hôte écrira directement. */
-function moteurEclaire() {
+/** The Three engine with a lamp declared in the source graph, which the host will write directly. */
+function litEngine() {
   const { geometry, material, source, context } = quadRootsContext(true);
   const lampe = new THREE.PointLight(0xffffff, 1);
   source.add(lampe);
@@ -122,16 +122,16 @@ function moteurEclaire() {
   return { backend, lampe, copie, dispose: () => (geometry.dispose(), material.dispose()) };
 }
 
-test('une lampe écrite directement par l’hôte est recopiée dès l’image suivante', () => {
-  const { backend, lampe, copie, dispose } = moteurEclaire();
+test('a lamp written directly by the host is copied on the next frame', () => {
+  const { backend, lampe, copie, dispose } = litEngine();
   const camera = frontCamera();
   backend.render(camera);
-  assert.equal(copie().intensity, 1, 'la lampe déclarée est recopiée telle quelle');
+  assert.equal(copie().intensity, 1, 'the declared lamp is copied as-is');
   lampe.intensity = 7;
   lampe.position.x = 9;
   backend.render(camera);
-  assert.equal(copie().intensity, 7, 'l’intensité écrite par l’hôte n’a pas suivi');
-  assert.equal(copie().position.x, 9, 'la pose écrite par l’hôte n’a pas suivi');
+  assert.equal(copie().intensity, 7, 'the intensity written by the host did not follow');
+  assert.equal(copie().position.x, 9, 'the pose written by the host did not follow');
   backend.dispose();
   dispose();
 });

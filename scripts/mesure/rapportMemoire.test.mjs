@@ -1,12 +1,12 @@
-// La section mémoire du résumé : un total par côté et par vue, trois familles nommées, le reste
-// par différence, les étiquettes les plus lourdes, et rien d'inventé quand le registre manque.
+// Summary memory section: a total per side and per view, three named families, the rest
+// by difference, the heaviest labels, and nothing invented when registry is missing.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { memoire } from './rapportMemoire.mjs';
 
 const serie = (view, sides) => ({ view, pixelError: 1, sides });
 
-test('chaque côté de chaque vue a sa ligne, et le reste est la différence', () => {
+test('each side of each view has its row, and the rest is the difference', () => {
   const lignes = memoire({
     series: [
       serie('sol', {
@@ -22,7 +22,7 @@ test('chaque côté de chaque vue a sa ligne, et le reste est la différence', (
             gpuAllocatedByLabel: {
               'WG material atlas rgba8unorm classe 0': 4_252_572_304,
               'WG geometry page cache': 300_000_000,
-              'sans étiquette': 12,
+              unlabelled: 12,
             },
           },
         },
@@ -31,17 +31,17 @@ test('chaque côté de chaque vue a sa ligne, et le reste est la différence', (
   });
   assert.equal(
     lignes[2],
-    '| sol | e1 | apres | 7.500 Go | 6.689 Go | 0.400 Go / 536.9 Mo (scene) | 275.7 Mo | 0.136 Go |',
+    '| sol | e1 | apres | 7.500 GB | 6.689 GB | 0.400 GB / 536.9 MB (scene) | 275.7 MB | 0.136 GB |',
   );
   assert.equal(lignes[3], '');
   assert.equal(
     lignes[4],
-    '- sol · e1 · apres, les plus lourdes : WG material atlas rgba8unorm classe 0 4252.6 Mo, ' +
-      'WG geometry page cache 300.0 Mo, sans étiquette 0.0 Mo',
+    '- sol · e1 · apres, heaviest: WG material atlas rgba8unorm classe 0 4252.6 MB, ' +
+      'WG geometry page cache 300.0 MB, unlabelled 0.0 MB',
   );
 });
 
-test('un côté sans registre est non mesuré, jamais à zéro, et un format inconnu se dit', () => {
+test('a side without registry is unmeasured, never zero, and an unknown format is stated', () => {
   const lignes = memoire({
     series: [
       serie('generale', {
@@ -58,16 +58,13 @@ test('un côté sans registre est non mesuré, jamais à zéro, et un format inc
   });
   assert.equal(
     lignes[2],
-    '| generale | e1 | avant | non mesuré | non mesuré | non mesuré / non mesuré | non mesuré | non mesuré |',
+    '| generale | e1 | avant | unmeasured | unmeasured | unmeasured / unmeasured | unmeasured | unmeasured |',
   );
   assert.equal(
     lignes[3],
-    '| generale | e1 | apres | 0.000 Go | non mesuré | non mesuré / non mesuré | non mesuré | 0.000 Go |',
+    '| generale | e1 | apres | 0.000 GB | unmeasured | unmeasured / unmeasured | unmeasured | 0.000 GB |',
   );
   assert.equal(lignes.length, 6);
-  assert.match(
-    lignes[5],
-    /^- generale · e1 · apres, les plus lourdes : WG HDR lighting 0.0 Mo — 2 texture/,
-  );
-  assert.match(lignes[5], /ce total n'est pas une preuve$/);
+  assert.match(lignes[5], /^- generale · e1 · apres, heaviest: WG HDR lighting 0.0 MB — 2 texture/);
+  assert.match(lignes[5], /this total is not a proof$/);
 });

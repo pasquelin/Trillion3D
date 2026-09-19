@@ -1,11 +1,11 @@
-//! La dorée du pilote DDS : chaque codec déclaré, décodé depuis un conteneur écrit octet par octet
-//! dans `bytes.rs`, doit rendre exactement les pixels RGBA8 écrits en clair ici. Les valeurs de
-//! référence viennent de la spécification, pas du décodeur : l'interpolation entière des blocs BCn
-//! est posée à la main, donc un décodeur qui arrondirait autrement se verrait immédiatement.
+//! Golden of the DDS driver: each declared codec, decoded from a container written byte by byte
+//! in `bytes.rs`, must yield exactly the RGBA8 pixels written in the open here. Reference
+//! values come from the specification, not from the decoder: integer interpolation of BCn
+//! blocks is set by hand, so a decoder that would round otherwise would show immediately.
 //!
-//! Deux fichiers réels du corpus complètent la dorée : un BC1 de 256 × 256 à neuf niveaux, qui
-//! prouve que l'entête d'un encodeur tiers se lit et que la chaîne de mips est comptée, et un DDS
-//! tronqué, qui prouve qu'un fichier coupé ressort en raison de rapport.
+//! Two real files of the corpus complete the golden: a 256 × 256 BC1 with nine levels, which
+//! proves that a third-party encoder's header is read and that the mip chain is counted, and a
+//! truncated DDS, which proves that a cut file comes out as a report reason.
 use super::super::image as registry;
 
 mod bytes;
@@ -14,29 +14,30 @@ mod sans_compression;
 mod transfert;
 
 const MAX_ALLOC: u64 = 64 * 1024 * 1024;
-/// Les blocs BCn couvrent 4 × 4 pixels : la dorée en pose exactement un par codec.
+/// BCn blocks cover 4 × 4 pixels: the golden places exactly one per codec.
 const SIDE: u32 = 4;
 
-/// Les indices de couleur, un par pixel : chaque ligne décale d'un cran, donc les quatre couleurs
-/// du bloc apparaissent dans les quatre lignes et aucune position n'est privilégiée.
+/// Colour indices, one per pixel: each line shifts by one, so the four colours of the block
+/// appear in the four lines and no position is privileged.
 const ORDER: [u8; 16] = [0, 1, 2, 3, 1, 2, 3, 0, 2, 3, 0, 1, 3, 0, 1, 2];
-/// Les indices d'une rampe à trois bits : les huit valeurs, deux fois.
+/// Indices of a three-bit ramp: the eight values, twice.
 const RAMP: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7];
-/// Les indices d'alpha à quatre bits de BC2, étendus par la spécification en `v << 4 | v`.
+/// BC2 four-bit alpha indices, expanded by the specification as `v << 4 | v`.
 const NIBBLES: [u8; 16] = [15, 0, 8, 4, 0, 8, 4, 15, 8, 4, 15, 0, 4, 15, 0, 8];
 
-/// Les quatre couleurs du bloc BC1 de la dorée. Les bornes sont le rouge pur `0xf800` et le bleu
-/// pur `0x001f` en 565 ; `couleur0 > couleur1`, donc les deux couleurs du milieu sont les tiers
-/// entiers que la spécification définit : (2·c0 + c1)/3 puis (c0 + 2·c1)/3.
+/// Four colours of the golden's BC1 block. The bounds are pure red `0xf800` and pure blue
+/// `0x001f` in 565; `colour0 > colour1`, so the two middle colours are the integer thirds the
+/// specification defines: (2·c0 + c1)/3 then (c0 + 2·c1)/3.
 const COLORS: [[u8; 3]; 4] = [[255, 0, 0], [0, 0, 255], [170, 0, 85], [85, 0, 170]];
-/// La rampe d'alpha de bornes 255 et 0 : `borne0 > borne1`, donc les six septièmes entiers.
+/// Alpha ramp of bounds 255 and 0: `bound0 > bound1`, so the six integer sevenths.
 const ALPHA: [u8; 8] = [255, 0, 218, 182, 145, 109, 72, 36];
-/// La rampe de bornes 200 et 100, sur le second canal de BC5.
+/// Ramp of bounds 200 and 100, on BC5's second channel.
 const GREEN: [u8; 8] = [200, 100, 185, 171, 157, 142, 128, 114];
 
-/// Décode un conteneur par le registre et compare ses pixels, un par un, à la référence.
+/// Decodes a container through the registry and compares its pixels, one by one, to the
+/// reference.
 fn check(case: &str, file: &[u8], expected: &[[u8; 4]]) {
-    let decoder = registry::by_head(file).expect("un pilote revendique ces octets");
+    let decoder = registry::by_head(file).expect("a driver claims these bytes");
     assert_eq!(decoder.name(), "dds", "{case}");
     let image = super::rgba8(
         registry::decode(file, MAX_ALLOC).unwrap_or_else(|reason| panic!("{case}: {reason}")),
@@ -49,7 +50,7 @@ fn check(case: &str, file: &[u8], expected: &[[u8; 4]]) {
     );
 }
 
-/// Les couleurs du bloc BC1, opaques : ce que rendent BC1, BC2 et BC3 pour leurs canaux RGB.
+/// Colours of the BC1 block, opaque: what BC1, BC2 and BC3 yield for their RGB channels.
 fn colors() -> Vec<[u8; 4]> {
     ORDER
         .iter()
@@ -60,10 +61,10 @@ fn colors() -> Vec<[u8; 4]> {
         .collect()
 }
 
-/// Le bloc BC7 de la dorée, en mode 6 : deux bornes RGBA de sept bits plus un bit P, puis les
-/// indices de quatre bits — trois seulement pour le premier pixel, dont la spécification implique
-/// le bit de poids fort. Les indices 0 et 15 tombent sur les poids 0 et 64, donc exactement sur
-/// une borne : aucune interpolation n'entre dans la référence.
+/// Golden's BC7 block, in mode 6: two seven-bit RGBA bounds plus a P bit, then the four-bit
+/// indices — three only for the first pixel, whose high bit the specification implies. Indices
+/// 0 and 15 fall on weights 0 and 64, so exactly on a bound: no interpolation enters the
+/// reference.
 fn bc7_block() -> [u8; 16] {
     let mut bits = bytes::Bits::new();
     bits.put(0, 6).put(1, 1);
@@ -77,10 +78,10 @@ fn bc7_block() -> [u8; 16] {
     bits.block()
 }
 
-// Dorée du pilote DDS : les six codecs compressés que le pilote déclare rendent, pixel par pixel,
-// la reconstruction entière de la spécification. Sans perte veut dire : pas un octet de plus.
+// DDS driver golden: the six compressed codecs the driver declares yield, pixel by pixel, the
+// specification's integer reconstruction. Lossless means: not one extra byte.
 #[test]
-fn chaque_codec_compresse_declare_rend_les_pixels_de_la_reference() {
+fn each_declared_compressed_codec_yields_the_reference_pixels() {
     let colors = colors();
     let color_block = bytes::color_block(ORDER);
     let red = bytes::ramp_block(255, 0, RAMP);
@@ -125,7 +126,7 @@ fn chaque_codec_compresse_declare_rend_les_pixels_de_la_reference() {
         let file = bytes::container(bytes::fourcc_format(tag), SIDE, SIDE, 1, &payload);
         check(case, &file, &expected);
     }
-    // BC7 n'a pas de `dwFourCC` : il ne se nomme que par le `dxgiFormat` de l'entête DX10.
+    // BC7 has no `dwFourCC`: it is named only by the `dxgiFormat` of the DX10 header.
     let bc7: Vec<[u8; 4]> = (0..16)
         .map(|pixel| {
             if pixel % 2 == 0 {
@@ -136,7 +137,7 @@ fn chaque_codec_compresse_declare_rend_les_pixels_de_la_reference() {
         })
         .collect();
     check("bc7", &bytes::dx10(98, SIDE, SIDE, &bc7_block()), &bc7);
-    // Les mêmes blocs nommés par DX10 plutôt que par `dwFourCC` donnent les mêmes pixels.
+    // The same blocks named by DX10 rather than by `dwFourCC` yield the same pixels.
     check(
         "dxgi bc1",
         &bytes::dx10(71, SIDE, SIDE, &color_block),

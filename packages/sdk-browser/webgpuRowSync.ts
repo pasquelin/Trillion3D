@@ -17,23 +17,23 @@ export function createWebgpuRowSync(
   drawSlots: number,
   cacheReady: () => boolean,
   { commitRows, sourceRowOf, writePageRow }: Commit,
-  /** Appelée quand une page entre dans la résidence ou en sort, avant que la ligne ne change. */
+  /** Called when a page enters residency or leaves it, before the row changes. */
   onResidenceChange: (rec: PageRec) => void = () => {},
 ) {
   const slots = createWebgpuRowSlots(rows, packedPages, drawSlots, writePageRow, onResidenceChange);
   /**
-   * Rows for the drawable set. Ce que l'image doit à la table ne dépend plus que des pages dont le
-   * cache vient de changer l'emplacement, et de ce que le budget de temps de l'image précédente a
-   * laissé à écrire : le catalogue entier n'est reparcouru qu'à une reconstruction, que
-   * l'allocateur de rangs décide seul, et plus jamais parce qu'une liste a débordé.
+   * Rows for the drawable set. What the image owes the table now depends only on the pages whose
+   * cache slot just changed, and on what the previous image's time budget left to write: the whole
+   * catalogue is walked again only on a rebuild, which the rank allocator decides alone, and never
+   * again because a list overflowed.
    */
   const syncRows = () => {
     if (!cacheReady() || !rows.pageTableFloats) return;
-    // Le journal ne décrit que cette passe-ci : ce qu'il nommait a déjà été appliqué ou abandonné.
+    // The journal describes only this pass: what it named has already been applied or dropped.
     rows.clearResidencyChanges();
     mirror.sync();
-    // Des fiches encore dues rappellent la passe même si le cache n'a plus rien bougé : elles
-    // portent des pages que l'image précédente a laissées hors de la résidence, faute de temps.
+    // Rows still owed recall the pass even if the cache has moved nothing more: they carry pages the
+    // previous image left outside residency, for lack of time.
     if (
       !mirror.dirty &&
       !rows.touched.count &&

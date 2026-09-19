@@ -60,9 +60,9 @@ pub fn cluster_triangles(
 
 // ---------------------------------------------------------------- cluster graph
 
-/// Clé d'une arête non orientée. `topology.rs::edge_key` répond à la même question sous un autre
-/// encodage — un couple ordonné plutôt qu'un mot de 64 bits — et sert une table d'un autre type :
-/// les deux restent, aligner l'un sur l'autre changerait l'ordre d'itération de sa table.
+/// Key of undirected edge. `topology.rs::edge_key` answers same question under another
+/// encoding — ordered pair rather than 64-bit word — serving another table type:
+/// both remain, aligning one to other would change iteration order.
 pub(super) fn edge_key(a: u32, b: u32) -> u64 {
     let (lo, hi) = if a < b { (a, b) } else { (b, a) };
     ((lo as u64) << 32) | hi as u64

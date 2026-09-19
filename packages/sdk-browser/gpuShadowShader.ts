@@ -14,19 +14,19 @@ import {
 import { VIS_BINDINGS } from './webgpuBindLayout.ts';
 
 /**
- * Les passes de profondeur des ombres. Le groupe 0 est celui du raster du visibility buffer, à la
- * liaison près : même table de pages, même sélection de clusters, même tampon indirect. Seule la
- * matrice change, et elle vient du groupe 1 avec un décalage dynamique — une face par décalage.
+ * Shadow depth passes. Group 0 is that of the visibility-buffer raster, but for one binding:
+ * same page table, same cluster selection, same indirect buffer. Only the matrix changes, and
+ * it comes from group 1 with a dynamic offset — one face per offset.
  *
- * L'étage de fragment n'écrit rien : il n'existe que pour écarter. Un matériau à masque d'opacité —
- * feuillage, grille, claustra — projette l'ombre de sa découpe et non la silhouette pleine de son
- * cluster, parce que le test de masque est celui du raster (`PAGE_MASK_WGSL`), lu au niveau de la
- * carte que le texel d'ombre demande — ses dérivées, pas celles de la caméra.
+ * The fragment stage writes nothing: it exists only to discard. An opacity-mask material —
+ * foliage, grille, lattice — casts the shadow of its cutout and not the full silhouette of its
+ * cluster, because the mask test is the raster's (`PAGE_MASK_WGSL`), read at the map level the
+ * shadow texel asks for — its derivatives, not the camera's.
  *
- * Il écarte aussi l'enveloppe de l'émetteur : une lampe qui déclare un rayon n'accepte aucune
- * profondeur d'une surface plus proche de son centre que ce rayon. La règle est la distance
- * euclidienne au centre, donc l'exclusion est exactement la sphère annoncée — un plan proche relevé
- * en aurait retiré un cube. Une lampe sans rayon porte un rayon nul et rien n'est écarté.
+ * It also discards the emitter envelope: a light that declares a radius accepts no depth from a
+ * surface closer to its centre than that radius. The rule is Euclidean distance to the centre,
+ * so the exclusion is exactly the announced sphere — a raised near plane would have cut a cube.
+ * A light without a radius carries a zero radius and nothing is discarded.
  */
 export const SHADOW_DEPTH_SHADER = `${PAGE_INFO_WGSL}
 ${PAGE_BINDING.indices}
@@ -55,22 +55,22 @@ ${PAGE_MASK_WGSL}
  if(vertexIndex>=page.indexCount){out.position=vec4f(0.0,0.0,2.0,1.0);return out;}
  let id=indices[page.pageOffset+vertexIndex];
  let vertex=vertPos(page.vertexBase,id);
- // Le produit de out.position n'est pas réassocié : la position monde est composée à part, sinon
- // la profondeur écrite ne serait plus celle d'avant ce lot, au bit près.
+ // The out.position product is not reassociated: world position is composed apart, otherwise
+ // the written depth would no longer be that from before this batch, to the bit.
  out.position=shadow.viewProjection*page.world*vec4f(vertex,1.0);
  out.fromEmitter=(page.world*vec4f(vertex,1.0)).xyz-shadow.emitter.xyz;
  if((page.flags&4u)!=0u){out.uv=vertUv(page.vertexBase,id);}
  return out;
 }
-/** N'écrit aucune couleur : la passe n'a pas de cible. Il n'écarte que l'enveloppe et la découpe. */
+/** Writes no colour: the pass has no target. It only discards the envelope and the cutout. */
 @fragment fn shadow_fs(in:ShadowOut){
  let gx=dpdx(in.uv);let gy=dpdy(in.uv);
  let radius=shadow.emitter.w;
  if(radius>0.0&&dot(in.fromEmitter,in.fromEmitter)<radius*radius){discard;}
  if(!maskKeep(pages[in.instance],in.uv,gx,gy)){discard;}
 }
-/** Remet la tranche au LOINTAIN sans effacer le reste de l'atlas. La profondeur des faces est
- *  inversée comme celle de la caméra (\`depthConvention.ts\`) : le lointain vaut zéro. */
+/** Resets the slice to FAR without clearing the rest of the atlas. Face depth is reverse-Z
+ *  like the camera's (\`depthConvention.ts\`): far is zero. */
 @vertex fn shadow_clear_vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{
  return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);
 }`;

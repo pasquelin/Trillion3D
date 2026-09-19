@@ -1,6 +1,6 @@
-// Lot H2 : le pool borné de workers de module, prouvé avec de vrais fils `worker_threads` derrière
-// `NodeDomWorker`. Entrées hostiles : un exécutant mort dès sa construction, un exécutant qui meurt
-// après avoir démarré, une annulation sans effet sur un travail déjà réglé.
+// Batch H2: the bounded pool of module workers, proved with real `worker_threads` threads
+// behind `NodeDomWorker`. Hostile inputs: a runner dead on construction, a runner that dies
+// after starting, a cancel with no effect on work already settled.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createPageDecodePool } from './pageDecodePool.ts';
@@ -11,7 +11,7 @@ import {
   withNodeWorkerShim,
 } from './bench/oracles/pageDecodeNodeWorker.mjs';
 
-test('l’épreuve de démarrage répond avant tout travail réel, même soumis dans la foulée', () =>
+test('the startup probe answers before any real work, even if submitted in the same breath', () =>
   withNodeWorkerShim(NodeDomWorker, async () => {
     const pool = createPageDecodePool(1);
     const ordre: string[] = [];
@@ -19,48 +19,44 @@ test('l’épreuve de démarrage répond avant tout travail réel, même soumis 
       ordre.push('demarrage');
       return ok;
     });
-    // Soumis sans attendre l'épreuve : un seul worker existe, donc son travail attend en file.
+    // Submitted without waiting for the probe: a single worker exists, so its work waits in the queue.
     const decodage = pool.submit('decode', new ArrayBuffer(64), 1 << 20).answer.then((reponse) => {
       ordre.push('decodage');
       return reponse;
     });
     assert.equal(await demarrage, true);
     await decodage;
-    assert.deepEqual(
-      ordre,
-      ['demarrage', 'decodage'],
-      'le décodage a doublé l’épreuve de démarrage',
-    );
+    assert.deepEqual(ordre, ['demarrage', 'decodage'], 'decode overtook the startup probe');
     pool.retire();
   }));
 
-test('un exécutant mort dès sa construction fait échouer le démarrage sans jamais bloquer', () =>
+test('a runner dead on construction fails startup without ever blocking', () =>
   withNodeWorkerShim(DeadNodeWorker as unknown as typeof NodeDomWorker, async () => {
     const pool = createPageDecodePool(2);
     assert.equal(await pool.start(), false);
     assert.equal(pool.alive, false);
   }));
 
-test('un exécutant qui meurt après un démarrage réussi répond PAGE_DECODE_WORKER au travail suivant', () =>
+test('a runner that dies after a successful start answers PAGE_DECODE_WORKER to the next job', () =>
   withNodeWorkerShim(FlakyNodeWorker as unknown as typeof NodeDomWorker, async () => {
     const pool = createPageDecodePool(1);
-    assert.equal(await pool.start(), true, 'la première réponse doit réussir');
+    assert.equal(await pool.start(), true, 'the first answer must succeed');
     assert.equal(pool.alive, true);
     const reponse = await pool.submit('decode', new ArrayBuffer(64), 1 << 20).answer;
     assert.equal(reponse.ok, false);
     assert.equal((reponse as { code: string }).code, 'PAGE_DECODE_WORKER');
-    assert.equal(pool.alive, false, 'le pool doit être cassé après la mort du worker');
-    // Un pool mort répond tout de suite, sans jamais tenter un nouvel exécutant.
+    assert.equal(pool.alive, false, 'the pool must be broken after the worker dies');
+    // A dead pool answers at once, without ever trying a new runner.
     const apres = await pool.submit('decode', new ArrayBuffer(8), 1 << 20).answer;
     assert.equal((apres as { code: string }).code, 'PAGE_DECODE_WORKER');
   }));
 
-test('annuler un identifiant inconnu ou déjà réglé ne fait rien et ne casse pas le pool', () =>
+test('cancelling an unknown or already-settled id does nothing and does not break the pool', () =>
   withNodeWorkerShim(NodeDomWorker, async () => {
     const pool = createPageDecodePool(1);
     assert.equal(await pool.start(), true);
     const { id, answer } = pool.submit('verify', new ArrayBuffer(8), 0);
-    await answer; // déjà réglé : plus de propriétaire.
+    await answer; // already settled: no owner left.
     assert.doesNotThrow(() => pool.cancel(id));
     assert.doesNotThrow(() => pool.cancel(999999));
     assert.equal(pool.alive, true);

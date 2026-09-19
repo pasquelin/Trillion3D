@@ -1,6 +1,6 @@
-//! H3 — les primitives du proxy indexées une fois par maillage, au lieu d'un balayage de toutes les
-//! primitives de la scène pour chaque nœud retenu. La référence est l'ancien `stage_proxy`, recopié
-//! tel quel : mêmes triangles, même ordre d'écriture, mêmes couleurs, même BVH.
+//! H3 — proxy primitives indexed once per mesh, instead of scanning all
+//! scene primitives for each retained node. Reference is old `stage_proxy` copy:
+//! same triangles, same write order, same colors, same BVH.
 use super::harness::{compare, Bits, Row};
 use crate::compiler_validate::{item, required_index, values};
 use crate::compiler_world::world_matrices;
@@ -12,7 +12,7 @@ use serde_json::Value;
 #[path = "h3_proxy_jeux.rs"]
 mod jeux;
 
-/// Copie de l'ancien `stage_proxy` : chaque nœud relisait toutes les primitives de la scène pour
+/// Copy of old `stage_proxy`: each node re-read all scene primitives for
 /// retrouver celles de son maillage.
 fn reference_stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
     let world = world_matrices(inputs.g)?;
@@ -42,11 +42,11 @@ fn reference_stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
     Ok(assemble(inputs.thresholds, triangles, colours))
 }
 
-/// Les proxys des jeux d'un tour, dans l'ordre.
+/// Proxies of single run sets, in order.
 type Proxys = Vec<SceneProxy>;
 
-/// Toutes les sorties d'un proxy, bit à bit : bornes, seuil publié, maille, triangles, couleurs et
-/// les deux colonnes du BVH, longueurs comprises.
+/// All proxy outputs, bit for bit: bounds, published threshold, mesh, triangles, colors and
+/// both BVH columns, lengths included.
 fn empreinte(sortie: &Proxys) -> Bits {
     let mut bits = Bits::default();
     bits.len(sortie.len());
@@ -70,7 +70,7 @@ fn empreinte(sortie: &Proxys) -> Bits {
     bits
 }
 
-/// Les quatre jeux passés à une étape, dans l'ordre : une seule sortie à comparer et à mesurer.
+/// Four sets passed to step, in order: single output to compare and measure.
 fn tous(jeux: &[jeux::Jeu], etape: fn(&ProxyInputs<'_>) -> Result<SceneProxy>) -> Proxys {
     jeux.iter()
         .map(|jeu| etape(&jeu.inputs()).expect("proxy"))
@@ -80,9 +80,9 @@ fn tous(jeux: &[jeux::Jeu], etape: fn(&ProxyInputs<'_>) -> Result<SceneProxy>) -
 pub(crate) fn row() -> Row {
     let jeux = jeux::jeux();
     compare(
-        "H3 primitives du proxy indexées par maillage",
+        "H3 proxy primitives indexed by mesh",
         "proxy.rs",
-        "quatre jeux : 200/6 000, 3 000/24, 2 000/40 et 4 000/4 000 nœuds sur primitives".into(),
+        "four sets: 200/6 000, 3 000/24, 2 000/40 and 4 000/4 000 nodes on primitives".into(),
         &mut || tous(&jeux, reference_stage_proxy),
         &mut || tous(&jeux, stage_proxy),
         empreinte,

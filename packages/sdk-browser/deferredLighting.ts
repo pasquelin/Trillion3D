@@ -14,22 +14,22 @@ import {
 } from './deferredLightingProgram.ts';
 export { DIRECT_LIGHTING_SHADER, FULLSCREEN_VERTEX } from './deferredLightingShaders.ts';
 
-/** Étiquette de la passe mesurée ; `gpuLightingMs` est lu sous ce nom. */
+/** Label of the measured pass; `gpuLightingMs` is read under this name. */
 export const DEFERRED_LIGHTING_PASS = 'WG deferred lighting';
-/** Sans lampe déclarée : zéro lampe, zéro tuile, exposition 1. */
+/** With no declared light: zero lights, zero tiles, exposure 1. */
 const ZERO_DIRECT = [0, 0, 0, 1] as const;
 
 /**
- * Le rassemblement différé. Deux programmes vivent ici : la vue sans éclairage — l'albédo brut des
- * matériaux, composé par l'identité, qui est aussi ce que rend une scène sans lampe déclarée — et
- * celui du contrat, exposé puis passé dans ACES. Le second n'est compilé qu'à la première image qui
- * porte une lampe : une scène qui n'en a pas ne le paie jamais.
+ * Deferred resolve. Two programs live here: the unlit view — raw material albedo, composed
+ * by identity, which is also what a scene with no declared light renders — and the contract
+ * one, exposed then passed through ACES. The second is compiled only on the first frame that
+ * carries a light: a scene that has none never pays for it.
  *
- * `onReady` est appelé à chaque arrivée d'un programme du contrat, DIRECT comme BOUNCE. C'est la
- * seule annonce de ce changement d'image : la compilation se termine entre deux images, sans que
- * l'appelant ait rien demandé, et l'image suivante rendrait encore l'albédo brut si personne ne le
- * disait. Un programme qui arrive alors que sa variante n'est plus demandée fait refaire une image
- * de plus, jamais une image fausse.
+ * `onReady` is called on every arrival of a contract program, DIRECT as BOUNCE. That is the
+ * only announcement of this frame change: compilation finishes between two frames, without
+ * the caller having asked for anything, and the next frame would still render raw albedo if
+ * no one said so. A program that arrives while its variant is no longer wanted causes one
+ * more frame to be redone, never a wrong frame.
  */
 export async function createDeferredLighting(
   device: GPUDevice,
@@ -46,8 +46,8 @@ export async function createDeferredLighting(
   try {
     const unlit = await createDeferredProgram(
       device,
-      // La vue sans lampe compose par l'identité : sans source déclarée, aucune radiance n'est à
-      // exposer ni à ramener dans la plage d'affichage, et l'albédo doit se lire tel quel (P6).
+      // The unlit view composes by identity: with no declared source, no radiance is to be
+      // exposed or brought into the display range, and albedo must be read as-is (P6).
       {
         lighting: UNLIT_LIGHTING_SHADER,
         compose: UNLIT_COMPOSE_SHADER,
@@ -56,24 +56,24 @@ export async function createDeferredLighting(
       },
       bindings,
     );
-    // Trois programmes, jamais une branche : la vue sans éclairage, le contrat, et le contrat plus
-    // le rebond. Une session sans rebond exécute ainsi exactement le nuanceur d'avant.
+    // Three programs, never a branch: the unlit view, the contract, and the contract plus
+    // bounce. A session without bounce thus runs exactly the previous shader.
     type Variant = { program?: DeferredProgram; pending?: Promise<unknown> };
     const variants: Record<'direct' | 'bounce', Variant> = { direct: {}, bounce: {} };
     let active: DeferredProgram = unlit;
     const packed = new Float32Array(32);
-    // Les vues de diagnostic sortent des valeurs brutes : ni ACES, ni sRGB, ni fond composé. La
-    // vue d'irradiance indirecte en est une, et c'est l'éclairage qui le dit, pas l'appelant.
+    // Diagnostic views output raw values: no ACES, no sRGB, no composed background. The
+    // indirect-irradiance view is one, and lighting says so, not the caller.
     let rawOutput = false;
     return {
       uniform,
-      /** Ce que vaut une ressource du contrat absente : la passe de mélange lie les mêmes. */
+      /** What an absent contract resource is worth: the blend pass binds the same. */
       placeholders,
-      /** Sort l'image en valeurs brutes, sans la chaîne d'affichage. Pour une vue de mesure. */
+      /** Outputs the image in raw values, without the display chain. For a measurement view. */
       setRawOutput(value: boolean) {
         rawOutput = value;
       },
-      /** Vrai quand l'image en cours est rendue par un programme du contrat. */
+      /** True when the current frame is rendered by a contract program. */
       get usesContract() {
         return active !== unlit;
       },
@@ -93,15 +93,15 @@ export async function createDeferredLighting(
           [(clearColor >> 16) / 255, ((clearColor >> 8) & 255) / 255, (clearColor & 255) / 255, 1],
           24,
         );
-        // Lampes du contrat, tuiles en X et Y, puis l'exposition.
+        // Contract lights, tiles in X and Y, then exposure.
         packed.set(direct as number[], 28);
         device.queue.writeBuffer(uniform, 0, packed);
       },
       /**
-       * Choisit le programme de l'image et lie ses ressources. `wantsContract` reste faux tant que
-       * l'hôte n'a déclaré aucune lampe, ou tant qu'il demande la vue sans éclairage ; la
-       * compilation du programme du contrat est lancée à la première demande et la vue sans
-       * éclairage reste correcte pendant qu'elle se termine.
+       * Picks the frame program and binds its resources. `wantsContract` stays false as long as
+       * the host has declared no light, or as long as it asks for the unlit view; compilation
+       * of the contract program is started on the first request and the unlit view stays
+       * correct while it finishes.
        */
       bind(
         surface: SurfaceBuffer,
@@ -131,13 +131,13 @@ export async function createDeferredLighting(
             },
             (error) => onFailure?.(error),
           );
-        // Le programme du rebond met une image ou deux à se compiler : celui du contrat rend
-        // l'image en attendant, sans rebond, plutôt que de faire attendre l'image.
+        // The bounce program takes a frame or two to compile: the contract one renders
+        // the frame while waiting, without bounce, rather than make the frame wait.
         active =
           (wantsContract ? (variant.program ?? variants.direct.program) : undefined) ?? unlit;
         active.bind(surface, depth, hdr, direct);
       },
-      /** Attend les compilations de programmes du contrat en cours, quand il y en a. */
+      /** Waits for in-flight contract-program compiles, when there are any. */
       settle() {
         return Promise.all([variants.direct.pending, variants.bounce.pending]).then(() => {});
       },
@@ -155,7 +155,7 @@ export async function createDeferredLighting(
         pass.draw(3);
         pass.end();
       },
-      /** Compose `source` — l'image éclairée par défaut, ou la sortie de l'antialiasing temporel. */
+      /** Composes `source` — the lit image by default, or the temporal-antialiasing output. */
       compose(
         encoder: GPUCommandEncoder,
         target: GPUTextureView,

@@ -33,15 +33,15 @@ export function evaluateDagSelectionKernel(
 ) {
   if (resident && resident.length !== packed.pageCount)
     throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED');
-  // Le décodeur unique de la disposition compacte : le même que le double de tampon relit, si bien
-  // qu'aucun rang de champ n'est écrit ailleurs qu'une fois, dans `gpuDagLayout.ts`.
+  // The single decoder of the compact layout: the same one the buffer double rereads, so
+  // no field rank is written anywhere but once, in `gpuDagLayout.ts`.
   const records = dagRecords(packed);
-  // Le prologue par primitive et le verdict par nœud sont ceux de `gpuDagOracleMath.ts`, écrits une
-  // seule fois : le comptage de frontière les relit, et ni lui ni l'oracle ne peut dériver seul.
+  // The per-primitive prologue and per-node verdict are those of `gpuDagOracleMath.ts`,
+  // written once: frontier counting rereads them, and neither it nor the oracle can drift alone.
   const frames = dagViewFrames(packed, uniforms);
   const { planes, views, stretches, focal, near, pixelError } = frames;
-  // La descente, miroir de `gpuDagLevelWgsl.ts`, posée à part : elle rend le verdict de chaque nœud
-  // et le plancher que l'élagage par le haut a écarté par primitive.
+  // Descent, mirror of `gpuDagLevelWgsl.ts`, set aside: it returns each node's verdict
+  // and the floor top-down pruning dropped per primitive.
   const { nodeFlags, prunedFloor } = dagOracleDescent(packed, frames);
   const { coneRejects, visible, bandPixels, selects } = createDagOraclePredicates({
     packed,
@@ -63,12 +63,12 @@ export function evaluateDagSelectionKernel(
     return rejected;
   };
   const pageIds: number[] = [];
-  /** La priorité de chaque demande, au même rang que `pageIds` : miroir de `quantizePriority`. */
+  /** Priority of each request, at the same rank as `pageIds`: mirror of `quantizePriority`. */
   const priorites: number[] = [];
-  // Les totaux que la carte tient, rejoués au même endroit : `dagWanted` pour la coupe retenue et sa
-  // part en mélange, `dagMask` pour ce qui part au dessin et pour le trou (`gpuDagTotalsWgsl.ts`).
+  // Totals the GPU holds, replayed in the same place: `dagWanted` for the kept cut and its
+  // blended share, `dagMask` for what goes to draw and for the hole (`gpuDagTotalsWgsl.ts`).
   const totaux = { selected: 0, transparent: 0, drawn: 0, uncovered: 0 };
-  /** Miroir de `noteImage` (gpuDagTotalsWgsl.ts) : les trois totaux sur le MÊME ensemble. */
+  /** Mirror of `noteImage` (gpuDagTotalsWgsl.ts): the three totals on the SAME set. */
   const note = (i: number, voulu: boolean, dessinee: boolean, trou: boolean) => {
     if (!voulu) return;
     const tri = trianglesOf(records, i);
@@ -91,7 +91,7 @@ export function evaluateDagSelectionKernel(
     if (cone(i, w)) continue;
     const level = clusterLevel(flagsOf(records, i));
     if (level > lodLevel) lodLevel = level;
-    // L'erreur du remplaçant, ou la sienne quand rien ne la remplace : `dagWanted` fait de même.
+    // Replacement error, or its own when nothing replaces it: `dagWanted` does the same.
     priorites.push(quantizeRequestPriority(bandPixels(i, bandError(records, i, 1) < 0 ? 0 : 1)));
     pageIds.push(i);
     if (!resident || resident[i]) continue;
@@ -100,7 +100,7 @@ export function evaluateDagSelectionKernel(
     else missing[w] = 1;
   }
   const drawablePageIds: number[] = [];
-  // Le relevé est rendu CLASSÉ, priorité décroissante, comme `parseDagOutput` le rend de la carte.
+  // The readout is returned SORTED, decreasing priority, as `parseDagOutput` returns it from the GPU.
   const classe = () => {
     const rangs = pageIds.map((_, i) => i).sort((a, b) => priorites[b] - priorites[a]);
     const pagesTriees = rangs.map((r) => pageIds[r]),
@@ -126,8 +126,8 @@ export function evaluateDagSelectionKernel(
     } as SelectionResult
   );
   if (!resident) {
-    // Sans résidence, `dagMask` dessine tout ce que la coupe retient et ne creuse aucun trou : la
-    // coupe dessinable entière EST la coupe retenue.
+    // Without residency, `dagMask` draws everything the cut keeps and digs no hole: the
+    // whole drawable cut IS the kept cut.
     for (const i of pageIds) note(i, true, true, false);
     return publie(pageIds.slice(), true);
   }
@@ -156,15 +156,15 @@ export function evaluateDagSelectionKernel(
         if (visible(i) && selects(i, thresholds[w]) && !cone(i, w)) missing[w] = 1;
       }
   }
-  // Un seuil monté au-dessus d'un plancher écarté : les étages grossiers dont l'escalade aurait
-  // besoin ne sont pas candidats, et la primitive retombe sur sa couverture épinglée.
+  // A threshold raised above a dropped floor: the coarse levels escalation would need
+  // are not candidates, and the primitive falls back on its pinned coverage.
   for (let w = 0; w < thresholds.length; w++) if (thresholds[w] > prunedFloor[w]) missing[w] = 1;
   let complete = true;
   for (let i = 0; i < packed.pageCount; i++) {
     const w = worldOf(records, i);
     if (!visible(i) || cone(i, w)) continue;
-    // La branche ne décide que du CANDIDAT ; le veto de résidence est la même règle pour les deux,
-    // et l'écrire une fois est ce qui garantit qu'elle le reste.
+    // The branch only decides the CANDIDATE; the residency veto is the same rule for both,
+    // and writing it once is what guarantees it stays so.
     let draw = missing[w] ? !!(flagsOf(records, i) & CLUSTER_ROOT) : selects(i, thresholds[w]);
     const trou = draw && !resident[i];
     if (trou) {

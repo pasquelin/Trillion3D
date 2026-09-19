@@ -1,7 +1,7 @@
-// G3 : visibilityLighting.ts hisse les constantes de l'éclairage hémisphérique (direction du
-// soleil, sa longueur, la couleur du sol et du ciel) hors de `shadeLit`, appelée par pixel, au lieu
-// de les recalculer et réallouer à chaque appel. Oracle : la version d'avant le lot G, recopiée
-// telle quelle dans `bench/oracles/eclairage-pixel.mjs`.
+// G3: visibilityLighting.ts hoists the hemispheric-lighting constants (sun direction, its
+// length, ground and sky colour) out of `shadeLit`, called per pixel, instead of recomputing and
+// reallocating them at every call. Oracle: the pre-lot-G version, copied as-is into
+// `bench/oracles/eclairage-pixel.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -76,8 +76,8 @@ type Cas = {
   roughness?: number;
 };
 
-/** Compare `shadeLit` (l'optimisée) à `referenceShadeLit` (l'oracle) sur le même cas, canal par
- *  canal, `Object.is` pour distinguer -0/0 et traiter NaN comme égal à lui-même. */
+/** Compares `shadeLit` (the optimised one) to `referenceShadeLit` (the oracle) on the same case,
+ *  channel by channel, `Object.is` to distinguish -0/0 and treat NaN as equal to itself. */
 function assertSameShading(cas: Cas, label: string) {
   const a = [
     cas.page ?? pageOf(),
@@ -90,8 +90,8 @@ function assertSameShading(cas: Cas, label: string) {
     cas.metalness ?? 0.3,
     cas.roughness ?? 0.5,
   ] as const;
-  // L'optimisée lit la caméra du moteur ; l'oracle garde la caméra de la bibliothèque hôte, qui est
-  // ce dont il prouve l'équivalence. Même œil, mêmes bits.
+  // The optimised one reads the engine camera; the oracle keeps the host-library camera, which
+  // is what it proves equivalence of. Same eye, same bits.
   const optimisee = shadeLit(...a, cameraMoteur(CAMERA));
   const reference = referenceShadeLit(...a, CAMERA);
   for (let c = 0; c < 3; c++)
@@ -101,13 +101,13 @@ function assertSameShading(cas: Cas, label: string) {
     );
 }
 
-test('sans normale ni carte : chemin par face uniquement, plusieurs rugosités et métallicités', () => {
+test('without a normal or a map: face path only, several roughnesses and metalnesses', () => {
   for (const roughness of [0, 0.0525, 0.6, 1, 5, -3])
     for (const metalness of [0, 0.3, 1, 1.7, -1])
       assertSameShading({ metalness, roughness }, `r${roughness} m${metalness}`);
 });
 
-test('déterminant négatif (page miroir) et doubleSided/backSide combinés', () => {
+test('negative determinant (mirrored page) and doubleSided/backSide combined', () => {
   const page = pageOf({ matrix: new THREE.Matrix4().makeScale(-1, 1, 1) });
   for (const doubleSided of [false, true])
     for (const backSide of [false, true])
@@ -117,20 +117,20 @@ test('déterminant négatif (page miroir) et doubleSided/backSide combinés', ()
       );
 });
 
-test('aire nulle ou triangle dégénéré ne fait pas diverger la face calculée', () => {
+test('a null area or a degenerate triangle does not make the computed face diverge', () => {
   const zero = vertex(0, 0, 0, 1);
   const flat = { ...TRI_BASE, a: zero, b: zero, c: zero };
   assertSameShading({ tri: flat, affine: { area: 0 } }, 'aire nulle');
 });
 
-test('caméra exactement sur le point du fragment (vLen replié à 1)', () => {
+test('camera exactly on the fragment point (vLen folded to 1)', () => {
   const confondu = vertex(2, 3, 5, 1);
   const tri = { ...TRI_BASE, a: confondu, b: confondu, c: confondu };
   const tiers = { w0: 1 / 3, w1: 1 / 3, w2: 1 / 3 };
   assertSameShading({ tri, bary: tiers }, 'camera confondue');
 });
 
-test('normales de sommet portées par la page, avec et sans doubleSided', () => {
+test('vertex normals carried by the page, with and without doubleSided', () => {
   const normal = new THREE.BufferAttribute(
     new Float32Array([0, 0, 1, 0.2, 0.8, 0.1, -0.3, 0.4, 0.9]),
     3,
@@ -140,19 +140,19 @@ test('normales de sommet portées par la page, avec et sans doubleSided', () => 
     assertSameShading({ page, mat: material({ doubleSided }) }, `normale ds${doubleSided}`);
 });
 
-test('visibilityLighting lit Nx/Ny/Nz depuis normal[0]/[1]/[2], pas permutés', () => {
-  // Normale de sommet aux trois composantes distinctes et non symétriques : toute permutation de
-  // Nx/Ny/Nz dans `shadeLit` s'écarterait de l'oracle, qui lit n.x/n.y/n.z dans cet ordre.
+test('visibilityLighting reads Nx/Ny/Nz from normal[0]/[1]/[2], not permuted', () => {
+  // Vertex normal with three distinct, non-symmetric components: any permutation of Nx/Ny/Nz in
+  // `shadeLit` would drift from the oracle, which reads n.x/n.y/n.z in that order.
   const valeurs = [0.15, 0.55, 0.82];
   const normal = new THREE.BufferAttribute(
     Float32Array.from([...valeurs, ...valeurs, ...valeurs]),
     3,
   );
   const page = pageOf({ attributes: { normal } });
-  assertSameShading({ page }, 'Nx/Ny/Nz non permutés');
+  assertSameShading({ page }, 'Nx/Ny/Nz not permuted');
 });
 
-test('carte de normales avec tangente portée par la page', () => {
+test('normal map with a tangent carried by the page', () => {
   const normal = new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]), 3);
   const tangent = new THREE.BufferAttribute(
     new Float32Array([1, 0, 0, 1, 0.1, 0, 0, 1, 1, 0, -0.1, -1]),
@@ -164,17 +164,17 @@ test('carte de normales avec tangente portée par la page', () => {
     normalScale: 1.4,
     normalScaleY: -0.6,
   });
-  assertSameShading({ page, mat }, 'normalMap+tangente');
+  assertSameShading({ page, mat }, 'normalMap+tangent');
 });
 
-test('carte de normales sans tangente : dérivée par les UV portés par la page', () => {
+test('normal map without a tangent: derived from the UVs carried by the page', () => {
   const uv = new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 0.5, 1]), 2);
   const page = pageOf({ attributes: { uv } });
   const mat = material({ normalMap: fakeTexture([10, 250, 5, 255]) });
-  assertSameShading({ page, mat }, 'normalMap sans tangente');
+  assertSameShading({ page, mat }, 'normalMap without tangent');
 });
 
-test('occlusion ambiante et émission cartographiées, comparées à leur absence', () => {
+test('mapped ambient occlusion and emission, compared to their absence', () => {
   const avecCartes = material({
     aoMap: fakeTexture([64, 64, 64, 255]),
     aoIntensity: 1.8,
@@ -182,5 +182,5 @@ test('occlusion ambiante et émission cartographiées, comparées à leur absenc
     emissive: [0.4, 0.1, 0.9],
   });
   assertSameShading({ mat: avecCartes }, 'ao+emissive');
-  assertSameShading({}, 'sans cartes');
+  assertSameShading({}, 'without maps');
 });

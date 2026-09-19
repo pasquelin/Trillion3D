@@ -1,18 +1,18 @@
-//! Le relevé qu'une conversion laisse derrière elle : les fichiers qu'elle a ouverts et les chemins
-//! d'image qu'elle a essayés. Relu au passage suivant, il donne la clé du cache sans rouvrir la
-//! source ; quand il se trompe, la conversion qui suit écrit la vraie clé et le corrige.
+//! Conversion audit record left behind: opened files and tried image
+//! paths. Re-read on next pass, provides cache key without opening
+//! source; if wrong, following conversion writes true key and corrects it.
 use super::*;
 
-/// Le relevé d'une conversion précédente vit hors de `imports/`, qui ne porte que des scènes, et
-/// appartient au dossier qui résout les dépendances autant qu'aux entrées : deux sources aux mêmes
-/// octets posées ailleurs n'ouvrent pas les mêmes fichiers. La clé définitive reste par contenu.
+/// Audit record lives outside `imports/`, which carries only scenes, and
+/// belongs to dependency-resolving folder as much as inputs: two sources with same
+/// bytes elsewhere open different files. Final key stays per-content.
 fn probe_path(cache: &Path, base: &str, root: &Path) -> PathBuf {
     let stamp = hash(format!("{base}\n{}", root.to_string_lossy()).as_bytes());
     let folder = cache.join("native").join("imports-externes");
     folder.join(format!("{stamp}.json"))
 }
 
-/// Les fichiers qu'une conversion précédente des mêmes entrées, ici, avait ouverts, rehachés.
+/// Files previous conversion of same inputs here opened, re-hashed.
 pub(crate) fn expected(cache: &Path, base: &str, root: &Path) -> Vec<External> {
     let Ok(bytes) = fs::read(probe_path(cache, base, root)) else {
         return Vec::new();
@@ -32,7 +32,7 @@ fn reread(entry: &Value) -> Option<External> {
     Some(describe(Path::new(path), kind))
 }
 
-/// Écrit le relevé, ou l'efface quand l'import n'a rien ouvert d'autre que sa source.
+/// Writes record, or removes it when import opened nothing but source.
 pub(crate) fn write_probe(cache: &Path, base: &str, root: &Path, files: &[External]) -> Result<()> {
     let path = probe_path(cache, base, root);
     if files.is_empty() {

@@ -35,15 +35,15 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       blendState.blendGpu,
       rt.context.diagnosticGpuVariant,
     ));
-    // Une disposition neuve périme le groupe partagé des items paginés comme ceux des autres.
+    // A new layout voids the shared group of paged items like the others'.
     blendState.pagedGroup = undefined;
   } catch (error) {
     diag.diagnosticFailure('forward-material-pipeline-failed', error);
     vis.blendBindGroupLayout = undefined;
     vis.pipelineBlendTextured = undefined;
   }
-  // La profondeur de l'empilement coplanaire fixe le nombre de slots de dessin, donc la taille de
-  // l'uniforme de visibilité et celle de la compaction indirecte : elle se lit avant de les créer.
+  // Coplanar-stack depth sets the draw-slot count, therefore the visibility uniform size and that of
+  // indirect compaction: it is read before creating them.
   let maxDepthLayer = 0;
   for (const rec of rt.setup.allPages)
     if (rec.depthLayer > maxDepthLayer) maxDepthLayer = rec.depthLayer;
@@ -103,7 +103,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
         vis.drawLayerSlots,
         variant,
       );
-      diag.engineDiagnostic('coplanar-layers-ready', 'Couches coplanaires prêtes', {
+      diag.engineDiagnostic('coplanar-layers-ready', 'Coplanar layers ready', {
         layers: vis.drawLayerSlots - 1,
         pipelines: vis.visLayerPipelines.length,
         biasUnitsPerLayer: depthLayerUnits(1),
@@ -124,7 +124,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
   vis.visEnabled =
     !!vis.visTexture && !!vis.shadeBindGroup && !!vis.shadePipeline && !!vis.visPipelineBack;
   if (!vis.visEnabled) return dropVis(rt);
-  diag.engineDiagnostic('material-surfaces-ready', 'Surfaces et éclairage séparés', {
+  diag.engineDiagnostic('material-surfaces-ready', 'Surfaces and lighting split', {
     surfaceVersion: 1,
     formats: SURFACE_FORMATS,
     bytesPerPixel: 28,
@@ -139,9 +139,9 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
   );
   vis.gpuDraw = await createGpuDraw(gpuDevice, drawSlots, vis.drawLayerSlots);
   if (vis.gpuDraw) grantCapability(capabilities, 'indirect draw');
-  // La partition se monte en dernier : elle écrit les tampons de la compaction et relit les verdicts
-  // de la pyramide. Sans elle, les bits de reste restent à zéro et tous les slots sont compactés —
-  // l'image se dessine en une passe, sans occultation, et rien ne tombe en silence.
+  // The partition mounts last: it writes compaction buffers and rereads pyramid verdicts. Without
+  // it, rest bits stay at zero and every slot is compacted — the image draws in one pass, without
+  // occlusion, and nothing falls in silence.
   if (vis.gpuDraw && vis.gpuHiz) {
     vis.gpuPartition = await createGpuPartition(gpuDevice, drawSlots, {
       items: vis.gpuDraw.itemsBuffer,
@@ -149,8 +149,8 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       restBits: vis.gpuDraw.restBitsBuffer,
       slotUsed: vis.gpuDraw.slotUsedBuffer,
     });
-    // La compaction de la moitié testée lit le verdict de la pyramide et réécrit la liste
-    // d'instances que la compaction de dessin vient de poser : elle n'existe qu'avec les deux.
+    // Compaction of the tested half reads the pyramid verdict and rewrites the instance list draw
+    // compaction just posted: it exists only with both.
     vis.gpuRestCompact = await createGpuRestCompact(gpuDevice, {
       instances: vis.gpuDraw.instanceBuffer,
       indirect: vis.gpuDraw.indirectBuffer,
@@ -161,7 +161,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
     else
       diag.diagnosticFailure('partition-pipeline-unavailable', new Error('PARTITION_UNAVAILABLE'));
   }
-  // Le test d'occultation des transparents vient en dernier : il emprunte la pyramide, l'uniforme de
-  // la partition et le tampon de verdicts de la compaction, et n'existe pas sans les trois.
+  // The transparent occlusion test comes last: it borrows the pyramid, the partition uniform and
+  // the compaction verdict buffer, and does not exist without the three.
   await prepareTransparentOcclusion(rt, gpuDevice);
 }

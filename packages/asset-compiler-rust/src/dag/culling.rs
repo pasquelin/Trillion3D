@@ -1,9 +1,9 @@
 use super::*;
 use crate::shared_math::{bisect_centres, merge_aabb};
 
-/// Bornes d'un nœud : la boîte de ses clusters, la sphère qui enferme leurs sphères de remplacement
-/// et la plus grande erreur de remplacement du sous-arbre. Une seule lecture de l'intervalle sert
-/// aussi bien à la racine, qui couvre tout l'ordre, qu'à un nœud qui n'en couvre qu'une tranche.
+/// Node bounds: cluster box, sphere enclosing replacement spheres,
+/// and max subtree replacement error. Single interval reading serves
+/// root covering whole order as well as node covering slice.
 fn node_bounds(
     span: &[usize],
     boxes: &[([f64; 3], [f64; 3])],

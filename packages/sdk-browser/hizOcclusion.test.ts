@@ -1,5 +1,5 @@
-// A5 : hizTestRect part du premier niveau de mip que `Math.clz32` autorise au lieu d'essayer chaque
-// niveau depuis 0. Oracle : la recherche linéaire d'avant le lot A, dans
+// A5: hizTestRect starts at the first mip level `Math.clz32` allows instead of trying every
+// level from 0. Oracle: the linear search from before batch A, in
 // `bench/oracles/hiz.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';

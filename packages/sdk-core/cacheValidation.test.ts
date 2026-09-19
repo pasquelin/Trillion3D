@@ -150,10 +150,10 @@ test('a host checks a pointer and a cache through the SDK, without naming a sing
       (error: unknown) => error instanceof EngineError && error.code === code,
     );
 });
-test("une primitive d'un seul tenant n'a pas de bande d'erreur, et le cache reste lisible", () => {
-  // Le compilateur garde hors du DAG toute primitive qu'une propriété de matériau y oblige — la
-  // transmission de `KHR_materials_transmission`, la peau, les cibles de morphing. Elle n'a alors
-  // aucun cluster, donc aucune bande : le chargement l'accepte, au lieu de refuser la scène.
+test('an unsplit primitive has no error band, and the cache remains readable', () => {
+  // The compiler keeps outside the DAG any primitive required by a material property — transmission
+  // in KHR_materials_transmission, skinning, morph targets. It then has
+  // no cluster, hence no band: loading accepts it, instead of rejecting the scene.
   const metadata = {
     schema: FORMAT_VERSION,
     status: 'ready',
@@ -169,8 +169,8 @@ test("une primitive d'un seul tenant n'a pas de bande d'erreur, et le cache rest
   assertCacheIdentity(metadata);
   assert.equal(primitiveIsDrawable(metadata.primitives[0]), true);
   assert.equal(primitiveUsesClusterErrors(metadata.primitives[0]), false);
-  // Elle n'ouvre pas la porte : une primitive d'un seul tenant qui porterait quand même des pages
-  // vient d'un compilateur que ce runtime ne lit pas, et elle est refusée comme un DAG sans bande.
+  // It does not open the door: an unsplit primitive that still carries pages
+  // comes from a compiler this runtime cannot read, and it is rejected like a DAG without error band.
   const withPages = {
     ...metadata,
     primitives: [

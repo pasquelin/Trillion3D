@@ -1,8 +1,8 @@
-// Le montage des deux tests de lignes : le catalogue, l'écrivain de ligne, une image et l'état
-// complet qu'on compare. Posé à part parce que deux tests l'emploient — la comparaison
-// différentielle contre l'oracle d'avant le lot F (`webgpuRowCommit.test.ts`) et la preuve directe
-// du recyclage de ligne (`webgpuRowRecycle.test.ts`), que rien de différentiel ne peut prouver
-// puisque l'oracle porte la même garde au mot près.
+// Setup of the two row tests: the catalogue, the row writer, an image and the full state compared.
+// Posted separately because two tests use it — the differential comparison against the oracle from
+// before lot F (`webgpuRowCommit.test.ts`) and the direct proof of row recycling
+// (`webgpuRowRecycle.test.ts`), which nothing differential can prove since the oracle carries the
+// same guard word for word.
 import { createWebgpuRowState } from './webgpuRowState.ts';
 import { createWebgpuRowCommit } from './webgpuRowCommit.ts';
 import { createWebgpuRowSync } from './webgpuRowSync.ts';
@@ -41,7 +41,7 @@ const ecrivain = (
   ints[base + 3] = row + 1;
   ints[base + 4] = rec.id as number;
 };
-export function monte(
+export function mount(
   fabriqueEtat: typeof createWebgpuRowState = createWebgpuRowState,
   fabriqueCommit: typeof createWebgpuRowCommit = createWebgpuRowCommit,
 ) {
@@ -52,7 +52,7 @@ export function monte(
   rows.pageTableInts = new Uint32Array(tampon);
   for (let i = 0; i < PAGES; i++) rows.pagePositions[i] = { slot: i } as unknown as GPUBuffer;
   const commit = fabriqueCommit(rows, ecrivain);
-  /** La coupe processeur de l'image : c'est elle, et elle seule, qui atteint `commitRows`. */
+  /** CPU cut of the image: it is the one, and the only one, that reaches `commitRows`. */
   const coupe: PageRec[] = [];
   const sync = createWebgpuRowSync(
     rows,
@@ -66,17 +66,17 @@ export function monte(
   return { rows, sync, pages, coupe, commit };
 }
 
-export type Monte = ReturnType<typeof monte>;
+export type Mount = ReturnType<typeof mount>;
 export type Plan = { offsets: Int32Array; coupeProcesseur: boolean; descendante?: boolean };
 
 export /**
- * Une image. Le miroir de résidence pose les offsets et nomme, comme lui, chaque page qu'il déplace ;
- * puis un seul des deux chemins de rangs passe, comme dans le moteur : la coupe GPU laisse la
- * synchronisation des rangs suivre la résidence, la coupe processeur nomme ses propres rangs. Ce
- * dernier est le seul à atteindre `commitRows`, donc le seul où F4 se voit.
+ * One image. The residency mirror posts the offsets and names, like it, every page it moves; then
+ * only one of the two rank paths runs, as in the engine: the GPU cut lets rank sync follow residency,
+ * the CPU cut names its own ranks. The latter is the only one that reaches `commitRows`, therefore
+ * the only one where F4 shows.
  */
-function image(monté: Monte, plan: Plan) {
-  const { rows, pages, coupe } = monté;
+function image(mounted: Mount, plan: Plan) {
+  const { rows, pages, coupe } = mounted;
   for (let page = 0; page < plan.offsets.length; page++) {
     if (rows.residentOffsetWords[page] === plan.offsets[page]) continue;
     rows.residentOffsetWords[page] = plan.offsets[page];
@@ -84,14 +84,14 @@ function image(monté: Monte, plan: Plan) {
   }
   if (!plan.coupeProcesseur) {
     rows.rowsEpoch = -1;
-    monté.sync.syncRows();
+    mounted.sync.syncRows();
     return;
   }
   coupe.length = 0;
   for (let page = 0; page < pages.length; page++)
     if (rows.residentOffsetWords[page] >= 0 && pages[page].array) coupe.push(pages[page]);
   if (plan.descendante) coupe.reverse();
-  monté.sync.syncRowsFromCut();
+  mounted.sync.syncRowsFromCut();
 }
 export function etatComplet(rows: ReturnType<typeof createWebgpuRowState>) {
   return {
@@ -101,7 +101,7 @@ export function etatComplet(rows: ReturnType<typeof createWebgpuRowState>) {
     rowEpoch: rows.rowEpoch.slice(),
     rowOfPage: rows.rowOfPage.slice(),
     residentFlags: rows.residentFlags.slice(),
-    // Le journal des résidences de la passe : ce que le rejet d'ombres et la coupe GPU relisent.
+    // Residency journal of the pass: what shadow cull and the GPU cut reread.
     residencyChanges: {
       pages: rows.residencyChanges.pages.slice(0, rows.residencyChanges.count),
       sorted: rows.residencyChanges.sorted,
@@ -114,6 +114,6 @@ export function etatComplet(rows: ReturnType<typeof createWebgpuRowState>) {
   };
 }
 
-/** Les offsets d'une image, un par page. */
+/** Offsets of an image, one per page. */
 export const offsetsPar = (rempli: (page: number) => number) =>
   Int32Array.from({ length: PAGES }, (_, page) => rempli(page));

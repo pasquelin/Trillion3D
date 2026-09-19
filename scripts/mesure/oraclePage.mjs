@@ -1,14 +1,11 @@
-// Ce qui s'exécute DANS la page pour la campagne d'oracle. Playwright sérialise cette fonction :
-// elle ne lit aucune variable de module, tout lui arrive par son unique argument.
+// Executed WITHIN page for oracle campaign. Playwright serializes this function:
+// it reads no module variables, receiving everything via its single argument.
 
 /**
- * L'irradiance indirecte convergée d'une pose, puis le retard de convergence après qu'une lampe a
- * bougé.
+ * Converged indirect irradiance of a pose, then convergence delay after a light moves.
  *
- * La vue `bounce` sort l'irradiance indirecte nue, multipliée par l'exposition et sans ACES ni
- * sRGB : c'est la grandeur que l'oracle du compilateur calcule de son côté. Le retard se mesure en
- * images, jamais en millisecondes de montre : l'écart entre l'image en cours et l'état stable est
- * calculé ici même, et c'est l'appelant qui convertit les images en temps avec la cadence relevée.
+ * `bounce` view outputs raw indirect irradiance, multiplied by exposure without ACES or sRGB:
+ * this is the quantity computed by the compiler oracle. Delay is measured in frames.
  */
 export async function measureIrradiance(options) {
   const sdk = await import(options.sdkUrl);
@@ -16,8 +13,7 @@ export async function measureIrradiance(options) {
   if (!factory) return { erreur: `moteur absent du dist : ${options.backend}` };
   const canvas = document.createElement('canvas');
   document.body.append(canvas);
-  // Ce que le moteur dit du rebond : sans ce diagnostic, une campagne pourrait mesurer un écart
-  // énorme sans voir que le rebond n'était simplement pas gréé.
+  // Engine bounce diagnostic.
   const bounce = [];
   const explorer = await sdk.createExplorer(canvas, {
     onDiagnostic: (event) => {
@@ -25,8 +21,7 @@ export async function measureIrradiance(options) {
     },
     manifestUrl: options.manifestUrl,
     scope: 'full',
-    // Le rebond est éteint par défaut : la campagne d'oracle l'allume, sans quoi elle comparerait
-    // une vue d'irradiance vide au traceur de chemins.
+    // Bounce is disabled by default: oracle campaign enables it.
     bounce: true,
     width: options.width,
     height: options.height,
@@ -57,8 +52,7 @@ export async function measureIrradiance(options) {
     const rgba = explorer.capture();
     return new Uint8Array(rgba);
   };
-  // La différence moyenne par canal entre deux images, rapportée à la moyenne de la référence :
-  // un écart relatif, comparable d'une scène à l'autre.
+  // Average relative difference per channel between two images.
   const gap = (image, reference, mean) => {
     let sum = 0;
     for (let i = 0; i < image.length; i += 4)
@@ -76,8 +70,7 @@ export async function measureIrradiance(options) {
   explorer.setLightingView('bounce');
   await settle(options.converge);
   const settled = shot();
-  // Le retard : la lampe part sur sa seconde position, la grille reconverge, puis on rejoue le
-  // saut en relevant à chaque image l'écart à cet état stable.
+  // Delay: light moves to second position, grid reconverges, then step is replayed tracking gaps per frame.
   const gaps = [];
   if (options.movingLight) {
     moveTo(options.movedPosition);
@@ -95,7 +88,7 @@ export async function measureIrradiance(options) {
     moveTo(options.originalPosition);
     await settle(options.converge);
   }
-  // L'image convergée part telle quelle vers Node, qui l'encode et la compare à l'oracle.
+  // Converged image sent as-is to Node, which encodes and compares with oracle.
   const body = settled.buffer.slice(settled.byteOffset, settled.byteOffset + settled.byteLength);
   await fetch(
     `/capture?file=${encodeURIComponent(options.captureFile)}&w=${canvas.width}&h=${canvas.height}`,

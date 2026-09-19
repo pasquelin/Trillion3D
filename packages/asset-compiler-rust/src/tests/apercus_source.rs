@@ -1,7 +1,8 @@
-//! Provenance de la fixture dorée des aperçus : le code qui a produit ses images, sa scène et son
-//! `expected.json`. Rien n'y est copié d'un banc ni d'un dossier d'assets — tout se recalcule.
+//! Provenance of the preview golden fixture: the code that produced its images,
+//! its scene and its `expected.json`. Nothing is copied from a bench or an assets
+//! folder — everything is recomputed.
 //!
-//! Régénération, depuis la racine du dépôt :
+//! Regeneration, from the repository root:
 //!
 //! ```text
 //! cargo test --release --manifest-path packages/asset-compiler-rust/Cargo.toml \
@@ -9,35 +10,36 @@
 //! npx prettier --write packages/asset-compiler-rust/fixtures/apercus/atlas-couleur/expected.json
 //! ```
 //!
-//! Ignorée par défaut : elle écrit dans `fixtures/`. Le diff qu'elle produit se relit avant d'être
-//! commité — un attendu régénéré sans lecture ne surveille plus rien.
+//! Ignored by default: it writes into `fixtures/`. The diff it produces is
+//! re-read before being committed — an expected regenerated without reading no
+//! longer watches anything.
 use super::apercus_golden::previews_digest;
 use super::*;
 
-/// Quatre quads côte à côte, un par matériau : de la vraie géométrie, assez petite pour tenir en
-/// une page, et assez écartée pour qu'aucune paire ne soit coplanaire.
+/// Four quads side by side, one per material: real geometry, small enough to fit
+/// in one page, and far enough apart that no pair is coplanar.
 const QUADS: u32 = 4;
-const CASE: &str = "Quatre quads, quatre matériaux qui se partagent trois textures couleur : un OPAQUE à baseColorTexture PNG 40×24 liée par uri, un MASK à alphaCutoff 0,25 sur un PNG 24×16 à alpha binaire embarqué en bufferView, et un BLEND dont la baseColorTexture JPEG 80×48 sert aussi d'emissiveTexture à un quatrième matériau.";
-const RULE: &str = "Chaque texture couleur porte la queue sans perte de sa chaîne de mips, du premier niveau dont aucun côté ne dépasse 64 jusqu'au 1×1, en RGBA8 sRGB à alpha droit. Seule la texture dont toutes les liaisons sont des couleurs de base MASK voit son alpha remis à l'échelle pour préserver la couverture de la source au seuil du matériau ; les deux autres gardent leur alpha intact.";
+const CASE: &str = "Four quads, four materials that share three colour textures: an OPAQUE with a 40×24 PNG baseColorTexture linked by uri, a MASK at alphaCutoff 0.25 on a 24×16 PNG with binary alpha embedded in a bufferView, and a BLEND whose 80×48 JPEG baseColorTexture also serves as emissiveTexture to a fourth material.";
+const RULE: &str = "Each colour texture carries the lossless tail of its mip chain, from the first level whose neither side exceeds 64 through 1×1, in RGBA8 sRGB with straight alpha. Only the texture whose every binding is a MASK base colour has its alpha rescaled to preserve source coverage at the material threshold; the other two keep their alpha intact.";
 
 #[test]
-#[ignore = "écrit dans fixtures/ ; se relance à la main, et son diff se relit"]
+#[ignore = "writes into fixtures/; rerun by hand, and its diff is re-read"]
 fn regenere_la_fixture_des_apercus() {
     let dir = golden_dir("apercus/atlas-couleur");
     fs::create_dir_all(&dir).expect("dossier de fixture");
     let mask = encode_mask();
     let bin = scene_bytes(&mask);
     fs::write(dir.join("base-degrade.png"), encode_gradient()).expect("png de base");
-    fs::write(dir.join("lueur.jpg"), encode_glow()).expect("jpeg partagé");
+    fs::write(dir.join("lueur.jpg"), encode_glow()).expect("shared jpeg");
     fs::write(dir.join("atlas-couleur.bin"), &bin).expect("binaire");
     let gltf = serde_json::to_vec_pretty(&scene(bin.len(), mask.len())).expect("glTF");
-    fs::write(dir.join("atlas-couleur.gltf"), &gltf).expect("scène");
+    fs::write(dir.join("atlas-couleur.gltf"), &gltf).expect("scene");
     let run = compile_golden(&dir, "atlas-couleur");
     write_expected(&dir, previews_digest(&run), CASE, RULE);
 }
 
-/// Dégradé opaque 40×24 : ni carré, ni multiple de seize, pour que la boîte de réduction tombe sur
-/// des cases de tailles inégales et que le dernier niveau soit atteint par troncature.
+/// Opaque 40×24 gradient: neither square nor a multiple of sixteen, so the
+/// reduction box lands on unequal cells and the last level is reached by truncation.
 fn encode_gradient() -> Vec<u8> {
     encode(image::RgbaImage::from_fn(40, 24, |x, y| {
         image::Rgba([
@@ -49,8 +51,8 @@ fn encode_gradient() -> Vec<u8> {
     }))
 }
 
-/// Masque 24×16 à alpha strictement binaire : une ellipse centrée de demi-axes 0,8 en coordonnées
-/// normalisées, dont la couverture de la source est ce que les niveaux réduits doivent retrouver.
+/// 24×16 mask with strictly binary alpha: a centred ellipse of half-axes 0.8 in
+/// normalised coordinates, whose source coverage is what the reduced levels must find again.
 fn encode_mask() -> Vec<u8> {
     encode(image::RgbaImage::from_fn(24, 16, |x, y| {
         let dx = (2 * x as i32 + 1 - 24) as f32 / 24.0;
@@ -60,8 +62,8 @@ fn encode_mask() -> Vec<u8> {
     }))
 }
 
-/// Dégradé lisse 80×48 en JPEG : le second décodeur, et le seul côté qui dépasse 64 — son premier
-/// niveau porté est donc le mip 1, pas le mip 0.
+/// Smooth 80×48 JPEG gradient: the second decoder, and the only side that exceeds
+/// 64 — its first carried level is therefore mip 1, not mip 0.
 fn encode_glow() -> Vec<u8> {
     let image = image::RgbImage::from_fn(80, 48, |x, y| {
         image::Rgb([(x * 255 / 79) as u8, (y * 255 / 47) as u8, 128])
@@ -84,7 +86,7 @@ fn encode(image: image::RgbaImage) -> Vec<u8> {
     out
 }
 
-/// Positions, coordonnées de texture, indices des quatre quads, puis les octets du PNG embarqué.
+/// Positions, texture coordinates, indices of the four quads, then the embedded PNG bytes.
 fn scene_bytes(mask: &[u8]) -> Vec<u8> {
     let mut bin = Vec::new();
     for quad in 0..QUADS {
@@ -115,7 +117,7 @@ fn scene_bytes(mask: &[u8]) -> Vec<u8> {
     bin
 }
 
-/// Les quatre octets d'un sommet fois trois composantes : la scène en dépend pour ses vues.
+/// Four bytes of a vertex times three components: the scene depends on them for its views.
 const POSITION_BYTES: usize = 192;
 const TEXCOORD_BYTES: usize = 128;
 const INDEX_BYTES: usize = 24;

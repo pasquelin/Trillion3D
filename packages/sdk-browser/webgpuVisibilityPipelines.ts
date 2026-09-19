@@ -7,7 +7,7 @@ import { SHADE_BINDINGS, atlasLayoutEntries, readOnly } from './webgpuBindLayout
 import { shadeVariantFragment, visVariantFragment } from './diagnosticGpuGeometry.ts';
 import type { DiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
 
-/** Modes de face d'un jeu de couche, dans l'ordre : dos, aucune, face, dos inversé, face inversée. */
+/** Face modes of a layer set, in order: back, none, front, reversed back, reversed front. */
 const LAYER_CULLS: Array<[GPUCullMode, GPUFrontFace]> = [
   ['back', 'ccw'],
   ['none', 'ccw'],
@@ -16,13 +16,13 @@ const LAYER_CULLS: Array<[GPUCullMode, GPUFrontFace]> = [
   ['front', 'cw'],
 ];
 const VIS_LAYER_CULLS = LAYER_CULLS.length;
-/** Pipelines d'une couche : les cinq modes de face en occulteur, puis les mêmes en testé. */
+/** Pipelines of a layer: the five face modes as occluder, then the same as tested. */
 const VIS_LAYER_PIPELINES = VIS_LAYER_CULLS * 2;
-/** Rang d'un pipeline de couche dans `visLayerPipelines`. La couche 0 n'y figure pas. */
+/** Rank of a layer pipeline in `visLayerPipelines`. Layer 0 is not in it. */
 export const visLayerPipelineIndex = (layer: number, rest: boolean, cull: number) =>
   (layer - 1) * VIS_LAYER_PIPELINES + (rest ? VIS_LAYER_CULLS : 0) + cull;
 
-/** Crée sous scope de validation, et laisse remonter ce que l'appareil a refusé. */
+/** Creates under a validation scope, and lets through what the device refused. */
 async function scoped<T>(device: GPUDevice, run: () => T): Promise<T> {
   openValidation(device);
   const value = run();
@@ -77,10 +77,9 @@ export function createWebgpuVisibilityRasterPipelines(
 }
 
 /**
- * Les pipelines des couches coplanaires au-dessus de 0. Une couche n'est qu'un décalage de
- * profondeur entier sur le même pipeline : même module, même état, même ordre de dessin. Les cibles
- * et les entrées suivent celles que la couche 0 a retenues, Hi-Z compris, pour que les deux passes
- * écrivent les mêmes attachements. `layerSlots` à 1 ne crée rien.
+ * Pipelines of the coplanar layers above 0. A layer is only an integer depth bias on the same
+ * pipeline: same module, same state, same draw order. Targets and inputs follow those layer 0 kept,
+ * Hi-Z included, so both passes write the same attachments. `layerSlots` of 1 creates nothing.
  */
 export function createWebgpuCoplanarLayerPipelines(
   device: GPUDevice,
@@ -110,7 +109,7 @@ export function createWebgpuCoplanarLayerPipelines(
                 format: 'depth32float',
                 depthWriteEnabled: true,
                 depthCompare: DEPTH_COMPARE,
-                // Profondeur inversée : rapprocher de l'œil, c'est AJOUTER des unités.
+                // Reversed depth: moving closer to the eye ADDS units.
                 depthBias: depthLayerUnits(layer),
               },
             }),
@@ -153,7 +152,7 @@ export function createWebgpuShadePipeline(
       fragment: {
         module: shadeModule,
         entryPoint: shadeVariantFragment(variant),
-        // Les surfaces, puis la demande de tuiles que la cible de retour de l'image reçoit.
+        // The surfaces, then the tile request the image's feedback target receives.
         targets: [...SURFACE_FORMATS, FEEDBACK_FORMAT].map((format) => ({ format })),
       },
       primitive: { topology: 'triangle-list', cullMode: 'none' },

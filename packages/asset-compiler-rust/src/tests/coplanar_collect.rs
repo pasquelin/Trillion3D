@@ -3,10 +3,10 @@ use crate::coplanar::plane::ClusterPlane;
 use crate::coplanar::{surface, CoplanarBounds, CoplanarInputs, Surface};
 use std::collections::{BTreeMap, BTreeSet};
 
-// Comportement 5 : collect écarte les matériaux MASK, BLEND et à transmission, et garde les
-// max_planes_per_primitive plus grandes aires en comptant les autres.
+// Behavior 5: collect discards MASK, BLEND and transmission materials, keeping
+// max_planes_per_primitive largest areas while counting rest.
 
-/// Une primitive compilée minimale : une page par plan, toutes exactes (pas de rôle "coarse").
+/// Minimal compiled primitive: one page per plane, all exact (no "coarse" role).
 fn flat_primitive(mesh: usize, material: Option<i64>, planes: usize) -> Value {
     let pages: Vec<Value> = (0..planes)
         .map(|i| json!({"min":[0.0,0.0,0.0],"max":[1.0,1.0,1.0],"id":i}))
@@ -27,11 +27,11 @@ fn scene_with_one_node() -> Value {
     ]})
 }
 
-/// Les deux cas partagent la même scène à un nœud : seules la liste de primitives, leurs plans, le
-/// quantum d'offset et les bornes changent. Les rappels vivent ici, le temps de l'appel.
+/// Both cases share same one-node scene: only primitive list, planes,
+/// offset quantum, and bounds change. Callbacks live here during call.
 ///
-/// `world`, quand il est fourni, est la matrice monde déjà construite par l'appelant (lot B1) :
-/// `None` fait reconstruire la matrice par `collect`, comme avant B1.
+/// `world`, when supplied, is world matrix built by caller (lot B1):
+/// `None` makes `collect` rebuild matrix, as before B1.
 fn collect_one_node(
     g: &Value,
     primitives: &[Value],
@@ -89,11 +89,11 @@ fn collect_drops_mask_blend_and_transmissive_materials() {
         &mut dropped,
         None,
     );
-    // Seule la primitive opaque (index 0) passe : MASK, BLEND et transmission sont écartés.
+    // Only opaque primitive (index 0) passes: MASK, BLEND and transmission discarded.
     assert_eq!(
         surfaces.len(),
         1,
-        "MASK, BLEND et transmission doivent être écartés"
+        "MASK, BLEND and transmission must be set aside"
     );
     assert_eq!(surfaces[0].primitive, 0);
 }
@@ -101,7 +101,7 @@ fn collect_drops_mask_blend_and_transmissive_materials() {
 #[test]
 fn collect_keeps_the_largest_areas_per_primitive_and_counts_the_rest() {
     let g = scene_with_one_node();
-    // Cinq pages sur cinq plans distincts (offsets écartés), aires 10..50.
+    // Five pages on five distinct planes (separated offsets), areas 10..50.
     let areas = [10.0, 50.0, 20.0, 40.0, 30.0];
     let pages: Vec<Value> = (0..areas.len())
         .map(|i| json!({"min":[0.0,0.0,0.0],"max":[1.0,1.0,1.0],"id":i}))
@@ -138,17 +138,14 @@ fn collect_keeps_the_largest_areas_per_primitive_and_counts_the_rest() {
     assert_eq!(
         kept,
         vec![50.0, 40.0, 30.0],
-        "seules les trois plus grandes aires sont gardées"
+        "only the three largest areas are kept"
     );
-    assert_eq!(
-        dropped, 2,
-        "les deux plus petites sont comptées comme abandonnées"
-    );
+    assert_eq!(dropped, 2, "the two smallest are counted as abandoned");
 }
 
-// Lot B1 : la matrice monde d'un nœud miroir (échelle négative), construite une fois par l'étape
-// et prêtée à collect_with_world, donne les mêmes surfaces au bit près que l'ancien chemin où
-// collect la reconstruisait elle-même.
+// Lot B1: world matrix of mirror node (negative scale), built once by step
+// and lent to collect_with_world, yields exact same surfaces bit for bit as old path where
+// collect rebuilt it itself.
 #[test]
 fn collect_with_world_matches_collect_for_a_mirrored_node() {
     let g = json!({"nodes":[{"mesh":0,"scale":[-1.0,1.0,1.0]}],"meshes":[{}],"materials":[]});
@@ -185,7 +182,7 @@ fn collect_with_world_matches_collect_for_a_mirrored_node() {
 
     assert_eq!(dropped_auto, dropped_shared);
     assert_eq!(auto.len(), shared.len());
-    assert!(!auto.is_empty(), "le nœud miroir doit produire une surface");
+    assert!(!auto.is_empty(), "the mirrored node must produce a surface");
     for (a, s) in auto.iter().zip(&shared) {
         assert_eq!(a.normal.map(f64::to_bits), s.normal.map(f64::to_bits));
         assert_eq!(a.offset.to_bits(), s.offset.to_bits());

@@ -1,7 +1,7 @@
 import { textureLevelUrl } from '../sdk-core/index.ts';
 import { checked } from './clusterPages.ts';
 
-/** Ce qu'un moteur lit d'un niveau cuit : l'image décodée par le navigateur, prête à copier. */
+/** What an engine reads of a baked level: the image decoded by the browser, ready to copy. */
 export type TextureLevelReader = (
   sha256: string,
   atlas: number,
@@ -9,11 +9,11 @@ export type TextureLevelReader = (
 ) => Promise<ImageBitmap>;
 
 /**
- * Le lecteur des niveaux cuits d'un cache, bâti par l'explorateur qui connaît l'adresse du
- * manifeste ; le moteur, lui, ne reçoit que la fonction. Le décodage est celui du navigateur, hors
- * du fil principal, avec exactement les options que le chargeur glTF de Three emploie pour l'image
- * source (`premultiplyAlpha: 'none'`, `colorSpaceConversion: 'none'`) : les octets qui atteignent
- * l'atlas par ce chemin sont ceux qui l'atteignaient par l'autre.
+ * Reader of a cache's baked levels, built by the explorer that knows the manifest
+ * address; the engine itself only receives the function. Decode is the browser's, off
+ * the main thread, with exactly the options Three's glTF loader uses for the source
+ * image (`premultiplyAlpha: 'none'`, `colorSpaceConversion: 'none'`): the bytes that reach
+ * the atlas by this path are those that reached it by the other.
  */
 export function createTextureLevelReader(
   textures: { url: string } | undefined,

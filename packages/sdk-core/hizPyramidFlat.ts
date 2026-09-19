@@ -1,14 +1,14 @@
 import { HIZ_NOTHING } from './hizOracles.ts';
 
 /**
- * La pyramide Hi-Z du chemin par image : un seul `Float32Array` pour tous les niveaux, un décalage
- * et une taille par niveau. Les valeurs sont celles du visbuffer, déjà en simple précision, et la
- * réduction garde le PLUS LOINTAIN d'un carré de 2×2 — un minimum, la profondeur du moteur étant
- * inversée : rien n'y est arrondi, la disposition plate rend exactement ce que rendait la pyramide
- * en tableaux de tableaux, sans allouer une ligne par rangée et par image.
+ * The per-frame Hi-Z pyramid: a single `Float32Array` for all levels, one offset
+ * and size per level. Values are those from the visbuffer, already in single precision, and
+ * reduction keeps the FARTHEST of a 2x2 quad — a minimum, engine depth being
+ * reversed: nothing is rounded, the flat layout returns exactly what the nested
+ * array pyramid returned, without allocating one line per row and frame.
  *
- * Miroir de production de `hizReduceCeil` (hizOracles.ts), qui reste l'oracle : deux écritures
- * volontaires de la même réduction, que le test d'équivalence oppose l'une à l'autre.
+ * Production mirror of `hizReduceCeil` (hizOracles.ts), which remains the oracle: two
+ * deliberate implementations of the same reduction, pitted against each other in equivalence test.
  */
 export type HizFlat = {
   data: Float32Array;
@@ -18,7 +18,7 @@ export type HizFlat = {
   count: number;
 };
 
-/** Nombre de niveaux d'une image : le dernier est 1×1. */
+/** Level count of an image: the last level is 1x1. */
 export function hizFlatLevels(width: number, height: number) {
   let w = width,
     h = height,
@@ -31,7 +31,7 @@ export function hizFlatLevels(width: number, height: number) {
   return count;
 }
 
-/** Pose (ou repose) les décalages et les tailles. `into` est réutilisé tel quel s'il tient déjà. */
+/** Lays out (or relays out) offsets and sizes. `into` is reused as is if it already fits. */
 export function hizFlatLayout(width: number, height: number, into?: HizFlat): HizFlat {
   if (width < 1 || height < 1) throw new Error('HIZ_DEPTH_SIZE');
   if (into && into.count && into.widths[0] === width && into.heights[0] === height) return into;
@@ -63,8 +63,8 @@ export function hizFlatLayout(width: number, height: number, into?: HizFlat): Hi
 }
 
 /**
- * Réduction plafond 2×2, niveau par niveau, dans le tampon déjà posé. Le candidat part de `Infinity`
- * et passe par `Math.min` : un NaN se propage comme il le faisait.
+ * 2x2 ceil reduction, level by level, into the pre-allocated buffer. Candidate starts at `Infinity`
+ * and passes through `Math.min`: NaN propagates as before.
  */
 function reduire(pyramid: HizFlat, level: number) {
   const { data, offsets, widths, heights } = pyramid;
@@ -89,7 +89,7 @@ function reduire(pyramid: HizFlat, level: number) {
   }
 }
 
-/** Pyramide complète à partir de la profondeur du visbuffer. `into` est réécrit, jamais réalloué. */
+/** Complete pyramid from visbuffer depth. `into` is rewritten, never reallocated. */
 export function hizBuildFlat(
   depth: ArrayLike<number>,
   width: number,
@@ -105,8 +105,8 @@ export function hizBuildFlat(
 }
 
 /**
- * Profondeur de l'occulteur le plus lointain sur le rectangle de niveau 0 semi-ouvert
- * [x0,x1)×[y0,y1). Rectangle vide ou hors champ : `HIZ_NOTHING`, qui ne peut rien cacher.
+ * Farthest occluder depth over the half-open level-0 pixel rectangle
+ * [x0,x1)x[y0,y1). Empty or out-of-field rectangle: `HIZ_NOTHING`, which cannot hide anything.
  */
 export function hizFootprintFarFlat(
   pyramid: HizFlat,

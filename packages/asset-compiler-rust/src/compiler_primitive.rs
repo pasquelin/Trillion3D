@@ -8,12 +8,13 @@ pub(super) struct PrimitiveInputs<'a> {
     pub mesh_values: &'a [Value],
     pub skinned_meshes: &'a BTreeSet<usize>,
     pub mesh_map: &'a BTreeMap<usize, usize>,
-    /// Échelle monde la plus grande sous laquelle chaque maillage source est placé : c'est elle qui
-    /// ramène le seuil du proxy, exprimé en mètres, dans l'espace objet de la primitive.
+    /// Largest world scale under which each source mesh is placed: it is what
+    /// brings the proxy threshold, expressed in metres, into the primitive's
+    /// object space.
     pub mesh_scales: &'a BTreeMap<usize, f64>,
-    /// Triangles de la scène entière, toutes instances posées : le dénominateur des parts de budget.
+    /// Triangles of the whole scene, every instance placed: the denominator of budget shares.
     pub scene_triangles: usize,
-    /// Les accessors que `plan_buffers` a déjà validés une fois, sur les mêmes octets.
+    /// Accessors that `plan_buffers` has already validated once, on the same bytes.
     pub validated: &'a BTreeSet<usize>,
     pub progress: &'a (dyn Fn(Value) + Sync),
 }
@@ -23,9 +24,9 @@ pub(super) struct PrimitiveInputs<'a> {
 pub(super) struct CompiledPrimitive {
     pub value: Value,
     pub cluster_planes: Vec<Option<crate::coplanar::ClusterPlane>>,
-    /// Les sommets de la coupe grossière du proxy résident, en espace objet.
+    /// Vertices of the resident proxy coarse cut, in object space.
     pub proxy_cut: Vec<f32>,
-    /// Le seuil, en mètres, que cette coupe a demandé.
+    /// The threshold, in metres, that this cut requested.
     pub proxy_threshold: f64,
 }
 
@@ -192,7 +193,7 @@ pub(super) fn compile_primitive(
     Ok(CompiledPrimitive {
         cluster_planes,
         proxy_cut,
-        // Le seuil est revenu en espace objet : il repart en mètres pour le rapport.
+        // The threshold is back in object space: it goes out in metres for the report.
         proxy_threshold: proxy_threshold * scale.unwrap_or(1.0),
         value: json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":if dag_primitive{json!(DAG_CLUSTER_STRATEGY)}else{Value::Null},"hierarchy":Value::Null,"dag":dag_report,"culling":culling_report,"structure":structure_report,"streams":stream_report,"pages":pages,"reusedPages":reused,"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}),
     })

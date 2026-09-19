@@ -1,5 +1,5 @@
-// L'entrée unique des bancs de performance. Un banc importe ce seul fichier : la mesure, le
-// rapport, la comparaison bit à bit et le compte d'écarts en ULP viennent tous de `socle/`.
+// Single entry point for performance benchmarks. A benchmark imports this file alone: measurement,
+// report, bitwise comparison, and ULP discrepancy count all come from socle/.
 export { RACINE } from './socle/chemins.mjs';
 export { compare, graine, ligneDecrite, mesure, stress } from './socle/mesure.mjs';
 export { rapport } from './socle/rapport.mjs';

@@ -1,8 +1,8 @@
-// Ce que les deux pages de mesure (`pageEclairage.mjs`, `pageThreeNu.mjs`) font pareil : la lampe
-// mobile sur son petit cercle, la capture envoyée à Node, les octets passés sur le réseau. Servi à
-// la page sous `/mesure/` et importé par URL, sans rien du SDK.
+// What both measurement pages (`pageEclairage.mjs`, `pageThreeNu.mjs`) do the same: the moving
+// light on its small circle, the capture sent to Node, the bytes transferred on the network.
+// Served to the page under `/mesure/` and imported by URL, with nothing from the SDK.
 
-/** La position de la lampe mobile à l'image `frame` : un petit cercle parcouru en `period` images. */
+/** Position of the moving light at frame `frame`: a small circle walked in `period` frames. */
 export function positionLampeMobile(moving, frame) {
   const angle = (frame / moving.period) * Math.PI * 2;
   return [
@@ -12,13 +12,13 @@ export function positionLampeMobile(moving, frame) {
   ];
 }
 
-/** La capture RGBA, lignes du bas vers le haut, envoyée telle quelle à Node qui l'encode en PNG. */
+/** The RGBA capture, bottom-to-top rows, sent as-is to Node which encodes it as PNG. */
 export function posterCapture(file, rgba, w, h) {
   const body = rgba.buffer.slice(rgba.byteOffset, rgba.byteOffset + rgba.byteLength);
   return fetch(`/capture?file=${encodeURIComponent(file)}&w=${w}&h=${h}`, { method: 'POST', body });
 }
 
-/** Les octets passés sur le réseau depuis l'entrée `depuis`, par sorte de fichier. */
+/** Bytes transferred on the network since entry `depuis`, by file kind. */
 export function reseauDepuis(depuis) {
   const network = {};
   for (const entry of performance.getEntriesByType('resource').slice(depuis)) {
@@ -30,11 +30,11 @@ export function reseauDepuis(depuis) {
 }
 
 /**
- * Rend la pose jusqu'à ce que le moteur la tienne — accumulation temporelle convergée, plus rien en
- * vol —, au plus `limite` images. Une capture prise en pleine accumulation porterait l'histoire de
- * la trajectoire, dont l'arrivée des tuiles de textures ne se rejoue pas à l'identique d'une
- * exécution à l'autre ; celle d'une pose calme ne dépend que de la pose. Rend le nombre d'images
- * qu'il a fallu, ou `null` si le moteur ne tient pas d'image (le témoin Three, par exemple).
+ * Renders the pose until the engine holds it — temporal accumulation converged, nothing in
+ * flight — at most `limite` frames. A capture taken mid-accumulation would carry the history of
+ * the trajectory, whose texture-tile arrivals do not replay identically from one run to
+ * another; a held pose's capture depends only on the pose. Returns how many frames it took,
+ * or `null` if the engine holds no image (the Three witness, for example).
  */
 export async function poseCalme(explorer, pose, limite = 64) {
   for (let i = 0; i < limite; i++) {
@@ -47,9 +47,9 @@ export async function poseCalme(explorer, pose, limite = 64) {
 }
 
 /**
- * Le réglage des réservoirs en cours de session — ce qu'un curseur d'application fait —, et ce
- * qu'il coûte : le rapport du moteur (réservoirs tenus, pages et tuiles évincées, millisecondes du
- * réglage) et le nombre d'images pour que la pose se tienne de nouveau. `null` sans réglage demandé.
+ * In-session reservoir tuning — what an application slider does — and what it costs: the
+ * engine report (held reservoirs, evicted pages and tiles, milliseconds of the tuning) and
+ * the number of frames until the pose holds again. `null` with no tuning requested.
  */
 export async function reglerReservoirs(explorer, pose, budgets) {
   if (!budgets) return null;
@@ -58,16 +58,16 @@ export async function reglerReservoirs(explorer, pose, budgets) {
 }
 
 /**
- * Le collecteur des diagnostics du moteur pendant une série : les incidents de la carte graphique
- * et la pose de l'image vont dans `lost`, publié sur la page ; les avertissements du compilateur
- * — un DAG qui n'est pas monté, dits à l'ouverture — restent à part, pour le relevé.
+ * Collector of engine diagnostics during a series: GPU incidents and the image pose go into
+ * `lost`, published on the page; compiler warnings — a DAG that did not mount, spoken at
+ * open — stay apart, for the reading.
  */
 export function collecteDiagnostics(lost) {
   const diagnostics = {
     avertissements: null,
     onDiagnostic(event) {
-      // Ce que la barrière a fait pour poser l'image, et ce qui l'en empêche encore : la cause d'un
-      // témoin A/A qui bruite se lit ici, pas dans le bruit.
+      // What the barrier did to hold the image, and what still prevents it: the cause of a
+      // noisy A/A witness is read here, not in the noise.
       if (event.phase === 'pose-settle')
         lost.push(`${event.phase} ${JSON.stringify(event.context)}`);
       if (event.phase === 'dag-warnings') diagnostics.avertissements = event.context;

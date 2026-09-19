@@ -33,7 +33,7 @@ test('a Hi-Z resize replaces the this-frame level-0 depth target', async () => {
   hiz.dispose();
 });
 
-test('sans boîtes attachées le test n’encode rien, et une fois attachées il efface les verdicts', async () => {
+test('with no boxes attached the test encodes nothing, and once attached it clears verdicts', async () => {
   const device = hizDevice();
   const cleared: Array<{ bytes: number }> = [];
   let passes = 0;
@@ -48,16 +48,16 @@ test('sans boîtes attachées le test n’encode rien, et une fois attachées il
   } as unknown as GPUCommandEncoder;
   const hiz = await createGpuHiz(device, 33, 19, 2);
   assert.ok(hiz);
-  // La partition n'est pas montée : rien n'est testé, donc rien n'est rejeté et rien n'est effacé.
+  // The partition is not mounted: nothing is tested, so nothing is rejected and nothing is cleared.
   assert.equal(hiz.encodeTest(device, encoder, 2, 2), 0);
   assert.deepEqual(cleared, []);
   assert.equal(passes, 0);
   hiz.attach({} as GPUBuffer, {} as GPUBuffer);
   assert.equal(hiz.encodeTest(device, encoder, 2, 2), 2);
-  // Les lignes que l'image ne teste pas sont remises à zéro d'abord : aucune ne garde un verdict.
+  // Rows the frame does not test are cleared first: none keeps a verdict.
   assert.deepEqual(cleared, [{ bytes: 8 }]);
   assert.equal(passes, 1);
-  // Les mips que la partition lit pour exprimer un rectangle en texels : décalage puis largeur.
+  // Mips the partition reads to express a rectangle in texels: offset then width.
   assert.deepEqual(hiz.levels()[0], { offset: 0, width: 33 });
   assert.equal(hiz.levels().length > 1, true);
   hiz.dispose();

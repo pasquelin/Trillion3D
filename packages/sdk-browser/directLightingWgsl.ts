@@ -4,16 +4,15 @@ import { DIRECT_SHADOW_WGSL } from './directShadowWgsl.ts';
 import { sunFarShadowWgsl, SUN_FAR_PROXY_BINDING } from './sunFarShadowWgsl.ts';
 
 /**
- * Le socle des deux passes qui éclairent : les types du contrat, la lecture des ombres, et la
- * contribution d'une seule lampe déclarée au point, son ombre comprise — la seule formule
- * d'éclairement du moteur. Les deux boucles ci-dessous ne diffèrent que par la liste de lampes
- * qu'elles parcourent, jamais par la physique ni par le type de surface. Une lampe hors portée, ou
- * entièrement dans l'ombre, rend exactement zéro.
+ * Base of the two lighting passes: contract types, shadow reads, and the contribution of a
+ * single declared light at the point, its shadow included — the engine's only lighting
+ * formula. The two loops below differ only by the light list they walk, never by the
+ * physics or the surface type. A light out of range, or fully in shadow, yields exactly zero.
  *
- * L'ombre du soleil au-delà de la dernière cascade en fait partie : les deux passes lient le proxy
- * résident et tirent le même rayon. Les deux paramètres sont le **rang** de cette liaison, que les
- * deux dispositions numérotent différemment, et le droit d'écrire les deux compteurs du relevé ; le
- * rayon, lui, est le même caractère pour caractère.
+ * The sun shadow beyond the last cascade is part of it: both passes bind the resident proxy
+ * and fire the same ray. The two parameters are the **rank** of that binding, which the two
+ * layouts number differently, and the right to write the two count counters; the ray itself
+ * is the same character for character.
  */
 const lightingBase = (proxyBinding: number, writable: boolean) => `
 ${DIRECT_LIGHT_WGSL}
@@ -29,7 +28,7 @@ fn declaredLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f
  return standardLighting(rgb,metal,rough,N,V,vec4f(incidence.xyz,energy),vec3f(0.0),vec3f(0.0),ao)*light.colorIntensity.rgb;
 }
 fn pixelTile(pixel:vec2f)->vec2u{return vec2u(u32(pixel.x)/TILE_SIZE,u32(pixel.y)/TILE_SIZE);}
-/** Les lampes d'une tranche de la liste d'une tuile : son compte à countSlot, ses indices dès firstSlot. */
+/** Lights of a slice of a tile's list: its count at countSlot, its indices from firstSlot. */
 fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,tile:vec2u,tilesX:u32,countSlot:u32,firstSlot:u32)->vec3f{
  var result=vec3f(0.0);
  let base=(tile.y*tilesX+tile.x)*TILE_STRIDE;
@@ -41,18 +40,18 @@ fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,til
 }`;
 
 /**
- * La résolution du contrat d'éclairage direct dans le visibility buffer. La boucle du pixel est
- * bornée par la liste de sa tuile, jamais par le nombre de lampes de la scène (X2) ; Lambert et GGX
- * viennent de `standardLighting`, la seule implémentation de référence ; l'atténuation est physique
- * et s'annule à la portée.
+ * Resolve of the direct-lighting contract in the visibility buffer. The pixel loop is bounded
+ * by its tile list, never by the scene light count (X2); Lambert and GGX come from
+ * `standardLighting`, the only reference implementation; attenuation is physical and cancels
+ * at range.
  *
- * Aucune lumière sans source déclarée (P6) : il n'y a ici ni terme ambiant, ni ciel constant, ni
- * éclairage écrit dans la scène. Une surface que nulle lampe déclarée n'atteint vaut exactement
- * zéro, et un couloir sans fenêtre reste noir en plein jour.
+ * No light without a declared source (P6): there is no ambient term here, no constant sky, no
+ * lighting written in the scene. A surface that no declared light reaches is exactly zero,
+ * and a windowless corridor stays black in full daylight.
  */
 export const DIRECT_LIGHTING_WGSL = `
 ${lightingBase(SUN_FAR_PROXY_BINDING, true)}
-/** La contribution des lampes du contrat au pixel, tuile par tuile et lampe par lampe. */
+/** Contribution of the contract lights to the pixel, tile by tile and light by light. */
 fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
  if(u32(view.lightParams.x)==0u){return vec3f(0.0);}
  let tile=pixelTile(pixel);
@@ -63,20 +62,20 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
 }`;
 
 /**
- * Les lampes déclarées qui éclairent une surface de mélange, prises sur la **tranche de mélange** de
- * la liste de sa tuile : celle qui va du plan proche au fond opaque, et qui prend le tronc entier là
- * où nul opaque ne couvre la tuile. C'est la tranche qu'il faut, parce qu'une surface de mélange est
- * dessinée devant l'opaque de son pixel : la tranche des opaques lui retirerait des lampes
- * déclarées, et un feuillage posé devant le ciel n'en garderait aucune.
+ * Declared lights that light a blend surface, taken from the **blend slice** of its tile
+ * list: the one that goes from the near plane to the opaque background, and that takes the
+ * whole frustum where no opaque covers the tile. That is the slice that is needed, because a
+ * blend surface is drawn in front of its pixel's opaque: the opaque slice would take declared
+ * lights away from it, and foliage placed in front of the sky would keep none.
  *
- * La boucle reste **exacte**, et sa somme est celle de la boucle sur toutes les lampes, au bit près :
- * une lampe absente de la liste ne rencontre aucun point de la tranche — sa sphère de portée ne
- * touche pas la boîte monde —, donc `declaredLight` lui aurait rendu exactement `vec3f(0.0)`, et
- * retirer un zéro d'une somme de flottants ne la change pas. Ce qui change est le nombre de lampes
- * parcourues, donc le nombre de lectures d'atlas d'ombre.
+ * The loop stays **exact**, and its sum is that of the loop over every light, bit for bit:
+ * a light absent from the list meets no point of the slice — its range sphere does not
+ * touch the world box —, so `declaredLight` would have returned exactly `vec3f(0.0)`, and
+ * removing a zero from a float sum does not change it. What changes is the number of lights
+ * walked, hence the number of shadow-atlas reads.
  *
- * Sans liste — un appareil qui n'a pas pu gréer la passe de tuiles —, la boucle retombe sur les
- * lampes déclarées, bornée par `MAX_LIGHTS`, constante connue avant l'image (X2).
+ * With no list — a device that could not fit the tile pass —, the loop falls back on the
+ * declared lights, bounded by `MAX_LIGHTS`, a constant known before the frame (X2).
  */
 export const declaredLightingWgsl = (proxyBinding: number) => `
 ${lightingBase(proxyBinding, false)}

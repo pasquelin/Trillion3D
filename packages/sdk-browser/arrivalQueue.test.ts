@@ -22,18 +22,18 @@ function target() {
 
 test('a drain stops at the byte budget and the next one resumes where it left off', () => {
   const a = target();
-  // Trois pages de 8 octets pour un budget de 12 : la deuxième franchit le budget et referme le drain.
+  // Three 8-byte pages for a budget of 12: the second exceeds the budget and closes the drain.
   const queue = createArrivalQueue(12, 64);
   for (const url of ['p0', 'p1', 'p2']) assert.equal(queue.queue(a, url, new Uint32Array(2)), true);
   assert.equal(queue.pending, 3);
-  assert.equal(queue.drain(), 2, "le budget d'octets arrête le drain");
-  assert.deepEqual(a.accepted, ['p0', 'p1'], "ordre d'arrivée conservé");
-  assert.equal(a.syncs, 0, 'le rendu suivant synchronise sans soumission intermédiaire');
+  assert.equal(queue.drain(), 2, 'the byte budget stops the drain');
+  assert.deepEqual(a.accepted, ['p0', 'p1'], 'arrival order preserved');
+  assert.equal(a.syncs, 0, 'the next render synchronizes without an intermediate submit');
   assert.equal(queue.pending, 1);
   assert.equal(queue.drain(), 1);
   assert.deepEqual(a.accepted, ['p0', 'p1', 'p2']);
   assert.equal(a.syncs, 0);
-  assert.equal(queue.drain(), 0, 'file vide : rien à livrer et aucune résidence');
+  assert.equal(queue.drain(), 0, 'empty queue: nothing to deliver and no residency');
   assert.equal(a.syncs, 0);
 });
 
@@ -43,20 +43,20 @@ test('a page already waiting for a target is queued once, and each target keeps 
   const queue = createArrivalQueue(1 << 20, 2);
   const page = new Uint32Array(1);
   assert.equal(queue.queue(a, 'p0', page), true);
-  assert.equal(queue.queue(a, 'p0', page), false, 'déjà en attente pour ce destinataire');
-  assert.equal(queue.queue(b, 'p0', page), true, 'chaque destinataire a sa propre résidence');
+  assert.equal(queue.queue(a, 'p0', page), false, 'already waiting for this target');
+  assert.equal(queue.queue(b, 'p0', page), true, 'each target keeps its own residency');
   assert.equal(queue.queue(a, 'p1', page), true);
   assert.equal(
     queue.queue({} as ArrivalTarget, 'p0', page),
     false,
-    'sans acceptPage, rien à livrer',
+    'without acceptPage, nothing to deliver',
   );
-  assert.equal(queue.drain(), 2, 'le budget de pages arrête le drain');
+  assert.equal(queue.drain(), 2, 'the page budget stops the drain');
   assert.deepEqual(a.accepted, ['p0']);
   assert.deepEqual(b.accepted, ['p0']);
   assert.equal(a.syncs, 0);
   assert.equal(b.syncs, 0);
-  // La file ne retient que l'attente : une page relivrée plus tard se ré-empile derrière le reste.
+  // The queue only keeps waiting pages: a page redelivered later is re-queued behind the rest.
   assert.equal(queue.queue(a, 'p0', page), true);
   assert.equal(queue.drain(), 2);
   assert.deepEqual(a.accepted, ['p0', 'p1', 'p0']);
@@ -64,7 +64,7 @@ test('a page already waiting for a target is queued once, and each target keeps 
   assert.equal(b.syncs, 0);
 });
 
-// La livraison garde exactement les pages et leur ordre malgré la suppression du rendu implicite.
+// Delivery preserves exact pages and order despite removing implicit rendering.
 test('many duplicate targets across a drain deliver exactly like the reference', () => {
   function arrivals(create: typeof createArrivalQueue) {
     const delivered: string[] = [];

@@ -1,33 +1,33 @@
-// Défaut 9 : dans `NORMAL_TRANSFORM_WGSL` (standardLighting.ts), le garde `abs(det)<1e-20` portait
-// sur le déterminant BRUT de la 3×3 monde. Une rotation d'échelle uniforme s a pour déterminant
-// ±s³ : dès s ≲ 2,15e-7, `inverseTranspose3` rendait la normale LOCALE, non tournée — la surface
-// était éclairée comme si elle n'avait pas tourné. Même défaut que le 6, autre fichier ; corrigé en
-// partageant le texte (`inverseTransposeWgsl.ts`) au lieu d'en réécrire une variante.
+// Defect 9: in `NORMAL_TRANSFORM_WGSL` (standardLighting.ts), the `abs(det)<1e-20` guard bore
+// on the RAW determinant of the world 3×3. A uniform-scale rotation s has determinant ±s³: from
+// s ≲ 2.15e-7, `inverseTranspose3` yielded the LOCAL, unrotated normal — the surface was lit as
+// if it had not rotated. Same defect as 6, another file; fixed by sharing the text
+// (`inverseTransposeWgsl.ts`) instead of rewriting a variant.
 //
-// La campagne exécute le MÊME shader deux fois dans Chromium WebGPU — texte d'avant le lot
-// reconstruit, puis texte livré — sur les mêmes cas, et chiffre l'angle entre la normale rendue et
-// la normale vraie (Three en f64) ainsi que l'écart relatif de luminance de la même BRDF.
+// The campaign runs the SAME shader twice in Chromium WebGPU — reconstructed pre-batch text,
+// then shipped text — on the same cases, and measures the angle between the rendered normal and
+// the true normal (Three in f64) as well as the relative luminance discrepancy of the same BRDF.
 //
 // node --experimental-strip-types \
 //   test/justesse/normale-eclairage-petite-echelle.mjs
 import assert from 'node:assert/strict';
 import { NORMAL_TRANSFORM_WGSL } from '../../packages/sdk-browser/standardLighting.ts';
 import {
-  INVERSE_TRANSPOSE_AVANT_WGSL,
+  INVERSE_TRANSPOSE_BEFORE_WGSL,
   INVERSE_TRANSPOSE_WGSL,
 } from '../../packages/sdk-browser/inverseTransposeWgsl.ts';
 import { campagne, construireCas, ecart, luminance } from './normaleEclairageCas.mjs';
 import { eclairageGpu } from './normaleEclairageGpu.mjs';
 import { substitueFormeAvant } from './substitutionAvant.mjs';
 
-// Le texte d'avant le lot, remis dans le texte livré : même morceau que pour le défaut 6, et même
-// garde — `substitutionAvant.mjs` échoue en nommant ce qui manque si le bloc n'est plus trouvé,
-// apparaît deux fois, ou se recolle de travers. Un texte « différent » ne prouverait rien.
+// Pre-batch text, put back into the shipped text: same fragment as for defect 6, and same
+// guard — `substitutionAvant.mjs` fails naming what is missing if the block is no longer found,
+// appears twice, or is glued back crooked. A "different" text would prove nothing.
 const AVANT = substitueFormeAvant({
   texte: NORMAL_TRANSFORM_WGSL,
   livre: INVERSE_TRANSPOSE_WGSL,
-  avant: INVERSE_TRANSPOSE_AVANT_WGSL,
-  nom: 'NORMAL_TRANSFORM_WGSL (standardLighting.ts)',
+  before: INVERSE_TRANSPOSE_BEFORE_WGSL,
+  name: 'NORMAL_TRANSFORM_WGSL (standardLighting.ts)',
   origine: 'packages/sdk-browser/inverseTransposeWgsl.ts',
   marqueur: 'abs(det)<1e-20',
 });
@@ -35,7 +35,7 @@ const AVANT = substitueFormeAvant({
 const cas = campagne();
 const DECROCHE_DEG = 1e-3;
 
-/** Balayage fin autour du seuil théorique s³ = 1e-20, soit s = 2,1544e-7, sur un cas représentatif. */
+/** Fine sweep around the theoretical threshold s³ = 1e-20, i.e. s = 2.1544e-7, on a representative case. */
 const BALAYAGE = [3e-7, 2.5e-7, 2.2e-7, 2.16e-7, 2.155e-7, 2.154e-7, 2.15e-7, 2.1e-7, 2e-7].map(
   (s) =>
     construireCas({
@@ -62,23 +62,23 @@ async function mesure(transform, liste = cas) {
   };
 }
 
-const avant = await mesure(AVANT);
-const apres = await mesure(NORMAL_TRANSFORM_WGSL);
+const before = await mesure(AVANT);
+const after = await mesure(NORMAL_TRANSFORM_WGSL);
 const seuil = await mesure(AVANT, BALAYAGE);
 
 const parEchelle = new Map();
 for (let i = 0; i < cas.length; i++) {
-  const ligne = parEchelle.get(cas[i].s) ?? { s: cas[i].s, avant: 0, apres: 0, pireAvant: 0 };
-  if (avant.ecarts[i].angleDeg > DECROCHE_DEG) ligne.avant++;
-  if (apres.ecarts[i].angleDeg > DECROCHE_DEG) ligne.apres++;
-  ligne.pireAvant = Math.max(ligne.pireAvant, avant.ecarts[i].angleDeg);
+  const ligne = parEchelle.get(cas[i].s) ?? { s: cas[i].s, before: 0, after: 0, pireAvant: 0 };
+  if (before.ecarts[i].angleDeg > DECROCHE_DEG) ligne.before++;
+  if (after.ecarts[i].angleDeg > DECROCHE_DEG) ligne.after++;
+  ligne.pireAvant = Math.max(ligne.pireAvant, before.ecarts[i].angleDeg);
   parEchelle.set(cas[i].s, ligne);
 }
 const pire = (m, cle = 'angleDeg') => m.ecarts.reduce((x, e) => Math.max(x, e[cle]), 0);
 const compte = (m) => m.ecarts.filter((e) => e.angleDeg > DECROCHE_DEG).length;
 
-// Non-régression : hors de la bande du seuil (s ≥ 1e-6), la couleur éclairée d'avant le lot et
-// celle du texte livré se comparent case à case. L'arithmétique touche chaque pixel ombré.
+// Non-regression: outside the threshold band (s ≥ 1e-6), the pre-batch lit colour and that of
+// the shipped text are compared case by case. The arithmetic touches every shaded pixel.
 const ordinaire = cas.map((c, i) => i).filter((i) => cas[i].s >= 1e-6);
 const angleEntre = (a, b) => {
   const u = (v) => v.map((x) => x / Math.hypot(...v));
@@ -88,7 +88,7 @@ const angleEntre = (a, b) => {
 };
 const nonRegression = ordinaire.reduce(
   (acc, i) => {
-    const [a, b] = [avant.lignes[i], apres.lignes[i]];
+    const [a, b] = [before.lignes[i], after.lignes[i]];
     const [la, lb] = [luminance(a.litRendu), luminance(b.litRendu)];
     return {
       cas: acc.cas + 1,
@@ -103,13 +103,13 @@ const nonRegression = ordinaire.reduce(
 console.log(
   JSON.stringify(
     {
-      adaptateur: apres.adaptateur,
+      adaptateur: after.adaptateur,
       cas: cas.length,
-      decrochages: { avant: compte(avant), apres: compte(apres) },
-      pireAngleDeg: { avant: pire(avant), apres: pire(apres) },
+      decrochages: { before: compte(before), after: compte(after) },
+      pireAngleDeg: { before: pire(before), after: pire(after) },
       pireEcartLuminance: {
-        avant: pire(avant, 'ecartLuminance'),
-        apres: pire(apres, 'ecartLuminance'),
+        before: pire(before, 'ecartLuminance'),
+        after: pire(after, 'ecartLuminance'),
       },
       parEchelle: [...parEchelle.values()],
       nonRegression,
@@ -120,10 +120,10 @@ console.log(
   ),
 );
 
-assert.equal(compte(apres), 0, 'le texte livré doit suivre la rotation à toute échelle');
-assert.ok(compte(avant) > 0, 'le défaut 9 ne se reproduit plus : campagne à revoir');
+assert.equal(compte(after), 0, 'the shipped text must follow the rotation at every scale');
+assert.ok(compte(before) > 0, 'defect 9 no longer reproduces: campaign to review');
 assert.ok(
   nonRegression.pireEcartLuminance < 1e-5,
-  `à échelle ordinaire l'éclairage a bougé de ${nonRegression.pireEcartLuminance}`,
+  `at ordinary scale lighting moved by ${nonRegression.pireEcartLuminance}`,
 );
-console.log('OK : le texte livré ne décroche sur aucun cas, celui d’avant le lot décrochait.');
+console.log('OK: the shipped text drifts on no case, the pre-batch one did.');
