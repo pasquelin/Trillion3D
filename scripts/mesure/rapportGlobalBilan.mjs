@@ -14,19 +14,19 @@ export function bilan(ex) {
   const sansLum = trouve(ex, 'sans-lumiere', 'sol', 1);
   const inst = trouve(ex, 'instances-12', 'generale', 1);
   const faire = [
-    '<strong>La mémoire</strong> : quand elle manque, le moteur s’arrête au lieu de montrer une image moins fine ; et sa limite (288 Mo) est écrite en dur, la même pour toute machine. <em>Critique, en premier.</em>',
+    '<strong>Memory</strong>: when it runs out, the engine stops instead of showing a coarser image; and its cap (288 MB) is hard-coded, the same on every machine. <em>Critical, first.</em>',
     sol && sansLum
-      ? `<strong>Les ombres du soleil</strong> : ${ms(moins(sol.gpuP50, sansLum.gpuP50))} sur ${ms(sol.gpuP50)} depuis la rue. Les garder d’une image à l’autre au lieu de les redessiner.`
+      ? `<strong>Sun shadows</strong>: ${ms(moins(sol.gpuP50, sansLum.gpuP50))} of ${ms(sol.gpuP50)} from the street. Keep them from frame to frame instead of redrawing.`
       : '',
-    `<strong>La géométrie</strong> : ${OCTETS_PAR_TRIANGLE.nous} octets par triangle, ${nombre(OCTETS_PAR_TRIANGLE.nous / UNREAL.octetsParTriangle, 0)} fois Unreal (${nombre(UNREAL.octetsParTriangle, 1)}), ${octetsThree === null ? '' : `contre ${nombre(octetsThree, 0)} pour Three qui garde tout le glTF, tangentes comprises`}. Compresser à la cuisson, comme Unreal.${inst ? ` Et douze copies du modèle = ${nombre(inst.geometrieOctets / 1e6, 0, 'Mo')} : une seule copie, l’instance en index.` : ''}`,
+    `<strong>Geometry</strong>: ${OCTETS_PAR_TRIANGLE.nous} bytes per triangle, ${nombre(OCTETS_PAR_TRIANGLE.nous / UNREAL.octetsParTriangle, 0)}× Unreal (${nombre(UNREAL.octetsParTriangle, 1)}), ${octetsThree === null ? '' : `versus ${nombre(octetsThree, 0)} for Three which keeps the whole glTF, tangents included`}. Compress at cook time, like Unreal.${inst ? ` And twelve copies of the model = ${nombre(inst.geometrieOctets / 1e6, 0, 'MB')}: one copy, the instance as an index.` : ''}`,
     sol
-      ? `<strong>Les textures</strong> : ${nombre(sol.texturesEngagees / 1e9, 1, 'Go')} en mémoire, sans compression. Unreal compresse et se fixe une réserve.`
+      ? `<strong>Textures</strong>: ${nombre(sol.texturesEngagees / 1e9, 1, 'GB')} in memory, uncompressed. Unreal compresses and sets a pool.`
       : '',
     nuS && mS && sansLum
-      ? `<strong>Depuis la rue, le moteur vaut Three.js</strong> (${ms(mS.gpuP50)} contre ${ms(nuS.imageSyncP50)}) : même sans lampe, son socle coûte ${ms(sansLum.gpuP50)}. La passe matériaux, plein écran, est la suivante à mesurer.`
+      ? `<strong>From the street, the engine matches Three.js</strong> (${ms(mS.gpuP50)} vs ${ms(nuS.imageSyncP50)}): even with no light, its base costs ${ms(sansLum.gpuP50)}. The full-screen materials pass is next to measure.`
       : '',
   ].filter(Boolean);
-  return `<div class="bilan"><div class="bilan-faire"><h3>Ce qu’il faut faire, dans l’ordre</h3><ol>${li(faire)}</ol></div></div>`;
+  return `<div class="bilan"><div class="bilan-faire"><h3>What to do, in order</h3><ol>${li(faire)}</ol></div></div>`;
 }
 
 export const STYLE_BILAN = `

@@ -30,20 +30,20 @@ export function sommePasses(releve, garde) {
 /** Les groupes de passes, lus dans la table du moteur (bloc et étape), avec la ligne du backlog. */
 export const GROUPES = [
   [
-    'Tampon de visibilité (sélection, partition, Hi-Z, raster)',
+    'Visibility buffer (selection, partition, Hi-Z, raster)',
     (p) => p.bloc === 'visibility',
-    'Géométrie 9, 26',
+    'Geometry 9, 26',
   ],
-  ['Passe matériaux', (p) => p.bloc === 'materials', 'Géométrie 13'],
-  ['Ombres', (p) => p.etape === 'shadows', 'Lumière 6, 13'],
+  ['Materials pass', (p) => p.bloc === 'materials', 'Geometry 13'],
+  ['Shadows', (p) => p.etape === 'shadows', 'Light 6, 13'],
   [
-    'Éclairage (listes de lampes + différé)',
+    'Lighting (light lists + deferred)',
     (p) => p.etape === 'lightLists' || p.etape === 'lighting',
-    'Lumière 18',
+    'Light 18',
   ],
-  ['Antialiasing temporel', (p) => p.etape === 'antialiasing', 'Lumière 16'],
-  ['Présentation', (p) => p.etape === 'present', '—'],
-  ['Transparents', (p) => p.etape === 'transparents', 'Compilateur 10'],
-  ['Rebond', (p) => p.etape === 'bounce', 'Lumière 7'],
+  ['Temporal antialiasing', (p) => p.etape === 'antialiasing', 'Light 16'],
+  ['Present', (p) => p.etape === 'present', '—'],
+  ['Transparents', (p) => p.etape === 'transparents', 'Compiler 10'],
+  ['Bounce', (p) => p.etape === 'bounce', 'Light 7'],
 ];
 export const visibilite = GROUPES[0][1];

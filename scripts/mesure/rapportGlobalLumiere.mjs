@@ -5,13 +5,13 @@ import { DEUX_VUES, LIBELLE, trouve } from './rapportGlobalLecture.mjs';
 
 export function sectionLumiere(ex) {
   const runs = [
-    ['sans-lumiere', 'aucune lampe (albédo brut)'],
-    ['mobile', 'soleil seul'],
-    ['soleil-sans-ombres', 'soleil sans cartes d’ombre'],
-    ['lampes-4-sans-ombres', 'soleil + 4 ponctuelles sans ombres'],
-    ['lampes-4', 'soleil + 4 ponctuelles avec ombres'],
-    ['lampes-16', 'soleil + 16 ponctuelles avec ombres'],
-    ['rebond', 'soleil + 4 ponctuelles + rebond'],
+    ['sans-lumiere', 'no light (raw albedo)'],
+    ['mobile', 'sun only'],
+    ['soleil-sans-ombres', 'sun without shadow maps'],
+    ['lampes-4-sans-ombres', 'sun + 4 point lights, no shadows'],
+    ['lampes-4', 'sun + 4 point lights with shadows'],
+    ['lampes-16', 'sun + 16 point lights with shadows'],
+    ['rebond', 'sun + 4 point lights + bounce'],
   ];
   const enveloppe = runs.map(([run, libelle]) => ({
     libelle,
@@ -29,16 +29,16 @@ export function sectionLumiere(ex) {
       libelle,
       nombre(r?.lampesActives, 0),
       o
-        ? `${nombre(o.lampesRedessinees, 0)} lampes, ${nombre(o.cascadesRedessinees, 0)} cascades, ${nombre(o.pagesRedessinees, 0)} pages, ${nombre(o.appelsDeDessin, 0)} appels`
-        : 'non mesuré',
-      o ? `${nombre(o.pagesEnAttente, 0)} pages, ${nombre(o.retardMaxMs, 1)} ms` : '—',
-      b ? `${nombre(b.sondesMisesAJour, 0)} sondes, ${nombre(b.rayonsParImage, 0)} rayons` : '—',
+        ? `${nombre(o.lampesRedessinees, 0)} lights, ${nombre(o.cascadesRedessinees, 0)} cascades, ${nombre(o.pagesRedessinees, 0)} pages, ${nombre(o.appelsDeDessin, 0)} calls`
+        : 'not measured',
+      o ? `${nombre(o.pagesEnAttente, 0)} pages, ${nombre(o.retardMaxMs, 1)} ms lag` : '—',
+      b ? `${nombre(b.sondesMisesAJour, 0)} probes, ${nombre(b.rayonsParImage, 0)} rays` : '—',
     ];
   });
   const mobile = [
-    ['lampe-mobile', 'pages d’ombre seulement (défaut)'],
-    ['ombres-pages-off', 'face d’ombre entière'],
-    ['budget-ombres-0-25', 'budget 0,25 ms'],
+    ['lampe-mobile', 'shadow pages only (default)'],
+    ['ombres-pages-off', 'full shadow face'],
+    ['budget-ombres-0-25', '0.25 ms budget'],
   ].map(([run, libelle]) => {
     const r = trouve(ex, run, 'sol', 1);
     const o = r?.ombres;
@@ -47,28 +47,28 @@ export function sectionLumiere(ex) {
       nombre(r?.gpuP50, 2),
       nombre(r?.etape('shadows')?.gpuP50 ?? null, 3),
       o
-        ? `${nombre(o.pagesInvalidees, 0)} invalidées, ${nombre(o.pagesRedessinees, 0)} redessinées, ${nombre(o.pagesEnAttente, 0)} en attente, retard ${nombre(o.retardMaxMs, 1)} ms / ${nombre(o.retardMaxImages, 0)} images`
-        : 'non mesuré',
+        ? `${nombre(o.pagesInvalidees, 0)} invalidated, ${nombre(o.pagesRedessinees, 0)} redrawn, ${nombre(o.pagesEnAttente, 0)} pending, lag ${nombre(o.retardMaxMs, 1)} ms / ${nombre(o.retardMaxImages, 0)} frames`
+        : 'not measured',
       r?.atlasOmbres
-        ? `${String(r.atlasOmbres.hash).slice(0, 12)} (${nombre(r.atlasOmbres.written, 0)} écrites)`
-        : 'non relevée',
+        ? `${String(r.atlasOmbres.hash).slice(0, 12)} (${nombre(r.atlasOmbres.written, 0)} written)`
+        : 'not sampled',
       px(r?.temoinAA),
     ];
   });
   return [
-    '<p>Ce que coûte la lumière, par différence entre exécutions : sans lampe, le moteur rend l’albédo brut ; le soleil ajoute ses cascades ; chaque ponctuelle sa carte d’ombre ; le rebond ses sondes.</p>',
+    '<p>What lighting costs, by difference between runs: with no light the engine draws raw albedo; the sun adds its cascades; each point light its shadow map; bounce its probes.</p>',
     deuxCols(
       barres({
         id: 'g-lum-env',
-        titre: 'Image entière selon l’éclairage, p50',
+        titre: 'Whole frame by lighting, p50',
         unite: 'ms',
         series: DEUX_VUES.map((v) => LIBELLE[v]),
         lignes: enveloppe,
       }),
       barres({
         id: 'g-lum-ombres',
-        titre: 'Étape « Ombres », GPU p50',
-        sousTitre: 'étiquette de passe : indicative, voir la note sur l’horodatage',
+        titre: '“Shadows” step, GPU p50',
+        sousTitre: 'pass label: indicative, see the timestamp note',
         unite: 'ms',
         decimales: 3,
         series: DEUX_VUES.map((v) => LIBELLE[v]),
@@ -77,17 +77,17 @@ export function sectionLumiere(ex) {
     ),
     tableau(
       [
-        'Éclairage',
-        'Lampes actives',
-        'Ombres redessinées (vue sol)',
-        'Pages en attente, retard',
-        'Rebond',
+        'Lighting',
+        'Active lights',
+        'Shadows redrawn (street view)',
+        'Pending pages, lag',
+        'Bounce',
       ],
       compteurs,
     ),
-    '<h3>Une lampe qui bouge, caméra fixe</h3><p>Seule l’ombre de la lampe mobile se redessine ; c’est le travail d’une scène presque immobile. Les deux premières lignes doivent porter la même empreinte d’atlas : c’est la porte d’identité des cartes.</p>',
+    '<h3>A moving light, locked camera</h3><p>Only the moving light’s shadow redraws; that is the work of an almost still scene. The first two rows must share the same atlas fingerprint: that is the map identity gate.</p>',
     tableau(
-      ['Mode', 'Image entière p50', 'Ombres p50', 'Pages', 'Empreinte de l’atlas', 'Témoin A/A'],
+      ['Mode', 'Whole frame p50', 'Shadows p50', 'Pages', 'Atlas fingerprint', 'A/A witness'],
       mobile,
     ),
   ].join('');

@@ -48,11 +48,11 @@ const lacunesDe = (ex) => {
     for (const e of mobile.etapes)
       if (e.cpuP50 === null && e.gpuP50 === null)
         items.push(
-          `Étape « ${e.libelle} » : ni processeur ni carte — ${e.raisonCpu ?? 'aucune raison publiée'} ; ${e.raisonGpu ?? ''}`,
+          `Step “${e.libelle}”: neither CPU nor GPU — ${e.raisonCpu ?? 'no reason published'} ; ${e.raisonGpu ?? ''}`,
         );
     if (mobile.rafP50 === null)
       items.push(
-        'Cadence d’affichage : non publiée par le moteur WebGPU ; le banc ne donne pas de FPS, seulement des enveloppes.',
+        'Display cadence: not published by the WebGPU engine; the bench reports envelopes, not FPS.',
       );
   }
   const bruyants = ex
@@ -60,10 +60,10 @@ const lacunesDe = (ex) => {
     .filter((r) => r.temoinAA && r.temoinAA.pixels > r.temoinAA.total * 0.01);
   if (bruyants.length)
     items.push(
-      `Témoin A/A bruyant (plus de 1 % des pixels) : ${bruyants.map((r) => `${r.run} · ${r.vue} · qualité ${r.seuil} (${nombre((100 * r.temoinAA.pixels) / r.temoinAA.total, 1)} %)`).join(' ; ')}.`,
+      `Noisy A/A witness (more than 1% of pixels): ${bruyants.map((r) => `${r.run} · ${r.vue} · quality ${r.seuil} (${nombre((100 * r.temoinAA.pixels) / r.temoinAA.total, 1)} %)`).join(' ; ')}.`,
     );
   items.push(
-    'Le témoin Three du SDK (`temoin-three`) dessine SANS textures. Le témoin Three nu le replace. Écart d’image : tout pixel d’un niveau, sans seuil. Octets par triangle : ~48 o/tri (`docs/FORMAT.md`), non mesurés ici. `vramBytes` : non publié. Millisecondes Unreal : sa console, pas ici (Géométrie 25). Oracle du rebond : scène pièce absente. `profil-off` : pas d’enveloppe carte.',
+    'The SDK Three witness (`temoin-three`) draws WITHOUT textures. The vanilla Three witness replaces it. Image delta: every pixel of a level, no threshold. Bytes per triangle: ~48 B/tri (`docs/FORMAT.md`), not measured here. `vramBytes`: not published. Unreal milliseconds: its console, not here (Geometry 25). Bounce oracle: room scene missing. `profil-off`: no GPU envelope.',
   );
   return `<ul>${items.map((i) => `<li class="lacune">${html(i)}</li>`).join('')}</ul>`;
 };
@@ -71,28 +71,28 @@ const lacunesDe = (ex) => {
 const referenceDe = (s) => {
   const mobile = trouve(s.executions, 'mobile', 'sol', 1);
   return (
-    '<p>Les chiffres de la référence sont ceux de <code>docs/REFERENCE_UE5.md</code>. Les constantes se comparent ; les millisecondes donnent la forme du profil, pas un verdict.</p>' +
+    '<p>Reference numbers are those of <code>docs/REFERENCE_UE5.md</code>. Constants compare; milliseconds show the shape of the profile, not a verdict.</p>' +
     tableauReference({
       mobile,
       fixe: trouve(s.executions, 'fixe', 'sol', 1),
       instances12: trouve(s.executions, 'instances-12', 'generale', 1),
     }) +
-    '<h3>La forme du profil</h3>' +
+    '<h3>Profile shape</h3>' +
     tableauProfilReference(mobile)
   );
 };
 
 const sections = [
-  { id: 'simple', titre: '1. Où on en est', corps: colonnesSimple(scenes, sectionSimple) },
-  { id: 'coupe', titre: '2. D’où viennent les triangles', corps: sectionCoupe(scenes) },
+  { id: 'simple', titre: '1. Where we stand', corps: colonnesSimple(scenes, sectionSimple) },
+  { id: 'coupe', titre: '2. Where the triangles come from', corps: sectionCoupe(scenes) },
   {
     id: 'resume',
-    titre: '3. Ce qu’il faut retenir, en détail',
+    titre: '3. What to take away, in detail',
     corps: pourChaqueScene(scenes, (s) => tuiles(s.executions) + verdicts(s.executions)),
   },
   {
     id: 'campagne',
-    titre: '4. La campagne',
+    titre: '4. The campaign',
     corps: enteteCampagne(scenes, {
       hostname: hostname(),
       cpus: cpus().length,
@@ -103,57 +103,57 @@ const sections = [
   },
   {
     id: 'vues',
-    titre: '5. L’image entière, vue par vue',
+    titre: '5. The whole frame, view by view',
     corps: pourChaqueScene(scenes, (s) => sectionVues(s.executions)),
   },
   {
     id: 'resolutions',
-    titre: '6. La courbe des résolutions',
+    titre: '6. The resolution curve',
     corps: pourChaqueScene(scenes, (s) => sectionResolutions(s.executions)),
   },
   {
     id: 'passes',
-    titre: '7. Les passes de la carte graphique',
+    titre: '7. GPU passes',
     corps: pourChaqueScene(scenes, (s) => sectionPasses(s.executions)),
   },
   {
     id: 'etapes',
-    titre: '8. Les étapes du processeur',
+    titre: '8. CPU steps',
     corps: pourChaqueScene(scenes, (s) => sectionEtapes(s.executions)),
   },
   {
     id: 'portes',
-    titre: '9. Les portes : une option, deux exécutions',
+    titre: '9. Gates: one option, two runs',
     corps: pourChaqueScene(scenes, (s) => sectionPortes(s.executions)),
   },
   {
     id: 'lumiere',
-    titre: '10. Lampes, ombres, rebond',
+    titre: '10. Lights, shadows, bounce',
     corps: pourChaqueScene(scenes, (s) => sectionLumiere(s.executions)),
   },
   {
     id: 'memoire',
-    titre: '11. Mémoire',
+    titre: '11. Memory',
     corps: pourChaqueScene(scenes, (s) => sectionMemoire(s.executions)),
   },
   {
     id: 'moteurs',
-    titre: '12. Les moteurs et le témoin',
+    titre: '12. Engines and the witness',
     corps: pourChaqueScene(scenes, (s) => sectionMoteurs(s.executions)),
   },
   {
     id: 'three-nu',
-    titre: '13. Face à Three.js nu : les points faibles',
+    titre: '13. Versus Three.js vanilla: weak spots',
     corps: pourChaqueScene(scenes, (s) => sectionThreeNu(s.executions)),
   },
   {
     id: 'reference',
-    titre: '14. Face à la référence (UE5, Nanite)',
+    titre: '14. Versus the reference (UE5, Nanite)',
     corps: pourChaqueScene(scenes, referenceDe),
   },
   {
     id: 'lacunes',
-    titre: '15. Ce qui n’est pas mesuré, et pourquoi',
+    titre: '15. What is not measured, and why',
     corps: pourChaqueScene(scenes, (s) => lacunesDe(s.executions)),
   },
 ];
@@ -162,9 +162,9 @@ const sortie = join(dossier, 'rapport.html');
 writeFileSync(
   sortie,
   page({
-    titre: 'Le moteur, mesuré',
-    sousTitre: `Campagne complète sur ${scenes.map((s) => s.nom).join(', ')} — ${jouees.length} exécutions, ${tous.reduce((n, e) => n + e.releves.length, 0)} relevés`,
+    titre: 'The engine, measured',
+    sousTitre: `Full campaign on ${scenes.map((s) => s.nom).join(', ')} — ${jouees.length} runs, ${tous.reduce((n, e) => n + e.releves.length, 0)} samples`,
     sections,
   }),
 );
-console.log(`Rapport : ${sortie}`);
+console.log(`Report: ${sortie}`);
