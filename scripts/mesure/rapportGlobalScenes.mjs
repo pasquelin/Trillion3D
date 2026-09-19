@@ -70,7 +70,7 @@ export function enteteCampagne(scenes, { hostname, cpus, memoire, octets, tablea
     s.executions.map((e) => [
       prefixe ? `${s.name}/${e.name}` : e.name,
       e.pourquoi,
-      e.absent ? 'missing' : `${e.releves.length} samples`,
+      e.absent ? 'missing' : `${e.readings.length} samples`,
       e.absent ? e.erreur : e.erreurs.length ? `${e.erreurs.length} error(s)` : 'ok',
       e.absent || !e.fin ? '' : `${((new Date(e.fin) - new Date(e.debut)) / 1000).toFixed(0)} s`,
     ]),
