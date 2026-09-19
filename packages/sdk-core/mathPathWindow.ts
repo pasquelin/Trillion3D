@@ -1,24 +1,24 @@
 /**
- * Les deux outils de mesure du gouverneur de chemin (`mathPathGovernor.ts`) : la finesse de
- * l'horloge du fil, et la médiane glissante sur laquelle il arbitre. Rien ici ne connaît les
- * chemins ni les opérations.
+ * The two measurement tools of the path governor (`mathPathGovernor.ts`): the fineness of
+ * the thread clock, and the sliding median it arbitrates on. Nothing here knows
+ * paths or operations.
  */
 
-/** Exécutions retenues par chemin : la médiane suit alors une minute de jeu, pas une image. */
+/** Executions retained per path: the median then follows a minute of play, not a frame. */
 const PATH_WINDOW = 30;
 /**
- * Résolution d'horloge au-delà de laquelle aucun arbitrage n'est tenté. Un lot du moteur dure des
- * dixièmes de milliseconde : une horloge plus grossière que cela ne rend que des zéros et des sauts,
- * dont aucune médiane ne sort. Ce n'est pas une constante de machine, c'est l'ordre de grandeur de
- * ce qui est mesuré.
+ * Clock resolution beyond which no arbitration is attempted. An engine batch lasts
+ * tenths of a millisecond: a coarser clock than that yields only zeros and jumps,
+ * from which no median comes. This is not a machine constant, it is the order of magnitude of
+ * what is measured.
  */
 export const CLOCK_RESOLUTION_MS = 0.1;
-/** Lectures d'horloge utilisées pour estimer sa résolution : assez pour voir le plus petit pas. */
+/** Clock reads used to estimate its resolution: enough to see the smallest step. */
 const CLOCK_PROBES = 32;
 
 /**
- * Le plus petit écart non nul entre deux lectures successives de `now`, en millisecondes. Une
- * horloge volontairement tronquée le rend tel quel ; `null` si aucune lecture n'a bougé.
+ * The smallest non-zero gap between two successive reads of `now`, in milliseconds. A
+ * deliberately truncated clock yields it as-is; `null` if no read has moved.
  */
 export function estimateClockResolutionMs(now: () => number) {
   let plusPetit: number | null = null;
@@ -32,7 +32,7 @@ export function estimateClockResolutionMs(now: () => number) {
   return plusPetit;
 }
 
-/** Une médiane glissante sur les `PATH_WINDOW` dernières valeurs, sans allocation par exécution. */
+/** A sliding median over the last `PATH_WINDOW` values, with no allocation per execution. */
 export class Fenetre {
   private readonly valeurs = new Float64Array(PATH_WINDOW);
   private readonly triee = new Float64Array(PATH_WINDOW);

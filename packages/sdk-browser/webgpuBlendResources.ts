@@ -8,29 +8,29 @@ import { writeVolumeRecords } from './webgpuTransmission.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
- * Tout ce que la passe transparente tient de la SCENE, monte une fois : les fiches d'items,
- * l'uniforme de vue, les arguments indirects et le tronc GPU qui les ecrit.
+ * Everything the transparent pass holds of the SCENE, mounted once: the item records, the view
+ * uniform, the indirect arguments and the GPU frustum that writes them.
  *
- * Rien ici ne depend de la camera. Ce qui depend de la scene — matrices, materiaux — se refait par
- * `refreshBlendScene`, et seulement quand la scene a bouge.
+ * Nothing here depends on the camera. What depends on the scene — matrices, materials — is redone
+ * by `refreshBlendScene`, and only when the scene has moved.
  */
 export async function prepareBlendResources(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { blendState, vis } = rt,
     items = blendState.blendGpu;
   if (!items.length) return;
-  // `prepare()` est publique et peut être rappelée sans passer par la libération : tout ce que la
-  // préparation précédente a monté est rendu ici, l'étalement compris. Les groupes de liaison qui
-  // citaient ces tampons tombent avec eux.
+  // `prepare()` is public and can be called again without going through dispose: everything the
+  // previous prepare mounted is released here, expansion included. Bind groups that cited those
+  // buffers fall with them.
   disposeBlendResources(blendState);
-  // Un item pagine lit la geometrie concatenee, celle-la meme que la passe opaque : son premier
-  // sommet y est le bloc de sa geometrie source.
+  // A paged item reads the concatenated geometry, the very same as the opaque pass: its first
+  // vertex there is the block of its source geometry.
   for (const item of items)
     item.vertexBase = item.paged
       ? (vis.geometryBlocks.get(item.sourceGeometry.attributes)?.vertexBase ?? 0)
       : 0;
   buildBlendStatics(blendState);
-  // La liste transparente de la scene EST la liste de dessin : ce qu'une image en retire, elle le
-  // retire par un compte d'instances nul, et les relevés continuent de nommer les items de la scene.
+  // The scene's transparent list IS the draw list: what an image takes out of it, it takes out
+  // with a zero instance count, and the readbacks keep naming the scene's items.
   blendState.visibleBlend.length = 0;
   for (const item of items) blendState.visibleBlend.push(item);
   blendState.itemPacked = new Float32Array(items.length * BLEND_ITEM_WORDS);
@@ -45,9 +45,9 @@ export async function prepareBlendResources(rt: WebgpuPagesRuntime, device: GPUD
     size: BLEND_VIEW_SIZE,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
-  // Les deux sorties de l'étalement : la liste d'instances que le nuanceur lit au rang que l'indice
-  // de sommet lui donne, et un argument indirect par tranche. Elles appartiennent à la scène, et le
-  // repli processeur les écrit lui-même quand l'appareil n'a pas d'étage de calcul.
+  // The two outputs of expansion: the instance list the shader reads at the rank the vertex index
+  // gives it, and one indirect argument per slice. They belong to the scene, and the CPU fallback
+  // writes them itself when the device has no compute stage.
   const entries = blendState.maxPlanEntries;
   refreshBlendScene(rt, device);
   blendState.expandedBuffer = device.createBuffer({
@@ -72,7 +72,7 @@ export async function prepareBlendResources(rt: WebgpuPagesRuntime, device: GPUD
   blendState.expand?.uploadDraws(blendState.drawsPacked);
 }
 
-/** Rend les tampons de scène de la passe transparente, et les groupes qui les citaient. */
+/** Releases the transparent pass's scene buffers, and the groups that cited them. */
 export function disposeBlendResources(blendState: WebgpuPagesRuntime['blendState']) {
   blendState.expand?.dispose();
   blendState.expand = undefined;
@@ -85,10 +85,10 @@ export function disposeBlendResources(blendState: WebgpuPagesRuntime['blendState
 }
 
 /**
- * Les fiches, les boites, les volumes et le plan d'encodage, refaits apres un changement de scene.
+ * Records, boxes, volumes and the encode plan, rebuilt after a scene change.
  *
- * C'est la SEULE boucle sur les items qui subsiste, et une camera qui bouge ne la declenche pas :
- * elle ne repart que sur un deplacement de matrice ou un montage de ressources.
+ * This is the ONLY remaining loop over items, and a camera that moves does not trigger it: it
+ * only restarts on a matrix move or a resource mount.
  */
 export function refreshBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { blendState, vis } = rt,
@@ -109,13 +109,13 @@ export function refreshBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice) {
 }
 
 /**
- * Ce que l'image demande à l'étalement : le verdict du tronc, l'ordre s'il a bougé, puis les deux
- * passes de noyaux, enchaînées dans UNE passe de calcul.
+ * What the image asks of expansion: the frustum verdict, the order if it moved, then the two
+ * kernel passes, chained in ONE compute pass.
  *
- * Les lancements d'une même passe de calcul sont ordonnés et voient les écritures des précédents :
- * le mélange peut donc rendre sa mémoire de travail à la transmission, dont les instances et les
- * arguments vivent, eux, dans leurs propres régions. Sans étage de calcul, le processeur écrit
- * exactement les mêmes mots (`webgpuBlendExpandCpu.ts`).
+ * Dispatches of the same compute pass are ordered and see the previous writes: blend can therefore
+ * hand its work memory back to transmission, whose instances and arguments live in their own
+ * regions. Without a compute stage, the CPU writes exactly the same words
+ * (`webgpuBlendExpandCpu.ts`).
  */
 export function encodeBlendExpansion(
   rt: WebgpuPagesRuntime,

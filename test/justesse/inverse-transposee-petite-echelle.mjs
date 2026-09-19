@@ -1,20 +1,20 @@
-// Défaut 6 : dans `inverseTranspose3` (gpuDagShader.ts), le garde `abs(det)<1e-20` rendait l'axe
-// LOCAL non transformé au lieu de l'inverse-transposée dès qu'une échelle uniforme assez petite
-// (det = ±s³ < 1e-20, soit s ≲ 2,15e-7) rendait le déterminant minuscule. Le test de conformité
-// (défaut 1) étant, lui, indépendant de l'échelle, une rotation d'échelle minuscule était jugée
-// conforme des deux côtés et seul le GPU prenait le raccourci : il comparait l'axe non tourné à la
-// caméra comme s'il était déjà en repère monde, et supprimait des faces pourtant de face.
+// Defect 6: in `inverseTranspose3` (gpuDagShader.ts), the `abs(det)<1e-20` guard returned the
+// untransformed LOCAL axis instead of the inverse-transpose as soon as a small enough uniform
+// scale (det = ±s³ < 1e-20, i.e. s ≲ 2.15e-7) made the determinant tiny. The conformance test
+// (defect 1) being scale-independent, a tiny-scale rotation was judged conforming on both
+// sides and only the GPU took the shortcut: it compared the unrotated axis to the camera as
+// if it were already in world space, and culled faces that were still front-facing.
 //
-// Ce script exécute réellement le noyau WGSL dans Chromium WebGPU, deux fois sur les mêmes cas :
-// la version corrigée telle qu'elle est livrée, et la version AVANT reconstruite par
-// `substitutionAvant.mjs`, qui établit la substitution au lieu de l'espérer.
+// This script actually runs the WGSL kernel in Chromium WebGPU, twice on the same cases:
+// the fixed version as shipped, and the PREVIOUS version rebuilt by `substitutionAvant.mjs`,
+// which establishes the substitution instead of hoping for it.
 //
-// DEUX POPULATIONS SOUS UN MÊME MOT. « 560 suppressions avant, 54 après » ne prouve rien tout seul :
-// supprimer une face peut être CORRECT (le moteur ne la dessine pas) ou FAUX (il la dessine), et ces
-// deux comptes-là se lisaient sur `veriteTerrain`, l'orientation géométrique BRUTE, qui ignore que
-// le moteur échange la face éliminée sous réflexion. Ce banc compare désormais chaque suppression à
-// l'oracle d'orientation vraie — la rasterisation réelle des mêmes cas avec l'état de face du
-// moteur (`inverseTransposeOracle.mjs`) — et publie les populations séparées.
+// TWO POPULATIONS UNDER ONE WORD. "560 culls before, 54 after" proves nothing on its own:
+// culling a face can be CORRECT (the engine does not draw it) or WRONG (it does), and those
+// two counts used to be read on `veriteTerrain`, the RAW geometric orientation, which ignores
+// that the engine swaps the culled face under reflection. This bench now compares each cull
+// to the true-orientation oracle — actual rasterisation of the same cases with the engine's
+// face state (`inverseTransposeOracle.mjs`) — and publishes the populations separately.
 //
 // node --experimental-strip-types \
 //   test/justesse/inverse-transposee-petite-echelle.mjs
@@ -22,7 +22,7 @@ import assert from 'node:assert/strict';
 import { cameraSelectionUniforms } from '../../packages/sdk-browser/gpuSelection.ts';
 import { DAG_SELECTION_SHADER } from '../../packages/sdk-browser/gpuDagShader.ts';
 import {
-  INVERSE_TRANSPOSE_AVANT_WGSL,
+  INVERSE_TRANSPOSE_BEFORE_WGSL,
   INVERSE_TRANSPOSE_WGSL,
 } from '../../packages/sdk-browser/inverseTransposeWgsl.ts';
 import {
@@ -38,53 +38,53 @@ import { classement, dessineParLeMoteur } from './inverseTransposeOracle.mjs';
 import { selectionGpu } from './noyauSelectionGpu.mjs';
 import { substitueFormeAvant } from './substitutionAvant.mjs';
 
-// --- Le texte d'avant le lot, remis dans le shader livré -----------------------------------------
-// Les deux textes viennent d'`inverseTransposeWgsl.ts` : le banc ne réécrit ni le seuil corrigé ni
-// celui d'avant, sans quoi il rejouerait sa propre variante du défaut plutôt que le défaut.
+// --- Pre-batch text, put back into the shipped shader -------------------------------------------
+// Both texts come from `inverseTransposeWgsl.ts`: the bench rewrites neither the corrected
+// threshold nor the old one, or it would replay its own variant of the defect, not the defect.
 const SHADER_AVANT = substitueFormeAvant({
   texte: DAG_SELECTION_SHADER,
   livre: INVERSE_TRANSPOSE_WGSL,
-  avant: INVERSE_TRANSPOSE_AVANT_WGSL,
-  nom: 'DAG_SELECTION_SHADER (gpuDagShader.ts)',
+  before: INVERSE_TRANSPOSE_BEFORE_WGSL,
+  name: 'DAG_SELECTION_SHADER (gpuDagShader.ts)',
   origine: 'packages/sdk-browser/inverseTransposeWgsl.ts',
   marqueur: 'abs(det)<1e-20',
 });
 
-// --- CPU, vérité brute et oracle du moteur ------------------------------------------------------
+// --- CPU, raw truth and engine oracle ------------------------------------------------------------
 const verites = tousLesCas.map(veriteTerrain);
 const cpus = tousLesCas.map(decisionCpu);
 const champs = tousLesCas.map(dansLeChamp);
 const moteur = await dessineParLeMoteur(tousLesCas);
 
-// --- GPU réellement exécuté, un seul lot de dispatch par version --------------------------------
+// --- GPU actually executed, one dispatch batch per version ---------------------------------------
 const uniforms = cameraSelectionUniforms(vue, 0, VIEWPORT);
 const packed = empaqueteCas(tousLesCas);
 
-/** Les pages rejetées par le noyau WGSL, pour un texte de shader donné. */
+/** Pages rejected by the WGSL kernel, for a given shader text. */
 async function rejetsGpu(shader) {
-  const gpu = await selectionGpu([{ nom: 'lot', packed, uniforms }], shader);
-  assert.equal(gpu.indisponible ?? null, null, `GPU indisponible : ${gpu.indisponible}`);
+  const gpu = await selectionGpu([{ name: 'lot', packed, uniforms }], shader);
+  assert.equal(gpu.indisponible ?? null, null, `GPU unavailable: ${gpu.indisponible}`);
   assert.deepEqual([...(gpu.compilation ?? []), ...(gpu.erreurs ?? [])], [], 'WGSL');
-  const gardees = new Set(gpu.resultats.find((r) => r.nom === 'lot').pages);
+  const gardees = new Set(gpu.resultats.find((r) => r.name === 'lot').pages);
   return { adaptateur: gpu.adaptateur, rejets: tousLesCas.map((_, i) => !gardees.has(i)) };
 }
 
-const avant = await rejetsGpu(SHADER_AVANT);
-const apres = await rejetsGpu(DAG_SELECTION_SHADER);
+const before = await rejetsGpu(SHADER_AVANT);
+const after = await rejetsGpu(DAG_SELECTION_SHADER);
 
-// --- Classement : les populations, séparées ------------------------------------------------------
+// --- Classification: the populations, kept apart -------------------------------------------------
 const { index, fausses, population } = classement({ cas: tousLesCas, verites, moteur });
-const popAvant = population(avant.rejets);
-const popApres = population(apres.rejets);
-const changements = index.filter((i) => avant.rejets[i] !== apres.rejets[i]);
+const popAvant = population(before.rejets);
+const popApres = population(after.rejets);
+const changements = index.filter((i) => before.rejets[i] !== after.rejets[i]);
 const aCetteEchelle = (s, liste) => liste.filter((i) => tousLesCas[i].s === s).length;
 const parEchelle = Object.fromEntries(
   SCALES.map((s) => [
     s,
     {
       cas: aCetteEchelle(s, index),
-      faussesAvant: aCetteEchelle(s, fausses(avant.rejets)),
-      faussesApres: aCetteEchelle(s, fausses(apres.rejets)),
+      faussesAvant: aCetteEchelle(s, fausses(before.rejets)),
+      faussesApres: aCetteEchelle(s, fausses(after.rejets)),
       selectionsChangees: aCetteEchelle(s, changements),
     },
   ]),
@@ -93,7 +93,7 @@ const parEchelle = Object.fromEntries(
 console.log(
   JSON.stringify(
     {
-      adaptateurGpu: apres.adaptateur,
+      adaptateurGpu: after.adaptateur,
       adaptateurOracle: moteur.adaptateur,
       totalCas: tousLesCas.length,
       dessinesParLeMoteur: moteur.dessine.filter(Boolean).length,
@@ -107,16 +107,16 @@ console.log(
         verite: verites[0],
         fragmentsDuMoteur: moteur.fragments[0],
         cpu: cpus[0],
-        gpuAvant: avant.rejets[0],
-        gpuApres: apres.rejets[0],
+        gpuAvant: before.rejets[0],
+        gpuApres: after.rejets[0],
       },
-      temoins: DETERMINISTES.slice(1).map(([nom], k) => ({
-        nom,
+      temoins: DETERMINISTES.slice(1).map(([name], k) => ({
+        name,
         verite: verites[k + 1].avantVisible,
         fragmentsDuMoteur: moteur.fragments[k + 1],
         cpuRejette: cpus[k + 1].coneRejette,
-        gpuAvant: avant.rejets[k + 1],
-        gpuApres: apres.rejets[k + 1],
+        gpuAvant: before.rejets[k + 1],
+        gpuApres: after.rejets[k + 1],
       })),
     },
     null,
@@ -124,77 +124,73 @@ console.log(
   ),
 );
 
-// --- Le contre-exemple : le défaut, puis sa disparition ------------------------------------------
+// --- The counter-example: the defect, then its disappearance -------------------------------------
 const nettementDeFace = (t) => t.face > 0.5 && t.airePixels > 100;
-assert.ok(champs[0], 'le contre-exemple doit être dans le champ');
-assert.ok(verites[0].triangles.every(nettementDeFace), 'les deux triangles doivent être de face');
-assert.ok(moteur.fragments[0] > 0, 'le contre-exemple doit être dessiné par le moteur lui-même');
-assert.equal(cpus[0].conforme, true, 'CPU : la transformation doit être jugée conforme');
-assert.equal(cpus[0].rejette, false, 'CPU : selectVisiblePages doit garder les 2 triangles');
-assert.equal(avant.rejets[0], true, 'avant le lot : le noyau WGSL supprimait le cluster visible');
-assert.equal(apres.rejets[0], false, 'après le lot : le noyau WGSL garde le cluster visible');
+assert.ok(champs[0], 'the counter-example must be in the field of view');
+assert.ok(verites[0].triangles.every(nettementDeFace), 'both triangles must be front-facing');
+assert.ok(moteur.fragments[0] > 0, 'the counter-example must be drawn by the engine itself');
+assert.equal(cpus[0].conforme, true, 'CPU: the transform must be judged conforming');
+assert.equal(cpus[0].rejette, false, 'CPU: selectVisiblePages must keep both triangles');
+assert.equal(before.rejets[0], true, 'before: WGSL culled the visible cluster');
+assert.equal(after.rejets[0], false, 'after: WGSL keeps the visible cluster');
 
-// --- Les populations, chacune tenue séparément ---------------------------------------------------
+// --- The populations, each held separately -------------------------------------------------------
 assert.ok(
   popAvant.fausses > 0,
-  'le défaut doit se voir contre l’oracle du moteur, pas seulement contre la vérité brute',
+  'the defect must show against the engine oracle, not only against raw truth',
 );
 assert.equal(
   popApres.fausses,
   0,
-  `après le lot, ${popApres.fausses} cluster(s) que le moteur dessine sont encore supprimés`,
+  `after the batch, ${popApres.fausses} cluster(s) the engine draws are still culled`,
 );
 assert.equal(
   popApres.brutes,
   popApres.brutesNonDessinees,
-  `les ${popApres.brutes} suppressions restantes doivent toutes être des faces que le moteur ne ` +
-    'dessine pas ; la vérité brute seule ne peut pas en juger',
+  `the ${popApres.brutes} remaining culls must all be faces the engine does not ` +
+    'draw; raw truth alone cannot judge',
 );
-// L'ancien compte se partage exactement, et il lui manquait une part entière : les deux invariants
-// du classement, tenus des deux côtés, disent en chiffres que « 560 » et « 54 » ne mesuraient pas
-// ce qu'ils annonçaient.
-for (const [nom, pop] of [
-  ['avant', popAvant],
-  ['après', popApres],
+// The old count partitions exactly, and a whole share was missing: the two classification
+// invariants, held on both sides, say in numbers that "560" and "54" did not measure
+// what they claimed.
+for (const [name, pop] of [
+  ['before', popAvant],
+  ['after', popApres],
 ]) {
   assert.equal(
     pop.brutes,
     pop.brutesDessinees + pop.brutesNonDessinees,
-    `${nom} : le compte de la vérité brute ne se partage pas`,
+    `${name}: the raw-truth count does not partition`,
   );
   assert.equal(
     pop.fausses,
     pop.brutesDessinees + pop.manqueesParLaVeriteBrute,
-    `${nom} : le compte des vraies suppressions ne se partage pas`,
+    `${name}: the true-cull count does not partition`,
   );
 }
 assert.ok(
   popAvant.brutesNonDessinees > 0 && popAvant.manqueesParLaVeriteBrute > 0,
-  'le compte d’avant se trompait dans les deux sens : s’il cesse de le faire, le dire ici',
+  'the old count was wrong both ways: if it stops being, say so here',
 );
 
-// --- Ce que le lot ne doit pas changer -----------------------------------------------------------
+// --- What the batch must not change --------------------------------------------------------------
 assert.deepEqual(
   changements.filter((i) => HORS_BANDE.includes(tousLesCas[i].s)),
   [],
-  'hors de la bande du seuil (det ≥ 1e-20), aucune sélection ne doit changer',
+  'outside the threshold band (det ≥ 1e-20), no selection may change',
 );
-assert.equal(apres.rejets[1], false, 'témoin grande échelle : det ≫ 1e-20, le GPU garde');
-assert.equal(verites[2].avantVisible, false, 'témoin sans rotation : les faces sont bien de dos');
-assert.equal(moteur.fragments[2], 0, 'témoin sans rotation : le moteur n’en dessine rien');
-assert.equal(apres.rejets[2], true, 'témoin sans rotation : le rejet légitime doit être conservé');
-assert.equal(
-  apres.rejets[3],
-  false,
-  'témoin non conforme : jamais rejeté, quelle que soit la rotation',
-);
+assert.equal(after.rejets[1], false, 'large-scale witness: det ≫ 1e-20, the GPU keeps');
+assert.equal(verites[2].avantVisible, false, 'no-rotation: faces are back-facing');
+assert.equal(moteur.fragments[2], 0, 'no-rotation witness: the engine draws none of them');
+assert.equal(after.rejets[2], true, 'no-rotation witness: the legitimate cull must be kept');
+assert.equal(after.rejets[3], false, 'non-conforming witness: never culled, whatever the rotation');
 
 console.error(
-  `Verdict : défaut 6 RÉEL — mesuré contre ce que le moteur DESSINE, ${popAvant.fausses} clusters ` +
-    `sur ${tousLesCas.length} étaient supprimés avant le lot, ${popApres.fausses} après. ` +
-    `Le compte d'autrefois, « ${popAvant.brutes} avant, ${popApres.brutes} après », lisait la ` +
-    `vérité BRUTE : avant le lot il comptait ${popAvant.brutesNonDessinees} suppressions ` +
-    `légitimes comme des défauts et en manquait ${popAvant.manqueesParLaVeriteBrute} qui en ` +
-    `étaient. 0 sélection changée hors bande, ${moteur.dessine.filter(Boolean).length} clusters ` +
-    `dessinés sur ${tousLesCas.length}. Noyau ${apres.adaptateur}, oracle ${moteur.adaptateur}.`,
+  `Verdict: defect 6 REAL — measured against what the engine DRAWS, ${popAvant.fausses} clusters ` +
+    `of ${tousLesCas.length} were culled before the batch, ${popApres.fausses} after. ` +
+    `The old count, "${popAvant.brutes} before, ${popApres.brutes} after", read RAW ` +
+    `truth: before the batch it counted ${popAvant.brutesNonDessinees} legitimate culls ` +
+    `as defects and missed ${popAvant.manqueesParLaVeriteBrute} that were. ` +
+    `0 selection changed outside the band, ${moteur.dessine.filter(Boolean).length} clusters ` +
+    `drawn of ${tousLesCas.length}. Kernel ${after.adaptateur}, oracle ${moteur.adaptateur}.`,
 );

@@ -1,8 +1,8 @@
-// `composeFace` est passée d'un produit 4×4 écrit en ligne (accumulateur initialisé à `0`) à
-// `multiplyMatrix4`, qui ne part d'aucun zéro : `mathMatrix4.test.ts` prouve que cette forme peut
-// rendre -0 là où l'ancienne rendait toujours +0. Ce test vérifie si cet écart atteint la sortie
-// publique de `composeFace`, sur des directions et yeux hostiles aux zéros signés ; l'oracle est le
-// code d'avant, recopié tel quel dans `sdk-browser/bench/oracles/socle-math-ombres.mjs`.
+// `composeFace` moved from an inlined 4×4 product (accumulator started at `0`) to
+// `multiplyMatrix4`, which starts from no zero: `mathMatrix4.test.ts` proves that form can
+// yield -0 where the old one always yielded +0. This test checks whether that gap reaches the
+// public output of `composeFace`, on directions and eyes hostile to signed zeros; the oracle is the
+// previous code, copied as-is into `sdk-browser/bench/oracles/socle-math-ombres.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { composeFace, shadowOrthographic, shadowProjection } from './sceneLightShadowMath.ts';
@@ -12,8 +12,8 @@ import {
   referenceShadowProjection,
 } from '../sdk-browser/bench/oracles/socle-math-ombres.mjs';
 
-/** Les six axes ponctuels, puis chacun avec ses composantes nulles rendues négatives, une à une et
- *  toutes ensemble : la même hostilité que `POINT_FACE_AXES` du banc. */
+/** The six point axes, then each with its zero components made negative, one by one and
+ *  all together: the same hostility as the bench's `POINT_FACE_AXES`. */
 const AXES: ReadonlyArray<readonly [number, number, number]> = [
   [1, 0, 0],
   [-1, 0, 0],
@@ -36,10 +36,10 @@ const YEUX: ReadonlyArray<readonly [number, number, number]> = [
   [3, -4, 5],
 ];
 
-test('composeFace : axes et zéros signés hostiles, perspective et orthographique — bit à bit contre le code d’avant', () => {
+test('composeFace: hostile axes and signed zeros, perspective and orthographic — bit-exact against the previous code', () => {
   let compares = 0;
   for (const axe of AXES)
-    for (const avant of variantesZeroSigne(axe))
+    for (const forward of variantesZeroSigne(axe))
       for (const oeil of YEUX)
         for (const perspective of [true, false]) {
           const proj = new Float32Array(16);
@@ -52,25 +52,25 @@ test('composeFace : axes et zéros signés hostiles, perspective et orthographiq
           }
           const attendu = new Float32Array(16),
             recu = new Float32Array(16);
-          referenceComposeFace(attendu, 0, oeil, avant, proj);
-          composeFace(recu, 0, oeil, avant);
+          referenceComposeFace(attendu, 0, oeil, forward, proj);
+          composeFace(recu, 0, oeil, forward);
           compares++;
           for (let i = 0; i < 16; i++)
             assert.ok(
               Object.is(attendu[i], recu[i]),
-              `avant=${avant} oeil=${oeil} perspective=${perspective} i=${i} : ${attendu[i]} ≠ ${recu[i]}`,
+              `forward=${forward} eye=${oeil} perspective=${perspective} i=${i}: ${attendu[i]} ≠ ${recu[i]}`,
             );
         }
-  assert.ok(compares >= 200, `${compares} comparaisons, jeu trop petit`);
+  assert.ok(compares >= 200, `${compares} comparisons, set too small`);
 });
 
-// Lot perf-2 : `composeFace` compose désormais à part (`multiplyMatrix4` sans décalage) puis recopie
-// ses seize nombres à `out[base..base+15]`. Le test ci-dessus ne porte que sur `base = 0` ; les
-// appelants réels (`sceneLightShadowFaces.ts`, `sceneLightSunFaces.ts`) empaquettent plusieurs faces
-// dans un même tampon à des décalages non nuls. Ce test tient la recopie : bit à bit contre la même
-// référence à un décalage quelconque, et rien d'écrit hors des seize indices ciblés.
-test('composeFace : la recopie à un décalage non nul rend les mêmes bits, sans toucher au reste du tampon', () => {
-  const BASE = 32; // une troisième face dans un tampon de faces packées à seize flottants chacune
+// Batch perf-2: `composeFace` now composes aside (`multiplyMatrix4` without offset) then copies
+// its sixteen numbers to `out[base..base+15]`. The test above only covers `base = 0`; the
+// real callers (`sceneLightShadowFaces.ts`, `sceneLightSunFaces.ts`) pack several faces
+// in one buffer at non-zero offsets. This test holds the copy: bit-exact against the same
+// reference at an arbitrary offset, and nothing written outside the sixteen targeted indices.
+test('composeFace: copy at a non-zero offset yields the same bits, without touching the rest of the buffer', () => {
+  const BASE = 32; // a third face in a packed-face buffer of sixteen floats each
   const eyes: ReadonlyArray<readonly [number, number, number]> = [
     [0, 0, 0],
     [3, -4, 5],
@@ -82,7 +82,7 @@ test('composeFace : la recopie à un décalage non nul rend les mêmes bits, san
     [0, 0, -1],
   ];
   for (const oeil of eyes)
-    for (const avant of avants)
+    for (const forward of avants)
       for (const perspective of [true, false]) {
         const proj = new Float32Array(16);
         if (perspective) {
@@ -92,16 +92,16 @@ test('composeFace : la recopie à un décalage non nul rend les mêmes bits, san
           referenceShadowOrthographic(proj, 5, 100);
           shadowOrthographic(5, 100);
         }
-        // Rempli d'une sentinelle avant la face : les deux côtés partent du même tampon « sale », et
-        // un écart hors de [BASE, BASE+16[ — recopie décalée d'un cran, garde débordante — le montre.
+        // Filled with a sentinel before the face: both sides start from the same "dirty" buffer, and
+        // a gap outside [BASE, BASE+16) — copy shifted by one, overflowing guard — shows it.
         const gardeAttendu = new Float32Array(BASE + 16).fill(7),
           gardeRecu = new Float32Array(BASE + 16).fill(7);
-        referenceComposeFace(gardeAttendu, BASE, oeil, avant, proj);
-        composeFace(gardeRecu, BASE, oeil, avant);
+        referenceComposeFace(gardeAttendu, BASE, oeil, forward, proj);
+        composeFace(gardeRecu, BASE, oeil, forward);
         for (let i = 0; i < BASE + 16; i++)
           assert.ok(
             Object.is(gardeAttendu[i], gardeRecu[i]),
-            `oeil=${oeil} avant=${avant} i=${i} : ${gardeAttendu[i]} ≠ ${gardeRecu[i]}`,
+            `eye=${oeil} forward=${forward} i=${i}: ${gardeAttendu[i]} ≠ ${gardeRecu[i]}`,
           );
       }
 });

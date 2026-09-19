@@ -15,9 +15,9 @@ async function model(sheet) {
   return directory;
 }
 
-// Comportement : une texture partagée par deux modèles ne fait qu'une ligne — la réponse porte sur
-// les octets de l'image —, et ce qu'elle tient de primitives en mélange s'additionne.
-test('une image partagée ne fait qu’une ligne, et ses primitives s’additionnent', () => {
+// Behaviour: a texture shared by two models makes one row — the answer is keyed by the image
+// bytes — and the blended primitives it holds add up.
+test('a shared image makes one row, and its primitives add up', () => {
   const pending = pendingOf([
     { name: 'emerald', sheet: { version: 1, textures: { abc: { ...leaf }, def: { ...glass } } } },
     { name: 'bistro', sheet: { version: 1, textures: { abc: { ...leaf, blendPrimitives: 5 } } } },
@@ -30,11 +30,11 @@ test('une image partagée ne fait qu’une ligne, et ses primitives s’addition
       ['vitre.png', 1, ['emerald']],
     ],
   );
-  assert.equal(pending[0].proposal, true, 'la proposition voyage avec la ligne');
+  assert.equal(pending[0].proposal, true, 'the proposal travels with the row');
 });
 
-// Comportement : ce qui est déjà tranché, et ce que le modèle n'emploie plus, ne se redemande pas.
-test('une texture déjà tranchée ou inutilisée ne se redemande pas', () => {
+// Behaviour: what is already decided, and what the model no longer uses, is not asked again.
+test('an already-decided or unused texture is not asked again', () => {
   const textures = {
     abc: { ...leaf, cutout: true },
     def: { ...leaf, cutout: false },
@@ -48,9 +48,9 @@ test('une texture déjà tranchée ou inutilisée ne se redemande pas', () => {
   );
 });
 
-// Comportement : la réponse n'entre que dans les feuilles qui connaissent la texture. Une réponse
-// portant sur une image qu'un modèle n'emploie pas ne l'invente pas dans sa feuille.
-test('la réponse n’entre que dans les feuilles qui connaissent la texture', async () => {
+// Behaviour: the answer only enters sheets that know the texture. An answer about an image a
+// model does not use is not invented in its sheet.
+test('the answer only enters sheets that know the texture', async () => {
   const directory = await model({ version: 1, textures: { abc: { ...leaf } } });
   const sheet = await readSheet(directory);
   const changed = await answerSheet(
@@ -68,13 +68,13 @@ test('la réponse n’entre que dans les feuilles qui connaissent la texture', a
   assert.equal(
     await answerSheet(directory, written, new Map([['abc', true]])),
     false,
-    'une réponse qui ne change rien ne réécrit rien',
+    'an answer that changes nothing rewrites nothing',
   );
 });
 
-// Comportement : une feuille d'une version inconnue est refusée plutôt que devinée, et un modèle
-// sans feuille n'a simplement rien à trancher.
-test('une feuille inconnue est refusée, une feuille absente ne dit rien', async () => {
+// Behaviour: a sheet of an unknown version is refused rather than guessed, and a model with no
+// sheet simply has nothing to decide.
+test('an unknown sheet is refused, a missing sheet says nothing', async () => {
   const directory = await model({ version: 99, textures: {} });
   await assert.rejects(() => readSheet(directory), /version 99/);
   assert.equal(await readSheet(await mkdtemp(join(tmpdir(), 'wg-vide-'))), null);

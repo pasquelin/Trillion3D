@@ -1,110 +1,110 @@
-//! Les noms de tout ce que ce pilote ne rend pas, et le classement des types de nœuds.
+//! Names of everything this driver does not yield, and the classification of node types.
 //!
-//! Aucun de ces refus n'est un échec de compilation : une caméra, un script ou une surface NURBS au
-//! milieu d'une scène ne doit pas empêcher d'en voir les murs. Ils sont comptés, publiés dans
-//! `unsupported` du manifeste, et le rapport dit combien de fois chacun a été rencontré. Une scène
-//! qui, après tout cela, ne porte aucune surface est refusée, elle, par `IMPORT_EMPTY`.
+//! None of these refusals is a compilation failure: a camera, a script or a NURBS surface in the
+//! middle of a scene must not prevent seeing its walls. They are counted, published in the
+//! manifest's `unsupported`, and the report says how many times each was met. A scene that,
+//! after all that, carries no surface is refused, itself, by `IMPORT_EMPTY`.
 
-/// Une commande hors du sous-ensemble lu. Le nom de la commande suit les deux points : rien n'est
-/// exécuté, et le rapport dit exactement ce que le fichier demandait.
+/// A command outside the subset that is read. The command name follows the colon: nothing is
+/// executed, and the report says exactly what the file asked for.
 pub(super) const COMMAND_IGNORED: &str = "ma-command-ignored";
-/// Un type de nœud que ce pilote ne convertit pas — caméra, lampe, surface NURBS, squelette, nœud
-/// de script, nœud d'outil. Le type suit les deux points.
+/// A node type this driver does not convert — camera, light, NURBS surface, skeleton, script
+/// node, tool node. The type follows the colon.
 pub(super) const NODE_IGNORED: &str = "ma-node-ignored";
-/// Un `setAttr` sans nœud à qui l'appliquer : aucun `createNode` ni `select` ne l'a précédé, ou le
-/// nom sélectionné n'est pas un nœud de ce fichier.
+/// A `setAttr` with no node to apply it to: no `createNode` or `select` preceded it, or the
+/// selected name is not a node of this file.
 pub(super) const ATTRIBUTE_UNATTACHED: &str = "ma-attribute-unattached";
-/// Un `setAttr` dont les valeurs ne tombent pas sur son intervalle d'indices, dont le type n'est pas
-/// lu, ou dont le rang dépasse le plafond d'éléments du pilote.
+/// A `setAttr` whose values do not fall on its index range, whose type is not read, or whose
+/// rank exceeds the driver's element ceiling.
 pub(super) const ATTRIBUTE_INVALID: &str = "ma-attribute-invalid";
-/// Une commande `parent` que ce pilote ne rejoue pas : elle ne cite pas une forme maillée et un
-/// transform connus, ou elle retire au lieu d'ajouter.
+/// A `parent` command this driver does not replay: it does not cite a known meshed shape and
+/// transform, or it removes instead of adding.
 pub(super) const PARENT_UNSUPPORTED: &str = "ma-parent-unsupported";
-/// Un nom de nœud que le fichier écrit sans chemin alors que plusieurs nœuds le portent : Maya
-/// aurait exigé le chemin complet. C'est le premier nœud écrit qui répond, et l'écart est compté.
+/// A node name the file writes without a path while several nodes carry it: Maya would have
+/// required the full path. It is the first written node that matches, and the mismatch is counted.
 pub(super) const NAME_AMBIGUOUS: &str = "ma-name-ambiguous";
-/// Un nœud `transform` dont les nombres ne sont pas finis : il reste à l'identité.
+/// A `transform` node whose numbers are not finite: it stays at identity.
 pub(super) const TRANSFORM_INVALID: &str = "ma-transform-invalid";
-/// Une hiérarchie plus profonde que ce que ce pilote parcourt, une chaîne de pères circulaire
-/// comprise : la branche est coupée là, sans faire déborder la pile.
+/// A hierarchy deeper than this driver walks, a circular parent chain included: the branch is
+/// cut there, without overflowing the stack.
 pub(super) const HIERARCHY_TOO_DEEP: &str = "ma-hierarchy-too-deep";
-/// Une matrice écrite autrement que par ses seize nombres — la forme longue `xform` de `setAttr` :
-/// elle n'est pas devinée, et le nœud garde la pose que ses autres attributs lui donnent.
+/// A matrix written otherwise than by its sixteen numbers — the long `xform` form of `setAttr`:
+/// it is not guessed, and the node keeps the pose its other attributes give it.
 pub(super) const MATRIX_UNSUPPORTED: &str = "ma-matrix-unsupported";
-/// Une forme intermédiaire : l'entrée d'un historique de construction, que Maya n'affiche jamais.
+/// An intermediate shape: the input of a construction history, which Maya never displays.
 pub(super) const SHAPE_INTERMEDIATE: &str = "ma-shape-intermediate";
-/// Un maillage dont les tableaux se contredisent : coin hors de la table des arêtes, arête hors de
-/// la table des sommets, ou `.vt` absent.
+/// A mesh whose tables contradict each other: corner outside the edge table, edge outside the
+/// vertex table, or `.vt` missing.
 pub(super) const MESH_INVALID: &str = "ma-mesh-invalid";
-/// Un maillage qui ne donne aucun triangle : aucune face, ou toutes dégénérées.
+/// A mesh that yields no triangle: no face, or all degenerate.
 pub(super) const MESH_EMPTY: &str = "ma-mesh-empty";
-/// Une face de moins de trois coins : rien à trianguler.
+/// A face of fewer than three corners: nothing to triangulate.
 pub(super) const DEGENERATE_FACE: &str = "ma-degenerate-face";
-/// Une face déclare un trou. L'éventail depuis son premier coin le remplirait, donc la face est
-/// laissée : la silhouette d'un trou n'est pas devinée.
+/// A face declares a hole. A fan from its first corner would fill it, so the face is left: the
+/// silhouette of a hole is not guessed.
 pub(super) const FACE_HOLE: &str = "ma-face-hole-unsupported";
-/// Une face que la coupe par oreilles n'a pas su découper entièrement : polygone qui se recoupe,
-/// ou sans plan — coins tous alignés, aire nulle. Elle sort en éventail depuis son premier coin,
-/// ce qui peut la remplir au-delà de sa silhouette, et c'est ce que ce compte dit.
+/// A face that ear clipping could not cut entirely: a self-intersecting polygon, or with no
+/// plane — corners all colinear, zero area. It comes out as a fan from its first corner, which
+/// may fill it beyond its silhouette, and that is what this count says.
 pub(super) const NGON_UNCUT: &str = "ma-ngon-untriangulable";
-/// Un enregistrement de `.fc` hors de ceux que la documentation décrit.
+/// A `.fc` record outside those the documentation describes.
 pub(super) const FACE_RECORD_IGNORED: &str = "ma-face-record-ignored";
-/// Un enregistrement de face que l'écriture ne raccroche à aucune face.
+/// A face record that the writing does not hang onto any face.
 pub(super) const FACE_INVALID: &str = "ma-face-record-invalid";
-/// Des coordonnées de texture écartées : `mu` sans face, jeu d'UV au-delà du premier, ou rang hors
-/// de la table `.uvst[0].uvsp`.
+/// Texture coordinates dropped: `mu` without a face, UV set beyond the first, or rank outside
+/// the `.uvst[0].uvsp` table.
 pub(super) const UV_DROPPED: &str = "ma-uv-dropped";
-/// Des normales écartées : `.n` ne compte ni un vecteur par sommet ni un par coin de face.
+/// Normals dropped: `.n` counts neither one vector per vertex nor one per face corner.
 pub(super) const NORMALS_DROPPED: &str = "ma-normals-dropped";
-/// Aucune normale écrite : elles sont calculées depuis la géométrie et le drapeau de dureté de
-/// chaque arête, la seule marque de lissage qu'un `.ma` porte — lisse d'un bout à l'autre d'une
-/// arête douce, coupé sur une arête dure.
+/// No written normals: they are computed from geometry and each edge's hardness flag, the only
+/// smoothing mark a `.ma` carries — smooth from one end of a soft edge to the other, cut on a
+/// hard edge.
 pub(super) const NORMALS_COMPUTED: &str = "ma-normals-computed";
-/// Un groupe de faces d'un `instObjGroups` dont la liste de composants ne désigne pas des faces.
+/// A face group of an `instObjGroups` whose component list does not name faces.
 pub(super) const FACE_MATERIAL_INVALID: &str = "ma-face-material-invalid";
-/// Des faces qu'aucun `shadingGroup` ne réclame, alors que d'autres faces du même maillage sont
-/// liées : elles sortent dans une primitive sans matériau plutôt que d'être jetées.
+/// Faces that no `shadingGroup` claims, while other faces of the same mesh are bound: they come
+/// out in a primitive without a material rather than being thrown away.
 pub(super) const FACE_MATERIAL_MISSING: &str = "ma-face-material-missing";
-/// Un nuanceur lié à une surface hors des quatre que ce pilote convertit.
+/// A shader bound to a surface outside the four this driver converts.
 pub(super) const MATERIAL_UNSUPPORTED: &str = "ma-material-unsupported";
-/// Une transparence de couleur dont les trois canaux diffèrent : glTF n'a qu'un alpha, et c'est
-/// leur moyenne qui est portée plutôt qu'un canal choisi au hasard.
+/// A colour transparency whose three channels differ: glTF has only one alpha, and it is their
+/// mean that is carried rather than a channel picked at random.
 pub(super) const TRANSPARENCY_COLOUR: &str = "ma-transparency-colour-unsupported";
-/// Une émission au-delà de un, que `emissiveFactor` ne porte pas : elle est ramenée et comptée.
+/// An emission beyond one, which `emissiveFactor` does not carry: it is clamped and counted.
 pub(super) const EMISSION_CLAMPED: &str = "ma-emission-clamped";
-/// Un `bump2d` en relief de hauteur (`bumpInterp` 0) : glTF ne porte pas de carte de hauteur, et la
-/// prendre pour une carte de normales éclairerait la surface par une image qui n'en dit pas
-/// l'orientation. Le relief est compté, la surface reste sans `normalTexture`.
+/// A `bump2d` in height bump (`bumpInterp` 0): glTF carries no height map, and taking it for a
+/// normal map would light the surface from an image that does not say its orientation. The bump
+/// is counted, the surface stays without `normalTexture`.
 pub(super) const BUMP_HEIGHT: &str = "ma-bump-height-unsupported";
-/// Un `bump2d` en normales d'espace objet (`bumpInterp` 2) : `normalTexture` de glTF est lue en
-/// espace tangent, et convertir demanderait la pose de la surface au moment du rendu.
+/// A `bump2d` in object-space normals (`bumpInterp` 2): glTF's `normalTexture` is read in
+/// tangent space, and converting would need the surface pose at render time.
 pub(super) const BUMP_OBJECT: &str = "ma-bump-object-space-unsupported";
-/// Un `place2dTexture` qui déplace le placage — répétition, décalage, rotation : `KHR_texture_transform`
-/// le porterait, et l'écrivain glTF de ce dépôt ne déclare pas cette extension.
+/// A `place2dTexture` that moves the mapping — repeat, offset, rotation: `KHR_texture_transform`
+/// would carry it, and this repository's glTF writer does not declare that extension.
 pub(super) const TEXTURE_TRANSFORM: &str = "ma-texture-transform-unsupported";
-/// Un `place2dTexture` qui renvoie la texture en miroir (`mirrorU`, `mirrorV`) : aucun mode de
-/// répétition de glTF ne fait ce pliage.
+/// A `place2dTexture` that mirrors the texture (`mirrorU`, `mirrorV`): no glTF wrap mode does
+/// that folding.
 pub(super) const TEXTURE_MIRROR: &str = "ma-texture-mirror-unsupported";
-/// Une texture dont le fichier est absent, hors du dossier de la source, ou d'un format que le
-/// registre d'images ne lit pas.
+/// A texture whose file is missing, outside the source directory, or of a format the image
+/// registry does not read.
 pub(super) const TEXTURE_MISSING: &str = "ma-texture-missing";
-/// Une texture que ce pilote n'accroche pas telle quelle : entrée branchée sur un calcul, carte de
-/// métal ou de rugosité seule, ou opacité venant d'une autre image que la couleur de base.
+/// A texture this driver does not hang as-is: an input wired onto a computation, a metal or
+/// roughness map alone, or opacity coming from an image other than the base colour.
 pub(super) const TEXTURE_UNSUPPORTED: &str = "ma-texture-unsupported";
 
-/// Le nœud porte-t-il la transformation d'une branche de la hiérarchie ? Seul `transform` est lu :
-/// un `joint` ou un `ikHandle` porte d'autres attributs d'orientation, que ce pilote ne lit pas, et
-/// le prendre pour un `transform` trahirait sa pose. Il est donc compté.
+/// Does the node carry the transform of a hierarchy branch? Only `transform` is read: a `joint`
+/// or an `ikHandle` carries other orientation attributes, which this driver does not read, and
+/// taking it for a `transform` would betray its pose. It is therefore counted.
 pub(super) fn is_transform(kind: &str) -> bool {
     kind == "transform"
 }
 
-/// Le nœud décrit-il une surface polygonale ?
+/// Does the node describe a polygonal surface?
 pub(super) fn is_mesh(kind: &str) -> bool {
     kind == "mesh"
 }
 
-/// Le nœud décrit-il un nuanceur de surface que ce pilote convertit ?
+/// Does the node describe a surface shader this driver converts?
 pub(super) fn is_shader(kind: &str) -> bool {
     matches!(kind, "lambert" | "phong" | "blinn" | "standardSurface")
 }

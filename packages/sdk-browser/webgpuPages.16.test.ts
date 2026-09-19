@@ -145,8 +145,8 @@ test('moving opaque cameras use the current GPU selection without CPU reselectio
       cam.updateMatrixWorld();
       draws.length = 0;
       backend.render(cam);
-      // La sélection de l'IMAGE EN COURS, lue dans son masque : c'est elle que les commandes
-      // indirectes consomment en instances, sans attendre le relevé d'une image passée.
+      // Selection of the CURRENT IMAGE, read in its mask: that is what the indirect commands consume
+      // as instances, without waiting for a past image's sample.
       assert.equal(
         drawnPageIds(buffers, packed.nodeCount, packed.pageCount).length,
         target ? 0 : 2,

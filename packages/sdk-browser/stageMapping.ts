@@ -9,21 +9,21 @@ import { SHADOW_PASS } from './gpuShadowAtlas.ts';
 import type { StageAdd } from './stageProfiler.ts';
 
 /**
- * Les deux blocs d'une image que l'on sait mettre en regard d'un profil publié, et rien d'autre.
- * `visibility` est la construction du tampon de visibilité : sélection, partition, Hi-Z et raster.
- * `materials` est l'écriture des surfaces depuis ce tampon. Tout le reste est `other` : ombres,
- * listes de lampes, rebond, transparents, éclairage différé, présentation, et le chemin de repli qui
- * ne passe pas par le tampon — ranger l'un de ceux-là dans un bloc gonflerait une comparaison au
- * lieu de la servir, donc ils restent dehors ET nommés, chaque passe gardant sa durée.
+ * The two blocks of a frame that can be set against a published profile, and nothing else.
+ * `visibility` is building the visibility buffer: selection, partition, Hi-Z and raster.
+ * `materials` is writing surfaces from that buffer. Everything else is `other`: shadows,
+ * light lists, bounce, transparents, deferred lighting, present, and the fallback path that
+ * does not go through the buffer — putting any of those in a block would inflate a comparison
+ * instead of serving it, so they stay outside AND named, each pass keeping its duration.
  */
 export type GpuPassBlock = 'visibility' | 'materials' | 'other';
 
 /**
- * L'étape du profil et le bloc de comparaison de chaque passe GPU, lus par l'étiquette que la passe
- * porte déjà. C'est l'unique lecture des étiquettes du dépôt : les durées de l'éclairage direct, le
- * profil par étape et les blocs la partagent. Une étiquette inconnue rejoint `geometry`, la seule
- * étape qui dessine sans nom propre, et `other`, pour qu'une passe nouvelle n'aille pas grossir en
- * silence un bloc comparé.
+ * Profile stage and comparison block of each GPU pass, read from the label the pass already
+ * carries. This is the only read of deposit labels: direct-light durations, the per-stage
+ * profile and the blocks share it. An unknown label joins `geometry`, the only stage that
+ * draws without a name of its own, and `other`, so a new pass does not silently swell a
+ * compared block.
  */
 const PASSES: Readonly<Record<string, readonly [stage: string, block: GpuPassBlock]>> =
   Object.freeze({
@@ -39,7 +39,7 @@ const PASSES: Readonly<Record<string, readonly [stage: string, block: GpuPassBlo
     'WG small triangle binning': ['geometry', 'visibility'],
     'WG small triangle raster': ['geometry', 'visibility'],
     'WG hybrid visibility resolve': ['geometry', 'visibility'],
-    // Le raster de calcul (`gpuRaster.ts`, `gpuRasterResolve.ts`) : il construit le même tampon.
+    // Compute raster (`gpuRaster.ts`, `gpuRasterResolve.ts`): it builds the same buffer.
     'WG raster target and lists': ['geometry', 'visibility'],
     'WG raster dispatch': ['geometry', 'visibility'],
     'WG raster binning': ['geometry', 'visibility'],
@@ -67,12 +67,12 @@ const PASSES: Readonly<Record<string, readonly [stage: string, block: GpuPassBlo
     'WG explicit capture': ['present', 'other'],
   });
 
-/** L'étape d'une passe, par son étiquette. Inconnue vaut `geometry`. */
+/** Stage of a pass, by its label. Unknown is `geometry`. */
 export const gpuPassStageOf = (name: string) => PASSES[name]?.[0] ?? 'geometry';
-/** Le bloc d'une passe, par son étiquette. Inconnue vaut `other`. */
+/** Block of a pass, by its label. Unknown is `other`. */
 export const gpuPassBlockOf = (name: string): GpuPassBlock => PASSES[name]?.[1] ?? 'other';
 
-/** Les étapes que le moteur WebGPU sait nommer, dans l'ordre où elles se produisent. */
+/** Stages the WebGPU engine can name, in the order they occur. */
 export const WEBGPU_STAGES = [
   'animations',
   'lights',
@@ -98,7 +98,7 @@ export const WEBGPU_STAGES = [
   'present',
 ] as const;
 
-/** Les étapes que le moteur WebGL2 sait nommer. */
+/** Stages the WebGL2 engine can name. */
 export const WEBGL_STAGES = [
   'animations',
   'lights',
@@ -111,10 +111,9 @@ export const WEBGL_STAGES = [
 ] as const;
 
 /**
- * La durée carte graphique d'un relevé par groupe de passes, en un seul parcours, `classify`
- * nommant le groupe de chaque passe. `null` pour un groupe dont une passe n'a pas de durée
- * utilisable : une somme partielle passerait pour une mesure. Un relevé tronqué ou absent ne donne
- * aucun groupe, pour la même raison.
+ * GPU duration of a sample by pass group, in one walk, `classify` naming each pass's
+ * group. `null` for a group whose one pass has no usable duration: a partial sum would
+ * pass for a measurement. A truncated or missing sample yields no group, for the same reason.
  */
 export function gpuTotalsBy<Group extends string>(
   sample: GpuPassTimings | null | undefined,
@@ -131,25 +130,25 @@ export function gpuTotalsBy<Group extends string>(
   return totals;
 }
 
-/** La durée carte graphique de chaque étape du profil. */
+/** GPU duration of each profile stage. */
 const gpuStageTotals = (sample: GpuPassTimings | null | undefined) =>
   gpuTotalsBy(sample, gpuPassStageOf);
 
-/** Ventile un relevé sur les étapes du profil : ce qui n'est pas mesuré n'y est pas déposé. */
+/** Split a sample onto profile stages: what is not measured is not deposited. */
 export function addGpuPasses(sample: GpuPassTimings | null | undefined, add: StageAdd) {
   for (const [stage, ms] of gpuStageTotals(sample)) if (ms !== null) add(stage, ms);
 }
 
 /**
- * La durée carte graphique de l'étape « Rebond » d'un relevé, ou `null` : c'est la mesure que le
- * budget en millisecondes asservit. Une étape absente, un relevé tronqué ou un appareil sans
- * horodatage rendent `null`, et l'asservissement ne bouge pas plutôt que de suivre un zéro.
+ * GPU duration of a sample's "Bounce" stage, or `null`: that is the measurement the
+ * millisecond budget servos. A missing stage, a truncated sample or a device without
+ * timestamps yield `null`, and the servo does not move rather than follow a zero.
  */
 export function bounceGpuMs(sample: GpuPassTimings | null | undefined) {
   return gpuStageTotals(sample).get('bounce') ?? null;
 }
 
-/** Les trois durées de l'éclairage direct de l'image, lues dans le même relevé par étiquette. */
+/** The three direct-lighting durations of the frame, read from the same sample by label. */
 export function directLightTimings(sample: GpuPassTimings | null | undefined) {
   const totals = gpuStageTotals(sample);
   return {
@@ -160,8 +159,8 @@ export function directLightTimings(sample: GpuPassTimings | null | undefined) {
 }
 
 /**
- * Dépose les bornes processeur d'une image sur leurs étapes. `null` marque une borne qui ne se
- * dépose pas : une somme, qui compterait une seconde fois ce que ses parties ont déjà déposé.
+ * Deposit a frame's CPU bounds onto their stages. `null` marks a bound that is not
+ * deposited: a sum, which would count a second time what its parts already deposited.
  */
 export function addCpuSteps(
   stages: ReadonlyArray<string | null>,
@@ -175,23 +174,23 @@ export function addCpuSteps(
 }
 
 /**
- * Une déclaration ordonnée des bornes processeur d'un moteur : pour chacune, le nom public et
- * l'étape du profil où elle se dépose — `null` pour une somme, qui ne se dépose pas, sans quoi elle
- * compterait une seconde fois ce que ses parties ont déjà déposé. Les noms, les étapes et les
- * indices d'écriture sortent tous de la même table : ils ne peuvent plus se désaligner en silence.
+ * An ordered declaration of an engine's CPU bounds: for each, the public name and the
+ * profile stage it deposits to — `null` for a sum, which is not deposited, or it would
+ * count a second time what its parts already deposited. Names, stages and write indices
+ * all come from the same table: they can no longer silently misalign.
  */
 export function cpuStepTable<Table extends ReadonlyArray<readonly [string, string | null]>>(
   table: Table,
 ): {
   names: readonly string[];
   stages: ReadonlyArray<string | null>;
-  /** L'indice d'une borne dans la ligne du profil, lu par son nom et jamais écrit à la main. */
+  /** Index of a bound in the profile row, read by its name and never written by hand. */
   at: Record<Table[number][0], number>;
 } {
   return {
     names: table.map(([name]) => name),
     stages: table.map(([, stage]) => stage),
-    // `fromEntries` ne sait pas rendre des clés littérales : le nom déclaré les porte.
+    // `fromEntries` cannot yield literal keys: the declared name carries them.
     at: Object.fromEntries(table.map(([name], index) => [name, index])) as Record<
       Table[number][0],
       number

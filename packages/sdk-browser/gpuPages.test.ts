@@ -2,12 +2,12 @@ import { mockDevice } from '../../test/fixtures/gpuPages.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGpuPageCache } from './gpuPages.ts';
-// Un slot fait la taille du plus gros cluster : une petite page qui le réutilise n'écrit que ses
-// octets, et la queue du slot garde ceux de la page d'avant sans que rien ne les lise — une ligne
-// nomme l'offset de sa page et son nombre d'index, et la visibilité comme l'ombrage refusent tout
-// triangle au-delà (`visibilityShaderId.ts:50`, `visibilityShaderShade.ts:83`). Seul le complément
-// jusqu'au multiple de quatre que `writeBuffer` exige part en plus, à zéro. Les trois pages
-// réutilisent le même slot, et le relevé ne compte que ce qui est réellement transféré.
+// A slot is the size of the largest cluster: a small page that reuses it writes only its bytes,
+// and the slot's tail keeps those of the previous page without anyone reading them — a row names
+// its page offset and index count, and visibility as well as shading refuse any triangle beyond
+// (`visibilityShaderId.ts:50`, `visibilityShaderShade.ts:83`). Only the padding to the multiple
+// of four that `writeBuffer` requires goes extra, as zeros. The three pages reuse the same slot,
+// and the sample counts only what is actually transferred.
 test('a reused GPU slot receives only the bytes of its page, padded to what the queue needs', async () => {
   Object.assign(globalThis, { GPUBufferUsage: { STORAGE: 1, COPY_DST: 2, COPY_SRC: 4 } });
   const { device, writes } = mockDevice();

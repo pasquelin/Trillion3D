@@ -1,45 +1,45 @@
-//! Les lampes `UsdLux` d'une couche, vers `KHR_lights_punctual`.
+//! `UsdLux` lights of a layer, toward `KHR_lights_punctual`.
 //!
-//! **Ce qui est lu.** `SphereLight` et `DiskLight` (ponctuelles), `RectLight` (ponctuelle aussi :
-//! le glTF n'a pas de source étendue) et `DistantLight` (directionnelle), plus la `ShapingAPI` qui
-//! fait d'une lampe un projecteur, et la `ShadowAPI` qui dit si elle porte une ombre. Tout autre
-//! type de `UsdLux` — `DomeLight`, `CylinderLight`, `GeometryLight`, `PortalLight`, et les filtres
-//! — reste compté par `world::LIGHT`, faute d'équivalent ponctuel.
+//! **What is read.** `SphereLight` and `DiskLight` (point), `RectLight` (point too: glTF has no
+//! area source) and `DistantLight` (directional), plus the `ShapingAPI` that makes a light a
+//! spotlight, and the `ShadowAPI` that says whether it carries a shadow. Any other `UsdLux`
+//! type — `DomeLight`, `CylinderLight`, `GeometryLight`, `PortalLight`, and filters — stays
+//! counted by `world::LIGHT`, for lack of a punctual equivalent.
 //!
-//! **Unités.** `UsdLux` est radiométrique et relatif : une lampe émet la radiance
-//! `inputs:intensity · 2^inputs:exposure`, que `inputs:normalize` divise par l'aire de la source.
-//! L'intensité radiante d'une lampe de surface est donc cette radiance multipliée par l'aire
-//! projetée de sa géométrie — `π r²` pour une sphère ou un disque, `largeur × hauteur` pour un
-//! rectangle —, et l'éclairement d'une `DistantLight` est directement cette radiance. Le glTF, lui,
-//! est photométrique : la conversion est la multiplication par `LUMENS_PER_WATT`, la constante que
-//! `compiler_lights` redivise ensuite pour revenir au radiométrique du moteur. Rien ne s'invente
-//! entre les deux, aucun spectre n'est supposé.
+//! **Units.** `UsdLux` is radiometric and relative: a light emits the radiance
+//! `inputs:intensity · 2^inputs:exposure`, which `inputs:normalize` divides by the source area.
+//! The radiant intensity of a surface light is therefore that radiance multiplied by the
+//! projected area of its geometry — `π r²` for a sphere or a disk, `width × height` for a
+//! rectangle —, and the illuminance of a `DistantLight` is directly that radiance. glTF, for
+//! its part, is photometric: the conversion is the multiplication by `LUMENS_PER_WATT`, the
+//! constant that `compiler_lights` then divides again to return to the engine's radiometric.
+//! Nothing is invented between the two, no spectrum is assumed.
 //!
-//! **Le rayon d'émetteur** vient de la donnée native : `inputs:radius` pour une sphère ou un
-//! disque, la demi-diagonale de `inputs:width` × `inputs:height` pour un rectangle. Il s'écrit en
-//! mètres du monde, l'échelle du prim et `metersPerUnit` compris. `inputs:angle` d'une
-//! `DistantLight` est un diamètre angulaire, pas une longueur : une directionnelle n'a ni centre
-//! ni portée, et le contrat du moteur lui refuse déjà toute enveloppe.
+//! **Emitter radius** comes from the native datum: `inputs:radius` for a sphere or a disk, the
+//! half-diagonal of `inputs:width` × `inputs:height` for a rectangle. It is written in world
+//! metres, the prim's scale and `metersPerUnit` included. `inputs:angle` of a `DistantLight` is
+//! an angular diameter, not a length: a directional has neither centre nor range, and the
+//! engine contract already refuses it any envelope.
 use super::*;
 
-/// Le demi-angle par défaut du cône de la `ShapingAPI`, en degrés.
+/// Default half-angle of the `ShapingAPI` cone, in degrees.
 const DEFAULT_CONE: f64 = 90.0;
-/// Le rayon par défaut d'une `SphereLight` et d'une `DiskLight`, en unités de la couche.
+/// Default radius of a `SphereLight` and a `DiskLight`, in layer units.
 const DEFAULT_RADIUS: f64 = 0.5;
-/// Les côtés par défaut d'une `RectLight`, en unités de la couche.
+/// Default sides of a `RectLight`, in layer units.
 const DEFAULT_SIDE: f64 = 1.0;
 
-/// La forme émissive d'un type de lampe : ce qu'il faut lire pour en tirer une aire et un rayon.
+/// Emissive shape of a light type: what must be read to draw an area and a radius from it.
 enum Shape {
-    /// Une sphère ou un disque, par `inputs:radius`.
+    /// A sphere or a disk, by `inputs:radius`.
     Round,
-    /// Un rectangle, par `inputs:width` et `inputs:height`.
+    /// A rectangle, by `inputs:width` and `inputs:height`.
     Rect,
-    /// Une source à l'infini : ni aire, ni rayon.
+    /// A source at infinity: neither area nor radius.
     Distant,
 }
 
-/// La forme d'un type de prim, ou `None` quand ce pilote ne le convertit pas.
+/// Shape of a prim type, or `None` when this driver does not convert it.
 fn shape(type_name: &str) -> Option<Shape> {
     Some(match type_name {
         "SphereLight" | "DiskLight" => Shape::Round,
@@ -49,8 +49,8 @@ fn shape(type_name: &str) -> Option<Shape> {
     })
 }
 
-/// La lampe glTF de ce prim, versée dans les tables, et son rang. `scale` est l'échelle du monde
-/// accumulée jusqu'à ce prim, `metersPerUnit` compris : c'est elle qui met le rayon en mètres.
+/// glTF light of this prim, poured into the tables, and its rank. `scale` is the world scale
+/// accumulated up to this prim, `metersPerUnit` included: it is what puts the radius into metres.
 pub(super) fn build(
     world: &mut World<'_>,
     prim: &usd::Prim,
@@ -86,8 +86,8 @@ pub(super) fn build(
     Some(world.scene.lights.len() - 1)
 }
 
-/// L'aire projetée de la source, en mètres carrés, et le rayon de son enveloppe, en mètres. Une
-/// source à l'infini n'a ni l'une ni l'autre : son aire vaut un, l'intensité restant l'éclairement.
+/// Projected area of the source, in square metres, and the radius of its envelope, in metres. A
+/// source at infinity has neither: its area is one, intensity remaining illuminance.
 fn extent(
     world: &mut World<'_>,
     prim: &usd::Prim,
@@ -108,9 +108,9 @@ fn extent(
     }
 }
 
-/// Les deux demi-angles du cône d'un projecteur, en radians, ou `None` quand le prim ne porte pas
-/// la `ShapingAPI`. `inputs:shaping:cone:softness` est la fraction du cône qui s'adoucit : le
-/// demi-angle intérieur est ce que cette fraction laisse.
+/// Two half-angles of a spotlight cone, in radians, or `None` when the prim does not carry the
+/// `ShapingAPI`. `inputs:shaping:cone:softness` is the fraction of the cone that softens: the
+/// inner half-angle is what that fraction leaves.
 fn cone(world: &mut World<'_>, prim: &usd::Prim) -> Option<(f64, f64)> {
     let outer = read(world, prim, "inputs:shaping:cone:angle")?.to_radians();
     let softness = number(world, prim, "inputs:shaping:cone:softness", 0.0);
@@ -122,7 +122,7 @@ fn cone(world: &mut World<'_>, prim: &usd::Prim) -> Option<(f64, f64)> {
     Some(crate::import::cone_angles(outer, softness))
 }
 
-/// La couleur de la lampe, canaux finis et non négatifs ; blanche par défaut, comme `UsdLux`.
+/// Light colour, finite and non-negative channels; white by default, like `UsdLux`.
 fn colour(world: &mut World<'_>, prim: &usd::Prim) -> [f64; 3] {
     let Some((value, sampled)) = read::first(&prim.attribute("inputs:color")) else {
         return [1.0; 3];
@@ -135,15 +135,15 @@ fn colour(world: &mut World<'_>, prim: &usd::Prim) -> [f64; 3] {
     })
 }
 
-/// Un attribut numérique de la lampe, ou son défaut `UsdLux` quand elle ne l'écrit pas.
+/// A numeric attribute of the light, or its `UsdLux` default when it does not write it.
 fn number(world: &mut World<'_>, prim: &usd::Prim, name: &str, default: f64) -> f64 {
     read(world, prim, name)
         .filter(|value| value.is_finite())
         .unwrap_or(default)
 }
 
-/// Un attribut numérique écrit par la lampe, et rien quand elle ne l'écrit pas : c'est ainsi qu'on
-/// distingue une lampe façonnée en projecteur d'une lampe qui ne l'est pas.
+/// A numeric attribute written by the light, and nothing when it does not write it: that is
+/// how a light shaped as a spotlight is distinguished from a light that is not.
 fn read(world: &mut World<'_>, prim: &usd::Prim, name: &str) -> Option<f64> {
     let (value, sampled) = read::first(&prim.attribute(name))?;
     if sampled {
@@ -152,7 +152,7 @@ fn read(world: &mut World<'_>, prim: &usd::Prim, name: &str) -> Option<f64> {
     read::number(&value)
 }
 
-/// Un attribut booléen écrit par la lampe, et rien quand elle ne l'écrit pas.
+/// A boolean attribute written by the light, and nothing when it does not write it.
 fn flag(world: &mut World<'_>, prim: &usd::Prim, name: &str) -> Option<bool> {
     let (value, sampled) = read::first(&prim.attribute(name))?;
     if sampled {

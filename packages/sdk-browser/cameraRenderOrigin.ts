@@ -7,25 +7,26 @@ import {
 } from '../sdk-core/index.ts';
 
 /**
- * LA MOITIÉ CAMÉRA DU REPÈRE DE RENDU (`sdk-core/mathRenderOrigin.ts` porte la règle et son
- * pourquoi). L'origine du repère est l'œil de l'image ; la caméra y est donc posée à zéro, et sa
- * vue n'est plus que son orientation. Ces trois matrices sont calculées UNE FOIS par image, en
- * double précision, dans la caméra du moteur, en même temps que leurs jumelles absolues.
+ * THE CAMERA HALF OF THE RENDER FRAME (`sdk-core/mathRenderOrigin.ts` carries the rule and
+ * its why). The frame origin is the eye of the frame; the camera is therefore set at zero,
+ * and its view is only its orientation. These three matrices are computed ONCE per frame, in
+ * double precision, in the engine camera, at the same time as their absolute twins.
  *
- * LES DEUX MOITIÉS NE SE MÉLANGENT PAS. Ce qui part vers la carte graphique avec des matrices monde
- * ramenées à l'œil lit `viewRelative` et `planesRelative` ; ce qui reste en double précision côté
- * processeur — coupe exacte, Hi-Z, priorité de flux, éclairage, diagnostics — garde `view`,
- * `viewProjection` et `planes`, qui décrivent le même monde sans rien perdre à cette distance.
+ * THE TWO HALVES DO NOT MIX. What leaves for the GPU with world matrices brought back to the
+ * eye reads `viewRelative` and `planesRelative`; what stays in double precision on the CPU
+ * — exact cut, Hi-Z, stream priority, lighting, diagnostics — keeps `view`,
+ * `viewProjection` and `planes`, which describe the same world without losing anything at
+ * that distance.
  *
- * CE QUE CELA NE CHANGE PAS. Caméra à l'origine du monde, `viewRelative` est `view` au bit près et
- * les plans relatifs sont les plans : les images déjà rendues gardent exactement leurs pixels.
+ * WHAT THIS DOES NOT CHANGE. Camera at the world origin, `viewRelative` is `view` bit for bit
+ * and the relative planes are the planes: already-rendered frames keep their pixels exactly.
  */
 export interface RenderOriginFrame {
-  /** La vue privée de sa translation : l'orientation de la caméra, posée à l'origine du repère. */
+  /** The view stripped of its translation: the camera's orientation, set at the frame origin. */
   viewRelative: Float64Array;
-  /** Projection × vue relative. */
+  /** Projection × relative view. */
   viewProjectionRelative: Float64Array;
-  /** Les six plans du tronc de `viewProjectionRelative`, rangés comme `frustumPlanesFromMatrix`. */
+  /** The six frustum planes of `viewProjectionRelative`, laid out like `frustumPlanesFromMatrix`. */
   planesRelative: Float64Array;
 }
 
@@ -38,10 +39,10 @@ export function createRenderOriginFrame(): RenderOriginFrame {
 }
 
 /**
- * Réécrit les trois matrices depuis la vue et la projection absolues de l'image. `far` est le plan
- * lointain que l'hôte déclare : la projection du moteur n'en a plus — elle est infinie —, et le
- * tronc relatif le garde exactement comme le tronc absolu (`updateCameraFrame`). Il se lit dans la
- * vue RELATIVE, celle-là même dont ces plans décrivent le tronc.
+ * Rewrites the three matrices from the frame's absolute view and projection. `far` is the
+ * far plane the host declares: the engine projection no longer has one — it is infinite —
+ * and the relative frustum keeps it exactly as the absolute frustum (`updateCameraFrame`).
+ * It is read from the RELATIVE view, the very one whose frustum these planes describe.
  */
 export function updateRenderOriginFrame(
   frame: RenderOriginFrame,
@@ -57,14 +58,14 @@ export function updateRenderOriginFrame(
 }
 
 /**
- * Vrai quand deux origines de repère de rendu sont le même point, au bit près. Une origine jamais
- * posée — trois `NaN` — est différente de tout, y compris d'elle-même : la première image rebase.
+ * True when two render-frame origins are the same point, bit for bit. An origin never
+ * set — three `NaN`s — differs from everything, including itself: the first frame rebases.
  */
 export function sameRenderOrigin(a: ArrayLike<number>, b: ArrayLike<number>) {
   return a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
 }
 
-/** Recopie les trois matrices d'une caméra du moteur dans une autre, sans rien recalculer. */
+/** Copies the three matrices of an engine camera into another, without recomputing anything. */
 export function holdRenderOriginFrame(into: RenderOriginFrame, from: RenderOriginFrame) {
   into.viewRelative.set(from.viewRelative);
   into.viewProjectionRelative.set(from.viewProjectionRelative);

@@ -1,17 +1,16 @@
 import { sortPages } from '../sdk-core/index.ts';
 
 /**
- * Les pages qui réclament l'écriture d'une fiche de ligne et ne l'ont pas encore reçue.
+ * Pages that claim the write of a row record and have not yet received it.
  *
- * Écrire une fiche coûte un matériau, un hachage, des modes d'adressage, une sphère d'ombre, huit
- * coins et cinq mots de fiche : une rafale d'arrivées en paie autant de fois, sur le fil principal,
- * dans la même image. Cette liste est ce qui reste à faire, et l'allocateur de rangs n'en consomme
- * qu'un budget de temps par image — le reste attend l'image suivante, dans le même ordre.
+ * Writing a row costs a material, a hash, wrap modes, a shadow sphere, eight corners and five row
+ * words: a burst of arrivals pays that many times, on the main thread, in the same image. This list
+ * is what remains to do, and the rank allocator consumes only a time budget per image — the rest waits
+ * for the next image, in the same order.
  *
- * Une page ne s'y inscrit qu'une fois : le marquage par page est ce qui le garantit, et une page
- * réclamée deux fois avant d'être servie ne double donc pas le travail. La liste est triée avant
- * d'être servie, parce que le journal des résidences n'écrit des plages que tant que les index
- * qu'on lui donne montent.
+ * A page enrols only once: per-page marking is what guarantees it, so a page claimed twice before it
+ * is served does not double the work. The list is sorted before it is served, because the residency
+ * journal writes ranges only while the indices it is given increase.
  */
 export function createWebgpuRowClaims(pageCount: number) {
   const marks = new Uint8Array(Math.max(1, pageCount));
@@ -22,23 +21,23 @@ export function createWebgpuRowClaims(pageCount: number) {
     get count() {
       return count;
     },
-    /** Inscrit une page, sauf si elle attend déjà son tour. */
+    /** Enrols a page, unless it is already waiting its turn. */
     add(page: number) {
       if (marks[page]) return;
       marks[page] = 1;
       pages[count++] = page;
     },
-    /** Range la liste par index de page croissant, l'ordre que le journal des résidences exige. */
+    /** Sorts the list by increasing page index, the order the residency journal requires. */
     sort() {
       sortPages(pages, count);
     },
-    /** Retire les `served` premières pages, déjà servies, et garde la suite dans son ordre. */
+    /** Drops the first `served` pages, already served, and keeps the rest in its order. */
     consume(served: number) {
       for (let i = 0; i < served; i++) marks[pages[i]] = 0;
       if (served < count) pages.copyWithin(0, served, count);
       count -= served;
     },
-    /** Plus rien n'attend : la table vient d'être refaite d'un bloc. */
+    /** Nothing waits any more: the table has just been rebuilt as a block. */
     clear() {
       for (let i = 0; i < count; i++) marks[pages[i]] = 0;
       count = 0;
@@ -49,19 +48,19 @@ export function createWebgpuRowClaims(pageCount: number) {
 export type WebgpuRowClaims = ReturnType<typeof createWebgpuRowClaims>;
 
 /**
- * Temps qu'une image accorde à l'écriture des fiches. Même plafond, même règle que le drain des
- * arrivées : l'horloge est relue après chaque fiche et le reste attend l'image suivante, dans le
- * même ordre. Une fiche au moins passe toujours, sans quoi une page ne serait jamais écrite.
+ * Time an image grants to writing rows. Same ceiling, same rule as the arrival drain: the clock is
+ * reread after each row and the rest waits for the next image, in the same order. At least one row
+ * always goes through, or a page would never be written.
  */
 const CLAIM_BUDGET_MS = 2;
 
 /**
- * Sert la file dans l'ordre croissant des pages jusqu'au budget de temps. `release` redit si la
- * page réclame encore une fiche — elle a pu repartir depuis son inscription, et quitte alors la
- * file sans rien coûter —, `place` l'écrit et rend `false` quand la table est pleine.
+ * Serves the queue in increasing page order up to the time budget. `release` says again whether the
+ * page still claims a row — it may have left since it enrolled, and then leaves the queue costing
+ * nothing —, `place` writes it and returns `false` when the table is full.
  *
- * Rend le nombre de pages qu'un débordement de table laisse sans rang : jamais celles que le seul
- * budget de temps a reportées, qui ne débordent de rien.
+ * Returns the number of pages a table overflow leaves without a rank: never those the time budget
+ * alone deferred, which overflow nothing.
  */
 export function serveClaims(
   claims: WebgpuRowClaims,

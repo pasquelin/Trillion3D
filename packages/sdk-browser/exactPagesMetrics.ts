@@ -18,8 +18,8 @@ type MetricsContext = {
   disposeGeometry: (geometry: THREE.BufferGeometry) => void;
   scene: THREE.Scene;
   readonly diagnostic: DiagnosticMode;
-  /** Ce que l'image en cours a décidé, lu tel quel : le relevé ne recopie pas champ par champ ce que
-   *  l'état de rendu porte déjà. */
+  /** What the current frame decided, read as-is: the sample does not copy field by field what
+   *  the render state already carries. */
   state: ExactPagesRenderState;
 };
 
@@ -40,8 +40,8 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
   return {
     metrics() {
       const batched = batches.metrics;
-      // Mode beauté : les compteurs viennent des lots, sans parcourir les géométries. Mode diagnostic :
-      // une géométrie par page, on retombe sur le comptage détaillé.
+      // Beauty mode: counters come from the batches, without walking geometries. Diagnostic mode:
+      // one geometry per page, we fall back on the detailed count.
       let bytes = batched.allocationBytes,
         draws = blendCopies.length + batched.drawCalls,
         submitted = batched.submittedTriangles;

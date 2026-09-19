@@ -1,38 +1,38 @@
-# Fixture de correction — pilote `usdz`, conteneur
+# Correction fixture — `usdz` driver, container
 
-Un conteneur ne doit rien changer à la scène qu'il emballe. Le paquet porte la **même couche** que
-[`../usd/corpus/usdc/scene.usdc`](../usd/corpus/usdc/scene.usdc), et le doré
-([`../../src/tests/usdz_golden.rs`](../../src/tests/usdz_golden.rs)) compile les deux, compare la
-seconde à la première, puis compare la première à `expected.json`.
+A container must change nothing about the scene it wraps. The package carries the **same layer** as
+[`../usd/corpus/usdc/scene.usdc`](../usd/corpus/usdc/scene.usdc), and the golden
+([`../../src/tests/usdz_golden.rs`](../../src/tests/usdz_golden.rs)) compiles both, compares the
+second against the first, then compares the first against `expected.json`.
 
-| fichier             | ce qu'il fixe                                                                   |
-| ------------------- | -------------------------------------------------------------------------------- |
-| `scene.usdz`        | le paquet conforme : entrées stockées telles quelles, charges alignées sur 64 octets, une couche `usdc` et sa texture en sous-dossier |
-| `compressee.usdz`   | une entrée `deflate` : refus `USDZ_LAYOUT_INVALID`, rien n'est extrait            |
-| `sans-scene.usdz`   | un paquet qui n'ouvre pas sur une couche USD : refus `USDZ_ROOT_LAYER_MISSING`     |
-| `deux-scenes.usdz`  | deux couches : un triangle d'abord, un quadrilatère ensuite. Le paquet livre la première, et le compte de triangles le dit |
+| file                | what it pins                                                                    |
+| ------------------- | ------------------------------------------------------------------------------- |
+| `scene.usdz`        | the conforming package: entries stored as-is, payloads aligned on 64 bytes, one `usdc` layer and its texture in a subfolder |
+| `compressee.usdz`   | a `deflate` entry: rejection `USDZ_LAYOUT_INVALID`, nothing is extracted        |
+| `sans-scene.usdz`   | a package that does not open on a USD layer: rejection `USDZ_ROOT_LAYER_MISSING` |
+| `deux-scenes.usdz`  | two layers: a triangle first, a quadrilateral next. The package delivers the first, and the triangle count says so |
 
-Ce que chaque choix met sous surveillance :
+What each choice puts under watch:
 
-- **la disposition du paquet** : la spécification de l'AOUSD impose des entrées stockées et alignées,
-  pour que la couche et ses images se lisent en place. Un paquet qui ne l'est pas est refusé en le
-  disant, plutôt que lu quand même ;
-- **une texture en sous-dossier** : les URI relatives du paquet ne sont pas réécrites, le conteneur
-  n'aplatit rien, et la racine où les images se résolvent est le dossier extrait ;
-- **le choix de la couche racine** : ni deviné ni cherché parmi les entrées. La spécification de
-  l'AOUSD veut que la **première** entrée du paquet soit la couche racine ; tout ce qui la suit en
-  est une ressource, jamais une scène candidate. Un paquet qui n'ouvre pas sur une couche USD ne dit
-  donc pas quelle scène il livre, et il est refusé sous son propre nom.
+- **the package layout**: the AOUSD specification requires stored, aligned entries,
+  so the layer and its images can be read in place. A package that is not is refused by
+  saying so, rather than read anyway;
+- **a texture in a subfolder**: the package's relative URIs are not rewritten, the container
+  flattens nothing, and the root where images resolve is the extracted folder;
+- **the root-layer choice**: neither guessed nor searched among the entries. The AOUSD
+  specification wants the **first** entry of the package to be the root layer; everything that follows it is
+  a resource, never a candidate scene. A package that does not open on a USD layer therefore does not
+  say which scene it delivers, and it is refused under its own name.
 
-## Provenance et licences
+## Provenance and licences
 
-- `scene.usdz` : corpus WebGeometry (`test/assets/usd/procedural-usdz`), **CC0-1.0**, voir
-  [LICENSE.txt](LICENSE.txt). `test/assets/` n'est pas suivi par git : ces octets sont recopiés ici
-  pour que la dorée tienne sans lui.
-- `compressee.usdz`, `sans-scene.usdz` et `deux-scenes.usdz` : synthétiques, écrits pour ce test,
-  sans contenu d'aucun tiers. Ils viennent d'un outil extérieur à la caisse que le pilote emploie
-  pour lire — un paquet piégé doit venir d'ailleurs que du lecteur qu'il met à l'épreuve. Pour les
-  régénérer depuis ce dossier :
+- `scene.usdz`: WebGeometry corpus (`test/assets/usd/procedural-usdz`), **CC0-1.0**, see
+  [LICENSE.txt](LICENSE.txt). `test/assets/` is not tracked by git: these bytes are copied here
+  so the golden holds without it.
+- `compressee.usdz`, `sans-scene.usdz` and `deux-scenes.usdz`: synthetic, written for this test,
+  with no third-party content. They come from a tool outside the crate the driver uses
+  to read — a trap package must come from somewhere other than the reader it puts on trial. To
+  regenerate them from this folder:
 
   ```sh
   python3 - <<'PY'
@@ -67,13 +67,13 @@ Ce que chaque choix met sous surveillance :
 
 ## `expected.json`
 
-Le pilote retenu, la chaîne `usdz` → `usd` publiée au rapport, les deux codes de refus, le compte de
-triangles du paquet à deux couches, et la scène
-— version de format, version du sidecar binaire, sha256 de `clusters.bin`, comptes de primitives, de
-nœuds et de triangles. La clé de cache n'y figure pas : elle tient l'empreinte de toute
-l'implémentation du compilateur, donc un changement sans rapport la déplacerait ; l'égalité avec la
-couche nue est le vrai sujet, et elle se vérifie sur la scène intermédiaire et le sidecar. `case` et
-`rule` ne sont que de la prose, le test les retire avant de comparer. Pour le régénérer :
+The selected driver, the `usdz` → `usd` chain published in the report, the two rejection codes, the
+triangle count of the two-layer package, and the scene
+— format version, binary sidecar version, sha256 of `clusters.bin`, primitive, node
+and triangle counts. The cache key does not appear in it: it holds the fingerprint of the whole
+compiler implementation, so an unrelated change would move it; equality with the
+bare layer is the real subject, and it is checked on the intermediate scene and the sidecar. `case` and
+`rule` are prose only, the test strips them before comparing. To regenerate it:
 
 ```sh
 cargo test --lib regenere_la_fixture_usdz -- --ignored

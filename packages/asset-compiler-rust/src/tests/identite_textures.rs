@@ -1,10 +1,11 @@
-//! A05 — Les images liées d'un glTF sont lues après le calcul de la clé : leurs pixels entrent dans
-//! le produit — les aperçus de texture du sidecar — sans entrer dans l'identité qui le nomme. Un
-//! PNG rouge remplacé par un PNG bleu laissait donc la clé intacte pendant que `clusters.bin`
-//! changeait, et un consommateur qui réutilise par la clé gardait les aperçus d'avant.
+//! A05 — Linked glTF images are read after the key is computed: their pixels
+//! enter the product — sidecar texture previews — without entering the identity
+//! that names it. A red PNG replaced by a blue PNG therefore left the key intact
+//! while `clusters.bin` changed, and a consumer that reuses by the key kept the
+//! previous previews.
 use super::*;
 
-/// Un PNG uni 8×8, dont la couleur distingue deux fichiers de même nom.
+/// A solid 8×8 PNG, whose colour distinguishes two files of the same name.
 fn png(couleur: [u8; 4]) -> Vec<u8> {
     let image = image::RgbaImage::from_pixel(8, 8, image::Rgba(couleur));
     let mut bytes = Vec::new();
@@ -17,7 +18,7 @@ fn png(couleur: [u8; 4]) -> Vec<u8> {
     bytes
 }
 
-/// La fixture, dont le seul matériau porte une couleur de base liée à `color.png`.
+/// The fixture, whose only material carries a base colour linked to `color.png`.
 fn source_texturee() -> (PathBuf, Options, PathBuf) {
     let (root, options) = fixture();
     let mut gltf = read_gltf(&options);
@@ -30,11 +31,12 @@ fn source_texturee() -> (PathBuf, Options, PathBuf) {
     (root, options, image)
 }
 
-/// Compile et rend la clé exposée au consommateur avec l'empreinte du sidecar binaire écrit sous
+/// Compiles and returns the key exposed to the consumer with the fingerprint of
+/// the binary sidecar written under that key.
 /// elle : c'est ce couple qui doit bouger ensemble, ou pas du tout.
 fn cle_et_sidecar(options: &Options) -> (String, String) {
     let result = compile(options, |_| {}).expect("compile");
-    let key = result["key"].as_str().expect("clé").to_string();
+    let key = result["key"].as_str().expect("key").to_string();
     let sidecar = options
         .cache
         .join("native")
@@ -45,7 +47,8 @@ fn cle_et_sidecar(options: &Options) -> (String, String) {
     (key, hash(&bytes))
 }
 
-// Comportement : une image liée qui change change la clé exposée ; la même image rend la même clé,
+// Behaviour: a linked image that changes changes the exposed key; the same image
+// yields the same key,
 // et deux compilations identiques aussi.
 #[test]
 fn une_image_liee_modifiee_change_la_cle_exposee() {
@@ -56,18 +59,18 @@ fn une_image_liee_modifiee_change_la_cle_exposee() {
     assert_eq!(
         (&cle_rouge, &sidecar_rouge),
         (&cle_repetee, &sidecar_repete),
-        "deux compilations identiques rendent la même clé et le même sidecar"
+        "two identical compilations yield the same key and the same sidecar"
     );
 
     fs::write(&image, png([0, 0, 255, 255])).expect("image bleue");
     let (cle_bleue, sidecar_bleu) = cle_et_sidecar(&options);
     assert_ne!(
         sidecar_rouge, sidecar_bleu,
-        "les pixels changés changent bien le produit"
+        "changed pixels do change the product"
     );
     assert_ne!(
         cle_rouge, cle_bleue,
-        "une image changée doit changer la clé exposée au consommateur"
+        "a changed image must change the key exposed to the consumer"
     );
 
     fs::write(&image, png([255, 0, 0, 255])).expect("image rouge revenue");
@@ -75,13 +78,14 @@ fn une_image_liee_modifiee_change_la_cle_exposee() {
     assert_eq!(
         (cle_rouge, sidecar_rouge),
         (cle_revenue, sidecar_revenu),
-        "revenue à l'image d'avant, la source retrouve sa clé"
+        "back to the previous image, the source finds its key again"
     );
     fs::remove_dir_all(root).expect("nettoyage");
 }
 
-// Comportement : une image qui apparaît ou disparaît à côté d'une scène inchangée change la clé
-// autant qu'une image dont les octets changent — l'absence est un état, pas un silence.
+// Behaviour: an image that appears or disappears next to an unchanged scene
+// changes the key as much as an image whose bytes change — absence is a state,
+// not silence.
 #[test]
 fn une_image_liee_absente_puis_presente_change_la_cle_exposee() {
     let (root, options, image) = source_texturee();
@@ -90,10 +94,13 @@ fn une_image_liee_absente_puis_presente_change_la_cle_exposee() {
     let (presente, _) = cle_et_sidecar(&options);
     assert_ne!(
         absente, presente,
-        "une image apparue doit changer la clé exposée"
+        "an image that appeared must change the exposed key"
     );
     fs::remove_file(&image).expect("retrait");
     let (retiree, _) = cle_et_sidecar(&options);
-    assert_eq!(absente, retiree, "l'image retirée rend la clé d'avant");
+    assert_eq!(
+        absente, retiree,
+        "the removed image yields the previous key"
+    );
     fs::remove_dir_all(root).expect("nettoyage");
 }

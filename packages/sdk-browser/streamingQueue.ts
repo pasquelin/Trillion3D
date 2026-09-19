@@ -27,8 +27,8 @@ export function createStreamingQueue(
       compacteFile(queue);
       state.dropped = 0;
     }
-    // La file est tenue en ordre par ses insertions : elle n'est plus triée du tout. Ni le
-    // compactage, ni le retrait d'un travail admis ne dérangent cet ordre.
+    // The queue is kept in order by its insertions: it is no longer sorted at all. Neither
+    // compaction nor removing an admitted job disturbs that order.
     while (state.active < limit && queue.length) {
       const at = findAdmissible(queue, state.active, state.activeBytes, octetsDe, maxTransferBytes);
       if (at < 0) break;
@@ -37,7 +37,7 @@ export function createStreamingQueue(
       job.state = 'active';
       state.active++;
       state.activeBytes += catalog.get(job.url)!.bytes;
-      emit('page-transfer-start', 'Transfert de page admis', () => ({
+      emit('page-transfer-start', 'Page transfer admitted', () => ({
         version: 1,
         url: job.url,
         active: state.active,
@@ -50,7 +50,7 @@ export function createStreamingQueue(
           state.active--;
           state.activeBytes -= catalog.get(job.url)!.bytes;
           if (jobs.get(job.url) === job) jobs.delete(job.url);
-          emit('page-transfer-end', 'Transfert de page terminé', () => ({
+          emit('page-transfer-end', 'Page transfer finished', () => ({
             version: 1,
             url: job.url,
             active: state.active,
@@ -66,7 +66,7 @@ export function createStreamingQueue(
     requestSignal?: AbortSignal,
     priority = 1,
   ): Promise<Uint8Array> => {
-    emit('page-request', 'Demande de page reçue', () => ({ version: 1, url, priority }));
+    emit('page-request', 'Page request received', () => ({ version: 1, url, priority }));
     if (state.disposed || abort.signal.aborted)
       return Promise.reject(abort.signal.reason ?? abortError());
     if (requestSignal?.aborted) return Promise.reject(requestSignal.reason ?? abortError());
@@ -77,7 +77,7 @@ export function createStreamingQueue(
     if (cached) {
       state.hits++;
       touch(url, cached);
-      emit('page-cache-hit', 'Page déjà résidente', () => ({
+      emit('page-cache-hit', 'Page already resident', () => ({
         version: 1,
         url,
         resident: cache.size,
@@ -85,7 +85,7 @@ export function createStreamingQueue(
       return Promise.resolve(cached);
     }
     state.misses++;
-    emit('page-cache-miss', 'Page absente du cache', () => ({
+    emit('page-cache-miss', 'Page missing from the cache', () => ({
       version: 1,
       url,
       resident: cache.size,
@@ -113,8 +113,8 @@ export function createStreamingQueue(
     } else {
       const raised = priority < job.priority;
       job.priority = raised ? priority : job.priority;
-      // Une demande qui gagne en urgence remonte : elle est reposée à sa nouvelle place, la seule
-      // écriture de priorité qui puisse déranger l'ordre. Un travail déjà parti n'est plus en file.
+      // A request that gains urgency climbs: it is put back at its new place, the only
+      // priority write that can disturb the order. A job already gone is no longer in the queue.
       if (raised && job.state === 'queued') {
         const at = queue.indexOf(job);
         if (at >= 0) {
@@ -122,7 +122,7 @@ export function createStreamingQueue(
           insereTravail(queue, job);
         }
       }
-      emit('page-request-coalesced', 'Demande jointe à une lecture en cours', () => ({
+      emit('page-request-coalesced', 'Request joined to a read in progress', () => ({
         version: 1,
         url,
         loading: jobs.size,
@@ -145,9 +145,9 @@ export function createStreamingQueue(
         if (shared.consumers.size === 0 && jobs.get(url) === shared && shared.state === 'queued') {
           jobs.delete(url);
           shared.controller.abort(abortError());
-          emit('page-stream-abort', 'Demande en attente annulée', () => ({ version: 1, url }));
-          // Marqué, pas retiré : `pump` compacte la file en un passage, et `stats()` retranche les
-          // marqués de sa longueur, si bien que le nombre en attente publié ne bouge pas.
+          emit('page-stream-abort', 'Pending request cancelled', () => ({ version: 1, url }));
+          // Marked, not removed: `pump` compacts the queue in one pass, and `stats()` subtracts
+          // the marked from its length, so the published pending count does not move.
           shared.state = 'dropped';
           state.dropped++;
         }

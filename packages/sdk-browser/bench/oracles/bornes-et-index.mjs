@@ -1,9 +1,9 @@
-// Oracles du lot F, côté scène et sources de pages : `explorerScene.ts:18-36` et
-// `explorerPageSources.ts:20-49` d'avant le lot F, recopiés tels quels.
+// Batch F oracles, scene and page-source side: `explorerScene.ts:18-36` and
+// `explorerPageSources.ts:20-49` from before batch F, copied as-is.
 import * as THREE from 'three';
 import { meshes as objects } from '../../sceneMeshes.ts';
 
-/** `exactPagesBounds` avant le lot F : un `find` par maillage, trois objets par page exacte. */
+/** `exactPagesBounds` before batch F: one `find` per mesh, three objects per exact page. */
 export function referenceExactPagesBounds(
   source,
   associations,
@@ -11,8 +11,8 @@ export function referenceExactPagesBounds(
   onMissing,
   into = new THREE.Box3(),
 ) {
-  // `meshes` résolvait le sous-arbre de l'hôte avant le lot 8 ; le témoin le résout maintenant
-  // lui-même, puisqu'il lit `matrixWorld` — ce qu'il calcule ne change pas d'un bit.
+  // `meshes` resolved the host subtree before batch 8; the witness now resolves it
+  // itself, since it reads `matrixWorld` — what it computes does not change by a bit.
   source.updateMatrixWorld(true);
   for (const mesh of objects(source)) {
     const association = associations.get(mesh);
@@ -36,7 +36,7 @@ export function referenceExactPagesBounds(
   return into;
 }
 
-/** `createExplorerPageSources` avant le lot F : quatre `flatMap` sur toutes les pages du manifeste. */
+/** `createExplorerPageSources` before batch F: four `flatMap` over every page of the manifest. */
 export function referenceIndexManifestPages(metadata) {
   const pages = [
     ...new Map(metadata.primitives.flatMap((p) => p.pages).map((p) => [p.url, p])).values(),
@@ -60,7 +60,7 @@ export function referenceIndexManifestPages(metadata) {
   return { pages, geometryPages, geometryUrls, pageIdByUrl };
 }
 
-/** Les paquets de streaming avant le lot F : un `flatMap` de plus. */
+/** Streaming bundles before batch F: one more `flatMap`. */
 export function referenceIndexManifestBundles(metadata) {
   return [
     ...new Map(

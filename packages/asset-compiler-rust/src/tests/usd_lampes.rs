@@ -1,9 +1,9 @@
-//! Les lampes `UsdLux` d'une couche : ce qui devient une lampe `KHR_lights_punctual`, ce qui reste
-//! compté, et d'où sort le rayon d'émetteur.
+//! `UsdLux` lights of a layer: what becomes a `KHR_lights_punctual` light, what
+//! stays counted, and where the emitter radius comes from.
 use super::*;
 use usd_driver::{compile_layer, wrap, QUAD};
 
-/// Les lampes de la scène intermédiaire écrite par le pilote, dans l'ordre des nœuds.
+/// Lights of the intermediate scene the driver wrote, in node order.
 fn lights(run: &GoldenRun) -> Vec<Value> {
     let (_, gltf) = run.prepared("usd");
     gltf.pointer("/extensions/KHR_lights_punctual/lights")
@@ -12,7 +12,7 @@ fn lights(run: &GoldenRun) -> Vec<Value> {
         .unwrap_or_default()
 }
 
-/// Le nombre écrit sur une lampe, et le message qui le situe quand il diverge.
+/// Number written on a light, and the message that situates it when it diverges.
 fn close(light: &Value, key: &str, expected: f64) {
     let found = light
         .pointer(key)
@@ -25,9 +25,9 @@ fn close(light: &Value, key: &str, expected: f64) {
     );
 }
 
-// Comportement : une sphère, un rectangle façonné en cône et une lampe lointaine deviennent les
-// trois types de `KHR_lights_punctual`, avec le rayon d'émetteur que la couche déclare ; un schéma
-// sans équivalent ponctuel, lui, reste compté par son nom.
+// Behaviour: a sphere, a rectangle shaped into a cone and a distant light become
+// the three `KHR_lights_punctual` types, with the emitter radius the layer
+// declares; a schema without a punctual equivalent stays counted by name.
 #[test]
 fn the_punctual_uslux_schemas_become_gltf_lights_and_the_others_stay_counted() {
     let body = format!(
@@ -72,11 +72,11 @@ fn the_punctual_uslux_schemas_become_gltf_lights_and_the_others_stay_counted() {
             ["Panneau", "spot", {"emitterRadius": 2.5}],
             ["Soleil", "directional", null],
         ]),
-        "les lampes converties ont changé"
+        "the converted lights have changed"
     );
-    // Une sphère de rayon 0,25 présente une aire projetée de π/16 : son intensité radiante est
-    // 4 · π/16 W/sr, que le glTF porte en candela. Le rectangle, exposé d'un cran, porte
-    // 2 · 2 · 12 W/sr, et le soleil porte son éclairement tel quel.
+    // A sphere of radius 0.25 has a projected area of π/16: its radiant intensity
+    // is 4 · π/16 W/sr, which glTF carries in candela. The rectangle, exposed by
+    // one stop, carries 2 · 2 · 12 W/sr, and the sun carries its illuminance as-is.
     close(
         &lights[0],
         "/intensity",
@@ -89,12 +89,13 @@ fn the_punctual_uslux_schemas_become_gltf_lights_and_the_others_stay_counted() {
     assert_eq!(
         run.prepared("usd").0["unsupported"],
         json!({"usd-light-unsupported": 1}),
-        "le DomeLight n'est plus compté"
+        "the DomeLight is no longer counted"
     );
 }
 
-// Comportement : le rayon d'émetteur d'une lampe est écrit en mètres du monde — l'unité de la
-// couche et l'échelle des `Xform` qui la portent comprises —, comme le contrat du moteur l'exige.
+// Behaviour: a light's emitter radius is written in world metres — the layer's
+// unit and the scale of the `Xform`s that carry it included —, as the engine
+// contract requires.
 #[test]
 fn the_emitter_radius_of_a_light_is_written_in_world_metres() {
     let body = format!(

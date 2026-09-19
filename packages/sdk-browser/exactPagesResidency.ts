@@ -16,8 +16,8 @@ export function createExactPagesResidency(
   const syncResident = () => {
     const display = displayList();
     const diagnostic = getDiagnostic();
-    // La coupe est parcourue une fois : marquage des pages résidentes, comptage des sorties, reconstruction
-    // de la liste des pages affichées. Aucun balayage de l'ensemble des pages de la scène.
+    // The cut is walked once: marking resident pages, counting exits, rebuilding
+    // the displayed-page list. No scan of the scene's whole page set.
     for (let i = 0; i < display.length; i++) if (display[i].array) display[i].resident = true;
     for (let i = 0; i < attached.length; i++) {
       const rec = attached[i];

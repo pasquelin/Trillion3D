@@ -1,20 +1,20 @@
-//! La dorée du pilote PSD : les fixtures de `fixtures/psd/`, écrites ici depuis la spécification
-//! publiée par Adobe pour les lecteurs tiers, doivent rendre exactement les pixels écrits en clair
-//! ci-dessous. Surface brute et lignes compressées par plages sont deux façons d'écrire le même
-//! composite, en PSD comme en PSB — le doré le prouve en les comparant à la même référence.
+//! Golden of the PSD driver: fixtures of `fixtures/psd/`, written here from the specification
+//! Adobe publishes for third-party readers, must yield exactly the pixels written in the open
+//! below. Raw surface and run-length compressed lines are two ways of writing the same
+//! composite, in PSD as in PSB — the golden proves it by comparing them to the same reference.
 use super::super::image as registry;
 use super::{assert_claims, assert_refusals, decoded_rgba8, fixture};
 
 mod declarations;
 
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
-/// Les dimensions de toutes les fixtures : deux lignes de quatre pixels, la plus petite image où
-/// une plage de trois pixels et un pixel isolé tiennent dans la même ligne compressée.
+/// Dimensions of every fixture: two lines of four pixels, the smallest image where a run of
+/// three pixels and an isolated pixel fit in the same compressed line.
 const SIZE: (u32, u32) = (4, 2);
 
-/// Le composite de référence en RVB, ligne du haut d'abord : trois pixels identiques puis un autre,
-/// pour qu'une plage et un paquet brut se suivent dans la même ligne. L'alpha est opaque : les
-/// fixtures à trois canaux n'en portent pas de plan, et le pilote ne l'invente pas.
+/// Reference composite in RGB, top row first: three identical pixels then another, so a run and
+/// a raw packet follow each other in the same line. Alpha is opaque: three-channel fixtures
+/// carry no plane of it, and the driver does not invent it.
 const RVB: [[u8; 4]; 8] = [
     [10, 20, 30, 255],
     [10, 20, 30, 255],
@@ -26,8 +26,8 @@ const RVB: [[u8; 4]; 8] = [
     [128, 128, 128, 255],
 ];
 
-/// Le même composite en niveaux de gris : l'unique canal de couleur porte les trois composantes,
-/// sans qu'aucune matrice ni aucun profil n'intervienne.
+/// The same composite in grey levels: the unique colour channel carries the three components,
+/// without any matrix or profile intervening.
 const GRIS: [[u8; 4]; 8] = [
     [10, 10, 10, 255],
     [10, 10, 10, 255],
@@ -39,11 +39,11 @@ const GRIS: [[u8; 4]; 8] = [
     [128, 128, 128, 255],
 ];
 
-/// Le plan d'alpha des fixtures qui en portent un : un pixel transparent dans la première ligne,
-/// une plage à un quart d'opacité dans la seconde.
+/// Alpha plane of the fixtures that carry one: a transparent pixel in the first line, a run at
+/// a quarter opacity in the second.
 const ALPHA: [u8; 8] = [255, 255, 255, 0, 64, 64, 64, 64];
 
-/// La référence, son plan d'alpha posé par-dessus.
+/// The reference, its alpha plane laid on top.
 fn avec_alpha(base: [[u8; 4]; 8]) -> Vec<[u8; 4]> {
     base.iter()
         .zip(ALPHA)
@@ -51,7 +51,7 @@ fn avec_alpha(base: [[u8; 4]; 8]) -> Vec<[u8; 4]> {
         .collect()
 }
 
-/// Les pixels d'une fixture, dans l'ordre de lecture de l'image décodée.
+/// Pixels of a fixture, in read order of the decoded image.
 fn pixels(name: &str) -> Vec<[u8; 4]> {
     decoded_rgba8("psd", name, MAX_ALLOC, SIZE)
         .pixels()
@@ -59,26 +59,26 @@ fn pixels(name: &str) -> Vec<[u8; 4]> {
         .collect()
 }
 
-// Dorée du pilote : les deux écritures du composite et les deux versions du format rendent, pixel
-// par pixel, la même image. Aplati veut dire : ce que le fichier porte déjà, et rien d'autre.
+// Driver golden: both writings of the composite and both versions of the format yield, pixel by
+// pixel, the same image. Flattened means: what the file already carries, and nothing else.
 #[test]
-fn les_deux_ecritures_du_composite_rendent_les_pixels_de_la_reference() {
+fn both_writings_of_the_composite_yield_the_reference_pixels() {
     for name in ["rgb-brut.psd", "rgb-rle.psd", "grand-format.psb"] {
         assert_eq!(pixels(name), RVB.to_vec(), "{name}");
     }
     assert_eq!(
         pixels("gris-brut.psd"),
         GRIS.to_vec(),
-        "un canal de couleur porte les trois composantes"
+        "one colour channel carries the three components"
     );
 }
 
-// Contrat du pilote : ce qu'il revendique, et ce qu'il refuse en le nommant. Un PSD hors
-// sous-ensemble laisse le moteur retomber sur son blanc ; il n'interrompt aucune compilation.
+// Driver contract: what it claims, and what it refuses by naming it. A PSD outside the subset
+// lets the engine fall back on its white; it interrupts no compilation.
 #[test]
-fn ce_qui_sort_du_sous_ensemble_ressort_en_raison_de_rapport_jamais_en_panique() {
+fn what_leaves_the_subset_comes_out_as_a_report_reason_never_as_a_panic() {
     assert_claims("psd", "image/vnd.adobe.photoshop", &["psd", "psb", "PSD"]);
-    // La signature reste celle d'un Photoshop : chaque refus est revendiqué par ce pilote.
+    // The signature remains that of a Photoshop: each refusal is claimed by this driver.
     assert_refusals(
         "psd",
         MAX_ALLOC,
@@ -91,33 +91,33 @@ fn ce_qui_sort_du_sous_ensemble_ressort_en_raison_de_rapport_jamais_en_panique()
             ("tronque.psd", "psd-data-truncated"),
         ],
     );
-    // Sans la signature et son numéro de version, le pilote ne revendique rien : mieux vaut un
-    // format inconnu que les octets volés à un voisin.
+    // Without the signature and its version number, the driver claims nothing: better an
+    // unknown format than bytes stolen from a neighbour.
     assert!(registry::by_head(b"8BPS\0\x09").is_none());
 }
 
-// Contrat du pilote : un entête dont un champ sort de son domaine est nommé, jamais deviné. La
-// largeur nulle est le cas que le reste du pilote ne peut pas rattraper.
+// Driver contract: a header whose a field leaves its domain is named, never guessed. Zero width
+// is the case the rest of the driver cannot recover.
 #[test]
-fn un_entete_hors_domaine_est_refuse_par_son_nom() {
+fn a_header_outside_domain_is_refused_by_name() {
     let mut bytes = fixture("psd", "rgb-brut.psd");
     bytes[18..22].fill(0);
     assert_eq!(
         registry::decode(&bytes, MAX_ALLOC).err(),
         Some("psd-header-invalid"),
-        "une largeur nulle n'est pas une image"
+        "a zero width is not an image"
     );
 }
 
-// Contrat du pilote : le plafond d'allocation compte quatre octets par pixel, ceux du contrat de
-// sortie. Une image qui n'y tient pas est un refus nommé, jamais une allocation tentée.
+// Driver contract: the allocation ceiling counts four bytes per pixel, those of the output
+// contract. An image that does not fit is a named refusal, never an allocation attempted.
 #[test]
-fn le_plafond_dallocation_compte_quatre_octets_par_pixel() {
+fn the_allocation_ceiling_counts_four_bytes_per_pixel() {
     let bytes = fixture("psd", "rgb-brut.psd");
     assert_eq!(
         registry::decode(&bytes, 31).err(),
         Some("psd-image-too-large"),
-        "huit pixels RGBA8 pèsent trente-deux octets"
+        "eight RGBA8 pixels weigh thirty-two bytes"
     );
-    assert!(registry::decode(&bytes, 32).is_ok(), "juste assez de place");
+    assert!(registry::decode(&bytes, 32).is_ok(), "just enough room");
 }

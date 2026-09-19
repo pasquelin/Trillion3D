@@ -1,8 +1,8 @@
 use super::*;
 
-/// Un POSITION sans `bufferView`, décrit uniquement par un sparse d'un seul élément, mais annonçant
-/// `count` éléments denses. Les octets stockés tiennent en 28 : trois indices, un index sparse, une
-/// valeur sparse. L'expansion dense, elle, vaut `count × 3` flottants.
+/// A POSITION without `bufferView`, described only by a one-element sparse, but
+/// announcing `count` dense elements. Stored bytes fit in 28: three indices, one
+/// sparse index, one sparse value. The dense expansion is `count × 3` floats.
 fn sparse_position_fixture(count: u64) -> (PathBuf, Options) {
     let (root, mut options) = fixture();
     let mut bin = Vec::new();
@@ -24,12 +24,13 @@ fn sparse_position_fixture(count: u64) -> (PathBuf, Options) {
     (root, options)
 }
 
-/// A01 : `count = 2^61` tient dans un `usize`, donc ni l'admission ni la validation ne le voient
-/// passer ; seule la réservation dense de `count × 3` flottants s'en apercevait, en paniquant.
+/// A01: `count = 2^61` fits in a `usize`, so neither admission nor validation
+/// sees it pass; only the dense reservation of `count × 3` floats used to notice,
+/// by panicking.
 #[test]
 fn a01_un_position_sparse_de_2_puissance_61_est_refuse_sans_panique() {
     let (root, options) = sparse_position_fixture(1u64 << 61);
-    let error = compile(&options, |_| {}).expect_err("l'accessor hostile doit être refusé");
+    let error = compile(&options, |_| {}).expect_err("the hostile accessor must be refused");
     assert!(
         error.code == "INVALID_GLTF" || error.code == "RAM_ADMISSION_BUDGET_EXCEEDED",
         "{error}"
@@ -37,12 +38,12 @@ fn a01_un_position_sparse_de_2_puissance_61_est_refuse_sans_panique() {
     fs::remove_dir_all(root).expect("cleanup");
 }
 
-/// A01 bis : un sparse réaliste, dont l'expansion dense dépasse le budget de 64 Mio sans dépasser
-/// aucun entier, doit être refusé par l'admission et non alloué.
+/// A01 bis: a realistic sparse, whose dense expansion exceeds the 64 MiB budget
+/// without overflowing any integer, must be refused by admission and not allocated.
 #[test]
 fn a01_un_sparse_realiste_hors_budget_est_refuse_par_l_admission() {
     let (root, options) = sparse_position_fixture(8_000_000);
-    let error = compile(&options, |_| {}).expect_err("l'expansion dense dépasse le budget");
+    let error = compile(&options, |_| {}).expect_err("the dense expansion exceeds the budget");
     assert_eq!(error.code, "RAM_ADMISSION_BUDGET_EXCEEDED", "{error}");
     fs::remove_dir_all(root).expect("cleanup");
 }

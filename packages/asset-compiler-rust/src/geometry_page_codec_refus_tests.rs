@@ -1,10 +1,10 @@
-//! Les refus du décodeur partagé, sur des pages que l'encodeur n'écrirait jamais.
+//! Shared decoder refusals, on pages encoder would never write.
 
 use crate::geometry_page::STRIDE;
 use web_geometry_page_codec as codec;
 
-/// Une page bricolée à la main : l'en-tête et les deux flux, sans passer par l'encodeur, pour
-/// pouvoir y glisser ce que l'encodeur refuse d'écrire.
+/// Hand-crafted page: header and two streams without encoder, to
+/// insert what encoder refuses to write.
 fn page_brute(sommets: &[[u8; STRIDE]], locaux: &[u32], declare: u32, flags: u32) -> Vec<u8> {
     let index = meshopt::encode_index_buffer(locaux, sommets.len()).expect("indices");
     let vertex = meshopt::encode_vertex_buffer(sommets).expect("sommets");

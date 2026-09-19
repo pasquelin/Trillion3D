@@ -1,7 +1,7 @@
-// A11 : la résidence demandée est posée en bits — un mot pour trente-deux grappes, qui est à lui
-// seul son propre miroir — au lieu d'un flottant par page relu à travers les cônes ; `maxStretch`
-// reçoit désormais une sous-vue au lieu d'un tableau recopié. Oracle : la colonne de résidence
-// d'avant le lot A, dans `bench/oracles/residence.mjs`.
+// A11: requested residency is stored as bits — one word for thirty-two clusters, which
+// is its own mirror — instead of a float per page reread through the cones; `maxStretch`
+// now receives a subarray instead of a recopied array. Oracle: the residency column
+// from before lot A, in `bench/oracles/residence.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { maxStretch } from '../sdk-core/index.ts';
@@ -12,7 +12,7 @@ import { referenceUpdateResidency, residencyColumn } from './bench/oracles/resid
 const STRIDE = 12,
   FLAG = 11;
 
-/** Les cônes de l'oracle, dont seule la colonne de résidence est comparée. */
+/** Oracle cones, of which only the residency column is compared. */
 function conesWith(count: number, seed: (j: number) => number) {
   const cones = new Float32Array(count * STRIDE);
   for (let j = 0; j < count * STRIDE; j++) cones[j] = seed(j);
@@ -22,15 +22,15 @@ const colonne = (cones: Float32Array, count: number) =>
   Float32Array.from({ length: count }, (_, j) => (cones[j * STRIDE + FLAG] >= 0.5 ? 1 : 0));
 
 /**
- * Le balayage complet, tel que l'oracle le fait : sans journal de rangs, toutes les pages sont
- * relues. `updateResidencyBits` rend le nombre de mots retenus et les nomme dans `touched` ; le
- * verdict que l'oracle rend est ce nombre ramené à un booléen.
+ * Full sweep, as the oracle does it: without a rank journal, every page is reread.
+ * `updateResidencyBits` returns the kept-word count and names them in `touched`; the
+ * verdict the oracle returns is that count reduced to a boolean.
  */
 function balayage(next: Uint32Array, bits: Uint32Array) {
   const touched = new Int32Array(Math.max(1, residentWords(next.length)));
   const count = updateResidencyBits(next, bits, 0, undefined, touched);
   for (let i = 1; i < count; i++)
-    assert.ok(touched[i] > touched[i - 1], 'les mots retenus sont croissants et sans répétition');
+    assert.ok(touched[i] > touched[i - 1], 'kept words are increasing and without repetition');
   return { changed: count > 0, count, touched: touched.slice(0, count) };
 }
 
@@ -52,7 +52,7 @@ test('every page flips, some pages do not: same changed verdict, same residency 
   assert.deepEqual(
     [...residencyColumn(bits, 0, count)],
     [...colonne(conesReference, count)],
-    'la colonne en bits est celle que l’oracle écrit à travers les cônes',
+    'the bit column is the one the oracle writes through the cones',
   );
 
   // A second pass with the same `next` changes nothing more: the bits already reflect it.
@@ -70,12 +70,12 @@ test('a single page toggling on then off is reflected bit for bit, both directio
   assert.deepEqual([...residencyColumn(bits, 0, 1)], [...colonne(conesReference, 1)]);
 });
 
-test('le journal des rangs trié pose les mêmes bits que le balayage complet', () => {
+test('the sorted rank journal sets the same bits as the full sweep', () => {
   const count = 40;
   const next = new Uint32Array(count).map((_, j) => (j % 7 === 0 ? 1 : 0));
   const journal = new Uint32Array(residentWords(count)),
     balaye = new Uint32Array(residentWords(count));
-  // Le journal ne nomme que les pages dont la résidence a bougé, dans l'ordre croissant.
+  // The journal only names pages whose residency moved, in increasing order.
   const pages = Int32Array.from({ length: count }, (_, j) => j).filter((j) => j % 7 === 0);
   const changes = { pages: Int32Array.from(pages), count: pages.length, sorted: true };
   const touched = new Int32Array(residentWords(count));

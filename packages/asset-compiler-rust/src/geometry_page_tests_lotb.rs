@@ -1,8 +1,8 @@
 use super::*;
 
-// Lot B5 : localise part de la borne connue (une page ne porte jamais plus de 65 535 sommets ni
-// plus de coins que d'indices) au lieu de redimensionner coin par coin. Même renumérotation sur
-// des entrées hostiles : page vide, sommets dupliqués, index hors bornes, limite à 65 535.
+// Lot B5: localise starts from known bound (page carries at most 65,535 vertices and
+// no more corners than indices) instead of resizing corner by corner. Same renumbering on
+// hostile inputs: empty page, duplicate vertices, out of bounds index, limit 65,535.
 
 #[test]
 fn localise_on_empty_indices_returns_empty_lists() {
@@ -26,9 +26,9 @@ fn localise_rejects_an_index_that_exceeds_the_declared_vertex_count() {
 
 #[test]
 fn localise_uses_the_declared_vertex_count_not_a_positions_buffer() {
-    // `vertices` est un paramètre propre à localise, découplé de positions.len()/3 : un indice
-    // valide pour la borne déclarée passe même très au-delà d'une taille de maillage habituelle.
-    let (original, local) = localise(&[999], 1000).expect("borne déclarée");
+    // `vertices` is localise parameter, decoupled from positions.len()/3: index
+    // valid for declared bound passes even beyond usual mesh size.
+    let (original, local) = localise(&[999], 1000).expect("declared bound");
     assert_eq!(original, vec![999]);
     assert_eq!(local, vec![0]);
 }

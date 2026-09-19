@@ -1,34 +1,35 @@
-//! Le document lu : les nœuds, leurs attributs, leurs liaisons, et l'unité de la scène.
+//! The document as read: nodes, their attributes, their connections, and the scene unit.
 //!
-//! Le document est le fichier tel qu'il est écrit, pas encore une scène : aucune géométrie n'y est
-//! construite, aucun matériau n'y est converti. Les commandes s'y appliquent une par une, dans leur
-//! ordre d'écriture, parce qu'un `setAttr` sans nom de nœud s'adresse au nœud que la commande
-//! précédente a créé ou sélectionné. Tout ce qui n'est pas du sous-ensemble est compté par son nom.
+//! The document is the file as written, not yet a scene: no geometry is built there, no material
+//! is converted. Commands apply one by one, in writing order, because a `setAttr` without a node
+//! name addresses the node the previous command created or selected. Anything outside the subset
+//! is counted by name.
 use super::*;
 
 mod edit;
 mod path;
 
-/// Un nœud du fichier : son type, son nom, son chemin, son père, et ses attributs écrits.
+/// A node of the file: its type, its name, its path, its parent, and its written attributes.
 pub(super) struct Node {
     pub(super) kind: String,
     pub(super) name: String,
-    /// Le chemin complet du nœud dans la scène, `|A|M`, qui seul l'identifie : deux nœuds de même
-    /// nom court sous deux pères différents sont deux nœuds, et Maya les distingue par là.
+    /// Full path of the node in the scene, `|A|M`, which alone identifies it: two nodes of the
+    /// same short name under two different parents are two nodes, and Maya distinguishes them
+    /// that way.
     pub(super) path: String,
     pub(super) parent: Option<usize>,
     pub(super) attrs: HashMap<String, Attr>,
 }
 
 impl Node {
-    /// L'attribut que l'un de ces noms désigne. `setAttr` accepte le nom court comme le long, et un
-    /// fichier réel mélange les deux : les deux écritures sont donc cherchées ensemble.
+    /// Attribute one of these names refers to. `setAttr` accepts the short name as well as the
+    /// long, and a real file mixes both: both writings are therefore looked up together.
     pub(super) fn attr(&self, names: &[&str]) -> Option<&Attr> {
         names.iter().find_map(|name| self.attrs.get(*name))
     }
 }
 
-/// Une liaison écrite par `connectAttr`, nœuds et attributs tels qu'ils y sont nommés.
+/// A connection written by `connectAttr`, nodes and attributes as they are named there.
 pub(super) struct Link {
     pub(super) source: String,
     pub(super) source_attr: String,
@@ -36,20 +37,20 @@ pub(super) struct Link {
     pub(super) target_attr: String,
 }
 
-/// Le fichier lu en entier.
+/// The file read in full.
 pub(super) struct Document {
     pub(super) nodes: Vec<Node>,
-    /// Les rangs des nœuds de chaque nom court, dans l'ordre où le fichier les écrit.
+    /// Ranks of the nodes of each short name, in the order the file writes them.
     by_name: HashMap<String, Vec<usize>>,
     pub(super) links: Vec<Link>,
-    /// Les formes qu'un `parent -add` accroche sous un second transform : `(transform, forme)`.
+    /// Shapes a `parent -add` hangs under a second transform: `(transform, shape)`.
     pub(super) instances: Vec<(usize, usize)>,
-    /// Le facteur de l'unité linéaire du fichier vers le mètre. Maya écrit le centimètre par défaut.
+    /// Factor of the file's linear unit into metres. Maya writes centimetres by default.
     pub(super) meters_per_unit: f64,
-    /// Le facteur de l'unité angulaire du fichier vers le degré.
+    /// Factor of the file's angular unit into degrees.
     pub(super) degrees_per_unit: f64,
     pub(super) report: Report,
-    /// Le nœud auquel un `setAttr` sans nom s'applique.
+    /// Node a nameless `setAttr` applies to.
     current: Option<usize>,
 }
 
@@ -68,8 +69,8 @@ impl Default for Document {
     }
 }
 
-/// Lit le texte d'un fichier Maya ASCII. Une commande hors du sous-ensemble est comptée par son nom
-/// et laissée : ce lecteur n'est pas un interpréteur, il n'en exécute aucune.
+/// Reads the text of a Maya ASCII file. A command outside the subset is counted by name and
+/// left: this reader is not an interpreter, it executes none.
 pub(super) fn read(text: &str) -> Result<Document> {
     if !text.starts_with(HEADER) {
         return Err(CompilerError::new(
@@ -85,7 +86,7 @@ pub(super) fn read(text: &str) -> Result<Document> {
 }
 
 impl Document {
-    /// Applique une commande. Le nom décide ; tout le reste est compté.
+    /// Applies a command. The name decides; everything else is counted.
     fn apply(&mut self, command: Command) {
         match command.name.as_str() {
             "createNode" => self.create(&command),
@@ -99,14 +100,14 @@ impl Document {
         }
     }
 
-    /// Compte une raison nommée d'après ce que le fichier écrivait, sans jamais l'exécuter.
+    /// Counts a named reason after what the file was writing, without ever executing it.
     fn count(&mut self, reason: &str, what: &str) {
         self.report.add(&format!("{reason}:{what}"));
     }
 }
 
-/// Le nom d'un nœud au bout d'un chemin de scène : Maya écrit `|pere|enfant` dans une liaison et le
-/// seul nom court dans le `createNode` qui l'a fait. C'est le nom court qui les rapproche.
+/// Name of a node at the end of a scene path: Maya writes `|parent|child` in a connection and the
+/// short name alone in the `createNode` that made it. It is the short name that brings them together.
 pub(super) fn leaf(name: &str) -> &str {
     name.rsplit('|').next().unwrap_or(name)
 }

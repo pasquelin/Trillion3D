@@ -1,5 +1,5 @@
-// A2 : visMaterial et le triangle projeté sont mis en cache par image (VisibilityFrame) au lieu
-// d'être refaits à chaque pixel. Oracle : la référence d'avant le lot A dans
+// A2: visMaterial and the projected triangle are cached per frame (VisibilityFrame) instead
+// of being rebuilt at each pixel. Oracle: the pre-batch-A reference in
 // `bench/oracles/ombrage-image.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -40,7 +40,7 @@ test('a MeshBasicMaterial quad shades identically, one pixel and many', () => {
   material.dispose();
 });
 
-test('a MeshStandardMaterial quad (lit path) shades identically', () => {
+test('a MeshStandardMaterial quad (reads path) shades identically', () => {
   const material = new THREE.MeshStandardMaterial({
     color: 0xaa5533,
     roughness: 0.6,

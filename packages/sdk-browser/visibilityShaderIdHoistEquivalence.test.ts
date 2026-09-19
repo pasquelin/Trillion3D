@@ -14,15 +14,15 @@ import {
   type Vec4,
 } from './bench/oracles/mat4HoistOracle.ts';
 
-// Le repli materiel dessine TOUTE la coupe opaque : le raster de calcul ayant pris les triangles
-// de toutes tailles, le seuil qui ecartait les petits n'existe plus, et aucun triangle ne peut
-// tomber entre les deux producteurs. Le comportement teste ensuite reste celui du produit hisse :
-// les trois sommets projetes avec le produit nomme une fois sont ceux qu'un produit refait pour
-// chacun aurait donnes, sur des matrices hostiles.
+// The hardware fallback draws the WHOLE opaque cut: the compute raster having taken triangles
+// of all sizes, the threshold that used to drop the small ones no longer exists, and no triangle
+// can fall between the two producers. The behaviour tested next stays that of the hoisted product:
+// the three vertices projected with the product named once are those a product redone for
+// each would have given, on hostile matrices.
 
-test('le raster matériel lit le partage dans le même texte que le raster de calcul', () => {
-  // Le même prédicat, sur le même produit hissé `viewProj*world` : un triangle a exactement un
-  // des deux rasters. À zéro, l'étage de sommets ne lit pas un sommet de plus.
+test('the hardware raster reads the share in the same text as the compute raster', () => {
+  // The same predicate, on the same hoisted `viewProj*world` product: a triangle has exactly one
+  // of the two rasters. At zero, the vertex stage does not read one more vertex.
   assert.ok(VIS_SHADER.includes(COMPUTE_TAKES_WGSL));
   assert.ok(rasterSource(4, 16).includes(COMPUTE_TAKES_WGSL));
   assert.match(
@@ -45,20 +45,20 @@ const TRIANGLE: readonly Vec4[] = [
   [-2, 0.4, 0.9, 1],
 ];
 
-test('sommets projetes identiques, matrice identite', () => {
+test('identical projected vertices, identity matrix', () => {
   assertSameTriangle(IDENTITY, IDENTITY, TRIANGLE);
 });
 
-test('sommets projetes identiques, matrice miroir (echelle negative importee)', () => {
+test('identical projected vertices, mirror matrix (imported negative scale)', () => {
   assertSameTriangle(IDENTITY, MIRROR_X, TRIANGLE);
   assertSameTriangle(MIRROR_X, MIRROR_X, TRIANGLE);
 });
 
-test('sommets projetes identiques, matrice quasi-singuliere', () => {
+test('identical projected vertices, near-singular matrix', () => {
   assertSameTriangle(IDENTITY, NEAR_SINGULAR, TRIANGLE);
 });
 
-test('sommets projetes identiques, grande echelle (monde importe en millimetres)', () => {
+test('identical projected vertices, large scale (world imported in millimetres)', () => {
   assertSameTriangle(LARGE_SCALE, IDENTITY, TRIANGLE);
   assertSameTriangle(LARGE_SCALE, MIRROR_X, TRIANGLE);
 });

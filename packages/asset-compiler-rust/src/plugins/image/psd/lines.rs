@@ -1,21 +1,21 @@
-//! Une ligne de plan après l'autre, dans l'une ou l'autre écriture du composite : la surface brute,
-//! ou les lignes compressées par plages selon PackBits, tel que la spécification du format les
-//! décrit. Ce module ne sait rien des canaux ni des couleurs — il rend des octets de ligne.
+//! One plane line after another, in one or the other writing of the composite: the raw
+//! surface, or the lines run-length compressed as PackBits, as the format specification
+//! describes them. This module knows nothing of channels or colours — it returns line bytes.
 use super::{Header, COMPRESSION_UNSUPPORTED, DATA_TRUNCATED};
 
-/// Les deux écritures du sous-ensemble : la surface brute, et les lignes compressées par plages.
+/// The two writings of the subset: the raw surface, and the run-length compressed lines.
 const RAW: u16 = 0;
 const RLE: u16 = 1;
-/// La largeur d'une entrée de la table des longueurs de ligne, PSD puis PSB.
+/// Width of an entry of the line-length table, PSD then PSB.
 const COUNT_PSD: usize = 2;
 const COUNT_PSB: usize = 4;
-/// L'octet de contrôle que PackBits réserve : il ne décrit aucun paquet et ne fait rien avancer.
+/// Control byte that PackBits reserves: it describes no packet and does not advance.
 const NO_OP: i8 = -128;
 
-/// Le curseur qui avance d'une ligne de plan à la suivante, dans l'une ou l'autre écriture.
+/// Cursor that advances from one plane line to the next, in one or the other writing.
 pub(super) struct Lines<'a> {
-    /// La table des longueurs compressées, une entrée par ligne et par canal, dans l'ordre des
-    /// plans. Vide quand les lignes sont brutes.
+    /// Table of compressed lengths, one entry per line and per channel, in plane order.
+    /// Empty when the lines are raw.
     counts: &'a [u8],
     data: &'a [u8],
     at: usize,
@@ -24,8 +24,8 @@ pub(super) struct Lines<'a> {
 }
 
 impl<'a> Lines<'a> {
-    /// La table d'abord, quand il y en a une : sa taille se déduit de l'entête, et un fichier qui
-    /// ne la porte pas entière est tronqué avant qu'un seul pixel ne soit alloué.
+    /// The table first, when there is one: its size is deduced from the header, and a file
+    /// that does not carry it whole is truncated before a single pixel is allocated.
     pub(super) fn new(
         header: &Header,
         compression: u16,
@@ -53,7 +53,7 @@ impl<'a> Lines<'a> {
         }
     }
 
-    /// La ligne numéro `index` — canal fois hauteur, plus la ligne —, développée dans `into`.
+    /// Line number `index` — channel times height, plus the line —, expanded into `into`.
     pub(super) fn read(
         &mut self,
         index: usize,
@@ -68,8 +68,8 @@ impl<'a> Lines<'a> {
         unpack(packed, into)
     }
 
-    /// Les `n` octets suivants du corps, le curseur passé derrière eux ; un corps qui ne les porte
-    /// pas entiers est tronqué.
+    /// The next `n` bytes of the body, the cursor moved past them; a body that does not
+    /// carry them whole is truncated.
     fn take(&mut self, n: usize) -> std::result::Result<&'a [u8], &'static str> {
         let end = self.at.checked_add(n).ok_or(DATA_TRUNCATED)?;
         let bytes = self.data.get(self.at..end).ok_or(DATA_TRUNCATED)?;
@@ -77,7 +77,7 @@ impl<'a> Lines<'a> {
         Ok(bytes)
     }
 
-    /// La longueur compressée que la table donne à cette ligne.
+    /// Compressed length that the table gives this line.
     fn count(&self, index: usize) -> std::result::Result<usize, &'static str> {
         let field = self
             .counts
@@ -94,11 +94,11 @@ impl<'a> Lines<'a> {
     }
 }
 
-/// Une ligne PackBits, telle que la spécification la décrit : un octet de contrôle signé, puis un
-/// paquet brut de `n + 1` octets quand il est positif, ou la répétition de l'octet suivant
-/// `1 - n` fois quand il est négatif. Dans les deux cas la longueur vaut `|n| + 1`. La ligne doit
-/// rendre exactement sa largeur : une plage qui la dépasse, comme des octets qui manquent, est un
-/// refus nommé — jamais une ligne à moitié.
+/// A PackBits line, as the specification describes it: a signed control byte, then a raw
+/// packet of `n + 1` bytes when it is positive, or the repetition of the next byte `1 - n`
+/// times when it is negative. In both cases the length is `|n| + 1`. The line must yield
+/// exactly its width: a run that overflows it, like missing bytes, is a named refusal —
+/// never a half line.
 fn unpack(packed: &[u8], into: &mut [u8]) -> std::result::Result<(), &'static str> {
     let mut at = 0;
     let mut written = 0;

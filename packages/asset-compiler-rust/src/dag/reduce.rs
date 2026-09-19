@@ -1,39 +1,41 @@
-//! La réduction d'un groupe : le simplificateur, puis ce qu'on fait quand il n'avance pas.
+//! Group reduction: the simplifier, then what happens when it stalls.
 //!
-//! Deux reprises, chacune mesurée sur une scène réelle avant d'exister :
-//! - **La soudure par position.** meshoptimizer ne fait glisser une position copiée — couture d'UV,
-//!   arête dure — que le long de sa couture, et verrouille toute position présente en plus de deux
-//!   exemplaires. Sur des dalles disjointes qui ne se touchent qu'aux coins il ne réduit rien ; sur
-//!   un tronc plein de coutures il consomme les sommets ordinaires puis cale à ÷2 (mesuré : 15 825
-//!   → 7 869 → 5 967 → 5 680 → 5 647 triangles, 881 sommets ordinaires pour 1 582 coutures et 259
-//!   complexes au sommet du DAG, et rien en dessous de 5 635 même sans aucun verrou). Quand la
-//!   réduction ne rend pas moins de grappes qu'elle en a reçu, elle est refaite sur les indices
-//!   soudés par (position, uv) : les copies qui ne diffèrent que par leur normale ou leur couleur
-//!   deviennent une, les niveaux grossiers pointent sur celle que la soudure retient — sa normale
-//!   vaut pour les autres, c'est le coût déclaré —, et le niveau zéro ne change pas. Souder aussi
-//!   les coutures de texture a été essayé et mesuré : les façades d'Emerald au seuil de 2 px se
-//!   dessinaient avec la texture de l'autre bord de la couture. Refusé.
-//! - **Les verrous ajoutés.** Sur du feuillage, une carte dont l'arête est partagée avec un autre
-//!   groupe disparaît quand ses sommets libres s'effondrent sur ses sommets verrouillés, et l'autre
-//!   groupe garde sa moitié (mesuré : 92 groupes sur 123 perdus ainsi, 339 verrous perdus, tous sur
-//!   une arête verrouillée). La reprise verrouille les trois coins de chaque triangle qui touchait
-//!   un verrou perdu et relance : quelques cartes restent, le reste du groupe se réduit.
+//! Two retries, each measured on a real scene before they existed:
+//! - **Position welding.** meshoptimizer only slides a copied position — UV seam,
+//!   hard edge — along its seam, and locks any position present in more than two
+//!   copies. On disjoint slabs that meet only at corners it reduces nothing; on
+//!   a trunk full of seams it consumes ordinary vertices then stalls at ÷2
+//!   (measured: 15 825 → 7 869 → 5 967 → 5 680 → 5 647 triangles, 881 ordinary
+//!   vertices for 1 582 seams and 259 complex ones at the top of the DAG, and
+//!   nothing below 5 635 even with zero locks). When reduction yields no fewer
+//!   clusters than it received, it is retried on indices welded by (position,
+//!   uv): copies that differ only by normal or colour become one, coarse levels
+//!   point at the welded survivor — its normal stands for the others, that is
+//!   the declared cost — and level zero is unchanged. Welding texture seams too
+//!   was tried and measured: Emerald facades at the 2 px threshold drew with the
+//!   texture from the other side of the seam. Refused.
+//! - **Added locks.** On foliage, a chart whose edge is shared with another group
+//!   disappears when its free vertices collapse onto locked vertices, and the
+//!   other group keeps its half (measured: 92 groups of 123 lost that way, 339
+//!   locks lost, all on a locked edge). The retry locks all three corners of
+//!   every triangle that touched a lost lock and restarts: some charts remain,
+//!   the rest of the group reduces.
 use super::*;
 use crate::qem::SimplifiedMesh;
 use border::{live_triangles, lock_triangles_touching, lost_locks, required_locks};
 
-/// Combien de fois un groupe est relancé avec des verrous en plus avant d'être déclaré perdu.
+/// Times group restarted with extra locks before declared lost.
 const BORDER_RETRIES: usize = 3;
 
-/// Une réduction qui a abouti : la surface simplifiée et sa redécoupe en grappes.
+/// Succeeded reduction: simplified surface and re-clustered result.
 struct Attempt {
     simplified: SimplifiedMesh,
     clusters: Vec<Vec<u32>>,
-    /// Des verrous ont été ajoutés pour garder le bord.
+    /// Locks added to preserve border.
     relocked: bool,
 }
 impl Attempt {
-    /// Une réduction qui ne rend pas moins de grappes qu'elle en a reçu ne fait pas monter le DAG.
+    /// Reduction yielding no fewer clusters than received does not advance DAG.
     fn progresses(&self, children: usize) -> bool {
         self.clusters.len() < children
     }
@@ -56,14 +58,14 @@ pub(super) fn reduce_group(
     let sphere = enclosing_sphere(&spheres);
     let live = live_triangles(merged.iter().copied());
     let raw = attempt(input, &live)?;
-    // Une réduction qui ne rend pas moins de grappes ne fait pas monter le DAG : elle est refusée,
-    // même si elle a retiré des triangles, plutôt que d'ajouter un niveau que rien ne remplace.
+    // Reduction yielding no fewer clusters does not advance DAG: refused,
+    // even if removing triangles, rather than adding unreplaced level.
     let (chosen, welded) = match raw {
         Ok(raw) if raw.progresses(children.len()) => (raw, false),
         raw => {
             let welded_indices =
                 live_triangles(merged.iter().map(|&i| input.weld_seam[i as usize]));
-            // Un maillage déjà indexé, sans copie à souder, ne se relance pas pour la même réponse.
+            // Already indexed mesh, with no copy to weld, does not restart for same result.
             let welded = if welded_indices == live {
                 Err(GroupOutcome::NoCollapse)
             } else {
@@ -90,8 +92,8 @@ pub(super) fn reduce_group(
     }))
 }
 
-/// Simplifie `source` à la moitié de ses triangles, en relançant avec des verrous en plus tant
-/// qu'un sommet partagé disparaît, puis redécoupe le résultat en grappes.
+/// Simplifies `source` to half triangles, restarting with extra locks as long
+/// as shared vertex disappears, then re-clusters result.
 fn attempt(
     input: &GroupReductionInput,
     source: &[u32],

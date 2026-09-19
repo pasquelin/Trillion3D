@@ -17,9 +17,9 @@ fn objects_on_disk(cache: &Path) -> BTreeSet<String> {
         .map(|e| e.expect("entry").file_name().to_string_lossy().into_owned())
         .collect()
 }
-/// Le scope qu'on ne recompile pas nomme ses pages dans les colonnes de son sidecar. Si ce sidecar
-/// porte une autre version binaire, la purge ne doit ni le lire comme « aucun objet référencé » ni
-/// supprimer quoi que ce soit : elle échoue et laisse le cache intact.
+/// The scope that is not recompiled names its pages in its sidecar columns. If that
+/// sidecar carries another binary version, prune must neither read it as "no object
+/// referenced" nor delete anything: it fails and leaves the cache intact.
 #[test]
 fn a_sidecar_of_another_version_stops_the_prune_without_removing_anything() {
     let (root, options) = obj_fixture("a.obj", false);

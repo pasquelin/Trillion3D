@@ -72,8 +72,8 @@ export function drawnUnderForcing<T extends PageRecord>(s: SelectionState<T>, re
   );
 }
 
-/** Porte un groupe forcé sur les nœuds de culling que ses clusters traversent, quand la racine en
- *  tient la carte : la descente de repli lit ensuite ces marques au lieu de tout ouvrir. */
+/** Marks a forced group on the culling nodes its clusters walk, when the root holds
+ *  the map: the fallback descent then reads those marks instead of opening everything. */
 function markGroup<T extends PageRecord>(
   s: SelectionState<T>,
   links: CullingLinks | undefined,
@@ -84,7 +84,7 @@ function markGroup<T extends PageRecord>(
   if (links && marks) markForcedGroup(links, marks, s.flatStructure!, group, delta);
 }
 
-/** Retire les marques de forçage laissées par la coupe précédente de cette racine. */
+/** Clears the force marks left by this root's previous cut. */
 export function clearForcedMarks<T extends PageRecord>(
   s: SelectionState<T>,
   links: CullingLinks | undefined,

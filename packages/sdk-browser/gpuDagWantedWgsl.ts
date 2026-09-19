@@ -1,26 +1,26 @@
 import { CLUSTER_LEVEL_SHIFT } from './gpuDagLayout.ts';
 
 /**
- * Les trois noyaux qui suivent la descente, et qui ne visitent que ce qu'elle a retenu.
+ * The three kernels that follow the descent, and that visit only what it kept.
  *
- * `dagWanted` parcourt les pages des feuilles retenues : il écarte celles que le tronc ou le cône
- * rejettent, dépose les survivantes dans la liste des vivantes (`gpuDagLiveWgsl.ts`), et publie une
- * DEMANDE pour chacune de celles que la coupe retient — la page et la priorité que l'hôte lui
- * donnera dans sa file (`gpuDagRequest.ts`).
+ * `dagWanted` walks the pages of the kept leaves: it drops those the frustum or the cone reject,
+ * deposits the survivors in the live list (`gpuDagLiveWgsl.ts`), and publishes a REQUEST for each
+ * one the cut keeps — the page and the priority the host will give it in its queue
+ * (`gpuDagRequest.ts`).
  *
- * `dagEscalate` et `dagCheck` ne parcourent que cette liste de vivantes. Ils montent le seuil de la
- * primitive vers la bande du remplaçant tant qu'une grappe manque, puis constatent ce qui manque
- * encore : c'est ce constat qui arme le repli épinglé dans `dagMask`.
+ * `dagEscalate` and `dagCheck` walk only that live list. They raise the primitive's threshold
+ * toward the replacement's band while a cluster is missing, then record what is still missing:
+ * that record is what arms the pinned fallback in `dagMask`.
  *
- * Posés à part de `gpuDagShader.ts`, qui tient les autres noyaux et la déclaration des liaisons :
- * ceux-ci forment une étape, ils partagent leur liste, et le fichier qui les portait tous a atteint
- * sa limite de lignes.
+ * Kept apart from `gpuDagShader.ts`, which holds the other kernels and the bind declarations:
+ * these form one stage, they share their list, and the file that carried them all hit its line
+ * limit.
  */
 export const DAG_WANTED_WGSL = `@compute @workgroup_size(64)
 fn dagWanted(@builtin(global_invocation_id) id:vec3u){
  let s=id.x;if(s>=atomicLoad(&work[candCounter()])){return;}
- // Seules les pages des feuilles retenues : une page sous un nœud rejeté n'est jamais lue, et son
- // drapeau de dessin vaut déjà zéro — \`dagClearDrawn\` a effacé les seules qui valaient un.
+ // Only pages of the kept leaves: a page under a rejected node is never read, and its draw flag
+ // is already zero — \`dagClearDrawn\` cleared the only ones that were one.
  let i=flags[candBase()+s];
  let cluster=clusters[i];
  if(!visible(i,cluster)){atomicAdd(&out.frustumRejected,1u);return;}
@@ -32,16 +32,16 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u){
  if(!selects(cluster,e,stretch,focal,uni.pixelError)){return;}
  if(rejected){return;}
  atomicMax(&out.lodLevel,cluster.flags>>${CLUSTER_LEVEL_SHIFT}u);
- // L'erreur du REMPLAÇANT, celle que l'œil verrait si cette grappe manquait : c'est elle qui donne
- // son rang à la demande, comme \`orderPendingUrls\` (streamingPriority.ts) le fait sur l'autre
- // chemin. Une grappe que rien ne remplace retombe sur la sienne, comme lui.
+ // The REPLACEMENT's error, what the eye would see if this cluster were missing: that is what
+ // ranks the request, as \`orderPendingUrls\` (streamingPriority.ts) does on the other path. A
+ // cluster nothing replaces falls back on its own, as that path does.
  let parentPixels=projected(cluster.parentError,cluster.parentSphere,e,stretch,focal);
  var pixels=parentPixels;
  if(cluster.parentError<0.0){pixels=projected(cluster.lodError,cluster.sphere,e,stretch,focal);}
  emitOne(i,pixels);
  if(uni.residentCut==0u||isResident(i)){return;}
- // L'escalade garde la bande du PARENT : sur une grappe que rien ne remplace elle vaut l'infini,
- // et c'est ce qui arme le repli épinglé. Lui donner l'erreur propre l'en priverait.
+ // Escalation keeps the PARENT's band: on a cluster nothing replaces it is infinity, and that
+ // is what arms the pinned fallback. Giving it the own error would strip that.
  escalate(w,parentPixels);
 }
 @compute @workgroup_size(64)

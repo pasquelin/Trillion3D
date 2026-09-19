@@ -18,29 +18,29 @@ export function createProjectionHold(slots: number) {
   const stamp = new Int32Array(size).fill(-1),
     heldPage = new Int32Array(size).fill(-1),
     pending = new Uint8Array(size);
-  // Vue, projection, plan proche, viewport et révision du monde : tout ce dont un rectangle d'écran
-  // dépend en dehors de la boîte elle-même. Les quatre premiers sont l'empreinte que la révision de
-  // vue des moteurs Three compare aussi (`viewFingerprint.ts`) ; l'âge de la table n'est qu'à nous.
+  // View, projection, near plane, viewport and world revision: everything a screen rectangle
+  // depends on besides the box itself. The first four are the fingerprint that Three engines'
+  // view revision also compares (`viewFingerprint.ts`); the table age is ours alone.
   const fingerprint = createViewFingerprint();
   let generation = 0,
     heldEpoch = -1;
   return {
     pending,
     /**
-     * L'âge des rectangles d'écran : il change dès que la vue, le viewport ou l'âge de la table
-     * retire les rectangles tenus. Ce que lit quiconque garde des bornes PROJETÉES et doit savoir
-     * si elles décrivent encore cette image-ci.
+     * Age of the screen rectangles: it changes as soon as the view, the viewport or the table
+     * age retires the held rectangles. What anyone who keeps PROJECTED bounds reads, and must
+     * know whether they still describe this frame.
      */
     get generation() {
       return generation;
     },
     /**
-     * Relit la vue que tous les créneaux partagent ; un changement retire tous les rectangles d'un
-     * coup. La vue vient de la caméra du moteur, que l'entrée d'image a recopiée par LE CONTRAT
-     * (`cameraWorld.ts`) : sous un rig d'hôte, une caméra dont seul un ancêtre a bougé n'a pas de
-     * pose locale nouvelle, et l'empreinte ne verrait rien bouger si la chaîne n'était pas résolue
-     * d'abord. Le cache serait tenu à tort et le test Hi-Z recevrait les rectangles de la vue
-     * précédente.
+     * Rereads the view every slot shares; a change retires every rectangle at once. The view
+     * comes from the engine camera, which the frame entry copied by THE CONTRACT
+     * (`cameraWorld.ts`): under a host rig, a camera of which only an ancestor moved has no new
+     * local pose, and the fingerprint would see nothing move if the chain were not resolved
+     * first. The cache would be held wrongly and the Hi-Z test would receive the previous
+     * view's rectangles.
      */
     reframe(cam: EngineCamera, width: number, height: number, epoch: number) {
       if (heldEpoch === epoch && fingerprint.same(cam, width, height)) return;
@@ -49,9 +49,9 @@ export function createProjectionHold(slots: number) {
       generation++;
     },
     /**
-     * Marque les créneaux que l'appelant doit projeter — ceux qu'il demande dont le rectangle n'est
-     * pas celui de cette vue-ci — et rend COMBIEN il y en a. Le masque est l'argument `only` de
-     * l'appelant ; zéro veut dire que le cache décrit déjà cette image.
+     * Marks the slots the caller must project — those it asks for whose rectangle is not that of
+     * this view — and returns HOW MANY there are. The mask is the caller's `only` argument; zero
+     * means the cache already describes this frame.
      */
     select(count: number, only: Uint8Array | undefined, pageIndex: Int32Array) {
       let besoin = 0;

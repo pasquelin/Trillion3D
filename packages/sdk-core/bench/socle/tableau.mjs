@@ -1,25 +1,25 @@
-// Le rendu d'une ligne de mesure, écrit une fois. La console d'un banc et le tableau agrégé
-// composent les mêmes cellules dans le même ordre : ils ne peuvent plus afficher deux formats du
-// même chiffre. Seules les pastilles de régression distinguent les deux sorties.
+// Rendering of a measurement row, written once. Benchmark console and aggregated table
+// compose the exact same cells in the same order: they can no longer display two formats of
+// the same figure. Only regression icons distinguish the two outputs.
 import { niveauEcart } from './baseline.mjs';
 
 const ms = (v) => (v === null ? 'null' : v.toFixed(3));
 const ns = (v) => (v === null ? '—' : v.toFixed(1));
 
 const COLONNES = [
-  'Médiane (ms)',
+  'Median (ms)',
   'P95 (ms)',
-  'ns/élément',
+  'ns/element',
   'Ops/s',
   'vs baseline',
   'Oracle',
   'Note',
 ];
 
-/** L'en-tête et son séparateur, précédés des colonnes que l'appelant ajoute à gauche. */
-export function entete(avant = []) {
-  const noms = [...avant, ...COLONNES];
-  return [`| ${noms.join(' | ')} |`, `|${noms.map(() => '---').join('|')}|`];
+/** Header and its separator, preceded by columns added on the left by caller. */
+export function entete(before = []) {
+  const names = [...before, ...COLONNES];
+  return [`| ${names.join(' | ')} |`, `|${names.map(() => '---').join('|')}|`];
 }
 
 function ecartTexte(v, pastilles) {
@@ -32,8 +32,8 @@ function ecartTexte(v, pastilles) {
   return pct;
 }
 
-/** Une ligne du tableau. `avant` porte les colonnes de gauche (domaine, mesure) de l'agrégat. */
-export function ligneMd(r, { avant = [], pastilles = false } = {}) {
+/** Table row. `avant` holds left columns (domain, measurement) of the aggregate. */
+export function ligneMd(r, { before = [], pastilles = false } = {}) {
   const cellules = [
     ms(r.medianeMs),
     ms(r.p95Ms),
@@ -43,5 +43,5 @@ export function ligneMd(r, { avant = [], pastilles = false } = {}) {
     r.correct === null ? '—' : r.correct ? '✓' : '✗',
     r.motif ?? '',
   ];
-  return `| ${[...avant, r.nom, ...cellules].join(' | ')} |`;
+  return `| ${[...before, r.name, ...cellules].join(' | ')} |`;
 }

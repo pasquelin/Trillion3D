@@ -1,8 +1,8 @@
-//! Contrat des pilotes d'image : reconnaître un format, en décoder les pixels.
+//! Image driver contract: recognize a format, decode its pixels.
 //!
-//! Un pilote par format, désigné par son extension ou par son nombre magique. Ce que le registre ne
-//! reconnaît pas ressort en raison de rapport nommée — jamais en échec de compilation : une texture
-//! illisible laisse le moteur retomber sur son blanc, elle n'interrompt rien.
+//! One driver per format, selected by its extension or its magic number. What the registry does not
+//! recognize comes back as a named report reason — never as a compilation failure: an unreadable
+//! texture lets the engine fall back to white, it interrupts nothing.
 use super::Plugin;
 use std::path::Path;
 
@@ -25,13 +25,13 @@ mod webp;
 
 pub use decoded::{ImageDecoded, Transfer};
 
-/// Version du contrat des pilotes d'image. La changer impose de relire chaque pilote, et invalide
-/// les caches : depuis `image-plugin-3`, un pilote rend un `ImageDecoded` — les pixels, la fonction
-/// de transfert que le fichier déclare, et les raisons nommées de ce qu'il déclarait sans que la
-/// sortie sache le porter.
+/// Version of the image driver contract. Changing it requires rereading every driver, and
+/// invalidates caches: since `image-plugin-3`, a driver returns an `ImageDecoded` — the pixels, the
+/// transfer function the file declares, and named reasons for what it declared that the output
+/// cannot carry.
 pub const VERSION: &str = "image-plugin-3";
 
-/// Le registre : un pilote par format. Ajouter un format, c'est un module et une ligne ici.
+/// The registry: one driver per format. Adding a format means a module and a line here.
 pub static DECODERS: &[&dyn ImageDecoder] = &[
     &png::PNG,
     &jpeg::JPEG,
@@ -47,18 +47,18 @@ pub static DECODERS: &[&dyn ImageDecoder] = &[
     &gif::GIF,
 ];
 
-/// Ce qu'un pilote rend comme pixels. Deux sorties, et aucun pont de l'une vers l'autre : ramener un
-/// flottant à huit bits demanderait une courbe de report de tons, donc une perte que la source
-/// n'avait pas, ce que la politique d'import interdit. Un consommateur qui ne sait traiter qu'une
-/// variante refuse l'autre par une raison de rapport nommée. Les deux portent un **alpha droit** :
-/// un format à alpha associé est dé-prémultiplié par son pilote, jamais rendu tel quel.
+/// What a driver returns as pixels. Two outputs, and no bridge from one to the other: reducing a
+/// float to eight bits would require a tone-mapping curve, hence a loss the source did not have,
+/// which the import policy forbids. A consumer that can only handle one variant refuses the other
+/// with a named report reason. Both carry **straight alpha**: a format with associated alpha is
+/// un-premultiplied by its driver, never returned as-is.
 pub enum DecodedImage {
-    /// RGBA 8 bits par canal, alpha droit, au moins un pixel. `ImageDecoded::transfer` dit dans
-    /// quelle fonction de transfert ces octets sont écrits : le contrat ne présume plus le sRGB.
+    /// RGBA 8 bits per channel, straight alpha, at least one pixel. `ImageDecoded::transfer` says
+    /// which transfer function these bytes are written in: the contract no longer assumes sRGB.
     Rgba8(image::RgbaImage),
-    /// RGBA 32 bits flottants par canal, **linéaire** et à alpha droit, au moins un pixel : ce que
-    /// rendent les formats à grande gamme dynamique. `data` porte `width * height * 4` valeurs, un
-    /// pixel après l'autre, ligne du haut d'abord.
+    /// RGBA 32-bit floats per channel, **linear** and straight alpha, at least one pixel: what
+    /// high-dynamic-range formats return. `data` holds `width * height * 4` values, one pixel after
+    /// another, top row first.
     RgbaF32 {
         width: u32,
         height: u32,
@@ -66,20 +66,20 @@ pub enum DecodedImage {
     },
 }
 
-/// Une texture de 2³² texels de côté n'a que trente-trois niveaux : au-delà, le champ ment. `dds`
-/// et `ktx2` lisent ce compte dans leur entête respectif et posent la même borne.
+/// A texture 2³² texels on a side has only thirty-three levels: beyond that, the field is lying.
+/// `dds` and `ktx2` read this count from their respective headers and apply the same bound.
 const MAX_LEVELS: u32 = 33;
 
-/// Octets qu'occupe un pixel de la variante flottante : quatre canaux de quatre octets.
+/// Bytes occupied by one pixel of the float variant: four channels of four bytes.
 const FLOAT_PIXEL_BYTES: u64 = 16;
 
-/// Octets qu'occupe un pixel RGBA8.
+/// Bytes occupied by one RGBA8 pixel.
 const RGBA8_PIXEL_BYTES: u64 = 4;
 
-/// Le plafond d'allocation d'une surface, vérifié avant de décoder quoi que ce soit, à
-/// `pixel_bytes` octets par pixel. `saturating_mul` garde la comparaison juste quand une dimension
-/// ment, là où une multiplication qui déborde laisserait passer. Le vide n'est pas jugé ici : `dds`
-/// et `ktx2` le refusent à la lecture de leur entête, les pilotes flottants dans `float_budget`.
+/// The allocation ceiling of a surface, checked before decoding anything, at `pixel_bytes` bytes
+/// per pixel. `saturating_mul` keeps the comparison honest when a dimension is lying, where an
+/// overflowing multiply would let it through. Emptiness is not judged here: `dds` and `ktx2` refuse
+/// it when reading their header, the float drivers in `float_budget`.
 fn surface_budget(
     width: u32,
     height: u32,
@@ -97,9 +97,9 @@ fn surface_budget(
     Ok(())
 }
 
-/// Ce qu'un pilote flottant vérifie avant d'allouer quoi que ce soit : une image d'au moins un pixel
-/// dont la surface tient sous le plafond reçu, comptée à seize octets par pixel. Un dépassement est
-/// une raison de rapport — celle du pilote appelant —, jamais une allocation tentée puis une panique.
+/// What a float driver checks before allocating anything: an image of at least one pixel whose
+/// surface fits under the received ceiling, counted at sixteen bytes per pixel. An overrun is a
+/// report reason — the calling driver's — never an attempted allocation then a panic.
 fn float_budget(
     width: u32,
     height: u32,
@@ -112,14 +112,14 @@ fn float_budget(
     surface_budget(width, height, FLOAT_PIXEL_BYTES, max_alloc, too_large)
 }
 
-/// Un pilote d'image. Il ne rend jamais d'image vide et ne panique jamais : un octet imprévu est une
-/// raison de rapport, une chaîne stable que le manifeste compte.
+/// An image driver. It never returns an empty image and never panics: an unexpected byte is a
+/// report reason, a stable string that the manifest counts.
 pub trait ImageDecoder: Plugin + Sync {
-    /// Type MIME publié dans le glTF intermédiaire pour une image de ce format.
+    /// MIME type published in the intermediate glTF for an image of this format.
     fn mime(&self) -> &'static str;
-    /// Reconnaît le format à ses premiers octets.
+    /// Recognizes the format from its first bytes.
     fn accepts_head(&self, head: &[u8]) -> bool;
-    /// Décode sous ce plafond d'allocation. Une image plus grande est un refus, pas une panique.
+    /// Decodes under this allocation ceiling. A larger image is a refusal, not a panic.
     fn decode(
         &self,
         bytes: &[u8],
@@ -127,13 +127,13 @@ pub trait ImageDecoder: Plugin + Sync {
     ) -> std::result::Result<ImageDecoded, &'static str>;
 }
 
-/// Le pilote qui revendique l'extension de ce chemin.
+/// The driver that claims this path's extension.
 pub fn by_extension(path: &Path) -> Option<&'static dyn ImageDecoder> {
     let name = path.file_name()?.to_str()?;
     super::claiming(DECODERS, &super::extension_of(name)?)
 }
 
-/// Le pilote qui reconnaît ces octets.
+/// The driver that recognizes these bytes.
 pub fn by_head(bytes: &[u8]) -> Option<&'static dyn ImageDecoder> {
     DECODERS
         .iter()
@@ -141,16 +141,16 @@ pub fn by_head(bytes: &[u8]) -> Option<&'static dyn ImageDecoder> {
         .find(|decoder| decoder.accepts_head(bytes))
 }
 
-/// Toutes les extensions du registre, dans l'ordre des pilotes : c'est l'ordre dans lequel on
-/// cherche un fichier voisin décodable à côté d'une texture que l'on ne sait pas lire.
+/// Every extension in the registry, in driver order: that is the order in which a neighbouring
+/// decodable file is looked up next to a texture we cannot read.
 pub fn extensions() -> impl Iterator<Item = &'static str> {
     DECODERS
         .iter()
         .flat_map(|decoder| decoder.extensions().iter().copied())
 }
 
-/// Décode des octets par le pilote qui les reconnaît. Un format hors registre rend la raison de
-/// rapport `image-format-unknown`.
+/// Decodes bytes through the driver that recognizes them. A format outside the registry yields the
+/// report reason `image-format-unknown`.
 pub fn decode(bytes: &[u8], max_alloc: u64) -> std::result::Result<ImageDecoded, &'static str> {
     by_head(bytes)
         .ok_or("image-format-unknown")?

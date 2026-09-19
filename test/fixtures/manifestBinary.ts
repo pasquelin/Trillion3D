@@ -15,7 +15,7 @@ export const TEMPLATES = {
 export const sha = (c: string) => c.repeat(64);
 const url = (c: string) => `../../objects/${sha(c)}.bin`;
 
-/** Les dimensions source de l'unique entrée de niveaux progressifs de la fixture. */
+/** Source dimensions of the fixture's single progressive-level entry. */
 const PREVIEW_SIZE: [number, number] = [32, 16];
 
 /** One progressive level pyramid: the lossless tail of the source's mip chain, each byte

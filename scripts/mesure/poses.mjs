@@ -1,6 +1,6 @@
-// Trajectoire du banc, vues et poses. C'est ici que la trajectoire est définie : le dépôt est sa
-// source, et tout hôte qui veut rejouer le même banc la recopie d'ici. `PATH_VERSION` monte à chaque
-// changement des points, pour que deux relevés ne se comparent qu'à trajectoire égale.
+// Bench trajectory, views and poses. The trajectory is defined here: the repo is its source, and
+// any host that wants to replay the same bench copies it from here. `PATH_VERSION` rises at every
+// change of the points, so two readings only compare at equal trajectory.
 const PATH_VERSION = 5;
 const POINTS = [
   [0.72, 28, 0.78],
@@ -17,23 +17,23 @@ const POINTS = [
 const FRAMES_PER_SEGMENT = 60;
 export { PATH_VERSION };
 
-/** Les vues du banc que ce harnais sait jouer, par indice dans la trajectoire. */
+/** Bench views this harness knows how to play, by index in the trajectory. */
 export const VIEWS = {
-  generale: { index: 0, segment: 'Vue générale du modèle' },
-  sol: { index: 2 * FRAMES_PER_SEGMENT, segment: 'Déplacement au niveau de référence' },
-  // Même segment que `sol`, au point le plus bas de la trajectoire : caméra dans la rue.
-  rue: { index: 2 * FRAMES_PER_SEGMENT + 30, segment: 'Déplacement au niveau de référence' },
-  detail: { index: 4 * FRAMES_PER_SEGMENT, segment: 'Gros plan sur une géométrie détaillée' },
+  generale: { index: 0, segment: 'General view of the model' },
+  sol: { index: 2 * FRAMES_PER_SEGMENT, segment: 'Move at reference level' },
+  // Same segment as `sol`, at the lowest point of the trajectory: camera in the street.
+  rue: { index: 2 * FRAMES_PER_SEGMENT + 30, segment: 'Move at reference level' },
+  detail: { index: 4 * FRAMES_PER_SEGMENT, segment: 'Close-up on detailed geometry' },
 };
 
 /**
- * Plancher du modèle, `streetLevel` du banc : le plan d'origine si la géométrie l'enjambe, sinon le
- * bas de sa boîte. La caméra s'y pose et les lampes s'y accrochent — une seule règle pour les deux.
+ * Model floor, the bench's `streetLevel`: the origin plane if the geometry straddles it, otherwise
+ * the bottom of its box. The camera poses there and lights hang there — one rule for both.
  */
 export const plancherDuModele = (bounds) =>
   bounds.min.y < 0 && bounds.max.y > 0 ? 0 : bounds.min.y;
 
-/** La pose du banc à l'indice `index`, calculée comme `urbanPath` la calcule. */
+/** The bench pose at index `index`, computed as `urbanPath` computes it. */
 export function poseAt(bounds, index) {
   const min = bounds.min,
     max = bounds.max;

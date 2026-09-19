@@ -108,9 +108,9 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
     maxResidentPages: 6,
     viewport: [32, 32],
   });
-  // Les triangles que l'image a réellement dessinés : le plan d'encodage ne bouge plus d'une image
-  // à l'autre, c'est le nombre d'instances que la coupe écrit qui tombe à zéro. Un item double face
-  // dessine ses triangles deux fois, une fois par passe de face.
+  // Triangles the image actually drew: the encode plan no longer moves from one image to the
+  // next, it is the instance count the cut writes that falls to zero. A double-sided item draws
+  // its triangles twice, once per face pass.
   const dessines = () =>
     draws
       .splice(0, draws.length)
@@ -124,7 +124,7 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
     // Two paged meshes of two triangles, counted once each, and one whole mesh outside the DAG
     // drawn by both face passes.
     assert.equal(backend.metrics().transparentSubmittedTriangles, 8);
-    assert.equal(dessines(), 12, 'trois maillages, deux faces chacun');
+    assert.equal(dessines(), 12, 'three meshes, two faces each');
     const uploads = writes.length;
     otherMesh.position.x = 100;
     backend.render(cam);
@@ -134,8 +134,8 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
       'another paged mesh can disappear without changing this mesh cut',
     );
     assert.equal(dessines(), 8);
-    // Le tronc d'un item NON paginé passe par la carte : son appel reste encodé, avec un compte
-    // d'instances nul. Le compte soumis, lui, ne décrit plus que ce que l'encodage a posé.
+    // The frustum of a NON-paged item goes through the GPU: its call stays encoded, with a zero
+    // instance count. The submitted count, itself, no longer describes anything but what encoding set.
     legacyMesh.position.x = 100;
     backend.render(cam);
     assert.equal(backend.metrics().transparentSubmittedTriangles, 6);

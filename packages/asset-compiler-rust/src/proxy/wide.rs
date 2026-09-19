@@ -1,31 +1,31 @@
-//! Du BVH binaire au BVH large : quatre enfants par nœud, boîtes quantifiées sur huit bits.
+//! From binary BVH to wide BVH: four children per node, 8-bit quantized boxes.
 //!
-//! Un arbre binaire fait descendre un rayon d'un seul cran par nœud visité : sur le proxy d'une
-//! ville, la borne de traversée s'épuise avant la feuille, et le rayon renonce. Un nœud à quatre
-//! enfants teste quatre boîtes d'un coup, garde la plus proche pour la suite et empile les autres,
-//! si bien que la même borne couvre quatre fois plus d'arbre et que le premier triangle touché
-//! ferme presque tout le reste.
+//! Binary tree descends ray one step per node visited: on city proxy,
+//! traversal bound exhausts before leaf, ray gives up. Four-child node
+//! tests four boxes at once, keeps closest for next step, stacks others,
+//! so same bound covers four times more tree and first hit triangle
+//! prunes almost all remaining.
 //!
-//! Les boîtes des enfants sont écrites sur huit bits dans les bornes du parent, arrondies vers
-//! l'extérieur : une boîte quantifiée contient toujours ce qu'elle contenait, donc aucun triangle
-//! ne disparaît d'un rayon. Un nœud large pèse ainsi dix-huit mots pour quatre enfants, là où
-//! quatre nœuds binaires en pesaient trente-six.
+//! Child boxes written in 8 bits in parent bounds, rounded outwards:
+//! quantized box always contains what it contained, no triangle
+//! disappears from ray. Wide node weighs 18 words for 4 children where
+//! 4 binary nodes weighed 36.
 use super::bvh::Node;
 use super::{PROXY_CHILDREN, PROXY_CHILD_WORDS, PROXY_NODE_FLOATS};
 
-/// Ce qu'un nœud large retient d'un de ses enfants : sa boîte, et où lire la suite.
+/// What wide node retains of child: box, and next read offset.
 struct Child {
     low: [f32; 3],
     high: [f32; 3],
-    /// Indice du nœud large enfant, ou premier triangle d'une feuille.
+    /// Child wide node index, or first triangle of leaf.
     offset: u32,
-    /// Triangles d'une feuille ; zéro pour un nœud interne.
+    /// Leaf triangles; zero for internal node.
     count: u32,
 }
 
-/// Les quatre enfants d'un nœud binaire, ouverts jusqu'à en avoir quatre : à chaque tour, l'enfant
-/// interne dont la boîte est la plus large laisse la place à ses deux enfants. C'est le choix qui
-/// rend l'arbre le plus court là où il y a le plus de surface à trier.
+/// Four children of binary node, opened to four: at each step, internal child
+/// with largest box yields to its two children. Choice making
+/// tree shortest where surface area to sort is largest.
 fn gather(nodes: &[Node], at: usize) -> Vec<usize> {
     if nodes[at].leaf() {
         return vec![at];
@@ -47,7 +47,7 @@ fn gather(nodes: &[Node], at: usize) -> Vec<usize> {
     kids
 }
 
-/// Écrit un nœud large et, récursivement, ceux de ses enfants internes. Rend son indice.
+/// Writes wide node and recursively internal children. Returns index.
 fn emit(nodes: &[Node], at: usize, bounds: &mut Vec<f32>, children: &mut Vec<u32>) -> u32 {
     let slot = bounds.len() / PROXY_NODE_FLOATS;
     bounds.extend_from_slice(&nodes[at].low);
@@ -55,8 +55,8 @@ fn emit(nodes: &[Node], at: usize, bounds: &mut Vec<f32>, children: &mut Vec<u32
     let base = children.len();
     children.resize(base + PROXY_CHILDREN * PROXY_CHILD_WORDS, 0);
     let (low, high) = (nodes[at].low, nodes[at].high);
-    // Un enfant interne écrit son propre nœud plus loin dans `children` ; les mots de cet
-    // emplacement-ci sont déjà réservés, donc chaque enfant se pose dès qu'il connaît son lien.
+    // Internal child writes own node further in `children`; words at this
+    // location already reserved, so each child places as soon as link known.
     for (index, kid) in gather(nodes, at).into_iter().enumerate() {
         let node = &nodes[kid];
         let (offset, count) = if node.leaf() {
@@ -76,16 +76,16 @@ fn emit(nodes: &[Node], at: usize, bounds: &mut Vec<f32>, children: &mut Vec<u32
     slot as u32
 }
 
-/// La boîte d'un enfant sur huit bits par axe, arrondie vers l'extérieur, plus ses deux liens.
-/// Le mot du haut porte le nombre de triangles et le bit de présence : un emplacement vide n'est
-/// jamais testé, et une boîte inversée ne suffirait pas à l'écarter — le test des plans n'y voit
-/// que des minimums et des maximums.
+/// Child box on 8 bits per axis, rounded outwards, plus two links.
+/// Top word carries triangle count and presence bit: empty slot never
+/// tested, inverted box not enough to rule out — plane test sees
+/// only minimums and maximums.
 fn pack(child: &Child, low: [f32; 3], high: [f32; 3]) -> [u32; PROXY_CHILD_WORDS] {
     let mut quantised = [[0u32; 3]; 2];
     for axis in 0..3 {
         let span = (high[axis] - low[axis]) as f64;
-        // Un axe plat, ou non comparable : l'enfant prend toute la largeur du parent sur cet axe,
-        // ce qui reste conservateur — une boîte plus large ne perd aucun triangle.
+        // Flat or non-comparable axis: child takes parent full width on axis,
+        // conservative — wider box loses no triangles.
         if !span.is_finite() || span <= 0.0 {
             quantised[1][axis] = 255;
             continue;
@@ -101,7 +101,7 @@ fn pack(child: &Child, low: [f32; 3], high: [f32; 3]) -> [u32; PROXY_CHILD_WORDS
     ]
 }
 
-/// Les deux colonnes de nœuds du cache : les bornes exactes d'un nœud, puis ses quatre enfants.
+/// Two cache node columns: node exact bounds, then four children.
 pub fn collapse(nodes: &[Node]) -> (Vec<f32>, Vec<u32>) {
     if nodes.is_empty() {
         return (Vec::new(), Vec::new());

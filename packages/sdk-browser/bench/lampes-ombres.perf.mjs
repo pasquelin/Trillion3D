@@ -1,6 +1,6 @@
-// ce que les ombres des lampes coûtent au processeur : les sphères monde des clusters empaquetées
-// pour la passe d'ombres, la couverture écran qui classe les lampes, et le plan des faces à
-// redessiner quand la scène bouge.
+// what lamp shadows cost on the CPU: world-space cluster spheres packed for the shadow
+// pass, the screen coverage that ranks lamps, and the plan of faces to redraw when the
+// scene moves.
 import { screenCoverage } from '../../sdk-core/sceneLightShadowCounts.ts';
 import { createSceneLightStore } from '../../sdk-core/sceneLightStore.ts';
 import { createShadowPlan } from '../../sdk-core/sceneLightShadowPlan.ts';
@@ -10,8 +10,8 @@ import { referenceClusterSphere, referenceScreenCoverage } from './oracles/lampe
 
 const alea = graine(83);
 
-// Une ligne sur dix est vide : la passe doit y écrire un rayon nul, jamais lire une fiche absente.
-// Le tampon de sortie est celui du cas, alloué une fois, comme le moteur tient le sien.
+// One record in ten is empty: the pass must write a zero radius there, never read a missing card.
+// The output buffer belongs to the case, allocated once, as the engine holds its own.
 function clusters(nombre) {
   const recs = [];
   for (let i = 0; i < nombre; i++) {
@@ -25,18 +25,18 @@ function clusters(nombre) {
 }
 
 const mesSpheres = await mesure({
-  nom: 'sphères monde des clusters',
+  name: 'world-space cluster spheres',
   fichier: 'packages/sdk-browser/webgpuShadowBounds.ts',
   cas: [
-    { nom: '20 000 clusters', entree: clusters(20000), taille: 20000 },
-    { nom: '1 cluster', entree: clusters(1), taille: 1 },
-    { nom: 'aucun', entree: clusters(0), taille: 0 },
+    { name: '20 000 clusters', input: clusters(20000), size: 20000 },
+    { name: '1 cluster', input: clusters(1), size: 1 },
+    { name: 'none', input: clusters(0), size: 0 },
   ],
   calcul: ({ recs, packed }) => packClusterSpheres(recs, packed, 0, recs.length - 1),
   attendu: ({ recs }) => {
-    const sortie = new Float32Array(recs.length * 4);
-    recs.forEach((rec, i) => rec && referenceClusterSphere(rec, sortie, i * 4));
-    return sortie;
+    const output = new Float32Array(recs.length * 4);
+    recs.forEach((rec, i) => rec && referenceClusterSphere(rec, output, i * 4));
+    return output;
   },
 });
 
@@ -49,25 +49,25 @@ const lampes = (nombre) => ({
     z: (alea() - 0.5) * 100,
     range: alea() * 50,
   })),
-  sortie: new Float64Array(nombre),
+  output: new Float64Array(nombre),
 });
 
 const couverture =
   (calcule) =>
-  ({ liste, sortie }) => {
+  ({ liste, output }) => {
     for (let i = 0; i < liste.length; i++) {
       const l = liste[i];
-      sortie[i] = calcule(vue, l.x, l.y, l.z, l.range);
+      output[i] = calcule(vue, l.x, l.y, l.z, l.range);
     }
-    return sortie;
+    return output;
   };
 
 const mesCouverture = await mesure({
-  nom: "couverture écran d'une lampe",
+  name: 'lamp screen coverage',
   fichier: 'packages/sdk-core/sceneLightShadowCounts.ts',
   cas: [
-    { nom: '10 000 lampes', entree: lampes(10000), taille: 10000 },
-    { nom: '1 lampe', entree: lampes(1), taille: 1 },
+    { name: '10 000 lamps', input: lampes(10000), size: 10000 },
+    { name: '1 lamp', input: lampes(1), size: 1 },
   ],
   calcul: couverture(screenCoverage),
   attendu: couverture(referenceScreenCoverage),
@@ -88,34 +88,34 @@ function scene(nombre) {
   return { store, plan: createShadowPlan(nombre), frame: 0 };
 }
 
-// À chaque image, un nœud bouge dans la portée des lampes : l'invalidation et l'admission
-// travaillent. Une scène immobile ne coûterait rien, et ce serait le chiffre publié.
+// Each frame, a node moves within lamp range: invalidation and admission work. A still
+// scene would cost nothing, and that would be the published figure.
 const mesOrdonnancement = await mesure({
-  nom: "plan des faces d'ombre",
+  name: 'shadow-face plan',
   fichier: 'packages/sdk-core/sceneLightShadowPlan.ts',
-  cas: [{ nom: '32 lampes, scène mobile', entree: scene(32), taille: 32 }],
+  cas: [{ name: '32 lamps, moving scene', input: scene(32), size: 32 }],
   calcul: (s) => {
     s.frame++;
     const x = (s.frame % 40) - 20;
     s.plan.worldChanged([x, 0, x], [x + 2, 2, x + 2]);
     return s.plan.plan(s.store, vue, s.frame, s.frame * 16.6);
   },
-  motif: "justesse tenue par sceneLightShadowPlan.test.ts, l'oracle serait un second ordonnanceur",
+  motif: 'correctness held by sceneLightShadowPlan.test.ts; the oracle would be a second scheduler',
 });
 
 await stress({
-  nom: 'couverture écran extrême',
+  name: 'extreme screen coverage',
   calcul: ([x, y, z, range]) => screenCoverage(vue, x, y, z, range),
   extremes: [
-    { nom: 'portée nulle', entree: [0, 0, 0, 0] },
-    { nom: 'portée infinie', entree: [0, 0, 0, Infinity] },
-    { nom: "sur l'œil", entree: [0, 0, 0, 10] },
-    { nom: 'NaN', entree: [NaN, NaN, NaN, 10] },
+    { name: 'zero range', input: [0, 0, 0, 0] },
+    { name: 'infinite range', input: [0, 0, 0, Infinity] },
+    { name: 'on the eye', input: [0, 0, 0, 10] },
+    { name: 'NaN', input: [NaN, NaN, NaN, 10] },
   ],
 });
 
 rapport(
   'lampes-ombres',
   [mesSpheres, mesCouverture, mesOrdonnancement],
-  'les sphères et la couverture rendent les mêmes valeurs',
+  'the spheres and the coverage yield the same values',
 );

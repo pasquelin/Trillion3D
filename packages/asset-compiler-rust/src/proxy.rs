@@ -1,13 +1,13 @@
-//! Proxy résident : la géométrie que les rayons de lumière touchent.
+//! Resident proxy: geometry light rays hit.
 //!
-//! Un rayon de lumière ne peut pas tracer la coupe visible : elle dépend de la caméra, elle change
-//! à chaque image, et ses feuilles sont trop fines pour un budget de rayons. Le compilateur retient
-//! donc une fois pour toutes un niveau grossier du DAG — les clusters dont l'erreur géométrique
-//! certifiée passe sous un seuil en mètres — les place dans le monde, leur donne l'albédo de leur
-//! matériau, et construit un BVH par-dessus. Le tout tient dans le cache et reste résident en
-//! mémoire graphique quel que soit le point de vue.
+//! Light ray cannot trace visible cut: depends on camera, changes
+//! each frame, leaves too fine for ray budget. Compiler retains
+//! once for all coarse DAG level — clusters whose certified geometric error
+//! drops below meter threshold — places in world, assigns material albedo,
+//! builds BVH on top. Fits in cache and remains resident in
+//! GPU memory regardless of viewpoint.
 //!
-//! Aucune lumière n'est cuite ici : le proxy porte de la géométrie et des matériaux, rien d'autre.
+//! No light baked here: proxy carries geometry and materials, nothing else.
 use crate::compiler_validate::{item, required_index, values};
 use crate::compiler_world::{transform_point, world_matrices, Mat4};
 use crate::texture_preview::TexturePreview;
@@ -23,46 +23,46 @@ pub mod encode;
 pub mod simplify;
 pub mod wide;
 
-/// Contrat du produit. Bouger la coupe, les sections ou l'ordre des nœuds impose de l'incrémenter.
+/// Product contract. Moving cut, sections or node order requires incrementing.
 pub const SCENE_PROXY_VERSION: u32 = 2;
-/// 'W','G','P','X' lus comme un entier non signé de 32 bits en petit-boutiste.
+/// 'W','G','P','X' read as 32-bit little-endian unsigned int.
 pub const SCENE_PROXY_MAGIC: u32 = 0x5850_4757;
-/// Entiers d'en-tête : signature, version, triangles, nœuds.
+/// Header integers: signature, version, triangles, nodes.
 pub const SCENE_PROXY_HEADER_WORDS: usize = 4;
-/// Nom du produit dans le dossier de la clé de cache, à côté de `clusters.json`.
+/// Product name in cache key folder, next to `clusters.json`.
 pub const SCENE_PROXY_FILE: &str = "proxy.bin";
-/// Erreur géométrique certifiée maximale d'un cluster retenu, en mètres. Réglage publié (LC1).
+/// Max certified geometric error of retained cluster, in meters. Published setting.
 pub const PROXY_ERROR_METRES: f64 = 0.05;
-/// Plancher de la maille du proxy, en mètres : la taille d'un triangle après simplification, donc
-/// la résolution du cache de surfaces du moteur. Le budget de triangles la double si besoin.
+/// Proxy mesh floor, in meters: triangle size after simplification,
+/// surface cache resolution. Triangle budget doubles if needed.
 pub const PROXY_CELL_METRES: f64 = 0.5;
-/// Triangles d'une feuille du BVH : la boucle d'une feuille est bornée par ce nombre côté moteur.
+/// BVH leaf triangles: leaf loop bounded by this count engine side.
 pub const PROXY_LEAF_TRIANGLES: usize = 8;
-/// Triangles que le proxy d'une scène entière s'autorise, toutes instances posées. C'est ce budget
-/// qui décide du seuil réellement obtenu : une scène de dix millions de triangles sort trente fois
-/// plus grossière qu'une pièce, et le seuil qu'elle a dû prendre est publié dans le manifeste.
+/// Triangles entire scene proxy allows itself, all instances placed. Budget
+/// decides actually obtained threshold: 10M triangle scene outputs 30x
+/// coarser than single room, threshold published in manifest.
 pub const PROXY_TRIANGLE_BUDGET: usize = 300_000;
-/// Nombres par triangle : trois sommets monde. La normale se déduit du triangle, jamais stockée.
+/// Numbers per triangle: three world vertices. Normal derived from triangle, un-stored.
 pub const PROXY_TRIANGLE_FLOATS: usize = 9;
-/// Nombres par nœud : bornes basses puis hautes, exactes, qui servent aussi de repère aux boîtes
-/// quantifiées de ses enfants.
+/// Numbers per node: min then max exact bounds, reference for child
+/// quantized boxes.
 pub const PROXY_NODE_FLOATS: usize = 6;
-/// Enfants d'un nœud du BVH : quatre boîtes testées d'un coup, la plus proche gardée pour la suite.
+/// BVH node children: four boxes tested at once, closest kept for next step.
 pub const PROXY_CHILDREN: usize = 4;
-/// Entiers par enfant : deux mots de boîte quantifiée et de liens, puis le lien lui-même.
+/// Integers per child: two quantized box and link words, link itself.
 pub const PROXY_CHILD_WORDS: usize = 3;
-/// Entiers par nœud : ses quatre enfants bout à bout.
+/// Integers per node: four children end to end.
 pub const PROXY_NODE_WORDS: usize = PROXY_CHILDREN * PROXY_CHILD_WORDS;
 
-/// Le proxy d'une scène, prêt à être écrit en colonnes.
+/// Scene proxy, ready for column output.
 #[derive(Default)]
 pub struct SceneProxy {
     pub bounds: [f64; 6],
-    /// Le plus grand seuil qu'une primitive a dû prendre pour tenir dans sa part du budget, plus
-    /// ce que la simplification propre au proxy y a ajouté.
+    /// Max threshold primitive took to fit budget share, plus
+    /// proxy simplification addition.
     pub error_metres: f64,
-    /// Le pas de grille que la simplification a pris, en mètres : la taille d'un triangle du proxy,
-    /// donc aussi celle d'une maille du cache de surfaces.
+    /// Grid step simplification took, in meters: proxy triangle size,
+    /// surface cache cell size.
     pub cell_metres: f64,
     pub triangles: Vec<f32>,
     pub albedo: Vec<u32>,
@@ -78,21 +78,21 @@ impl SceneProxy {
     }
 }
 
-/// Ce que l'étape lit : la scène, les coupes grossières déjà retenues et les aperçus de texture.
+/// Step reads: scene, retained coarse cuts, texture previews.
 pub struct ProxyInputs<'a> {
     pub g: &'a Value,
     pub chosen: &'a BTreeSet<usize>,
     pub mesh_map: &'a BTreeMap<usize, usize>,
     pub primitives: &'a [Value],
-    /// Par primitive compilée : les sommets de sa coupe grossière, en espace objet.
+    /// Per compiled primitive: coarse cut vertices, in object space.
     pub cuts: &'a [Vec<f32>],
-    /// Par primitive compilée : le seuil que sa coupe a demandé, en mètres.
+    /// Per compiled primitive: threshold cut requested, in meters.
     pub thresholds: &'a [f64],
     pub previews: &'a [TexturePreview],
 }
 
-/// Facteur d'échelle d'une matrice monde : la plus longue de ses trois colonnes linéaires. C'est de
-/// quoi une erreur objet est multipliée en devenant une erreur monde, à la borne supérieure près.
+/// World matrix scale factor: longest of three linear columns.
+/// Object error multiplier when becoming world error, up to upper bound.
 pub fn world_scale(matrix: &Mat4) -> f64 {
     (0..3)
         .map(|column| {
@@ -104,9 +104,9 @@ pub fn world_scale(matrix: &Mat4) -> f64 {
         .fold(0.0f64, f64::max)
 }
 
-/// L'échelle monde maximale sous laquelle chaque maillage source est placé. Une primitive posée
-/// deux fois à deux échelles prend la plus grande : la coupe est alors plus fine que nécessaire à
-/// l'autre instance, jamais plus grossière que le seuil ne l'autorise.
+/// Max world scale under which each source mesh placed. Primitive placed
+/// twice at two scales takes largest: cut finer than needed for
+/// other instance, never coarser than threshold allows.
 pub fn mesh_scales(g: &Value, chosen: &BTreeSet<usize>) -> Result<BTreeMap<usize, f64>> {
     let world = world_matrices(g)?;
     let nodes = values(g, "nodes")?;
@@ -123,8 +123,8 @@ pub fn mesh_scales(g: &Value, chosen: &BTreeSet<usize>) -> Result<BTreeMap<usize
     Ok(scales)
 }
 
-/// Les primitives compilées de chaque maillage, dans l'ordre d'origine : sans cette table, chaque
-/// nœud retenu balaierait toutes les primitives de la scène pour retrouver les siennes.
+/// Compiled primitives of each mesh, in original order: without table, each
+/// retained node would sweep all scene primitives to find own.
 fn primitives_by_mesh(primitives: &[Value]) -> BTreeMap<u64, Vec<usize>> {
     let mut by_mesh: BTreeMap<u64, Vec<usize>> = BTreeMap::new();
     for (index, primitive) in primitives.iter().enumerate() {
@@ -135,9 +135,9 @@ fn primitives_by_mesh(primitives: &[Value]) -> BTreeMap<u64, Vec<usize>> {
     by_mesh
 }
 
-/// Place chaque coupe grossière dans le monde, une fois par nœud qui la porte, puis construit le
-/// BVH. Une primitive posée dix fois donne dix jeux de triangles : le proxy est une scène, pas un
-/// catalogue d'objets, et un rayon n'a pas de matrice à appliquer.
+/// Places each coarse cut in world, once per carrying node, then builds
+/// BVH. Primitive placed 10 times yields 10 triangle sets: proxy is a scene, not
+/// object catalog, ray has no matrix to apply.
 pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
     let world = world_matrices(inputs.g)?;
     let nodes = values(inputs.g, "nodes")?;
@@ -167,7 +167,7 @@ pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
     Ok(assemble::assemble(inputs.thresholds, triangles, colours))
 }
 
-/// Les sommets d'une coupe, transformés une fois par le nœud qui la place.
+/// Cut vertices, transformed once by placing node.
 pub(crate) fn place(cut: &[f32], matrix: &Mat4, out: &mut Vec<f32>) {
     out.reserve(cut.len());
     for vertex in cut.as_chunks::<3>().0 {

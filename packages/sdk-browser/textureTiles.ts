@@ -1,21 +1,21 @@
 import { previewFirstLevel, previewLastLevel, previewLevelSize } from '../sdk-core/index.ts';
 
 /**
- * La géométrie des tuiles de textures virtuelles : ce que le pool physique, la table de pages et le
- * nuanceur partagent, écrit une fois. Tout est fixe — c'est ce qui rend la mémoire indépendante de
- * la scène : une tuile a toujours la même taille, un pool toujours le même nombre de tuiles par
- * couche, et seul le nombre de couches suit le budget de l'hôte.
+ * Virtual-texture tile geometry: what the physical pool, the page table and the shader
+ * share, written once. Everything is fixed — that is what makes memory independent of the
+ * scene: a tile always has the same size, a pool always the same tile count per layer, and
+ * only the layer count follows the host budget.
  *
- * Une tuile porte 128×128 texels utiles et une gouttière de 4 texels de chaque côté, recopiés des
- * voisins du même niveau : le filtrage linéaire au bord d'une tuile lit ainsi les texels voisins,
- * pas ceux de la tuile d'à côté dans le pool. Une couche du pool range 30×30 tuiles ; ce qui reste
- * de 4096 n'est pas employé.
+ * A tile carries 128×128 useful texels and a 4-texel gutter on each side, copied from
+ * neighbours of the same level: linear filtering at a tile edge thus reads neighbouring
+ * texels, not those of the next tile in the pool. A pool layer stores 30×30 tiles; what
+ * remains of 4096 is unused.
  *
- * Les niveaux d'une texture se partagent en deux : les niveaux DIFFUSÉS, du 0 jusqu'au dernier qui
- * dépasse 64 texels, découpés en tuiles résidentes à la demande ; et la QUEUE, du premier niveau
- * dont les deux côtés tiennent sous 64 texels jusqu'au 1×1, rangée entière dans une seule tuile,
- * épinglée dès la préparation. Une tuile diffusée absente montre donc toujours au moins la queue —
- * la même pyramide que le sidecar porte déjà dans le manifeste.
+ * A texture's levels split in two: STREAMED levels, from 0 through the last that exceeds
+ * 64 texels, cut into resident tiles on demand; and the TAIL, from the first level whose
+ * both sides fit under 64 texels down to 1×1, stored whole in a single tile, pinned from
+ * prepare. A missing streamed tile therefore always shows at least the tail — the same
+ * pyramid the sidecar already carries in the manifest.
  */
 export const TILE_SIZE = 128;
 export const TILE_BORDER = 4;
@@ -25,41 +25,41 @@ export const POOL_LAYER_SIDE = TILES_PER_ROW * TILE_PITCH;
 export const TILES_PER_LAYER = TILES_PER_ROW * TILES_PER_ROW;
 export const TILE_BYTES = TILE_PITCH * TILE_PITCH * 4;
 export const POOL_LAYER_BYTES = POOL_LAYER_SIDE * POOL_LAYER_SIDE * 4;
-/** Niveaux qu'une texture peut avoir au plus : 2^15 texels de côté, la limite des appareils. */
+/** Most levels a texture may have: 2^15 texels a side, the device limit. */
 export const MAX_LEVELS = 16;
 
-/** Dimensions du niveau `level` d'une texture, jamais moins d'un texel par côté. */
+/** Dimensions of a texture's `level`, never less than one texel per side. */
 export const levelSize = previewLevelSize;
 
-/** Tuiles d'un niveau diffusé, en colonnes puis en lignes. */
+/** Tiles of a streamed level, columns then rows. */
 export function tilesAt(width: number, height: number, level: number): [number, number] {
   const [w, h] = levelSize(width, height, level);
   return [Math.ceil(w / TILE_SIZE), Math.ceil(h / TILE_SIZE)];
 }
 
 /**
- * Où un niveau de la queue commence dans sa tuile, par rang depuis le premier : 0, puis 64, 96,
- * 112, 120, 124, 126. Chaque niveau tient à droite du précédent, et le tout tient sous 128.
+ * Where a tail level starts in its tile, by rank from the first: 0, then 64, 96,
+ * 112, 120, 124, 126. Each level sits to the right of the previous, and the whole fits under 128.
  */
 export const tailOffset = (rank: number) => (rank === 0 ? 0 : TILE_SIZE - (TILE_SIZE >> rank));
 
-/** Le découpage d'une texture : ses niveaux diffusés, leurs entrées de table, et sa queue. */
+/** Layout of a texture: its streamed levels, their table entries, and its tail. */
 export type TileLayout = {
   width: number;
   height: number;
-  /** Premier niveau de la queue ; les niveaux diffusés sont `0 … tail - 1`. */
+  /** First tail level; streamed levels are `0 … tail - 1`. */
   tail: number;
   last: number;
-  /** Première entrée de chaque niveau diffusé dans la table de la texture. */
+  /** First table entry of each streamed level in the texture table. */
   offsets: number[];
-  /** Entrées de table de la texture : une par tuile de chaque niveau diffusé. */
+  /** Texture table entries: one per tile of each streamed level. */
   entries: number;
 };
 
 export function tileLayout(width: number, height: number): TileLayout {
   if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1)
     throw new Error('INVALID_TEXTURE_SIZE');
-  // La queue commence au niveau dont les deux côtés tiennent sous 64 texels, et finit à un texel.
+  // The tail starts at the level whose both sides fit under 64 texels, and ends at one texel.
   const tail = previewFirstLevel(width, height),
     last = previewLastLevel(width, height);
   if (last >= MAX_LEVELS) throw new Error('TEXTURE_TOO_LARGE');
@@ -73,10 +73,10 @@ export function tileLayout(width: number, height: number): TileLayout {
   return { width, height, tail, last, offsets, entries };
 }
 
-/** Une place du pool : colonne, ligne et couche de la tuile. */
+/** A pool slot: tile column, row and layer. */
 export type TilePlace = { x: number; y: number; layer: number };
 
-/** Le rang d'une place dans le pool, et l'inverse. */
+/** Rank of a slot in the pool, and the inverse. */
 export const placeIndex = (p: TilePlace) => p.layer * TILES_PER_LAYER + p.y * TILES_PER_ROW + p.x;
 export function placeOf(index: number): TilePlace {
   const layer = Math.floor(index / TILES_PER_LAYER),
@@ -85,9 +85,9 @@ export function placeOf(index: number): TilePlace {
 }
 
 /**
- * Le mot d'une entrée de table : la place de la tuile résidente et le niveau qu'elle porte, qui
- * peut être plus grossier que celui de l'entrée quand la tuile demandée manque encore. Le bit haut
- * dit que l'entrée est servie ; zéro dit « rien de diffusé ici, lis la queue ».
+ * Word of a table entry: the resident tile's place and the level it carries, which
+ * may be coarser than the entry's when the requested tile is still missing. The high bit
+ * says the entry is served; zero says "nothing streamed here, read the tail".
  */
 const ENTRY_SERVED = 0x80000000;
 export const packEntry = (place: TilePlace, level: number) =>

@@ -1,19 +1,21 @@
-//! Doré du pilote `usd`. Deux fixtures, deux questions distinctes.
+//! Golden of the `usd` driver. Two fixtures, two distinct questions.
 //!
-//! `minuscule/` est une couche écrite à la main pour ce test : elle tient une hiérarchie `Xform`,
-//! un `Mesh` à deux polygones, un `GeomSubset` qui donne un second matériau à l'une des deux faces,
-//! et un matériau texturé. Elle fixe ce que le pilote produit, jusqu'aux octets du sidecar.
+//! `minuscule/` is a layer written by hand for this test: it holds an `Xform`
+//! hierarchy, a `Mesh` of two polygons, a `GeomSubset` that gives a second
+//! material to one of the two faces, and a textured material. It fixes what the
+//! driver produces, down to the sidecar bytes.
 //!
-//! `corpus/` est la **même scène** livrée dans les deux sérialisations de USD, texte et binaire. Le
-//! doré compile les deux et compare leurs scènes intermédiaires : `usda` et `usdc` ne sont que deux
-//! écritures d'un même document, et le pilote ne doit pas savoir laquelle il a lue.
+//! `corpus/` is the **same scene** shipped in both USD serialisations, text and
+//! binary. The golden compiles both and compares their intermediate scenes:
+//! `usda` and `usdc` are only two writings of one document, and the driver must
+//! not know which it read.
 use super::*;
 
-const CASE: &str = "Une couche usda : un Xform translaté, un Mesh de deux quadrilatères, un GeomSubset materialBind qui lie la seconde face à un second matériau, un UsdPreviewSurface opaque et un autre translucide à texture UsdUVTexture en sous-dossier.";
-const RULE: &str = "Le pilote rend la scène composée et rien d'autre : polygones triangulés en éventail, une primitive par partie de matériau, normales et primvars:st résolues par leur interpolation, UsdPreviewSurface vers pbrMetallicRoughness, et l'unité comme l'axe haut de la couche portés par la racine de la scène.";
+const CASE: &str = "A usda layer: a translated Xform, a Mesh of two quads, a GeomSubset materialBind that binds the second face to a second material, an opaque UsdPreviewSurface and another translucent one with a UsdUVTexture in a subfolder.";
+const RULE: &str = "The driver yields the composed scene and nothing else: polygons fan-triangulated, one primitive per material part, normals and primvars:st resolved by their interpolation, UsdPreviewSurface to pbrMetallicRoughness, and the layer's unit and up-axis carried by the scene root.";
 
-// Comportement 27 : la fixture usda minuscule passe par le compilateur et sa scène intermédiaire
-// comme sa sortie compilée sont comparées à expected.json.
+// Behaviour 27: the tiny usda fixture goes through the compiler and its
+// intermediate scene as well as its compiled output are compared to expected.json.
 #[test]
 fn the_usd_fixture_compiles_to_its_golden_expected_json() {
     let dir = golden_dir("usd");
@@ -21,21 +23,21 @@ fn the_usd_fixture_compiles_to_its_golden_expected_json() {
     assert_eq!(
         digest(&run),
         golden_expected(&dir),
-        "fixture usd : la sortie compilée diverge de expected.json"
+        "fixture usd: compiled output diverges from expected.json"
     );
 }
 
 #[test]
-#[ignore = "écrit dans fixtures/ ; se relance à la main, et son diff se relit"]
+#[ignore = "writes into fixtures/; rerun by hand, and its diff is re-read"]
 fn regenere_la_fixture_usd() {
     let dir = golden_dir("usd");
     let run = compile_golden_source(&layer(&dir), "usd-minuscule");
     write_expected(&dir, digest(&run), CASE, RULE);
 }
 
-// Comportement 28 : la même scène écrite en texte et en binaire donne la même scène intermédiaire,
-// au nœud et à l'octet près. C'est la seule preuve qui vaille que le pilote lit un document et non
-// une sérialisation.
+// Behaviour 28: the same scene written as text and as binary yields the same
+// intermediate scene, node for node and byte for byte. That is the only proof
+// worth having that the driver reads a document, not a serialisation.
 #[test]
 fn the_text_and_binary_serialisations_of_one_scene_give_the_same_intermediate_scene() {
     let corpus = golden_dir("usd").join("corpus");
@@ -45,17 +47,17 @@ fn the_text_and_binary_serialisations_of_one_scene_give_the_same_intermediate_sc
     let (_, binary_gltf) = binary.prepared("usd");
     assert_eq!(
         text_gltf, binary_gltf,
-        "la couche binaire ne donne pas la même scène intermédiaire que la couche texte"
+        "the binary layer does not yield the same intermediate scene as the text layer"
     );
     assert_eq!(
         hash(&text.binary),
         hash(&binary.binary),
-        "les deux sérialisations ne compilent pas le même sidecar"
+        "the two serialisations do not compile the same sidecar"
     );
     assert_eq!(
         corpus_counts(&text_gltf),
         json!({"meshes":3,"materials":3,"triangles":36}),
-        "les chiffres du corpus ont bougé"
+        "the corpus figures have moved"
     );
 }
 
@@ -64,7 +66,7 @@ fn layer(dir: &Path) -> PathBuf {
     dir.join("minuscule").join("scene.usda")
 }
 
-/// Ce que le corpus met sous surveillance : trois cubes aux mêmes trois matériaux, six quads
+/// What the corpus puts under watch: three cubes with the same three materials, six quads
 /// chacun, donc trente-six triangles en tout.
 fn corpus_counts(gltf: &Value) -> Value {
     let meshes = gltf["meshes"].as_array().expect("meshes");
@@ -86,8 +88,8 @@ fn corpus_counts(gltf: &Value) -> Value {
     })
 }
 
-/// Ce que la dorée fixe : le pilote retenu, la scène intermédiaire qu'il a écrite — nœuds,
-/// maillages, matériaux, images, rapport — et la scène compilée qui en sort.
+/// What the golden fixes: the retained driver, the intermediate scene it wrote —
+/// nodes, meshes, materials, images, report — and the compiled scene that comes out.
 fn digest(run: &GoldenRun) -> Value {
     let (manifest, gltf) = run.prepared("usd");
     json!({

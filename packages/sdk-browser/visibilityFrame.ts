@@ -10,14 +10,14 @@ import {
 export type VisTriangle = NonNullable<ReturnType<typeof triangleAt>>;
 
 /**
- * Ce qu'une image doit projeter et décrire une seule fois.
+ * What an image must project and describe only once.
  *
- * Un identifiant de visibilité désigne un triangle d'une page, et rien d'autre : ses trois sommets
- * projetés ne dépendent que de la caméra de l'image. Les projeter à chaque pixel refait le même
- * calcul des centaines de fois par triangle — le cache en garde le résultat, terme pour terme celui
- * que `triangleAt` rend, donc le pixel voit exactement les mêmes flottants. Le dernier identifiant
- * est retenu à part : deux pixels voisins tombent presque toujours sur le même triangle, et la table
- * n'est alors même pas consultée. `visMaterial` est mémorisé par page, pour la même raison.
+ * A visibility identifier names a triangle of a page, and nothing else: its three projected
+ * vertices depend only on the image camera. Projecting them at every pixel repeats the same
+ * computation hundreds of times per triangle — the cache keeps the result, term for term the one
+ * `triangleAt` yields, so the pixel sees exactly the same floats. The last identifier is held
+ * aside: two neighbouring pixels almost always land on the same triangle, and the table is then
+ * not even consulted. `visMaterial` is memoised per page, for the same reason.
  */
 export function createVisibilityFrame(
   pages: VisPage[],
@@ -30,7 +30,7 @@ export function createVisibilityFrame(
   let dernierId = 0,
     dernier: VisTriangle | null = null;
   return {
-    /** Le triangle projeté d'un identifiant, ou `null` : fond, page absente ou triangle hors page. */
+    /** The projected triangle of an identifier, or `null`: background, missing page or triangle off the page. */
     triangle(id: number) {
       if (id === dernierId) return dernier;
       dernierId = id;
@@ -43,7 +43,7 @@ export function createVisibilityFrame(
       triangles.set(id, triangle);
       return (dernier = triangle);
     },
-    /** La description du matériau d'une page, calculée une fois par image et non par pixel. */
+    /** Description of a page's material, computed once per image and not per pixel. */
     material(page: VisPage) {
       let materiau = materiaux.get(page);
       if (!materiau) materiaux.set(page, (materiau = visMaterial(page.material)));

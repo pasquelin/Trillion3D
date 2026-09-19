@@ -1,12 +1,12 @@
 /**
- * Passage entre les boîtes à plat de sdk-core et les bornes que porte une géométrie Three.js. Aucun
- * calcul ici : les volumes se calculent dans `mathBox.ts` et `mathSphere.ts`, ce module ne fait que
- * recopier des bornes dans les objets que le moteur de rendu Three lit encore.
+ * Bridge between sdk-core's flat boxes and the bounds a Three.js geometry carries. No
+ * computation here: volumes are computed in `mathBox.ts` and `mathSphere.ts`; this module only
+ * copies bounds into the objects the Three renderer still reads.
  */
 import { sphereFromBounds } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 
-/** Recopie les six bornes d'une boîte Three.js à plat. */
+/** Copy the six bounds of a Three.js box into a flat array. */
 export function readThreeBox(out: Float64Array, box: THREE.Box3) {
   out[0] = box.min.x;
   out[1] = box.min.y;
@@ -18,7 +18,7 @@ export function readThreeBox(out: Float64Array, box: THREE.Box3) {
 
 const sphere = new Float64Array(4);
 
-/** Pose la boîte et la sphère englobantes d'une géométrie depuis ses bornes. */
+/** Set a geometry's bounding box and sphere from its bounds. */
 export function setGeometryBounds(
   geometry: THREE.BufferGeometry,
   min: ArrayLike<number>,

@@ -8,21 +8,21 @@ import {
 import { copyElements } from './matrixElements.ts';
 
 /**
- * La frontière de lecture du graphe hôte.
+ * Read frontier of the host graph.
  *
- * La scène appartient à l'hôte : c'est lui qui écrit les POSES LOCALES de ses nœuds. Ce qu'il en
- * compose ne regarde plus le moteur — les matrices monde dont le moteur a besoin sont les SIENNES,
- * calculées par le socle depuis ces poses locales : `hostWorldChain.ts` pour la chaîne d'ancêtres
- * d'un nœud, `hostWorldTree.ts` pour un sous-arbre entier.
+ * The scene belongs to the host: it is who writes the LOCAL POSES of its nodes. What it
+ * composes of them no longer concerns the engine — the world matrices the engine needs are its
+ * OWN, computed by the core from those local poses: `hostWorldChain.ts` for a node's ancestor
+ * chain, `hostWorldTree.ts` for a whole subtree.
  *
- * Il ne reste donc ici que deux gestes : LIRE la pose locale d'un nœud, et refuser une pose non
- * finie. Le seul appel de composition qui subsiste tient la scène de l'HÔTE à jour pour ses propres
- * lecteurs — la réplication (`replicateInstances.ts`) part des matrices monde qu'il porte ; aucun
- * nombre que le moteur dessine n'en sort, les siennes sont celles de `hostWorldPlacements.ts`. Le
- * test `test/integration/moteur-sans-three-math.test.mjs` tient cette frontière.
+ * So only two gestures remain here: READ a node's local pose, and refuse a non-finite pose. The
+ * only composition call that remains keeps the HOST's scene up to date for its own readers —
+ * replication (`replicateInstances.ts`) starts from the world matrices it carries; no number
+ * the engine draws comes from there, its own are those of `hostWorldPlacements.ts`. The test
+ * `test/integration/moteur-sans-three-math.test.mjs` holds this frontier.
  */
 
-/** Le sous-arbre entier de `node` remis à jour DANS LA SCÈNE DE L'HÔTE, pour ses propres lecteurs. */
+/** Whole subtree of `node` updated IN THE HOST SCENE, for its own readers. */
 export function resolveHostSubtree(node: THREE.Object3D) {
   node.updateMatrixWorld(true);
 }
@@ -32,10 +32,10 @@ const position = new Float64Array(POSITION_VALUES),
   scale = new Float64Array(POSITION_VALUES);
 
 /**
- * La matrice LOCALE de `node`, écrite dans `out`. C'est `updateMatrix` de la référence : un nœud qui
- * recompose rend le produit translation-rotation-échelle de sa pose, composé par le socle et aux
- * mêmes bits ; un nœud dont l'hôte a coupé la recomposition rend la matrice qu'il a posée, telle
- * quelle. Rien de la bibliothèque hôte n'est appelé — les dix nombres de la pose sont LUS.
+ * LOCAL matrix of `node`, written into `out`. This is the reference's `updateMatrix`: a node that
+ * recomposes returns the translation-rotation-scale product of its pose, composed by the core
+ * and at the same bits; a node whose host cut recomposition returns the matrix it set, as-is.
+ * Nothing of the host library is called — the ten pose numbers are READ.
  */
 export function hostLocalInto(out: Float64Array, node: THREE.Object3D) {
   if (!node.matrixAutoUpdate) {
@@ -57,18 +57,18 @@ export function hostLocalInto(out: Float64Array, node: THREE.Object3D) {
 }
 
 /**
- * Refuse une pose dont l'un des seize nombres n'est pas fini. Une transformation NaN ou infinie ne
- * se transporte dans aucune normale : le noyau d'inverse-transposée la verrait par sa somme non
- * finie et rendrait le vecteur nul, donc une surface éteinte sans que personne sache pourquoi.
- * Elle est donc refusée à l'ENTRÉE — au chargement (`explorerScene.ts`) et à chaque pose demandée
- * (`webgpuPagesTransform.ts`) —, avec le nom du nœud et le rang fautif. C'est le cas 4 de la
- * convention des normales singulières, écrite dans `inverseTransposeWgsl.ts` ; les cas 1 à 3 y
- * répondent par un calcul, celui-ci par un refus.
+ * Refuses a pose of which one of the sixteen numbers is not finite. A NaN or infinite transform
+ * does not carry into any normal: the inverse-transpose kernel would see it by its non-finite
+ * sum and return the null vector, hence a dark surface with nobody knowing why. It is therefore
+ * refused at the ENTRY — at load (`explorerScene.ts`) and on every requested pose
+ * (`webgpuPagesTransform.ts`) — with the node name and the faulty index. This is case 4 of the
+ * singular-normal convention, written in `inverseTransposeWgsl.ts`; cases 1 to 3 answer there
+ * with a computation, this one with a refusal.
  */
 export function assertFiniteTransform(elements: ArrayLike<number>, nodeName: string) {
   for (let index = 0; index < 16; index++)
     if (!Number.isFinite(elements[index]))
-      throw new EngineError('NON_FINITE_TRANSFORM', `${nodeName}: matrice non finie`, {
+      throw new EngineError('NON_FINITE_TRANSFORM', `${nodeName}: non-finite matrix`, {
         nodeName,
         index,
         value: elements[index],

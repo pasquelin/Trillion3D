@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 
 /**
- * `autonomousGeometry.ts` avant le lot G : `attach` et `detach` ne tenaient aucun ensemble, et
- * `sync` balayait `allPages` en entier — tout le DAG — pour trouver les quelques pages que la
- * nouvelle coupe laisse tomber. Les trois fonctions sont recopiées telles quelles : c'est l'oracle.
+ * `autonomousGeometry.ts` before batch G: `attach` and `detach` held no set, and
+ * `sync` swept all of `allPages` — the whole DAG — to find the few pages the new
+ * cut drops. The three functions are copied as-is: that is the oracle.
  */
 export function referenceAutonomousSync({ scene, allPages, shown }) {
   const state = { submittedTriangles: 0 };

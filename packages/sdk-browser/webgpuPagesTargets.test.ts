@@ -7,7 +7,7 @@ import { TAA_HISTORY_BYTES_PER_PIXEL } from './temporalAntialiasing.ts';
 import { MEASURE_HEIGHT, MEASURE_WIDTH } from '../../test/appui/emeraldProvenance.mjs';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Un moteur réduit à ses cibles, avec une passe temporelle factice qui note ses redimensionnements. */
+/** An engine reduced to its targets, with a dummy temporal pass that notes its resizes. */
 function runtime() {
   const resized: number[][] = [],
     failures: string[] = [];
@@ -32,11 +32,11 @@ function runtime() {
   return { rt, temporal, resized, failures };
 }
 
-// Le défaut que ce test attrape : un plafond de 288 Mio, relevé une fois sur ce Mac, refusait la 4K
-// et le raster de calcul à 2496×1404 (`SURFACE_BUDGET: 415 Mo > 288 Mio`, 18 sept. 2026) sur une
-// machine qui les tenait. Comme chez la référence, les cibles suivent la résolution : ce qu'elles
-// coûtent est publié, et seule une taille que l'appareil ne sait pas faire est refusée.
-test('les cibles suivent la résolution, historique compris : la 4K est admise et chiffrée', () => {
+// The defect this test catches: a 288 MiB ceiling, sampled once on this Mac, refused 4K and the
+// compute raster at 2496×1404 (`SURFACE_BUDGET: 415 MB > 288 MiB`, 18 Sept. 2026) on a machine that
+// held them. As in the reference, targets follow resolution: what they cost is published, and only
+// a size the device cannot make is refused.
+test('targets follow resolution, history included: 4K is admitted and costed', () => {
   const { rt, resized, temporal } = runtime();
   for (const [width, height] of [
     [MEASURE_WIDTH, MEASURE_HEIGHT],
@@ -46,23 +46,20 @@ test('les cibles suivent la résolution, historique compris : la 4K est admise e
     assert.equal(base, frameTargetBytes(width, height, true));
     assert.equal(ensureTaaTargets(rt, width, height), width * height * TAA_HISTORY_BYTES_PER_PIXEL);
   }
-  assert.ok(
-    frameTargetBytes(3840, 2160, true) > 288 * 1024 * 1024,
-    'la 4K dépasse l’ancien plafond',
-  );
+  assert.ok(frameTargetBytes(3840, 2160, true) > 288 * 1024 * 1024, '4K exceeds the old ceiling');
   assert.deepEqual(resized, [
     [MEASURE_WIDTH, MEASURE_HEIGHT],
     [3840, 2160],
   ]);
-  // Des cibles réallouées n'ont plus d'historique.
+  // Reallocated targets no longer have history.
   assert.equal(temporal.frame.hasHistory, false);
   assert.equal(temporal.frame.stillFrames, 0);
   assert.throws(() => frameTargetAllocation(rt, 8193, 16), /SURFACE_DEVICE_LIMIT/);
 });
 
-test('une capture de surfaces ne touche pas aux cibles d’historique de la vue', () => {
+test("a surface capture does not touch the view's history targets", () => {
   const { rt, resized } = runtime();
   rt.capture.secondaryCamera = {} as never;
-  assert.equal(ensureTaaTargets(rt, 64, 64), 0, 'la réserve de la capture porte déjà l’historique');
+  assert.equal(ensureTaaTargets(rt, 64, 64), 0, 'the capture reserve already carries the history');
   assert.deepEqual(resized, []);
 });

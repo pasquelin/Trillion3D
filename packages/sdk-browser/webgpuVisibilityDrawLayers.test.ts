@@ -15,12 +15,12 @@ import { visUniformSlots } from './webgpuVisibilityUniforms.ts';
 import { createWebgpuVisibilityShaders } from './webgpuVisibilityShaders.ts';
 import { createWebgpuCoplanarLayerPipelines } from './webgpuVisibilityPipelines.ts';
 
-// Suite de `webgpuPagesLayersState.test.ts` : les modules du dessin par image, où le lot des couches
-// coplanaires a lui aussi été réappliqué. `webgpuPageRow.ts` reste couvert par
-// `webgpuPages.19.test.ts` et n'a pas de test ici.
+// Follow-up of `webgpuPagesLayersState.test.ts`: the per-image draw modules, where the coplanar-
+// layer lot was reapplied too. `webgpuPageRow.ts` stays covered by `webgpuPages.19.test.ts` and has
+// no test here.
 
 // webgpuVisibilityItemWords.ts
-test('la couche coplanaire d’une ligne va dans son mot de fiche, plafonnée, et ses triangles avec', () => {
+test("a row's coplanar layer goes into its record word, capped, and its triangles with it", () => {
   const material = new THREE.MeshBasicMaterial();
   const rec = (depthLayer: number) =>
     ({
@@ -29,7 +29,7 @@ test('la couche coplanaire d’une ligne va dans son mot de fiche, plafonnée, e
       material,
       matrix: new THREE.Matrix4(),
     }) as unknown as PageRec;
-  // Les deux lignes du tableau de pages portent les trois indices que chaque page dessine.
+  // The two page-table rows carry the three indices each page draws.
   const rowWords = PAGE_INFO_STRIDE / 4;
   const pageTableInts = new Uint32Array(2 * rowWords);
   pageTableInts[ROW_INDEX_WORDS] = 3;
@@ -50,11 +50,11 @@ test('la couche coplanaire d’une ligne va dans son mot de fiche, plafonnée, e
   };
   const rt = { layout, vis: { drawLayerSlots: 3 } } as unknown as WebgpuPagesRuntime;
   const hold = refreshDrawItemWords(rt, rt.vis.drawLayerSlots - 1, undefined);
-  assert.equal(layout.drawItemWords[3], 0, 'la ligne de couche 0 garde la couche 0');
+  assert.equal(layout.drawItemWords[3], 0, 'the layer-0 row keeps layer 0');
   assert.equal(
     layout.drawItemWords[DRAW_ITEM_U32 + 3],
     2,
-    'une couche plus profonde que la scène n’a de slots se pince à la dernière',
+    'a layer deeper than the scene has slots pinches to the last',
   );
   assert.equal(
     layout.drawItemWords[4],
@@ -62,11 +62,11 @@ test('la couche coplanaire d’une ligne va dans son mot de fiche, plafonnée, e
     'les triangles de la ligne sortent de sa ligne de table',
   );
   assert.equal(layout.drawItemWords[DRAW_ITEM_U32 + 4], 3);
-  assert.equal(hold.total, 4, 'le total des triangles dessinables suit les deux lignes');
+  assert.equal(hold.total, 4, 'the drawable-triangle total follows the two rows');
 });
 
 // webgpuVisibilityDrawer.ts
-test('drawVis dessine les slots de chaque couche coplanaire par leur propre commande indirecte', () => {
+test("drawVis draws each coplanar layer's slots by their own indirect command", () => {
   const drawCalls: number[] = [];
   const pass = {
     setPipeline() {},
@@ -102,12 +102,12 @@ test('drawVis dessine les slots de chaque couche coplanaire par leur propre comm
 
   drawVis(rt, device, pass, false, true);
 
-  // Le nombre d'appels ne dépend plus que des slots : trois modes de découpe par couche, chacun
-  // à son propre décalage indirect. Un slot vide dessine zéro instance, la carte le sait seule.
+  // The call count now depends only on the slots: three cull modes per layer, each at its own
+  // indirect offset. An empty slot draws zero instances, the GPU knows that alone.
   assert.deepEqual(
     drawCalls,
     [0, 16, 32, BASE_SLOTS * 16, (BASE_SLOTS + 1) * 16, (BASE_SLOTS + 2) * 16],
-    'les trois slots de chaque couche sont dessinés dans l’ordre des couches',
+    'the three slots of each layer are drawn in layer order',
   );
   assert.equal(rt.run.gpuDrawCalls, 6);
 });

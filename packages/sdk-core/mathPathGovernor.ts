@@ -8,25 +8,25 @@ import {
 } from './mathPathContracts.ts';
 
 /**
- * Gouverneur de chemin de calcul, générique et par opération NOMMÉE : il ne connaît ni les boîtes ni
- * les matrices, seulement des exécutions chronométrées qu'on lui rapporte sous un nom.
+ * Compute-path governor, generic and per NAMED operation: it knows neither boxes nor
+ * matrices, only timed executions reported to it under a name.
  *
- * Il arbitre sur la seule grandeur comparable entre deux tailles de lot : la durée par élément. Pour
- * chaque nom et chaque chemin il tient une médiane glissante — la médiane, et non la moyenne, parce
- * qu'une image en retard ou un ramasse-miettes fait une valeur aberrante et pas une tendance.
+ * It arbitrates on the only quantity comparable across two batch sizes: duration per element. For
+ * each name and each path it keeps a sliding median — the median, not the mean, because
+ * a late frame or a garbage collection is an outlier, not a trend.
  *
- * Il ne bascule que lorsque l'autre chemin est franchement et durablement meilleur, et il garde
- * l'autre médiane fraîche en le jouant de temps en temps. Sans horloge assez fine, il n'arbitre pas
- * du tout : il reste sur le chemin JavaScript, qui est la référence.
+ * It switches only when the other path is clearly and lastingly better, and it keeps
+ * the other median fresh by playing it from time to time. Without a fine enough clock, it does not
+ * arbitrate at all: it stays on the JavaScript path, which is the reference.
  */
 
-/** Exécutions minimales avant tout arbitrage : sous ce nombre, une seule valeur ferait la médiane. */
+/** Minimum executions before any arbitration: under this number, a single value would make the median. */
 export const PATH_MIN_SAMPLES = 5;
-/** Avance exigée de l'autre chemin. En deçà, l'écart tient au bruit de la machine, pas au code. */
+/** Lead required of the other path. Below that, the gap is machine noise, not the code. */
 const PATH_SWITCH_MARGIN = 0.2;
-/** Exécutions consécutives à cette avance avant de basculer : une rafale, pas un accident. */
+/** Consecutive executions at that lead before switching: a burst, not an accident. */
 export const PATH_SWITCH_RUNS = 5;
-/** Une exécution sur autant joue l'autre chemin pour rafraîchir sa médiane sans coûter une image. */
+/** One execution in that many plays the other path to refresh its median without costing a frame. */
 export const PATH_EXPLORE_EVERY = 50;
 
 const NS_PAR_MS = 1e6;
@@ -38,24 +38,24 @@ class Operation {
   runs = 0;
   switches = 0;
   elements = 0;
-  /** Exécutions consécutives où l'autre chemin a tenu son avance. Remis à zéro dès qu'elle cède. */
+  /** Consecutive executions where the other path held its lead. Reset to zero as soon as it yields. */
   avance = 0;
 }
 
 export interface PathGovernor {
   setMode(mode: MathPathMode): void;
-  /** Déclare ce que l'hôte a réussi à charger, et pourquoi le cas échéant. */
+  /** Declares what the host managed to load, and why if applicable. */
   setWasm(available: boolean, simd: boolean | null, reason: string | null): void;
-  /** Le chemin à jouer pour la prochaine exécution de cette opération. */
+  /** The path to play for the next execution of this operation. */
   choose(operation: string): MathPath;
-  /** Ce qu'une exécution a coûté. `ms` à `null` : le chrono manque, l'opération repasse au repli. */
+  /** What an execution cost. `ms` at `null`: the timer is missing, the operation falls back. */
   observe(operation: string, path: MathPath, ms: number | null, elements: number): void;
   metrics(): MathPathMetrics;
 }
 
 /**
- * Un gouverneur. `now` sert uniquement à estimer la résolution de l'horloge du fil : les durées,
- * elles, sont chronométrées par l'appelant et rapportées à `observe`.
+ * A governor. `now` is used only to estimate the thread clock resolution: durations
+ * themselves are timed by the caller and reported to `observe`.
  */
 export function createPathGovernor(now: () => number, mode: MathPathMode = 'auto'): PathGovernor {
   const operations = new Map<string, Operation>();
@@ -64,14 +64,14 @@ export function createPathGovernor(now: () => number, mode: MathPathMode = 'auto
   let choisi = mode;
   let disponible = false;
   let simd: boolean | null = null;
-  let cause: string | null = 'module WebAssembly non chargé';
+  let cause: string | null = 'WebAssembly module not loaded';
 
   const etat = (nom: string) => {
     let operation = operations.get(nom);
     if (!operation) operations.set(nom, (operation = new Operation()));
     return operation;
   };
-  /** L'arbitrage n'est possible que si les deux chemins existent ET que l'horloge les départage. */
+  /** Arbitration is possible only if both paths exist AND the clock can tell them apart. */
   const arbitrable = () => choisi === 'auto' && disponible && !grossiere;
 
   function choose(nom: string) {
@@ -79,8 +79,8 @@ export function createPathGovernor(now: () => number, mode: MathPathMode = 'auto
     if (!arbitrable()) return 'js';
     const operation = etat(nom);
     const courant = operation.path ?? 'wasm';
-    // Exploration passive : l'autre chemin tourne une fois sur `PATH_EXPLORE_EVERY`, sans quoi sa
-    // médiane vieillirait jusqu'à décrire une machine qui n'existe plus.
+    // Passive exploration: the other path runs once every `PATH_EXPLORE_EVERY`, otherwise its
+    // median would age until it described a machine that no longer exists.
     const autre = courant === 'js' ? 'wasm' : 'js';
     return operation.runs % PATH_EXPLORE_EVERY === PATH_EXPLORE_EVERY - 1 ? autre : courant;
   }
@@ -91,8 +91,8 @@ export function createPathGovernor(now: () => number, mode: MathPathMode = 'auto
     if (elements <= 0) return;
     operation.elements += elements;
     if (ms === null) {
-      // Un chrono manquant ne prouve rien : l'opération retombe sur la référence et y reste tant
-      // qu'aucune exécution chronométrée n'a nourri les deux médianes.
+      // A missing timer proves nothing: the operation falls back to the reference and stays there
+      // as long as no timed execution has fed both medians.
       operation.path = 'js';
       operation.avance = 0;
       return;

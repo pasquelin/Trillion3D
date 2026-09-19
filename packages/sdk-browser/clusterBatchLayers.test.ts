@@ -21,8 +21,8 @@ const page = (extra: Partial<BatchPage>): BatchPage => ({
   ...extra,
 });
 
-// Comportement 18 : buildLayerGroups crée un lot jumeau par (instance, couche) et aucun quand la
-// scène n'a pas de couche.
+// Behaviour 18: buildLayerGroups creates one twin batch per (instance, layer) and none when the
+// scene has no layer.
 test('buildLayerGroups creates no twin batch when no page carries a coplanar layer', () => {
   const groups: Array<BatchGroup | undefined> = [new BatchGroup({} as never)];
   const pages = [page({ renderOrder: 0, depthLayer: 0 }), page({ renderOrder: 0 })];
@@ -38,18 +38,18 @@ test('buildLayerGroups creates one twin batch per (instance, layer)', () => {
   ];
   const pages = [
     page({ renderOrder: 0, depthLayer: 2, id: 0 }),
-    page({ renderOrder: 0, depthLayer: 2, id: 1 }), // même (instance, couche) : pas un second jumeau
-    page({ renderOrder: 0, depthLayer: 3, id: 2 }), // même instance, autre couche : un autre jumeau
-    page({ renderOrder: 1, depthLayer: 1, id: 3 }), // autre instance
+    page({ renderOrder: 0, depthLayer: 2, id: 1 }), // same (instance, layer): not a second twin
+    page({ renderOrder: 0, depthLayer: 3, id: 2 }), // same instance, other layer: another twin
+    page({ renderOrder: 1, depthLayer: 1, id: 3 }), // other instance
   ];
   const built = buildLayerGroups(pages, groups);
-  assert.equal(built.layerGroups[0]!.size, 2, 'deux couches distinctes sur la première instance');
+  assert.equal(built.layerGroups[0]!.size, 2, 'two distinct layers on the first instance');
   assert.equal(built.layerGroups[1]!.size, 1);
-  assert.equal(built.materials.length, 3, 'un matériau biaisé par lot jumeau créé');
+  assert.equal(built.materials.length, 3, 'one biased material per twin batch created');
 });
 
-// Comportement 20 : biasedMaterial (testé via buildLayerGroups) pose polygonOffset, un facteur nul
-// et des unités égales au biais de la couche.
+// Behaviour 20: biasedMaterial (tested via buildLayerGroups) sets polygonOffset, a zero factor
+// and units equal to the layer bias.
 test('the twin batch material carries polygonOffset with the layer bias in its units', () => {
   const groups: Array<BatchGroup | undefined> = [new BatchGroup({} as never)];
   const pages = [page({ renderOrder: 0, depthLayer: 4 })];
@@ -57,13 +57,13 @@ test('the twin batch material carries polygonOffset with the layer bias in its u
   const biased = built.layerGroups[0]!.get(4)!.biased as THREE.MeshBasicMaterial;
   assert.equal(biased.polygonOffset, true);
   assert.equal(biased.polygonOffsetFactor, 0);
-  // Chemin WebGL2, profondeur directe : le décalage vers l'œil est NÉGATIF.
+  // WebGL2 path, forward depth: the offset toward the eye is NEGATIVE.
   assert.equal(biased.polygonOffsetUnits, -depthLayerUnits(4));
-  assert.notEqual(biased, pages[0].material, 'le matériau biaisé est un clone, pas l’original');
+  assert.notEqual(biased, pages[0].material, 'the biased material is a clone, not the original');
 });
 
-// Comportement 19 : groupForPage route une page marquée vers son lot biaisé, une page de couche 0
-// vers le lot d'origine.
+// Behaviour 19: groupForPage routes a marked page to its biased batch, a layer-0 page
+// to the original batch.
 test('groupForPage routes a layered page to its twin and a layer-0 page to the original group', () => {
   const groups: Array<BatchGroup | undefined> = [new BatchGroup({} as never)];
   const layered = page({ renderOrder: 0, depthLayer: 5 });
@@ -73,8 +73,8 @@ test('groupForPage routes a layered page to its twin and a layer-0 page to the o
   assert.equal(groupForPage(groups, built.layerGroups, untouched), groups[0]);
 });
 
-// Comportement 21 : everyGroup parcourt les lots de couche 0 et leurs jumeaux ; dispose libère les
-// matériaux biaisés.
+// Behaviour 21: everyGroup walks the layer-0 batches and their twins; dispose frees the
+// biased materials.
 test('everyGroup walks the layer-0 groups and every one of their twins', () => {
   const base0 = new BatchGroup({} as never),
     base1 = new BatchGroup({} as never);

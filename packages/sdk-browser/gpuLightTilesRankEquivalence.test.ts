@@ -14,11 +14,11 @@ const MAX_TILE = LIGHT_SETTINGS.maxLightsPerTile;
 function assertSame(hits: Uint32Array, count: number, maxTileLights = MAX_TILE) {
   const serial = compactSerial(hits, count, maxTileLights);
   const rank = compactRank(hits, count, maxTileLights);
-  assert.deepEqual(rank.kept, serial.kept, `kept diffère pour hits=${[...hits]} count=${count}`);
+  assert.deepEqual(rank.kept, serial.kept, `kept differs for hits=${[...hits]} count=${count}`);
   assert.equal(
     rank.requested,
     serial.requested,
-    `requested diffère pour hits=${[...hits]} count=${count}`,
+    `requested differs for hits=${[...hits]} count=${count}`,
   );
   return serial;
 }

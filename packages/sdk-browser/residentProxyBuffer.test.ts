@@ -11,7 +11,7 @@ import { createGpuBounceProxy } from './gpuBounceProxy.ts';
 import { createGpuSunFarShadow } from './gpuSunFarShadow.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 
-/** Le dispositif factice : il garde le mappage du tampon du proxy et les écritures de son entête. */
+/** Dummy harness: holds proxy buffer mapping and header writes. */
 function recordingDevice(writes: Array<[number, number]> = []) {
   let mapped: ArrayBuffer | undefined;
   const device = {
@@ -28,7 +28,7 @@ function recordingDevice(writes: Array<[number, number]> = []) {
   return { device, proxyBytes: () => mapped! };
 }
 
-test('un proxy adopté porte lui-même les réglages et les compteurs du rayon', () => {
+test('an adopted proxy carries ray settings and counters itself', () => {
   installGpuGlobals();
   const writes: Array<[number, number]> = [];
   const sunFar = createGpuSunFarShadow(recordingDevice(writes).device);
@@ -39,9 +39,9 @@ test('un proxy adopté porte lui-même les réglages et les compteurs du rayon',
     nodeCount: 1,
   } as unknown as Parameters<typeof sunFar.adopt>[0];
   sunFar.adopt(resident, false);
-  assert.equal(sunFar.buffer(), resident.buffer, 'les deux passes lient le proxy lui-même');
-  assert.deepEqual(writes[0], [0, PROXY_PARAM_FLOATS], 'les réglages sont écrits en tête du proxy');
-  assert.equal(sunFar.maxDistanceMetres, 5, 'la portée est la diagonale de l’emprise');
+  assert.equal(sunFar.buffer(), resident.buffer, 'both passes bind proxy itself');
+  assert.deepEqual(writes[0], [0, PROXY_PARAM_FLOATS], 'settings are written at head of proxy');
+  assert.equal(sunFar.maxDistanceMetres, 5, 'reach is bounding diagonal');
   const cleared: Array<[number, number]> = [];
   sunFar.prepare(
     {
@@ -50,10 +50,10 @@ test('un proxy adopté porte lui-même les réglages et les compteurs du rayon',
     } as unknown as GPUCommandEncoder,
     0,
   );
-  assert.deepEqual(cleared, [[PROXY_COUNT_OFFSET, 8]], 'les compteurs vivent dans le même entête');
+  assert.deepEqual(cleared, [[PROXY_COUNT_OFFSET, 8]], 'counters live in same header');
 });
 
-test('le proxy résident tient dans un tampon, aux rangs que son entête publie', () => {
+test('resident proxy fits in single buffer, at offsets published by its header', () => {
   installGpuGlobals();
   const triangles = new Float32Array([1, 2, 3, 4, 5, 6, 7, 8, 9]);
   const nodeBounds = new Float32Array([-1, -2, -3, 4, 5, 6]);
@@ -69,7 +69,7 @@ test('le proxy résident tient dans un tampon, aux rangs que son entête publie'
   const recorder = recordingDevice();
   const resident = createGpuBounceProxy(recorder.device, proxy);
   const words = new Uint32Array(recorder.proxyBytes());
-  assert.equal(words[PROXY_LAYOUT_WORD], nodeBounds.length / PROXY_NODE_FLOATS, 'nœuds de l’arbre');
+  assert.equal(words[PROXY_LAYOUT_WORD], nodeBounds.length / PROXY_NODE_FLOATS, 'tree nodes');
   const starts = [
     words[PROXY_LAYOUT_WORD + 1],
     words[PROXY_LAYOUT_WORD + 2],
@@ -80,7 +80,7 @@ test('le proxy résident tient dans un tampon, aux rangs que son entête publie'
   assert.deepEqual(
     Array.from(floats.slice(PROXY_HEADER_WORDS, PROXY_HEADER_WORDS + triangles.length)),
     Array.from(triangles),
-    'les triangles se relisent tels quels au rang publié',
+    'triangles re-read as is at published offset',
   );
   const boundsAt = PROXY_HEADER_WORDS + starts[1];
   assert.deepEqual(

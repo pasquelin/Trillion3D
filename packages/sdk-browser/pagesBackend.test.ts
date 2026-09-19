@@ -29,8 +29,8 @@ test('transparent page batches preserve source order across exact and coarse cut
   const camera = frontCamera();
   backend.render(camera);
   assert.equal(meshes().length, 1);
-  // Transparent double face : les deux passes que Three.js improviserait à chaque image sont figées en
-  // deux matériaux dos/face issus du matériau source, et deux groupes de géométrie les ordonnent.
+  // Double-sided transparent: the two passes Three.js would improvise each frame are frozen as
+  // two back/front materials from the source material, and two geometry groups order them.
   const split = meshes()[0].material as THREE.Material[];
   assert.ok(Array.isArray(split));
   assert.deepEqual([split[0].side, split[1].side], [THREE.BackSide, THREE.FrontSide]);
@@ -86,7 +86,7 @@ test('exact pages report measured residency and keep only the visible set in the
   material.dispose();
 });
 
-test('cpuSelectMs mesure le temps de sélection, fini et non-négatif', () => {
+test('cpuSelectMs measures selection time, finite and non-negative', () => {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute(
     'position',

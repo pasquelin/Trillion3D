@@ -1,46 +1,47 @@
-//! La valeur d'un attribut, et la place qu'un intervalle d'indices lui donne.
+//! Value of an attribute, and the place an index range gives it.
 //!
-//! Un attribut Maya s'écrit en plusieurs fois : `setAttr ".vt[0:2]"` puis `setAttr ".vt[3]"`
-//! remplissent le même tableau à des rangs différents. Une valeur est donc un tableau que l'on
-//! garnit par tranches, jamais un remplacement. Un rang au-delà du plafond d'éléments du pilote ne
-//! fait pas allouer : il est refusé, et l'appelant le compte.
+//! A Maya attribute is written in several passes: `setAttr ".vt[0:2]"` then `setAttr ".vt[3]"`
+//! fill the same array at different ranks. A value is therefore an array that is filled by
+//! slices, never a replacement. A rank beyond the driver's element ceiling does not allocate:
+//! it is refused, and the caller counts it.
 use super::*;
 
-/// La valeur d'un attribut, dans la seule forme que la scène intermédiaire ait à en faire.
+/// Value of an attribute, in the only form the intermediate scene has a use for.
 pub(super) enum Attr {
-    /// Des nombres à plat : sommets, arêtes, normales, angles, couleurs, coordonnées de texture.
+    /// Flat numbers: vertices, edges, normals, angles, colours, texture coordinates.
     Numbers(Vec<f64>),
-    /// Des chaînes : un nom de fichier de texture, une liste de composants de face.
+    /// Strings: a texture file name, a face-component list.
     Texts(Vec<String>),
-    /// Un booléen : la visibilité d'un nœud, un interrupteur de nuanceur.
+    /// A boolean: a node's visibility, a shader switch.
     Flag(bool),
-    /// Les faces polygonales que `.fc` écrit, déjà séparées en enregistrements.
+    /// Polygonal faces that `.fc` writes, already split into records.
     Faces(Vec<faces::Face>),
 }
 
 impl Attr {
-    /// Les nombres de cet attribut, ou rien quand il n'en porte pas.
+    /// Numbers of this attribute, or nothing when it carries none.
     pub(super) fn numbers(&self) -> &[f64] {
         match self {
             Self::Numbers(values) => values,
             _ => &[],
         }
     }
-    /// Les chaînes de cet attribut.
+    /// Strings of this attribute.
     pub(super) fn texts(&self) -> &[String] {
         match self {
             Self::Texts(values) => values,
             _ => &[],
         }
     }
-    /// Les faces de cet attribut.
+    /// Faces of this attribute.
     pub(super) fn faces(&self) -> &[faces::Face] {
         match self {
             Self::Faces(values) => values,
             _ => &[],
         }
     }
-    /// Le booléen de cet attribut. Un nombre unique en tient lieu : `setAttr ".v" 0` est écrit ainsi.
+    /// Boolean of this attribute. A single number stands in for it: `setAttr ".v" 0` is written
+    /// that way.
     pub(super) fn flag(&self) -> Option<bool> {
         match self {
             Self::Flag(value) => Some(*value),
@@ -51,11 +52,11 @@ impl Attr {
             _ => None,
         }
     }
-    /// Le premier nombre de cet attribut.
+    /// First number of this attribute.
     pub(super) fn scalar(&self) -> Option<f64> {
         self.numbers().first().copied()
     }
-    /// Les trois nombres de cet attribut — une couleur, une translation, trois angles.
+    /// Three numbers of this attribute — a colour, a translation, three angles.
     pub(super) fn triple(&self) -> Option<[f64; 3]> {
         match self.numbers() {
             [x, y, z, ..] => Some([*x, *y, *z]),
@@ -63,9 +64,9 @@ impl Attr {
         }
     }
 
-    /// Verse `values` à partir du rang `at`, en comblant par des valeurs neutres ce qu'aucune
-    /// commande n'a encore écrit. Rend `false` quand la variante ne correspond pas à ce qui est
-    /// déjà là, ou quand le rang visé dépasse le plafond d'éléments.
+    /// Pours `values` from rank `at`, filling with neutral values what no command has written
+    /// yet. Yields `false` when the variant does not match what is already there, or when the
+    /// targeted rank exceeds the element ceiling.
     pub(super) fn splice(&mut self, at: usize, values: Self) -> bool {
         if let Self::Flag(_) = values {
             *self = values;
@@ -79,7 +80,7 @@ impl Attr {
         }
     }
 
-    /// La variante vide de même forme, pour accueillir une première tranche.
+    /// Empty variant of the same form, to receive a first slice.
     pub(super) fn empty_like(&self) -> Self {
         match self {
             Self::Numbers(_) => Self::Numbers(Vec::new()),
@@ -90,7 +91,7 @@ impl Attr {
     }
 }
 
-/// Verse `from` dans `into` au rang `at`, en comblant le trou par des valeurs neutres.
+/// Pours `from` into `into` at rank `at`, filling the gap with neutral values.
 fn place<T: Clone + Default>(into: &mut Vec<T>, at: usize, from: Vec<T>) -> bool {
     let Some(end) = at
         .checked_add(from.len())
@@ -105,8 +106,8 @@ fn place<T: Clone + Default>(into: &mut Vec<T>, at: usize, from: Vec<T>) -> bool
     true
 }
 
-/// Les éléments d'un tableau plat, `N` nombres par élément. Ce qui dépasse le dernier élément
-/// complet est laissé : un tableau tronqué ne donne pas un élément à moitié lu.
+/// Elements of a flat array, `N` numbers per element. What exceeds the last complete element is
+/// left: a truncated array does not yield a half-read element.
 pub(super) fn elements<const N: usize>(values: &[f64]) -> impl Iterator<Item = [f64; N]> + '_ {
     values.as_chunks::<N>().0.iter().copied()
 }

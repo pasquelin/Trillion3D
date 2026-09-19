@@ -11,7 +11,7 @@ import { LIGHT_FIELD, type SceneLightStore } from './sceneLightStore.ts';
 
 type Slices = ReturnType<typeof createShadowSliceTable>;
 
-/** Rayon angulaire de la sphère d'influence rapporté au demi-champ : approximation nommée (P5). */
+/** Angular radius of the influence sphere over the half-field: named approximation (P5). */
 export function screenCoverage(
   view: ShadowViewpoint,
   x: number,
@@ -30,9 +30,9 @@ export function screenCoverage(
 }
 
 /**
- * Ce que la passe d'ombres a réellement fait : des pages, jamais des durées. Pages invalidées par
- * l'image, pages redessinées, pages restées en attente, et le retard de la plus ancienne d'entre
- * elles — en millisecondes et en images. Tout est alloué une fois.
+ * What the shadow pass actually did: pages, never durations. Pages invalidated by
+ * the frame, pages redrawn, pages left waiting, and the lag of the oldest of
+ * them — in milliseconds and in frames. Everything is allocated once.
  */
 export function createShadowCounts() {
   const drewAt = new Int32Array(LIGHT_SETTINGS.maxLights);
@@ -44,7 +44,7 @@ export function createShadowCounts() {
     pendingPages = 0,
     waitedMs = 0,
     waitedFrames = 0;
-  /** Ce qu'une image remet à zéro ; `reset` y ajoute ce qui survit d'une image à l'autre. */
+  /** What a frame resets; `reset` adds what survives from one frame to the next. */
   const beginFrame = () => {
     denied = 0;
     reused = 0;
@@ -59,7 +59,7 @@ export function createShadowCounts() {
     get reused() {
       return reused;
     },
-    /** Lampes dont au moins une région a été redessinée par cette image. */
+    /** Lights of which at least one region was redrawn by this frame. */
     get lights() {
       return lights;
     },
@@ -72,7 +72,7 @@ export function createShadowCounts() {
     get pendingPages() {
       return pendingPages;
     },
-    /** Retard de la page qui attend depuis le plus longtemps, en millisecondes et en images. */
+    /** Lag of the page that has been waiting the longest, in milliseconds and in frames. */
     get waitedMs() {
       return waitedMs;
     },
@@ -86,7 +86,7 @@ export function createShadowCounts() {
     reusedLight() {
       reused++;
     },
-    /** Une région vient d'être retenue pour cette lampe : elle ne compte qu'une fois par image. */
+    /** A region has just been kept for this light: it counts only once per frame. */
     drewLight(slot: number, store: SceneLightStore, frame: number) {
       if (drewAt[slot] === frame + 1) return;
       drewAt[slot] = frame + 1;
@@ -95,9 +95,9 @@ export function createShadowCounts() {
       if (store.packed[base + LIGHT_FIELD.kind] === LIGHT_KIND.directional) sunLights++;
     },
     /**
-     * Ce qui reste après l'admission : les pages entrées en file cette image — comptées à l'entrée,
-     * jamais déduites d'une différence —, celles qui y restent, et le retard de la plus ancienne.
-     * Un seul balayage des faces que les lampes à ombre déclarées possèdent.
+     * What remains after admission: pages that entered the queue this frame — counted at entry,
+     * never deduced from a difference —, those that stay there, and the lag of the oldest.
+     * A single scan of the faces that declared shadow lights own.
      */
     endFrame(slices: Slices, store: SceneLightStore, frame: number, nowMs: number) {
       invalidatedPages = slices.dirty.invalidated;

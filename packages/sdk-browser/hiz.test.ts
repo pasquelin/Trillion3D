@@ -63,7 +63,7 @@ test('a box that crosses the near plane is never Hi-Z rejected', () => {
 
 test('the screen rectangle is rounded outward and a single background hole cannot hide', () => {
   const depth = new Float32Array(4);
-  // Profondeur inversée : le trou de fond est le LOINTAIN, zéro.
+  // Reverse-Z: the background hole is the FAR value, zero.
   depth.set([0.8, 0.7, 0.6, DEPTH_CLEAR]);
   const pyramid = buildHizPyramid(depth, 2, 2);
   const bounds = projectBoxToScreen(
@@ -84,7 +84,7 @@ test('an integer-edge screen max includes that pixel so a hole there cannot hide
   depth.fill(0.2);
   depth[2 * 4 + 2] = DEPTH_CLEAR;
   const pyramid = buildHizPyramid(depth, 4, 4);
-  // Sans le trou, une borne de 0,1 serait derrière les 0,2 de l'empreinte et donc rejetée.
+  // Without the hole, a 0.1 bound would sit behind the footprint's 0.2 and so be rejected.
   assert.equal(
     hizRejects(pyramid, {
       minX: 0,

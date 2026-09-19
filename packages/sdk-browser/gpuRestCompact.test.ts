@@ -6,30 +6,30 @@ import { VIS_SHADER } from './visibilityBuffer.ts';
 import { BASE_SLOTS } from './gpuDraw.ts';
 import { HIZ_REJECTED_WGSL, VERDICT_REJECTED } from './gpuPartitionContract.ts';
 
-// Comportement 1 : la troncature retient EXACTEMENT ce que l'étage de sommets dessinait — les deux
-// textes portent le même `hizRejected`, et la troncature en garde la négation. Un prédicat recopié
-// à la main avait tronqué toute la moitié testée quand le verdict est passé à trois valeurs.
-test('la troncature de la moitié testée applique le prédicat de l’étage de sommets', () => {
-  assert.ok(VIS_SHADER.includes(HIZ_REJECTED_WGSL), 'l’étage de sommets lie le prédicat partagé');
-  assert.ok(REST_COMPACT_SHADER.includes(HIZ_REJECTED_WGSL), 'la troncature lie le même texte');
+// Behaviour 1: truncation keeps EXACTLY what the vertex stage drew — both texts carry the same
+// `hizRejected`, and truncation keeps its negation. A hand-copied predicate had truncated the
+// whole tested half when the verdict moved to three values.
+test('tested-half truncation applies the vertex-stage predicate', () => {
+  assert.ok(VIS_SHADER.includes(HIZ_REJECTED_WGSL), 'the vertex stage binds the shared predicate');
+  assert.ok(REST_COMPACT_SHADER.includes(HIZ_REJECTED_WGSL), 'truncation binds the same text');
   assert.match(VIS_SHADER, /if\(hizRejected\(page\.hizSlot\)\)/);
   assert.match(REST_COMPACT_SHADER, /return !hizRejected\(pages\[ligne\]\.hizSlot\);/);
   assert.match(HIZ_REJECTED_WGSL, new RegExp(`==${VERDICT_REJECTED}u;`));
 });
 
-// Comportement 2 : rien n'est déplacé. Le rang de la dernière survivante devient le compte, si bien
-// que l'ordre des instances retenues est celui que la compaction de dessin leur a donné.
-test('la troncature ne déplace aucune instance et ne touche que le compte', () => {
+// Behaviour 2: nothing is moved. The last survivor's rank becomes the count, so the order of
+// the kept instances is the one the draw compact gave them.
+test('truncation moves no instance and only touches the count', () => {
   assert.match(REST_COMPACT_SHADER, /atomicMax\(&dernieres\[id\.y\],id\.x\+1u\)/);
   assert.match(REST_COMPACT_SHADER, /indirect\[restSlotAt\(id\.x\)\*4u\+1u\]=atomicLoad/);
   assert.match(REST_COMPACT_SHADER, /@binding\(0\) var<storage, read> instances/);
-  // Le mot 0 de la commande, le nombre de sommets, n'est jamais réécrit.
+  // Word 0 of the command, the vertex count, is never rewritten.
   assert.doesNotMatch(REST_COMPACT_SHADER, /indirect\[[^\]]*\*4u\]=/);
 });
 
-// Comportement 3 : le rang du slot testé numéro n suit la convention de `slotOf` — trois modes de
-// face par couche, la moitié testée après les occulteurs.
-test('les slots visités sont ceux de la moitié testée', () => {
+// Behaviour 3: the rank of tested slot number n follows the `slotOf` convention — three face
+// modes per layer, the tested half after the occluders.
+test('visited slots are those of the tested half', () => {
   const half = BASE_SLOTS / 2;
   assert.match(
     REST_COMPACT_SHADER,
@@ -37,8 +37,8 @@ test('les slots visités sont ceux de la moitié testée', () => {
   );
 });
 
-// Comportement 4 : sans calcul, il n'y a pas de troncature et l'image garde le chemin d'avant.
-test('un appareil sans calcul ne monte pas la troncature', async () => {
+// Behaviour 4: without compute there is no truncation and the frame keeps the previous path.
+test('a device without compute does not mount truncation', async () => {
   const buffer = {} as GPUBuffer;
   const device = { createBuffer: () => buffer } as unknown as GPUDevice;
   const made = await createGpuRestCompact(device, {

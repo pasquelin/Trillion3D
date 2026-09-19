@@ -1,88 +1,88 @@
 import { summarize } from './stats.ts';
 
 /**
- * Le profil par étape d'une image : où passe le temps, côté processeur et côté carte graphique.
- * Les deux colonnes ne sont JAMAIS additionnées — elles décrivent deux machines qui travaillent en
- * même temps. `null` veut dire « non mesuré » et ne vaut pas zéro : une étape qui n'a pas eu lieu,
- * un appareil sans horodatage et un relevé tronqué donnent tous `null`, jamais `0`.
+ * Per-stage profile of a frame: where time goes, on the CPU and on the GPU.
+ * The two columns are NEVER added — they describe two machines that work at
+ * the same time. `null` means "unmeasured" and is not zero: a stage that did not run,
+ * a device without timestamps and a truncated sample all yield `null`, never `0`.
  */
 export type StageQuantiles = { p50: number; p95: number } | null;
 
-/** Une ligne du profil : une étape, sa durée processeur et sa durée carte graphique. */
+/** A profile row: a stage, its CPU duration and its GPU duration. */
 export interface StageProfileEntry {
   stage: string;
   label: string;
   cpuMs: StageQuantiles;
   gpuMs: StageQuantiles;
-  /** Pourquoi une colonne vaut `null`, quand la raison est connue. */
+  /** Why a column is `null`, when the reason is known. */
   cpuReason?: string;
   gpuReason?: string;
-  /** Compteurs propres a l'etape (faces d'ombre redessinees, appels de dessin d'ombre...). */
+  /** Stage-specific counters (redrawn shadow faces, shadow draw calls, ...). */
   counts?: Readonly<Record<string, number>>;
 }
 
 export type GpuTimingMethod = 'timestamp-query' | 'EXT_disjoint_timer_query_webgl2';
 
 /**
- * Le profil complet, sur une fenêtre glissante d'images. `gpuImageMs` est l'enveloppe de l'image
- * côté carte graphique : du début de sa première passe à la fin de sa dernière. Les durées par étape
- * ne s'y additionnent PAS — un appareil qui fait se chevaucher deux passes les compte deux fois dans
- * une somme, jamais dans l'enveloppe. C'est aussi la seule mesure d'un moteur WebGL2, qui ne sait pas
- * découper une image en passes.
+ * The full profile, over a sliding span of frames. `gpuImageMs` is the GPU envelope of the
+ * frame: from the start of its first pass to the end of its last. Per-stage durations
+ * do NOT add into it — a device that overlaps two passes counts them twice in
+ * a sum, never in the envelope. It is also the only measurement of a WebGL2 engine, which cannot
+ * split a frame into passes.
  */
 export interface StageProfile {
   version: 1;
   enabled: boolean;
   backend: string;
-  /** Images processeur et relevés carte graphique réellement retenus par la fenêtre. */
+  /** CPU frames and GPU samples actually retained by the span. */
   cpuFrames: number;
   gpuSamples: number;
   windowFrames: number;
   gpuMethod: GpuTimingMethod | null;
   gpuReason: string | null;
   gpuImageMs: StageQuantiles;
-  /** Coût processeur du profil lui-même, par image. C'est ce qu'il faut retrancher pour être juste. */
+  /** CPU cost of the profile itself, per frame. This is what must be subtracted to be fair. */
   overheadMs: StageQuantiles;
   stages: StageProfileEntry[];
 }
 
-/** Les étapes nommables d'une image, dans l'ordre où elles se produisent. */
+/** Nameable stages of a frame, in the order they occur. */
 export const STAGE_LABELS: Readonly<Record<string, string>> = Object.freeze({
-  animations: 'Animations et transformations',
-  lights: 'Éclairage : préparation des listes et des ombres',
-  hierarchyCut: 'Coupe hiérarchique',
-  cutAdoption: 'Adoption de la coupe',
-  selection: 'Sélection et visibilité',
+  animations: 'Animations and transforms',
+  lights: 'Lighting: preparing lists and shadows',
+  hierarchyCut: 'Hierarchy cut',
+  cutAdoption: 'Cut adoption',
+  selection: 'Selection and visibility',
   transparents: 'Transparents',
-  residency: 'Admission et file de résidence',
-  hostPages: 'Listes de pages rendues à l’hôte',
-  uploads: 'Téléversements',
-  textures: 'Textures : ordre et transferts vers les atlas',
-  partition: 'Partition occulteurs / testés',
-  encode: 'Encodage des passes',
-  submit: 'Soumission',
-  hiZ: 'Hi-Z (occultation)',
-  geometry: 'Géométrie',
-  coplanar: 'Couches coplanaires',
-  shadows: 'Ombres',
-  sunFarShadows: 'Ombres lointaines (soleil contre le proxy)',
-  lightLists: 'Listes de lampes',
-  bounce: "Rebond (sondes d'irradiance)",
-  lighting: 'Éclairage (résolution)',
-  antialiasing: 'Antialiasing temporel',
-  present: 'Présentation',
-  frame: 'Image entière',
+  residency: 'Admission and residency queue',
+  hostPages: 'Page lists handed to the host',
+  uploads: 'Uploads',
+  textures: 'Textures: order and transfers into the atlases',
+  partition: 'Occluders / tested partition',
+  encode: 'Pass encoding',
+  submit: 'Submit',
+  hiZ: 'Hi-Z (occlusion)',
+  geometry: 'Geometry',
+  coplanar: 'Coplanar layers',
+  shadows: 'Shadows',
+  sunFarShadows: 'Far shadows (sun against the proxy)',
+  lightLists: 'Light lists',
+  bounce: 'Bounce (irradiance probes)',
+  lighting: 'Lighting (resolve)',
+  antialiasing: 'Temporal antialiasing',
+  present: 'Present',
+  frame: 'Whole frame',
 });
 
 export const stageLabel = (stage: string) => STAGE_LABELS[stage] ?? stage;
 
-/** p50 et p95 d'une série, ou `null` si elle est vide : rien n'est déduit d'une série absente. */
+/** p50 and p95 of a series, or `null` if it is empty: nothing is inferred from a missing series. */
 export function stageQuantiles(values: readonly number[]): StageQuantiles {
   const summary = summarize(values);
   return summary ? { p50: summary.p50, p95: summary.p95 } : null;
 }
 
-/** Le profil d'un moteur qui n'en tient pas : tout est « non mesuré », rien ne vaut zéro. */
+/** Profile of an engine that keeps none: everything is "unmeasured", nothing is zero. */
 export function disabledStageProfile(backend: string, reason: string): StageProfile {
   return {
     version: 1,

@@ -4,14 +4,14 @@ import { readFile } from 'node:fs/promises';
 
 const navigateur = new URL('../browser/', import.meta.url);
 
-// Défaut corrigé en 5fecd558 : quatre hôtes de `test/browser/*.browser.mjs` appelaient
-// `cameraSelectionUniforms`/`rasterVisibility` avec une `THREE.PerspectiveCamera` brute — ces API
-// veulent depuis M3b une `EngineCamera`, d'où `cam.planes` et `page.matrix` indéfinis en silence.
-// Ce test est structurel (lecture de source, pas d'exécution — ces hôtes veulent un WebGPU
-// Chromium) : il vérifie que le site d'appel passe par `cameraMoteur(...)` ou par `vue`
-// (elle-même `cameraMoteur(camera)`, voir `inverseTransposeCas.mjs`), jamais par la caméra hôte nue.
+// Defect fixed in 5fecd558: four hosts in `test/browser/*.browser.mjs` called
+// `cameraSelectionUniforms`/`rasterVisibility` with a raw `THREE.PerspectiveCamera` — these APIs
+// expect an `EngineCamera` since M3b, resulting in silently undefined `cam.planes` and `page.matrix`.
+// This test is structural (source reading, no execution — those hosts require Chromium WebGPU):
+// it checks that the call site goes through `cameraMoteur(...)` or through `vue`
+// (itself `cameraMoteur(camera)`, see `inverseTransposeCas.mjs`), never through raw host camera.
 
-test('cisaillement-transform.browser.mjs et cone-echelle-non-uniforme.browser.mjs appellent cameraSelectionUniforms(cameraMoteur(...))', async () => {
+test('cisaillement-transform.browser.mjs and cone-echelle-non-uniforme.browser.mjs call cameraSelectionUniforms(cameraMoteur(...))', async () => {
   for (const [fichier, attendus] of [
     ['cisaillement-transform.browser.mjs', 1],
     ['cone-echelle-non-uniforme.browser.mjs', 2],
@@ -24,16 +24,16 @@ test('cisaillement-transform.browser.mjs et cone-echelle-non-uniforme.browser.mj
     );
     const appels = texte.match(/cameraSelectionUniforms\(\s*cameraMoteur\(/g) ?? [];
     assert.equal(appels.length, attendus, `${fichier} : tous les appels passent par cameraMoteur`);
-    // Témoin : aucun appel ne passe plus la caméra hôte nue (le défaut d'avant 5fecd558).
+    // Witness: no call passes the raw host camera anymore (the defect before 5fecd558).
     assert.doesNotMatch(
       texte,
       /cameraSelectionUniforms\(\s*camera\s*,/,
-      `${fichier} : aucun appel ne doit passer la caméra hôte brute`,
+      `${fichier}: no call must pass the raw host camera`,
     );
   }
 });
 
-test('inverse-transposee-petite-echelle.browser.mjs appelle cameraSelectionUniforms(vue, ...), pas la caméra hôte', async () => {
+test('inverse-transposee-petite-echelle.browser.mjs calls cameraSelectionUniforms(vue, ...), not host camera', async () => {
   const texte = await readFile(
     new URL('inverse-transposee-petite-echelle.browser.mjs', navigateur),
     'utf8',
@@ -48,11 +48,11 @@ test('inverse-transposee-petite-echelle.browser.mjs appelle cameraSelectionUnifo
   assert.doesNotMatch(
     texte,
     /cameraSelectionUniforms\(\s*camera\s*,/,
-    'aucun appel ne doit passer une caméra hôte brute',
+    'no call must pass a raw host camera',
   );
 });
 
-test('reflexion-face-eliminee.browser.mjs appelle rasterVisibility(..., vue, ...), pas la caméra hôte', async () => {
+test('reflexion-face-eliminee.browser.mjs calls rasterVisibility(..., vue, ...), not host camera', async () => {
   const texte = await readFile(new URL('reflexion-face-eliminee.browser.mjs', navigateur), 'utf8');
   assert.match(
     texte,
@@ -63,11 +63,11 @@ test('reflexion-face-eliminee.browser.mjs appelle rasterVisibility(..., vue, ...
   assert.doesNotMatch(
     texte,
     /rasterVisibility\([^)]*,\s*camera\s*,/,
-    'aucun appel ne doit passer une caméra hôte brute',
+    'no call must pass a raw host camera',
   );
 });
 
-test('`vue` (inverseTransposeCas.mjs) est bien cameraMoteur(camera), pas la caméra hôte nue', async () => {
+test('`vue` (inverseTransposeCas.mjs) is indeed cameraMoteur(camera), not raw host camera', async () => {
   const texte = await readFile(
     new URL('../justesse/inverseTransposeCas.mjs', import.meta.url),
     'utf8',
