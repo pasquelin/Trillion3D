@@ -44,6 +44,10 @@
   engine**: a source material wrongly declared blended is reclassified by the compiler at import.
 - `0 px`, `tri = selected` and A/A noise stay the default proof for geometry and lighting. A batch
   that keeps them owes no discussion.
+- **At most 4 px of A/A on a still capture is accepted** when it is isolated to a masked cut-out at
+  the alpha cutoff, below human discrimination at the capture resolution, and declared in the batch.
+  That is GPU keep/discard on the same foliage pixel, not a residency, shadow-page or TAA bug.
+  Replacing the cutoff with a hash that explodes A/A is refused (#25).
 - **A pixel cost is not a veto.** When the reference's solution costs image quality — masked foliage
   with a hard silhouette, lossy texture compression — take it, then declare the cost, measure it, and
   publish before/after captures in the batch. What is forbidden is an undeclared loss, not a loss.
