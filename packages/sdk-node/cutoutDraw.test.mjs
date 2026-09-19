@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { imageKind, encodePng } from './cutoutDraw.mts';
+import { imageKind } from './cutoutDraw.mts';
+import { encodePng } from './png.mts';
 import { answerOf } from './cutoutShow.mts';
 
 // Comportement : chaque terminal reçoit ce qu'il sait afficher, et rien n'est deviné — la capacité
