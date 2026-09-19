@@ -12,26 +12,26 @@ export const html = (texte) =>
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;');
 
-/** Un nombre formaté en français, ou « non mesuré ». */
+/** A number formatted in English, or “not measured”. */
 export function nombre(valeur, decimales = 2, unite = '') {
-  if (valeur === null || valeur === undefined || !Number.isFinite(valeur)) return 'non mesuré';
-  const texte = valeur.toLocaleString('fr-FR', {
+  if (valeur === null || valeur === undefined || !Number.isFinite(valeur)) return 'not measured';
+  const texte = valeur.toLocaleString('en-US', {
     minimumFractionDigits: decimales,
     maximumFractionDigits: decimales,
   });
   return unite ? `${texte}\u00a0${unite}` : texte;
 }
 
-/** Des octets en Mo ou Go. */
+/** Bytes as MB or GB. */
 export function octets(valeur) {
-  if (valeur === null || valeur === undefined) return 'non mesuré';
-  return valeur >= 1e9 ? nombre(valeur / 1e9, 2, 'Go') : nombre(valeur / 1e6, 1, 'Mo');
+  if (valeur === null || valeur === undefined) return 'not measured';
+  return valeur >= 1e9 ? nombre(valeur / 1e9, 2, 'GB') : nombre(valeur / 1e6, 1, 'MB');
 }
 
-/** Un écart d'image : pixels différents, part et niveau maximal, ou « — ». */
+/** An image delta: differing pixels, share and max channel, or “—”. */
 export const pixels = (e) =>
   e
-    ? `${nombre(e.pixels, 0)} px (${nombre((100 * e.pixels) / e.total, 2)} %, max canal ${e.maxCanal})`
+    ? `${nombre(e.pixels, 0)} px (${nombre((100 * e.pixels) / e.total, 2)} %, max channel ${e.maxCanal})`
     : '—';
 
 /** `a − b`, ou `null` si l'un des deux manque. */
@@ -95,7 +95,7 @@ export function barres({
       // Une valeur absente ou un mot (« non publié », « n'existe pas ») s'écrit à la place de la
       // barre, dans la couleur de sa série et sous son nom : le lecteur sait de qui on parle.
       if (typeof v !== 'number') {
-        const mot = v ?? 'non mesuré';
+        const mot = v ?? 'not measured';
         svg += `<text class="vide" x="${gauche + 6}" y="${y + epaisseur / 2}" dominant-baseline="middle" style="fill:${SERIES[j % SERIES.length]}">${html(`${series[j]} : ${mot}`)}</text>`;
         return;
       }
@@ -109,11 +109,13 @@ export function barres({
     series.length > 1
       ? `<ul class="legende">${series.map((s, j) => `<li><i style="background:${SERIES[j % SERIES.length]}"></i>${html(s)}</li>`).join('')}</ul>`
       : '';
-  return `<figure id="${id}"><figcaption>${titre === unite ? '' : `<strong>${html(titre)}</strong>${sousTitre ? ` — ${html(sousTitre)}` : ''} `}<span class="unite">(${html(unite)})</span></figcaption>${legende}${svg}<details><summary>Les chiffres</summary>${tableau(
+  return `<figure id="${id}"><figcaption>${titre === unite ? '' : `<strong>${html(titre)}</strong>${sousTitre ? ` — ${html(sousTitre)}` : ''} `}<span class="unite">(${html(unite)})</span></figcaption>${legende}${svg}<details><summary>The numbers</summary>${tableau(
     ['', ...series],
     lignes.map((l) => [
       l.libelle,
-      ...l.valeurs.map((v) => (typeof v === 'number' ? nombre(v, decimales) : (v ?? 'non mesuré'))),
+      ...l.valeurs.map((v) =>
+        typeof v === 'number' ? nombre(v, decimales) : (v ?? 'not measured'),
+      ),
     ]),
   )}</details></figure>`;
 }

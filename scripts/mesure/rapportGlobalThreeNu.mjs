@@ -17,7 +17,7 @@ import { DEUX_VUES, paire, VUES } from './rapportGlobalLecture.mjs';
 export function sectionThreeNu(ex) {
   const paires = (run, vues) => vues.map((v) => [v, ...paire(ex, run, v)]).filter(([, t]) => t);
   const pleine = paires('three-nu', VUES);
-  if (!pleine.length) return '<p>L’exécution <code>three-nu</code> manque.</p>';
+  if (!pleine.length) return '<p>The <code>three-nu</code> run is missing.</p>';
   const lignesTemps = pleine.map(([v, t, m]) => ({
     libelle: v,
     valeurs: [t.imageSyncP50, m.gpuP50],
@@ -49,10 +49,10 @@ export function sectionThreeNu(ex) {
     m.reseau ? octets(Object.values(m.reseau).reduce((a, b) => a + b, 0)) : '—',
   ]);
   const fidelite = [
-    ['three-nu', 'soleil et ombres'],
-    ['three-nu-sans-ombres', 'soleil sans ombres'],
-    ['three-nu-lampes-4', 'soleil + 4 ponctuelles avec ombres'],
-    ['three-nu-1248', '1248×702, soleil et ombres'],
+    ['three-nu', 'sun and shadows'],
+    ['three-nu-sans-ombres', 'sun, no shadows'],
+    ['three-nu-lampes-4', 'sun + 4 shadowed point lights'],
+    ['three-nu-1248', '1248×702, sun and shadows'],
   ].flatMap(([run, libelle]) =>
     paires(run, VUES).map(([v, t, m]) => [
       `${libelle} · ${v}`,
@@ -65,70 +65,70 @@ export function sectionThreeNu(ex) {
   );
   const quart = paires('three-nu-1248', DEUX_VUES);
   return [
-    '<p>Three.js nu : le glTF source chargé par <code>GLTFLoader</code>, <code>MeshStandardMaterial</code>, tout dessiné à chaque image, une carte d’ombre de 4096² pour le soleil, un cube de 1024² par ponctuelle, ACES et sRGB. Aucune sélection, aucune diffusion, aucun antialiasing temporel, aucun rebond. Sa durée d’image est un <strong>temps mur synchronisé</strong> (<code>render</code> puis la lecture d’un pixel, qui attend la carte) : une seule mesure, pas une somme, et pas la même chose qu’une enveloppe de passes GPU — les deux colonnes se lisent côte à côte, pas l’une contre l’autre au dixième près. WebGL ne donne pas de temps par passe.</p>',
+    '<p>Three.js vanilla: the source glTF loaded by <code>GLTFLoader</code>, <code>MeshStandardMaterial</code>, everything drawn every frame, one 4096² shadow map for the sun, a 1024² cube per point light, ACES and sRGB. No selection, no streaming, no temporal antialiasing, no bounce. Its frame time is a <strong>synced wall clock</strong> (<code>render</code> then a pixel read that waits for the GPU): one measurement, not a sum, and not the same as a GPU-pass envelope — the two columns are read side by side, not against each other to a tenth of a millisecond. WebGL does not give per-pass times.</p>',
     deuxCols(
       barres({
         id: 'g-nu-temps',
-        titre: 'Une image : Three nu (temps mur synchronisé) et moteur (enveloppe carte), p50',
+        titre: 'One frame: Three vanilla (synced wall time) and engine (GPU envelope), p50',
         unite: 'ms',
-        series: ['Three nu', 'moteur WebGPU'],
+        series: ['Three vanilla', 'WebGPU engine'],
         lignes: lignesTemps,
       }),
       barres({
         id: 'g-nu-cpu',
-        titre: 'Processeur par image, p50',
+        titre: 'CPU per frame, p50',
         unite: 'ms',
-        series: ['Three nu', 'moteur WebGPU'],
+        series: ['Three vanilla', 'WebGPU engine'],
         lignes: lignesCpu,
       }),
     ),
     tableau(
       [
-        'Vue',
-        'Three mur p50',
-        'Three mur p95',
-        'Moteur GPU p50',
-        'Moteur GPU p95',
+        'View',
+        'Three wall p50',
+        'Three wall p95',
+        'Engine GPU p50',
+        'Engine GPU p95',
         'Three rAF p50',
         'Three CPU p50',
-        'Moteur CPU p50',
-        'Three préparation',
-        'Moteur préparation',
+        'Engine CPU p50',
+        'Three prepare',
+        'Engine prepare',
       ],
       tableTemps,
     ),
-    '<h3>Ce que chacun dessine et tient</h3>',
+    '<h3>What each draws and holds</h3>',
     tableau(
       [
-        'Vue',
-        'Appels Three',
-        'Appels moteur',
-        'Triangles Three (dessinés)',
-        'Triangles moteur (sélectionnés)',
-        'Géométrie Three',
-        'Géométrie moteur',
-        'Textures Three (estimées, mips)',
-        'Textures moteur (engagées)',
-        'Réseau Three',
-        'Réseau moteur',
+        'View',
+        'Three calls',
+        'Engine calls',
+        'Three triangles (drawn)',
+        'Engine triangles (selected)',
+        'Three geometry',
+        'Engine geometry',
+        'Three textures (estimated, mips)',
+        'Engine textures (committed)',
+        'Three network',
+        'Engine network',
       ],
       tableCharge,
     ),
-    '<h3>Fidélité : l’écart d’image entre les deux, et ce que coûte chaque éclairage</h3><p>L’écart en pixels est celui de la dernière image mesurée, même pose des deux côtés. Sans ombres, il ne reste que les matériaux et la lumière directe : c’est l’écart le plus parlant. Avec ombres, Three n’a qu’une carte là où le moteur a des cascades — l’écart porte d’abord les ombres.</p>',
+    '<h3>Fidelity: image delta between the two, and what each lighting costs</h3><p>The pixel delta is from the last measured frame, same pose on both sides. Without shadows, only materials and direct light remain: that is the most telling delta. With shadows, Three has one map where the engine has cascades — the delta is mostly shadows.</p>',
     tableau(
       [
-        'Exécution · vue',
-        'Three mur p50',
-        'Moteur GPU p50',
-        'Δ (moteur − Three)',
-        'Écart d’image',
-        'Témoin A/A du moteur',
+        'Run · view',
+        'Three wall p50',
+        'Engine GPU p50',
+        'Δ (engine − Three)',
+        'Image delta',
+        'Engine A/A witness',
       ],
       fidelite,
     ),
-    '<p>Les images se comparent dans la fiche « Les deux images sont-elles les mêmes ? » en tête du rapport.</p>',
+    '<p>Images are compared in the “Do the images match?” card at the top of the report.</p>',
     quart.length
-      ? `<h3>À 1248×702</h3><p>${quart.map(([v, t, m]) => `${v} : Three ${nombre(t.imageSyncP50, 2, 'ms')}, moteur ${nombre(m.gpuP50, 2, 'ms')}`).join(' · ')}.</p>`
+      ? `<h3>At 1248×702</h3><p>${quart.map(([v, t, m]) => `${v}: Three ${nombre(t.imageSyncP50, 2, 'ms')}, engine ${nombre(m.gpuP50, 2, 'ms')}`).join(' · ')}.</p>`
       : '',
   ].join('');
 }

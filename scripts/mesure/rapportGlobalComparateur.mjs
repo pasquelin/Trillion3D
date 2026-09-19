@@ -11,8 +11,8 @@ const bloc = (id, { libelle, a, b, temoin }, notre) => {
   return `<div class="cmp" id="${id}">
 <h4 class="cmp-sous">${html(libelle)}</h4>
 <div class="cmp-vue"><img loading="lazy" src="${a}" alt="${nom}"><img loading="lazy" class="cmp-dessus" src="${b}" alt="${notre}"><div class="cmp-trait"></div></div>
-<p class="cmp-legende"><span>◀ ${nom}</span><span>le trait suit la souris</span><span>${notre} ▶</span></p>
-<details class="cmp-details"><summary>Voir les deux images côte à côte</summary><div class="cmp-deux"><figure><img loading="lazy" src="${a}" alt="${nom}"><figcaption>${nom}</figcaption></figure><figure><img loading="lazy" src="${b}" alt="${notre}"><figcaption>${notre}</figcaption></figure></div></details></div>`;
+<p class="cmp-legende"><span>◀ ${nom}</span><span>the slider follows the mouse</span><span>${notre} ▶</span></p>
+<details class="cmp-details"><summary>See both images side by side</summary><div class="cmp-deux"><figure><img loading="lazy" src="${a}" alt="${nom}"><figcaption>${nom}</figcaption></figure><figure><img loading="lazy" src="${b}" alt="${notre}"><figcaption>${notre}</figcaption></figure></div></details></div>`;
 };
 
 /**
@@ -27,7 +27,7 @@ export function comparateur({ dossier, id, paires, notre }) {
       .filter((p) => p.a && p.b),
     (p) => p.temoin,
   );
-  if (!groupes.size) return '<p>Captures absentes.</p>';
+  if (!groupes.size) return '<p>No captures.</p>';
   const noms = [...groupes.keys()];
   const choix =
     noms.length > 1
