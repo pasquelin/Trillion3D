@@ -33,7 +33,7 @@ test('webgpu pages raster consumes the GPU cache and does not attach a mesh per 
   backend.render(camera());
   let pageMeshes = 0;
   backend.scene.traverse((o) => {
-    if ((o as THREE.Mesh).isMesh && !(o as THREE.Mesh).userData.blit) pageMeshes++;
+    if ((o as THREE.Mesh).isMesh) pageMeshes++;
   });
   assert.equal(pageMeshes, 0);
   assert.equal(backend.metrics().clusters, 2);

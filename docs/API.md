@@ -81,3 +81,20 @@ the adaptive threshold and the shadow range.
 | `type Side = 'front' \| 'back' \| 'double'` | which faces of a surface are drawn; every raster, cone, pipeline and blend-plan decision compares against it                                                           | `FrontSide`, `BackSide`, `DoubleSide` | `materialSide.test.ts` |
 | `sideOf(material)`                          | the `Side` a host material declares, the first of an array deciding, an empty array front — read once at the import boundary, the only place naming the host constants | `material.side === THREE.DoubleSide`  | `materialSide.test.ts` |
 | `materialSide(material)`                    | the host constant itself, for the diagnostic materials still built with the host library                                                                               | —                                     | `materialSide.test.ts` |
+
+## Batch E1 — the image reaches the surface (#77)
+
+The WebGPU engine no longer hands its image to a host renderer to be displayed. With a host canvas
+it presents into it directly; without one it presents into a canvas of its own and publishes it,
+and the host copies that canvas with the program below. Nothing here is a performance claim: the
+presentation is fused into the composition pass on the direct path, and the measured difference on
+the composed path stayed under the run-to-run spread of the bench.
+
+### Presentation — `packages/sdk-browser/webgpuPresentationSetup.ts`, `webglCanvasBlit.ts`, `explorerComposeSurface.ts`
+
+| Function                                       | Computes                                                                                                                                                         | Replaces                                                                         | Proof                                                                                 |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `prepareWebgpuPresentation(device, gpuCanvas)` | the engine's presenter, and the canvas it presents into when that canvas is its own (`composedCanvas`) rather than the host's                                    | `new CanvasTexture` + `new ShaderMaterial` + a blit mesh added to the host scene | `test/appui/presentationCase.mjs` (`presentedSurface`), `pnpm run test:gpu`           |
+| `RenderBackend.presentedSurface`               | the canvas an engine presented into, published on the contract; absent from an engine that drew on the host surface itself                                       | `scene.children.find((o) => o.userData.blit).material.uniforms.image.value`      | `test/appui/presentationCase.mjs`                                                     |
+| `createCanvasBlit(gl)`                         | a full-screen copy program on the caller's context: uploads a canvas and draws it over the viewport, rows reversed once, no colour conversion on either side     | `WebGLRenderer.render` of a blit mesh, `copyFramebufferToTexture`                | `test/browser/presentation-composee.browser.mjs`: 3 072 pixels, not one channel apart |
+| `createSurfaceComposer(host)`                  | the host-side call: copies an engine's presented surface into the framebuffer the host has bound, then tells the host renderer to forget the state the copy left | `WebGLRenderer.render(backend.scene, camera)` on the WebGPU path                 | `test/browser/presentation-composee.browser.mjs`                                      |

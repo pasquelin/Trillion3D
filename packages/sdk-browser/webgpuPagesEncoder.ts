@@ -99,7 +99,6 @@ export function submitColorCopy(
       transparentDrawCalls: run.blendDrawCalls,
       transparentSubmittedTriangles: run.blendSubmittedTriangles,
     });
-  if (gpu.canvasTexture && !capture.secondaryCamera) gpu.canvasTexture.needsUpdate = true;
 }
 
 export function clearValueOf(clearColor: number) {

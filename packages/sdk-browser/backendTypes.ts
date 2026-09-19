@@ -39,6 +39,10 @@ export interface RenderBackend {
    *  attached scene IS this frame. Read per frame; absent from an engine that holds nothing. */
   readonly frameHeld?: boolean;
   scene: THREE.Scene;
+  /** Canvas the engine presented its image into, when that canvas is not the host's own surface.
+   *  A host composing on another surface copies it (`createCanvasBlit`) instead of drawing the
+   *  scene; absent from an engine that draws on the host surface itself. */
+  readonly presentedSurface?: HTMLCanvasElement;
   metrics(): BackendMetrics & {
     drawCalls?: number;
     batchRebuilds?: number;
