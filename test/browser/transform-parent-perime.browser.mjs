@@ -28,11 +28,11 @@ for (const [passe, r] of Object.entries(resultat.passes)) {
   const dit = (message) => `${passe}: ${message}`;
   assert.ok(r.initialRouge > 0, dit('the initial pose shows no red pixel'));
   assert.ok(
-    r.etapes.some((e) => e.nom.startsWith('initial-') && e.tenue),
+    r.etapes.some((e) => (e.name ?? e.nom).startsWith('initial-') && e.tenue),
     dit('the initial image was never held'),
   );
   assert.equal(
-    r.etapes.find((e) => e.nom === 'parent-dirty').tenue,
+    r.etapes.find((e) => (e.name ?? e.nom) === 'parent-dirty').tenue,
     false,
     dit('hold was not broken by the dirty parent'),
   );
@@ -42,7 +42,7 @@ for (const [passe, r] of Object.entries(resultat.passes)) {
     dit('the same world pose asked again after a dirty parent draws elsewhere'),
   );
   assert.ok(
-    r.etapes.some((e) => e.nom.startsWith('stable-') && e.tenue),
+    r.etapes.some((e) => (e.name ?? e.nom).startsWith('stable-') && e.tenue),
     dit('the image never restabilised'),
   );
   assert.equal(r.stablePixels, 0, dit('stabilisation moved the held pose'));

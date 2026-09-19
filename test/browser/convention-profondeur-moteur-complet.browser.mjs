@@ -12,7 +12,7 @@ import { preuveDansLaPage, preuveSaine } from '../appui/preuvePageMoteur.mjs';
 const resultat = await preuveDansLaPage(
   'depthConventionMoteurCompletPage.mjs',
   'depthConventionMoteurComplet',
-  'Convention de profondeur',
+  'Depth convention',
 );
 console.log(
   JSON.stringify(
@@ -24,22 +24,22 @@ console.log(
 preuveSaine(resultat);
 
 for (const [passe, r] of Object.entries(resultat.passes)) {
-  const dit = (message) => `${passe} : ${message}`;
+  const dit = (message) => `${passe}: ${message}`;
   assert.ok(r.rougeWebgl > 0, dit('the tilted tile is not visible under the WebGL convention'));
   assert.ok(
-    r.etapes.some((e) => e.nom.startsWith('webgl-') && e.tenue),
-    dit('l’image WebGL ne s’est jamais tenue'),
+    r.etapes.some((e) => (e.name ?? e.nom).startsWith('webgl-') && e.tenue),
+    dit('the WebGL image was never held'),
   );
   assert.equal(
-    r.etapes.find((e) => e.nom === 'webgpu-0').tenue,
+    r.etapes.find((e) => (e.name ?? e.nom) === 'webgpu-0').tenue,
     true,
-    dit('le passage en WebGPU a fait recalculer une image que rien ne change'),
+    dit('switching to WebGPU triggered recomputing an image that nothing changed'),
   );
-  assert.equal(r.versWebgpu, 0, dit('la convention WebGPU dessine autre chose que WebGL'));
+  assert.equal(r.versWebgpu, 0, dit('the WebGPU convention draws something different than WebGL'));
   assert.equal(
-    r.etapes.find((e) => e.nom === 'retour-0').tenue,
+    r.etapes.find((e) => (e.name ?? e.nom) === 'retour-0').tenue,
     true,
-    dit('le retour en WebGL a fait recalculer une image que rien ne change'),
+    dit('returning to WebGL triggered recomputing an image that nothing changed'),
   );
   assert.equal(r.versRetour, 0, dit('the return to WebGL does not restore the same image'));
 }

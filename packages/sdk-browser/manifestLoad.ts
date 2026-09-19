@@ -26,7 +26,7 @@ async function jsonResource(
   if (!/^application\/(?:[\w.-]+\+)?json(?:;|$)/i.test(contentType))
     throw new EngineError(
       'INVALID_JSON_RESPONSE',
-      `${url}: JSON attendu, HTTP ${response.status}, type ${contentType || 'absent'}`,
+      `${url}: expected JSON, HTTP ${response.status}, type ${contentType || 'absent'}`,
       details,
     );
   // `response.json()` parses the bytes without ever materialising the text; the declared length is
@@ -38,14 +38,14 @@ async function jsonResource(
   } catch {
     throw new EngineError(
       'INVALID_JSON_RESPONSE',
-      `${url}: JSON invalide, HTTP ${response.status}, type ${contentType}`,
+      `${url}: invalid JSON, HTTP ${response.status}, type ${contentType}`,
       details,
     );
   }
   if (!value || typeof value !== 'object' || Array.isArray(value))
     throw new EngineError(
       'INVALID_JSON_RESPONSE',
-      `${url}: objet JSON attendu, HTTP ${response.status}, type ${contentType}`,
+      `${url}: expected JSON object, HTTP ${response.status}, type ${contentType}`,
       details,
     );
   return {

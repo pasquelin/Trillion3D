@@ -146,8 +146,8 @@ pub fn split(
         )?);
     }
     preview::encode_previews(previews, &mut columns)?;
-    // La colonne des pixels n'a pas de pas fixe : sa longueur totale entre dans le petit JSON, sans
-    // quoi un lecteur ne saurait pas combien d'octets la colonne doit faire avant de la lire.
+    // The pixel column has no fixed stride: its total length enters the small JSON, without
+    // which a reader would not know how many bytes the column must be before reading it.
     let preview_bytes = columns[TEXTURE_PREVIEW_PIXELS].bytes.len();
     let header_bytes = (HEADER_WORDS + COLUMNS * 2) * 4;
     let mut offsets = [0u32; COLUMNS];

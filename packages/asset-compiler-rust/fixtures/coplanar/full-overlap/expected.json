@@ -1,6 +1,6 @@
 {
-  "case": "Deux surfaces opaques exactement coplanaires, même contour, deux matériaux, deux triangulations.",
-  "rule": "Aires égales (16 et 16) : l'ordre de la source départage, le maillage le plus tardif passe dessus.",
+  "case": "Two exactly coplanar opaque surfaces, same outline, two materials, two triangulations.",
+  "rule": "Equal areas (16 and 16): source order breaks the tie, the later mesh goes on top.",
   "formatVersion": 3,
   "manifestBinaryVersion": 5,
   "coplanar": {

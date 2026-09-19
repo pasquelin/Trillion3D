@@ -48,7 +48,7 @@ fn each_level_is_the_exact_2x2_average_of_the_previous_one() {
                     let actual = linear(coarse[(row * next_side + column) * 4 + channel]);
                     assert!(
                         (expected - actual).abs() <= 0.02,
-                        "niveau {fine_side} vers {coarse_side}, texel ({row},{column}) canal {channel} : attendu {expected}, obtenu {actual}"
+                        "level {fine_side} to {coarse_side}, texel ({row},{column}) channel {channel}: expected {expected}, got {actual}"
                     );
                 }
             }

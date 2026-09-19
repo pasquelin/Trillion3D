@@ -92,18 +92,22 @@ export function encodeBlend(
   timing.transparentDrawMs += finished - prepared;
   timing.transparentEncodeMs += finished - cpuStart;
   if (diag.traceEnabled)
-    diag.traceDiagnostic('transparent-encoding', 'Transparents selectionnes et encodes', () => ({
-      frame: run.frame,
-      submission: run.imageRevision,
-      candidates: blendState.blendGpu.length,
-      visibleMeshes: blendState.visibleBlend.length,
-      frustumRejected: run.blendFrustumRejected,
-      drawCalls: run.blendDrawCalls,
-      submittedTriangles: run.blendSubmittedTriangles,
-      transmissiveMeshes: blendState.transmissive,
-      encodeMs: timing.transparentEncodeMs,
-      passes: blendState.orders[1].length ? 2 : 1,
-    }));
+    diag.traceDiagnostic(
+      'transparent-encoding',
+      'Transparent surfaces selected and encoded',
+      () => ({
+        frame: run.frame,
+        submission: run.imageRevision,
+        candidates: blendState.blendGpu.length,
+        visibleMeshes: blendState.visibleBlend.length,
+        frustumRejected: run.blendFrustumRejected,
+        drawCalls: run.blendDrawCalls,
+        submittedTriangles: run.blendSubmittedTriangles,
+        transmissiveMeshes: blendState.transmissive,
+        encodeMs: timing.transparentEncodeMs,
+        passes: blendState.orders[1].length ? 2 : 1,
+      }),
+    );
 }
 
 /** Lights the surfaces into the HDR target, draws the forward transparents over it, and composes the
