@@ -30,5 +30,5 @@ export function page({ titre, sousTitre, sections }) {
   const corps = sections
     .map((s) => `<section id="${s.id}"><h2>${html(s.titre)}</h2>${s.corps}</section>`)
     .join('');
-  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${html(titre)}</title><style>${STYLE}${STYLE_COMPARATEUR}${STYLE_BILAN}</style></head><body><main><h1>${html(titre)}</h1><p class="sous">${html(sousTitre)}</p><nav><ol>${sommaire}</ol></nav>${corps}</main><script>${SCRIPT_COMPARATEUR}</script></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${html(titre)}</title><style>${STYLE}${STYLE_COMPARATEUR}${STYLE_BILAN}</style></head><body><main><h1>${html(titre)}</h1><p class="sous">${html(sousTitre)}</p><nav><ol>${sommaire}</ol></nav>${corps}</main><script>${SCRIPT_COMPARATEUR}</script></body></html>`;
 }
