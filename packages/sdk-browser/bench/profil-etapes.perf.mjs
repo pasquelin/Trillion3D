@@ -1,5 +1,5 @@
-// la ventilation du profil par étape, faite à chaque image : les bornes processeur déposées sur
-// leurs étapes, et les passes de la carte graphique lues par leur étiquette.
+// per-stage profile breakdown, done every frame: CPU bounds deposited on their
+// stages, and GPU passes read by their label.
 import { addCpuSteps, addGpuPasses, directLightTimings } from '../stageMapping.ts';
 import { CPU_STEP_NAMES, CPU_STEP_STAGES } from '../webgpuPagesCpuSteps.ts';
 import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
@@ -24,18 +24,18 @@ const depose = (ventile) => (rows) => {
 };
 
 const mesureCpu = await mesure({
-  nom: 'bornes processeur par étape',
+  name: 'CPU bounds per stage',
   fichier: 'packages/sdk-browser/stageMapping.ts',
   cas: [
-    { nom: `${NB_BORNES} bornes × 200 images`, entree: lignes(200), taille: 200 * NB_BORNES },
-    { nom: 'aucune image', entree: [], taille: 0 },
+    { name: `${NB_BORNES} bounds × 200 frames`, input: lignes(200), size: 200 * NB_BORNES },
+    { name: 'no frames', input: [], size: 0 },
   ],
   calcul: depose((row, add) => addCpuSteps(CPU_STEP_STAGES, row, add)),
   attendu: depose((row, add) => referenceAddCpuSteps(CPU_STEP_STAGES, row, add)),
 });
 
-// Un relevé porte des passes connues, une passe inconnue — qui rejoint « geometry » — et, une fois
-// sur dix, une durée `null` qui rend son étape non mesurée.
+// A sample carries known passes, one unknown pass — which joins "geometry" — and, once
+// in ten, a `null` duration that leaves its stage unmeasured.
 const ETIQUETTES = [
   'WG DAG selection',
   'WG partition',
@@ -47,7 +47,7 @@ const ETIQUETTES = [
   'WG bounce probes v1',
   'WG deferred lighting',
   'WG HDR composition + present',
-  'WG passe inconnue',
+  'WG unknown pass',
 ];
 const releve = (passes) => ({
   truncated: false,
@@ -59,35 +59,35 @@ const releve = (passes) => ({
 const releves = (n, passes) => Array.from({ length: n }, () => releve(passes));
 
 const mesureGpu = await mesure({
-  nom: 'passes carte graphique par étape',
+  name: 'GPU passes per stage',
   fichier: 'packages/sdk-browser/stageMapping.ts',
   cas: [
-    { nom: '200 relevés de 22 passes', entree: releves(200, 22), taille: 200 * 22 },
-    { nom: 'relevé tronqué', entree: [{ truncated: true, passes: [] }], taille: 1 },
-    { nom: 'sans relevé', entree: [null], taille: 1 },
+    { name: '200 samples of 22 passes', input: releves(200, 22), size: 200 * 22 },
+    { name: 'truncated sample', input: [{ truncated: true, passes: [] }], size: 1 },
+    { name: 'no sample', input: [null], size: 1 },
   ],
   calcul: depose(addGpuPasses),
   attendu: depose(referenceGpuStages),
 });
 
 const mesureEclairage = await mesure({
-  nom: "durées de l'éclairage direct",
+  name: 'direct-lighting durations',
   fichier: 'packages/sdk-browser/stageMapping.ts',
-  cas: [{ nom: '1 000 relevés', entree: releves(1000, 11), taille: 1000 }],
-  calcul: (entree) => entree.map(directLightTimings),
-  attendu: (entree) => entree.map(referenceDirectLightTimings),
+  cas: [{ name: '1 000 samples', input: releves(1000, 11), size: 1000 }],
+  calcul: (input) => input.map(directLightTimings),
+  attendu: (input) => input.map(referenceDirectLightTimings),
 });
 
 await stress({
-  nom: 'profil par étape extrême',
+  name: 'extreme per-stage profile',
   calcul: (sample) => {
     addGpuPasses(sample, () => {});
     directLightTimings(sample);
   },
   extremes: [
     {
-      nom: 'gpuMs NaN',
-      entree: { truncated: false, passes: [{ name: 'WG partition', gpuMs: NaN }] },
+      name: 'gpuMs NaN',
+      input: { truncated: false, passes: [{ name: 'WG partition', gpuMs: NaN }] },
     },
   ],
 });
@@ -95,5 +95,5 @@ await stress({
 rapport(
   'profil-etapes',
   [mesureCpu, mesureGpu, mesureEclairage],
-  'le profil par étape dépose les mêmes durées que sa référence',
+  'the per-stage profile deposits the same durations as its reference',
 );

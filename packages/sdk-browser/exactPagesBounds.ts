@@ -9,21 +9,21 @@ import { boxUnionCollector } from './mathBatchBoxes.ts';
 import type { BackendContext } from './backendTypes.ts';
 
 /**
- * Bornes monde des pages exactes d'une scène préparée : ce que le cadrage et la réplication lisent
- * d'une scène autonome, dont les bornes ne sont pas celles des géométries de l'hôte mais celles que
- * le compilateur a écrites page par page.
+ * World bounds of the exact pages of a prepared scene: what framing and replication read from
+ * an autonomous scene, whose bounds are not those of the host geometries but those the
+ * compiler wrote page by page.
  *
- * Les matrices monde sont celles que LE MOTEUR calcule depuis les poses locales, en UNE passe sur le
- * sous-arbre (`hostWorldTree.ts`) comme le font les bornes de l'hôte : la scène de l'hôte n'est pas
- * remontée pour cela, et une pose écrite sans composition est reprise telle quelle. La
- * transformation et l'union sont celles du socle, donc celles de la référence, terme à terme.
+ * World matrices are those THE ENGINE computes from local poses, in ONE pass over the subtree
+ * (`hostWorldTree.ts`) as host bounds do: the host scene is not walked for that, and a pose
+ * written without composition is taken as-is. Transform and union are the core's, hence the
+ * reference's, term for term.
  */
 
-/** Une page du manifeste porte des bornes exactes, ou n'est qu'une approximation grossière. */
+/** A manifest page carries exact bounds, or is only a coarse approximation. */
 type ManifestPage = ClusterManifest['primitives'][number]['pages'][number];
 const exacte = (item: ManifestPage) => (item.role ?? 'exact') === 'exact';
 
-/** Les bornes du manifeste écrites à plat, six flottants à partir de `at`. */
+/** Manifest bounds written flat, six floats from `at`. */
 function ecritPage(out: Float64Array, at: number, item: ManifestPage) {
   out[at] = item.min[0];
   out[at + 1] = item.min[1];
@@ -33,7 +33,7 @@ function ecritPage(out: Float64Array, at: number, item: ManifestPage) {
   out[at + 5] = item.max[2];
 }
 
-/** Pages exactes de `source` : la taille EXACTE que le lot de boîtes doit porter. */
+/** Exact pages of `source`: the EXACT size the box lot must carry. */
 function exactPagesCount(
   source: THREE.Object3D,
   associations: BackendContext['associations'],
@@ -48,7 +48,7 @@ function exactPagesCount(
   return n;
 }
 
-/** Le lot qui porte ces pages, ou `null` quand il n'y en a aucune : une réservation, pas une image. */
+/** The lot that carries these pages, or `null` when there are none: a reservation, not a frame. */
 export async function exactPagesLot(
   source: THREE.Object3D,
   associations: BackendContext['associations'],
@@ -58,7 +58,7 @@ export async function exactPagesLot(
   return n ? await createBoxTransformLot(n) : null;
 }
 
-/** World bounds of the exact pages of every mesh of `source`, à plat `[minX..maxZ]` ; `onMissing`
+/** World bounds of the exact pages of every mesh of `source`, flat `[minX..maxZ]`; `onMissing`
  *  decides what a mesh without a prepared primitive does, and the mesh is skipped once it returns. */
 export function exactPagesBounds(
   source: THREE.Object3D,
@@ -77,7 +77,7 @@ export function exactPagesBounds(
       onMissing(mesh);
       continue;
     }
-    // La matrice monde est celle que le moteur a calculée pour ce maillage, lue une fois.
+    // The world matrix is the one the engine computed for this mesh, read once.
     const world = mondes.world(mesh);
     for (const item of primitive.pages)
       if (exacte(item)) {

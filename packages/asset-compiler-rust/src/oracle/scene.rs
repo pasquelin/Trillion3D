@@ -7,8 +7,8 @@ use crate::{CompilerError, Result};
 use serde_json::Value;
 use std::path::Path;
 
-/// La scène source, dans le monde, avec son propre arbre. Rien ici ne vient du cache : l'oracle
-/// relit les triangles de la source, sans coupe, sans simplification et sans proxy.
+/// Source scene in world space, with its own tree. Nothing here comes from the cache: the oracle
+/// re-reads triangles from the source, without cuts, simplification, or proxy.
 pub struct World {
     pub triangles: Vec<f32>,
     pub albedo: Vec<u32>,
@@ -20,7 +20,7 @@ fn bad(message: impl Into<String>) -> CompilerError {
     CompilerError::new("INVALID_ORACLE_SOURCE", message)
 }
 
-/// Le glTF et son binaire. Un `.glb` porte les deux ; un `.gltf` nomme un binaire à côté de lui.
+/// The glTF and its binary. A  carries both; a  names a binary alongside it.
 fn read_source(path: &Path) -> Result<(Value, Vec<u8>)> {
     let bytes = std::fs::read(path)?;
     if crate::compiler_source::is_glb(&bytes) {
@@ -45,7 +45,7 @@ fn read_source(path: &Path) -> Result<(Value, Vec<u8>)> {
     Ok((g, bin))
 }
 
-/// Les triangles monde d'une primitive, ajoutés tels quels avec l'albédo de son matériau.
+/// World triangles of a primitive, added as-is with its material's albedo.
 fn place_primitive(
     g: &Value,
     bin: &[u8],
@@ -58,7 +58,7 @@ fn place_primitive(
         .get("attributes")
         .and_then(Value::as_object)
         .ok_or_else(|| bad("primitive.attributes is absent"))?;
-    // Aucun plan de tampons ici : l'oracle lit une scène brute, donc chaque accessor est validé.
+    // No buffer map here: the oracle reads a raw scene, so each accessor is validated.
     let positions = accessor(
         g,
         bin,
@@ -87,8 +87,8 @@ fn place_primitive(
     Ok(())
 }
 
-/// Toute la scène, nœud par nœud, avec son BVH. Le même arbre que le proxy, sur d'autres triangles :
-/// c'est la structure d'accélération qui est partagée, jamais la géométrie ni la coupe.
+/// The entire scene, node by node, with its BVH. Same tree as proxy, over different triangles:
+/// acceleration structure is shared, never geometry or cuts.
 pub fn load(path: &Path) -> Result<World> {
     let (g, bin) = read_source(path)?;
     let matrices = world_matrices(&g)?;

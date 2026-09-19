@@ -1,4 +1,4 @@
-// les trois relances de la coupe de clusters.
+// the three cluster-cut retries.
 import { createSelectionResult, selectVisiblePages } from '../pageSelection.ts';
 import { ligneDecrite, mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
 import { camera } from './appui/scenes.mjs';
@@ -8,45 +8,45 @@ import { cameraMoteur } from '../cameraFixture.ts';
 const cam = camera(9, 0.1, 16 / 9);
 const image = [1280, 720];
 
-function demande(entree, pixelError, pageBudget) {
+function demande(input, pixelError, pageBudget) {
   return {
     pixelError,
     viewport: image,
     holdResident: true,
-    rootFallback: entree.rootFallback,
+    rootFallback: input.rootFallback,
     pageBudget,
-    wanted: entree.wanted,
-    result: entree.result,
+    wanted: input.wanted,
+    result: input.result,
   };
 }
 
-function referenceCoupe(entree) {
-  const budget = entree.budget;
-  let pixelError = entree.pixelError;
+function referenceCoupe(input) {
+  const budget = input.budget;
+  let pixelError = input.pixelError;
   let result = selectVisiblePages(
-    entree.roots,
+    input.roots,
     cameraMoteur(cam),
-    demande(entree, pixelError, 0),
-    entree.shown,
+    demande(input, pixelError, 0),
+    input.shown,
   );
   for (let attempt = 0; budget && result.shown.length > budget && attempt < 16; attempt++) {
     pixelError = pixelError > 0 ? pixelError * 2 : 1;
     result = selectVisiblePages(
-      entree.roots,
+      input.roots,
       cameraMoteur(cam),
-      demande(entree, pixelError, 0),
-      entree.shown,
+      demande(input, pixelError, 0),
+      input.shown,
     );
   }
   return etatDeCoupe(result);
 }
 
-function optimiseeCoupe(entree) {
+function optimiseeCoupe(input) {
   const result = selectVisiblePages(
-    entree.roots,
+    input.roots,
     cameraMoteur(cam),
-    demande(entree, entree.pixelError, entree.budget),
-    entree.shown,
+    demande(input, input.pixelError, input.budget),
+    input.shown,
   );
   return etatDeCoupe(result);
 }
@@ -70,12 +70,12 @@ const large = scene({ feuilles: 10000, seed: 67, pixelError: 8, budget: 30000 })
 const sansBudget = scene({ feuilles: 4000, seed: 71, pixelError: 2, budget: 0 });
 
 const resC5 = await mesure({
-  nom: 'relance sur budget',
+  name: 'retry on budget',
   fichier: 'packages/sdk-browser/pageSelectionCut.ts',
   cas: [
-    { nom: '20 000 pages, budget 300 dépassé', entree: serre, taille: 20000 },
-    { nom: '20 000 pages, budget tenu', entree: large, taille: 20000 },
-    { nom: '8 000 pages, aucun budget', entree: sansBudget, taille: 8000 },
+    { name: '20 000 pages, budget 300 exceeded', input: serre, size: 20000 },
+    { name: '20 000 pages, budget held', input: large, size: 20000 },
+    { name: '8 000 pages, no budget', input: sansBudget, size: 8000 },
   ],
   calcul: optimiseeCoupe,
   attendu: referenceCoupe,
@@ -83,24 +83,24 @@ const resC5 = await mesure({
 });
 
 const decritC6 = ligneDecrite({
-  nom: 'seuil de réparation mémorisé',
+  name: 'memorized repair threshold',
   fichier: 'packages/sdk-browser/pageSelectionCutRepair.ts',
-  motif: 'non retenu : la montée par paliers cherche le plus petit point fixe',
+  motif: 'not kept: the stepwise climb seeks the smallest fixed point',
 });
 const decritC4 = ligneDecrite({
-  nom: 'second parcours de forçage',
+  name: 'second forcing pass',
   fichier: 'packages/sdk-browser/pageSelectionCutSelect.ts',
-  motif: 'non mesuré : le second parcours change de prédicat pour toutes les pages',
+  motif: 'not measured: the second pass changes the predicate for every page',
 });
 
 await stress({
-  nom: 'selectVisiblePages extremes',
+  name: 'selectVisiblePages extremes',
   calcul: (s) => selectVisiblePages(s.roots, cameraMoteur(cam), demande(s, 1, 0), []),
-  extremes: [{ nom: 'sansBudget', entree: sansBudget }],
+  extremes: [{ name: 'sansBudget', input: sansBudget }],
 });
 
 rapport(
   'selection-relances',
   [resC5, decritC6, decritC4],
-  'C4, C5 et C6 ont été mesurés ou décrits',
+  'C4, C5 and C6 were measured or described',
 );

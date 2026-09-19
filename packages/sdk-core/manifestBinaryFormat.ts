@@ -138,8 +138,8 @@ export const COLUMN_STRIDE: Record<ColumnName, number> = {
   pageDepthLayer: 1,
   texturePreviewU32: PREVIEW_WORDS,
   texturePreviewSha: 64,
-  // Seule colonne sans pas fixe : son élément est l'octet, et son compte est le total que le petit
-  // JSON déclare, chaque entrée nommant sa propre plage à l'intérieur.
+  // Only column without a fixed stride: its element is the byte, and its count is the total the
+  // small JSON declares, each entry naming its own range inside it.
   texturePreviewPixels: 1,
 };
 export const BYTES_PER_ELEMENT: Record<ColumnKind, number> = { f64: 8, i32: 4, u32: 4, u8: 1 };

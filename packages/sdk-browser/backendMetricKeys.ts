@@ -1,9 +1,9 @@
 import type { FrameMetrics } from '../sdk-core/index.ts';
 
 /**
- * Les mesures qu'un moteur publie telles quelles et que l'hôte recopie une à une, `null` quand ce
- * moteur ne les tient pas. La liste EST le contrat : le type que `metrics()` rend en dérive, si bien
- * qu'une mesure ajoutée ici est recopiée sans qu'une seconde liste ait à être écrite à la main.
+ * The measurements an engine publishes as-is and the host copies one by one, `null` when that
+ * engine does not hold them. The list IS the contract: the type `metrics()` returns derives from
+ * it, so a measurement added here is copied without a second list having to be written by hand.
  */
 export const BACKEND_METRIC_KEYS = [
   'coverageReady',
@@ -73,7 +73,7 @@ export const BACKEND_METRIC_KEYS = [
   'gpuLightingMs',
 ] as const;
 
-/** Les mesures que l'hôte compose lui-même, à partir du moteur et de ses propres compteurs. */
+/** Measurements the host composes itself, from the engine and its own counters. */
 type ComposedMetric =
   | 'clusters'
   | 'selectedTriangles'
@@ -82,8 +82,8 @@ type ComposedMetric =
   | 'cacheEvictions'
   | 'totalSubmittedTriangles';
 
-/** Ce qu'un moteur publie de son image : les mesures recopiées telles quelles, et celles que
- *  l'hôte compose. */
+/** What an engine publishes of its frame: the measurements copied as-is, and those the
+ *  host composes. */
 export type BackendMetrics = Partial<
   Pick<FrameMetrics, (typeof BACKEND_METRIC_KEYS)[number] | ComposedMetric>
 >;

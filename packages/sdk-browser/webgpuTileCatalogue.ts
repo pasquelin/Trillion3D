@@ -5,14 +5,14 @@ import type { TextureLevelReader } from './textureLevelReader.ts';
 import { tileLayout } from './textureTiles.ts';
 import type { TileTexture } from './webgpuTileAtlas.ts';
 
-/** Le slot 0 de chaque atlas : un texel blanc, ce qu'un matériau sans carte lit. */
+/** Slot 0 of each atlas: a white texel, what a material without a map reads. */
 const WHITE = new Uint8Array([255, 255, 255, 255]);
 
 /**
- * Le catalogue d'un atlas : une entrée par texture source, à son slot, avec ses dimensions et la
- * source de ses texels. Une chaîne cuite entière se suffit — ses dimensions sont celles du
- * manifeste, sa queue est dans le sidecar, ses niveaux diffusés se lisent dans le cache — et l'image
- * source n'est pas lue. Sans chaîne cuite, ou sans lecteur, la texture de l'hôte est la source.
+ * Catalogue of an atlas: one entry per source texture, at its slot, with its dimensions and the
+ * source of its texels. A whole cooked chain is enough — its dimensions are the manifest's, its
+ * queue is in the sidecar, its streamed levels are read in the cache — and the source image is not
+ * read. With no cooked chain, or no reader, the host texture is the source.
  */
 export function tileCatalogue(
   maps: readonly THREE.Texture[],

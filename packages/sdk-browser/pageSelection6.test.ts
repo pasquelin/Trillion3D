@@ -9,7 +9,7 @@ import {
 import { blendFixture, camera } from './pageSelectionBlendFixture.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 
-test("une image de coupe réutilise sa table plate, son résultat et ses tableaux : elle n'alloue rien", () => {
+test('a cut frame reuses its flat table, result and arrays: it allocates nothing', () => {
   const fixture = blendFixture();
   const { roots } = collectClusterPages(
     fixture.source,
@@ -42,7 +42,7 @@ test("une image de coupe réutilise sa table plate, son résultat et ses tableau
     };
   const first = selectVisiblePages(roots, cameraMoteur(cam), ask, shown);
   const second = selectVisiblePages(roots, cameraMoteur(cam), ask, shown);
-  assert.equal(second, first, 'le résultat rendu est celui fourni, image après image');
+  assert.equal(second, first, 'the returned result is the one supplied, frame after frame');
   assert.equal(second, result);
   assert.equal(second.shown, shown);
   assert.equal(second.wanted, wanted);
@@ -59,9 +59,9 @@ test("une image de coupe réutilise sa table plate, son résultat et ses tableau
   fixture.material.dispose();
 });
 
-test("une bande de cluster invalide est refusée à la préparation, pas au milieu d'une image", () => {
+test('an invalid cluster band is rejected at prepare, not in the middle of a frame', () => {
   const fixture = blendFixture();
-  // La sphère propre est déjà validée au chargement ; celle du remplaçant ne l'était nulle part.
+  // The own sphere is already validated at load; the replacement's was not validated anywhere.
   const page = fixture.metadata.primitives[0].pages[0] as {
     parentError: number | null;
     parentSphere: number[] | null;
@@ -71,13 +71,13 @@ test("une bande de cluster invalide est refusée à la préparation, pas au mili
   assert.throws(
     () =>
       collectClusterPages(fixture.source, fixture.metadata, fixture.indices, fixture.associations),
-    /Parametres de cluster invalides/,
+    /Invalid cluster parameters/,
   );
   fixture.geometry.dispose();
   fixture.material.dispose();
 });
 
-test('deux appels successifs avec la même caméra sélectionnent le même ensemble de clusters', () => {
+test('two successive calls with the same camera select the same set of clusters', () => {
   const fixture = blendFixture();
   const { roots } = collectClusterPages(
     fixture.source,
@@ -103,20 +103,20 @@ test('deux appels successifs avec la même caméra sélectionnent le même ensem
   assert.deepEqual(
     first.shown.map((p) => p.url),
     second.shown.map((p) => p.url),
-    'même ensemble montré',
+    'same shown set',
   );
   assert.deepEqual(
     first.wanted.map((p) => p.url),
     second.wanted.map((p) => p.url),
-    'même ensemble voulu',
+    'same wanted set',
   );
-  assert.equal(first.frustumRejected, second.frustumRejected, 'même rejet frustum');
-  assert.equal(first.lodLevel, second.lodLevel, 'même niveau LOD');
+  assert.equal(first.frustumRejected, second.frustumRejected, 'same frustum reject');
+  assert.equal(first.lodLevel, second.lodLevel, 'same LOD level');
   fixture.geometry.dispose();
   fixture.material.dispose();
 });
 
-test("les tableaux de travail de la sélection sont réutilisés d'une image à l'autre", () => {
+test('selection working arrays are reused from one frame to the next', () => {
   const fixture = blendFixture();
   const { roots } = collectClusterPages(
     fixture.source,
@@ -136,14 +136,14 @@ test("les tableaux de travail de la sélection sont réutilisés d'une image à 
   assert.deepEqual(
     first.shown.map((p) => p.url),
     second.shown.map((p) => p.url),
-    'même ensemble montré',
+    'same shown set',
   );
   assert.deepEqual(
     first.wanted.map((p) => p.url),
     second.wanted.map((p) => p.url),
-    'même ensemble voulu',
+    'same wanted set',
   );
-  assert.equal(first.frustumRejected, second.frustumRejected, 'même rejet frustum');
+  assert.equal(first.frustumRejected, second.frustumRejected, 'same frustum reject');
   fixture.geometry.dispose();
   fixture.material.dispose();
 });

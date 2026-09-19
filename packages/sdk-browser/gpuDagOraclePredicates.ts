@@ -13,12 +13,13 @@ import {
   ownerOf,
   worldOf,
 } from './gpuDagLayout.ts';
-import { frustumExcludesBox } from '../sdk-core/index.ts';
+import { copyMatrix4, frustumExcludesBox } from '../sdk-core/index.ts';
 import { dagScratch, projectedError } from './gpuDagOracleMath.ts';
+import type { MatrixElements } from './matrixElements.ts';
 
 type PredicateContext = {
   packed: PackedDag;
-  /** Le décodeur unique, ouvert une fois par évaluation et partagé avec le reste de l'oracle. */
+  /** Unique decoder, opened once per evaluation and shared with the rest of the oracle. */
   records: DagRecords;
   nodeFlags: Uint8Array;
   planes: Float64Array[];
@@ -28,8 +29,10 @@ type PredicateContext = {
   near: number;
 };
 
-/** L'œil du repère de rendu : l'origine, par construction. */
+/** Eye of the render frame: the origin, by construction. */
 const RENDER_ORIGIN_EYE = new Float64Array(3);
+/** The scratch world under the host-matrix shape the cone test reads. */
+const SCRATCH_WORLD: MatrixElements = { elements: dagScratch.world };
 
 export function createDagOraclePredicates(context: PredicateContext) {
   const { packed, records, nodeFlags, planes, views, stretches, focal, near } = context;
@@ -39,14 +42,15 @@ export function createDagOraclePredicates(context: PredicateContext) {
     const { cone, min, max } = dagScratch;
     coneInto(records, index, cone);
     boxInto(records, index, min, max);
-    // Les matrices monde du noyau sont celles du repère de rendu, dont `cameraWorld` des uniformes est
-    // l'origine : la caméra y est à zéro. L'oracle pose donc l'œil à zéro — mettre la position
-    // monde ici mêlerait un opérande absolu à des boîtes relatives, et le cône trancherait faux.
-    dagScratch.world.fromArray(worlds.subarray(w * 16, w * 16 + 16));
-    return coneCullsPage(cone, dagScratch.world, min, max, RENDER_ORIGIN_EYE);
+    // Kernel world matrices are those of the render frame, whose uniforms `cameraWorld` is the
+    // origin: the camera is at zero there. The oracle therefore puts the eye at zero — putting
+    // the world position here would mix an absolute operand with relative boxes, and the cone
+    // would decide wrongly.
+    copyMatrix4(dagScratch.world, worlds, 0, w * 16);
+    return coneCullsPage(cone, SCRATCH_WORLD, min, max, RENDER_ORIGIN_EYE);
   };
   const visible = (index: number) => {
-    // Le nœud propriétaire vit au froid, hors de ce que chaque passe de l'image relit.
+    // The owner node lives in the cold, outside what each frame pass rereads.
     const node = ownerOf(records, index);
     if (flagsOf(records, index) & CLUSTER_NEVER) return false;
     if (node !== NONE && nodeFlags[node]) return false;

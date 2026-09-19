@@ -30,7 +30,7 @@ export async function loadClusterPages(
         combined.throwIfAborted();
         const page = pages[next++];
         let buffer = await (await checked(new URL(page.url, base).href, combined)).arrayBuffer();
-        // Taille relevée avant l'empreinte : le tampon part transféré, puis revient transféré.
+        // Size sampled before the fingerprint: the buffer leaves transferred, then comes back transferred.
         const byteLength = buffer.byteLength;
         combined.throwIfAborted();
         if (byteLength !== page.bytes) throw new Error('Corrupt cluster page');

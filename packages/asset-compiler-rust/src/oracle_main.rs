@@ -1,15 +1,17 @@
-//! Ligne de commande de l'oracle d'éclairage indirect.
+//! Command line of the indirect lighting oracle.
 //!
-//! Elle ne calcule rien : elle lit un travail JSON, appelle la bibliothèque et imprime son rapport.
-//! L'algorithme vit dans `oracle.rs`, derrière un contrat versionné, comme le reste du compilateur.
+//! It computes nothing: it reads a JSON job, calls the library and prints its
+//! report. The algorithm lives in `oracle.rs`, behind a versioned contract, like
+//! the rest of the compiler.
 //!
 //! ```text
-//! web-geometry-oracle TRAVAIL.json      # ou `-` pour lire le travail sur l'entrée standard
+//! web-geometry-oracle JOB.json      # or `-` to read the job from standard input
 //! ```
 use std::io::Read;
 
-/// Un échec, sur la sortie d'erreur, en JSON : un code nommé et un message échappé par `serde_json`,
-/// jamais collé tel quel dans des guillemets — un chemin à guillemet casserait la ligne.
+/// A failure, on standard error, as JSON: a named code and a message escaped by
+/// `serde_json`, never pasted as-is into quotes — a path with a quote would break
+/// the line.
 fn fail(code: &str, message: impl std::fmt::Display) -> ! {
     let message = serde_json::Value::String(message.to_string());
     eprintln!("{{\"code\":\"{code}\",\"message\":{message}}}");

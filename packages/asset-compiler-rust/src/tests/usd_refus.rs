@@ -1,11 +1,11 @@
-//! Les refus durs du pilote `usd` : ce qui ne laisse rien à compiler, et ce que le compilateur
-//! refuse de deviner. Ce qui est seulement compté au rapport est dans `usd_rapport.rs`.
+//! Hard refusals of `usd` driver: leaves nothing to compile, compiler
+//! refuses to guess. Reported items in `usd_rapport.rs`.
 use super::*;
 use crate::plugins::scene::SceneRequest;
 use usd_driver::{plugin, temp_dir, wrap, QUAD};
 
-// Comportement 39 : un maillage dont les comptes de faces ne tombent pas sur ses indices n'est pas
-// interprété, et une couche qui n'en porte pas d'autre est refusée par `IMPORT_EMPTY`.
+// Behavior 39: mesh whose face counts contradict indices not
+// interpreted, layer carrying no other refused by `IMPORT_EMPTY`.
 #[test]
 fn a_mesh_whose_counts_contradict_its_indices_is_refused_by_name() {
     let mesh = r#"
@@ -27,8 +27,8 @@ fn a_mesh_whose_counts_contradict_its_indices_is_refused_by_name() {
     fs::remove_dir_all(&dir).ok();
 }
 
-// Comportement 40 : un dossier qui porte deux couches USD est une ambiguïté — le compilateur ne
-// choisit pas la couche racine à la place de l'appelant.
+// Behavior 40: folder carrying two USD layers ambiguous — compiler does
+// not pick root layer for caller.
 #[test]
 fn a_directory_carrying_two_layers_is_refused_as_ambiguous() {
     let dir = temp_dir("deux-couches");
@@ -42,9 +42,9 @@ fn a_directory_carrying_two_layers_is_refused_as_ambiguous() {
     fs::remove_dir_all(&dir).ok();
 }
 
-// Comportement : le jeton d'annulation est relu **pendant** la conversion, le découpage des faces
-// compris — c'est le découpeur lui-même qui le porte —, et la couche entière est refusée par son
-// nom plutôt que servie à moitié.
+// Behavior: cancel token re-checked **during** conversion, face subdivision
+// included — subdivider carries it —, entire layer refused by
+// name rather than partially served.
 #[test]
 fn a_cancelled_layer_is_refused_by_name_and_writes_nothing() {
     let dir = temp_dir("annulation");
@@ -60,7 +60,7 @@ fn a_cancelled_layer_is_refused_by_name_and_writes_nothing() {
     });
     let code = match refused {
         Err(error) => error.code,
-        Ok(_) => panic!("une conversion annulée ne rend pas de scène"),
+        Ok(_) => panic!("a cancelled conversion does not return a scene"),
     };
     assert_eq!(code, "CANCELLED");
     fs::remove_dir_all(&dir).ok();

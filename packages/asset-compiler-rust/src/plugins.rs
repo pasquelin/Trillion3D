@@ -1,13 +1,14 @@
-//! Pilotes de formats : un module par format, une ligne de registre par pilote.
+//! Format drivers: one module per format, one registry line per driver.
 //!
-//! Le compilateur ne connaît aucun format d'entrée. Il demande au routeur quel pilote reconnaît la
-//! source, puis lui fait produire la scène intermédiaire qu'il sait déjà lire — un glTF 2.0, son
-//! binaire et son manifeste. Les images suivent le même modèle : un pilote par format, interrogé par
-//! extension ou par nombre magique, qui décode vers le type de sortie du contrat.
+//! The compiler knows no input format. It asks the router which driver recognises
+//! the source, then has it produce the intermediate scene it already knows how to
+//! read — a glTF 2.0, its binary and its manifest. Images follow the same model:
+//! one driver per format, queried by extension or magic number, decoding to the
+//! contract's output type.
 //!
-//! Ajouter un format, c'est ajouter un module et une ligne de registre ; le cœur ne bouge pas.
-//! `PLUGINS.md` est le mode d'emploi d'un pilote, `FORMATS.md` la
-//! politique : quels formats sont admis, lesquels sont refusés, et sous quelles conditions.
+//! Adding a format means adding a module and a registry line; core does not change.
+//! `PLUGINS.md` is driver manual, `FORMATS.md`
+//! policy: which formats admitted, which refused, under what conditions.
 use serde_json::{json, Value};
 
 pub mod image;
@@ -15,23 +16,23 @@ pub mod scene;
 #[cfg(test)]
 mod tests;
 
-/// Ce que tout pilote déclare, quel que soit son contrat. Un pilote par format : deux formats ne
-/// partagent jamais un nom, même quand ils partagent leur bibliothèque de lecture.
+/// Declared by all drivers regardless of contract. One driver per format: two formats never
+/// share a name, even when sharing reading library.
 pub trait Plugin {
-    /// Nom du format, en minuscules. Il voyage dans le manifeste, le rapport et l'identité du cache.
+    /// Format name, lowercase. Travels in manifest, report, cache identity.
     fn name(&self) -> &'static str;
-    /// Version du pilote. La changer change l'identité du compilateur et invalide ses caches.
+    /// Driver version. Changing invalidates compiler identity and caches.
     fn version(&self) -> &'static str;
-    /// Extensions revendiquées, en minuscules et sans le point.
+    /// Claimed extensions, lowercase without leading dot.
     fn extensions(&self) -> &'static [&'static str];
 }
 
-/// Le nom et la version d'un pilote, tels qu'ils voyagent dans les manifestes et les rapports.
+/// Driver name and version, as traveling in manifests and reports.
 pub fn provenance<P: Plugin + ?Sized>(plugin: &P) -> Value {
     json!({"name": plugin.name(), "version": plugin.version()})
 }
 
-/// Le pilote du registre qui revendique cette extension, en minuscules et sans le point.
+/// Registry driver claiming extension, lowercase without leading dot.
 fn claiming<'a, P: Plugin + ?Sized>(plugins: &[&'a P], extension: &str) -> Option<&'a P> {
     plugins
         .iter()
@@ -39,7 +40,7 @@ fn claiming<'a, P: Plugin + ?Sized>(plugins: &[&'a P], extension: &str) -> Optio
         .find(|plugin| plugin.extensions().contains(&extension))
 }
 
-/// L'extension d'un nom de fichier, en minuscules et sans le point.
+/// Filename extension, lowercase without leading dot.
 fn extension_of(name: &str) -> Option<String> {
     name.rsplit_once('.')
         .map(|(_, extension)| extension.to_ascii_lowercase())
@@ -62,9 +63,9 @@ fn registry<P: Plugin + ?Sized>(plugins: &[&P]) -> Vec<Value> {
         .collect()
 }
 
-/// Empreinte du registre, versée dans l'identité du cache de compilation : un pilote ajouté, retiré
-/// ou reversionné change la clé, donc rien de ce qu'a écrit l'ancien registre n'est relu comme à
-/// jour. Les versions des contrats y entrent aussi : elles bornent ce qu'un pilote promet.
+/// Registry fingerprint in compilation cache identity: driver added, removed,
+/// or re-versioned changes key, nothing written by old registry read as up to date.
+/// Contract versions included: bound what driver promises.
 pub fn fingerprint() -> String {
     let mut out = format!("{}+{}", scene::VERSION, image::VERSION);
     append(scene::PLUGINS, &mut out);
@@ -72,7 +73,7 @@ pub fn fingerprint() -> String {
     out
 }
 
-/// Le registre publié par `--version` : ce que ce binaire sait lire, format par format.
+/// Registry published by `--version`: what this binary reads, format by format.
 pub fn descriptor() -> Value {
     json!({
         "sceneContract": scene::VERSION,

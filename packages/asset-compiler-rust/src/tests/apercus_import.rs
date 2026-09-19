@@ -1,14 +1,17 @@
-//! Aperçus d'une scène passée par un pilote d'import. Un format converti écrit sa scène
-//! intermédiaire dans le cache, mais ses images restent dans le dossier source, à côté du fichier
-//! d'origine : c'est la forme du Village, un FBX de 409 Mo dont les PNG voisinent le `.fbx`.
+//! Previews of a scene that went through an import driver. A converted format
+//! writes its intermediate scene in the cache, but its images stay in the source
+//! folder, next to the original file: that is the Village shape, a 409 MB FBX
+//! whose PNGs sit beside the `.fbx`.
 //!
-//! La dorée des aperçus compile un glTF livré tel quel, où la scène et ses images partagent un
-//! dossier ; elle ne peut donc pas voir une racine de résolution qui se déplace. Ce test-ci ne
-//! regarde que cela : les aperçus retrouvent-ils les octets d'une image laissée à la source.
+//! The preview golden compiles a glTF delivered as-is, where the scene and its
+//! images share a folder; it therefore cannot see a resolution root that moves.
+//! This test looks only at that: do the previews find the bytes of an image left
+//! at the source.
 use super::*;
 
-/// La fixture FBX des dorées, recopiée dans un dossier jetable avec de vraies images à côté. Le FBX
-/// nomme `albedo.png` en `DiffuseColor` : c'est la texture couleur dont l'aperçu est attendu.
+/// The golden FBX fixture, copied into a throwaway folder with real images beside
+/// it. The FBX names `albedo.png` as `DiffuseColor`: that is the colour texture
+/// whose preview is expected.
 fn fbx_with_external_images() -> (PathBuf, Options) {
     let (root, mut options) = fixture();
     let source = root.join("fbx");
@@ -24,8 +27,9 @@ fn fbx_with_external_images() -> (PathBuf, Options) {
     (root, options)
 }
 
-/// Un vrai PNG 40×24 : ni carré, ni multiple de seize, et assez grand pour que sa pyramide porte
-/// plusieurs niveaux. Seul compte ici qu'un décodeur du registre sache le relire.
+/// A real 40×24 PNG: neither square nor a multiple of sixteen, and large enough
+/// for its pyramid to carry several levels. All that counts here is that a
+/// registry decoder can reread it.
 fn png_bytes(tint: u8) -> Vec<u8> {
     let image = image::RgbaImage::from_fn(40, 24, |x, y| {
         image::Rgba([(x * 255 / 39) as u8, (y * 255 / 23) as u8, tint, 255])
@@ -37,8 +41,8 @@ fn png_bytes(tint: u8) -> Vec<u8> {
     out
 }
 
-// Comportement : les images d'une scène convertie se résolvent sous le dossier source, jamais sous
-// le dossier du cache où le pilote a écrit la scène intermédiaire.
+// Behaviour: images of a converted scene resolve under the source folder, never
+// under the cache folder where the driver wrote the intermediate scene.
 #[test]
 fn les_apercus_dune_scene_convertie_lisent_les_images_restees_a_la_source() {
     let (root, options) = fbx_with_external_images();
@@ -46,7 +50,7 @@ fn les_apercus_dune_scene_convertie_lisent_les_images_restees_a_la_source() {
     let report = &result["texturePreviews"];
     assert_eq!(
         report["colorTextures"], 1,
-        "la scène importée déclare une texture couleur: {report}"
+        "the imported scene declares a colour texture: {report}"
     );
     assert!(
         report["skipped"]["image-missing"].is_null(),
@@ -54,7 +58,7 @@ fn les_apercus_dune_scene_convertie_lisent_les_images_restees_a_la_source() {
     );
     assert_eq!(
         report["previews"], 1,
-        "la texture couleur porte son aperçu: {report}"
+        "the colour texture carries its preview: {report}"
     );
     fs::remove_dir_all(root).expect("nettoyage");
 }

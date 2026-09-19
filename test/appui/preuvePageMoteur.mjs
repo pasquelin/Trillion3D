@@ -1,6 +1,5 @@
-// Ce que les preuves « moteur réel dans Chromium » partagent : empaqueter un module de page avec
-// esbuild, l'exécuter dans une page locale avec un vrai appareil WebGPU, et rendre ce que la page a
-// répondu, erreurs comprises.
+// What the "real engine in Chromium" proofs share: pack a page module with esbuild, run it in a
+// local page with a real WebGPU device, and return what the page answered, errors included.
 import assert from 'node:assert/strict';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,10 +8,9 @@ import { dansPageWebgpu, empaquetePage } from '../justesse/pageWebgpu.mjs';
 const ici = dirname(fileURLToPath(import.meta.url));
 
 /**
- * Exécute `methode()` du module de page `fixture` dans Chromium — `executer` par défaut, le nom que
- * portent les pages du moteur. `nom` est le nom global sous lequel le paquet s'expose, `titre` celui
- * de la page. Rend le résultat de la page, son tableau `erreurs` complété par les erreurs non
- * rattrapées du document.
+ * Runs `methode()` of the page module `fixture` in Chromium — `executer` by default, the name the
+ * engine pages carry. `nom` is the global name the bundle exposes itself under, `titre` that of
+ * the page. Returns the page result, its `erreurs` array completed by uncaught document errors.
  */
 export async function preuveDansLaPage(fixture, nom, titre, methode = 'executer') {
   const script = await empaquetePage(resolve(ici, fixture), nom);
@@ -29,7 +27,7 @@ export async function preuveDansLaPage(fixture, nom, titre, methode = 'executer'
   return { ...resultat, erreurs: [...(resultat.erreurs ?? []), ...erreursPage] };
 }
 
-/** Les vérifications que toute preuve de ce genre doit passer avant d'examiner son propre relevé. */
+/** Checks every proof of this kind must pass before examining its own reading. */
 export function preuveSaine(resultat) {
   assert.equal(resultat.indisponible ?? null, null, String(resultat.indisponible));
   assert.equal(resultat.erreur ?? null, null, String(resultat.erreur));

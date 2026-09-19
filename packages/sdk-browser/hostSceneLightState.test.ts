@@ -1,13 +1,13 @@
-// Lot M4a, hostSceneLightState.ts : la cible d'une lampe conique ou directionnelle est résolue par
-// `resolveHostNode` puis `hostWorldPositionInto` (hostWorldMatrices.ts) au lieu d'un accès direct à
-// Three. Confronté au bit près (Object.is) à `getWorldPosition`, ancêtres périmés compris.
+// Batch M4a, hostSceneLightState.ts: the target of a cone or directional light is resolved by
+// `resolveHostNode` then `hostWorldPositionInto` (hostWorldMatrices.ts) instead of a direct
+// Three access. Compared bit-for-bit (Object.is) to `getWorldPosition`, stale ancestors included.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { LIGHT_SLOTS, readLightInto } from './hostSceneLightState.ts';
 import { assertBits } from '../sdk-core/bench/oracles/volumes.mjs';
 
-test('readLightInto résout la position monde de la cible comme getWorldPosition, sous une hiérarchie hostile périmée', () => {
+test('readLightInto resolves the target world position like getWorldPosition, under a stale hostile hierarchy', () => {
   const racine = new THREE.Group();
   racine.scale.set(-2, 1, 1);
   const enfant = new THREE.Group();
@@ -20,7 +20,7 @@ test('readLightInto résout la position monde de la cible comme getWorldPosition
   cible.position.set(1, 1, 1);
   petitEnfant.add(cible);
   racine.updateMatrixWorld(true);
-  // La racine devient périmée sans être remise à jour : `resolveHostNode` doit la reprendre.
+  // The root becomes stale without being updated: `resolveHostNode` must take it again.
   racine.position.set(9, 9, 9);
 
   const light = new THREE.SpotLight();
@@ -29,18 +29,18 @@ test('readLightInto résout la position monde de la cible comme getWorldPosition
   readLightInto(light, held, 0);
 
   const attendu = new THREE.Vector3();
-  cible.getWorldPosition(attendu); // recalcule aussi la chaîne des ancêtres, comme resolveHostNode
+  cible.getWorldPosition(attendu); // also recomputes the ancestor chain, like resolveHostNode
   assertBits(held.subarray(11, 14), [attendu.x, attendu.y, attendu.z]);
 });
 
-test('readLightInto : une lampe sans cible rend une position de cible nulle', () => {
+test('readLightInto: a light without a target returns a null target position', () => {
   const light = new THREE.PointLight();
   const held = new Float64Array(LIGHT_SLOTS);
   readLightInto(light, held, 0);
   assertBits(held.subarray(11, 14), [0, 0, 0]);
 });
 
-test('readLightInto : les propriétés absentes d’un type de lampe valent zéro (DirectionalLight n’a ni distance ni cône)', () => {
+test('readLightInto: properties a light type lacks are zero (DirectionalLight has neither distance nor cone)', () => {
   const light = new THREE.DirectionalLight(0xff8040, 2);
   const held = new Float64Array(LIGHT_SLOTS);
   readLightInto(light, held, 0);
@@ -53,12 +53,12 @@ test('readLightInto : les propriétés absentes d’un type de lampe valent zér
   assert.equal(held[3], light.intensity);
 });
 
-test('readLightInto rend `moved` vrai puis faux, et écrit à partir du décalage `at`', () => {
+test('readLightInto returns `moved` true then false, and writes from the `at` offset', () => {
   const light = new THREE.SpotLight(0x112233, 1.5, 10, Math.PI / 4, 0.3, 1.7);
   const held = new Float64Array(LIGHT_SLOTS * 2);
-  assert.equal(readLightInto(light, held, LIGHT_SLOTS), true, 'première écriture : ça bouge');
-  assert.equal(readLightInto(light, held, LIGHT_SLOTS), false, 'rien n’a changé depuis');
-  assert.equal(held[0], 0, 'rien avant le décalage');
-  assert.equal(held[LIGHT_SLOTS + 4], 10, 'distance écrite au bon décalage');
-  assert.equal(held[LIGHT_SLOTS + 6], Math.PI / 4, 'angle écrit au bon décalage');
+  assert.equal(readLightInto(light, held, LIGHT_SLOTS), true, 'first write: it moved');
+  assert.equal(readLightInto(light, held, LIGHT_SLOTS), false, 'nothing has changed since');
+  assert.equal(held[0], 0, 'nothing before the offset');
+  assert.equal(held[LIGHT_SLOTS + 4], 10, 'distance written at the right offset');
+  assert.equal(held[LIGHT_SLOTS + 6], Math.PI / 4, 'angle written at the right offset');
 });

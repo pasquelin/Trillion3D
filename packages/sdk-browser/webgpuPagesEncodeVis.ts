@@ -51,26 +51,25 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
     throw new Error(
       `VISIBILITY_ID_RANGE: ${tableRows} pages exceed the ${VIS_MAX_PAGES} a visibility identifier addresses`,
     );
-  // Les mots de fiche ne suivent que la table de lignes : la plage sale de cette image-ci, et rien
-  // de plus. Il faut les tenir à jour AVANT `uploadDirtyRows`, qui referme cette plage.
+  // Row words follow only the row table: this image's dirty range, and nothing more. They must be
+  // kept up to date BEFORE `uploadDirtyRows`, which closes that range.
   const words = refreshDrawItemWords(rt, visLayerTop(rt.vis), vis.gpuDraw);
   timing.encodeCounts.fichesTeleversees = Math.max(0, words.to - words.from + 1);
-  // Les sphères monde des lignes que la table vient de changer, sur le même intervalle sale que la
-  // table elle-même : c'est ce que le rejet des ombres lit, et rien d'autre ne les écrit.
+  // World spheres of the rows the table just changed, on the same dirty interval as the table
+  // itself: that is what shadow culling reads, and nothing else writes them.
   if (rt.lights.cull) uploadClusterSpheres(rt, device, rows.dirtyFrom, rows.dirtyTo);
-  // Les coins monde des mêmes lignes, sur le même intervalle : ce que la projection GPU lit. Comme
-  // les deux au-dessus, il se prend AVANT `uploadDirtyRows`, qui referme cette plage.
+  // World corners of the same rows, on the same interval: what GPU projection reads. Like the two
+  // above, it is taken BEFORE `uploadDirtyRows`, which closes that range.
   if (vis.gpuPartition) uploadRowCorners(rt, vis.gpuPartition);
   uploadDirtyRows(rt, device);
   ensureVisBindings(rt, device, tableRows);
   const encoder = createRenderEncoder(rt, device);
-  // La partition de l'image ouvre le tampon de commandes : elle écrit les bits de reste et les
-  // comptes par slot que la compaction de dessin lit juste après, et les bornes que le test
-  // d'occultation lira plus loin. Elle relit au passage les verdicts de l'image précédente, que le
-  // test de celle-ci n'a pas encore remis à zéro : c'est ce qui alimente l'historique d'occulteurs.
+  // The image's partition opens the command buffer: it writes the rest bits and the per-slot counts
+  // draw compaction reads right after, and the bounds the occlusion test will read later. It rereads
+  // along the way the previous image's verdicts, which this image's test has not yet zeroed: that is
+  // what feeds the occluder history.
   const { twoPass } = encodeWebgpuPartition(rt, encoder, cam, useIndirect);
-  // Les mots de fiche restatent les lignes : le téléversement de leur plage est ce qui consomme
-  // le drapeau de changement.
+  // Row words restat the rows: uploading their range is what consumes the change flag.
   if (useIndirect) {
     vis.gpuDraw!.encode(
       encoder,
@@ -84,20 +83,20 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
     clearDrawItemWords(words);
     rows.rowsChanged = false;
   }
-  // Le raster matériel ouvre l'image opaque et y dessine sa part de la coupe ; le raster de calcul,
-  // quand il existe, y fond la sienne entre ses passes — petits triangles sous le partage de la
-  // référence, toute la coupe sous la variante `raster-calcul`.
+  // The hardware raster opens the opaque image and draws its share of the cut; the compute raster,
+  // when it exists, blends its own between its passes — small triangles under the reference split,
+  // the whole cut under the `raster-calcul` variant.
   run.gpuComputeDispatches = 0;
   const compute = vis.gpuRaster
     ? computeRasterStages(rt, twoPass, tableRows, maxVertexCount, idsView, depthTarget)
     : null;
   encodeWebgpuVisibilityPasses(rt, device, encoder, twoPass, tableRows, useIndirect, compute);
-  // Les compteurs que la carte vient d'écrire — partition et verdicts d'occultation — sont copiés
-  // une image sur quinze, et mappés une fois l'image soumise. Aucune image n'attend ce retour.
+  // Counts the GPU just wrote — partition and occlusion verdicts — are copied one image in fifteen,
+  // and mapped once the image is submitted. No image waits for that readback.
   if (vis.gpuPartition?.countsDue(run.frame)) vis.gpuPartition.encodeCounts(encoder, run.frame);
   if (!gpu.surfaces || !gpu.deferred || !gpu.hdrView) throw new Error('DEFERRED_UNAVAILABLE');
-  // Les surfaces, et la cible de retour des textures virtuelles où chaque pixel opaque pose le rang
-  // de tuile qu'il demande — complétée par les transparents, réduite en compteurs à la soumission.
+  // Surfaces, and the virtual-texture feedback target where each opaque pixel posts the tile rank
+  // it wants — completed by transparents, reduced to counts at submit.
   const shadePass = encoder.beginRenderPass({
     label: 'WG material surfaces v1',
     colorAttachments: shadeColorAttachments(rt, gpu.surfaces),
@@ -112,8 +111,8 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   shadePass.end();
   const presented = encodeSurfaceLighting(rt, device, encoder, cam, rows.packedCount);
   submitColorCopy(rt, device, encoder, height, width, presented);
-  // Les triangles soumis sont ceux de toutes les lignes dessinables : les deux moitiés sont
-  // dessinées, et un cluster que le test d'occultation rejette a quand même été soumis. Le total
-  // est tenu par la table de lignes, sur sa seule plage sale.
+  // Submitted triangles are those of every drawable row: both halves are drawn, and a cluster the
+  // occlusion test rejects was still submitted. The total is held by the row table, on its dirty
+  // range only.
   return layout.itemWordsHold.total + run.blendSubmittedTriangles;
 }

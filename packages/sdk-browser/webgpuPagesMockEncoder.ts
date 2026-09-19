@@ -102,14 +102,14 @@ export function createMockCommandEncoderFactory(inputs: {
       setPipeline(next: { entryPoint: string }) {
         computePipeline = next;
       },
-      // Les décalages dynamiques comptent : l'étalement du plan lit la région d'uniforme de SA
-      // passe, et deux passes se suivent dans la même passe de calcul.
+      // Dynamic offsets count: plan expansion reads the uniform region of ITS pass, and two passes
+      // follow each other in the same compute pass.
       setBindGroup(_i: number, group: typeof computeBind, offsets?: readonly number[]) {
         computeBind = group;
         computeOffsets = offsets;
       },
-      // Les noyaux qui se répartissent sur la liste des grappes vivantes passent par ici : le double
-      // rejoue le même noyau quel que soit le chemin par lequel la carte graphique le lance.
+      // Kernels that spread over the live-cluster list go through here: the double replays the same
+      // kernel whichever path the GPU launches it on.
       dispatchWorkgroupsIndirect(this: { dispatchWorkgroups(): void }) {
         this.dispatchWorkgroups();
       },

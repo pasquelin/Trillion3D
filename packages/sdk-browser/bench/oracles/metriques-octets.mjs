@@ -1,5 +1,5 @@
-// Oracle du point G4 : `webgpuPagesMetrics.ts` avant le lot G. Le relevé resommait, à chaque appel,
-// la taille de tous les tampons de positions résidents et de tous les maillages transparents.
+// Oracle for G4 checkpoint: `webgpuPagesMetrics.ts` before batch G. The report re-summed, at each call,
+// the size of all resident position buffers and all transparent meshes.
 export function referenceVertexBytes(gpu, vis, blendState) {
   let vertexBytes = 0;
   for (const buffer of gpu.positionBuffers.values()) vertexBytes += buffer.size;

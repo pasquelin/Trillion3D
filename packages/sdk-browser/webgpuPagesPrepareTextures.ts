@@ -15,7 +15,7 @@ import {
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import type { TileTexture } from './webgpuTileAtlas.ts';
 
-/** Ce qu'un diagnostic dit d'un catalogue : combien de textures par source, et leurs tuiles. */
+/** What a diagnostic says of a catalogue: how many textures per source, and their tiles. */
 const catalogueReport = (textures: TileTexture[]) => ({
   count: textures.length - 1,
   baked: textures.filter((texture) => texture.source.kind === 'baked').length,
@@ -25,9 +25,9 @@ const catalogueReport = (textures: TileTexture[]) => ({
 });
 
 /**
- * Concatène la géométrie des pages, recense les textures des matériaux et bâtit les textures
- * virtuelles : deux pools de tuiles à la taille que le budget de l'hôte fixe, leurs tables de pages,
- * la queue de chaque texture épinglée d'emblée, et l'échantillonneur que les passes lisent.
+ * Concatenates page geometry, inventories material textures and builds virtual textures: two tile
+ * pools at the size the host budget sets, their page tables, each texture's queue pinned from the
+ * start, and the sampler the passes read.
  */
 export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { vis, diag, run } = rt,
@@ -48,7 +48,7 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     dataLayer,
   );
   const compte = compteMateriauxEtTangentes(allPages, geometryBlocks);
-  diag.engineDiagnostic('material-textures', 'Textures nécessaires au rendu', {
+  diag.engineDiagnostic('material-textures', 'Textures needed for the render', {
     colorTextures: maps.length,
     dataTextures: dataMaps.length,
     materials: compte.materials,
@@ -58,8 +58,8 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     geometryWithoutTangents: compte.geometryWithoutTangents,
   });
   const textureStarted = performance.now();
-  // Les niveaux du sidecar, rangés par la texture de la scène qu'ils couvrent et par atlas : la
-  // même texture peut en avoir une entrée pour chacun, réduite par la courbe de cet atlas.
+  // Sidecar levels, filed by the scene texture they cover and by atlas: the same texture can have
+  // an entry for each, reduced by that atlas's curve.
   const byTexture = new Map<string, TexturePreview>();
   for (const preview of rt.context.metadata.texturePreviews ?? [])
     byTexture.set(`${preview.texture}/${preview.atlas}`, preview);
@@ -79,15 +79,15 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     readLevel,
     onFailure: diag.diagnosticFailure,
     onColorChanged: () => {
-      // Origine du changement de ressources : une tuile de couleur vient d'atteindre le pool ou de
-      // le quitter, et l'ombre d'un feuillage découpé la suit.
+      // Origin of the resource change: a colour tile has just reached the pool or left it, and the
+      // shadow of cutout foliage follows it.
       run.gate.resourcesChanged();
       shadowsFollowTextures(rt.lights);
     },
   });
   textures.prepare();
   vis.textures = textures;
-  diag.engineDiagnostic('material-textures-ready', 'Textures et filtrage prêts', {
+  diag.engineDiagnostic('material-textures-ready', 'Textures and filtering ready', {
     color: catalogueReport(color),
     data: catalogueReport(data),
     pool: {

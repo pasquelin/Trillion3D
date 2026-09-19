@@ -16,7 +16,7 @@ function collect(s: GpuPassTimings | null | undefined) {
   return deposits;
 }
 
-test('deux passes de la même étape se somment en un seul dépôt', () => {
+test('two passes of the same stage sum into one deposit', () => {
   const deposits = collect(
     sample([
       { name: 'WG DAG selection', gpuMs: 1 },
@@ -26,12 +26,12 @@ test('deux passes de la même étape se somment en un seul dépôt', () => {
   assert.deepEqual(deposits, [['selection', 3]]);
 });
 
-test('une passe à l’étiquette inconnue rejoint geometry', () => {
-  const deposits = collect(sample([{ name: 'passe jamais vue', gpuMs: 5 }]));
+test('a pass with an unknown label joins geometry', () => {
+  const deposits = collect(sample([{ name: 'never-seen pass', gpuMs: 5 }]));
   assert.deepEqual(deposits, [['geometry', 5]]);
 });
 
-test('une passe non mesurée invalide toute l’étape, jamais une somme partielle', () => {
+test('an unmeasured pass invalidates the whole stage, never a partial sum', () => {
   const dejaValide = collect(
     sample([
       { name: 'WG DAG selection', gpuMs: 1 },
@@ -49,13 +49,13 @@ test('une passe non mesurée invalide toute l’étape, jamais une somme partiel
   assert.deepEqual(dejaInvalide, []);
 });
 
-test('un relevé tronqué ou absent ne dépose aucune étape', () => {
+test('a truncated or missing sample deposits no stage', () => {
   assert.deepEqual(collect(sample([{ name: 'WG HiZ pyramid', gpuMs: 4 }], true)), []);
   assert.deepEqual(collect(null), []);
   assert.deepEqual(collect(undefined), []);
 });
 
-test('directLightTimings lit les trois durées par étiquette, null si la passe est absente', () => {
+test('directLightTimings reads the three durations by label, null if the pass is absent', () => {
   const timings = directLightTimings(
     sample([
       { name: SHADOW_PASS, gpuMs: 2 },
@@ -65,7 +65,7 @@ test('directLightTimings lit les trois durées par étiquette, null si la passe 
   assert.deepEqual(timings, { gpuLightListsMs: 3, gpuShadowsMs: 2, gpuLightingMs: null });
 });
 
-test('l’éclairage direct garde ses valeurs même quand une autre étape est invalidée', () => {
+test('direct lighting keeps its values even when another stage is invalidated', () => {
   const timings = directLightTimings(
     sample([
       { name: SHADOW_PASS, gpuMs: 2 },
@@ -78,7 +78,7 @@ test('l’éclairage direct garde ses valeurs même quand une autre étape est i
   assert.deepEqual(timings, { gpuLightListsMs: 3, gpuShadowsMs: 2, gpuLightingMs: 4 });
 });
 
-test('les trois passes des transparents se somment sur leur étape, jamais sur geometry', () => {
+test('the three transparent passes sum onto their stage, never onto geometry', () => {
   const deposits = collect(
     sample([
       { name: 'WG transparents', gpuMs: 2 },

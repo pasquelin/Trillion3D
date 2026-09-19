@@ -1,15 +1,15 @@
-// Côté page de la preuve « le raster de calcul est étanche » : la même scène rendue par le raster
-// matériel, puis par le raster de calcul sous ses deux variantes — toute la coupe, puis le partage
-// petits/grands —, et les images comparées pixel à pixel. Chaque carreau du bâtisseur est deux
-// triangles qui partagent une diagonale, dans deux clusters distincts : c'est l'arête partagée par
-// excellence, sous toutes les pentes. Un carreau de plus traverse le plan proche, pour que la coupe
-// et ses éclats soient de la partie.
+// Page side of the proof "the compute raster is watertight": the same scene rendered by the
+// hardware raster, then by the compute raster under its two variants — the whole cut, then the
+// small/large split — and the images compared pixel by pixel. Each builder tile is two
+// triangles that share a diagonal, in two distinct clusters: that is the shared edge par
+// excellence, under every slope. One more tile crosses the near plane, so that the clip
+// and its shards are part of it.
 //
-// Ce qui est permis entre les deux images : la bande de silhouette de l'image MATÉRIELLE seule —
-// un pixel dont le voisinage porte à la fois de la couverture et du fond, là où deux règles de
-// remplissage peuvent différer d'un pixel. La bande se lit sur une image que le calcul n'a pas
-// touchée : un triangle parasite en plein fond ou une fissure au milieu d'un carreau tombent hors
-// de la bande, et comptent.
+// What is allowed between the two images: the silhouette band of the HARDWARE image alone —
+// a pixel whose neighbourhood carries both coverage and background, where two fill
+// rules can differ by one pixel. The band is read on an image the compute has not
+// touched: a stray triangle in the middle of the background or a crack in the middle of a
+// tile fall outside the band, and count.
 import * as THREE from 'three';
 import { webgpuPagesBackend } from '../../packages/sdk-browser/webgpuPages.ts';
 import { ouvrirAppareil } from '../justesse/appareilWebgpu.mjs';
@@ -20,14 +20,14 @@ import {
   carre,
   image,
   libere,
-  moteur,
+  engine,
 } from './preuveSceneCommune.mjs';
 
-/** Les pixels d'une unité monde à cette distance de la caméra de face, ouverture 55° verticale. */
+/** Pixels of one world unit at this distance from the face-on camera, 55° vertical aperture. */
 const pixelsParUnite = (distance) =>
   VIEWPORT[1] / 2 / Math.tan((55 / 2) * (Math.PI / 180)) / distance;
 
-/** Des carreaux inclinés sous des angles qui ne se répètent pas, plus un qui traverse le plan proche. */
+/** Tiles tilted at angles that do not repeat, plus one that crosses the near plane. */
 function sceneCarreaux() {
   const bati = batisseur();
   const material = new THREE.MeshBasicMaterial({ color: 0x20c040, side: THREE.DoubleSide });
@@ -39,25 +39,25 @@ function sceneCarreaux() {
     bati.source.add(mesh);
     bati.ajoute(mesh, 'exact-clusters', 0.45);
   }
-  // Un carreau de face, non tourné, dont les coins tombent sur des coins de pixels : sa diagonale à
-  // 45° passe par le CENTRE de chaque pixel qu'elle traverse. Un pixel exactement sur une arête
-  // partagée est celui que deux règles inclusives peuvent laisser à personne : la fissure pointillée.
+  // A face-on tile, unrotated, whose corners fall on pixel corners: its 45° diagonal
+  // passes through the CENTRE of each pixel it crosses. A pixel exactly on a shared
+  // edge is the one two inclusive rules can leave to nobody: the dotted crack.
   const face = new THREE.Mesh(carre(24 / pixelsParUnite(3)), material);
   face.name = 'face';
   face.position.set(0, 0, 0);
   bati.source.add(face);
   bati.ajoute(face, 'exact-clusters', 0.8);
-  // Un carreau immense derrière les autres, dont les sommets tombent à des milliers de pixels hors de
-  // l'image et dont la diagonale la traverse : c'est là que des poids dérivés arrondissent assez
-  // pour ouvrir une fissure entre ses deux triangles.
+  // A huge tile behind the others, whose vertices fall thousands of pixels outside the
+  // image and whose diagonal crosses it: that is where derived weights round enough
+  // to open a crack between its two triangles.
   const immense = new THREE.Mesh(carre(60), material);
   immense.name = 'immense';
   immense.position.set(1.3, -0.8, -1.5);
   immense.rotation.set(0.05, 0.02, 0.35);
   bati.source.add(immense);
   bati.ajoute(immense, 'exact-clusters', 60);
-  // Un grand carreau dont un coin passe derrière l'œil : la caméra est en z = 3, le plan proche en
-  // z = 2,9 ; incliné de 60°, il traverse ce plan au milieu de l'image.
+  // A large tile whose one corner goes behind the eye: the camera is at z = 3, the near
+  // plane at z = 2.9; tilted 60°, it crosses that plane in the middle of the image.
   const proche = new THREE.Mesh(carre(3), material);
   proche.name = 'proche';
   proche.position.set(0, -2.2, 2.95);
@@ -69,8 +69,8 @@ function sceneCarreaux() {
 
 const estFond = (pixels, i) => pixels[i] === 0 && pixels[i + 1] === 0 && pixels[i + 2] === 0;
 
-/** La bande de silhouette d'une image : un pixel dont le voisinage 3×3 porte à la fois du fond et
- *  de la couverture. Lue sur l'image matérielle seule. */
+/** Silhouette band of an image: a pixel whose 3×3 neighbourhood carries both background and
+ *  coverage. Read on the hardware image alone. */
 function bandeDeSilhouette(pixels) {
   const [largeur, hauteur] = VIEWPORT,
     bande = new Uint8Array(largeur * hauteur);
@@ -91,7 +91,7 @@ function bandeDeSilhouette(pixels) {
   return bande;
 }
 
-/** Les pixels qui diffèrent : comptés sur la bande, listés en `[x, y]` hors de la bande. */
+/** Pixels that differ: counted on the band, listed as `[x, y]` outside the band. */
 function compare(materiel, calcul, bande) {
   let silhouettes = 0;
   const interieurs = [];
@@ -111,14 +111,14 @@ function compare(materiel, calcul, bande) {
 
 async function rendu(device, onDiag, options) {
   const scene = sceneCarreaux();
-  const { backend, canvas } = moteur(webgpuPagesBackend, scene, device, onDiag, {
+  const { backend, canvas } = engine(webgpuPagesBackend, scene, device, onDiag, {
     maxResidentPages: 32,
     ...options,
   });
   try {
     await backend.prepare();
     const camera = cameraFace(0);
-    // Deux images : la première pose l'historique d'occulteurs, la seconde joue les deux moitiés.
+    // Two frames: the first places the occluder history, the second plays both halves.
     await image(backend, camera);
     const { pixels, metriques } = await image(backend, camera);
     return { pixels: pixels.slice(), metriques };
@@ -129,15 +129,15 @@ async function rendu(device, onDiag, options) {
 
 export async function executer() {
   const appareil = await ouvrirAppareil();
-  if (!appareil) return { indisponible: 'aucun adaptateur WebGPU' };
+  if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
   const evenements = [],
     onDiag = (e) => evenements.push(e);
   try {
     const materiel = await rendu(device, onDiag, {});
     const bande = bandeDeSilhouette(materiel.pixels);
-    // Les deux façons de confier des triangles au calcul : toute la coupe, ou les petits seuls —
-    // le partage de la référence, où chaque triangle a exactement un des deux rasters.
+    // The two ways of handing triangles to compute: the whole cut, or small ones only —
+    // the reference split, where each triangle has exactly one of the two rasters.
     const variantes = {};
     for (const variante of ['raster-calcul', 'raster-hybride']) {
       const calcul = await rendu(device, onDiag, {

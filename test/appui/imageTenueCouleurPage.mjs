@@ -1,10 +1,10 @@
-// Côté page de la preuve : un vrai rendu WebGL dans Chromium, la chaîne d'affichage du moteur —
-// sortie sRGB, ACES dès qu'une lampe existe — et le vrai module d'image tenue.
+// Page side of the proof: a real WebGL render in Chromium, the engine's display chain — sRGB
+// output, ACES as soon as a light exists — and the real held-image module.
 //
-// L'image complète est rendue puis relue au pixel près ; la même image est ensuite gardée et
-// réaffichée par le quad plein écran, et relue aux mêmes points. Les deux relevés doivent être
-// identiques octet pour octet : la copie porte déjà la sortie d'affichage, la réafficher ne doit ni
-// la réencoder ni la retonemapper.
+// The complete image is rendered then reread pixel for pixel; the same image is then kept and
+// re-presented by the full-screen quad, and reread at the same points. The two readings must be
+// identical byte for byte: the copy already carries the display output, re-presenting it must
+// neither re-encode nor re-tone-map it.
 import * as THREE from 'three';
 import { createHeldFrame } from '../../packages/sdk-browser/explorerHeldFrame.ts';
 
@@ -17,7 +17,7 @@ const POINTS = [
   [LARGEUR >> 2, (3 * HAUTEUR) >> 2],
 ];
 
-/** Les octets RGBA du tampon de dessin aux points de contrôle, relus juste après la soumission. */
+/** RGBA bytes of the draw buffer at the control points, reread just after submit. */
 function lire(gl) {
   return POINTS.map(([x, y]) => {
     const octets = new Uint8Array(4);
@@ -26,7 +26,7 @@ function lire(gl) {
   });
 }
 
-/** Deux plans de couleurs différentes, éclairés ou non selon ce que le cas demande. */
+/** Two planes of different colours, lit or not according to what the case asks. */
 function scene(eclairee) {
   const scene = new THREE.Scene();
   const materiau = (couleur) =>
@@ -45,9 +45,9 @@ function scene(eclairee) {
   return scene;
 }
 
-/** Un cas : une image complète, puis la même image tenue. Rend les deux relevés de pixels. */
+/** One case: a complete image, then the same image held. Returns both pixel readings. */
 function cas(renderer, gl, eclairee) {
-  // La chaîne d'affichage du moteur : ACES n'est le dernier maillon que si une lampe existe.
+  // The engine's display chain: ACES is the last link only if a light exists.
   renderer.toneMapping = eclairee ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
   const camera = new THREE.PerspectiveCamera(50, LARGEUR / HAUTEUR, 0.1, 100);
   camera.position.z = 3;
@@ -59,17 +59,17 @@ function cas(renderer, gl, eclairee) {
   renderer.render(monde, camera);
   const complete = lire(gl);
   tenue.keep(renderer, taille);
-  const relevés = [];
-  // Plusieurs images tenues d'affilée : chacune relit ce qu'elle vient de poser, sans dériver.
+  const readings = [];
+  // Several held images in a row: each rereads what it just posed, without drifting.
   for (let i = 0; i < 3; i++) {
     tenue.present(renderer);
-    relevés.push(lire(gl));
+    readings.push(lire(gl));
   }
   monde.traverse((objet) => {
     objet.geometry?.dispose();
     objet.material?.dispose();
   });
-  return { eclairee, complete, tenues: relevés };
+  return { eclairee, complete, tenues: readings };
 }
 
 export async function executer() {
@@ -80,7 +80,7 @@ export async function executer() {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
   renderer.setPixelRatio(1);
   renderer.setSize(LARGEUR, HAUTEUR, false);
-  // La sortie du moteur : sRGB. C'est elle que la copie porte déjà.
+  // The engine's output: sRGB. That is what the copy already carries.
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMappingExposure = 1;
   const gl = renderer.getContext();

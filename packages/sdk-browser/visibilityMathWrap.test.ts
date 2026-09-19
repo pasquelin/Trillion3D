@@ -1,10 +1,10 @@
-// Défaut 4 : `wrapTexel` (visibilityMath.ts) doit suivre la règle entière de la carte graphique pour
-// les trois modes d'adressage — la même que MIRRORED_REPEAT en OpenGL ES 3.0 / WebGPU : i = ⌊t·taille⌋,
-// puis serrage, modulo une période (Repeat), ou modulo deux périodes dont la seconde se lit à rebours
-// (MirroredRepeat). `texelThree` (test/justesse/adressageCas.mjs) encode cette même règle de façon
-// indépendante ; c'est l'oracle déjà vérifié contre les vrais échantillonneurs WebGL2 et WebGPU par
-// `test/justesse/adressage-gpu.mjs`, réutilisé ici pour balayer des cas que les valeurs figées
-// n'écrivent pas explicitement.
+// Defect 4: `wrapTexel` (visibilityMath.ts) must follow the GPU's integer rule for
+// the three addressing modes — the same as MIRRORED_REPEAT in OpenGL ES 3.0 / WebGPU: i = ⌊t·size⌋,
+// then clamp, modulo one period (Repeat), or modulo two periods whose second is read backwards
+// (MirroredRepeat). `texelThree` (test/justesse/adressageCas.mjs) encodes that same rule
+// independently; it is the oracle already checked against real WebGL2 and WebGPU samplers by
+// `test/justesse/adressage-gpu.mjs`, reused here to sweep cases that the frozen values
+// do not write explicitly.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -15,12 +15,12 @@ const CLAMP = THREE.ClampToEdgeWrapping,
   REPEAT = THREE.RepeatWrapping,
   MIRROR = THREE.MirroredRepeatWrapping;
 
-test('u = 1,25 sur 4 texels en miroir lit le texel 2 : ce que la carte graphique lit réellement', () => {
+test('u = 1.25 on 4 texels in mirror reads texel 2: what the GPU actually reads', () => {
   assert.equal(wrapTexel(1.25, 4, MIRROR), 2);
-  assert.equal(texelThree(1.25, 4, MIRROR), 2, 'la référence indépendante confirme le même texel');
+  assert.equal(texelThree(1.25, 4, MIRROR), 2, 'the independent reference confirms the same texel');
 });
 
-test('les trois modes contre la référence, tailles paire et impaire, entiers/négatifs/demi-texel/grands', () => {
+test('the three modes against the reference, even and odd sizes, integers/negatives/half-texel/large', () => {
   const valeurs = [
     -1000.5, -1000, -3, -2, -1, -0.5, 0, 0.125, 0.5, 0.875, 1, 1.5, 2, 3, 999.5, 1000,
   ];
@@ -34,7 +34,7 @@ test('les trois modes contre la référence, tailles paire et impaire, entiers/n
         );
 });
 
-test('u et v traités séparément : tailles et modes indépendants par axe', () => {
+test('u and v treated separately: sizes and modes independent per axis', () => {
   const u = [
     [1.25, 4, MIRROR],
     [-0.6, 5, REPEAT],
@@ -52,7 +52,7 @@ test('u et v traités séparément : tailles et modes indépendants par axe', ()
     }
 });
 
-test('Repeat et ClampToEdge : valeurs figées, inchangées depuis avant ce lot', () => {
+test('Repeat and ClampToEdge: frozen values, unchanged from before this batch', () => {
   assert.equal(wrapTexel(0.1, 4, REPEAT), 0);
   assert.equal(wrapTexel(0.9, 4, REPEAT), 3);
   assert.equal(wrapTexel(1.1, 4, REPEAT), 0);

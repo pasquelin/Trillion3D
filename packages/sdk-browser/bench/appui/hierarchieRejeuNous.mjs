@@ -1,6 +1,6 @@
-// Rejeu d'un scénario de hiérarchie (lot M3a) sur la hiérarchie et la caméra de sdk-core, opération
-// par opération comme `hierarchieRejeuThree.mjs`, qui décrit les opérations. Mêmes lectures, dans le
-// même ordre et sous la même forme : `compare` les confronte avec `Object.is`.
+// Replay of a hierarchy scenario (batch M3a) on the sdk-core hierarchy and camera, operation
+// by operation like `hierarchieRejeuThree.mjs`, which describes the operations. Same reads, in
+// the same order and under the same form: `compare` confronts them with `Object.is`.
 import {
   addTransformNode,
   createCameraFrame,
@@ -24,10 +24,10 @@ import {
   updateNodeWorldMatrix,
 } from '../../../sdk-core/index.ts';
 
-const projectionNous = (sortie, s) =>
-  perspectiveProjection(sortie, s.fov, s.aspect, s.near, s.zoom);
+const projectionNous = (output, s) =>
+  perspectiveProjection(output, s.fov, s.aspect, s.near, s.zoom);
 
-/** Les mêmes opérations sur la hiérarchie et la caméra de sdk-core. */
+/** The same operations on the sdk-core hierarchy and camera. */
 export function joueNous(scenario) {
   const tree = createTransformTree(4),
     noeuds = [],

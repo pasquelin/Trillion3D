@@ -1,60 +1,60 @@
-//! Les codecs que le pilote `dds` déclare, un par un, et rien d'autre.
+//! Codecs the `dds` driver declares, one by one, and nothing else.
 //!
-//! Un DDS nomme son codec de trois façons, toutes documentées par Microsoft : le `dwFourCC` hérité
-//! de Direct3D 9, le `dxgiFormat` de l'entête DX10, ou — pour une surface non compressée — ses
-//! masques de bits. Les trois chemins arrivent ici et rendent `None` pour tout ce qui n'est pas
-//! dans la liste : c'est l'appelant qui en fait un refus nommé.
+//! A DDS names its codec in three ways, all documented by Microsoft: the Direct3D 9-era
+//! `dwFourCC`, the DX10 header's `dxgiFormat`, or — for an uncompressed surface — its bit
+//! masks. All three paths arrive here and return `None` for anything not on the list: it is
+//! the caller that turns that into a named refusal.
 use crate::plugins::image::blocks::BlockDecode;
 use crate::plugins::image::Transfer;
 use texture2ddecoder::{decode_bc1a, decode_bc2, decode_bc3, decode_bc4, decode_bc5, decode_bc7};
 
-/// Les codecs déclarés. Rien ici n'est « deviné » : chaque variante a été inscrite exprès, avec
-/// les identifiants de format qui y mènent.
+/// Declared codecs. Nothing here is "guessed": each variant was registered on purpose, with
+/// the format identifiers that lead to it.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Codec {
-    /// BC1 (`DXT1`) : couleurs 565 interpolées, alpha d'un bit.
+    /// BC1 (`DXT1`): interpolated 565 colours, one-bit alpha.
     Bc1,
-    /// BC2 (`DXT3`) : couleurs BC1 et alpha explicite de quatre bits.
+    /// BC2 (`DXT3`): BC1 colours and explicit four-bit alpha.
     Bc2,
-    /// BC3 (`DXT5`) : couleurs BC1 et alpha interpolé de trois bits.
+    /// BC3 (`DXT5`): BC1 colours and interpolated three-bit alpha.
     Bc3,
-    /// BC4 : un seul canal interpolé, rendu en rouge.
+    /// BC4: a single interpolated channel, returned as red.
     Bc4,
-    /// BC5 : deux canaux interpolés, rendus en rouge et vert — les normales tangentes.
+    /// BC5: two interpolated channels, returned as red and green — tangent-space normals.
     Bc5,
-    /// BC7 : les huit modes de partitionnement, couleurs et alpha ensemble.
+    /// BC7: the eight partitioning modes, colour and alpha together.
     Bc7,
-    /// Non compressé, octets dans l'ordre R, G, B, A.
+    /// Uncompressed, bytes in R, G, B, A order.
     Rgba8,
-    /// Non compressé, octets dans l'ordre B, G, R, A — l'ordre natif de Direct3D 9.
+    /// Uncompressed, bytes in B, G, R, A order — Direct3D 9's native order.
     Bgra8,
-    /// Non compressé, octets B, G, R puis un octet ignoré : la surface est opaque.
+    /// Uncompressed, bytes B, G, R then an ignored byte: the surface is opaque.
     Bgrx8,
 }
 
-/// Comment les octets d'un niveau deviennent des pixels. C'est la seule description d'un codec :
-/// le poids d'un niveau, sa lecture et sa reconstruction en dérivent toutes.
+/// How a level's bytes become pixels. This is a codec's only description: a level's weight,
+/// its read and its reconstruction all derive from it.
 #[derive(Clone, Copy)]
 pub(super) enum Layout {
-    /// Des blocs de 4 × 4 pixels : les octets d'un bloc et le décodeur qui les développe.
+    /// 4 × 4 pixel blocks: a block's bytes and the decoder that expands them.
     Blocks { bytes: u8, decode: BlockDecode },
-    /// Une surface non compressée, quatre octets par pixel dans l'ordre nommé.
+    /// An uncompressed surface, four bytes per pixel in the named order.
     Pixels(Order),
 }
 
-/// L'ordre des quatre octets d'un pixel non compressé.
+/// Order of the four bytes of an uncompressed pixel.
 #[derive(Clone, Copy)]
 pub(super) enum Order {
-    /// R, G, B, A : déjà l'ordre du contrat.
+    /// R, G, B, A: already the contract order.
     Rgba,
     /// B, G, R, A.
     Bgra,
-    /// B, G, R puis un octet ignoré par la spécification : la surface est opaque.
+    /// B, G, R then a byte ignored by the specification: the surface is opaque.
     Bgrx,
 }
 
 impl Codec {
-    /// La disposition de ce codec : la seule table qui relie un codec déclaré à ses octets.
+    /// This codec's layout: the only table that links a declared codec to its bytes.
     pub(super) fn layout(self) -> Layout {
         let blocks = |bytes, decode: BlockDecode| Layout::Blocks { bytes, decode };
         match self {
@@ -70,14 +70,14 @@ impl Codec {
         }
     }
 
-    /// Une surface non compressée se lit ligne par ligne, quatre octets par pixel.
+    /// An uncompressed surface is read line by line, four bytes per pixel.
     pub(super) fn is_uncompressed(self) -> bool {
         matches!(self.layout(), Layout::Pixels(_))
     }
 
-    /// Les octets qu'occupe un niveau de cette taille. Les blocs couvrent toujours des multiples
-    /// de quatre pixels : un niveau de 1 × 1 pèse encore un bloc entier. Le compte sature plutôt
-    /// que de déborder : des dimensions absurdes donnent un besoin absurde, donc un refus.
+    /// Bytes occupied by a level of this size. Blocks always cover multiples of four pixels:
+    /// a 1 × 1 level still weighs a whole block. The count saturates rather than overflowing:
+    /// absurd dimensions give an absurd need, hence a refusal.
     pub(super) fn level_bytes(self, width: u32, height: u32) -> u64 {
         match self.layout() {
             Layout::Blocks { bytes, .. } => u64::from(width.div_ceil(4))
@@ -90,12 +90,12 @@ impl Codec {
     }
 }
 
-/// Le codec d'un `dwFourCC` de Direct3D 9. `DXT2` et `DXT4` portent les mêmes blocs que `DXT3` et
-/// `DXT5` mais un alpha prémultiplié : le contrat d'image demande un alpha droit, donc ils sont
-/// refusés plutôt que rendus faux. `BC4S` et `BC5S` sont signés, hors liste eux aussi.
+/// Codec of a Direct3D 9 `dwFourCC`. `DXT2` and `DXT4` carry the same blocks as `DXT3` and
+/// `DXT5` but a premultiplied alpha: the image contract asks for straight alpha, so they are
+/// refused rather than returned wrong. `BC4S` and `BC5S` are signed, also off the list.
 ///
-/// Aucun de ces noms ne déclare de fonction de transfert : Direct3D 9 n'avait pas de format sRGB.
-/// C'est l'appelant qui prête alors le sRGB de convention à la surface.
+/// None of these names declares a transfer function: Direct3D 9 had no sRGB format.
+/// It is the caller that then lends the conventional sRGB to the surface.
 pub(super) fn from_fourcc(fourcc: [u8; 4]) -> Option<Codec> {
     Some(match &fourcc {
         b"DXT1" => Codec::Bc1,
@@ -107,16 +107,15 @@ pub(super) fn from_fourcc(fourcc: [u8; 4]) -> Option<Codec> {
     })
 }
 
-/// Les `dxgiFormat` de la liste que le registre `DXGI_FORMAT` nomme `_SRGB`. Ils portent exactement
-/// les mêmes octets que leurs jumeaux `_UNORM`, qui les précèdent immédiatement au registre.
+/// `dxgiFormat` values that the `DXGI_FORMAT` registry names `_SRGB`. They carry exactly the
+/// same bytes as their `_UNORM` twins, which immediately precede them in the registry.
 const SRGB: &[u32] = &[29, 72, 75, 78, 91, 93, 99];
 
-/// Le codec d'un `dxgiFormat` de l'entête DX10 et la fonction de transfert que ce nom **déclare**,
-/// par les valeurs de l'énumération `DXGI_FORMAT`. Une variante `_SRGB` porte exactement les mêmes
-/// octets que son `_UNORM` et ne veut pas dire la même chose : l'une annonce des échantillons
-/// proportionnels à la lumière, l'autre des octets encodés par la courbe sRGB. Les `_TYPELESS` ne
-/// déclarent pas leur interprétation ; les signées, les flottantes (BC6H), les 16 bits et les YUV
-/// sortent de la liste.
+/// Codec of a DX10-header `dxgiFormat` and the transfer function that name **declares**,
+/// by the `DXGI_FORMAT` enumeration values. An `_SRGB` variant carries exactly the same bytes
+/// as its `_UNORM` and does not mean the same thing: one announces samples proportional to
+/// light, the other bytes encoded by the sRGB curve. `_TYPELESS` do not declare their
+/// interpretation; signed, float (BC6H), 16-bit and YUV fall off the list.
 pub(super) fn from_dxgi(format: u32) -> Option<(Codec, Transfer)> {
     let codec = match format {
         // R8G8B8A8_UNORM, R8G8B8A8_UNORM_SRGB
@@ -127,7 +126,7 @@ pub(super) fn from_dxgi(format: u32) -> Option<(Codec, Transfer)> {
         74 | 75 => Codec::Bc2,
         // BC3_UNORM, BC3_UNORM_SRGB
         77 | 78 => Codec::Bc3,
-        // BC4_UNORM, BC5_UNORM : un et deux canaux interpolés, sans variante sRGB au registre.
+        // BC4_UNORM, BC5_UNORM: one and two interpolated channels, no sRGB variant in the registry.
         80 => Codec::Bc4,
         83 => Codec::Bc5,
         // B8G8R8A8_UNORM, B8G8R8A8_UNORM_SRGB
@@ -145,9 +144,9 @@ pub(super) fn from_dxgi(format: u32) -> Option<(Codec, Transfer)> {
     Some((codec, transfer))
 }
 
-/// Le codec d'une surface non compressée, par ses masques `dwRBitMask`, `dwGBitMask`,
-/// `dwBBitMask` et `dwABitMask`. Seuls les trois profils de trente-deux bits déclarés sont lus :
-/// un masque inattendu — 16 bits, 24 bits, canaux décalés — est hors liste.
+/// Codec of an uncompressed surface, from its `dwRBitMask`, `dwGBitMask`, `dwBBitMask` and
+/// `dwABitMask` masks. Only the three declared thirty-two-bit profiles are read: an unexpected
+/// mask — 16-bit, 24-bit, shifted channels — is off the list.
 pub(super) fn from_masks(bit_count: u32, masks: [u32; 4]) -> Option<Codec> {
     if bit_count != 32 {
         return None;

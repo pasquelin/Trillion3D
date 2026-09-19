@@ -5,9 +5,9 @@ import type { TransformTree } from './mathTransformTree.ts';
 import { updateNodeWorldMatrix } from './mathTransformTreeUpdate.ts';
 
 /**
- * Lectures monde d'un nœud, sortie passée en paramètre. Comme `getWorldPosition`, `getWorldQuaternion`,
- * `getWorldScale` et `getWorldDirection` de la référence, chacune met d'abord à jour les ancêtres et
- * le nœud (`updateWorldMatrix(true, false)`) ; ici, sans rien recalculer quand rien n'a changé.
+ * World reads of a node, output passed in. Like the reference `getWorldPosition`, `getWorldQuaternion`,
+ * `getWorldScale` and `getWorldDirection`, each first updates the ancestors and
+ * the node (`updateWorldMatrix(true, false)`); here, without recomputing anything when nothing has changed.
  */
 
 const decomposedPosition = new Float64Array(3),
@@ -15,7 +15,7 @@ const decomposedPosition = new Float64Array(3),
   decomposedScale = new Float64Array(3),
   direction = new Float64Array(3);
 
-/** Position monde : la colonne de translation de la matrice monde. */
+/** World position: the translation column of the world matrix. */
 export function nodeWorldPosition<T extends NumberSink>(out: T, tree: TransformTree, node: number) {
   updateNodeWorldMatrix(tree, node, true, false);
   const world = tree.worldViews[node];
@@ -25,7 +25,7 @@ export function nodeWorldPosition<T extends NumberSink>(out: T, tree: TransformT
   return out;
 }
 
-/** Rotation monde `(x, y, z, w)`, par la décomposition de la matrice monde. */
+/** World rotation `(x, y, z, w)`, from the world-matrix decomposition. */
 export function nodeWorldQuaternion<T extends NumberSink>(
   out: T,
   tree: TransformTree,
@@ -36,7 +36,7 @@ export function nodeWorldQuaternion<T extends NumberSink>(
   return out;
 }
 
-/** Échelle monde, par la décomposition : un déterminant négatif est porté par `x` seul. */
+/** World scale, from the decomposition: a negative determinant is carried by `x` alone. */
 export function nodeWorldScale<T extends NumberSink>(out: T, tree: TransformTree, node: number) {
   updateNodeWorldMatrix(tree, node, true, false);
   decomposeMatrix4(tree.worldViews[node], decomposedPosition, decomposedQuaternion, out);
@@ -44,8 +44,8 @@ export function nodeWorldScale<T extends NumberSink>(out: T, tree: TransformTree
 }
 
 /**
- * Direction monde : la troisième colonne normalisée (une colonne nulle reste nulle). `cameraForward`
- * la retourne, comme la caméra de la référence : une caméra regarde vers son `−z`.
+ * World direction: the third column normalised (a zero column stays zero). `cameraForward`
+ * flips it, like the reference camera: a camera looks toward its `−z`.
  */
 export function nodeWorldDirection<T extends NumberSink>(
   out: T,
@@ -60,7 +60,7 @@ export function nodeWorldDirection<T extends NumberSink>(
   direction[1] = world[at + 9];
   direction[2] = world[at + 10];
   normalizeVector3(direction);
-  // Calculée en double avant l'écriture : une sortie simple précision n'arrondit qu'une fois.
+  // Computed in double before the write: a single-precision output rounds only once.
   const sign = cameraForward ? -1 : 1;
   out[0] = sign * direction[0];
   out[1] = sign * direction[1];
@@ -69,9 +69,9 @@ export function nodeWorldDirection<T extends NumberSink>(
 }
 
 /**
- * Vrai quand la matrice monde renverse l'orientation — déterminant négatif, un ou trois axes en
- * miroir : le dessin échange alors ses faces avant et arrière. Lue telle quelle, sans mise à jour,
- * comme `matrixWorld.determinant()`. Un déterminant nul ou NaN ne renverse rien.
+ * True when the world matrix reverses orientation — negative determinant, one or three mirrored
+ * axes: the draw then swaps its front and back faces. Read as-is, without update,
+ * like `matrixWorld.determinant()`. A zero or NaN determinant reverses nothing.
  */
 export function nodeWorldMirrorsFaces(tree: TransformTree, node: number) {
   return determinantMatrix4(tree.worldViews[node]) < 0;

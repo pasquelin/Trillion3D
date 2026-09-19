@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Copie le rapport de campagne dans `docs/` pour GitHub Pages (branche + dossier /docs).
+// Copies the campaign report into `docs/` for GitHub Pages (branch + /docs folder).
 //
 //   node scripts/mesure/rapportGlobal.mjs
 //   node scripts/mesure/publierRapport.mjs
@@ -10,12 +10,12 @@ import { parseArgs } from './options.mjs';
 const ROOT = resolve(import.meta.dirname, '../..');
 
 /**
- * Pose `rapport.html` en `index.html` du dossier Pages, recopie les vignettes, et désactive Jekyll
- * (`.nojekyll`) pour que GitHub serve le HTML tel quel.
+ * Places `rapport.html` as the Pages folder's `index.html`, copies the thumbnails, and disables
+ * Jekyll (`.nojekyll`) so GitHub serves the HTML as-is.
  */
 export function publierRapport(source, dest) {
   const rapport = join(source, 'rapport.html');
-  if (!existsSync(rapport)) throw new Error(`pas de rapport : ${rapport}`);
+  if (!existsSync(rapport)) throw new Error(`no report: ${rapport}`);
   mkdirSync(dest, { recursive: true });
   cpSync(rapport, join(dest, 'index.html'));
   const vignettes = join(source, 'vignettes');
@@ -30,5 +30,5 @@ if (import.meta.filename === process.argv[1]) {
   const flags = parseArgs(process.argv.slice(2));
   const source = resolve(flags.get('dossier') ?? join(ROOT, '.mesure/out/global'));
   const dest = resolve(flags.get('vers') ?? join(ROOT, 'docs'));
-  console.log(`Pages : ${publierRapport(source, dest)}`);
+  console.log(`Pages: ${publierRapport(source, dest)}`);
 }

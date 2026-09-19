@@ -1,6 +1,6 @@
-// Scénarios d'équivalence de la hiérarchie (lot M3a), rejoués des deux côtés par
-// `hierarchieRejeuThree.mjs` et `hierarchieRejeuNous.mjs`.
-// Tirés d'une graine fixe : deux exécutions jouent exactement les mêmes opérations.
+// Hierarchy-equivalence scenarios (batch M3a), replayed on both sides by
+// `hierarchieRejeuThree.mjs` and `hierarchieRejeuNous.mjs`.
+// Drawn from a fixed seed: two runs play the exact same operations.
 import { graine } from '../../../sdk-core/bench/socle.mjs';
 
 const alea = graine(0x3a3a);
@@ -12,7 +12,7 @@ const tourne = () => {
   return q.map((c) => c / l);
 };
 
-/** Positions, rotations et échelles hostiles : ±0, extrêmes, NaN, infinis, miroirs, nulles. */
+/** Hostile positions, rotations and scales: ±0, extremes, NaN, infinities, mirrors, zeros. */
 const POSITIONS = [
   [0, 0, 0],
   [-0, -0, -0],
@@ -47,13 +47,13 @@ const ECHELLES = [
   [NaN, 1, 1],
 ];
 
-/** Une pose ordinaire : ce que porte une scène réelle, échelles de 0,5 à 2 dont une sur quatre miroir. */
+/** An ordinary pose: what a real scene carries, scales from 0.5 to 2, one in four mirrored. */
 const ordinaire = () => [
   [dans(50), dans(50), dans(50)],
   tourne(),
   [(alea() < 0.25 ? -1 : 1) * (0.5 + alea() * 1.5), 0.5 + alea() * 1.5, 0.5 + alea() * 1.5],
 ];
-/** Une pose hostile une fois sur `rarete`, ordinaire sinon. */
+/** A hostile pose once every `rarete`, ordinary otherwise. */
 const pose = (rarete) =>
   alea() * rarete < 1 ? [tire(POSITIONS), tire(ROTATIONS), tire(ECHELLES)] : ordinaire();
 
@@ -66,7 +66,7 @@ export const cameraAuHasard = () => ({
   webgpu: alea() < 0.5,
 });
 
-/** Descendants vivants de `id`, lui compris, d'après les parents tenus par le générateur. */
+/** Live descendants of `id`, itself included, from the parents held by the generator. */
 export function sousArbre(parents, vivants, id) {
   const pris = new Set([id]);
   for (let change = true; change;) {
@@ -83,11 +83,11 @@ export function sousArbre(parents, vivants, id) {
 const finies = (liste) => liste.filter((v) => v.every(Number.isFinite));
 
 /**
- * Chaînes figées : profondeurs 1 à 6 sous des racines, branches à cinq enfants portant chacun trois
- * niveaux, une caméra sous une chaîne sur cinq, échelle et rotation
- * hostiles à chaque niveau. Puis mise à jour forcée, instantané, lectures de chaque nœud et images
- * de chaque caméra dans les deux conventions de plans. `nonFinies` faux écarte NaN et infinis, qui
- * gagneraient tout le sous-arbre et cacheraient un écart derrière un NaN partagé.
+ * Frozen chains: depths 1 to 6 under roots, branches of five children each carrying three
+ * levels, a camera under one chain in five, hostile scale and rotation at every level.
+ * Then a forced update, a snapshot, reads of every node and frames of every camera in both
+ * plane conventions. `nonFinies` false drops NaN and infinities, which would win the whole
+ * subtree and hide a delta behind a shared NaN.
  */
 export function chainesFigees(nonFinies) {
   const positions = nonFinies ? POSITIONS : finies(POSITIONS),

@@ -1,19 +1,19 @@
-//! La transformation locale d'un prim : `xformOpOrder` nomme les opérations et leur ordre, chacune
-//! est un attribut du prim, et leur produit de gauche à droite est la matrice du nœud glTF.
+//! Local transform of a prim: `xformOpOrder` names the operations and their order, each is a
+//! prim attribute, and their left-to-right product is the glTF node matrix.
 //!
-//! Ce qui n'est pas composable ici est compté par son nom et laissé à l'identité — `!resetXformStack!`,
-//! qui coupe la pile du parent et n'a pas d'équivalent dans un graphe glTF, et l'inverse d'une
-//! matrice quelconque, qu'on ne calcule pas pour ne pas inventer une transformation.
+//! What is not composable here is counted by name and left at identity — `!resetXformStack!`,
+//! which cuts the parent stack and has no equivalent in a glTF graph, and the inverse of an
+//! arbitrary matrix, which is not computed so as not to invent a transform.
 use super::*;
 
-/// Le préfixe que USD met devant une opération à inverser.
+/// Prefix USD puts in front of an operation to invert.
 const INVERT: &str = "!invert!";
-/// L'entrée qui demande d'ignorer la transformation du père.
+/// Entry that asks to ignore the parent's transform.
 const RESET: &str = "!resetXformStack!";
-/// Le préfixe de toute opération de transformation.
+/// Prefix of every transform operation.
 const PREFIX: &str = "xformOp:";
 
-/// La matrice locale d'un prim, dans l'ordre de glTF. Un prim sans `xformOpOrder` est à l'identité.
+/// Local matrix of a prim, in glTF order. A prim without `xformOpOrder` is at identity.
 pub(super) fn local(world: &mut World<'_>, prim: &usd::Prim) -> [f64; 16] {
     let order = match read::first(&prim.attribute("xformOpOrder")) {
         Some((sdf::Value::TokenVec(order), _)) => order,
@@ -42,7 +42,7 @@ pub(super) fn local(world: &mut World<'_>, prim: &usd::Prim) -> [f64; 16] {
     matrix::IDENTITY
 }
 
-/// La matrice d'une opération nommée, ou `None` quand ce pilote ne la compose pas.
+/// Matrix of a named operation, or `None` when this driver does not compose it.
 fn operation(
     world: &mut World<'_>,
     prim: &usd::Prim,
@@ -77,15 +77,15 @@ fn operation(
     }
 }
 
-/// Les rotations d'Euler : `rotateX`, `rotateY`, `rotateZ` autour d'un seul axe, et les six ordres
-/// `rotateXYZ` … `rotateZYX`, dont les lettres nomment les axes **dans l'ordre d'application au
-/// point**, la première étant la plus locale. La matrice compose donc la dernière lettre en
-/// premier ; l'inverse renverse l'ordre et les signes.
+/// Euler rotations: `rotateX`, `rotateY`, `rotateZ` around a single axis, and the six orders
+/// `rotateXYZ` … `rotateZYX`, whose letters name the axes **in the order of application to the
+/// point**, the first being the most local. The matrix therefore composes the last letter
+/// first; the inverse reverses the order and the signs.
 ///
-/// Les trois angles, eux, restent rangés `(x, y, z)` sous les six ordres : le nom de l'opération
-/// dit dans quel ordre les rotations s'appliquent, jamais dans quel ordre les angles sont écrits.
-/// Chaque axe lit donc sa propre composante, et `rotateZYX = (90, 0, 0)` est un quart de tour
-/// autour de X.
+/// The three angles themselves stay stored `(x, y, z)` under the six orders: the operation name
+/// says in which order the rotations apply, never in which order the angles are written. Each
+/// axis therefore reads its own component, and `rotateZYX = (90, 0, 0)` is a quarter turn
+/// around X.
 fn euler(kind: &str, value: &sdf::Value, inverted: bool) -> Option<[f64; 16]> {
     let axes: Vec<usize> = kind
         .strip_prefix("rotate")?
@@ -112,7 +112,7 @@ fn euler(kind: &str, value: &sdf::Value, inverted: bool) -> Option<[f64; 16]> {
     Some(out)
 }
 
-/// Un triplet de translation, nié quand l'opération est inversée.
+/// A translation triple, negated when the operation is inverted.
 fn signed(t: [f64; 3], inverted: bool) -> [f64; 3] {
     match inverted {
         true => [-t[0], -t[1], -t[2]],
@@ -120,8 +120,8 @@ fn signed(t: [f64; 3], inverted: bool) -> [f64; 3] {
     }
 }
 
-/// L'échelle inverse. Un facteur nul n'a pas d'inverse : il reste nul, et la matrice non inversible
-/// qui en sort est reconnue par le contrôle de finitude de `local`.
+/// Inverse scale. A zero factor has no inverse: it stays zero, and the non-invertible matrix
+/// that comes out of it is recognised by `local`'s finiteness check.
 fn inverse(s: [f64; 3]) -> [f64; 3] {
     s.map(|axis| if axis == 0.0 { 0.0 } else { 1.0 / axis })
 }

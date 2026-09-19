@@ -62,7 +62,7 @@ export function createPageStreamer(
         /* Observers cannot alter streaming. */
       }
   };
-  emit('page-catalogue', 'Catalogue et configuration du streamer prêts', () => ({
+  emit('page-catalogue', 'Streamer catalogue and configuration ready', () => ({
     version: 1,
     pages: catalog.size,
     workerCount: limit,
@@ -133,7 +133,7 @@ export function createPageStreamer(
       return subscribe(url, requestSignal, 0);
     },
     retain,
-    /** Les épingles par différence de rangs : ni liste d'adresses, ni ensemble refait par image. */
+    /** Pins by rank delta: neither an address list nor a set rebuilt each frame. */
     retainRanks,
     async request(
       urls: readonly string[],
@@ -141,7 +141,7 @@ export function createPageStreamer(
     ) {
       const unique = [...new Set(urls.filter((url) => catalog.has(url)))];
       state.requested += unique.length;
-      emit('page-request-batch', 'Demande groupée de pages reçue', () => ({
+      emit('page-request-batch', 'Batched page request received', () => ({
         version: 1,
         requested: urls.length,
         unique: unique.length,
@@ -169,7 +169,7 @@ export function createPageStreamer(
     dispose() {
       if (state.disposed) return;
       state.disposed = true;
-      emit('page-stream-dispose', 'Streamer de pages libéré', () => ({
+      emit('page-stream-dispose', 'Page streamer released', () => ({
         version: 1,
         resident: cache.size,
         loading: state.active,

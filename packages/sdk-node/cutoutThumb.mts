@@ -72,11 +72,11 @@ export async function readThumbnails(
       sha256: preview.sha256,
       width,
       height,
-      // Recopié plutôt que gardé en vue : un niveau retenu épinglerait sinon le sidecar entier,
-      // des mégaoctets, pour les quelques kilo-octets qu'on montre.
+      // Copied rather than kept as a view: a retained level would otherwise pin the whole sidecar,
+      // megabytes, for the few kilobytes we show.
       rgba: Uint8Array.from(rgba),
-      // Le contrat public le dit : une source `uri` porte -1, donc tout rang positif est une image
-      // embarquée. Pas de constante interne à emprunter pour ça.
+      // The public contract says so: a `uri` source carries -1, so any non-negative index is an
+      // embedded image. No internal constant to borrow for that.
       sourceBufferView: preview.sourceBufferView >= 0 ? preview.sourceBufferView : undefined,
     });
   }
@@ -116,9 +116,9 @@ export function resize(thumbnail: Thumbnail, width: number, height: number): Thu
  * files has none, and needs none — the file itself is sharper than anything we could rebuild.
  */
 /**
- * Les images embarquées des modèles d'une passe, par cache : ouvertes à la première question qui en
- * demande et pas avant, et rendues avec la passe — un `source.bin` pèse des dizaines de mégaoctets,
- * un hôte durable n'a pas à les garder d'un lot à l'autre.
+ * Embedded images of the models in a pass, by cache: opened at the first question that asks for
+ * them and not before, and released with the pass — a `source.bin` weighs tens of megabytes, a
+ * long-lived host must not keep them from one batch to the next.
  */
 export type EmbeddedImages = Map<string, Promise<(view: number) => Buffer | null>>;
 export async function embeddedImages(

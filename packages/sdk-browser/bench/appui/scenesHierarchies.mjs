@@ -1,10 +1,9 @@
-// Hiérarchies parent/enfant du banc des volumes (lot M2). Les matrices monde viennent de Three.js —
-// `updateMatrixWorld(true)` sur de vraies chaînes d'`Object3D` —, la hiérarchie maison relevant du
-// lot M3 : ce qui se vérifie ici, c'est que les volumes restent exacts sous toute matrice monde
-// réaliste. Chaînes de profondeur 1 à 6 et une branche à plusieurs enfants ; échelles négatives sur
-// un ou trois axes, non uniformes sous une rotation parente (cisaillement), nulle, extrêmes ; une
-// caméra perspective ou orthographique posée elle-même dans la hiérarchie, dans les deux conventions
-// de profondeur.
+// Parent/child hierarchies of the volume bench (batch M2). World matrices come from Three.js —
+// `updateMatrixWorld(true)` on real `Object3D` chains — the in-house hierarchy belonging to
+// batch M3: what is verified here is that volumes stay exact under any realistic world
+// matrix. Depth chains 1 to 6 and a multi-child branch; negative scales on one or three
+// axes, non-uniform under a parent rotation (shear), zero, extremes; a perspective or
+// orthographic camera posed itself in the hierarchy, in both depth conventions.
 import * as THREE from 'three';
 import { graine } from '../../../sdk-core/bench/socle.mjs';
 import { boites } from './scenesVolumes.mjs';
@@ -12,7 +11,7 @@ import { boites } from './scenesVolumes.mjs';
 const alea = graine(60617);
 const dans = (etendue) => (alea() * 2 - 1) * etendue;
 
-/** Échelles d'un nœud : ordinaires, négatives sur un ou trois axes, non uniformes, nulle, extrêmes. */
+/** Scales of a node: ordinary, negative on one or three axes, non-uniform, zero, extremes. */
 const ECHELLES = [
   () => [1, 1, 1],
   () => [-1, 1, 1],
@@ -33,7 +32,7 @@ function noeud(profondeur) {
 
 const racine = new THREE.Object3D(),
   noeuds = [];
-/** Chaînes de profondeur 1 à 6 sous la racine. */
+/** Depth chains 1 to 6 under the root. */
 for (let chaine = 0; chaine < 24; chaine++) {
   let parent = racine;
   const profondeur = 1 + (chaine % 6);
@@ -44,7 +43,7 @@ for (let chaine = 0; chaine < 24; chaine++) {
     parent = n;
   }
 }
-/** Une branche à plusieurs enfants, dont un parent tourné à échelle non uniforme : cisaillement. */
+/** A multi-child branch, including a rotated parent at non-uniform scale: shear. */
 const branche = noeud(3);
 branche.scale.set(3, 0.25, 1);
 racine.add(branche);
@@ -59,7 +58,7 @@ for (let i = 0; i < 5; i++) {
   noeuds.push(petit);
 }
 
-/** Caméras posées dans la hiérarchie, sous des parents de toutes échelles. */
+/** Cameras posed in the hierarchy, under parents of every scale. */
 const cameras = [];
 for (let i = 0; i < 16; i++) {
   const camera =
@@ -75,15 +74,15 @@ for (let i = 0; i < 16; i++) {
 }
 racine.updateMatrixWorld(true);
 
-/** La matrice monde de chaque nœud, telle que Three.js la compose. */
+/** The world matrix of each node, as Three.js composes it. */
 export const mondesHierarchiques = noeuds.map((n) => n.matrixWorld.toArray());
 
-/** Chaque nœud contre quelques boîtes : ce que la transformation de boîte et la sphère reçoivent. */
+/** Each node against a few boxes: what the box transform and the sphere receive. */
 export const boitesHierarchiques = mondesHierarchiques.flatMap((m, i) =>
   boites.filter((_, j) => j % 9 === i % 9).map((b) => [b, m]),
 );
 
-/** Vues-projections des caméras de la hiérarchie, et boîtes monde des nœuds, dont une autour de l'œil. */
+/** View-projections of the hierarchy cameras, and world boxes of the nodes, one around the eye. */
 export const vuesHierarchiques = cameras.map((camera) => {
   const oeil = new THREE.Vector3().setFromMatrixPosition(camera.matrixWorld);
   return {
@@ -109,7 +108,7 @@ export const boitesDeVueHierarchiques = vuesHierarchiques.flatMap(({ vp, webgpu,
   ].map((boite) => ({ vp, webgpu, boite }));
 });
 
-/** Cônes sous les matrices monde de la hiérarchie : matrice normale de Three, œil d'une caméra. */
+/** Cones under the hierarchy world matrices: Three's normal matrix, a camera's eye. */
 export const conesHierarchiques = boitesHierarchiques.map(([b, m], i) => {
   const world = new THREE.Matrix4().fromArray(m);
   const e = world.elements;

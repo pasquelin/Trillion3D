@@ -1,45 +1,45 @@
-# Fixtures de correction — pilote `usd`
+# Correction fixtures — `usd` driver
 
-Deux fixtures, deux questions distinctes. Le doré est
-[`../../src/tests/usd_golden.rs`](../../src/tests/usd_golden.rs) ; les comportements isolés sont dans
-`usd_driver.rs`, ce qui est compté au rapport dans `usd_rapport.rs`, les refus durs dans
+Two fixtures, two distinct questions. The golden is
+[`../../src/tests/usd_golden.rs`](../../src/tests/usd_golden.rs); isolated behaviours are in
+`usd_driver.rs`, what is counted in the report in `usd_rapport.rs`, hard rejections in
 `usd_refus.rs`.
 
-| fichier                      | ce qu'il fixe                                                                     |
+| file                         | what it pins                                                                      |
 | ---------------------------- | --------------------------------------------------------------------------------- |
-| `minuscule/scene.usda`       | ce que le pilote produit : hiérarchie `Xform`, `Mesh` à deux quads, `GeomSubset` `materialBind`, deux matériaux dont un texturé |
-| `minuscule/textures/checker.png` | la texture que le matériau translucide cite, résolue relativement au dossier de la couche |
-| `corpus/usda/scene.usda`     | la même scène que `corpus/usdc`, en texte                                          |
-| `corpus/usdc/scene.usdc`     | la même scène que `corpus/usda`, en binaire « crate »                             |
+| `minuscule/scene.usda`       | what the driver produces: `Xform` hierarchy, `Mesh` of two quads, `GeomSubset` `materialBind`, two materials of which one is textured |
+| `minuscule/textures/checker.png` | the texture the translucent material cites, resolved relative to the layer folder |
+| `corpus/usda/scene.usda`     | the same scene as `corpus/usdc`, in text                                          |
+| `corpus/usdc/scene.usdc`     | the same scene as `corpus/usda`, in binary “crate”                                |
 
-Ce que chaque choix met sous surveillance :
+What each choice puts under watch:
 
-- **deux quadrilatères et un sous-ensemble d'une face** : la triangulation en éventail, et le fait
-  qu'une partie de matériau devient une primitive glTF à part — les faces qu'aucun sous-ensemble ne
-  réclame revenant à la liaison du maillage ;
-- **une normale `constant` et une `primvars:st` `vertex`** : les deux répartitions d'une primvar ne
-  se résolvent pas au même rang du tableau, et c'est ce rang qui déduplique les sommets ;
-- **un `UsdPreviewSurface` opaque et un autre à `opacity` 0,5 et texture** : `baseColorFactor`,
-  `alphaMode` et l'emplacement de texture, sans qu'aucune règle ne nomme un type d'objet ;
-- **la même scène en `usda` et en `usdc`** : les deux sérialisations doivent donner la **même**
-  scène intermédiaire, au nœud et à l'octet du sidecar près. C'est la seule preuve qui vaille que le
-  pilote lit un document et non une écriture. Trois cubes, trois matériaux, trente-six triangles.
+- **two quadrilaterals and a one-face subset**: fan triangulation, and the fact
+  that a material part becomes a separate glTF primitive — faces that no subset
+  claims falling back to the mesh binding;
+- **a `constant` normal and a `vertex` `primvars:st`**: the two interpolations of a primvar
+  do not resolve at the same rank of the array, and that rank is what deduplicates vertices;
+- **an opaque `UsdPreviewSurface` and another with `opacity` 0.5 and a texture**: `baseColorFactor`,
+  `alphaMode` and the texture slot, without any rule naming an object type;
+- **the same scene in `usda` and in `usdc`**: both serialisations must yield the **same**
+  intermediate scene, down to the node and the sidecar byte. That is the only proof that counts that the
+  driver reads a document and not a writing. Three cubes, three materials, thirty-six triangles.
 
-## Provenance et licences
+## Provenance and licences
 
-- `corpus/` : corpus WebGeometry (`test/assets/usd/procedural-usda` et `procedural-usdc`),
-  **CC0-1.0**, voir [LICENSE.txt](LICENSE.txt). `test/assets/` n'est pas suivi par git : ces octets
-  sont recopiés ici pour que la dorée tienne sans lui.
-- `minuscule/scene.usda` : écrit à la main pour ce test depuis la spécification publique de l'AOUSD,
-  sans contenu d'aucun tiers. `minuscule/textures/checker.png` vient du même corpus CC0.
+- `corpus/`: WebGeometry corpus (`test/assets/usd/procedural-usda` and `procedural-usdc`),
+  **CC0-1.0**, see [LICENSE.txt](LICENSE.txt). `test/assets/` is not tracked by git: these bytes
+  are copied here so the golden holds without it.
+- `minuscule/scene.usda`: written by hand for this test from the public AOUSD specification,
+  with no third-party content. `minuscule/textures/checker.png` comes from the same CC0 corpus.
 
 ## `expected.json`
 
-Le pilote retenu, la scène intermédiaire qu'il a écrite — nœuds, maillages, matériaux, images,
-échantillonneurs, textures, accesseurs, rapport — et la scène compilée qui en sort, sidecar compris.
-La clé de cache n'y figure pas : le manifeste d'une scène convertie porte sa durée d'import, donc la
-clé change d'un passage à l'autre sans que la scène bouge. `case` et `rule` ne sont que de la prose,
-le test les retire avant de comparer. Pour le régénérer :
+The selected driver, the intermediate scene it wrote — nodes, meshes, materials, images,
+samplers, textures, accessors, report — and the compiled scene that comes out of it, sidecar included.
+The cache key does not appear in it: a converted scene's manifest carries its import duration, so the
+key changes from one run to the next without the scene moving. `case` and `rule` are prose only,
+the test strips them before comparing. To regenerate it:
 
 ```sh
 cargo test --lib regenere_la_fixture_usd -- --ignored

@@ -11,14 +11,14 @@ import { blendExpandUniform, EXPAND_PASSES, RUN_WORDS, UNI_WORDS } from './webgp
 
 export type BlendExpand = ReturnType<typeof expandApi>;
 
-/** Chaque passe a sa région d'uniforme, à son propre alignement de liaison dynamique. */
+/** Each pass has its uniform region, at its own dynamic-binding alignment. */
 const UNI_STRIDE = 256;
 /**
- * L'OBJET DE SCÈNE DU NOYAU : ce qu'il tient par image, et rien de la fabrique qui l'a monté.
+ * SCENE OBJECT OF THE KERNEL: what it holds per frame, and nothing of the factory that mounted
+ * it.
  *
- * Écrit à part de `createBlendExpand` exprès : des fermetures rendues depuis la fabrique
- * retiendraient son module compilé, ses dispositions et ses fermetures de repli, dont aucune ne
- * sert après la création.
+ * Written apart from `createBlendExpand` on purpose: closures returned from the factory would
+ * retain its compiled module, layouts and fallback closures, none of which serve after creation.
  */
 function expandApi(
   device: GPUDevice,
@@ -30,11 +30,11 @@ function expandApi(
 ) {
   const { uniforms, plan, keep, draws } = tampons;
   const uni = new Uint32Array(UNI_WORDS);
-  // Les deux tableaux que l'encodage relit sur place : un décalage dynamique, quatre lancements.
+  // The two arrays encoding rereads in place: one dynamic offset, four dispatches.
   const offsets = [0],
     lancements = [0, 0, 0, 0];
   return {
-    /** La description statique de chaque item : rang paginé, morceaux, base de table, sommets. */
+    /** Static description of each item: paged rank, chunks, table base, vertices. */
     uploadDraws(packed: Uint32Array) {
       device.queue.writeBuffer(
         draws,
@@ -44,12 +44,12 @@ function expandApi(
         items * 16,
       );
     },
-    /** Le verdict du tronc de l'image : un bit par item, quelques centaines d'octets. */
+    /** Frustum verdict of the frame: one bit per item, a few hundred bytes. */
     uploadKeep(packed: Uint32Array) {
       device.queue.writeBuffer(keep, 0, packed.buffer as ArrayBuffer, packed.byteOffset);
     },
-    /** L'ordre de peinture et ses tranches, écrits seulement quand le classement les a bougés —
-     *  et seulement les tranches que l'image porte, qui sont quelques-unes, pas quelques mille. */
+    /** Paint order and its runs, written only when ranking moved them — and only the runs the
+     *  frame carries, a handful, not a few thousand. */
     uploadPlan(
       region: { order: number; runs: number },
       order: Uint32Array,
@@ -92,12 +92,12 @@ function expandApi(
 }
 
 /**
- * Le noyau qui étale le plan trié, et les tampons de scène qu'il lit.
+ * Kernel that expands the sorted plan, and the scene buffers it reads.
  *
- * Rien n'est alloué par image. Ce que l'image donne tient en trois écritures : le verdict du tronc
- * (un bit par item), l'ordre de peinture quand il a bougé, et les douze mots d'uniforme de chaque
- * passe. Ce que l'image obtient est la liste d'instances que le nuanceur de mélange lit et un
- * argument indirect par tranche — jamais par item.
+ * Nothing is allocated per frame. What the frame gives fits in three writes: the frustum verdict
+ * (one bit per item), the paint order when it has moved, and the twelve uniform words of each
+ * pass. What the frame gets is the instance list the blend shader reads and one indirect
+ * argument per run — never per item.
  */
 export async function createBlendExpand(
   device: GPUDevice,
@@ -148,8 +148,8 @@ export async function createBlendExpand(
     const pipelines = BLEND_EXPAND_ENTRIES.map((entryPoint) =>
       device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } }),
     );
-    // Sans primitive paginée il n'y a ni compte ni liste de grappes à lire : le noyau ne touche
-    // jamais ces deux liaisons, et `draws` les remplit — un même groupe ne peut pas rester vide.
+    // Without a paged primitive there is neither a count nor a cluster list to read: the kernel
+    // never touches those two bindings, and `draws` fills them — the same group cannot stay empty.
     const bindGroup = device.createBindGroup({
       layout,
       entries: [

@@ -1,4 +1,4 @@
-//! Petite algèbre de vecteurs et lecture d'un triangle monde. Rien d'autre ne vit ici.
+//! Small vector algebra and world triangle reading. Nothing else lives here.
 use super::scene::World;
 use super::trace::Hit;
 use crate::proxy::PROXY_TRIANGLE_FLOATS;
@@ -42,8 +42,8 @@ pub fn normal_of(world: &World, triangle: usize) -> [f64; 3] {
         sub(vertex(world, triangle, 2), a),
     ))
 }
-/// Le point qu'un rayon a touché et la normale qui le regarde. La source n'a pas de sens
-/// d'enroulement fiable : c'est le rayon qui décide de quel côté de la surface il arrive.
+/// Hit point and facing normal. Source has no reliable winding order:
+/// ray determines which surface side it arrives at.
 pub fn surface_at(
     world: &World,
     origin: [f64; 3],

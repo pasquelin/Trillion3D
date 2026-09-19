@@ -1,5 +1,5 @@
-//! L'estimation d'avancement d'un travail entier. Sortie de `lib.rs` pour tenir la limite de lignes
-//! du dépôt, sans rien changer aux fractions annoncées.
+//! Whole-job progress estimate. Split out of `lib.rs` to keep the repository line
+//! limit, without changing the announced fractions.
 use serde_json::{json, Value};
 
 /// Whole-job completion estimate attached to every progress event, so a host draws one bar without
@@ -7,8 +7,9 @@ use serde_json::{json, Value};
 /// spread over the primitives announced by the `import` event, root bundles 0.95–0.96, coplanar cuts
 /// 0.96–0.97, resident proxy 0.97, lights 0.98, prune 0.99, pointer 1.
 ///
-/// Cette estimation ne recule jamais : une phase que la table ne connaît pas garde le dernier
-/// avancement atteint, et un travail qui importe plusieurs fichiers ne recommence pas sa barre.
+/// This estimate never goes backwards: a phase the table does not know keeps the
+/// last progress reached, and a job that imports several files does not restart
+/// its bar.
 pub(crate) fn with_ratio(progress: impl Fn(Value) + Sync) -> impl Fn(Value) + Sync {
     let state = std::sync::Mutex::new((0usize, 0usize, 0.0f64));
     move |mut event: Value| {
@@ -46,7 +47,7 @@ pub(crate) fn with_ratio(progress: impl Fn(Value) + Sync) -> impl Fn(Value) + Sy
             }
             Some("bootstrap") => 0.95 + 0.01 * frac(&event),
             Some("coplanar") => 0.96 + 0.005 * frac(&event),
-            // Les textures se cuisent entre les couches coplanaires et le proxy : une image par pas.
+            // Textures bake between coplanar layers and the proxy: one image per step.
             Some("textures") => 0.965 + 0.005 * frac(&event),
             Some("proxy") => 0.97,
             Some("lights") => 0.98,
@@ -54,8 +55,9 @@ pub(crate) fn with_ratio(progress: impl Fn(Value) + Sync) -> impl Fn(Value) + Sy
             Some("complete") => 1.0,
             _ => guard.2,
         };
-        // La barre d'un hôte ne redescend pas : une phase plus lente que prévu, ou inconnue de cette
-        // table, tient l'avancement déjà annoncé plutôt que de le reprendre à zéro.
+        // A host bar never goes down: a phase slower than expected, or unknown to
+        // this table, keeps the progress already announced rather than restarting
+        // from zero.
         let ratio = ratio.max(guard.2);
         guard.2 = ratio;
         if let Some(object) = event.as_object_mut() {

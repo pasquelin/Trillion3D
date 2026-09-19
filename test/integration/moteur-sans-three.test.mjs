@@ -4,145 +4,134 @@ import { readFile, readdir } from 'node:fs/promises';
 
 const browser = new URL('../../packages/sdk-browser/', import.meta.url);
 
-// LA LISTE FERMÉE DES FICHIERS DE `sdk-browser` QUI ONT LE DROIT D'IMPORTER LA BIBLIOTHÈQUE HÔTE.
+// CLOSED LIST OF `sdk-browser` FILES ALLOWED TO IMPORT THE HOST LIBRARY.
 //
-// La règle est inversée : ce n'est plus une liste de fichiers surveillés, c'est la liste de TOUT ce
-// qui peut encore nommer `three`. Un fichier hors liste ne l'importe pas — `import type` compris,
-// parce qu'un type de calcul dans une signature suffit à replacer la bibliothèque de l'hôte au
-// milieu d'un nombre que le moteur calcule. Trois familles seulement y ont droit.
+// The rule is inverted: it is no longer a watch list of files, it is the list of EVERYTHING
+// that can still name `three`. A file outside the list does not import it — `import type` included,
+// because a calculation type in a signature is enough to put the host library back in the
+// middle of a number that the engine calculates. Only three families are allowed.
 //
-//  1. LES MOTEURS TÉMOINS. Ils sont écrits avec la bibliothèque hôte, et c'est leur fonction : ils
-//     sont la référence contre laquelle le moteur est comparé, image par image. Les réécrire
-//     supprimerait la comparaison.
-//  2. LES FRONTIÈRES DE L'HÔTE. La scène, la caméra, le renderer, les lampes appartiennent à
-//     l'hôte : quelqu'un doit les créer, les lire, les reposer. Ces fichiers-là le font, une fois,
-//     et rendent au moteur des tampons plats ou des structures qu'il possède.
-//  3. LES RESSOURCES DE L'HÔTE. Matériaux, textures, géométries, maillages, couleurs, constantes de
-//     face et d'enroulement : des objets que le moteur consulte sans jamais calculer avec.
+//  1. WITNESS ENGINES. Written with the host library, and that is their function: they
+//     are the reference against which the engine is compared, frame by frame. Rewriting them
+//     would eliminate the comparison.
+//  2. HOST BOUNDARIES. Scene, camera, renderer, lights belong to the host: something must
+//     create, read, and set them. These files do it once, returning flat buffers or owned structures.
+//  3. HOST RESOURCES. Materials, textures, geometries, meshes, colors, face/winding constants:
+//     objects that the engine consults without ever calculating with.
 //
-// Y ajouter une ligne est une décision, pas un oubli ; en retirer une qui ne sert plus aussi — le
-// second test échoue sur une ligne morte. Le contrat de pose caméra, lui, vit dans `cameraWorld.ts`
-// et `test/integration/structure-moteur.test.mjs` ; la frontière de calcul du chargement, dans
+// Adding a line is a decision, not an oversight; removing an unused line as well — the
+// second test fails on a dead line. The camera pose contract lives in `cameraWorld.ts`
+// and `test/integration/structure-moteur.test.mjs`; the loading computation boundary, in
 // `test/integration/moteur-sans-three-math.test.mjs`.
 const AUTORISES = {
-  // 1. Moteurs témoins.
-  autonomousGeometry: 'témoin autonome : il monte ses maillages avec la bibliothèque hôte',
-  autonomousInstances: 'témoin autonome : ses instances portent des matrices de l’hôte',
-  autonomousPages: 'témoin autonome : ses pages sont des géométries de l’hôte',
-  autonomousRender: 'témoin autonome : il rend par le renderer de l’hôte',
-  blendCopyMesh: 'témoin : la copie transparente est un maillage de l’hôte',
-  clusterBatches: 'témoin par lots : il regroupe des géométries de l’hôte',
-  clusterBatchesFixture: 'montage du témoin par lots',
-  clusterBatchLayers: 'témoin par lots : couches de maillages de l’hôte',
-  clusterBatchMesh: 'témoin par lots : il dérive un maillage de l’hôte',
-  clusterBatchPrimitive: 'témoin par lots : une primitive de l’hôte par matériau',
-  clusterBatchRange: 'témoin par lots : plages d’index d’une géométrie de l’hôte',
-  clusterBatchSetup: 'témoin par lots : montage de ses primitives',
-  clusterBatchUpdate: 'témoin par lots : réécriture de ses plages',
-  comparison: 'témoin de comparaison : il compose deux images par une scène de l’hôte',
-  exactPagesAttachment: 'témoin exact : il attache ses pages au graphe de l’hôte',
-  exactPagesBackend: 'témoin exact : moteur écrit avec la bibliothèque hôte',
-  exactPagesContractLights:
-    'témoin exact : il traduit les lampes du contrat en lampes de la bibliothèque hôte',
-  exactPagesMaterials: 'témoin exact : ses matériaux sont ceux de l’hôte',
-  exactPagesUnlitAlbedo:
-    'témoin exact : sa vue sans lumière neutralise les facteurs de matériau de l’hôte',
-  exactPagesMetrics: 'témoin exact : il compte ce que le renderer de l’hôte a soumis',
-  exactPagesRender: 'témoin exact : il rend par le renderer de l’hôte',
-  exactPagesRequests: 'témoin exact : ses demandes partent de son graphe de l’hôte',
-  lightingObservationMeshes: 'témoin d’éclairage : maillages observés de l’hôte',
-  lightingObservationResources: 'témoin d’éclairage : ses ressources sont celles de l’hôte',
-  lightingObservationTransforms: 'témoin d’éclairage : poses de repos du graphe de l’hôte',
-  referenceBackend: 'témoin de référence : le moteur de l’hôte, tel quel',
-  threeBounds: 'témoin : les bornes telles que la bibliothèque hôte les calcule',
-  threeLod: 'témoin : la sélection de niveau de détail de l’hôte, `LOD.update` compris',
+  // 1. Witness engines.
+  autonomousGeometry: 'autonomous witness: it mounts its meshes with the host library',
+  autonomousInstances: 'autonomous witness: its instances carry host matrices',
+  autonomousPages: 'autonomous witness: its pages are host geometries',
+  blendCopyMesh: 'witness: the transparent copy is a host mesh',
+  clusterBatches: 'batch witness: it groups host geometries',
+  clusterBatchesFixture: 'batch-witness mount',
+  clusterBatchLayers: 'batch witness: host mesh layers',
+  clusterBatchMesh: 'batch witness: it derives a host mesh',
+  clusterBatchPrimitive: 'batch witness: one host primitive per material',
+  clusterBatchRange: 'batch witness: index ranges of a host geometry',
+  clusterBatchSetup: 'batch witness: mount of its primitives',
+  clusterBatchUpdate: 'batch witness: rewrite of its ranges',
+  comparison: 'comparison witness: it composes two images through a host scene',
+  exactPagesAttachment: 'exact witness: it attaches its pages to the host graph',
+  exactPagesBackend: 'exact witness: engine written with the host library',
+  exactPagesContractLights: 'exact witness: it maps contract lights to host-library lights',
+  exactPagesMaterials: 'exact witness: its materials are the host’s',
+  exactPagesUnlitAlbedo: 'exact witness: its unlit view zeros the host material factors',
+  exactPagesMetrics: 'exact witness: it counts what the host renderer submitted',
+  exactPagesRender: 'exact witness: it renders through the host renderer',
+  exactPagesRequests: 'exact witness: its requests start from its host graph',
+  lightingObservationMeshes: 'lighting witness: observed host meshes',
+  lightingObservationResources: 'lighting witness: its resources are the host’s',
+  referenceBackend: 'reference witness: the host engine, as-is',
+  threeBounds: 'witness: bounds as the host library computes them',
+  threeLod: 'witness: the host level-of-detail selection, `LOD.update` included',
 
-  // 2. Frontières de l'hôte : scène, caméra, renderer, lampes, poses.
-  backendCommon: 'frontière : il crée la scène que chaque moteur rend à l’hôte',
-  cameraWorld: 'le contrat de pose caméra : le seul à traduire une caméra hôte en caméra moteur',
-  explorerBackends: 'frontière : il monte les moteurs sur le renderer de l’hôte',
-  explorerCamera: 'frontière : l’hôte POSE sa caméra, et relit `bounds` et `center`',
-  explorerCameraApi: 'frontière : aller-retour de pose entre l’hôte et sa caméra',
-  explorerCapabilities: 'frontière : il interroge le contexte du renderer de l’hôte',
-  explorerCapture: 'frontière : il lit les pixels de la cible de l’hôte',
-  explorerDisposeSource: 'frontière : il libère les ressources du graphe de l’hôte',
-  explorerDraw: 'frontière : il appelle le renderer de l’hôte',
-  explorerHeldFrame: 'frontière : il recompose l’image tenue dans une scène de l’hôte',
-  explorerHostState: 'frontière : il restaure une pose enregistrée dans la caméra de l’hôte',
-  explorerLifecycle: 'frontière : il crée et détruit le renderer de l’hôte',
-  explorerPrepare: 'frontière : il prépare le graphe source de l’hôte',
-  explorerRender: 'frontière : la boucle d’image de l’hôte, ses cibles et ses textures',
-  explorerRenderFallback: 'frontière : le repli quand le renderer de l’hôte lève',
-  exactPagesBounds: 'frontière : il parcourt le graphe source de l’hôte pour en borner les pages',
-  explorerScene: 'frontière : il construit la scène préparée de l’hôte',
-  frameGateCore: 'frontière : la porte d’image relit le nœud source de l’hôte',
-  hostSceneLightState: 'frontière : les lampes déclarées deviennent des lampes de l’hôte',
-  hostSceneWatch: 'frontière : elle relit les poses locales que l’hôte a écrites',
-  hostWorldBounds: 'frontière : les bornes du graphe de l’hôte, rendues à plat',
-  hostWorldChain: 'frontière : il lit la chaîne d’ancêtres d’un nœud de l’hôte',
-  hostWorldMatrices: 'frontière : la pose locale d’un nœud de l’hôte, lue à plat',
+  // 2. Host boundaries: scene, camera, renderer, lights, poses.
+  backendCommon: 'boundary: it creates the scene each engine renders to the host',
+  cameraWorld: 'camera-pose contract: the only one that maps a host camera to an engine camera',
+  explorerBackends: 'boundary: it mounts engines on the host renderer',
+  explorerCamera: 'boundary: the host SETS its camera, and rereads `bounds` and `center`',
+  explorerCameraApi: 'boundary: pose round-trip between the host and its camera',
+  explorerCapabilities: 'boundary: it queries the host renderer’s context',
+  explorerCapture: 'boundary: it reads pixels of the host target',
+  explorerDisposeSource: 'boundary: it frees host-graph resources',
+  explorerDraw: 'boundary: it calls the host renderer',
+  explorerHeldFrame: 'boundary: it recomposes the held image in a host scene',
+  explorerHostState: 'boundary: it restores a recorded pose into the host camera',
+  explorerLifecycle: 'boundary: it creates and destroys the host renderer',
+  explorerPrepare: 'boundary: it prepares the host source graph',
+  explorerRender: 'boundary: the host frame loop, its targets and its textures',
+  explorerRenderFallback: 'boundary: fallback when the host renderer throws',
+  exactPagesBounds: 'boundary: it walks the host source graph to bound its pages',
+  explorerScene: 'boundary: it builds the host’s prepared scene',
+  frameGateCore: 'boundary: the frame gate rereads the host source node',
+  hostSceneLightState: 'boundary: declared lights become host lights',
+  hostSceneWatch: 'boundary: it rereads the local poses the host wrote',
+  hostWorldBounds: 'boundary: host-graph bounds, returned flat',
+  hostWorldChain: 'boundary: it reads the ancestor chain of a host node',
+  hostWorldMatrices: 'boundary: the local pose of a host node, read flat',
   hostWorldPlacements:
-    'frontière : le contenant de matrice que l’hôte attache et que les témoins dessinent, rempli par le moteur',
-  hostWorldTree: 'frontière : il lit les poses locales d’un sous-arbre de l’hôte',
-  pageSelectionCollect: 'frontière : il parcourt le graphe source de l’hôte',
-  replicateInstances: 'frontière : il réplique des nœuds du graphe de l’hôte',
-  sceneLighting: 'frontière : les lampes du contrat posées dans la scène de l’hôte',
-  sceneMeshes: 'frontière : il énumère les maillages du graphe de l’hôte',
-  webgpuPagesSurfaceCapture: 'frontière : la capture entre par une caméra de l’hôte',
-  webgpuPagesTransform: 'frontière : l’hôte déplace un sous-arbre de sa scène',
+    'boundary: the matrix container the host attaches and witnesses draw, filled by the engine',
+  hostWorldTree: 'boundary: it reads local poses of a host subtree',
+  pageSelectionCollect: 'boundary: it walks the host source graph',
+  replicateInstances: 'boundary: it replicates nodes of the host graph',
+  sceneLighting: 'boundary: contract lights placed in the host scene',
+  sceneMeshes: 'boundary: it enumerates meshes of the host graph',
+  webgpuPagesSurfaceCapture: 'boundary: capture enters through a host camera',
+  webgpuPagesTransform: 'boundary: the host moves a subtree of its scene',
 
-  // 2 bis. Montages de scènes de test et oracles qui parcourent le graphe de l'hôte.
-  gpuDagOracleMath: 'oracle : il POSE une caméra hôte pour en dériver la caméra du moteur',
-  pageRaster: 'oracle raster : il lit les maillages, matériaux et couleurs du graphe de l’hôte',
-  pageSelectionBlendFixture: 'montage de scène de test : il pose la caméra et les matériaux',
-  pageSelectionDagFixture: 'montage de scène de test : il pose la caméra et les matériaux',
-  pagesBackendFixture: 'montage de test : il compte ce que des maillages de l’hôte dessinent',
-  pagesBackendScenes: 'montage de scène de test : il pose la caméra',
-  visibilityBufferFixture: 'montage de scène de test : il pose la caméra et les pages',
-  webgpuCutRepriseFixture: 'montage de test : il pose la caméra hôte que cameraMoteur traduit',
-  webgpuPagesTestOccluder: 'montage de scène de test : l’occulteur et sa caméra',
-  webgpuPagesTestScenes: 'montage de scènes de test : maillages et matériaux',
+  // 2 bis. Test-scene mounts and oracles that walk the host graph.
+  pageRaster: 'raster oracle: it reads meshes, materials and colours of the host graph',
+  pageSelectionBlendFixture: 'test-scene mount: it sets the camera and materials',
+  pageSelectionDagFixture: 'test-scene mount: it sets the camera and materials',
+  pagesBackendFixture: 'test mount: it counts what host meshes draw',
+  pagesBackendScenes: 'test-scene mount: it sets the camera',
+  visibilityBufferFixture: 'test-scene mount: it sets the camera and pages',
+  webgpuPagesTestOccluder: 'test-scene mount: the occluder and its camera',
+  webgpuPagesTestScenes: 'test-scene mounts: meshes and materials',
   webgpuTransformCisaillementFixture:
-    'montage de test : scène et runtime minimaux pour `setWebgpuTransform`',
+    'test mount: minimal scene and runtime for `setWebgpuTransform`',
 
-  // 3. Ressources de l'hôte : matériaux, textures, géométries, couleurs, constantes de face.
-  backendTypes: 'contrat : les ressources de l’hôte qu’un moteur reçoit',
-  explorerOptions: 'contrat : les ressources de l’hôte que l’hôte déclare',
-  explorerDiagnosticApi: 'il remplace les matériaux et géométries de l’hôte par ceux du diagnostic',
-  explorerSceneApi: 'contrat : matériaux et poses que l’hôte réécrit sur sa scène',
-  explorerViewportApi: 'frontière : la vue de capture est une caméra de l’hôte',
-  frameCostAudit: 'constante de face du matériau hôte, et les compteurs de son renderer',
-  gpuDagTypes: 'contrat : matériaux et matrices que l’hôte écrit',
-  gpuSelection: 'constantes de face du matériau hôte',
-  pageCone: 'constantes de face du matériau hôte',
-  pageSelectionCutState: 'matériau de l’hôte porté par une page',
-  pageSelectionHelpers: 'constante de face du matériau hôte',
-  pageSelectionTypes: 'contrat : géométries, matériaux et matrices que l’hôte écrit',
-  triangleDiagnostic: 'il colore une géométrie de l’hôte dans un matériau de l’hôte',
-  visibilityLighting: 'couleur du matériau hôte',
-  visibilityMath: 'attributs, textures et modes de répétition de l’hôte',
-  visibilityRaster: 'constantes de face du matériau hôte',
-  visibilityTypes: 'contrat : matériaux, textures et couleurs de l’hôte',
-  visibilityWrapModes: 'modes de répétition de la texture hôte',
-  webgpuTileAtlas: 'texture de l’hôte comme source d’une tuile',
-  webgpuTileCatalogue: 'textures de l’hôte au catalogue du pool',
-  webgpuTileScratch: 'image de l’hôte transférée dans la texture de travail',
-  webgpuBlendBuffers: 'attributs de géométrie de l’hôte',
-  webgpuBlendItems: 'contrat : textures de l’hôte rangées par la fiche d’un item',
-  webgpuBlendPlan: 'constantes de face du matériau hôte',
-  webgpuBlendPrepare: 'maillages et matériaux de l’hôte à préparer',
-  webgpuBlendState: 'contrat : géométries, matériaux et matrices que l’hôte écrit',
-  webgpuGeometryPrepare: 'géométries de l’hôte à préparer',
-  webgpuMaterialTextures: 'textures du matériau hôte',
-  webgpuPageRow: 'géométrie et textures de l’hôte d’une rangée',
-  webgpuPagesHelpers: 'couleurs et gestion de couleur de l’hôte',
-  webgpuPagesPipelineFor: 'constantes de face du matériau hôte',
-  webgpuPagesPrepare: 'attributs de géométrie de l’hôte',
-  webgpuPagesSetup: 'maillages de la scène de l’hôte',
-  webgpuPagesStateGpu: 'contrat : géométries, textures et maillage de présentation de l’hôte',
-  webgpuPagesStateVis: 'contrat : géométries et textures de l’hôte',
-  webgpuPositions: 'attribut de position de la géométrie hôte',
-  webgpuPresentationSetup: 'la présentation passe par une scène et un matériau de l’hôte',
+  // 3. Host resources: materials, textures, geometries, colours, face constants.
+  backendTypes: 'contract: host resources an engine receives',
+  explorerOptions: 'contract: host resources the host declares',
+  explorerDiagnosticApi: 'it replaces host materials and geometries with diagnostic ones',
+  explorerSceneApi: 'contract: materials and poses the host rewrites on its scene',
+  explorerViewportApi: 'boundary: the capture view is a host camera',
+  gpuDagTypes: 'contract: materials and matrices the host writes',
+  gpuSelection: 'host material type carried by a page',
+  materialSide: 'host-material face constants, read once into the engine `Side`',
+  pageCone: 'host material type carried by a page',
+  pageSelectionCutState: 'host material carried by a page',
+  pageSelectionHelpers: 'host material type carried by a page',
+  pageSelectionTypes: 'contract: geometries, materials and matrices the host writes',
+  triangleDiagnostic: 'it colours a host geometry in a host material',
+  visibilityMath: 'host attributes, textures and wrap modes',
+  visibilityTypes: 'contract: host materials, textures and colours',
+  visibilityWrapModes: 'host-texture wrap modes',
+  webgpuTileAtlas: 'host texture as a tile source',
+  webgpuTileCatalogue: 'host textures in the pool catalogue',
+  webgpuTileScratch: 'host image transferred into the working texture',
+  webgpuBlendBuffers: 'host geometry attributes',
+  webgpuBlendItems: 'contract: host textures stored by an item record',
+  webgpuBlendPrepare: 'host meshes and materials to prepare',
+  webgpuBlendState: 'contract: geometries, materials and matrices the host writes',
+  webgpuGeometryPrepare: 'host geometries to prepare',
+  webgpuMaterialTextures: 'host-material textures',
+  webgpuPageRow: 'host geometry and textures of a row',
+  webgpuPagesHelpers: 'host colours and colour management',
+  webgpuPagesPrepare: 'host geometry attributes',
+  webgpuPagesSetup: 'meshes of the host scene',
+  webgpuPagesStateGpu: 'contract: host geometries, textures and presentation mesh',
+  webgpuPagesStateVis: 'contract: host geometries and textures',
+  webgpuPositions: 'position attribute of the host geometry',
+  webgpuPresentationSetup: 'presentation goes through a host scene and material',
 };
 
 const IMPORTE_HOTE = /^\s*(?:import|export)\b[^\n]*\bfrom\s+['"]three['"]/m;
@@ -150,35 +139,36 @@ const IMPORTE_HOTE = /^\s*(?:import|export)\b[^\n]*\bfrom\s+['"]three['"]/m;
 const sources = async () =>
   (await readdir(browser)).filter((name) => name.endsWith('.ts') && !name.endsWith('.test.ts'));
 
-test('seuls les fichiers déclarés importent la bibliothèque hôte', async () => {
+test('only declared files import the host library', async () => {
   const fichiers = await sources();
-  assert.ok(fichiers.length > 100, 'le paquet navigateur doit être trouvé');
+  assert.ok(fichiers.length > 100, 'the browser package must be found');
   const fuites = [];
   for (const file of fichiers) {
     if (AUTORISES[file.slice(0, -3)]) continue;
     const texte = await readFile(new URL(file, browser), 'utf8');
     if (IMPORTE_HOTE.test(texte)) fuites.push(file);
   }
-  assert.deepEqual(fuites, [], `liste fermée déclarée dans ${import.meta.url}`);
+  assert.deepEqual(fuites, [], `closed list declared in ${import.meta.url}`);
 });
 
-test('aucune ligne morte : chaque fichier déclaré existe et importe encore', async () => {
+test('no dead lines: each declared file exists and still imports', async () => {
   const fichiers = new Set(await sources());
   const morts = [];
   for (const [nom, raison] of Object.entries(AUTORISES)) {
     const file = `${nom}.ts`;
-    assert.ok(raison.length > 10, `${file} doit dire pourquoi`);
-    if (!fichiers.has(file)) morts.push(`${file} n’existe plus`);
+    assert.ok(raison.length > 10, `${file} must say why`);
+    if (!fichiers.has(file)) morts.push(`${file} no longer exists`);
     else if (!IMPORTE_HOTE.test(await readFile(new URL(file, browser), 'utf8')))
-      morts.push(`${file} n’importe plus la bibliothèque hôte : retirer sa ligne`);
+      morts.push(`${file} no longer imports the host library: remove its line`);
   }
-  assert.deepEqual(morts, [], 'une autorisation qui ne sert plus se retire de la liste');
+  assert.deepEqual(morts, [], 'an unused authorisation is removed from the list');
 });
 
-test('`cameraWorld.ts` reste la seule traduction de caméra hôte en caméra moteur', async () => {
+test('`cameraWorld.ts` remains the only translation from host camera to engine camera', async () => {
   const texte = await readFile(new URL('cameraWorld.ts', browser), 'utf8');
   assert.match(texte, /export type HostCamera = THREE\.PerspectiveCamera/);
   assert.match(texte, /export function readCameraWorld\(/);
+  const moteur = await readFile(new URL('engineCamera.ts', browser), 'utf8');
   for (const champ of ['world', 'projection', 'view', 'viewProjection', 'planes', 'eye'])
-    assert.match(texte, new RegExp(`\\b${champ}\\b`), champ);
+    assert.match(moteur, new RegExp(`\\b${champ}\\b`), champ);
 });

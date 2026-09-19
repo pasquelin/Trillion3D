@@ -1,27 +1,32 @@
-// Remettre, dans un nuanceur livré, le bloc WGSL d'avant un lot — sans que la substitution puisse
-// réussir à moitié ni échouer en silence.
+// Put back, in a shipped shader, the WGSL block from before a lot — without the
+// substitution succeeding halfway or failing in silence.
 //
-// Ce qu'un `texte.replace(livre, avant)` nu ne dit pas, et qu'un banc de reproduction doit savoir :
-//   — `String.prototype.replace` sur un motif CHAÎNE ne remplace que la PREMIÈRE occurrence : si le
-//     bloc livré apparaît deux fois, la seconde reste corrigée et le « shader d'avant » est un
-//     assemblage des deux versions, qui reproduit autre chose que le défaut ;
-//   — le remplacement interprète `$&`, `` $` ``, `$'`, `$$` et `$<nom>` : un bloc d'avant qui
-//     porterait un `$` se recollerait de travers ;
-//   — si le bloc livré n'est plus trouvé, `replace` rend le texte inchangé : la reproduction
-//     rejouerait alors le texte CORRIGÉ en croyant rejouer le défaut, et le banc conclurait « le
-//     défaut ne se reproduit plus » sur un shader qui n'a jamais été modifié.
-// `assert.notEqual(resultat, texte)` n'attrape que le dernier de ces trois cas, et encore : il dit
-// seulement que quelque chose a bougé, pas que c'est le bloc attendu qui a bougé.
+// What a raw `texte.replace(livre, avant)` does not say, and a reproduction bench
+// must know:
+//   — `String.prototype.replace` on a STRING pattern only replaces the FIRST
+//     occurrence: if the shipped block appears twice, the second stays fixed and
+//     the "previous shader" is an assembly of both versions, reproducing something
+//     other than the defect;
+//   — replacement interprets `$&`, `` $` ``, `$'`, `$$` and `$<name>`: a previous
+//     block carrying a `$` would paste crookedly;
+//   — if the shipped block is no longer found, `replace` returns the text unchanged:
+//     reproduction would then replay the FIXED text believing it replays the defect,
+//     and the bench would conclude "the defect no longer reproduces" on a shader
+//     that was never modified.
+// `assert.notEqual(resultat, texte)` only catches the last of those three cases, and
+// even then: it only says something moved, not that it is the expected block that moved.
 //
-// Cette fonction établit la substitution au lieu de l'espérer : occurrences comptées avant et après,
-// remplacement par FONCTION — `replace(livre, () => avant)`, la seule forme où aucun `$` du
-// remplacement n'est interprété — et aller-retour exact : resubstituer le bloc livré au bloc d'avant
-// doit rendre le texte d'origine, au caractère près. Elle exige en plus que le bloc d'avant porte le
-// marqueur qui FAIT la reproduction (le seuil, la formule, ce que le lot a changé) et que le bloc
-// livré ne le porte plus : une reproduction qui ne reproduit plus rassure à tort.
+// This function establishes the substitution instead of hoping for it: occurrences
+// counted before and after, replacement by FUNCTION — `replace(livre, () => avant)`,
+// the only form where no `$` of the replacement is interpreted — and exact round-trip:
+// substituting the shipped block back for the previous one must return the original
+// text, character for character. It also requires that the previous block carry the
+// marker that MAKES the reproduction (the threshold, the formula, what the lot changed)
+// and that the shipped block no longer carry it: a reproduction that no longer
+// reproduces reassures wrongly.
 import assert from 'node:assert/strict';
 
-/** Le nombre d'occurrences de `bloc` dans `texte`, sans chevauchement. */
+/** Number of occurrences of `bloc` in `texte`, without overlap. */
 function occurrences(texte, bloc) {
   let compte = 0;
   for (let i = texte.indexOf(bloc); i >= 0; i = texte.indexOf(bloc, i + bloc.length)) compte++;
@@ -29,40 +34,43 @@ function occurrences(texte, bloc) {
 }
 
 /**
- * Rend `texte` avec `livre` remplacé par `avant`, ou échoue en nommant précisément ce qui manque.
- * `nom` désigne le texte traité et `origine` le fichier où vivent les deux blocs, pour que le
- * message dise où aller quand le noyau a bougé. `marqueur` est le fragment qui distingue la forme
- * d'avant de la forme livrée.
+ * Returns `texte` with `livre` replaced by `avant`, or fails naming exactly what is
+ * missing. `nom` names the treated text and `origine` the file where both blocks live,
+ * so the message says where to go when the kernel has moved. `marqueur` is the fragment
+ * that distinguishes the previous form from the shipped one.
  */
-export function substitueFormeAvant({ texte, livre, avant, nom, origine, marqueur }) {
-  const ou = `${nom} : les deux formes viennent de ${origine}`;
+export function substitueFormeAvant({ texte, livre, before, name, origine, marqueur }) {
+  const ou = `${name}: both forms come from ${origine}`;
   assert.notEqual(
     livre,
-    avant,
-    `${ou} — les deux blocs sont le même texte, il n'y a rien à rejouer`,
+    before,
+    `${ou} — both blocks are the same text, there is nothing to replay`,
   );
-  assert.ok(avant.includes(marqueur), `${ou} — la forme d'avant ne porte plus « ${marqueur} »`);
-  assert.ok(!livre.includes(marqueur), `${ou} — la forme livrée porte encore « ${marqueur} »`);
+  assert.ok(
+    before.includes(marqueur),
+    `${ou} — the previous form no longer carries « ${marqueur} »`,
+  );
+  assert.ok(!livre.includes(marqueur), `${ou} — the shipped form still carries « ${marqueur} »`);
   assert.equal(
     occurrences(texte, livre),
     1,
-    `${ou} — le bloc livré apparaît ${occurrences(texte, livre)} fois dans ${nom} au lieu d'une ` +
-      `seule : substituer n'en remplacerait que la première et le « shader d'avant » serait un ` +
-      `mélange des deux versions`,
+    `${ou} — the shipped block appears ${occurrences(texte, livre)} times in ${name} instead of ` +
+      `once: substituting would only replace the first and the "previous shader" would be a ` +
+      `mix of both versions`,
   );
   assert.equal(
-    occurrences(texte, avant),
+    occurrences(texte, before),
     0,
-    `${ou} — la forme d'avant est DÉJÀ dans ${nom} : ce n'est plus une reproduction`,
+    `${ou} — the previous form is ALREADY in ${name}: this is no longer a reproduction`,
   );
-  const resultat = texte.replace(livre, () => avant);
-  assert.equal(occurrences(resultat, avant), 1, `${ou} — la forme d'avant n'a pas été insérée`);
-  assert.equal(occurrences(resultat, livre), 0, `${ou} — la forme livrée est restée en place`);
+  const resultat = texte.replace(livre, () => before);
+  assert.equal(occurrences(resultat, before), 1, `${ou} — the previous form was not inserted`);
+  assert.equal(occurrences(resultat, livre), 0, `${ou} — the shipped form stayed in place`);
   assert.equal(
-    resultat.replace(avant, () => livre),
+    resultat.replace(before, () => livre),
     texte,
-    `${ou} — l'aller-retour ne rend pas le texte d'origine : la substitution a touché autre chose ` +
-      `que le bloc attendu`,
+    `${ou} — the round-trip does not return the original text: the substitution touched ` +
+      `something other than the expected block`,
   );
   return resultat;
 }

@@ -1,10 +1,11 @@
-//! Pilote JPEG, standard ISO/IEC 10918, décodé par la crate `image` (feature `jpeg`). Le décodage
-//! ne réencode rien : la perte est celle du fichier source, le compilateur n'en ajoute aucune.
+//! JPEG driver, ISO/IEC 10918 standard, decoded by the `image` crate (`jpeg` feature). Decoding
+//! re-encodes nothing: the loss is the source file's, the compiler adds none.
 //!
-//! Le JPEG à douze bits de précision, rare et réservé à l'imagerie technique, n'a pas ici le défaut
-//! que le PNG 16 bits avait : `zune-jpeg`, le décodeur de la feature, lit la précision dans le
-//! marqueur SOF et refuse tout ce qui n'est pas huit bits, plutôt que de l'abaisser. Le refus sort
-//! donc déjà en `image-decode-failed`, sans profondeur rognée en silence — rien à ajouter ici.
+//! Twelve-bit-precision JPEG, rare and reserved for technical imaging, does not have here the
+//! defect that 16-bit PNG had: `zune-jpeg`, the feature's decoder, reads precision from the SOF
+//! marker and refuses anything that is not eight bits, rather than lowering it. The refusal
+//! already comes out as `image-decode-failed`, with no depth clipped in silence — nothing to
+//! add here.
 use super::{crate_image, icc, ImageDecoded, ImageDecoder, Plugin};
 
 pub(super) static JPEG: Jpeg = Jpeg;
@@ -14,13 +15,13 @@ impl Plugin for Jpeg {
     fn name(&self) -> &'static str {
         "jpeg"
     }
-    /// Le suffixe nomme le comptage des profils colorimétriques : la version entre dans l'identité
-    /// du cache, et une entrée écrite du temps où un profil disparaissait sans un mot ne dit pas la
-    /// même chose que celles d'aujourd'hui.
+    /// The suffix names the colour-profile counting: the version enters the cache identity, and
+    /// an entry written when a profile vanished without a word does not say the same thing as
+    /// today's.
     fn version(&self) -> &'static str {
         "jpeg-image-0.25-icc"
     }
-    /// Les deux extensions du même format, dans l'ordre où l'on cherche un fichier voisin.
+    /// The two extensions of the same format, in the order a neighbouring file is looked up.
     fn extensions(&self) -> &'static [&'static str] {
         &["jpg", "jpeg"]
     }
@@ -30,7 +31,7 @@ impl ImageDecoder for Jpeg {
     fn mime(&self) -> &'static str {
         "image/jpeg"
     }
-    /// Le marqueur de début d'image, suivi du premier marqueur de segment.
+    /// Start-of-image marker, followed by the first segment marker.
     fn accepts_head(&self, head: &[u8]) -> bool {
         head.starts_with(&[0xFF, 0xD8, 0xFF])
     }

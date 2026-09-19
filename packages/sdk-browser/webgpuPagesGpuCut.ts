@@ -22,19 +22,19 @@ function withoutGpuSelection(rt: WebgpuPagesRuntime, reason: string) {
   return false;
 }
 
-/** Le débordement des identifiants de visibilité : seule la coupe processeur sait encore choisir un
- *  sous-ensemble représentable. L'image en attente le subit comme l'image complète. */
+/** Visibility-identifier overflow: only the CPU cut still knows how to pick a representable subset.
+ *  The waiting image suffers it like the complete image. */
 function withoutCandidateCapacity(rt: WebgpuPagesRuntime) {
   const { rows } = rt.layout;
   rt.diag.engineDiagnostic(
     'gpu-selection-capacity',
-    'Sélection CPU requise par la capacité des identifiants de visibilité',
+    'CPU selection required by visibility-identifier capacity',
     {
       residentCandidates: rows.candidateCount + rows.candidateOverflow,
       maxCandidates: rt.layout.drawSlots,
     },
   );
-  return withoutGpuSelection(rt, 'capacité des identifiants de visibilité');
+  return withoutGpuSelection(rt, 'visibility-identifier capacity');
 }
 
 /** One image driven by the GPU cluster cut: the mask of the current frame decides the draw, the
@@ -52,7 +52,7 @@ export function renderGpuCut(
     { gpuDevice, viewport, clearColor } = rt.setup,
     marks = rt.timing.marks;
   if (!gpuDevice || !gpu.cache || !run.gpuSelection) {
-    // Origine du changement de ressources : l'appareil, le cache ou la sélection ont disparu.
+    // Origin of the resource change: the device, the cache or the selection has gone.
     run.gate.resourcesChanged();
     return true;
   }
@@ -69,29 +69,28 @@ export function renderGpuCut(
   run.pagesExited = 0;
   services.adoptGpuCut();
   marks.adoptEnd = performance.now();
-  // Le relevé ne tenait pas sous son plafond : la liste rapportée est amputée, et seule la coupe
-  // processeur sait encore choisir un sous-ensemble représentable — comme pour le débordement des
-  // identifiants de visibilité.
-  if (gpu.cutTruncated) return withoutGpuSelection(rt, 'relevé de coupe tronqué');
+  // The sample did not fit under its ceiling: the reported list is truncated, and only the CPU cut
+  // still knows how to pick a representable subset — as for visibility-identifier overflow.
+  if (gpu.cutTruncated) return withoutGpuSelection(rt, 'truncated cut sample');
   // One cut covers both passes: the image sweeps no DAG of its own for the transparents any more.
   marks.transparentSelectEnd = marks.adoptEnd;
   if (run.gpuMetricsReady) run.visible = run.desired.length;
   admitGpuCut(rt, pixelError, budgeted);
   if (!services.bootstrapState.ready || gpu.cutIncomplete) {
-    // L'image n'est pas complète : rien ne peut être tenu sur elle. Origine du changement de
-    // ressources : l'amorçage n'a pas encore toutes ses pages — ou une page voulue n'est pas encore
-    // arrivée, ce qui met l'image en attente sans jamais jeter la sélection GPU.
+    // The image is not complete: nothing can be held on it. Origin of the resource change: bootstrap
+    // does not yet have all its pages — or a wanted page has not arrived yet, which puts the image
+    // in wait without ever dropping GPU selection.
     run.gate.resourcesChanged();
     run.gpuMetricsReady = false;
     marks.admissionEnd = performance.now();
-    // La couverture incomplète n'atteint jamais l'écran : l'image affichée reste la précédente. Mais
-    // l'attente continue de réclamer les pages manquantes, de synchroniser la résidence et d'envoyer
-    // la sélection — c'est le seul envoi qui peut produire le relevé complet de la reprise.
-    // Un débordement ou un envoi perdu ôtent à l'attente tout moyen d'aboutir : elle ne peut plus
-    // attendre un relevé que personne ne produira, et la coupe processeur reprend l'image.
+    // Incomplete coverage never reaches the screen: the displayed image stays the previous one. But
+    // the wait keeps asking for missing pages, syncing residency and sending selection — that is the
+    // only send that can produce the complete sample of the resume.
+    // Overflow or a lost send take from the wait every way to succeed: it can no longer wait for a
+    // sample nobody will produce, and the CPU cut takes the image back.
     if (!streamCutResidency(rt, gpuDevice, run.gpuSelection)) return withoutCandidateCapacity(rt);
     if (!dispatchWaitingSelection(rt, run.gpuSelection))
-      return withoutGpuSelection(rt, 'envoi de la sélection en erreur');
+      return withoutGpuSelection(rt, 'selection send error');
     traceGpuCutWaiting(rt);
     return true;
   }
@@ -106,10 +105,10 @@ export function renderGpuCut(
   } catch (error) {
     abandonFrameEncoder(rt);
     diag.diagnosticFailure('gpu-selection-dispatch-failed', error);
-    return withoutGpuSelection(rt, 'envoi de la sélection en erreur');
+    return withoutGpuSelection(rt, 'selection send error');
   }
-  // Une image dont ni l'adoption ni la coupe processeur n'a touché ces listes repousserait
-  // quatre-vingt mille enregistrements déjà en place : le drapeau le dit, la recopie s'en abstient.
+  // An image that neither adoption nor the CPU cut has touched these lists of would push eighty
+  // thousand records already in place: the flag says so, the copy abstains.
   mirrorDrawnFromShown(run);
   marks.selectionEnd = performance.now();
   const [width, height] = viewport;
@@ -141,8 +140,8 @@ export function renderGpuCut(
     run.submittedTriangles = run.selectedTriangles + run.blendUnpagedTriangles;
   recordGpuCutTiming(rt);
   traceGpuCutFrame(rt, cam);
-  // L'image a été encodée et soumise en entier : elle seule autorise une tenue, et seulement si la
-  // précédente lui était déjà identique.
+  // The image was encoded and submitted in full: it alone allows a hold, and only if the previous
+  // one was already identical to it.
   keepWebgpuFrame(rt);
   return true;
 }

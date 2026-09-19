@@ -1,11 +1,11 @@
-//! Une instance de prefab dont la source est un asset modèle.
+//! A prefab instance whose source is a model asset.
 //!
-//! Le pilote du format a rendu le modèle ; l'instance ne fait que le poser, avec son nom, sa
-//! transformation et, s'ils sont déclarés, ses matériaux. Chaque retouche nomme l'objet qu'elle vise
-//! par son `fileID` dans le fichier importé, et le `.meta` du modèle dit quel objet porte ce
-//! `fileID` : c'est ce nom, jamais l'ordre d'une table, qui décide où la retouche se pose. Une
-//! retouche qui vise un objet que ce pilote ne rend pas à part est comptée, jamais versée dans la
-//! transformation ou les matériaux d'un autre objet.
+//! The format driver has yielded the model; the instance only places it, with its name, its
+//! transform and, if they are declared, its materials. Each override names the object it
+//! targets by its `fileID` in the imported file, and the model's `.meta` says which object
+//! carries that `fileID`: it is that name, never the order of a table, that decides where the
+//! override sits. An override that targets an object this driver does not yield separately is
+//! counted, never poured into another object's transform or materials.
 use super::*;
 
 impl Builder<'_, '_> {
@@ -33,8 +33,8 @@ impl Builder<'_, '_> {
                 .map(|stem| stem.to_string_lossy().to_string())
         })?;
         let mut node = json!({"name":name,"children":children});
-        // Une instance de modèle n'a pas de transformation propre dans le fichier : tout vient de la
-        // retouche qui vise sa racine, et l'identité quand il n'y en a pas.
+        // A model instance has no transform of its own in the file: everything comes from the
+        // override that targets its root, and identity when there is none.
         let trs = local_trs(&Yaml::BadValue, &aim.root);
         if trs.is_finite() {
             trs.write(&mut node);
@@ -45,10 +45,10 @@ impl Builder<'_, '_> {
     }
 }
 
-/// Où les retouches d'une instance de modèle se posent : la transformation de sa racine, les
-/// emplacements de matériau de chaque morceau, et le nombre de retouches qu'aucun objet rendu ne
-/// porte — celles qui visent un objet du modèle que le pilote n'instancie pas à part, et celles
-/// d'une seconde racine, que rien ne départage.
+/// Where a model instance's overrides sit: its root transform, each piece's material slots, and
+/// the number of overrides no rendered object carries — those that target an object of the
+/// model the driver does not instantiate separately, and those of a second root, which nothing
+/// distinguishes.
 struct Aim {
     root: Overrides,
     slots: Vec<Vec<Option<Ref>>>,
@@ -57,12 +57,12 @@ struct Aim {
 
 impl Aim {
     fn read(meta: &ModelImport, parts: &Parts, changes: &Changes) -> Aim {
-        // Le morceau que ce `fileID` nomme, quand le `.meta` le nomme et que le modèle le porte.
+        // The piece this `fileID` names, when the `.meta` names it and the model carries it.
         let part = |target: i64| {
             let name = meta.name(target)?;
             parts.nodes.iter().position(|(node, _, _)| node == name)
         };
-        // Un modèle d'un seul morceau ne laisse aucun doute : ses matériaux sont les siens.
+        // A single-piece model leaves no doubt: its materials are its own.
         let sole = || (parts.nodes.len() == 1).then_some(0);
         let mut aim = Aim {
             root: Overrides::new(),

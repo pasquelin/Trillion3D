@@ -1,33 +1,33 @@
 /**
- * Le retour d'image des textures virtuelles : ce que les pixels ont DEMANDÉ, tuile par tuile.
+ * Virtual-texture image feedback: what the pixels ASKED for, tile by tile.
  *
- * Chaque pixel pose dans la cible de retour le rang de la tuile qu'il demande, et une passe de calcul
- * (`webgpuTileReduce.ts`) en compte un sur seize. À la fin de l'image, les compteurs sont copiés dans un tampon de
- * lecture et remis à zéro ; la lecture est asynchrone et revient une image plus tard, sans jamais
- * bloquer l'image en cours. Deux tampons de lecture se relaient : l'un se mappe pendant que l'autre
- * reçoit la copie suivante.
+ * Each pixel posts in the feedback target the rank of the tile it wants, and a compute pass
+ * (`webgpuTileReduce.ts`) counts one in sixteen. At the end of the image, the counters are copied
+ * into a readback buffer and zeroed; the read is asynchronous and comes back one image later, never
+ * blocking the current image. Two readback buffers take turns: one maps while the other receives the
+ * next copy.
  *
- * La phase avance d'une image à l'autre pour que les seize pixels d'un carré aient tous parlé en
- * seize images ; une barrière qui doit converger demande tous les pixels d'un coup.
+ * The phase advances from one image to the next so the sixteen pixels of a square have all spoken in
+ * sixteen images; a barrier that must converge asks for every pixel at once.
  */
-/** Le mot de phase : le bit `FEEDBACK_EVERY` demande tous les pixels ; sinon les deux bits bas
- *  donnent la colonne et les deux suivants la ligne du pixel parlant dans chaque carré de
- *  `FEEDBACK_STRIDE`, donc `FEEDBACK_EVERY` phases avant d'avoir entendu tout le carré. */
+/** Phase word: the `FEEDBACK_EVERY` bit asks for every pixel; otherwise the two low bits give the
+ *  column and the next two the row of the speaking pixel in each `FEEDBACK_STRIDE` square, therefore
+ *  `FEEDBACK_EVERY` phases before the whole square has been heard. */
 export const FEEDBACK_STRIDE = 4;
 export const FEEDBACK_EVERY = FEEDBACK_STRIDE * FEEDBACK_STRIDE;
 
 export type WebgpuTileFeedback = {
   readonly buffer: GPUBuffer;
   readonly entries: number;
-  /** Le mot que l'uniforme porte : la phase, ou « tous les pixels » pendant une convergence. */
+  /** Word the uniform carries: the phase, or "every pixel" during a convergence. */
   phaseWord(every: boolean): number;
-  /** Copie les compteurs vers un tampon de lecture libre et les remet à zéro, dans l'image. */
+  /** Copies the counters to a free readback buffer and zeroes them, in the image. */
   encode(encoder: GPUCommandEncoder): void;
-  /** L'image est soumise : la copie qu'elle portait se mappe ; la phase avance. */
+  /** The image is submitted: the copy it carried maps; the phase advances. */
   submitted(): void;
-  /** Les derniers compteurs revenus, une fois ; `undefined` tant qu'aucun n'est revenu. */
+  /** The last counters that came back, once; `undefined` until one has come back. */
   take(): Uint32Array | undefined;
-  /** Tenue quand toute lecture en vol est revenue. */
+  /** Held when every in-flight read has come back. */
   settled(): Promise<void>;
   destroy(): void;
 };
@@ -48,11 +48,11 @@ export function createWebgpuTileFeedback(device: Device, entries: number): Webgp
       usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
     }),
   );
-  // Par tampon de lecture : une copie encodée mais pas soumise, ou un mappage en vol.
+  // Per readback buffer: a copy encoded but not submitted, or an in-flight mapping.
   const copied = [false, false],
     busy = [false, false];
   const inFlight = new Set<Promise<void>>();
-  // Les compteurs revenus, un tableau par tampon de lecture : rien n'est alloué par image.
+  // Counters that came back, one array per readback buffer: nothing is allocated per image.
   const held = [0, 1].map(() => new Uint32Array(entries));
   let next = 0,
     phase = 0,

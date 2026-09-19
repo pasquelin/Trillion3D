@@ -1,67 +1,67 @@
-# Fixture dorée — pilote GIF, une seule image
+# Golden fixture — GIF driver, a single image
 
-La politique de fidélité du dépôt n'admet ici qu'une **image fixe** : un fichier qui porte plus d'un
-descripteur d'image est refusé en le nommant, jamais aplati sur une image choisie d'office. La
-fixture suit cette coupe — trois fichiers que le pilote lit, deux qu'il doit refuser. La dorée
-`src/plugins/tests/gif.rs` décode les premiers et compare les pixels RGBA8 **un par un** à une
-référence écrite en clair dans le test : une image de 4 × 2 pixels dont on connaît les huit valeurs.
-La dorée `src/tests/bmp_gif_golden.rs` reprend `palette-globale.gif` par le compilateur entier et
-fixe les octets de ses aperçus dans `expected.json`.
+The repository's fidelity policy admits here only a **still image**: a file that carries more than one
+image descriptor is refused by name, never flattened onto a frame chosen by default. The
+fixture follows that cut — three files the driver reads, two it must refuse. The golden
+`src/plugins/tests/gif.rs` decodes the first set and compares the RGBA8 pixels **one by one** against a
+reference written in the clear in the test: a 4 × 2 pixel image whose eight values are known.
+The golden `src/tests/bmp_gif_golden.rs` takes `palette-globale.gif` through the whole compiler and
+pins the bytes of its previews in `expected.json`.
 
-## Ce que le pilote lit
+## What the driver reads
 
-| fichier               | table de couleurs  | ce qu'il met sous surveillance                                                              |
-| --------------------- | ------------------ | ------------------------------------------------------------------------------------------- |
-| `palette-globale.gif` | globale, 8 entrées | les couleurs de la table rendues telles quelles — le format est indexé, rien n'est arrondi  |
-| `palette-locale.gif`  | locale, 8 entrées  | une table portée par le descripteur d'image, sans aucune table globale dans le fichier      |
-| `transparence.gif`    | globale, 8 entrées | l'index déclaré transparent devient un alpha nul, **et sa couleur reste celle de la table** |
+| file                  | colour table       | what it puts under watch                                                             |
+| --------------------- | ------------------ | ------------------------------------------------------------------------------------ |
+| `palette-globale.gif` | global, 8 entries  | the table colours rendered as-is — the format is indexed, nothing is rounded         |
+| `palette-locale.gif`  | local, 8 entries   | a table carried by the image descriptor, with no global table in the file at all     |
+| `transparence.gif`    | global, 8 entries  | the index declared transparent becomes a zero alpha, **and its colour stays that of the table** |
 
-Les trois portent la même image ; seul `transparence.gif` en change l'alpha, et lui seul. La dorée
-le vérifie explicitement : d'où vient la table ne change pas un pixel, et la transparence ne touche
-pas la couleur — rien n'est effacé, rempli de blanc ni prémultiplié.
+The three carry the same image; only `transparence.gif` changes the alpha, and only it. The golden
+checks this explicitly: where the table comes from does not change a pixel, and transparency does not
+touch the colour — nothing is erased, filled with white, or premultiplied.
 
-## Ce que le pilote refuse, et sous quel nom
+## What the driver refuses, and under which name
 
-| fichier       | refus                         | pourquoi                                                                                                                                                                                                                                                     |
-| ------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `anime.gif`   | `image-animation-unsupported` | deux descripteurs d'image : une animation n'est pas une texture, et en choisir une image d'office serait arbitraire. C'est la raison du pilote `webp`, partagée exprès — un refus d'animation est un refus d'animation, quel que soit le format qui la porte |
-| `tronque.gif` | `image-decode-failed`         | 31 octets sur 17 976 : la signature est reconnue, le décodage refusé                                                                                                                                                                                         |
+| file          | rejection                     | why                                                                                                                                                                                                                                                      |
+| ------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `anime.gif`   | `image-animation-unsupported` | two image descriptors: an animation is not a texture, and choosing one image by default would be arbitrary. That is the `webp` driver's reason, shared on purpose — an animation rejection is an animation rejection, whichever format carries it        |
+| `tronque.gif` | `image-decode-failed`         | 31 bytes out of 17,976: the signature is recognised, the decode refused                                                                                                                                                                                  |
 
-La dorée ajoute trois cas qui n'ont pas besoin d'un fichier de plus, tirés des deux précédents :
-la signature `GIF87a` réécrite sur `palette-globale.gif` — la version sans extensions, que le
-parcours des blocs doit traverser aussi bien que la 89a —, `anime.gif` coupé à la fin de sa première
-image, qui est alors **accepté** (une image entière sans octet de fin reste une image), et le même
-coupé quatre octets plus loin, où le second séparateur d'image suffit à prouver l'animation même si
-son descripteur est tronqué.
+The golden adds three cases that need no extra file, taken from the previous two:
+the `GIF87a` signature rewritten onto `palette-globale.gif` — the version without extensions, which the
+block walk must traverse as well as 89a —, `anime.gif` cut at the end of its first
+image, which is then **accepted** (a whole image without an end byte remains an image), and the same
+cut four bytes further, where the second image separator is enough to prove the animation even if
+its descriptor is truncated.
 
-### Ce que le compte des images ignorées n'est pas
+### What the ignored-image count is not
 
-Le pilote ne publie pas combien d'images il a laissées de côté : il n'en laisse aucune, puisqu'il
-refuse le fichier entier. Nommer ce compte demanderait un canal de rapport **du côté du succès**,
-que le contrat `image-plugin-2` n'a pas — `ImageDecoder::decode` ne nomme une raison que dans son
-`Err`, et `texture_preview` ne compte que celles-là. C'est un chantier de contrat, pas de pilote.
+The driver does not publish how many images it left aside: it leaves none, since it
+refuses the whole file. Naming that count would require a report channel **on the success side**,
+which the `image-plugin-2` contract does not have — `ImageDecoder::decode` names a reason only in its
+`Err`, and `texture_preview` counts only those. That is a contract job, not a driver job.
 
-## Provenance et licences
+## Provenance and licences
 
-- Les quatre fichiers lisibles ou refusés pour leur structure sont **écrits ici**, octet par octet,
-  depuis la spécification publique « Graphics Interchange Format, Version 89a » (CompuServe, 1990) :
-  entête, descripteur d'écran logique, tables de couleurs, extension de contrôle graphique,
-  descripteurs d'image et flux LZW. Aucun outil d'éditeur, aucun SDK. Auteur : corpus WebGeometry,
-  2026-09-15. Licence : **CC0-1.0**, voir [LICENSE.txt](LICENSE.txt).
-- Leur flux LZW est le plus simple que la spécification admette : un code d'effacement, les
-  littéraux, un code de fin. Aucun motif n'est appris, mais le décodeur en apprend un par code lu :
-  la largeur de code grandit donc d'un bit chaque fois que sa table atteint une puissance de deux,
-  et l'écrivain suit cette largeur. Un flux écrit à largeur fixe est illisible dès le huitième code.
-- Leurs pixels ont été vérifiés par un décodeur indépendant (Pillow 12.2.0) avant d'être commités,
-  compte d'images compris : une erreur de l'écrivain et du décodeur à la fois ne passerait pas la
-  double lecture.
-- `tronque.gif` est repris tel quel de `test/assets/limites/truncated-gif/truncated.gif`, lui aussi
-  **CC0-1.0** (corpus WebGeometry). Le dossier `test/assets/` est livré hors git : le fichier est
-  copié ici pour que la dorée n'en dépende pas.
-- `scene.gltf` et `scene.bin` — le quad de la dorée du chemin complet — sont le quad de
-  `fixtures/hdr/`, même corpus et même licence, avec sa seule image changée.
+- The four files that are readable or refused for their structure are **written here**, byte by byte,
+  from the public specification “Graphics Interchange Format, Version 89a” (CompuServe, 1990):
+  header, logical screen descriptor, colour tables, graphic control extension,
+  image descriptors and LZW stream. No editor tool, no SDK. Author: WebGeometry corpus,
+  2026-09-15. Licence: **CC0-1.0**, see [LICENSE.txt](LICENSE.txt).
+- Their LZW stream is the simplest the specification admits: a clear code, the
+  literals, an end code. No pattern is learned, but the decoder learns one per code read:
+  the code width therefore grows by one bit each time its table reaches a power of two,
+  and the writer follows that width. A stream written at a fixed width is unreadable from the eighth code.
+- Their pixels were checked by an independent decoder (Pillow 12.2.0) before being committed,
+  image count included: an error in both the writer and the decoder would not pass the
+  double read.
+- `tronque.gif` is taken as-is from `test/assets/limites/truncated-gif/truncated.gif`, also
+  **CC0-1.0** (WebGeometry corpus). The `test/assets/` folder is shipped off git: the file is
+  copied here so the golden does not depend on it.
+- `scene.gltf` and `scene.bin` — the quad of the full-path golden — are the quad from
+  `fixtures/hdr/`, same corpus and same licence, with only its image changed.
 
-Le GIF 256 × 256 de `test/assets/textures/legacy-web-matrix/palette.gif` (CC0-1.0) couvre la même
-lecture à grande taille ; le pilote en rend 256 × 256. Il porte la même image de référence que le
-`rgb24.bmp` du même dossier, mais **quantifiée à la source** par son encodeur : le comparer pixel à
-pixel au BMP dirait la perte de cet encodeur, pas celle du pilote. Il n'est pas commité ici.
+The 256 × 256 GIF of `test/assets/textures/legacy-web-matrix/palette.gif` (CC0-1.0) covers the same
+read at large size; the driver yields 256 × 256. It carries the same reference image as the
+`rgb24.bmp` of the same folder, but **quantised at the source** by its encoder: comparing it pixel to
+pixel with the BMP would report that encoder's loss, not the driver's. It is not committed here.

@@ -1,8 +1,8 @@
-//! Ce que seul l'intérieur du pilote peut prouver : la lecture d'un fichier à l'ancienne
-//! disposition d'entête, dont le dépôt ne possède aucun exemplaire, le découpage d'un n-gone sur une
-//! géométrie que l'on pose à la main, et les défauts reproduits en patchant la fixture CC0 par le
-//! SDNA qu'elle porte elle-même — `surgery` pour le patch, `fidelite`, `matiere` et `normales` pour
-//! ce qu'il prouve. La scène dorée, elle, se compare dans `src/tests/blend_golden.rs`.
+//! What only the inside of the driver can prove: reading a file in the old header layout, of
+//! which the repository holds no specimen, cutting an n-gon on geometry posed by hand, and the
+//! defects reproduced by patching the CC0 fixture through the SDNA it itself carries — `surgery`
+//! for the patch, `fidelite`, `matiere` and `normales` for what it proves. The golden scene is
+//! compared in `src/tests/blend_golden.rs`.
 use super::*;
 use crate::tests::ngones::{rendered_area, U_RING};
 
@@ -16,9 +16,9 @@ mod surgery;
 mod transparence;
 mod uri;
 
-/// Écrit un fichier Blender minimal à l'ancienne disposition, depuis la description du format :
-/// entête de douze octets, blocs à champs de trente-deux bits, un `DNA1` d'une seule structure et
-/// un bloc de données typé par elle.
+/// Writes a minimal Blender file in the old layout, from the format description: a twelve-byte
+/// header, thirty-two-bit-field blocks, a `DNA1` of a single structure and a data block typed by
+/// it.
 fn legacy_file(value: f32) -> Vec<u8> {
     let mut sdna = Vec::new();
     sdna.extend_from_slice(b"SDNA");
@@ -51,7 +51,7 @@ fn legacy_file(value: f32) -> Vec<u8> {
     out
 }
 
-/// Une section de chaînes du SDNA : son étiquette, son compte, les chaînes, l'alignement sur quatre.
+/// An SDNA string section: its tag, its count, the strings, alignment on four.
 fn section(out: &mut Vec<u8>, label: &[u8; 4], entries: &[Vec<u8>]) {
     out.extend_from_slice(label);
     out.extend_from_slice(&(entries.len() as u32).to_le_bytes());
@@ -63,7 +63,7 @@ fn section(out: &mut Vec<u8>, label: &[u8; 4], entries: &[Vec<u8>]) {
     }
 }
 
-/// Un bloc à l'ancienne disposition : code, taille, adresse d'origine, index SDNA, nombre.
+/// A block in the old layout: code, size, original address, SDNA index, count.
 fn block(out: &mut Vec<u8>, code: &[u8; 4], sdna: u32, old: u64, data: &[u8]) {
     out.extend_from_slice(code);
     out.extend_from_slice(&(data.len() as u32).to_le_bytes());
@@ -73,29 +73,29 @@ fn block(out: &mut Vec<u8>, code: &[u8; 4], sdna: u32, old: u64, data: &[u8]) {
     out.extend_from_slice(data);
 }
 
-// Comportement : l'ancienne disposition d'entête se lit, et un champ se demande par son nom — c'est
-// le SDNA du fichier, jamais un décalage écrit en dur, qui dit où il commence.
+// Behaviour: the old header layout reads, and a field is asked for by its name — it is the
+// file's SDNA, never a hardcoded offset, that says where it starts.
 #[test]
 fn an_old_header_reads_and_its_fields_resolve_by_name() {
     let bytes = legacy_file(2.5);
-    let file = BlendFile::open(&bytes, MAX_BYTES).expect("un fichier à l'ancienne disposition");
+    let file = BlendFile::open(&bytes, MAX_BYTES).expect("a file in the old layout");
     assert_eq!(file.version, 405);
-    let thing = file.dna.index("Thing").expect("la structure du fichier");
-    let field = file.dna.layout(thing).expect("sa disposition");
+    let thing = file.dna.index("Thing").expect("the file's structure");
+    let field = file.dna.layout(thing).expect("its layout");
     assert_eq!(field.field("next").expect("next").offset, 0);
     assert_eq!(field.field("value").expect("value").offset, POINTER);
-    let block = file.of(*b"DATA").next().expect("le bloc de données");
-    let view = file.view(block).expect("sa vue");
+    let block = file.of(*b"DATA").next().expect("the data block");
+    let view = file.view(block).expect("its view");
     assert_eq!(view.float("value", 0.0), 2.5);
     assert_eq!(
         view.float("absent", 7.0),
         7.0,
-        "un champ absent rend le défaut"
+        "an absent field yields the default"
     );
 }
 
-// Comportement : un fichier dont l'entête annonce des pointeurs de 32 bits, un boutisme gros ou une
-// variante de bloc inconnue est refusé par son nom, jamais lu de travers.
+// Behaviour: a file whose header announces 32-bit pointers, big-endian or an unknown block
+// variant is refused by name, never read askew.
 #[test]
 fn headers_outside_the_subset_are_refused_by_name() {
     let mut narrow = legacy_file(1.0);
@@ -113,12 +113,12 @@ fn headers_outside_the_subset_are_refused_by_name() {
 fn refusal(bytes: &[u8]) -> &'static str {
     BlendFile::open(bytes, MAX_BYTES)
         .err()
-        .expect("ce fichier devait être refusé")
+        .expect("this file was expected to be refused")
         .code
 }
 
-// Comportement : un polygone concave garde exactement l'aire qu'il porte. L'éventail depuis le
-// premier coin traversait le creux du U et rendait onze pour sept ; les oreilles rendent sept.
+// Behaviour: a concave polygon keeps exactly the area it carries. Fanning from the first corner
+// crossed the U's hollow and yielded eleven for seven; ears yield seven.
 #[test]
 fn a_concave_polygon_keeps_its_own_area() {
     let geometry = Geometry {
@@ -143,8 +143,8 @@ fn a_concave_polygon_keeps_its_own_area() {
         &mut out,
         &std::sync::atomic::AtomicBool::new(false),
     )
-    .expect("le maillage");
-    assert_eq!(triangles, 6, "huit coins font six triangles");
+    .expect("the mesh");
+    assert_eq!(triangles, 6, "eight corners make six triangles");
     assert_eq!(out.counts.get("blend-ngon-untriangulable"), None);
     let primitive = &mesh["primitives"][0];
     let positions: Vec<f32> = read(&out, &primitive["attributes"]["POSITION"])
@@ -160,16 +160,17 @@ fn a_concave_polygon_keeps_its_own_area() {
         .map(|word| u32::from_le_bytes(*word))
         .collect();
     let area = rendered_area(&positions, &indices);
-    assert!((area - 7.0).abs() < 1e-5, "aire rendue {area}, attendue 7");
+    assert!(
+        (area - 7.0).abs() < 1e-5,
+        "rendered area {area}, expected 7"
+    );
 }
 
-/// Les octets d'un accesseur de la scène en construction, par la vue de binaire qu'il cite.
+/// The bytes of an accessor of the scene under construction, by the binary view it cites.
 fn read<'a>(out: &'a Out, accessor: &Value) -> &'a [u8] {
-    let rank = accessor.as_u64().expect("accesseur") as usize;
-    let view = out.accessors[rank]["bufferView"].as_u64().expect("vue") as usize;
-    let from = out.bin.views[view]["byteOffset"].as_u64().expect("début") as usize;
-    let length = out.bin.views[view]["byteLength"]
-        .as_u64()
-        .expect("longueur") as usize;
+    let rank = accessor.as_u64().expect("accessor") as usize;
+    let view = out.accessors[rank]["bufferView"].as_u64().expect("view") as usize;
+    let from = out.bin.views[view]["byteOffset"].as_u64().expect("start") as usize;
+    let length = out.bin.views[view]["byteLength"].as_u64().expect("length") as usize;
     &out.bin.bytes[from..from + length]
 }

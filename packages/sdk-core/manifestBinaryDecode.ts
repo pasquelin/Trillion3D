@@ -143,7 +143,7 @@ export function decodeManifestBinary(
   } as ClusterManifest;
 }
 
-/** Les vignettes seules, sans matérialiser les pages : ce qu'une revue d'images a besoin de lire. */
+/** Thumbnails alone, without materialising the pages: what an image review needs to read. */
 export function decodeManifestPreviews(slim: SlimClusterManifest, buffer: ArrayBuffer) {
   return decodeTexturePreviews(readManifestColumns(slim, buffer).previews);
 }

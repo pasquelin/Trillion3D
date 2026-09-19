@@ -1,9 +1,9 @@
-//! L'écriture d'une scène intermédiaire dans son dossier de cache : `model.gltf`, `model.bin` et
-//! `manifest.json`. Partagée par la conversion ufbx et par les pilotes de scène qui remplissent leurs
-//! propres tables glTF ; chacun ne donne que ses racines et ce que son manifeste dit de la source.
+//! Writing intermediate scene to cache folder: `model.gltf`, `model.bin`, and
+//! `manifest.json`. Shared by ufbx conversion and scene drivers filling own
+//! glTF tables; each provides only its roots and manifest source info.
 use super::*;
 
-/// Les tables glTF d'une scène intermédiaire, empruntées le temps de l'écrire.
+/// glTF tables of intermediate scene, borrowed while writing.
 pub(crate) struct Tables<'a> {
     pub(crate) nodes: &'a [Value],
     pub(crate) meshes: &'a [Value],
@@ -16,7 +16,7 @@ pub(crate) struct Tables<'a> {
 }
 
 impl Tables<'_> {
-    /// Le document glTF, nommé par le pilote qui l'a produit, dont la scène part de `roots`.
+    /// glTF document, named by producing driver, whose scene starts at `roots`.
     pub(crate) fn document(&self, plugin: &dyn ScenePlugin, roots: &[usize]) -> Value {
         let generator = format!(
             "web-geometry-compiler {} ({})",
@@ -39,9 +39,9 @@ impl Tables<'_> {
     }
 }
 
-/// Écrit le binaire, le document déjà sérialisé et le manifeste dans `directory`. `stats` donne les
-/// nœuds porteurs de maillage et leurs triangles ; `source` rend le champ `source` du manifeste,
-/// évalué une fois les fichiers de la scène écrits.
+/// Writes binary, serialized document, and manifest to `directory`. `stats` gives
+/// mesh-bearing nodes and triangles; `source` yields manifest `source` field,
+/// evaluated once scene files written.
 pub(crate) fn write_scene(
     directory: &Path,
     gltf: &[u8],

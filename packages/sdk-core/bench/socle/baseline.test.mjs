@@ -1,65 +1,65 @@
-// Le verdict d'une régression, et le seul endroit où ses seuils sont écrits.
+// Regression verdict, and the only place where its thresholds are defined.
 //
-// Ils vivaient en trois exemplaires : `compareBaseline`, que personne n'appelait, et deux jeux dans
-// `agrege.mjs` — l'un pour les pastilles du tableau (⚠️ au-delà de 10 %, 🔴 au-delà de 25 %),
-// l'autre pour son résumé, qui comptait « régression » tout ce qui dépassait 10 %. Le même écart de
-// +14 % s'affichait donc en avertissement dans le tableau et se comptait comme régression dans la
-// conclusion de ce même tableau. Ce test tient la règle en un seul endroit.
+// They previously existed in three copies: `compareBaseline`, which no one called, and two sets in
+// `agrege.mjs` — one for table status icons (⚠️ beyond 10%, 🔴 beyond 25%),
+// the other for its summary, which counted as "regression" anything exceeding 10%. The same discrepancy of
+// +14% displayed as a warning in the table and counted as a regression in the
+// summary conclusion of that same table. This test holds the rule in a single place.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { compareBaseline, niveauEcart, SEUIL_AVERTISSEMENT, SEUIL_ECHEC } from './baseline.mjs';
 
-const cas = (nom, ecartBaseline) => ({ nom, ecartBaseline });
+const cas = (name, ecartBaseline) => ({ name, ecartBaseline });
 
-test('un écart tombe dans un seul niveau, et les bornes appartiennent au niveau du dessous', () => {
-  assert.equal(niveauEcart(null), 'absent', 'pas de baseline pour ce cas');
+test('a discrepancy falls into a single level, and boundaries belong to the lower level', () => {
+  assert.equal(niveauEcart(null), 'absent', 'no baseline for this case');
   assert.equal(niveauEcart(undefined), 'absent');
   assert.equal(niveauEcart(NaN), 'absent');
-  assert.equal(niveauEcart(-0.4), 'ok', 'une accélération n’est pas une régression');
+  assert.equal(niveauEcart(-0.4), 'ok', 'an acceleration is not a regression');
   assert.equal(niveauEcart(0), 'ok');
-  // Les seuils sont des bornes STRICTES : exactement 10 % reste correct, un cheveu au-dessus non.
+  // Thresholds are STRICT bounds: exactly 10% stays ok, a hair above does not.
   assert.equal(niveauEcart(SEUIL_AVERTISSEMENT), 'ok');
   assert.equal(niveauEcart(SEUIL_AVERTISSEMENT + 1e-9), 'avertissement');
   assert.equal(niveauEcart(SEUIL_ECHEC), 'avertissement');
   assert.equal(niveauEcart(SEUIL_ECHEC + 1e-9), 'echec');
 });
 
-test('le verdict d’un lot est celui de son pire cas, et il ne compte chaque cas qu’une fois', () => {
+test('the verdict of a batch is that of its worst case, and it counts each case only once', () => {
   const bilan = compareBaseline([
-    cas('accéléré', -0.5),
+    cas('faster', -0.5),
     cas('stable', 0.02),
-    cas('lent', 0.14),
-    cas('très lent', 0.4),
-    cas('sans baseline', null),
+    cas('slow', 0.14),
+    cas('very slow', 0.4),
+    cas('no baseline', null),
   ]);
   assert.equal(bilan.verdict, 'echec');
-  assert.equal(bilan.compares, 4, 'le cas sans baseline n’est pas comparé');
+  assert.equal(bilan.compares, 4, 'case without baseline is not compared');
   assert.deepEqual(
-    bilan.regressions.map((r) => r.nom),
-    ['très lent'],
+    bilan.regressions.map((r) => r.name),
+    ['very slow'],
   );
   assert.deepEqual(
-    bilan.avertissements.map((r) => r.nom),
-    ['lent'],
+    bilan.avertissements.map((r) => r.name),
+    ['slow'],
   );
-  // Un cas n'est jamais dans les deux listes : c'est ce qui faisait diverger le tableau du résumé.
-  const nommes = [...bilan.regressions, ...bilan.avertissements].map((r) => r.nom);
+  // A case is never in both lists: this was causing the table and summary to diverge.
+  const nommes = [...bilan.regressions, ...bilan.avertissements].map((r) => r.name);
   assert.equal(new Set(nommes).size, nommes.length);
 });
 
-test('sans avertissement ni régression, le verdict est ok ; sans baseline du tout, il est absent', () => {
+test('without warning or regression, verdict is ok; without any baseline, it is absent', () => {
   assert.equal(compareBaseline([cas('a', 0), cas('b', -0.2)]).verdict, 'ok');
   const rien = compareBaseline([cas('a', null), cas('b', null)]);
-  assert.equal(rien.verdict, 'absent', 'aucune baseline : il n’y a rien à conclure');
+  assert.equal(rien.verdict, 'absent', 'no baseline: nothing to conclude');
   assert.equal(rien.compares, 0);
   assert.equal(compareBaseline([]).verdict, 'absent');
 });
 
-test('les seuils publiés sont ceux que le verdict applique, et l’appelant peut les resserrer', () => {
+test('published thresholds are those applied by verdict, and caller can tighten them', () => {
   const bilan = compareBaseline([cas('a', 0.14)]);
   assert.equal(bilan.seuilAvertissement, SEUIL_AVERTISSEMENT);
   assert.equal(bilan.seuilEchec, SEUIL_ECHEC);
-  // Le résumé imprime ces deux nombres : les publier évite qu'il en réécrive d'autres à la main.
+  // Summary prints these two numbers: publishing them prevents manual rewriting.
   const serre = compareBaseline([cas('a', 0.14)], { seuilAvertissement: 0.05, seuilEchec: 0.1 });
   assert.equal(serre.verdict, 'echec');
   assert.equal(serre.seuilEchec, 0.1);

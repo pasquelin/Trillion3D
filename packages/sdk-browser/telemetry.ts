@@ -4,9 +4,9 @@ import type { FrameMetrics, ClusterManifest } from '../sdk-core/index.ts';
 import { frameStatistics } from '../sdk-core/index.ts';
 
 export class EngineProfiler {
-  /** Tampon circulaire des intervalles : une écriture par image, jamais un décalage de tout le
-   *  tableau. `frameStatistics` reçoit les mêmes valeurs, dans le même ordre, du plus ancien au
-   *  plus récent. */
+  /** Circular interval buffer: one write per frame, never a shift of the whole
+   *  array. `frameStatistics` receives the same values, in the same order, from oldest to
+   *  newest. */
   private readonly intervals: Float64Array;
   private intervalCount = 0;
   private intervalHead = 0;
@@ -22,7 +22,7 @@ export class EngineProfiler {
     this.intervals = new Float64Array(Math.max(1, maxIntervals));
   }
 
-  /** Les intervalles retenus, du plus ancien au plus récent : ce que `frameStatistics` reçoit. */
+  /** Kept intervals, from oldest to newest: what `frameStatistics` receives. */
   orderedIntervals() {
     const taille = this.intervals.length,
       ordered = new Array<number>(this.intervalCount);
@@ -70,20 +70,20 @@ export class EngineProfiler {
     const pagesLoading = m?.pagesLoading ?? 0;
 
     let bottleneck: TelemetryReport['bottleneck'] = 'healthy';
-    let bottleneckMessage = '✅ Pipeline fluide (60+ FPS optimal)';
+    let bottleneckMessage = '✅ Smooth pipeline (60+ FPS optimal)';
 
     if (stutters > 0) {
       bottleneck = 'memory_pressure';
-      bottleneckMessage = `⚠️ Saccades détectées (${stutters} frame(s) > 50ms)`;
+      bottleneckMessage = `⚠️ Stutters detected (${stutters} frame(s) > 50ms)`;
     } else if (cpuFrameMs > 16.6) {
       bottleneck = 'cpu_bound';
-      bottleneckMessage = `⚠️ Choke CPU Thread Principal (${cpuFrameMs.toFixed(1)} ms)`;
+      bottleneckMessage = `⚠️ Main CPU thread choke (${cpuFrameMs.toFixed(1)} ms)`;
     } else if (cpuSubmitMs != null && cpuSubmitMs > 8) {
       bottleneck = 'gpu_submit_bound';
-      bottleneckMessage = `⚠️ Choke Soumission WebGPU (${cpuSubmitMs.toFixed(1)} ms)`;
+      bottleneckMessage = `⚠️ WebGPU submit choke (${cpuSubmitMs.toFixed(1)} ms)`;
     } else if (pagesLoading > 20) {
       bottleneck = 'streaming_bound';
-      bottleneckMessage = `⚠️ Choke Réseau / Streaming (${pagesLoading} pages en vol)`;
+      bottleneckMessage = `⚠️ Network / streaming choke (${pagesLoading} pages in flight)`;
     }
 
     return {
@@ -124,11 +124,11 @@ export class EngineProfiler {
 
   formatReport(): string {
     const r = this.getReport();
-    const fpsStr = r.fps != null ? `${r.fps} FPS` : 'En attente...';
+    const fpsStr = r.fps != null ? `${r.fps} FPS` : 'Waiting...';
     const p50Str = r.p50Ms != null ? `${r.p50Ms} ms` : '-';
     const p95Str = r.p95Ms != null ? `${r.p95Ms} ms` : '-';
     const p99Str = r.p99Ms != null ? `${r.p99Ms} ms` : '-';
-    const vramStr = r.vramMb != null ? `${r.vramMb} Mo` : '-';
+    const vramStr = r.vramMb != null ? `${r.vramMb} MB` : '-';
     const cullStr =
       r.triangles.cullingRatePercent != null ? `${r.triangles.cullingRatePercent}% culled` : '-';
 
@@ -142,15 +142,15 @@ export class EngineProfiler {
 
     return [
       `═══════════════════════════════════════════════════════════════════════`,
-      ` 🚀 RAPPORT TÉLÉMÉTRIE MOTEUR WEBGEOMETRY — ${fpsStr}`,
+      ` 🚀 WEBGEOMETRY ENGINE TELEMETRY REPORT — ${fpsStr}`,
       `═══════════════════════════════════════════════════════════════════════`,
-      ` ⏱️  CADENCE FRAME : P50: ${p50Str} | P95: ${p95Str} | P99: ${p99Str} | Saccades: ${r.stutters ?? 0}`,
-      ` 💻 CPU FRAME     : ${r.cpuFrameMs} ms | Soumission WebGPU: ${r.cpuSubmitMs != null ? r.cpuSubmitMs + ' ms' : '-'}`,
-      ` 🔺 GÉOMÉTRIE     : ${sourceTriStr} source → ${selTriStr} LOD → ${subTriStr} soumis (${cullStr})`,
-      ` 📦 CLUSTERS      : ${visClust} visibles / ${totClust} totaux (Frustum: ${frustumCulled})`,
-      ` 💾 VRAM & PAGES  : ${vramStr} VRAM | Pages résidentes: ${r.streaming.residentPages ?? '-'}`,
-      ` 🌐 STREAMING     : ${r.streaming.pageLoads} pages chargées (${r.streaming.pageBytesReadMb} Mo) | En vol: ${r.streaming.pagesLoading ?? 0} | Hit: ${r.streaming.cacheHitRate != null ? r.streaming.cacheHitRate + '%' : '-'}`,
-      ` 🎯 ÉTAT SYSTÈME  : ${r.bottleneckMessage}`,
+      ` ⏱️  FRAME PACE    : P50: ${p50Str} | P95: ${p95Str} | P99: ${p99Str} | Stutters: ${r.stutters ?? 0}`,
+      ` 💻 CPU FRAME     : ${r.cpuFrameMs} ms | WebGPU submit: ${r.cpuSubmitMs != null ? r.cpuSubmitMs + ' ms' : '-'}`,
+      ` 🔺 GEOMETRY      : ${sourceTriStr} source → ${selTriStr} LOD → ${subTriStr} submitted (${cullStr})`,
+      ` 📦 CLUSTERS      : ${visClust} visible / ${totClust} total (Frustum: ${frustumCulled})`,
+      ` 💾 VRAM & PAGES  : ${vramStr} VRAM | Resident pages: ${r.streaming.residentPages ?? '-'}`,
+      ` 🌐 STREAMING     : ${r.streaming.pageLoads} pages loaded (${r.streaming.pageBytesReadMb} MB) | In flight: ${r.streaming.pagesLoading ?? 0} | Hit: ${r.streaming.cacheHitRate != null ? r.streaming.cacheHitRate + '%' : '-'}`,
+      ` 🎯 SYSTEM STATE  : ${r.bottleneckMessage}`,
       `═══════════════════════════════════════════════════════════════════════`,
     ].join('\n');
   }

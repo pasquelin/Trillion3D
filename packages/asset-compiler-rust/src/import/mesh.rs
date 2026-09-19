@@ -47,10 +47,11 @@ pub(super) fn mesh_json(
             let count = ufbx::triangulate_face_vec(&mut scratch, mesh, face) as usize * 3;
             for &corner in &scratch[..count] {
                 let c = corner as usize;
-                // Un sommet est ce qu'il vaut, pas le rang que le fichier lui donne : un FBX qui
-                // écrit ses normales et ses UV coin par coin (Unreal, Blender) sortirait sinon trois
-                // sommets par triangle, aucun partagé, et le simplificateur du DAG — qui verrouille
-                // tout point présent en plus de deux exemplaires — ne réduirait rien.
+                // A vertex is what it is worth, not the index the file gives it: an
+                // FBX that writes normals and UVs corner by corner (Unreal, Blender)
+                // would otherwise come out as three vertices per triangle, none
+                // shared, and the DAG simplifier — which locks any point present in
+                // more than two copies — would reduce nothing.
                 let mut values = [0.0f32; CORNER_VALUES];
                 let p = mesh.vertex_position.values[mesh.vertex_position.indices[c] as usize];
                 values[CORNER_POSITION].copy_from_slice(&[p.x as f32, p.y as f32, p.z as f32]);
@@ -104,8 +105,9 @@ pub(super) fn mesh_json(
     })
 }
 
-/// Les indices d'une partie, en 16 ou 32 bits selon le nombre de sommets. Le tampon part à sa
-/// taille finale : un `flat_map(...).collect()` la redécouvre morceau par morceau.
+/// Indices of a part, in 16 or 32 bits depending on the vertex count. The buffer
+/// starts at its final size: a `flat_map(...).collect()` rediscovers it chunk by
+/// chunk.
 pub(crate) fn index_bytes(indices: &[u32], vertex_count: usize) -> (Vec<u8>, u32) {
     if vertex_count <= u16::MAX as usize {
         let mut out = Vec::with_capacity(indices.len() * 2);

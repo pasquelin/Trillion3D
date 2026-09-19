@@ -12,16 +12,16 @@ import type {
 } from '../sdk-core/index.ts';
 
 /**
- * La tâche du contrat d'intégration, une seule fois pour les deux transports : le worker l'exécute
- * sur son fil, le repli l'exécute sur le fil principal, et tous deux rendent la même réponse.
+ * Integration-contract task, once for both transports: the worker runs it on its thread, the
+ * fallback runs it on the main thread, and both return the same answer.
  *
- * L'exécutant retient la fiche de chaque adresse : elle ne dépend que du catalogue, donc la
- * deuxième arrivée d'une même requête n'a plus qu'un entier à envoyer. Une arrivée dont la fiche
- * manque est refusée plutôt que devinée — l'appelant repasse alors en ligne, avec la sienne.
+ * The runner keeps the card of each address: it depends only on the catalogue, so the second
+ * arrival of the same request has only an integer left to send. An arrival whose card is
+ * missing is refused rather than guessed — the caller then falls back in-line, with its own.
  */
 export function createPageIntegrationRunner() {
   const specsByUrl = new Map<string, Int32Array>();
-  /** Un seul plan, réutilisé : la réponse en recopie les tampons à sa taille pour les transférer. */
+  /** One plan, reused: the answer copies the buffers to their size to transfer them. */
   let plan: PageIntegrationPlan | undefined;
 
   const run = (request: PageIntegrationRequest): PageIntegrationAnswer => {
@@ -55,7 +55,7 @@ export function createPageIntegrationRunner() {
     };
   };
 
-  /** Les tampons qu'une réponse cède à son destinataire, dans l'ordre où le message les porte. */
+  /** Buffers an answer yields to its recipient, in the order the message carries them. */
   const transferOf = (answer: PageIntegrationAnswer) =>
     answer.ok ? [answer.slices, answer.pages] : [];
 

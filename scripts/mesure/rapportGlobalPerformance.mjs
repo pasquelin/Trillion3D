@@ -1,16 +1,16 @@
-// Les sections « performance » du rapport global, première moitié : les tuiles de tête et l'image
-// entière par vue. Chaque graphe lit les relevés de
-// `rapportGlobalLecture.mjs` et ne calcule rien d'autre que des sommes de p50 nommées comme telles.
+// The "performance" sections of the global report, first half: the head tiles and the whole
+// image per view. Each graph reads the readings of
+// `rapportGlobalLecture.mjs` and computes nothing else than p50 sums named as such.
 import { barres, deuxCols, nombre, pixels, tableau, tuile } from './rapportGlobalGraphes.mjs';
-import { LIBELLE, QUALITES, trouve, VUES } from './rapportGlobalLecture.mjs';
+import { LIBELLE, QUALITES, trouve, VIEW_IDS } from './rapportGlobalLecture.mjs';
 import { UNREAL } from './rapportGlobalChiffres.mjs';
 
-/** Les tuiles de tête : les chiffres qu'on retient. */
+/** Head tiles: the figures one keeps. */
 export function tuiles(ex) {
   const sol = trouve(ex, 'mobile', 'sol', 1);
   const gen = trouve(ex, 'mobile', 'generale', 1);
   const fixe = trouve(ex, 'fixe', 'sol', 1);
-  const pire = VUES.map((v) => trouve(ex, 'mobile', v, 1))
+  const pire = VIEW_IDS.map((v) => trouve(ex, 'mobile', v, 1))
     .filter(Boolean)
     .sort((a, b) => (b.gpuP50 ?? 0) - (a.gpuP50 ?? 0))[0];
   return `<div class="tuiles">${[
@@ -46,10 +46,10 @@ export function tuiles(ex) {
   ].join('')}</div>`;
 }
 
-/** L'image entière par vue et par seuil : enveloppe carte graphique, processeur. */
+/** Whole image per view and per threshold: GPU envelope, CPU. */
 export function sectionVues(ex) {
   const lignes = (champ) =>
-    VUES.map((v) => ({
+    VIEW_IDS.map((v) => ({
       libelle: LIBELLE[v],
       valeurs: [0, 1].map((s) => trouve(ex, 'mobile', v, s)?.[champ] ?? null),
     }));
@@ -101,7 +101,7 @@ export function sectionVues(ex) {
         'Frame held',
         'Machine load start → end',
       ],
-      VUES.flatMap((v) =>
+      VIEW_IDS.flatMap((v) =>
         [0, 1]
           .map((s) => trouve(ex, 'mobile', v, s))
           .filter(Boolean)
@@ -123,4 +123,4 @@ export function sectionVues(ex) {
   ].join('');
 }
 
-/** La courbe des résolutions : à quart de pixels, l'image est plus lente. */
+/** Resolution curve: at a quarter of the pixels, the image is slower. */

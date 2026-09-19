@@ -15,10 +15,10 @@ import type { ExplorerEmitters } from './explorerSession.ts';
 import { checked } from './clusterPages.ts';
 import { bakedImageUrls, PLACEHOLDER_IMAGE } from './sceneTextureSkip.ts';
 
-/** La matrice monde d'un maillage au chargement, reprise d'un maillage à l'autre. */
+/** World matrix of a mesh at load, reused from mesh to mesh. */
 const monde = new Float64Array(MATRIX_VALUES);
 
-/** Un maillage de la scène préparée sans pages de géométrie : la scène autonome est incomplète. */
+/** A mesh of the prepared scene with no geometry pages: the autonomous scene is incomplete. */
 function manquante(): never {
   throw new EngineError(
     'AUTONOMOUS_ASSOCIATION_MISSING',
@@ -26,7 +26,7 @@ function manquante(): never {
   );
 }
 
-/** Le tampon des bornes de la scène, à la taille exacte du calcul qui va suivre. */
+/** Scene-bounds buffer, at the exact size of the compute that follows. */
 function sceneBoundsLot(
   source: THREE.Object3D,
   associations: BackendContext['associations'],
@@ -47,14 +47,14 @@ export async function loadPreparedScene(
   diagnose: ExplorerEmitters['diagnose'],
   registerSource: (source: THREE.Object3D) => void,
 ) {
-  // Le chemin de calcul demandé par l'hôte vaut DÈS LE CHARGEMENT : le gouverneur le reçoit avant le
-  // premier lot, et `configureExplorer` le lui redira sans rien changer. Le chargement du module part
-  // ici et se recouvre avec celui de la scène, qui dure bien davantage.
+  // The compute path the host asked for holds FROM LOAD: the governor receives it before the
+  // first lot, and `configureExplorer` will tell it again without changing anything. Module
+  // load starts here and overlaps with the scene's, which lasts much longer.
   const calculEnLot = prepareMathBatch(options.mathPath ?? 'auto');
   const manager = new THREE.LoadingManager();
   manager.onProgress = (_url, loaded, total) => {
     if (!signal?.aborted) {
-      const message = `Ressource chargée : ${decodeURIComponent(_url.split('/').at(-1) ?? _url)}`;
+      const message = `Loaded resource: ${decodeURIComponent(_url.split('/').at(-1) ?? _url)}`;
       options.onPreparation?.({ phase: 'resources', completed: loaded, total, message });
       diagnose('preparation', message, {
         kind: 'preparation',
@@ -66,24 +66,24 @@ export async function loadPreparedScene(
       });
     }
   };
-  // Les images dont la chaîne est cuite ne sont pas lues : le chargeur reçoit un pixel blanc à leur
-  // place, et le moteur lira leurs niveaux dans le cache. Seulement sur demande de l'hôte, parce
-  // qu'un moteur qui dessine la scène de l'hôte a besoin des vraies images.
+  // Images whose chain is baked are not read: the loader receives a white pixel in their
+  // place, and the engine will read their levels from the cache. Only at the host's request,
+  // because an engine that draws the host scene needs the real images.
   // GLTFLoader has no AbortSignal in this Three version; dispose late results after loading settles.
   const sceneUrl = new URL(sceneFile, base).href;
   const loader = new GLTFLoader(manager);
   let gltf: Awaited<ReturnType<GLTFLoader['loadAsync']>>;
   if (options.textureSource === 'cache' && metadata.textures) {
-    // Le glTF est lu une fois, ici : sa liste d'images dit lesquelles sauter, puis le chargeur
-    // l'analyse tel quel, sans le redemander au réseau.
+    // The glTF is read once, here: its image list says which to skip, then the loader parses
+    // it as-is, without asking the network again.
     const text = await (await checked(sceneUrl, signal)).text();
     const gltfJson = JSON.parse(text) as { images?: { uri?: string }[] };
-    // L'adresse à sauter est celle que le chargeur demandera, par sa propre règle de résolution.
+    // The address to skip is the one the loader will ask for, by its own resolution rule.
     const path = THREE.LoaderUtils.extractUrlBase(sceneUrl);
     const skipped = bakedImageUrls(metadata, gltfJson.images, (uri) =>
       THREE.LoaderUtils.resolveURL(uri, path),
     );
-    diagnose('preparation', `Images lues dans le cache : ${skipped.size}`, {
+    diagnose('preparation', `Images read from the cache: ${skipped.size}`, {
       kind: 'preparation',
       phase: 'resources',
       bakedImages: skipped.size,
@@ -94,30 +94,30 @@ export async function loadPreparedScene(
   } else gltf = await loader.loadAsync(sceneUrl);
   let source: THREE.Object3D = gltf.scene;
   registerSource(source);
-  // Aucune pose non finie n'entre dans le moteur : la matrice monde de chaque maillage est calculée
-  // une fois par le moteur, depuis les poses locales de l'hôte. Sans ce refus, un NaN de l'hôte
-  // ressortirait en surface éteinte au fond du nuanceur d'éclairage, loin de sa cause.
+  // No non-finite pose enters the engine: each mesh world matrix is computed once by the
+  // engine, from the host's local poses. Without this refusal, a host NaN would come out as
+  // a darkened surface at the bottom of the lighting shader, far from its cause.
   for (const mesh of objects(source))
     assertFiniteTransform(hostWorldChainInto(monde, mesh), mesh.name);
   const sceneLightingSource = options.sceneLighting ?? source;
   signal?.throwIfAborted();
   const associations = gltf.parser.associations as BackendContext['associations'];
-  // Le sidecar nomme ses aperçus par rang de texture glTF ; c'est la seule table qui les relie aux
-  // objets que le chargeur a construits.
+  // The sidecar names its previews by glTF texture rank; that is the only table that ties
+  // them to the objects the loader built.
   const textureIndices = new Map<THREE.Texture, number>();
   for (const [object, reference] of gltf.parser.associations as Map<object, { textures?: number }>)
     if (object instanceof THREE.Texture && typeof reference?.textures === 'number')
       textureIndices.set(object, reference.textures);
   await calculEnLot;
   const replicas = options.replicaCount ?? 1;
-  // Les tampons du chargement, réservés avant d'être écrits et rendus sitôt lus : les bornes de la
-  // scène — pages exactes d'une scène autonome, boîtes de l'hôte sinon, et seulement quand la
-  // réplication les réclame — puis les matrices des répliques. Réserver par lot, jamais par image.
+  // Load buffers, reserved before they are written and returned as soon as they are read:
+  // scene bounds — exact pages of an autonomous scene, host boxes otherwise, and only when
+  // replication asks for them — then replica matrices. Reserve by lot, never per frame.
   const bornes =
     autonomous || replicas > 1
       ? await sceneBoundsLot(source, associations, metadata, autonomous)
       : null;
-  // Le tampon des matrices monde que le moteur compose lui-même, à la taille du sous-arbre.
+  // Buffer of the world matrices the engine composes itself, at the subtree size.
   const mondes = !autonomous && replicas > 1 ? await hostWorldLot(source) : null;
   const preparedBounds = autonomous
     ? exactPagesBounds(source, associations, metadata, manquante, undefined, bornes)
@@ -130,8 +130,8 @@ export async function loadPreparedScene(
   source = replicateInstances(source, associations, replicas, preparedBounds, instances);
   instances?.release();
   bornes?.release();
-  // Le cadrage de la caméra reprend ces mêmes bornes sur la scène FINALE : son tampon est réservé
-  // ici, à la taille qu'elle a une fois répliquée, et rendu par l'appelant.
+  // Camera framing takes these same bounds on the FINAL scene: its buffer is reserved here,
+  // at the size it has once replicated, and returned by the caller.
   const framingLot = await sceneBoundsLot(source, associations, metadata, autonomous);
   return { source, sceneLightingSource, associations, textureIndices, framingLot };
 }

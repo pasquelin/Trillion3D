@@ -8,12 +8,12 @@ import type { SceneLightStore } from './sceneLightStore.ts';
 const CANDIDATES = MAX_SHADOW_SLICES * POINT_FACES;
 
 /**
- * La file d'attente des faces qui ont des pages à refaire, et son admission sous budget.
+ * Queue of faces that have pages to remake, and its admission under budget.
  *
- * Il n'y a pas de tri : autant de balayages de la liste que de faces retenues, ce qui borne le
- * travail par le plafond de régions et non par le nombre de candidates. Une face refusée garde ses
- * pages et repasse à l'image suivante, avec une priorité montée d'autant d'images d'attente ; rien
- * n'est perdu. Tous les tableaux sont alloués une fois.
+ * There is no sort: as many scans of the list as faces kept, which bounds the
+ * work by the region ceiling and not by the number of candidates. A refused face keeps its
+ * pages and comes back next frame, with a priority raised by as many waiting frames; nothing
+ * is lost. All arrays are allocated once.
  */
 export function createShadowAdmission(
   regions: ShadowRegions,
@@ -27,11 +27,11 @@ export function createShadowAdmission(
     priority = new Float64Array(CANDIDATES);
   let count = 0,
     spent = 0;
-  /** Le prix d'une région contre ce qui reste du budget ; posé une fois, pas une fois par image. */
+  /** Price of a region against what remains of the budget; set once, not once per frame. */
   const accept = (pages: number) => {
     const cost = budget.estimate(pages);
-    // La première région passe toujours : sans elle, une page attendrait indéfiniment sur un
-    // appareil dont la moindre page dépasse déjà le budget, et le retard ne serait plus borné.
+    // The first region always passes: without it, a page would wait forever on a
+    // device whose smallest page already exceeds the budget, and lag would no longer be bounded.
     if (cost !== null && regions.count > 0 && spent + cost > budget.budgetMs) return false;
     spent += cost ?? 0;
     return true;
@@ -49,7 +49,7 @@ export function createShadowAdmission(
       priority[count] = value;
       count++;
     },
-    /** Vide la file par priorité décroissante jusqu'au budget, puis rend la main. */
+    /** Empties the queue by decreasing priority until the budget, then yields. */
     run(slices: ReturnType<typeof createShadowSliceTable>, store: SceneLightStore, frame: number) {
       spent = 0;
       for (let picked = 0; picked < count && regions.count < regions.capacity; picked++) {

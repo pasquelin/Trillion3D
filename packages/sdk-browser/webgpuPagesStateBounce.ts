@@ -1,25 +1,25 @@
 import type { GpuBounceProbes } from './gpuBounceProbes.ts';
 
 /**
- * L'état de la lumière qui rebondit : la grille de sondes, ce que l'hôte en a demandé, et ce que la
- * dernière image a réellement fait. Rien n'est alloué par image.
+ * State of bouncing light: the probe grid, what the host asked of it, and what the last image
+ * actually did. Nothing is allocated per image.
  */
 export interface WebgpuBounceState {
   probes: GpuBounceProbes | undefined;
-  /** Le chargement du proxy résident en cours ; il n'est lancé qu'une fois, à la première lampe. */
+  /** In-flight load of the resident proxy; it is launched only once, at the first light. */
   pending: Promise<unknown> | undefined;
-  /** Ce que l'hôte a demandé. */
+  /** What the host asked. */
   wanted: boolean;
-  /** La durée visée de l'étape « Rebond » par image, en millisecondes : la consigne de l'hôte. */
+  /** Target duration of the Bounce stage per image, in milliseconds: the host's instruction. */
   budgetMs: number;
-  /** Pourquoi le rebond n'existe pas, quand il n'existe pas. */
+  /** Why bounce does not exist, when it does not. */
   reason: string | null;
-  /** Révision du magasin de lampes déjà vue : un changement relance la convergence. */
+  /** Light-store revision already seen: a change restarts convergence. */
   lightEpoch: number;
-  /** Sondes mises à jour et rayons lancés par la dernière image ; zéro quand rien n'a été encodé. */
+  /** Probes updated and rays launched by the last image; zero when nothing was encoded. */
   probesUpdated: number;
   raysLaunched: number;
-  /** Vrai quand la dernière image a réellement encodé la passe de sondes. */
+  /** True when the last image actually encoded the probe pass. */
   encoded: boolean;
   firstFrameLogged: boolean;
 }

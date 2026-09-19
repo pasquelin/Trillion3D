@@ -10,10 +10,10 @@ export const BASE_SLOTS = 6;
 export const UNIFORM_BYTES = 32,
   WORKGROUP = 64;
 /**
- * u32 par fiche de dessin : la ligne de la table de pages, son bac de pipeline, son index de page
- * dans le catalogue de sélection, sa couche coplanaire, et ses triangles. Les cinq sont des
- * propriétés de la LIGNE, jamais de l'image : la partition GPU lit les deux derniers pour compter
- * ses slots et peser un rejet d'occultation, sans qu'aucun parcours par image ne les rassemble.
+ * u32 per draw record: the page-table row, its pipeline bin, its page index in the selection
+ * catalogue, its coplanar layer, and its triangles. All five are properties of the ROW, never of
+ * the frame: the GPU partition reads the last two to count its slots and weigh an occlusion
+ * reject, without any per-frame walk gathering them.
  */
 export const DRAW_ITEM_U32 = 5;
 /**
@@ -23,11 +23,11 @@ export const DRAW_ITEM_U32 = 5;
  * pipeline that carries their depth bias, and the clusters of layer 0 keep the order they had.
  */
 export const slotCount = (layerSlots: number) => BASE_SLOTS * Math.max(1, layerSlots);
-/** Les slots de la moitié testée : les trois modes de face de chaque couche, après les occulteurs. */
+/** Slots of the tested half: the three face modes of each layer, after the occluders. */
 export const restSlotCount = (layerSlots: number) => (BASE_SLOTS / 2) * layerSlots;
-/** Slots que la compaction peut avoir à nommer : toutes les couches que le format de cache décrit.
- *  Les tableaux dimensionnés une fois pour toutes s'y réfèrent ; cela coûte quelques centaines
- *  d'octets et évite de réallouer quand une scène porte des couches. */
+/** Slots the compact may have to name: every layer the cache format describes.
+ *  Arrays sized once and for all refer to this; it costs a few hundred bytes and avoids
+ *  reallocating when a scene carries layers. */
 export const MAX_DRAW_SLOTS = slotCount(1 + MAX_DEPTH_LAYER);
 
 export type DrawItem = {
@@ -58,10 +58,10 @@ export type GpuDraw = {
    * itemsTo]` — the ones a page arriving, leaving or changing rank has just rewritten — travel to
    * the card; `itemsTo < itemsFrom` sends nothing. Nothing here allocates.
    *
-   * La moitié occulteurs/testés de chaque ligne (`restBits`) et le nombre de lignes de chaque slot
-   * (`slotUsed`) ne sont plus téléversés : la partition GPU les écrit dans ces mêmes tampons, dans
-   * le même tampon de commandes et avant cette passe. Sans partition ils gardent ce que leur
-   * création leur a donné — aucune ligne dans la moitié testée, tous les slots compactés.
+   * Each row's occluder/tested half (`restBits`) and each slot's row count (`slotUsed`) are no
+   * longer uploaded: the GPU partition writes them into these same buffers, in the same command
+   * buffer and before this pass. Without a partition they keep what their creation gave them —
+   * no row in the tested half, every slot compacted.
    */
   encode(
     encoder: GPUCommandEncoder,
@@ -72,12 +72,12 @@ export type GpuDraw = {
     maxVertexCount: number,
     selection?: { maskBuffer: GPUBuffer; maskOffset: number },
   ): void;
-  /** Les fiches de dessin telles que la carte les tient : ce que la partition GPU lit pour
-   *  connaître le bac, la couche et les triangles de chaque ligne. */
+  /** Draw records as the GPU holds them: what the GPU partition reads to know each
+   *  row's bin, layer and triangles. */
   itemsBuffer: GPUBuffer;
-  /** Les bits de reste de l'image, un par ligne : ce que la partition GPU écrit avant la passe. */
+  /** The frame's rest bits, one per row: what the GPU partition writes before the pass. */
   restBitsBuffer: GPUBuffer;
-  /** Les lignes comptées par slot indirect : ce que la partition GPU écrit avant la passe. */
+  /** Rows counted per indirect slot: what the GPU partition writes before the pass. */
   slotUsedBuffer: GPUBuffer;
   indirectBuffer: GPUBuffer; // slots × 16 bytes
   instanceBuffer: GPUBuffer; // slotCap u32 page indices, ordered

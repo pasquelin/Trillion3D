@@ -6,13 +6,13 @@ import type { WebgpuVisState } from './webgpuPagesStateVis.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import { SHADE_UNIFORM_BYTES, writeSunSlice } from './visibilityShaderRequest.ts';
 
-/** Une entrée par slot de dessin indirect, plus celle du chemin direct. La taille suit le nombre de
- *  couches coplanaires de la scène : sans couche, c'est exactement le tampon d'avant. */
+/** One entry per indirect draw slot, plus the direct path's. Size follows the scene's coplanar-layer
+ *  count: with no layer, it is exactly the previous buffer. */
 export const visUniformSlots = (vis: WebgpuVisState) => slotCount(vis.drawLayerSlots) + 1;
 
-/** La couche coplanaire la plus haute qu'un slot indirect nomme. Le nombre de slots vaut `1 + min(
- *  couche la plus profonde, MAX_DEPTH_LAYER)` et retombe à 1 sur toute défaillance : il ne descend
- *  jamais sous 1, et le sommet ne descend donc jamais sous 0. */
+/** Highest coplanar layer an indirect slot names. The slot count is `1 + min(deepest layer,
+ *  MAX_DEPTH_LAYER)` and falls back to 1 on any failure: it never goes below 1, so the top never goes
+ *  below 0. */
 export const visLayerTop = (vis: WebgpuVisState) => vis.drawLayerSlots - 1;
 
 /** Uploads visibility and material resolve uniforms for the current cut, creating the two uniform
@@ -40,8 +40,8 @@ export function writeWebgpuVisibilityUniforms(
     visUniPacked.set(viewProj, base);
     visUniPacked[base + 16] = width;
     visUniPacked[base + 17] = height;
-    // Le partage de la coupe entre les deux rasters, lu par les deux : zéro tant que le raster de
-    // calcul n'existe pas, et le matériel ne lit alors pas un sommet de plus.
+    // Split of the cut between the two rasters, read by both: zero while the compute raster does not
+    // exist, and hardware then reads not one extra vertex.
     visUniPacked[base + 18] = computeSpan;
     // The compute raster splits the page row over two dispatch dimensions; it needs the live count.
     visInts[base + 19] = tableRows;
@@ -60,10 +60,10 @@ export function writeWebgpuVisibilityUniforms(
   shadeUniPacked[17] = height;
   const shadeInts = new Uint32Array(shadeUniPacked.buffer);
   shadeInts[20] = tableRows;
-  // La phase du retour d'image des textures : un pixel sur seize parle, tous pendant une convergence.
+  // Texture image-feedback phase: one pixel in sixteen speaks, all of them during a convergence.
   shadeInts[22] = vis.textures?.feedback.phaseWord(run.textureConverging) ?? 0;
-  // La tranche d'ombre du soleil, pour que la résolution demande les tuiles que l'ombre d'un
-  // feuillage lit ; sans soleil à ombre, une tranche sans face, et rien n'est demandé.
+  // The sun's shadow slice, so resolve asks for the tiles a foliage shadow reads; with no sun to
+  // shadow, a faceless slice, and nothing is asked.
   writeSunSlice(rt.lights, shadeUniPacked);
   shadeInts[21] =
     diagnostic === 'beauty'

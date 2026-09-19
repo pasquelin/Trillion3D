@@ -17,11 +17,11 @@ function visible(light: THREE.Light) {
   return true;
 }
 /**
- * Recopie dans la scène de rendu les lampes que le graphe source déclare, et rien d'autre.
+ * Copy into the render scene the lights the source graph declares, and nothing else.
  *
- * Aucune lumière sans source déclarée (P6) : une source qui n'en porte aucune donne une scène sans
- * lampe, pas une hémisphérique et un soleil inventés. C'est la même règle que le chemin du contrat,
- * du côté des adaptateurs qui rendent par Three.
+ * No light without a declared source (P6): a source that carries none yields a scene without
+ * a light, not an invented hemisphere and sun. Same rule as the contract path,
+ * on the adapters that render through Three.
  */
 export function installSceneLighting(
   scene: THREE.Scene,
@@ -30,8 +30,8 @@ export function installSceneLighting(
 ) {
   scene.background = new THREE.Color(clearColor);
   let pairs: Array<{ original: THREE.Light; copy: THREE.Light; target?: THREE.Object3D }> = [];
-  // Les lampes du graphe source s'effacent quand un autre contrat d'éclairage prend la main : deux
-  // jeux de lampes superposés ne seraient l'éclairage de personne.
+  // Source-graph lights are cleared when another lighting contract takes over: two
+  // stacked light sets would be nobody's lighting.
   let enabled = true;
   const update = () => {
     for (const { original, copy, target } of pairs) {
@@ -82,13 +82,13 @@ export function installSceneLighting(
   return {
     update,
     refresh,
-    /** Éteint ou rallume les lampes du graphe source, sans les retirer ni les recopier. */
+    /** Turn source-graph lights off or on, without removing or recopying them. */
     setEnabled(next: boolean) {
       if (enabled === next) return;
       enabled = next;
       update();
     },
-    /** Vrai dès qu'une lampe du graphe source est installée : le seul signal de la vue éclairée. */
+    /** True as soon as a source-graph light is installed: the only signal of a lit view. */
     get lit() {
       return enabled && pairs.length > 0;
     },
@@ -96,17 +96,17 @@ export function installSceneLighting(
 }
 
 /**
- * Ce qu'un moteur rendu par Three publie de son éclairage : de quoi le rafraîchir, et la vue qu'il
- * rend. Sans lampe installée, l'hôte compose par l'identité plutôt que par l'exposition et ACES.
+ * What a Three-rendered engine publishes of its lighting: enough to refresh it, and the view it
+ * renders. With no light installed, the host composites by identity rather than exposure and ACES.
  *
- * `sceneLit` est une fonction et non un accesseur : les moteurs étalent cet objet dans le leur, et
- * un accesseur y serait lu une seule fois, à la construction. Une lampe posée après coup — le cas
- * de tout hôte du contrat — doit rallumer la chaîne d'affichage à l'image suivante.
+ * `sceneLit` is a function, not a getter: engines spread this object into theirs, and a getter
+ * would be read once, at construction. A light placed afterwards — the case of every contract
+ * host — must relight the display chain on the next frame.
  */
 export function sceneLightingApi(
   lighting: ReturnType<typeof installSceneLighting>,
-  /** Prévenu quand les lampes du graphe source changent : c'est une écriture de scène. Un moteur
-   *  qui reparcourt la scène à chaque image n'a rien à en faire et le dit par un appel vide. */
+  /** Notified when source-graph lights change: this is a scene write. An engine that
+   *  rewalks the scene every frame has nothing to do with it and says so with an empty call. */
   sceneChanged: () => void,
 ) {
   return {

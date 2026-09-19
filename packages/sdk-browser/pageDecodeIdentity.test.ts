@@ -1,6 +1,6 @@
-// Lot H2 : les trois chemins de décodage — WebAssembly, JavaScript, et la tâche du contrat exécutée
-// sur place — doivent rendre exactement les mêmes octets, ou refuser pour la même cause. Entrées
-// hostiles : 65 535 sommets (la borne haute), du NaN/Infinity glissé après coup, une page tronquée.
+// Batch H2: the three decode paths — WebAssembly, JavaScript, and the contract task run in
+// place — must return exactly the same bytes, or refuse for the same cause. Hostile inputs:
+// 65 535 vertices (the high bound), NaN/Infinity slipped in afterwards, a truncated page.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -16,12 +16,12 @@ const MAX = 16 * 1024 * 1024;
 const MODULE = readFileSync(join(import.meta.dirname, 'pageCodec.wasm'));
 
 test.before(async () => {
-  assert.ok(await prepareSdkWasm(MODULE), 'le module wasm réel doit s’instancier');
+  assert.ok(await prepareSdkWasm(MODULE), 'the real wasm module must instantiate');
 });
 
-/** Une valeur identique octet pour octet des trois côtés, ou le premier écart. */
+/** A value identical byte for byte on all three sides, or the first gap. */
 function ecart(nom: string, a: Float32Array | Uint32Array, b: Float32Array | Uint32Array) {
-  if (a.length !== b.length) return `${nom}: longueur ${a.length} ≠ ${b.length}`;
+  if (a.length !== b.length) return `${nom}: length ${a.length} ≠ ${b.length}`;
   for (let i = 0; i < a.length; i++)
     if (!Object.is(a[i], b[i])) return `${nom}[${i}]: ${a[i]} ≠ ${b[i]}`;
   return null;
@@ -39,14 +39,14 @@ async function trioIdentique(donnees: Uint8Array) {
   });
   assert.equal(answer.ok, true);
   const bon = answer as PageDecodeDone;
-  assert.equal(bon.wasm, true, 'le module wasm préchargé doit avoir fait le travail de la tâche');
-  assert.equal(ecart('indices en place/wasm', enPlace.indices, parWasm.indices), null);
+  assert.equal(bon.wasm, true, 'the preloaded wasm module must have done the task work');
+  assert.equal(ecart('indices in-place/wasm', enPlace.indices, parWasm.indices), null);
   for (const nom of Object.keys(enPlace.attributes))
     assert.equal(ecart(nom, enPlace.attributes[nom], parWasm.attributes[nom]), null);
   return enPlace;
 }
 
-test('65 535 sommets — la borne haute — décodent à l’identique sur les trois chemins', async () => {
+test('65 535 vertices — the high bound — decode identically on the three paths', async () => {
   const sommets = 65535;
   const position = new Float32Array(sommets * 3);
   for (let i = 0; i < sommets; i++) position.set([i * 0.001, -i * 0.001, 0], i * 3);
@@ -60,11 +60,11 @@ test('65 535 sommets — la borne haute — décodent à l’identique sur les t
   assert.equal(enPlace.vertexCount, sommets);
 });
 
-test('un NaN, un Infinity et un -0 glissés dans la page se décodent ou se refusent à l’identique', async () => {
+test('a NaN, an Infinity and a -0 slipped into the page decode or refuse identically', async () => {
   const position = new Float32Array([1, 2, 3, -0, 5, 6, 7, 8, 9]);
   const original = Number.isFinite;
-  // Le codec de référence refuse tout attribut non fini : on le contourne pour fabriquer une page
-  // hostile mais structurellement valide, seule façon de faire passer du NaN par le compresseur.
+  // The reference codec refuses any non-finite attribute: it is bypassed to build a hostile but
+  // structurally valid page, the only way to get NaN through the compressor.
   Object.defineProperty(Number, 'isFinite', { value: () => true, configurable: true });
   let data: Uint8Array;
   try {
@@ -78,7 +78,7 @@ test('un NaN, un Infinity et un -0 glissés dans la page se décodent ou se refu
   await assert.rejects(() => decodeGeometryPage(data.slice(), MAX), /GEOMETRY_PAGE_NONFINITE/);
   await assert.rejects(() => decodeGeometryPageWasm(data.slice(), MAX), /GEOMETRY_PAGE_NONFINITE/);
 
-  // Le -0 seul, lui, est fini : il traverse l'encodeur normalement et doit rester -0, pas 0, partout.
+  // -0 alone, for its part, is finite: it goes through the encoder normally and must stay -0, not 0, everywhere.
   const { data: propre } = await encodeGeometryPage([0, 1, 2], {
     POSITION: { itemSize: 3, array: position },
   });
@@ -86,11 +86,11 @@ test('un NaN, un Infinity et un -0 glissés dans la page se décodent ou se refu
   assert.ok(Object.is(enPlace.attributes.position[3], -0));
 });
 
-test('une page tronquée après son en-tête refuse GEOMETRY_PAGE_BOUNDS sur les trois chemins', async () => {
+test('a page truncated after its header refuses GEOMETRY_PAGE_BOUNDS on the three paths', async () => {
   const { data } = await encodeGeometryPage([0, 1, 2], {
     POSITION: { itemSize: 3, array: new Float32Array([1, 2, 3, 4, 5, 6, 7, 8, 9]) },
   });
-  const tronquee = (data as Uint8Array).slice(0, 32 + 4); // l'en-tête accepté, le corps coupé.
+  const tronquee = (data as Uint8Array).slice(0, 32 + 4); // accepted header, body cut.
   await assert.rejects(() => decodeGeometryPage(tronquee.slice(), MAX), /GEOMETRY_PAGE_BOUNDS/);
   await assert.rejects(() => decodeGeometryPageWasm(tronquee.slice(), MAX), /GEOMETRY_PAGE_BOUNDS/);
   const { answer } = await runPageDecodeTask({

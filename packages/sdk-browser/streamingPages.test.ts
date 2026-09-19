@@ -153,7 +153,7 @@ test('cancellation stops outstanding loads without retrying or recording a sourc
     globalThis.fetch = previous;
   }
 });
-test('une liste d’épingles identique ne repose rien, une liste qui change repose tout', async () => {
+test('an identical pin list resets nothing, a list that changes resets everything', async () => {
   const bytes = new Uint8Array([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]);
   const sha = await sha256Hex(bytes.buffer);
   globalThis.fetch = async () => new Response(bytes, { status: 200 });
@@ -163,20 +163,20 @@ test('une liste d’épingles identique ne repose rien, une liste qui change rep
     sha256: sha,
   }));
   const evicted: string[] = [];
-  // Budget de deux pages : la troisième arrivée doit reprendre la place d'une non épinglée.
+  // Budget of two pages: the third arrival must reclaim the slot of an unpinned one.
   const streamer = createPageStreamer(pages, 'http://cache/', undefined, 1, 2, (url) =>
     evicted.push(url),
   );
   await streamer.request(['a.bin', 'b.bin']);
   streamer.retain(['a.bin']);
-  // La même liste, rendue dans le tableau que l'hôte réutilise : les épingles ne bougent pas.
+  // The same list, returned in the array the host reuses: pins do not move.
   const scratch = ['a.bin'];
   streamer.retain(scratch);
   await streamer.request(['c.bin']);
-  assert.deepEqual(evicted, ['b.bin'], 'la page épinglée a survécu, l’autre non');
+  assert.deepEqual(evicted, ['b.bin'], 'the pinned page survived, the other did not');
   assert.equal(streamer.has('a.bin'), true);
   assert.equal(streamer.has('c.bin'), true);
-  // La liste change : les épingles suivent, et l'ancienne épinglée devient reprenable.
+  // The list changes: pins follow, and the formerly pinned page becomes reclaimable.
   scratch[0] = 'c.bin';
   streamer.retain(scratch);
   await streamer.request(['b.bin']);

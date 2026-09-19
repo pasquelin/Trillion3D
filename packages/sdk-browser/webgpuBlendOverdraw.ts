@@ -1,18 +1,18 @@
-/** Deux requêtes : la passe de mélange, puis celle de transmission. Une passe qui n'est pas encodée
- *  laisse sa requête à zéro, ce que la résolution écrit elle-même. */
+/** Two queries: the blend pass, then the transmission pass. A pass that is not encoded leaves
+ *  its query at zero, which the resolve writes itself. */
 const QUERIES = 2,
   BYTES = QUERIES * 8;
 
 export type BlendOverdraw = ReturnType<typeof createBlendOverdraw>;
 
 /**
- * Le comptage du surdessin des transparents, par requête d'occlusion : le nombre d'échantillons que
- * la passe fait passer le test de profondeur, c'est-à-dire les fragments réellement mélangés. Le
- * rapporter aux pixels de l'image donne le taux de recouvrement MOYEN de la passe ; le maximum par
- * pixel n'est pas mesuré ici — une requête d'occlusion ne rend qu'une somme — et reste `null`.
+ * Overdraw count of transparents, by occlusion query: how many samples the pass lets through
+ * the depth test, i.e. the fragments actually blended. Relating that to the frame's pixels
+ * gives the pass's MEAN coverage; the per-pixel maximum is not measured here — an occlusion
+ * query yields only a sum — and stays `null`.
  *
- * Diagnostic seul : monté par la variante `transparents-surdessin` et par elle seule. La lecture ne
- * bloque jamais une image : une seule est en vol, les suivantes gardent le dernier compte revenu.
+ * Diagnostic only: mounted by the `transparents-surdessin` variant and by it alone. The read
+ * never blocks a frame: only one is in flight, later frames keep the last count that came back.
  */
 export function createBlendOverdraw(device: GPUDevice) {
   const set = device.createQuerySet({ type: 'occlusion', count: QUERIES });
@@ -31,27 +31,27 @@ export function createBlendOverdraw(device: GPUDevice) {
   const counts = {
     fragmentsMelanges: 0,
     pixelsImage: 0,
-    /** Le recouvrement moyen en millièmes : un compteur est un entier, jamais une durée. */
+    /** Mean coverage in thousandths: a counter is an integer, never a duration. */
     recouvrementMoyenMillemes: 0,
-    relevés: 0,
+    readings: 0,
   };
   return {
     set,
-    /** Ouvre la requête de la passe : zéro pour le mélange, une pour la transmission. */
+    /** Opens the pass query: zero for blend, one for transmission. */
     begin(pass: GPURenderPassEncoder, transmissive: boolean) {
       pass.beginOcclusionQuery(transmissive ? 1 : 0);
     },
     end(pass: GPURenderPassEncoder) {
       pass.endOcclusionQuery();
     },
-    /** Après la fin de la passe : résout les requêtes, et n'en copie une qu'à vol libre. */
+    /** After the pass ends: resolves the queries, and copies one only when none is in flight. */
     after(encoder: GPUCommandEncoder) {
       encoder.resolveQuerySet(set, 0, QUERIES, resolve, 0);
       if (pending) return;
       encoder.copyBufferToBuffer(resolve, 0, read, 0, BYTES);
       encoded = true;
     },
-    /** Une fois l'image soumise : récupère le compte quand il revient, sans jamais l'attendre. */
+    /** Once the frame is submitted: fetches the count when it comes back, never waiting for it. */
     pull(pixels: number) {
       if (!encoded || pending) return counts;
       encoded = false;
@@ -65,10 +65,10 @@ export function createBlendOverdraw(device: GPUDevice) {
           counts.fragmentsMelanges = fragments;
           counts.pixelsImage = pixels;
           counts.recouvrementMoyenMillemes = pixels ? Math.round((fragments / pixels) * 1000) : 0;
-          counts.relevés++;
+          counts.readings++;
         })
         .catch(() => {
-          /* Une image perdue ou un appareil libéré annule la lecture : le dernier compte reste. */
+          /* A lost frame or a released device cancels the read: the last count stays. */
         })
         .finally(() => {
           pending = false;

@@ -31,38 +31,38 @@ export interface WebgpuTimingState {
   lastGpuFrameMs: number | null;
   lastGpuHostGapMs: number | null;
   lastSubmitMs: number | null;
-  /** Durée du seul `queue.submit` de l'image : l'encodage ne la porte pas. */
+  /** Duration of the image's only `queue.submit`: encode does not carry it. */
   lastQueueSubmitMs: number;
-  /** Profil par étape publié par `stageProfile()` ; absent quand l'hôte ne l'a pas demandé. */
+  /** Per-stage profile published by `stageProfile()`; absent when the host has not asked for it. */
   stages: StageProfiler | undefined;
   // Encode-side step durations of the current image, reported by the `cpu-timing` diagnostic.
-  /** Ce que l'encodage de la partition a coûté au processeur : les coins que la table vient de
-   *  changer, une matrice vue-projection, et trois lancements de calcul. Jamais une ligne. */
+  /** What encoding the partition cost the CPU: the corners the table just changed, one view-projection
+   *  matrix, and three compute dispatches. Never a row. */
   lastPartitionMs: number;
-  /** Ce que la partition de l'image a décidé : des comptes, jamais des durées. */
+  /** What the image's partition decided: counts, never durations. */
   partitionCounts: {
     lignes: number;
     occulteurs: number;
     testees: number;
-    /** Boîtes qui ne coupent pas le plan proche, donc partageables par profondeur. */
+    /** Boxes that do not cut the near plane, therefore shareable by depth. */
     bornesToutes: number;
     historiqueOcculteurs: number;
     sansHistorique: number;
-    /** L'image que ces comptes décrivent : ils sont écrits par la carte et relus périodiquement,
-     *  donc jamais ceux de l'image courante. `-1` tant qu'aucun relevé n'est revenu. */
+    /** Image these counts describe: they are written by the GPU and reread periodically, therefore
+     *  never those of the current image. `-1` until a sample has come back. */
     imageRelevee: number;
   };
-  /** Ce que l'encodage a téléversé et soumis : des comptes, jamais des durées. */
+  /** What encode uploaded and submitted: counts, never durations. */
   encodeCounts: {
     lignesTeleversees: number;
     fichesTeleversees: number;
     appelsDeDessin: number;
     appelsDeMelange: number;
-    /** Les lancements du raster de calcul, comptés à part : ce ne sont pas des appels de dessin. */
+    /** Compute-raster dispatches, counted separately: they are not draw calls. */
     lancementsDeCalcul: number;
   };
   cpuProfile: ReturnType<typeof createCpuStepProfile>;
-  /** Vrai quand l'image a rempli sa ligne de bornes et attend d'être classée par l'hôte. */
+  /** True when the image has filled its bound row and waits to be filed by the host. */
   rowFilled: boolean;
   marks: GpuCutMarks;
   lastCpuLogMs: number;
@@ -83,7 +83,7 @@ export interface WebgpuTimingState {
   frameSelection: SelectionSubmission | undefined;
 }
 
-/** Le profil par étape du moteur WebGPU, monté seulement quand l'hôte l'a demandé. */
+/** Per-stage profile of the WebGPU engine, mounted only when the host has asked for it. */
 export function createWebgpuStageProfiler(): StageProfiler {
   const stages = createStageProfiler({
     backend: 'webgpu-page-raster',
@@ -91,8 +91,8 @@ export function createWebgpuStageProfiler(): StageProfiler {
     gpuMethod: 'timestamp-query',
   });
   stages.setReason('coplanar', {
-    cpu: 'décidées par la coupe, sans borne propre',
-    gpu: 'dessinées dans les passes de géométrie, sans passe propre',
+    cpu: 'decided by the cut, with no bound of their own',
+    gpu: 'drawn in the geometry passes, with no pass of their own',
   });
   return stages;
 }

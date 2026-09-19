@@ -1,14 +1,14 @@
-// Les chiffres publiés de la référence, tels que `docs/REFERENCE_UE5.md` les cite, mis en regard
-// des relevés de la campagne. Rien d'autre que ce document : une grandeur sans chiffre publié dit
-// « non publié », et une comparaison qui n'est pas honnête (machine, scène, résolution différentes)
-// le dit dans sa colonne « lecture ».
+// Published figures of the reference, as `docs/REFERENCE_UE5.md` cites them, put next to
+// the campaign readings. Nothing else than that document: a quantity without a published
+// figure says "unpublished", and a comparison that is not honest (different machine, scene,
+// resolution) says so in its "reading" column.
 import { nombre, octets, tableau } from './rapportGlobalGraphes.mjs';
 import { OCTETS_PAR_TRIANGLE, sommePasses, UNREAL, visibilite } from './rapportGlobalChiffres.mjs';
 
 /**
- * Le tableau « la référence / nous ». `mobile` est le relevé de la campagne à pleine résolution en
- * vue sol, `fixe` le même à caméra fixe. Les millisecondes de la référence sont celles de sa démo
- * sur console, pas de cette machine : la colonne « lecture » le rappelle à chaque ligne.
+ * The "the reference / us" table. `mobile` is the campaign reading at full resolution in
+ * the ground view, `fixe` the same at a still camera. The reference milliseconds are those
+ * of its console demo, not of this machine: the "reading" column reminds that on every row.
  */
 export function tableauReference({ mobile, fixe, instances12 }) {
   const cpu = mobile?.cpuP50 ?? null;
@@ -121,11 +121,11 @@ export function tableauReference({ mobile, fixe, instances12 }) {
   );
 }
 
-/** Le profil de la référence par passe, en regard des nôtres, pour la FORME du profil. */
+/** The reference profile per pass, next to ours, for the SHAPE of the profile. */
 export function tableauProfilReference(mobile) {
   const nous = (test) =>
     nombre(
-      sommePasses(mobile, (p) => test(p.nom)),
+      sommePasses(mobile, (p) => test(p.name)),
       3,
       'ms',
     );

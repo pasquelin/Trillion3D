@@ -70,7 +70,7 @@ export function createExplorerRender(session: ExplorerSession, inputs: Inputs) {
     const frameNumber = ++state.hostFrame;
     const start = performance.now();
     if (pose) setPose(pose);
-    // Drain unique des arrivées, hors de l'image qu'elles auraient allongée.
+    // Single drain of arrivals, outside the frame they would have lengthened.
     const arrivalStart = performance.now();
     streaming.arrivals.drain();
     (state.active as HostCpuProfile).cpuStep?.('arrivalsMs', performance.now() - arrivalStart);
@@ -110,13 +110,13 @@ export function createExplorerRender(session: ExplorerSession, inputs: Inputs) {
     fillMetrics(state.active);
     const frameEnd = performance.now();
     metricsScratch.cpuFrameMs = frameEnd - start;
-    // Les appels de dessin de cette image : ceux du moteur, ou ceux du renderer de l'hôte quand
-    // c'est lui qui dessine. `null` quand aucun des deux ne les compte — jamais zéro.
+    // Draw calls of this frame: the engine's, or the host renderer's when it is the one
+    // drawing. `null` when neither counts them — never zero.
     if (metricsScratch.drawCalls == null)
       metricsScratch.drawCalls = ownedRenderer?.info.render.calls ?? null;
-    // Les triangles soumis de cette image : ceux que le moteur a comptés, ou ceux que le renderer de
-    // l'hôte a dessinés quand c'est lui qui dessine. `null` quand aucun des deux ne les a comptés —
-    // un zéro publié ici se lirait comme une image vide, et c'est ce que le contrat interdit.
+    // Submitted triangles of this frame: those the engine counted, or those the host renderer
+    // drew when it is the one drawing. `null` when neither has counted them —
+    // a zero published here would read as an empty frame, and that is what the contract forbids.
     metricsScratch.triangles =
       metricsScratch.totalSubmittedTriangles ??
       (directGpu ? null : (ownedRenderer?.info.render.triangles ?? null));

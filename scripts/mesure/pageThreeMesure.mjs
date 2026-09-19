@@ -1,16 +1,16 @@
-// Ce que les témoins Three — nu (`pageThreeNu.mjs`) et à niveaux de détail (`pageThreeLod.mjs`)
-// — mesurent pareil : la même scène glTF chargée par Three, les lampes du contrat posées en Three
-// (soleil en `DirectionalLight` avec UNE carte d'ombre couvrant le modèle, ponctuelles en
-// `PointLight` avec leur cube d'ombre), ACES et sRGB comme le moteur, et la même boucle de mesure.
-// Servi à la page (montage `/mesure/`), n'importe que `three` depuis `/vendor/three/` — jamais du
-// moteur.
+// What the Three witnesses — bare (`pageThreeNu.mjs`) and with levels of detail (`pageThreeLod.mjs`)
+// — measure the same: the same glTF scene loaded by Three, contract lights placed in Three
+// (sun as `DirectionalLight` with ONE shadow map covering the model, point lights as
+// `PointLight` with their shadow cube), ACES and sRGB like the engine, and the same
+// measurement loop. Served to the page (mount `/mesure/`), it imports only `three` from
+// `/vendor/three/` — never from the engine.
 //
-// Ce qu'il mesure : le temps processeur de `render`, le temps mur d'une image synchronisée
-// (`render` puis la lecture d'un pixel, qui attend la carte — `gl.finish` n'attend rien dans
-// Chrome ; une seule durée, jamais une somme), l'intervalle rAF en boucle de profil, les appels et
-// triangles de `renderer.info`, les octets de géométrie et de textures qu'il tient, la préparation
-// et le réseau, et sa capture pour l'écart en pixels. Aucun temps GPU par passe : WebGL ne l'expose
-// pas dans Chrome, et le relevé le dit par `null`.
+// What it measures: the CPU time of `render`, the wall time of a synchronised frame
+// (`render` then a pixel read, which waits for the GPU — `gl.finish` waits for nothing in
+// Chrome; one duration, never a sum), the rAF interval in a profile loop, the calls and
+// triangles of `renderer.info`, the geometry and texture bytes it holds, preparation
+// and the network, and its capture for the pixel delta. No per-pass GPU time: WebGL does
+// not expose it in Chrome, and the reading says so with `null`.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { lampe, octets } from './pageThreeNuScene.mjs';
@@ -26,7 +26,7 @@ function placer(camera, pose, aspect) {
   camera.updateProjectionMatrix();
 }
 
-/** Les triangles des géométries indexées de `racine`, chaque géométrie comptée une fois. */
+/** Triangles of indexed geometries under `racine`, each geometry counted once. */
 function trianglesUniques(racine) {
   const geometries = new Set();
   racine.traverse((o) => {
@@ -38,13 +38,14 @@ function trianglesUniques(racine) {
 }
 
 /**
- * Une vue, un seuil (ignoré : Three n'a pas de seuil), la capture. Même contrat que `measureView`.
- * `preparer(racine, options)` retouche le graphe chargé avant les ombres et la compilation — c'est
- * là que le témoin à niveaux de détail remplace ses maillages — et rend les métriques à publier
- * en plus ; sans lui, la scène reste telle que Three l'a lue.
+ * One view, one threshold (ignored: Three has no threshold), the capture. Same contract as `measureView`.
+ * `preparer(racine, options)` retouches the loaded graph before shadows and compilation — that
+ * is where the level-of-detail witness replaces its meshes — and returns extra metrics to
+ * publish; without it, the scene stays as Three read it.
  */
 export async function mesurerThree(options, preparer) {
-  if ((options.instances ?? 1) !== 1) return { erreur: 'le témoin Three ne pose pas d’instances' };
+  if ((options.instances ?? 1) !== 1)
+    return { erreur: 'the Three witness does not place instances' };
   const canvas = document.createElement('canvas');
   document.body.append(canvas);
   const lost = (globalThis.incidentsGpu = []);
@@ -75,8 +76,8 @@ export async function mesurerThree(options, preparer) {
   gltf.scene.traverse((o) => {
     if (!o.isMesh) return;
     o.castShadow = o.receiveShadow = shadows;
-    // Les matériaux du glTF sont à deux faces : en projeter les deux fait s'ombrer chaque mur
-    // mince lui-même et noircit la scène. La face arrière seule est le réglage usuel de Three.
+    // glTF materials are two-sided: projecting both makes every thin wall shadow
+    // itself and darkens the scene. Back face alone is Three's usual setting.
     if (o.material) o.material.shadowSide = THREE.BackSide;
   });
   const box = new THREE.Box3().setFromObject(gltf.scene);
@@ -115,8 +116,8 @@ export async function mesurerThree(options, preparer) {
     attendre();
     syncFrameMs.push(performance.now() - t);
   }
-  // La cadence réelle : une image par rAF, comme une application ; plafonnée par l'affichage. Les
-  // deux premiers intervalles absorbent la file laissée par la boucle mesurée et ne sont pas relevés.
+  // Real cadence: one frame per rAF, like an application; capped by the display. The
+  // first two intervals absorb the queue left by the measured loop and are not recorded.
   const rafIntervalMs = [];
   let previous = null;
   for (let i = 0; i < options.profileFrames; i++) {
@@ -131,8 +132,8 @@ export async function mesurerThree(options, preparer) {
   renderer.render(scene, camera);
   const info = renderer.info;
   const memoire = octets(scene);
-  // La capture, lignes du bas vers le haut comme WebGL les lit et comme `explorer.capture()` les
-  // rend : le serveur du banc les remet à l'endroit en encodant le PNG, et compare les tampons tels quels.
+  // The capture, bottom-to-top rows as WebGL reads them and as `explorer.capture()`
+  // returns them: the bench server flips them when encoding the PNG, and compares the buffers as-is.
   const w = canvas.width,
     h = canvas.height;
   const rgba = new Uint8Array(w * h * 4);
@@ -151,10 +152,10 @@ export async function mesurerThree(options, preparer) {
     programs: info.programs?.length ?? null,
     lightsActive: lampes.size,
     frameHeld: false,
-    // Les triangles de la scène telle que Three l'a lue, chaque géométrie comptée une fois : les
-    // octets par triangle du témoin se mesurent dessus.
+    // Triangles of the scene as Three read it, each geometry counted once: the
+    // witness's bytes per triangle are measured on that.
     uniqueTriangles,
-    // Ce que la préparation du témoin publie (ses niveaux de détail), à plat.
+    // What the witness preparation publishes (its levels of detail), flattened.
     ...temoin,
   };
   renderer.dispose();

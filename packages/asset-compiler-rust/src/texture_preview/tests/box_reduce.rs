@@ -1,7 +1,7 @@
 use super::*;
 
-// Comportement 3 (a) : une image dont aucun côté ne dépasse la base est portée telle quelle. Son
-// niveau 0 est la source, octet pour octet, et le moteur n'a plus rien à charger pour elle.
+// Behavior 3 (a): image with no side exceeding base carried as is. Level
+// 0 is source byte for byte, engine loads nothing else for it.
 #[test]
 fn a_source_under_the_base_carries_its_own_full_resolution() {
     let (width, height) = (4u32, 4u32);
@@ -18,9 +18,9 @@ fn a_source_under_the_base_carries_its_own_full_resolution() {
     );
 }
 
-// Comportement 3 (b) : des dimensions impaires et dissemblables (17×9) ne font pas planter la
-// réduction, une couleur uniforme y survit exactement à chaque niveau — la courbe sRGB fait
-// l'aller-retour sur les 256 octets —, et la longueur écrite est celle que la géométrie annonce.
+// Behavior 3 (b): odd unequal dimensions (17x9) do not crash
+// reduction, uniform color survives exactly at each level — sRGB curve
+// round-trips all 256 bytes —, written length matches geometry.
 #[test]
 fn odd_dimensions_reduce_without_panicking() {
     let (width, height) = (17u32, 9u32);
@@ -36,8 +36,8 @@ fn odd_dimensions_reduce_without_panicking() {
     }
 }
 
-// Comportement 3 (c) : la courbe sRGB fait l'aller-retour exact sur les 256 valeurs d'octet —
-// sinon un niveau uniforme dériverait d'un cran à chaque réduction.
+// Behavior 3 (c): sRGB curve does exact round-trip on all 256 byte values —
+// otherwise uniform level would drift a step each reduction.
 #[test]
 fn the_srgb_curve_round_trips_every_byte() {
     for value in 0..=255u8 {

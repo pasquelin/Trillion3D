@@ -1,6 +1,6 @@
-import * as THREE from 'three';
 import { signedArea, type Projected } from './visibilityProjection.ts';
 import { matrixWindingCw } from '../sdk-core/index.ts';
+import { sideOf } from './materialSide.ts';
 import { DEPTH_CLEAR, depthNearer } from './depthConvention.ts';
 import { triangleAt, perspectiveBary, wrapTexel } from './visibilityMath.ts';
 import {
@@ -65,8 +65,8 @@ function fillIds(
   }
 }
 
-/** CPU visbuffer: packed IDs plus NDC z (background at the far value). La profondeur du moteur est
- *  inversée, donc la PLUS GRANDE gagne ; à profondeur égale, la première écriture reste. */
+/** CPU visbuffer: packed IDs plus NDC z (background at the far value). Engine depth is
+ *  reversed, so the GREATEST wins; at equal depth, the first write stays. */
 export function rasterVisibility(pages: VisPage[], cam: EngineCamera, viewport: [number, number]) {
   const [width, height] = viewport,
     ids = new Uint32Array(width * height),
@@ -76,23 +76,19 @@ export function rasterVisibility(pages: VisPage[], cam: EngineCamera, viewport: 
     const page = pages[pageIndex],
       index = page.array;
     if (!page.attributes.position) continue;
-    const side = visMaterial(page.material).doubleSided
-      ? THREE.DoubleSide
-      : Array.isArray(page.material)
-        ? page.material[0].side
-        : page.material.side;
-    // Une réflexion renverse le sens de parcours à l'écran : la face à éliminer est l'autre, comme
-    // `visBin` le fait pour les pipelines WebGPU et Three pour WebGL (`frontFaceCW`). Sans cette
-    // bascule, ce rasteriseur dessinait sous réflexion exactement les faces que le rejet par cône
-    // supprime — et son propre ombrage (`visibilityLighting`) retournait déjà le signe, lui.
-    const positif = (side === THREE.BackSide) !== matrixWindingCw(page.matrix.elements);
+    const side = sideOf(page.material),
+      mat = visMaterial(page.material);
+    // A reflection reverses the walk direction on screen: the face to drop is the other one, as
+    // `visBin` does for WebGPU pipelines and Three for WebGL (`frontFaceCW`). Without this
+    // flip, this rasterizer drew under reflection exactly the faces that cone rejection
+    // drops — and its own shading (`visibilityLighting`) already flipped the sign.
+    const positif = (side === 'back') !== matrixWindingCw(page.matrix.elements);
     const triangles = assertVisibilityPageTriangles((index.length / 3) | 0);
     for (let t = 0; t < triangles && t <= VIS_TRIANGLE_MASK; t++) {
       const tri = triangleAt(page, t, cam, width, height);
       if (!tri) continue;
       const area = signedArea(tri.a, tri.b, tri.c);
-      if (side !== THREE.DoubleSide && (positif ? area <= 0 : area >= 0)) continue;
-      const mat = visMaterial(page.material);
+      if (side !== 'double' && (positif ? area <= 0 : area >= 0)) continue;
       if (mat.alphaTest > 0 && mat.map) {
         const uv = page.attributes.uv;
         fillIds(

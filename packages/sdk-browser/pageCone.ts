@@ -6,7 +6,8 @@ import {
   linearPartScale,
   normalMatrix3,
 } from '../sdk-core/index.ts';
-import * as THREE from 'three';
+import type * as THREE from 'three';
+import { sideOf } from './materialSide.ts';
 import type { MatrixElements } from './matrixElements.ts';
 
 export type NormalCone = { axis: [number, number, number]; angle: number };
@@ -17,14 +18,14 @@ export { triangleCone } from './pageConeBuild.ts';
 const loneContext = createConeContext();
 
 /**
- * Conformité d'une transformation, indépendante de son échelle : la 3×3 est divisée par la somme
- * des valeurs absolues de ses termes avant tout carré, puis ses trois colonnes doivent avoir la même
- * longueur et être orthogonales à 1e-4 près, en relatif. Aucune tolérance absolue : une échelle
- * minuscule n'accepte pas plus de déformation qu'une échelle unité. Une 3×3 nulle, infinie ou NaN,
- * ou une colonne nulle, n'est pas conforme : le cluster est conservé.
- *  Miroir CPU de `isConformal` (gpuDagShader.ts) : même normalisation, mêmes tolérances (`mathCone.ts`). L'échelle
- *  vient de `linearPartScale` (`mathSingular.ts`), la somme que la règle de singularité emploie déjà :
- *  mêmes neuf termes, même ordre, donc les mêmes bits qu'auparavant.
+ * Conformality of a transformation, independent of its scale: 3×3 matrix is divided by sum
+ * of absolute values of its terms before squaring, then its 3 columns must have same
+ * length and be orthogonal to 1e-4 in relative terms. Zero absolute tolerance: tiny scale
+ * accepts no more deformation than unit scale. Zero, infinite, NaN 3×3 matrix, or zero column,
+ * is non-conformal: cluster is retained.
+ *  CPU mirror of `isConformal` (gpuDagShader.ts): same normalization, same tolerances (`mathCone.ts`).
+ *  Scale comes from `linearPartScale` (`mathSingular.ts`), same sum singularity rule uses:
+ *  same 9 terms, same order, so exact same bits as before.
  */
 function isConformal(e: ArrayLike<number>) {
   const t = linearPartScale(e);
@@ -53,14 +54,13 @@ function isConformal(e: ArrayLike<number>) {
 }
 
 /**
- * Ce qu'un rejet de cône lit d'une racine et de la caméra, et qui ne change pas d'un cluster à
- * l'autre : la conformité de la transformation, son échelle, sa matrice normale, la position monde
- * de la caméra. Posé une fois par racine et par image, il retire de la boucle par cluster une
- * inverse-transposée 3×3, une décomposition de matrice de caméra et le test de conformité —
- * l'arithmétique par cluster ne bouge pas d'un bit.
+ * What a cone culling test reads from root and camera that stays invariant across clusters:
+ * transformation conformality, scale, normal matrix, camera world position. Set once per root
+ * per frame, it removes 3×3 inverse-transpose, camera matrix decomposition, and conformality test
+ * from per-cluster loop — per-cluster arithmetic changes by zero bits.
  *
- * `ready` dit si le contexte porte déjà cette racine : une racine dont aucun cluster n'a de cône ne
- * le fait jamais poser.
+ * `ready` indicates whether context already holds this root: a root with no cluster cones
+ * never initializes it.
  */
 export type ConeContext = {
   ready: boolean;
@@ -72,7 +72,7 @@ export type ConeContext = {
   camZ: number;
 };
 
-/** Le contexte réutilisé d'une coupe : la sélection est synchrone, comme son `selectionScratch`. */
+/** Reused context of a cut: selection is synchronous, like its `selectionScratch`. */
 export function createConeContext(): ConeContext {
   return {
     ready: false,
@@ -85,7 +85,7 @@ export function createConeContext(): ConeContext {
   };
 }
 
-/** Remplit le contexte pour une transformation de racine et la position monde de l'œil. */
+/** Fills context for a root transform and eye world position. */
 export function coneContextFor(into: ConeContext, world: MatrixElements, eye: ArrayLike<number>) {
   const e = world.elements;
   into.ready = true;
@@ -93,16 +93,16 @@ export function coneContextFor(into: ConeContext, world: MatrixElements, eye: Ar
   if (!into.conformal) return into;
   into.scale = Math.hypot(e[0], e[1], e[2]);
   normalMatrix3(into.normal, e);
-  // La position monde de l'œil vient de la caméra du moteur (`cam.eye`) : une image la pose une fois.
+  // Eye world position comes from engine camera (`cam.eye`): frame sets it once.
   into.camX = eye[0];
   into.camY = eye[1];
   into.camZ = eye[2];
   return into;
 }
 
-/** Le rejet de cône d'un cluster, le contexte de sa racine étant déjà posé.
- *  Miroir CPU de `coneRejectsBox` (gpuDagShader.ts) : mêmes tolérances (`mathCone.ts`), mêmes
- *  opérandes, deux langages — le texte ne se partage pas, la règle si. */
+/** Cluster cone culling, root context already initialized.
+ *  CPU mirror of `coneRejectsBox` (gpuDagShader.ts): same tolerances (`mathCone.ts`), same
+ *  operands, two languages — text is unshared, rule is shared. */
 export function coneCullsPageWith(
   ctx: ConeContext,
   cone: NormalCone,
@@ -111,10 +111,7 @@ export function coneCullsPageWith(
   max: number[],
   material?: THREE.Material | THREE.Material[],
 ): boolean {
-  if (material) {
-    const side = Array.isArray(material) ? material[0]?.side : material.side;
-    if (side === THREE.DoubleSide || side === THREE.BackSide) return false;
-  }
+  if (material && sideOf(material) !== 'front') return false;
   if (!ctx.conformal) return false;
   if (cone.angle >= HALF_PI) return false;
   return boxConeRejects(
@@ -131,7 +128,7 @@ export function coneCullsPageWith(
   );
 }
 
-/** Le même rejet pour un appelant qui n'a pas de contexte : il en pose un pour ce seul cluster. */
+/** Same culling for a caller without context: sets one for this single cluster. */
 export function coneCullsPage(
   cone: NormalCone,
   world: MatrixElements,

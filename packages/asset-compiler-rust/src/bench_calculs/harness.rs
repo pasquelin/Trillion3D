@@ -1,15 +1,15 @@
-//! Mesure et comparaison d'un point du lot B : une référence, une version optimisée, les mêmes
-//! entrées, une empreinte binaire de part et d'autre et une médiane en millisecondes de chacune.
+//! Measurement and comparison of lot B item: reference, optimized version, same
+//! inputs, binary fingerprint on both sides and median in milliseconds for each.
 use std::hint::black_box;
 use std::time::{Duration, Instant};
 
-/// Tours minimum d'une mesure, et durée au-delà de laquelle on s'arrête même sans les avoir faits.
+/// Minimum rounds of measurement, and duration beyond which execution stops.
 const MIN_ROUNDS: usize = 50;
 const MIN_SAMPLES: usize = 3;
 const TIME_BUDGET: Duration = Duration::from_secs(2);
 
-/// Empreinte binaire d'un résultat : chaque flottant par ses bits, chaque longueur, chaque octet.
-/// Deux résultats sont « identiques » quand leurs empreintes sont égales octet pour octet.
+/// Binary result fingerprint: floats by bits, lengths, bytes.
+/// Two results "identical" when fingerprints equal byte for byte.
 #[derive(Default, PartialEq, Eq)]
 pub(crate) struct Bits(Vec<u8>);
 impl Bits {
@@ -40,7 +40,7 @@ impl Bits {
     }
 }
 
-/// Une ligne du tableau comparatif.
+/// Comparative table row.
 pub(crate) struct Row {
     pub(crate) calcul: String,
     pub(crate) fichier: &'static str,
@@ -63,12 +63,12 @@ impl Row {
             && self.identique == Some(true)
             && matches!((self.avant, self.apres), (Some(a), Some(b)) if b < a)
     }
-    /// La raison pour laquelle un point n'est pas retenu, mesuré ou non.
+    /// Reason item not retained, measured or not.
     pub(crate) fn ecarte(mut self, note: &str) -> Self {
         self.note = note.into();
         self
     }
-    /// Un point qui n'a pas été mesuré : reporté, déjà fait, hors banc.
+    /// Unmeasured item: deferred, already done, out of bench.
     pub(crate) fn note(calcul: &str, fichier: &'static str, note: &str) -> Self {
         Self {
             calcul: calcul.into(),
@@ -99,8 +99,8 @@ fn turn<T>(run: &mut dyn FnMut() -> T, into: &mut Vec<f64>) {
     into.push(started.elapsed().as_secs_f64() * 1000.0);
 }
 
-/// Les deux implémentations alternent tour par tour : ni l'une ni l'autre ne profite d'un tas
-/// fraîchement rangé ou d'un cache déjà chaud, et une dérive de la machine les touche également.
+/// Both implementations alternate round by round: neither benefits from freshly
+/// arranged heap or warm cache, machine drift affects both equally.
 fn measure<T>(
     reference: &mut dyn FnMut() -> T,
     optimise: &mut dyn FnMut() -> T,
@@ -121,7 +121,7 @@ fn measure<T>(
     (median(avant), median(apres), tours)
 }
 
-/// Exécute les deux implémentations sur les mêmes entrées, compare leurs empreintes, puis mesure.
+/// Runs both implementations on same inputs, compares fingerprints, then measures.
 pub(crate) fn compare<T>(
     calcul: &str,
     fichier: &'static str,

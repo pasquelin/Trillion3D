@@ -1,12 +1,11 @@
-import type * as THREE from 'three';
 import { createSelectionResult, selectVisiblePages, type PageRec } from './pageSelection.ts';
 import type { BackendContext } from './backendTypes.ts';
 import type { installSceneLighting } from './sceneLighting.ts';
 import type { WebglFrameGate } from './webglFrameGate.ts';
-import type { CameraMotion } from './cameraWorld.ts';
+import type { CameraMotion, HostCamera } from './cameraWorld.ts';
 import type { HostWorldPlacements } from './hostWorldPlacements.ts';
 
-/** Ce que l'image autonome a décidé, et si elle a été tenue. */
+/** What the autonomous frame decided, and whether it was held. */
 export type AutonomousRenderState = {
   visible: number;
   selectedTriangles: number;
@@ -26,9 +25,9 @@ export const createAutonomousRenderState = (): AutonomousRenderState => ({
 });
 
 /**
- * Une image du moteur WebGL autonome. La coupe entière est relancée dès que la vue, la scène ou les
- * ressources ont bougé — une coupe incrémentale de ce chemin est un autre chantier — mais une image
- * que rien n'a touchée n'en relance aucune : la scène attachée est déjà cette image-ci.
+ * One frame of the autonomous WebGL engine. The whole cut is rerun as soon as the view, the scene
+ * or the resources have moved — an incremental cut of this path is another job — but a frame that
+ * nothing has touched reruns none: the attached scene is already this frame.
  */
 export function createAutonomousRender(options: {
   state: AutonomousRenderState;
@@ -36,7 +35,7 @@ export function createAutonomousRender(options: {
   gate: WebglFrameGate;
   lighting: ReturnType<typeof installSceneLighting>;
   roots: Parameters<typeof selectVisiblePages>[0];
-  /** L'index des matrices monde du moteur, remonté une fois par révision de scène. */
+  /** The engine's world-matrix index, rebuilt once per scene revision. */
   worlds: HostWorldPlacements;
   shown: PageRec[];
   desired: PageRec[];
@@ -47,8 +46,8 @@ export function createAutonomousRender(options: {
   const { state, context, gate, lighting, roots, worlds, shown, desired, bootstrap, cap, sync } =
     options;
   const motion: CameraMotion = {};
-  // Demande et résultat de la coupe, posés une fois : une image de rendu n'alloue rien du tout, et
-  // la coupe écrit `desired` elle-même au lieu d'être recopiée dedans.
+  // Cut request and result, allocated once: a render frame allocates nothing at all, and
+  // the cut writes `desired` itself instead of being copied into it.
   const selectOptions = {
     pixelError: 0,
     viewport: context.viewport,
@@ -57,9 +56,9 @@ export function createAutonomousRender(options: {
     result: createSelectionResult<PageRec>(),
   };
   const sourcesDessinees = roots.map((root) => root.pages[0]);
-  return (camera: THREE.PerspectiveCamera) => {
-    // Entrée d'image : l'ordre et ses garanties vivent dans `frameGateCore.ts`, qui recopie aussi
-    // la caméra de l'hôte dans celle du moteur — la coupe ne lit plus que celle-ci.
+  return (camera: HostCamera) => {
+    // Frame entry: the order and its guarantees live in `frameGateCore.ts`, which also copies
+    // the host camera into the engine camera — the cut now reads only the latter.
     state.frameHeld = gate.enterFrame(
       context,
       camera,
@@ -70,7 +69,7 @@ export function createAutonomousRender(options: {
     );
     selectOptions.pixelError = gate.pixelError;
     if (state.frameHeld) return;
-    // Les matrices monde et les lampes recopiées ne sont fonction que de la scène.
+    // Copied world matrices and lights are a function of the scene only.
     if (gate.updateWorlds(worlds)) lighting.update();
     const selected = selectVisiblePages(roots, gate.cam, selectOptions, shown);
     state.visible = selected.visible;

@@ -1,6 +1,6 @@
-// L'autre comportement changé : la règle de résidence est résolue une fois par coupe au lieu
-// d'être relue sur l'état à chaque cluster retenu. Elle doit rendre, sur tout le produit des
-// entrées, exactement ce que rendait la fermeture d'avant le lot — recopiée ici comme oracle.
+// The other changed behaviour: the residency rule is resolved once per cut instead of being
+// re-read on the state at every kept cluster. It must yield, over the whole product of the
+// inputs, exactly what the pre-lot closure used to yield — copied here as an oracle.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -16,7 +16,7 @@ import { collectClusterPages, selectVisiblePages } from './pageSelection.ts';
 import { blendFixture, camera } from './pageSelectionBlendFixture.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 
-/** `pageSelectionCutState.ts` avant ce lot : la résidence relue sur l'état, cluster par cluster. */
+/** `pageSelectionCutState.ts` before this lot: residency re-read on the state, cluster by cluster. */
 function oracle<T extends PageRecord>(
   hold: boolean,
   isResident: ((page: T) => boolean) | undefined,
@@ -25,7 +25,7 @@ function oracle<T extends PageRecord>(
   return !hold || (isResident ? isResident(rec) : !!rec.array);
 }
 
-test('le mode résolu rend la réponse de la fermeture d’avant, sur tout le produit des entrées', () => {
+test("the resolved mode yields the pre-lot closure's answer, over the whole product of the inputs", () => {
   const avec = { triangles: 1, array: new Uint32Array(3) } as PageRecord;
   const sans = { triangles: 1, array: undefined } as PageRecord;
   const vide = { triangles: 1 } as PageRecord;
@@ -38,7 +38,7 @@ test('le mode résolu rend la réponse de la fermeture d’avant, sur tout le pr
       }
 });
 
-test('les trois modes sont ceux que la demande décrit, et eux seuls', () => {
+test('the three modes are those the request describes, and those alone', () => {
   assert.equal(residentModeOf(false, undefined), RESIDENT_ALL);
   assert.equal(
     residentModeOf(false, () => false),
@@ -51,7 +51,7 @@ test('les trois modes sont ceux que la demande décrit, et eux seuls', () => {
   );
 });
 
-test('la coupe suit ce mode : sans tableau d’indices, la page est demandée mais pas affichée', () => {
+test('the cut follows this mode: without an index array, the page is requested but not shown', () => {
   const fixture = blendFixture();
   const { roots, allPages } = collectClusterPages(
     fixture.source,
@@ -61,15 +61,15 @@ test('la coupe suit ce mode : sans tableau d’indices, la page est demandée ma
   );
   for (const page of allPages) page.array = undefined;
   const cam = camera();
-  // Rien n'est tenu : la résidence n'est pas une question, tout ce qui est choisi est affiché.
+  // Nothing is held: residency is not a question, everything chosen is shown.
   const libre = selectVisiblePages(roots, cameraMoteur(cam), { holdResident: false });
   assert.equal(libre.shown.length, libre.wanted.length || libre.shown.length);
   assert.ok(libre.shown.length > 0);
-  // Tenu sans réponse de l'hôte : la résidence est le tableau d'indices, qu'aucune page n'a.
+  // Held without a host answer: residency is the index array, which no page has.
   const tenu = selectVisiblePages(roots, cameraMoteur(cam), { holdResident: true });
   assert.equal(tenu.shown.length, 0);
   assert.equal(tenu.complete, false);
-  // Tenu avec réponse de l'hôte : c'est elle qui tranche, pas le tableau d'indices.
+  // Held with a host answer: that is what decides, not the index array.
   const demande = selectVisiblePages(roots, cameraMoteur(cam), {
     holdResident: true,
     isResident: () => true,

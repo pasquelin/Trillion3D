@@ -19,15 +19,15 @@ import { DEPTH_CLEAR } from './depthConvention.ts';
 import { wgslFloat } from './gpuPartitionMargins.ts';
 
 /**
- * Le raster de calcul de la part de la coupe opaque et masquée que le partage lui donne — les petits
- * triangles, ou toute la coupe : il écrit un tampon de visibilité — une profondeur et un identifiant
- * cluster/triangle par pixel — que la résolution matérielle plein écran fond ensuite dans la texture
- * d'identifiants, la profondeur et le niveau zéro de la pyramide que le raster matériel a ouverts.
- * Les surfaces à mélange et à transmission gardent leur passe.
+ * Compute raster of the share of the opaque and masked cut that the split gives it — the small
+ * triangles, or the whole cut: it writes a visibility buffer — a depth and a cluster/triangle
+ * identifier per pixel — which the full-screen hardware resolve then merges into the identifier
+ * texture, the depth and pyramid level zero that the hardware raster opened. Blend and
+ * transmission surfaces keep their pass.
  *
- * Un matériau à masque fait son test alpha ICI, sur la tuile la plus fine déjà résidente — ce raster
- * n'a pas de dérivées et passe des gradients nuls à `maskKeep`, le même test que l'image et les
- * ombres, au même seuil, sur les mêmes coordonnées.
+ * A mask material does its alpha test HERE, on the finest already-resident tile — this raster
+ * has no derivatives and passes null gradients to `maskKeep`, the same test as the frame and
+ * shadows, at the same threshold, on the same coordinates.
  */
 const PAGE_INFO = `${PAGE_INFO_STRUCT_WGSL}
 ${VIS_UNIFORMS_WGSL}`;
@@ -41,9 +41,9 @@ export const rasterSource = (capacity: number, listBase: number) => `${PAGE_INFO
 @group(0) @binding(${SMALL_BINDINGS.uvs}) var<storage,read> uvs:array<f32>;
 ${tileDeclarations(SMALL_BINDINGS.color, 'color')}
 @group(0) @binding(${SMALL_BINDINGS.sampler}) var mapsSampler:sampler;
-// Un seul tampon de travail : d'abord les deux attachements que le raster résout — la profondeur,
-// puis les identifiants un écran plus loin —, et à partir de LIST les deux listes de triangles,
-// leurs comptes, les lancements qu'ils impliquent, puis une ligne et un triangle par entrée.
+// One work buffer: first the two attachments the raster resolves — depth, then identifiers one
+// screen further —, and from LIST the two triangle lists, their counts, the dispatches they
+// imply, then one row and one triangle per entry.
 @group(0) @binding(${SMALL_BINDINGS.work}) var<storage,read_write> work:array<atomic<u32>>;
 const LIST:u32=${listBase}u;
 @group(0) @binding(${SMALL_BINDINGS.selectionMask}) var<storage,read> selectionMask:array<u32>;
@@ -51,9 +51,9 @@ ${TILE_POOL_WGSL}
 ${COLOR_SAMPLE_WGSL}
 ${maskAlphaWgsl(false)}
 fn pixelCount()->u32{return u32(uni.viewport.x)*u32(uni.viewport.y);}
-// Le produit \`viewProj * world\` et le determinant de la partie lineaire ne dependent que de la page :
-// ils sont calcules une fois pour la page et relus tels quels par chacun de ses triangles. Les memes
-// operandes dans le meme ordre donnent la meme valeur flottante qu'un calcul par triangle.
+// The \`viewProj * world\` product and the linear-part determinant depend only on the page: they
+// are computed once for the page and reread as-is by each of its triangles. The same operands
+// in the same order give the same float as a per-triangle compute.
 fn pageTransform(page:PageInfo)->mat4x4f{return uni.viewProj*page.world;}
 fn pageWinding(page:PageInfo)->f32{return determinant(mat3x3f(page.world[0].xyz,page.world[1].xyz,page.world[2].xyz));}
 fn vertex(vp:mat4x4f,vertexBase:u32,index:u32)->vec4f{
@@ -69,16 +69,16 @@ ${RASTER_PIXEL_WGSL}
 ${rasterKernels(capacity)}`;
 
 /**
- * La résolution matérielle plein écran : un triangle qui couvre l'écran relit le tampon de travail
- * et reverse chaque pixel dans les attachements que les consommateurs lisaient déjà — identifiants
- * en `r32uint`, profondeur du tampon de profondeur, profondeur linéaire du niveau zéro de la
- * pyramide. Aucun consommateur ne change : c'est le producteur qui a changé.
+ * Full-screen hardware resolve: a triangle that covers the screen rereads the work buffer and
+ * writes each pixel back into the attachments consumers already read — identifiers as `r32uint`,
+ * depth-buffer depth, linear depth of pyramid level zero. No consumer changes: it is the
+ * producer that changed.
  *
- * `hiz` sert entre les deux moitiés de l'image : la pyramide a besoin de la profondeur des
- * occulteurs avant que le moindre identifiant n'ait été départagé, elle n'écrit donc que le niveau
- * zéro et le tampon de profondeur. `one` et `two` closent l'image, quand la profondeur est
- * définitive et l'identifiant choisi. Toutes passent le test de profondeur contre ce que le raster
- * matériel a déjà posé : c'est là que les deux producteurs se fondent, pixel par pixel.
+ * `hiz` serves between the two halves of the frame: the pyramid needs occluder depth before any
+ * identifier has been resolved, so it only writes level zero and the depth buffer. `one` and
+ * `two` close the frame, when depth is final and the identifier chosen. All pass the depth test
+ * against what the hardware raster already wrote: that is where the two producers merge, pixel
+ * by pixel.
  */
 export const RESOLVE = `${VIS_UNIFORMS_WGSL}
 @group(0) @binding(0) var<storage,read> frame:array<u32>;

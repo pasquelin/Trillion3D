@@ -1,33 +1,33 @@
-//! La dorée du pilote Radiance HDR : les fichiers de `fixtures/hdr/`, écrits ici depuis la
-//! spécification publique, doivent rendre exactement les valeurs flottantes écrites en clair
-//! ci-dessous. Ligne brute, compression ancienne et compression nouvelle sont trois façons d'écrire
-//! la même ligne — le doré le prouve en comparant leurs pixels à la même référence.
+//! Golden of the Radiance HDR driver: files of `fixtures/hdr/`, written here from the public
+//! specification, must yield exactly the float values written in the open below. Raw line, old
+//! compression and new compression are three ways of writing the same line — the golden proves
+//! it by comparing their pixels to the same reference.
 use super::super::image as registry;
 use super::{fixture, rgba_f32};
 use std::path::PathBuf;
 
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
 
-/// Les quatre pixels dont les fixtures sont faites, en RGBA linéaire. Chacun vient d'un quadruplet
-/// RGBE dont l'exposant est lisible à l'œil : `(128, 64, 32, 128)` vaut `2^-8` fois ses mantisses,
-/// `(0, 128, 0, 140)` vaut `2^4` fois les siennes, et l'alpha est opaque partout.
+/// The four pixels the fixtures are made of, in linear RGBA. Each comes from an RGBE quadruplet
+/// whose exponent is readable by eye: `(128, 64, 32, 128)` is `2^-8` times its mantissas,
+/// `(0, 128, 0, 140)` is `2^4` times theirs, and alpha is opaque everywhere.
 const PALE: [f32; 4] = [0.5, 0.25, 0.125, 1.0];
 const BLANC: [f32; 4] = [1.9921875, 1.9921875, 1.9921875, 1.0];
 const VERT_VIF: [f32; 4] = [0.0, 2048.0, 0.0, 1.0];
 const GRIS: [f32; 4] = [128.0, 128.0, 128.0, 1.0];
 
-/// L'image de référence des fixtures 4 × 2, ligne du haut d'abord : trois pixels identiques puis un
-/// autre, pour qu'une plage et un paquet brut se suivent dans la même ligne.
+/// Reference image of the 4 × 2 fixtures, top row first: three identical pixels then another,
+/// so a run and a raw packet follow each other in the same line.
 const REFERENCE_4X2: [[f32; 4]; 8] = [PALE, PALE, PALE, BLANC, VERT_VIF, GRIS, GRIS, GRIS];
 
-/// L'image de référence de la fixture 8 × 1 : la nouvelle compression ne s'écrit qu'au-delà de huit
-/// pixels de large, et celle-ci porte une plage de quatre puis des valeurs isolées.
+/// Reference image of the 8 × 1 fixture: the new compression is only written beyond eight
+/// pixels wide, and this one carries a run of four then isolated values.
 const REFERENCE_8X1: [[f32; 4]; 8] = [PALE, PALE, PALE, PALE, BLANC, VERT_VIF, GRIS, GRIS];
 
-/// Les pixels d'une fixture, dans l'ordre de lecture de l'image décodée.
+/// Pixels of a fixture, in read order of the decoded image.
 fn pixels(name: &str, size: (u32, u32)) -> Vec<[f32; 4]> {
     let bytes = fixture("hdr", name);
-    let decoder = registry::by_head(&bytes).expect("un pilote revendique ces octets");
+    let decoder = registry::by_head(&bytes).expect("a driver claims these bytes");
     assert_eq!(decoder.name(), "hdr", "{name}");
     let (width, height, data) =
         rgba_f32(registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|e| panic!("{name}: {e}")));
@@ -35,27 +35,27 @@ fn pixels(name: &str, size: (u32, u32)) -> Vec<[f32; 4]> {
     data.as_chunks::<4>().0.to_vec()
 }
 
-// Dorée du pilote : les trois écritures d'une ligne et les deux signatures du format rendent, valeur
-// par valeur, la même image. Sans perte veut dire : pas un bit de mantisse de différence.
+// Driver golden: the three writings of a line and the two format signatures yield, value by
+// value, the same image. Lossless means: not one mantissa bit of difference.
 #[test]
-fn les_trois_ecritures_dune_ligne_rendent_les_valeurs_de_la_reference() {
+fn the_three_writings_of_a_line_yield_the_reference_values() {
     for name in ["plat.hdr", "rle-ancienne.hdr", "signature-rgbe.hdr"] {
         assert_eq!(pixels(name, (4, 2)), REFERENCE_4X2.to_vec(), "{name}");
     }
     assert_eq!(
         pixels("rle-nouvelle.hdr", (8, 1)),
         REFERENCE_8X1.to_vec(),
-        "la compression par composantes rend la même image que les autres"
+        "component compression yields the same image as the others"
     );
 }
 
-// Contrat du pilote : ce qu'il revendique, et ce qu'il refuse en le nommant. Un HDR hors
-// sous-ensemble laisse le moteur retomber sur son blanc ; il n'interrompt aucune compilation.
+// Driver contract: what it claims, and what it refuses by naming it. An HDR outside the subset
+// lets the engine fall back on its white; it interrupts no compilation.
 #[test]
-fn ce_qui_sort_du_sous_ensemble_ressort_en_raison_de_rapport_jamais_en_panique() {
+fn what_leaves_the_subset_comes_out_as_a_report_reason_never_as_a_panic() {
     for extension in ["hdr", "rgbe", "pic", "HDR"] {
         let path = PathBuf::from(format!("environnement.{extension}"));
-        let claimed = registry::by_extension(&path).expect("revendiqué");
+        let claimed = registry::by_extension(&path).expect("claimed");
         assert_eq!(claimed.name(), "hdr", "{extension}");
         assert_eq!(claimed.mime(), "image/vnd.radiance");
     }
@@ -68,7 +68,7 @@ fn ce_qui_sort_du_sous_ensemble_ressort_en_raison_de_rapport_jamais_en_panique()
         assert_eq!(
             registry::by_head(&bytes).map(|d| d.name()),
             Some("hdr"),
-            "{name}: la signature reste celle d'un Radiance"
+            "{name}: the signature remains that of a Radiance"
         );
         assert_eq!(
             registry::decode(&bytes, MAX_ALLOC).err(),
@@ -76,23 +76,20 @@ fn ce_qui_sort_du_sous_ensemble_ressort_en_raison_de_rapport_jamais_en_panique()
             "{name}"
         );
     }
-    // Sans signature, le pilote ne revendique rien : mieux vaut un format inconnu que les octets
-    // volés à un voisin.
+    // Without a signature, the driver claims nothing: better an unknown format than bytes
+    // stolen from a neighbour.
     assert!(registry::by_head(b"#?AUTRECHOSE\n").is_none());
 }
 
-// Contrat du pilote : le plafond d'allocation compte seize octets par pixel, ceux de la variante
-// flottante. Une image qui n'y tient pas est un refus nommé, jamais une allocation tentée.
+// Driver contract: the allocation ceiling counts sixteen bytes per pixel, those of the float
+// variant. An image that does not fit is a named refusal, never an allocation attempted.
 #[test]
-fn le_plafond_dallocation_compte_seize_octets_par_pixel() {
+fn the_allocation_ceiling_counts_sixteen_bytes_per_pixel() {
     let bytes = fixture("hdr", "plat.hdr");
     assert_eq!(
         registry::decode(&bytes, 127).err(),
         Some("hdr-image-too-large"),
-        "huit pixels flottants pèsent cent vingt-huit octets"
+        "eight float pixels weigh one hundred and twenty-eight bytes"
     );
-    assert!(
-        registry::decode(&bytes, 128).is_ok(),
-        "juste assez de place"
-    );
+    assert!(registry::decode(&bytes, 128).is_ok(), "just enough room");
 }

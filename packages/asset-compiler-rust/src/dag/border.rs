@@ -1,10 +1,11 @@
-//! Le bord d'un groupe réduit : ce qui doit survivre à la simplification pour que deux groupes
-//! voisins se rejoignent encore, et ce qu'on verrouille en plus quand ce n'est pas le cas.
+//! Border of a reduced group: what must survive simplification so two neighbouring
+//! groups still meet, and what is locked extra when they do not.
 
-/// Les triangles dont les trois coins diffèrent. Un triangle à deux coins confondus — deux copies
-/// d'une même position, une fois soudées — n'a pas d'aire : meshoptimizer l'écarte, et un sommet
-/// qui n'existait que là n'est pas un bord perdu (mesuré : 238 triangles sur 2 465 dans un groupe,
-/// et les trois verrous « perdus » qui bloquaient sa reprise n'avaient aucun triangle vivant).
+/// Triangles whose three corners differ. A triangle with two coinciding corners —
+/// two copies of the same position, once welded — has no area: meshoptimizer
+/// drops it, and a vertex that existed only there is not a lost border (measured:
+/// 238 triangles of 2 465 in a group, and the three "lost" locks that blocked its
+/// retry had no live triangle).
 pub(super) fn live_triangles(indices: impl Iterator<Item = u32>) -> Vec<u32> {
     let mut out: Vec<u32> = indices.collect();
     let mut kept = 0usize;
@@ -19,8 +20,9 @@ pub(super) fn live_triangles(indices: impl Iterator<Item = u32>) -> Vec<u32> {
     out
 }
 
-/// Verrouille, soudés, les trois coins de tout triangle de `source` dont un coin est soudé à l'un
-/// de `lost` ; `extra` reste trié et sans doublon pour la recherche binaire du verrou.
+/// Locks, welded, the three corners of every `source` triangle of which a corner
+/// is welded to one of `lost`; `extra` stays sorted and duplicate-free for the
+/// lock's binary search.
 pub(super) fn lock_triangles_touching(
     source: &[u32],
     lost: &[u32],
@@ -39,9 +41,9 @@ pub(super) fn lock_triangles_touching(
     extra.dedup();
 }
 
-/// Les sommets verrouillés de `merged`, soudés, triés, sans doublon : ceux que toute réduction du
-/// groupe doit garder pour rejoindre encore ses voisins. Ne dépend pas de la réduction, donc calculé
-/// une fois par groupe et non à chaque reprise.
+/// Locked vertices of `merged`, welded, sorted, duplicate-free: those that any
+/// reduction of the group must keep to still meet its neighbours. Independent of
+/// the reduction, so computed once per group, not at each retry.
 pub(super) fn required_locks(merged: &[u32], locks: &[bool], weld: &[u32]) -> Vec<u32> {
     let mut required: Vec<u32> = merged
         .iter()
@@ -53,11 +55,11 @@ pub(super) fn required_locks(merged: &[u32], locks: &[bool], weld: &[u32]) -> Ve
     required
 }
 
-/// Ceux de `required` que `simplified` ne porte plus. Vide quand chaque sommet partagé avec un
-/// autre groupe a survécu — sinon les deux groupes ne se rejoignent plus.
+/// Those in `required` that `simplified` no longer carries. Empty when every vertex shared with another
+/// group survived — otherwise the two groups no longer meet.
 ///
-/// Deux listes triées et une fusion remplacent les deux `HashSet` d'avant : même question posée,
-/// même réponse, sans hacher deux fois des dizaines de milliers de coins.
+/// Two sorted lists and a merge replace the previous two `HashSet`s: same question asked,
+/// same answer, without hashing tens of thousands of corners twice.
 pub(super) fn lost_locks(required: &[u32], simplified: &[u32], weld: &[u32]) -> Vec<u32> {
     if required.is_empty() {
         return Vec::new();

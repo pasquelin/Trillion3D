@@ -1,11 +1,11 @@
-// Les graphes du rapport global : des barres horizontales en SVG, sans bibliothèque, lisibles en
-// clair et en sombre. Une barre par valeur, une teinte par série dans un ordre fixe, un écart de 2 px
-// de surface entre barres voisines, la valeur au bout de la barre, et la table sous le graphe pour
-// que chaque chiffre reste lisible sans couleur.
+// Graphs of the global report: horizontal SVG bars, no library, readable in light and
+// dark. One bar per value, one tint per series in a fixed order, a 2 px surface gap
+// between neighbouring bars, the value at the end of the bar, and the table under the
+// graph so each figure stays readable without colour.
 
 const SERIES = ['var(--serie-1)', 'var(--serie-2)', 'var(--serie-3)', 'var(--serie-4)'];
 
-/** Une chaîne sûre dans du HTML. */
+/** A string safe inside HTML. */
 export const html = (texte) =>
   String(texte ?? '')
     .replaceAll('&', '&amp;')
@@ -34,27 +34,27 @@ export const pixels = (e) =>
     ? `${nombre(e.pixels, 0)} px (${nombre((100 * e.pixels) / e.total, 2)} %, max channel ${e.maxCanal})`
     : '—';
 
-/** `a − b`, ou `null` si l'un des deux manque. */
+/** `a − b`, or `null` if either is missing. */
 export const moins = (a, b) => (typeof a === 'number' && typeof b === 'number' ? a - b : null);
 
-/** Des millisecondes, une décimale par défaut. */
+/** Milliseconds, one decimal by default. */
 export const ms = (v, decimales = 1) => nombre(v, decimales, 'ms');
 
-/** Des millisecondes en secondes. */
+/** Milliseconds as seconds. */
 export const secondes = (v) => nombre(typeof v === 'number' ? v / 1000 : null, 1, 's');
 
-/** Un delta signé, avec son signe, ou « — » si l'un des deux manque. */
+/** A signed delta, with its sign, or "—" if either is missing. */
 export function delta(apres, avant, decimales = 2, unite = '') {
   const d = moins(apres, avant);
   return d === null ? '—' : `${d > 0 ? '+' : ''}${nombre(d, decimales, unite)}`;
 }
 
-/** Deux blocs côte à côte (un seul prend toute la largeur). */
+/** Two blocks side by side (a single one takes the full width). */
 export const deuxCols = (...blocs) => `<div class="deux-cols">${blocs.join('')}</div>`;
 
 /**
- * Barres horizontales groupées. `lignes` : `[{ libelle, valeurs: [v1, v2, …] }]` ; `series` : le nom
- * de chaque valeur, dans l'ordre. Une valeur nulle dessine « non mesuré » à la place de la barre.
+ * Grouped horizontal bars. `lignes`: `[{ libelle, valeurs: [v1, v2, …] }]`; `series`: the name
+ * of each value, in order. A null value draws "unmeasured" instead of the bar.
  */
 export function barres({
   titre,
@@ -92,15 +92,15 @@ export function barres({
     svg += `<text class="libelle" x="${gauche - 8}" y="${y0 + hauteurGroupe / 2}" text-anchor="end" dominant-baseline="middle"><title>${html(ligne.libelle)}</title>${html(court)}</text>`;
     ligne.valeurs.forEach((v, j) => {
       const y = y0 + (grand ? 9 : 5) + j * (epaisseur + (grand ? 4 : 2));
-      // Une valeur absente ou un mot (« non publié », « n'existe pas ») s'écrit à la place de la
-      // barre, dans la couleur de sa série et sous son nom : le lecteur sait de qui on parle.
+      // An absent value or a word ("unpublished", "does not exist") is written instead of
+      // the bar, in its series colour and under its name: the reader knows who is spoken of.
       if (typeof v !== 'number') {
         const mot = v ?? 'not measured';
         svg += `<text class="vide" x="${gauche + 6}" y="${y + epaisseur / 2}" dominant-baseline="middle" style="fill:${SERIES[j % SERIES.length]}">${html(`${series[j]} : ${mot}`)}</text>`;
         return;
       }
       const w = Math.max(1, v * echelle);
-      svg += `<rect x="${gauche}" y="${y}" width="${w}" height="${epaisseur}" rx="4" fill="${SERIES[j % SERIES.length]}"><title>${html(`${ligne.libelle} · ${series[j]} : ${nombre(v, decimales, unite)}`)}</title></rect>`;
+      svg += `<rect x="${gauche}" y="${y}" width="${w}" height="${epaisseur}" rx="4" fill="${SERIES[j % SERIES.length]}"><title>${html(`${ligne.libelle} · ${series[j]}: ${nombre(v, decimales, unite)}`)}</title></rect>`;
       svg += `<text class="valeur" x="${gauche + w + 6}" y="${y + epaisseur / 2}" dominant-baseline="middle">${nombre(v, decimales)}</text>`;
     });
   });
@@ -120,7 +120,7 @@ export function barres({
   )}</details></figure>`;
 }
 
-/** Des graduations rondes sous `max`. */
+/** Round ticks under `max`. */
 function graduations(max) {
   const pas = Math.pow(10, Math.floor(Math.log10(max)));
   const unite = max / pas >= 5 ? pas : max / pas >= 2 ? pas / 2 : pas / 5;
@@ -129,7 +129,7 @@ function graduations(max) {
   return ticks;
 }
 
-/** Une table HTML ; les cellules sont du texte déjà formaté. */
+/** An HTML table; cells are already formatted text. */
 export function tableau(entete, lignes) {
   const th = entete.map((c) => `<th>${html(c)}</th>`).join('');
   const tr = lignes
@@ -141,7 +141,7 @@ export function tableau(entete, lignes) {
   return `<table><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table>`;
 }
 
-/** Une tuile : un chiffre en grand, son libellé, une note. */
+/** A tile: a large figure, its label, a note. */
 export function tuile(libelle, valeur, note = '') {
   return `<div class="tuile"><span class="tuile-libelle">${html(libelle)}</span><span class="tuile-valeur">${html(valeur)}</span>${note ? `<span class="tuile-note">${html(note)}</span>` : ''}</div>`;
 }

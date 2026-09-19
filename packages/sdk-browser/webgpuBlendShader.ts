@@ -17,11 +17,11 @@ import { WRAP_MAP } from './visibilityWrapModes.ts';
 import { TRANSMISSION_WGSL } from './webgpuTransmissionWgsl.ts';
 
 /**
- * Le nuanceur des surfaces transparentes.
+ * Shader of transparent surfaces.
  *
- * Deux entrees seulement : un uniforme de vue, ecrit une fois par image pour toute la passe, et la
- * fiche de l'item, lue dans un tampon de stockage au rang que l'indice de sommet porte. Rien n'est
- * lie par appel, et l'ordre des appels est celui de la scene.
+ * Two inputs only: a view uniform, written once per image for the whole pass, and the item
+ * record, read in a storage buffer at the rank the vertex index carries. Nothing is bound per
+ * call, and the order of calls is that of the scene.
  */
 export const BLEND_SHADER = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pad0:u32,pad1:u32,pad2:u32,}
 ${BLEND_ITEM_WGSL}
@@ -50,25 +50,25 @@ ${TILE_POOL_WGSL}
 ${COLOR_SAMPLE_WGSL}
 ${DATA_SAMPLE_WGSL}
 ${TILE_REQUEST_WGSL}
-// La couleur mêlée, et le rang de tuile que ce pixel demande aux textures virtuelles, posé dans sa
-// propre cible : l'étage de fragments n'écrit rien en mémoire, il garde son rejet anticipé.
+// The blended colour, and the tile rank this pixel asks of the virtual textures, set in its own
+// target: the fragment stage writes nothing to memory, it keeps its early reject.
 struct BlendOut{@location(0) color:vec4f,@location(1) request:u32,}
 ${BLEND_REQUEST_WGSL}
 ${NORMAL_TRANSFORM_WGSL}
-// Ce que l'étage de sommets lit sur la fiche de l'item et que l'étage de fragments relit tel quel :
-// les six cartes, leurs facteurs et les drapeaux. Ils sont constants sur l'appel, donc PLATS — le
-// fragment lit les mêmes bits qu'il lisait dans l'uniforme par item, sans liaison par appel.
+// What the vertex stage reads on the item record and the fragment stage re-reads as-is: the six
+// maps, their factors and the flags. They are constant over the call, therefore FLAT — the
+// fragment reads the same bits it used to read in the per-item uniform, with no per-call binding.
 struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec3f,@location(4) tangent:vec3f,@location(5) bitangent:vec3f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,@location(9) @interpolate(flat) ids:vec4u,@location(10) @interpolate(flat) maps:vec4u,@location(11) @interpolate(flat) alphaAo:vec2f,@location(12) @interpolate(flat) pbr:vec4f,@location(13) @interpolate(flat) emissive:vec4f,}
 ${TRIANGLE_PALETTE_WGSL}
-// Une instance dessine une grappe paginee que la compaction a gardee, ou un morceau d'indices d'une
-// primitive qui ne l'est pas. La liste que l'etalement du plan a ecrite dit, pour chacune, l'item
-// qui la porte et ce qu'elle dessine (webgpuBlendExpandWgsl.ts).
+// An instance draws a paged cluster that compaction kept, or a piece of indices of a primitive
+// that is not paged. The list plan expansion wrote says, for each, the item that carries it and
+// what it draws (webgpuBlendExpandWgsl.ts).
 //
-// Le rang de la premiere instance de l'appel se lit dans les bits hauts de l'indice de sommet, et le
-// rang local du sommet dans les bas : l'argument indirect d'une tranche commence au sommet
-// base << vertexShift. C'est ce qui permet a une tranche entiere de tenir dans UN appel, sans rien
-// a lier entre deux entrees du plan — firstInstance dirait la meme chose, mais WebGPU ne l'ouvre
-// a un appel indirect que sous une extension.
+// The rank of the first instance of the call is read in the high bits of the vertex index, and
+// the local rank of the vertex in the low: the indirect argument of a slice starts at vertex
+// base << vertexShift. That is what lets a whole slice fit in ONE call, with nothing to bind
+// between two plan entries — firstInstance would say the same, but WebGPU only opens it to an
+// indirect call under an extension.
 @vertex fn vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instance:u32)->VSOut{
  var out:VSOut;
  let slot=planInstances[(vertexIndex>>uni.vertexShift)+instance];
@@ -122,15 +122,15 @@ ${TRIANGLE_PALETTE_WGSL}
  let gradX=dpdx(in.uv);let gradY=dpdy(in.uv);
  let request=blendRequest(in,wrap,gradX,gradY);
  let q0=dpdx(in.view);let q1=dpdy(in.view);
- // uniteOuZero rend normalize partout ou le vecteur n'est pas nul : memes bits qu'avant sur une
- // surface ordinaire, vecteur nul — et non NaN — sur une face effondree, dont un NaN gagnerait les
- // pixels voisins par les derivees d'ecran. Une pose de rang 2 n'y arrive pas nulle : xformNormal
- // lui a deja donne la normale de la face aplatie.
- // La normale geometrique vient des derivees d'ecran : elle regarde deja l'observateur, quelle que
- // soit la face rasterisee. Seule une normale de sommet, qui pointe vers le dehors declare, se
- // retourne sur le dos d'un materiau a deux faces — la retourner aussi enverrait la geometrique a
- // l'oppose de la lumiere, et la surface rendrait exactement zero. Meme regle que la resolution
- // opaque, qui ne retourne que la normale interpolee.
+ // uniteOuZero yields normalize wherever the vector is not null: same bits as before on an
+ // ordinary surface, a null vector — and not NaN — on a collapsed face, whose a NaN would win
+ // neighbouring pixels through screen derivatives. A rank-2 pose does not arrive there null:
+ // xformNormal already gave it the flattened face's normal.
+ // The geometric normal comes from screen derivatives: it already looks at the observer, whatever
+ // the rasterised face. Only a vertex normal, which points toward the declared outside, flips on
+ // the back of a two-sided material — flipping it too would send the geometric one opposite the
+ // light, and the surface would render exactly zero. Same rule as the opaque resolve, which only
+ // flips the interpolated normal.
  var N=uniteOuZero(-cross(q0,q1));
  let face=select(-1.0,1.0,front);
  if((flags&16u)!=0u){
@@ -139,8 +139,8 @@ ${TRIANGLE_PALETTE_WGSL}
  }
  let sample=colorSample(in.ids.x,in.uv,wrapOf(wrap,${WRAP_MAP.base}u),gradX,gradY);
  let alpha=sample.w*in.color.w;
- // \`fwidth\` exige un flot de contrôle uniforme : les drapeaux viennent de la fiche par item, donc
- // la dérivée est prise avant toute condition qui en dépend et n'est lue que par la vue « fil de fer ».
+ // \`fwidth\` requires uniform control flow: the flags come from the per-item record, so the
+ // derivative is taken before any condition that depends on it and is only read by the wireframe view.
  let width=fwidth(in.bary);
  if((flags&0x40000000u)!=0u){
   if(alpha<=0.01||alpha<in.alphaAo.x){discard;}
@@ -154,8 +154,8 @@ ${TRIANGLE_PALETTE_WGSL}
   return BlendOut(vec4f(color,1.0),request);
  }
  var rgb=in.color.xyz*sample.xyz;
- // La teinte du materiau avant tout eclairage : c'est elle qui colore le fond qu'une surface
- // transmissive laisse voir, jamais la couleur deja eclairee.
+ // Material tint before any lighting: it is what colours the backdrop a transmissive surface
+ // lets through, never the already-lit colour.
  let baseTint=rgb;
  var rough=in.pbr.x;var metal=in.pbr.y;var ao=1.0;
  if(in.maps.x!=0u){rough*=dataSample(in.maps.x,in.uv,wrapOf(wrap,${WRAP_MAP.rough}u),gradX,gradY).g;}
@@ -173,8 +173,8 @@ ${TRIANGLE_PALETTE_WGSL}
  var emissive=in.emissive.xyz;
  if(in.ids.z!=0u){emissive*=colorSample(in.ids.z,in.uv,wrapOf(wrap,${WRAP_MAP.emissive}u),gradX,gradY).rgb;}
  if(alpha<in.alphaAo.x){discard;}
- // Aucune lampe declaree, ou vue sans eclairage demandee : l'albedo brut, exactement comme la
- // resolution opaque. Ni ambiance, ni ciel, ni soleil par defaut (P6).
+ // No declared lamp, or an unlit view requested: the raw albedo, exactly like the opaque
+ // resolve. Neither ambient, nor sky, nor a default sun (P6).
  let unlit=(flags&${FLAG_UNLIT_VIEW}u)!=0u;
  let V=normalize(uni.camPos.xyz-in.view);
  let clamped=clamp(rough,0.0525,1.0);
@@ -182,9 +182,9 @@ ${TRIANGLE_PALETTE_WGSL}
   let m=clamp(metal,0.0,1.0);
   rgb=declaredLighting(rgb,m,clamped,N,V,in.view,ao,in.position.xy)+bounceLighting(rgb,m,N,in.view,ao)+emissive;
  }
- // La classe 3 relit le fond fige au lieu de le melanger par alpha. Le drapeau vient du materiau,
- // et cette passe est la seule a le porter : une vue sans eclairage transmet toujours ce qu'elle
- // voit derriere, elle ne l'eclaire simplement pas.
+ // Class 3 re-reads the frozen backdrop instead of blending it by alpha. The flag comes from the
+ // material, and this pass is the only one that carries it: an unlit view always transmits what
+ // it sees behind, it simply does not light it.
  if((flags&${FLAG_TRANSMISSIVE}u)!=0u){
   return BlendOut(transmissionColor(rgb,baseTint,alpha,N,V,in.view,in.position.xy,in.position.z,clamped,ao,unlit),request);
  }

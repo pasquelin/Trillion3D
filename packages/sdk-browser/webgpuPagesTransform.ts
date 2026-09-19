@@ -28,7 +28,7 @@ const local = new Float64Array(16),
   movedMax = [0, 0, 0],
   moved = new Float64Array(BOX_VALUES);
 
-/** Le nœud nommé de la scène préparée, ou `undefined` : la recherche est un parcours, pas un index. */
+/** The named node of the prepared scene, or `undefined`: the search is a walk, not an index. */
 function findNode(source: THREE.Object3D, nodeName: string) {
   let found: THREE.Object3D | undefined;
   source.traverse((node) => {
@@ -38,84 +38,88 @@ function findNode(source: THREE.Object3D, nodeName: string) {
 }
 
 /**
- * Déplace un nœud nommé de la scène préparée (R8). La matrice est une matrice monde colonne-major :
- * elle est ramenée dans le repère du parent, puis posée telle quelle comme matrice locale, pour que
- * `updateMatrixWorld` la retrouve à l'identique. Les boîtes monde des primitives déplacées sont
- * reprojetées, l'historique d'occulteurs est jeté, et la boîte du mouvement est déclarée à
- * l'ordonnanceur d'ombres — les tranches des lampes dont la portée touche cette boîte redeviennent
- * candidates.
+ * Moves a named node of the prepared scene (R8). The matrix is a column-major world matrix: it is
+ * brought back into the parent's space, then set as-is as the local matrix, so that
+ * `updateMatrixWorld` finds it identical. World boxes of the moved primitives are reprojected,
+ * occluder history is dropped, and the motion box is declared to the shadow scheduler — slices of
+ * lamps whose range touches this box become candidates again.
  *
- * Rien n'est dessiné ici : le déplacement prend effet à l'image suivante, sans allocation par image.
+ * Nothing is drawn here: the move takes effect at the next image, with no per-image allocation.
  */
 export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, matrix: Float32Array) {
   const { setup, lights, run, layout } = rt;
   if (matrix.length !== 16)
-    throw new EngineError('INVALID_TRANSFORM', `${nodeName}: seize flottants attendus`, {
+    throw new EngineError('INVALID_TRANSFORM', `${nodeName}: sixteen floats expected`, {
       length: matrix.length,
     });
   const node = findNode(setup.source, nodeName);
   if (!node)
-    throw new EngineError('UNKNOWN_SCENE_NODE', `nœud ${nodeName} absent de la scène préparée`, {
-      nodeName,
-    });
-  // Une pose non finie est refusée ici, avant toute inversion : plus loin elle deviendrait une
-  // matrice monde NaN, puis une normale nulle, puis une surface noire sans cause lisible.
+    throw new EngineError(
+      'UNKNOWN_SCENE_NODE',
+      `node ${nodeName} missing from the prepared scene`,
+      {
+        nodeName,
+      },
+    );
+  // A non-finite pose is refused here, before any inversion: further on it would become a NaN
+  // world matrix, then a null normal, then a black surface with no readable cause.
   assertFiniteTransform(matrix, nodeName);
   copyElements(local, matrix);
   if (node.parent) {
-    // La pose demandée est une pose MONDE : la ramener dans le repère du parent demande la matrice
-    // monde du parent, et l'hôte a le droit d'avoir écrit une pose locale au-dessus sans remonter
-    // le graphe. Le moteur la CALCULE donc lui-même, depuis les poses locales de la chaîne
-    // d'ancêtres (`hostWorldChain.ts`), sans rien demander ni écrire à l'hôte. Sans ce calcul,
-    // l'inversion porterait sur un parent périmé — un enfant demandé à x = 3 sous un parent passé à
-    // x = 10 finirait à x = 13 —, et la comparaison qui suit jugerait « sans effet » une demande
-    // refaite après le déplacement du parent. Il précède donc l'inversion ET la décision.
+    // The requested pose is a WORLD pose: bringing it back into the parent's space needs the
+    // parent's world matrix, and the host is allowed to have written a local pose above without
+    // climbing the graph. The engine therefore COMPUTES it itself, from the local poses of the
+    // ancestor chain (`hostWorldChain.ts`), asking nothing of the host and writing nothing to it.
+    // Without that computation, inversion would bear on a stale parent — a child requested at
+    // x = 3 under a parent that moved to x = 10 would end at x = 13 — and the comparison that
+    // follows would judge "no effect" a request remade after the parent moved. It therefore
+    // precedes inversion AND the decision.
     hostWorldChainInto(parentWorld, node.parent);
-    // Un parent écrasé sur un plan ou une droite n'a pas d'inverse : le socle rendrait seize zéros
-    // et le nœud partirait silencieusement à l'origine. Le déterminant est le seul test qui
-    // distingue ce cas de la sortie, et il attrape aussi une matrice non finie.
+    // A parent flattened onto a plane or a line has no inverse: the base would yield sixteen
+    // zeros and the node would silently leave for the origin. The determinant is the only test
+    // that distinguishes this case from the exit, and it also catches a non-finite matrix.
     const parentDeterminant = determinantMatrix4(parentWorld);
     if (parentDeterminant === 0 || !Number.isFinite(parentDeterminant))
       throw new EngineError(
         'SINGULAR_PARENT_TRANSFORM',
-        `${nodeName}: matrice monde du parent non inversible`,
+        `${nodeName}: parent world matrix not invertible`,
         { nodeName, parentName: node.parent.name, determinant: parentDeterminant },
       );
     invertMatrix4(parentInverse, parentWorld);
     multiplyMatrix4(local, parentInverse, local);
   }
-  // Une pose identique à celle que ce nœud porte déjà — et posée par ici, d'où `matrixAutoUpdate`
-  // à faux — ne change aucune matrice monde : la déclarer changée périmerait des pages d'ombre et
-  // refuserait l'image tenue pour un résultat identique au pixel près. L'écriture directe d'un
-  // hôte laisse `node.matrix` différent et repasse donc par le chemin complet. `local` est exprimé
-  // dans le repère du parent VENANT D'ÊTRE RÉSOLU : un parent déplacé donne un autre `local` pour
-  // la même pose monde demandée, et la demande n'est donc pas jugée sans effet.
+  // A pose identical to the one this node already carries — and set from here, hence
+  // `matrixAutoUpdate` false — changes no world matrix: declaring it changed would invalidate
+  // shadow pages and refuse the held image for a result identical to the pixel. A host's direct
+  // write leaves `node.matrix` different and therefore takes the full path again. `local` is
+  // expressed in the parent space JUST RESOLVED: a moved parent gives another `local` for the
+  // same requested world pose, and the request is therefore not judged as no-effect.
   if (!node.matrixAutoUpdate && sameElements(node.matrix.elements, local)) return;
   boxEmpty(moved, 0);
   for (const root of layout.selectionRoots)
     if (root.worldBox && isUnder(root.pages[0]?.sourceMesh, node)) unionInto(root.worldBox);
-  // La matrice locale fait foi, pas les trois champs : toute matrice n'est pas un produit
-  // translation-rotation-échelle. Un cisaillement — deux axes non orthogonaux, ce que produit une
-  // échelle non uniforme sous une rotation — ne s'y décompose pas, et `updateMatrixWorld`
-  // recomposerait `matrix` depuis `position`, `quaternion` et `scale` par-dessus celle posée ici,
-  // laissant le moteur dessiner une autre transformation que celle demandée. Couper la
-  // recomposition sur le seul nœud déplacé est ce qui la préserve intacte. La décomposition du
-  // socle renseigne quand même les trois champs, aux mêmes bits que `Matrix4.decompose` : exacts
-  // sans cisaillement et approchés sinon, pour qui les lit.
+  // The local matrix is authoritative, not the three fields: not every matrix is a
+  // translation-rotation-scale product. A shear — two non-orthogonal axes, which a non-uniform
+  // scale under a rotation produces — does not decompose into it, and `updateMatrixWorld` would
+  // recompose `matrix` from `position`, `quaternion` and `scale` over the one set here, leaving
+  // the engine drawing another transform than the one requested. Cutting recomposition on the
+  // moved node alone is what keeps it intact. The base's decompose still fills the three fields,
+  // at the same bits as `Matrix4.decompose`: exact without shear and approximate otherwise, for
+  // whoever reads them.
   decomposeMatrix4(local, trs, trsRotation, trsScale);
   node.position.set(trs[0], trs[1], trs[2]);
   node.quaternion.set(trsRotation[0], trsRotation[1], trsRotation[2], trsRotation[3]);
   node.scale.set(trsScale[0], trsScale[1], trsScale[2]);
   node.matrix.fromArray(local);
   node.matrixAutoUpdate = false;
-  // La pose est posée : l'index du moteur la reprend, et toutes les matrices qu'il tient —  fiches
-  // de page, racines de sélection, copies transparentes — portent la nouvelle place à l'instant
-  // même, sans qu'aucune photo soit à reprendre. La scène de l'hôte, elle, n'est pas remontée : le
-  // moteur ne lit plus ses matrices monde.
+  // The pose is set: the engine index takes it, and every matrix it holds — page records,
+  // selection roots, transparent copies — carries the new place at that instant, with no snapshot
+  // to retake. The host scene, itself, is not climbed: the engine no longer reads its world
+  // matrices.
   setup.worlds.refresh();
-  // Les boîtes monde des racines déplacées se reprojettent EN LOT, par le gouverneur, dans le tampon
-  // réservé à la préparation. Un tampon absent ou rendu passe la main au calcul boîte par boîte, qui
-  // rend les mêmes bits — le même `boxTransform` sur les mêmes entrées.
+  // World boxes of the moved roots reproject IN BATCH, through the governor, in the buffer
+  // reserved at prepare. A missing or released buffer hands over to the box-by-box computation,
+  // which yields the same bits — the same `boxTransform` on the same inputs.
   const enLot =
     !!layout.rootBoxes &&
     transformRootBoxes(layout.rootBoxes, layout.selectionRoots, (root) =>
@@ -127,9 +131,9 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
     unionInto(root.worldBox);
   }
   layout.rows.tableEpoch++;
-  // Origine du changement de scène : les matrices monde de ce sous-arbre viennent d'être réécrites.
+  // Origin of the scene change: this subtree's world matrices have just been rewritten.
   run.gate.sceneChanged();
-  // La hiérarchie porte déjà les matrices de cette révision : l'image suivante ne la remonte pas.
+  // The hierarchy already carries this revision's matrices: the next image does not climb it.
   run.gate.noteWorldsUpdated();
   invalidateOccluderHistory(run);
   if (boxIsEmpty(moved, 0)) return;
@@ -140,12 +144,12 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   lights.plan.worldChanged(movedMin, movedMax);
 }
 
-/** Ajoute une boîte monde à la boîte du mouvement. */
+/** Adds a world box to the motion box. */
 function unionInto(box: Float64Array) {
   boxUnion(moved, 0, box[0], box[1], box[2], box[3], box[4], box[5]);
 }
 
-/** Vrai quand `mesh` est le nœud déplacé ou l'un de ses descendants. */
+/** True when `mesh` is the moved node or one of its descendants. */
 function isUnder(mesh: THREE.Object3D | undefined, node: THREE.Object3D) {
   let walk: THREE.Object3D | null = mesh ?? null;
   while (walk) {

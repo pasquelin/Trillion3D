@@ -19,7 +19,7 @@ export interface PriorityRecord {
   max: number[];
   matrix: MatrixElements;
 }
-/** Ce que l'ordre lit de la caméra du moteur : sa vue et son plan proche, rien d'autre. */
+/** What the order reads of the engine camera: its view and its near plane, nothing else. */
 export interface PriorityCamera {
   view: Float64Array;
   near: number;
@@ -38,10 +38,10 @@ function project(view: ArrayLike<number>, sphere: ArrayLike<number>, out: Float6
 }
 const centre = new Float64Array(4),
   bounds = new Float64Array(4),
-  // La pose de l'hôte recopiée dans un tampon possédé : le produit du socle ne lit et n'écrit que
-  // des `Float64Array` (`mathMatrix4.ts`). Seize nombres par matrice DISTINCTE, pas par fiche.
+  // The host pose copied into an owned buffer: the base product only reads and writes
+  // `Float64Array`s (`mathMatrix4.ts`). Sixteen numbers per DISTINCT matrix, not per record.
   worldMirror = new Float64Array(16);
-/** Sphère `[x, y, z, r]` d'une boîte à six bornes, écrite en `at` : centre au milieu, rayon au coin. */
+/** Sphere `[x, y, z, r]` of a six-bound box, written at `at`: centre in the middle, radius to the corner. */
 function boxSphere(
   out: Float64Array,
   x0: number,
@@ -140,9 +140,9 @@ export function orderPendingUrls(
   return into;
 }
 /**
- * Rayon écran, en pixels, de la boîte d'un enregistrement vu par `view`. C'est la mesure que la
- * priorité des textures emploie : ce que l'œil voit d'une surface, et non ce qu'elle porte de
- * triangles. Les tampons de travail sont ceux du module, réécrits sur place.
+ * Screen radius, in pixels, of a record's box as seen by `view`. That is the measure texture
+ * priority uses: what the eye sees of a surface, not how many triangles it carries. The work
+ * buffers are the module's, rewritten in place.
  */
 function boundsScreenRadius(
   record: Pick<PriorityRecord, 'min' | 'max'>,
@@ -160,7 +160,7 @@ function boundsScreenRadius(
   );
 }
 
-/** Rayon écran d'une sphère `[x, y, z, r]` vue par `view` ; `centre` garde la projection. */
+/** Screen radius of a sphere `[x, y, z, r]` as seen by `view`; `centre` keeps the projection. */
 function sphereScreenRadius(
   sphere: Float64Array,
   view: ArrayLike<number>,
@@ -173,7 +173,7 @@ function sphereScreenRadius(
   return (centre[3] * stretch * focal) / Math.max(distance, near);
 }
 
-/** Pixels par unité d'étendue en repère de vue à profondeur unité, d'une projection et d'un viewport. */
+/** Pixels per unit of extent in view space at unit depth, from a projection and a viewport. */
 export function pixelScaleOf<T extends number[]>(
   projection: ArrayLike<number>,
   viewport: readonly number[] | undefined,

@@ -1,7 +1,7 @@
-// Lot « mémoire partagée des pages » : la page revient par la région du créneau au lieu de voyager
-// par message, et doit rendre exactement les mêmes octets. Entrées hostiles : plus de pages que de
-// créneaux, un worker qui meurt au milieu d'une page, une page qui ne tient pas dans sa région, et
-// la garde fausse — le seul cas où rien ne doit changer du chemin d'avant.
+// Lot "shared page memory": the page comes back through the slot region instead of
+// travelling by message, and must return exactly the same bytes. Hostile inputs: more
+// pages than slots, a worker that dies mid-page, a page that does not fit in its region,
+// and the false retain — the only case where nothing must change from the previous path.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PAGE_DECODE_PROTOCOL } from '../sdk-core/index.ts';
@@ -31,7 +31,7 @@ import type { PageDecodeAnswer, PageDecodeDone } from '../sdk-core/index.ts';
 
 const MAX = 16 * 1024 * 1024;
 
-/** Une page réelle, avec un attribut facultatif pour que les noms voyagent vraiment. */
+/** A real page, with an optional attribute so names actually travel. */
 async function page() {
   const sommets = 64;
   const position = new Float32Array(sommets * 3),
@@ -49,19 +49,19 @@ async function page() {
   return data as Uint8Array;
 }
 
-/** Le premier écart entre deux pages décodées, ou `null` si elles sont identiques valeur par valeur. */
+/** First difference between two decoded pages, or `null` if they are identical value by value. */
 function ecartPage(a: DecodedGeometryPage, b: DecodedGeometryPage) {
-  if (a.vertexCount !== b.vertexCount) return `sommets ${a.vertexCount} ≠ ${b.vertexCount}`;
-  if (a.flags !== b.flags) return `drapeaux ${a.flags} ≠ ${b.flags}`;
-  if (a.decodedBytes !== b.decodedBytes) return `octets ${a.decodedBytes} ≠ ${b.decodedBytes}`;
+  if (a.vertexCount !== b.vertexCount) return `vertices ${a.vertexCount} ≠ ${b.vertexCount}`;
+  if (a.flags !== b.flags) return `flags ${a.flags} ≠ ${b.flags}`;
+  if (a.decodedBytes !== b.decodedBytes) return `bytes ${a.decodedBytes} ≠ ${b.decodedBytes}`;
   const noms = Object.keys(a.attributes);
-  if (noms.join() !== Object.keys(b.attributes).join()) return `noms ${noms.join()}`;
+  if (noms.join() !== Object.keys(b.attributes).join()) return `names ${noms.join()}`;
   for (const [nom, gauche] of [
     ['indices', a.indices] as const,
     ...noms.map((nom) => [nom, a.attributes[nom]] as const),
   ]) {
     const droite = nom === 'indices' ? b.indices : b.attributes[nom];
-    if (gauche.length !== droite.length) return `${nom}: longueur ${gauche.length}`;
+    if (gauche.length !== droite.length) return `${nom}: length ${gauche.length}`;
     for (let i = 0; i < gauche.length; i++)
       if (!Object.is(gauche[i], droite[i])) return `${nom}[${i}]: ${gauche[i]} ≠ ${droite[i]}`;
   }
@@ -71,15 +71,15 @@ function ecartPage(a: DecodedGeometryPage, b: DecodedGeometryPage) {
 function decodee(answer: PageDecodeAnswer) {
   assert.equal(answer.ok, true, answer.ok ? '' : answer.message);
   const done = answer as PageDecodeDone;
-  assert.ok(done.decoded, 'la réponse doit porter une page');
+  assert.ok(done.decoded, 'the answer must carry a page');
   return restorePageDecode(done.decoded!);
 }
 
-/** Une page décodée par un pool, avec ou sans arène de mémoire partagée. */
+/** A page decoded by a pool, with or without a shared memory arena. */
 async function parPool(octets: Uint8Array, slots: number, partagee: boolean, copies = 1) {
   const arena = partagee ? createPageArena(slots) : undefined;
   const pool = createPageDecodePool(slots, arena);
-  assert.equal(await pool.start(), true, 'le pool doit démarrer');
+  assert.equal(await pool.start(), true, 'the pool must start');
   const pages = await Promise.all(
     Array.from(
       { length: copies },
@@ -90,7 +90,7 @@ async function parPool(octets: Uint8Array, slots: number, partagee: boolean, cop
   return { pages: pages.map(decodee), arena };
 }
 
-test('une page revenue par la mémoire partagée est identique, valeur par valeur, à la même page transférée', () =>
+test('a page returned through shared memory is identical, value by value, to the same transferred page', () =>
   withNodeWorkerShim(NodeDomWorker, async () => {
     const octets = await page();
     const { pages, arena } = await parPool(octets, 1, true);
@@ -98,13 +98,13 @@ test('une page revenue par la mémoire partagée est identique, valeur par valeu
     assert.equal(
       sharedField(arena!, 0, STATUS),
       SHARED_BY_REGION,
-      'la page doit être passée par la région, pas par un message',
+      'the page must have gone through the region, not a message',
     );
     assert.equal(ecartPage(pages[0], transferees[0]), null);
     assert.deepEqual(Object.keys(pages[0].attributes), ['position', 'normal']);
   }));
 
-test('plus de pages que de créneaux : chacune revient entière, le créneau se réutilise', () =>
+test('more pages than slots: each comes back whole, the slot is reused', () =>
   withNodeWorkerShim(NodeDomWorker, async () => {
     const octets = await page();
     const { pages: reference } = await parPool(octets, 1, false);
@@ -114,7 +114,7 @@ test('plus de pages que de créneaux : chacune revient entière, le créneau se 
       assert.equal(ecartPage(obtenue, reference[0]), null, `page ${rang}`);
   }));
 
-test('un worker mort au milieu d’une page libère son créneau et rend PAGE_DECODE_WORKER', () =>
+test('a worker dead mid-page frees its slot and returns PAGE_DECODE_WORKER', () =>
   withNodeWorkerShim(FlakyNodeWorker as unknown as typeof NodeDomWorker, async () => {
     const arena = createPageArena(1);
     const pool = createPageDecodePool(1, arena);
@@ -122,12 +122,12 @@ test('un worker mort au milieu d’une page libère son créneau et rend PAGE_DE
     const answer = await pool.submit('decode', new ArrayBuffer(64), MAX).answer;
     assert.equal(answer.ok, false);
     assert.equal((answer as { code: string }).code, 'PAGE_DECODE_WORKER');
-    await new Promise((r) => setTimeout(r, 20)); // le réveil du créneau est asynchrone.
-    assert.equal(sharedField(arena, 0, STATE), SHARED_FREE, 'le créneau doit être rendu');
+    await new Promise((r) => setTimeout(r, 20)); // slot wake is asynchronous.
+    assert.equal(sharedField(arena, 0, STATE), SHARED_FREE, 'the slot must be returned');
   }));
 
-test('la garde décide seule du chemin annoncé, et Node sans isolement reste sur le transfert', () => {
-  assert.equal(sharedPagesAllowed(), false, 'Node n’est pas isolé entre origines');
+test('cross-origin isolation alone decides the announced path, and Node without isolation stays on transfer', () => {
+  assert.equal(sharedPagesAllowed(), false, 'Node is not cross-origin isolated');
   assert.equal(pageDecodeTransport(), 'transfert');
   const scope = globalThis as { crossOriginIsolated?: boolean };
   try {
@@ -140,7 +140,7 @@ test('la garde décide seule du chemin annoncé, et Node sans isolement reste su
   assert.equal(pageDecodeTransport(), 'transfert');
 });
 
-test('une page trop grande, ou trop d’attributs, n’est pas écrite : elle repart par transfert', () => {
+test('a page too large, or with too many attributes, is not written: it leaves by transfer', () => {
   const arena = createPageArena(1);
   const done = (attributs: ArrayBuffer[]): PageDecodeDone => ({
     protocol: PAGE_DECODE_PROTOCOL,
@@ -162,6 +162,6 @@ test('une page trop grande, ou trop d’attributs, n’est pas écrite : elle re
   assert.equal(writeSharedPage(arena, 0, done([new ArrayBuffer(SHARED_REGION_BYTES)])), false);
   const trop = Array.from({ length: MAX_SHARED_ATTRS + 1 }, () => new ArrayBuffer(4));
   assert.equal(writeSharedPage(arena, 0, done(trop)), false);
-  assert.equal(sharedField(arena, 0, STATE), SHARED_FREE, 'un refus ne publie rien');
+  assert.equal(sharedField(arena, 0, STATE), SHARED_FREE, 'a refusal publishes nothing');
   assert.equal(writeSharedPage(arena, 0, done([new ArrayBuffer(4)])), true);
 });

@@ -1,4 +1,4 @@
-// l'ombrage par pixel du visbuffer CPU.
+// per-pixel shading of the CPU visbuffer.
 import * as THREE from 'three';
 import { shadeLit } from '../visibilityLighting.ts';
 import { triangleAt } from '../visibilityMath.ts';
@@ -99,7 +99,7 @@ function pixels(nombre, cartes, hostiles) {
 const vue = cameraMoteur(camera);
 
 const passe = (ombre, oeil) => (lot) => {
-  const sortie = new Float64Array(lot.length * 3);
+  const output = new Float64Array(lot.length * 3);
   for (let i = 0; i < lot.length; i++) {
     const p = lot[i];
     const rgb = ombre(
@@ -114,25 +114,25 @@ const passe = (ombre, oeil) => (lot) => {
       p.roughness,
       oeil,
     );
-    sortie[i * 3] = rgb[0];
-    sortie[i * 3 + 1] = rgb[1];
-    sortie[i * 3 + 2] = rgb[2];
+    output[i * 3] = rgb[0];
+    output[i * 3 + 1] = rgb[1];
+    output[i * 3 + 2] = rgb[2];
   }
-  return sortie;
+  return output;
 };
 
 const resOmbrage = await mesure({
-  nom: 'ombrage par pixel du visbuffer',
+  name: 'per-pixel visbuffer shading',
   fichier: 'packages/sdk-browser/visibilityLighting.ts',
   cas: [
     {
-      nom: '20 000 pixels avec cartes',
-      entree: pixels(20000, true, false),
-      taille: 20000,
+      name: '20 000 pixels with maps',
+      input: pixels(20000, true, false),
+      size: 20000,
     },
-    { nom: '20 000 pixels sans carte', entree: pixels(20000, false, false), taille: 20000 },
-    { nom: 'poids hostiles', entree: pixels(49, true, true), taille: 49 },
-    { nom: 'aucun pixel', entree: [], taille: 0 },
+    { name: '20 000 pixels without a map', input: pixels(20000, false, false), size: 20000 },
+    { name: 'hostile weights', input: pixels(49, true, true), size: 49 },
+    { name: 'no pixels', input: [], size: 0 },
   ],
   calcul: passe(shadeLit, vue),
   attendu: passe(referenceShadeLit, camera),
@@ -140,13 +140,13 @@ const resOmbrage = await mesure({
 });
 
 await stress({
-  nom: 'shadeLit extremes',
+  name: 'shadeLit extremes',
   calcul: (lot) => passe(shadeLit, vue)(lot),
-  extremes: [{ nom: '1 pixel hostile', entree: pixels(1, true, true) }],
+  extremes: [{ name: '1 hostile pixel', input: pixels(1, true, true) }],
 });
 
 rapport(
   'eclairage-pixel',
   [resOmbrage],
-  'G3 rend les mêmes trois canaux, au bit près, sur chaque pixel',
+  'G3 yields the same three channels, bit-exact, on every pixel',
 );

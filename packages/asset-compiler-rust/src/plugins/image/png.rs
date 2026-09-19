@@ -1,19 +1,20 @@
-//! Pilote PNG, standard W3C PNG 1.2 / ISO 15948, décodé sans perte par la crate `image`
-//! (feature `png`). Aucun réencodage : ce qui entre sans perte ressort octet pour octet.
+//! PNG driver, W3C PNG 1.2 / ISO 15948 standard, decoded losslessly by the `image` crate
+//! (`png` feature). No re-encoding: what enters losslessly comes out byte for byte.
 //!
-//! Profondeurs lues, toutes vers RGBA8 exact : 1, 2, 4 et 8 bits par canal, palette, niveaux de
-//! gris et alpha compris — jusqu'à huit bits, l'expansion vers RGBA8 ne perd rien, elle recopie.
+//! Depths read, all to exact RGBA8: 1, 2, 4 and 8 bits per channel, palette, greyscale and
+//! alpha included — up to eight bits, expansion to RGBA8 loses nothing, it copies.
 //!
-//! Le 16 bits par canal est refusé et nommé : voir `DEPTH`. La profondeur se lit dans l'IHDR avant
-//! tout décodage, parce qu'après il est trop tard — la bibliothèque rendrait un `Rgb16` que
-//! `to_rgba8()` rognerait à huit bits sans que personne ne l'ait demandé.
+//! 16 bits per channel is refused and named: see `DEPTH`. Depth is read from the IHDR before
+//! any decode, because afterwards it is too late — the library would return an `Rgb16` that
+//! `to_rgba8()` would clip to eight bits without anyone having asked.
 //!
-//! **Ce que le fichier déclare autour des pixels** se lit dans ses morceaux, pas dans son image.
-//! Un PNG animé (APNG) porte un morceau `acTL` et plusieurs trames ; le contrat n'en rend qu'une —
-//! l'image par défaut, celle des `IDAT`, comme la spécification APNG la définit — et le pilote
-//! compte l'animation plutôt que de laisser les autres trames disparaître sans un mot. Un morceau
-//! `iCCP` porte un profil colorimétrique que la sortie ne porte pas : son nom, écrit en clair devant
-//! le profil compressé, suffit à dire s'il s'agit du sRGB de la sortie ou d'autre chose à compter.
+//! **What the file declares around the pixels** is read in its chunks, not in its image.
+//! An animated PNG (APNG) carries an `acTL` chunk and several frames; the contract returns
+//! only one — the default image, that of the `IDAT`s, as the APNG specification defines it —
+//! and the driver counts the animation rather than letting the other frames vanish without a
+//! word. An `iCCP` chunk carries a colour profile that the output does not carry: its name,
+//! written in the clear in front of the compressed profile, is enough to say whether it is
+//! the output sRGB or something else to count.
 use super::{crate_image, icc, ImageDecoded, ImageDecoder, Plugin, Transfer};
 
 mod chunks;
@@ -21,50 +22,51 @@ mod chunks;
 pub(super) static PNG: Png = Png;
 pub(super) struct Png;
 
-/// Un PNG 16 bits par canal. Ce n'est pas un profil exotique : c'est de la précision que
-/// `DecodedImage` ne sait pas encore porter, sa seule variante étant RGBA8. La rogner en silence
-/// ajouterait une perte que la source n'avait pas, ce que la politique d'import interdit. Pour
-/// l'accepter il faudrait une variante `Rgba16` au contrat d'image et son traitement explicite chez
-/// chaque consommateur — `texture_preview` aujourd'hui, la pyramide d'aperçus ensuite.
+/// A 16-bit-per-channel PNG. This is not an exotic profile: it is precision that
+/// `DecodedImage` cannot yet carry, its only variant being RGBA8. Clipping it in silence
+/// would add a loss the source did not have, which the import policy forbids. Accepting it
+/// would need an `Rgba16` variant on the image contract and its explicit handling at every
+/// consumer — `texture_preview` today, the preview pyramid next.
 const DEPTH: &str = "image-depth-unsupported";
 
-/// Le fichier déclare une animation — morceau `acTL` — et le contrat ne rend qu'une image. C'est
-/// l'image par défaut qui sort, les autres trames sont comptées sous ce nom plutôt que perdues en
-/// silence. Ce n'est pas un refus : une texture animée reste une texture, sa première image vaut.
+/// The file declares an animation — `acTL` chunk — and the contract returns only one image.
+/// It is the default image that comes out, the other frames are counted under this name
+/// rather than lost in silence. This is not a refusal: an animated texture remains a
+/// texture, its first image counts.
 const ANIMATION: &str = "image-animation-first-frame";
-/// Le morceau qui déclare l'animation : compte de trames et compte de répétitions.
+/// Chunk that declares the animation: frame count and loop count.
 const ANIMATION_CHUNK: &[u8] = b"acTL";
-/// Le morceau qui porte un profil colorimétrique : son nom en clair, un octet de méthode de
-/// compression, puis le profil compressé. Seul le nom se lit sans décompresser quoi que ce soit.
+/// Chunk that carries a colour profile: its name in the clear, one compression-method byte,
+/// then the compressed profile. Only the name is read without decompressing anything.
 const PROFILE_CHUNK: &[u8] = b"iCCP";
-/// Le morceau qui déclare la sortie écrite dans l'espace sRGB, et l'intention de rendu avec.
+/// Chunk that declares the output written in sRGB space, and the rendering intent with it.
 const SRGB_CHUNK: &[u8] = b"sRGB";
-/// Le morceau qui déclare la gamma du fichier, multipliée par cent mille sur quatre octets.
+/// Chunk that declares the file's gamma, multiplied by one hundred thousand over four bytes.
 const GAMMA_CHUNK: &[u8] = b"gAMA";
-/// La gamma d'une image écrite dans la courbe sRGB : 1/2,2, que la spécification arrondit ainsi.
+/// Gamma of an image written in the sRGB curve: 1/2.2, which the specification rounds thus.
 const SRGB_GAMMA: u32 = 45_455;
-/// La gamma d'une image dont les échantillons sont proportionnels à la lumière : 1 exactement.
+/// Gamma of an image whose samples are proportional to light: 1 exactly.
 const LINEAR_GAMMA: u32 = 100_000;
-/// Une gamma qui n'est ni celle de la courbe sRGB ni l'unité. Le contrat porte deux courbes et ne
-/// sait pas en appliquer une troisième : l'image sort traitée en sRGB, comme le veut la convention
-/// pour un fichier qui se tait, et l'écart est compté plutôt que passé sous silence.
+/// A gamma that is neither that of the sRGB curve nor unity. The contract carries two curves
+/// and cannot apply a third: the image comes out treated as sRGB, as convention wants for a
+/// file that stays silent, and the gap is counted rather than passed over in silence.
 const TRANSFER: &str = "image-transfer-unsupported";
 
-/// Le type du premier morceau, qui est toujours l'IHDR : signature de huit octets, puis la longueur
-/// du morceau sur quatre.
+/// Type of the first chunk, which is always the IHDR: eight-byte signature, then the chunk
+/// length over four.
 const FIRST_CHUNK: std::ops::Range<usize> = 12..16;
-/// L'octet de profondeur dans l'IHDR : les huit de la signature, les huit de la longueur et du type
-/// du morceau, les huit de la largeur et de la hauteur.
+/// Depth byte in the IHDR: the eight of the signature, the eight of the chunk length and
+/// type, the eight of the width and height.
 const BIT_DEPTH: usize = 24;
 
 impl Plugin for Png {
     fn name(&self) -> &'static str {
         "png"
     }
-    /// Les suffixes nomment ce que ce pilote rend en propre : la profondeur maximale au-delà de
-    /// laquelle il refuse, et le compte de l'animation. La version entre dans l'identité du cache —
-    /// sans elle, une entrée produite quand le 16 bits était abaissé, ou quand un APNG était aplati
-    /// sans un mot, continuerait d'être relue comme si elle était juste.
+    /// The suffixes name what this driver returns of its own: the maximum depth beyond which
+    /// it refuses, and the animation count. The version enters the cache identity — without
+    /// it, an entry produced when 16-bit was lowered, or when an APNG was flattened without a
+    /// word, would keep being reread as if it were correct.
     fn version(&self) -> &'static str {
         "png-image-0.25-depth8-apng-icc-gama"
     }
@@ -77,12 +79,12 @@ impl ImageDecoder for Png {
     fn mime(&self) -> &'static str {
         "image/png"
     }
-    /// La signature de huit octets que tout PNG porte en tête.
+    /// The eight-byte signature that every PNG carries at the front.
     fn accepts_head(&self, head: &[u8]) -> bool {
         head.starts_with(b"\x89PNG\r\n\x1a\n")
     }
-    /// La profondeur d'abord, les pixels ensuite. Un fichier trop court pour porter son IHDR n'est
-    /// pas jugé ici : il part au décodeur, qui le refuse comme avant.
+    /// Depth first, pixels next. A file too short to carry its IHDR is not judged here: it
+    /// goes to the decoder, which refuses it as before.
     fn decode(
         &self,
         bytes: &[u8],
@@ -97,14 +99,14 @@ impl ImageDecoder for Png {
     }
 }
 
-/// La courbe que le fichier déclare, et ce qu'il déclare d'autre que la sortie ne porte pas. Le
-/// parcours s'arrête au premier morceau coupé : un fichier tronqué est jugé par le décodeur de
-/// pixels, pas deviné ici.
+/// The curve the file declares, and what else it declares that the output does not carry.
+/// The walk stops at the first cut chunk: a truncated file is judged by the pixel decoder,
+/// not guessed here.
 ///
-/// La priorité est celle du format, du plus précis au plus vague : un profil `iCCP` décrit la
-/// courbe lui-même, un morceau `sRGB` la nomme, et `gAMA` seul ne dit qu'une gamma. Les deux
-/// premiers laissent donc la sortie en sRGB — le profil est déjà compté comme non converti —, et
-/// c'est faute d'eux que la gamma décide.
+/// Priority is the format's, from most precise to vaguest: an `iCCP` profile describes the
+/// curve itself, an `sRGB` chunk names it, and `gAMA` alone only says a gamma. The first two
+/// therefore leave the output in sRGB — the profile is already counted as not converted —,
+/// and it is in their absence that gamma decides.
 fn declarations(bytes: &[u8]) -> (Transfer, Vec<&'static str>) {
     let mut notes = Vec::new();
     let mut described = false;
@@ -135,9 +137,9 @@ fn declarations(bytes: &[u8]) -> (Transfer, Vec<&'static str>) {
     }
 }
 
-/// Le nom d'un profil, la partie du morceau `iCCP` qui précède le premier octet nul. Le profil
-/// lui-même est compressé : son nom est tout ce que ce pilote lit, et c'est ce que la spécification
-/// lui demande d'écrire en clair.
+/// Name of a profile, the part of the `iCCP` chunk that precedes the first null byte. The
+/// profile itself is compressed: its name is all this driver reads, and it is what the
+/// specification asks it to write in the clear.
 fn name(chunk: &[u8]) -> &[u8] {
     let end = chunk.iter().position(|byte| *byte == 0);
     &chunk[..end.unwrap_or(chunk.len())]

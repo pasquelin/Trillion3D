@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { IDENTITY_MATRIX4 } from '../sdk-core/index.ts';
 import { DrawRanges } from './clusterBatchRange.ts';
 
-/** Matrice identité unique partagée : le lot ne transporte aucune transformation, la matrice monde reste celle de l'objet. */
+/** Shared unique identity matrix: the batch carries no transform, the world matrix stays that of the object. */
 export function identityMatrixTexture() {
   const data = new Float32Array(4 * 4 * 4);
   data.set(IDENTITY_MATRIX4);
@@ -10,7 +10,7 @@ export function identityMatrixTexture() {
   texture.needsUpdate = true;
   return texture;
 }
-/** Table d'indirection nulle : tous les sous-dessins pointent la seule matrice du lot. */
+/** Null indirection table: every sub-draw points at the batch's single matrix. */
 export function zeroIndirectTexture(maxDraws: number) {
   let size = 4;
   while (size * size < Math.max(1, maxDraws)) size *= 2;
@@ -27,9 +27,9 @@ export function zeroIndirectTexture(maxDraws: number) {
 }
 
 /**
- * Objet de dessin d'un groupe. `isBatchedMesh` fait passer Three.js par `renderMultiDraw` (ou sa boucle
- * de repli quand `WEBGL_multi_draw` manque) ; la matrice de lot étant l'identité, la transformation des
- * sommets reste exactement `modelViewMatrix * position`, comme avec un THREE.Mesh ordinaire.
+ * Draw object of a group. `isBatchedMesh` sends Three.js through `renderMultiDraw` (or its
+ * fallback loop when `WEBGL_multi_draw` is missing); the batch matrix being identity, vertex
+ * transform stays exactly `modelViewMatrix * position`, as with an ordinary THREE.Mesh.
  */
 export class ClusterDrawMesh extends THREE.Mesh {
   isBatchedMesh = true;
@@ -40,7 +40,7 @@ export class ClusterDrawMesh extends THREE.Mesh {
   _matricesTexture: THREE.DataTexture;
   _indirectTexture: THREE.DataTexture;
   _colorsTexture: THREE.DataTexture | null = null;
-  /** Three.js lit `colorTexture` sans souligné : laissé indéfini, il recompilerait la clé de programme à chaque dessin. */
+  /** Three.js reads `colorTexture` without an underscore: left undefined, it would recompile the program key on every draw. */
   colorTexture: THREE.DataTexture | null = null;
   constructor(
     geometry: THREE.BufferGeometry,
@@ -62,7 +62,7 @@ export class ClusterDrawMesh extends THREE.Mesh {
 type ShaderParameters = { vertexShader: string; extensionMultiDraw?: boolean };
 export type ShaderHook = (parameters: ShaderParameters, renderer: THREE.WebGLRenderer) => void;
 const UNDEF_BATCHING = '#undef USE_BATCHING\n';
-/** Annule USE_BATCHING : le vertex shader compilé redevient celui d'un THREE.Mesh ordinaire. */
+/** Undoes USE_BATCHING: the compiled vertex shader becomes that of an ordinary THREE.Mesh again. */
 export function neutraliseBatchingShader(
   material: THREE.Material,
   restore: Map<THREE.Material, ShaderHook>,
@@ -70,7 +70,7 @@ export function neutraliseBatchingShader(
   if (restore.has(material)) return;
   const previous = material.onBeforeCompile as ShaderHook;
   restore.set(material, previous);
-  // Clé figée une fois pour toutes : Three.js la redemande à chaque matériau et à chaque image.
+  // Key frozen once and for all: Three.js asks for it again on every material and every frame.
   const key = material.customProgramCacheKey() + '|wgmd';
   material.customProgramCacheKey = () => key;
   material.onBeforeCompile = ((parameters: ShaderParameters, renderer: THREE.WebGLRenderer) => {
@@ -83,16 +83,16 @@ export function neutraliseBatchingShader(
 }
 
 /**
- * Three.js dessine un matériau transparent double face en deux passes : il bascule `side` sur
- * `BackSide` puis `FrontSide` et pose `needsUpdate` avant chacune. Or `needsUpdate` incrémente la
- * version du matériau, ce qui invalide le programme retenu : à l'objet suivant qui partage ce
- * matériau, `setProgram` recalcule l'intégralité des paramètres de programme et leur clé. Le coût est
- * donc de deux recalculs complets par objet transparent et par image.
+ * Three.js draws a two-sided transparent material in two passes: it flips `side` to
+ * `BackSide` then `FrontSide` and sets `needsUpdate` before each. But `needsUpdate` bumps
+ * the material version, which invalidates the retained program: on the next object that
+ * shares this material, `setProgram` recomputes every program parameter and its key. The
+ * cost is therefore two full recomputes per transparent object and per frame.
  *
- * Les deux passes sont figées ici en deux matériaux (dos, puis face) et deux groupes de géométrie :
- * Three.js émet les deux mêmes dessins, dans le même ordre, avec les mêmes programmes et le même état
- * GL, mais ne touche plus à `side` ni à la version. Rien d'autre ne change : même objet, même
- * `renderOrder`, même tri, même mélange.
+ * The two passes are frozen here as two materials (back, then front) and two geometry
+ * groups: Three.js emits the same two draws, in the same order, with the same programs and
+ * the same GL state, but no longer touches `side` or the version. Nothing else changes:
+ * same object, same `renderOrder`, same sort, same blending.
  */
 export function sideSplit(
   material: THREE.Material | THREE.Material[],

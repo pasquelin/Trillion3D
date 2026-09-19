@@ -10,7 +10,7 @@ import { createWebgpuBlendPipelines } from './webgpuBlendPipelines.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { BLEND_SHADER } from './webgpuBlendShader.ts';
 
-/** Un dispositif factice qui rend ce qu'on lui demande de créer, mappage compris. */
+/** A fake device that returns what it is asked to create, mapping included. */
 function fakeDevice(writes: Array<[number, number]> = []) {
   return {
     createBuffer: ({ size }: { size: number }) => {
@@ -31,52 +31,56 @@ function fakeDevice(writes: Array<[number, number]> = []) {
   } as unknown as GPUDevice;
 }
 
-/** Les entrées d'une disposition, telles que le dispositif factice les a reçues. */
+/** Layout entries, as the fake device received them. */
 type LayoutEntries = { entries: Array<GPUBindGroupLayoutEntry> };
 const entriesOf = (layout: unknown) => (layout as LayoutEntries).entries;
 
-/** Le corps de `sunFarShadowFactor` d'un module, de sa signature à son accolade fermante. */
+/** Body of a module's `sunFarShadowFactor`, from its signature to its closing brace. */
 function farShadowSource(wgsl: string) {
   const start = wgsl.indexOf('fn sunFarShadowFactor(');
-  assert.notEqual(start, -1, 'le module porte bien une ombre lointaine');
+  assert.notEqual(start, -1, 'the module does carry a far shadow');
   const end = wgsl.indexOf('\n}', start);
   return wgsl.slice(start, end + 2);
 }
 
-test('la passe de mélange tire le vrai rayon d’ombre lointaine, plus un bouchon', () => {
+test('the blend pass fires the real far-shadow ray, no plug', () => {
   const blend = farShadowSource(BLEND_SHADER);
-  assert.match(blend, /proxyBlocked\(origin,L,/, 'le rayon est tiré contre le proxy résident');
-  assert.match(blend, /proxy\.present<0\.5/, 'sans proxy, la surface reste éclairée sans ombre');
+  assert.match(blend, /proxyBlocked\(origin,L,/, 'the ray is fired against the resident proxy');
+  assert.match(
+    blend,
+    /proxy\.present<0\.5/,
+    'without a proxy, the surface stays lit without shadow',
+  );
   assert.doesNotMatch(
     BLEND_SHADER,
     /fn sunFarShadowFactor\(P:vec3f,N:vec3f,L:vec3f\)->f32\{return 1\.0;\}/,
-    'plus aucun bouchon qui rende un sans avoir cherché',
+    'no plug left that returns one without having searched',
   );
 });
 
-test('les deux passes qui éclairent tirent le même rayon, aux compteurs près', () => {
-  // Les deux seules lignes qui séparent les deux ombres lointaines sont les compteurs du relevé, que
-  // la passe de mélange ne porte pas : elle lie le proxy en lecture seule pour garder le rejet
-  // anticipé de profondeur. Retirées du côté opaque, les deux corps sont identiques caractère pour
-  // caractère — origine, bornes et réponse du rayon comprises.
+test('both lighting passes fire the same ray, counters aside', () => {
+  // The only two lines that separate the two far shadows are the report counters, which
+  // the blend pass does not carry: it binds the proxy read-only to keep early depth
+  // rejection. Taken out of the opaque side, the two bodies are identical character for
+  // character — origin, bounds and ray answer included.
   const compteurs = /^ (let counting=|if\(counting\)\{atomicAdd).*\n/gm;
   assert.equal(
     farShadowSource(BLEND_SHADER),
     farShadowSource(DIRECT_LIGHTING_WGSL).replace(compteurs, ''),
   );
-  assert.doesNotMatch(farShadowSource(BLEND_SHADER), /atomic/, 'aucun compteur dans le mélange');
+  assert.doesNotMatch(farShadowSource(BLEND_SHADER), /atomic/, 'no counter in the blend');
   assert.match(farShadowSource(DIRECT_LIGHTING_WGSL), /atomicAdd\(&proxy\.tested/);
-  // Le reste du socle ne diffère que par le rang de la liaison du proxy et par son accès, que les
-  // deux dispositions ne numérotent ni ne déclarent pareil.
+  // The rest of the core differs only by the proxy binding rank and its access, which
+  // the two layouts neither number nor declare the same.
   const socle = (wgsl: string) => wgsl.slice(0, wgsl.indexOf('fn pixelTile('));
   assert.notEqual(
     socle(declaredLightingWgsl(BLEND_BINDINGS.proxy)),
     socle(DIRECT_LIGHTING_WGSL),
-    'le mélange ne reprend ni le rang ni l’accès de la résolution différée',
+    'the blend takes neither the rank nor the access of deferred resolve',
   );
 });
 
-test('le proxy résident est lié aux deux passes, sur une seule liaison de stockage', async () => {
+test('the resident proxy is bound to both passes, on a single storage binding', async () => {
   installGpuGlobals();
   const device = fakeDevice();
   const { blendBindGroupLayout } = await createWebgpuBlendPipelines(device, []);
@@ -87,18 +91,18 @@ test('le proxy résident est lié aux deux passes, sur une seule liaison de stoc
   const inDeferred = entriesOf(deferred.lighting).filter(
     (entry) => entry.binding === SUN_FAR_PROXY_BINDING,
   );
-  // Le mélange lit le proxy, la résolution différée l'écrit : c'est elle seule qui tient les deux
-  // compteurs du relevé, et c'est cette lecture seule qui rend au mélange son rejet anticipé.
+  // The blend reads the proxy, deferred resolve writes it: it alone holds the two
+  // report counters, and it is that read-only access that gives the blend its early reject.
   for (const [nom, found, type] of [
-    ['mélange', inBlend, 'read-only-storage'],
-    ['différée', inDeferred, 'storage'],
+    ['blend', inBlend, 'read-only-storage'],
+    ['deferred', inDeferred, 'storage'],
   ] as Array<[string, GPUBindGroupLayoutEntry[], GPUBufferBindingType]>) {
-    assert.equal(found.length, 1, `la passe ${nom} lie le proxy une fois et une seule`);
-    assert.equal(found[0].buffer?.type, type, `l’accès de la passe ${nom}`);
+    assert.equal(found.length, 1, `pass ${nom} binds the proxy once and only once`);
+    assert.equal(found[0].buffer?.type, type, `access of pass ${nom}`);
     assert.equal(found[0].visibility, GPUShaderStage.FRAGMENT);
   }
-  // La déclaration WGSL suit le rang ET l'accès de la disposition : le nuanceur et le groupe ne
-  // peuvent pas diverger, ni sur le nombre ni sur le droit d'écrire.
+  // The WGSL declaration follows the layout's rank AND access: shader and group cannot
+  // diverge, neither on the count nor on the right to write.
   assert.match(
     BLEND_SHADER,
     new RegExp(`@binding\\(${BLEND_BINDINGS.proxy}\\) var<storage,read> proxy:`),
@@ -109,24 +113,20 @@ test('le proxy résident est lié aux deux passes, sur une seule liaison de stoc
   );
 });
 
-test('sans proxy, les deux passes lisent le même entête de zéros', () => {
+test('without a proxy, both passes read the same header of zeros', () => {
   installGpuGlobals();
   const device = fakeDevice();
   const placeholders = createDeferredPlaceholders(device);
   const remplacant = placeholders.proxy as unknown as { size: number };
   assert.ok(
     remplacant.size >= PROXY_HEADER_BYTES + 4,
-    'le remplaçant porte un entête entier et un mot derrière lui',
+    'the stand-in carries a whole header and a word behind it',
   );
   assert.ok(new Uint32Array(PROXY_HEADER_WORDS).every((word) => word === 0));
-  // Rien n'est adopté : les deux passes retombent donc sur ce même remplaçant, où la présence vaut
-  // zéro. Aucune des deux ne tire de rayon, et aucune n'a de compteur à relever.
+  // Nothing is adopted: both passes therefore fall back to this same stand-in, where presence is
+  // zero. Neither fires a ray, and neither has a counter to sample.
   const sunFar = createGpuSunFarShadow(device);
-  assert.equal(
-    sunFar.buffer(),
-    undefined,
-    'aucun tampon à lier tant qu’aucun proxy n’est résident',
-  );
+  assert.equal(sunFar.buffer(), undefined, 'no buffer to bind until a proxy is resident');
   let encoded = 0;
   sunFar.prepare(
     {
@@ -135,6 +135,6 @@ test('sans proxy, les deux passes lisent le même entête de zéros', () => {
     } as unknown as GPUCommandEncoder,
     0,
   );
-  assert.equal(encoded, 0, 'sans proxy, l’image n’encode ni remise à zéro ni relevé');
-  assert.equal(sunFar.counts(), undefined, 'aucun compteur déduit');
+  assert.equal(encoded, 0, 'without a proxy, the frame encodes neither a reset nor a sample');
+  assert.equal(sunFar.counts(), undefined, 'no counter deduced');
 });

@@ -37,21 +37,21 @@ function writeSphere(
 /** Pack the cluster bands, their cone/box records and the per-primitive culling nodes. */
 export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
   const pageUrls: string[] = [];
-  // Toute primitive descend la même hiérarchie : celle du manifeste, ou celle que le rangement lui
-  // donne. Un seul chemin, et la descente par niveaux n'a jamais de plage de pages sans racine.
+  // Every primitive descends the same hierarchy: the manifest's, or the one packing
+  // gives it. One path, and level descent never has a page range without a root.
   const cullings = roots.map((root) => root.culling ?? flatHierarchy(root.pages));
   let clusterCount = 0,
     nodeCount = 0;
-  // Les étages de toutes les primitives, additionnés étage par étage : la file de la passe `L` ne
-  // porte que des nœuds de l'étage `L`, ce total la majore donc, et la passe se lance à plat.
+  // Levels of every primitive, summed level by level: pass `L`'s queue only holds
+  // nodes of level `L`, so this total upper-bounds it, and the pass launches flat.
   //
-  // Tous les placements d'une même primitive partagent le tableau de nœuds — la collecte en copie
-  // l'enveloppe, pas la donnée —, et le parcours ne dépend que de lui : il est fait une fois par
-  // tableau, retrouvé par identité pour les placements suivants.
+  // All placements of the same primitive share the node array — collection copies
+  // the envelope, not the data — and the walk depends only on it: done once per
+  // array, recovered by identity for later placements.
   const levelTotals: number[] = [];
   const parTableau = new Map<Float64Array, readonly number[]>();
-  // Les bornes de coupe suivent le même partage : l'hôte les dérive déjà par primitive, et un
-  // montage qui n'en donne pas les reçoit ici, une fois par tableau de nœuds.
+  // Cut bounds follow the same sharing: the host already derives them per primitive,
+  // and a mount that does not supply them receives them here, once per node array.
   const bornesParTableau = new Map<Float64Array, Float64Array>();
   for (let w = 0; w < roots.length; w++) {
     clusterCount += roots[w].pages.length;
@@ -65,18 +65,18 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
       levelTotals[level] = (levelTotals[level] ?? 0) + sizes[level];
   }
   const levelSizes = Uint32Array.from(levelTotals);
-  // Le mot de demande nomme la page sur vingt-deux bits (`gpuDagRequest.ts`). Au-delà, le relevé
-  // renverrait une page pour une autre : mieux vaut le refuser par son nom.
+  // The request word names the page on twenty-two bits (`gpuDagRequest.ts`). Beyond that,
+  // the readout would return a page for another: better to refuse it by name.
   if (clusterCount > REQUEST_PAGE_MAX)
     throw new Error(`GPU_SELECTION_PAGE_RANGE: ${clusterCount} > ${REQUEST_PAGE_MAX}`);
-  // L'enregistrement chaud ne porte que ce que les cinq passes d'une image relisent toutes ; le
-  // nœud propriétaire et le cône partent au froid, que la seule passe d'ouverture lit.
+  // The hot record only holds what all five passes of a frame reread; the owner
+  // node and the cone go to the cold, which the open pass alone reads.
   const clusters = new Float32Array(Math.max(1, clusterCount) * CLUSTER_WORDS),
     clusterInts = new Uint32Array(clusters.buffer);
   const nodes = new Float32Array(Math.max(1, nodeCount) * DAG_NODE_FLOATS),
     nodeInts = new Uint32Array(nodes.buffer);
-  // Les bits de résidence prolongent les enregistrements froids : un mot pour trente-deux grappes,
-  // écrit par delta plutôt qu'un flottant par grappe réécrit page par page.
+  // Residency bits extend the cold records: one word for thirty-two clusters,
+  // written by delta rather than a float per cluster rewritten page by page.
   const pageCones = new Float32Array(
     Math.max(1, clusterCount) * PAGE_CONE_FLOATS + residentWords(Math.max(1, clusterCount)),
   );
@@ -84,7 +84,7 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
   const worldSlots = Math.max(1, roots.length);
   const worlds = new Float32Array(worldSlots * 16),
     worldStretch = new Float32Array(worldSlots),
-    // La racine de chaque primitive, que la préparation dépose dans la file de la passe 0.
+    // Each primitive's root, which prepare deposits in pass 0's queue.
     rootNodes = new Uint32Array(worldSlots).fill(NONE);
   let cluster = 0,
     node = 0,
@@ -139,9 +139,9 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
         pageCones[base + COLD_MIN + a] = hasBox ? rec.min![a] : 0;
         pageCones[base + COLD_MAX + a] = hasBox ? rec.max![a] : 0;
       }
-      // Le nœud propriétaire n'est lu que par l'oracle, qui rejoue la descente : il reste au froid.
+      // The owner node is only read by the oracle, which replays descent: it stays cold.
       coneInts[base + COLD_OWNER] = owner[i];
-      // Les triangles de la grappe, au mot entier : c'est la carte qui tient désormais les totaux.
+      // Cluster triangles, as an integer word: the GPU now holds the totals.
       coneInts[base + COLD_TRIANGLES] = Math.max(0, Math.trunc(rec.triangles ?? 0));
       cluster++;
     }
@@ -164,11 +164,12 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
 }
 
 /**
- * Ramène les matrices monde empaquetées dans le REPÈRE DE RENDU dont `origin` est l'origine —
- * l'œil de l'image (`sdk-core/mathRenderOrigin.ts`). `packDagSelection` les rend en monde absolu :
- * le moteur les rebase par image avant de les porter à la carte, et c'est par ici qu'un appelant du
- * noyau sans moteur — oracle, banc, montage de test — se met dans le repère des uniformes qu'il
- * fabrique. Les matrices des racines, en double, sont la source : la soustraction précède l'arrondi.
+ * Brings packed world matrices into the RENDER FRAME whose origin is `origin` —
+ * the frame's eye (`sdk-core/mathRenderOrigin.ts`). `packDagSelection` returns them
+ * in absolute world: the engine rebases them per frame before sending them to the
+ * GPU, and this is how a kernel caller without the engine — oracle, bench, test
+ * mount — enters the frame of the uniforms it builds. Root matrices, in double,
+ * are the source: subtraction precedes rounding.
  */
 export function packedWorldsToRenderOrigin(
   packed: PackedDag,
@@ -179,7 +180,7 @@ export function packedWorldsToRenderOrigin(
   return packed;
 }
 
-/** La boucle elle-même : chaque racine, seize flottants, rebasée à `origin` dans `worlds`. */
+/** The loop itself: each root, sixteen floats, rebased to `origin` in `worlds`. */
 export function rootWorldsToRenderOrigin(
   worlds: Float32Array,
   roots: readonly DagRoot[],

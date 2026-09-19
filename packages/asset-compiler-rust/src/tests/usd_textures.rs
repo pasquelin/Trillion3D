@@ -1,11 +1,11 @@
-//! Ce qu'un `UsdUVTexture` déclare autour de son fichier : contre quel dossier ce fichier se
-//! résout, comment ses deux axes se répètent, et ce que `scale`, `bias` et `sourceColorSpace`
+//! What `UsdUVTexture` declares around file: resolution root file
+//! resolves against, axis repetition, and `scale`, `bias`, `sourceColorSpace`.
 //! deviennent en glTF.
 use super::*;
 use usd_matiere::{layer, pbr, texture, unsupported};
 
-/// Écrit une arborescence jetable — des couches et les images qu'elles citent, chacune à son
-/// chemin sous la racine — puis compile `scene.usda` par le harnais commun.
+/// Writes temporary tree — layers and cited images, each at
+/// path under root — then compiles `scene.usda` via common harness.
 pub(super) fn compile_files(tag: &str, layers: &[(&str, &str)], images: &[&str]) -> GoldenRun {
     let dir = usd_driver::temp_dir(tag);
     let checker = golden_dir("usd")
@@ -23,21 +23,21 @@ pub(super) fn compile_files(tag: &str, layers: &[(&str, &str)], images: &[&str])
     run
 }
 
-/// Pose un fichier sous la racine jetable, ses dossiers créés d'abord.
+/// Places file under temporary root, creating folders first.
 fn write_under(root: &Path, name: &str, put: impl FnOnce(&Path) -> std::io::Result<()>) {
     let path = root.join(name);
     fs::create_dir_all(path.parent().expect("dossier")).expect("dossier");
     put(&path).unwrap_or_else(|error| panic!("{name}: {error}"));
 }
 
-/// L'échantillonneur de la seule texture de la scène.
+/// Sampler of scene single texture.
 fn sampler(gltf: &Value) -> Value {
     let rank = gltf["textures"][0]["sampler"].as_u64().expect("sampler");
     gltf["samplers"][rank as usize].clone()
 }
 
-// Comportement 53 : un chemin d'asset s'ancre sur le dossier de la couche qui l'écrit, pas sur la
-// couche racine : une référence rangée dans un sous-dossier y trouve ses images.
+// Behavior 53: asset path anchors on folder of writing layer, not
+// root layer: reference in subfolder finds images.
 #[test]
 fn a_texture_of_a_referenced_layer_resolves_against_the_directory_of_that_layer() {
     let root = "#usda 1.0\n(\n    defaultPrim = \"Root\"\n)\n\ndef Xform \"Root\" (\n    prepend references = @./sous/piece.usda@</Root>\n)\n{\n}\n";
@@ -51,18 +51,18 @@ fn a_texture_of_a_referenced_layer_resolves_against_the_directory_of_that_layer(
     assert_eq!(
         unsupported(&run)["usd-texture-missing"],
         Value::Null,
-        "la texture de la couche référencée est trouvée"
+        "the referenced layer's texture is found"
     );
     let (_, gltf) = run.prepared("usd");
     assert_eq!(
         gltf["images"][0]["uri"], "sous/textures/checker.png",
-        "l'URI reste relative à la racine des images"
+        "the URI stays relative to the image root"
     );
 }
 
-// Comportement 54 : `wrapS` et `wrapT` sont deux axes, jamais un seul ; un mode que glTF n'a pas
-// répète et se compte ; `scale` uniforme sans `bias` entre dans le facteur glTF, et le reste — un
-// `scale` qui ne s'y ramène pas, un espace de couleur contraire au rôle de l'entrée — est compté.
+// Behavior 54: `wrapS` and `wrapT` two axes, never single; unsupported mode
+// repeats and counts; uniform `scale` without `bias` enters glTF factor, rest —
+// non-reducible `scale`, color space opposing entry role — counted.
 #[test]
 fn the_wrap_scale_bias_and_colour_space_of_a_uv_texture_are_carried_or_counted() {
     let inputs = "            color3f inputs:diffuseColor.connect = </Root/M/T.outputs:rgb>";
@@ -107,7 +107,7 @@ fn the_wrap_scale_bias_and_colour_space_of_a_uv_texture_are_carried_or_counted()
     assert_eq!(
         pbr(&gltf)["baseColorFactor"],
         json!([0.5, 0.5, 0.5, 1.0]),
-        "un scale uniforme sans bias est porté par le facteur"
+        "a uniform scale without bias is carried by the factor"
     );
 
     let tilted = "            float4 inputs:scale = (0.5, 1, 1, 1)\n            float4 inputs:bias = (0.1, 0, 0, 0)\n";
@@ -124,7 +124,7 @@ fn the_wrap_scale_bias_and_colour_space_of_a_uv_texture_are_carried_or_counted()
     assert_eq!(
         pbr(&gltf)["baseColorFactor"],
         json!([1.0, 1.0, 1.0, 1.0]),
-        "ce que le facteur ne porte pas n'est pas inventé"
+        "what the factor does not carry is not invented"
     );
 
     let raw = "            token inputs:sourceColorSpace = \"raw\"\n";

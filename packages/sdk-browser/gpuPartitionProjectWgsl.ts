@@ -15,21 +15,21 @@ import {
 } from './gpuPartitionContract.ts';
 
 /**
- * La projection d'une ligne résidente, et ce que l'image en garde : l'historique d'occulteurs, le
- * rectangle et la borne de profondeur de la ligne, et l'histogramme des profondeurs de vue.
+ * Projection of a resident row, and what the frame keeps of it: the occluder history, the row's
+ * rectangle and depth bound, and the view-depth histogram.
  *
- * L'arithmétique elle-même est celle de `projectBox` (`gpuBoxProjectWgsl.ts`), partagée avec le test
- * d'occultation des grappes transparentes : c'est elle qui porte la démonstration de conservativité,
- * et ce noyau-ci ne fait que ranger ce qu'elle rend.
+ * The arithmetic itself is `projectBox` (`gpuBoxProjectWgsl.ts`), shared with the transparent-cluster
+ * occlusion test: that is what carries the conservativeness proof, and this kernel only stores what
+ * it returns.
  */
 export const PARTITION_PROJECT_WGSL = `
 @compute @workgroup_size(${PARTITION_WORKGROUP})
 fn projectRows(@builtin(global_invocation_id) id:vec3u){
  let i=id.x;if(i>=uni.rows){return;}
  let base=i*${ROW_DATA_U32}u;
- // L'historique d'occulteurs de l'image précédente : une ligne dessinée sans être occultée — moitié
- // occulteurs, ou moitié testée dont le verdict Hi-Z fut « visible » — occulte pour la suivante.
- // C'est le verdict de l'image d'avant, lu avant que le test Hi-Z de celle-ci ne remette à zéro.
+ // Occluder history from the previous frame: a row drawn without being occluded — occluder half,
+ // or tested half whose Hi-Z verdict was "visible" — occludes for the next. This is last frame's
+ // verdict, read before this frame's Hi-Z test clears it.
  let held=rowData[base+${ROW_FLAGS}u];
  var drawn=1u;
  if((held&${FLAG_PREV_REST}u)!=0u){drawn=select(1u,0u,flags[i]==${VERDICT_REJECTED}u);}

@@ -2,30 +2,29 @@ import { texturePoolFor, type GeometryPool, type TexturePool } from './webgpuMem
 import { dropPoolBindGroups } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Ce qu'un hôte peut changer en cours de session ; un champ absent garde sa valeur. */
+/** What a host can change mid-session; a missing field keeps its value. */
 export type MemoryBudgets = { geometryPoolBytes?: number; texturePoolBytes?: number };
 
-/** Les réservoirs tels que le moteur les tient après le réglage, et ce que le réglage a coûté. */
+/** Pools as the engine holds them after the setting, and what the setting cost. */
 export type MemoryBudgetsReport = {
   geometryPool: GeometryPool;
   texturePool: TexturePool;
-  /** Pages et tuiles que le nouveau réservoir n'a pas pu garder : elles reviendront si l'image
-   *  les redemande, leur niveau grossier tenant la place entre-temps. */
+  /** Pages and tiles the new pool could not keep: they will come back if the image asks again, their
+   *  coarse level holding the place in the meantime. */
   evictedPages: number;
   evictedTiles: number;
-  /** Ce qui résidait juste avant le réglage et juste après. */
+  /** What resided just before the setting and just after. */
   residentPages: { before: number; after: number };
   residentTiles: { before: number; after: number };
   durationMs: number;
 };
 
 /**
- * Change les réservoirs de mémoire en cours de session, comme les variables de la référence — mais
- * sans vider ce qu'ils tiennent : les pages et les tuiles qui entrent dans le nouveau réservoir y
- * sont copiées sur la carte, seules celles qui n'y tiennent plus s'en vont, et l'image reste
- * complète pendant tout le réglage. Une valeur qui ne peut pas être tenue est ramenée à ce qui peut
- * l'être, et le rapport dit pourquoi (`clamp`) ; le pool de géométrie ne dépasse jamais le plafond
- * de la session (`geometryPoolCeilingBytes`), que les tables par page dessinable ont fixé.
+ * Changes memory pools mid-session, like the reference's variables — but without emptying what they
+ * hold: pages and tiles that fit in the new pool are copied there on the GPU, only those that no
+ * longer fit leave, and the image stays complete throughout the setting. A value that cannot be held
+ * is brought back to what can, and the report says why (`clamp`); the geometry pool never exceeds the
+ * session ceiling (`geometryPoolCeilingBytes`), which the drawable-page tables have set.
  */
 export async function setWebgpuMemoryBudgets(
   rt: WebgpuPagesRuntime,
@@ -39,12 +38,12 @@ export async function setWebgpuMemoryBudgets(
     vis.textures ? vis.textures.color.pool.resident + vis.textures.data.pool.resident : 0;
   const residentPages = () => gpu.cache?.stats().residentPages ?? 0;
   const before = { pages: residentPages(), tiles: residentTiles() };
-  // Les tuiles d'abord : leur copie est synchrone, celle des pages attend les chargements en vol.
+  // Tiles first: their copy is synchronous, the pages' waits for in-flight loads.
   if (budgets.texturePoolBytes !== undefined) {
     const pool = texturePoolFor(budgets.texturePoolBytes, setup.gpuDevice);
     if (pool.layers !== setup.texturePool.layers && vis.textures && !run.lost) {
       evictedTiles = vis.textures.resize(pool.layers);
-      // Tout de suite, avant qu'une image ne passe : les groupes nomment un pool détruit.
+      // Right away, before an image goes through: the groups name a destroyed pool.
       dropPoolBindGroups(rt);
     }
     setup.texturePool = pool;
@@ -53,8 +52,8 @@ export async function setWebgpuMemoryBudgets(
     const pool = setup.geometryPoolFor(budgets.geometryPoolBytes);
     if (pool.slots !== setup.slots && gpu.cache && !run.lost) {
       const evicted = await gpu.cache.resize(pool.slots);
-      // Une page épinglée qui vient d'être évincée : la trace des pins le sait, et le pas des pins la
-      // remet dans la file si l'image la garde encore — le chemin d'un abandon de page de l'hôte.
+      // A pinned page that has just been evicted: the pin trace knows, and the pin step puts it back
+      // in the queue if the image still keeps it — the path of a host page drop.
       for (const url of evicted) {
         const key = setup.tracking.pageCatalogIds.get(url);
         if (key !== undefined) setup.tracking.unmarkPinned(key);
@@ -64,7 +63,7 @@ export async function setWebgpuMemoryBudgets(
     }
     setup.geometryPool = pool;
   }
-  // Origine du changement de ressources : ce que l'image tient a changé de place ou de taille.
+  // Origin of the resource change: what the image holds has changed place or size.
   run.gate.resourcesChanged();
   const report = {
     geometryPool: setup.geometryPool,
@@ -75,6 +74,6 @@ export async function setWebgpuMemoryBudgets(
     residentTiles: { before: before.tiles, after: residentTiles() },
     durationMs: performance.now() - started,
   };
-  diag.engineDiagnostic('memory-budgets', 'Réservoirs de mémoire réglés', report);
+  diag.engineDiagnostic('memory-budgets', 'Memory pools set', report);
   return report;
 }

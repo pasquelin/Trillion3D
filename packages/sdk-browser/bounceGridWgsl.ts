@@ -1,23 +1,23 @@
 import { BOUNCE_SETTINGS, PROBE_FLOATS } from '../sdk-core/index.ts';
 
 /**
- * La constante de Lambert, 1/π, que les deux passes de rebond appliquent à l'irradiance des
- * sondes : le cache de surfaces et l'application sur un pixel divisent par le même littéral f32.
+ * The Lambert constant, 1/π, that both bounce passes apply to probe irradiance: the
+ * surface cache and the per-pixel application divide by the same f32 literal.
  */
 export const INVERSE_PI_WGSL = `const INVERSE_PI:f32=0.31830989;`;
 
 /**
- * Les cascades de sondes, telles que la passe de mise à jour et la résolution différée les lisent
- * toutes les deux. Une seule déclaration : les deux nuanceurs nomment `bounce` et `probes`, si bien
- * que la même interpolation sert à appliquer l'irradiance sur un pixel et à la relire au point qu'un
- * rayon a touché — c'est ce second usage qui donne les rebonds d'ordre supérieur.
+ * Probe cascades, as both the update pass and deferred resolve read them. One declaration:
+ * both shaders name `bounce` and `probes`, so the same interpolation applies irradiance on a
+ * pixel and rereads it at the point a ray hit — that second use is what gives higher-order
+ * bounces.
  *
- * Chaque niveau est un cube de sondes posé sur un réseau global : une sonde vit au centre de sa
- * maille, aux points `(maille + ½) · écartement`, et ne bouge donc jamais. Un niveau qui suit la
- * caméra ne fait que changer les mailles qu'il tient ; une maille se range par son reste modulo le
- * côté du cube, si bien que glisser d'une maille ne périme que la tranche qui entre. Une sonde dit
- * elle-même quelle maille elle porte : si ce n'est pas celle qu'on lui demande, elle ne sait rien du
- * point et ne pèse rien. Le dernier niveau est fixe dans le monde et couvre l'emprise du proxy.
+ * Each level is a cube of probes on a global lattice: a probe lives at the centre of its
+ * cell, at `(cell + ½) · spacing`, and therefore never moves. A level that follows the
+ * camera only changes the cells it holds; a cell is stored by its remainder modulo the
+ * cube side, so sliding by one cell only invalidates the incoming slice. A probe itself
+ * says which cell it carries: if that is not the one asked of it, it knows nothing of the
+ * point and weighs nothing. The last level is world-fixed and covers the proxy extent.
  */
 export const BOUNCE_GRID_WGSL = `
 struct BounceLevel{originSpacing:vec4f,base:vec4f,}
@@ -29,38 +29,38 @@ struct BounceGrid{
 }
 const PROBE_VECTORS:u32=${PROBE_FLOATS / 4}u;
 const CASCADE_LEVELS:u32=${BOUNCE_SETTINGS.cascadeLevels}u;
-/** Les « w » qui portent l'état d'une sonde, rang par rang. */
+/** The w lanes that carry a probe's state, slot by slot. */
 const PROBE_CHANGE:u32=1u;
 const PROBE_VALID:u32=2u;
-/** La maille tenue occupe trois rangs consécutifs à partir de celui-ci : x, puis y, puis z. */
+/** The held cell occupies three consecutive slots from this one: x, then y, then z. */
 const PROBE_CELL:u32=3u;
 const PROBE_IDLE:u32=6u;
 const PROBE_DISTANCE_POSITIVE:u32=9u;
 const PROBE_DISTANCE_NEGATIVE:u32=10u;
 const BOUNCE_VISIBILITY:f32=${BOUNCE_SETTINGS.visibilityMargin};
 const BOUNCE_NORMAL_BIAS:f32=${BOUNCE_SETTINGS.normalBias};
-/** Le reste positif d'une maille modulo le côté du cube : c'est le rangement torique du niveau. */
+/** Positive remainder of a cell modulo the cube side: the level's toroidal storage. */
 fn probeWrap(cell:vec3i)->vec3u{
  let side=i32(bounce.counts.x);
  return vec3u(((cell%side)+side)%side);
 }
-/** Le rang d'une sonde dans le tampon : son niveau, puis sa maille rangée toriquement. */
+/** A probe's rank in the buffer: its level, then its cell stored toroidally. */
 fn probeSlot(level:u32,cell:vec3i)->u32{
  let wrapped=probeWrap(cell);
  let side=bounce.counts.x;
  return (level*bounce.counts.z+wrapped.x+side*(wrapped.y+side*wrapped.z))*PROBE_VECTORS;
 }
-/** Position monde d'une maille : le réseau global, indépendant de la caméra comme du niveau. */
+/** World position of a cell: the global lattice, independent of the camera and of the level. */
 fn probeCentre(cell:vec3i,spacing:f32)->vec3f{return (vec3f(cell)+vec3f(0.5))*spacing;}
-/** La maille que la sonde dit porter. Différente de celle qu'on cherche : elle ne sait rien d'ici. */
+/** The cell the probe says it carries. Different from the one sought: it knows nothing of here. */
 fn probeCell(slot:u32)->vec3i{
  return vec3i(i32(probes[slot+PROBE_CELL].w),i32(probes[slot+PROBE_CELL+1u].w),i32(probes[slot+PROBE_CELL+2u].w));
 }
 /**
- * L'irradiance d'une base d'harmoniques sphériques d'ordre 2, convoluée par le lobe cosinus :
- * π·Y₀₀ pour le terme constant, (2π/3)·Y₁ₘ pour les trois linéaires, (π/4)·Y₂ₘ pour les cinq
- * quadratiques. Jamais négative — une base tronquée peut descendre sous zéro là où la vraie
- * irradiance ne le peut pas.
+ * Irradiance of an order-2 spherical-harmonics basis, convolved with the cosine lobe:
+ * π·Y₀₀ for the constant term, (2π/3)·Y₁ₘ for the three linear terms, (π/4)·Y₂ₘ for the five
+ * quadratic terms. Never negative — a truncated basis can go below zero where true
+ * irradiance cannot.
  */
 fn shIrradiance(slot:u32,n:vec3f)->vec3f{
  var total=probes[slot].xyz*0.8862269;
@@ -71,9 +71,9 @@ fn shIrradiance(slot:u32,n:vec3f)->vec3f{
  return max(vec3f(0.0),total);
 }
 /**
- * La distance moyenne que la sonde a mesurée dans une direction, interpolée entre ses six axes.
- * C'est le test de visibilité : un point plus loin de la sonde que cette distance est derrière une
- * surface que la sonde voit, donc dans une autre pièce, et la sonde n'a rien à lui dire.
+ * Mean distance the probe measured in a direction, interpolated among its six axes.
+ * That is the visibility test: a point farther from the probe than this distance is behind
+ * a surface the probe sees, hence in another room, and the probe has nothing to tell it.
  */
 fn probeDistance(slot:u32,direction:vec3f)->f32{
  let positive=probes[slot+PROBE_DISTANCE_POSITIVE].xyz;
@@ -83,10 +83,10 @@ fn probeDistance(slot:u32,direction:vec3f)->f32{
  return dot(picked,weight)/max(weight.x+weight.y+weight.z,1e-6);
 }
 /**
- * L'irradiance d'un niveau en un point, ou rien quand ce niveau ne l'atteint pas. Huit sondes,
- * trois pondérations : la trilinéaire de la maille, le dos de la surface — une sonde derrière elle
- * n'en sait rien — et la visibilité mesurée, qui referme les fuites à travers les murs. Une sonde
- * qui ne porte pas la maille demandée, jamais mise à jour ou enterrée dans une surface, ne pèse rien.
+ * Irradiance of a level at a point, or nothing when that level does not reach it. Eight probes,
+ * three weights: the cell's trilinear, the back of the surface — a probe behind it knows
+ * nothing of it — and measured visibility, which closes leaks through walls. A probe that
+ * does not carry the requested cell, was never updated, or is buried in a surface, weighs nothing.
  */
 fn sampleLevel(level:u32,P:vec3f,N:vec3f)->vec4f{
  let spacing=bounce.levels[level].originSpacing.w;
@@ -95,7 +95,7 @@ fn sampleLevel(level:u32,P:vec3f,N:vec3f)->vec4f{
  let biased=P+N*BOUNCE_NORMAL_BIAS*spacing;
  let local=biased/spacing-vec3f(0.5);
  let corner=vec3i(floor(local));
- // Le niveau ne répond que s'il tient les huit coins : une réponse partielle ferait une couture.
+ // The level answers only if it holds all eight corners: a partial answer would make a seam.
  if(any(corner<base)||any(corner+vec3i(1)>=base+vec3i(side))){return vec4f(0.0);}
  let fraction=clamp(local-floor(local),vec3f(0.0),vec3f(1.0));
  let margin=BOUNCE_VISIBILITY*spacing;
@@ -122,9 +122,8 @@ fn sampleLevel(level:u32,P:vec3f,N:vec3f)->vec4f{
  return vec4f(sum,total);
 }
 /**
- * L'irradiance des cascades en un point : le niveau le plus fin qui sait répondre, du plus serré au
- * plus large. Quand aucun niveau ne sait, le résultat est exactement zéro — une fuite serait de la
- * lumière sans source.
+ * Cascade irradiance at a point: the finest level that can answer, from tightest to
+ * widest. When no level can, the result is exactly zero — a leak would be light without a source.
  */
 fn sampleBounce(P:vec3f,N:vec3f)->vec3f{
  if(bounce.counts.w==0u){return vec3f(0.0);}

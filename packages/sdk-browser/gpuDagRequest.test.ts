@@ -1,11 +1,11 @@
-// La DEMANDE de diffusion : la page et sa priorité dans un mot, et l'ordre que cette priorité donne.
+// BROADCAST request: the page and its priority in a word, and the order that priority gives.
 //
-// Le chemin WebGL2 classe ses requêtes depuis toujours par l'erreur d'écran du REMPLAÇANT — une
-// grappe absente est dessinée par un ancêtre plus grossier, et l'erreur de cet ancêtre est ce que
-// l'œil voit (`streamingPriority.ts`, `orderPendingUrls`). Le chemin WebGPU les publiait dans
-// l'ordre d'un compteur atomique, c'est-à-dire dans aucun. Ce test tient les deux moitiés :
-// ① le mot rend exactement ce qu'on y a mis, et la quantification ne renverse jamais deux erreurs ;
-// ② l'ordre que la coupe publie est celui de la formule WebGL2, sur la même scène.
+// The WebGL2 path has always sorted its requests by the SUBSTITUTE's screen error — a missing
+// cluster is drawn by a coarser ancestor, and that ancestor's error is what the eye sees
+// (`streamingPriority.ts`, `orderPendingUrls`). The WebGPU path published them in the order of
+// an atomic counter, i.e. in none. This test holds both halves:
+// ① the word yields exactly what was put in it, and quantification never reverses two errors;
+// ② the order the cut publishes is that of the WebGL2 formula, on the same scene.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -33,16 +33,16 @@ import {
   transformAffinePoint,
 } from '../sdk-core/index.ts';
 
-test('le mot de demande rend la page et la priorité qu’on y a mises', () => {
+test('the request word yields the page and the priority that were put in it', () => {
   for (const page of [0, 1, 4095, 1959791, REQUEST_PAGE_MAX - 1])
-    for (const priorite of [0, 1, 512, REQUEST_PRIORITY_MAX]) {
-      const mot = packRequest(page, priorite);
-      assert.equal(requestPage(mot), page, `page ${page} / priorité ${priorite}`);
-      assert.equal(requestPriority(mot), priorite, `page ${page} / priorité ${priorite}`);
+    for (const priority of [0, 1, 512, REQUEST_PRIORITY_MAX]) {
+      const mot = packRequest(page, priority);
+      assert.equal(requestPage(mot), page, `page ${page} / priority ${priority}`);
+      assert.equal(requestPriority(mot), priority, `page ${page} / priority ${priority}`);
     }
 });
 
-test('la quantification est monotone : elle n’inverse jamais deux erreurs', () => {
+test('quantification is monotone: it never reverses two errors', () => {
   const erreurs = [0, 0.001, 0.01, 0.1, 0.5, 1, 2, 4, 16, 64, 256, 4096, 65536, Infinity];
   let precedent = -1;
   for (const pixels of erreurs) {
@@ -51,7 +51,7 @@ test('la quantification est monotone : elle n’inverse jamais deux erreurs', ()
     assert.ok(q >= 0 && q <= REQUEST_PRIORITY_MAX, `${pixels} px hors bornes : ${q}`);
     precedent = q;
   }
-  // Une erreur nulle ou absurde ne passe jamais devant une erreur réelle.
+  // A null or absurd error never goes ahead of a real error.
   assert.equal(quantizeRequestPriority(0), 0);
   assert.equal(quantizeRequestPriority(-1), 0);
   assert.equal(quantizeRequestPriority(NaN), 0);
@@ -59,10 +59,9 @@ test('la quantification est monotone : elle n’inverse jamais deux erreurs', ()
 });
 
 /**
- * La scène du comptage de frontière, posée à QUATRE PROFONDEURS : une seule pose ne retient qu'un
- * étage de détail, donc une seule bande, et l'ordre s'y vérifierait sur rien. Éloignées, les copies
- * se résolvent à des étages différents et la coupe porte plusieurs bandes à la fois — ce qu'une
- * scène réelle fait tout le temps.
+ * Frontier-count scene, posed at FOUR DEPTHS: a single pose keeps only one detail stage, hence
+ * one band, and order would be checked on nothing. Far away, the copies resolve to different
+ * stages and the cut carries several bands at once — what a real scene does all the time.
  */
 function coupe(seuil: number) {
   const pages = scenePages(4096, 8);
@@ -75,8 +74,8 @@ function coupe(seuil: number) {
   camera.updateMatrixWorld(true);
   const cam = cameraMoteur(camera);
   const uni = cameraSelectionUniforms(cam, seuil, [1280, 720]);
-  // Le classement WebGL2 lit la MÊME pose : la vue relative du repère de rendu et les poses qui y
-  // sont ramenées. Les donner en monde absolu sous une vue relative comparerait deux repères.
+  // WebGL2 ranking reads the SAME pose: the relative view of the render frame and the poses
+  // brought into it. Giving them in absolute world under a relative view would compare two frames.
   packedWorldsToRenderOrigin(packed, roots, uni.cameraWorld);
   const matrices = roots.map((root) => ({ elements: Array.from(root.world.elements) }));
   return {
@@ -90,22 +89,22 @@ function coupe(seuil: number) {
   };
 }
 
-test('l’ordre publié décroît avec l’erreur d’écran du remplaçant, comme le chemin WebGL2', () => {
+test('published order decreases with the substitute’s screen error, like the WebGL2 path', () => {
   const { pages, packed, cam, uni, releve } = coupe(1);
-  assert.ok(releve.pageIds.length > 100, 'la coupe doit retenir de quoi classer');
+  assert.ok(releve.pageIds.length > 100, 'the cut must keep enough to rank');
   const focal = Math.max(uni.pixelScale[0], uni.pixelScale[1]);
-  // La vue de chaque pose, composée comme le noyau la compose : sur les matrices RAMENÉES AU REPÈRE
-  // DE RENDU, celles que `packedWorldsToRenderOrigin` a écrites dans `packed.worlds`. Reprendre
-  // celles des racines mêlerait un monde absolu à une vue relative, et poserait toute la scène sur
-  // l'œil — ce qui rendrait une erreur infinie pour la moitié de la coupe, en silence.
+  // View of each pose, composed as the kernel composes it: on matrices BROUGHT TO THE RENDER
+  // FRAME, those `packedWorldsToRenderOrigin` wrote into `packed.worlds`. Taking the roots'
+  // would mix an absolute world with a relative view, and put the whole scene on the eye — which
+  // would yield an infinite error for half the cut, in silence.
   const vues = Array.from({ length: packed.worldCount }, (_, w) => {
     const vue = new Float64Array(16);
     multiplyMatrix4(vue, cam.viewRelative, packed.worlds.subarray(w * 16, w * 16 + 16));
     return { vue, stretch: maxStretch(vue as unknown as readonly number[]) };
   });
-  // L'erreur d'écran du REMPLAÇANT, par la formule du socle — celle que `orderPendingUrls` emploie,
-  // et dont `projected` (WGSL) est le miroir prouvé. La recalculer ici, et non la relire du relevé,
-  // est ce qui rend la preuve non circulaire.
+  // SUBSTITUTE screen error, by the core formula — the one `orderPendingUrls` uses, and of which
+  // `projected` (WGSL) is the proven mirror. Recomputing it here, not rereading it from the
+  // snapshot, is what makes the proof non-circular.
   const centre = new Float64Array(4);
   const pixelsDe = (id: number) => {
     const page = pages[id % pages.length],
@@ -125,20 +124,17 @@ test('l’ordre publié décroît avec l’erreur d’écran du remplaçant, com
     );
   };
   const pixels = releve.pageIds.map(pixelsDe);
-  assert.ok(
-    new Set(pixels.map((p) => p.toFixed(3))).size > 8,
-    'la coupe doit porter des erreurs variées',
-  );
-  // L'ordre publié ne remonte jamais au-delà d'UN PAS de quantification. Deux raisons, et pas une
-  // de plus : entre deux grappes d'un même pas l'ordre est indifférent — la référence ne les
-  // départage pas non plus —, et la frontière entre deux pas est flottante, le noyau arrondissant
-  // en f32 ce que cette preuve recalcule en f64. Un pas vaut 2^(1/16), soit 4,43 %.
+  assert.ok(new Set(pixels.map((p) => p.toFixed(3))).size > 8, 'the cut must carry varied errors');
+  // Published order never rises beyond ONE quantification STEP. Two reasons, and not one more:
+  // between two clusters of the same step order is indifferent — the reference does not break
+  // those ties either —, and the boundary between two steps is floating, the kernel rounding in
+  // f32 what this proof recomputes in f64. One step is 2^(1/16), i.e. 4.43 %.
   const PAS = 2 ** (1 / REQUEST_PRIORITY_SCALE);
   for (let i = 1; i < pixels.length; i++)
     assert.ok(
       pixels[i] <= pixels[i - 1] * PAS,
-      `rang ${i} : ${pixels[i]} px passe plus d'un pas devant ${pixels[i - 1]} px`,
+      `rank ${i}: ${pixels[i]} px steps more than one step past ${pixels[i - 1]} px`,
     );
-  // Et la première est bien la plus coûteuse absence de toute la coupe, au pas près.
-  assert.ok(pixels[0] * PAS >= Math.max(...pixels), 'la tête n’est pas la plus coûteuse');
+  // And the first is indeed the most costly absence of the whole cut, to the step.
+  assert.ok(pixels[0] * PAS >= Math.max(...pixels), 'the head is not the most expensive');
 });

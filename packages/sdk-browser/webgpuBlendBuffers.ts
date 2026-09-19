@@ -2,10 +2,10 @@ import type * as THREE from 'three';
 import type { WebgpuGpuState } from './webgpuPagesStateGpu.ts';
 
 /**
- * Les tampons de sommets d'une primitive transparente, tenus par la géométrie source et non par le
- * maillage qui la porte. Deux instances d'un même objet partagent leur géométrie : elles partagent
- * donc ces tampons, comme elles partageaient déjà leurs positions. Les octets écrits sont ceux
- * d'avant, écrits une fois au lieu d'une fois par placement, et comptés une fois dans `vertexBytes`.
+ * Vertex buffers of a transparent primitive, held by the source geometry and not by the mesh that
+ * carries it. Two instances of the same object share their geometry: they therefore share these
+ * buffers, as they already shared their positions. The bytes written are the previous ones,
+ * written once instead of once per placement, and counted once in `vertexBytes`.
  */
 function upload(device: GPUDevice, data: ArrayBufferView, floor: number, tally: WebgpuGpuState) {
   const buffer = device.createBuffer({
@@ -17,7 +17,7 @@ function upload(device: GPUDevice, data: ArrayBufferView, floor: number, tally: 
   return buffer;
 }
 
-/** Les indices d'une géométrie transparente non paginée, partagés par tous ses placements. */
+/** Indices of an unpaged transparent geometry, shared by all of its placements. */
 export function ensureBlendIndexBuffer(
   device: GPUDevice,
   index: THREE.BufferAttribute | THREE.InterleavedBufferAttribute,
@@ -32,7 +32,7 @@ export function ensureBlendIndexBuffer(
   return buffer;
 }
 
-/** Les UV d'une géométrie transparente, dépliés une fois pour toutes ses instances. */
+/** UVs of a transparent geometry, unfolded once for all of its instances. */
 export function ensureBlendUvBuffer(
   device: GPUDevice,
   attributes: THREE.BufferGeometry['attributes'],
@@ -53,7 +53,7 @@ export function ensureBlendUvBuffer(
   return buffer;
 }
 
-/** Normale et tangente d'une géométrie transparente, dans le même tampon et le même ordre qu'avant. */
+/** Normal and tangent of a transparent geometry, in the same buffer and the same order as before. */
 export function ensureBlendNormalBuffer(
   device: GPUDevice,
   attributes: THREE.BufferGeometry['attributes'],
@@ -82,7 +82,7 @@ export function ensureBlendNormalBuffer(
   return buffer;
 }
 
-/** Rend au pilote les tampons partagés des transparents ; les items n'en possèdent aucun. */
+/** Returns the transparents' shared buffers to the driver; items own none of them. */
 export function dropBlendBuffers(gpu: WebgpuGpuState) {
   for (const buffer of gpu.blendIndexBuffers.values()) buffer.destroy();
   for (const buffer of gpu.blendUvBuffers.values()) buffer?.destroy();

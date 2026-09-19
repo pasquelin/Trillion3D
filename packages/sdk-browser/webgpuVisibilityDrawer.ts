@@ -4,8 +4,8 @@ import { BASE_SLOTS } from './gpuDraw.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** The bind group of one indirect slot, cached on `rt.vis` until a resource change voids it.
- *  Les passes de profondeur des ombres réutilisent exactement ces groupes : même table de pages,
- *  même sélection, même uniforme de slot. */
+ *  Shadow depth passes reuse exactly these groups: same page table, same selection, same slot
+ *  uniform. */
 export function visGroupFor(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -55,12 +55,12 @@ export function visGroupFor(
 }
 
 /**
- * Dessine la moitié occulteurs (`rest` faux) ou la moitié testée, par commandes indirectes.
+ * Draws the occluder half (`rest` false) or the tested half, by indirect commands.
  *
- * Le nombre d'appels ne dépend plus que du nombre de slots — trois modes de découpe par couche
- * coplanaire —, jamais des lignes ni de ce que la partition a décidé : le compte d'instances de
- * chaque slot vit dans la commande indirecte que la carte a écrite, et un slot que rien ne remplit
- * dessine zéro instance. Chaque appel compte sur `rt.run.gpuDrawCalls`.
+ * The call count now depends only on the slot count — three cull modes per coplanar layer — never
+ * on the rows or on what the partition decided: each slot's instance count lives in the indirect
+ * command the GPU wrote, and a slot nothing fills draws zero instances. Each call counts on
+ * `rt.run.gpuDrawCalls`.
  */
 export function drawVis(
   rt: WebgpuPagesRuntime,
@@ -74,8 +74,8 @@ export function drawVis(
   if (useIndirect) {
     const { gpuDraw } = vis;
     if (!gpuDraw) return;
-    // Une couche coplanaire est un jeu de slots de plus, dessiné dans le même ordre : ses clusters
-    // portent le décalage de profondeur de leur pipeline, ceux de la couche 0 ne changent pas.
+    // A coplanar layer is one more set of slots, drawn in the same order: its clusters carry their
+    // pipeline's depth bias, those of layer 0 do not change.
     for (let layer = 0; layer < vis.drawLayerSlots; layer++) {
       const start = layer * BASE_SLOTS + (rest ? 3 : 0);
       for (let s = start; s < start + 3; s++) {
@@ -90,8 +90,8 @@ export function drawVis(
     }
     return;
   }
-  // Sans compaction indirecte il n'y a pas non plus de partition : l'image dessine toutes ses
-  // lignes en une passe, et la moitié testée n'existe pas.
+  // Without indirect compaction there is no partition either: the image draws all its rows in one
+  // pass, and the tested half does not exist.
   const group = vis.visBindGroup;
   if (rest || !group) return;
   for (let i = 0; i < rows.packedCount; i++) {

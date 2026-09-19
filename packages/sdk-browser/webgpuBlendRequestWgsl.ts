@@ -1,9 +1,9 @@
 /**
- * Le rang de tuile qu'un pixel transparent demande aux textures virtuelles, posé dans la seconde
- * cible de la passe de mélange, celle que la résolution opaque a ouverte. La règle — phase, choix
- * de la carte par la position, repli sur la base — est celle de `TILE_REQUEST_WGSL`, la même que
- * l'opaque ; seule la source des slots est celle de l'item. Le nuanceur hôte déclare `VSOut`,
- * `uni.feedback` et insère `TILE_REQUEST_WGSL` avant ce bloc.
+ * Tile rank a transparent pixel requests from the virtual textures, stored in the second
+ * target of the blend pass, the one the opaque resolve opened. The rule — phase, map chosen
+ * by position, fallback to the base — is `TILE_REQUEST_WGSL`, the same as the opaque path;
+ * only the slot source is the item's. The host shader declares `VSOut`, `uni.feedback` and
+ * inserts `TILE_REQUEST_WGSL` before this block.
  */
 export const BLEND_REQUEST_WGSL = `fn blendRequest(in:VSOut,wrap:u32,gradX:vec2f,gradY:vec2f)->u32{
  if(!feedbackPhase(in.position.xy,uni.feedback)){return 0u;}

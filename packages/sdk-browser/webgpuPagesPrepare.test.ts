@@ -1,9 +1,9 @@
-// Lot F, F18 : trois calculs de la préparation d'un moteur WebGPU. `prepareCones`
-// (webgpuPagesPrepare.ts) copie un attribut position simple par bloc au lieu d'accesseurs sommet par
-// sommet, et lit le matériau une seule fois au lieu de deux. `indexSourceBytes` et
-// `compteMateriauxEtTangentes` (webgpuPagesCatalogue.ts) remplacent un `flatMap` d'un couple par page
-// et un `map`/deux copies de table par un seul parcours chacun. Les oracles sont les implémentations
-// d'avant le lot F, recopiées telles quelles dans `oracles/cones-normaux.mjs`.
+// Lot F, F18: three calculations of a WebGPU engine prepare. `prepareCones`
+// (webgpuPagesPrepare.ts) copies a simple position attribute by block instead of per-vertex
+// accessors, and reads the material once instead of twice. `indexSourceBytes` and
+// `compteMateriauxEtTangentes` (webgpuPagesCatalogue.ts) replace a `flatMap` of a pair per page and
+// a `map`/two table copies with one walk each. The oracles are the implementations from before lot
+// F, copied as-is into `oracles/cones-normaux.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -26,8 +26,8 @@ function triangle(material: THREE.Material, attributes: THREE.BufferGeometry['at
     cone: undefined,
   } as unknown as PageRec;
 }
-/** L'entrée de `prepareCones`, celle du banc : une seule écriture pour les deux, sans quoi l'une
- *  des deux reste à l'ancien contrat sans que rien ne le dise. */
+/** Input of `prepareCones`, the bench's: one write for both, or one of the two stays on the old
+ *  contract with nothing saying so. */
 function runtime(allPages: PageRec[], roots?: Array<{ cones?: boolean; pages: PageRec[] }>) {
   return entreeCones(allPages, roots) as unknown as WebgpuPagesRuntime;
 }
@@ -41,32 +41,32 @@ function memeCones(pages: PageRec[]) {
   for (let i = 0; i < a.length; i++) assert.deepEqual(a[i].cone, b[i].cone, `page ${i}`);
 }
 
-test('l’entrée partagée porte des racines, et un cluster ordinaire en ressort avec un vrai cône', () => {
-  // Deux fonctions qui ne posent rien seraient d’accord sur rien : l’égalité avec l’oracle ne dit
-  // pas, à elle seule, qu’un cône a été posé. `prepareCones` lit les pages par racine — une entrée
-  // qui n’en porterait pas lui ferait tout ignorer en silence, et c’est exactement la panne que ce
-  // correctif ferme. Ce test l’exige donc des deux côtés : des racines, et un cône non vide.
+test('the shared input carries roots, and an ordinary cluster comes out with a real cone', () => {
+  // Two functions that post nothing would agree on nothing: equality with the oracle alone does not
+  // say a cone was posted. `prepareCones` reads pages by root — an input that carried none would make
+  // it ignore everything in silence, and that is exactly the failure this fix closes. This test
+  // therefore requires it on both sides: roots, and a non-empty cone.
   const entree = entreeCones([]) as { setup: { allPages: PageRec[]; roots: unknown[] } };
-  assert.ok(Array.isArray(entree.setup.roots), 'l’entrée du banc doit porter ses racines');
+  assert.ok(Array.isArray(entree.setup.roots), 'the bench input must carry its roots');
   const attributes = { position: positions([0, 0, 0, 1, 0, 0, 0, 1, 0]) };
   const page = triangle(new THREE.MeshBasicMaterial({ side: THREE.FrontSide }), attributes);
   prepareCones(runtime([page]));
-  assert.ok(page.cone, 'un cluster à une face doit recevoir son cône');
+  assert.ok(page.cone, 'a one-sided cluster must receive its cone');
   assert.equal(page.cone!.axis.length, 3);
 });
 
-test('un attribut position simple, non normalisé, prend le même cône que la copie sommet par sommet', () => {
+test('a simple, unnormalized position attribute takes the same cone as the per-vertex copy', () => {
   const attributes = { position: positions([0, 0, 0, 1, 0, 0, 0, 1, 0]) };
   memeCones([triangle(new THREE.MeshBasicMaterial(), attributes)]);
 });
 
-test('un attribut normalisé repasse par les accesseurs et rend le même cône que la référence', () => {
+test('a normalized attribute goes back through accessors and yields the same cone as the reference', () => {
   const attr = positions([0, 0, 0, 1, 0, 0, 0, 1, 0]);
   attr.normalized = true;
   memeCones([triangle(new THREE.MeshBasicMaterial(), { position: attr })]);
 });
 
-test('un attribut entrelacé repasse par les accesseurs et rend le même cône que la référence', () => {
+test('an interleaved attribute goes back through accessors and yields the same cone as the reference', () => {
   const interleaved = new THREE.InterleavedBuffer(
     Float32Array.of(0, 0, 0, 9, 1, 0, 0, 9, 0, 1, 0, 9),
     4,
@@ -75,7 +75,7 @@ test('un attribut entrelacé repasse par les accesseurs et rend le même cône q
   memeCones([triangle(new THREE.MeshBasicMaterial(), { position: attr })]);
 });
 
-test('un matériau double face ou vu de dos rend OPEN_CONE des deux côtés, sans calculer de cône', () => {
+test('a double-sided or back-facing material yields OPEN_CONE on both sides, without computing a cone', () => {
   const attributes = { position: positions([0, 0, 0, 1, 0, 0, 0, 1, 0]) };
   memeCones([
     triangle(new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), attributes),
@@ -83,7 +83,7 @@ test('un matériau double face ou vu de dos rend OPEN_CONE des deux côtés, san
   ]);
 });
 
-test('sans octets d’index ou sans attribut position, la page est ignorée des deux côtés (cone laissé intact)', () => {
+test('with no index bytes or no position attribute, the page is ignored on both sides (cone left intact)', () => {
   const attributes = { position: positions([0, 0, 0, 1, 0, 0, 0, 1, 0]) };
   const sansArray = { ...triangle(new THREE.MeshBasicMaterial(), attributes), array: undefined };
   const sansPosition = {
@@ -93,7 +93,7 @@ test('sans octets d’index ou sans attribut position, la page est ignorée des 
   memeCones([sansArray as unknown as PageRec, sansPosition as unknown as PageRec]);
 });
 
-test('deux pages partageant le même attribut ne recalculent le tableau plat qu’une fois, même résultat', () => {
+test('two pages sharing the same attribute recompute the flat array only once, same result', () => {
   const attributes = { position: positions([0, 0, 0, 1, 0, 0, 0, 1, 0]) };
   memeCones([
     triangle(new THREE.MeshBasicMaterial(), attributes),
@@ -101,10 +101,10 @@ test('deux pages partageant le même attribut ne recalculent le tableau plat qu�
   ]);
 });
 
-test('indexSourceBytes rend la même table que le flatMap de référence, dernière page d’une adresse gagnante', () => {
+test('indexSourceBytes yields the same table as the reference flatMap, last page of a winning address', () => {
   const a = { url: 'p/0', array: Uint32Array.of(1, 2, 3) } as unknown as PageRec;
-  const b = { url: 'p/1', array: undefined } as unknown as PageRec; // pas d'octets : absent des deux
-  const c = { url: 'p/0', array: Uint32Array.of(9, 9) } as unknown as PageRec; // même adresse que a
+  const b = { url: 'p/1', array: undefined } as unknown as PageRec; // no bytes: absent from both
+  const c = { url: 'p/0', array: Uint32Array.of(9, 9) } as unknown as PageRec; // same address as a
   const pages = [a, b, c];
   const obtenu = indexSourceBytes(pages);
   const attendu = referenceIndexSourceBytes(pages);
@@ -113,16 +113,16 @@ test('indexSourceBytes rend la même table que le flatMap de référence, derni�
     assert.deepEqual(Array.from(bytes), Array.from(attendu.get(url)));
 });
 
-test('indexSourceBytes sur un catalogue vide rend une table vide', () => {
+test('indexSourceBytes on an empty catalogue yields an empty table', () => {
   assert.deepEqual(indexSourceBytes([]), referenceIndexSourceBytes([]));
 });
 
-test('compteMateriauxEtTangentes compte les matériaux distincts et les géométries avec/sans tangentes', () => {
+test('compteMateriauxEtTangentes counts distinct materials and geometries with/without tangents', () => {
   const materialA = new THREE.MeshBasicMaterial(),
     materialB = new THREE.MeshBasicMaterial();
   const pages = [
     { material: materialA } as unknown as PageRec,
-    { material: materialA } as unknown as PageRec, // même matériau, ne recompte pas
+    { material: materialA } as unknown as PageRec, // same material, does not recount
     { material: materialB } as unknown as PageRec,
   ];
   const geometryBlocks = new Map<unknown, { hasTangent: boolean }>([
@@ -136,17 +136,17 @@ test('compteMateriauxEtTangentes compte les matériaux distincts et les géomét
   );
 });
 
-test('compteMateriauxEtTangentes sur un catalogue et une table de géométries vides rend des zéros', () => {
+test('compteMateriauxEtTangentes on an empty catalogue and geometry table yields zeros', () => {
   assert.deepEqual(
     compteMateriauxEtTangentes([], new Map()),
     referenceCompteMateriauxEtTangentes([], new Map()),
   );
 });
 
-test('poser un cône déclare sa racine ; une racine dont aucune page ne reçoit de cône reste déclarée nue', () => {
-  // `collectClusterPages` déclare `cones: false` ; sans ce relevé, la coupe ne lirait plus le cône
-  // que cette préparation vient d'écrire, et le rejet de cône disparaîtrait sans bruit. Une page
-  // sans octets d'index ne reçoit aucun cône : sa racine n'a rien à déclarer.
+test('posting a cone declares its root; a root whose pages receive no cone stays declared bare', () => {
+  // `collectClusterPages` declares `cones: false`; without this sample, the cut would no longer read
+  // the cone this prepare just wrote, and cone culling would vanish without a sound. A page without
+  // index bytes receives no cone: its root has nothing to declare.
   const attributes = { position: positions([0, 0, 0, 1, 0, 0, 0, 1, 0]) };
   const porte = triangle(new THREE.MeshBasicMaterial(), attributes);
   const nue = { ...triangle(new THREE.MeshBasicMaterial(), attributes), array: undefined };

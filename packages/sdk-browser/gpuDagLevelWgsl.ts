@@ -1,53 +1,55 @@
 import { NODE_HAS_ROOT } from './gpuDagPackNodes.ts';
 /**
- * La descente par niveaux de la hiérarchie de coupe, et l'élagage de sous-arbre qu'elle permet.
+ * Level-by-level descent of the cut hierarchy, and the subtree pruning it allows.
  *
- * Hier un fil par nœud testait chaque nœud isolément, puis un fil par grappe relisait
- * l'enregistrement de sa grappe pour n'y lire, la plupart du temps, que le drapeau de son nœud
- * feuille. Les grappes d'un nœud rejeté étaient donc quand même visitées : deux millions de fils et
- * autant de lectures de 112 octets par image, pour en retenir un cinquième.
+ * Previously one thread per node tested each node in isolation, then one thread per
+ * cluster reread its cluster record to read, most of the time, only its leaf node's
+ * flag. Clusters of a rejected node were therefore still visited: two million threads
+ * and as many 112-byte reads per frame, to keep a fifth of them.
  *
- * La hiérarchie porte déjà tout ce qu'il faut pour ne pas les lire : `firstChild`, `childCount`,
- * une boîte agrégée et un `maxParentError` agrégé, tous deux monotones — la boîte d'un nœud contient
- * celles de ses enfants, et son plafond d'erreur majore les leurs. Un nœud hors du tronc, ou dont le
- * plafond passe sous le seuil, ne peut donc porter aucun enfant retenu ni aucune grappe retenue :
- * c'est l'invariant que la descente processeur (`pageSelectionCutVisit.ts`) exploite déjà.
+ * The hierarchy already holds everything needed not to read them: `firstChild`,
+ * `childCount`, an aggregated box and an aggregated `maxParentError`, both monotonic
+ * — a node's box contains its children's, and its error ceiling upper-bounds theirs.
+ * A node outside the trunk, or whose ceiling falls under the threshold, can therefore
+ * carry no kept child and no kept cluster: that is the invariant CPU descent
+ * (`pageSelectionCutVisit.ts`) already exploits.
  *
- * La descente se fait donc par niveaux : la passe 0 part des racines — une par primitive, posée par
- * `dagPrepare` —, chaque passe suivante ne lit que les nœuds que la précédente a retenus, et n'émet
- * que les enfants retenus. Une feuille retenue dépose ses pages dans la liste des candidates, sur
- * laquelle `dagWanted` se répartit à son tour. Le nombre de passes vaut la profondeur de la
- * hiérarchie, connue au rangement et petite.
+ * Descent is therefore by levels: pass 0 starts from the roots — one per primitive,
+ * set by `dagPrepare` —, each following pass only reads nodes the previous kept, and
+ * only emits kept children. A kept leaf deposits its pages in the candidate list,
+ * which `dagWanted` then dispatches over. The pass count is the hierarchy depth,
+ * known at packing and small.
  *
- * Une passe de niveau est lancée À PLAT, non indirectement, et c'est ce qui fait le prix de la
- * descente. La file de la passe `L` ne porte que des enfants de nœuds retenus à l'étage `L-1`, donc
- * que des nœuds de l'étage `L`, écrits compactés à partir de zéro : le nombre de nœuds de cet étage,
- * que le rangement compte une fois pour toutes (`hierarchyLevelSizes`), la majore. Les fils au-delà
- * du compte de la file sortent sur la garde, comme ils le faisaient déjà. Ce majorant évite de
- * recopier le mot de tête de l'argument de répartition vers un tampon d'indirection avant chaque
- * passe, ni rien d'autre : toute la descente tient dans la passe de tête. Ce que cela vaut est
- * mesuré et écrit une seule fois, auprès de `hierarchyLevelSizes` (`gpuDagHierarchy.ts`).
+ * A level pass is launched FLAT, not indirectly, and that is what prices descent.
+ * Pass `L`'s queue only holds children of nodes kept at level `L-1`, hence only
+ * nodes of level `L`, written compacted from zero: that level's node count, which
+ * packing counts once and for all (`hierarchyLevelSizes`), upper-bounds it. Children
+ * past the queue count leave on the guard, as they already did. That bound avoids
+ * copying the dispatch argument's head word to an indirection buffer before each
+ * pass, and nothing else: the whole descent fits in the head pass. What that is
+ * worth is measured and written once, next to `hierarchyLevelSizes` (`gpuDagHierarchy.ts`).
  *
- * TROIS files en rotation, pas deux : le compteur de la file qu'un niveau va remplir doit valoir zéro
- * avant qu'il n'y écrive, et avec deux files cette remise à zéro ne pouvait venir que du processeur,
- * par une copie de plus par niveau. Avec trois files, le niveau `L` remet à zéro la file `(L+2) % 3` :
- * il ne la lit pas — il lit `L % 3` — et ne l'écrit pas — il écrit `(L+1) % 3` —, donc aucun de ses
- * fils ne peut la voir changer, et la passe suivante l'écrit sur une file propre. Le lancement à plat
- * ouvre toujours au moins un groupe de travail, si bien que cette remise à zéro a toujours lieu.
+ * THREE queues in rotation, not two: the counter of the queue a level will fill must
+ * be zero before it writes there, and with two queues that reset could only come from
+ * the CPU, one more copy per level. With three queues, level `L` zeroes queue
+ * `(L+2) % 3`: it does not read it — it reads `L % 3` — and does not write it — it
+ * writes `(L+1) % 3` —, so none of its children can see it change, and the next pass
+ * writes on a clean queue. Flat dispatch always opens at least one workgroup, so that
+ * reset always happens.
  *
- * Pas de tampon neuf pour autant : le plafond de huit tampons de stockage par étape est atteint
- * depuis longtemps. La file 0 occupe la plage que les drapeaux de nœuds occupaient, les files 1 et 2
- * suivent les candidates, et les compteurs prolongent `work` derrière ceux de la liste vivante. Une
- * file n'a plus de compte de groupes : plus personne ne la lit indirectement.
+ * No new buffer for all that: the eight storage buffers per stage ceiling was hit
+ * long ago. Queue 0 occupies the range node flags used, queues 1 and 2 follow the
+ * candidates, and the counters extend `work` behind those of the live list. A queue
+ * no longer has a group count: nobody reads it indirectly.
  *
- * La liste des candidates et le journal des dessinées partagent une plage : `dagClearDrawn` la lit
- * comme journal au tout début de l'image, les passes de niveau l'écrivent ensuite comme candidates,
- * `dagWanted` la relit, et `dagMask` ne la réécrit comme journal qu'une passe plus tard, quand plus
- * personne n'en lit les candidates.
+ * The candidate list and the drawn log share a range: `dagClearDrawn` reads it as
+ * a log at the very start of the frame, level passes then write it as candidates,
+ * `dagWanted` rereads it, and `dagMask` only rewrites it as a log one pass later,
+ * when nobody still reads the candidates.
  */
-/** Les files de la descente, en rotation : le niveau `L` lit `L % LEVEL_QUEUES`, écrit `(L+1) % …`
- *  et remet à zéro `(L+2) % …`, qu'il ne touche ni en lecture ni en écriture. Trois est le plus petit
- *  compte qui rende ces trois indices distincts. */
+/** Descent queues, in rotation: level `L` reads `L % LEVEL_QUEUES`, writes `(L+1) % …`
+ *  and zeroes `(L+2) % …`, which it neither reads nor writes. Three is the smallest
+ *  count that makes those three indices distinct. */
 export const LEVEL_QUEUES = 3;
 
 export const DAG_LEVEL_WGSL = `fn queueBase(q:u32)->u32{return select(uni.nodeCount*q+uni.clusterCount*4u,0u,q==0u);}
@@ -57,10 +59,10 @@ fn candCounter()->u32{return liveCounter()+5u;}
 fn candGroups()->u32{return candCounter()+1u;}
 fn drawnCounter()->u32{return liveCounter()+7u;}
 fn drawnGroups()->u32{return drawnCounter()+1u;}
-/** L'indice du nœud racine de la primitive, déposé une fois pour toutes derrière son étirement. */
+/** Index of the primitive's root node, deposited once and for all behind its stretch. */
 fn rootOf(w:u32)->u32{return bitcast<u32>(frames[w*FRAME+6u].y);}
-/** Un ajout de plage : le compte de groupes suit l'ouverture de chaque tranche de soixante-quatre,
- *  donc vaut exactement \`ceil(total/64)\` sans qu'un noyau d'un seul fil le tire après coup. */
+/** A range append: the group count follows the opening of each sixty-four slice,
+ *  so it equals \`ceil(total/64)\` without a one-thread kernel pulling it afterwards. */
 fn spanAppend(counter:u32,groups:u32,base:u32,first:u32,count:u32){
  let at=atomicAdd(&work[counter],count);
  for(var k=0u;k<count;k++){
@@ -68,15 +70,15 @@ fn spanAppend(counter:u32,groups:u32,base:u32,first:u32,count:u32){
   if(((at+k)&63u)==0u){atomicAdd(&work[groups],1u);}
  }
 }
-/** Le même ajout, sans compte de groupes : les files de la descente sont lues à plat. */
+/** The same append, without a group count: descent queues are read flat. */
 fn queueAppend(dst:u32,first:u32,count:u32){
  let at=atomicAdd(&work[queueCounter(dst)],count);
  let base=queueBase(dst);
  for(var k=0u;k<count;k++){flags[base+at+k]=first+k;}
 }
 fn drawnAppend(page:u32){spanAppend(drawnCounter(),drawnGroups(),candBase(),page,1u);}
-/** Les compteurs de l'image, remis à zéro par un seul fil. La file 0 compte déjà ses racines : un
- *  fil par primitive vient d'y déposer la sienne, à son propre rang, sans compteur à disputer. */
+/** Frame counters, reset by a single thread. Queue 0 already counts its roots: one
+ *  thread per primitive has just deposited its own, at its own rank, with no counter to contest. */
 fn resetCounters(){
  atomicStore(&work[liveCounter()],0u);atomicStore(&work[liveGroups()],0u);
  atomicStore(&work[queueCounter(0u)],uni.worldCount);
@@ -84,17 +86,17 @@ fn resetCounters(){
  atomicStore(&work[candCounter()],0u);atomicStore(&work[candGroups()],0u);
  atomicStore(&work[drawnCounter()],0u);atomicStore(&work[drawnGroups()],0u);
 }
-/** Les dessinées de l'image précédente, remises à zéro par plage : les seules pages dont le drapeau
- *  de dessin puisse valoir un. Aucune autre n'est visitée, et aucune n'est parcourue en entier. */
+/** Previous frame's drawn pages, zeroed by range: the only pages whose draw flag
+ *  can be one. No other is visited, and none is walked in full. */
 @compute @workgroup_size(64)
 fn dagClearDrawn(@builtin(global_invocation_id) id:vec3u){
  let s=id.x;if(s>=atomicLoad(&work[drawnCounter()])){return;}
  flags[uni.nodeCount+flags[candBase()+s]]=0u;
 }
-/** Un nœud de la file \`src\` : rejeté, il n'engendre rien ; retenu, il dépose ses enfants dans la
- *  file SUIVANTE des trois, ou ses pages dans la liste des candidates quand c'est une feuille. */
+/** A node of queue \`src\`: rejected, it yields nothing; kept, it deposits its children
+ *  in the NEXT of the three queues, or its pages in the candidate list when it is a leaf. */
 fn levelStep(src:u32,s:u32){
- // La file que le niveau suivant remplira repart de zéro ici : ce niveau ne la lit ni ne l'écrit.
+ // The queue the next level will fill resets to zero here: this level neither reads nor writes it.
  if(s==0u){atomicStore(&work[queueCounter((src+2u)%${LEVEL_QUEUES}u)],0u);}
  if(s>=atomicLoad(&work[queueCounter(src)])){return;}
  let i=flags[queueBase(src)+s];
@@ -102,15 +104,15 @@ fn levelStep(src:u32,s:u32){
  let node=nodes[i];
  let w=node.worldIndex;
  if(outsideFrustum(w*FRAME,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return;}
- // Trop FIN : aucun remplaçant du sous-arbre n'est encore assez grossier, le manifeste le porte.
- // Trop GROSSIER : aucune grappe du sous-arbre n'est assez fine, le rangement le dérive des pages.
- // Un sous-arbre qui porte une grappe que rien ne remplace est exempt du second — le repli épinglé
- // la dessine sans consulter de seuil, et la descente est le seul chemin par lequel elle lui
- // parvient. Le compte des rejets par le tronc ne bouge pour ni l'un ni l'autre : un sous-arbre
- // écarté ici ne l'est pas par le tronc, et le relevé dirait autre chose que ce qu'il nomme.
+ // Too FINE: no replacement of the subtree is coarse enough yet, the manifest carries it.
+ // Too COARSE: no cluster of the subtree is fine enough, packing derives it from the pages.
+ // A subtree that carries a cluster nothing replaces is exempt from the second — the pinned fallback
+ // draws it without consulting a threshold, and descent is the only path by which it
+ // reaches it. The trunk-reject count moves for neither: a subtree dropped here is
+ // not dropped by the trunk, and the readout would say something other than what it names.
  //
- // Une primitive dont le manifeste ne porte pas de plafond et dont le sous-arbre est exempt ne lit
- // aucune des deux : la vue·monde, qui ne vaut que pour elles, n'est alors pas montée.
+ // A primitive whose manifest carries no ceiling and whose subtree is exempt reads
+ // neither: the view·world, which only applies to them, is then not mounted.
  if(node.maxParentError>=0.0||(node.nodeFlags&${NODE_HAS_ROOT}u)==0u){
   let e=uni.view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
   if(node.maxParentError>=0.0&&projected(node.maxParentError,node.sphere,e,stretch,focal)<=uni.pixelError){atomicAdd(&out.frustumRejected,1u);return;}

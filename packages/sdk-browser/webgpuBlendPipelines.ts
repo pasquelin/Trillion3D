@@ -18,8 +18,8 @@ export async function createWebgpuBlendPipelines(
   variant?: DiagnosticGpuVariant,
 ) {
   const b = BLEND_BINDINGS;
-  // Sans variante, le module et les cibles sont exactement ceux d'avant : la production ne compile
-  // aucun étage de diagnostic et n'a aucun masque d'écriture à elle.
+  // Without a variant, the module and the targets are exactly those of before: production compiles
+  // no diagnostic stage and has no write mask of its own.
   const { entryPoint, writeMask } = blendVariantPipeline(variant);
   const blendBindGroupLayout = device.createBindGroupLayout({
     entries: [
@@ -31,8 +31,8 @@ export async function createWebgpuBlendPipelines(
         visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
         buffer: { type: 'uniform', minBindingSize: BLEND_VIEW_SIZE },
       },
-      // La fiche de chaque item, lue au rang que l'indice de sommet porte : c'est elle qui remplace
-      // le decalage dynamique d'uniforme, et donc le groupe de liaison par appel.
+      // Each item's record, read at the rank the vertex index carries: it is what replaces the
+      // dynamic uniform offset, and therefore the bind group per draw.
       { binding: b.items, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
       ...atlasLayoutEntries(b.color),
       { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
@@ -56,13 +56,12 @@ export async function createWebgpuBlendPipelines(
       { binding: b.bounceGrid, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
       { binding: b.probes, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
       { binding: b.tileLights, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
-      // Le proxy résident de l'ombre lointaine du soleil : en **lecture seule**, et c'est la
-      // condition du rejet anticipé de profondeur de toute la passe. Une liaison accessible en
-      // écriture depuis l'étage de fragments oblige le processeur graphique à ombrer chaque fragment
-      // avant de le tester, effet de bord oblige — ici 4232 appels de fragments entièrement cachés
-      // derrière l'opaque. Le rayon d'ombre est le même ; seuls les deux compteurs du relevé restent
-      // à la résolution différée, qui, elle, peut écrire. C'est la huitième et dernière liaison de
-      // stockage de cet étage de fragments, celle que la norme garantit encore.
+      // Resident proxy of the far sun shadow: **read-only**, and that is the condition of early
+      // depth rejection for the whole pass. A binding writable from the fragment stage forces the
+      // GPU to shade every fragment before testing it, side effect and all — here 4232 fragment
+      // draws fully hidden behind opaque. The shadow ray is the same; only the two census counters
+      // stay with deferred resolve, which can write. It is the eighth and last storage binding of
+      // this fragment stage, the one the spec still guarantees.
       { binding: b.proxy, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
       {
         binding: b.volume,
@@ -100,8 +99,8 @@ export async function createWebgpuBlendPipelines(
               alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' },
             },
           },
-          // Le rang de tuile que le pixel demande aux textures virtuelles : une cible entière, sans
-          // mélange, que la réduction relit après la passe.
+          // Tile rank the pixel requests from the virtual textures: an integer target, without blend,
+          // that reduction rereads after the pass.
           { format: FEEDBACK_FORMAT },
         ],
       },

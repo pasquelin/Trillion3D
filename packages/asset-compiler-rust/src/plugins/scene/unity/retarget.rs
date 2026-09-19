@@ -1,26 +1,26 @@
-//! Décaler les renvois de table d'un document glTF versé dans un autre.
+//! Shifting table references of a glTF document poured into another.
 //!
-//! Un modèle rend un glTF complet, et ses tables se désignent entre elles par des rangs qui n'ont
-//! de sens que chez lui. Le verser dans la scène, c'est recopier ces tables à la suite de celles de
-//! la scène, donc décaler **tous** ces rangs — pas seulement ceux qu'on avait sous les yeux. Un
-//! renvoi oublié ne devient pas vide : il désigne la ligne d'un autre modèle, et la scène lit alors
-//! des octets qui ne sont pas les siens. La règle de décalage vit ici, et nulle part ailleurs.
+//! A model yields a complete glTF, and its tables name each other by ranks that only make sense
+//! in it. Pouring it into the scene is copying those tables after the scene's, so shifting
+//! **all** those ranks — not only those we had in view. A forgotten reference does not become
+//! empty: it names another model's row, and the scene then reads bytes that are not its own.
+//! The shift rule lives here, and nowhere else.
 use super::*;
 
-/// Où un rang de table se lit dans un sous-arbre du document.
+/// Where a table rank is read in a subtree of the document.
 pub(super) enum Slot<'a> {
-    /// La valeur de cette clé exacte, à quelque profondeur qu'elle se trouve : c'est ce qui fait
-    /// suivre les deux vues d'un accesseur creux avec sa vue directe.
+    /// Value of this exact key, at whatever depth it is found: that is what makes both views of
+    /// a sparse accessor follow its direct view.
     Key(&'a str),
-    /// Le champ `index` de toute clé finissant par ce suffixe : c'est ainsi qu'un matériau désigne
-    /// ses textures, `baseColorTexture` comme `normalTexture`.
+    /// The `index` field of any key ending with this suffix: that is how a material names its
+    /// textures, `baseColorTexture` as `normalTexture`.
     Suffix(&'a str),
-    /// Toutes les valeurs de l'objet porté par cette clé, ou de chaque objet de ce tableau : les
-    /// noms d'attributs — `POSITION`, `TEXCOORD_0` — appartiennent au document, pas au format.
+    /// Every value of the object this key carries, or of each object of that array: attribute
+    /// names — `POSITION`, `TEXCOORD_0` — belong to the document, not to the format.
     Members(&'a str),
 }
 
-/// Où lire un rang, et la table de la scène vers laquelle il doit pointer.
+/// Where to read a rank, and the scene table it must point to.
 pub(super) struct Rule<'a> {
     pub(super) slot: Slot<'a>,
     pub(super) map: &'a [usize],
@@ -47,7 +47,7 @@ impl<'a> Rule<'a> {
     }
 }
 
-/// Décale, dans tout le sous-arbre, chaque rang que ces règles désignent.
+/// Shifts, in the whole subtree, every rank these rules name.
 pub(super) fn retarget(value: &mut Value, rules: &[Rule<'_>]) {
     match value {
         Value::Array(items) => items.iter_mut().for_each(|item| retarget(item, rules)),
@@ -64,7 +64,7 @@ pub(super) fn retarget(value: &mut Value, rules: &[Rule<'_>]) {
     }
 }
 
-/// Une règle sur un champ de cet objet.
+/// A rule on a field of this object.
 fn apply(fields: &mut serde_json::Map<String, Value>, name: &str, rule: &Rule<'_>) {
     match rule.slot {
         Slot::Key(key) if key == name => shift(fields, name, rule.map),
@@ -82,9 +82,9 @@ fn apply(fields: &mut serde_json::Map<String, Value>, name: &str, rule: &Rule<'_
     }
 }
 
-/// Décale le rang porté par cette clé. Une clé absente ne fait rien ; un rang que la table du
-/// modèle ne porte pas ne désigne rien dans la scène, et sa clé est retirée plutôt que laissée à
-/// pointer sur la ligne d'un voisin.
+/// Shifts the rank this key carries. A missing key does nothing; a rank the model's table does
+/// not carry names nothing in the scene, and its key is removed rather than left pointing at a
+/// neighbour's row.
 fn shift(fields: &mut serde_json::Map<String, Value>, key: &str, map: &[usize]) {
     let Some(item) = fields.get(key) else {
         return;
@@ -99,8 +99,8 @@ fn shift(fields: &mut serde_json::Map<String, Value>, key: &str, map: &[usize]) 
     }
 }
 
-/// Les rangs que porte un objet dont les noms de champs appartiennent au document, ou chacun des
-/// objets d'un tableau — un jeu d'attributs, une liste de cibles de morphing.
+/// Ranks an object whose field names belong to the document carries, or each object of an
+/// array — an attribute set, a list of morph targets.
 fn members(value: &mut Value, map: &[usize]) {
     match value {
         Value::Array(items) => items.iter_mut().for_each(|item| members(item, map)),

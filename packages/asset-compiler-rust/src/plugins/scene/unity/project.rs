@@ -1,20 +1,20 @@
-//! L'arbre du projet : le GUID d'un asset vit dans son `.meta` voisin, et c'est par ce GUID que la
-//! scène nomme ses modèles, ses matériaux et ses textures. On indexe donc une fois tous les `.meta`
-//! sous la racine, puis toute référence se résout par table. Rien n'est écrit à côté de la source.
+//! Project tree: an asset's GUID lives in its neighbouring `.meta`, and it is by that GUID that
+//! the scene names its models, materials and textures. Every `.meta` under the root is therefore
+//! indexed once, then every reference resolves by table. Nothing is written beside the source.
 use super::*;
 use std::collections::HashMap;
 
-/// Les dossiers de travail de l'éditeur : ni assets ni données de scène, on ne les parcourt pas.
+/// Editor working directories: neither assets nor scene data, they are not walked.
 const SKIPPED: [&str; 6] = ["Library", "Temp", "Logs", "obj", "Build", "UserSettings"];
-/// Plafond de lecture d'un fichier de données : au-delà, la source n'est pas du YAML de scène.
+/// Read ceiling of a data file: beyond it, the source is not scene YAML.
 const MAX_TEXT_BYTES: u64 = 64 * 1024 * 1024;
-/// Profondeur maximale du parcours d'un projet : un projet range ses assets, il ne les enfouit pas,
-/// et un arbre de liens ne doit pas faire tourner le compilateur sans fin.
+/// Maximum depth of a project walk: a project stores its assets, it does not bury them, and a
+/// tree of links must not make the compiler spin forever.
 const MAX_SCAN_DEPTH: usize = 16;
 
-/// Parcourt les fichiers du projet, en laissant de côté les dossiers de travail de l'éditeur et les
-/// dossiers cachés. `visit` reçoit chaque fichier avec son nom et rend `false` pour arrêter là ;
-/// le parcours rend alors `false` à son tour.
+/// Walks the project's files, leaving aside the editor's working directories and hidden
+/// directories. `visit` receives each file with its name and yields `false` to stop there; the
+/// walk then yields `false` in turn.
 fn walk(root: &Path, visit: &mut dyn FnMut(&Path, &str) -> bool) -> bool {
     let mut stack = vec![(root.to_path_buf(), 0usize)];
     while let Some((directory, depth)) = stack.pop() {
@@ -39,8 +39,8 @@ fn walk(root: &Path, visit: &mut dyn FnMut(&Path, &str) -> bool) -> bool {
     true
 }
 
-/// Les scènes qui vivent sous ce dossier. Non vide, c'est un projet Unity : le dossier entier est la
-/// source, et les modèles rangés dessous n'en sont que des entrées.
+/// Scenes that live under this directory. Non-empty, it is a Unity project: the whole directory
+/// is the source, and models stored under it are only its inputs.
 pub(super) fn scenes_under(directory: &Path) -> Vec<PathBuf> {
     let mut scenes = Vec::new();
     walk(directory, &mut |path, _| {
@@ -53,15 +53,15 @@ pub(super) fn scenes_under(directory: &Path) -> Vec<PathBuf> {
 }
 
 pub(super) struct Project {
-    /// Le dossier des URI de ressource : les images sont nommées relativement à lui.
+    /// Resource URI directory: images are named relative to it.
     pub(super) source_dir: PathBuf,
     by_guid: HashMap<String, PathBuf>,
     pub(super) meta_files: usize,
 }
 
 impl Project {
-    /// Indexe les `.meta` sous `root`. Le dossier d'un projet Unity peut être profond : le parcours
-    /// est borné aux dossiers d'assets, et l'annulation est vérifiée à chaque fichier.
+    /// Indexes `.meta` files under `root`. A Unity project's directory can be deep: the walk is
+    /// bounded to asset directories, and cancellation is checked at each file.
     pub(super) fn index(root: &Path, source_dir: &Path, cancelled: &AtomicBool) -> Result<Project> {
         let mut project = Project {
             source_dir: source_dir.to_path_buf(),
@@ -84,28 +84,28 @@ impl Project {
         Ok(project)
     }
 
-    /// Le GUID déclaré par un `.meta`, associé au fichier qu'il décrit.
+    /// GUID a `.meta` declares, associated with the file it describes.
     fn add_meta(&mut self, meta: &Path) {
         let Some(text) = read_text(meta) else { return };
         let Some(guid) = text.lines().find_map(|line| line.strip_prefix("guid: ")) else {
             return;
         };
-        // `Texture.tga.meta` décrit `Texture.tga` : le `.meta` n'ajoute qu'une extension.
+        // `Texture.tga.meta` describes `Texture.tga`: `.meta` only adds one extension.
         let asset = meta.with_extension("");
         if asset.exists() {
             self.by_guid.insert(guid.trim().to_string(), asset);
         }
     }
 
-    /// Le fichier que ce GUID désigne.
+    /// File this GUID names.
     pub(super) fn asset(&self, guid: &str) -> Option<&Path> {
         self.by_guid.get(guid).map(PathBuf::as_path)
     }
 
-    /// L'URI d'un asset relativement au dossier servi, échappée comme toute référence relative
-    /// d'URI : `%`, `#`, l'espace et tout ce qui n'est pas un caractère non réservé s'y écrivent en
-    /// `%XX`, sinon le moteur demanderait un autre fichier, ou rien. `None` quand l'asset est hors
-    /// de ce dossier : le moteur ne pourrait pas le demander.
+    /// URI of an asset relative to the served directory, escaped as any relative URI reference:
+    /// `%`, `#`, space and anything that is not an unreserved character are written there as
+    /// `%XX`, otherwise the engine would request another file, or none. `None` when the asset
+    /// is outside this directory: the engine could not request it.
     pub(super) fn relative_uri(&self, asset: &Path) -> Option<String> {
         let relative = normalise(asset)
             .strip_prefix(normalise(&self.source_dir))
@@ -115,15 +115,16 @@ impl Project {
     }
 }
 
-/// Le `.meta` qui décrit cet asset : Unity le pose à côté, sous le même nom suivi de `.meta`.
+/// `.meta` that describes this asset: Unity places it beside, under the same name followed by
+/// `.meta`.
 pub(super) fn meta_of(asset: &Path) -> PathBuf {
     let mut name = asset.as_os_str().to_os_string();
     name.push(".meta");
     PathBuf::from(name)
 }
 
-/// Le texte d'un fichier de données, sous le plafond de lecture. Ce qui n'est pas de l'UTF-8 lisible
-/// rend `None` : le pilote le compte, il ne s'y arrête pas.
+/// Text of a data file, under the read ceiling. What is not readable UTF-8 yields `None`: the
+/// driver counts it, it does not stop there.
 pub(super) fn read_text(path: &Path) -> Option<String> {
     let length = fs::metadata(path).ok()?.len();
     if length > MAX_TEXT_BYTES {
@@ -134,8 +135,8 @@ pub(super) fn read_text(path: &Path) -> Option<String> {
         .and_then(|bytes| String::from_utf8(bytes).ok())
 }
 
-/// La racine du projet pour l'index des GUID : le dossier `Assets` qui porte la scène quand il y en
-/// a un — c'est là que vivent tous les `.meta` — sinon le dossier de la scène elle-même.
+/// Project root for the GUID index: the `Assets` folder that carries the scene when there is
+/// one — that is where every `.meta` lives — otherwise the scene's own directory.
 pub(super) fn assets_root(scene: &Path) -> PathBuf {
     let mut found = None;
     for ancestor in scene.ancestors().skip(1) {

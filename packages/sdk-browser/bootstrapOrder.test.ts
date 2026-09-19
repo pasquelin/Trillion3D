@@ -58,7 +58,7 @@ test('the ring a prefetch pulls is the next finer level, and only once nothing v
   backend.acceptPage?.('bundle-roots', new Uint32Array([0, 1, 2]));
   backend.render(camera());
   // Eight pixels of budget put the cut on the mid clusters; half of it reaches the leaves. The
-  // certified bound of the défaut 3 announces more than the old under-estimate for the same
+  // certified bound of defect 3 announces more than the old under-estimate for the same
   // spheres, so the same intent needs a wider budget than the four pixels this test used.
   assert.deepEqual(backend.pendingUrls?.(), ['bundle-mid'], 'the cut comes before any ring');
   backend.acceptPage?.('bundle-mid', new Uint32Array([0, 1, 2, 3, 4, 5]));

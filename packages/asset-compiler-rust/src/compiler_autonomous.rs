@@ -1,12 +1,14 @@
 use super::*;
 
-/// Ce que ce format ne porte pas : l'animation des nœuds, le skinning, les poids de morphing. Les
-/// annoncer puis les retirer promettait au consommateur une scène qu'il n'aurait pas reconnue ;
-/// c'est le mode entier qui est refusé pour ces scènes, et ce refus est compté par ce nom.
+/// What this format does not carry: node animation, skinning, morph weights.
+/// Announcing them then stripping them would promise the consumer a scene it would
+/// not have recognised; the whole mode is refused for those scenes, and that
+/// refusal is counted under this name.
 pub(super) const ANIMATED: &str = "autonomous-scene-animated";
 
-/// La scène source déclare-t-elle du mouvement ou de la déformation ? Une animation ou un skinning
-/// vide ne déclare rien : c'est ce que le fichier porte qui décide, pas la présence du tableau.
+/// Does the source scene declare motion or deformation? An empty animation or
+/// skinning declares nothing: what the file carries decides, not the presence of
+/// the array.
 fn deformed(source: &Value) -> bool {
     let declared = |name: &str| {
         source

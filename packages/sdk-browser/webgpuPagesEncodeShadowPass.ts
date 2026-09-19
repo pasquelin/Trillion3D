@@ -5,10 +5,10 @@ import { regionScissor, regionViewport } from './webgpuPagesEncodeShadows.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
- * Le groupe de liaison d'une région : celui du raster du visibility buffer, à trois liaisons près —
- * la liste d'instances est celle que le rejet a gardée pour cette région, la table des slots la
- * place dans cette liste, et l'uniforme nomme le slot. Les groupes survivent aux images et ne sont
- * rebâtis que si l'une des ressources qu'ils tiennent a changé d'identité.
+ * Bind group of a region: the visibility-buffer raster's, three bindings aside — the instance list
+ * is the one culling kept for this region, the slot table places it in that list, and the uniform
+ * names the slot. Groups survive images and are rebuilt only if one of the resources they hold has
+ * changed identity.
  */
 function shadowRegionGroup(rt: WebgpuPagesRuntime, device: GPUDevice, region: number) {
   const { vis, gpu, lights } = rt;
@@ -27,8 +27,8 @@ function shadowRegionGroup(rt: WebgpuPagesRuntime, device: GPUDevice, region: nu
     !cull
   )
     return;
-  // Ce que les groupes nomment et qui peut changer d'identité — le pool de tuiles couleur, pas le
-  // diffuseur qui le porte —, comparé en place : rien n'est alloué par région ni par image.
+  // What the groups name and which can change identity — the colour tile pool, not the streamer
+  // that holds it — compared in place: nothing is allocated per region or per image.
   const key = lights.shadowGroupsKey,
     pool = textures.color.pool.view;
   if (
@@ -71,15 +71,15 @@ function shadowRegionGroup(rt: WebgpuPagesRuntime, device: GPUDevice, region: nu
 }
 
 /**
- * La passe de profondeur des ombres : d'abord le rejet par région, qui ne garde de la liste
- * d'instances de l'image que les clusters touchant la portée de la lampe et le volume de la région ;
- * puis une seule passe de rendu pour toutes les régions, et un seul dessin indirect par région.
+ * Shadow depth pass: first per-region cull, which keeps from the image's instance list only the
+ * clusters touching the light range and the region volume; then one render pass for all regions, and
+ * one indirect draw per region.
  *
- * **Le cadre reste celui de la face entière ; seul le ciseau borne la région.** C'est toute la
- * règle : un sommet atterrit exactement au même texel que dans un redessin complet, et le ciseau ne
- * fait qu'écarter les pixels hors région. La remise au fond suit le même ciseau, donc les pages que
- * la région ne couvre pas gardent la profondeur qu'elles avaient. Deux appels de dessin par région,
- * quel que soit le nombre de couches coplanaires de la scène.
+ * **The viewport stays that of the whole face; only the scissor bounds the region.** That is the
+ * whole rule: a vertex lands on exactly the same texel as in a full redraw, and the scissor only
+ * drops pixels outside the region. Clear-to-far follows the same scissor, so pages the region does
+ * not cover keep the depth they had. Two draw calls per region, whatever the scene's coplanar layer
+ * count.
  */
 export function encodeShadowAtlas(
   rt: WebgpuPagesRuntime,

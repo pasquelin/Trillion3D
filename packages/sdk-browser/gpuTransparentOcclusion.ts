@@ -7,8 +7,8 @@ export type TransparentOcclusion = NonNullable<
   Awaited<ReturnType<typeof createTransparentOcclusion>>
 >;
 
-/** Ce que le test emprunte au reste de l'image : la pyramide Hi-Z qu'elle vient de construire,
- *  l'uniforme que la partition a écrit pour elle, et le tampon de verdicts de la compaction. */
+/** What the test borrows from the rest of the frame: the Hi-Z pyramid it just built,
+ *  the uniform the partition wrote for it, and the compact's verdict buffer. */
 export type TransparentOcclusionSources = {
   pyramid: () => GPUBuffer | undefined;
   uniforms: GPUBuffer;
@@ -16,12 +16,12 @@ export type TransparentOcclusionSources = {
 };
 
 /**
- * L'occultation des grappes transparentes, faite par la carte, sur la pyramide de l'image courante.
+ * Occlusion of transparent clusters, done by the GPU, on the current frame's pyramid.
  *
- * Elle ne possède qu'un tampon : les coins monde de chaque entrée de la table transparente, en deux
- * simples précisions, réécrits seulement quand une matrice monde change. Tout le reste est emprunté
- * — la pyramide, l'uniforme, le tampon de verdicts —, si bien que la règle appliquée aux grappes
- * transparentes est celle des opaques au bit près, et qu'aucune image ne paie deux projections.
+ * It owns only one buffer: the world corners of each transparent-table entry, as two
+ * single-precision values, rewritten only when a world matrix changes. Everything else is
+ * borrowed — pyramid, uniform, verdict buffer — so the rule applied to transparent clusters is
+ * that of the opaques to the bit, and no frame pays two projections.
  */
 export async function createTransparentOcclusion(
   device: GPUDevice,
@@ -51,8 +51,8 @@ export async function createTransparentOcclusion(
       layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
       compute: { module, entryPoint: 'testTransparentClusters' },
     });
-    // La pyramide change d'identité à chaque redimensionnement de la cible : le groupe de liaison la
-    // suit, et une image sans pyramide n'encode rien plutôt que de lire un tampon mort.
+    // The pyramid changes identity on every target resize: the bind group follows it, and a
+    // frame without a pyramid encodes nothing rather than reading a dead buffer.
     let bound: GPUBuffer | undefined, bindGroup: GPUBindGroup | undefined;
     const bindTo = (pyramid: GPUBuffer) => {
       bound = pyramid;
@@ -66,7 +66,7 @@ export async function createTransparentOcclusion(
     const groups = Math.max(1, Math.ceil(entryCount / PARTITION_WORKGROUP));
     const cornerBytes = CORNER_VALUES * 4;
     return {
-      /** Les coins monde des entrées `[from, to]`, sur le seul intervalle que la table a changé. */
+      /** World corners of entries `[from, to]`, on the only interval the table changed. */
       uploadCorners(packed: Float32Array, from: number, to: number) {
         if (disposed || to < from) return;
         device.queue.writeBuffer(
@@ -78,8 +78,8 @@ export async function createTransparentOcclusion(
         );
       },
       /**
-       * Écrit le verdict de chaque entrée pour cette image. Sans pyramide fraîche il n'y a rien à
-       * dépouiller : le tampon repart à zéro, et la compaction garde toutes ses entrées.
+       * Writes each entry's verdict for this frame. Without a fresh pyramid there is nothing to
+       * walk: the buffer goes back to zero, and the compact keeps all its entries.
        */
       encode(encoder: GPUCommandEncoder, pyramidFresh: boolean) {
         if (disposed) return;
@@ -104,7 +104,7 @@ export async function createTransparentOcclusion(
     try {
       corners.destroy();
     } catch {
-      /* Un montage GPU partiel ne doit rien laisser fuir. */
+      /* A partial GPU setup must leak nothing. */
     }
     return undefined;
   }

@@ -1,73 +1,77 @@
-// Une coupe GPU incomplète doit pouvoir se reprendre toute seule. L'image en attente ne dessine
-// rien, mais elle réclame les pages manquantes, publie la résidence et envoie la sélection : sans
-// cet envoi, le même relevé incomplet reviendrait à chaque image et la coupe resterait bloquée
-// dessus, caméra immobile, même une fois les octets arrivés.
+// An incomplete GPU cut must be able to resume on its own. The pending image draws nothing, but
+// it requests the missing pages, publishes residency and dispatches selection: without that
+// dispatch, the same incomplete readback would come back every image and the cut would stay stuck
+// on it, camera still, even once the bytes have arrived.
 //
-// Le relevé complet de la reprise n'est pas fourni par le test : il est produit par la sélection
-// simulée, à partir des drapeaux de résidence que l'image en attente lui a publiés. Le banc lui-même
-// (`banc()`) vit dans `webgpuCutRepriseFixture.ts`, pour tenir sous 200 lignes.
+// The complete resume readback is not supplied by the test: it is produced by the mocked
+// selection, from the residency flags the pending image published to it. The bench itself
+// (`banc()`) lives in `webgpuCutRepriseFixture.ts`, to stay under 200 lines.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { banc } from './webgpuCutRepriseFixture.ts';
 
-test('une image en attente réclame, synchronise et envoie : la reprise a de quoi se produire', () => {
+test('a pending image requests, syncs and dispatches: resume has what it needs to happen', () => {
   const b = banc();
   for (let i = 0; i < 3; i++) assert.equal(b.image(), true, `image ${i}`);
-  assert.equal(b.comptes.attentes, 3, 'les trois images ont attendu une couverture complète');
-  assert.equal(b.rt.gpu.cutIncomplete, true, 'et la coupe est restée incomplète, page absente');
-  // Aucune image d'attente ne se contente de relire : chacune a fait avancer le flux.
-  assert.equal(b.comptes.queue, 3, 'les pages voulues sont réclamées à chaque attente');
-  assert.equal(b.comptes.sync, 3, 'la résidence est synchronisée à chaque attente');
-  assert.equal(b.comptes.envois, 3, 'la sélection est envoyée à chaque attente');
-  // La liste voulue est publiée : c'est elle qui fait venir la page manquante.
+  assert.equal(b.comptes.attentes, 3, 'the three images waited for complete coverage');
+  assert.equal(b.rt.gpu.cutIncomplete, true, 'and the cut stayed incomplete, page missing');
+  // No pending image merely re-reads: each has advanced the stream.
+  assert.equal(b.comptes.queue, 3, 'wanted pages are requested at every wait');
+  assert.equal(b.comptes.sync, 3, 'residency is synced at every wait');
+  assert.equal(b.comptes.envois, 3, 'selection is dispatched at every wait');
+  // The wanted list is published: it is what brings the missing page in.
   assert.deepEqual(
     b.desired.map((p) => p.url),
     ['p0'],
   );
-  assert.deepEqual(b.shown, [], 'rien n’est dessiné depuis une couverture incomplète');
+  assert.deepEqual(b.shown, [], 'nothing is drawn from incomplete coverage');
 });
 
-test('la page arrivée, la coupe redevient complète sans que la caméra bouge', () => {
+test('once the page has arrived, the cut becomes complete again without the camera moving', () => {
   const b = banc();
   b.image();
   assert.equal(b.rt.gpu.cutIncomplete, true);
-  // Les octets arrivent. La caméra n'a pas bougé et le budget n'a pas changé.
+  // The bytes arrive. The camera has not moved and the budget has not changed.
   b.arrive();
   const envoisAvant = b.comptes.envois;
-  assert.equal(b.image(), true, 'l’image reste en attente : le relevé complet n’est pas encore là');
-  assert.ok(b.comptes.envois > envoisAvant, 'mais elle a publié la résidence et envoyé');
-  // L'image suivante commence par adopter : elle trouve le relevé complet que l'attente a fait
-  // produire. Le test n'en a fourni aucun.
+  assert.equal(b.image(), true, 'the image stays pending: the complete readback is not there yet');
+  assert.ok(b.comptes.envois > envoisAvant, 'but it has published residency and dispatched');
+  // The next image starts by adopting: it finds the complete readback the wait caused to be
+  // produced. The test supplied none.
   b.rt.services.adoptGpuCut();
-  assert.equal(b.rt.gpu.cutIncomplete, false, 'la couverture est complète');
+  assert.equal(b.rt.gpu.cutIncomplete, false, 'coverage is complete');
   assert.deepEqual(
     b.shown.map((p) => p.url),
     ['p0'],
-    'et la page est dessinée',
+    'and the page is drawn',
   );
 });
 
-test('une attente qui déborde des identifiants de visibilité replie sur la coupe processeur', () => {
+test('a wait that overflows visibility identifiers falls back to the CPU cut', () => {
   const b = banc('debordement');
   for (let i = 0; i < 3; i++) b.image();
-  assert.ok(b.codes.includes('gpu-selection-capacity'), 'la capacité est annoncée');
-  assert.ok(b.codes.includes('gpu-selection-fallback'), 'le repli processeur est annoncé');
-  assert.equal(b.rt.run.gpuSelection, undefined, 'aucune sélection GPU n’est conservée');
-  assert.equal(b.comptes.envois, 0, 'aucun envoi depuis un relevé que la capacité interdit');
-  assert.equal(b.comptes.attentes, 0, 'et l’image n’attend pas un relevé qui ne viendra jamais');
+  assert.ok(b.codes.includes('gpu-selection-capacity'), 'capacity is announced');
+  assert.ok(b.codes.includes('gpu-selection-fallback'), 'the CPU fallback is announced');
+  assert.equal(b.rt.run.gpuSelection, undefined, 'no GPU selection is kept');
+  assert.equal(b.comptes.envois, 0, 'no dispatch from a readback that capacity forbids');
+  assert.equal(
+    b.comptes.attentes,
+    0,
+    'and the image does not wait for a readback that will never come',
+  );
 });
 
-test('une attente dont l’envoi échoue replie une fois, elle ne réessaie pas trois fois', () => {
+test('a wait whose dispatch fails falls back once, it does not retry three times', () => {
   const b = banc('envoi');
   for (let i = 0; i < 3; i++) b.image();
   assert.equal(
     b.codes.filter((code) => code === 'gpu-selection-dispatch-failed').length,
     1,
-    'un seul échec annoncé : le repli a eu lieu dès le premier',
+    'a single failure announced: fallback happened on the first one',
   );
-  assert.ok(b.codes.includes('gpu-selection-fallback'), 'le repli processeur est annoncé');
-  assert.equal(b.rt.run.gpuSelection, undefined, 'aucune sélection GPU n’est conservée');
-  assert.equal(b.comptes.envois, 1, 'un seul envoi tenté');
-  assert.equal(b.comptes.attentes, 0, 'aucune image n’a attendu');
-  assert.deepEqual(b.shown, [], 'rien n’est dessiné depuis une couverture incomplète');
+  assert.ok(b.codes.includes('gpu-selection-fallback'), 'the CPU fallback is announced');
+  assert.equal(b.rt.run.gpuSelection, undefined, 'no GPU selection is kept');
+  assert.equal(b.comptes.envois, 1, 'a single dispatch attempted');
+  assert.equal(b.comptes.attentes, 0, 'no image waited');
+  assert.deepEqual(b.shown, [], 'nothing is drawn from incomplete coverage');
 });

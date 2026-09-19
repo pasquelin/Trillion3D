@@ -132,7 +132,7 @@ export async function loadClusterManifest(
     if (buffer.byteLength !== declared)
       throw new EngineError(
         'INVALID_CACHE',
-        `${binaryUrl}: ${buffer.byteLength} octets reçus, ${declared} annoncés`,
+        `${binaryUrl}: ${buffer.byteLength} bytes received, ${declared} declared`,
         { url: binaryUrl, bytes: buffer.byteLength, expected: declared },
       );
     const decodeStart = performance.now();

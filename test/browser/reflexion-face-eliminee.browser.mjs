@@ -1,12 +1,12 @@
-// Défaut 10, preuve sur carte graphique réelle : sous une transformation de déterminant négatif, le
-// rasteriseur CPU du tampon de visibilité (`rasterVisibility`) et la rasterisation WebGPU du moteur
-// — `cullMode:'back'` et le `frontFace` que `windingCw` inverse — doivent dessiner les mêmes
-// clusters, et le rejet par cône ne doit en supprimer aucun.
+// Defect 10, proof on a real GPU: under a negative-determinant transform, the visibility-buffer
+// CPU rasteriser (`rasterVisibility`) and the engine's WebGPU rasterisation — `cullMode:'back'`
+// and the `frontFace` that `windingCw` flips — must draw the same clusters, and cone rejection
+// must drop none of them.
 //
-// L'échantillon est celui du défaut 6 : 6 916 cas, dont 3 456 réflexions, de l'échelle 1e-3 à
-// 1e-16. Avant ce lot, le CPU dessinait sous réflexion la face que tous les autres chemins
-// éliminent : 2 421 désaccords, tous des réflexions, et les 54 cas où le cône « supprimait une face
-// visible » n'étaient visibles que de ce rasteriseur-là.
+// The sample is that of defect 6: 6 916 cases, of which 3 456 reflections, from scale 1e-3 to
+// 1e-16. Before this batch, the CPU drew under reflection the face every other path culls:
+// 2 421 disagreements, all reflections, and the 54 cases where the cone "dropped a visible
+// face" were only visible to that rasteriser.
 //
 // node --experimental-strip-types test/browser/reflexion-face-eliminee.browser.mjs
 import assert from 'node:assert/strict';
@@ -48,26 +48,26 @@ console.log(
   ),
 );
 
-assert.ok(reflexions.length > 3000, 'l’échantillon doit contenir des milliers de réflexions');
+assert.ok(reflexions.length > 3000, 'the sample must contain thousands of reflections');
 assert.deepEqual(
   desaccords,
   [],
-  'CPU et GPU doivent éliminer la même face, réflexion comprise (défaut 10)',
+  'CPU and GPU must cull the same face, reflection included (defect 10)',
 );
 assert.deepEqual(
   supprimesVisibles,
   [],
-  'le rejet par cône ne doit supprimer aucun cluster qu’un des deux chemins dessine',
+  'cone rejection must drop no cluster that either path draws',
 );
 assert.ok(
   index.some((i) => tousLesCas[i].miroir && dessineGpu[i]),
-  'témoin : des réflexions doivent bien être dessinées, sans quoi l’égalité serait vide de sens',
+  'witness: some reflections must actually be drawn, or equality would be empty of meaning',
 );
 assert.ok(
   index.some((i) => coneRejette[i]),
-  'témoin : le cône doit encore rejeter des clusters, sans quoi l’égalité serait vide de sens',
+  'witness: the cone must still reject clusters, or equality would be empty of meaning',
 );
 
 console.log(
-  'OK : 6 916 cas rasterisés sur carte graphique réelle — voir test/browser/reflexion-face-eliminee.browser.mjs',
+  'OK: 6 916 cases rasterised on a real GPU — see test/browser/reflexion-face-eliminee.browser.mjs',
 );

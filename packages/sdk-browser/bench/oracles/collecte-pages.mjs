@@ -1,5 +1,5 @@
-// Oracles du lot F, côté chargement : `pageSelectionCollect.ts:34-153`, `explorerScene.ts:18-36` et
-// `explorerPageSources.ts:20-49` d'avant le lot F, recopiés tels quels.
+// Batch F oracles, loading side: `pageSelectionCollect.ts:34-153`, `explorerScene.ts:18-36` and
+// `explorerPageSources.ts:20-49` from before batch F, copied as-is.
 import * as THREE from 'three';
 import {
   DAG_ERROR_MODEL,
@@ -17,8 +17,8 @@ import {
 import { cullingBounds } from '../../pageSelectionCutBounds.ts';
 import { indexPageRequests } from '../../pageSelectionRequests.ts';
 
-/** `collectClusterPages` avant le lot F : `find` par maillage, `flatMap` d'un spread, trois objets
- *  Three.js par page pour l'union des boîtes. */
+/** `collectClusterPages` before batch F: `find` per mesh, `flatMap` of a spread, three
+ *  Three.js objects per page for the box union. */
 export function referenceCollectClusterPages(
   source,
   metadata,
@@ -32,8 +32,8 @@ export function referenceCollectClusterPages(
     bootstrap = [];
   const structures = new Map();
   let order = 0;
-  // `meshes` résolvait le sous-arbre de l'hôte avant le lot 8 ; le témoin le résout maintenant
-  // lui-même, puisqu'il lit `matrixWorld` — ce qu'il calcule ne change pas d'un bit.
+  // `meshes` resolved the host subtree before batch 8; the witness now resolves it
+  // itself, since it reads `matrixWorld` — what it computes does not change by a bit.
   source.updateMatrixWorld(true);
   for (const mesh of objects(source)) {
     const association = associations.get(mesh),

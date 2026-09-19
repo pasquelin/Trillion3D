@@ -1,11 +1,11 @@
-//! Lire des nombres dans les octets bruts d'un bloc.
+//! Reading numbers from the raw bytes of a block.
 //!
-//! Un bloc de données de Blender n'est parfois qu'un tableau nu — des positions, des indices de
-//! coin, des offsets de face. Ces trois fonctions le relisent sans rien supposer de plus que la
-//! largeur d'un élément, et s'arrêtent à ce que le bloc porte réellement.
+//! A Blender data block is sometimes only a bare array — positions, corner indices, face offsets.
+//! These three functions reread it assuming nothing more than the width of an element, and stop
+//! at what the block actually carries.
 use super::*;
 
-/// Un entier lu à la largeur et à la signature que le SDNA déclare.
+/// An integer read at the width and signedness the SDNA declares.
 pub(super) fn scalar(field: &Field, bytes: &[u8]) -> Option<i64> {
     if bytes.is_empty() {
         return None;
@@ -26,7 +26,7 @@ pub(super) fn scalar(field: &Field, bytes: &[u8]) -> Option<i64> {
     })
 }
 
-/// Les flottants d'un bloc brut, bornés par ce que le bloc porte.
+/// The floats of a raw block, bounded by what the block carries.
 pub(super) fn floats(bytes: &[u8], count: usize) -> Vec<f32> {
     bytes
         .as_chunks::<4>()
@@ -37,7 +37,7 @@ pub(super) fn floats(bytes: &[u8], count: usize) -> Vec<f32> {
         .collect()
 }
 
-/// Les entiers de trente-deux bits d'un bloc brut, bornés de la même façon.
+/// The thirty-two-bit integers of a raw block, bounded the same way.
 pub(super) fn ints(bytes: &[u8], count: usize) -> Vec<i32> {
     bytes
         .as_chunks::<4>()

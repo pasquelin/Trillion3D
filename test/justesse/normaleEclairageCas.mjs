@@ -1,10 +1,10 @@
-// Cas et vérité terrain de la reproduction du défaut 9 (`xformNormal`, standardLighting.ts) :
-// une transformation monde, une normale locale, une lampe, et la normale monde vraie calculée en
-// f64 par Three (`Matrix3.getNormalMatrix`, inverse-transposée sans seuil). Séparé de
-// l'orchestration pour tenir `check:lines`.
+// Cases and ground truth of defect 9's reproduction (`xformNormal`, standardLighting.ts): a
+// world transform, a local normal, a light, and the true world normal computed in f64 by Three
+// (`Matrix3.getNormalMatrix`, inverse-transpose with no threshold). Split from the orchestration
+// to hold `check:lines`.
 import * as THREE from 'three';
 
-/** Luminance Rec. 709 : une couleur éclairée se compare par un seul nombre. */
+/** Rec. 709 luminance: a lit colour is compared by a single number. */
 export const luminance = ([r, g, b]) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
 
 const unitaire = (v) => {
@@ -13,11 +13,11 @@ const unitaire = (v) => {
 };
 
 /**
- * La transformation monde `échelle ∘ rotation` de la famille de matrices que les reproductions des
- * défauts 6 et 9 éprouvent toutes les deux. `kind` vaut `uniforme` (échelle s sur les trois axes,
- * déterminant s³) ou toute autre valeur pour l'échelle anisotrope (s, 1,7 s, 0,6 s) : le premier
- * isole le défaut du seuil, le second vérifie qu'une inverse-transposée non triviale reste juste.
- * La translation est laissée nulle : elle ne change ni une normale ni un recentrage.
+ * The world transform `scale ∘ rotation` of the matrix family that defects 6 and 9's reproductions
+ * both exercise. `kind` is `uniforme` (scale s on all three axes, determinant s³) or any other
+ * value for the anisotropic scale (s, 1.7 s, 0.6 s): the first isolates the threshold defect, the
+ * second checks that a non-trivial inverse-transpose stays correct. Translation is left null: it
+ * changes neither a normal nor a recentre.
  */
 export function poseMonde({ s, kind, axis, angleDeg }) {
   const echelle = kind === 'uniforme' ? [s, s, s] : [s, s * 1.7, s * 0.6];
@@ -32,7 +32,7 @@ export function poseMonde({ s, kind, axis, angleDeg }) {
   );
 }
 
-/** Transformation monde, normale locale `normale`, et normale monde vraie en f64 (Three). */
+/** World transform, local normal `normale`, and true world normal in f64 (Three). */
 export function construireCas({ s, kind, axis, angleDeg, normale, lumiere, metal, rugosite }) {
   const world = poseMonde({ s, kind, axis, angleDeg });
   const normalMatrix = new THREE.Matrix3().getNormalMatrix(world);
@@ -51,8 +51,8 @@ export function construireCas({ s, kind, axis, angleDeg, normale, lumiere, metal
 }
 
 /**
- * Écart entre la normale que le GPU a rendue et la normale vraie : angle en degrés, et écart
- * relatif de luminance entre les deux couleurs éclairées par la même BRDF sur le même GPU.
+ * Discrepancy between the normal the GPU rendered and the true normal: angle in degrees, and
+ * relative luminance discrepancy between the two colours lit by the same BRDF on the same GPU.
  */
 export function ecart(cas, ligne) {
   const rendue = unitaire(ligne.rendue);
@@ -89,7 +89,7 @@ const LUMIERES = [
   [-0.7, 0.2, 0.6, 2],
 ];
 
-/** La campagne complète : toutes les échelles croisées avec orientations, normales et lampes. */
+/** The full campaign: every scale crossed with orientations, normals and lights. */
 export function campagne() {
   const cas = [];
   for (const s of ECHELLES)

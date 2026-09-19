@@ -1,19 +1,20 @@
-//! Le parcours de la scène composée : un prim, son nœud glTF, sa descendance.
+//! Walk of the composed scene: a prim, its glTF node, its descendants.
 //!
-//! Un prim `instanceable` ne cache pas ses enfants : la composition les présente comme des mandataires
-//! de son prototype, et chacun sait de quel prim du prototype il vient. C'est ce prim-là qui nomme
-//! la donnée, donc deux instances d'un même prototype citent le même maillage glTF sans qu'on ait à
-//! parcourir le prototype à part.
+//! An `instanceable` prim does not hide its children: composition presents them as proxies of
+//! its prototype, and each knows which prim of the prototype it comes from. It is that prim
+//! that names the data, so two instances of the same prototype cite the same glTF mesh without
+//! walking the prototype separately.
 use super::*;
 
-/// Profondeur maximale d'une hiérarchie, instances dépliées comprises.
+/// Maximum depth of a hierarchy, unfolded instances included.
 const MAX_DEPTH: usize = 64;
-/// La seule valeur de `visibility` qui retire un prim de la scène ; l'autre, `inherited`, l'y laisse.
+/// The only `visibility` value that removes a prim from the scene; the other, `inherited`,
+/// leaves it in.
 const INVISIBLE: &str = "invisible";
 
-/// Le nœud glTF d'un prim et de sa descendance, ou rien quand il ne porte ni surface ni lampe.
-/// `scale` est l'échelle du monde accumulée jusqu'au père, `metersPerUnit` compris : une longueur
-/// lue sur ce prim — le rayon d'une lampe — s'écrit en mètres en passant par elle.
+/// glTF node of a prim and its descendants, or nothing when it carries neither surface nor
+/// light. `scale` is the world scale accumulated up to the parent, `metersPerUnit` included: a
+/// length read on this prim — a light's radius — is written in metres by going through it.
 pub(super) fn visit(
     world: &mut World<'_>,
     prim: &usd::Prim,
@@ -29,8 +30,8 @@ pub(super) fn visit(
         world.count("inactive", 1);
         return None;
     }
-    // Un prim abstrait — une `class` — est un gabarit dont d'autres héritent, pas une surface de la
-    // scène : le composer une seconde fois à sa place de gabarit le ferait apparaître deux fois.
+    // An abstract prim — a `class` — is a template others inherit from, not a scene surface:
+    // composing it a second time at its template place would make it appear twice.
     if prim.is_abstract().unwrap_or(false) {
         world.count("abstract", 1);
         return None;
@@ -52,15 +53,15 @@ pub(super) fn visit(
     node(world, prim, type_name, (depth, scale))
 }
 
-/// Ce prim est-il une lampe ? Tous les schémas de `UsdLux` nomment ainsi leur type, y compris les
-/// filtres : `light::build` convertit ceux qu'il sait rendre et compte les autres.
+/// Is this prim a light? Every `UsdLux` schema names its type that way, filters included:
+/// `light::build` converts those it knows how to yield and counts the others.
 fn is_light(type_name: &str) -> bool {
     type_name.ends_with("Light") || type_name.ends_with("LightFilter")
 }
 
-/// Ce prim est-il déclaré invisible ? `visibility` ne prend que deux valeurs, et USD l'hérite :
-/// une descendance ne revient jamais au visible sous un prim invisible, donc le parcours s'arrête
-/// là et la branche entière sort de la scène.
+/// Is this prim declared invisible? `visibility` takes only two values, and USD inherits it: a
+/// descendant never comes back to visible under an invisible prim, so the walk stops there and
+/// the whole branch leaves the scene.
 fn invisible(world: &mut World<'_>, prim: &usd::Prim) -> bool {
     let Some((value, sampled)) = read::first(&prim.attribute("visibility")) else {
         return false;
@@ -71,7 +72,7 @@ fn invisible(world: &mut World<'_>, prim: &usd::Prim) -> bool {
     read::text(&value).as_deref() == Some(INVISIBLE)
 }
 
-/// Ce que ce prim apporte au rapport sans changer la scène.
+/// What this prim brings to the report without changing the scene.
 fn report(world: &mut World<'_>, prim: &usd::Prim) {
     if layer::variants(world, prim) {
         world.refuse(world::VARIANTS);
@@ -80,7 +81,7 @@ fn report(world: &mut World<'_>, prim: &usd::Prim) {
     world.scene.report.add_count(world::COMPOSITION, unresolved);
 }
 
-/// Le nœud de ce prim, avec sa transformation locale, ce qu'il porte et ses enfants.
+/// Node of this prim, with its local transform, what it carries and its children.
 fn node(
     world: &mut World<'_>,
     prim: &usd::Prim,
@@ -119,8 +120,8 @@ fn node(
     Some(world.scene.node(node))
 }
 
-/// Le chemin qui identifie la donnée d'un prim : celui qu'il occupe dans le prototype quand il est
-/// atteint à travers une instance, le sien sinon. C'est lui qui fait qu'un maillage est partagé.
+/// Path that identifies a prim's data: the one it occupies in the prototype when it is reached
+/// through an instance, its own otherwise. That is what makes a mesh shared.
 fn data_key(prim: &usd::Prim) -> String {
     prim.prim_in_prototype().ok().flatten().map_or_else(
         || prim.path().as_str().to_string(),

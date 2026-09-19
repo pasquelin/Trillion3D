@@ -1,7 +1,6 @@
-// Une image tenue réaffiche la cible de l'image précédente. Elle publiait encore les compteurs de
-// dessin et les durées d'étape du dernier rendu complet, c'est-à-dire un travail qu'elle n'avait pas
-// fait. Elle publie désormais la présentation seule, et laisse intactes les métriques de la coupe
-// qu'elle réaffiche.
+// A held frame redisplays the previous frame's target. It still published the draw counters and
+// the step durations of the last full render, i.e. work it had not done. It now publishes the
+// present alone, and leaves intact the metrics of the cut it redisplays.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createFrameGateCore } from './frameGateCore.ts';
@@ -11,8 +10,8 @@ import { holdWebgpuFrame } from './webgpuFrameHold.ts';
 import { metricsOf } from './webgpuPagesMetrics.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Un moteur dont toutes les conditions de `frameSettled` sont vraies et dont la dernière image
- *  complète a dessiné beaucoup : c'est elle que la tenue ne doit pas republier. */
+/** An engine whose every `frameSettled` condition is true and whose last complete frame drew a
+ *  lot: that is what hold must not republish. */
 function tenue() {
   const gate = createFrameGateCore(HOLD_SIGNATURE_VALUES);
   gate.hold.keep(gate.revisions);
@@ -38,7 +37,7 @@ function tenue() {
     submittedTriangles: 123456,
     blendSubmittedTriangles: 99,
     cpuSelectMs: 3.5,
-    // Ce que l'image MONTRE : la coupe, qui ne bouge pas.
+    // What the frame SHOWS: the cut, which does not move.
     visible: 800,
     selectedTriangles: 123456,
     frustumRejected: 29987,
@@ -76,7 +75,7 @@ function tenue() {
       bootstrapState: { ready: true },
       residencySets: { keepCount: 0 },
       residency: { busy: false },
-      // Le compte des pages de la coupe qui attendent encore leurs octets, tenu par la différence.
+      // Count of cut pages still waiting for their bytes, held by the difference.
       cutPending: { count: 0 },
     },
     layout: {
@@ -100,21 +99,21 @@ function tenue() {
   return { rt, run, timing, device };
 }
 
-test('une image tenue ne compte que sa présentation, pas le dernier rendu complet', () => {
+test('a held frame counts only its present, not the last full render', () => {
   const { rt, run, timing, device } = tenue();
-  assert.equal(holdWebgpuFrame(rt, device), true, 'l’image aurait dû être tenue');
+  assert.equal(holdWebgpuFrame(rt, device), true, 'the frame should have been held');
   assert.equal(run.frameHeld, true);
-  assert.equal(run.gpuDrawCalls, 1, 'la présentation est le seul appel de dessin');
+  assert.equal(run.gpuDrawCalls, 1, 'the present is the only draw call');
   assert.equal(run.blendDrawCalls, 0);
-  assert.equal(run.submittedTriangles, 0, 'aucun triangle n’a été soumis');
+  assert.equal(run.submittedTriangles, 0, 'no triangle was submitted');
   assert.equal(run.blendSubmittedTriangles, 0);
-  assert.equal(run.cpuSelectMs, null, 'aucune coupe processeur n’a tourné');
-  assert.equal(timing.lastGpuPassMs, null, 'aucune passe n’a été chronométrée');
+  assert.equal(run.cpuSelectMs, null, 'no CPU cut ran');
+  assert.equal(timing.lastGpuPassMs, null, 'no pass was timed');
   assert.equal(timing.lastGpuFrameMs, null);
   assert.equal(timing.lastGpuHostGapMs, null);
 });
 
-test('les durées d’étape d’une image tenue ne décrivent que la présentation', () => {
+test('step durations of a held frame describe only the present', () => {
   const { rt, timing, device } = tenue();
   holdWebgpuFrame(rt, device);
   const row = timing.cpuProfile.row;
@@ -125,32 +124,32 @@ test('les durées d’étape d’une image tenue ne décrivent que la présentat
     CPU_STEP.totalMs,
   ]);
   for (let i = 0; i < row.length; i++)
-    if (!presentation.has(i)) assert.equal(row[i], 0, `étape ${CPU_STEP_NAMES[i]} non exécutée`);
-  assert.equal(timing.rowFilled, true, 'la ligne de l’image tenue est déposée');
-  assert.equal(timing.cpuSample, undefined, 'le relevé détaillé d’une autre image est retiré');
+    if (!presentation.has(i)) assert.equal(row[i], 0, `step ${CPU_STEP_NAMES[i]} not executed`);
+  assert.equal(timing.rowFilled, true, 'the held-frame row is deposited');
+  assert.equal(timing.cpuSample, undefined, 'the detailed sample of another frame is dropped');
 });
 
-test('les métriques de la coupe réaffichée ne bougent pas', () => {
+test('metrics of the redisplayed cut do not move', () => {
   const { rt, run, device } = tenue();
   holdWebgpuFrame(rt, device);
   const metrics = metricsOf(rt);
   assert.equal(metrics.frameHeld, true);
-  assert.equal(metrics.clusters, 800, 'la coupe réaffichée est la même');
+  assert.equal(metrics.clusters, 800, 'the redisplayed cut is the same');
   assert.equal(metrics.selectedTriangles, 123456);
   assert.equal(metrics.frustumRejected, 29987);
   assert.equal(metrics.lodLevel, 2);
   assert.equal(metrics.drawCalls, 1);
   assert.equal(metrics.submittedTriangles, 0);
-  assert.equal(run.frame, 6, 'une image a bien été produite');
+  assert.equal(run.frame, 6, 'a frame was produced');
 });
 
-test('une page de la coupe qui attend ses octets interdit de tenir l’image', () => {
+test('a cut page waiting for its bytes forbids holding the frame', () => {
   const { rt, device } = tenue();
   const pending = rt.services.cutPending as { count: number };
-  assert.equal(holdWebgpuFrame(rt, device), true, 'une coupe entièrement arrivée se tient');
-  // Le compte est celui que la différence de la coupe tient : aucune liste n'est relue ici.
+  assert.equal(holdWebgpuFrame(rt, device), true, 'a fully arrived cut holds');
+  // The count is the one the cut difference holds: no list is reread here.
   pending.count = 1;
-  assert.equal(holdWebgpuFrame(rt, device), false, 'une page attendue peut encore ouvrir un trou');
+  assert.equal(holdWebgpuFrame(rt, device), false, 'a pending page can still open a hole');
   assert.equal(rt.run.frameHeld, false);
   pending.count = 0;
   assert.equal(holdWebgpuFrame(rt, device), true);

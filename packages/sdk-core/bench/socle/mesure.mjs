@@ -1,9 +1,9 @@
-// Mesure absolue d'un calcul du moteur, sur des cas nommés, contre un oracle.
-// Ce fichier ne fait que mesurer et comparer : le tableau, les fragments, les baselines et la garde
-// des chemins cités sont l'affaire de `rapport.mjs`.
+// Absolute measurement of an engine calculation, on named cases, against an oracle.
+// This file only measures and compares: table, fragments, baselines and path
+// checking of cited files are managed by `rapport.mjs`.
 import { ecart } from './ecart.mjs';
 
-/** Générateur pseudo-aléatoire à graine fixe (xorshift32) : deux exécutions voient les mêmes entrées. */
+/** Pseudo-random generator with fixed seed (xorshift32): two executions see the same inputs. */
 export function graine(depart) {
   let etat = depart >>> 0 || 0x9e3779b9;
   return () => {
@@ -23,7 +23,7 @@ function stats(durees) {
   return { medianeMs, p95Ms: t[i95], minMs: t[0], tours: n };
 }
 
-/** Les champs d'une ligne qu'aucun chronomètre n'a nourrie. `null` n'est jamais zéro. */
+/** Fields of a row not fed by any timer. `null` is never zero. */
 const SANS_MESURE = {
   medianeMs: null,
   p95Ms: null,
@@ -33,45 +33,46 @@ const SANS_MESURE = {
   opsParSec: null,
 };
 
-const ligne = ({ nom, taille = null, motif = null, correct = null, difference = null }) => ({
-  nom,
-  taille,
+const ligne = ({ name, size = null, motif = null, correct = null, difference = null }) => ({
+  name,
+  size,
   ...SANS_MESURE,
   correct,
   difference,
   motif,
 });
 
-/** Une ligne sans chiffre : un point de banc documenté, dont le motif remplace la mesure. */
-export function ligneDecrite({ nom, fichier, motif }) {
-  return { nom, fichier, resultats: [ligne({ nom, motif })] };
+/** A row without figures: a documented benchmark point whose description replaces measurement. */
+export function ligneDecrite({ name, fichier, motif }) {
+  return { name, fichier, resultats: [ligne({ name, motif })] };
 }
 
-const compteTexte = (c) => `${c.nombre} écart(s), ${c.ulpMax} ULP au plus`;
+const compteTexte = (c) => `${c.nombre} discrepancy(ies), ${c.ulpMax} ULP at most`;
 
 /**
- * Compare un cas à son oracle. Sans `differences`, l'égalité est stricte au bit près ; avec, le
- * compte d'écarts est publié tel quel — le banc mesure alors un candidat REFUSÉ et chiffre ce qu'il
- * déplace, au lieu de réclamer une égalité qui n'a pas lieu d'être. Sans oracle, la ligne porte le
- * motif qui dit pourquoi et où la justesse est tenue ; jamais un silence.
+ * Compares a case to its oracle. Without `differences`, equality is strict bitwise; with, the
+ * count of discrepancies is published as is — the benchmark then measures a REFUSED candidate and quantifies what it
+ * displaces, instead of demanding equality that does not apply. The caller's `motif` is always
+ * kept: without an oracle it says where correctness is held, with one it says what the comparison
+ * leaves out; never silence.
  */
 async function verifie(item, { calcul, attendu, differences, motif }) {
   if (!attendu) return { correct: null, difference: null, motif: motif ?? null };
-  const ref = await attendu(item.entree);
-  const obt = await calcul(item.entree);
+  const ref = await attendu(item.input);
+  const obt = await calcul(item.input);
   if (!differences) {
-    const diff = ecart(ref, obt, item.nom);
-    return { correct: diff === null, difference: diff, motif: null };
+    const diff = ecart(ref, obt, item.name);
+    return { correct: diff === null, difference: diff, motif: motif ?? null };
   }
-  return { correct: null, difference: null, motif: compteTexte(differences(ref, obt, item.nom)) };
+  const compte = compteTexte(differences(ref, obt, item.name));
+  return { correct: null, difference: null, motif: motif ? `${compte} ; ${motif}` : compte };
 }
 
 /**
- * Mesure absolue d'un calcul sur un ensemble de cas nommés, chacun vérifié contre `attendu`.
- * `fichier` est le chemin mesuré, ou la liste des chemins ; `mesure: false` sur un cas le fait
- * vérifier sans le chronométrer.
+ * Absolute measurement of a calculation on a set of named cases, each verified against `attendu`.
+ * `fichier` is the measured path, or list of paths; `mesure: false` on a case verifies it without timing.
  */
-export async function mesure({ nom, fichier, cas, options = {}, ...conf }) {
+export async function mesure({ name, fichier, cas, options = {}, ...conf }) {
   const { chauffe = 20, tours = 200, budgetMs = 1000 } = options;
   const resultats = [];
 
@@ -79,20 +80,20 @@ export async function mesure({ nom, fichier, cas, options = {}, ...conf }) {
     const verdict = await verifie(item, conf);
 
     if (item.mesure === false) {
-      resultats.push(ligne({ ...verdict, nom: item.nom, taille: item.taille }));
+      resultats.push(ligne({ ...verdict, name: item.name, size: item.size }));
       continue;
     }
 
-    for (let i = 0; i < chauffe; i++) await conf.calcul(item.entree);
+    for (let i = 0; i < chauffe; i++) await conf.calcul(item.input);
 
-    // Deux lectures d'horloge par tour, pas trois : la fin d'un tour est aussi le point où le
-    // budget se juge. Le chronomètre encadre exactement l'appel, comme avant.
+    // Two clock readings per turn, not three: the end of a turn is also where the
+    // budget is evaluated. The timer wraps exactly the call, as before.
     const durees = [];
     const debut = process.hrtime.bigint();
     let fin;
     while (durees.length < tours) {
       const t0 = process.hrtime.bigint();
-      await conf.calcul(item.entree);
+      await conf.calcul(item.input);
       fin = process.hrtime.bigint();
       durees.push(Number(fin - t0) / 1e6);
       if (durees.length >= 5 && Number(fin - debut) / 1e6 > budgetMs) break;
@@ -100,28 +101,28 @@ export async function mesure({ nom, fichier, cas, options = {}, ...conf }) {
 
     const s = stats(durees);
     resultats.push({
-      nom: item.nom,
-      taille: item.taille ?? null,
+      name: item.name,
+      size: item.size ?? null,
       ...s,
-      nsParElement: item.taille > 0 ? (s.medianeMs * 1e6) / item.taille : null,
+      nsParElement: item.size > 0 ? (s.medianeMs * 1e6) / item.size : null,
       opsParSec: s.medianeMs > 0 ? Math.round(1000 / s.medianeMs) : null,
       ...verdict,
     });
   }
-  return { nom, fichier, resultats };
+  return { name, fichier, resultats };
 }
 
-/** Vérifie qu'un calcul encaisse ses extrêmes sans lever : l'absence d'exception est le contrat. */
-export async function stress({ nom, calcul, extremes }) {
+/** Checks that a calculation absorbs its extremes without throwing: no exception is the contract. */
+export async function stress({ name, calcul, extremes }) {
   for (const cas of extremes) {
     try {
-      await calcul(cas.entree);
+      await calcul(cas.input);
     } catch (e) {
-      throw new Error(`Stress ${nom} / ${cas.nom} : ${e.message}`, { cause: e });
+      throw new Error(`Stress ${name} / ${cas.name} : ${e.message}`, { cause: e });
     }
   }
 }
 
-/** Mesure le code du paquet en prenant l'implémentation d'avant l'optimisation pour oracle. */
+/** Measures package code using the pre-optimisation implementation as the oracle. */
 export const compare = ({ reference, optimisee, ...reste }) =>
   mesure({ ...reste, calcul: optimisee, attendu: reference });

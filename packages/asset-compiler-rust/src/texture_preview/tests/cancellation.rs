@@ -16,9 +16,9 @@ fn scene_with_two_textures() -> Value {
     })
 }
 
-/// Une grappe d'un seul fil : les images se suivent dans l'ordre de leur index, comme dans un
-/// travail dont `threads` vaut un, et la seconde ne démarre qu'après la première. Bâtie AVANT que
-/// la course commence : sa construction prend plus longtemps qu'un fil ne met à poser un drapeau.
+/// Single-thread batch: images follow in index order, as in
+/// single-thread job; second starts only after first. Built BEFORE
+/// race begins: construction takes longer than thread flagging.
 fn one_thread() -> rayon::ThreadPool {
     rayon::ThreadPoolBuilder::new()
         .num_threads(1)
@@ -26,12 +26,12 @@ fn one_thread() -> rayon::ThreadPool {
         .expect("grappe")
 }
 
-// Comportement 8 : la cancellation est revérifiée avant chaque image, jamais seulement au début —
-// un décodage déjà en cours n'est pas interrompu, mais l'image suivante ne démarre pas. Deux
-// exécutions comparées : cancellation déjà posée avant l'appel (retour immédiat) contre
-// cancellation posée par le rapport de progrès de la première image, c'est-à-dire juste après son
-// décodage (retour seulement après ce travail) ; la seconde doit mesurablement durer plus
-// longtemps. Le drapeau est posé par le progrès et non par un autre fil : aucune course.
+// Behavior 8: cancellation re-checked before each image, not just start —
+// decode in progress not interrupted, but next image does not start.
+// Two runs compared: cancellation set before call (immediate return) vs
+// cancellation set by first image progress report, right after
+// decode (return only after that work); second takes measurably longer.
+// Flag set by progress, not another thread: no race.
 #[test]
 fn cancellation_is_honoured_between_two_images_not_mid_decode() {
     let dir = temp_dir("cancel-between");
@@ -90,8 +90,8 @@ fn cancellation_is_honoured_between_two_images_not_mid_decode() {
     assert_eq!(interrupted.err().expect("cancelled").code, "CANCELLED");
     assert!(
         mid_flight_elapsed > immediate_elapsed,
-        "une cancellation posée pendant le décodage de la première texture doit laisser ce \
-         décodage se terminer avant que la suivante ne soit refusée : {mid_flight_elapsed:?} \
-         devrait dépasser {immediate_elapsed:?}"
+        "a cancellation set during the first texture's decode must let that \
+         decode finish before the next is refused: {mid_flight_elapsed:?} \
+         should exceed {immediate_elapsed:?}"
     );
 }

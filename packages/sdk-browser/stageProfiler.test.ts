@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createStageProfiler, type StageAdd } from './stageProfiler.ts';
 import { addCpuSteps } from './stageMapping.ts';
 
-test('addCpuSteps ne dépose que les indices dont l’étape n’est pas null', () => {
+test('addCpuSteps deposits only indices whose stage is not null', () => {
   const deposits: Array<[string, number]> = [];
   const add: StageAdd = (stage, ms) => deposits.push([stage, ms]);
   addCpuSteps(['animations', null, 'uploads'], [1, 2, 3], add);
@@ -13,7 +13,7 @@ test('addCpuSteps ne dépose que les indices dont l’étape n’est pas null', 
   ]);
 });
 
-test('un profil jamais alimenté ne coûte rien : tout reste non mesuré', () => {
+test('a never-fed profile costs nothing: everything stays unmeasured', () => {
   const profiler = createStageProfiler({
     backend: 'webgpu',
     stages: ['lights', 'geometry'],
@@ -30,7 +30,7 @@ test('un profil jamais alimenté ne coûte rien : tout reste non mesuré', () =>
   }
 });
 
-test('deux dépôts de la même étape dans une image se somment avant d’entrer dans l’anneau', () => {
+test('two deposits of the same stage in a frame sum before entering the ring', () => {
   const profiler = createStageProfiler({ backend: 'webgpu', stages: ['lights'], gpuMethod: null });
   profiler.frameCpu((add) => {
     add('lights', 1);
@@ -41,7 +41,7 @@ test('deux dépôts de la même étape dans une image se somment avant d’entre
   assert.equal(profiler.profile().cpuFrames, 1);
 });
 
-test('l’anneau ne garde que la fenêtre : les valeurs les plus anciennes sont oubliées', () => {
+test('the ring keeps only the window: the oldest values are forgotten', () => {
   const profiler = createStageProfiler({
     backend: 'webgpu',
     stages: ['lights'],
@@ -50,12 +50,12 @@ test('l’anneau ne garde que la fenêtre : les valeurs les plus anciennes sont 
   });
   for (let i = 1; i <= 10; i++) profiler.frameCpu((add) => add('lights', i));
   const entry = profiler.profile().stages[0];
-  // Fenêtre de 8 : ne restent que 3..10, dont la médiane vaut 6,5 arrondie par summarize.
+  // Window of 8: only 3..10 remain, whose median is 6.5 rounded by summarize.
   assert.equal(entry.cpuMs?.p95, 10);
   assert.notEqual(entry.cpuMs?.p95, 2);
 });
 
-test('reset oublie la fenêtre et les compteurs, tout redevient non mesuré', () => {
+test('reset forgets the window and the counters, everything is unmeasured again', () => {
   const profiler = createStageProfiler({ backend: 'webgpu', stages: ['lights'], gpuMethod: null });
   profiler.frameCpu((add) => add('lights', 5));
   profiler.frameGpu((add) => add('lights', 7));
@@ -69,30 +69,30 @@ test('reset oublie la fenêtre et les compteurs, tout redevient non mesuré', ()
   assert.equal(profile.stages[0].gpuMs, null);
 });
 
-test('setReason ne renseigne la raison que pour la colonne restée non mesurée', () => {
+test('setReason fills the reason only for the column that stayed unmeasured', () => {
   const profiler = createStageProfiler({ backend: 'webgpu', stages: ['shadows'], gpuMethod: null });
   profiler.frameCpu((add) => add('shadows', 1));
-  profiler.setReason('shadows', { cpu: 'jamais vu', gpu: 'appareil sans horodatage' });
+  profiler.setReason('shadows', { cpu: 'never seen', gpu: 'device without timestamps' });
   const entry = profiler.profile().stages[0];
   assert.equal(entry.cpuReason, undefined);
-  assert.equal(entry.gpuReason, 'appareil sans horodatage');
+  assert.equal(entry.gpuReason, 'device without timestamps');
 });
 
-test('setCounts attache des compteurs à l’étape, en plus des durées', () => {
+test('setCounts attaches counters to the stage, on top of the durations', () => {
   const profiler = createStageProfiler({ backend: 'webgl2', stages: ['shadows'], gpuMethod: null });
   profiler.setCounts('shadows', { facesRedessinees: 12 });
   assert.deepEqual(profiler.profile().stages[0].counts, { facesRedessinees: 12 });
 });
 
-test('setGpuMethod change la méthode et la raison publiées par le profil', () => {
+test('setGpuMethod changes the method and reason the profile publishes', () => {
   const profiler = createStageProfiler({ backend: 'webgpu', stages: [], gpuMethod: null });
   profiler.setGpuMethod('timestamp-query', null);
   assert.equal(profiler.profile().gpuMethod, 'timestamp-query');
-  profiler.setGpuMethod(null, 'appareil non compatible');
-  assert.equal(profiler.profile().gpuReason, 'appareil non compatible');
+  profiler.setGpuMethod(null, 'incompatible device');
+  assert.equal(profiler.profile().gpuReason, 'incompatible device');
 });
 
-test('les durées négatives ou non finies sont ignorées, jamais déposées comme un zéro', () => {
+test('negative or non-finite durations are ignored, never deposited as a zero', () => {
   const profiler = createStageProfiler({ backend: 'webgl2', stages: ['frame'], gpuMethod: null });
   profiler.frameCpu((add) => add('frame', -1));
   profiler.pushImageGpu(NaN);

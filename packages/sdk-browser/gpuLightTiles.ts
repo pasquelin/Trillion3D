@@ -2,18 +2,18 @@ import { LIGHT_SETTINGS } from '../sdk-core/index.ts';
 import { LIGHT_TILES_SHADER } from './gpuLightTilesShader.ts';
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
 
-/** Mots par tuile : retenues et demandées de la liste opaque, puis celles de la liste du mélange,
- *  puis les deux listes de rangs — elles couvrent deux tranches de profondeur de la même tuile. */
+/** Words per tile: kept and requested of the opaque list, then those of the blend list,
+ *  then the two rank lists — they cover two depth slices of the same tile. */
 const TILE_STRIDE_WORDS = LIGHT_SETTINGS.maxLightsPerTile * 2 + 4;
-/** Étiquette de la passe mesurée ; `gpuLightListsMs` est lu sous ce nom, pas par son rang. */
+/** Label of the measured pass; `gpuLightListsMs` is read under this name, not by its rank. */
 export const LIGHT_TILES_PASS = 'WG light tiles v1';
-/** Tuiles sur un axe : la liste couvre toujours la cible entière, jamais une tuile de moins. */
+/** Tiles on one axis: the list always covers the whole target, never one tile short. */
 const tilesOn = (pixels: number) => Math.max(1, Math.ceil(pixels / LIGHT_SETTINGS.tileSize));
 export type GpuLightTiles = Awaited<ReturnType<typeof createGpuLightTiles>>;
 
 /**
- * La passe de listes de lampes par tuile. Le tampon de tuiles est alloué pour la cible courante et
- * réalloué seulement quand elle change de taille ; l'encodage n'alloue rien.
+ * Per-tile light-list pass. The tile buffer is allocated for the current target and reallocated
+ * only when it changes size; encoding allocates nothing.
  */
 export async function createGpuLightTiles(device: GPUDevice, lights: GPUBuffer) {
   const module = await createCheckedShaderModule(device, LIGHT_TILES_SHADER, 'LIGHT_TILES_SHADER');
@@ -47,7 +47,7 @@ export async function createGpuLightTiles(device: GPUDevice, lights: GPUBuffer) 
     tilesX = 0,
     tilesY = 0;
   return {
-    /** Le tampon que la résolution différée relit ; jamais indéfini après un `ensure()`. */
+    /** Buffer the deferred resolve rereads; never undefined after an `ensure()`. */
     get buffer() {
       return tiles;
     },
@@ -57,7 +57,7 @@ export async function createGpuLightTiles(device: GPUDevice, lights: GPUBuffer) 
     get tilesY() {
       return tilesY;
     },
-    /** Assure le tampon de la cible et le groupe de liaison ; rend `true` si la passe est prête. */
+    /** Ensures the target buffer and the bind group; returns `true` if the pass is ready. */
     ensure(width: number, height: number, depth: GPUTextureView) {
       const wantedX = tilesOn(width),
         wantedY = tilesOn(height);

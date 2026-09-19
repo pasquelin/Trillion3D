@@ -1,17 +1,18 @@
-//! Ce que la scène Unity dit et que le pilote doit rendre tel quel : la place d'un modèle importé
-//! dans sa propre hiérarchie, l'objet que chaque retouche de prefab vise, le mode alpha d'un
-//! matériau, et le `fileID` de soixante-quatre bits qui nomme un maillage.
+//! What the Unity scene says and that the driver must yield as-is: the place of
+//! an imported model in its own hierarchy, the object each prefab override aims
+//! at, a material's alpha mode, and the sixty-four-bit `fileID` that names a mesh.
 //!
-//! Le doré du pilote est dans `unity_golden.rs`, ses refus dans `unity_driver.rs`.
+//! The driver's golden is in `unity_golden.rs`, its refusals in `unity_driver.rs`.
 use super::*;
 use unity_projet::{cube, instancie, mat_blanc, material_named, node_named, Projet};
 
-/// Le GUID du modèle de chaque cas, et celui de la scène qui le cite.
+/// GUID of each case's model, and that of the scene that cites it.
 const MODEL: &str = "0000000000000000000000000000000a";
 
-// Constat 29 : un modèle référencé par la scène a sa propre hiérarchie, et chaque nœud y porte sa
-// transformation — écrite en matrice ou en translation, rotation et échelle. Le pilote les compose
-// jusqu'au maillage : l'enfant versé sort à la place que le modèle lui donne, pas à l'origine.
+// Finding 29: a model referenced by the scene has its own hierarchy, and each
+// node carries its transform — written as a matrix or as translation, rotation
+// and scale. The driver composes them down to the mesh: the poured child comes
+// out at the place the model gives it, not at the origin.
 #[test]
 fn the_transforms_of_an_imported_model_compose_down_to_its_meshes() {
     let projet = Projet::new("modele-transformations");
@@ -30,17 +31,18 @@ fn the_transforms_of_an_imported_model_compose_down_to_its_meshes() {
     ));
     let run = projet.compile("unity-modele-transformations");
     let (_, gltf) = run.prepared("unity");
-    let node = node_named(&gltf, "Piece").expect("le nœud du modèle");
+    let node = node_named(&gltf, "Piece").expect("the model's node");
     assert_eq!(
         node["matrix"],
         json!([1.0, 0., 0., 0., 0., 1.0, 0., 0., 0., 0., 1.0, 0., 10.0, 5.0, 0.0, 1.0]),
-        "la matrice du père du modèle se compose avec celle de son maillage"
+        "the model's parent matrix composes with that of its mesh"
     );
 }
 
-// Constat 30 : les retouches d'une instance de modèle nomment chacune leur objet. Celle qui vise la
-// racine s'y applique ; celle qui vise un objet que le pilote ne rend pas à part est comptée, jamais
-// versée dans la transformation d'un autre. Dix exécutions rendent la même scène, octet pour octet.
+// Finding 30: a model instance's overrides each name their object. The one that
+// aims at the root applies there; the one that aims at an object the driver does
+// not yield separately is counted, never poured into another's transform. Ten
+// runs yield the same scene, byte for byte.
 #[test]
 fn each_prefab_override_names_its_own_object_and_ten_runs_agree() {
     let projet = Projet::new("retouches");
@@ -55,27 +57,27 @@ fn each_prefab_override_names_its_own_object_and_ten_runs_agree() {
     ));
     let first = projet.compile("unity-retouches").prepared("unity").1;
     assert_eq!(
-        node_named(&first, "Instance").expect("la racine de l'instance")["translation"],
+        node_named(&first, "Instance").expect("the instance root")["translation"],
         json!([7.0, 0.0, 0.0]),
-        "la retouche de la racine s'applique seule, sans la valeur de l'autre objet"
+        "the root override applies alone, without the other object's value"
     );
     let (manifest, _) = projet.compile("unity-retouches").prepared("unity");
     assert_eq!(
         manifest["unsupported"]["unity-prefab-override-unplaced"], 1,
-        "la retouche visant un objet du modèle est comptée, pas mélangée"
+        "the override aiming at a model object is counted, not mixed"
     );
     for _ in 0..9 {
         assert_eq!(
             projet.compile("unity-retouches").prepared("unity").1,
             first,
-            "deux exécutions de la même scène rendent la même scène intermédiaire"
+            "two runs of the same scene yield the same intermediate scene"
         );
     }
 }
 
-// Constat 31 : un `fileID` de soixante-quatre bits nomme un objet précis. Lu au travers d'un
-// flottant, `2^53 + 1` retombe sur `2^53` : la table de noms du `.meta` ne rend plus rien et le
-// modèle entier est instancié à la place du seul maillage demandé.
+// Finding 31: a sixty-four-bit `fileID` names a precise object. Read through a
+// float, `2^53 + 1` falls back to `2^53`: the `.meta` name table yields nothing
+// and the whole model is instanced in place of the only requested mesh.
 #[test]
 fn a_meta_file_id_beyond_the_float_range_still_names_its_mesh() {
     let projet = Projet::new("fileid");
@@ -94,7 +96,7 @@ fn a_meta_file_id_beyond_the_float_range_still_names_its_mesh() {
     assert_eq!(manifest["source"]["counts"]["subMeshes"], 1);
     assert!(
         node_named(&gltf, "Fine").is_some() && node_named(&gltf, "Grosse").is_none(),
-        "seul le maillage que le fileID nomme est instancié"
+        "only the mesh the fileID names is instanced"
     );
     assert_eq!(
         manifest["unsupported"]["unity-model-mesh-by-fileid"],
@@ -102,8 +104,9 @@ fn a_meta_file_id_beyond_the_float_range_still_names_its_mesh() {
     );
 }
 
-// Constat 32 : un matériau à la fois transparent et découpé reste fondu. La règle du mode alpha se
-// lit sur les propriétés du matériau : transparent l'emporte, la découpe seule donne `MASK`.
+// Finding 32: a material that is both transparent and cut out stays blended. The
+// alpha-mode rule is read on the material properties: transparent wins, cutout
+// alone yields `MASK`.
 #[test]
 fn a_material_that_is_both_transparent_and_cut_out_stays_blended() {
     let projet = Projet::new("alpha");
@@ -130,20 +133,14 @@ fn a_material_that_is_both_transparent_and_cut_out_stays_blended() {
     let run = projet.compile("unity-alpha");
     let (manifest, gltf) = run.prepared("unity");
     let fondu = material_named(&gltf, "Melange");
-    assert_eq!(
-        fondu["alphaMode"], "BLEND",
-        "transparent l'emporte sur la découpe"
-    );
+    assert_eq!(fondu["alphaMode"], "BLEND", "transparent wins over cutout");
     assert_eq!(
         fondu["alphaCutoff"],
         Value::Null,
-        "glTF ne découpe pas un matériau fondu"
+        "glTF does not cut out a blended material"
     );
     let masque = material_named(&gltf, "Decoupe");
-    assert_eq!(
-        masque["alphaMode"], "MASK",
-        "la découpe seule reste masquée"
-    );
+    assert_eq!(masque["alphaMode"], "MASK", "cutout alone stays masked");
     assert_eq!(masque["alphaCutoff"], 0.25);
     assert_eq!(manifest["unsupported"]["unity-material-clip-and-blend"], 1);
 }

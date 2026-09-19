@@ -1,24 +1,23 @@
-//! Du fichier Blender à la scène intermédiaire écrite dans le cache.
+//! From the Blender file to the intermediate scene written in the cache.
 //!
-//! Le parcours est celui du fichier, borné à la scène active : chaque bloc `OB` de type maillage
-//! qu'une collection de cette scène porte devient un nœud, chaque bloc `ME` un maillage glTF, versé
-//! une seule fois — plusieurs objets qui partagent un même maillage
-//! partagent donc le même, et n'en diffèrent que par leur matrice. Un nœud racine porte la
-//! conversion d'axes, Blender travaillant en Z vers le haut et le glTF en Y vers le haut : une seule
-//! matrice, exacte, plutôt qu'une retouche de chaque sommet.
+//! The walk is that of the file, bounded to the active scene: each mesh-type `OB` block a
+//! collection of that scene holds becomes a node, each `ME` block a glTF mesh, poured once —
+//! several objects that share a mesh therefore share the same one, and differ only by their
+//! matrix. A root node carries the axis conversion, Blender working Z-up and glTF Y-up: one
+//! exact matrix, rather than retouching every vertex.
 use super::*;
 
-/// La conversion d'axes, colonne par colonne : x reste x, y devient z, z devient -y.
+/// Axis conversion, column by column: x stays x, y becomes z, z becomes -y.
 const Z_UP_TO_Y_UP: [f32; 16] = [
     1.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
 ];
 
-/// Lit le fichier et écrit sa conversion dans le cache. Rien n'est écrit à côté de la source.
+/// Reads the file and writes its conversion into the cache. Nothing is written next to the source.
 pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Result<PathBuf> {
     let started = Instant::now();
     let source = single(request.inputs)?;
-    // Le plafond vaut d'abord pour ce qui est lu depuis le disque : un fichier plus gros que lui ne
-    // rentre pas davantage une fois déballé, et il n'est pas chargé en mémoire pour le découvrir.
+    // The ceiling applies first to what is read from disk: a file larger than it does not fit any
+    // more once unpacked, and it is not loaded into memory to discover that.
     let on_disk = usize::try_from(fs::metadata(source)?.len()).unwrap_or(usize::MAX);
     envelope::within(on_disk, MAX_BYTES)?;
     let raw = fs::read(source)?;
@@ -68,8 +67,8 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         .out
         .report
         .add_count("blend-object-outside-scene", outside);
-    // La clé tient l'empreinte du fichier lu : un fichier inchangé se réécrit à l'identique, au
-    // même endroit.
+    // The key holds the digest of the file read: an unchanged file is rewritten identically, at
+    // the same place.
     scene.out.key_material = format!("{}:{}\n{digest}", plugin.name(), plugin.version());
     scene.out.files = json!([{"file": name_of(source), "bytes": raw.len(), "sha256": digest}]);
     super::finish(
@@ -82,8 +81,8 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
     )
 }
 
-/// Le fichier à compiler. Deux `.blend` dans un dossier, c'est une ambiguïté que le pilote ne
-/// tranche pas à la place de l'appelant.
+/// The file to compile. Two `.blend` in a directory is an ambiguity the driver does not settle
+/// in the caller's place.
 fn single(inputs: &[PathBuf]) -> Result<&Path> {
     match inputs {
         [one] => Ok(one.as_path()),

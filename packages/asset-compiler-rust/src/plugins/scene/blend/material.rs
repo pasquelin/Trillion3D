@@ -1,35 +1,34 @@
-//! Un matériau Blender vers un matériau PBR glTF.
+//! A Blender material to a glTF PBR material.
 //!
-//! Blender décrit ses matériaux par un graphe de nœuds, et c'est **la sortie active** qui dit lequel
-//! de ces nœuds rend la surface : un nuanceur posé à côté du graphe, que rien ne relie à cette
-//! sortie, ne décrit pas le matériau. Le pilote part donc du nœud `Material Output` que le fichier
-//! marque, suit son entrée `Surface`, et ne lit qu'un nuanceur, le plus répandu : `Principled
-//! BSDF`, dont les entrées portent déjà les grandeurs du glTF — couleur de base, métallicité,
-//! rugosité, alpha, émission, normale. Un autre nuanceur au bout de `Surface` — émission, verre,
-//! mélange — n'a pas d'équivalent ici : il est compté par son nom, et les grandeurs que le bloc de
-//! matériau porte lui-même restent, exactes.
+//! Blender describes its materials by a node graph, and it is **the active output** that says
+//! which of these nodes renders the surface: a shader sitting beside the graph, which nothing
+//! connects to that output, does not describe the material. The driver therefore starts from the
+//! `Material Output` node the file marks, follows its `Surface` input, and only reads one shader,
+//! the most common: `Principled BSDF`, whose inputs already carry the glTF quantities — base
+//! colour, metallic, roughness, alpha, emission, normal. Another shader at the end of `Surface`
+//! — emission, glass, mix — has no equivalent here: it is counted by its name, and the
+//! quantities the material block itself carries stay, exact.
 //!
-//! Les entrées sont demandées par leur identifiant, jamais par leur rang : une version de Blender
-//! qui en ajoute ou en déplace ne change rien ici. Une entrée branchée sur une image donne la
-//! texture correspondante ; branchée sur autre chose, elle est comptée au rapport et la valeur
-//! déclarée est conservée, exacte.
+//! Inputs are asked for by their identifier, never by their rank: a Blender version that adds or
+//! moves some changes nothing here. An input linked to an image gives the corresponding texture;
+//! linked to something else, it is counted on the report and the declared value is kept, exact.
 //!
-//! Un matériau sans graphe garde les grandeurs que le bloc `MA` porte lui-même. Aucune conversion
-//! de grandeur n'est faite : couleur, métallicité, rugosité et alpha vivent dans [0, 1] des deux
-//! côtés. La seule borne est l'émission, que Blender écrit en intensité libre et que le glTF veut
-//! dans [0, 1] ; le dépassement est compté, jamais silencieux.
+//! A material without a graph keeps the quantities the `MA` block itself carries. No quantity
+//! conversion is done: colour, metallic, roughness and alpha live in [0, 1] on both sides. The
+//! only bound is emission, which Blender writes as a free intensity and which glTF wants in
+//! [0, 1]; the overflow is counted, never silent.
 use super::*;
 
 const PRINCIPLED: &str = "ShaderNodeBsdfPrincipled";
-/// Le nœud par lequel un graphe de matériau sort vers le rendu.
+/// The node through which a material graph exits toward rendering.
 const OUTPUT: &str = "ShaderNodeOutputMaterial";
-/// Le bit par lequel Blender marque, parmi les sorties d'un graphe, celle qui rend.
+/// The bit by which Blender marks, among a graph's outputs, the one that renders.
 const DO_OUTPUT: i64 = 1 << 6;
-/// Ce que la sortie active atteint quand ce n'est pas un `Principled BSDF`, ou qu'elle n'atteint
-/// rien : la surface n'est pas convertie, et le bloc de matériau reprend la main.
+/// What the active output reaches when it is not a `Principled BSDF`, or when it reaches
+/// nothing: the surface is not converted, and the material block takes over.
 const SURFACE_UNSUPPORTED: &str = "blend-surface-node-unsupported";
 
-/// Convertit un bloc `MA` en matériau glTF.
+/// Converts an `MA` block to a glTF material.
 pub(super) fn material_json(
     material: &At<'_>,
     name: &str,
@@ -56,7 +55,7 @@ pub(super) fn material_json(
     gltf
 }
 
-/// Le nuanceur qui rend la surface : celui que l'entrée `Surface` de la sortie active atteint.
+/// The shader that renders the surface: the one the active output's `Surface` input reaches.
 fn surface<'a>(graph: &At<'a>, tree: &shading::Tree<'a>, out: &mut Out) -> Option<At<'a>> {
     let found = output(graph)
         .and_then(|node| shading::socket(&node, "Surface"))
@@ -68,7 +67,7 @@ fn surface<'a>(graph: &At<'a>, tree: &shading::Tree<'a>, out: &mut Out) -> Optio
     found
 }
 
-/// La sortie du graphe que le fichier marque active ; à défaut de marque, la première écrite.
+/// The graph output the file marks active; failing a mark, the first written.
 fn output<'a>(graph: &At<'a>) -> Option<At<'a>> {
     let mut first = None;
     for node in graph
@@ -84,7 +83,7 @@ fn output<'a>(graph: &At<'a>) -> Option<At<'a>> {
     first
 }
 
-/// Remplit le matériau glTF depuis les entrées du nœud.
+/// Fills the glTF material from the node's inputs.
 fn principled_json(
     material: &At<'_>,
     node: &At<'_>,

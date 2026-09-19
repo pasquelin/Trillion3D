@@ -3,10 +3,10 @@ import test from 'node:test';
 import { lightingCapabilitiesOf } from './lightingCapabilities.ts';
 import type { RenderBackend } from './backendTypes.ts';
 
-/** Un moteur réduit aux seules méthodes que la capacité lit : rien d'autre n'entre dans la réponse. */
+/** An engine reduced to the methods the capability reads: nothing else enters the answer. */
 const backendOf = (parts: Partial<RenderBackend>) => ({ id: 'moteur', ...parts }) as RenderBackend;
 
-test("un moteur qui ne relit pas le magasin ne déclare aucune capacité d'éclairage", () => {
+test('an engine that does not reread the store declares no lighting capability', () => {
   const capabilities = lightingCapabilitiesOf(backendOf({}));
   assert.deepEqual(
     { ...capabilities, reason: undefined },
@@ -18,20 +18,20 @@ test("un moteur qui ne relit pas le magasin ne déclare aucune capacité d'écla
       reason: undefined,
     },
   );
-  // Le refus est nommé : c'est ce que l'hôte lit au lieu de déduire une panne d'une image noire.
+  // The refusal is named: that is what the host reads instead of inferring a fault from a black frame.
   assert.match(capabilities.reason!, /moteur/);
 });
 
-test('un moteur qui relit le magasin applique lampes et vue, et ses ombres se déclarent', () => {
+test('an engine that rereads the store applies lights and view, and its shadows declare themselves', () => {
   const sansOmbre = lightingCapabilitiesOf(
-    backendOf({ refreshSceneLights: () => {}, lighting: { shadows: false, reason: 'sans ombre' } }),
+    backendOf({ refreshSceneLights: () => {}, lighting: { shadows: false, reason: 'no shadow' } }),
   );
   assert.deepEqual(sansOmbre, {
     sceneLights: true,
     lightingView: true,
     shadows: false,
     transforms: false,
-    reason: 'sans ombre',
+    reason: 'no shadow',
   });
   const avecOmbre = lightingCapabilitiesOf(
     backendOf({
@@ -48,11 +48,11 @@ test('un moteur qui relit le magasin applique lampes et vue, et ses ombres se d�
   });
 });
 
-test("une déclaration d'ombres ne vaut rien sans la relecture du magasin", () => {
+test('a shadow declaration is worthless without rereading the store', () => {
   const capabilities = lightingCapabilitiesOf(backendOf({ lighting: { shadows: true } }));
   assert.equal(capabilities.shadows, false);
 });
 
-test('le déplacement de nœud se lit dans la méthode, jamais dans une déclaration', () => {
+test('node movement is read from the method, never from a declaration', () => {
   assert.equal(lightingCapabilitiesOf(backendOf({ setTransform: () => {} })).transforms, true);
 });

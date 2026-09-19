@@ -1,24 +1,20 @@
 #!/usr/bin/env node
 // =====================================================================================
-// Campagne d'oracle du rebond : l'irradiance indirecte du moteur, convergée, face au traceur de
-// chemins du compilateur. Une commande, aucun serveur à lancer à la main :
+// Rebound oracle campaign: converged indirect irradiance of the engine compared against
+// the compiler path tracer. Single command, no manual server launch required:
 //
 //   node scripts/mesure/oracle.mjs --cache .mesure/cache-piece --source piece/piece.gltf \
 //        --ressources piece --largeur 160 --hauteur 120 --lampes 1 --samples 256 --visible
 //
-// Le moteur et l'oracle reçoivent la même pose, les mêmes lampes et la même taille. Le moteur rend
-// la vue `bounce` — l'irradiance indirecte nue, multipliée par l'exposition, sans ACES ni sRGB ;
-// l'oracle calcule la même grandeur sur les triangles sources. Le rapport publie l'écart moyen et
-// le p95 en pourcentage de l'oracle, la part écrêtée par les huit bits de la capture, et le retard
-// de convergence après le déplacement d'une lampe, en images puis en millisecondes.
-//
-// AUCUN CHRONOMÉTRAGE N'EST PROMIS ICI : c'est une mesure de fidélité, pas de vitesse.
+// Engine and oracle receive identical pose, lights, and size. Engine renders `bounce` view —
+// raw indirect irradiance multiplied by exposure. Oracle computes same value on source triangles.
+// NO TIMING PROMISED HERE: this is a fidelity measurement, not a speed test.
 // =====================================================================================
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import { lancerChrome } from './chrome.mjs';
+import { launchChrome } from './chrome.mjs';
 import * as options from './options.mjs';
 import { startServer } from './serveur.mjs';
 import { encodePng } from '../../packages/sdk-node/png.mts';
@@ -36,30 +32,30 @@ import { machineLoad } from './rapport.mjs';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
 const args = process.argv.slice(2);
-// Le même lecteur de drapeaux que le banc : `--nom valeur`, `--nom=valeur`, `--nom` seul.
+// Same flag reader as benchmark: `--name value`, `--name=value`, `--name` alone.
 const flags = options.parseArgs(args);
 const flag = (name, fallback) => flags.get(name) ?? fallback;
 const number = (name, fallback) => Number(flag(name, fallback));
 
-/** Trois nombres séparés par des virgules, ou rien. Sert aux poses données à la main. */
+/** Three comma-separated numbers, or null. Used for manual poses. */
 const triple = (name) => {
   const value = flag(name);
   if (!value || value === 'true') return null;
   const parts = value.split(',').map(Number);
   if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part)))
-    throw new Error(`--${name} attend trois nombres séparés par des virgules`);
+    throw new Error(`--${name} expects three comma-separated numbers`);
   return parts;
 };
 
-/** Le déplacement de la lampe qui sert à mesurer le retard : un pas franc, pas un frémissement. */
+/** Light movement used to measure delay: a clear step, not a slight flicker. */
 const MOVED = (position, step) => [position[0] + step, position[1], position[2] + step];
 
 async function main() {
   const cache = options.resolveCache(flag('cache'));
-  if (!cache) throw new Error('--cache est requis : le dossier derived du cache compilé');
+  if (!cache) throw new Error('--cache is required: the compiled cache derived directory');
   const source = resolve(flag('source', ''));
-  if (!existsSync(source)) throw new Error(`--source introuvable : ${source}`);
-  if (!oracleBuilt(ROOT)) throw new Error('oracle absent : lance `pnpm run build:native`');
+  if (!existsSync(source)) throw new Error(`--source not found: ${source}`);
+  if (!oracleBuilt(ROOT)) throw new Error('oracle missing: run `pnpm run build:native`');
   const out = resolve(flag('out', join(ROOT, `.mesure/out/oracle-${Date.now()}`)));
   await mkdir(out, { recursive: true });
   const settings = {
@@ -74,14 +70,14 @@ async function main() {
     floor: number('plancher', 0.01),
     cadenceHz: number('cadence', 60),
     lamps: number('lampes', 1),
-    // Même règle générique que le banc : l'intensité des ponctuelles est une option de mesure.
+    // Same generic rule as benchmark: point light intensity is a measurement option.
     intensity: number('intensite', 40),
     shadows: flag('ombres', 'on') === 'on',
     pixelError: number('pixelError', 0),
     maxPages: number('max-pages', 100000),
     source,
   };
-  const sides = options.resolveSides({ apres: flag('apres'), root: ROOT });
+  const sides = options.resolveSides({ after: flag('apres'), root: ROOT });
   const side = sides[0];
   side.cache = cache;
   side.manifestUrl = `/cache/${side.name}/native/full/manifest.json`;
@@ -90,7 +86,7 @@ async function main() {
   const captures = new Map();
   const server = await startServer({ port: 0, mounts, captures });
   const port = server.address().port;
-  const browser = await lancerChrome({
+  const browser = await launchChrome({
     headless: flag('visible', 'false') !== 'true',
     args: options.ENGINES.webgpu.flags,
   });
@@ -107,8 +103,7 @@ async function main() {
       viewport: { width: settings.width, height: settings.height },
     });
     page.on('pageerror', (error) => report.vues.push({ erreur: String(error) }));
-    // Un nuanceur refusé n'arrive pas par `pageerror` : il part en avertissement de console, et la
-    // mesure meurt plus loin sur un appareil perdu. On le remonte tel quel.
+    // A rejected shader does not come through `pageerror`: it logs as console warning/error.
     page.on('console', (m) => {
       if (m.type() === 'error' || m.type() === 'warning')
         console.error('[page]', m.type(), m.text().slice(0, 600));
@@ -126,15 +121,13 @@ async function main() {
       movingLight: false,
     });
     const moving = lights && lights.lights.find((light) => light.kind === 'point');
-    if (!lights || !moving) throw new Error('--lampes doit déclarer au moins une ponctuelle');
-    // Le pas de la lampe : assez franc pour que le rebond ait vraiment à reconverger, sinon le
-    // retard mesuré ne mesure rien. Un quart de l'emprise, ou la valeur donnée à la main.
+    if (!lights || !moving) throw new Error('--lampes must declare at least one point light');
+    // Light step: clear enough that rebound must reconverge.
     const step = number('pas', Math.max(1, (bounds.max.x - bounds.min.x) * 0.25));
     const camera = triple('pose'),
       target = triple('cible');
     for (const view of flag('vues', 'generale').split(',')) {
-      // Une pose donnée à la main l'emporte sur la trajectoire du banc : une pièce fermée n'a
-      // aucune vue utile depuis le dehors, et la trajectoire est faite pour un modèle urbain.
+      // Manual pose overrides benchmark trajectory.
       const known = options.VIEWS[view];
       if (!known && !camera) throw new Error(`vue inconnue : ${view}`);
       const pose = camera
@@ -154,7 +147,7 @@ async function main() {
   if (report.vues.some((view) => view.erreur)) process.exitCode = 1;
 }
 
-/** Une vue : l'image convergée du moteur, celle de l'oracle, leur écart et le retard mesuré. */
+/** One view: engine converged image, oracle image, gap, and measured delay. */
 async function runView(page, ctx) {
   const { side, settings, pose, view, lights, moving, step, out, captures } = ctx;
   const captureFile = `${view}-irradiance.png`;

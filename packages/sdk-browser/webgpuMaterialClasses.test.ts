@@ -81,11 +81,11 @@ test('the three material classes take the three paths the engine has for them', 
     collected.roots.map((root) => root.pages[0].transparent),
     [false, true],
   );
-  assert.equal(collected.roots[0].pages[0].sourceMesh, meshes[0], 'la découpe reste opaque');
-  assert.equal(collected.blendCopies.length, 1, 'seule la transmission sort du DAG');
+  assert.equal(collected.roots[0].pages[0].sourceMesh, meshes[0], 'the cut-out stays opaque');
+  assert.equal(collected.blendCopies.length, 1, 'only transmission leaves the DAG');
   assert.equal(collected.blendCopies[0].userData.sourceMesh, meshes[2]);
   assert.equal(isTransmissive(meshes[2].material), true);
-  assert.equal(isTransmissive(meshes[1].material), false, 'un mélange simple ne transmet pas');
+  assert.equal(isTransmissive(meshes[1].material), false, 'a plain blend does not transmit');
 });
 
 test('a cut-out cluster carries its alpha test into the visibility row', () => {
@@ -99,11 +99,11 @@ test('a cut-out cluster carries its alpha test into the visibility row', () => {
     dataLayer: new Map(),
     markRowDirty: () => {},
   });
-  // Une page écrite en ligne appartient à un placement : la disposition WebGPU le pose.
+  // A page written as a row belongs to a placement: the WebGPU layout sets it.
   const mask = Object.assign(collected.roots[0].pages[0], { placementIndex: 0 });
   writeRow(mask, 0, 0, 0, new Uint32Array([0, 1, 2]), floats, ints);
-  assert.equal((ints[23] & FLAG_MASK) !== 0, true, 'le drapeau de découpe est posé');
-  assert.equal(floats[19], 0.5, 'le seuil alpha du matériau voyage avec la ligne');
+  assert.equal((ints[23] & FLAG_MASK) !== 0, true, 'the cut-out flag is set');
+  assert.equal(floats[19], 0.5, 'the material alpha threshold travels with the row');
   // A blend never becomes a cut-out: its row would otherwise discard instead of blending.
   const blend = Object.assign(collected.roots[1].pages[0], { placementIndex: 1 });
   writeRow(blend, 0, 0, 0, new Uint32Array([0, 1, 2]), floats, ints);

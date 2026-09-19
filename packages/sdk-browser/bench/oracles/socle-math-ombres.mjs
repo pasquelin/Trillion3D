@@ -1,10 +1,10 @@
-// Oracles des ombres du lot M1 « socle mathématique » : projection, vue, produit et cône d'une face
-// d'ombre d'avant le rattachement, recopiés tels quels depuis `develop` au commit d016f88.
+// Shadow oracles of batch M1 "math foundation": projection, view, product and cone of a
+// shadow face from before the attachment, copied as-is from `develop` at commit d016f88.
 import { LIGHT_SETTINGS } from '../../../sdk-core/sceneLightContracts.ts';
 
-/** `sceneLightShadowMath.ts:14-46` d'avant, écrits dans un tampon donné plutôt que dans le module.
- *  Seule la ligne de profondeur suit la convention du moteur — inversée, plan proche à 1 : c'est
- *  l'ENTRÉE du produit que l'oracle témoigne, pas la formule de projection. */
+/** `sceneLightShadowMath.ts:14-46` from before, written into a given buffer rather than in the
+ *  module. Only the depth row follows the engine convention — reversed, near plane at 1: it is
+ *  the INPUT of the product that the oracle witnesses, not the projection formula. */
 export function referenceShadowProjection(proj, fov, range) {
   const near = Math.max(LIGHT_SETTINGS.shadowNearMin, range * LIGHT_SETTINGS.shadowNearFraction),
     far = Math.max(near * 1.001, range);
@@ -26,7 +26,7 @@ export function referenceShadowOrthographic(proj, halfExtent, far) {
   proj[15] = 1;
 }
 
-/** `sceneLightShadowMath.ts:48-138` d'avant : repère, vue et produit en boucle depuis zéro. */
+/** `sceneLightShadowMath.ts:48-138` from before: basis, view and product in a loop from zero. */
 export const referenceFaceBasis = new Float64Array(9);
 function shadowView(out, base, eye, forward) {
   const fx = forward[0],
@@ -86,7 +86,7 @@ export function referenceComposeFace(out, base, eye, forward, proj) {
   multiply4(out, base, proj, 0, viewScratch, 0, mulScratch);
 }
 
-/** `sceneLightShadowVolume.ts:13-66` d'avant, sur le repère de la face composée par l'oracle. */
+/** `sceneLightShadowVolume.ts:13-66` from before, on the basis of the face composed by the oracle. */
 const axis = new Float64Array(3),
   corner = new Float64Array(3);
 function direction(out, u, v, t) {

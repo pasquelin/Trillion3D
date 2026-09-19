@@ -1,7 +1,7 @@
-// Oracles purs de A6 et A7, sans effet de bord : `selection.bench.mjs` les mesure, les tests
-// unitaires les importent comme référence.
+// Pure A6 and A7 oracles, no side effects: `selection.bench.mjs` measures them; unit tests
+// import them as reference.
 
-/** `pageSelectionMath.ts:110-134` avant le lot A : une branche par plan et par sommet. */
+/** `pageSelectionMath.ts:110-134` before batch A: one branch per plane and per vertex. */
 export function referenceBoxClip(planes, minX, minY, minZ, maxX, maxY, maxZ) {
   let inside = 2;
   for (let p = 0; p < 24; p += 4) {
@@ -20,7 +20,7 @@ export function referenceBoxClip(planes, minX, minY, minZ, maxX, maxY, maxZ) {
   return inside;
 }
 
-/** `pageSelectionRequests.ts:77-96` avant le lot A : un `Set` alloué par appel sans estampilles. */
+/** `pageSelectionRequests.ts:77-96` before batch A: a `Set` allocated per call without stamps. */
 export function referenceCollectPendingUrls(shown, into) {
   into.length = 0;
   const seen = new Set();
@@ -35,7 +35,7 @@ export function referenceCollectPendingUrls(shown, into) {
   return into;
 }
 
-/** `autonomousResidency.ts:24-37` avant le lot A : `includes` en boucle, `Set` et trois spreads. */
+/** `autonomousResidency.ts:24-37` before batch A: `includes` in a loop, `Set` and three spreads. */
 export function referenceResidency(env) {
   const { bootstrapUrls, modifiedPages, shown, desired, pending, retained } = env;
   return {

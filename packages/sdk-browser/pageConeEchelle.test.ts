@@ -1,8 +1,8 @@
-// Défaut 1 (rejet par cône à petite échelle) : `isConformal` doit juger sur des rapports de
-// longueurs et d'orthogonalité purement relatifs, jamais sur une tolérance additive qui, à petite
-// échelle, masque une vraie déformation anisotrope. Le premier test reprend le cas déclencheur de
-// `test/justesse/cone-echelle-non-uniforme.mjs` ; les suivants couvrent les 3×3 dégénérées, puis
-// confirment que le rejet reste possible pour toute échelle uniforme et rotation, comme avant ce lot.
+// Defect 1 (cone reject at small scale): `isConformal` must judge on purely relative length and
+// orthogonality ratios, never on an additive tolerance which, at small scale, hides a real
+// anisotropic deformation. The first test retakes the trigger case of
+// `test/justesse/cone-echelle-non-uniforme.mjs`; the following cover degenerate 3×3s, then
+// confirm that reject remains possible for any uniform scale and rotation, as before this batch.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -25,7 +25,7 @@ const TRIANGLES = INDICES.length / 3;
 const MIN = [-1e6, -1e6, -1e6];
 const MAX = [1e6, 1e6, 0];
 
-/** La caméra du cas déclencheur : la face des deux triangles lui fait front, dans le tronc. */
+/** Camera of the trigger case: the face of both triangles faces it, in the frustum. */
 function camera() {
   const cam = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
   cam.position.set(6, 0, -9);
@@ -34,7 +34,7 @@ function camera() {
   return cam;
 }
 
-/** Un unique cluster, la coupe CPU complète — seuls les champs que `selectFlat` lit vraiment. */
+/** A single cluster, the full CPU cut — only the fields `selectFlat` actually reads. */
 function trianglesGardes(world: THREE.Matrix4, cone: NormalCone, cam: THREE.PerspectiveCamera) {
   const page = {
     min: MIN,
@@ -48,7 +48,7 @@ function trianglesGardes(world: THREE.Matrix4, cone: NormalCone, cam: THREE.Pers
     .displayedTriangles;
 }
 
-test('échelle non uniforme à petite échelle (1e-8, 1e-6, 1e-6), cas déclencheur : les deux triangles restent', () => {
+test('non-uniform scale at small scale (1e-8, 1e-6, 1e-6), trigger case: both triangles stay', () => {
   const cone = triangleCone(POSITIONS, INDICES);
   const world = new THREE.Matrix4().makeScale(1e-8, 1e-6, 1e-6);
   const cam = camera();
@@ -56,12 +56,12 @@ test('échelle non uniforme à petite échelle (1e-8, 1e-6, 1e-6), cas déclench
   assert.equal(
     coneCullsPageWith(ctx, cone, world, MIN, MAX),
     false,
-    'coneCullsPageWith rejette la face pourtant visible',
+    'coneCullsPageWith rejects the face though it is visible',
   );
-  assert.equal(trianglesGardes(world, cone, cam), TRIANGLES, 'selectVisiblePages perd la face');
+  assert.equal(trianglesGardes(world, cone, cam), TRIANGLES, 'selectVisiblePages loses the face');
 });
 
-test('une 3×3 dégénérée (échelle nulle sur un axe, donc colonne nulle) n’est pas conforme : le cluster reste', () => {
+test('a degenerate 3×3 (null scale on one axis, hence a null column) is not conformal: the cluster stays', () => {
   const cone: NormalCone = { axis: [0, 0, 1], angle: Math.PI / 6 };
   const cam = camera();
   for (const echelle of [
@@ -71,16 +71,16 @@ test('une 3×3 dégénérée (échelle nulle sur un axe, donc colonne nulle) n�
   ] as const) {
     const world = new THREE.Matrix4().makeScale(...echelle);
     const ctx = coneContextFor(createConeContext(), world, cameraMoteur(cam).eye);
-    assert.equal(ctx.conformal, false, `échelle ${echelle}`);
+    assert.equal(ctx.conformal, false, `scale ${echelle}`);
     assert.equal(
       coneCullsPageWith(ctx, cone, world, [-1, -1, 0], [1, 1, 0]),
       false,
-      `boîte conservée pour l’échelle ${echelle}`,
+      `box kept for scale ${echelle}`,
     );
   }
 });
 
-test('une 3×3 avec un terme NaN ou infini n’est pas conforme : le cluster reste', () => {
+test('a 3×3 with a NaN or infinite term is not conformal: the cluster stays', () => {
   const cone: NormalCone = { axis: [0, 0, 1], angle: Math.PI / 6 };
   const cam = camera();
   for (const [index, valeur] of [
@@ -91,16 +91,16 @@ test('une 3×3 avec un terme NaN ou infini n’est pas conforme : le cluster res
     const world = new THREE.Matrix4();
     world.elements[index] = valeur;
     const ctx = coneContextFor(createConeContext(), world, cameraMoteur(cam).eye);
-    assert.equal(ctx.conformal, false, `terme ${index} = ${valeur}`);
+    assert.equal(ctx.conformal, false, `term ${index} = ${valeur}`);
     assert.equal(
       coneCullsPageWith(ctx, cone, world, [-1, -1, 0], [1, 1, 0]),
       false,
-      `boîte conservée pour le terme ${index} = ${valeur}`,
+      `box kept for term ${index} = ${valeur}`,
     );
   }
 });
 
-test('échelle uniforme de 1e-8 à 1e3, avec rotation : une face dos à la caméra reste rejetée', () => {
+test('uniform scale from 1e-8 to 1e3, with rotation: a face with its back to the camera stays rejected', () => {
   const cone: NormalCone = { axis: [0, 0, 1], angle: Math.PI / 6 };
   for (const echelle of [1e-8, 1e-4, 1, 1e3]) {
     for (const euler of [
@@ -114,8 +114,8 @@ test('échelle uniforme de 1e-8 à 1e3, avec rotation : une face dos à la camé
         new THREE.Vector3(echelle, echelle, echelle),
       );
       const conforme = coneContextFor(createConeContext(), world, cameraMoteur(camera()).eye);
-      assert.equal(conforme.conformal, true, `échelle ${echelle} rotation ${euler}`);
-      // La matrice normale du contexte est plate : le test la remet en objet pour l'appliquer.
+      assert.equal(conforme.conformal, true, `scale ${echelle} rotation ${euler}`);
+      // The context's normal matrix is flat: the test puts it back in an object to apply it.
       const normale = new THREE.Matrix3().fromArray([...conforme.normal]);
       const axeMonde = new THREE.Vector3(...cone.axis).applyMatrix3(normale).normalize();
       const distance = Math.max(5, echelle * 2000);
@@ -127,7 +127,7 @@ test('échelle uniforme de 1e-8 à 1e3, avec rotation : une face dos à la camé
       assert.equal(
         coneCullsPageWith(ctxArriere, cone, world, [-1, -1, -1], [1, 1, 1]),
         true,
-        `échelle ${echelle} rotation ${euler} : face dos caméra non rejetée`,
+        `scale ${echelle} rotation ${euler}: back-facing face not rejected`,
       );
     }
   }

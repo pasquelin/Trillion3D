@@ -1,14 +1,14 @@
-// L'ensemble sélectionné d'une série, lu DANS la page. Servi sous `/mesure/` et importé par son URL
-// comme `pageTemoin.mjs` : `measureView` est sérialisée par Playwright et ne peut appeler aucune
-// fonction de module, mais un `import()` d'URL lui reste ouvert.
+// The selected set of a series, read INSIDE the page. Served under `/mesure/` and imported by its
+// URL like `pageTemoin.mjs`: `measureView` is serialised by Playwright and cannot call any module
+// function, but a URL `import()` remains open to it.
 
 /**
- * La coupe sélectionnée, lue sans aucune API ajoutée pour la mesure. WebGPU publie
- * `selectedPageIds()` ; le chemin WebGL n'a pas d'équivalent, mais hors du mode beauté il attache un
- * maillage par page affichée et y dépose son `clusterId`. Le mode `pages` et non `clusters` :
- * `clusters` teinte chaque page de sa couleur, donc un nuanceur par cluster — 80 153 sur Emerald, de
- * quoi épuiser le pilote —, quand `pages` n'en a que deux et rend les mêmes maillages. Les deux
- * sources ne se comparent pas ; le rapport dit laquelle a servi.
+ * The selected cut, read without any API added for the measurement. WebGPU publishes
+ * `selectedPageIds()`; the WebGL path has no equivalent, but outside beauty mode it attaches a
+ * mesh per displayed page and stores its `clusterId` there. Mode `pages` and not `clusters`:
+ * `clusters` tints each page with its colour, hence one shader per cluster — 80 153 on Emerald,
+ * enough to exhaust the driver — while `pages` has only two and renders the same meshes. The two
+ * sources are not compared; the report says which one served.
  */
 export function lireCoupe(explorer, engineId) {
   const backend = explorer.backends.find((candidate) => candidate.id === engineId);

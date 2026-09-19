@@ -1,15 +1,15 @@
-//! Doré du pilote `usdz` : un conteneur ne doit rien changer à la scène qu'il emballe. Le paquet
-//! porte la même couche binaire que la fixture `usd/corpus/usdc`, et le doré compare les deux
-//! compilations avant de comparer la première à `expected.json`. Il fixe aussi ce que le pilote
-//! refuse : un paquet compressé, un paquet sans couche USD, et un paquet qui en porte deux.
+//! `usdz` driver golden test: container must not change packaged scene. Package
+//! carries same binary layer as `usd/corpus/usdc` fixture, golden compares both
+//! compilations before comparing first to `expected.json`. Fixes driver
+//! refusals: compressed package, package without USD layer, package carrying two.
 use super::*;
 
-const CASE: &str = "Un paquet USDZ conforme — entrées stockées telles quelles, charges alignées sur soixante-quatre octets — portant une couche usdc et sa texture en sous-dossier.";
-const RULE: &str = "Un conteneur ne change rien à la scène qu'il emballe : le paquet est extrait sous le cache et la scène qui en sort est exactement celle de la même couche lue hors paquet. La couche racine est la première entrée du paquet, jamais une couche cherchée parmi les autres : celles-là sont des ressources. Un paquet mal disposé ou qui n'ouvre pas sur une couche USD est refusé par son code, jamais extrait à moitié.";
+const CASE: &str = "A compliant USDZ package — entries stored as-is, payloads aligned on sixty-four bytes — carrying a usdc layer and its texture in a subfolder.";
+const RULE: &str = "A container changes nothing of the scene it packs: the package is extracted under the cache and the scene that comes out is exactly that of the same layer read outside the package. The root layer is the first entry of the package, never a layer sought among the others: those are resources. A badly laid-out package or one that does not open on a USD layer is refused by its code, never half-extracted.";
 
-// Comportement 41 : une scène lue à travers son paquet USDZ est exactement la scène lue hors
-// paquet, la chaîne des deux pilotes est consignée, les paquets piégés sont refusés par leur code,
-// et un paquet qui porte deux couches livre celle de sa première entrée.
+// Behavior 41: scene read through USDZ package equals scene read outside
+// package, two driver chain recorded, trapped packages refused by code,
+// package carrying two layers delivers first entry.
 #[test]
 fn a_packaged_scene_compiles_to_the_same_thing_as_the_layer_outside_the_package() {
     let dir = golden_dir("usdz");
@@ -24,61 +24,61 @@ fn a_packaged_scene_compiles_to_the_same_thing_as_the_layer_outside_the_package(
     assert_eq!(
         inside.prepared("usd").1,
         outside.prepared("usd").1,
-        "la couche extraite du paquet diverge de la même couche hors paquet"
+        "the layer extracted from the package diverges from the same layer outside the package"
     );
     assert_eq!(
         hash(&inside.binary),
         hash(&outside.binary),
-        "le paquet et la couche nue ne compilent pas le même sidecar"
+        "the package and the bare layer do not compile the same sidecar"
     );
     assert_eq!(
         digest(&dir, &inside),
         golden_expected(&dir),
-        "fixture usdz : la sortie compilée diverge de expected.json"
+        "fixture usdz: compiled output diverges from expected.json"
     );
 }
 
 #[test]
-#[ignore = "écrit dans fixtures/ ; se relance à la main, et son diff se relit"]
+#[ignore = "writes into fixtures/; rerun by hand, and its diff is re-read"]
 fn regenere_la_fixture_usdz() {
     let dir = golden_dir("usdz");
     let run = compile_golden_source(&dir.join("scene.usdz"), "usdz-paquet");
     write_expected(&dir, digest(&dir, &run), CASE, RULE);
 }
 
-/// Ce que la dorée fixe : le pilote retenu, la chaîne publiée au rapport, les codes de refus des
-/// paquets piégés, et la scène elle-même. La clé de cache n'y figure pas : elle tient l'empreinte
-/// de toute l'implémentation du compilateur, qu'un changement sans rapport déplacerait.
+/// Golden fixes: retained driver, published report chain, refusal codes of
+/// trapped packages, scene itself. Cache key omitted: carries fingerprint
+/// of entire compiler implementation, unrelated change would shift.
 fn digest(dir: &Path, run: &GoldenRun) -> Value {
     json!({
-      "scenePlugin": run.result["scenePlugin"],
-      "chain": chain_report(run),
-      "refus": {
-        "compressee": refused_golden_source(&dir.join("compressee.usdz"), "usdz-compressee"),
-        "sansScene": refused_golden_source(&dir.join("sans-scene.usdz"), "usdz-sans-scene"),
-      },
-      // Deux couches à la racine : la première porte un triangle, la seconde un quadrilatère. Le
-      // compte de triangles dit donc laquelle le paquet a livrée, sans rien deviner.
-      "deuxCouchesTriangles":
-        compile_golden_source(&dir.join("deux-scenes.usdz"), "usdz-deux-scenes").result["sourceTriangles"],
-      "scene": {
-        "formatVersion": run.result["formatVersion"],
-        "manifestBinaryVersion": run.slim["binary"]["version"],
-        "sidecarSha256": hash(&run.binary),
-        "primitives": run.result["primitives"].as_array().expect("primitives").len(),
-        "selectedNodes": run.result["selectedNodes"],
-        "totalNodes": run.result["totalNodes"],
-        "selectedTriangles": run.result["selectedTriangles"],
-        "sourceTriangles": run.result["sourceTriangles"],
-      },
-    })
+          "scenePlugin": run.result["scenePlugin"],
+          "chain": chain_report(run),
+          "refus": {
+            "compressee": refused_golden_source(&dir.join("compressee.usdz"), "usdz-compressee"),
+            "sansScene": refused_golden_source(&dir.join("sans-scene.usdz"), "usdz-sans-scene"),
+          },
+    // Two layers at root: first carries triangle, second quad.
+    // Triangle count tells which package delivered, without guessing.
+          "deuxCouchesTriangles":
+            compile_golden_source(&dir.join("deux-scenes.usdz"), "usdz-deux-scenes").result["sourceTriangles"],
+          "scene": {
+            "formatVersion": run.result["formatVersion"],
+            "manifestBinaryVersion": run.slim["binary"]["version"],
+            "sidecarSha256": hash(&run.binary),
+            "primitives": run.result["primitives"].as_array().expect("primitives").len(),
+            "selectedNodes": run.result["selectedNodes"],
+            "totalNodes": run.result["totalNodes"],
+            "selectedTriangles": run.result["selectedTriangles"],
+            "sourceTriangles": run.result["sourceTriangles"],
+          },
+        })
 }
 
-/// La chaîne `usdz` → pilote interne, telle que le conteneur l'a publiée au rapport.
+/// `usdz` -> internal driver chain, as container published in report.
 fn chain_report(run: &GoldenRun) -> Value {
     run.reports
         .iter()
         .find(|report| report["phase"] == "archive" && report["step"] == "routed")
         .map(|report| report["chain"].clone())
-        .expect("le conteneur publie la chaîne des pilotes")
+        .expect("the container publishes the driver chain")
 }

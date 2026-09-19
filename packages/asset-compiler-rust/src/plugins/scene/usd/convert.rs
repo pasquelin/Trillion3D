@@ -1,11 +1,11 @@
-//! De la couche demandée à la scène intermédiaire écrite dans le cache.
+//! From the requested layer to the intermediate scene written into the cache.
 //!
-//! Le parcours part du `defaultPrim` quand la couche en désigne un — c'est ce que la spécification
-//! nomme le point d'entrée de l'asset — et de toutes les racines sinon. Une racine de scène porte
-//! l'unité et l'axe haut de la couche, de sorte que le reste de la hiérarchie s'écrit tel quel.
+//! The walk starts from `defaultPrim` when the layer names one — that is what the specification
+//! calls the asset entry point — and from every root otherwise. A scene root carries the layer's
+//! unit and up axis, so the rest of the hierarchy is written as-is.
 use super::*;
 
-/// Lit la couche et écrit sa conversion dans le cache. Rien n'est écrit à côté de la source.
+/// Reads the layer and writes its conversion into the cache. Nothing is written beside the source.
 pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Result<PathBuf> {
     let started = Instant::now();
     let file = super::source_file(request.inputs)?;
@@ -31,7 +31,7 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
     )
 }
 
-/// Ouvre la couche composée. Une couche illisible s'arrête ici, nommée, sans rien avoir écrit.
+/// Opens the composed layer. An unreadable layer stops here, named, having written nothing.
 fn open(file: &Path) -> Result<usd::Stage> {
     usd::Stage::open(&file.to_string_lossy()).map_err(|error| {
         CompilerError::new(
@@ -41,7 +41,7 @@ fn open(file: &Path) -> Result<usd::Stage> {
     })
 }
 
-/// Parcourt la scène composée et remplit les tables.
+/// Walks the composed scene and fills the tables.
 fn traverse(scene: &mut Scene, stage: &usd::Stage, images: &Path, request: &SceneRequest<'_>) {
     let mut world = World {
         stage,
@@ -52,8 +52,8 @@ fn traverse(scene: &mut Scene, stage: &usd::Stage, images: &Path, request: &Scen
         meshes: HashMap::new(),
         cancelled: request.cancelled,
     };
-    // La racine porte l'unité de la couche : une longueur lue sous elle, comme le rayon d'une
-    // lampe, se met en mètres par cette même échelle, et le parcours la descend avec lui.
+    // The root carries the layer unit: a length read under it, such as a light's radius, is
+    // put into metres by that same scale, and the walk takes it down with it.
     let unit = layer::meters_per_unit(stage);
     let children: Vec<usize> = roots(stage)
         .iter()
@@ -67,9 +67,9 @@ fn traverse(scene: &mut Scene, stage: &usd::Stage, images: &Path, request: &Scen
     world.scene.node(root);
 }
 
-/// Les prims par lesquels le parcours commence : toutes les racines de la scène. `defaultPrim`
-/// nomme le point d'entrée de l'asset, il ne retranche rien de la couche — il passe donc en tête,
-/// et les autres racines suivent dans l'ordre où la composition les présente.
+/// Prims the walk starts from: every scene root. `defaultPrim` names the asset entry point; it
+/// subtracts nothing from the layer — it therefore goes first, and the other roots follow in the
+/// order composition presents them.
 fn roots(stage: &usd::Stage) -> Vec<usd::Prim> {
     let mut roots = stage
         .prim("/")

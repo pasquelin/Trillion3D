@@ -3,32 +3,32 @@ import { BOUNCE_GRID_WGSL } from './bounceGridWgsl.ts';
 import { residentProxyWgsl } from './bounceNodeWgsl.ts';
 import { BOUNCE_TRACE_WGSL } from './bounceTraceWgsl.ts';
 
-/** Fils d'un groupe de travail de la passe de sondes : un groupe par sonde, un fil par rayon. */
+/** Threads of a probe-pass workgroup: one group per probe, one thread per ray. */
 const BOUNCE_WORKGROUP = 64;
-/** Étiquette de la passe mesurée ; l'étape « Rebond » est lue sous ce nom, pas par son rang. */
+/** Label of the measured pass; the "Bounce" step is read under this name, not by its rank. */
 export const BOUNCE_PROBE_PASS = 'WG bounce probes v1';
 
 /**
- * La mise à jour des sondes d'irradiance des cascades.
+ * Update of the cascade irradiance probes.
  *
- * Une sonde lance un budget fixe de rayons contre le proxy résident et lit, à la maille touchée, la
- * radiance que le cache de surfaces y tient déjà — direct, ombres et rebond du tour précédent. Elle
- * accumule le tout en harmoniques sphériques d'**ordre 2**, neuf coefficients : un terme constant,
- * trois linéaires et cinq quadratiques, qui rendent un champ d'irradiance bien plus net qu'une base
- * d'ordre 1 sur la même dépense de rayons.
+ * A probe fires a fixed budget of rays against the resident proxy and reads, at the hit
+ * texel, the radiance the surface cache already holds there — direct, shadows and bounce
+ * of the previous round. It accumulates it all in **order-2** spherical harmonics, nine
+ * coefficients: one constant term, three linear and five quadratic, which make a much
+ * sharper irradiance field than an order-1 basis on the same ray spend.
  *
- * Les sondes mises à jour sont celles d'un lot réparti entre les niveaux : le plus fin entoure la
- * caméra et reçoit la plus grosse part. Une sonde dont la maille a changé — la cascade a glissé —
- * repart de zéro ; une sonde qui garde sa maille garde son travail. Une sonde enterrée dans une
- * surface ou perdue en plein ciel s'endort : les mises à jour suivantes la sautent sans lancer un
- * rayon, jusqu'à ce qu'une lampe change ou qu'elle change de maille. C'est là le placement demandé —
- * mesuré par la sonde elle-même, jamais deviné par une règle sur la scène.
+ * The probes updated are those of a batch split among the levels: the finest surrounds
+ * the camera and receives the largest share. A probe whose cell has changed — the cascade
+ * has slid — starts from zero; a probe that keeps its cell keeps its work. A probe buried
+ * in a surface or lost in open sky goes to sleep: later updates skip it without firing a
+ * ray, until a light changes or it changes cell. That is the requested placement —
+ * measured by the probe itself, never guessed by a rule on the scene.
  *
- * L'amortissement est adaptatif : une sonde dont l'estimation saute converge vite, une sonde stable
- * bouge à peine. Rien n'alloue, rien ne boucle sans borne, et une scène sans lampe déclarée écrit
- * exactement zéro (P6). La grille est lue sur une copie figée avant la passe et écrite ailleurs :
- * une mise à jour ne voit jamais une voisine à demi écrite, et l'image à l'état stable ne dépend pas
- * de l'ordre dans lequel la carte a ordonnancé ses fils.
+ * Damping is adaptive: a probe whose estimate jumps converges fast, a stable probe barely
+ * moves. Nothing allocates, nothing loops unbounded, and a scene without a declared light
+ * writes exactly zero (P6). The grid is read from a snapshot frozen before the pass and
+ * written elsewhere: an update never sees a neighbour half-written, and the steady-state
+ * frame does not depend on the order in which the GPU scheduled its threads.
  */
 export const BOUNCE_PROBE_SHADER = `
 @group(0) @binding(0) var<uniform> bounce:BounceGrid;
@@ -48,14 +48,14 @@ const MOVING_RESIDUAL:f32=${BOUNCE_SETTINGS.movingResidual};
 const BOUNCE_BURIED:f32=${BOUNCE_SETTINGS.buriedFraction};
 const BOUNCE_SKY:f32=${BOUNCE_SETTINGS.skyFraction};
 const GOLDEN_ANGLE:f32=2.39996323;
-/** Un entier mélangé puis ramené dans [0,1) : la graine d'une rotation, jamais un nombre au hasard. */
+/** An integer mixed then folded into [0,1): the seed of a rotation, never a random number. */
 fn hashUnit(seed:u32)->f32{
  var x=seed*747796405u+2891336453u;
  x=((x>>((x>>28u)+4u))^x)*277803737u;
  x=(x>>22u)^x;
  return f32(x)*2.3283064e-10;
 }
-/** Une direction d'une spirale de Fibonacci, décalée à chaque mise à jour pour couvrir la sphère. */
+/** A direction of a Fibonacci spiral, offset on every update to cover the sphere. */
 fn rayDirection(slot:u32,jitter:f32,rotation:f32)->vec3f{
  let index=f32(slot)+jitter;
  let z=1.0-2.0*index/f32(RAYS_PER_PROBE);
@@ -64,26 +64,26 @@ fn rayDirection(slot:u32,jitter:f32,rotation:f32)->vec3f{
  return vec3f(radius*cos(angle),radius*sin(angle),z);
 }
 /**
- * La radiance qu'un rayon rapporte : rien s'il ne touche rien, la maille touchée sinon. C'est une
- * lecture, plus un calcul : le cache de surfaces porte déjà la radiance sortante de cette face.
+ * Radiance a ray brings back: nothing if it hits nothing, the hit texel otherwise. It is a
+ * read, not a compute: the surface cache already holds the outgoing radiance of that face.
  */
 fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
  let hit=traceProxy(origin,direction,reach);
  if(!hit.found){return vec4f(0.0,0.0,0.0,reach);}
- // La face qui compte est celle qui regarde le rayon : le proxy est double face par construction.
+ // The face that counts is the one looking at the ray: the proxy is two-sided by construction.
  let face=select(0u,1u,dot(proxyNormal(hit.triangle),direction)>0.0);
  let texel=hit.triangle*2u+face;
  if(texel>=arrayLength(&surface)){return vec4f(0.0,0.0,0.0,hit.distance);}
  return vec4f(surface[texel].rgb,hit.distance);
 }
-/** Les sommes partielles d'un groupe : neuf accumulateurs de base, quatre de distance, un de trajet. */
+/** Partial sums of a group: nine basis accumulators, four of distance, one of travel. */
 var<workgroup> partial:array<array<vec3f,${BOUNCE_WORKGROUP}>,13>;
 var<workgroup> partialTravelled:array<f32,${BOUNCE_WORKGROUP}>;
 @compute @workgroup_size(${BOUNCE_WORKGROUP})
 fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) lane:u32){
  if(group.x>=bounce.frame.y||bounce.counts.w==0u){return;}
- // La file dit, rang par rang, quelle sonde de quel niveau travaille : l'ordonnanceur l'a remplie
- // en sautant les mailles que la carte d'occupation déclare sans intérêt.
+ // The queue says, rank by rank, which probe of which level works: the scheduler filled
+ // it by skipping the cells the occupancy map declares of no interest.
  let packed=probeQueue[group.x];
  let perLevel=max(bounce.counts.z,1u);
  let level=packed/perLevel;
@@ -92,12 +92,12 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  let side=i32(bounce.counts.x);
  let base=vec3i(bounce.levels[level].base.xyz);
  let ranked=vec3i(vec3u(rank%bounce.counts.x,(rank/bounce.counts.x)%bounce.counts.x,rank/(bounce.counts.x*bounce.counts.x)));
- // La maille que ce rang porte dans ce niveau : l'inverse du rangement torique, dans [base,base+côté).
+ // The cell this rank carries in this level: the inverse of toroidal storage, in [base,base+side).
  let cell=base+(((ranked-base)%side)+side)%side;
  let slot=probeSlot(level,cell);
  let held=all(probeCell(slot)==cell);
- // Une sonde endormie — enterrée dans une surface ou perdue en plein ciel — ne relance aucun rayon
- // tant que sa maille ne change pas et qu'aucune lampe n'a bougé.
+ // A sleeping probe — buried in a surface or lost in open sky — fires no ray
+ // as long as its cell does not change and no light has moved.
  if(held&&probes[slot+PROBE_IDLE].w==f32(bounce.frame.x)){return;}
  let spacing=bounce.levels[level].originSpacing.w;
  let origin=probeCentre(cell,spacing);
@@ -106,8 +106,8 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  let jitter=hashUnit(rank*6151u+bounce.frame.z*131u);
  var sums:array<vec3f,13>;
  var travelled=0.0;
- // Un fil par rayon : une sonde à soixante-quatre rayons occupe un groupe entier, là où un fil
- // seul les enchaînait l'un après l'autre et laissait la carte inoccupée.
+ // One thread per ray: a probe at sixty-four rays occupies a whole group, where a single
+ // thread chained them one after another and left the GPU idle.
  for(var ray=lane;ray<RAYS_PER_PROBE;ray+=WORKGROUP){
   let d=rayDirection(ray,jitter,rotation);
   let sample=rayRadiance(origin,d,reach);
@@ -129,8 +129,8 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
   sums[11]+=(weight-positive)*span;
   sums[12]+=weight-positive;
  }
- // Les sommes des fils du groupe se rassemblent par moitiés successives : une seule barrière par
- // tour, et le fil zéro écrit la sonde.
+ // The group's thread sums gather by successive halves: one barrier per
+ // round, and thread zero writes the probe.
  for(var k=0u;k<13u;k++){partial[k][lane]=sums[k];}
  partialTravelled[lane]=travelled;
  for(var stride=WORKGROUP/2u;stride>0u;stride>>=1u){
@@ -144,21 +144,21 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  if(lane!=0u){return;}
  for(var k=0u;k<13u;k++){sums[k]=partial[k][0];}
  travelled=partialTravelled[0]/f32(RAYS_PER_PROBE);
- // Une sonde enfermée dans une surface touche quelque chose dans toutes les directions, à bout
- // portant ; une sonde en plein ciel ne touche rien. Le critère est une distance, jamais un sens
- // d'enroulement : celui-ci n'est fiable sur aucune scène importée, et le proxy est double face.
+ // A probe locked in a surface hits something in every direction, at point-blank
+ // range; a probe in open sky hits nothing. The criterion is a distance, never a winding
+ // order: that is reliable on no imported scene, and the proxy is two-sided.
  let buried=travelled<spacing*BOUNCE_BURIED;
  let asleep=buried||travelled>reach*BOUNCE_SKY;
  let usable=select(1.0,0.0,buried);
- // Estimateur de Monte-Carlo sur la sphère entière : 4π divisé par le nombre de rayons.
+ // Monte-Carlo estimator over the whole sphere: 4π divided by the ray count.
  let scale=12.5663706/f32(RAYS_PER_PROBE);
  let updates=select(0.0,probes[slot].w,held);
  let previous=select(vec3f(0.0),probes[slot].xyz,held);
  let fresh=sums[0]*scale;
  let change=length(fresh-previous)/(length(fresh)+length(previous)+1e-4);
- // Hystérésis adaptative. Une sonde neuve, ou qui vient de changer de maille, prend tout ; une
- // sonde stable suit une moyenne courante, qui lisse le bruit de Monte-Carlo sans figer l'image ;
- // une sonde dont l'estimation saute reprend presque tout et repart d'un compte bas.
+ // Adaptive hysteresis. A new probe, or one that just changed cell, takes everything; a
+ // stable probe follows a running average, which smooths Monte-Carlo noise without freezing the frame;
+ // a probe whose estimate jumps takes almost everything and restarts from a low count.
  var blend=max(1.0/(updates+1.0),BLEND_STABLE);
  var count=updates+1.0;
  if(change>MOVING_RESIDUAL){blend=BLEND_MOVING;count=1.0;}

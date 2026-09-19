@@ -1,5 +1,5 @@
-//! La lecture d'un fichier de lot : ce que chaque travail demande, et ce que le budget du lot
-//! permet d'en admettre de front. Séparé de son exécution pour tenir la limite de lignes du dépôt.
+//! Reading a batch file: what each job asks for, and what the batch budget allows
+//! to admit in parallel. Split from its execution to keep the repository line limit.
 use super::Cancellation;
 use serde_json::Value;
 use std::path::{Component, Path, PathBuf};
@@ -21,12 +21,13 @@ fn number(value: Option<&Value>, default: usize) -> Result<usize, String> {
 fn text<'a>(value: Option<&'a Value>, default: &'a str) -> &'a str {
     value.and_then(Value::as_str).unwrap_or(default)
 }
-/// L'identité d'une destination, qu'elle existe déjà ou non. `canonicalize` seul échoue sur un
-/// dossier absent et rend alors le texte brut : `x` et `p/../x` passaient pour deux caches. On
-/// résout donc en deux temps. D'abord le chemin devient absolu et ses `.` disparaissent, chaque `..`
-/// remontant depuis le chemin canonicalisé quand il existe — un `..` derrière un lien symbolique ne
-/// remonte pas là où le texte le dit. Ensuite le plus long préfixe existant est canonicalisé et le
-/// suffixe absent lui est réappliqué. Les séparateurs doublés ne survivent pas au parcours.
+/// Identity of a destination, whether it already exists or not. `canonicalize`
+/// alone fails on a missing folder and then returns the raw text: `x` and `p/../x`
+/// used to pass as two caches. Resolution is therefore two-step. First the path
+/// becomes absolute and its `.` disappear, each `..` walking up from the
+/// canonicalised path when it exists — a `..` behind a symlink does not walk up
+/// where the text says. Then the longest existing prefix is canonicalised and the
+/// missing suffix is reapplied. Doubled separators do not survive the walk.
 fn cache_identity(path: &Path) -> PathBuf {
     let mut walked = if path.is_absolute() {
         PathBuf::new()
@@ -70,8 +71,8 @@ pub(super) fn parse_batch(
     let workers = number(spec.get("workers"), 1)?.min(64);
     let ram_total = number(spec.get("ramBudgetMb"), 256 * workers)?;
     let default_threads = number(spec.get("threads"), 2)?;
-    // La concurrence annoncée n'est admise que si le total la porte : une part ne descend jamais
-    // sous le plancher d'un travail, donc c'est le nombre d'ouvriers qui cède.
+    // Announced concurrency is admitted only if the total can carry it: a share
+    // never goes below a job's floor, so it is the worker count that yields.
     let (workers, default_ram) = batch_share(workers, ram_total)?;
     let jobs = spec
         .get("jobs")
@@ -125,7 +126,7 @@ pub(super) fn parse_batch(
         };
         parsed.push((id, options));
     }
-    // Les parts que les travaux réclament eux-mêmes entrent dans le même total : les plus gourmands
-    // qui tourneraient de front doivent y tenir ensemble.
+    // Shares that jobs themselves request enter the same total: the greediest
+    // that would run in parallel must fit there together.
     Ok((fit_workers(workers, ram_total, &parsed)?, parsed))
 }

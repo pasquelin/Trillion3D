@@ -1,18 +1,18 @@
 import type { ClusterStructureIndex } from './pageSelectionTypes.ts';
 
 /**
- * Liens ascendants de la hiérarchie de culling : le parent de chaque nœud, le nœud feuille de
- * chaque cluster. La forme du DAG ne dépend d'aucune matrice monde : ces deux tableaux sont
- * calculés une fois par primitive et partagés par toutes ses instances.
+ * Upward links of the culling hierarchy: each node's parent, each cluster's leaf node. The DAG's
+ * shape depends on no world matrix: these two arrays are computed once per primitive and shared
+ * by all of its instances.
  *
- * Ils servent une seule chose : savoir, sans balayer un sous-arbre, si un groupe forcé le touche.
- * Le repli par forçage ne teste pas la coupe mais le groupe forcé — un sous-arbre qu'aucun groupe
- * forcé ne touche décide donc comme la coupe ordinaire, et un sous-arbre touché se descend.
+ * They serve one thing: knowing, without sweeping a subtree, whether a forced group touches it.
+ * The forcing fallback does not test the cut but the forced group — a subtree that no forced
+ * group touches therefore decides like the ordinary cut, and a touched subtree is descended.
  */
 export type CullingLinks = { parents: Int32Array; leafOfPage: Int32Array };
 
-/** Marques de forçage d'une instance : combien de clusters forcés chaque sous-arbre contient.
- *  Zéro vaut « aucun groupe forcé ici », la seule lecture que la descente en fait. */
+/** Forcing marks of an instance: how many forced clusters each subtree contains.
+ *  Zero means "no forced group here", the only read the descent makes of it. */
 export type ForcedMarks = Int32Array;
 
 export function cullingLinks(
@@ -37,7 +37,7 @@ export function cullingLinks(
   return { parents, leafOfPage };
 }
 
-/** Porte un cluster et ses ancêtres à la marque `delta`. Un cluster hors hiérarchie ne porte rien. */
+/** Carries a cluster and its ancestors to the mark `delta`. A cluster outside the hierarchy carries nothing. */
 function markPage(links: CullingLinks, marks: ForcedMarks, page: number, delta: number) {
   let node = links.leafOfPage[page];
   while (node >= 0) {
@@ -47,18 +47,18 @@ function markPage(links: CullingLinks, marks: ForcedMarks, page: number, delta: 
 }
 
 /**
- * Marque (`delta` 1) ou démarque (`delta` -1) les nœuds que ce groupe touche : ceux dont le
- * sous-arbre contient un cluster que le groupe produit ou un cluster qu'il remplace. Ce sont
- * exactement les deux lectures que `drawnUnderForcing` fait du tableau des groupes forcés,
- * `forced[source]` et `forced[group]` ; hors de ces sous-arbres, le forçage ne change rien.
+ * Marks (`delta` 1) or unmarks (`delta` -1) the nodes this group touches: those whose subtree
+ * contains a cluster the group produces or a cluster it replaces. Those are exactly the two
+ * reads `drawnUnderForcing` makes of the forced-group array, `forced[source]` and `forced[group]`;
+ * outside those subtrees, forcing changes nothing.
  *
- * Le coût est celui des clusters du groupe, multiplié par la profondeur de la hiérarchie : un
- * groupe forcé en touche quelques dizaines, jamais la primitive entière.
+ * The cost is that of the group's clusters, times the depth of the hierarchy: a forced group
+ * touches a few dozen, never the whole primitive.
  *
- * Les liens de groupes du manifeste sont la seule source : `outputs` nomme les clusters dont
- * `source` est ce groupe, `children` ceux dont `group` l'est. C'est la correspondance dont
- * `forceCoarse` vit déjà — il empile `pages[structure.outputs[i]]` puis relit `rec.group` —,
- * pas une seconde table dérivée des fiches.
+ * The manifest's group links are the only source: `outputs` names the clusters whose `source` is
+ * this group, `children` those whose `group` is. That is the correspondence `forceCoarse` already
+ * lives on — it pushes `pages[structure.outputs[i]]` then re-reads `rec.group` — not a second
+ * table derived from the records.
  */
 export function markForcedGroup(
   links: CullingLinks,

@@ -2,18 +2,18 @@ import { matrixWindingCw } from '../sdk-core/index.ts';
 import type { PageRec } from './pageSelectionTypes.ts';
 
 /**
- * Le sens de parcours d'un cluster : vrai quand la matrice monde renverse l'orientation, ce qui
- * échange la face à éliminer. C'est un déterminant 3×3, et il ne change que lorsque la matrice
- * change — jamais entre deux images d'une scène immobile. Il était pourtant recalculé pour chaque
- * page et chaque image, jusqu'à quatre fois par page selon les chemins de dessin.
+ * Winding of a cluster: true when the world matrix reverses orientation, which swaps the culled
+ * face. It is a 3×3 determinant, and it changes only when the matrix changes — never between two
+ * images of a still scene. It was nonetheless recomputed for every page and every image, up to four
+ * times per page depending on the draw paths.
  *
- * L'époque est celle de la table de lignes, que le moteur incrémente déjà dès qu'une matrice monde
- * peut avoir bougé : `renderWebgpuPages` la pose en tête d'image, et un cluster dont l'époque
- * correspond rend la valeur déjà calculée. Une époque de trop ne fait que recalculer.
+ * The epoch is the row table's, which the engine already increments as soon as a world matrix may
+ * have moved: `renderWebgpuPages` posts it at the head of the image, and a cluster whose epoch
+ * matches yields the already-computed value. One extra epoch only recomputes.
  */
 let epoque = 0;
 
-/** Pose l'époque de l'image. Au-delà, tout sens de parcours mémorisé est repris à zéro. */
+/** Posts the image's epoch. Beyond it, every memoised winding is taken back to zero. */
 export function setWindingEpoch(valeur: number) {
   epoque = valeur;
 }

@@ -2,32 +2,30 @@ import { PROXY_TRIANGLE_FLOATS, type SceneProxy } from './proxyContracts.ts';
 import type { BounceCascades } from './bounceCascades.ts';
 
 /**
- * Où il vaut la peine de tenir une sonde : la carte d'occupation des cascades.
+ * Where keeping a probe is worthwhile: cascade occupancy map.
  *
- * Une cascade posée sur une ville passe l'essentiel de ses mailles sur du ciel vide et sur le cœur
- * plein des blocs, où personne ne relira jamais une irradiance. L'ordonnanceur a donc besoin de
- * savoir, avant de dépenser un rayon, si une maille touche de la géométrie. C'est une propriété du
- * monde, pas de la caméra : elle se calcule une fois, à la construction, et vaut pour toutes les
- * positions que les niveaux mobiles prendront ensuite.
+ * A cascade across a city spends most cells on empty sky and solid building cores,
+ * where irradiance is never queried. The scheduler needs to know, before spending a ray,
+ * whether a cell touches geometry. This is a property of the world, not the camera: calculated
+ * once at construction, valid for all positions mobile levels take later.
  *
- * La carte du niveau le plus fin est marquée par les boîtes des triangles du proxy, plus une
- * couronne d'une maille : les huit coins d'une maille occupée sont alors toujours tenus, et rien de
- * ce qui sert n'est perdu. Les niveaux suivants en sont la réduction exacte — deux mailles pour
- * une sur chaque axe, puisque leurs écartements sont des puissances de deux du plus fin — puis
- * dilatés à leur tour d'une maille, pour la même raison.
+ * The finest level map is marked by bounding boxes of proxy triangles plus a one-cell
+ * boundary: eight corners of an occupied cell are always retained, so nothing useful is lost.
+ * Subsequent levels are exact reductions — two cells to one per axis, since spacings are
+ * power-of-two multiples of the finest — then dilated by one cell for the same reason.
  *
- * Rien ici ne nomme une scène ni ne regarde la caméra : une emprise, des triangles, des mailles.
+ * Nothing here names a scene or inspects the camera: extent, triangles, cells.
  */
 export interface BounceOccupancy {
-  /** Vrai quand la maille d'un niveau, dans le réseau global de ce niveau, mérite une sonde. */
+  /** True when a level's cell in its global lattice warrants a probe. */
   occupied(level: number, x: number, y: number, z: number): boolean;
-  /** Mailles marquées et mailles totales du niveau le plus fin : le gain, publié. */
+  /** Marked cells and total cells of the finest level: published gain. */
   marked: number;
   cells: number;
   bytes: number;
 }
 
-/** Marque un pavé de mailles, bornes comprises, en restant dans la carte. */
+/** Marks a block of cells, bounds included, staying within map. */
 function mark(map: Uint8Array, dims: number[], low: number[], high: number[]) {
   const x0 = Math.max(0, low[0]),
     y0 = Math.max(0, low[1]),
@@ -42,7 +40,7 @@ function mark(map: Uint8Array, dims: number[], low: number[], high: number[]) {
     }
 }
 
-/** La réduction d'une carte : une maille du niveau suivant est marquée si l'une des huit l'est. */
+/** Map reduction: a cell in the next level is marked if any of the eight sub-cells are marked. */
 function reduce(map: Uint8Array, dims: number[]) {
   const next = dims.map((size) => Math.max(1, Math.ceil(size / 2)));
   const out = new Uint8Array(next[0] * next[1] * next[2]);
@@ -56,7 +54,7 @@ function reduce(map: Uint8Array, dims: number[]) {
   return { map: out, dims: next };
 }
 
-/** Dilate une carte d'une maille dans les trois axes : la couronne que l'interpolation demande. */
+/** Dilates a map by one cell along three axes: required boundary for interpolation. */
 function dilate(map: Uint8Array, dims: number[]) {
   const out = new Uint8Array(map.length);
   for (let z = 0; z < dims[2]; z++)
@@ -73,9 +71,8 @@ export function createBounceOccupancy(
   cascades: BounceCascades,
 ): BounceOccupancy {
   const spacing = cascades.levels[0].spacing;
-  // L'origine et les dimensions sont alignées sur la plus grosse réduction : sans cela une maille
-  // d'un niveau grossier ne serait pas exactement le bloc de huit du niveau précédent, et la
-  // réduction mentirait d'une maille sur deux.
+  // Origin and dimensions are aligned to the largest reduction: otherwise a coarse level cell
+  // would not equal the exact eight-block of the previous level, lying by one cell out of two.
   const align = 2 ** (cascades.levels.length - 1);
   const floorTo = (value: number) => Math.floor(value / align) * align;
   const origin = [0, 1, 2].map((axis) => floorTo(Math.floor(proxy.bounds[axis] / spacing) - 2));
@@ -121,7 +118,7 @@ export function createBounceOccupancy(
     cells,
     bytes,
     marked: maps[0].map.reduce((sum, value) => sum + value, 0),
-    // Appelée une fois par sonde examinée, à chaque image : rien n'y est alloué ni parcouru.
+    // Called once per examined probe each frame: nothing allocated or traversed.
     occupied(level, x, y, z) {
       const entry = maps[Math.min(level, maps.length - 1)];
       const [width, height, depth] = entry.dims;

@@ -1,8 +1,8 @@
-// hostWorldTree.ts : les matrices monde d'un sous-arbre, calculées par LE MOTEUR depuis les poses
-// locales de l'hôte, confrontées au bit près (Object.is) à `node.matrixWorld` après
-// `updateMatrixWorld(true)` de la référence — sur une vraie scène de la bibliothèque hôte avec
-// parents, échelles négatives et non uniformes, `-0`, demi-tours et un nœud dont l'hôte a posé la
-// matrice lui-même. Les deux chemins sont éprouvés : le lot de hiérarchie et l'arbre du socle.
+// hostWorldTree.ts: world matrices of a subtree, computed by THE ENGINE from the host's local
+// poses, compared bit-exact (Object.is) to `node.matrixWorld` after the reference's
+// `updateMatrixWorld(true)` — on a real host-library scene with parents, negative and non-uniform
+// scales, `-0`, half-turns and a node whose host set the matrix itself. Both paths are tried:
+// the hierarchy batch and the core tree.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -16,7 +16,7 @@ import { assertBits } from '../sdk-core/bench/oracles/volumes.mjs';
 
 await prepareSdkWasm(readFileSync(join(import.meta.dirname, 'pageCodec.wasm')));
 
-/** Échelles, rotations et positions hostiles, tirées à tour de rôle par la construction. */
+/** Hostile scales, rotations and positions, drawn in turn by the construction. */
 const ECHELLES = [
   [1, 1, 1],
   [-1, 2, 0.5],
@@ -38,9 +38,8 @@ const POSITIONS = [
 ];
 
 /**
- * Une scène de l'hôte : une racine, trois niveaux, cinq enfants par nœud du premier niveau. Chaque
- * nœud tire sa pose dans les listes ci-dessus ; une échelle non uniforme sous une rotation parente
- * cisaille la matrice monde.
+ * A host scene: one root, three levels, five children per first-level node. Each node draws its
+ * pose from the lists above; a non-uniform scale under a parent rotation shears the world matrix.
  */
 function scene(pose?: (node: THREE.Object3D, rang: number) => void) {
   const nodes: THREE.Object3D[] = [];
@@ -64,7 +63,7 @@ function scene(pose?: (node: THREE.Object3D, rang: number) => void) {
   return { racine, nodes };
 }
 
-/** Chaque nœud comparé à ce que la référence a composé pour lui. */
+/** Each node compared to what the reference composed for it. */
 function compare(
   nodes: readonly THREE.Object3D[],
   mondes: { world(n: THREE.Object3D): Float64Array },
@@ -72,21 +71,21 @@ function compare(
   for (const node of nodes) assertBits(mondes.world(node), node.matrixWorld.elements);
 }
 
-test('les matrices monde du moteur sont celles de la référence, au bit près, par le LOT de hiérarchie', async () => {
+test('engine world matrices are the reference’s, bit-exact, via the hierarchy BATCH', async () => {
   await prepareMathBatch('wasm');
   const { racine, nodes } = scene();
   const lot = await hostWorldLot(racine);
   assert.ok(lot);
   const mondes = hostWorldTree(racine, lot);
-  assert.equal(mondes.n, nodes.length, 'tout le sous-arbre est indexé');
-  assert.equal(mondes.batched, true, 'un sous-arbre qui recompose part en lot');
-  // La référence compose APRÈS le moteur : rien de ce qu'elle écrit n'a pu servir d'entrée.
+  assert.equal(mondes.n, nodes.length, 'the whole subtree is indexed');
+  assert.equal(mondes.batched, true, 'a subtree that recomposes goes to the batch');
+  // The reference composes AFTER the engine: nothing it writes could have served as input.
   racine.updateMatrixWorld(true);
   compare(nodes, mondes);
   lot.release();
 });
 
-test('le chemin JavaScript du lot rend les mêmes bits que le chemin WebAssembly', async () => {
+test('the batch JavaScript path yields the same bits as the WebAssembly path', async () => {
   const { racine, nodes } = scene();
   const lot = await hostWorldLot(racine);
   assert.ok(lot);
@@ -98,24 +97,24 @@ test('le chemin JavaScript du lot rend les mêmes bits que le chemin WebAssembly
   lot.release();
 });
 
-test('un nœud dont l’hôte a posé la matrice lui-même passe par l’arbre du socle, aux mêmes bits', async () => {
+test('a node whose host set the matrix itself goes through the core tree, at the same bits', async () => {
   await prepareMathBatch('wasm');
   const { racine, nodes } = scene((node, rang) => {
     if (rang !== 7) return;
     node.matrixAutoUpdate = false;
-    // Un cisaillement : aucune pose translation-rotation-échelle ne le donne.
+    // A shear: no translation-rotation-scale pose yields it.
     node.matrix.set(1, 0.7, 0, 5, 0, 1, 0, -2, 0, 0, 3, 0, 0, 0, 0, 1);
   });
   const lot = await hostWorldLot(racine);
   assert.ok(lot);
   const mondes = hostWorldTree(racine, lot);
-  assert.equal(mondes.batched, false, 'le lot ne sait pas recevoir une matrice posée');
+  assert.equal(mondes.batched, false, 'the batch cannot receive a set matrix');
   racine.updateMatrixWorld(true);
   compare(nodes, mondes);
   lot.release();
 });
 
-test('sans lot, l’arbre du socle rend les mêmes bits que la référence', () => {
+test('without the batch, the core tree yields the same bits as the reference', () => {
   const { racine, nodes } = scene();
   const mondes = hostWorldTree(racine);
   assert.equal(mondes.batched, false);
@@ -123,16 +122,16 @@ test('sans lot, l’arbre du socle rend les mêmes bits que la référence', () 
   compare(nodes, mondes);
 });
 
-test('le moteur n’écrit jamais `matrixWorld` chez l’hôte', () => {
+test('the engine never writes `matrixWorld` on the host', () => {
   const { racine, nodes } = scene();
   const mondes = hostWorldTree(racine);
   const identite = new THREE.Matrix4().elements;
   for (const node of nodes) assertBits(node.matrixWorld.elements, identite);
-  // Et ce que le moteur tient, lui, n'est pas l'identité : la comparaison n'est pas vide.
+  // And what the engine holds is not identity: the comparison is not empty.
   assert.notEqual(mondes.world(nodes[3])[12], 0);
 });
 
-test('l’index couvre les ancêtres de la racine du sous-arbre : le moteur ne part pas d’un parent périmé', () => {
+test('the index covers ancestors of the subtree root: the engine does not start from a stale parent', () => {
   const { racine, nodes } = scene();
   const grandParent = new THREE.Group();
   grandParent.position.set(9, -9, 9);
@@ -142,12 +141,12 @@ test('l’index couvre les ancêtres de la racine du sous-arbre : le moteur ne p
   grandParent.add(parent);
   parent.add(racine);
   const mondes = hostWorldTree(racine);
-  assert.equal(mondes.n, nodes.length + 2, 'les deux ancêtres sont indexés');
+  assert.equal(mondes.n, nodes.length + 2, 'both ancestors are indexed');
   grandParent.updateMatrixWorld(true);
   compare([grandParent, parent, ...nodes], mondes);
 });
 
-test('`refresh` reprend une pose que l’hôte vient d’écrire, sur les deux chemins', async () => {
+test('`refresh` takes a pose the host has just written, on both paths', async () => {
   await prepareMathBatch('wasm');
   const { racine, nodes } = scene();
   const lot = await hostWorldLot(racine);
@@ -160,7 +159,7 @@ test('`refresh` reprend une pose que l’hôte vient d’écrire, sur les deux c
   lot.release();
 });
 
-test('les vues du lot survivent à une croissance de la mémoire du module', async () => {
+test('batch views survive a growth of the module memory', async () => {
   await prepareMathBatch('wasm');
   const { racine, nodes } = scene();
   const lot = await hostWorldLot(racine);
@@ -170,7 +169,7 @@ test('les vues du lot survivent à une croissance de la mémoire du module', asy
   const wasm = await prepareSdkWasm();
   assert.ok(wasm);
   const gros = wasm.arena_alloc(64 * 1024 * 1024);
-  assert.ok(gros, 'la grande réservation doit aboutir');
+  assert.ok(gros, 'the large reservation must succeed');
   const apres = mondes.world(nodes[9]);
   assert.equal(apres.length, MATRIX_VALUES);
   assertBits(apres, avant);
@@ -178,7 +177,7 @@ test('les vues du lot survivent à une croissance de la mémoire du module', asy
   lot.release();
 });
 
-test('un nœud hors de l’index est refusé, il ne rend pas une pose neutre', () => {
+test('a node outside the index is refused, it does not yield a neutral pose', () => {
   const { racine } = scene();
   const etranger = new THREE.Group();
   etranger.name = 'etranger';

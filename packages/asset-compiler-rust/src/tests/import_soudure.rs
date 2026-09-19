@@ -1,7 +1,8 @@
-//! La soudure des sommets à l'import ufbx. Un FBX qui écrit normales et UV coin par coin
-//! (`ByPolygonVertex`, `Direct`) donne à chaque coin son propre rang : dédupliqué par rang, un quad
-//! sortait à six sommets pour deux triangles, aucun partagé. Dédupliqué par valeur, il en garde
-//! quatre — la forme d'un glTF indexé, celle que le simplificateur du DAG sait réduire.
+//! Vertex welding at ufbx import. An FBX that writes normals and UVs corner by
+//! corner (`ByPolygonVertex`, `Direct`) gives each corner its own index: deduplicated
+//! by index, a quad came out as six vertices for two triangles, none shared.
+//! Deduplicated by value, it keeps four — the shape of an indexed glTF, the one
+//! the DAG simplifier knows how to reduce.
 use super::import_opacite::{fbx_fixture, import_of};
 use super::*;
 

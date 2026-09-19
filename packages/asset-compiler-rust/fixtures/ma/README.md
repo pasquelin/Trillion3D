@@ -1,50 +1,50 @@
-# Fixture de correction — pilote `ma` (Maya ASCII)
+# Correction fixture — `ma` driver (Maya ASCII)
 
-Une fixture, une question : **ce que le pilote produit d'un fichier de commandes MEL, et ce qu'il
-refuse d'en faire**. Le doré est [`../../src/tests/ma_golden.rs`](../../src/tests/ma_golden.rs) ; les
-comportements que seul l'intérieur du pilote prouve — découpage du texte, écriture d'un attribut par
-tranches, résolution d'un coin par son arête — sont dans
+One fixture, one question: **what the driver produces from a MEL command file, and what it
+refuses to do with it**. The golden is [`../../src/tests/ma_golden.rs`](../../src/tests/ma_golden.rs); the
+behaviours that only the inside of the driver proves — text splitting, writing an attribute in
+slices, resolving a corner from its edge — are in
 [`../../src/plugins/scene/ma/tests.rs`](../../src/plugins/scene/ma/tests.rs).
 
-| fichier                          | ce qu'il fixe                                                                                       |
-| -------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `minuscule/scene.ma`             | la scène : hiérarchie `transform`, `mesh` à deux quadrilatères, deux groupes de faces nuancés, instance par `parent -add`, `lambert` et `standardSurface` dont un texturé |
-| `minuscule/textures/checker.png` | la texture que le `standardSurface` cite, résolue relativement au dossier de la source               |
+| file                             | what it pins                                                                                    |
+| -------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `minuscule/scene.ma`             | the scene: `transform` hierarchy, `mesh` of two quadrilaterals, two shaded face groups, instance via `parent -add`, `lambert` and `standardSurface` of which one is textured |
+| `minuscule/textures/checker.png` | the texture the `standardSurface` cites, resolved relative to the source folder                 |
 
-Ce que chaque choix met sous surveillance :
+What each choice puts under watch:
 
-- **une face qui réutilise l'arête d'une autre à l'envers** (`f 4 -3 4 5 6`) : une face Maya cite ses
-  **arêtes**, et le coin de rang `k` est le sommet de départ de la `k`-ième — le second sommet quand
-  l'indice est écrit négatif. C'est la règle la plus facile à lire de travers de tout le format ;
-- **deux quadrilatères** : la triangulation en éventail, quatre triangles pour deux faces ;
-- **deux `objectGrpCompList` d'une face chacune** : un `instObjGroups` par groupe de faces devient
-  une primitive glTF à part, et aucune face n'est dessinée deux fois ;
-- **aucune normale écrite** : elles sont calculées à plat, une par face, et le rapport le dit ;
-- **`currentUnit -l centimeter`** : le facteur `0,01` vers le mètre, porté par la racine de la scène,
-  et non appliqué aux sommets ;
-- **une rotation de 90° avec `rotateOrder`** : la matrice locale, composée dans l'ordre déclaré ;
-- **`parent -add -s`** : une seconde pose de la même forme cite le **même** maillage glTF ;
-- **un `lambert` opaque et un `standardSurface` à `opacity` 0,5, métal, texture de couleur et
-  émission** : `baseColorFactor`, `metallicFactor`, `roughnessFactor`, `alphaMode` et l'emplacement
-  de texture, sans qu'aucune règle ne nomme un type d'objet ;
-- **une caméra, un `select` sur un nœud absent du fichier, et une commande `python`** : ce que le
-  pilote **compte sans le rendre**. La commande `python` est la preuve écrite du contrat de sûreté :
-  son texte entre dans le rapport sous `ma-command-ignored:python`, et rien ne l'exécute.
+- **a face that reuses another face's edge in reverse** (`f 4 -3 4 5 6`): a Maya face cites its
+  **edges**, and the corner of rank `k` is the start vertex of the `k`-th — the second vertex when
+  the index is written negative. That is the easiest rule in the whole format to read the wrong way;
+- **two quadrilaterals**: fan triangulation, four triangles for two faces;
+- **two `objectGrpCompList` of one face each**: one `instObjGroups` per face group becomes
+  a separate glTF primitive, and no face is drawn twice;
+- **no written normal**: they are computed flat, one per face, and the report says so;
+- **`currentUnit -l centimeter`**: the `0.01` factor toward the metre, carried by the scene root,
+  and not applied to the vertices;
+- **a 90° rotation with `rotateOrder`**: the local matrix, composed in the declared order;
+- **`parent -add -s`**: a second pose of the same shape cites the **same** glTF mesh;
+- **an opaque `lambert` and a `standardSurface` with `opacity` 0.5, metal, colour texture and
+  emission**: `baseColorFactor`, `metallicFactor`, `roughnessFactor`, `alphaMode` and the texture
+  slot, without any rule naming an object type;
+- **a camera, a `select` on a node absent from the file, and a `python` command**: what the
+  driver **counts without rendering**. The `python` command is the written proof of the safety contract:
+  its text enters the report under `ma-command-ignored:python`, and nothing executes it.
 
-## Provenance et licences
+## Provenance and licences
 
-- `minuscule/scene.ma` : écrit à la main pour ce test depuis la documentation publique des commandes
-  MEL d'Autodesk, sans contenu, code ni SDK d'un tiers.
-- `minuscule/textures/checker.png` : recopié du corpus WebGeometry, **CC0-1.0**, voir
+- `minuscule/scene.ma`: written by hand for this test from Autodesk's public MEL command
+  documentation, with no content, code or SDK from a third party.
+- `minuscule/textures/checker.png`: copied from the WebGeometry corpus, **CC0-1.0**, see
   [LICENSE.txt](LICENSE.txt).
 
 ## `expected.json`
 
-Le pilote retenu, la scène intermédiaire qu'il a écrite — nœuds, maillages, matériaux, images,
-échantillonneurs, textures, accesseurs, rapport — et la scène compilée qui en sort, sidecar compris.
-La clé de cache n'y figure pas : le manifeste d'une scène convertie porte sa durée d'import, donc la
-clé change d'un passage à l'autre sans que la scène bouge. `case` et `rule` ne sont que de la prose,
-le test les retire avant de comparer. Pour le régénérer :
+The selected driver, the intermediate scene it wrote — nodes, meshes, materials, images,
+samplers, textures, accessors, report — and the compiled scene that comes out of it, sidecar included.
+The cache key does not appear in it: a converted scene's manifest carries its import duration, so the
+key changes from one run to the next without the scene moving. `case` and `rule` are prose only,
+the test strips them before comparing. To regenerate it:
 
 ```sh
 cargo test --lib regenere_la_fixture_ma -- --ignored

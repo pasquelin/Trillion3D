@@ -1,4 +1,4 @@
-// Scénarios de caméra du lot M3a : `lookAt` et projections, cas limites compris, rejoués des deux côtés.
+// Camera scenarios of batch M3a: `lookAt` and projections, edge cases included, replayed on both sides.
 import { alea, dans } from './hierarchieScenarios.mjs';
 
 const HAUTS = [
@@ -51,9 +51,9 @@ const origine = [
 ];
 
 /**
- * `lookAt` d'une caméra et d'un objet, racines ou enfants d'un parent tourné, miroir sur un ou trois
- * axes, non uniforme ou d'échelle nulle ; cibles ordinaires, sur l'œil, NaN, infinie ; haut
- * colinéaire à la visée. Après chaque visée : mise à jour, lectures, image de la caméra.
+ * `lookAt` of a camera and of an object, roots or children of a rotated parent, mirrored on one
+ * or three axes, non-uniform or zero scale; ordinary targets, on the eye, NaN, infinite; up
+ * collinear with the aim. After each aim: update, reads, camera frame.
  */
 export function visees() {
   const ops = [];
@@ -93,7 +93,7 @@ export function visees() {
           if (vise !== objet) ops.push(['image', vise, vise === surOeil]);
         }
   }
-  // Haut colinéaire à la visée : au-dessus de l'origine avec le haut `y`, devant elle avec `±z`.
+  // Up collinear with the aim: above the origin with up `y`, in front of it with `±z`.
   const dessus = id,
     devant = id + 1;
   ops.push(['ajoute', dessus, -1, [0, 10, 0], ...origine.slice(1), cameraFixe]);
@@ -114,9 +114,9 @@ export function visees() {
 }
 
 /**
- * Projections : champ, rapport, plans et grossissement ordinaires et dégénérés (champ nul ou plat,
- * `near` nul, `far` égal à `near` ou infini, zoom nul), chaque réglage dans les deux conventions de
- * profondeur, plans lus dans les deux conventions.
+ * Projections: ordinary and degenerate field, aspect, planes and magnification (zero or flat
+ * field, zero `near`, `far` equal to `near` or infinite, zero zoom), each setting in both
+ * depth conventions, planes read in both conventions.
  */
 export function objectifs() {
   const ops = [['ajoute', 0, -1, [1, 2, 3], [0.1, 0.2, 0.3, 0.927], [1, 1, 1], cameraFixe]];

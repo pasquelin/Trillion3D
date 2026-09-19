@@ -1,12 +1,12 @@
-// Défaut 10 : sous une transformation de déterminant négatif, le rasteriseur CPU du tampon de
-// visibilité gardait la face que tous les autres chemins éliminent — les pipelines WebGPU par le
-// `frontFace` que `windingCw` inverse, Three en WebGL par `frontFaceCW = determinant() < 0`, son
-// propre ombrage (`visibilityLighting`) par le signe de `face`. Il dessinait donc exactement les
-// faces que le rejet par cône supprime, ce qui a été lu comme un défaut du cône.
+// Defect 10: under a negative-determinant transform, the CPU visbuffer rasterizer kept the
+// face that every other path drops — WebGPU pipelines via the `frontFace` that `windingCw`
+// inverts, Three in WebGL via `frontFaceCW = determinant() < 0`, its own shading
+// (`visibilityLighting`) via the sign of `face`. It therefore drew exactly the faces that
+// cone rejection drops, which was read as a cone defect.
 //
-// Deux triangles de sens opposés, posés dans le plan z = 0 et séparés à l'écran : la réflexion
-// `scale(1,1,-1)` les laisse au même endroit et ne change que l'orientation. La face montrée doit
-// alors basculer de l'un à l'autre, pour un matériau de face comme de dos.
+// Two opposite-winding triangles, placed in the plane z = 0 and separated on screen: the
+// reflection `scale(1,1,-1)` leaves them in the same place and only changes orientation. The
+// shown face must then flip from one to the other, for a front material as for a back one.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -16,7 +16,7 @@ import { matrixWindingCw } from '../sdk-core/index.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 
 const VUE: [number, number] = [96, 96];
-// Gauche : sens direct. Droite : sens inverse. Même aire, même hauteur, pas de recouvrement.
+// Gauche : sens direct. Droite : sens inverse. same aire, same hauteur, no recouvrement.
 const POSITIONS = [-2, -1, 0, -0.5, -1, 0, -1.25, 1, 0, 0.5, -1, 0, 1.25, 1, 0, 2, -1, 0];
 
 function page(matrix: THREE.Matrix4, side: THREE.Side): VisPage {
@@ -38,7 +38,7 @@ function camera() {
   return cam;
 }
 
-/** Les triangles réellement écrits dans le tampon, et combien de pixels chacun couvre. */
+/** Triangles actually written into the buffer, and how many pixels each covers. */
 function trianglesDessines(matrix: THREE.Matrix4, side: THREE.Side) {
   const { ids } = rasterVisibility([page(matrix, side)], cameraMoteur(camera()), VUE);
   const pixels = new Map<number, number>();
@@ -52,45 +52,45 @@ function trianglesDessines(matrix: THREE.Matrix4, side: THREE.Side) {
 const DIRECTE = new THREE.Matrix4();
 const REFLEXION = new THREE.Matrix4().makeScale(1, 1, -1);
 
-test('la réflexion est bien celle que le moteur reconnaît, la transformation directe non', () => {
+test('the reflection is the one the engine recognises, the direct transform is not', () => {
   assert.equal(matrixWindingCw(DIRECTE.elements), false);
   assert.equal(matrixWindingCw(REFLEXION.elements), true);
 });
 
-test('sans réflexion, la face montrée est celle d’avant le lot : le triangle 0 de face', () => {
+test('without reflection, the shown face is the pre-batch one: triangle 0 for front', () => {
   const face = trianglesDessines(DIRECTE, THREE.FrontSide);
-  assert.deepEqual([...face.keys()], [0], 'matériau de face : seul le triangle direct est écrit');
-  assert.ok((face.get(0) ?? 0) > 100, `couverture attendue, vu ${face.get(0)}`);
+  assert.deepEqual([...face.keys()], [0], 'front material: only the direct triangle is written');
+  assert.ok((face.get(0) ?? 0) > 100, `expected coverage, saw ${face.get(0)}`);
   const dos = trianglesDessines(DIRECTE, THREE.BackSide);
-  assert.deepEqual([...dos.keys()], [1], 'matériau de dos : seul le triangle inverse est écrit');
+  assert.deepEqual([...dos.keys()], [1], 'back material: only the reverse triangle is written');
 });
 
-test('sous réflexion, la face éliminée est l’autre, comme pour les pipelines WebGPU', () => {
+test('under reflection, the dropped face is the other one, as for WebGPU pipelines', () => {
   const face = trianglesDessines(REFLEXION, THREE.FrontSide);
   assert.deepEqual(
     [...face.keys()],
     [1],
-    'la réflexion échange la face montrée ; sans cela le cône supprimait ce que le CPU dessinait',
+    'reflection swaps the shown face; without that the cone dropped what the CPU drew',
   );
   const dos = trianglesDessines(REFLEXION, THREE.BackSide);
-  assert.deepEqual([...dos.keys()], [0], 'et elle l’échange aussi pour un matériau de dos');
+  assert.deepEqual([...dos.keys()], [0], 'and it swaps it for a back material too');
 });
 
-test('la réflexion ne change que le choix de la face, jamais la couverture', () => {
+test('reflection only changes the face choice, never the coverage', () => {
   const directe = trianglesDessines(DIRECTE, THREE.FrontSide);
   const reflechie = trianglesDessines(REFLEXION, THREE.FrontSide);
   assert.equal(
     directe.get(0),
     reflechie.get(1),
-    'les deux triangles se superposent à l’écran : même nombre de pixels de part et d’autre',
+    'the two triangles overlap on screen: same pixel count on both sides',
   );
 });
 
-test('un matériau double face ignore la réflexion et garde les deux triangles', () => {
+test('a double-sided material ignores reflection and keeps both triangles', () => {
   for (const matrix of [DIRECTE, REFLEXION])
     assert.deepEqual(
       [...trianglesDessines(matrix, THREE.DoubleSide).keys()].sort(),
       [0, 1],
-      'aucune face n’est éliminée, avec ou sans réflexion',
+      'no face is dropped, with or without reflection',
     );
 });

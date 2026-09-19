@@ -1,12 +1,12 @@
-//! Les champs d'une lampe glTF, lus un par un et ramenés dans ce que le contrat du moteur accepte.
-//! Un champ absent, non fini ou hors bornes prend la valeur publiée dans `docs/SDK.md` : la lampe
-//! reste allumée, elle ne disparaît pas parce qu'un exportateur a écrit un nombre impossible.
+//! Fields of a glTF light, read one by one and mapped into what the engine contract accepts.
+//! A missing, non-finite, or out-of-bounds field takes the default published in : the light
+//! remains on, it does not disappear because an exporter wrote an impossible number.
 use super::*;
 
 pub(super) fn number(value: Option<&Value>, fallback: f64) -> f64 {
     value.and_then(Value::as_f64).unwrap_or(fallback)
 }
-/// La couleur linéaire du glTF, ramenée à des canaux finis et non négatifs.
+/// Linear glTF color, constrained to finite non-negative channels.
 pub(super) fn colour_of(light: &Value) -> [f64; 3] {
     let items = light.get("color").and_then(Value::as_array);
     let channel = |i: usize| {
@@ -18,8 +18,8 @@ pub(super) fn colour_of(light: &Value) -> [f64; 3] {
     };
     [channel(0), channel(1), channel(2)]
 }
-/// L'axe d'émission d'une lampe glTF : le −Z du nœud, dans le monde, normalisé. C'est le sens de
-/// propagation de la lumière, exactement ce que le contrat attend d'un projecteur et du soleil.
+/// Emission axis of a glTF light: the node's −Z in world space, normalized. This is the direction
+/// of light propagation, exactly what the contract expects from a spot light and the sun.
 pub(super) fn axis(m: &Mat4) -> Option<[f64; 3]> {
     let raw = [-m[8], -m[9], -m[10]];
     let length = (raw[0] * raw[0] + raw[1] * raw[1] + raw[2] * raw[2]).sqrt();
@@ -28,8 +28,8 @@ pub(super) fn axis(m: &Mat4) -> Option<[f64; 3]> {
     }
     Some([raw[0] / length, raw[1] / length, raw[2] / length])
 }
-/// La portée déclarée, sinon celle que l'intensité impose : la distance où l'irradiance du canal le
-/// plus fort tombe sous `RANGE_CUTOFF_IRRADIANCE`. Jamais l'infini, jamais zéro.
+/// Declared range, otherwise the one imposed by intensity: the distance where irradiance of the strongest
+/// channel drops below . Never infinite, never zero.
 pub(super) fn range_of(light: &Value, radiant: f64, colour: [f64; 3]) -> f64 {
     if let Some(range) = light
         .get("range")
@@ -43,8 +43,8 @@ pub(super) fn range_of(light: &Value, radiant: f64, colour: [f64; 3]) -> f64 {
         .sqrt()
         .clamp(1e-3, MAX_RANGE)
 }
-/// Le demi-angle du cône d'un projecteur, ramené dans l'intervalle ouvert que le contrat accepte.
-/// `innerConeAngle` n'a pas d'équivalent : le moteur adoucit le bord par son propre réglage publié.
+/// Spot cone half-angle, mapped into the open interval accepted by the contract.
+///  has no equivalent: the engine softens the edge using its own published setting.
 pub(super) fn cone_of(light: &Value) -> f64 {
     let outer = number(light.pointer("/spot/outerConeAngle"), QUARTER_PI);
     if !outer.is_finite() {

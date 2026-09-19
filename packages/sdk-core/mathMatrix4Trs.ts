@@ -1,14 +1,14 @@
 import { determinantMatrix4, type NumberSink } from './mathMatrix4.ts';
 
 /**
- * Position, rotation et échelle d'une matrice 4×4 colonne-major, dans les deux sens. Quaternion
- * rangé `(x, y, z, w)`. Formules de la référence, terme à terme, pour que la hiérarchie du moteur
- * recompose les mêmes matrices monde que celle qu'elle remplace.
+ * Position, rotation and scale of a column-major 4×4 matrix, both ways. Quaternion
+ * stored `(x, y, z, w)`. Reference formulas, term by term, so the engine hierarchy
+ * recomposes the same world matrices as the one it replaces.
  */
 
 /**
- * `out = T · R · S`. La dernière ligne est écrite `(0, 0, 0, 1)` exactement ; les produits du
- * quaternion sont doublés par addition (`x + x`), comme la référence, jamais multipliés par deux.
+ * `out = T · R · S`. The last row is written `(0, 0, 0, 1)` exactly; quaternion products
+ * are doubled by addition (`x + x`), like the reference, never multiplied by two.
  */
 export function composeMatrix4<T extends NumberSink>(
   out: T,
@@ -54,12 +54,12 @@ export function composeMatrix4<T extends NumberSink>(
   return out;
 }
 
-/** Les neuf termes de rotation de la dernière décomposition, rangés par ligne : lus aussitôt. */
+/** The nine rotation terms of the last decomposition, stored by row: read immediately. */
 const rotation = new Float64Array(9);
 
 /**
- * Quaternion d'une matrice de rotation pure, lue sur ses neuf termes rangés par ligne, par la branche
- * de la plus grande diagonale. Les termes arrivent déjà divisés par l'échelle de leur colonne.
+ * Quaternion of a pure rotation matrix, read from its nine terms stored by row, via the
+ * largest-diagonal branch. Terms arrive already divided by their column scale.
  */
 export function writeRotationQuaternion(out: NumberSink, r: Float64Array) {
   const m11 = r[0],
@@ -100,11 +100,11 @@ export function writeRotationQuaternion(out: NumberSink, r: Float64Array) {
 }
 
 /**
- * `m = T · R · S` décomposée en `position`, `quaternion`, `scale`. L'échelle d'une colonne est sa
- * norme ; un déterminant négatif est porté par l'axe `x` seul, quel que soit l'axe renversé à la
- * source. Une matrice cisaillée n'a pas de telle décomposition : la rotation rendue est alors celle
- * de la matrice normalisée par colonne, et la recomposition ne rend plus `m` — le banc chiffre cet
- * écart, identique à celui de la référence.
+ * `m = T · R · S` decomposed into `position`, `quaternion`, `scale`. A column's scale is its
+ * length; a negative determinant is carried by the `x` axis alone, whichever axis was reversed at
+ * the source. A sheared matrix has no such decomposition: the rotation returned is then that
+ * of the column-normalised matrix, and recomposition no longer yields `m` — the bench quantifies
+ * this gap, identical to the reference's.
  */
 export function decomposeMatrix4(
   m: ArrayLike<number>,
@@ -135,4 +135,62 @@ export function decomposeMatrix4(
   scale[0] = sx;
   scale[1] = sy;
   scale[2] = sz;
+}
+
+/**
+ * `out = [u | v | n | origin]`: the three columns of a basis, then its origin — `makeBasis`
+ * followed by `setPosition`. Sixteen stores, the last row `(0, 0, 0, 1)` exactly.
+ */
+export function basisMatrix4<T extends NumberSink>(
+  out: T,
+  u: ArrayLike<number>,
+  v: ArrayLike<number>,
+  n: ArrayLike<number>,
+  origin: ArrayLike<number>,
+  outAt = 0,
+) {
+  out[outAt] = u[0];
+  out[outAt + 1] = u[1];
+  out[outAt + 2] = u[2];
+  out[outAt + 3] = 0;
+  out[outAt + 4] = v[0];
+  out[outAt + 5] = v[1];
+  out[outAt + 6] = v[2];
+  out[outAt + 7] = 0;
+  out[outAt + 8] = n[0];
+  out[outAt + 9] = n[1];
+  out[outAt + 10] = n[2];
+  out[outAt + 11] = 0;
+  out[outAt + 12] = origin[0];
+  out[outAt + 13] = origin[1];
+  out[outAt + 14] = origin[2];
+  out[outAt + 15] = 1;
+  return out;
+}
+
+/** `out` = uniform scale `s` placed at `center` — `makeScale(s, s, s)` followed by `setPosition`.
+ *  Sixteen stores, each index a constant: a zeroing loop then the diagonal cost 4% more than Three. */
+export function uniformScaleMatrix4<T extends NumberSink>(
+  out: T,
+  s: number,
+  center: ArrayLike<number>,
+  outAt = 0,
+) {
+  out[outAt] = s;
+  out[outAt + 1] = 0;
+  out[outAt + 2] = 0;
+  out[outAt + 3] = 0;
+  out[outAt + 4] = 0;
+  out[outAt + 5] = s;
+  out[outAt + 6] = 0;
+  out[outAt + 7] = 0;
+  out[outAt + 8] = 0;
+  out[outAt + 9] = 0;
+  out[outAt + 10] = s;
+  out[outAt + 11] = 0;
+  out[outAt + 12] = center[0];
+  out[outAt + 13] = center[1];
+  out[outAt + 14] = center[2];
+  out[outAt + 15] = 1;
+  return out;
 }

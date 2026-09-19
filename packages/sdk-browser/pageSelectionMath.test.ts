@@ -1,6 +1,6 @@
-// A6 : frustumClipBox (sdk-core) rejette en une première passe, puis distingue traversé de dedans
-// en une seconde qui s'arrête au premier plan traversé ; le signe du plan choisit le sommet par
-// indice. Oracle : la version à une passe et une branche par sommet, d'avant le lot A, dans
+// A6: frustumClipBox (sdk-core) rejects in a first pass, then distinguishes crossed from inside
+// in a second that stops at the first crossed plane; the plane's sign picks the vertex by
+// index. Oracle: the one-pass, one-branch-per-vertex version from before batch A, in
 // `bench/oracles/selection.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';

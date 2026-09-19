@@ -69,7 +69,7 @@ pub fn collect(
     collect_with_world(inputs, bounds, dropped, &world)
 }
 
-/// La même collecte, avec les matrices monde déjà construites par l'étape.
+/// Same collection, with world matrices already built by the step.
 pub fn collect_with_world(
     inputs: &CoplanarInputs<'_>,
     bounds: &CoplanarBounds,

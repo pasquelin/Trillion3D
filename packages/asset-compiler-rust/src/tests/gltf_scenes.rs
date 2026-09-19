@@ -1,9 +1,10 @@
-//! A06 — glTF 2.0 §3.5 : le document ne rend qu'une scène. Les nœuds et les lampes des autres, et
-//! ceux qu'aucune scène ne nomme, n'appartiennent pas à ce qui est compilé.
+//! A06 — glTF 2.0 §3.5: the document renders only one scene. Nodes and lights of
+//! the others, and those no scene names, do not belong to what is compiled.
 use super::*;
 
-/// Une source glTF directe : un triangle, cinq nœuds qui l'instancient, une lampe sur le nœud 3, et
-/// le découpage en scènes que le test veut éprouver. `scene` absent laisse le document sans choix.
+/// A direct glTF source: a triangle, five nodes that instantiate it, a light on
+/// node 3, and the scene split the test wants to try. Missing `scene` leaves the
+/// document without a choice.
 fn scenes_fixture(scenes: Option<Value>, scene: Option<usize>) -> (PathBuf, Options) {
     let (root, mut options) = fixture();
     let mut gltf = read_gltf(&options);
@@ -24,20 +25,20 @@ fn scenes_fixture(scenes: Option<Value>, scene: Option<usize>) -> (PathBuf, Opti
         gltf["scene"] = json!(scene);
     }
     write_gltf(&options, &gltf, None);
-    // Sans manifeste, le dossier est lu comme une source glTF directe : c'est le document lui-même,
-    // et non un relevé écrit à côté, qui dit combien de nœuds il porte.
+    // Without a manifest, the folder is read as a direct glTF source: it is the
+    // document itself, not a record written beside it, that says how many nodes it carries.
     fs::remove_file(options.source.join("manifest.json")).expect("source directe");
     options.scope = "full".into();
     (root, options)
 }
 
-/// Réécrit le glTF d'une source directe : sans manifeste, aucune empreinte n'est à restamper.
+/// Rewrites the glTF of a direct source: without a manifest, no fingerprint needs restamping.
 fn rewrite(options: &Options, gltf: &Value) {
     let bytes = serde_json::to_vec(gltf).expect("encode");
     fs::write(options.source.join("mesh.gltf"), bytes).expect("write");
 }
 
-/// Les nœuds retenus et le nombre de lampes publiées par une compilation.
+/// Kept nodes and the number of lights published by a compilation.
 fn compiled(options: &Options) -> (Vec<u64>, u64, u64) {
     let result = compile(options, |_| {}).expect("compile");
     let directory = options
@@ -48,7 +49,7 @@ fn compiled(options: &Options) -> (Vec<u64>, u64, u64) {
     (
         result["selectedNodes"]
             .as_array()
-            .expect("nœuds")
+            .expect("nodes")
             .iter()
             .map(|n| n.as_u64().expect("index"))
             .collect(),
@@ -57,30 +58,30 @@ fn compiled(options: &Options) -> (Vec<u64>, u64, u64) {
     )
 }
 
-// Comportement : `scene: 0` ne compile que les nœuds atteignables depuis les racines de la scène 0.
-// Les nœuds de la scène 1, la lampe qu'ils portent et le nœud orphelin restent dehors.
+// Behaviour: `scene: 0` compiles only nodes reachable from scene 0's roots.
+// Scene 1's nodes, the light they carry and the orphan node stay out.
 #[test]
 fn seule_la_scene_selectionnee_est_compilee() {
     let (root, options) = scenes_fixture(Some(json!([{"nodes":[0,1]},{"nodes":[2,3]}])), Some(0));
     let (nodes, triangles, lampes) = compiled(&options);
-    assert_eq!(nodes, vec![0, 1], "seuls les nœuds de la scène 0");
-    assert_eq!(triangles, 2, "un triangle par nœud retenu");
-    assert_eq!(lampes, 0, "la lampe de la scène 1 n'est pas de cette scène");
+    assert_eq!(nodes, vec![0, 1], "only scene 0's nodes");
+    assert_eq!(triangles, 2, "one triangle per kept node");
+    assert_eq!(lampes, 0, "scene 1's light is not of this scene");
     fs::remove_dir_all(root).expect("nettoyage");
 }
 
-// Comportement : la scène nommée emporte ses lampes, et elles seules.
+// Behaviour: the named scene takes its lights, and only those.
 #[test]
 fn la_scene_nommee_emporte_ses_propres_lampes() {
     let (root, options) = scenes_fixture(Some(json!([{"nodes":[0,1]},{"nodes":[2,3]}])), Some(1));
     let (nodes, triangles, lampes) = compiled(&options);
-    assert_eq!(nodes, vec![2, 3], "seuls les nœuds de la scène 1");
+    assert_eq!(nodes, vec![2, 3], "only scene 1's nodes");
     assert_eq!(triangles, 2);
-    assert_eq!(lampes, 1, "la lampe du nœud 3 est dans la scène 1");
+    assert_eq!(lampes, 1, "node 3's light is in scene 1");
     fs::remove_dir_all(root).expect("nettoyage");
 }
 
-// Comportement : un enfant suit son parent dans la scène, même nommé par aucune racine.
+// Behaviour: a child follows its parent in the scene, even named by no root.
 #[test]
 fn les_enfants_des_racines_de_la_scene_suivent() {
     let (root, options) = scenes_fixture(Some(json!([{"nodes":[0]},{"nodes":[2]}])), Some(0));
@@ -88,14 +89,14 @@ fn les_enfants_des_racines_de_la_scene_suivent() {
     gltf["nodes"][0]["children"] = json!([1]);
     rewrite(&options, &gltf);
     let (nodes, triangles, lampes) = compiled(&options);
-    assert_eq!(nodes, vec![0, 1], "l'enfant du nœud 0 est dans la scène 0");
+    assert_eq!(nodes, vec![0, 1], "node 0's child is in scene 0");
     assert_eq!(triangles, 2);
     assert_eq!(lampes, 0);
     fs::remove_dir_all(root).expect("nettoyage");
 }
 
-// Comportement : sans `scene` ni `scenes`, le document n'exclut personne — toutes les racines, donc
-// tous les nœuds, sont compilés. C'est le contrat écrit dans `docs/COMPILER.md`.
+// Behaviour: without `scene` or `scenes`, the document excludes no one — every
+// root, therefore every node, is compiled. That is the contract in `docs/COMPILER.md`.
 #[test]
 fn sans_scenes_toutes_les_racines_sont_compilees() {
     let (root, options) = scenes_fixture(None, None);

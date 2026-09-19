@@ -1,6 +1,6 @@
-// Oracles des ombres de lampes, réécrits d'après les contrats : la sphère monde d'un cluster —
-// centre de la boîte transformé, rayon majoré terme à terme, écrit en f32 à sa place comme la
-// passe le fait — et la couverture écran d'une lampe, carré de son angle apparent sur le demi-champ.
+// Lamp-shadow oracles, rewritten from the contracts: the world-space sphere of a cluster —
+// transformed box centre, radius inflated term by term, written in f32 at its place as the
+// pass does — and a lamp's screen coverage, square of its apparent angle over the half-field.
 export function referenceClusterSphere({ matrix: { elements: e }, min, max }, out, base) {
   const mx = (min[0] + max[0]) / 2,
     my = (min[1] + max[1]) / 2,

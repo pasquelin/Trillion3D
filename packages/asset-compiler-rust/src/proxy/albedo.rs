@@ -2,10 +2,10 @@ use crate::albedo::{srgb_to_linear, Palette};
 use crate::texture_preview::TexturePreview;
 use serde_json::Value;
 
-/// La couleur moyenne d'une texture : le dernier niveau de sa pyramide progressive, qui est
-/// justement le 1×1 — les niveaux sont rangés du plus fin au plus grossier, donc il occupe les
-/// quatre derniers octets. Il n'y a rien à décoder ici : le compilateur l'a déjà réduit, et relire
-/// la source serait deux vérités. Une texture sans aperçu laisse le facteur du matériau seul.
+/// Mean color of texture: last level of progressive pyramid, i.e.
+/// 1×1 — levels arranged finest to coarsest, occupies last four
+/// bytes. Nothing to decode here: compiler already reduced it, re-reading
+/// source would create two truths. Texture without preview leaves material factor alone.
 fn average(previews: &[TexturePreview], texture: u64) -> Option<[f64; 3]> {
     let preview = previews
         .iter()
@@ -18,7 +18,7 @@ fn average(previews: &[TexturePreview], texture: u64) -> Option<[f64; 3]> {
     ])
 }
 
-/// L'albédo diffus linéaire de chaque matériau de la scène, dans l'ordre du tableau `materials`.
+/// Linear diffuse albedo of each scene material, in `materials` array order.
 pub fn material_albedo(g: &Value, previews: &[TexturePreview]) -> Palette {
     crate::albedo::palette(g, |texture| average(previews, texture))
 }

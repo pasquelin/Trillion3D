@@ -1,24 +1,24 @@
 import { previewIsWhole, type ClusterManifest } from '../sdk-core/index.ts';
 
 /**
- * Un PNG blanc de 1×1, opaque : ce que le chargeur glTF reçoit à la place d'une image dont la
- * chaîne de mips est cuite dans le cache. L'objet `THREE.Texture` existe alors — c'est lui que la
- * table des associations nomme, et lui que l'atlas range —, mais son image ne pèse rien, et les
- * mégaoctets de la source ne traversent ni le réseau ni le décodeur du navigateur.
+ * A 1×1 opaque white PNG: what the glTF loader receives in place of an image whose mip
+ * chain is baked in the cache. The `THREE.Texture` object still exists — it is what the
+ * association table names, and what the atlas stores — but its image weighs nothing, and the
+ * source megabytes cross neither the network nor the browser decoder.
  */
 export const PLACEHOLDER_IMAGE =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mP4DwQACfsD/Wj6HMwAAAAASUVORK5CYII=';
 
 /**
- * Les adresses des images que le chargeur peut se dispenser de lire : celles dont CHAQUE entrée
- * du sidecar porte une chaîne entière — tout ce qui dépasse la queue est cuit —, et qui en ont au
- * moins une. Une image sans entrée a échoué au décodage du compilateur, et une image dont une
- * entrée n'est pas entière a encore besoin de sa source : ces deux-là sont lues comme avant.
+ * Addresses of images the loader can skip reading: those whose every sidecar entry carries
+ * a whole chain — everything past the tail is baked — and that have at least one. An image
+ * with no entry failed compiler decode, and an image whose one entry is not whole still needs
+ * its source: those two are read as before.
  *
- * `resolve` écrit l'adresse comme le chargeur de l'hôte l'écrira — pour Three, dossier de la scène
- * + `uri` telle quelle, sans normalisation —, parce que c'est cette chaîne-là que le modificateur
- * d'URL reçoit : un `./` ou un caractère encodé autrement par `new URL` ferait rater la
- * comparaison, et l'image serait lue malgré tout. La règle vient de l'hôte, pas d'ici.
+ * `resolve` writes the address as the host loader will write it — for Three, the scene folder
+ * + `uri` as-is, without normalisation — because that is the string the URL modifier
+ * receives: a `./` or a character encoded differently by `new URL` would miss the
+ * comparison, and the image would be read anyway. The rule comes from the host, not from here.
  */
 export function bakedImageUrls(
   metadata: ClusterManifest,

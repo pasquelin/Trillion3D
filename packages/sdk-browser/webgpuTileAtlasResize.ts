@@ -5,13 +5,13 @@ import { cellOrigin } from './webgpuTileWrite.ts';
 import { tailSlotOf, tileKeyOf } from './webgpuTileIds.ts';
 
 /**
- * Le pool d'un atlas change de couches SANS perdre ce qu'il tient — la référence, elle, vide ses
- * textures virtuelles quand leur pool change de taille. Les couches qui survivent sont copiées en
- * une commande, place pour place : la table de pages ne bouge pas pour elles. Les tuiles des couches
- * qui disparaissent sont déplacées dans une place libre du nouveau pool — les queues épinglées
- * d'abord, puis les plus regardées —, chacune copiée sur la carte et réinscrite dans la table ; ce
- * qui n'y tient plus est évincé, la table le dit et le niveau grossier reprend. Rend le nouveau
- * pool et le compte des tuiles évincées ; l'ancien pool est détruit une fois la copie soumise.
+ * An atlas pool changes layers WITHOUT losing what it holds — the reference, itself, empties its
+ * virtual textures when their pool changes size. Surviving layers are copied in one command, slot
+ * for slot: the page table does not move for them. Tiles of vanishing layers are moved into a free
+ * slot of the new pool — pinned queues first, then the most looked-at —, each copied on the GPU and
+ * re-registered in the table; what no longer fits is evicted, the table says so and the coarse level
+ * takes over. Returns the new pool and the evicted-tile count; the old pool is destroyed once the
+ * copy is submitted.
  */
 export function resizeTileAtlas(
   device: Pick<GPUDevice, 'createTexture' | 'createCommandEncoder' | 'queue'>,

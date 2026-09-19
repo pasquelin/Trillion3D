@@ -9,11 +9,11 @@ import {
 } from './gpuSelection.ts';
 import type { PageRec } from './pageSelection.ts';
 
-/** Le bloc d'uniformes d'un banc : celui du moteur, pour qu'un champ ajouté au contrat arrive ici
- *  sans qu'on l'y recopie. Jamais comparé à autre chose qu'à lui-même ou à sa copie. */
+/** Uniform block of a bench: the engine's, so a field added to the contract arrives here
+ *  without being copied in. Never compared to anything but itself or its copy. */
 export const fixtureUniforms = createSelectionUniforms;
 
-/** Un catalogue de `count` grappes, une par rang, toutes avec leurs octets. */
+/** A catalogue of `count` clusters, one per rank, all with their bytes. */
 export function fixturePages(count: number, transparent: (index: number) => boolean = () => false) {
   return Array.from(
     { length: count },
@@ -28,14 +28,14 @@ export function fixturePages(count: number, transparent: (index: number) => bool
   );
 }
 
-/** Une sélection qui ne sait que rendre le relevé du moment : tout ce qu'un adopteur lui demande. */
+/** A selection that only knows how to return the current readback: all an adopter asks of it. */
 export const peekOnly = (peek: () => GpuCut | null) => ({ peek }) as unknown as GpuSelection;
 
 /**
- * L'adopteur câblé comme le moteur le câble (`webgpuCutPublication.ts`) : une différence pour la
- * coupe demandée, une autre pour la coupe dessinable, et les totaux de triangles attachés à la
- * seconde. Quatre bancs le montaient à la main, et le même câblage recopié quatre fois n'épingle
- * rien de plus que celui-ci.
+ * The adopter wired as the engine wires it (`webgpuCutPublication.ts`): a difference for the
+ * requested cut, another for the drawable cut, and the triangle totals attached to the second.
+ * Four benches used to mount it by hand, and the same wiring copied four times pins nothing more
+ * than this one.
  */
 export function mountCutAdopter(options: {
   packedPages: PageRec[];

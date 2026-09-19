@@ -31,10 +31,10 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     modifiedPages,
   } = env;
   const state = { allocationBytes: 0, submittedTriangles: 0 };
-  // L'ensemble des pages affichées, réutilisé d'une image à l'autre plutôt que reconstruit.
+  // The set of displayed pages, reused from frame to frame rather than rebuilt.
   const affichees = new Set<PageRec>();
-  // Les pages effectivement attachées à la scène, tenues par `attach` et `detach`. Une image ne
-  // détache qu'un delta borné par la coupe : elle n'a plus à balayer tout le DAG pour le trouver.
+  // Pages actually attached to the scene, held by `attach` and `detach`. A frame detaches
+  // only a delta bounded by the cut: it no longer has to scan the whole DAG to find it.
   const attachees = new Set<PageRec>();
   const detach = (rec: PageRec) => {
     if (rec.attached && rec.mesh) {
@@ -63,7 +63,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     const display = shown;
     affichees.clear();
     for (const rec of display) affichees.add(rec);
-    // Retirer l'élément courant d'un `Set` pendant son parcours est défini : il ne sera pas revisité.
+    // Removing the current element of a `Set` while iterating it is defined: it will not be revisited.
     for (const rec of attachees) if (!affichees.has(rec)) detach(rec);
     state.submittedTriangles = 0;
     for (const rec of display) {

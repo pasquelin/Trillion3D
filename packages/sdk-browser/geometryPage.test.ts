@@ -1,6 +1,6 @@
-// A13 : le plan de lecture des attributs est calculé une fois par page et les valeurs sont lues par
-// vue typée (petit boutien) plutôt que par une fermeture et un DataView par sommet. Oracle : la
-// version DataView-partout d'avant le lot A, dans `bench/oracles/attributs-telemetrie.mjs`.
+// A13: the attribute-read plan is computed once per page and values are read by
+// typed view (little-endian) rather than by a closure and a DataView per vertex. Oracle: the
+// DataView-everywhere version from before batch A, in `bench/oracles/attributs-telemetrie.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decodePageAttributes } from './geometryPage.ts';
@@ -9,7 +9,7 @@ import { referenceDecode } from './bench/oracles/attributs-telemetrie.mjs';
 const FLAGS_NORMAL = 1,
   FLAGS_UV = 2;
 
-/** Une petite page : `vertexCount` sommets, indices croissants triangle par triangle. */
+/** A small page: `vertexCount` vertices, indices increasing triangle by triangle. */
 function page(vertexCount: number, flags: number, stride: number) {
   const indexCount = Math.max(0, vertexCount - (vertexCount % 3));
   const indexData = new Uint8Array(indexCount * 2);

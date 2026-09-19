@@ -4,16 +4,16 @@ import { prepareSdkWasm, type SdkWasm } from './geometryPageWasm.ts';
 import { WASM_ARENA_CONTRACT } from './wasmArena.ts';
 
 /**
- * L'état de session du calcul en lot : un gouverneur, un module WebAssembly, une décision de
- * disponibilité. Tout le reste — les lots eux-mêmes — est dans `mathBatchRuntime.ts`.
+ * Session state for batch math: governor, WebAssembly module, availability decision.
+ * Everything else — the batches themselves — is in `mathBatchRuntime.ts`.
  *
- * Le module est celui du SDK, déjà chargé pour le décodage des pages : aucune seconde instanciation,
- * aucune seconde mémoire linéaire. S'il manque, si son contrat de calcul n'est pas celui que ce
- * chargeur connaît, ou si l'horloge du fil est trop grossière pour départager deux chemins, tout
- * reste sur le chemin JavaScript et la raison est publiée — jamais un repli silencieux.
+ * Module is the SDK one, already loaded for page decoding: no second instantiation,
+ * no second linear memory. If missing, if compute contract does not match what this
+ * loader expects, or if thread clock is too coarse to decide between paths, everything
+ * remains on JavaScript path and the reason is published — never a silent fallback.
  */
 
-/** L'horloge du fil. `performance.now()` là où il existe, sinon la seule horloge disponible. */
+/** Thread clock. `performance.now()` where available, otherwise sole available clock. */
 export function mathClock() {
   return typeof performance === 'undefined' ? Date.now() : performance.now();
 }
@@ -22,22 +22,22 @@ let gouverneur: PathGovernor | null = null;
 let module: SdkWasm | null = null;
 let attente: Promise<void> | null = null;
 
-/** Le gouverneur de la session, créé à la première demande. */
+/** Session governor, created on first demand. */
 export function mathGovernor(): PathGovernor {
   gouverneur ??= createPathGovernor(mathClock);
   return gouverneur;
 }
 
 /**
- * Charge le module une fois pour la session et déclare au gouverneur ce qui est jouable. `mode`
- * impose un chemin pour une campagne (`'js'` ou `'wasm'`) ou laisse la mesure arbitrer (`'auto'`).
+ * Loads module once for session and declares what is playable to governor. `mode`
+ * forces path for a campaign (`'js'` or `'wasm'`) or lets measurement decide (`'auto'`).
  */
 export function prepareMathBatch(mode: MathPathMode): Promise<void> {
   mathGovernor().setMode(mode);
   return loadMathBatch();
 }
 
-/** Le module, chargé une fois pour la session ; le mode du gouverneur n'y touche pas. */
+/** Module, loaded once for session; governor mode does not modify it. */
 export function loadMathBatch(): Promise<void> {
   const g = mathGovernor();
   attente ??= (async () => {
@@ -56,12 +56,12 @@ export function loadMathBatch(): Promise<void> {
   return attente;
 }
 
-/** Le module utilisable pour les lots, ou `null` tant que le chemin WebAssembly n'est pas ouvert. */
+/** Usable module for batches, or `null` while WebAssembly path is unopened. */
 export function mathBatchWasm(): SdkWasm | null {
   return module;
 }
 
-/** L'état publié dans les métriques et dans les capacités. */
+/** State published in metrics and capabilities. */
 export function mathBatchMetrics(): MathPathMetrics {
   return mathGovernor().metrics();
 }

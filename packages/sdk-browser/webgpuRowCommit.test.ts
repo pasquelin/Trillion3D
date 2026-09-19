@@ -1,13 +1,13 @@
-// Lot F, F4 et F5 : F4 (webgpuRowCommit.ts) ne réécrit plus la page, l'offset, l'époque et le rang
-// inverse d'une ligne que `sourceRowOf` a rendue exacte ; F5 (webgpuRowState.ts) fait voyager le rang
-// d'une page du catalogue sur la page elle-même (`packedIndex`) au lieu d'une table de hachage. Les
-// oracles sont les implémentations d'avant le lot F, recopiées telles quelles dans
-// `oracles/lignes-dessinables.mjs`. La comparaison porte sur l'état complet des tableaux après une suite
-// d'images, pas sur une seule image : c'est là que les lignes réutilisées se voient.
+// Lot F, F4 and F5: F4 (webgpuRowCommit.ts) no longer rewrites the page, offset, epoch and inverse
+// rank of a row that `sourceRowOf` made exact; F5 (webgpuRowState.ts) makes a catalogue page's rank
+// travel on the page itself (`packedIndex`) instead of a hash table. The oracles are the
+// implementations from before lot F, copied as-is into `oracles/lignes-dessinables.mjs`. The comparison
+// is on the full array state after a sequence of images, not on a single image: that is where reused
+// rows show.
 //
-// Ce que cette comparaison NE peut pas prouver : ce que le lot F n'a pas changé. `sourceRowOf` est
-// le même mot pour mot des deux côtés, donc sa garde anti-alias ne se voit d'aucun écart — c'est
-// `webgpuRowRecycle.test.ts` qui la prouve, directement.
+// What this comparison CANNOT prove: what lot F did not change. `sourceRowOf` is the same word for
+// word on both sides, so its anti-alias guard shows in no delta — it is `webgpuRowRecycle.test.ts`
+// that proves it, directly.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuRowState } from './webgpuRowState.ts';
@@ -18,7 +18,7 @@ import {
   catalogue,
   etatComplet,
   image,
-  monte,
+  mount,
   offsetsPar,
   PAGES,
   SLOTS,
@@ -26,9 +26,9 @@ import {
 } from './webgpuRowCommitFixture.ts';
 
 /**
- * Neuf images hostiles : vide, une seule page, tout résident, une page qui part par le DEVANT — les
- * rangs suivants se décalent alors d'un bloc, ce que F4 déplace au lieu de le réécrire — et son
- * retour, un ordre de coupe inversé qui interdit le déplacement, et une époque de table relancée.
+ * Nine hostile images: empty, one page, all resident, a page that leaves from the FRONT — later
+ * ranks then shift as a block, which F4 moves instead of rewriting — and its return, a reversed cut
+ * order that forbids the move, and a restarted table epoch.
  */
 function images(): Plan[] {
   const vide = offsetsPar(() => -1);
@@ -50,13 +50,13 @@ function images(): Plan[] {
   ];
 }
 
-test('F4 : la table des lignes reste identique image après image, y compris vide, inversée et rejouée', () => {
-  const neuf = monte(createWebgpuRowState, createWebgpuRowCommit);
-  const ref = monte(referenceRowState, referenceRowCommit);
+test('F4: the row table stays identical image after image, including empty, reversed and replayed', () => {
+  const neuf = mount(createWebgpuRowState, createWebgpuRowCommit);
+  const ref = mount(referenceRowState, referenceRowCommit);
   const seq = images();
   for (let tour = 0; tour < seq.length; tour++) {
     if (tour === 8) {
-      // Une époque de table relancée sans changement de résidence : invalide tous les rangs source.
+      // A restarted table epoch with no residency change: voids every source rank.
       neuf.rows.tableEpoch += 1;
       ref.rows.tableEpoch += 1;
     }
@@ -66,18 +66,18 @@ test('F4 : la table des lignes reste identique image après image, y compris vid
   }
 });
 
-test('F5 : le rang d’une page vaut celui de la table de hachage, une page étrangère au rang usurpé ne trompe personne', () => {
+test("F5: a page's rank equals the hash table's, a foreign page at a usurped rank fools nobody", () => {
   const pages = catalogue();
   const neuf = createWebgpuRowState(pages, SLOTS);
   const ref = referenceRowState(pages, SLOTS);
   for (const page of pages)
     assert.equal(neuf.pageIndexOf(page), ref.pageIndexOf(page), `page ${page.url}`);
-  // Une page étrangère qui porterait le même `packedIndex` qu'une page réelle (aliasing) ne doit
-  // être confondue avec elle sur aucun des deux côtés.
+  // A foreign page that would carry the same `packedIndex` as a real page (aliasing) must not be
+  // confused with it on either side.
   const etrangere = { id: 999, url: 'x/0', packedIndex: 0 } as unknown as PageRec;
   assert.equal(neuf.pageIndexOf(etrangere), undefined);
   assert.equal(ref.pageIndexOf(etrangere), undefined);
-  // Une page sans rang du tout.
+  // A page with no rank at all.
   const sansRang = { id: 998, url: 'x/1' } as unknown as PageRec;
   assert.equal(neuf.pageIndexOf(sansRang), undefined);
   assert.equal(ref.pageIndexOf(sansRang), undefined);

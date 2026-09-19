@@ -1,38 +1,38 @@
 /**
- * Contrat du décodage d'une page hors du fil principal, version 3.
+ * Off-main-thread page-decode contract, version 3.
  *
- * Le fil appelant envoie une `PageDecodeRequest`, l'exécutant rend une `PageDecodeAnswer` portant le
- * même `id`. Rien ici ne touche la plateforme : ni `Worker`, ni fetch, ni horloge — l'adaptateur
- * navigateur porte tout cela, ce fichier ne porte que la forme des messages, la liste close des
- * échecs et la borne du pool.
+ * The calling thread sends a `PageDecodeRequest`, the executor returns a `PageDecodeAnswer` carrying
+ * the same `id`. Nothing here touches the platform: no `Worker`, no fetch, no clock — the browser
+ * adapter carries all of that, this file only carries the message shape, the closed list of
+ * failures and the pool bound.
  *
- * Propriété des tampons : `source` est **transféré** avec la requête, donc l'émetteur ne le possède
- * plus. Une réponse `verify` le rend, transféré à son tour ; une réponse `decode` rend à la place les
- * tampons décodés, eux aussi transférés. Un exécutant qui ne transfère rien (le repli synchrone) rend
- * exactement les mêmes valeurs : le contrat ne dit pas comment le travail voyage, seulement ce qu'il
- * rend.
+ * Buffer ownership: `source` is **transferred** with the request, so the sender no longer owns
+ * it. A `verify` response returns it, transferred in turn; a `decode` response returns the decoded
+ * buffers instead, also transferred. An executor that transfers nothing (the synchronous fallback)
+ * returns exactly the same values: the contract does not say how the work travels, only what it
+ * returns.
  */
 export const PAGE_DECODE_PROTOCOL = 3;
 
-/** `verify` : l'empreinte SHA-256 d'une page. `decode` : ses indices et ses attributs par sommet. */
+/** `verify`: a page's SHA-256 digest. `decode`: its indices and per-vertex attributes. */
 export type PageDecodeOp = 'verify' | 'decode';
 
 export interface PageDecodeRequest {
   protocol: number;
   id: number;
   op: PageDecodeOp;
-  /** Transféré avec le message : l'émetteur n'en est plus propriétaire. */
+  /** Transferred with the message: the sender is no longer the owner. */
   source: ArrayBuffer;
-  /** Plafond d'octets décodés d'une page de géométrie ; ignoré par `verify`. */
+  /** Ceiling of decoded bytes of a geometry page; ignored by `verify`. */
   maxDecodedBytes: number;
 }
 
 /**
- * Le bail de mémoire partagée d'un worker : le tampon de l'arène, le créneau et la région qu'il
- * possède, et le nombre de créneaux, qui donne la taille de la zone de contrôle. Posté une seule
- * fois, à la naissance du worker, et seulement là où la plateforme autorise la mémoire partagée.
- * Sans bail, le worker répond par transfert de tampons : le contrat ne change pas de forme, le
- * chemin des octets seul change.
+ * A worker's shared-memory lease: the arena buffer, the slot and the region it
+ * owns, and the slot count, which gives the size of the control zone. Posted once,
+ * at worker birth, and only where the platform allows shared memory.
+ * Without a lease, the worker answers by transferring buffers: the contract does not change shape,
+ * only the byte path does.
  */
 export interface PageDecodeShare {
   protocol: number;
@@ -43,16 +43,16 @@ export interface PageDecodeShare {
   slots: number;
 }
 
-/** Annulation d'une requête encore en file. Un travail déjà commencé va à son terme puis répond
- *  `PAGE_DECODE_CANCELLED` : l'exécutant n'a pas de point d'interruption au milieu d'un décodage. */
+/** Cancellation of a request still in the queue. Work already started runs to completion then answers
+ *  `PAGE_DECODE_CANCELLED`: the executor has no interrupt point in the middle of a decode. */
 export interface PageDecodeCancel {
   protocol: number;
   id: number;
   op: 'cancel';
 }
 
-/** Les tampons d'une page décodée. `names[i]` nomme `attributes[i]`, dans l'ordre d'écriture du
- *  décodage : c'est cet ordre qui redonne un `Record` identique champ pour champ. */
+/** Buffers of a decoded page. `names[i]` names `attributes[i]`, in the decode write
+ *  order: that order is what yields a field-for-field identical `Record`. */
 export interface PageDecodeGeometryPayload {
   indices: ArrayBuffer;
   names: string[];
@@ -66,23 +66,23 @@ export interface PageDecodeDone {
   protocol: number;
   id: number;
   ok: true;
-  /** `verify` : l'empreinte hexadécimale minuscule. `decode` : `null`. */
+  /** `verify`: the lowercase hexadecimal digest. `decode`: `null`. */
   sha256: string | null;
-  /** `verify` : le tampon source rendu. `decode` : `null`, la source est consommée. */
+  /** `verify`: the source buffer returned. `decode`: `null`, the source is consumed. */
   source: ArrayBuffer | null;
   decoded: PageDecodeGeometryPayload | null;
-  /** Vrai quand le décodeur compilé en WebAssembly a fait le travail, faux pour le décodeur
-   *  JavaScript. Les deux rendent les mêmes octets ; seul le compteur les distingue. */
+  /** True when the WebAssembly-compiled decoder did the work, false for the
+   *  JavaScript decoder. Both yield the same bytes; only the counter distinguishes them. */
   wasm: boolean;
-  /** Temps de la tâche, mesuré par l'exécutant lui-même. */
+  /** Task time, measured by the executor itself. */
   taskMs: number;
 }
 
 /**
- * Sémantique d'échec, liste close. Les six premiers sont les refus du décodage de page, repris mot
- * pour mot de `geometryPage.ts` : un appelant les distingue comme avant. `PAGE_DECODE_FAILED` porte
- * tout autre refus de la bibliothèque de décompression. `PAGE_DECODE_CANCELLED` répond à une
- * annulation, `PAGE_DECODE_WORKER` à un exécutant qui a disparu — seul celui-là autorise le repli.
+ * Failure semantics, closed list. The first six are the page-decode rejections, taken word
+ * for word from `geometryPage.ts`: a caller distinguishes them as before. `PAGE_DECODE_FAILED` carries
+ * any other rejection from the decompression library. `PAGE_DECODE_CANCELLED` answers a
+ * cancellation, `PAGE_DECODE_WORKER` an executor that vanished — only that one allows the fallback.
  */
 export const PAGE_DECODE_FAILURES = [
   'GEOMETRY_PAGE_HEADER',
@@ -102,22 +102,22 @@ export interface PageDecodeFailed {
   id: number;
   ok: false;
   code: PageDecodeFailureCode;
-  /** Le message d'origine, tel quel : l'appelant relève la même `Error` que le chemin synchrone. */
+  /** The original message, as-is: the caller raises the same `Error` as the synchronous path. */
   message: string;
 }
 export type PageDecodeAnswer = PageDecodeDone | PageDecodeFailed;
 
-/** Le refus nommé qui correspond à un message, ou `PAGE_DECODE_FAILED` pour tout le reste. */
+/** The named rejection that matches a message, or `PAGE_DECODE_FAILED` for everything else. */
 export function pageDecodeFailureCode(message: string): PageDecodeFailureCode {
   for (const code of PAGE_DECODE_FAILURES) if (code === message) return code;
   return 'PAGE_DECODE_FAILED';
 }
 
 /**
- * La taille du pool de décodage : jamais plus que les cœurs annoncés par la machine, jamais plus que
- * le plafond du paquet, jamais plus que la borne d'admission déjà en vigueur sur les transferts, et
- * au moins un. Une valeur absente ou non entière vaut un seul exécutant : sur une plateforme qui
- * n'annonce rien, on n'invente pas de parallélisme.
+ * Size of the decode pool: never more than the cores the machine reports, never more than
+ * the package ceiling, never more than the admission bound already in force on transfers, and
+ * at least one. A missing or non-integer value equals a single executor: on a platform that
+ * reports nothing, we do not invent parallelism.
  */
 export function pageDecodeWorkerCount(
   hardwareConcurrency: number | undefined,

@@ -1,5 +1,6 @@
-//! Une image décodée, ses chaînes cuites et ses fichiers écrits. Ce module sait ce qu'il décode et
-//! où il l'écrit ; il ne sait pas ce qu'est une découpe, et reçoit la liste des textures à mesurer.
+//! A decoded image, its baked chains and its written files. This module knows
+//! what it decodes and where it writes it; it does not know what a cutout is, and
+//! receives the list of textures to measure.
 use super::collect::AtlasTexture;
 use super::reduce::AtlasKind;
 use super::*;
@@ -7,27 +8,29 @@ use crate::plugins::image::DecodedImage;
 use image::codecs::png::{CompressionType, FilterType, PngEncoder};
 use image::{ExtendedColorType, ImageEncoder};
 
-/// Où les niveaux d'une image vivent dans le cache, relativement à `native/` : un dossier par
-/// version de la règle de réduction, puis un par empreinte, un fichier par atlas et par niveau. La
-/// version est dans le chemin parce qu'un fichier déjà là n'est jamais réécrit : sans elle, une
-/// règle qui change laisserait servir des niveaux calculés par l'ancienne.
+/// Where an image's levels live in the cache, relative to `native/`: one folder
+/// per reduction-rule version, then one per fingerprint, one file per atlas and
+/// per level. The version is in the path because a file already there is never
+/// rewritten: without it, a rule that changes would keep serving levels computed
+/// by the old one.
 pub const TEXTURE_DIR: &str = "textures";
 pub fn texture_version_dir() -> String {
     format!("{TEXTURE_DIR}/v{TEXTURE_PREVIEW_VERSION}")
 }
 
-/// Ce qu'une image rend une fois cuite : une entrée par (texture, atlas) qui la lit.
+/// What an image yields once baked: one entry per (texture, atlas) that reads it.
 pub(super) struct Baked {
     pub previews: Vec<TexturePreview>,
-    /// La forme de l'alpha, mesurée une fois, rendue pour CHAQUE texture candidate qui lit l'image :
-    /// la feuille des découpes pèse par texture, et une texture sans mesure n'y est pas candidate.
+    /// Alpha shape, measured once, yielded for EVERY candidate texture that reads
+    /// the image: the cutout sheet weighs by texture, and a texture without a
+    /// measurement is not a candidate.
     pub shapes: Vec<(usize, crate::cutout::AlphaShape)>,
     pub notes: Vec<&'static str>,
 }
 
-/// Décode une image, mesure son alpha si une texture le demande, cuit une chaîne par atlas qui la
-/// lit, écrit les niveaux au-dessus de la queue du sidecar. Un échec vaut pour toutes les textures
-/// de l'image, et le rapport les compte toutes.
+/// Decodes an image, measures its alpha if a texture asks, bakes one chain per
+/// atlas that reads it, writes the levels above the sidecar tail. A failure holds
+/// for every texture of the image, and the report counts them all.
 pub(super) fn one_image(
     inputs: &PreviewInputs<'_>,
     images: &[Value],
@@ -43,15 +46,15 @@ pub(super) fn one_image(
         let source = crate::plugins::image::decode(&bytes, PREVIEW_MAX_ALLOC).map_err(fail)?;
         match source.image {
             DecodedImage::Rgba8(pixels) => (pixels, source.notes),
-            // Une chaîne est du RGBA8, le format exact de l'atlas. Y faire entrer une image
-            // flottante demanderait un report de tons, une perte que la source n'avait pas : la
-            // texture est nommée au rapport et n'a pas de chaîne, jamais rognée.
+            // A chain is RGBA8, the exact atlas format. Feeding a floating image
+            // into it would need a tone map, a loss the source did not have: the
+            // texture is named in the report and has no chain, never clipped.
             DecodedImage::RgbaF32 { .. } => return Err(fail("image-float-unsupported")),
         }
     };
-    // La mesure de l'alpha lit l'image PLEINE RÉSOLUTION : la largeur d'un bord adouci se compte
-    // en pixels de la source, et un niveau réduit la diviserait par son échelle. Une image est
-    // mesurée une fois, pour la première texture candidate qui la cite.
+    // Alpha measurement reads the FULL-RESOLUTION image: the width of a softened
+    // edge is counted in source pixels, and a reduced level would divide it by
+    // its scale. An image is measured once, for the first candidate texture that cites it.
     let candidates: Vec<usize> = readers
         .iter()
         .filter(|r| inputs.to_measure.contains(&r.texture))
@@ -76,8 +79,9 @@ pub(super) fn one_image(
             let _t = perf::Timer::new(perf::Phase::TextureBake);
             reduce::chain(&decoded, kind)
         };
-        // Un fichier qui ne s'écrit pas — disque plein, dossier interdit — ne coûte pas la queue :
-        // l'entrée sort sans niveau cuit, le moteur charge l'image source, et le rapport le dit.
+        // A file that does not write — full disk, forbidden folder — does not cost
+        // the tail: the entry comes out without a baked level, the engine loads the
+        // source image, and the report says so.
         let baked_levels = match write_levels(inputs.o, &sha256, kind, &levels, (width, height)) {
             Ok(written) => written,
             Err(_) => {
@@ -112,8 +116,8 @@ pub(super) fn one_image(
     })
 }
 
-/// Le fichier d'un niveau, relativement à `native/` : le gabarit publié au manifeste, rempli.
-/// Une seule vérité, la même que le moteur applique de son côté.
+/// File of a level, relative to `native/`: the template published in the
+/// manifest, filled. One truth, the same the engine applies on its side.
 pub fn level_path(sha256: &str, kind: AtlasKind, level: u32) -> String {
     level_template()
         .replace("{sha}", sha256)
@@ -121,10 +125,11 @@ pub fn level_path(sha256: &str, kind: AtlasKind, level: u32) -> String {
         .replace("{level}", &level.to_string())
 }
 
-/// Écrit les niveaux au-dessus de la queue du sidecar en PNG, sans perte, un fichier par niveau,
-/// et rend combien en existent à la fin. Un fichier déjà là est laissé tel quel : l'empreinte des
-/// octets sources et l'atlas suffisent à dire que son contenu est le bon, et le réécrire coûterait
-/// la compression d'un 2048² à chaque compilation d'une scène qui partage l'image.
+/// Writes the levels above the sidecar tail as lossless PNG, one file per level,
+/// and returns how many exist at the end. A file already there is left as-is: the
+/// source-bytes fingerprint and the atlas suffice to say its content is the right
+/// one, and rewriting it would cost compressing a 2048² on every compilation of a
+/// scene that shares the image.
 fn write_levels(
     o: &Options,
     sha256: &str,
@@ -153,7 +158,7 @@ fn write_levels(
     Ok(first)
 }
 
-/// Le rapport de l'étape, qui compte ce qu'il a cuit et ce qu'il a refusé.
+/// Stage report, which counts what it baked and what it refused.
 pub(super) fn report(
     wanted: &[AtlasTexture],
     previews: &[TexturePreview],

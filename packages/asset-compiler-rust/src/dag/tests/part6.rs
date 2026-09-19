@@ -1,9 +1,9 @@
 use super::*;
 use crate::dag::border::{live_triangles, lock_triangles_touching, lost_locks, required_locks};
 
-/// La grille de `grid`, éclatée en soupe : trois sommets par triangle, aucun partagé. C'est la forme
-/// d'un FBX dont les attributs sont écrits coin par coin, et celle sur laquelle meshoptimizer ne
-/// réduit rien tant que les positions ne sont pas soudées.
+/// `grid` grid exploded into soup: three vertices per triangle, none shared. Form
+/// of FBX whose attributes are written corner by corner, on which meshoptimizer
+/// reduces nothing until positions welded.
 fn soup(n: usize) -> (Vec<f32>, Vec<u32>) {
     let (positions, indices) = grid(n);
     let mut soup_positions = Vec::with_capacity(indices.len() * 3);
@@ -13,9 +13,9 @@ fn soup(n: usize) -> (Vec<f32>, Vec<u32>) {
     (soup_positions, (0..indices.len() as u32).collect())
 }
 
-// Comportement : une soupe de sommets monte jusqu'à une racine unique — la soudure par position
-// prend le relais quand la réduction brute ne rend pas moins de grappes —, et ses niveaux
-// grossiers ne citent que des sommets que la soudure retient.
+// Behavior: vertex soup ascends to single root — position welding
+// takes over when raw reduction yields no fewer clusters —, and coarse levels
+// cite only vertices retained by welding.
 #[test]
 fn a_vertex_soup_still_climbs_to_a_single_root() {
     let (positions, indices) = soup(64);
@@ -29,7 +29,7 @@ fn a_vertex_soup_still_climbs_to_a_single_root() {
     );
     assert!(
         tallies.iter().any(|t| t.welded > 0),
-        "au moins un groupe a dû souder"
+        "at least one group had to weld"
     );
     let weld = weld_positions(&positions, &indices);
     for cluster in dag.iter().filter(|c| c.level > 0) {
@@ -44,7 +44,7 @@ fn a_vertex_soup_still_climbs_to_a_single_root() {
 
 #[test]
 fn lost_locks_lists_the_locked_vertices_that_vanished_by_welded_id() {
-    // 0 et 3 sont soudés ; 0 verrouillé et absent, mais son double 3 survit — rien n'est perdu.
+    // 0 and 3 welded; 0 locked and absent, but double 3 survives — nothing lost.
     let weld = [0u32, 1, 2, 0, 4];
     let locks = [true, false, true, false, true];
     let required = required_locks(&[0, 1, 2], &locks, &weld);
@@ -58,7 +58,7 @@ fn lost_locks_lists_the_locked_vertices_that_vanished_by_welded_id() {
 
 #[test]
 fn lock_triangles_touching_locks_every_corner_of_a_triangle_that_lost_a_lock() {
-    // Deux triangles ; seul le premier touche le sommet perdu 5 (par son double soudé 7).
+    // Two triangles; only first touches lost vertex 5 (via welded double 7).
     let weld = [0u32, 1, 2, 3, 4, 5, 6, 5];
     let source = [0u32, 1, 7, 2, 3, 4];
     let mut extra = vec![9];
@@ -66,7 +66,7 @@ fn lock_triangles_touching_locks_every_corner_of_a_triangle_that_lost_a_lock() {
     assert_eq!(
         extra,
         vec![0, 1, 5, 9],
-        "les trois coins, soudés, plus ce qui l'était déjà"
+        "the three corners, welded, plus what was already there"
     );
 }
 

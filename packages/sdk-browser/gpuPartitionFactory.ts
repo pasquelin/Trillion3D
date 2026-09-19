@@ -14,9 +14,9 @@ import { readGpuBuffer } from './gpuReadback.ts';
 import type { GpuPartition, KeptFrame, PartitionSources } from './gpuPartitionTypes.ts';
 
 /**
- * La partition d'une image, faite par la carte : projection des boîtes, partage occulteurs/testés,
- * empaquetage des bornes du test Hi-Z. Une compilation en échec rend `undefined`, et l'appelant
- * garde alors sa coupe sans occultation plutôt que de tomber en silence.
+ * Partition of a frame, done by the GPU: box projection, occluder/tested split, packing of the
+ * Hi-Z test bounds. A failed compilation returns `undefined`, and the caller then keeps its cut
+ * without occlusion rather than failing silently.
  */
 export async function createGpuPartition(
   device: GPUDevice,
@@ -59,9 +59,9 @@ export async function createGpuPartition(
       return undefined;
     }
     const writeUniform = createPartitionUniformWriter();
-    // Ce que la dernière image a envoyé au noyau, gardé pour l'audit : les matrices sont recopiées
-    // parce que celles de la caméra sont réécrites par l'image suivante. La copie va dans deux
-    // tableaux alloués une fois pour toutes — l'audit lit la dernière image, jamais une antérieure.
+    // What the last frame sent the kernel, kept for the audit: matrices are copied because the
+    // camera's are rewritten by the next frame. The copy goes into two arrays allocated once
+    // and for all — the audit reads the last frame, never an earlier one.
     const kept: KeptFrame = {
       rows: 0,
       width: 0,
@@ -87,7 +87,7 @@ export async function createGpuPartition(
       state: allocated.state,
       rowData: allocated.rowData,
       uniforms: allocated.uniforms,
-      /** Les coins monde des lignes `[from, to]`, sur l'intervalle sale de la table et lui seul. */
+      /** World corners of rows `[from, to]`, on the table's dirty interval and it alone. */
       uploadCorners(packed: Float32Array, from: number, to: number) {
         if (disposed || to < from) return;
         device.queue.writeBuffer(
@@ -101,8 +101,8 @@ export async function createGpuPartition(
       encode(encoder: GPUCommandEncoder, frame: PartitionFrame) {
         if (disposed) return;
         const rows = Math.min(frame.rows, allocated.rows);
-        // Rien n'est tenu d'une image à l'autre que l'historique, qui vit dans `rowData` : les
-        // compteurs, l'histogramme, les bits de reste et les comptes par slot repartent de zéro.
+        // Nothing is held from frame to frame but the history, which lives in `rowData`:
+        // counters, histogram, rest bits and per-slot counts start from zero.
         encoder.clearBuffer(allocated.state, 0, STATE_WORDS * 4);
         encoder.clearBuffer(sources.restBits);
         encoder.clearBuffer(sources.slotUsed);
@@ -143,7 +143,7 @@ export async function createGpuPartition(
       try {
         buffer.destroy();
       } catch {
-        /* Un montage GPU partiel ne doit rien laisser fuir. */
+        /* A partial GPU setup must leak nothing. */
       }
     return undefined;
   }

@@ -1,10 +1,11 @@
-//! Doré du pilote `blend` : une scène Blender CC0 passe par le routeur, le pilote, puis le
-//! compilateur, et la scène intermédiaire qu'il a écrite est comparée à `expected.json` — nœuds,
-//! matrices converties, maillages, primitives par matériau, matériaux PBR et images, valeur par
-//! valeur. Ce que le pilote refuse est fixé ici aussi, par son code.
+//! Golden of the `blend` driver: a CC0 Blender scene goes through the router, the
+//! driver, then the compiler, and the intermediate scene it wrote is compared to
+//! `expected.json` — nodes, converted matrices, meshes, primitives per material,
+//! PBR materials and images, value by value. What the driver refuses is fixed
+//! here too, by its code.
 //!
-//! La fixture est décrite dans `fixtures/blend/README.md`. Régénération de l'attendu, depuis la
-//! racine du dépôt :
+//! The fixture is described in `fixtures/blend/README.md`. Regenerating the
+//! expected, from the repository root:
 //!
 //! ```text
 //! cargo test --release --manifest-path packages/asset-compiler-rust/Cargo.toml \
@@ -12,32 +13,34 @@
 //! npx prettier --write packages/asset-compiler-rust/fixtures/blend/procedural-materials/expected.json
 //! ```
 //!
-//! Ignorée par défaut : elle écrit dans `fixtures/`. Le diff qu'elle produit se relit avant d'être
-//! commité — un attendu régénéré sans lecture ne surveille plus rien.
+//! Ignored by default: it writes into `fixtures/`. The diff it produces is
+//! re-read before being committed — an expected regenerated without reading no
+//! longer watches anything.
 use super::*;
 
-const CASE: &str = "Scene Blender 5.2 CC0 compressee en Zstandard : trois objets qui partagent un meme cube, accroches a un objet vide qui les porte, six faces a trois materiaux, une couche d UV, des faces toutes nettes, un materiau emissif d intensite 3, un materiau opaque et un materiau transparent dont la couleur et l alpha viennent d une meme image PNG empaquetee dans le fichier.";
-const RULE: &str = "Blender travaille en Z vers le haut, le glTF en Y vers le haut : un unique noeud racine porte la conversion d axes, et aucun sommet n est retouche. Un maillage partage par trois objets n est ecrit qu une fois ; seules les matrices different. L indice de matiere vit a la face chez Blender et a la primitive en glTF : les six faces donnent trois primitives. Les normales ne sont pas dans le fichier et sont calculees a la lecture, a plat pour une face nette. L alpha branche sur le canal alpha de l image que porte deja la couleur de base passe tel quel : le facteur vaut un, sans quoi il annulerait l image, et le mode devient BLEND. Blender place l origine des UV en bas a gauche et le glTF en haut a gauche : v devient 1 - v, les octets des images restant intacts. L emission vaut couleur x intensite, bornee a 1 par le glTF et comptee des qu elle depasse. Les octets de l image empaquetee partent tels quels dans le binaire de la scene, par une vue de tampon : aucun reencodage.";
+const CASE: &str = "Blender 5.2 CC0 scene compressed with Zstandard: three objects that share the same cube, parented to an empty that carries them, six faces with three materials, one UV layer, all sharp faces, an emissive material of intensity 3, an opaque material and a transparent material whose colour and alpha come from the same PNG packed in the file.";
+const RULE: &str = "Blender works with Z up, glTF with Y up: a single root node carries the axis conversion, and no vertex is touched. A mesh shared by three objects is written only once; only the matrices differ. The material index lives on the face in Blender and on the primitive in glTF: the six faces yield three primitives. Normals are not in the file and are computed at read, flat for a sharp face. Alpha wired to the alpha channel of the image the base colour already carries passes as-is: the factor is one, otherwise it would cancel the image, and the mode becomes BLEND. Blender places the UV origin bottom-left and glTF top-left: v becomes 1 - v, image bytes staying intact. Emission is colour x intensity, clamped to 1 by glTF and counted as soon as it exceeds. Packed image bytes go as-is into the scene binary, through a buffer view: no re-encoding.";
 
-/// La fixture CC0 et le dossier qui porte son attendu.
+/// The CC0 fixture and the folder that carries its expected.
 fn fixture() -> PathBuf {
     golden_dir("blend/procedural-materials")
 }
 
-// Comportement 27 : la scène Blender dorée passe par le compilateur et tout ce que le pilote en a
-// tiré — nœuds, matrices, maillages, matériaux, images — est comparé exactement à expected.json.
+// Behaviour 27: the golden Blender scene goes through the compiler and everything
+// the driver drew from it — nodes, matrices, meshes, materials, images — is
+// compared exactly to expected.json.
 #[test]
 fn the_blend_scene_matches_its_golden_expected_json() {
     let run = compile_golden_source(&fixture().join("scene.blend"), "blend");
     assert_eq!(
         blend_digest(&run),
         golden_expected(&fixture()),
-        "fixture blend : la scène intermédiaire diverge de expected.json"
+        "fixture blend: the intermediate scene diverges from expected.json"
     );
 }
 
-// Comportement 28 : ce que le pilote refuse est nommé. Un fichier tronqué au milieu d'un bloc, et
-// un dossier qui porte deux fichiers Blender, sortent chacun par leur code, sans panique.
+// Behaviour 28: what the driver refuses is named. A file truncated mid-block, and
+// a folder that carries two Blender files, each come out by their code, without panic.
 #[test]
 fn a_truncated_file_and_an_ambiguous_directory_are_refused_by_name() {
     let truncated = golden_dir("blend/limites").join("truncated.blend");
@@ -57,9 +60,9 @@ fn a_truncated_file_and_an_ambiguous_directory_are_refused_by_name() {
     fs::remove_dir_all(dir).expect("nettoyage");
 }
 
-/// Ce que la dorée fixe : le pilote retenu, son rapport, puis la scène elle-même — chaque nœud avec
-/// son nom, sa matrice et son maillage, chaque maillage avec les matériaux de ses primitives, et
-/// chaque matériau avec ses facteurs PBR.
+/// What the golden fixes: the retained driver, its report, then the scene itself
+/// — each node with its name, matrix and mesh, each mesh with the materials of
+/// its primitives, and each material with its PBR factors.
 pub(super) fn blend_digest(run: &GoldenRun) -> Value {
     let (manifest, gltf) = run.prepared("blend");
     let materials: Vec<Vec<Value>> = gltf["meshes"]
@@ -110,7 +113,7 @@ pub(super) fn blend_digest(run: &GoldenRun) -> Value {
 }
 
 #[test]
-#[ignore = "écrit dans fixtures/ ; se relance à la main, et son diff se relit"]
+#[ignore = "writes into fixtures/; rerun by hand, and its diff is re-read"]
 fn regenere_la_fixture_blend() {
     let run = compile_golden_source(&fixture().join("scene.blend"), "blend");
     write_expected(&fixture(), blend_digest(&run), CASE, RULE);

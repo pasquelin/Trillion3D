@@ -1,22 +1,21 @@
 import type { HostRetentionDelta } from './streamingTypes.ts';
 
-/** Ce que la différence lit d'un enregistrement : son rang de requête, et rien d'autre. */
+/** What the delta reads from a record: its request rank, and nothing else. */
 type Ranked = { requestIndex?: number };
 
 /**
- * L'ensemble des rangs de requête qu'une image garde, tenu d'une image à l'autre et publié comme une
- * différence.
+ * The set of request ranks an image keeps, held from one image to the next and published as a delta.
  *
- * Rien n'est alloué une fois la scène connue et aucune chaîne n'est touchée : l'appartenance est une
- * marque d'époque lue à même un tableau typé, les sorties se lisent sur la liste des retenus d'avant,
- * et deux tampons échangés évitent la moindre réallocation. Une image qui garde exactement les mêmes
- * rangs publie donc une différence vide, que le cache reconnaît sans rien parcourir.
+ * Nothing is allocated once the scene is known and no string is touched: membership is an epoch mark
+ * read off a typed array, exits are read on the previous kept list, and two swapped buffers avoid any
+ * reallocation. An image that keeps exactly the same ranks therefore publishes an empty delta, which
+ * the cache recognises without walking anything.
  */
 export function createHostRankDelta(requestCount: number, urls: readonly string[]) {
   const capacity = Math.max(1, requestCount);
-  /** L'époque du passage où le rang a été marqué pour la dernière fois. */
+  /** Epoch of the pass where the rank was last marked. */
   const markedAt = new Int32Array(capacity).fill(-1);
-  /** L'appartenance publiée : ce que le cache tient pour épinglé. */
+  /** Published membership: what the cache holds as pinned. */
   const published = new Uint8Array(capacity);
   const entered = new Int32Array(capacity),
     exited = new Int32Array(capacity);
@@ -45,14 +44,14 @@ export function createHostRankDelta(requestCount: number, urls: readonly string[
     },
   } satisfies HostRetentionDelta;
   return {
-    /** Ouvre un passage : ce qui n'est pas remarqué avant `finish()` sortira de l'ensemble. */
+    /** Opens a pass: what is not re-marked before `finish()` will leave the set. */
     begin() {
       epoch++;
       nextCount = 0;
       enteredCount = 0;
       exitedCount = 0;
     },
-    /** Marque les rangs d'une liste. Un rang déjà marqué dans ce passage ne coûte qu'une lecture. */
+    /** Marks the ranks of a list. A rank already marked in this pass costs only a read. */
     mark(list: readonly Ranked[]) {
       for (let i = 0; i < list.length; i++) {
         const rank = list[i].requestIndex;
@@ -65,7 +64,7 @@ export function createHostRankDelta(requestCount: number, urls: readonly string[
         entered[enteredCount++] = rank;
       }
     },
-    /** Ferme le passage et rend la différence : ce qui est entré, ce qui est sorti. */
+    /** Closes the pass and returns the delta: what entered, what left. */
     finish(): HostRetentionDelta {
       for (let i = 0; i < heldCount; i++) {
         const rank = held[i];
@@ -79,7 +78,7 @@ export function createHostRankDelta(requestCount: number, urls: readonly string[
       heldCount = nextCount;
       return delta;
     },
-    /** L'ensemble déjà publié, sans rien reparcourir : l'image garde ce qu'elle gardait. */
+    /** The already-published set, without walking anything: the image keeps what it kept. */
     hold(): HostRetentionDelta {
       enteredCount = 0;
       exitedCount = 0;

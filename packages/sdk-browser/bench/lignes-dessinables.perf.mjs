@@ -1,4 +1,4 @@
-// la table des lignes dessinables.
+// the drawable-row table.
 import { createWebgpuRowState } from '../webgpuRowState.ts';
 import { createWebgpuRowCommit } from '../webgpuRowCommit.ts';
 import { createWebgpuRowSync } from '../webgpuRowSync.ts';
@@ -45,7 +45,7 @@ for (let image = 0; image < 8; image++) {
 
 const pagesCommunes = catalogue();
 
-const monte = (fabriqueCommit) => {
+const mount = (fabriqueCommit) => {
   const pages = pagesCommunes;
   const rows = createWebgpuRowState(pages, SLOTS);
   const tampon = new ArrayBuffer(SLOTS * PAGE_INFO_STRIDE);
@@ -83,11 +83,11 @@ const etatComplet = (rows) => ({
   rowsChanged: rows.rowsChanged,
 });
 
-const passe = (fabriqueCommit) => (entree) => {
-  const { rows, sync } = monte(fabriqueCommit);
-  for (let tour = 0; tour < entree.images.length; tour++) {
-    rows.residentOffsetWords.set(entree.images[tour]);
-    rows.tableEpoch += entree.epoques ? 1 : 0;
+const passe = (fabriqueCommit) => (input) => {
+  const { rows, sync } = mount(fabriqueCommit);
+  for (let tour = 0; tour < input.images.length; tour++) {
+    rows.residentOffsetWords.set(input.images[tour]);
+    rows.tableEpoch += input.epoques ? 1 : 0;
     rows.rowsEpoch = -1;
     sync.syncRows();
   }
@@ -95,12 +95,12 @@ const passe = (fabriqueCommit) => (entree) => {
 };
 
 const cas = [
-  { nom: '8 images, 12 000 pages', entree: { images, epoques: false }, taille: PAGES * 8 },
-  { nom: 'époques qui avancent', entree: { images, epoques: true }, taille: PAGES * 8 },
+  { name: '8 frames, 12 000 pages', input: { images, epoques: false }, size: PAGES * 8 },
+  { name: 'advancing epochs', input: { images, epoques: true }, size: PAGES * 8 },
 ];
 
 const resLignes = await mesure({
-  nom: 'table des lignes dessinables',
+  name: 'drawable-row table',
   fichier: 'packages/sdk-browser/webgpuRowCommit.ts',
   cas,
   calcul: passe(createWebgpuRowCommit),
@@ -108,7 +108,7 @@ const resLignes = await mesure({
   options: { tours: 30, budgetMs: 1500 },
 });
 
-// Le rang d'une page, demandé pour chaque cluster de la coupe CPU d'une image.
+// The rank of a page, asked for every cluster of a frame's CPU cut.
 const pagesF5 = catalogue();
 const etatF5 = createWebgpuRowState(pagesF5, SLOTS);
 const referenceF5 = referenceRowState(pagesF5, SLOTS);
@@ -122,19 +122,19 @@ for (let i = 0; i < 20000; i++) {
   );
 }
 const rangs = (etat) => (liste) => {
-  const sortie = new Array(liste.length);
-  for (let i = 0; i < liste.length; i++) sortie[i] = etat.pageIndexOf(liste[i]) ?? -1;
-  return sortie;
+  const output = new Array(liste.length);
+  for (let i = 0; i < liste.length; i++) output[i] = etat.pageIndexOf(liste[i]) ?? -1;
+  return output;
 };
 
 const resRangs = await mesure({
-  nom: 'rang d’une page du catalogue',
+  name: 'rank of a catalogue page',
   fichier: 'packages/sdk-browser/webgpuRowState.ts',
   cas: [
-    { nom: '20 000 demandes, 10 % hors catalogue', entree: demandes, taille: demandes.length },
-    { nom: 'une seule page', entree: [pagesF5[0]], taille: 1 },
-    { nom: 'page étrangère au rang usurpé', entree: [etrangeres[0]], taille: 1 },
-    { nom: 'aucune demande', entree: [], taille: 0 },
+    { name: '20 000 requests, 10% outside the catalogue', input: demandes, size: demandes.length },
+    { name: 'a single page', input: [pagesF5[0]], size: 1 },
+    { name: 'foreign page at a usurped rank', input: [etrangeres[0]], size: 1 },
+    { name: 'no requests', input: [], size: 0 },
   ],
   calcul: rangs(etatF5),
   attendu: rangs(referenceF5),
@@ -142,13 +142,13 @@ const resRangs = await mesure({
 });
 
 await stress({
-  nom: 'createWebgpuRowState extremes',
+  name: 'createWebgpuRowState extremes',
   calcul: (p) => createWebgpuRowState(p, 10),
-  extremes: [{ nom: 'vide', entree: [] }],
+  extremes: [{ name: 'empty', input: [] }],
 });
 
 rapport(
   'lignes-dessinables',
   [resLignes, resRangs],
-  'F4 et F5 rendent exactement la même table de lignes et les mêmes rangs',
+  'F4 and F5 yield the exact same row table and ranks',
 );

@@ -87,7 +87,7 @@ test('a cluster url that does not follow the manifest template is refused at enc
   );
 });
 
-// Comportement 10 : l'encodage TypeScript refuse un depthLayer qui dépasse les quatre bits (> 15)
+// Behaviour 10: TypeScript encoding rejects a depthLayer that exceeds four bits (> 15)
 // et accepte la valeur limite.
 test('encodeManifestBinary rejects a depth layer above 15 and accepts the four-bit limit', () => {
   const tooDeep = manifest();
@@ -101,8 +101,8 @@ test('encodeManifestBinary rejects a depth layer above 15 and accepts the four-b
   assert.doesNotThrow(() => encodeManifestBinary(atLimit, TEMPLATES));
 });
 
-// Comportement 11 : pageDepthLayer fait l'aller-retour par les colonnes binaires ; la couche 0
-// laisse le champ absent, pour qu'une page garde une seule forme après décodage.
+// Behaviour 11: pageDepthLayer round-trips through the binary columns; layer 0
+// leaves the field absent, so a page keeps a single shape after decode.
 test('depthLayer round-trips through the binary columns, and layer 0 leaves the field absent', () => {
   const source = manifest();
   source.primitives[0].pages[0].depthLayer = 7;
@@ -116,16 +116,16 @@ test('depthLayer round-trips through the binary columns, and layer 0 leaves the 
   assert.equal(
     'depthLayer' in decoded.primitives[0].pages[1],
     false,
-    'la seconde page (couche 0) ne porte aucun champ depthLayer après décodage',
+    'the second page (layer 0) carries no depthLayer field after decode',
   );
   assert.equal(
     'depthLayer' in decoded.primitives[1].pages[0],
     false,
-    'aucune couche déclarée dans la source : toujours absent après décodage',
+    'no layer declared in the source: still absent after decode',
   );
 });
 
-// Comportement 13 : assertManifestBinary refuse tout sidecar dont la version n'est pas la sienne.
+// Behaviour 13: assertManifestBinary rejects any sidecar whose version is not its own.
 test('assertManifestBinary accepts this version and refuses every other one', () => {
   const descriptor = {
     version: MANIFEST_BINARY_VERSION,
@@ -146,8 +146,8 @@ test('assertManifestBinary accepts this version and refuses every other one', ()
     );
 });
 
-// Comportement 10 : assertManifestBinary refuse un descriptif sans compte d'aperçus de texture, et
-// split/decodeManifestBinary fait l'aller-retour de la section aperçus sans en perdre un octet.
+// Behaviour 10: assertManifestBinary rejects a descriptor with no texture preview count, and
+// split/decodeManifestBinary round-trips the preview section without losing a byte.
 test('assertManifestBinary rejects a descriptor with no texture preview count', () => {
   const descriptor = {
     version: MANIFEST_BINARY_VERSION,

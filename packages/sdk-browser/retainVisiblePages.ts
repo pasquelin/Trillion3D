@@ -2,8 +2,8 @@ import type { RenderBackend } from './backendTypes.ts';
 import type { createPageStreamer } from './streamingPages.ts';
 
 /**
- * Les épingles par différence de rangs quand le moteur sait les dire : l'hôte ne refait plus un
- * ensemble de chaînes par image. Le repli WebGL, qui ne la porte pas, garde la liste d'adresses.
+ * Pinning by rank difference when engine supports it: host no longer reconstructs
+ * a set of strings per frame. WebGL fallback, which does not support it, keeps list of URLs.
  */
 export function retainVisiblePages(
   backend: RenderBackend,

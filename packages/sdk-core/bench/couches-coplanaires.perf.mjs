@@ -1,4 +1,4 @@
-// les unités de couche coplanaire et le biais de profondeur qu'elles posent sur un f32.
+// coplanar layer units and the depth bias they apply on a f32.
 import { biasedDepthBits, depthLayerUnits } from '../depthLayer.ts';
 import { graine, mesure, rapport } from './socle.mjs';
 import {
@@ -8,28 +8,28 @@ import {
 
 const alea = graine(107);
 
-// Un tiers des couches sont hostiles : hors bornes, non finies ou absentes. Le moteur les ramène
-// toutes à zéro sans lever, et c'est ce que l'oracle vérifie sur les deux fonctions.
+// One third of the layers are hostile: out of bounds, non-finite, or missing. The engine brings them
+// all to zero without throwing, and this is what the oracle checks on both functions.
 const HOSTILES = [-1, 16, NaN, Infinity, -Infinity, undefined, null];
 const couche = () =>
   alea() < 0.3 ? HOSTILES[Math.floor(alea() * HOSTILES.length)] : Math.floor(alea() * 16);
 
-// La sortie appartient au cas : le chronomètre n'encadre que les appels du moteur.
+// Output belongs to the test case: the timer only measures engine calls.
 const couches = (nombre) => ({
   liste: Array.from({ length: nombre }, couche),
-  sortie: new Float64Array(nombre),
+  output: new Float64Array(nombre),
 });
 const unites =
   (calcule) =>
-  ({ liste, sortie }) => {
-    for (let i = 0; i < liste.length; i++) sortie[i] = calcule(liste[i]);
-    return sortie;
+  ({ liste, output }) => {
+    for (let i = 0; i < liste.length; i++) output[i] = calcule(liste[i]);
+    return output;
   };
 
 const mesureUnites = await mesure({
-  nom: 'unités de couche coplanaire',
+  name: 'coplanar layer units',
   fichier: 'packages/sdk-core/depthLayer.ts',
-  cas: [{ nom: '50 000 couches', taille: 50000, entree: couches(50000) }],
+  cas: [{ name: '50 000 layers', size: 50000, input: couches(50000) }],
   calcul: unites(depthLayerUnits),
   attendu: unites(referenceDepthLayerUnits),
 });
@@ -37,28 +37,28 @@ const mesureUnites = await mesure({
 const paires = (nombre, fixe) => ({
   bits: Uint32Array.from({ length: nombre }, () => Math.floor(alea() * 0x3f800000)),
   layers: Array.from({ length: nombre }, fixe === undefined ? couche : () => fixe),
-  sortie: new Float64Array(nombre),
+  output: new Float64Array(nombre),
 });
 const biaise =
   (calcule) =>
-  ({ bits, layers, sortie }) => {
-    for (let i = 0; i < bits.length; i++) sortie[i] = calcule(bits[i], layers[i]);
-    return sortie;
+  ({ bits, layers, output }) => {
+    for (let i = 0; i < bits.length; i++) output[i] = calcule(bits[i], layers[i]);
+    return output;
   };
 
 const mesureBits = await mesure({
-  nom: 'bits de profondeur biaisés',
+  name: 'biased depth bits',
   fichier: 'packages/sdk-core/depthLayer.ts',
   cas: [
-    { nom: '50 000 paires', taille: 50000, entree: paires(50000) },
-    { nom: 'couche 0', taille: 10000, entree: paires(10000, 0) },
+    { name: '50 000 pairs', size: 50000, input: paires(50000) },
+    { name: 'layer 0', size: 10000, input: paires(10000, 0) },
     {
-      nom: 'bits saturés',
-      taille: 2,
-      entree: {
+      name: 'saturated bits',
+      size: 2,
+      input: {
         bits: Uint32Array.of(0xffffffff, 0x3f800000),
         layers: [3, 15],
-        sortie: new Float64Array(2),
+        output: new Float64Array(2),
       },
     },
   ],
@@ -69,5 +69,5 @@ const mesureBits = await mesure({
 rapport(
   'couches-coplanaires',
   [mesureUnites, mesureBits],
-  'les unités de couche et les bits biaisés rendent les mêmes valeurs',
+  'layer units and biased bits return the same values',
 );

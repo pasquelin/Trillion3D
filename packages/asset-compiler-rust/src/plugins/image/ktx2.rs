@@ -1,42 +1,41 @@
-//! Pilote KTX 2.0, le conteneur de texture de Khronos, lu depuis la spécification publique
-//! « KTX File Format Specification, version 2.0 » : identifiant de douze octets, entête de
-//! quatorze champs, index des sections et index des niveaux, tous écrits à la main d'après ce
-//! document. Aucun SDK ni code d'éditeur.
+//! KTX 2.0 driver, Khronos's texture container, read from the public specification
+//! "KTX File Format Specification, version 2.0": twelve-byte identifier, fourteen-field
+//! header, section index and level index, all written by hand from that document. No vendor
+//! SDK or code.
 //!
-//! Trois bibliothèques permissives font le reste, chacune sur une matière :
+//! Three permissive libraries do the rest, each on one matter:
 //!
-//! - `basisu` 0.1.0 (Apache-2.0, `marcogomez/basisu`, Rust pur, sans `cc` ni C++) transcode les
-//!   charges Basis Universal — ETC1S sous supercompression BasisLZ, UASTC LDR 4 × 4 — vers RGBA8.
-//!   C'est un portage du transcodeur de référence de Binomial, vérifié octet pour octet contre lui.
-//! - `texture2ddecoder` 0.1.2 (MIT ou Apache-2.0) développe les blocs déjà compressés pour le GPU,
-//!   par le socle `image::blocks` que ce pilote partage avec `dds` : le codec se nomme par
-//!   `vkFormat` ici et par `dwFourCC` là, mais promener les pixels est le même travail. Les deux
-//!   formats EAC non signés font exception : `eac.rs`, écrit ici depuis la spécification d'OpenGL
-//!   ES 3.0, les développe en onze bits puis arrondit — le décodeur externe les tronquait et lisait
-//!   leur champ d'indices à l'envers.
-//! - `ruzstd` 0.7.3 (MIT, Rust pur) défait la supercompression Zstandard d'un niveau.
+//! - `basisu` 0.1.0 (Apache-2.0, `marcogomez/basisu`, pure Rust, no `cc` or C++) transcodes
+//!   Basis Universal payloads — ETC1S under BasisLZ supercompression, UASTC LDR 4 × 4 — to
+//!   RGBA8. It is a port of Binomial's reference transcoder, verified byte for byte against it.
+//! - `texture2ddecoder` 0.1.2 (MIT or Apache-2.0) expands blocks already compressed for the
+//!   GPU, through the `image::blocks` base this driver shares with `dds`: the codec is named
+//!   by `vkFormat` here and by `dwFourCC` there, but walking the pixels is the same work. The
+//!   two unsigned EAC formats are an exception: `eac.rs`, written here from the OpenGL ES 3.0
+//!   specification, expands them to eleven bits then rounds — the external decoder truncated
+//!   them and read their index field backwards.
+//! - `ruzstd` 0.7.3 (MIT, pure Rust) undoes a level's Zstandard supercompression.
 //!
-//! **On n'ajoute aucune perte.** Une charge ETC1S, UASTC ou BCn a déjà perdu ce qu'elle devait
-//! perdre chez son encodeur ; le pilote se contente de la reconstruction que la spécification du
-//! codec définit, sans filtre, sans arrondi de plus, sans réencodage. La source n'est jamais
-//! modifiée.
+//! **No extra loss is added.** An ETC1S, UASTC or BCn payload has already lost what it had to
+//! lose at its encoder; the driver only does the reconstruction the codec specification
+//! defines, with no filter, no extra rounding, no re-encoding. The source is never modified.
 //!
-//! **Le décodage est un repli, pas la destination.** La règle du dépôt veut qu'une texture reçue
-//! déjà compressée pour le GPU garde ses blocs compressés sur le GPU quand la machine les accepte.
-//! Ce lot ne construit pas cette chaîne — transport, atlas et GPU sont un autre chantier — et le
-//! contrat `DecodedImage` n'a qu'une variante `Rgba8`. Le pilote est découpé pour l'accueillir :
-//! `header` rend la surface et les bornes de son niveau 0, `format` nomme le codec et sa géométrie
-//! de bloc, `level` et `basis` ne sont que la reconstruction.
+//! **Decoding is a fallback, not the destination.** The repository rule is that a texture
+//! received already compressed for the GPU keeps its compressed blocks on the GPU when the
+//! machine accepts them. This batch does not build that chain — transport, atlas and GPU are
+//! another job — and the `DecodedImage` contract has only an `Rgba8` variant. The driver is
+//! split to welcome it: `header` returns the surface and the bounds of its level 0, `format`
+//! names the codec and its block geometry, `level` and `basis` are only the reconstruction.
 //!
-//! **Ce que le fichier déclare autour de ses texels** est lu, pas sauté : `dfd` rend la fonction de
-//! transfert et le drapeau d'alpha prémultiplié du descripteur de format, `keys` rend les clés
-//! `KTXorientation` et `KTXswizzle`, et `declared` applique ce qui s'applique — dé-prémultiplication,
-//! retournement vertical — en comptant le reste par une raison nommée.
+//! **What the file declares around its texels** is read, not skipped: `dfd` returns the
+//! transfer function and the premultiplied-alpha flag of the format descriptor, `keys`
+//! returns the `KTXorientation` and `KTXswizzle` keys, and `declared` applies what applies —
+//! un-premultiply, vertical flip — counting the rest as a named reason.
 //!
-//! Seul le niveau 0 est consommé, comme chez `dds` ; la chaîne annoncée est vérifiée entière, un
-//! niveau qui sort du fichier est un refus. Tout le reste — cubes, tableaux, volumes, `vkFormat`
-//! hors liste, supercompression inconnue, fichier tronqué, plafond d'allocation dépassé — est un
-//! refus nommé, jamais une panique : une texture illisible laisse le moteur retomber sur son blanc.
+//! Only level 0 is consumed, as in `dds`; the announced chain is checked whole, a level that
+//! falls outside the file is a refusal. Everything else — cubes, arrays, volumes, `vkFormat`
+//! off the list, unknown supercompression, truncated file, exceeded allocation ceiling — is a
+//! named refusal, never a panic: an unreadable texture lets the engine fall back to white.
 use super::{ImageDecoded, ImageDecoder, Plugin};
 
 mod basis;
@@ -51,40 +50,40 @@ mod level;
 pub(super) static KTX2: Ktx2 = Ktx2;
 pub(super) struct Ktx2;
 
-/// Les douze octets d'identifiant que tout KTX 2.0 porte en tête : « KTX 20 » entre guillemets
-/// français, puis retour chariot, saut de ligne, substitut et saut de ligne.
+/// Twelve identifier bytes that every KTX 2.0 carries at the front: "KTX 20" between French
+/// quotes, then carriage return, newline, substitute and newline.
 const MAGIC: &[u8] = b"\xabKTX 20\xbb\r\n\x1a\n";
 
-/// Moins d'octets que l'entête et son index de niveaux n'en exigent.
+/// Fewer bytes than the header and its level index require.
 const HEADER_TRUNCATED: &str = "ktx2-header-truncated";
-/// Un entête présent mais hors domaine : largeur nulle, `typeSize` inattendu, niveaux absurdes.
+/// A header present but out of domain: null width, unexpected `typeSize`, absurd levels.
 const HEADER_INVALID: &str = "ktx2-header-invalid";
-/// Un `vkFormat` hors de la liste déclarée. Le pilote ne devine jamais : il refuse en le nommant.
+/// A `vkFormat` outside the declared list. The driver never guesses: it refuses by naming it.
 const FORMAT_UNSUPPORTED: &str = "ktx2-format-unsupported";
-/// Une disposition hors du plan simple : cube, tableau, volume, texture à une dimension.
+/// A layout outside the simple plane: cube, array, volume, one-dimensional texture.
 const LAYOUT_UNSUPPORTED: &str = "ktx2-layout-unsupported";
-/// Un `supercompressionScheme` hors des trois déclarés — ZLIB et les numéros à venir.
+/// A `supercompressionScheme` outside the three declared — ZLIB and future numbers.
 const SUPERCOMPRESSION_UNSUPPORTED: &str = "ktx2-supercompression-unsupported";
-/// L'entête est cohérent mais les octets annoncés ne sont pas tous là.
+/// The header is consistent but the announced bytes are not all there.
 const DATA_TRUNCATED: &str = "ktx2-data-truncated";
-/// L'image dépasse le plafond d'allocation reçu : un refus, jamais une allocation tentée.
+/// The image exceeds the received allocation ceiling: a refusal, never an attempted allocation.
 const TOO_LARGE: &str = "ktx2-image-too-large";
-/// Une charge Basis Universal que le transcodeur refuse : codec hors liste, vidéo, flux corrompu.
+/// A Basis Universal payload the transcoder refuses: codec off the list, video, corrupt stream.
 const TRANSCODE_FAILED: &str = "ktx2-transcode-failed";
-/// La clé `KTXorientation` demande un sens que le pilote ne sait pas ramener à celui du contrat —
-/// un départ vers la gauche, une troisième dimension. Compté, jamais appliqué de travers.
+/// The `KTXorientation` key asks for a direction the driver cannot bring back to the
+/// contract's — a start to the left, a third dimension. Counted, never applied wrongly.
 const ORIENTATION_UNSUPPORTED: &str = "ktx2-orientation-unsupported";
-/// La clé `KTXswizzle` demande une permutation de canaux autre que l'identité. Compté de même.
+/// The `KTXswizzle` key asks for a channel permutation other than identity. Counted likewise.
 const SWIZZLE_UNSUPPORTED: &str = "ktx2-swizzle-unsupported";
 
 impl Plugin for Ktx2 {
     fn name(&self) -> &'static str {
         "ktx2"
     }
-    /// Les trois lecteurs entrent dans la version : changer l'un d'eux change ce que le pilote
-    /// rend, donc l'identité du cache. Le suffixe nomme le décodeur EAC écrit ici, pour la même
-    /// raison : une entrée écrite du temps du décodeur externe porte des texels mélangés et
-    /// tronqués, et serait sans lui relue comme si elle était juste.
+    /// The three readers enter the version: changing one of them changes what the driver
+    /// returns, hence the cache identity. The suffix names the EAC decoder written here, for
+    /// the same reason: an entry written in the external-decoder era carries mixed and
+    /// truncated texels, and would without it be reread as if it were correct.
     fn version(&self) -> &'static str {
         "ktx2-basisu-0.1.0-texture2ddecoder-0.1.2-ruzstd-0.7.3-eac11-dfd-cles"
     }
@@ -97,14 +96,14 @@ impl ImageDecoder for Ktx2 {
     fn mime(&self) -> &'static str {
         "image/ktx2"
     }
-    /// L'identifiant suffit : ces douze octets n'appartiennent qu'à ce conteneur. La cohérence de
-    /// l'entête est vérifiée au décodage, où elle se rapporte au lieu de faire taire le pilote.
+    /// The identifier is enough: these twelve bytes belong only to this container. Header
+    /// consistency is checked at decode, where it is reported instead of silencing the driver.
     fn accepts_head(&self, head: &[u8]) -> bool {
         head.starts_with(MAGIC)
     }
-    /// Deux chemins, que l'entête sépare seul : un `vkFormat` nommé désigne un codec du registre de
-    /// `format`, et `VK_FORMAT_UNDEFINED` annonce une charge Basis Universal décrite par le
-    /// descripteur de format que `basisu` relit.
+    /// Two paths, which the header alone separates: a named `vkFormat` designates a codec of
+    /// the `format` registry, and `VK_FORMAT_UNDEFINED` announces a Basis Universal payload
+    /// described by the format descriptor that `basisu` rereads.
     fn decode(
         &self,
         bytes: &[u8],

@@ -14,7 +14,7 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) 
   }
   const pageIndexOf = (rec: PageRec) => catalogueIndexOf(packedPages, rec);
 
-  /** Les pages nommées par le cache et celles dont le drapeau de résidence vient de basculer. */
+  /** Pages named by the cache and those whose residency flag just flipped. */
   const journal = createWebgpuRowJournal(packedPages.length);
   const residentOffsetWords = new Int32Array(packedPages.length).fill(-1);
   const rowPageIndex = new Int32Array(drawSlots).fill(-1);
@@ -36,9 +36,9 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) 
   let candidateCount = 0,
     candidateOverflow = 0;
   /**
-   * L'âge de la table de lignes elle-même. Toute écriture des rangs par un autre chemin que
-   * l'allocateur incrémental l'avance, et celui-ci reconstruit alors plutôt que de croire à une
-   * correspondance page → rang qu'il n'a pas posée.
+   * Age of the row table itself. Any write of ranks by a path other than the incremental allocator
+   * advances it, and the allocator then rebuilds rather than trusting a page → rank mapping it did
+   * not post.
    */
   let rowsRevision = 0;
   let packedCount = 0,
@@ -142,15 +142,15 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) 
   };
 }
 
-/** Ce que `dirtyRange` vient de calculer, rendu tel quel : le tampon est relu sur-le-champ par son
- *  appelant, avant tout autre appel, et aucune image n'alloue donc pour porter deux entiers. */
+/** What `dirtyRange` just computed, returned as-is: the buffer is reread on the spot by its caller,
+ *  before any other call, so no image allocates to carry two integers. */
 const dirty = { from: 0, to: -1 };
 
 /**
- * La plage de lignes qu'un témoin doit réécrire : celle que la table déclare sale, bornée au rang
- * dessinable. Un témoin périmé — l'âge de la table a changé, ou ce qu'il décrivait n'existe plus —
- * redemande toute la table ; sinon un rang qui a grandi élargit la plage jusqu'aux lignes qui
- * viennent d'y entrer. `held` est le nombre de lignes que le témoin tenait, jamais négatif.
+ * Row range a witness must rewrite: the one the table declares dirty, bounded to the drawable rank.
+ * A stale witness — the table's age has changed, or what it described no longer exists — asks for
+ * the whole table again; otherwise a rank that grew widens the range to the rows that just entered.
+ * `held` is the number of rows the witness held, never negative.
  */
 export function dirtyRange(
   rows: { dirtyFrom: number; dirtyTo: number; packedCount: number },

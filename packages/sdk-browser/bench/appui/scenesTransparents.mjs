@@ -1,40 +1,40 @@
-// La scène du banc « transparents en quelques ordres » et ses images : douze placements par
-// prototype paginé, quelques primitives qui portent leurs propres tampons, et trois régimes de
-// caméra. Les deux côtés du banc en bâtissent chacun un exemplaire, pour qu'aucun ne profite de
-// l'état que l'autre laisse.
+// The "transparents in a few orders" bench scene and its frames: twelve placements per
+// paged prototype, a few primitives that carry their own buffers, and three camera
+// regimes. Both sides of the bench each build a copy, so neither benefits from the
+// state the other leaves.
 import * as THREE from 'three';
 import { createWebgpuBlendState } from '../../webgpuBlendState.ts';
 import { buildBlendStatics, refreshBlendPlan } from '../../webgpuBlendPlan.ts';
 import { graine } from '../../../sdk-core/bench/socle.mjs';
 import { planReference } from '../oracles/transparents-ordres.mjs';
 
-/** L'ordre de grandeur de la scène mesurée : 4 288 items transparents, douze placements chacun. */
+/** Order of magnitude of the measured scene: 4 288 transparent items, twelve placements each. */
 const PLACEMENTS = 12,
   PROTOTYPES = 357,
   ISOLES = 4,
   PAGINES = PROTOTYPES * PLACEMENTS;
 export const ITEMS = PAGINES + ISOLES;
-/** Ce qu'une primitive paginée tient au catalogue, et les sommets d'une grappe. */
+/** What a paged primitive holds in the catalogue, and the vertices of a cluster. */
 const GRAPPES = 8,
   MOTS = 48;
 
 const alea = graine(31);
 
 /**
- * Les deux faces d'une scène transparente, et pourquoi le banc mesure les deux.
+ * Both sides of a transparent scene, and why the bench measures both.
  *
- * `sidesOf` rend UNE entrée de plan pour un matériau simple face, et DEUX — dos puis face, deux
- * pipelines — pour un matériau double face. Or une tranche s'arrête quand le pipeline change : une
- * scène double face, le verre et le feuillage d'une scène glTF ordinaire, n'en fusionne donc
- * aucune. Mesurer la seule scène simple face, c'est mesurer le meilleur cas et le publier comme s'il
- * était le cas.
+ * `sidesOf` yields ONE plan entry for a single-sided material, and TWO — back then front, two
+ * pipelines — for a double-sided material. A slice stops when the pipeline changes: a
+ * double-sided scene, the glass and foliage of an ordinary glTF scene, therefore merges
+ * none. Measuring only the single-sided scene is measuring the best case and publishing it as
+ * if it were the case.
  */
 export const FACES = [
-  ['simple face', THREE.FrontSide],
-  ['double face', THREE.DoubleSide],
+  ['single-sided', THREE.FrontSide],
+  ['double-sided', THREE.DoubleSide],
 ];
 
-/** La scène : douze placements par prototype, plus quatre primitives qui portent leurs tampons. */
+/** The scene: twelve placements per prototype, plus four primitives that carry their buffers. */
 function batisItems(side) {
   const items = [],
     materiau = new THREE.MeshBasicMaterial({ side });
@@ -67,7 +67,7 @@ function batisItems(side) {
   return items;
 }
 
-/** Les six demi-espaces d'une boîte centrée sur l'œil : la règle du tronc, sans projection. */
+/** The six half-spaces of a box centred on the eye: the frustum rule, without projection. */
 function plansDe(x) {
   const planes = new Float64Array(24);
   const pose = (p, a, b, c, d) => {
@@ -85,7 +85,7 @@ function plansDe(x) {
   return planes;
 }
 
-/** Une image : l'œil, ses plans, et la coupe que la compaction aurait écrite pour chaque item. */
+/** A frame: the eye, its planes, and the cut compaction would have written for each item. */
 function imageA(x) {
   const counts = new Uint32Array(PAGINES),
     instances = new Uint32Array(PAGINES * GRAPPES);
@@ -98,26 +98,26 @@ function imageA(x) {
 }
 
 /**
- * Trois régimes, huit images chacun : la caméra qui glisse — l'aller-retour referme la boucle, si
- * bien qu'un tour n'enchaîne pas sur un saut déguisé —, la pose immobile, et le saut de caméra,
- * qui renouvelle entièrement l'ordre de peinture.
+ * Three regimes, eight frames each: the sliding camera — the round trip closes the loop, so
+ * a lap does not chain onto a disguised jump —, the still pose, and the camera jump,
+ * which fully renews the paint order.
  */
 export const glisse = [0, 6, 12, 18, 24, 18, 12, 6].map(imageA);
 export const regimes = [
-  ['caméra qui glisse', glisse],
-  ['pose immobile', Array.from({ length: 8 }, () => glisse[0])],
-  ['saut de caméra', Array.from({ length: 8 }, (_, image) => imageA(image * 47 - 160))],
+  ['sliding camera', glisse],
+  ['still pose', Array.from({ length: 8 }, () => glisse[0])],
+  ['camera jump', Array.from({ length: 8 }, (_, image) => imageA(image * 47 - 160))],
 ];
 
-/** La portée de chaque grappe dans le cache de pages : la même table des deux côtés. */
+/** The span of each cluster in the page cache: the same table on both sides. */
 export const spans = new Uint32Array(PAGINES * GRAPPES * 2);
 for (let e = 0; e < spans.length / 2; e++) {
   spans[e * 2] = e * MOTS;
   spans[e * 2 + 1] = MOTS;
 }
 
-/** Un côté du banc : son état de mélange, son plan à l'ancien format, et ses tampons de sortie. */
-export function cote(side) {
+/** One side of the bench: its blend state, its plan in the old format, and its output buffers. */
+export function benchSide(side) {
   const blendState = createWebgpuBlendState();
   blendState.blendGpu.push(...batisItems(side));
   blendState.table = {
@@ -132,7 +132,7 @@ export function cote(side) {
   refreshBlendPlan(blendState);
   return {
     blendState,
-    // Le plan du chemin d'avant, à son propre format : le lot a mis le bit de partage dans l'entrée.
+    // The previous path's plan, in its own format: the batch put the share bit in the entry.
     order: planReference(blendState.blendGpu),
     scene: {
       items: blendState.blendGpu,
@@ -143,12 +143,12 @@ export function cote(side) {
       instances: undefined,
     },
     args: new Uint32Array(ITEMS * 4),
-    // Un item double face étale ses instances deux fois : une par entrée de plan.
-    sortie: new Uint32Array((PAGINES * GRAPPES + ISOLES) * 3 * 2),
+    // A double-sided item spreads its instances twice: one per plan entry.
+    output: new Uint32Array((PAGINES * GRAPPES + ISOLES) * 3 * 2),
   };
 }
 
-/** Ce que l'image donne aux deux côtés : les plans du tronc et la coupe de cette image-ci. */
+/** What the frame gives both sides: the frustum planes and this frame's cut. */
 export function pose(etat, image) {
   etat.blendState.blendPlanes.set(image.planes);
   etat.scene.itemCounts = image.counts;

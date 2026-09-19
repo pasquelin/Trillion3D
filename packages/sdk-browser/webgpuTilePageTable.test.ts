@@ -6,7 +6,7 @@ import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 
 installGpuGlobals();
 
-/** Un faux appareil : il journalise chaque écriture de tampon, en mots. */
+/** A dummy device: it journals every buffer write, in words. */
 function fakeDevice() {
   const writes: Array<[number, number]> = [];
   const device = {
@@ -21,13 +21,13 @@ function fakeDevice() {
 
 const layouts = () => [tileLayout(1, 1), tileLayout(2048, 1024), tileLayout(512, 512)];
 
-test('la table range en-têtes, niveaux et entrées, et retrouve une tuile depuis son rang de retour', () => {
+test('the table lays out headers, levels and entries, and finds a tile from its feedback rank', () => {
   const { device } = fakeDevice();
   const table = createWebgpuTilePageTable(device, layouts(), {
     kind: 'color',
     feedbackOffset: 1000,
   });
-  // 2048×1024 : 16×8 + 8×4 + 4×2 + 2×1 + 1×1 = 171 entrées ; 512² : 4×4 + 2×2 + 1 = 21.
+  // 2048×1024: 16×8 + 8×4 + 4×2 + 2×1 + 1×1 = 171 entries; 512²: 4×4 + 2×2 + 1 = 21.
   assert.equal(table.entries, 171 + 21);
   const w = table.words;
   assert.equal(w[0], 1000);
@@ -35,9 +35,9 @@ test('la table range en-têtes, niveaux et entrées, et retrouve une tuile depui
   assert.equal(w[3], PAGE_HEADER_WORDS + 3 * 4);
   assert.equal(w[2], w[3] + 3 * MAX_LEVELS);
   assert.equal(w[PAGE_HEADER_WORDS + 4], 2048 | (1024 << 16));
-  assert.equal(w[PAGE_HEADER_WORDS + 5], 5, 'queue de 2048×1024 : niveau 5, 64×32');
+  assert.equal(w[PAGE_HEADER_WORDS + 5], 5, 'queue of 2048×1024: level 5, 64×32');
   assert.equal(w[PAGE_HEADER_WORDS + 6], 11);
-  assert.equal(w[w[3] + 1 * MAX_LEVELS + 1], w[2] + 128, 'niveau 1 de la texture 1, absolu');
+  assert.equal(w[w[3] + 1 * MAX_LEVELS + 1], w[2] + 128, 'level 1 of texture 1, absolute');
   const key = { slot: 2, level: 1, tx: 1, ty: 1 };
   assert.equal(table.feedbackIndexOf(key), 1000 + 171 + 16 + 3);
   assert.deepEqual(table.tileOf(1000 + 171 + 16 + 3), key);
@@ -50,7 +50,7 @@ test('la table range en-têtes, niveaux et entrées, et retrouve une tuile depui
   );
 });
 
-test('une tuile qui arrive sert les entrées plus fines encore sans tuile ; une plus fine ne les cède pas', () => {
+test('an arriving tile serves still-finer entries with no tile; a finer one does not yield them', () => {
   const { device } = fakeDevice();
   const table = createWebgpuTilePageTable(device, layouts(), { kind: 'color', feedbackOffset: 0 });
   const at = (level: number, tx: number, ty: number) => table.entryOf({ slot: 2, level, tx, ty });
@@ -59,18 +59,18 @@ test('une tuile qui arrive sert les entrées plus fines encore sans tuile ; une 
   table.setTile({ slot: 2, level: 0, tx: 1, ty: 0 }, fine);
   table.setTile({ slot: 2, level: 2, tx: 0, ty: 0 }, coarse);
   assert.equal(at(2, 0, 0), packEntry(coarse, 2));
-  assert.equal(at(1, 1, 1), packEntry(coarse, 2), 'servie par la grossière, niveau 2');
+  assert.equal(at(1, 1, 1), packEntry(coarse, 2), 'served by the coarse one, level 2');
   assert.equal(at(0, 0, 0), packEntry(coarse, 2));
-  assert.equal(at(0, 1, 0), packEntry(fine, 0), 'la fine garde sa place');
-  // Une tuile de niveau 1 arrive : elle prend ses descendantes à la grossière, pas à la fine.
+  assert.equal(at(0, 1, 0), packEntry(fine, 0), 'the fine one keeps its place');
+  // A level-1 tile arrives: it takes its descendants from the coarse one, not from the fine one.
   const middle = { x: 5, y: 5, layer: 0 };
   table.setTile({ slot: 2, level: 1, tx: 0, ty: 0 }, middle);
   assert.equal(at(0, 0, 0), packEntry(middle, 1));
   assert.equal(at(0, 1, 0), packEntry(fine, 0));
-  assert.equal(at(0, 2, 0), packEntry(coarse, 2), 'hors du quart de la tuile de niveau 1');
+  assert.equal(at(0, 2, 0), packEntry(coarse, 2), 'outside the quarter of the level-1 tile');
 });
 
-test('une tuile qui part rend ses entrées à l’ancêtre résident le plus fin, ou à la queue', () => {
+test('a leaving tile gives its entries back to the finest resident ancestor, or to the queue', () => {
   const { device, writes } = fakeDevice();
   const table = createWebgpuTilePageTable(device, layouts(), { kind: 'data', feedbackOffset: 0 });
   const at = (level: number, tx: number, ty: number) => table.entryOf({ slot: 2, level, tx, ty });
@@ -84,19 +84,19 @@ test('une tuile qui part rend ses entrées à l’ancêtre résident le plus fin
   assert.equal(at(1, 1, 1), packEntry(coarse, 2));
   assert.equal(at(0, 3, 3), packEntry(coarse, 2));
   table.clearTile({ slot: 2, level: 2, tx: 0, ty: 0 });
-  assert.equal(at(2, 0, 0), 0, 'plus rien de diffusé : la queue');
+  assert.equal(at(2, 0, 0), 0, 'nothing streamed any more: the queue');
   assert.equal(at(0, 0, 0), 0);
   writes.length = 0;
   table.flush(device);
-  assert.equal(writes.length, 1, 'une écriture par texture touchée');
+  assert.equal(writes.length, 1, 'one write per touched texture');
   const [from, size] = writes[0];
-  assert.equal(from, table.words[2] + 171, 'depuis la première entrée de la texture 2');
+  assert.equal(from, table.words[2] + 171, 'from the first entry of texture 2');
   assert.equal(size, 21);
   table.flush(device);
-  assert.equal(writes.length, 1, 'rien à envoyer quand rien n’a bougé');
+  assert.equal(writes.length, 1, 'nothing to send when nothing has moved');
 });
 
-test('la queue d’une texture se pose dans son en-tête et s’envoie seule', () => {
+test("a texture's queue is posted in its header and sent alone", () => {
   const { device, writes } = fakeDevice();
   const table = createWebgpuTilePageTable(device, layouts(), { kind: 'color', feedbackOffset: 0 });
   writes.length = 0;

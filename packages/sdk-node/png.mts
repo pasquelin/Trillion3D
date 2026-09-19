@@ -1,6 +1,6 @@
 import { crc32, deflateSync } from 'node:zlib';
 
-/** Un morceau PNG : longueur, type, charge, et le CRC que `node:zlib` sait déjà calculer. */
+/** One PNG chunk: length, type, payload, and the CRC that `node:zlib` already knows how to compute. */
 function chunk(kind: string, body: Uint8Array): Buffer {
   const head = Buffer.alloc(8);
   head.writeUInt32BE(body.length, 0);
@@ -22,7 +22,7 @@ export function encodePng(width: number, height: number, rgba: Uint8Array, flipY
   const stride = 1 + width * 4;
   const raw = Buffer.alloc(height * stride);
   for (let y = 0; y < height; y++) {
-    // `flipY` : des texels d'origine bas-gauche, comme une lecture de carte graphique les rend.
+    // `flipY`: texels of bottom-left origin, as a GPU read yields them.
     const row = flipY ? height - 1 - y : y;
     raw[y * stride] = 0;
     raw.set(rgba.subarray(row * width * 4, (row + 1) * width * 4), y * stride + 1);

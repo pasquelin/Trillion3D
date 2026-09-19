@@ -2,11 +2,8 @@ import type { EngineCamera } from './cameraWorld.ts';
 import { clusterColor, hashId } from './backendCommon.ts';
 import { projectedPageError, type PageRec } from './pageSelection.ts';
 import { screenErrorColor } from './diagnosticColors.ts';
-import {
-  createTriangleDiagnosticMaterial,
-  materialSide,
-  triangleGeometry,
-} from './triangleDiagnostic.ts';
+import { createTriangleDiagnosticMaterial, triangleGeometry } from './triangleDiagnostic.ts';
+import { materialSide } from './materialSide.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 
@@ -14,7 +11,7 @@ type MaterialsOptions = {
   blendCopies: THREE.Mesh[];
   viewport: readonly [number, number] | undefined;
   readonly diagnostic: DiagnosticMode;
-  /** La caméra du moteur de la dernière image, absente tant qu'aucune image n'a été rendue. */
+  /** Engine camera of the last frame, absent as long as no frame has been rendered. */
   readonly cam: EngineCamera | undefined;
   readonly lastPixelError: number;
 };

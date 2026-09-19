@@ -29,9 +29,8 @@ pub fn lines(text: &str) -> Vec<Value> {
         .collect()
 }
 
-/// Une source plus lourde que le quadrilatère : une grille de `side × side` quadrilatères, assez
-/// grande pour qu'une compilation dure encore quand un autre processus vient la regarder tenir le
-/// verrou du cache.
+/// A heavier source than the quad: a grid of `side × side` quads, large enough for compilation
+/// to still be running when another process checks it holding the cache lock.
 pub fn grid_fixture(tag: &str, side: usize) -> (PathBuf, PathBuf, PathBuf) {
     let (root, quad, cache) = fixture(tag);
     let grid = quad.with_file_name("grille.obj");
@@ -58,8 +57,7 @@ fn grid_obj(side: usize) -> String {
     text
 }
 
-/// La ligne de commande d'un travail unique : la source, le cache, puis les réglages que les
-/// épreuves du verrou ne font pas varier.
+/// Command line for a single job: source, cache, then settings that lock tests do not vary.
 pub fn compiler(source: &Path, cache: &Path) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_web-geometry-compiler"));
     command.args([

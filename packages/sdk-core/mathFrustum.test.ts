@@ -1,20 +1,19 @@
-// Lot 3, mathFrustum.ts : plans normalisés du tronc en profondeur INVERSÉE, plans bruts de découpe,
-// et plans ramenés en repère local — chacun confronté à une référence bâtie avec les primitives de
-// Three.js (Frustum, Vector4, Matrix4), au bit près.
+// Lot 3, mathFrustum.ts: normalized frustum planes in REVERSED depth, raw clip planes,
+// and planes brought back to local space — each compared against a reference built with Three.js
+// primitives (Frustum, Vector4, Matrix4), down to the bit.
 //
-// La profondeur du moteur est inversée : le plan qui borne le PROCHE est celui que la profondeur
-// directe appelait LOIN, et réciproquement. Les six plans d'une même matrice sont donc exactement
-// ceux de la référence, les deux derniers échangés — et c'est cet échange, et rien d'autre, que
-// `permuteProcheLoin` décrit.
+// Engine depth is reversed: the plane bounding the NEAR is what standard depth called FAR,
+// and vice versa. The six planes of the same matrix are therefore exactly those of the reference,
+// with the last two swapped — and this swap, and nothing else, is what `permuteProcheLoin` describes.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { clipPlanesFromMatrix, frustumPlanesFromMatrix, frustumPlanesToLocal } from './index.ts';
 import { assertBits } from './bench/oracles/volumes.mjs';
 
-/** Les six plans de Three.js recopiés à plat, normal puis constante. La référence est toujours lue
- *  en découpe `[0, 1]` : c'est la plage du moteur, et seul le SENS de la profondeur y est inversé —
- *  ce qui échange les deux derniers plans, et rien d'autre. */
+/** The six planes of Three.js copied flat, normal then constant. The reference is always read
+ *  in `[0, 1]` clipping: that is the engine's range, and only depth DIRECTION is reversed —
+ *  which swaps the last two planes, and nothing else. */
 function planesFromThreeFrustum(
   m: THREE.Matrix4,
   Type: Float64ArrayConstructor | Float32ArrayConstructor,
@@ -27,8 +26,8 @@ function planesFromThreeFrustum(
   return sortie;
 }
 
-/** La référence en découpe `[0, 1]`, ses deux derniers plans échangés : ce que la profondeur
- *  inversée attend, terme pour terme. */
+/** The reference in `[0, 1]` clipping, with its last two planes swapped: what reversed depth
+ *  expects, term for term. */
 function permuteProcheLoin(planes: Float64Array | Float32Array) {
   const sortie = planes.slice();
   sortie.set(planes.subarray(20, 24), 16);
@@ -50,7 +49,7 @@ function camera(webgpu: boolean, orthographique: boolean) {
 
 for (const webgpu of [false, true]) {
   for (const orthographique of [false, true]) {
-    test(`frustumPlanesFromMatrix s’accorde avec Frustum.setFromProjectionMatrix (webgpu=${webgpu}, ortho=${orthographique})`, () => {
+    test(`frustumPlanesFromMatrix matches Frustum.setFromProjectionMatrix (webgpu=${webgpu}, ortho=${orthographique})`, () => {
       const m = camera(webgpu, orthographique);
       const obtenu = new Float64Array(24);
       frustumPlanesFromMatrix(obtenu, m.elements);
@@ -59,21 +58,21 @@ for (const webgpu of [false, true]) {
   }
 }
 
-test('frustumPlanesFromMatrix en simple précision arrondit une seule fois, comme un uniforme Float32', () => {
+test('frustumPlanesFromMatrix in single precision rounds once, like a Float32 uniform', () => {
   const m = camera(true, false);
   const obtenu = new Float32Array(24);
   frustumPlanesFromMatrix(obtenu, m.elements);
   assertBits(obtenu, permuteProcheLoin(planesFromThreeFrustum(m, Float32Array)));
 });
 
-test('clipPlanesFromMatrix rend les sommes et différences brutes des lignes de la matrice', () => {
+test('clipPlanesFromMatrix yields raw sums and differences of matrix rows', () => {
   const m = camera(false, false);
   const obtenu = new Float64Array(24);
   clipPlanesFromMatrix(obtenu, m.elements);
   assertBits(obtenu, clipPlanesAttendus(m));
 });
 
-test('frustumPlanesToLocal ramène chaque plan par p · m, comme p transformé par la transposée de m', () => {
+test('frustumPlanesToLocal transforms each plane by p · m, like p transformed by transpose of m', () => {
   const m = camera(false, false);
   const placement = new THREE.Matrix4().compose(
     new THREE.Vector3(2, -1, 3),
@@ -98,10 +97,10 @@ test('frustumPlanesToLocal ramène chaque plan par p · m, comme p transformé p
   assertBits(obtenu, attendu);
 });
 
-/** Les six plans bruts (non normalisés) recopiés depuis les primitives Three.js, les deux derniers
- *  déjà dans l'ordre de la profondeur inversée —
- *  même construction que le test de `clipPlanesFromMatrix` ci-dessus, factorisée pour l'entrelacement
- *  ci-dessous. */
+/** The six raw (unnormalized) planes copied from Three.js primitives, the last two
+ *  already in reversed depth order —
+ *  same construction as the `clipPlanesFromMatrix` test above, factorized for interleaving
+ *  below. */
 function clipPlanesAttendus(m: THREE.Matrix4) {
   const e = m.elements;
   const w = new THREE.Vector4(e[3], e[7], e[11], e[15]);
@@ -111,7 +110,7 @@ function clipPlanesAttendus(m: THREE.Matrix4) {
     new THREE.Vector4(e[2], e[6], e[10], e[14]),
   ];
   const attendu = new Float64Array(24);
-  // Quatre plans de côté, puis le LOIN — la seule ligne de profondeur, sans `w` — et le PROCHE.
+  // Four side planes, then FAR — the only depth row without `w` — and NEAR.
   [
     [0, -1],
     [0, 1],
@@ -128,21 +127,21 @@ function clipPlanesAttendus(m: THREE.Matrix4) {
   return attendu;
 }
 
-// perf(socle) e5509b57 : les quatre composantes d'un plan passent en arguments de `writePlane` et
-// non plus par un tampon de module (`plane`, un `Float64Array(4)` partagé entre tous les appels).
-// Sans ce tampon, deux calculs de tronc enchevêtrés — chacun dans son propre `out` — ne peuvent plus
-// se marcher dessus ; il n'y a plus rien à allouer ni à réutiliser par appel. Le vérifier avec deux
-// troncs très différents dont les écritures sont entrelacées à la main, comparés chacun à la
-// référence Three.js.
-test('frustumPlanesFromMatrix et clipPlanesFromMatrix : aucun tampon partagé, deux troncs entrelacés restent indépendants', () => {
+// perf(socle) e5509b57: the four components of a plane are passed as arguments to `writePlane`
+// and no longer via a module buffer (`plane`, a `Float64Array(4)` shared across calls).
+// Without this buffer, two interleaved frustum computations — each in its own `out` — can no longer
+// collide; there is nothing left to allocate or reuse per call. Verify this with two
+// very different frustums whose writes are manually interleaved, each compared against
+// the Three.js reference.
+test('frustumPlanesFromMatrix and clipPlanesFromMatrix: no shared buffer, two interleaved frustums remain independent', () => {
   const m1 = camera(false, false);
   const m2 = camera(true, true);
   const obtenu1 = new Float64Array(24);
   const obtenu2 = new Float64Array(24);
   const clip1 = new Float64Array(24);
   const clip2 = new Float64Array(24);
-  // Écritures entrelacées : si une composante transitait encore par un tampon de module partagé,
-  // cet ordre la ferait écraser par l'appel suivant avant sa lecture.
+  // Interleaved writes: if a component still passed through a shared module buffer,
+  // this order would cause it to be overwritten by the next call before reading.
   frustumPlanesFromMatrix(obtenu1, m1.elements);
   clipPlanesFromMatrix(clip2, m2.elements);
   frustumPlanesFromMatrix(obtenu2, m2.elements);
@@ -153,7 +152,7 @@ test('frustumPlanesFromMatrix et clipPlanesFromMatrix : aucun tampon partagé, d
   assertBits(clip2, clipPlanesAttendus(m2));
 });
 
-test('une matrice de projection NaN ou nulle rend des plans NaN ou infinis, sans lever', () => {
+test('a NaN or zero projection matrix yields NaN or infinite planes, without throwing', () => {
   for (const m of [new Array(16).fill(NaN), new Array(16).fill(0)]) {
     const sortie = new Float64Array(24);
     assert.doesNotThrow(() => frustumPlanesFromMatrix(sortie, m));

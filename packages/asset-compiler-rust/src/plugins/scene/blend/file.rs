@@ -1,31 +1,30 @@
-//! Le découpage d'un fichier Blender en blocs, et leur index par adresse.
+//! Splitting a Blender file into blocks, and their index by address.
 //!
-//! Disposition publique du format : après l'entête vient une suite de blocs, jusqu'à `ENDB`. Chaque
-//! bloc porte un code de quatre octets, l'index de la structure SDNA qui décrit ses octets,
-//! l'adresse qu'il occupait en mémoire quand le fichier a été écrit — c'est elle qui sert de clé à
-//! tous les pointeurs du fichier —, la taille de ses données et le nombre de structures qu'elles
-//! portent. L'ancienne disposition écrit ces champs sur trente-deux bits, la récente sur
-//! soixante-quatre ; l'entête dit laquelle.
+//! Public layout of the format: after the header comes a sequence of blocks, until `ENDB`. Each
+//! block carries a four-byte code, the index of the SDNA structure that describes its bytes, the
+//! address it occupied in memory when the file was written — that is the key of every pointer in
+//! the file —, the size of its data and the number of structures they carry. The old layout
+//! writes these fields on thirty-two bits, the recent one on sixty-four; the header says which.
 //!
-//! Aucune taille annoncée n'est crue sans être bornée par le fichier : tout dépassement est un
-//! fichier tronqué, nommé comme tel.
+//! No announced size is trusted without being bounded by the file: any overrun is a truncated
+//! file, named as such.
 use super::*;
 
-/// La longueur de l'entête d'un bloc à champs de soixante-quatre bits.
+/// The header length of a sixty-four-bit-field block.
 const WIDE_HEADER: usize = 32;
 
-/// Un bloc du fichier : son code, la structure qui le décrit, et où ses octets vivent.
+/// A block of the file: its code, the structure that describes it, and where its bytes live.
 pub(super) struct Block {
     pub(super) code: [u8; 4],
     pub(super) sdna: usize,
     pub(super) old: u64,
     pub(super) start: usize,
     pub(super) len: usize,
-    /// Le nombre de structures que ses octets portent : la borne d'un tableau de structures.
+    /// The number of structures its bytes carry: the bound of a structure array.
     pub(super) count: usize,
 }
 
-/// Un fichier Blender ouvert : ses octets déballés, son SDNA, ses blocs et leur index par adresse.
+/// An open Blender file: its unpacked bytes, its SDNA, its blocks and their index by address.
 pub(super) struct BlendFile {
     pub(super) bytes: Vec<u8>,
     pub(super) version: u32,
@@ -35,8 +34,8 @@ pub(super) struct BlendFile {
 }
 
 impl BlendFile {
-    /// Ouvre un fichier Blender : défait l'enveloppe sous `ceiling`, lit l'entête, parcourt les
-    /// blocs, puis le bloc `DNA1` qui décrit toutes les structures.
+    /// Opens a Blender file: undoes the wrapping under `ceiling`, reads the header, walks the
+    /// blocks, then the `DNA1` block that describes all the structures.
     pub(super) fn open(raw: &[u8], ceiling: usize) -> Result<BlendFile> {
         let bytes = envelope::unwrap(raw, ceiling)?;
         let shape = envelope::head(&bytes)?;
@@ -60,18 +59,18 @@ impl BlendFile {
             index,
         })
     }
-    /// Le bloc que cette adresse d'origine désigne. Un pointeur nul, ou vers un bloc absent, n'en
-    /// désigne aucun : c'est le lecteur qui décide quoi en dire, jamais une panique.
+    /// The block this original address designates. A null pointer, or one to a missing block,
+    /// designates none: it is the reader that decides what to say of it, never a panic.
     pub(super) fn at(&self, old: u64) -> Option<&Block> {
         self.index.get(&old).map(|rank| &self.blocks[*rank])
     }
-    /// Les blocs d'un code donné, dans l'ordre du fichier.
+    /// The blocks of a given code, in file order.
     pub(super) fn of(&self, code: [u8; 4]) -> impl Iterator<Item = &Block> {
         self.blocks.iter().filter(move |block| block.code == code)
     }
 }
 
-/// Parcourt les blocs depuis la fin de l'entête jusqu'à `ENDB`.
+/// Walks the blocks from the end of the header until `ENDB`.
 fn walk(bytes: &[u8], shape: &envelope::Shape) -> Result<Vec<Block>> {
     let truncated = || refused("blend-truncated", "blend: the file ends inside a block");
     let header = if shape.wide {
