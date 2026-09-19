@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // =====================================================================================
 // La campagne complète : tout ce que le banc sait mesurer, joué d'une seule commande, chaque
-// exécution dans son dossier sous `--out` (par défaut `.mesure/out/global/`). Une exécution dont le
-// dossier porte déjà un `mesure.json` est sautée, pour reprendre une campagne interrompue.
+// scène de référence (`emerald-square`, `whisperwind-village`) puis chaque exécution sous
+// `--out/<scène>/<nom>/` (par défaut `.mesure/out/global/`). Une exécution dont le dossier porte
+// déjà un `mesure.json` est sautée, pour reprendre une campagne interrompue.
 //
-//   node scripts/mesure/campagne.mjs [--out .mesure/out/global] [--seulement nom,nom] [--liste]
+//   node scripts/mesure/campagne.mjs [--out .mesure/out/global] [--scene a,b] [--seulement nom,nom] [--liste]
 //
 // Chaque ligne nomme ce qu'elle isole : une seule option la distingue de sa voisine, et c'est cette
 // différence qui se lit dans `rapportGlobal.mjs`. Les résolutions, la caméra, le soleil et les
@@ -13,7 +14,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, appendFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { parseArgs } from './options.mjs';
+import { parseArgs, scenesOf } from './options.mjs';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 // Les groupes d'arguments que les lignes nomment en un mot, remplacés au lancement.
@@ -88,11 +89,19 @@ export const CAMPAGNE = LIGNES.trim()
   .map((ligne) => ligne.split('|').map((champ) => champ.trim()))
   .map(([nom, pourquoi, args]) => [nom, pourquoi, mots(args)]);
 
-function run(name, args, out, log) {
-  const dir = join(out, name);
+function run(name, args, out, log, scene) {
+  const dir = join(out, scene, name);
   if (existsSync(join(dir, 'mesure.json'))) return 'déjà mesuré';
   mkdirSync(dir, { recursive: true });
-  const argv = ['scripts/mesure/banc.mjs', ...SOCLE.split(' '), ...args, '--out', dir];
+  const argv = [
+    'scripts/mesure/banc.mjs',
+    ...SOCLE.split(' '),
+    '--scene',
+    scene,
+    ...args,
+    '--out',
+    dir,
+  ];
   const started = Date.now();
   const result = spawnSync(process.execPath, argv, {
     cwd: ROOT,
@@ -103,7 +112,7 @@ function run(name, args, out, log) {
   const status = result.status === 0 ? 'ok' : `échec (${result.status})`;
   appendFileSync(
     log,
-    `${new Date().toISOString()} ${name} ${status} ${((Date.now() - started) / 1000).toFixed(0)} s\n`,
+    `${new Date().toISOString()} ${scene}/${name} ${status} ${((Date.now() - started) / 1000).toFixed(0)} s\n`,
   );
   return status;
 }
@@ -113,14 +122,17 @@ if (import.meta.filename === process.argv[1]) {
   const out = resolve(flags.get('out') ?? join(ROOT, '.mesure/out/global'));
   const only = flags.get('seulement')?.split(',').filter(Boolean);
   const chosen = CAMPAGNE.filter(([name]) => !only || only.includes(name));
+  const scenes = scenesOf(flags);
   if (flags.has('liste')) {
-    for (const [name, why] of chosen) console.log(`${name.padEnd(22)} ${why}`);
+    for (const scene of scenes)
+      for (const [name, why] of chosen) console.log(`${`${scene}/${name}`.padEnd(36)} ${why}`);
     process.exit(0);
   }
   mkdirSync(out, { recursive: true });
   const log = join(out, 'campagne.log');
-  for (const [name, why, args] of chosen) {
-    console.log(`▶ ${name} — ${why}`);
-    console.log(`  ${run(name, args, out, log)}`);
-  }
+  for (const scene of scenes)
+    for (const [name, why, args] of chosen) {
+      console.log(`▶ ${scene}/${name} — ${why}`);
+      console.log(`  ${run(name, args, out, log, scene)}`);
+    }
 }
