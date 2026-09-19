@@ -1,4 +1,4 @@
-// l'ombrage CPU du visbuffer, pixel par pixel.
+// CPU visbuffer shading, pixel by pixel.
 import * as THREE from 'three';
 import { shadeVisibility } from '../visibilityShade.ts';
 import { rasterVisibility } from '../visibilityRaster.ts';
@@ -20,19 +20,19 @@ const standard = new THREE.MeshStandardMaterial({
   metalness: 0.2,
 });
 const cas = [
-  { nom: '256×144 MeshBasic', entree: image(256, 144, basique), taille: 256 * 144 },
-  { nom: '256×144 MeshStandard', entree: image(256, 144, standard), taille: 256 * 144 },
-  { nom: 'fond seul 128×72', entree: image(128, 72, basique, []), taille: 128 * 72 },
+  { name: '256×144 MeshBasic', input: image(256, 144, basique), size: 256 * 144 },
+  { name: '256×144 MeshStandard', input: image(256, 144, standard), size: 256 * 144 },
+  { name: 'background only 128×72', input: image(128, 72, basique, []), size: 128 * 72 },
   {
-    nom: '640×360 MeshStandard',
-    entree: image(640, 360, standard),
-    taille: 640 * 360,
+    name: '640×360 MeshStandard',
+    input: image(640, 360, standard),
+    size: 640 * 360,
     mesure: false,
   },
 ];
 
 const res = await mesure({
-  nom: 'shadeVisibility',
+  name: 'shadeVisibility',
   fichier: 'packages/sdk-browser/visibilityShadePixel.ts',
   cas,
   calcul: ({ ids, pages, cam, viewport }) =>
@@ -42,16 +42,16 @@ const res = await mesure({
 });
 
 await stress({
-  nom: 'shadeVisibility extremes',
+  name: 'shadeVisibility extremes',
   calcul: ({ ids, pages, cam, viewport }) =>
     shadeVisibility(ids, pages, cameraMoteur(cam), viewport),
   extremes: [
-    { nom: 'vide', entree: image(32, 32, basique, []) },
+    { name: 'empty', input: image(32, 32, basique, []) },
     {
-      nom: '1 pixel',
-      entree: { ids: new Uint32Array(1), pages: [], cam: camera(6, 0.1, 1), viewport: [1, 1] },
+      name: '1 pixel',
+      input: { ids: new Uint32Array(1), pages: [], cam: camera(6, 0.1, 1), viewport: [1, 1] },
     },
   ],
 });
 
-rapport('ombrage-image', [res], 'A2 rend exactement les mêmes octets');
+rapport('ombrage-image', [res], 'A2 yields the exact same bytes');

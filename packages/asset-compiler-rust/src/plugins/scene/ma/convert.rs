@@ -1,12 +1,12 @@
-//! Du fichier demandé à la scène intermédiaire écrite dans le cache.
+//! From the requested file to the intermediate scene written into the cache.
 //!
-//! Le fichier est lu en entier, puis découpé en commandes, puis appliqué à un document, puis
-//! converti. Rien n'est écrit à côté de la source : la scène part sous `request.cache`, à une clé
-//! qui tient l'empreinte des octets lus, de sorte qu'un fichier inchangé se réécrive à l'identique
-//! au même endroit et qu'un fichier modifié n'hérite jamais de ce que le précédent avait écrit.
+//! The file is read in full, then split into commands, then applied to a document, then converted.
+//! Nothing is written beside the source: the scene goes under `request.cache`, at a key that holds
+//! the digest of the bytes read, so an unchanged file rewrites identically in the same place and a
+//! modified file never inherits what the previous one had written.
 use super::*;
 
-/// Lit le fichier et écrit sa conversion dans le cache.
+/// Reads the file and writes its conversion into the cache.
 pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Result<PathBuf> {
     let started = Instant::now();
     let file = source_file(request.inputs)?;
@@ -34,7 +34,7 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
     )
 }
 
-/// La taille du fichier, refusée au-delà du plafond du pilote plutôt que lue.
+/// File size, rejected beyond the driver's ceiling rather than read.
 fn size(file: &Path) -> Result<u64> {
     let bytes = fs::metadata(file)?.len();
     if bytes > MAX_BYTES {
@@ -49,8 +49,8 @@ fn size(file: &Path) -> Result<u64> {
     Ok(bytes)
 }
 
-/// Le texte des octets lus, déjà hachés. Un fichier qui n'est pas de l'UTF-8 est refusé par son
-/// nom : un `.ma` est un texte, et en deviner l'encodage changerait les noms qu'il porte.
+/// Text of the bytes read, already hashed. A file that is not UTF-8 is rejected by name: a `.ma`
+/// is text, and guessing its encoding would change the names it carries.
 fn text(file: &Path, bytes: Vec<u8>) -> Result<String> {
     String::from_utf8(bytes).map_err(|_| {
         CompilerError::new(
@@ -60,8 +60,8 @@ fn text(file: &Path, bytes: Vec<u8>) -> Result<String> {
     })
 }
 
-/// Verse le rapport de la lecture du document dans celui de la scène : les deux étapes comptent les
-/// mêmes raisons, et le manifeste n'en publie qu'une table.
+/// Pours the document-read report into the scene's: both stages count the same reasons, and the
+/// manifest publishes only one table of them.
 fn carry(from: &Report, into: &mut Report) {
     for (reason, count) in &from.unsupported {
         into.add_count(reason, *count);

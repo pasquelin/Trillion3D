@@ -1,13 +1,13 @@
-// Les scènes propres au lot C : celles où le lot A n'avait pas de raison d'aller. Un quadrilatère
-// découpé en deux triangles qui partagent leur diagonale est le cas limite du remplissage, et c'est
-// lui que le banc doit voir avant les scènes aléatoires.
+// Scenes specific to batch C: those batch A had no reason to visit. A quad split into two
+// triangles that share their diagonal is the fill's edge case, and it is the one the bench
+// must see before the random scenes.
 import * as THREE from 'three';
 
 /**
- * Des quadrilatères découpés en deux triangles qui partagent leur diagonale, posés face à la caméra
- * et centrés : la diagonale passe exactement par le centre des pixels. C'est le cas où le poids vaut
- * exactement zéro, celui que l'arrondi fait basculer — un pixel qui sort des deux triangles est un
- * trou, et un trou n'est pas un arrondi.
+ * Quads split into two triangles that share their diagonal, facing the camera
+ * and centred: the diagonal passes exactly through pixel centres. That is the case where the
+ * weight is exactly zero, the one rounding flips — a pixel that leaves both triangles is a
+ * hole, and a hole is not rounding.
  */
 export function quadrillage(cotes, demi) {
   const material = new THREE.MeshBasicMaterial({ color: 0x88aa44, side: THREE.DoubleSide });

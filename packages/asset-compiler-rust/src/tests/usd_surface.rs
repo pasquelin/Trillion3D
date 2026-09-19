@@ -1,18 +1,18 @@
-//! Les valeurs par défaut d'un `UsdPreviewSurface`, et ce que glTF n'a pas pour porter le reste.
+//! Default values of `UsdPreviewSurface`, and what base glTF lacks to carry rest.
 //!
-//! La spécification donne ces valeurs ; les ignorer rend une surface plus claire, plus lisse ou
-//! plus opaque que la couche ne la décrit.
+//! Specification gives these values; ignoring makes surface brighter, smoother
+//! or more opaque than layer describes.
 use super::*;
 use usd_driver::compile_layer;
 use usd_matiere::{compile, layer, pbr, texture, unsupported};
 
-/// Le matériau unique de la couche.
+/// Single material of layer.
 fn material(gltf: &Value) -> Value {
     gltf["materials"][0].clone()
 }
 
-// Comportement 55 : un `UsdPreviewSurface` qui n'écrit rien vaut ce que la spécification dit —
-// `diffuseColor` 0,18, `metallic` 0, `roughness` 0,5, `opacity` 1 — et non le blanc.
+// Behavior 55: `UsdPreviewSurface` writing nothing equals specification —
+// `diffuseColor` 0.18, `metallic` 0, `roughness` 0.5, `opacity` 1 — not white.
 #[test]
 fn a_preview_surface_that_writes_nothing_carries_the_values_of_the_specification() {
     let (_, gltf) = compile_layer("defauts", &layer("", "")).prepared("usd");
@@ -25,8 +25,8 @@ fn a_preview_surface_that_writes_nothing_carries_the_values_of_the_specification
     assert_eq!(pbr(&gltf)["roughnessFactor"], 0.5);
 }
 
-// Comportement 56 : une occlusion texturée arrive dans `occlusionTexture`, que glTF lit dans le
-// canal rouge ; branchée sur un autre canal, elle est portée telle quelle et l'écart est compté.
+// Behavior 56: textured occlusion arrives in `occlusionTexture`, glTF reads in
+// red channel; plugged into another channel, carried as is, discrepancy counted.
 #[test]
 fn a_textured_occlusion_reaches_the_occlusion_texture_through_its_red_channel() {
     let inputs = "            float inputs:occlusion.connect = </Root/M/T.outputs:r>";
@@ -53,13 +53,13 @@ fn a_textured_occlusion_reaches_the_occlusion_texture_through_its_red_channel() 
     assert_eq!(
         material(&gltf)["occlusionTexture"]["index"],
         0,
-        "la carte reste portée, le canal est dit"
+        "the map stays carried, the channel is stated"
     );
 }
 
-// Comportement 57 : ce qu'un `UsdPreviewSurface` déclare et que le glTF de base n'a pas — flux de
-// travail spéculaire, vernis, indice de réfraction, normale écrite plutôt que texturée — est compté
-// par son nom plutôt que perdu en silence.
+// Behavior 57: `UsdPreviewSurface` declaration base glTF lacks — specular
+// workflow, clearcoat, IOR, written non-textured normal — counted
+// by name rather than lost silently.
 #[test]
 fn what_gltf_has_no_place_for_in_a_preview_surface_is_counted_by_its_name() {
     let inputs = r#"            int inputs:useSpecularWorkflow = 1
@@ -77,7 +77,7 @@ fn what_gltf_has_no_place_for_in_a_preview_surface_is_counted_by_its_name() {
             "usd-ior-unsupported": 1,
             "usd-normal-value-unsupported": 1,
         }),
-        "le rapport de ce que glTF ne porte pas a bougé"
+        "the report of what glTF does not carry has moved"
     );
 
     let defaults = r#"            int inputs:useSpecularWorkflow = 0
@@ -88,6 +88,6 @@ fn what_gltf_has_no_place_for_in_a_preview_surface_is_counted_by_its_name() {
     assert_eq!(
         unsupported(&run),
         json!({}),
-        "une valeur écrite à son défaut n'est pas un écart"
+        "a value written at its default is not a gap"
     );
 }

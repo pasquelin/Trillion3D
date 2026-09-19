@@ -1,14 +1,13 @@
-//! Verser un modèle déjà converti dans la scène en construction.
+//! Pouring an already converted model into the scene under construction.
 //!
-//! Un modèle référencé par la scène Unity est lu par le pilote de son format — jamais par celui-ci —
-//! et rend un glTF complet. Le verser ici, c'est recopier ses tables en décalant chaque rang, une
-//! seule fois par modèle : les instances suivantes réutilisent les mêmes maillages. Aucun sommet
-//! n'est retouché, aucune image n'est réencodée ; seules les URI des images changent, pour rester
-//! relatives au dossier servi.
+//! A model referenced by the Unity scene is read by the driver of its format — never by this
+//! one — and yields a complete glTF. Pouring it here is copying its tables while shifting each
+//! rank, once per model: later instances reuse the same meshes. No vertex is retouched, no
+//! image is re-encoded; only image URIs change, to stay relative to the served directory.
 use super::*;
 
-/// Recopie les tables du modèle dans la scène. `prefix` est le chemin du dossier du modèle,
-/// relativement au dossier servi : les images du modèle y sont nommées.
+/// Copies the model's tables into the scene. `prefix` is the path of the model's directory,
+/// relative to the served directory: the model's images are named there.
 pub(super) fn merge(gltf: &Value, buffers: &[Vec<u8>], prefix: &str, scene: &mut Scene) -> Parts {
     let views = merge_views(gltf, buffers, scene);
     let accessors = merge_table(
@@ -68,8 +67,8 @@ fn merge_views(gltf: &Value, buffers: &[Vec<u8>], scene: &mut Scene) -> Vec<usiz
     map
 }
 
-/// Recopie une table du modèle à la suite de celle de la scène, chaque entrée retouchée par `patch`
-/// puis décalée par `rules`, et rend le rang de chaque entrée dans la scène.
+/// Copies a model table after the scene's, each entry patched by `patch` then shifted by
+/// `rules`, and yields the rank of each entry in the scene.
 fn merge_table(
     gltf: &Value,
     name: &str,
@@ -89,8 +88,8 @@ fn merge_table(
         .collect()
 }
 
-/// Les images du modèle, leurs URI ramenées au dossier servi. Le préfixe est le chemin du dossier
-/// du modèle : c'est là que ses images sont nommées, pas à la racine de la scène.
+/// Model images, their URIs brought back to the served directory. The prefix is the path of the
+/// model's directory: that is where its images are named, not at the scene root.
 fn merge_images(gltf: &Value, prefix: &str, views: &[usize], scene: &mut Scene) -> Vec<usize> {
     merge_table(
         gltf,
@@ -107,9 +106,9 @@ fn merge_images(gltf: &Value, prefix: &str, views: &[usize], scene: &mut Scene) 
     )
 }
 
-/// Les maillages du modèle, et le nombre de triangles de chacun. Les rangs d'accesseur d'une
-/// primitive sont ses attributs, ses indices et ceux de chaque cible de morphing ; son matériau
-/// vient de l'autre table.
+/// Model meshes, and the triangle count of each. A primitive's accessor ranks are its
+/// attributes, its indices and those of each morph target; its material comes from the other
+/// table.
 fn merge_meshes(
     gltf: &Value,
     accessors: &[usize],

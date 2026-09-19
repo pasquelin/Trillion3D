@@ -7,7 +7,7 @@ const GPU_DISJOINT_EXT = 0x8fbb;
 const QUERY_RESULT_AVAILABLE = 0x8867;
 const QUERY_RESULT = 0x8866;
 
-/** Un faux WebGL2RenderingContext : une requête = un identifiant, un résultat et une disponibilité. */
+/** Fake WebGL2RenderingContext: one query = an id, a result and a ready flag. */
 function fakeGl(options: { withExtension?: boolean } = {}) {
   const { withExtension = true } = options;
   const results = new Map<number, number>();
@@ -47,31 +47,31 @@ function fakeGl(options: { withExtension?: boolean } = {}) {
   };
 }
 
-test('sans extension, le chronomètre annonce non supporté et rien n’est jamais mesuré', () => {
+test('without the extension, the timer reports unsupported and nothing is ever measured', () => {
   const timer = createWebglFrameTimer(fakeGl({ withExtension: false }).gl);
   assert.equal(timer.supported, false);
   timer.begin();
   timer.end();
   const polled = timer.poll();
   assert.equal(polled.ms, null);
-  assert.equal(polled.reason, 'EXT_disjoint_timer_query_webgl2 absent de cet appareil');
+  assert.equal(polled.reason, 'EXT_disjoint_timer_query_webgl2 missing on this device');
 });
 
-test('sans requête en attente, poll explique l’absence plutôt que de rendre zéro', () => {
+test('with no pending query, poll explains the absence rather than returning zero', () => {
   const timer = createWebglFrameTimer(fakeGl().gl);
-  assert.deepEqual(timer.poll(), { ms: null, reason: 'aucune requête en attente' });
+  assert.deepEqual(timer.poll(), { ms: null, reason: 'no pending query' });
 });
 
-test('une requête pas encore prête reste non mesurée, sans être perdue', () => {
+test('a query that is not ready yet stays unmeasured, without being lost', () => {
   const f = fakeGl();
   const timer = createWebglFrameTimer(f.gl);
   timer.begin();
   timer.end();
-  assert.deepEqual(timer.poll(), { ms: null, reason: 'résultat pas encore prêt' });
+  assert.deepEqual(timer.poll(), { ms: null, reason: 'result not ready yet' });
   assert.equal(f.flushes(), 1);
 });
 
-test('une requête disponible et non disjointe donne une durée en millisecondes', () => {
+test('an available non-disjoint query yields a duration in milliseconds', () => {
   const f = fakeGl();
   const timer = createWebglFrameTimer(f.gl);
   timer.begin();
@@ -81,7 +81,7 @@ test('une requête disponible et non disjointe donne une durée en millisecondes
   assert.deepEqual(f.deleted, [0]);
 });
 
-test('une requête disjointe est jetée avec sa raison, jamais publiée comme une durée', () => {
+test('a disjoint query is dropped with its reason, never published as a duration', () => {
   const f = fakeGl();
   f.setDisjoint(true);
   const timer = createWebglFrameTimer(f.gl);
@@ -90,17 +90,17 @@ test('une requête disjointe est jetée avec sa raison, jamais publiée comme un
   f.markAvailable(0, 1_000_000);
   assert.deepEqual(timer.poll(), {
     ms: null,
-    reason: 'le pilote a interrompu la mesure (GPU_DISJOINT_EXT)',
+    reason: 'the driver interrupted the measurement (GPU_DISJOINT_EXT)',
   });
 });
 
-test('au-delà du seuil de requêtes en attente, plus aucune nouvelle requête n’est ouverte', () => {
+test('beyond the pending-query threshold, no further query is opened', () => {
   const f = fakeGl();
   const timer = createWebglFrameTimer(f.gl);
   for (let i = 0; i < 6; i++) {
     timer.begin();
     timer.end();
   }
-  // MAX_PENDING = 4 : la 5e requête est encore admise (pending.length passe de 4 à 5), la 6e est refusée.
+  // MAX_PENDING = 4: the 5th query is still admitted (pending.length goes from 4 to 5), the 6th is refused.
   assert.equal(f.created(), 5);
 });

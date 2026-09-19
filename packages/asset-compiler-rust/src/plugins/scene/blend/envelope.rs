@@ -1,26 +1,25 @@
-//! L'enveloppe d'un fichier Blender, et ce que son entête annonce.
+//! The wrapping of a Blender file, and what its header announces.
 //!
-//! Un fichier peut arriver nu, dans une trame gzip (les versions anciennes) ou dans une trame
-//! Zstandard (le défaut depuis Blender 3). Les deux bibliothèques employées ne font que
-//! décompresser, sous un plafond donné, et rien n'est réencodé.
+//! A file may arrive bare, in a gzip frame (older versions) or in a Zstandard frame (the default
+//! since Blender 3). The two libraries used only decompress, under a given ceiling, and nothing
+//! is re-encoded.
 //!
-//! L'entête vient ensuite : les sept octets `BLENDER`, la taille de pointeur, le boutisme et la
-//! version. L'ancienne disposition tient sur douze octets ; la récente annonce d'abord la longueur
-//! de son entête en chiffres décimaux, puis une variante de bloc. Ce lecteur ne lit que les
-//! pointeurs de huit octets en boutisme petit, et refuse le reste par son nom plutôt que de le lire
-//! de travers.
+//! The header comes next: the seven `BLENDER` bytes, the pointer size, the endianness and the
+//! version. The old layout fits in twelve bytes; the recent one first announces its header length
+//! in decimal digits, then a block variant. This reader only reads eight-byte little-endian
+//! pointers, and refuses the rest by name rather than reading it askew.
 use super::*;
 use std::io::Read;
 
 pub(super) const MAGIC: &[u8] = b"BLENDER";
 const GZIP: &[u8] = b"\x1f\x8b";
 const ZSTD: &[u8] = b"\x28\xb5\x2f\xfd";
-/// La seule variante de bloc à soixante-quatre bits que ce lecteur sait lire.
+/// The only sixty-four-bit block variant this reader knows how to read.
 const WIDE_VARIANT: u32 = 1;
-/// La longueur de l'entête récent, la seule que ce lecteur décrit.
+/// The recent header length, the only one this reader describes.
 const WIDE_LENGTH: usize = 17;
 
-/// Ce que l'entête annonce, une fois l'enveloppe défaite.
+/// What the header announces, once the wrapping is undone.
 pub(super) struct Shape {
     pub(super) header: usize,
     pub(super) pointer: usize,
@@ -35,8 +34,8 @@ fn truncated() -> CompilerError {
     )
 }
 
-/// Le plafond, vérifié sur les octets déballés : c'est la même aide pour les trois enveloppes, pour
-/// un fichier nu, mesuré avant d'être copié, et pour ce qui est lu depuis le disque.
+/// The ceiling, checked on the unpacked bytes: the same help for the three wrappings, for a bare
+/// file, measured before being copied, and for what is read from disk.
 pub(super) fn within(length: usize, ceiling: usize) -> Result<()> {
     if length > ceiling {
         return Err(refused(
@@ -47,8 +46,8 @@ pub(super) fn within(length: usize, ceiling: usize) -> Result<()> {
     Ok(())
 }
 
-/// Défait l'enveloppe : un fichier nu passe tel quel, un flux gzip ou Zstandard est décompressé.
-/// Le plafond porte sur les octets déballés, quelle que soit l'enveloppe.
+/// Undoes the wrapping: a bare file passes as-is, a gzip or Zstandard stream is decompressed.
+/// The ceiling applies to the unpacked bytes, whatever the wrapping.
 pub(super) fn unwrap(raw: &[u8], ceiling: usize) -> Result<Vec<u8>> {
     if raw.starts_with(MAGIC) {
         within(raw.len(), ceiling)?;
@@ -72,13 +71,12 @@ pub(super) fn unwrap(raw: &[u8], ceiling: usize) -> Result<Vec<u8>> {
     Ok(out)
 }
 
-/// Un flux Zstandard est une **suite** de trames, et la spécification y admet des trames ignorables
-/// — Blender en écrit une, qui porte sa table de recherche. Le décodeur employé ne lit qu'une trame
-/// à la fois : on les enchaîne donc ici, en sautant une trame ignorable à la longueur qu'elle
-/// annonce. Rien n'est cru sans borne : le plafond restant limite chaque trame.
+/// A Zstandard stream is a **sequence** of frames, and the specification admits skippable frames
+/// there — Blender writes one, which carries its seek table. The decoder used only reads one
+/// frame at a time: they are therefore chained here, skipping a skippable frame at the length it
+/// announces. Nothing is trusted unbounded: the remaining ceiling limits each frame.
 fn zstandard(raw: &[u8], ceiling: usize, out: &mut Vec<u8>) -> Result<()> {
-    /// Le nombre magique d'une trame de données, et celui d'une trame ignorable, dont les quatre
-    /// derniers bits sont libres.
+    /// The magic number of a data frame, and that of a skippable frame, whose last four bits are free.
     const FRAME: u32 = 0xFD2F_B528;
     const SKIPPABLE: u32 = 0x184D_2A50;
     let word = |bytes: &[u8]| u32::from_le_bytes(bytes.try_into().unwrap_or_default());
@@ -112,7 +110,7 @@ fn zstandard(raw: &[u8], ceiling: usize, out: &mut Vec<u8>) -> Result<()> {
     Ok(())
 }
 
-/// Lit l'entête et rend la forme du fichier.
+/// Reads the header and yields the shape of the file.
 pub(super) fn head(bytes: &[u8]) -> Result<Shape> {
     let invalid = || refused("blend-header-invalid", "blend: unreadable BLENDER header");
     if !bytes.starts_with(MAGIC) || bytes.len() < 12 {

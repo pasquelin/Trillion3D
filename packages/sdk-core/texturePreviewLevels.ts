@@ -1,16 +1,16 @@
 /**
- * Géométrie de la pyramide progressive d'une texture, miroir de
+ * Geometry of a texture's progressive pyramid, mirror of
  * `packages/asset-compiler-rust/src/texture_preview/levels.rs`.
  *
- * Un niveau `k` est exactement le niveau de mip `k` de la source : ses deux côtés divisés en
- * entiers par `2^k`, jamais moins d'un texel. Le moteur écrit donc le niveau `k` reçu dans le
- * niveau de mip `k` de sa couche d'atlas, sans rien recalculer. Rien ici ne lit le sidecar : ces
- * fonctions redéduisent la géométrie d'une entrée de ses seules dimensions source, ce qui permet au
- * lecteur de refuser une entrée dont les nombres écrits ne s'accordent pas avec elles.
+ * A level `k` is exactly mip level `k` of the source: both sides divided as
+ * integers by `2^k`, never less than one texel. The engine therefore writes the received level `k`
+ * into mip level `k` of its atlas layer, without recomputing anything. Nothing here reads the sidecar:
+ * these functions re-derive an entry's geometry from its source dimensions alone, so the
+ * reader can reject an entry whose written numbers disagree with them.
  */
-/** Plus grand côté qu'un niveau porté par le sidecar peut avoir. */
+/** Largest side a level carried by the sidecar may have. */
 export const PREVIEW_BASE = 64;
-/** Niveaux qu'une entrée porte au plus : 64, 32, 16, 8, 4, 2, 1. */
+/** Levels an entry carries at most: 64, 32, 16, 8, 4, 2, 1. */
 export const PREVIEW_MAX_LEVELS = 7;
 
 /** Dimensions du niveau `level` d'une image `width`×`height`. */
@@ -19,7 +19,7 @@ export function previewLevelSize(width: number, height: number, level: number): 
   return [Math.max(1, width >>> shift), Math.max(1, height >>> shift)];
 }
 
-/** Niveau le plus fin porté : le premier dont aucun côté ne dépasse `PREVIEW_BASE`. */
+/** Finest level carried: the first of which neither side exceeds `PREVIEW_BASE`. */
 export function previewFirstLevel(width: number, height: number) {
   let level = 0;
   while (level < 31) {
@@ -30,21 +30,21 @@ export function previewFirstLevel(width: number, height: number) {
   return level;
 }
 
-/** Dernier niveau porté : celui où les deux côtés valent un texel. */
+/** Last level carried: the one where both sides are one texel. */
 export function previewLastLevel(width: number, height: number) {
   return 31 - Math.clz32(Math.max(1, width, height));
 }
 
-/** Niveaux portés par une entrée, du plus fin au 1×1 compris. */
+/** Levels carried by an entry, from the finest to 1×1 included. */
 export function previewLevelCount(width: number, height: number) {
   return previewLastLevel(width, height) - previewFirstLevel(width, height) + 1;
 }
 
 /**
- * Géométrie complète d'une entrée : son premier niveau porté, leur nombre et leurs octets RGBA8.
- * Les trois se déduisent des deux mêmes bornes. Les demander une à une recalculait `previewFirstLevel`
- * trois fois et `previewLastLevel` deux fois pour les mêmes dimensions, et `previewFirstLevel` boucle
- * jusqu'à trente et une fois.
+ * Full geometry of an entry: its first carried level, their count and their RGBA8 bytes.
+ * All three are deduced from the same two bounds. Asking for them one by one used to recompute
+ * `previewFirstLevel` three times and `previewLastLevel` twice for the same dimensions, and
+ * `previewFirstLevel` loops up to thirty-one times.
  */
 export function previewGeometry(width: number, height: number) {
   const firstLevel = previewFirstLevel(width, height),
@@ -57,15 +57,15 @@ export function previewGeometry(width: number, height: number) {
   return { firstLevel, levelCount: lastLevel - firstLevel + 1, pixelBytes };
 }
 
-/** Octets RGBA8 de tous les niveaux portés, bout à bout du plus fin au plus grossier. */
+/** RGBA8 bytes of every carried level, concatenated from finest to coarsest. */
 export function previewPixelBytes(width: number, height: number) {
   return previewGeometry(width, height).pixelBytes;
 }
 
 /**
- * Vrai quand tout ce qui dépasse la queue du sidecar est cuit — y compris quand rien ne la dépasse,
- * la source tenant sous `PREVIEW_BASE`. Une telle chaîne se suffit : le moteur n'a pas besoin de
- * l'image source. C'est l'unique lecture de `bakedLevels` contre `firstLevel` du dépôt.
+ * True when everything that exceeds the sidecar tail is baked — including when nothing exceeds it,
+ * the source fitting under `PREVIEW_BASE`. Such a chain is self-sufficient: the engine does not need
+ * the source image. This is the only read of `bakedLevels` against the repo's `firstLevel`.
  */
 export function previewIsWhole(preview: { firstLevel: number; bakedLevels: number }) {
   return preview.bakedLevels === preview.firstLevel;

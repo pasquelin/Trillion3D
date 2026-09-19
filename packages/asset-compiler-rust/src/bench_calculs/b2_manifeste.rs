@@ -1,11 +1,11 @@
-//! B2 — colonnes du manifeste binaire pré-dimensionnées et écrites sans `Vec<f64>` temporaire.
-//! Les noms français distinguent la copie de référence du code de la bibliothèque.
+//! B2 — binary manifest columns pre-sized and written without a temporary `Vec<f64>`.
+//! French names distinguish reference copy from library code.
 use super::harness::{compare, Bits, Row};
 use super::inputs;
 use crate::manifest_binary::format::{vector_into, Column};
 use serde_json::Value;
 
-/// Copie de l'ancienne colonne : aucune réservation, un `extend_from_slice` par valeur.
+/// Copy of the old column: no reservation, one `extend_from_slice` per value.
 #[derive(Default)]
 struct ColonneAncienne {
     octets: Vec<u8>,
@@ -16,15 +16,15 @@ impl ColonneAncienne {
     }
 }
 
-/// Copie de l'ancien `number()` : le nom de la valeur arrive déjà construit.
+/// Copy of the old `number()`: the value name arrives already built.
 fn nombre_ancien(valeur: Option<&Value>, quoi: &str) -> f64 {
     valeur
         .and_then(Value::as_f64)
-        .unwrap_or_else(|| panic!("{quoi} n'est pas un nombre"))
+        .unwrap_or_else(|| panic!("{quoi} is not a number"))
 }
 
-/// Copie de l'ancien `vector()` : un `Vec<f64>` par sphère et par paire de bornes, et le nom de
-/// chaque entrée formaté au passage, valide ou non.
+/// Copy of the old `vector()`: a `Vec<f64>` per sphere and per bounds pair, and the
+/// name of each entry formatted on the way, valid or not.
 fn vecteur_ancien(valeur: Option<&Value>, longueur: usize, quoi: &str) -> Vec<f64> {
     let entrees = valeur.and_then(Value::as_array).expect("tableau");
     assert_eq!(entrees.len(), longueur, "longueur du vecteur");
@@ -89,7 +89,7 @@ pub(crate) fn row() -> Row {
     compare(
         "B2 colonnes du manifeste binaire",
         "manifest_binary/format.rs, page.rs",
-        "20 000 pages, bornes + sphère + sphère parente".into(),
+        "20 000 pages, bounds + sphere + parent sphere".into(),
         &mut || reference_colonnes(&pages),
         &mut || optimise_colonnes(&pages),
         empreinte,

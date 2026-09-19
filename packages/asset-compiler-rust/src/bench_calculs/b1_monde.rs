@@ -1,5 +1,5 @@
-//! B1 — `world_matrices` calculé une fois et partagé, au lieu d'une fois par consommateur.
-//! Référence : les deux appels que `coplanar/pairs.rs` et `coplanar/surface.rs` faisaient chacun.
+//! B1 — `world_matrices` computed once and shared, instead of once per consumer.
+//! Reference: the two calls `coplanar/pairs.rs` and `coplanar/surface.rs` each made.
 use super::harness::{compare, Bits, Row};
 use super::inputs;
 use crate::compiler_world::{world_matrices, Mat4};
@@ -22,19 +22,19 @@ fn empreinte(paire: &Paire) -> Bits {
 pub(crate) fn row() -> Row {
     let g = inputs::scene(0x51ED_0B01, 20_000, 32);
     let mut reference = || {
-        let pour_pairs = world_matrices(&g).expect("monde des paires");
-        let pour_surfaces = world_matrices(&g).expect("monde des surfaces");
+        let pour_pairs = world_matrices(&g).expect("pairs world");
+        let pour_surfaces = world_matrices(&g).expect("surfaces world");
         (pour_pairs, pour_surfaces)
     };
-    // Le partage réel ne copie rien ; le clone rend la mesure conservatrice.
+    // Real sharing copies nothing; the clone makes the measurement conservative.
     let mut optimise = || {
-        let partage = world_matrices(&g).expect("monde partagé");
+        let partage = world_matrices(&g).expect("shared world");
         (partage.clone(), partage)
     };
     compare(
-        "B1 matrices monde partagées",
+        "B1 shared world matrices",
         "compiler_world.rs, coplanar/pairs.rs, coplanar/surface.rs",
-        "20 000 nœuds, chaînes de 32 niveaux, matrices non uniformes et miroirs".into(),
+        "20 000 nodes, 32-level chains, non-uniform matrices and mirrors".into(),
         &mut reference,
         &mut optimise,
         empreinte,

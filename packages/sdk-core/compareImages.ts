@@ -1,6 +1,5 @@
 /**
- * Comparaison de deux images RGBA : nombre de pixels différents, écart de canal maximal et RMSE.
- * Sortie du point d'entrée public, elle n'a plus besoin d'occuper le tonneau des exports.
+ * Comparison of two RGBA images: count of differing pixels, maximum channel error, and RMSE.
  */
 export function compareImages(a: Uint8Array, b: Uint8Array) {
   if (!a.length || a.length !== b.length || a.length % 4 !== 0)

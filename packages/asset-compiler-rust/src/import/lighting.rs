@@ -1,5 +1,6 @@
-//! Les lampes d'une scène lue par ufbx : la matrice d'un nœud, et la lampe ponctuelle glTF qu'il
-//! porte. Le pilote ne place jamais de lampe de lui-même — tout vient des données importées.
+//! Lights of a scene read by ufbx: a node's matrix, and the glTF punctual light
+//! it carries. The driver never places a light of its own — everything comes from
+//! imported data.
 use super::*;
 
 pub(super) fn matrix_json(m: &ufbx::Matrix) -> Vec<f64> {
@@ -66,9 +67,10 @@ impl Importer<'_> {
             self.report.add("node-invalid-transform");
             return;
         }
-        // FBX ne porte pas d'unité photométrique : son intensité est un pourcentage, que le réglage
-        // publié de `compiler_lights` rend en candela ou en lux, comme le glTF. Et FBX ne déclare
-        // aucun rayon d'émetteur : le compilateur le mesure alors sur le corps émissif de la lampe.
+        // FBX carries no photometric unit: its intensity is a percentage, which the
+        // published `compiler_lights` setting turns into candela or lux, like glTF.
+        // And FBX declares no emitter radius: the compiler then measures it on the
+        // light's emissive body.
         let source = crate::import::LightSource {
             name: light.element.name.to_string(),
             kind,

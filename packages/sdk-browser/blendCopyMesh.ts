@@ -1,19 +1,19 @@
 import * as THREE from 'three';
 
 /**
- * La copie de dessin d'une surface transparente.
+ * The draw copy of a transparent surface.
  *
- * Une surface mélangée ou transmissive n'est pas dessinée par le chemin opaque : le moteur en tient
- * une copie, dans l'ordre source, avec le matériau du maillage. Ce que cette copie porte comme
- * placement est la SEULE chose qui la relie encore à la scène, et c'est là que le défaut vivait :
- * recopier une matrice monde à la préparation en faisait une photo, qu'aucun déplacement ultérieur —
- * `setTransform`, un parent déplacé, une écriture directe de l'hôte — ne venait plus corriger.
+ * A blended or transmissive surface is not drawn by the opaque path: the engine holds a
+ * copy of it, in source order, with the mesh material. What this copy carries as placement
+ * is the ONLY thing that still ties it to the scene, and that is where the defect lived:
+ * copying a world matrix at prepare time made it a snapshot that no later move —
+ * `setTransform`, a moved parent, a direct host write — would correct.
  *
- * La copie reçoit donc l'OBJET `world` que le moteur tient pour le maillage source
- * (`hostWorldPlacements.ts`), pas ses seize nombres : ce que l'index y réécrit, la copie le lit —
- * comme les pages opaques du même maillage, qui portent cette même matrice. `matrixAutoUpdate` reste
- * faux, si bien que Three ne recompose jamais cette matrice depuis la pose locale de la copie — qui
- * n'en a pas.
+ * The copy therefore receives the `world` OBJECT the engine holds for the source mesh
+ * (`hostWorldPlacements.ts`), not its sixteen numbers: what the index rewrites there, the
+ * copy reads — like the opaque pages of the same mesh, which carry that same matrix.
+ * `matrixAutoUpdate` stays false, so Three never recomposes this matrix from the copy's
+ * local pose — which it does not have.
  */
 export function createBlendCopy(mesh: THREE.Mesh, renderOrder: number, world: THREE.Matrix4) {
   const copy = new THREE.Mesh(mesh.geometry, mesh.material);

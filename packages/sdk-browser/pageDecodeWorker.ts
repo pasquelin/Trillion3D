@@ -11,18 +11,18 @@ import type {
 } from '../sdk-core/index.ts';
 
 /**
- * Point d'entrée du worker de décodage. Adaptateur de plateforme : ce fichier n'est chargé que dans
- * un `Worker` de module, et il ne contient aucune décision — il reçoit un message du contrat, appelle
- * la tâche partagée, et rend sa réponse.
+ * Entry point of the decode worker. Platform adapter: this file is loaded only in a module
+ * `Worker`, and it contains no decision — it receives a contract message, calls the shared
+ * task, and returns its answer.
  *
- * Deux chemins pour les octets, un seul travail. Avec un bail de mémoire partagée, une page décodée
- * est écrite dans la région du créneau du worker — sa région, dont il est le seul écrivain — et rien
- * ne voyage par message. Sans bail, ou quand la page n'entre pas dans la région, ou pour tout refus
- * et toute annulation, la réponse part par message avec ses tampons transférés, comme avant. Le
- * créneau passe à `ready` dans les deux cas : l'attente du fil principal ne reste jamais suspendue.
+ * Two paths for the bytes, one job. With a shared-memory lease, a decoded page is written in
+ * the worker slot's region — its region, of which it is the only writer — and nothing travels
+ * by message. Without a lease, or when the page does not fit in the region, or for any refuse
+ * and any cancel, the answer leaves by message with its buffers transferred, as before. The
+ * slot goes to `ready` in both cases: the main thread's wait never stays suspended.
  *
- * La portée d'un worker dédié n'est pas typée par la bibliothèque DOM du dépôt ; la forme minimale
- * dont ce fichier a besoin est déclarée ici plutôt que d'ajouter une bibliothèque entière.
+ * A dedicated worker's scope is not typed by the repository's DOM library; the minimal shape
+ * this file needs is declared here rather than adding a whole library.
  */
 type DecodeWorkerScope = {
   onmessage: ((event: { data: unknown }) => void) | null;
@@ -30,14 +30,14 @@ type DecodeWorkerScope = {
 };
 
 const scope = globalThis as unknown as DecodeWorkerScope;
-/** Les requêtes annulées avant d'avoir commencé. Un décodage entamé n'a pas de point d'arrêt : il va
- *  à son terme, et c'est la réponse qui devient une annulation. */
+/** Requests cancelled before they started. A decode already begun has no stop point: it goes
+ *  to its end, and it is the answer that becomes a cancel. */
 const cancelled = new Set<number>();
 let arena: PageArena | undefined,
   slot = 0;
 
-/** La réponse par message, doublée de la publication du créneau quand un bail est en cours : le fil
- *  principal attend l'état, qu'il lise la région ou le message. */
+/** Answer by message, doubled by publishing the slot when a lease is in flight: the main
+ *  thread waits for the state, whether it reads the region or the message. */
 function reply(answer: PageDecodeAnswer, transfer: ArrayBuffer[], shared: boolean) {
   scope.postMessage(answer, transfer);
   if (!shared || !arena) return;
@@ -58,7 +58,7 @@ scope.onmessage = async (event) => {
     return;
   }
   const request = message as PageDecodeRequest;
-  // Seule une page décodée passe par la région : `verify` doit rendre sa source, qui n'y est pas.
+  // Only a decoded page goes through the region: `verify` must return its source, which is not there.
   const shared = !!arena && request.op === 'decode';
   if (cancelled.delete(request.id)) {
     reply(

@@ -1,12 +1,12 @@
-//! G9 — l'accessor déjà validé par `plan_buffers` n'est plus revalidé à chaque lecture. Référence :
-//! le même `accessor()` sans l'ensemble des identifiants validés, c'est-à-dire le chemin d'avant.
+//! G9 — accessor pre-validated by `plan_buffers` not re-validated each read. Reference:
+//! same `accessor()` without validated id set, i.e. prior path.
 use super::harness::{compare, Bits, Row};
 use crate::compiler_accessor_create::accessor;
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
 
-/// Un glTF de `count` accessors, chacun sur sa propre vue : scalaires, VEC3 flottants, VEC4
-/// normalisés sur un octet, matrices, et des décalages non nuls.
+/// glTF of `count` accessors, each on own view: scalars, VEC3 floats, VEC4
+/// normalized on byte, matrices, non-zero offsets.
 fn gltf(count: usize) -> (Value, Vec<u8>) {
     let formes = [
         (5126usize, "VEC3", 12usize, false),
@@ -49,7 +49,7 @@ fn empreinte(lus: &Lus) -> Bits {
     bits
 }
 
-/// Les sept lectures qu'une primitive fait : POSITION, les indices, puis cinq attributs nommés.
+/// Seven reads primitive makes: POSITION, indices, five named attributes.
 const LECTURES: usize = 7;
 
 fn lis(g: &Value, bin: &[u8], count: usize, validated: Option<&BTreeSet<usize>>) -> Lus {
@@ -90,12 +90,12 @@ pub(crate) fn row() -> Row {
 mod tests {
     use super::*;
 
-    /// Chaque accessor lu avec `None` (l'ancien chemin, toujours validé) doit rendre exactement les
-    /// mêmes sept champs que lu avec `Some(&validated)` quand son id y figure : la validation sautée
-    /// est une fonction pure des mêmes `g`/`bin`/`id`, son verdict ne change jamais le résultat.
+    /// Each accessor read with `None` (old path, validated) must yield exact same
+    /// seven fields as read with `Some(&validated)` when id present: skipped validation
+    /// pure function of same `g`/`bin`/`id`, verdict never changes result.
     #[test]
     fn accessor_valide_deja_marque_rend_les_memes_champs_sans_revalider() {
-        let count = 9; // couvre les cinq formes de `gltf()` au moins une fois chacune, plus reste.
+        let count = 9; // covers five gltf() forms at least once each, plus remainder.
         let (g, bin) = gltf(count);
         let validated: BTreeSet<usize> = (0..count).collect();
         for id in 0..count {
@@ -132,9 +132,9 @@ mod tests {
     fn un_ensemble_valide_partiel_ou_vide_ne_change_rien_pour_les_ids_absents() {
         let count = 5;
         let (g, bin) = gltf(count);
-        // Vide : personne n'est marqué déjà validé, comportement identique à `None`.
+        // Empty: no one marked validated, behavior identical to `None`.
         let vide: BTreeSet<usize> = BTreeSet::new();
-        // Partiel : seuls les ids pairs sont marqués.
+        // Partial: only even ids marked.
         let partiel: BTreeSet<usize> = (0..count).filter(|id| id % 2 == 0).collect();
         for id in 0..count {
             let reference = accessor(&g, &bin, id, None).expect("reference");
@@ -159,7 +159,7 @@ mod tests {
         let hors_limites = count + 5;
         let message_de = |resultat: Result<_, crate::CompilerError>| match resultat {
             Err(e) => e.to_string(),
-            Ok(_) => panic!("id hors limites aurait dû échouer"),
+            Ok(_) => panic!("out-of-range id should have failed"),
         };
         let sans_ensemble = message_de(accessor(&g, &bin, hors_limites, None));
         let ensemble_ne_le_contenant_pas: BTreeSet<usize> = (0..count).collect();

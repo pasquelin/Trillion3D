@@ -1,5 +1,5 @@
-//! Pilote glTF 2.0 et GLB, standard Khronos. Entrée directe : la scène intermédiaire du compilateur
-//! est déjà un glTF, ce pilote ne convertit donc rien et ne touche jamais à la source.
+//! glTF 2.0 and GLB driver, Khronos standard. Direct entry: the compiler's intermediate
+//! scene is already a glTF, so this driver converts nothing and never touches the source.
 use super::*;
 use crate::CompilerError;
 
@@ -10,7 +10,7 @@ impl Plugin for Gltf {
     fn name(&self) -> &'static str {
         "gltf"
     }
-    /// Le glTF entre tel quel : cette version ne suit que les règles de routage, pas un décodeur.
+    /// The glTF enters as-is: this version only follows the routing rules, not a decoder.
     fn version(&self) -> &'static str {
         "gltf-2.0-direct-1"
     }
@@ -20,7 +20,7 @@ impl Plugin for Gltf {
 }
 
 impl ScenePlugin for Gltf {
-    /// L'entête d'un conteneur GLB, pour un fichier que son nom ne désigne pas.
+    /// Header of a GLB container, for a file that its name does not designate.
     fn accepts_head(&self, head: &[u8]) -> bool {
         head.starts_with(b"glTF")
     }

@@ -1,12 +1,12 @@
-// Défaut 10 : ce que le moteur dessine vraiment sous une transformation de déterminant négatif.
+// Defect 10: what the engine actually draws under a negative-determinant transform.
 //
-// Le lot du défaut 6 a laissé 54 suppressions de faces « visibles », toutes des réflexions, et a
-// proposé comme lecture que `cross(M·e1,M·e2) = det(M)·M⁻ᵀ·n` change de signe, donc que l'axe du
-// cône devrait être multiplié par `sign(det)`. Sa vérité terrain (`veriteTerrain`) est l'orientation
-// géométrique BRUTE des sommets transformés, qui ignore que le moteur, lui, échange la face
-// éliminée sous réflexion — `windingCw` en WebGPU, `frontFaceCW = determinant() < 0` dans Three en
-// WebGL. Ce module oppose les deux vérités : la brute et celle du moteur, mesurée en fragments
-// réellement couverts par la rasterisation.
+// Defect 6's batch left 54 drops of "visible" faces, all reflections, and proposed the reading
+// that `cross(M·e1,M·e2) = det(M)·M⁻ᵀ·n` changes sign, so the cone axis should be multiplied by
+// `sign(det)`. Its ground truth (`veriteTerrain`) is the RAW geometric orientation of the
+// transformed vertices, which ignores that the engine itself swaps the culled face under
+// reflection — `windingCw` in WebGPU, `frontFaceCW = determinant() < 0` in Three on WebGL. This
+// module opposes the two truths: the raw one and the engine's, measured in fragments actually
+// covered by rasterisation.
 import * as THREE from 'three';
 import { windingCw } from '../../packages/sdk-browser/webgpuPagesWinding.ts';
 import { camera } from './inverseTransposeCas.mjs';
@@ -15,11 +15,11 @@ const TRIANGLES = [
   [0, 1, 2],
   [3, 4, 5],
 ];
-/** Une vue carrée assez fine pour que chaque cas couvre des milliers de pixels, assez petite pour
- *  que les 6 916 rasterisations CPU et GPU tiennent en quelques secondes. */
+/** A square view fine enough that each case covers thousands of pixels, small enough that the
+ *  6 916 CPU and GPU rasterisations fit in a few seconds. */
 export const VUE = [128, 128];
 
-/** Le cas vu comme une page du tampon de visibilité : une face avant, deux triangles, sa matrice. */
+/** The case seen as a visibility-buffer page: a front face, two triangles, its matrix. */
 export function pageVisible(cas) {
   const geometrie = new THREE.BufferGeometry();
   geometrie.setAttribute('position', new THREE.Float32BufferAttribute(cas.positions, 3));
@@ -31,7 +31,7 @@ export function pageVisible(cas) {
   };
 }
 
-/** La matrice `viewProj` de la caméra partagée, en colonne-major, telle que le moteur l'assemble. */
+/** `viewProj` matrix of the shared camera, column-major, as the engine assembles it. */
 export function viewProjection() {
   camera.updateWorldMatrix(true, false);
   return [
@@ -41,17 +41,16 @@ export function viewProjection() {
 }
 
 /**
- * Le sens de parcours que le moteur appliquerait à ce cas : sa propre fonction `windingCw`, sur un
- * enregistrement de page qui ne porte que la matrice monde. Rien n'est réécrit ici.
+ * Winding the engine would apply to this case: its own `windingCw` function, on a page record
+ * that only carries the world matrix. Nothing is rewritten here.
  */
 export function sensDuMoteur(cas) {
   return windingCw({ matrix: cas.world }) ? 'cw' : 'ccw';
 }
 
 /**
- * La charge de `rasterGpu` pour une liste de cas : les sommets transformés en double précision —
- * la question posée est l'orientation, pas l'arrondi — groupés par sens de parcours, un slot de
- * compteur par cas.
+ * `rasterGpu` payload for a list of cases: vertices transformed in double precision — the
+ * question asked is orientation, not rounding — grouped by winding, one counter slot per case.
  */
 export function chargeRaster(cas) {
   const groupes = { ccw: [], cw: [] };

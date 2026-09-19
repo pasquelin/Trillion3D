@@ -1,4 +1,4 @@
-// la géométrie d'une entrée de preview.
+// the geometry of a preview entry.
 import { previewGeometry } from '../texturePreviewLevels.ts';
 import { mesure, stress, rapport } from './socle.mjs';
 import { referenceExpectedGeometry } from './oracles/preview-texture.mjs';
@@ -13,8 +13,8 @@ const DIMENSIONS = [
   [0xffffffff, 1],
   [3, 7],
 ];
-const entrees = [];
-for (let i = 0; i < 4000; i++) entrees.push(DIMENSIONS[i % DIMENSIONS.length]);
+const inputs = [];
+for (let i = 0; i < 4000; i++) inputs.push(DIMENSIONS[i % DIMENSIONS.length]);
 
 const geometries = (calcul) => (liste) =>
   liste.map(([w, h]) => {
@@ -23,14 +23,14 @@ const geometries = (calcul) => (liste) =>
   });
 
 const cas = [
-  { nom: '4 000 entrées, huit tailles limites', entree: entrees, taille: 4000 },
-  { nom: 'une entrée 1×1', entree: [[1, 1]], taille: 1 },
-  { nom: 'une entrée de côté maximal', entree: [[0xffffffff, 0xffffffff]], taille: 1 },
-  { nom: 'aucune entrée', entree: [], taille: 0 },
+  { name: '4 000 entries, eight boundary sizes', input: inputs, size: 4000 },
+  { name: 'one 1×1 entry', input: [[1, 1]], size: 1 },
+  { name: 'one max-side entry', input: [[0xffffffff, 0xffffffff]], size: 1 },
+  { name: 'no entries', input: [], size: 0 },
 ];
 
 const res = await mesure({
-  nom: 'géométrie preview',
+  name: 'preview geometry',
   fichier: 'packages/sdk-core/texturePreviewLevels.ts',
   cas,
   calcul: geometries(previewGeometry),
@@ -39,13 +39,13 @@ const res = await mesure({
 });
 
 await stress({
-  nom: 'previewGeometry extremes',
+  name: 'previewGeometry extremes',
   calcul: ([w, h]) => previewGeometry(w, h),
   extremes: [
-    { nom: 'zero', entree: [0, 0] },
-    { nom: 'max 32-bit', entree: [0xffffffff, 0xffffffff] },
-    { nom: 'asymetrique', entree: [1, 1 << 16] },
+    { name: 'zero', input: [0, 0] },
+    { name: 'max 32-bit', input: [0xffffffff, 0xffffffff] },
+    { name: 'asymmetric', input: [1, 1 << 16] },
   ],
 });
 
-rapport('preview-texture', [res], 'G11 rend la même géométrie d’entrée, au bit près');
+rapport('preview-texture', [res], 'G11 yields the exact same input geometry');

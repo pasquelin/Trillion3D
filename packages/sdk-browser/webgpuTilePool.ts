@@ -8,41 +8,41 @@ import {
 } from './textureTiles.ts';
 
 /**
- * Le pool physique d'un atlas : une texture-tableau de couches de 30×30 tuiles, à la taille que le
- * budget de l'hôte donne — jamais à celle de la scène. Ce qu'une scène demande de plus attend
- * qu'une tuile moins regardée se libère. Un réglage de budget remplace le pool par un autre
- * (`webgpuTileAtlasResize.ts`), qui reprend ses places par `adopt`.
+ * Physical pool of an atlas: an array-texture of 30×30-tile layers, at the size the host budget
+ * gives — never at that of the scene. What a scene asks beyond that waits for a less-looked-at
+ * tile to free. A budget change replaces the pool with another (`webgpuTileAtlasResize.ts`),
+ * which takes its places back through `adopt`.
  *
- * Le pool ne sait pas ce qu'une tuile porte : il tient, par place, une CLÉ que l'appelant lui
- * confie, la dernière image qui l'a regardée, et si elle est épinglée. La queue d'une texture est
- * épinglée à la préparation ; une tuile diffusée ne l'est jamais.
+ * The pool does not know what a tile carries: it holds, per place, a KEY the caller confides to
+ * it, the last image that looked at it, and whether it is pinned. A texture's tail is pinned at
+ * prepare; a streamed tile never is.
  */
 export type WebgpuTilePool = {
   texture: GPUTexture;
   view: GPUTextureView;
   layers: number;
-  /** Tuiles que le pool peut porter, et octets alloués — fixes tant que ce pool vit. */
+  /** Tiles the pool can carry, and allocated bytes — fixed as long as this pool lives. */
   tiles: number;
   bytes: number;
-  /** Tuiles occupées, et leurs octets. */
+  /** Occupied tiles, and their bytes. */
   readonly resident: number;
   readonly residentBytes: number;
-  /** Prend une tuile libre pour `key`, ou rend `undefined` quand le pool est plein. */
+  /** Takes a free tile for `key`, or returns `undefined` when the pool is full. */
   acquire(key: number, frame: number, pinned?: boolean): number | undefined;
-  /** Pose `key` à une place précise et libre — ce qu'un pool redimensionné reprend de l'ancien. */
+  /** Sets `key` at a precise free place — what a resized pool takes back from the old one. */
   adopt(index: number, key: number, frame: number, pinned?: boolean): void;
   release(index: number): void;
   touch(index: number, frame: number): void;
   keyOf(index: number): number;
   lastUseOf(index: number): number;
   pinnedOf(index: number): boolean;
-  /** Les tuiles non épinglées que ni `frame` ni l'image d'avant n'ont regardées, la moins récemment
-   *  regardée d'abord. Une tuile regardée à l'image d'avant est très probablement regardée à
-   *  celle-ci : la céder pour une autre, c'est la redemander à la suivante — le pool plein
-   *  tournerait sur lui-même à chaque image. Il refuse plutôt, et le niveau grossier tient ; c'est
-   *  la règle d'âge du pool de textures virtuelles de la référence. */
+  /** Unpinned tiles that neither `frame` nor the previous image looked at, least recently looked
+   *  at first. A tile looked at on the previous image is very likely looked at on this one: giving
+   *  it up for another is asking for it again on the next — a full pool would spin on itself every
+   *  image. It refuses instead, and the coarse level holds; that is the age rule of the
+   *  reference's virtual-texture pool. */
   candidates(frame: number): number[];
-  /** Toutes les places occupées, épinglées comprises, dans l'ordre du pool. */
+  /** Every occupied place, pinned included, in pool order. */
   occupied(): number[];
   placeOf(index: number): TilePlace;
   destroy(): void;
@@ -61,7 +61,7 @@ export function createWebgpuTilePool(
     label: `WG texture pool ${options.kind}`,
     size: { width: POOL_LAYER_SIDE, height: POOL_LAYER_SIDE, depthOrArrayLayers: layers },
     format: options.format,
-    // `copyExternalImageToTexture` exige aussi `RENDER_ATTACHMENT` de sa destination.
+    // `copyExternalImageToTexture` also requires `RENDER_ATTACHMENT` of its destination.
     usage:
       GPUTextureUsage.TEXTURE_BINDING |
       GPUTextureUsage.COPY_DST |
@@ -71,8 +71,8 @@ export function createWebgpuTilePool(
   const owner = new Int32Array(tiles).fill(-1),
     lastUse = new Uint32Array(tiles),
     pinned = new Uint8Array(tiles);
-  // Les places libres, la plus basse en haut de pile : un pool à moitié vide reste compact. La
-  // pile est refaite en une passe quand une adoption l'a périmée, à la prochaine prise.
+  // Free places, the lowest on top of the stack: a half-empty pool stays compact. The stack is
+  // rebuilt in one pass when an adopt has stale-dated it, at the next take.
   const free: number[] = [];
   let freeStale = true,
     resident = 0;

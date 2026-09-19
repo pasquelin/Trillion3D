@@ -1,25 +1,26 @@
-//! Les données composites d'un PSD ou d'un PSB : l'image aplatie que le fichier porte déjà, plan
-//! par plan. Trois sections à longueur préfixée séparent l'entête de ces octets — données de mode
-//! de couleur, ressources d'image, calques et masques — et se sautent par leur longueur, sans que
-//! rien n'y soit lu : les calques ne sont pas recomposés.
+//! Composite data of a PSD or a PSB: the flattened image the file already carries, plane by
+//! plane. Three length-prefixed sections separate the header from these bytes — colour-mode
+//! data, image resources, layers and masks — and are skipped by their length, with nothing
+//! read there: layers are not recomposed.
 //!
-//! La section commence par son mode de compression, puis porte un plan entier après l'autre, dans
-//! l'ordre des canaux de l'entête. Les plans bruts sont la surface telle quelle ; les plans
-//! compressés sont des lignes PackBits, précédées d'une table qui donne la longueur compressée de
-//! chaque ligne de chaque canal — deux octets par entrée en PSD, quatre en PSB.
+//! The section starts with its compression mode, then carries one whole plane after another,
+//! in the order of the header's channels. Raw planes are the surface as-is; compressed planes
+//! are PackBits lines, preceded by a table that gives the compressed length of each line of
+//! each channel — two bytes per entry in PSD, four in PSB.
 use super::lines::Lines;
 use super::sections::{self, Declared};
 use super::{Header, COMPOSITE_MISSING, DATA_TRUNCATED};
 use crate::plugins::image::{blocks, DecodedImage, RGBA8_PIXEL_BYTES};
 
-/// Les deux octets qui annoncent la compression du composite.
+/// The two bytes that announce the composite's compression.
 const MARKER_BYTES: usize = 2;
-/// Les octets d'un pixel du contrat de sortie, comptés comme le plafond d'allocation les compte.
+/// Bytes of one pixel of the output contract, counted as the allocation ceiling counts them.
 const RGBA_BYTES: usize = RGBA8_PIXEL_BYTES as usize;
 
-/// Saute les trois sections qui séparent l'entête des données composites, et rend ce qu'elles
-/// déclarent avec le mode de compression du composite et les octets qui le suivent. Un fichier qui
-/// s'arrête avant cette section n'a pas d'image aplatie : on ne recompose pas ses calques à sa place.
+/// Skips the three sections that separate the header from the composite data, and returns
+/// what they declare with the composite's compression mode and the bytes that follow it. A
+/// file that stops before this section has no flattened image: its layers are not recomposed
+/// in its place.
 pub(super) fn composite<'a>(
     header: &Header,
     after_header: &'a [u8],
@@ -36,8 +37,9 @@ pub(super) fn composite<'a>(
     ))
 }
 
-/// L'image RGBA8 du composite. Le tampon part tout à `u8::MAX` : les canaux de couleur du mode sont
-/// toujours écrits, et l'alpha reste donc opaque exactement quand aucun plan ne le porte.
+/// RGBA8 image of the composite. The buffer starts all at `u8::MAX`: the mode's colour
+/// channels are always written, and alpha therefore stays opaque exactly when no plane
+/// carries it.
 pub(super) fn decode(
     header: &Header,
     declared: &Declared,
@@ -67,11 +69,11 @@ pub(super) fn decode(
     blocks::image(header.width, header.height, rgba, DATA_TRUNCATED)
 }
 
-/// Où va un plan dans le quadruplet de sortie. En niveaux de gris, l'unique canal de couleur porte
-/// les trois composantes ; en RVB, chacun porte la sienne. Le plan qui suit les canaux de couleur
-/// n'est l'alpha du composite que si le fichier l'a déclaré — par le signe de son compte de
-/// calques. Sinon c'est un canal alpha enregistré, une sélection : il est lu, pour que le curseur
-/// avance d'un plan, et écrit nulle part. Le tampon garde son alpha opaque.
+/// Where a plane goes in the output quadruplet. In greyscale, the single colour channel
+/// carries the three components; in RGB, each carries its own. The plane that follows the
+/// colour channels is the composite's alpha only if the file declared it — by the sign of
+/// its layer count. Otherwise it is a stored alpha channel, a selection: it is read, so that
+/// the cursor advances by one plane, and written nowhere. The buffer keeps its opaque alpha.
 fn targets(header: &Header, declared: &Declared, channel: usize) -> &'static [usize] {
     if channel >= header.color_channels {
         return if declared.transparency { &[3] } else { &[] };

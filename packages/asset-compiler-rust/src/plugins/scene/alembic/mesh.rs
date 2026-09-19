@@ -1,15 +1,14 @@
-//! De la géométrie lue aux morceaux d'un maillage glTF : une part par face set, plus une part pour
-//! les faces qu'aucun face set ne revendique.
+//! From read geometry to parts of a glTF mesh: one part per face set, plus one part for faces
+//! no face set claims.
 //!
-//! Deux conversions ont lieu ici, et elles sont exactes. **L'enroulement** : Alembic décrit ses
-//! faces dans l'ordre horaire vu de l'extérieur, le glTF dans l'ordre inverse ; lire chaque face à
-//! l'envers suffit, et rien d'autre ne change — aucun sommet n'est déplacé. **Le découpage des
-//! coins** : un fichier Alembic donne une position par sommet mais peut donner une normale et une
-//! coordonnée de texture par coin de face, là où le glTF n'a qu'un seul tableau par sommet ; chaque
-//! triplet distinct (sommet, normale, coordonnée) devient donc un sommet du glTF, et les triplets
-//! identiques restent un seul sommet. Les faces de plus de trois côtés sont coupées en oreilles
-//! dans le plan de leur normale, ce qui conserve l'aire et la silhouette d'une face plane, qu'elle
-//! soit convexe ou creusée.
+//! Two conversions happen here, and they are exact. **Winding**: Alembic describes its faces
+//! clockwise seen from outside, glTF in the reverse order; reading each face backwards is enough,
+//! and nothing else changes — no vertex is moved. **Corner splitting**: an Alembic file gives one
+//! position per vertex but may give a normal and a texture coordinate per face corner, where
+//! glTF has only one array per vertex; each distinct triplet (vertex, normal, coordinate) therefore
+//! becomes a glTF vertex, and identical triplets stay one vertex. Faces of more than three sides
+//! are ear-clipped in the plane of their normal, which keeps the area and silhouette of a planar
+//! face, whether convex or concave.
 use self::build::Builder;
 use super::geom::Geometry;
 use super::TOPOLOGY_INVALID;
@@ -19,18 +18,18 @@ use std::sync::atomic::AtomicBool;
 
 mod build;
 
-/// Coins au plus dans un maillage. Au-delà, ce n'est plus une scène mais une table corrompue.
+/// Corners at most in a mesh. Beyond that, it is no longer a scene but a corrupted table.
 const MAX_CORNERS: usize = 64 << 20;
 
-/// Un face set : un nom de matériau et les faces qu'il porte.
+/// A face set: a material name and the faces it holds.
 pub(super) struct FaceSet {
     pub(super) name: String,
     pub(super) faces: Vec<i32>,
 }
 
-/// Un morceau de maillage prêt à devenir une primitive glTF.
+/// A mesh part ready to become a glTF primitive.
 pub(super) struct Part {
-    /// Le rang du face set dont ce morceau vient, ou `None` pour les faces sans face set.
+    /// The rank of the face set this part comes from, or `None` for faces with no face set.
     pub(super) faceset: Option<usize>,
     pub(super) positions: Vec<f32>,
     pub(super) normals: Vec<f32>,
@@ -40,19 +39,19 @@ pub(super) struct Part {
     pub(super) max: [f32; 3],
 }
 
-/// Ce que le découpage a rencontré et que le rapport doit dire.
+/// What the split met and the report must say.
 #[derive(Default)]
 pub(super) struct Counted {
-    /// Des faces revendiquées par deux face sets : seule la première revendication compte.
+    /// Faces claimed by two face sets: only the first claim counts.
     pub(super) overlaps: usize,
-    /// Des faces de moins de trois côtés, qui ne portent aucune surface.
+    /// Faces of fewer than three sides, which carry no surface.
     pub(super) degenerate: usize,
-    /// Des faces que la coupe par oreilles n'a pas su découper entièrement.
+    /// Faces that ear-clipping could not fully cut.
     pub(super) uncut: usize,
 }
 
-/// Le face set de chaque face, et ce que la répartition a rencontré. Une face revendiquée deux fois
-/// reste au premier face set : un triangle n'appartient qu'à un matériau.
+/// The face set of each face, and what the assignment met. A face claimed twice stays with the
+/// first face set: a triangle belongs to only one material.
 fn assign(facesets: &[FaceSet], faces: usize) -> (Vec<Option<usize>>, usize) {
     let mut out = vec![None; faces];
     let mut overlaps = 0;
@@ -71,8 +70,8 @@ fn assign(facesets: &[FaceSet], faces: usize) -> (Vec<Option<usize>>, usize) {
     (out, overlaps)
 }
 
-/// Découpe la géométrie en morceaux, un par face set utilisé, dans l'ordre des face sets. Le jeton
-/// d'annulation est relu par tranche de faces : un seul maillage énorme s'arrête aussi.
+/// Splits the geometry into parts, one per used face set, in face-set order. The cancellation
+/// token is reread by face slice: a single huge mesh stops too.
 pub(super) fn parts(
     geometry: &Geometry,
     facesets: &[FaceSet],

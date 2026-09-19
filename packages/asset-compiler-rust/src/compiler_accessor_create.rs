@@ -1,9 +1,10 @@
 use super::*;
 
-/// `validated` porte les identifiants qu'une passe amont a déjà validés — l'ensemble dédupliqué de
-/// `plan_buffers`. `validate` est une fonction pure sans effet de bord des mêmes `g`, `bin` et `id` :
-/// la seconde validation ne pourrait que retrouver le même verdict, et l'erreur, s'il y en avait
-/// une, a déjà été levée. `None` demande la validation, comme avant.
+/// `validated` holds the identifiers an upstream pass already validated — the
+/// deduplicated set from `plan_buffers`. `validate` is a pure function with no
+/// side effect of the same `g`, `bin` and `id`: a second validation could only
+/// find the same verdict, and the error, if any, has already been raised. `None`
+/// requests validation, as before.
 pub(super) fn accessor<'a>(
     g: &'a Value,
     bin: &'a [u8],

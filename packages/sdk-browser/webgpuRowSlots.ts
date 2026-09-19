@@ -9,23 +9,23 @@ type Rows = ReturnType<typeof createWebgpuRowState>;
 type Writer = ReturnType<typeof createPageRowWriter>;
 
 /**
- * Les rangs de la table de lignes, tenus page par page.
+ * Ranks of the row table, held page by page.
  *
- * Une page qui entre prend un rang — celui qu'une page sortie vient de libérer, sinon la fin de la
- * table — et une page qui sort rend le sien. Aucune image ne reparcourt le catalogue : ce que le
- * cache a nommé suffit, et la liste des pages nommées ne déborde plus. Les rangs restent contigus,
- * parce que tout ce qui lit la table lit `[0, packedCount)` sans jamais sauter une ligne vide ; les
- * rangs qu'une passe libère sans que personne ne les reprenne sont comblés par la fin de la table,
- * d'un déplacement chacun.
+ * A page that enters takes a rank — the one a leaving page just freed, otherwise the end of the
+ * table — and a page that leaves gives its own back. No image walks the catalogue again: what the
+ * cache named is enough, and the list of named pages no longer overflows. Ranks stay contiguous,
+ * because everything that reads the table reads `[0, packedCount)` without ever skipping an empty
+ * row; ranks a pass frees without anyone taking them back are filled from the end of the table,
+ * one move each.
  *
- * Le rang d'une page ne change donc que si une autre page part devant elle, et le numéro lui-même
- * n'a de sens que pour l'image en cours : la fiche, les coins, la sphère d'ombre et le verdict
- * d'occultation d'une ligne sont réécrits avec elle dès qu'elle bouge.
+ * A page's rank therefore only changes if another page leaves in front of it, and the number
+ * itself only has meaning for the current image: the record, the corners, the shadow sphere and
+ * a row's occlusion verdict are rewritten with it as soon as it moves.
  *
- * Écrire une fiche est ce que l'image paie vraiment, et une rafale d'arrivées en réclame autant
- * d'un coup : elles passent par une file bornée par un budget de TEMPS. Une page dont la fiche
- * n'est pas encore écrite n'est pas résidente — son drapeau ne se lève qu'après —, donc la coupe ne
- * la choisit pas et son parent résident la couvre : aucun trou, seulement une page en retard.
+ * Writing a record is what the image actually pays, and a burst of arrivals asks for as many at
+ * once: they go through a queue bounded by a TIME budget. A page whose record is not yet written
+ * is not resident — its flag only rises afterwards — so the cut does not choose it and its
+ * resident parent covers it: no hole, only a late page.
  */
 export function createWebgpuRowSlots(
   rows: Rows,
@@ -34,9 +34,9 @@ export function createWebgpuRowSlots(
   writePageRow: Writer,
   onResidenceChange: (rec: PageRec) => void,
 ) {
-  /** Les rangs rendus par cette passe-ci, en attente d'un repreneur ou d'un comblement. */
+  /** Ranks this pass gave back, waiting for a taker or a fill. */
   const free = { rows: new Int32Array(Math.max(1, drawSlots)), count: 0 };
-  /** Les pages qui réclament une fiche et attendent leur tour, d'une image à l'autre. */
+  /** Pages that claim a record and wait their turn, from one image to the next. */
   const claims = createWebgpuRowClaims(packedPages.length);
   const {
     assign,
@@ -49,7 +49,7 @@ export function createWebgpuRowSlots(
     epoch = -1,
     revision = -1;
 
-  /** Vrai quand le rang d'une page porte bien son emplacement courant dans le cache. */
+  /** True when a page's rank really carries its current place in the cache. */
   const rowWritten = (page: number) => {
     const row = rows.rowOfPage[page];
     return (
@@ -60,11 +60,11 @@ export function createWebgpuRowSlots(
   };
 
   /**
-   * Le drapeau de résidence d'une page, et le compte des candidats qui le suit. Idempotente : une
-   * page nommée deux fois par la même passe ne change rien la seconde fois.
+   * Residency flag of a page, and the candidate count that follows it. Idempotent: a page named
+   * twice by the same pass changes nothing the second time.
    *
-   * Un cluster transparent est résident, demandé et budgété comme les autres, mais il ne réclame pas
-   * de ligne du tampon de visibilité : il se dessine dans la passe de mélange, donc ne compte pas.
+   * A transparent cluster is resident, requested and budgeted like the others, but it does not
+   * claim a visibility-buffer row: it draws in the blend pass, so it does not count.
    */
   const setResident = (page: number, resident: boolean) => {
     const value = resident ? 1 : 0;
@@ -77,9 +77,9 @@ export function createWebgpuRowSlots(
   };
 
   /**
-   * Relit ce que le cache vient de faire d'une page et lui reprend le rang qu'elle ne mérite plus.
-   * Rend `true` quand la page réclame l'écriture d'une fiche — elle est résidente, dessinable, et
-   * son rang ne décrit pas encore son emplacement.
+   * Re-reads what the cache just did with a page and takes back the rank it no longer deserves.
+   * Returns `true` when the page claims a record write — it is resident, drawable, and its rank
+   * does not yet describe its place.
    */
   const release = (page: number) => {
     const rec = packedPages[page],
@@ -97,9 +97,9 @@ export function createWebgpuRowSlots(
   };
 
   /**
-   * Écrit la fiche d'une page : à son rang s'il est encore le sien, sinon à un rang rendu ou à la
-   * fin de la table. Le drapeau de résidence ne se lève qu'ensuite. Rend `false` quand la table est
-   * pleine — c'est alors un débordement, et rien n'ira plus loin cette image.
+   * Writes a page's record: at its rank if it is still its own, otherwise at a freed rank or at
+   * the end of the table. The residency flag only rises afterwards. Returns `false` when the table
+   * is full — that is then an overflow, and nothing will go further this image.
    */
   const place = (page: number) => {
     const offsetWords = rows.residentOffsetWords[page],
@@ -113,9 +113,9 @@ export function createWebgpuRowSlots(
   };
 
   /**
-   * La fin de la table comble les rangs qu'aucune page n'a repris. Les trous sont parcourus du plus
-   * bas au plus haut et les sources du plus haut au plus bas, en sautant les rangs eux-mêmes libres :
-   * chaque ligne survivante est donc déplacée au plus une fois.
+   * The end of the table fills ranks no page took back. Holes are walked from lowest to highest
+   * and sources from highest to lowest, skipping ranks that are themselves free: each surviving
+   * row is therefore moved at most once.
    */
   const closeFreeRows = () => {
     if (!free.count) return;
@@ -137,9 +137,9 @@ export function createWebgpuRowSlots(
   };
 
   /**
-   * Toute la table refaite depuis le catalogue : l'ordre des rangs y est celui des pages. Le seul
-   * motif qui reste est un âge de table nouveau, ou une table réécrite par un autre chemin — jamais
-   * une liste de pages nommées trop longue, qui n'existe plus.
+   * The whole table rebuilt from the catalogue: rank order there is page order. The only remaining
+   * reason is a new table age, or a table rewritten by another path — never a named-page list that
+   * is too long, which no longer exists.
    */
   const rebuild = () => {
     rows.rowOfPage.fill(-1);
@@ -149,23 +149,23 @@ export function createWebgpuRowSlots(
     claims.clear();
     for (let page = 0; page < packedPages.length; page++) {
       if (!release(page) || place(page)) continue;
-      // La table est pleine : la page garde sa réclamation et la reprendra quand un rang se libère.
+      // The table is full: the page keeps its claim and will take it back when a rank frees.
       denied++;
       claims.add(page);
     }
   };
 
-  /** Ce que l'image doit à la table de lignes : les pages que le cache a nommées, et ce que la file
-   *  des fiches a laissé derrière elle, dans la limite du budget de temps. */
+  /** What the image owes the row table: the pages the cache named, and what the record queue
+   *  left behind, within the time budget. */
   const apply = () => {
     written.changed = false;
     denied = 0;
     const full = revision !== rows.rowsRevision || epoch !== rows.tableEpoch;
     if (full) rebuild();
     else {
-      // Les départs d'abord, les arrivées ensuite : un rang rendu par une page nommée tard doit
-      // pouvoir servir à une page nommée tôt, sinon une arrivée déborde devant une table qui va se
-      // vider. Les pages sont vues dans l'ordre du catalogue, comme la reconstruction les verrait.
+      // Departures first, arrivals next: a rank freed by a late-named page must be able to serve
+      // an early-named page, otherwise an arrival overflows in front of a table that is about to
+      // empty. Pages are seen in catalogue order, as reconstruction would see them.
       sortPages(rows.touched.pages, rows.touched.count);
       for (let i = 0; i < rows.touched.count; i++) {
         const page = rows.touched.pages[i];
@@ -175,7 +175,7 @@ export function createWebgpuRowSlots(
       closeFreeRows();
     }
     rows.clearTouched();
-    // Départs et arrivées se nomment chacun dans leur ordre : la sélection GPU les veut rangés.
+    // Departures and arrivals each name themselves in their order: GPU selection wants them sorted.
     rows.sortResidencyChanges();
     epoch = rows.tableEpoch;
     revision = ++rows.rowsRevision;
@@ -187,7 +187,7 @@ export function createWebgpuRowSlots(
   };
   return {
     apply,
-    /** Fiches encore dues : l'image suivante doit repasser même si le cache n'a rien bougé. */
+    /** Records still owed: the next image must come back even if the cache moved nothing. */
     get pending() {
       return claims.count;
     },

@@ -2,8 +2,8 @@ import type * as THREE from 'three';
 import type { PageRec } from './pageSelection.ts';
 import { visMaterial } from './visibilityBuffer.ts';
 
-/** Range une texture dans un atlas si elle n'y est pas déjà, et rend le slot qu'elle occupe. Le
- *  slot 0 est le texel de remplissage, donc la première texture rangée prend le slot 1. */
+/** Store a texture in an atlas if it is not already there, and return the slot it occupies.
+ *  Slot 0 is the fill texel, so the first stored texture takes slot 1. */
 const adder =
   (known: Map<THREE.Texture, number>, list: THREE.Texture[]) => (texture?: THREE.Texture) => {
     if (!texture) return;
@@ -12,7 +12,7 @@ const adder =
     list.push(texture);
   };
 
-/** Recense chaque texture de couleur et de données une fois, dans un ordre de slot stable. */
+/** Census every colour and data texture once, in a stable slot order. */
 export function collectWebgpuMaterialTextures(
   allPages: PageRec[],
   blendCopies: THREE.Mesh[],

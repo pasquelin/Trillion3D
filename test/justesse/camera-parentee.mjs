@@ -1,15 +1,15 @@
-// Justesse d'une caméra parentée, côté processeur.
+// Correctness of a parented camera, CPU side.
 //
-// La caméra est l'enfant d'un groupe d'hôte qui n'appartient à aucune scène préparée ; le parent est
-// déplacé puis tourné entre deux images, sans que l'hôte mette son rig à jour. Chaque site du moteur
-// qui lit la pose d'une caméra (cameraSites.mjs) est appelé image après image avec ce rig, puis avec
-// la caméra sans parent de même pose monde au bit près. Tout écart est un défaut : le script échoue.
-// Le résidu de cohérence des uniformes de sélection (repère de rendu, cameraSites.mjs) est affiché.
+// The camera is the child of a host group that belongs to no prepared scene; the parent is moved
+// then rotated between two frames, without the host updating its rig. Every engine site that
+// reads a camera pose (cameraSites.mjs) is called frame after frame with this rig, then with the
+// parentless camera of the same world pose bit for bit. Any discrepancy is a defect: the script
+// fails. The selection-uniform coherence residual (render frame, cameraSites.mjs) is printed.
 //
 //   node --experimental-strip-types test/justesse/camera-parentee.mjs
 //
-// `--empreinte <fichier>` relève à la place les mêmes sites sur des caméras sans parent : le premier
-// passage écrit le fichier, le suivant compare au bit près (avant/après une correction).
+// `--empreinte <fichier>` records the same sites on parentless cameras instead: the first pass
+// writes the file, the next compares bit for bit (before/after a fix).
 import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import {
@@ -33,13 +33,13 @@ async function sequence(site, cameras) {
   return valeurs;
 }
 
-/** `hote` : l'hôte met-il son rig à jour avant chaque image ? Le moteur doit être juste dans les deux cas. */
+/** `hote`: does the host update its rig before each frame? The engine must be correct in both cases. */
 async function parentee(hote) {
-  console.log(`\n— rig ${hote ? 'mis à jour par l’hôte' : 'laissé tel quel par l’hôte'} —`);
+  console.log(`\n— rig ${hote ? 'updated by the host' : 'left as-is by the host'} —`);
   const rigResidu = creeRig();
   const residus = POSES_PARENT.map((pose) => residuRepereDeRendu(poseRig(rigResidu, pose, hote)));
   console.log(
-    `résidu vue·position par image : ${residus.map((r) => r.toExponential(2)).join(' ')}`,
+    `view·position residual per frame: ${residus.map((r) => r.toExponential(2)).join(' ')}`,
   );
   let fautifs = 0;
   for (const site of SITES) {
@@ -52,12 +52,14 @@ async function parentee(hote) {
     });
     const ecarts = POSES_PARENT.map((_, i) => i).filter((i) => avecParent[i] !== sansParent[i]);
     if (ecarts.length) fautifs++;
-    const etat = ecarts.length ? `ÉCART aux images ${ecarts.join(', ')}` : 'identique';
+    const etat = ecarts.length ? `DISCREPANCY at frames ${ecarts.join(', ')}` : 'identical';
     console.log(`${site.nom} : ${etat}`);
     for (const i of ecarts.slice(0, 1))
       console.log(`  rig   ${avecParent[i].slice(0, 160)}\n  plate ${sansParent[i].slice(0, 160)}`);
   }
-  console.log(`${fautifs} site(s) sur ${SITES.length} en écart sur ${POSES_PARENT.length} images`);
+  console.log(
+    `${fautifs} site(s) of ${SITES.length} in discrepancy over ${POSES_PARENT.length} frames`,
+  );
   if (fautifs || residus.some((r) => r > 1e-4)) process.exitCode = 1;
 }
 
@@ -69,7 +71,7 @@ async function empreinte(fichier) {
     });
   if (!existsSync(fichier)) {
     await writeFile(fichier, JSON.stringify(releve));
-    console.log(`empreinte écrite : ${SITES.length} sites × ${POSES_SANS_PARENT.length} poses`);
+    console.log(`fingerprint written: ${SITES.length} sites × ${POSES_SANS_PARENT.length} poses`);
     return;
   }
   const reference = JSON.parse(await readFile(fichier, 'utf8'));
@@ -83,7 +85,7 @@ async function empreinte(fichier) {
     identiques += apres.length - differentes;
     console.log(`${site.nom} : ${apres.length - differentes}/${apres.length} poses identiques`);
   }
-  console.log(`total : ${identiques}/${comparees} relevés identiques au bit près`);
+  console.log(`total: ${identiques}/${comparees} readings identical bit for bit`);
   if (identiques !== comparees) process.exitCode = 1;
 }
 

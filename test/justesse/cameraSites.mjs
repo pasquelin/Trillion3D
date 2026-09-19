@@ -1,6 +1,7 @@
-// Les sites du moteur qui lisent la pose d'une caméra, chacun appelé par son vrai code. Un site est
-// `{ nom, cree, mesure }` : `cree()` rend l'état d'une séquence d'images (tenue Hi-Z, coupe, moteur),
-// `mesure(état, caméra)` rend en JSON ce que le site a tiré de la caméra pour cette image.
+// Engine sites that read a camera pose, each called by its real code. A site is
+// `{ nom, cree, mesure }`: `cree()` returns the state of a frame sequence (Hi-Z hold, cut,
+// engine), `mesure(state, camera)` returns as JSON what the site took from the camera for that
+// frame.
 import * as THREE from 'three';
 import { cameraSelectionUniforms } from '../../packages/sdk-browser/gpuSelection.ts';
 import { collectClusterPages } from '../../packages/sdk-browser/pageSelection.ts';
@@ -20,11 +21,11 @@ import { createEngineCamera, readCameraWorld } from '../../packages/sdk-browser/
 const VIEWPORT = [1280, 720],
   RASTER = [64, 36];
 const liste = (vue) => Array.from(vue);
-/** Ce que fait une entrée d'image : la caméra de l'hôte recopiée dans celle du moteur. Chaque site
- *  la refait pour lui-même, comme un appelant seul. */
-const moteur = (camera) => readCameraWorld(createEngineCamera(), camera);
+/** What a frame input does: the host camera copied into the engine's. Each site remakes it for
+ *  itself, like a lone caller. */
+const engine = (camera) => readCameraWorld(createEngineCamera(), camera);
 
-/** Les pages du DAG de test, sous la forme que lisent la coupe, le Hi-Z et les rasters. */
+/** Pages of the test DAG, in the shape the cut, Hi-Z and rasters read. */
 function pagesDag() {
   const fixture = dagFixture();
   const { roots } = collectClusterPages(
@@ -33,7 +34,7 @@ function pagesDag() {
     fixture.indices,
     fixture.associations,
   );
-  // Sombre et métallique : le spéculaire, seul terme qui lit la position de l'œil, reste sous 255.
+  // Dark and metallic: the specular, the only term that reads eye position, stays under 255.
   const material = new THREE.MeshStandardMaterial({
     color: 0x303030,
     metalness: 0.9,
@@ -52,12 +53,12 @@ function pagesDag() {
   return { roots, vis };
 }
 
-/** Sites purs : aucun ne garde d'état d'une image à l'autre, sauf la tenue des rectangles. */
+/** Pure sites: none keep state from one frame to the next, except held rectangles. */
 const sitesPurs = [
   {
-    nom: 'cameraSelectionUniforms (sélection GPU)',
+    name: 'cameraSelectionUniforms (GPU selection)',
     mesure: (_, camera) => {
-      const u = cameraSelectionUniforms(moteur(camera), 1, VIEWPORT);
+      const u = cameraSelectionUniforms(engine(camera), 1, VIEWPORT);
       return {
         view: liste(u.view),
         planes: liste(u.planes),
@@ -67,38 +68,38 @@ const sitesPurs = [
     },
   },
   {
-    nom: 'selectVisiblePages (coupe CPU)',
+    name: 'selectVisiblePages (coupe CPU)',
     cree: pagesDag,
     mesure: ({ roots }, camera) =>
       [0, 3.5].map((pixelError) => {
-        const cut = selectVisiblePages(roots, moteur(camera), { pixelError, viewport: VIEWPORT });
+        const cut = selectVisiblePages(roots, engine(camera), { pixelError, viewport: VIEWPORT });
         return { shown: cut.shown.map((p) => p.url).sort(), rejetes: cut.frustumRejected };
       }),
   },
   {
-    nom: 'projectBoxesFlat (Hi-Z, rectangles)',
+    name: 'projectBoxesFlat (Hi-Z, rectangles)',
     cree: pagesDag,
     mesure: ({ vis }, camera) => {
       const bounds = boundsFor(vis.length);
-      projectBoxesFlat(vis, vis.length, moteur(camera), VIEWPORT, bounds);
+      projectBoxesFlat(vis, vis.length, engine(camera), VIEWPORT, bounds);
       return liste(bounds);
     },
   },
   {
-    // L'historique tenu par l'image doit décrire la vue de cette image : relu aussitôt, il est égal.
-    nom: 'applyTemporalHiz + sameHizView (Hi-Z, historique)',
+    // History held by the frame must describe this frame's view: reread at once, it is equal.
+    name: 'applyTemporalHiz + sameHizView (Hi-Z, historique)',
     cree: () => ({ ...pagesDag(), history: {} }),
     mesure: ({ vis, history }, camera) => {
-      const vue = moteur(camera);
+      const vue = engine(camera);
       const { shown } = applyTemporalHiz(vis, vue, RASTER, history);
       return { shown: shown.length, historiqueEgal: sameHizView(history.camera, vue) };
     },
   },
   {
-    nom: 'rasterVisibility + visibilityDepth + shadeVisibility (raster CPU éclairé)',
+    name: 'rasterVisibility + visibilityDepth + shadeVisibility (lit CPU raster)',
     cree: pagesDag,
     mesure: ({ vis }, camera) => {
-      const vue = moteur(camera);
+      const vue = engine(camera);
       const { ids } = rasterVisibility(vis, vue, RASTER);
       const depth = visibilityDepth(ids, vis, vue, RASTER);
       const rgba = shadeVisibility(ids, vis, vue, RASTER);
@@ -106,25 +107,25 @@ const sitesPurs = [
     },
   },
   {
-    nom: 'rasterPages (oracle CPU)',
+    name: 'rasterPages (oracle CPU)',
     cree: pagesDag,
     mesure: ({ vis }, camera) => liste(rasterPages(vis, camera, RASTER)),
   },
   {
-    nom: 'projectedPageError (diagnostic d’erreur)',
+    name: 'projectedPageError (error diagnostic)',
     mesure: (_, camera) =>
       projectedPageError(
         { lodError: 0.05, sphere: [0.5, 0, 0, 0.6], matrix: new THREE.Matrix4() },
-        moteur(camera),
+        engine(camera),
         VIEWPORT,
       ),
   },
   {
-    nom: 'resolvePixelError (vitesse de caméra)',
-    // Appelé par chaque moteur juste après la mise à jour de la caméra de l'image : même contrat ici.
+    name: 'resolvePixelError (camera speed)',
+    // Called by every engine just after updating the frame camera: same contract here.
     cree: () => ({ motion: {} }),
     mesure: ({ motion }, camera) => {
-      resolvePixelError({ pixelError: 1, lodAdaptive: true }, moteur(camera), motion);
+      resolvePixelError({ pixelError: 1, lodAdaptive: true }, engine(camera), motion);
       return liste(motion.last);
     },
   },
@@ -132,7 +133,7 @@ const sitesPurs = [
 
 export const SITES = [...sitesPurs, ...sitesMoteurs];
 
-/** Un point monde passé par une matrice 4×4 colonne-major. */
+/** A world point run through a column-major 4×4 matrix. */
 const applique = (m, [x, y, z]) => [
   m[0] * x + m[4] * y + m[8] * z + m[12],
   m[1] * x + m[5] * y + m[9] * z + m[13],
@@ -140,15 +141,15 @@ const applique = (m, [x, y, z]) => [
 ];
 
 /**
- * Résidu de la composition du repère de rendu. Les uniformes de sélection publient une vue SANS
- * translation et la position monde de l'œil, qui est l'origine de ce repère : toute la translation
- * est passée dans les matrices monde, que le moteur ramène à cette origine. Appliquer la vue
- * relative à un point ainsi ramené doit rendre, à l'arrondi simple précision près, ce que la vue
- * absolue rend du même point. Non nul dès que la position publiée n'est pas celle de la vue — un rig
- * non remonté, par exemple : c'est elle, désormais, qui porte le déplacement de la caméra.
+ * Residual of render-frame composition. Selection uniforms publish a view WITHOUT translation
+ * and the eye world position, which is the origin of that frame: all translation is passed into
+ * world matrices, which the engine brings back to this origin. Applying the relative view to a
+ * point so brought back must yield, to single-precision rounding, what the absolute view yields
+ * of the same point. Non-zero as soon as the published position is not that of the view — an
+ * unwalked rig, for example: it is now what carries the camera move.
  */
 export function residuRepereDeRendu(camera) {
-  const cam = moteur(camera),
+  const cam = engine(camera),
     u = cameraSelectionUniforms(cam, 1, VIEWPORT);
   const sonde = [12, -7, 31];
   const ramene = sonde.map((valeur, i) => valeur - u.cameraWorld[i]);

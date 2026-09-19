@@ -1,25 +1,24 @@
 /**
- * Oracle : deux portages fidèles, ligne à ligne, du noyau `prefixGroups` de gpuDrawShader.ts.
+ * Oracle: two faithful, line-by-line ports of the `prefixGroups` kernel of gpuDrawShader.ts.
  *
- * `prefixSerial` est le noyau d'avant le lot visibilité (un seul fil, `@workgroup_size(1)`) : il
- * parcourt les slots dans l'ordre et fait avancer un curseur unique. `prefixParallel` est le noyau
- * du point D3 (`@workgroup_size(64)`), celui que `gpuDrawShader.ts` porte depuis ce lot : chaque fil
- * (lane) totalise les slots qui lui reviennent par pas de 64,
- * une barrière de groupe de travail sépare cette phase du calcul des décalages, puis chaque fil
- * reconstruit son curseur en resommant les totaux des slots qui le précèdent. Les deux calculent en
- * u32 (`>>> 0`), comme le fait WGSL.
+ * `prefixSerial` is the kernel from before the visibility batch (one thread, `@workgroup_size(1)`):
+ * it walks slots in order and advances a single cursor. `prefixParallel` is the D3 kernel
+ * (`@workgroup_size(64)`), the one `gpuDrawShader.ts` has carried since that batch: each thread
+ * (lane) totals the slots that fall to it in steps of 64; a workgroup barrier separates this
+ * phase from the offset computation, then each thread rebuilds its cursor by resumming the
+ * totals of the slots that precede it. Both compute in u32 (`>>> 0`), as WGSL does.
  *
- * Ce fichier ne dépend d'aucune exécution GPU réelle : `webgpuPagesMockCompute.ts` ne rejoue pas
- * `prefixGroups` (il court-circuite toute la compaction avec l'oracle CPU `evaluateDrawCompact`),
- * donc l'équivalence des deux noyaux se prouve ici par transcription directe et comparaison.
+ * This file depends on no real GPU run: `webgpuPagesMockCompute.ts` does not replay
+ * `prefixGroups` (it short-circuits the whole compaction with the CPU oracle `evaluateDrawCompact`),
+ * so equivalence of the two kernels is proved here by direct transcription and comparison.
  */
 
 const WORKGROUP = 64;
 const U32 = (n: number) => n >>> 0;
 
 export type PrefixResult = {
-  totals: Uint32Array; // ce que writeCmd(slot, ...) écrirait dans indirect[slot*4+1]
-  offsets: Uint32Array; // groupOffsets, longueur groupCount*slots ; 0 pour un slot vide (jamais lu)
+  totals: Uint32Array; // what writeCmd(slot, ...) would write into indirect[slot*4+1]
+  offsets: Uint32Array; // groupOffsets, length groupCount*slots; 0 for an empty slot (never read)
 };
 
 export function prefixSerial(
@@ -61,9 +60,8 @@ export function prefixParallel(
   const offsets = new Uint32Array(groupCount * slots);
   if (overflow) return { totals, offsets };
   const slotTotals = new Uint32Array(slots);
-  // Phase 1 : un fil par slot, par pas de 64 ; l'ordre des lanes n'importe pas, l'addition en u32
-  // est associative et commutative — on parcourt volontairement les lanes en ordre inverse pour
-  // le prouver.
+  // Phase 1: one thread per slot, in steps of 64; lane order does not matter, u32 addition
+  // is associative and commutative — lanes are walked in reverse on purpose to prove it.
   for (let lane = WORKGROUP - 1; lane >= 0; lane--) {
     for (let slot = lane; slot < slots; slot += WORKGROUP) {
       if (slotUsed[slot] === 0) continue;
@@ -74,7 +72,7 @@ export function prefixParallel(
       totals[slot] = total;
     }
   }
-  // workgroupBarrier() : tous les slotTotals sont posés avant que quiconque ne les resomme.
+  // workgroupBarrier(): all slotTotals are set before anyone resums them.
   for (let lane = WORKGROUP - 1; lane >= 0; lane--) {
     for (let slot = lane; slot < slots; slot += WORKGROUP) {
       if (slotUsed[slot] === 0) continue;

@@ -1,14 +1,15 @@
-//! Le canal d'où l'opacité d'un `UsdPreviewSurface` sort vraiment.
+//! The channel an `UsdPreviewSurface`'s opacity really comes from.
 //!
-//! glTF ne lit l'opacité d'une image que dans l'alpha de sa texture de couleur de base. Une
-//! `opacity` branchée sur un autre canal de cette même image — le rouge, le vert, le bleu — ne s'y
-//! range pas : la porter quand même donne une transparence lue ailleurs qu'écrite. Sur une image
-//! RGBA d'un pixel `[0, 255, 0, 255]`, `outputs:r` vaut zéro — la face disparaît — et `outputs:a`
-//! vaut un — elle reste pleine : deux scènes opposées, et le compilateur en rendait une seule.
+//! glTF only reads an image's opacity in the alpha of its base-colour texture. An
+//! `opacity` wired to another channel of that same image — red, green, blue —
+//! does not fit there: carrying it anyway yields a transparency read elsewhere
+//! than written. On a one-pixel RGBA image `[0, 255, 0, 255]`, `outputs:r` is
+//! zero — the face vanishes — and `outputs:a` is one — it stays full: two
+//! opposite scenes, and the compiler used to yield a single one.
 use super::*;
 use usd_matiere::{compile as compile_layer, layer, pbr, texture, unsupported};
 
-/// La couche d'un quad dont la couleur de base vient de `T` et l'opacité du canal nommé de `T`.
+/// Layer of a quad whose base colour comes from `T` and opacity from `T`'s named channel.
 fn carried_by(channel: &str) -> GoldenRun {
     let inputs = format!(
         "            color3f inputs:diffuseColor.connect = </Root/M/T.outputs:rgb>\n            float inputs:opacity.connect = </Root/M/T.{channel}>"
@@ -21,10 +22,11 @@ fn carried_by(channel: &str) -> GoldenRun {
     )
 }
 
-// Comportement : seul l'alpha de la texture de couleur de base porte l'opacité jusqu'à glTF. Un
-// autre canal de la même image était accepté comme s'il était l'alpha — même matériau, même mode de
-// mélange, facteur un, rien de compté —, et la scène servie lisait l'alpha à la place du canal
-// demandé. Il est maintenant compté par son nom, et le facteur écrit reprend la main.
+// Behaviour: only the alpha of the base-colour texture carries opacity through
+// to glTF. Another channel of the same image used to be accepted as if it were
+// alpha — same material, same blend mode, factor one, nothing counted — and the
+// served scene read alpha in place of the requested channel. It is now counted
+// by name, and the written factor takes over.
 #[test]
 fn only_the_alpha_channel_of_the_base_colour_texture_carries_the_opacity() {
     let alpha = carried_by("outputs:a");
@@ -40,17 +42,17 @@ fn only_the_alpha_channel_of_the_base_colour_texture_carries_the_opacity() {
     assert_eq!(
         unsupported(&red)["usd-texture-channel-unsupported"],
         1,
-        "un canal que glTF ne lit pas doit être compté"
+        "a channel glTF does not read must be counted"
     );
     let (_, gltf) = red.prepared("usd");
     assert_eq!(
         gltf["materials"][0]["alphaMode"], "OPAQUE",
-        "le repli est la valeur écrite, pas l'alpha de l'image"
+        "the fallback is the written value, not the image alpha"
     );
     assert_eq!(pbr(&gltf)["baseColorFactor"], json!([1.0, 1.0, 1.0, 1.0]));
     assert_eq!(
         pbr(&gltf)["baseColorTexture"]["index"],
         0,
-        "la couleur de base reste portée par son image"
+        "the base colour stays carried by its image"
     );
 }

@@ -1,10 +1,10 @@
 /**
- * Sphère englobante d'une boîte, écrite à plat : centre `x, y, z` puis rayon, à partir de `o`.
+ * Bounding sphere of a box, written flat: centre `x, y, z` then radius, from `o`.
  *
- * Le centre est le milieu des bornes, `(min + max) * 0.5` ; le rayon la moitié de la diagonale,
- * `‖max − min‖ * 0.5`, la norme étant `Math.sqrt(x² + y² + z²)`. Une boîte vide — une borne haute
- * sous sa borne basse — rend la sphère vide, centre nul et rayon `-1`. C'est l'arithmétique de la
- * boîte de Three.js terme à terme : les mêmes bits, NaN, zéros signés et infinis compris.
+ * The centre is the midpoint of the bounds, `(min + max) * 0.5`; the radius is half the diagonal,
+ * `‖max − min‖ * 0.5`, the length being `Math.sqrt(x² + y² + z²)`. An empty box — an upper bound
+ * below its lower bound — yields the empty sphere, zero centre and radius `-1`. This is the
+ * Three.js box arithmetic term by term: the same bits, NaN, signed zeros and infinities included.
  */
 export function sphereFromBounds(
   out: Float64Array,

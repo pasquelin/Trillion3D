@@ -15,7 +15,7 @@ export function createStreamingFetcher(
     for (let attempt = 1; attempt <= 3; attempt++) {
       combined.throwIfAborted();
       const attemptStart = onDiagnostic ? performance.now() : 0;
-      emit('page-attempt-start', 'Tentative de lecture de page', () => ({
+      emit('page-attempt-start', 'Page read attempt', () => ({
         version: 1,
         url,
         attempt,
@@ -23,17 +23,17 @@ export function createStreamingFetcher(
         expectedBytes: page.bytes,
       }));
       try {
-        emit('page-read-start', 'Lecture de page démarrée', () => ({
+        emit('page-read-start', 'Page read started', () => ({
           version: 1,
           url,
           attempt,
           expectedBytes: page.bytes,
         }));
         let buffer = await (await checked(new URL(url, base).href, combined)).arrayBuffer();
-        // La taille est relevée avant toute vérification : le tampon part transféré vers le worker
-        // de décodage, donc la référence d'origine est détachée le temps de l'aller-retour.
+        // Size is taken before any verification: the buffer leaves transferred to the decode
+        // worker, so the original reference is detached for the round trip.
         const byteLength = buffer.byteLength;
-        emit('page-read-end', 'Lecture de page terminée', () => ({
+        emit('page-read-end', 'Page read finished', () => ({
           version: 1,
           url,
           attempt,
@@ -52,7 +52,7 @@ export function createStreamingFetcher(
         const hashMatches = sizeMatches && actualHash === page.sha256;
         emit(
           'page-hash-check',
-          hashMatches ? 'Hash et taille de page vérifiés' : 'Échec de vérification de page',
+          hashMatches ? 'Page hash and size verified' : 'Page verification failed',
           () => ({
             version: 1,
             url,
@@ -66,7 +66,7 @@ export function createStreamingFetcher(
           }),
         );
         if (!hashMatches) {
-          emit('page-corruption', 'Page corrompue ou de taille inattendue', () => ({
+          emit('page-corruption', 'Corrupt page or unexpected size', () => ({
             version: 1,
             url,
             attempt,
@@ -78,7 +78,7 @@ export function createStreamingFetcher(
         touch(url, array);
         state.bytesRead += byteLength;
         state.loaded++;
-        emit('page-attempt-end', 'Tentative de lecture réussie', () => ({
+        emit('page-attempt-end', 'Page read attempt succeeded', () => ({
           version: 1,
           url,
           attempt,
@@ -88,7 +88,7 @@ export function createStreamingFetcher(
         }));
         return array;
       } catch (error) {
-        emit('page-attempt-end', 'Tentative de lecture échouée', () => ({
+        emit('page-attempt-end', 'Page read attempt failed', () => ({
           version: 1,
           url,
           attempt,
@@ -98,7 +98,7 @@ export function createStreamingFetcher(
         combined.throwIfAborted();
         cause = error;
         if (attempt < 3)
-          emit('page-retry', 'Nouvelle tentative après échec de lecture', () => ({
+          emit('page-retry', 'Retry after a read failure', () => ({
             version: 1,
             url,
             attempt,
@@ -111,7 +111,7 @@ export function createStreamingFetcher(
       cause,
     });
     failures.set(url, error);
-    emit('page-error', 'Échec persistant du chargement de page', () => ({
+    emit('page-error', 'Persistent page-load failure', () => ({
       version: 1,
       url,
       attempts: 3,

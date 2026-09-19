@@ -1,9 +1,9 @@
 use super::*;
 use crate::dag::border::border_survived;
 
-// Lot B3 : refine_bisection remplace un HashSet<usize> reconstruit à chaque coupe par une table
-// `present` de booléens réutilisée, entièrement remise à `false` en sortie ; border_survived
-// remplace deux HashSet<u32> par deux listes triées et une fusion. Même verdict dans les deux cas.
+// Lot B3: refine_bisection replaces HashSet<usize> reconstructed per cut with
+// reused boolean `present` table, reset to `false` on exit; border_survived
+// replaces two HashSets with two sorted lists and merge. Same verdict in both cases.
 
 #[test]
 fn refine_bisection_on_a_single_member_slice_leaves_it_in_place_and_clears_present() {
@@ -11,17 +11,20 @@ fn refine_bisection_on_a_single_member_slice_leaves_it_in_place_and_clears_prese
     let mut side = [0u8];
     let adjacency: Vec<Vec<(u32, u32)>> = vec![Vec::new()];
     let mut present = vec![false];
-    // Plancher nul : un seul côté peuplé ne peut jamais dépasser le plancher de l'autre.
+    // Zero floor: single populated side can never exceed floor of other.
     refine_bisection(&slice, &mut side, &adjacency, 0, &mut present);
     assert_eq!(side, [0u8]);
-    assert!(present.iter().all(|&p| !p), "present doit repartir à false");
+    assert!(
+        present.iter().all(|&p| !p),
+        "present must start over as false"
+    );
 }
 
 #[test]
 fn refine_bisection_moves_a_member_whose_neighbours_are_mostly_on_the_other_side() {
-    // 0 et 1 côté 0, 2 et 3 côté 1. Le membre 1 pèse plus lourd vers 2 et 3 (poids 5 chacun) que
-    // vers 0 (poids 1) : il doit rejoindre le côté 1. Le plancher à 1 empêche le côté 0 de se
-    // vider complètement une fois 1 parti, donc 0 reste en place.
+    // 0 and 1 side 0, 2 and 3 side 1. Member 1 weighs heavier towards 2 and 3 (weight 5 each) than
+    // towards 0 (weight 1): must join side 1. Floor at 1 prevents side 0 from
+    // emptying completely once 1 leaves, so 0 stays.
     let slice = [0usize, 1, 2, 3];
     let mut side = [0u8, 0, 1, 1];
     let adjacency: Vec<Vec<(u32, u32)>> = vec![
@@ -35,15 +38,18 @@ fn refine_bisection_moves_a_member_whose_neighbours_are_mostly_on_the_other_side
     assert_eq!(
         side,
         [0u8, 1, 1, 1],
-        "1 rejoint le côté 1, 0 reste protégé par le plancher"
+        "1 joins side 1, 0 stays protected by the floor"
     );
-    assert!(present.iter().all(|&p| !p), "present doit repartir à false");
+    assert!(
+        present.iter().all(|&p| !p),
+        "present must start over as false"
+    );
 }
 
 #[test]
 fn refine_bisection_ignores_a_neighbour_outside_the_slice() {
-    // Le voisin 9 n'appartient pas à la tranche : present ne le marque jamais, donc il ne doit
-    // compter ni comme interne ni comme externe.
+    // Neighbor 9 does not belong to slice: present never marks it, must
+    // count as neither internal nor external.
     let slice = [0usize, 1];
     let mut side = [0u8, 1];
     let adjacency: Vec<Vec<(u32, u32)>> = vec![vec![(9, 5)], vec![]];
@@ -52,7 +58,7 @@ fn refine_bisection_ignores_a_neighbour_outside_the_slice() {
     assert_eq!(
         side,
         [0u8, 1],
-        "un voisin hors tranche ne doit rien déplacer"
+        "a neighbour outside the slice must move nothing"
     );
     assert!(present.iter().all(|&p| !p));
 }
@@ -74,14 +80,14 @@ fn border_survived_detects_a_locked_vertex_lost_by_simplification() {
     let weld = [0u32, 1, 2];
     assert!(
         !border_survived(&merged, &simplified, &locks, &weld),
-        "le sommet verrouillé 0 a disparu de la liste simplifiée"
+        "locked vertex 0 has vanished from the simplified list"
     );
 }
 
 #[test]
 fn border_survived_follows_welding_not_raw_indices() {
-    // 0 et 3 sont soudés au même sommet (weld[0] == weld[3] == 0) : 0 est verrouillé mais absent
-    // de simplified, or son double soudé 3 y est toujours — la soudure doit suffire.
+    // 0 and 3 welded to same vertex (weld[0] == weld[3] == 0): 0 locked but absent
+    // from simplified, yet welded double 3 still present — welding suffices.
     let merged = [0u32, 1];
     let simplified = [3u32, 1];
     let locks = [true, false, false, false];
@@ -91,8 +97,8 @@ fn border_survived_follows_welding_not_raw_indices() {
 
 #[test]
 fn border_survived_handles_a_group_of_thirty_two_clusters_worth_of_corners() {
-    // Un groupe de DAG_GROUP_MAX (32) clusters de 128 triangles : 32 * 128 * 3 coins, verrous et
-    // soudure denses, comme le banc B3 le mesure.
+    // Group of DAG_GROUP_MAX (32) clusters of 128 triangles: 32 * 128 * 3 corners, dense locks
+    // and welding, as benchmark B3 measures.
     const CORNERS: usize = DAG_GROUP_MAX * 128 * 3;
     let merged: Vec<u32> = (0..CORNERS as u32).collect();
     let simplified: Vec<u32> = merged.iter().rev().copied().collect();
@@ -100,6 +106,6 @@ fn border_survived_handles_a_group_of_thirty_two_clusters_worth_of_corners() {
     let weld: Vec<u32> = (0..CORNERS as u32).collect();
     assert!(
         border_survived(&merged, &simplified, &locks, &weld),
-        "toute permutation de la même liste garde chaque sommet verrouillé"
+        "any permutation of the same list keeps every locked vertex"
     );
 }

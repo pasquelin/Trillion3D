@@ -1,25 +1,25 @@
 import { BLEND_BINDINGS } from './webgpuBindLayout.ts';
 
 /**
- * Ce que la classe 3 — la transmission — ajoute au nuanceur des mélanges, et rien d'autre : trois
- * liaisons et deux fonctions. Un fragment qui ne porte pas le drapeau de transmission ne les
- * appelle jamais, si bien que l'image des deux autres classes ne bouge pas d'un pixel.
+ * What class 3 — transmission — adds to the blend shader, and nothing else: three bindings and two
+ * functions. A fragment that does not carry the transmission flag never calls them, so the image of
+ * the other two classes does not move by a pixel.
  *
- * Tout se lit sur le matériau importé — `KHR_materials_transmission`, `KHR_materials_ior`,
- * `KHR_materials_volume` — et sur les sources déclarées de la scène : les lampes du contrat et la
- * grille de sondes, celles-là mêmes que lit le reste du mélange. Aucune lumière propre à cette
- * passe (P6), aucune scène nommée, aucune constante calée sur une scène.
+ * Everything is read on the imported material — `KHR_materials_transmission`, `KHR_materials_ior`,
+ * `KHR_materials_volume` — and on the scene's declared sources: the contract lights and the probe
+ * grid, the same ones the rest of the blend reads. No light of this pass's own (P6), no named scene,
+ * no constant tuned to a scene.
  */
 export const TRANSMISSION_WGSL = `
 struct Volume{transmission:f32,ior:f32,thickness:f32,attenuationDistance:f32,attenuationColor:vec4f,}
 @group(0) @binding(${BLEND_BINDINGS.volume}) var<uniform> volume:Volume;
 @group(0) @binding(${BLEND_BINDINGS.backdrop}) var backdrop:texture_2d<f32>;
 @group(0) @binding(${BLEND_BINDINGS.backdropDepth}) var backdropDepth:texture_depth_2d;
-// Le fond que la surface laisse voir. Le rayon de vue est dévié par l'indice du matériau, avancé de
-// son épaisseur, reprojeté à l'écran : c'est là qu'on relit la couleur déjà dessinée. Un échantillon
-// dont la profondeur copiée le place devant la surface montrerait un objet situé devant le verre :
-// on retombe alors sur l'échantillon non dévié. La profondeur est inversée, donc « derrière » est
-// « plus petit ». Le volume atténue ensuite selon sa couleur.
+// Backdrop the surface lets through. The view ray is bent by the material IOR, advanced by its
+// thickness, reprojected to the screen: that is where already-drawn colour is reread. A sample
+// whose copied depth places it in front of the surface would show an object in front of the glass:
+// we then fall back to the unbent sample. Depth is reversed, so "behind" is "smaller". The volume
+// then attenuates by its colour.
 fn transmittedBackdrop(P:vec3f,N:vec3f,V:vec3f,fragXY:vec2f,fragZ:f32)->vec3f{
  let size=vec2f(textureDimensions(backdrop));
  let last=size-vec2f(1.0);
@@ -41,20 +41,20 @@ fn transmittedBackdrop(P:vec3f,N:vec3f,V:vec3f,fragXY:vec2f,fragZ:f32)->vec3f{
  }
  return textureLoad(backdrop,chosen,0).rgb*attenuation;
 }
-// La composition d'une surface transmissive. La part transmise remplace le mélange alpha — c'est le
-// modèle de glTF : a = alpha + t(1-alpha), et a·C porte la part transmise entière. À transmission
-// nulle, la couleur et l'opacité rendues sont celles de la classe 2, au bit près.
+// Composition of a transmissive surface. The transmitted share replaces alpha blending — that is
+// the glTF model: a = alpha + t(1-alpha), and a·C carries the whole transmitted share. At zero
+// transmission, rendered colour and opacity are those of class 2, to the bit.
 //
-// Ce que la part transmise renvoie : le fond réfracté pondéré par 1-F, la réflexion de
-// l'environnement pondérée par F — l'irradiance des sondes dans la direction du miroir, exactement
-// zéro quand la scène n'en porte pas —, et le spéculaire des lampes déclarées, obtenu en évaluant
-// la seule formule d'éclairement du moteur sur un albédo nul : le lobe diffus s'annule, le lobe
-// spéculaire diélectrique reste. Une vue sans éclairage n'en garde aucun des deux.
+// What the transmitted share returns: the refracted backdrop weighted by 1-F, environment
+// reflection weighted by F — probe irradiance in the mirror direction, exactly zero when the scene
+// carries none — and the specular of declared lights, obtained by evaluating the engine's only
+// lighting formula on a null albedo: the diffuse lobe cancels, the dielectric specular lobe stays.
+// An unlit view keeps neither.
 fn transmissionColor(lit:vec3f,baseTint:vec3f,alpha:f32,N:vec3f,V:vec3f,P:vec3f,fragXY:vec2f,fragZ:f32,rough:f32,ao:f32,unlit:bool)->vec4f{
- // La normale du côté d'où l'on regarde. Une surface simple face, ou un maillage sans attribut de
- // normale dont la normale vient des dérivées d'écran, peut arriver ici tournée à l'envers : la
- // réfraction traverserait alors dans le mauvais sens et Fresnel rendrait un miroir noir. On entre
- // toujours dans le volume par la face qu'on voit, et c'est cette normale-là qui décrit l'entrée.
+ // Normal of the side we look from. A single-sided surface, or a mesh with no normal attribute whose
+ // normal comes from screen derivatives, can arrive here turned the wrong way: refraction would then
+ // go through the wrong way and Fresnel would yield a black mirror. We always enter the volume by
+ // the face we see, and it is that normal that describes the entry.
  let Nv=select(-N,N,dot(N,V)>0.0);
  let t=clamp(volume.transmission,0.0,1.0);
  let f0=pow((volume.ior-1.0)/(volume.ior+1.0),2.0);

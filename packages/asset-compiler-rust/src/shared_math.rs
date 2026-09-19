@@ -1,15 +1,15 @@
-//! Formules partagées par plusieurs étages du compilateur natif.
+//! Shared formulas across native compiler stages.
 //!
-//! Chaque fonction est le seul exemplaire d'un calcul qui vivait auparavant en plusieurs copies :
-//! mêmes opérations flottantes, dans le même ordre, à la même précision qu'à l'endroit d'origine.
-//! Un site dont la formule diffère d'un détail reste chez lui plutôt que d'être aligné sur un autre.
+//! Single copy of calculations previously in multiple copies:
+//! same float ops, same order, same precision as original location.
+//! Site with detail difference stays local rather than aligned.
 
-/// Étend une boîte englobante d'une autre boîte, axe par axe et dans l'ordre des axes.
+/// Extends bounding box by another box, axis by axis in axis order.
 ///
-/// `f64::min` et `f64::max` gardent leur sémantique : un NaN dans la boîte lue laisse la borne
-/// telle quelle, un NaN dans la borne est remplacé par la coordonnée. Le coin bas n'est comparé
-/// qu'au coin bas et le coin haut qu'au coin haut : aucune comparaison de plus, qui trancherait
-/// autrement entre `+0.0` et `−0.0`.
+/// `f64::min` and `f64::max` keep semantics: NaN in read box leaves bound
+/// as is, NaN in bound replaced by coordinate. Min corner compared
+/// only to min corner and max to max corner: no extra comparison deciding
+/// differently between `+0.0` and `−0.0`.
 pub(crate) fn merge_aabb<const N: usize>(
     low: &mut [f64; N],
     high: &mut [f64; N],
@@ -22,7 +22,7 @@ pub(crate) fn merge_aabb<const N: usize>(
     }
 }
 
-/// Étend une boîte englobante d'un point : la boîte réduite à ce point.
+/// Extends bounding box by point: box reduced to point.
 pub(crate) fn extend_aabb<const N: usize>(
     low: &mut [f64; N],
     high: &mut [f64; N],
@@ -31,8 +31,8 @@ pub(crate) fn extend_aabb<const N: usize>(
     merge_aabb(low, high, point, point);
 }
 
-/// L'axe sur lequel une boîte est la plus large. À égalité, le premier axe l'emporte : la
-/// comparaison est un `>` strict, donc un NaN d'étendue ne déplace jamais le choix.
+/// Axis along which box widest. On tie, first axis wins:
+/// strict `>` comparison, NaN extent never alters choice.
 pub(crate) fn longest_axis(low: &[f64; 3], high: &[f64; 3]) -> usize {
     let mut axis = 0;
     for a in 1..3 {
@@ -43,11 +43,11 @@ pub(crate) fn longest_axis(low: &[f64; 3], high: &[f64; 3]) -> usize {
     axis
 }
 
-/// Trie un groupe d'identifiants sur l'axe le plus large de leurs barycentres : la médiane tombe
-/// ensuite sur `slice.len() / 2`, qui coupe le groupe en deux moitiés spatiales.
+/// Sorts group of ids on widest axis of centroids: median falls
+/// on `slice.len() / 2`, splitting group into two spatial halves.
 ///
-/// Le comparateur ordonne par coordonnée (`total_cmp`, donc un NaN a une place), puis par
-/// identifiant : deux barycentres confondus gardent le même ordre d'une compilation à l'autre.
+/// Comparator sorts by coordinate (`total_cmp`, so NaN has a place), then by
+/// identifier: two coincident centroids keep same order from build to build.
 pub(crate) fn bisect_centres(slice: &mut [usize], centres: &[[f64; 3]]) {
     let mut low = [f64::INFINITY; 3];
     let mut high = [f64::NEG_INFINITY; 3];
@@ -62,7 +62,7 @@ pub(crate) fn bisect_centres(slice: &mut [usize], centres: &[[f64; 3]]) {
     });
 }
 
-/// La même boîte en simple précision : un site qui accumule des `f32` ne passe pas par `f64`.
+/// Same box in single precision: site accumulating `f32` does not go through `f64`.
 pub(crate) fn extend_aabb_f32<const N: usize>(
     low: &mut [f32; N],
     high: &mut [f32; N],
@@ -74,15 +74,15 @@ pub(crate) fn extend_aabb_f32<const N: usize>(
     }
 }
 
-/// Octets de bourrage pour porter une longueur au multiple de quatre suivant : zéro quand elle y
-/// est déjà. C'est l'alignement que le format binaire du compilateur demande de ses vues.
+/// Padding bytes to reach next multiple of four: zero when already
+/// aligned. Alignment binary format requires of views.
 pub(crate) fn pad_to_4(length: usize) -> usize {
     (4 - length % 4) % 4
 }
 
-/// Vecteur unitaire, ou le repli quand la longueur reste sous la garde de 1e-12 : plus court, le
-/// vecteur ne porte plus de direction et la division n'aurait pas de sens. Le repli appartient au
-/// site — une lampe regarde vers `-Z`, une normale absente pointe vers le haut — donc il est passé.
+/// Unit vector, or fallback when length stays under 1e-12: shorter,
+/// vector carries no direction and division makes no sense. Fallback belongs to
+/// site — light looks towards `-Z`, missing normal points up — so passed in.
 pub(crate) fn normalized_or(vector: [f64; 3], fallback: [f64; 3]) -> [f64; 3] {
     let length = (vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]).sqrt();
     if length > 1e-12 {
@@ -92,17 +92,17 @@ pub(crate) fn normalized_or(vector: [f64; 3], fallback: [f64; 3]) -> [f64; 3] {
     }
 }
 
-/// Millisecondes écoulées depuis un instant : le compilateur ne publie ses durées qu'en
-/// millisecondes, et les convertir au même endroit évite qu'un relevé reparte en secondes.
+/// Elapsed milliseconds from instant: compiler publishes durations in
+/// milliseconds only, converting in one place prevents seconds leak.
 pub fn elapsed_ms(since: std::time::Instant) -> f64 {
     since.elapsed().as_secs_f64() * 1000.0
 }
 
-/// L'échelle uniforme équivalente d'une matrice 4 × 4 écrite par colonnes : la racine cubique du
-/// volume que sa partie linéaire multiplie. C'est ce qu'il faut pour porter une longueur — le rayon
-/// d'une lampe — d'un espace local vers le monde. Une matrice non uniforme rend la moyenne
-/// géométrique de ses trois échelles, un miroir rend la même échelle que son reflet, et une matrice
-/// dégénérée rend zéro : une longueur nulle, que l'appelant écarte.
+/// Equivalent uniform scale of 4x4 column matrix: cube root of
+/// volume linear part multiplies. Needed to transform length — light
+/// radius — from local space to world. Non-uniform matrix yields geometric
+/// mean of three scales, mirror yields same scale as reflection, degenerate
+/// matrix yields zero: zero length discarded by caller.
 pub(crate) fn uniform_scale(m: &[f64; 16]) -> f64 {
     let column = |c: usize| [m[c * 4], m[c * 4 + 1], m[c * 4 + 2]];
     let (x, y, z) = (column(0), column(1), column(2));

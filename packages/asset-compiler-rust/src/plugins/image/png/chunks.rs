@@ -1,26 +1,26 @@
-//! Les morceaux d'un PNG, parcourus d'un bout à l'autre selon la structure que la spécification
-//! W3C / ISO-IEC 15948 fixe : après les huit octets de signature, chaque morceau porte sa longueur
-//! sur quatre octets, son type sur quatre, ses données, puis son CRC sur quatre.
+//! Chunks of a PNG, walked from end to end according to the structure the W3C / ISO-IEC
+//! 15948 specification fixes: after the eight signature bytes, each chunk carries its length
+//! over four bytes, its type over four, its data, then its CRC over four.
 //!
-//! Ce module ne décode aucun pixel : il rend le type et les données de chaque morceau, pour que le
-//! pilote lise ce que le fichier **déclare** — une animation, un profil colorimétrique — là où le
-//! décodeur de pixels, lui, ne regarde que l'image par défaut. La longueur est jugée contre ce qui
-//! reste du fichier : un fichier coupé arrête le parcours, il ne lit jamais à côté.
+//! This module decodes no pixel: it returns the type and data of each chunk, so that the
+//! driver reads what the file **declares** — an animation, a colour profile — where the pixel
+//! decoder, itself, only looks at the default image. Length is judged against what remains of
+//! the file: a cut file stops the walk, it never reads beside it.
 
-/// Les huit octets de signature, que le parcours saute avant le premier morceau.
+/// The eight signature bytes, which the walk skips before the first chunk.
 const SIGNATURE: usize = 8;
-/// L'entête d'un morceau : quatre octets de longueur, quatre de type.
+/// Header of a chunk: four length bytes, four of type.
 const CHUNK_HEADER: usize = 8;
-/// Le CRC-32 qui ferme un morceau. Il n'est pas vérifié ici : c'est l'affaire du décodeur de
-/// pixels, qui refuse le fichier entier quand il ne retombe pas.
+/// CRC-32 that closes a chunk. It is not checked here: that is the pixel decoder's job, which
+/// refuses the whole file when it does not match.
 const CRC: usize = 4;
 
-/// Le curseur qui avance d'un morceau au suivant.
+/// Cursor that advances from one chunk to the next.
 pub(super) struct Chunks<'a> {
     rest: &'a [u8],
 }
 
-/// Les morceaux de ce fichier, du premier — toujours l'IHDR — au dernier qui tient entier.
+/// Chunks of this file, from the first — always the IHDR — to the last that fits whole.
 pub(super) fn of(bytes: &[u8]) -> Chunks<'_> {
     Chunks {
         rest: bytes.get(SIGNATURE..).unwrap_or_default(),
@@ -28,7 +28,7 @@ pub(super) fn of(bytes: &[u8]) -> Chunks<'_> {
 }
 
 impl<'a> Iterator for Chunks<'a> {
-    /// Le type du morceau sur quatre octets, et ses données.
+    /// Chunk type over four bytes, and its data.
     type Item = (&'a [u8], &'a [u8]);
 
     fn next(&mut self) -> Option<Self::Item> {

@@ -1,27 +1,27 @@
 #!/usr/bin/env node
 // =====================================================================================
-// Banc de mesure commun à tous les lots. Une commande, aucun serveur à lancer à la main :
+// Measurement benchmark common to all batches. One command, no server to start manually:
 //
 //   node scripts/mesure/banc.mjs --moteur webgl --avant <ref-git|dist> --apres <ref-git|dist> \
 //        --vues generale,sol,rue --images 60 --pixelError 0,1 --max-pages 100000
 //
-// `--moteur` vaut `webgl`, `webgpu` ou `webgl2` ; `--moteur-avant` et `--moteur-apres` le
-// redéfinissent côté par côté, ce qui met un moteur face au témoin Three dans une seule exécution,
-// mêmes poses, mêmes lampes et même cache. Toutes les options sont décrites dans `README.md`.
+// `--moteur` is `webgl`, `webgpu` or `webgl2`; `--moteur-avant` and `--moteur-apres` redefine it
+// per side, setting an engine against Three witness in a single run,
+// same poses, same lights, same cache. All options described in `README.md`.
 //
-// Le harnais écrit `mesure.json`, `resume.md` et un PNG par vue, par seuil et par côté, plus la
-// capture du témoin A/A. Un champ vaut `null` quand il n'a pas été mesuré : rien n'est déduit.
-// Chaque série est jouée dans une page neuve : le contexte WebGL et le tas de la précédente sont
-// rendus au navigateur avant que la suivante n'en demande un.
-// Tout ce qu'il lance — serveur statique, Chromium — il l'arrête, y compris sur erreur.
+// Harness writes `mesure.json`, `resume.md` and one PNG per view, per threshold and per side, plus
+// A/A witness capture. A field is `null` when not measured: nothing is inferred.
+// Each series runs in a fresh page: previous WebGL context and heap are returned to browser
+// before next requests one.
+// Everything it launches — static server, Chromium — it stops, including on error.
 //
-// AUCUN CHRONOMÉTRAGE SÉRIEUX N'EST PROMIS ICI : le harnais relève les durées et la charge de la
-// machine au début et à la fin de chaque série. C'est à l'appelant de juger si elle était calme.
+// NO SERIOUS TIMING IS PROMISED HERE: harness records durations and machine load at start/end
+// of each series. Caller judges if machine was quiet.
 // =====================================================================================
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import { lancerChrome } from './chrome.mjs';
+import { launchChrome } from './chrome.mjs';
 import * as options from './options.mjs';
 import { startServer } from './serveur.mjs';
 import { readBounds } from './page.mjs';
@@ -42,18 +42,17 @@ const CTX = { MANIFEST: null, OUT, settings, lights: null, poses: null };
 async function main() {
   await mkdir(OUT, { recursive: true });
   const sides = options.resolveSides({
-    apres: flags.get('apres'),
-    avant: flags.get('avant'),
+    after: flags.get('apres'),
+    before: flags.get('avant'),
     root: ROOT,
   });
-  // Chaque côté a son cache compilé (`--cache-<côté>`, sinon celui des assets du banc), son moteur
-  // (`--moteur-<côté>`, les drapeaux de Chromium étant la réunion) et sa variante (`--variante-<côté>`).
-  // `--scene nom` pose le cache des assets avant d'équiper les côtés : la campagne joue ainsi
-  // chaque scène de référence sans répéter les chemins `--cache-*`.
+  // Each side has its compiled cache (`--cache-<side>`, otherwise benchmark asset cache), engine
+  // (`--moteur-<side>`, Chromium flags being union) and variant (`--variante-<side>`).
+  // `--scene name` sets asset cache before equipping sides: campaign thus runs each reference scene without repeating `--cache-*` paths.
   options.applySceneFlag(flags);
   for (const side of sides) options.equipSide(side, flags, settings);
   const FLAGS = [...new Set(sides.flatMap((side) => side.engine.flags))];
-  // La scène mesurée est celle des caches nommés ; sans aucun, la scène de référence du banc.
+  // Measured scene is from named caches; without any, benchmark reference scene.
   const scene = options.sceneOf(sides.find((side) => side.cache)?.cache);
   const MANIFEST = options.assetsManifest(
     scene,
@@ -90,12 +89,11 @@ async function main() {
   });
   const port = server.address().port;
   report.settings = { ...settings, port };
-  // Un navigateur neuf par série, fermé aussitôt après. Une scène Emerald laisse plusieurs
-  // centaines de mégaoctets dans le processus GPU de Chromium ; fermer seulement la page ne les
-  // rend pas, et la troisième série n'obtient plus de contexte (« WebGL2 unavailable »). Relancer
-  // le navigateur libère le processus GPU entre deux séries.
+  // Fresh browser per series, closed immediately after. Emerald scene leaves several hundred MB
+  // in Chromium GPU process; closing page does not release them, causing 3rd series to fail
+  // ("WebGL2 unavailable"). Relaunching browser frees GPU process between series.
   const onFreshPage = async (run) => {
-    const browser = await lancerChrome({ headless: !settings.visible, args: FLAGS });
+    const browser = await launchChrome({ headless: !settings.visible, args: FLAGS });
     const page = await browser.newPage({
       viewport: { width: settings.width, height: settings.height },
     });
@@ -124,14 +122,14 @@ async function main() {
         manifestUrl: sides[0].manifestUrl,
       }),
     );
-    // Les lampes, une fois les bornes connues : une règle géométrique, aucune scène nommée.
+    // Lights once bounds are known: geometric rule, no named scene.
     CTX.lights = benchLights(report.bounds, settings);
     report.lampes = CTX.lights ? CTX.lights.resume : null;
     for (const pixelError of settings.pixelErrors)
       for (const view of views) {
         const index = options.VIEWS[view].index;
         const pose = options.poseAt(report.bounds, index);
-        // Caméra en mouvement : une pose par image mesurée, prise sur la trajectoire du banc.
+        // Moving camera: one pose per measured frame along benchmark trajectory.
         CTX.poses = settings.movingCamera
           ? Array.from({ length: settings.frames }, (_, i) =>
               options.poseAt(report.bounds, index + i),
@@ -154,7 +152,7 @@ async function main() {
           serie.sides[side.name] = row;
           files[side.name] = captureFile;
         }
-        // Témoin A/A : le même côté joué deux fois, comparé à lui-même. Il dit ce que vaut zéro.
+        // A/A witness: same side run twice, compared with itself. Shows what zero is.
         const temoin = await onFreshPage((page) =>
           runSerie(CTX, page, sides[0], view, pixelError, pose, captures, '-aa'),
         );
@@ -178,11 +176,9 @@ async function main() {
   report.finishedAt = new Date().toISOString();
   await writeFile(join(OUT, 'mesure.json'), JSON.stringify(report, null, 1));
   await writeFile(join(OUT, 'resume.md'), resume(report));
-  process.stdout.write(
-    `\nJSON : ${join(OUT, 'mesure.json')}\nRésumé : ${join(OUT, 'resume.md')}\n`,
-  );
+  process.stdout.write(`\nJSON: ${join(OUT, 'mesure.json')}\nSummary: ${join(OUT, 'resume.md')}\n`);
   if (report.errors.length) {
-    process.stdout.write(`${report.errors.length} erreur(s) de page consignées dans le JSON\n`);
+    process.stdout.write(`${report.errors.length} page error(s) recorded in the JSON\n`);
     process.exitCode = 1;
   }
 }

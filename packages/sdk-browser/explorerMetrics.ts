@@ -9,7 +9,7 @@ import type { createPageStreamer } from './streamingPages.ts';
 
 type State = () => { loaded: number; pageBytesRead: number; streamingError: string | null };
 
-/** Recopie une mesure du moteur dans le relevé de l'hôte : `null` quand ce moteur ne la tient pas. */
+/** Copies an engine measurement into the host sample: `null` when that engine does not hold it. */
 function publishMetric<K extends (typeof BACKEND_METRIC_KEYS)[number]>(
   into: FrameMetrics,
   from: FrameMetrics,
@@ -81,9 +81,9 @@ export function createExplorerMetrics(
     const { loaded, pageBytesRead, streamingError } = state();
     const backendMetrics = backend.metrics() as FrameMetrics;
     const stream = streamer.stats();
-    // Chaque mesure que le moteur publie telle quelle, dans l'ordre du contrat : `null` dit « non
-    // tenue par ce moteur », jamais « zéro ». Le témoin d'image tenue en fait partie — sans cette
-    // recopie, `explorer.render()` publiait `null` alors que le moteur avait bien tenu l'image.
+    // Every measurement the engine publishes as-is, in contract order: `null` means "not
+    // held by this engine", never "zero". The held-frame flag is part of that — without this
+    // copy, `explorer.render()` published `null` while the engine had in fact held the frame.
     for (const key of BACKEND_METRIC_KEYS) publishMetric(metricsScratch, backendMetrics, key);
     metricsScratch.streamingError = streamingError;
     metricsScratch.clusters = backendMetrics.clusters;
@@ -91,9 +91,9 @@ export function createExplorerMetrics(
     metricsScratch.residentPages = backendMetrics.residentPages;
     metricsScratch.geometryAllocationBytes = backendMetrics.geometryAllocationBytes;
     metricsScratch.cacheEvictions = backendMetrics.cacheEvictions ?? stream.evictions;
-    // Un total composé n'existe que si chacune de ses parts est comptée : un moteur qui ne compte
-    // pas sa passe transparente laisse le total à `null`, sans quoi la seule passe opaque passerait
-    // pour le compte exact de l'image.
+    // A composed total exists only if each of its parts is counted: an engine that does not
+    // count its transparent pass leaves the total at `null`, otherwise the opaque pass alone
+    // would pass for the exact count of the frame.
     metricsScratch.totalSubmittedTriangles =
       backendMetrics.totalSubmittedTriangles ??
       (backendMetrics.submittedTriangles == null ||

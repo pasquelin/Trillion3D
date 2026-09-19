@@ -1,14 +1,14 @@
-//! La dorée du pilote PNG : la profondeur décide, et elle décide avant le décodage. Jusqu'à huit
-//! bits par canal l'image ressort pixel pour pixel ; à seize elle est refusée en le nommant, comme
-//! le TIFF 16 bits et pour la même raison — la sortie du contrat ne sait pas encore porter cette
-//! précision, et la rogner en silence ajouterait une perte que la source n'avait pas.
+//! Golden of the PNG driver: depth decides, and it decides before decoding. Up to eight bits
+//! per channel the image comes out pixel for pixel; at sixteen it is refused by naming it, like
+//! 16-bit TIFF and for the same reason — the contract output cannot carry that precision yet,
+//! and clipping it in silence would add a loss the source did not have.
 use super::super::image as registry;
 use super::{declared, fixture, rgba8};
 
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
 
-/// L'image de référence, 2 × 2 pixels, ligne du haut d'abord. Les trois fixtures portent ce même
-/// dessin, chacune dans une profondeur différente.
+/// Reference image, 2 × 2 pixels, top row first. The three fixtures carry this same drawing,
+/// each at a different depth.
 const REFERENCE: [[u8; 4]; 4] = [
     [255, 0, 0, 255],
     [0, 255, 0, 255],
@@ -16,14 +16,14 @@ const REFERENCE: [[u8; 4]; 4] = [
     [255, 255, 0, 255],
 ];
 
-// Dorée du pilote PNG : les profondeurs qu'il lit — huit bits par canal, et en dessous la palette à
-// quatre bits — rendent la même image, pixel pour pixel. Une profondeur est une façon d'écrire
-// l'image, jamais de la changer, et le refus du 16 bits n'y a rien changé.
+// PNG driver golden: the depths it reads — eight bits per channel, and below that the four-bit
+// palette — yield the same image, pixel for pixel. A depth is a way of writing the image, never
+// of changing it, and the 16-bit refusal has not changed that.
 #[test]
-fn chaque_profondeur_lue_rend_les_pixels_de_la_reference() {
+fn each_read_depth_yields_the_reference_pixels() {
     for name in ["rgb8.png", "palette4.png"] {
         let bytes = fixture("png", name);
-        let pilote = registry::by_head(&bytes).expect("un pilote revendique ces octets");
+        let pilote = registry::by_head(&bytes).expect("a driver claims these bytes");
         assert_eq!(pilote.name(), "png", "{name}");
         assert_eq!(pilote.mime(), "image/png", "{name}");
         let rendu = rgba8(
@@ -38,11 +38,12 @@ fn chaque_profondeur_lue_rend_les_pixels_de_la_reference() {
     }
 }
 
-// Contrat du pilote : un PNG 16 bits par canal est refusé sous sa propre raison, lue dans l'IHDR
-// avant tout décodage. Le rendre abaissé à huit bits serait ajouter une perte que la source n'avait
-// pas ; le refus, lui, laisse simplement le moteur retomber sur son blanc et ne panique jamais.
+// Driver contract: a 16-bit-per-channel PNG is refused under its own reason, read in the IHDR
+// before any decoding. Yielding it lowered to eight bits would add a loss the source did not
+// have; the refusal, for its part, simply lets the engine fall back on its white and never
+// panics.
 #[test]
-fn un_png_seize_bits_ressort_en_raison_de_rapport_jamais_rogne() {
+fn a_sixteen_bit_png_comes_out_as_a_report_reason_never_clipped() {
     let bytes = fixture("png", "rgb16.png");
     assert_eq!(
         registry::by_head(&bytes).map(|pilote| pilote.name()),
@@ -52,38 +53,40 @@ fn un_png_seize_bits_ressort_en_raison_de_rapport_jamais_rogne() {
         registry::decode(&bytes, MAX_ALLOC).err(),
         Some("image-depth-unsupported")
     );
-    // Ce refus a changé ce que le pilote produit, donc son identité de cache : la version le porte,
-    // sans quoi une entrée écrite du temps de l'abaissement silencieux serait relue comme juste.
+    // This refusal changed what the driver produces, so its cache identity: the version
+    // carries it, otherwise an entry written in the silent-lowering days would be reread as
+    // correct.
     assert_eq!(
         registry::by_head(&bytes).map(|pilote| pilote.version()),
         Some("png-image-0.25-depth8-apng-icc-gama")
     );
-    // C'est la profondeur qui refuse, pas la taille : la raison ne bouge pas avec le plafond
-    // d'allocation, et elle sort sans qu'un seul pixel ait été décodé.
+    // It is depth that refuses, not size: the reason does not move with the allocation
+    // ceiling, and it comes out without a single pixel having been decoded.
     assert_eq!(
         registry::decode(&bytes, 16).err(),
         Some("image-depth-unsupported")
     );
-    // Un fichier trop court pour porter son IHDR n'est pas jugé sur sa profondeur : il reste jugé
-    // par le décodeur, exactement comme avant ce refus.
+    // A file too short to carry its IHDR is not judged on its depth: it stays judged by the
+    // decoder, exactly as before this refusal.
     assert_eq!(
         registry::decode(b"\x89PNG\r\n\x1a\ntronque", MAX_ALLOC).err(),
         Some("image-decode-failed")
     );
 }
 
-// Reproduction du constat 8 : un APNG porte plusieurs images, le contrat n'en rend qu'une. La
-// première ressort telle quelle — c'est l'image par défaut que la spécification APNG place dans
-// `IDAT` —, et le fichier ayant déclaré une animation par son morceau `acTL`, le pilote le compte.
-// Aplatir sans le dire laissait deux images entrer et une seule sortir, sans un mot au rapport.
+// Reproduction of finding 8: an APNG carries several images, the contract yields only one. The
+// first comes out as-is — it is the default image the APNG specification places in `IDAT` —,
+// and the file having declared an animation by its `acTL` chunk, the driver counts it.
+// Flattening without saying so let two images in and only one out, without a word in the
+// report.
 #[test]
-fn un_png_anime_rend_son_image_par_defaut_et_compte_lanimation() {
+fn an_animated_png_yields_its_default_image_and_counts_the_animation() {
     let bytes = fixture("png", "anime.png");
     let rendu = rgba8(
         registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|erreur| panic!("anime.png: {erreur}")),
     );
     assert_eq!((rendu.width(), rendu.height()), (2, 2));
-    // L'image par défaut est le rouge pur ; la seconde trame, verte, n'entre pas dans la sortie.
+    // The default image is pure red; the second frame, green, does not enter the output.
     assert_eq!(
         rendu.pixels().map(|pixel| pixel.0).collect::<Vec<_>>(),
         vec![[255, 0, 0, 255]; 4]
@@ -91,18 +94,18 @@ fn un_png_anime_rend_son_image_par_defaut_et_compte_lanimation() {
     let (transfert, raisons) = declared("png", "anime.png", MAX_ALLOC);
     assert_eq!(transfert, registry::Transfer::Srgb);
     assert_eq!(raisons, vec!["image-animation-first-frame"]);
-    // Un PNG d'une seule image ne porte pas `acTL` : il ne compte rien.
+    // A one-image PNG does not carry `acTL`: it counts nothing.
     assert!(declared("png", "rgb8.png", MAX_ALLOC).1.is_empty());
 }
 
-/// La même fixture, un morceau de plus glissé devant son `IDAT` — la place que la spécification
-/// donne à `gAMA`, `sRGB` et `iCCP`. Le CRC est recalculé : un morceau faux serait refusé, et ce
-/// n'est pas ce que ces cas mettent à l'épreuve.
+/// The same fixture, one more chunk slipped in front of its `IDAT` — the place the
+/// specification gives to `gAMA`, `sRGB` and `iCCP`. The CRC is recomputed: a false chunk
+/// would be refused, and that is not what these cases put to the test.
 fn with_chunk(name: &str, kind: &[u8], data: &[u8]) -> Vec<u8> {
     inserted(&fixture("png", name), kind, data)
 }
 
-/// La même, sur des octets déjà en main : c'est ainsi qu'un cas pose deux morceaux.
+/// The same, on bytes already in hand: that is how a case places two chunks.
 fn inserted(bytes: &[u8], kind: &[u8], data: &[u8]) -> Vec<u8> {
     let at = bytes
         .windows(4)
@@ -121,60 +124,60 @@ fn inserted(bytes: &[u8], kind: &[u8], data: &[u8]) -> Vec<u8> {
     out
 }
 
-/// Le morceau `gAMA` d'une gamma écrite en centièmes de millième, comme le fait le format.
+/// `gAMA` chunk of a gamma written in hundred-thousandths, as the format does.
 fn gamma(hundred_thousandths: u32) -> Vec<u8> {
     hundred_thousandths.to_be_bytes().to_vec()
 }
 
-/// Ce que le pilote déclare autour des pixels de ces octets.
+/// What the driver declares around the pixels of these bytes.
 fn declares(bytes: &[u8]) -> (registry::Transfer, Vec<&'static str>) {
-    let decoded = registry::decode(bytes, MAX_ALLOC).expect("décodé");
+    let decoded = registry::decode(bytes, MAX_ALLOC).expect("decoded");
     (decoded.transfer, decoded.notes)
 }
 
-// Reproduction du constat A12 : un PNG qui déclare `gAMA = 100000` dit une gamma de 1, donc des
-// échantillons proportionnels à la lumière — la spécification PNG l'écrit. Le pilote rendait
-// pourtant `Srgb` sans un mot, et la chaîne d'aperçus décodait une seconde fois une image déjà
-// linéaire. La courbe déclarée est maintenant portée, sous une priorité fixe : `iCCP`, puis le
-// morceau `sRGB`, puis `gAMA`.
+// Reproduction of finding A12: a PNG that declares `gAMA = 100000` says a gamma of 1, so
+// samples proportional to light — the PNG specification writes it. The driver nevertheless
+// yielded `Srgb` without a word, and the preview chain decoded a second time an already linear
+// image. The declared curve is now carried, under a fixed priority: `iCCP`, then the `sRGB`
+// chunk, then `gAMA`.
 #[test]
-fn la_courbe_declaree_par_les_morceaux_est_portee_par_le_contrat() {
+fn the_curve_declared_by_the_chunks_is_carried_by_the_contract() {
     assert_eq!(
         declares(&with_chunk("rgb8.png", b"gAMA", &gamma(100_000))),
         (registry::Transfer::Linear, vec![]),
-        "une gamma de 1 dit des échantillons linéaires"
+        "a gamma of 1 says linear samples"
     );
     assert_eq!(
         declares(&with_chunk("rgb8.png", b"gAMA", &gamma(45_455))),
         (registry::Transfer::Srgb, vec![]),
-        "une gamma de 1/2,2 est celle de la courbe sRGB"
+        "a gamma of 1/2.2 is that of the sRGB curve"
     );
     assert_eq!(
         declares(&with_chunk("rgb8.png", b"sRGB", &[0])),
         (registry::Transfer::Srgb, vec![]),
-        "le morceau sRGB dit la courbe de la sortie"
+        "the sRGB chunk says the output curve"
     );
-    // Une gamma que le contrat ne sait pas porter : l'image sort traitée en sRGB, comme la
-    // convention le veut pour un fichier qui se tait, et l'écart est compté par son nom.
+    // A gamma the contract cannot carry: the image comes out treated as sRGB, as convention
+    // wants for a silent file, and the mismatch is counted by name.
     assert_eq!(
         declares(&with_chunk("rgb8.png", b"gAMA", &gamma(50_000))),
         (registry::Transfer::Srgb, vec!["image-transfer-unsupported"]),
-        "une courbe inhabituelle se compte"
+        "an unusual curve is counted"
     );
-    // La priorité : un morceau `sRGB` l'emporte sur `gAMA`, un profil `iCCP` sur les deux — c'est
-    // lui qui décrit la courbe, et il est déjà compté comme non converti.
+    // Priority: an `sRGB` chunk wins over `gAMA`, an `iCCP` profile over both — it is that
+    // which describes the curve, and it is already counted as unconverted.
     let tagged = with_chunk("rgb8.png", b"sRGB", &[0]);
     assert_eq!(
         declares(&inserted(&tagged, b"gAMA", &gamma(100_000))).0,
         registry::Transfer::Srgb,
-        "le morceau sRGB l'emporte sur gAMA"
+        "the sRGB chunk wins over gAMA"
     );
     assert_eq!(
         declares(&with_chunk("icc-autre.png", b"gAMA", &gamma(100_000))),
         (registry::Transfer::Srgb, vec!["image-icc-profile-ignored"]),
-        "un profil colorimétrique l'emporte sur gAMA, et reste compté seul"
+        "a colour profile wins over gAMA, and stays counted alone"
     );
-    // Un fichier qui ne déclare rien garde la courbe que la convention lui prête.
+    // A file that declares nothing keeps the curve convention assigns it.
     assert_eq!(
         declares(&fixture("png", "rgb8.png")),
         (registry::Transfer::Srgb, vec![])

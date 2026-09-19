@@ -10,22 +10,22 @@ import {
 import { ensureOrder, nextStamp, visitSubtree } from './mathTransformTreeStructure.ts';
 
 /**
- * Mise à jour des matrices monde, par lot et sans allocation, avec la sémantique de
- * `updateMatrixWorld(force)` et `updateWorldMatrix(updateParents, updateChildren)` de la référence.
+ * World-matrix update, batched and without allocation, with the semantics of the reference
+ * `updateMatrixWorld(force)` and `updateWorldMatrix(updateParents, updateChildren)`.
  *
- * La référence recompose et remultiplie tout nœud que sa règle atteint. Ici, un nœud atteint n'est
- * recalculé que si une entrée a changé depuis son dernier calcul : position, rotation ou échelle
- * écrites, matrice locale posée, parent changé, ou matrice monde du parent recalculée depuis (compteur
- * `version` du parent contre `seen` du nœud). Recalculer des entrées inchangées rendrait les mêmes
- * bits : les matrices sont celles de la référence, à chaque instant où elle les calcule. Un nœud que
- * sa règle n'atteint pas garde, comme chez elle, une matrice monde en retard.
+ * The reference recomposes and remultiplies every node its rule reaches. Here, a reached node is
+ * recalculated only if an input has changed since its last calculation: written position, rotation or
+ * scale, set local matrix, changed parent, or parent world matrix recalculated since (the parent's
+ * `version` counter against the node's `seen`). Recalculating unchanged inputs would yield the same
+ * bits: the matrices are the reference's, at every instant it computes them. A node its
+ * rule does not reach keeps, as with it, a late world matrix.
  */
 
 const composePosition = new Float64Array(3),
   composeQuaternion = new Float64Array(4),
   composeScale = new Float64Array(3);
 
-/** `updateMatrix` : la matrice locale depuis la position, la rotation et l'échelle du nœud. */
+/** `updateMatrix`: the local matrix from the node's position, rotation and scale. */
 function composeLocal(tree: TransformTree, node: number) {
   const { position, quaternion, scale } = tree;
   const p = node * 3,
@@ -44,10 +44,10 @@ function composeLocal(tree: TransformTree, node: number) {
 }
 
 /**
- * Un nœud atteint : matrice locale recomposée si la mise à jour est automatique et la pose écrite,
- * puis matrice monde = monde du parent × locale (la locale recopiée pour une racine) si une entrée a
- * changé. Les drapeaux sont lus une fois et écrits une fois, `worldNeedsUpdate` compris : effacé par
- * `updateMatrixWorld`, posé par `updateWorldMatrix` sous mise à jour automatique.
+ * A reached node: local matrix recomposed if update is automatic and the pose written,
+ * then world matrix = parent world × local (the local copied for a root) if an input has
+ * changed. Flags are read once and written once, `worldNeedsUpdate` included: cleared by
+ * `updateMatrixWorld`, set by `updateWorldMatrix` under automatic update.
  */
 function refreshNode(tree: TransformTree, node: number, fromWorldMatrix: boolean) {
   const flags = tree.flags[node],
@@ -82,11 +82,11 @@ function refreshNode(tree: TransformTree, node: number, fromWorldMatrix: boolean
 const stepWorldMatrix = (tree: TransformTree, node: number) => refreshNode(tree, node, true);
 
 /**
- * `node.updateMatrixWorld(force)` : le nœud et tout son sous-arbre, parents d'abord. Un nœud est
- * atteint s'il se met à jour automatiquement, s'il est marqué, ou si `force` — celui de l'appel pour
- * `node`, sinon « le parent a été atteint ». Les ancêtres de `node` ne sont pas relus. La marque d'un
- * nœud parcouru vaut `2 · parcours + atteint` : une seule lecture dit à l'enfant s'il est dans le
- * sous-arbre et ce que son parent lui transmet.
+ * `node.updateMatrixWorld(force)`: the node and its whole subtree, parents first. A node is
+ * reached if it updates automatically, if it is marked, or if `force` — that of the call for
+ * `node`, otherwise "the parent was reached". Ancestors of `node` are not reread. The stamp of a
+ * visited node is `2 · traversal + reached`: one read tells the child whether it is in the
+ * subtree and what its parent passes it.
  */
 export function updateNodeMatrixWorld(tree: TransformTree, node: number, force = false) {
   ensureOrder(tree);
@@ -110,8 +110,8 @@ export function updateNodeMatrixWorld(tree: TransformTree, node: number, force =
 }
 
 /**
- * `node.updateWorldMatrix(updateParents, updateChildren)` : les ancêtres de la racine vers `node` si
- * demandé, le nœud, puis tout son sous-arbre si demandé.
+ * `node.updateWorldMatrix(updateParents, updateChildren)`: ancestors from the root toward `node` if
+ * requested, the node, then its whole subtree if requested.
  */
 export function updateNodeWorldMatrix(
   tree: TransformTree,

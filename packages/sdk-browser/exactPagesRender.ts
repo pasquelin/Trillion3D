@@ -21,15 +21,15 @@ export type ExactPagesRenderState = {
   frustumRejected: number;
   lodLevel: number;
   lastCamera: THREE.PerspectiveCamera | undefined;
-  /** La caméra du moteur, absente tant qu'aucune image n'a été rendue. */
+  /** Engine camera, absent as long as no frame has been rendered. */
   cam: EngineCamera | undefined;
   lastPixelError: number;
-  /** Temps de la coupe de clusters seule, entre l'appel de sélection et son retour : ni le seuil
-   *  adaptatif, ni la résidence, ni les rangs, ni la soumission. */
+  /** Time of the cluster cut alone, between the selection call and its return: neither the
+   *  adaptive threshold, nor residency, nor ranks, nor submit. */
   cpuSelectMs: number;
-  /** Nœuds de hiérarchie que la coupe a dépilés pour cette image. */
+  /** Hierarchy nodes the cut popped for this frame. */
   cpuSelectNodesTested: number;
-  /** Vrai quand l'image a été tenue : aucune étape processeur n'a été exécutée. */
+  /** True when the frame was held: no CPU step was executed. */
   frameHeld: boolean;
 };
 
@@ -50,8 +50,8 @@ export function createExactPagesRenderState(): ExactPagesRenderState {
   };
 }
 
-/** Les étapes processeur d'une image tenue, remises à zéro : la liste ne dépend de rien et se lit
- *  une fois, pas à chaque image du régime stationnaire que la tenue d'image installe. */
+/** CPU steps of a held frame, reset to zero: the list depends on nothing and is read once,
+ *  not every frame of the stationary regime that frame-hold installs. */
 const EXACT_CPU_STEPS = Object.values(EXACT_CPU_STEP);
 
 export function createExactPagesRender(options: {
@@ -62,7 +62,7 @@ export function createExactPagesRender(options: {
   sceneLights: ReturnType<typeof lighting>;
   motion: CameraMotion;
   roots: ReadonlyArray<ClusterRoot<PageRec>>;
-  /** L'index des matrices monde du moteur, remonté une fois par révision de scène. */
+  /** Engine world-matrix index, rebuilt once per scene revision. */
   worlds: HostWorldPlacements;
   viewport: [number, number] | undefined;
   cap: number;
@@ -89,7 +89,7 @@ export function createExactPagesRender(options: {
     cpuProfile,
     gate,
   } = options;
-  // Demande et résultat de la coupe, posés une fois : une image de rendu n'alloue rien du tout.
+  // Cut request and result, set once: a render frame allocates nothing at all.
   const selectOptions = {
     pixelError: 0,
     viewport,
@@ -98,18 +98,18 @@ export function createExactPagesRender(options: {
     wanted: desired,
     result: createSelectionResult<PageRec>(),
   };
-  // Ce que ce moteur dessine, par le nœud source d'où chaque chose sort : une page par racine — les
-  // instances d'un même modèle le nomment toutes —, et les copies transparentes hors DAG.
+  // What this engine draws, by the source node each thing comes from: one page per root —
+  // instances of the same model all name it —, and the transparent copies outside the DAG.
   const sourcesDessinees = [
     ...roots.map((root) => root.pages[0]),
     ...blendCopies.map((copy) => copy.userData),
   ];
   /**
-   * Une image tenue n'a exécuté aucune étape : son profil le dit en zéros, pas en estimations, et
-   * la durée de coupe comme le nombre de nœuds visités valent zéro parce qu'aucune coupe n'a été
-   * faite — jamais ceux de la dernière image qui en a fait une. Ce que l'image MONTRE reste décrit
-   * par la coupe qu'elle réaffiche : pages retenues, triangles sélectionnés, rejet par le tronc et
-   * niveau de détail ne bougent pas, puisque c'est la même coupe.
+   * A held frame has executed no step: its profile says so in zeros, not in estimates, and
+   * the cut duration and visited-node count are zero because no cut was run — never those of
+   * the last frame that ran one. What the frame SHOWS stays described by the cut it
+   * redisplays: retained pages, selected triangles, frustum rejection and detail level do
+   * not move, since it is the same cut.
    */
   const heldProfile = () => {
     const row = cpuProfile.row;
@@ -120,27 +120,27 @@ export function createExactPagesRender(options: {
   return (camera: THREE.PerspectiveCamera) => {
     state.frame++;
     state.lastCamera = camera;
-    // Entrée d'image : l'ordre et ses garanties vivent dans `frameGateCore.ts`, qui recopie aussi
-    // la caméra de l'hôte dans celle du moteur. Rien n'a bougé et les deux images précédentes ont
-    // produit la même coupe : la scène attachée est déjà cette image-ci, et l'hôte la redessine
-    // telle quelle.
+    // Frame entry: the order and its guarantees live in `frameGateCore.ts`, which also copies
+    // the host camera into the engine camera. Nothing has moved and the two previous frames
+    // produced the same cut: the attached scene is already this frame, and the host redraws
+    // it as-is.
     state.frameHeld = gate.enterFrame(context, camera, motion, viewport, source, sourcesDessinees);
     state.lastPixelError = gate.pixelError;
     const cam = (state.cam = gate.cam);
     if (state.frameHeld) return heldProfile();
     const worldStart = performance.now();
-    // Les matrices monde ne sont fonction que de la scène. Les copies transparentes n'ont rien à
-    // reprendre : chacune porte la matrice monde de son maillage source, pas une photo de celle-ci.
+    // World matrices are a function of the scene only. Transparent copies have nothing to
+    // take back: each carries the world matrix of its source mesh, not a snapshot of it.
     const worldsMoved = gate.updateWorlds(worlds);
     const lightsStart = performance.now();
-    // Les lampes recopiées dans la scène de rendu ne lisent que le graphe source : même révision.
+    // Lights copied into the render scene read only the source graph: same revision.
     if (worldsMoved) sceneLights.update();
     const selectStart = performance.now();
     state.overBudget = false;
-    // La demande de coupe est posée une fois pour toutes : l'image de rendu n'alloue rien.
+    // The cut request is set once and for all: the render frame allocates nothing.
     selectOptions.pixelError = state.lastPixelError;
-    // `cpuSelectMs` ne doit dire qu'une chose : la coupe de clusters. Le seuil adaptatif et la
-    // caméra sont posés avant cette borne ; la résidence et la soumission sont après.
+    // `cpuSelectMs` must say only one thing: the cluster cut. The adaptive threshold and the
+    // camera are set before this bound; residency and submit come after.
     const cutStart = performance.now();
     const selected = selectVisiblePages(roots, cam, selectOptions, shown);
     state.cpuSelectMs = performance.now() - cutStart;
@@ -159,7 +159,7 @@ export function createExactPagesRender(options: {
     const row = cpuProfile.row;
     row[EXACT_CPU_STEP.worldMs] = lightsStart - worldStart;
     row[EXACT_CPU_STEP.lightsMs] = selectStart - lightsStart;
-    // L'étape `selectMs` du profil garde ses bornes larges : la somme des étapes reste l'image.
+    // The profile `selectMs` step keeps its wide bounds: the sum of the steps remains the frame.
     row[EXACT_CPU_STEP.selectMs] = syncStart - selectStart;
     row[EXACT_CPU_STEP.syncMs] = syncEnd - syncStart;
     row[EXACT_CPU_STEP.pendingMs] = 0;

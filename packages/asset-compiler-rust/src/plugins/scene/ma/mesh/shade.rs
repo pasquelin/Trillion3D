@@ -1,15 +1,14 @@
-//! D'où vient la normale de chaque coin d'une surface Maya.
+//! Where each corner's normal of a Maya surface comes from.
 //!
-//! Un `.ma` écrit ses normales de trois façons, et une seule à la fois. `.n` en donne une par
-//! sommet, ou une par coin de face : ce sont celles de Maya, et elles sont reprises telles quelles.
-//! Sans elles, c'est la géométrie qui les donne — et c'est le **drapeau de dureté** de chaque arête,
-//! le troisième nombre de `.ed`, qui dit où la continuité se coupe. Le calculer à plat comme si
-//! toutes les arêtes étaient dures rendait une sphère à facettes ; le lisser partout aurait arrondi
-//! toutes les arêtes vives. Le fichier le dit, arête par arête.
+//! A `.ma` writes its normals in three ways, and only one at a time. `.n` gives one per vertex, or
+//! one per face corner: those are Maya's, and they are taken as-is. Without them, geometry gives
+//! them — and it is each edge's **hardness flag**, the third number of `.ed`, that says where
+//! continuity cuts. Computing them flat as if every edge were hard rendered a faceted sphere;
+//! smoothing everywhere would have rounded every sharp edge. The file says it, edge by edge.
 use super::*;
 use crate::plugins::scene::normals;
 
-/// Remplit les normales de la surface et dit où chaque coin lit la sienne.
+/// Fills the surface normals and says where each corner reads its own.
 pub(super) fn fill(
     world: &mut World<'_>,
     surface: &mut Surface,
@@ -37,8 +36,8 @@ pub(super) fn fill(
     compute(surface, polygons, edges, corners);
 }
 
-/// Calcule les normales depuis la géométrie et range chaque coin à la place que `.fc` lui donne —
-/// la même que des normales écrites par coin, pour que la lecture ne connaisse qu'une disposition.
+/// Computes normals from geometry and places each corner at the slot `.fc` gives it — the same
+/// as corner-written normals, so the reader knows only one layout.
 fn compute(surface: &mut Surface, polygons: &[faces::Face], edges: &[[f64; 3]], corners: usize) {
     let positions: Vec<f32> = surface
         .positions
@@ -76,10 +75,10 @@ fn compute(surface: &mut Surface, polygons: &[faces::Face], edges: &[[f64; 3]], 
     surface.shading = Shading::Corner;
 }
 
-/// L'arête que ce coin porte est-elle dure ? Maya écrit trois nombres par arête — ses deux sommets,
-/// puis le drapeau —, et une face cite ses arêtes signées : `-(i + 1)` la parcourt à l'envers, ce
-/// qui ne change rien à sa dureté. La valeur la plus basse d'un entier signé n'a pas d'opposé, donc
-/// ne désigne aucune arête ; la face entière est déjà comptée ailleurs sous `ma-mesh-invalid`.
+/// Is the edge this corner carries hard? Maya writes three numbers per edge — its two vertices,
+/// then the flag — and a face cites its signed edges: `-(i + 1)` walks it backwards, which does
+/// not change its hardness. The lowest value of a signed integer has no opposite, so it names no
+/// edge; the whole face is already counted elsewhere under `ma-mesh-invalid`.
 fn is_hard(edges: &[[f64; 3]], signed: Option<i64>) -> bool {
     signed
         .and_then(super::edge_rank)

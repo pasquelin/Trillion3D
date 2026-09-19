@@ -1,152 +1,149 @@
 /**
- * Rend aux communautés du graphe graphify les noms métier qu'un reclustering efface.
+ * Restores domain names erased by reclustering to graphify graph communities.
  *
- * `graphify update .` renumérote les communautés à chaque passage et réécrit
- * `.graphify_labels.json` avec le nom du nœud le plus connecté de chaque groupe. Les noms
- * écrits à la main tombent. Ce script les rattache non plus à un numéro — qui ne survit à
- * rien — mais au contenu : `graphify-communautes.json` garde douze témoins par communauté
- * nommée, et le nom retourne au groupe qui en contient le plus.
+ * `graphify update .` renumbers communities on each pass and rewrites
+ * `.graphify_labels.json` with the name of the most connected node of each group.
+ * Hand-written names drop. This script attaches them no longer to a number — which survives
+ * nothing — but to content: `graphify-communautes.json` keeps twelve witnesses per named
+ * community, and the name returns to the group containing the most.
  *
- * Les communautés sans correspondance prennent `dossier · nœud dominant`, lisible à défaut
- * d'être métier. Trois fichiers portent le nom : `.graphify_labels.json` pour les exports, le
- * champ `community_name` de chaque nœud du graphe pour `graphify query`, et les titres
- * `### Community N` du rapport — les seuls endroits où il apparaît.
+ * Unmatched communities take `folder · dominant node`, readable if not domain-specific.
+ * Three files carry the name: `.graphify_labels.json` for exports, the `community_name`
+ * field of each graph node for `graphify query`, and `### Community N` titles in the report.
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { basename, dirname, relative, isAbsolute } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-export const SEUIL_RECOUVREMENT = 0.4;
+export const OVERLAP_THRESHOLD = 0.4;
 const EXTENSIONS = /\.(ts|tsx|js|mjs|rs|py|md|txt|wgsl|json)$/;
 
-/** Regroupe les identifiants de nœuds par communauté, et compte les liens de chacun. */
-export function grouper(graphe) {
-  const degre = new Map();
-  for (const lien of graphe.links)
-    for (const bout of [lien.source, lien.target]) degre.set(bout, (degre.get(bout) ?? 0) + 1);
-  const groupes = new Map();
-  for (const nœud of graphe.nodes) {
-    if (!groupes.has(nœud.community)) groupes.set(nœud.community, []);
-    groupes.get(nœud.community).push(nœud.id);
+/** Groups node IDs by community, and counts links for each. */
+export function groupNodes(graph) {
+  const degree = new Map();
+  for (const link of graph.links)
+    for (const end of [link.source, link.target]) degree.set(end, (degree.get(end) ?? 0) + 1);
+  const groups = new Map();
+  for (const node of graph.nodes) {
+    if (!groups.has(node.community)) groups.set(node.community, []);
+    groups.get(node.community).push(node.id);
   }
-  return { groupes, degre };
+  return { groups, degree };
 }
 
-/** Nom de repli : le dossier dominant du groupe, puis son nœud le plus connecté. */
-export function nomDerive(ids, contexte) {
-  const { degre, etiquettes, sources, racine } = contexte;
-  const tete = ids.reduce((a, b) => ((degre.get(b) ?? 0) >= (degre.get(a) ?? 0) ? a : b));
-  const nom = (etiquettes.get(tete) ?? tete).replace(EXTENSIONS, '').replace(/\(\)$/, '').trim();
-  const dossiers = new Map();
+/** Fallback name: dominant folder of group, then its most connected node. */
+export function derivedName(ids, context) {
+  const { degree, labelMap, sources, root } = context;
+  const head = ids.reduce((a, b) => ((degree.get(b) ?? 0) >= (degree.get(a) ?? 0) ? a : b));
+  const name = (labelMap.get(head) ?? head).replace(EXTENSIONS, '').replace(/\(\)$/, '').trim();
+  const folders = new Map();
   for (const id of ids) {
-    const chemin = sources.get(id);
-    if (!chemin) continue;
-    const relatif = isAbsolute(chemin) ? relative(racine, chemin) : chemin;
-    const dossier = basename(dirname(relatif)) || 'racine';
-    dossiers.set(dossier, (dossiers.get(dossier) ?? 0) + 1);
+    const filePath = sources.get(id);
+    if (!filePath) continue;
+    const relativePath = isAbsolute(filePath) ? relative(root, filePath) : filePath;
+    const folder = basename(dirname(relativePath)) || 'root';
+    folders.set(folder, (folders.get(folder) ?? 0) + 1);
   }
-  const dominant = [...dossiers].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
-  if (dominant && !nom.toLowerCase().includes(dominant.toLowerCase()))
-    return `${dominant} · ${nom}`;
-  return nom || 'Communauté sans nom';
+  const dominant = [...folders].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
+  if (dominant && !name.toLowerCase().includes(dominant.toLowerCase()))
+    return `${dominant} · ${name}`;
+  return name || 'Unnamed community';
 }
 
 /**
- * Attribue chaque nom curé à la communauté qui en contient le plus de témoins. Les
- * appariements les plus francs passent d'abord : un nom ne se pose qu'une fois, et une
- * communauté déjà nommée ne se laisse pas reprendre par un candidat plus faible.
+ * Assigns each curated name to the community containing the most of its witnesses.
+ * Stronger matches pass first: a name is set only once, and an already named
+ * community does not let itself be reclaimed by a weaker candidate.
  */
-export function apparier(groupes, temoins) {
+export function matchNames(groups, witnesses) {
   const scores = [];
-  // L'appartenance ne dépend que de la communauté : la bâtir une fois par communauté, pas une fois
-  // par (nom, communauté).
-  const membresDe = new Map([...groupes].map(([cid, ids]) => [cid, new Set(ids)]));
-  for (const [nom, references] of Object.entries(temoins)) {
-    for (const [cid] of groupes) {
-      const membres = membresDe.get(cid);
-      const communs = references.filter((id) => membres.has(id)).length;
-      const part = communs / references.length;
-      if (part >= SEUIL_RECOUVREMENT) scores.push({ nom, cid, part });
+  // Membership depends only on community: build once per community, not once per (name, community).
+  const membersOf = new Map([...groups].map(([cid, ids]) => [cid, new Set(ids)]));
+  for (const [name, references] of Object.entries(witnesses)) {
+    for (const [cid] of groups) {
+      const members = membersOf.get(cid);
+      const sharedCount = references.filter((id) => members.has(id)).length;
+      const share = sharedCount / references.length;
+      if (share >= OVERLAP_THRESHOLD) scores.push({ name, cid, share });
     }
   }
-  scores.sort((a, b) => b.part - a.part);
-  const parCommunaute = new Map();
-  const nomsPris = new Set();
-  for (const { nom, cid } of scores) {
-    if (parCommunaute.has(cid) || nomsPris.has(nom)) continue;
-    parCommunaute.set(cid, nom);
-    nomsPris.add(nom);
+  scores.sort((a, b) => b.share - a.share);
+  const byCommunity = new Map();
+  const takenNames = new Set();
+  for (const { name, cid } of scores) {
+    if (byCommunity.has(cid) || takenNames.has(name)) continue;
+    byCommunity.set(cid, name);
+    takenNames.add(name);
   }
-  return parCommunaute;
+  return byCommunity;
 }
 
-/** Deux communautés scindées peuvent viser le même nom : on les numérote pour les distinguer. */
-function distinguer(libelles) {
-  const vus = new Map();
-  for (const cid of [...libelles.keys()].sort((a, b) => a - b)) {
-    const nom = libelles.get(cid);
-    const rang = (vus.get(nom) ?? 0) + 1;
-    vus.set(nom, rang);
-    if (rang > 1) libelles.set(cid, `${nom} (${rang})`);
+/** Two split communities can target the same name: we number them to distinguish them. */
+function disambiguate(labels) {
+  const seen = new Map();
+  for (const cid of [...labels.keys()].sort((a, b) => a - b)) {
+    const name = labels.get(cid);
+    const rank = (seen.get(name) ?? 0) + 1;
+    seen.set(name, rank);
+    if (rank > 1) labels.set(cid, `${name} (${rank})`);
   }
-  return libelles;
+  return labels;
 }
 
-/** Réécrit les titres `### Community N - "…"` du rapport avec les noms retrouvés. */
-export function reecrireRapport(rapport, libelles) {
-  return rapport.replace(/^### Community (\d+) - ".*"$/gm, (ligne, numero) => {
-    const nom = libelles.get(Number(numero));
-    return nom ? `### Community ${numero} - "${nom}"` : ligne;
+/** Rewrites `### Community N - "…"` report titles with recovered names. */
+export function rewriteReport(report, labels) {
+  return report.replace(/^### Community (\d+) - ".*"$/gm, (line, number) => {
+    const name = labels.get(Number(number));
+    return name ? `### Community ${number} - "${name}"` : line;
   });
 }
 
-/** Réinscrit le nom dans chaque nœud : c'est là que `graphify query` et `explain` le lisent. */
-export function renommerLesNoeuds(graphe, libelles) {
-  let touches = 0;
-  for (const nœud of graphe.nodes) {
-    const nom = libelles.get(nœud.community);
-    if (nom && nœud.community_name !== nom) {
-      nœud.community_name = nom;
-      touches += 1;
+/** Re-writes the name in each node: this is where `graphify query` and `explain` read it. */
+export function renameNodes(graph, labels) {
+  let changed = 0;
+  for (const node of graph.nodes) {
+    const name = labels.get(node.community);
+    if (name && node.community_name !== name) {
+      node.community_name = name;
+      changed += 1;
     }
   }
-  return touches;
+  return changed;
 }
 
-export function rendreLesNoms(graphe, temoins, racine) {
-  const { groupes, degre } = grouper(graphe);
-  const contexte = {
-    degre,
-    racine,
-    etiquettes: new Map(graphe.nodes.map((n) => [n.id, n.label ?? n.id])),
-    sources: new Map(graphe.nodes.map((n) => [n.id, n.source_file ?? ''])),
+export function assignNames(graph, witnesses, root) {
+  const { groups, degree } = groupNodes(graph);
+  const context = {
+    degree,
+    root,
+    labelMap: new Map(graph.nodes.map((n) => [n.id, n.label ?? n.id])),
+    sources: new Map(graph.nodes.map((n) => [n.id, n.source_file ?? ''])),
   };
-  const apparies = apparier(groupes, temoins);
-  const libelles = new Map();
-  for (const [cid, ids] of groupes)
-    libelles.set(cid, apparies.get(cid) ?? nomDerive(ids, contexte));
-  return { libelles: distinguer(libelles), repris: apparies.size, total: groupes.size };
+  const matched = matchNames(groups, witnesses);
+  const labels = new Map();
+  for (const [cid, ids] of groups) labels.set(cid, matched.get(cid) ?? derivedName(ids, context));
+  return { labels: disambiguate(labels), recovered: matched.size, total: groups.size };
 }
 
-function principal() {
-  const racine = process.cwd();
-  const cheminGraphe = 'graphify-out/graph.json';
-  if (!existsSync(cheminGraphe)) {
-    console.log('[graphify] aucun graphe : rien à renommer.');
+function main() {
+  const root = process.cwd();
+  const graphPath = 'graphify-out/graph.json';
+  if (!existsSync(graphPath)) {
+    console.log('[graphify] no graph: nothing to rename.');
     return;
   }
-  const graphe = JSON.parse(readFileSync(cheminGraphe, 'utf8'));
-  const temoins = JSON.parse(readFileSync('scripts/graphify-communautes.json', 'utf8'));
-  const { libelles, repris, total } = rendreLesNoms(graphe, temoins, racine);
+  const graph = JSON.parse(readFileSync(graphPath, 'utf8'));
+  const witnesses = JSON.parse(readFileSync('scripts/graphify-communautes.json', 'utf8'));
+  const { labels, recovered, total } = assignNames(graph, witnesses, root);
 
-  const parNumero = Object.fromEntries([...libelles].map(([cid, nom]) => [String(cid), nom]));
-  writeFileSync('graphify-out/.graphify_labels.json', JSON.stringify(parNumero));
-  const noeuds = renommerLesNoeuds(graphe, libelles);
-  if (noeuds) writeFileSync(cheminGraphe, JSON.stringify(graphe));
-  const rapport = 'graphify-out/GRAPH_REPORT.md';
-  if (existsSync(rapport))
-    writeFileSync(rapport, reecrireRapport(readFileSync(rapport, 'utf8'), libelles));
-  console.log(`[graphify] ${repris}/${total} communautés ont retrouvé leur nom métier.`);
+  const byNumber = Object.fromEntries([...labels].map(([cid, name]) => [String(cid), name]));
+  writeFileSync('graphify-out/.graphify_labels.json', JSON.stringify(byNumber));
+  const nodes = renameNodes(graph, labels);
+  if (nodes) writeFileSync(graphPath, JSON.stringify(graph));
+  const report = 'graphify-out/GRAPH_REPORT.md';
+  if (existsSync(report))
+    writeFileSync(report, rewriteReport(readFileSync(report, 'utf8'), labels));
+  console.log(`[graphify] ${recovered}/${total} communities recovered their domain names.`);
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) principal();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

@@ -1,4 +1,4 @@
-// les vecteurs de sdk-core. Math.hypot(a, b, c) et validation de scène de transport.
+// sdk-core vectors. Math.hypot(a, b, c) and transport scene validation.
 import { length } from '../lightingSceneMath.ts';
 import { validateScene } from '../lightingTransportValidation.ts';
 import { graine, mesure, stress, rapport } from './socle.mjs';
@@ -15,15 +15,15 @@ for (const a of HOSTILES) vecteursHostiles.push([a, a, a]);
 vecteursHostiles.push([0, 0, 0], [-0, -0, -0]);
 
 const longueurs = (liste, fn) => {
-  const sortie = new Float64Array(liste.length);
-  for (let i = 0; i < liste.length; i++) sortie[i] = fn(liste[i]);
-  return sortie;
+  const output = new Float64Array(liste.length);
+  for (let i = 0; i < liste.length; i++) output[i] = fn(liste[i]);
+  return output;
 };
 
 const casLongueur = [
-  { nom: '20 000 vecteurs', entree: vecteurs, taille: vecteurs.length },
-  { nom: 'hostiles', entree: vecteursHostiles, taille: vecteursHostiles.length },
-  { nom: 'aucun vecteur', entree: [], taille: 0 },
+  { name: '20 000 vecteurs', input: vecteurs, size: vecteurs.length },
+  { name: 'hostiles', input: vecteursHostiles, size: vecteursHostiles.length },
+  { name: 'no vectors', input: [], size: 0 },
 ];
 
 const scene = (facettes, cassee) => {
@@ -61,7 +61,7 @@ const passeScene = (fn) => (liste) =>
   });
 
 const resLongueur = await mesure({
-  nom: 'longueur Vec3',
+  name: 'Vec3 length',
   fichier: 'packages/sdk-core/lightingSceneMath.ts',
   cas: casLongueur,
   calcul: (liste) => longueurs(liste, length),
@@ -70,11 +70,11 @@ const resLongueur = await mesure({
 });
 
 const resScene = await mesure({
-  nom: 'normales scène transport',
+  name: 'transport scene normals',
   fichier: 'packages/sdk-core/lightingTransportValidation.ts',
   cas: [
-    { nom: '8 000 facettes', entree: scenes, taille: 8065 },
-    { nom: 'aucune scène', entree: [], taille: 0 },
+    { name: '8 000 patches', input: scenes, size: 8065 },
+    { name: 'no scene', input: [], size: 0 },
   ],
   calcul: passeScene(validateScene),
   attendu: passeScene(referenceValidateScene),
@@ -82,13 +82,17 @@ const resScene = await mesure({
 });
 
 await stress({
-  nom: 'length extremes',
+  name: 'length extremes',
   calcul: length,
   extremes: [
-    { nom: 'NaN', entree: [NaN, 0, 0] },
-    { nom: 'Infini', entree: [Infinity, -Infinity, 0] },
-    { nom: 'zeros', entree: [-0, 0, -0] },
+    { name: 'NaN', input: [NaN, 0, 0] },
+    { name: 'Infinity', input: [Infinity, -Infinity, 0] },
+    { name: 'zeros', input: [-0, 0, -0] },
   ],
 });
 
-rapport('vecteurs-transport', [resLongueur, resScene], 'F20 rend les mêmes longueurs et refus');
+rapport(
+  'vecteurs-transport',
+  [resLongueur, resScene],
+  'F20 yields the same lengths and rejections',
+);

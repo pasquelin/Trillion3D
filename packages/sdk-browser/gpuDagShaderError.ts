@@ -1,25 +1,25 @@
 /**
- * Erreur écran du noyau de sélection du DAG, en WGSL : la borne `screenErrorBound` de sdk-core
- * (preuve au site de la formule, `projectionOracles.ts`), mêmes opérandes et même ordre, en f32.
- * Miroir CPU : `projectedError` de `gpuDagOracleMath.ts`. Les déclarations de module WGSL se
- * lisent dans n'importe quel ordre : ce morceau s'ajoute au texte de `gpuDagShader.ts`.
+ * Screen error of the DAG selection kernel, in WGSL: sdk-core's `screenErrorBound` (proof at the
+ * formula site, `projectionOracles.ts`), same operands and same order, in f32. CPU mirror:
+ * `projectedError` from `gpuDagOracleMath.ts`. WGSL module declarations are read in any order:
+ * this fragment is added to the text of `gpuDagShader.ts`.
  *
- * `REFERENCE_ERROR` est le commutateur d'EXPÉRIENCE décrit dans `screenErrorVariant.ts` : une
- * constante de module, fausse dans le texte livré — le nuanceur par défaut est donc inchangé, la
- * branche étant éliminée à la compilation. `withScreenErrorVariant` la met à vrai pour la campagne
- * qui mesure la métrique de la référence externe, miroir exact de `referenceScreenError`.
+ * `REFERENCE_ERROR` is the EXPERIMENT switch described in `screenErrorVariant.ts`: a module
+ * constant, false in the shipped text — the default shader is therefore unchanged, the branch
+ * being eliminated at compile time. `withScreenErrorVariant` sets it true for the campaign that
+ * measures the external-reference metric, exact mirror of `referenceScreenError`.
  */
 import type { ScreenErrorVariant } from '../sdk-core/index.ts';
 
-/** La déclaration que `withScreenErrorVariant` retourne, écrite une fois pour les deux. */
+/** Declaration `withScreenErrorVariant` returns, written once for both. */
 export const REFERENCE_ERROR_DECL = 'const REFERENCE_ERROR:bool=false;';
 
 export const DAG_ERROR_WGSL = `
 ${REFERENCE_ERROR_DECL}
-/** Majorant du déplacement écran de tout point de la sphère déplacé d'au plus \`error\` : profondeur
- *  minimale m, distance a l'axe l, rayon et erreur etires rho et delta,
- *  E = (delta*f/m)*(sqrt(m*m+(l+rho)^2)/(m-delta)) ; plan proche atteint : INF.
- *  Sous \`REFERENCE_ERROR\`, la projection simple de la reference externe : delta*f/profondeur. */
+/** Upper bound of the screen displacement of any point of the sphere moved by at most \`error\`:
+ *  minimum depth m, distance to the axis l, radius and error stretched rho and delta,
+ *  E = (delta*f/m)*(sqrt(m*m+(l+rho)^2)/(m-delta)) ; near plane reached: INF.
+ *  Under \`REFERENCE_ERROR\`, the external reference's simple projection: delta*f/depth. */
 fn projected(error:f32,sphere:vec4f,e:mat4x4f,stretch:f32,focal:f32)->f32{
  if(error==0.0){return 0.0;}
  if(!(error>0.0)){return INF;}
@@ -45,13 +45,13 @@ fn focalPixels()->f32{return max(uni.pixelScale.x,uni.pixelScale.y);}
 `;
 
 /**
- * Le texte du nuanceur pour une variante donnée : rendu tel quel pour la nôtre, une seule
- * déclaration retournée pour celle de la référence externe. Rien d'autre ne change de caractère.
+ * Shader text for a given variant: returned as-is for ours, a single declaration returned for
+ * the external-reference one. Nothing else changes by a character.
  */
 export function withScreenErrorVariant(code: string, variant: ScreenErrorVariant): string {
   if (variant !== 'reference') return code;
   const at = code.indexOf(REFERENCE_ERROR_DECL);
-  if (at < 0) throw new Error('declaration REFERENCE_ERROR absente du nuanceur');
+  if (at < 0) throw new Error('REFERENCE_ERROR declaration missing from the shader');
   return (
     code.slice(0, at) +
     'const REFERENCE_ERROR:bool=true;' +

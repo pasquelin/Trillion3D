@@ -1,20 +1,20 @@
-//! Poser les morceaux d'un modèle sous un nœud de la scène, liés aux matériaux demandés.
+//! Placing a model's pieces under a scene node, bound to the requested materials.
 //!
-//! Un modèle n'est versé qu'une fois ; ce sont ses morceaux qui s'instancient, autant de fois que la
-//! scène les cite. Seule la liaison aux matériaux distingue deux instances du même morceau : le
-//! maillage du modèle est repris tel quel quand rien ne le relie, et une variante est versée, puis
-//! partagée, pour chaque suite de matériaux demandée.
+//! A model is poured only once; it is its pieces that instantiate, as many times as the scene
+//! cites them. Only the material binding distinguishes two instances of the same piece: the
+//! model's mesh is reused as-is when nothing binds it, and a variant is poured, then shared,
+//! for each requested material sequence.
 use super::*;
 
 impl Builder<'_, '_> {
-    /// Instancie les nœuds d'un modèle sous le nœud courant, tous liés aux mêmes matériaux : ce
-    /// qu'un `MeshRenderer` déclare vaut pour le maillage entier que son `MeshFilter` désigne.
+    /// Instantiates a model's nodes under the current node, all bound to the same materials:
+    /// what a `MeshRenderer` declares holds for the whole mesh its `MeshFilter` names.
     pub(super) fn attach(&mut self, parts: &Parts, materials: &[Option<usize>]) -> Vec<usize> {
         self.attach_with(parts, |_| materials)
     }
 
-    /// De même, chaque nœud lié aux matériaux de son propre rang : une instance de modèle remplace
-    /// les matériaux morceau par morceau, celui qu'elle ne nomme pas gardant ceux du modèle.
+    /// Likewise, each node bound to the materials of its own rank: a model instance replaces
+    /// materials piece by piece, the one it does not name keeping those of the model.
     pub(super) fn attach_each(
         &mut self,
         parts: &Parts,
@@ -25,7 +25,7 @@ impl Builder<'_, '_> {
         })
     }
 
-    /// Instancie les nœuds du modèle, chacun lié à ce que `slots` donne pour son rang.
+    /// Instantiates the model's nodes, each bound to what `slots` gives for its rank.
     fn attach_with<'m>(
         &mut self,
         parts: &Parts,
@@ -44,11 +44,11 @@ impl Builder<'_, '_> {
         children
     }
 
-    /// Le maillage du modèle lié à cette suite de matériaux. Chaque suite distincte — la suite vide
-    /// comprise, qui garde les matériaux du modèle — a sa variante, partagée par les instances qui
-    /// demandent la même liaison. La première venue garde le maillage du modèle : elle le réécrit
-    /// sur place quand elle le lie, une copie de l'original mise de côté pour les suivantes. Un
-    /// maillage déjà posé sous une instance n'est ainsi jamais réécrit sous elle.
+    /// Model mesh bound to this material sequence. Each distinct sequence — the empty sequence
+    /// included, which keeps the model's materials — has its variant, shared by instances that
+    /// request the same binding. The first arrival keeps the model's mesh: it rewrites it in
+    /// place when it binds it, a copy of the original set aside for later ones. A mesh already
+    /// placed under an instance is thus never rewritten under it.
     fn bound_mesh(&mut self, mesh: usize, materials: &[Option<usize>]) -> usize {
         if let Some(known) = self.bound.get(&mesh).and_then(|kept| kept.get(materials)) {
             return *known;
@@ -61,7 +61,7 @@ impl Builder<'_, '_> {
         index
     }
 
-    /// La variante elle-même, versée pour une liaison que le maillage n'avait pas encore.
+    /// The variant itself, poured for a binding the mesh did not yet have.
     fn variant(&mut self, mesh: usize, materials: &[Option<usize>]) -> usize {
         if self.claimed.insert(mesh) {
             if !materials.is_empty() {
@@ -86,7 +86,7 @@ impl Builder<'_, '_> {
     }
 }
 
-/// Lie chaque partie du maillage au matériau de son emplacement, dans l'ordre des emplacements.
+/// Binds each mesh part to the material of its slot, in slot order.
 fn bind(mesh: &mut Value, materials: &[Option<usize>]) {
     let primitives = mesh["primitives"].as_array_mut().map_or(&mut [][..], |p| p);
     for (slot, primitive) in primitives.iter_mut().enumerate() {

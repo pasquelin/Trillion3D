@@ -9,7 +9,7 @@ import { setGeometryBounds } from './threeBounds.ts';
 import { BOX_VALUES, boxEmpty, boxExpandByPoint } from '../sdk-core/index.ts';
 import { resolveCameraWorld } from './cameraWorld.ts';
 
-/** Ce que ce moteur ne prétend pas faire, avec ou sans niveaux de détail. */
+/** What this engine does not claim to do, with or without levels of detail. */
 const HORS_PORTEE = [
   'GPU-driven selection/indirect draw',
   'occlusion culling',
@@ -119,12 +119,12 @@ export const threeLodBackend: BackendFactory = (context) => {
           applyMeshDiagnostic(level.object as THREE.Mesh, mode, overlays);
     },
     async prepare() {},
-    // Ce moteur reparcourt la scène à chaque image : aucune révision n'a à l'apprendre.
+    // This engine rewalks the scene every frame: no revision has to teach it.
     ...sceneLightingApi(sceneLights, () => {}),
     render(camera) {
       context.source.updateMatrixWorld(true);
       sceneLights.update();
-      // Entrée d'image : la pose monde, ancêtres compris, avant toute lecture (`cameraWorld.ts`).
+      // Frame entry: the world pose, ancestors included, before any read (`cameraWorld.ts`).
       resolveCameraWorld(camera);
       selectedTriangles = 0;
       lodLevel = 0;

@@ -1,13 +1,13 @@
-//! Ce que chaque commande du sous-ensemble change dans le document.
+//! What each subset command changes in the document.
 //!
-//! Une commande ne lit rien du format en dehors de ce qui est écrit sur sa ligne : elle pose un
-//! nœud, verse une tranche d'attribut, note une liaison, fixe une unité, ou accroche une forme sous
-//! un second transform. Rien n'y est évalué, et ce qu'une commande demande sans qu'on sache le faire
-//! est compté par son nom au lieu d'être approché.
+//! A command reads nothing of the format outside what is written on its line: it places a node,
+//! pours an attribute slice, notes a connection, sets a unit, or hangs a shape under a second
+//! transform. Nothing is evaluated there, and what a command asks without knowing how to do it
+//! is counted by name instead of being approximated.
 use super::*;
 
 impl Document {
-    /// `createNode <type> -n <nom> -p <père>` : un nœud de plus, qui devient le nœud courant.
+    /// `createNode <type> -n <name> -p <parent>`: one more node, which becomes the current node.
     pub(super) fn create(&mut self, command: &Command) {
         let kind = command.operand(0).unwrap_or_default().to_string();
         let name = command
@@ -29,7 +29,7 @@ impl Document {
         self.current = Some(id);
     }
 
-    /// `setAttr` : une tranche d'un attribut d'un nœud. Sans nom de nœud, celui du moment.
+    /// `setAttr`: a slice of a node's attribute. Without a node name, the current one.
     pub(super) fn set(&mut self, command: &Command) {
         let Some(mut path) = command.operand(0).and_then(attr::path) else {
             self.report.add(report::ATTRIBUTE_INVALID);
@@ -60,7 +60,7 @@ impl Document {
         }
     }
 
-    /// Verse une tranche dans l'attribut d'un nœud, en le créant à sa première écriture.
+    /// Pours a slice into a node's attribute, creating it on first write.
     fn write(&mut self, target: usize, key: &str, at: usize, value: Attr) -> bool {
         let attrs = &mut self.nodes[target].attrs;
         let mut slot = attrs.remove(key).unwrap_or_else(|| value.empty_like());
@@ -69,7 +69,7 @@ impl Document {
         written
     }
 
-    /// `connectAttr "source.attribut" "cible.attribut"` : une liaison notée, résolue plus tard.
+    /// `connectAttr "source.attribute" "target.attribute"`: a noted connection, resolved later.
     pub(super) fn connect(&mut self, command: &Command) {
         let mut ends = (0..2)
             .filter_map(|rank| command.operand(rank))
@@ -85,7 +85,7 @@ impl Document {
         }
     }
 
-    /// `currentUnit -l <unité> -a <unité>` : l'unité de la scène, dont la racine portera le facteur.
+    /// `currentUnit -l <unit> -a <unit>`: the scene unit, whose root will carry the factor.
     pub(super) fn unit(&mut self, command: &Command) {
         if let Some(linear) = command.text(&["l", "linear"]).and_then(meters) {
             self.meters_per_unit = linear;
@@ -98,8 +98,8 @@ impl Document {
         }
     }
 
-    /// `parent -add` de formes maillées sous un autre transform : des instances. Toute autre forme
-    /// de la commande est comptée — rejouer un déplacement de branche changerait la scène.
+    /// `parent -add` of meshed shapes under another transform: instances. Any other form of the
+    /// command is counted — replaying a branch move would change the scene.
     pub(super) fn reparent(&mut self, command: &Command) {
         let written: Vec<String> = command
             .operands
@@ -127,16 +127,16 @@ impl Document {
         self.instances.extend(added);
     }
 
-    /// Le nœud que `select` désigne, quand ce fichier le porte. Les nœuds par défaut de Maya —
-    /// `:time1`, `:renderPartition` — ne sont pas créés par le fichier : ils ne sont pas trouvés,
-    /// et les `setAttr` qui les suivent sont comptés plutôt que versés sur un nœud au hasard.
+    /// Node that `select` names, when this file carries it. Maya's default nodes — `:time1`,
+    /// `:renderPartition` — are not created by the file: they are not found, and the `setAttr`
+    /// that follow them are counted rather than poured onto a node at random.
     pub(super) fn selected(&mut self, command: &Command) -> Option<usize> {
         let last = command.operands.last()?.text().to_string();
         self.find(&last)
     }
 }
 
-/// Le facteur d'une unité linéaire de Maya vers le mètre, nom court ou nom long.
+/// Factor of a Maya linear unit into metres, short name or long name.
 fn meters(unit: &str) -> Option<f64> {
     Some(match unit {
         "mm" | "millimeter" => 0.001,

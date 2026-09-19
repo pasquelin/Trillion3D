@@ -1,22 +1,23 @@
-// Le chemin d'AVANT le lot « transparents en quelques ordres », recopié tel quel : le classement
-// qui ne posait que des clés, les arguments indirects réécrits par item et par image, et la boucle
-// d'encodage qui posait un `drawIndirect` par entrée de plan en retestant le tronc entrée par
-// entrée. Les deux fichiers qui les portaient — `webgpuBlendArgs.ts` et `webgpuBlendSelect.ts` —
-// n'existent plus : ces copies sont tout ce qui reste d'eux, et c'est leur raison d'être.
+// The path from BEFORE the "transparents in a few orders" batch, copied as-is: ranking
+// that posed only keys, indirect arguments rewritten per item and per frame, and the
+// encode loop that posed one `drawIndirect` per plan entry while retesting the frustum
+// entry by entry. The two files that carried them — `webgpuBlendArgs.ts` and
+// `webgpuBlendSelect.ts` — no longer exist: these copies are all that remains of them,
+// and that is their reason to be.
 //
-// C'est l'oracle : ces copies sont des doublons voulus, et le banc compare leur sortie à celle du
-// chemin importé du paquet.
+// This is the oracle: these copies are wanted duplicates, and the bench compares their
+// output to that of the imported package path.
 import * as THREE from 'three';
 import { frustumExcludesBox, matrixWindingCw } from '../../../sdk-core/index.ts';
 
 const UNPAGED = 0xffffffff;
-/** Le plan d'avant : le rang de l'item, le pipeline dans les deux bits bas, et rien de plus. */
+/** The previous plan: the item rank, the pipeline in the two low bits, and nothing more. */
 const planItem = (entry) => entry >>> 2;
 const PIPELINE_NONE = 0,
   PIPELINE_FRONT = 1,
   PIPELINE_BACK = 2;
 
-/** `webgpuBlendPlan.ts` d'avant : les deux entrées d'un item double face, dos puis face. */
+/** `webgpuBlendPlan.ts` from before: the two entries of a double-sided item, back then front. */
 function sidesOf(item) {
   const material = Array.isArray(item.material) ? item.material[0] : item.material;
   const renverse = matrixWindingCw(item.matrix.elements);
@@ -28,7 +29,7 @@ function sidesOf(item) {
   return [PIPELINE_NONE];
 }
 
-/** Le plan de mélange d'avant, semé dans l'ordre source. */
+/** The previous blend plan, seeded in source order. */
 export function planReference(items) {
   const blend = [];
   for (let i = 0; i < items.length; i++)
@@ -36,7 +37,7 @@ export function planReference(items) {
   return Uint32Array.from(blend);
 }
 
-/** `webgpuBlendOrder.ts` d'avant : la clé d'un item, le carré de la distance de l'œil au centre. */
+/** `webgpuBlendOrder.ts` from before: an item's key, the square of the eye-to-centre distance. */
 function eyeKey(item, ex, ey, ez) {
   const box = item.bounds,
     m = item.matrix.elements;
@@ -48,7 +49,7 @@ function eyeKey(item, ex, ey, ez) {
 
 const precedes = (keyA, rankA, keyB, rankB) => keyA < keyB || (keyA === keyB && rankA > rankB);
 
-/** Le tri par insertion du plan, sur le tampon que l'image précédente a laissé. */
+/** Insertion sort of the plan, on the buffer the previous frame left. */
 function sortPlanFarToNear(order, items) {
   for (let i = 1; i < order.length; i++) {
     const entry = order[i],
@@ -72,7 +73,7 @@ function sortPlanFarToNear(order, items) {
   }
 }
 
-/** Le classement d'avant : des clés, un rang source, et rien d'autre. */
+/** The previous ranking: keys, a source rank, and nothing else. */
 export function classementReference(scene, order, eye) {
   const items = scene.items;
   for (let i = 0; i < items.length; i++) {
@@ -82,7 +83,7 @@ export function classementReference(scene, order, eye) {
   sortPlanFarToNear(order, items);
 }
 
-/** Les arguments indirects d'avant : quatre mots par item, réécrits en entier à chaque image. */
+/** Previous indirect arguments: four words per item, rewritten as integers every frame. */
 export function argumentsReference(scene, args) {
   const { items, planes, draws, itemCounts } = scene;
   for (let i = 0; i < items.length; i++) {
@@ -97,9 +98,9 @@ export function argumentsReference(scene, args) {
 }
 
 /**
- * La boucle d'encodage d'avant : un `drawIndirect` par entrée du plan, le tronc reteste en double
- * précision, et l'item entièrement hors champ n'est pas encodé. Rend les appels encodés, les items
- * rejetés, et la suite des plages d'indices que le rasteriseur aurait vues.
+ * The previous encode loop: one `drawIndirect` per plan entry, the frustum retests in double
+ * precision, and an item fully off-field is not encoded. Yields encoded calls, rejected
+ * items, and the sequence of index ranges the rasterizer would have seen.
  */
 export function encodeReference(scene, order, args, sortie) {
   const { items, planes, spans, instances } = scene;

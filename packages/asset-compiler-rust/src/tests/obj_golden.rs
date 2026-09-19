@@ -1,18 +1,19 @@
-//! Doré du pilote `obj`. Une fixture écrite à la main, et sa bibliothèque de matériaux.
+//! Golden of the `obj` driver. A hand-written fixture, and its material library.
 //!
-//! `minuscule/scene.obj` tient deux groupes — un quadrilatère et un pentagone —, deux matériaux, et
-//! un `.mtl` qui décrit tout ce qu'une bibliothèque sait déclarer et que glTF ne sait pas toujours
-//! porter : couleur ambiante, spéculaire, indice de réfraction, exposant, opacité et sa carte à
-//! part, émission, normale et relief distincts, et les options de map `-s`, `-o`, `-bm`, `-clamp`.
+//! `minuscule/scene.obj` holds two groups — a quad and a pentagon —, two
+//! materials, and a `.mtl` that describes everything a library can declare and
+//! that glTF cannot always carry: ambient colour, specular, IOR, exponent,
+//! opacity and its separate map, emission, distinct normal and bump, and map
+//! options `-s`, `-o`, `-bm`, `-clamp`.
 //! Elle fixe ce que le pilote produit, jusqu'aux octets du sidecar, et ce qu'il compte sans le
 //! rendre.
 use super::*;
 
-const CASE: &str = "Un OBJ et son MTL : deux groupes nuancés par deux matériaux, un quadrilatère et un pentagone, une couleur ambiante et sa carte, une couleur spéculaire, un exposant, un indice de réfraction, une opacité de 0,5 avec sa carte à part, une émission texturée, une normale et un relief qui visent deux fichiers différents, et les options de map -s, -o, -bm et -clamp.";
-const RULE: &str = "Le pilote rend ce que la bibliothèque déclare et compte le reste par son nom : la normale l'emporte sur le relief, l'opacité reste un mélange et jamais une découpe, -clamp devient le mode de bord de l'échantillonneur, et couleur ambiante, spéculaire, indice de réfraction, décalage, échelle et force de relief sont comptés faute de place dans le modèle métal-rugosité de glTF.";
+const CASE: &str = "An OBJ and its MTL: two groups shaded by two materials, a quad and a pentagon, an ambient colour and its map, a specular colour, an exponent, an IOR, 0.5 opacity with its separate map, textured emission, a normal and a bump that point at two different files, and map options -s, -o, -bm and -clamp.";
+const RULE: &str = "The driver yields what the library declares and counts the rest by name: the normal wins over the bump, opacity stays blend and never a cutout, -clamp becomes the sampler wrap mode, and ambient colour, specular, IOR, offset, scale and bump strength are counted for lack of a place in glTF's metal-roughness model.";
 
-// Comportement : la fixture passe par le compilateur, et sa scène intermédiaire comme sa sortie
-// compilée sont comparées à expected.json.
+// Behaviour: the fixture goes through the compiler, and its intermediate scene
+// as well as its compiled output are compared to expected.json.
 #[test]
 fn the_obj_fixture_compiles_to_its_golden_expected_json() {
     let dir = golden_dir("obj");
@@ -20,12 +21,12 @@ fn the_obj_fixture_compiles_to_its_golden_expected_json() {
     assert_eq!(
         digest(&run),
         golden_expected(&dir),
-        "fixture obj : la sortie compilée diverge de expected.json"
+        "fixture obj: compiled output diverges from expected.json"
     );
 }
 
 #[test]
-#[ignore = "écrit dans fixtures/ ; se relance à la main, et son diff se relit"]
+#[ignore = "writes into fixtures/; rerun by hand, and its diff is re-read"]
 fn regenere_la_fixture_obj() {
     let dir = golden_dir("obj");
     let run = compile_golden_source(&fixture(&dir), "obj-minuscule");
@@ -37,7 +38,7 @@ fn fixture(dir: &Path) -> PathBuf {
     dir.join("minuscule").join("scene.obj")
 }
 
-/// Le relevé par fichier, sans ses durées : une dorée fixe une scène, jamais une horloge.
+/// Per-file record, without its timings: a golden fixes a scene, never a clock.
 fn files_without_timings(files: &Value) -> Value {
     let mut listed = files.clone();
     for file in listed.as_array_mut().into_iter().flatten() {
@@ -50,8 +51,8 @@ fn files_without_timings(files: &Value) -> Value {
     listed
 }
 
-/// Ce que la dorée fixe : le pilote retenu, la scène intermédiaire qu'il a écrite — nœuds,
-/// maillages, matériaux, images, échantillonneurs, rapport — et la scène compilée qui en sort.
+/// What the golden fixes: the retained driver, the intermediate scene it wrote —
+/// nodes, meshes, materials, images, samplers, report — and the compiled scene that comes out.
 fn digest(run: &GoldenRun) -> Value {
     let (digest, manifest, gltf) = scene_digest(run, "obj");
     let mut out = digest;

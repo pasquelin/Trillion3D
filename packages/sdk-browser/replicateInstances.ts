@@ -8,9 +8,9 @@ import { resolveHostSubtree } from './hostWorldMatrices.ts';
 import { copyElements } from './matrixElements.ts';
 
 /**
- * Les trois tampons possédés de la réplication : la pose du groupe, la pose posée d'une copie et
- * leur produit. Le socle ne lit et n'écrit que des `Float64Array` (`mathMatrix4.ts`) ; les matrices
- * de la bibliothèque hôte sont des tableaux ordinaires, recopiés à l'entrée et à la sortie.
+ * Three owned buffers of replication: group pose, placed pose of copy,
+ * and their product. Core reads and writes only `Float64Array` (`mathMatrix4.ts`); host library
+ * matrices are plain arrays, copied on input and output.
  */
 const groupWorld = new Float64Array(16),
   placed = new Float64Array(16),
@@ -21,44 +21,43 @@ export function replicateInstances(
   source: THREE.Object3D,
   associations: Map<THREE.Object3D, { meshes?: number; primitives?: number }>,
   count: 1 | 4 | 9 | 12,
-  /** Bornes monde à plat `[minX, minY, minZ, maxX, maxY, maxZ]`, quand l'appelant les a déjà. */
+  /** Flat world bounds `[minX, minY, minZ, maxX, maxY, maxZ]`, when caller already has them. */
   preparedBounds?: ArrayLike<number>,
-  /** Le tampon des produits, quand l'appelant l'a réservé à la taille exacte des copies. */
+  /** Product buffer, when caller reserved it at exact size of copies. */
   lot?: MultiplyLot | null,
 ) {
   if (![1, 4, 9, 12].includes(count)) throw new Error('Replica count must be 1, 4, 9 or 12');
   resolveHostSubtree(source);
   if (count === 1) return source;
   const bounds = preparedBounds ?? hostWorldBounds(source),
-    // Une boîte vide n'a pas de taille : elle rend zéro sur chaque axe, comme la référence.
+    // Empty box has no size: yields zero on each axis, like reference.
     empty = boxIsEmpty(bounds, 0),
     sizeX = empty ? 0 : bounds[3] - bounds[0],
     sizeZ = empty ? 0 : bounds[5] - bounds[2];
   const [columns, rows] = count === 12 ? [4, 3] : [Math.sqrt(count), Math.sqrt(count)],
     group = new THREE.Group(),
     meshes = objects(source);
-  // Les produits partent EN LOT par le gouverneur quand le tampon porte exactement une copie par
-  // place. Sinon chaque produit se fait sur place, par le même `multiplyMatrix4` et sur les mêmes
-  // entrées : les mêmes bits.
+  // Products dispatched IN BATCHES by governor when buffer holds exactly one copy per slot.
+  // Otherwise each product runs in place, by same `multiplyMatrix4` on same inputs: same bits.
   const enLot = lot?.holds(rows * columns * meshes.length) ? lot : null;
   const copies: THREE.Mesh[] = [];
-  // La pose monde du groupe ne bouge pas d'une copie à l'autre : elle est recopiée une seule fois.
+  // Group world pose does not change between copies: copied once.
   copyElements(groupWorld, group.matrixWorld.elements);
   for (let z = 0; z < rows; z++)
     for (let x = 0; x < columns; x++)
       for (const mesh of meshes) {
         const copy = new THREE.Mesh(mesh.geometry, mesh.material);
-        // Cette copie appartient au moteur : l'hôte ne l'a jamais vue et ne peut pas l'écrire.
-        // Ce qui relit le graphe à la recherche d'une écriture de l'hôte la saute donc entière.
+        // This copy belongs to engine: host has never seen it and cannot write it.
+        // What traverses graph looking for host write skips it entirely.
         copy.userData[ENGINE_OWNED] = true;
         copy.matrixAutoUpdate = false;
         copyElements(placed, mesh.matrixWorld.elements);
         placed[12] += (x - (columns - 1) / 2) * sizeX;
         placed[14] += (z - (rows - 1) / 2) * sizeZ;
         copyElements(copy.matrix.elements, placed);
-        // Le groupe et ses copies appartiennent au moteur : la matrice monde d'une copie est le
-        // produit de celle du groupe par sa matrice posée, celui-là même que la référence calculait
-        // en remontant le groupe entier. Le socle l'écrit, terme à terme, sans seconde passe.
+        // Group and its copies belong to engine: world matrix of copy is product
+        // of group matrix by its placed matrix, same one reference calculated by traversing
+        // entire group. Core writes it term by term without second pass.
         if (enLot) {
           const at = copies.length * MATRIX_VALUES;
           enLot.a.set(groupWorld, at);

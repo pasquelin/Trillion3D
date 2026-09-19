@@ -1,9 +1,9 @@
 import { WRAP_MAP } from './visibilityWrapModes.ts';
 
 /**
- * Ce que chaque carte de `WRAP_MAP` donne à sa lecture : son slot dans la fiche de page. Un rang
- * ajouté à `WRAP_MAP` sans son entrée ici ne compile pas ; sans cette table, une septième carte se
- * serait lue en serrage sans que rien ne le signale.
+ * What each `WRAP_MAP` map gives its read: its slot in the page record. A rank added to
+ * `WRAP_MAP` without its entry here does not compile; without this table, a seventh map would
+ * be read in clamp without anything signalling it.
  */
 const CARTE = {
   base: 'mapIndex',
@@ -14,23 +14,23 @@ const CARTE = {
   emissive: 'emissiveIndex',
 } as const satisfies Record<keyof typeof WRAP_MAP, string>;
 
-/** Le quartet d'adressage d'une carte, tel que la fiche le porte. */
+/** Addressing nibble of a map, as the record carries it. */
 export const quartet = (nom: keyof typeof WRAP_MAP) => `wrapOf(page.wrapModes,${WRAP_MAP[nom]}u)`;
 
-/** La lecture d'atlas d'une carte : son slot, SON quartet, les dérivées du pixel. */
+/** Atlas read of a map: its slot, ITS nibble, the pixel's derivatives. */
 export const lecture = (fn: string, nom: keyof typeof WRAP_MAP) =>
   `${fn}(page.${CARTE[nom]},uv,${quartet(nom)},ddx,ddy)`;
 
-/** Le corps n'est exécuté que si la carte existe : le slot 0 est l'absence de texture. */
+/** The body runs only if the map exists: slot 0 is the absence of a texture. */
 export const siCarte = (nom: keyof typeof WRAP_MAP, corps: string) =>
   `if(page.${CARTE[nom]}!=0u){${corps}}`;
 
 /**
- * La lecture d'une carte de données qui peut être la MÊME texture qu'une carte déjà lue — un glTF
- * range rugosité, métal et occlusion dans une seule image —, au même adressage : la valeur déjà lue
- * est reprise telle quelle, bit pour bit, au lieu de refaire la chaîne d'indirection du pool. Le
- * résultat est le même que trois lectures ; seul le coût change (2,8 → 6,5 ms de passe matériaux à
- * 2496×1404 sur Emerald quand chaque carte relisait sa table).
+ * Read of a data map that may be the SAME texture as a map already read — a glTF stores
+ * roughness, metal and occlusion in one image — at the same addressing: the already-read value
+ * is reused as-is, bit for bit, instead of redoing the pool indirection chain. The result is
+ * the same as three reads; only the cost changes (2.8 → 6.5 ms of materials pass at
+ * 2496×1404 on Emerald when each map reread its table).
  */
 export const lectureDonnee = (
   variable: string,

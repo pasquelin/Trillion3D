@@ -1,13 +1,13 @@
 /**
- * Une boîte alignée sur les axes contre les six plans d'un tronc (voir `mathFrustum.ts`).
+ * An axis-aligned box against the six planes of a frustum (see `mathFrustum.ts`).
  *
- * Pour chaque plan, le signe de sa normale choisit le coin le plus avancé de la boîte, et le plan
- * rejette quand ce coin est derrière lui : `a·x + b·y + c·z + d < 0`. C'est le test de boîte du
- * tronc de Three.js, mêmes produits et même somme ; une comparaison avec NaN ne rejette jamais.
- * Le résultat ne dépend pas de l'ordre des plans, seulement le plan qui conclut.
+ * For each plane, the sign of its normal chooses the most forward corner of the box, and the plane
+ * rejects when that corner is behind it: `a*x + b*y + c*z + d < 0`. This is the box test of
+ * the Three.js frustum, same products and same sum; a comparison with NaN never rejects.
+ * The result does not depend on the order of planes, only which plane concludes.
  */
 
-/** Les six coordonnées de la boîte, rangées pour que le signe du plan serve d'indice. */
+/** The six box coordinates, arranged so that the plane sign serves as an index. */
 const bounds = new Float64Array(6);
 
 function loadBounds(
@@ -26,7 +26,7 @@ function loadBounds(
   bounds[5] = maxZ;
 }
 
-/** Un plan a déjà son coin le plus avancé derrière lui. */
+/** True when a plane already has its most forward corner behind it. */
 function excludesLoaded(planes: Float64Array) {
   for (let p = 0; p < 24; p += 4) {
     const a = planes[p],
@@ -39,7 +39,7 @@ function excludesLoaded(planes: Float64Array) {
   return false;
 }
 
-/** Vraie quand la boîte est entièrement hors du tronc : un plan laisse tous ses coins derrière. */
+/** True when the box is entirely outside the frustum: a plane leaves all its corners behind. */
 export function frustumExcludesBox(
   planes: Float64Array,
   minX: number,
@@ -54,11 +54,11 @@ export function frustumExcludesBox(
 }
 
 /**
- * La boîte contre le tronc en trois états : 0 dehors, 1 à cheval, 2 entièrement dedans. Un
- * sous-arbre entièrement dedans épargne un test à chaque boîte sous lui.
+ * The box against the frustum in three states: 0 outside, 1 straddling, 2 entirely inside. A
+ * subtree entirely inside saves a test at every box underneath it.
  *
- * Deux passes : la première ne fait que rejeter ; la seconde, sur le coin le plus reculé, ne sert
- * qu'à distinguer « à cheval » de « dedans » et s'arrête au premier plan traversé.
+ * Two passes: the first only rejects; the second, on the most trailing corner, only serves
+ * to distinguish "straddling" from "inside" and stops at the first plane crossed.
  */
 export function frustumClipBox(
   planes: Float64Array,

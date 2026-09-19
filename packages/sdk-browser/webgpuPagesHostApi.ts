@@ -5,20 +5,20 @@ import { renderWebgpuPages } from './webgpuPagesRender.ts';
 import { defaultEngineCamera } from './cameraWorld.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Ce que l'image attend quand le budget lui a retiré sa coupe : rien, et toujours le même rien. */
+/** What the image waits for when the budget has taken its cut: nothing, and always the same nothing. */
 const EMPTY_CUT: readonly PageRec[] = [];
 
 /**
- * Le magasin de lampes du contrat a changé. Rien n'est recalculé ici : l'image suivante relit le
- * magasin, repousse le tampon si sa révision a bougé, et l'ordonnanceur d'ombres reprend la main.
- * La capture en cache est invalidée pour que l'hôte ne relise pas l'image d'avant la lampe.
+ * The contract's light store has changed. Nothing is recomputed here: the next image rereads the
+ * store, pushes the buffer again if its revision moved, and the shadow scheduler takes over. The
+ * cached capture is invalidated so the host does not reread the image from before the light.
  */
 export function refreshSceneLights(rt: WebgpuPagesRuntime) {
   const { lights } = rt;
   rt.capture.capturedRevision = -1;
-  // Origine du changement de scène : une lampe déclarée a été ajoutée, réglée ou retirée.
+  // Origin of the scene change: a declared light was added, set or removed.
   rt.run.gate.sceneChanged();
-  rt.diag.engineDiagnostic('direct-lighting-changed', 'Lampes du contrat actualisées', {
+  rt.diag.engineDiagnostic('direct-lighting-changed', 'Contract lights updated', {
     version: 1,
     lights: lights.store.count,
     view: lights.store.lightingView,
@@ -41,7 +41,7 @@ export function syncResident(rt: WebgpuPagesRuntime) {
   }
   // A complete cut is reselected for the latest camera; CPU arrival alone
   // never authorizes replacing any region's GPU fallback.
-  // Origine du changement de ressources : la résidence vient de bouger sous l'image tenue.
+  // Origin of the resource change: residency just moved under the held image.
   run.gate.resourcesChanged();
   renderWebgpuPages(rt, run.lastCamera);
 }
@@ -60,7 +60,7 @@ export function captureImage(rt: WebgpuPagesRuntime) {
   gpuDevice.queue.submit([encoder.finish()]);
   if (!gpu.synchronousCapture) {
     gpu.synchronousCapture = createSynchronousCanvasCapture();
-    diag.engineDiagnostic('capture-synchronous', 'Lecture synchrone demandée par l’hôte', {
+    diag.engineDiagnostic('capture-synchronous', 'Synchronous read requested by the host', {
       outsideBeauty: true,
       prefer: 'await flush(); capture()',
     });
@@ -77,8 +77,8 @@ function drawnOpaquePages(rt: WebgpuPagesRuntime) {
     .map((rec) => ({ ...rec, array: rec.array! }));
 }
 
-/** La caméra que les oracles lisent : celle de la dernière image, ou celle d'une caméra hôte neuve
- *  tant qu'aucune image n'a été rendue. */
+/** Camera the oracles read: the last image's, or a fresh host camera's while no image has been
+ *  rendered. */
 function engineCameraOf(rt: WebgpuPagesRuntime) {
   return rt.run.lastCamera ? rt.run.gate.cam : defaultEngineCamera();
 }
@@ -102,10 +102,10 @@ export function rasterRgba(rt: WebgpuPagesRuntime) {
 }
 
 /**
- * Les adresses que l'image attend encore. Elles sont fonction de la coupe demandée, du drapeau de
- * budget, de la couverture d'amorçage et des octets que les pages tiennent — et de rien d'autre.
- * Une image qui a relu le relevé qu'elle tenait déjà, sans qu'aucune page ne reçoive ni ne perde
- * ses octets, redonne donc exactement la liste déjà rendue.
+ * Addresses the image still waits for. They are a function of the requested cut, the budget flag,
+ * bootstrap coverage and the bytes the pages hold — and of nothing else. An image that reread the
+ * sample it already held, with no page receiving or losing its bytes, therefore returns exactly the
+ * list already yielded.
  */
 export function pendingUrls(rt: WebgpuPagesRuntime) {
   const { run } = rt,
@@ -123,9 +123,9 @@ export function pendingUrls(rt: WebgpuPagesRuntime) {
   held.epoch = run.pageArrayEpoch;
   held.limited = run.coverageBudgetLimited;
   held.ready = ready;
-  // Tant que la couverture épinglée n'est pas là, c'est elle qu'on attend. Ensuite, la coupe tient
-  // elle-même la liste de ses fiches sans octets : ce sont les seules à parcourir, et une coupe
-  // entièrement arrivée — le cas ordinaire — n'en fait parcourir aucune.
+  // Until pinned coverage is there, that is what we wait for. Then the cut itself holds the list of
+  // its rows without bytes: those are the only ones to walk, and a fully arrived cut — the ordinary
+  // case — walks none.
   const waiting = !ready
     ? rt.setup.bootstrap
     : run.coverageBudgetLimited
@@ -135,12 +135,12 @@ export function pendingUrls(rt: WebgpuPagesRuntime) {
 }
 
 /**
- * Les adresses que l'hôte épingle après le rendu : la couverture d'amorçage, ce que l'image
- * dessine et ce que la coupe demande. Le rang de la clé de requête est posé une fois pour toutes
- * par le catalogue : deux pages qui partagent une requête partagent leur rang, et le dédoublonnage
- * les sépare par une estampille au lieu de hacher cent mille chaînes par image. Mêmes adresses,
- * même ordre, même longueur qu'un ensemble de chaînes. Et une image qui a relu le relevé déjà tenu
- * lit trois listes inchangées : elle redonne celle qu'elle a rendue plutôt que de la refaire.
+ * Addresses the host pins after the render: bootstrap coverage, what the image draws and what the
+ * cut asks. The request-key rank is posted once and for all by the catalogue: two pages that share
+ * a request share their rank, and dedup splits them by a stamp instead of hashing a hundred thousand
+ * strings per image. Same addresses, same order, same length as a string set. And an image that
+ * reread the sample already held reads three unchanged lists: it returns the one it yielded rather
+ * than remaking it.
  */
 export function pageUrls(rt: WebgpuPagesRuntime) {
   const { run } = rt,
@@ -166,10 +166,10 @@ export function pageUrls(rt: WebgpuPagesRuntime) {
 }
 
 /**
- * Les mêmes épingles que `pageUrls`, dites comme une différence de rangs : ce qui est entré et ce qui
- * est sorti depuis l'image précédente. Ni chaîne, ni ensemble de clés, ni allocation — trois listes
- * parcourues en entiers, et le cache ne touche ensuite que ce qui a bougé. Une image qui a relu le
- * relevé déjà tenu ne parcourt même plus ces listes : elle redonne la différence vide.
+ * The same pins as `pageUrls`, stated as a rank delta: what entered and what left since the previous
+ * image. No string, no key set, no allocation — three lists walked as integers, and the cache then
+ * touches only what moved. An image that reread the sample already held does not even walk these
+ * lists: it returns the empty delta.
  */
 export function retainedRanks(rt: WebgpuPagesRuntime) {
   const { run } = rt,

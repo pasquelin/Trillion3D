@@ -1,7 +1,7 @@
-// Fixtures partagées des tests de `setWebgpuTransform` sur matrices à cisaillement : une scène Three
-// minimale, un `WebgpuPagesRuntime` réduit à ce que `setWebgpuTransform` lit et écrit, une racine de
-// sélection, et deux petits utilitaires de comparaison. Extrait de `webgpuTransformCisaillement.test.ts`
-// pour que `webgpuTransformFiniteTransform.test.ts` les réemploie sans les recopier.
+// Shared fixtures of `setWebgpuTransform` tests on shear matrices: a minimal Three scene, a
+// `WebgpuPagesRuntime` reduced to what `setWebgpuTransform` reads and writes, a selection root, and
+// two small comparison helpers. Extracted from `webgpuTransformCisaillement.test.ts` so
+// `webgpuTransformFiniteTransform.test.ts` reuses them without copying.
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { BOX_VALUES, boxTransform } from '../sdk-core/index.ts';
@@ -10,7 +10,7 @@ import { hostWorldPlacements, type HostWorldPlacements } from './hostWorldPlacem
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import type { ClusterRoot, PageRec } from './pageSelectionTypes.ts';
 
-/** Deux axes non orthogonaux : `y` pousse `x`. Aucune décomposition TRS ne rend cette matrice. */
+/** Two non-orthogonal axes: `y` pushes `x`. No TRS decomposition yields this matrix. */
 export function cisaillee(facteur = 3, tx = 0) {
   return new THREE.Matrix4().set(1, facteur, 0, tx, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
 }
@@ -30,7 +30,7 @@ export function proche(
     );
 }
 
-/** La scène de l'hôte ET l'index de matrices monde du moteur, celui que le déplacement recalcule. */
+/** Host scene AND the engine's world-matrix index, the one a move recomputes. */
 export function scene(nom = 'cible') {
   const source = new THREE.Object3D(),
     mesh = new THREE.Mesh();
@@ -39,8 +39,8 @@ export function scene(nom = 'cible') {
   return { source, mesh, worlds: hostWorldPlacements(source) };
 }
 
-/** Une racine de sélection minimale : ce que la transformation reprojette et ce qu'elle envoie. La
- *  matrice qu'elle porte est celle du moteur, comme toute racine collectée. */
+/** A minimal selection root: what the transform reprojects and what it sends. The matrix it carries
+ *  is the engine's, like every collected root. */
 export function racine(mesh: THREE.Object3D, local: number[], worlds: HostWorldPlacements) {
   const localBox = Float64Array.from(local),
     worldBox = new Float64Array(BOX_VALUES),
@@ -61,8 +61,8 @@ export function runtime(
 ) {
   const mouvements: Array<{ min: number[]; max: number[] }> = [],
     layout = { selectionRoots: roots, rows: { tableEpoch: 0 } },
-    // L'état d'image du moteur, tel que le runtime le porte : `setWebgpuTransform` y incrémente la
-    // révision de scène et y aligne `worldsRevision`. Un état partiel masquerait ce contrat.
+    // Engine image state, as the runtime carries it: `setWebgpuTransform` increments the scene revision
+    // there and aligns `worldsRevision`. A partial state would hide that contract.
     run = createWebgpuRunState();
   run.noOccluderHistory = false;
   run.temporalHizState = { pyramid: {}, camera: {} } as typeof run.temporalHizState;

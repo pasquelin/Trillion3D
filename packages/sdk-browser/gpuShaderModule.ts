@@ -1,9 +1,8 @@
 import { dropValidation } from './gpuErrorScope.ts';
 
 /**
- * Les erreurs de compilation d'un module de nuanceur. Un appareil qui ne sait pas rendre ces
- * messages ne prouve aucune erreur : la liste est alors vide, et l'appelant garde la voie qu'il
- * aurait gardée.
+ * Compilation errors of a shader module. A device that cannot report these messages proves no
+ * error: the list is then empty, and the caller keeps the path it would have kept.
  */
 export async function shaderErrors(module: GPUShaderModule) {
   const info = await module.getCompilationInfo?.();
@@ -11,8 +10,8 @@ export async function shaderErrors(module: GPUShaderModule) {
 }
 
 /**
- * Un module dont la compilation est vérifiée avant le premier pipeline : une erreur porte toujours le
- * nom du nuanceur qui l'a produite plutôt qu'une pile anonyme.
+ * A module whose compilation is checked before the first pipeline: an error always carries the
+ * name of the shader that produced it rather than an anonymous stack.
  */
 export async function createCheckedShaderModule(device: GPUDevice, code: string, label: string) {
   const module = device.createShaderModule({ label, code });
@@ -23,9 +22,9 @@ export async function createCheckedShaderModule(device: GPUDevice, code: string,
 }
 
 /**
- * Vrai quand le module n'a pas compilé. Le scope de validation ouvert autour de la compilation est
- * alors refermé ici : les trois voies qui rendent une solution de repli le fermaient chacune de la
- * même façon avant de sortir. À l'appelant de ne garder que son propre nettoyage.
+ * True when the module failed to compile. The validation scope opened around compilation is then
+ * closed here: the three paths that return a fallback each closed it the same way before
+ * leaving. The caller keeps only its own cleanup.
  */
 export async function shaderFailed(device: GPUDevice, module: GPUShaderModule) {
   if (!(await shaderErrors(module)).length) return false;

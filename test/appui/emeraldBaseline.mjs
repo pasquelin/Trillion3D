@@ -1,5 +1,5 @@
-// Le côté « avant » d'une comparaison A/B de la preuve Emerald : deux sources d'un dist de
-// référence, transpilées à la volée et servies à la page à la place de celles du dist courant.
+// The "avant" side of an Emerald-proof A/B comparison: two sources from a reference dist,
+// transpiled on the fly and served to the page in place of the current dist's.
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';

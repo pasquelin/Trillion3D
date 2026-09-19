@@ -1,19 +1,19 @@
 import type { ClusterCut } from './pageSelectionMath.ts';
 
 /**
- * Bornes par nœud de la hiérarchie de culling, dérivées une fois des clusters qu'elle range.
+ * Per-node bounds of the culling hierarchy, derived once from the clusters it packs.
  *
- * Le manifeste porte déjà, par nœud, la boîte, une sphère englobante et l'erreur de remplacement
- * maximale du sous-arbre : de quoi rejeter un sous-arbre dont aucun cluster n'a de remplaçant
- * encore trop grossier, et rien de plus. Décider un sous-arbre autrement demande trois bornes que
- * le manifeste ne porte pas : le plancher et le plafond de l'erreur propre, le plancher de l'erreur
- * du remplaçant, chacun avec la sphère qui englobe celles qu'il résume. Toutes se lisent dans les
- * pages : la réduction est faite ici, à la préparation, une fois par primitive, sans toucher au
- * format du manifeste.
+ * The manifest already carries, per node, the box, a bounding sphere and the subtree's maximum
+ * replacement error: enough to reject a subtree whose no cluster still has a stand-in that is too
+ * coarse, and nothing more. Deciding a subtree any other way needs three bounds the manifest does
+ * not carry: the floor and ceiling of own error, the floor of the stand-in's error, each with the
+ * sphere that bounds those it summarises. All are read from the pages: the reduction is done here,
+ * at prepare time, once per primitive, without touching the manifest format.
  *
- * Monotonie, l'invariant du lot : les bornes d'un nœud encadrent celles de tous ses descendants.
- * Un plafond sous le seuil vaut donc pour chaque cluster du sous-arbre, un plancher au-dessus du
- * seuil aussi, et la décision prise au nœud est mot pour mot celle qu'aurait rendue la descente.
+ * Monotonicity, the lot's invariant: a node's bounds enclose those of all its descendants. A
+ * ceiling under the threshold therefore holds for every cluster of the subtree, a floor above the
+ * threshold too, and the decision taken at the node is word for word the one the descent would
+ * have returned.
  */
 export const BOUND_STRIDE = 13;
 export const OWN_FLOOR = 0,
@@ -21,21 +21,21 @@ export const OWN_FLOOR = 0,
   PARENT_FLOOR = 2,
   OWN_SPHERE = 3,
   PARENT_SPHERE = 7,
-  /** 1 quand chaque cluster du sous-arbre a un groupe producteur. Le repli par forçage dessine
-   *  sans condition une grappe que rien n'a produite : un sous-arbre qui en contient une ne peut
-   *  pas être rejeté sur la seule erreur propre. */
+  /** 1 when every cluster of the subtree has a producer group. The forcing fallback draws
+   *  unconditionally a cluster that nothing produced: a subtree that contains one cannot be
+   *  rejected on own error alone. */
   ALL_SOURCED = 11,
-  /** 1 quand le sous-arbre porte une grappe que RIEN ne remplace — le couvert le plus grossier,
-   *  celui que le repli épinglé dessine. Un tel sous-arbre ne se rejette pas sur l'erreur propre :
-   *  le repli ne consulte aucun seuil, et la descente de la carte doit le lui laisser atteignable
-   *  (`gpuDagLevelWgsl.ts`). La coupe processeur, elle, n'en a pas l'usage : son repli relit les
-   *  pages sans passer par la descente (`pageSelectionCutRepair.ts`). */
+  /** 1 when the subtree carries a cluster that NOTHING replaces — the coarsest cover, the one
+   *  the pinned fallback draws. Such a subtree is not rejected on own error: the fallback consults
+   *  no threshold, and the GPU descent must leave it reachable (`gpuDagLevelWgsl.ts`). The CPU
+   *  cut has no use for it: its fallback re-reads the pages without going through the descent
+   *  (`pageSelectionCutRepair.ts`). */
   HAS_ROOT = 12;
 
-/** Étend la sphère englobante rangée en `at` pour couvrir celle lue en `from`.
- *  Rayon négatif : accumulateur encore vide. */
-/** Miroir TypeScript de la fusion incrémentale de sphères de `dag/bounds.rs` (compilateur Rust) :
- *  même récurrence, deux langages, rien à partager entre les deux dépôts de code. */
+/** Grows the bounding sphere stored at `at` to cover the one read at `from`.
+ *  Negative radius: accumulator still empty. */
+/** TypeScript mirror of the incremental sphere merge in `dag/bounds.rs` (Rust compiler): the
+ *  same recurrence, two languages, nothing to share between the two code stores. */
 function growSphere(into: Float64Array, at: number, sphere: ArrayLike<number>, from: number) {
   const radius = sphere[from + 3];
   if (!(radius >= 0)) return;
@@ -70,24 +70,24 @@ function growSphere(into: Float64Array, at: number, sphere: ArrayLike<number>, f
   into[at + 3] = next;
 }
 
-/** Réduit un cluster dans les bornes de son nœud feuille. */
+/** Folds a cluster into the bounds of its leaf node. */
 function foldPage(values: Float64Array, at: number, rec: ClusterCut) {
   const own = rec.lodError,
     sphere = rec.sphere;
   if (own === undefined || own === null) {
-    // Cluster sans bande d'erreur : le nœud ne certifie plus rien, ni acceptation ni rejet.
+    // Cluster with no error band: the node no longer certifies anything, neither accept nor reject.
     values[at + OWN_FLOOR] = 0;
     values[at + OWN_CEIL] = Infinity;
   } else {
     if (own < values[at + OWN_FLOOR]) values[at + OWN_FLOOR] = own;
-    // Une erreur finie sans sphère se projette à l'infini : le plafond doit le dire.
+    // A finite error without a sphere projects to infinity: the ceiling must say so.
     if (own > 0 && !sphere) values[at + OWN_CEIL] = Infinity;
     else if (own > values[at + OWN_CEIL]) values[at + OWN_CEIL] = own;
   }
   if (sphere) growSphere(values, at + OWN_SPHERE, sphere, 0);
   const producer = rec.source;
   if (producer === undefined || producer === null || producer < 0) values[at + ALL_SOURCED] = 0;
-  // Un cluster que rien ne remplace se projette à l'infini : il ne baisse aucun plancher.
+  // A cluster that nothing replaces projects to infinity: it lowers no floor.
   const parent = rec.parentError;
   if (parent === undefined || parent === null || !Number.isFinite(parent)) {
     values[at + HAS_ROOT] = 1;
@@ -98,7 +98,7 @@ function foldPage(values: Float64Array, at: number, rec: ClusterCut) {
   if (band) growSphere(values, at + PARENT_SPHERE, band, 0);
 }
 
-/** Réduit un nœud enfant dans les bornes de son parent. */
+/** Folds a child node into its parent's bounds. */
 function foldChild(values: Float64Array, at: number, from: number) {
   if (values[from + OWN_FLOOR] < values[at + OWN_FLOOR])
     values[at + OWN_FLOOR] = values[from + OWN_FLOOR];
@@ -113,9 +113,9 @@ function foldChild(values: Float64Array, at: number, from: number) {
 }
 
 /**
- * Bornes de chaque nœud, `BOUND_STRIDE` nombres par nœud, calculées une fois par primitive. Les
- * enfants d'un nœud sont toujours rangés après lui dans le tableau plat : un seul balayage
- * descendant suffit à remonter les bornes.
+ * Bounds of each node, `BOUND_STRIDE` numbers per node, computed once per primitive. A node's
+ * children are always packed after it in the flat array: a single downward sweep is enough to
+ * roll the bounds up.
  */
 export function cullingBounds(
   { nodes, stride }: { nodes: Float64Array; stride: number },

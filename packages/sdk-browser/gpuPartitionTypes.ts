@@ -1,8 +1,8 @@
 import type { PartitionFrame } from './gpuPartitionUniform.ts';
 import type { PartitionCountsFrame } from './gpuPartitionCounters.ts';
 
-/** Les tampons que la partition écrit mais ne possède pas : ceux de la compaction de dessin, et le
- *  tampon de verdicts du test Hi-Z, qu'elle relit pour alimenter l'historique d'occulteurs. */
+/** Buffers the partition writes but does not own: those of the draw compact, and the Hi-Z
+ *  test's verdict buffer, which it rereads to feed the occluder history. */
 export type PartitionSources = {
   items: GPUBuffer;
   flags: GPUBuffer;
@@ -10,7 +10,7 @@ export type PartitionSources = {
   slotUsed: GPUBuffer;
 };
 
-/** Ce que la dernière image a envoyé au noyau, recopié : l'entrée exacte de sa projection. */
+/** What the last frame sent the kernel, copied: the exact input of its projection. */
 export type KeptFrame = {
   rows: number;
   width: number;
@@ -21,32 +21,32 @@ export type KeptFrame = {
 };
 
 export type GpuPartition = {
-  /** L'entrée de la dernière image encodée, ou `undefined` avant la première. */
+  /** Input of the last encoded frame, or `undefined` before the first. */
   readonly lastFrame: KeptFrame | undefined;
-  /** Relit les mots que le noyau a écrits pour `rows` lignes ; `undefined` si l'appareil ne mappe
-   *  pas. Ce n'est pas une passe de l'image : elle alloue, copie, puis rend son tampon. */
+  /** Reads back the words the kernel wrote for `rows` rows; `undefined` if the device does not
+   *  map. This is not a frame pass: it allocates, copies, then returns its buffer. */
   readRowData(rows: number): Promise<Uint32Array | undefined>;
-  /** Les coins monde par ligne, écrits par l'appelant sur la plage sale de la table. */
+  /** World corners per row, written by the caller on the table's dirty range. */
   corners: GPUBuffer;
-  /** Les bornes de la moitié testée, déjà empaquetées pour le noyau d'occultation. */
+  /** Bounds of the tested half, already packed for the occlusion kernel. */
   tested: GPUBuffer;
-  /** Les compteurs de l'image et sa décision de partage ; le noyau d'occultation y lit son compte. */
+  /** Frame counters and its split decision; the occlusion kernel reads its count there. */
   state: GPUBuffer;
-  /** Le rectangle d'écran et la borne de profondeur de chaque ligne, tels que le noyau les a écrits. */
+  /** Screen rectangle and depth bound of each row, as the kernel wrote them. */
   rowData: GPUBuffer;
-  /** L'entrée de l'image, telle que `encode` l'a écrite : matrices ancrées, plan proche, taille de
-   *  cible et table des mips. Le test d'occultation des transparents lit ce MÊME tampon, pour que
-   *  les deux projections de l'image partagent l'arithmétique et non seulement la règle. */
+  /** Frame input as `encode` wrote it: anchored matrices, near plane, target size and mip
+   *  table. The transparent occlusion test reads this SAME buffer, so both projections of the
+   *  frame share the arithmetic and not only the rule. */
   uniforms: GPUBuffer;
   uploadCorners(packed: Float32Array, from: number, to: number): void;
   encode(encoder: GPUCommandEncoder, frame: PartitionFrame): void;
-  /** Vrai quand l'intervalle du relevé périodique est écoulé et qu'aucun n'est en route. */
+  /** True when the periodic-sample interval has elapsed and none is in flight. */
   countsDue(frame: number): boolean;
-  /** Encode la copie des compteurs que cette image vient d'écrire. */
+  /** Encodes the copy of the counters this frame just wrote. */
   encodeCounts(encoder: GPUCommandEncoder, frame: number): void;
-  /** Demande le mappage de la copie encodée, une fois l'image soumise. */
+  /** Requests mapping of the encoded copy, once the frame is submitted. */
   countsSubmitted(): void;
-  /** Ce que la dernière image relevée a décidé et compté, ou `undefined` avant le premier relevé. */
+  /** What the last sampled frame decided and counted, or `undefined` before the first sample. */
   counts(): PartitionCountsFrame | undefined;
   dispose(): void;
 };

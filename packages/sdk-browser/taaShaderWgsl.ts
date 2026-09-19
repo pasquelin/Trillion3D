@@ -1,11 +1,11 @@
 import { FULLSCREEN_VERTEX } from './deferredLightingShaders.ts';
 import { PAGE_INFO_STRUCT_WGSL } from './visibilityPageWgsl.ts';
 
-/** Étiquette de la passe ; sa durée par horodatage absorbe celle des passes qui la précèdent sur
- *  certains appareils (apple metal-3), et ne se lit sûrement que par différence d'enveloppe. */
+/** Pass label; its timestamp duration absorbs that of the passes that precede it on
+ *  some devices (apple metal-3), and is only read safely by envelope difference. */
 export const TAA_PASS = 'WG temporal antialiasing';
 
-/** Liaisons de la passe, dans l'ordre des entrées de sa disposition. */
+/** Pass bindings, in the order of its layout entries. */
 export const TAA_BINDINGS = {
   current: 0,
   history: 1,
@@ -17,17 +17,17 @@ export const TAA_BINDINGS = {
   view: 7,
 } as const;
 
-/** Octets de l'uniforme : deux matrices, trois quadruplets, puis les neuf poids en trois. */
+/** Uniform bytes: two matrices, three quadruplets, then the nine weights in three. */
 export const TAA_VIEW_BYTES = 208;
 
 /**
- * L'uniforme de la passe. `prevViewProj` et `invViewProj` sont RAPPORTÉES À L'ŒIL de cette image et
- * toutes deux SANS gigue : l'inverse rend, pour le centre non décalé du pixel et la profondeur lue à
- * l'échantillon, une position relative à l'œil ; la précédente la reprend telle quelle — c'est le
- * même ancrage que la partition, pour que les coordonnées monde à cinq chiffres d'un modèle urbain
- * ne mangent pas la précision simple de la reprojection. `viewport` = (largeur, hauteur, 1/largeur,
- * 1/hauteur) ; `params` = (part de l'image courante, historique valable, un placement a bougé, 0) ;
- * `weights` = les neuf poids du filtre de l'image courante, voisin par voisin (`taaWeights.ts`).
+ * Pass uniform. `prevViewProj` and `invViewProj` are REPORTED TO THIS FRAME'S EYE and
+ * both WITHOUT jitter: the inverse yields, for the unshifted pixel centre and the depth read at
+ * the sample, a position relative to the eye; the previous one takes it as-is — the same
+ * anchoring as the partition, so five-digit world coordinates of an urban model do not eat
+ * the single-precision of the reprojection. `viewport` = (width, height, 1/width,
+ * 1/height); `params` = (current-frame share, history valid, a placement moved, 0);
+ * `weights` = the nine weights of the current-frame filter, neighbour by neighbour (`taaWeights.ts`).
  */
 const VIEW_WGSL = `struct TaaView{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,weights:array<vec4f,3>,}`;
 
@@ -41,18 +41,18 @@ const BINDINGS_WGSL = `
 @group(0) @binding(${TAA_BINDINGS.motion}) var<storage,read> motion:array<mat4x4f>;
 @group(0) @binding(${TAA_BINDINGS.view}) var<uniform> view:TaaView;`;
 
-/** YCoCg, l'espace où la boîte des voisins se serre le mieux autour de la couleur. */
+/** YCoCg, the space where the neighbour box tightens best around the colour. */
 export const YCOCG_WGSL = `
 fn toYcocg(c:vec3f)->vec3f{return vec3f(0.25*c.r+0.5*c.g+0.25*c.b,0.5*c.r-0.5*c.b,-0.25*c.r+0.5*c.g-0.25*c.b);}
 fn fromYcocg(c:vec3f)->vec3f{return vec3f(c.x+c.y-c.z,c.x+c.z,c.x-c.y-c.z);}`;
 
 /**
- * Où ce pixel était à l'image précédente, en coordonnées de texture de l'historique, et si cette
- * position est lisible. Le pixel est reconstruit en homogène depuis sa profondeur — le fond, à
- * profondeur zéro (inversée, plan lointain infini), est une direction et se reprojette aussi, ce
- * qui tient la silhouette stable quand la caméra tourne. Quand un placement a bougé, un pixel de
- * géométrie passe d'abord par la matrice de mouvement du sien — `précédent·courant⁻¹`, l'identité
- * pour ceux qui n'ont pas bougé ; sinon rien n'est lu, ni identifiant, ni fiche, ni matrice.
+ * Where this pixel was on the previous frame, in history texture coordinates, and whether that
+ * position is readable. The pixel is rebuilt in homogeneous from its depth — the background, at
+ * zero depth (reversed, infinite far plane), is a direction and reprojects too, which
+ * keeps the silhouette stable when the camera turns. When a placement has moved, a geometry
+ * pixel first goes through its own motion matrix — `previous·current⁻¹`, identity
+ * for those that have not moved; otherwise nothing is read, neither identifier, nor record, nor matrix.
  */
 export const TAA_REPROJECT_WGSL = `
 fn previousUv(coord:vec2i,depthValue:f32)->vec3f{
@@ -70,12 +70,12 @@ fn previousUv(coord:vec2i,depthValue:f32)->vec3f{
 }`;
 
 /**
- * La résolution temporelle. L'image courante est refiltrée sur ses 3×3 voisins avec les poids de
- * l'uniforme (Blackman-Harris centré sur le centre non décalé) ; l'historique est lu au point
- * reprojeté, borné à la boîte YCoCg de ces
- * mêmes voisins — ce qui retire les fantômes d'un objet qui bouge ou d'une découverte —, puis les
- * deux sont mêlés, chacun pesé par l'inverse de sa luminance pour qu'une étincelle ne s'installe
- * pas. Les quatre canaux sont accumulés : l'alpha porte la couverture que la composition divise.
+ * Temporal resolve. The current image is refiltered on its 3×3 neighbours with the uniform
+ * weights (Blackman-Harris centred on the unshifted centre); history is read at the
+ * reprojected point, clamped to the YCoCg box of those
+ * same neighbours — which removes ghosts of a moving object or a discovery — then the
+ * two are mixed, each weighted by the inverse of its luminance so a spark does not settle.
+ * All four channels are accumulated: alpha carries the coverage that composition divides.
  */
 export const TAA_SHADER = `
 ${PAGE_INFO_STRUCT_WGSL}

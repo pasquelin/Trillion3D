@@ -8,21 +8,21 @@ export const DEFAULT_FOV = 55,
   DEFAULT_HEIGHT = 540,
   DEFAULT_PAGE_WORKERS = 32,
   PREFETCH_BATCH = 64,
-  /** Adresses qu'une image lance au plus, prises en tête de la liste ordonnée par priorité. */
+  /** Addresses a frame issues at most, taken from the head of the priority-ordered list. */
   PAGE_REQUEST_BATCH = 256,
-  /** Pages du cache qu'une image empile au plus dans la file d'arrivées. */
+  /** Cache pages a frame queues at most in the arrival queue. */
   ARRIVAL_QUEUE_BATCH = 64,
-  /** Millisecondes qu'une image consacre au plus à intégrer les pages arrivées. */
+  /** Milliseconds a frame spends at most integrating arrived pages. */
   ARRIVAL_BUDGET_MS = 2,
-  /** Millisecondes de fil principal d'une salve de téléversement avant de rendre la main. */
+  /** Main-thread milliseconds of an upload burst before yielding. */
   UPLOAD_SLICE_MS = 2,
   PREFETCH_INTERVAL_MS = 250,
   DEFAULT_CACHED_PAGES = 16384,
   DEFAULT_CLEAR_COLOR = 0x171d28;
 /**
- * Pixels d'appareil d'une dimension logique, au rapport que l'hôte a réglé. La création du canevas
- * et son redimensionnement le calculent tous les deux : deux troncatures séparées auraient fini par
- * poser un canevas d'une taille et un viewport d'une autre.
+ * Device pixels of a logical dimension, at the ratio the host has set. Canvas creation and
+ * resize both compute it: two separate truncations would have ended up with a canvas of one
+ * size and a viewport of another.
  */
 export const devicePixels = (logical: number, pixelRatio: number | undefined) =>
   Math.floor(logical * (pixelRatio ?? DEFAULT_PIXEL_RATIO));
@@ -39,7 +39,7 @@ export const baseCapabilities: BackendCapabilities = {
   simplification: false,
   eviction: false,
   unsupported: [
-    // Les appels du contrat de lampes existent côté hôte et n'échouent pas ici : ils sont ignorés.
+    // Light-contract calls exist on the host and do not fail here: they are ignored.
     'contract scene lights with shadow atlas',
     'named node transforms',
     'general mesh LOD simplification',
@@ -50,8 +50,8 @@ export const baseCapabilities: BackendCapabilities = {
   ],
 };
 /** Stable 32-bit hash of a cluster or mesh id, used as a colour seed.
- *  Voisin de `clusterHash` (visibilityMath.ts), qui parcourt les points de code plutôt que les
- *  unités UTF-16 : même polynôme ×31, deux parcours, deux résultats hors du plan de base. */
+ *  Neighbour of `clusterHash` (visibilityMath.ts), which walks code points rather than
+ *  UTF-16 units: same ×31 polynomial, two walks, two results outside the basic plane. */
 export function hashId(id: string) {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (Math.imul(h, 31) + id.charCodeAt(i)) >>> 0;
@@ -61,11 +61,11 @@ export function hashId(id: string) {
 export function clusterHue(id: string) {
   return (hashId(id) * 0.61803398875) % 1;
 }
-/** Trois composantes linéaires relues aussitôt : la couleur d'un cluster n'alloue rien de plus. */
+/** Three linear components reread immediately: a cluster colour allocates nothing more. */
 const tint = new Float64Array(3);
 
-/** La teinte d'un cluster, calculée par le socle. L'objet couleur rendu est celui que les matériaux
- *  de l'hôte veulent ; sa construction est la frontière, pas le calcul. */
+/** A cluster's hue, computed by the core. The colour object returned is the one host
+ *  materials want; its construction is the boundary, not the computation. */
 export function clusterColor(id: string, saturation = 0.75) {
   hslToLinearRgb(tint, 0, clusterHue(id), saturation, 0.55);
   return new THREE.Color(tint[0], tint[1], tint[2]);
