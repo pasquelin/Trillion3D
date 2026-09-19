@@ -87,10 +87,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     prepareTemporalAntialiasing(rt, gpuDevice),
   ]);
   context.signal?.throwIfAborted();
-  ({ presenter: gpu.presenter, composedCanvas: gpu.composedCanvas } = prepareWebgpuPresentation(
-    gpuDevice,
-    context.gpuCanvas,
-  ));
+  gpu.presenter = prepareWebgpuPresentation(gpuDevice, context.gpuCanvas);
   if (gpu.presenter) grantCapability(capabilities, 'direct WebGPU present');
   diag.engineDiagnostic('gpu-presentation', 'GPU presentation initialised', {
     mode: context.gpuCanvas

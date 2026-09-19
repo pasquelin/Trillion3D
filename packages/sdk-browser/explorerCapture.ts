@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { presentationColorDiagnostic } from './presentationDiagnostic.ts';
 import { DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
-import type { ExplorerOptions } from './backendTypes.ts';
+import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
 import type { ExplorerHostState } from './explorerHostState.ts';
 import type { ExplorerEmitters } from './explorerSession.ts';
 
@@ -11,6 +11,7 @@ type Inputs = Pick<ExplorerEmitters, 'diagnose'> & {
   renderer: THREE.WebGLRenderer;
   options: ExplorerOptions;
   directGpu: boolean;
+  presentBackend: (backend: RenderBackend) => boolean;
   state: Pick<ExplorerHostState, 'active'>;
   check: () => void;
 };
@@ -22,6 +23,7 @@ export function createExplorerCapture(inputs: Inputs) {
     renderer: ownedRenderer,
     options,
     directGpu,
+    presentBackend,
     state,
     check,
     diagnose,
@@ -68,7 +70,8 @@ export function createExplorerCapture(inputs: Inputs) {
     try {
       ownedRenderer.setRenderTarget(null);
       active.render(camera);
-      ownedRenderer.render(active.scene, camera);
+      // Reading the composition means composing it first, by the same rule as a frame.
+      if (!presentBackend(active)) ownedRenderer.render(active.scene, camera);
       const size = canvas.width * canvas.height * 4;
       captureSlot = (captureSlot + 1) % 3;
       if (capturePool[captureSlot].length !== size) capturePool[captureSlot] = new Uint8Array(size);

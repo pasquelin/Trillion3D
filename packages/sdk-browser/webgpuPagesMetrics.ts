@@ -156,8 +156,9 @@ export function disposeWebgpuPages(
   rt.lights.buffer?.destroy();
   rt.lights.plan.reset();
   gpu.presenter?.dispose();
+  // Disposed, it presents nothing any more: the host must no longer be told to compose from it.
+  gpu.presenter = undefined;
   gpu.synchronousCapture?.dispose();
-  gpu.composedCanvas = undefined;
   const closing = gpu.cache?.dispose();
   gpu.cache = undefined;
   scene.clear();

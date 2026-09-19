@@ -6,7 +6,6 @@ import { createWebglFrameTimer } from './webglFrameTimer.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { HostCpuProfile } from './hostCpuProfile.ts';
 import { createHeldFrame } from './explorerHeldFrame.ts';
-import { createSurfaceComposer } from './explorerComposeSurface.ts';
 import { retainVisiblePages } from './retainVisiblePages.ts';
 import type { createPageStreamer } from './streamingPages.ts';
 import type { createExplorerStreaming } from './explorerStreaming.ts';
@@ -20,6 +19,7 @@ type Inputs = {
   streaming: ReturnType<typeof createExplorerStreaming>;
   directGpu: boolean;
   renderer: THREE.WebGLRenderer;
+  presentBackend: (backend: RenderBackend) => boolean;
   baseline: RenderBackend;
   state: Pick<ExplorerHostState, 'measuring' | 'fallbackReason' | 'active'>;
 };
@@ -53,7 +53,8 @@ export function empileEnAttente(attente: Set<string>, urls: readonly string[]) {
 
 export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
   const { scope, emit, diagnose } = session;
-  const { camera, geometryUrls, streamer, streaming, directGpu, baseline, state } = inputs;
+  const { camera, geometryUrls, streamer, streaming, directGpu, presentBackend, baseline, state } =
+    inputs;
   const ownedRenderer = inputs.renderer;
   // WebGL2 cannot timestamp a pass: the timer wraps the whole-frame submit, and is only
   // mounted if the host asked for the per-step profile.
@@ -62,7 +63,6 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       ? createWebglFrameTimer(ownedRenderer.getContext() as WebGL2RenderingContext)
       : null;
   const heldFrame = createHeldFrame();
-  const composeSurface = createSurfaceComposer(ownedRenderer);
   const drawingSize = new THREE.Vector2();
   /**
    * Display chain of the Three-rendered engine, set on the engine view — the same rule as the
@@ -74,6 +74,19 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
   const setDisplayChain = (backend: RenderBackend) => {
     const tone = backend.sceneLit?.() === false ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
     if (ownedRenderer.toneMapping !== tone) ownedRenderer.toneMapping = tone;
+  };
+  /** Hands an engine's scene to the host renderer. A held frame cannot differ from the previous
+   *  one — the engine just said so — and is redisplayed in one command, the scene not walked
+   *  again; with none kept at this size, the first or after a resize, it is drawn then kept. */
+  const drawScene = (backend: RenderBackend, target: THREE.WebGLRenderTarget | null) => {
+    setDisplayChain(backend);
+    ownedRenderer.getDrawingBufferSize(drawingSize);
+    if (backend.frameHeld === true && !target && heldFrame.holds(drawingSize))
+      heldFrame.present(ownedRenderer);
+    else {
+      ownedRenderer.render(backend.scene, camera);
+      if (!target) heldFrame.keep(ownedRenderer, drawingSize);
+    }
   };
   const drawBackend = (backend: RenderBackend, target: THREE.WebGLRenderTarget | null) => {
     const { measuring } = state;
@@ -170,23 +183,9 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       return;
     }
     gpuTimer?.begin();
-    // An engine that presented its own surface holds its own frame: the host copies that surface
-    // and walks nothing. The others hand their scene to the host renderer.
-    const surface = backend.presentedSurface;
-    if (surface) composeSurface(surface);
-    else {
-      setDisplayChain(backend);
-      // A held frame cannot differ from the previous one: the engine just said so. It is
-      // redisplayed in one command, and the scene is not walked again. With no kept frame at
-      // this size — the first, or a resize — the frame is drawn then kept.
-      ownedRenderer.getDrawingBufferSize(drawingSize);
-      const tenue = backend.frameHeld === true && !target && heldFrame.holds(drawingSize);
-      if (tenue) heldFrame.present(ownedRenderer);
-      else {
-        ownedRenderer.render(backend.scene, camera);
-        if (!target) heldFrame.keep(ownedRenderer, drawingSize);
-      }
-    }
+    // An engine that presented its own surface is copied from it; the others hand their scene
+    // over to the host renderer, the only case the held frame belongs to.
+    if (!presentBackend(backend)) drawScene(backend, target);
     gpuTimer?.end();
     steps.cpuStep?.('submitMs', performance.now() - retainEnd);
     if (gpuTimer) {

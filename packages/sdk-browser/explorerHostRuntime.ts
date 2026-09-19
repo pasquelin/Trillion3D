@@ -39,6 +39,7 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     hostedControls,
     lookAtTarget,
     compositor,
+    presentBackend,
     check,
     setPose,
   } = host;
@@ -54,6 +55,7 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     renderer: renderer!,
     options,
     directGpu,
+    presentBackend,
     state,
     check,
     diagnose,

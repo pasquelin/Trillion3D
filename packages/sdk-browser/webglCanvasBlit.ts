@@ -29,9 +29,7 @@ function compile(gl: WebGL2RenderingContext, type: number, source: string) {
  * the destination framebuffer; nothing else about the host's state is assumed.
  */
 export function createCanvasBlit(gl: WebGL2RenderingContext) {
-  const program = gl.createProgram()!,
-    texture = gl.createTexture()!,
-    vao = gl.createVertexArray()!;
+  const program = gl.createProgram()!;
   const shaders: WebGLShader[] = [];
   try {
     for (const [type, source] of [
@@ -48,12 +46,19 @@ export function createCanvasBlit(gl: WebGL2RenderingContext) {
   } catch (error) {
     for (const shader of shaders) gl.deleteShader(shader);
     gl.deleteProgram(program);
-    gl.deleteTexture(texture);
-    gl.deleteVertexArray(vao);
     throw error;
   }
   for (const shader of shaders) gl.deleteShader(shader);
+  const texture = gl.createTexture()!,
+    vao = gl.createVertexArray()!;
   const image = gl.getUniformLocation(program, 'image');
+  // Filtering belongs to the texture and the sampler unit to the program: set once, they survive
+  // every draw. What follows in `draw` is context state the host renderer writes too.
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.useProgram(program);
+  gl.uniform1i(image, 0);
   return {
     /** Uploads `source` and draws it over the whole viewport. Depth, blending and culling are
      *  turned off here: the copy owes nothing to the state the host left behind. */
@@ -68,13 +73,10 @@ export function createCanvasBlit(gl: WebGL2RenderingContext) {
       gl.bindVertexArray(vao);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, texture);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
       gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
       gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, source);
-      gl.uniform1i(image, 0);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     },
     dispose() {

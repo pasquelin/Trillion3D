@@ -47,7 +47,8 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     capabilities: rt.capabilities,
     scene: setup.scene,
     get presentedSurface() {
-      return rt.gpu.composedCanvas;
+      // The host canvas needs no composition: the engine already presented into it.
+      return context.gpuCanvas ? undefined : rt.gpu.presenter?.canvas;
     },
     get overBudget() {
       return run.overBudget;
