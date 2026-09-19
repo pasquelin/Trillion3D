@@ -1,6 +1,6 @@
-// Le comportement changé par ce lot : une racine déclare ses cônes une fois pour toutes, et la
-// coupe croit cette déclaration au lieu de lire `cone` sur chaque cluster retenu. La déclaration
-// est donc un contrat, et ces trois tests en tiennent les deux bouts — qui l'écrit, qui la lit.
+// Behaviour this batch changed: a root declares its cones once and for all, and the cut trusts
+// that declaration instead of reading `cone` on each kept cluster. The declaration is therefore
+// a contract, and these three tests hold both ends — who writes it, who reads it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -9,9 +9,9 @@ import { blendFixture, camera } from './pageSelectionBlendFixture.ts';
 import type { ClusterRoot } from './pageSelectionTypes.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 
-/** Une fixture dont la page la plus proche porte un cône qui regarde à l'opposé de la caméra :
- *  honoré, il la rejette ; ignoré, elle reste. Le matériau est à une seule face, sans quoi le rejet
- *  de cône n'a rien à dire. */
+/** A fixture whose nearest page carries a cone that looks opposite the camera: honoured, it
+ *  rejects it; ignored, it stays. The material is single-sided, without which cone reject has
+ *  nothing to say. */
 function fixtureAvecCone() {
   const fixture = blendFixture(new THREE.MeshBasicMaterial({ side: THREE.FrontSide }));
   const collected = collectClusterPages(
@@ -28,7 +28,7 @@ function urls(roots: ReadonlyArray<ClusterRoot<PageRec>>) {
   return selectVisiblePages(roots, cameraMoteur(camera()), {}).shown.map((page) => page.url);
 }
 
-test('la collecte déclare une racine sans cône, ce qui est vrai de toutes ses pages', () => {
+test('collection declares a root without a cone, which is true of all its pages', () => {
   const fixture = blendFixture();
   const { roots, allPages } = collectClusterPages(
     fixture.source,
@@ -43,10 +43,10 @@ test('la collecte déclare une racine sans cône, ce qui est vrai de toutes ses 
   fixture.material.dispose();
 });
 
-test('une racine qui déclare porter des cônes rejette par son cône, comme avant ce lot', () => {
+test('a root that declares it carries cones rejects by its cone, as before this batch', () => {
   const { fixture, roots } = fixtureAvecCone();
-  // `true` et le silence disent la même chose : teste chaque page. Le second est ce que rendait
-  // toute racine avant ce lot, et c'est la réponse d'avant qui doit revenir.
+  // `true` and silence say the same thing: test each page. The second is what every root
+  // returned before this batch, and it is the previous answer that must come back.
   roots[0].cones = true;
   const declare = urls(roots);
   roots[0].cones = undefined;
@@ -56,7 +56,7 @@ test('une racine qui déclare porter des cônes rejette par son cône, comme ava
   fixture.material.dispose();
 });
 
-test('une racine qui déclare n’avoir aucun cône ne lit plus `cone` : le cluster est retenu', () => {
+test('a root that declares it has no cone no longer reads `cone`: the cluster is kept', () => {
   const { fixture, roots } = fixtureAvecCone();
   roots[0].cones = false;
   assert.ok(urls(roots).includes('near'));

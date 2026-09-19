@@ -1,5 +1,5 @@
-//! G12 — le minimum, la médiane et le maximum des erreurs d'un niveau du DAG, sans tri complet.
-//! Référence : l'ancien `errors.sort_by(f64::total_cmp)` suivi de trois lectures d'indice.
+//! G12 — min, median and max of a DAG level's errors, without a full sort.
+//! Reference: the old `errors.sort_by(f64::total_cmp)` followed by three index reads.
 use super::harness::{compare, Bits, Row};
 use super::inputs::Xorshift;
 use crate::compiler_primitive_dag::level_error_stats;
@@ -13,7 +13,7 @@ fn reference_stats(errors: &mut [f64]) -> (f64, f64, f64) {
     )
 }
 
-/// Les erreurs d'un niveau : doublons, zéros signés, NaN et infinis semés dedans.
+/// Errors of a level: duplicates, signed zeros, NaN and infinities sown in.
 fn erreurs(seed: u64, count: usize) -> Vec<f64> {
     let mut rng = Xorshift::new(seed);
     let poison = [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, -0.0, 0.0];
@@ -39,18 +39,18 @@ fn empreinte(sortie: &Trois) -> Bits {
 }
 
 pub(crate) fn row() -> Row {
-    // Les niveaux d'un DAG : le niveau 0 porte des milliers de clusters, les suivants de moins en
-    // moins, et le dernier un seul. Chaque tour repart d'une copie : le tri comme la sélection
-    // déplacent les éléments, et les deux côtés paient la même copie.
+    // Levels of a DAG: level 0 carries thousands of clusters, the next ones fewer
+    // and fewer, and the last a single one. Each round restarts from a copy: sort
+    // and selection both move the elements, and both sides pay the same copy.
     let niveaux: Vec<Vec<f64>> = [8000usize, 2000, 500, 120, 30, 8, 2, 1]
         .iter()
         .enumerate()
         .map(|(i, count)| erreurs(0xC12 + i as u64, *count))
         .collect();
     compare(
-        "G12 statistiques d'erreur d'un niveau",
+        "G12 error statistics of a level",
         "compiler_primitive_dag.rs",
-        "8 niveaux, de 8 000 clusters à un seul".into(),
+        "8 levels, from 8 000 clusters down to one".into(),
         &mut || {
             niveaux
                 .iter()
@@ -71,10 +71,10 @@ pub(crate) fn row() -> Row {
 mod tests {
     use super::*;
 
-    /// `reference_stats` (le tri complet d'avant le lot G) et `level_error_stats` (la sélection
-    /// partielle) doivent rendre le même triplet bit à bit, sur des niveaux hostiles : un seul
-    /// élément, un nombre pair, des doublons, et le poison (NaN, infinis, zéros signés) déjà semé
-    /// par `erreurs`.
+    /// `reference_stats` (the full sort from before lot G) and `level_error_stats`
+    /// (the partial selection) must yield the same triplet bit for bit, on hostile
+    /// levels: a single element, an even count, duplicates, and the poison (NaN,
+    /// infinities, signed zeros) already sown by `erreurs`.
     fn memes_stats(valeurs: Vec<f64>, label: &str) {
         let attendu = reference_stats(&mut valeurs.clone());
         let obtenu = level_error_stats(&mut valeurs.clone());

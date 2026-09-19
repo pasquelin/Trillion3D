@@ -1,11 +1,11 @@
-//! Le parcours de la hiérarchie : ce que chaque objet est, et ce qu'il devient dans la scène.
+//! Walking the hierarchy: what each object is, and what it becomes in the scene.
 //!
-//! Un objet Alembic dit son schéma dans sa métadonnée. Ce pilote en retient trois : `Xform`, qui
-//! porte une transformation, `PolyMesh` et `SubD`, qui portent une surface, et `FaceSet`, qui
-//! nomme des faces de son maillage. Tout le reste — courbes, points, surfaces NURBS, caméras,
-//! lampes — est compté au rapport sous son nom : ce pilote importe de la géométrie statique, et ce
-//! qu'il ne convertit pas, il le dit plutôt que de le taire. La descente continue sous un objet
-//! écarté : seul un `Xform` porte une transformation, donc rien n'est déplacé en le traversant.
+//! An Alembic object names its schema in its metadata. This driver keeps three: `Xform`, which
+//! carries a transform, `PolyMesh` and `SubD`, which carry a surface, and `FaceSet`, which names
+//! faces of its mesh. Everything else — curves, points, NURBS surfaces, cameras, lamps — is
+//! counted on the report under its name: this driver imports static geometry, and what it does
+//! not convert, it says rather than hiding. Descent continues under a skipped object: only an
+//! `Xform` carries a transform, so nothing is moved by walking through it.
 use super::archive::{Archive, Object, MAX_DEPTH};
 use super::geom::Geometry;
 use super::kind::{kind_of, Kind};
@@ -18,7 +18,7 @@ use crate::Result;
 use serde_json::json;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-/// Ce qu'un parcours a sous la main.
+/// What a walk has at hand.
 pub(super) struct World<'a> {
     pub(super) archive: &'a Archive,
     pub(super) scene: &'a mut Scene,
@@ -26,7 +26,7 @@ pub(super) struct World<'a> {
 }
 
 impl World<'_> {
-    /// Les propriétés de plus haut niveau d'un objet, celles qui portent son schéma.
+    /// The top-level properties of an object, those that carry its schema.
     fn top(&self, object: &Object) -> Result<Option<Properties>> {
         match object.group.first().copied() {
             Some(first) => Properties::read(self.archive, first).map(Some),
@@ -34,9 +34,9 @@ impl World<'_> {
         }
     }
 
-    /// Construit les nœuds de cet objet et de sa descendance, et rend ceux que son père accroche.
-    /// Un `Xform` qui n'hérite pas de son père est une racine de la scène : il garde sa matrice, et
-    /// son père ne le compte pas parmi ses enfants.
+    /// Builds the nodes of this object and its descendants, and yields those its parent attaches.
+    /// An `Xform` that does not inherit from its parent is a scene root: it keeps its matrix, and
+    /// its parent does not count it among its children.
     pub(super) fn visit(&mut self, object: &Object, depth: usize) -> Result<Vec<usize>> {
         if depth > MAX_DEPTH {
             self.scene.report.add("alembic-hierarchy-too-deep");
@@ -65,7 +65,7 @@ impl World<'_> {
         }
     }
 
-    /// Le nœud d'un `Xform` : sa matrice locale, et les nœuds qu'il accroche.
+    /// The node of an `Xform`: its local matrix, and the nodes it attaches.
     fn xform_node(&mut self, object: &Object, children: Vec<usize>) -> Result<Vec<usize>> {
         let mut node = json!({ "name": object.name });
         let mut inherits = true;
@@ -102,7 +102,7 @@ impl World<'_> {
         Ok(Vec::new())
     }
 
-    /// Le nœud d'un maillage : sa surface découpée par ses face sets, et ce qu'il accroche.
+    /// The node of a mesh: its surface split by its face sets, and what it attaches.
     fn mesh_node(
         &mut self,
         object: &Object,
@@ -158,7 +158,7 @@ impl World<'_> {
         Ok(vec![self.scene.node(node)])
     }
 
-    /// Les face sets d'un maillage, dans l'ordre où le fichier les déclare.
+    /// The face sets of a mesh, in the order the file declares them.
     fn facesets(&mut self, children: &[Object]) -> Result<Vec<FaceSet>> {
         let mut out = Vec::new();
         for child in children
@@ -185,7 +185,7 @@ impl World<'_> {
         Ok(out)
     }
 
-    /// Une propriété à plusieurs échantillons est animée : ce pilote lit le premier et le dit.
+    /// A property with several samples is animated: this driver reads the first and says so.
     fn animated(&mut self, properties: &Properties, name: &str) {
         if properties.find(name).is_some_and(|found| found.samples > 1) {
             self.scene.report.add("alembic-animation-ignored");

@@ -3,10 +3,10 @@ import type { WebgpuTileAtlas } from './webgpuTileAtlas.ts';
 import type { WebgpuTileLevels } from './webgpuTileLevels.ts';
 
 /**
- * Les compteurs du diffuseur, tenus à plat par la passe et rendus sous le contrat des métriques :
- * ce que le retour d'image a demandé, ce qui a été servi, ce qui manque. Rien n'est estimé — un
- * compteur qu'aucune passe n'a nourri vaut zéro parce que rien n'est arrivé, et le pool sans
- * lecteur de niveaux publie ses lectures à `null`, jamais à zéro.
+ * Streamer counters, held flat by the pass and returned under the metrics contract: what image
+ * feedback asked, what was served, what is missing. Nothing is estimated — a counter no pass has
+ * fed is zero because nothing arrived, and a pool without a level reader publishes its reads as
+ * `null`, never as zero.
  */
 export function createTileCounters() {
   return {
@@ -17,7 +17,7 @@ export function createTileCounters() {
     missingAverage: 0,
     bytesLastFrame: 0,
     scratches: 0,
-    /** Vrai quand la dernière passe avait un retour d'image à servir, et ce qu'elle a coûté. */
+    /** True when the last pass had image feedback to serve, and what it cost. */
     worked: false,
     lastMs: 0,
     metrics(atlases: readonly WebgpuTileAtlas[], levels: WebgpuTileLevels | undefined) {

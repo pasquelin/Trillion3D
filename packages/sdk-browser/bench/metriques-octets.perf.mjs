@@ -1,4 +1,4 @@
-// les octets de sommets publiés par metrics().
+// Vertex bytes published by metrics().
 import * as THREE from 'three';
 import { createWebgpuGpuState } from '../webgpuPagesStateGpu.ts';
 import { createWebgpuBlendState } from '../webgpuBlendState.ts';
@@ -65,11 +65,11 @@ const grand = etat(400, 200, true, 0x41);
 const petit = etat(2, 1, true, 0x43);
 
 const resOctets = await mesure({
-  nom: 'octets de sommets du relevé',
+  name: 'vertex bytes of report',
   fichier: 'packages/sdk-browser/webgpuPagesMetrics.ts',
   cas: [
-    { nom: '400 pages, 200 transparents', entree: grand, taille: 600 },
-    { nom: '2 pages, 1 transparent', entree: petit, taille: 3 },
+    { name: '400 pages, 200 transparents', input: grand, size: 600 },
+    { name: '2 pages, 1 transparent', input: petit, size: 3 },
   ],
   calcul: ({ gpu, vis, blendState }) => vertexBytesOf(gpu, vis, blendState),
   attendu: ({ gpu, vis, blendState }) => referenceVertexBytes(gpu, vis, blendState),
@@ -77,9 +77,9 @@ const resOctets = await mesure({
 });
 
 await stress({
-  nom: 'vertexBytesOf extremes',
+  name: 'vertexBytesOf extremes',
   calcul: () => vertexBytesOf(createWebgpuGpuState([1, 1]), {}, createWebgpuBlendState()),
-  extremes: [{ nom: 'vide', entree: null }],
+  extremes: [{ name: 'empty', input: null }],
 });
 
-rapport('metriques-octets', [resOctets], 'G4 publie exactement les mêmes octets de sommets');
+rapport('metriques-octets', [resOctets], 'G4 publishes exact same vertex bytes');

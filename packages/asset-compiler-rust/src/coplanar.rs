@@ -93,8 +93,8 @@ pub struct CoplanarResult {
 /// million of its longest side, so the same surface always hashes to the same plane whatever
 /// instance carried it, and two floors a millimetre apart stay two floors.
 ///
-/// Ce n'est pas la boucle de `shared_math::extend_aabb` : chaque borne d'un axe est lue et gardée
-/// séparément, une page sans `min` lisible pouvant quand même porter un `max`.
+/// Not `shared_math::extend_aabb` loop: each axis bound read and kept
+/// separately, readable page without `min` still carrying `max`.
 pub fn offset_quantum(primitives: &[Value]) -> f64 {
     let mut low = [f64::INFINITY; 3];
     let mut high = [f64::NEG_INFINITY; 3];
@@ -129,7 +129,7 @@ pub fn assign_depth_layers(
     bounds: &CoplanarBounds,
 ) -> Result<CoplanarResult> {
     let mut counts = Counts::default();
-    // Les matrices monde servent aux deux passes : une seule construction pour toute l'étape.
+    // World matrices serve both passes: single construction for whole step.
     let world = crate::compiler_world::world_matrices(inputs.g)?;
     let surfaces = surface::collect_with_world(inputs, bounds, &mut counts.dropped_planes, &world)?;
     let overlaps = pairs::find_overlaps(inputs, bounds, &surfaces, &mut counts, &world)?;

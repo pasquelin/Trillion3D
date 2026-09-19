@@ -34,15 +34,15 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   const inputColor = {
     clearColor: `#${clearColor.toString(16).padStart(6, '0')}`,
     value: clearColor,
-    source: context.clearColor === undefined ? 'fallback moteur' : 'hôte',
+    source: context.clearColor === undefined ? 'engine fallback' : 'host',
   };
   diag.engineDiagnostic(
     'clear-color-input',
-    'Couleur de fond reçue par WebGeometry WebGPU',
+    'Background colour received by WebGeometry WebGPU',
     inputColor,
   );
   if (typeof window !== 'undefined')
-    console.info('[web-geometry] couleur de fond reçue par WebGeometry WebGPU', inputColor);
+    console.info('[web-geometry] background colour received by WebGeometry WebGPU', inputColor);
   const { roots, allPages, blendCopies, requestCount, worlds } = collectClusterPages(
     source,
     metadata,
@@ -62,8 +62,8 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
       blendCopies.push(copy);
     }
   blendCopies.sort((a, b) => a.renderOrder - b.renderOrder);
-  // Rang de requête → adresse, posée une fois pour la vie de la scène : la différence que l'hôte
-  // reçoit après le rendu ne porte que des entiers, et c'est cette table qui les traduit.
+  // Request rank → address, posted once for the scene's life: the delta the host receives after the
+  // render carries only integers, and it is this table that translates them.
   const requestUrls: string[] = new Array<string>(requestCount);
   for (let i = 0; i < allPages.length; i++) {
     const rec = allPages[i],
@@ -72,7 +72,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
       requestUrls[rank] = rec.streamUrl ?? rec.url;
   }
   const tracking = createWebgpuPageTracking(allPages);
-  diag.traceDiagnostic('page-catalog', 'Catalogue stable des pages WebGPU', {
+  diag.traceDiagnostic('page-catalog', 'Stable WebGPU page catalogue', {
     backend: 'webgpu-page-raster',
     count: tracking.pageCatalog.length,
     urls: tracking.pageCatalog,
@@ -100,8 +100,8 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     if (padded > pageBytes) pageBytes = padded;
   }
   const sourceBytes = indexSourceBytes(allPages);
-  // Les deux réservoirs fixes du moteur, en octets, comme chez la référence : ce qui n'y tient pas
-  // s'affiche plus grossier. Les cibles d'image, elles, suivent la résolution sans plafond.
+  // The engine's two fixed pools, in bytes, as in the reference: what does not fit renders coarser.
+  // Image targets, themselves, follow resolution with no ceiling.
   const poolFor = (budgetBytes: number, ceilingSlots?: number) =>
     geometryPoolFor({
       budgetBytes,
@@ -113,9 +113,8 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
       limits: gpuDevice?.limits,
     });
   const geometryPool = poolFor(context.geometryPoolBytes ?? DEFAULT_GEOMETRY_POOL_BUDGET);
-  // Le plafond que le réservoir peut atteindre en cours de session (`setMemoryBudgets`) : les
-  // tables dimensionnées par page dessinable le sont une fois, à ce plafond. Sans plafond déclaré,
-  // c'est le budget de départ.
+  // Ceiling the pool can reach mid-session (`setMemoryBudgets`): tables sized by drawable page are
+  // sized once, to that ceiling. With no declared ceiling, it is the starting budget.
   const cap = poolFor(
     Math.max(geometryPool.budgetBytes, context.geometryPoolCeilingBytes ?? 0),
   ).slots;
@@ -132,8 +131,8 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   );
   return {
     source,
-    // L'index des matrices monde du moteur : ce que l'image remonte, et ce qu'un nœud déplacé
-    // recalcule. Les fiches, les racines et les copies transparentes en portent les matrices.
+    // Index of the engine's world matrices: what the image walks, and what a moved node recomputes.
+    // Rows, roots and transparent copies carry the matrices.
     worlds,
     gpuDevice,
     viewport,
@@ -148,24 +147,23 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     bootstrapKeys,
     bootstrapKey,
     byUrl,
-    // Le dédoublonnage des clés de requête sans table de hachage, partagé par les deux listes que
-    // l'hôte demande après le rendu : leur rang est posé une fois pour toutes par le catalogue.
+    // Dedup of request keys without a hash table, shared by the two lists the host asks after the
+    // render: their rank is posted once and for all by the catalogue.
     requestStamps: new RequestStamps(requestCount),
     requestUrls,
-    // Ce que l'hôte épingle, tenu d'une image à l'autre et publié comme une différence de rangs.
+    // What the host pins, held from one image to the next and published as a rank delta.
     hostRanks: createHostRankDelta(requestCount, requestUrls),
-    // Le plafond des tables dimensionnées par page dessinable : les fentes que le réservoir peut
-    // atteindre en cours de session.
+    // Ceiling of tables sized by drawable page: the slots the pool can reach mid-session.
     cap,
     scene,
     pageBytes,
     sourceBytes,
     reserveHiz,
     textureBudget,
-    // Les deux réservoirs tels qu'ils sont tenus ; `setMemoryBudgets` les remplace par un autre
-    // tiré de la même règle, `slots` suit.
+    // The two pools as they are held; `setMemoryBudgets` replaces them with another drawn from the
+    // same rule, `slots` follows.
     geometryPool,
-    // Le même réservoir pour un autre budget, sous le plafond de la session.
+    // The same pool for another budget, under the session ceiling.
     geometryPoolFor: (budgetBytes: number) => poolFor(budgetBytes, cap),
     texturePool,
     get slots() {

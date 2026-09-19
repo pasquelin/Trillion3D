@@ -1,24 +1,24 @@
-//! Ce qu'un modèle versé laisse à instancier, et où chaque morceau se tient dans le modèle.
+//! What a poured model leaves to instantiate, and where each piece sits in the model.
 //!
-//! Le pilote du format a rendu un glTF complet : une hiérarchie de nœuds, dont certains portent un
-//! maillage. La scène Unity, elle, instancie ces morceaux sous le nœud qu'elle pose. Chacun garde
-//! donc la matrice qui le place dans le modèle — sa transformation locale composée avec celles de
-//! ses pères — et c'est cette matrice qui se compose ensuite avec celle de l'instance.
+//! The format driver has yielded a complete glTF: a node hierarchy, some of which carry a mesh.
+//! The Unity scene instantiates those pieces under the node it places. Each therefore keeps the
+//! matrix that locates it in the model — its local transform composed with those of its parents —
+//! and it is that matrix which then composes with the instance's.
 use super::*;
 use crate::compiler_world::{Mat4, IDENTITY};
 
-/// Ce qu'un modèle versé laisse à instancier : ses nœuds porteurs de maillage.
+/// What a poured model leaves to instantiate: its mesh-bearing nodes.
 #[derive(Clone)]
 pub(super) struct Parts {
-    /// Nom, matrice du nœud dans le modèle — sa hiérarchie comprise —, rang du maillage dans la
-    /// scène. `Null` quand cette matrice est l'identité : le nœud versé n'en porte alors aucune.
+    /// Name, node matrix in the model — hierarchy included —, mesh index in the scene. `Null` when
+    /// that matrix is identity: the poured node then carries none.
     pub(super) nodes: Vec<(String, Value, usize)>,
 }
 
-/// La matrice de chaque nœud du modèle dans l'espace du modèle : sa transformation locale — écrite
-/// en matrice, ou en translation, rotation et échelle — composée avec celles de ses pères. Un modèle
-/// dont la hiérarchie ne se compose pas (indice hors table, nœud à deux pères, arbre sans fin) est
-/// versé sans transformation, et le fait est compté plutôt que deviné.
+/// Matrix of each model node in model space: its local transform — written as a matrix, or as
+/// translation, rotation and scale — composed with those of its parents. A model whose hierarchy
+/// does not compose (index out of table, node with two parents, endless tree) is poured without
+/// a transform, and the fact is counted rather than guessed.
 pub(super) fn model_matrices(gltf: &Value, scene: &mut Scene) -> Vec<Mat4> {
     match crate::compiler_world::world_matrices(gltf) {
         Ok(matrices) => matrices,
@@ -29,7 +29,7 @@ pub(super) fn model_matrices(gltf: &Value, scene: &mut Scene) -> Vec<Mat4> {
     }
 }
 
-/// Les nœuds porteurs de maillage du modèle, chacun avec la matrice qui le place dans le modèle.
+/// Mesh-bearing nodes of the model, each with the matrix that locates it in the model.
 pub(super) fn mesh_nodes(
     gltf: &Value,
     map: &[usize],

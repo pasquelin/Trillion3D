@@ -1,19 +1,19 @@
-// Lot M4a, hostWorldBounds.ts : bornes monde d'un sous-arbre hôte, confrontées au bit près
-// (Object.is) à `Box3.setFromObject` (donc `expandByObject`) de Three, boîtes vides et géométrie sans
-// maillage comprises.
+// Batch M4a, hostWorldBounds.ts: world bounds of a host subtree, checked bit-for-bit
+// (Object.is) against Three's `Box3.setFromObject` (hence `expandByObject`), empty boxes and
+// geometry without a mesh included.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { emptyWorldBox, hostWorldBounds } from './hostWorldBounds.ts';
 import { assertBits } from '../sdk-core/bench/oracles/volumes.mjs';
 
-/** La même boîte, rendue à plat, telle que `Box3.setFromObject` la calcule. */
+/** The same box, flattened, as `Box3.setFromObject` computes it. */
 function referenceBox(source: THREE.Object3D) {
   const box = new THREE.Box3().setFromObject(source);
   return [box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z];
 }
 
-/** Sous-arbre hostile, profondeur 3 : échelle négative puis non uniforme, deux maillages. */
+/** Hostile subtree, depth 3: negative then non-uniform scale, two meshes. */
 function hostileScene() {
   const racine = new THREE.Group();
   racine.scale.set(-2, 1, 1);
@@ -35,17 +35,17 @@ function hostileScene() {
   return racine;
 }
 
-test('hostWorldBounds s’accorde avec Box3.setFromObject sur un sous-arbre hostile, profondeur 3', () => {
+test('hostWorldBounds agrees with Box3.setFromObject on a hostile subtree, depth 3', () => {
   const obtenu = hostWorldBounds(hostileScene());
   assertBits(obtenu, referenceBox(hostileScene()));
 });
 
-test('un sous-arbre sans aucune géométrie rend une boîte vide, comme Box3.setFromObject', () => {
+test('a subtree with no geometry at all returns an empty box, like Box3.setFromObject', () => {
   const source = new THREE.Group();
   source.add(new THREE.Group(), new THREE.Object3D());
   const obtenu = hostWorldBounds(source);
   const attendu = new THREE.Box3().setFromObject(source);
-  assert.ok(attendu.isEmpty(), 'la référence doit être vide pour que ce test ait un sens');
+  assert.ok(attendu.isEmpty(), 'the reference must be empty for this test to mean anything');
   assertBits(obtenu, [
     attendu.min.x,
     attendu.min.y,
@@ -56,14 +56,14 @@ test('un sous-arbre sans aucune géométrie rend une boîte vide, comme Box3.set
   ]);
 });
 
-test('emptyWorldBox rend une boîte vide indépendante à chaque appel', () => {
+test('emptyWorldBox returns an independent empty box on every call', () => {
   const a = emptyWorldBox(),
     b = emptyWorldBox();
-  assert.notEqual(a, b, 'deux tampons distincts');
+  assert.notEqual(a, b, 'two distinct buffers');
   assertBits(a, [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity]);
 });
 
-test('une géométrie portée par un objet qui n’est pas un maillage (Points) compte, comme expandByObject', () => {
+test('geometry carried by a non-mesh object (Points) counts, like expandByObject', () => {
   const source = new THREE.Group();
   const nuage = new THREE.Points(new THREE.SphereGeometry(3), new THREE.PointsMaterial());
   nuage.position.set(10, -10, 10);
@@ -71,26 +71,26 @@ test('une géométrie portée par un objet qui n’est pas un maillage (Points) 
   assertBits(hostWorldBounds(source), referenceBox(source));
 });
 
-test('la boîte propre d’un objet (object.boundingBox) l’emporte sur celle de sa géométrie, comme expandByObject', () => {
+test("an object's own box (object.boundingBox) wins over its geometry's, like expandByObject", () => {
   const source = new THREE.Group();
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(100, 100, 100), new THREE.MeshBasicMaterial());
-  // Boîte d’objet bien plus petite que celle de sa géométrie de 100×100×100.
+  // Object box much smaller than its 100×100×100 geometry box.
   mesh.boundingBox = new THREE.Box3(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1));
   source.add(mesh);
   const obtenu = hostWorldBounds(source);
   const attendu = referenceBox(source);
   assertBits(obtenu, attendu);
-  // Vérifie que le test n’est pas vide : la petite boîte d’objet est bien celle qui est rendue.
-  assert.ok(obtenu[3] < 50, 'la boîte de géométrie (100×100×100) n’aurait pas dû être prise');
+  // Check the test is not empty: the small object box is indeed the one returned.
+  assert.ok(obtenu[3] < 50, 'the geometry box (100×100×100) should not have been taken');
 });
 
-test('hostWorldBounds accumule dans `into` déjà commencée au lieu de le remplacer', () => {
+test('hostWorldBounds accumulates into an already started `into` instead of replacing it', () => {
   const into = new Float64Array(6);
   into.set([-1, -1, -1, 1, 1, 1]);
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
   mesh.position.set(50, 0, 0);
   const obtenu = hostWorldBounds(mesh, into);
-  assert.equal(obtenu, into, 'le même tampon est rendu');
-  assert.ok(obtenu[3] > 40, 'la boîte de départ est étendue, pas écrasée');
-  assert.equal(obtenu[0], -1, 'la borne basse de départ est conservée côté x');
+  assert.equal(obtenu, into, 'the same buffer is returned');
+  assert.ok(obtenu[3] > 40, 'the starting box is extended, not overwritten');
+  assert.equal(obtenu[0], -1, 'the starting low bound is kept on x');
 });

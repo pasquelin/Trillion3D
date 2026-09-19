@@ -1,9 +1,9 @@
-// Les tirages pseudo-aléatoires des campagnes de justesse : un générateur reproductible, et les
-// deux lois que toutes les campagnes en tirent. Les générateurs restent distincts — chaque campagne
-// a publié ses chiffres avec le sien, en changer déplacerait ses cas — mais `entre` et `log`
-// n'ont plus qu'une écriture.
+// Pseudo-random draws of the correctness campaigns: a reproducible generator, and the two
+// distributions every campaign draws from. The generators stay distinct — each campaign published
+// its figures with its own, changing it would move its cases — but `entre` and `log` now have
+// only one writing.
 
-/** Mulberry32 : suite 32 bits de bonne dispersion, avancée d'un pas à chaque tirage. */
+/** Mulberry32: well-dispersed 32-bit sequence, advanced one step per draw. */
 export function mulberry32(graine) {
   let etat = graine;
   return () => {
@@ -14,7 +14,7 @@ export function mulberry32(graine) {
   };
 }
 
-/** Xorshift32 : trois décalages exclusifs, l'état ne passant jamais par zéro. */
+/** Xorshift32: three exclusive shifts, the state never passing through zero. */
 export function xorshift32(graine) {
   let etat = graine;
   return () => {
@@ -26,9 +26,9 @@ export function xorshift32(graine) {
 }
 
 /**
- * Les deux lois tirées d'un générateur : `entre(a, b)` uniforme sur l'intervalle, `log(a, b)`
- * uniforme en échelle logarithmique — celle qui couvre également les décades d'une distance, d'un
- * rayon ou d'une erreur.
+ * The two distributions drawn from a generator: `entre(a, b)` uniform on the interval, `log(a, b)`
+ * uniform on a log scale — the one that covers the decades of a distance, a radius or an error
+ * equally.
  */
 export function lois(hasard) {
   return {

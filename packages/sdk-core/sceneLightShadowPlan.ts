@@ -21,13 +21,13 @@ import { createShadowRelease } from './sceneLightShadowRelease.ts';
 export type ShadowPlan = ReturnType<typeof createShadowPlan>;
 
 /**
- * L'ordonnanceur d'ombres. Le travail d'une image n'est plus « quatre lampes » mais **les pages
- * périmées les plus prioritaires, jusqu'à un budget en millisecondes** (RX3, X4) : une lampe ou une
- * cascade qui bouge périme sa carte entière, un objet qui bouge ne périme que les pages que sa boîte
- * projetée recouvre, et les pages refusées cette image-ci attendent la suivante — jamais perdues,
- * leur retard publié. Une lampe fixe dans une scène fixe ne coûte toujours rien (X5).
+ * The shadow scheduler. Work of a frame is no longer "four lights" but **the most
+ * priority stale pages, up to a millisecond budget** (RX3, X4): a light or a
+ * cascade that moves stales its whole map, an object that moves only stales the pages its projected
+ * box covers, and pages refused this frame wait for the next — never lost,
+ * their lag published. A fixed light in a still scene still costs nothing (X5).
  *
- * Tous les tableaux sont alloués une fois ; `plan()` n'allouera jamais.
+ * All arrays are allocated once; `plan()` will never allocate.
  */
 export function createShadowPlan(capacity: number) {
   const slices = createShadowSliceTable();
@@ -35,8 +35,8 @@ export function createShadowPlan(capacity: number) {
   const budget = createShadowBudget();
   const regions = createShadowRegions(capacity);
   const counts = createShadowCounts();
-  // L'invalidation par pages peut s'éteindre : la face entière repart alors, comme avant le lot.
-  // C'est le seul moyen de comparer les deux règles sur le même moteur, à la même image près.
+  // Per-page invalidation can be turned off: the whole face then restarts, as before the batch.
+  // This is the only way to compare the two rules on the same engine, to the same frame.
   let byPage = true;
   const coverage = new Float64Array(LIGHT_SETTINGS.maxLights);
   const queue = createShadowAdmission(regions, budget, counts);
@@ -47,12 +47,12 @@ export function createShadowPlan(capacity: number) {
     budget,
     coverage,
     counts,
-    /** Un nœud a bougé : sa boîte entre dans la liste que l'ordonnanceur consommera à l'image suivante. */
+    /** A node has moved: its box enters the list the scheduler will consume next frame. */
     worldChanged: changes.worldChanged,
-    /** Le chronomètre de la passe Ombres d'une image, rapporté aux pages qu'elle avait redessinées. */
+    /** Timer of a frame's Shadows pass, reported to the pages it had redrawn. */
     observeCost: budget.observe,
     setBudgetMs: budget.setBudgetMs,
-    /** Éteint l'invalidation par pages : toute face touchée repart entière. Allumée par défaut. */
+    /** Turns off per-page invalidation: every touched face restarts in full. On by default. */
     setPageInvalidation(on: boolean) {
       byPage = on;
     },
@@ -60,8 +60,8 @@ export function createShadowPlan(capacity: number) {
       return byPage;
     },
     /**
-     * Choisit les régions de cette image. Rend leur nombre ; `plan.regions` les décrit une à une, et
-     * les pages qu'elles couvrent sont déjà retirées de la file d'attente.
+     * Chooses the regions of this frame. Returns their count; `plan.regions` describes them one by
+     * one, and the pages they cover are already removed from the queue.
      */
     plan(store: SceneLightStore, view: ShadowViewpoint, frame: number, nowMs: number) {
       const { packed } = store;
@@ -69,8 +69,8 @@ export function createShadowPlan(capacity: number) {
       queue.reset();
       counts.beginFrame();
       slices.dirty.beginFrame();
-      // Avant toute demande de tranche : celles que plus aucune lampe vivante à ombre ne réclame
-      // repartent au pot commun. C'est le seul endroit où une tranche est rendue.
+      // Before any slice request: those that no live shadow light claims anymore
+      // go back to the common pot. This is the only place a slice is released.
       release(slices, store);
       let casters = 0;
       for (let slot = 0; slot < store.count; slot++)
@@ -79,13 +79,13 @@ export function createShadowPlan(capacity: number) {
       for (let slot = 0; slot < store.count; slot++) {
         const base = SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
         coverage[slot] = 0;
-        // Sa tranche a déjà été rendue par `release` : la lampe passe son tour, sans autre effet.
+        // Its slice has already been released by `release`: the light skips its turn, with no other effect.
         if (packed[base + LIGHT_FIELD.castsShadow] === 0) continue;
         let slice = store.sliceOf(slot);
         const kind = packed[base + LIGHT_FIELD.kind];
         const sun = kind === LIGHT_KIND.directional;
-        // Le soleil éclaire tout l'écran : sa priorité est maximale. Une ponctuelle vaut la part
-        // d'écran que sa sphère d'influence occupe — la lampe la plus proche passe donc devant.
+        // The sun lights the whole screen: its priority is maximal. A point is worth the
+        // screen share its influence sphere occupies — the nearest light therefore goes first.
         coverage[slot] = sun
           ? 1
           : screenCoverage(
@@ -125,8 +125,8 @@ export function createShadowPlan(capacity: number) {
         for (let face = 0; face < faces; face++) {
           if (!slices.dirty.isDirty(slice, face)) continue;
           waiting = true;
-          // Priorité : la lampe la plus visible d'abord, une carte jamais dessinée avant tout, et
-          // l'attente déjà subie, qui monte d'image en image et empêche la famine.
+          // Priority: the most visible light first, a never-drawn map before everything, and
+          // the wait already suffered, which rises frame by frame and prevents starvation.
           queue.add(
             slot,
             slice,
@@ -139,16 +139,16 @@ export function createShadowPlan(capacity: number) {
         }
         if (!waiting) counts.reusedLight();
       }
-      // Les boîtes sont consommées : ce sont les pages qui portent désormais le travail restant.
+      // The boxes are consumed: it is the pages that now carry the remaining work.
       changes.settled();
       queue.run(slices, store, frame);
       counts.endFrame(slices, store, frame, nowMs);
       return regions.count;
     },
     /**
-     * Les régions de cette image n'ont pas pu être encodées : leurs pages retournent en file. Elles
-     * en étaient sorties à l'admission, parce que l'ordonnanceur et la passe ne se parlent que par
-     * cette liste ; si la passe ne dessine rien, la file doit les retrouver.
+     * The regions of this frame could not be encoded: their pages return to the queue. They
+     * had left it at admission, because the scheduler and the pass only talk through
+     * this list; if the pass draws nothing, the queue must find them again.
      */
     reissue(frame: number, nowMs: number) {
       for (let region = 0; region < regions.count; region++)

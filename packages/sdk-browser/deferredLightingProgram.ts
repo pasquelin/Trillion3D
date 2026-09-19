@@ -3,7 +3,7 @@ import { createDeferredLayouts } from './deferredLightingSetup.ts';
 import { SUN_FAR_PROXY_BINDING } from './sunFarShadowWgsl.ts';
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
 
-/** Construit un pipeline plein écran, en asynchrone quand l'appareil le propose. */
+/** Builds a fullscreen pipeline, asynchronously when the device offers it. */
 export function makeFullscreenPipeline(
   device: GPUDevice,
   module: GPUShaderModule,
@@ -22,16 +22,16 @@ export function makeFullscreenPipeline(
     : Promise.resolve(device.createRenderPipeline(descriptor));
 }
 
-/** Les ressources du contrat d'éclairage direct que la passe relit ; absentes, elles sont remplacées. */
+/** Direct-lighting contract resources the pass rereads; when absent, they are replaced. */
 export interface DirectLightResources {
   tiles?: GPUBuffer;
   slices?: GPUBuffer;
   atlas?: GPUTextureView;
-  /** La grille de sondes et leurs coefficients ; absentes, le rebond n'est pas de cette image. */
+  /** Probe grid and their coefficients; when absent, bounce is not of this frame. */
   bounceGrid?: GPUBuffer;
   probes?: GPUBuffer;
-  /** Le proxy résident, réglages et compteurs de l'ombre lointaine compris ; absent, le
-   *  remplacement de zéro laisse la surface lointaine éclairée sans ombre portée. */
+  /** Resident proxy, distant-shadow settings and counters included; when absent, the
+   *  zero substitute leaves the distant surface lit with no cast shadow. */
   proxy?: GPUBuffer;
 }
 export interface DeferredSources {
@@ -56,9 +56,9 @@ export interface DeferredBindings {
 export type DeferredProgram = Awaited<ReturnType<typeof createDeferredProgram>>;
 
 /**
- * Un programme de la passe différée : ses deux modules, ses trois pipelines, et les groupes de
- * liaison qu'il garde tant que ses ressources ne changent pas. Le moteur en tient deux — la vue
- * sans éclairage et celui du contrat — et ne compile le second que lorsqu'une lampe le demande.
+ * A deferred-pass program: its two modules, its three pipelines, and the bind groups it
+ * keeps as long as its resources do not change. The engine holds two — the unlit view and
+ * the contract one — and compiles the second only when a light asks for it.
  */
 export async function createDeferredProgram(
   device: GPUDevice,
@@ -84,8 +84,8 @@ export async function createDeferredProgram(
     boundProxy: GPUBuffer | undefined,
     boundHdr: GPUTextureView | undefined,
     lightGroup: GPUBindGroup | undefined;
-  /** Un groupe de composition par source lue : l'image éclairée, ou l'une des deux cibles
-   *  d'historique de l'antialiasing temporel. Trois au plus, tenus tant que l'uniforme vit. */
+  /** One composition group per source read: the lit image, or one of the two temporal-
+   *  antialiasing history targets. Three at most, held as long as the uniform lives. */
   const composeGroups = new Map<GPUTextureView, GPUBindGroup>();
   return {
     light,
@@ -94,7 +94,7 @@ export async function createDeferredProgram(
     get lightGroup() {
       return lightGroup;
     },
-    /** Le groupe qui lit `source`, l'image éclairée liée par défaut. `undefined` avant `bind`. */
+    /** The group that reads `source`, the lit image bound by default. `undefined` before `bind`. */
     composeGroup(source?: GPUTextureView) {
       const view = source ?? boundHdr;
       if (!view) return undefined;
@@ -150,8 +150,8 @@ export async function createDeferredProgram(
           { binding: 8, resource: { buffer: slices } },
           { binding: 9, resource: atlas },
           { binding: 10, resource: placeholders.sampler },
-          // Le proxy résident, tel quel : l'ombre lointaine du soleil le traverse sans en garder
-          // une seconde copie, et son entête dit s'il y a quelque chose à traverser.
+          // The resident proxy, as-is: the sun's distant shadow traverses it without keeping
+          // a second copy, and its header says whether there is something to traverse.
           { binding: SUN_FAR_PROXY_BINDING, resource: { buffer: proxy } },
         );
       if (sources.bounce && direct.bounceGrid && direct.probes)

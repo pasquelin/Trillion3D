@@ -18,8 +18,7 @@ export type GpuTimingSample = GpuPassTimings & {
 };
 
 /**
- * Nanosecondes vers millisecondes. Les deux chronomètres de carte graphique — les horodatages de
- * WebGPU et la requête de durée de WebGL2 — rendent des nanosecondes et publient des millisecondes ;
- * une seule division, donc une seule unité publiée.
+ * Nanoseconds to milliseconds. Both GPU timers — WebGPU timestamps and the WebGL2 duration query —
+ * return nanoseconds and publish milliseconds; one division, so one published unit.
  */
 export const nanosecondsToMs = (nanoseconds: number) => nanoseconds / 1e6;

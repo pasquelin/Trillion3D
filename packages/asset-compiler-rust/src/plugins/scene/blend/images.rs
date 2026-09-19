@@ -1,25 +1,24 @@
-//! Les images d'un fichier Blender : celles qu'il désigne, et celles qu'il emporte.
+//! Images of a Blender file: those it designates, and those it carries.
 //!
-//! Un bloc `IM` porte un chemin — `//` y désigne le dossier du fichier — et, quand l'auteur a
-//! empaqueté l'image, un `PackedFile` : la taille et les octets du fichier d'origine, tels quels.
-//! Ces octets partent dans le binaire de la scène intermédiaire **sans être touchés**, par une vue
-//! de tampon que le glTF prévoit pour cela : aucun réencodage, aucune seconde version sur le
-//! disque, et le décodeur d'image du compilateur relit exactement le fichier que l'auteur a
-//! empaqueté. Une image seulement désignée reste nommée par son chemin, relativement à la racine
-//! servie — la même racine que pour tous les pilotes, `scene::image_root`.
+//! An `IM` block holds a path — `//` there designates the file's directory — and, when the author
+//! packed the image, a `PackedFile`: the size and the bytes of the original file, as-is. These
+//! bytes go into the intermediate-scene binary **untouched**, through a buffer view glTF provides
+//! for that: no re-encoding, no second version on disk, and the compiler's image decoder rereads
+//! exactly the file the author packed. An image only designated stays named by its path, relative
+//! to the served root — the same root as for all drivers, `scene::image_root`.
 use super::*;
 
-/// Plafond des octets d'une image empaquetée : au-delà, l'image n'est pas versée.
+/// Ceiling of the bytes of a packed image: beyond it, the image is not poured.
 const MAX_PACKED_BYTES: usize = 256 * 1024 * 1024;
 
-/// Les images déjà versées, par l'adresse du bloc qui les porte.
+/// Images already poured, by the address of the block that holds them.
 #[derive(Default)]
 pub(super) struct Images {
     by_block: HashMap<u64, Option<usize>>,
 }
 
 impl Images {
-    /// Le rang de la texture glTF de cette image, versée à la première demande.
+    /// The glTF texture rank of this image, poured on first request.
     pub(super) fn texture(&mut self, image: &At<'_>, root: &Path, out: &mut Out) -> Option<usize> {
         if let Some(known) = self.by_block.get(&image.old) {
             return *known;
@@ -42,7 +41,7 @@ fn resolve(image: &At<'_>, root: &Path, out: &mut Out) -> Option<usize> {
         out.report.add("blend-image-format");
         out.report
             .notes
-            .push(format!("image hors registre d'images: {name}"));
+            .push(format!("image outside the image register: {name}"));
         return None;
     };
     if let Some(bytes) = packed(image) {
@@ -53,13 +52,13 @@ fn resolve(image: &At<'_>, root: &Path, out: &mut Out) -> Option<usize> {
         out.report.add("blend-image-outside-source");
         out.report
             .notes
-            .push(format!("image hors de la racine servie: {declared}"));
+            .push(format!("image outside the served root: {declared}"));
         return None;
     };
     Some(out.image(json!({"name": name, "mimeType": mime, "uri": uri})))
 }
 
-/// Les octets empaquetés d'une image, quand elle en porte et qu'ils tiennent sous le plafond.
+/// The packed bytes of an image, when it holds some and they fit under the ceiling.
 fn packed<'a>(image: &At<'a>) -> Option<&'a [u8]> {
     let file = image.follow_as("packedfile", "PackedFile")?;
     let size = usize::try_from(file.int("size", 0)).ok()?;
@@ -69,9 +68,9 @@ fn packed<'a>(image: &At<'a>) -> Option<&'a [u8]> {
     file.block("data").and_then(|bytes| bytes.get(..size))
 }
 
-/// L'URI d'une image seulement désignée, relative à la racine servie et échappée comme toute
-/// référence relative d'URI. Une image qui vit hors de cette racine n'a pas d'URI : elle est
-/// comptée, et la scène continue sans elle.
+/// The URI of an image only designated, relative to the served root and escaped like any
+/// relative URI reference. An image that lives outside that root has no URI: it is counted, and
+/// the scene continues without it.
 pub(super) fn linked(declared: &str, root: &Path) -> Option<String> {
     let relative = declared.strip_prefix("//").unwrap_or(declared);
     let path = Path::new(relative);
@@ -82,7 +81,7 @@ pub(super) fn linked(declared: &str, root: &Path) -> Option<String> {
     };
     let under = normalise(&absolute);
     let inside = under.strip_prefix(normalise(root)).ok()?;
-    // Une URI glTF, pas un chemin : `%`, `#`, l'espace et tout ce qui n'est pas un caractère non
-    // réservé s'échappe, sinon le consommateur relit un autre nom, ou rien.
+    // A glTF URI, not a path: `%`, `#`, space and everything that is not an unreserved character
+    // is escaped, or the consumer rereads another name, or nothing.
     Some(crate::uri::encode_relative(inside))
 }

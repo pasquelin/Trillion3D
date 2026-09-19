@@ -1,9 +1,9 @@
 use crate::coplanar::plane::*;
 
-// Comportement 1 : plane_of_triangles rend un plan pour un cluster plat, None sinon.
+// Behavior 1: plane_of_triangles yields plane for flat cluster, None otherwise.
 #[test]
 fn plane_of_triangles_returns_plane_for_flat_cluster() {
-    // Un carré simple dans le plan Z = 0
+    // Simple square in Z = 0 plane
     let indices = [0, 1, 2, 0, 2, 3];
     let positions = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0];
     let result = plane_of_triangles(&indices, &positions, 1e-5);
@@ -15,7 +15,7 @@ fn plane_of_triangles_returns_plane_for_flat_cluster() {
 
 #[test]
 fn plane_of_triangles_returns_none_when_one_vertex_exceeds_tolerance() {
-    // Deux triangles coplanaires et un troisième qui s'en écarte
+    // Two coplanar triangles and third deviating
     let indices = [0, 1, 2, 0, 2, 3, 4, 5, 6];
     let positions = [
         0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.5, 1.0, 0.0, // Triangle 1 : Z=0
@@ -28,17 +28,17 @@ fn plane_of_triangles_returns_none_when_one_vertex_exceeds_tolerance() {
 
 #[test]
 fn plane_of_triangles_returns_none_for_non_parallel_normal() {
-    // Triangle 1 et triangle 2 avec des normales non parallèles
+    // Triangle 1 and triangle 2 with non-parallel normals
     let indices = [0, 1, 2, 3, 4, 5];
     let positions = [
         0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, // Triangle plat en Z=0
-        2.0, 0.0, 0.0, 3.0, 0.0, 1.0, 2.0, 1.0, 0.0, // Triangle penché
+        2.0, 0.0, 0.0, 3.0, 0.0, 1.0, 2.0, 1.0, 0.0, // Tilted triangle
     ];
     let result = plane_of_triangles(&indices, &positions, 1e-5);
     assert!(result.is_none());
 }
 
-// Comportement 2 : canonical donne la même orientation à un plan et son opposé.
+// Behavior 2: canonical gives same orientation to plane and opposite.
 #[test]
 fn canonical_gives_same_orientation_for_opposite_planes() {
     let normal = [1.0, 0.0, 0.0];
@@ -49,7 +49,7 @@ fn canonical_gives_same_orientation_for_opposite_planes() {
     let (n1, o1) = canonical(normal, offset);
     let (n2, o2) = canonical(opposite_normal, opposite_offset);
 
-    // Les deux doivent retourner la même orientation
+    // Both must return same orientation
     assert!(
         ((n1[0] - n2[0]).abs() < 1e-9
             && (n1[1] - n2[1]).abs() < 1e-9
@@ -64,7 +64,7 @@ fn canonical_picks_first_non_zero_axis_for_sign() {
     let (n1, _) = canonical([0.5, 0.0, 0.0], 1.0);
     assert!(n1[0] > 0.0);
 
-    // Même normale inversée devrait retourner la même orientation
+    // Same inverted normal should return same orientation
     let (n2, _) = canonical([-0.5, 0.0, 0.0], -1.0);
     assert!((n1[0] - n2[0]).abs() < 1e-9);
 }
@@ -72,7 +72,7 @@ fn canonical_picks_first_non_zero_axis_for_sign() {
 #[test]
 fn canonical_uses_second_axis_when_first_is_zero() {
     let (n1, _) = canonical([0.0, -0.5, 1.0], 1.0);
-    // Le deuxième axe est négatif, donc doit être inversé
+    // Second axis is negative, so must be inverted
     assert!(n1[1] > 0.0);
 }
 
@@ -98,7 +98,7 @@ fn plane_key_quantizes_normals_and_offset() {
     let offset = 10.0;
     let offset_quantum = 0.001;
     let key = plane_key(normal, offset, offset_quantum);
-    // Les quatre composantes du vecteur clé doivent être des entiers quantifiés
+    // Four key vector components must be quantized integers
     assert_eq!(key.len(), 4);
 }
 
@@ -122,14 +122,14 @@ fn same_plane_returns_false_for_different_planes() {
 fn plane_frame_derives_axes_from_normal() {
     let normal = [1.0, 0.0, 0.0];
     let (u, v) = plane_frame(normal);
-    // Les deux axes doivent être orthogonaux à la normale
+    // Both axes must be orthogonal to normal
     assert!(dot(u, normal).abs() < 1e-9);
     assert!(dot(v, normal).abs() < 1e-9);
-    // Ils doivent être orthogonaux l'un à l'autre
+    // They must be orthogonal to each other
     assert!(dot(u, v).abs() < 1e-9);
 }
 
-// Comportement 3 : plane_groups fusionne deux clés voisines quand same_plane, ne fusionne pas sinon
+// Behavior 3: plane_groups merges two neighboring keys when same_plane, not otherwise
 #[test]
 fn plane_groups_merges_same_plane_keys() {
     use crate::coplanar::plane::{canonical, plane_key};
@@ -154,10 +154,10 @@ fn plane_groups_distinguishes_different_planes() {
     assert_ne!(key1, key2);
 }
 
-// Comportement 4 : world_plane transforme normale, offset et facteur d'aire par matrice
+// Behavior 4: world_plane transforms normal, offset and area factor by matrix
 #[test]
 fn world_plane_scales_area_by_matrix() {
-    // Deux surfaces coplanaires avec matrice d'instance différentes doivent avoir des aires transformées
+    // Two coplanar surfaces with different instance matrices must have transformed areas
     let indices = [0, 1, 2];
     let positions = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
     use crate::coplanar::plane::plane_of_triangles;

@@ -28,7 +28,7 @@ export {
   type HizFlat,
 } from './hizPyramidFlat.ts';
 
-/** Balayage préfixe exclusif (exclusive scan). */
+/** Exclusive prefix scan. */
 export function exclusiveScan(values: readonly number[]): [number[], number] {
   const result: number[] = [];
   let total = 0;
@@ -39,10 +39,10 @@ export function exclusiveScan(values: readonly number[]): [number[], number] {
   return [result, total];
 }
 
-/** Compaction de données selon un tableau de prédicats binaires (0 ou 1). */
+/** Data compaction from an array of binary predicates (0 or 1). */
 export function compact<T>(values: readonly T[], flags: readonly number[]): T[] {
   if (values.length !== flags.length || flags.some((f) => f !== 0 && f !== 1)) {
-    throw new Error('Predicats invalides');
+    throw new Error('Invalid predicates');
   }
   const [offsets, total] = exclusiveScan(flags);
   const result: T[] = new Array(total);
@@ -64,7 +64,7 @@ export function packDrawIndirect(vertexCount: number, instanceCount: number): Ui
   return Uint32Array.of(fit(vertexCount, 'vertexCount'), fit(instanceCount, 'instanceCount'), 0, 0);
 }
 
-/** Fonction d'arête 2D (produit vectoriel 2D). */
+/** 2D edge function (2D cross product). */
 export function edge(
   first: readonly number[],
   second: readonly number[],
@@ -75,7 +75,7 @@ export function edge(
   );
 }
 
-/** Coordonnées barycentriques 2D d'un point dans un triangle. */
+/** 2D barycentric coordinates of a point in a triangle. */
 export function barycentric(
   vertices: readonly (readonly number[])[],
   point: readonly number[],

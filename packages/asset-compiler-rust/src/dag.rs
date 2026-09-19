@@ -26,20 +26,20 @@ pub const DAG_MAX_LEVELS: usize = 32;
 /// meshopt's relative error ceiling. Large enough to always reach the triangle target.
 const SIMPLIFY_ERROR_CEILING: f32 = 1.0;
 
-/// Ce que l'option `simplification` demande à la construction. Le mode n'est pas une préférence de
-/// vitesse : il dit si le DAG a le droit de porter, au-dessus des clusters exacts, une surface que
-/// la source ne contient pas.
+/// What `simplification` option requests from build. Mode not speed preference:
+/// specifies whether DAG allowed to carry, above exact clusters, surface
+/// source does not contain.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum DagStrategy {
-    /// `none` : le seul niveau zéro, partition exacte des triangles de la source. Aucun groupe n'est
-    /// réduit, donc aucun cluster n'est remplacé et chacun reste une racine.
+    /// `none`: level zero only, exact partition of source triangles. No group
+    /// reduced, no cluster replaced, each stays root.
     ExactClusters,
-    /// `qem-endpoints` : les niveaux grossiers, chaque groupe réduit par QEM bord verrouillé.
+    /// `qem-endpoints`: coarse levels, each group reduced by QEM locked border.
     QemEndpoints,
 }
 impl DagStrategy {
-    /// La stratégie que nomme l'option. Toute autre orthographe est déjà refusée par la validation
-    /// des options : seul `none` retient la construction.
+    /// Strategy named by option. Any other spelling refused by options validation:
+    /// only `none` retains build.
     pub fn named(option: &str) -> Self {
         if option == "none" {
             Self::ExactClusters
@@ -89,9 +89,9 @@ struct GroupReduction {
     sphere: [f64; 4],
     clusters: Vec<Vec<u32>>,
     source_rank: u32,
-    /// La réduction a dû souder les indices par position (`reduce.rs`).
+    /// Reduction had to weld indices by position (`reduce.rs`).
     welded: bool,
-    /// La réduction a dû verrouiller des triangles en plus pour garder son bord.
+    /// Reduction had to lock additional triangles to preserve border.
     relocked: bool,
 }
 /// One reduction of the DAG, kept so the runtime can swap a whole group at once.
@@ -110,9 +110,9 @@ pub struct DagGroup {
 struct GroupReductionInput<'a> {
     positions: &'a [f32],
     locks: &'a [bool],
-    /// Sommet canonique par position : verrous, bords, adjacence.
+    /// Canonical vertex by position: locks, borders, adjacency.
     weld: &'a [u32],
-    /// Sommet canonique par (position, uv) : la soudure de repli de la réduction.
+    /// Canonical vertex by (position, uv): fallback reduction weld.
     weld_seam: &'a [u32],
 }
 pub const CULLING_BRANCHING: usize = 8;

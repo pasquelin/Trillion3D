@@ -1,8 +1,8 @@
-// `verifieJeuInstructions` refuse tout module qui ne porte pas `simd128`, ou qui porte une capacité
-// « relaxed » — la seule famille d'instructions WebAssembly à arrondi non garanti, qui casserait
-// l'égalité bit à bit des noyaux de `packages/page-codec-wasm/src/math.rs`. Chaque cas est un module
-// WebAssembly factice minimal (en-tête + une section personnalisée `target_features`), sans passer
-// par `cargo build` : l'import de ce script ne le déclenche jamais (`main()` ne joue qu'en CLI).
+// `verifieJeuInstructions` rejects any module that does not carry `simd128`, or that carries a
+// "relaxed" feature — the only WebAssembly instruction family with non-guaranteed rounding, which would break
+// bit-for-bit equality of `packages/page-codec-wasm/src/math.rs` kernels. Each case is a minimal dummy
+// WebAssembly module (header + custom `target_features` section), without going through
+// `cargo build`: importing this script never triggers it (`main()` only runs via CLI).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { verifieJeuInstructions } from './build-wasm.mjs';
 
-/** Un entier non signé en LEB128, comme l'exigent les longueurs du format binaire WebAssembly. */
+/** An unsigned integer in LEB128, as required by WebAssembly binary format lengths. */
 function leb128(n) {
   const octets = [];
   do {
@@ -23,9 +23,9 @@ function leb128(n) {
 }
 
 /**
- * Un module WebAssembly minimal valide — en-tête seul — portant une unique section personnalisée
- * `target_features` dont le contenu est le texte donné : exactement ce que lit
- * `verifieJeuInstructions`, sans dépendre d'un vrai encodage de capacités.
+ * A minimal valid WebAssembly module — header only — carrying a single custom section
+ * `target_features` whose content is the given text: exactly what `verifieJeuInstructions` reads,
+ * without depending on a real capability encoding.
  */
 function moduleFactice(texteCapacites) {
   const entete = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00];
@@ -41,7 +41,7 @@ function fichierFactice(dir, texteCapacites) {
   return chemin;
 }
 
-test('un module avec simd128 et sans capacité relaxed est accepté', () => {
+test('a module with simd128 and without relaxed feature is accepted', () => {
   const dir = mkdtempSync(join(tmpdir(), 'wg-build-wasm-'));
   try {
     assert.doesNotThrow(() => verifieJeuInstructions(fichierFactice(dir, '+simd128')));
@@ -50,32 +50,32 @@ test('un module avec simd128 et sans capacité relaxed est accepté', () => {
   }
 });
 
-test('un module sans simd128 est refusé', () => {
+test('a module without simd128 is rejected', () => {
   const dir = mkdtempSync(join(tmpdir(), 'wg-build-wasm-'));
   try {
     assert.throws(
       () => verifieJeuInstructions(fichierFactice(dir, '+multivalue')),
-      /simd128 absent/,
+      /simd128 missing/,
     );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test('un module portant relaxed-simd est refusé même avec simd128', () => {
+test('a module carrying relaxed-simd is rejected even with simd128', () => {
   const dir = mkdtempSync(join(tmpdir(), 'wg-build-wasm-'));
   try {
     assert.throws(
       () => verifieJeuInstructions(fichierFactice(dir, '+simd128+relaxed-simd')),
-      /capacité « relaxed » présente/,
+      /"relaxed" capability present/,
     );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test("importer le script n'exécute pas la compilation", () => {
-  // Si `main()` s'exécutait à l'import, ce test échouerait bien avant d'arriver ici : `cargo`
-  // n'est pas garanti installé sur la machine qui fait tourner `pnpm test`.
+test('importing the script does not run compilation', () => {
+  // If `main()` ran on import, this test would fail long before reaching here: `cargo`
+  // is not guaranteed to be installed on the machine running `pnpm test`.
   assert.equal(typeof verifieJeuInstructions, 'function');
 });

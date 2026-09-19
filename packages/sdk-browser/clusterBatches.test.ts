@@ -12,17 +12,17 @@ test('the range allocator hands out disjoint ranges, reuses a freed range and me
     c = allocator.allocate(15);
   assert.deepEqual([a, b, c], [0, 10, 15]);
   assert.equal(allocator.used, 30);
-  assert.equal(allocator.allocate(1), -1, 'plus aucune place');
+  assert.equal(allocator.allocate(1), -1, 'no room left');
 
   allocator.release(b, 5);
   assert.equal(allocator.used, 25);
-  assert.equal(allocator.allocate(5), 10, 'la plage libérée est reprise telle quelle');
+  assert.equal(allocator.allocate(5), 10, 'the freed range is taken back as-is');
 
   allocator.release(0, 10);
   allocator.release(10, 5);
-  assert.equal(allocator.freeRanges.length, 1, 'les voisins fusionnent');
+  assert.equal(allocator.freeRanges.length, 1, 'neighbours merge');
   assert.deepEqual({ ...allocator.freeRanges[0] }, { offset: 0, length: 15 });
-  assert.equal(allocator.allocate(15), 0, 'la place fusionnée sert une seule demande');
+  assert.equal(allocator.allocate(15), 0, 'the merged room serves a single request');
 });
 
 test('a fragmented allocator refuses a range larger than every hole, and accepts it after growth', () => {
@@ -33,8 +33,8 @@ test('a fragmented allocator refuses a range larger than every hole, and accepts
   allocator.release(b, 3);
   allocator.release(c, 2);
   assert.equal(allocator.used, 5);
-  assert.equal(allocator.allocate(6), -1, '5 libres mais en deux trous non contigus');
-  assert.equal(allocator.freeRanges.length, 1, 'b et c étaient adjacents : un seul trou de 5');
+  assert.equal(allocator.allocate(6), -1, '5 free but in two non-contiguous holes');
+  assert.equal(allocator.freeRanges.length, 1, 'b and c were adjacent: a single hole of 5');
   assert.equal(allocator.allocate(5), 5);
   allocator.release(a, 5);
   assert.equal(allocator.allocate(6), -1);
@@ -43,10 +43,10 @@ test('a fragmented allocator refuses a range larger than every hole, and accepts
   assert.equal(
     allocator.allocate(6),
     -1,
-    "la croissance s'ajoute à la fin, elle ne comble pas le trou de tête",
+    'growth is appended at the end, it does not fill the head hole',
   );
-  assert.equal(allocator.allocate(4), 0, 'première place libre : le trou de tête');
-  assert.equal(allocator.allocate(4), 10, 'puis la place ajoutée par la croissance');
+  assert.equal(allocator.allocate(4), 0, 'first free room: the head hole');
+  assert.equal(allocator.allocate(4), 10, 'then the room added by growth');
   assert.equal(total(allocator) + allocator.used, allocator.capacity);
 });
 
@@ -66,7 +66,7 @@ test('a randomised allocate/release sequence never overlaps and never loses spac
       for (const other of live)
         assert.ok(
           offset + length <= other.offset || other.offset + other.length <= offset,
-          'plages disjointes',
+          'disjoint ranges',
         );
       live.push({ offset, length });
     }
@@ -77,10 +77,10 @@ test('a randomised allocate/release sequence never overlaps and never loses spac
 test('a draw range list merges adjacent ranges, keeps the given order and grows without losing entries', () => {
   const ranges = new DrawRanges();
   assert.equal(ranges.push(0, 4), true);
-  assert.equal(ranges.push(4, 6), false, 'plage adjacente : fusionnée');
+  assert.equal(ranges.push(4, 6), false, 'adjacent range: merged');
   assert.equal(ranges.count, 1);
   assert.equal(ranges.counts[0], 10);
-  assert.equal(ranges.push(20, 2), true, 'plage disjointe : nouveau sous-dessin');
+  assert.equal(ranges.push(20, 2), true, 'disjoint range: new sub-draw');
   assert.deepEqual([...ranges.starts.subarray(0, 2)], [0, 80]);
   assert.deepEqual([...ranges.counts.subarray(0, 2)], [10, 2]);
   for (let i = 0; i < 20; i++) ranges.push(100 + i * 10, 1);

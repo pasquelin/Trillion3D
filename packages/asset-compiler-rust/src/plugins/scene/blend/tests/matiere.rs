@@ -1,15 +1,15 @@
-//! Quel nuanceur le pilote lit dans un graphe de matériau, et ce que vaut une émission texturée.
+//! Which shader the driver reads in a material graph, and what a textured emission is worth.
 use super::*;
 use sortie::{close, factors, material};
 
-// Comportement : c'est le nœud de sortie actif qui désigne le nuanceur du matériau. Un
-// `Principled BSDF` que l'entrée `Surface` de cette sortie n'atteint pas ne décrit pas la surface :
-// il est compté par son nom, et les grandeurs du bloc de matériau restent, exactes.
+// Behaviour: it is the active output node that designates the material's shader. A
+// `Principled BSDF` that this output's `Surface` input does not reach does not describe the
+// surface: it is counted by its name, and the material block's quantities stay, exact.
 #[test]
 fn a_principled_the_active_output_does_not_reach_is_counted_not_read() {
     let mut bytes = surgery::fixture();
     let volume = {
-        let file = BlendFile::open(&bytes, MAX_BYTES).expect("la fixture");
+        let file = BlendFile::open(&bytes, MAX_BYTES).expect("the fixture");
         let surface = surgery::socket(
             &file,
             "MATransparent",
@@ -50,14 +50,14 @@ fn a_principled_the_active_output_does_not_reach_is_counted_not_read() {
     );
 }
 
-// Comportement : quand une image alimente la couleur d'émission, c'est elle qui porte la couleur et
-// l'intensité qui la multiplie ; la valeur déclarée de l'entrée, que Blender ignore alors, ne doit
-// pas éteindre l'émission.
+// Behaviour: when an image feeds the emission colour, it is the image that carries the colour
+// and the strength that multiplies it; the declared value of the input, which Blender then
+// ignores, must not extinguish the emission.
 #[test]
 fn a_textured_emission_is_scaled_by_its_strength_not_by_the_replaced_colour() {
     let mut bytes = surgery::fixture();
     {
-        let file = BlendFile::open(&bytes, MAX_BYTES).expect("la fixture");
+        let file = BlendFile::open(&bytes, MAX_BYTES).expect("the fixture");
         let base = surgery::socket(&file, "MAOpaque", "Principled BSDF", "inputs", "Base Color");
         let emission = surgery::socket(
             &file,

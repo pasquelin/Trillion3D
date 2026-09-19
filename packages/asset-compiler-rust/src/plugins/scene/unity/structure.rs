@@ -1,26 +1,26 @@
-//! Ce qu'une instance de prefab change dans la structure de sa source, et non dans ses propriétés.
+//! What a prefab instance changes in its source's structure, not in its properties.
 //!
-//! Une instance ne fait pas que remplacer des valeurs : elle retire des composants de sa source,
-//! elle lui ajoute des objets, elle lui ajoute des composants. Ces trois listes vivent à côté de
-//! `m_Modifications`, et chacune nomme l'objet de la source qu'elle vise. Un composant retiré
-//! n'existe pas pour le parcours : un rendu retiré n'émet rien. Un objet ajouté, lui, est décrit
-//! dans le document qui porte l'instance, pas dans le prefab source : il se construit là-bas puis
-//! prend sa place sous l'objet visé. Ce que ce pilote ne rend pas est compté par son nom.
+//! An instance does more than replace values: it removes components from its source, it adds
+//! objects, it adds components. Those three lists live beside `m_Modifications`, and each names
+//! the source object it targets. A removed component does not exist for the walk: a removed
+//! renderer emits nothing. An added object is described in the document that carries the
+//! instance, not in the source prefab: it is built there then takes its place under the targeted
+//! object. What this driver does not yield is counted by name.
 use super::*;
 
-/// Le code d'un composant ajouté par une instance, que ce pilote ne verse pas dans la source.
+/// Code for a component added by an instance, which this driver does not pour into the source.
 const ADDED_COMPONENT: &str = "unity-prefab-added-component-unconverted";
-/// Celui d'un objet ajouté dont l'objet visé n'a rien rendu : il sort sous la racine de l'instance.
+/// Code for an added object whose target rendered nothing: it comes out under the instance root.
 pub(super) const ADDED_UNPLACED: &str = "unity-prefab-added-object-unplaced";
 
-/// Les changements de structure d'une instance.
+/// Structural changes of an instance.
 #[derive(Default)]
 pub(super) struct Structure {
-    /// Les composants que l'instance retire, par `fileID` dans la source.
+    /// Components the instance removes, by `fileID` in the source.
     removed: BTreeSet<i64>,
-    /// Les objets ajoutés : l'objet visé dans la source, puis la transformation ajoutée.
+    /// Added objects: the targeted object in the source, then the added transform.
     added: Vec<(i64, i64)>,
-    /// Les composants ajoutés à un objet de la source.
+    /// Components added to a source object.
     components: usize,
 }
 
@@ -40,23 +40,23 @@ impl Structure {
         }
     }
 
-    /// Ce composant de la source est-il retiré par l'instance ?
+    /// Is this source component removed by the instance?
     pub(super) fn removes(&self, component: i64) -> bool {
         self.removed.contains(&component)
     }
 
-    /// Les objets ajoutés, dans l'ordre où l'instance les déclare.
+    /// Added objects, in the order the instance declares them.
     pub(super) fn added(&self) -> &[(i64, i64)] {
         &self.added
     }
 
-    /// Les retraits d'une instance extérieure valent aussi pour le prefab qu'elle contient ; les
-    /// objets qu'elle ajoute, eux, se posent à son propre niveau et ne se transmettent pas.
+    /// Removals of an outer instance also apply to the prefab it contains; objects it adds, on
+    /// the other hand, sit at its own level and are not forwarded.
     pub(super) fn overlay(&mut self, outer: &Structure) {
         self.removed.extend(outer.removed.iter().copied());
     }
 
-    /// Un nombre nul ne s'écrit pas : le rapport ne nomme que ce qui est arrivé.
+    /// A zero count is not written: the report names only what happened.
     pub(super) fn report(&self, scene: &mut Scene) {
         if !self.removed.is_empty() {
             scene.count("componentsRemoved", self.removed.len());

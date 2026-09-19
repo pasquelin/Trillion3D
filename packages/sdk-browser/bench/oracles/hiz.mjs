@@ -1,5 +1,5 @@
-// Oracles purs de A1 et A5, sans effet de bord : `hiz.bench.mjs` les mesure, les tests unitaires les
-// importent comme référence. Importer ce module n'exécute ni banc ni écriture de fichier.
+// Pure A1 and A5 oracles, no side effects: `hiz.bench.mjs` measures them; unit tests import
+// them as reference. Importing this module runs neither a bench nor a file write.
 import * as THREE from 'three';
 import { perspectiveProjection } from '../../../sdk-core/index.ts';
 import { DEPTH_CLEAR } from '../../depthConvention.ts';
@@ -9,16 +9,16 @@ import { unpackVisibilityId } from '../../visibilityTypes.ts';
 
 const viewProjScratch = new THREE.Matrix4(),
   projScratch = new THREE.Matrix4();
-/** La vue-projection de l'oracle : le moteur n'a qu'une convention de profondeur, donc il n'y a
- *  plus rien à faire voyager avec elle. Réécrit par appel, jamais réalloué. */
+/** The oracle's view-projection: the engine has only one depth convention, so there is
+ *  nothing left to travel with it. Rewritten per call, never reallocated. */
 const depthCam = { viewProjection: viewProjScratch.elements };
-/** `hizDepth.ts:25-84` avant le lot A : trois projections par pixel. */
+/** `hizDepth.ts:25-84` before batch A: three projections per pixel. */
 export function referenceVisibilityDepth(ids, pages, cam, viewport) {
   const [width, height] = viewport,
     depth = new Float32Array(width * height);
   depth.fill(DEPTH_CLEAR);
   cam.updateMatrixWorld();
-  // La projection du moteur, pas celle de l'hôte : profondeur inversée, plan lointain infini.
+  // The engine projection, not the host's: reversed depth, infinite far plane.
   perspectiveProjection(projScratch.elements, cam.fov, cam.aspect, cam.near, cam.zoom);
   viewProjScratch.multiplyMatrices(projScratch, cam.matrixWorldInverse);
   for (let y = 0; y < height; y++)
@@ -48,7 +48,7 @@ export function referenceVisibilityDepth(ids, pages, cam, viewport) {
   return depth;
 }
 
-/** `hizOcclusion.ts:37-81` avant le lot A : recherche linéaire du niveau, du mip 0 au dernier. */
+/** `hizOcclusion.ts:37-81` before batch A: linear search of the level, from mip 0 to the last. */
 export function referenceHizTestRect(
   minX,
   minY,

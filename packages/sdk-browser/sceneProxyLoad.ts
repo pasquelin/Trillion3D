@@ -2,11 +2,11 @@ import { decodeSceneProxy, EngineError, type SceneProxy } from '../sdk-core/inde
 import { checked } from './clusterPages.ts';
 
 /**
- * Lit l'objet de cache du proxy résident, à côté du manifeste qui le nomme.
+ * Read the resident proxy's cache object, next to the manifest that names it.
  *
- * Il n'est jamais lu à la préparation : une scène qui ne déclare aucune lampe n'a rien à faire
- * rebondir, et ses dizaines de mégaoctets retarderaient la première image pour rien. Le moteur le
- * demande à la première image qui porte une lampe, et le rebond apparaît quand il arrive.
+ * It is never read at prepare time: a scene that declares no light has nothing to bounce,
+ * and its tens of megabytes would delay the first frame for nothing. The engine asks for it
+ * on the first frame that carries a light, and the bounce appears when it arrives.
  */
 export function createSceneProxyReader(
   proxy: { url: string; sha256: string; bytes: number } | undefined,
@@ -20,7 +20,7 @@ export function createSceneProxyReader(
     if (buffer.byteLength !== proxy.bytes)
       throw new EngineError(
         'INVALID_CACHE',
-        `${url}: ${buffer.byteLength} octets reçus, ${proxy.bytes} annoncés`,
+        `${url}: ${buffer.byteLength} bytes received, ${proxy.bytes} announced`,
         { url, bytes: buffer.byteLength, expected: proxy.bytes },
       );
     return decodeSceneProxy(proxy as Parameters<typeof decodeSceneProxy>[0], buffer);

@@ -1,9 +1,9 @@
 import { IDENTITY_MATRIX4, copyMatrix4 } from '../sdk-core/index.ts';
 
 /**
- * Les seize flottants d'une matrice, comparés ou recopiés : savoir si la vue a bougé, ou si la pose
- * demandée est celle qu'un nœud porte déjà. Chaque lecteur écrivait sa propre boucle ; ils lisent
- * tous la même arithmétique, au flottant près et sans tolérance.
+ * Matrix sixteen floats, compared or copied: knowing if view moved, or if requested
+ * pose is the one node already holds. Every caller wrote its own loop; they all read
+ * the same arithmetic, float by float without tolerance.
  */
 export function sameElements(held: ArrayLike<number>, now: ArrayLike<number>, heldAt = 0) {
   for (let i = 0; i < 16; i++) if (held[heldAt + i] !== now[i]) return false;
@@ -11,19 +11,18 @@ export function sameElements(held: ArrayLike<number>, now: ArrayLike<number>, he
 }
 
 /**
- * Dans les deux sens : une matrice de l'HÔTE recopiée dans un tampon possédé, ou un résultat du
- * socle posé dans une matrice de l'hôte. Le socle ne calcule que dans des `Float64Array` — un seul
- * type de tampon pour le produit et l'inverse (`mathMatrix4.ts`) — et les matrices de la
- * bibliothèque hôte sont des tableaux ordinaires : un résultat destiné à l'hôte se compose donc à
- * part, puis se recopie ici.
+ * In both directions: HOST matrix copied into owned buffer, or core result set
+ * into HOST matrix. Core only computes in `Float64Array` — single buffer type for
+ * product and inverse (`mathMatrix4.ts`) — and host library matrices are plain arrays:
+ * result destined for host is composed separately then copied here.
  */
 export function copyElements(into: { [index: number]: number }, from: ArrayLike<number>) {
   copyMatrix4(into, from);
 }
 
 /**
- * Une matrice 4×4 colonne-major que l'HÔTE possède — la pose d'un nœud de sa scène. Le moteur n'en
- * lit que les seize flottants : aucune structure de la bibliothèque hôte ne traverse une signature.
+ * Column-major 4×4 matrix owned by HOST — pose of a node in its scene. Engine only reads
+ * its sixteen floats: no host library structure crosses a signature.
  */
 export type MatrixElements = { readonly elements: ArrayLike<number> };
 

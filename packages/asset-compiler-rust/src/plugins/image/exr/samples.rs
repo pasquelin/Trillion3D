@@ -1,18 +1,18 @@
-//! Les échantillons du seul calque d'un OpenEXR, et l'alpha droit que le contrat demande.
+//! Samples of the single OpenEXR layer, and the straight alpha the contract asks for.
 //!
-//! Ce module ne juge rien : le sous-ensemble a déjà été vérifié par `exr.rs`, qui n'appelle celui-ci
-//! qu'une fois la taille connue et le plafond d'allocation appliqué. Il lit les quatre canaux,
-//! vérifie que la surface rendue est celle qui était annoncée, puis ramène les échantillons à un
-//! alpha droit.
+//! This module judges nothing: the subset has already been checked by `exr.rs`, which only
+//! calls here once the size is known and the allocation ceiling applied. It reads the four
+//! channels, checks that the returned surface is the one that was announced, then brings the
+//! samples back to straight alpha.
 use super::{DecodedImage, ImageDecoded, Transfer, UNREADABLE};
 use ::exr::image::RgbaChannels;
 use ::exr::math::Vec2;
 use ::exr::prelude::traits::{read, ReadChannels, ReadLayers};
 
-/// Les pixels du seul calque, à son plus grand niveau de résolution, rangés ligne du haut d'abord.
-/// Un fichier sans canal `A` rend un alpha opaque, comme le prescrit la spécification. La lecture
-/// est séquentielle : le compilateur borne ses propres fils, un décodeur de texture ne lui en prend
-/// pas d'autres dans le dos.
+/// Pixels of the single layer, at its largest resolution level, stored top row first.
+/// A file with no `A` channel returns opaque alpha, as the specification requires. The read is
+/// sequential: the compiler bounds its own threads, a texture decoder does not take others
+/// behind its back.
 pub(super) fn read_all(
     bytes: &[u8],
     width: u32,
@@ -51,9 +51,9 @@ pub(super) fn read_all(
     ))
 }
 
-/// Les échantillons associés ramenés à un alpha droit, pixel par pixel et en place. Un alpha de un
-/// laisse le pixel exactement tel quel — la division est neutre —, et un alpha nul ou négatif ne
-/// divise rien du tout : c'est la seule valeur sous laquelle la couleur droite n'existe pas.
+/// Associated samples brought back to straight alpha, pixel by pixel and in place. An alpha of
+/// one leaves the pixel exactly as-is — the division is a no-op —, and a null or negative alpha
+/// divides nothing at all: that is the only value under which the straight colour does not exist.
 fn straight(data: &mut [f32]) {
     for pixel in data.as_chunks_mut::<4>().0 {
         let alpha = pixel[3];

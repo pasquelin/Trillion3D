@@ -1,8 +1,7 @@
 import type * as THREE from 'three';
 
-/** Les maillages d'un sous-arbre, dans l'ordre du parcours préfixe. Rien n'est remonté ici : les
- *  matrices monde dont le moteur a besoin sont les siennes (`hostWorldPlacements.ts`), et la scène
- *  de l'hôte reste telle qu'il l'a laissée. */
+/** Meshes of a subtree, in preorder. Nothing is lifted here: the world matrices the
+ *  engine needs are its own (`hostWorldPlacements.ts`), and the host scene stays as it left it. */
 export function meshes(source: THREE.Object3D) {
   const found: THREE.Mesh[] = [];
   source.traverse((o) => {

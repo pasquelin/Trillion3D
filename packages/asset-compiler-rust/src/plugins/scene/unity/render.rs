@@ -1,9 +1,9 @@
-//! Ce qu'un GameObject donne à voir : `MeshFilter` + `MeshRenderer`, ou rien.
+//! What a GameObject shows: `MeshFilter` + `MeshRenderer`, or nothing.
 //!
-//! Le maillage vient soit d'un asset modèle — importé par le pilote de son format et instancié —
-//! soit d'une primitive intégrée de l'éditeur. Les matériaux, eux, sont ceux que le `MeshRenderer`
-//! déclare : ils remplacent ceux que le modèle portait, emplacement par emplacement, comme Unity le
-//! fait. Un modèle n'est lu qu'une fois ; seule la liaison aux matériaux distingue ses variantes.
+//! The mesh comes either from a model asset — imported by the driver of its format and
+//! instantiated — or from an editor built-in primitive. Materials are those the `MeshRenderer`
+//! declares: they replace those the model carried, slot by slot, as Unity does. A model is read
+//! only once; only the material binding distinguishes its variants.
 use super::*;
 use std::collections::HashSet;
 
@@ -11,7 +11,8 @@ const MESH_RENDERER: u32 = 23;
 const MESH_FILTER: u32 = 33;
 
 impl Builder<'_, '_> {
-    /// Attache le rendu au nœud. Rend les nœuds enfants d'un modèle instancié, vides sinon.
+    /// Attaches the renderer to the node. Yields child nodes of an instantiated model, empty
+    /// otherwise.
     pub(super) fn render(
         &mut self,
         document: &Rc<Document>,
@@ -48,10 +49,10 @@ impl Builder<'_, '_> {
         self.instance(&mesh, &materials, node)
     }
 
-    /// Les matériaux du rendu, emplacement par emplacement : ceux que le `MeshRenderer` déclare, et
-    /// à leur place ceux qu'une instance de prefab nomme. Un emplacement dont l'instance ne dit
-    /// rien garde celui du rendu ; un emplacement qu'elle nomme vide sort sans matériau, puisque
-    /// c'est ce que l'auteur y a mis.
+    /// Renderer materials, slot by slot: those the `MeshRenderer` declares, and in their place
+    /// those a prefab instance names. A slot the instance says nothing about keeps the
+    /// renderer's; a slot it names empty comes out without a material, since that is what the
+    /// author put there.
     fn materials(
         &mut self,
         renderer: &Yaml,
@@ -70,7 +71,7 @@ impl Builder<'_, '_> {
             .collect()
     }
 
-    /// Le maillage désigné par le `MeshFilter`, primitif ou importé.
+    /// Mesh named by the `MeshFilter`, primitive or imported.
     fn instance(
         &mut self,
         mesh: &Ref,
@@ -103,11 +104,11 @@ impl Builder<'_, '_> {
         self.attach(&parts, materials)
     }
 
-    /// Le maillage précis qu'un `fileID` désigne dans un modèle à plusieurs maillages. Le `.meta` du
-    /// modèle mémorise, pour chaque objet importé, le `fileID` et le nom qu'il portait dans le
-    /// fichier : on ne retient que la partie qui porte ce nom, avec sa transformation dans le
-    /// modèle. Nom absent de la table, ou introuvable sous ce nom dans le modèle : le modèle entier
-    /// est instancié et le fait est compté, comme avant.
+    /// Precise mesh a `fileID` names in a multi-mesh model. The model's `.meta` remembers, for
+    /// each imported object, the `fileID` and the name it carried in the file: only the part
+    /// that carries that name is kept, with its transform in the model. Name missing from the
+    /// table, or not found under that name in the model: the whole model is instantiated and
+    /// the fact is counted, as before.
     fn selected(&mut self, asset: &Path, file_id: i64, parts: Parts) -> Parts {
         if parts.nodes.len() < 2 {
             return parts;

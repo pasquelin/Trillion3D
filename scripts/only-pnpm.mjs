@@ -1,35 +1,35 @@
-// Le dépôt s'installe avec pnpm, et avec lui seul.
+// The repo installs with pnpm, and with it alone.
 //
-// Rien n'empêchait `npm install` : il posait un `package-lock.json` et un `node_modules` à plat, à
-// côté de celui de pnpm, et les deux divergeaient en silence. Ce garde-fou le refuse à l'installation
-// plutôt que de laisser la divergence se découvrir en intégration continue — ou pire, sur un verdict
-// de mesure rendu avec d'autres versions que celles du verrou.
+// Nothing prevented `npm install`: it placed a `package-lock.json` and flat `node_modules`
+// next to pnpm's, and the two diverged silently. This guardrail rejects it on installation
+// rather than letting divergence be discovered in continuous integration — or worse, on a benchmark
+// verdict rendered with different versions than those in the lockfile.
 //
-// `npm_config_user_agent` est posé par tout gestionnaire qui lance un script de cycle de vie ; il
-// commence par son nom. Absent, personne ne nous a lancés depuis une installation : on laisse faire.
+// `npm_config_user_agent` is set by any package manager launching a lifecycle script; it
+// starts with its name. If absent, nobody ran us from an install: we allow it.
 import { pathToFileURL } from 'node:url';
 //
-// Le garde-fou ne tourne QUE lorsque ce fichier est le programme lancé (`preinstall`) : les scripts
-// du dépôt l'importent pour `commandePnpm`, et un import ne doit pas décider de leur sort.
+// The guardrail runs ONLY when this file is the launched program (`preinstall`): repo scripts
+// import it for `pnpmCommand`, and an import should not decide their fate.
 const agent = process.env.npm_config_user_agent ?? '';
 const lance = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (lance && agent && !agent.startsWith('pnpm')) {
   const nom = agent.split('/')[0];
   console.error(
-    `\nCe dépôt s'installe avec pnpm, pas avec ${nom}.\n` +
+    `\nThis repository installs with pnpm, not with ${nom}.\n` +
       `  corepack enable && pnpm install\n\n` +
-      `Le verrou suivi est pnpm-lock.yaml ; il n'y a pas de package-lock.json, et la version du\n` +
-      `gestionnaire est fixée par le champ "packageManager" de package.json.\n`,
+      `The tracked lockfile is pnpm-lock.yaml; there is no package-lock.json, and the manager\n` +
+      `version is pinned by the "packageManager" field of package.json.\n`,
   );
   process.exit(1);
 }
 
-/** La commande qui relance le gestionnaire du dépôt. `npm_execpath` est le chemin du gestionnaire
- *  qui nous a lancés : l'exécuter avec le Node courant évite le cas `pnpm.cmd` de Windows, où un
- *  script sans extension ne s'exécute pas — et garantit que c'est bien le gestionnaire qui a posé
- *  `node_modules` qui construit. Hors script de cycle de vie, on nomme `pnpm` et on s'en remet au
- *  PATH. Exporté ici parce que ce fichier est déjà celui qui dit quel gestionnaire le dépôt veut. */
-export function commandePnpm(...args) {
+/** The command that re-invokes the repo's package manager. `npm_execpath` is the path of the manager
+ *  that launched us: running it with current Node avoids the Windows `pnpm.cmd` case, where a
+ *  script without extension does not execute — and guarantees it is indeed the manager that placed
+ *  `node_modules` doing the build. Outside a lifecycle script, we name `pnpm` and rely on the
+ *  PATH. Exported here because this file already states which package manager the repo wants. */
+export function pnpmCommand(...args) {
   const execpath = process.env.npm_execpath;
   if (execpath) return [process.execPath, [execpath, ...args]];
   return [process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm', args];

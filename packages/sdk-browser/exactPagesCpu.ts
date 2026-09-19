@@ -7,10 +7,10 @@ import type { BackendContext } from './backendTypes.ts';
 import type { HostCpuStep } from './hostCpuProfile.ts';
 
 /**
- * Les bornes processeur d'une image WebGL2, dans l'ordre : son nom public et l'étape du profil où
- * elle se dépose (`null` pour la somme, qui ne se dépose pas). `arrivals`, `pending`, `retain` et
- * `submit` sont relevées par l'hôte, qui les dépose dans `cpuStep` par leur nom : l'indice de la
- * borne dans la ligne du profil ne sort jamais de ce moteur.
+ * CPU bounds of a WebGL2 frame, in order: its public name and the profile step it lands in
+ * (`null` for the total, which does not land). `arrivals`, `pending`, `retain` and `submit`
+ * are sampled by the host, which deposits them in `cpuStep` by name: the bound index in the
+ * profile row never leaves this engine.
  */
 const CPU = cpuStepTable([
   ['worldMs', 'animations'],
@@ -24,7 +24,7 @@ const CPU = cpuStepTable([
   ['totalMs', null],
 ] as const);
 
-/** L'indice d'une borne dans la ligne du profil, pour les deux fichiers de ce moteur. */
+/** Index of a bound in the profile row, for both files of this engine. */
 export const EXACT_CPU_STEP = CPU.at;
 
 export function createExactPagesCpu(
@@ -33,23 +33,23 @@ export function createExactPagesCpu(
   enabled = false,
   getCutMs: () => number = () => 0,
 ) {
-  // Profil CPU par étape, publié en mode `summary` : allumer la trace par image changerait la mesure.
+  // Per-step CPU profile, published in `summary` mode: turning on the per-frame trace would change the measurement.
   const cpuProfile = createCpuStepProfile(CPU.names);
   const stages = enabled
     ? createStageProfiler({
         backend: 'exact-cluster-pages',
         stages: WEBGL_STAGES,
         gpuMethod: null,
-        gpuReason: 'WebGL2 ne délimite pas de passe : seule l’image entière est chronométrable',
+        gpuReason: 'WebGL2 does not delimit a pass: only the whole frame is timeable',
       })
     : undefined;
   let cpuLogMs = 0,
     cpuLogFrame = -1;
   const methods = {
-    /** La durée carte graphique de l'image entière, relevée par l'extension quand elle existe. */
+    /** GPU duration of the whole frame, sampled by the extension when it exists. */
     gpuImageMs(ms: number | null, supported: boolean, reason: string | null) {
       if (!stages) return;
-      // La raison n'accompagne que l'absence de durée : une mesure publiée n'en a pas besoin.
+      // The reason only accompanies a missing duration: a published measurement does not need one.
       stages.setGpuMethod(
         supported ? 'EXT_disjoint_timer_query_webgl2' : null,
         ms === null ? reason : null,
@@ -59,18 +59,18 @@ export function createExactPagesCpu(
     resetStageProfile() {
       stages?.reset();
     },
-    /** Le profil public : « non mesuré » partout où rien n'a été relevé, jamais un zéro. */
+    /** Public profile: "unmeasured" everywhere nothing was sampled, never a zero. */
     stageProfile() {
       return (
         stages?.profile() ??
-        disabledStageProfile('exact-cluster-pages', 'profil par étape non demandé par l’hôte')
+        disabledStageProfile('exact-cluster-pages', 'per-step profile not requested by the host')
       );
     },
-    /** Dépose la durée d'une étape mesurée par l'hôte : arrivées, attente, rétention, soumission. */
+    /** Deposits the duration of a host-measured step: arrivals, wait, retention, submit. */
     cpuStep(step: HostCpuStep, ms: number) {
       cpuProfile.row[CPU.at[step]] = ms;
     },
-    /** Clôt l'image : total, classement, et publication au plus une fois toutes les deux secondes. */
+    /** Closes the frame: total, ranking, and publication at most once every two seconds. */
     cpuFrameEnd() {
       const frame = getFrame();
       const row = cpuProfile.row;
@@ -80,7 +80,7 @@ export function createExactPagesCpu(
       cpuProfile.record(frame, total);
       stages?.frameCpu((add) => {
         addCpuSteps(CPU.stages, row, add);
-        // La coupe hiérarchique est bornée à l'intérieur de `selectMs` par le moteur lui-même.
+        // The hierarchical cut is bounded inside `selectMs` by the engine itself.
         add('hierarchyCut', getCutMs());
         add('frame', total);
       });
@@ -94,7 +94,7 @@ export function createExactPagesCpu(
       try {
         onDiagnostic?.({
           phase: 'cpu-timing',
-          message: 'Durées CPU mesurées dans le moteur',
+          message: 'CPU durations measured in the engine',
           context: {
             version: 1,
             engine: 'exact-cluster-pages',
@@ -104,7 +104,7 @@ export function createExactPagesCpu(
           },
         });
       } catch {
-        /* Les observateurs ne pilotent pas le rendu. */
+        /* Observers do not drive the render. */
       }
     },
   };

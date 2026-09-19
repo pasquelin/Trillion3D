@@ -3,34 +3,34 @@ import { crossVector3, dotVector3 } from './mathVector.ts';
 import { LIGHT_SETTINGS } from './sceneLightContracts.ts';
 
 /**
- * LES TAMPONS DE COMPOSITION D'UNE FACE, en double précision et arrondis À LA MAIN.
+ * COMPOSITION BUFFERS OF A FACE, in double precision and rounded BY HAND.
  *
- * Une carte d'ombre est lue par le GPU en simple précision : la projection et la vue étaient donc
- * écrites dans des `Float32Array`, et chaque terme s'y arrondissait au passage. Le produit du socle
- * n'accepte plus qu'un seul type de tampon (`mathMatrix4.ts`) — un seul appelant en `Float32Array`
- * rendait polymorphes les quarante-huit accès que toutes les boucles chaudes du moteur partagent.
- * Les trois tampons sont donc des `Float64Array`, et `arrondi` remet l'arrondi simple précision là
- * où le stockage le faisait : le produit lit exactement les mêmes nombres qu'avant, ses termes sont
- * calculés en double comme avant, et la recopie finale vers le tampon du GPU les arrondit une fois,
- * là où la recopie de `Float32Array` à `Float32Array` ne changeait rien. Les mêmes bits, donc.
+ * A shadow map is read by the GPU in single precision: projection and view were therefore
+ * written into `Float32Array`s, and each term rounded on the way. The kernel product
+ * now accepts only one buffer type (`mathMatrix4.ts`) — a single `Float32Array` caller
+ * made polymorphic the forty-eight accesses that every hot loop of the engine shares.
+ * The three buffers are therefore `Float64Array`s, and `arrondi` puts single-precision rounding back
+ * where storage used to do it: the product reads exactly the same numbers as before, its terms are
+ * computed in double as before, and the final copy into the GPU buffer rounds them once,
+ * where a `Float32Array` to `Float32Array` copy changed nothing. Same bits, then.
  */
 const arrondi = Math.fround;
 const projScratch = new Float64Array(16);
-/** Plans d'une face et demi-champ de sa projection. Un seul est vivant à la fois : l'appelant le lit
- *  avant de composer la face suivante, donc l'objet est réutilisé et rien n'est alloué par image. */
+/** Planes of a face and half-field of its projection. Only one is live at a time: the caller reads it
+ *  before composing the next face, so the object is reused and nothing is allocated per frame. */
 const planes = { near: 0, far: 0, halfFov: 0 };
 
 /**
- * Projection perspective d'une face d'ombre, profondeur INVERSÉE dans `[0, 1]` comme celle de la
- * caméra (`depthConvention.ts`) : le plan proche se projette sur 1, le lointain sur 0, et l'atlas
- * se compare en `greater`. `near` est dérivé de la seule portée : une seule source pour la
- * projection et pour le rejet, sinon les deux pourraient diverger d'un cheveu au bord, et jamais un
- * réglage caché.
+ * Perspective projection of a shadow face, REVERSED depth in `[0, 1]` like that of the
+ * camera (`depthConvention.ts`): the near plane projects onto 1, the far onto 0, and the atlas
+ * compares as `greater`. `near` is derived from range alone: one source for
+ * projection and for reject, otherwise the two could diverge by a hair at the edge, and never a
+ * hidden setting.
  *
- * Le rayon d'enveloppe d'un émetteur ne touche pas ce plan : relever le plan proche d'une face
- * retire un cube, jusqu'à √3 fois sa valeur dans les diagonales, et non la sphère annoncée. Le
- * rayon est donc appliqué là où la profondeur d'ombre s'écrit, par distance au centre de la lampe
- * (`gpuShadowShader.ts`), et ce plan proche reste celui que la portée donne à toute lampe.
+ * An emitter envelope radius does not touch this plane: raising a face's near plane
+ * removes a cube, up to √3 times its value on the diagonals, not the announced sphere. The
+ * radius is therefore applied where shadow depth is written, by distance to the light centre
+ * (`gpuShadowShader.ts`), and this near plane remains the one range gives every light.
  */
 export function shadowProjection(fov: number, range: number) {
   const near = Math.max(LIGHT_SETTINGS.shadowNearMin, range * LIGHT_SETTINGS.shadowNearFraction),
@@ -50,10 +50,10 @@ export function shadowProjection(fov: number, range: number) {
 }
 
 /**
- * Projection orthographique d'une cascade, profondeur INVERSÉE dans `[0, 1]`, colonne-major : l'œil
- * se projette sur 1 et le plan lointain sur 0. Le plan proche est à l'œil : celui-ci est déjà reculé
- * vers la lampe de toute la profondeur voulue. Une orthographie n'a ni plan proche ni ouverture à
- * publier : les deux sortent nuls.
+ * Orthographic projection of a cascade, REVERSED depth in `[0, 1]`, column-major: the eye
+ * projects onto 1 and the far plane onto 0. The near plane is at the eye: it is already pulled
+ * back toward the light by the whole wanted depth. An orthography has neither a near plane nor an
+ * aperture to publish: both come out zero.
  */
 export function shadowOrthographic(halfExtent: number, far: number) {
   projScratch.fill(0);
@@ -69,19 +69,19 @@ export function shadowOrthographic(halfExtent: number, far: number) {
 }
 
 /**
- * Le repère monde de la dernière face composée : droite, haut, avant. C'est ce qui permet de porter
- * un rectangle de la carte — une région de pages — dans le monde sans recalculer le repère ailleurs,
- * donc sans qu'une seconde copie puisse diverger de celle-ci.
+ * World frame of the last composed face: right, up, forward. This is what lets a
+ * map rectangle — a region of pages — be carried into the world without recomputing the frame elsewhere,
+ * hence without a second copy being able to diverge from this one.
  */
 export const faceBasis = new Float64Array(9);
 
-/** Axes de repère haut : `y` en général, `z` quand la direction lui est presque parallèle. */
+/** Up-frame axes: `y` in general, `z` when the direction is almost parallel to it. */
 const UP_Y = [0, 1, 0] as const,
   UP_Z = [0, 0, 1] as const;
 const right = new Float64Array(3),
   upward = new Float64Array(3);
 
-/** Matrice de vue colonne-major d'une caméra en `eye` regardant le long de `forward`. */
+/** Column-major view matrix of a camera at `eye` looking along `forward`. */
 function shadowView(
   out: Float64Array,
   eye: readonly [number, number, number],
@@ -90,7 +90,7 @@ function shadowView(
   const fx = forward[0],
     fy = forward[1],
     fz = forward[2];
-  // Un axe de repère parallèle à la direction ferait un produit vectoriel nul : on bascule l'axe haut.
+  // A frame axis parallel to the direction would make a zero cross product: the up axis is switched.
   crossVector3(right, forward, Math.abs(fy) > 0.999 ? UP_Z : UP_Y);
   const rl = Math.hypot(right[0], right[1], right[2]) || 1;
   right[0] /= rl;
@@ -124,8 +124,8 @@ const viewScratch = new Float64Array(16),
   faceScratch = new Float64Array(16);
 
 /**
- * Vue puis projection, composées dans `out` : le seul chemin par lequel une face obtient sa matrice.
- * La projection est celle que `shadowProjection` ou `shadowOrthographic` vient d'écrire.
+ * View then projection, composed into `out`: the only path by which a face gets its matrix.
+ * The projection is the one `shadowProjection` or `shadowOrthographic` has just written.
  */
 export function composeFace(
   out: Float32Array,
@@ -134,9 +134,9 @@ export function composeFace(
   forward: readonly [number, number, number],
 ) {
   shadowView(viewScratch, eye, forward);
-  // Composée à part puis recopiée : `multiplyMatrix4` n'écrit qu'aux seize indices constants, et la
-  // recopie vers le tampon du GPU est la seule conversion en simple précision. Une face par lampe et
-  // par image ; le décalage ne valait pas seize indices calculés dans le produit le plus chaud.
+  // Composed aside then copied: `multiplyMatrix4` only writes the sixteen constant indices, and the
+  // copy into the GPU buffer is the only single-precision conversion. One face per light and
+  // per frame; the offset was not worth sixteen computed indices in the hottest product.
   multiplyMatrix4(faceScratch, projScratch, viewScratch);
   copyMatrix4(out, faceScratch, base);
 }

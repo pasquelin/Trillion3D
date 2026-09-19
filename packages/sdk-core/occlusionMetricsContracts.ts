@@ -1,21 +1,21 @@
 /**
- * Ce que le test d'occultation Hi-Z d'une image a fait, publié comme tel.
+ * What the Hi-Z occlusion test of a frame did, published as-is.
  *
- * Ces sept nombres vivent à part de `FrameMetrics` parce qu'ils ont leur propre RYTHME : sur le
- * chemin GPU ils sont accumulés par la carte — la partition les compte en rangeant les lignes, le
- * noyau d'occultation en écrivant ses verdicts — et l'hôte ne les relit qu'une image sur quinze.
+ * These seven numbers live apart from `FrameMetrics` because they have their own RHYTHM: on the
+ * GPU path they are accumulated by the device — the partition counts them while packing the rows, the
+ * occlusion kernel while writing its verdicts — and the host only rereads them one frame in fifteen.
  */
 export interface OcclusionFrameMetrics {
   /**
-   * Ce que le test d'occultation a fait sur une image : les clusters qu'on lui a remis, ceux qu'il a
-   * éliminés, et ceux dont l'empreinte écran de niveau 0 dépasse le noyau de seize texels et qui
-   * répondent donc depuis un mip plus grossier. `hiz*Triangles` sont les triangles de ces mêmes
+   * What the occlusion test did on a frame: the clusters handed to it, those it
+   * eliminated, and those whose level-0 screen footprint exceeds the sixteen-texel kernel and
+   * therefore answer from a coarser mip. `hiz*Triangles` are the triangles of those same
    * clusters.
    *
-   * Sur le chemin GPU ils décrivent une image ANTÉRIEURE à celle qui les rend — `hizCountedFrame`
-   * nomme laquelle —, comme `gpuPassMs`, et deux images voisines portent souvent le même relevé.
-   * Aucun n'est estimé : `null` sur un moteur qui ne teste pas l'occultation, sur un appareil dont
-   * les verdicts ne peuvent pas être relus, et tant qu'aucune image n'a été comptée.
+   * On the GPU path they describe a frame EARLIER than the one that renders them — `hizCountedFrame`
+   * names which — like `gpuPassMs`, and two neighbouring frames often carry the same sample.
+   * None is estimated: `null` on an engine that does not test occlusion, on a device whose
+   * verdicts cannot be reread, and as long as no frame has been counted.
    */
   hizTestedClusters?: number | null;
   hizRejectedClusters?: number | null;
@@ -24,10 +24,10 @@ export interface OcclusionFrameMetrics {
   hizRejectedTriangles?: number | null;
   hizOversizedTriangles?: number | null;
   /**
-   * L'image que les six compteurs ci-dessus décrivent. C'est l'image courante là où l'oracle compte
-   * sur le processeur, et une image antérieure sur le chemin GPU, dont les compteurs sont relus
-   * périodiquement ; sans elle, un lecteur ne peut pas distinguer un compte de cette image-ci d'un
-   * compte que la dernière image relevée a laissé derrière elle. `null` quand il n'y en a aucune.
+   * The frame the six counters above describe. It is the current frame where the oracle counts
+   * on the CPU, and an earlier frame on the GPU path, whose counters are reread
+   * periodically; without it, a reader cannot tell a count of this frame from a
+   * count the last sampled frame left behind. `null` when there is none.
    */
   hizCountedFrame?: number | null;
 }

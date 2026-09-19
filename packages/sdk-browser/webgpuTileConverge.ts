@@ -8,15 +8,14 @@ import {
 import { dropTaaHistory } from './taaFrame.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Tours de convergence au plus : au-delà, ce qui manque est publié, jamais attendu sans fin. */
+/** Convergence turns at most: beyond that, what is missing is published, never waited for forever. */
 const CONVERGE_LIMIT = 64;
-/** Images qu'une barrière consacre au plus aux pages d'ombre en attente, sous leur budget. Une
- *  caméra immobile dont toutes les pages viennent d'être périmées par une tuile arrivée en prend
- *  quelques-unes ; une caméra qui bouge périme des pages à chaque image et ne converge jamais : la
- *  borne est là pour elle. */
+/** Images a barrier grants at most to waiting shadow pages, under their budget. A still camera
+ *  whose pages have all just been voided by an arrived tile takes a few; a moving camera voids pages
+ *  every image and never converges: the bound is there for it. */
 const SHADOW_DRAIN_LIMIT = 64;
-/** Allers-retours textures → ombres au plus : chaque tour qui redessine une cascade peut déplacer
- *  ce que l'ombre demande aux textures, et chaque tuile arrivée périme les ombres. */
+/** Texture → shadow round-trips at most: each turn that redraws a cascade can move what the shadow
+ *  asks of textures, and each arrived tile voids the shadows. */
 const POSE_ROUNDS = 4;
 
 /** True when the barrier changed the raster: TAA must restart its still average (#25). */
@@ -24,26 +23,25 @@ export const mustRestartTaaAfterSettle = (tilesServed: number, shadowFrames: num
   tilesServed > 0 || shadowFrames > 0;
 
 /**
- * Fait converger les textures d'une pose : l'image est rendue avec tous ses pixels au retour, ce
- * qu'ils demandent est servi sans budget, et l'on recommence jusqu'à ce qu'aucune tuile demandée ne
- * manque. Une tuile dont le niveau se lit encore est attendue ; une tuile refusée ne l'est pas —
- * le pool est plein pour cette vue, rien ne viendra, le niveau grossier tient
- * (`textureTilesRefused`). Le pool ne cède jamais ce que l'image d'avant regardait, si bien
- * qu'un tour ne peut pas défaire le tour précédent : la barrière converge ou refuse, elle ne
- * tourne pas sur elle-même.
+ * Converges the textures of a pose: the image is rendered with all its pixels on feedback, what they
+ * ask is served with no budget, and we start over until no requested tile is missing. A tile whose
+ * level is still being read is waited for; a refused tile is not — the pool is full for this view,
+ * nothing will come, the coarse level holds (`textureTilesRefused`). The pool never yields what the
+ * previous image was looking at, so a turn cannot undo the previous turn: the barrier converges or
+ * refuses, it does not spin on itself.
  *
- * Rien n'est libéré ici : une tuile reste résidente jusqu'à ce que le pool, plein, cède la moins
- * regardée — la règle de la référence. La barrière libérait ce que la dernière image n'avait pas
- * nommé, et une demande qui vacille d'une image à l'autre — trois tuiles d'une vitre, nommées une
- * image sur sept — entrait et sortait à chaque capture, changeait la révision des ressources et
- * empêchait l'image de se poser. Une tuile en trop ne change aucune lecture : la caméra lit le
- * niveau qu'elle a demandé, et il est résident. Rend le nombre de tuiles servies.
+ * Nothing is released here: a tile stays resident until the pool, full, yields the least looked-at
+ * — the reference's rule. The barrier used to release what the last image had not named, and a
+ * request that wavers from one image to the next — three tiles of a pane, named one image in seven
+ * — entered and left on every capture, changed the resource revision and kept the image from
+ * settling. An extra tile changes no read: the camera reads the level it asked for, and it is
+ * resident. Returns the number of tiles served.
  */
 async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { vis, run } = rt;
   const textures = vis.textures!;
-  // Rien de diffusé — aucune texture, ou toutes dans leur queue — : aucun retour ne peut rien
-  // nommer, et l'image n'a pas à être refaite.
+  // Nothing streamed — no texture, or all in their queue —: no feedback can name anything, and the
+  // image need not be redone.
   if (textures.feedback.entries === 0) return 0;
   let total = 0;
   for (let round = 0; round < CONVERGE_LIMIT; round++) {
@@ -52,8 +50,8 @@ async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
     await textures.settled();
     const { served, waiting } = textures.pump(run.frame, true);
     total += served;
-    // Une tuile servie n'est montrée que par l'image suivante : on ne s'arrête que sur une image
-    // qui n'a rien demandé de plus, ou sur une attente que rien ne viendra combler.
+    // A served tile is shown only by the next image: we stop only on an image that asked nothing more,
+    // or on a wait that nothing will fill.
     if (!served && (!waiting || !textures.reading)) break;
     if (waiting) await textures.settled();
   }
@@ -83,16 +81,16 @@ async function drainShadows(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
 }
 
 /**
- * Une pose vidée : textures convergées ET ombres vidées, en alternance jusqu'au calme, et le même
- * prédicat que l'image tenue (`unsettledMask`) pour dire si c'est acquis. L'ordre seul ne suffit
- * pas : ce que l'ombre d'un feuillage demande aux textures se lit dans les cascades du soleil
- * (`visibilityShaderRequest.ts`), et une cascade redessinée par le drainage déplace cette
- * demande ; une tuile arrivée, à l'inverse, périme toutes les ombres. Un tour dont le drainage n'a
- * rien redessiné a convergé ses textures sur les cascades finales : c'est l'arrêt.
+ * A drained pose: textures converged AND shadows drained, alternating until calm, and the same
+ * predicate as the held image (`unsettledMask`) to say whether it is acquired. Order alone is not
+ * enough: what a foliage shadow asks of textures is read in the sun cascades
+ * (`visibilityShaderRequest.ts`), and a cascade redrawn by the drain moves that request; an arrived
+ * tile, conversely, voids every shadow. A turn whose drain redrew nothing has converged its textures
+ * on the final cascades: that is the stop.
  *
- * Ces images rejouent la dernière image ordinaire (`textureConverging`) : tous les pixels parlent,
- * l'accumulation temporelle n'avance pas, aucune n'est tenue. Ce que la barrière a fait, et ce qui
- * empêche encore la pose de se poser, part dans un seul diagnostic, `pose-settle`.
+ * These images replay the last ordinary image (`textureConverging`): every pixel speaks, temporal
+ * accumulation does not advance, none is held. What the barrier did, and what still keeps the pose
+ * from settling, goes in one diagnostic, `pose-settle`.
  */
 export async function settlePose(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice | undefined) {
   const { run, vis, capture, diag } = rt;
@@ -116,7 +114,7 @@ export async function settlePose(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice | 
   if (mustRestartTaaAfterSettle(served, drains)) dropTaaHistory(rt);
   const mask = unsettledMask(rt);
   if (served || drains || mask & (TEXTURES_PENDING | SHADOWS_PENDING))
-    diag.engineDiagnostic('pose-settle', 'Ce que la barrière a fait pour poser l’image', {
+    diag.engineDiagnostic('pose-settle', 'What the barrier did to settle the image', {
       rounds,
       tilesServed: served,
       shadowFrames: drains,

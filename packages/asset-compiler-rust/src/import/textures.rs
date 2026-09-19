@@ -10,13 +10,13 @@ pub(super) struct TextureTable<'a> {
     pub(super) textures: &'a mut Vec<Value>,
     pub(super) sampler_ids: &'a mut HashMap<(u32, u32), usize>,
     pub(super) report: &'a mut Report,
-    /// Le relevé qui porte l'identité de l'import : chaque chemin d'image essayé y entre, présent
-    /// ou non. Sans lui, une image ajoutée près d'une source inchangée ne changeait pas la clé.
+    /// Audit record carrying import identity: each tried image path enters, present
+    /// or not. Without it, image added near unchanged source did not alter key.
     pub(super) externals: &'a external::Externals,
     pub(super) by_element: HashMap<u32, Option<usize>>,
 }
-/// Une option de map déclarée « on » : la forme `-clamp on` d'une bibliothèque de matériaux, que le
-/// lecteur range en propriété brute sans jamais l'appliquer.
+/// Map option declared "on": `-clamp on` form of material library, which
+/// reader stores as raw property without applying.
 fn switched_on(texture: &ufbx::Texture, name: &str) -> bool {
     texture
         .element
@@ -34,8 +34,8 @@ impl<'a> TextureTable<'a> {
         }
     }
     pub(super) fn sampler(&mut self, texture: &ufbx::Texture) -> usize {
-        // `-clamp on` vaut le mode de bord des deux axes : une option que la source déclare et que
-        // glTF sait porter telle quelle ne se compte pas, elle se convertit.
+        // `-clamp on` sets border mode for both axes: option source declares and
+        // glTF supports as-is is not counted, it is converted.
         let key = if switched_on(texture, "clamp") {
             (33071, 33071)
         } else {
@@ -50,8 +50,8 @@ impl<'a> TextureTable<'a> {
         self.sampler_ids.insert(key, id);
         id
     }
-    /// Le type MIME du pilote d'image qui revendique ce chemin. Hors registre, rien : le glTF
-    /// intermédiaire ne nomme que des images qu'un pilote sait relire.
+    /// MIME type of image driver claiming path. Outside registry, nothing: intermediate
+    /// glTF names only images an image driver knows how to read.
     pub(super) fn mime(path: &Path) -> Option<&'static str> {
         crate::plugins::image::by_extension(path).map(|decoder| decoder.mime())
     }
@@ -101,8 +101,8 @@ impl<'a> TextureTable<'a> {
                 siblings.push(candidate.with_extension(extension));
             }
         }
-        // Les chemins déclarés se répètent souvent — nom absolu, nom relatif, nom nu désignent le
-        // même fichier. Les essayer une fois donne la même réponse et un relevé qui se lit.
+        // Declared paths often repeat — absolute name, relative name, bare name refer to
+        // same file. Trying them once yields same answer and readable audit record.
         let mut seen = std::collections::HashSet::new();
         let examined: Vec<PathBuf> = candidates
             .into_iter()
@@ -111,8 +111,8 @@ impl<'a> TextureTable<'a> {
             .collect();
         let mut outside = false;
         for candidate in &examined {
-            // Consulté, donc décisif : son état entre dans l'identité de l'import, qu'il existe ou
-            // non. La boucle s'arrête au premier candidat retenu, et le relevé avec elle.
+            // Consulted, hence decisive: state enters import identity, whether existing
+            // or not. Loop stops at first retained candidate, audit record along with it.
             self.externals.note_texture(candidate);
             if !candidate.is_file() {
                 continue;
@@ -127,8 +127,8 @@ impl<'a> TextureTable<'a> {
                 outside = true;
                 continue;
             };
-            // Une URI glTF, pas un chemin : `%`, `#`, `?`, l'espace et tout ce qui n'est pas un
-            // caractère non réservé s'échappe, sinon le consommateur relit un autre nom, ou rien.
+            // glTF URI, not path: `%`, `#`, `?`, space, non-unreserved chars
+            // escaped, otherwise consumer reads different name or nothing.
             let uri = crate::uri::encode_relative(&relative);
             return Some(json!({"name":name,"mimeType":mime,"uri":uri}));
         }

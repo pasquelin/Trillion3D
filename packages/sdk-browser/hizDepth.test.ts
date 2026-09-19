@@ -1,6 +1,6 @@
-// A1 : visibilityDepth projette les sommets d'un triangle une fois par image (cache par identifiant
-// de visibilité) au lieu d'une fois par pixel. L'oracle est la référence recopiée avant le lot A dans
-// `bench/oracles/hiz.mjs` (importer le banc lui-même l'exécuterait).
+// A1: visibilityDepth projects a triangle's vertices once per frame (cache by visibility
+// identifier) instead of once per pixel. The oracle is the reference copied before batch A in
+// `bench/oracles/hiz.mjs` (importing the bench itself would run it).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';

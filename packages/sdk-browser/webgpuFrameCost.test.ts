@@ -48,10 +48,10 @@ test('paged transparent commands disappear outside the view and return with both
         mock.writes.length = 0;
         backend.render(view);
         const blend = mock.draws.filter((d) => d.entryPoint === 'vs');
-        // Le plan d'encodage suit la scène, mais un item entièrement hors champ n'est pas encodé
-        // du tout : deux faces de pipelines différents ne fusionnent pas, chaque tranche nomme donc
-        // son item et se décide sur le bit du tronc. Hors champ, aucun appel ; dans le champ, les
-        // quatre — deux items, deux faces — avec le compte d'instances que la coupe écrit.
+        // The encode plan follows the scene, but an item entirely out of view is not encoded
+        // at all: two faces of different pipelines do not merge, so each slice names its
+        // item and decides on the frustum bit. Out of view, no call; in view, the
+        // four — two items, two faces — with the instance count the cut writes.
         assert.equal(blend.length, x ? 0 : 4, 'encode only the current view, not the old readback');
         assert.equal(backend.metrics().transparentDrawCalls, blend.length);
         if (!x) assert.ok(blend.every((d) => d.instanceCount === 2));

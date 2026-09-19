@@ -16,5 +16,5 @@ export type HizBounds = {
   nearestDepth: number;
   clipsNear: boolean;
 };
-/** La pyramide plate du chemin par image : le niveau 0 porte déjà la taille de l'image. */
+/** Flat pyramid of the per-frame path: level 0 already holds the frame size. */
 export type HizPyramid = HizFlat;

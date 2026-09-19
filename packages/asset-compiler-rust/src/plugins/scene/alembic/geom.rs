@@ -1,18 +1,17 @@
-//! La géométrie d'un `PolyMesh` ou d'un `SubD` telle que le fichier la porte : les positions, la
-//! table des faces, et les paramètres de géométrie que ce pilote retient — normales et coordonnées
-//! de texture.
+//! Geometry of a `PolyMesh` or `SubD` as the file carries it: positions, the face table, and the
+//! geometry parameters this driver keeps — normals and texture coordinates.
 //!
-//! Un paramètre de géométrie déclare sa **portée** dans sa métadonnée : une valeur par sommet
-//! (`vtx`, `var`), une par coin de face (`fvr`), une par face (`uni`), ou une seule pour tout le
-//! maillage (`con`). Il est écrit soit en valeurs directes, soit — c'est le cas courant pour des
-//! coordonnées de texture — en valeurs uniques plus une table d'indices. Les deux formes se lisent
-//! ici de la même façon : un rang par coin, puis la valeur à ce rang.
+//! A geometry parameter declares its **scope** in its metadata: one value per vertex (`vtx`,
+//! `var`), one per face corner (`fvr`), one per face (`uni`), or a single one for the whole mesh
+//! (`con`). It is written either as direct values or — the usual case for texture coordinates —
+//! as unique values plus an index table. Both forms are read here the same way: one rank per
+//! corner, then the value at that rank.
 use super::archive::{meta_value, Archive};
 use super::property::{Properties, POD_F32, POD_I32, POD_U32};
 use super::values::{f32s, i32s, u32s};
 use crate::Result;
 
-/// La portée d'un paramètre : ce que son rang désigne pour un coin de face donné.
+/// A parameter's scope: what its rank designates for a given face corner.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Scope {
     Vertex,
@@ -32,7 +31,7 @@ impl Scope {
     }
 }
 
-/// Un paramètre de géométrie prêt à être lu coin par coin.
+/// A geometry parameter ready to be read corner by corner.
 pub(super) struct GeomParam {
     values: Vec<f32>,
     width: usize,
@@ -41,8 +40,8 @@ pub(super) struct GeomParam {
 }
 
 impl GeomParam {
-    /// Le rang de la valeur de ce coin : `corner` est son rang dans la table des indices de faces,
-    /// `vertex` le sommet qu'il désigne, `face` la face à laquelle il appartient.
+    /// The rank of this corner's value: `corner` is its rank in the face-index table, `vertex`
+    /// the vertex it designates, `face` the face it belongs to.
     pub(super) fn slot(&self, corner: usize, vertex: usize, face: usize) -> u32 {
         let raw = match self.scope {
             Scope::Vertex => vertex,
@@ -56,14 +55,14 @@ impl GeomParam {
         }
     }
 
-    /// La valeur à ce rang, ou `None` si le fichier la place hors de ce qu'il a écrit.
+    /// The value at this rank, or `None` if the file places it outside what it wrote.
     pub(super) fn value(&self, slot: u32) -> Option<&[f32]> {
         let start = usize::try_from(slot).ok()?.checked_mul(self.width)?;
         self.values.get(start..start.checked_add(self.width)?)
     }
 
-    /// Le paramètre couvre-t-il tous les coins de ce maillage ? Un paramètre qui déborde, faute
-    /// d'échantillon complet ou d'indices cohérents, est écarté entier plutôt que complété.
+    /// Does the parameter cover every corner of this mesh? A parameter that overruns, for lack of
+    /// a complete sample or coherent indices, is dropped whole rather than filled in.
     fn covers(&self, corners: &[i32], faces: usize) -> bool {
         let count = self.values.len() / self.width;
         let domain = match self.scope {
@@ -88,20 +87,20 @@ impl GeomParam {
     }
 }
 
-/// La géométrie lue d'un maillage : une table de positions, une face par compte, et ses paramètres.
+/// Geometry read from a mesh: a position table, one face per count, and its parameters.
 pub(super) struct Geometry {
     pub(super) positions: Vec<f32>,
     pub(super) counts: Vec<i32>,
     pub(super) corners: Vec<i32>,
     pub(super) normals: Option<GeomParam>,
     pub(super) uv: Option<GeomParam>,
-    /// Ce que la lecture a écarté, à compter au rapport du pilote.
+    /// What the read dropped, to count on the driver's report.
     pub(super) dropped: Vec<&'static str>,
 }
 
 impl Geometry {
-    /// Lit la géométrie d'un `.geom`. Rend `None` quand la topologie n'y est pas : un maillage sans
-    /// positions, sans faces ou sans indices n'est pas un maillage incomplet, c'est autre chose.
+    /// Reads the geometry of a `.geom`. Yields `None` when the topology is not there: a mesh
+    /// without positions, faces or indices is not an incomplete mesh, it is something else.
     pub(super) fn read(archive: &Archive, geom: &Properties) -> Result<Option<Geometry>> {
         let (Some(positions), Some(counts), Some(corners)) = (
             geom.sample(archive, "P", POD_F32, Some(3))?,
@@ -123,8 +122,8 @@ impl Geometry {
         Ok(Some(out))
     }
 
-    /// Un paramètre de géométrie nommé, sous l'une de ses deux formes, une fois vérifié qu'il couvre
-    /// bien tous les coins. Sinon il est écarté sous le nom donné.
+    /// A named geometry parameter, in either of its two forms, once checked that it covers every
+    /// corner. Otherwise it is dropped under the given name.
     fn param(
         &mut self,
         archive: &Archive,
@@ -144,7 +143,7 @@ impl Geometry {
     }
 }
 
-/// Le paramètre nommé, qu'il soit écrit en valeurs directes ou en valeurs indexées.
+/// The named parameter, whether written as direct values or as indexed values.
 fn read_param(
     archive: &Archive,
     geom: &Properties,

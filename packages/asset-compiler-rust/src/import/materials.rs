@@ -13,9 +13,9 @@ pub(super) fn map_texture(map: &ufbx::MaterialMap, textures: &mut TextureTable) 
         .filter(|_| map.texture_enabled)
         .and_then(|t| textures.texture(t))
 }
-/// De quel fichier une map parle. Comparer les **éléments** ne suffit pas : une bibliothèque de
-/// matériaux fait un élément par ligne, si bien que `norm x.png` et `map_Bump x.png` — le même
-/// fichier, déclaré deux fois — passaient pour deux cartes différentes.
+/// Which file a map talks about. Comparing **elements** is not enough: a material
+/// library makes one element per line, so `norm x.png` and `map_Bump x.png` — the
+/// same file, declared twice — used to pass as two different maps.
 pub(super) fn texture_file(map: &ufbx::MaterialMap) -> Option<&str> {
     let texture = map.texture.as_ref()?;
     [
@@ -27,10 +27,11 @@ pub(super) fn texture_file(map: &ufbx::MaterialMap) -> Option<&str> {
     .map(|declared| &**declared)
     .find(|declared| !declared.is_empty())
 }
-/// Les options d'une map que la sortie ne porte pas : décalage et échelle demanderaient
-/// `KHR_texture_transform`, que l'écrivain glTF ne connaît pas, et rien ne porte la force d'un
-/// relief. Comptées sur toutes les maps du matériau, converties ou non — une option déclarée et
-/// restée sans effet est une perte, que la map ait fini dans la sortie ou non.
+/// Map options the output does not carry: offset and scale would need
+/// `KHR_texture_transform`, which the glTF writer does not know, and nothing
+/// carries bump strength. Counted on every map of the material, converted or
+/// not — a declared option that stayed without effect is a loss, whether the
+/// map ended in the output or not.
 fn map_options(material: &ufbx::Material, report: &mut Report) {
     for bound in &material.textures {
         for (option, code) in [
@@ -45,20 +46,20 @@ fn map_options(material: &ufbx::Material, report: &mut Report) {
     }
 }
 
-/// Une couleur qui apporte quelque chose : noire, elle ne se perd pas à ne pas être portée.
+/// A colour that brings something: black, it is not lost by not being carried.
 fn lit(map: &ufbx::MaterialMap) -> bool {
     map.has_value && map.value_vec4.x + map.value_vec4.y + map.value_vec4.z > 0.0
 }
 
-/// Ce que le modèle métal-rugosité de glTF ne sait pas porter, compté par son nom plutôt qu'avalé.
-/// Rien n'est deviné au passage : une couleur spéculaire ne devient pas du métal, ce sont deux
-/// modèles, et un relief n'est pas une normale.
+/// What glTF's metal-roughness model cannot carry, counted by name rather than
+/// swallowed. Nothing is guessed along the way: a specular colour does not become
+/// metal, those are two models, and a bump is not a normal.
 fn unconverted(material: &ufbx::Material, normal: &ufbx::MaterialMap, report: &mut Report) {
     let (pbr, fbx) = (&material.pbr, &material.fbx);
     if lit(&pbr.specular_color) || pbr.specular_color.texture.is_some() {
         report.add("material-specular-color");
     }
-    // glTF pose l'indice de réfraction à 1,5 par défaut : un autre indice est le seul qui se perde.
+    // glTF sets the index of refraction to 1.5 by default: another index is the only one lost.
     if pbr.specular_ior.has_value && (pbr.specular_ior.value_vec4.x - 1.5).abs() > 1e-6 {
         report.add("material-specular-ior");
     }
@@ -69,8 +70,8 @@ fn unconverted(material: &ufbx::Material, normal: &ufbx::MaterialMap, report: &m
     if lit(ambient) || ambient_elsewhere {
         report.add("material-ambient-color");
     }
-    // Relief et normale visent la même fente glTF. La normale l'emporte — c'est la carte que le
-    // modèle attend —, et le relief laissé derrière est compté, jamais un « dernier gagne » muet.
+    // Bump and normal aim at the same glTF slot. The normal wins — it is the map
+    // the model expects — and the leftover bump is counted, never a silent "last wins".
     if fbx.bump.texture.is_some() && texture_file(&fbx.bump) != texture_file(normal) {
         report.add("material-bump-map");
     }
@@ -152,10 +153,10 @@ pub(super) fn material_json(material: &ufbx::Material, textures: &mut TextureTab
     if material.features.double_sided.enabled {
         out["doubleSided"] = json!(true);
     }
-    // Une carte d'opacité rend le matériau transparent ; aucun format d'import ne déclare de seuil
-    // de découpe, donc jamais `MASK` — un transparent découpé serait une perte de fidélité. glTF ne
-    // sait porter l'opacité que dans l'alpha de la couleur de base : une carte séparée ne se branche
-    // pas, elle se signale plutôt que d'être avalée.
+    // An opacity map makes the material transparent; no import format declares a
+    // cutout threshold, so never `MASK` — a cut-out transparent would be a fidelity
+    // loss. glTF can only carry opacity in the base-colour alpha: a separate map
+    // is not wired, it is reported rather than swallowed.
     if let Some(map) = opacity.texture {
         out["alphaMode"] = json!("BLEND");
         if texture_file(map) != texture_file(&pbr.base_color) {

@@ -2,24 +2,24 @@ import type * as THREE from 'three';
 import { MATRIX_VALUES } from '../sdk-core/index.ts';
 import { hostWorldChainInto } from './hostWorldChain.ts';
 
-/** Place réservée à une lampe : couleur, intensité, portée, décroissance, cône, sol, et la position
- *  monde de sa cible quand elle en porte une. Une place fixe, comme celle d'un nœud. */
+/** Slots reserved for a light: colour, intensity, range, decay, cone, ground, and the world
+ *  position of its target when it has one. A fixed slot, like a node's. */
 export const LIGHT_SLOTS = 14;
 
 const finite = (value: number | undefined) => (Number.isFinite(value) ? (value as number) : 0);
 const scratch = new Float64Array(LIGHT_SLOTS);
-/** La matrice monde de la cible, calculée par le moteur : seule sa translation est relue. */
+/** Target's world matrix, computed by the engine: only its translation is reread. */
 const targetWorld = new Float64Array(MATRIX_VALUES);
 
 /**
- * Relit les nombres d'une lampe que les moteurs consomment, quel que soit son type, et les compare
- * à ce qui est gardé à `at`. Une propriété qu'un type ne porte pas vaut zéro : la place est la même
- * pour toutes les lampes, et la boucle appelante n'a rien à mesurer.
+ * Rereads the numbers of a light that engines consume, whatever its type, and compares them to
+ * what is held at `at`. A property a type does not carry is zero: the slot is the same for every
+ * light, and the calling loop has nothing to measure.
  *
- * La cible d'une lampe directionnelle ou conique porte sa direction et vit souvent hors du graphe
- * source : sa position monde est CALCULÉE ici, avec la lampe, et jamais par la traversée. Le moteur
- * remonte lui-même la chaîne d'ancêtres de la cible depuis leurs poses locales (`hostWorldChain.ts`)
- * au lieu de demander à l'hôte de la résoudre, et n'écrit rien dans sa scène.
+ * The target of a directional or cone light carries its direction and often lives outside the
+ * source graph: its world position is COMPUTED here, with the light, and never by the walk. The
+ * engine itself walks the target's ancestor chain from their local poses (`hostWorldChain.ts`)
+ * instead of asking the host to resolve it, and writes nothing into its scene.
  */
 export function readLightInto(light: THREE.Light, held: Float64Array, at: number) {
   const shaped = light as THREE.Light & {

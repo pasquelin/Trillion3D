@@ -57,9 +57,9 @@ test('EngineProfiler records frames and produces accurate statistics and bottlen
   assert.equal(report.bottleneck, 'healthy');
 
   const text = profiler.formatReport();
-  assert.ok(text.includes('RAPPORT TÉLÉMÉTRIE MOTEUR WEBGEOMETRY'));
+  assert.ok(text.includes('WEBGEOMETRY ENGINE TELEMETRY REPORT'));
   assert.ok(text.includes('97.5% culled'));
-  assert.ok(text.includes('32 Mo VRAM'));
+  assert.ok(text.includes('32 MB VRAM'));
 });
 
 test('EngineProfiler diagnoses CPU bound state when cpuFrameMs exceeds budget', () => {
@@ -83,11 +83,11 @@ test('EngineProfiler diagnoses CPU bound state when cpuFrameMs exceeds budget', 
 
   const report = profiler.getReport();
   assert.equal(report.bottleneck, 'cpu_bound');
-  assert.ok(report.bottleneckMessage.includes('Choke CPU'));
+  assert.ok(report.bottleneckMessage.includes('CPU thread choke'));
 });
 
-// A14 : `record()` écrit dans un tampon circulaire au lieu de `push` puis `shift()` de tout le
-// tableau. Oracle : la version `push`/`shift`, d'avant le lot A, dans
+// A14: `record()` writes into a circular buffer instead of `push` then `shift()` of the whole
+// array. Oracle: the `push`/`shift` version from before batch A, in
 // `bench/oracles/attributs-telemetrie.mjs`.
 test('the circular interval buffer matches push+shift after wraparound and rejected deltas', () => {
   const max = 5;

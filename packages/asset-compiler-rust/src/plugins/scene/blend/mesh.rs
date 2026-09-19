@@ -1,33 +1,32 @@
-//! Un maillage Blender vers une géométrie triangulée.
+//! A Blender mesh to triangulated geometry.
 //!
-//! Le maillage est décrit par coins : un tableau d'offsets dit où chaque face commence dans la
-//! suite des coins, et chaque coin renvoie à un sommet. Les UV vivent au coin, l'indice de matériau
-//! et le marquage « face nette » vivent à la face. Les n-gones sont coupés en oreilles dans le plan
-//! de leur normale, ce qui conserve exactement les sommets, l'aire et l'orientation d'une face
-//! plane, qu'elle soit convexe ou creusée.
+//! The mesh is described by corners: an offset array says where each face starts in the corner
+//! sequence, and each corner points to a vertex. UVs live at the corner, the material index and
+//! the "sharp face" mark live at the face. N-gons are ear-clipped in the plane of their normal,
+//! which keeps exactly the vertices, area and orientation of a planar face, whether convex or
+//! concave.
 //!
-//! Aucune normale n'est stockée dans un fichier Blender : elles sont calculées à la lecture, à plat
-//! pour une face nette, moyennées par aire pour une face lisse, et coupées sur les arêtes que
-//! `sharp_edge` marque — c'est `.corner_edge` qui dit quelle arête part de chaque coin.
+//! No normal is stored in a Blender file: they are computed at read time, flat for a sharp face,
+//! area-averaged for a smooth face, and cut on the edges `sharp_edge` marks — it is
+//! `.corner_edge` that says which edge leaves each corner.
 use super::*;
 
-/// Plafonds de lecture d'un maillage, pour qu'un fichier abîmé ne demande jamais une allocation
-/// qu'il n'a pas les octets de remplir.
+/// Mesh-read ceilings, so a damaged file never asks for an allocation it does not have the bytes to fill.
 const MAX_VERTICES: usize = 64 * 1024 * 1024;
 const MAX_CORNERS: usize = 256 * 1024 * 1024;
 
-/// La géométrie d'un maillage, telle que le fichier la porte.
+/// The geometry of a mesh, as the file carries it.
 pub(super) struct Geometry {
     pub(super) positions: Vec<f32>,
-    /// Le sommet de chaque coin.
+    /// The vertex of each corner.
     pub(super) corners: Vec<u32>,
-    /// Le premier coin de chaque face, plus la fin du dernier : `faces + 1` valeurs.
+    /// The first corner of each face, plus the end of the last: `faces + 1` values.
     pub(super) offsets: Vec<u32>,
-    /// Deux flottants par coin, vide quand le maillage ne porte aucune couche d'UV.
+    /// Two floats per corner, empty when the mesh holds no UV layer.
     pub(super) uv: Vec<f32>,
     pub(super) material: Vec<u32>,
     pub(super) sharp: Vec<bool>,
-    /// L'arête qui mène de ce coin au suivant de sa face est dure ; vide quand aucune ne l'est.
+    /// The edge that leads from this corner to the next of its face is hard; empty when none is.
     pub(super) sharp_corners: Vec<bool>,
 }
 
@@ -35,13 +34,13 @@ impl Geometry {
     pub(super) fn faces(&self) -> usize {
         self.offsets.len().saturating_sub(1)
     }
-    /// Les coins d'une face, dans l'ordre du fichier.
+    /// The corners of a face, in file order.
     pub(super) fn face(&self, rank: usize) -> &[u32] {
         let from = self.offsets[rank] as usize;
         let to = self.offsets[rank + 1] as usize;
         &self.corners[from..to]
     }
-    /// La surface que le calcul commun des normales lit.
+    /// The surface the shared normal computation reads.
     pub(super) fn surface(&self) -> normals::Surface<'_> {
         normals::Surface {
             positions: &self.positions,
@@ -60,8 +59,8 @@ fn unsupported(mesh: &str, what: &str) -> CompilerError {
     )
 }
 
-/// Lit la géométrie d'un maillage. Un maillage qui ne porte pas la disposition par attributs est
-/// refusé par son nom plutôt que deviné.
+/// Reads the geometry of a mesh. A mesh that does not carry the named-attribute layout is
+/// refused by name rather than guessed.
 pub(super) fn read(mesh: &At<'_>, name: &str) -> Result<Geometry> {
     let vertices = mesh.int("totvert", 0).max(0) as usize;
     let corner_count = mesh.int("totloop", 0).max(0) as usize;
@@ -114,9 +113,9 @@ pub(super) fn read(mesh: &At<'_>, name: &str) -> Result<Geometry> {
     })
 }
 
-/// L'arête dure de chaque coin. Blender marque la dureté à l'arête, et `.corner_edge` dit quelle
-/// arête part de chaque coin : un maillage sans `sharp_edge` rend un tableau vide, qui ne marque
-/// rien, plutôt qu'un tableau de faux aussi long que ses coins.
+/// The hard edge of each corner. Blender marks hardness on the edge, and `.corner_edge` says
+/// which edge leaves each corner: a mesh without `sharp_edge` yields an empty array, which marks
+/// nothing, rather than an array of falses as long as its corners.
 fn hard(table: &[(String, attrs::Attr<'_>)], corners: &[i32], edges: usize) -> Vec<bool> {
     let Some(sharp) = named(table, "sharp_edge", attrs::EDGE, attrs::BOOLEAN)
         .map(|attr| attr.bools(edges))
@@ -142,7 +141,7 @@ fn hard(table: &[(String, attrs::Attr<'_>)], corners: &[i32], edges: usize) -> V
         .unwrap_or_default()
 }
 
-/// L'attribut du nom, du domaine et du type demandés, quand le maillage le porte.
+/// The attribute of the requested name, domain and type, when the mesh holds it.
 fn named<'t, 'b>(
     table: &'t [(String, attrs::Attr<'b>)],
     wanted: &str,
@@ -155,7 +154,7 @@ fn named<'t, 'b>(
         .map(|(_, attr)| attr)
 }
 
-/// Les offsets de faces : un tableau de `faces + 1` entiers croissants, borné par les coins.
+/// Face offsets: an array of `faces + 1` increasing integers, bounded by the corners.
 fn offsets(mesh: &At<'_>, faces: usize, corners: usize) -> Option<Vec<u32>> {
     let bytes = ["poly_offset_indices", "face_offset_indices"]
         .into_iter()
@@ -177,8 +176,8 @@ fn offsets(mesh: &At<'_>, faces: usize, corners: usize) -> Option<Vec<u32>> {
     (out.last() == Some(&(corners as u32))).then_some(out)
 }
 
-/// La couche d'UV retenue : la première couche flottante à deux composantes portée par les coins et
-/// nommée par l'auteur. Les couches internes de Blender commencent par un point, et n'en sont pas.
+/// The UV layer kept: the first two-component float layer held by the corners and named by the
+/// author. Blender's internal layers start with a dot, and are not one.
 fn uv(table: &[(String, attrs::Attr<'_>)], corners: usize) -> Vec<f32> {
     table
         .iter()

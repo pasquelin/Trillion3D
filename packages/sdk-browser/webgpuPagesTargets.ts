@@ -10,10 +10,10 @@ import { ensureTaaTargets } from './taaPrepare.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
- * Les octets des cibles d'image à cette taille. Comme chez la référence, les cibles suivent la
- * résolution : aucun plafond en octets ne refuse une image, seule une taille que l'appareil ne
- * sait pas faire l'est, nommément. Ce que l'image coûte est publié (`gpuFrameTargetBytes`), et les
- * budgets fixes du moteur portent sur ce qui se diffuse — pages de géométrie, tuiles de textures.
+ * Bytes of the image targets at this size. As in the reference, targets follow resolution: no byte
+ * ceiling refuses an image, only a size the device cannot make is, by name. What the image costs is
+ * published (`gpuFrameTargetBytes`), and the engine's fixed budgets bear on what streams — geometry
+ * pages, texture tiles.
  */
 export function frameTargetAllocation(
   rt: WebgpuPagesRuntime,
@@ -107,11 +107,11 @@ export function ensureTargets(
   gpu.depthView = gpu.depthTexture.createView();
   gpu.hdrView = gpu.hdrTexture.createView();
   gpu.backdrop = createBackdrop(device, width, height, blendState.transmissive > 0);
-  // L'historique temporel suit la taille de l'image, comme les autres cibles.
+  // Temporal history follows the image size, like the other targets.
   const allocationBytes = targetBytes + ensureTaaTargets(rt, width, height);
   gpu.targetBytes = allocationBytes;
-  // Les groupes de liaison d'un item transparent nomment les vues du fond : elles viennent de
-  // changer, donc ils sont refaits à la première image qui suit.
+  // Bind groups of a transparent item name the backdrop views: they have just changed, so they are
+  // rebuilt at the first image that follows.
   for (const item of blendState.blendGpu) item.group = undefined;
   blendState.pagedGroup = undefined;
   gpu.targetSize = [width, height];
@@ -138,8 +138,8 @@ export function ensureTargets(
   };
   diag.traceDiagnostic(
     'targets-transition',
-    'Cibles GPU allouées après transition',
+    'GPU targets allocated after transition',
     () => allocation,
   );
-  diag.engineDiagnostic('frame-allocation', 'Cibles GPU allouées', allocation);
+  diag.engineDiagnostic('frame-allocation', 'GPU targets allocated', allocation);
 }

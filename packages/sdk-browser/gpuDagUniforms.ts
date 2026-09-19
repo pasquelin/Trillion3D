@@ -15,15 +15,15 @@ import {
 import type { SelectionResult, SelectionUniforms } from './gpuSelection.ts';
 
 /**
- * Les tableaux d'une fente de relecture, réutilisés d'une lecture à l'autre : les rallouer à chaque
- * relecture jetait des dizaines de milliers d'éléments au ramasse-miettes, pour y réécrire
- * exactement les mêmes rangs.
+ * Arrays of a readback slot, reused from one read to the next: reallocating them on every
+ * readback threw tens of thousands of elements at the garbage collector, to rewrite exactly
+ * the same ranks.
  */
 export type DagOutputScratch = {
   result: SelectionResult;
   drawable: number[];
-  /** Les seaux du tri par comptage, un par pas de priorité. Taille fixe, alloués une fois : le
-   *  classement ne rend jamais rien au ramasse-miettes, quelle que soit la taille du relevé. */
+  /** Counting-sort buckets, one per priority step. Fixed size, allocated once: ranking never
+   *  returns anything to the garbage collector, whatever the sample size. */
   seaux: Uint32Array;
 };
 export const createDagOutputScratch = (): DagOutputScratch => ({
@@ -57,12 +57,12 @@ export function writeDagUniforms(
     target[50] = cw[2];
   }
   target[51] = uniforms.cameraStretch ?? 1;
-  // Le plafond du relevé, que le noyau lit pour borner ses deux moitiés et pour dire, le cas
-  // échéant, qu'il a tronqué (`gpuDagLayout.ts`).
+  // Sample cap the kernel reads to bound its two halves and to say, when it happens, that it
+  // truncated (`gpuDagLayout.ts`).
   ints[52] = selectionListCap(packed.pageCount);
 }
 
-/** `drawnWordOffset` : rang du compte de la liste compactée dans le relevé, 0 quand il n'y en a pas. */
+/** `drawnWordOffset`: rank of the compacted-list count in the sample, 0 when there is none. */
 export function parseDagOutput(
   bytes: ArrayBufferLike,
   byteOffset: number,
@@ -76,27 +76,27 @@ export function parseDagOutput(
     ints[OUT_COUNT] ?? 0,
     Math.max(0, (drawnWordOffset || ints.length) - head),
   );
-  // Tableaux dimensionnés d'avance : la lecture d'une image ne fait pas croître un tableau vide
-  // élément par élément, et l'itérateur d'un tableau typé n'est jamais déroulé.
+  // Arrays sized in advance: reading a frame does not grow an empty array element by element,
+  // and a typed-array iterator is never unrolled.
   const { result, drawable, seaux } = scratch,
     pageIds = result.pageIds;
-  // Chaque rang est une DEMANDE : la page et sa priorité dans un mot (`gpuDagRequest.ts`). La liste
-  // est rendue CLASSÉE, priorité décroissante — c'est dans cet ordre que l'hôte téléverse, et c'est
-  // ce que le chemin WebGL2 fait depuis toujours (`orderPendingUrls`).
+  // Each rank is a REQUEST: the page and its priority in one word (`gpuDagRequest.ts`). The list
+  // is returned SORTED, decreasing priority — that is the order the host uploads in, and what
+  // the WebGL2 path has always done (`orderPendingUrls`).
   //
-  // TRI PAR COMPTAGE, et non par comparaison. La priorité est déjà quantifiée sur dix bits : mille
-  // vingt-quatre seaux la couvrent en entier, et deux parcours suffisent — un pour compter, un pour
-  // poser. Aucune comparaison, aucun rappel, aucun tampon intermédiaire : la liste se lit dans le
-  // relevé et s'écrit directement dans `pageIds`, là où un tri par rangs demandait trois tableaux
-  // ordinaires agrandis par `.length =` et n·log n appels de fermeture sur 262 144 rangs au plafond.
+  // COUNTING SORT, not comparison. Priority is already quantized to ten bits: one thousand
+  // twenty-four buckets cover it entirely, and two walks suffice — one to count, one to place.
+  // No comparison, no callback, no intermediate buffer: the list is read from the sample and
+  // written straight into `pageIds`, where a rank sort needed three ordinary arrays grown by
+  // `.length =` and n·log n closure calls on 262 144 ranks at the cap.
   //
-  // Il est STABLE, et c'est ce qui le rend substituable : à priorité égale l'ordre reste celui du
-  // relevé, exactement ce que rendait le tri par comparaison qu'il remplace.
+  // It is STABLE, and that is what makes it substitutable: at equal priority the order stays
+  // that of the sample, exactly what the comparison sort it replaces returned.
   pageIds.length = count;
   seaux.fill(0);
   for (let i = 0; i < count; i++) seaux[requestPriority(ints[head + i])]++;
-  // Somme préfixe menée de la priorité la plus HAUTE vers la plus basse : la liste sort décroissante
-  // sans qu'on ait à la retourner.
+  // Prefix sum run from the HIGHEST priority to the lowest: the list comes out decreasing
+  // without having to reverse it.
   let place = 0;
   for (let p = REQUEST_PRIORITY_MAX; p >= 0; p--) {
     const tenus = seaux[p];
@@ -110,19 +110,19 @@ export function parseDagOutput(
   result.frustumRejected = ints[OUT_FRUSTUM_REJECTED] ?? 0;
   result.lodLevel = ints[OUT_LOD_LEVEL] ?? 0;
   result.complete = ((ints[OUT_FLAGS] ?? 0) & 2) === 0;
-  // Les totaux que la carte tient : ils décrivent la coupe, pas la liste qui la rapporte, donc un
-  // relevé tronqué les rend quand même justes (`gpuDagTotalsWgsl.ts`).
+  // Totals the GPU holds: they describe the cut, not the list that reports it, so a truncated
+  // sample still returns them correctly (`gpuDagTotalsWgsl.ts`).
   result.selectedTriangles = ints[OUT_SELECTED_TRIANGLES] ?? 0;
   result.transparentTriangles = ints[OUT_TRANSPARENT_TRIANGLES] ?? 0;
   result.drawnTriangles = ints[OUT_DRAWN_TRIANGLES] ?? 0;
   result.uncoveredTriangles = ints[OUT_UNCOVERED_TRIANGLES] ?? 0;
-  // Bit 1 : la coupe ne tenait pas sous le plafond du relevé. Ce n'est pas une panne de la carte —
-  // les noyaux ont tourné, le masque de l'image est juste — mais la LISTE rapportée est amputée, et
-  // rien de ce qui en vit ne doit la prendre pour la coupe entière.
+  // Bit 1: the cut did not fit under the sample cap. This is not a GPU fault — the kernels ran,
+  // the frame mask is correct — but the reported LIST is truncated, and nothing that lives off
+  // it must take it for the whole cut.
   result.truncated = ((ints[OUT_FLAGS] ?? 0) & 1) !== 0;
   result.drawablePageIds = undefined;
-  // La liste dessinable arrive déjà compactée, dans l'ordre croissant : le processeur ne parcourt
-  // plus un drapeau par page du DAG, seulement les rangs que la carte graphique a retenus.
+  // The drawable list arrives already compacted, in increasing order: the CPU no longer walks
+  // one flag per DAG page, only the ranks the GPU kept.
   if (drawnWordOffset) {
     const drawnCount = Math.min(
       ints[drawnWordOffset] ?? 0,

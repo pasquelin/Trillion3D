@@ -1,43 +1,43 @@
-//! La scène intermédiaire en construction, et son écriture dans le cache, partagées par les pilotes
-//! de scène qui remplissent eux-mêmes leurs tables glTF.
+//! Intermediate scene being built, and write to cache, shared by scene drivers
+//! filling their own glTF tables.
 //!
-//! Le pilote remplit les mêmes tables qu'un glTF 2.0 — nœuds, maillages, matériaux, accesseurs,
-//! images — puis les publie en `model.gltf`, `model.bin` et `manifest.json`, la seule chose que le
-//! compilateur sache lire. Ce qui est ici ne dépend d'aucun format : seul le remplissage en dépend.
-//! Rien n'est jamais écrit à côté de la source.
+//! Driver fills same tables as glTF 2.0 — nodes, meshes, materials, accessors,
+//! images — then publishes `model.gltf`, `model.bin`, and `manifest.json`, the only thing
+//! compiler reads. Format-independent: only population depends on format.
+//! Nothing written alongside source.
 use super::*;
 use crate::plugins::scene::SceneOutput;
 mod media;
 pub(crate) use media::readable;
 
-/// Le filtrage qu'un échantillonneur porte sans mention contraire : linéaire à l'agrandissement,
-/// linéaire entre mipmaps au rétrécissement.
+/// Default sampler filtering unless specified: linear magnification,
+/// linear between mipmaps on minification.
 const DEFAULT_FILTER: [u32; 2] = [9729, 9987];
 
-/// Les tables du glTF en cours d'écriture. Se construit par `new` : la clé porte le pilote.
+/// glTF tables being written. Constructed via `new`: key carries driver.
 #[derive(Default)]
 pub(crate) struct SceneTables {
     pub(crate) nodes: Vec<Value>,
     pub(crate) meshes: Vec<Value>,
-    /// Le nombre de triangles de chaque maillage, par rang de `meshes`.
+    /// Triangle count of each mesh, by rank in `meshes`.
     pub(crate) mesh_triangles: Vec<usize>,
     pub(crate) materials: Vec<Value>,
     pub(crate) accessors: Vec<Value>,
     pub(crate) images: Vec<Value>,
-    /// Les images déjà versées, par URI relative : une URI n'entre qu'une fois dans la table.
+    /// Images already added, by relative URI: URI enters table once.
     images_by_uri: HashMap<String, usize>,
     pub(crate) samplers: Vec<Value>,
-    /// Le premier échantillonneur de chaque réglage — répétition des deux axes, puis filtrage —,
-    /// versé ou créé.
+    /// First sampler for each setting — repeat on both axes, then filter —,
+    /// added or created.
     sampler_ids: HashMap<[u32; 4], usize>,
     pub(crate) textures: Vec<Value>,
-    /// Les lampes déclarées par la source, dans l'ordre où les nœuds les instancient.
+    /// Lights declared by source, in order nodes instantiate them.
     pub(crate) lights: Vec<Value>,
     pub(crate) bin: Bin,
     pub(crate) report: Report,
-    /// Ce que le rapport publie en clair : instances, modèles, matériaux, LOD écartés…
+    /// Published in report: instances, models, materials, discarded LODs…
     pub(crate) counts: BTreeMap<&'static str, usize>,
-    /// Les fichiers de données lus, avec leur empreinte : c'est l'identité de cette conversion.
+    /// Read data files with fingerprint: identity of this conversion.
     pub(crate) files: Vec<Value>,
     key_material: String,
 }
@@ -52,21 +52,21 @@ impl SceneTables {
     pub(crate) fn count(&mut self, what: &'static str, by: usize) {
         *self.counts.entry(what).or_insert(0) += by;
     }
-    /// Ajoute un nœud et rend son rang.
+    /// Adds node and returns rank.
     pub(crate) fn node(&mut self, node: Value) -> usize {
         self.nodes.push(node);
         self.nodes.len() - 1
     }
-    /// Un échantillonneur par couple de modes de répétition, filtré comme le glTF le fait par
-    /// défaut. Un format qui borne un axe et répète l'autre porte bien deux modes : les confondre
+    /// Sampler per repeat mode pair, filtered as glTF default.
+    /// Format clamping one axis and repeating other carries two modes: confusing them
     /// replie la texture.
     pub(crate) fn sampler_uv(&mut self, wrap_s: u32, wrap_t: u32) -> usize {
         self.sampler_filtered([wrap_s, wrap_t, DEFAULT_FILTER[0], DEFAULT_FILTER[1]])
     }
-    /// Un échantillonneur par réglage complet — `wrapS`, `wrapT`, `magFilter`, `minFilter` —,
-    /// partagé par toutes les textures qui le demandent, y compris celles d'un modèle versé qui
-    /// déclare déjà ce réglage. Le filtrage appartient à la texture, comme sa répétition : deux
-    /// textures qui ne s'échantillonnent pas pareil ne partagent pas un échantillonneur.
+    /// Sampler per complete setting — `wrapS`, `wrapT`, `magFilter`, `minFilter` —,
+    /// shared by all requesting textures, including added model declaring it.
+    /// Filtering belongs to texture like repeat: differently sampled textures
+    /// do not share sampler.
     pub(crate) fn sampler_filtered(&mut self, setting: [u32; 4]) -> usize {
         if let Some(known) = self.sampler_ids.get(&setting) {
             return *known;
@@ -78,8 +78,8 @@ impl SceneTables {
         self.sampler_ids.insert(setting, id);
         id
     }
-    /// Note les échantillonneurs versés depuis un modèle : le premier de chaque réglage sert
-    /// ensuite. Un modèle qui n'écrit pas son filtrage prend celui du glTF par défaut.
+    /// Notes samplers added from a model: first of each setting serves
+    /// subsequently. Model not writing filtering takes glTF default.
     pub(crate) fn share_samplers(&mut self, ids: &[usize]) {
         for id in ids {
             let sampler = &self.samplers[*id];
@@ -98,22 +98,22 @@ impl SceneTables {
             self.sampler_ids.entry(setting).or_insert(*id);
         }
     }
-    /// Note un fichier de données lu : son chemin, sa taille et son empreinte entrent dans la clé.
+    /// Notes read data file: path, size, fingerprint enter key.
     pub(crate) fn read_file(&mut self, name: &str, bytes: usize, digest: &str) {
         self.files
             .push(json!({"file":name,"bytes":bytes,"sha256":digest}));
         self.key_material
             .push_str(&format!("\n{name}:{bytes}:{digest}"));
     }
-    /// Note un modèle importé par son pilote : la clé de son dossier de cache est déjà l'empreinte
-    /// de ses octets, on la reprend telle quelle plutôt que de relire le fichier.
+    /// Notes driver-imported model: cache folder key is already fingerprint
+    /// of its bytes, reused directly without re-reading file.
     pub(crate) fn read_model(&mut self, name: &str, plugin: &str, key: &str) {
         self.files
             .push(json!({"file":name,"plugin":plugin,"importKey":key}));
         self.key_material.push_str(&format!("\n{name}@{key}"));
     }
 
-    /// Les racines de la scène : les nœuds qu'aucun autre ne cite comme enfant.
+    /// Scene roots: nodes uncited as child by any other.
     fn roots(&self) -> Vec<usize> {
         let mut child = vec![false; self.nodes.len()];
         for node in &self.nodes {

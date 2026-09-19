@@ -1,50 +1,50 @@
-//! La triangulation d'un polygone quelconque, partagée par les pilotes qui lisent des n-gones.
+//! Triangulation of an arbitrary polygon, shared by the drivers that read n-gons.
 //!
-//! Un éventail depuis le premier coin ajoute de la surface dès que le polygone est concave : ses
-//! triangles sortent de la face, et l'aire rendue dépasse l'aire écrite — un polygone en U d'aire
-//! sept en rend onze. Les oreilles, elles, ne coupent que des triangles dont l'intérieur est vide :
-//! l'aire et la silhouette d'un polygone simple sont conservées exactement. Sur un polygone
-//! convexe, la coupe retombe coin par coin sur l'éventail, donc la sortie d'une scène convexe ne
-//! bouge pas d'un indice.
+//! A fan from the first corner adds surface as soon as the polygon is concave: its triangles
+//! leave the face, and the rendered area exceeds the written area — a U-shaped polygon of area
+//! seven yields eleven. Ears, on the other hand, only cut triangles whose interior is empty:
+//! the area and silhouette of a simple polygon are kept exactly. On a convex polygon, the cut
+//! falls corner by corner on the fan, so the output of a convex scene does not move by one
+//! index.
 //!
-//! Le polygone est lu dans son propre plan, celui de sa normale de Newell : l'axe dominant de cette
-//! normale est laissé de côté, et les deux autres portent le découpage. Un polygone sans plan —
-//! sommets tous alignés, aire nulle, coordonnées non finies — n'a pas d'oreille à couper : il sort
-//! en éventail, et la coupe le dit à l'appelant, qui le compte sous son propre nom.
+//! The polygon is read in its own plane, that of its Newell normal: the dominant axis of that
+//! normal is left aside, and the other two carry the cut. A polygon with no plane — vertices
+//! all colinear, zero area, non-finite coordinates — has no ear to cut: it comes out as a fan,
+//! and the cut says so to the caller, which counts it under its own name.
 #[cfg(test)]
 mod tests;
 use super::cancel;
 use std::sync::atomic::AtomicBool;
 
-/// Un découpeur réutilisable : l'anneau, sa projection, les rangs encore vivants et les triangles
-/// servent d'une face à l'autre, pour qu'un maillage de mille faces n'alloue pas mille fois.
+/// A reusable cutter: the ring, its projection, the ranks still alive and the triangles serve
+/// from one face to the next, so a mesh of a thousand faces does not allocate a thousand times.
 #[derive(Default)]
 pub(super) struct Ngon {
     ring: Vec<[f64; 3]>,
     flat: Vec<[f64; 2]>,
     alive: Vec<usize>,
     triangles: Vec<[usize; 3]>,
-    /// Les faces que ce découpeur a déjà coupées : c'est ce compte qui borne la relecture du jeton
-    /// d'annulation, une fois par tranche.
+    /// Faces this cutter has already cut: it is this count that bounds rereading the
+    /// cancellation token, once per slice.
     done: usize,
 }
 
 impl Ngon {
-    /// Ouvre un anneau vide : les coins se donnent ensuite dans l'ordre du polygone.
+    /// Opens an empty ring: corners are then given in polygon order.
     pub(super) fn begin(&mut self) {
         self.ring.clear();
     }
 
-    /// Ajoute un coin à l'anneau ouvert.
+    /// Adds a corner to the open ring.
     pub(super) fn corner(&mut self, point: [f64; 3]) {
         self.ring.push(point);
     }
 
-    /// Découpe l'anneau. Rend `None` quand le jeton d'annulation est levé : le découpeur le relit
-    /// lui-même, par tranche de faces, pour qu'un seul maillage énorme s'arrête aussi, et aucun
-    /// pilote n'a à s'en souvenir. Rend `Some(false)` quand une oreille a manqué — polygone qui se
-    /// recoupe, ou sans plan : les triangles rendus retombent alors sur l'éventail, et l'appelant
-    /// compte la face.
+    /// Cuts the ring. Yields `None` when the cancellation token is raised: the cutter rereads
+    /// it itself, per face slice, so a single huge mesh stops too, and no driver has to
+    /// remember. Yields `Some(false)` when an ear was missing — a self-intersecting polygon, or
+    /// with no plane: the yielded triangles then fall back on the fan, and the caller counts
+    /// the face.
     pub(super) fn cut(&mut self, cancelled: &AtomicBool) -> Option<bool> {
         if cancel::stopped(cancelled, self.done) {
             return None;
@@ -79,21 +79,21 @@ impl Ngon {
         Some(exact)
     }
 
-    /// Les triangles de la dernière coupe, en rangs de coins de l'anneau.
+    /// Triangles of the last cut, as corner ranks of the ring.
     pub(super) fn triangles(&self) -> &[[usize; 3]] {
         &self.triangles
     }
 
-    /// L'éventail depuis le premier coin : ce que rend un anneau sans plan, faute de mieux.
+    /// Fan from the first corner: what a ring with no plane yields, for lack of better.
     fn fan(&mut self) {
         for step in 1..self.ring.len() - 1 {
             self.triangles.push([0, step, step + 1]);
         }
     }
 
-    /// Projette l'anneau dans le plan de sa normale de Newell et rend le sens de son parcours dans
-    /// cette projection : `1.0` pour le sens direct, `-1.0` pour l'autre. `None` quand le polygone
-    /// n'a ni normale ni aire : il n'y a alors aucun plan où le découper.
+    /// Projects the ring into the plane of its Newell normal and yields the sense of its walk
+    /// in that projection: `1.0` for the direct sense, `-1.0` for the other. `None` when the
+    /// polygon has neither normal nor area: there is then no plane in which to cut it.
     fn project(&mut self) -> Option<f64> {
         let normal = newell(&self.ring);
         let axis = (0..3).fold(0, |best, axis| {
@@ -109,18 +109,18 @@ impl Ngon {
         self.flat.clear();
         self.flat
             .extend(self.ring.iter().map(|point| [point[u], point[v]]));
-        // L'aire signée de la projection est la composante `axis` de la normale de Newell, déjà
-        // finie et non nulle : son signe est le sens de parcours.
+        // Signed area of the projection is the `axis` component of the Newell normal, already
+        // finite and non-zero: its sign is the walk sense.
         Some(normal[axis].signum())
     }
 
-    /// Les rangs qui encadrent un rang vivant.
+    /// Ranks that frame a living rank.
     fn neighbours(&self, rank: usize) -> (usize, usize) {
         let sides = self.alive.len();
         ((rank + sides - 1) % sides, (rank + 1) % sides)
     }
 
-    /// Le triangle d'un rang vivant, dans le plan du découpage.
+    /// Triangle of a living rank, in the cut plane.
     fn ear(&self, rank: usize) -> [[f64; 2]; 3] {
         let (before, after) = self.neighbours(rank);
         [
@@ -130,11 +130,11 @@ impl Ngon {
         ]
     }
 
-    /// Ce rang est-il une oreille ? Son coin ne doit pas rentrer dans le polygone, et aucun autre
-    /// sommet vivant ne doit tomber dans son triangle, bord compris : un sommet posé sur la diagonale
-    /// y reste après la coupe, du mauvais côté du bord restant, et le triangle suivant part à
-    /// l'envers. Un coin aligné ou doublé passe : son triangle est d'aire nulle, donc il n'ajoute
-    /// aucune surface, ne contient rien, et la coupe avance toujours.
+    /// Is this rank an ear? Its corner must not turn into the polygon, and no other living
+    /// vertex must fall in its triangle, border included: a vertex sitting on the diagonal
+    /// stays there after the cut, on the wrong side of the remaining edge, and the next
+    /// triangle starts backwards. An aligned or duplicated corner passes: its triangle has
+    /// zero area, so it adds no surface, contains nothing, and the cut always advances.
     fn is_ear(&self, rank: usize, turn: f64) -> bool {
         let [a, b, c] = self.ear(rank);
         let area = turn * side(a, b, c);
@@ -157,8 +157,8 @@ impl Ngon {
         })
     }
 
-    /// Le rang le plus saillant, coupé de force quand aucune oreille ne se présente : un polygone
-    /// qui se recoupe n'en a pas, et la coupe doit finir. Le premier l'emporte à égalité.
+    /// Most salient rank, cut by force when no ear presents itself: a self-intersecting
+    /// polygon has none, and the cut must finish. The first wins on a tie.
     fn widest(&self, turn: f64) -> usize {
         let saliency = |rank: &usize| {
             let [a, b, c] = self.ear(*rank);
@@ -171,8 +171,8 @@ impl Ngon {
     }
 }
 
-/// La somme de Newell d'un anneau : un vecteur normal au polygone, de longueur double de son aire.
-/// La formule vaut pour une face quelconque, plane ou non, et ne suppose aucune convexité.
+/// Newell sum of a ring: a vector normal to the polygon, of length twice its area. The formula
+/// holds for any face, planar or not, and assumes no convexity.
 pub(super) fn newell(ring: &[[f64; 3]]) -> [f64; 3] {
     let mut sum = [0.0f64; 3];
     for (rank, here) in ring.iter().enumerate() {
@@ -185,13 +185,14 @@ pub(super) fn newell(ring: &[[f64; 3]]) -> [f64; 3] {
     sum
 }
 
-/// Le produit vectoriel de deux points du plan : deux fois l'aire signée du triangle qu'ils ferment
-/// avec l'origine.
+/// Cross product of two points of the plane: twice the signed area of the triangle they close
+/// with the origin.
 fn cross([x0, y0]: [f64; 2], [x1, y1]: [f64; 2]) -> f64 {
     x0 * y1 - y0 * x1
 }
 
-/// De quel côté du segment `from`–`to` tombe un point : deux fois l'aire signée de leur triangle.
+/// On which side of the segment `from`–`to` a point falls: twice the signed area of their
+/// triangle.
 fn side(from: [f64; 2], to: [f64; 2], point: [f64; 2]) -> f64 {
     let edge = [to[0] - from[0], to[1] - from[1]];
     cross(edge, [point[0] - from[0], point[1] - from[1]])

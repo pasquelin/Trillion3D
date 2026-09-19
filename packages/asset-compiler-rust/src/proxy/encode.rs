@@ -5,7 +5,7 @@ use super::{
 use serde_json::{json, Value};
 
 impl SceneProxy {
-    /// Le descriptif que le manifeste porte : où lire l'objet, ce qu'il pèse, ce qu'il vaut.
+    /// Descriptor manifest carries: where to read object, weight, value.
     pub fn descriptor(&self, url: &str, sha256: &str, bytes: usize) -> Value {
         json!({
          "version": SCENE_PROXY_VERSION,
@@ -23,9 +23,9 @@ impl SceneProxy {
         })
     }
 
-    /// Les octets de l'objet de cache, en petit-boutiste : l'en-tête, puis les sommets monde, les
-    /// albédos, les bornes des nœuds et leurs liens, bout à bout. Aucune longueur n'y est répétée —
-    /// l'en-tête les impose toutes, et un lecteur refuse un fichier d'une autre taille.
+    /// Cache object bytes in little-endian: header, world vertices,
+    /// albedos, node bounds and links end to end. No repeated lengths —
+    /// header imposes all, reader refuses file of other size.
     pub fn encode(&self) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(
             SCENE_PROXY_HEADER_WORDS * 4

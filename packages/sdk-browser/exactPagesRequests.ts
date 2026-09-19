@@ -56,12 +56,12 @@ export type ExactPagesRequestContext = {
   indexByUrl: Map<string, THREE.BufferAttribute>;
   disposeGeometry: (geometry: THREE.BufferGeometry) => void;
   scene: THREE.Scene;
-  /** La caméra du moteur de la dernière image, absente tant qu'aucune image n'a été rendue. */
+  /** Engine camera of the last frame, absent as long as no frame has been rendered. */
   readonly cam: EngineCamera | undefined;
   readonly lastPixelError: number;
   readonly frame: number;
   urlStamp: number;
-  /** Prévenu quand des octets de page arrivent ou partent : c'est une écriture de ressources. */
+  /** Notified when page bytes arrive or leave: that is a resource write. */
   resourcesChanged: () => void;
 };
 
@@ -112,10 +112,10 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
     prefetchUrls() {
       prefetchScratch.length = 0;
       if (!ctx.cam || !bootstrap.length) return prefetchScratch;
-      // Rien tant que la coupe visible est incomplète. L'anneau se dispute sinon le cache avec ce
-      // que l'image montre : la page visible entre, la page de l'anneau la pousse dehors, la coupe
-      // retombe sur un remplaçant plus grossier, l'anneau se déplace — et deux couvertures
-      // équivalentes se relaient sans fin sur une pose immobile, sans jamais cesser de demander.
+      // Nothing while the visible cut is incomplete. Otherwise the ring fights the cache with
+      // what the frame shows: the visible page enters, the ring page pushes it out, the cut
+      // falls back on a coarser substitute, the ring moves — and two equivalent covers take
+      // turns forever on a still pose, never stopping asking.
       const visible = desired.length ? desired : shown;
       for (let i = 0; i < visible.length; i++) if (!visible[i].array) return prefetchScratch;
       // A ring around the cut: what a twice-finer threshold would select. Asked for only when nothing
@@ -135,8 +135,8 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
     pageUrls() {
       urlScratch.length = 0;
       // A streaming bundle is shared between primitives and instances, so the per-primitive stamp table
-      // of the batches cannot deduplicate it. Une estampille par rang de requête le fait sans table de
-      // hachage ni allocation, sur une coupe qui compte des milliers de pages à chaque image.
+      // of the batches cannot deduplicate it. One stamp per request rank does it without a hash
+      // table or allocation, on a cut that counts thousands of pages every frame.
       if (bundled) {
         requestStamps.begin();
         requestStamps.mark(bootstrap, urlScratch);
@@ -155,8 +155,8 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
     acceptPage(url: string, array: Uint32Array, plan?: ArrivalPlan) {
       const recs = byUrl.get(url);
       if (!recs) return;
-      // Les vues du paquet viennent du plan calculé hors fil ; sans plan, le même calcul se refait
-      // en ligne, au même résultat. Les lots n'écrivent ensuite que les plages ainsi nommées.
+      // Packet views come from the plan computed off-thread; without a plan, the same compute
+      // is redone inline, to the same result. Batches then write only the ranges thus named.
       if (!applyArrivalPlan(recs, array, plan)) acceptPageArray(recs, array);
       batches.acceptPage(recs, array);
       resourcesChanged();

@@ -1,22 +1,22 @@
-//! Les objets que la scène active du fichier porte.
+//! The objects the file's active scene holds.
 //!
-//! Un fichier Blender range côte à côte tout ce qu'il contient : les objets d'une autre scène, et
-//! ceux que plus aucune collection ne porte — Blender les garde tant qu'un utilisateur les référence
-//! encore — vivent dans les mêmes blocs `OB` que ceux de la scène ouverte. Importer le fichier, ce
-//! n'est pas importer ses blocs : c'est importer la scène que son bloc global désigne, par sa
-//! collection maîtresse et les collections filles, moins celles que la couche de vue active exclut.
-//! Ce que cela laisse dehors est compté, jamais tu.
+//! A Blender file stores everything it contains side by side: objects of another scene, and those
+//! that no collection holds any more — Blender keeps them as long as a user still references them
+//! — live in the same `OB` blocks as those of the open scene. Importing the file is not importing
+//! its blocks: it is importing the scene its global block designates, by its master collection
+//! and the child collections, minus those the active view layer excludes. What that leaves out
+//! is counted, never silenced.
 //!
-//! Un fichier qui ne décrit pas sa scène active — pas de bloc global, pas de collection maîtresse —
-//! n'est pas deviné : tous ses objets sont alors lus, comme avant, et rien n'est compté.
+//! A file that does not describe its active scene — no global block, no master collection — is
+//! not guessed: all its objects are then read, as before, and nothing is counted.
 use super::*;
 
-/// Profondeur maximale d'un arbre de collections, cycle compris.
+/// Maximum depth of a collection tree, cycle included.
 const MAX_DEPTH: usize = 64;
-/// Le bit par lequel une couche de vue exclut une collection de la scène.
+/// The bit by which a view layer excludes a collection from the scene.
 const EXCLUDE: i64 = 1;
 
-/// Les adresses des objets de la scène active, quand le fichier la décrit.
+/// The addresses of the active scene's objects, when the file describes it.
 pub(super) fn objects(file: &BlendFile) -> Option<HashSet<u64>> {
     let global = file
         .of(*b"GLOB")
@@ -28,7 +28,7 @@ pub(super) fn objects(file: &BlendFile) -> Option<HashSet<u64>> {
     Some(held)
 }
 
-/// Les collections que la couche de vue active retire de la scène.
+/// The collections the active view layer removes from the scene.
 fn excluded(global: &At<'_>) -> HashSet<u64> {
     let mut out = HashSet::new();
     let Some(layer) = global.follow("cur_view_layer") else {
@@ -53,7 +53,7 @@ fn layers(held: &[At<'_>], out: &mut HashSet<u64>, depth: usize) {
     }
 }
 
-/// Les objets d'une collection et de ses filles, celles que la couche de vue exclut mises à part.
+/// The objects of a collection and of its children, those the view layer excludes set aside.
 fn gather(collection: &At<'_>, excluded: &HashSet<u64>, out: &mut HashSet<u64>, depth: usize) {
     if depth >= MAX_DEPTH {
         return;

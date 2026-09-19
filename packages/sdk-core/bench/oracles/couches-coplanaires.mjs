@@ -1,6 +1,6 @@
-// Oracle de `depthLayer.ts`, réécrit d'après le contrat : la couche en unités matérielles, puis le
-// biais posé sur les bits d'un f32 de profondeur, plafonné à 1.0f. Les constantes viennent du
-// contrat, pour que l'oracle ne dérive pas en silence.
+// Oracle of `depthLayer.ts`, rewritten according to the contract: layer in hardware units, then the
+// depth bias applied on f32 depth bits, clamped to 1.0f. Constants come from the
+// contract so that the oracle does not silently drift.
 import { DEPTH_LAYER_BIAS_UNITS, MAX_DEPTH_LAYER } from '../../depthLayer.ts';
 
 export function referenceDepthLayerUnits(layer) {

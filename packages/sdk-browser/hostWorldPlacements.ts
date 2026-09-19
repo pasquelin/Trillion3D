@@ -3,34 +3,34 @@ import { hostWorldTree } from './hostWorldTree.ts';
 import { copyElements } from './matrixElements.ts';
 
 /**
- * Les matrices monde que LE MOTEUR possède pour les nœuds dessinés de la scène de l'hôte.
+ * World matrices THE ENGINE owns for the drawn nodes of the host scene.
  *
- * `hostWorldTree.ts` calcule ces matrices depuis les poses locales ; ce fichier-ci leur donne le
- * contenant que les fiches de page et les racines de cluster portent encore — une matrice de la
- * bibliothèque hôte, parce que c'est ce que l'hôte attache à son graphe et ce que les moteurs
- * témoins dessinent. Le contenant est le seul emprunt : ses seize nombres viennent tous du socle, et
- * la `matrixWorld` du maillage source n'est ni lue ni écrite.
+ * `hostWorldTree.ts` computes these matrices from local poses; this file gives them the
+ * container that page records and cluster roots still carry — a host-library matrix, because
+ * that is what the host attaches to its graph and what witness engines draw. The container is
+ * the only borrow: its sixteen numbers all come from the core, and the source mesh's
+ * `matrixWorld` is neither read nor written.
  *
- * Une matrice est rendue UNE FOIS par nœud et vit aussi longtemps que la scène : ce que `refresh`
- * réécrit, tout ce qui la porte le voit à l'instant même — une fiche de page, une racine, une copie
- * transparente. C'était le défaut que la photo de `matrixWorld` avait déjà coûté une fois : ici
- * aucune photo n'est prise, donc aucune n'est à reprendre.
+ * A matrix is returned ONCE per node and lives as long as the scene: what `refresh` rewrites,
+ * everything that carries it sees at that instant — a page record, a root, a transparent copy.
+ * That was the defect a snapshot of `matrixWorld` had already cost once: here no snapshot is
+ * taken, so none has to be retaken.
  */
 export interface HostWorldPlacements {
-  /** La matrice monde du moteur pour `node` : le même objet d'un appel à l'autre. Lève pour un nœud
-   *  hors du sous-arbre indexé. */
+  /** Engine world matrix for `node`: the same object from call to call. Throws for a node
+   *  outside the indexed subtree. */
   of(node: THREE.Object3D): THREE.Matrix4;
-  /** Recalcule l'index depuis les poses locales de l'hôte, puis réécrit les matrices rendues. */
+  /** Recomputes the index from the host's local poses, then rewrites the returned matrices. */
   refresh(): void;
 }
 
-/** L'index des matrices monde de `source`, prêt à être lu : la passe est celle de l'arbre du socle
- *  (`hostWorldTree.ts`), qui accepte aussi bien un nœud qui recompose sa pose qu'un nœud posé. */
+/** World-matrix index of `source`, ready to be read: the pass is that of the core tree
+ *  (`hostWorldTree.ts`), which accepts both a node that recomposes its pose and a posed node. */
 export function hostWorldPlacements(source: THREE.Object3D): HostWorldPlacements {
   const tree = hostWorldTree(source);
-  // Les nœuds demandés, et eux seuls : une scène dont douze nœuds portent des pages ne recopie que
-  // douze matrices par changement de scène. Une seule table, nœud → matrice : le rang d'une liste
-  // parallèle serait une troisième façon de dire la même chose, et une de plus à tenir d'accord.
+  // Requested nodes, and them alone: a scene whose twelve nodes carry pages copies only twelve
+  // matrices per scene change. One table, node → matrix: the rank of a parallel list would be a
+  // third way of saying the same thing, and one more to keep in agreement.
   const matrices = new Map<THREE.Object3D, THREE.Matrix4>();
   return {
     of(node) {

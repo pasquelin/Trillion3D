@@ -8,21 +8,21 @@ import {
 } from '../sdk-core/index.ts';
 import { sameElements, type MatrixElements } from './matrixElements.ts';
 
-/** Ce que le mouvement d'un placement demande d'une racine : sa matrice monde de l'hôte. */
+/** What a placement's motion asks of a root: its host world matrix. */
 export type MotionRoot = { world: MatrixElements };
 
 /**
- * Les matrices de mouvement des placements, telles que la passe temporelle les lit : une `mat4x4f`
- * par racine, l'identité pour un placement immobile, `précédent · courant⁻¹` — rapportée à l'œil —
- * pour celui qui a bougé depuis la dernière image accumulée. C'est ce que la référence garde dans
- * ses données d'instance pour les seuls objets dynamiques : ici l'entrée existe pour chaque
- * racine, mais seules celles qui bougent sont réécrites, et remises à l'identité l'image d'après.
- * Un miroir processeur porte le tampon entier ; une image n'envoie que la plage qu'elle a touchée,
- * en une seule écriture.
+ * Placement motion matrices, as the temporal pass reads them: one `mat4x4f` per root,
+ * identity for a still placement, `previous · current⁻¹` — reported to the eye —
+ * for one that moved since the last accumulated frame. That is what the reference keeps in
+ * its instance data for dynamic objects only: here the entry exists for every root, but
+ * only those that move are rewritten, and reset to identity the frame after.
+ * A CPU mirror holds the whole buffer; a frame only sends the range it touched,
+ * in a single write.
  *
- * L'ancrage sur l'œil suit la partition : la position que la passe reprojette est relative à l'œil
- * de l'image, donc `M` s'écrit `T(−œil) · M · T(œil)`, dont seule la colonne de translation change
- * — `M · (œil, 1) − œil`, calculée en double avant l'arrondi simple.
+ * Eye anchoring follows the partition: the position the pass reprojects is relative to the
+ * frame's eye, so `M` is written `T(−eye) · M · T(eye)`, of which only the translation column
+ * changes — `M · (eye, 1) − eye`, computed in double before the single-precision round.
  */
 export function createPlacementMotion(device: GPUDevice, roots: readonly MotionRoot[]) {
   const count = Math.max(1, roots.length);
@@ -34,13 +34,13 @@ export function createPlacementMotion(device: GPUDevice, roots: readonly MotionR
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
   device.queue.writeBuffer(buffer, 0, mirror);
-  /** La pose de chaque racine à la dernière image accumulée. */
+  /** Pose of each root at the last accumulated frame. */
   const previous = new Float64Array(count * 16);
   const rememberPoses = () => {
     for (let w = 0; w < roots.length; w++) previous.set(roots[w].world.elements, w * 16);
   };
   rememberPoses();
-  /** Les racines dont l'entrée n'est pas l'identité. */
+  /** Roots whose entry is not identity. */
   const moved: number[] = [];
   const current = new Float64Array(16),
     held = new Float64Array(16),
@@ -51,7 +51,7 @@ export function createPlacementMotion(device: GPUDevice, roots: readonly MotionR
     from = Math.min(from, w);
     to = Math.max(to, w);
   };
-  /** Remet à l'identité ce qui avait bougé, sans l'envoyer encore. */
+  /** Reset to identity what had moved, without sending it yet. */
   const clearMoved = () => {
     for (const w of moved) {
       mirror.set(IDENTITY_MATRIX4, w * 16);
@@ -67,14 +67,14 @@ export function createPlacementMotion(device: GPUDevice, roots: readonly MotionR
   };
   return {
     buffer,
-    /** Vrai quand au moins une racine porte un mouvement à cette image. */
+    /** True when at least one root carries motion this frame. */
     get moved() {
       return moved.length > 0;
     },
     /**
-     * À chaque image accumulée : remet à l'identité ce qui avait bougé à la précédente, puis écrit
-     * `M` pour chaque racine dont la pose diffère de celle de la dernière image accumulée, et
-     * retient la pose. `scan` faux dit qu'aucune matrice de scène n'a changé : rien n'est comparé.
+     * On each accumulated frame: reset to identity what had moved on the previous one, then write
+     * `M` for each root whose pose differs from that of the last accumulated frame, and
+     * keep the pose. `scan` false says no scene matrix changed: nothing is compared.
      */
     update(eye: ArrayLike<number>, scan: boolean) {
       clearMoved();
@@ -87,7 +87,7 @@ export function createPlacementMotion(device: GPUDevice, roots: readonly MotionR
           invertMatrix4(current, current);
           copyMatrix4(held, previous, 0, at);
           multiplyMatrix4(motion, held, current);
-          // `M · (œil, 1)` en colonne de translation, puis `− œil` au passage en simple précision.
+          // `M · (eye, 1)` in the translation column, then `− eye` when going to single precision.
           transformAffinePoint(motion, motion, eye[0], eye[1], eye[2], 12);
           worldToRenderOrigin(mirror, motion, eye, at);
           previous.set(elements, at);
@@ -96,7 +96,7 @@ export function createPlacementMotion(device: GPUDevice, roots: readonly MotionR
         }
       flush();
     },
-    /** L'historique est perdu : les poses courantes deviennent la référence, sans mouvement. */
+    /** History is lost: current poses become the reference, with no motion. */
     reset() {
       clearMoved();
       flush();

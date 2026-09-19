@@ -4,57 +4,57 @@ import { drawShader } from './gpuDrawShader.ts';
 import { slotCount } from './gpuDraw.ts';
 import { prefixParallel, prefixSerial } from './bench/oracles/gpuDrawPrefixOracle.ts';
 
-// D3 : le préfixe du tirage indirect est passé du parcours en série (un fil) à la répartition des
-// slots sur les soixante-quatre fils d'un groupe de travail. Ce fichier épingle les deux moitiés de
-// la preuve : le noyau expédié a bien la forme que l'oracle décrit, et les deux noyaux de l'oracle
-// rendent le même résultat sur des entrées tirées au hasard, y compris celles que les tests écrits
-// à la main ne couvrent pas — slots vides épars, groupes très nombreux, débordement.
+// D3: the indirect-draw prefix moved from a serial walk (one thread) to spreading slots over
+// the sixty-four threads of a workgroup. This file pins both halves of the proof: the shipped
+// kernel has the shape the oracle describes, and the oracle's two kernels return the same
+// result on random inputs, including those the hand-written tests do not cover — sparse empty
+// slots, very many groups, overflow.
 
 const prefixKernel = (shader: string) => {
   const start = shader.indexOf('fn prefixGroups');
   const end = shader.indexOf('fn scatterGroups');
-  assert.ok(start >= 0 && end > start, 'le noyau de préfixe est présent, avant l’éparpillage');
+  assert.ok(start >= 0 && end > start, 'the prefix kernel is present, before the scatter');
   return shader.slice(start, end);
 };
 
-test('le noyau de préfixe expédié répartit les slots sur les 64 fils, avec une barrière entre ses deux phases', () => {
+test('the shipped prefix kernel spreads slots over 64 threads, with a barrier between its two phases', () => {
   for (const k of [1, 2, 3, 5]) {
     const shader = drawShader(k);
     const slots = slotCount(k);
     assert.match(
       shader,
       new RegExp(`var<workgroup> slotTotals:array<u32,${slots}>;`),
-      'les totaux par slot vivent en mémoire de groupe de travail, dimensionnés aux slots ouverts',
+      'per-slot totals live in workgroup memory, sized to the open slots',
     );
     assert.match(
       shader,
       /@compute @workgroup_size\(64\)\s*fn prefixGroups\(@builtin\(local_invocation_id\) lid:vec3u\)/,
-      'le préfixe tourne sur soixante-quatre fils et lit son rang de fil',
+      'the prefix runs on sixty-four threads and reads its thread rank',
     );
     const kernel = prefixKernel(shader);
-    assert.doesNotMatch(kernel, /slotStart/, 'plus de curseur unique poussé de slot en slot');
+    assert.doesNotMatch(kernel, /slotStart/, 'no single cursor pushed from slot to slot');
     assert.equal(
       (kernel.match(/workgroupBarrier\(\);/g) ?? []).length,
       1,
-      'une barrière, et une seule, sépare les totaux du calcul des décalages',
+      'one barrier, and only one, separates the totals from the offset computation',
     );
-    // Chaque fil ne touche que les slots de son rang modulo 64, et resomme les totaux de ceux qui le
-    // précèdent : c'est ce qui rend le résultat identique au parcours en série.
+    // Each thread touches only the slots of its rank modulo 64, and re-sums the totals of those
+    // that precede it: that is what makes the result identical to the serial walk.
     const stride = new RegExp(`for\\(var slot=lane;slot<${slots}u;slot\\+=64u\\)`, 'g');
     assert.equal(
       (kernel.match(stride) ?? []).length,
       4,
-      'les quatre boucles du noyau — mise à zéro, débordement, totaux, décalages — parcourent les slots par pas de 64',
+      "the kernel's four loops — clear, overflow, totals, offsets — walk slots in steps of 64",
     );
     assert.match(
       kernel,
       /for\(var before=0u;before<slot;before\+\+\)\{cursor=cursor\+slotTotals\[before\];\}/,
-      'le curseur d’un slot est la somme des totaux des slots qui le précèdent',
+      "a slot's cursor is the sum of the totals of the slots that precede it",
     );
   }
 });
 
-test('sur mille entrées tirées au hasard, les deux noyaux rendent les mêmes totaux et les mêmes décalages', () => {
+test('on a thousand random inputs, both kernels return the same totals and the same offsets', () => {
   let seed = 20260915;
   const rand = (bound: number) => ((seed = (seed * 1103515245 + 12345) >>> 0) % bound) as number;
   for (let trial = 0; trial < 1000; trial++) {
@@ -68,7 +68,7 @@ test('sur mille entrées tirées au hasard, les deux noyaux rendent les mêmes t
     const overflow = trial % 97 === 0;
     const serial = prefixSerial(overflow, slotUsed, groupCounts, groupCount, slots);
     const parallel = prefixParallel(overflow, slotUsed, groupCounts, groupCount, slots);
-    assert.deepEqual([...parallel.totals], [...serial.totals], `totaux, tirage ${trial}`);
-    assert.deepEqual([...parallel.offsets], [...serial.offsets], `décalages, tirage ${trial}`);
+    assert.deepEqual([...parallel.totals], [...serial.totals], `totals, trial ${trial}`);
+    assert.deepEqual([...parallel.offsets], [...serial.offsets], `offsets, trial ${trial}`);
   }
 });

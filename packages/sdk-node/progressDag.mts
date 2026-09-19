@@ -1,6 +1,6 @@
 import type { DagWarning } from '../sdk-core/index.ts';
 
-/** Les avertissements de DAG d'un travail, résumés en une ligne : combien par code, et le pire. */
+/** DAG warnings of a job, summarised in one line: how many per code, and the worst. */
 export function dagWarningsTally() {
   const codes = new Map<string, number>();
   let worst: { name: string; roots: number; pages: number } | null = null;
@@ -16,9 +16,9 @@ export function dagWarningsTally() {
     line(label: string) {
       const byCode = [...codes].map(([code, n]) => `${n} ${code}`).join(', ');
       const top = worst
-        ? ` ; pire mesh ${worst.name} : ${worst.roots} racines sur ${worst.pages} pages`
+        ? ` ; worst mesh ${worst.name}: ${worst.roots} roots out of ${worst.pages} pages`
         : '';
-      return `⚠ ${label} : ${this.count} primitive(s) sans racine unique (${byCode})${top} — détail dans clusters.json`;
+      return `⚠ ${label}: ${this.count} primitive(s) without a unique root (${byCode})${top} — detail in clusters.json`;
     },
   };
 }

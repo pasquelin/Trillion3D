@@ -4,12 +4,12 @@ use std::path::{Path, PathBuf};
 
 const MAX_ALLOC: u64 = 64 * 1024 * 1024;
 
-/// Une image de quatre pixels, encodée dans le format demandé.
+/// A four-pixel image, encoded in the requested format.
 fn encoded(format: ImageFormat) -> Vec<u8> {
     let mut pixels = RgbaImage::new(2, 2);
     pixels.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
     pixels.put_pixel(1, 1, Rgba([0, 0, 255, 255]));
-    // JPEG n'a pas de canal alpha : c'est le format qui impose la conversion, pas le contrat.
+    // JPEG has no alpha channel: it is the format that imposes the conversion, not the contract.
     let pixels = ::image::DynamicImage::ImageRgba8(pixels);
     let pixels = match format {
         ImageFormat::Jpeg => ::image::DynamicImage::ImageRgb8(pixels.to_rgb8()),
@@ -20,8 +20,8 @@ fn encoded(format: ImageFormat) -> Vec<u8> {
     bytes.into_inner()
 }
 
-// Contrat du registre d'images : ce qu'aucun pilote ne revendique ressort en raison de rapport
-// nommée, jamais en panique ni en échec — une texture illisible n'interrompt pas une compilation.
+// Image-registry contract: what no driver claims comes out as a named report reason, never as a
+// panic or a failure — an unreadable texture does not interrupt a compilation.
 #[test]
 fn a_format_outside_the_registry_is_named_in_the_report() {
     assert!(registry::by_extension(Path::new("albedo.xcf")).is_none());
@@ -30,15 +30,15 @@ fn a_format_outside_the_registry_is_named_in_the_report() {
         registry::decode(b"gimp xcf v011", MAX_ALLOC).err(),
         Some("image-format-unknown")
     );
-    // Des octets reconnus mais tronqués sont une autre raison : le pilote a bien été choisi.
+    // Recognised but truncated bytes are another reason: the driver was chosen correctly.
     assert_eq!(
         registry::decode(b"\x89PNG\r\n\x1a\ntruncated", MAX_ALLOC).err(),
         Some("image-decode-failed")
     );
 }
 
-// Contrat du registre d'images : un pilote par format, désigné par son extension comme par son
-// nombre magique, qui décode vers le type de sortie du contrat.
+// Image-registry contract: one driver per format, named by its extension as by its magic number,
+// which decodes to the contract's output type.
 #[test]
 fn png_and_jpeg_are_each_decoded_by_their_own_plugin() {
     for (format, name, mime, extensions) in [
@@ -60,7 +60,7 @@ fn png_and_jpeg_are_each_decoded_by_their_own_plugin() {
         let pixels = super::rgba8(registry::decode(&bytes, MAX_ALLOC).expect("decoded"));
         assert_eq!((pixels.width(), pixels.height()), (2, 2));
     }
-    // L'ordre du registre est celui dans lequel on cherche un fichier voisin décodable.
+    // Registry order is the order in which a neighbouring decodable file is looked up.
     assert_eq!(
         registry::extensions().collect::<Vec<_>>(),
         [
@@ -70,7 +70,7 @@ fn png_and_jpeg_are_each_decoded_by_their_own_plugin() {
     );
 }
 
-// Contrat commun : l'identité du registre entre dans celle du cache, et se publie telle quelle.
+// Shared contract: the registry identity enters that of the cache, and is published as-is.
 #[test]
 fn the_registry_fingerprint_names_every_plugin_and_both_contracts() {
     let print = fingerprint();

@@ -1,12 +1,12 @@
-// Ce qui rattache le modèle f32 de `xformNormal` au nuanceur réellement exécuté.
+// What ties `xformNormal`'s f32 model to the shader actually executed.
 //
-// `packages/sdk-browser/normalTransform.test.ts` éprouve l'arithmétique de la transformation des
-// normales d'éclairage sur un MODÈLE f32 (`test/justesse/inverseTransposeF32.mjs`), sans GPU : il
-// attrape une régression dans `pnpm test`, mais un modèle est une seconde implémentation, libre de
-// dériver du texte livré sans que personne le voie. Ce fichier-ci ferme la boucle : le texte
-// `NORMAL_TRANSFORM_WGSL` du moteur est compilé et exécuté dans Chromium WebGPU sur EXACTEMENT les
-// mêmes cas (`test/justesse/normalTransformCas.mjs`), et sa sortie doit être celle du modèle. Un
-// nuanceur qui ne compile pas fait échouer ce test, et un modèle qui dérive aussi.
+// `packages/sdk-browser/normalTransform.test.ts` probes lighting-normal transform
+// arithmetic on an f32 MODEL (`test/justesse/inverseTransposeF32.mjs`), without GPU:
+// it catches a regression in `pnpm test`, but a model is a second implementation,
+// free to drift from the shipped text unseen. This file closes the loop: the engine's
+// `NORMAL_TRANSFORM_WGSL` text is compiled and run in Chromium WebGPU on EXACTLY the
+// same cases (`test/justesse/normalTransformCas.mjs`), and its output must match the
+// model. A shader that does not compile fails this test, and a drifting model too.
 //
 // node --experimental-strip-types test/browser/normal-transform-arithmetique.browser.mjs
 import assert from 'node:assert/strict';
@@ -23,13 +23,13 @@ import { eclairageGpu } from '../justesse/normaleEclairageGpu.mjs';
 const TOUS = [...CAS, ...GARDES, REGULIERE_MINUSCULE];
 const gpu = await eclairageGpu(TOUS);
 
-// La compilation d'abord : c'est elle qu'aucun `assert.match` sur du texte ne pouvait tenir.
+// Compilation first: no `assert.match` on source text could hold this.
 assert.equal(gpu.indisponible ?? null, null, String(gpu.indisponible));
-assert.deepEqual(gpu.compilation ?? [], [], 'le nuanceur d’éclairage ne compile pas');
-assert.deepEqual(gpu.erreurs ?? [], [], 'erreurs WebGPU pendant l’exécution');
+assert.deepEqual(gpu.compilation ?? [], [], 'the lighting shader does not compile');
+assert.deepEqual(gpu.erreurs ?? [], [], 'WebGPU errors during execution');
 
-// Le critère : direction ORIENTÉE, vecteur nul ou non fini refusé, norme vérifiée unitaire. Un
-// écart `NaN` ne satisfait aucune comparaison, donc une normale perdue tombe au lieu de passer.
+// The criterion: ORIENTED direction, null or non-finite vector refused, unit length checked. A
+// `NaN` gap satisfies no comparison, so a lost normal fails instead of passing.
 const lignes = TOUS.map((cas, i) => {
   const rendueGpu = gpu.lignes[i].rendue;
   const rendueModele = xformNormalModele(cas.world, cas.normale);
@@ -46,7 +46,7 @@ const lignes = TOUS.map((cas, i) => {
     rendueModele,
   };
 });
-/** Les lignes qui ONT une direction : une face effondrée rend le vecteur nul, dont l'angle est NaN. */
+/** Lines that HAVE a direction: a collapsed face returns the null vector, whose angle is NaN. */
 const orientees = lignes.filter((l) => !l.effondree);
 const pire = (cle) => orientees.reduce((x, l) => Math.max(x, l[cle]), 0);
 console.log(
@@ -67,36 +67,36 @@ console.log(
   ),
 );
 
-// 1. Le nuanceur livré rend ce que le modèle rend. La tolérance couvre le seul écart attendu : le
-//    `normalize` du GPU et celui du modèle n'arrondissent pas au même ULP f32.
+// 1. The shipped shader renders what the model renders. The tolerance covers the only expected
+//    gap: GPU `normalize` and the model's do not round to the same f32 ULP.
 for (const ligne of orientees)
   assert.ok(
     ligne.ecartAuModeleDeg < 1e-3,
-    `${ligne.nom} : le shader rend ${ligne.rendueGpu}, le modèle ${ligne.rendueModele} — ` +
-      `${ligne.ecartAuModeleDeg}° d'écart, le modèle a dérivé du texte livré`,
+    `${ligne.nom}: shader renders ${ligne.rendueGpu}, model ${ligne.rendueModele} — ` +
+      `${ligne.ecartAuModeleDeg}° gap, the model has drifted from the shipped text`,
   );
 
-// 2. Et il rend la bonne normale : celle de la surface tournée, du bon CÔTÉ, unitaire, à toute
-//    échelle — y compris quand la pose APLATIT la primitive sur un plan, où la normale attendue est
-//    celle de la face transformée, calculée à la main dans `normalTransformCas.mjs`. Le verdict
-//    porte les trois exigences ; son `raison` dit laquelle a manqué.
+// 2. And it renders the right normal: that of the rotated surface, on the right SIDE, unit length,
+//    at any scale — including when the pose FLATTENS the primitive onto a plane, where the expected
+//    normal is that of the transformed face, computed by hand in `normalTransformCas.mjs`. The
+//    verdict carries the three requirements; its `raison` says which one failed.
 for (const ligne of orientees)
-  assert.ok(ligne.auVrai.ok, `${ligne.nom} : ${ligne.auVrai.raison} — rendue ${ligne.rendueGpu}`);
+  assert.ok(ligne.auVrai.ok, `${ligne.nom}: ${ligne.auVrai.raison} — rendered ${ligne.rendueGpu}`);
 
-// 3. Les poses qui EFFONDRENT la face, sur le vrai GPU : 3×3 nulle, rang 1, somme infinie ou NaN.
-//    Une face sans aire monde n'a pas de normale : le shader rend le vecteur nul, exactement, et
-//    jamais un NaN — que les dérivées d'écran répandraient sur les pixels voisins — ni la normale
-//    locale d'une surface qui n'existe plus. Le bitcast du garde est du WGSL : aucun modèle JS ne
-//    prouve qu'il fait cela.
+// 3. Poses that COLLAPSE the face, on the real GPU: null 3×3, rank 1, infinite or NaN sum.
+//    A face with no world area has no normal: the shader returns the null vector, exactly, and
+//    never a NaN — which screen derivatives would spread onto neighbouring pixels — nor the local
+//    normal of a surface that no longer exists. The guard's bitcast is WGSL: no JS model proves
+//    it does that.
 for (const ligne of lignes.filter((l) => l.effondree))
   assert.deepEqual(
     ligne.rendueGpu,
     [0, 0, 0],
-    `${ligne.nom} : le GPU rend ${ligne.rendueGpu}, attendu le vecteur nul`,
+    `${ligne.nom}: GPU renders ${ligne.rendueGpu}, expected the null vector`,
   );
 
 console.log(
-  `OK : ${lignes.length} cas, le texte d'éclairage du moteur compilé et exécuté — pire écart au ` +
-    `modèle ${pire('ecartAuModeleDeg')}°, à la normale vraie ${pire('ecartAuVraiDeg')}°. ` +
-    `Adaptateur ${gpu.adaptateur}.`,
+  `OK: ${lignes.length} cases, engine lighting text compiled and run — worst gap to ` +
+    `the model ${pire('ecartAuModeleDeg')}°, to the true normal ${pire('ecartAuVraiDeg')}°. ` +
+    `Adapter ${gpu.adaptateur}.`,
 );

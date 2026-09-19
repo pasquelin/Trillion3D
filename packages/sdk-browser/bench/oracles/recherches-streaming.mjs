@@ -1,8 +1,8 @@
-// Oracles des points G5 et G6, recopiés tels quels avant le lot G.
+// Oracles of points G5 and G6, copied as-is before batch G.
 
 /**
- * `streamingQueue.ts` : une demande encore en file, dont le dernier consommateur se retire, était
- * retrouvée par un balayage de la file entière, puis retirée par un décalage du tableau.
+ * `streamingQueue.ts`: a request still in the queue, whose last consumer withdraws, was
+ * found by a sweep of the whole queue, then removed by shifting the array.
  */
 export function referenceRetireDeLaFile(queue, job) {
   const at = queue.indexOf(job);
@@ -10,8 +10,8 @@ export function referenceRetireDeLaFile(queue, job) {
 }
 
 /**
- * `explorerDraw.ts` : les adresses manquantes étaient empilées dans un tableau dont l'appartenance
- * se testait par `includes`, donc par un balayage complet pour chaque adresse ajoutée.
+ * `explorerDraw.ts`: missing addresses were stacked in an array whose membership
+ * was tested by `includes`, hence a full sweep for each added address.
  */
 export function referenceEmpileEnAttente(attente, urls) {
   for (const url of urls) if (!attente.includes(url)) attente.push(url);

@@ -22,7 +22,7 @@ type Inputs = {
   directGpu: boolean;
   autonomous: boolean;
   backends: RenderBackend[];
-  /** Base d'url du manifeste : c'est elle qui situe l'objet de cache du proxy résident. */
+  /** Manifest url base: that is what locates the resident-proxy cache object. */
   base: string;
 };
 
@@ -42,18 +42,18 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
   } = inputs;
   const { indices, streamer, attachCap, cacheCap, preload } = pageSources;
   const viewport: [number, number] = [canvas.width, canvas.height];
-  // Un seul magasin de lampes par session : chaque moteur le lit, l'hôte est le seul à l'écrire.
+  // One light store per session: every engine reads it, the host is the only one that writes it.
   const sceneLights = createSceneLightStore();
-  // Les lampes que le fichier source portait, déclarées avant le premier moteur : la vue `auto` sait
-  // dès sa première image qu'elle a une source, et aucun moteur ne se prépare sur un magasin vide
-  // qu'il faudrait repousser ensuite. Un cache sans ce produit n'en déclare aucune, comme avant.
+  // Lights the source file carried, declared before the first engine: the `auto` view knows
+  // from its first frame that it has a source, and no engine prepares on an empty store that
+  // would then have to be pushed. A cache without this product declares none, as before.
   let importedLightIds: string[] = [];
   if (options.importedLights !== false) {
     const imported = await loadImportedLights(base, signal);
     const { declared, dropped } = declareImportedLights(sceneLights, imported.lights);
     importedLightIds = declared;
     if (declared.length || dropped || Object.keys(imported.rejected).length)
-      diagnose('imported-lights', 'Lampes déclarées par le fichier source', {
+      diagnose('imported-lights', 'Lights declared by the source file', {
         kind: 'preparation',
         declared: declared.length,
         dropped,
@@ -62,8 +62,8 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
         scope,
       });
   }
-  // Ce que le compilateur a nommé sans pouvoir le corriger — un DAG qui n'est pas monté — se dit
-  // à l'ouverture, avant le choix du moteur : c'est un fait du cache, pas d'un moteur.
+  // What the compiler named without being able to fix it — a DAG that is not mounted — is
+  // said at open, before the engine is chosen: it is a fact of the cache, not of an engine.
   const dagWarnings = dagWarningsDiagnostic(metadata.primitives);
   if (dagWarnings)
     diagnose(dagWarnings.phase, dagWarnings.message, {
@@ -79,8 +79,8 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     associations: associations,
     textureIndices,
     signal,
-    // Le plafond en pages est celui de l'hôte, ou rien : le moteur WebGPU tient son pool en octets
-    // ; les moteurs à mémoire hôte gardent par défaut ce que le diffuseur a calculé pour eux.
+    // The page ceiling is the host's, or nothing: the WebGPU engine holds its pool in bytes;
+    // host-memory engines keep by default what the streamer computed for them.
     maxResidentPages: options.maxResidentPages,
     residentPagesDefault: attachCap,
     maxCachedPages: cacheCap,
@@ -98,7 +98,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     geometryPoolCeilingBytes: options.geometryPoolCeilingBytes,
     texturePoolBytes: options.texturePoolBytes,
     stageProfile: options.stageProfile === true,
-    // La variante de diagnostic est vérifiée ici, une fois : hors `trace`, elle est refusée.
+    // The diagnostic variant is checked here, once: outside `trace`, it is refused.
     diagnosticGpuVariant: resolveDiagnosticGpuVariant(
       options.diagnosticGpuVariant,
       diagnosticChannel.detail,
@@ -106,14 +106,14 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     shadowBudgetMs: options.shadowBudgetMs,
     shadowPageInvalidation: options.shadowPageInvalidation,
     sceneLighting: sceneLightingSource,
-    // La lumière qui rebondit reste éteinte par défaut : son étape mesurée tient 1,1 à 1,3 ms sur
-    // Emerald, au-dessus de la barre d'une milliseconde, et l'hôte l'allume explicitement.
+    // Bounced light stays off by default: its measured step holds 1.1 to 1.3 ms on Emerald,
+    // above the one-millisecond bar, and the host turns it on explicitly.
     bounce: options.bounce,
     bounceBudgetMs: options.bounceBudgetMs,
     readSceneProxy: createSceneProxyReader(metadata.proxy, base, signal),
-    // Le lecteur n'existe qu'à la demande de l'hôte : sous `'host'`, le chargeur a lu et décodé
-    // les images, et le moteur prend le chemin d'avant — les lire une seconde fois dans le cache
-    // doublerait le réseau pour la même image.
+    // The reader exists only at the host's request: under `'host'`, the loader has read and
+    // decoded the images, and the engine takes the previous path — reading them a second time
+    // from the cache would double the network for the same image.
     readTextureLevel:
       options.textureSource === 'cache'
         ? createTextureLevelReader(metadata.textures, base, signal)

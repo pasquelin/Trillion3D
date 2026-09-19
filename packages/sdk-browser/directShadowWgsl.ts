@@ -20,14 +20,14 @@ const POISSON_16 = [
 ];
 
 /**
- * La lecture de l'atlas d'ombres : une tranche par lampe, six faces pour une ponctuelle, une pour un
- * projecteur, les cascades pour une lampe directionnelle. Comparaison de profondeur avec biais
- * constant et biais par pente, puis moyenne de seize prises. Les bornes viennent des réglages
- * publiés — ni la tranche ni le noyau ne peuvent déborder du rectangle de la face.
+ * Shadow-atlas read: one slice per light, six faces for a point light, one for a spotlight,
+ * the cascades for a directional light. Depth compare with constant bias and slope bias,
+ * then average of sixteen taps. Bounds come from the published settings — neither the slice
+ * nor the kernel can overflow the face rectangle.
  */
-/** Une tranche d'ombre telle que la carte la lit : la matrice et le rectangle d'atlas de chaque
- *  face, puis l'entête (faces, ouverture, côté, plan proche). Partagée par tout nuanceur qui lit une
- *  tranche, dans le tampon ou recopiée dans un uniforme. */
+/** A shadow slice as the GPU reads it: the matrix and atlas rectangle of each face, then
+ *  the header (faces, aperture, side, near plane). Shared by every shader that reads a
+ *  slice, in the buffer or copied into a uniform. */
 export const SHADOW_SLICE_WGSL = `struct ShadowFace{viewProjection:mat4x4f,rect:vec4f,}
 struct ShadowSlice{faces:array<ShadowFace,${POINT_FACES}>,info:vec4f,}`;
 
@@ -42,13 +42,13 @@ const SHADOW_NORMAL_TEXELS:f32=${LIGHT_SETTINGS.shadowNormalOffsetTexels};
 const POISSON:array<vec2f,${LIGHT_SETTINGS.pcfTaps}>=array<vec2f,${LIGHT_SETTINGS.pcfTaps}>(${POISSON_16.map(
   ([x, y]) => `vec2f(${x},${y})`,
 ).join(',')});
-/** Biais en mètres au point considéré : une surface rasante a besoin de plus de marge qu'une de face.
- *  La marge s'AJOUTE à la référence, la profondeur des ombres étant inversée comme celle de la
- *  caméra : rapprocher la référence de la lampe, c'est l'augmenter. */
+/** Bias in metres at the considered point: a grazing surface needs more margin than a facing
+ *  one. The margin is ADDED to the reference, shadow depth being reversed like the camera's:
+ *  bringing the reference closer to the light means increasing it. */
 fn shadowBiasMetres(cosine:f32)->f32{
  return SHADOW_BIAS+min(SHADOW_SLOPE*sqrt(1.0-cosine*cosine)/cosine,SHADOW_SLOPE_MAX);
 }
-/** Seize prises dans le rectangle de la face, décalées d'un texel de la tranche, jamais d'atlas. */
+/** Sixteen taps in the face rectangle, offset by a slice texel, never by an atlas texel. */
 fn shadowPcf(entry:ShadowFace,local:vec2f,reference:f32,side:f32)->f32{
  let step=1.0/max(side,1.0);
  var lit=0.0;
@@ -61,10 +61,10 @@ fn shadowPcf(entry:ShadowFace,local:vec2f,reference:f32,side:f32)->f32{
  return lit/f32(PCF_TAPS);
 }
 /**
- * Les cascades du soleil : la première dont le point tombe dans le cube unité gagne, et la boucle
- * est bornée par le nombre de cascades publié (X2). L'échelle de la cascade se lit dans sa propre
- * matrice — orthographique, donc le texel monde vaut 2/(échelle en x · côté) et un mètre de
- * profondeur vaut l'échelle en z. Aucune donnée en double, donc rien qui puisse diverger.
+ * Sun cascades: the first whose point falls in the unit cube wins, and the loop is bounded
+ * by the published cascade count (X2). The cascade scale is read from its own matrix —
+ * orthographic, so the world texel is 2/(scale in x · side) and a metre of depth is the
+ * scale in z. No double data, so nothing that can diverge.
  */
 fn sunShadowFactor(record:ShadowSlice,cascades:u32,P:vec3f,N:vec3f,L:vec3f)->f32{
  let cosine=clamp(dot(N,L),1e-3,1.0);
@@ -82,12 +82,12 @@ fn sunShadowFactor(record:ShadowSlice,cascades:u32,P:vec3f,N:vec3f,L:vec3f)->f32
   let local=vec2f(ndc.x*0.5+0.5,0.5-ndc.y*0.5);
   return shadowPcf(entry,local,ndc.z+shadowBiasMetres(cosine)*scaleZ,side);
  }
- // Au-delà de la dernière cascade, l'ombre se teste par un rayon contre le proxy résident. Sans
- // proxy dans le cache, ce rayon rend un, la surface lointaine reste éclairée sans ombre portée,
- // et le diagnostic dit « ombre lointaine indisponible » : jamais une ombre inventée.
+ // Beyond the last cascade, the shadow is tested by a ray against the resident proxy. With
+ // no proxy in the cache, that ray returns one, the distant surface stays lit with no cast
+ // shadow, and the diagnostic says "distant shadow unavailable": never an invented shadow.
  return sunFarShadowFactor(P,N,L);
 }
-/** Fraction de lumiere qui atteint le point : 1 en pleine lumiere, 0 entierement dans l'ombre. */
+/** Fraction of light that reaches the point: 1 in full light, 0 fully in shadow. */
 fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
  if(slice<0){return 1.0;}
  let record=shadows.items[u32(slice)];
@@ -97,9 +97,9 @@ fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
  let face=select(0u,pointFaceOf(P-light.positionRange.xyz),faces==POINT_FACES);
  let entry=record.faces[face];
  if(entry.rect.w<0.5){return 1.0;}
- // Le point lu est décalé le long de la normale d'un texel de la tranche, divisé par le cosinus
- // d'incidence : un texel couvre d'autant plus de profondeur que la surface est rasante. C'est ce
- // décalage qui referme la couture entre deux faces d'une ponctuelle et supprime l'acné rasante.
+ // The read point is offset along the normal by a slice texel, divided by the incidence
+ // cosine: a texel covers more depth the more grazing the surface. That is the offset that
+ // closes the seam between two faces of a point light and removes grazing acne.
  let cosine=clamp(dot(N,L),1e-3,1.0);
  let radius=length(light.positionRange.xyz-P);
  let side=max(record.info.z,1.0);
@@ -109,8 +109,8 @@ fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
  let ndc=clip.xyz/clip.w;
  if(abs(ndc.x)>1.0||abs(ndc.y)>1.0||ndc.z<0.0||ndc.z>1.0){return 1.0;}
  let local=vec2f(ndc.x*0.5+0.5,0.5-ndc.y*0.5);
- // Ces mètres deviennent une marge de profondeur au point considéré : dz/dd d'une projection
- // perspective vaut near·far/((far−near)·d²), donc la marge suit la distance à la lampe.
+ // These metres become a depth margin at the considered point: dz/dd of a perspective
+ // projection is near·far/((far−near)·d²), so the margin follows the distance to the light.
  let near=record.info.w;
  let far=max(near*1.001,light.positionRange.w);
  let scale=near*far/((far-near)*max(clip.w*clip.w,1e-4));

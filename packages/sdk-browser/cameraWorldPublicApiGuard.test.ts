@@ -1,21 +1,21 @@
-// CE QUE CES DEUX API PUBLIQUES ATTENDENT, ET CE QU'ELLES REFUSENT.
+// WHAT THESE TWO PUBLIC APIS EXPECT, AND WHAT THEY REFUSE.
 //
-// AVANT (develop, fe285470) : `cameraSelectionUniforms(camera: THREE.PerspectiveCamera, …)` et
+// BEFORE (develop, fe285470): `cameraSelectionUniforms(camera: THREE.PerspectiveCamera, …)` and
 // `rasterVisibility(pages, camera: THREE.PerspectiveCamera, viewport)`.
-// APRÈS (M3b) : `cameraSelectionUniforms(cam: EngineCamera, …)` (gpuSelection.ts) et
-// `rasterVisibility(pages, cam: EngineCamera, viewport)` (visibilityRaster.ts) — les deux lisent
-// `cam.planes`/`cam.view`/`cam.viewProjection`, absents d'une caméra hôte brute.
+// AFTER (M3b): `cameraSelectionUniforms(cam: EngineCamera, …)` (gpuSelection.ts) and
+// `rasterVisibility(pages, cam: EngineCamera, viewport)` (visibilityRaster.ts) — both read
+// `cam.planes`/`cam.view`/`cam.viewProjection`, absent from a raw host camera.
 //
-// LE CHOIX, ET IL EST DÉFINITIF : ces API prennent la caméra du MOTEUR et rejettent net une caméra
-// hôte brute. Elles ne convertissent pas à la frontière : convertir remettrait `readCameraWorld` —
-// une inversion de matrice et six plans — dans une fonction que la coupe appelle par image, et
-// masquerait le rig non remonté que le contrat existe pour attraper. Un hôte entre donc par
-// `cameraMoteur(…)`, comme l'entrée d'image le fait.
+// THE CHOICE, AND IT IS FINAL: these APIs take the ENGINE camera and reject a raw host camera
+// outright. They do not convert at the boundary: converting would put `readCameraWorld` —
+// a matrix invert and six planes — back into a function the cut calls every frame, and would
+// hide the unwalked rig the contract exists to catch. A host therefore enters through
+// `cameraMoteur(…)`, as frame entry does.
 //
-// `test:gpu` avait échoué sur quatre hôtes de `test/*.browser.mjs` restés sur la caméra brute ; ils
-// sont passés à `cameraMoteur` (montages internes au dépôt, pas des hôtes tiers). `pnpm test` ne
-// l'avait pas vu : ce sont des scripts hors de `pnpm test`, que seul `pnpm run test:gpu` exécute —
-// ces tests-ci reproduisent donc les deux appels sans navigateur, le fautif et le bon.
+// `test:gpu` had failed on four hosts of `test/*.browser.mjs` that stayed on the raw camera;
+// they moved to `cameraMoteur` (in-repo fixtures, not third-party hosts). `pnpm test` had not
+// seen it: they are scripts outside `pnpm test`, that only `pnpm run test:gpu` runs —
+// these tests therefore reproduce both calls without a browser, the faulty one and the right one.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -26,7 +26,7 @@ import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from '../../test/justes
 import { cameraMoteur } from './cameraFixture.ts';
 
 type Pose = (typeof POSES_PARENT)[number];
-const POSE = POSES_PARENT[2] as Pose; // déplacé ET tourné : ni la translation ni la rotation ne se devinent.
+const POSE = POSES_PARENT[2] as Pose; // moved AND rotated: neither translation nor rotation can be guessed.
 
 function pageTriangle(matrix: THREE.Matrix4): VisPage {
   const geometrie = new THREE.BufferGeometry();
@@ -42,11 +42,11 @@ function pageTriangle(matrix: THREE.Matrix4): VisPage {
   };
 }
 
-test('cameraSelectionUniforms rejette la caméra hôte brute : elle ne convertit pas à la frontière', () => {
+test('cameraSelectionUniforms rejects the raw host camera: it does not convert at the boundary', () => {
   const rig = creeRig(),
     camera = poseRig(rig, POSE, true) as THREE.PerspectiveCamera;
-  // `camera` n'a ni `.planes` ni `.view` ni `.viewProjection` : ce que `test:gpu` a découvert sur
-  // carte graphique réelle est déjà visible ici, sans GPU ni navigateur.
+  // `camera` has neither `.planes` nor `.view` nor `.viewProjection`: what `test:gpu` found on
+  // a real GPU is already visible here, without GPU or browser.
   assert.throws(
     () =>
       cameraSelectionUniforms(
@@ -55,11 +55,11 @@ test('cameraSelectionUniforms rejette la caméra hôte brute : elle ne convertit
         [1000, 1000],
       ),
     TypeError,
-    'attendu : rejet net (TypeError) faute de `cam.planes` — obtenu si ça passe : uniformes faux et silencieux',
+    'expected: outright reject (TypeError) for lack of `cam.planes` — if this passes: silent wrong uniforms',
   );
 });
 
-test('rasterVisibility rejette la caméra hôte brute : elle ne convertit pas à la frontière', () => {
+test('rasterVisibility rejects the raw host camera: it does not convert at the boundary', () => {
   const rig = creeRig(),
     camera = poseRig(rig, POSE, true) as THREE.PerspectiveCamera;
   assert.throws(
@@ -70,31 +70,27 @@ test('rasterVisibility rejette la caméra hôte brute : elle ne convertit pas à
         [64, 64],
       ),
     TypeError,
-    'attendu : rejet net (TypeError) faute de `cam.viewProjection` — obtenu si ça passe : tampon faux et silencieux',
+    'expected: outright reject (TypeError) for lack of `cam.viewProjection` — if this passes: silent wrong buffer',
   );
 });
 
-test('cameraSelectionUniforms(cameraMoteur(…)) : l’appel correct sous un rig ne lève rien et suit la pose aplatie', () => {
+test('cameraSelectionUniforms(cameraMoteur(…)): the correct call under a rig throws nothing and follows the flattened pose', () => {
   const rig = creeRig(),
     camera = poseRig(rig, POSE, true) as THREE.PerspectiveCamera,
     aplatie = cameraAplatie(POSE) as THREE.PerspectiveCamera;
   const sousRig = cameraSelectionUniforms(cameraMoteur(camera), 0, [1000, 1000]);
   const attendu = cameraSelectionUniforms(cameraMoteur(aplatie), 0, [1000, 1000]);
-  assert.deepEqual([...sousRig.planes], [...attendu.planes], 'plans du tronc');
-  assert.deepEqual([...sousRig.view], [...attendu.view], 'vue');
-  assert.deepEqual(sousRig.cameraWorld, attendu.cameraWorld, 'position monde de l’œil');
+  assert.deepEqual([...sousRig.planes], [...attendu.planes], 'frustum planes');
+  assert.deepEqual([...sousRig.view], [...attendu.view], 'view');
+  assert.deepEqual(sousRig.cameraWorld, attendu.cameraWorld, 'eye world position');
 });
 
-test('rasterVisibility(cameraMoteur(…)) : l’appel correct sous un rig ne lève rien et rend la même image', () => {
+test('rasterVisibility(cameraMoteur(…)): the correct call under a rig throws nothing and yields the same image', () => {
   const rig = creeRig(),
     camera = poseRig(rig, POSE, true) as THREE.PerspectiveCamera,
     aplatie = cameraAplatie(POSE) as THREE.PerspectiveCamera,
     matrix = new THREE.Matrix4();
   const sousRig = rasterVisibility([pageTriangle(matrix)], cameraMoteur(camera), [64, 64]);
   const attendu = rasterVisibility([pageTriangle(matrix)], cameraMoteur(aplatie), [64, 64]);
-  assert.deepEqual(
-    [...sousRig.ids],
-    [...attendu.ids],
-    'le tampon de visibilité doit être identique',
-  );
+  assert.deepEqual([...sousRig.ids], [...attendu.ids], 'the visibility buffer must be identical');
 });

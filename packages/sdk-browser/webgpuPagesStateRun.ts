@@ -29,8 +29,8 @@ export interface WebgpuRunState {
   lastCamera: HostCamera | undefined;
   gpuSelection: GpuSelection | undefined;
   gpuFrameActive: boolean;
-  /** Vrai quand la pyramide Hi-Z a été construite dans la soumission en cours : le test d'occultation
-   *  des transparents ne dépouille jamais une pyramide d'une autre image. */
+  /** True when the Hi-Z pyramid was built in the current submission: the transparent occlusion test
+   *  never strips a pyramid of another image. */
   hizPyramidFresh: boolean;
   gpuMetricsReady: boolean;
   coverageBudgetLimited: boolean;
@@ -44,19 +44,19 @@ export interface WebgpuRunState {
   blendUnpagedTriangles: number;
   blendSubmittedTriangles: number;
   blendDrawCalls: number;
-  /** Triangles de la coupe que l'image courante remet au dessin : la coupe publiée moins les grappes
-   *  sans ligne de résidence. Compté sans attendre la carte, tenu d'une image à l'autre comme la coupe. */
+  /** Cut triangles the current image puts back to draw: the published cut minus clusters without a
+   *  residency row. Counted without waiting for the GPU, held from one image to the next like the cut. */
   drawnTriangles: number;
   blendFrustumRejected: number;
   gpuDrawCalls: number;
-  /** Les lancements de calcul de l'image : le raster opaque n'est pas un appel de dessin. */
+  /** Compute dispatches of the image: the opaque raster is not a draw call. */
   gpuComputeDispatches: number;
   lastProgressMs: number;
   renderPathLogged: boolean;
   outputDiagnosticLogged: boolean;
   noOccluderHistory: boolean;
-  /** Âge de la table dont l'historique d'occulteurs par ligne est sorti : une table nouvelle
-   *  redistribue les lignes, donc cet historique-là ne décrit plus rien. */
+  /** Age of the table whose per-row occluder history came from: a new table redistributes rows, so
+   *  that history no longer describes anything. */
   occluderHistoryEpoch: number;
   previousHizView: EngineCamera | undefined;
   temporalHizState: TemporalHizState;
@@ -73,7 +73,7 @@ export interface WebgpuRunState {
   shown: PageRec[];
   desired: PageRec[];
   drawn: PageRec[];
-  /** Vrai quand `drawn` recopie `shown` tel quel ; écrit par les seules recopies de `webgpuPagesHelpers.ts`. */
+  /** True when `drawn` copies `shown` as-is; written only by the copies in `webgpuPagesHelpers.ts`. */
   drawnMirrorsShown: boolean;
   /** Pages the residency path had to touch this image; null before a GPU cut reported one. */
   pagesEntered: number | null;
@@ -84,41 +84,41 @@ export interface WebgpuRunState {
   culledScratch: PageRec[];
   readyScratch: PageRec[];
   pendingScratch: string[];
-  /** Le tableau de la liste rendue à l'hôte, à lui seul : le suivi du rendu écrit dans l'autre, et
-   *  une liste tenue d'une image à l'autre ne survivrait pas à ce partage. */
+  /** Array of the list returned to the host, for it alone: render tracking writes into the other, and
+   *  a list held from one image to the next would not survive that sharing. */
   hostPendingScratch: string[];
   urlScratch: string[];
-  /** Vrai quand l'adoption a relu le relevé déjà tenu : `desired` et `shown` n'ont pas bougé. */
+  /** True when adoption reread the sample already held: `desired` and `shown` have not moved. */
   cutHeld: boolean;
-  /** L'âge des listes de la coupe : augmente dès qu'une adoption ou la coupe processeur les réécrit,
-   *  rendu ou pas. Ce que lit qui garde une liste d'une image à l'autre. */
+  /** Age of the cut's lists: rises as soon as an adoption or the CPU cut rewrites them, rendered or
+   *  not. What a keeper of a list from one image to the next reads. */
   cutEpoch: number;
-  /** Augmente chaque fois qu'une page reçoit ou perd ses octets : ce que la liste attendue lit. */
+  /** Rises every time a page receives or loses its bytes: what the waited-for list reads. */
   pageArrayEpoch: number;
-  /** Ce que chaque liste rendue à l'hôte décrit : l'état qui l'a produite, ou `-1` si elle est à
-   *  refaire. Une liste n'est gardée que si tout ce dont elle dépend est encore celui-là. */
+  /** What each list returned to the host describes: the state that produced it, or `-1` if it is to
+   *  be remade. A list is kept only if everything it depends on is still that one. */
   pendingHeld: { epoch: number; cut: number; limited: boolean; ready: boolean };
   urlsHeld: { epoch: number; cut: number; limited: boolean };
   ranksHeld: { epoch: number; cut: number; limited: boolean };
-  /** Ensembles d'urls d'une image : remplis puis vidés, jamais réalloués. */
+  /** URL sets of an image: filled then emptied, never reallocated. */
   requestedScratch: Set<string>;
   transitionScratch: Set<string>;
-  /** L'entrée d'image : révisions, origine de la vue, relecture du graphe source, remontée des
-   *  matrices monde et témoin d'image tenue. Voir `frameGateCore.ts`. */
+  /** Image entry: revisions, view origin, reread of the source graph, walk of world matrices and
+   *  held-image witness. See `frameGateCore.ts`. */
   gate: FrameGateCore;
-  /** Vrai quand l'image en cours a été tenue : aucune étape processeur n'a été exécutée. */
+  /** True when the current image was held: no CPU step was executed. */
   frameHeld: boolean;
-  /** Une barrière fait converger les textures : tous les pixels publient leur retour d'image. */
+  /** A barrier converges the textures: every pixel publishes its image feedback. */
   textureConverging: boolean;
-  /** Une passe de l'image — opaque ou mélange — a écrit la cible de retour : de quoi réduire. */
+  /** A pass of the image — opaque or blend — wrote the feedback target: something to reduce. */
   feedbackWritten: boolean;
-  /** La révision dont les matrices sont portées à la carte et aux items transparents. */
+  /** Revision whose matrices are carried to the GPU and to transparent items. */
   worldUploadRevision: number;
-  /** L'origine du repère de rendu des matrices portées à la carte : l'œil de cette image-là. Une
-   *  caméra qui bouge la périme comme un changement de scène périme la révision. */
+  /** Origin of the render frame of matrices carried to the GPU: the eye of that image. A moving
+   *  camera voids it as a scene change voids the revision. */
   worldUploadOrigin: Float64Array;
-  /** Signature ordonnée de la moitié testée : deux images qui la partagent partagent leurs
-   *  occulteurs, donc la partition que la suivante hérite. */
+  /** Ordered signature of the tested half: two images that share it share their occluders, therefore
+   *  the partition the next one inherits. */
   occluderSignature: number;
 }
 
@@ -193,7 +193,7 @@ export function createWebgpuRunState(): WebgpuRunState {
     textureConverging: false,
     feedbackWritten: false,
     worldUploadRevision: 0,
-    // Pas de repère avant la première image : elle rebase, quoi qu'il arrive.
+    // No frame before the first image: it rebases, whatever happens.
     worldUploadOrigin: new Float64Array([NaN, NaN, NaN]),
     occluderSignature: 0,
   };

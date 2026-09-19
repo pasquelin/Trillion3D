@@ -4,10 +4,10 @@ import { blendChunkWords, blendVertexShift, RUN_WORDS } from './webgpuBlendRuns.
 import { expandBlendPlan, itemKept } from './webgpuBlendExpandCpu.ts';
 import { DRAW_UNPAGED, planEntry } from './webgpuBlendPlan.ts';
 
-/** Une entrée de plan : le rang de l'item, le bit de partage, le pipeline. */
+/** A plan entry: item rank, share bit, pipeline. */
 const entree = (item: number, shared: boolean, pipeline = 1) => planEntry(item, pipeline, shared);
 
-/** Le décor minimal d'un étalement : trois items paginés d'un côté, une primitive isolée. */
+/** Minimal expansion setup: three paged items on one side, one isolated primitive. */
 function decor() {
   const draws = new Uint32Array(4 * 4);
   for (let item = 0; item < 3; item++) {
@@ -15,7 +15,7 @@ function decor() {
     draws[item * 4 + 1] = 4;
     draws[item * 4 + 2] = item * 4;
   }
-  // Le quatrième porte ses propres indices : dix-huit mots, six par instance, donc trois morceaux.
+  // The fourth carries its own indices: eighteen words, six per instance, hence three chunks.
   draws[12] = DRAW_UNPAGED;
   draws[13] = 3;
   draws[15] = 6;
@@ -34,72 +34,72 @@ function decor() {
   };
 }
 
-test('une tranche partagée étale les instances de ses entrées, dans l’ordre du plan', () => {
+test('a shared run expands the instances of its entries, in plan order', () => {
   const base = decor();
   const order = Uint32Array.from([entree(2, true), entree(0, true), entree(1, true)]);
   const runs = new Uint32Array(RUN_WORDS);
   runs.set([0, 3]);
   const total = expandBlendPlan({ ...base, order, runs, runCount: 1 });
-  assert.equal(total, 6, 'un + deux + trois grappes');
-  // L'item qui porte chaque instance, puis l'entrée de table que la compaction lui a gardée.
+  assert.equal(total, 6, 'one + two + three clusters');
+  // The item that carries each instance, then the table entry compaction kept for it.
   assert.deepEqual(
     Array.from(base.expanded.subarray(0, 12)),
     [2, 108, 0, 100, 0, 101, 1, 104, 1, 105, 1, 106],
   );
-  // Un seul argument indirect : les sommets d'une grappe, les six instances, et le sommet de départ
-  // qui porte le rang de la première instance dans ses bits hauts.
+  // One indirect argument: a cluster's vertices, the six instances, and the start vertex that
+  // carries the rank of the first instance in its high bits.
   assert.deepEqual(Array.from(base.args.subarray(0, 4)), [48, 6, 0, 0]);
 });
 
-test('un item que le tronc rejette n’étale aucune instance, et ne décale pas les autres', () => {
+test('an item the frustum rejects expands no instance, and does not shift the others', () => {
   const base = decor();
   base.keep[0] = 0b1101;
   const order = Uint32Array.from([entree(0, true), entree(1, true), entree(2, true)]);
   const runs = new Uint32Array(RUN_WORDS);
   runs.set([0, 3]);
   const total = expandBlendPlan({ ...base, order, runs, runCount: 1 });
-  assert.equal(total, 3, 'les deux grappes du rang 0 et la grappe du rang 2');
+  assert.equal(total, 3, 'the two clusters of rank 0 and the cluster of rank 2');
   assert.deepEqual(Array.from(base.expanded.subarray(0, 6)), [0, 100, 0, 101, 2, 108]);
   assert.equal(base.args[1], 3);
 });
 
-test('une primitive non paginée s’étale en morceaux d’un pas d’indices', () => {
+test('an unpaged primitive expands into chunks of one index stride', () => {
   const base = decor();
   const order = Uint32Array.from([entree(3, false)]);
   const runs = new Uint32Array(RUN_WORDS);
   runs.set([0, 1]);
   const total = expandBlendPlan({ ...base, order, runs, runCount: 1 });
-  assert.equal(total, 3, 'dix-huit mots d’indices, six par instance');
-  // Chaque instance dit où son morceau commence ; le nuanceur en tire sa longueur.
+  assert.equal(total, 3, 'eighteen index words, six per instance');
+  // Each instance says where its chunk starts; the shader takes its length from that.
   assert.deepEqual(Array.from(base.expanded.subarray(0, 6)), [3, 0, 3, 6, 3, 12]);
-  // Une tranche d'un seul item non paginé dessine SES sommets, pas ceux d'une grappe.
+  // A run of a single unpaged item draws ITS vertices, not those of a cluster.
   assert.deepEqual(Array.from(base.args.subarray(0, 4)), [6, 3, 0, 0]);
 });
 
-test('les deux passes étalent dans deux régions disjointes, chacune à sa base', () => {
+test('the two passes expand into two disjoint regions, each at its base', () => {
   const base = decor();
   const order = Uint32Array.from([entree(0, true)]);
   const runs = new Uint32Array(RUN_WORDS);
   runs.set([0, 1]);
   expandBlendPlan({ ...base, order, runs, runCount: 1, instanceBase: 5, argsBase: 8 });
   assert.deepEqual(Array.from(base.expanded.subarray(10, 14)), [0, 100, 0, 101]);
-  // Le sommet de départ porte le rang absolu de la première instance : cinq, décalé du pas.
+  // The start vertex carries the absolute rank of the first instance: five, shifted by the stride.
   assert.deepEqual(Array.from(base.args.subarray(8, 12)), [48, 2, 5 << 6, 0]);
 });
 
-test('le pas d’adressage tient la plus longue instance, et le morceau reste un multiple de trois', () => {
+test('the addressing stride holds the longest instance, and the chunk stays a multiple of three', () => {
   for (const mots of [3, 48, 384, 385, 4096]) {
     const shift = blendVertexShift(mots);
-    assert.ok(1 << shift >= mots, `${mots} mots tiennent dans le pas`);
+    assert.ok(1 << shift >= mots, `${mots} words fit in the stride`);
     const chunk = blendChunkWords(shift, 10000);
-    assert.equal(chunk % 3, 0, 'un morceau ne coupe jamais un triangle');
-    assert.ok(chunk <= 1 << shift, 'un morceau tient dans le pas');
+    assert.equal(chunk % 3, 0, 'a chunk never splits a triangle');
+    assert.ok(chunk <= 1 << shift, 'a chunk fits in the stride');
   }
-  // Une primitive plus courte que le pas n'est pas découpée : un seul morceau, ses sommets exacts.
+  // A primitive shorter than the stride is not split: one chunk, its exact vertices.
   assert.equal(blendChunkWords(9, 384), 384);
 });
 
-test('le verdict du tronc se lit bit à bit, au rang de l’item', () => {
+test('the frustum verdict is read bit by bit, at the item rank', () => {
   const keep = Uint32Array.from([0b1010, 0b0001]);
   assert.deepEqual(
     [0, 1, 2, 3, 32, 33].map((item) => itemKept(keep, item)),

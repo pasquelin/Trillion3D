@@ -1,14 +1,13 @@
 /**
- * La réduction du retour d'image : la cible où chaque pixel — opaque par la résolution matérielle,
- * transparent par la passe de mélange — a posé le rang de la tuile qu'il demande devient des
- * compteurs par tuile. Aucun étage de fragments n'écrit en mémoire : la passe de mélange y perdrait
- * son rejet anticipé de profondeur (`webgpuBlendRejetAnticipe.test.ts`), et la résolution y payait
- * six compteurs atomiques par pixel de phase — six chaînes de lectures dépendantes et six atomiques
- * disputés, dont tout le groupe de pixels que la carte exécute ensemble attendait : la passe
- * matériaux coûtait le double de l'ancien atlas à 2496×1404 sur Emerald (5,6 ms contre 2,8 ; 2,65
- * sans ce retour). C'est cette passe de calcul, un fil par pixel de la phase, qui compte : un pixel
- * sur seize hors barrière, tous pendant une convergence — le principe de la référence, le pixel
- * écrit sa demande et l'analyse vient après.
+ * Image-feedback reduction: the target where each pixel — opaque by hardware resolve, transparent
+ * by the blend pass — posted the rank of the tile it wants becomes per-tile counters. No fragment
+ * stage writes memory: the blend pass would lose its early-z reject (`webgpuBlendRejetAnticipe.test.ts`),
+ * and resolve paid six atomic counters per phase pixel — six dependent-read chains and six contended
+ * atomics, which the whole pixel group the GPU runs together waited on: the materials pass cost twice
+ * the old atlas at 2496×1404 on Emerald (5.6 ms versus 2.8; 2.65 without this feedback). It is this
+ * compute pass, one thread per phase pixel, that counts: one pixel in sixteen outside a barrier, all
+ * of them during a convergence — the reference's principle, the pixel writes its request and analysis
+ * comes after.
  */
 import { FEEDBACK_EVERY, FEEDBACK_STRIDE } from './webgpuTileFeedback.ts';
 
@@ -28,7 +27,7 @@ const REDUCE_WGSL = `struct ReduceUni{size:vec2u,feedback:u32,pad:u32,}
 }`;
 
 export type WebgpuTileReduce = {
-  /** Encode la réduction de la cible vers les compteurs, pour la phase de l'image. */
+  /** Encodes reduction of the target into the counters, for the image's phase. */
   encode(
     encoder: GPUCommandEncoder,
     target: GPUTextureView,
@@ -39,8 +38,8 @@ export type WebgpuTileReduce = {
   destroy(): void;
 };
 
-/** `undefined` sur un appareil sans étage de calcul : les transparents gardent alors leurs queues,
- *  et le diagnostic de préparation le dit. */
+/** `undefined` on a device without a compute stage: transparents then keep their queues, and the
+ *  prepare diagnostic says so. */
 export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce | undefined {
   if (typeof device.createComputePipeline !== 'function') return undefined;
   const layout = device.createBindGroupLayout({
@@ -61,7 +60,7 @@ export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce | un
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const words = new Uint32Array(4);
-  // Le groupe suit la cible et le tampon : refait quand l'un des deux change d'identité.
+  // The group follows the target and the buffer: rebuilt when either changes identity.
   let group: GPUBindGroup | undefined, groupKey: [GPUTextureView, GPUBuffer] | undefined;
   return {
     encode(encoder, target, feedback, size, phaseWord) {

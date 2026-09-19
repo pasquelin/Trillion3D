@@ -1,6 +1,6 @@
-// Profondeur INVERSÉE : le fond est 0, la réduction garde le PLUS LOINTAIN d'un carré — donc le
-// minimum —, et une boîte n'est cachée que si sa borne la plus proche est PLUS PETITE que
-// l'occulteur le plus lointain de son empreinte.
+// REVERSED depth: background is 0, reduction keeps the FARTHEST of a quad — thus the
+// minimum —, and a box is occluded only if its nearest bound is SMALLER than
+// the farthest occluder of its footprint.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -11,7 +11,7 @@ import {
   HIZ_NOTHING,
 } from './index.ts';
 
-test('un trou de fond empêche tout rejet : la réduction garde le lointain', () => {
+test('a background hole prevents any rejection: reduction keeps the farthest', () => {
   assert.deepEqual(
     hizReduceCeil([
       [0.8, 0.7],

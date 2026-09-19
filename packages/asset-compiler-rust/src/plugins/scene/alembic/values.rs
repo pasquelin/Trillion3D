@@ -1,10 +1,10 @@
-//! Les octets d'un échantillon lus comme des nombres, en petit-boutiste comme le format l'écrit.
+//! Sample bytes read as numbers, little-endian as the format writes them.
 //!
-//! Un bloc dont la longueur n'est pas un multiple de la taille de l'élément est tronqué : les
-//! octets de queue sont laissés, ce qui rend un tableau plus court que ce que la géométrie demande.
-//! C'est l'appelant qui refuse alors, en nommant ce qui manquait — jamais une lecture hors bornes.
+//! A block whose length is not a multiple of the element size is truncated: leftover tail bytes
+//! are left, which yields an array shorter than what the geometry asks for. The caller then
+//! refuses, naming what was missing — never an out-of-bounds read.
 
-/// Les éléments d'un bloc, chacun lu sur `N` octets.
+/// The elements of a block, each read on `N` bytes.
 fn values<const N: usize, T>(bytes: &[u8], from: fn([u8; N]) -> T) -> Vec<T> {
     bytes.as_chunks::<N>().0.iter().copied().map(from).collect()
 }

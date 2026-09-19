@@ -1,15 +1,15 @@
-//! Les instances de prefab : un asset réutilisé, replacé, parfois retouché.
+//! Prefab instances: a reused asset, relocated, sometimes overridden.
 //!
-//! `PrefabInstance` nomme un fichier source par GUID et la liste de ce que l'instance y change. Les
-//! retouches vivent dans `patch` : on les applique objet par objet pendant le parcours du prefab
-//! source, et ce que ce pilote ne rend pas est compté par propriété plutôt que deviné. Le prefab
-//! source est lui-même un document Unity, parcouru par le même chemin que la scène — ou un asset
-//! modèle, confié au pilote de son format.
+//! `PrefabInstance` names a source file by GUID and the list of what the instance changes in it.
+//! Overrides live in `patch`: they are applied object by object during the walk of the source
+//! prefab, and what this driver does not yield is counted by property rather than guessed. The
+//! source prefab is itself a Unity document, walked by the same path as the scene — or a model
+//! asset, handed to the driver of its format.
 use super::*;
 
 impl Builder<'_, '_> {
-    /// `outer` porte les retouches de l'instance qui contient celle-ci, quand un prefab en
-    /// instancie un autre : elles se posent par-dessus les siennes, dans l'ordre de nidification.
+    /// `outer` carries the overrides of the instance that contains this one, when a prefab
+    /// instantiates another: they sit on top of its own, in nesting order.
     pub(super) fn prefab_instance(
         &mut self,
         document: &Rc<Document>,
@@ -37,10 +37,10 @@ impl Builder<'_, '_> {
         Some(node)
     }
 
-    /// Les objets que l'instance ajoute sous un objet de sa source. Ils sont décrits dans le
-    /// document qui porte l'instance : ce document les construit, puis chacun prend sa place sous
-    /// l'objet visé — sous la racine de l'instance quand cet objet n'a rien rendu, et le fait est
-    /// alors compté plutôt que l'objet perdu.
+    /// Objects the instance adds under an object of its source. They are described in the
+    /// document that carries the instance: that document builds them, then each takes its place
+    /// under the targeted object — under the instance root when that object rendered nothing, and
+    /// the fact is then counted rather than the object lost.
     fn added_objects(
         &mut self,
         document: &Rc<Document>,
@@ -61,9 +61,9 @@ impl Builder<'_, '_> {
         }
     }
 
-    /// Une instance dont la source est un prefab : on parcourt le document source, racine comprise,
-    /// en remplaçant ce que l'instance déclare — à n'importe quelle profondeur, puisque chaque
-    /// retouche nomme l'objet qu'elle vise.
+    /// An instance whose source is a prefab: the source document is walked, root included,
+    /// replacing what the instance declares — at any depth, since each override names the object
+    /// it targets.
     fn prefab_tree(&mut self, asset: &Path, changes: &Changes, depth: usize) -> Option<usize> {
         let document = self.document(asset)?;
         let roots = Builder::roots(&document);
@@ -86,7 +86,7 @@ impl Builder<'_, '_> {
     }
 }
 
-/// Ajoute un enfant à un nœud déjà écrit.
+/// Adds a child to an already written node.
 fn adopt(node: &mut Value, child: usize) {
     match node["children"].as_array_mut() {
         Some(children) => children.push(json!(child)),

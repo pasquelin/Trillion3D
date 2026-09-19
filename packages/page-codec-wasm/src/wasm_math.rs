@@ -1,40 +1,40 @@
-//! ABI brute du tampon partagé et des lots de calcul : pas de `wasm-bindgen`, rien que des entiers
-//! et des offsets d'octets dans la mémoire linéaire, comme `wasm.rs` pour le décodeur de pages.
+//! Raw ABI of the shared buffer and the calculation batches: no `wasm-bindgen`, only integers and
+//! byte offsets in linear memory, like `wasm.rs` for the page decoder.
 //!
-//! Le tampon est alloué ici en `f64`, donc aligné sur huit octets : JavaScript peut poser dessus des
-//! vues `Float64Array`, `Float32Array` ou `Uint32Array` à volonté. Rien n'est recopié sur le chemin
-//! de calcul — les deux côtés lisent et écrivent la même mémoire. Une réservation peut faire grandir
-//! la mémoire linéaire et invalider toutes les vues : c'est le seul moment où cela arrive, et le
-//! chargeur JavaScript refait ses vues là et nulle part ailleurs.
+//! The buffer is allocated here as `f64`, so it is eight-byte aligned: JavaScript can overlay
+//! `Float64Array`, `Float32Array` or `Uint32Array` views at will. Nothing is copied on the
+//! calculation path — both sides read and write the same memory. A reservation may grow linear
+//! memory and invalidate every view: that is the only moment it happens, and the JavaScript loader
+//! rebuilds its views there and nowhere else.
 
 use crate::math::{box_transform_batch, multiply_matrix4_batch, BOX_VALUES, MATRIX_VALUES};
 use crate::math_hierarchy::{hierarchy_update_batch, POSITION_VALUES, QUATERNION_VALUES};
 use crate::wasm::{fuite, rends};
 
-/// Version du contrat de cette ABI. Le chargeur refuse un module qui ne rend pas celle qu'il attend.
+/// Version of this ABI's contract. The loader refuses a module that does not return the one it expects.
 const CONTRACT: u32 = 1;
-/// Octets d'un `f64` : le tampon est compté en mots de cette taille.
+/// Bytes of an `f64`: the buffer is counted in words of this size.
 const WORD: usize = 8;
-/// Plafond d'une réservation, en octets. Au-delà, la demande est refusée plutôt qu'honorée par une
-/// mémoire linéaire que l'hôte ne pourra plus rendre : un lot de calcul du moteur ne pèse pas un
-/// gigaoctet, et une taille pareille vient d'un compte faux, pas d'une scène.
+/// Ceiling of a reservation, in bytes. Beyond it, the request is refused rather than honoured with
+/// linear memory the host could no longer return: an engine calculation batch does not weigh a
+/// gigabyte, and a size like that comes from a wrong count, not from a scene.
 const MAX_BYTES: usize = 1 << 30;
 
-/// La version du contrat que ce module honore.
+/// The contract version this module honours.
 #[no_mangle]
 pub extern "C" fn math_contract() -> u32 {
     CONTRACT
 }
 
-/// 1 si le module a été compilé avec `simd128`, 0 sinon. Les bits ne changent pas avec : une
-/// vectorisation de voies f64 indépendantes est correctement arrondie voie par voie, comme le
-/// scalaire, et WebAssembly n'a pas d'instruction fusionnée qui pourrait en changer l'arrondi.
+/// 1 if the module was compiled with `simd128`, 0 otherwise. The bits do not change with it:
+/// vectorising independent f64 lanes is correctly rounded lane by lane, like the scalar, and
+/// WebAssembly has no fused instruction that could change the rounding.
 #[no_mangle]
 pub extern "C" fn math_simd() -> u32 {
     u32::from(cfg!(target_feature = "simd128"))
 }
 
-/// Réserve `bytes` octets remis à zéro, alignés sur huit. Rend 0 si la taille est absurde.
+/// Reserves `bytes` zeroed bytes, eight-byte aligned. Returns 0 if the size is absurd.
 #[no_mangle]
 pub extern "C" fn arena_alloc(bytes: usize) -> u32 {
     if bytes == 0 || bytes > MAX_BYTES {
@@ -43,20 +43,20 @@ pub extern "C" fn arena_alloc(bytes: usize) -> u32 {
     fuite(vec![0f64; bytes.div_ceil(WORD)])
 }
 
-/// Rend une réservation d'`arena_alloc`.
+/// Releases an `arena_alloc` reservation.
 ///
 /// # Safety
-/// `offset` doit venir d'`arena_alloc` avec ce même `bytes`, et n'avoir pas déjà été rendu.
+/// `offset` must come from `arena_alloc` with this same `bytes`, and must not already have been released.
 #[no_mangle]
 pub unsafe extern "C" fn arena_free(offset: u32, bytes: usize) {
     rends::<f64>(offset, bytes.div_ceil(WORD));
 }
 
-/// `n` boîtes transformées par `n` matrices. Les trois offsets sont des octets, alignés sur huit.
+/// `n` boxes transformed by `n` matrices. The three offsets are bytes, eight-byte aligned.
 ///
 /// # Safety
-/// Les trois plages doivent tenir dans des réservations vivantes d'`arena_alloc`, être disjointes,
-/// et porter respectivement `6 · n`, `6 · n` et `16 · n` flottants.
+/// The three ranges must fit in live `arena_alloc` reservations, be disjoint, and hold
+/// `6 · n`, `6 · n` and `16 · n` floats respectively.
 #[no_mangle]
 pub unsafe extern "C" fn math_box_transform_batch(out: u32, boxes: u32, mats: u32, n: usize) {
     box_transform_batch(
@@ -67,11 +67,11 @@ pub unsafe extern "C" fn math_box_transform_batch(out: u32, boxes: u32, mats: u3
     );
 }
 
-/// `n` produits `out[i] = a[i] · b[i]`. Les trois offsets sont des octets, alignés sur huit.
+/// `n` products `out[i] = a[i] · b[i]`. The three offsets are bytes, eight-byte aligned.
 ///
 /// # Safety
-/// Les trois plages doivent tenir dans des réservations vivantes d'`arena_alloc`, être disjointes,
-/// et porter chacune `16 · n` flottants.
+/// The three ranges must fit in live `arena_alloc` reservations, be disjoint, and each hold
+/// `16 · n` floats.
 #[no_mangle]
 pub unsafe extern "C" fn math_multiply_matrix4_batch(out: u32, a: u32, b: u32, n: usize) {
     let values = n * MATRIX_VALUES;
@@ -83,12 +83,12 @@ pub unsafe extern "C" fn math_multiply_matrix4_batch(out: u32, a: u32, b: u32, n
     );
 }
 
-/// La hiérarchie entière : `n` nœuds rangés parents avant enfants. Les offsets sont des octets,
-/// alignés sur huit, sauf `parents`, qui porte `n` mots de 32 bits alignés sur quatre.
+/// The whole hierarchy: `n` nodes ordered parents before children. Offsets are bytes, eight-byte
+/// aligned, except `parents`, which holds `n` 32-bit words aligned on four.
 ///
 /// # Safety
-/// Les cinq plages doivent tenir dans des réservations vivantes d'`arena_alloc`, être disjointes, et
-/// porter respectivement `16 · n`, `3 · n`, `4 · n` et `3 · n` flottants, puis `n` entiers.
+/// The five ranges must fit in live `arena_alloc` reservations, be disjoint, and hold
+/// `16 · n`, `3 · n`, `4 · n` and `3 · n` floats respectively, then `n` integers.
 #[no_mangle]
 pub unsafe extern "C" fn math_hierarchy_update_batch(
     world: u32,

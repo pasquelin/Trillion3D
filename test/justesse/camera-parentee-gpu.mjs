@@ -1,9 +1,10 @@
-// Justesse d'une caméra parentée, côté GPU réellement exécuté.
+// Correctness of a parented camera, on the GPU actually run.
 //
-// La page `cameraParenteeGpuPage.mjs` est empaquetée par esbuild, servie sur une origine locale et
-// lancée dans Chromium avec Playwright. Image après image, la sélection WebGPU du moteur est calculée pour
-// la caméra enfant d'un parent d'hôte déplacé puis tourné, puis pour la caméra sans parent de même
-// pose monde. Les pages sélectionnées doivent être identiques ; sinon le script échoue.
+// The page `cameraParenteeGpuPage.mjs` is bundled by esbuild, served on a local origin and
+// launched in Chromium with Playwright. Frame after frame, the engine's WebGPU selection is
+// computed for the child camera of a host parent that is moved then rotated, then for the
+// parentless camera of the same world pose. Selected pages must be identical; otherwise the
+// script fails.
 //
 //   node test/justesse/camera-parentee-gpu.mjs
 import { dirname, resolve } from 'node:path';
@@ -17,7 +18,7 @@ const erreursPage = [];
 const resultat = await dansPageWebgpu(
   (pixelErrors) => globalThis.cameraParentee.executer(pixelErrors),
   [0, 3.5],
-  { titre: 'Caméra parentée', script, erreursPage },
+  { titre: 'Parented camera', script, erreursPage },
 );
 resultat.erreurs = [...(resultat.erreurs ?? []), ...erreursPage];
 
@@ -31,11 +32,11 @@ for (const { pixelError, avecParent, sansParent } of resultat.cas) {
     const egal = rig === plate;
     if (!egal) ecarts++;
     console.log(
-      `pixelError ${pixelError} image ${i} : ${egal ? 'identique' : 'ÉCART'}  rig ${rig}` +
-        (egal ? '' : `  sans parent ${plate}`),
+      `pixelError ${pixelError} frame ${i}: ${egal ? 'identical' : 'DISCREPANCY'}  rig ${rig}` +
+        (egal ? '' : `  parentless ${plate}`),
     );
   }
 }
 if (resultat.erreurs.length) console.log(`erreurs WebGPU : ${resultat.erreurs.join(' | ')}`);
-console.log(`${ecarts} image(s) GPU en écart`);
+console.log(`${ecarts} GPU frame(s) in discrepancy`);
 if (ecarts || resultat.erreurs.length) process.exitCode = 1;

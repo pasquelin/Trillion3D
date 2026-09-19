@@ -7,9 +7,9 @@ import { gpuDeviceLedgerOf } from './gpuDeviceLedger.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
- * Les octets de sommets d'une image : le total tenu à l'allocation, plus les trois tampons
- * concaténés du visbuffer. Le relevé est interrogé à chaque image et l'ensemble des pages
- * résidentes en compte des milliers : il ne les resomme plus, il lit le compteur.
+ * Vertex bytes of an image: the total held at allocation, plus the three concatenated visbuffer
+ * buffers. The sample is queried every image and resident pages number in the thousands: it no
+ * longer resums them, it reads the counter.
  */
 export function vertexBytesOf(
   gpu: Pick<WebgpuPagesRuntime['gpu'], 'vertexBytes'>,
@@ -30,10 +30,9 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
   const vertexBytes = vertexBytesOf(gpu, vis);
   const ledger = gpuDeviceLedgerOf(rt.setup.gpuDevice)?.snapshot();
   const pending = run.gpuFrameActive && !run.gpuMetricsReady;
-  // Ce que le test d'occultation a éliminé, du chemin qui l'a fait tourner : les compteurs que la
-  // carte a écrits sur la dernière image relevée, ou ceux de l'oracle processeur là où aucun test
-  // GPU ne tourne. `null` quand ni l'un ni l'autre n'a compté d'image — jamais un nombre à la place
-  // d'un nombre non mesuré.
+  // What the occlusion test dropped, from the path that ran it: counts the GPU wrote on the last
+  // sampled image, or the CPU oracle's where no GPU test runs. `null` when neither has counted an
+  // image — never a number in place of an unmeasured number.
   const gpuHizCounts = vis.gpuPartition?.counts();
   const [hiz, hizCountedFrame] = vis.gpuPartition
     ? [gpuHizCounts, gpuHizCounts?.frame ?? null]
@@ -59,16 +58,16 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     transparentFrustumRejected: run.blendFrustumRejected,
     transparentDrawCalls: run.blendDrawCalls,
     transparentSubmittedTriangles: run.blendSubmittedTriangles,
-    // Les textures virtuelles : le pool, les tuiles, le retour d'image. Tout à `null` tant que la
-    // préparation ne les a pas bâties, jamais un zéro à la place d'un pool absent.
+    // Virtual textures: the pool, the tiles, image feedback. All `null` until prepare has built them,
+    // never a zero in place of a missing pool.
     ...(vis.textures?.metrics() ?? {}),
     cpuSubmitMs: timing.lastSubmitMs,
     gpuPassMs: timing.lastGpuPassMs,
     gpuFrameMs: timing.lastGpuFrameMs,
     gpuHostGapMs: timing.lastGpuHostGapMs,
     vramBytes: null,
-    // Le registre de l'appareil : tout ce que le moteur a alloué et pas encore détruit, calculé
-    // depuis les descripteurs. `null` tant qu'aucun registre n'est posé, jamais zéro.
+    // Device ledger: everything the engine allocated and has not yet destroyed, computed from the
+    // descriptors. `null` until a ledger is posted, never zero.
     gpuAllocatedBytes: ledger?.bytes ?? null,
     gpuAllocatedByLabel: ledger?.byLabel ?? null,
     gpuAllocationsUnknownFormat: ledger?.unknownFormats ?? null,

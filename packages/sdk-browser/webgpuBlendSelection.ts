@@ -4,13 +4,12 @@ import type { createWebgpuBlendState } from './webgpuBlendState.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
 /**
- * La liste de dessin transparente du CHEMIN DE REPLI, celui des appareils sans tampon de
- * visibilité.
+ * Transparent draw list of the FALLBACK PATH, the one for devices without a visibility buffer.
  *
- * Le chemin de production, lui, ne tient pas de liste de dessin : le tronc y est testé avec les
- * clés de classement, et la carte étale le plan trié en instances (`webgpuBlendOrder.ts`). Ici, le
- * tronc rejette les primitives entières, la coupe processeur omet les items sans grappe
- * sélectionnée, et l'ordre source est préservé.
+ * The production path holds no draw list: the frustum is tested there with the sort keys, and
+ * the GPU expands the sorted plan into instances (`webgpuBlendOrder.ts`). Here the frustum
+ * rejects whole primitives, the CPU cut omits items with no selected cluster, and source order
+ * is preserved.
  */
 export function selectWebgpuBlend(blendState: BlendState, drawn?: readonly PageRec[]) {
   const selected = blendState.cpuSelectedMeshes;
@@ -70,9 +69,9 @@ export function writeCpuTransparentInstances(
     const index = item.pagedIndex!,
       base = table.itemRanges[index * 2],
       count = counts[index];
-    // La liste arrive presque toujours déjà croissante — la relecture publie ses pages dans l'ordre
-    // du catalogue, et les entrées de la table y sont rangées par rang source. Un parcours le
-    // constate, là où un tri inconditionnel triait par primitive et par image.
+    // The list almost always arrives already increasing — the reread publishes its pages in
+    // catalogue order, and table entries are stored by source rank. One walk checks that, where
+    // an unconditional sort sorted per primitive and per frame.
     let ordonnee = true;
     for (let k = base + 1; k < base + count; k++)
       if (instances[k - 1] > instances[k]) {

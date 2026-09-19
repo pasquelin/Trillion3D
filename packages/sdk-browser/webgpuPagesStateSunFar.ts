@@ -1,16 +1,16 @@
 import type { GpuSunFarShadow } from './gpuSunFarShadow.ts';
 
 /**
- * L'état de l'ombre lointaine du soleil : le bloc de réglages et de compteurs, le proxy qu'il
- * traverse, et pourquoi il n'y en a pas quand il n'y en a pas. Rien n'est alloué par image.
+ * State of the sun's far shadow: the settings and counts block, the proxy it traces, and why there
+ * is none when there is none. Nothing is allocated per image.
  */
 export interface WebgpuSunFarState {
   gpu: GpuSunFarShadow | undefined;
-  /** Le chargement du proxy résident en cours ; il n'est lancé qu'une fois, à la première lampe. */
+  /** In-flight load of the resident proxy; it is launched only once, at the first light. */
   pending: Promise<unknown> | undefined;
-  /** Vrai quand le proxy traversé est celui de la lumière qui rebondit, emprunté et non rechargé. */
+  /** True when the traced proxy is bouncing light's, borrowed and not reloaded. */
   borrowed: boolean;
-  /** Pourquoi l'ombre lointaine n'existe pas, quand elle n'existe pas. */
+  /** Why the far shadow does not exist, when it does not. */
   reason: string | null;
   published: boolean;
 }

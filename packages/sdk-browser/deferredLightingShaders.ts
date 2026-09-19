@@ -3,10 +3,10 @@ import { DIRECT_LIGHTING_WGSL } from './directLightingWgsl.ts';
 import { BOUNCE_APPLY_WGSL } from './bounceApplyWgsl.ts';
 
 export const FULLSCREEN_VERTEX = `@vertex fn fullscreen(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);}`;
-/** Le dernier maillon de toute composition : la radiance linéaire portée dans l'espace d'affichage. */
+/** Last link of every composition: linear radiance carried into display space. */
 const SRGB_WGSL = `
 fn linearToSrgb(c:vec3f)->vec3f{return select(1.055*pow(max(c,vec3f(0.0)),vec3f(0.41666))-0.055,c*12.92,c<vec3f(0.0031308));}`;
-/** La courbe du contrat, appliquée juste avant sRGB et jamais avant un mélange (P4). */
+/** Contract curve, applied just before sRGB and never before a blend (P4). */
 export const ACES_WGSL = `
 fn aces(color:vec3f)->vec3f{
  var c=color/0.6;
@@ -15,9 +15,9 @@ fn aces(color:vec3f)->vec3f{
  c=mat3x3f(vec3f(1.60475,-0.10208,-0.00327),vec3f(-0.53108,1.10813,-0.07276),vec3f(-0.07367,-0.00605,1.07602))*c;
  return clamp(c,vec3f(0.0),vec3f(1.0));
 }`;
-/** L'uniforme de vue, commun aux deux programmes : `lightParams` porte le nombre de lampes du
- *  contrat, les tuiles en X et en Y, et l'exposition, appliquée avant ACES (P4). Rien d'autre —
- *  il n'y a plus ni ciel ni ambiance à transmettre à la résolution opaque (P6). */
+/** View uniform, shared by both programs: `lightParams` carries the contract light count,
+ *  tiles in X and Y, and exposure, applied before ACES (P4). Nothing else — there is no
+ *  longer a sky or an ambient to pass to opaque resolve (P6). */
 const VIEW_WGSL = `struct View{inverseViewProjection:mat4x4f,camera:vec4f,viewport:vec4f,background:vec4f,lightParams:vec4f,}`;
 const SURFACE_BINDINGS_WGSL = `
 @group(0) @binding(0) var baseMetal:texture_2d<f32>;
@@ -27,10 +27,10 @@ const SURFACE_BINDINGS_WGSL = `
 @group(0) @binding(4) var depth:texture_depth_2d;
 @group(0) @binding(5) var<uniform> view:View;`;
 /**
- * La vue sans éclairage : l'albédo des matériaux tel quel, sans lampe, sans ambiance et sans
- * émission. Ce n'est pas une lumière, c'est une vue de diagnostic — celle que demandent les bancs
- * de géométrie qui comparent des images au pixel près, et celle que le moteur rend par défaut tant
- * qu'aucune lampe n'est déclarée, parce qu'une scène sans source n'a rien à éclairer (P6).
+ * Unlit view: material albedo as-is, with no light, no ambient and no emission. This is not
+ * a light, it is a diagnostic view — the one geometry benches that compare images pixel for
+ * pixel ask for, and the one the engine renders by default as long as no light is declared,
+ * because a scene with no source has nothing to light (P6).
  */
 export const UNLIT_LIGHTING_SHADER = `
 ${VIEW_WGSL}
@@ -41,14 +41,14 @@ ${FULLSCREEN_VERTEX}
  if(flag==0u){return vec4f(0.0);}
  return vec4f(textureLoad(baseMetal,coord,0).rgb,1.0);
 }`;
-/** Les liaisons du contrat : les lampes déclarées, leurs listes par tuile et leur atlas d'ombres. */
+/** Contract bindings: declared lights, their per-tile lists and their shadow atlas. */
 const CONTRACT_BINDINGS_WGSL = `
 @group(0) @binding(6) var<storage,read> directLights:DirectLights;
 @group(0) @binding(7) var<storage,read> tileLights:array<u32>;
 @group(0) @binding(8) var<storage,read> shadows:ShadowSlices;
 @group(0) @binding(9) var shadowAtlas:texture_depth_2d;
 @group(0) @binding(10) var shadowSampler:sampler_comparison;`;
-/** Le corps commun des deux programmes du contrat : seules les lignes du rebond les séparent. */
+/** Shared body of the two contract programs: only the bounce lines separate them. */
 const contractSurface = (bounce: string, diagnostic = '') => `
 ${FULLSCREEN_VERTEX}
 @fragment fn lightSurface(@builtin(position) pixel:vec4f)->@location(0) vec4f{
@@ -66,10 +66,10 @@ ${FULLSCREEN_VERTEX}
  return vec4f(lit+emissive.rgb${bounce},1.0);
 }`;
 /**
- * Le programme du contrat : le rassemblement différé éclairé par les seules lampes déclarées, avec
- * leurs ombres. Aucun terme ambiant, aucun ciel constant, aucune lumière écrite dans la scène ne
- * s'y ajoute (P6). Les surfaces marquées non éclairées ou en espace d'affichage sortent telles
- * quelles, comme avant : ce sont des matériaux sans réponse à la lumière, pas des surfaces éclairées.
+ * Contract program: deferred resolve lit by the declared lights only, with their shadows.
+ * No ambient term, no constant sky, no light written in the scene is added (P6). Surfaces
+ * marked unlit or in display space come out as-is, as before: they are materials with no
+ * response to light, not lit surfaces.
  */
 export const DIRECT_LIGHTING_SHADER = `
 ${VIEW_WGSL}
@@ -79,9 +79,9 @@ ${STANDARD_LIGHTING_WGSL}
 ${DIRECT_LIGHTING_WGSL}
 ${contractSurface('')}`;
 /**
- * Le même programme, plus la lumière qui a rebondi : l'irradiance des sondes multipliée par
- * l'albédo diffus du pixel, ajoutée au direct. C'est un programme séparé, et non une branche, pour
- * qu'une session sans rebond exécute exactement le nuanceur d'avant, au bit près.
+ * The same program, plus bounced light: probe irradiance multiplied by the pixel's diffuse
+ * albedo, added to the direct. It is a separate program, not a branch, so a session without
+ * bounce runs exactly the previous shader, bit for bit.
  */
 export const BOUNCE_LIGHTING_SHADER = `
 ${VIEW_WGSL}
@@ -95,9 +95,9 @@ ${contractSurface(
   'if(bounceOnly()){return vec4f(bounceIrradiance(N,P,view.lightParams.w),1.0);}',
 )}`;
 /**
- * La composition, une source pour deux programmes séparés — jamais une branche dans le nuanceur.
- * `chaine` est ce que la radiance linéaire traverse avant sRGB, et `courbe` ce qu'il faut déclarer
- * pour cela. Le fond, la prémultiplication et la sortie brute des vues de diagnostic sont communs.
+ * Composition, one source for two separate programs — never a branch in the shader.
+ * `chaine` is what linear radiance goes through before sRGB, and `courbe` what must be
+ * declared for that. Background, premultiplication and the raw output of diagnostic views are shared.
  */
 const composeSource = (courbe: string, chaine: string) => `
 ${VIEW_WGSL}
@@ -119,16 +119,16 @@ struct DisplayOutput{@location(0) capture:vec4f,@location(1) canvas:vec4f,}
  return DisplayOutput(color,color);
 }`;
 /**
- * La composition du contrat : l'exposition multiplie la radiance linéaire avant ACES, dernier
- * maillon de la chaîne (P4). C'est celle des programmes éclairés par des lampes déclarées.
+ * Contract composition: exposure multiplies linear radiance before ACES, last link of the
+ * chain (P4). That is the one of programs lit by declared lights.
  */
 export const COMPOSE_SHADER = composeSource(
   ACES_WGSL,
   'aces(value.rgb*view.lightParams.w/max(value.a,1e-6))',
 );
 /**
- * La composition de la vue sans lampe : l'identité, du linéaire vers sRGB et rien d'autre. Sans
- * source déclarée il n'y a aucune radiance à exposer ni à ramener dans la plage d'affichage (P6) —
- * l'albédo se lit tel quel, ce que demandent les bancs qui comparent des images au pixel près.
+ * Unlit-view composition: identity, from linear to sRGB and nothing else. With no declared
+ * source there is no radiance to expose or bring into the display range (P6) — albedo is
+ * read as-is, which is what benches that compare images pixel for pixel ask for.
  */
 export const UNLIT_COMPOSE_SHADER = composeSource('', 'value.rgb/max(value.a,1e-6)');

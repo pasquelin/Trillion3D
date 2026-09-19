@@ -1,12 +1,12 @@
-//! La pose d'un `transform` de Maya, telle que le fichier l'écrit : par composantes séparées, avec
-//! un axe de rotation, un cisaillement, une matrice de père décalé, ou sans héritage du père.
+//! Maya `transform` pose as file writes: separate components, rotation axis,
+//! shear, offset parent matrix, or no parent inheritance.
 //!
-//! Le reste de la fidélité du pilote est dans `ma_fidelite.rs`.
+//! Rest of driver fidelity in `ma_fidelite.rs`.
 use super::*;
 use ma_driver::{compile_ma, matrix, quad};
 use unity_projet::node_named;
 
-/// Un transform nommé qui porte les attributs donnés et un carré, sous le père donné quand il y en a.
+/// Named transform carrying given attributes and square, under given parent.
 fn posed(name: &str, parent: &str, attributes: &str) -> String {
     let under = match parent {
         "" => String::new(),
@@ -18,15 +18,15 @@ fn posed(name: &str, parent: &str, attributes: &str) -> String {
     )
 }
 
-/// La matrice du nœud de ce nom dans la scène que ce corps décrit.
+/// Node matrix of this name in scene.
 fn posed_matrix(tag: &str, name: &str, attributes: &str) -> Vec<f64> {
     let run = compile_ma(tag, &posed(name, "", attributes));
     let (_, gltf) = run.prepared("ma");
-    matrix(node_named(&gltf, name).expect("le nœud posé"))
+    matrix(node_named(&gltf, name).expect("the posed node"))
 }
 
-// Constat 13 : Maya écrit une pose par composantes — `.tx`, `.ry`, `.sz` — aussi souvent que par
-// attribut composé. Les ignorer laissait le nœud à l'origine ; elles donnent la même matrice.
+// Finding 13: Maya writes pose per component — `.tx`, `.ry`, `.sz` — as often as
+// compound attribute. Ignoring left node at origin; yields same matrix.
 #[test]
 fn the_single_components_of_a_transform_pose_it_like_the_compound_attributes() {
     let split = posed_matrix(
@@ -42,11 +42,11 @@ fn the_single_components_of_a_transform_pose_it_like_the_compound_attributes() {
          \tsetAttr \".s\" -type \"double3\" 1 1 2;\n",
     );
     assert_ne!(whole, crate::compiler_world::IDENTITY.to_vec());
-    assert_eq!(split, whole, "`.tx` pose le nœud comme le premier de `.t`");
+    assert_eq!(split, whole, "`.tx` poses the node like the first of `.t`");
 }
 
-// Constat 13 : `rotateAxis` est une orientation de l'axe local, appliquée au point **avant** la
-// rotation. Elle était ignorée ; composée, elle ne commute pas avec `rotate`.
+// Finding 13: `rotateAxis` local axis orientation, applied to point **before**
+// rotation. Was ignored; composed, does not commute with `rotate`.
 #[test]
 fn a_rotate_axis_turns_the_point_before_the_rotation() {
     let turned = posed_matrix(
@@ -62,8 +62,8 @@ fn a_rotate_axis_turns_the_point_before_the_rotation() {
     );
 }
 
-// Constat 13 : le cisaillement de Maya est un vecteur `(XY, XZ, YZ)` qui se compose entre le pivot
-// d'échelle et l'échelle. Une matrice de nœud glTF le porte tel quel.
+// Finding 13: Maya shear vector `(XY, XZ, YZ)` composes between scale pivot
+// and scale. glTF node matrix carries as is.
 #[test]
 fn a_shear_is_composed_into_the_node_matrix() {
     let sheared = posed_matrix(
@@ -78,8 +78,8 @@ fn a_shear_is_composed_into_the_node_matrix() {
     );
 }
 
-// Constat 13 : `offsetParentMatrix` s'applique **après** la pose locale, comme un père de plus.
-// Une matrice écrite autrement que par ses seize nombres n'est pas devinée, elle est comptée.
+// Finding 13: `offsetParentMatrix` applies **after** local pose, like extra parent.
+// Matrix written otherwise than 16 numbers not guessed, counted.
 #[test]
 fn an_offset_parent_matrix_applies_after_the_local_pose() {
     let offset = posed_matrix(
@@ -91,7 +91,7 @@ fn an_offset_parent_matrix_applies_after_the_local_pose() {
     assert_eq!(
         offset,
         vec![2., 0., 0., 0., 0., 2., 0., 0., 0., 0., 2., 0., 20., 0., 0., 1.],
-        "la translation locale passe par la matrice du père décalé"
+        "local translation goes through the shifted parent's matrix"
     );
     let run = compile_ma(
         "ma-matrice-xform",
@@ -104,12 +104,12 @@ fn an_offset_parent_matrix_applies_after_the_local_pose() {
     assert_eq!(
         run.prepared("ma").0["unsupported"]["ma-matrix-unsupported"],
         1,
-        "la forme longue d'une matrice est comptée, jamais lue de travers"
+        "the long form of a matrix is counted, never misread"
     );
 }
 
-// Constat 13 : `inheritsTransform = 0` coupe l'héritage — le nœud se pose dans le repère de la
-// scène, la pose de son père ne le suit pas.
+// Finding 13: `inheritsTransform = 0` cuts inheritance — node poses in scene
+// frame, parent pose does not follow.
 #[test]
 fn a_node_that_does_not_inherit_its_transform_leaves_its_parent_behind() {
     let body = format!(
@@ -128,7 +128,7 @@ fn a_node_that_does_not_inherit_its_transform_leaves_its_parent_behind() {
         nodes
             .iter()
             .position(|node| node["name"] == name)
-            .unwrap_or_else(|| panic!("le nœud {name}"))
+            .unwrap_or_else(|| panic!("the node {name}"))
     };
     let children = |name: &str| {
         nodes[rank(name)]["children"]
@@ -138,15 +138,15 @@ fn a_node_that_does_not_inherit_its_transform_leaves_its_parent_behind() {
     };
     assert!(
         !children("Pere").contains(&(rank("Libre") as u64)),
-        "le nœud sans héritage ne pend plus sous son père"
+        "the node without inheritance no longer hangs under its parent"
     );
     assert!(
         children("ma-root").contains(&(rank("Libre") as u64)),
-        "il pend sous la racine de la scène, qui ne porte que l'unité"
+        "it hangs under the scene root, which carries only the unit"
     );
     assert_eq!(
         matrix(&nodes[rank("Libre")])[12..15],
         [1., 0., 0.],
-        "sa pose est celle que le fichier lui donne, sans celle de son père"
+        "its pose is the one the file gives it, without its parent's"
     );
 }

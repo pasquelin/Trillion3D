@@ -1,14 +1,14 @@
-// Cas 4 de la convention des normales singulières (lot normales singulières) : une pose non finie
-// est refusée AVANT toute inversion, ici à `setTransform` plutôt qu'au chargement (`explorerScene`,
-// couvert par `explorerSceneFiniteTransform.test.ts`). Fixtures communes à
-// `webgpuTransformCisaillement.test.ts`, dans `webgpuTransformCisaillementFixture.ts`.
+// Case 4 of the singular-normals convention (singular-normals lot): a non-finite pose is refused
+// BEFORE any inversion, here at `setTransform` rather than at load (`explorerScene`, covered by
+// `explorerSceneFiniteTransform.test.ts`). Fixtures shared with `webgpuTransformCisaillement.test.ts`,
+// in `webgpuTransformCisaillementFixture.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EngineError } from '../sdk-core/index.ts';
 import { setWebgpuTransform } from './webgpuPagesTransform.ts';
 import { cisaillee, runtime, scene, versGpu } from './webgpuTransformCisaillementFixture.ts';
 
-test('setWebgpuTransform refuse une matrice NaN ou infinie (NON_FINITE_TRANSFORM), le nœud reste inchangé', () => {
+test('setWebgpuTransform refuses a NaN or infinite matrix (NON_FINITE_TRANSFORM), the node stays unchanged', () => {
   const { source, mesh, worlds } = scene(),
     { rt } = runtime(source, [], worlds),
     monde = worlds.of(mesh),
@@ -27,12 +27,12 @@ test('setWebgpuTransform refuse une matrice NaN ou infinie (NON_FINITE_TRANSFORM
         erreur.code === 'NON_FINITE_TRANSFORM' &&
         erreur.details.nodeName === 'cible' &&
         erreur.details.index === index,
-      `index ${index}=${valeur} non refusé`,
+      `index ${index}=${valeur} not refused`,
     );
     assert.deepEqual(
       Array.from(monde.elements),
       Array.from(intacte),
-      'une pose refusée ne doit laisser aucune trace sur le nœud',
+      'a refused pose must leave no trace on the node',
     );
   }
 });

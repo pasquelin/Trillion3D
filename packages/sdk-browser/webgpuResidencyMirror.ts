@@ -54,15 +54,11 @@ export function createWebgpuResidencyMirror(options: MirrorOptions) {
     }
     const resident = cache.stats().residentPages;
     if (journalResident === resident) return;
-    engineDiagnostic(
-      'gpu-residency-mirror-rebuilt',
-      'Miroir de résidence reconstruit depuis le cache',
-      {
-        frame: getFrame(),
-        journal: journalResident,
-        resident,
-      },
-    );
+    engineDiagnostic('gpu-residency-mirror-rebuilt', 'Residency mirror rebuilt from the cache', {
+      frame: getFrame(),
+      journal: journalResident,
+      resident,
+    });
     dirty = true;
     journalResident = 0;
     residentOutsideTable.clear();

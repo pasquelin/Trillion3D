@@ -10,10 +10,10 @@ type PreviewColumns = {
   previewPixels: Uint8Array<ArrayBuffer>;
 };
 
-/** Ce que l'écriture et la lecture exigent toutes deux d'une entrée — couple (texture, atlas) entier
- *  et strictement croissant, atlas connu, dimensions source réelles, niveaux cuits sous la queue —
- *  pour qu'une entrée refusée à l'écriture soit exactement celle que la lecture refuserait. Rend la
- *  clé de l'entrée, que la suivante doit dépasser. */
+/** What both write and read require of an entry — integer (texture, atlas) pair
+ *  strictly increasing, known atlas, real source dimensions, baked levels under the tail —
+ *  so an entry rejected on write is exactly the one read would reject. Returns the
+ *  entry key, which the next one must exceed. */
 function checkEntryHeader(
   entry: number,
   header: Pick<TexturePreview, 'texture' | 'atlas' | 'width' | 'height' | 'bakedLevels'>,

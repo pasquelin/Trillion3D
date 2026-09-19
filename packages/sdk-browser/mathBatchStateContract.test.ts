@@ -1,22 +1,22 @@
-// Second scénario des capacités du calcul en lot : un module qui s'instancie mais dont le contrat de
-// calcul n'est pas celui attendu. Séparé de `mathBatchState.test.ts` parce que `prepareSdkWasm`
-// mémorise sa décision pour tout le process — un seul scénario de chargement par fichier, comme
-// `geometryPageWasm.test.ts` le fait déjà pour le décodeur.
+// Second scenario for batch math capabilities: module instantiates but its compute
+// contract is not as expected. Separated from `mathBatchState.test.ts` because `prepareSdkWasm`
+// caches its decision process-wide — single load scenario per file, like `geometryPageWasm.test.ts`
+// already does for the decoder.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-test('un contrat de calcul inconnu laisse tout sur JavaScript, avec la raison publiée', async () => {
+test('unknown compute contract leaves everything on JavaScript with published reason', async () => {
   const instantiateOriginal = WebAssembly.instantiate;
   const fetchOriginal = globalThis.fetch;
-  // `ressource()` (`geometryPageWasm.ts`) tire ses octets par `fetch` : sans réponse simulée, l'appel
-  // échoue avant même d'atteindre `WebAssembly.instantiate`, comme le montre `mathBatchState.test.ts`.
-  // @ts-expect-error : réponse minimale, suffisante pour passer `reponse.ok` puis `arrayBuffer()`.
+  // `ressource()` (`geometryPageWasm.ts`) fetches bytes via `fetch`: without simulated response, call
+  // fails before reaching `WebAssembly.instantiate`, as shown in `mathBatchState.test.ts`.
+  // @ts-expect-error: minimal response, sufficient to pass `reponse.ok` then `arrayBuffer()`.
   globalThis.fetch = async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(0) });
-  // @ts-expect-error : simule un module dont l'ABI de calcul a changé de version.
+  // @ts-expect-error: simulates a module whose compute ABI changed version.
   WebAssembly.instantiate = async () => ({
     instance: {
       exports: {
-        math_contract: () => 2, // le chargeur attend WASM_ARENA_CONTRACT (1)
+        math_contract: () => 2, // loader expects WASM_ARENA_CONTRACT (1)
         math_simd: () => 1,
       },
     },

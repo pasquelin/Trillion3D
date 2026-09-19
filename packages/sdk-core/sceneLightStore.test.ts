@@ -1,7 +1,7 @@
-// Une mutation qui repose les valeurs déjà tenues n'est pas un changement. L'hôte qui renvoie ses
-// lampes fixes à chaque image — le cas courant d'une boucle de banc — ne doit rien périmer : ni la
-// révision de la lampe, que l'ordonnanceur d'ombres lit pour refaire ses pages, ni l'époque du
-// magasin, que l'image relit pour repousser son tampon.
+// A mutation that resets already-held values is not a change. A host that returns its
+// fixed lights every frame — the common case of a bench loop — must stale nothing: neither the
+// light's revision, which the shadow scheduler reads to remake its pages, nor the store
+// epoch, which the frame rereads to push its buffer.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from './sceneLightStore.ts';
@@ -17,19 +17,19 @@ const LAMPE: SceneLight = {
   castsShadow: true,
 };
 
-test('une lampe reposée à l’identique ne monte ni sa révision ni l’époque', () => {
+test('a light reset identically raises neither its revision nor the epoch', () => {
   const store = createSceneLightStore();
   const slot = store.add({ ...LAMPE });
   const epoch = store.epoch,
     revision = store.revision[slot];
-  // Les tableaux sont de nouvelles instances : c'est l'égalité des valeurs qui doit trancher.
+  // The arrays are new instances: value equality must decide.
   for (let i = 0; i < 10; i++)
     store.set('l0', { position: [1, 2, 3], color: [1, 0.5, 0.25], intensity: 4, range: 10 });
-  assert.equal(store.epoch, epoch, 'dix mutations identiques, aucune époque publiée');
-  assert.equal(store.revision[slot], revision, 'et aucune page d’ombre périmée');
+  assert.equal(store.epoch, epoch, 'ten identical mutations, no epoch published');
+  assert.equal(store.revision[slot], revision, 'and no shadow page staled');
 });
 
-test('un seul nombre qui change publie bien le changement', () => {
+test('a single number that changes does publish the change', () => {
   const store = createSceneLightStore();
   const slot = store.add({ ...LAMPE });
   const epoch = store.epoch,
@@ -38,38 +38,38 @@ test('un seul nombre qui change publie bien le changement', () => {
   assert.equal(store.epoch, epoch + 1);
   assert.equal(store.revision[slot], revision + 1);
   assert.equal(store.light('l0')!.intensity, 4.5);
-  // Une composante de tableau compte autant qu'un champ simple.
+  // An array component counts as much as a simple field.
   store.set('l0', { position: [1, 2, 3.5] });
   assert.equal(store.epoch, epoch + 2);
   assert.deepEqual(store.light('l0')!.position, [1, 2, 3.5]);
 });
 
-test('une extinction par le drapeau d’ombre reste un changement', () => {
+test('turning off via the shadow flag remains a change', () => {
   const store = createSceneLightStore();
   store.add({ ...LAMPE });
   const epoch = store.epoch;
   store.set('l0', { castsShadow: false });
   assert.equal(store.epoch, epoch + 1);
   store.set('l0', { castsShadow: false });
-  assert.equal(store.epoch, epoch + 1, 'reposé deux fois, publié une seule');
+  assert.equal(store.epoch, epoch + 1, 'reset twice, published once');
 });
 
-test('l’environnement suit la même règle que les lampes', () => {
+test('the environment follows the same rule as the lights', () => {
   const store = createSceneLightStore();
   store.setEnvironment({ exposure: 1.5 });
   const epoch = store.epoch;
   store.setEnvironment({ exposure: 1.5 });
-  assert.equal(store.epoch, epoch, 'une exposition reposée telle quelle ne périme pas l’image');
+  assert.equal(store.epoch, epoch, 'an exposure reset as-is does not stale the frame');
   store.setEnvironment({ exposure: 1.6 });
   assert.equal(store.epoch, epoch + 1);
   assert.equal(store.environment!.exposure, 1.6);
 });
 
-test('la vue éclairée sans lampe n’est plus une vue d’albédo', () => {
+test('the lit view without a light is no longer an albedo view', () => {
   const store = createSceneLightStore();
-  assert.equal(store.unlit, true, 'auto sans lampe : albédo brut, c’est le défaut');
+  assert.equal(store.unlit, true, 'auto without a light: raw albedo, that is the default');
   store.setView('lit');
-  assert.equal(store.unlit, false, 'lit demandée explicitement : le contrat éclaire, donc noir');
+  assert.equal(store.unlit, false, 'lit asked explicitly: the contract lights, hence black');
   store.setView('unlit');
   assert.equal(store.unlit, true);
 });

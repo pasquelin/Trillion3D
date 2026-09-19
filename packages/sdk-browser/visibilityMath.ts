@@ -74,7 +74,7 @@ export function attr2(
   ];
 }
 
-/** Le texel d'un axe par la règle entière de l'échantillonneur : le miroir replie deux périodes. */
+/** Texel of an axis by the sampler's integer rule: mirror folds two periods. */
 export function wrapTexel(t: number, size: number, wrap: THREE.Wrapping) {
   const p = wrap === THREE.MirroredRepeatWrapping ? 2 : 1;
   const scaled =
@@ -83,8 +83,8 @@ export function wrapTexel(t: number, size: number, wrap: THREE.Wrapping) {
   return Math.min(size - 1, Math.max(0, i < size ? i : 2 * size - 1 - i));
 }
 
-/** sRGB → linéaire n'a que 256 antécédents possibles : un octet de texture divisé par 255. La table
- *  porte exactement les valeurs que le calcul par pixel produisait, sur les mêmes opérandes. */
+/** sRGB → linear has only 256 possible antecedents: a texture byte divided by 255. The table
+ *  carries exactly the values the per-pixel computation produced, on the same operands. */
 const SRGB8_LINEAIRE = new Float64Array(256);
 for (let octet = 0; octet < 256; octet++) SRGB8_LINEAIRE[octet] = srgbToLinear(octet / 255);
 
@@ -92,7 +92,7 @@ export function linearToSrgb8(c: number) {
   return Math.max(0, Math.min(255, Math.round(linearToSrgb(c) * 255)));
 }
 
-/** Le rang du texel dans l'image, pas ses composantes : c'est l'octet qui indexe la table sRGB. */
+/** Rank of the texel in the image, not its components: that byte indexes the sRGB table. */
 function texelAt(
   image: { width: number; height: number },
   map: THREE.Texture,
@@ -123,14 +123,14 @@ export function sampleLinear(map: THREE.Texture, u: number, v: number): [number,
   return [d[i] / 255, d[i + 1] / 255, d[i + 2] / 255];
 }
 
-/** Polynôme ×31 par points de code. `hashId` (backendCommon.ts) parcourt les unités UTF-16 : même
- *  polynôme, deux parcours, deux résultats hors du plan de base — pas deux copies d'un seul. */
+/** ×31 polynomial by code points. `hashId` (backendCommon.ts) walks UTF-16 units: same
+ *  polynomial, two walks, two results outside the BMP — not two copies of one. */
 export function clusterHash(id: string) {
   return Array.from(id).reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0, 0);
 }
 
-/** Miroir CPU des dérivées d'UV du nuanceur d'ombrage (`visibilityShaderShade.ts`) : mêmes
- *  quotients, même ordre, deux langages — le texte ne se partage pas entre TypeScript et WGSL. */
+/** CPU mirror of the shading shader's UV derivatives (`visibilityShaderShade.ts`): same
+ *  quotients, same order, two languages — the text is not shared between TypeScript and WGSL. */
 export function uvDerivatives(
   a: Projected,
   b: Projected,

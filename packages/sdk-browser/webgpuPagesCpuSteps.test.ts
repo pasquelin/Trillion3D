@@ -1,12 +1,12 @@
-// Les bornes que l'hôte relève après le rendu appartiennent à l'image qui vient de se dessiner :
-// la ligne du profil n'est donc classée qu'à la fin de l'image, et seulement si elle a été remplie.
+// Bounds the host samples after the render belong to the image that just drew: the profile row is
+// therefore filed only at the end of the image, and only if it was filled.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createCpuStepProfile } from './cpuProfile.ts';
 import { CPU_STEP, CPU_STEP_NAMES, endCpuFrame, hostCpuStep } from './webgpuPagesCpuSteps.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Ce que la clôture d'image lit, et rien d'autre : un profil, un drapeau, un numéro d'image. */
+/** What image close reads, and nothing else: a profile, a flag, an image number. */
 function banc() {
   const timing = {
     cpuProfile: createCpuStepProfile(CPU_STEP_NAMES),
@@ -24,7 +24,7 @@ function banc() {
   return { rt, timing };
 }
 
-test('les quatre bornes de l’hôte ont chacune leur place dans la ligne du profil', () => {
+test('the four host bounds each have their place in the profile row', () => {
   const { rt, timing } = banc();
   hostCpuStep(rt, 'arrivalsMs', 0.5);
   hostCpuStep(rt, 'pendingMs', 1.25);
@@ -46,15 +46,15 @@ test('les quatre bornes de l’hôte ont chacune leur place dans la ligne du pro
       CPU_STEP.totalMs,
     ]).size,
     7,
-    'aucune borne n’écrit sur la place d’une autre',
+    "no bound writes over another's slot",
   );
 });
 
-test('une image qui n’a pas rempli sa ligne ne dépose rien, une image remplie la dépose une fois', () => {
+test('an image that has not filled its row deposits nothing, a filled image deposits it once', () => {
   const { rt, timing } = banc();
   hostCpuStep(rt, 'pendingMs', 1.25);
   endCpuFrame(rt);
-  assert.equal(timing.cpuProfile.summary(), null, 'une coupe processeur ne classe aucune ligne');
+  assert.equal(timing.cpuProfile.summary(), null, 'a CPU cut files no row');
 
   timing.cpuProfile.row[CPU_STEP.worldMs] = 0.5;
   timing.cpuProfile.row[CPU_STEP.totalMs] = 4;
@@ -62,8 +62,8 @@ test('une image qui n’a pas rempli sa ligne ne dépose rien, une image remplie
   endCpuFrame(rt);
   endCpuFrame(rt);
   const resume = timing.cpuProfile.summary();
-  assert.equal(resume?.frames, 1, 'la ligne est classée une fois, pas deux');
-  assert.equal(resume?.steps.pendingMs.p50, 1.25, 'la borne de l’hôte est dans l’image');
+  assert.equal(resume?.frames, 1, 'the row is filed once, not twice');
+  assert.equal(resume?.steps.pendingMs.p50, 1.25, 'the host bound is in the image');
   assert.equal(resume?.steps.worldMs.p50, 0.5);
   assert.equal(resume?.worst[0].frame, 7);
 });

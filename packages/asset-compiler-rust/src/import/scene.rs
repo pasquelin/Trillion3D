@@ -21,16 +21,16 @@ impl<'a> Importer<'a> {
             .and_then(|s| s.to_str())
             .unwrap_or("source")
             .to_string();
-        // Les URI d'images écrites ici sont relatives à cette racine, et c'est sous elle que le
-        // compilateur relira les octets pour en calculer les aperçus : une seule règle, partagée.
+        // Image URIs written here are relative to this root, under which
+        // compiler re-reads bytes to compute previews: single shared rule.
         let source_dir = crate::plugins::scene::image_root(file);
         let canonical_dir = normalise(&source_dir);
         let progress = self.progress;
         let cancelled = self.cancelled;
         let externals = &self.externals;
         let opened_before = externals.opened();
-        // Toute ouverture passe par nous : c'est là qu'on apprend quels fichiers la scène entraîne,
-        // et leur empreinte entre dans la clé du cache.
+        // All opens go through us: where we learn which files scene pulls in,
+        // and their fingerprint enters cache key.
         let open = move |path: &str, info: &ufbx::OpenFileInfo| externals.open(path, info);
         let label = file_name.clone();
         let callback = move |p: &ufbx::Progress| -> ufbx::ProgressResult {
@@ -66,9 +66,9 @@ impl<'a> Importer<'a> {
         };
         let scene = ufbx::load_memory(mapped, opts).map_err(|e| import_error(&e))?;
         let parse_ms = crate::shared_math::elapsed_ms(started);
-        // Une bibliothèque de matériaux absente ou coupée porte désormais un code nommé et compté ;
-        // son avertissement libre ferait doublon, et son texte nomme un chemin de la machine. Le
-        // lecteur n'avertit que pour un fichier que la source cite : c'est là notre « déclarée ».
+        // Missing or truncated material library now carries named counted code;
+        // free warning would duplicate, text names machine path.
+        // Reader warns only for file cited by source: our "declared" file.
         let declared = scene
             .metadata
             .warnings

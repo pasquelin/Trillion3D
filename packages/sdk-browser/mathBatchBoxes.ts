@@ -3,30 +3,27 @@ import { createBoxTransformLot, type BoxTransformLot } from './mathBatchRuntime.
 import type { ClusterRoot, PageRec } from './pageSelectionTypes.ts';
 
 /**
- * Les boîtes monde calculées EN LOT : les deux outils que partagent les sites qui unissent des
- * bornes (`exactPagesBounds.ts`, `hostWorldBounds.ts`), et le tampon des racines de sélection.
+ * World boxes computed IN BATCHES: two utilities shared by sites uniting bounds
+ * (`exactPagesBounds.ts`, `hostWorldBounds.ts`), and the buffer of selection roots.
  *
- * Les boîtes monde des racines de sélection, calculées EN LOT par le gouverneur : un seul tampon
- * réservé à la préparation, et plus une allocation ensuite. Le chargement le joue une fois sur
- * toutes les racines ; un déplacement de nœud (R8) réécrit les matrices des seules racines déplacées
- * et le rejoue. Les racines que le déplacement n'atteint pas repassent par le noyau avec les mêmes
- * entrées qu'à la réservation : leur sortie est ignorée, et rien d'autre ne la lit.
+ * World boxes of selection roots, computed IN BATCHES by governor: single buffer
+ * allocated during setup, zero allocation afterward. Loading runs it once on all roots;
+ * node transformation (R8) updates matrices of affected roots and re-runs. Unchanged roots
+ * pass through kernel with same inputs as reservation: their output is ignored.
  *
- * LES BOÎTES DES RACINES RESTENT DES TABLEAUX JAVASCRIPT : ce sont celles que la collecte a écrites
- * sur chaque racine, et elles sont recopiées dans le tampon. La mémoire linéaire du module est celle
- * du décodeur de pages : un décodage replié sur le fil principal (`pageDecodeHost.ts`) y réserve et
- * peut la faire grandir au milieu d'une image. Le tampon y survit — `wasmArena.ts` reconstruit ses
- * vues sur les mêmes octets, aux mêmes offsets —, et `holds()` ne rend la main au chemin JavaScript
- * que lorsque le tampon a vraiment été rendu ou qu'il ne porte pas ce nombre de racines.
+ * ROOT BOXES REMAIN JAVASCRIPT ARRAYS: written during collection on each root, copied
+ * into buffer. Linear module memory belongs to page decoder: main thread decoding
+ * (`pageDecodeHost.ts`) allocates and may grow mid-frame. Buffer survives — `wasmArena.ts`
+ * rebuilds views on same bytes/offsets —, and `holds()` falls back to JS only when buffer
+ * released or root count changed.
  */
 
-/** Le lot quand il porte bien `n` boîtes, `null` sinon : l'appelant repasse alors boîte par boîte,
- *  par le même noyau et sur les mêmes entrées. */
+/** Batch when holding exactly `n` boxes, `null` otherwise: caller falls back box by box. */
 function lotBoxesReady(lot: BoxTransformLot | null | undefined, n: number) {
   return lot?.holds(n) ? lot : null;
 }
 
-/** Union dans `into` des `n` premières boîtes que le lot vient de rendre. */
+/** Union into `into` of first `n` boxes produced by batch. */
 function unionLotBoxes(into: Float64Array, lot: BoxTransformLot, n: number) {
   const out = lot.out;
   for (let at = 0; at < n * BOX_VALUES; at += BOX_VALUES)
@@ -34,15 +31,13 @@ function unionLotBoxes(into: Float64Array, lot: BoxTransformLot, n: number) {
 }
 
 /**
- * L'union des bornes monde d'une énumération de boîtes LOCALES, quelle qu'elle soit.
+ * Union of world bounds of any enumeration of LOCAL boxes.
  *
- * Les sites qui unissent des bornes — les pages exactes d'un maillage, les boîtes d'un sous-arbre —
- * ne diffèrent que par ce qu'ils énumèrent et par la façon d'écrire six flottants. La bascule
- * lot/unitaire, le comptage, le `run()` et l'union finale sont la même mécanique : elle est écrite
- * ici une fois, pour qu'une évolution du chemin en lot n'ait pas à être faite deux fois.
+ * Sites uniting bounds — exact pages of mesh, subtree boxes — differ only in what they enumerate
+ * and how 6 floats are written. Batch/single toggle, counting, `run()` and final union are
+ * identical logic written once here.
  *
- * L'appelant écrit sa boîte locale dans `boxes` à `at`, puis appelle `pose(world)`. `ferme()` rend
- * `into`.
+ * Caller writes local box into `boxes` at `at`, calls `pose(world)`. `ferme()` returns `into`.
  */
 export function boxUnionCollector(
   into: Float64Array,
@@ -53,15 +48,15 @@ export function boxUnionCollector(
   const seule = new Float64Array(BOX_VALUES);
   let i = 0;
   return {
-    /** Le tampon où écrire la boîte locale : celui du lot, ou la boîte de passage. */
+    /** Buffer to write local box: batch buffer, or single pass-through box. */
     get boxes() {
       return enLot ? enLot.boxes : seule;
     },
-    /** Le rang où l'écrire dans `boxes`. */
+    /** Index where to write in `boxes`. */
     get at() {
       return enLot ? i * BOX_VALUES : 0;
     },
-    /** La boîte qui vient d'être écrite part avec sa matrice monde : en lot, ou seule. */
+    /** Box just written paired with world matrix: in batch or single. */
     pose(world: ArrayLike<number>) {
       if (enLot) {
         enLot.mats.set(world, i++ * MATRIX_VALUES);
@@ -70,7 +65,7 @@ export function boxUnionCollector(
       boxTransform(seule, 0, seule, 0, world);
       boxUnion(into, 0, seule[0], seule[1], seule[2], seule[3], seule[4], seule[5]);
     },
-    /** Joue le lot s'il y en a un, puis rend l'union. */
+    /** Runs batch if available, then returns union. */
     ferme() {
       if (enLot) {
         enLot.run();
@@ -81,13 +76,13 @@ export function boxUnionCollector(
   };
 }
 
-/** Boîte locale et matrice monde de la racine `i` écrites dans le lot. */
+/** Local box and world matrix of root `i` written to batch. */
 function ecrit(lot: BoxTransformLot, i: number, root: ClusterRoot<PageRec>) {
   lot.boxes.set(root.localBox!, i * BOX_VALUES);
   lot.mats.set(root.world.elements, i * MATRIX_VALUES);
 }
 
-/** Boîte monde de la racine `i` relue du lot. */
+/** World box of root `i` re-read from batch. */
 function relit(lot: BoxTransformLot, i: number, root: ClusterRoot<PageRec>) {
   const out = lot.out,
     box = root.worldBox!,
@@ -96,9 +91,8 @@ function relit(lot: BoxTransformLot, i: number, root: ClusterRoot<PageRec>) {
 }
 
 /**
- * Réserve le lot des racines et le joue une première fois : les boîtes monde qu'il rend sont celles
- * que la collecte a déjà calculées, aux mêmes bits. `null` quand il n'y a rien à calculer ou qu'une
- * racine ne déclare pas ses boîtes — l'appelant reste alors sur le chemin JavaScript.
+ * Reserves root batch and runs first pass: world boxes returned equal those computed by collection.
+ * `null` when nothing to compute or root misses box declarations — caller remains on JS path.
  */
 export async function reserveRootBoxes(roots: readonly ClusterRoot<PageRec>[]) {
   if (!roots.length || roots.some((root) => !root.localBox || !root.worldBox)) return null;
@@ -110,13 +104,12 @@ export async function reserveRootBoxes(roots: readonly ClusterRoot<PageRec>[]) {
   return lot;
 }
 
-/** Les racines retenues par le dernier rejeu, une fois par racine : le prédicat remonte la hiérarchie. */
+/** Roots retained by last replay: predicate traverses hierarchy. */
 let moved = new Uint8Array(0);
 
 /**
- * Rejoue le lot pour les racines que `deplacee` retient. Rend `false` quand le tampon n'est plus
- * jouable — rendu, ou d'une autre taille : l'appelant reprend alors le calcul boîte par boîte, avec
- * le même résultat.
+ * Replays batch for roots retained by `deplacee`. Returns `false` when buffer unplayable
+ * (released or size changed): caller falls back box by box with identical result.
  */
 export function transformRootBoxes(
   lot: BoxTransformLot,

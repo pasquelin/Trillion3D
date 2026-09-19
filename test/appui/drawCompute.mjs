@@ -15,12 +15,12 @@ export function setupCompute(device, module, cap, bindEntries, slots, drawItemU3
   const instRead = makeBuffer(cap * 4, readUsage),
     cmdRead = makeBuffer(96, readUsage),
     offsetRead = makeBuffer(24, readUsage);
-  // `restBits` porte un bit par item — `rest` a quitté la structure pour ce champ —, et `slotUsed`
-  // part à un partout, comme le tampon de production : un slot à zéro ne compacte rien.
+  // `restBits` carries one bit per item — `rest` left the structure for this field — and `slotUsed`
+  // starts at one everywhere, like the production buffer: a zero slot compacts nothing.
   const restBits = makeBuffer(Math.max(4, Math.ceil(cap / 32) * 4));
   const slotUsed = makeBuffer(slots * 4);
   device.queue.writeBuffer(slotUsed, 0, new Uint32Array(slots).fill(1));
-  // La disposition n'est pas recopiée : elle vient de `drawBindEntries()`, sous le WGSL.
+  // The layout is not copied: it comes from `drawBindEntries()`, under the WGSL.
   const layout = device.createBindGroupLayout({ entries: bindEntries });
   const group = device.createBindGroup({
     layout,

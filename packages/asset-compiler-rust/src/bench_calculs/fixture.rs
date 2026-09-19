@@ -1,6 +1,6 @@
-//! Compilation des cinq fixtures dorées : temps de bout en bout, chronomètres de `perf.rs`, et
-//! empreinte octet par octet de tout ce que le compilateur écrit. Le même fichier est produit avant
-//! et après les optimisations ; deux exécutions identiques ont exactement les mêmes empreintes.
+//! Byte-by-byte fingerprint of everything the compiler writes. The same file is
+//! produced before and after the optimisations; two identical runs have exactly
+//! the same fingerprints.
 use super::rapport::{mesures_dir, today};
 use crate::compiler_validate::hash;
 use crate::{compile, Options};
@@ -17,7 +17,7 @@ const NAMES: [&str; 5] = [
     "blend-overlay",
 ];
 
-/// Chemin relatif et empreinte de chaque fichier du dossier, trié : la comparaison est totale.
+/// Relative path and fingerprint of every file in the folder, sorted: the comparison is total.
 fn digests(root: &Path, base: &Path, into: &mut Vec<(String, String)>) {
     let Ok(entries) = std::fs::read_dir(base) else {
         return;
@@ -38,8 +38,8 @@ fn digests(root: &Path, base: &Path, into: &mut Vec<(String, String)>) {
     }
 }
 
-/// Le manifeste allégé sans ce qui dépend de la machine ou de la version du code : ce qui reste doit
-/// être identique au bit près d'une version à l'autre.
+/// The slim manifest without what depends on the machine or the code version: what
+/// remains must be bit-identical from one version to the next.
 fn stable(mut manifest: Value) -> Value {
     if let Some(object) = manifest.as_object_mut() {
         object.remove("metrics");
@@ -57,7 +57,7 @@ fn compile_one(name: &str) -> (f64, Value) {
         std::process::id(),
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .expect("horloge")
+            .expect("clock")
             .as_nanos()
     ));
     let options = Options {
@@ -74,7 +74,7 @@ fn compile_one(name: &str) -> (f64, Value) {
     let started = Instant::now();
     let result = compile(&options, |_| {}).unwrap_or_else(|e| panic!("{name} : {e}"));
     let ms = started.elapsed().as_secs_f64() * 1000.0;
-    let key = result["key"].as_str().expect("clé").to_string();
+    let key = result["key"].as_str().expect("key").to_string();
     let directory = options.cache.join("native").join("full").join(&key);
     let mut files: Vec<(String, String)> = Vec::new();
     digests(&directory, &directory, &mut files);
@@ -85,8 +85,8 @@ fn compile_one(name: &str) -> (f64, Value) {
         &std::fs::read(directory.join("clusters.json")).expect("clusters.json"),
     )
     .expect("clusters.json est du JSON");
-    // Les phases appartiennent au travail qui les a dépensées : le relevé les porte par fixture,
-    // puisqu'aucun compteur ne les additionne plus d'une compilation à l'autre.
+    // Phases belong to the job that spent them: the survey carries them per fixture,
+    // since no counter adds them up from one compilation to another.
     let record = json!({"fixture":name,"ms":ms,"phasesMs":result["metrics"]["phaseElapsedMs"],
       "manifesteAllege":hash(serde_json::to_vec(&stable(slim)).expect("manifeste").as_slice()),
       "fichiers":files.iter().map(|(n,d)|json!([n,d])).collect::<Vec<Value>>(),
@@ -95,7 +95,7 @@ fn compile_one(name: &str) -> (f64, Value) {
     (ms, record)
 }
 
-/// Compile les cinq fixtures et dépose le relevé dans `.mesure/out/calculs/`.
+/// Compiles the five fixtures and writes the survey to `.mesure/out/calculs/`.
 pub(crate) fn run() -> (f64, String) {
     let label = std::env::var("WG_BANC_LABEL").unwrap_or_else(|_| "banc".into());
     let mut total = 0.0;

@@ -1,21 +1,21 @@
-//! Un nuanceur de surface de Maya vers un matériau glTF `pbrMetallicRoughness`.
+//! A Maya surface shader into a glTF `pbrMetallicRoughness` material.
 //!
-//! **Un attribut absent n'est pas remplacé par la valeur par défaut de l'interface de Maya, mais
-//! par la valeur neutre de glTF** : le fichier ne l'écrit pas, et ce pilote ne l'invente pas. Ce qui
-//! est écrit, en revanche, est lu selon le modèle du nuanceur : `lambert` est une surface
-//! entièrement diffuse, donc de rugosité un ; la puissance de cosinus d'un `phong` donne la
-//! rugosité par `√(2 / (n + 2))`, la relation usuelle entre le lobe de Blinn-Phong et celui de
-//! `pbrMetallicRoughness` ; l'excentricité d'un `blinn` est déjà une largeur de lobe et se lit
-//! comme une rugosité. Aucun de ces trois nuanceurs ne décrit un métal : leur métallicité est nulle.
-//! `standardSurface` porte les deux grandeurs directement.
+//! **A missing attribute is not replaced by Maya's UI default, but by glTF's neutral value**: the
+//! file does not write it, and this driver does not invent it. What is written, on the other
+//! hand, is read according to the shader model: `lambert` is a fully diffuse surface, so
+//! roughness one; a `phong` cosine power yields roughness by `√(2 / (n + 2))`, the usual
+//! relation between the Blinn-Phong lobe and that of `pbrMetallicRoughness`; a `blinn`
+//! eccentricity is already a lobe width and is read as roughness. None of these three shaders
+//! describes a metal: their metallic is zero. `standardSurface` carries both quantities
+//! directly.
 //!
-//! La transparence suit la sémantique du nuanceur et non un type d'objet : une opacité inférieure à
-//! un, ou portée par une image, fait un mélange (`BLEND`) ; rien de tout cela laisse la surface
-//! opaque. Aucun nuanceur de Maya ne déclare de seuil de découpe, donc jamais `MASK` — découper un
-//! transparent serait une perte de fidélité.
+//! Transparency follows the shader's semantics, not an object type: an opacity below one, or
+//! carried by an image, makes a blend (`BLEND`); none of that leaves the surface opaque. No
+//! Maya shader declares a cutoff threshold, so never `MASK` — cutting a transparent would be a
+//! fidelity loss.
 use super::*;
 
-/// Le matériau glTF de ce nuanceur, versé dans les tables à sa première demande.
+/// glTF material of this shader, poured into the tables on first request.
 pub(super) fn resolve(world: &mut World<'_>, shader: usize) -> Option<usize> {
     if let Some(known) = world.materials.get(&shader) {
         return *known;
@@ -28,8 +28,8 @@ pub(super) fn resolve(world: &mut World<'_>, shader: usize) -> Option<usize> {
     built
 }
 
-/// Construit le matériau. Un nuanceur hors des quatre lus est compté, et la surface reste sans
-/// matériau plutôt que d'en recevoir un inventé.
+/// Builds the material. A shader outside the four that are read is counted, and the surface
+/// stays without a material rather than receiving an invented one.
 fn build(world: &mut World<'_>, shader: usize) -> Option<usize> {
     let (document, graph) = (world.document, world.graph);
     let node = &document.nodes[shader];
@@ -69,10 +69,10 @@ fn build(world: &mut World<'_>, shader: usize) -> Option<usize> {
     Some(world.scene.materials.len() - 1)
 }
 
-/// La couleur de base, et la texture qui la porte quand une image y est branchée. glTF multiplie sa
-/// texture par son facteur : le facteur ne porte donc que ce que la texture ne dit pas, c'est-à-dire
-/// le poids scalaire — `base` ou `diffuse` — qui multiplie la couleur du nuanceur. Une image
-/// remplace la couleur, jamais son poids.
+/// Base colour, and the texture that carries it when an image is wired onto it. glTF multiplies
+/// its texture by its factor: the factor therefore carries only what the texture does not say,
+/// that is the scalar weight — `base` or `diffuse` — that multiplies the shader colour. An
+/// image replaces the colour, never its weight.
 fn base(world: &mut World<'_>, shader: usize, standard: bool, pbr: &mut Value) -> [f64; 3] {
     let document = world.document;
     let names: &[&str] = match standard {
@@ -95,9 +95,9 @@ fn base(world: &mut World<'_>, shader: usize, standard: bool, pbr: &mut Value) -
     colour.map(|channel| (channel * weight).clamp(0.0, 1.0))
 }
 
-/// L'émission de la surface : l'incandescence d'un `lambert`, `phong` ou `blinn`, la couleur
-/// d'émission d'un `standardSurface` multipliée par son poids. Le poids vaut aussi quand une image
-/// porte la couleur : c'est lui, et non le blanc, que `emissiveFactor` porte alors.
+/// Surface emission: incandescence of a `lambert`, `phong` or `blinn`, the emission colour of a
+/// `standardSurface` multiplied by its weight. The weight also holds when an image carries the
+/// colour: it is that, not white, that `emissiveFactor` then carries.
 fn emission(world: &mut World<'_>, shader: usize, standard: bool, out: &mut Value) {
     let document = world.document;
     let names: &[&str] = match standard {
@@ -127,9 +127,9 @@ fn emission(world: &mut World<'_>, shader: usize, standard: bool, out: &mut Valu
     }
 }
 
-/// L'alpha de la surface, et si ses trois canaux diffèrent. Maya décrit la transparence en couleur :
-/// glTF n'a qu'un canal, et c'est la moyenne des trois qui est portée plutôt qu'un canal choisi au
-/// hasard. L'écart est compté par son nom.
+/// Surface alpha, and whether its three channels differ. Maya describes transparency as a
+/// colour: glTF has only one channel, and it is the mean of the three that is carried rather
+/// than a channel picked at random. The mismatch is counted by name.
 fn alpha(node: &Node, standard: bool) -> (f64, bool) {
     let names: &[&str] = match standard {
         true => &["o", "opacity"],
@@ -147,7 +147,7 @@ fn alpha(node: &Node, standard: bool) -> (f64, bool) {
     (alpha.clamp(0.0, 1.0), uneven)
 }
 
-/// La rugosité que le modèle du nuanceur donne.
+/// Roughness that the shader model yields.
 fn roughness(node: &Node) -> f64 {
     match node.kind.as_str() {
         "lambert" => 1.0,
@@ -161,13 +161,13 @@ fn roughness(node: &Node) -> f64 {
     }
 }
 
-/// Le nombre de l'un de ces attributs, ou la valeur neutre quand le fichier ne l'écrit pas.
+/// Number of one of these attributes, or the neutral value when the file does not write it.
 fn number(node: &Node, names: &[&str], neutral: f64) -> f64 {
     node.attr(names).and_then(Attr::scalar).unwrap_or(neutral)
 }
 
-/// Une image branchée sur l'opacité ou la transparence. glTF ne porte l'opacité que dans l'alpha de
-/// la couleur de base : une seconde image ne s'y branche pas, elle est comptée.
+/// An image wired onto opacity or transparency. glTF carries opacity only in the alpha of the
+/// base colour: a second image does not wire onto it, it is counted.
 fn opacity_texture(world: &mut World<'_>, shader: usize, standard: bool) -> bool {
     let names: &[&str] = match standard {
         true => &["o", "opacity"],

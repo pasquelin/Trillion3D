@@ -1,20 +1,20 @@
-//! La normale d'un nuanceur de Maya : ce que `normalCamera` reçoit, et ce que glTF en porte.
+//! A Maya shader's normal: what `normalCamera` receives, and what glTF carries of it.
 //!
-//! Maya branche un `bump2d` sur `normalCamera`, et ce nœud lit son image de deux façons que rien ne
-//! distingue dans les octets : `bumpInterp` le dit. Zéro fait un **relief de hauteur**, dont la
-//! valeur est une altitude que Maya dérive pour éclairer ; un fait une **carte de normales en
-//! espace tangent**, celle que `normalTexture` de glTF attend ; deux fait des normales en espace
-//! objet, qu'il faudrait reprojeter par la pose de la surface. Seul le mode tangent passe donc tel
-//! quel : accrocher une hauteur à `normalTexture` éclaire la surface par une image qui ne dit rien
-//! de son orientation, et c'est une faute que rien ne rattrape ensuite.
+//! Maya wires a `bump2d` onto `normalCamera`, and that node reads its image in two ways that the
+//! bytes do not distinguish: `bumpInterp` says which. Zero is a **height bump**, whose value is an
+//! altitude Maya derives to light; one is a **tangent-space normal map**, the one glTF's
+//! `normalTexture` expects; two is object-space normals, which would need reprojecting by the
+//! surface pose. Only the tangent mode therefore passes through: attaching a height to
+//! `normalTexture` lights the surface from an image that says nothing about its orientation, a
+//! mistake nothing later can recover.
 use super::*;
 
-/// Le mode `bumpInterp` des normales en espace tangent, et celui des normales en espace objet.
+/// The `bumpInterp` mode for tangent-space normals, and the one for object-space normals.
 const TANGENT: f64 = 1.0;
 const OBJECT: f64 = 2.0;
 
-/// La texture de normales branchée sur `normalCamera`, quand il y en a une. L'image d'un `bump2d`
-/// est son entrée `bumpValue` ; toute autre source est lue comme une texture directe.
+/// The normal texture wired onto `normalCamera`, when there is one. A `bump2d`'s image is its
+/// `bumpValue` input; any other source is read as a direct texture.
 pub(super) fn through_bump(world: &mut World<'_>, shader: usize) -> Option<Value> {
     let (document, graph) = (world.document, world.graph);
     let (source, _) = graph.input(shader, &["n", "normalCamera"])?;
@@ -34,8 +34,8 @@ pub(super) fn through_bump(world: &mut World<'_>, shader: usize) -> Option<Value
         return None;
     }
     let mut texture = texture::connected(world, source, &["bv", "bumpValue"])?;
-    // `bumpDepth` est la force du relief, et `scale` est celle de `normalTexture` : même grandeur,
-    // même place dans le produit, donc elle passe telle quelle.
+    // `bumpDepth` is the bump strength, and `scale` is that of `normalTexture`: same quantity,
+    // same place in the product, so it passes through as-is.
     let depth = node
         .attr(&["bd", "bumpDepth"])
         .and_then(Attr::scalar)

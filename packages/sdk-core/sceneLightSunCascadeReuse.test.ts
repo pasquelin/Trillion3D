@@ -1,5 +1,5 @@
-// `cascadeChanged` : une caméra immobile, ou un pas plus petit qu'un texel, garde les cascades du
-// soleil ; dès que la fenêtre monde bouge, la cascade repart entière.
+// `cascadeChanged`: a still camera, or a step smaller than a texel, keeps the sun
+// cascades; as soon as the world window moves, the cascade restarts in full.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from './sceneLightStore.ts';
@@ -35,10 +35,10 @@ function settle(
     plan.plan(store, view, frame, frame * 16);
     if (plan.counts.pendingPages === 0) return frame + 1;
   }
-  throw new Error(`cascades encore en attente après ${frame} images`);
+  throw new Error(`cascades still pending after ${frame} frames`);
 }
 
-test('caméra immobile : après la première capture, plus aucune page du soleil ne repart', () => {
+test('still camera: after the first capture, no sun page restarts', () => {
   const store = createSceneLightStore();
   const plan = createShadowPlan(24);
   store.add(SUN);
@@ -50,7 +50,7 @@ test('caméra immobile : après la première capture, plus aucune page du soleil
   assert.equal(plan.regions.count, 0);
 });
 
-test('un pas plus petit qu’un texel de la cascade proche ne périme rien', () => {
+test('a step smaller than a texel of the near cascade stales nothing', () => {
   const store = createSceneLightStore();
   const plan = createShadowPlan(24);
   store.add(SUN);
@@ -63,11 +63,11 @@ test('un pas plus petit qu’un texel de la cascade proche ne périme rien', () 
     position: [VIEW.position[0] + texel * 0.25, VIEW.position[1], VIEW.position[2]],
   };
   plan.plan(store, nudged, next, next * 16);
-  assert.equal(plan.counts.invalidatedPages, 0, 'la fenêtre monde est la même');
+  assert.equal(plan.counts.invalidatedPages, 0, 'the world window is the same');
   assert.equal(plan.counts.reused, 1);
 });
 
-test('un déplacement qui change la fenêtre monde périme la cascade entière, pas une bande', () => {
+test('a move that changes the world window stales the whole cascade, not a strip', () => {
   const store = createSceneLightStore();
   const plan = createShadowPlan(24);
   store.add(SUN);
@@ -77,6 +77,6 @@ test('un déplacement qui change la fenêtre monde périme la cascade entière, 
     position: [VIEW.position[0] + 40, VIEW.position[1], VIEW.position[2] + 40],
   };
   plan.plan(store, moved, next, next * 16);
-  assert.ok(plan.counts.invalidatedPages > 0, 'la fenêtre a glissé : des pages repartent');
+  assert.ok(plan.counts.invalidatedPages > 0, 'the window has slid: pages restart');
   assert.equal(plan.counts.reused, 0);
 });

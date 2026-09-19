@@ -1,9 +1,9 @@
-// La rasterisation réellement exécutée dans Chromium WebGPU, avec l'état de face du moteur : le
-// `cullMode:'back'` de `webgpuPagesPipelines` et le `frontFace` que `pipelineFor` choisit par
-// `windingCw` — donc le sens de parcours inversé sous réflexion, comme Three le fait en WebGL
-// (`frontFaceCW = matrixWorld.determinant() < 0`). La seule mesure est le nombre de fragments
-// couverts par cas : l'ensemble des faces que le moteur dessine vraiment, seule vérité terrain
-// opposable à une décision de coupe. Le harnais Chromium est celui de `pageWebgpu.mjs`.
+// Rasterisation actually run in Chromium WebGPU, with the engine's face state: the
+// `cullMode:'back'` of `webgpuPagesPipelines` and the `frontFace` that `pipelineFor` picks via
+// `windingCw` — hence winding reversed under reflection, as Three does in WebGL
+// (`frontFaceCW = matrixWorld.determinant() < 0`). The only measurement is the fragment count
+// covered per case: the set of faces the engine actually draws, the only ground truth that can
+// be opposed to a cut decision. The Chromium harness is that of `pageWebgpu.mjs`.
 import { dansPageWebgpu } from './pageWebgpu.mjs';
 
 const RASTER = `struct Uni{viewProj:mat4x4f,}
@@ -17,7 +17,7 @@ struct VsOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) s
  atomicAdd(&counts[in.slot],1u);return vec4f(1.0,0.0,0.0,1.0);
 }`;
 
-/** Exécuté dans la page : deux pipelines (parcours direct, parcours inversé), un compteur par cas. */
+/** Run in the page: two pipelines (forward winding, reversed winding), one counter per case. */
 async function executer({ shader, sommets, bornes, viewProj, largeur, hauteur, slots }) {
   const appareil = await globalThis.ouvrirAppareil();
   if (!appareil) return { indisponible: 'aucun adaptateur WebGPU' };

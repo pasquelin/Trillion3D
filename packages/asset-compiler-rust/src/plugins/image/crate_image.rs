@@ -1,17 +1,18 @@
-//! Socle des pilotes servis par la crate `image`, dont les features sont déclarées une par une dans
-//! `Cargo.toml` : un format absent des features ne se décode pas, même si ses octets se devinent.
+//! Shared base of the drivers served by the `image` crate, whose features are declared one by one
+//! in `Cargo.toml`: a format missing from the features does not decode, even if its bytes can be
+//! guessed.
 //!
-//! Le format est imposé par le pilote appelant, jamais deviné ici : c'est le registre qui a désigné
-//! le pilote, et lui seul décide de ce qu'il accepte.
-//! Le plafond d'allocation porte sur l'image **rendue** : ces pilotes rendent tous du RGBA8, donc
-//! sur largeur par hauteur par quatre octets. Les dimensions se lisent dans l'entête, sous le même
-//! plafond, avant que le moindre pixel ne soit décodé : un fichier de trois octets qui s'étend à
-//! quatre passait sinon sous un plafond de trois.
+//! The format is imposed by the calling driver, never guessed here: the registry designated the
+//! driver, and it alone decides what it accepts.
+//! The allocation ceiling applies to the **returned** image: these drivers all return RGBA8, so
+//! width times height times four bytes. Dimensions are read from the header, under the same
+//! ceiling, before any pixel is decoded: a three-byte file that expands to four would otherwise
+//! pass under a ceiling of three.
 use super::{surface_budget, DecodedImage, ImageDecoded, Transfer, RGBA8_PIXEL_BYTES};
 
-/// Une animation n'est pas une texture : refusée, jamais aplatie, quel que soit le format qui la porte.
+/// An animation is not a texture: refused, never flattened, whichever format carries it.
 pub(super) const ANIMATED: &str = "image-animation-unsupported";
-/// L'image, une fois étendue en RGBA8, demande plus que le plafond d'allocation reçu.
+/// The image, once expanded to RGBA8, asks for more than the received allocation ceiling.
 const TOO_LARGE: &str = "image-too-large";
 
 pub(super) fn decode(

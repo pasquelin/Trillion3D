@@ -14,11 +14,11 @@ import type { createDagResources } from './gpuDagResources.ts';
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 
 /**
- * La résidence demandée, posée en bits : un mot pour trente-deux grappes, qui est à lui seul son
- * propre miroir — la comparaison relit le bit qu'elle s'apprête à écrire, sans tableau parallèle.
- * Seules les pages que le journal des rangs nomme sont visitées, toutes quand il n'en nomme aucune
- * de façon fiable. `touched` reçoit les rangs de mot touchés, croissants et sans répétition : ce sont
- * eux que le dessus écrit, non les pages. Rend leur nombre.
+ * Requested residency, set as bits: one word for thirty-two clusters, which is by itself its
+ * own mirror — the comparison rereads the bit it is about to write, with no parallel array.
+ * Only pages the rank journal names are visited, all of them when it names none reliably.
+ * `touched` receives the word ranks touched, increasing and without repetition: those are what
+ * the top writes, not the pages. Returns their count.
  */
 export function updateResidencyBits(
   next: Uint32Array,
@@ -79,15 +79,15 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
     state.lastReadback = undefined;
   };
   const previousWorlds = packed.worlds.slice();
-  // Les bits de résidence prolongent les enregistrements froids, dans le même tampon : la même vue
-  // sert de miroir à la comparaison et de source à l'écriture, sans tableau parallèle.
+  // Residency bits extend the cold records, in the same buffer: the same view serves as
+  // comparison mirror and write source, with no parallel array.
   const residentWord = residentBase(pageCount),
     bits = new Uint32Array(
       packed.pageCones.buffer,
       packed.pageCones.byteOffset,
       packed.pageCones.length,
     );
-  /** Les mots que la dernière application a réellement changés, et les plages qui les couvrent. */
+  /** Words the last apply actually changed, and the ranges that cover them. */
   const touched = new Int32Array(Math.max(1, residentWords(pageCount)));
   const ranges = new Int32Array(RESIDENCY_RANGE_MAX * 2);
   const dispatch = createDagDispatch(resources, state, fail);
@@ -108,8 +108,8 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
         }
       if (!changed) return false;
       // The object-to-view stretch is the primitive's own; recompute it whenever its placement moves.
-      // Une origine de repère qui se déplace ne déplace que les translations : aucun étirement ne
-      // bouge alors, et le tampon des cadres n'est pas repoussé. Lu avant la recopie du miroir.
+      // A moving frame origin only moves translations: no stretch then moves, and the frame
+      // buffer is not rewritten. Read before the mirror copy.
       const stretched = refreshWorldStretch(previousWorlds, next, packed, frameData);
       previousWorlds.set(next);
       packed.worlds.set(next);
@@ -132,9 +132,9 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       if (next.length !== pageCount) throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED');
       const count = updateResidencyBits(next, bits, residentWord, changes, touched);
       if (!count) return false;
-      // Une écriture par plage contiguë de mots, jamais une par page : ce qui part vers la carte
-      // n'est plus qu'un bit par grappe, et mille petites écritures ne valent pas la seule qu'elles
-      // remplacent.
+      // One write per contiguous word range, never one per page: what goes to the GPU is now
+      // only one bit per cluster, and a thousand small writes are not worth the single one they
+      // replace.
       const spans = coalesceResidencyRanges(touched, count, ranges);
       for (let r = 0; r < spans; r++) {
         const from = (residentWord + ranges[r * 2]) * 4,

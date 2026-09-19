@@ -3,11 +3,11 @@ import { ensurePageTable } from './webgpuPagesEncodeDraws.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
- * Ce qui fait avancer le flux d'une image : réclamer au cache les pages que la coupe veut, poser la
- * table de pages, synchroniser les rangs puis publier les drapeaux de résidence à la sélection GPU.
+ * What advances an image's stream: ask the cache for the pages the cut wants, post the page table,
+ * sync ranks then publish residency flags to GPU selection.
  *
- * Rend faux quand les identifiants de visibilité débordent : seule la coupe processeur sait alors
- * choisir un sous-ensemble représentable, et l'appelant décide de ce qu'il en dit.
+ * Returns false when visibility identifiers overflow: only the CPU cut then knows how to pick a
+ * representable subset, and the caller decides what it says about it.
  */
 export function streamCutResidency(
   rt: WebgpuPagesRuntime,
@@ -17,7 +17,7 @@ export function streamCutResidency(
   const { run, services } = rt,
     { rows } = rt.layout,
     marks = rt.timing.marks;
-  // Jamais bridée : cette coupe-ci répond au budget en grossissant son erreur écran.
+  // Never throttled: this cut meets the budget by growing its screen error.
   services.queueCutResidency(false);
   // Enumerate the bounded resident candidates once. GPU selection and compaction
   // share their page indices; no CPU frustum/LOD traversal or regrouping follows.
@@ -27,8 +27,8 @@ export function streamCutResidency(
   run.rowsSyncedFrame = run.frame;
   marks.rowsEnd = performance.now();
   if (rows.candidateOverflow) return false;
-  // Le journal des rangs nomme les pages qui viennent d'entrer ou de sortir : la comparaison des
-  // deux mille trois cents pages du DAG n'a plus lieu, et seules leurs plages sont réécrites.
+  // The rank journal names pages that just entered or left: comparing the DAG's two thousand three
+  // hundred pages no longer happens, and only their ranges are rewritten.
   if (selection.updateResidency(rows.residentFlags, rows.residencyChanges))
     run.gpuMetricsReady = false;
   rows.clearResidencyChanges();
@@ -37,15 +37,14 @@ export function streamCutResidency(
 }
 
 /**
- * L'envoi de la sélection d'une image en attente de couverture. Rien n'est dessiné depuis un relevé
- * incomplet, mais l'attente ne peut pas se contenter de le relire : sans nouvel envoi, le même
- * relevé revient à chaque image et la coupe reste bloquée sur lui, caméra immobile, même une fois
- * les octets manquants arrivés. La sélection soumet ici son propre tampon de commandes, aucune passe
- * de dessin ne l'accompagne.
+ * Sending the selection of an image waiting for coverage. Nothing is drawn from an incomplete
+ * sample, but the wait cannot settle for rereading it: without a new send, the same sample comes
+ * back every image and the cut stays stuck on it, camera still, even once the missing bytes have
+ * arrived. Selection submits its own command buffer here; no draw pass goes with it.
  *
- * Rend faux quand l'envoi échoue : l'attente n'a alors plus aucun moyen de produire le relevé qu'elle
- * espère, et l'appelant abandonne la sélection GPU comme il le fait sur le chemin complet. L'échec
- * n'est annoncé qu'ici, une seule fois par envoi perdu.
+ * Returns false when the send fails: the wait then has no way left to produce the sample it hopes
+ * for, and the caller drops GPU selection as it does on the full path. Failure is announced only
+ * here, once per lost send.
  */
 export function dispatchWaitingSelection(rt: WebgpuPagesRuntime, selection: GpuSelection) {
   try {

@@ -1,27 +1,27 @@
 import * as THREE from 'three';
 
 /**
- * Lots de clusters à tampon d'index persistant.
+ * Cluster batches with a persistent index buffer.
  *
- * Une primitive source (jeu d'attributs partagé) possède un seul tampon d'index résident. Chaque page
- * y reçoit une plage fixe quand elle devient résidente : on n'écrit que cette plage, jamais tout le
- * tampon, et l'éviction la rend à l'allocateur. La coupe visible d'une image n'est alors qu'une liste
- * de sous-dessins (starts/counts) soumise en un appel par instance via `WEBGL_multi_draw` ; Three.js
- * retombe seul sur une boucle de drawElements quand l'extension manque.
+ * A source primitive (shared attribute set) owns a single resident index buffer. Each page
+ * receives a fixed range there when it becomes resident: only that range is written, never
+ * the whole buffer, and eviction returns it to the allocator. A frame's visible cut is then
+ * only a list of sub-draws (starts/counts) submitted in one call per instance via
+ * `WEBGL_multi_draw`; Three.js falls back on its own to a drawElements loop when the extension is missing.
  *
- * Le coût d'une image ne dépend donc plus du nombre total de pages ni du changement de coupe, mais
- * seulement du nombre de pages affichées.
+ * The cost of a frame therefore no longer depends on the total page count or on the cut
+ * change, but only on the number of displayed pages.
  *
- * Limite assumée du prototype : la capacité d'une primitive est la somme des tailles de toutes ses
- * pages (exactes et grossières). Elle est donc résidente même quand la coupe n'en montre qu'une
- * partie ; borner cette capacité (et évincer des plages sous pression) reste à faire.
+ * Assumed prototype limit: a primitive's capacity is the sum of the sizes of all its pages
+ * (exact and coarse). It is therefore resident even when the cut shows only a part of it;
+ * bounding that capacity (and evicting ranges under pressure) remains to be done.
  *
- * Limite connue sur l'image : `isBatchedMesh` fait définir USE_BATCHING par Three.js, donc compiler une
- * variante de programme où les sommets passent par une multiplication supplémentaire. Cette matrice vaut
- * l'identité et le calcul est exact, mais le pilote n'arrondit pas tout à fait pareil : sur
- * emerald-square, 0,04 % à 0,39 % des pixels changent, sur des bords de silhouette. Annuler la définition
- * (`#undef USE_BATCHING` posé par `onBeforeCompile`) ramène l'écart maximal de 197 à 6 niveaux et rend
- * low-poly-city identique au bit près, mais coûte plus de la moitié des images présentées : à reprendre.
+ * Known image limit: `isBatchedMesh` makes Three.js define USE_BATCHING, hence compile a
+ * program variant where vertices go through an extra multiply. That matrix is identity and
+ * the computation is exact, but the driver does not round quite the same: on emerald-square,
+ * 0.04% to 0.39% of pixels change, on silhouette edges. Undoing the define (`#undef USE_BATCHING`
+ * set by `onBeforeCompile`) brings the max gap from 197 to 6 levels and makes low-poly-city
+ * identical bit for bit, but costs more than half of the presented frames: to revisit.
  */
 
 import { type BatchPage } from './clusterBatchRange.ts';
@@ -43,7 +43,7 @@ export type ClusterBatchStats = {
   detachments: number;
 };
 
-/** Ensemble des lots d'une scène : un tampon d'index par primitive, un objet de dessin par instance. */
+/** Set of batches of a scene: one index buffer per primitive, one draw object per instance. */
 export class ClusterBatches {
   private scene: THREE.Scene;
   private primitives: PrimitiveIndex[] = [];
@@ -54,7 +54,7 @@ export class ClusterBatches {
   private matrices = identityMatrixTexture();
   private indirect: THREE.DataTexture;
   private shaderHooks = new Map<THREE.Material, ShaderHook>();
-  /** Clones créés ici — dos/face des transparents, matériaux biaisés : à libérer, pas ceux de la scène. */
+  /** Clones created here — back/front of transparents, biased materials: to free, not those of the scene. */
   private ownedMaterials: THREE.Material[] = [];
   private attributeBytes = 0;
   private indexCapacityBytes = 0;
@@ -86,16 +86,16 @@ export class ClusterBatches {
   get metrics(): Readonly<ClusterBatchStats> {
     return this.stats;
   }
-  /** Capacité résidente des tampons d'index, en octets. Relue après une croissance éventuelle. */
+  /** Resident capacity of the index buffers, in bytes. Reread after a possible growth. */
   get indexBytes() {
     let bytes = 0;
     for (let i = 0; i < this.primitives.length; i++) bytes += this.primitives[i].array.byteLength;
     return bytes;
   }
 
-  /** Écrit la plage d'une page devenue résidente. Aucune autre partie du tampon n'est touchée.
-   *  Une requête peut porter un paquet de streaming : chaque enregistrement a alors déjà reçu sa
-   *  propre vue à son offset dans ce paquet, et c'est cette vue — pas le paquet — qui est écrite. */
+  /** Writes the range of a page that became resident. No other part of the buffer is touched.
+   *  A request may carry a streaming packet: each record has then already received its own
+   *  view at its offset in that packet, and it is that view — not the packet — that is written. */
   acceptPage(recs: readonly BatchPage[], array: Uint32Array) {
     for (const rec of recs) {
       const group = this.groups[rec.renderOrder];
@@ -111,7 +111,7 @@ export class ClusterBatches {
     }
   }
 
-  /** Rend la plage d'une page évincée à l'allocateur de sa primitive. */
+  /** Returns the range of an evicted page to its primitive's allocator. */
   dropPage(recs: readonly BatchPage[]) {
     for (const rec of recs) {
       const group = this.groups[rec.renderOrder];
@@ -122,7 +122,7 @@ export class ClusterBatches {
     }
   }
 
-  /** Liste les URL d'une coupe sans Set : une estampille par page distincte de chaque primitive. */
+  /** Lists the URLs of a cut without a Set: one stamp per distinct page of each primitive. */
   markUrls(pages: readonly BatchPage[], stamp: number, into: string[]) {
     for (let i = 0; i < pages.length; i++) {
       const rec = pages[i];
@@ -140,7 +140,7 @@ export class ClusterBatches {
     return into;
   }
 
-  /** Construit la coupe de l'image à partir des plages résidentes. */
+  /** Builds the frame cut from the resident ranges. */
   update(display: readonly BatchPage[]) {
     const state = {
       scene: this.scene,
@@ -159,7 +159,7 @@ export class ClusterBatches {
     this.touched = state.touched;
   }
 
-  /** Modes diagnostic : les lots disparaissent, les pages sont dessinées une à une par l'appelant. */
+  /** Diagnostic modes: batches disappear, pages are drawn one by one by the caller. */
   hideAll() {
     const active = this.active;
     for (let i = 0; i < active.length; i++) {

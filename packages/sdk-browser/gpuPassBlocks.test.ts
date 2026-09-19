@@ -14,7 +14,7 @@ const sample = (
   ...extra,
 });
 
-test('chaque passe tombe dans le bloc que son étiquette nomme, et une inconnue reste dehors', () => {
+test('each pass falls in the block its label names, and an unknown one stays outside', () => {
   assert.equal(gpuPassBlockOf('WG DAG selection'), 'visibility');
   assert.equal(gpuPassBlockOf('WG visibility primary'), 'visibility');
   assert.equal(gpuPassBlockOf('WG HiZ pyramid'), 'visibility');
@@ -23,10 +23,10 @@ test('chaque passe tombe dans le bloc que son étiquette nomme, et une inconnue 
   assert.equal(gpuPassBlockOf('WG deferred lighting'), 'other');
   assert.equal(gpuPassBlockOf('WG shadow atlas v1'), 'other');
   assert.equal(gpuPassBlockOf('WG opaque fallback'), 'other');
-  assert.equal(gpuPassBlockOf('WG passe inventée demain'), 'other');
+  assert.equal(gpuPassBlockOf('WG pass invented tomorrow'), 'other');
 });
 
-test('les durées d’un bloc s’additionnent, et la somme des trois vaut celle des passes', () => {
+test("a block's durations add up, and the three sum to that of the passes", () => {
   const totals = gpuPassBlockTotals(
     sample([
       ['WG clear', 0.066],
@@ -44,7 +44,7 @@ test('les durées d’un bloc s’additionnent, et la somme des trois vaut celle
   assert.equal((totals.visibilityMs! + totals.materialsMs! + totals.otherMs!).toFixed(3), '5.520');
 });
 
-test('une passe sans durée annule SON bloc, jamais les autres', () => {
+test('a pass without a duration voids ITS block, never the others', () => {
   const totals = gpuPassBlockTotals(
     sample([
       ['WG DAG selection', null],
@@ -52,12 +52,12 @@ test('une passe sans durée annule SON bloc, jamais les autres', () => {
       ['WG material surfaces v1', 2.084],
     ]),
   );
-  assert.equal(totals.visibilityMs, null, 'une somme partielle passerait pour une mesure');
+  assert.equal(totals.visibilityMs, null, 'a partial sum would pass for a measurement');
   assert.equal(totals.materialsMs, 2.084);
-  assert.equal(totals.otherMs, null, 'aucune passe : pas de bloc, et surtout pas un zéro');
+  assert.equal(totals.otherMs, null, 'no pass: no block, and above all not a zero');
 });
 
-test('l’ordre ne change rien : la passe sans durée annule son bloc même annoncée en dernier', () => {
+test('order changes nothing: a pass without a duration voids its block even when announced last', () => {
   const totals = gpuPassBlockTotals(
     sample([
       ['WG visibility primary', 1.148],
@@ -67,7 +67,7 @@ test('l’ordre ne change rien : la passe sans durée annule son bloc même anno
   assert.equal(totals.visibilityMs, null);
 });
 
-test('un relevé tronqué ou absent ne donne aucun bloc', () => {
+test('a truncated or missing sample yields no block', () => {
   const truncated = gpuPassBlockTotals(
     sample([['WG visibility primary', 1.148]], { truncated: true }),
   );

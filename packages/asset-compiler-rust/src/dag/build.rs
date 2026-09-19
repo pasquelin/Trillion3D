@@ -1,11 +1,11 @@
 use super::*;
 
-/// Construit le DAG des clusters. `strategy` décide si les niveaux grossiers existent : en
-/// `ExactClusters` la construction rend le niveau zéro seul, sans groupe ni réduction, si bien que
-/// la couverture publiée est exactement celle des triangles de la source.
+/// Builds cluster DAG. `strategy` decides whether coarse levels exist: in
+/// `ExactClusters` build yields level zero alone, without group or reduction, so
+/// published coverage is exactly source triangles.
 ///
-/// `uvs` — deux flottants par sommet, ou rien — dit quelles copies d'une position la réduction a le
-/// droit de souder quand elle n'avance plus : celles qui partagent la texture, jamais l'autre bord
+/// `uvs` — two floats per vertex, or none — says which position copies reduction is
+/// allowed to weld when stuck: those sharing texture, never opposite edge
 /// d'une couture.
 pub fn build_dag_tallied(
     positions: &[f32],
@@ -50,8 +50,7 @@ pub fn build_dag_tallied(
     }
     let mut tallies: Vec<GroupTally> = Vec::new();
     let mut reductions_kept: Vec<DagGroup> = Vec::new();
-    // Les soudures ne servent qu'à la réduction : rien à souder pour des grappes exactes ni pour
-    // une primitive qui tient dans une seule grappe.
+    // Welding is only used for reduction: nothing to weld for exact clusters or for a primitive fitting in a single cluster.
     if strategy == DagStrategy::ExactClusters || dag.len() < 2 {
         return Ok((dag, reductions_kept, tallies));
     }

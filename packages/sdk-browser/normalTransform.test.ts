@@ -1,21 +1,20 @@
-// Défaut 9 (`NORMAL_TRANSFORM_WGSL`, standardLighting.ts) : la transformation des normales
-// d'éclairage portait sa propre copie de `inverseTranspose3`, avec le seuil absolu `abs(det)<1e-20`
-// sur le déterminant brut que le défaut 6 avait déjà corrigé dans le noyau de sélection. Une
-// rotation d'échelle uniforme s a pour déterminant ±s³ : dès s ≲ 2,15e-7 la normale rendue était la
-// normale LOCALE, non tournée, et la surface était éclairée comme si elle n'avait pas tourné.
+// Bug 9 (`NORMAL_TRANSFORM_WGSL`, standardLighting.ts): lighting normal transformation
+// carried its own copy of `inverseTranspose3`, with absolute threshold `abs(det)<1e-20`
+// on raw determinant that Bug 6 had already corrected in selection kernel. Uniform scale
+// rotation s has determinant ±s³: as soon as s ≲ 2.15e-7, rendered normal was LOCAL normal,
+// unrotated, and surface was reads as if unrotated.
 //
-// CE QUE CE FICHIER TIENT, ET COMMENT. Il ne lit plus le texte du nuanceur à coups de motifs : une
-// suite d'`assert.match` sur du WGSL casse au premier reformatage et ne garantit aucune
-// arithmétique. Il éprouve le CALCUL — `xformNormal` = uniteOuZero(inverseTranspose3(mat3(world), n))
-// — sur le modèle f32 de `test/justesse/inverseTransposeF32.mjs` : la rotation suivie à toute
-// échelle, les poses singulières — aplaties puis effondrées — et le seuil franchi des deux côtés.
-// Ce modèle n'est pas le nuanceur : `test/browser/normal-transform-arithmetique.browser.mjs` exécute le texte
-// livré dans Chromium WebGPU sur EXACTEMENT ces cas (`test/justesse/normalTransformCas.mjs`) et
-// exige qu'il rende ce que le modèle rend — c'est là, aussi, qu'un nuanceur qui ne compile pas fait
-// échouer la preuve. Restent ici les seuls contrôles de texte qui portent sur la COMPILATION et
-// l'écriture unique : une déclaration en double ne compilerait pas, et deux copies de
-// l'arithmétique dériveraient l'une de l'autre — c'était exactement le défaut 9. Le CRITÈRE qui
-// juge une normale rendue est éprouvé à part, dans `normalTransformCritere.test.ts`.
+// WHAT THIS FILE HOLDS, AND HOW. It no longer reads shader text with regex patterns: a suite of
+// `assert.match` on WGSL breaks on first reformat and guarantees no arithmetic. It tests
+// CALCULATION — `xformNormal` = uniteOuZero(inverseTranspose3(mat3(world), n)) — on f32 model from
+// `test/justesse/inverseTransposeF32.mjs`: rotation tracked across all scales, singular poses —
+// flattened then collapsed — and threshold crossed on both sides.
+// This model is not the shader: `test/browser/normal-transform-arithmetique.browser.mjs` executes text
+// shipped in Chromium WebGPU on EXACTELY these cases (`test/justesse/normalTransformCas.mjs`) and
+// mandates rendering what model renders — which is also where non-compiling shader fails proof.
+// Only text checks remaining here cover COMPILATION and single writing: duplicate declaration
+// would not compile, and two arithmetic copies would drift — exactly Bug 9. CRITERION judging
+// a rendered normal is tested separately in `normalTransformCritere.test.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
@@ -38,91 +37,88 @@ import {
   SEUIL,
 } from '../../test/justesse/normalTransformCas.mjs';
 
-/** Le verdict — direction orientée, vecteur nul refusé, norme unitaire — d'une écriture sur un cas. */
+/** Verdict — oriented direction, zero vector rejected, unit norm — of a write on a case. */
 const verdict = (cas: { vraie: number[] }, rendue: number[]) =>
   verdictNormale(rendue, cas.vraie, DECROCHE_DEG);
 
-test('la normale d’éclairage suit la rotation à toute échelle, de 1e3 à 1e-16', () => {
-  assert.ok(CAS.length >= 300, `échantillon trop petit : ${CAS.length}`);
+test('lighting normal follows rotation at all scales, from 1e3 to 1e-16', () => {
+  assert.ok(CAS.length >= 300, `sample too small : ${CAS.length}`);
   for (const cas of CAS) {
     const v = verdict(cas, xformNormalModele(cas.world, cas.normale));
     assert.ok(v.ok, `${cas.nom} : ${v.raison}`);
   }
-  // Sans rotation effective, ces cas ne prouveraient rien : la normale vraie doit avoir bougé.
+  // Without effective rotation, these cases prove nothing: true normal must have moved.
   const tournees = CAS.filter(
     (cas: { vraie: number[]; normale: number[] }) => angleEntre(cas.vraie, cas.normale) * DEG > 10,
   ).length;
-  assert.ok(tournees > CAS.length / 2, `${tournees} cas seulement font tourner la normale`);
+  assert.ok(tournees > CAS.length / 2, `only ${tournees} cases rotate normal`);
 });
 
-test('le seuil absolu d’avant le lot décrochait, et exactement sous s³ = 1e-20', () => {
+test('absolute threshold before batch dropped out, and exactly below s³ = 1e-20', () => {
   const decroches = CAS.filter(
     (cas: { world: number[]; normale: number[]; vraie: number[] }) =>
       !verdict(cas, xformNormalAvantLeLot(cas.world, cas.normale)).ok,
   );
-  assert.ok(decroches.length > 0, 'la reproduction ne reproduit plus : cas à revoir');
-  // Ce que le lot devait changer, et rien d'autre : au-dessus du seuil, l'ancienne écriture était
-  // déjà juste. Un décrochage hors bande voudrait dire que le défaut n'était pas celui qu'on croit.
+  assert.ok(decroches.length > 0, 'reproduction no longer reproduces: review cases');
+  // What batch was meant to change, and nothing else: above threshold, old code was already correct.
+  // Dropout outside band would mean bug was not what we thought.
   for (const cas of decroches)
     assert.ok(
       cas.s < SEUIL,
-      `${cas.nom} : décrochage hors de la bande du seuil (s = ${cas.s} ≥ ${SEUIL})`,
+      `${cas.nom} : dropout outside threshold band (s = ${cas.s} ≥ ${SEUIL})`,
     );
-  // Et de part et d'autre du seuil, le comportement bascule : 2,154e-7 dedans, 2,16e-7 dehors.
-  // Sans ces deux échelles, la borne ne serait pas éprouvée, seulement franchie de loin.
+  // And across threshold, behavior toggles: 2.154e-7 inside, 2.16e-7 outside.
+  // Without these two scales, bound would not be tested, only crossed from afar.
   const a = (s: number) => decroches.some((cas: { s: number }) => cas.s === s);
-  assert.ok(a(2.154e-7), 'juste sous le seuil : la forme d’avant aurait dû décrocher');
-  assert.ok(!a(2.16e-7), 'juste au-dessus du seuil : la forme d’avant ne devait pas décrocher');
+  assert.ok(a(2.154e-7), 'just below threshold: former code should have dropped out');
+  assert.ok(!a(2.16e-7), 'just above threshold: former code should not have dropped out');
 });
 
-test('hors de la bande du seuil, le lot n’a pas bougé la normale rendue', () => {
+test('outside threshold band, batch did not move rendered normal', () => {
   for (const cas of CAS.filter((c: { s: number }) => c.s >= 1e-6)) {
     const ecart =
       angleEntre(
         xformNormalModele(cas.world, cas.normale),
         xformNormalAvantLeLot(cas.world, cas.normale),
       ) * DEG;
-    assert.ok(ecart < 1e-4, `${cas.nom} : la normale a bougé de ${ecart}° hors de la bande`);
+    assert.ok(ecart < 1e-4, `${cas.nom} : normal moved by ${ecart}° outside band`);
   }
 });
 
-test('poses singulières : la face aplatie garde sa normale, la face effondrée n’en a plus', () => {
-  // Une attente par cas, calculée à la main dans `normalTransformCas.mjs` : le produit vectoriel
-  // des arêtes transformées pour les rang 2, le vecteur nul pour les effondrées. L'ancienne attente
-  // — la normale LOCALE rendue telle quelle — décrivait le défaut, pas la convention : sur
-  // `échelle (1,1,0) puis 90° autour de Y` elle laissait +Z là où la face transformée regarde +X.
+test('singular poses: flattened face keeps normal, collapsed face has none', () => {
+  // One expectation per case, calculated by hand in `normalTransformCas.mjs`: cross product of
+  // transformed edges for rank 2, zero vector for collapsed. Former expectation — LOCAL normal
+  // rendered as is — described bug, not convention: on `scale (1,1,0) then 90° around Y` it left +Z
+  // where transformed face looks at +X.
   for (const cas of APLATIES) {
     const v = verdict(cas, xformNormalModele(cas.world, cas.normale));
     assert.ok(v.ok, `${cas.nom} : ${v.raison}`);
     const ecart = angleEntre(cas.vraie, unitaire(cas.normale)) * DEG;
-    assert.ok(
-      ecart > 10,
-      `${cas.nom} : la normale locale et la vraie ne diffèrent que de ${ecart}°`,
-    );
+    assert.ok(ecart > 10, `${cas.nom} : local and true normals differ by only ${ecart}°`);
   }
   for (const cas of EFFONDREES)
     assert.deepEqual(
       xformNormalModele(cas.world, cas.normale),
       [0, 0, 0],
-      `${cas.nom} : une face sans aire monde ne s'éclaire pas — zéro, jamais un NaN ni la locale`,
+      `${cas.nom} : face without world area does not light — zero, never NaN nor local`,
     );
-  // Et le garde ne doit pas être gourmand : une matrice minuscule mais régulière passe.
+  // And guard must not be greedy: tiny but regular matrix passes.
   const v = verdict(
     REGULIERE_MINUSCULE,
     xformNormalModele(REGULIERE_MINUSCULE.world, REGULIERE_MINUSCULE.normale),
   );
-  assert.ok(v.ok, `${REGULIERE_MINUSCULE.nom} : prise par le garde — ${v.raison}`);
+  assert.ok(v.ok, `${REGULIERE_MINUSCULE.nom} : caught by guard — ${v.raison}`);
 });
 
-// --- Écriture unique et compilation --------------------------------------------------------------
+// --- Single writing and compilation --------------------------------------------------------------
 const occurrences = (texte: string, motif: RegExp) => texte.match(motif)?.length ?? 0;
 
-test('le noyau de sélection et l’éclairage lisent la même écriture, au caractère près', () => {
+test('selection kernel and lighting read exact same text, character for character', () => {
   for (const [nom, shader] of [
-    ['éclairage', NORMAL_TRANSFORM_WGSL],
-    ['sélection du DAG', DAG_SELECTION_SHADER],
+    ['lighting', NORMAL_TRANSFORM_WGSL],
+    ['DAG selection', DAG_SELECTION_SHADER],
   ] as const) {
-    assert.ok(shader.includes(INVERSE_TRANSPOSE_WGSL), `${nom} : texte partagé absent`);
+    assert.ok(shader.includes(INVERSE_TRANSPOSE_WGSL), `${nom} : shared text absent`);
     for (const fonction of [
       'inverseTranspose3',
       'invTranspose3Prep',
@@ -132,22 +128,23 @@ test('le noyau de sélection et l’éclairage lisent la même écriture, au car
       assert.equal(
         occurrences(shader, new RegExp(`fn ${fonction}\\(`, 'g')),
         1,
-        `${nom} : « fn ${fonction} » déclarée en double, le module WGSL ne compilerait pas`,
+        `${nom} : « fn ${fonction} » declared twice, WGSL module would not compile`,
       );
   }
 });
 
-test('la normale d’éclairage passe par l’inverse-transposée partagée, sans la recalculer', () => {
+test('lighting normal passes through shared inverse-transpose, without recomputing it', () => {
   const corps = NORMAL_TRANSFORM_WGSL.split('fn xformNormal')[1].split('\n}')[0];
-  assert.equal(occurrences(NORMAL_TRANSFORM_WGSL, /fn xformNormal\(/g), 1, 'xformNormal en double');
-  assert.ok(corps.includes('inverseTranspose3('), 'xformNormal n’appelle plus le noyau partagé');
-  assert.ok(
-    corps.includes('uniteOuZero('),
-    'xformNormal doit rendre une direction unitaire ou nulle',
+  assert.equal(
+    occurrences(NORMAL_TRANSFORM_WGSL, /fn xformNormal\(/g),
+    1,
+    'xformNormal duplicated',
   );
+  assert.ok(corps.includes('inverseTranspose3('), 'xformNormal no longer calls shared kernel');
+  assert.ok(corps.includes('uniteOuZero('), 'xformNormal must return unit or zero direction');
   assert.doesNotMatch(
     corps,
     /\bdet\b|cross\(/,
-    'xformNormal recalcule l’inverse-transposée au lieu de l’appeler : c’était le défaut 9',
+    'xformNormal recomputes inverse-transpose instead of calling it: that was Bug 9',
   );
 });

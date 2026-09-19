@@ -13,7 +13,7 @@ import {
 import { createWebgpuGpuState } from './webgpuPagesStateGpu.ts';
 import type { ClusterManifest, Primitive } from '../sdk-core/index.ts';
 
-/** Un appareil qui ne sait que créer des tampons et compter ce qu'on y écrit. */
+/** A device that only knows how to create buffers and count what is written to them. */
 function fakeDevice() {
   Object.assign(globalThis, { GPUBufferUsage: { COPY_DST: 8, STORAGE: 128 } });
   const created: Array<{ size: number; writes: number; destroyed: number }> = [];
@@ -44,10 +44,10 @@ function blendGeometry(withUv: boolean) {
   return geometry;
 }
 
-// Comportement : les tampons d'indices, d'UV et de normales d'un transparent appartiennent à la
-// géométrie. Deux placements de la même géométrie les partagent, chacun n'est écrit qu'une fois et
-// n'est compté qu'une fois dans `vertexBytes`.
-test('deux placements d’une même géométrie transparente partagent indices, UV et normales', () => {
+// Behaviour: a transparent's index, UV and normal buffers belong to the geometry. Two placements
+// of the same geometry share them, each is written only once and counted only once in
+// `vertexBytes`.
+test('two placements of the same transparent geometry share indices, UVs and normals', () => {
   const { device, created } = fakeDevice();
   const gpu = createWebgpuGpuState([1, 1]);
   const shared = blendGeometry(true),
@@ -73,7 +73,7 @@ test('deux placements d’une même géométrie transparente partagent indices, 
     bytesOnce,
     created.reduce((total, entry) => total + entry.size, 0),
   );
-  // Une autre géométrie garde les siens.
+  // Another geometry keeps its own.
   ensureBlendIndexBuffer(device, other.getIndex()!, gpu);
   ensureBlendUvBuffer(device, other.attributes, gpu);
   ensureBlendNormalBuffer(device, other.attributes, gpu);
@@ -86,9 +86,9 @@ test('deux placements d’une même géométrie transparente partagent indices, 
   assert.equal(gpu.blendNormalBuffers.size, 0);
 });
 
-// Comportement : une géométrie sans UV n'en fabrique jamais, et l'absence est retenue — le second
-// placement ne relance pas la recherche et n'alloue rien.
-test('une géométrie transparente sans UV rend `undefined`, une seule fois', () => {
+// Behaviour: a geometry without UVs never fabricates any, and the absence is remembered — the
+// second placement does not restart the search and allocates nothing.
+test('a transparent geometry without UVs yields `undefined`, once', () => {
   const { device, created } = fakeDevice();
   const gpu = createWebgpuGpuState([1, 1]);
   const geometry = blendGeometry(false);
@@ -98,7 +98,7 @@ test('une géométrie transparente sans UV rend `undefined`, une seule fois', ()
   assert.equal(gpu.blendUvBuffers.size, 1);
 });
 
-/** La même primitive, dotée d'une hiérarchie de culling à un nœud feuille. */
+/** The same primitive, given a one-leaf-node culling hierarchy. */
 function primitiveWithCulling(metadata: ClusterManifest) {
   const primitive = metadata.primitives[0] as Primitive & {
     culling: { version: number; count: number; stride: number; nodes: number[] };
@@ -112,9 +112,9 @@ function primitiveWithCulling(metadata: ClusterManifest) {
   return primitive;
 }
 
-// Comportement : un gabarit par primitive. Deux appels rendent les mêmes pages, la même hiérarchie
-// et les mêmes bornes, et la couverture n'est vérifiée qu'une fois par tableau d'indices source.
-test('le gabarit d’une primitive est calculé une fois et rendu tel quel au placement suivant', () => {
+// Behaviour: one template per primitive. Two calls yield the same pages, the same hierarchy and
+// the same bounds, and coverage is checked only once per source index array.
+test('a primitive’s template is computed once and returned as-is to the next placement', () => {
   const fixture = dagFixture();
   const primitive = primitiveWithCulling(fixture.metadata);
   const templates = createPrimitiveTemplates(fixture.indices, false);
@@ -127,16 +127,16 @@ test('le gabarit d’une primitive est calculé une fois et rendu tel quel au pl
   const shape = templates.shapeOf(primitive, first);
   assert.equal(templates.shapeOf(primitive, second), shape);
   assert.ok(shape.culling && shape.bounds);
-  // Une couverture qui ne correspond pas est refusée, même après un gabarit déjà vérifié.
+  // A coverage that does not match is refused, even after a template already checked.
   assert.throws(() => templates.checkCoverage(primitive, first, new Uint32Array([0, 1, 2])), {
     message: 'Incomplete cluster coverage',
   });
 });
 
-// Comportement : deux instances d'un objet partagent la forme de son DAG — hiérarchie, bornes par
-// nœud, liens de groupes, identités de clusters — et ne partagent rien de ce qui les distingue :
-// matrice monde, boîte monde, drapeaux de groupes forcés, enregistrements de pages.
-test('deux instances partagent la forme du DAG, jamais ce qui les place', () => {
+// Behaviour: two instances of an object share the shape of its DAG — hierarchy, per-node bounds,
+// group links, cluster identities — and share nothing that distinguishes them: world matrix,
+// world box, forced-group flags, page records.
+test('two instances share the DAG shape, never what places them', () => {
   const fixture = dagFixture();
   primitiveWithCulling(fixture.metadata);
   const second = new THREE.Mesh(fixture.mesh.geometry, fixture.mesh.material);
@@ -163,7 +163,7 @@ test('deux instances partagent la forme du DAG, jamais ce qui les place', () => 
     const a = roots[0].pages[i],
       b = roots[1].pages[i];
     assert.notEqual(a, b);
-    // L'identité d'un cluster est celle de la primitive : une seule chaîne pour tous ses placements.
+    // A cluster's identity is the primitive's: one string for all its placements.
     assert.equal(a.clusterId, b.clusterId);
     assert.equal(a.sphere, b.sphere);
     assert.equal(a.lodError, b.lodError);

@@ -1,10 +1,10 @@
-// Défaut : la pose monde demandée était ramenée dans le repère du parent par la matrice monde que
-// le parent portait, À JOUR OU NON. Un hôte a le droit d'écrire `parent.position.x = 10` sans
-// remonter le graphe (`updateMatrixWorld`) avant de poser l'enfant — c'est le contrat que
-// `hostWorldChainInto` tient dans `webgpuPagesTransform.ts`. Ces tests passent par l'API PUBLIQUE de
-// l'explorateur (`explorer.setTransform`, `createExplorerLightApi`), pas par la fonction interne
-// `setWebgpuTransform` appelée directement : c'est ce que l'hôte appelle réellement. Le monde vérifié
-// est celui que LE MOTEUR tient (`hostWorldPlacements.ts`), qui est celui qu'il dessine.
+// Defect: the requested world pose was brought into the parent's frame by the world matrix the
+// parent carried, UP TO DATE OR NOT. A host may write `parent.position.x = 10` without walking the
+// graph (`updateMatrixWorld`) before posing the child — that is the contract `hostWorldChainInto`
+// holds in `webgpuPagesTransform.ts`. These tests go through the explorer's PUBLIC API
+// (`explorer.setTransform`, `createExplorerLightApi`), not the internal `setWebgpuTransform` called
+// directly: that is what the host actually calls. The world checked is the one THE ENGINE holds
+// (`hostWorldPlacements.ts`), which is the one it draws.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -20,11 +20,11 @@ function proche(obtenu: ArrayLike<number>, attendu: ArrayLike<number>, tolerance
   for (let i = 0; i < attendu.length; i++)
     assert.ok(
       Math.abs(obtenu[i] - attendu[i]) <= tolerance,
-      `[${i}] : ${obtenu[i]} au lieu de ${attendu[i]}`,
+      `[${i}]: ${obtenu[i]} instead of ${attendu[i]}`,
     );
 }
 
-/** Une scène parent/enfant, et l'explorateur public câblé sur le vrai `setWebgpuTransform`. */
+/** A parent/child scene, and the public explorer wired to the real `setWebgpuTransform`. */
 function banc() {
   const source = new THREE.Object3D();
   const parent = new THREE.Object3D();
@@ -33,8 +33,8 @@ function banc() {
   parent.name = 'porteur';
   parent.add(mesh);
   source.add(parent);
-  // Les matrices monde que le moteur dessine : c'est l'index, pas la scène de l'hôte, que le
-  // déplacement recalcule et que ces tests interrogent.
+  // World matrices the engine draws: it is the index, not the host scene, that the move
+  // recomputes and that these tests query.
   const worlds = hostWorldPlacements(source);
   const monde = worlds.of(mesh);
   const run = createWebgpuRunState();
@@ -70,19 +70,19 @@ const demandee = () =>
   );
 
 test(
-  'un parent déplacé, tourné et mis à l’échelle par l’hôte SANS updateMatrixWorld : le monde de ' +
-    'l’enfant est quand même le monde demandé (justesse géométrique)',
+  'a parent moved, rotated and scaled by the host WITHOUT updateMatrixWorld: the child world is ' +
+    'still the requested world (geometric correctness)',
   () => {
     const { parent, explorer, worlds, monde } = banc();
-    // L'hôte écrit directement les champs, sans jamais rappeler updateMatrixWorld — exactement le
-    // geste que la résolution doit couvrir : parent.matrixWorld reste celui d'avant ce déplacement.
+    // The host writes the fields directly, never calling updateMatrixWorld — exactly the gesture
+    // resolution must cover: parent.matrixWorld stays the one from before this move.
     parent.position.set(10, 4, -3);
     parent.quaternion.setFromEuler(new THREE.Euler(0.5, -0.3, 0.2));
     parent.scale.set(2, 3, 0.5);
     const demandeeIci = demandee();
     explorer.setTransform('cible', demandeeIci);
     proche(monde.elements, demandeeIci, 1e-9);
-    // Stabilisation : le rendu suivant remonte l'index. La pose posée ne doit pas bouger.
+    // Stabilisation: the next render walks the index. The pose that was set must not move.
     worlds.refresh();
     worlds.refresh();
     proche(monde.elements, demandeeIci, 1e-9);
@@ -90,38 +90,34 @@ test(
 );
 
 test(
-  'la même demande refaite après un nouveau déplacement du parent n’est pas « sans effet » : le ' +
-    'monde reste le monde demandé et les pages d’ombre sont invalidées (justesse géométrique)',
+  'the same request remade after another parent move is not « no-op »: the world stays the ' +
+    'requested world and shadow pages are invalidated (geometric correctness)',
   () => {
     const { rt, parent, explorer, worlds, monde } = banc();
     const demandeeIci = demandee();
     explorer.setTransform('cible', demandeeIci);
     worlds.refresh();
     proche(monde.elements, demandeeIci, 1e-9);
-    // La révision se stabilise : refaire, avant tout mouvement, la même demande ne doit rien changer.
+    // The revision settles: remaking the same request, before any motion, must change nothing.
     const epoqueStable = rt.layout.rows.tableEpoch;
     (rt.run as ReturnType<typeof createWebgpuRunState>).noOccluderHistory = false;
     explorer.setTransform('cible', demandeeIci);
-    assert.equal(
-      rt.layout.rows.tableEpoch,
-      epoqueStable,
-      'sans mouvement du parent, rien à refaire',
-    );
-    // Le parent bouge à nouveau, sans updateMatrixWorld : le repère dans lequel la même pose monde
-    // se ramène a changé, donc la matrice locale posée doit changer même si le monde demandé est
-    // identique. L'ancien code comparait la matrice locale déjà en mémoire et déclarait « sans
-    // effet » — ici la révision doit avancer et le monde rester celui demandé.
+    assert.equal(rt.layout.rows.tableEpoch, epoqueStable, 'no parent motion, nothing to redo');
+    // The parent moves again, without updateMatrixWorld: the frame in which the same world pose
+    // is brought back has changed, so the local matrix that is set must change even if the requested
+    // world is identical. The old code compared the local matrix already in memory and declared
+    // « no-op » — here the revision must advance and the world stay the requested one.
     parent.position.set(20, -8, 6);
     explorer.setTransform('cible', demandeeIci);
     assert.notEqual(
       rt.layout.rows.tableEpoch,
       epoqueStable,
-      'le parent a bougé : la demande identique n’est pas sans effet',
+      'the parent moved: the identical request is not a no-op',
     );
     assert.equal(
       (rt.run as ReturnType<typeof createWebgpuRunState>).noOccluderHistory,
       true,
-      'l’historique d’occulteurs doit être jeté, pas resservi périmé',
+      'occluder history must be dropped, not served stale',
     );
     worlds.refresh();
     proche(monde.elements, demandeeIci, 1e-9);
@@ -129,11 +125,11 @@ test(
 );
 
 test(
-  'un parent écrasé sur un plan (non inversible) refuse par EngineError SINGULAR_PARENT_TRANSFORM, ' +
-    'jamais seize zéros silencieux (justesse géométrique)',
+  'a parent flattened onto a plane (non-invertible) refuses with EngineError SINGULAR_PARENT_TRANSFORM, ' +
+    'never sixteen silent zeros (geometric correctness)',
   () => {
     const { parent, explorer } = banc();
-    // scale.y = 0 : le parent est écrasé sur le plan xz, sa matrice monde n'est plus inversible.
+    // scale.y = 0: the parent is flattened onto the xz plane, its world matrix is no longer invertible.
     parent.scale.set(2, 0, 3);
     assert.throws(
       () => explorer.setTransform('cible', demandee()),

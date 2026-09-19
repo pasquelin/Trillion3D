@@ -1,15 +1,15 @@
-// Côté page de la preuve « rig d'hôte déplacé, bornes projetées refaites ».
+// Page side of the proof "moved host rig, projected bounds remade".
 //
-// La scène ne bouge pas : c'est la VUE. La caméra est l'enfant d'un rig que l'hôte déplace, et
-// l'hôte ne remonte rien — c'est le contrat de pose caméra du moteur qui doit résoudre la chaîne.
-// Sans cette résolution, l'empreinte de vue de la tenue des rectangles d'écran ne verrait aucun
-// changement et le test Hi-Z recevrait les rectangles de la vue précédente.
+// The scene does not move: it is the VIEW. The camera is the child of a rig the host moves, and
+// the host walks nothing up — it is the engine's camera-pose contract that must resolve the
+// chain. Without that resolution, the view fingerprint of held screen rectangles would see no
+// change and the Hi-Z test would receive the previous view's rectangles.
 //
-// Les rectangles d'écran ne sont plus tenus : la partition GPU les reprojette à chaque image, pour
-// toutes les lignes résidentes, depuis les matrices que l'image lui envoie. Ce qui reste à prouver
-// est donc exactement la résolution du rig — deux images par pose, celle qui suit le déplacement et
-// celle qui ne bouge plus, chacune comparée octet pour octet à un moteur neuf placé d'emblée à la
-// même pose monde. Des matrices d'une vue précédente feraient diverger l'une ou l'autre.
+// Screen rectangles are no longer held: the GPU partition reprojects them every frame, for every
+// resident row, from the matrices the frame sends it. What remains to prove is therefore exactly
+// the rig resolution — two frames per pose, the one that follows the move and the one that no
+// longer moves, each compared byte for byte to a fresh engine placed at once at the same world
+// pose. Matrices from a previous view would make one or the other diverge.
 import * as THREE from 'three';
 import { webgpuPagesBackend } from '../../packages/sdk-browser/webgpuPages.ts';
 import { ouvrirAppareil } from '../justesse/appareilWebgpu.mjs';
@@ -20,11 +20,11 @@ import {
   comptesEtape,
   image,
   libere,
-  moteur,
+  engine,
 } from './preuveSceneCommune.mjs';
 
-/** Un mur opaque proche et une dalle opaque lointaine, décalée : la parallaxe de la vue fait sortir
- *  la dalle de derrière le mur, et le verdict d'occultation de ses clusters bascule. */
+/** A near opaque wall and a far opaque slab, offset: view parallax takes the slab out from
+ *  behind the wall, and the occlusion verdict of its clusters flips. */
 function sceneOccultante() {
   const bati = batisseur();
   const mur = new THREE.Mesh(
@@ -46,7 +46,7 @@ function sceneOccultante() {
   return bati.fini();
 }
 
-/** Les poses du rig. La caméra, elle, ne change jamais de pose locale. */
+/** Rig poses. The camera itself never changes local pose. */
 const POSES = [0, 0.35, 0.7, 1.05, 1.4];
 
 const differences = (a, b) => {
@@ -55,10 +55,10 @@ const differences = (a, b) => {
   return n;
 };
 
-/** Les lignes que la partition de l'image a traitées : toutes les lignes dessinables, chaque image. */
+/** Rows the frame's partition processed: every drawable row, each frame. */
 const lignes = (backend) => comptesEtape(backend, 'partition')?.lignes ?? null;
 
-/** Combien de pixels portent la couleur de la dalle lointaine : ce que l'occultation lui retire. */
+/** How many pixels carry the far slab's colour: what occlusion takes from it. */
 function dallePixels(pixels) {
   let n = 0;
   for (let i = 0; i < pixels.length; i += 4)
@@ -67,10 +67,10 @@ function dallePixels(pixels) {
   return n;
 }
 
-/** Une pose rendue par un moteur qui n'a jamais rien vu d'autre, caméra sans parent : le témoin. */
+/** A pose rendered by an engine that has never seen anything else, parentless camera: the witness. */
 async function poseNeuve(device, x, onDiag) {
   const scene = sceneOccultante();
-  const { backend, canvas } = moteur(webgpuPagesBackend, scene, device, onDiag);
+  const { backend, canvas } = engine(webgpuPagesBackend, scene, device, onDiag);
   try {
     await backend.prepare();
     return (await image(backend, cameraFace(x))).pixels.slice();
@@ -86,10 +86,10 @@ export async function executer() {
   const evenements = [],
     onDiag = (e) => evenements.push(e);
   const scene = sceneOccultante();
-  const { backend, canvas } = moteur(webgpuPagesBackend, scene, device, onDiag, {
+  const { backend, canvas } = engine(webgpuPagesBackend, scene, device, onDiag, {
     stageProfile: true,
   });
-  // La caméra n'a qu'une pose locale, posée une fois : le rig porte tout le déplacement.
+  // The camera has only one local pose, set once: the rig carries the whole move.
   const camera = cameraFace(0),
     rig = new THREE.Group();
   rig.add(camera);
@@ -97,11 +97,11 @@ export async function executer() {
   try {
     await backend.prepare();
     for (const x of POSES) {
-      // L'hôte écrit le rig et RIEN d'autre : ni `updateMatrixWorld`, ni la caméra.
+      // The host writes the rig and NOTHING else: neither `updateMatrixWorld` nor the camera.
       rig.position.x = x;
       const bouge = await image(backend, camera);
       const lignesApresDeplacement = lignes(backend);
-      // Contre-test : plus rien ne bouge. L'image doit rester celle du témoin, pas une image tenue.
+      // Counter-test: nothing moves any more. The image must stay the witness's, not a held image.
       const immobile = await image(backend, camera);
       const temoin = await poseNeuve(device, x, onDiag);
       etapes.push({

@@ -1,17 +1,17 @@
-//! Doré du pilote `ma`. Une fixture écrite à la main, et les deux refus durs du format.
+//! `ma` driver golden test. Hand-written fixture and format hard refusals.
 //!
-//! `minuscule/scene.ma` tient une hiérarchie `transform`, un `mesh` à deux quadrilatères dont l'un
-//! réutilise l'arête de l'autre à l'envers, deux groupes de faces nuancés séparément, une seconde
-//! pose de la même forme par `parent -add`, un `lambert`, un `standardSurface` texturé, une caméra
-//! et une commande `python`. Elle fixe ce que le pilote produit, jusqu'aux octets du sidecar, et ce
-//! qu'il compte sans le rendre.
+//! `minuscule/scene.ma` carries `transform` hierarchy, `mesh` with two quads
+//! reusing edge in reverse, two separately shaded face groups, second
+//! pose of same form via `parent -add`, `lambert`, textured `standardSurface`, camera
+//! and `python` command. Fixes driver output down to sidecar bytes, and
+//! what it counts without rendering.
 use super::*;
 
-const CASE: &str = "Un fichier Maya ASCII : une hiérarchie transform en centimètres, un mesh de deux quadrilatères dont le second réutilise une arête du premier à l'envers, deux instObjGroups d'une face chacun nuancés par deux shadingEngine, une seconde pose de la forme par parent -add, un lambert opaque, un standardSurface métallique translucide à texture de couleur, une caméra, un select sur un nœud absent du fichier et une commande python.";
-const RULE: &str = "Le pilote rend les données du fichier et rien d'autre : aucune commande n'est exécutée, un nœud est identifié par son chemin de scène, une pose se compose dans l'ordre complet du format, les faces sont résolues par leurs arêtes signées puis découpées par oreilles dans le plan de leur normale, un groupe de faces devient une primitive à part et ce qu'aucun ne réclame en fait une sans matériau, les formes intermédiaires et invisibles restent dehors, les normales absentes sont calculées depuis la géométrie et le drapeau de dureté de chaque arête, le mode de répétition de chaque axe suit son propre attribut, lambert et standardSurface vont vers pbrMetallicRoughness, l'unité linéaire est portée par la racine de la scène, et tout ce qui reste est compté par son nom.";
+const CASE: &str = "A Maya ASCII file: a transform hierarchy in centimetres, a mesh of two quads of which the second reuses an edge of the first reversed, two instObjGroups of one face each shaded by two shadingEngine, a second pose of the shape via parent -add, an opaque lambert, a metallic translucent standardSurface with a colour texture, a camera, a select on a node absent from the file and a python command.";
+const RULE: &str = "The driver yields the file data and nothing else: no command is executed, a node is identified by its scene path, a pose is composed in the format's full order, faces are resolved by their signed edges then ear-clipped in their normal plane, a face group becomes a separate primitive and what none claims makes one without a material, intermediate and invisible shapes stay out, missing normals are computed from the geometry and each edge's hardness flag, each axis wrap mode follows its own attribute, lambert and standardSurface go to pbrMetallicRoughness, the linear unit is carried by the scene root, and everything else is counted by name.";
 
-// Comportement : la fixture passe par le compilateur, et sa scène intermédiaire comme sa sortie
-// compilée sont comparées à expected.json.
+// Behavior: fixture passes through compiler, intermediate and compiled scenes
+// compared to expected.json.
 #[test]
 fn the_ma_fixture_compiles_to_its_golden_expected_json() {
     let dir = golden_dir("ma");
@@ -19,20 +19,20 @@ fn the_ma_fixture_compiles_to_its_golden_expected_json() {
     assert_eq!(
         digest(&run),
         golden_expected(&dir),
-        "fixture ma : la sortie compilée diverge de expected.json"
+        "fixture ma: compiled output diverges from expected.json"
     );
 }
 
 #[test]
-#[ignore = "écrit dans fixtures/ ; se relance à la main, et son diff se relit"]
+#[ignore = "writes into fixtures/; rerun by hand, and its diff is re-read"]
 fn regenere_la_fixture_ma() {
     let dir = golden_dir("ma");
     let run = compile_golden_source(&fixture(&dir), "ma-minuscule");
     write_expected(&dir, digest(&run), CASE, RULE);
 }
 
-// Comportement : un fichier tronqué avant toute commande garde son entête, donne un document sans
-// aucune surface, et c'est cette absence qui est refusée — par son nom, sans rien avoir écrit.
+// Behavior: truncated file before commands keeps header, yields surface-less document,
+// refusal named without writing anything.
 #[test]
 fn a_ma_file_truncated_before_its_first_command_is_refused_as_empty() {
     let root = std::env::temp_dir().join(format!("wg-ma-vide-{}", std::process::id()));
@@ -43,8 +43,8 @@ fn a_ma_file_truncated_before_its_first_command_is_refused_as_empty() {
     let _ = fs::remove_dir_all(&root);
 }
 
-// Comportement : un fichier dont la première ligne n'annonce pas un Maya ASCII n'est pas lu, même
-// quand son extension l'amène à ce pilote.
+// Behavior: file whose first line does not announce Maya ASCII not read, even
+// when extension brings to driver.
 #[test]
 fn a_file_without_the_maya_header_is_refused_by_name() {
     let root = std::env::temp_dir().join(format!("wg-ma-entete-{}", std::process::id()));
@@ -54,18 +54,18 @@ fn a_file_without_the_maya_header_is_refused_by_name() {
     assert_eq!(
         refused_golden_source(&file, "ma-header"),
         "ma-file-invalid",
-        "un fichier sans entête Maya doit être refusé par son nom"
+        "a file without a Maya header must be refused by name"
     );
     let _ = fs::remove_dir_all(&root);
 }
 
-/// Le fichier de la fixture minuscule.
+/// Minuscule fixture file.
 fn fixture(dir: &Path) -> PathBuf {
     dir.join("minuscule").join("scene.ma")
 }
 
-/// Ce que la dorée fixe : le pilote retenu, la scène intermédiaire qu'il a écrite — nœuds,
-/// maillages, matériaux, images, rapport — et la scène compilée qui en sort.
+/// Golden comparison: retained driver, written intermediate scene — nodes,
+/// meshes, materials, images, report —, and output compiled scene.
 fn digest(run: &GoldenRun) -> Value {
     let (digest, manifest, gltf) = scene_digest(run, "ma");
     let mut out = digest;

@@ -1,4 +1,4 @@
-// GEO-1 : lecteurs de la coupe et classement du budget par différence.
+// GEO-1: cut readers and budget ranking by delta.
 import { RequestStamps, collectPendingUrls } from '../pageSelection.ts';
 import { createCutDelta } from '../webgpuCutDelta.ts';
 import { createCutCounts } from '../webgpuCutCounts.ts';
@@ -62,27 +62,27 @@ const counts = createCutCounts(pages, residentOffsetWords, deltaOptimisee),
   pending = createCutPending(pages, deltaOptimisee);
 
 const lecteursReference = (images) => {
-  const sortie = [];
+  const output = [];
   for (const ids of images) {
     deltaReference.apply(ids);
     const totaux = referenceCutCounts(pages, ids, residentOffsetWords);
     const complete = referenceCutComplete(desiredReference);
     const attendues = referencePendingUrls(desiredReference, stampsReference, scratchReference);
-    sortie.push({ totaux, complete, attendues: attendues.length });
+    output.push({ totaux, complete, attendues: attendues.length });
   }
-  return sortie;
+  return output;
 };
 const lecteursOptimisee = (images) => {
-  const sortie = [];
+  const output = [];
   for (const ids of images) {
     deltaOptimisee.apply(ids);
     const totaux = { ...counts.apply() };
     pending.apply();
     const complete = pending.count === 0;
     const attendues = collectPendingUrls(pending.records, scratchOptimisee, stampsOptimisee);
-    sortie.push({ totaux, complete, attendues: attendues.length });
+    output.push({ totaux, complete, attendues: attendues.length });
   }
-  return sortie;
+  return output;
 };
 
 const ROOM = 6000;
@@ -98,13 +98,13 @@ const deltaReferenceRang = createCutDelta(pages, cutReference),
   deltaRang = createCutDelta(pages);
 
 const classement = (classeur, delta, cut) => (images) => {
-  const sortie = [];
+  const output = [];
   for (const ids of images) {
     delta.apply(ids);
     for (let i = 0; i < delta.exitedCount; i++) classeur.remove(pages[delta.exited[i]]);
     for (let i = 0; i < delta.enteredCount; i++) classeur.add(pages[delta.entered[i]]);
     const records = classeur.rank(ROOM, cut);
-    sortie.push(
+    output.push(
       records <= ROOM
         ? { length: 0, levels: [] }
         : {
@@ -113,7 +113,7 @@ const classement = (classeur, delta, cut) => (images) => {
           },
     );
   }
-  return sortie;
+  return output;
 };
 const classementReference = classement(rankingReference, deltaReferenceRang, cutReference);
 const classementOptimisee = classement(ranking, deltaRang, undefined);
@@ -122,9 +122,9 @@ const mesuresResultats = [];
 for (const [regime, images] of regimes) {
   mesuresResultats.push(
     await mesure({
-      nom: `lecteurs de coupe ${regime}`,
+      name: `cut readers ${regime}`,
       fichier: 'packages/sdk-browser/webgpuCutCounts.ts',
-      cas: [{ nom: `8 images ${regime}`, entree: images, taille: COUPE * 8 }],
+      cas: [{ name: `8 frames ${regime}`, input: images, size: COUPE * 8 }],
       calcul: lecteursOptimisee,
       attendu: lecteursReference,
       options: { tours: 20, budgetMs: 1500 },
@@ -132,9 +132,9 @@ for (const [regime, images] of regimes) {
   );
   mesuresResultats.push(
     await mesure({
-      nom: `classement par budget ${regime}`,
+      name: `budget ranking ${regime}`,
       fichier: 'packages/sdk-browser/webgpuBudgetRanking.ts',
-      cas: [{ nom: `8 images budget ${regime}`, entree: images, taille: COUPE * 8 }],
+      cas: [{ name: `8 frames budget ${regime}`, input: images, size: COUPE * 8 }],
       calcul: classementOptimisee,
       attendu: classementReference,
       options: { tours: 20, budgetMs: 1500 },
@@ -143,13 +143,9 @@ for (const [regime, images] of regimes) {
 }
 
 await stress({
-  nom: 'createCutDelta extremes',
+  name: 'createCutDelta extremes',
   calcul: (arr) => createCutDelta(arr).apply([]),
-  extremes: [{ nom: 'vide', entree: [] }],
+  extremes: [{ name: 'empty', input: [] }],
 });
 
-rapport(
-  'coupe-difference',
-  mesuresResultats,
-  'GEO-1 : les lecteurs de la coupe rendent les mêmes verdicts',
-);
+rapport('coupe-difference', mesuresResultats, 'GEO-1: cut readers yield the same verdicts');

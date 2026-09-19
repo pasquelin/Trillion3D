@@ -1,10 +1,10 @@
-// Côté page de la preuve « convention de profondeur, moteur complet » : la même caméra physique
-// (near 2,8, far 12), un carreau transparent incliné qui traverse le plan proche, et seule la
-// convention de découpe déclarée par l'hôte change — `coordinateSystem`, comme le ferait un hôte
-// qui bascule son renderer. Le moteur n'en lit plus rien : il compose sa propre projection, en
-// profondeur inversée et plan lointain infini (`readCameraWorld`, `depthConvention.ts`). L'image
-// doit rester identique au pixel près, et l'image tenue doit le RESTER — il n'y a plus rien à
-// recalculer quand l'hôte change d'avis.
+// Page side of the "depth convention, full engine" proof: the same physical camera (near 2.8,
+// far 12), a tilted transparent tile that crosses the near plane, and only the clip convention
+// declared by the host changes — `coordinateSystem`, as a host flipping its renderer would.
+// The engine no longer reads it: it composes its own projection, in reversed depth and infinite
+// far plane (`readCameraWorld`, `depthConvention.ts`). The image must stay identical pixel for
+// pixel, and the held image must STAY held — there is nothing left to recompute when the host
+// changes its mind.
 import * as THREE from 'three';
 import { webgpuPagesBackend } from '../../packages/sdk-browser/webgpuPages.ts';
 import {
@@ -13,19 +13,19 @@ import {
   executerPasses,
   image,
   libere,
-  moteur,
+  engine,
   redCount,
 } from './preuveSceneCommune.mjs';
 import { sceneTransparente } from './transparentTransformScene.mjs';
 
 /**
- * La séquence pour une passe donnée : poser un carreau incliné sous la convention WebGL, la
- * stabiliser, passer en convention WebGPU, la stabiliser, revenir en WebGL, la stabiliser. La vue
- * physique — position, visée, near, far, champ — ne change jamais.
+ * Sequence for a given pass: pose a tilted tile under the WebGL convention, hold it, switch to
+ * the WebGPU convention, hold it, return to WebGL, hold it. The physical view — position, look,
+ * near, far, field — never changes.
  */
 async function sequence(device, pagine, evenements) {
   const s = sceneTransparente(pagine);
-  const { backend, canvas } = moteur(webgpuPagesBackend, s, device, (e) =>
+  const { backend, canvas } = engine(webgpuPagesBackend, s, device, (e) =>
     evenements.push({ pagine, ...e }),
   );
   const camera = cameraFace();
@@ -33,15 +33,15 @@ async function sequence(device, pagine, evenements) {
   camera.far = 12;
   camera.updateProjectionMatrix();
   const etapes = [];
-  const etape = async (nom) => {
+  const etape = async (name) => {
     const { pixels, metriques } = await image(backend, camera);
-    etapes.push({ nom, tenue: metriques.frameHeld });
+    etapes.push({ name, tenue: metriques.frameHeld });
     return pixels;
   };
   try {
     await backend.prepare();
-    // Une inclinaison autour de Y sort les coins du carreau du plan z = 0 : à near = 2,8, l'un
-    // d'eux passe devant le plan proche de la caméra plutôt que derrière.
+    // A tilt around Y takes the tile corners off the z = 0 plane: at near = 2.8, one of them
+    // passes in front of the camera near plane rather than behind.
     const incline = new Float32Array(new THREE.Matrix4().makeRotationY(0.9).elements);
     backend.setTransform('vitre', incline);
     let webgl;

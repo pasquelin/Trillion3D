@@ -1,4 +1,4 @@
-// préparation des cônes normaux et catalogue de pages.
+// preparing normal cones and the page catalogue.
 import * as THREE from 'three';
 import { prepareCones } from '../webgpuPagesPrepare.ts';
 import { compteMateriauxEtTangentes, indexSourceBytes } from '../webgpuPagesCatalogue.ts';
@@ -42,14 +42,14 @@ for (let i = 0; i < 4000; i++) blocs.set(`bloc/${i}`, { hasTangent: i % 3 === 0 
 const blocVide = new Map();
 
 const casPages = [
-  { nom: '20 000 pages, 60 matériaux', entree: pages, taille: 20000 },
-  { nom: 'attributs entrelacés, normalisés, absents', entree: hostiles, taille: 400 },
-  { nom: 'une seule page', entree: unePage, taille: 1 },
-  { nom: 'aucune page', entree: [], taille: 0 },
+  { name: '20 000 pages, 60 materials', input: pages, size: 20000 },
+  { name: 'interleaved, normalized, missing attributes', input: hostiles, size: 400 },
+  { name: 'a single page', input: unePage, size: 1 },
+  { name: 'no pages', input: [], size: 0 },
 ];
 
 const resCones = await mesure({
-  nom: 'cônes normaux des pages',
+  name: 'page normal cones',
   fichier: 'packages/sdk-browser/webgpuPagesPrepare.ts',
   cas: casPages,
   calcul: passeCones(prepareCones),
@@ -58,7 +58,7 @@ const resCones = await mesure({
 });
 
 const resOctets = await mesure({
-  nom: 'table des octets source',
+  name: 'source-byte table',
   fichier: 'packages/sdk-browser/webgpuPagesCatalogue.ts',
   cas: casPages,
   calcul: indexSourceBytes,
@@ -67,12 +67,12 @@ const resOctets = await mesure({
 });
 
 const resDiagnostic = await mesure({
-  nom: 'compteurs du diagnostic des textures',
+  name: 'texture diagnostic counters',
   fichier: 'packages/sdk-browser/webgpuPagesCatalogue.ts',
   cas: [
-    { nom: '20 000 pages, 4 000 blocs', entree: { pages, blocs }, taille: 24000 },
-    { nom: 'aucun bloc', entree: { pages: unePage, blocs: blocVide }, taille: 1 },
-    { nom: 'rien à compter', entree: { pages: [], blocs: blocVide }, taille: 0 },
+    { name: '20 000 pages, 4 000 blocks', input: { pages, blocs }, size: 24000 },
+    { name: 'no blocks', input: { pages: unePage, blocs: blocVide }, size: 1 },
+    { name: 'nothing to count', input: { pages: [], blocs: blocVide }, size: 0 },
   ],
   calcul: (e) => compteMateriauxEtTangentes(e.pages, e.blocs),
   attendu: (e) => referenceCompteMateriauxEtTangentes(e.pages, e.blocs),
@@ -80,13 +80,13 @@ const resDiagnostic = await mesure({
 });
 
 await stress({
-  nom: 'prepareCones extremes',
+  name: 'prepareCones extremes',
   calcul: (c) => prepareCones(entreeCones(c)),
-  extremes: [{ nom: 'vide', entree: [] }],
+  extremes: [{ name: 'empty', input: [] }],
 });
 
 rapport(
   'cones-normaux',
   [resCones, resOctets, resDiagnostic],
-  'F18 rend exactement les mêmes cônes, les mêmes octets et les mêmes comptes',
+  'F18 yields the exact same cones, bytes and counts',
 );

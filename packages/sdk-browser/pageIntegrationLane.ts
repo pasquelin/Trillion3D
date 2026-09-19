@@ -11,26 +11,26 @@ const workerError = (id: number, url: string): PageIntegrationAnswer => ({
 });
 
 /**
- * Un seul worker, une seule file, l'ordre d'envoi rendu intact. Adaptateur navigateur : c'est le
- * seul fichier de l'intégration qui construit un `Worker`.
+ * One worker, one queue, send order kept intact. Browser adapter: this is the only integration
+ * file that constructs a `Worker`.
  *
- * Un seul fil, et non un pool : l'ordre d'intégration EST la priorité de l'image, et deux fils
- * rendraient leurs plans dans l'ordre de leur charge. Le travail planifié ici est de l'arithmétique
- * d'entiers sur quelques centaines d'enregistrements ; c'est le fil principal qu'il s'agit de
- * libérer, pas un cœur de plus qu'il s'agit d'occuper.
+ * One thread, not a pool: the integration order IS the frame's priority, and two threads would
+ * return their plans in the order of their load. The work planned here is integer arithmetic
+ * on a few hundred records; it is the main thread that must be freed, not one more core that
+ * must be occupied.
  *
- * `start` est la porte du démarrage : une requête d'épreuve part la première, et un démarrage qui
- * échoue — pas de `Worker`, module introuvable — laisse l'appelant à son repli en ligne. Après le
- * démarrage, la disparition du worker casse la file : les travaux en vol répondent
- * `PAGE_INTEGRATION_WORKER`, et tout ce qui suit repart en ligne.
+ * `start` is the startup gate: a probe request goes first, and a start that fails — no
+ * `Worker`, module not found — leaves the caller to its in-line fallback. After start, the
+ * worker's disappearance breaks the queue: in-flight work answers `PAGE_INTEGRATION_WORKER`,
+ * and everything after that goes back in-line.
  */
 export function createPageIntegrationLane() {
   const pending = new Map<number, (answer: PageIntegrationAnswer) => void>();
   let worker: Worker | undefined,
     alive = true,
     nextId = 1;
-  // Le module du worker porte l'extension du module qui le lance : `.ts` dans un arbre de sources
-  // servi tel quel, `.js` dans un `dist/` construit.
+  // The worker module carries the extension of the module that launches it: `.ts` in a source
+  // tree served as-is, `.js` in a built `dist/`.
   const source = new URL(
     import.meta.url.endsWith('.ts') ? './pageIntegrationWorker.ts' : './pageIntegrationWorker.js',
     import.meta.url,
@@ -81,7 +81,7 @@ export function createPageIntegrationLane() {
     get alive() {
       return alive;
     },
-    /** Vraie une fois que le worker a répondu à l'épreuve de démarrage ; fausse et file close sinon. */
+    /** True once the worker has answered the startup probe; false and the queue closed otherwise. */
     start() {
       ready ??= (async () => {
         if (typeof Worker === 'undefined') {

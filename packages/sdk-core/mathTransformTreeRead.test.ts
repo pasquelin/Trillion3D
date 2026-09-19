@@ -1,5 +1,5 @@
-// Lot M3a, mathTransformTreeRead.ts : lectures monde (position, quaternion, échelle, direction),
-// mise à jour automatique des ancêtres avant lecture et sens des faces (déterminant négatif).
+// Batch M3a, mathTransformTreeRead.ts: world reads (position, quaternion, scale, direction),
+// automatic ancestor update before read and face winding (negative determinant).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -21,21 +21,21 @@ import {
 
 const proche = (a: number, b: number, tol = 1e-9) => Math.abs(a - b) <= tol;
 
-test('nodeWorldPosition met à jour un ancêtre périmé avant de lire', () => {
+test('nodeWorldPosition updates a stale ancestor before reading', () => {
   const tree = createTransformTree(4);
   const racine = addTransformNode(tree);
   const enfant = addTransformNode(tree, racine);
   setNodePosition(tree, racine, 10, 0, 0);
   setNodePosition(tree, enfant, 1, 2, 3);
   const out = new Float64Array(3);
-  nodeWorldPosition(out, tree, enfant); // aucune mise à jour explicite avant l’appel
+  nodeWorldPosition(out, tree, enfant); // no explicit update before the call
   assert.deepEqual([...out], [11, 2, 3]);
 });
 
-test('nodeWorldQuaternion et nodeWorldScale décomposent la matrice monde d’un nœud tourné et mis à l’échelle', () => {
+test('nodeWorldQuaternion and nodeWorldScale decompose the world matrix of a rotated and scaled node', () => {
   const tree = createTransformTree(4);
   const node = addTransformNode(tree);
-  setNodeQuaternion(tree, node, 0, 1, 0, 0); // demi-tour autour de y
+  setNodeQuaternion(tree, node, 0, 1, 0, 0); // half-turn around y
   setNodeScale(tree, node, 2, 3, 4);
   const q = new Float64Array(4),
     s = new Float64Array(3);
@@ -45,7 +45,7 @@ test('nodeWorldQuaternion et nodeWorldScale décomposent la matrice monde d’un
   assert.ok(proche(s[0], 2) && proche(s[1], 3) && proche(s[2], 4));
 });
 
-test('nodeWorldDirection : objet présente +z, caméra regarde vers -z, à l’identité', () => {
+test('nodeWorldDirection: object presents +z, camera looks toward -z, at identity', () => {
   const tree = createTransformTree(4);
   const node = addTransformNode(tree);
   const out = new Float64Array(3);
@@ -57,18 +57,18 @@ test('nodeWorldDirection : objet présente +z, caméra regarde vers -z, à l’i
   assert.ok(Object.is(out[1], -0) || out[1] === 0);
 });
 
-test('nodeWorldDirection : une colonne z nulle dans la matrice monde reste nulle après normalisation', () => {
+test('nodeWorldDirection: a zero z column in the world matrix stays zero after normalisation', () => {
   const tree = createTransformTree(4);
   const node = addTransformNode(tree);
-  setNodeAutoUpdate(tree, node, false); // la matrice locale posée ne doit pas être recomposée
-  const m = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]; // colonne z nulle
+  setNodeAutoUpdate(tree, node, false); // the set local matrix must not be recomposed
+  const m = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]; // zero z column
   setNodeLocalMatrix(tree, node, m);
   const out = new Float64Array(3);
   nodeWorldDirection(out, tree, node, false);
   assert.deepEqual([...out], [0, 0, 0]);
 });
 
-test('nodeWorldMirrorsFaces : identité et miroir sur deux axes ne renversent pas, un seul ou trois axes renversent', () => {
+test('nodeWorldMirrorsFaces: identity and two-axis mirror do not reverse, one or three axes reverse', () => {
   const tree = createTransformTree(4);
   const identite = addTransformNode(tree);
   const unAxe = addTransformNode(tree);
@@ -79,7 +79,7 @@ test('nodeWorldMirrorsFaces : identité et miroir sur deux axes ne renversent pa
   setNodeScale(tree, deuxAxes, -1, -1, 1);
   for (const n of [identite, unAxe, troisAxes, deuxAxes]) {
     const out = new Float64Array(3);
-    nodeWorldPosition(out, tree, n); // force la mise à jour de la matrice monde
+    nodeWorldPosition(out, tree, n); // force the world-matrix update
   }
   assert.equal(nodeWorldMirrorsFaces(tree, identite), false);
   assert.equal(nodeWorldMirrorsFaces(tree, unAxe), true);
@@ -87,7 +87,7 @@ test('nodeWorldMirrorsFaces : identité et miroir sur deux axes ne renversent pa
   assert.equal(nodeWorldMirrorsFaces(tree, deuxAxes), false);
 });
 
-test('nodeWorldMirrorsFaces : un déterminant nul (échelle nulle) ne renverse rien', () => {
+test('nodeWorldMirrorsFaces: a zero determinant (zero scale) reverses nothing', () => {
   const tree = createTransformTree(4);
   const node = addTransformNode(tree);
   setNodeScale(tree, node, 0, 1, 1);

@@ -24,9 +24,9 @@ import { createWebgpuPagesCache } from './webgpuPagesPrepareCache.ts';
 import { type WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Every cluster carries its own cone; a double-sided or back-facing material keeps it open.
- *  Poser un cône, c'est le déclarer : la racine de la page relève son drapeau, sans quoi la coupe
- *  la croirait sans cône et ne lirait plus `cone`. Les pages sont parcourues par racine : le
- *  catalogue `allPages` est la concaténation de leurs pages, dans le même ordre. */
+ *  Posting a cone is declaring it: the page's root raises its flag, or the cut would believe it has
+ *  no cone and would no longer read `cone`. Pages are walked by root: the `allPages` catalogue is the
+ *  concatenation of their pages, in the same order. */
 export function prepareCones(rt: WebgpuPagesRuntime) {
   const xyzCache = new WeakMap<THREE.BufferGeometry['attributes'], Float32Array>();
   for (const root of rt.setup.roots)
@@ -38,10 +38,10 @@ export function prepareCones(rt: WebgpuPagesRuntime) {
       let xyz = xyzCache.get(rec.attributes);
       if (!xyz) {
         xyz = new Float32Array(attr.count * 3);
-        // Un attribut simple de trois composantes non normalisé est déjà ce tableau :
-        // `getX/getY/getZ` rendent alors `array[i * 3 + c]`, et la copie par bloc écrit les mêmes
-        // valeurs, arrondies au même flottant 32 bits. Tout autre attribut — entrelacé, normalisé,
-        // d'un autre pas — repasse par les accesseurs, seuls capables de dire ce qu'il porte.
+        // A simple unnormalized three-component attribute is already that array: `getX/getY/getZ` then
+        // yield `array[i * 3 + c]`, and the block copy writes the same values, rounded to the same 32-bit
+        // float. Any other attribute — interleaved, normalized, another stride — goes back through the
+        // accessors, the only ones able to say what it holds.
         const plat = attr as THREE.BufferAttribute;
         if (
           plat.itemSize === 3 &&
@@ -69,9 +69,9 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     { allPages, blendCopies, scene, viewport, cap } = rt.setup,
     { packedPages, selectionRoots, rows } = rt.layout;
   rt.lights.buffer = createSceneLightContractBuffer(gpuDevice);
-  // Plus aucune lumière écrite dans la scène, d'aucun côté : opaques et transparents lisent le même
-  // tampon de lampes déclarées, avec les mêmes ombres et la même exposition (P6).
-  diag.engineDiagnostic('scene-lighting', 'Lumières de la scène actives', {
+  // No more light written into the scene, on either side: opaques and transparents read the same
+  // declared-light buffer, with the same shadows and the same exposure (P6).
+  diag.engineDiagnostic('scene-lighting', 'Scene lights active', {
     version: 1,
     contractLights: rt.lights.store.count,
     sceneGraphLights: false,
@@ -79,9 +79,9 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     shadows: false,
     globalIllumination: false,
   });
-  // Le programme du contrat finit de compiler entre deux images : son arrivée est une ressource
-  // neuve, et sans ce compteur l'image tenue continuerait de présenter l'albédo brut.
-  // Les deux programmes compilent côte à côte : ils ne partagent que l'appareil.
+  // The contract program finishes compiling between two images: its arrival is a new resource, and
+  // without this counter the held image would keep presenting raw albedo.
+  // The two programs compile side by side: they share only the device.
   [gpu.deferred] = await Promise.all([
     createDeferredLighting(gpuDevice, rt.lights.buffer, () => run.gate.resourcesChanged()),
     prepareTemporalAntialiasing(rt, gpuDevice),
@@ -94,7 +94,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     blit: gpu.blit,
   } = prepareWebgpuPresentation(gpuDevice, scene, context.gpuCanvas));
   if (gpu.presenter) grantCapability(capabilities, 'direct WebGPU present');
-  diag.engineDiagnostic('gpu-presentation', 'Présentation GPU initialisée', {
+  diag.engineDiagnostic('gpu-presentation', 'GPU presentation initialised', {
     mode: context.gpuCanvas
       ? 'direct-canvas'
       : gpu.presenter
@@ -114,7 +114,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     ensureWebgpuPositionBuffer(gpuDevice, rec.attributes, gpu.positionBuffers, gpu);
   for (let i = 0; i < packedPages.length; i++)
     rows.pagePositions[i] = gpu.positionBuffers.get(packedPages[i].attributes);
-  // Tampons de position neufs : la synchronisation des rangs repart du catalogue.
+  // Fresh position buffers: rank sync starts over from the catalogue.
   rows.rowsRevision++;
   gpu.zeroUv = gpuDevice.createBuffer({
     size: 8,
@@ -143,7 +143,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   ensureUniform(rt, gpuDevice, cap);
   try {
     await prepareWebgpuTextures(rt, gpuDevice);
-    // Les fiches d'items citent les couches d'atlas : elles se montent donc APRÈS les textures.
+    // Item rows cite atlas layers: they are therefore mounted AFTER the textures.
     await prepareBlendResources(rt, gpuDevice);
     await prepareWebgpuVisibility(rt, gpuDevice);
   } catch (error) {
@@ -162,13 +162,13 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
       residentCut: true,
       diagnosticGpuVariant: rt.context.diagnosticGpuVariant,
     });
-    // La carte vient de recevoir des matrices monde ABSOLUES : aucune origine de rendu n'y est
-    // encore posée, et la première image les ramènera à l'œil où qu'il soit alors.
+    // The GPU has just received ABSOLUTE world matrices: no render origin is posted there yet, and
+    // the first image will bring them back to the eye wherever it is then.
     run.worldUploadOrigin.fill(NaN);
   }
   capabilities.gpuDriven = !!run.gpuSelection;
   await services.bootstrapState.ensure();
-  diag.engineDiagnostic('render-capabilities', 'Chemins de rendu prêts', {
+  diag.engineDiagnostic('render-capabilities', 'Render paths ready', {
     surfaceVersion: gpu.surfaces?.version ?? null,
     deferredLighting: !!gpu.deferred,
     directLightTiles: !!rt.lights.tiles,
@@ -182,8 +182,8 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     indirectDraw: !!vis.gpuDraw,
     hiz: !!vis.gpuHiz,
     temporalAntialiasing: !!gpu.temporal,
-    // Aucune cible de vecteurs n'est rastérisée : la passe temporelle les dérive du tampon de
-    // visibilité et de la pose précédente du placement.
+    // No vector target is rasterised: the temporal pass derives them from the visibility buffer and
+    // the placement's previous pose.
     motionVectors: gpu.temporal ? 'derived' : false,
     unsupported: [...capabilities.unsupported],
   });

@@ -1,23 +1,24 @@
-//! Ce qu'un `UsdPreviewSurface` texturé donne en glTF : l'opacité qui arrive par une image, et la
-//! carte métal/rugosité que glTF range dans deux canaux d'une seule texture.
+//! What a textured `UsdPreviewSurface` yields in glTF: opacity that arrives
+//! through an image, and the metal/roughness map glTF stores in two channels of
+//! a single texture.
 //!
-//! Chaque cas est une couche minuscule écrite ici, à côté d'une vraie image : une texture qui ne se
-//! lit pas ne prouverait rien de ce qui suit sa résolution.
+//! Each case is a tiny layer written here, beside a real image: a texture that
+//! cannot be read would prove nothing of what follows its resolution.
 use super::*;
 use usd_driver::wrap;
 
-/// Le rapport d'une couche : les raisons nommées et leur compte.
+/// Report of a layer: named reasons and their count.
 pub(super) fn unsupported(run: &GoldenRun) -> Value {
     run.prepared("usd").0["unsupported"].clone()
 }
 
-/// Le `pbrMetallicRoughness` du seul matériau de la couche.
+/// The `pbrMetallicRoughness` of the layer's only material.
 pub(super) fn pbr(gltf: &Value) -> Value {
     gltf["materials"][0]["pbrMetallicRoughness"].clone()
 }
 
-/// Une couche à un quad lié au matériau `M`, dont le `UsdPreviewSurface` porte `inputs` et dont les
-/// nœuds de texture suivent.
+/// A layer with one quad bound to material `M`, whose `UsdPreviewSurface` carries
+/// `inputs` and whose texture nodes follow.
 pub(super) fn layer(inputs: &str, shaders: &str) -> String {
     let body = format!(
         r#"    def Mesh "Quad" (
@@ -46,8 +47,8 @@ pub(super) fn layer(inputs: &str, shaders: &str) -> String {
     wrap("", &body)
 }
 
-/// Un `UsdUVTexture` nommé, sur une image du dossier de la couche, qui porte `extra` entre ses
-/// entrées — un mode de répétition, une échelle, un espace de couleur.
+/// A named `UsdUVTexture`, on an image of the layer's folder, which carries
+/// `extra` among its inputs — a wrap mode, a scale, a colour space.
 pub(super) fn texture(name: &str, file: &str, extra: &str) -> String {
     format!(
         r#"
@@ -65,7 +66,7 @@ pub(super) fn texture(name: &str, file: &str, extra: &str) -> String {
     )
 }
 
-/// Écrit la couche et les images qu'elle cite sous `textures/`, puis compile par le harnais commun.
+/// Writes the layer and the images it cites under `textures/`, then compiles with the common harness.
 pub(super) fn compile(tag: &str, body: &str, files: &[&str]) -> GoldenRun {
     let images: Vec<String> = files
         .iter()
@@ -75,10 +76,10 @@ pub(super) fn compile(tag: &str, body: &str, files: &[&str]) -> GoldenRun {
     usd_textures::compile_files(tag, &[("scene.usda", body)], &paths)
 }
 
-// Comportement 46 : une opacité branchée sur l'alpha de la texture de couleur de base arrive dans
-// la scène — une entrée connectée l'emporte sur la valeur écrite, donc le facteur d'alpha vaut un
-// et laisse passer l'image, et le mode suit la sémantique de USD : mélange, ou découpe quand
-// `opacityThreshold` la demande.
+// Behaviour 46: an opacity wired to the alpha of the base-colour texture reaches
+// the scene — a connected input wins over the written value, so the alpha factor
+// is one and lets the image through, and the mode follows USD semantics: blend,
+// or cutout when `opacityThreshold` asks for it.
 #[test]
 fn an_opacity_bound_to_the_base_colour_texture_reaches_the_alpha_and_the_blend_mode() {
     let inputs = "            color3f inputs:diffuseColor.connect = </Root/M/T.outputs:rgb>\n            float inputs:opacity = 0.25\n            float inputs:opacity.connect = </Root/M/T.outputs:a>";
@@ -92,13 +93,13 @@ fn an_opacity_bound_to_the_base_colour_texture_reaches_the_alpha_and_the_blend_m
     assert_eq!(
         pbr(&gltf)["baseColorFactor"],
         json!([1.0, 1.0, 1.0, 1.0]),
-        "le facteur ne doit pas rendre l'image opaque"
+        "the factor must not make the image opaque"
     );
     assert_eq!(pbr(&gltf)["baseColorTexture"]["index"], 0);
     assert_eq!(
         gltf["textures"].as_array().map(Vec::len),
         Some(1),
-        "aucune texture orpheline"
+        "no orphan texture"
     );
     let cut = format!("{inputs}\n            float inputs:opacityThreshold = 0.5");
     let run = compile(
@@ -111,9 +112,9 @@ fn an_opacity_bound_to_the_base_colour_texture_reaches_the_alpha_and_the_blend_m
     assert_eq!(gltf["materials"][0]["alphaCutoff"], 0.5);
 }
 
-// Comportement 47 : une opacité portée par une **autre** image que la couleur de base ne se range
-// pas dans l'alpha de glTF sans recomposer des octets. Elle est comptée par son nom, et rien n'est
-// versé de l'image qu'on ne sait pas brancher.
+// Behaviour 47: an opacity carried by an **other** image than the base colour
+// does not fit in glTF's alpha without recomposing bytes. It is counted by name,
+// and nothing is poured of the image we do not know how to wire.
 #[test]
 fn an_opacity_carried_by_a_second_image_is_counted_rather_than_loaded_and_dropped() {
     let inputs = "            color3f inputs:diffuseColor.connect = </Root/M/T.outputs:rgb>\n            float inputs:opacity.connect = </Root/M/U.outputs:a>";
@@ -132,16 +133,16 @@ fn an_opacity_carried_by_a_second_image_is_counted_rather_than_loaded_and_droppe
     assert_eq!(
         gltf["images"].as_array().map(Vec::len),
         Some(1),
-        "l'image d'opacité n'est pas versée pour être jetée"
+        "the opacity image is not poured to be thrown away"
     );
     assert_eq!(
         gltf["materials"][0]["alphaMode"], "OPAQUE",
-        "la transparence non portée n'est pas annoncée"
+        "uncarried transparency is not announced"
     );
 }
 
-// Comportement 48 : une carte métal/rugosité partagée l'emporte sur les facteurs écrits — glTF
-// multiplie la carte par le facteur, donc il vaut un, sans quoi le métal serait annulé.
+// Behaviour 48: a shared metal/roughness map wins over the written factors —
+// glTF multiplies the map by the factor, so it is one, otherwise metal would be cancelled.
 #[test]
 fn a_shared_metal_roughness_texture_wins_over_the_factors_instead_of_being_cancelled_by_them() {
     let inputs = "            float inputs:metallic.connect = </Root/M/T.outputs:b>\n            float inputs:roughness.connect = </Root/M/T.outputs:g>";
@@ -152,7 +153,11 @@ fn a_shared_metal_roughness_texture_wins_over_the_factors_instead_of_being_cance
     );
     let (_, gltf) = run.prepared("usd");
     assert_eq!(pbr(&gltf)["metallicRoughnessTexture"]["index"], 0);
-    assert_eq!(pbr(&gltf)["metallicFactor"], 1.0, "la carte porte le métal");
+    assert_eq!(
+        pbr(&gltf)["metallicFactor"],
+        1.0,
+        "the map carries the metal"
+    );
     assert_eq!(pbr(&gltf)["roughnessFactor"], 1.0);
     assert_eq!(
         unsupported(&run)["usd-texture-channel-unsupported"],
@@ -160,8 +165,9 @@ fn a_shared_metal_roughness_texture_wins_over_the_factors_instead_of_being_cance
     );
 }
 
-// Comportement 49 : glTF lit le métal dans le canal bleu de sa carte et la rugosité dans le vert ;
-// une entrée branchée sur un autre canal ne s'y range pas, et c'est compté par son nom.
+// Behaviour 49: glTF reads metal in the blue channel of its map and roughness
+// in the green; an input wired to another channel does not fit there, and that
+// is counted by name.
 #[test]
 fn a_metal_roughness_input_bound_to_another_channel_is_counted_by_its_name() {
     let inputs = "            float inputs:metallic.connect = </Root/M/T.outputs:r>\n            float inputs:roughness.connect = </Root/M/T.outputs:g>";
@@ -175,6 +181,6 @@ fn a_metal_roughness_input_bound_to_another_channel_is_counted_by_its_name() {
     assert_eq!(
         pbr(&gltf)["metallicRoughnessTexture"]["index"],
         0,
-        "la carte reste portée, le canal est dit"
+        "the map stays carried, the channel is stated"
     );
 }

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Assemble les fragments déposés par les bancs `.perf.mjs` en un tableau unique, en console et sous
-// `.mesure/out/perf/`. Les seuils d'une régression viennent de `bench/socle/baseline.mjs` et le
-// rendu d'une ligne de `bench/socle/tableau.mjs` : une ligne et la conclusion du même tableau ne
-// peuvent pas se contredire, et la console d'un banc affiche le même format que l'agrégat.
+// Assembles fragments dropped by `.perf.mjs` benches into a single table, on the console and
+// under `.mesure/out/perf/`. Regression thresholds come from `bench/socle/baseline.mjs` and
+// the rendering of a line from `bench/socle/tableau.mjs`: a line and the conclusion of the
+// same table cannot contradict each other, and a bench console shows the same format as the aggregate.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { loadavg } from 'node:os';
 import { join } from 'node:path';
@@ -19,13 +19,13 @@ const pourCent = (v) => `${(v * 100).toFixed(0)} %`;
 
 const fragments = lisFragments();
 if (fragments.length === 0) {
-  console.log('Aucun fragment de mesure dans .mesure/perf/');
+  console.log('No measurement fragment in .mesure/perf/');
   process.exit(0);
 }
 
 const lignes = fragments.flatMap((f) =>
   f.mesures.flatMap((m) =>
-    m.resultats.map((r) => ligneMd(r, { avant: [f.domaine, m.nom], pastilles: true })),
+    m.resultats.map((r) => ligneMd(r, { before: [f.domaine, m.name], pastilles: true })),
   ),
 );
 const tous = fragments.flatMap((f) => f.mesures.flatMap((m) => m.resultats));
@@ -36,27 +36,25 @@ const jour = new Date().toISOString().slice(0, 10);
 const sha = commitCourant();
 const charge = loadavg()[0];
 
-const tableau = [...entete(['Domaine', 'Mesure', 'Cas']), ...lignes].join('\n');
-// « 0 régression » sur un lot sans baseline se lirait comme « rien n'a ralenti » : ce n'est pas la
-// même chose, et le résumé le dit.
+const tableau = [...entete(['Domain', 'Measure', 'Case']), ...lignes].join('\n');
+// "0 regression" on a batch with no baseline would read as "nothing slowed down": that is
+// not the same thing, and the summary says so.
 const comparaison =
   bilan.verdict === 'absent'
-    ? 'aucune baseline sur cette machine : rien de comparé (`pnpm run perf:baseline` en dépose une)'
-    : `${bilan.compares} comparée(s) : ${bilan.regressions.length} régression(s) (> ${pourCent(
+    ? 'no baseline on this machine: nothing compared (`pnpm run perf:baseline` deposits one)'
+    : `${bilan.compares} compared: ${bilan.regressions.length} regression(s) (> ${pourCent(
         bilan.seuilEchec,
-      )}), ${bilan.avertissements.length} avertissement(s) (> ${pourCent(
-        bilan.seuilAvertissement,
-      )})`;
-const resume = `${tous.length} mesures, ${sansOracle.length} sans oracle, ${comparaison}.`;
-const contexte = `Machine : ${process.platform}/${process.arch}, Node ${process.version}, commit \`${sha}\`, charge ${charge.toFixed(1)}.`;
+      )}), ${bilan.avertissements.length} warning(s) (> ${pourCent(bilan.seuilAvertissement)})`;
+const resume = `${tous.length} measurements, ${sansOracle.length} without oracle, ${comparaison}.`;
+const contexte = `Machine: ${process.platform}/${process.arch}, Node ${process.version}, commit \`${sha}\`, load ${charge.toFixed(1)}.`;
 
 console.log(`\n${tableau}\n\n${resume}\n${contexte}`);
-if (charge > 4) console.log('⚠️ Machine chargée (> 4) : temps non concluants.');
+if (charge > 4) console.log('⚠️ Loaded machine (> 4): times not conclusive.');
 
 mkdirSync(SORTIE, { recursive: true });
 writeFileSync(
   join(SORTIE, `perf-${jour}.md`),
-  `# Rapport de performance — ${jour}\n\n${contexte}\n\n${tableau}\n\n${resume}\n`,
+  `# Performance report — ${jour}\n\n${contexte}\n\n${tableau}\n\n${resume}\n`,
 );
 writeFileSync(
   join(SORTIE, `perf-${jour}.json`),
@@ -66,4 +64,4 @@ writeFileSync(
     2,
   ) + '\n',
 );
-console.log(`\nÉcrit : .mesure/out/perf/perf-${jour}.md et .json`);
+console.log(`\nWritten: .mesure/out/perf/perf-${jour}.md and .json`);

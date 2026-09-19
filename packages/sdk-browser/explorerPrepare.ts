@@ -83,7 +83,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     backends,
     base,
   });
-  // Le cadrage rejoue le tampon réservé au chargement, puis le rend : c'est son dernier lecteur.
+  // Framing replays the buffer reserved at load, then returns it: it is its last reader.
   const cameraState = createExplorerCamera(
     source,
     autonomous,

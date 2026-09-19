@@ -1,8 +1,8 @@
-// Côté page de la preuve « antialiasing temporel » : le vrai moteur WebGPU sur une scène de deux
-// carreaux opaques — un fond bleu plein cadre et un carreau rouge tourné, dont les bords sont
-// obliques —, rendu avec et sans accumulation temporelle : à l'arrêt, sous un panoramique de
-// caméra, puis après un déplacement du carreau.
-// Rien d'interne n'est lu : `setTransform` d'un côté, les pixels relus et `frameHeld` de l'autre.
+// Page side of the "temporal antialiasing" proof: the real WebGPU engine on a scene of two
+// opaque tiles — a full-frame blue background and a rotated red tile, whose edges are oblique —
+// rendered with and without temporal accumulation: at rest, under a camera pan, then after a
+// move of the tile.
+// Nothing internal is read: `setTransform` on one side, reread pixels and `frameHeld` on the other.
 import * as THREE from 'three';
 import { webgpuPagesBackend } from '../../packages/sdk-browser/webgpuPages.ts';
 import {
@@ -12,7 +12,7 @@ import {
   cameraFace,
   image,
   libere,
-  moteur,
+  engine,
   versApi,
 } from './preuveSceneCommune.mjs';
 import { ouvrirAppareil } from '../justesse/appareilWebgpu.mjs';
@@ -20,7 +20,7 @@ import { ouvrirAppareil } from '../justesse/appareilWebgpu.mjs';
 /** Images rendues au plus avant d'abandonner l'attente de la tenue. */
 const PLAFOND = 64;
 
-/** Le fond et le carreau rouge, celui-ci tourné d'un tiers de radian : ses bords sont obliques. */
+/** The background and the red tile, the latter rotated by a third of a radian: its edges are oblique. */
 function scene() {
   const bati = batisseur();
   const fond = new THREE.Mesh(carre(4), new THREE.MeshBasicMaterial({ color: 0x1b3a5c }));
@@ -36,7 +36,7 @@ function scene() {
   return bati.fini();
 }
 
-/** Rend jusqu'à ce que l'image soit tenue ; rend la dernière image RENDUE, la tenue, et le compte. */
+/** Renders until the image is held; returns the last RENDERED image, the held one, and the count. */
 async function jusquaTenue(backend, camera) {
   let rendue,
     rendues = 0;
@@ -49,14 +49,14 @@ async function jusquaTenue(backend, camera) {
   return { rendue, tenue: null, rendues };
 }
 
-/** Le déplacement du carreau : la même rotation, poussée de 0,5 sur `x`. */
+/** The tile's move: the same rotation, pushed 0.5 on `x`. */
 const deplace = () => versApi(new THREE.Matrix4().makeRotationZ(0.33).setPosition(0.5, 0, 0));
 
-/** Une exécution complète : à l'arrêt, puis après déplacement. `temporel` choisit l'option. */
+/** A full run: at rest, then after a move. `temporel` picks the option. */
 async function executionComplete(device, evenements, temporel) {
   const s = scene(),
     propres = [];
-  const { backend, canvas } = moteur(
+  const { backend, canvas } = engine(
     webgpuPagesBackend,
     s,
     device,
@@ -70,8 +70,8 @@ async function executionComplete(device, evenements, temporel) {
   try {
     await backend.prepare();
     const arret = await jusquaTenue(backend, camera);
-    // Panoramique : la caméra glisse d'environ deux tiers de pixel par image, seize images durant.
-    // Rien n'est tenu ; la dernière image rendue est celle qu'on relit.
+    // Pan: the camera slides about two thirds of a pixel per frame, for sixteen frames.
+    // Nothing is held; the last rendered image is the one we reread.
     let panoramique;
     for (let i = 1; i <= 16; i++) {
       const glissee = cameraFace(0.02 * i);

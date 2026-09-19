@@ -1,11 +1,11 @@
-//! D'où vient la transparence d'un matériau Blender : l'entrée `Alpha` du nuanceur, l'image qui la
-//! porte, et le mode que le fichier déclare.
+//! Where the transparency of a Blender material comes from: the shader's `Alpha` input, the
+//! image that carries it, and the mode the file declares.
 use super::*;
 use sortie::{close, factors, material};
 
-// Comportement : l'alpha branché sur le canal alpha de l'image que porte déjà la couleur de base
-// passe tel quel — glTF ne lit l'opacité que là. Le facteur vaut alors un, sans quoi il annulerait
-// l'image, et la valeur déclarée de l'entrée ne reprend pas la main.
+// Behaviour: alpha linked on the alpha channel of the image the base colour already holds
+// passes as-is — glTF only reads opacity there. The factor is then one, or it would cancel the
+// image, and the declared value of the input does not take over.
 #[test]
 fn an_alpha_on_the_base_colour_image_carries_the_transparency() {
     let (gltf, _) = sortie::compiled(&surgery::fixture(), "alpha-image");
@@ -24,15 +24,15 @@ fn an_alpha_on_the_base_colour_image_carries_the_transparency() {
     assert_eq!(material["alphaMode"], json!("BLEND"));
 }
 
-// Comportement : un alpha pris sur un autre canal de la même image, ou sur une image que la couleur
-// de base ne porte pas, ne se range pas dans le glTF sans recomposer des octets. Chacun est compté
-// par son nom et la valeur déclarée de l'entrée reprend, exacte.
+// Behaviour: an alpha taken from another channel of the same image, or from an image the base
+// colour does not hold, does not fit in glTF without recomposing bytes. Each is counted by its
+// name and the declared value of the input takes over, exact.
 #[test]
 fn an_alpha_from_another_channel_or_another_image_falls_back_to_the_factor() {
     let mut channel = surgery::fixture();
     let mut elsewhere = surgery::fixture();
     {
-        let file = BlendFile::open(&channel, MAX_BYTES).expect("la fixture");
+        let file = BlendFile::open(&channel, MAX_BYTES).expect("the fixture");
         let alpha = surgery::socket(&file, "MATransparent", "Principled BSDF", "inputs", "Alpha");
         let colour = surgery::socket(&file, "MATransparent", "Image Texture", "outputs", "Color");
         let at = surgery::link_field(&file, "MATransparent", alpha, "fromsock");
@@ -72,14 +72,14 @@ fn an_alpha_from_another_channel_or_another_image_falls_back_to_the_factor() {
     }
 }
 
-// Comportement : un fichier antérieur à Blender 4.2 déclare lui-même son mode de transparence, et
-// son SDNA ne décrit pas encore le rendu de surface. Le mode découpe devient un masque glTF, avec
-// le seuil que le fichier porte.
+// Behaviour: a file older than Blender 4.2 declares its own transparency mode, and its SDNA does
+// not yet describe surface rendering. The cut-off mode becomes a glTF mask, with the threshold
+// the file carries.
 #[test]
 fn an_older_file_takes_its_alpha_mode_from_its_own_blend_method() {
     let mut bytes = surgery::without_field("surface_render_method");
     {
-        let file = BlendFile::open(&bytes, MAX_BYTES).expect("la fixture");
+        let file = BlendFile::open(&bytes, MAX_BYTES).expect("the fixture");
         let material = surgery::named(&file, "MATransparent");
         let method = surgery::field(&file, material, &["blend_method"]);
         let threshold = surgery::field(&file, material, &["alpha_threshold"]);
@@ -90,7 +90,7 @@ fn an_older_file_takes_its_alpha_mode_from_its_own_blend_method() {
     let material = material(&gltf, "Transparent");
     assert_eq!(material["alphaMode"], json!("MASK"), "{material}");
     assert!(
-        (material["alphaCutoff"].as_f64().expect("seuil") - 0.25).abs() < 1e-6,
+        (material["alphaCutoff"].as_f64().expect("threshold") - 0.25).abs() < 1e-6,
         "{material}"
     );
 }

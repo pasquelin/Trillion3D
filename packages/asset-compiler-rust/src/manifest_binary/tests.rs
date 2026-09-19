@@ -132,7 +132,7 @@ fn a_url_that_leaves_the_template_is_refused() {
         "INVALID_MANIFEST"
     );
 }
-// Comportement 10 (Rust) : l'encodage refuse un depthLayer qui dépasse les quatre bits (> 15).
+// Behavior 10 (Rust): encoding refuses depthLayer exceeding four bits (> 15).
 #[test]
 fn split_rejects_a_depth_layer_that_exceeds_four_bits() {
     let templates = Templates {
@@ -166,7 +166,7 @@ fn split_accepts_a_depth_layer_at_the_four_bit_limit_and_writes_it_in_its_column
     let offset = u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap()) as usize;
     let first_page_layer = u32::from_le_bytes(bytes[offset..offset + 4].try_into().unwrap());
     assert_eq!(first_page_layer, 15);
-    // La seconde page (coarse_page) ne porte pas depthLayer : la colonne y reste à zéro.
+    // Second page (coarse_page) carries no depthLayer: column stays zero.
     let second_page_layer = u32::from_le_bytes(bytes[offset + 4..offset + 8].try_into().unwrap());
     assert_eq!(second_page_layer, 0);
 }

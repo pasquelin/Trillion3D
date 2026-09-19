@@ -1,23 +1,23 @@
-//! L'annulation relue **à l'intérieur** d'un maillage.
+//! Cancellation reread **inside** a mesh.
 //!
-//! Un jeton lu une fois par objet ne suffit pas : une scène d'un seul objet à un million de faces
-//! ne s'arrête alors qu'une fois ce million posé. Les pilotes qui découpent des faces relisent donc
-//! le jeton par tranche, tous par cette aide et sous le même refus nommé — une lecture relâchée
-//! toutes les quelques milliers de faces, que le corpus ne voit pas passer.
+//! A token read once per object is not enough: a scene of a single object with a million
+//! faces then only stops once that million has been laid down. Drivers that split faces
+//! therefore reread the token by slice, all through this helper and under the same named
+//! refusal — a relaxed read every few thousand faces, which the corpus does not notice.
 use crate::CompilerError;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-/// Faces entre deux lectures du jeton : assez pour que la lecture ne pèse rien, assez peu pour
-/// qu'un maillage énorme s'arrête sans attendre sa dernière face.
+/// Faces between two token reads: enough that the read weighs nothing, few enough that a
+/// huge mesh stops without waiting for its last face.
 const SLICE: usize = 4096;
 
-/// Vrai quand le jeton est levé, relu au début de chaque tranche. `done` est le nombre de faces
-/// déjà posées par ce maillage.
+/// True when the token is raised, reread at the start of each slice. `done` is the number of
+/// faces already laid down by this mesh.
 pub(super) fn stopped(cancelled: &AtomicBool, done: usize) -> bool {
     done.is_multiple_of(SLICE) && cancelled.load(Ordering::Relaxed)
 }
 
-/// Le refus qu'une compilation annulée porte, le même pour tous les pilotes.
+/// Refusal that a cancelled compilation carries, the same for every driver.
 pub(super) fn refusal() -> CompilerError {
     CompilerError::new("CANCELLED", "Import cancelled")
 }

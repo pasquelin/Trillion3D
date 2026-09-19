@@ -1,28 +1,28 @@
-//! La transparence d'un `UsdPreviewSurface`, telle que glTF la porte : un facteur d'alpha, un mode,
-//! et parfois un seuil de découpe.
+//! Transparency of a `UsdPreviewSurface`, as glTF carries it: an alpha factor, a mode, and
+//! sometimes a cutoff threshold.
 //!
-//! Rien ici ne regarde le type de l'objet ni le nom de la scène : la découpe vient de
-//! `opacityThreshold`, le mélange d'une opacité inférieure à un ou d'une image qui la porte, et
-//! c'est tout. glTF ne lit l'opacité d'une image que dans l'alpha de `baseColorTexture` : une
-//! `opacity` branchée sur cette texture-là passe telle quelle, une autre image ne s'y ramène pas
-//! sans en recomposer une troisième, ce qui serait inventer des octets.
+//! Nothing here looks at the object type or the scene name: cutoff comes from
+//! `opacityThreshold`, blending from an opacity below one or from an image that carries it, and
+//! that is all. glTF reads an image's opacity only in the alpha of `baseColorTexture`: an
+//! `opacity` wired onto that texture passes through as-is; another image cannot be folded into
+//! it without recomposing a third, which would invent bytes.
 use super::*;
 
-/// Le canal où glTF lit l'opacité d'une image : l'alpha de la texture de couleur de base, et lui
-/// seul. Un autre canal de la même image ne s'y range pas sans recomposer des octets.
+/// Channel where glTF reads an image's opacity: the alpha of the base-colour texture, and that
+/// alone. Another channel of the same image does not fit there without recomposing bytes.
 const ALPHA_CHANNEL: &str = "outputs:a";
 
-/// Ce que l'opacité de la surface a donné : le facteur qui entre dans `baseColorFactor`, et si
-/// l'alpha d'une image le module encore.
+/// What the surface opacity yielded: the factor that enters `baseColorFactor`, and whether an
+/// image's alpha still modulates it.
 #[derive(Clone, Copy)]
 pub(super) struct Opacity {
     pub(super) factor: f64,
     textured: bool,
 }
 
-/// L'opacité de la surface, connaissant la connexion de `diffuseColor` et le `pbrMetallicRoughness`
-/// déjà rempli. Une entrée connectée l'emporte sur la valeur écrite : quand l'alpha de la texture
-/// de couleur de base porte l'opacité, le facteur vaut un et laisse passer l'image.
+/// Surface opacity, given the `diffuseColor` connection and the already filled
+/// `pbrMetallicRoughness`. A connected input wins over the written value: when the base-colour
+/// texture's alpha carries the opacity, the factor is one and lets the image through.
 pub(super) fn of(
     world: &mut World<'_>,
     shader: &usd::Prim,
@@ -43,8 +43,9 @@ pub(super) fn of(
         world.refuse(world::OPACITY_TEXTURE);
         return written;
     }
-    // L'image est bien celle que glTF portera ; reste le canal, car glTF n'en lit qu'un. Un autre
-    // canal de cette image donnerait une transparence lue ailleurs qu'écrite : la valeur reprend.
+    // The image is the one glTF will carry; the channel remains, because glTF reads only one.
+    // Another channel of this image would give a transparency read elsewhere than written: the
+    // value is taken back.
     if !target
         .split_property()
         .is_some_and(|(_, name)| name == ALPHA_CHANNEL)
@@ -58,7 +59,7 @@ pub(super) fn of(
     }
 }
 
-/// Le mode de transparence de ce matériau.
+/// Transparency mode of this material.
 pub(super) fn mode(shader: &usd::Prim, opacity: Opacity) -> &'static str {
     if cutoff(shader).is_some() {
         return "MASK";
@@ -69,7 +70,7 @@ pub(super) fn mode(shader: &usd::Prim, opacity: Opacity) -> &'static str {
     }
 }
 
-/// Le seuil de découpe, quand la surface en déclare un qui découpe vraiment.
+/// Cutoff threshold, when the surface declares one that actually cuts.
 pub(super) fn cutoff(shader: &usd::Prim) -> Option<f64> {
     material::scalar(shader, "opacityThreshold").filter(|threshold| *threshold > 0.0)
 }

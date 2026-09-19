@@ -1,10 +1,10 @@
-// Les règles que le relevé doit tenir entre deux images, et que rien ne prouvait.
+// The rules the snapshot must hold between two frames, and that nothing proved.
 //
-// `gpuDagSelection2.test.ts` couvre la moitié RÉSIDENCE de la garde de relevé en vol ; la moitié
-// MONDE ne l'était pas, ni le fait qu'une copie ne parte que si une relecture est due. Les deux
-// deviennent des trous dès que la coupe est publiée comme autre chose qu'une liste complète : un
-// relevé adopté après un changement de monde décrit une scène qui n'existe plus, et une copie
-// inutile prend une fente de relecture que l'image suivante n'aura plus.
+// `gpuDagSelection2.test.ts` covers the RESIDENCY half of the in-flight snapshot guard; the
+// WORLD half was not, nor the fact that a copy only leaves when a readback is due. Both become
+// holes as soon as the cut is published as something other than a complete list: a snapshot
+// adopted after a world change describes a scene that no longer exists, and a useless copy
+// takes a readback slot the next frame will no longer have.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGpuDagSelection } from './gpuDagSelection.ts';
@@ -12,7 +12,7 @@ import { dagFixture, wideCamera } from './pageSelectionDagFixture.ts';
 import { installGpuGlobals, mockDagDevice } from './gpuDagSelectionFixture.ts';
 import { kernelUniforms, packed } from './gpuDagSelectionTestHelpers.ts';
 
-test('un relevé en vol que traverse un changement de monde ne devient jamais la coupe tenue', async () => {
+test('an in-flight snapshot that a world change crosses never becomes the held cut', async () => {
   installGpuGlobals();
   let release!: () => void;
   const gate = new Promise<void>((resolve) => {
@@ -24,8 +24,8 @@ test('un relevé en vol que traverse un changement de monde ne devient jamais la
   const selection = await createGpuDagSelection(mockDagDevice(dag, { mapGate: gate }).device, dag);
   assert.ok(selection);
   selection.dispatch(uniforms);
-  // La primitive part à mille unités PENDANT que le relevé est en vol : ce qu'il rapporte décrit la
-  // pose d'avant, et rien ne doit le laisser devenir la coupe de l'image.
+  // The primitive moves a thousand units WHILE the snapshot is in flight: what it reports
+  // describes the previous pose, and nothing must let it become the frame's cut.
   const moved = dag.worlds.slice();
   moved[12] = 1000;
   assert.equal(selection.updateWorlds(moved), true);
@@ -36,7 +36,7 @@ test('un relevé en vol que traverse un changement de monde ne devient jamais la
   fixture.geometry.dispose();
 });
 
-test('une copie de relevé ne part que lorsqu’une relecture est due', async () => {
+test('a snapshot copy only leaves when a readback is due', async () => {
   installGpuGlobals();
   const fixture = dagFixture();
   const { dag, roots } = packed(fixture);
@@ -46,18 +46,18 @@ test('une copie de relevé ne part que lorsqu’une relecture est due', async ()
   assert.ok(selection);
   selection.dispatch(uniforms);
   await selection.flush();
-  assert.equal(readbackCopies(), 1, 'la première image relit');
-  // Mêmes uniformes, même résidence : le relevé tenu décrit déjà cette image. Aucun calcul, et
-  // surtout aucune copie — elle prendrait une fente pour rapporter ce qui est déjà là.
+  assert.equal(readbackCopies(), 1, 'the first frame reads back');
+  // Same uniforms, same residency: the held snapshot already describes this frame. No compute,
+  // and above all no copy — it would take a slot to report what is already there.
   selection.dispatch(uniforms);
   selection.dispatch(uniforms);
   await selection.flush();
-  assert.equal(readbackCopies(), 1, 'rien n’a changé, rien n’est recopié');
+  assert.equal(readbackCopies(), 1, 'nothing changed, nothing is copied');
   selection.dispose();
   fixture.geometry.dispose();
 });
 
-test('une résidence republiée à l’identique ne jette pas la coupe tenue', async () => {
+test('a residency republished identically does not drop the held cut', async () => {
   installGpuGlobals();
   const fixture = dagFixture();
   const { dag, roots } = packed(fixture);
@@ -69,9 +69,9 @@ test('une résidence republiée à l’identique ne jette pas la coupe tenue', a
   assert.equal(selection.updateResidency(resident), true);
   selection.dispatch(uniforms);
   assert.ok(await selection.flush());
-  assert.ok(selection.peek(), 'la coupe est tenue');
-  assert.equal(selection.updateResidency(resident.slice()), false, 'aucun bit n’a bougé');
-  assert.ok(selection.peek(), 'et la coupe tenue n’a pas été jetée');
+  assert.ok(selection.peek(), 'the cut is held');
+  assert.equal(selection.updateResidency(resident.slice()), false, 'no bit has moved');
+  assert.ok(selection.peek(), 'and the held cut was not dropped');
   selection.dispose();
   fixture.geometry.dispose();
 });

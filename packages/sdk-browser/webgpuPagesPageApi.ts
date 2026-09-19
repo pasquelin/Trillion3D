@@ -7,9 +7,9 @@ import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 /**
  * Takes the bytes of one request; each cluster it carries gets its own view at its own offset.
  *
- * Le plan de l'arrivée — calculé hors du fil principal — porte déjà ces offsets et les rangs de
- * page que la requête remue, triés : il ne reste ici qu'à poser les vues et à nommer les pages au
- * journal. Sans plan, le même calcul se refait en ligne, au même résultat.
+ * The arrival plan — computed off the main thread — already carries those offsets and the page
+ * ranks the request stirs, sorted: all that remains here is to post the views and name the pages
+ * to the journal. With no plan, the same calculation is redone inline, to the same result.
  */
 export function acceptPage(
   rt: WebgpuPagesCore,
@@ -27,13 +27,13 @@ export function acceptPage(
   // view — not the bundle — is what the GPU cache uploads under the cluster key.
   const planned = applyArrivalPlan(recs, array, plan);
   if (!planned) acceptPageArray(recs, array);
-  // Le cache lit les octets d'un cluster par son adresse, que douze placements partagent : la table
-  // par adresse est ce qui les lui rend, quel que soit le placement qui vient de les recevoir.
+  // The cache reads a cluster's bytes by its address, which twelve placements share: the table by
+  // address is what yields them, whichever placement just received them.
   for (let i = 0; i < recs.length; i++) {
     const bytes = pageSourceBytes(recs[i]);
     if (bytes) sourceBytes.set(recs[i].url, bytes);
   }
-  // Des octets sont arrivés : la liste des pages encore attendues n'est plus celle d'avant.
+  // Bytes have arrived: the list of pages still waited for is no longer the previous one.
   run.pageArrayEpoch++;
   run.gate.resourcesChanged();
   if (planned && plan) for (let i = 0; i < plan.pageCount; i++) rows.touchPage(plan.pages[i]);
@@ -42,10 +42,10 @@ export function acceptPage(
       const page = rows.pageIndexOf(recs[i]);
       if (page !== undefined) rows.touchPage(page);
     }
-  // Le relevé est une fonction, pas un objet : ses trois balayages de la liste des clusters — un
-  // paquet en porte des centaines — ne s'exécutent que si le détail « trace » est demandé. Construit
-  // d'avance, il coûtait ces balayages à chaque page arrivée, y compris quand personne ne les lisait.
-  diag.traceDiagnostic('page-accepted', 'Page CPU acceptée pour résidence GPU', () => ({
+  // The sample is a function, not an object: its three sweeps of the cluster list — a packet holds
+  // hundreds — run only if "trace" detail is requested. Built ahead, it cost those sweeps on every
+  // arrived page, including when nobody was reading them.
+  diag.traceDiagnostic('page-accepted', 'CPU page accepted for GPU residency', () => ({
     frame: run.frame,
     url,
     bytes: array.byteLength,
@@ -68,7 +68,7 @@ export function dropPage(rt: WebgpuPagesCore, url: string) {
   if (recs.some((rec) => bootstrapUrls.has(rec.url))) {
     diag.traceDiagnostic(
       'page-drop-deferred',
-      'Abandon de page bootstrap ignoré pour préserver la couverture',
+      'Bootstrap page drop ignored to preserve coverage',
       () => ({ frame: run.frame, url, reason: 'bootstrap-pinned' }),
     );
     return;
@@ -79,7 +79,7 @@ export function dropPage(rt: WebgpuPagesCore, url: string) {
     run.deferredDrops.add(url);
     diag.traceDiagnostic(
       'page-drop-deferred',
-      'Abandon de page différé pendant la transition de couverture',
+      'Page drop deferred during the coverage transition',
       () => ({
         frame: run.frame,
         url,
@@ -99,14 +99,14 @@ export function dropPage(rt: WebgpuPagesCore, url: string) {
       page = rows.pageIndexOf(rec);
     rec.array = undefined;
     rec.indexBytes = rec.triangles * 12;
-    // Les octets d'un cluster sont ce qui le rend dessinable au même titre que sa place en cache :
-    // la page est nommée APRÈS l'abandon, pour que ce qui la relit y lise bien la page sans octets.
+    // A cluster's bytes are what make it drawable the same way as its cache slot: the page is named
+    // AFTER the drop, so what rereads it does read the page without bytes.
     if (page !== undefined) rows.touchPage(page);
     sourceBytes.delete(rec.url);
     gpu.cache?.unload?.(rec.url);
     tracking.unmarkPinned(tracking.keyOf(rec));
   }
-  diag.traceDiagnostic('page-dropped', 'Page CPU/GPU libérée', () => ({
+  diag.traceDiagnostic('page-dropped', 'CPU/GPU page released', () => ({
     frame: run.frame,
     url,
     clusters: recs.length,

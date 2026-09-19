@@ -1,28 +1,28 @@
-//! Ce qu'une réponse change dans la scène, et les cas où elle est refusée.
+//! What an answer changes in scene, and cases where it is refused.
 //!
-//! Une réponse porte sur une TEXTURE, et une texture sert parfois plusieurs matériaux : la réponse
-//! vaut alors pour toutes ses liaisons de couleur de base, sinon deux surfaces de la même feuille
-//! se contrediraient à l'écran. Deux formes sont refusées même quand la réponse dit « découpe » :
-//! un matériau qui transmet la lumière — une vitre teintée garde son épaisseur — et un matériau
-//! dont le facteur alpha est déjà partiel, où l'opacité ne vient pas de la texture.
+//! An answer targets a TEXTURE, and a texture sometimes serves multiple materials: answer
+//! applies to all its base color bindings, otherwise two surfaces of same leaf
+//! would contradict on screen. Two shapes refused even when answer says "cutout":
+//! material transmitting light — tinted glass keeps thickness — and material
+//! whose alpha factor is already partial, where opacity does not come from texture.
 use super::*;
 use crate::texture_preview::{collect, source};
 
-/// Ce que l'étape a fait. `applied` est aussi ce qui entre dans l'identité du produit : une réponse
-/// « vitre », un refus, ou une réponse portant sur une texture que cette scène n'emploie pas ne
-/// changent aucun octet et ne doivent donc pas déplacer la clé du cache.
+/// What step did.  enters product identity: a "window" answer,
+/// refusal, or answer targeting texture this scene does not use changes no bytes
+/// and must not shift cache key.
 pub(crate) struct CutoutApplied {
     pub applied: Vec<Value>,
     pub refused: Vec<Value>,
-    /// Les matériaux que chaque texture candidate habille. Les clés sont les textures à mesurer —
-    /// l'étape des aperçus les reçoit telles quelles —, et les valeurs servent à montrer d'abord
-    /// celles qui tiennent le plus de primitives en mélange.
+    /// Materials each candidate texture clothes. Keys are textures to measure —
+    /// preview step receives them as is —, values serve to display first
+    /// those holding most blend primitives.
     pub materials_by_texture: BTreeMap<usize, BTreeSet<usize>>,
 }
 
 impl CutoutApplied {
-    /// Les textures dont l'alpha est à mesurer : toutes les candidates, y compris celles qu'une
-    /// réponse vient de faire basculer — la page les montre encore, pour qu'un avis soit repris.
+    /// Textures whose alpha is to measure: all candidates, including those an
+    /// answer just flipped — page still displays them to allow revising opinion.
     pub fn to_measure(&self) -> BTreeSet<usize> {
         self.materials_by_texture.keys().copied().collect()
     }
@@ -32,7 +32,7 @@ impl CutoutApplied {
     }
 }
 
-/// Une liaison candidate : un matériau déclaré en mélange dont la couleur de base porte une texture.
+/// Candidate binding: material declared in blend whose base color carries a texture.
 struct Candidate {
     material: usize,
     texture: usize,
@@ -83,7 +83,7 @@ pub(crate) fn apply_decisions(
     })
 }
 
-/// Pourquoi ce matériau reste en mélange malgré la réponse, ou `None` quand rien ne s'y oppose.
+/// Why material stays in blend despite answer, or  when nothing opposes.
 fn refusal(g: &Value, material: usize) -> Option<&'static str> {
     let material = g
         .get("materials")
@@ -103,11 +103,11 @@ fn refusal(g: &Value, material: usize) -> Option<&'static str> {
     None
 }
 
-/// Les liaisons candidates de la scène, chacune avec l'empreinte de son image. Une image partagée
-/// n'est lue et hachée qu'une fois DANS CETTE ÉTAPE — l'étape des aperçus relira les mêmes octets
-/// pour les décoder, et le parcours entier est mesuré à 0,08 s sur `emerald-square`, ce qui ne
-/// justifie pas de garder ces octets en mémoire entre les deux. Une image illisible n'est pas une
-/// candidate, et l'étape des aperçus la nommera au rapport comme elle le fait déjà.
+/// Candidate bindings of scene, each with image fingerprint. A shared image
+/// read and hashed only once IN THIS STEP — preview step re-reads same bytes
+/// to decode, total pass measured at 0.08 s on , not justifying
+/// holding bytes in memory between the two. Unreadable image is not a
+/// candidate, preview step will name it in report as it already does.
 fn candidates(
     g: &Value,
     bin: &[u8],
@@ -121,8 +121,8 @@ fn candidates(
     ) else {
         return Ok(Vec::new());
     };
-    // Lire et hacher les images candidates est ce que cette étape coûte avant toute mesure : une
-    // image partagée n'est lue qu'une fois, et le compteur dit ce que ce parcours vaut.
+    // Reading and hashing candidate images is what this step costs before measurement: a
+    // shared image is read once, and counter reports what pass is worth.
     let _t = perf::Timer::new(perf::Phase::CutoutScan);
     let mut hashes: BTreeMap<usize, String> = BTreeMap::new();
     let mut found = Vec::new();

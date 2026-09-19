@@ -1,16 +1,16 @@
 /**
- * Le registre des allocations d'un appareil WebGPU : chaque texture et chaque tampon créés, leurs
- * octets calculés depuis le descripteur, rendus à la destruction. WebGPU ne publie pas la mémoire
- * occupée ; ce registre est la seule somme qui ne dépende d'aucun sous-système, et un tampon jamais
- * détruit y reste compté — c'est voulu, une fuite se lit ici avant de se lire ailleurs.
+ * Allocation ledger of a WebGPU device: every texture and buffer created, their bytes computed
+ * from the descriptor, returned on destroy. WebGPU does not publish occupied memory; this ledger
+ * is the only sum that depends on no subsystem, and a buffer never destroyed stays counted
+ * here — that is intended, a leak is read here before it is read elsewhere.
  *
- * Il se pose une fois par appareil, sur l'instance, avant la première allocation du moteur ; un
- * second appel rend le même registre. Une texture d'un format inconnu de la table compte zéro octet
- * et incrémente `unknownFormats` : un total qui en porte n'est pas une preuve.
+ * It is installed once per device, on the instance, before the engine's first allocation; a
+ * second call returns the same ledger. A texture of a format unknown to the table counts zero
+ * bytes and increments `unknownFormats`: a total that carries any is not a proof.
  */
-const LABEL_NONE = 'sans étiquette';
+const LABEL_NONE = 'unlabeled';
 
-/** Octets par texel des formats non compressés que le moteur peut allouer. */
+/** Bytes per texel of the uncompressed formats the engine may allocate. */
 const BYTES_PER_TEXEL: Partial<Record<GPUTextureFormat, number>> = {
   r8unorm: 1,
   r8uint: 1,
@@ -41,7 +41,7 @@ const BYTES_PER_TEXEL: Partial<Record<GPUTextureFormat, number>> = {
   rgba32float: 16,
   rgba32uint: 16,
 };
-/** Octets par bloc de 4×4 des formats compressés : ce que T5 allouera. */
+/** Bytes per 4×4 block of the compressed formats: what T5 will allocate. */
 const BYTES_PER_BLOCK: Partial<Record<GPUTextureFormat, number>> = {
   'bc1-rgba-unorm': 8,
   'bc1-rgba-unorm-srgb': 8,
@@ -61,7 +61,7 @@ function extent(size: GPUExtent3D): [number, number, number] {
   return [s.width, s.height ?? 1, s.depthOrArrayLayers ?? 1];
 }
 
-/** Les octets d'une texture, tous niveaux de mips compris ; `null` sur un format hors table. */
+/** Bytes of a texture, every mip level included; `null` on a format outside the table. */
 export function textureBytesOf(descriptor: GPUTextureDescriptor): number | null {
   const perTexel = BYTES_PER_TEXEL[descriptor.format];
   const perBlock = BYTES_PER_BLOCK[descriptor.format];
@@ -83,32 +83,32 @@ export function textureBytesOf(descriptor: GPUTextureDescriptor): number | null 
 }
 
 interface GpuDeviceLedgerSnapshot {
-  /** Octets vivants, toutes allocations confondues. */
+  /** Live bytes, every allocation included. */
   bytes: number;
-  /** Les mêmes octets par étiquette, la plus lourde d'abord. */
+  /** The same bytes by label, heaviest first. */
   byLabel: Record<string, number>;
-  /** Textures d'un format hors table, comptées pour zéro octet. */
+  /** Textures of a format outside the table, counted as zero bytes. */
   unknownFormats: number;
-  /** Allocations vivantes. */
+  /** Live allocations. */
   live: number;
 }
 export interface GpuDeviceLedger {
   snapshot(): GpuDeviceLedgerSnapshot;
 }
 
-/** Le sous-ensemble de l'appareil que le registre observe : ce qu'un faux appareil de test fournit. */
+/** Device subset the ledger observes: what a fake test device provides. */
 export type LedgerDevice = Pick<GPUDevice, 'createTexture' | 'createBuffer'>;
 
 const ledgers = new WeakMap<LedgerDevice, GpuDeviceLedger>();
 
-/** Pose le registre sur l'appareil, ou rend celui qui s'y trouve déjà. */
+/** Installs the ledger on the device, or returns the one already there. */
 export function installGpuDeviceLedger(device: LedgerDevice): GpuDeviceLedger {
   const existing = ledgers.get(device);
   if (existing) return existing;
   const live = new Map<object, { label: string; bytes: number }>();
   let unknownFormats = 0;
-  // Le relevé est lu à chaque image de l'hôte, image tenue comprise : il n'est rebâti qu'après une
-  // allocation ou une destruction, jamais dans une scène immobile.
+  // The snapshot is read every host frame, held frame included: it is rebuilt only after an
+  // allocation or a destroy, never in a still scene.
   let held: GpuDeviceLedgerSnapshot | undefined;
   const track = <T extends { destroy(): void }>(resource: T, label: string, bytes: number) => {
     live.set(resource, { label, bytes });
@@ -146,6 +146,6 @@ export function installGpuDeviceLedger(device: LedgerDevice): GpuDeviceLedger {
   return ledger;
 }
 
-/** Le registre d'un appareil, ou `undefined` tant qu'aucun n'y est posé. */
+/** A device's ledger, or `undefined` until one is installed on it. */
 export const gpuDeviceLedgerOf = (device: LedgerDevice | undefined) =>
   device ? ledgers.get(device) : undefined;

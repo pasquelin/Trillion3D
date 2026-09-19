@@ -3,16 +3,16 @@ import { dropTaaHistory } from './taaFrame.ts';
 import { grantCapability } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Les deux capacités que la passe sert : l'antialiasing, et les vecteurs de mouvement qu'elle
- *  dérive du tampon de visibilité. Non supportées tant qu'elle n'est pas gréée. */
+/** The two capabilities the pass serves: antialiasing, and the motion vectors it
+ *  derives from the visibility buffer. Unsupported until it is rigged. */
 export const TAA_CAPABILITY = 'temporal antialiasing';
 export const MOTION_CAPABILITY = 'motion vectors';
 
 /**
- * Grée l'antialiasing temporel, une fois, après l'éclairage différé. L'hôte peut le refuser
- * (`temporalAntialiasing: false`) : rien n'est alors créé, et l'image reste échantillonnée au
- * centre du pixel. Un appareil qui refuse le programme laisse la capacité non supportée et l'image
- * telle qu'avant — jamais une image fausse.
+ * Rig temporal antialiasing, once, after deferred lighting. The host can refuse it
+ * (`temporalAntialiasing: false`): nothing is then created, and the image stays sampled at
+ * the pixel centre. A device that rejects the program leaves the capability unsupported and
+ * the image as before — never a false image.
  */
 export async function prepareTemporalAntialiasing(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { gpu, context, capabilities } = rt;
@@ -26,7 +26,7 @@ export async function prepareTemporalAntialiasing(rt: WebgpuPagesRuntime, device
   }
 }
 
-/** La passe quitte la session : capacités retirées, cause nommée, image telle qu'avant le lot. */
+/** The pass leaves the session: capabilities dropped, cause named, image as before the batch. */
 function dropTemporalAntialiasing(rt: WebgpuPagesRuntime, error: unknown) {
   rt.gpu.temporal?.dispose();
   rt.gpu.temporal = undefined;
@@ -35,15 +35,15 @@ function dropTemporalAntialiasing(rt: WebgpuPagesRuntime, error: unknown) {
 }
 
 /**
- * Les cibles d'historique pour la taille de l'image en cours, et leurs octets. Elles suivent la
- * résolution comme les autres cibles : aucun budget ne les fait partir. Une capture de surfaces
- * rend depuis une autre caméra et n'accumule pas : ses cibles ne touchent pas l'historique de la
- * vue, qui reste entier pour l'image qui suit la restauration.
+ * History targets for the current image size, and their bytes. They follow resolution
+ * like the other targets: no budget makes them leave. A surface capture renders from
+ * another camera and does not accumulate: its targets do not touch the view's history,
+ * which stays whole for the frame that follows restore.
  */
 export function ensureTaaTargets(rt: WebgpuPagesRuntime, width: number, height: number) {
   const temporal = rt.gpu.temporal;
   if (!temporal) return 0;
-  // Sous une capture, la réserve de la capture porte déjà l'historique : il n'est pas compté deux fois.
+  // Under a capture, the capture's reserve already carries history: it is not counted twice.
   if (rt.capture.secondaryCamera) return 0;
   if (temporal.resize(width, height)) dropTaaHistory(rt);
   return width * height * TAA_HISTORY_BYTES_PER_PIXEL;

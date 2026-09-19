@@ -1,19 +1,19 @@
-// Défaut 4 : l'exécution WebGPU des lots d'adressage dans un vrai Chromium. Le harnais et
-// l'ouverture de l'appareil sont ceux de `pageWebgpu.mjs` et `appareilWebgpu.mjs`.
+// Defect 4: WebGPU execution of wrap batches in a real Chromium. The harness and device opening
+// are those of `pageWebgpu.mjs` and `appareilWebgpu.mjs`.
 import { WRAP_COORD_WGSL } from '../../packages/sdk-browser/visibilityWrapModes.ts';
 import { dansPageWebgpu } from './pageWebgpu.mjs';
 
-/** Le bit qui, dans ces bancs seuls, demande le mélange des prises : les lots au plus proche ne
- *  veulent qu'un texel, les lots linéaires la lecture entière. `wrapUv` ne lit que le quartet bas
- *  du mot, donc ce bit de tête ne peut pas se confondre avec un mode d'adressage. */
+/** The bit that, in these benches only, asks for sample blending: nearest batches want one
+ *  texel, linear batches the full read. `wrapUv` only reads the low nibble of the word, so this
+ *  high bit cannot be confused with a wrap mode. */
 export const MELANGE = 0x80000000;
 
 /**
- * Le nuanceur des lots : le WGSL d'adressage du moteur d'un côté, l'échantillonneur natif réglé au
- * mode de la carte de l'autre. Le mélange des quatre prises est transcrit du gabarit que
- * `webgpuAtlasWgsl.ts` engendre pour `colorSample`, `dataSample` et `colorAlpha` : mêmes prises,
- * même ordre, même expression. Un seul texte pour les deux bancs d'adressage — deux copies
- * seraient deux chances de voir la lecture éprouvée dériver de la lecture de production.
+ * The batch shader: the engine wrap WGSL on one side, the native sampler set to the map mode on
+ * the other. The four-sample blend is transcribed from the template `webgpuAtlasWgsl.ts` emits
+ * for `colorSample`, `dataSample` and `colorAlpha`: same samples, same order, same expression.
+ * One text for both wrap benches — two copies would be two chances for the exercised read to
+ * drift from the production read.
  */
 export const NUANCEUR_PRISES = `${WRAP_COORD_WGSL}
 struct Cas{uv:vec2f,flags:u32,pad:u32,}
@@ -39,9 +39,9 @@ struct Sortie{@location(0) moteur:vec4f,@location(1) three:vec4f,}
 }`;
 
 /**
- * Dans la page : un rendu par lot (texture, modes, filtrage) sur deux cibles flottantes, relues.
- * Cible 0 : le WGSL du moteur, échantillonneur en serrage comme l'atlas. Cible 1 : la coordonnée
- * brute sous l'échantillonneur réglé avec le mode de la carte, comme Three le règle.
+ * In the page: one render per batch (texture, modes, filtering) onto two float targets, reread.
+ * Target 0: the engine WGSL, sampler in clamp like the atlas. Target 1: the raw coordinate under
+ * the sampler set to the map's mode, as Three sets it.
  */
 async function executer({ shader, textures, lots }) {
   const appareil = await globalThis.ouvrirAppareil();
@@ -129,12 +129,12 @@ async function executer({ shader, textures, lots }) {
     }
     sorties.push({ moteur: lu[0], three: lu[1] });
   }
-  // La carte réellement obtenue, rendue avec le relevé : un écart de bord en dépend.
+  // The GPU actually obtained, returned with the reading: a seam discrepancy depends on it.
   const info = await appareil.fermer();
   return { adaptateur: info.complet, compilation, erreurs, sorties };
 }
 
-/** Lance Chromium, exécute les lots sur une page locale, referme. */
+/** Launches Chromium, runs the batches on a local page, closes. */
 export async function executerDansChromium(argument) {
   const resultat = await dansPageWebgpu(executer, argument, { titre: 'adressage' });
   if (resultat.indisponible) throw new Error(resultat.indisponible);
@@ -142,7 +142,7 @@ export async function executerDansChromium(argument) {
     throw new Error(
       JSON.stringify({ compilation: resultat.compilation, erreurs: resultat.erreurs }),
     );
-  // La carte qui a rendu le relevé, consignée avec lui : un écart de bord dépend de l'adaptateur.
-  console.log(`Adaptateur WebGPU : ${resultat.adaptateur || 'non renseigné'}`);
+  // The GPU that produced the reading, recorded with it: a seam discrepancy depends on the adapter.
+  console.log(`WebGPU adapter: ${resultat.adaptateur || 'unspecified'}`);
   return resultat.sorties;
 }

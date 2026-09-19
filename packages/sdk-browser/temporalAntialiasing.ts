@@ -5,11 +5,11 @@ import { createTaaCheckpoint, createTaaFrameState } from './taaFrame.ts';
 import { createPlacementMotion, type MotionRoot } from './taaMotion.ts';
 import { readOnly } from './webgpuBindLayout.ts';
 
-/** Octets par pixel des deux cibles d'historique : deux `rgba16float`. */
+/** Bytes per pixel of the two history targets: two `rgba16float`. */
 export const TAA_HISTORY_BYTES_PER_PIXEL = 16;
 
-/** Ce que la passe lit dans l'image : l'image éclairée et mélangée, la profondeur, les identifiants
- *  du tampon de visibilité, la table des fiches et les matrices de mouvement des placements. */
+/** What the pass reads in the frame: the lit and blended image, depth, visibility-buffer
+ *  identifiers, the page-record table and placement motion matrices. */
 export interface TaaInputs {
   current: GPUTextureView;
   depth: GPUTextureView;
@@ -43,10 +43,9 @@ function createTaaLayout(device: GPUDevice) {
 }
 
 /**
- * La passe d'antialiasing temporel : deux cibles d'historique en ping-pong, l'une lue et l'autre
- * écrite à chaque image, et la composition lit celle qui vient d'être écrite. Les cibles suivent la
- * taille de l'image (`resize`) ; les groupes de liaison sont refaits quand une entrée change
- * d'identité, jamais par image.
+ * Temporal antialiasing pass: two history targets in ping-pong, one read and the other
+ * written each frame, and composition reads the one just written. Targets follow the
+ * image size (`resize`); bind groups are rebuilt when an input changes identity, never per frame.
  */
 export async function createTemporalAntialiasing(device: GPUDevice, roots: readonly MotionRoot[]) {
   const layout = createTaaLayout(device);
@@ -70,10 +69,10 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
     groups: (GPUBindGroup | undefined)[] = [undefined, undefined];
   let width = 0,
     height = 0,
-    /** La cible lue à la prochaine image : l'autre est écrite. */
+    /** Target read on the next frame: the other is written. */
     read = 0,
     bound: TaaInputs | undefined;
-  /** D'où la dernière image ordinaire est partie : ce qu'une image de convergence rejoue. */
+  /** Where the last ordinary frame started: what a convergence frame replays. */
   const saved = createTaaCheckpoint();
   const dropTargets = () => {
     for (const texture of textures) texture.destroy();
@@ -84,18 +83,18 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
   return {
     uniform,
     motion,
-    /** Octets des deux cibles telles qu'allouées : ce qu'une capture doit compter à côté des siennes. */
+    /** Bytes of the two targets as allocated: what a capture must count beside its own. */
     get historyBytes() {
       return textures.length ? width * height * TAA_HISTORY_BYTES_PER_PIXEL : 0;
     },
-    /** Le brouillon des entrées de l'image, rempli par `encodeTaaPass` : rien n'est alloué par image. */
+    /** Draft of the frame inputs, filled by `encodeTaaPass`: nothing is allocated per frame. */
     inputs: {} as TaaInputs,
-    /** Ce que la passe garde d'une image à l'autre côté processeur : gigue, historique, tenue. */
+    /** What the pass keeps from frame to frame on the CPU: jitter, history, hold. */
     frame: createTaaFrameState(),
-    /** L'entrée d'une image ordinaire retient d'où elle part ; une image de convergence — la
-     *  barrière qui rerend la même pose pour montrer les tuiles arrivées — y REVIENT : même gigue,
-     *  même compte d'images calmes, même historique lu. Elle refait l'image sans l'accumuler de
-     *  plus : deux barrières au nombre d'images différent donnent la même image, au bit près. */
+    /** An ordinary frame's entry remembers where it started; a convergence frame — the
+     *  barrier that re-renders the same pose to show arrived tiles — COMES BACK to it: same jitter,
+     *  same still-frame count, same history read. It remakes the image without accumulating
+     *  more: two barriers at different frame counts yield the same image, to the bit. */
     checkpoint(quiet: boolean) {
       const { frame } = this;
       saved.read = read;
@@ -106,7 +105,7 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
       saved.quiet = quiet;
       saved.previousViewProjection.set(frame.previousViewProjection);
     },
-    /** Rend le calme de l'image rejouée : le sien, pas celui que les tuiles arrivées ont troublé. */
+    /** Returns the stillness of the replayed frame: its own, not the one arrived tiles disturbed. */
     replay() {
       const { frame } = this;
       read = saved.read;
@@ -117,8 +116,8 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
       frame.previousViewProjection.set(saved.previousViewProjection);
       return saved.quiet;
     },
-    /** Vrai quand les cibles ont la taille demandée ; sinon elles sont refaites et l'historique
-     *  n'existe plus. Rend vrai quand quelque chose a été réalloué. */
+    /** True when the targets have the requested size; otherwise they are remade and history
+     *  no longer exists. Returns true when something was reallocated. */
     resize(w: number, h: number) {
       if (w === width && h === height && textures.length === 2) return false;
       dropTargets();
@@ -138,8 +137,8 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
       return true;
     },
     /**
-     * Encode la passe : lit `inputs.current` et l'historique, écrit l'autre cible, puis échange les
-     * rôles. L'uniforme doit avoir été écrit avant. Rend la vue écrite.
+     * Encode the pass: reads `inputs.current` and history, writes the other target, then swaps
+     * roles. The uniform must have been written first. Returns the written view.
      */
     encode(encoder: GPUCommandEncoder, inputs: TaaInputs) {
       if (textures.length !== 2) throw new Error('TAA_TARGETS_MISSING');

@@ -1,12 +1,12 @@
 use super::*;
 
-// Lot B2 : vector_into écrit les nombres droit dans la colonne, sans Vec<f64> intermédiaire, et ne
-// construit le nom d'une entrée que lorsqu'elle est fautive. Les octets produits sont inchangés.
+// Lot B2: vector_into writes numbers straight into column, without intermediate Vec<f64>, and
+// constructs entry name only when faulty. Produced bytes unchanged.
 
 #[test]
 fn vector_into_writes_the_same_bytes_as_a_manual_concatenation_including_hostile_floats() {
-    // NaN et les infinis n'ont pas de représentation JSON : le JSON n'en porte jamais, seul -0.0
-    // et les bornes de f64 traversent le format. Vérifiés au bit près, -0.0 compris.
+    // NaNs and infinities have no JSON representation: JSON never carries them, only -0.0
+    // and f64 bounds cross the format. Verified bit-for-bit, including -0.0.
     let values = [-0.0, 0.0, f64::MAX, f64::MIN_POSITIVE, -f64::MAX];
     let array = json!(values.to_vec());
     let mut column = Column::default();
@@ -22,8 +22,8 @@ fn vector_into_writes_the_same_bytes_as_a_manual_concatenation_including_hostile
 
 #[test]
 fn vector_into_rejects_a_nan_or_infinity_that_a_producer_serialized_as_null() {
-    // Un nombre non fini (NaN, Infinity) n'a pas de forme JSON : serde_json le sérialise en
-    // `null`, que vector_into doit refuser comme n'importe quelle entrée qui n'est pas un nombre.
+    // Non-finite number (NaN, Infinity) has no JSON form: serde_json serializes it as
+    // `null`, which vector_into must refuse like any entry that is not a number.
     let array = json!([1.0, serde_json::Value::Null, 3.0]);
     let mut column = Column::default();
     let error = vector_into(Some(&array), 3, "page.sphere", &mut column).unwrap_err();
@@ -66,9 +66,9 @@ fn vector_into_names_only_the_faulty_entry_and_stops_there() {
     let error = vector_into(Some(&array), 3, "page.sphere", &mut column).unwrap_err();
     assert!(
         error.message.contains("page.sphere[1]"),
-        "le message doit nommer l'entrée fautive : {}",
+        "the message must name the faulty entry: {}",
         error.message
     );
-    // La première valeur, valide, est déjà écrite : la fonction s'arrête à la première faute.
+    // First value, valid, already written: function stops at first fault.
     assert_eq!(column.bytes, 1.0f64.to_le_bytes());
 }

@@ -13,35 +13,35 @@ import { lightingCapabilitiesOf } from './lightingCapabilities.ts';
 type Inputs = {
   check: () => void;
   store: SceneLightStore | undefined;
-  /** Les identifiants des lampes venues du fichier source, dans l'ordre du cache. */
+  /** Identifiers of the lights that came from the source file, in cache order. */
   imported: readonly string[];
   backends: RenderBackend[];
-  /** Le moteur actif : c'est sa capacité d'éclairage qui est publiée, pas celle de la session. */
+  /** Active engine: it is its lighting capability that is published, not the session's. */
   active: () => RenderBackend;
   onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
 };
 
 /**
- * L'API publique des lampes et de l'environnement. Le magasin est celui de la session : tous les
- * moteurs le partagent, et un moteur qui ne sait pas l'éclairage direct l'ignore sans planter —
- * `refreshSceneLights` lui manque, sa capacité manquante est déclarée dans son diagnostic.
+ * Public API of lights and environment. The store is the session's: every engine shares it,
+ * and an engine that does not know direct lighting ignores it without crashing —
+ * `refreshSceneLights` is missing, its missing capability is declared in its diagnostic.
  *
- * `setTransform` va au moteur actif s'il sait déplacer un nœud ; sinon l'appel est refusé par un
- * `EngineError` nommé, jamais par une exception anonyme. Il ne dessine rien : il marque la scène
- * modifiée, et le rendu suivant — le `render()` de l'hôte, ou le rafraîchissement de résidence déjà
- * planifié — la prend. Dix poses posées avant une image coûtent une soumission, pas onze : la porte
- * d'image refuse de tenir l'image précédente dès la première pose, l'écran ne garde donc jamais une
- * pose périmée.
+ * `setTransform` goes to the active engine if it can move a node; otherwise the call is
+ * refused by a named `EngineError`, never by an anonymous exception. It draws nothing: it
+ * marks the scene modified, and the next render — the host's `render()`, or the already
+ * scheduled residency refresh — takes it. Ten poses set before a frame cost one submit, not
+ * eleven: the frame gate refuses to hold the previous frame from the first pose, so the
+ * screen never keeps a stale pose.
  */
 export function createExplorerLightApi(inputs: Inputs) {
   const { check, store, imported, backends, active, onDiagnostic } = inputs;
-  // Une fois par session, pas une fois par appel : un hôte qui pose ses lampes par image noierait
-  // son propre rapport de diagnostic sous le même constat répété.
+  // Once per session, not once per call: a host that sets its lights every frame would drown
+  // its own diagnostic report under the same repeated finding.
   let warned = false;
   /**
-   * Le magasin accepte la lampe — c'est lui qui tient le contrat, et le moteur peut changer après —
-   * mais le moteur actif ne l'appliquera pas : l'hôte l'apprend ici, nommément, au lieu de le
-   * déduire d'une image noire.
+   * The store accepts the light — it is the one that holds the contract, and the engine can
+   * change afterwards — but the active engine will not apply it: the host learns it here,
+   * by name, instead of inferring it from a black image.
    */
   const warnUnsupported = () => {
     if (warned) return;
@@ -50,33 +50,33 @@ export function createExplorerLightApi(inputs: Inputs) {
     warned = true;
     onDiagnostic?.({
       phase: 'scene-lights-unsupported',
-      message: capabilities.reason ?? "le moteur actif n'applique pas les lampes du contrat",
+      message: capabilities.reason ?? 'the active engine does not apply the contract lights',
       context: { backend: active().id, capabilities },
     });
   };
   const required = () => {
     if (!store)
-      throw new EngineError('SCENE_LIGHTS_UNAVAILABLE', 'session sans magasin de lampes', {});
+      throw new EngineError('SCENE_LIGHTS_UNAVAILABLE', 'session without a light store', {});
     return store;
   };
   const notify = () => {
     for (const backend of backends) backend.refreshSceneLights?.();
   };
   return {
-    /** Les bornes publiées de l'éclairage direct, telles que le runtime les applique. */
+    /** Published bounds of direct lighting, as the runtime applies them. */
     lightSettings: LIGHT_SETTINGS,
-    /** Les bornes publiées de la lumière qui rebondit : seuil du proxy, grille, budget de rayons. */
+    /** Published bounds of bounced light: proxy threshold, grid, ray budget. */
     bounceSettings: BOUNCE_SETTINGS,
-    /** Les lampes du contrat, dans l'ordre d'ajout ; une copie de lecture, jamais le tampon. */
+    /** Contract lights, in add order; a read copy, never the buffer. */
     lights(): SceneLight[] {
       check();
       const lights = required();
       return lights.ids.map((id) => ({ ...lights.light(id)! }));
     },
     /**
-     * Les lampes que le fichier de scène portait, déclarées à l'ouverture. L'hôte les lit pour les
-     * régler (`setLight`) ou les retirer (`removeLight`) ; celles qu'il a déjà retirées n'y sont
-     * plus. Une scène sans lampe importée en rend une liste vide, et rien n'a changé pour elle.
+     * Lights the scene file carried, declared at open. The host reads them to set (`setLight`)
+     * or remove (`removeLight`) them; those it has already removed are no longer there. A
+     * scene with no imported light yields an empty list, and nothing has changed for it.
      */
     importedLights(): SceneLight[] {
       check();
@@ -90,19 +90,19 @@ export function createExplorerLightApi(inputs: Inputs) {
       return store?.environment ? { ...store.environment } : undefined;
     },
     /**
-     * La vue demandée. `auto` — la valeur de départ — rend la vue sans éclairage tant qu'aucune
-     * lampe n'est déclarée, et l'éclairage réel dès qu'il y en a une. `unlit` force la vue de
-     * diagnostic d'albédo brut même avec des lampes ; `lit` force l'éclairage réel, donc une image
-     * noire dans une scène sans lampe — c'est la règle, pas un défaut (P6). `bounce` est la vue de
-     * mesure : l'irradiance indirecte seule, en valeurs linéaires multipliées par l'exposition.
+     * Requested view. `auto` — the starting value — yields the unlit view as long as no light
+     * is declared, and real lighting as soon as there is one. `unlit` forces the raw-albedo
+     * diagnostic view even with lights; `lit` forces real lighting, hence a black image in a
+     * scene with no light — that is the rule, not a defect (P6). `bounce` is the measurement
+     * view: indirect irradiance alone, in linear values multiplied by exposure.
      */
     get lightingView(): SceneLightingView {
       return store?.lightingView ?? 'auto';
     },
     /**
-     * Ce que le moteur ACTIF fait réellement des lampes : un appel accepté par le magasin n'est pas
-     * une preuve d'éclairage. Un hôte qui veut savoir si son image change le lit ici, avant d'y
-     * croire ; la réponse suit le moteur sélectionné, pas la session.
+     * What the ACTIVE engine actually does with lights: a call accepted by the store is not
+     * proof of lighting. A host that wants to know whether its image changes reads it here,
+     * before believing it; the answer follows the selected engine, not the session.
      */
     lightingCapabilities() {
       check();
@@ -147,7 +147,7 @@ export function createExplorerLightApi(inputs: Inputs) {
       if (!applied)
         throw new EngineError(
           'UNSUPPORTED_SCENE_UPDATE',
-          'aucun moteur de cette session ne déplace un nœud nommé',
+          'no engine of this session moves a named node',
           { nodeName },
         );
     },

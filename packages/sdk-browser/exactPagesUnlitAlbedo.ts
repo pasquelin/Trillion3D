@@ -1,39 +1,39 @@
 import * as THREE from 'three';
 
 /**
- * Les facteurs qui écartent la réponse d'une surface de son albédo. Chacun est une propriété de
- * matériau — jamais un type d'objet, jamais un nom — et chacun est un uniforme : le mettre à zéro
- * ne recompile aucun programme, il n'annule qu'un facteur le temps d'une image.
+ * Factors that take a surface's response away from its albedo. Each is a material property —
+ * never an object type, never a name — and each is a uniform: setting it to zero recompiles
+ * no program, it only zeroes a factor for one frame.
  *
- * - `metalness` : la réponse diffuse vaut `albédo · (1 − metalness)`, donc un métal pur sort noir
- *   quelle que soit l'irradiance reçue. C'est le terme qui rendait la vue fausse.
- * - `aoMapIntensity`, `lightMapIntensity` : deux cartes qui modulent ou ajoutent de l'irradiance,
- *   et qui écriraient donc autre chose que la couleur de base.
- * - `transmission` : ce que l'on voit au travers remplace la couleur de base, éclairage ou non.
+ * - `metalness`: the diffuse response is `albedo · (1 − metalness)`, so a pure metal comes
+ *   out black whatever irradiance it received. That is the term that made the view wrong.
+ * - `aoMapIntensity`, `lightMapIntensity`: two maps that modulate or add irradiance, and
+ *   would therefore write something other than the base colour.
+ * - `transmission`: what is seen through replaces the base colour, lighting or not.
  *
- * Ce qui reste : couleur de base, carte de base, couleurs par sommet — l'albédo — et l'émission du
- * matériau, écart nommé de cette vue face au chemin WebGPU (`docs/SDK.md`).
+ * What remains: base colour, base map, vertex colours — albedo — and the material's
+ * emission, a named gap of this view against the WebGPU path (`docs/SDK.md`).
  */
 const NEUTRAL = ['metalness', 'aoMapIntensity', 'lightMapIntensity', 'transmission'] as const;
 type Factors = Partial<Record<(typeof NEUTRAL)[number], number>>;
 
 /**
- * L'albédo brut de la vue `unlit` sur un moteur rendu par Three.
+ * Raw albedo of the `unlit` view on a Three-rendered engine.
  *
- * Un matériau qui répond à la lumière ne peut pas publier son albédo par la seule lumière : une
- * irradiance ambiante de π rend `albédo · (1 − metalness)`, exact pour un diélectrique et nul pour
- * un métal. La vue annule donc les facteurs ci-dessus le temps de l'image, puis rend à chaque
- * matériau la valeur qu'il portait : le graphe source ne garde aucune trace d'une image à l'autre,
- * et revenir en `lit` retrouve l'état d'avant, propriété par propriété.
+ * A material that responds to light cannot publish its albedo by light alone: an ambient
+ * irradiance of π yields `albedo · (1 − metalness)`, exact for a dielectric and zero for a
+ * metal. The view therefore zeroes the factors above for the frame, then returns to each
+ * material the value it carried: the source graph keeps no trace from frame to frame, and
+ * going back to `lit` finds the previous state, property by property.
  *
- * L'annulation a lieu à chaque image, dans les crochets de rendu de la scène, et non une fois pour
- * toutes : les pages entrent et sortent de la résidence entre deux images, et une conversion faite
- * à la bascule laisserait hors de la vue tout ce qui arrive après elle.
+ * The zeroing happens every frame, in the scene render hooks, not once and for all: pages
+ * enter and leave residency between two frames, and a conversion done at the switch would
+ * leave out of the view everything that arrives after it.
  */
 export function createUnlitAlbedo(scene: THREE.Scene) {
-  // Les matériaux effectivement neutralisés de l'image en cours et les valeurs qu'ils portaient,
-  // dans deux tableaux réutilisés : rien n'est alloué par image, et un matériau partagé par
-  // plusieurs maillages n'est retenu qu'une fois — la seconde visite ne trouve plus rien à annuler.
+  // Materials actually neutralized of the current frame and the values they carried, in two
+  // reused arrays: nothing is allocated per frame, and a material shared by several meshes
+  // is kept only once — the second visit finds nothing left to zero.
   const touched: Factors[] = [];
   const saved: (number | undefined)[] = [];
   let count = 0;
@@ -75,7 +75,7 @@ export function createUnlitAlbedo(scene: THREE.Scene) {
     priorBefore = scene.onBeforeRender,
     priorAfter = scene.onAfterRender;
   return {
-    /** Arme ou désarme la vue. Désarmer rend d'abord aux matériaux ce qu'ils portaient. */
+    /** Arms or disarms the view. Disarming first returns to the materials what they carried. */
     setEnabled(value: boolean) {
       if (value === enabled) return;
       enabled = value;

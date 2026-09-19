@@ -2,20 +2,20 @@ import { readGpuBuffer, readGpuTextureR32F } from './gpuReadback.ts';
 import { visLayerTop } from './webgpuVisibilityUniforms.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Doubles d'une boîte monde : huit coins de trois coordonnées, comme `createBoxCorners` les tient. */
+/** Doubles of a world box: eight corners of three coordinates, as `createBoxCorners` holds them. */
 const BOX_CORNER_VALUES = 24;
 
 /**
- * Ce que le test d'occultation des transparents a REJETÉ sur la dernière image, et de quoi le
- * réfuter sans rien croire de la carte.
+ * What the transparent occlusion test REJECTED on the last image, and enough to refute it without
+ * believing anything of the GPU.
  *
- * Chaque grappe rejetée sort avec ses coins monde en double précision et les matrices de l'image ;
- * la profondeur de l'image sort avec elle, pleine résolution, telle que la passe opaque l'a laissée.
- * Un appelant refait donc la projection de référence, prend le maximum de profondeur sur le
- * rectangle de RÉFÉRENCE — le plus serré des deux — et vérifie que la borne de référence est
- * encore au-delà : la grappe était bel et bien entièrement derrière l'opaque.
+ * Each rejected cluster comes out with its world corners in double precision and the image's
+ * matrices; the image depth comes with it, full resolution, as the opaque pass left it. A caller
+ * therefore redoes the reference projection, takes the depth maximum on the REFERENCE rectangle —
+ * the tighter of the two — and checks that the reference bound is still beyond: the cluster was
+ * indeed entirely behind the opaque.
  *
- * Ce n'est pas une passe de l'image : rien n'existe tant que l'hôte ne le demande pas.
+ * This is not a pass of the image: nothing exists until the host asks for it.
  */
 export interface TransparentOcclusionAudit {
   width: number;
@@ -23,15 +23,15 @@ export interface TransparentOcclusionAudit {
   near: number;
   view: Float64Array;
   viewProj: Float64Array;
-  /** Couche coplanaire dont le biais a servi à toutes les entrées : la plus haute de l'image. */
+  /** Coplanar layer whose bias served every entry: the highest of the image. */
   layer: number;
-  /** Entrées de la table que le test a rejetées, dans l'ordre de la table. */
+  /** Table entries the test rejected, in table order. */
   rejected: Uint32Array;
-  /** Coins monde des entrées rejetées, huit par entrée, dans le même ordre. */
+  /** World corners of rejected entries, eight per entry, in the same order. */
   corners: Float64Array;
-  /** Profondeur de l'image, un flottant par pixel, ligne par ligne depuis le haut. */
+  /** Image depth, one float per pixel, row by row from the top. */
   depth: Float32Array;
-  /** Entrées que le test a examinées : toutes celles qui nomment une page. */
+  /** Entries the test examined: all those that name a page. */
   examined: number;
 }
 

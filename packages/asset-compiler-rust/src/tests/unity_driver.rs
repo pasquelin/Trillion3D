@@ -1,9 +1,9 @@
-//! Ce que le pilote Unity reconnaît et ce qu'il refuse. La scène dorée, elle, est dans
-//! `unity_golden.rs` : ici on ne fixe que les entrées qui ne donnent pas de scène.
+//! What the Unity driver recognises and what it refuses. The golden scene is in
+//! `unity_golden.rs`: here only the inputs that yield no scene are fixed.
 use super::*;
 use plugins::scene::{route, PreparedScene, Routed, SceneRequest};
 
-/// Passe la source par le routeur puis par le pilote qu'il choisit, comme le compilateur le fait.
+/// Passes the source through the router then the driver it picks, as the compiler does.
 fn prepare(source: &Path, cache: &Path) -> std::result::Result<PathBuf, (&'static str, String)> {
     let prepared = match route(source).map_err(|error| (error.code, error.message))? {
         Routed::Driver(plugin, inputs) => {
@@ -24,11 +24,12 @@ fn prepare(source: &Path, cache: &Path) -> std::result::Result<PathBuf, (&'stati
     }
 }
 
-/// L'entête que l'éditeur écrit en tête de chaque fichier sérialisé.
+/// Header the editor writes at the start of every serialised file.
 const HEAD: &[u8] = b"%YAML 1.1\n%TAG !u! tag:unity3d.com,2011:\n";
 
-// Comportement 26 : un `.unity` tronqué ne porte aucun document. Le pilote le refuse avec un code,
-// sans panique ni allocation non bornée — la fixture `limites` est le fichier de 31 octets.
+// Behaviour 26: a truncated `.unity` carries no document. The driver refuses it
+// with a code, without panicking or unbounded allocation — the `limites` fixture
+// is the 31-byte file.
 #[test]
 fn a_truncated_unity_file_is_refused_with_a_code() {
     let cache = scratch("unity", "truncated");
@@ -39,8 +40,8 @@ fn a_truncated_unity_file_is_refused_with_a_code() {
     fs::remove_dir_all(cache).expect("cleanup");
 }
 
-// Comportement 27 : plusieurs scènes dans un dossier, c'est une ambiguïté. Le pilote les nomme et
-// demande qu'on lui en désigne une, plutôt que d'en choisir une à la place de l'appelant.
+// Behaviour 27: several scenes in one directory is an ambiguity. The driver names
+// them and asks that one be designated, rather than picking one in the caller's place.
 #[test]
 fn several_scenes_in_one_directory_are_refused_and_named() {
     let dir = scratch("unity", "scenes");
@@ -52,21 +53,22 @@ fn several_scenes_in_one_directory_are_refused_and_named() {
         message.contains("Map.unity") && message.contains("Other.unity"),
         "{message}"
     );
-    // Désignée par son fichier, la scène n'est plus ambiguë : elle est vide, ce qui est un autre
-    // refus, nommé autrement.
+    // Designated by its file, the scene is no longer ambiguous: it is empty, which
+    // is another refusal, named differently.
     let (code, _) = prepare(&dir.join("Map.unity"), &dir).expect_err("an empty scene is refused");
     assert_eq!(code, "IMPORT_ERROR");
     fs::remove_dir_all(dir).expect("cleanup");
 }
 
-// Comportement 28 : un projet Unity est reconnu au niveau du dossier. Le dossier de la dorée porte
-// une scène et un FBX ; sans le désigner, le routeur rend le pilote `unity` et la scène qu'il a
-// trouvée, le modèle n'étant qu'une entrée du projet. Un dossier sans scène reste l'affaire des
-// pilotes de fichiers : deux formats de modèle côte à côte y restent une ambiguïté.
+// Behaviour 28: a Unity project is recognised at the directory level. The golden
+// directory carries a scene and an FBX; without designating it, the router yields
+// the `unity` driver and the scene it found, the model being only a project input.
+// A directory without a scene remains a matter for the file drivers: two model
+// formats side by side stay an ambiguity there.
 #[test]
 fn a_unity_project_directory_wins_over_the_models_it_carries() {
     let project = golden_dir("unity/cc0-import-project");
-    match route(&project).expect("le dossier du projet est revendiqué") {
+    match route(&project).expect("the project folder is claimed") {
         Routed::Driver(plugin, inputs) => {
             assert_eq!(plugin.name(), "unity");
             assert_eq!(inputs, vec![project.join("Assets").join("Map.unity")]);
@@ -76,15 +78,13 @@ fn a_unity_project_directory_wins_over_the_models_it_carries() {
     let dir = scratch("unity", "modeles");
     fs::write(dir.join("a.fbx"), b"Kaydara FBX Binary  ").expect("fbx");
     fs::write(dir.join("b.obj"), b"v 0 0 0\n").expect("obj");
-    let refusal = route(&dir)
-        .err()
-        .expect("deux formats de modèle sont ambigus");
+    let refusal = route(&dir).err().expect("two model formats are ambiguous");
     assert_eq!(refusal.code, "SOURCE_FORMAT_AMBIGUOUS");
     fs::remove_dir_all(dir).expect("cleanup");
 }
 
-// Comportement 29 : un fichier de données Unity dont le nom ne dit rien est reconnu à son entête —
-// la directive de tag que l'éditeur écrit en tête de chaque fichier sérialisé.
+// Behaviour 29: a Unity data file whose name says nothing is recognised by its
+// header — the tag directive the editor writes at the start of every serialised file.
 #[test]
 fn a_unity_data_file_is_recognised_by_its_head() {
     let dir = scratch("unity", "head");
@@ -97,9 +97,9 @@ fn a_unity_data_file_is_recognised_by_its_head() {
     fs::remove_dir_all(dir).expect("cleanup");
 }
 
-// Constat 28 : une retouche de prefab qui vise un emplacement de matériau hors de ce qu'un rendu
-// porte — `2^64 − 1` — est comptée sous son nom. L'indice était cru tel quel : allonger la suite
-// d'emplacements jusque-là débordait, et arrêtait la compilation par une panique.
+// Finding 28: a prefab override that targets a material slot beyond what a renderer
+// carries — `2^64 − 1` — is counted under its name. The index was trusted as-is:
+// stretching the slot list that far overflowed, and stopped compilation with a panic.
 #[test]
 fn a_material_slot_override_beyond_what_a_renderer_carries_is_counted() {
     const MODEL: &str = "0000000000000000000000000000000a";
@@ -117,10 +117,10 @@ fn a_material_slot_override_beyond_what_a_renderer_carries_is_counted() {
     let (manifest, gltf) = run.prepared("unity");
     assert_eq!(
         manifest["unsupported"]["unity-prefab-material-slot-invalid"], 1,
-        "l'emplacement hors borne est compté, jamais réservé"
+        "the out-of-range slot is counted, never reserved"
     );
     assert!(
         unity_projet::node_named(&gltf, "Instance").is_some(),
-        "le reste de l'instance sort inchangé : {gltf}"
+        "the rest of the instance comes out unchanged: {gltf}"
     );
 }

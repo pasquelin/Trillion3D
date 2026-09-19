@@ -7,7 +7,7 @@ import {
   type LedgerDevice,
 } from './gpuDeviceLedger.ts';
 
-/** Un faux appareil : ses ressources ne font que se laisser détruire. */
+/** A fake device: its resources only let themselves be destroyed. */
 function fakeDevice() {
   const destroyed: string[] = [];
   const device = {
@@ -19,21 +19,21 @@ function fakeDevice() {
   return { device, destroyed };
 }
 
-test('une texture se compte sur tous ses niveaux, ses couches et son format', () => {
+test('a texture is counted over all its levels, layers and format', () => {
   const rgba = textureBytesOf({
     size: { width: 2048, height: 2048, depthOrArrayLayers: 3 },
     format: 'rgba8unorm',
     mipLevelCount: 12,
     usage: 0,
   });
-  // 2048² × 4 octets × (1 + 1/4 + … + 1/4¹¹) × 3 couches.
+  // 2048² × 4 bytes × (1 + 1/4 + … + 1/4¹¹) × 3 layers.
   let perLayer = 0;
   for (let l = 0; l < 12; l++) perLayer += (2048 >> l) ** 2 * 4;
   assert.equal(rgba, perLayer * 3);
   assert.equal(textureBytesOf({ size: [64, 32], format: 'depth32float', usage: 0 }), 64 * 32 * 4);
-  // Un bloc BC7 vaut seize octets pour seize texels : un octet par texel, arrondi au bloc.
+  // A BC7 block is sixteen bytes for sixteen texels: one byte per texel, rounded to the block.
   assert.equal(textureBytesOf({ size: [6, 6], format: 'bc7-rgba-unorm', usage: 0 }), 4 * 16);
-  // Un volume divise aussi sa profondeur à chaque niveau ; un tableau, non.
+  // A volume also divides its depth at each level; an array does not.
   assert.equal(
     textureBytesOf({
       size: [4, 4, 4],
@@ -51,7 +51,7 @@ test('une texture se compte sur tous ses niveaux, ses couches et son format', ()
   assert.equal(textureBytesOf({ size: [1, 1], format: 'r8snorm', usage: 0 }), null);
 });
 
-test('le registre voit chaque allocation, la rend à la destruction et se pose une seule fois', () => {
+test('the ledger sees each allocation, returns it on destroy and installs once', () => {
   const { device, destroyed } = fakeDevice();
   const ledger = installGpuDeviceLedger(device);
   assert.equal(installGpuDeviceLedger(device), ledger);
@@ -67,11 +67,7 @@ test('le registre voit chaque allocation, la rend à la destruction et se pose u
   device.createBuffer({ size: 8, usage: 0 });
   let snapshot = ledger.snapshot();
   assert.equal(snapshot.bytes, 1024 + 1024 + 8);
-  assert.deepEqual(Object.keys(snapshot.byLabel), [
-    'WG pages',
-    'WG display color',
-    'sans étiquette',
-  ]);
+  assert.deepEqual(Object.keys(snapshot.byLabel), ['WG pages', 'WG display color', 'unlabeled']);
   assert.equal(snapshot.live, 4);
   assert.equal(snapshot.unknownFormats, 0);
   buffer.destroy();
@@ -83,13 +79,13 @@ test('le registre voit chaque allocation, la rend à la destruction et se pose u
   assert.equal(snapshot.live, 2);
 });
 
-test('un format hors table compte zéro octet et se déclare, jamais une estimation', () => {
+test('a format outside the table counts zero bytes and declares itself, never an estimate', () => {
   const { device } = fakeDevice();
   const ledger = installGpuDeviceLedger(device);
   device.createTexture({ size: [8, 8], format: 'r8snorm', usage: 0 });
   assert.deepEqual(ledger.snapshot(), {
     bytes: 0,
-    byLabel: { 'sans étiquette': 0 },
+    byLabel: { unlabeled: 0 },
     unknownFormats: 1,
     live: 1,
   });

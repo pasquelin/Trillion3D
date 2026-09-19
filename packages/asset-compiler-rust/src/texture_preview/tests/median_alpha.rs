@@ -1,17 +1,17 @@
 use super::*;
 
-// Comportement 4 : l'alpha d'un niveau est la MÉDIANE de ses quatre texels, la moyenne des deux du
-// milieu — exactement `(u + v) / 2` du nuanceur de `textureMips.ts` — et jamais leur moyenne. Un
-// texel grossier passe un seuil quand deux des quatre le passaient : la couverture d'une découpe
-// se conserve d'un niveau au suivant, quel que soit le seuil, ce que la moyenne ne fait pas.
+// Behavior 4: level alpha is MEDIAN of four texels, average of middle
+// two — exactly `(u + v) / 2` of `textureMips.ts` shader — never mean.
+// Coarse texel passes threshold when two of four passed: cutout coverage
+// preserved across levels, regardless of threshold, which mean fails to do.
 #[test]
 fn alpha_is_the_median_of_four_texels_not_their_mean() {
-    // Quatre motifs 2×2, chacun réduit en un texel ; la moyenne trancherait autrement dans trois
+    // Four 2x2 patterns, each reduced to one texel; mean would decide differently in three
     // cas sur quatre.
     let cases: [([u8; 4], u8); 4] = [
-        ([0, 0, 0, 255], 0),       // un seul présent : absent (la moyenne dirait 64)
-        ([0, 255, 255, 255], 255), // trois présents : présent (la moyenne dirait 191)
-        ([0, 0, 255, 255], 128),   // deux sur quatre : à mi-course, comme la moyenne
+        ([0, 0, 0, 255], 0),       // single present: absent (mean would give 64)
+        ([0, 255, 255, 255], 255), // three present: present (mean would give 191)
+        ([0, 0, 255, 255], 128),   // two of four: halfway, like mean
         ([10, 200, 60, 90], 75),   // quelconque : (60 + 90) / 2, la moyenne dirait 90
     ];
     for (alphas, expected) in cases {
@@ -22,21 +22,21 @@ fn alpha_is_the_median_of_four_texels_not_their_mean() {
     }
 }
 
-// Comportement 4 (b) : un côté impair répète son dernier texel au lieu de le laisser de côté —
-// `min(p + 1, hi)` dans le nuanceur —, si bien qu'une colonne seule compte double.
+// Behavior 4 (b): odd side repeats last texel instead of dropping it —
+// `min(p + 1, hi)` in shader —, so single column counts double.
 #[test]
 fn an_odd_side_repeats_its_last_texel() {
     let source = rgba_from(3, 1, |x, _| [0, 0, 0, [0, 0, 255][x as usize]]);
     let chain = reduce::chain(&source, AtlasKind::Data);
-    // 3×1 → 1×1 : la case couvre les colonnes 0 et 1 seulement, alphas 0 et 0 (répété en y).
+    // 3x1 -> 1x1: cell covers cols 0 and 1 only, alphas 0 and 0 (repeated in y).
     assert_eq!(
         chain[1],
         vec![0, 0, 0, 0],
-        "la troisième colonne n'entre pas dans la case 0"
+        "the third column does not enter cell 0"
     );
     let wide = rgba_from(5, 1, |x, _| [0, 0, 0, [0, 0, 0, 0, 255][x as usize]]);
     let chain = reduce::chain(&wide, AtlasKind::Data);
-    // 5×1 → 2×1 : la case 1 couvre les colonnes 2 et 3 ; → 1×1 : les cases 0 et 1.
+    // 5x1 -> 2x1: cell 1 covers cols 2 and 3; -> 1x1: cells 0 and 1.
     assert_eq!(chain[1].len(), 8);
     assert_eq!(chain[2].len(), 4);
     assert_eq!(chain[2][3], 0);

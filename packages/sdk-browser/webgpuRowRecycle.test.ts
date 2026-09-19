@@ -1,59 +1,58 @@
-// Le recyclage d'une ligne de la table de pages, prouvé DIRECTEMENT.
+// Recycling of a page-table row, proved DIRECTLY.
 //
-// `sourceRowOf` (webgpuRowCommit.ts) rend la ligne où l'image précédente a écrit une page, ou -1
-// quand elle ne peut plus être reprise telle quelle. Sa garde `rowPageIndex[source] !== pageIndex`
-// couvre l'alias : la page P a quitté la coupe, sa ligne a été reprise par une autre page, et
-// `rowOfPage[P]` la nomme encore. Si P revient à L'OFFSET QUE CETTE LIGNE PORTE MAINTENANT — ce qui
-// arrive dès qu'une fente de cache est rendue puis reprise —, l'offset et l'époque concordent tous
-// les deux, et sans la garde la ligne est « reprise telle quelle » : elle continue de décrire
-// l'autre grappe pendant que la table la donne pour P.
+// `sourceRowOf` (webgpuRowCommit.ts) returns the row where the previous image wrote a page, or -1
+// when it can no longer be reused as it stands. Its `rowPageIndex[source] !== pageIndex` guard covers
+// the alias: page P left the cut, its row was taken by another page, and `rowOfPage[P]` still names
+// it. If P comes back at THE OFFSET THAT ROW NOW CARRIES — which happens as soon as a cache slot is
+// returned then taken again — offset and epoch both match, and without the guard the row is "reused
+// as it stands": it keeps describing the other cluster while the table gives it as P.
 //
-// Aucune comparaison différentielle ne peut le dire : l'oracle d'avant le lot F porte la même
-// fonction au mot près (`bench/oracles/lignes-dessinables.mjs`), donc les deux côtés se tromperaient ensemble.
+// No differential comparison can say it: the oracle from before lot F carries the same function
+// word for word (`bench/oracles/lignes-dessinables.mjs`), so both sides would be wrong together.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PAGE_INFO_STRIDE } from './visibilityTypes.ts';
-import { image, monte, offsetsPar } from './webgpuRowCommitFixture.ts';
+import { image, mount, offsetsPar } from './webgpuRowCommitFixture.ts';
 
 const MOTS = PAGE_INFO_STRIDE / 4;
 
-test('une ligne reprise par une autre page ne peut pas être héritée à son nouvel offset', () => {
-  const monté = monte();
-  const { rows } = monté;
+test('a row taken by another page cannot be inherited at its new offset', () => {
+  const mounted = mount();
+  const { rows } = mounted;
   const plan = (offsets: (page: number) => number) => ({
     offsets: offsetsPar(offsets),
     coupeProcesseur: true,
   });
-  // La page 0 tient l'offset 0, la page 1 l'offset 8.
+  // Page 0 holds offset 0, page 1 offset 8.
   image(
-    monté,
+    mounted,
     plan((p) => (p === 0 ? 0 : p === 1 ? 8 : -1)),
   );
   const ligne = rows.rowOfPage[0];
-  assert.ok(ligne >= 0, 'la page 0 tient une ligne');
-  // La page 0 sort, la page 3 prend l'offset 0 : les rangs se resserrent et la ligne de la page 0
-  // revient à la page 1, qui porte l'offset 8.
+  assert.ok(ligne >= 0, 'page 0 holds a row');
+  // Page 0 leaves, page 3 takes offset 0: ranks tighten and page 0's row comes back to page 1, which
+  // carries offset 8.
   image(
-    monté,
+    mounted,
     plan((p) => (p === 1 ? 8 : p === 3 ? 0 : -1)),
   );
-  assert.equal(rows.rowOfPage[0], ligne, 'le rang inverse de la page sortie reste tel quel');
-  assert.equal(rows.rowPageIndex[ligne], 1, 'la ligne décrit désormais une autre page');
+  assert.equal(rows.rowOfPage[0], ligne, 'the inverse rank of the left page stays as-is');
+  assert.equal(rows.rowPageIndex[ligne], 1, 'the row now describes another page');
   const offsetUsurpe = rows.rowOffsetWords[ligne];
-  // La page 1 sort à son tour, et la page 0 revient EXACTEMENT à l'offset que sa vieille ligne porte.
+  // Page 1 leaves in turn, and page 0 comes back EXACTLY to the offset its old row carries.
   image(
-    monté,
+    mounted,
     plan((p) => (p === 0 ? offsetUsurpe : p === 3 ? 0 : -1)),
   );
-  // Chaque ligne décrit sa propre page, dans l'état comme dans les mots que la carte lit.
+  // Each row describes its own page, in the state as in the words the GPU reads.
   for (let row = 0; row < rows.rowCount; row++) {
     const page = rows.rowPageIndex[row];
-    assert.equal(rows.rowOfPage[page], row, `ligne ${row} : rang inverse de la page ${page}`);
+    assert.equal(rows.rowOfPage[page], row, `row ${row}: inverse rank of page ${page}`);
     assert.equal(
       (rows.pageTableInts as Uint32Array)[row * MOTS + 4],
-      monté.pages[page].id,
-      `ligne ${row} : la table nomme la page ${page}`,
+      mounted.pages[page].id,
+      `row ${row}: the table names page ${page}`,
     );
-    assert.equal(rows.rowOffsetWords[row], rows.residentOffsetWords[page], `ligne ${row} : offset`);
+    assert.equal(rows.rowOffsetWords[row], rows.residentOffsetWords[page], `row ${row}: offset`);
   }
 });

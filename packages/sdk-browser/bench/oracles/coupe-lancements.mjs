@@ -1,16 +1,17 @@
 /**
- * La coupe d'AVANT le lot « sélection persistante », recopiée entière : son noyau de descente, la
- * disposition de son tampon de travail, ses tampons et son encodage. Deux files en bascule, dont le
- * compteur ne peut repartir de zéro que par une copie du processeur, et un armement de l'argument
- * indirect par niveau.
+ * The cut from BEFORE the "persistent selection" batch, copied whole: its descent kernel, the
+ * layout of its work buffer, its buffers and its encoding. Two toggling queues, whose
+ * counter can only restart from zero by a CPU copy, and an arming of the indirect argument
+ * per level.
  *
- * C'est l'ORACLE de `coupe-lancements-gpu.mjs`. Il est recopié — et non importé — pour la raison qui
- * fait un oracle : il doit rester ce que le dépôt faisait à `develop`, quoi qu'il advienne du code
- * livré. Le côté livré, lui, n'est jamais recopié : le banc appelle `encodeDagKernels` et
- * `createDagResources` pour de vrai, sans quoi il mesurerait une copie de la coupe au lieu d'elle.
+ * This is the ORACLE of `coupe-lancements-gpu.mjs`. It is copied — not imported — for the
+ * reason that makes an oracle: it must stay what the deposit did at `develop`, whatever
+ * happens to the shipped code. The shipped side is never copied: the bench calls
+ * `encodeDagKernels` and `createDagResources` for real, otherwise it would measure a copy
+ * of the cut instead of it.
  *
- * Ses décalages dans `work` sont ceux d'avant : chaque file porte un compteur ET un compte de
- * groupes, puisqu'elle était lue indirectement, et tout ce qui les suit s'en trouve décalé.
+ * Its offsets in `work` are those from before: each queue carries a counter AND a group
+ * count, since it was read indirectly, and everything that follows is shifted by that.
  */
 import { SELECTION_UNIFORM_BYTES, SELECTION_WORKGROUP } from '../../gpuSelection.ts';
 import { FRAME_VEC4 } from '../../gpuDagTypes.ts';
@@ -24,10 +25,10 @@ fn candCounter()->u32{return liveCounter()+6u;}
 fn candGroups()->u32{return candCounter()+1u;}
 fn drawnCounter()->u32{return liveCounter()+8u;}
 fn drawnGroups()->u32{return drawnCounter()+1u;}
-/** L'indice du nœud racine de la primitive, déposé une fois pour toutes derrière son étirement. */
+/** Index of the primitive's root node, deposited once and for all behind its stretch. */
 fn rootOf(w:u32)->u32{return bitcast<u32>(frames[w*FRAME+6u].y);}
-/** Un ajout de plage : le compte de groupes suit l'ouverture de chaque tranche de soixante-quatre,
- *  donc vaut exactement \`ceil(total/64)\` sans qu'un noyau d'un seul fil le tire après coup. */
+/** A range append: the group count follows the opening of each sixty-four slice,
+ *  so it is exactly \`ceil(total/64)\` without a single-thread kernel pulling it afterwards. */
 fn spanAppend(counter:u32,groups:u32,base:u32,first:u32,count:u32){
  let at=atomicAdd(&work[counter],count);
  for(var k=0u;k<count;k++){
@@ -36,8 +37,8 @@ fn spanAppend(counter:u32,groups:u32,base:u32,first:u32,count:u32){
  }
 }
 fn drawnAppend(page:u32){spanAppend(drawnCounter(),drawnGroups(),candBase(),page,1u);}
-/** Les compteurs de l'image, remis à zéro par un seul fil. La file 0 compte déjà ses racines : un
- *  fil par primitive vient d'y déposer la sienne, à son propre rang, sans compteur à disputer. */
+/** Frame counters, reset by a single thread. Queue 0 already counts its roots: one
+ *  thread per primitive has just deposited its own, at its own rank, with no counter to dispute. */
 fn resetCounters(){
  atomicStore(&work[liveCounter()],0u);atomicStore(&work[liveGroups()],0u);
  atomicStore(&work[queueCounter(0u)],uni.worldCount);atomicStore(&work[queueGroups(0u)],(uni.worldCount+63u)/64u);
@@ -45,15 +46,15 @@ fn resetCounters(){
  atomicStore(&work[candCounter()],0u);atomicStore(&work[candGroups()],0u);
  atomicStore(&work[drawnCounter()],0u);atomicStore(&work[drawnGroups()],0u);
 }
-/** Les dessinées de l'image précédente, remises à zéro par plage : les seules pages dont le drapeau
- *  de dessin puisse valoir un. Aucune autre n'est visitée, et aucune n'est parcourue en entier. */
+/** Drawn pages of the previous frame, reset by range: the only pages whose draw flag
+ *  can be one. No other is visited, and none is walked in full. */
 @compute @workgroup_size(64)
 fn dagClearDrawn(@builtin(global_invocation_id) id:vec3u){
  let s=id.x;if(s>=atomicLoad(&work[drawnCounter()])){return;}
  flags[uni.nodeCount+flags[candBase()+s]]=0u;
 }
-/** Un nœud de la file \`src\` : rejeté, il n'engendre rien ; retenu, il dépose ses enfants dans la
- *  file opposée, ou ses pages dans la liste des candidates quand c'est une feuille. */
+/** A node of queue \`src\`: rejected, it yields nothing; kept, it deposits its children in the
+ *  opposite queue, or its pages in the candidate list when it is a leaf. */
 fn levelStep(src:u32,s:u32){
  if(s>=atomicLoad(&work[queueCounter(src)])){return;}
  let i=flags[queueBase(src)+s];
@@ -84,7 +85,7 @@ const NOYAUX_AVANT = [
   'dagDrawScatter',
 ];
 
-/** Les tampons, les étapes et les décalages de la coupe d'avant, montés sur le `packed` du banc. */
+/** Buffers, steps and offsets of the previous cut, mounted on the bench's `packed`. */
 export function ressourcesAvant(device, module, layout, packed, readbackBytes) {
   const pageCount = packed.pageCount,
     worldCount = Math.max(1, packed.worldCount);
@@ -146,7 +147,7 @@ export function ressourcesAvant(device, module, layout, packed, readbackBytes) {
   };
 }
 
-/** L'encodage d'une image tel que `gpuDagEncode.ts` l'écrivait à `develop`, coupe résidente. */
+/** Encoding of a frame as `gpuDagEncode.ts` wrote it at `develop`, resident cut. */
 export function encodeAvant(encoder, r, profondeur = r.levelCount) {
   const { bindGroup, dispatchArgs, work, zeros, noyaux, niveaux } = r;
   const groupes = (n) => Math.max(1, Math.ceil(n / SELECTION_WORKGROUP));

@@ -10,26 +10,26 @@ import {
 import type { GpuCut } from './gpuSelection.ts';
 import type { PageRec } from './pageSelection.ts';
 
-// Sur le chemin de la carte graphique, `drawn` n'est que la recopie de `shown`. L'adoption la refait
-// quand le relevé change ; l'image ne la refaisait pas moins, sans condition, juste après. Un
-// drapeau dit désormais si elle est déjà en place, et ces tests l'épinglent des deux côtés : le
-// helper qui décide, et l'adoption qui le lève exactement quand elle vient de recopier.
+// On the GPU path, `drawn` is only a copy of `shown`. Adoption remakes it when the shown list
+// changes; the frame used to remake it unconditionally right after as well. A flag now says
+// whether it is already in place, and these tests pin both sides: the helper that decides, and
+// the adoption that raises it exactly when it has just copied.
 
 const page = (i: number) => ({ url: `p${i}`, triangles: i + 1 }) as unknown as PageRec;
 
-test('la recopie n’a lieu que quand le drapeau est baissé, et le relève', () => {
+test('the copy happens only when the flag is down, and raises it', () => {
   const run = { shown: [page(0), page(1)], drawn: [] as PageRec[], drawnMirrorsShown: false };
-  assert.equal(mirrorDrawnFromShown(run), true, 'la première image recopie');
+  assert.equal(mirrorDrawnFromShown(run), true, 'the first frame copies');
   assert.deepEqual(run.drawn, run.shown);
   assert.equal(run.drawnMirrorsShown, true);
 
-  // Un intrus que seule une réécriture effacerait : le tour suivant ne doit pas y toucher.
+  // An intruder that only a rewrite would erase: the next turn must not touch it.
   const intrus = page(99);
   run.drawn.push(intrus);
-  assert.equal(mirrorDrawnFromShown(run), false, 'drapeau levé : rien n’est refait');
+  assert.equal(mirrorDrawnFromShown(run), false, 'flag up: nothing is redone');
   assert.equal(run.drawn.at(-1), intrus);
 
-  // La coupe processeur baisse le drapeau ; l'image suivante recopie le `shown` du moment.
+  // The CPU cut lowers the flag; the next frame copies the current `shown`.
   markDrawnDiverged(run);
   run.shown = [page(7)];
   assert.equal(mirrorDrawnFromShown(run), true);
@@ -39,7 +39,7 @@ test('la recopie n’a lieu que quand le drapeau est baissé, et le relève', ()
   );
 });
 
-test('l’adoption annonce la recopie sur un relevé neuf, et jamais sur celui qu’elle tient déjà', () => {
+test('adoption announces the copy on a new shown list, never on the one it already holds', () => {
   const ids = [0, 1, 2, 3];
   const packedPages = fixturePages(ids.length);
   let annonces = 0;
@@ -61,16 +61,16 @@ test('l’adoption annonce la recopie sur un relevé neuf, et jamais sur celui q
   });
 
   assert.equal(adopter.adopt(), true);
-  assert.equal(annonces, 1, 'le premier relevé fait la recopie et l’annonce');
+  assert.equal(annonces, 1, 'the first shown list copies and announces');
   assert.deepEqual(drawn, shown);
 
   assert.equal(adopter.adopt(), true);
   assert.equal(adopter.adopt(), true);
-  assert.equal(annonces, 1, 'un relevé déjà tenu ne recopie rien, donc n’annonce rien');
+  assert.equal(annonces, 1, 'a shown list already held copies nothing, so announces nothing');
 
   peeked = second;
   assert.equal(adopter.adopt(), true);
-  assert.equal(annonces, 2, 'un relevé neuf recopie et annonce à nouveau');
+  assert.equal(annonces, 2, 'a new shown list copies and announces again');
   assert.deepEqual(
     drawn.map((rec) => rec.url),
     ['p2', 'p0'],

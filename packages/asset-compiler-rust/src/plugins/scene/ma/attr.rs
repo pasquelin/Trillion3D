@@ -1,24 +1,24 @@
-//! Ce qu'un `setAttr` écrit : quel nœud, quel attribut, à quel rang, et sous quelle forme.
+//! What a `setAttr` writes: which node, which attribute, at which rank, and in which form.
 //!
-//! Le premier opérande nomme l'attribut — `".t"` sur le nœud courant, `"Nœud.t"` sur un nœud
-//! nommé, `".uvst[0].uvsp[0:3]"` sur une tranche d'un tableau imbriqué. L'intervalle du dernier
-//! segment dit **où** écrire, et le `-type` sous quelle forme. Sans type, ce sont des nombres ou un
-//! booléen. Un type hors de cette liste est compté : le pilote ne devine pas une forme.
+//! The first operand names the attribute — `".t"` on the current node, `"Node.t"` on a named
+//! node, `".uvst[0].uvsp[0:3]"` on a slice of a nested array. The last segment's range says
+//! **where** to write, and `-type` under which form. Without a type, they are numbers or a
+//! boolean. A type off this list is counted: the driver does not guess a form.
 use super::*;
 
-/// Le chemin d'un attribut tel que `setAttr` l'écrit.
+/// Path of an attribute as `setAttr` writes it.
 pub(super) struct Path {
-    /// Le nœud nommé devant le point, quand la commande en nomme un.
+    /// Named node in front of the dot, when the command names one.
     pub(super) node: Option<String>,
-    /// La clé de l'attribut : ses segments joints par un point, les indices des segments
-    /// intermédiaires conservés, celui du dernier retiré — il dit où écrire, pas quoi.
+    /// Attribute key: its segments joined by a dot, intermediate-segment indices kept, that
+    /// of the last removed — it says where to write, not what.
     pub(super) key: String,
-    /// Le premier élément visé, et leur nombre quand l'intervalle en donne un.
+    /// First targeted element, and their count when the range gives one.
     pub(super) first: usize,
     pub(super) count: Option<usize>,
 }
 
-/// Découpe le chemin d'un attribut. Un chemin sans segment d'attribut n'en est pas un.
+/// Splits an attribute path. A path without an attribute segment is not one.
 pub(super) fn path(written: &str) -> Option<Path> {
     let mut segments = written.split('.');
     let head = segments.next()?;
@@ -38,7 +38,7 @@ pub(super) fn path(written: &str) -> Option<Path> {
     })
 }
 
-/// Le nombre de nombres que porte un élément de ce type, quand le type le fixe.
+/// Number of numbers an element of this type carries, when the type fixes it.
 fn stride(kind: &str) -> Option<usize> {
     Some(match kind {
         "float3" | "double3" | "short3" | "long3" | "int3" => 3,
@@ -48,8 +48,8 @@ fn stride(kind: &str) -> Option<usize> {
     })
 }
 
-/// La valeur qu'une commande `setAttr` écrit, et le nombre de nombres par élément. Rien quand le
-/// type demandé est hors de ceux que ce pilote lit.
+/// Value a `setAttr` command writes, and the number of numbers per element. Nothing when the
+/// requested type is outside those this driver reads.
 pub(super) fn value(command: &Command, refused: &mut Vec<&'static str>) -> Option<(Attr, usize)> {
     let kind = command.text(&["typ", "type"]);
     let operands = command.operands.get(1..).unwrap_or_default();
@@ -86,7 +86,7 @@ pub(super) fn value(command: &Command, refused: &mut Vec<&'static str>) -> Optio
     }
 }
 
-/// Une valeur sans type déclaré : un booléen écrit en mots, sinon des nombres.
+/// A value with no declared type: a boolean written in words, otherwise numbers.
 fn plain(operands: &[Token]) -> Option<(Attr, usize)> {
     if let [only] = operands {
         let word = only.text();
@@ -97,8 +97,8 @@ fn plain(operands: &[Token]) -> Option<(Attr, usize)> {
     Some((numbers(operands), 1))
 }
 
-/// Les nombres d'une suite d'opérandes. Un opérande qui n'est pas un nombre ne contribue pas : un
-/// tableau tronqué est plus court, il n'invente pas de valeur.
+/// Numbers of a run of operands. An operand that is not a number does not contribute: a
+/// truncated array is shorter, it does not invent a value.
 fn numbers(operands: &[Token]) -> Attr {
     Attr::Numbers(
         operands
@@ -108,8 +108,8 @@ fn numbers(operands: &[Token]) -> Attr {
     )
 }
 
-/// Le rang du premier nombre visé, et la forme à verser. La foulée vient du type quand il la fixe,
-/// sinon du nombre de valeurs écrites par élément de l'intervalle.
+/// Rank of the first targeted number, and the form to pour. The stride comes from the type
+/// when it fixes it, otherwise from the number of values written per element of the range.
 pub(super) fn slice(path: &Path, value: Attr, stride: usize) -> Option<(usize, Attr)> {
     let width = match (&value, path.count) {
         (Attr::Numbers(values), Some(count)) if stride == 1 && count > 0 => {

@@ -1,10 +1,10 @@
-// Le noyau d'étalement du plan transparent, lancé dans une page Chromium WebGPU : quatre
-// dispatches sur un seul groupe de liaison, puis la relecture de ses deux sorties — la liste
-// d'instances et les arguments indirects. Écrit à part de sa comparaison
-// (`etalement-transparents-gpu.mjs`), comme les autres noyaux « GPU réellement exécuté ».
+// Spread kernel of the transparent plan, launched in a Chromium WebGPU page: four dispatches on
+// a single bind group, then readout of its two outputs — the instance list and the indirect
+// arguments. Written apart from its comparison (`etalement-transparents-gpu.mjs`), like the
+// other "GPU actually run" kernels.
 import { dansPageWebgpu } from './pageWebgpu.mjs';
 
-/** Le noyau, lancé dans la page : quatre dispatches, puis la relecture des deux sorties. */
+/** The kernel, launched in the page: four dispatches, then readout of the two outputs. */
 async function dansLaPage(arg) {
   const appareil = await globalThis.ouvrirAppareil();
   if (!appareil) return null;
@@ -58,8 +58,8 @@ async function dansLaPage(arg) {
   const encoder = device.createCommandEncoder();
   const passe = encoder.beginComputePass();
   passe.setBindGroup(0, groupe, [0]);
-  // La disposition, les noms et les lancements viennent du module de production : ce banc rejoue le
-  // noyau livré, il n'en décrit pas une seconde fois le contrat.
+  // Layout, names and dispatches come from the production module: this bench replays the shipped
+  // kernel, it does not describe the contract a second time.
   for (let step = 0; step < arg.noms.length; step++) {
     passe.setPipeline(
       device.createComputePipeline({
@@ -89,5 +89,5 @@ async function dansLaPage(arg) {
   return { expanded: sortie[0], args: sortie[1], compilation };
 }
 
-/** Ouvre la page, y lance le noyau, et rend ce que la carte a écrit. */
+/** Opens the page, launches the kernel there, and returns what the GPU wrote. */
 export const etalementGpu = (arg) => dansPageWebgpu(dansLaPage, arg);

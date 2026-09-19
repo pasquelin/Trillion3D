@@ -1,25 +1,25 @@
-//! Les faces d'un maillage, telles que `.fc` et les listes de composants les écrivent.
+//! Faces of a mesh, as `.fc` and component lists write them.
 //!
-//! Une face Maya ne cite pas ses sommets : elle cite ses **arêtes**, signées. Un indice positif `i`
-//! parcourt l'arête `i` de son premier vers son second sommet ; l'écriture `-(i + 1)` la parcourt à
-//! l'envers. Le coin de rang `k` d'une face est donc le sommet de départ de sa `k`-ième arête, et
-//! c'est `.ed` qui les nomme. Un enregistrement `mu` donne, dans le même ordre, les rangs d'UV de
-//! ces coins ; `h` ouvre un trou, `mf` et `mc` portent des normales et des couleurs par coin que ce
-//! pilote ne lit pas. Tout enregistrement hors de cette liste est compté par son nom.
+//! A Maya face does not cite its vertices: it cites its **edges**, signed. A positive index `i`
+//! walks edge `i` from its first to its second vertex; the writing `-(i + 1)` walks it backwards.
+//! The corner of rank `k` of a face is therefore the start vertex of its `k`-th edge, and it is
+//! `.ed` that names them. A `mu` record gives, in the same order, the UV ranks of those corners;
+//! `h` opens a hole, `mf` and `mc` carry per-corner normals and colours that this driver does not
+//! read. Any record outside this list is counted by name.
 use super::*;
 
-/// Une face polygonale : ses arêtes signées, et les rangs d'UV de ses coins.
+/// A polygonal face: its signed edges, and the UV ranks of its corners.
 #[derive(Clone, Default)]
 pub(super) struct Face {
     pub(super) edges: Vec<i64>,
     pub(super) uvs: Vec<i64>,
-    /// Le jeu d'UV que `mu` désigne. Seul le premier est porté par la scène intermédiaire.
+    /// UV set that `mu` names. Only the first is carried by the intermediate scene.
     pub(super) uv_set: i64,
-    /// La face déclare un trou : un éventail depuis son premier coin le remplirait.
+    /// The face declares a hole: a fan from its first corner would fill it.
     pub(super) hole: bool,
 }
 
-/// Les faces qu'un `setAttr -type "polyFaces"` écrit, et ce que le rapport doit en compter.
+/// Faces a `setAttr -type "polyFaces"` writes, and what the report must count of them.
 pub(super) fn polygons(operands: &[Token]) -> (Vec<Face>, Vec<&'static str>) {
     let mut out: Vec<Face> = Vec::new();
     let mut counted = Vec::new();
@@ -57,8 +57,8 @@ pub(super) fn polygons(operands: &[Token]) -> (Vec<Face>, Vec<&'static str>) {
     (out, counted)
 }
 
-/// Les indices d'un enregistrement : un compte, puis autant d'entiers. Un compte absent ou absurde
-/// ne consomme rien, ce qui arrête la lecture de l'enregistrement au lieu de la faire dériver.
+/// Indices of a record: a count, then that many integers. A missing or absurd count consumes
+/// nothing, which stops reading the record instead of letting it drift.
 fn indices<'a>(words: &mut std::iter::Peekable<impl Iterator<Item = &'a str>>) -> Vec<i64> {
     let Some(count) = words.peek().and_then(|word| word.parse::<usize>().ok()) else {
         return Vec::new();
@@ -77,9 +77,9 @@ fn indices<'a>(words: &mut std::iter::Peekable<impl Iterator<Item = &'a str>>) -
     out
 }
 
-/// Les faces qu'une liste de composants désigne, et le nombre d'entrées qui n'en désignent aucune.
-/// Maya écrit `f[3]` pour une face et `f[0:2]` pour un intervalle ; un sommet ou une arête — `vtx`,
-/// `e`, `map` — ne dit rien d'une face et est compté plutôt que deviné.
+/// Faces a component list names, and the number of entries that name none. Maya writes `f[3]`
+/// for a face and `f[0:2]` for a range; a vertex or an edge — `vtx`, `e`, `map` — says nothing
+/// of a face and is counted rather than guessed.
 pub(super) fn components(list: &[String]) -> (Vec<usize>, usize) {
     let mut out = Vec::new();
     let mut refused = 0;
@@ -99,7 +99,7 @@ pub(super) fn components(list: &[String]) -> (Vec<usize>, usize) {
     (out, refused)
 }
 
-/// Le premier élément d'un intervalle `a:b` ou d'un indice seul `a`, et le nombre d'éléments.
+/// First element of a range `a:b` or of a lone index `a`, and the number of elements.
 pub(super) fn span(range: &str) -> Option<(usize, usize)> {
     let (first, last) = match range.split_once(':') {
         Some((first, last)) => (

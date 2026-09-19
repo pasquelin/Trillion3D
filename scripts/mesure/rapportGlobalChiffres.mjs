@@ -1,10 +1,10 @@
-// Les chiffres que le rapport ne mesure pas lui-même, en un seul endroit : ceux que la référence a
-// publiés, les deux repères d'octets par triangle, et les groupes de passes lus dans la table du
-// moteur avec la ligne du backlog qui s'y attaque.
+// Figures the report does not measure itself, in one place: those the reference published,
+// the two bytes-per-triangle markers, and the pass groups read from the engine table with
+// the backlog line that attacks them.
 /**
- * Les chiffres publiés de la référence (`docs/REFERENCE_UE5.md`, talk SIGGRAPH 2021, démo PS5 à
- * 2496×1404 remontée en 4K), et le repère que le banc ne mesure pas : les octets par triangle de
- * notre format (`docs/FORMAT.md`). Ceux des témoins Three sont mesurés (`trianglesUniques`).
+ * Published figures of the reference (`docs/REFERENCE_UE5.md`, SIGGRAPH 2021 talk, PS5 demo
+ * at 2496×1404 upscaled to 4K), and the marker the bench does not measure: bytes per triangle
+ * of our format (`docs/FORMAT.md`). Those of the Three witnesses are measured (`trianglesUniques`).
  */
 export const UNREAL = {
   trianglesParGrappe: 128,
@@ -20,14 +20,14 @@ export const UNREAL = {
 UNREAL.imageMs = UNREAL.visibiliteMs + UNREAL.materiauxMs;
 export const OCTETS_PAR_TRIANGLE = { nous: 48 };
 
-/** Somme des p50 des passes que `garde` retient, ou `null` si aucune. */
+/** Sum of p50 of the passes that `garde` keeps, or `null` if none. */
 export function sommePasses(releve, garde) {
   const passes = (releve?.passes ?? []).filter(garde);
   if (!passes.length) return null;
   return passes.reduce((total, p) => total + (p.p50 ?? 0), 0);
 }
 
-/** Les groupes de passes, lus dans la table du moteur (bloc et étape), avec la ligne du backlog. */
+/** Pass groups, read from the engine table (block and stage), with the backlog line. */
 export const GROUPES = [
   [
     'Visibility buffer (selection, partition, Hi-Z, raster)',

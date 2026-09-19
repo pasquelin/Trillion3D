@@ -1,6 +1,6 @@
-// Lot F, F13 : `anneauFroid` (explorerDraw.ts) s'arrête dès que le lot est plein au lieu de filtrer
-// l'anneau entier avant d'en garder la tête (`.filter(...).slice(0, limite)`). L'oracle est le filtre
-// entier d'avant le lot F, recopié tel quel dans `oracles/cadre-vue.mjs`.
+// Batch F, F13: `anneauFroid` (explorerDraw.ts) stops as soon as the batch is full instead of
+// filtering the whole ring before keeping its head (`.filter(...).slice(0, limite)`). The oracle
+// is the whole filter from before batch F, copied as-is into `oracles/cadre-vue.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { anneauFroid, empileEnAttente } from './explorerDraw.ts';
@@ -15,24 +15,24 @@ function streamer(has: Set<string>, loading: Set<string>, failed: Set<string>) {
   };
 }
 
-test('un anneau vide rend un lot vide des deux côtés', () => {
+test('an empty ring yields an empty batch on both sides', () => {
   const s = streamer(new Set(), new Set(), new Set());
   assert.deepEqual(anneauFroid([], s, 5), referenceAnneauFroid([], s, 5));
 });
 
-test('une limite de zéro ne prend jamais rien, même sur un anneau non vide', () => {
+test('a limit of zero never takes anything, even on a non-empty ring', () => {
   const s = streamer(new Set(), new Set(), new Set());
   const ring = ['a', 'b', 'c'];
   assert.deepEqual(anneauFroid(ring, s, 0), referenceAnneauFroid(ring, s, 0));
 });
 
-test('tout l’anneau déjà détenu, en cours ou en échec ne rend rien', () => {
+test('the whole ring already held, in flight or failed yields nothing', () => {
   const ring = ['a', 'b', 'c', 'd'];
   const s = streamer(new Set(['a']), new Set(['b']), new Set(['c', 'd']));
   assert.deepEqual(anneauFroid(ring, s, 10), referenceAnneauFroid(ring, s, 10));
 });
 
-test('la limite coupe exactement à la même adresse que le filtre puis slice de la référence', () => {
+test('the limit cuts at exactly the same address as the reference filter then slice', () => {
   const ring = Array.from({ length: 20 }, (_, i) => `u${i}`);
   const s = streamer(new Set(['u0', 'u5', 'u10']), new Set(['u2']), new Set(['u7']));
   for (const limite of [1, 2, 3, 17])
@@ -43,7 +43,7 @@ test('la limite coupe exactement à la même adresse que le filtre puis slice de
     );
 });
 
-test('une adresse froide au tout dernier rang de l’anneau, avec une limite large, est quand même prise', () => {
+test('a cold address at the very last rank of the ring, with a wide limit, is still taken', () => {
   const ring = Array.from({ length: 50 }, (_, i) => `u${i}`);
   const chaud = new Set(ring.slice(0, 49));
   const s = streamer(chaud, new Set(), new Set());
@@ -51,7 +51,7 @@ test('une adresse froide au tout dernier rang de l’anneau, avec une limite lar
   assert.deepEqual(anneauFroid(ring, s, 50), ['u49']);
 });
 
-test('un grand anneau, un grand nombre de lots de tailles variées, reste identique à la référence', () => {
+test('a large ring, a large number of batches of varied sizes, stays identical to the reference', () => {
   const ring = Array.from({ length: 5000 }, (_, i) => `u${i}`);
   const chaud = new Set(ring.filter((_, i) => i % 3 === 0));
   const enCours = new Set(ring.filter((_, i) => i % 7 === 0));
@@ -65,10 +65,10 @@ test('un grand anneau, un grand nombre de lots de tailles variées, reste identi
     );
 });
 
-// G6 : les adresses manquantes qu'une requête en cours fera repartir ensuite s'accumulent dans un
-// `Set` (`empileEnAttente`) au lieu d'un tableau testé par `includes` à chaque adresse ajoutée.
-// Oracle : le tableau dédoublonné à la main d'avant le lot G, recopié dans `bench/oracles/recherches-streaming.mjs`.
-test('un ensemble vide reçoit les mêmes adresses, dans le même ordre, qu’un tableau dédoublonné à la main', () => {
+// G6: missing addresses that an in-flight request will send again later accumulate in a
+// `Set` (`empileEnAttente`) instead of an array tested by `includes` on every added address.
+// Oracle: the hand-deduped array from before batch G, copied into `bench/oracles/recherches-streaming.mjs`.
+test('an empty set receives the same addresses, in the same order, as a hand-deduped array', () => {
   const ensemble = new Set<string>();
   const tableau: string[] = [];
   empileEnAttente(ensemble, ['a', 'b', 'c']);
@@ -76,7 +76,7 @@ test('un ensemble vide reçoit les mêmes adresses, dans le même ordre, qu’un
   assert.deepEqual([...ensemble], tableau);
 });
 
-test('des doublons à l’intérieur d’un même appel, et entre deux appels, ne sont comptés qu’une fois', () => {
+test('duplicates inside one call, and between two calls, are counted only once', () => {
   const ensemble = new Set<string>();
   const tableau: string[] = [];
   for (const lot of [['a', 'a', 'b'], ['b', 'c', 'a'], [], ['d']]) {
@@ -87,7 +87,7 @@ test('des doublons à l’intérieur d’un même appel, et entre deux appels, n
   assert.deepEqual([...ensemble], ['a', 'b', 'c', 'd']);
 });
 
-test('un grand nombre d’adresses partiellement redondantes garde le même ordre d’insertion que la référence', () => {
+test('a large number of partly redundant addresses keeps the same insertion order as the reference', () => {
   const ensemble = new Set<string>();
   const tableau: string[] = [];
   const lot = Array.from({ length: 2000 }, (_, i) => `u${i % 700}`);

@@ -1,10 +1,10 @@
 /**
- * Un `Worker` du DOM porté par un vrai fil `worker_threads`, pour prouver `pageDecodePool.ts` et
- * `pageDecodeHost.ts` avec un exécutant réel plutôt qu'un mock. `pageDecodeWorker.ts` lit et écrit
- * `globalThis.postMessage` / `globalThis.onmessage`, que `worker_threads` ne connaît pas : un petit
- * fichier pont, écrit une fois par worker dans un dossier temporaire, relie les deux sans toucher au
- * fichier réel. Le worker importe `pageDecodeWorker.ts` par son URL, exactement comme le pool le fait
- * dans un navigateur.
+ * A DOM `Worker` carried by a real `worker_threads` thread, to prove `pageDecodePool.ts` and
+ * `pageDecodeHost.ts` with a real worker rather than a mock. `pageDecodeWorker.ts` reads and writes
+ * `globalThis.postMessage` / `globalThis.onmessage`, which `worker_threads` does not know: a small
+ * bridge file, written once per worker in a temporary folder, joins the two without touching the
+ * real file. The worker imports `pageDecodeWorker.ts` by its URL, exactly as the pool does in a
+ * browser.
  */
 import { Worker as ThreadWorker } from 'node:worker_threads';
 import { mkdtempSync, writeFileSync } from 'node:fs';
@@ -26,7 +26,7 @@ function pont(url) {
   return chemin;
 }
 
-/** Le `Worker` réel : un fil `worker_threads` par instance, comme un `Worker` de module. */
+/** The real `Worker`: one `worker_threads` thread per instance, like a module `Worker`. */
 export class NodeDomWorker {
   #worker;
   onmessage = null;
@@ -46,7 +46,7 @@ export class NodeDomWorker {
   }
 }
 
-/** Un exécutant mort dès sa construction : la panne de démarrage que le pool doit encaisser. */
+/** A worker dead from construction: the startup failure the pool must absorb. */
 export class DeadNodeWorker {
   onmessage = null;
   onerror = null;
@@ -58,15 +58,15 @@ export class DeadNodeWorker {
   terminate() {}
 }
 
-/** Répond avec succès à la toute première requête (l'épreuve de démarrage), quel que soit son
- *  contenu, puis meurt avant de répondre à la suivante : le pool casse une fois démarré. */
+/** Answers the very first request successfully (the startup probe), whatever its contents, then
+ *  dies before answering the next: the pool breaks once started. */
 export class FlakyNodeWorker {
   onmessage = null;
   onerror = null;
   onmessageerror = null;
   #count = 0;
   postMessage(message) {
-    // Le bail de mémoire partagée n'est pas un travail : il ne consomme pas la réponse unique.
+    // The shared-memory lease is not work: it does not consume the unique answer.
     if (message.op === 'share') return;
     this.#count++;
     if (this.#count === 1) {
@@ -89,7 +89,7 @@ export class FlakyNodeWorker {
   terminate() {}
 }
 
-/** Installe `globalThis.Worker` pour la durée de `run`, et le retire toujours ensuite. */
+/** Installs `globalThis.Worker` for the duration of `run`, and always removes it afterwards. */
 export async function withNodeWorkerShim(implementation, run) {
   const precedent = globalThis.Worker;
   globalThis.Worker = implementation;

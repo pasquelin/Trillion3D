@@ -3,36 +3,36 @@ import type { WebgpuLightState } from './webgpuPagesStateLights.ts';
 import { quartet } from './visibilityShaderMaps.ts';
 
 /**
- * Ce qu'un pixel opaque demande aux textures virtuelles : UN rang de tuile, posé dans la cible de
- * retour de l'image que les transparents complètent, sous la règle commune de `TILE_REQUEST_WGSL`
- * (phase, carte choisie par la position, repli sur la base). Le pixel n'incrémente rien : pourquoi,
- * et ce que cela coûtait, est dit dans `webgpuTileReduce.ts`.
+ * What an opaque pixel asks of virtual textures: ONE tile rank, placed in the frame's
+ * feedback target that transparents complete, under the common `TILE_REQUEST_WGSL` rule
+ * (phase, map chosen by position, fallback on the base). The pixel increments nothing: why,
+ * and what that cost, is said in `webgpuTileReduce.ts`.
  *
- * L'ombre du soleil demande ainsi ses tuiles depuis l'écran : la passe de profondeur lit la
- * découpe au niveau de son texel d'ombre mais ne peut rien demander (`webgpuBlendRejetAnticipe.test.ts`).
- * Aux six cartes s'ajoutent donc, pour un pixel de matériau à masque, autant de choix que de
- * cascades : le triangle est projeté dans la cascade, la dérivée de la coordonnée par texel d'ombre
- * en sort — le calcul affine de `dpdx` dans la passe d'ombres — et le rang demandé est celui de ce
- * niveau. Les cascades sont la tranche du soleil telle que l'éclairage la lit
- * (`directShadowWgsl.ts`), recopiée dans l'uniforme de la passe : lier le tampon de tranches lui
- * donnerait un cycle de vie de plus au groupe de liaison — refait quand une ombre naît ou meurt —
- * pour cinq cents octets recopiés par image. Le nuanceur hôte déclare `uni.sun`, `uni.feedback`,
- * `PageInfo`, `vertUv`, `wrapOf` et `TILE_REQUEST_WGSL` avant ce bloc.
+ * The sun shadow thus asks for its tiles from the screen: the depth pass reads the cutout
+ * at its shadow texel but cannot ask for anything (`webgpuBlendRejetAnticipe.test.ts`).
+ * To the six maps are therefore added, for a masked-material pixel, as many choices as
+ * cascades: the triangle is projected into the cascade, the coordinate derivative per shadow
+ * texel comes out — the affine `dpdx` of the shadow pass — and the requested rank is that of
+ * this level. Cascades are the sun slice as lighting reads it
+ * (`directShadowWgsl.ts`), copied into the pass uniform: binding the slice buffer would give
+ * it one more lifetime on the bind group — rebuilt when a shadow is born or dies —
+ * for five hundred bytes copied per frame. The host shader declares `uni.sun`, `uni.feedback`,
+ * `PageInfo`, `vertUv`, `wrapOf` and `TILE_REQUEST_WGSL` before this block.
  */
 const HEADER_WORDS = 24;
-/** Mots de l'uniforme de la résolution : l'en-tête, puis la tranche du soleil. */
+/** Words of the resolve uniform: the header, then the sun slice. */
 export const SHADE_UNIFORM_WORDS = HEADER_WORDS + SHADOW_SLICE_FLOATS;
 export const SHADE_UNIFORM_BYTES = SHADE_UNIFORM_WORDS * 4;
 
 export const SHADE_REQUEST_WGSL = `const SUN_CASCADES:u32=${LIGHT_SETTINGS.sunCascades}u;
-/** La dérivée de la coordonnée par texel d'ombre de la cascade \`c\` (xy, zw), ou zéro si la cascade
- *  ne dessine pas ce point. */
+/** Derivative of the shadow-texel coordinate of cascade c (xy, zw), or zero if the cascade
+ *  does not draw this point. */
 fn cascadeGradient(c:u32,w0:vec4f,w1:vec4f,w2:vec4f,dUds:vec2f,dUdt:vec2f,wp:vec4f)->vec4f{
  if(c>=min(SUN_CASCADES,u32(uni.sun.info.x))){return vec4f(0.0);}
  let entry=uni.sun.faces[c];
  if(entry.rect.w<0.5){return vec4f(0.0);}
  let m=entry.viewProjection;
- // Orthographique : w vaut un, la position projetée est déjà normalisée.
+ // Orthographic: w is one, the projected position is already normalised.
  let p=m*wp;
  if(abs(p.x)>1.0||abs(p.y)>1.0||p.z<0.0||p.z>1.0){return vec4f(0.0);}
  let side=0.5*max(uni.sun.info.z,1.0);
@@ -42,7 +42,7 @@ fn cascadeGradient(c:u32,w0:vec4f,w1:vec4f,w2:vec4f,dUds:vec2f,dUdt:vec2f,wp:vec
  let inv=1.0/det;
  return vec4f(dUds*(dyc*inv)+dUdt*(-dyb*inv),dUds*(-dxc*inv)+dUdt*(dxb*inv));
 }
-/** Le rang de tuile que ce pixel demande, plus un, ou zéro. */
+/** Tile rank this pixel asks for, plus one, or zero. */
 fn shadeRequest(page:PageInfo,pos:vec2f,uv:vec2f,ddx:vec2f,ddy:vec2f,w0:vec4f,w1:vec4f,w2:vec4f,i0:u32,i1:u32,i2:u32,wp:vec4f)->u32{
  if((page.flags&12u)!=12u||!feedbackPhase(pos,uni.feedback)){return 0u;}
  let p=requestPick(pos,MAP_CHOICES+SUN_CASCADES);
@@ -55,8 +55,8 @@ fn shadeRequest(page:PageInfo,pos:vec2f,uv:vec2f,ddx:vec2f,ddy:vec2f,w0:vec4f,w1
 }`;
 
 /**
- * Recopie dans l'uniforme la tranche d'ombre de la première lampe directionnelle qui en tient une,
- * telle que le tampon de tranches la porte ; sans elle, une tranche sans face.
+ * Copy into the uniform the shadow slice of the first directional light that holds one,
+ * as the slice buffer carries it; without it, a slice with no face.
  */
 export function writeSunSlice(lights: WebgpuLightState, words: Float32Array) {
   const { store, shadows } = lights;

@@ -1,15 +1,15 @@
-// Le tableau du chemin de calcul (`rapportCalcul.mjs`) : il publie ce que le gouverneur a choisi,
-// opération par opération, et ne remplace jamais une médiane non mesurée par un zéro.
+// Computation path table (`rapportCalcul.mjs`): publishes what the governor chose,
+// operation by operation, and never replaces an unmeasured median with a zero.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cheminsCalcul } from './rapportCalcul.mjs';
 
-/** Un rapport réduit à ce que `cheminsCalcul` lit : une série, un côté, son relevé. */
+/** A report reduced to what `cheminsCalcul` reads: one series, one side, its metrics. */
 const rapport = (cheminCalcul) => ({
   series: [{ view: 'salon', pixelError: 1, sides: { a: { cheminCalcul } } }],
 });
 
-/** Un relevé de gouverneur, complété par ce que le cas veut montrer. */
+/** Governor metrics, completed by what the case wants to show. */
 const releve = (fields) => ({
   contract: 1,
   mode: 'auto',
@@ -22,7 +22,7 @@ const releve = (fields) => ({
   ...fields,
 });
 
-/** Une opération, complétée par ce que le cas veut montrer. */
+/** An operation, completed by what the case wants to show. */
 const operation = (fields) => ({
   path: 'wasm',
   jsNsPerElement: null,
@@ -34,7 +34,7 @@ const operation = (fields) => ({
   ...fields,
 });
 
-test('le chemin choisi et les deux médianes sont publiés, opération par opération', () => {
+test('the chosen path and both medians are published, operation by operation', () => {
   const lignes = cheminsCalcul(
     rapport(
       releve({
@@ -52,11 +52,11 @@ test('le chemin choisi et les deux médianes sont publiés, opération par opér
   ).join('\n');
   assert.match(
     lignes,
-    /\| auto \| chargé, simd128 \| hierarchyUpdateBatch \| wasm \| 41\.3 \| 12\.5 \| 1 \| 4096 \|/,
+    /\| auto \| loaded, simd128 \| hierarchyUpdateBatch \| wasm \| 41\.3 \| 12\.5 \| 1 \| 4096 \|/,
   );
 });
 
-test('une médiane non mesurée est dite « non mesuré », jamais zéro, et la cause du repli est publiée', () => {
+test('an unmeasured median is stated as "unmeasured", never zero, and the fallback cause is published', () => {
   const lignes = cheminsCalcul(
     rapport(
       releve({
@@ -64,7 +64,7 @@ test('une médiane non mesurée est dite « non mesuré », jamais zéro, et la 
         wasmAvailable: false,
         wasmSimd: null,
         clockCoarse: true,
-        unavailableReason: 'module WebAssembly indisponible',
+        unavailableReason: 'WebAssembly module unavailable',
         operations: {
           boxTransformBatch: operation({ path: 'js', jsNsPerElement: 30, elements: 12 }),
         },
@@ -73,18 +73,18 @@ test('une médiane non mesurée est dite « non mesuré », jamais zéro, et la 
   ).join('\n');
   assert.match(
     lignes,
-    /\| js \| module WebAssembly indisponible \| boxTransformBatch \| js \| 30\.0 \| non mesuré \| 0 \| 12 \|/,
+    /\| js \| WebAssembly module unavailable \| boxTransformBatch \| js \| 30\.0 \| unmeasured \| 0 \| 12 \|/,
   );
 });
 
-test('une horloge trop grossière pour arbitrer est publiée avec le module, pas tue', () => {
+test('a clock too coarse to arbitrate is published with the module, not killed', () => {
   const lignes = cheminsCalcul(rapport(releve({ clockCoarse: true }))).join('\n');
   assert.match(
     lignes,
-    /\| auto \| chargé, simd128, horloge trop grossière pour arbitrer \| aucun lot joué \|/,
+    /\| auto \| loaded, simd128, clock too coarse to arbitrate \| no batch run \|/,
   );
 });
 
-test('un côté sans relevé le dit, au lieu de laisser croire au chemin JavaScript', () => {
-  assert.match(cheminsCalcul(rapport(null)).join('\n'), /\| relevé absent de ce dist \|/);
+test('a side without metrics says so, instead of implying the JavaScript path', () => {
+  assert.match(cheminsCalcul(rapport(null)).join('\n'), /\| reading missing from this dist \|/);
 });

@@ -1,24 +1,24 @@
-//! La conversion d'espace, une fois pour toutes.
+//! Space conversion, once and for all.
 //!
-//! Unity : main gauche, Y en haut, Z vers l'avant, une unité = un mètre. glTF : main droite, Y en
-//! haut, Z vers l'observateur, une unité = un mètre. Les deux ne diffèrent que par le sens de Z :
-//! la conversion exacte est la symétrie `S = diag(1, 1, -1)`, qui est sa propre inverse.
+//! Unity: left-handed, Y up, Z forward, one unit = one metre. glTF: right-handed, Y up, Z toward
+//! the viewer, one unit = one metre. The two differ only by the sign of Z: the exact conversion
+//! is the reflection `S = diag(1, 1, -1)`, which is its own inverse.
 //!
-//! On ne l'applique qu'aux transformations de la scène Unity, jamais aux sommets d'un modèle
-//! importé. La raison tient en une ligne : Unity lit elle-même un FBX ou un glTF en appliquant `S`,
-//! donc un sommet du modèle vaut `S·v` dans la scène Unity, et repasser en glTF redonne
-//! `S·(T₁…Tₙ)·S·v = (S·T₁·S)…(S·Tₙ·S)·v`. La chaîne se télescope : convertir chaque transformation
-//! locale par `T ↦ S·T·S` suffit, et la géométrie du modèle reste intacte, dans l'espace où son
-//! propre pilote l'a rendue. `S·T·S` est une rotation propre (déterminant +1) : l'ordre
-//! d'enroulement des faces ne change pas, aucune normale n'est retournée.
+//! It is applied only to Unity-scene transforms, never to vertices of an imported model. The
+//! reason fits in one line: Unity itself reads an FBX or a glTF by applying `S`, so a model
+//! vertex is `S·v` in the Unity scene, and going back to glTF yields
+//! `S·(T₁…Tₙ)·S·v = (S·T₁·S)…(S·Tₙ·S)·v`. The chain telescopes: converting each local transform
+//! by `T ↦ S·T·S` is enough, and the model's geometry stays intact, in the space its own driver
+//! yielded. `S·T·S` is a proper rotation (determinant +1): face winding does not change, no
+//! normal is flipped.
 //!
-//! Sur une transformation locale Unity (position `p`, quaternion `q`, échelle `s`), cela donne :
+//! On a Unity local transform (position `p`, quaternion `q`, scale `s`), that gives:
 //! - position `(x, y, -z)` ;
-//! - quaternion `(-x, -y, z, w)` — la symétrie envoie l'axe `a` sur `S·a` et l'angle `θ` sur `-θ` ;
-//! - échelle inchangée, puisque `S·diag(s)·S = diag(s)`.
+//! - quaternion `(-x, -y, z, w)` — the reflection sends axis `a` to `S·a` and angle `θ` to `-θ` ;
+//! - scale unchanged, since `S·diag(s)·S = diag(s)`.
 use serde_json::{json, Value};
 
-/// Une transformation locale Unity, déjà convertie dans l'espace glTF.
+/// A Unity local transform, already converted into glTF space.
 #[derive(Clone, Copy)]
 pub(super) struct Trs {
     pub(super) translation: [f64; 3],
@@ -32,10 +32,10 @@ impl Trs {
         rotation: [0.0, 0.0, 0.0, 1.0],
         scale: [1.0, 1.0, 1.0],
     };
-    /// Convertit une transformation locale lue chez Unity.
+    /// Converts a local transform read from Unity.
     pub(super) fn from_unity(position: [f64; 3], rotation: [f64; 4], scale: [f64; 3]) -> Trs {
-        // `-0.0` vaut `0.0` mais ne s'écrit pas pareil : on le ramène à zéro pour que deux
-        // conversions de la même scène donnent les mêmes octets.
+        // `-0.0` equals `0.0` but does not write the same: it is brought back to zero so two
+        // conversions of the same scene yield the same bytes.
         let flip = |value: f64| if value == 0.0 { 0.0 } else { -value };
         Trs {
             translation: [position[0], position[1], flip(position[2])],
@@ -48,14 +48,14 @@ impl Trs {
             scale,
         }
     }
-    /// Une transformation dont un nombre n'est pas fini ne peut pas entrer dans la scène : le
-    /// pilote la compte au rapport et laisse l'identité à sa place.
+    /// A transform with a non-finite number cannot enter the scene: the driver counts it in the
+    /// report and leaves identity in its place.
     pub(super) fn is_finite(&self) -> bool {
         let finite = |values: &[f64]| values.iter().all(|value| value.is_finite());
         let length = self.rotation.iter().map(|v| v * v).sum::<f64>();
         finite(&self.translation) && finite(&self.rotation) && finite(&self.scale) && length > 1e-12
     }
-    /// Les champs d'un nœud glTF, omis quand ils valent le défaut du format.
+    /// Fields of a glTF node, omitted when they equal the format default.
     pub(super) fn write(&self, node: &mut Value) {
         if self.translation != Trs::IDENTITY.translation {
             node["translation"] = json!(self.translation);

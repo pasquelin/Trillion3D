@@ -1,26 +1,26 @@
 /**
- * Les poids du filtre de l'image courante : un par voisin de la fenêtre 3×3, pour une gigue donnée.
- * Fenêtre de Blackman-Harris sur un rayon d'UN pixel, centrée sur le centre non décalé du pixel :
- * un voisin ne pèse que lorsque l'échantillon de cette image est loin du centre, ce qui recentre
- * sans adoucir. Ils ne dépendent que de la gigue, qui ne prend que `TAA_SAMPLES` valeurs : la table
- * se calcule une fois, et jamais par image ni par pixel.
+ * Weights of the current-frame filter: one per neighbour of the 3×3 window, for a given jitter.
+ * Blackman-Harris window over a radius of ONE pixel, centred on the unshifted pixel centre:
+ * a neighbour only weighs when this frame's sample is far from the centre, which recentres
+ * without softening. They depend only on the jitter, which takes only `TAA_SAMPLES` values: the
+ * table is computed once, and never per frame nor per pixel.
  */
 import { TAA_SAMPLES, taaJitter } from './taaJitter.ts';
 
-/** Neuf poids, rangés voisin par voisin (dy puis dx, de −1 à 1), trois `vec4f` dans l'uniforme. */
+/** Nine weights, stored neighbour by neighbour (dy then dx, from −1 to 1), three `vec4f` in the uniform. */
 export const TAA_WEIGHTS = 12;
 
-/** La fenêtre sur `[0, 1]` du rayon, nulle au-delà. */
+/** The window on `[0, 1]` of the radius, zero beyond. */
 function blackmanHarris(distance: number) {
   const x = Math.min(1, Math.max(0, distance)) * Math.PI + Math.PI;
   return 0.35875 - 0.48829 * Math.cos(x) + 0.14128 * Math.cos(2 * x) - 0.01168 * Math.cos(3 * x);
 }
 
 /**
- * Écrit les neuf poids normalisés à `out[at..]`, à partir de la gigue `(jx, jy)` en pixels. Un
- * point qui atterrit au centre d'un pixel de l'image décalée serait, sans gigue, `jx` colonnes plus
- * à gauche et `jy` lignes plus bas — le NDC monte quand l'écran descend —, donc l'échantillon est à
- * `(−jx, +jy)` du centre, et chaque voisin `(dx, dy)` à `(dx − jx, dy + jy)`.
+ * Write the nine normalised weights at `out[at..]`, from jitter `(jx, jy)` in pixels. A
+ * point that lands at the centre of a pixel of the shifted image would, without jitter, be `jx`
+ * columns to the left and `jy` rows lower — NDC goes up as the screen goes down — so the sample
+ * is at `(−jx, +jy)` from the centre, and each neighbour `(dx, dy)` at `(dx − jx, dy + jy)`.
  */
 export function taaWeights(jx: number, jy: number, out: Float32Array, at: number) {
   let sum = 0,
@@ -36,7 +36,7 @@ export function taaWeights(jx: number, jy: number, out: Float32Array, at: number
   return out;
 }
 
-/** Les poids de chacun des `TAA_SAMPLES` rangs de gigue, prêts à copier dans l'uniforme. */
+/** Weights of each of the `TAA_SAMPLES` jitter ranks, ready to copy into the uniform. */
 export function taaWeightTable() {
   const jitter = new Float64Array(2);
   return Array.from({ length: TAA_SAMPLES }, (_, sample) => {

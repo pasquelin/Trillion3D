@@ -17,10 +17,10 @@ import { createGpuBounceProxy } from './gpuBounceProxy.ts';
 import { createGpuBounceSurface, type GpuBounceSurface } from './gpuBounceSurface.ts';
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
 
-/** Ce que la passe de sondes lie : les cascades, le proxy et son albédo, la file de l'image, les
- *  sondes figées, les neuves, le cache. Les lampes n'y sont plus : le cache les a évaluées par
- *  maille. Le proxy est en écriture parce que son entête porte des compteurs `atomic` ; cette passe
- *  n'y écrit rien. */
+/** What the probe pass binds: the cascades, the proxy and its albedo, the frame queue, frozen
+ *  probes, new ones, the cache. Lights are no longer there: the cache has evaluated them per
+ *  cell. The proxy is writable because its header carries `atomic` counters; this pass writes
+ *  nothing there. */
 const PROBE_TYPES: (GPUBufferBindingType | null)[] = [
   'uniform',
   'storage',
@@ -34,13 +34,12 @@ const PROBE_TYPES: (GPUBufferBindingType | null)[] = [
 export type GpuBounceProbes = Awaited<ReturnType<typeof createGpuBounceProbes>>;
 
 /**
- * Les cascades de sondes d'irradiance, le cache de surfaces, et les deux passes qui les balaient.
+ * Irradiance probe cascades, the surface cache, and the two passes that sweep them.
  *
- * Le budget est une **durée**, pas un compte (X4, LR2) : l'hôte donne une cible en millisecondes,
- * le chronomètre de l'étape « Rebond » la compare à ce que l'image a coûté, et la fraction des
- * plafonds publiés que l'image suivante encodera monte ou descend. La cadence ne cède jamais ;
- * c'est la convergence qui s'allonge. Quand plus rien ne change, aucune des deux passes n'est
- * encodée : une scène immobile ne paie rien.
+ * The budget is a **duration**, not a count (X4, LR2): the host gives a target in milliseconds,
+ * the « Bounce » stage timer compares it to what the frame cost, and the fraction of the published
+ * ceilings the next frame will encode rises or falls. Cadence never yields; it is convergence
+ * that stretches. When nothing changes, neither pass is encoded: a still scene pays nothing.
  */
 export async function createGpuBounceProbes(
   device: GPUDevice,
@@ -53,8 +52,8 @@ export async function createGpuBounceProbes(
   const schedule = createBounceSchedule(cascades, occupancy);
   const budget = createBounceBudget(budgetMs);
   const probeBytes = Math.max(16, cascades.probes * PROBE_FLOATS * 4);
-  // Rien n'est créé tant que tout ne tient pas : une seule liaison au-dessus d'une limite de
-  // l'appareil suffirait à perdre l'appareil à la première image, et le refus dit laquelle.
+  // Nothing is created until everything fits: a single binding above a device limit would lose
+  // the device on the first frame, and the refusal names which one.
   ensureBounceFits(device, proxy, probeBytes, schedule.queue.byteLength);
   const resident = createGpuBounceProxy(device, proxy);
   const uniform = createBounceUniform(device, cascades);
@@ -68,8 +67,8 @@ export async function createGpuBounceProbes(
     size: probeBytes,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   });
-  // La copie que les deux passes lisent : figée avant elles, si bien qu'un rebond d'ordre supérieur
-  // voit toujours les cascades entières de l'image précédente, et jamais une voisine à demi écrite.
+  // Copy both passes read: frozen before them, so a higher-order bounce always sees the previous
+  // frame's full cascades, never a neighbour half-written.
   const snapshot = device.createBuffer({
     label: 'WG bounce probes snapshot v2',
     size: probeBytes,
@@ -112,11 +111,11 @@ export async function createGpuBounceProbes(
   let generation = 1,
     frame = 0,
     updates = 0;
-  /** Tours complets : un balayage des cascades et un balayage du cache, le plus lent des deux. */
+  /** Full rounds: a cascade sweep and a cache sweep, the slower of the two. */
   const rounds = () => Math.min(schedule.sweeps, surface.sweeps);
-  /** Vrai tant que la série des rebonds n'est pas close : au-delà, plus rien n'est encodé. */
+  /** True while the bounce series is not closed: beyond that, nothing more is encoded. */
   const working = () => rounds() < BOUNCE_SETTINGS.settledSweeps;
-  /** Les sondes de l'image : la fraction du plafond publié que le budget en millisecondes tient. */
+  /** Frame probes: the fraction of the published ceiling the millisecond budget holds. */
   const batch = () => bounceBatchOf(BOUNCE_PROBES_PER_FRAME, budget.load);
   return {
     cascades,
@@ -126,42 +125,42 @@ export async function createGpuBounceProbes(
     proxy: resident,
     uniform: uniform.buffer,
     probes,
-    /** Images d'un tour complet, mesurées : c'est la borne du retard de convergence. */
+    /** Frames of a full round, measured: that is the bound on convergence lag. */
     get sweepFrames() {
       return Math.max(schedule.sweepFrames, surface.sweepFrames, 1);
     },
-    /** Sondes que la carte d'occupation retient au niveau le plus fin, sur ses mailles. */
+    /** Probes the occupancy map keeps at the finest level, on its cells. */
     activeProbes: occupancy.marked,
-    /** Sondes mises à jour par la dernière image encodée, et rayons qu'elles ont lancés. */
+    /** Probes updated by the last encoded frame, and rays they launched. */
     get lastProbes() {
       return updates;
     },
     get lastRays() {
       return updates * BOUNCE_SETTINGS.raysPerProbe;
     },
-    /** Vrai tant que la série des rebonds n'est pas close : au-delà, plus rien n'est encodé. */
+    /** True while the bounce series is not closed: beyond that, nothing more is encoded. */
     get working() {
       return working();
     },
-    /** Le chronomètre de l'étape, tel que le profil par étape l'a relevé. `null` n'est pas zéro. */
+    /** Stage timer, as the per-stage profile recorded it. `null` is not zero. */
     observeGpuMs(ms: number | null) {
       budget.observe(ms);
     },
     setIrradianceView: uniform.setIrradianceView,
-    /** Une lampe a changé : les balayages repartent, les sondes endormies se réveillent. */
+    /** A light changed: sweeps restart, sleeping probes wake. */
     restart() {
       generation++;
       schedule.restart();
       surface.restart();
     },
     /**
-     * Encode un tour de cache puis un lot de sondes. Rend `false` quand il n'y avait rien à faire :
-     * la scène est immobile, la série est close, et l'étape « Rebond » vaut « non mesuré ».
+     * Encodes a cache round then a probe batch. Returns `false` when there was nothing to do:
+     * the scene is still, the series is closed, and the « Bounce » stage is « unmeasured ».
      */
     encode(encoder: GPUCommandEncoder, lightsActive: number, viewpoint: ArrayLike<number>) {
       updates = 0;
-      // Une cascade qui glisse fait entrer des mailles neuves : c'est du travail, comme une lampe
-      // qui bouge. Une caméra immobile ne fait glisser personne et ne relance donc rien.
+      // A cascade that slides brings in new cells: that is work, like a light that moves. A still
+      // camera slides nobody and therefore restarts nothing.
       if (cascades.follow(viewpoint)) schedule.restart();
       if (!cascades.probes || !lightsActive || !working()) return false;
       frame++;
@@ -170,13 +169,13 @@ export async function createGpuBounceProbes(
       uniform.write(generation, groups, frame);
       encoder.copyBufferToBuffer(probes, 0, snapshot, 0, probeBytes);
       surface.encode(encoder, budget.load);
-      // Une file vide — aucune maille de la scène ne mérite une sonde — n'encode pas la passe :
-      // le cache de surfaces, lui, continue son balayage, qui ne dépend d'aucune sonde.
+      // An empty queue — no scene cell deserves a probe — does not encode the pass: the surface
+      // cache keeps sweeping, which depends on no probe.
       if (groups) {
         const pass = encoder.beginComputePass({ label: BOUNCE_PROBE_PASS });
         pass.setPipeline(pipeline);
         pass.setBindGroup(0, group);
-        // Un groupe de travail par sonde : les rayons d'une sonde se partagent ses fils.
+        // One workgroup per probe: a probe's rays share its threads.
         pass.dispatchWorkgroups(groups, 1, 1);
         pass.end();
       }

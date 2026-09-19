@@ -1,15 +1,17 @@
-//! Les durées par phase, attachées au travail qui les dépense.
+//! Durations per phase, attached to the job that spends them.
 //!
-//! Des compteurs globaux additionnaient les phases de tous les travaux d'un même processus : le
-//! second travail d'un lot publiait la simplification du premier, qui n'avait pourtant aucun groupe
-//! à simplifier. Chaque compilation crée donc ses propres compteurs, les attache au fil qui la mène
-//! et à chaque ouvrier de sa grappe, et ne relit qu'eux.
+//! Global counters used to add up the phases of every job in the same process:
+//! the second job of a batch published the first's simplification, which had no
+//! group to simplify. Each compilation therefore creates its own counters, attaches
+//! them to the thread that leads it and to each worker of its pool, and rereads
+//! only those.
 //!
-//! Ces durées se chevauchent : chaque chronomètre mesure le temps **écoulé** entre sa naissance et
-//! sa mort, et ces intervalles s'additionnent d'un fil à l'autre. Du temps écoulé n'est pas du temps
-//! de processeur : une attente, une écriture ou un fil préempté entrent dans la phase sans qu'aucun
-//! calcul ait lieu. Le manifeste les publie donc sous `phaseElapsedMs`, leur somme n'est le total de
-//! rien, et `cpuMs` reste nul tant que personne ne mesure vraiment le processeur.
+//! These durations overlap: each timer measures the **elapsed** time between its
+//! birth and its death, and those intervals add up from one thread to another.
+//! Elapsed time is not CPU time: a wait, a write or a preempted thread enter the
+//! phase without any computation. The manifest therefore publishes them under
+//! `phaseElapsedMs`, their sum is the total of nothing, and `cpuMs` stays zero
+//! until someone actually measures the CPU.
 use serde_json::{json, Value};
 use std::cell::RefCell;
 use std::sync::{
@@ -22,7 +24,7 @@ macro_rules! phases {
  ($($field:ident=>$variant:ident=>$label:literal),* $(,)?) => {
   #[derive(Default)]
   struct Phases{$($field:AtomicU64),*}
-  /// La phase qu'un chronomètre alimente.
+  /// The phase a timer feeds.
   #[derive(Clone,Copy)]
   pub enum Phase{$($variant),*}
   impl Phases{
@@ -58,21 +60,22 @@ phases! {
 }
 
 thread_local! {
-    /// Les compteurs du travail que ce fil sert en ce moment, s'il en sert un.
+    /// Counters of the job this thread currently serves, if it serves one.
     static CURRENT: RefCell<Option<Arc<Phases>>> = const { RefCell::new(None) };
 }
 
-/// Les compteurs d'une compilation, partagés avec les fils qu'elle emploie.
+/// Counters of a compilation, shared with the threads it employs.
 #[derive(Clone, Default)]
 pub struct JobPhases(Arc<Phases>);
 impl JobPhases {
-    /// Attache ces compteurs au fil courant, et rend ce qu'il portait quand le témoin se libère :
-    /// un ouvrier de lot qui enchaîne deux travaux ne garde rien du premier.
+    /// Attaches these counters to the current thread, and restores what it carried
+    /// when the guard drops: a batch worker that chains two jobs keeps nothing of
+    /// the first.
     pub fn attach(&self) -> Attached {
         Attached(CURRENT.with(|current| current.borrow_mut().replace(self.0.clone())))
     }
-    /// Attache ces compteurs pour toute la vie du fil : la grappe d'une compilation naît et meurt
-    /// avec elle, et ses ouvriers ne servent jamais un autre travail.
+    /// Attaches these counters for the whole life of the thread: a compilation's
+    /// pool is born and dies with it, and its workers never serve another job.
     pub fn adopt(&self) {
         CURRENT.with(|current| *current.borrow_mut() = Some(self.0.clone()));
     }
@@ -81,7 +84,7 @@ impl JobPhases {
     }
 }
 
-/// Le témoin d'un attachement : il rend au fil les compteurs qu'il portait avant.
+/// Attachment guard: it restores to the thread the counters it carried before.
 pub struct Attached(Option<Arc<Phases>>);
 impl Drop for Attached {
     fn drop(&mut self) {
@@ -89,9 +92,9 @@ impl Drop for Attached {
     }
 }
 
-/// Ajoute sa durée de vie — le temps écoulé, pas celui du processeur — au compteur du travail
-/// attaché au fil courant. Un fil qui n'en sert aucun ne compte rien plutôt que d'alimenter le
-/// travail d'un autre.
+/// Adds its lifetime — elapsed time, not CPU time — to the counter of the job
+/// attached to the current thread. A thread that serves none counts nothing
+/// rather than feeding another job's.
 pub struct Timer {
     start: Instant,
     phases: Option<Arc<Phases>>,

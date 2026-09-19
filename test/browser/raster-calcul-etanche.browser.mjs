@@ -1,13 +1,12 @@
-// Preuve par le moteur réel : le raster de calcul rend la même image que le raster matériel, à la
-// silhouette près, qu'il prenne toute la coupe (`raster-calcul`) ou les petits triangles seuls
-// (`raster-hybride`). Douze carreaux inclinés, chacun deux triangles qui
-// partagent une diagonale dans deux clusters distincts, un carreau de face dont la diagonale à 45°
-// passe par le centre des pixels, un carreau immense dont la diagonale traverse
-// l'image depuis des sommets à des milliers de pixels hors champ, et un carreau qui traverse le plan
-// proche.
+// Proof by the real engine: the compute raster yields the same image as the hardware raster, to
+// the silhouette, whether it takes the whole cut (`raster-calcul`) or small triangles alone
+// (`raster-hybride`). Twelve tilted tiles, each two triangles that share a diagonal in two
+// distinct clusters, a face-on tile whose 45° diagonal goes through pixel centres, a huge tile
+// whose diagonal crosses the image from vertices thousands of pixels off-screen, and a tile that
+// crosses the near plane.
 //
-// La règle : zéro pixel hors de la bande de silhouette — ni fissure entre deux triangles voisins,
-// ni triangle parasite, ni triangle qu'aucun des deux rasters n'aurait pris.
+// The rule: zero pixels outside the silhouette band — no crack between two neighbouring
+// triangles, no stray triangle, no triangle neither raster would have taken.
 //
 //   node --experimental-strip-types test/browser/raster-calcul-etanche.browser.mjs
 import assert from 'node:assert/strict';
@@ -16,7 +15,7 @@ import { preuveDansLaPage, preuveSaine } from '../appui/preuvePageMoteur.mjs';
 const resultat = await preuveDansLaPage(
   'rasterCalculPage.mjs',
   'rasterCalcul',
-  'Raster de calcul étanche',
+  'Watertight compute raster',
 );
 console.log(
   JSON.stringify(
@@ -32,23 +31,23 @@ console.log(
   ),
 );
 preuveSaine(resultat);
-assert.ok(resultat.couverts > 1000, `la scène ne couvre que ${resultat.couverts} pixels`);
+assert.ok(resultat.couverts > 1000, `the scene covers only ${resultat.couverts} pixels`);
 assert.equal(resultat.clusters, 30);
 for (const [variante, releve] of Object.entries(resultat.variantes)) {
-  assert.equal(releve.clusters, 30, `${variante} : les deux moteurs dessinent la même coupe`);
+  assert.equal(releve.clusters, 30, `${variante}: both engines draw the same cut`);
   assert.deepEqual(
     releve.interieurs,
     [],
-    `${variante} : ${releve.interieurs.length} pixel(s) diffèrent hors de la bande de silhouette — fissure, triangle parasite, ou triangle qu'aucun des deux rasters n'a pris`,
+    `${variante}: ${releve.interieurs.length} pixel(s) differ outside the silhouette band — crack, stray triangle, or a triangle neither raster took`,
   );
-  // La silhouette peut différer d'un pixel là où les deux règles de remplissage ne coïncident pas ;
-  // elle ne peut pas différer plus que son propre périmètre.
+  // The silhouette may differ by one pixel where the two fill rules do not coincide;
+  // it cannot differ more than its own perimeter.
   assert.ok(
     releve.silhouettes < resultat.couverts / 8,
-    `${variante} : ${releve.silhouettes} pixels de silhouette diffèrent sur ${resultat.couverts} couverts`,
+    `${variante}: ${releve.silhouettes} silhouette pixels differ of ${resultat.couverts} covered`,
   );
 }
 const silhouettes = Object.values(resultat.variantes).map((releve) => releve.silhouettes);
 console.log(
-  `OK : ${resultat.couverts} pixels couverts, 0 différence intérieure sous les deux variantes, silhouettes ${silhouettes.join(' / ')} — ${resultat.adaptateur}`,
+  `OK: ${resultat.couverts} pixels covered, 0 interior difference under both variants, silhouettes ${silhouettes.join(' / ')} — ${resultat.adaptateur}`,
 );

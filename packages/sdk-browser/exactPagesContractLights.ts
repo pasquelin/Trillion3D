@@ -3,12 +3,12 @@ import { LIGHT_SETTINGS, type SceneLight, type SceneLightStore } from '../sdk-co
 import { baseCapabilities } from './backendCommon.ts';
 import { createUnlitAlbedo } from './exactPagesUnlitAlbedo.ts';
 
-/** Un moteur rendu par Three applique les lampes du contrat ; seules leurs ombres lui manquent —
- *  Three n'en fournirait qu'au prix d'une carte par lampe, six faces pour une ponctuelle, hors
- *  budget d'image. Les deux constantes disent cela dans les capacités publiées par le moteur. */
+/** A Three-rendered engine applies the contract lights; only their shadows are missing —
+ *  Three would provide them only at the cost of one map per light, six faces for a point light,
+ *  outside the frame budget. Both constants say that in the engine's published capabilities. */
 export const CONTRACT_LIGHTS_LIGHTING = {
   shadows: false,
-  reason: "lampes du contrat sans ombre portée ; la vue 'bounce' y vaut la vue éclairée",
+  reason: "contract lights with no cast shadow; the 'bounce' view equals the lit view there",
 };
 const RETIRES = ['bounded GPU eviction', 'contract scene lights with shadow atlas'];
 export const CONTRACT_LIGHTS_UNSUPPORTED = baseCapabilities.unsupported
@@ -16,32 +16,32 @@ export const CONTRACT_LIGHTS_UNSUPPORTED = baseCapabilities.unsupported
   .concat('contract scene light shadows');
 
 /**
- * Albédo brut par la lumière : un matériau rend `irradiance · albédo / π` en diffus, donc une
- * irradiance ambiante de π rend l'albédo — à condition que rien n'écarte sa réponse de cet albédo,
- * ce dont `createUnlitAlbedo` se charge le temps de l'image, matériaux de l'image éclairée compris.
+ * Raw albedo by light: a material yields `irradiance · albedo / π` in diffuse, so an ambient
+ * irradiance of π yields albedo — provided nothing takes its response away from that albedo,
+ * which `createUnlitAlbedo` handles for the frame, lit-frame materials included.
  */
 const UNLIT_IRRADIANCE = Math.PI;
-/** Distance de l'œil d'une directionnelle : elle n'a pas de position, seule sa direction compte. */
+/** Eye distance of a directional: it has no position, only its direction counts. */
 const SUN_DISTANCE = 1;
 
-/** Conversion de la couleur linéaire du contrat, sans passer par sRGB : c'est l'espace de travail. */
+/** Conversion of the contract linear colour, without going through sRGB: that is the working space. */
 function applyColor(light: THREE.Light, source: SceneLight) {
   light.color.setRGB(source.color[0], source.color[1], source.color[2]);
   light.intensity = source.intensity;
 }
 
 /**
- * Le demi-angle de pénombre qui reproduit le bord de cône du contrat. Le chemin WebGPU adoucit le
- * cône entre `cos(demi-angle)` et `cos(demi-angle) + spotEdgeSoftness` ; Three adoucit entre
- * `cos(angle)` et `cos(angle · (1 − penumbra))`. Égaler les deux cosinus donne cette pénombre — la
- * même transition, pas une transition voisine.
+ * Penumbra half-angle that reproduces the contract cone edge. The WebGPU path softens the
+ * cone between `cos(half-angle)` and `cos(half-angle) + spotEdgeSoftness`; Three softens
+ * between `cos(angle)` and `cos(angle · (1 − penumbra))`. Equating the two cosines gives this
+ * penumbra — the same transition, not a neighbouring one.
  */
 function spotPenumbra(coneAngle: number) {
   const inner = Math.acos(Math.min(1, Math.cos(coneAngle) + LIGHT_SETTINGS.spotEdgeSoftness));
   return Math.min(1, Math.max(0, 1 - inner / coneAngle));
 }
 
-/** Une lampe Three neuve du type demandé, avec sa cible quand elle en a une. */
+/** A fresh Three light of the requested type, with its target when it has one. */
 function createLight(source: SceneLight): THREE.Light {
   if (source.kind === 'point') return new THREE.PointLight();
   if (source.kind === 'spot') return new THREE.SpotLight();
@@ -49,15 +49,15 @@ function createLight(source: SceneLight): THREE.Light {
 }
 
 /**
- * Écrit une lampe du contrat dans sa lampe Three. Les unités sont celles du contrat, sans facteur
- * d'ajustement : `intensity` est une intensité radiométrique en W/sr pour une ponctuelle ou un
- * projecteur, et Three avec `decay = 2` et `distance = range` applique exactement l'atténuation du
- * shader d'éclairage différé — `pow(clamp(1 − (d/range)⁴, 0, 1), 2) / d²`, terme pour terme. Une
- * directionnelle porte une irradiance, la même partout, et Three en fait autant.
+ * Writes a contract light into its Three light. Units are the contract's, with no adjustment
+ * factor: `intensity` is a radiometric intensity in W/sr for a point or a spotlight, and Three
+ * with `decay = 2` and `distance = range` applies exactly the deferred-lighting shader
+ * attenuation — `pow(clamp(1 − (d/range)⁴, 0, 1), 2) / d²`, term for term. A directional
+ * carries an irradiance, the same everywhere, and Three does the same.
  *
- * Ce qui n'est pas égalisé et ne prétend pas l'être : le modèle de surface. Three évalue un
- * Cook-Torrance de son cru, le chemin WebGPU le sien ; l'irradiance incidente est la même, l'image
- * ne l'est pas. Aucune ombre non plus — voir `shadows: false` dans les capacités du moteur.
+ * What is not equalised and does not claim to be: the surface model. Three evaluates a
+ * Cook-Torrance of its own, the WebGPU path its own; incident irradiance is the same, the
+ * image is not. No shadows either — see `shadows: false` in the engine capabilities.
  */
 function writeLight(light: THREE.Light, source: SceneLight) {
   applyColor(light, source);
@@ -89,12 +89,12 @@ function writeLight(light: THREE.Light, source: SceneLight) {
 }
 
 /**
- * Relie le magasin de lampes du contrat aux lampes affichées par un moteur rendu par Three.
+ * Ties the contract light store to the lights displayed by a Three-rendered engine.
  *
- * Le contrat ne prend la main que lorsque l'hôte s'en est servi — une lampe déclarée, ou une vue
- * demandée. Tant qu'il ne l'a pas fait, les lampes du graphe source restent seules à éclairer et
- * l'image est celle d'avant ce lot, au pixel près. Dès qu'il l'a fait, le graphe source s'efface :
- * deux jeux de lampes superposés ne seraient l'éclairage de personne.
+ * The contract takes over only when the host has used it — a declared light, or a requested
+ * view. Until it has, the source-graph lights stay the only ones lighting and the image is
+ * the one from before this batch, pixel for pixel. As soon as it has, the source graph
+ * disappears: two stacked light sets would be nobody's lighting.
  */
 function createContractLights(scene: THREE.Scene, store: SceneLightStore | undefined) {
   const group = new THREE.Group();
@@ -104,8 +104,8 @@ function createContractLights(scene: THREE.Scene, store: SceneLightStore | undef
   ambient.visible = false;
   group.add(ambient);
   const albedo = createUnlitAlbedo(scene);
-  // Le type de la lampe est retenu à côté d'elle : régler une ponctuelle en projecteur change
-  // l'objet Three, et comparer des chaînes de type coûterait une allocation par lampe et par passe.
+  // The light type is kept beside it: setting a point light as a spotlight changes the Three
+  // object, and comparing type strings would cost an allocation per light and per pass.
   const lights = new Map<string, { light: THREE.Light; kind: SceneLight['kind'] }>();
   let epoch = -1,
     governs = false;
@@ -137,8 +137,8 @@ function createContractLights(scene: THREE.Scene, store: SceneLightStore | undef
   };
   return {
     /**
-     * Rend vrai quand le contrat gouverne désormais l'éclairage — l'appelant doit alors cesser de
-     * rafraîchir les lampes du graphe source. Ne fait rien tant que le magasin n'a pas changé.
+     * Returns true when the contract now governs lighting — the caller must then stop
+     * refreshing the source-graph lights. Does nothing as long as the store has not changed.
      */
     refresh() {
       if (!store) return false;
@@ -155,14 +155,14 @@ function createContractLights(scene: THREE.Scene, store: SceneLightStore | undef
       group.visible = true;
       if (epoch === store.epoch) return true;
       epoch = store.epoch;
-      // `unlit` — demandée, ou `auto` sans lampe — ne montre aucune lampe : l'ambiance rend l'albédo.
+      // `unlit` — requested, or `auto` with no light — shows no light: ambient yields albedo.
       ambient.visible = store.unlit;
       albedo.setEnabled(store.unlit);
       if (store.unlit) dropAll();
       else rebuild();
       return true;
     },
-    /** Vrai quand l'image sort en lumière réelle : la composition passe alors par ACES (P6). */
+    /** True when the image comes out in real light: composition then goes through ACES (P6). */
     get lit() {
       return governs && !!store && !store.unlit;
     },
@@ -170,9 +170,9 @@ function createContractLights(scene: THREE.Scene, store: SceneLightStore | undef
 }
 
 /**
- * Branche le contrat sur un moteur rendu par Three et rend de quoi le tenir : `apply` à chaque
- * révision du magasin, `lit` à chaque image. Les lampes importées sont déclarées avant que le moteur
- * existe, donc la première passe a lieu ici même, à la construction.
+ * Hooks the contract onto a Three-rendered engine and returns what it takes to hold it:
+ * `apply` on every store revision, `lit` every frame. Imported lights are declared before
+ * the engine exists, so the first pass happens here, at construction.
  */
 export function attachContractLights(
   scene: THREE.Scene,

@@ -1,6 +1,6 @@
-// Le point d'entrée public du calcul : matrices, vecteurs, couleurs, boîtes, troncs, arbres de
-// transformation et caméras. Regroupé ici pour que `index.ts` tienne dans la limite de lignes ;
-// aucun contrat ne change, `index.ts` réexporte ce fichier tel quel.
+// Public entry point of the math: matrices, vectors, colours, boxes, frustums, transform
+// trees and cameras. Grouped here so `index.ts` stays within the line limit;
+// no contract changes, `index.ts` re-exports this file as-is.
 export {
   IDENTITY_MATRIX4,
   copyMatrix4,

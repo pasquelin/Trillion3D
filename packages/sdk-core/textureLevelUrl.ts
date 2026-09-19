@@ -2,11 +2,11 @@ import { EngineError } from './cacheContracts.ts';
 import { PREVIEW_ATLAS_NAMES } from './manifestBinaryFormat.ts';
 
 /**
- * L'adresse d'un niveau cuit, depuis le gabarit que le manifeste publie (`textures.url`) : `{sha}`
- * est l'empreinte des octets sources de l'image, `{kind}` le nom de l'atlas, `{level}` le rang du
- * niveau. Le gabarit vient du compilateur et le moteur ne connaît pas la disposition du cache ;
- * une seule vérité, comme pour les pages. Un gabarit sans ses trois champs est refusé : une
- * adresse qui n'en varie pas servirait la même image à toutes les textures.
+ * Address of a baked level, from the template the manifest publishes (`textures.url`): `{sha}`
+ * is the digest of the image source bytes, `{kind}` the atlas name, `{level}` the level
+ * rank. The template comes from the compiler and the engine does not know the cache layout;
+ * one truth, as for pages. A template without its three fields is rejected: an
+ * address that does not vary with them would serve the same image to every texture.
  */
 export function textureLevelUrl(template: string, sha256: string, atlas: number, level: number) {
   const kind = PREVIEW_ATLAS_NAMES[atlas];

@@ -49,26 +49,18 @@ export function createWebgpuBootstrap(options: BootstrapOptions) {
     if (pages.some((page) => !hasBytes(page)) && !readPage) return;
     loading = (async () => {
       const started = performance.now();
-      engineDiagnostic(
-        'coverage-bootstrap-start',
-        'Chargement de la couverture complète de secours',
-        {
-          version: 1,
-          pages: pages.length,
-          slots,
-        },
-      );
-      traceDiagnostic(
-        'coverage-bootstrap-start',
-        'Chargement de la couverture complète de secours',
-        () => ({
-          frame: getFrame(),
-          pages: pages.length,
-          pageIds: tracking.pageRefs(pages.map((page) => page.url)),
-          slots,
-          queueWaitMs: 0,
-        }),
-      );
+      engineDiagnostic('coverage-bootstrap-start', 'Loading the full emergency cover', {
+        version: 1,
+        pages: pages.length,
+        slots,
+      });
+      traceDiagnostic('coverage-bootstrap-start', 'Loading the full emergency cover', () => ({
+        frame: getFrame(),
+        pages: pages.length,
+        pageIds: tracking.pageRefs(pages.map((page) => page.url)),
+        slots,
+        queueWaitMs: 0,
+      }));
       let next = 0;
       const workers = Array.from({ length: Math.min(8, pages.length) }, async () => {
         while (next < pages.length) {
@@ -95,30 +87,26 @@ export function createWebgpuBootstrap(options: BootstrapOptions) {
         tracking.markPinned(tracking.keyOf(page));
       }
       ready = true;
-      engineDiagnostic('coverage-bootstrap-ready', 'Couverture complète disponible sur le GPU', {
+      engineDiagnostic('coverage-bootstrap-ready', 'Full cover available on the GPU', {
         version: 1,
         pages: pages.length,
         slots,
       });
-      traceDiagnostic(
-        'coverage-bootstrap-ready',
-        'Couverture complète disponible sur le GPU',
-        () => ({
-          frame: getFrame(),
-          pages: pages.length,
-          bootstrap: tracking.traceSet('bootstrap', [...urls]),
-          slots,
-          durationMs: performance.now() - started,
-          loaded: tracking.traceSet(
-            'bootstrap.loaded',
-            pages.map((page) => page.url),
-          ),
-          wanted: tracking.traceSet(
-            'bootstrap.wanted',
-            pages.map((page) => page.url),
-          ),
-        }),
-      );
+      traceDiagnostic('coverage-bootstrap-ready', 'Full cover available on the GPU', () => ({
+        frame: getFrame(),
+        pages: pages.length,
+        bootstrap: tracking.traceSet('bootstrap', [...urls]),
+        slots,
+        durationMs: performance.now() - started,
+        loaded: tracking.traceSet(
+          'bootstrap.loaded',
+          pages.map((page) => page.url),
+        ),
+        wanted: tracking.traceSet(
+          'bootstrap.wanted',
+          pages.map((page) => page.url),
+        ),
+      }));
     })()
       .catch((error) => {
         diagnosticFailure('coverage-bootstrap-failed', error);

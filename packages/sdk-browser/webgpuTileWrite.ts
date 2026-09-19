@@ -8,28 +8,27 @@ import {
 } from './textureTiles.ts';
 
 /**
- * Les gestes qui posent des texels dans une tuile du pool. Trois sources, un seul dessin : la
- * tuile reçoit ses 128×128 texels et, autour, la gouttière prise aux texels voisins du même
- * niveau — coupée au bord de l'image, où le nuanceur borne de toute façon sa lecture au demi-texel.
+ * Gestures that post texels into a pool tile. Three sources, one draw: the tile receives its 128×128
+ * texels and, around them, the gutter taken from neighbouring texels of the same level — clipped at
+ * the image edge, where the shader bounds its read to the half-texel anyway.
  *
- * Un niveau cuit arrive décodé par le navigateur et se copie par `copyExternalImageToTexture`, le
- * chemin même que la pleine résolution prenait — mêmes octets, même conversion. La queue du
- * sidecar arrive en octets RGBA et s'écrit par `writeTexture`. Une texture de l'hôte, sans chaîne
- * cuite, passe par une texture de travail dont la carte a fabriqué les mips, copiée niveau par
- * niveau dans le pool.
+ * A cooked level arrives decoded by the browser and is copied by `copyExternalImageToTexture`, the
+ * same path full resolution took — same bytes, same conversion. The sidecar queue arrives as RGBA
+ * bytes and is written by `writeTexture`. A host texture, with no cooked chain, goes through a
+ * working texture whose mips the GPU built, copied level by level into the pool.
  */
 export type TileRegion = {
-  /** Origine et dimensions du rectangle lu dans le niveau source. */
+  /** Origin and dimensions of the rectangle read in the source level. */
   sx: number;
   sy: number;
   width: number;
   height: number;
-  /** Où ce rectangle se pose dans la cellule de la tuile, gouttière comprise. */
+  /** Where this rectangle lands in the tile cell, gutter included. */
   dx: number;
   dy: number;
 };
 
-/** Le rectangle d'une tuile dans son niveau, gouttière comprise, coupé au bord de l'image. */
+/** Rectangle of a tile in its level, gutter included, clipped at the image edge. */
 export function tileRegion(levelWidth: number, levelHeight: number, tx: number, ty: number) {
   const x0 = Math.max(0, tx * TILE_SIZE - TILE_BORDER),
     y0 = Math.max(0, ty * TILE_SIZE - TILE_BORDER);
@@ -45,17 +44,17 @@ export function tileRegion(levelWidth: number, levelHeight: number, tx: number, 
   };
 }
 
-/** L'origine d'une cellule du pool, en texels. */
+/** Origin of a pool cell, in texels. */
 export const cellOrigin = (place: TilePlace) =>
   [place.x * TILE_PITCH, place.y * TILE_PITCH] as const;
-/** L'origine du `rank`-ième niveau de la queue dans sa cellule, bordure comprise. */
+/** Origin of the `rank`-th queue level in its cell, border included. */
 const tailOrigin = (place: TilePlace, rank: number): GPUOrigin3D => [
   place.x * TILE_PITCH + TILE_BORDER + tailOffset(rank),
   place.y * TILE_PITCH + TILE_BORDER,
   place.layer,
 ];
 
-/** Écrit des texels RGBA8 serrés à une origine d'une texture. */
+/** Writes packed RGBA8 texels at an origin of a texture. */
 export function writeRgba(
   queue: GPUQueue,
   texture: GPUTexture,
@@ -103,7 +102,7 @@ export function copyTileFromTexture(
   );
 }
 
-/** Les niveaux de la queue, du premier au 1×1, chacun à sa place dans la tuile. */
+/** Queue levels, from the first to 1×1, each at its place in the tile. */
 export function writeTailFromBytes(
   queue: GPUQueue,
   pool: GPUTexture,

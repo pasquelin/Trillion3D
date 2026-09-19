@@ -1,4 +1,4 @@
-// ce qu'une image rebâtissait sans raison.
+// what a frame used to rebuild for no reason.
 import * as THREE from 'three';
 import { surfaceColorAttachments } from '../webgpuPagesEncodeVisSetup.ts';
 import { anneauFroid } from '../explorerDraw.ts';
@@ -10,9 +10,9 @@ import {
   referenceUpdateInstance,
 } from './oracles/cadre-vue.mjs';
 
-const vues = (etiquette) => [0, 1, 2, 3].map((i) => ({ surface: `${etiquette}/${i}` }));
+const views = (etiquette) => [0, 1, 2, 3].map((i) => ({ surface: `${etiquette}/${i}` }));
 const surfaces = (etiquette) => {
-  const liste = vues(etiquette);
+  const liste = views(etiquette);
   return { views: () => liste };
 };
 const petite = surfaces('720p'),
@@ -23,16 +23,16 @@ const liberee = {
   },
 };
 
-const passeAttachments = (fn) => (entree) => {
-  const sortie = [];
-  for (const cible of entree) {
+const passeAttachments = (fn) => (input) => {
+  const output = [];
+  for (const cible of input) {
     try {
-      sortie.push(fn(cible).map((item) => ({ ...item, clearValue: [...item.clearValue] })));
+      output.push(fn(cible).map((item) => ({ ...item, clearValue: [...item.clearValue] })));
     } catch (erreur) {
-      sortie.push(erreur.message);
+      output.push(erreur.message);
     }
   }
-  return sortie;
+  return output;
 };
 
 const imagesSurfaces = [];
@@ -63,14 +63,14 @@ const transformation = new THREE.Matrix4()
   .makeRotationY(0.7)
   .multiply(new THREE.Matrix4().makeTranslation(3, -1, 2));
 
-const passeInstance = (fn) => (entree) => {
-  const { basePages, baseRoots, instance } = entree;
+const passeInstance = (fn) => (input) => {
+  const { basePages, baseRoots, instance } = input;
   fn(instance, basePages, baseRoots, transformation);
-  const sortie = [];
+  const output = [];
   for (const rec of instance.pages)
-    sortie.push(...rec.matrix.elements, ...(rec.mesh?.matrix.elements ?? []));
-  for (const root of instance.roots) sortie.push(...root.world.elements);
-  return Float64Array.from(sortie);
+    output.push(...rec.matrix.elements, ...(rec.mesh?.matrix.elements ?? []));
+  for (const root of instance.roots) output.push(...root.world.elements);
+  return Float64Array.from(output);
 };
 
 const anneau = [];
@@ -83,11 +83,11 @@ const streamer = {
 };
 
 const resAttachments = await mesure({
-  nom: 'pièces jointes des surfaces',
+  name: 'surface attachments',
   fichier: 'packages/sdk-browser/webgpuPagesEncodeVisSetup.ts',
   cas: [
-    { nom: '2 000 images sans redimensionnement', entree: imagesSurfaces, taille: 2000 },
-    { nom: 'redimensionnements et cible libérée', entree: redimensionnee, taille: 7 },
+    { name: '2 000 frames without resize', input: imagesSurfaces, size: 2000 },
+    { name: 'resizes and a disposed target', input: redimensionnee, size: 7 },
   ],
   calcul: passeAttachments(surfaceColorAttachments),
   attendu: passeAttachments(referenceAttachments),
@@ -95,11 +95,11 @@ const resAttachments = await mesure({
 });
 
 const resInstance = await mesure({
-  nom: 'déplacement d’une instance',
+  name: 'instance displacement',
   fichier: 'packages/sdk-browser/autonomousInstances.ts',
   cas: [
-    { nom: '5 000 pages', entree: grosseInstance, taille: 5000 },
-    { nom: '100 pages', entree: petiteInstance, taille: 100 },
+    { name: '5 000 pages', input: grosseInstance, size: 5000 },
+    { name: '100 pages', input: petiteInstance, size: 100 },
   ],
   calcul: passeInstance((inst, _bases, racines, t) => deplaceInstance(inst, racines, t)),
   attendu: passeInstance(referenceUpdateInstance),
@@ -107,13 +107,13 @@ const resInstance = await mesure({
 });
 
 const resAnneau = await mesure({
-  nom: 'anneau du cadre de vue',
+  name: 'view-frame ring',
   fichier: 'packages/sdk-browser/explorerDraw.ts',
   cas: [
     {
-      nom: '10 000 adresses, lot de 64',
-      entree: { ring: anneau, streamer, limite: 64 },
-      taille: 10000,
+      name: '10 000 addresses, batch of 64',
+      input: { ring: anneau, streamer, limite: 64 },
+      size: 10000,
     },
   ],
   calcul: (e) => anneauFroid(e.ring, e.streamer, e.limite),
@@ -122,16 +122,16 @@ const resAnneau = await mesure({
 });
 
 await stress({
-  nom: 'anneauFroid extremes',
+  name: 'anneauFroid extremes',
   calcul: (lim) => anneauFroid([], streamer, lim),
   extremes: [
-    { nom: '0 limite', entree: 0 },
-    { nom: 'negative limite', entree: -1 },
+    { name: '0 limite', input: 0 },
+    { name: 'negative limite', input: -1 },
   ],
 });
 
 rapport(
   'cadre-vue',
   [resAttachments, resInstance, resAnneau],
-  'F10, F12 et F13 rendent exactement les mêmes descripteurs, matrices et listes',
+  'F10, F12 and F13 yield the exact same descriptors, matrices and lists',
 );

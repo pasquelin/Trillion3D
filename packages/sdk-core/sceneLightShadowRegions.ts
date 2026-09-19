@@ -1,15 +1,15 @@
 import type { ShadowDirty } from './sceneLightShadowDirty.ts';
 
-/** Champs d'une région : lampe, tranche, face, puis son rectangle de pages, bornes comprises. */
+/** Fields of a region: light, slice, face, then its page rectangle, bounds included. */
 const FIELDS = 7;
 
 /**
- * Les régions de l'image : des rectangles de pages contiguës à redessiner, un appel indirect chacun.
+ * Regions of the frame: rectangles of contiguous pages to redraw, one indirect call each.
  *
- * Les rangées de pages identiques se regroupent — une face entièrement périmée donne donc **une**
- * région et un seul appel, exactement comme avant ce lot. Une rangée partiellement périmée donne le
- * plus petit rectangle qui la couvre : une page propre redessinée au passage garde la même
- * profondeur, puisque c'est la scène entière qui est redessinée dans le ciseau.
+ * Identical page rows group together — a fully stale face therefore yields **one**
+ * region and a single call, exactly as before this batch. A partially stale row yields the
+ * smallest rectangle that covers it: a clean page redrawn on the way keeps the same
+ * depth, since it is the whole scene that is redrawn in the scissor.
  */
 export function createShadowRegions(capacity: number) {
   const data = new Int32Array(capacity * FIELDS);
@@ -21,7 +21,7 @@ export function createShadowRegions(capacity: number) {
     get count() {
       return count;
     },
-    /** Pages que les régions retenues couvrent : l'unité dans laquelle le budget compte le travail. */
+    /** Pages the kept regions cover: the unit in which the budget counts the work. */
     get pages() {
       return pages;
     },
@@ -37,9 +37,9 @@ export function createShadowRegions(capacity: number) {
       pages = 0;
     },
     /**
-     * Découpe la face en rectangles de pages et les retient tant que `admit` les accepte. Chaque
-     * région retenue est aussitôt effacée du masque : elle est dessinée par l'image en cours.
-     * Rend faux dès que `admit` refuse une région — le reste de la face attend l'image suivante.
+     * Cuts the face into page rectangles and keeps them as long as `admit` accepts them. Each
+     * kept region is immediately cleared from the mask: it is drawn by the current frame.
+     * Returns false as soon as `admit` refuses a region — the rest of the face waits for the next frame.
      */
     addFace(
       dirty: ShadowDirty,

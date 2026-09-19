@@ -14,26 +14,25 @@ import { createTileCounters } from './webgpuTileCounters.ts';
 type Request = { atlas: WebgpuTileAtlas; key: TileKey; weight: number };
 
 /**
- * Le diffuseur de tuiles : ce que l'image a demandé devient résident, sous un budget d'octets par
- * image, la tuile la plus regardée d'abord. Les compteurs du retour d'image nomment les tuiles ; le
- * diffuseur touche celles qui résident, lit les niveaux cuits des autres et les copie dès que
- * leurs octets sont là, en cédant les places les moins regardées quand le pool est plein.
+ * Tile streamer: what the image asked becomes resident, under a per-image byte budget, most looked-
+ * at tile first. Image-feedback counters name the tiles; the streamer touches those that reside,
+ * reads the cooked levels of the others and copies them as soon as their bytes are there, yielding
+ * the least looked-at slots when the pool is full.
  *
- * Rien n'attend ici : une tuile dont le niveau se lit encore repassera au retour suivant. Seule la
- * barrière (`flush`) demande la convergence — tous les pixels parlent, le budget est levé, et la
- * boucle se rejoue jusqu'à ce qu'aucune tuile demandée ne manque.
+ * Nothing waits here: a tile whose level is still being read will come back on the next feedback.
+ * Only the barrier (`flush`) asks for convergence — every pixel speaks, the budget is lifted, and
+ * the loop replays until no requested tile is missing.
  */
 export function createWebgpuTileStreamer(options: {
   device: GPUDevice;
   color: TileTexture[];
   data: TileTexture[];
   layersPerAtlas: number;
-  /** Octets de tuiles admis par image hors barrière. */
+  /** Tile bytes admitted per image outside a barrier. */
   budgetBytes: number;
   readLevel?: TextureLevelReader;
   onFailure: (phase: string, error: unknown) => void;
-  /** Des tuiles de couleur viennent d'arriver ou de partir : ce que l'ombre d'un feuillage découpé
-   *  doit suivre. */
+  /** Colour tiles have just arrived or left: what a cutout-foliage shadow must follow. */
   onColorChanged: () => void;
 }) {
   const { device } = options;
@@ -64,7 +63,7 @@ export function createWebgpuTileStreamer(options: {
     color.flush(device);
     data.flush(device);
   };
-  /** Les tuiles que le dernier retour d'image nomme, celles qui résident touchées au passage. */
+  /** Tiles the last image feedback names, resident ones touched along the way. */
   const requests = (frame: number) => {
     const counts = feedback.take();
     const out: Request[] = [];
@@ -93,17 +92,17 @@ export function createWebgpuTileStreamer(options: {
     data,
     feedback,
     counters,
-    /** Épingle toutes les queues : ce que l'image montre avant qu'aucune tuile ne soit demandée. */
+    /** Pins every queue: what the image shows before any tile is requested. */
     prepare() {
       for (const atlas of [color, data])
         atlas.pinTails(device.queue, (slot, place) => sources.tail(atlas, slot, place));
       flushAll();
     },
     /**
-     * Une passe : les tuiles demandées, servies dans l'ordre de leur poids sous le budget d'octets ;
-     * `unbounded` lève le budget. Rend ce qui a été servi et ce qui attend encore ses octets ; un
-     * refus du pool n'est ni l'un ni l'autre — rien ne viendra, le niveau grossier tient, et
-     * l'image peut se poser dessus — et se compte dans les métriques de l'atlas.
+     * One pass: requested tiles, served in weight order under the byte budget; `unbounded` lifts the
+     * budget. Returns what was served and what still waits for its bytes; a pool refusal is neither —
+     * nothing will come, the coarse level holds, and the image can settle on it — and is counted in
+     * the atlas metrics.
      */
     pump(frame: number, unbounded = false) {
       const started = performance.now();
@@ -143,9 +142,8 @@ export function createWebgpuTileStreamer(options: {
       if (colorServed) options.onColorChanged();
       return { served, waiting };
     },
-    /** Le retour d'une image part avec elle : la cible où ses pixels ont posé leurs demandes — quand
-     *  une passe l'a écrite — est réduite en compteurs pour la phase, copiés vers leur lecture puis
-     *  remis à zéro. */
+    /** An image's feedback leaves with it: the target where its pixels posted their requests — when a
+     *  pass wrote it — is reduced to counters for the phase, copied to their readback then zeroed. */
     publishRequests(
       encoder: GPUCommandEncoder,
       target: GPUTextureView | undefined,
@@ -155,11 +153,11 @@ export function createWebgpuTileStreamer(options: {
       if (target) reduce?.encode(encoder, target, feedback.buffer, size, feedback.phaseWord(every));
       feedback.encode(encoder);
     },
-    /** Faux sur un appareil sans étage de calcul : aucun pixel ne demande de tuile. */
+    /** False on a device without a compute stage: no pixel asks for a tile. */
     get requestReduce() {
       return reduce !== undefined;
     },
-    /** Les deux pools changent de couches en gardant leurs tuiles ; rend les tuiles évincées. */
+    /** Both pools change layers while keeping their tiles; returns the evicted tiles. */
     resize(layers: number) {
       const evicted = color.resize(device, layers) + data.resize(device, layers);
       flushAll();
@@ -167,11 +165,11 @@ export function createWebgpuTileStreamer(options: {
       return evicted;
     },
     metrics: () => counters.metrics([color, data], sources.levels),
-    /** Vrai tant qu'un niveau cuit se lit : une tuile manquante peut encore arriver. */
+    /** True while a cooked level is being read: a missing tile can still arrive. */
     get reading() {
       return (sources.levels?.inFlight ?? 0) > 0;
     },
-    /** Tenue quand le retour d'image en vol est revenu et que les lectures de niveaux ont abouti. */
+    /** Held when in-flight image feedback has come back and level reads have completed. */
     settled: () => Promise.all([feedback.settled(), sources.settled()]).then(() => undefined),
     destroy() {
       sources.destroy();

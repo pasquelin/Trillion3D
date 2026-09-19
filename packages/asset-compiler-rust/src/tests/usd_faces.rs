@@ -1,13 +1,13 @@
-//! Les faces qu'un `Mesh` déclare et que ses tableaux ne portent pas : un indice hors des points,
-//! un indice négatif, un compte de coins inférieur à trois, un indice de primvar négatif.
+//! Faces a `Mesh` declares and its arrays do not carry: an index outside the
+//! points, a negative index, a corner count below three, a negative primvar index.
 //!
-//! Aucune n'est devinée et aucune ne part en silence : elle est comptée par son nom, et la surface
-//! qui l'entoure est rendue.
+//! None is guessed and none leaves in silence: it is counted by name, and the
+//! surface around it is rendered.
 use super::*;
 use usd_driver::{compile_layer, wrap};
 use usd_matiere::unsupported;
 
-/// Compile un maillage seul, au schéma de subdivision que le cas nomme.
+/// Compiles a mesh alone, at the subdivision scheme the case names.
 fn mesh_layer(tag: &str, attributes: &str, scheme: &str) -> GoldenRun {
     let body = format!(
         r#"
@@ -20,20 +20,21 @@ fn mesh_layer(tag: &str, attributes: &str, scheme: &str) -> GoldenRun {
     compile_layer(tag, &wrap("", &body))
 }
 
-/// Le nombre de triangles d'un maillage sans subdivision, et le compte de ses faces invalides.
+/// Triangle count of a mesh without subdivision, and the count of its invalid faces.
 fn mesh_run(tag: &str, attributes: &str) -> (Value, Value) {
     let run = mesh_layer(tag, attributes, "none");
     let faces = unsupported(&run)["usd-face-invalid"].clone();
     (run.result["sourceTriangles"].clone(), faces)
 }
 
-/// Les points d'un ruban de deux quadrilatères, et rien d'autre.
+/// Points of a ribbon of two quads, and nothing else.
 const POINTS: &str =
     "        point3f[] points = [(0,0,0), (1,0,0), (1,1,0), (0,1,0), (1,2,0), (0,2,0)]\n";
 
-// Comportement 52 : une face dont un indice sort du tableau de points, dont un indice est négatif,
-// ou qui compte moins de trois coins, est comptée par son nom et retirée — jamais ramenée à zéro,
-// ce qui la replierait sur le premier point. La règle vaut aussi pour les indices d'une primvar.
+// Behaviour 52: a face whose an index leaves the points array, whose an index is
+// negative, or that counts fewer than three corners, is counted by name and
+// dropped — never clamped to zero, which would fold it onto the first point. The
+// rule also holds for a primvar's indices.
 #[test]
 fn a_face_whose_indices_leave_the_arrays_is_counted_and_dropped_never_clamped() {
     let outside = format!(
@@ -42,7 +43,7 @@ fn a_face_whose_indices_leave_the_arrays_is_counted_and_dropped_never_clamped() 
     assert_eq!(
         mesh_run("face-hors", &outside),
         (json!(4), json!(1)),
-        "l'indice hors des points retire sa face et la compte"
+        "the index outside the points drops its face and counts it"
     );
 
     let negative = format!(
@@ -51,7 +52,7 @@ fn a_face_whose_indices_leave_the_arrays_is_counted_and_dropped_never_clamped() 
     assert_eq!(
         mesh_run("face-negatif", &negative),
         (json!(2), json!(1)),
-        "un indice négatif est invalide, il ne vaut pas le point zéro"
+        "a negative index is invalid, it is not point zero"
     );
 
     let thin = format!(
@@ -60,7 +61,7 @@ fn a_face_whose_indices_leave_the_arrays_is_counted_and_dropped_never_clamped() 
     assert_eq!(
         mesh_run("face-mince", &thin),
         (json!(2), json!(1)),
-        "une face de moins de trois coins est comptée et retirée"
+        "a face of fewer than three corners is counted and dropped"
     );
 
     let primvar = format!(
@@ -75,19 +76,19 @@ fn a_face_whose_indices_leave_the_arrays_is_counted_and_dropped_never_clamped() 
     assert_eq!(
         mesh_run("face-primvar", &primvar),
         (json!(2), json!(1)),
-        "un indice de primvar négatif retire sa face au lieu de lire le rang zéro"
+        "a negative primvar index drops its face instead of reading rank zero"
     );
 }
 
-/// Le ruban entier, ses deux quadrilatères, et les trous que le cas déclare.
+/// The whole ribbon, its two quads, and the holes the case declares.
 fn ribbon(holes: &str) -> String {
     format!("        int[] faceVertexCounts = [4, 4]\n        int[] faceVertexIndices = [0, 1, 2, 3, 3, 2, 4, 5]\n{POINTS}        int[] holeIndices = [{holes}]\n")
 }
 
-// Constat A11 : `holeIndices` nomme les faces qu'OpenUSD rend invisibles. Elles étaient lues nulle
-// part : le ruban sortait entier, quatre triangles, et le rapport ne disait rien. Elles sortent
-// maintenant de la surface et sont comptées, quel que soit le schéma de subdivision — une face
-// invisible l'est avant toute subdivision.
+// Finding A11: `holeIndices` names the faces OpenUSD renders invisible. They were
+// read nowhere: the ribbon came out whole, four triangles, and the report said
+// nothing. They now leave the surface and are counted, whichever the subdivision
+// scheme — an invisible face is so before any subdivision.
 #[test]
 fn les_faces_de_holeindices_sortent_de_la_surface_et_sont_comptees() {
     let run = mesh_layer("trou", &ribbon("1"), "none");
@@ -97,7 +98,7 @@ fn les_faces_de_holeindices_sortent_de_la_surface_et_sont_comptees() {
             unsupported(&run)["usd-face-hole"].clone()
         ),
         (json!(2), json!(1)),
-        "la face nommée sort du ruban et son retrait est compté"
+        "the named face leaves the ribbon and its drop is counted"
     );
 
     let subdivided = mesh_layer("trou-subdivise", &ribbon("1"), "catmullClark");

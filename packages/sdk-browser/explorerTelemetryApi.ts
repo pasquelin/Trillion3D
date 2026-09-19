@@ -9,41 +9,41 @@ export function createExplorerTelemetryApi(profiler: EngineProfiler, active: () 
       return profiler.getReport();
     },
     /**
-     * Le profil par étape du moteur actif : une ligne par étape, p50 et p95, durée processeur et
-     * durée carte graphique séparées et jamais additionnées. « Non mesuré » vaut `null`, jamais `0`.
-     * Vide tant que `stageProfile: true` n'a pas été demandé à `createExplorer`.
+     * Per-step profile of the active engine: one row per step, p50 and p95, CPU duration and
+     * GPU duration kept separate and never added. "Unmeasured" is `null`, never `0`.
+     * Empty as long as `stageProfile: true` was not requested of `createExplorer`.
      */
     stageProfile(): StageProfile {
       const backend = active();
       return (
         backend.stageProfile?.() ??
-        disabledStageProfile(backend.id, 'ce moteur ne chronomètre pas ses étapes')
+        disabledStageProfile(backend.id, 'this engine does not time its steps')
       );
     },
     /**
-     * L'empreinte de l'atlas d'ombres du moteur actif, bit pour bit, ou `null` quand il n'en tient
-     * pas. Deux exécutions de la même scène — l'une redessinant les faces entières, l'autre
-     * seulement les pages invalidées — doivent rendre la même empreinte une fois la file vide.
+     * Shadow-atlas fingerprint of the active engine, bit for bit, or `null` when it holds none.
+     * Two runs of the same scene — one redrawing whole faces, the other only invalidated
+     * pages — must yield the same fingerprint once the queue is empty.
      */
     shadowAtlasDigest() {
       return active().shadowAtlasDigest?.() ?? Promise.resolve(null);
     },
     /**
-     * Ce que la partition GPU du moteur actif a écrit pour la dernière image, avec les coins monde
-     * et les matrices d'où elle l'a tiré, ou `null` quand le moteur n'en tient pas. Refaire le
-     * calcul de référence sur ces entrées prouve, cluster par cluster, que le rectangle d'écran de
-     * la carte contient celui de la référence et que sa profondeur minore la sienne.
+     * What the GPU partition of the active engine wrote for the last frame, with the world
+     * corners and the matrices it drew it from, or `null` when the engine holds none. Redoing
+     * the reference compute on those inputs proves, cluster by cluster, that the GPU screen
+     * rectangle contains the reference's and that its depth underestimates the reference's.
      */
     partitionAudit() {
       return active().partitionAudit?.() ?? Promise.resolve(null);
     },
-    /** Les grappes transparentes que le test d'occultation a rejetées sur la dernière image, avec
-     *  leurs coins monde et la profondeur de l'image : de quoi vérifier, grappe par grappe, que
-     *  chacune était entièrement derrière l'opaque. */
+    /** Transparent clusters the occlusion test rejected on the last frame, with their world
+     *  corners and the frame depth: enough to check, cluster by cluster, that each one was
+     *  entirely behind the opaque. */
     transparentOcclusionAudit() {
       return active().transparentOcclusionAudit?.() ?? Promise.resolve(null);
     },
-    /** Vide la fenêtre du profil du moteur actif, pour ne mesurer que ce qui vient ensuite. */
+    /** Clears the profile window of the active engine, to measure only what comes next. */
     resetStageProfile() {
       active().resetStageProfile?.();
     },

@@ -1,32 +1,32 @@
-//! Pilote PSD et PSB (Photoshop), lecteur écrit ici depuis la spécification publiée par Adobe pour
-//! les lecteurs tiers — « Adobe Photoshop File Formats Specification » —, qui définit l'entête de
-//! vingt-six octets, les trois sections à longueur préfixée qui le suivent et la section de données
-//! composites en fin de fichier. Aucun code ni SDK d'éditeur, aucune bibliothèque tierce : ces
-//! quatre morceaux se lisent d'un bout à l'autre, ce qui ne justifie pas une dépendance.
+//! PSD and PSB (Photoshop) driver, reader written here from the specification Adobe publishes
+//! for third-party readers — "Adobe Photoshop File Formats Specification" —, which defines the
+//! twenty-six-byte header, the three length-prefixed sections that follow it and the composite
+//! data section at the end of the file. No vendor code or SDK, no third-party library: these
+//! four pieces are read from end to end, which does not justify a dependency.
 //!
-//! **Le composite aplati, et lui seul.** Un PSD porte ses calques ; les recomposer demanderait de
-//! refaire les modes de fusion, les masques et les effets de l'éditeur, donc de produire une image
-//! que le fichier ne contient pas. Ce pilote lit la seule image que le fichier contient déjà : les
-//! données composites que l'éditeur écrit en fin de fichier. Un fichier sauvé sans elles ressort en
-//! raison de rapport, il ne se recompose pas.
+//! **The flattened composite, and it alone.** A PSD carries its layers; recomposing them would
+//! require remaking the editor's blend modes, masks and effects, hence producing an image the
+//! file does not contain. This driver reads the only image the file already contains: the
+//! composite data the editor writes at the end of the file. A file saved without them comes
+//! back as a report reason, it is not recomposed.
 //!
-//! **On n'ajoute aucune perte.** Le contrat de sortie est du RGBA8, donc seules les sources de huit
-//! bits par canal entrent. Seize ou trente-deux bits sont refusés par leur nom plutôt que rognés ;
-//! CMJN, Lab, indexé, duotone, multicanal et bitmap le sont aussi, parce que les convertir
-//! demanderait un profil, une matrice ou une palette que le pilote choisirait à la place de la
-//! source. L'alpha du composite est lu tel quel, droit : rien n'est démultiplié. Un document qui
-//! porte un profil colorimétrique — sa ressource d'image 1039 — le voit compté, jamais appliqué :
-//! convertir demanderait une gestion de couleur, qui n'est pas de ce pilote.
+//! **No extra loss is added.** The output contract is RGBA8, so only eight-bit-per-channel
+//! sources enter. Sixteen or thirty-two bits are refused by name rather than clipped; CMYK,
+//! Lab, indexed, duotone, multichannel and bitmap too, because converting them would require
+//! a profile, a matrix or a palette the driver would choose in the source's place. The
+//! composite's alpha is read as-is, straight: nothing is un-multiplied. A document that
+//! carries a colour profile — its image resource 1039 — sees it counted, never applied:
+//! converting would require colour management, which is not this driver's.
 //!
-//! **Un plan de plus n'est pas forcément de la transparence.** Un document Photoshop peut porter,
-//! à côté de ses canaux de couleur, un canal alpha enregistré — une sélection —, que le composite
-//! écrit au même endroit qu'une transparence. Seul le fichier lève l'ambiguïté : le compte de
-//! calques de la section des calques est signé, et son signe négatif annonce que le premier canal
-//! alpha du composite porte la transparence du document. Sans cette déclaration, le plan est une
-//! sélection : il est lu, écrit nulle part, et compté. Voir `sections.rs`.
+//! **One more plane is not necessarily transparency.** A Photoshop document can carry, beside
+//! its colour channels, a stored alpha channel — a selection —, which the composite writes in
+//! the same place as a transparency. Only the file lifts the ambiguity: the layer count of
+//! the layers section is signed, and its negative sign announces that the composite's first
+//! alpha channel carries the document's transparency. Without that declaration, the plane is
+//! a selection: it is read, written nowhere, and counted. See `sections.rs`.
 //!
-//! **Sous-ensemble accepté** : modes RVB et niveaux de gris, huit bits par canal, avec ou sans un
-//! plan d'alpha, données composites brutes ou compressées par plages (PackBits), PSD comme PSB.
+//! **Accepted subset**: RGB and greyscale modes, eight bits per channel, with or without an
+//! alpha plane, composite data raw or run-length compressed (PackBits), PSD as well as PSB.
 use super::{surface_budget, ImageDecoded, ImageDecoder, Plugin, Transfer, RGBA8_PIXEL_BYTES};
 
 mod lines;
@@ -36,62 +36,64 @@ mod sections;
 pub(super) static PSD: Psd = Psd;
 pub(super) struct Psd;
 
-/// Les quatre octets de signature que le format porte en tête.
+/// The four signature bytes the format carries at the front.
 const SIGNATURE: &[u8] = b"8BPS";
-/// L'entête complet : signature, version, six octets réservés, canaux, hauteur, largeur, profondeur
-/// et mode de couleur.
+/// The complete header: signature, version, six reserved bytes, channels, height, width,
+/// depth and colour mode.
 const HEADER_BYTES: usize = 26;
-/// Version 1, le PSD ; version 2, le PSB, qui n'en diffère que par ses plafonds de taille et par la
-/// largeur de deux champs de longueur.
+/// Version 1, PSD; version 2, PSB, which differs only by its size ceilings and by the width
+/// of two length fields.
 const VERSION_PSD: u16 = 1;
 const VERSION_PSB: u16 = 2;
-/// Les deux modes de couleur du sous-ensemble : niveaux de gris et RVB.
+/// The two colour modes of the subset: greyscale and RGB.
 const MODE_GRAYSCALE: u16 = 1;
 const MODE_RGB: u16 = 3;
-/// La seule profondeur qu'un contrat RGBA8 porte sans rien perdre.
+/// The only depth an RGBA8 contract carries without losing anything.
 const DEPTH_8: u16 = 8;
-/// Plafonds de côté de la spécification : trente mille pixels en PSD, dix fois plus en PSB.
+/// Side ceilings of the specification: thirty thousand pixels in PSD, ten times more in PSB.
 const MAX_SIDE_PSD: u32 = 30_000;
 const MAX_SIDE_PSB: u32 = 300_000;
-/// Plafond de canaux de la spécification.
+/// Channel ceiling of the specification.
 const MAX_CHANNELS: u16 = 56;
 
-/// Signature absente, version inconnue, octets réservés non nuls, dimension nulle ou hors plafond,
-/// nombre de canaux hors plafond ou inférieur aux canaux de couleur du mode.
+/// Signature missing, unknown version, non-null reserved bytes, null or out-of-ceiling
+/// dimension, channel count out of ceiling or below the mode's colour channels.
 const HEADER_INVALID: &str = "psd-header-invalid";
-/// Une profondeur que le contrat RGBA8 ne porte pas : un, seize ou trente-deux bits par canal.
+/// A depth the RGBA8 contract does not carry: one, sixteen or thirty-two bits per channel.
 const DEPTH_UNSUPPORTED: &str = "psd-depth-unsupported";
-/// Un mode de couleur hors du sous-ensemble : bitmap, indexé, CMJN, multicanal, duotone, Lab.
+/// A colour mode outside the subset: bitmap, indexed, CMYK, multichannel, duotone, Lab.
 const COLOR_MODE_UNSUPPORTED: &str = "psd-color-mode-unsupported";
-/// Plus d'un canal au-delà des canaux de couleur du mode : rien dans l'entête ne dit si ce plan est
-/// une transparence, une sélection enregistrée ou une couleur d'appoint.
+/// More than one channel beyond the mode's colour channels: nothing in the header says
+/// whether this plane is a transparency, a stored selection or a spot colour.
 const CHANNELS_UNSUPPORTED: &str = "psd-channels-unsupported";
-/// Un plan de plus que les canaux de couleur, que rien ne déclare comme transparence : un canal
-/// alpha enregistré, c'est-à-dire une sélection. Il est lu — le curseur doit avancer d'un plan — et
-/// écrit nulle part : le prendre pour de la transparence trouait la texture. Compté, jamais tu.
+/// One more plane than the colour channels, that nothing declares as transparency: a stored
+/// alpha channel, i.e. a selection. It is read — the cursor must advance by one plane — and
+/// written nowhere: taking it for transparency punched holes in the texture. Counted, never
+/// silenced.
 const ALPHA_IGNORED: &str = "psd-alpha-channel-ignored";
-/// Le fichier porte des calques, et seul le composite aplati sort de ce pilote. Compté, jamais tu.
+/// The file carries layers, and only the flattened composite comes out of this driver.
+/// Counted, never silenced.
 const LAYERS_FLATTENED: &str = "psd-layers-flattened";
-/// Une compression du composite hors du sous-ensemble : les deux variantes ZIP de la spécification.
+/// A composite compression outside the subset: the specification's two ZIP variants.
 const COMPRESSION_UNSUPPORTED: &str = "psd-compression-unsupported";
-/// Le fichier s'arrête avant sa section de données composites : il n'y a pas d'image aplatie à lire.
+/// The file stops before its composite-data section: there is no flattened image to read.
 const COMPOSITE_MISSING: &str = "psd-composite-missing";
-/// Les octets annoncés ne sont pas tous là, ou une ligne compressée ne rend pas sa largeur.
+/// The announced bytes are not all there, or a compressed line does not yield its width.
 const DATA_TRUNCATED: &str = "psd-data-truncated";
-/// L'image dépasse le plafond d'allocation reçu : un refus, jamais une allocation tentée.
+/// The image exceeds the received allocation ceiling: a refusal, never an attempted allocation.
 const TOO_LARGE: &str = "psd-image-too-large";
 
-/// Ce que l'entête annonce, une fois tous ses champs jugés dans leur domaine et les uns contre les
-/// autres : de quoi lire les plans du composite et rien de plus.
+/// What the header announces, once all its fields have been judged in their domain and
+/// against each other: enough to read the composite's planes and nothing more.
 struct Header {
-    /// Un PSB : ses deux champs de longueur — section des calques et compte d'octets d'une ligne
-    /// compressée — sont deux fois plus larges que ceux d'un PSD.
+    /// A PSB: its two length fields — layers section and compressed-line byte count — are
+    /// twice as wide as those of a PSD.
     psb: bool,
     width: u32,
     height: u32,
-    /// Les plans que le composite porte, canaux de couleur puis l'alpha s'il y en a un.
+    /// Planes the composite carries, colour channels then alpha if there is one.
     channels: usize,
-    /// Les canaux de couleur du mode : trois en RVB, un en niveaux de gris.
+    /// Colour channels of the mode: three in RGB, one in greyscale.
     color_channels: usize,
 }
 
@@ -99,14 +101,14 @@ impl Plugin for Psd {
     fn name(&self) -> &'static str {
         "psd"
     }
-    /// Le numéro monte avec ce que le pilote rend. Il est passé à 2 quand un plan supplémentaire a
-    /// cessé d'être pris pour de la transparence sans déclaration : une entrée de cache écrite du
-    /// temps de cette hypothèse portait un alpha qui n'était pas celui du document.
+    /// The number rises with what the driver returns. It went to 2 when an extra plane
+    /// stopped being taken for transparency without a declaration: a cache entry written in
+    /// the era of that hypothesis carried an alpha that was not the document's.
     fn version(&self) -> &'static str {
         "psd-composite-aplati-3"
     }
-    /// `.psd` et `.psb` sont les deux extensions du format. L'extension ne fait que désigner le
-    /// pilote : ce sont les octets qui décident.
+    /// `.psd` and `.psb` are the two extensions of the format. The extension only names the
+    /// driver: the bytes decide.
     fn extensions(&self) -> &'static [&'static str] {
         &["psd", "psb"]
     }
@@ -116,9 +118,9 @@ impl ImageDecoder for Psd {
     fn mime(&self) -> &'static str {
         "image/vnd.adobe.photoshop"
     }
-    /// La signature et le numéro de version, six octets que seul ce format porte. Le reste de
-    /// l'entête se juge au décodage, pour qu'un défaut y ressorte par son nom plutôt que par un
-    /// format inconnu.
+    /// The signature and the version number, six bytes that only this format carries. The
+    /// rest of the header is judged at decode, so that a defect comes out there by its name
+    /// rather than as an unknown format.
     fn accepts_head(&self, head: &[u8]) -> bool {
         head.len() >= SIGNATURE.len() + 2
             && head.starts_with(SIGNATURE)
@@ -127,8 +129,8 @@ impl ImageDecoder for Psd {
                 VERSION_PSD | VERSION_PSB
             )
     }
-    /// L'entête d'abord — il donne la taille, donc le plafond s'applique avant toute allocation —,
-    /// puis les trois sections à sauter, puis les plans du composite.
+    /// The header first — it gives the size, so the ceiling applies before any allocation —,
+    /// then the three sections to skip, then the composite's planes.
     fn decode(
         &self,
         bytes: &[u8],
@@ -152,9 +154,9 @@ impl ImageDecoder for Psd {
     }
 }
 
-/// L'entête, champ par champ puis champ contre champ, et les octets qui le suivent. Le nombre de
-/// canaux se juge contre le mode de couleur : un plan de plus que les canaux de couleur est l'alpha
-/// du composite, deux plans de plus sont une ambiguïté que l'entête ne lève pas.
+/// The header, field by field then field against field, and the bytes that follow it. The
+/// channel count is judged against the colour mode: one more plane than the colour channels
+/// is the composite's alpha, two more planes are an ambiguity the header does not lift.
 fn header(bytes: &[u8]) -> std::result::Result<(Header, &[u8]), &'static str> {
     let head = bytes.get(..HEADER_BYTES).ok_or(HEADER_INVALID)?;
     if !head.starts_with(SIGNATURE) || head[6..12].iter().any(|byte| *byte != 0) {

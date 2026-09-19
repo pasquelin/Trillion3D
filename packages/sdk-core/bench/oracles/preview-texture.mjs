@@ -1,11 +1,11 @@
-// Oracle du point G11 : la géométrie d'une entrée de preview avant le lot G, recopiée telle quelle.
+// Oracle for point G11: geometry of a preview entry before batch G, copied as is.
 import {
   previewFirstLevel,
   previewLastLevel,
   previewLevelSize,
 } from '../../texturePreviewLevels.ts';
 
-/** `texturePreviewLevels.ts` : chaque nombre repartait des dimensions, sans borne partagée. */
+/** `texturePreviewLevels.ts`: each number restarted from the dimensions, without a shared bound. */
 function referencePreviewPixelBytes(width, height) {
   let bytes = 0;
   const last = previewLastLevel(width, height);
@@ -16,7 +16,7 @@ function referencePreviewPixelBytes(width, height) {
   return bytes;
 }
 
-/** `manifestBinaryPreview.ts` : trois appels publics, donc cinq balayages pour deux bornes. */
+/** `manifestBinaryPreview.ts`: three public calls, hence five sweeps for two bounds. */
 export function referenceExpectedGeometry(width, height) {
   return {
     firstLevel: previewFirstLevel(width, height),

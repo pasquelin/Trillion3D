@@ -1,42 +1,42 @@
-//! Un nœud `mesh` vers un maillage glTF : les tableaux écrits, les faces résolues par les arêtes,
-//! et une primitive par matériau lié.
+//! A `mesh` node into a glTF mesh: the written tables, faces resolved by the edges, and one
+//! primitive per bound material.
 //!
-//! Les polygones sont triangulés par oreilles dans le plan de leur normale, ce qui conserve l'aire
-//! et la silhouette d'une face concave comme d'une face convexe. Une face qui déclare un trou est
-//! laissée : le découpage le remplirait, et une silhouette ne se devine pas. D'où viennent les
-//! normales, `.n` ou les arêtes, c'est `shade` qui le dit.
+//! Polygons are triangulated by ears in the plane of their normal, which keeps the area and
+//! silhouette of a concave face as of a convex one. A face that declares a hole is left: the
+//! cut would fill it, and a silhouette is not guessed. Where normals come from, `.n` or the
+//! edges, is what `shade` says.
 use super::*;
 
 mod corner;
 mod part;
 mod shade;
 
-/// Les tableaux d'une surface, lus une fois pour toutes ses parties.
+/// Tables of a surface, read once for all its parts.
 pub(super) struct Surface {
     positions: Vec<[f64; 3]>,
-    /// Les boucles de sommets de chaque face, déjà résolues depuis les arêtes.
+    /// Vertex loops of each face, already resolved from the edges.
     loops: Vec<Vec<u32>>,
-    /// Les rangs d'UV de chaque coin, dans l'ordre des boucles ; vide quand la face n'en porte pas.
+    /// UV ranks of each corner, in loop order; empty when the face carries none.
     uv_slots: Vec<Vec<i64>>,
     uvs: Vec<[f64; 2]>,
     normals: Vec<[f64; 3]>,
-    /// Le groupe de lissage de chaque coin, quand ce pilote a calculé les normales : deux coins d'un
-    /// même groupe portent la même normale, donc ne font qu'un sommet. Vide quand `.n` les donne.
+    /// Smoothing group of each corner, when this driver computed the normals: two corners of the
+    /// same group carry the same normal, so they are one vertex. Empty when `.n` gives them.
     groups: Vec<u32>,
-    /// Le rang du premier coin de chaque face dans le maillage entier, tel que `.fc` l'a écrit.
+    /// Rank of the first corner of each face in the whole mesh, as `.fc` wrote it.
     bases: Vec<usize>,
-    /// Où lire la normale d'un coin : par sommet, ou par coin du maillage.
+    /// Where to read a corner's normal: per vertex, or per mesh corner.
     shading: Shading,
 }
 
-/// La provenance des normales de cette surface.
+/// Provenance of this surface's normals.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Shading {
     Vertex,
     Corner,
 }
 
-/// Construit le maillage de ce nœud, ou le retrouve quand un `parent -add` l'a déjà demandé.
+/// Builds this node's mesh, or finds it again when a `parent -add` already asked for it.
 pub(super) fn build(world: &mut World<'_>, node: usize) -> Option<usize> {
     if let Some(known) = world.meshes.get(&node) {
         return *known;
@@ -46,7 +46,8 @@ pub(super) fn build(world: &mut World<'_>, node: usize) -> Option<usize> {
     built
 }
 
-/// Lit les tableaux du nœud et résout ses faces. Rien n'est construit tant qu'ils se contredisent.
+/// Reads the node's tables and resolves its faces. Nothing is built while they contradict each
+/// other.
 fn read(world: &mut World<'_>, node: usize) -> Option<Surface> {
     let document = world.document;
     let mesh = &document.nodes[node];
@@ -91,9 +92,9 @@ fn read(world: &mut World<'_>, node: usize) -> Option<Surface> {
     Some(surface)
 }
 
-/// La boucle de sommets de chaque face, et les rangs d'UV de ses coins. Une face dont une arête
-/// sort de la table, ou dont un sommet sort de la table des positions, ne donne pas de boucle : elle
-/// est comptée et laissée, plutôt que de rendre un triangle pris au hasard.
+/// Vertex loop of each face, and the UV ranks of its corners. A face whose edge leaves the
+/// table, or whose vertex leaves the position table, yields no loop: it is counted and left,
+/// rather than yielding a triangle picked at random.
 fn resolve(
     world: &mut World<'_>,
     polygons: &[faces::Face],
@@ -136,10 +137,10 @@ fn resolve(
     (loops, slots)
 }
 
-/// Le rang d'une arête signée de Maya et l'extrémité qu'elle désigne : `-(i + 1)` parcourt l'arête
-/// `i` à l'envers, et son coin est alors le second sommet de l'arête. La valeur la plus basse d'un
-/// entier signé n'a pas d'opposé : elle ne désigne aucune arête, au lieu de faire déborder la
-/// négation, et l'appelant compte la face sous `ma-mesh-invalid`.
+/// Rank of a Maya signed edge and the end it names: `-(i + 1)` walks edge `i` backwards, and its
+/// corner is then the second vertex of the edge. The lowest value of a signed integer has no
+/// opposite: it names no edge, instead of overflowing the negation, and the caller counts the
+/// face under `ma-mesh-invalid`.
 pub(super) fn edge_rank(signed: i64) -> Option<(usize, usize)> {
     match signed < 0 {
         true => Some((
@@ -150,10 +151,10 @@ pub(super) fn edge_rank(signed: i64) -> Option<(usize, usize)> {
     }
 }
 
-/// Le sommet de départ d'une arête signée. Maya écrit `-(i + 1)` pour une arête parcourue à
-/// l'envers : le coin est alors le second sommet de l'arête `i`. La valeur la plus basse d'un
-/// entier signé n'a pas d'opposé : elle ne donne donc aucun rang, et l'appelant la compte sous
-/// `ma-mesh-invalid`, au lieu de faire déborder la négation.
+/// Start vertex of a signed edge. Maya writes `-(i + 1)` for an edge walked backwards: the
+/// corner is then the second vertex of edge `i`. The lowest value of a signed integer has no
+/// opposite: it therefore yields no rank, and the caller counts it under `ma-mesh-invalid`,
+/// instead of overflowing the negation.
 pub(super) fn corner(edges: &[[f64; 3]], signed: i64, vertices: usize) -> Option<u32> {
     let (rank, end) = edge_rank(signed)?;
     let vertex = usize::try_from(*edges.get(rank)?.get(end)? as i64).ok()?;
