@@ -88,8 +88,9 @@ fn maskKeep(page:PageInfo,uv:vec2f,ddx:vec2f,ddy:vec2f,pixel:vec2f,frame:f32)->b
  // traverse les niveaux et la découpe reste juste à tout niveau. Une moyenne, elle, faisait grossir
  // la silhouette niveau après niveau et rendait le quad opaque pendant le chargement.
  // Hashed Alpha Testing (Wyman, McGuire, I3D 2017) with interleaved gradient noise (Jimenez):
- // keep/discard is a function of the SCREEN pixel and the TAA sample, not of a GPU coin-flip
- // at the cutoff. Same pixel, same frame → same bit in every run (#25). A few ALU, no extra pass.
+ // keep/discard is a function of the SCREEN pixel, not of a GPU coin-flip at the cutoff.
+ // Same pixel → same bit in every run (#25). A few ALU, no extra pass. The frame salt stays 0:
+ // a TAA-sample salt made two captures of the same pose diverge (generale 168 kpx).
  let a=maskAlpha(page.mapIndex,uv,wrapOf(page.wrapModes,${WRAP_MAP.base}u),ddx,ddy);
  let t=page.baseColor.w;
  let coverage=clamp((a-t)/max(1.0-t,1e-5),0.0,1.0);

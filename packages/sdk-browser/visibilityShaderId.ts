@@ -84,12 +84,12 @@ struct VisHizOut{@location(0) id:u32,@location(1) depth:f32,}
 @fragment fn vis_hiz_fs(in:VSOut)->VisHizOut{
  var out:VisHizOut;
  let gx=dpdx(in.uv);let gy=dpdy(in.uv);
- if(!maskKeep(pages[in.instance],in.uv,gx,gy,in.position.xy,uni.maskFrame)){discard;}
+ if(!maskKeep(pages[in.instance],in.uv,gx,gy,in.position.xy,0.0)){discard;}
  out.id=in.id;out.depth=in.position.z;return out;
 }
 @fragment fn vis_fs(in:VSOut)->@location(0) u32{
  let gx=dpdx(in.uv);let gy=dpdy(in.uv);
- if(!maskKeep(pages[in.instance],in.uv,gx,gy,in.position.xy,uni.maskFrame)){discard;}
+ if(!maskKeep(pages[in.instance],in.uv,gx,gy,in.position.xy,0.0)){discard;}
  return in.id;
 }
 `;

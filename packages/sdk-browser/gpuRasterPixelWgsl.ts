@@ -86,7 +86,7 @@ fn rasterPixel(t:Tri,pixel:vec2i,writeId:bool){
  if((page.flags&128u)!=0u){
   let inv=wa/t.ca.w+wb/qb.w+wc/qc.w;
   let tc=(t.ua*(wa/t.ca.w)+nb*(wb/qb.w)+nc*(wc/qc.w))/inv;
-  if(!maskKeep(page,tc,vec2f(0.0),vec2f(0.0),pixel,uni.maskFrame)){return;}
+  if(!maskKeep(page,tc,vec2f(0.0),vec2f(0.0),pixel,0.0)){return;}
  }
  let offset=u32(pixel.y)*u32(uni.viewport.x)+u32(pixel.x);
  let raw=bitcast<u32>(depth);
