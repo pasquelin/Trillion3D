@@ -65,10 +65,12 @@ frame();
 <tr><td><code>Color.convertSRGBToLinear()</code></td><td><code>srgbToLinear(c)</code></td><td>exact curve instead of rounded constants: gap ≤ 1e-11, invisible at 8 bits</td></tr>
 <tr><td><code>PerspectiveCamera.updateProjectionMatrix()</code></td><td><code>perspectiveProjection(out, fov, aspect, near, zoom)</code></td><td>reversed depth, infinite far plane: <code>near</code> → 1, infinity → 0</td></tr>
 <tr><td><code>Frustum.setFromProjectionMatrix</code></td><td><code>updateCameraFrame(frame, projection, world, far)</code></td><td>the far plane comes from the declared <code>far</code>, not from the projection</td></tr>
-<tr><td><code>FrontSide / BackSide / DoubleSide</code></td><td><code>Side = 'front' | 'back' | 'double'</code></td><td>read once at the import boundary by <code>sideOf</code> (#76)</td></tr>
+<tr><td><code>FrontSide / BackSide / DoubleSide</code></td><td><code>Side = 'front' | 'back' | 'double'</code></td><td>read once at the import boundary by <code>sideOf</code></td></tr>
 <tr><td><code>Object3D.updateMatrixWorld</code></td><td><code>updateNodeMatrixWorld(tree, node)</code></td><td>same traversal on flat arrays; <code>hierarchyUpdateBatch</code> does the whole tree in one pass</td></tr>
 <tr><td><code>THREE.LOD</code></td><td>—</td><td>no equivalent: the level of detail is the DAG cut, chosen per frame by the screen error</td></tr>
 </tbody></table></div>
+<p>The delivered functions are listed batch by batch, with their proof, in
+<a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/API.md">docs/API.md</a>.</p>
 <p>Two-step path for a host: keep Three.js for loading and scene building and render with the engine (what the measurement Lab does today); then replace the loading by the compiled cache and drop <code>three</code> from the dependencies.</p>`,
   },
 ];

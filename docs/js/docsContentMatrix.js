@@ -11,6 +11,7 @@ export const MATRICES = [
   {
     ...M4,
     id: 'multiplyMatrix4',
+    exports: ['multiplyMatrix4'],
     title: 'multiplyMatrix4()',
     signature: 'multiplyMatrix4(out: Float64Array, a: Float64Array, b: Float64Array)',
     description:
@@ -23,6 +24,7 @@ multiplyMatrix4(out, projection, view); // out may alias projection or view`,
   {
     ...M4,
     id: 'invertMatrix4',
+    exports: ['invertMatrix4'],
     title: 'invertMatrix4()',
     module: 'packages/sdk-core/mathMatrix4Inverse.ts',
     signature: 'invertMatrix4(out: Float64Array, m: ArrayLike<number>)',
@@ -34,6 +36,7 @@ multiplyMatrix4(out, projection, view); // out may alias projection or view`,
   {
     ...TRS,
     id: 'composeMatrix4',
+    exports: ['composeMatrix4'],
     title: 'composeMatrix4()',
     signature: 'composeMatrix4(out, position, quaternion, scale)',
     description:
@@ -45,6 +48,7 @@ multiplyMatrix4(out, projection, view); // out may alias projection or view`,
   {
     ...TRS,
     id: 'decomposeMatrix4',
+    exports: ['decomposeMatrix4'],
     title: 'decomposeMatrix4()',
     signature: 'decomposeMatrix4(m, position, quaternion, scale)',
     description:
@@ -55,6 +59,7 @@ multiplyMatrix4(out, projection, view); // out may alias projection or view`,
   {
     ...M4,
     id: 'copyMatrix4',
+    exports: ['copyMatrix4'],
     title: 'copyMatrix4()',
     signature: 'copyMatrix4(out: NumberSink, m: ArrayLike<number>, outAt = 0, mAt = 0)',
     description:
@@ -65,6 +70,7 @@ multiplyMatrix4(out, projection, view); // out may alias projection or view`,
   {
     ...M4,
     id: 'determinantMatrix4',
+    exports: ['determinantMatrix4', 'linearPartDeterminant'],
     title: 'determinantMatrix4() · linearPartDeterminant()',
     signature:
       'determinantMatrix4(m: ArrayLike<number>)\nlinearPartDeterminant(m: ArrayLike<number>)',
@@ -76,6 +82,7 @@ multiplyMatrix4(out, projection, view); // out may alias projection or view`,
   {
     ...M4,
     id: 'normalMatrix3',
+    exports: ['normalMatrix3'],
     title: 'normalMatrix3()',
     module: 'packages/sdk-core/mathMatrix3.ts',
     signature: 'normalMatrix3(out, m: ArrayLike<number>)',
@@ -87,6 +94,13 @@ multiplyMatrix4(out, projection, view); // out may alias projection or view`,
   {
     ...SING,
     id: 'linearPartScale',
+    exports: [
+      'linearPartScale',
+      'normalizedLinearDeterminant',
+      'adjugateFactor',
+      'SINGULAR_DETERMINANT',
+      'SINGULAR_DETERMINANT_WGSL',
+    ],
     title: 'linearPartScale() · normalizedLinearDeterminant() · adjugateFactor()',
     signature:
       'linearPartScale(m)\nnormalizedLinearDeterminant(m)\nadjugateFactor(m, determinant)\nSINGULAR_DETERMINANT = 1e-20',
@@ -94,10 +108,10 @@ multiplyMatrix4(out, projection, view); // out may alias projection or view`,
       "The engine's one singularity rule, in the form of the WGSL kernel. The scale is the sum of the absolute values of the nine terms of the linear part; the determinant is taken on the columns **divided by that scale before the product**, never on the raw determinant divided by its cube — `t³` overflows past 1e103 and vanishes under 1e-103, exactly where the rule is meant to decide. `adjugateFactor` then returns `1 / determinant` for a regular matrix (the reference bits), `1` for a singular one (the adjugate as-is), and `null` when the scale is not finite and strictly positive, where the adjugate itself must be replaced by zero. `SINGULAR_DETERMINANT_WGSL` is the same threshold as the shader writes it: one number, two languages.",
   },
   {
-    ...M4,
+    ...TRS,
     id: 'basisMatrix4',
+    exports: ['basisMatrix4', 'uniformScaleMatrix4'],
     title: 'basisMatrix4() · uniformScaleMatrix4()',
-    issue: 76,
     signature:
       'basisMatrix4(out, u, v, n, origin, outAt = 0)\nuniformScaleMatrix4(out, s, center, outAt = 0)',
     description:

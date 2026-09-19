@@ -28,7 +28,6 @@ export const REPOSITORY = 'https://github.com/pasquelin/WebGeometry';
 /** What each open issue delivers, as the badge of an entry in development says it. */
 export const ISSUES = {
   60: 'Targeted subtree update',
-  76: 'Batch A — engine maths, camera and side enum (pull request #81 open)',
   79: 'Batch D — three-adapter and the migration guide',
   80: 'Batch math API for hosts',
 };

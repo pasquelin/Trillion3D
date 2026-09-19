@@ -24,14 +24,17 @@ code{font-size:.92em}.lacune{color:var(--encre-2)}.portail{font-size:14px;margin
 @media (max-width:640px){nav ol{columns:1}h1{font-size:22px}}
 `;
 
-/** Link back to the documentation portal published next to this report (`docs/index.html`). */
-const PORTAIL = '<p class="portail"><a href="./">← Documentation</a></p>';
-
-/** The whole page. `sections`: `[{ id, titre, corps }]`. */
-export function page({ titre, sousTitre, sections }) {
+/**
+ * The whole page. `sections`: `[{ id, titre, corps }]`. `retour`, optional, is the link the
+ * caller wants above the title — where the page will be published is the caller's business.
+ */
+export function page({ titre, sousTitre, sections, retour }) {
+  const entete = retour
+    ? `<p class="portail"><a href="${html(retour.href)}">${html(retour.libelle)}</a></p>`
+    : '';
   const sommaire = sections.map((s) => `<li><a href="#${s.id}">${html(s.titre)}</a></li>`).join('');
   const corps = sections
     .map((s) => `<section id="${s.id}"><h2>${html(s.titre)}</h2>${s.corps}</section>`)
     .join('');
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${html(titre)}</title><style>${STYLE}${STYLE_COMPARATEUR}${STYLE_BILAN}</style></head><body><main>${PORTAIL}<h1>${html(titre)}</h1><p class="sous">${html(sousTitre)}</p><nav><ol>${sommaire}</ol></nav>${corps}</main><script>${SCRIPT_COMPARATEUR}</script></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${html(titre)}</title><style>${STYLE}${STYLE_COMPARATEUR}${STYLE_BILAN}</style></head><body><main>${entete}<h1>${html(titre)}</h1><p class="sous">${html(sousTitre)}</p><nav><ol>${sommaire}</ol></nav>${corps}</main><script>${SCRIPT_COMPARATEUR}</script></body></html>`;
 }

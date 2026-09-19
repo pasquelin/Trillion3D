@@ -8,13 +8,14 @@ const ORIGIN = {
 const HOST = {
   section: 'host',
   kind: 'Function',
-  module: 'packages/sdk-browser/cameraWorld.ts',
+  module: 'packages/sdk-browser/engineCamera.ts',
 };
 
 export const CAMERA = [
   {
     ...CAM,
     id: 'perspectiveProjection',
+    exports: ['perspectiveProjection'],
     title: 'perspectiveProjection()',
     signature: 'perspectiveProjection(out, fov, aspect, near, zoom)',
     description:
@@ -28,6 +29,7 @@ perspectiveProjection(projection, 50, canvas.width / canvas.height, 0.1, 1);`,
   {
     ...CAM,
     id: 'createCameraFrame',
+    exports: ['createCameraFrame', 'CameraFrame'],
     title: 'createCameraFrame()',
     signature: 'createCameraFrame(): CameraFrame',
     description:
@@ -37,6 +39,7 @@ perspectiveProjection(projection, 50, canvas.width / canvas.height, 0.1, 1);`,
   {
     ...CAM,
     id: 'updateCameraFrame',
+    exports: ['updateCameraFrame'],
     title: 'updateCameraFrame()',
     signature:
       'updateCameraFrame(frame: CameraFrame, projection: Float64Array, world: Float64Array, far?)',
@@ -50,6 +53,7 @@ perspectiveProjection(projection, 50, canvas.width / canvas.height, 0.1, 1);`,
   {
     ...ORIGIN,
     id: 'worldToRenderOrigin',
+    exports: ['worldToRenderOrigin'],
     title: 'worldToRenderOrigin()',
     signature: 'worldToRenderOrigin(out, world, origin, at = 0)',
     description:
@@ -58,6 +62,7 @@ perspectiveProjection(projection, 50, canvas.width / canvas.height, 0.1, 1);`,
   {
     ...ORIGIN,
     id: 'matrixAtRenderOrigin',
+    exports: ['matrixAtRenderOrigin'],
     title: 'matrixAtRenderOrigin()',
     signature: 'matrixAtRenderOrigin(out, m, origin, at = 0)',
     description:
@@ -66,6 +71,7 @@ perspectiveProjection(projection, 50, canvas.width / canvas.height, 0.1, 1);`,
   {
     ...ORIGIN,
     id: 'viewToRenderOrigin',
+    exports: ['viewToRenderOrigin'],
     title: 'viewToRenderOrigin()',
     signature: 'viewToRenderOrigin(out, view)',
     description:
@@ -77,6 +83,7 @@ export const HOST_CAMERA = [
   {
     ...HOST,
     id: 'createEngineCamera',
+    exports: ['createEngineCamera', 'EngineCamera'],
     title: 'createEngineCamera()',
     signature: 'createEngineCamera(): EngineCamera',
     description:
@@ -87,9 +94,9 @@ export const HOST_CAMERA = [
   {
     ...HOST,
     id: 'writeEngineCamera',
+    exports: ['writeEngineCamera', 'CameraOptics'],
     title: 'writeEngineCamera()',
     module: 'packages/sdk-browser/engineCamera.ts',
-    issue: 76,
     signature: 'writeEngineCamera(into: EngineCamera, optics: { fov, aspect, near, far, zoom })',
     description:
       'Everything a frame reads, derived from the `into.world` already set and the declared optics.',
@@ -99,6 +106,7 @@ export const HOST_CAMERA = [
   {
     ...HOST,
     id: 'defaultEngineCamera',
+    exports: ['defaultEngineCamera'],
     title: 'defaultEngineCamera()',
     signature: 'defaultEngineCamera(): EngineCamera',
     description:
@@ -107,7 +115,9 @@ export const HOST_CAMERA = [
   {
     ...HOST,
     id: 'readCameraWorld',
+    exports: ['readCameraWorld', 'HostCamera'],
     title: 'readCameraWorld()',
+    module: 'packages/sdk-browser/cameraWorld.ts',
     signature: 'readCameraWorld(into: EngineCamera, camera: HostCamera): EngineCamera',
     description:
       "Resolves the host camera's ancestors, copies its world matrix, then applies `writeEngineCamera`. The only translation from a host camera, once per frame. The host declares its clip-depth convention through `camera.coordinateSystem`, and both `[-1, 1]` and `[0, 1]` are honoured; the engine never rewrites it.",
@@ -116,6 +126,7 @@ export const HOST_CAMERA = [
   {
     ...HOST,
     id: 'holdCameraWorld',
+    exports: ['holdCameraWorld'],
     title: 'holdCameraWorld()',
     signature: 'holdCameraWorld(into: EngineCamera, from: EngineCamera): EngineCamera',
     description: 'A bit-for-bit copy of an engine camera, nothing recomputed.',
@@ -124,7 +135,9 @@ export const HOST_CAMERA = [
   {
     ...HOST,
     id: 'enginePose',
+    exports: ['enginePose'],
     title: 'enginePose()',
+    module: 'packages/sdk-browser/cameraWorld.ts',
     signature: 'enginePose(cam: EngineCamera): { position, quaternion }',
     description: 'The position and rotation of the drawn frame, read from the engine camera.',
     replaces: 'getWorldPosition(), getWorldQuaternion()',

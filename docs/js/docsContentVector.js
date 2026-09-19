@@ -6,6 +6,7 @@ export const VECTORS = [
   {
     ...V,
     id: 'dotVector3',
+    exports: ['dotVector3'],
     title: 'dotVector3()',
     signature: 'dotVector3(a, b, aAt = 0, bAt = 0): number',
     description:
@@ -16,6 +17,7 @@ export const VECTORS = [
   {
     ...V,
     id: 'crossVector3',
+    exports: ['crossVector3'],
     title: 'crossVector3()',
     signature: 'crossVector3(out, a, b, outAt = 0, aAt = 0, bAt = 0)',
     description:
@@ -26,6 +28,7 @@ export const VECTORS = [
   {
     ...V,
     id: 'lengthSqVector3',
+    exports: ['lengthSqVector3'],
     title: 'lengthSqVector3()',
     signature: 'lengthSqVector3(v, at = 0): number',
     description:
@@ -36,6 +39,7 @@ export const VECTORS = [
   {
     ...V,
     id: 'normalizeVector3',
+    exports: ['normalizeVector3'],
     title: 'normalizeVector3()',
     signature: 'normalizeVector3(v: NumberSink)',
     description:
@@ -46,6 +50,7 @@ export const VECTORS = [
   {
     ...V,
     id: 'scaleVector3',
+    exports: ['scaleVector3', 'copyScaledVector3', 'addScaledVector3'],
     title: 'scaleVector3() · copyScaledVector3() · addScaledVector3()',
     signature:
       'scaleVector3(out, s)\ncopyScaledVector3(out, a, s, outAt = 0, aAt = 0)\naddScaledVector3(out, a, s)',
@@ -57,6 +62,7 @@ export const VECTORS = [
   {
     ...V,
     id: 'transformAffinePoint',
+    exports: ['transformAffinePoint'],
     title: 'transformAffinePoint()',
     signature: 'transformAffinePoint(out, m, x, y, z, outOffset = 0)',
     description:
@@ -67,6 +73,7 @@ export const VECTORS = [
   {
     ...V,
     id: 'transformHomogeneousPoint',
+    exports: ['transformHomogeneousPoint'],
     title: 'transformHomogeneousPoint()',
     signature: 'transformHomogeneousPoint(out, m, x, y, z, outOffset = 0)',
     description:
@@ -75,6 +82,7 @@ export const VECTORS = [
   {
     ...V,
     id: 'transformDirectionVector3',
+    exports: ['transformDirectionVector3', 'applyMatrix3Vector3'],
     title: 'transformDirectionVector3() · applyMatrix3Vector3()',
     signature: 'transformDirectionVector3(out, m, x, y, z)\napplyMatrix3Vector3(out, m, x, y, z)',
     description:
@@ -87,6 +95,7 @@ export const COLORS = [
   {
     ...C,
     id: 'srgbToLinear',
+    exports: ['srgbToLinear', 'linearToSrgb'],
     title: 'srgbToLinear() · linearToSrgb()',
     signature: 'srgbToLinear(c: number): number\nlinearToSrgb(c: number): number',
     description:
@@ -98,6 +107,7 @@ export const COLORS = [
   {
     ...C,
     id: 'hslToLinearRgb',
+    exports: ['hslToLinearRgb'],
     title: 'hslToLinearRgb()',
     signature: 'hslToLinearRgb(out: NumberSink, o: number, h, s, l)',
     description:

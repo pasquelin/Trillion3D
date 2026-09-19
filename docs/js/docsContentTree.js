@@ -10,6 +10,7 @@ export const TREE = [
   {
     ...T,
     id: 'createTransformTree',
+    exports: ['createTransformTree', 'addTransformNode', 'TransformTree'],
     title: 'createTransformTree() · addTransformNode()',
     signature:
       'createTransformTree(capacity = 64): TransformTree\naddTransformNode(tree, parent = -1): number',
@@ -20,6 +21,13 @@ export const TREE = [
   {
     ...T,
     id: 'setNodePosition',
+    exports: [
+      'setNodePosition',
+      'setNodeQuaternion',
+      'setNodeScale',
+      'setNodeLocalMatrix',
+      'setNodeAutoUpdate',
+    ],
     title: 'setNodePosition() · setNodeQuaternion() · setNodeScale() · setNodeLocalMatrix()',
     signature:
       'setNodePosition(tree, node, x, y, z)\nsetNodeQuaternion(tree, node, x, y, z, w)\nsetNodeScale(tree, node, x, y, z)\nsetNodeLocalMatrix(tree, node, m)\nsetNodeAutoUpdate(tree, node, auto)',
@@ -30,6 +38,7 @@ export const TREE = [
   {
     ...T,
     id: 'reparentTransformNode',
+    exports: ['reparentTransformNode', 'removeTransformNode'],
     title: 'reparentTransformNode() · removeTransformNode()',
     module: 'packages/sdk-core/mathTransformTreeStructure.ts',
     signature: 'reparentTransformNode(tree, node, parent)\nremoveTransformNode(tree, node)',
@@ -40,6 +49,7 @@ export const TREE = [
   {
     ...T,
     id: 'updateNodeMatrixWorld',
+    exports: ['updateNodeMatrixWorld', 'updateNodeWorldMatrix'],
     title: 'updateNodeMatrixWorld() · updateNodeWorldMatrix()',
     module: 'packages/sdk-core/mathTransformTreeUpdate.ts',
     signature:
@@ -51,6 +61,13 @@ export const TREE = [
   {
     ...T,
     id: 'nodeWorldPosition',
+    exports: [
+      'nodeWorldPosition',
+      'nodeWorldQuaternion',
+      'nodeWorldScale',
+      'nodeWorldDirection',
+      'nodeWorldMirrorsFaces',
+    ],
     title: 'nodeWorldPosition() · nodeWorldQuaternion() · nodeWorldScale() · nodeWorldDirection()',
     module: 'packages/sdk-core/mathTransformTreeRead.ts',
     signature:
@@ -62,6 +79,7 @@ export const TREE = [
   {
     ...T,
     id: 'lookAtNode',
+    exports: ['lookAtNode'],
     title: 'lookAtNode()',
     module: 'packages/sdk-core/mathTransformTreeLookAt.ts',
     signature: 'lookAtNode(tree, node, x, y, z, up, viewer)',
@@ -75,6 +93,7 @@ export const BATCHES = [
   {
     ...BATCH,
     id: 'multiplyMatrix4Batch',
+    exports: ['multiplyMatrix4Batch'],
     title: 'multiplyMatrix4Batch()',
     signature: 'multiplyMatrix4Batch(out: Float64Array[], a: Float64Array[], b: Float64Array[], n)',
     description:
@@ -84,6 +103,7 @@ export const BATCHES = [
   {
     ...BATCH,
     id: 'boxTransformBatch',
+    exports: ['boxTransformBatch'],
     title: 'boxTransformBatch()',
     signature: 'boxTransformBatch(out: Float64Array, boxes, mats: ArrayLike<number>[], n)',
     description:
@@ -93,6 +113,13 @@ export const BATCHES = [
   {
     ...BATCH,
     id: 'hierarchyUpdateBatch',
+    exports: [
+      'hierarchyUpdateBatch',
+      'HIERARCHY_ROOT',
+      'MATRIX_VALUES',
+      'POSITION_VALUES',
+      'QUATERNION_VALUES',
+    ],
     title: 'hierarchyUpdateBatch()',
     signature:
       'hierarchyUpdateBatch(worldViews, positions, rotations, scales, parents: Uint32Array, n, local)\nHIERARCHY_ROOT = 0xffffffff · MATRIX_VALUES = 16 · POSITION_VALUES = 3 · QUATERNION_VALUES = 4',
@@ -103,6 +130,7 @@ export const BATCHES = [
   {
     ...BATCH,
     id: 'createPathGovernor',
+    exports: ['createPathGovernor', 'PATH_MIN_SAMPLES', 'PATH_SWITCH_RUNS', 'PATH_EXPLORE_EVERY'],
     title: 'createPathGovernor()',
     module: 'packages/sdk-core/mathPathGovernor.ts',
     signature:
