@@ -20,13 +20,20 @@ function canvasMock() {
   return { width: 8, height: 8, addEventListener: () => {}, remove: () => {} };
 }
 
-/** Doublure d'explorateur : une seule image rendue, `render()` répond le relevé qu'on lui donne. */
+/** Doublure d'explorateur : `render()` répond le relevé et enregistre la pose vue. */
 function explorerMock(metrics) {
+  const seen = [];
   return {
+    seen,
     backends: [{ id: 'moteur-test', scene: { children: [] } }],
     setDiagnostic: () => {},
     setPose: () => {},
-    render: () => metrics,
+    resetStageProfile: () => {},
+    stageProfile: () => null,
+    render: (pose) => {
+      seen.push(pose);
+      return metrics;
+    },
     flush: async () => {},
     capture: () => new Uint8Array(4),
     dispose: () => {},
@@ -95,4 +102,46 @@ test('measureView garde une table de nombres — octets par étiquette — et fi
   );
   assert.equal('pending' in metrics, false, 'un tableau non plus');
   assert.equal('absent' in metrics, false, '`undefined` reste une absence, pas une valeur publiée');
+});
+
+test('stage profile after a moving camera keeps the last measured pose, never poseAt(0)', async () => {
+  const a = { position: [1, 0, 0] },
+    b = { position: [2, 0, 0] };
+  const originalDocument = globalThis.document;
+  const originalFetch = globalThis.fetch;
+  const originalRaf = globalThis.requestAnimationFrame;
+  const explorer = explorerMock({ drawCalls: 1 });
+  globalThis.document = { createElement: () => canvasMock(), body: { append: () => {} } };
+  globalThis.fetch = async () => ({ status: 200 });
+  globalThis.requestAnimationFrame = (cb) => cb(0);
+  globalThis.__wgTestExplorer = explorer;
+  try {
+    await measureView({
+      sdkUrl: FAKE_SDK_URL,
+      modulesUrl: './',
+      backend: 'creerMoteur',
+      engineId: 'moteur-test',
+      width: 8,
+      height: 8,
+      pixelError: 1,
+      maxPages: 4,
+      warmup: 0,
+      frames: 2,
+      poses: [a, b],
+      pose: a,
+      stageProfile: true,
+      profileFrames: 2,
+      captureFile: 'test.png',
+    });
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.fetch = originalFetch;
+    globalThis.requestAnimationFrame = originalRaf;
+    delete globalThis.__wgTestExplorer;
+  }
+  assert.ok(explorer.seen.length > 2, 'measured frames then profile frames');
+  const afterMeasured = explorer.seen.slice(2);
+  for (const pose of afterMeasured) {
+    assert.equal(pose, b, 'capture pose is the last measured pose, not poseAt(0)');
+  }
 });
