@@ -7380,10 +7380,10 @@
     "semantic_hash": "9eea5136e81c22a8edf21665af9eb91a"
   },
   "packages/sdk-core/mathVector.ts": {
-    "mtime": 1789597683.3994524,
-    "seen": 1789803206.3598652,
-    "ast_hash": "51c1daee35163c9749fe525ab7fae068",
-    "semantic_hash": "51c1daee35163c9749fe525ab7fae068"
+    "mtime": 1789819801.5067525,
+    "seen": 1789820947.124796,
+    "ast_hash": "95bb2024d6b9b6d1ea45883250b78683",
+    "semantic_hash": ""
   },
   "packages/sdk-core/mathTransformTreeUpdate.test.ts": {
     "mtime": 1789551692.6953654,
@@ -8376,9 +8376,9 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1789812115.0554168,
-    "seen": 1789812115.2874482,
-    "ast_hash": "d78317a88371e7eedcd8401f071ab07f",
+    "mtime": 1789814458.087085,
+    "seen": 1789820947.125071,
+    "ast_hash": "175b9804eec02cffe2dceb0e82bc1536",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
@@ -8898,9 +8898,9 @@
     "semantic_hash": "bf7951ab53914e5d162e30a42cc565f6"
   },
   "package.json": {
-    "mtime": 1789812115.0551617,
-    "seen": 1789812115.28558,
-    "ast_hash": "5372b5609c34da13114f71ae2a4bdbce",
+    "mtime": 1789814458.0876102,
+    "seen": 1789820947.123292,
+    "ast_hash": "5ca085cfdc9461a3950f369d8080d67d",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/Cargo.toml": {
@@ -9180,10 +9180,10 @@
     "semantic_hash": "fe69b4b52527fe4f5be4cb070a36c9b2"
   },
   "packages/sdk-browser/bench/appui/socleEcarts.mjs": {
-    "mtime": 1789650634.9740756,
-    "seen": 1789803206.358946,
-    "ast_hash": "a633e5638595a0b616c2ff07832c8ac4",
-    "semantic_hash": "a633e5638595a0b616c2ff07832c8ac4"
+    "mtime": 1789821988.854241,
+    "seen": 1789824174.550956,
+    "ast_hash": "f141d987427e23875da0cf82cbac4bc4",
+    "semantic_hash": ""
   },
   "packages/sdk-browser/bench/appui/socleEquivalence.mjs": {
     "mtime": 1789650634.9741697,
@@ -9582,10 +9582,10 @@
     "semantic_hash": "93b9e2a36024e1a0537a95d8789a7232"
   },
   "packages/sdk-core/bench/socle/mesure.mjs": {
-    "mtime": 1789650634.9908988,
-    "seen": 1789803206.359757,
-    "ast_hash": "ec6d83e532182bc06f5a24dd36952fb4",
-    "semantic_hash": "ec6d83e532182bc06f5a24dd36952fb4"
+    "mtime": 1789821988.8541114,
+    "seen": 1789824174.551836,
+    "ast_hash": "9a23203770c0724d44bbafe1d22f4184",
+    "semantic_hash": ""
   },
   "packages/sdk-core/bench/socle/rapport.mjs": {
     "mtime": 1789650634.9910092,
@@ -10086,9 +10086,9 @@
     "semantic_hash": "7707e769fd414b6131b549c38b750d8d"
   },
   ".github/workflows/quality.yml": {
-    "mtime": 1789812115.055284,
-    "seen": 1789812115.287447,
-    "ast_hash": "a802c5861250abfa24d573a9981f323b",
+    "mtime": 1789814458.086692,
+    "seen": 1789820947.12507,
+    "ast_hash": "b5aa4153fb1d05bc9593e1fbeb4217e2",
     "semantic_hash": ""
   },
   "docs/TESTS.md": {
@@ -12095,52 +12095,142 @@
     "ast_hash": "e2158b4ce76978bdd01066bcf51e87c7",
     "semantic_hash": ""
   },
-  ".githooks/commit-msg": {
-    "mtime": 1789812076.868233,
-    "seen": 1789812115.285569,
-    "ast_hash": "5ee55aeb9836bda3c80966e4d13082fc",
-    "semantic_hash": ""
-  },
   ".githooks/lib.sh": {
-    "mtime": 1789812076.9030395,
-    "seen": 1789812115.285571,
-    "ast_hash": "b916b7947dc110d4ed1fb1f2ff8aec0b",
+    "mtime": 1789814458.0858889,
+    "seen": 1789820947.123281,
+    "ast_hash": "5e041ab1105601baeb6613c1e785c75f",
     "semantic_hash": ""
   },
   ".githooks/post-checkout": {
-    "mtime": 1789812076.875649,
-    "seen": 1789812115.285572,
-    "ast_hash": "ab04f355339e16bb4b0536ff2efce0f1",
+    "mtime": 1789814458.085787,
+    "seen": 1789820947.123283,
+    "ast_hash": "21263e679425961fa694d409f1400616",
     "semantic_hash": ""
   },
   ".githooks/post-commit": {
-    "mtime": 1789812076.8731527,
-    "seen": 1789812115.285573,
-    "ast_hash": "dabe72795dfe85a69347dce8c0b8e08d",
+    "mtime": 1789814458.085787,
+    "seen": 1789820947.1232839,
+    "ast_hash": "21263e679425961fa694d409f1400616",
     "semantic_hash": ""
   },
   ".githooks/pre-commit": {
-    "mtime": 1789812076.865591,
-    "seen": 1789812115.285574,
-    "ast_hash": "e884659215c32675fb390e9730adf784",
+    "mtime": 1789814458.086076,
+    "seen": 1789820947.123285,
+    "ast_hash": "37ac8164071a9ae6a29341c5f61d0157",
     "semantic_hash": ""
   },
   ".githooks/pre-push": {
-    "mtime": 1789812076.8707883,
-    "seen": 1789812115.285575,
-    "ast_hash": "335a77127eb6a5393a8542105f1d4f26",
+    "mtime": 1789814458.0861645,
+    "seen": 1789820947.123286,
+    "ast_hash": "cf9014888991dc48d565829ad21910fa",
     "semantic_hash": ""
   },
   ".github/ISSUE_TEMPLATE/task.md": {
-    "mtime": 1789811877.113417,
-    "seen": 1789812115.287445,
-    "ast_hash": "f740c16ed5d7b0d14f8aaf7ef4271d43",
+    "mtime": 1789814458.0863328,
+    "seen": 1789820947.1250691,
+    "ast_hash": "432d8025ad232406a466d52ef06361c8",
     "semantic_hash": ""
   },
   ".github/PULL_REQUEST_TEMPLATE.md": {
-    "mtime": 1789811877.1065636,
-    "seen": 1789812115.287446,
-    "ast_hash": "441eb90660e833ae6063419d7473d8f1",
+    "mtime": 1789814458.0864184,
+    "seen": 1789820947.1250691,
+    "ast_hash": "44729d983bbedd424de5585bb04e8119",
+    "semantic_hash": ""
+  },
+  ".githooks/delegate": {
+    "mtime": 1789814458.085787,
+    "seen": 1789820947.123277,
+    "ast_hash": "21263e679425961fa694d409f1400616",
+    "semantic_hash": ""
+  },
+  ".github/ruleset.json": {
+    "mtime": 1789814458.0865119,
+    "seen": 1789820947.123287,
+    "ast_hash": "83284c6b2fdb47b8c8e56c1bbea2d7cd",
+    "semantic_hash": ""
+  },
+  "packages/sdk-core/bench/oracles/three-duel.mjs": {
+    "mtime": 1789821988.8539102,
+    "seen": 1789824174.551826,
+    "ast_hash": "436f7cdf7dbf13f1d9de29b174fc81a6",
+    "semantic_hash": ""
+  },
+  "packages/sdk-core/bench/three-vs-core-camera.perf.mjs": {
+    "mtime": 1789820320.6974235,
+    "seen": 1789820947.124665,
+    "ast_hash": "d3b4db13c6c9c230c34258b91dee2861",
+    "semantic_hash": ""
+  },
+  "packages/sdk-core/bench/three-vs-core-matrices.perf.mjs": {
+    "mtime": 1789820330.9654257,
+    "seen": 1789820947.1246662,
+    "ast_hash": "ee354649296884748edafde5eb79e1ac",
+    "semantic_hash": ""
+  },
+  "packages/sdk-core/bench/three-vs-core-scene.perf.mjs": {
+    "mtime": 1789821988.8333256,
+    "seen": 1789824174.551842,
+    "ast_hash": "3bf7267b0e26f76ec1512e6e1bc6b22e",
+    "semantic_hash": ""
+  },
+  "packages/sdk-core/bench/three-vs-core-vectors.perf.mjs": {
+    "mtime": 1789820271.0668094,
+    "seen": 1789820947.124668,
+    "ast_hash": "3600f56db86d62cc5e6e240127ab15cb",
+    "semantic_hash": ""
+  },
+  "packages/sdk-core/mathVectorOffsets.test.ts": {
+    "mtime": 1789820331.0276022,
+    "seen": 1789820947.1247969,
+    "ast_hash": "47b1029f2a58b3bab6c7ed5b1ca025a2",
+    "semantic_hash": ""
+  },
+  "scripts/check-pr-body.sh": {
+    "mtime": 1789814458.0877213,
+    "seen": 1789820947.1248791,
+    "ast_hash": "dd83a05c5a39b02ee00a027a5926ca3e",
+    "semantic_hash": ""
+  },
+  "test/integration/workflow-gates.test.mjs": {
+    "mtime": 1789814458.08784,
+    "seen": 1789820947.1250198,
+    "ast_hash": "e79f082436e510d7fc247fe83b1e440e",
+    "semantic_hash": ""
+  },
+  ".claude/agents/coder.md": {
+    "mtime": 1789814458.0852196,
+    "seen": 1789820947.125067,
+    "ast_hash": "341437ae03496b631e7d75f836bc4ca8",
+    "semantic_hash": ""
+  },
+  ".claude/agents/reviewer.md": {
+    "mtime": 1789814458.0853348,
+    "seen": 1789820947.125068,
+    "ast_hash": "595a69ab763712ffb40a5d10a396b2fc",
+    "semantic_hash": ""
+  },
+  "docs/roles/coder.md": {
+    "mtime": 1789814458.0872755,
+    "seen": 1789820947.125082,
+    "ast_hash": "f04bf5dc2de962be8225e102f43ade20",
+    "semantic_hash": ""
+  },
+  "docs/roles/reviewer.md": {
+    "mtime": 1789814458.087384,
+    "seen": 1789820947.125083,
+    "ast_hash": "4e6bb0cc854f7882075cbcad894e90e3",
+    "semantic_hash": ""
+  },
+  "packages/sdk-core/bench/oracles/three-tree.mjs": {
+    "mtime": 1789821989.496873,
+    "seen": 1789824174.551827,
+    "ast_hash": "e19a69c1db92c2569165671c85480841",
+    "semantic_hash": ""
+  },
+  "packages/sdk-core/bench/three-vs-core-tree.perf.mjs": {
+    "mtime": 1789822095.389042,
+    "seen": 1789824174.5518432,
+    "ast_hash": "5518921a410593e48650649c3c48623a",
     "semantic_hash": ""
   }
 }
