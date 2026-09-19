@@ -2,8 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { buildBlendStatics, refreshBlendPlan } from './webgpuBlendPlan.ts';
-import { createWebgpuBlendState } from './webgpuBlendState.ts';
-import type { BlendGpuItem } from './webgpuBlendState.ts';
+import { createWebgpuBlendState, type BlendGpuItem } from './webgpuBlendState.ts';
 
 /** The blend plan of a lone item, everything but its material left at its simplest. */
 function plan(material: THREE.Material | THREE.Material[]) {
