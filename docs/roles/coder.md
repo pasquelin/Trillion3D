@@ -20,7 +20,11 @@ exactly one GitHub issue; every rule of AGENTS.md applies, this file only orders
 7. `gh pr create --base develop`, body on `.github/PULL_REQUEST_TEMPLATE.md`: `Closes #<number>`,
    what changed, the proof, and "Local review before push" — what each pass found and fixed. The
    CI refuses a pull request whose section is empty.
-8. Report the pull request URL, what is proven and what is not. Stop there.
+8. Hand the pull request to the reviewer role, in the same session, with a fresh context — in
+   Claude Code the `reviewer` subagent, elsewhere a new agent told to follow
+   `docs/roles/reviewer.md` for that pull request. Fix what it finds, rerun step 4, push, and
+   answer each of its comments on the pull request with what was changed.
+9. Report the pull request URL, the reviewer's findings and what remains unproven. Stop there.
 
 Never `gh pr merge`, never push to `develop` or `main`, never rewrite history already on the
 remote. If the issue is wrong or blocked, say so with `gh issue comment` and stop.
