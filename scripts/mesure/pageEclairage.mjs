@@ -100,20 +100,21 @@ export async function measureView(options) {
     if (typeof last.gpuFrameMs === 'number') gpuFrameMs.push(last.gpuFrameMs);
   }
   await explorer.flush();
-  // Le profil par étape est relevé par une boucle à part, après la mesure : la boucle mesurée reste
-  // celle des lots précédents, sinon ses durées ne se compareraient plus. On rend ici la main au
-  // navigateur entre deux images, parce que les relevés d'horodatage reviennent par une promesse et
-  // qu'une boucle qui n'attend jamais n'en récupère presque aucun ; la fenêtre est vidée d'abord.
+  // Capture pose frozen here: the stage-profile loop must not walk the trajectory again.
+  // `poseAt(0)` after `poseAt(frames-1)` teleports the camera, and TAA would average a second
+  // journey into the A/A witness (#25: still camera 0 px, moving camera leftover on `sol`).
+  const capturePose = current;
+  // Stage profile is a separate loop after the measured one, so those timings stay comparable.
+  // Yield to the browser between frames: timestamp queries resolve on a promise, and a loop
+  // that never waits recovers almost none; the window is flushed first.
   let stageProfile = null;
-  // Chaque relevé de passes distinct vu pendant cette boucle, reconnu à l'image qu'il décrit : le
-  // même relevé reste accroché aux métriques jusqu'au suivant, et le compter deux fois pèserait.
+  // Each distinct pass sample seen in this loop, keyed by the frame it describes: the same
+  // sample stays on the metrics until the next one, and counting it twice would weight it.
   const gpuPassSamples = [];
   if (options.stageProfile) {
     explorer.resetStageProfile();
     for (let i = 0; i < options.profileFrames; i++) {
-      moveLight(i);
-      moveNode(i);
-      const frame = explorer.render(poseAt(i));
+      const frame = explorer.render(capturePose);
       const sample = frame.gpuPassMs;
       if (sample && sample.frame !== gpuPassSamples.at(-1)?.frame) gpuPassSamples.push(sample);
       await explorer.flush();
@@ -131,7 +132,7 @@ export async function measureView(options) {
     let pending = null,
       drains = 0;
     for (; drains < 600; drains++) {
-      const frame = explorer.render(current);
+      const frame = explorer.render(capturePose);
       await explorer.flush();
       pending = typeof frame.shadowPagesPending === 'number' ? frame.shadowPagesPending : null;
       if (pending === null || pending === 0) break;
@@ -141,7 +142,7 @@ export async function measureView(options) {
   }
   // La capture est celle d'une pose CALME (`pageMesure.mjs`) : `imagesCalme` dit combien d'images
   // il a fallu pour que le moteur la tienne, `null` s'il ne tient pas d'image.
-  const imagesCalme = await mesure.poseCalme(explorer, current);
+  const imagesCalme = await mesure.poseCalme(explorer, capturePose);
   const response = await mesure.posterCapture(
     options.captureFile,
     explorer.capture(),

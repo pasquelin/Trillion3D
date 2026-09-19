@@ -16,7 +16,11 @@ import { LIGHT_SETTINGS } from './sceneLightContracts.ts';
 export function createShadowBudget() {
   let budgetMs: number = LIGHT_SETTINGS.shadowBudgetMs,
     msPerPage = 0,
-    samples = 0;
+    samples = 0,
+    // The pose barrier drains the queue with no duration cap: the 1 ms budget is for the
+    // measured loop. A GPU timestamp arriving during the drain tightened admission mid-flush,
+    // and two runs left different pages (#25).
+    suspended = false;
   return {
     get budgetMs() {
       return budgetMs;
@@ -28,6 +32,13 @@ export function createShadowBudget() {
     /** Coût moyen d'une page, en millisecondes, ou `null` tant que rien n'a été mesuré. */
     get msPerPage() {
       return samples ? msPerPage : null;
+    },
+    /** The next admission ignores the budget; the buffers' region cap still applies. */
+    suspend() {
+      suspended = true;
+    },
+    resume() {
+      suspended = false;
     },
     /**
      * Un relevé du chronomètre de la passe, rapporté aux pages que cette image-là avait redessinées.
@@ -41,13 +52,15 @@ export function createShadowBudget() {
         : value;
       samples++;
     },
-    /** Durée estimée de `pages` pages, ou `null` tant qu'aucun relevé n'est venu. */
+    /** Estimated duration of `pages` pages, or `null` until a sample exists — and during a
+     *  barrier, where the drain must not depend on the GPU clock. */
     estimate(pages: number) {
-      return samples ? msPerPage * pages : null;
+      return suspended || !samples ? null : msPerPage * pages;
     },
     reset() {
       msPerPage = 0;
       samples = 0;
+      suspended = false;
     },
   };
 }
