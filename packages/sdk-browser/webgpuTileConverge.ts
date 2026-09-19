@@ -97,6 +97,10 @@ async function drainShadows(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
 export async function settlePose(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice | undefined) {
   const { run, vis, capture, diag } = rt;
   if (!gpuDevice || !run.lastCamera || run.lost || capture.secondaryCamera) return;
+  // A held image already depends only on the pose. The barrier used to render again, pump the
+  // tiles that last feedback named, and overwrite the colour target — four pixels on `sol`
+  // after TAA had settled (#25). A still scene does no work.
+  if (run.frameHeld) return;
   let rounds = 0,
     served = 0,
     drains = 0;
