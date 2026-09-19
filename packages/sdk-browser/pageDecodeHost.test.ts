@@ -42,14 +42,17 @@ function avecCoeurs<T>(n: number, run: () => Promise<T>) {
   });
 }
 
-/** Redécode jusqu'à ce que le pool serve réellement un décodage hors fil, ou renonce. Seule façon
- *  fiable de savoir que l'épreuve de démarrage — asynchrone, jamais attendue — s'est réglée. */
-async function jusquAuPool(essais = 40) {
-  for (let i = 0; i < essais; i++) {
+/** Decodes again until the pool really serves one decode off the main thread, or gives up at the
+ *  deadline. The only reliable way to know that the startup trial — asynchronous, never awaited —
+ *  has settled. The deadline is wide: a Node worker takes a few hundred milliseconds to start on a
+ *  loaded CI runner, and the loop stops at the first served decode. */
+async function jusquAuPool(delaiMs = 10_000) {
+  const limite = Date.now() + delaiMs;
+  do {
     await decodePageOffThread(await page());
     if (pageDecodeStats().offThread! > 0) return true;
     await new Promise((r) => setTimeout(r, 10));
-  }
+  } while (Date.now() < limite);
   return false;
 }
 
@@ -93,7 +96,7 @@ test('un exécutant mort au démarrage n’empêche jamais le décodage de finir
     configurePageDecoders(1);
     const decodee = await decodePageOffThread(await page());
     assert.equal(decodee.vertexCount, 3);
-    assert.equal(await jusquAuPool(), false, 'un pool mort ne doit jamais finir par servir');
+    assert.equal(await jusquAuPool(500), false, 'un pool mort ne doit jamais finir par servir');
     assert.equal(pageDecodeStats().workers, 0);
     releasePageDecoders();
   }));
