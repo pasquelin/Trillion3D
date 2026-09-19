@@ -15,6 +15,8 @@ export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:ve
 /** L'uniforme d'une image du tampon de visibilité, le même mot à mot pour les deux rasters et les
  *  résolutions : `webgpuVisibilityUniforms.ts` l'écrit une fois par slot. */
 export const VIS_UNIFORMS_WGSL = `struct Uniforms{viewProj:mat4x4f,viewport:vec2f,computeSpan:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,maskFrame:f32,padMask0:f32,padMask1:f32,padMask2:f32,}`;
+/** Bytes of `Uniforms`, a multiple of 16 as WebGPU requires of a uniform struct. */
+export const VIS_UNIFORM_BYTES = 112;
 
 /** La description d'un cluster, suivie de l'uniforme d'une passe de géométrie de page. */
 export const PAGE_INFO_WGSL = `${PAGE_INFO_STRUCT_WGSL}

@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import {
   PAGE_INFO_STRUCT_WGSL,
   VIS_UNIFORMS_WGSL,
+  VIS_UNIFORM_BYTES,
   EDGE_WGSL,
   PAGE_VERTEX_WGSL,
   PAGE_UV_WGSL,
@@ -75,6 +76,7 @@ test('mask keep/discard is a hash of the screen pixel and TAA sample (#25)', () 
   assert.match(SHADOW_DEPTH_SHADER, /in\.position\.xy,0\.0/);
   assert.match(SMALL_SHADER, /pixel,uni\.maskFrame/);
   assert.match(VIS_UNIFORMS_WGSL, /maskFrame:f32,padMask0:f32,padMask1:f32,padMask2:f32/);
+  assert.equal(VIS_UNIFORM_BYTES % 16, 0);
 });
 
 test('BARY_WEIGHTS_WGSL déclare fn baryWeights une seule fois dans l’ombrage, jamais dans le raster', () => {
