@@ -59,7 +59,7 @@ writeFileSync(
 writeFileSync(
   join(SORTIE, `perf-${jour}.json`),
   JSON.stringify(
-    { version: 2, date: new Date().toISOString(), commit: sha, charge, fragments },
+    { version: 3, date: new Date().toISOString(), commit: sha, charge, fragments },
     null,
     2,
   ) + '\n',

@@ -55,7 +55,7 @@ export function rapport(domaine, mesures, intitule) {
   mkdirSync(FRAGMENTS, { recursive: true });
   writeFileSync(
     cheminFragment(domaine),
-    JSON.stringify({ version: 2, domaine, mesures: tous }, null, 2) + '\n',
+    JSON.stringify({ version: 3, domaine, mesures: tous }, null, 2) + '\n',
   );
   for (const r of lignes) console.log(ligneMd(r));
 }
@@ -66,7 +66,7 @@ export function lisFragments() {
     return readdirSync(FRAGMENTS)
       .filter((n) => n.endsWith('.json'))
       .map((n) => JSON.parse(readFileSync(join(FRAGMENTS, n), 'utf8')))
-      .filter((f) => f.version === 2);
+      .filter((f) => f.version === 3);
   } catch {
     return [];
   }

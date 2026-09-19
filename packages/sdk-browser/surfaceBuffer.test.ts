@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { checkSurfaceSize, frameTargetBytes, createSurfaceBuffer } from './surfaceBuffer.ts';
 
-test('une surface rejects une taille invalide ou hors appareil, et rien d’autre : no plafond en bytes', () => {
+test('a surface rejects an invalid or off-device size, and nothing else: no byte ceiling', () => {
   const device = { limits: { maxTextureDimension2D: 1024 } } as GPUDevice;
   assert.throws(() => checkSurfaceSize(device, 0, 10), /INVALID_SURFACE_SIZE/);
   assert.throws(() => checkSurfaceSize(device, 1025, 1), /SURFACE_DEVICE_LIMIT/);

@@ -18,8 +18,8 @@ export function encodeTransparentInstances(rt: WebgpuPagesRuntime, encoder: GPUC
   refreshTransparentSpans(rt);
   const selection = run.gpuFrameActive ? run.gpuSelection : undefined;
   if (selection && compaction.encode) {
-    // Le verdict d'occultation est writes juste before la compaction, in la same soumission et on
-    // la pyramide de cette image-ci : la compaction ne reads never celui d'une autre.
+    // The occlusion verdict is written just before the compaction, in the same submission and on
+    // this frame's pyramid: the compaction never reads another frame's verdict.
     refreshTransparentCorners(rt);
     if (blendState.occlusion) blendState.occlusion.encode(encoder, run.hizPyramidFresh);
     else encoder.clearBuffer(compaction.occludedBuffer);

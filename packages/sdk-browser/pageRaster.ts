@@ -59,7 +59,7 @@ export function rasterPageRecords(
       position = geometry.getAttribute('position');
     if (!position) continue;
     const rgb = colorOf(mesh.material);
-    // Un lot multi-draw ne dessine que ses plages : l'oracle doit suivre la same coupe, pas tout le tampon.
+    // A multi-draw batch draws only its ranges: the oracle must follow the same cut, not the whole buffer.
     const batch = mesh as THREE.Mesh & {
       isBatchedMesh?: boolean;
       _multiDrawStarts?: Int32Array;

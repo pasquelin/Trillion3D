@@ -163,7 +163,7 @@ writeFileSync(
   output,
   page({
     titre: 'The engine, measured',
-    sousTitre: `Full campaign on ${scenes.map((s) => s.name).join(', ')} — ${jouees.length} runs, ${tous.reduce((n, e) => n + e.releves.length, 0)} samples`,
+    sousTitre: `Full campaign on ${scenes.map((s) => s.name).join(', ')} — ${jouees.length} runs, ${tous.reduce((n, e) => n + e.readings.length, 0)} samples`,
     sections,
   }),
 );
