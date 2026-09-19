@@ -8,10 +8,10 @@ import { drawnPageIds, installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
 
-// Le raster de calcul ne se crée que sous `raster-calcul` ou `raster-hybride` : la coupe part alors
-// au calcul — binning, profondeur des occulteurs, du reste, identifiants — entre les passes du
-// matériel, qui ouvrent l'image. C'est le côté calcul du banc bit à bit (Géométrie 26, point 3).
-test('la variante raster-calcul confie toute la coupe au raster de calcul', async () => {
+// The compute raster is created only under `raster-calcul` or `raster-hybride`: the cut then goes
+// to compute — binning, occluder depth, the rest, identifiers — between the hardware passes that
+// open the image. That is the compute side of the bit-exact bench (Geometry 26, point 3).
+test('the raster-calcul variant hands the whole cut to the compute raster', async () => {
   installGpuGlobals();
   const fixture = quadScene();
   const { source, metadata, indices, associations } = fixture;
@@ -39,12 +39,12 @@ test('la variante raster-calcul confie toute la coupe au raster de calcul', asyn
     rest = at(rasterEntry('fine', MODE_DEPTH_REST)),
     ids = at(rasterEntry('fine', MODE_ID));
   assert.ok(bin >= 0 && occluder > bin && rest > occluder && ids > rest);
-  // Les passes matérielles s'encodent toujours : ce sont elles qui ouvrent l'image, et leurs
-  // commandes indirectes restent — c'est l'étage de sommets qui replie ce que le calcul prend.
+  // Hardware passes always encode: they open the image, and their indirect commands remain — it is
+  // the vertex stage that folds what compute takes.
   assert.ok(draws.some((draw) => draw.indirect));
-  // Les deux résolutions du calcul, chacune un triangle plein écran : la pyramide et l'image close.
+  // The two compute resolves, each a full-screen triangle: the pyramid and the closed image.
   assert.equal(draws.filter((draw) => draw.entryPoint === 'vs').length, 2);
-  // Ce raster prend toute la coupe : ce n'est pas celui de la référence, et il ne le déclare pas.
+  // This raster takes the whole cut: it is not the reference's, and it does not claim to be.
   assert.ok(backend.capabilities.unsupported.includes('small-triangle compute raster'));
   backend.dispose();
   fixture.geometry.dispose();

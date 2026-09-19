@@ -1,7 +1,8 @@
-//! Les courbes de la chaîne : celle qui ramène un octet sRGB en linéaire, la table neutre d'un
-//! octet linéaire, et celle qui rend un linéaire en octet sRGB. Séparées de la réduction parce
-//! qu'elles ne dépendent que du format de l'atlas, jamais de la géométrie des niveaux.
-/// Les 256 valeurs d'octet linéaire, à leur échelle : la table neutre.
+//! Chain curves: the one that brings an sRGB byte back to linear, the neutral
+//! table of a linear byte, and the one that turns a linear value into an sRGB
+//! byte. Split from reduction because they depend only on the atlas format, never
+//! on the geometry of the levels.
+/// The 256 linear-byte values, at their scale: the neutral table.
 pub(super) fn linear_table() -> &'static [f32; 256] {
     static TABLE: std::sync::OnceLock<[f32; 256]> = std::sync::OnceLock::new();
     TABLE.get_or_init(|| {
@@ -13,11 +14,12 @@ pub(super) fn linear_table() -> &'static [f32; 256] {
     })
 }
 
-/// Les 256 valeurs d'octet sRGB en linéaire, construites une fois pour toute la compilation.
+/// The 256 sRGB-byte values in linear, built once for the whole compilation.
 ///
-/// La même courbe qu'`albedo.rs::srgb_to_linear`, mais en `f32` : 214 des 256 entrées diffèrent de
-/// la version `f64` arrondie, et la moyenne de boîte s'accumule en `f32` puis en `f64`. Remplacer
-/// la table par un appel changerait les octets de l'aperçu ; les deux exemplaires restent.
+/// The same curve as `albedo.rs::srgb_to_linear`, but in `f32`: 214 of the 256
+/// entries differ from the rounded `f64` version, and the box average accumulates
+/// in `f32` then in `f64`. Replacing the table with a call would change the
+/// preview bytes; both copies stay.
 pub(super) fn srgb_table() -> &'static [f32; 256] {
     static TABLE: std::sync::OnceLock<[f32; 256]> = std::sync::OnceLock::new();
     TABLE.get_or_init(|| {

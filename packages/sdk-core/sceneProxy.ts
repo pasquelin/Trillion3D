@@ -17,9 +17,9 @@ const bad = (message: string, details: Record<string, unknown>) =>
   new EngineError('INVALID_CACHE', message, details);
 
 /**
- * Refuse un descriptif de proxy que ce moteur ne saurait pas lire, avant qu'un seul octet ne soit
- * demandé. Un manifeste sans descriptif n'est pas une erreur : c'est un cache d'avant le rebond, et
- * le moteur le dit au lieu de deviner une géométrie qu'il n'a pas.
+ * Rejects a proxy descriptor this engine could not read, before a single byte is
+ * requested. A manifest without a descriptor is not an error: it is a cache from before bounce, and
+ * the engine says so instead of guessing geometry it does not have.
  */
 export function assertSceneProxy(value: unknown): asserts value is SceneProxyDescriptor {
   if (!value || typeof value !== 'object' || Array.isArray(value))
@@ -49,8 +49,8 @@ export function assertSceneProxy(value: unknown): asserts value is SceneProxyDes
 }
 
 /**
- * Chaque enfant présent nomme soit un nœud plus loin dans le tableau, soit un intervalle de
- * triangles qui existe. Un enfant absent n'est pas lu : son bit de présence est à zéro.
+ * Each present child names either a node further in the array, or an interval of
+ * triangles that exists. An absent child is not read: its presence bit is zero.
  */
 function checkChildren(descriptor: SceneProxyDescriptor, columns: SceneProxyColumns) {
   const { nodeChildren } = columns;
@@ -71,12 +71,12 @@ function checkChildren(descriptor: SceneProxyDescriptor, columns: SceneProxyColu
 }
 
 /**
- * Le proxy relu et revérifié avant qu'un seul rayon ne le touche.
+ * The proxy reread and rechecked before a single ray touches it.
  *
- * Disposition, en petit-boutiste : `u32 'WGPX' · u32 version · u32 triangles · u32 nœuds`, puis les
- * sommets monde, les albédos, les bornes exactes des nœuds et leurs quatre enfants, bout à bout.
- * Chaque section a une longueur que l'en-tête impose ; un fichier d'une autre taille est refusé en
- * bloc, parce qu'un nœud qui nommerait un triangle absent ferait lire n'importe quoi au nuanceur.
+ * Layout, little-endian: `u32 'WGPX' · u32 version · u32 triangles · u32 nodes`, then the
+ * world vertices, albedos, exact node bounds and their four children, concatenated.
+ * Each section has a length the header imposes; a file of another size is rejected in
+ * bulk, because a node that named a missing triangle would make the shader read anything.
  */
 export function decodeSceneProxy(
   descriptor: SceneProxyDescriptor,

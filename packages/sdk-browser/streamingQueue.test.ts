@@ -1,6 +1,6 @@
-// A12 : la file de transferts est triée une seule fois par passage du `while`, et `findAdmissible`
-// remplace le `queue.sort()` + `findIndex` répétés à chaque tour. Oracle : la version qui re-triait
-// systématiquement, d'avant le lot A, dans `bench/oracles/admission-arrivees.mjs`.
+// A12: the transfer queue is sorted once per `while` pass, and `findAdmissible`
+// replaces the `queue.sort()` + `findIndex` repeated each turn. Oracle: the version that
+// systematically re-sorted, from before batch A, in `bench/oracles/admission-arrivees.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { compacteFile, findAdmissible } from './streamingQueueOrder.ts';
@@ -110,10 +110,10 @@ test('an unknown url (no byte size) is treated as zero cost by both sides', () =
   );
 });
 
-// G5 : une demande annulée est marquée `dropped` puis la file est compactée en un seul passage
-// (`compacteFile`) au prochain `pump`, au lieu d'être retrouvée par `queue.indexOf` et retirée par
-// `splice` à chaque annulation. Oracle du retrait immédiat : `referenceRetireDeLaFile`, recopié tel
-// quel d'avant le lot G dans `bench/oracles/recherches-streaming.mjs`.
+// G5: a cancelled request is marked `dropped` then the queue is compacted in one pass
+// (`compacteFile`) on the next `pump`, instead of being found by `queue.indexOf` and removed by
+// `splice` on each cancellation. Oracle of the immediate remove: `referenceRetireDeLaFile`, copied
+// as-is from before batch G in `bench/oracles/recherches-streaming.mjs`.
 {
   const { referenceRetireDeLaFile } = await import('./bench/oracles/recherches-streaming.mjs');
 
@@ -135,11 +135,11 @@ test('an unknown url (no byte size) is treated as zero cost by both sides', () =
     return queue.map((j) => j.url);
   }
 
-  test('annulation, réadmission puis drain donnent la même file que le retrait immédiat', () => {
+  test('cancel, readmit then drain yield the same queue as an immediate remove', () => {
     const ancienne = ['a', 'b', 'c', 'd'].map(job);
     const nouvelle = ['a', 'b', 'c', 'd'].map(job);
 
-    // Annulation de 'b' : l'ancienne le retire tout de suite, la nouvelle le marque seulement.
+    // Cancel 'b': the old one removes it at once, the new one only marks it.
     referenceRetireDeLaFile(
       ancienne,
       ancienne.find((j) => j.url === 'b')!,
@@ -147,38 +147,38 @@ test('an unknown url (no byte size) is treated as zero cost by both sides', () =
     const cible = nouvelle.find((j) => j.url === 'b')!;
     cible.state = 'dropped';
 
-    // Réadmission : une nouvelle demande arrive pendant que 'b' est encore dans le tableau côté nouvelle.
+    // Readmit: a new request arrives while 'b' is still in the array on the new side.
     ancienne.push(job('e'));
     nouvelle.push(job('e'));
 
-    // Une seconde annulation, sur 'd' cette fois.
+    // A second cancellation, on 'd' this time.
     referenceRetireDeLaFile(
       ancienne,
       ancienne.find((j) => j.url === 'd')!,
     );
     nouvelle.find((j) => j.url === 'd')!.state = 'dropped';
 
-    // Drain : la nouvelle compacte enfin, en un passage.
+    // Drain: the new one finally compacts, in one pass.
     compacteFile(nouvelle);
 
     assert.deepEqual(urls(nouvelle), urls(ancienne));
     assert.deepEqual(urls(nouvelle), ['a', 'c', 'e']);
   });
 
-  test('annuler un travail absent de la file, ou déjà marqué, ne perturbe pas le compactage', () => {
+  test('cancelling a job absent from the queue, or already marked, does not disturb compaction', () => {
     const queue = ['a', 'b'].map(job);
-    const étranger = job('x');
-    referenceRetireDeLaFile(queue, étranger); // absent : indexOf renvoie -1, rien ne bouge
-    compacteFile(queue); // rien de marqué : rien ne bouge non plus
+    const outsider = job('x');
+    referenceRetireDeLaFile(queue, outsider); // absent: indexOf returns -1, nothing moves
+    compacteFile(queue); // nothing marked: nothing moves either
     assert.deepEqual(urls(queue), ['a', 'b']);
 
     queue[0].state = 'dropped';
     compacteFile(queue);
-    compacteFile(queue); // un second compactage sur une file déjà propre est un no-op
+    compacteFile(queue); // a second compaction on an already clean queue is a no-op
     assert.deepEqual(urls(queue), ['b']);
   });
 
-  test('annuler la file entière la vide, comme des retraits un par un', () => {
+  test('cancelling the whole queue empties it, like one-by-one removes', () => {
     const ancienne = ['p0', 'p1', 'p2', 'p3'].map(job);
     const nouvelle = ['p0', 'p1', 'p2', 'p3'].map(job);
     for (const j of [...ancienne]) referenceRetireDeLaFile(ancienne, j);

@@ -1,9 +1,9 @@
-// Côté page de la preuve : le vrai moteur WebGPU sur un vrai DAG de clusters, avec un budget de
-// résidence trop petit pour ses feuilles. Le noyau veut donc des pages absentes, et la coupe monte
-// vers l'ancêtre résident — le chemin même où la sélection GPU était jetée.
+// Page side of the proof: the real WebGPU engine on a real cluster DAG, with a residency budget
+// too small for its leaves. The kernel therefore wants missing pages, and the cut climbs to the
+// resident ancestor — the very path where GPU selection used to be thrown away.
 //
-// Rien n'est inspecté de l'intérieur : seuls les compteurs publics `cpuSelectMs` (nul tant que la
-// coupe GPU choisit) et `gpuSelectionFallback` (faux tant qu'elle n'a pas été abandonnée) décident.
+// Nothing is inspected from the inside: only the public counters `cpuSelectMs` (null while GPU
+// cut still chooses) and `gpuSelectionFallback` (false while it has not been abandoned) decide.
 import { webgpuPagesBackend } from '../../packages/sdk-browser/webgpuPages.ts';
 import { dagFixture, wideCamera } from '../../packages/sdk-browser/pageSelectionDagFixture.ts';
 import { ouvrirAppareil } from '../justesse/appareilWebgpu.mjs';
@@ -25,8 +25,8 @@ export async function executer() {
     associations: fixture.associations,
     gpuDevice: device,
     gpuCanvas: canvas,
-    // Trop peu pour les quatre feuilles ET pour les deux nœuds qui les remplacent : la coupe monte
-    // vers l'ancêtre résident à chaque image, et retombe au besoin sur la couverture racine.
+    // Too few for the four leaves AND the two nodes that replace them: the cut climbs to the
+    // resident ancestor every frame, and falls back to root coverage if needed.
     maxResidentPages: 2,
     viewport: [128, 128],
     pixelError: 0,

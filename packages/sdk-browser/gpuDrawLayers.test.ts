@@ -11,8 +11,8 @@ import {
 import { drawShader } from './gpuDrawShader.ts';
 import { PRE_LAYERS_GPU_DRAW_SHADER_SOURCE } from '../../test/fixtures/gpuDrawShaderPreLayers.ts';
 
-// Comportement 16 : un item de couche n va au slot bin + 3·rest + 6·n, et layerSlots = 1
-// (une scène sans couche coplanaire empilée) reproduit exactement les six slots d'avant.
+// Behaviour 16: a layer-n item goes to slot bin + 3·rest + 6·n, and layerSlots = 1
+// (a scene with no stacked coplanar layer) reproduces exactly the six slots from before.
 test('evaluateDrawCompact places layer n items at slot bin + 3*rest + 6*n', () => {
   const items: DrawItem[] = [
     { pageIndex: 10, bin: BIN_BACK, rest: 0, layer: 0 },
@@ -43,16 +43,16 @@ test('layerSlots = 1 collapses every layer into the original six slots', () => {
   const result = evaluateDrawCompact(items, 768, 8, 1);
   assert.equal(result.counts.length, 6);
   assert.equal(result.counts.length, slotCount(1));
-  // Les trois items, de couches différentes, atterrissent tous dans le même slot bin+3*rest.
+  // The three items, of different layers, all land in the same slot bin+3*rest.
   assert.equal(result.counts[BIN_BACK], 3);
   assert.deepEqual([...result.instances], [0, 1, 2]);
 });
 
-// Comportement 17 : drawShader(k) ouvre exactement 6k slots dans son propre texte, et drawShader(1)
-// est comparé à la version d'avant le lot, figée dans `test/fixtures/gpuDrawShaderPreLayers.ts` (le
-// texte du commit 5ae3b83, le dernier à avoir touché ce fichier avant les couches). Une fixture
-// versionnée plutôt que `git show` sur ce commit : une fois le lot fusionné, `develop` porterait la
-// version d'après et un `git show` sur la branche se comparerait à lui-même.
+// Behaviour 17: drawShader(k) opens exactly 6k slots in its own text, and drawShader(1) is
+// compared to the pre-batch version, frozen in `test/fixtures/gpuDrawShaderPreLayers.ts` (the
+// text of commit 5ae3b83, the last to have touched this file before layers). A versioned fixture
+// rather than `git show` on that commit: once the batch is merged, `develop` would carry the
+// after version and a `git show` on the branch would compare to itself.
 test('drawShader(k) opens exactly 6k slots for several k', () => {
   for (const k of [1, 2, 3, 5]) {
     const shader = drawShader(k);
@@ -66,7 +66,7 @@ test('drawShader(1) matches the pre-layer shader: same slot count, same order, s
   const developShader = PRE_LAYERS_GPU_DRAW_SHADER_SOURCE;
   const currentShader = drawShader(1);
 
-  // Même nombre de slots (six) et mêmes trois passes, dans le même ordre : compte, préfixe, éparpille.
+  // Same slot count (six) and same three passes, in the same order: count, prefix, scatter.
   const entryIndexes = (shader: string) =>
     ['fn countGroups', 'fn prefixGroups', 'fn scatterGroups'].map((needle) =>
       shader.indexOf(needle),
@@ -75,29 +75,29 @@ test('drawShader(1) matches the pre-layer shader: same slot count, same order, s
     const indexes = entryIndexes(shader);
     assert.ok(
       indexes.every((index) => index >= 0),
-      'les trois passes sont présentes',
+      'the three passes are present',
     );
     assert.ok(
       indexes[0] < indexes[1] && indexes[1] < indexes[2],
-      'comptage, préfixe puis éparpillage, dans cet ordre',
+      'count, prefix then scatter, in that order',
     );
-    assert.match(shader, /entry>=uni\.groupCount\*6u/, 'six slots, comme avant');
+    assert.match(shader, /entry>=uni\.groupCount\*6u/, 'six slots, as before');
   }
 
-  // Même calcul de bin et de rest — la partie du slot qui porte la sémantique du tri, pas les noms
-  // de champs ni les fonctions auxiliaires qui l'enveloppent. `develop` l'écrit en ligne dans
-  // `matches` ; drawShader(1) l'isole dans `slotOf`, qui ajoute un terme de couche toujours nul
-  // pour une seule couche (min(item.layer, 0u) == 0 quel que soit item.layer, car c'est un u32).
+  // Same bin and rest arithmetic — the part of the slot that carries the sort semantics, not
+  // field names nor the helper functions that wrap it. `develop` writes it inline in `matches`;
+  // drawShader(1) isolates it in `slotOf`, which adds a layer term that is always zero for a
+  // single layer (min(item.layer, 0u) == 0 whatever item.layer, because it is a u32).
   assert.match(
     developShader,
     /fn matches\(i:u32,slot:u32\)->bool\{let item=items\[i\];return restAt\(i\)\*3u\+item\.bin==slot&&selected\(item\);\}/,
-    "la version d'avant le lot calcule le slot comme rest*3+bin",
+    'the pre-batch version computes the slot as rest*3+bin',
   );
   const slotOfBody = /fn slotOf\([^)]*\)->u32\{return ([^;]+);\}/.exec(currentShader);
-  assert.ok(slotOfBody, 'drawShader(1) calcule son slot par slotOf()');
+  assert.ok(slotOfBody, 'drawShader(1) computes its slot via slotOf()');
   assert.equal(
     slotOfBody![1],
     'restAt(i)*3u+item.bin+6u*min(item.layer,0u)',
-    'même terme rest*3+bin, plus un terme de couche dont la borne 0u le neutralise pour k=1',
+    'same rest*3+bin term, plus a layer term whose 0u bound cancels it for k=1',
   );
 });

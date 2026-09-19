@@ -1,8 +1,8 @@
-// Côté page de la preuve « `setTransform` sous un parent périmé » : le vrai moteur WebGPU, un vrai
-// appareil, une vraie image relue. L'hôte écrit directement la position, la rotation et l'échelle
-// du parent — jamais par `setTransform`, jamais suivi d'un `updateMatrixWorld` manuel — pour que la
-// seule façon dont le moteur peut voir ce changement soit la résolution qu'il fait lui-même avant
-// d'inverser la matrice du parent (`resolveHostNode`, dans `setWebgpuTransform`).
+// Page side of the "`setTransform` under a stale parent" proof: the real WebGPU engine, a real
+// device, a real reread image. The host writes position, rotation and scale directly
+// of the parent — never through `setTransform`, never followed by a manual `updateMatrixWorld` —
+// so the only way the engine can see that change is the resolution it does itself before
+// inverting the parent's matrix (`resolveHostNode`, in `setWebgpuTransform`).
 import * as THREE from 'three';
 import { webgpuPagesBackend } from '../../packages/sdk-browser/webgpuPages.ts';
 import {
@@ -11,32 +11,32 @@ import {
   executerPasses,
   image,
   libere,
-  moteur,
+  engine,
   redCount,
 } from './preuveSceneCommune.mjs';
 import { sceneTransparente } from './transparentTransformScene.mjs';
 
-/** Une matrice monde colonne-major, translation pure sur `x`. */
+/** A column-major world matrix, pure translation on `x`. */
 function translation(x) {
   return new Float32Array(new THREE.Matrix4().makeTranslation(x, 0, 0).elements);
 }
 
 /**
- * La séquence pour une passe donnée : poser, salir le parent sans le notifier, redemander la même
- * pose monde, stabiliser, saler encore et redemander, demander une autre pose, puis rendre le
- * parent singulier et observer le refus nommé.
+ * Sequence for a given pass: pose, dirty the parent without notifying, ask the same world pose
+ * again, stabilise, dirty again and re-ask, ask another pose, then make the parent singular and
+ * observe the named refusal.
  */
 async function sequence(device, pagine, evenements) {
   const s = sceneTransparente(pagine);
-  const { backend, canvas } = moteur(webgpuPagesBackend, s, device, (e) =>
+  const { backend, canvas } = engine(webgpuPagesBackend, s, device, (e) =>
     evenements.push({ pagine, ...e }),
   );
   const camera = cameraFace(),
     pivot = s.source.getObjectByName('pivot'),
     etapes = [];
-  const etape = async (nom) => {
+  const etape = async (name) => {
     const { pixels, metriques } = await image(backend, camera);
-    etapes.push({ nom, tenue: metriques.frameHeld, rouge: redCount(pixels) });
+    etapes.push({ name, tenue: metriques.frameHeld, rouge: redCount(pixels) });
     return pixels;
   };
   try {
@@ -44,8 +44,8 @@ async function sequence(device, pagine, evenements) {
     backend.setTransform('vitre', translation(-0.8));
     let reference;
     for (let i = 0; i < 6; i++) reference = await etape('initial-' + i);
-    // L'hôte écrit le parent SANS passer par `setTransform` ni appeler `updateMatrixWorld` : sa
-    // matrice monde reste périmée tant que rien ne la remonte.
+    // The host writes the parent WITHOUT going through `setTransform` or calling
+    // `updateMatrixWorld`: its world matrix stays stale until something walks it up.
     pivot.position.set(10, 3, -2);
     pivot.rotation.set(0.2, -0.3, 0.4);
     pivot.scale.set(2, 0.7, 1.5);

@@ -1,17 +1,17 @@
 import { LIGHT_SETTINGS } from './sceneLightContracts.ts';
 
 /**
- * Le budget de l'étape Ombres, en millisecondes de carte graphique par image (RX3, X4).
+ * Shadows-stage budget, in GPU milliseconds per frame (RX3, X4).
  *
- * Le plafond « quatre lampes par image » était un compte, pas une durée : quatre cartes de 1024²
- * coûtent trente fois quatre pages de 128². Ici le travail se compte en pages et son prix vient du
- * chronomètre de la passe elle-même — le relevé d'horodatage que le profil publie déjà —, lissé d'une
- * image à l'autre. Le coût fixe d'une région (rejet, remise au fond, appel indirect) n'est pas
- * distingué du coût d'une page : il est fondu dans la moyenne, approximation nommée (P5).
+ * The "four lights per frame" ceiling was a count, not a duration: four 1024² maps
+ * cost thirty times four 128² pages. Here work is counted in pages and its price comes from
+ * the pass's own timer — the timestamp sample the profile already publishes — smoothed from one
+ * frame to the next. The fixed cost of a region (reject, clear to far, indirect call) is not
+ * distinguished from the cost of a page: it is blended into the average, named approximation (P5).
  *
- * Tant qu'aucun relevé n'est venu — appareil sans horodatage, premières images — il n'y a pas de
- * budget du tout : seul le plafond de régions que les tampons publient s'applique, ce qui est
- * exactement le comportement d'avant ce lot.
+ * As long as no sample has come — device without timestamps, first frames — there is no
+ * budget at all: only the region ceiling the buffers publish applies, which is
+ * exactly the behaviour from before this batch.
  */
 export function createShadowBudget() {
   let budgetMs: number = LIGHT_SETTINGS.shadowBudgetMs,
@@ -25,11 +25,11 @@ export function createShadowBudget() {
     get budgetMs() {
       return budgetMs;
     },
-    /** Le budget publié par l'hôte ; une valeur non finie ou négative est refusée, pas arrondie. */
+    /** Budget published by the host; a non-finite or negative value is rejected, not rounded. */
     setBudgetMs(value: number) {
       if (Number.isFinite(value) && value > 0) budgetMs = value;
     },
-    /** Coût moyen d'une page, en millisecondes, ou `null` tant que rien n'a été mesuré. */
+    /** Average cost of a page, in milliseconds, or `null` as long as nothing has been measured. */
     get msPerPage() {
       return samples ? msPerPage : null;
     },
@@ -41,8 +41,8 @@ export function createShadowBudget() {
       suspended = false;
     },
     /**
-     * Un relevé du chronomètre de la passe, rapporté aux pages que cette image-là avait redessinées.
-     * Une image sans page redessinée n'apprend rien et n'entre pas dans la moyenne.
+     * A sample of the pass timer, reported to the pages that frame had redrawn.
+     * A frame with no redrawn page learns nothing and does not enter the average.
      */
     observe(gpuMs: number | null, pages: number) {
       if (gpuMs === null || !Number.isFinite(gpuMs) || gpuMs <= 0 || pages <= 0) return;

@@ -3,42 +3,40 @@ import { MATRIX_VALUES, multiplyMatrix4 } from '../sdk-core/index.ts';
 import { hostLocalInto } from './hostWorldMatrices.ts';
 
 /**
- * La matrice monde d'UN nœud de l'hôte, calculée par le moteur depuis les poses locales de sa chaîne
- * d'ancêtres.
+ * World matrix of ONE host node, computed by the engine from the local poses of its ancestor
+ * chain.
  *
- * C'est la règle de `updateWorldMatrix(true, false)` de la référence, terme à terme : la racine pose
- * sa matrice locale, puis chaque descendant multiplie celle de son parent par la sienne. Les deux
- * formules sont celles du socle — composition de la pose (`hostLocalInto`) et produit
- * (`multiplyMatrix4`) —, dans le même ordre : les mêmes bits, échelles négatives, `-0` et
- * cisaillements compris.
+ * This is the reference's `updateWorldMatrix(true, false)` rule, term for term: the root sets its
+ * local matrix, then each descendant multiplies its parent's by its own. Both formulas are the
+ * core's — pose composition (`hostLocalInto`) and product (`multiplyMatrix4`) — in the same
+ * order: the same bits, negative scales, `-0` and shears included.
  *
- * Rien n'est demandé à la bibliothèque de l'hôte et rien ne lui est écrit : sa `matrixWorld` reste
- * ce qu'elle était. Le moteur garde sa copie dans le tampon que l'appelant lui tend.
+ * Nothing is asked of the host library and nothing is written to it: its `matrixWorld` stays
+ * what it was. The engine keeps its copy in the buffer the caller hands it.
  *
- * Aucune allocation par appel : la chaîne remontée vit dans un tableau repris d'un appel à l'autre,
- * agrandi seulement par un graphe plus profond que tous ceux vus avant lui.
+ * No allocation per call: the walked chain lives in an array reused from call to call, grown
+ * only by a graph deeper than every one seen before it.
  */
 
 const local = new Float64Array(MATRIX_VALUES);
 let chain: (THREE.Object3D | undefined)[] = new Array(64);
 
-/** La matrice monde de `node` écrite dans `out`, qui est rendu. `out` peut être n'importe quel tampon. */
+/** World matrix of `node` written into `out`, which is returned. `out` may be any buffer. */
 export function hostWorldChainInto(out: Float64Array, node: THREE.Object3D) {
   let depth = 0;
   for (let walk: THREE.Object3D | null = node; walk; walk = walk.parent) {
     if (depth === chain.length) chain = chain.concat(new Array<undefined>(chain.length));
     chain[depth++] = walk;
   }
-  // `chain[depth - 1]` est la racine : sa matrice monde est sa matrice locale, comme chez la
-  // référence. Le produit est calculé SUR PLACE — `multiplyMatrix4` lit ses trente-deux entrées
-  // avant d'écrire la moindre sortie, donc `out` peut être à la fois le monde du parent et celui de
-  // l'enfant.
+  // `chain[depth - 1]` is the root: its world matrix is its local matrix, as in the
+  // reference. The product is computed IN PLACE — `multiplyMatrix4` reads its thirty-two inputs
+  // before writing any output, so `out` can be both the parent's world and the child's.
   hostLocalInto(out, chain[depth - 1] as THREE.Object3D);
   for (let rank = depth - 2; rank >= 0; rank--) {
     hostLocalInto(local, chain[rank] as THREE.Object3D);
     multiplyMatrix4(out, out, local);
   }
-  // La chaîne est relâchée : garder des nœuds de l'hôte ici retiendrait sa scène après un déchargement.
+  // The chain is released: keeping host nodes here would retain its scene after an unload.
   for (let rank = 0; rank < depth; rank++) chain[rank] = undefined;
   return out;
 }

@@ -12,7 +12,7 @@ import {
 import { sameSceneEnvironment, sameSceneLight } from './sceneLightEqual.ts';
 import { validateSceneEnvironment, validateSceneLight } from './sceneLightValidate.ts';
 
-/** Champ d'une lampe dans le tampon, en flottants depuis sa base. Quatre `vec4f` par lampe. */
+/** Field of a light in the buffer, in floats from its base. Four `vec4f` per light. */
 export const LIGHT_FIELD = {
   position: 0,
   range: 3,
@@ -24,16 +24,16 @@ export const LIGHT_FIELD = {
   shadowSlice: 13,
   castsShadow: 14,
 } as const;
-/** Une ponctuelle ne teste aucun cône : sa valeur de cosinus ne peut jamais rejeter une direction. */
+/** A point tests no cone: its cosine value can never reject a direction. */
 const NO_CONE = -2;
 
 export type SceneLightStore = ReturnType<typeof createSceneLightStore>;
 
 /**
- * Les lampes de la scène, à capacité fixe. Le tampon est alloué une fois pour `maxLights` lampes et
- * n'est jamais réalloué ; ajouter, régler ou retirer une lampe n'écrit que ses seize flottants et
- * incrémente sa révision. `revision` par lampe est ce que l'ordonnanceur d'ombres lit pour savoir
- * qu'une lampe a changé : aucune structure n'est reconstruite par image.
+ * Scene lights, at fixed capacity. The buffer is allocated once for `maxLights` lights and
+ * is never reallocated; adding, setting or removing a light only writes its sixteen floats and
+ * increments its revision. Per-light `revision` is what the shadow scheduler reads to know
+ * that a light has changed: no structure is rebuilt per frame.
  */
 export function createSceneLightStore() {
   const packed = new Float32Array(SCENE_LIGHT_BUFFER_FLOATS);
@@ -45,7 +45,7 @@ export function createSceneLightStore() {
     view: SceneLightingView = 'auto',
     epoch = 1;
   const baseOf = (slot: number) => SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
-  /** La tranche d'atlas d'une lampe vit dans le tampon lui-même : elle n'est pas tenue deux fois. */
+  /** A light's atlas slice lives in the buffer itself: it is not held twice. */
   const sliceOf = (slot: number) => packed[baseOf(slot) + LIGHT_FIELD.shadowSlice];
   const writeSlice = (slot: number, slice: number) => {
     packed[baseOf(slot) + LIGHT_FIELD.shadowSlice] = slice;
@@ -55,11 +55,11 @@ export function createSceneLightStore() {
     packed[base + field + 1] = value[1];
     packed[base + field + 2] = value[2];
   };
-  /** Les champs déclarés par l'hôte. La tranche d'ombre n'en est pas un : l'ordonnanceur la pose. */
+  /** Fields declared by the host. The shadow slice is not one: the scheduler sets it. */
   const write = (slot: number, light: SceneLight) => {
     const base = baseOf(slot);
-    // Une directionnelle n'a ni position ni portée : ses deux champs restent à zéro dans le tampon,
-    // et le shader ne les lit jamais — il branche sur le type avant.
+    // A directional has neither position nor range: its two fields stay zero in the buffer,
+    // and the shader never reads them — it branches on the kind first.
     writeVector(base, LIGHT_FIELD.position, light.position ?? [0, 0, 0]);
     packed[base + LIGHT_FIELD.range] = light.range ?? 0;
     writeVector(base, LIGHT_FIELD.color, light.color);
@@ -86,15 +86,15 @@ export function createSceneLightStore() {
     get environment() {
       return environment;
     },
-    /** La vue demandée par l'hôte, telle quelle : `auto` tant qu'il n'a rien demandé. */
+    /** View requested by the host, as-is: `auto` as long as it has asked for nothing. */
     get lightingView(): SceneLightingView {
       return view;
     },
     /**
-     * Vrai quand l'image doit sortir en albédo brut, sans aucune lumière. C'est le comportement par
-     * défaut tant qu'aucune lampe n'est déclarée : une scène sans source n'a rien à éclairer, et une
-     * image noire n'aiderait aucun banc de géométrie. Dès qu'une lampe existe, l'éclairage réel
-     * s'impose — sauf si l'hôte a explicitement demandé la vue de diagnostic.
+     * True when the image must come out as raw albedo, with no light. This is the default
+     * behaviour as long as no light is declared: a scene without a source has nothing to light, and a
+     * black image would help no geometry bench. As soon as a light exists, real lighting
+     * takes over — unless the host has explicitly asked for the diagnostic view.
      */
     get unlit() {
       return view === 'unlit' || (view === 'auto' && ids.length === 0);
@@ -113,13 +113,13 @@ export function createSceneLightStore() {
     add(light: SceneLight) {
       const validated = validateSceneLight(light);
       if (indexOf.has(validated.id))
-        throw new EngineError('DUPLICATE_SCENE_LIGHT', `lampe ${validated.id} déjà présente`, {
+        throw new EngineError('DUPLICATE_SCENE_LIGHT', `light ${validated.id} already present`, {
           id: validated.id,
         });
       if (ids.length >= LIGHT_SETTINGS.maxLights)
         throw new EngineError(
           'SCENE_LIGHT_BUDGET',
-          `${ids.length + 1} lampes demandées, ${LIGHT_SETTINGS.maxLights} publiées`,
+          `${ids.length + 1} lights requested, ${LIGHT_SETTINGS.maxLights} published`,
           { maxLights: LIGHT_SETTINGS.maxLights },
         );
       const slot = ids.length;
@@ -128,7 +128,7 @@ export function createSceneLightStore() {
       records.set(validated.id, validated);
       revision[slot]++;
       write(slot, validated);
-      // Un slot neuf est à zéro dans le tampon ; sans tranche, la valeur publiée est −1.
+      // A new slot is zero in the buffer; without a slice, the published value is −1.
       writeSlice(slot, -1);
       header[0] = ids.length;
       epoch++;
@@ -138,10 +138,10 @@ export function createSceneLightStore() {
       const slot = indexOf.get(id);
       const current = records.get(id);
       if (slot === undefined || !current)
-        throw new EngineError('UNKNOWN_SCENE_LIGHT', `lampe ${id} inconnue`, { id });
+        throw new EngineError('UNKNOWN_SCENE_LIGHT', `unknown light ${id}`, { id });
       const merged = validateSceneLight({ ...current, ...patch, id });
-      // Une lampe reposée à l'identique n'est pas un changement : ni sa révision ni l'époque ne
-      // bougent, donc l'ordonnanceur ne périme aucune page d'ombre et l'image tenue le reste.
+      // A light reset identically is not a change: neither its revision nor the epoch
+      // move, so the scheduler stales no shadow page and the held frame stays.
       if (sameSceneLight(current, merged)) return;
       records.set(id, merged);
       revision[slot]++;
@@ -151,7 +151,7 @@ export function createSceneLightStore() {
     remove(id: string) {
       const slot = indexOf.get(id);
       if (slot === undefined)
-        throw new EngineError('UNKNOWN_SCENE_LIGHT', `lampe ${id} inconnue`, {
+        throw new EngineError('UNKNOWN_SCENE_LIGHT', `unknown light ${id}`, {
           id,
         });
       const last = ids.length - 1;
@@ -177,19 +177,19 @@ export function createSceneLightStore() {
     },
     setEnvironment(next: SceneEnvironment) {
       const validated = validateSceneEnvironment(next);
-      // Même règle que `set` : une exposition reposée telle quelle ne périme pas l'image.
+      // Same rule as `set`: an exposure reset as-is does not stale the frame.
       if (environment && sameSceneEnvironment(environment, validated)) return;
       environment = validated;
       epoch++;
     },
-    /** Note la tranche d'atlas qu'une lampe occupe, sans toucher au reste de ses champs. La révision
-     *  du magasin ne monte que si la tranche a réellement changé : sinon rien n'est repoussé au GPU. */
+    /** Records the atlas slice a light occupies, without touching the rest of its fields. The store
+     *  revision only rises if the slice actually changed: otherwise nothing is pushed to the GPU. */
     assignSlice(slot: number, slice: number) {
       if (sliceOf(slot) === slice) return;
       writeSlice(slot, slice);
       epoch++;
     },
-    /** Les flottants réellement occupés : l'écriture GPU ne pousse jamais les slots vides. */
+    /** Floats actually occupied: GPU write never pushes empty slots. */
     view() {
       return packed.subarray(0, SCENE_LIGHT_HEADER_FLOATS + ids.length * SCENE_LIGHT_FLOATS);
     },

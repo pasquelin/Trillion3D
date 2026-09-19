@@ -1,11 +1,11 @@
-// Lot M2, mathCone.ts : rejet d'une boîte par son cône de normales, confronté à une référence bâtie
-// avec les primitives de Three.js (Vector3, Matrix3, Matrix4), sous placement conforme et hostile.
+// Batch M2, mathCone.ts: rejection of a box by its normal cone, compared against a reference built
+// with Three.js primitives (Vector3, Matrix3, Matrix4), under conformal and hostile placement.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { boxConeRejects, coneRejects } from './index.ts';
 
-/** `pageCone.ts` d'avant le lot M2, recopié avec les primitives de Three (voir bench/oracles/volumes.mjs). */
+/** `pageCone.ts` before batch M2, copied with Three primitives (see bench/oracles/volumes.mjs). */
 function reference(
   axe: number[],
   angle: number,
@@ -73,7 +73,7 @@ function place(sx: number, sy: number, sz: number, position: number[], euler: nu
   );
 }
 
-test('boxConeRejects s’accorde avec la référence sous placement conforme (échelle uniforme et rotation)', () => {
+test('boxConeRejects matches reference under conformal placement (uniform scale and rotation)', () => {
   for (const [sx, sy, sz] of [
     [2, 2, 2],
     [0.5, 0.5, 0.5],
@@ -97,7 +97,7 @@ test('boxConeRejects s’accorde avec la référence sous placement conforme (é
   }
 });
 
-test('l’œil dans la sphère englobante rend un étalement de π et ne rejette jamais', () => {
+test('eye inside bounding sphere yields spread of π and never rejects', () => {
   const world = place(1, 1, 1, [0, 0, 0], [0, 0, 0]);
   const normal = new THREE.Matrix3().getNormalMatrix(world);
   const c = {
@@ -108,7 +108,7 @@ test('l’œil dans la sphère englobante rend un étalement de π et ne rejette
     world,
     normal,
     echelle: 1,
-    oeil: [0.1, 0.1, 0.1], // dans la boîte
+    oeil: [0.1, 0.1, 0.1], // inside the box
   };
   assert.equal(appeler(c), false);
   assert.equal(
@@ -117,7 +117,7 @@ test('l’œil dans la sphère englobante rend un étalement de π et ne rejette
   );
 });
 
-test('un axe de cône nul ne rejette jamais (la référence non plus)', () => {
+test('zero cone axis never rejects (neither does reference)', () => {
   const world = place(1, 1, 1, [0, 0, 0], [0.3, 0.1, 0]);
   const normal = new THREE.Matrix3().getNormalMatrix(world);
   const c = {
@@ -134,7 +134,7 @@ test('un axe de cône nul ne rejette jamais (la référence non plus)', () => {
   assert.equal(reference(c.axe, c.angle, c.min, c.max, world, normal, c.echelle, c.oeil), false);
 });
 
-test('un angle hors [0, π] est refusé par coneRejects, donc ne rejette pas (try/catch)', () => {
+test('angle outside [0, π] is refused by coneRejects, so does not reject (try/catch)', () => {
   const world = place(1, 1, 1, [0, 0, 0], [0, 0, 0]);
   const normal = new THREE.Matrix3().getNormalMatrix(world);
   const c = {
@@ -151,7 +151,7 @@ test('un angle hors [0, π] est refusé par coneRejects, donc ne rejette pas (tr
   assert.equal(reference(c.axe, c.angle, c.min, c.max, world, normal, c.echelle, c.oeil), false);
 });
 
-test('un cône tangent rejette pile comme la référence, de part et d’autre de la tangence', () => {
+test('tangent cone rejects exactly like reference, on both sides of tangency', () => {
   const world = place(1, 1, 1, [0, 0, 0], [0, 0, 0]);
   const normal = new THREE.Matrix3().getNormalMatrix(world);
   const base = {

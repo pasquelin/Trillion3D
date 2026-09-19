@@ -45,9 +45,9 @@ test('webgpu pages raster consumes the GPU cache and does not attach a mesh per 
     shade.reduce((n, d) => n + d.vertexCount, 0),
     3,
   );
-  // Le raster matériel est le producteur de l'image opaque : la coupe lui arrive par le masque de
-  // l'image, que ses commandes indirectes consomment en instances. Le raster de calcul ne se
-  // crée pas en production — aucun binning, aucune capacité de calcul opaque.
+  // The hardware raster is the producer of the opaque image: the cut reaches it through the image
+  // mask, which its indirect commands consume as instances. The compute raster is not created in
+  // production — no binning, no opaque compute capability.
   assert.deepEqual(drawnPageIds(buffers, packed.nodeCount, packed.pageCount), [0, 1]);
   const vis = indirectDraws(draws);
   assert.equal(
@@ -83,8 +83,8 @@ test('vis drawIndirect consumes GPU instance indices against one unsorted page t
   draws.length = 0;
   computes.length = 0;
   backend.render(camera());
-  // Les deux bacs — face avant seule et double face — tiennent deux commandes indirectes sur une
-  // table de pages commune, et lisent le MÊME masque de l'image.
+  // The two bins — front-only and double-sided — hold two indirect commands on a shared page
+  // table, and read the SAME image mask.
   assert.deepEqual(drawnPageIds(buffers, packed.nodeCount, packed.pageCount), [0, 1]);
   assert.equal(computes.includes('bin'), false);
   const vis = indirectDraws(draws);
@@ -132,9 +132,9 @@ test('webgpu page raster matches the WebGL2 exact-pages triangles', async () => 
   material.dispose();
 });
 
-// Comme les pages racines de la référence, résidentes hors de son pool : un budget plus petit que
-// la couverture racine est relevé jusqu'à elle, nommément, et l'image est complète — jamais refusée.
-test('un budget sous la couverture racine est relevé jusqu’à elle, nommément, et l’image se prépare', async () => {
+// Like the reference's root pages, resident outside its pool: a budget smaller than root coverage
+// is raised to it, by name, and the image is complete — never refused.
+test('a budget under root coverage is raised to it, by name, and the image prepares', async () => {
   installGpuGlobals();
   const { device } = mockGpu();
   const { fixture, backend } = quadBackend(device, {
@@ -143,7 +143,7 @@ test('un budget sous la couverture racine est relevé jusqu’à elle, nommémen
   await backend.prepare();
   const metrics = backend.metrics();
   assert.equal(metrics.geometryPoolClamp, 'root-cover');
-  assert.ok((metrics.geometryPoolSlots ?? 0) > 1, 'les fentes tiennent la couverture racine');
+  assert.ok((metrics.geometryPoolSlots ?? 0) > 1, 'the slots hold root coverage');
   assert.equal(metrics.coverageReady, true);
   backend.dispose();
   fixture.geometry.dispose();

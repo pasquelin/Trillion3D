@@ -1,7 +1,7 @@
 import type { GpuPageContext, ResidentPage } from './gpuPageTypes.ts';
 import { evictResident } from './gpuPageCommit.ts';
 
-/** Les octets qu'un tampon de pages peut faire sur cet appareil : la plus petite de ses limites. */
+/** Bytes a page buffer may occupy on this device: the smaller of its limits. */
 export const pageBufferCap = (limits?: {
   maxBufferSize?: number;
   maxStorageBufferBindingSize?: number;
@@ -22,13 +22,12 @@ export const createPageBuffer = (device: GPUDevice, size: number) =>
   });
 
 /**
- * Le réservoir change de taille SANS perdre ce qu'il tient : la référence, elle, vide son pool
- * quand `StreamingPoolSize` change. Les pages des fentes qui survivent sont copiées sur la carte à
- * la même place ; celles des fentes qui disparaissent sont déplacées dans une fente libre du
- * nouveau réservoir tant qu'il en reste — les épinglées d'abord, puis les plus récentes —, et
- * seulement ensuite évincées. Chaque mouvement passe par le journal des changements, que le
- * miroir de résidence lit comme une arrivée ou un départ ordinaire. Rend les clés évincées,
- * épinglées comprises : l'appelant les désépingle de son côté.
+ * The pool changes size WITHOUT losing what it holds: the reference, by contrast, empties its
+ * pool when `StreamingPoolSize` changes. Pages in slots that survive are copied on the GPU in
+ * the same place; those in slots that disappear are moved into a free slot of the new pool while
+ * any remain — pinned first, then most recent — and only then evicted. Each move goes through
+ * the change log, which the residency mirror reads as an ordinary arrival or departure. Returns
+ * the evicted keys, pinned included: the caller unpins them on its side.
  */
 export function resizeGpuPages(context: GpuPageContext, slots: number): string[] {
   const { device, pageBytes, resident, pins, free } = context;
@@ -42,8 +41,8 @@ export function resizeGpuPages(context: GpuPageContext, slots: number): string[]
     0,
     Math.min(context.slots, slots) * pageBytes,
   );
-  // Une passe sur la résidence : les fentes occupées qui survivent, et les pages déplacées — les
-  // épinglées d'abord, puis les plus récentes, quand la place manque.
+  // One pass over residency: occupied slots that survive, and pages that are moved — pinned
+  // first, then most recent, when room runs out.
   const occupied = new Uint8Array(slots);
   const displaced: ResidentPage[] = [];
   for (const page of resident.values()) {

@@ -8,15 +8,14 @@ import type {
 } from '../sdk-core/index.ts';
 
 /**
- * Le décodeur de pages, choisi une seule fois et gardé. D'abord le module compilé en WebAssembly :
- * il ne nomme aucune dépendance, donc un worker dédié le charge même chez un hôte qui sert ses
- * modules tels quels, sans carte d'imports ni empaqueteur. S'il ne s'instancie pas — pas de
- * `WebAssembly`, pas de SIMD, ressource absente — le décodeur JavaScript prend sa place ; celui-là
- * tire la bibliothèque de décompression par un spécificateur nu, et peut donc, lui, être
- * introuvable. Quand aucun des deux ne se charge, la tâche le dit et l'appelant refait le travail
- * chez lui.
+ * The page decoder, chosen once and kept. First the module compiled to WebAssembly: it names no
+ * dependency, so a dedicated worker loads it even at a host that serves its modules as-is,
+ * without an import map or a bundler. If it does not instantiate — no `WebAssembly`, no SIMD,
+ * missing resource — the JavaScript decoder takes its place; that one pulls the decompression
+ * library by a bare specifier, and can therefore itself be missing. When neither loads, the task
+ * says so and the caller does the work again on its side.
  *
- * Les deux rendent les mêmes tampons et les mêmes refus : le banc H2b le prouve valeur par valeur.
+ * Both yield the same buffers and the same refusals: the H2b bench proves it value by value.
  */
 type Decodeur = {
   decode: (data: Uint8Array, maxDecodedBytes: number) => Promise<DecodedGeometryPage>;
@@ -31,7 +30,7 @@ async function chargeDecodeur(): Promise<Decodeur> {
   return { decode: js.decodeGeometryPage, wasm: false };
 }
 
-/** Aucun décodeur de ce côté du fil : l'appelant refera le travail chez lui, sans rien rejeter. */
+/** No decoder on this side of the thread: the caller will redo the work on its side, rejecting nothing. */
 function indisponible(id: number, cause: unknown) {
   return {
     answer: {
@@ -46,9 +45,9 @@ function indisponible(id: number, cause: unknown) {
 }
 
 /**
- * Le travail lui-même, écrit une seule fois. Le worker l'exécute, et le repli synchrone exécute
- * exactement la même fonction sur le fil principal : c'est ce partage — et non une relecture des
- * deux codes — qui garantit le même octet de sortie des deux côtés du fil.
+ * The work itself, written once. The worker runs it, and the synchronous fallback runs exactly
+ * the same function on the main thread: that sharing — and not a re-read of both codes — is what
+ * guarantees the same output byte on both sides of the thread.
  */
 export async function runPageDecodeTask(
   request: PageDecodeRequest,
@@ -109,9 +108,9 @@ export async function runPageDecodeTask(
 }
 
 /**
- * Les tampons d'une page décodée, prêts à être transférés. Chaque tableau typé que le décodage vient
- * d'allouer possède son tampon en entier, du premier au dernier octet : `buffer` est donc exactement
- * la valeur, sans décalage ni reste, et le transfert ne perd ni ne recopie rien.
+ * Buffers of a decoded page, ready to be transferred. Each typed array the decode just allocated
+ * owns its buffer whole, from the first byte to the last: `buffer` is therefore exactly the
+ * value, with no offset or remainder, and the transfer loses nothing and copies nothing.
  */
 function geometryPayload(page: DecodedGeometryPage): PageDecodeGeometryPayload {
   const names = Object.keys(page.attributes);
@@ -125,8 +124,8 @@ function geometryPayload(page: DecodedGeometryPage): PageDecodeGeometryPayload {
   };
 }
 
-/** La page décodée reconstruite depuis ses tampons. `names` rend l'ordre d'écriture du décodage, si
- *  bien que le `Record` d'attributs retrouve ses champs dans le même ordre qu'un décodage sur place. */
+/** The decoded page rebuilt from its buffers. `names` yields the decode's write order, so the
+ *  attribute `Record` finds its fields in the same order as an in-place decode. */
 export function restorePageDecode(payload: PageDecodeGeometryPayload): DecodedGeometryPage {
   const attributes: Record<string, Float32Array> = {};
   for (let i = 0; i < payload.names.length; i++)

@@ -1,13 +1,13 @@
 /**
- * L'encodeur témoin de la coupe : il ne lance rien, il note. Ce que la carte paie entre deux noyaux
- * ne se compte pas en fils mais en COMMANDES — chaque passe de calcul et chaque copie hors passe
- * vide sa file et ses caches —, et deux fichiers de test tiennent ce contrat : `gpuDagLive.test.ts`
- * pour la liste que chaque noyau parcourt, `gpuDagEncode.test.ts` pour le nombre de commandes.
+ * Cut witness encoder: it dispatches nothing, it notes. What the GPU pays between two kernels is
+ * counted in COMMANDS, not threads — each compute pass and each copy outside a pass empties its
+ * queue and caches —, and two test files hold that contract: `gpuDagLive.test.ts` for the list
+ * each kernel walks, `gpuDagEncode.test.ts` for the command count.
  */
 import assert from 'node:assert/strict';
 import type { encodeDagKernels } from './gpuDagEncode.ts';
 
-/** `liste` : le décalage du compte de groupes armé avant le lancement, donc la liste parcourue. */
+/** `liste`: offset of the group count armed before the dispatch, hence the list walked. */
 type Lancement = { noyau: string; groupes: number | 'indirect'; liste?: number };
 type Copie = {
   de: string;
@@ -20,10 +20,10 @@ type Copie = {
 export const LIVE = 1234,
   CAND = 3000,
   DRAWN = 4000;
-/** Les nœuds de chaque étage : le majorant sur lequel la passe de ce niveau est lancée à plat. */
+/** Nodes of each stage: the upper bound on which that level's pass dispatches flat. */
 export const ETAGES = [2, 9, 40, 150, 600];
 
-/** Un encodeur qui ne fait que noter : quel noyau, lancé à plat ou sur quelle liste. */
+/** An encoder that only notes: which kernel, dispatched flat or on which list. */
 export function encodeurTemoin() {
   const lancements: Lancement[] = [];
   const copies: Copie[] = [];
@@ -68,8 +68,8 @@ export function encodeurTemoin() {
   return { encoder, lancements, copies, passes };
 }
 
-/** Une étape nommée comme le témoin la verra passer : `gpuDagEncode.ts` déstructure ces champs par
- *  leur nom, et les écrire ici les rend cherchables depuis lui. */
+/** A stage named as the witness will see it pass: `gpuDagEncode.ts` destructures these fields
+ *  by name, and writing them here makes them searchable from it. */
 const etape = (entryPoint: string) => ({ entryPoint });
 
 export function ressources(residentCut: boolean, levelCount = 3, pageCount = 4096) {

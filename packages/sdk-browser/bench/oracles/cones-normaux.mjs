@@ -1,22 +1,22 @@
-// Oracles du lot F, côté préparation d'un moteur WebGPU : `webgpuPagesPrepare.ts:23-44`,
-// `webgpuPagesSetup.ts:94-105` et `webgpuPagesPrepareTextures.ts:37-42` d'avant le lot F.
+// Batch F oracles, WebGPU engine-prepare side: `webgpuPagesPrepare.ts:23-44`,
+// `webgpuPagesSetup.ts:94-105` and `webgpuPagesPrepareTextures.ts:37-42` from before batch F.
 import { OPEN_CONE, triangleCone } from '../../pageCone.ts';
 import { visMaterial } from '../../visibilityBuffer.ts';
 
 /**
- * L'entrée de `prepareCones`, écrite ici une seule fois pour le banc comme pour le test.
+ * The input of `prepareCones`, written here once for the bench as for the test.
  *
- * La fonction parcourt les pages **par racine**, parce que poser un cône, c'est le déclarer ;
- * l'oracle, lui, parcourt le catalogue. Les deux champs disent la même liste dans le même ordre,
- * et c'est ce que cette fonction garantit. Un second endroit qui construirait cette entrée à la
- * main n'aurait aucun type pour le relire — c'est ainsi que le banc s'est cassé quand la fonction
- * est passée du catalogue aux racines.
+ * The function walks pages **by root**, because posing a cone is declaring it;
+ * the oracle walks the catalogue. Both fields state the same list in the same order,
+ * and that is what this function guarantees. A second place that built this input by
+ * hand would have no type to reread it — that is how the bench broke when the function
+ * moved from the catalogue to the roots.
  */
 export function entreeCones(pages, roots = [{ cones: false, pages }]) {
   return { setup: { allPages: pages, roots } };
 }
 
-/** `prepareCones` avant le lot F : accesseurs sommet par sommet et matériau lu deux fois. */
+/** `prepareCones` before batch F: per-vertex accessors and the material read twice. */
 export function referencePrepareCones(rt) {
   const xyzCache = new WeakMap();
   for (const rec of rt.setup.allPages) {
@@ -40,7 +40,7 @@ export function referencePrepareCones(rt) {
   }
 }
 
-/** La table des octets source avant le lot F : un `flatMap` d'un couple par page. */
+/** Source-byte table before batch F: one `flatMap` of a pair per page. */
 export function referenceIndexSourceBytes(allPages) {
   return new Map(
     allPages.flatMap((page) =>
@@ -56,7 +56,7 @@ export function referenceIndexSourceBytes(allPages) {
   );
 }
 
-/** Les compteurs du diagnostic avant le lot F : un `map` complet et deux copies de la table. */
+/** Diagnostic counters before batch F: a full `map` and two copies of the table. */
 export function referenceCompteMateriauxEtTangentes(allPages, geometryBlocks) {
   return {
     materials: new Set(allPages.map((page) => page.material)).size,

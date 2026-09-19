@@ -1,14 +1,14 @@
-//! Socle des pilotes servis par ufbx (MIT, version figée, aucun SDK d'éditeur).
+//! Shared base for drivers served by ufbx (MIT, pinned version, no editor SDK).
 //!
-//! Deux formats, deux pilotes : ils ne diffèrent que par leur nom, leur version, leur extension et
-//! leur entête. La conversion vers la scène intermédiaire, elle, vit une seule fois — dans `import`.
+//! Two formats, two drivers: they differ only by name, version, extension and header. Conversion
+//! to the intermediate scene lives once — in `import`.
 use super::*;
 
 pub(super) struct UfbxDriver {
     pub(super) name: &'static str,
     pub(super) version: &'static str,
     pub(super) extensions: &'static [&'static str],
-    /// Entête du format, vide pour un format texte que seule son extension désigne.
+    /// Format header, empty for a text format that only its extension identifies.
     pub(super) magic: &'static [u8],
 }
 

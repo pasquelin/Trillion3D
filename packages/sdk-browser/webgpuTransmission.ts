@@ -2,23 +2,23 @@ import { visMaterial } from './visibilityBuffer.ts';
 import type { TransmissionBackdrop, WebgpuGpuState } from './webgpuPagesStateGpu.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Un décalage dynamique d'uniforme s'aligne sur 256 octets ; le volume en occupe 32 et laisse le
- *  reste vide, ce que quelques dizaines de matériaux transmissifs paient en kilo-octets. */
+/** A dynamic uniform offset aligns on 256 bytes; the volume occupies 32 and leaves the rest empty,
+ *  which a few dozen transmissive materials pay in kilobytes. */
 export const VOLUME_STRIDE = 256;
-/** `transmission`, `ior`, `thickness`, `attenuationDistance`, puis `attenuationColor` alignée. */
+/** `transmission`, `ior`, `thickness`, `attenuationDistance`, then aligned `attenuationColor`. */
 export const VOLUME_SIZE = 32;
-/** Le fond coûte une couleur demi-flottante (8 octets) et une profondeur (4) par pixel. */
+/** The backdrop costs a half-float colour (8 bytes) and a depth (4) per pixel. */
 const BACKDROP_BYTES_PER_PIXEL = 12;
 
-/** Ce que les copies du fond ajouteront au budget d'image, zéro sans surface transmissive. */
+/** What the backdrop copies will add to the image budget, zero with no transmissive surface. */
 export function backdropBytes(rt: WebgpuPagesRuntime, width: number, height: number) {
   return rt.blendState.transmissive ? width * height * BACKDROP_BYTES_PER_PIXEL : 0;
 }
 
 /**
- * Alloue les deux copies que la passe de transmission relit. Sans surface transmissive, elles font
- * un texel : la disposition de liaison est la même pour toute la scène, et rien n'est réservé pour
- * une classe que la scène ne porte pas.
+ * Allocates the two copies the transmission pass rereads. With no transmissive surface they are one
+ * texel: the bind layout is the same for the whole scene, and nothing is reserved for a class the
+ * scene does not carry.
  */
 export function createBackdrop(
   device: GPUDevice,
@@ -50,10 +50,9 @@ export function disposeBackdrop(gpu: WebgpuGpuState) {
 }
 
 /**
- * Fige le fond : la couleur déjà résolue et la profondeur des opaques, copiées telles quelles. Ces
- * deux textures sont ce que *toutes* les surfaces transmissives lisent, si bien que l'ordre entre
- * deux d'entre elles ne change pas ce qu'elles voient — et qu'aucune ne se voit à travers l'autre,
- * limite connue, la même que celle du visualiseur de référence glTF.
+ * Freezes the backdrop: already-resolved colour and opaque depth, copied as-is. These two textures
+ * are what *every* transmissive surface reads, so the order between two of them does not change what
+ * they see — and none sees through the other, a known limit, the same as the glTF reference viewer.
  */
 export function copyBackdrop(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { gpu } = rt,
@@ -73,8 +72,8 @@ export function copyBackdrop(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder)
   return true;
 }
 
-/** Le volume de chaque item, au rang que l'item porte dans la scène : c'est le décalage dynamique
- *  que la passe de transmission pose. Écrit avec les fiches, jamais par image. */
+/** Volume of each item, at the rank the item carries in the scene: that is the dynamic offset the
+ *  transmission pass posts. Written with the rows, never per image. */
 export function writeVolumeRecords(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { gpu, blendState } = rt,
     items = blendState.blendGpu,
@@ -99,7 +98,7 @@ export function writeVolumeRecords(rt: WebgpuPagesRuntime, device: GPUDevice) {
   );
 }
 
-/** Le tampon des volumes, dimensionné sur le nombre d'items transparents de la scène. */
+/** Volume buffer, sized to the scene's transparent-item count. */
 export function createVolumeBuffer(device: GPUDevice, items: number) {
   return device.createBuffer({
     label: 'WG transmissive volumes',

@@ -1,17 +1,17 @@
 import { mediane, scene } from './coupeLancementsDecor.mjs';
 /**
- * Côté page de la mesure du RELEVÉ : ce qu'une image paie à rapatrier la coupe, sur la vraie coupe
- * du moteur (`createDagResources`, `encodeDagKernels`) et un vrai appareil.
+ * Page side of the READOUT measurement: what a frame pays to bring the cut back, on the engine's
+ * real cut (`createDagResources`, `encodeDagKernels`) and a real device.
  *
- * Le tampon de relevé est taillé sur le PIRE CAS — `16 + pageCount*4` pour la coupe voulue, autant
- * pour la coupe dessinable (`gpuDagResources.ts`) —, et la copie d'image en emporte la totalité. À
- * deux millions de grappes cela fait seize mégaoctets recopiés et mappés par image pour quelques
- * dizaines de milliers de numéros utiles. Le banc mesure les deux tailles de copie sur le MÊME
- * encodage de noyau : seule la taille de la copie change, donc l'écart est le prix du pire cas.
+ * The readout buffer is sized for the WORST CASE — `16 + pageCount*4` for the wanted cut, as
+ * much for the drawable cut (`gpuDagResources.ts`) — and the frame copy takes all of it. At
+ * two million clusters that is sixteen megabytes copied and mapped per frame for a few tens
+ * of thousands of useful numbers. The bench measures both copy sizes on the SAME kernel
+ * encode: only the copy size changes, so the gap is the worst-case price.
  *
- * La lecture est SÉRIALISÉE ici — copie, soumission, `mapAsync`, lecture —, là où le moteur la
- * double-tamponne : ce chiffre est le travail total d'une image, pas le blocage qu'elle subit.
- * `encodage` le sépare de ce que le processeur passe à écrire les commandes.
+ * The read is SERIALISED here — copy, submit, `mapAsync`, read — where the engine double-
+ * buffers it: this figure is the total work of a frame, not the stall it suffers.
+ * `encodage` splits it from what the CPU spends writing commands.
  */
 import * as THREE from 'three';
 import { createDagResources } from '../../packages/sdk-browser/gpuDagResources.ts';
@@ -28,7 +28,7 @@ import { ouvrirAppareil } from './appareilWebgpu.mjs';
 
 export async function executer({ tailles, niveaux, tours, rondes, plafond, erreurs: seuils }) {
   const appareil = await ouvrirAppareil();
-  if (!appareil) return { indisponible: 'aucun adaptateur WebGPU' };
+  if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
   const camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 200);
   camera.position.set(0, 0, 16);
@@ -54,20 +54,21 @@ async function mesure(device, { packed, roots }, camera, { tours, rondes, seuils
   const uniforms = cameraSelectionUniforms(cameraMoteur(camera), 1, [1280, 720]);
   packedWorldsToRenderOrigin(packed, roots, uniforms.cameraWorld);
   const livre = await createDagResources(device, packed, true);
-  if (!livre) throw new Error('la coupe livrée ne se monte pas');
+  if (!livre) throw new Error('the shipped cut does not mount');
   const uni = new Float32Array(SELECTION_UNIFORM_BYTES / 4);
-  /** Le seuil d'écran de l'image : c'est lui qui décide la TAILLE DE LA COUPE, donc ce qu'un
-   *  plafond peut perdre. La mesure de temps se fait au dernier posé. */
+  /** The frame's screen threshold: it is what decides the CUT SIZE, hence what a
+   *  cap can lose. Time is measured at the last one set. */
   const poseSeuil = (erreur) => {
     writeDagUniforms(uni, packed, { ...uniforms, pixelError: erreur }, true);
     device.queue.writeBuffer(livre.uniforms, 0, uni);
   };
   poseSeuil(1);
 
-  // Le dimensionnement d'HIER, gardé comme point de mesure : l'entête plus `pageCount` rangs par
-  // moitié, le pire cas d'une coupe qui retiendrait le catalogue entier. La production ne l'alloue plus (le plafond
-  // l'a remplacé), mais le prix d'une copie ne dépend que de sa TAILLE : un tampon de même taille le
-  // mesure fidèlement, et c'est le seul moyen de garder le « avant » reproductible.
+  // YESTERDAY's sizing, kept as a measurement point: the header plus `pageCount` rows per
+  // half, the worst case of a cut that would keep the whole catalogue. Production no longer
+  // allocates it (the cap replaced it), but a copy's cost depends only on its SIZE: a buffer
+  // of the same size measures it faithfully, and it is the only way to keep the "before"
+  // reproducible.
   const octetsPireCas = 2 * (SELECTION_HEADER_WORDS * 4 + packed.pageCount * 4);
   const source = device.createBuffer({
     size: octetsPireCas,
@@ -78,7 +79,7 @@ async function mesure(device, { packed, roots }, camera, { tours, rondes, seuils
     usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
   });
 
-  /** Une image entière : les noyaux, la copie du relevé, puis sa lecture. */
+  /** A whole frame: the kernels, the readout copy, then its read. */
   const image = async (octets, depuis = livre.output) => {
     const encoder = device.createCommandEncoder();
     encodeDagKernels(encoder, livre);
@@ -97,20 +98,21 @@ async function mesure(device, { packed, roots }, camera, { tours, rondes, seuils
     return { ms: (performance.now() - debut) / nombre };
   };
 
-  // Le seuil d'écran balayé : la coupe qu'il retient dit à quel plafond une scène de cette taille
-  // se heurte vraiment. Mesuré, jamais supposé.
+  // The screen threshold swept: the cut it keeps says which cap a scene of this size
+  // actually hits. Measured, never assumed.
   const coupes = [];
   for (const erreur of seuils) {
     poseSeuil(erreur);
     coupes.push({ erreur, coupe: await image(livre.readbackBytes) });
   }
   poseSeuil(seuils[seuils.length - 1]);
-  // Trois variantes, dont une SANS relevé : c'est elle qui sépare le prix de la copie de celui du
-  // noyau. Sans ce zéro, l'écart entre les deux autres se lirait sur un total que la coupe domine.
+  // Three variants, including one WITH NO readout: that is what splits the copy's cost from
+  // the kernel's. Without that zero, the gap between the other two would be read on a total
+  // the cut dominates.
   const variantes = [
-    { nom: 'aucun relevé (les noyaux seuls)', octets: 0 },
-    { nom: 'relevé livré (plafonné)', octets: livre.readbackBytes },
-    { nom: 'relevé du pire cas (le dimensionnement d’hier)', octets: octetsPireCas, source },
+    { nom: 'no readout (kernels only)', octets: 0 },
+    { nom: 'shipped readout (capped)', octets: livre.readbackBytes },
+    { nom: "worst-case readout (yesterday's sizing)", octets: octetsPireCas, source },
   ];
   const mesures = variantes.map(() => []);
   for (let ronde = 0; ronde < rondes; ronde++)
@@ -133,8 +135,8 @@ async function mesure(device, { packed, roots }, camera, { tours, rondes, seuils
         nom: v.nom,
         octets: v.octets,
         ms: Number(mediane(lots).toFixed(4)),
-        // L'étendue des rondes : la bande dans laquelle cette carte rend la MÊME mesure. Un écart
-        // qui n'en sort pas n'est pas un écart, et le banc refuse de l'affirmer.
+        // Spread of the rounds: the band in which this card returns the SAME measurement. A
+        // gap that does not leave it is not a gap, and the bench refuses to claim it.
         etendue: Number((Math.max(...lots) - Math.min(...lots)).toFixed(4)),
       };
     }),

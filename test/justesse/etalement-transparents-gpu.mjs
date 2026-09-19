@@ -1,13 +1,14 @@
-// L'ÉTALEMENT DU PLAN TRANSPARENT, RÉELLEMENT EXÉCUTÉ SUR LA CARTE.
+// SPREAD OF THE TRANSPARENT PLAN, ACTUALLY RUN ON THE GPU.
 //
-// Le lot « transparents en quelques ordres » a deux implémentations d'une seule sémantique : le
-// noyau WGSL (`webgpuBlendExpandWgsl.ts`), que la production emploie, et le modèle processeur
-// (`webgpuBlendExpandCpu.ts`), qui sert de repli aux appareils sans étage de calcul et d'oracle
-// partout ailleurs — le double de test le rejoue, et le banc le compare au chemin d'avant.
+// The "transparents in a few orders" batch has two implementations of one semantics: the WGSL
+// kernel (`webgpuBlendExpandWgsl.ts`), which production uses, and the CPU model
+// (`webgpuBlendExpandCpu.ts`), which is the fallback for devices without a compute stage and
+// the oracle everywhere else — the test double replays it, and the bench compares it to the
+// path from before.
 //
-// Rien de tout cela ne prouve que le NOYAU dit la même chose. Ce script l'exécute pour de vrai dans
-// Chromium WebGPU, sur les mêmes entrées que le modèle, et compare les deux sorties mot pour mot :
-// la liste d'instances étalée et l'argument indirect de chaque tranche.
+// None of that proves the KERNEL says the same thing. This script actually runs it in Chromium
+// WebGPU, on the same inputs as the model, and compares both outputs word for word: the
+// expanded instance list and the indirect argument of each run.
 //
 // node --experimental-strip-types \
 //   test/justesse/etalement-transparents-gpu.mjs
@@ -35,9 +36,9 @@ const MOTS = 48,
   GRAPPES = 6;
 
 /**
- * Un cas : des items paginés qui partagent une tranche, des primitives qui portent leurs propres
- * tampons et coupent la tranche, un tronc qui en rejette une partie, et assez d'entrées pour que
- * plusieurs paquets de comptage se suivent — c'est là que la somme courante se prouve.
+ * One case: paged items that share a run, primitives that carry their own buffers and split the
+ * run, a frustum that rejects some of them, and enough entries that several count packets follow
+ * each other — that is where the running sum is proved.
  */
 function cas(items, isoles, base) {
   const draws = new Uint32Array(items * 4),
@@ -54,23 +55,23 @@ function cas(items, isoles, base) {
     for (let j = 0; j < GRAPPES; j++) clusters[item * GRAPPES + j] = 7000 + item * GRAPPES + j;
     if (alea() < 0.8) keep[item >> 5] |= 1 << (item & 31);
   }
-  // Le plan trié : l'ordre de peinture, avec le bit de partage et le pipeline dans les bits bas.
+  // The sorted plan: paint order, with the share bit and the pipeline in the low bits.
   const order = new Uint32Array(items);
   for (let i = 0; i < items; i++) {
     const item = (items - 1 - i + 17) % items;
     order[i] = planEntry(item, i % 3 === 0 ? 2 : 1, !isoles.includes(item));
   }
-  // Le découpage en tranches est celui de la PRODUCTION, pas une copie : une preuve « carte =
-  // modèle » qui rejouerait son propre découpeur ne prouverait plus rien du chemin livré.
+  // The split into runs is PRODUCTION's, not a copy: a "GPU = model" proof that replayed its
+  // own splitter would prove nothing of the shipped path.
   const runs = new Uint32Array(items * RUN_WORDS);
   const count = buildBlendRuns(order, true, runs);
-  // Le compte indirect que la compaction écrit : quatre mots par item, le compte au deuxième.
+  // The indirect count compaction writes: four words per item, the count in the second.
   const indirect = new Uint32Array(items * 4);
   for (let item = 0; item < items; item++) indirect[item * 4 + 1] = counts[item];
   return { items, draws, keep, counts, indirect, clusters, order, runs, runCount: count, base };
 }
 
-/** Le modèle processeur, sur les mêmes entrées : c'est lui que le noyau doit répéter. */
+/** The CPU model, on the same inputs: that is what the kernel must repeat. */
 function attendu(entree, instanceWords, argsWords) {
   const expanded = new Uint32Array(instanceWords),
     args = new Uint32Array(argsWords);
@@ -92,7 +93,7 @@ function attendu(entree, instanceWords, argsWords) {
   return { expanded, args };
 }
 
-/** Les douze mots d'uniforme, posés par l'écrivain de production : une seule disposition. */
+/** The twelve uniform words, set by the production writer: one layout. */
 const uniformeDe = (entree) =>
   Array.from(
     blendExpandUniform(
@@ -127,9 +128,9 @@ for (const entree of entrees) {
     instanceWords,
     argsWords,
   });
-  assert.ok(carte, 'la page a bien ouvert un appareil WebGPU');
-  assert.deepEqual(carte.compilation, [], 'le noyau compile sans erreur');
-  assert.deepEqual(carte.expanded, Array.from(modele.expanded), 'la liste étalée, mot pour mot');
-  assert.deepEqual(carte.args, Array.from(modele.args), 'les arguments indirects, mot pour mot');
-  console.log(`étalement de ${entree.items} items en ${entree.runCount} tranches : carte = modèle`);
+  assert.ok(carte, 'the page did open a WebGPU device');
+  assert.deepEqual(carte.compilation, [], 'the kernel compiles without error');
+  assert.deepEqual(carte.expanded, Array.from(modele.expanded), 'the expanded list, word for word');
+  assert.deepEqual(carte.args, Array.from(modele.args), 'the indirect arguments, word for word');
+  console.log(`spread of ${entree.items} items in ${entree.runCount} runs: GPU = model`);
 }

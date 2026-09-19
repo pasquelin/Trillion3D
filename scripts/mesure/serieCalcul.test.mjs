@@ -1,6 +1,6 @@
-// Le chemin de calcul en lot, de la ligne de commande jusqu'au relevé : `--chemin-math` arrive tel
-// quel à l'explorateur de la page, `auto` n'impose rien, et `runSerie` publie le relevé du
-// gouverneur sans jamais supposer un chemin que le dist mesuré n'a pas publié.
+// Batch computation path, from command line to metrics: `--chemin-math` arrives as
+// is at page explorer, `auto` enforces nothing, and `runSerie` publishes governor metrics
+// without ever assuming a path that the measured dist did not publish.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { readOptions } from './options.mjs';
 import { runSerie } from './serie.mjs';
 
-/** Ce que la page rend quand elle n'a rien à dire de plus que le relevé demandé. */
+/** What the page returns when it has nothing more to say than requested metrics. */
 const releveDePage = (mathBatch) => ({
   cpuFrameMs: [],
   cpuSelectMs: [],
@@ -23,7 +23,7 @@ const releveDePage = (mathBatch) => ({
   ...(mathBatch === undefined ? {} : { mathBatch }),
 });
 
-/** Une série jouée sur une page de doublure : rend la ligne produite et le chemin qu'elle a reçu. */
+/** A series run on a mock page: returns produced row and path it received. */
 async function serie(mathPath, mathBatch) {
   const OUT = await mkdtemp(join(tmpdir(), 'wg-serie-calcul-'));
   const recus = [];
@@ -56,25 +56,25 @@ async function serie(mathPath, mathBatch) {
   }
 }
 
-test('--chemin-math : validé, `auto` par défaut, et une valeur inconnue refusée', () => {
+test('--chemin-math: validated, `auto` by default, and unknown value rejected', () => {
   assert.equal(readOptions([], '/tmp/racine').settings.mathPath, 'auto');
   assert.equal(readOptions(['--chemin-math', 'wasm'], '/tmp/racine').settings.mathPath, 'wasm');
   assert.equal(readOptions(['--chemin-math', 'js'], '/tmp/racine').settings.mathPath, 'js');
   assert.throws(
     () => readOptions(['--chemin-math', 'rust'], '/tmp/racine'),
-    /--chemin-math doit valoir auto, js ou wasm/,
+    /--chemin-math must be auto, js or wasm/,
   );
 });
 
-test('un chemin imposé arrive jusqu’à la page, et le relevé du gouverneur est publié tel quel', async () => {
+test('an enforced path reaches the page, and governor metrics are published as is', async () => {
   const gouverneur = { contract: 1, mode: 'wasm', wasmAvailable: true, operations: {} };
   const { row, recus } = await serie('wasm', gouverneur);
   assert.deepEqual(recus, ['wasm']);
   assert.equal(row.cheminCalcul, gouverneur);
 });
 
-test('`auto` n’impose rien à l’explorateur, et un dist sans gouverneur publie null', async () => {
+test('`auto` enforces nothing on explorer, and dist without governor publishes null', async () => {
   const { row, recus } = await serie('auto', undefined);
-  assert.deepEqual(recus, [null], 'auto laisse le gouverneur arbitrer');
-  assert.equal(row.cheminCalcul, null, 'non mesuré, et non pas « chemin JavaScript »');
+  assert.deepEqual(recus, [null], 'auto leaves governor to arbitrate');
+  assert.equal(row.cheminCalcul, null, 'unmeasured, not "JavaScript path"');
 });

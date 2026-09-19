@@ -2,12 +2,12 @@ import type { LightingCapabilities } from '../sdk-core/index.ts';
 import type { RenderBackend } from './backendTypes.ts';
 
 /**
- * Ce que le moteur actif fait réellement des lampes du contrat.
+ * What the active engine actually does with the contract's lights.
  *
- * Deux champs se lisent dans le moteur lui-même et ne peuvent donc pas mentir : il relit le magasin
- * s'il porte `refreshSceneLights`, il déplace un nœud nommé s'il porte `setTransform`. Un moteur qui
- * ne relit pas le magasin n'a pas non plus de vue d'éclairage : `setLightingView` ne changerait rien
- * à son image. Reste ce qu'aucune signature ne dit — les ombres —, qu'un moteur déclare lui-même.
+ * Two fields are read off the engine itself and therefore cannot lie: it rereads the store if it
+ * carries `refreshSceneLights`, it moves a named node if it carries `setTransform`. An engine that
+ * does not reread the store has no lighting view either: `setLightingView` would change nothing in
+ * its frame. What no signature says — shadows — an engine declares itself.
  */
 export function lightingCapabilitiesOf(backend: RenderBackend): LightingCapabilities {
   const sceneLights = !!backend.refreshSceneLights;
@@ -22,7 +22,7 @@ export function lightingCapabilitiesOf(backend: RenderBackend): LightingCapabili
     declared?.reason ??
     (sceneLights
       ? undefined
-      : `${backend.id} n'applique pas les lampes du contrat : le magasin les accepte, l'image ne change pas`);
+      : `${backend.id} does not apply the contract's lights: the store accepts them, the frame does not change`);
   if (reason) capabilities.reason = reason;
   return capabilities;
 }

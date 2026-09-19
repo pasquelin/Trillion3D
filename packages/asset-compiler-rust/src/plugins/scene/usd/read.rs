@@ -1,15 +1,15 @@
-//! La lecture d'un attribut composé, et la conversion de sa valeur vers ce que la scène
-//! intermédiaire sait porter.
+//! Reading a composed attribute, and converting its value toward what the intermediate scene
+//! can carry.
 //!
-//! USD type ses attributs finement — `point3f[]`, `point3d[]`, `normal3h[]` décrivent la même chose
-//! à la précision près — et une scène réelle mélange les trois. Chaque fonction d'ici accepte donc
-//! toutes les écritures d'une même grandeur et rend la forme unique que le glTF demande. Ce qui ne
-//! s'y ramène pas rend `None` : l'appelant le compte par son nom, il ne devine pas.
+//! USD types its attributes finely — `point3f[]`, `point3d[]`, `normal3h[]` describe the same
+//! thing to a precision — and a real scene mixes the three. Each function here therefore
+//! accepts every writing of the same quantity and yields the unique form glTF asks. What does
+//! not fold into it yields `None`: the caller counts it by name, it does not guess.
 use openusd::{sdf, usd};
 
-/// La valeur par défaut d'un attribut, ou son premier échantillon temporel quand il n'en a pas. Le
-/// second membre dit lequel des deux a répondu : une scène lue à son premier échantillon est figée,
-/// et l'appelant le publie au rapport.
+/// Default value of an attribute, or its first time sample when it has none. The second member
+/// says which of the two answered: a scene read at its first sample is frozen, and the caller
+/// publishes it in the report.
 pub(super) fn first(attribute: &usd::Attribute) -> Option<(sdf::Value, bool)> {
     if let Ok(Some(value)) = attribute.get::<sdf::Value>() {
         return Some((value, false));
@@ -21,7 +21,7 @@ pub(super) fn first(attribute: &usd::Attribute) -> Option<(sdf::Value, bool)> {
         .map(|(_, value)| (value.clone(), true))
 }
 
-/// Un nombre : flottant, double, demi ou entier.
+/// A number: float, double, half or integer.
 pub(super) fn number(value: &sdf::Value) -> Option<f64> {
     Some(match value {
         sdf::Value::Float(v) => f64::from(*v),
@@ -32,7 +32,7 @@ pub(super) fn number(value: &sdf::Value) -> Option<f64> {
     })
 }
 
-/// Un triplet : une couleur, une normale, une position ou les trois angles d'une rotation.
+/// A triple: a colour, a normal, a position or the three angles of a rotation.
 pub(super) fn triple(value: &sdf::Value) -> Option<[f64; 3]> {
     Some(match value {
         sdf::Value::Vec3f(v) => [f64::from(v.x), f64::from(v.y), f64::from(v.z)],
@@ -46,8 +46,8 @@ pub(super) fn triple(value: &sdf::Value) -> Option<[f64; 3]> {
     })
 }
 
-/// Les composantes d'une valeur scalaire ou vectorielle, quelle que soit sa largeur : le `scale` et
-/// le `bias` d'une texture s'écrivent en `float4`, mais une couche les écrit parfois plus court.
+/// Components of a scalar or vector value, whatever its width: a texture's `scale` and `bias`
+/// are written as `float4`, but a layer sometimes writes them shorter.
 pub(super) fn components(value: &sdf::Value) -> Option<Vec<f64>> {
     if let Some(one) = number(value) {
         return Some(vec![one]);
@@ -69,7 +69,7 @@ pub(super) fn components(value: &sdf::Value) -> Option<Vec<f64>> {
     })
 }
 
-/// Un tableau de triplets : des points, des normales ou des couleurs par sommet.
+/// An array of triples: points, normals or per-vertex colours.
 pub(super) fn triples(value: &sdf::Value) -> Option<Vec<[f32; 3]>> {
     Some(match value {
         sdf::Value::Vec3fVec(v) => v.iter().map(|p| [p.x, p.y, p.z]).collect(),
@@ -85,7 +85,7 @@ pub(super) fn triples(value: &sdf::Value) -> Option<Vec<[f32; 3]>> {
     })
 }
 
-/// Un tableau de paires : des coordonnées de texture.
+/// An array of pairs: texture coordinates.
 pub(super) fn pairs(value: &sdf::Value) -> Option<Vec<[f32; 2]>> {
     Some(match value {
         sdf::Value::Vec2fVec(v) => v.iter().map(|p| [p.x, p.y]).collect(),
@@ -95,8 +95,8 @@ pub(super) fn pairs(value: &sdf::Value) -> Option<Vec<[f32; 2]>> {
     })
 }
 
-/// Un tableau d'entiers : des comptes de sommets par face, des indices, des faces d'un `GeomSubset`.
-/// Un entier négatif ou hors du domaine d'un `usize` devient `None` à l'usage, jamais une panique.
+/// An array of integers: vertex counts per face, indices, faces of a `GeomSubset`. A negative
+/// integer or one outside the domain of a `usize` becomes `None` in use, never a panic.
 pub(super) fn integers(value: &sdf::Value) -> Option<Vec<i64>> {
     Some(match value {
         sdf::Value::IntVec(v) => v.iter().map(|i| i64::from(*i)).collect(),
@@ -107,7 +107,7 @@ pub(super) fn integers(value: &sdf::Value) -> Option<Vec<i64>> {
     })
 }
 
-/// Un texte : un jeton ou une chaîne, que USD emploie l'un pour l'autre selon les schémas.
+/// Text: a token or a string, which USD uses one for the other depending on the schemas.
 pub(super) fn text(value: &sdf::Value) -> Option<String> {
     Some(match value {
         sdf::Value::Token(v) => v.as_str().to_string(),
@@ -116,7 +116,7 @@ pub(super) fn text(value: &sdf::Value) -> Option<String> {
     })
 }
 
-/// Un booléen.
+/// A boolean.
 pub(super) fn flag(value: &sdf::Value) -> Option<bool> {
     match value {
         sdf::Value::Bool(v) => Some(*v),
@@ -124,8 +124,8 @@ pub(super) fn flag(value: &sdf::Value) -> Option<bool> {
     }
 }
 
-/// Le chemin d'asset d'une valeur, tel que la composition l'a rendu : le chemin écrit dans la
-/// couche, et celui qu'elle a résolu contre le dossier de cette couche quand le fichier y est.
+/// Asset path of a value, as composition yielded it: the path written in the layer, and the one
+/// it resolved against that layer's directory when the file is there.
 pub(super) fn asset(value: &sdf::Value) -> Option<&sdf::AssetPath> {
     match value {
         sdf::Value::AssetPath(path) => Some(path),
@@ -133,7 +133,7 @@ pub(super) fn asset(value: &sdf::Value) -> Option<&sdf::AssetPath> {
     }
 }
 
-/// Les seize nombres d'un `matrix4d`, déjà dans l'ordre de glTF.
+/// Sixteen numbers of a `matrix4d`, already in glTF order.
 pub(super) fn matrix(value: &sdf::Value) -> Option<[f64; 16]> {
     match value {
         sdf::Value::Matrix4d(m) => Some(m.0),
@@ -141,7 +141,7 @@ pub(super) fn matrix(value: &sdf::Value) -> Option<[f64; 16]> {
     }
 }
 
-/// Un quaternion `(w, x, y, z)`.
+/// A quaternion `(w, x, y, z)`.
 pub(super) fn quaternion(value: &sdf::Value) -> Option<[f64; 4]> {
     Some(match value {
         sdf::Value::Quatf(q) => [
@@ -161,7 +161,7 @@ pub(super) fn quaternion(value: &sdf::Value) -> Option<[f64; 4]> {
     })
 }
 
-/// Une métadonnée d'attribut lue en texte — `interpolation` d'une primvar, entre autres.
+/// An attribute metadata read as text — a primvar's `interpolation`, among others.
 pub(super) fn metadata(attribute: &usd::Attribute, key: &str) -> Option<String> {
     attribute
         .get_metadata::<sdf::Value>(key)

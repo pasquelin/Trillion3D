@@ -1,122 +1,128 @@
-// Ce que vaut la reconstruction de la forme d'avant un lot, dans les bancs de reproduction des
-// défauts 6 et 9 (`test/justesse/inverse-transposee-petite-echelle.mjs` et
+// What reconstructing the pre-batch form is worth, in the reproduction benches of
+// defects 6 and 9 (`test/justesse/inverse-transposee-petite-echelle.mjs` and
 // `normale-eclairage-petite-echelle.mjs`).
 //
-// L'ÉTAT D'AVANT, pour mémoire : les deux bancs reconstruisaient le shader d'avant par
-// `texte.replace(INVERSE_TRANSPOSE_WGSL, INVERSE_TRANSPOSE_AVANT_WGSL)`, gardé par un seul
-// `assert.notEqual(resultat, texte)`. Ce garde attrape le cas où le bloc livré n'est plus trouvé —
-// donc la substitution n'était pas un silence complet — mais il ne dit que « quelque chose a
-// bougé » : il laisse passer une substitution partielle (bloc livré présent deux fois, seule la
-// première remplacée) et une substitution de travers (`$&`, `` $` ``, `$'`, `$$` interprétés dans
-// le remplacement). Dans les deux cas le banc rejoue un shader qui n'est PAS celui d'avant le lot,
-// et conclut sur lui.
+// THE PREVIOUS STATE, for the record: both benches rebuilt the pre-batch shader with
+// `texte.replace(INVERSE_TRANSPOSE_WGSL, INVERSE_TRANSPOSE_AVANT_WGSL)`, guarded by a single
+// `assert.notEqual(resultat, texte)`. That guard catches the case where the shipped block is no
+// longer found — so the substitution was not complete silence — but it only says "something
+// moved": it lets a partial substitution through (shipped block present twice, only the first
+// replaced) and a crooked substitution (`$&`, `` $` ``, `$'`, `$$` interpreted in the
+// replacement). In both cases the bench replays a shader that is NOT the pre-batch one,
+// and concludes on it.
 //
-// `substitutionAvant.mjs` remplace ce garde par une preuve. Ce test tient ses messages d'échec :
-// une substitution qui ne se produit pas doit dire lequel des cas on est, et où aller.
+// `substitutionAvant.mjs` replaces that guard with a proof. This test keeps its failure messages:
+// a substitution that does not happen must say which case we are in, and where to go.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DAG_SELECTION_SHADER } from './gpuDagShader.ts';
-import { INVERSE_TRANSPOSE_AVANT_WGSL, INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
+import { INVERSE_TRANSPOSE_BEFORE_WGSL, INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
 import { NORMAL_TRANSFORM_WGSL } from './standardLighting.ts';
 import { substitueFormeAvant } from '../../test/justesse/substitutionAvant.mjs';
 
 const ORIGINE = 'packages/sdk-browser/inverseTransposeWgsl.ts';
 const SEUIL_ABSOLU = 'abs(det)<1e-20';
-const reel = (texte: string, nom: string) => ({
+const reel = (texte: string, name: string) => ({
   texte,
   livre: INVERSE_TRANSPOSE_WGSL,
-  avant: INVERSE_TRANSPOSE_AVANT_WGSL,
-  nom,
+  before: INVERSE_TRANSPOSE_BEFORE_WGSL,
+  name,
   origine: ORIGINE,
   marqueur: SEUIL_ABSOLU,
 });
 
-test('sur les deux nuanceurs réels, la substitution rend bien la forme d’avant le lot', () => {
-  for (const [nom, texte] of [
-    ['sélection du DAG', DAG_SELECTION_SHADER],
-    ['éclairage', NORMAL_TRANSFORM_WGSL],
+test('on the two real shaders, substitution yields the pre-batch form', () => {
+  for (const [name, texte] of [
+    ['DAG selection', DAG_SELECTION_SHADER],
+    ['lighting', NORMAL_TRANSFORM_WGSL],
   ] as const) {
-    const avant = substitueFormeAvant(reel(texte, nom));
-    assert.ok(avant.includes(SEUIL_ABSOLU), `${nom} : le seuil absolu n’est pas revenu`);
-    assert.ok(!texte.includes(SEUIL_ABSOLU), `${nom} : le texte livré porte encore le seuil`);
+    const before = substitueFormeAvant(reel(texte, name));
+    assert.ok(before.includes(SEUIL_ABSOLU), `${name}: the absolute threshold did not come back`);
+    assert.ok(
+      !texte.includes(SEUIL_ABSOLU),
+      `${name}: the shipped text still carries the threshold`,
+    );
     assert.equal(
-      avant.length,
-      texte.length - INVERSE_TRANSPOSE_WGSL.length + INVERSE_TRANSPOSE_AVANT_WGSL.length,
+      before.length,
+      texte.length - INVERSE_TRANSPOSE_WGSL.length + INVERSE_TRANSPOSE_BEFORE_WGSL.length,
     );
   }
 });
 
-/** L'appel doit lever, et le message doit contenir ce fragment-là. */
+/** The call must throw, and the message must contain that fragment. */
 function echoue(options: Parameters<typeof substitueFormeAvant>[0], fragment: string) {
   assert.throws(
     () => substitueFormeAvant(options),
     (erreur: Error) => {
       assert.ok(
         erreur.message.includes(fragment),
-        `message sans « ${fragment} » : ${erreur.message}`,
+        `message without "${fragment}": ${erreur.message}`,
       );
-      assert.ok(erreur.message.includes(ORIGINE), `message sans l’origine : ${erreur.message}`);
+      assert.ok(erreur.message.includes(ORIGINE), `message without the origin: ${erreur.message}`);
       return true;
     },
   );
 }
 
-test('le bloc livré introuvable : le banc s’arrête au lieu de rejouer le texte corrigé', () => {
-  // Le cas qui compte : le noyau a bougé et la constante d'avant ne lui correspond plus. Sans
-  // garde, `replace` rend le texte inchangé et le banc mesure la version CORRIGÉE des deux côtés.
+test('shipped block not found: the bench stops instead of replaying the fixed text', () => {
+  // The case that counts: the kernel moved and the previous constant no longer matches it. Without
+  // a guard, `replace` returns the unchanged text and the bench measures the FIXED version on both sides.
   echoue(
-    { ...reel(DAG_SELECTION_SHADER, 'shader sans le bloc'), livre: 'fn jamaisEcrite(){}' },
-    'apparaît 0 fois',
+    { ...reel(DAG_SELECTION_SHADER, 'shader without the block'), livre: 'fn jamaisEcrite(){}' },
+    'appears 0 times',
   );
 });
 
-test('le bloc livré présent deux fois : la substitution serait partielle', () => {
+test('shipped block present twice: the substitution would be partial', () => {
   echoue(
-    reel(`${DAG_SELECTION_SHADER}\n${INVERSE_TRANSPOSE_WGSL}`, 'shader au bloc doublé'),
-    'apparaît 2 fois',
+    reel(`${DAG_SELECTION_SHADER}\n${INVERSE_TRANSPOSE_WGSL}`, 'shader with doubled block'),
+    'appears 2 times',
   );
 });
 
-test('un « $ » dans la forme d’avant : le remplacement nu se recolle de travers, pas celui-ci', () => {
-  // `$&` vaut le texte apparié : un `replace(livre, avant)` nu recolle ici le bloc LIVRÉ dans le
-  // « shader d'avant », qui rejoue alors la version corrigée au beau milieu du défaut. Le
-  // remplacement par fonction, lui, ne lit aucun `$`.
-  const avecDollar = `${INVERSE_TRANSPOSE_AVANT_WGSL}\n// $&`;
+test('a "$" in the previous form: the raw replace pastes crookedly, this one does not', () => {
+  // `$&` is the matched text: a raw `replace(livre, avant)` pastes the SHIPPED block into the
+  // "previous shader", which then replays the fixed version in the middle of the defect. The
+  // function-based replace, itself, reads no `$`.
+  const avecDollar = `${INVERSE_TRANSPOSE_BEFORE_WGSL}\n// $&`;
   const naif = DAG_SELECTION_SHADER.replace(INVERSE_TRANSPOSE_WGSL, avecDollar);
-  assert.ok(naif.includes(INVERSE_TRANSPOSE_WGSL), 'le replace nu n’a pas interprété « $& »');
+  assert.ok(naif.includes(INVERSE_TRANSPOSE_WGSL), 'the raw replace did not interpret "$&"');
   const sain = substitueFormeAvant({
-    ...reel(DAG_SELECTION_SHADER, 'forme d’avant avec $&'),
-    avant: avecDollar,
+    ...reel(DAG_SELECTION_SHADER, 'previous form with $&'),
+    before: avecDollar,
   });
   assert.ok(
     !sain.includes(INVERSE_TRANSPOSE_WGSL),
-    'le bloc livré est resté dans le shader d’avant',
+    'the shipped block stayed in the previous shader',
   );
-  assert.ok(sain.includes('// $&'), 'le « $& » doit rester le texte qu’il est');
+  assert.ok(sain.includes('// $&'), 'the "$&" must stay the text it is');
   assert.equal(
     sain.length,
     DAG_SELECTION_SHADER.length - INVERSE_TRANSPOSE_WGSL.length + avecDollar.length,
   );
 });
 
-test('une forme d’avant qui ne porte plus le marqueur ne reproduit plus rien', () => {
+test('a previous form that no longer carries the marker reproduces nothing', () => {
   echoue(
-    { ...reel(DAG_SELECTION_SHADER, 'forme d’avant sans seuil'), avant: INVERSE_TRANSPOSE_WGSL },
-    'les deux blocs sont le même texte',
+    {
+      ...reel(DAG_SELECTION_SHADER, 'previous form without threshold'),
+      before: INVERSE_TRANSPOSE_WGSL,
+    },
+    'both blocks are the same text',
   );
   echoue(
     {
-      ...reel(DAG_SELECTION_SHADER, 'forme d’avant édulcorée'),
-      avant: INVERSE_TRANSPOSE_AVANT_WGSL.replace(SEUIL_ABSOLU, 'abs(det)<1e-30'),
+      ...reel(DAG_SELECTION_SHADER, 'watered-down previous form'),
+      before: INVERSE_TRANSPOSE_BEFORE_WGSL.replace(SEUIL_ABSOLU, 'abs(det)<1e-30'),
     },
-    `ne porte plus « ${SEUIL_ABSOLU} »`,
+    `no longer carries « ${SEUIL_ABSOLU} »`,
   );
 });
 
-test('la forme d’avant déjà présente dans le texte : ce n’est plus une reproduction', () => {
+test('the previous form already present in the text: this is no longer a reproduction', () => {
   const dejaAvant = DAG_SELECTION_SHADER.replace(
     INVERSE_TRANSPOSE_WGSL,
-    () => INVERSE_TRANSPOSE_AVANT_WGSL,
+    () => INVERSE_TRANSPOSE_BEFORE_WGSL,
   );
-  echoue(reel(dejaAvant, 'shader déjà revenu en arrière'), 'apparaît 0 fois');
+  echoue(reel(dejaAvant, 'shader already rolled back'), 'appears 0 times');
 });

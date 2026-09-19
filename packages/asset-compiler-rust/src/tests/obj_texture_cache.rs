@@ -1,9 +1,9 @@
-//! A04 — Les textures que la bibliothèque d'un OBJ nomme ne sont pas ouvertes par le lecteur : leur
-//! seule existence décide pourtant du contenu du glTF intermédiaire. Restées hors de l'identité de
-//! l'import, une image ajoutée, retirée ou remplacée laissait servir la scène d'avant.
+//! A04 — Textures an OBJ library names are not opened by the reader: their mere
+//! existence nevertheless decides the intermediate glTF. Left out of import
+//! identity, an image added, removed or replaced left the previous scene in service.
 use super::*;
 
-/// Un PNG lisible, dont la couleur distingue deux fichiers de même nom.
+/// A readable PNG, whose colour distinguishes two files of the same name.
 fn png(teinte: u8) -> Vec<u8> {
     let image =
         image::RgbaImage::from_fn(8, 8, |x, y| image::Rgba([teinte, x as u8, y as u8, 255]));
@@ -17,20 +17,20 @@ fn png(teinte: u8) -> Vec<u8> {
     bytes
 }
 
-/// La source : un OBJ, sa bibliothèque qui nomme `color.png`, et le chemin de cette image.
+/// The source: an OBJ, its library that names `color.png`, and the path of that image.
 fn source_avec_texture(root: &Path) -> (PathBuf, PathBuf) {
     let obj = obj_source(root, "obj", "newmtl Uni\nKd 1 1 1\nmap_Kd color.png\n");
     let image = obj.with_file_name("color.png");
     (obj, image)
 }
 
-/// L'URI de la première image du glTF intermédiaire, ou `Value::Null` quand il n'en porte aucune.
+/// URI of the first image of the intermediate glTF, or `Value::Null` when it carries none.
 fn uri(gltf: &Value) -> Value {
     gltf["images"][0]["uri"].clone()
 }
 
-// Comportement : sur un cache déjà servi, une texture qui apparaît, change, puis disparaît change à
-// chaque fois la clé de l'import — donc la scène servie.
+// Behaviour: on a cache already served, a texture that appears, changes, then
+// disappears changes the import key each time — therefore the scene served.
 #[test]
 fn une_texture_ajoutee_apparait_dans_le_cache_existant() {
     let (root, mut options) = fixture();
@@ -43,29 +43,26 @@ fn une_texture_ajoutee_apparait_dans_le_cache_existant() {
     let (presente, gltf, _) = import_key(&options);
     assert_ne!(
         absente, presente,
-        "une texture apparue doit changer la clé de l'import"
+        "a texture that appeared must change the import key"
     );
     assert_eq!(uri(&gltf), json!("color.png"));
 
     fs::write(&image, png(20)).expect("image");
     let (autre, gltf, _) = import_key(&options);
-    assert_ne!(
-        presente, autre,
-        "des octets d'image changés doivent changer la clé"
-    );
+    assert_ne!(presente, autre, "changed image bytes must change the key");
     assert_eq!(uri(&gltf), json!("color.png"));
 
     fs::remove_file(&image).expect("retrait");
     let (retiree, gltf, _) = import_key(&options);
     assert_eq!(
         retiree, absente,
-        "revenue à l'état d'avant, la source retrouve sa clé"
+        "back to the previous state, the source finds its key again"
     );
-    assert_eq!(uri(&gltf), Value::Null, "l'image retirée disparaît");
+    assert_eq!(uri(&gltf), Value::Null, "the removed image disappears");
     fs::remove_dir_all(root).expect("nettoyage");
 }
 
-// Comportement : un cache neuf et un cache déjà servi rendent la même scène pour la même source.
+// Behaviour: a fresh cache and a cache already served yield the same scene for the same source.
 #[test]
 fn un_cache_neuf_et_un_cache_servi_rendent_la_meme_scene() {
     let (root, mut options) = fixture();
@@ -80,7 +77,7 @@ fn un_cache_neuf_et_un_cache_servi_rendent_la_meme_scene() {
         ..options.clone()
     };
     let (neuf, neuf_gltf, _) = import_key(&neuf_options);
-    assert_eq!(servi, neuf, "la clé ne dépend pas de l'état du cache");
+    assert_eq!(servi, neuf, "the key does not depend on cache state");
     assert_eq!(uri(&servi_gltf), uri(&neuf_gltf));
     assert_eq!(uri(&neuf_gltf), json!("color.png"));
     fs::remove_dir_all(root).expect("nettoyage");

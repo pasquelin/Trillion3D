@@ -1,10 +1,10 @@
-//! La reconstruction du niveau 0 vers RGBA8, et rien d'autre.
+//! Reconstruction of level 0 to RGBA8, and nothing else.
 //!
-//! Les blocs compressés sont développés par le socle commun `image::blocks` : `dds` et `ktx2`
-//! nomment leurs codecs chacun à sa façon, mais une fois le décodeur choisi, promener ses pixels
-//! dans l'ordre du contrat est le même travail, écrit une seule fois.
+//! Compressed blocks are expanded by the shared `image::blocks` base: `dds` and `ktx2` name their
+//! codecs each in their own way, but once the decoder is chosen, walking its pixels in contract
+//! order is the same work, written once.
 //!
-//! Pour une surface non compressée, les octets sont déjà là : on les remet dans le même ordre.
+//! For an uncompressed surface, the bytes are already there: they are put back in the same order.
 use super::codec::{Layout, Order};
 use super::header::Surface;
 use super::{DATA_TRUNCATED, TOO_LARGE};
@@ -40,8 +40,8 @@ pub(super) fn decode(
     shared::image(surface.width, surface.height, rgba, DATA_TRUNCATED)
 }
 
-/// Une surface non compressée, quatre octets par pixel. En `Rgba` les octets sont déjà ceux du
-/// contrat ; sinon rouge et bleu s'échangent en place, et `Bgrx`, sans canal alpha, est opaque.
+/// An uncompressed surface, four bytes per pixel. In `Rgba` the bytes are already the contract's;
+/// otherwise red and blue swap in place, and `Bgrx`, with no alpha channel, is opaque.
 fn from_pixels(
     order: Order,
     level: &[u8],

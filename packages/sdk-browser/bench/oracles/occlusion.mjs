@@ -1,5 +1,5 @@
-// Oracles purs de A3 et A4, sans effet de bord : `occlusion.bench.mjs` les mesure, les tests
-// unitaires les importent comme référence.
+// Pure oracles for A3 and A4, side-effect free: `occlusion.bench.mjs` measures them, unit tests
+// import them as reference.
 import * as THREE from 'three';
 import { perspectiveProjection } from '../../../sdk-core/index.ts';
 import { HIZ_BOUNDS_VALUES, projectBoxInto } from '../../hizCorners.ts';
@@ -9,10 +9,10 @@ import { hizRejects } from '../../hizOcclusion.ts';
 const viewProjScratch = new THREE.Matrix4(),
   projScratch = new THREE.Matrix4();
 const boundsScratch = new Float64Array(HIZ_BOUNDS_VALUES);
-/** `hizProjection.ts:65-92` avant le lot A : un objet `HizBounds` alloué par boîte et par image. */
+/** `hizProjection.ts:65-92` before batch A: an `HizBounds` object allocated per box per frame. */
 function referenceProjectBoxToScreen(min, max, world, cam, viewport) {
   cam.updateMatrixWorld();
-  // La projection du moteur, pas celle de l'hôte : profondeur inversée, plan lointain infini.
+  // Engine projection, not host: reversed depth, infinite far plane.
   perspectiveProjection(projScratch.elements, cam.fov, cam.aspect, cam.near, cam.zoom);
   const viewProj = viewProjScratch.multiplyMatrices(projScratch, cam.matrixWorldInverse);
   projectBoxInto(
@@ -32,8 +32,8 @@ function referenceProjectBoxToScreen(min, max, world, cam, viewport) {
   return { minX: b[0], minY: b[1], maxX: b[2], maxY: b[3], nearestDepth: b[4], clipsNear: false };
 }
 
-/** `hizSplit.ts:70-91` avant le lot A : `.map` d'objets, `.sort` par comparateur, deux `.filter`.
- *  Profondeur inversée : le plus proche porte la plus GRANDE profondeur, donc l'ordre est décroissant. */
+/** `hizSplit.ts:70-91` before batch A: `.map` of objects, `.sort` by comparator, two `.filter`.
+ *  Reversed depth: nearest carries GREATER depth, so order is descending. */
 export function referenceSplitOccluders(pages, cam, viewport) {
   const ranked = pages.map((page, index) => {
     const bounds = referenceProjectBoxToScreen(page.min, page.max, page.matrix, cam, viewport);
@@ -50,7 +50,7 @@ export function referenceSplitOccluders(pages, cam, viewport) {
   };
 }
 
-/** `hizOcclusion.ts:152-178` avant le lot A : projection non cachée, allocation par page. */
+/** `hizOcclusion.ts:152-178` before batch A: un-cached projection, allocation per page. */
 export function referenceCountUnoccluded(pages, pyramid, cam, viewport, counts, bias = 0) {
   const kept = [];
   for (const page of pages) {

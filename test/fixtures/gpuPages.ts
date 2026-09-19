@@ -2,7 +2,7 @@ type Copy = { from: unknown; fromOffset: number; to: unknown; toOffset: number; 
 
 export function mockDevice(limits: Record<string, number> = { maxBufferSize: 1024 }) {
   const writes: Array<{ offset: number; bytes: Uint8Array }> = [];
-  // Les copies de tampon à tampon d'un redimensionnement, dans l'ordre où elles sont encodées.
+  // Buffer-to-buffer copies of a resize, in the order they are encoded.
   const copies: Copy[] = [];
   let fences = 0,
     destroyed = 0;
@@ -24,8 +24,8 @@ export function mockDevice(limits: Record<string, number> = { maxBufferSize: 102
       finish: () => ({}),
     }),
     queue: {
-      // `dataOffset` et `size` sont respectés : ce qui part vraiment sur la carte est ce que le
-      // relevé doit montrer, et une page qui n'écrit que ses octets se distingue d'un slot entier.
+      // `dataOffset` and `size` are honoured: what actually goes to the GPU is what the reading
+      // must show, and a page that writes only its bytes is distinct from a whole slot.
       writeBuffer: (
         _buffer: unknown,
         offset: number,

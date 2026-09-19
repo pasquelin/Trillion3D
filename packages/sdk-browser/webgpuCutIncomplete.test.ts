@@ -9,7 +9,7 @@ import {
 } from './webgpuCutAdopterFixture.ts';
 import type { GpuCut } from './gpuSelection.ts';
 
-/** Un adopteur et sa coupe, dont la complétude se règle relevé par relevé. */
+/** An adopter and its cut, whose completeness is set shown-list by shown-list. */
 function banc(ids: number[]) {
   const packedPages = fixturePages(ids.length);
   const shared = fixtureUniforms();
@@ -19,30 +19,30 @@ function banc(ids: number[]) {
       result: { pageIds: ids, drawablePageIds: ids, frustumRejected: 0, lodLevel: 0, complete },
     }) as GpuCut;
   let peeked: GpuCut | null = releve(false);
-  const monte = mountCutAdopter({
+  const mounted = mountCutAdopter({
     packedPages,
     residentOffsetWords: new Int32Array(packedPages.length).fill(0),
     uniforms: shared,
     selection: () => peekOnly(() => peeked),
   });
-  return { ...monte, montre: (complete: boolean) => (peeked = releve(complete)) };
+  return { ...mounted, montre: (complete: boolean) => (peeked = releve(complete)) };
 }
 
-test('une page voulue pas encore arrivée met l’image en attente, sans jeter la sélection GPU', () => {
+test('a wanted page that has not arrived yet puts the frame on hold, without dropping GPU selection', () => {
   const b = banc([0, 1, 2, 3]);
-  // Le relevé annonce un trou : une page que le noyau veut dessiner n'est pas résidente.
-  assert.doesNotThrow(() => b.adopter.adopt(), 'une couverture incomplète n’est pas une erreur');
-  assert.equal(b.adopter.adopt(), false, 'l’image n’adopte pas un relevé incomplet');
-  assert.equal(b.adopter.metrics.incomplete, true, 'et elle le dit');
-  assert.equal(b.adopter.metrics.ready, false, 'aucun compte du relevé n’est publié');
-  assert.deepEqual(b.shown, [], 'rien n’est dessiné depuis un relevé incomplet');
-  // La liste voulue est tout de même publiée : c'est elle qui fait venir la page manquante.
+  // The shown list announces a hole: a page the kernel wants to draw is not resident.
+  assert.doesNotThrow(() => b.adopter.adopt(), 'incomplete coverage is not an error');
+  assert.equal(b.adopter.adopt(), false, 'the frame does not adopt an incomplete shown list');
+  assert.equal(b.adopter.metrics.incomplete, true, 'and it says so');
+  assert.equal(b.adopter.metrics.ready, false, 'no count from the shown list is published');
+  assert.deepEqual(b.shown, [], 'nothing is drawn from an incomplete shown list');
+  // The wanted list is published anyway: it is what fetches the missing page.
   assert.deepEqual(
     b.desired.map((page) => page.url),
     ['p0', 'p1', 'p2', 'p3'],
   );
 
-  // La page arrive : le relevé suivant est complet et la sélection GPU dessine de nouveau.
+  // The page arrives: the next shown list is complete and GPU selection draws again.
   b.montre(true);
   assert.equal(b.adopter.adopt(), true);
   assert.equal(b.adopter.metrics.incomplete, false);
@@ -53,11 +53,12 @@ test('une page voulue pas encore arrivée met l’image en attente, sans jeter l
   );
 });
 
-test('le seuil d’escalade est posé strictement au-dessus de l’erreur du parent, en f32', () => {
-  // L'escalade posait le seuil À l'erreur du parent : les deux bascules du choix tenaient sur une
-  // égalité exacte entre une valeur écrite par une passe et la même recalculée par une autre. Sur
-  // l'appareil, le pilote ne rend pas le même f32 d'un point d'entrée à l'autre — dérive mesurée
-  // sur `dagMask` : 1 à 13 unités du dernier bit. La marge doit couvrir cette dérive largement.
+test('the escalation threshold is set strictly above the parent error, in f32', () => {
+  // Escalation used to set the threshold AT the parent error: both choice flips rested on an
+  // exact equality between a value one pass wrote and the same one another recomputed. On the
+  // device, the driver does not yield the same f32 from one entry point to another — drift
+  // measured on `dagMask`: 1 to 13 units in the last place. The slack must cover that drift
+  // generously.
   const ulps = (valeur: number) => {
     const bits = new Uint32Array(1),
       flottant = new Float32Array(bits.buffer);
@@ -69,10 +70,10 @@ test('le seuil d’escalade est posé strictement au-dessus de l’erreur du par
   for (const erreur of [1e-4, 0.017, 0.25, 1, 3.7, 64, 4096, 1e6]) {
     assert.ok(
       Math.fround(erreur * ESCALATION_SLACK) > erreur,
-      `le seuil escaladé doit dépasser ${erreur}`,
+      `the escalated threshold must exceed ${erreur}`,
     );
-    assert.ok(ulps(erreur) >= 256, `marge de ${ulps(erreur)} unités du dernier bit sur ${erreur}`);
+    assert.ok(ulps(erreur) >= 256, `slack of ${ulps(erreur)} units in the last place on ${erreur}`);
   }
-  // Et elle reste quatre ordres de grandeur sous le pixel : la coupe ne s'en trouve pas changée.
+  // And it stays four orders of magnitude under a pixel: the cut is not changed by it.
   assert.ok(ESCALATION_SLACK - 1 < 1e-4);
 });

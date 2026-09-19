@@ -58,9 +58,9 @@ export function materialSide(material: THREE.Material | THREE.Material[]) {
 }
 
 /**
- * Rend à une copie sa géométrie et son matériau d'origine, gardés dans `userData`, puis, en mode
- * filaire, lui pose le coloriage par triangle. Le matériau créé entre dans `overlays`, à jeter avec
- * le mode.
+ * Give a copy back its original geometry and material, kept in `userData`, then, in wireframe
+ * mode, set its per-triangle colouring. The created material goes into `overlays`, to discard
+ * with the mode.
  */
 export function applyMeshDiagnostic(
   mesh: THREE.Mesh,

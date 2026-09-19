@@ -1,6 +1,6 @@
-// G8 : `sunCascadeOf` ne refait les bornes de cascade (`sunCascadeSplits`, quatre `Math.pow`) que
-// si la vue ou la découpe ont changé depuis le dernier appel, au lieu de les refaire à chaque face.
-// Oracle : la version d'avant le lot G, qui les refaisait toujours, recopiée telle quelle dans
+// G8: `sunCascadeOf` only remakes cascade bounds (`sunCascadeSplits`, four `Math.pow`)
+// if the view or the split have changed since the last call, instead of remaking them on every face.
+// Oracle: the version from before batch G, which always remade them, copied as-is into
 // `bench/oracles/soleil-cascades.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -22,9 +22,9 @@ function view(overrides: Partial<ShadowViewpoint> = {}): ShadowViewpoint {
 
 const AXIS: [number, number, number] = [0.1, -0.9, 0.4];
 
-// `boxRadius` a quitté la cascade avec le lot des ombres par pages : le volume du rejet se calcule
-// désormais à partir des demi-côtés de la boîte, pour pouvoir n'en prendre qu'une région. L'oracle,
-// lui, reste la copie figée d'avant ; on compare donc les champs que la cascade publie encore.
+// `boxRadius` left the cascade with the per-page shadows batch: the reject volume is now
+// computed from the box half-sides, so a region of it can be taken. The oracle,
+// for its part, remains the frozen copy from before; we therefore compare the fields the cascade still publishes.
 function memeCascade(v: ShadowViewpoint, index: number, side: number, label: string) {
   const { center, radius, boxCenter } = sunCascadeOf(v, AXIS, index, side);
   const reference = referenceSunCascadeOf(v, AXIS, index, side);
@@ -39,39 +39,39 @@ function memeCascade(v: ShadowViewpoint, index: number, side: number, label: str
   );
 }
 
-test('les quatre cascades d’une même vue, appelées dans l’ordre, valent la référence sans cache', () => {
+test('the four cascades of one view, called in order, match the reference without cache', () => {
   const v = view();
   for (let index = 0; index < 4; index++) memeCascade(v, index, 1024, `cascade ${index}`);
 });
 
-test('un objet vue distinct mais aux mêmes valeurs déclenche quand même un résultat correct (cache par valeur)', () => {
+test('a distinct view object with the same values still yields a correct result (value cache)', () => {
   const v1 = view();
-  memeCascade(v1, 0, 1024, 'premier objet');
-  const v2 = view(); // nouvel objet, mêmes champs
-  memeCascade(v2, 0, 1024, 'second objet, mêmes valeurs');
-  memeCascade(v2, 3, 1024, 'second objet, dernière cascade');
+  memeCascade(v1, 0, 1024, 'first object');
+  const v2 = view(); // new object, same fields
+  memeCascade(v2, 0, 1024, 'second object, same values');
+  memeCascade(v2, 3, 1024, 'second object, last cascade');
 });
 
-test('la vue change entre deux images : les bornes changent aussi, sans rester sur l’ancien cache', () => {
+test('the view changes between two frames: bounds change too, without staying on the old cache', () => {
   memeCascade(view({ far: 200 }), 1, 512, 'far=200');
-  memeCascade(view({ far: 50 }), 1, 512, 'far=50, doit se recalculer');
-  memeCascade(view({ near: 5 }), 1, 512, 'near=5, doit se recalculer');
-  memeCascade(view({ far: 50 }), 1, 512, 'retour à far=50');
+  memeCascade(view({ far: 50 }), 1, 512, 'far=50, must recompute');
+  memeCascade(view({ near: 5 }), 1, 512, 'near=5, must recompute');
+  memeCascade(view({ far: 50 }), 1, 512, 'back to far=50');
 });
 
-test('un side minuscule, nul ou négatif ne fait pas diverger la grille de texels', () => {
+test('a tiny, zero or negative side does not make the texel grid diverge', () => {
   const v = view();
   for (const side of [1, 0, -4, 0.0001]) memeCascade(v, 2, side, `side ${side}`);
 });
 
-test('-0 et 0 en near/far ne sont pas confondus par le cache : le résultat suit toujours la référence', () => {
+test('-0 and 0 in near/far are not confused by the cache: the result always follows the reference', () => {
   memeCascade(view({ near: 0 }), 0, 800, 'near 0');
   memeCascade(view({ near: -0 }), 0, 800, 'near -0');
   memeCascade(view({ far: -0 }), 0, 800, 'far -0');
 });
 
-test('une vue avec NaN ou un axe dégénéré ne casse rien et reste identique à la référence', () => {
+test('a view with NaN or a degenerate axis breaks nothing and stays identical to the reference', () => {
   memeCascade(view({ far: NaN }), 0, 800, 'far NaN');
-  memeCascade(view({ halfFovY: 0 }), 1, 800, 'halfFovY nul');
-  memeCascade(view({ aspect: 0 }), 1, 800, 'aspect nul');
+  memeCascade(view({ halfFovY: 0 }), 1, 800, 'zero halfFovY');
+  memeCascade(view({ aspect: 0 }), 1, 800, 'zero aspect');
 });

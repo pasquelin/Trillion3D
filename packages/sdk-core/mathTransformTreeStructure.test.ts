@@ -1,5 +1,5 @@
-// Lot M3a, mathTransformTreeStructure.ts : ordre de mise à jour (contigu et par profondeur),
-// parcours de sous-arbre, retrait (avec réemploi des indices) et reparentage (dont le cycle refusé).
+// Batch M3a, mathTransformTreeStructure.ts: update order (contiguous and by depth),
+// subtree traversal, removal (with index reuse) and reparenting (including the rejected cycle).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -16,7 +16,7 @@ import {
   visitSubtree,
 } from './mathTransformTreeStructure.ts';
 
-test('ensureOrder : parents d’indice inférieur aux enfants, ordre contigu (chemin monotone)', () => {
+test('ensureOrder: parents of lower index than children, contiguous order (monotonic path)', () => {
   const tree = createTransformTree(4);
   const racine = addTransformNode(tree);
   const enfant = addTransformNode(tree, racine);
@@ -28,16 +28,16 @@ test('ensureOrder : parents d’indice inférieur aux enfants, ordre contigu (ch
   assert.equal(tree.orderAt[petitEnfant], 2);
 });
 
-test('ensureOrder : après un reparentage qui inverse les indices, chaque parent précède ses enfants', () => {
+test('ensureOrder: after a reparent that inverts the indices, each parent precedes its children', () => {
   const tree = createTransformTree(4);
   const a = addTransformNode(tree);
-  const b = addTransformNode(tree); // b après a, mais deviendra son enfant
-  reparentTransformNode(tree, a, b); // a (indice inférieur) sous b (indice supérieur) : non monotone
+  const b = addTransformNode(tree); // b after a, but will become its child
+  reparentTransformNode(tree, a, b); // a (lower index) under b (higher index): non-monotonic
   ensureOrder(tree);
-  assert.ok(tree.orderAt[b] < tree.orderAt[a], 'b (parent) doit précéder a (enfant) dans l’ordre');
+  assert.ok(tree.orderAt[b] < tree.orderAt[a], 'b (parent) must precede a (child) in the order');
 });
 
-test('nextStamp : une marque neuve à chaque appel, jamais nulle', () => {
+test('nextStamp: a fresh stamp on every call, never zero', () => {
   const tree = createTransformTree(1);
   const m1 = nextStamp(tree);
   const m2 = nextStamp(tree);
@@ -46,7 +46,7 @@ test('nextStamp : une marque neuve à chaque appel, jamais nulle', () => {
   assert.notEqual(m2, 0);
 });
 
-test('visitSubtree : visite le nœud puis ses descendants parents d’abord, jamais ses frères', () => {
+test('visitSubtree: visits the node then its descendants parents first, never its siblings', () => {
   const tree = createTransformTree(8);
   const racine = addTransformNode(tree);
   const frere = addTransformNode(tree, racine);
@@ -59,7 +59,7 @@ test('visitSubtree : visite le nœud puis ses descendants parents d’abord, jam
   assert.ok(!visites.includes(racine));
 });
 
-test('removeTransformNode : retire le nœud et ses descendants, un frère reste vivant', () => {
+test('removeTransformNode: removes the node and its descendants, a sibling stays alive', () => {
   const tree = createTransformTree(8);
   const racine = addTransformNode(tree);
   const branche = addTransformNode(tree, racine);
@@ -72,19 +72,19 @@ test('removeTransformNode : retire le nœud et ses descendants, un frère reste 
   assert.equal(tree.flags[racine] & NODE_ALIVE, NODE_ALIVE);
 });
 
-test('removeTransformNode : les indices libérés sont réutilisés, en pile, par le prochain ajout', () => {
+test('removeTransformNode: freed indices are reused, as a stack, by the next add', () => {
   const tree = createTransformTree(4);
   const a = addTransformNode(tree);
   const b = addTransformNode(tree);
   removeTransformNode(tree, b);
   removeTransformNode(tree, a);
-  const reutiliseA = addTransformNode(tree); // dernier libéré, premier repris (pile)
+  const reutiliseA = addTransformNode(tree); // last freed, first reused (stack)
   assert.equal(reutiliseA, a);
   const reutiliseB = addTransformNode(tree);
   assert.equal(reutiliseB, b);
 });
 
-test('reparentTransformNode : change le parent et marque NODE_LOCAL_CHANGED', () => {
+test('reparentTransformNode: changes the parent and marks NODE_LOCAL_CHANGED', () => {
   const tree = createTransformTree(4);
   const a = addTransformNode(tree);
   const b = addTransformNode(tree);
@@ -95,20 +95,16 @@ test('reparentTransformNode : change le parent et marque NODE_LOCAL_CHANGED', ()
   assert.ok(tree.flags[enfant] & NODE_LOCAL_CHANGED);
 });
 
-test('reparentTransformNode : aucun effet si le parent est déjà celui-là (pas de remarque)', () => {
+test('reparentTransformNode: no effect if the parent is already that one (no remake)', () => {
   const tree = createTransformTree(4);
   const a = addTransformNode(tree);
   const enfant = addTransformNode(tree, a);
   tree.flags[enfant] &= ~NODE_LOCAL_CHANGED;
   reparentTransformNode(tree, enfant, a);
-  assert.equal(
-    tree.flags[enfant] & NODE_LOCAL_CHANGED,
-    0,
-    'aucune remarque pour un parent inchangé',
-  );
+  assert.equal(tree.flags[enfant] & NODE_LOCAL_CHANGED, 0, 'no remake for an unchanged parent');
 });
 
-test('reparentTransformNode : lève un cycle si le nouveau parent est le nœud lui-même ou l’un de ses descendants', () => {
+test('reparentTransformNode: throws a cycle if the new parent is the node itself or one of its descendants', () => {
   const tree = createTransformTree(4);
   const racine = addTransformNode(tree);
   const enfant = addTransformNode(tree, racine);

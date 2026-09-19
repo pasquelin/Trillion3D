@@ -1,22 +1,22 @@
-// La réfutation, grappe par grappe, des rejets du test d'occultation des transparents.
+// Refutation, cluster by cluster, of the transparent occlusion test's rejects.
 //
-// La référence n'est pas transcrite : c'est le code de production lui-même — `projectCornersInto`
-// (hizCorners.ts) en double précision, `hizNearestBound` (hizNearestBound.ts) pour le redressement
-// et le biais de couche, `buildHizPyramid` puis `hizRejectsFlat` (hizDepth.ts, hizOcclusion.ts)
-// pour le dépouillement. La profondeur dépouillée est celle que la carte a réellement laissée à la
-// fin de la passe opaque, relue pleine résolution.
+// The reference is not transcribed: it is production code itself — `projectCornersInto`
+// (hizCorners.ts) in double precision, `hizNearestBound` (hizNearestBound.ts) for the lift and
+// layer bias, `buildHizPyramid` then `hizRejectsFlat` (hizDepth.ts, hizOcclusion.ts) for the
+// readout. The readout depth is what the GPU actually left at the end of the opaque pass,
+// reread at full resolution.
 //
-// Ce qui est vérifié, pour CHAQUE grappe transparente que la carte a retirée : la référence, sur
-// ses propres bornes — plus serrées que celles de la carte —, la rejette elle aussi. Autrement dit
-// `nearest < far − biais` tient encore quand on refuse tout à la carte : sa marge d'erreur, son
-// rectangle élargi et son mip plus grossier. Zéro violation est la seule valeur acceptable.
+// What is checked, for EVERY transparent cluster the GPU removed: the reference, on its own
+// bounds — tighter than the GPU's — rejects it too. In other words `nearest < far − bias` still
+// holds when everything is refused to the GPU: its error margin, its enlarged rectangle and its
+// coarser mip. Zero violations is the only acceptable value.
 import { HIZ_BOUNDS_VALUES, projectCornersInto } from '../../packages/sdk-browser/hizCorners.ts';
 import { hizNearestBound } from '../../packages/sdk-browser/hizNearestBound.ts';
 import { buildHizPyramid } from '../../packages/sdk-browser/hizDepth.ts';
 import { hizRejectsFlat } from '../../packages/sdk-browser/hizOcclusion.ts';
 
 const scratch = new Float64Array(HIZ_BOUNDS_VALUES);
-/** Doubles d'une boîte monde dans la disposition de `createBoxCorners`. */
+/** Doubles of a world box in the `createBoxCorners` layout. */
 const BOX_CORNER_VALUES = 24;
 
 export function emptyOcclusionTotals() {
@@ -24,12 +24,12 @@ export function emptyOcclusionTotals() {
 }
 
 /**
- * Vérifie l'audit d'une image et accumule dans `total`. La pyramide de référence est bâtie une fois
- * par pose, depuis la profondeur relue, et sert à toutes les grappes de cette pose.
+ * Checks a frame's audit and accumulates into `total`. The reference pyramid is built once per
+ * pose, from the reread depth, and serves every cluster of that pose.
  */
 export function checkOcclusionAudit(audit, total) {
-  // Une seule convention de profondeur traverse le moteur (`depthConvention.ts`) : la référence et
-  // le noyau lisent la même vue-projection, donc leurs bornes se comparent directement.
+  // One depth convention crosses the engine (`depthConvention.ts`): reference and kernel read
+  // the same view-projection, so their bounds compare directly.
   const pyramid = buildHizPyramid(audit.depth, audit.width, audit.height);
   total.poses++;
   total.examinees += audit.examined;
@@ -47,17 +47,17 @@ export function checkOcclusionAudit(audit, total) {
       scratch,
       0,
     );
-    // Une boîte que la référence dit coupée par le plan proche ne doit jamais avoir été rejetée.
+    // A box the reference says is clipped by the near plane must never have been rejected.
     if (scratch[5] !== 0) {
       total.coupesReference++;
       total.violations++;
       if (violations.length < 5) violations.push({ entree: audit.rejected[i], cause: 'coupe' });
       continue;
     }
-    // Le rectangle de RÉFÉRENCE contient déjà l'empreinte vraie de la grappe : s'il ne rencontre
-    // pas le viewport, la grappe ne peut poser aucun pixel et la retirer est sans effet sur
-    // l'image. La référence, elle, refuse de trancher dans ce cas — elle ne rejette jamais une
-    // boîte hors écran —, si bien que la comparaison n'a pas lieu d'être.
+    // The REFERENCE rectangle already contains the cluster's true footprint: if it does not
+    // meet the viewport, the cluster can pose no pixel and removing it has no effect on the
+    // image. The reference, for its part, refuses to decide in that case — it never rejects an
+    // off-screen box — so the comparison has no place.
     if (
       Math.max(scratch[0], 0) > Math.min(scratch[2], audit.width - 1) ||
       Math.max(scratch[1], 0) > Math.min(scratch[3], audit.height - 1)
@@ -71,7 +71,7 @@ export function checkOcclusionAudit(audit, total) {
       if (violations.length < 5)
         violations.push({
           entree: audit.rejected[i],
-          cause: 'visible pour la référence',
+          cause: 'visible to the reference',
           nearest: scratch[4],
           rect: [scratch[0], scratch[1], scratch[2], scratch[3]],
         });

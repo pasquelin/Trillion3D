@@ -1,18 +1,19 @@
 use super::reduce::AtlasKind;
 use super::*;
 
-/// Une texture d'un atlas du moteur, et lequel : la même texture glTF peut alimenter les deux.
+/// A texture of an engine atlas, and which one: the same glTF texture can feed both.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub(crate) struct AtlasTexture {
     pub texture: usize,
     pub kind: AtlasKind,
 }
 
-/// Les textures qui alimentent les atlas du moteur, triées par texture puis par atlas — exactement
-/// ce que `collectWebgpuMaterialTextures` y range : couleur de base et émissif dans l'atlas
-/// couleur ; métal-rugosité, normale et occlusion dans l'atlas de données. La couleur de base d'un
-/// matériau qui découpe et l'émissif d'un autre sont une seule entrée : l'atlas ne connaît pas la
-/// liaison, et la chaîne de mips non plus.
+/// Textures that feed the engine atlases, sorted by texture then by atlas —
+/// exactly what `collectWebgpuMaterialTextures` puts there: base colour and
+/// emissive in the colour atlas; metal-roughness, normal and occlusion in the
+/// data atlas. The base colour of a cutout material and the emissive of another
+/// are one entry: the atlas does not know the binding, and neither does the mip
+/// chain.
 pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<AtlasTexture>> {
     let Some(materials) = g.get("materials").and_then(Value::as_array) else {
         return Ok(Vec::new());
@@ -51,7 +52,7 @@ pub(crate) fn texture_index(reference: Option<&Value>) -> Option<usize> {
         .map(|value| value as usize)
 }
 
-/// Les matériaux que les maillages compilés emploient réellement, sans doublon.
+/// Materials that compiled meshes actually use, without duplicates.
 pub(crate) fn used_materials(g: &Value, meshes: &BTreeSet<usize>) -> Result<BTreeSet<usize>> {
     let Some(mesh_values) = g.get("meshes").and_then(Value::as_array) else {
         return Ok(BTreeSet::new());

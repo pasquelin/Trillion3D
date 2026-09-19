@@ -1,24 +1,24 @@
-// Les lampes du banc, placées par une règle générique : aucune scène n'est nommée ici.
+// Benchmark lights placed by a generic rule: no scene is named here.
 //
-// La règle : une grille régulière dans l'emprise horizontale du modèle, à hauteur fixe au-dessus de
-// son plancher, chaque lampe portant une portée déduite de la maille. Elle vaut pour n'importe quel
-// modèle importé ; le banc ne sait rien du jeu de mesure qu'on lui donne, quel qu'il soit.
+// The rule: a regular grid within the horizontal footprint of the model, at a fixed height above
+// its floor, each light bearing a range derived from the cell size. It applies to any imported model;
+// the benchmark knows nothing of the measurement set provided to it.
 
 import { plancherDuModele } from './poses.mjs';
 
-/** Intensité d'une ponctuelle du banc, faute de mieux : la valeur des lots précédents. */
+/** Benchmark point light intensity fallback: value from previous iterations. */
 const DEFAULT_INTENSITY = 40;
 
 /**
- * `count` lampes ponctuelles sur une grille dans l'emprise du modèle. `shadows` dit si elles
- * projettent une ombre, `intensity` ce qu'elles émettent. Rend la liste que l'hôte passe telle
- * quelle à `addLight`, plus la maille : le mouvement d'une lampe s'exprime en fraction de maille,
- * donc reste dans sa propre portée.
+ * `count` point lights on a grid within the model's footprint. `shadows` indicates if they
+ * project a shadow, `intensity` specifies their emission. Returns the list passed as-is
+ * by the host to `addLight`, plus the cell size: light movement is expressed as a fraction of cell size,
+ * remaining within its own range.
  *
- * L'intensité est une option du banc et non une valeur de scène : sur un modèle dont la maille
- * fait des dizaines de mètres, l'indirect d'une ponctuelle à intensité de rue tombe sous le
- * quantum des huit bits de la capture, et l'écart à l'oracle n'a alors plus rien à mesurer. La
- * monter ne nomme aucune scène — c'est le même nombre pour tout modèle, choisi par l'opérateur.
+ * Intensity is a benchmark option and not a scene value: on a model whose grid spans tens of meters,
+ * indirect lighting of a street-level point light drops below the 8-bit capture quantum,
+ * leaving oracle comparison with nothing to measure. Raising it names no scene — it is the same
+ * number for any model, chosen by the operator.
  */
 function gridLights(bounds, count, shadows, intensity) {
   if (count <= 0) return { lights: [], cell: 0 };
@@ -30,7 +30,7 @@ function gridLights(bounds, count, shadows, intensity) {
   const stepX = sx / columns,
     stepZ = sz / rows;
   const cell = Math.hypot(stepX, stepZ);
-  // Hauteur d'un lampadaire : une fraction de la hauteur du modèle, jamais moins de deux mètres.
+  // Streetlight height: a fraction of the model's height, never less than two meters.
   const height = plancherDuModele(bounds) + Math.max(2, sy * 0.04);
   const lights = [];
   for (let i = 0; i < count; i++) {
@@ -42,7 +42,7 @@ function gridLights(bounds, count, shadows, intensity) {
       position: [bounds.min.x + (column + 0.5) * stepX, height, bounds.min.z + (row + 0.5) * stepZ],
       color: [1, 0.96, 0.88],
       intensity,
-      // La portée couvre la maille et un peu plus : les portées se recouvrent comme dans une rue.
+      // Range covers the cell and a bit more: ranges overlap like in a street.
       range: cell * 0.75,
       castsShadow: shadows,
     });
@@ -51,10 +51,9 @@ function gridLights(bounds, count, shadows, intensity) {
 }
 
 /**
- * Le soleil du banc : une lampe directionnelle générique, la même pour n'importe quel modèle. Sa
- * direction descend vers le nord-est à environ 40° au-dessus de l'horizon — un après-midi
- * quelconque, choisi une fois et jamais par scène —, sa couleur est neutre, et elle projette une
- * ombre. Aucune valeur ici ne dépend du jeu de mesure qu'on donne au banc.
+ * Benchmark sun: a generic directional light, identical for any model. Its direction points
+ * northeast at approximately 40° above the horizon — an arbitrary afternoon, chosen once and never
+ * per scene —, its color is neutral, and it projects a shadow. No value here depends on the measurement set.
  */
 const SUN = {
   id: 'banc-soleil',
@@ -66,9 +65,9 @@ const SUN = {
 };
 
 /**
- * Le mouvement d'une lampe, en fraction de maille : un petit cercle parcouru en `period` images.
- * La lampe reste dans sa maille, donc sa carte d'ombre voit toujours les mêmes objets — ce qu'on
- * mesure est le coût de la remise à jour, pas celui d'un changement d'occulteurs.
+ * Light movement as a fraction of cell size: a small circle traveled in `period` frames.
+ * The light stays inside its cell, so its shadow map continuously sees the same objects — what is
+ * measured is the update cost, not that of changing occluders.
  */
 function movingLightPlan(lights, cell) {
   if (!lights.length) return null;
@@ -76,9 +75,9 @@ function movingLightPlan(lights, cell) {
 }
 
 /**
- * Les lampes d'une exécution, ou `null` quand le banc n'en demande aucune : la grille de ponctuelles,
- * le soleil si on l'a demandé, et le plan de mouvement de la première ponctuelle. Sans aucune lampe,
- * le moteur rend sa vue sans éclairage : c'est son comportement par défaut, pas une option du banc.
+ * Lights for a run, or `null` when the benchmark requests none: point grid, sun if requested, and
+ * the motion plan of the first point light. Without any lights, the engine renders its unlit view:
+ * this is default engine behavior, not a benchmark option.
  */
 export function benchLights(bounds, settings) {
   if (!settings.lights && !settings.sun) return null;

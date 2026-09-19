@@ -2,12 +2,13 @@ import { gpuPassBlockOf, gpuPassBlockTotals } from '../../packages/sdk-browser/g
 import { distribution } from './rapport.mjs';
 
 /**
- * Les passes de la carte graphique et leurs blocs, résumés sur les relevés d'une série.
+ * GPU passes and their blocks, summarised over the readings of a series.
  *
- * Une passe absente d'un relevé n'y compte pas pour zéro : sa distribution ne porte que les relevés
- * où elle a une durée. Un bloc, lui, ne vaut que sur les relevés où toutes ses passes sont mesurées
- * — c'est la règle de `gpuPassBlockTotals`, et une distribution de sommes partielles la trahirait.
- * `null` sans relevé, jamais un tableau vide qui se lirait comme « mesuré, rien à dire ».
+ * A pass missing from a reading does not count as zero there: its distribution only carries
+ * readings where it has a duration. A block, for its part, only holds on readings where all its
+ * passes are measured — that is the `gpuPassBlockTotals` rule, and a distribution of partial sums
+ * would betray it. `null` with no reading, never an empty array that would read as "measured,
+ * nothing to say".
  */
 export function passesGpu(samples) {
   if (!samples || !samples.length) return null;

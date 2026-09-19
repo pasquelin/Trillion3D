@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import type { NormalCone } from './pageCone.ts';
 
-/** Vingt-quatre flottants par nœud : les seize du manifeste, puis la sphère du plancher d'erreur du
- *  sous-arbre, le plancher et un mot de drapeaux (`gpuDagPackNodes.ts`). */
+/** Twenty-four floats per node: the sixteen from the manifest, then the subtree error-floor
+ *  sphere, the floor and a flags word (`gpuDagPackNodes.ts`). */
 export const DAG_NODE_FLOATS = 24,
   FRAME_VEC4 = 7,
   CULL_STRIDE = 15;
@@ -17,8 +17,8 @@ type DagCluster = {
   max?: number[];
   cone?: NormalCone;
   material?: THREE.Material | THREE.Material[];
-  /** Les triangles de la grappe et sa passe : la carte tient les totaux, le processeur ne les somme
-   *  plus (`gpuDagLayout.ts`, entête du relevé). */
+  /** Cluster triangles and its pass: the GPU holds the totals, the CPU no longer sums them
+   *  (`gpuDagLayout.ts`, snapshot header). */
   triangles?: number;
   transparent?: boolean;
 };
@@ -26,8 +26,8 @@ export type DagRoot = {
   world: THREE.Matrix4;
   pages: DagCluster[];
   flat?: boolean;
-  /** `bounds` : les bornes par nœud que `cullingBounds` dérive des pages. L'hôte les partage entre
-   *  tous les placements d'une primitive ; sans elles, le rangement les dérive lui-même. */
+  /** `bounds`: per-node bounds `cullingBounds` derives from the pages. The host shares them
+   *  among all placements of a primitive; without them, the layout derives them itself. */
   culling?: { nodes: Float64Array; stride: number; bounds?: Float64Array };
 };
 export type PackedDag = {
@@ -37,11 +37,11 @@ export type PackedDag = {
   pageCones: Float32Array;
   worlds: Float32Array;
   worldStretch: Float32Array;
-  /** Le nœud racine de chaque primitive, d'où part la descente par niveaux ; `SELECTION_NONE` sans. */
+  /** Root node of each primitive, from which the level descent starts; `SELECTION_NONE` without. */
   rootNodes: Uint32Array;
-  /** Nœuds de chaque étage, toutes primitives confondues : le majorant de la file de chaque passe.
-   *  Sa LONGUEUR est la profondeur de la hiérarchie la plus profonde, donc le nombre de passes de la
-   *  descente ; un second champ pour la redire ne serait qu'un état à tenir d'accord. */
+  /** Nodes of each stage, all primitives together: the upper bound of each pass's queue. Its
+   *  LENGTH is the depth of the deepest hierarchy, hence the number of descent passes; a second
+   *  field to restate it would only be state to keep in agreement. */
   levelSizes: Uint32Array;
   nodeCount: number;
   worldCount: number;

@@ -1,19 +1,19 @@
-// Banc de performance : hiérarchie de transformations et caméra (sdk-core contre Three.js).
-// De vraies chaînes d'`Object3D` et de caméras, rejouées opération par opération des deux côtés —
-// chaînes figées hostiles, valeurs non finies, scène vivante qui bouge image après image, `lookAt`
-// et projections dégénérées. Un seul bit d'écart et le banc tombe.
+// Performance bench: transform hierarchy and camera (sdk-core against Three.js).
+// Real `Object3D` and camera chains, replayed operation by operation on both sides —
+// hostile frozen chains, non-finite values, a live scene that moves frame after frame, `lookAt`
+// and degenerate projections. A single bit of delta and the bench fails.
 import { compare, rapport } from '../../sdk-core/bench/socle.mjs';
 import { joueNous } from './appui/hierarchieRejeuNous.mjs';
 import { joueThree } from './appui/hierarchieRejeuThree.mjs';
 import { chainesFigees } from './appui/hierarchieScenarios.mjs';
 import { objectifs, visees } from './appui/hierarchieScenariosCamera.mjs';
-import { marquages, scenarioVivant } from './appui/hierarchieScenariosVivants.mjs';
+import { marquages, liveScenario } from './appui/hierarchieScenariosVivants.mjs';
 
 const options = { chauffe: 1, tours: 3, budgetMs: 500 };
-/** Un cas : un scénario, dont la taille est le nombre d'opérations rejouées. */
-const cas = (nom, scenario) => ({ nom, entree: scenario, taille: scenario.length });
-const ligne = (nom, fichier, liste) => ({
-  nom,
+/** One case: a scenario whose size is the number of replayed operations. */
+const cas = (name, scenario) => ({ name, input: scenario, size: scenario.length });
+const ligne = (name, fichier, liste) => ({
+  name,
   fichier,
   cas: liste,
   reference: joueThree,
@@ -23,29 +23,29 @@ const ligne = (nom, fichier, liste) => ({
 
 const lignes = [
   ligne(
-    'hiérarchie figée : mise à jour, lectures monde, images',
+    'frozen hierarchy: update, world reads, frames',
     'packages/sdk-core/mathTransformTreeUpdate.ts',
     [
-      cas('chaînes hiérarchiques hostiles finies', chainesFigees(false)),
-      cas('chaînes hiérarchiques hostiles avec NaN et infinis', chainesFigees(true)),
+      cas('finite hostile hierarchy chains', chainesFigees(false)),
+      cas('hostile hierarchy chains with NaN and infinities', chainesFigees(true)),
     ],
   ),
   ligne(
-    'hiérarchie vivante : poses, reparentage, retraits, mises à jour partielles',
+    'live hierarchy: poses, reparenting, removals, partial updates',
     'packages/sdk-core/mathTransformTreeStructure.ts',
     [
-      cas('scène hiérarchique vivante ordinaire', scenarioVivant(160, 240, 1e9)),
-      cas('scène hiérarchique vivante hostile', scenarioVivant(90, 160, 12)),
-      cas('règles de marquage hiérarchiques', marquages()),
+      cas('ordinary live hierarchy scene', liveScenario(160, 240, 1e9)),
+      cas('hostile live hierarchy scene', liveScenario(90, 160, 12)),
+      cas('hierarchy marking rules', marquages()),
     ],
   ),
   ligne(
-    'lookAt de caméra et d’objet, hiérarchies comprises',
+    'camera and object lookAt, hierarchies included',
     'packages/sdk-core/mathTransformTreeLookAt.ts',
-    [cas('visées hiérarchiques', visees())],
+    [cas('hierarchical aims', visees())],
   ),
-  ligne('projections et images de caméra', 'packages/sdk-core/mathCamera.ts', [
-    cas('objectifs', objectifs()),
+  ligne('camera projections and frames', 'packages/sdk-core/mathCamera.ts', [
+    cas('lenses', objectifs()),
   ]),
 ];
 
@@ -55,5 +55,5 @@ for (const l of lignes) equivalence.push(await compare(l));
 rapport(
   'hierarchie',
   equivalence,
-  'la hiérarchie et la caméra de sdk-core rendent exactement ce que rend Three.js',
+  'the sdk-core hierarchy and camera yield exactly what Three.js yields',
 );

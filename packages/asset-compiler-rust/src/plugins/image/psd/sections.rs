@@ -1,54 +1,55 @@
-//! Les trois sections à longueur préfixée qui séparent l'entête d'un PSD de ses données composites,
-//! et ce qu'elles **déclarent** : données de mode de couleur, ressources d'image, calques et masques.
+//! The three length-prefixed sections that separate a PSD's header from its composite data,
+//! and what they **declare**: colour-mode data, image resources, layers and masks.
 //!
-//! Elles ne sont pas recomposées — le pilote ne rend que le composite aplati que le fichier porte
-//! déjà —, mais elles ne sont plus sautées en aveugle non plus. La spécification publiée par Adobe
-//! pour les lecteurs tiers place au début de la section des calques un **compte de calques** sur
-//! deux octets signés, et dit de son signe : négatif, sa valeur absolue est le nombre de calques et
-//! le premier canal alpha du composite porte la transparence du document. C'est la seule
-//! déclaration qui sépare une transparence d'un canal alpha enregistré — une sélection —, et sans
-//! elle un quatrième plan pris pour de l'alpha troue la texture.
+//! They are not recomposed — the driver only returns the flattened composite the file already
+//! carries —, but they are no longer skipped blindly either. The specification Adobe
+//! publishes for third-party readers places at the start of the layers section a **layer
+//! count** over two signed bytes, and says of its sign: negative, its absolute value is the
+//! number of layers and the composite's first alpha channel carries the document's
+//! transparency. That is the only declaration that separates a transparency from a stored
+//! alpha channel — a selection —, and without it a fourth plane taken for alpha punches holes
+//! in the texture.
 //!
-//! La section des ressources d'image est lue de la même façon, pour une seule de ses entrées : la
-//! ressource 1039, qui porte le profil colorimétrique du document. La sortie du contrat est du sRGB
-//! et ce lot ne convertit aucune couleur : un autre profil est compté, jamais appliqué.
+//! The image-resources section is read the same way, for a single one of its entries:
+//! resource 1039, which carries the document's colour profile. The contract output is sRGB
+//! and this batch converts no colour: another profile is counted, never applied.
 use super::{Header, DATA_TRUNCATED};
 use crate::plugins::image::icc;
 
-/// La largeur du champ de longueur de la section des calques, et de celui du bloc d'informations de
-/// calques qu'elle ouvre : quatre octets en PSD, huit en PSB.
+/// Width of the layers-section length field, and of the layer-info block it opens: four
+/// bytes in PSD, eight in PSB.
 const WIDE: usize = 8;
 const NARROW: usize = 4;
-/// Le compte de calques lui-même, deux octets signés.
+/// The layer count itself, two signed bytes.
 const COUNT_BYTES: usize = 2;
-/// La signature que chaque bloc de la section des ressources d'image porte en tête.
+/// Signature that each block of the image-resources section carries at the front.
 const RESOURCE: &[u8] = b"8BIM";
-/// L'identifiant de la ressource qui porte le profil colorimétrique du document.
+/// Identifier of the resource that carries the document's colour profile.
 const ICC_PROFILE: u16 = 1039;
-/// Ce qu'un bloc de ressource porte avant son nom : sa signature et son identifiant.
+/// What a resource block carries before its name: its signature and its identifier.
 const RESOURCE_HEAD: usize = 6;
 
-/// Ce que les sections déclarent, et que l'entête seul ne dit pas.
+/// What the sections declare, and that the header alone does not say.
 pub(super) struct Declared {
-    /// Le composite porte la transparence du document dans son premier plan d'alpha. Faux quand
-    /// rien ne le déclare : le plan qui suit les canaux de couleur est alors une sélection.
+    /// The composite carries the document's transparency in its first alpha plane. False
+    /// when nothing declares it: the plane that follows the colour channels is then a
+    /// selection.
     pub(super) transparency: bool,
-    /// Le nombre de calques du fichier. Seul le composite sort du pilote : au-delà de zéro, c'est
-    /// une raison de rapport, jamais un silence.
+    /// Number of layers in the file. Only the composite comes out of the driver: above zero,
+    /// that is a report reason, never a silence.
     pub(super) layers: u32,
-    /// La raison à compter pour le profil colorimétrique du document, quand il n'est pas celui de
-    /// la sortie.
+    /// Reason to count for the document's colour profile, when it is not the output's.
     pub(super) profile: Option<&'static str>,
 }
 
-/// Saute les trois sections et rend ce qu'elles déclarent avec les octets qui les suivent. Une
-/// longueur qui sort du fichier est une troncature nommée, jamais une lecture à côté.
+/// Skips the three sections and returns what they declare with the bytes that follow them.
+/// A length that falls outside the file is a named truncation, never a read beside it.
 pub(super) fn walk<'a>(
     header: &Header,
     after_header: &'a [u8],
 ) -> std::result::Result<(Declared, &'a [u8]), &'static str> {
-    // Les deux premières longueurs tiennent sur quatre octets dans les deux versions du format ;
-    // seule celle de la section des calques double de largeur en PSB.
+    // The first two lengths sit on four bytes in both versions of the format; only that of
+    // the layers section doubles in width in PSB.
     let mut rest = skip(after_header, NARROW)?;
     let profile = profile(rest);
     rest = skip(rest, NARROW)?;
@@ -62,10 +63,10 @@ pub(super) fn walk<'a>(
     Ok((declared, skip(rest, wide)?))
 }
 
-/// La raison à compter pour la ressource 1039, cherchée bloc par bloc dans la section des
-/// ressources d'image. Un bloc est la signature `8BIM`, l'identifiant sur deux octets, un nom Pascal
-/// complété jusqu'à une longueur paire, la longueur des données, puis les données elles-mêmes,
-/// complétées de la même façon. Une section absente ou incohérente ne déclare rien.
+/// Reason to count for resource 1039, looked up block by block in the image-resources
+/// section. A block is the `8BIM` signature, the identifier over two bytes, a Pascal name
+/// padded to an even length, the data length, then the data themselves, padded the same way.
+/// A missing or inconsistent section declares nothing.
 fn profile(bytes: &[u8]) -> Option<&'static str> {
     let mut rest = field(bytes, NARROW).and_then(|length| bytes.get(NARROW..NARROW + length))?;
     while let Some(head) = rest.get(..RESOURCE_HEAD) {
@@ -85,10 +86,10 @@ fn profile(bytes: &[u8]) -> Option<&'static str> {
     None
 }
 
-/// La transparence déclarée et le compte de calques, lus au début de la section des calques quand
-/// elle en porte un. Une section
-/// vide, ou trop courte pour son bloc d'informations de calques, ne déclare rien : c'est le cas d'un
-/// document sans calque, dont un plan supplémentaire ne peut être qu'une sélection.
+/// Declared transparency and layer count, read at the start of the layers section when it
+/// carries one. An empty section, or one too short for its layer-info block, declares
+/// nothing: that is the case of a document without a layer, whose extra plane can only be a
+/// selection.
 fn layers(bytes: &[u8], wide: usize) -> (bool, u32) {
     let count = count(bytes, wide);
     (
@@ -97,8 +98,8 @@ fn layers(bytes: &[u8], wide: usize) -> (bool, u32) {
     )
 }
 
-/// Le compte lui-même, quand la section le porte. Le bloc d'informations de calques ouvre la
-/// section par sa propre longueur : sous deux octets, il n'y a pas de compte à lire.
+/// The count itself, when the section carries it. The layer-info block opens the section by
+/// its own length: under two bytes, there is no count to read.
 fn count(bytes: &[u8], wide: usize) -> Option<i16> {
     let section = field(bytes, wide).and_then(|length| bytes.get(wide..wide + length))?;
     let info = field(section, wide)?;
@@ -108,8 +109,8 @@ fn count(bytes: &[u8], wide: usize) -> Option<i16> {
     Some(i16::from_be_bytes([count[0], count[1]]))
 }
 
-/// La longueur que porte un champ de `width` octets en tête de ces octets, gros-boutien comme tout
-/// le format. Un champ absent ou une longueur qui ne tient pas dans un `usize` rendent `None`.
+/// Length that a field of `width` bytes carries at the front of these bytes, big-endian like
+/// the whole format. A missing field or a length that does not fit in a `usize` return `None`.
 fn field(bytes: &[u8], width: usize) -> Option<usize> {
     let field = bytes.get(..width)?;
     let length = field
@@ -118,7 +119,7 @@ fn field(bytes: &[u8], width: usize) -> Option<usize> {
     usize::try_from(length).ok()
 }
 
-/// Une section à longueur préfixée, sautée par sa longueur.
+/// A length-prefixed section, skipped by its length.
 fn skip(bytes: &[u8], width: usize) -> std::result::Result<&[u8], &'static str> {
     let end = field(bytes, width)
         .and_then(|length| width.checked_add(length))

@@ -52,18 +52,18 @@ export async function reviewCutouts(
   const pending = pendingOf(loaded);
   if (pending.length === 0) return { pending: 0, answered: 0, changed: [] };
   const named = new Set(pending.flatMap((one) => one.models));
-  stream.write(`\n${pending.length} texture(s) à trancher sur ${named.size} modèle(s)\n`);
+  stream.write(`\n${pending.length} texture(s) to decide across ${named.size} model(s)\n`);
   if (!(options.interactive ?? Boolean(stream.isTTY))) {
     for (const one of pending)
       stream.write(
-        `  ${basename(one.image)} · proposition ${one.proposal ? 'découpe' : 'vitre'} · ${one.models.join(', ')}\n`,
+        `  ${basename(one.image)} · proposal ${one.proposal ? 'cutout' : 'blend'} · ${one.models.join(', ')}\n`,
       );
-    stream.write('  Répondez depuis un terminal, ou éditez la feuille de réponses à la main.\n');
+    stream.write('  Answer from a terminal, or edit the response sheet by hand.\n');
     return { pending: pending.length, answered: 0, changed: [] };
   }
   for (const ligne of LEGENDE) stream.write(`${ligne}\n`);
-  // Seuls les modèles qui ont quelque chose à trancher sont ouverts : les autres n'ont aucune image
-  // à montrer, et leur produit compilé pèse des dizaines de mégaoctets.
+  // Only models that have something to decide are opened: the others have no image to show, and
+  // their compiled product weighs tens of megabytes.
   const concerned = loaded.filter((one) => named.has(one.name));
   const answers = await ask(stream, options, concerned, pending);
   const changed = (
@@ -75,7 +75,7 @@ export async function reviewCutouts(
   ).filter((model): model is CutoutModel => model !== null);
   const cutouts = [...answers.values()].filter(Boolean).length;
   stream.write(
-    `\n  ${cutouts} découpe(s), ${answers.size - cutouts} vitre(s) · ${changed.length} modèle(s) à recompiler\n`,
+    `\n  ${cutouts} cutout(s), ${answers.size - cutouts} blend(s) · ${changed.length} model(s) to recompile\n`,
   );
   return { pending: pending.length, answered: answers.size, changed };
 }
@@ -100,8 +100,8 @@ async function ask(
   concerned: Loaded[],
   pending: PendingCutout[],
 ): Promise<Map<string, boolean>> {
-  // La capacité du terminal est résolue une fois, comme le flux : elle ne change pas d'une question
-  // à l'autre, et la résoudre au fond de la pile cacherait une décision d'entrée.
+  // Terminal capability is resolved once, like the stream: it does not change from one question to
+  // the next, and resolving it at the bottom of the stack would hide an input decision.
   const kind = imageKind();
   const owners = new Map(concerned.map((one) => [one.name, one.model]));
   const thumbnails = await thumbnailsOf(concerned);
@@ -113,7 +113,7 @@ async function ask(
     const picture = owner ? await pictureOf(owner, one, thumbnail, embedded) : null;
     await show(stream, kind, `${index + 1}/${pending.length}`, one, { thumbnail, picture });
     let answer = await askAnswer(one.proposal, options.input);
-    // Le rappel ne répond pas à la place de personne : il réaffiche la règle et repose la question.
+    // The reminder answers for nobody: it redisplays the rule and asks the question again.
     while (answer === 'help') {
       for (const ligne of LEGENDE) stream.write(`${ligne}\n`);
       answer = await askAnswer(one.proposal, options.input);

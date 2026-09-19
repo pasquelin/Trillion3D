@@ -1,16 +1,16 @@
-// Les baselines de performance d'un domaine : `.mesure/baselines/<domaine>.json`, hors dépôt parce
-// qu'un temps ne vaut que sur la machine qui l'a relevé. Chaque ligne est retrouvée par le couple
-// mesure/cas, jamais par son fichier source : plusieurs bancs mesurent le même fichier.
+// Performance baselines of a domain: `.mesure/baselines/<domain>.json`, outside repository because
+// timing is only valid on the machine that recorded it. Each row is retrieved by the key pair
+// measurement/case, never by its source file: multiple benchmarks measure the same file.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { RACINE, cheminBaseline, dossierBaselines } from './chemins.mjs';
 
-/** La clé d'une ligne de baseline : le nom de la mesure et celui du cas. */
+/** The key of a baseline row: measurement name and case name. */
 export const cleDeLigne = (mesure, cas) => `${mesure} | ${cas}`;
 
 let commitMemoire;
 
-/** Le commit courant, relevé une fois par processus : `baseline-save` en dépose trente-neuf. */
+/** Current commit, retrieved once per process: `baseline-save` stores thirty-nine. */
 export function commitCourant() {
   if (commitMemoire === undefined) {
     try {
@@ -25,24 +25,24 @@ export function commitCourant() {
   return commitMemoire;
 }
 
-/** Charge la baseline d'un domaine, ou `null` si la machine n'en a pas encore déposé. */
+/** Loads a domain baseline, or `null` if the machine has not stored one yet. */
 export function chargeBaseline(domaine) {
   const chemin = cheminBaseline(domaine);
   if (!existsSync(chemin)) return null;
   try {
     const lue = JSON.parse(readFileSync(chemin, 'utf8'));
-    return lue?.version === 2 ? lue : null;
+    return lue?.version === 3 ? lue : null;
   } catch {
     return null;
   }
 }
 
-/** Dépose la baseline d'un domaine à partir du fragment que `rapport()` a écrit. */
+/** Saves a domain baseline from the fragment that `rapport()` wrote. */
 export function sauveBaseline(domaine, mesures) {
   const resultats = mesures.flatMap((m) =>
     m.resultats.map((r) => ({
-      cle: cleDeLigne(m.nom, r.nom),
-      taille: r.taille,
+      cle: cleDeLigne(m.name, r.name),
+      size: r.size,
       medianeMs: r.medianeMs,
       p95Ms: r.p95Ms,
       minMs: r.minMs,
@@ -54,7 +54,7 @@ export function sauveBaseline(domaine, mesures) {
     cheminBaseline(domaine),
     JSON.stringify(
       {
-        version: 2,
+        version: 3,
         domaine,
         commit: commitCourant(),
         date: new Date().toISOString(),
@@ -70,13 +70,13 @@ export function sauveBaseline(domaine, mesures) {
 }
 
 /**
- * Les deux seuils d'une régression, écrits ICI et nulle part ailleurs : la pastille d'une ligne et
- * la conclusion d'un rapport lisent la même règle, et ne peuvent donc plus se contredire.
+ * The two regression thresholds, written HERE and nowhere else: a row's status icon and
+ * a report's conclusion read the exact same rule, avoiding self-contradictions.
  */
 export const SEUIL_AVERTISSEMENT = 0.1;
 export const SEUIL_ECHEC = 0.25;
 
-/** Le niveau d'un écart : `absent` faute de baseline, puis `ok`, `avertissement` et `echec`. */
+/** The level of a discrepancy: `absent` if no baseline, then `ok`, `avertissement`, and `echec`. */
 export function niveauEcart(ecart, options = {}) {
   const { seuilAvertissement = SEUIL_AVERTISSEMENT, seuilEchec = SEUIL_ECHEC } = options;
   if (ecart === null || ecart === undefined || Number.isNaN(ecart)) return 'absent';
@@ -86,9 +86,9 @@ export function niveauEcart(ecart, options = {}) {
 }
 
 /**
- * Le verdict d'un lot de mesures, à partir des écarts que `rapport.mjs` a déjà calculés contre la
- * baseline. Il ne REFAIT pas ce calcul : un écart calculé deux fois est un écart qui peut diverger.
- * `absent` quand aucun cas n'a de baseline — ce qui n'est pas la même chose que « rien n'a ralenti ».
+ * The verdict of a measurement batch, from the discrepancies that `rapport.mjs` already calculated against the
+ * baseline. It does NOT recalculate: a discrepancy calculated twice can diverge.
+ * `absent` when no case has a baseline — which is not the same thing as "nothing slowed down".
  */
 export function compareBaseline(resultats, options = {}) {
   const { seuilAvertissement = SEUIL_AVERTISSEMENT, seuilEchec = SEUIL_ECHEC } = options;
@@ -100,7 +100,7 @@ export function compareBaseline(resultats, options = {}) {
     const niveau = niveauEcart(r.ecartBaseline, seuils);
     if (niveau === 'absent') continue;
     compares++;
-    const cas = { nom: r.nom, ecart: r.ecartBaseline };
+    const cas = { name: r.name, ecart: r.ecartBaseline };
     if (niveau === 'echec') regressions.push(cas);
     else if (niveau === 'avertissement') avertissements.push(cas);
   }

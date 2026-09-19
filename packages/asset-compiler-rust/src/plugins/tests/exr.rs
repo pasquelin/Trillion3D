@@ -1,17 +1,17 @@
-//! La dorée du pilote OpenEXR : les fichiers de `fixtures/exr/`, écrits ici depuis la spécification
-//! publique, doivent rendre exactement les valeurs flottantes écrites en clair ci-dessous — demi et
-//! simple précision confondues, puisque le demi-flottant s'étend en `f32` sans arrondi. Et ce qui
-//! sort du sous-ensemble doit ressortir par son nom, jamais en panique ni en image approchée.
+//! Golden of the OpenEXR driver: files of `fixtures/exr/`, written here from the public
+//! specification, must yield exactly the float values written in the open below — half and
+//! single precision together, since the half-float extends to `f32` without rounding. And what
+//! leaves the subset must come out by its name, never as a panic or as an approximated image.
 use super::super::image as registry;
 use super::{fixture, rgba_f32};
 use std::path::PathBuf;
 
-/// Quatre pixels suffisent pour tenir l'ordre de lecture, les quatre canaux et le cas de l'alpha
-/// absent ; les valeurs sont exactes dans les deux précisions, donc un écart vient du pilote.
+/// Four pixels are enough to hold read order, the four channels and the missing-alpha case;
+/// values are exact in both precisions, so a mismatch comes from the driver.
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
 
-/// Ce que les fichiers **portent**, 2 × 2, ligne du haut d'abord, RGBA : des échantillons associés
-/// à leur alpha, comme la spécification d'OpenEXR les définit.
+/// What the files **carry**, 2 × 2, top row first, RGBA: samples associated with their alpha, as
+/// the OpenEXR specification defines them.
 const STOCKE: [[f32; 4]; 4] = [
     [1.0, 0.5, 0.25, 1.0],
     [0.0, 2.0, 4.0, 0.5],
@@ -19,9 +19,9 @@ const STOCKE: [[f32; 4]; 4] = [
     [0.75, 1.5, 3.0, 0.25],
 ];
 
-/// Ce que le contrat **rend** : les mêmes échantillons à alpha droit. Chaque composante est divisée
-/// par l'alpha du pixel ; le pixel d'alpha nul garde les siennes, faute de quoi les diviser. Les
-/// quotients sont exacts en simple précision, donc un écart ne peut venir que du pilote.
+/// What the contract **yields**: the same samples at straight alpha. Each component is divided
+/// by the pixel's alpha; the zero-alpha pixel keeps its own, otherwise dividing them. Quotients
+/// are exact in single precision, so a mismatch can only come from the driver.
 const DROIT: [[f32; 4]; 4] = [
     [1.0, 0.5, 0.25, 1.0],
     [0.0, 4.0, 8.0, 0.5],
@@ -29,10 +29,10 @@ const DROIT: [[f32; 4]; 4] = [
     [3.0, 6.0, 12.0, 0.25],
 ];
 
-/// Les pixels d'une fixture, dans l'ordre de lecture de l'image décodée.
+/// Pixels of a fixture, in read order of the decoded image.
 fn pixels(name: &str) -> Vec<[f32; 4]> {
     let bytes = fixture("exr", name);
-    let decoder = registry::by_head(&bytes).expect("un pilote revendique ces octets");
+    let decoder = registry::by_head(&bytes).expect("a driver claims these bytes");
     assert_eq!(decoder.name(), "exr", "{name}");
     let (width, height, data) =
         rgba_f32(registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|e| panic!("{name}: {e}")));
@@ -40,12 +40,12 @@ fn pixels(name: &str) -> Vec<[f32; 4]> {
     data.as_chunks::<4>().0.to_vec()
 }
 
-// Dorée du pilote : les deux précisions du sous-ensemble rendent la même image, valeur par valeur,
-// et un fichier sans canal alpha rend l'alpha opaque que prescrit la spécification — pas un zéro.
+// Driver golden: both precisions of the subset yield the same image, value by value, and a file
+// without an alpha channel yields the opaque alpha the specification prescribes — not a zero.
 #[test]
-fn les_deux_precisions_rendent_les_valeurs_de_la_reference() {
+fn both_precisions_yield_the_reference_values() {
     assert_eq!(pixels("demi.exr"), DROIT.to_vec());
-    // Sans canal `A`, l'alpha est opaque : diviser par un ne change rien, les RGB sortent tels quels.
+    // Without channel `A`, alpha is opaque: dividing by one changes nothing, RGB come out as-is.
     let opaque: Vec<[f32; 4]> = STOCKE
         .iter()
         .map(|[r, g, b, _]| [*r, *g, *b, 1.0])
@@ -53,31 +53,32 @@ fn les_deux_precisions_rendent_les_valeurs_de_la_reference() {
     assert_eq!(pixels("flottant.exr"), opaque);
 }
 
-// Reproduction du constat 53 : l'alpha d'un OpenEXR est associé — la spécification de l'Academy
-// Software Foundation dit les RGB prémultipliés —, alors que le contrat de sortie demande un alpha
-// droit. Rendre les échantillons tels quels livrait une image deux fois prémultipliée en aval, où
-// l'aperçu prémultiplie à son tour. Ici chaque composante est divisée par l'alpha du pixel, et le
-// pixel d'alpha nul ne divise rien : il n'y a pas de couleur droite à retrouver sous un alpha nul.
+// Reproduction of finding 53: an OpenEXR's alpha is associated — the Academy Software
+// Foundation specification says RGB are premultiplied —, while the output contract asks for
+// straight alpha. Yielding the samples as-is delivered an image twice-premultiplied downstream,
+// where the preview premultiplies in turn. Here each component is divided by the pixel's alpha,
+// and the zero-alpha pixel divides nothing: there is no straight colour to recover under a zero
+// alpha.
 #[test]
-fn lalpha_associe_dun_exr_ressort_droit_sans_diviser_par_zero() {
+fn an_exr_associated_alpha_comes_out_straight_without_dividing_by_zero() {
     let rendu = pixels("demi.exr");
     for (pixel, (stocke, droit)) in rendu.iter().zip(STOCKE.iter().zip(DROIT)) {
-        assert_eq!(*pixel, droit, "stocké {stocke:?}");
+        assert_eq!(*pixel, droit, "stored {stocke:?}");
     }
-    // Les deux pixels dont l'alpha n'est ni 0 ni 1 sont ceux qui bougent : la dorée le dit tout haut
-    // plutôt que de laisser croire que la division est sans effet.
+    // The two pixels whose alpha is neither 0 nor 1 are those that move: the golden says so
+    // out loud rather than letting one believe the division has no effect.
     assert_ne!(rendu[1], STOCKE[1]);
     assert_ne!(rendu[3], STOCKE[3]);
-    // L'alpha nul garde ses composantes : aucune division, aucun infini, aucun NaN.
+    // Zero alpha keeps its components: no division, no infinity, no NaN.
     assert_eq!(rendu[2], STOCKE[2]);
     assert!(rendu.iter().flatten().all(|value| value.is_finite()));
 }
 
-// Contrat du pilote : ce qu'il revendique, et ce qu'il refuse en le nommant. Un EXR hors
-// sous-ensemble laisse le moteur retomber sur son blanc ; il n'interrompt aucune compilation.
+// Driver contract: what it claims, and what it refuses by naming it. An EXR outside the subset
+// lets the engine fall back on its white; it interrupts no compilation.
 #[test]
-fn ce_qui_sort_du_sous_ensemble_ressort_en_raison_de_rapport_jamais_en_panique() {
-    let claimed = registry::by_extension(&PathBuf::from("environnement.EXR")).expect("revendiqué");
+fn what_leaves_the_subset_comes_out_as_a_report_reason_never_as_a_panic() {
+    let claimed = registry::by_extension(&PathBuf::from("environnement.EXR")).expect("claimed");
     assert_eq!(claimed.name(), "exr");
     assert_eq!(claimed.mime(), "image/x-exr");
     for (name, reason) in [
@@ -90,7 +91,7 @@ fn ce_qui_sort_du_sous_ensemble_ressort_en_raison_de_rapport_jamais_en_panique()
         assert_eq!(
             registry::by_head(&bytes).map(|d| d.name()),
             Some("exr"),
-            "{name}: le nombre magique reste celui d'un EXR"
+            "{name}: the magic number remains that of an EXR"
         );
         assert_eq!(
             registry::decode(&bytes, MAX_ALLOC).err(),
@@ -100,15 +101,15 @@ fn ce_qui_sort_du_sous_ensemble_ressort_en_raison_de_rapport_jamais_en_panique()
     }
 }
 
-// Contrat du pilote : le plafond d'allocation compte seize octets par pixel, ceux de la variante
-// flottante. Une image qui n'y tient pas est un refus nommé, jamais une allocation tentée.
+// Driver contract: the allocation ceiling counts sixteen bytes per pixel, those of the float
+// variant. An image that does not fit is a named refusal, never an allocation attempted.
 #[test]
-fn le_plafond_dallocation_compte_seize_octets_par_pixel() {
+fn the_allocation_ceiling_counts_sixteen_bytes_per_pixel() {
     let bytes = fixture("exr", "demi.exr");
     assert_eq!(
         registry::decode(&bytes, 63).err(),
         Some("exr-image-too-large"),
-        "quatre pixels flottants pèsent soixante-quatre octets"
+        "four float pixels weigh sixty-four bytes"
     );
-    assert!(registry::decode(&bytes, 64).is_ok(), "juste assez de place");
+    assert!(registry::decode(&bytes, 64).is_ok(), "just enough room");
 }

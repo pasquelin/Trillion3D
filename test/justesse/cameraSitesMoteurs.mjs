@@ -1,6 +1,6 @@
-// Sites « moteur entier » : une image rendue par un moteur public, dont on relève ce que la caméra a
-// décidé. WebGPU tourne sur le faux périphérique des tests : chaque écriture de tampon est relevée
-// (uniformes de vue, de transparents, de lumière et d'ombre compris), sans aucune carte graphique.
+// "Whole engine" sites: a frame rendered by a public engine, from which we record what the camera
+// decided. WebGPU runs on the tests' fake device: every buffer write is recorded (view, blend,
+// light and shadow uniforms included), with no GPU.
 import { createHash } from 'node:crypto';
 import { webgpuPagesBackend } from '../../packages/sdk-browser/webgpuPages.ts';
 import { exactPagesBackend } from '../../packages/sdk-browser/exactPagesBackend.ts';
@@ -21,7 +21,7 @@ import {
 const COMPTES = ['clusters', 'selectedTriangles', 'frustumRejected', 'lodLevel', 'residentPages'];
 const comptes = (metrics) => Object.fromEntries(COMPTES.map((cle) => [cle, metrics[cle] ?? null]));
 
-/** Le fan transparent réduit par un niveau grossier : coupe, LOD et passe de mélange s'y exercent. */
+/** The transparent fan reduced by a coarse level: cut, LOD and blend pass exercise there. */
 function fanTransparent() {
   const { geometry, material, mesh, source, indices } = fanScene();
   const primitive = dagLevel([quadCluster(0, 0), quadCluster(1, 3)], [quadCluster(3, 0)], 0.02, [
@@ -40,7 +40,7 @@ function fanTransparent() {
   };
 }
 
-async function moteurWebgpu(scene) {
+async function webgpuEngine(scene) {
   installGpuGlobals();
   const gpu = mockGpu();
   const backend = webgpuPagesBackend({
@@ -53,7 +53,7 @@ async function moteurWebgpu(scene) {
   return { gpu, backend };
 }
 
-/** Une image par pose, relevée telle que l'hôte la demande ; la résidence suit ensuite. */
+/** One frame per pose, recorded as the host requests it; residency follows after. */
 async function imageWebgpu({ gpu, backend }, camera) {
   gpu.writes.length = 0;
   backend.render(camera);
@@ -73,22 +73,22 @@ async function imageWebgpu({ gpu, backend }, camera) {
 
 export const sitesMoteurs = [
   {
-    nom: 'webgpuPagesBackend opaque (encodage, lumières, ombres, Hi-Z)',
-    cree: () => moteurWebgpu(quadScene()),
+    name: 'webgpuPagesBackend opaque (encode, lights, shadows, Hi-Z)',
+    cree: () => webgpuEngine(quadScene()),
     mesure: imageWebgpu,
   },
   {
-    nom: 'webgpuPagesBackend transparent (uniformes de mélange)',
-    cree: () => moteurWebgpu(fanTransparent()),
+    name: 'webgpuPagesBackend transparent (blend uniforms)',
+    cree: () => webgpuEngine(fanTransparent()),
     mesure: imageWebgpu,
   },
   {
-    nom: 'webgpuPagesBackend.captureSurfaceView (seconde vue)',
+    name: 'webgpuPagesBackend.captureSurfaceView (seconde vue)',
     // La vue principale est fixe et sans parent : seule la seconde vue vient du rig.
     cree: async () => {
-      const moteur = await moteurWebgpu(quadScene());
-      await imageWebgpu(moteur, principale());
-      return moteur;
+      const engine = await webgpuEngine(quadScene());
+      await imageWebgpu(engine, principale());
+      return engine;
     },
     mesure: async (etat, camera) => {
       const surface = await etat.backend.captureSurfaceView(camera, { width: 16, height: 16 });
@@ -103,7 +103,7 @@ export const sitesMoteurs = [
     },
   },
   {
-    nom: 'exactPagesBackend (coupe, priorité de streaming)',
+    name: 'exactPagesBackend (cut, streaming priority)',
     cree: () => exactPagesBackend(quadRootsContext(false, { viewport: [320, 180] }).context),
     mesure: (backend, camera) => {
       backend.render(camera);
@@ -111,7 +111,7 @@ export const sitesMoteurs = [
     },
   },
   {
-    nom: 'threeLodBackend (THREE.LOD)',
+    name: 'threeLodBackend (THREE.LOD)',
     cree: () => threeLodBackend(fanTransparent()),
     mesure: (backend, camera) => {
       backend.render(camera);

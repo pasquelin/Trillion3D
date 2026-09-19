@@ -31,7 +31,7 @@ test('readOptions parses command line arguments correctly', () => {
 
 test('readOptions rejects unknown engine', () => {
   const root = '/tmp/test';
-  assert.throws(() => readOptions(['--moteur=unknown'], root), /--moteur doit valoir/);
+  assert.throws(() => readOptions(['--moteur=unknown'], root), /--moteur must be/);
 });
 
 test('readOptions accepts an explicit port', () => {
@@ -42,57 +42,57 @@ test('readOptions accepts an explicit port', () => {
 
 test('readOptions rejects non-numeric arguments', () => {
   const root = '/tmp/test';
-  assert.throws(() => readOptions(['--images=abc'], root), /--images doit être un nombre/);
+  assert.throws(() => readOptions(['--images=abc'], root), /--images must be a number/);
 });
 
 test('readOptions rejects negative pixelError', () => {
   const root = '/tmp/test';
-  assert.throws(() => readOptions(['--pixelError=-1.0'], root), /--pixelError invalide/);
+  assert.throws(() => readOptions(['--pixelError=-1.0'], root), /--pixelError invalid/);
 });
 
 test('readOptions rejects invalid views', () => {
   const root = '/tmp/test';
-  assert.throws(() => readOptions(['--vues=invalide'], root), /vue inconnue/);
+  assert.throws(() => readOptions(['--vues=invalide'], root), /unknown view/);
 });
 
-test('sceneOf déduit le nom de la scène du dossier derived du cache', () => {
+test('sceneOf deduces the scene name from the cache derived directory', () => {
   assert.strictEqual(sceneOf('/quelque/part/bistro-exterior-derived'), 'bistro-exterior');
   assert.strictEqual(sceneOf('/quelque/part/bistro-exterior-derived/'), 'bistro-exterior');
   assert.strictEqual(sceneOf('/quelque/part/new-york-manhattan-derived'), 'new-york-manhattan');
 });
 
-test('sceneOf garde le nom du dossier quand il ne finit pas par -derived', () => {
+test('sceneOf keeps the directory name when it does not end with -derived', () => {
   assert.strictEqual(sceneOf('/quelque/part/un-cache-a-moi'), 'un-cache-a-moi');
 });
 
-test('sceneOf retombe sur la scène par défaut sans cache nommé', () => {
+test('sceneOf falls back to the default scene without a named cache', () => {
   assert.strictEqual(sceneOf(undefined), DEFAULT_SCENE);
   assert.strictEqual(sceneOf(''), DEFAULT_SCENE);
 });
 
-// `--instances` : le nombre de copies que le SDK pose en grille. Une seule par défaut, et seules
-// les grilles que `replicateInstances` sait poser sont acceptées.
-test('readOptions lit --instances et refuse une grille que le SDK ne sait pas poser', () => {
+// `--instances`: the number of copies that the SDK places in a grid. Only one by default, and only
+// grids that `replicateInstances` knows how to place are accepted.
+test('readOptions reads --instances and rejects a grid that the SDK cannot place', () => {
   const root = '/tmp/test';
   assert.strictEqual(readOptions([], root).settings.instances, 1);
   assert.strictEqual(readOptions(['--instances=9'], root).settings.instances, 9);
   assert.throws(() => readOptions(['--instances=3'], root), /--instances/);
 });
 
-test('engineOf donne à un côté son propre moteur, sinon celui de la campagne', () => {
+test('engineOf gives a side its own engine, otherwise that of the campaign', () => {
   const flags = parseArgs(['--moteur-avant', 'webgl']);
   assert.strictEqual(engineOf(flags, 'avant', 'webgpu').id, 'exact-cluster-pages');
   assert.strictEqual(engineOf(flags, 'apres', 'webgpu').id, 'webgpu-page-raster');
 });
 
-test('engineOf refuse un moteur inconnu pour un côté', () => {
+test('engineOf rejects an unknown engine for a side', () => {
   assert.throws(
     () => engineOf(parseArgs(['--moteur-apres', 'inconnu']), 'apres', 'webgl'),
-    /--moteur-apres doit valoir/,
+    /--moteur-apres must be/,
   );
 });
 
-test('seuls les moteurs qui dessinent par Three reçoivent les lampes posées par l’hôte', () => {
+test('only engines rendering through Three receive lights placed by the host', () => {
   assert.strictEqual(ENGINES.webgl.three, true);
   assert.strictEqual(ENGINES.webgl2.three, true);
   assert.strictEqual(ENGINES.webgpu.three, undefined);

@@ -1,5 +1,5 @@
-// La page du rapport global : une feuille de style en clair et en sombre, et le squelette. Tout est
-// dans un seul fichier HTML, sans réseau.
+// The global report page: a light and dark stylesheet, and the skeleton. Everything lives in a
+// single HTML file, with no network.
 import { html } from './rapportGlobalGraphes.mjs';
 import { SCRIPT_COMPARATEUR, STYLE_COMPARATEUR } from './rapportGlobalComparateur.mjs';
 import { STYLE_BILAN } from './rapportGlobalBilan.mjs';
@@ -24,7 +24,7 @@ code{font-size:.92em}.lacune{color:var(--encre-2)}
 @media (max-width:640px){nav ol{columns:1}h1{font-size:22px}}
 `;
 
-/** La page entière. `sections` : `[{ id, titre, corps }]`. */
+/** The whole page. `sections`: `[{ id, titre, corps }]`. */
 export function page({ titre, sousTitre, sections }) {
   const sommaire = sections.map((s) => `<li><a href="#${s.id}">${html(s.titre)}</a></li>`).join('');
   const corps = sections

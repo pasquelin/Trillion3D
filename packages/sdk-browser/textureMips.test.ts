@@ -4,7 +4,7 @@ import { generateMaterialMips, mipLevelCountFor } from './textureMips.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 
-/** Une texture de travail de quatre texels de côté, comme les tuiles d'une texture de l'hôte en découpent. */
+/** A four-texel-wide working texture, as tiles of a host texture cut them. */
 function scratch() {
   installGpuGlobals();
   const gpu = mockGpu();
@@ -16,20 +16,16 @@ function scratch() {
   return { ...gpu, texture };
 }
 
-test('la réduction soumet sans attendre l’appareil et garde un seul tampon d’uniformes', () => {
+test('reduction submits without waiting for the device and keeps a single uniform buffer', () => {
   const { device, texture, buffers, submits } = scratch();
   const before = buffers.length;
   generateMaterialMips(device, texture, 'rgba8unorm', 4, 4);
   generateMaterialMips(device, texture, 'rgba8unorm', 4, 4);
-  assert.equal(submits.length, 2, 'les deux chaînes sont parties');
-  assert.equal(
-    buffers.length - before,
-    1,
-    'un seul tampon d’uniformes pour les deux, jamais détruit',
-  );
+  assert.equal(submits.length, 2, 'both chains went out');
+  assert.equal(buffers.length - before, 1, 'one uniform buffer for both, never destroyed');
 });
 
-test('les uniformes décrivent un niveau réduit chacun, à l’alignement de l’appareil', () => {
+test('uniforms describe one reduced level each, at the device alignment', () => {
   const { device, texture, buffers } = scratch();
   const before = buffers.length;
   generateMaterialMips(device, texture, 'rgba8unorm', 4, 4);

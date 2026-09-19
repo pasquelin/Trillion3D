@@ -12,14 +12,14 @@ import {
 import type { DiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
 import { requestsComputeRaster } from './diagnosticGpuGeometry.ts';
 
-test('aucune variante demandée : rien à vérifier, rien à monter', () => {
+test('no variant requested: nothing to check, nothing to mount', () => {
   assert.equal(resolveDiagnosticGpuVariant(undefined, 'summary'), undefined);
   assert.deepEqual(blendVariantPipeline(undefined), { entryPoint: 'fs', writeMask: 0xf });
   assert.equal(countsBlendOverdraw(undefined), false);
   assert.equal(composesOffscreen(undefined), false);
 });
 
-test('une variante est refusée hors du détail « trace »', () => {
+test('a variant is refused outside the "trace" detail', () => {
   for (const detail of ['summary', undefined] as const)
     assert.throws(
       () => resolveDiagnosticGpuVariant('transparents-plat', detail),
@@ -28,14 +28,14 @@ test('une variante est refusée hors du détail « trace »', () => {
   assert.equal(resolveDiagnosticGpuVariant('transparents-plat', 'trace'), 'transparents-plat');
 });
 
-test('un nom inconnu est refusé, même sous « trace »', () => {
+test('an unknown name is refused, even under "trace"', () => {
   assert.throws(
     () => resolveDiagnosticGpuVariant('transparents-rapides', 'trace'),
     /DIAGNOSTIC_GPU_VARIANT_UNKNOWN/,
   );
 });
 
-test('chaque variante neutralise un seul facteur, et son étage existe dans le module', () => {
+test('each variant neutralises a single factor, and its stage exists in the module', () => {
   const attendu: Partial<Record<DiagnosticGpuVariant, { entryPoint: string; writeMask: number }>> =
     {
       'transparents-plat': { entryPoint: 'fsPlat', writeMask: 0xf },
@@ -43,7 +43,7 @@ test('chaque variante neutralise un seul facteur, et son étage existe dans le m
       'transparents-sans-couleur': { entryPoint: 'fs', writeMask: 0 },
       'transparents-surdessin': { entryPoint: 'fsPlat', writeMask: 0 },
     };
-  // Toute autre variante — présentation, coupe, géométrie — laisse au mélange son étage de production.
+  // Any other variant — presentation, cut, geometry — leaves blend its production stage.
   const production = { entryPoint: 'fs', writeMask: 0xf };
   for (const variant of DIAGNOSTIC_GPU_VARIANTS) {
     const pipeline = blendVariantPipeline(variant);
@@ -53,7 +53,7 @@ test('chaque variante neutralise un seul facteur, et son étage existe dans le m
   }
 });
 
-test('le comptage, la présentation hors écran et le raster de calcul ne sont allumés que par leur variante', () => {
+test('counting, off-screen presentation and the compute raster are turned on only by their variant', () => {
   const comptant = DIAGNOSTIC_GPU_VARIANTS.filter(countsBlendOverdraw);
   const horsEcran = DIAGNOSTIC_GPU_VARIANTS.filter(composesOffscreen);
   const calcul = DIAGNOSTIC_GPU_VARIANTS.filter(requestsComputeRaster);
@@ -63,7 +63,7 @@ test('le comptage, la présentation hors écran et le raster de calcul ne sont a
   assert.equal(requestsComputeRaster(undefined), false);
 });
 
-test('seules les deux variantes de la coupe la réencodent, et chacune sa part', () => {
+test('only the two cut variants re-encode it, and each its share', () => {
   assert.equal(selectionRepeat(undefined), null);
   assert.equal(selectionRepeat('transparents-plat'), null);
   assert.equal(selectionRepeat('selection-doublee'), 'tout');

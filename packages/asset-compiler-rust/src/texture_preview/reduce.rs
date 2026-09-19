@@ -1,10 +1,11 @@
 use super::curves::{linear_to_srgb, srgb_table};
 use super::*;
 
-/// Ce que la couche d'atlas fait des octets, et donc ce que la réduction doit faire des mêmes :
-/// l'atlas couleur est `rgba8unorm-srgb`, ses trois premiers canaux passent par la courbe sRGB ;
-/// l'atlas de données est `rgba8unorm`, tout y est linéaire. L'alpha ne passe par aucune courbe
-/// dans les deux cas — c'est ainsi que WebGPU définit ces formats.
+/// What the atlas layer does with the bytes, and therefore what reduction must do
+/// with the same: the colour atlas is `rgba8unorm-srgb`, its first three channels
+/// go through the sRGB curve; the data atlas is `rgba8unorm`, everything there is
+/// linear. Alpha goes through no curve in either case — that is how WebGPU defines
+/// these formats.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum AtlasKind {
     Color,
@@ -25,18 +26,19 @@ impl AtlasKind {
     }
 }
 
-/// La chaîne de mips ENTIÈRE d'une source, niveau 0 compris : `levels[k]` est le niveau `k` en
-/// RGBA8, aux dimensions de `preview_level_size`.
+/// The ENTIRE mip chain of a source, level 0 included: `levels[k]` is level `k` in
+/// RGBA8, at `preview_level_size` dimensions.
 ///
-/// La règle est celle que le moteur appliquait sur la carte graphique en régénérant la chaîne
-/// après la pleine résolution (`packages/sdk-browser/textureMips.ts`), reproduite ici pour que
-/// cuire les niveaux au lieu de les régénérer ne change pas l'image : chaque niveau se calcule à
-/// partir du niveau PRÉCÉDENT déjà quantifié en octets, jamais depuis un flottant conservé ; les
-/// couleurs sont la moyenne des quatre texels, décodés puis réencodés par la courbe de l'atlas ;
-/// l'alpha est la MÉDIANE des quatre, la moyenne des deux valeurs du milieu, qui conserve la
-/// couverture d'un seuil de découpe d'un niveau au suivant ; un côté impair répète son dernier
-/// texel, comme `min(p + 1, hi)` dans le nuanceur. Ni prémultiplication ni courbe déclarée par le
-/// fichier : l'atlas ne les connaît pas, et la pyramide suit l'affichage, pas le fichier.
+/// The rule is the one the engine applied on the GPU by regenerating the chain
+/// after full resolution (`packages/sdk-browser/textureMips.ts`), reproduced here
+/// so baking levels instead of regenerating them does not change the image: each
+/// level is computed from the PREVIOUS level already quantised to bytes, never
+/// from a kept float; colours are the mean of the four texels, decoded then
+/// re-encoded by the atlas curve; alpha is the MEDIAN of the four, the mean of
+/// the two middle values, which keeps a cutout-threshold coverage from one level
+/// to the next; an odd side repeats its last texel, like `min(p + 1, hi)` in the
+/// shader. Neither premultiplication nor a curve declared by the file: the atlas
+/// does not know them, and the pyramid follows display, not the file.
 pub(super) fn chain(source: &image::RgbaImage, kind: AtlasKind) -> Vec<Vec<u8>> {
     let (width, height) = (source.width(), source.height());
     let last = preview_last_level(width, height);
@@ -45,20 +47,20 @@ pub(super) fn chain(source: &image::RgbaImage, kind: AtlasKind) -> Vec<Vec<u8>> 
     let mut size = (width, height);
     for level in 1..=last {
         let next = preview_level_size(width, height, level);
-        let previous = levels.last().expect("niveau précédent");
+        let previous = levels.last().expect("previous level");
         levels.push(halve(previous, size, next, kind));
         size = next;
     }
     levels
 }
 
-/// La queue que le sidecar porte : les niveaux à partir de `preview_first_level`, bout à bout.
+/// Tail the sidecar carries: levels from `preview_first_level` on, end to end.
 pub(super) fn tail(levels: &[Vec<u8>], first: u32) -> Vec<u8> {
     levels[first as usize..].concat()
 }
 
-/// La table qui ramène un octet du niveau précédent à la valeur que la carte moyenne : la courbe
-/// sRGB pour les couleurs d'un atlas couleur, la division par 255 partout ailleurs.
+/// Table that brings a byte of the previous level back to the value the GPU
+/// averages: the sRGB curve for colours of a colour atlas, division by 255 everywhere else.
 fn decode_table(kind: AtlasKind) -> &'static [f32; 256] {
     match kind {
         AtlasKind::Color => srgb_table(),
@@ -73,8 +75,8 @@ fn encode(value: f32, kind: AtlasKind) -> u8 {
     }
 }
 
-/// Le niveau suivant depuis les octets du précédent. `(u + v) / 2` est la médiane de quatre
-/// valeurs : `u` la deuxième et `v` la troisième une fois triées, six comparaisons sans tri.
+/// Next level from the previous bytes. `(u + v) / 2` is the median of four
+/// values: `u` the second and `v` the third once sorted, six comparisons without a sort.
 fn halve(previous: &[u8], size: (u32, u32), next: (u32, u32), kind: AtlasKind) -> Vec<u8> {
     let table = decode_table(kind);
     let (width, height) = (size.0 as usize, size.1 as usize);
