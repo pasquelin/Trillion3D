@@ -71,7 +71,7 @@ function recordStages(rt: WebgpuPagesRuntime) {
       gpu: 'transfers go through the GPU queue, with no timestamped pass',
     });
   // What the shadow pass actually redrew: counts, never durations. The six earlier counts are kept
-  // as-is — the Lab reads them — and pages join them: `pagesInvalidees` is what entered the queue
+  // as-is — a host reads them — and pages join them: `pagesInvalidees` is what entered the queue
   // this image, `pagesRedessinees` what the kept regions cover, `pagesEnAttente` what the budget
   // left for later, and `retardMaxMs` the wait of the oldest page in that queue.
   const { counts } = lights.plan;

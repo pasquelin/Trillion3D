@@ -81,7 +81,7 @@ triangle object.
 C9. **Single binary**: one executable per OS (macOS arm64/x64, Linux x64/arm64, Windows x64),
 stdout event protocol (progress, errors, short result), result written to disk, never a full
 manifest on stdout. The same code compiled to WebAssembly for the editor (compile one object in
-the browser, off the main thread). Criterion: the Lab prepares its scenes with Node only as a
+the browser, off the main thread). Criterion: a host prepares its scenes with Node only as a
 relay; the editor recompiles an object without a server.
 C10. **Provenance**: compiler digest (sources + locked dependencies) in every cache; two compiles
 of the same file yield the same bytes. Criterion: null diff between two runs.
@@ -346,7 +346,7 @@ threshold.
 
 ## 6. Bench and proof
 
-B1. Three.js remains the **witness engine** in the Lab: same scene, same camera, lossless PNG
+B1. Three.js remains the **witness engine**: same scene, same camera, lossless PNG
 capture, pixel comparison at 0 px (identity expected) and at 1 px (differences localised to
 switches), A/A witness.
 B2. **WebGPU/WebGL2 parity**: automatic test on every scene, max error ≤ 2 per channel, else fail.
