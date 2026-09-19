@@ -5,6 +5,7 @@ import {
   unsettledMask,
   unsettledReasons,
 } from './webgpuFrameHold.ts';
+import { dropTaaHistory } from './taaFrame.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Tours de convergence au plus : au-delà, ce qui manque est publié, jamais attendu sans fin. */
@@ -17,6 +18,10 @@ const SHADOW_DRAIN_LIMIT = 64;
 /** Allers-retours textures → ombres au plus : chaque tour qui redessine une cascade peut déplacer
  *  ce que l'ombre demande aux textures, et chaque tuile arrivée périme les ombres. */
 const POSE_ROUNDS = 4;
+
+/** True when the barrier changed the raster: TAA must restart its still average (#25). */
+export const mustRestartTaaAfterSettle = (tilesServed: number, shadowFrames: number) =>
+  tilesServed > 0 || shadowFrames > 0;
 
 /**
  * Fait converger les textures d'une pose : l'image est rendue avec tous ses pixels au retour, ce
@@ -56,17 +61,23 @@ async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
 }
 
 /**
- * Vide les cartes d'ombre : les pages en attente — périmées par une tuile arrivée, par une caméra
- * qui a bougé ou par une page de géométrie entrée ou sortie — sont redessinées sous leur budget
- * jusqu'à ce qu'aucune n'attende. Sans cela, deux captures d'une même pose à caméra mobile
- * différaient selon le moment où le budget d'une milliseconde avait laissé la cascade du soleil
- * (témoin A/A à 189 740 px en vue sol, Lumière 6). Rend le nombre d'images vidées.
+ * Drains shadow maps: pending pages — invalidated by an arriving tile, a moving camera or a
+ * geometry page that entered or left — are redrawn until none wait. The 1 ms budget stays that
+ * of the measured loop: during the barrier it is suspended, otherwise a GPU timestamp arriving
+ * mid-drain tightens admission and two identical captures diverge (#25, 0 / 1,392 / 6,278 px).
+ * Returns the number of frames drained.
  */
 async function drainShadows(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
+  const { budget } = rt.lights.plan;
+  budget.suspend();
   let drains = 0;
-  for (; drains < SHADOW_DRAIN_LIMIT && rt.lights.plan.counts.pendingPages > 0; drains++) {
-    renderWebgpuPages(rt, rt.run.lastCamera!);
-    await gpuDevice.queue.onSubmittedWorkDone();
+  try {
+    for (; drains < SHADOW_DRAIN_LIMIT && rt.lights.plan.counts.pendingPages > 0; drains++) {
+      renderWebgpuPages(rt, rt.run.lastCamera!);
+      await gpuDevice.queue.onSubmittedWorkDone();
+    }
+  } finally {
+    budget.resume();
   }
   return drains;
 }
@@ -100,6 +111,9 @@ export async function settlePose(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice | 
   } finally {
     run.textureConverging = false;
   }
+  // Tiles or shadow pages that landed during the barrier changed the raster: the still TAA
+  // average must restart from this residency, not mix the frames that were still loading (#25).
+  if (mustRestartTaaAfterSettle(served, drains)) dropTaaHistory(rt);
   const mask = unsettledMask(rt);
   if (served || drains || mask & (TEXTURES_PENDING | SHADOWS_PENDING))
     diag.engineDiagnostic('pose-settle', 'Ce que la barrière a fait pour poser l’image', {
