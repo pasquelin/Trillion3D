@@ -14,7 +14,7 @@ export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:ve
 
 /** L'uniforme d'une image du tampon de visibilité, le même mot à mot pour les deux rasters et les
  *  résolutions : `webgpuVisibilityUniforms.ts` l'écrit une fois par slot. */
-export const VIS_UNIFORMS_WGSL = `struct Uniforms{viewProj:mat4x4f,viewport:vec2f,computeSpan:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,}`;
+export const VIS_UNIFORMS_WGSL = `struct Uniforms{viewProj:mat4x4f,viewport:vec2f,computeSpan:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,maskFrame:f32,}`;
 
 /** La description d'un cluster, suivie de l'uniforme d'une passe de géométrie de page. */
 export const PAGE_INFO_WGSL = `${PAGE_INFO_STRUCT_WGSL}
@@ -75,13 +75,23 @@ export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f
  * Le shader hôte déclare `uvs`, le pool couleur et sa table de pages, puis insère `TILE_POOL_WGSL`
  * (qui porte la règle d'adressage), `COLOR_SAMPLE_WGSL` et `maskAlphaWgsl(...)` avant ce bloc.
  */
-export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f,ddx:vec2f,ddy:vec2f)->bool{
+export const MASK_KEEP_WGSL = `fn maskHash(pixel:vec2f,frame:f32)->f32{
+ let p=floor(pixel)+vec2f(5.588238*frame,0.0);
+ return fract(52.9829189*fract(dot(p,vec2f(0.06711056,0.00583715))));
+}
+fn maskKeep(page:PageInfo,uv:vec2f,ddx:vec2f,ddy:vec2f,pixel:vec2f,frame:f32)->bool{
  if((page.flags&128u)==0u||(page.flags&8u)==0u){return true;}
  // Les niveaux de la chaîne prennent la MÉDIANE de l'alpha, jamais sa moyenne : un texel grossier
  // passe le seuil quand la moitié de ce qu'il recouvre le passait, donc la couverture du seuil
  // traverse les niveaux et la découpe reste juste à tout niveau. Une moyenne, elle, faisait grossir
  // la silhouette niveau après niveau et rendait le quad opaque pendant le chargement.
- return maskAlpha(page.mapIndex,uv,wrapOf(page.wrapModes,${WRAP_MAP.base}u),ddx,ddy)>=page.baseColor.w;
+ // Hashed Alpha Testing (Wyman, McGuire, I3D 2017) with interleaved gradient noise (Jimenez):
+ // keep/discard is a function of the SCREEN pixel and the TAA sample, not of a GPU coin-flip
+ // at the cutoff. Same pixel, same frame → same bit in every run (#25). A few ALU, no extra pass.
+ let a=maskAlpha(page.mapIndex,uv,wrapOf(page.wrapModes,${WRAP_MAP.base}u),ddx,ddy);
+ let t=page.baseColor.w;
+ let coverage=clamp((a-t)/max(1.0-t,1e-5),0.0,1.0);
+ return coverage>maskHash(pixel,frame);
 }`;
 
 /** Le test de masque précédé de la coordonnée de texture qu'un sommet de page lui fournit. */

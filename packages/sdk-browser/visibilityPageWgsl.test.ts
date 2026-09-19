@@ -67,6 +67,14 @@ test('MASK_KEEP_WGSL déclare fn maskKeep une seule fois dans le raster et les d
   eachOnce(MASK_KEEP_WGSL, { SMALL_SHADER, VIS_SHADER, SHADOW_DEPTH_SHADER });
 });
 
+test('mask keep/discard is a hash of the screen pixel and TAA sample (#25)', () => {
+  assert.match(MASK_KEEP_WGSL, /fn maskHash\(pixel:vec2f,frame:f32\)/);
+  assert.match(MASK_KEEP_WGSL, /coverage>maskHash\(pixel,frame\)/);
+  assert.match(VIS_SHADER, /in\.position\.xy,uni\.maskFrame/);
+  assert.match(SHADOW_DEPTH_SHADER, /in\.position\.xy,0\.0/);
+  assert.match(SMALL_SHADER, /pixel,uni\.maskFrame/);
+});
+
 test('BARY_WEIGHTS_WGSL déclare fn baryWeights une seule fois dans l’ombrage, jamais dans le raster', () => {
   assert.match(BARY_WEIGHTS_WGSL, /fn baryWeights\(/);
   eachOnce(BARY_WEIGHTS_WGSL, { SHADE_SHADER });
