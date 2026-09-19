@@ -1,6 +1,5 @@
 import { transformAffinePoint, transformDirectionVector3 } from './mathVector.ts';
-
-const POSITION_VALUES = 3;
+import { POSITION_VALUES } from './mathBatchStrides.ts';
 
 /**
  * Transforms `n` 3D points by a single 4×4 affine matrix: `out[i] = m · points[i]`.
