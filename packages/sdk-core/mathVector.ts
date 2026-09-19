@@ -6,29 +6,32 @@ import type { NumberSink } from './mathMatrix4.ts';
  * library, term by term and in the same order, hence the same bits.
  */
 
-/** `a · b` on the first three components. */
-export function dotVector3(a: ArrayLike<number>, b: ArrayLike<number>) {
-  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+/** `a · b` on three components read at `aAt` and `bAt`: one buffer plus an offset, never a view. */
+export function dotVector3(a: ArrayLike<number>, b: ArrayLike<number>, aAt = 0, bAt = 0) {
+  return a[aAt] * b[bAt] + a[aAt + 1] * b[bAt + 1] + a[aAt + 2] * b[bAt + 2];
 }
 
 /**
- * `out[outOffset..outOffset + 2] = a × b`. The six components are read before the first write,
- * so `out` may be `a` or `b`.
+ * `out[outAt..outAt + 2] = a × b`, operands read at `aAt` and `bAt`. The six components are read
+ * before the first write, so `out` may be `a` or `b`.
  */
 export function crossVector3<T extends NumberSink>(
   out: T,
   a: ArrayLike<number>,
   b: ArrayLike<number>,
+  outAt = 0,
+  aAt = 0,
+  bAt = 0,
 ) {
-  const ax = a[0],
-    ay = a[1],
-    az = a[2];
-  const bx = b[0],
-    by = b[1],
-    bz = b[2];
-  out[0] = ay * bz - az * by;
-  out[1] = az * bx - ax * bz;
-  out[2] = ax * by - ay * bx;
+  const ax = a[aAt],
+    ay = a[aAt + 1],
+    az = a[aAt + 2];
+  const bx = b[bAt],
+    by = b[bAt + 1],
+    bz = b[bAt + 2];
+  out[outAt] = ay * bz - az * by;
+  out[outAt + 1] = az * bx - ax * bz;
+  out[outAt + 2] = ax * by - ay * bx;
   return out;
 }
 
@@ -77,9 +80,9 @@ export function normalizeVector3(v: NumberSink) {
   v[2] *= inverse;
 }
 
-/** `v.lengthSq()`: the sum of the three squares, in the reference order. */
-export function lengthSqVector3(v: ArrayLike<number>) {
-  return v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
+/** `v.lengthSq()`: the three squares summed in the reference's order, read at `at`. */
+export function lengthSqVector3(v: ArrayLike<number>, at = 0) {
+  return v[at] * v[at] + v[at + 1] * v[at + 1] + v[at + 2] * v[at + 2];
 }
 
 /** `v.multiplyScalar(s)`: the three components of `out` multiplied in place. */
@@ -90,11 +93,17 @@ export function scaleVector3<T extends NumberSink>(out: T, s: number) {
   return out;
 }
 
-/** `out.copy(a).multiplyScalar(s)`: the copy then the factor, hence `out = a · s` component by component. */
-export function copyScaledVector3<T extends NumberSink>(out: T, a: ArrayLike<number>, s: number) {
-  out[0] = a[0] * s;
-  out[1] = a[1] * s;
-  out[2] = a[2] * s;
+/** `out.copy(a).multiplyScalar(s)`: `out = a · s` component by component, written at `outAt`, read at `aAt`. */
+export function copyScaledVector3<T extends NumberSink>(
+  out: T,
+  a: ArrayLike<number>,
+  s: number,
+  outAt = 0,
+  aAt = 0,
+) {
+  out[outAt] = a[aAt] * s;
+  out[outAt + 1] = a[aAt + 1] * s;
+  out[outAt + 2] = a[aAt + 2] * s;
   return out;
 }
 

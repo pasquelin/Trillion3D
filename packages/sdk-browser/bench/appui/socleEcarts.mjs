@@ -13,6 +13,7 @@ import {
   srgbToLinear,
 } from '../../../sdk-core/index.ts';
 import { noeudsHierarchie } from './socleEquivalence.mjs';
+import { SRGB_REFERENCE_GAP } from '../../../sdk-core/bench/oracles/three-duel.mjs';
 
 const normeColonne = (m, c) => Math.hypot(m[c * 4], m[c * 4 + 1], m[c * 4 + 2]);
 /** Largest cosine between two linear columns: zero without shear. */
@@ -103,7 +104,7 @@ test('face winding: linear determinant and 4×4 determinant of the same sign out
   assert.equal(opposes, 0);
 });
 
-test('sRGB: the deposit curve and the reference rounded constants stay under 1e-9', () => {
+test('sRGB: the repository curve and the reference rounded constants stay under the declared bound', () => {
   let versLineaire = 0,
     allerRetour = 0;
   for (let i = 0; i <= 4096; i++) {
@@ -114,6 +115,6 @@ test('sRGB: the deposit curve and the reference rounded constants stay under 1e-
   console.log(
     `  sRGB → linear: maximum delta ${versLineaire.toExponential(2)}; round-trip ${allerRetour.toExponential(2)}`,
   );
-  assert.ok(versLineaire < 1e-9);
+  assert.ok(versLineaire < SRGB_REFERENCE_GAP);
   assert.ok(allerRetour < 1e-12);
 });
