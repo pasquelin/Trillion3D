@@ -104,6 +104,27 @@
 - Never claim undelivered simplification, compression, hard memory enforcement, N-API bindings or
   platform releases.
 
+## Workflow
+
+- **Every change reaches `develop` through an issue and a pull request, whatever tool writes it.**
+  One issue per batch; branch `<issue>-<short-name>` cut from `develop`; pull request body on
+  `.github/PULL_REQUEST_TEMPLATE.md`, starting with `Closes #<issue>`. The tracked git hooks in
+  `.githooks/` (installed by `pnpm install`) refuse a commit on any other branch shape and a push
+  to `develop` or `main`; the GitHub ruleset `.github/ruleset.json` (applied with
+  `gh api -X PUT repos/{owner}/{repo}/rulesets/<id> --input .github/ruleset.json`) refuses a direct
+  or forced push and a merge without the `validate` check green.
+- **Before the push that opens a pull request, the author reviews its own diff twice**: a
+  simplification pass, then a correctness pass, fixes applied, gates rerun (`docs/roles/coder.md`
+  step 6 names the commands per tool). The pull request says what each pass found under "Local
+  review before push"; the CI refuses an empty section.
+- Two tool-neutral roles in `docs/roles/`: `coder` implements one issue and opens the pull
+  request; `reviewer` checks it against this file and comments, without editing. The coder hands
+  every pull request to the reviewer, a separate agent with a fresh context, and loops with it —
+  fix, push, re-check — until it answers `READY` (three rounds at most), then reports to the
+  maintainer. Claude Code has them as subagents in `.claude/agents/`,
+  the reviewer without edit tools.
+- Merging is the maintainer's decision, never an agent's. `gh pr merge` is not for agents.
+
 ## Interaction and replies
 
 - Reply in simple, concise French: outcome first, usually 1–5 lines. Include necessary evidence,
