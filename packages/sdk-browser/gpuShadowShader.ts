@@ -67,7 +67,7 @@ ${PAGE_MASK_WGSL}
  let gx=dpdx(in.uv);let gy=dpdy(in.uv);
  let radius=shadow.emitter.w;
  if(radius>0.0&&dot(in.fromEmitter,in.fromEmitter)<radius*radius){discard;}
- if(!maskKeep(pages[in.instance],in.uv,gx,gy)){discard;}
+ if(!maskKeep(pages[in.instance],in.uv,gx,gy,in.position.xy)){discard;}
 }
 /** Remet la tranche au LOINTAIN sans effacer le reste de l'atlas. La profondeur des faces est
  *  inversée comme celle de la caméra (\`depthConvention.ts\`) : le lointain vaut zéro. */

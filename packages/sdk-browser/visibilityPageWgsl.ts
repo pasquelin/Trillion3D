@@ -75,13 +75,24 @@ export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f
  * Le shader hôte déclare `uvs`, le pool couleur et sa table de pages, puis insère `TILE_POOL_WGSL`
  * (qui porte la règle d'adressage), `COLOR_SAMPLE_WGSL` et `maskAlphaWgsl(...)` avant ce bloc.
  */
-export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f,ddx:vec2f,ddy:vec2f)->bool{
+export const MASK_KEEP_WGSL = `fn maskHash(pixel:vec2f)->f32{
+ let p=floor(pixel);
+ return fract(52.9829189*fract(dot(p,vec2f(0.06711056,0.00583715))));
+}
+fn maskKeep(page:PageInfo,uv:vec2f,ddx:vec2f,ddy:vec2f,pixel:vec2f)->bool{
  if((page.flags&128u)==0u||(page.flags&8u)==0u){return true;}
  // Les niveaux de la chaîne prennent la MÉDIANE de l'alpha, jamais sa moyenne : un texel grossier
  // passe le seuil quand la moitié de ce qu'il recouvre le passait, donc la couverture du seuil
  // traverse les niveaux et la découpe reste juste à tout niveau. Une moyenne, elle, faisait grossir
  // la silhouette niveau après niveau et rendait le quad opaque pendant le chargement.
- return maskAlpha(page.mapIndex,uv,wrapOf(page.wrapModes,${WRAP_MAP.base}u),ddx,ddy)>=page.baseColor.w;
+ // Far from the cutoff: classic keep/discard. At the cutoff a GPU sample can land on either
+ // side (four pixels on the ground view, #25). Those pixels follow a hash of the SCREEN
+ // pixel — the same in every run. IGN (Jimenez); no extra pass. Band 0.05: wide enough to
+ // catch the straddling samples, narrow enough not to dither the whole canopy.
+ let a=maskAlpha(page.mapIndex,uv,wrapOf(page.wrapModes,${WRAP_MAP.base}u),ddx,ddy);
+ let t=page.baseColor.w;
+ if(abs(a-t)>0.05){return a>=t;}
+ return maskHash(pixel)>=0.5;
 }`;
 
 /** Le test de masque précédé de la coordonnée de texture qu'un sommet de page lui fournit. */
