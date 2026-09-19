@@ -67,7 +67,7 @@ export const BATCH_DEMOS = {
       const single = new Float64Array(16);
       multiplyMatrix4(single, a[count - 1], b[count - 1]);
       let worst = 0;
-      for (let index = 0; index < 16; index++)
+      for (let index = 0; index < MATRIX_VALUES; index++)
         worst = Math.max(worst, Math.abs(out[count - 1][index] - single[index]));
       return [
         valueView('the batch against the unit function it repeats', [

@@ -88,7 +88,8 @@ console.log(profile.gpuMethod, profile.gpuImageMs); // null when nothing measure
       { name: "'u32'", desc: 'Unsigned counters and offsets.' },
       { name: "'u8'", desc: 'Raw bytes — SHA objects, preview pixels.' },
     ],
-    example: `import { COLUMN_KIND } from '@web-geometry/sdk/core';
+    example: `// The table lives in the file above; the package entry point does not re-export it.
+import { COLUMN_KIND } from 'packages/sdk-core/manifestBinaryFormat.ts';
 
 console.log(COLUMN_KIND.pageBounds); // 'f64'`,
   },
@@ -108,7 +109,8 @@ console.log(COLUMN_KIND.pageBounds); // 'f64'`,
     ],
     replaces: 'FrontSide, BackSide, DoubleSide',
     proof: 'materialSide.test.ts',
-    example: `import { sideOf } from '@web-geometry/sdk/browser';
+    example: `// Read once at the import boundary; not re-exported from the package entry point yet.
+import { sideOf } from 'packages/sdk-browser/materialSide.ts';
 
 if (sideOf(material) === 'double') { /* rasterize without backface culling */ }`,
   },
