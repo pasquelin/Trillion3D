@@ -1,10 +1,12 @@
 import { Alert, Card } from '../components/UI.jsx';
 import { CodeBlock } from '../components/CodeBlock.jsx';
+import { planCode } from './roadmapPlan.js';
+import { relatedReadyLesson } from './roadmapRelated.js';
 
 const local = (value, locale) => value[locale === 'fr' ? 'fr' : 'en'];
-
 export function PlannedCard({ entry, locale, expanded, onOpen }) {
   const french = locale === 'fr';
+  const related = relatedReadyLesson(entry);
   return (
     <Card className="h-full shadow-sm overflow-hidden">
       <button
@@ -18,14 +20,16 @@ export function PlannedCard({ entry, locale, expanded, onOpen }) {
             <span className="text-4xl" aria-hidden="true">
               ◇
             </span>
-            <p className="text-xs uppercase tracking-widest mt-3">{entry.subject}</p>
+            <p className="text-xs uppercase tracking-widest mt-3">
+              {local(entry.categoryLabel, locale)}
+            </p>
           </div>
         </div>
         <span className="badge badge-soft badge-warning">
           {french ? 'En cours de création' : 'In development'}
         </span>
         <h2 className="card-title text-lg">{local(entry.title, locale)}</h2>
-        <p className="text-sm opacity-75 grow">{entry.concept}</p>
+        <p className="text-sm opacity-75 grow">{local(entry.concept, locale)}</p>
       </button>
       {expanded && (
         <>
@@ -37,8 +41,13 @@ export function PlannedCard({ entry, locale, expanded, onOpen }) {
           <CodeBlock
             locale={locale}
             label={french ? 'Plan non exécutable' : 'Non-runnable plan'}
-            code={`// Planned original lesson: ${entry.title.en}\n// 1. Audit the public Web Geometry capability for: ${entry.subject}.\n// 2. Design procedural geometry and deterministic controls.\n// 3. Call only verified public APIs and compare visible input/output.\n// TODO: implement and validate this capability before marking the lesson ready.`}
+            code={planCode(entry)}
           />
+          {related && (
+            <a className="link link-primary text-sm" href={`#/${locale}/playground/${related}`}>
+              {french ? 'Voir une leçon prête associée' : 'See a related ready lesson'}
+            </a>
+          )}
         </>
       )}
     </Card>

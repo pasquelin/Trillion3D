@@ -4,11 +4,19 @@ import { Alert, Field } from '../components/UI.jsx';
 import { examples } from '../../js/gallery/catalog.js';
 import { engineExample, ExampleCard } from './ExampleCard.jsx';
 import { PlannedCard } from './PlannedCard.jsx';
+import { categoryLabel } from './roadmapLabels.js';
 
 const PAGE_SIZE = 24;
 const READY = [engineExample, ...examples].map((entry) => ({ ...entry, status: 'ready' }));
+const normalized = (value) =>
+  value
+    .normalize('NFD')
+    .replaceAll(/\p{Diacritic}/gu, '')
+    .toLowerCase();
 const searchable = (entry) =>
-  `${entry.title.en} ${entry.title.fr} ${entry.description?.en ?? ''} ${entry.description?.fr ?? ''} ${entry.subject ?? ''} ${(entry.functions ?? []).join(' ')}`.toLowerCase();
+  normalized(
+    `${entry.id} ${entry.title.en} ${entry.title.fr} ${entry.description?.en ?? ''} ${entry.description?.fr ?? ''} ${entry.subject ?? ''} ${entry.supplementaryTopic ?? ''} ${(entry.functions ?? []).join(' ')}`,
+  );
 
 export function Gallery({ locale = 'en' }) {
   const [query, setQuery] = useState(''),
@@ -22,7 +30,7 @@ export function Gallery({ locale = 'en' }) {
         (entry) =>
           (status === 'all' || entry.status === status) &&
           (category === 'all' || entry.category === category) &&
-          searchable(entry).includes(query.toLowerCase()),
+          searchable(entry).includes(normalized(query)),
       ),
     [query, status, category],
   );
@@ -98,15 +106,15 @@ export function Gallery({ locale = 'en' }) {
             <option value="all">{french ? 'Toutes' : 'All'}</option>
             {categories.map((item) => (
               <option key={item} value={item}>
-                {item}
+                {roadmap.categories[item]?.[french ? 'fr' : 'en'] ?? categoryLabel(item, locale)}
               </option>
             ))}
           </select>
         </Field>
       </div>
       <p className="text-sm opacity-70 mb-4" role="status">
-        {entries.length} {french ? 'sujets' : 'topics'} · {READY.length}{' '}
-        {french ? 'prêts' : 'ready'}
+        {entries.length} {french ? 'résultats affichés' : 'results shown'} · {READY.length}{' '}
+        {french ? 'leçons prêtes dans toute la galerie' : 'ready lessons in the full gallery'}
       </p>
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
         {visible.map((entry) =>
