@@ -1,5 +1,5 @@
 import type { EngineCamera } from './cameraWorld.ts';
-import { shadeColorAttachments } from './webgpuPagesAttachments.ts';
+import { encodeMaterialPasses } from './webgpuMaterialPasses.ts';
 import { VIS_MAX_PAGES } from './visibilityBuffer.ts';
 import { encodeWebgpuPartition } from './webgpuVisibilityPartition.ts';
 import { uploadRowCorners } from './webgpuVisibilityCorners.ts';
@@ -32,7 +32,7 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
     !gpu.depthView ||
     !vis.visView ||
     !vis.visPipelineBack ||
-    !vis.shadePipeline ||
+    !vis.materialDepthPipeline ||
     !vis.pageTable ||
     !rows.pageTableInts
   )
@@ -95,20 +95,9 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   // and mapped once the image is submitted. No image waits for that readback.
   if (vis.gpuPartition?.countsDue(run.frame)) vis.gpuPartition.encodeCounts(encoder, run.frame);
   if (!gpu.surfaces || !gpu.deferred || !gpu.hdrView) throw new Error('DEFERRED_UNAVAILABLE');
-  // Surfaces, and the virtual-texture feedback target where each opaque pixel posts the tile rank
-  // it wants — completed by transparents, reduced to counts at submit.
-  const shadePass = encoder.beginRenderPass({
-    label: 'WG material surfaces v1',
-    colorAttachments: shadeColorAttachments(rt, gpu.surfaces),
-  });
-  shadePass.setViewport(0, 0, width, height, 0, 1);
-  if (vis.shadeBindGroup) {
-    shadePass.setPipeline(vis.shadePipeline);
-    shadePass.setBindGroup(0, vis.shadeBindGroup);
-    shadePass.draw(3);
-    run.gpuDrawCalls++;
-  }
-  shadePass.end();
+  // Surfaces, one class at a time, and the virtual-texture feedback target where each opaque
+  // pixel posts the tile rank it wants — completed by transparents, reduced to counts at submit.
+  encodeMaterialPasses(rt, encoder);
   const presented = encodeSurfaceLighting(rt, device, encoder, cam, rows.packedCount);
   submitColorCopy(rt, device, encoder, height, width, presented);
   // Submitted triangles are those of every drawable row: both halves are drawn, and a cluster the

@@ -4,11 +4,26 @@ import assert from 'node:assert/strict';
 import { FLAG_DOUBLE, FLAG_HAS_NORMAL, SHADE_SHADER } from './visibilityBuffer.ts';
 import { BLEND_SHADER } from './webgpuBlendShader.ts';
 
+/**
+ * The two shaders and how each tests the two material bits: blend reads its flat flags word per
+ * pixel, opaque reads the class overrides its pipeline was compiled with
+ * (`visibilityMaterialClass.ts`). Same rule checked on both sides.
+ */
+const SHADERS = [
+  {
+    nom: 'blend',
+    wgsl: BLEND_SHADER,
+    vertexNormal: `(flags&${FLAG_HAS_NORMAL}u)!=0u`,
+    double: `(flags&${FLAG_DOUBLE}u)!=0u`,
+  },
+  { nom: 'opaque', wgsl: SHADE_SHADER, vertexNormal: 'HAS_VERTEX_NORMAL', double: 'DOUBLE_SIDED' },
+];
+
 /** Body of the vertex-normal branch, the one that follows the geometric normal. */
-function vertexNormalBranch(wgsl: string) {
+function vertexNormalBranch(wgsl: string, vertexNormal: string) {
   const geometric = wgsl.indexOf('var N=uniteOuZero(');
   assert.notEqual(geometric, -1, 'the shader does start from a geometric normal');
-  const start = wgsl.indexOf(`&${FLAG_HAS_NORMAL}u)!=0u){`, geometric);
+  const start = wgsl.indexOf(`if(${vertexNormal}){`, geometric);
   assert.notEqual(start, -1, 'the vertex normal does have its branch');
   let depth = 0;
   const open = wgsl.indexOf('{', start);
@@ -24,26 +39,21 @@ test('only a vertex normal flips on the back of a two-sided material', () => {
   // put back right-side-out by `screenFace` for opaque. Flipping it would send it opposite the
   // light, and a two-sided pane seen from behind would render exactly zero. The flip therefore
   // lives in the vertex-normal branch, and nowhere else, on both sides.
-  for (const [nom, wgsl] of [
-    ['blend', BLEND_SHADER],
-    ['opaque', SHADE_SHADER],
-  ] as Array<[string, string]>) {
-    assert.match(vertexNormalBranch(wgsl), /N\*=face;/, `${nom}: the vertex normal flips`);
+  for (const { nom, wgsl, vertexNormal, double } of SHADERS) {
+    assert.match(
+      vertexNormalBranch(wgsl, vertexNormal),
+      /N\*=face;/,
+      `${nom}: the vertex normal flips`,
+    );
     assert.equal(
       wgsl.split('N*=face;').length - 1,
       1,
       `${nom}: a single normal flip in the whole shader`,
     );
+    // The tangent frame follows the same rule: it flips only with the normal that orients it.
+    assert.ok(
+      wgsl.includes(`if(${double}&&${vertexNormal}){T*=face;B*=face;}`),
+      `${nom}: the tangent frame flips only with a normal`,
+    );
   }
-  // The tangent frame follows the same rule: it flips only with the normal that orients it.
-  const tangent = new RegExp(
-    // Opaque reads the flags on its page sheet, blend in a local variable taken from its
-    // flat variables: `page.flags` on one side, `flags` on the other, same rule checked.
-    `&${FLAG_DOUBLE}u\\)!=0u&&\\((?:[a-z]+\\.)?flags&${FLAG_HAS_NORMAL}u\\)!=0u\\)\\{T\\*=face;B\\*=face;\\}`,
-  );
-  for (const [nom, wgsl] of [
-    ['blend', BLEND_SHADER],
-    ['opaque', SHADE_SHADER],
-  ] as Array<[string, string]>)
-    assert.match(wgsl, tangent, `${nom}: the tangent frame flips only with a normal`);
 });
