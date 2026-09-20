@@ -1,0 +1,1 @@
+{"count":1,"counts":{},"lights":[{"castsShadow":true,"color":[1.0,0.91,0.8],"direction":[-0.3161414939459498,-0.5992890938368195,-0.7354638929368775],"id":"Mountain light","intensity":3.8067349926793557,"kind":"directional"}],"rejected":{},"sceneLightVersion":2,"units":{"lumensPerWatt":683.0,"maxRange":10000.0,"rangeCutoffIrradiance":0.01},"version":1}

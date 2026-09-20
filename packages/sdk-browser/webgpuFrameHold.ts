@@ -65,8 +65,9 @@ export function unsettledMask(rt: WebgpuPagesRuntime) {
   // A requested tile not yet served will change the frame when it arrives; and a settle must
   // render to read what the pose asks for, never hold.
   if (vis.textures?.counters.pending || run.textureConverging) mask |= BIT.texturesPending;
-  // A representation change held until the camera rests must find a frame to enter the queue.
-  if (lights.plan.counts.pendingPages > 0 || lights.plan.deferredChanges)
+  // A representation change held until the camera rests must find a frame to enter the queue —
+  // a frame that plans shadows, hence one with an atlas.
+  if (lights.plan.counts.pendingPages > 0 || (lights.shadows && lights.plan.deferredChanges))
     mask |= BIT.shadowsPending;
   // Every page of the requested cut carries its bytes. A still-pending page can still change the
   // cut, hence the frame: holding it would open a hole. This count is held by the cut difference,
