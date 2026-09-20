@@ -44,7 +44,7 @@ fn the_scalar_weight_of_a_textured_colour_reaches_the_gltf_factor() {
     assert_eq!(
         diffuse["pbrMetallicRoughness"]["baseColorFactor"],
         json!([0.5, 0.5, 0.5, 1.0]),
-        "le poids diffus multiplie la texture : {diffuse}"
+        "the diffuse weight multiplies the texture: {diffuse}"
     );
     assert!(
         diffuse["pbrMetallicRoughness"]["baseColorTexture"]["index"].is_number(),
@@ -86,7 +86,7 @@ fn only_a_tangent_space_bump_becomes_a_normal_texture() {
     let (manifest, gltf) = compile_ma("ma-bump", &body).prepared("ma");
     assert!(
         material(&gltf, "Hauteur").get("normalTexture").is_none(),
-        "un relief en hauteur n'est pas une carte de normales"
+        "a height bump is not a normal map"
     );
     assert!(material(&gltf, "Objet").get("normalTexture").is_none());
     let tangent = &material(&gltf, "Tangente")["normalTexture"];
@@ -115,7 +115,7 @@ fn wrap_u_and_wrap_v_reach_the_two_axes_of_the_sampler() {
     );
     let (_, gltf) = compile_ma("ma-wrap", &body).prepared("ma");
     let sampler = &gltf["samplers"][0];
-    assert_eq!(sampler["wrapS"], json!(33071), "`wrapU` borne l'axe S");
+    assert_eq!(sampler["wrapS"], json!(33071), "`wrapU` clamps the S axis");
     assert_eq!(
         sampler["wrapT"],
         json!(10497),

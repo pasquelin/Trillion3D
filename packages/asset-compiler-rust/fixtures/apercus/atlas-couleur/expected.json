@@ -3,7 +3,7 @@
     "texturePreviewBytes": 12268,
     "texturePreviews": 3
   },
-  "case": "Quatre quads, quatre matériaux qui se partagent trois textures couleur : un OPAQUE à baseColorTexture PNG 40×24 liée par uri, un MASK à alphaCutoff 0,25 sur un PNG 24×16 à alpha binaire embarqué en bufferView, et un BLEND dont la baseColorTexture JPEG 80×48 sert aussi d'emissiveTexture à un quatrième matériau.",
+  "case": "Four quads, four materials that share three colour textures: an OPAQUE with a 40×24 PNG baseColorTexture linked by uri, a MASK at alphaCutoff 0.25 on a 24×16 PNG with binary alpha embedded in a bufferView, and a BLEND whose 80×48 JPEG baseColorTexture also serves as emissiveTexture to a fourth material.",
   "formatVersion": 4,
   "manifestBinaryVersion": 5,
   "previews": [
@@ -292,7 +292,7 @@
     "skipped": {},
     "version": 3
   },
-  "rule": "Chaque texture couleur porte la queue sans perte de sa chaîne de mips, du premier niveau dont aucun côté ne dépasse 64 jusqu'au 1×1, en RGBA8 sRGB à alpha droit. Seule la texture dont toutes les liaisons sont des couleurs de base MASK voit son alpha remis à l'échelle pour préserver la couverture de la source au seuil du matériau ; les deux autres gardent leur alpha intact.",
+  "rule": "Each colour texture carries the lossless tail of its mip chain, from the first level whose neither side exceeds 64 through 1×1, in RGBA8 sRGB with straight alpha. Only the texture whose every binding is a MASK base colour has its alpha rescaled to preserve source coverage at the material threshold; the other two keep their alpha intact.",
   "textures": {
     "url": "../../textures/v3/{sha}/{kind}-{level}.png"
   }

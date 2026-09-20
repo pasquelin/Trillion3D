@@ -51,7 +51,7 @@ pub(super) fn build_dag_primitive(
     store_packed: &(impl Fn(&[u32]) -> Result<(Value, bool)> + Sync),
 ) -> Result<DagResult> {
     let strategy = crate::dag::DagStrategy::named(&o.simplification);
-    // Les uv, quand la primitive en porte : la soudure de repli du DAG ne franchit pas une couture.
+    // UVs, when the primitive carries them: fallback DAG weld does not cross a texture seam.
     let uvs = attributes.iter().find(|a| a.flag == geometry_page::FLAG_UV);
     let (dag, groups, tallies) = crate::dag::build_dag_tallied(
         pos,

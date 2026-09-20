@@ -27,7 +27,7 @@ test('unknown compute contract leaves everything on JavaScript with published re
     const etat = mathBatchMetrics();
     assert.equal(etat.wasmAvailable, false);
     assert.equal(etat.wasmSimd, null);
-    assert.match(etat.unavailableReason ?? '', /contrat de calcul/);
+    assert.match(etat.unavailableReason ?? '', /computation contract/);
   } finally {
     WebAssembly.instantiate = instantiateOriginal;
     globalThis.fetch = fetchOriginal;

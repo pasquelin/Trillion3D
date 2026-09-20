@@ -29,10 +29,10 @@ const LUMENS_PER_WATT: f64 = 683.0;
 const RANGE_CUTOFF_IRRADIANCE: f64 = 1e-2;
 /// Maximum range, declared or deduced, in metres: beyond it, the light covers any playable scene.
 const MAX_RANGE: f64 = 1.0e4;
-/// Version du produit de cache `lights.json`. Il vit hors du manifeste : sa version lui est propre.
+/// Version of the `lights.json` cache product. It lives outside the manifest: its version is its own.
 const SCENE_LIGHTS_VERSION: u32 = 1;
 const SCENE_LIGHTS_FILE: &str = "lights.json";
-/// Version du contrat `SceneLight` que ce produit remplit (`packages/sdk-core/sceneLightContracts`).
+/// Version of the `SceneLight` contract fulfilled by this product (`packages/sdk-core/sceneLightContracts`).
 const SCENE_LIGHT_CONTRACT: u32 = 2;
 const QUARTER_PI: f64 = std::f64::consts::FRAC_PI_4;
 /// What one FBX intensity unit is worth in glTF's photometric unit — the only

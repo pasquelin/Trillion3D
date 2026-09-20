@@ -115,7 +115,7 @@ export function renderGpuCut(
   ensureTargets(rt, gpuDevice, Math.max(1, width), Math.max(1, height));
   if (!run.renderPathLogged) {
     run.renderPathLogged = true;
-    diag.engineDiagnostic('first-render-path', 'Configuration du premier rendu WebGPU', {
+    diag.engineDiagnostic('first-render-path', 'WebGPU first render configuration', {
       clearColor: `#${clearColor.toString(16).padStart(6, '0')}`,
       targetSize: gpu.targetSize,
       visibilityBuffer: true,
@@ -129,7 +129,7 @@ export function renderGpuCut(
   } catch (error) {
     abandonFrameEncoder(rt);
     if (context.gpuCanvas) throw error;
-    return withoutGpuSelection(rt, 'encodage du dessin en erreur');
+    return withoutGpuSelection(rt, 'draw encoding error');
   }
   // An encode path that returned without submitting would strand the selection's readback slot.
   abandonFrameEncoder(rt);

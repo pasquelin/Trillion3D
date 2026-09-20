@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 license = "PolyForm-Noncommercial-1.0.0"
 
-# `rlib` pour le compilateur natif, qui teste le décodeur contre son propre encodeur ;
-# `cdylib` pour `wasm32-unknown-unknown`, qui n'exporte que l'ABI de `wasm.rs`.
+# `rlib` for the native compiler, testing the decoder against its own encoder;
+# `cdylib` for `wasm32-unknown-unknown`, exporting only the ABI of `wasm.rs`.
 [lib]
 name = "web_geometry_page_codec"
 path = "src/lib.rs"

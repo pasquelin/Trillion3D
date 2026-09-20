@@ -81,7 +81,7 @@ triangle object.
 C9. **Single binary**: one executable per OS (macOS arm64/x64, Linux x64/arm64, Windows x64),
 stdout event protocol (progress, errors, short result), result written to disk, never a full
 manifest on stdout. The same code compiled to WebAssembly for the editor (compile one object in
-the browser, off the main thread). Criterion: the Lab prepares its scenes with Node only as a
+the browser, off the main thread). Criterion: a host prepares its scenes with Node only as a
 relay; the editor recompiles an object without a server.
 C10. **Provenance**: compiler digest (sources + locked dependencies) in every cache; two compiles
 of the same file yield the same bytes. Criterion: null diff between two runs.
@@ -90,6 +90,13 @@ of the same file yield the same bytes. Criterion: null diff between two runs.
 
 R1. **Zero Three.js dependency** in `sdk-browser`. Own math (matrices, quaternions, frustum, rays)
 shared with the compiler via wasm where parity matters (screen error, picking).
+
+The WebGL2 migration starts with an engine-owned surface: the engine creates the context with its
+declared attributes, owns drawing-buffer size and DPR, observes loss and restoration, and releases
+the context on disposal. During this foundation stage, the Three scene renderer receives that
+already-owned context as a temporary draw adapter. Cluster programs, composition targets, captures,
+and observation meshes move to engine resources in the following stages; this stage does not claim
+their removal or a performance gain.
 
 R1a. **What remains of Three.js in the engine, measured.** The 15 September survey (lot T1) listed
 file by file every call to a Three.js math method in `sdk-browser`; those counts are stale and are
@@ -346,7 +353,7 @@ threshold.
 
 ## 6. Bench and proof
 
-B1. Three.js remains the **witness engine** in the Lab: same scene, same camera, lossless PNG
+B1. Three.js remains the **witness engine**: same scene, same camera, lossless PNG
 capture, pixel comparison at 0 px (identity expected) and at 1 px (differences localised to
 switches), A/A witness.
 B2. **WebGPU/WebGL2 parity**: automatic test on every scene, max error ≤ 2 per channel, else fail.

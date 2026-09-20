@@ -91,9 +91,9 @@ export function clusterErrorFields(page: Page): {
       ? page.parentError
       : null;
   if (parent !== null && !(Array.isArray(page.parentSphere) && page.parentSphere.length === 4))
-    throw new Error(`Page ${page.id}: parentError sans parentSphere`);
+    throw new Error(`Page ${page.id}: parentError without parentSphere`);
   if (parent !== null && parent < page.lodError!)
-    throw new Error(`Page ${page.id}: parentError sous lodError`);
+    throw new Error(`Page ${page.id}: parentError below lodError`);
   // The parent sphere uses the same rule as the page's own sphere: rejected here,
   // at prepare time, never mid-frame. A zero error projects nothing and does not read
   // its sphere; it has nothing to validate.
@@ -132,22 +132,22 @@ export function structureIndex(
   for (let g = 0; g < groupCount; g++) {
     const group = structure.groups[g];
     if (!(group.error >= 0) || !Array.isArray(group.sphere) || group.sphere.length !== 4)
-      throw new Error(`Groupe ${g} sans erreur ni bornes`);
+      throw new Error(`Group ${g} without error or bounds`);
     error[g] = group.error;
     for (let a = 0; a < 4; a++) sphere[g * 4 + a] = group.sphere[a];
     let at = childOffsets[g];
     for (const child of group.children) {
       if (!(child >= 0 && child < pageCount))
-        throw new Error(`Groupe ${g} reference une page inconnue`);
-      if (owners[child] >= 0) throw new Error(`Page ${child} appartient a deux groupes`);
+        throw new Error(`Group ${g} references an unknown page`);
+      if (owners[child] >= 0) throw new Error(`Page ${child} belongs to two groups`);
       owners[child] = g;
       children[at++] = child;
     }
     at = outputOffsets[g];
     for (const output of group.outputs) {
       if (!(output >= 0 && output < pageCount))
-        throw new Error(`Groupe ${g} reference une page inconnue`);
-      if (sources[output] >= 0) throw new Error(`Page ${output} est produite par deux groupes`);
+        throw new Error(`Group ${g} references an unknown page`);
+      if (sources[output] >= 0) throw new Error(`Page ${output} is produced by two groups`);
       sources[output] = g;
       outputs[at++] = output;
     }
@@ -177,9 +177,9 @@ export function streamPlacement(
   const placement = pages.map((page) => {
     if (typeof page.stream !== 'number' || typeof page.streamOffset !== 'number') return undefined;
     const bundle = streams.pages[page.stream];
-    if (!bundle) throw new Error(`Page ${page.id} hors des paquets de streaming`);
+    if (!bundle) throw new Error(`Page ${page.id} outside streaming bundles`);
     if (page.streamOffset + page.count * 4 > bundle.bytes)
-      throw new Error(`Page ${page.id} depasse son paquet`);
+      throw new Error(`Page ${page.id} exceeds its bundle`);
     return { url: bundle.url, offset: page.streamOffset };
   });
   return placement.every((entry) => entry)

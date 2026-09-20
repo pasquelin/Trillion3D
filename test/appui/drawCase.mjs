@@ -29,7 +29,7 @@ export async function runCase(sample, context) {
   } = context;
   const n = Math.min(sample.items.length, cap),
     words = new Uint32Array(n * drawItemU32);
-  // `rest` ne voyage plus dans la structure : il est un bit de `restBits`, lu par `restAt(i)`.
+  // `rest` no longer travels in the structure: it is a bit of `restBits`, read by `restAt(i)`.
   const bits = new Uint32Array(Math.max(1, Math.ceil(cap / 32)));
   for (let i = 0; i < n; i++) {
     const item = sample.items[i];
