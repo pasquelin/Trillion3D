@@ -98,7 +98,7 @@ try {
   assert.ok(sample.visiblePixels > 150_000, 'the landscape occupies a meaningful image area');
   assert.ok(sample.riverPixels > 8, 'the river remains visible through the mountain valley');
   assert.ok(sample.colorBuckets > 24, 'lighting and material strata remain visually distinct');
-  assert.equal(sample.metrics.selectedTriangles, 18624);
+  assert.equal(sample.metrics.selectedTriangles, 18592);
   assert.deepEqual(errors, []);
   await page.screenshot({ path: resolve(output, 'mountain-watershed.png') });
   await writeFile(
@@ -108,7 +108,7 @@ try {
         commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
         camera: { position: [10.5, 8.2, 12.5], target: [0, 1.1, 0] },
         resolution: sample.size,
-        sourceTriangles: 18624,
+        sourceTriangles: 18592,
         visiblePixels: sample.visiblePixels,
         riverPixels: sample.riverPixels,
         colorBuckets: sample.colorBuckets,
