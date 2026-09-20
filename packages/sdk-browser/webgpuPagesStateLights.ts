@@ -39,6 +39,8 @@ export interface WebgpuLightState {
   /** Redrawn regions and pages they cover: the unit of work and that of the budget. */
   shadowRegions: number;
   shadowPages: number;
+  /** Pages drawn since the state was created, every frame and drain together. */
+  shadowPagesTotal: number;
   /** Pages redrawn per image, by image rank: the GPU timer comes back late and must find the work of
    *  the image it describes to deduce the cost of a page. */
   pagesByFrame: Uint32Array;
@@ -75,6 +77,7 @@ export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightStat
     shadowFaces: 0,
     shadowRegions: 0,
     shadowPages: 0,
+    shadowPagesTotal: 0,
     pagesByFrame: new Uint32Array(PAGES_RING),
     sunCascades: 0,
     shadowDraws: 0,

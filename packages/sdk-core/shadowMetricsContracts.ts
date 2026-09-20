@@ -24,6 +24,9 @@ export interface ShadowFrameMetrics {
    *  the queue for lack of budget, and the lag in milliseconds of the oldest of them. Zero
    *  everywhere is the normal value of a still scene; `null` on an engine without a shadow atlas. */
   shadowPagesDrawn?: number | null;
+  /** Pages drawn since the explorer opened, drains of `flush()` included: what a change cost
+   *  is the difference between two readings. */
+  shadowPagesTotal?: number | null;
   shadowPagesPending?: number | null;
   shadowWaitMs?: number | null;
   gpuLightListsMs?: number | null;
