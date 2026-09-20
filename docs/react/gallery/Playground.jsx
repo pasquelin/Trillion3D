@@ -1,9 +1,10 @@
+import { LearningCards } from '../components/LearningCards.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { CodeEditor } from '../components/CodeEditor.jsx';
 import { formatNumericText } from '../../js/code/formatNumber.js';
 import { ExampleLayout } from '../components/ExampleLayout.jsx';
 import { Section } from '../components/Section.jsx';
-import { Alert, Button, Field, Form, Range, Select } from '../components/UI.jsx';
+import { Button, Field, Form, Range, Select } from '../components/UI.jsx';
 import { examples, byId } from '../../js/gallery/catalog.js';
 import { codeFor } from '../../js/gallery/code.js';
 import { evaluate } from '../../js/gallery/evaluate.js';
@@ -13,8 +14,23 @@ import { Diagram } from './Diagram.jsx';
 import { WebGPUCanvas } from './WebGPUCanvas.jsx';
 import { controlLabel } from './controlLabels.js';
 import { usePlaygroundMotion } from './usePlaygroundMotion.js';
+import { rendererLessonById } from '../../js/gallery/rendererLessons.js';
+import { RendererLesson } from './RendererLesson.jsx';
 const local = (value, locale) => value[locale === 'fr' ? 'fr' : 'en'];
 export function Playground({ id, locale = 'en', onSelect }) {
+  const rendererLesson = rendererLessonById(id);
+  if (rendererLesson)
+    return (
+      <RendererLesson
+        key={rendererLesson.id}
+        lesson={rendererLesson}
+        locale={locale}
+        onSelect={onSelect}
+      />
+    );
+  return <MathPlayground id={id} locale={locale} onSelect={onSelect} />;
+}
+function MathPlayground({ id, locale = 'en', onSelect }) {
   const example = byId(id),
     scenario = SCENARIOS[example.id],
     [state, setState] = useState(() => initialState(example.id));
@@ -85,20 +101,13 @@ export function Playground({ id, locale = 'en', onSelect }) {
     </Section>
   );
   const cards = (
-    <div className="playground-cards grid gap-3 sm:grid-cols-2">
-      <Alert>
-        <Content title={french ? 'Entrée' : 'Input'}>{result.input}</Content>
-      </Alert>
-      <Alert>
-        <Content title={french ? 'Sortie moteur' : 'Engine output'}>{result.value}</Content>
-      </Alert>
-      <Alert>
-        <Content title={french ? 'À essayer' : 'What to try'}>{guidance.try}</Content>
-      </Alert>
-      <Alert>
-        <Content title={french ? 'Ce qui change' : 'What changes'}>{guidance.changes}</Content>
-      </Alert>
-    </div>
+    <LearningCards
+      input={formatNumericText(result.input)}
+      output={formatNumericText(result.value)}
+      attempt={guidance.try}
+      changes={guidance.changes}
+      locale={locale}
+    />
   );
   const left = (
     <div className="playground-learn grid gap-4">
@@ -160,13 +169,5 @@ export function Playground({ id, locale = 'en', onSelect }) {
         }
       />
     </section>
-  );
-}
-function Content({ title, children }) {
-  return (
-    <div>
-      <div className="text-xs font-bold uppercase opacity-60">{title}</div>
-      <div className="text-sm numeric-copy">{formatNumericText(children)}</div>
-    </div>
   );
 }
