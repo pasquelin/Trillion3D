@@ -5,6 +5,6 @@
     "types": ["node"],
     "noEmit": true
   },
-  "include": ["packages/sdk-core/**/*.ts"],
+  "include": ["packages/sdk-core/**/*.ts", "packages/sdk/index.ts", "packages/sdk/common/**/*.ts"],
   "exclude": ["packages/sdk-core/**/*.test.ts"]
 }
