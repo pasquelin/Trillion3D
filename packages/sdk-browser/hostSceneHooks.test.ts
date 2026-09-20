@@ -80,18 +80,34 @@ test('a colour replaced then written is still seen', () => {
   assert.equal(revision.revision, 1);
 });
 
-test('a matrix set by hand is announced by the update flag, as the reference requires', () => {
+test('a matrix set by hand is announced by the update flag, once per matrix', () => {
   const { mesh, revision } = hooked();
   mesh.matrixAutoUpdate = false;
   revision.revision = 0;
   mesh.matrix.makeTranslation(5, 0, 0);
   mesh.matrixWorldNeedsUpdate = true;
-  assert.equal(revision.revision, 1, 'the flag raised on a frozen node is a write');
+  assert.equal(revision.revision, 1, 'the flag raised on a frozen node over a new matrix');
   mesh.matrixWorldNeedsUpdate = true;
-  assert.equal(revision.revision, 2, 'raised again: another matrix was set');
+  assert.equal(revision.revision, 1, 'raised again over the same matrix: nothing moved');
   mesh.updateMatrixWorld(true);
   assert.equal(mesh.matrixWorldNeedsUpdate, false, 'the reference cleared it on its walk');
-  assert.equal(revision.revision, 2, 'clearing it announces nothing');
+  assert.equal(revision.revision, 1, 'clearing it over the same matrix announces nothing');
+  mesh.matrix.makeTranslation(7, 0, 0);
+  mesh.updateMatrixWorld(true);
+  assert.equal(revision.revision, 2, 'a forced walk over a new matrix is a write');
+});
+
+test('updateMatrix() each tick on a frozen node, pose unchanged, bumps nothing', () => {
+  const { mesh, revision } = hooked();
+  mesh.position.x = 3;
+  mesh.updateMatrix();
+  mesh.matrixAutoUpdate = false;
+  revision.revision = 0;
+  for (let tick = 0; tick < 5; tick++) mesh.updateMatrix();
+  assert.equal(revision.revision, 0);
+  mesh.position.x = 4;
+  mesh.updateMatrix();
+  assert.ok(revision.revision > 0, 'a pose recomposed into a new matrix is seen');
 });
 
 test("the reference's own walk over automatic nodes bumps nothing: a still scene stays still", () => {
