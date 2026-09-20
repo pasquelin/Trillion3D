@@ -86,11 +86,11 @@ export function lengthSqVector3(v: ArrayLike<number>, at = 0) {
   return v[at] * v[at] + v[at + 1] * v[at + 1] + v[at + 2] * v[at + 2];
 }
 
-/** `v.multiplyScalar(s)`: the three components of `out` multiplied in place. */
-export function scaleVector3<T extends NumberSink>(out: T, s: number) {
-  out[0] *= s;
-  out[1] *= s;
-  out[2] *= s;
+/** `v.multiplyScalar(s)`: the three components of `out` at `at` multiplied in place. */
+export function scaleVector3<T extends NumberSink>(out: T, s: number, at = 0) {
+  out[at] *= s;
+  out[at + 1] *= s;
+  out[at + 2] *= s;
   return out;
 }
 
@@ -108,17 +108,23 @@ export function copyScaledVector3<T extends NumberSink>(
   return out;
 }
 
-/** `v.addScaledVector(a, s)`: `out += a · s`, component by component. */
-export function addScaledVector3<T extends NumberSink>(out: T, a: ArrayLike<number>, s: number) {
-  out[0] += a[0] * s;
-  out[1] += a[1] * s;
-  out[2] += a[2] * s;
+/** `v.addScaledVector(a, s)`: `out += a · s` component by component, `out` at `outAt`, `a` at `aAt`. */
+export function addScaledVector3<T extends NumberSink>(
+  out: T,
+  a: ArrayLike<number>,
+  s: number,
+  outAt = 0,
+  aAt = 0,
+) {
+  out[outAt] += a[aAt] * s;
+  out[outAt + 1] += a[aAt + 1] * s;
+  out[outAt + 2] += a[aAt + 2] * s;
   return out;
 }
 
 /**
- * `v.applyMatrix3(m)`: `out = M · (x, y, z)`, `m` column-major on nine numbers. The three
- * components are read as parameters, so `out` may be the input vector itself.
+ * `v.applyMatrix3(m)`: `out[outAt..outAt + 2] = M · (x, y, z)`, `m` column-major on nine numbers.
+ * The three components are read as parameters, so `out` may be the input vector itself.
  */
 export function applyMatrix3Vector3<T extends NumberSink>(
   out: T,
@@ -126,10 +132,11 @@ export function applyMatrix3Vector3<T extends NumberSink>(
   x: number,
   y: number,
   z: number,
+  outAt = 0,
 ) {
-  out[0] = m[0] * x + m[3] * y + m[6] * z;
-  out[1] = m[1] * x + m[4] * y + m[7] * z;
-  out[2] = m[2] * x + m[5] * y + m[8] * z;
+  out[outAt] = m[0] * x + m[3] * y + m[6] * z;
+  out[outAt + 1] = m[1] * x + m[4] * y + m[7] * z;
+  out[outAt + 2] = m[2] * x + m[5] * y + m[8] * z;
   return out;
 }
 
