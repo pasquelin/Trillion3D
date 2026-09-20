@@ -7,6 +7,7 @@ import { themeOf, themes } from './roadmapThemes.js';
 import { ProgressiveList } from '../components/ProgressiveList.jsx';
 import { ThemeTabs } from './ThemeTabs.jsx';
 import { galleryRoadmapEntry } from './roadmapRelated.js';
+import { GalleryShowcase } from './GalleryShowcase.jsx';
 
 const PAGE_SIZE = 24;
 const viewState = new Map();
@@ -89,6 +90,7 @@ export function Gallery({ locale = 'en' }) {
           />
         </Field>
       </div>
+      <GalleryShowcase locale={locale} />
       <div className="mb-4">
         <ThemeTabs
           active={category}
