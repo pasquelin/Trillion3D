@@ -3,7 +3,6 @@ const text = (en, fr) => ({ en, fr });
 export const offlineLessons = offlineExamples.map((example) => ({
   ...example,
   renderer: true,
-  preview: `./assets/gallery/offline/${example.id.slice(8)}/preview.png`,
   warning: ['offline-painted', 'offline-height-palette', 'offline-uv-tiles'].includes(example.id)
     ? text(
         'The source contains vertex colours or UV coordinates; this preview only renders its uniform material. Attribute shading is not demonstrated.',

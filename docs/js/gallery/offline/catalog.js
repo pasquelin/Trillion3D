@@ -28,6 +28,7 @@ export const offlineExamples = geometryRecipes.map((recipe) => {
   const asset = `./assets/gallery/offline/${recipe.id}/cache/native/full/manifest.json`;
   return {
     id: `offline-${recipe.id}`,
+    preview: `./assets/gallery/offline/${recipe.id}/preview.png`,
     title: { en: recipe.title, fr: offlineTitlesFr[recipe.id] },
     description: {
       en:

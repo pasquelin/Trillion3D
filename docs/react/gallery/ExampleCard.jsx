@@ -127,7 +127,7 @@ export function ExampleCard({ example, locale = 'en', expanded = false, onOpen }
   const href = routeHref({
     locale,
     area: example.engine ? 'examples' : 'playground',
-    id: example.id,
+    id: example.readyLessonId ?? example.id,
   });
   return (
     <a
