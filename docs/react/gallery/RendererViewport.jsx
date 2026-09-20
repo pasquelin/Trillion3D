@@ -3,6 +3,7 @@ import { Canvas } from '../components/Canvas.jsx';
 import { Alert } from '../components/UI.jsx';
 import { Stat, StatGroup } from '../components/Stats.jsx';
 import { createRendererLessonRuntime } from '../../js/gallery/rendererLessonRuntime.js';
+import { syncRendererState } from '../../js/gallery/syncRendererState.js';
 
 const value = (number, suffix, digits = 0) =>
   Number.isFinite(number) ? `${number.toFixed(digits)}${suffix}` : '—';
@@ -27,19 +28,21 @@ export function RendererViewport({ lesson, state, locale, label }) {
   latest.current = state;
   useEffect(() => {
     let active = true;
-    const lifecycle = new AbortController();
+    const lifecycle = new AbortController(),
+      initialState = latest.current;
     setError('');
     setMetrics({});
     createRendererLessonRuntime({
       canvas: canvas.current,
       lesson,
-      state: latest.current,
+      state: initialState,
       report: (next) => active && setMetrics(next),
       signal: lifecycle.signal,
     })
       .then((mounted) => {
         if (active) {
           runtime.current = mounted;
+          return syncRendererState(mounted, initialState, latest.current);
         } else mounted.dispose();
       })
       .catch((error) => active && setError(errorMessage(error, locale, 'rendering')));
