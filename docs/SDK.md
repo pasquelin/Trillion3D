@@ -376,10 +376,10 @@ On the 1 px Emerald street path at 1280×720 and DPR 1, with one 40-intensity po
 off, 20 warm-up frames and 60 moving-camera frames, the final candidate measured median CPU frame
 submission-burst CPU readings were 5.6/5.6/5.6 ms against 5.6/5.5/5.7 ms for the temporary adapter.
 They led to the texture and bounded-light reductions described above, but are not a frame-performance
-verdict because that old loop did not yield to the browser. At candidate `565dc4b0` versus integrated
-base `48c90c4e`, the corrected 60-frame moving loop measured rAF p50/p95 intervals of
-16.7/16.8, 16.7/33.2 and 16.7/16.8 ms, versus 16.7/83.4, 16.7/83.4 and 16.7/83.3 ms. The headless
-display cap was 60 Hz. Synchronous CPU submission p50 was 5.0/5.1/5.0 ms versus 4.8/4.9/4.9 ms;
+verdict because that old loop did not yield to the browser. At candidate `c2315306` versus integrated
+base `48c90c4e`, three diagnostic-free 60-frame moving runs measured rAF p50/p95 intervals of
+16.7/33.3, 16.7/16.8 and 16.7/16.8 ms, versus 16.7/83.4, 16.7/83.3 and 16.7/83.3 ms. The headless
+display cap was 60 Hz. Synchronous CPU submission p50 was 4.7/5.0/4.9 ms versus 5.0/5.2/4.9 ms;
 it is reported separately and never added to the frame interval. Every repeat kept the same cut and
 had zero A/A pixels. This establishes better whole-frame cadence for this path, not a general speed
 claim; GPU timestamps remained unavailable.
