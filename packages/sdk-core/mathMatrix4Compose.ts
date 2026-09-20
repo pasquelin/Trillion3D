@@ -98,7 +98,7 @@ export function composeMatrix4Batch(
   scales: ArrayLike<number> | readonly ArrayLike<number>[],
   n: number,
 ): void {
-  if (Array.isArray(out)) {
+  if (Array.isArray(out) && typeof positions[0] === 'object') {
     const o = out as readonly NumberSink[],
       p = positions as readonly ArrayLike<number>[],
       q = quaternions as readonly ArrayLike<number>[],
