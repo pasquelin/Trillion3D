@@ -34,6 +34,7 @@ export class WebglClusterState {
   private polygonFactor = Number.NaN;
   private polygonUnits = Number.NaN;
   private winding = -1;
+  private blend = -1;
   private gl: WebGL2RenderingContext;
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
@@ -42,6 +43,7 @@ export class WebglClusterState {
     this.cull = this.face = this.depth = this.depthFunction = -1;
     this.depthWrite = this.colorWrite = this.polygon = -1;
     this.winding = -1;
+    this.blend = -1;
     this.polygonFactor = this.polygonUnits = Number.NaN;
   }
   applyWinding(matrix: ArrayLike<number>) {
@@ -63,6 +65,11 @@ export class WebglClusterState {
   }
   apply(material: Material, doubleSided: boolean, backSide: boolean) {
     const gl = this.gl;
+    this.blend = this.capability(material.transparent, this.blend, gl.BLEND);
+    if (material.transparent) {
+      gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD);
+      gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    }
     this.cull = this.capability(!doubleSided, this.cull, gl.CULL_FACE);
     const face = backSide ? gl.FRONT : gl.BACK;
     if (!doubleSided && this.face !== face) gl.cullFace(face);
