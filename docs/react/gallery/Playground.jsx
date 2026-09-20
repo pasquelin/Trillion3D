@@ -12,8 +12,16 @@ import { Diagram } from './Diagram.jsx';
 import { WebGPUCanvas } from './WebGPUCanvas.jsx';
 import { controlLabel } from './controlLabels.js';
 import { usePlaygroundMotion } from './usePlaygroundMotion.js';
+import { rendererLessonById } from '../../js/gallery/rendererLessons.js';
+import { RendererLesson } from './RendererLesson.jsx';
 const local = (value, locale) => value[locale === 'fr' ? 'fr' : 'en'];
 export function Playground({ id, locale = 'en', onSelect }) {
+  const rendererLesson = rendererLessonById(id);
+  if (rendererLesson)
+    return <RendererLesson lesson={rendererLesson} locale={locale} onSelect={onSelect} />;
+  return <MathPlayground id={id} locale={locale} onSelect={onSelect} />;
+}
+function MathPlayground({ id, locale = 'en', onSelect }) {
   const example = byId(id),
     scenario = SCENARIOS[example.id],
     [state, setState] = useState(() => initialState(example.id));

@@ -90,6 +90,7 @@ export function themeOf(entry) {
     scene: 'transforms',
     color: 'materials',
     streaming: 'performance',
+    lighting: 'lighting',
   }[entry.category];
   if (ready) return ready;
   return (

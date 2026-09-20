@@ -20,9 +20,13 @@ const { legendAnchors } = await import(new URL('draw.js', root));
 const { initialState } = await import(new URL('scenarios.js', root));
 const { examples } = await import(new URL('catalog.js', root));
 const { apiScenario } = await import(new URL('apiScenario.js', root));
+const { rendererCodeFor } = await import(new URL('rendererLessonCode.js', root));
+const { rendererLessons, rendererInitialState } = await import(new URL('rendererLessons.js', root));
+const mathExamples = examples.filter(({ renderer }) => !renderer);
 
-test('gallery exposes sixteen bilingual, interactive examples', () => {
-  assert.equal(examples.length, 16);
+test('gallery exposes bilingual math and public renderer lessons', () => {
+  assert.equal(examples.length, 22);
+  assert.equal(rendererLessons.length, 6);
   assert.equal(new Set(examples.map(({ id }) => id)).size, examples.length);
   for (const example of examples) {
     assert.ok(example.title.en && example.title.fr);
@@ -34,6 +38,7 @@ test('gallery exposes sixteen bilingual, interactive examples', () => {
   assert.match(renderPlayground('dot-product', 'fr'), /aria-label=/);
   assert.match(renderPlayground('dot-product', 'en'), /<h1 class=/);
   assert.match(renderPlayground('dot-product', 'en'), /Copy code/);
+  assert.match(renderPlayground('point-light-range', 'fr'), /data-renderer-playground/);
 });
 
 test('shared code blocks escape markup and preserve the copied source', () => {
@@ -65,13 +70,13 @@ test('gallery renders visual, searchable cards and the real engine scene', () =>
   assert.match(gallery, /<summary[^>]*aria-label="More">More/);
   assert.doesNotMatch(gallery, /overflow-x-auto/);
   assert.doesNotMatch(gallery, /<select/);
-  assert.equal((gallery.match(/<canvas /g) ?? []).length, examples.length);
+  assert.equal((gallery.match(/<canvas /g) ?? []).length, mathExamples.length);
   assert.doesNotMatch(gallery, /data-geometry-fps/);
   assert.match(renderPlayground('compose-transform', 'en'), /data-geometry-fps/);
   assert.match(gallery, /#\/en\/examples\/engine-scene/);
   assert.match(gallery, /assets\/kinetic-garden\/preview\.png/);
   assert.equal((gallery.match(/class="gallery-preview/g) ?? []).length, 24);
-  assert.match(gallery, /624 results shown · 17 ready lessons in the full gallery/);
+  assert.match(gallery, /630 results shown · 23 ready lessons in the full gallery/);
   assert.match(gallery, /In development/);
   assert.doesNotMatch(gallery, /data-geometry-3d="webgl_/);
   assert.doesNotMatch(gallery, /Try it|À essayer/);
@@ -108,7 +113,7 @@ test('home and gallery reuse the same linked example card', () => {
 });
 
 test('all scenarios produce real 3D triangle geometry from SDK results', () => {
-  for (const example of examples) {
+  for (const example of mathExamples) {
     const state = initialState(example.id);
     const geometry = geometryFor(example.id, evaluate(example.id, state));
     assert.ok(geometry instanceof Float32Array && geometry.length >= 27, example.id);
@@ -118,7 +123,7 @@ test('all scenarios produce real 3D triangle geometry from SDK results', () => {
 
 test('every displayed snippet runs and matches its playground result', async () => {
   const engine = new URL('../docs/js/engine.js', import.meta.url).href;
-  for (const example of examples) {
+  for (const example of mathExamples) {
     const state = initialState(example.id);
     const source = codeFor(example.id, state).replace("'./js/engine.js'", JSON.stringify(engine));
     const actual = (await import(`data:text/javascript,${encodeURIComponent(source)}`)).default;
@@ -164,10 +169,22 @@ test('every scenario calls the generated engine module', async () => {
       ),
     )
   ).join('\n');
-  for (const example of examples)
+  for (const example of mathExamples)
     assert.ok(
       example.functions.some((name) => source.includes(name)),
       `${example.id} has no engine call`,
     );
   assert.doesNotMatch(source, /eval\(|new Function/);
+});
+
+test('renderer lessons show complete code that calls their public API', () => {
+  for (const lesson of rendererLessons) {
+    const code = rendererCodeFor(lesson, rendererInitialState(lesson));
+    assert.match(code, /createExplorer/);
+    assert.match(code, /explorer\.render\(\)/);
+    assert.ok(
+      lesson.functions.some((name) => code.includes(name)),
+      lesson.id,
+    );
+  }
 });
