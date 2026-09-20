@@ -57,6 +57,7 @@ export function createExplorerMetrics(
     uncoveredTriangles: null,
     drawnTriangles: null,
     lightsActive: null,
+    lightsSampled: null,
     shadowsUpdated: null,
     shadowFacesDrawn: null,
     shadowDrawCalls: null,

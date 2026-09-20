@@ -2,6 +2,7 @@ import { BOUNCE_SETTINGS } from '../sdk-core/index.ts';
 import { BOUNCE_GRID_WGSL } from './bounceGridWgsl.ts';
 import { residentProxyWgsl } from './bounceNodeWgsl.ts';
 import { BOUNCE_TRACE_WGSL } from './bounceTraceWgsl.ts';
+import { HASH_UNIT_WGSL } from './hashUnitWgsl.ts';
 
 /** Threads of a probe-pass workgroup: one group per probe, one thread per ray. */
 const BOUNCE_WORKGROUP = 64;
@@ -48,13 +49,7 @@ const MOVING_RESIDUAL:f32=${BOUNCE_SETTINGS.movingResidual};
 const BOUNCE_BURIED:f32=${BOUNCE_SETTINGS.buriedFraction};
 const BOUNCE_SKY:f32=${BOUNCE_SETTINGS.skyFraction};
 const GOLDEN_ANGLE:f32=2.39996323;
-/** An integer mixed then folded into [0,1): the seed of a rotation, never a random number. */
-fn hashUnit(seed:u32)->f32{
- var x=seed*747796405u+2891336453u;
- x=((x>>((x>>28u)+4u))^x)*277803737u;
- x=(x>>22u)^x;
- return f32(x)*2.3283064e-10;
-}
+${HASH_UNIT_WGSL}
 /** A direction of a Fibonacci spiral, offset on every update to cover the sphere. */
 fn rayDirection(slot:u32,jitter:f32,rotation:f32)->vec3f{
  let index=f32(slot)+jitter;

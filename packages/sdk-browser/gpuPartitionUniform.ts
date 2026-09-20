@@ -31,22 +31,31 @@ export type PartitionFrame = {
   levels: Array<{ offset: number; width: number }>;
   /** Highest coplanar layer an indirect slot names. */
   layerTop: number;
-  /** False as soon as the row table has changed age: per-row history describes nothing. */
-  historyValid: boolean;
-  /** False when no pipeline can draw the tested half: the frame stays a single pass. */
+  /** False when no pipeline can draw the tested half: the frame stays a single pass, and no
+   *  row leaves the occluders. */
   hasRest: boolean;
+  /** True when the view differs from the previous image's: rows the test kept while it stood
+   *  still may be withdrawn from the occluders again. */
+  viewMoved: boolean;
 };
+
+/** Rows `[from, to]` whose history no longer describes their page: read as never projected
+ *  on the next image. Empty when `to < from`; the kernel receives the end EXCLUSIVE, so an
+ *  empty range leaves as `0, 0` and not as a `-1` that an unsigned word would read as every row. */
+export type ForgottenRows = { from: number; to: number };
 
 /**
  * Words of a frame's uniform, written into a buffer the caller holds. `rows` arrives separately:
  * the caller caps it at the buffer's capacity, and passing it this way avoids copying the whole
- * frame into a new object on every call.
+ * frame into a new object on every call. `forget` is the partition's own memory of the rows
+ * rewritten since its last image, not the host's.
  */
 export function packPartitionUniform(
   words: Uint32Array,
   floats: Float32Array,
   frame: PartitionFrame,
   rows: number,
+  forget: ForgottenRows,
 ) {
   // Anchored on the eye: the composition adds no error beyond what the kernel already bounds.
   matrixAtRenderOrigin(floats, frame.view, frame.anchor, UNI_VIEW);
@@ -62,9 +71,11 @@ export function packPartitionUniform(
   words[UNI_SCALARS + 2] = frame.height;
   words[UNI_SCALARS + 3] = Math.min(frame.levels.length, MAX_HIZ_LEVELS);
   words[UNI_SCALARS + 4] = frame.layerTop;
-  words[UNI_SCALARS + 5] = frame.historyValid ? 1 : 0;
-  words[UNI_SCALARS + 6] = frame.hasRest ? 1 : 0;
-  words[UNI_SCALARS + 7] = 0;
+  words[UNI_SCALARS + 5] = frame.hasRest ? 1 : 0;
+  words[UNI_SCALARS + 6] = frame.viewMoved ? 1 : 0;
+  words[UNI_SCALARS + 7] = forget.to < forget.from ? 0 : forget.from;
+  words[UNI_SCALARS + 8] = forget.to < forget.from ? 0 : forget.to + 1;
+  words.fill(0, UNI_SCALARS + 9, UNI_LEVELS);
   for (let level = 0; level < MAX_HIZ_LEVELS; level++) {
     const mip = frame.levels[level];
     words[UNI_LEVELS + level] = mip ? mip.offset : 0;
@@ -76,8 +87,14 @@ export function packPartitionUniform(
 export function createPartitionUniformWriter() {
   const words = new Uint32Array(UNIFORM_U32),
     floats = new Float32Array(words.buffer);
-  return (device: GPUDevice, target: GPUBuffer, frame: PartitionFrame, rows: number) => {
-    packPartitionUniform(words, floats, frame, rows);
+  return (
+    device: GPUDevice,
+    target: GPUBuffer,
+    frame: PartitionFrame,
+    rows: number,
+    forget: ForgottenRows,
+  ) => {
+    packPartitionUniform(words, floats, frame, rows, forget);
     device.queue.writeBuffer(target, 0, words);
   };
 }

@@ -12,7 +12,7 @@ import { ensureUniform } from './webgpuPagesPipelineFor.ts';
 import { clearValueOf } from './webgpuPagesEncoder.ts';
 import { encodeDirectLights } from './webgpuPagesEncodeLights.ts';
 import { composesOffscreen } from './diagnosticGpuVariant.ts';
-import { encodeTaaPass } from './taaFrame.ts';
+import { encodeTaaPass, taaSampledRank } from './taaFrame.ts';
 import { directLightResources, wantsContractLighting } from './webgpuPagesLightResources.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import type { EngineCamera } from './cameraWorld.ts';
@@ -147,6 +147,7 @@ export function encodeSurfaceLighting(
     clearColor,
     run.diagnostic !== 'beauty',
     direct,
+    taaSampledRank(rt),
   );
   gpu.deferred.light(encoder, gpu.hdrView);
   run.gpuDrawCalls++;
