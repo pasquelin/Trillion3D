@@ -1,4 +1,5 @@
 import { drawBounds, drawBudget, drawColour } from './drawDetails.js';
+import { drawAdvanced } from './drawAdvanced.js';
 import { add, legend, point, text } from './drawPrimitives.js';
 export { legendAnchors } from './drawPrimitives.js';
 
@@ -181,6 +182,7 @@ function drawVectors(svg, result, french) {
 export function draw(svg, result, locale = 'en') {
   base(svg);
   const french = String(locale).toLowerCase().startsWith('fr');
+  if (drawAdvanced(svg, result, french)) return;
   if (result.kind === 'transform' || result.kind === 'chain' || result.kind === 'hierarchy')
     drawTransform(svg, result, french);
   else if (result.kind === 'perspective' || result.kind === 'frustum')
