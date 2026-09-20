@@ -1,0 +1,70 @@
+.code-scroll {
+  overflow: auto;
+  max-height: min(55dvh, 38rem);
+  scrollbar-width: none;
+  padding-bottom: 1rem;
+}
+.code-scroll::-webkit-scrollbar {
+  display: none;
+}
+/* Syntax colors use the active DaisyUI theme's semantic palette. */
+.code-lines {
+  width: max-content;
+  min-width: 100%;
+}
+.mockup-code .code-lines pre {
+  overflow: visible;
+  max-width: none;
+}
+.mockup-code {
+  color: var(--color-base-content);
+  background: var(--color-base-300);
+  overflow: hidden;
+  max-height: none;
+}
+.mockup-code .hljs-keyword,
+.mockup-code .hljs-selector-tag,
+.mockup-code .hljs-literal {
+  color: var(--color-secondary);
+  font-weight: 600;
+}
+.mockup-code .hljs-string,
+.mockup-code .hljs-regexp {
+  color: var(--color-primary);
+}
+.mockup-code .hljs-number,
+.mockup-code .hljs-symbol {
+  color: var(--color-accent);
+}
+.mockup-code .hljs-title,
+.mockup-code .hljs-built_in,
+.mockup-code .hljs-type {
+  color: var(--color-info);
+}
+.mockup-code .hljs-comment {
+  color: var(--color-base-content);
+  opacity: 0.7;
+  font-style: italic;
+}
+.mockup-code .hljs-attr,
+.mockup-code .hljs-property {
+  color: var(--color-base-content);
+}
+
+[data-theme='light'] .mockup-code .hljs-keyword,
+[data-theme='light'] .mockup-code .hljs-literal {
+  color: #a31545;
+}
+[data-theme='light'] .mockup-code .hljs-string,
+[data-theme='light'] .mockup-code .hljs-regexp {
+  color: #116329;
+}
+[data-theme='light'] .mockup-code .hljs-number,
+[data-theme='light'] .mockup-code .hljs-symbol {
+  color: #6639a6;
+}
+[data-theme='light'] .mockup-code .hljs-title,
+[data-theme='light'] .mockup-code .hljs-built_in,
+[data-theme='light'] .mockup-code .hljs-type {
+  color: #0550ae;
+}

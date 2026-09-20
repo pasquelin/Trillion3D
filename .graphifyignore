@@ -1,0 +1,2 @@
+# Generated documentation bundles are build outputs, not source modules.
+/docs/runtime/
