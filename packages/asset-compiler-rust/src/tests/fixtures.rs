@@ -1,15 +1,7 @@
 use super::*;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 pub(super) fn cube_fixture() -> (PathBuf, Options) {
-    let root = std::env::temp_dir().join(format!(
-        "web-geometry-cube-{}-{}",
-        std::process::id(),
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos()
-    ));
+    let root = scratch("fixture", "cube");
     let source = root.join("source");
     let cache = root.join("cache");
     fs::create_dir_all(&source).expect("source");
@@ -62,14 +54,7 @@ pub(super) fn portable_sin(t: f32) -> f32 {
 }
 
 pub(super) fn grid_fixture_displaced(nx: usize, ny: usize, amplitude: f32) -> (PathBuf, Options) {
-    let root = std::env::temp_dir().join(format!(
-        "web-geometry-grid-{}-{}",
-        std::process::id(),
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos()
-    ));
+    let root = scratch("fixture", "grid");
     let source = root.join("source");
     let cache = root.join("cache");
     fs::create_dir_all(&source).expect("source");
