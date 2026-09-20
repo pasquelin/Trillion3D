@@ -3,13 +3,13 @@ import { faceFrame } from './sceneLightShadowMath.ts';
 import { pageRowsOf } from './sceneLightShadowPages.ts';
 
 /**
- * Sphere a cascade covers and the window its map draws, both in metres. The window is a
+ * Sphere a cascade covers and the extent its map draws, both in metres. The extent is a
  * whole number of pages on the light plane: `originX` and `originY` are the absolute page
  * column and row (draw frame, `y` down) of its top-left page, `anchor` its depth coordinate
- * along the light axis, snapped to a grid of one window side.
+ * along the light axis, snapped to a grid of one extent side.
  */
 interface SunCascade {
-  /** World centre of the window: page-snapped in the light plane, `anchor` along the axis. */
+  /** World centre of the extent: page-snapped in the light plane, `anchor` along the axis. */
   center: [number, number, number];
   radius: number;
   /** Side of a page in metres, `2r / rows`. */
@@ -140,12 +140,12 @@ function frustumSphere(view: ShadowViewpoint, near: number, far: number) {
 }
 
 /**
- * Cascade `index` of a directional light: its sphere, then the window its map draws. The
- * window is aligned on the page grid of the light plane — the `faceFrame` axes the view is
+ * Cascade `index` of a directional light: its sphere, then the extent its map draws. The
+ * extent is aligned on the page grid of the light plane — the `faceFrame` axes the view is
  * composed with —, so a camera step moves it by whole pages and the pages it keeps still
  * describe the same world: only the entering strip is redrawn (virtual shadow map clipmaps).
- * Along the light axis the window is anchored on a grid of one window side, `2r`: depth is
- * then the same for every page of the window, and a move of that size restarts it whole.
+ * Along the light axis the extent is anchored on a grid of one extent side, `2r`: depth is
+ * then the same for every page of the extent, and a move of that size restarts it whole.
  *
  * The returned object is reused from one call to the next: the scheduler allocates nothing per frame.
  */
@@ -169,7 +169,7 @@ export function sunCascadeOf(
     v += eye[a] * up[a];
     w += eye[a] * axis[a];
   }
-  // Page rank of the window centre; the draw frame counts rows downward, hence `-v`.
+  // Page rank of the extent centre; the draw frame counts rows downward, hence `-v`.
   const pageX = Math.round(u / page),
     pageY = Math.round(-v / page),
     anchorRank = Math.round(w / (2 * radius));

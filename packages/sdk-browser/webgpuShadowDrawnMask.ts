@@ -31,7 +31,7 @@ function drawnWord(
 /**
  * Drawn-page masks of every shadowed light's faces, into the slice mirror, after the frame's
  * scheduling. A face whose mask changed joins `flushed` even when nothing was drawn in it:
- * a window that slid has a stale strip the read must fall through, and only the slice buffer
+ * an extent that slid has a stale strip the read must fall through, and only the slice buffer
  * can tell it so. Returns the new count of slices to push.
  */
 export function writeDrawnMasks(lights: WebgpuLightState, flushed: Int32Array, count: number) {
