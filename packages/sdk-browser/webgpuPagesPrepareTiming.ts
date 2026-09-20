@@ -70,26 +70,14 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   });
 }
 
-/** Marks the backend lost on an uncaptured error or a lost device, reporting the first cause once. */
+/** Marks the backend lost on an uncaptured error or a lost device; `markWebgpuLost` announces it once. */
 export function watchGpuDevice(
   rt: WebgpuPagesRuntime,
   gpuDevice: GPUDevice,
   onGpuError: (event: GPUUncapturedErrorEvent) => void,
 ) {
-  const { diag } = rt;
   gpuDevice.addEventListener?.('uncapturederror', onGpuError);
-  // The surface and the held frame are withdrawn before the loss is announced: a host that
-  // reacts to the diagnostic by drawing already finds nothing stale to present.
   gpuDevice.lost
-    .then((info) => {
-      if (markWebgpuLost(rt))
-        diag.engineDiagnostic('gpu-device-lost', 'WebGPU device lost', {
-          code: 'WEBGPU_LOST',
-          reason: info.reason,
-          message: info.message,
-        });
-    })
-    .catch((error) => {
-      if (markWebgpuLost(rt)) diag.diagnosticFailure('gpu-device-lost', error);
-    });
+    .then((info) => markWebgpuLost(rt, { reason: info.reason, message: info.message }))
+    .catch((error) => markWebgpuLost(rt, { reason: 'unknown', message: String(error) }));
 }
