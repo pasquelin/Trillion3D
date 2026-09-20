@@ -32,6 +32,7 @@ function CaptureGroups({ report, locale, pairs, singles }) {
   }
   return (
     <SelectPanel
+      sticky
       label={fr ? 'Essai représenté' : 'Displayed experiment'}
       value={selected}
       onChange={setSelected}
@@ -103,6 +104,7 @@ export function SceneEvidence({ report, scene, locale }) {
   return (
     <Section title={sceneName(scene)}>
       <Tabs
+        sticky
         label={locale === 'fr' ? 'Type de comparaison visuelle' : 'Visual comparison type'}
         value={selected}
         onChange={setSelected}

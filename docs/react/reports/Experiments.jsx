@@ -38,6 +38,7 @@ export function Experiments({ report, scene, locale }) {
   return (
     <Section title={sceneName(scene)}>
       <Tabs
+        sticky
         label={locale === 'fr' ? 'Vue et qualité' : 'View and quality'}
         value={selected}
         onChange={setSelected}

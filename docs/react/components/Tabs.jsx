@@ -1,6 +1,7 @@
+import { StickyPanel } from './StickyPanel.jsx';
 import { useId, useRef } from 'react';
 /** Shared DaisyUI tabs with linked panels and standard arrow/Home/End keyboard navigation. */
-export function Tabs({ items, value, onChange, label }) {
+export function Tabs({ items, value, onChange, label, sticky = false }) {
   const id = useId(),
     buttons = useRef([]);
   const active = items.find((item) => item.id === value) ?? items[0];
@@ -17,28 +18,32 @@ export function Tabs({ items, value, onChange, label }) {
   }
   if (!active) return null;
   return (
-    <div className="grid min-w-0 gap-4">
-      <div className="tabs tabs-box flex-wrap w-full" role="tablist" aria-label={label}>
-        {items.map((item, index) => (
-          <button
-            type="button"
-            key={item.id}
-            role="tab"
-            id={`${id}-${item.id}`}
-            aria-controls={`${id}-panel-${item.id}`}
-            aria-selected={item.id === active.id}
-            tabIndex={item.id === active.id ? 0 : -1}
-            ref={(element) => {
-              buttons.current[index] = element;
-            }}
-            className={`tab ${item.id === active.id ? 'tab-active' : ''}`}
-            onClick={() => onChange(item.id)}
-            onKeyDown={(event) => keyboard(event, index)}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
+    <StickyPanel
+      sticky={sticky}
+      controls={
+        <div className="tabs tabs-box flex-wrap w-full" role="tablist" aria-label={label}>
+          {items.map((item, index) => (
+            <button
+              type="button"
+              key={item.id}
+              role="tab"
+              id={`${id}-${item.id}`}
+              aria-controls={`${id}-panel-${item.id}`}
+              aria-selected={item.id === active.id}
+              tabIndex={item.id === active.id ? 0 : -1}
+              ref={(element) => {
+                buttons.current[index] = element;
+              }}
+              className={`tab ${item.id === active.id ? 'tab-active' : ''}`}
+              onClick={() => onChange(item.id)}
+              onKeyDown={(event) => keyboard(event, index)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      }
+    >
       <div
         role="tabpanel"
         id={`${id}-panel-${active.id}`}
@@ -48,6 +53,6 @@ export function Tabs({ items, value, onChange, label }) {
       >
         {active.render()}
       </div>
-    </div>
+    </StickyPanel>
   );
 }
