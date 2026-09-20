@@ -1,5 +1,5 @@
 // Flush no longer drops the held-image witness by default: a host that flushes every image — the
-// measurement harness, the Lab — would otherwise never hold an image, even when nothing the image
+// measurement harness — would otherwise never hold an image, even when nothing the image
 // depends on has moved. Only a drain that actually changes the image drops it, by incrementing the
 // revision that names what it changed.
 import test from 'node:test';
@@ -81,7 +81,7 @@ test('a flush whose adoption changes nothing leaves the witness standing', async
 });
 
 test('three images and three flushes with no write: the third is held', async () => {
-  // What a host that flushes per image does — the harness, the Lab: render, flush, repeat. The GPU
+  // What a host that flushes per image does — the harness: render, flush, repeat. The GPU
   // returns one sample per image, identical at a still pose, so adoption rewrites nothing.
   let adoptions = 0;
   const { rt, gate, frameHold, revisions } = vidange(() => (adoptions++, false), false);
