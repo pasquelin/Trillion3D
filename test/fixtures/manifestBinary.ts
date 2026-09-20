@@ -3,8 +3,7 @@ import type { ClusterManifest } from '../../packages/sdk-core/contracts.ts';
 import {
   levelBlockBytes,
   previewFirstLevel,
-  previewLevelCount,
-  previewLevelSize,
+  previewGeometry,
 } from '../../packages/sdk-core/texturePreviewLevels.ts';
 
 export const TEMPLATES = {
@@ -27,13 +26,12 @@ export function previewTail(
   seed: number,
   bytesOf: (w: number, h: number) => number,
 ) {
-  const first = previewFirstLevel(width, height);
-  return Array.from({ length: previewLevelCount(width, height) }, (_, index) => {
-    const [w, h] = previewLevelSize(width, height, first + index);
-    return new Uint8Array(bytesOf(w, h)).map(
-      (_byte, i) => (i + index + seed) % 256,
-    ) as Uint8Array<ArrayBuffer>;
-  });
+  return previewGeometry(width, height).sizes.map(
+    ([w, h], index) =>
+      new Uint8Array(bytesOf(w, h)).map(
+        (_byte, i) => (i + index + seed) % 256,
+      ) as Uint8Array<ArrayBuffer>,
+  );
 }
 /** One progressive level pyramid: the lossless RGBA8 tail, and the same tail in each block
  *  format, as the sidecar carries them. */

@@ -1,8 +1,8 @@
 import { EngineError, type TexturePreview } from './contracts.ts';
 import * as format from './manifestBinaryFormat.ts';
 import { writeSha } from './manifestBinaryLayout.ts';
-import { checkEntryHeader, levelLengths, rgbaBytes } from './manifestBinaryPreview.ts';
-import { levelBlockBytes, previewGeometry } from './texturePreviewLevels.ts';
+import { checkEntryHeader, levelLengths } from './manifestBinaryPreview.ts';
+import { previewGeometry } from './texturePreviewLevels.ts';
 
 type ColumnView = <T>(
   name: format.ColumnName,
@@ -14,19 +14,17 @@ type ColumnView = <T>(
  * anything the reader above would refuse.
  */
 export function encodePreviewColumns(previews: readonly TexturePreview[], view: ColumnView) {
+  const bytes = (name: format.ColumnName) => view(name, (b, o, n) => new Uint8Array(b, o, n));
   const words = view('texturePreviewU32', (b, o, n) => new Uint32Array(b, o, n));
-  const sha = view('texturePreviewSha', (b, o, n) => new Uint8Array(b, o, n));
-  const pixels = view('texturePreviewPixels', (b, o, n) => new Uint8Array(b, o, n));
-  const columns = {
-    bc7: view('texturePreviewBc7', (b, o, n) => new Uint8Array(b, o, n)),
-    astc: view('texturePreviewAstc', (b, o, n) => new Uint8Array(b, o, n)),
-  };
+  const sha = bytes('texturePreviewSha');
+  const pixels = bytes('texturePreviewPixels');
+  const columns = { bc7: bytes('texturePreviewBc7'), astc: bytes('texturePreviewAstc') };
   const blocksAt = { bc7: 0, astc: 0 };
   let previous = -1,
     offset = 0;
   previews.forEach((preview, entry) => {
-    previous = checkEntryHeader(entry, preview, previous);
     const expected = previewGeometry(preview.width, preview.height);
+    previous = checkEntryHeader(entry, preview, previous, expected.firstLevel);
     const base = entry * format.PREVIEW_WORDS;
     words[base + format.PREVIEW_TEXTURE] = preview.texture;
     words[base + format.PREVIEW_IMAGE] = preview.image;
@@ -53,12 +51,13 @@ export function encodePreviewColumns(previews: readonly TexturePreview[], view: 
         });
       return source;
     };
-    levelLengths(preview.width, preview.height, rgbaBytes).forEach((length, index) => {
+    const lengths = levelLengths(expected);
+    lengths.rgba.forEach((length, index) => {
       pixels.set(check(preview.levels[index], length, index, 'rgba8'), offset);
       offset += length;
     });
     for (const name of format.PREVIEW_BLOCK_FORMATS)
-      levelLengths(preview.width, preview.height, levelBlockBytes).forEach((length, index) => {
+      lengths.blocks.forEach((length, index) => {
         columns[name].set(check(preview.blocks[name][index], length, index, name), blocksAt[name]);
         blocksAt[name] += length;
       });

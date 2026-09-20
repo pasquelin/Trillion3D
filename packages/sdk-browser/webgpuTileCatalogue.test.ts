@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import type { TexturePreview } from '../sdk-core/index.ts';
 import { previewLevels } from '../../test/fixtures/manifestBinary.ts';
 import { tileCatalogue } from './webgpuTileCatalogue.ts';
-import { WHITE_BLOCK } from './textureBlockFormats.ts';
+import { WHITE_TAIL } from './textureBlockFormats.ts';
 
 const preview = (width: number, height: number, bakedLevels: number): TexturePreview => ({
   texture: 0,
@@ -28,25 +28,20 @@ const reader = async () => {
   throw new Error('never read here');
 };
 
-// Behaviour: under a block format the tails are the sidecar's blocks of that format and the
-// fill slot is the proven white block; without one they are the RGBA8 tails, as before.
-test('a block catalogue takes the tails of its format from the sidecar', () => {
+// Behaviour: the catalogue is encoding-agnostic — a tail carries every encoding the sidecar
+// holds, the fill slot the white texel in each, and the atlas pins the one its pool samples; a
+// texture without a whole chain is hosted, which prepare reads to settle the block choice.
+test('a catalogue carries whole tails in every encoding and hosts what has no chain', () => {
   const chain = preview(256, 128, 2);
-  const [fill, entry] = tileCatalogue([map()], () => chain, reader, 'astc');
-  assert.deepEqual(fill.source, { kind: 'bytes', tail: [WHITE_BLOCK.astc] });
-  assert.equal(entry.source.kind, 'baked');
-  if (entry.source.kind === 'baked') assert.equal(entry.source.tail, chain.blocks.astc);
-  const [, rgba] = tileCatalogue([map()], () => chain, reader);
-  if (rgba.source.kind === 'baked') assert.equal(rgba.source.tail, chain.levels);
-});
-
-// Behaviour: a host image cannot fill a block pool — the caller must have brought the pools back
-// to RGBA8 first, and the catalogue refuses rather than pin a tail it cannot write.
-test('a texture without a whole chain is refused under a block format, and hosted without one', () => {
-  assert.throws(
-    () => tileCatalogue([map()], () => undefined, reader, 'bc7'),
-    /TEXTURE_HOST_UNDER_BLOCK_POOL/,
+  const [fill, entry, hosted] = tileCatalogue(
+    [map(), map()],
+    (i) => (i === 0 ? chain : undefined),
+    reader,
   );
-  const [, hosted] = tileCatalogue([map()], () => undefined, reader);
+  assert.deepEqual(fill.source, { kind: 'bytes', tail: WHITE_TAIL });
+  assert.equal(entry.source.kind, 'baked');
+  if (entry.source.kind === 'baked') assert.equal(entry.source.tail, chain);
   assert.equal(hosted.source.kind, 'host');
+  const [, small] = tileCatalogue([map()], () => preview(32, 32, 0), reader);
+  assert.equal(small.source.kind, 'bytes');
 });

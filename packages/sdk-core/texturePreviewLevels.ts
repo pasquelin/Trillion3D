@@ -49,22 +49,25 @@ export function levelBlockBytes(width: number, height: number) {
 }
 
 /**
- * Full geometry of an entry: its first carried level, their count, their RGBA8 bytes and their
- * block-compressed bytes. All four are deduced from the same two bounds. Asking for them one by
- * one used to recompute `previewFirstLevel` three times and `previewLastLevel` twice for the same
- * dimensions, and `previewFirstLevel` loops up to thirty-one times.
+ * Full geometry of an entry: its first carried level, their count, the dimensions of each,
+ * their RGBA8 bytes and their block-compressed bytes. All of it is deduced from the same two
+ * bounds in one walk. Asking for them one by one used to recompute `previewFirstLevel` three
+ * times and `previewLastLevel` twice for the same dimensions, and `previewFirstLevel` loops up
+ * to thirty-one times.
  */
 export function previewGeometry(width: number, height: number) {
   const firstLevel = previewFirstLevel(width, height),
     lastLevel = previewLastLevel(width, height);
+  const sizes: [number, number][] = [];
   let pixelBytes = 0,
     blockBytes = 0;
   for (let level = firstLevel; level <= lastLevel; level++) {
-    const [w, h] = previewLevelSize(width, height, level);
-    pixelBytes += w * h * 4;
-    blockBytes += levelBlockBytes(w, h);
+    const size = previewLevelSize(width, height, level);
+    sizes.push(size);
+    pixelBytes += size[0] * size[1] * 4;
+    blockBytes += levelBlockBytes(...size);
   }
-  return { firstLevel, levelCount: lastLevel - firstLevel + 1, pixelBytes, blockBytes };
+  return { firstLevel, levelCount: lastLevel - firstLevel + 1, sizes, pixelBytes, blockBytes };
 }
 
 /** RGBA8 bytes of every carried level, concatenated from finest to coarsest. */

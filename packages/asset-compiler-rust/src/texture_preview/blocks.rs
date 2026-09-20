@@ -35,13 +35,10 @@ impl BlockFormat {
             Self::Astc => "astc",
         }
     }
-    pub fn index(self) -> usize {
-        match self {
-            Self::Bc7 => 0,
-            Self::Astc => 1,
-        }
-    }
 }
+
+/// A level in every block format, `BlockFormat::ALL` order.
+pub type Levels = [Vec<u8>; 2];
 
 /// Blocks across and down a `width` × `height` level.
 pub fn blocks_of(width: u32, height: u32) -> (u32, u32) {
@@ -54,26 +51,33 @@ pub fn level_block_bytes(width: u32, height: u32) -> usize {
     across as usize * down as usize * BLOCK_BYTES
 }
 
-/// Compresses one RGBA8 level, block rows in parallel.
-pub fn encode_level(rgba: &[u8], width: u32, height: u32, format: BlockFormat) -> Vec<u8> {
+/// Compresses one RGBA8 level in both formats at once: a block is read and its
+/// principal segment found once, then each codec fits its own ladder on it.
+/// Blocks are written in place, block rows in parallel.
+pub fn encode_level(rgba: &[u8], width: u32, height: u32) -> Levels {
     debug_assert_eq!(rgba.len(), width as usize * height as usize * 4);
     let (across, down) = blocks_of(width, height);
-    let encode = match format {
-        BlockFormat::Bc7 => bc7::encode,
-        BlockFormat::Astc => astc::encode,
-    };
-    let row = |by: u32| -> Vec<u8> {
-        let mut out = Vec::with_capacity(across as usize * BLOCK_BYTES);
-        for bx in 0..across {
-            out.extend_from_slice(&encode(&fit::block_texels(rgba, width, height, bx, by)));
+    let row_bytes = across as usize * BLOCK_BYTES;
+    let mut bc7 = vec![0u8; row_bytes * down as usize];
+    let mut astc = vec![0u8; row_bytes * down as usize];
+    let row = |by: usize, bc7: &mut [u8], astc: &mut [u8]| {
+        for bx in 0..across as usize {
+            let texels = fit::block_texels(rgba, width, height, bx as u32, by as u32);
+            let segment = fit::segment(&texels);
+            let at = bx * BLOCK_BYTES..(bx + 1) * BLOCK_BYTES;
+            bc7[at.clone()].copy_from_slice(&bc7::encode(&texels, segment));
+            astc[at].copy_from_slice(&astc::encode(&texels, segment));
         }
-        out
     };
+    let rows = bc7.chunks_mut(row_bytes).zip(astc.chunks_mut(row_bytes));
     // A small level — the tail, a thumbnail — is not worth the pool; a large one
     // splits by block row, each row independent of the others.
     if down < 8 {
-        (0..down).flat_map(row).collect()
+        rows.enumerate().for_each(|(by, (b, a))| row(by, b, a));
     } else {
-        (0..down).into_par_iter().map(row).flatten().collect()
+        rows.enumerate()
+            .par_bridge()
+            .for_each(|(by, (b, a))| row(by, b, a));
     }
+    [bc7, astc]
 }

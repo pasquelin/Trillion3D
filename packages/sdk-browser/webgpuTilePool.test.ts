@@ -6,6 +6,7 @@ import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 
 installGpuGlobals();
 
+const rgba = { kind: 'data', format: 'rgba8unorm', texelBytes: 4 } as const;
 /** A dummy device: it keeps the descriptor of the texture it is asked for. */
 function fakeDevice() {
   const created: GPUTextureDescriptor[] = [];
@@ -26,6 +27,7 @@ test('the pool allocates its layers once, at the fixed size, and counts its tile
   const pool = createWebgpuTilePool(device, {
     kind: 'color',
     format: 'rgba8unorm-srgb',
+    texelBytes: 4,
     layers: 2,
   });
   assert.equal(created.length, 1);
@@ -33,12 +35,10 @@ test('the pool allocates its layers once, at the fixed size, and counts its tile
   assert.equal(created[0].format, 'rgba8unorm-srgb');
   assert.equal(pool.tiles, 2 * TILES_PER_LAYER);
   assert.equal(pool.bytes, 2 * poolLayerBytes(4));
+  assert.equal(pool.layerBytes, poolLayerBytes(4));
   assert.ok((created[0].usage & GPUTextureUsage.RENDER_ATTACHMENT) !== 0);
   assert.equal(pool.resident, 0);
-  assert.throws(
-    () => createWebgpuTilePool(device, { kind: 'data', format: 'rgba8unorm', layers: 0 }),
-    /TEXTURE_POOL_LAYERS/,
-  );
+  assert.throws(() => createWebgpuTilePool(device, { ...rgba, layers: 0 }), /TEXTURE_POOL_LAYERS/);
 });
 
 // Behaviour: a block pool counts one byte per texel and is never a render attachment — WebGPU
@@ -48,9 +48,11 @@ test('a block-compressed pool counts a quarter of the bytes and asks for no atta
   const pool = createWebgpuTilePool(device, {
     kind: 'color',
     format: 'bc7-rgba-unorm-srgb',
+    texelBytes: 1,
     layers: 1,
   });
   assert.equal(pool.bytes, poolLayerBytes(1));
+  assert.equal(pool.tileBytes, tileBytes(1));
   assert.equal(pool.bytes * 4, poolLayerBytes(4));
   assert.equal(created[0].usage & GPUTextureUsage.RENDER_ATTACHMENT, 0);
   pool.acquire(1, 0);
@@ -59,7 +61,7 @@ test('a block-compressed pool counts a quarter of the bytes and asks for no atta
 
 test('take, touch, return: the key follows the slot, and a full pool refuses without dropping', () => {
   const { device } = fakeDevice();
-  const pool = createWebgpuTilePool(device, { kind: 'data', format: 'rgba8unorm', layers: 1 });
+  const pool = createWebgpuTilePool(device, { ...rgba, layers: 1 });
   const first = pool.acquire(41, 3)!;
   assert.equal(pool.keyOf(first), 41);
   assert.deepEqual(pool.placeOf(first), { x: 0, y: 0, layer: 0 });
@@ -75,7 +77,7 @@ test('take, touch, return: the key follows the slot, and a full pool refuses wit
 
 test('eviction candidates are unpinned tiles that neither this image nor the previous one has seen, oldest first', () => {
   const { device } = fakeDevice();
-  const pool = createWebgpuTilePool(device, { kind: 'color', format: 'rgba8unorm', layers: 1 });
+  const pool = createWebgpuTilePool(device, { ...rgba, layers: 1 });
   const tail = pool.acquire(1, 1, true)!;
   const old = pool.acquire(2, 2)!;
   const older = pool.acquire(3, 1)!;

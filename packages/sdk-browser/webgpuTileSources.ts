@@ -99,8 +99,6 @@ export function createTileSources(options: {
           atlas: source.atlas,
           level: key.level,
           format: levelFormat,
-          width: layout.width,
-          height: layout.height,
         };
         const held = levels?.get(levelKey, frame);
         if (!held) {
@@ -110,8 +108,15 @@ export function createTileSources(options: {
         }
         const place = atlas.place(key, frame);
         if (!place) return 'refused';
-        if ('blocks' in held)
-          writeTileFromBlocks(device.queue, atlas.pool.texture, place, held, region);
+        if (held instanceof Uint8Array)
+          writeTileFromBlocks(
+            device.queue,
+            atlas.pool.texture,
+            place,
+            held,
+            [width, height],
+            region,
+          );
         else writeTileFromBitmap(device.queue, atlas.pool.texture, place, held, region);
         return 'served';
       }

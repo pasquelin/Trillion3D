@@ -64,31 +64,19 @@ export function equipSide(side, flags, settings) {
   side.cache = resolveCache(flags.get(`cache-${side.name}`));
   side.engine = engineOf(flags, side.name, settings.engine);
   side.variant = variantOf(flags, side.name);
-  side.compression = compressionOf(flags, side.name);
-  side.errorMetric = screenErrorOf(flags, side.name);
+  // Block format of the texture pools: two sides on one cache and two formats measure the
+  // format alone — same poses, same tiles, same server. `null` leaves the engine's choice.
+  side.compression = sideChoice(flags, side.name, 'compression', ['auto', 'bc7', 'astc', 'none']);
+  // Screen error metric (EXPERIMENT): `certifiee` is our bound, `reference` the standard
+  // external projection; `null` leaves ours.
+  side.errorMetric = sideChoice(flags, side.name, 'erreur', ['certifiee', 'reference']);
 }
 
-const COMPRESSIONS = ['auto', 'bc7', 'astc', 'none'];
-/**
- * Block format of a side's texture pools: `--compression-<side>`, otherwise `--compression`,
- * otherwise the engine's own choice (`auto`). Two sides on one cache and two formats measure
- * the format alone — same poses, same tiles, same server.
- */
-function compressionOf(flags, name) {
-  const value = flags.get(`compression-${name}`) ?? flags.get('compression') ?? null;
-  if (value !== null && !COMPRESSIONS.includes(value))
-    throw new Error(`--compression-${name} must be ${COMPRESSIONS.join(', ')}`);
-  return value;
-}
-
-/**
- * Screen error metric for one side: `--erreur-<side>`, otherwise `--erreur`, otherwise ours.
- * `certifiee` is our bound, `reference` is standard external projection.
- */
-function screenErrorOf(flags, name) {
-  const value = flags.get(`erreur-${name}`) ?? flags.get('erreur') ?? null;
-  if (value !== null && value !== 'certifiee' && value !== 'reference')
-    throw new Error(`--erreur-${name} must be certifiee or reference`);
+/** A side's choice among `allowed`: `--<key>-<side>`, otherwise `--<key>`, otherwise `null`. */
+function sideChoice(flags, name, key, allowed) {
+  const value = flags.get(`${key}-${name}`) ?? flags.get(key) ?? null;
+  if (value !== null && !allowed.includes(value))
+    throw new Error(`--${key}-${name} must be ${allowed.join(', ')}`);
   return value;
 }
 

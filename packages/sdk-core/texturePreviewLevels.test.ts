@@ -58,7 +58,7 @@ test('previewGeometry yields exactly what the three separate calls yielded, host
     [-7, 20],
   ];
   for (const [width, height] of cas) {
-    const { blockBytes: _blocks, ...geometry } = previewGeometry(width, height);
+    const { blockBytes: _blocks, sizes: _sizes, ...geometry } = previewGeometry(width, height);
     assert.deepEqual(geometry, referenceExpectedGeometry(width, height), `${width}x${height}`);
   }
 });

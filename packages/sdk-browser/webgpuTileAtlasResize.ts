@@ -1,5 +1,9 @@
 import { POOL_LAYER_SIDE, TILE_PITCH } from './textureTiles.ts';
-import { createWebgpuTilePool, type WebgpuTilePool } from './webgpuTilePool.ts';
+import {
+  createWebgpuTilePool,
+  type TilePoolOptions,
+  type WebgpuTilePool,
+} from './webgpuTilePool.ts';
 import type { WebgpuTilePageTable } from './webgpuTilePageTable.ts';
 import { cellOrigin } from './webgpuTileWrite.ts';
 import { tailSlotOf, tileKeyOf } from './webgpuTileIds.ts';
@@ -15,7 +19,7 @@ import { tailSlotOf, tileKeyOf } from './webgpuTileIds.ts';
  */
 export function resizeTileAtlas(
   device: Pick<GPUDevice, 'createTexture' | 'createCommandEncoder' | 'queue'>,
-  options: { kind: 'color' | 'data'; format: GPUTextureFormat; layers: number },
+  options: TilePoolOptions,
   pool: WebgpuTilePool,
   pages: WebgpuTilePageTable,
   resident: Map<number, number>,

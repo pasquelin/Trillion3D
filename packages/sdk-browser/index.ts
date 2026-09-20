@@ -42,7 +42,6 @@ export type { ArrivalPlan } from './pageIntegrationHost.ts';
 export type { DecodedGeometryPage } from './geometryPage.ts';
 export type {
   TextureLevel,
-  TextureLevelBlocks,
   TextureLevelReader,
   TextureLevelRequest,
 } from './textureLevelReader.ts';

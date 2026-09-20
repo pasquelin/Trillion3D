@@ -4,12 +4,25 @@
 //! ladder and how the endpoints are quantised, which each codec applies on top.
 //!
 //! The segment starts on the principal axis of the sixteen texels — the direction
-//! that carries most of their variance —, then alternates twice between assigning
-//! each texel its nearest rung and re-solving both endpoints by least squares for
-//! those rungs. No search over partitions or modes: one segment, one solve.
+//! that carries most of their variance —, then alternates a few rounds between
+//! assigning each texel its nearest rung and re-solving both endpoints by least
+//! squares for those rungs. No search over partitions or modes: one segment, one
+//! solve. The axis does not depend on the codec: it is found once per block and
+//! handed to both.
 
 /// One texel per entry, in reading order, channels R, G, B, A as bytes.
 pub type Texels = [[f32; 4]; 16];
+
+/// A codec's weight ladder from its interpolation weights over 64, built once.
+pub const fn ladder_of<const N: usize>(weights: [u8; N]) -> [f32; N] {
+    let mut ladder = [0.0f32; N];
+    let mut rank = 0;
+    while rank < N {
+        ladder[rank] = weights[rank] as f32 / 64.0;
+        rank += 1;
+    }
+    ladder
+}
 
 /// Endpoints in byte units, clamped to the byte range; the codec quantises them
 /// to its own precision, then assigns the rungs once more on what decodes.
@@ -134,8 +147,9 @@ fn solve(
     )
 }
 
-/// Fits the block: principal-axis extremes, then three rounds of assign and solve.
-pub fn fit(texels: &Texels, ladder: &[f32]) -> Endpoints {
+/// The segment every codec starts from: the block's extremes along its principal
+/// axis, in byte units. Independent of the ladder, so computed once per block.
+pub fn segment(texels: &Texels) -> Endpoints {
     let mean = scale(
         texels.iter().fold([0.0; 4], |acc, t| add(acc, *t)),
         1.0 / 16.0,
@@ -147,8 +161,12 @@ pub fn fit(texels: &Texels, ladder: &[f32]) -> Endpoints {
         lo = lo.min(t);
         hi = hi.max(t);
     }
-    let mut e0 = add(mean, scale(axis, lo));
-    let mut e1 = add(mean, scale(axis, hi));
+    (add(mean, scale(axis, lo)), add(mean, scale(axis, hi)))
+}
+
+/// Fits the block on a ladder: from the segment, three rounds of assign and solve,
+/// then clamped to the byte range.
+pub fn fit(texels: &Texels, ladder: &[f32], (mut e0, mut e1): Endpoints) -> Endpoints {
     for _ in 0..3 {
         let rung = assign(texels, ladder, e0, e1);
         (e0, e1) = solve(texels, ladder, &rung, e0, e1);

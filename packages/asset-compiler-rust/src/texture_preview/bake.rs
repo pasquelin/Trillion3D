@@ -1,7 +1,7 @@
 //! A decoded image, its baked chains and its written files. This module knows
 //! what it decodes and where it writes it; it does not know what a cutout is, and
 //! receives the list of textures to measure.
-use super::bake_write::{block_tail, write_levels};
+use super::bake_write::{block_tails, write_levels};
 use super::blocks::BlockFormat;
 use super::collect::AtlasTexture;
 use super::reduce::AtlasKind;
@@ -85,7 +85,7 @@ pub(super) fn one_image(
         let pixels = reduce::tail(&levels, first_level);
         let blocks = {
             let _t = perf::Timer::new(perf::Phase::TextureBake);
-            BlockFormat::ALL.map(|format| block_tail(&levels, (width, height), format))
+            block_tails(&levels, (width, height))
         };
         for reader in readers.iter().filter(|r| r.kind == kind) {
             previews.push(TexturePreview {

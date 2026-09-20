@@ -6,6 +6,7 @@ import { resizeTileAtlas } from './webgpuTileAtlasResize.ts';
 import { tailId, tileId } from './webgpuTileIds.ts';
 import { tileLayout, TILE_PITCH, TILES_PER_LAYER, POOL_LAYER_SIDE } from './textureTiles.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { poolEncoding } from './textureBlockFormats.ts';
 
 installGpuGlobals();
 
@@ -35,16 +36,23 @@ function textureDevice() {
   return { gpu: gpu as never, copies, destroyed: () => destroyed };
 }
 
-const options = { kind: 'color' as const, format: 'rgba8unorm' as const };
+const options = { kind: 'color' as const, format: 'rgba8unorm' as const, texelBytes: 4 };
+const empty = { levels: [], blocks: { bc7: [], astc: [] } };
+const atlasOptions = { kind: 'color' as const, encoding: poolEncoding(undefined) };
 
 test('shrinking the pool keeps surviving layers in one copy, slot for slot, and evicts the rest', () => {
   const { gpu, copies, destroyed } = textureDevice();
   const layout = tileLayout(4096, 4096);
   const textures = [
-    { layout, source: { kind: 'bytes' as const, tail: [] } },
-    { layout, source: { kind: 'bytes' as const, tail: [] } },
+    { layout, source: { kind: 'bytes' as const, tail: empty } },
+    { layout, source: { kind: 'bytes' as const, tail: empty } },
   ];
-  const atlas = createWebgpuTileAtlas(gpu, { ...options, layers: 2, feedbackOffset: 0, textures });
+  const atlas = createWebgpuTileAtlas(gpu, {
+    ...atlasOptions,
+    layers: 2,
+    feedbackOffset: 0,
+    textures,
+  });
   atlas.pinTails({ writeTexture() {} } as never, () => {});
   // The whole of layer 0, then five tiles in layer 1: 2 queues + 903 tiles.
   for (let i = 0, placed = 0; placed < TILES_PER_LAYER + 3; i++)
@@ -103,8 +111,13 @@ test('a tile from a vanished layer is moved into a free slot â€” queues first â€
 test('growing the pool keeps the resident count, and a pool full for the view refuses before any read', () => {
   const { gpu, copies } = textureDevice();
   const layout = tileLayout(4096, 4096);
-  const textures = [{ layout, source: { kind: 'bytes' as const, tail: [] } }];
-  const atlas = createWebgpuTileAtlas(gpu, { ...options, layers: 1, feedbackOffset: 0, textures });
+  const textures = [{ layout, source: { kind: 'bytes' as const, tail: empty } }];
+  const atlas = createWebgpuTileAtlas(gpu, {
+    ...atlasOptions,
+    layers: 1,
+    feedbackOffset: 0,
+    textures,
+  });
   atlas.pinTails({ writeTexture() {} } as never, () => {});
   for (let i = 0; i < TILES_PER_LAYER - 1; i++)
     atlas.place({ slot: 0, level: 0, tx: i % 32, ty: Math.floor(i / 32) }, 10);

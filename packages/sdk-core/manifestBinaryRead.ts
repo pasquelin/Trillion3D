@@ -128,11 +128,9 @@ export function readManifestColumns(slim: SlimClusterManifest, buffer: ArrayBuff
   const previewShaText = decoder.decode(
     column('texturePreviewSha', (b, o, n) => new Uint8Array(b, o, n)),
   );
-  const previewPixels = column('texturePreviewPixels', (b, o, n) => new Uint8Array(b, o, n));
-  const previewBlocks = {
-    bc7: column('texturePreviewBc7', (b, o, n) => new Uint8Array(b, o, n)),
-    astc: column('texturePreviewAstc', (b, o, n) => new Uint8Array(b, o, n)),
-  };
+  const bytes = (name: ColumnName) => column(name, (b, o, n) => new Uint8Array(b, o, n));
+  const previewPixels = bytes('texturePreviewPixels');
+  const previewBlocks = { bc7: bytes('texturePreviewBc7'), astc: bytes('texturePreviewAstc') };
   const [pagePrefix, pageSuffix] = slim.binary.pageUrl.split('{sha}');
   const [geometryPrefix, geometrySuffix] = slim.binary.geometryUrl.split('{sha}');
   const [bundlePrefix, bundleSuffix] = slim.binary.bundleUrl.split('{sha}');

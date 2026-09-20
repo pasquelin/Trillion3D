@@ -5,14 +5,11 @@
 //! choose, then packed bit for bit. Modes with partitions or separate alpha
 //! weights are not searched: the batch measures the loss of this single mode
 //! and publishes it; a richer search would be a later, measured batch.
-use super::fit::{assign, fit, Texels};
+use super::fit::{assign, fit, ladder_of, Endpoints, Texels};
 
 /// The 4-bit interpolation weights, over 64.
 const WEIGHTS: [u8; 16] = [0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64];
-
-fn ladder() -> [f32; 16] {
-    WEIGHTS.map(|w| f32::from(w) / 64.0)
-}
+pub(super) const LADDER: [f32; 16] = ladder_of(WEIGHTS);
 
 /// Quantises an endpoint to 7 bits plus the shared low bit that costs it least
 /// over its four channels; returns the 7-bit values, the bit, and what decodes.
@@ -40,12 +37,11 @@ fn quantise(endpoint: [f32; 4]) -> ([u8; 4], u8, [f32; 4]) {
 /// Writes the block. The weight of texel 0 must have its high bit clear — the
 /// decoder does not store it — so when it is set the endpoints swap and every
 /// weight mirrors, which decodes identically.
-pub fn encode(texels: &Texels) -> [u8; 16] {
-    let ladder = ladder();
-    let fitted = fit(texels, &ladder);
+pub fn encode(texels: &Texels, segment: Endpoints) -> [u8; 16] {
+    let fitted = fit(texels, &LADDER, segment);
     let (mut h0, mut p0, d0) = quantise(fitted.0);
     let (mut h1, mut p1, d1) = quantise(fitted.1);
-    let mut rung = assign(texels, &ladder, d0, d1);
+    let mut rung = assign(texels, &LADDER, d0, d1);
     if rung[0] & 8 != 0 {
         std::mem::swap(&mut h0, &mut h1);
         std::mem::swap(&mut p0, &mut p1);

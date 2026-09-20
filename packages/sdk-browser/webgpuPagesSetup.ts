@@ -19,7 +19,8 @@ import {
   geometryPoolFor,
   texturePoolFor,
 } from './webgpuMemoryBudgets.ts';
-import { chooseBlockFormat, poolFormat, texelBytes } from './textureBlockFormats.ts';
+import { chooseBlockFormat, poolEncoding } from './textureBlockFormats.ts';
+import type { TextureBlockFormat } from '../sdk-core/index.ts';
 
 export type WebgpuDiagnostics = ReturnType<typeof createWebgpuDiagnostics> & {
   traceEnabled: boolean;
@@ -119,18 +120,16 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   const cap = poolFor(
     Math.max(geometryPool.budgetBytes, context.geometryPoolCeilingBytes ?? 0),
   ).slots;
-  // The block format the device samples, under the host's choice: the pool is sized by it, since
-  // a block texel costs a quarter of an RGBA8 one. Prepare confirms it against the textures
-  // the render needs, and brings the pool back to RGBA8 when one has no baked chain.
+  // The block format the device samples, under the host's choice — what the texture pool is
+  // sized by, a block texel costing a quarter of an RGBA8 one. Provisional until prepare, which
+  // alone knows whether every texture the render needs has its baked chain and settles both.
   const blockChoice = chooseBlockFormat(
     gpuDevice?.features ?? { has: () => false },
     context.textureCompression,
   );
-  const texturePool = texturePoolFor(
-    context.texturePoolBytes ?? DEFAULT_TEXTURE_POOL_BUDGET,
-    gpuDevice,
-    texelBytes(poolFormat('color', blockChoice.block)),
-  );
+  const texturePoolBudget = context.texturePoolBytes ?? DEFAULT_TEXTURE_POOL_BUDGET;
+  const texturePoolIn = (budgetBytes: number, block: TextureBlockFormat | undefined) =>
+    texturePoolFor(budgetBytes, gpuDevice, poolEncoding(block).texelBytes);
   const reserveHiz = typeof gpuDevice?.createComputePipeline === 'function';
   const textureBudget = Math.max(
     1,
@@ -174,16 +173,10 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     geometryPool,
     // The same pool for another budget, under the session ceiling.
     geometryPoolFor: (budgetBytes: number) => poolFor(budgetBytes, cap),
-    texturePool,
+    texturePool: texturePoolIn(texturePoolBudget, blockChoice.block),
     blockChoice,
-    /** The same texture pool for another budget, in the format the session holds. */
-    texturePoolFor(budgetBytes: number) {
-      return texturePoolFor(
-        budgetBytes,
-        gpuDevice,
-        texelBytes(poolFormat('color', this.blockChoice.block)),
-      );
-    },
+    /** The texture pool for a budget and a block format: what prepare and the memory setting draw. */
+    texturePoolFor: texturePoolIn,
     get slots() {
       return this.geometryPool.slots;
     },

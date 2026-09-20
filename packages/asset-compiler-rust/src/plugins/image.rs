@@ -6,7 +6,7 @@
 use super::Plugin;
 use std::path::Path;
 
-mod blocks;
+pub(crate) mod blocks;
 mod bmp;
 mod crate_image;
 mod dds;

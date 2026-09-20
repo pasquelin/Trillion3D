@@ -6,7 +6,6 @@ import {
   TILES_PER_LAYER,
   type TilePlace,
 } from './textureTiles.ts';
-import { isBlockFormat, texelBytes } from './textureBlockFormats.ts';
 
 /**
  * Physical pool of an atlas: an array-texture of 30×30-tile layers, at the size the host budget
@@ -22,9 +21,12 @@ export type WebgpuTilePool = {
   texture: GPUTexture;
   view: GPUTextureView;
   layers: number;
-  /** Tiles the pool can carry, and allocated bytes — fixed as long as this pool lives. */
+  /** Tiles the pool can carry, and allocated bytes — fixed as long as this pool lives — with
+   *  what one tile and one layer cost in this pool's format. */
   tiles: number;
   bytes: number;
+  tileBytes: number;
+  layerBytes: number;
   /** Occupied tiles, and their bytes. */
   readonly resident: number;
   readonly residentBytes: number;
@@ -51,17 +53,26 @@ export type WebgpuTilePool = {
 
 export type TilePoolDevice = Pick<GPUDevice, 'createTexture'>;
 
+/** A pool's shape: its atlas, its format, what a texel costs in it, and its layers. */
+export type TilePoolOptions = {
+  kind: 'color' | 'data';
+  format: GPUTextureFormat;
+  texelBytes: number;
+  layers: number;
+};
+
 export function createWebgpuTilePool(
   device: TilePoolDevice,
-  options: { kind: 'color' | 'data'; format: GPUTextureFormat; layers: number },
+  options: TilePoolOptions,
 ): WebgpuTilePool {
-  const { layers, format } = options;
+  const { layers, format, texelBytes } = options;
   if (!Number.isSafeInteger(layers) || layers < 1) throw new Error('TEXTURE_POOL_LAYERS');
   const tiles = layers * TILES_PER_LAYER;
-  const perTexel = texelBytes(format);
+  const perTile = tileBytes(texelBytes),
+    perLayer = poolLayerBytes(texelBytes);
   // `copyExternalImageToTexture` also requires `RENDER_ATTACHMENT` of its destination; a block
   // format cannot be one, and no browser image is ever copied into it.
-  const attachment = isBlockFormat(format) ? 0 : GPUTextureUsage.RENDER_ATTACHMENT;
+  const attachment = texelBytes === 1 ? 0 : GPUTextureUsage.RENDER_ATTACHMENT;
   const texture = device.createTexture({
     label: `WG texture pool ${options.kind}`,
     size: { width: POOL_LAYER_SIDE, height: POOL_LAYER_SIDE, depthOrArrayLayers: layers },
@@ -100,12 +111,14 @@ export function createWebgpuTilePool(
     view: texture.createView({ dimension: '2d-array' }),
     layers,
     tiles,
-    bytes: layers * poolLayerBytes(perTexel),
+    bytes: layers * perLayer,
+    tileBytes: perTile,
+    layerBytes: perLayer,
     get resident() {
       return resident;
     },
     get residentBytes() {
-      return resident * tileBytes(perTexel);
+      return resident * perTile;
     },
     acquire(key, frame, pin = false) {
       settle();

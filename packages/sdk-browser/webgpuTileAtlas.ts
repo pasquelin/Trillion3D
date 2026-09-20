@@ -9,19 +9,19 @@ import {
 } from './webgpuTilePageTable.ts';
 import { writeTailFromBytes } from './webgpuTileWrite.ts';
 import { writeTailFromBlocks } from './webgpuTileWriteBlocks.ts';
-import { isBlockFormat } from './textureBlockFormats.ts';
+import type { PoolEncoding, TailBytes } from './textureBlockFormats.ts';
 import { resizeTileAtlas } from './webgpuTileAtlasResize.ts';
 import { tailId, tileId, tileKeyOf } from './webgpuTileIds.ts';
 
 /**
  * Where a texture's texels come from. `bytes`: everything fits in the sidecar tail, nothing is
  * streamed. `baked`: the tail comes from the sidecar, streamed levels are read cooked from the
- * cache. `host`: neither, the host image goes through a working texture. A tail is in the pool's
- * own encoding — RGBA8 texels, or the blocks of its format — as the catalogue chose it.
+ * cache. `host`: neither, the host image goes through a working texture. A tail carries every
+ * encoding the sidecar holds; the atlas pins the one its pool samples.
  */
 type TileSource =
-  | { kind: 'bytes'; tail: readonly Uint8Array[] }
-  | { kind: 'baked'; sha256: string; atlas: number; tail: readonly Uint8Array[] }
+  | { kind: 'bytes'; tail: TailBytes }
+  | { kind: 'baked'; sha256: string; atlas: number; tail: TailBytes }
   | { kind: 'host'; map: THREE.Texture; rgba: TextureRgba | null };
 
 export type TileTexture = { layout: TileLayout; source: TileSource };
@@ -64,19 +64,16 @@ export function createWebgpuTileAtlas(
   device: Pick<GPUDevice, 'createTexture' | 'createBuffer' | 'queue'>,
   options: {
     kind: 'color' | 'data';
-    format: GPUTextureFormat;
+    encoding: PoolEncoding;
     layers: number;
     feedbackOffset: number;
     textures: TileTexture[];
   },
 ): WebgpuTileAtlas {
-  const { kind, textures } = options;
-  const writeTail = isBlockFormat(options.format) ? writeTailFromBlocks : writeTailFromBytes;
-  let pool = createWebgpuTilePool(device, {
-    kind,
-    format: options.format,
-    layers: options.layers,
-  });
+  const { kind, textures, encoding } = options;
+  const shape = { kind, format: encoding[kind], texelBytes: encoding.texelBytes };
+  const writeTail = encoding.block ? writeTailFromBlocks : writeTailFromBytes;
+  let pool = createWebgpuTilePool(device, { ...shape, layers: options.layers });
   const pages = createWebgpuTilePageTable(
     device,
     textures.map((texture) => texture.layout),
@@ -133,7 +130,7 @@ export function createWebgpuTileAtlas(
             place,
             [layout.width, layout.height],
             layout.tail,
-            source.tail,
+            encoding.tailOf(source.tail),
           );
         pages.setTail(slot, place);
       });
@@ -169,13 +166,7 @@ export function createWebgpuTileAtlas(
     },
     flush: (target) => pages.flush(target),
     resize(target, layers) {
-      const result = resizeTileAtlas(
-        target,
-        { kind, format: options.format, layers },
-        pool,
-        pages,
-        resident,
-      );
+      const result = resizeTileAtlas(target, { ...shape, layers }, pool, pages, resident);
       pool = result.pool;
       evictions += result.evicted;
       candidatesFrame = -1;

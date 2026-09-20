@@ -9,7 +9,7 @@
 //! exceeds the second's it applies "blue contraction" to both. The writer avoids
 //! that path by swapping the endpoints and mirroring the weights, which decodes
 //! to the same colours.
-use super::fit::{assign, fit, Texels};
+use super::fit::{assign, fit, ladder_of, Endpoints, Texels};
 use super::ise;
 
 /// Block mode: 4 × 4 weights, three bits each, single plane.
@@ -20,10 +20,7 @@ const CEM: u128 = 12;
 const ENDPOINT_BIT: u32 = 17;
 /// The eight rungs a 3-bit weight decodes to, over 64.
 const WEIGHTS: [u8; 8] = [0, 9, 18, 27, 37, 46, 55, 64];
-
-fn ladder() -> [f32; 8] {
-    WEIGHTS.map(|w| f32::from(w) / 64.0)
-}
+pub(super) const LADDER: [f32; 8] = ladder_of(WEIGHTS);
 
 fn quantise(endpoint: [f32; 4]) -> ([u8; 4], [f32; 4]) {
     let levels = endpoint.map(ise::quantise);
@@ -31,13 +28,12 @@ fn quantise(endpoint: [f32; 4]) -> ([u8; 4], [f32; 4]) {
 }
 
 /// Writes the block.
-pub fn encode(texels: &Texels) -> [u8; 16] {
-    let ladder = ladder();
-    let fitted = fit(texels, &ladder);
+pub fn encode(texels: &Texels, segment: Endpoints) -> [u8; 16] {
+    let fitted = fit(texels, &LADDER, segment);
     let (mut l0, mut d0) = quantise(fitted.0);
     let (mut l1, mut d1) = quantise(fitted.1);
     let sum = |d: [f32; 4]| d[0] + d[1] + d[2];
-    let mut rung = assign(texels, &ladder, d0, d1);
+    let mut rung = assign(texels, &LADDER, d0, d1);
     if sum(d0) > sum(d1) {
         std::mem::swap(&mut l0, &mut l1);
         std::mem::swap(&mut d0, &mut d1);

@@ -1,12 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  chooseBlockFormat,
-  isBlockFormat,
-  poolFormat,
-  texelBytes,
-  WHITE_BLOCK,
-} from './textureBlockFormats.ts';
+import { chooseBlockFormat, poolEncoding, WHITE_TAIL } from './textureBlockFormats.ts';
 
 const device = (...names: string[]) => ({ has: (name: string) => names.includes(name) });
 
@@ -35,14 +29,21 @@ test('the block format is the one the device samples, under the host choice, wit
   });
 });
 
-test('pool formats keep the colour atlas sRGB-decoded and cost one byte per texel when blocked', () => {
-  assert.equal(poolFormat('color', 'bc7'), 'bc7-rgba-unorm-srgb');
-  assert.equal(poolFormat('data', 'bc7'), 'bc7-rgba-unorm');
-  assert.equal(poolFormat('color', 'astc'), 'astc-4x4-unorm-srgb');
-  assert.equal(poolFormat('data', undefined), 'rgba8unorm');
-  assert.equal(texelBytes('rgba8unorm-srgb'), 4);
-  assert.equal(texelBytes('astc-4x4-unorm'), 1);
-  assert.ok(isBlockFormat('bc7-rgba-unorm') && !isBlockFormat('rgba8unorm'));
-  assert.equal(WHITE_BLOCK.bc7.length, 16);
-  assert.equal(WHITE_BLOCK.astc.length, 16);
+// Behaviour: one encoding carries everything a block choice implies — the two pool formats,
+// the colour one sRGB-decoded, the texel cost, the level file and which tail is pinned.
+test('the pool encoding follows the block choice, RGBA8 without one', () => {
+  const bc7 = poolEncoding('bc7');
+  assert.deepEqual(
+    [bc7.color, bc7.data, bc7.texelBytes, bc7.levelFormat],
+    ['bc7-rgba-unorm-srgb', 'bc7-rgba-unorm', 1, 'bc7'],
+  );
+  assert.equal(poolEncoding('astc').color, 'astc-4x4-unorm-srgb');
+  const rgba = poolEncoding(undefined);
+  assert.deepEqual(
+    [rgba.color, rgba.data, rgba.texelBytes, rgba.levelFormat],
+    ['rgba8unorm-srgb', 'rgba8unorm', 4, 'png'],
+  );
+  assert.equal(bc7.tailOf(WHITE_TAIL), WHITE_TAIL.blocks.bc7);
+  assert.equal(rgba.tailOf(WHITE_TAIL), WHITE_TAIL.levels);
+  assert.equal(WHITE_TAIL.blocks.astc[0].length, 16);
 });

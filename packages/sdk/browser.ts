@@ -55,7 +55,6 @@ export type { SurfaceBuffer, SurfaceCapture } from '../sdk-browser/surfaceBuffer
 export type { TelemetryReport } from '../sdk-browser/telemetryTypes.ts';
 export type {
   TextureLevel,
-  TextureLevelBlocks,
   TextureLevelReader,
   TextureLevelRequest,
 } from '../sdk-browser/textureLevelReader.ts';

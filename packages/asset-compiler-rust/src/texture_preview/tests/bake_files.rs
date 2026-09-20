@@ -60,7 +60,8 @@ fn levels_above_the_tail_are_written_once_per_atlas_as_lossless_png() {
                 &chain[level as usize],
                 "lossless level {level}"
             );
-            for format in BlockFormat::ALL {
+            let encoded = blocks::encode_level(&chain[level as usize], w, h);
+            for (format, expected_blocks) in BlockFormat::ALL.iter().zip(encoded) {
                 let blocks =
                     fs::read(native.join(level_path(&expected.sha256, kind, level, format.name())))
                         .expect("block level");
@@ -69,10 +70,7 @@ fn levels_above_the_tail_are_written_once_per_atlas_as_lossless_png() {
                     (w as usize) * (h as usize),
                     "one byte per texel"
                 );
-                assert_eq!(
-                    blocks,
-                    blocks::encode_level(&chain[level as usize], w, h, format)
-                );
+                assert_eq!(blocks, expected_blocks);
             }
         }
         for format in [LOSSLESS, "bc7", "astc"] {

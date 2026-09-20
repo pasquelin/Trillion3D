@@ -2,22 +2,31 @@
 //! which reconstructs BC7 and ASTC by the specification and shares no line with
 //! the writers here. What it reads back bounds the loss, format by format.
 use super::*;
+use crate::plugins::image::blocks::to_rgba8;
 
 fn decode(bytes: &[u8], width: u32, height: u32, format: BlockFormat) -> Vec<u8> {
-    let (w, h) = (width as usize, height as usize);
-    let mut pixels = vec![0u32; w * h];
+    let decoder = match format {
+        BlockFormat::Bc7 => texture2ddecoder::decode_bc7,
+        BlockFormat::Astc => texture2ddecoder::decode_astc_4_4,
+    };
+    to_rgba8(
+        decoder,
+        BLOCK_BYTES,
+        bytes,
+        width as usize,
+        height as usize,
+        "truncated",
+    )
+    .expect("decodable")
+}
+
+/// Both formats of a level, by `BlockFormat`.
+fn encoded(rgba: &[u8], width: u32, height: u32, format: BlockFormat) -> Vec<u8> {
+    let [bc7, astc] = encode_level(rgba, width, height);
     match format {
-        BlockFormat::Bc7 => texture2ddecoder::decode_bc7(bytes, w, h, &mut pixels),
-        BlockFormat::Astc => texture2ddecoder::decode_astc_4_4(bytes, w, h, &mut pixels),
+        BlockFormat::Bc7 => bc7,
+        BlockFormat::Astc => astc,
     }
-    .expect("decodable");
-    pixels
-        .iter()
-        .flat_map(|p| {
-            let [b, g, r, a] = p.to_le_bytes();
-            [r, g, b, a]
-        })
-        .collect()
 }
 
 fn psnr(a: &[u8], b: &[u8]) -> f64 {
@@ -72,7 +81,7 @@ fn flat_blocks_decode_exactly_where_the_range_holds_the_byte() {
             [ise::unquantise(70), ise::unquantise(3), 0, 255],
         ),
     ] {
-        let block = encode_level(&constant(colour), 4, 4, format);
+        let block = encoded(&constant(colour), 4, 4, format);
         assert_eq!(block.len(), BLOCK_BYTES);
         assert_eq!(decode(&block, 4, 4, format), constant(colour), "{format:?}");
     }
@@ -89,7 +98,7 @@ fn astc_endpoints_reach_every_level_of_their_range() {
             u8::abs_diff(expected, byte) <= 2,
             "byte {byte} → {expected}"
         );
-        let block = encode_level(&constant([byte, byte, byte, byte]), 4, 4, BlockFormat::Astc);
+        let block = encoded(&constant([byte; 4]), 4, 4, BlockFormat::Astc);
         assert_eq!(
             decode(&block, 4, 4, BlockFormat::Astc)[0],
             expected,
@@ -107,7 +116,7 @@ fn textured_levels_decode_within_the_declared_loss() {
     for (format, floor) in [(BlockFormat::Bc7, 38.0), (BlockFormat::Astc, 38.0)] {
         for (width, height) in [(64u32, 48u32), (13, 7), (1, 1), (2, 130)] {
             let source = photo(width, height);
-            let level = encode_level(&source, width, height, format);
+            let level = encoded(&source, width, height, format);
             assert_eq!(level.len(), level_block_bytes(width, height));
             let quality = psnr(&decode(&level, width, height, format), &source);
             assert!(
@@ -122,11 +131,9 @@ fn textured_levels_decode_within_the_declared_loss() {
 #[test]
 fn encoding_is_deterministic() {
     let source = photo(32, 32);
-    for format in BlockFormat::ALL {
-        let once = encode_level(&source, 32, 32, format);
-        assert_eq!(once, encode_level(&source, 32, 32, format));
-        assert_eq!(once.len(), 64 * BLOCK_BYTES);
-    }
+    let once = encode_level(&source, 32, 32);
+    assert_eq!(once, encode_level(&source, 32, 32));
+    assert!(once.iter().all(|level| level.len() == 64 * BLOCK_BYTES));
 }
 
 // Behaviour: the engine fills slot 0 of a block pool with one constant block per

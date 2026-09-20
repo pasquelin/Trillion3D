@@ -1,6 +1,6 @@
 import { EngineError, type TexturePreview } from './contracts.ts';
 import * as format from './manifestBinaryFormat.ts';
-import { levelBlockBytes, previewGeometry, previewLevelSize } from './texturePreviewLevels.ts';
+import { levelBlockBytes, previewGeometry } from './texturePreviewLevels.ts';
 
 type PreviewColumns = {
   count: number;
@@ -11,19 +11,23 @@ type PreviewColumns = {
   previewBlocks: Record<format.TextureBlockFormat, Uint8Array<ArrayBuffer>>;
 };
 
-/** Byte length of each carried level in a column, tail order. */
-export function levelLengths(
-  width: number,
-  height: number,
-  bytesOf: (w: number, h: number) => number,
-) {
-  const { firstLevel, levelCount } = previewGeometry(width, height);
-  return Array.from({ length: levelCount }, (_, index) => {
-    const [w, h] = previewLevelSize(width, height, firstLevel + index);
-    return bytesOf(w, h);
-  });
+/** Byte length of each carried level in the pixel column and in a block column, tail order. */
+export function levelLengths(geometry: ReturnType<typeof previewGeometry>) {
+  return {
+    rgba: geometry.sizes.map(([w, h]) => w * h * 4),
+    blocks: geometry.sizes.map(([w, h]) => levelBlockBytes(w, h)),
+  };
 }
-export const rgbaBytes = (w: number, h: number) => w * h * 4;
+
+/** Consecutive views of `lengths` bytes out of `column` from `at`, and where they end. */
+function slices(column: Uint8Array<ArrayBuffer>, at: number, lengths: readonly number[]) {
+  const views = lengths.map((length) => {
+    const view = column.subarray(at, at + length);
+    at += length;
+    return view;
+  });
+  return { views, end: at };
+}
 
 /** What both write and read require of an entry — integer (texture, atlas) pair
  *  strictly increasing, known atlas, real source dimensions, baked levels under the tail —
@@ -33,6 +37,7 @@ export function checkEntryHeader(
   entry: number,
   header: Pick<TexturePreview, 'texture' | 'atlas' | 'width' | 'height' | 'bakedLevels'>,
   previous: number,
+  firstLevel: number,
 ) {
   const { texture, atlas, width, height, bakedLevels } = header;
   if (atlas !== format.PREVIEW_ATLAS_COLOR && atlas !== format.PREVIEW_ATLAS_DATA)
@@ -57,11 +62,7 @@ export function checkEntryHeader(
       width,
       height,
     });
-  if (
-    !Number.isInteger(bakedLevels) ||
-    bakedLevels < 0 ||
-    bakedLevels > previewGeometry(width, height).firstLevel
-  )
+  if (!Number.isInteger(bakedLevels) || bakedLevels < 0 || bakedLevels > firstLevel)
     throw new EngineError(
       'INVALID_CACHE',
       'A texture preview bakes more levels than lie above its tail',
@@ -94,8 +95,9 @@ export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[]
       height = previewWords[base + format.PREVIEW_HEIGHT];
     const atlas = previewWords[base + format.PREVIEW_ATLAS],
       bakedLevels = previewWords[base + format.PREVIEW_BAKED_LEVELS];
-    previous = checkEntryHeader(entry, { texture, atlas, width, height, bakedLevels }, previous);
     const expected = previewGeometry(width, height);
+    const header = { texture, atlas, width, height, bakedLevels };
+    previous = checkEntryHeader(entry, header, previous, expected.firstLevel);
     const firstLevel = previewWords[base + format.PREVIEW_FIRST_LEVEL];
     const declared = {
       firstLevel,
@@ -121,27 +123,21 @@ export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[]
         bytes: declared.pixelBytes,
         column: previewPixels.length,
       });
-    const levels: Uint8Array<ArrayBuffer>[] = [];
-    let at = offset;
-    for (const length of levelLengths(width, height, rgbaBytes)) {
-      levels.push(previewPixels.subarray(at, at + length));
-      at += length;
-    }
-    consumed = at;
+    const lengths = levelLengths(expected);
+    const pixels = slices(previewPixels, offset, lengths.rgba);
+    consumed = pixels.end;
     const blocks = {} as TexturePreview['blocks'];
     for (const name of format.PREVIEW_BLOCK_FORMATS) {
       const column = previewBlocks[name];
-      blocks[name] = [];
-      for (const length of levelLengths(width, height, levelBlockBytes)) {
-        if (blocksAt[name] + length > column.length)
-          throw new EngineError('INVALID_CACHE', 'A texture preview block column is too short', {
-            entry,
-            format: name,
-            column: column.length,
-          });
-        blocks[name].push(column.subarray(blocksAt[name], blocksAt[name] + length));
-        blocksAt[name] += length;
-      }
+      if (blocksAt[name] + expected.blockBytes > column.length)
+        throw new EngineError('INVALID_CACHE', 'A texture preview block column is too short', {
+          entry,
+          format: name,
+          column: column.length,
+        });
+      const sliced = slices(column, blocksAt[name], lengths.blocks);
+      blocks[name] = sliced.views;
+      blocksAt[name] = sliced.end;
     }
     const sourceKind = previewWords[base + format.PREVIEW_SOURCE_KIND];
     previews[entry] = {
@@ -158,7 +154,7 @@ export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[]
       atlas,
       firstLevel,
       bakedLevels,
-      levels,
+      levels: pixels.views,
       blocks,
     };
   }

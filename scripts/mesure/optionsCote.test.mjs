@@ -20,4 +20,5 @@ test('a side takes its own compression, then the campaign one, otherwise the eng
     () => equip('apres', { 'compression-apres': 'dxt1' }),
     /must be auto, bc7, astc, none/,
   );
+  assert.throws(() => equip('avant', { erreur: 'other' }), /must be certifiee, reference/);
 });

@@ -1,7 +1,5 @@
-import { tileBytes } from './textureTiles.ts';
 import type { TextureLevelReader } from './textureLevelReader.ts';
-import { poolFormat, texelBytes } from './textureBlockFormats.ts';
-import { PREVIEW_LOSSLESS_FORMAT, type TextureBlockFormat } from '../sdk-core/index.ts';
+import type { PoolEncoding } from './textureBlockFormats.ts';
 import {
   createWebgpuTileAtlas,
   type TileTexture,
@@ -30,8 +28,8 @@ export function createWebgpuTileStreamer(options: {
   color: TileTexture[];
   data: TileTexture[];
   layersPerAtlas: number;
-  /** The block format both pools take, or RGBA8 without one. */
-  block?: TextureBlockFormat;
+  /** The encoding both pools take: their formats, their texel cost, their level file. */
+  encoding: PoolEncoding;
   /** Tile bytes admitted per image outside a barrier. */
   budgetBytes: number;
   readLevel?: TextureLevelReader;
@@ -39,29 +37,28 @@ export function createWebgpuTileStreamer(options: {
   /** Colour tiles have just arrived or left: what a cutout-foliage shadow must follow. */
   onColorChanged: () => void;
 }) {
-  const { device, block } = options;
+  const { device, encoding } = options;
   const color = createWebgpuTileAtlas(device, {
     kind: 'color',
-    format: poolFormat('color', block),
+    encoding,
     layers: options.layersPerAtlas,
     feedbackOffset: 0,
     textures: options.color,
   });
   const data = createWebgpuTileAtlas(device, {
     kind: 'data',
-    format: poolFormat('data', block),
+    encoding,
     layers: options.layersPerAtlas,
     feedbackOffset: color.pages.entries,
     textures: options.data,
   });
-  const bytesPerTile = tileBytes(texelBytes(color.pool.texture.format));
   const feedback = createWebgpuTileFeedback(device, color.pages.entries + data.pages.entries);
   const reduce = createWebgpuTileReduce(device);
   const counters = createTileCounters();
   const sources = createTileSources({
     device,
     readLevel: options.readLevel,
-    levelFormat: block ?? PREVIEW_LOSSLESS_FORMAT,
+    levelFormat: encoding.levelFormat,
     counters,
     onFailure: options.onFailure,
   });
@@ -134,7 +131,7 @@ export function createWebgpuTileStreamer(options: {
         if (verdict === 'waiting') waiting++;
         else if (verdict === 'served') {
           served++;
-          bytes += bytesPerTile;
+          bytes += color.pool.tileBytes;
           if (request.atlas === color) colorServed = true;
         }
       }
