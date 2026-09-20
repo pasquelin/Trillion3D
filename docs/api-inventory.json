@@ -1853,7 +1853,10 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["test/justesse/cameraSitesMoteurs.mjs"],
+      "affectedConsumers": [
+        "test/appui/webglClusterExplorerPage.mjs",
+        "test/justesse/cameraSitesMoteurs.mjs"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/exactPagesBackend\".exactPagesBackend"
     },
@@ -1980,7 +1983,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/attributs-telemetrie.perf.mjs",
+        "packages/sdk-browser/bench/telemetrie.perf.mjs",
         "packages/sdk-browser/cameraPath.ts",
         "packages/sdk-browser/telemetry.ts"
       ],
@@ -2117,6 +2120,28 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/llm/types\".GeminiFunctionDeclaration"
+    },
+    {
+      "name": "GEOMETRY_PAGE_CODEC",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/manifestBinaryFormat.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/autonomousManifest.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/manifestBinaryFormat\".GEOMETRY_PAGE_CODEC"
+    },
+    {
+      "name": "GEOMETRY_PAGE_FORMAT_VERSION",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/manifestBinaryFormat.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/autonomousManifest.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/manifestBinaryFormat\".GEOMETRY_PAGE_FORMAT_VERSION"
     },
     {
       "name": "GeometryPageDescriptor",
@@ -4024,6 +4049,17 @@
       "bindingIdentity": "\"packages/sdk-core/geometryContracts\".primitiveIsDrawable"
     },
     {
+      "name": "PrimitiveQuantization",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/geometryContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/geometryContracts\".PrimitiveQuantization"
+    },
+    {
       "name": "primitiveUsesClusterErrors",
       "kind": "value",
       "definingModule": "packages/sdk-core/geometryContracts.ts",
@@ -4253,6 +4289,17 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/gpuPageTypes\".ResidentPage"
+    },
+    {
+      "name": "resolveCompilerExecutable",
+      "kind": "value",
+      "definingModule": "packages/sdk-node/compilerProcess.mts",
+      "currentEntryPoints": ["web-geometry (node condition)"],
+      "proposedEnvironments": "node",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-node/compilerProcess\".resolveCompilerExecutable"
     },
     {
       "name": "reviewCutouts",

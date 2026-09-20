@@ -5,9 +5,9 @@
 use crate::{decode, OPTIONAL};
 
 /// Result block, in 32-bit words:
-/// 0 status (0 = decoded), 1 vertices, 2 indices, 3 flags, 4 decompressed bytes,
-/// 5 index offset, 6 position offset, 7 to 11 optional-attribute offsets (0 = absent).
-const RESULT_WORDS: usize = 12;
+/// 0 status (0 = decoded), 1 vertices, 2 indices, 3 flags, 4 decoded bytes,
+/// 5 index offset, 6 position offset, 7 to 10 optional-attribute offsets (0 = absent).
+const RESULT_WORDS: usize = 11;
 
 pub(crate) fn fuite<T>(valeurs: Vec<T>) -> u32 {
     let boite = valeurs.into_boxed_slice();
@@ -21,7 +21,7 @@ pub(crate) unsafe fn rends<T>(offset: u32, len: usize) {
     }
 }
 
-/// Reserves `len` bytes for the compressed page. Returns 0 if the size is absurd.
+/// Reserves `len` bytes for the packed page. Returns 0 if the size is absurd.
 #[no_mangle]
 pub extern "C" fn page_alloc(len: usize) -> u32 {
     if len == 0 || len > 1 << 30 {
