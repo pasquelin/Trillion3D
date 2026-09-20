@@ -7,6 +7,8 @@
  * The cost is the second opaque pass, paid only by a frame that carries a transmissive copy.
  */
 const BACKDROP_EXTENSIONS = ['EXT_color_buffer_float', 'EXT_color_buffer_half_float'];
+/** The host background as `WebglClusterScene` carries it: a colour clears the backdrop. */
+type Background = { isColor?: boolean; r?: number; g?: number; b?: number } | object | null;
 
 /** Names the missing capability when the context cannot render a half-float backdrop. */
 export function backdropFormatReason(gl: WebGL2RenderingContext) {
@@ -32,8 +34,11 @@ export class WebglClusterBackdrop {
     return this.width * this.height * 12;
   }
   /** Viewport origin of the frame being drawn: fragment coordinates minus it are backdrop texels. */
-  get origin(): [number, number] {
-    return [this.savedViewport[0], this.savedViewport[1]];
+  get originX() {
+    return this.savedViewport[0];
+  }
+  get originY() {
+    return this.savedViewport[1];
   }
   private texture(internalFormat: number, width: number, height: number) {
     const gl = this.gl,
@@ -62,11 +67,13 @@ export class WebglClusterBackdrop {
     this.height = height;
   }
   /**
-   * Binds the backdrop, sized to the current viewport and cleared to the linear background,
-   * remembering the frame's own target, viewport and scissor. Draw, then `end()`.
+   * Binds the backdrop, sized to the current viewport and cleared to the linear background
+   * colour (black for any other background), remembering the frame's own target, viewport and
+   * scissor. Draw, then `end()`.
    */
-  begin(background: ArrayLike<number>, colorUnit: number, depthUnit: number) {
-    const gl = this.gl;
+  begin(background: Background | undefined, colorUnit: number, depthUnit: number) {
+    const gl = this.gl,
+      colour = background as { isColor?: boolean; r: number; g: number; b: number } | null;
     this.savedViewport.set(gl.getParameter(gl.VIEWPORT) as Int32Array);
     this.savedFramebuffer = gl.getParameter(gl.FRAMEBUFFER_BINDING) as WebGLFramebuffer | null;
     this.savedScissor = gl.isEnabled(gl.SCISSOR_TEST);
@@ -85,7 +92,8 @@ export class WebglClusterBackdrop {
     gl.viewport(0, 0, width, height);
     gl.colorMask(true, true, true, true);
     gl.depthMask(true);
-    gl.clearColor(background[0], background[1], background[2], 1);
+    if (colour?.isColor) gl.clearColor(colour.r, colour.g, colour.b, 1);
+    else gl.clearColor(0, 0, 0, 1);
     gl.clearDepth(1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   }
