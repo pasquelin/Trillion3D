@@ -2,7 +2,6 @@ import type * as THREE from 'three';
 import type { PageRec } from './pageSelection.ts';
 import { depthLayerUnits } from '../sdk-core/index.ts';
 import { createPageRowConstants } from './webgpuPageRowConstants.ts';
-import { ROW_MATERIAL_CLASS_WORD } from './visibilityMaterialClass.ts';
 import { rowMaterial, type GeometryBlock, type MaterialLayers } from './webgpuPageRowMaterial.ts';
 import {
   assertVisibilityPageTriangles,
@@ -17,6 +16,8 @@ export const ROW_ID_BASE_WORD = 27,
 export const ROW_WRAP_MODES_WORD = 61;
 /** Row word that carries the line's placement (`PageInfo.placement`). */
 export const ROW_PLACEMENT_WORD = 62;
+/** Row word that carries the resolve class key (`PageInfo.materialClass`, `visibilityMaterialClass.ts`). */
+export const ROW_MATERIAL_CLASS_WORD = 63;
 /** Row word that holds how many indices the page draws: what the GPU reads to draw it, and so the
  *  only vertex count an image walk needs to reread. */
 export const ROW_INDEX_WORDS = 25;
@@ -32,12 +33,8 @@ type PageRowResources = MaterialLayers & {
 };
 
 /** Serializes one drawable cluster row after its occupant, slot, or input epoch changes. */
-export function createPageRowWriter({
-  geometryBlocks,
-  mapLayer,
-  dataLayer,
-  markRowDirty,
-}: PageRowResources) {
+export function createPageRowWriter(resources: PageRowResources) {
+  const { geometryBlocks, markRowDirty } = resources;
   // What the catalogue fixes once and for all is not recomputed for every arriving page.
   const constants = createPageRowConstants();
   return (
@@ -53,7 +50,7 @@ export function createPageRowWriter({
       material = constants.materialOf(rec.material),
       geo = geometryBlocks.get(rec.attributes);
     const mat = material.mat,
-      maps = rowMaterial(mat, geo, { mapLayer, dataLayer });
+      maps = rowMaterial(mat, geo, resources);
     floats.set(rec.matrix.elements, base);
     floats[base + 16] = mat.baseColor[0];
     floats[base + 17] = mat.baseColor[1];

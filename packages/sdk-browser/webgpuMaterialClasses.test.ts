@@ -5,9 +5,10 @@ import type { ClusterManifest } from '../sdk-core/index.ts';
 import { collectClusterPages } from './pageSelection.ts';
 import { createPageRowWriter } from './webgpuPageRow.ts';
 import { FLAG_MASK, PAGE_INFO_STRIDE, isTransmissive } from './visibilityBuffer.ts';
-import { CLASS_FEATURE, ROW_MATERIAL_CLASS_WORD } from './visibilityMaterialClass.ts';
+import { CLASS_FEATURE } from './visibilityMaterialClass.ts';
+import { ROW_MATERIAL_CLASS_WORD } from './webgpuPageRow.ts';
 import { sceneMaterialClasses } from './webgpuPageRowMaterial.ts';
-import { markPresentClasses } from './webgpuMaterialPasses.ts';
+import { createPresentClasses, markPresentClasses } from './webgpuMaterialPasses.ts';
 
 const page = (id: number, url: string, start: number) => ({
   id,
@@ -138,15 +139,12 @@ test('a row carries its resolve class, the census of the scene knows it before a
   assert.equal(ints[ROW_MATERIAL_CLASS_WORD], cutout, 'double-sided cut-out with vertex normals');
   assert.equal(ints[stride + ROW_MATERIAL_CLASS_WORD], HAS_VERTEX_NORMAL, 'the plain blend');
   assert.equal(cutout & HAS_UV, 0, 'no uv block, no uv class bit');
-  // The census reads the same fields the rows will carry: the two classes, sorted, once each.
-  assert.deepEqual(sceneMaterialClasses(collected.allPages, geometryBlocks, layers), [
-    HAS_VERTEX_NORMAL,
-    cutout,
-  ]);
+  // The census reads the same fields the rows will carry, for the pages that take a row: the
+  // blend is a transparent page and the transmission left the DAG, so the cut-out's class alone
+  // is compiled at preparation.
+  assert.deepEqual(sceneMaterialClasses(collected.allPages, geometryBlocks, layers), [cutout]);
   // An image draws the classes of its packed rows only: the second row alone leaves the cut-out out.
-  const stamps = new Uint32Array(2048);
-  assert.equal(markPresentClasses(ints, 2, 7, stamps), 2);
-  assert.equal(markPresentClasses(ints.subarray(stride), 1, 8, stamps), 1);
-  assert.equal(stamps[HAS_VERTEX_NORMAL], 8);
-  assert.equal(stamps[cutout], 7);
+  const present = createPresentClasses();
+  assert.deepEqual(markPresentClasses(ints, 2, present), [cutout, HAS_VERTEX_NORMAL]);
+  assert.deepEqual(markPresentClasses(ints.subarray(stride), 1, present), [HAS_VERTEX_NORMAL]);
 });

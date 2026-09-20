@@ -9,6 +9,7 @@ import { backdropBytes, createBackdrop, disposeBackdrop } from './webgpuTransmis
 import { ensureTaaTargets } from './taaPrepare.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import { MATERIAL_DEPTH_FORMAT } from './visibilityMaterialClass.ts';
+import { MATERIAL_DEPTH_PASS } from './webgpuMaterialPasses.ts';
 
 /**
  * Bytes of the image targets at this size. As in the reference, targets follow resolution: no byte
@@ -129,7 +130,7 @@ export function ensureTargets(
     vis.visView = vis.visTexture.createView();
     // Each pixel's material class, as the depth every class pass tests against.
     vis.materialDepthTexture = device.createTexture({
-      label: 'WG material depth',
+      label: MATERIAL_DEPTH_PASS,
       size: { width, height },
       format: MATERIAL_DEPTH_FORMAT,
       usage: GPUTextureUsage.RENDER_ATTACHMENT,

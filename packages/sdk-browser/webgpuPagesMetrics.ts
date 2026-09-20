@@ -115,6 +115,9 @@ export function disposeWebgpuPages(
   vis.visTexture?.destroy();
   vis.visTexture = undefined;
   vis.visView = undefined;
+  vis.materialDepthTexture?.destroy();
+  vis.materialDepthTexture = undefined;
+  vis.materialDepthView = undefined;
   for (const buffer of gpu.positionBuffers.values()) buffer.destroy();
   dropBlendBuffers(gpu);
   gpu.vertexBytes = 0;

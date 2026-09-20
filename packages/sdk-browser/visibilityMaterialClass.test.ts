@@ -1,11 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  CLASS_DEPTH_UNITS,
   CLASS_FEATURE,
   MATERIAL_CLASS_KEYS,
   MATERIAL_CLASS_WGSL,
-  materialClassConstants,
-  materialClassDepth,
   materialClassKey,
 } from './visibilityMaterialClass.ts';
 import {
@@ -38,14 +37,16 @@ test('a class key carries the resolve features of a row, and nothing a class doe
 });
 
 test('every class depth is exact in f32, distinct, above the background and below one', () => {
+  // The depth both shader stages compute: `(key + 1) / CLASS_DEPTH_UNITS`, in f32.
   const seen = new Set<number>();
   for (let key = 0; key < MATERIAL_CLASS_KEYS; key++) {
-    const depth = materialClassDepth(key);
+    const depth = (key + 1) / CLASS_DEPTH_UNITS;
     assert.equal(Math.fround(depth), depth, `key ${key} rounds`);
     assert.ok(depth > 0 && depth < 1);
     seen.add(depth);
   }
   assert.equal(seen.size, MATERIAL_CLASS_KEYS);
+  assert.match(MATERIAL_CLASS_WGSL, new RegExp(`f32\\(CLASS_KEY\\+1u\\)/${CLASS_DEPTH_UNITS}\\.0`));
 });
 
 test('the resolve shader tests class overrides, never the page flags, for what a class fixes', () => {
@@ -54,14 +55,11 @@ test('the resolve shader tests class overrides, never the page flags, for what a
     assert.ok(fragment.includes(name), `${name} is read`);
   assert.doesNotMatch(fragment, /page\.flags&(?:2|4|8|16|128|2048)u/);
   assert.doesNotMatch(fragment, /page\.[a-zA-Z]+Index!=0u/);
-  // One override per feature, and the depth of the class the vertex stage draws at.
-  assert.match(MATERIAL_CLASS_WGSL, /override CLASS_KEY:u32=0u;/);
-  assert.match(MATERIAL_CLASS_WGSL, /override CLASS_DEPTH:f32=f32\(CLASS_KEY\+1u\)\/4096\.0;/);
+  // One override per feature, each derived from the key the pipeline is created with.
   assert.equal(
     MATERIAL_CLASS_WGSL.match(/override [A-Z_]+:bool=\(CLASS_KEY&\d+u\)!=0u;/g)?.length,
-    11,
+    Object.keys(CLASS_FEATURE).length,
   );
-  assert.deepEqual(materialClassConstants(HAS_UV | HAS_MAP), { CLASS_KEY: 3 });
 });
 
 test('the resolve compiles one pipeline per class under equal depth, after the depth export', async () => {

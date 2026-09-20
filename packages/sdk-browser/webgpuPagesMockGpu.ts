@@ -22,10 +22,12 @@ export function mockGpu(
     submits: number[] = [];
   let seq = 0;
   const textures: Array<{
+    label?: string;
     format?: string;
     usage?: number;
     depthOrArrayLayers: number;
     views: Array<{ dimension?: string } | undefined>;
+    destroyed: boolean;
   }> = [];
   const passes: MockPass[] = [];
   /** Each row strip transferred to an atlas layer, in the order it left. */
@@ -64,23 +66,29 @@ export function mockGpu(
       return buffer;
     },
     createTexture: ({
+      label,
       size,
       format,
       usage,
     }: {
+      label?: string;
       size: { width: number; height: number; depthOrArrayLayers?: number };
       format?: string;
       usage?: number;
     }) => {
       const views: Array<{ dimension?: string } | undefined> = [];
       const tex = {
+        label,
         width: size.width,
         height: size.height,
         depthOrArrayLayers: size.depthOrArrayLayers ?? 1,
         format,
         usage,
         views,
-        destroy() {},
+        destroyed: false,
+        destroy() {
+          tex.destroyed = true;
+        },
         createView(desc?: { dimension?: string }) {
           const view = { format, ...desc };
           views.push(view);
