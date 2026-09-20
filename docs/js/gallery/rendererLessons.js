@@ -1,5 +1,6 @@
 import { lightingLessonDefinitions, LESSON_POINT_INTENSITY } from './lightingLessonDefinitions.js';
 import { cameraLessonDefinitions } from './cameraLessonDefinitions.js';
+import { occlusionLessonDefinition } from './occlusionLesson.js';
 import { offlineLessons } from './offline/lessons.js';
 import { rendererSceneFor } from './rendererSceneAssignments.js';
 const title = (en, fr) => ({ en, fr });
@@ -172,6 +173,7 @@ export const rendererLessons = [
   },
   ...lightingLessonDefinitions,
   ...cameraLessonDefinitions,
+  occlusionLessonDefinition,
   ...offlineLessons,
 ].map((lesson) =>
   lesson.kind === 'offline'

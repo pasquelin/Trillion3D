@@ -1,6 +1,7 @@
 import { invertMatrix4, matrixAtRenderOrigin } from '../sdk-core/index.ts';
 import { TAA_SAMPLES, TAA_STILL_FRAMES, jitterViewProjection, taaJitter } from './taaJitter.ts';
 import { TAA_WEIGHTS, taaWeightTable } from './taaWeights.ts';
+import { SAMPLED_RANKS } from './directLightSamplingWgsl.ts';
 import type { EngineCamera } from './cameraWorld.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -21,6 +22,9 @@ export interface TaaFrameState {
   sceneSeen: number;
   /** True when the current image accumulates: rendered with jitter, resolved by the pass. */
   active: boolean;
+  /** Rank of a MOVING image, whose lighting is drawn per pixel (`directLightSamplingWgsl.ts`):
+   *  bounded, different from one to the next, replayed with the image. Zero when still. */
+  sampledRank: number;
 }
 
 /** What a convergence image replays of the last ordinary image: see `checkpoint`. */
@@ -32,6 +36,7 @@ export function createTaaCheckpoint() {
     hasHistory: false,
     sceneSeen: -1,
     quiet: false,
+    sampledRank: 0,
     previousViewProjection: new Float64Array(16),
   };
 }
@@ -46,6 +51,7 @@ export function createTaaFrameState(): TaaFrameState {
     stillFrames: 0,
     sceneSeen: -1,
     active: false,
+    sampledRank: 0,
   };
 }
 
@@ -64,7 +70,12 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera, quiet: 
   if (!state.active) return;
   // A convergence image remakes the last ordinary image, it does not accumulate it further.
   if (rt.run.textureConverging) quiet = temporal.replay();
-  else temporal.checkpoint(quiet);
+  else {
+    // A moving image draws its lights from a rank of its own; a still one shades them all, and
+    // so does a moving one with no history yet — nothing would average its draws.
+    state.sampledRank = quiet || !state.hasHistory ? 0 : (rt.run.frame % SAMPLED_RANKS) + 1;
+    temporal.checkpoint(quiet);
+  }
   if (!quiet) state.stillFrames = 0;
   else if (state.stillFrames++ === 0) {
     state.hasHistory = false;
@@ -152,6 +163,16 @@ export function dropTaaHistory(rt: WebgpuPagesRuntime) {
   if (!temporal) return;
   temporal.frame.hasHistory = false;
   temporal.frame.stillFrames = 0;
+}
+
+/**
+ * Rank of this image among those whose lighting is SAMPLED — a moving image that
+ * accumulates on a history, which averages its draws —, or zero: a still image shades every
+ * light and converges to the exact sum, and an image nothing averages must never be noisy.
+ */
+export function taaSampledRank(rt: WebgpuPagesRuntime) {
+  const temporal = rt.gpu.temporal;
+  return temporal?.frame.active ? temporal.frame.sampledRank : 0;
 }
 
 /** True when the image can be held without freezing an accumulation in progress: without

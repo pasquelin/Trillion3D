@@ -210,8 +210,10 @@ R4. **Coverage**: pinned roots, per-group fallback onto the resident coarse repr
 a hole, never an exception other than a missing root. Criterion: `tri = selected` at every budget
 ≥ roots.
 R5. **Selection**: WebGPU compute (one thread per cluster, early-reject culling hierarchy,
-previous-frame Hi-Z occlusion); WebGL2 on CPU (culling hierarchy, allocation-free) with a Wasm
-SIMD option if > 2 ms. Criterion: Emerald selection < 1 ms GPU, < 2 ms CPU.
+two-phase Hi-Z occlusion — main pass culled by the previous image's pyramid, post pass re-tested
+by this image's, `gpuPartitionProjectWgsl.ts`); WebGL2 on CPU (culling hierarchy,
+allocation-free) with a Wasm SIMD option if > 2 ms. Criterion: Emerald selection < 1 ms GPU,
+< 2 ms CPU.
 R5b. **Hi-Z test invariant.** The occlusion test never decides that a visible cluster will not be
 drawn: it compares a **strict lower bound** of the depth the cluster will write to an **upper
 bound** of the depth already written on its footprint. The upper bound is the max reduction of the
@@ -416,7 +418,7 @@ What the reference is made of, and our counterpart:
 | Screen probes (16 px grid) + world radiance cache | final gather, temporally filtered                            | cascaded SH2 world probes; no screen probe                   | L5              |
 | Reflections                                       | screen traces, then distance fields reading the cache        | none                                                         | L1, L6          |
 | Virtual shadow maps                               | 16k shadow pages, only the views, cached                     | 4096 atlas, page-cached sliding cascades, 1 ms budget        | L3              |
-| Stochastic direct lighting                        | few samples per pixel, denoised                              | tiled culling shipped, sampling not                          | L2              |
+| Stochastic direct lighting                        | few samples per pixel, denoised                              | tiled culling; four draws per moving pixel, exact at rest    | L2 (denoise)    |
 
 What the web imposes, and the answer:
 
@@ -438,10 +440,16 @@ Stages, each with its proof (0 px A/A at rest, budget held, before/after publish
 - **L0** — done (Lumière 17, campaign 18 Sept. 2026, Emerald 2496×1404): the sun is 4.7 ms of
   envelope on the ground view and 5.8 ms on the street view (`mobile` − `sans-lumiere`); lighting
   without maps ≤ 0.96 ms (`lampes-4-sans-ombres` − `sans-lumiere`); still camera: 0 page redrawn,
-  envelope no lower. What remains is sampling (L2 / Lumière 13), not a cascade ring.
+  envelope no lower. What remained, the sampling, is L2 below — not a cascade ring.
 - **L1** — screen traces: reflections and short bounce from the already-rendered HDR, depth and
   normal; the cheapest piece of the reference, and the first.
-- **L2** — stochastic direct denoised by TAA (Lumière 13): dozens of lights at the price of one.
+- **L2** — sampling done (#36, 20 Sept. 2026, Emerald 2496×1404, ground view, 32 shadowed
+  lights reaching one pixel): a moving pixel weighs every light of its tile without its shadow,
+  shades the four it draws — exactly those worth a sample's share, stratified for the rest —
+  and the history averages the draws; a still image shades every light and converges to the
+  exact sum, 0 px A/A. Envelope 39.9 → 17.9 ms GPU on a moving camera; the grain left in motion
+  is measured in `docs/SDK.md`. What remains of L2: a spatial denoise before the history,
+  where the reference has one.
 - **L3** — shadows in virtual pages from the hardware raster (Lumière 2, 6, 12): only the pages
   seen, cached. The compute raster has been off since Geometry 26, measurement done.
 - **L4** — baked global distance field, walked in compute, reading the proxy's surface cache.

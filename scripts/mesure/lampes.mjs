@@ -8,6 +8,9 @@ import { plancherDuModele } from './poses.mjs';
 
 /** Benchmark point light intensity fallback: value from previous iterations. */
 const DEFAULT_INTENSITY = 40;
+/** Range of a grid light as a multiple of the cell: covers the cell and a bit more, so ranges
+ *  overlap like in a street. A larger factor makes several lights reach one pixel. */
+const DEFAULT_RANGE_FACTOR = 0.75;
 
 /**
  * `count` point lights on a grid within the model's footprint. `shadows` indicates if they
@@ -20,7 +23,7 @@ const DEFAULT_INTENSITY = 40;
  * leaving oracle comparison with nothing to measure. Raising it names no scene — it is the same
  * number for any model, chosen by the operator.
  */
-function gridLights(bounds, count, shadows, intensity) {
+function gridLights(bounds, count, shadows, intensity, rangeFactor) {
   if (count <= 0) return { lights: [], cell: 0 };
   const sx = Math.max(1e-3, bounds.max.x - bounds.min.x),
     sy = Math.max(0, bounds.max.y - bounds.min.y),
@@ -42,8 +45,7 @@ function gridLights(bounds, count, shadows, intensity) {
       position: [bounds.min.x + (column + 0.5) * stepX, height, bounds.min.z + (row + 0.5) * stepZ],
       color: [1, 0.96, 0.88],
       intensity,
-      // Range covers the cell and a bit more: ranges overlap like in a street.
-      range: cell * 0.75,
+      range: cell * rangeFactor,
       castsShadow: shadows,
     });
   }
@@ -82,7 +84,14 @@ function movingLightPlan(lights, cell) {
 export function benchLights(bounds, settings) {
   if (!settings.lights && !settings.sun) return null;
   const intensity = settings.lightIntensity ?? DEFAULT_INTENSITY;
-  const { lights, cell } = gridLights(bounds, settings.lights, settings.lightShadows, intensity);
+  const rangeFactor = settings.lightRangeFactor ?? DEFAULT_RANGE_FACTOR;
+  const { lights, cell } = gridLights(
+    bounds,
+    settings.lights,
+    settings.lightShadows,
+    intensity,
+    rangeFactor,
+  );
   const moving = settings.movingLight ? movingLightPlan(lights, cell) : null;
   const all = settings.sun ? [{ ...SUN, castsShadow: settings.lightShadows }, ...lights] : lights;
   return {
@@ -95,6 +104,7 @@ export function benchLights(bounds, settings) {
       ombres: settings.lightShadows,
       maille: cell,
       intensite: intensity,
+      portee: rangeFactor,
       mobile: !!moving,
     },
   };

@@ -15,9 +15,11 @@ fn aces(color:vec3f)->vec3f{
  c=mat3x3f(vec3f(1.60475,-0.10208,-0.00327),vec3f(-0.53108,1.10813,-0.07276),vec3f(-0.07367,-0.00605,1.07602))*c;
  return clamp(c,vec3f(0.0),vec3f(1.0));
 }`;
-/** View uniform, shared by both programs: `lightParams` carries the contract light count,
- *  tiles in X and Y, and exposure, applied before ACES (P4). Nothing else — there is no
- *  longer a sky or an ambient to pass to opaque resolve (P6). */
+/** View uniform, shared by both programs: `viewport` carries the size, the raw-output flag
+ *  of diagnostic views and the rank of a sampled image (`directLightSamplingWgsl.ts`);
+ *  `lightParams` the contract light count, tiles in X and Y, and exposure, applied before
+ *  ACES (P4). Nothing else — there is no longer a sky or an ambient to pass to opaque
+ *  resolve (P6). */
 const VIEW_WGSL = `struct View{inverseViewProjection:mat4x4f,camera:vec4f,viewport:vec4f,background:vec4f,lightParams:vec4f,}`;
 const SURFACE_BINDINGS_WGSL = `
 @group(0) @binding(0) var baseMetal:texture_2d<f32>;

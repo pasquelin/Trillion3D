@@ -5,15 +5,8 @@
 // inverting the parent's matrix (`resolveHostNode`, in `setWebgpuTransform`).
 import * as THREE from 'three';
 import { webgpuPagesBackend } from '../../packages/sdk-browser/webgpuPages.ts';
-import {
-  cameraFace,
-  difference,
-  executerPasses,
-  image,
-  libere,
-  engine,
-  redCount,
-} from './preuveSceneCommune.mjs';
+import { cameraFace, difference, image, libere, engine, redCount } from './preuveSceneCommune.mjs';
+import { executerPasses } from './preuveAppareil.mjs';
 import { sceneTransparente } from './transparentTransformScene.mjs';
 
 /** A column-major world matrix, pure translation on `x`. */

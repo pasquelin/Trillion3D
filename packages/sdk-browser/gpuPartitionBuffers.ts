@@ -1,5 +1,7 @@
 import {
   CORNER_VALUES,
+  PARTITION_BINDING,
+  PARTITION_KERNEL_BINDINGS,
   ROW_DATA_U32,
   STATE_WORDS,
   TESTED_U32,
@@ -50,24 +52,43 @@ export function createGpuPartitionBuffers(device: GPUDevice, slotCap: number) {
   };
 }
 
-/** The module's bind layout: eight storage buffers, then the uniform. */
-export function createGpuPartitionLayout(device: GPUDevice) {
-  const kinds: GPUBufferBindingType[] = [
-    'read-only-storage',
-    'read-only-storage',
-    'storage',
-    'storage',
-    'storage',
-    'storage',
-    'storage',
-    'storage',
-    'uniform',
-  ];
+type Binding = keyof typeof PARTITION_BINDING;
+export type PartitionKernel = keyof typeof PARTITION_KERNEL_BINDINGS;
+const BINDING_TYPE: Record<Binding, GPUBufferBindingType> = {
+  corners: 'read-only-storage',
+  items: 'read-only-storage',
+  flags: 'storage',
+  rowData: 'storage',
+  tested: 'storage',
+  restBits: 'storage',
+  slotUsed: 'storage',
+  state: 'storage',
+  uniforms: 'uniform',
+  pyramid: 'read-only-storage',
+};
+/** The bind layout of one kernel: its buffers alone, at the module's binding numbers. */
+export function createGpuPartitionLayout(device: GPUDevice, kernel: PartitionKernel) {
   return device.createBindGroupLayout({
-    entries: kinds.map((type, binding) => ({
-      binding,
+    entries: PARTITION_KERNEL_BINDINGS[kernel].map((name) => ({
+      binding: PARTITION_BINDING[name],
       visibility: GPUShaderStage.COMPUTE,
-      buffer: { type },
+      buffer: { type: BINDING_TYPE[name] },
+    })),
+  });
+}
+
+/** The bind group of one kernel, from the buffers by name. */
+export function createGpuPartitionGroup(
+  device: GPUDevice,
+  layout: GPUBindGroupLayout,
+  kernel: PartitionKernel,
+  buffers: Record<Binding, GPUBuffer>,
+) {
+  return device.createBindGroup({
+    layout,
+    entries: PARTITION_KERNEL_BINDINGS[kernel].map((name) => ({
+      binding: PARTITION_BINDING[name],
+      resource: { buffer: buffers[name] },
     })),
   });
 }

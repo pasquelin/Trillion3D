@@ -117,6 +117,11 @@ export function RendererViewport({ lesson, state, locale, label }) {
             {value(metrics.shadowPending, '')}
           </Stat>
         )}
+        <Stat title={french ? 'Grappes occultées' : 'Occluded clusters'}>
+          {Number.isFinite(metrics.occluded)
+            ? `${metrics.occluded} / ${value(metrics.tested, '')}`
+            : '—'}
+        </Stat>
       </StatGroup>
       {error && <Alert tone="warning">{error}</Alert>}
     </div>
