@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 /// Whole-job completion estimate attached to every progress event, so a host draws one bar without
 /// knowing the phases: source import (FBX/OBJ) up to 0.30, glTF import 0.35, clustering 0.35–0.95
 /// spread over the primitives announced by the `import` event, root bundles 0.95–0.96, coplanar cuts
-/// 0.96–0.97, resident proxy 0.97, lights 0.98, prune 0.99, pointer 1.
+/// 0.96–0.97, resident proxy 0.97, lights 0.98, reused folder 0.98, prune 0.99, pointer 1.
 ///
 /// This estimate never goes backwards: a phase the table does not know keeps the
 /// last progress reached, and a job that imports several files does not restart
@@ -51,6 +51,9 @@ pub(crate) fn with_ratio(progress: impl Fn(Value) + Sync) -> impl Fn(Value) + Sy
             Some("textures") => 0.965 + 0.005 * frac(&event),
             Some("proxy") => 0.97,
             Some("lights") => 0.98,
+            // A proven folder skips clustering to the pointer: the bar jumps there, and
+            // a folder refused (`completed` 0) leaves it where it was.
+            Some("reuse") => 0.98 * frac(&event),
             Some("prune") => 0.99,
             Some("complete") => 1.0,
             _ => guard.2,

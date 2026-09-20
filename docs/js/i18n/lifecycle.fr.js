@@ -1,7 +1,7 @@
 export const lifecycleFr = {
   prepare: {
     description:
-      'Compile une scène source vers le cache lu par le navigateur. Lance le compilateur natif puis renvoie le manifeste avec ses mesures. `resourceBaseUrl` est obligatoire : c’est l’URL depuis laquelle le navigateur chargera pages et textures.',
+      'Compile une scène source vers le cache lu par le navigateur. Lance le compilateur natif puis renvoie le manifeste avec ses mesures. Une source dont le produit est déjà dans le cache n’est pas recompilée : le dossier est vérifié fichier par fichier puis conservé, et `reused` dit ce qui a été contrôlé (`null` quand la tâche a compilé). `resourceBaseUrl` est obligatoire : c’est l’URL depuis laquelle le navigateur chargera pages et textures.',
     values: [
       {
         desc: 'Dossier avec `manifest.json`, dossier contenant un seul glTF/GLB, ou fichier `.gltf`, `.glb`, `.fbx` ou `.obj`.',

@@ -10,6 +10,7 @@ Source: [`packages/asset-compiler-rust`](../packages/asset-compiler-rust) (`lib.
 - [The three streams](#the-three-streams)
 - [Events](#events)
 - [The pointer](#the-pointer)
+- [Reusing a compiled folder](#reusing-a-compiled-folder)
 - [Batch mode](#batch-mode)
 - [Cancellation](#cancellation)
 - [FBX and OBJ import](#fbx-and-obj-import)
@@ -91,6 +92,7 @@ Progress phases, in order:
 | `cutouts`       | `pending`, `sheet`                                                                                                                                                                                                                                   | Cutout sheet written; `pending` counts the textures nobody has answered yet, `sheet` is where the answer sheet landed |
 | `proxy`         | `triangles`, `nodes`, `errorMetres`                                                                                                                                                                                                                  | Resident proxy built                                                                                                  |
 | `lights`        | `lights`, `rejected`, `counts`                                                                                                                                                                                                                       | Scene lights written; `rejected` counts the lamps left out, `counts` what was filled in or omitted on a lamp kept     |
+| `reuse`         | `completed` (1 when reused, 0 when refused), `files`, `fileBytes`, `objects`, `objectBytes`, `textureLevels`, `validateMs`, or `reason`                                                                                                              | The folder of this key was proven and kept — no `import`, `primitive`, `textures`, `proxy` or `lights` follow — or refused for the named reason and rebuilt (see [Reusing a compiled folder](#reusing-a-compiled-folder)) |
 | `prune`         | `removedKeys`, `removedObjects`, `removedBytes`                                                                                                                                                                                                      | Stale keys, imports and orphan objects removed (only emitted when something was removed)                              |
 | `complete`      | `completed`, `total`, `pruned`                                                                                                                                                                                                                       | Pointer written; `pruned` summarises the cache pruning                                                                |
 
@@ -124,17 +126,34 @@ stdout for one job:
     "threads": 8,
     "ramBudgetMb": 8192
   },
-  "unsupported": ["hard RSS enforcement", "N-API binding"]
+  "unsupported": ["hard RSS enforcement", "N-API binding"],
+  "reused": null
 }
 ```
 
-`pointer` is the file the browser explorer needs (`manifestUrl`); `url` is relative to `native/<scope>/`. On failure stdout carries `{"status":"error","code":…,"message":…}` and the exit code is 2.
+`pointer` is the file the browser explorer needs (`manifestUrl`); `url` is relative to `native/<scope>/`. `reused` is `null` when the job wrote the folder; when it proved and kept an existing one it carries the counts of the proof (`files`, `fileBytes`, `objects`, `objectBytes`, `textureLevels`, `validateMs`), `metrics.clusterHierarchyPagesMs` is `null` — this run built no hierarchy — and `metrics.importMs` is the time to the decision. On failure stdout carries `{"status":"error","code":…,"message":…}` and the exit code is 2.
 
 A cache never needs to be wiped before recompiling: after every successful job the compiler removes the other keys of the scope, the stale FBX/OBJ imports and every object under `objects/` that no surviving manifest (either scope) references. Deleting a large cache by hand costs tens of seconds (Emerald: 80 000 files); recompiling over it costs nothing extra.
 
 `key` is a SHA-256 over the product's identity: what the source declares, the resources the compile actually consumes, and the options that shape the output — the source manifest, the source binary, **every image the scene links by relative URI** (its fingerprint, `null` when the file is absent), the compiler version, the compiler's own source files, scope, budget, `RESOURCE_BASE_URL` and simplification. Changing any of them produces a new `<key>` directory; the pointer always names the latest one. Nothing is deleted automatically.
 
 Two parts of a manifest are deliberately **outside** that identity, at every level of the document: measured durations (`importMs`, `parseMs`, `ms`) and the absolute path of the machine that converted (`path`). They describe a run, not a product: two conversions of the same bytes never agree on them, and hashing them gave three keys for three identical compilations. Everything else a driver writes into the manifest enters the key, including fields added later — forgetting to exclude a field tightens the identity, forgetting to include one would loosen it. Consequences a consumer can rely on: recompiling the same inputs with the same options yields the same key on any machine and in any cache, and replacing a linked texture beside an unchanged scene yields a different one, because the previews carried by `clusters.bin` are read from those pixels. The cost is one streaming hash per linked image file, once per compile.
+
+## Reusing a compiled folder
+
+The key names the product entirely, so a folder already under it holds the bytes the job would write again. Before the first primitive is clustered — once the source is routed, loaded and its key computed — the compiler looks for `<scope>/<key>/clusters.json`. Absent: it compiles. Present: it **proves** the folder, then keeps it as is and skips straight to the pointer and the prune. Nothing is trusted by its presence alone; every check is the one the compile path applies to what it keeps:
+
+| Checked                      | Against                                                                                                                                           |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The manifest head            | `status`, `key`, `scope` and `compilerVersion` of this job; a `formatVersion` this compiler writes. Another build's folder under the key is refused |
+| `clusters.bin`               | `binary.sha256` recorded in the manifest                                                                                                          |
+| Every other product          | The `files` record of the manifest — `source.gltf`, `source.bin`, `proxy.bin`, `lights.json`, `scene.gltf`, `scene.bin` — by size and SHA-256; a manifest without the record is not proven |
+| Every object the sidecar names | Its content-addressed name, hashed on the job's thread pool                                                                                      |
+| Every baked texture level    | Its presence under `textures/v<N>/<sha256>/`, as the compile path trusts a level it finds                                                        |
+
+The first failed check stops the proof: the `reuse` event names the reason (`completed: 0`), the job compiles as if the folder were absent and overwrites it whole. A proven folder yields `reused` on the pointer and a `reuse` event with `completed: 1`; the manifest on disk is not rewritten, so its `metrics` still describe the compile that produced it, and the cutout answer sheet is not rewritten either — it already holds what that compile measured and what was answered since (an answer that changes the product changes the key, and compiles). The `files` record is written by every compile, so a folder written by a compiler without it is never reused: its key differs anyway, since the compiler's own sources enter the key.
+
+The cost of a reuse is the identity (routing, loading, hashing the source binary and the linked images) plus the proof (hashing every product and object). Emerald (10 M triangles, 83 303 objects, 388 MB; 200 MB of products) and Whisperwind (172 M triangles, 229 013 objects, 737 MB; 285 MB of products) measured on 2026-09-21, 8 threads, `full 150000`, `qem-endpoints`, same machine and same caches, warm recompile of an unchanged source: see the pull request of #47 for the raw runs and their spread.
 
 ## Measurements
 

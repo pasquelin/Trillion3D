@@ -51,6 +51,12 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     // Identity of the product, not the raw bytes of what the source declares:
     // conversion timings leave it, images the scene cites enter it, answers too.
     let key = compiler_identity::cache_key(o, &loaded, &image_root, &cutouts.applied)?;
+    // The pool is born and dies with this job: its workers adopt its counters, not a neighbour's.
+    let pool = phases.pool(o.threads)?;
+    // A folder already holding this product is proven, then kept as is (`compiler_reuse.rs`).
+    if let Some(reused) = compiler_reuse::reuse(o, &key, &pool, &progress)? {
+        return compiler_reuse::finish(o, &key, reused, started, &progress);
+    }
     let mesh_values = values(g, "meshes")?;
     let view_values = values(g, "bufferViews")?;
     let BufferPlan {
@@ -67,14 +73,6 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         json!({"phase":"import","completed":1,"total":1,"ms":import_ms,"primitives":jobs.len(),"nodes":chosen.len()}),
     );
     let cluster_start = Instant::now();
-    // The pool is born and dies with this job: its workers adopt its counters, not a neighbour's.
-    let pool = rayon::ThreadPoolBuilder::new()
-        .num_threads(o.threads)
-        .start_handler({
-            let phases = phases.clone();
-            move |_| phases.adopt()
-        })
-        .build()?;
     // Compact per-page index storage is bounded independently from source size. Metadata is retained.
     // World scale of each mesh is read before the loop: the proxy threshold is in
     // metres, and a primitive placed under a scale cannot know it on its own.
@@ -191,7 +189,8 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     // The manifest is already written — it therefore carries only `compileMs`, the
     // duration it could know, and the caller receives `wallMs`, taken once the cache is pruned.
     let prune_start = Instant::now();
-    let pruned = prune_cache(o, &key, &result, &texture_previews, &progress)?;
+    let keep = Keep::of_result(&result, &texture_previews)?;
+    let pruned = prune_cache(o, &key, keep, &progress)?;
     result["metrics"]["pruneMs"] = json!(shared_math::elapsed_ms(prune_start));
     result["metrics"]["wallMs"] = json!(shared_math::elapsed_ms(started));
     progress(json!({"phase":"complete","completed":1,"total":1,"pruned":pruned}));

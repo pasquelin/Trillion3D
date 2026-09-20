@@ -2,7 +2,7 @@
 //! to respect repository line limit, without changing what they read.
 use super::{
     bad, Result, BUNDLE_SHA, GEOMETRY_SHA, HEADER_WORDS, MANIFEST_BINARY_MAGIC,
-    MANIFEST_BINARY_VERSION, PAGE_SHA, TEXTURE_PREVIEW_SHA,
+    MANIFEST_BINARY_VERSION, PAGE_SHA, PREVIEW_WORDS, TEXTURE_PREVIEW_SHA, TEXTURE_PREVIEW_U32,
 };
 
 /// Every object digest a binary sidecar names: the PAGE, GEOMETRY and BUNDLE sha columns, 64 ASCII
@@ -17,7 +17,32 @@ pub fn texture_digests(bytes: &[u8]) -> Result<Vec<String>> {
     sha_columns(bytes, &[TEXTURE_PREVIEW_SHA])
 }
 
-fn sha_columns(bytes: &[u8], wanted: &[usize]) -> Result<Vec<String>> {
+/// Baked level files a binary sidecar names, one entry per (texture, atlas) pair: the
+/// source-image digest, the atlas word (`AtlasKind::word`) and how many levels were
+/// written as files under `textures/`. Read back from the same words `encode_previews`
+/// wrote, so what a reuse checks on disk is exactly what a reader will ask for.
+pub fn texture_levels(bytes: &[u8]) -> Result<Vec<(String, u32, u32)>> {
+    let words = column(bytes, TEXTURE_PREVIEW_U32)?;
+    let shas = column(bytes, TEXTURE_PREVIEW_SHA)?;
+    let entries = words.len() / (PREVIEW_WORDS * 4);
+    if words.len() != entries * PREVIEW_WORDS * 4 || shas.len() != entries * 64 {
+        return Err(bad("Texture preview columns disagree on the entry count"));
+    }
+    let word = |entry: usize, index: usize| {
+        let at = (entry * PREVIEW_WORDS + index) * 4;
+        u32::from_le_bytes(words[at..at + 4].try_into().expect("four bytes"))
+    };
+    (0..entries)
+        .map(|entry| {
+            let sha = std::str::from_utf8(&shas[entry * 64..entry * 64 + 64])
+                .map_err(|_| bad("Digest column is not ASCII"))?;
+            Ok((sha.to_string(), word(entry, 10), word(entry, 11)))
+        })
+        .collect()
+}
+
+/// One column's payload, after the header checks; empty when the file predates the column.
+fn column(bytes: &[u8], index: usize) -> Result<&[u8]> {
     let word = |at: usize| -> Result<usize> {
         Ok(u32::from_le_bytes(
             bytes
@@ -33,18 +58,21 @@ fn sha_columns(bytes: &[u8], wanted: &[usize]) -> Result<Vec<String>> {
     if word(4)? != MANIFEST_BINARY_VERSION as usize {
         return Err(bad("Manifest binary version mismatch"));
     }
-    let columns = word(8)?;
+    if index >= word(8)? {
+        return Ok(&[]);
+    }
+    let at = (HEADER_WORDS + index * 2) * 4;
+    let (offset, length) = (word(at)?, word(at + 4)?);
+    bytes
+        .get(offset..offset + length)
+        .ok_or_else(|| bad("Manifest binary column exceeds the file"))
+}
+
+fn sha_columns(bytes: &[u8], wanted: &[usize]) -> Result<Vec<String>> {
     let mut out = Vec::new();
     for &index in wanted {
-        if index >= columns {
-            continue;
-        }
-        let at = (HEADER_WORDS + index * 2) * 4;
-        let (offset, length) = (word(at)?, word(at + 4)?);
-        let column = bytes
-            .get(offset..offset + length)
-            .ok_or_else(|| bad("Manifest binary column exceeds the file"))?;
-        if length % 64 != 0 {
+        let column = column(bytes, index)?;
+        if column.len() % 64 != 0 {
             return Err(bad("Digest column length is not a multiple of 64"));
         }
         // A page without its own geometry leaves a zero-filled slot in the geometry column.

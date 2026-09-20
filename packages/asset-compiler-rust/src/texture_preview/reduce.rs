@@ -24,6 +24,12 @@ impl AtlasKind {
             Self::Data => "linear",
         }
     }
+    /// The atlas a sidecar word names; `None` for a word this version never wrote.
+    pub fn from_word(word: u32) -> Option<Self> {
+        [Self::Color, Self::Data]
+            .into_iter()
+            .find(|kind| kind.word() == word)
+    }
 }
 
 /// The ENTIRE mip chain of a source, level 0 included: `levels[k]` is level `k` in
