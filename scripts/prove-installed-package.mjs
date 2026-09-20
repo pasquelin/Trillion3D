@@ -4,6 +4,7 @@ import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:f
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { proveInstalledTypes } from './installed-package-types.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
@@ -15,7 +16,9 @@ function run(command, args, cwd = root, environment = process.env) {
   logs.push({ command: [command, ...args], cwd, stdout: result.stdout, stderr: result.stderr });
   if (result.error) throw result.error;
   if (result.status !== 0)
-    throw new Error(`${command} ${args.join(' ')} failed (${result.status})\n${result.stderr}`);
+    throw new Error(
+      `${command} ${args.join(' ')} failed (${result.status})\n${result.stdout}${result.stderr}`,
+    );
   return result.stdout;
 }
 
@@ -23,17 +26,19 @@ function write(name, value) {
   writeFileSync(join(fixture, name), value);
 }
 
-function bundle(name, source) {
+function bundle(name, source, platform = 'browser', conditions = null) {
   write(`${name}.ts`, source);
+  const conditionArgs = conditions === null ? [] : [`--conditions=${conditions.join(',')}`];
   run(
     join(root, 'node_modules/.bin/esbuild'),
     [
       `${name}.ts`,
       '--bundle',
       '--format=esm',
-      '--platform=browser',
+      `--platform=${platform}`,
       `--outfile=${name}.js`,
       `--metafile=${name}-meta.json`,
+      ...conditionArgs,
     ],
     fixture,
   );
@@ -53,7 +58,7 @@ try {
     three: source.peerDependencies.three,
   };
   const devDependencies = Object.fromEntries(
-    ['@types/node', '@webgpu/types', 'typescript'].map((name) => [
+    ['@types/node', '@types/three', '@webgpu/types', 'typescript'].map((name) => [
       name,
       source.devDependencies[name],
     ]),
@@ -85,9 +90,11 @@ try {
       `const n=2,views=(b,s)=>Array.from({length:n},(_,i)=>b.subarray(i*s,(i+1)*s));\n` +
       `const world=new Float64Array(n*MATRIX_VALUES),positions=new Float64Array(n*POSITION_VALUES),rotations=new Float64Array(n*QUATERNION_VALUES),scales=new Float64Array(n*POSITION_VALUES).fill(1),parents=new Uint32Array([HIERARCHY_ROOT,0]),local=new Float64Array(MATRIX_VALUES);\n` +
       `positions.set([2,3,4,5,7,11]);rotations[3]=rotations[7]=1;hierarchyUpdateBatch(views(world,MATRIX_VALUES),views(positions,POSITION_VALUES),views(rotations,QUATERNION_VALUES),views(scales,POSITION_VALUES),parents,n,local);if(world[28]!==7||world[29]!==10||world[30]!==15)process.exit(4);\n` +
-      `const p=await getSdkProvenance();if(!p.files['dist/sdk-node/index.mjs'])process.exit(3);\n`,
+      `const p=await getSdkProvenance();if(!p.files['dist/sdk-node/index.mjs'])process.exit(3);\n` +
+      `try{await import('${source.name}/dist/sdk-core/index.js');process.exit(5)}catch(e){if(e.code!=='ERR_PACKAGE_PATH_NOT_EXPORTED')process.exit(6)}\n`,
   );
   run(process.execPath, ['runtime.mjs'], fixture);
+  proveInstalledTypes({ fixture, core, node, browser, run, write });
   let native = null;
   if (proveNative) {
     const sourceFixture = join(fixture, 'native-source');
@@ -124,6 +131,12 @@ try {
     if (native.status !== 'ready') throw new Error('installed CLI did not prepare the fixture');
   }
   const bundles = {
+    default: bundle(
+      'default',
+      `import { hierarchyUpdateBatch } from '${core}';\nconsole.log(hierarchyUpdateBatch);\n`,
+      'neutral',
+      [],
+    ),
     maths: bundle(
       'maths',
       `import { multiplyMatrix4Batch } from '${browser}';\nconsole.log(multiplyMatrix4Batch);\n`,
@@ -137,12 +150,15 @@ try {
       `import { createExplorer } from '${browser}';\nconsole.log(createExplorer);\n`,
     ),
   };
-  for (const name of ['maths', 'hierarchy']) {
+  for (const name of ['default', 'maths', 'hierarchy']) {
     const inputs = bundles[name].outputs[`${name}.js`].inputs;
     if (
       Object.entries(inputs).some(
         ([path, contribution]) =>
-          contribution.bytesInOutput > 0 && (path.includes('/three/') || path.includes('sdk-node')),
+          contribution.bytesInOutput > 0 &&
+          (path.includes('/three/') ||
+            path.includes('sdk-node') ||
+            (name === 'default' && path.includes('sdk-browser'))),
       )
     )
       throw new Error(`${name} bundle reaches renderer or Node modules`);
