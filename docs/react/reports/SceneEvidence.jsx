@@ -3,6 +3,7 @@ import { ImageCard } from '../components/ImageCard.jsx';
 import { Modal } from '../components/Modal.jsx';
 import { Card } from '../components/UI.jsx';
 import { Section } from '../components/Section.jsx';
+import { SelectPanel } from '../components/SelectPanel.jsx';
 import { Tabs } from '../components/Tabs.jsx';
 import { pairedImages, sceneName, runOf } from '../../js/reports/presentation.js';
 import { engineName, runName, viewName } from '../../js/reports/names.js';
@@ -30,7 +31,7 @@ function CaptureGroups({ report, locale, pairs, singles }) {
     return `${engineName(record.engine)} · ${record.canvas?.width ?? '—'} × ${record.canvas?.height ?? '—'}`;
   }
   return (
-    <Tabs
+    <SelectPanel
       label={fr ? 'Essai représenté' : 'Displayed experiment'}
       value={selected}
       onChange={setSelected}
