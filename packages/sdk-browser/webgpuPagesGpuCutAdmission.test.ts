@@ -9,11 +9,12 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** A runtime reduced to what admission reads: the pool, the sample's threshold, the counts. */
 function mount(slots: number) {
-  const state = { samplePixelError: 0, requested: 0, view: 0 };
+  const state = { samplePixelError: 0, requested: 0, view: 0, slots };
   const run = {
     budgetPixelError: 0,
     budgetOverflowError: -1,
     budgetOverflowView: -1,
+    budgetOverflowSlots: -1,
     coverageBudgetLimited: false,
     coverageBudgetEvent: undefined as Record<string, unknown> | undefined,
     gpuSelection: { peek: () => ({ uniforms: { pixelError: state.samplePixelError } }) },
@@ -21,7 +22,11 @@ function mount(slots: number) {
   };
   const rt = {
     run,
-    setup: { slots },
+    setup: {
+      get slots() {
+        return state.slots;
+      },
+    },
     services: {
       bootstrapState: { ready: true },
       residencySets: {
@@ -70,6 +75,11 @@ test('a threshold that overflowed this view is not asked for again while the vie
   state.view = 1;
   assert.equal(frame(2, 50), 1);
   assert.equal(run.budgetOverflowError, -1);
+  // It overflows again, and this time the pool grows: the wider pool may fit it too.
+  frame(1, 120);
+  assert.equal(frame(2, 50), 2, 'held on the overflow just seen');
+  state.slots = 300;
+  assert.equal(frame(2, 50), 1, 'a resized pool forgets what overflowed the previous one');
 });
 
 test('relaxing walks the ladder back down to the host threshold, never below it', () => {

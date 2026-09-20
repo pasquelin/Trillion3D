@@ -95,6 +95,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
       budgetPixelError: 0,
       budgetOverflowError: -1,
       budgetOverflowView: -1,
+      budgetOverflowSlots: -1,
       coverageBudgetLimited: false,
       gpuMetricsReady: false,
       desired,

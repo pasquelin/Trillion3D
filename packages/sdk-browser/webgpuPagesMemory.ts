@@ -40,9 +40,8 @@ export async function setWebgpuMemoryBudgets(
   // Tiles first: their copy is synchronous, the pages' waits for in-flight loads.
   if (budgets.texturePoolBytes !== undefined) {
     const pool = texturePoolFor(budgets.texturePoolBytes, setup.gpuDevice);
-    if (pool.layers !== setup.texturePool.layers && vis.textures && !run.lost) {
+    if (pool.layers !== setup.texturePool.layers && vis.textures && !run.lost)
       evictedTiles = vis.textures.resize(pool.layers);
-    }
     setup.texturePool = pool;
   }
   if (budgets.geometryPoolBytes !== undefined) {
