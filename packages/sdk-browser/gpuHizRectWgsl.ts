@@ -4,12 +4,13 @@ import { HIZ_KERNEL_TEXELS } from './hizCounts.ts';
  * Choice of the mip that answers for a screen rectangle ALREADY clipped to the viewport: GPU
  * mirror of `premierNiveau` then of the search `hizTestRect` did box by box on the CPU.
  *
- * This snippet is written once because two kernels depend on it — packing the opaque tested-half
- * bounds and the transparent-cluster occlusion test — and two writings of the same rule would
- * eventually diverge. Neither reads the pyramid here: only the level and whether it exists come
- * out, and a rectangle no mip covers is never rejected.
+ * This snippet is written once because three kernels depend on it — packing the opaque tested-
+ * half bounds, the opaque main-pass cull and the transparent-cluster occlusion test — and two
+ * writings of the same rule would eventually diverge. It reads no pyramid: only the level and
+ * whether it exists come out, and a rectangle no mip covers is never rejected. It travels with
+ * `hiddenByPyramid` below, the only reader outside this module.
  */
-export const HIZ_LEVEL_WGSL = `
+const HIZ_LEVEL_WGSL = `
 /** Mirror of \`premierNiveau\` (hizOcclusion.ts): lowest mip that can fit in the kernel. */
 fn firstLevel(span:i32)->u32{
  if(span<${HIZ_KERNEL_TEXELS}){return 0u;}
