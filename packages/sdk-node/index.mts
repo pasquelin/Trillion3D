@@ -2,7 +2,11 @@ import { readFile, writeFile, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runCompiler } from './compilerProcess.mts';
-export { COMPILER_LINE_LIMIT, CANCEL_GRACE_MS } from './compilerProcess.mts';
+export {
+  COMPILER_LINE_LIMIT,
+  CANCEL_GRACE_MS,
+  resolveCompilerExecutable,
+} from './compilerProcess.mts';
 export { getSdkProvenance } from './provenance.mts';
 import { DEFAULT_SCOPE } from '../sdk-core/index.ts';
 import type { AssetScope } from '../sdk-core/index.ts';
@@ -39,7 +43,7 @@ export type {
 } from './contracts.ts';
 export { createTerminalProgress, createBatchProgress } from './progress.mts';
 export { reviewCutouts } from './cutoutReview.mts';
-/** Native is the production path. The host selects a bundled executable or one on PATH. */
+/** Native is the production path. The host supplies an executable explicitly or through the environment. */
 export async function prepare(
   input: string,
   output: string,
