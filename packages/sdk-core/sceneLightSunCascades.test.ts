@@ -29,8 +29,9 @@ const AXIS: [number, number, number] = [0.1 / AXIS_LENGTH, -0.9 / AXIS_LENGTH, 0
 
 // The oracle predates the page-aligned extent: the two sides share the split cache and the
 // frustum sphere, hence the radius, and that is what is compared. The extent itself is proven
-// directly: its centre on the page grid of the light plane, within half a page of the camera
-// point it follows, and its anchor within one radius along the axis.
+// directly: its centre on the page grid of the light plane, within a page of the camera point
+// it follows (its own half page plus the oracle's texel snap), and its anchor within one radius
+// along the axis.
 const right = new Float64Array(3),
   up = new Float64Array(3);
 function memeCascade(v: ShadowViewpoint, index: number, side: number, label: string) {
