@@ -1,35 +1,12 @@
 import * as THREE from 'three';
 
-/**
- * Cluster batches with a persistent index buffer.
- *
- * A source primitive (shared attribute set) owns a single resident index buffer. Each page
- * receives a fixed range there when it becomes resident: only that range is written, never
- * the whole buffer, and eviction returns it to the allocator. A frame's visible cut is then
- * only a list of sub-draws (starts/counts) submitted in one call per instance via
- * `WEBGL_multi_draw`; Three.js falls back on its own to a drawElements loop when the extension is missing.
- *
- * The cost of a frame therefore no longer depends on the total page count or on the cut
- * change, but only on the number of displayed pages.
- *
- * Assumed prototype limit: a primitive's capacity is the sum of the sizes of all its pages
- * (exact and coarse). It is therefore resident even when the cut shows only a part of it;
- * bounding that capacity (and evicting ranges under pressure) remains to be done.
- *
- * Known image limit: `isBatchedMesh` makes Three.js define USE_BATCHING, hence compile a
- * program variant where vertices go through an extra multiply. That matrix is identity and
- * the computation is exact, but the driver does not round quite the same: on emerald-square,
- * 0.04% to 0.39% of pixels change, on silhouette edges. Undoing the define (`#undef USE_BATCHING`
- * set by `onBeforeCompile`) brings the max gap from 197 to 6 levels and makes low-poly-city
- * identical bit for bit, but costs more than half of the presented frames: to revisit.
- */
-
-import { type BatchPage } from './clusterBatchRange.ts';
+import type { BatchPage } from './clusterBatchRange.ts';
 import { PrimitiveIndex, BatchGroup } from './clusterBatchPrimitive.ts';
 import { identityMatrixTexture, type ShaderHook } from './clusterBatchMesh.ts';
 import { setupClusterBatches } from './clusterBatchSetup.ts';
 import { everyGroup } from './clusterBatchLayers.ts';
 import { updateClusterBatches } from './clusterBatchUpdate.ts';
+import { WebglClusterOwner } from './webglClusterOwner.ts';
 export { IndexRangeAllocator, DrawRanges } from './clusterBatchRange.ts';
 export type { BatchPage } from './clusterBatchRange.ts';
 
@@ -41,9 +18,10 @@ export type ClusterBatchStats = {
   pageRangeWrites: number;
   indexBytesWritten: number;
   detachments: number;
+  autonomousClusterDrawsTotal: number;
+  cpuSubmitMs: number | null;
 };
 
-/** Set of batches of a scene: one index buffer per primitive, one draw object per instance. */
 export class ClusterBatches {
   private scene: THREE.Scene;
   private primitives: PrimitiveIndex[] = [];
@@ -58,6 +36,7 @@ export class ClusterBatches {
   private ownedMaterials: THREE.Material[] = [];
   private attributeBytes = 0;
   private indexCapacityBytes = 0;
+  private renderer: WebglClusterOwner | undefined;
   private stats: ClusterBatchStats = {
     drawCalls: 0,
     subDraws: 0,
@@ -66,11 +45,14 @@ export class ClusterBatches {
     pageRangeWrites: 0,
     indexBytesWritten: 0,
     detachments: 0,
+    autonomousClusterDrawsTotal: 0,
+    cpuSubmitMs: null,
   };
 
-  constructor(scene: THREE.Scene, pages: readonly BatchPage[]) {
+  constructor(scene: THREE.Scene, pages: readonly BatchPage[], context?: WebGL2RenderingContext) {
     this.scene = scene;
-    const setup = setupClusterBatches(pages);
+    this.renderer = context ? new WebglClusterOwner(context) : undefined;
+    const setup = setupClusterBatches(pages, !context);
     this.primitives = setup.primitives;
     this.groups = setup.groups;
     this.layerGroups = setup.layerGroups;
@@ -86,7 +68,9 @@ export class ClusterBatches {
   get metrics(): Readonly<ClusterBatchStats> {
     return this.stats;
   }
-  /** Resident capacity of the index buffers, in bytes. Reread after a possible growth. */
+  get autonomousDraw() {
+    return !!this.renderer;
+  }
   get indexBytes() {
     let bytes = 0;
     for (let i = 0; i < this.primitives.length; i++) bytes += this.primitives[i].array.byteLength;
@@ -111,7 +95,6 @@ export class ClusterBatches {
     }
   }
 
-  /** Returns the range of an evicted page to its primitive's allocator. */
   dropPage(recs: readonly BatchPage[]) {
     for (const rec of recs) {
       const group = this.groups[rec.renderOrder];
@@ -122,7 +105,6 @@ export class ClusterBatches {
     }
   }
 
-  /** Lists the URLs of a cut without a Set: one stamp per distinct page of each primitive. */
   markUrls(pages: readonly BatchPage[], stamp: number, into: string[]) {
     for (let i = 0; i < pages.length; i++) {
       const rec = pages[i];
@@ -140,8 +122,8 @@ export class ClusterBatches {
     return into;
   }
 
-  /** Builds the frame cut from the resident ranges. */
   update(display: readonly BatchPage[]) {
+    this.stats.cpuSubmitMs = null;
     const state = {
       scene: this.scene,
       groups: this.groups,
@@ -153,13 +135,28 @@ export class ClusterBatches {
       stats: this.stats,
       indexCapacityBytes: this.indexCapacityBytes,
       attributeBytes: this.attributeBytes,
+      attachMeshes: !this.renderer,
     };
     updateClusterBatches(state, display);
     this.active = state.active;
     this.touched = state.touched;
   }
 
-  /** Diagnostic modes: batches disappear, pages are drawn one by one by the caller. */
+  draw(
+    camera: import('./cameraWorld.ts').HostDrawCamera,
+    toneMapped: boolean,
+    srgbDestination: boolean,
+  ) {
+    if (!this.renderer) return;
+    this.scene.updateMatrixWorld();
+    const meshes: import('./clusterBatchMesh.ts').ClusterDrawMesh[] = [];
+    for (const group of this.active) if (group.mesh) meshes.push(group.mesh);
+    const start = performance.now();
+    const submitted = this.renderer.draw(meshes, this.scene, camera, toneMapped, srgbDestination);
+    this.stats.cpuSubmitMs = performance.now() - start;
+    this.stats.autonomousClusterDrawsTotal += submitted;
+  }
+
   hideAll() {
     const active = this.active;
     for (let i = 0; i < active.length; i++) {
@@ -176,6 +173,8 @@ export class ClusterBatches {
   }
 
   dispose() {
+    this.renderer?.dispose();
+    this.renderer = undefined;
     this.hideAll();
     for (const [material, previous] of this.shaderHooks) {
       material.onBeforeCompile = previous as THREE.Material['onBeforeCompile'];

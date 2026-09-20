@@ -1,3 +1,4 @@
+import { localFileGlobs } from './scripts/repository-files.mjs';
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import globals from 'globals';
@@ -9,8 +10,7 @@ export default tseslint.config(
     ignores: [
       'node_modules/**',
       'dist/**',
-      '.claude/**',
-      '.agents/**',
+      ...localFileGlobs(),
       'benchmark-runs/**',
       '**/target/**',
       // Measurement bench outputs: extracted source trees are built there.

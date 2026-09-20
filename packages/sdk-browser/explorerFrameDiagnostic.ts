@@ -95,6 +95,7 @@ export function emitExplorerFrameDiagnostic(inputs: Inputs) {
         batchRebuilds: backendReport.batchRebuilds ?? null,
         batchIndexBytesUpdated: backendReport.batchIndexBytesUpdated ?? null,
         displayDetachments: backendReport.displayDetachments ?? null,
+        autonomousClusterDrawsTotal: metricsScratch.autonomousClusterDrawsTotal ?? null,
       },
     });
   }
