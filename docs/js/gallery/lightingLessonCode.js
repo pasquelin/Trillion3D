@@ -1,8 +1,20 @@
 import { lessonCode } from './lessonCode.js';
-import { LESSON_POINT_INTENSITY, LESSON_RING_INTENSITY } from './lightingLessonDefinitions.js';
+import {
+  LESSON_POINT_INTENSITY,
+  LESSON_RING_INTENSITY,
+  LESSON_RING_RANGE,
+} from './lightingLessonDefinitions.js';
 import { ringLamps } from './lightingLessonRuntime.js';
-const light = (id, position, color, intensity, emitterRadius = 0.1, castsShadow = true) =>
-  `explorer.addLight({ id: '${id}', kind: 'point', position: [${position}], color: [${color}], intensity: ${intensity}, range: 10, emitterRadius: ${emitterRadius}, castsShadow: ${castsShadow} });`;
+const light = (
+  id,
+  position,
+  color,
+  intensity,
+  emitterRadius = 0.1,
+  castsShadow = true,
+  range = 10,
+) =>
+  `explorer.addLight({ id: '${id}', kind: 'point', position: [${position}], color: [${color}], intensity: ${intensity}, range: ${range}, emitterRadius: ${emitterRadius}, castsShadow: ${castsShadow} });`;
 
 function operation(lesson, state) {
   if (lesson.kind === 'color-balance')
@@ -17,7 +29,15 @@ ${light('cool', '3, 3, 2', '0.12, 0.4, 1', state.cool)}`;
   if (lesson.kind === 'many-lights')
     return ringLamps(state.count)
       .map((lamp) =>
-        light(lamp.id, lamp.position.join(', '), lamp.color.join(', '), LESSON_RING_INTENSITY),
+        light(
+          lamp.id,
+          lamp.position.join(', '),
+          lamp.color.join(', '),
+          LESSON_RING_INTENSITY,
+          0.1,
+          true,
+          LESSON_RING_RANGE,
+        ),
       )
       .join('\n');
   const created = light('lifecycle', '0, 4, 2', '1, 0.8, 0.55', LESSON_POINT_INTENSITY);

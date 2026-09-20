@@ -24,7 +24,11 @@ function upsert(explorer, session, light) {
 export function ringLamps(count) {
   return Array.from({ length: count }, (_, i) => {
     const angle = (i / count) * Math.PI * 2;
-    const position = [Math.cos(angle) * 2.2, 1.4, Math.sin(angle) * 2.2].map((v) => +v.toFixed(2));
+    const position = [
+      Math.cos(angle) * LESSON_RING_RADIUS,
+      LESSON_RING_HEIGHT,
+      Math.sin(angle) * LESSON_RING_RADIUS,
+    ].map((v) => +v.toFixed(2));
     return { id: `ring-${i}`, position, color: LESSON_RING_COLORS[i % 2] };
   });
 }
@@ -59,7 +63,13 @@ export function applyLightingLesson(explorer, lesson, state, session) {
     );
   if (lesson.kind === 'many-lights') {
     for (const lamp of ringLamps(state.count))
-      upsert(explorer, session, point(lamp.id, lamp.position, lamp.color, LESSON_RING_INTENSITY));
+      upsert(
+        explorer,
+        session,
+        point(lamp.id, lamp.position, lamp.color, LESSON_RING_INTENSITY, {
+          range: LESSON_RING_RANGE,
+        }),
+      );
     for (const id of [...session.ids])
       if (id.startsWith('ring-') && Number(id.slice(5)) >= state.count) {
         session.ids.delete(id);
@@ -82,5 +92,8 @@ export const createLightingLessonSession = () => ({ ids: new Set() });
 import {
   LESSON_POINT_INTENSITY,
   LESSON_RING_COLORS,
+  LESSON_RING_HEIGHT,
   LESSON_RING_INTENSITY,
+  LESSON_RING_RADIUS,
+  LESSON_RING_RANGE,
 } from './lightingLessonDefinitions.js';
