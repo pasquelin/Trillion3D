@@ -1,0 +1,3615 @@
+{
+  "startedAt": "2026-09-18T10:44:18.899Z",
+  "head": "810e8b51a55cb2b67d5db2cd388f9d274ecf08f7",
+  "scene": "emerald-square",
+  "engine": "webgpu",
+  "pathVersion": 5,
+  "settings": {
+    "engine": "webgpu",
+    "frames": 60,
+    "warmup": 8,
+    "pixelErrors": [1],
+    "maxPages": 100000,
+    "width": 1248,
+    "height": 702,
+    "port": 55168,
+    "stageProfile": true,
+    "trace": true,
+    "profileFrames": 120,
+    "textureSource": "cache",
+    "temporalAntialiasing": true,
+    "visible": false,
+    "bounce": false,
+    "lights": 0,
+    "lightShadows": true,
+    "lightIntensity": 40,
+    "movingLight": false,
+    "importedLights": true,
+    "sun": true,
+    "shadowBudgetMs": null,
+    "shadowPages": true,
+    "shadowDigest": false,
+    "movingNode": null,
+    "movingNodeRadius": 1,
+    "movingCamera": true,
+    "instances": 1,
+    "isolation": false,
+    "mathPath": "auto"
+  },
+  "flags": [
+    "--disable-backgrounding-occluded-windows",
+    "--disable-renderer-backgrounding",
+    "--disable-background-timer-throttling",
+    "--enable-gpu-benchmarking",
+    "--enable-unsafe-webgpu"
+  ],
+  "sides": {
+    "apres": {
+      "from": "dossier",
+      "moteur": "webgpu-page-raster",
+      "variante": null,
+      "erreur": "certifiee"
+    },
+    "avant": {
+      "from": "dossier",
+      "moteur": "webgpu-page-raster",
+      "variante": "raster-calcul",
+      "erreur": "certifiee"
+    }
+  },
+  "series": [
+    {
+      "view": "generale",
+      "pixelError": 1,
+      "segment": "Vue générale du modèle",
+      "index": 0,
+      "pose": {
+        "position": [165.64747193008407, 56, 179.50600116298307],
+        "target": [-0.04997214540716044, 4, -0.025006399620522757],
+        "fov": 55,
+        "near": 0.01722998745084001,
+        "far": 3445.997490168002
+      },
+      "sides": {
+        "apres": {
+          "cpuFrameMs": {
+            "mean": 0.6433333332339922,
+            "p50": 0.5999999940395355,
+            "p95": 0.800000011920929,
+            "p99": 2.0999999940395355,
+            "max": 2.0999999940395355
+          },
+          "cpuSelectMs": null,
+          "moteur": "webgpu-page-raster",
+          "gpuFrameMs": null,
+          "imageSyncMs": null,
+          "rafIntervalMs": null,
+          "profilParEtape": {
+            "version": 1,
+            "enabled": true,
+            "backend": "webgpu-page-raster",
+            "cpuFrames": 120,
+            "gpuSamples": 120,
+            "windowFrames": 120,
+            "gpuMethod": "timestamp-query",
+            "gpuReason": null,
+            "gpuImageMs": { "p50": 5.924535, "p95": 10.539464 },
+            "overheadMs": { "p50": 0, "p95": 0 },
+            "stages": [
+              {
+                "stage": "animations",
+                "label": "Animations et transformations",
+                "cpuMs": { "p50": 0.9000000059604645, "p95": 1.0999999940395355 },
+                "gpuMs": null
+              },
+              {
+                "stage": "lights",
+                "label": "Éclairage : préparation des listes et des ombres",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "cutAdoption",
+                "label": "Adoption de la coupe",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "selection",
+                "label": "Sélection et visibilité",
+                "cpuMs": { "p50": 0, "p95": 0.10000002384185791 },
+                "gpuMs": { "p50": 0.702822, "p95": 1.427646 },
+                "counts": { "grappesRejetees": 6858, "pagesVoulues": 14783, "grappesDuDag": 163316 }
+              },
+              {
+                "stage": "transparents",
+                "label": "Transparents",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "residency",
+                "label": "Admission et file de résidence",
+                "cpuMs": { "p50": 0.4999999701976776, "p95": 1.0999999940395355 },
+                "gpuMs": null
+              },
+              {
+                "stage": "hostPages",
+                "label": "Listes de pages rendues à l’hôte",
+                "cpuMs": { "p50": 0.29999998211860657, "p95": 0.800000011920929 },
+                "gpuMs": null
+              },
+              {
+                "stage": "uploads",
+                "label": "Téléversements",
+                "cpuMs": { "p50": 0.09999999403953552, "p95": 0.699999988079071 },
+                "gpuMs": null
+              },
+              {
+                "stage": "textures",
+                "label": "Textures : ordre et transferts vers les atlas",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "file vide : aucun ordre à calculer",
+                "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
+                "counts": {
+                  "couchesAuNiveauVoulu": 103,
+                  "couchesVisibles": 103,
+                  "niveauxManquants": 0,
+                  "octetsEngages": 6643826256,
+                  "evictions": 0
+                }
+              },
+              {
+                "stage": "partition",
+                "label": "Partition occulteurs / testés",
+                "cpuMs": { "p50": 0, "p95": 0.09999999403953552 },
+                "gpuMs": { "p50": 0.126999, "p95": 0.240996 },
+                "counts": {
+                  "lignes": 45852,
+                  "occulteurs": 43807,
+                  "testees": 1851,
+                  "bornesToutes": 45127,
+                  "historiqueOcculteurs": 43807,
+                  "sansHistorique": 0,
+                  "imageRelevee": 203
+                }
+              },
+              {
+                "stage": "encode",
+                "label": "Encodage des passes",
+                "cpuMs": { "p50": 0.20000001788139343, "p95": 0.5 },
+                "gpuMs": null,
+                "counts": {
+                  "lignesTeleversees": 0,
+                  "fichesTeleversees": 0,
+                  "appelsDeDessin": 18,
+                  "appelsDeMelange": 0,
+                  "lancementsDeCalcul": 0
+                }
+              },
+              {
+                "stage": "submit",
+                "label": "Soumission",
+                "cpuMs": { "p50": 0, "p95": 0.09999999403953552 },
+                "gpuMs": null
+              },
+              {
+                "stage": "hiZ",
+                "label": "Hi-Z (occultation)",
+                "cpuMs": null,
+                "gpuMs": { "p50": 0.114624, "p95": 0.472368 }
+              },
+              {
+                "stage": "geometry",
+                "label": "Géométrie",
+                "cpuMs": null,
+                "gpuMs": { "p50": 2.502587, "p95": 5.154671 }
+              },
+              {
+                "stage": "coplanar",
+                "label": "Couches coplanaires",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "décidées par la coupe, sans borne propre",
+                "gpuReason": "dessinées dans les passes de géométrie, sans passe propre"
+              },
+              {
+                "stage": "shadows",
+                "label": "Ombres",
+                "cpuMs": null,
+                "gpuMs": { "p50": 1.238774, "p95": 2.72675 },
+                "counts": {
+                  "lampesRedessinees": 1,
+                  "cartesReutilisees": 0,
+                  "facesRedessinees": 1,
+                  "appelsDeDessin": 2,
+                  "soleilsRedessines": 1,
+                  "cascadesRedessinees": 1,
+                  "regionsRedessinees": 1,
+                  "pagesInvalidees": 64,
+                  "pagesRedessinees": 64,
+                  "pagesEnAttente": 192,
+                  "retardMaxMs": 33.599999994039536,
+                  "retardMaxImages": 2
+                }
+              },
+              {
+                "stage": "sunFarShadows",
+                "label": "Ombres lointaines (soleil contre le proxy)",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
+                "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
+                "counts": {
+                  "trianglesDuProxy": 94648,
+                  "pixelsTestes": 0,
+                  "pixelsAssombris": 0,
+                  "imageRelevee": 203
+                }
+              },
+              {
+                "stage": "lightLists",
+                "label": "Listes de lampes",
+                "cpuMs": null,
+                "gpuMs": { "p50": 0.64699, "p95": 1.201231 },
+                "counts": { "lampesActives": 1 }
+              },
+              {
+                "stage": "bounce",
+                "label": "Rebond (sondes d'irradiance)",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
+                "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
+                "counts": {
+                  "sondesMisesAJour": 0,
+                  "rayonsParImage": 0,
+                  "sondesDesCascades": 0,
+                  "maillesMisesAJour": 0,
+                  "maillesDuCache": 0,
+                  "fractionDuBudget": 0
+                }
+              },
+              {
+                "stage": "lighting",
+                "label": "Éclairage (résolution)",
+                "cpuMs": null,
+                "gpuMs": { "p50": 1.584892, "p95": 3.2322 }
+              },
+              {
+                "stage": "antialiasing",
+                "label": "Antialiasing temporel",
+                "cpuMs": null,
+                "gpuMs": { "p50": 1.700349, "p95": 3.666944 }
+              },
+              {
+                "stage": "present",
+                "label": "Présentation",
+                "cpuMs": null,
+                "gpuMs": { "p50": 1.742806, "p95": 3.70536 }
+              }
+            ]
+          },
+          "passesGpu": {
+            "releves": 120,
+            "blocs": {
+              "visibilityMs": {
+                "mean": 3.115268591666668,
+                "p50": 2.737373,
+                "p95": 5.790371000000001,
+                "p99": 8.296332,
+                "max": 9.560228
+              },
+              "materialsMs": {
+                "mean": 0.8024408916666663,
+                "p50": 0.709323,
+                "p95": 1.450769,
+                "p99": 1.905637,
+                "max": 3.469488
+              },
+              "otherMs": {
+                "mean": 7.2861941583333305,
+                "p50": 6.702062,
+                "p95": 13.473585000000002,
+                "p99": 20.281275,
+                "max": 20.556894
+              }
+            },
+            "passes": [
+              {
+                "name": "WG visibility primary",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 1.9372529916666663,
+                  "p50": 1.718015,
+                  "p95": 3.344866,
+                  "p99": 4.183144,
+                  "max": 6.159281
+                }
+              },
+              {
+                "name": "WG HDR composition + present",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 1.8698721833333338,
+                  "p50": 1.71464,
+                  "p95": 3.70536,
+                  "p99": 5.407126,
+                  "max": 5.987409
+                }
+              },
+              {
+                "name": "WG temporal antialiasing",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 1.8262482583333342,
+                  "p50": 1.688182,
+                  "p95": 3.666944,
+                  "p99": 4.664012,
+                  "max": 5.319877
+                }
+              },
+              {
+                "name": "WG deferred lighting",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 1.6912436833333335,
+                  "p50": 1.573142,
+                  "p95": 3.2322,
+                  "p99": 4.123353,
+                  "max": 5.194171
+                }
+              },
+              {
+                "name": "WG shadow atlas v1",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 1.125419958333333,
+                  "p50": 1.182523,
+                  "p95": 2.508295,
+                  "p99": 3.61811,
+                  "max": 5.021216
+                }
+              },
+              {
+                "name": "WG material surfaces v1",
+                "bloc": "materials",
+                "gpuMs": {
+                  "mean": 0.8024408916666663,
+                  "p50": 0.709323,
+                  "p95": 1.450769,
+                  "p99": 1.905637,
+                  "max": 3.469488
+                }
+              },
+              {
+                "name": "WG light tiles v1",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.6911487916666662,
+                  "p50": 0.64474,
+                  "p95": 1.201231,
+                  "p99": 1.990012,
+                  "max": 2.259841
+                }
+              },
+              {
+                "name": "WG draw compaction",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.46112425833333315,
+                  "p50": 0.440826,
+                  "p95": 0.735613,
+                  "p99": 1.245606,
+                  "max": 2.415755
+                }
+              },
+              {
+                "name": "WG partition",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.15397704166666662,
+                  "p50": 0.126999,
+                  "p95": 0.240996,
+                  "p99": 0.66924,
+                  "max": 1.91822
+                }
+              },
+              {
+                "name": "WG DAG selection",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.11155781666666659,
+                  "p50": 0.083916,
+                  "p95": 0.180706,
+                  "p99": 0.658699,
+                  "max": 2.162592
+                }
+              },
+              {
+                "name": "WG HiZ pyramid",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.12639045000000002,
+                  "p50": 0.06854,
+                  "p95": 0.379744,
+                  "p99": 1.162566,
+                  "max": 1.352729
+                }
+              },
+              {
+                "name": "WG HiZ test",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.04940945,
+                  "p50": 0.045041,
+                  "p95": 0.094958,
+                  "p99": 0.13154,
+                  "max": 0.15229
+                }
+              },
+              {
+                "name": "WG shadow cull",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.05641000833333336,
+                  "p50": 0.022875,
+                  "p95": 0.226871,
+                  "p99": 0.832946,
+                  "max": 1.0709
+                }
+              },
+              {
+                "name": "WG rest truncation",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.02585127499999999,
+                  "p50": 0.013291,
+                  "p95": 0.027083,
+                  "p99": 0.043874,
+                  "max": 1.426062
+                }
+              },
+              {
+                "name": "WG visibility secondary",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.05244095000000001,
+                  "p50": 0.005791,
+                  "p95": 0.118706,
+                  "p99": 1.241815,
+                  "max": 1.656349
+                }
+              }
+            ]
+          },
+          "preparationMs": 1125.199999988079,
+          "reseau": {
+            "json": 400642,
+            "bin": 256933540,
+            "wasm": 44509,
+            "gltf": 594952,
+            "js": 2111602
+          },
+          "variante": null,
+          "erreur": "certifiee",
+          "selectedTriangles": 1779990,
+          "uncoveredTriangles": 0,
+          "drawnTriangles": 1779990,
+          "submittedTriangles": null,
+          "totalSubmittedTriangles": null,
+          "imageDuReleve": 59,
+          "imageTenue": false,
+          "repliSelectionGpu": false,
+          "hiZ": {
+            "tested": 1851,
+            "rejected": 1851,
+            "beyond16Texels": 451,
+            "testedTriangles": 210401,
+            "rejectedTriangles": 210401,
+            "beyond16TexelsTriangles": 53128,
+            "image": 203
+          },
+          "selection": {
+            "source": "selectedPageIds",
+            "sha256": "278ac98014dda703c2910cc4323f79da827ddb646d203b5393ff2043d5453aeb",
+            "taille": 14452
+          },
+          "geometrieOctets": 242888964,
+          "budgetPages": {
+            "demande": 100000,
+            "residentes": 16681,
+            "couvertureLimiteeParBudget": false
+          },
+          "cheminCalcul": {
+            "contract": 1,
+            "mode": "auto",
+            "wasmAvailable": true,
+            "wasmSimd": true,
+            "clockResolutionMs": null,
+            "clockCoarse": true,
+            "unavailableReason": null,
+            "operations": {
+              "boxTransformBatch": {
+                "path": "js",
+                "jsNsPerElement": 605.0826946349334,
+                "wasmNsPerElement": null,
+                "jsSamples": 2,
+                "wasmSamples": 0,
+                "switches": 0,
+                "elements": 4958
+              }
+            }
+          },
+          "lampes": {
+            "nombre": 1,
+            "ponctuelles": 0,
+            "soleil": true,
+            "ombres": true,
+            "maille": 0,
+            "intensite": 40,
+            "mobile": false
+          },
+          "lampesFichier": { "nombre": 0, "ids": [] },
+          "lampesTemoin": null,
+          "atlasOmbres": null,
+          "objetMobile": null,
+          "charge": {
+            "debut": [6.80908203125, 6.5205078125, 6.43115234375],
+            "fin": [6.14306640625, 6.3876953125, 6.384765625]
+          },
+          "captureStatus": 200,
+          "incidentsGpu": null,
+          "canvas": { "width": 1248, "height": 702 },
+          "metrics": {
+            "rafIntervalMs": null,
+            "cpuFrameMs": 2,
+            "cpuSelectMs": null,
+            "cpuSelectNodesTested": null,
+            "cpuSubmitMs": 0.09999999403953552,
+            "gpuMs": null,
+            "drawCalls": 18,
+            "triangles": null,
+            "clusters": null,
+            "selectedTriangles": 1779990,
+            "residentPages": 16681,
+            "geometryAllocationBytes": 242888964,
+            "vramBytes": null,
+            "pageLoads": 289,
+            "pageBytesRead": 27274992,
+            "pagesDetached": null,
+            "cacheEvictions": 0,
+            "hizCountedFrame": 203,
+            "hizTestedClusters": 1851,
+            "hizRejectedClusters": 1851,
+            "hizOversizedClusters": 451,
+            "hizTestedTriangles": 210401,
+            "hizRejectedTriangles": 210401,
+            "hizOversizedTriangles": 53128,
+            "gpuFrameMs": 6.021075,
+            "gpuHostGapMs": 0,
+            "uncoveredTriangles": 0,
+            "drawnTriangles": 1779990,
+            "lightsActive": 1,
+            "shadowsUpdated": 1,
+            "shadowFacesDrawn": 1,
+            "shadowDrawCalls": 2,
+            "shadowPagesDrawn": 64,
+            "shadowPagesPending": 192,
+            "shadowWaitMs": 33.599999994039536,
+            "gpuLightListsMs": 0.882612,
+            "gpuShadowsMs": 1.350438,
+            "gpuLightingMs": 2.006679,
+            "textureInFlight": 0,
+            "textureSlicesUploaded": 3903,
+            "textureBytesLastFrame": 16777216,
+            "textureLevelsUploaded": 3747,
+            "textureAtlasBytesCalculated": 6688572304,
+            "textureAtlasClassesUsed": 2,
+            "pagesDecodedOffThread": 285,
+            "pagesDecodedWasm": 0,
+            "pageDecodeMs": 17.49999988079071,
+            "coverageReady": true,
+            "coverageBudgetLimited": false,
+            "frustumRejected": 6858,
+            "lodLevel": 7,
+            "frameHeld": false,
+            "submittedTriangles": null,
+            "transparentMeshes": 0,
+            "transparentFrustumRejected": 0,
+            "transparentDrawCalls": 0,
+            "transparentSubmittedTriangles": 0,
+            "gpuSelectionFallback": false,
+            "textureUploaded": 0,
+            "texturePending": 0,
+            "textureSkipped": 0,
+            "textureResidentBytes": 6643826256,
+            "textureBudgetBytes": 6688572304,
+            "textureAtWantedLevel": 103,
+            "textureLayers": 127,
+            "textureMissingLevels": 0,
+            "textureEvictions": 0,
+            "streamingError": null,
+            "totalSubmittedTriangles": null,
+            "pagesRequested": 317,
+            "pagesLoading": 0,
+            "cacheHits": 0,
+            "cacheMisses": 317,
+            "pagesPlannedOffThread": 101,
+            "pagePlanMs": 1.7000000476837158
+          }
+        },
+        "avant": {
+          "cpuFrameMs": {
+            "mean": 0.6216666673620542,
+            "p50": 0.5999999940395355,
+            "p95": 0.800000011920929,
+            "p99": 2.0999999940395355,
+            "max": 2.0999999940395355
+          },
+          "cpuSelectMs": null,
+          "moteur": "webgpu-page-raster",
+          "gpuFrameMs": null,
+          "imageSyncMs": null,
+          "rafIntervalMs": null,
+          "profilParEtape": {
+            "version": 1,
+            "enabled": true,
+            "backend": "webgpu-page-raster",
+            "cpuFrames": 120,
+            "gpuSamples": 120,
+            "windowFrames": 120,
+            "gpuMethod": "timestamp-query",
+            "gpuReason": null,
+            "gpuImageMs": { "p50": 38.481038, "p95": 45.981923 },
+            "overheadMs": { "p50": 0, "p95": 0.09999999403953552 },
+            "stages": [
+              {
+                "stage": "animations",
+                "label": "Animations et transformations",
+                "cpuMs": { "p50": 1, "p95": 1.5 },
+                "gpuMs": null
+              },
+              {
+                "stage": "lights",
+                "label": "Éclairage : préparation des listes et des ombres",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "cutAdoption",
+                "label": "Adoption de la coupe",
+                "cpuMs": { "p50": 0, "p95": 0.09999999403953552 },
+                "gpuMs": null
+              },
+              {
+                "stage": "selection",
+                "label": "Sélection et visibilité",
+                "cpuMs": { "p50": 0, "p95": 0.20000001788139343 },
+                "gpuMs": { "p50": 0.688698, "p95": 0.869487 },
+                "counts": { "grappesRejetees": 6858, "pagesVoulues": 14783, "grappesDuDag": 163316 }
+              },
+              {
+                "stage": "transparents",
+                "label": "Transparents",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "residency",
+                "label": "Admission et file de résidence",
+                "cpuMs": { "p50": 0.5, "p95": 1.7999999821186066 },
+                "gpuMs": null
+              },
+              {
+                "stage": "hostPages",
+                "label": "Listes de pages rendues à l’hôte",
+                "cpuMs": { "p50": 0.30000001192092896, "p95": 0.9000000059604645 },
+                "gpuMs": null
+              },
+              {
+                "stage": "uploads",
+                "label": "Téléversements",
+                "cpuMs": { "p50": 0.09999999403953552, "p95": 0.7000000178813934 },
+                "gpuMs": null
+              },
+              {
+                "stage": "textures",
+                "label": "Textures : ordre et transferts vers les atlas",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "file vide : aucun ordre à calculer",
+                "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
+                "counts": {
+                  "couchesAuNiveauVoulu": 103,
+                  "couchesVisibles": 103,
+                  "niveauxManquants": 0,
+                  "octetsEngages": 6643826256,
+                  "evictions": 0
+                }
+              },
+              {
+                "stage": "partition",
+                "label": "Partition occulteurs / testés",
+                "cpuMs": { "p50": 0, "p95": 0.09999999403953552 },
+                "gpuMs": { "p50": 0.127081, "p95": 0.209539 },
+                "counts": {
+                  "lignes": 45852,
+                  "occulteurs": 43790,
+                  "testees": 1850,
+                  "bornesToutes": 45109,
+                  "historiqueOcculteurs": 43790,
+                  "sansHistorique": 0,
+                  "imageRelevee": 203
+                }
+              },
+              {
+                "stage": "encode",
+                "label": "Encodage des passes",
+                "cpuMs": { "p50": 0.29999998211860657, "p95": 0.5 },
+                "gpuMs": null,
+                "counts": {
+                  "lignesTeleversees": 0,
+                  "fichesTeleversees": 0,
+                  "appelsDeDessin": 8,
+                  "appelsDeMelange": 0,
+                  "lancementsDeCalcul": 15
+                }
+              },
+              {
+                "stage": "submit",
+                "label": "Soumission",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "hiZ",
+                "label": "Hi-Z (occultation)",
+                "cpuMs": null,
+                "gpuMs": { "p50": 0.09904, "p95": 0.109623 }
+              },
+              {
+                "stage": "geometry",
+                "label": "Géométrie",
+                "cpuMs": null,
+                "gpuMs": { "p50": 124.51309900000001, "p95": 150.495578 }
+              },
+              {
+                "stage": "coplanar",
+                "label": "Couches coplanaires",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "décidées par la coupe, sans borne propre",
+                "gpuReason": "dessinées dans les passes de géométrie, sans passe propre"
+              },
+              {
+                "stage": "shadows",
+                "label": "Ombres",
+                "cpuMs": null,
+                "gpuMs": { "p50": 1.292896, "p95": 2.0198430000000003 },
+                "counts": {
+                  "lampesRedessinees": 1,
+                  "cartesReutilisees": 0,
+                  "facesRedessinees": 1,
+                  "appelsDeDessin": 2,
+                  "soleilsRedessines": 1,
+                  "cascadesRedessinees": 1,
+                  "regionsRedessinees": 1,
+                  "pagesInvalidees": 64,
+                  "pagesRedessinees": 64,
+                  "pagesEnAttente": 192,
+                  "retardMaxMs": 131.5,
+                  "retardMaxImages": 2
+                }
+              },
+              {
+                "stage": "sunFarShadows",
+                "label": "Ombres lointaines (soleil contre le proxy)",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
+                "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
+                "counts": {
+                  "trianglesDuProxy": 94648,
+                  "pixelsTestes": 0,
+                  "pixelsAssombris": 0,
+                  "imageRelevee": 203
+                }
+              },
+              {
+                "stage": "lightLists",
+                "label": "Listes de lampes",
+                "cpuMs": null,
+                "gpuMs": { "p50": 0.437703, "p95": 1.004652 },
+                "counts": { "lampesActives": 1 }
+              },
+              {
+                "stage": "bounce",
+                "label": "Rebond (sondes d'irradiance)",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
+                "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
+                "counts": {
+                  "sondesMisesAJour": 0,
+                  "rayonsParImage": 0,
+                  "sondesDesCascades": 0,
+                  "maillesMisesAJour": 0,
+                  "maillesDuCache": 0,
+                  "fractionDuBudget": 0
+                }
+              },
+              {
+                "stage": "lighting",
+                "label": "Éclairage (résolution)",
+                "cpuMs": null,
+                "gpuMs": { "p50": 1.535643, "p95": 2.1198 }
+              },
+              {
+                "stage": "antialiasing",
+                "label": "Antialiasing temporel",
+                "cpuMs": null,
+                "gpuMs": { "p50": 1.591435, "p95": 2.564628 }
+              },
+              {
+                "stage": "present",
+                "label": "Présentation",
+                "cpuMs": null,
+                "gpuMs": { "p50": 1.621767, "p95": 2.703459 }
+              }
+            ]
+          },
+          "passesGpu": {
+            "releves": 120,
+            "blocs": {
+              "visibilityMs": {
+                "mean": 0.9368313250000002,
+                "p50": 0.912821,
+                "p95": 1.197025,
+                "p99": 2.276964,
+                "max": 2.704001
+              },
+              "materialsMs": {
+                "mean": 36.15550495000001,
+                "p50": 36.460278,
+                "p95": 44.278866,
+                "p99": 45.395141,
+                "max": 46.903409
+              },
+              "otherMs": {
+                "mean": 93.20079235000004,
+                "p50": 94.487812,
+                "p95": 113.64755800000002,
+                "p99": 118.814978,
+                "max": 121.84255800000003
+              }
+            },
+            "passes": [
+              {
+                "name": "WG material surfaces v1",
+                "bloc": "materials",
+                "gpuMs": {
+                  "mean": 36.15550495000001,
+                  "p50": 36.460278,
+                  "p95": 44.278866,
+                  "p99": 45.395141,
+                  "max": 46.903409
+                }
+              },
+              {
+                "name": "WG raster resolve",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 35.541320875000025,
+                  "p50": 35.790329,
+                  "p95": 43.432003,
+                  "p99": 44.648652,
+                  "max": 46.313168
+                }
+              },
+              {
+                "name": "WG raster occluder hiz",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 16.10438475,
+                  "p50": 16.088797,
+                  "p95": 19.857072,
+                  "p99": 21.618003,
+                  "max": 23.149647
+                }
+              },
+              {
+                "name": "WG raster identifiers",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 15.749980491666667,
+                  "p50": 15.779843,
+                  "p95": 19.780365,
+                  "p99": 20.332607,
+                  "max": 20.572311
+                }
+              },
+              {
+                "name": "WG raster occluder depth",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 15.307839725000006,
+                  "p50": 15.324975,
+                  "p95": 18.979752,
+                  "p99": 19.936112,
+                  "max": 22.343117
+                }
+              },
+              {
+                "name": "WG raster tested depth",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 3.5723305499999993,
+                  "p50": 3.543363,
+                  "p95": 4.732595,
+                  "p99": 4.894551,
+                  "max": 5.164629
+                }
+              },
+              {
+                "name": "WG HDR composition + present",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 1.6154725333333328,
+                  "p50": 1.606684,
+                  "p95": 2.703459,
+                  "p99": 3.390948,
+                  "max": 3.401531
+                }
+              },
+              {
+                "name": "WG temporal antialiasing",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 1.5900485833333335,
+                  "p50": 1.59131,
+                  "p95": 2.564628,
+                  "p99": 3.375823,
+                  "max": 3.388156
+                }
+              },
+              {
+                "name": "WG deferred lighting",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 1.5085370583333317,
+                  "p50": 1.525852,
+                  "p95": 2.1198,
+                  "p99": 3.313658,
+                  "max": 3.320075
+                }
+              },
+              {
+                "name": "WG shadow atlas v1",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 1.1489685749999992,
+                  "p50": 1.264814,
+                  "p95": 1.992428,
+                  "p99": 2.260173,
+                  "max": 3.323532
+                }
+              },
+              {
+                "name": "WG raster binning",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.5086284333333332,
+                  "p50": 0.511702,
+                  "p95": 0.579199,
+                  "p99": 1.346939,
+                  "max": 1.961762
+                }
+              },
+              {
+                "name": "WG draw compaction",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.47608825833333324,
+                  "p50": 0.4882,
+                  "p95": 0.566199,
+                  "p99": 0.680907,
+                  "max": 1.841888
+                }
+              },
+              {
+                "name": "WG light tiles v1",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.4581312416666666,
+                  "p50": 0.437703,
+                  "p95": 1.004652,
+                  "p99": 1.631183,
+                  "max": 2.002679
+                }
+              },
+              {
+                "name": "WG partition",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.13090319166666667,
+                  "p50": 0.127498,
+                  "p95": 0.209539,
+                  "p99": 0.222955,
+                  "max": 0.284954
+                }
+              },
+              {
+                "name": "WG DAG selection",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.07615080833333333,
+                  "p50": 0.07354,
+                  "p95": 0.086748,
+                  "p99": 0.267871,
+                  "max": 1.712432
+                }
+              },
+              {
+                "name": "WG HiZ pyramid",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.06631186666666665,
+                  "p50": 0.064332,
+                  "p95": 0.072249,
+                  "p99": 0.075749,
+                  "max": 0.177664
+                }
+              },
+              {
+                "name": "WG HiZ test",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.035075583333333354,
+                  "p50": 0.034416,
+                  "p95": 0.038083,
+                  "p99": 0.057207,
+                  "max": 0.061041
+                }
+              },
+              {
+                "name": "WG shadow cull",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.025156058333333325,
+                  "p50": 0.023083,
+                  "p95": 0.057832,
+                  "p99": 0.148457,
+                  "max": 0.179956
+                }
+              },
+              {
+                "name": "WG rest truncation",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.069993475,
+                  "p50": 0.021125,
+                  "p95": 0.46241,
+                  "p99": 0.6327,
+                  "max": 0.708281
+                }
+              }
+            ]
+          },
+          "preparationMs": 1138,
+          "reseau": {
+            "json": 400642,
+            "bin": 256933540,
+            "wasm": 44509,
+            "gltf": 594952,
+            "js": 2111602
+          },
+          "variante": "raster-calcul",
+          "erreur": "certifiee",
+          "selectedTriangles": 1779990,
+          "uncoveredTriangles": 0,
+          "drawnTriangles": 1779990,
+          "submittedTriangles": null,
+          "totalSubmittedTriangles": null,
+          "imageDuReleve": 59,
+          "imageTenue": false,
+          "repliSelectionGpu": false,
+          "hiZ": {
+            "tested": 1850,
+            "rejected": 1850,
+            "beyond16Texels": 450,
+            "testedTriangles": 210273,
+            "rejectedTriangles": 210273,
+            "beyond16TexelsTriangles": 53000,
+            "image": 203
+          },
+          "selection": {
+            "source": "selectedPageIds",
+            "sha256": "278ac98014dda703c2910cc4323f79da827ddb646d203b5393ff2043d5453aeb",
+            "taille": 14452
+          },
+          "geometrieOctets": 242888964,
+          "budgetPages": {
+            "demande": 100000,
+            "residentes": 16681,
+            "couvertureLimiteeParBudget": false
+          },
+          "cheminCalcul": {
+            "contract": 1,
+            "mode": "auto",
+            "wasmAvailable": true,
+            "wasmSimd": true,
+            "clockResolutionMs": null,
+            "clockCoarse": true,
+            "unavailableReason": null,
+            "operations": {
+              "boxTransformBatch": {
+                "path": "js",
+                "jsNsPerElement": 564.743844719364,
+                "wasmNsPerElement": null,
+                "jsSamples": 2,
+                "wasmSamples": 0,
+                "switches": 0,
+                "elements": 4958
+              }
+            }
+          },
+          "lampes": {
+            "nombre": 1,
+            "ponctuelles": 0,
+            "soleil": true,
+            "ombres": true,
+            "maille": 0,
+            "intensite": 40,
+            "mobile": false
+          },
+          "lampesFichier": { "nombre": 0, "ids": [] },
+          "lampesTemoin": null,
+          "atlasOmbres": null,
+          "objetMobile": null,
+          "charge": {
+            "debut": [6.14306640625, 6.3876953125, 6.384765625],
+            "fin": [4.8857421875, 6.0859375, 6.27587890625]
+          },
+          "captureStatus": 200,
+          "incidentsGpu": null,
+          "canvas": { "width": 1248, "height": 702 },
+          "metrics": {
+            "rafIntervalMs": null,
+            "cpuFrameMs": 2.7999999821186066,
+            "cpuSelectMs": null,
+            "cpuSelectNodesTested": null,
+            "cpuSubmitMs": 0.20000001788139343,
+            "gpuMs": null,
+            "drawCalls": 8,
+            "triangles": null,
+            "clusters": null,
+            "selectedTriangles": 1779990,
+            "residentPages": 16681,
+            "geometryAllocationBytes": 242888964,
+            "vramBytes": null,
+            "pageLoads": 289,
+            "pageBytesRead": 27274992,
+            "pagesDetached": null,
+            "cacheEvictions": 0,
+            "hizCountedFrame": 203,
+            "hizTestedClusters": 1850,
+            "hizRejectedClusters": 1850,
+            "hizOversizedClusters": 450,
+            "hizTestedTriangles": 210273,
+            "hizRejectedTriangles": 210273,
+            "hizOversizedTriangles": 53000,
+            "gpuFrameMs": 47.813729,
+            "gpuHostGapMs": 0,
+            "uncoveredTriangles": 0,
+            "drawnTriangles": 1779990,
+            "lightsActive": 1,
+            "shadowsUpdated": 1,
+            "shadowFacesDrawn": 1,
+            "shadowDrawCalls": 2,
+            "shadowPagesDrawn": 64,
+            "shadowPagesPending": 192,
+            "shadowWaitMs": 131.5,
+            "gpuLightListsMs": 0.15708,
+            "gpuShadowsMs": 1.5187680000000001,
+            "gpuLightingMs": 2.064136,
+            "textureInFlight": 0,
+            "textureSlicesUploaded": 3909,
+            "textureBytesLastFrame": 16777216,
+            "textureLevelsUploaded": 3747,
+            "textureAtlasBytesCalculated": 6688572304,
+            "textureAtlasClassesUsed": 2,
+            "pagesDecodedOffThread": 285,
+            "pagesDecodedWasm": 0,
+            "pageDecodeMs": 17.000000476837158,
+            "coverageReady": true,
+            "coverageBudgetLimited": false,
+            "frustumRejected": 6858,
+            "lodLevel": 7,
+            "frameHeld": false,
+            "submittedTriangles": null,
+            "transparentMeshes": 0,
+            "transparentFrustumRejected": 0,
+            "transparentDrawCalls": 0,
+            "transparentSubmittedTriangles": 0,
+            "gpuSelectionFallback": false,
+            "textureUploaded": 0,
+            "texturePending": 0,
+            "textureSkipped": 0,
+            "textureResidentBytes": 6643826256,
+            "textureBudgetBytes": 6688572304,
+            "textureAtWantedLevel": 103,
+            "textureLayers": 127,
+            "textureMissingLevels": 0,
+            "textureEvictions": 0,
+            "streamingError": null,
+            "totalSubmittedTriangles": null,
+            "pagesRequested": 317,
+            "pagesLoading": 0,
+            "cacheHits": 0,
+            "cacheMisses": 317,
+            "pagesPlannedOffThread": 101,
+            "pagePlanMs": 1.4999999701976776
+          }
+        },
+        "apres-aa": {
+          "cpuFrameMs": {
+            "mean": 0.6466666663686435,
+            "p50": 0.5999999940395355,
+            "p95": 0.9000000059604645,
+            "p99": 2,
+            "max": 2
+          },
+          "cpuSelectMs": null,
+          "moteur": "webgpu-page-raster",
+          "gpuFrameMs": null,
+          "imageSyncMs": null,
+          "rafIntervalMs": null,
+          "profilParEtape": {
+            "version": 1,
+            "enabled": true,
+            "backend": "webgpu-page-raster",
+            "cpuFrames": 120,
+            "gpuSamples": 120,
+            "windowFrames": 120,
+            "gpuMethod": "timestamp-query",
+            "gpuReason": null,
+            "gpuImageMs": { "p50": 6.54465, "p95": 12.444895 },
+            "overheadMs": { "p50": 0, "p95": 0.09999999403953552 },
+            "stages": [
+              {
+                "stage": "animations",
+                "label": "Animations et transformations",
+                "cpuMs": { "p50": 0.8999999761581421, "p95": 1.100000023841858 },
+                "gpuMs": null
+              },
+              {
+                "stage": "lights",
+                "label": "Éclairage : préparation des listes et des ombres",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "cutAdoption",
+                "label": "Adoption de la coupe",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "selection",
+                "label": "Sélection et visibilité",
+                "cpuMs": { "p50": 0, "p95": 0.19999998807907104 },
+                "gpuMs": { "p50": 0.863279, "p95": 1.9105529999999997 },
+                "counts": { "grappesRejetees": 6858, "pagesVoulues": 14783, "grappesDuDag": 163316 }
+              },
+              {
+                "stage": "transparents",
+                "label": "Transparents",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "residency",
+                "label": "Admission et file de résidence",
+                "cpuMs": { "p50": 0.4000000059604645, "p95": 1.0999999940395355 },
+                "gpuMs": null
+              },
+              {
+                "stage": "hostPages",
+                "label": "Listes de pages rendues à l’hôte",
+                "cpuMs": { "p50": 0.20000001788139343, "p95": 0.7999999821186066 },
+                "gpuMs": null
+              },
+              {
+                "stage": "uploads",
+                "label": "Téléversements",
+                "cpuMs": { "p50": 0.09999999403953552, "p95": 0.7000000178813934 },
+                "gpuMs": null
+              },
+              {
+                "stage": "textures",
+                "label": "Textures : ordre et transferts vers les atlas",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "file vide : aucun ordre à calculer",
+                "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
+                "counts": {
+                  "couchesAuNiveauVoulu": 103,
+                  "couchesVisibles": 103,
+                  "niveauxManquants": 0,
+                  "octetsEngages": 6643826256,
+                  "evictions": 0
+                }
+              },
+              {
+                "stage": "partition",
+                "label": "Partition occulteurs / testés",
+                "cpuMs": { "p50": 0, "p95": 0.09999999403953552 },
+                "gpuMs": { "p50": 0.154373, "p95": 0.298913 },
+                "counts": {
+                  "lignes": 45852,
+                  "occulteurs": 43802,
+                  "testees": 1851,
+                  "bornesToutes": 45122,
+                  "historiqueOcculteurs": 43802,
+                  "sansHistorique": 0,
+                  "imageRelevee": 203
+                }
+              },
+              {
+                "stage": "encode",
+                "label": "Encodage des passes",
+                "cpuMs": { "p50": 0.20000001788139343, "p95": 0.4000000059604645 },
+                "gpuMs": null,
+                "counts": {
+                  "lignesTeleversees": 0,
+                  "fichesTeleversees": 0,
+                  "appelsDeDessin": 18,
+                  "appelsDeMelange": 0,
+                  "lancementsDeCalcul": 0
+                }
+              },
+              {
+                "stage": "submit",
+                "label": "Soumission",
+                "cpuMs": { "p50": 0, "p95": 0.09999999403953552 },
+                "gpuMs": null
+              },
+              {
+                "stage": "hiZ",
+                "label": "Hi-Z (occultation)",
+                "cpuMs": null,
+                "gpuMs": { "p50": 0.131956, "p95": 0.404702 }
+              },
+              {
+                "stage": "geometry",
+                "label": "Géométrie",
+                "cpuMs": null,
+                "gpuMs": { "p50": 2.884288, "p95": 5.480584 }
+              },
+              {
+                "stage": "coplanar",
+                "label": "Couches coplanaires",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "décidées par la coupe, sans borne propre",
+                "gpuReason": "dessinées dans les passes de géométrie, sans passe propre"
+              },
+              {
+                "stage": "shadows",
+                "label": "Ombres",
+                "cpuMs": null,
+                "gpuMs": { "p50": 1.406769, "p95": 3.704944 },
+                "counts": {
+                  "lampesRedessinees": 1,
+                  "cartesReutilisees": 0,
+                  "facesRedessinees": 1,
+                  "appelsDeDessin": 2,
+                  "soleilsRedessines": 1,
+                  "cascadesRedessinees": 1,
+                  "regionsRedessinees": 1,
+                  "pagesInvalidees": 64,
+                  "pagesRedessinees": 64,
+                  "pagesEnAttente": 192,
+                  "retardMaxMs": 34.29999998211861,
+                  "retardMaxImages": 2
+                }
+              },
+              {
+                "stage": "sunFarShadows",
+                "label": "Ombres lointaines (soleil contre le proxy)",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
+                "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
+                "counts": {
+                  "trianglesDuProxy": 94648,
+                  "pixelsTestes": 0,
+                  "pixelsAssombris": 0,
+                  "imageRelevee": 203
+                }
+              },
+              {
+                "stage": "lightLists",
+                "label": "Listes de lampes",
+                "cpuMs": null,
+                "gpuMs": { "p50": 0.696114, "p95": 1.571476 },
+                "counts": { "lampesActives": 1 }
+              },
+              {
+                "stage": "bounce",
+                "label": "Rebond (sondes d'irradiance)",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
+                "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
+                "counts": {
+                  "sondesMisesAJour": 0,
+                  "rayonsParImage": 0,
+                  "sondesDesCascades": 0,
+                  "maillesMisesAJour": 0,
+                  "maillesDuCache": 0,
+                  "fractionDuBudget": 0
+                }
+              },
+              {
+                "stage": "lighting",
+                "label": "Éclairage (résolution)",
+                "cpuMs": null,
+                "gpuMs": { "p50": 1.713348, "p95": 3.88494 }
+              },
+              {
+                "stage": "antialiasing",
+                "label": "Antialiasing temporel",
+                "cpuMs": null,
+                "gpuMs": { "p50": 1.790223, "p95": 4.634721 }
+              },
+              {
+                "stage": "present",
+                "label": "Présentation",
+                "cpuMs": null,
+                "gpuMs": { "p50": 1.809307, "p95": 5.026424 }
+              }
+            ]
+          },
+          "passesGpu": {
+            "releves": 120,
+            "blocs": {
+              "visibilityMs": {
+                "mean": 3.426182908333335,
+                "p50": 3.3486969999999996,
+                "p95": 5.542624,
+                "p99": 6.478986,
+                "max": 9.048572
+              },
+              "materialsMs": {
+                "mean": 0.9269181750000002,
+                "p50": 0.832571,
+                "p95": 1.804597,
+                "p99": 2.711084,
+                "max": 3.50878
+              },
+              "otherMs": {
+                "mean": 8.197044224999999,
+                "p50": 7.394431000000001,
+                "p95": 17.580024,
+                "p99": 20.725476,
+                "max": 21.089766
+              }
+            },
+            "passes": [
+              {
+                "name": "WG visibility primary",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 2.1031520333333327,
+                  "p50": 1.974137,
+                  "p95": 3.459532,
+                  "p99": 4.662387,
+                  "max": 5.427877
+                }
+              },
+              {
+                "name": "WG HDR composition + present",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 2.119375008333333,
+                  "p50": 1.79789,
+                  "p95": 4.763677,
+                  "p99": 5.754037,
+                  "max": 5.973743
+                }
+              },
+              {
+                "name": "WG temporal antialiasing",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 2.0438772,
+                  "p50": 1.782431,
+                  "p95": 4.371143,
+                  "p99": 5.479209,
+                  "max": 5.936285
+                }
+              },
+              {
+                "name": "WG deferred lighting",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 1.88549865,
+                  "p50": 1.692309,
+                  "p95": 3.770901,
+                  "p99": 4.729969,
+                  "max": 5.807704
+                }
+              },
+              {
+                "name": "WG shadow atlas v1",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 1.2916873083333338,
+                  "p50": 1.321814,
+                  "p95": 3.455989,
+                  "p99": 4.288977,
+                  "max": 5.314794
+                }
+              },
+              {
+                "name": "WG material surfaces v1",
+                "bloc": "materials",
+                "gpuMs": {
+                  "mean": 0.9269181750000002,
+                  "p50": 0.832571,
+                  "p95": 1.804597,
+                  "p99": 2.711084,
+                  "max": 3.50878
+                }
+              },
+              {
+                "name": "WG light tiles v1",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.7437519166666668,
+                  "p50": 0.689698,
+                  "p95": 1.571476,
+                  "p99": 1.858846,
+                  "max": 1.867805
+                }
+              },
+              {
+                "name": "WG draw compaction",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.510562325,
+                  "p50": 0.534492,
+                  "p95": 0.955278,
+                  "p99": 1.074275,
+                  "max": 1.379646
+                }
+              },
+              {
+                "name": "WG partition",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.1613231916666666,
+                  "p50": 0.153373,
+                  "p95": 0.298913,
+                  "p99": 0.557991,
+                  "max": 0.563366
+                }
+              },
+              {
+                "name": "WG DAG selection",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.14252318611111103,
+                  "p50": 0.097873,
+                  "p95": 0.401202,
+                  "p99": 1.103817,
+                  "max": 2.207591
+                }
+              },
+              {
+                "name": "WG HiZ pyramid",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.13726594166666664,
+                  "p50": 0.082124,
+                  "p95": 0.285578,
+                  "p99": 1.260648,
+                  "max": 2.365672
+                }
+              },
+              {
+                "name": "WG HiZ test",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.053940899999999986,
+                  "p50": 0.052375,
+                  "p95": 0.095331,
+                  "p99": 0.105791,
+                  "max": 0.152123
+                }
+              },
+              {
+                "name": "WG shadow cull",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.09685474166666666,
+                  "p50": 0.023249,
+                  "p95": 0.702365,
+                  "p99": 0.968402,
+                  "max": 1.077274
+                }
+              },
+              {
+                "name": "WG rest truncation",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.0159994,
+                  "p50": 0.015666,
+                  "p95": 0.025999,
+                  "p99": 0.032833,
+                  "max": 0.035541
+                }
+              },
+              {
+                "name": "WG visibility secondary",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.032368958333333336,
+                  "p50": 0.006292,
+                  "p95": 0.014334,
+                  "p99": 0.95661,
+                  "max": 1.941053
+                }
+              }
+            ]
+          },
+          "preparationMs": 1134.699999988079,
+          "reseau": {
+            "json": 400642,
+            "bin": 256933540,
+            "wasm": 44509,
+            "gltf": 594952,
+            "js": 2111602
+          },
+          "variante": null,
+          "erreur": "certifiee",
+          "selectedTriangles": 1779990,
+          "uncoveredTriangles": 0,
+          "drawnTriangles": 1779990,
+          "submittedTriangles": null,
+          "totalSubmittedTriangles": null,
+          "imageDuReleve": 59,
+          "imageTenue": false,
+          "repliSelectionGpu": false,
+          "hiZ": {
+            "tested": 1851,
+            "rejected": 1851,
+            "beyond16Texels": 451,
+            "testedTriangles": 210401,
+            "rejectedTriangles": 210401,
+            "beyond16TexelsTriangles": 53128,
+            "image": 203
+          },
+          "selection": {
+            "source": "selectedPageIds",
+            "sha256": "278ac98014dda703c2910cc4323f79da827ddb646d203b5393ff2043d5453aeb",
+            "taille": 14452
+          },
+          "geometrieOctets": 242888964,
+          "budgetPages": {
+            "demande": 100000,
+            "residentes": 16681,
+            "couvertureLimiteeParBudget": false
+          },
+          "cheminCalcul": {
+            "contract": 1,
+            "mode": "auto",
+            "wasmAvailable": true,
+            "wasmSimd": true,
+            "clockResolutionMs": 0.09999999403953552,
+            "clockCoarse": false,
+            "unavailableReason": null,
+            "operations": {
+              "boxTransformBatch": {
+                "path": "wasm",
+                "jsNsPerElement": null,
+                "wasmNsPerElement": 121.0165437357519,
+                "jsSamples": 0,
+                "wasmSamples": 2,
+                "switches": 0,
+                "elements": 4958
+              }
+            }
+          },
+          "lampes": {
+            "nombre": 1,
+            "ponctuelles": 0,
+            "soleil": true,
+            "ombres": true,
+            "maille": 0,
+            "intensite": 40,
+            "mobile": false
+          },
+          "lampesFichier": { "nombre": 0, "ids": [] },
+          "lampesTemoin": null,
+          "atlasOmbres": null,
+          "objetMobile": null,
+          "charge": {
+            "debut": [5.294921875, 6.15087890625, 6.29736328125],
+            "fin": [5.021484375, 6.06298828125, 6.26416015625]
+          },
+          "captureStatus": 200,
+          "incidentsGpu": null,
+          "canvas": { "width": 1248, "height": 702 },
+          "metrics": {
+            "rafIntervalMs": null,
+            "cpuFrameMs": 2.0999999940395355,
+            "cpuSelectMs": null,
+            "cpuSelectNodesTested": null,
+            "cpuSubmitMs": 0.19999998807907104,
+            "gpuMs": null,
+            "drawCalls": 18,
+            "triangles": null,
+            "clusters": null,
+            "selectedTriangles": 1779990,
+            "residentPages": 16681,
+            "geometryAllocationBytes": 242888964,
+            "vramBytes": null,
+            "pageLoads": 289,
+            "pageBytesRead": 27274992,
+            "pagesDetached": null,
+            "cacheEvictions": 0,
+            "hizCountedFrame": 203,
+            "hizTestedClusters": 1851,
+            "hizRejectedClusters": 1851,
+            "hizOversizedClusters": 451,
+            "hizTestedTriangles": 210401,
+            "hizRejectedTriangles": 210401,
+            "hizOversizedTriangles": 53128,
+            "gpuFrameMs": 10.784835,
+            "gpuHostGapMs": 0,
+            "uncoveredTriangles": 0,
+            "drawnTriangles": 1779990,
+            "lightsActive": 1,
+            "shadowsUpdated": 1,
+            "shadowFacesDrawn": 1,
+            "shadowDrawCalls": 2,
+            "shadowPagesDrawn": 64,
+            "shadowPagesPending": 192,
+            "shadowWaitMs": 34.29999998211861,
+            "gpuLightListsMs": 1.815847,
+            "gpuShadowsMs": 4.001189,
+            "gpuLightingMs": 4.612389,
+            "textureInFlight": 0,
+            "textureSlicesUploaded": 3894,
+            "textureBytesLastFrame": 4194304,
+            "textureLevelsUploaded": 3747,
+            "textureAtlasBytesCalculated": 6688572304,
+            "textureAtlasClassesUsed": 2,
+            "pagesDecodedOffThread": 285,
+            "pagesDecodedWasm": 0,
+            "pageDecodeMs": 16.79999989271164,
+            "coverageReady": true,
+            "coverageBudgetLimited": false,
+            "frustumRejected": 6858,
+            "lodLevel": 7,
+            "frameHeld": false,
+            "submittedTriangles": null,
+            "transparentMeshes": 0,
+            "transparentFrustumRejected": 0,
+            "transparentDrawCalls": 0,
+            "transparentSubmittedTriangles": 0,
+            "gpuSelectionFallback": false,
+            "textureUploaded": 0,
+            "texturePending": 0,
+            "textureSkipped": 0,
+            "textureResidentBytes": 6643826256,
+            "textureBudgetBytes": 6688572304,
+            "textureAtWantedLevel": 103,
+            "textureLayers": 127,
+            "textureMissingLevels": 0,
+            "textureEvictions": 0,
+            "streamingError": null,
+            "totalSubmittedTriangles": null,
+            "pagesRequested": 317,
+            "pagesLoading": 0,
+            "cacheHits": 0,
+            "cacheMisses": 317,
+            "pagesPlannedOffThread": 101,
+            "pagePlanMs": 1.0999999344348907
+          }
+        }
+      },
+      "temoinAA": { "pixels": 0, "maxCanal": 0, "total": 876096 },
+      "ecartAvantApres": { "pixels": 3036, "maxCanal": 35, "total": 876096 },
+      "coupeIdentique": true
+    },
+    {
+      "view": "sol",
+      "pixelError": 1,
+      "segment": "Déplacement au niveau de référence",
+      "index": 120,
+      "pose": {
+        "position": [11.456794804279731, 2.4, 18.388430273467023],
+        "target": [-0.04997214540716044, 4, -0.025006399620522757],
+        "fov": 55,
+        "near": 0.01722998745084001,
+        "far": 3445.997490168002
+      },
+      "sides": {
+        "apres": {
+          "cpuFrameMs": {
+            "mean": 0.47666666507720945,
+            "p50": 0.4000000059604645,
+            "p95": 0.6000000238418579,
+            "p99": 1.699999988079071,
+            "max": 1.699999988079071
+          },
+          "cpuSelectMs": null,
+          "moteur": "webgpu-page-raster",
+          "gpuFrameMs": null,
+          "imageSyncMs": null,
+          "rafIntervalMs": null,
+          "profilParEtape": {
+            "version": 1,
+            "enabled": true,
+            "backend": "webgpu-page-raster",
+            "cpuFrames": 120,
+            "gpuSamples": 120,
+            "windowFrames": 120,
+            "gpuMethod": "timestamp-query",
+            "gpuReason": null,
+            "gpuImageMs": { "p50": 5.923409, "p95": 9.16286 },
+            "overheadMs": { "p50": 0, "p95": 0 },
+            "stages": [
+              {
+                "stage": "animations",
+                "label": "Animations et transformations",
+                "cpuMs": { "p50": 0.800000011920929, "p95": 1.399999976158142 },
+                "gpuMs": null
+              },
+              {
+                "stage": "lights",
+                "label": "Éclairage : préparation des listes et des ombres",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "cutAdoption",
+                "label": "Adoption de la coupe",
+                "cpuMs": { "p50": 0, "p95": 0.09999999403953552 },
+                "gpuMs": null
+              },
+              {
+                "stage": "selection",
+                "label": "Sélection et visibilité",
+                "cpuMs": { "p50": 0, "p95": 0.5999999940395355 },
+                "gpuMs": { "p50": 0.714531, "p95": 1.804599 },
+                "counts": { "grappesRejetees": 4406, "pagesVoulues": 8465, "grappesDuDag": 163316 }
+              },
+              {
+                "stage": "transparents",
+                "label": "Transparents",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "residency",
+                "label": "Admission et file de résidence",
+                "cpuMs": { "p50": 0.30000001192092896, "p95": 1 },
+                "gpuMs": null
+              },
+              {
+                "stage": "hostPages",
+                "label": "Listes de pages rendues à l’hôte",
+                "cpuMs": { "p50": 0.10000002384185791, "p95": 0.4000000059604645 },
+                "gpuMs": null
+              },
+              {
+                "stage": "uploads",
+                "label": "Téléversements",
+                "cpuMs": { "p50": 0.09999999403953552, "p95": 2.199999988079071 },
+                "gpuMs": null
+              },
+              {
+                "stage": "textures",
+                "label": "Textures : ordre et transferts vers les atlas",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "file vide : aucun ordre à calculer",
+                "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
+                "counts": {
+                  "couchesAuNiveauVoulu": 71,
+                  "couchesVisibles": 71,
+                  "niveauxManquants": 0,
+                  "octetsEngages": 6643826256,
+                  "evictions": 0
+                }
+              },
+              {
+                "stage": "partition",
+                "label": "Partition occulteurs / testés",
+                "cpuMs": { "p50": 0, "p95": 0.09999999403953552 },
+                "gpuMs": { "p50": 0.13504, "p95": 0.282705 },
+                "counts": {
+                  "lignes": 64509,
+                  "occulteurs": 64378,
+                  "testees": 43,
+                  "bornesToutes": 27996,
+                  "historiqueOcculteurs": 64378,
+                  "sansHistorique": 0,
+                  "imageRelevee": 201
+                }
+              },
+              {
+                "stage": "encode",
+                "label": "Encodage des passes",
+                "cpuMs": { "p50": 0.29999998211860657, "p95": 1.7000000178813934 },
+                "gpuMs": null,
+                "counts": {
+                  "lignesTeleversees": 0,
+                  "fichesTeleversees": 0,
+                  "appelsDeDessin": 18,
+                  "appelsDeMelange": 0,
+                  "lancementsDeCalcul": 0
+                }
+              },
+              {
+                "stage": "submit",
+                "label": "Soumission",
+                "cpuMs": { "p50": 0, "p95": 0.09999999403953552 },
+                "gpuMs": null
+              },
+              {
+                "stage": "hiZ",
+                "label": "Hi-Z (occultation)",
+                "cpuMs": null,
+                "gpuMs": { "p50": 0.112414, "p95": 0.18995499999999998 }
+              },
+              {
+                "stage": "geometry",
+                "label": "Géométrie",
+                "cpuMs": null,
+                "gpuMs": { "p50": 2.4259199999999996, "p95": 3.8213989999999995 }
+              },
+              {
+                "stage": "coplanar",
+                "label": "Couches coplanaires",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "décidées par la coupe, sans borne propre",
+                "gpuReason": "dessinées dans les passes de géométrie, sans passe propre"
+              },
+              {
+                "stage": "shadows",
+                "label": "Ombres",
+                "cpuMs": null,
+                "gpuMs": { "p50": 1.110859, "p95": 2.579669 },
+                "counts": {
+                  "lampesRedessinees": 1,
+                  "cartesReutilisees": 0,
+                  "facesRedessinees": 1,
+                  "appelsDeDessin": 2,
+                  "soleilsRedessines": 1,
+                  "cascadesRedessinees": 1,
+                  "regionsRedessinees": 1,
+                  "pagesInvalidees": 64,
+                  "pagesRedessinees": 64,
+                  "pagesEnAttente": 192,
+                  "retardMaxMs": 32.80000001192093,
+                  "retardMaxImages": 2
+                }
+              },
+              {
+                "stage": "sunFarShadows",
+                "label": "Ombres lointaines (soleil contre le proxy)",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
+                "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
+                "counts": {
+                  "trianglesDuProxy": 94648,
+                  "pixelsTestes": 0,
+                  "pixelsAssombris": 0,
+                  "imageRelevee": 201
+                }
+              },
+              {
+                "stage": "lightLists",
+                "label": "Listes de lampes",
+                "cpuMs": null,
+                "gpuMs": { "p50": 0.926361, "p95": 1.924679 },
+                "counts": { "lampesActives": 1 }
+              },
+              {
+                "stage": "bounce",
+                "label": "Rebond (sondes d'irradiance)",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
+                "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
+                "counts": {
+                  "sondesMisesAJour": 0,
+                  "rayonsParImage": 0,
+                  "sondesDesCascades": 0,
+                  "maillesMisesAJour": 0,
+                  "maillesDuCache": 0,
+                  "fractionDuBudget": 0
+                }
+              },
+              {
+                "stage": "lighting",
+                "label": "Éclairage (résolution)",
+                "cpuMs": null,
+                "gpuMs": { "p50": 2.014679, "p95": 3.39449 }
+              },
+              {
+                "stage": "antialiasing",
+                "label": "Antialiasing temporel",
+                "cpuMs": null,
+                "gpuMs": { "p50": 2.155133, "p95": 3.645778 }
+              },
+              {
+                "stage": "present",
+                "label": "Présentation",
+                "cpuMs": null,
+                "gpuMs": { "p50": 2.21605, "p95": 3.871774 }
+              }
+            ]
+          },
+          "passesGpu": {
+            "releves": 120,
+            "blocs": {
+              "visibilityMs": {
+                "mean": 2.396057141666667,
+                "p50": 2.2074249999999997,
+                "p95": 4.224437,
+                "p99": 4.985053000000001,
+                "max": 5.190254
+              },
+              "materialsMs": {
+                "mean": 1.17038595,
+                "p50": 1.069484,
+                "p95": 1.95122,
+                "p99": 2.169467,
+                "max": 2.301756
+              },
+              "otherMs": {
+                "mean": 9.223195949999996,
+                "p50": 8.703536,
+                "p95": 14.41207,
+                "p99": 18.705547,
+                "max": 21.990581
+              }
+            },
+            "passes": [
+              {
+                "name": "WG HDR composition + present",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 2.378835850000001,
+                  "p50": 2.179217,
+                  "p95": 3.871774,
+                  "p99": 5.151421,
+                  "max": 5.846994
+                }
+              },
+              {
+                "name": "WG temporal antialiasing",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 2.3241887999999995,
+                  "p50": 2.115593,
+                  "p95": 3.645778,
+                  "p99": 4.96209,
+                  "max": 5.909201
+                }
+              },
+              {
+                "name": "WG deferred lighting",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 2.1803410416666664,
+                  "p50": 2.012387,
+                  "p95": 3.39449,
+                  "p99": 4.261226,
+                  "max": 5.889578
+                }
+              },
+              {
+                "name": "WG visibility primary",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 1.2818369583333333,
+                  "p50": 1.136941,
+                  "p95": 2.057136,
+                  "p99": 3.293409,
+                  "max": 3.618737
+                }
+              },
+              {
+                "name": "WG material surfaces v1",
+                "bloc": "materials",
+                "gpuMs": {
+                  "mean": 1.17038595,
+                  "p50": 1.069484,
+                  "p95": 1.95122,
+                  "p99": 2.169467,
+                  "max": 2.301756
+                }
+              },
+              {
+                "name": "WG light tiles v1",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 1.043764625,
+                  "p50": 0.934153,
+                  "p95": 1.924679,
+                  "p99": 2.600752,
+                  "max": 3.621862
+                }
+              },
+              {
+                "name": "WG shadow atlas v1",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.9464518583333331,
+                  "p50": 0.85257,
+                  "p95": 1.96122,
+                  "p99": 2.430505,
+                  "max": 2.671292
+                }
+              },
+              {
+                "name": "WG draw compaction",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.5350710333333332,
+                  "p50": 0.495576,
+                  "p95": 0.984193,
+                  "p99": 1.516935,
+                  "max": 1.702849
+                }
+              },
+              {
+                "name": "WG partition",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.14298119166666673,
+                  "p50": 0.134248,
+                  "p95": 0.282705,
+                  "p99": 0.388827,
+                  "max": 0.446284
+                }
+              },
+              {
+                "name": "WG DAG selection",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.09849503888888886,
+                  "p50": 0.078416,
+                  "p95": 0.245287,
+                  "p99": 0.787988,
+                  "max": 1.38152
+                }
+              },
+              {
+                "name": "WG HiZ pyramid",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.08736494166666665,
+                  "p50": 0.076289,
+                  "p95": 0.120373,
+                  "p99": 0.167081,
+                  "max": 0.639407
+                }
+              },
+              {
+                "name": "WG HiZ test",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.04513299166666665,
+                  "p50": 0.037208,
+                  "p95": 0.071082,
+                  "p99": 0.095207,
+                  "max": 0.105832
+                }
+              },
+              {
+                "name": "WG shadow cull",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.3319533083333332,
+                  "p50": 0.023167,
+                  "p95": 1.455769,
+                  "p99": 1.655392,
+                  "max": 2.247799
+                }
+              },
+              {
+                "name": "WG rest truncation",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.017660466666666673,
+                  "p50": 0.015874,
+                  "p95": 0.028832,
+                  "p99": 0.041833,
+                  "max": 0.043874
+                }
+              },
+              {
+                "name": "WG visibility secondary",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.008184908333333336,
+                  "p50": 0.005542,
+                  "p95": 0.010458,
+                  "p99": 0.015333,
+                  "max": 0.235372
+                }
+              }
+            ]
+          },
+          "preparationMs": 1154.800000011921,
+          "reseau": {
+            "json": 400642,
+            "bin": 242374264,
+            "wasm": 44509,
+            "gltf": 594952,
+            "js": 2111602
+          },
+          "variante": null,
+          "erreur": "certifiee",
+          "selectedTriangles": 1033809,
+          "uncoveredTriangles": 0,
+          "drawnTriangles": 1033809,
+          "submittedTriangles": null,
+          "totalSubmittedTriangles": null,
+          "imageDuReleve": 59,
+          "imageTenue": false,
+          "repliSelectionGpu": false,
+          "hiZ": {
+            "tested": 43,
+            "rejected": 43,
+            "beyond16Texels": 31,
+            "testedTriangles": 4929,
+            "rejectedTriangles": 4929,
+            "beyond16TexelsTriangles": 3516,
+            "image": 201
+          },
+          "selection": {
+            "source": "selectedPageIds",
+            "sha256": "c38ddce01a36f3a2cf7ecf0c61a50f2016b20f55cbdcdc7be213d420a76ab6b7",
+            "taille": 8680
+          },
+          "geometrieOctets": 242888964,
+          "budgetPages": {
+            "demande": 100000,
+            "residentes": 5988,
+            "couvertureLimiteeParBudget": false
+          },
+          "cheminCalcul": {
+            "contract": 1,
+            "mode": "auto",
+            "wasmAvailable": true,
+            "wasmSimd": true,
+            "clockResolutionMs": null,
+            "clockCoarse": true,
+            "unavailableReason": null,
+            "operations": {
+              "boxTransformBatch": {
+                "path": "js",
+                "jsNsPerElement": 564.7438507303204,
+                "wasmNsPerElement": null,
+                "jsSamples": 2,
+                "wasmSamples": 0,
+                "switches": 0,
+                "elements": 4958
+              }
+            }
+          },
+          "lampes": {
+            "nombre": 1,
+            "ponctuelles": 0,
+            "soleil": true,
+            "ombres": true,
+            "maille": 0,
+            "intensite": 40,
+            "mobile": false
+          },
+          "lampesFichier": { "nombre": 0, "ids": [] },
+          "lampesTemoin": null,
+          "atlasOmbres": null,
+          "objetMobile": null,
+          "charge": {
+            "debut": [5.021484375, 6.06298828125, 6.26416015625],
+            "fin": [4.72509765625, 5.9453125, 6.21826171875]
+          },
+          "captureStatus": 200,
+          "incidentsGpu": null,
+          "canvas": { "width": 1248, "height": 702 },
+          "metrics": {
+            "rafIntervalMs": null,
+            "cpuFrameMs": 2.0999999940395355,
+            "cpuSelectMs": null,
+            "cpuSelectNodesTested": null,
+            "cpuSubmitMs": 0.20000001788139343,
+            "gpuMs": null,
+            "drawCalls": 18,
+            "triangles": null,
+            "clusters": null,
+            "selectedTriangles": 1033809,
+            "residentPages": 5988,
+            "geometryAllocationBytes": 242888964,
+            "vramBytes": null,
+            "pageLoads": 176,
+            "pageBytesRead": 12749616,
+            "pagesDetached": null,
+            "cacheEvictions": 0,
+            "hizCountedFrame": 201,
+            "hizTestedClusters": 43,
+            "hizRejectedClusters": 43,
+            "hizOversizedClusters": 31,
+            "hizTestedTriangles": 4929,
+            "hizRejectedTriangles": 4929,
+            "hizOversizedTriangles": 3516,
+            "gpuFrameMs": 5.981701,
+            "gpuHostGapMs": 0,
+            "uncoveredTriangles": 0,
+            "drawnTriangles": 1033809,
+            "lightsActive": 1,
+            "shadowsUpdated": 1,
+            "shadowFacesDrawn": 1,
+            "shadowDrawCalls": 2,
+            "shadowPagesDrawn": 64,
+            "shadowPagesPending": 192,
+            "shadowWaitMs": 32.80000001192093,
+            "gpuLightListsMs": 0.917986,
+            "gpuShadowsMs": 1.163939,
+            "gpuLightingMs": 2.091218,
+            "textureInFlight": 0,
+            "textureSlicesUploaded": 3932,
+            "textureBytesLastFrame": 8388608,
+            "textureLevelsUploaded": 3747,
+            "textureAtlasBytesCalculated": 6688572304,
+            "textureAtlasClassesUsed": 2,
+            "pagesDecodedOffThread": 172,
+            "pagesDecodedWasm": 0,
+            "pageDecodeMs": 9.400000035762787,
+            "coverageReady": true,
+            "coverageBudgetLimited": false,
+            "frustumRejected": 4406,
+            "lodLevel": 6,
+            "frameHeld": false,
+            "submittedTriangles": null,
+            "transparentMeshes": 0,
+            "transparentFrustumRejected": 0,
+            "transparentDrawCalls": 0,
+            "transparentSubmittedTriangles": 0,
+            "gpuSelectionFallback": false,
+            "textureUploaded": 0,
+            "texturePending": 0,
+            "textureSkipped": 0,
+            "textureResidentBytes": 6643826256,
+            "textureBudgetBytes": 6688572304,
+            "textureAtWantedLevel": 71,
+            "textureLayers": 127,
+            "textureMissingLevels": 0,
+            "textureEvictions": 0,
+            "streamingError": null,
+            "totalSubmittedTriangles": null,
+            "pagesRequested": 204,
+            "pagesLoading": 0,
+            "cacheHits": 0,
+            "cacheMisses": 204,
+            "pagesPlannedOffThread": 24,
+            "pagePlanMs": 1.5
+          }
+        },
+        "avant": {
+          "cpuFrameMs": {
+            "mean": 0.48499999940395355,
+            "p50": 0.4000000059604645,
+            "p95": 0.7000000178813934,
+            "p99": 1.7999999821186066,
+            "max": 1.7999999821186066
+          },
+          "cpuSelectMs": null,
+          "moteur": "webgpu-page-raster",
+          "gpuFrameMs": null,
+          "imageSyncMs": null,
+          "rafIntervalMs": null,
+          "profilParEtape": {
+            "version": 1,
+            "enabled": true,
+            "backend": "webgpu-page-raster",
+            "cpuFrames": 120,
+            "gpuSamples": 120,
+            "windowFrames": 120,
+            "gpuMethod": "timestamp-query",
+            "gpuReason": null,
+            "gpuImageMs": { "p50": 25.168366, "p95": 36.665148 },
+            "overheadMs": { "p50": 0, "p95": 0 },
+            "stages": [
+              {
+                "stage": "animations",
+                "label": "Animations et transformations",
+                "cpuMs": { "p50": 0.9000000059604645, "p95": 1.5999999940395355 },
+                "gpuMs": null
+              },
+              {
+                "stage": "lights",
+                "label": "Éclairage : préparation des listes et des ombres",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "cutAdoption",
+                "label": "Adoption de la coupe",
+                "cpuMs": { "p50": 0, "p95": 0.09999999403953552 },
+                "gpuMs": null
+              },
+              {
+                "stage": "selection",
+                "label": "Sélection et visibilité",
+                "cpuMs": { "p50": 0, "p95": 0.5 },
+                "gpuMs": { "p50": 0.72499, "p95": 0.858903 },
+                "counts": { "grappesRejetees": 4406, "pagesVoulues": 8465, "grappesDuDag": 163316 }
+              },
+              {
+                "stage": "transparents",
+                "label": "Transparents",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "residency",
+                "label": "Admission et file de résidence",
+                "cpuMs": { "p50": 0.30000001192092896, "p95": 0.9999999701976776 },
+                "gpuMs": null
+              },
+              {
+                "stage": "hostPages",
+                "label": "Listes de pages rendues à l’hôte",
+                "cpuMs": { "p50": 0.10000002384185791, "p95": 0.5 },
+                "gpuMs": null
+              },
+              {
+                "stage": "uploads",
+                "label": "Téléversements",
+                "cpuMs": { "p50": 0.09999999403953552, "p95": 2.5 },
+                "gpuMs": null
+              },
+              {
+                "stage": "textures",
+                "label": "Textures : ordre et transferts vers les atlas",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "file vide : aucun ordre à calculer",
+                "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
+                "counts": {
+                  "couchesAuNiveauVoulu": 71,
+                  "couchesVisibles": 71,
+                  "niveauxManquants": 0,
+                  "octetsEngages": 6643826256,
+                  "evictions": 0
+                }
+              },
+              {
+                "stage": "partition",
+                "label": "Partition occulteurs / testés",
+                "cpuMs": { "p50": 0, "p95": 0.09999999403953552 },
+                "gpuMs": { "p50": 0.133748, "p95": 0.181247 },
+                "counts": {
+                  "lignes": 64509,
+                  "occulteurs": 64377,
+                  "testees": 44,
+                  "bornesToutes": 27996,
+                  "historiqueOcculteurs": 64377,
+                  "sansHistorique": 0,
+                  "imageRelevee": 203
+                }
+              },
+              {
+                "stage": "encode",
+                "label": "Encodage des passes",
+                "cpuMs": { "p50": 0.29999998211860657, "p95": 1.800000011920929 },
+                "gpuMs": null,
+                "counts": {
+                  "lignesTeleversees": 0,
+                  "fichesTeleversees": 0,
+                  "appelsDeDessin": 8,
+                  "appelsDeMelange": 0,
+                  "lancementsDeCalcul": 15
+                }
+              },
+              {
+                "stage": "submit",
+                "label": "Soumission",
+                "cpuMs": { "p50": 0, "p95": 0.09999999403953552 },
+                "gpuMs": null
+              },
+              {
+                "stage": "hiZ",
+                "label": "Hi-Z (occultation)",
+                "cpuMs": null,
+                "gpuMs": { "p50": 0.102581, "p95": 0.110666 }
+              },
+              {
+                "stage": "geometry",
+                "label": "Géométrie",
+                "cpuMs": null,
+                "gpuMs": { "p50": 78.078723, "p95": 115.62956899999999 }
+              },
+              {
+                "stage": "coplanar",
+                "label": "Couches coplanaires",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "décidées par la coupe, sans borne propre",
+                "gpuReason": "dessinées dans les passes de géométrie, sans passe propre"
+              },
+              {
+                "stage": "shadows",
+                "label": "Ombres",
+                "cpuMs": null,
+                "gpuMs": { "p50": 1.150566, "p95": 1.627684 },
+                "counts": {
+                  "lampesRedessinees": 1,
+                  "cartesReutilisees": 0,
+                  "facesRedessinees": 1,
+                  "appelsDeDessin": 2,
+                  "soleilsRedessines": 1,
+                  "cascadesRedessinees": 1,
+                  "regionsRedessinees": 1,
+                  "pagesInvalidees": 64,
+                  "pagesRedessinees": 64,
+                  "pagesEnAttente": 192,
+                  "retardMaxMs": 99.40000000596046,
+                  "retardMaxImages": 2
+                }
+              },
+              {
+                "stage": "sunFarShadows",
+                "label": "Ombres lointaines (soleil contre le proxy)",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
+                "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
+                "counts": {
+                  "trianglesDuProxy": 94648,
+                  "pixelsTestes": 0,
+                  "pixelsAssombris": 0,
+                  "imageRelevee": 203
+                }
+              },
+              {
+                "stage": "lightLists",
+                "label": "Listes de lampes",
+                "cpuMs": null,
+                "gpuMs": { "p50": 0.83428, "p95": 1.378979 },
+                "counts": { "lampesActives": 1 }
+              },
+              {
+                "stage": "bounce",
+                "label": "Rebond (sondes d'irradiance)",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
+                "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
+                "counts": {
+                  "sondesMisesAJour": 0,
+                  "rayonsParImage": 0,
+                  "sondesDesCascades": 0,
+                  "maillesMisesAJour": 0,
+                  "maillesDuCache": 0,
+                  "fractionDuBudget": 0
+                }
+              },
+              {
+                "stage": "lighting",
+                "label": "Éclairage (résolution)",
+                "cpuMs": null,
+                "gpuMs": { "p50": 1.948095, "p95": 2.916123 }
+              },
+              {
+                "stage": "antialiasing",
+                "label": "Antialiasing temporel",
+                "cpuMs": null,
+                "gpuMs": { "p50": 2.006928, "p95": 3.034121 }
+              },
+              {
+                "stage": "present",
+                "label": "Présentation",
+                "cpuMs": null,
+                "gpuMs": { "p50": 2.004969, "p95": 3.154661 }
+              }
+            ]
+          },
+          "passesGpu": {
+            "releves": 120,
+            "blocs": {
+              "visibilityMs": {
+                "mean": 0.9084793666666667,
+                "p50": 0.967819,
+                "p95": 1.1196090000000003,
+                "p99": 1.4873520000000002,
+                "max": 2.258298
+              },
+              "materialsMs": {
+                "mean": 24.281865541666658,
+                "p50": 23.235895,
+                "p95": 33.915733,
+                "p99": 36.350028,
+                "max": 39.175235
+              },
+              "otherMs": {
+                "mean": 65.55670267500001,
+                "p50": 61.835726,
+                "p95": 88.53889899999999,
+                "p99": 97.48684599999999,
+                "max": 104.08907600000002
+              }
+            },
+            "passes": [
+              {
+                "name": "WG material surfaces v1",
+                "bloc": "materials",
+                "gpuMs": {
+                  "mean": 24.281865541666658,
+                  "p50": 23.235895,
+                  "p95": 33.915733,
+                  "p99": 36.350028,
+                  "max": 39.175235
+                }
+              },
+              {
+                "name": "WG raster resolve",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 23.456489958333325,
+                  "p50": 22.403158,
+                  "p95": 33.080995,
+                  "p99": 35.429584,
+                  "max": 38.341165
+                }
+              },
+              {
+                "name": "WG raster occluder hiz",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 10.704202000000002,
+                  "p50": 10.232761,
+                  "p95": 15.481264,
+                  "p99": 16.393542,
+                  "max": 17.580648
+                }
+              },
+              {
+                "name": "WG raster identifiers",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 10.4566769,
+                  "p50": 9.983348,
+                  "p95": 14.619735,
+                  "p99": 16.656079,
+                  "max": 17.578065
+                }
+              },
+              {
+                "name": "WG raster occluder depth",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 10.007605941666663,
+                  "p50": 9.540771,
+                  "p95": 14.355906,
+                  "p99": 15.594387,
+                  "max": 17.011823
+                }
+              },
+              {
+                "name": "WG raster tested depth",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 2.2273621666666665,
+                  "p50": 2.080719,
+                  "p95": 3.543238,
+                  "p99": 3.780151,
+                  "max": 3.851358
+                }
+              },
+              {
+                "name": "WG temporal antialiasing",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 2.1049872916666676,
+                  "p50": 2.006928,
+                  "p95": 3.034121,
+                  "p99": 3.657569,
+                  "max": 3.885274
+                }
+              },
+              {
+                "name": "WG HDR composition + present",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 2.1112028916666667,
+                  "p50": 2.004969,
+                  "p95": 3.154661,
+                  "p99": 3.674736,
+                  "max": 3.873857
+                }
+              },
+              {
+                "name": "WG deferred lighting",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 2.018176466666667,
+                  "p50": 1.948095,
+                  "p95": 2.90729,
+                  "p99": 3.454113,
+                  "max": 3.571904
+                }
+              },
+              {
+                "name": "WG shadow atlas v1",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 1.1108989916666667,
+                  "p50": 1.108649,
+                  "p95": 1.610476,
+                  "p99": 1.718516,
+                  "max": 2.155259
+                }
+              },
+              {
+                "name": "WG light tiles v1",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.8196520083333335,
+                  "p50": 0.82453,
+                  "p95": 1.378979,
+                  "p99": 1.627975,
+                  "max": 2.007303
+                }
+              },
+              {
+                "name": "WG draw compaction",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.4815915749999999,
+                  "p50": 0.563117,
+                  "p95": 0.651906,
+                  "p99": 0.798696,
+                  "max": 1.039526
+                }
+              },
+              {
+                "name": "WG raster binning",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.46589012499999993,
+                  "p50": 0.5242,
+                  "p95": 0.605699,
+                  "p99": 1.367313,
+                  "max": 1.402061
+                }
+              },
+              {
+                "name": "WG partition",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.12970992500000006,
+                  "p50": 0.133457,
+                  "p95": 0.181247,
+                  "p99": 0.186289,
+                  "max": 0.187832
+                }
+              },
+              {
+                "name": "WG HiZ pyramid",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.07189089999999997,
+                  "p50": 0.07079,
+                  "p95": 0.078624,
+                  "p99": 0.128623,
+                  "max": 0.186122
+                }
+              },
+              {
+                "name": "WG DAG selection",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.06423402499999997,
+                  "p50": 0.068499,
+                  "p95": 0.089914,
+                  "p99": 0.248288,
+                  "max": 0.885403
+                }
+              },
+              {
+                "name": "WG HiZ test",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.032584891666666664,
+                  "p50": 0.031875,
+                  "p95": 0.03625,
+                  "p99": 0.048666,
+                  "max": 0.050791
+                }
+              },
+              {
+                "name": "WG rest truncation",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.04796737499999997,
+                  "p50": 0.025125,
+                  "p95": 0.210664,
+                  "p99": 0.282455,
+                  "max": 0.417035
+                }
+              },
+              {
+                "name": "WG shadow cull",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.025590558333333326,
+                  "p50": 0.014833,
+                  "p95": 0.079999,
+                  "p99": 0.188247,
+                  "max": 0.314078
+                }
+              }
+            ]
+          },
+          "preparationMs": 1133.9000000059605,
+          "reseau": {
+            "json": 400642,
+            "bin": 242374264,
+            "wasm": 44509,
+            "gltf": 594952,
+            "js": 2111602
+          },
+          "variante": "raster-calcul",
+          "erreur": "certifiee",
+          "selectedTriangles": 1033809,
+          "uncoveredTriangles": 0,
+          "drawnTriangles": 1033809,
+          "submittedTriangles": null,
+          "totalSubmittedTriangles": null,
+          "imageDuReleve": 59,
+          "imageTenue": false,
+          "repliSelectionGpu": false,
+          "hiZ": {
+            "tested": 44,
+            "rejected": 44,
+            "beyond16Texels": 32,
+            "testedTriangles": 5057,
+            "rejectedTriangles": 5057,
+            "beyond16TexelsTriangles": 3644,
+            "image": 203
+          },
+          "selection": {
+            "source": "selectedPageIds",
+            "sha256": "c38ddce01a36f3a2cf7ecf0c61a50f2016b20f55cbdcdc7be213d420a76ab6b7",
+            "taille": 8680
+          },
+          "geometrieOctets": 242888964,
+          "budgetPages": {
+            "demande": 100000,
+            "residentes": 5988,
+            "couvertureLimiteeParBudget": false
+          },
+          "cheminCalcul": {
+            "contract": 1,
+            "mode": "auto",
+            "wasmAvailable": true,
+            "wasmSimd": true,
+            "clockResolutionMs": null,
+            "clockCoarse": true,
+            "unavailableReason": null,
+            "operations": {
+              "boxTransformBatch": {
+                "path": "js",
+                "jsNsPerElement": 605.082688623977,
+                "wasmNsPerElement": null,
+                "jsSamples": 2,
+                "wasmSamples": 0,
+                "switches": 0,
+                "elements": 4958
+              }
+            }
+          },
+          "lampes": {
+            "nombre": 1,
+            "ponctuelles": 0,
+            "soleil": true,
+            "ombres": true,
+            "maille": 0,
+            "intensite": 40,
+            "mobile": false
+          },
+          "lampesFichier": { "nombre": 0, "ids": [] },
+          "lampesTemoin": null,
+          "atlasOmbres": null,
+          "objetMobile": null,
+          "charge": {
+            "debut": [4.72509765625, 5.9453125, 6.21826171875],
+            "fin": [4.95166015625, 5.94482421875, 6.2138671875]
+          },
+          "captureStatus": 200,
+          "incidentsGpu": null,
+          "canvas": { "width": 1248, "height": 702 },
+          "metrics": {
+            "rafIntervalMs": null,
+            "cpuFrameMs": 1.300000011920929,
+            "cpuSelectMs": null,
+            "cpuSelectNodesTested": null,
+            "cpuSubmitMs": 0.09999999403953552,
+            "gpuMs": null,
+            "drawCalls": 8,
+            "triangles": null,
+            "clusters": null,
+            "selectedTriangles": 1033809,
+            "residentPages": 5988,
+            "geometryAllocationBytes": 242888964,
+            "vramBytes": null,
+            "pageLoads": 176,
+            "pageBytesRead": 12749616,
+            "pagesDetached": null,
+            "cacheEvictions": 0,
+            "hizCountedFrame": 203,
+            "hizTestedClusters": 44,
+            "hizRejectedClusters": 44,
+            "hizOversizedClusters": 32,
+            "hizTestedTriangles": 5057,
+            "hizRejectedTriangles": 5057,
+            "hizOversizedTriangles": 3644,
+            "gpuFrameMs": 37.412262,
+            "gpuHostGapMs": 0,
+            "uncoveredTriangles": 0,
+            "drawnTriangles": 1033809,
+            "lightsActive": 1,
+            "shadowsUpdated": 1,
+            "shadowFacesDrawn": 1,
+            "shadowDrawCalls": 2,
+            "shadowPagesDrawn": 64,
+            "shadowPagesPending": 192,
+            "shadowWaitMs": 99.40000000596046,
+            "gpuLightListsMs": 0.920028,
+            "gpuShadowsMs": 1.674641,
+            "gpuLightingMs": 2.04901,
+            "textureInFlight": 0,
+            "textureSlicesUploaded": 3940,
+            "textureBytesLastFrame": 16777216,
+            "textureLevelsUploaded": 3747,
+            "textureAtlasBytesCalculated": 6688572304,
+            "textureAtlasClassesUsed": 2,
+            "pagesDecodedOffThread": 172,
+            "pagesDecodedWasm": 0,
+            "pageDecodeMs": 9.600000023841858,
+            "coverageReady": true,
+            "coverageBudgetLimited": false,
+            "frustumRejected": 4406,
+            "lodLevel": 6,
+            "frameHeld": false,
+            "submittedTriangles": null,
+            "transparentMeshes": 0,
+            "transparentFrustumRejected": 0,
+            "transparentDrawCalls": 0,
+            "transparentSubmittedTriangles": 0,
+            "gpuSelectionFallback": false,
+            "textureUploaded": 0,
+            "texturePending": 0,
+            "textureSkipped": 0,
+            "textureResidentBytes": 6643826256,
+            "textureBudgetBytes": 6688572304,
+            "textureAtWantedLevel": 71,
+            "textureLayers": 127,
+            "textureMissingLevels": 0,
+            "textureEvictions": 0,
+            "streamingError": null,
+            "totalSubmittedTriangles": null,
+            "pagesRequested": 204,
+            "pagesLoading": 0,
+            "cacheHits": 0,
+            "cacheMisses": 204,
+            "pagesPlannedOffThread": 24,
+            "pagePlanMs": 1.600000023841858
+          }
+        },
+        "apres-aa": {
+          "cpuFrameMs": {
+            "mean": 0.5099999994039536,
+            "p50": 0.5,
+            "p95": 0.8999999761581421,
+            "p99": 1.5999999940395355,
+            "max": 1.5999999940395355
+          },
+          "cpuSelectMs": null,
+          "moteur": "webgpu-page-raster",
+          "gpuFrameMs": null,
+          "imageSyncMs": null,
+          "rafIntervalMs": null,
+          "profilParEtape": {
+            "version": 1,
+            "enabled": true,
+            "backend": "webgpu-page-raster",
+            "cpuFrames": 120,
+            "gpuSamples": 120,
+            "windowFrames": 120,
+            "gpuMethod": "timestamp-query",
+            "gpuReason": null,
+            "gpuImageMs": { "p50": 5.15413, "p95": 8.65291 },
+            "overheadMs": { "p50": 0, "p95": 0.09999999403953552 },
+            "stages": [
+              {
+                "stage": "animations",
+                "label": "Animations et transformations",
+                "cpuMs": { "p50": 0.8999999761581421, "p95": 1.300000011920929 },
+                "gpuMs": null
+              },
+              {
+                "stage": "lights",
+                "label": "Éclairage : préparation des listes et des ombres",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "cutAdoption",
+                "label": "Adoption de la coupe",
+                "cpuMs": { "p50": 0, "p95": 0.09999999403953552 },
+                "gpuMs": null
+              },
+              {
+                "stage": "selection",
+                "label": "Sélection et visibilité",
+                "cpuMs": { "p50": 0, "p95": 0.7000000178813934 },
+                "gpuMs": { "p50": 0.670696, "p95": 1.304064 },
+                "counts": { "grappesRejetees": 4406, "pagesVoulues": 8465, "grappesDuDag": 163316 }
+              },
+              {
+                "stage": "transparents",
+                "label": "Transparents",
+                "cpuMs": { "p50": 0, "p95": 0 },
+                "gpuMs": null
+              },
+              {
+                "stage": "residency",
+                "label": "Admission et file de résidence",
+                "cpuMs": { "p50": 0.29999998211860657, "p95": 1.0999999940395355 },
+                "gpuMs": null
+              },
+              {
+                "stage": "hostPages",
+                "label": "Listes de pages rendues à l’hôte",
+                "cpuMs": { "p50": 0.10000002384185791, "p95": 0.3999999761581421 },
+                "gpuMs": null
+              },
+              {
+                "stage": "uploads",
+                "label": "Téléversements",
+                "cpuMs": { "p50": 0, "p95": 2.300000011920929 },
+                "gpuMs": null
+              },
+              {
+                "stage": "textures",
+                "label": "Textures : ordre et transferts vers les atlas",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "file vide : aucun ordre à calculer",
+                "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
+                "counts": {
+                  "couchesAuNiveauVoulu": 71,
+                  "couchesVisibles": 71,
+                  "niveauxManquants": 0,
+                  "octetsEngages": 6643826256,
+                  "evictions": 0
+                }
+              },
+              {
+                "stage": "partition",
+                "label": "Partition occulteurs / testés",
+                "cpuMs": { "p50": 0, "p95": 0.09999999403953552 },
+                "gpuMs": { "p50": 0.129914, "p95": 0.269162 },
+                "counts": {
+                  "lignes": 64509,
+                  "occulteurs": 64378,
+                  "testees": 43,
+                  "bornesToutes": 27996,
+                  "historiqueOcculteurs": 64378,
+                  "sansHistorique": 0,
+                  "imageRelevee": 199
+                }
+              },
+              {
+                "stage": "encode",
+                "label": "Encodage des passes",
+                "cpuMs": { "p50": 0.20000001788139343, "p95": 1.5 },
+                "gpuMs": null,
+                "counts": {
+                  "lignesTeleversees": 0,
+                  "fichesTeleversees": 0,
+                  "appelsDeDessin": 18,
+                  "appelsDeMelange": 0,
+                  "lancementsDeCalcul": 0
+                }
+              },
+              {
+                "stage": "submit",
+                "label": "Soumission",
+                "cpuMs": { "p50": 0.20000001788139343, "p95": 0.30000001192092896 },
+                "gpuMs": null
+              },
+              {
+                "stage": "hiZ",
+                "label": "Hi-Z (occultation)",
+                "cpuMs": null,
+                "gpuMs": { "p50": 0.109832, "p95": 0.180871 }
+              },
+              {
+                "stage": "geometry",
+                "label": "Géométrie",
+                "cpuMs": null,
+                "gpuMs": { "p50": 2.133633, "p95": 3.596196 }
+              },
+              {
+                "stage": "coplanar",
+                "label": "Couches coplanaires",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "décidées par la coupe, sans borne propre",
+                "gpuReason": "dessinées dans les passes de géométrie, sans passe propre"
+              },
+              {
+                "stage": "shadows",
+                "label": "Ombres",
+                "cpuMs": null,
+                "gpuMs": { "p50": 1.052859, "p95": 2.199175 },
+                "counts": {
+                  "lampesRedessinees": 1,
+                  "cartesReutilisees": 0,
+                  "facesRedessinees": 1,
+                  "appelsDeDessin": 2,
+                  "soleilsRedessines": 1,
+                  "cascadesRedessinees": 1,
+                  "regionsRedessinees": 1,
+                  "pagesInvalidees": 64,
+                  "pagesRedessinees": 64,
+                  "pagesEnAttente": 192,
+                  "retardMaxMs": 32.599999994039536,
+                  "retardMaxImages": 2
+                }
+              },
+              {
+                "stage": "sunFarShadows",
+                "label": "Ombres lointaines (soleil contre le proxy)",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
+                "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
+                "counts": {
+                  "trianglesDuProxy": 94648,
+                  "pixelsTestes": 0,
+                  "pixelsAssombris": 0,
+                  "imageRelevee": 199
+                }
+              },
+              {
+                "stage": "lightLists",
+                "label": "Listes de lampes",
+                "cpuMs": null,
+                "gpuMs": { "p50": 0.897236, "p95": 1.811305 },
+                "counts": { "lampesActives": 1 }
+              },
+              {
+                "stage": "bounce",
+                "label": "Rebond (sondes d'irradiance)",
+                "cpuMs": null,
+                "gpuMs": null,
+                "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
+                "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
+                "counts": {
+                  "sondesMisesAJour": 0,
+                  "rayonsParImage": 0,
+                  "sondesDesCascades": 0,
+                  "maillesMisesAJour": 0,
+                  "maillesDuCache": 0,
+                  "fractionDuBudget": 0
+                }
+              },
+              {
+                "stage": "lighting",
+                "label": "Éclairage (résolution)",
+                "cpuMs": null,
+                "gpuMs": { "p50": 1.885055, "p95": 3.12441 }
+              },
+              {
+                "stage": "antialiasing",
+                "label": "Antialiasing temporel",
+                "cpuMs": null,
+                "gpuMs": { "p50": 2.02222, "p95": 3.8414 }
+              },
+              {
+                "stage": "present",
+                "label": "Présentation",
+                "cpuMs": null,
+                "gpuMs": { "p50": 2.043678, "p95": 4.104105 }
+              }
+            ]
+          },
+          "passesGpu": {
+            "releves": 120,
+            "blocs": {
+              "visibilityMs": {
+                "mean": 2.2252894583333336,
+                "p50": 1.971844,
+                "p95": 3.797236,
+                "p99": 5.804289,
+                "max": 6.062073999999999
+              },
+              "materialsMs": {
+                "mean": 1.0745016666666667,
+                "p50": 0.97511,
+                "p95": 1.802139,
+                "p99": 2.016636,
+                "max": 3.346032
+              },
+              "otherMs": {
+                "mean": 8.74030038333333,
+                "p50": 7.990919,
+                "p95": 14.211200000000002,
+                "p99": 17.328026,
+                "max": 18.09489
+              }
+            },
+            "passes": [
+              {
+                "name": "WG HDR composition + present",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 2.303530441666667,
+                  "p50": 2.027802,
+                  "p95": 4.104105,
+                  "p99": 4.675721,
+                  "max": 4.898593
+                }
+              },
+              {
+                "name": "WG temporal antialiasing",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 2.2304434916666662,
+                  "p50": 2.014302,
+                  "p95": 3.8414,
+                  "p99": 4.624179,
+                  "max": 4.752262
+                }
+              },
+              {
+                "name": "WG deferred lighting",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 2.0626675000000008,
+                  "p50": 1.864138,
+                  "p95": 3.12441,
+                  "p99": 4.308851,
+                  "max": 4.510056
+                }
+              },
+              {
+                "name": "WG visibility primary",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 1.1993043416666669,
+                  "p50": 1.080149,
+                  "p95": 1.860597,
+                  "p99": 2.902331,
+                  "max": 4.270685
+                }
+              },
+              {
+                "name": "WG material surfaces v1",
+                "bloc": "materials",
+                "gpuMs": {
+                  "mean": 1.0745016666666667,
+                  "p50": 0.97511,
+                  "p95": 1.802139,
+                  "p99": 2.016636,
+                  "max": 3.346032
+                }
+              },
+              {
+                "name": "WG light tiles v1",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.9841686999999999,
+                  "p50": 0.887528,
+                  "p95": 1.811305,
+                  "p99": 2.218883,
+                  "max": 2.25909
+                }
+              },
+              {
+                "name": "WG shadow atlas v1",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.8434197833333333,
+                  "p50": 0.759656,
+                  "p95": 1.78168,
+                  "p99": 2.155884,
+                  "max": 2.404881
+                }
+              },
+              {
+                "name": "WG draw compaction",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.4813548666666666,
+                  "p50": 0.485367,
+                  "p95": 0.958943,
+                  "p99": 1.16769,
+                  "max": 1.271606
+                }
+              },
+              {
+                "name": "WG partition",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.1374475333333334,
+                  "p50": 0.129414,
+                  "p95": 0.269162,
+                  "p99": 0.454243,
+                  "max": 0.586449
+                }
+              },
+              {
+                "name": "WG HiZ pyramid",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.09209099999999995,
+                  "p50": 0.075999,
+                  "p95": 0.110499,
+                  "p99": 0.224914,
+                  "max": 1.518768
+                }
+              },
+              {
+                "name": "WG DAG selection",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.08018371666666665,
+                  "p50": 0.073915,
+                  "p95": 0.143039,
+                  "p99": 0.299412,
+                  "max": 1.58435
+                }
+              },
+              {
+                "name": "WG HiZ test",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.04204207499999999,
+                  "p50": 0.036041,
+                  "p95": 0.069874,
+                  "p99": 0.107331,
+                  "max": 0.127206
+                }
+              },
+              {
+                "name": "WG shadow cull",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.3003273083333334,
+                  "p50": 0.025666,
+                  "p95": 1.079691,
+                  "p99": 1.297563,
+                  "max": 1.543559
+                }
+              },
+              {
+                "name": "WG rest truncation",
+                "bloc": "other",
+                "gpuMs": {
+                  "mean": 0.01574315833333334,
+                  "p50": 0.015291,
+                  "p95": 0.0265,
+                  "p99": 0.029916,
+                  "max": 0.030917
+                }
+              },
+              {
+                "name": "WG visibility secondary",
+                "bloc": "visibility",
+                "gpuMs": {
+                  "mean": 0.032498491666666664,
+                  "p50": 0.005083,
+                  "p95": 0.009125,
+                  "p99": 1.014443,
+                  "max": 2.228466
+                }
+              }
+            ]
+          },
+          "preparationMs": 1154.2999999821186,
+          "reseau": {
+            "json": 400642,
+            "bin": 242374264,
+            "wasm": 44509,
+            "gltf": 594952,
+            "js": 2111602
+          },
+          "variante": null,
+          "erreur": "certifiee",
+          "selectedTriangles": 1033809,
+          "uncoveredTriangles": 0,
+          "drawnTriangles": 1033809,
+          "submittedTriangles": null,
+          "totalSubmittedTriangles": null,
+          "imageDuReleve": 59,
+          "imageTenue": false,
+          "repliSelectionGpu": false,
+          "hiZ": {
+            "tested": 43,
+            "rejected": 43,
+            "beyond16Texels": 31,
+            "testedTriangles": 4929,
+            "rejectedTriangles": 4929,
+            "beyond16TexelsTriangles": 3516,
+            "image": 199
+          },
+          "selection": {
+            "source": "selectedPageIds",
+            "sha256": "c38ddce01a36f3a2cf7ecf0c61a50f2016b20f55cbdcdc7be213d420a76ab6b7",
+            "taille": 8680
+          },
+          "geometrieOctets": 242888964,
+          "budgetPages": {
+            "demande": 100000,
+            "residentes": 5988,
+            "couvertureLimiteeParBudget": false
+          },
+          "cheminCalcul": {
+            "contract": 1,
+            "mode": "auto",
+            "wasmAvailable": true,
+            "wasmSimd": true,
+            "clockResolutionMs": null,
+            "clockCoarse": true,
+            "unavailableReason": null,
+            "operations": {
+              "boxTransformBatch": {
+                "path": "js",
+                "jsNsPerElement": 584.9132726826269,
+                "wasmNsPerElement": null,
+                "jsSamples": 2,
+                "wasmSamples": 0,
+                "switches": 0,
+                "elements": 4958
+              }
+            }
+          },
+          "lampes": {
+            "nombre": 1,
+            "ponctuelles": 0,
+            "soleil": true,
+            "ombres": true,
+            "maille": 0,
+            "intensite": 40,
+            "mobile": false
+          },
+          "lampesFichier": { "nombre": 0, "ids": [] },
+          "lampesTemoin": null,
+          "atlasOmbres": null,
+          "objetMobile": null,
+          "charge": {
+            "debut": [4.95166015625, 5.94482421875, 6.2138671875],
+            "fin": [4.14892578125, 5.7177734375, 6.1279296875]
+          },
+          "captureStatus": 200,
+          "incidentsGpu": null,
+          "canvas": { "width": 1248, "height": 702 },
+          "metrics": {
+            "rafIntervalMs": null,
+            "cpuFrameMs": 2.100000023841858,
+            "cpuSelectMs": null,
+            "cpuSelectNodesTested": null,
+            "cpuSubmitMs": 0.19999998807907104,
+            "gpuMs": null,
+            "drawCalls": 18,
+            "triangles": null,
+            "clusters": null,
+            "selectedTriangles": 1033809,
+            "residentPages": 5988,
+            "geometryAllocationBytes": 242888964,
+            "vramBytes": null,
+            "pageLoads": 176,
+            "pageBytesRead": 12749616,
+            "pagesDetached": null,
+            "cacheEvictions": 0,
+            "hizCountedFrame": 199,
+            "hizTestedClusters": 43,
+            "hizRejectedClusters": 43,
+            "hizOversizedClusters": 31,
+            "hizTestedTriangles": 4929,
+            "hizRejectedTriangles": 4929,
+            "hizOversizedTriangles": 3516,
+            "gpuFrameMs": 6.739481,
+            "gpuHostGapMs": 0,
+            "uncoveredTriangles": 0,
+            "drawnTriangles": 1033809,
+            "lightsActive": 1,
+            "shadowsUpdated": 1,
+            "shadowFacesDrawn": 1,
+            "shadowDrawCalls": 2,
+            "shadowPagesDrawn": 64,
+            "shadowPagesPending": 192,
+            "shadowWaitMs": 32.599999994039536,
+            "gpuLightListsMs": 0.951736,
+            "gpuShadowsMs": 2.019136,
+            "gpuLightingMs": 2.188592,
+            "textureInFlight": 0,
+            "textureSlicesUploaded": 3931,
+            "textureBytesLastFrame": 16777216,
+            "textureLevelsUploaded": 3747,
+            "textureAtlasBytesCalculated": 6688572304,
+            "textureAtlasClassesUsed": 2,
+            "pagesDecodedOffThread": 172,
+            "pagesDecodedWasm": 0,
+            "pageDecodeMs": 8.000000149011612,
+            "coverageReady": true,
+            "coverageBudgetLimited": false,
+            "frustumRejected": 4406,
+            "lodLevel": 6,
+            "frameHeld": false,
+            "submittedTriangles": null,
+            "transparentMeshes": 0,
+            "transparentFrustumRejected": 0,
+            "transparentDrawCalls": 0,
+            "transparentSubmittedTriangles": 0,
+            "gpuSelectionFallback": false,
+            "textureUploaded": 0,
+            "texturePending": 0,
+            "textureSkipped": 0,
+            "textureResidentBytes": 6643826256,
+            "textureBudgetBytes": 6688572304,
+            "textureAtWantedLevel": 71,
+            "textureLayers": 127,
+            "textureMissingLevels": 0,
+            "textureEvictions": 0,
+            "streamingError": null,
+            "totalSubmittedTriangles": null,
+            "pagesRequested": 204,
+            "pagesLoading": 0,
+            "cacheHits": 0,
+            "cacheMisses": 204,
+            "pagesPlannedOffThread": 24,
+            "pagePlanMs": 1.4000000059604645
+          }
+        }
+      },
+      "temoinAA": { "pixels": 168187, "maxCanal": 145, "total": 876096 },
+      "ecartAvantApres": { "pixels": 183283, "maxCanal": 171, "total": 876096 },
+      "coupeIdentique": true
+    }
+  ],
+  "errors": [],
+  "bounds": {
+    "min": { "x": -115.11764164227608, "y": -4.9280338111150135, "z": -115.10898560641769 },
+    "max": { "x": 115.01769735146176, "y": 108.2506907284246, "z": 115.05897280717664 }
+  },
+  "lampes": {
+    "nombre": 1,
+    "ponctuelles": 0,
+    "soleil": true,
+    "ombres": true,
+    "maille": 0,
+    "intensite": 40,
+    "mobile": false
+  },
+  "finishedAt": "2026-09-18T10:45:52.544Z"
+}
