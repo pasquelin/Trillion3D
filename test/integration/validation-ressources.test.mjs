@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createExplorer } from '@web-geometry/sdk/browser';
+import { createExplorer } from '../../packages/sdk/browser.ts';
 for (const [label, body, status, type, code] of [
   ['SPA HTML', '<!DOCTYPE html>', 200, 'text/html', 'INVALID_JSON_RESPONSE'],
   ['missing resource', 'missing', 404, 'text/plain', 'RESOURCE_HTTP_ERROR'],
