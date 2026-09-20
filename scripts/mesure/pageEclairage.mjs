@@ -89,9 +89,14 @@ export async function measureView(options) {
   const reglageVivant = await mesure.reglerReservoirs(explorer, pose, options.poolVivant);
   const cpuFrameMs = [],
     cpuSelectMs = [],
-    gpuFrameMs = [];
-  let last = null;
+    gpuFrameMs = [],
+    rafIntervalMs = [];
+  let last = null,
+    previousRaf = null;
   for (let i = 0; i < options.frames; i++) {
+    const now = await new Promise((done) => requestAnimationFrame(done));
+    if (previousRaf !== null && i > 2) rafIntervalMs.push(now - previousRaf);
+    previousRaf = now;
     moveLight(i);
     moveNode(i);
     last = explorer.render(poseAt(i));
@@ -172,6 +177,7 @@ export async function measureView(options) {
     cpuFrameMs,
     cpuSelectMs,
     gpuFrameMs,
+    rafIntervalMs,
     importedLights,
     lampesTemoin: witnessLights,
     shadowAtlas,
@@ -184,8 +190,6 @@ export async function measureView(options) {
     network,
     imagesCalme,
     reglageVivant,
-    // The compute-path governor reading: an object, so dropped by the scalar filter above.
-    // Without it, nothing would say which path the campaign actually ran.
     mathBatch: last?.mathBatch ?? null,
     size,
     lost,

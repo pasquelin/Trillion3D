@@ -11,16 +11,11 @@ import { WebglClusterState } from './webglClusterState.ts';
 import { normalMatrix3 } from '../sdk-core/index.ts';
 import { multiplyMatrix4 } from './webglClusterMatrices.ts';
 import type { HostDrawCamera } from './cameraWorld.ts';
-import { Matrix3UniformCache, setClusterSamplers } from './webglClusterUniforms.ts';
+import { Matrix3UniformCache, setClusterSamplers, setMatrix3 } from './webglClusterUniforms.ts';
 import { WebglClusterMaterialUniforms } from './webglClusterMaterialUniforms.ts';
 import { createClusterProgram } from './webglClusterProgram.ts';
 import { validateClusterMeshes } from './webglClusterValidation.ts';
-
 const IDENTITY_MATRIX3 = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);
-
-const matrix = (gl: WebGL2RenderingContext, at: WebGLUniformLocation | null, value: Float32List) =>
-  gl.uniformMatrix3fv(at, false, value);
-
 export class WebglClusterRenderer {
   private gl: WebGL2RenderingContext;
   private program: WebGLProgram;
@@ -173,7 +168,7 @@ export class WebglClusterRenderer {
       this.state.applyWinding(this.modelView);
       gl.uniformMatrix4fv(this.at('modelViewMatrix'), false, this.modelView);
       normalMatrix3(this.normal, this.modelView);
-      matrix(gl, this.at('normalMatrix'), this.normal);
+      setMatrix3(gl, this.at('normalMatrix'), this.normal);
       if (this.multiDraw)
         this.multiDraw.multiDrawElementsWEBGL(
           gl.TRIANGLES,

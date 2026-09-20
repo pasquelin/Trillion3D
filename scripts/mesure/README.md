@@ -42,8 +42,13 @@ What the witness does not render, named rather than guessed: **no shadow casting
 - `--visible`: opens a real window. Without a window, display caps at 60 Hz on macOS.
 - `--images-profil` (default 120): frame count for profile loop, executed after measured loop without replacing it. Yields to browser between frames because timestamp readbacks arrive asynchronously: an un-yielding loop misses timestamps. Profile window is cleared prior to this loop.
 
+The measured camera path also advances once per `requestAnimationFrame` on both sides. Its
+`rafIntervalMs` distribution is the real moving-frame envelope, including browser backpressure and
+the display cap. `cpuFrameMs` remains the engine's synchronous submission reading; the two durations
+are never added.
+
 Outputs in `--out` (default `.mesure/out/<engine>-<timestamp>/`, gitignored and un-linted):
-`mesure.json`, `resume.md`, and per view, threshold, and side: `.png`, `.coupe.txt`, and metrics line — `cpuFrameMs` and `cpuSelectMs` p50/p95, `gpuFrameMs` p50 (WebGPU), selected and unrendered triangles, Hi-Z counters, selection hash, page budget, system load —, plus A/A check (same side run twice) and before/after delta per channel. `null` = unmeasured, never inferred; all launched tasks exit cleanly.
+`mesure.json`, `resume.md`, and per view, threshold, and side: `.png`, `.coupe.txt`, and metrics line — `rafIntervalMs`, `cpuFrameMs` and `cpuSelectMs` p50/p95, `gpuFrameMs` p50 (WebGPU), selected and unrendered triangles, Hi-Z counters, selection hash, page budget, system load —, plus A/A check (same side run twice) and before/after delta per channel. `null` = unmeasured, never inferred; all launched tasks exit cleanly.
 
 ### Triangle and Fallback Counters
 
