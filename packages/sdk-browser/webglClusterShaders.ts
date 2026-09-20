@@ -43,4 +43,4 @@ vec3 L;float falloff=1.0;if(kind==0)L=normalize(-directionKind.xyz);else{vec3 de
 if(kind==2){float c=dot(L,normalize(-directionKind.xyz));falloff*=spotFactor(c,cone.x,cone.y);}}
 rgb+=brdf(N,V,L,base.rgb,metal,rough)*colorIntensity.rgb*colorIntensity.w*falloff;}}
 else rgb=base.rgb*ao;
-if((mapMask&32)!=0)rgb+=emissiveFactor*texture(emissiveMap,mapUv(emissiveUv,sourceUv(extraChannels.y))).rgb;else rgb+=emissiveFactor;if(toneMapped)rgb=aces(rgb);if(srgbDestination)rgb=linearToSrgb(rgb);outColor=vec4(rgb,1.0);}`;
+if((mapMask&32)!=0)rgb+=emissiveFactor*texture(emissiveMap,mapUv(emissiveUv,sourceUv(extraChannels.y))).rgb;else rgb+=emissiveFactor;if(toneMapped)rgb=aces(rgb);if(srgbDestination)rgb=linearToSrgb(rgb);outColor=vec4(rgb,base.a);}`;

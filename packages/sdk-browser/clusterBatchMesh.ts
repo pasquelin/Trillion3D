@@ -42,6 +42,12 @@ export class ClusterDrawMesh extends THREE.Mesh {
   _colorsTexture: THREE.DataTexture | null = null;
   /** Three.js reads `colorTexture` without an underscore: left undefined, it would recompile the program key on every draw. */
   colorTexture: THREE.DataTexture | null = null;
+  /** Exact back/front pair created by `sideSplit`; arbitrary material arrays remain unsupported. */
+  _sideSplitMaterials: [THREE.Material, THREE.Material] | undefined;
+  _sideSplitBack: THREE.Material | undefined;
+  _sideSplitFront: THREE.Material | undefined;
+  _sideSplitSource: THREE.Material | undefined;
+  _sideSplitPolygonMaterials: [THREE.Material, THREE.Material] | undefined;
   constructor(
     geometry: THREE.BufferGeometry,
     material: THREE.Material | THREE.Material[],
@@ -54,6 +60,11 @@ export class ClusterDrawMesh extends THREE.Mesh {
     this._multiDrawCounts = ranges.counts;
     this._matricesTexture = matrices;
     this._indirectTexture = indirect;
+    this._sideSplitMaterials = undefined;
+    this._sideSplitBack = undefined;
+    this._sideSplitFront = undefined;
+    this._sideSplitSource = undefined;
+    this._sideSplitPolygonMaterials = undefined;
     this.matrixAutoUpdate = false;
     this.frustumCulled = false;
   }
