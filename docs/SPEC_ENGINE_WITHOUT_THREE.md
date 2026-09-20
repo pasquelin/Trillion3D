@@ -446,7 +446,7 @@ Stages, each with its proof (0 px A/A at rest, budget held, before/after publish
   shades the four it draws — exactly those worth a sample's share, stratified for the rest —
   and the history averages the draws; a still image shades every light and converges to the
   exact sum, 0 px A/A. Envelope 39.9 → 17.9 ms GPU on a moving camera; the grain left in motion
-  is declared in the pull request. What remains of L2: a spatial denoise before the history,
+  is measured in `docs/SDK.md`. What remains of L2: a spatial denoise before the history,
   where the reference has one.
 - **L3** — shadows in virtual pages from the hardware raster (Lumière 2, 6, 12): only the pages
   seen, cached. The compute raster has been off since Geometry 26, measurement done.

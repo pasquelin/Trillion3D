@@ -12,12 +12,11 @@ import {
   type DeferredProgram,
   type DirectLightResources,
 } from './deferredLightingProgram.ts';
+import { ZERO_DIRECT, createDeferredView } from './deferredLightingView.ts';
 export { DIRECT_LIGHTING_SHADER, FULLSCREEN_VERTEX } from './deferredLightingShaders.ts';
 
 /** Label of the measured pass; `gpuLightingMs` is read under this name. */
 export const DEFERRED_LIGHTING_PASS = 'WG deferred lighting';
-/** With no declared light: zero lights, zero tiles, exposure 1. */
-const ZERO_DIRECT = [0, 0, 0, 1] as const;
 
 /**
  * Deferred resolve. Two programs live here: the unlit view — raw material albedo, composed
@@ -36,10 +35,10 @@ export async function createDeferredLighting(
   directLights: GPUBuffer,
   onReady?: () => void,
 ) {
-  const usage = GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST;
-  const uniform = device.createBuffer({ label: 'WG deferred view v1', size: 128, usage });
-  const placeholders = createDeferredPlaceholders(device),
-    bindings = { uniform, directLights, placeholders };
+  const view = createDeferredView(device);
+  const uniform = view.buffer;
+  const placeholders = createDeferredPlaceholders(device);
+  const bindings = { uniform, directLights, placeholders };
   try {
     const unlit = await createDeferredProgram(
       device,
@@ -56,12 +55,11 @@ export async function createDeferredLighting(
     // Three programs, never a branch: the unlit view, the contract, and the contract plus
     // bounce. A session without bounce thus runs exactly the previous shader.
     type Variant = { program?: DeferredProgram; pending?: Promise<unknown> };
-    const variants: Record<'direct' | 'bounce', Variant> = { direct: {}, bounce: {} },
-      packed = new Float32Array(32);
+    const variants: Record<'direct' | 'bounce', Variant> = { direct: {}, bounce: {} };
+    let active: DeferredProgram = unlit;
     // Diagnostic views output raw values: no ACES, no sRGB, no composed background. The
     // indirect-irradiance view is one, and lighting says so, not the caller.
-    let active: DeferredProgram = unlit,
-      rawOutput = false;
+    let rawOutput = false;
     return {
       uniform,
       /** What an absent contract resource is worth: the blend pass binds the same. */
@@ -74,7 +72,7 @@ export async function createDeferredLighting(
       get usesContract() {
         return active !== unlit;
       },
-      /** `sampledRank` non-zero: the contract program draws a subset of each pixel's lights. */
+      /** Writes the view uniform of this image (`deferredLightingView.ts`). */
       update(
         inverseViewProjection: ArrayLike<number>,
         camera: readonly number[],
@@ -85,16 +83,17 @@ export async function createDeferredLighting(
         direct: ArrayLike<number> = ZERO_DIRECT,
         sampledRank = 0,
       ) {
-        packed.set(inverseViewProjection as ArrayLike<number> & number[], 0);
-        packed.set(camera, 16);
-        packed.set([width, height, diagnostic || rawOutput ? 1 : 0, sampledRank], 20);
-        packed.set(
-          [(clearColor >> 16) / 255, ((clearColor >> 8) & 255) / 255, (clearColor & 255) / 255, 1],
-          24,
+        const raw = diagnostic || rawOutput;
+        view.write(
+          inverseViewProjection,
+          camera,
+          width,
+          height,
+          clearColor,
+          raw,
+          direct,
+          sampledRank,
         );
-        // Contract lights, tiles in X and Y, then exposure.
-        packed.set(direct as number[], 28);
-        device.queue.writeBuffer(uniform, 0, packed);
       },
       /**
        * Picks the frame program and binds its resources. `wantsContract` stays false as long as
@@ -184,7 +183,7 @@ export async function createDeferredLighting(
         pass.end();
       },
       dispose() {
-        uniform.destroy();
+        view.dispose();
         placeholders.dispose();
         unlit.release();
         variants.direct.program?.release();
@@ -192,7 +191,7 @@ export async function createDeferredLighting(
       },
     };
   } catch (error) {
-    uniform.destroy();
+    view.dispose();
     placeholders.dispose();
     throw error;
   }
