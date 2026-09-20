@@ -3,63 +3,13 @@ import { applyCameraLesson } from './cameraLessonRuntime.js';
 import { configureSceneCamera } from '../engine-scene/cameraControls.js';
 import { createLessonExplorer } from './lessonExplorer.js';
 import { addSceneFillLight } from '../sceneFillLight.js';
+import { applyRendererLesson } from './rendererLessonApply.js';
+export { applyRendererLesson } from './rendererLessonApply.js';
 
-function lightFor(kind, state) {
-  if (kind === 'point')
-    return {
-      id: 'lesson',
-      kind,
-      position: [0, 4, 2],
-      color: [1, 0.72, 0.42],
-      intensity: state.intensity,
-      range: state.range,
-      emitterRadius: 0.1,
-      castsShadow: true,
-    };
-  if (kind === 'spot')
-    return {
-      id: 'lesson',
-      kind,
-      position: [0, 5, 4],
-      direction: [0, -0.8, -0.6],
-      color: [0.55, 0.75, 1],
-      intensity: state.intensity,
-      range: 12,
-      coneAngle: (state.cone * Math.PI) / 180,
-      emitterRadius: 0.1,
-      castsShadow: true,
-    };
-  const angle = ((state.angle ?? -35) * Math.PI) / 180;
-  return {
-    id: 'lesson',
-    kind: 'directional',
-    direction: [Math.sin(angle), -0.8, Math.cos(angle)],
-    color: [1, 0.92, 0.78],
-    intensity: state.intensity ?? 2.5,
-    castsShadow: true,
-  };
-}
-
-export function applyRendererLesson(explorer, lesson, state, added) {
-  if (['point', 'spot', 'directional', 'exposure'].includes(lesson.kind)) {
-    const light = lightFor(lesson.kind === 'exposure' ? 'directional' : lesson.kind, state);
-    if (added.value) {
-      const { id, ...patch } = light;
-      explorer.setLight(id, patch);
-    } else {
-      explorer.addLight(light);
-      added.value = true;
-    }
-  }
-  if (lesson.kind === 'exposure') explorer.setEnvironment({ exposure: state.exposure });
-  if (lesson.kind === 'lod') explorer.setPixelError(state.pixelError);
-  if (lesson.kind === 'lod-diagnostic') {
-    explorer.setPixelError(state.pixelError);
-    explorer.setDiagnostic(state.showLevels === 1 ? 'lod' : 'beauty');
-  }
-  if (lesson.kind === 'memory')
-    return explorer.setMemoryBudgets({ geometryPoolBytes: state.geometryMiB * 1024 * 1024 });
-}
+const COLD_FRAME_LIMIT = 2400,
+  INTERACTIVE_FRAME_LIMIT = 24,
+  SETTLE_MINIMUM_MS = 2_000,
+  SETTLE_TIME_LIMIT_MS = 30_000;
 
 export async function createRendererLessonRuntime({ canvas, lesson, state, report, signal }) {
   const importedLights =
@@ -72,16 +22,29 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
     importedLights,
   });
   let disposed = false,
+    starting = true,
+    coldStart = lesson.kind === 'lod-diagnostic',
     frame = 0,
     remaining = 0,
+    settleNotBefore = 0,
+    settleDeadline = 0,
     previous = 0,
     resize,
     controls,
     ready,
     readyResolve,
-    readyReject;
+    readyReject,
+    updateChain = Promise.resolve();
   const added = { value: false },
     lighting = createLightingLessonSession();
+  const nextReady = () => {
+    ready = new Promise((resolve, reject) => {
+      readyResolve = resolve;
+      readyReject = reject;
+    });
+    ready.catch(() => {});
+    return ready;
+  };
   const dispose = () => {
     if (disposed) return;
     disposed = true;
@@ -99,29 +62,51 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
     throw new DOMException('Cancelled', 'AbortError');
   }
   signal?.addEventListener('abort', dispose, { once: true });
-  const draw = (now) => {
-    frame = 0;
-    if (disposed) return;
-    const metrics = explorer.render();
-    const idle = --remaining <= 0;
-    report({
-      fps: !idle && previous ? 1000 / (now - previous) : null,
-      cpu: metrics.cpuFrameMs,
-      memory: metrics.geometryPoolAllocatedBytes,
-      triangles: metrics.drawnTriangles,
-      idle,
-    });
-    readyResolve?.();
-    readyResolve = undefined;
-    readyReject = undefined;
-    previous = now;
-    if (!idle) frame = requestAnimationFrame(draw);
+  const draw = async () => {
+    try {
+      await explorer.awaitPages();
+      if (disposed) return;
+      const metrics = explorer.render();
+      await explorer.flush();
+      if (disposed) return;
+      const now = performance.now(),
+        settled = now >= settleNotBefore && metrics.frameHeld && (metrics.pagesLoading ?? 0) === 0,
+        exhausted = --remaining <= 0,
+        idle = coldStart ? settled || exhausted || now >= settleDeadline : exhausted;
+      report({
+        fps: !idle && previous ? 1000 / (now - previous) : null,
+        cpu: metrics.cpuFrameMs,
+        memory: metrics.geometryPoolAllocatedBytes,
+        triangles: metrics.drawnTriangles,
+        idle,
+      });
+      if (!coldStart) {
+        readyResolve?.();
+        readyResolve = undefined;
+        readyReject = undefined;
+      }
+      previous = now;
+      frame = 0;
+      if (idle) {
+        readyResolve?.();
+        readyResolve = undefined;
+        readyReject = undefined;
+      } else frame = requestAnimationFrame(draw);
+    } catch (error) {
+      frame = 0;
+      readyReject?.(error);
+      readyResolve = undefined;
+      readyReject = undefined;
+      dispose();
+    }
   };
   const invalidate = () => {
     if (disposed) return;
-    remaining = 24;
+    remaining = coldStart ? COLD_FRAME_LIMIT : INTERACTIVE_FRAME_LIMIT;
+    settleNotBefore = performance.now() + (coldStart ? SETTLE_MINIMUM_MS : 0);
+    settleDeadline = performance.now() + SETTLE_TIME_LIMIT_MS;
     previous = 0;
-    if (!frame) frame = requestAnimationFrame(draw);
+    if (!starting && !frame) frame = requestAnimationFrame(draw);
   };
   const update = async (next) => {
     if (disposed) return;
@@ -134,11 +119,7 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
   try {
     await explorer.awaitPages();
     if (disposed) throw new DOMException('Cancelled', 'AbortError');
-    ready = new Promise((resolve, reject) => {
-      readyResolve = resolve;
-      readyReject = reject;
-    });
-    ready.catch(() => {});
+    nextReady();
     if (lesson.sceneLight)
       explorer.addLight({
         id: 'scene',
@@ -161,7 +142,6 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
       } else camera.zoomOut();
       invalidate();
     };
-    reset();
     controls.addEventListener('change', invalidate);
     await update(state);
     const resizeCanvas = () => {
@@ -173,9 +153,28 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
     resize = new ResizeObserver(resizeCanvas);
     resize.observe(canvas);
     resizeCanvas();
+    starting = false;
+    reset();
     await ready;
+    if (lesson.kind === 'lod-diagnostic') {
+      nextReady();
+      await update({ ...state, pixelError: 0 });
+      await ready;
+      nextReady();
+      await update(state);
+      await ready;
+    }
+    coldStart = false;
     return {
-      update,
+      update: (next) => {
+        const run = async () => {
+          const settled = nextReady();
+          await update(next);
+          await settled;
+        };
+        updateChain = updateChain.then(run, run);
+        return updateChain;
+      },
       dispose,
       camera: {
         zoomIn: camera.zoomIn,
