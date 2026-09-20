@@ -14,6 +14,7 @@ const result = await preuveDansLaPage(
 console.log(JSON.stringify(result, null, 2));
 preuveSaine(result);
 assert.ok(result.beautyDraws > 0);
+assert.deepEqual(result.selectedIds, ['0/0/0'], 'the autonomous cut is directly observable');
 assert.deepEqual(result.beautyCounts, [2, 2, 2]);
 assert.ok(result.diagnosticDraws > 0);
 assert.deepEqual(result.diagnosticCounts, [1, 1, 1]);

@@ -180,6 +180,9 @@ export const exactPagesBackend: BackendFactory = (context) => {
     refreshSceneLights: contract.apply,
     lighting: CONTRACT_LIGHTS_LIGHTING,
     render: renderFrame,
+    selectedPageIds() {
+      return (shown.length ? shown : desired).map((rec) => rec.clusterId);
+    },
     drawHostGeometry: batches.autonomousDraw
       ? (camera, output) => batches.draw(camera, output.toneMapped, output.encodeSrgb)
       : undefined,
