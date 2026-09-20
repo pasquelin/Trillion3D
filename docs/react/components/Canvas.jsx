@@ -15,7 +15,8 @@ export function Canvas({
       <canvas
         ref={canvasRef}
         aria-label={label}
-        className={`block w-full rounded-box ${className}`}
+        aria-busy={pending || undefined}
+        className={`block w-full rounded-box ${pending ? 'invisible' : ''} ${className}`}
         {...props}
       />
       {pending && <Loading label={loadingLabel} />}
