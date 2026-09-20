@@ -1,10 +1,10 @@
 export const lifecycleFr = {
   prepare: {
     description:
-      'Compile une scène source vers le cache lu par le navigateur. Lance le compilateur natif puis renvoie le manifeste avec ses mesures. `resourceBaseUrl` est obligatoire : c’est l’URL depuis laquelle le navigateur chargera pages et textures.',
+      'Compile une scène source vers le cache lu par le navigateur. Lance le compilateur natif puis renvoie le manifeste avec ses mesures. `resourceBaseUrl` est obligatoire : c’est l’URL depuis laquelle le navigateur chargera pages et textures. Ce que chaque lecteur fait de sa source — faces polygonales coupées en éventail si convexes, en oreilles sinon — est dans `docs/COMPILER.md`.',
     values: [
       {
-        desc: 'Dossier avec `manifest.json`, dossier contenant un seul glTF/GLB, ou fichier `.gltf`, `.glb`, `.fbx` ou `.obj`. Les faces polygonales des lecteurs USD, Blender, Alembic et Maya sont triangulées à l’import : une face strictement convexe en éventail, en un seul passage sur ses coins, toute autre par découpe en oreilles, qui garde l’aire et le contour d’une face concave.',
+        desc: 'Dossier avec `manifest.json`, dossier contenant un seul glTF/GLB, ou fichier `.gltf`, `.glb`, `.fbx` ou `.obj`.',
       },
       { desc: 'Dossier de cache. La source n’est jamais écrasée.' },
       { desc: "`'slice'` ou `'full'`." },
