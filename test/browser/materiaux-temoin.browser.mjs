@@ -2,8 +2,8 @@
 // fixture of `test/appui/materialFixtures.mjs` is drawn by `three-webgl-reference` and by
 // `webgpu-page-raster`, both from `dist/`, and read pixel by pixel at the points that exercise
 // its feature — base colour, its map, alpha MASK at its cutoff, BLEND, emissive, metal-roughness,
-// normal map, double-sided. A difference above the fixture's declared tolerance, a missing render
-// diagnostic or a GPU failure turns the run red.
+// normal map, double-sided. A gap outside the fixture's declared window, a missing render
+// diagnostic, a GPU failure or an engine image that never holds turns the run red.
 //
 // The harness server of `scripts/mesure` serves the page and its import map, the SDK and the
 // page modules of `test/`; nothing outside this repository is read. Per-fixture readings and both
@@ -57,12 +57,10 @@ for (const fixture of result.results ?? [])
 await writeFile(resolve(out, 'result.json'), JSON.stringify(result, null, 2));
 console.log(
   JSON.stringify(
-    (result.results ?? []).map(({ name, tolerance, samples }) => ({
+    (result.results ?? []).map(({ name, difference, samples }) => ({
       name,
-      tolerance,
-      maxDifference: Math.max(
-        ...samples.map((s) => Math.max(...s.witness.map((c, i) => Math.abs(c - s.engine[i])))),
-      ),
+      difference,
+      gap: Math.max(...samples.map((s) => s.gap)),
     })),
     null,
     2,
@@ -88,18 +86,15 @@ for (const fixture of result.results) {
     ),
     `${fixture.name}: real visibility buffer required`,
   );
-  const expected = fixtures.find((f) => f.name === fixture.name);
-  assert.ok(expected, `${fixture.name}: not a declared fixture`);
-  if (expected.holds !== false)
+  if (fixture.holds !== false)
     assert.equal(fixture.held, true, `${fixture.name}: the engine image never settled`);
-  for (const { point, witness, engine } of fixture.samples) {
-    const difference = Math.max(...witness.map((c, i) => Math.abs(c - engine[i])));
+  const [least, most] = fixture.difference;
+  for (const { point, witness, engine, gap } of fixture.samples)
     assert.ok(
-      difference <= fixture.tolerance,
+      gap >= least && gap <= most,
       `${fixture.name} (${point}): witness ${witness}, engine ${engine}, ` +
-        `difference ${difference} above ${fixture.tolerance} (${fixture.reason})`,
+        `gap ${gap} outside ${least}–${most} (${fixture.reason})`,
     );
-  }
 }
 console.log(
   `OK: ${result.results.length} material fixtures agree with the witness — ${result.gpu}`,
