@@ -1,77 +1,19 @@
 import type * as THREE from 'three';
+import {
+  accessor,
+  bump,
+  bumpOwners,
+  hookTriple,
+  owners,
+  XYZ,
+  type Hook,
+  type WriteRevision,
+} from './hostSceneHookCore.ts';
+import { hookLight, type HookedLight } from './hostSceneHooksLight.ts';
 
-/**
- * Revision a watch owns. Every write the host makes on one of the nodes hooked for it — a pose,
- * a visibility, a light's number — increments `revision` at the instant of the write, so the
- * frame compares one integer instead of rereading the graph. A write that changes WHICH
- * objects are read (a light retargeted, a node reparented) increments it like any other: the
- * scene change it announces is what rebuilds the watched set.
- */
-export interface WriteRevision {
-  revision: number;
-}
-
-/** Hook of one host node: the revisions it bumps. A node hooked once stays hooked. */
-interface Hook {
-  revisions: WriteRevision[];
-}
-
-/** A sub-object of a node — vector, quaternion, colour — bumps the hooks of its owners. */
-interface Owned {
-  owners: Hook[];
-}
+export type { WriteRevision } from './hostSceneHookCore.ts';
 
 const hooks = new WeakMap<object, Hook>();
-const owned = new WeakMap<object, Owned>();
-
-function bump(hook: Hook) {
-  const list = hook.revisions;
-  for (let i = 0; i < list.length; i++) list[i].revision++;
-}
-
-/** Redefines a data field as an accessor of the instance: a write of ANOTHER value is announced. */
-function accessor<T extends object, K extends keyof T & string>(
-  target: T,
-  key: K,
-  written: (value: T[K]) => void,
-) {
-  let held = target[key];
-  Object.defineProperty(target, key, {
-    configurable: true,
-    enumerable: true,
-    get: () => held,
-    set: (value: T[K]) => {
-      if (value === held) return;
-      held = value;
-      written(value);
-    },
-  });
-}
-
-/** The owners of a sub-object, registering `hook` among them; `null` once it already was. */
-function owners(target: object, hook: Hook) {
-  const known = owned.get(target);
-  if (known) {
-    if (!known.owners.includes(hook)) known.owners.push(hook);
-    return null;
-  }
-  const fresh = { owners: [hook] };
-  owned.set(target, fresh);
-  return fresh;
-}
-
-function bumpOwners(sub: Owned) {
-  for (let i = 0; i < sub.owners.length; i++) bump(sub.owners[i]);
-}
-
-/** `x`, `y`, `z` of a vector, or `r`, `g`, `b` of a colour, as accessors of the instance. */
-function hookTriple<T extends object>(target: T, keys: readonly (keyof T & string)[], hook: Hook) {
-  const sub = owners(target, hook);
-  if (sub) for (const key of keys) accessor(target, key, () => bumpOwners(sub));
-}
-
-const XYZ = ['x', 'y', 'z'] as const,
-  RGB = ['r', 'g', 'b'] as const;
 
 /**
  * The rotation, whichever of its two faces the host writes. The reference's quaternion and
@@ -105,35 +47,6 @@ function hookRotation(node: THREE.Object3D, hook: Hook) {
   }
 }
 
-/** Numbers of a light the engines consume, when its type carries them. */
-const LIGHT_NUMBERS = ['intensity', 'distance', 'decay', 'angle', 'penumbra'] as const;
-
-type HookedLight = THREE.Light & {
-  distance?: number;
-  decay?: number;
-  angle?: number;
-  penumbra?: number;
-  groundColor?: THREE.Color;
-  target?: THREE.Object3D;
-};
-
-function hookLight(light: HookedLight, hook: Hook) {
-  for (const key of LIGHT_NUMBERS) if (key in light) accessor(light, key, () => bump(hook));
-  // A colour replaced as a whole is hooked in turn: what the host writes into it afterwards
-  // must still be seen.
-  for (const key of ['color', 'groundColor'] as const) {
-    const colour = light[key];
-    if (!colour) continue;
-    hookTriple(colour, RGB, hook);
-    accessor(light, key, (next) => {
-      if (next) hookTriple(next, RGB, hook);
-      bump(hook);
-    });
-  }
-  // A new target is another chain of ancestors to watch: the scene change rebuilds the set.
-  if ('target' in light) accessor(light, 'target', () => bump(hook));
-}
-
 /**
  * Hooks every write the contract lets the host make on `node`, once, and registers `revision`
  * among what those writes bump. Returns true when the registration is new.
@@ -141,9 +54,9 @@ function hookLight(light: HookedLight, hook: Hook) {
  * The local pose — position, rotation, scale — visibility, the recomposition flag and the
  * parent are accessors of the instance from then on: a write of another value costs the host
  * one comparison and one increment, and a frame that reads nothing else knows the node did
- * not move. A matrix set by hand, recomposition cut, is announced as the reference requires:
- * `matrixWorldNeedsUpdate = true` (which `updateMatrix()` writes itself). A reparented node
- * changes its ancestor chain: the scene change it announces rebuilds the watched set.
+ * not move. A matrix set by hand is announced by the update flag the reference has such a node
+ * write (`hookSetMatrix`). A reparented node changes its ancestor chain: the scene change it
+ * announces rebuilds the watched set.
  */
 export function hookHostNode(node: THREE.Object3D, revision: WriteRevision) {
   const known = hooks.get(node);
@@ -158,22 +71,52 @@ export function hookHostNode(node: THREE.Object3D, revision: WriteRevision) {
   hookTriple(node.scale, XYZ, hook);
   hookRotation(node, hook);
   accessor(node, 'visible', () => bump(hook));
-  accessor(node, 'matrixAutoUpdate', () => bump(hook));
   accessor(node, 'parent', () => bump(hook));
-  let needsUpdate = node.matrixWorldNeedsUpdate;
+  hookSetMatrix(node, hook);
+  if ((node as THREE.Light).isLight) hookLight(node as HookedLight, hook);
+  return true;
+}
+
+/**
+ * A matrix set by hand, recomposition cut, has no setter to announce it. What the reference
+ * asks of such a node is to write its update flag — `updateMatrix()` raises it, a forced
+ * `updateMatrixWorld()` clears it — and that write is where the sixteen numbers are compared to
+ * the ones last seen: a set matrix is announced once, a flag raised again over the same matrix
+ * announces nothing. An automatic node keeps no snapshot: the reference raises its flag on its
+ * own walk, every frame, and its pose is hooked field by field.
+ */
+function hookSetMatrix(node: THREE.Object3D, hook: Hook) {
+  const elements = node.matrix.elements;
+  let held: Float64Array | null = null;
+  const freeze = () => {
+    held = Float64Array.from(elements);
+  };
+  const compare = () => {
+    if (!held) return;
+    let moved = false;
+    for (let k = 0; k < 16; k++)
+      if (held[k] !== elements[k]) {
+        held[k] = elements[k];
+        moved = true;
+      }
+    if (moved) bump(hook);
+  };
+  if (!node.matrixAutoUpdate) freeze();
+  accessor(node, 'matrixAutoUpdate', (auto) => {
+    if (auto) held = null;
+    else freeze();
+    bump(hook);
+  });
+  let flag = node.matrixWorldNeedsUpdate;
   Object.defineProperty(node, 'matrixWorldNeedsUpdate', {
     configurable: true,
     enumerable: true,
-    get: () => needsUpdate,
+    get: () => flag,
     set: (value: boolean) => {
-      needsUpdate = value;
-      // The reference recomposes an automatic node's matrix on its own walk and raises the
-      // flag each time: only a node whose matrix the host sets announces something by it.
-      if (value && !node.matrixAutoUpdate) bump(hook);
+      flag = value;
+      compare();
     },
   });
-  if ((node as THREE.Light).isLight) hookLight(node as HookedLight, hook);
-  return true;
 }
 
 /** Forgets `revision` on `node`: its writes no longer bump it. True when it was registered. */
