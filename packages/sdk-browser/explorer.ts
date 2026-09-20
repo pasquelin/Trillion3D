@@ -77,6 +77,7 @@ export async function createExplorer(canvas: HTMLCanvasElement, options: Explore
     backends.forEach((b) => b.dispose());
     if (resources.source) disposeSource(resources.source);
     resources.renderer?.dispose();
+    resources.webglSurface?.dispose();
     try {
       resources.gpuDevice?.destroy();
     } catch {
