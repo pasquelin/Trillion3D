@@ -8,6 +8,7 @@ import {
 } from './mathTransformTree.ts';
 import type { SceneNode } from './sceneNode.ts';
 import type { SceneState } from './sceneNodeContracts.ts';
+import { sceneNodeFail } from './sceneNodeError.ts';
 
 /** Copies pose and optional descendants without copying the source identifier. */
 export function copySceneNodeState(
@@ -16,6 +17,14 @@ export function copySceneNodeState(
   source: SceneNode,
   recursive: boolean,
 ) {
+  if (recursive)
+    for (let parent = target.parent; parent; parent = parent.parent)
+      if (parent === source)
+        sceneNodeFail(
+          'SCENE_COPY_OVERLAP',
+          'A recursive copy cannot copy an ancestor into its descendant',
+          { source: source.id, target: target.id },
+        );
   copyValues(state, target, source);
   if (!recursive) return;
   const pending: Array<[SceneNode, SceneNode]> = [];
