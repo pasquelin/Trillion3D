@@ -49,7 +49,11 @@ export function StickyPanel({ controls, children, sticky = false }) {
       />
       <div
         ref={ref}
-        className={sticky ? 'sticky self-start bg-base-200 shadow-sm' : undefined}
+        className={
+          sticky
+            ? `sticky self-start bg-base-200 shadow-sm ${stuck ? 'rounded-none' : 'rounded-box'}`
+            : undefined
+        }
         style={
           sticky
             ? {
