@@ -9,7 +9,11 @@ import {
   createGpuPartitionGroup,
   createGpuPartitionLayout,
 } from './gpuPartitionBuffers.ts';
-import { createPartitionUniformWriter, type PartitionFrame } from './gpuPartitionUniform.ts';
+import {
+  createPartitionUniformWriter,
+  type ForgottenRows,
+  type PartitionFrame,
+} from './gpuPartitionUniform.ts';
 import { createPartitionCounters } from './gpuPartitionCounters.ts';
 import { PARTITION_SHADER } from './gpuPartitionShader.ts';
 import { dropValidation, openValidation, validationError } from './gpuErrorScope.ts';
@@ -58,6 +62,9 @@ export async function createGpuPartition(
       return undefined;
     }
     const writeUniform = createPartitionUniformWriter();
+    // Rows rewritten with another page since the last image: their held rectangle, verdict and
+    // history describe the page that left. Read as never projected, once, then forgotten.
+    const forget: ForgottenRows = { from: 0, to: -1 };
     // What the last frame sent the kernel, kept for the audit: matrices are copied because the
     // camera's are rewritten by the next frame. The copy goes into two arrays allocated once
     // and for all — the audit reads the last frame, never an earlier one.
@@ -86,6 +93,11 @@ export async function createGpuPartition(
       state: allocated.state,
       rowData: allocated.rowData,
       uniforms: allocated.uniforms,
+      forgetRows(from: number, to: number) {
+        if (to < from) return;
+        forget.from = forget.to < forget.from ? from : Math.min(forget.from, from);
+        forget.to = Math.max(forget.to, to);
+      },
       /** World corners of rows `[from, to]`, on the table's dirty interval and it alone. */
       uploadCorners(packed: Float32Array, from: number, to: number) {
         if (disposed || to < from) return;
@@ -106,7 +118,9 @@ export async function createGpuPartition(
         encoder.clearBuffer(allocated.state, 0, STATE_WORDS * 4);
         encoder.clearBuffer(sources.restBits);
         encoder.clearBuffer(sources.slotUsed);
-        writeUniform(device, allocated.uniforms, frame, rows);
+        writeUniform(device, allocated.uniforms, frame, rows, forget);
+        forget.from = 0;
+        forget.to = -1;
         kept.rows = rows;
         kept.width = frame.width;
         kept.height = frame.height;

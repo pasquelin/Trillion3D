@@ -2,17 +2,26 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGpuPartition } from './gpuPartitionFactory.ts';
 import { PARTITION_SHADER } from './gpuPartitionShader.ts';
-import { PARTITION_BINDING, PARTITION_KERNEL_BINDINGS } from './gpuPartitionContract.ts';
+import {
+  PARTITION_BINDING,
+  PARTITION_KERNEL_BINDINGS,
+  UNI_SCALARS,
+} from './gpuPartitionContract.ts';
 import { hizDevice } from './gpuHizMockDevice.ts';
 import type { PartitionFrame } from './gpuPartitionUniform.ts';
 
 const STORAGE_BUFFERS_PER_STAGE = 8;
 
-/** A device that records the bind groups it makes: which buffers, under which binding. */
+/** A device that records the bind groups it makes — which buffers, under which binding — and
+ *  the uniform words each image writes. */
 function recordingDevice() {
-  const groups: Array<Record<number, unknown>> = [];
+  const groups: Array<Record<number, unknown>> = [],
+    uniforms: Uint32Array[] = [];
   const device = hizDevice({
     createBuffer: ({ size }) => ({ size, destroy() {} }),
+    queue: {
+      writeBuffer: (_b: unknown, _o: number, words: Uint32Array) => uniforms.push(words.slice()),
+    },
   });
   (device as unknown as { createBindGroup: unknown }).createBindGroup = ({
     entries,
@@ -23,7 +32,7 @@ function recordingDevice() {
     groups.push(group);
     return group;
   };
-  return { device, groups };
+  return { device, groups, uniforms };
 }
 
 const buffer = (label: string) => ({ label, size: 4, destroy() {} }) as unknown as GPUBuffer;
@@ -114,6 +123,31 @@ test('the projection rebinds the pyramid when its identity changes, and only the
   partition.encode(encoder(), frame(4));
   assert.equal(projectGroups().length, 2, 'a resized pyramid gets a new group');
   assert.equal(projectGroups()[1][PARTITION_BINDING.pyramid], pyramid);
+  partition.dispose();
+});
+
+test('rows rewritten since the last image are read as never projected, once', async () => {
+  const { device, uniforms } = recordingDevice();
+  const partition = await createGpuPartition(device, 64, {
+    items: buffer('items'),
+    flags: buffer('flags'),
+    restBits: buffer('rest'),
+    slotUsed: buffer('slots'),
+    pyramid: () => buffer('pyramid'),
+  });
+  assert.ok(partition);
+  const forgotten = (image: number) => [
+    ...uniforms[image].subarray(UNI_SCALARS + 7, UNI_SCALARS + 9),
+  ];
+  partition.encode(encoder(), frame(64));
+  assert.deepEqual(forgotten(0), [0, 0], 'nothing rewritten: an empty range');
+  partition.forgetRows(10, 12);
+  partition.forgetRows(20, 20);
+  partition.forgetRows(5, 3);
+  partition.encode(encoder(), frame(64));
+  assert.deepEqual(forgotten(1), [10, 21], 'the union of the rewritten ranks, end exclusive');
+  partition.encode(encoder(), frame(64));
+  assert.deepEqual(forgotten(2), [0, 0], 'forgotten once, then remembered as projected again');
   partition.dispose();
 });
 

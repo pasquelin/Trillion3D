@@ -30,7 +30,7 @@ function ancree(elements, anchor) {
   return out;
 }
 
-export function referencePartitionUniform(frame, rows) {
+export function referencePartitionUniform(frame, rows, forget) {
   const f32 = new Float32Array(UNIFORM_U32),
     u32 = new Uint32Array(f32.buffer);
   f32.set(ancree(frame.view, frame.anchor), UNI_VIEW);
@@ -48,7 +48,8 @@ export function referencePartitionUniform(frame, rows) {
       frame.layerTop,
       frame.hasRest ? 1 : 0,
       frame.viewMoved ? 1 : 0,
-      0,
+      forget.to < forget.from ? 0 : forget.from,
+      forget.to < forget.from ? 0 : forget.to + 1,
     ],
     UNI_SCALARS,
   );

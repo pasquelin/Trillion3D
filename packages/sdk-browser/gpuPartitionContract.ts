@@ -108,14 +108,15 @@ export const PARTITION_KERNEL_BINDINGS = {
 /**
  * Uniform words: view (16) and view-projection (16), both ALREADY composed with the anchor
  * translation; the anchor in two single-precision values, with the near plane; then the
- * scalars, then the mip table — offset and width — that bound packing reads.
+ * scalars — nine, padded to the sixteen-byte alignment of the array that follows —, then the
+ * mip table — offset and width — that bound packing reads.
  */
 export const UNI_VIEW = 0,
   UNI_VIEW_PROJ = 16,
   UNI_ANCHOR = 32,
   UNI_ANCHOR_LOW = 36,
   UNI_SCALARS = 40,
-  UNI_LEVELS = 48;
+  UNI_LEVELS = 52;
 export const MAX_HIZ_LEVELS = 16;
 export const UNIFORM_U32 = UNI_LEVELS + MAX_HIZ_LEVELS * 2;
 

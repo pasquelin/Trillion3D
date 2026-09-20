@@ -78,7 +78,9 @@ export function encodeWebgpuPartition(
   frame.levels = twoPass ? vis.gpuHiz!.levels() : noLevels;
   frame.layerTop = visLayerTop(vis);
   frame.hasRest = twoPass;
-  frame.viewMoved = run.hizViewMoved;
+  // A moved view, a moved world or a dropped history free the rows the test kept: what stood
+  // still no longer does, and each of them may leave the occluders again.
+  frame.viewMoved = run.hizViewMoved || run.noOccluderHistory;
   partition.encode(encoder, frame);
   run.noOccluderHistory = false;
   // What encoding the partition costs the CPU: one uniform and two dispatches, never a resident
