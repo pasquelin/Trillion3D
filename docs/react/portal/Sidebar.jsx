@@ -39,7 +39,7 @@ export function Sidebar({ entries, route, query, t, inputRef, onQuery, onClose }
         </div>
         <nav>
           {route.area === 'reports' && !query ? (
-            <ReportNavigation locale={route.locale} onClose={onClose} />
+            <ReportNavigation route={route} onClose={onClose} />
           ) : !groups.length ? (
             <p className="empty-search" role="status">
               {t(route.locale, 'sidebar.noResults')}
