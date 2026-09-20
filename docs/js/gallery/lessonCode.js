@@ -1,4 +1,13 @@
-export function lessonCode(operation, { manifest, importedLights = true } = {}) {
+import { sceneFillLightCode } from '../sceneFillLight.js';
+
+export function lessonCode(
+  operation,
+  { manifest, importedLights = true, sceneLight = false, sceneFill = false } = {},
+) {
+  const lighting = sceneLight
+    ? `\nexplorer.addLight({ id: 'scene', kind: 'directional', direction: [-0.4, -0.8, -0.3], color: [1, 0.92, 0.78], intensity: 2.5, castsShadow: true });`
+    : '';
+  const fill = sceneFill ? `\n${sceneFillLightCode()}` : '';
   return `import { createExplorer } from '@web-geometry/sdk/browser';
 
 // HTML: <canvas id="garden" style="width:100%;height:60vh;display:block"></canvas>
@@ -13,6 +22,8 @@ const explorer = await createExplorer('garden', {
 });
 
 await explorer.awaitPages();
+${lighting}
+${fill}
 const home = explorer.homePose();
 explorer.setPose({
   ...home,
