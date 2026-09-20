@@ -4,6 +4,8 @@ const Position = createContext({ offset: 0, depth: 0 });
 export function StickyPanel({ controls, children, sticky = false }) {
   const parent = useContext(Position);
   const ref = useRef(null);
+  const anchor = useRef(null);
+  const [stuck, setStuck] = useState(false);
   const [height, setHeight] = useState(0);
   const [edges, setEdges] = useState({ left: 0, right: 0 });
   useEffect(() => {
@@ -25,9 +27,26 @@ export function StickyPanel({ controls, children, sticky = false }) {
     observer.observe(boundary);
     return () => observer.disconnect();
   }, [sticky]);
+  useEffect(() => {
+    if (!sticky || !anchor.current || !ref.current) return;
+    const top = parseFloat(getComputedStyle(ref.current).top);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setStuck(!entry.isIntersecting && entry.boundingClientRect.top < top);
+      },
+      { rootMargin: `-${top}px 0px 0px 0px`, threshold: 0 },
+    );
+    observer.observe(anchor.current);
+    return () => observer.disconnect();
+  }, [sticky, parent.offset]);
   const position = sticky ? { offset: parent.offset + height, depth: parent.depth + 1 } : parent;
   return (
-    <div className="grid min-w-0 gap-4">
+    <div className="relative grid min-w-0 gap-4">
+      <span
+        ref={anchor}
+        aria-hidden="true"
+        className="pointer-events-none absolute top-0 h-px w-px"
+      />
       <div
         ref={ref}
         className={sticky ? 'sticky self-start bg-base-200 shadow-sm' : undefined}
@@ -36,10 +55,10 @@ export function StickyPanel({ controls, children, sticky = false }) {
             ? {
                 top: `calc(4.25rem + ${parent.offset}px)`,
                 zIndex: 30 - parent.depth,
-                marginLeft: -edges.left,
-                marginRight: -edges.right,
-                paddingLeft: edges.left,
-                paddingRight: edges.right,
+                marginLeft: stuck ? -edges.left : 0,
+                marginRight: stuck ? -edges.right : 0,
+                paddingLeft: stuck ? edges.left : 0,
+                paddingRight: stuck ? edges.right : 0,
               }
             : undefined
         }
