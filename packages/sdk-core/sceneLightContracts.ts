@@ -175,6 +175,19 @@ export const LIGHT_KIND = { point: 0, spot: 1, directional: 2 } as const;
  * rejects a light of that kind without a direction: reading this field here assumes nothing more.
  */
 export const lightDirection = (light: SceneLight) => light.direction as [number, number, number];
+/**
+ * A detached copy of a light, arrays included. What the public API hands out is one of these:
+ * a host that writes into the copy it received changes nothing in the engine, and a host that
+ * mutates a light it has already submitted changes nothing either — the store validated its
+ * own copy on the way in. The copy is made where the host reads, never on the frame path:
+ * engines read the held record and the packed buffer, and copy nothing.
+ */
+export function cloneSceneLight(light: SceneLight): SceneLight {
+  const copy: SceneLight = { ...light, color: [...light.color] };
+  if (light.position) copy.position = [...light.position];
+  if (light.direction) copy.direction = [...light.direction];
+  return copy;
+}
 /** What the scheduler knows of the view: a camera, not a matrix, to stay without a dependency. */
 export interface ShadowViewpoint {
   position: readonly [number, number, number];

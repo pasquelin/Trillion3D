@@ -45,7 +45,12 @@ export const lifecycleFr = {
       { desc: 'Modifie le seuil d’erreur écran de la coupe.' },
       { desc: 'Lit la surface dessinée ou redimensionne les cibles.' },
       { desc: 'Quantiles CPU/GPU par étape et rapport de télémétrie.' },
-      { desc: 'Éclairage de scène, déclaré avant la préparation du premier backend.' },
+      {
+        desc: 'Éclairage de scène, déclaré avant la préparation du premier backend. Le moteur valide sa propre copie de ce qu’il reçoit : une lumière modifiée après envoi ne change rien tant qu’elle n’est pas renvoyée.',
+      },
+      {
+        desc: 'Lisent les lumières et l’exposition tenues sous forme de copies détachées, tableaux compris : y écrire ne change rien dans le moteur, et chaque appel relit le magasin. La copie est payée par l’appel, jamais par l’image.',
+      },
       { desc: 'Libère backends, appareil GPU et sources. Obligatoire.' },
     ],
   },
