@@ -34,7 +34,8 @@ const QUADRANTS = [
 ].map((p) => p.map(Math.round));
 const INSIDE = [CENTRE, ...QUADRANTS];
 
-/** A 2×2 image whose texels, bottom-left first, colour the four quadrants of the square. */
+/** A 2×2 image whose texels colour the four quadrants of the square: top-left, top-right,
+ *  bottom-left, bottom-right on screen (`flipY` off, plane UVs). */
 function quadrantImage(texels) {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 2;
