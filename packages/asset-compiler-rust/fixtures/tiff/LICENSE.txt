@@ -1,5 +1,5 @@
 SPDX-License-Identifier: CC0-1.0
-Auteur : Corpus WebGeometry, génération procédurale assistée par Codex, 2026-09-15
+Author: Corpus WebGeometry, procedural generation, 2026-09-15
 Origine : écrits pour ce dépôt (spécification TIFF 6.0 et Pillow 12.2.0) ; tronque.tif repris de test/assets/tools/texture_assets.py
 https://creativecommons.org/publicdomain/zero/1.0/
 
