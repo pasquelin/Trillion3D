@@ -1,21 +1,12 @@
-import * as THREE from 'three';
+import type * as THREE from 'three';
 import type { PageRec } from './pageSelection.ts';
 import { depthLayerUnits } from '../sdk-core/index.ts';
 import { createPageRowConstants } from './webgpuPageRowConstants.ts';
+import { rowMaterial, type GeometryBlock, type MaterialLayers } from './webgpuPageRowMaterial.ts';
 import {
   assertVisibilityPageTriangles,
   PAGE_INFO_STRIDE,
   VIS_TRIANGLE_BITS,
-  FLAG_LIT,
-  FLAG_DOUBLE,
-  FLAG_HAS_UV,
-  FLAG_HAS_MAP,
-  FLAG_HAS_NORMAL,
-  FLAG_HAS_TANGENT,
-  FLAG_MASK,
-  FLAG_BACK,
-  FLAG_HAS_ORM,
-  FLAG_HAS_NORMAL_MAP,
 } from './visibilityBuffer.ts';
 
 export const ROW_ID_BASE_WORD = 27,
@@ -25,6 +16,8 @@ export const ROW_ID_BASE_WORD = 27,
 export const ROW_WRAP_MODES_WORD = 61;
 /** Row word that carries the line's placement (`PageInfo.placement`). */
 export const ROW_PLACEMENT_WORD = 62;
+/** Row word that carries the resolve class key (`PageInfo.materialClass`, `visibilityMaterialClass.ts`). */
+export const ROW_MATERIAL_CLASS_WORD = 63;
 /** Row word that holds how many indices the page draws: what the GPU reads to draw it, and so the
  *  only vertex count an image walk needs to reread. */
 export const ROW_INDEX_WORDS = 25;
@@ -34,27 +27,14 @@ export const ROW_INDEX_WORDS = 25;
  * of the same value, one formula.
  */
 export const packedRowBase = (row: number) => ((row + 1) << VIS_TRIANGLE_BITS) >>> 0;
-type GeometryBlock = {
-  vertexBase: number;
-  count: number;
-  hasUv: boolean;
-  hasNormal: boolean;
-  hasTangent: boolean;
-};
-type PageRowResources = {
+type PageRowResources = MaterialLayers & {
   geometryBlocks: Map<THREE.BufferGeometry['attributes'], GeometryBlock>;
-  mapLayer: Map<THREE.Texture, number>;
-  dataLayer: Map<THREE.Texture, number>;
   markRowDirty: (row: number) => void;
 };
 
 /** Serializes one drawable cluster row after its occupant, slot, or input epoch changes. */
-export function createPageRowWriter({
-  geometryBlocks,
-  mapLayer,
-  dataLayer,
-  markRowDirty,
-}: PageRowResources) {
+export function createPageRowWriter(resources: PageRowResources) {
+  const { geometryBlocks, markRowDirty } = resources;
   // What the catalogue fixes once and for all is not recomputed for every arriving page.
   const constants = createPageRowConstants();
   return (
@@ -69,14 +49,8 @@ export function createPageRowWriter({
     const base = row * (PAGE_INFO_STRIDE / 4),
       material = constants.materialOf(rec.material),
       geo = geometryBlocks.get(rec.attributes);
-    const mat = material.mat;
-    const layer = mat.map && mapLayer.has(mat.map) ? mapLayer.get(mat.map)! : 0;
-    const roughLayer =
-      mat.roughnessMap && dataLayer.has(mat.roughnessMap) ? dataLayer.get(mat.roughnessMap)! : 0;
-    const metalLayer =
-      mat.metalnessMap && dataLayer.has(mat.metalnessMap) ? dataLayer.get(mat.metalnessMap)! : 0;
-    const nrmLayer =
-      mat.normalMap && dataLayer.has(mat.normalMap) ? dataLayer.get(mat.normalMap)! : 0;
+    const mat = material.mat,
+      maps = rowMaterial(mat, geo, resources);
     floats.set(rec.matrix.elements, base);
     floats[base + 16] = mat.baseColor[0];
     floats[base + 17] = mat.baseColor[1];
@@ -84,21 +58,10 @@ export function createPageRowWriter({
     floats[base + 19] = mat.alphaTest > 0 ? mat.alphaTest : 1;
     floats[base + 20] = mat.metalness;
     floats[base + 21] = mat.roughness;
-    let flags = 0;
-    if (mat.lit) flags |= FLAG_LIT;
-    if (mat.doubleSided) flags |= FLAG_DOUBLE;
-    if (geo?.hasUv) flags |= FLAG_HAS_UV;
-    if (layer) flags |= FLAG_HAS_MAP;
-    if (geo?.hasNormal) flags |= FLAG_HAS_NORMAL;
-    if (geo?.hasTangent) flags |= FLAG_HAS_TANGENT;
-    if (mat.alphaTest > 0) flags |= FLAG_MASK;
-    if (mat.backSide) flags |= FLAG_BACK;
-    if (roughLayer || metalLayer) flags |= FLAG_HAS_ORM;
-    if (nrmLayer) flags |= FLAG_HAS_NORMAL_MAP;
     // A page holding more triangles than the identifier's eight low bits would alias the next page.
     assertVisibilityPageTriangles(index.length / 3, rec.url);
-    ints[base + 22] = layer;
-    ints[base + 23] = flags;
+    ints[base + 22] = maps.map;
+    ints[base + 23] = maps.flags;
     ints[base + 24] = offsetWords;
     ints[base + ROW_INDEX_WORDS] = index.length;
     ints[base + 26] = geo?.vertexBase ?? 0;
@@ -107,15 +70,13 @@ export function createPageRowWriter({
     // The Hi-Z verdict of a row lives at the row's own index, and the rows a frame does not test are
     // cleared on the GPU before the test, so no row ever reads the verdict of an earlier image.
     ints[base + ROW_HIZ_SLOT_WORD] = row;
-    ints[base + 32] = roughLayer;
-    ints[base + 33] = metalLayer;
-    ints[base + 34] = nrmLayer;
+    ints[base + 32] = maps.rough;
+    ints[base + 33] = maps.metal;
+    ints[base + 34] = maps.normal;
     floats[base + 35] = mat.normalScale;
-    const aoLayer = mat.aoMap ? (dataLayer.get(mat.aoMap) ?? 0) : 0,
-      emissiveLayer = mat.emissiveMap ? (mapLayer.get(mat.emissiveMap) ?? 0) : 0;
-    ints[base + 42] = aoLayer;
+    ints[base + 42] = maps.ao;
     floats[base + 43] = mat.aoIntensity;
-    ints[base + 46] = emissiveLayer;
+    ints[base + 46] = maps.emissive;
     ints[base + 47] = pageIndex;
     floats.set(mat.emissive, base + 48);
     floats[base + 54] = mat.normalScaleY;
@@ -131,6 +92,8 @@ export function createPageRowWriter({
     // placement does not exist in a WebGPU layout: that is an invariant, not zero.
     if (rec.placementIndex === undefined) throw new Error('PAGE_PLACEMENT_MISSING');
     ints[base + ROW_PLACEMENT_WORD] = rec.placementIndex;
+    // The class the resolve draws this page under: its flags and map slots, as one word.
+    ints[base + ROW_MATERIAL_CLASS_WORD] = maps.classKey;
     markRowDirty(row);
   };
 }
