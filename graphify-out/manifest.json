@@ -11946,33 +11946,27 @@
     "semantic_hash": ""
   },
   "docs/js/reports/copy.js": {
-    "mtime": 1789897932.8508031,
-    "seen": 1789897980.179679,
-    "ast_hash": "063633243aff3cc4480e778cc37f578a",
+    "mtime": 1789898636.5486367,
+    "seen": 1789900405.857172,
+    "ast_hash": "336fce1dc366c4a17f4ae4e2b6a07bca",
     "semantic_hash": ""
   },
   "docs/js/reports/diagnostics.js": {
-    "mtime": 1789896408.6455576,
-    "seen": 1789896687.21882,
-    "ast_hash": "0102ee24af6bb1ee6db74e1ead200969",
+    "mtime": 1789898698.0818532,
+    "seen": 1789900405.857173,
+    "ast_hash": "554cced3eef0485a48b7d13b282a5041",
     "semantic_hash": ""
   },
   "docs/js/reports/metrics.js": {
-    "mtime": 1789895983.9081502,
-    "seen": 1789896687.218821,
-    "ast_hash": "3cbdddc7535c2ecf7a50033b0f4c4a5a",
+    "mtime": 1789898636.5484996,
+    "seen": 1789900405.857173,
+    "ast_hash": "2bd3cb693de6c0eba3b7714ec1ef37c0",
     "semantic_hash": ""
   },
   "docs/js/reports/names.js": {
-    "mtime": 1789896408.6534116,
-    "seen": 1789896687.218823,
-    "ast_hash": "c7c6fe61297c19c9e352533ad2c0b389",
-    "semantic_hash": ""
-  },
-  "docs/js/reports/selection.js": {
-    "mtime": 1789896696.6768317,
-    "seen": 1789896852.813662,
-    "ast_hash": "e7a70836f5e28899c353e8cd2a426f27",
+    "mtime": 1789900206.7097404,
+    "seen": 1789900405.857174,
+    "ast_hash": "f3d2fd1d99015375e8e97e74bd85cc6a",
     "semantic_hash": ""
   },
   "docs/react/ApiDemo.jsx": {
@@ -12024,9 +12018,9 @@
     "semantic_hash": ""
   },
   "docs/react/components/SectionHeader.jsx": {
-    "mtime": 1789895502.302551,
-    "seen": 1789896687.218833,
-    "ast_hash": "cff17100f2ca398bbbc8389d74a8b2f4",
+    "mtime": 1789899585.4520013,
+    "seen": 1789900405.857188,
+    "ast_hash": "b118841b2bbb1a998104aa6ee4298052",
     "semantic_hash": ""
   },
   "docs/react/components/Stats.jsx": {
@@ -12036,9 +12030,9 @@
     "semantic_hash": ""
   },
   "docs/react/components/UI.jsx": {
-    "mtime": 1789895502.30275,
-    "seen": 1789896687.2188349,
-    "ast_hash": "e564b61b2d6acfb9aca0d466a952c873",
+    "mtime": 1789899784.607216,
+    "seen": 1789900405.857192,
+    "ast_hash": "c437bd597983a433e5db7bdc149e4d30",
     "semantic_hash": ""
   },
   "docs/react/engine-scene/EnginePreview.jsx": {
@@ -12144,9 +12138,9 @@
     "semantic_hash": ""
   },
   "docs/react/portal/Sidebar.jsx": {
-    "mtime": 1789896292.0809717,
-    "seen": 1789896687.218852,
-    "ast_hash": "3b174a1c77312dede418c56502efdb62",
+    "mtime": 1789899298.0433054,
+    "seen": 1789900405.8572202,
+    "ast_hash": "59df3d43a3b22926c0479190e5ecab2f",
     "semantic_hash": ""
   },
   "docs/react/portal/entryLinks.js": {
@@ -12156,69 +12150,57 @@
     "semantic_hash": ""
   },
   "docs/react/reports/CampaignRuns.jsx": {
-    "mtime": 1789896650.675451,
-    "seen": 1789896687.218855,
-    "ast_hash": "721f271562cecfbb5c2b6b69a02c1e97",
+    "mtime": 1789899154.3015647,
+    "seen": 1789900405.8572218,
+    "ast_hash": "25096dad19f27c175a809d370f1e9ee3",
     "semantic_hash": ""
   },
   "docs/react/reports/Comparison.jsx": {
-    "mtime": 1789895983.969214,
-    "seen": 1789896687.2188559,
-    "ast_hash": "4290702e2e55289b30782686f2233b21",
+    "mtime": 1789899154.3073523,
+    "seen": 1789900405.8572228,
+    "ast_hash": "50ca148dc0090021101a69501d715e30",
     "semantic_hash": ""
   },
   "docs/react/reports/Cut.jsx": {
-    "mtime": 1789896408.6678839,
-    "seen": 1789896687.218857,
-    "ast_hash": "0b612ce097d900bc70d20c3edb45b13b",
+    "mtime": 1789899584.104775,
+    "seen": 1789900405.857225,
+    "ast_hash": "8afc64e871fce1bc91206d850e485b67",
     "semantic_hash": ""
   },
   "docs/react/reports/Details.jsx": {
-    "mtime": 1789896408.0460196,
-    "seen": 1789896687.218858,
-    "ast_hash": "17fb0bad0ab93a97dc00e483e8ddeee5",
+    "mtime": 1789899154.3182995,
+    "seen": 1789900405.857226,
+    "ast_hash": "f8b72409b1063db509502a197cfebaee",
     "semantic_hash": ""
   },
   "docs/react/reports/Diagnostics.jsx": {
-    "mtime": 1789896292.040955,
-    "seen": 1789896687.218859,
-    "ast_hash": "ad42c0169325cdaa7a768056a3c76a9c",
+    "mtime": 1789899154.3213649,
+    "seen": 1789900405.857227,
+    "ast_hash": "a7d1b3f23b53ba3c466e916753ecd914",
     "semantic_hash": ""
   },
   "docs/react/reports/Evidence.jsx": {
-    "mtime": 1789896408.679351,
-    "seen": 1789896687.2188601,
-    "ast_hash": "dd44a4d80edb1e6a4646d0e9a290073a",
-    "semantic_hash": ""
-  },
-  "docs/react/reports/Filters.jsx": {
-    "mtime": 1789896926.9687138,
-    "seen": 1789896949.509511,
-    "ast_hash": "b282653676a830a8635b0a4e9a46870a",
+    "mtime": 1789900266.2638352,
+    "seen": 1789900405.857227,
+    "ast_hash": "bb505ac3dec80ea4688238ea940ac009",
     "semantic_hash": ""
   },
   "docs/react/reports/Navigation.jsx": {
-    "mtime": 1789897012.4570563,
-    "seen": 1789897288.7198908,
-    "ast_hash": "85db3b88be07381360b1e3388ae1d994",
-    "semantic_hash": ""
-  },
-  "docs/react/reports/Overview.jsx": {
-    "mtime": 1789896824.4071553,
-    "seen": 1789896852.8137002,
-    "ast_hash": "f689273536a66064edd88fe84d4612f8",
+    "mtime": 1789899298.849455,
+    "seen": 1789900405.8572311,
+    "ast_hash": "1cf48c9645f274f1ffb7c2e267422832",
     "semantic_hash": ""
   },
   "docs/react/reports/Report.jsx": {
-    "mtime": 1789897061.8274927,
-    "seen": 1789897288.719893,
-    "ast_hash": "eb9de3c646979688ba344f04865ba9b5",
+    "mtime": 1789900355.244311,
+    "seen": 1789900405.857234,
+    "ast_hash": "59585cdf219f4dd169458ec8fc6f7c8a",
     "semantic_hash": ""
   },
   "docs/react/reports/useReports.js": {
-    "mtime": 1789896489.385759,
-    "seen": 1789896687.2188642,
-    "ast_hash": "c16ac61d6622f7eca11412617a17f695",
+    "mtime": 1789898778.4209254,
+    "seen": 1789900405.857236,
+    "ast_hash": "ccfd9516991b4161ae883fa5ea027286",
     "semantic_hash": ""
   },
   "scripts/docs-build.mjs": {
@@ -12258,9 +12240,9 @@
     "semantic_hash": ""
   },
   "scripts/docs-reports.test.mjs": {
-    "mtime": 1789896697.3255029,
-    "seen": 1789896852.8154361,
-    "ast_hash": "cefeaf7d56cd2cab625630318d278e6d",
+    "mtime": 1789900320.7546263,
+    "seen": 1789900405.8588748,
+    "ast_hash": "71bd6e39f6e7692d9a4c34f8a3473925",
     "semantic_hash": ""
   },
   "scripts/docs-scene.mjs": {
@@ -12342,8 +12324,8 @@
     "semantic_hash": ""
   },
   "docs/LEARNING_PORTAL.md": {
-    "mtime": 1789896650.0262985,
-    "seen": 1789896687.221059,
+    "mtime": 1789898965.2796197,
+    "seen": 1789900405.859058,
     "ast_hash": "aadf2a488bf0c8414256782bbf1cee62",
     "semantic_hash": ""
   },
@@ -12354,9 +12336,9 @@
     "semantic_hash": ""
   },
   "scripts/mesure/report/README.md": {
-    "mtime": 1789896896.8744278,
-    "seen": 1789896949.511502,
-    "ast_hash": "3beedae1444ac524d76ac60ac0de1073",
+    "mtime": 1789899333.7179925,
+    "seen": 1789900405.859113,
+    "ast_hash": "9c4d2833ca79f54c3ea8c01c05dad1bf",
     "semantic_hash": ""
   },
   "docs/assets/kinetic-garden/preview.png": {
@@ -12366,9 +12348,9 @@
     "semantic_hash": ""
   },
   "docs/react/reports/Conditions.jsx": {
-    "mtime": 1789897065.1554253,
-    "seen": 1789897288.719886,
-    "ast_hash": "09656a05a83338884540283bf403d7d1",
+    "mtime": 1789899154.310895,
+    "seen": 1789900405.857224,
+    "ast_hash": "dc473c7e658aec4892a65f5b18b0d1d8",
     "semantic_hash": ""
   },
   "docs/react/engine-scene/SceneControls.jsx": {
@@ -12447,6 +12429,138 @@
     "mtime": 1789897587.724908,
     "seen": 1789897640.76461,
     "ast_hash": "97c611cc8bff7867e93da30d99e17544",
+    "semantic_hash": ""
+  },
+  "docs/js/reports/assessment.js": {
+    "mtime": 1789900355.8883317,
+    "seen": 1789900405.857167,
+    "ast_hash": "9fd2faa5404a4b40a3aba6126e158051",
+    "semantic_hash": ""
+  },
+  "docs/js/reports/availability.js": {
+    "mtime": 1789898698.0695667,
+    "seen": 1789900405.857168,
+    "ast_hash": "253a4cf1fb25fd7550afff12df299f9f",
+    "semantic_hash": ""
+  },
+  "docs/js/reports/presentation.js": {
+    "mtime": 1789899298.882858,
+    "seen": 1789900405.857175,
+    "ast_hash": "8d6b2ac30cc45a3453378412ffa1329a",
+    "semantic_hash": ""
+  },
+  "docs/js/reports/sources.js": {
+    "mtime": 1789900306.8494632,
+    "seen": 1789900405.857176,
+    "ast_hash": "68a1093d880b1bb0155fd1eb443518f4",
+    "semantic_hash": ""
+  },
+  "docs/react/components/BarChart.jsx": {
+    "mtime": 1789900468.9814532,
+    "seen": 1789900676.597609,
+    "ast_hash": "fcf5067981b0dcdcdc41ef4426eaad75",
+    "semantic_hash": ""
+  },
+  "docs/react/components/Collapse.jsx": {
+    "mtime": 1789900307.4566243,
+    "seen": 1789900405.857182,
+    "ast_hash": "fcd03e5a46baf6f1c7a6e0ae3855c54b",
+    "semantic_hash": ""
+  },
+  "docs/react/components/ImageCard.jsx": {
+    "mtime": 1789900087.0985558,
+    "seen": 1789900405.857184,
+    "ast_hash": "2aedf2a76fcd16e8388ce08ae2dd200c",
+    "semantic_hash": ""
+  },
+  "docs/react/components/ImageComparison.jsx": {
+    "mtime": 1789900087.0982537,
+    "seen": 1789900405.8571851,
+    "ast_hash": "3e5e209a5070bbafb298834ef1f9997f",
+    "semantic_hash": ""
+  },
+  "docs/react/components/Modal.jsx": {
+    "mtime": 1789900087.7674494,
+    "seen": 1789900405.8571851,
+    "ast_hash": "1be9da68c24faa79dd0b850938174bc3",
+    "semantic_hash": ""
+  },
+  "docs/react/components/StatusBadge.jsx": {
+    "mtime": 1789900355.243747,
+    "seen": 1789900405.85719,
+    "ast_hash": "bf8d13e455380ad51deab0021c808267",
+    "semantic_hash": ""
+  },
+  "docs/react/components/Table.jsx": {
+    "mtime": 1789899154.3645172,
+    "seen": 1789900405.8571908,
+    "ast_hash": "ffed797d4970dfbc6ef46b1a39971a59",
+    "semantic_hash": ""
+  },
+  "docs/react/components/Tabs.jsx": {
+    "mtime": 1789899545.578028,
+    "seen": 1789900405.8571908,
+    "ast_hash": "1a72ce1301c1e6965b38a9d04bb6ff18",
+    "semantic_hash": ""
+  },
+  "docs/react/reports/AllReadings.jsx": {
+    "mtime": 1789900307.472061,
+    "seen": 1789900405.8572218,
+    "ast_hash": "43f11b07f880b6889501484730a14081",
+    "semantic_hash": ""
+  },
+  "docs/react/reports/Experiments.jsx": {
+    "mtime": 1789900266.247041,
+    "seen": 1789900405.857228,
+    "ast_hash": "d13d51bb65ea3e11da098e8a8fa6ed34",
+    "semantic_hash": ""
+  },
+  "docs/react/reports/Findings.jsx": {
+    "mtime": 1789900206.8029232,
+    "seen": 1789900405.857229,
+    "ast_hash": "5036e3f109835fed3954acfade4dc6ba",
+    "semantic_hash": ""
+  },
+  "docs/react/reports/MetricCharts.jsx": {
+    "mtime": 1789900468.9812713,
+    "seen": 1789900676.5976572,
+    "ast_hash": "1e61d88dc070e6546a0aebabde95d474",
+    "semantic_hash": ""
+  },
+  "docs/react/reports/Profiles.jsx": {
+    "mtime": 1789900567.3504417,
+    "seen": 1789900676.5976589,
+    "ast_hash": "71fec43797b24cbc4f74077a7a37f4c3",
+    "semantic_hash": ""
+  },
+  "docs/react/reports/ReadingLegend.jsx": {
+    "mtime": 1789900355.9065795,
+    "seen": 1789900405.8572319,
+    "ast_hash": "dcda6ffbb5b6985d5816fad61270a375",
+    "semantic_hash": ""
+  },
+  "docs/react/reports/References.jsx": {
+    "mtime": 1789899154.3452084,
+    "seen": 1789900405.8572328,
+    "ast_hash": "30bc95c801ea0a9059c17f6c094d92c3",
+    "semantic_hash": ""
+  },
+  "docs/react/reports/SceneEvidence.jsx": {
+    "mtime": 1789900468.9815748,
+    "seen": 1789900676.597663,
+    "ast_hash": "84ac64e42009879ad831b21c3cff8e0a",
+    "semantic_hash": ""
+  },
+  "docs/react/reports/SceneReport.jsx": {
+    "mtime": 1789900355.2441053,
+    "seen": 1789900405.857235,
+    "ast_hash": "ae6aa444b4040996ce3ea02de61fc615",
+    "semantic_hash": ""
+  },
+  "docs/react/components/ChartGrid.jsx": {
+    "mtime": 1789900469.5778158,
+    "seen": 1789900676.5976121,
+    "ast_hash": "81a9ee4a0f6844a2ca6eeb273f0b73e6",
     "semantic_hash": ""
   }
 }

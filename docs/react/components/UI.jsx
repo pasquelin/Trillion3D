@@ -27,9 +27,16 @@ export function Button({ children, variant = 'ghost', size = 'md', className = '
   );
 }
 
-export function Card({ children, title, className = '', ...props }) {
+export const surfaceClass = (surface) =>
+  ({ default: 'bg-base-200', nested: 'bg-base-100', inset: 'bg-base-300' })[surface] ??
+  'bg-base-200';
+
+export function Card({ children, title, className = '', surface = 'default', ...props }) {
   return (
-    <section className={`card bg-base-200 border border-base-300 ${className}`} {...props}>
+    <section
+      className={`card ${surfaceClass(surface)} border border-base-300 ${className}`}
+      {...props}
+    >
       <div className="card-body gap-4 p-4">
         {title && <h2 className="card-title text-lg">{title}</h2>}
         {children}

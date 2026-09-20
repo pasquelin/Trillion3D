@@ -163,6 +163,7 @@ const COPY = {
 };
 export const reportCopy = (locale) => COPY[locale] ?? COPY.en;
 export const METRIC_COPY = {
+  textureBudget: ['Recorded texture budget', 'Budget de textures enregistré'],
   gpu: ['GPU frame envelope', 'Enveloppe GPU de l’image'],
   cpu: ['CPU submission', 'Soumission CPU'],
   cadence: ['Display interval', 'Intervalle d’affichage'],
