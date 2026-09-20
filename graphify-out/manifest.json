@@ -13218,9 +13218,9 @@
     "semantic_hash": ""
   },
   "docs/js/code/execute.js": {
-    "mtime": 1789897908.4089422,
-    "seen": 1789898269.3645482,
-    "ast_hash": "6bdfd9c0c85548778e9a4caa0931a0b4",
+    "mtime": 1789899359.4241223,
+    "seen": 1789899448.801332,
+    "ast_hash": "740a2f5d814984fc54c0324e7814b1b7",
     "semantic_hash": ""
   },
   "docs/js/code/formatNumber.js": {
@@ -13308,9 +13308,9 @@
     "semantic_hash": ""
   },
   "scripts/docs-editor.test.mjs": {
-    "mtime": 1789897908.2890816,
-    "seen": 1789898269.3663769,
-    "ast_hash": "fba8beeef100720435c4b98e12d368ba",
+    "mtime": 1789899375.906512,
+    "seen": 1789899448.8080142,
+    "ast_hash": "5d57c4f13c6e9fd88fb1bd50c869d204",
     "semantic_hash": ""
   },
   "scripts/docs-gallery-localization.test.mjs": {
@@ -13323,6 +13323,12 @@
     "mtime": 1789898435.3591,
     "seen": 1789899013.649954,
     "ast_hash": "2745188dea914a0f15747375c444581b",
+    "semantic_hash": ""
+  },
+  "docs/js/code/resolveSdkImports.js": {
+    "mtime": 1789899359.4315124,
+    "seen": 1789899448.801335,
+    "ast_hash": "6445d23a169751c815db7cbdf7646922",
     "semantic_hash": ""
   }
 }

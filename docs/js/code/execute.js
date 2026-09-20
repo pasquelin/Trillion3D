@@ -1,8 +1,8 @@
+import { resolveSdkImports } from './resolveSdkImports.js';
+
 /** Execute one edited module off the UI thread. Each run owns and disposes its worker. */
 export function executionSource(code, sdkUrl) {
-  const resolved = String(code)
-    .replaceAll("'./js/engine.js'", JSON.stringify(sdkUrl))
-    .replaceAll('"./js/engine.js"', JSON.stringify(sdkUrl));
+  const resolved = resolveSdkImports(String(code), sdkUrl);
   const moduleUrl = `data:text/javascript;charset=utf-8,${encodeURIComponent(resolved)}`;
   return `import(${JSON.stringify(moduleUrl)}).then(async module => {
     const value = await module.default;
