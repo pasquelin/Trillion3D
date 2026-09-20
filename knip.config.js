@@ -3,6 +3,8 @@
 // integration lane load them by URL, never by import.
 export default {
   entry: [
+    'docs/react/main.jsx',
+    'scripts/docs/highlight-entry.mjs',
     'packages/sdk-browser/pageDecodeWorker.ts',
     'packages/sdk-browser/pageIntegrationWorker.ts',
     'packages/sdk-node/{index,cli}.mts',
@@ -10,16 +12,15 @@ export default {
     'packages/**/*.test.{ts,mjs}',
     'scripts/*.mjs',
     'scripts/mesure/banc.mjs',
-    // Served to the harness page and imported by URL, never by local import.
+    // Servis à la page du harnais et importés par leur URL, jamais par un import local.
     'scripts/mesure/pageCoupe.mjs',
     'scripts/mesure/pageTemoin.mjs',
     'scripts/mesure/pageExplorateur.mjs',
     'scripts/mesure/pageEclairage.mjs',
-    'scripts/mesure/poses.mjs',
     'scripts/mesure/pageThreeNu.mjs',
     'scripts/mesure/pageThreeLod.mjs',
     'scripts/mesure/pageMesure.mjs',
-    // Full campaign and its report, launched manually.
+    // La campagne complète et son rapport, lancés à la main.
     'scripts/mesure/campagne.mjs',
     'scripts/mesure/rapportGlobal.mjs',
     'scripts/mesure/oracle.mjs',
@@ -31,6 +32,7 @@ export default {
     'test/browser/*.browser.mjs',
   ],
   project: [
+    'docs/react/**/*.jsx',
     'packages/**/*.{ts,mts,mjs,js}',
     'scripts/**/*.{ts,mts,mjs,js}',
     'test/**/*.{ts,mts,mjs,js}',
@@ -40,9 +42,18 @@ export default {
   paths: {
     '/packages/sdk-browser/*': ['packages/sdk-browser/*'],
   },
-  // `scripts/build-wasm.mjs` queries the Rust toolchain installed by rustup, not an npm package;
-  // `sips` is the macOS image tool called by the global report for its JPEGs.
+  // `scripts/build-wasm.mjs` interroge la chaîne Rust installée par rustup, pas un paquet npm ;
+  // `sips` est l'outil d'image de macOS, que le rapport global appelle pour ses JPEG.
+  // Loaded by Tailwind's CSS @plugin directive, through the JavaScript build adapter.
+  ignoreDependencies: ['daisyui'],
   ignoreBinaries: ['rustc', 'sips'],
-  // These specifiers are harness server URLs resolved by the browser, not local Node modules.
-  ignoreUnresolved: ['/mesure/poses.mjs', '/__wg-fixture/drawRun.mjs'],
+  // These specifiers are Vite/Render Tech Lab runtime URLs, not local Node modules.
+  ignoreUnresolved: [
+    '/.vite/deps/three.js',
+    '/15-virtualized-integration/implementation/engines.ts',
+    '/src/lab/modelCampaign.ts',
+    '/__wg-fixture/presentationRun.mjs',
+    '/__wg-fixture/beautyRun.mjs',
+    '/__wg-fixture/drawRun.mjs',
+  ],
 };
