@@ -31,6 +31,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       pipelineBlendTextured: vis.pipelineBlendTextured,
       pipelineBlendFront: vis.pipelineBlendFront,
       pipelineBlendBack: vis.pipelineBlendBack,
+      water: blendState.water,
     } = await createWebgpuBlendPipelines(
       gpuDevice,
       blendState.blendGpu,
@@ -42,6 +43,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
     diag.diagnosticFailure('forward-material-pipeline-failed', error);
     vis.blendBindGroupLayout = undefined;
     vis.pipelineBlendTextured = undefined;
+    blendState.water = undefined;
   }
   // Coplanar-stack depth sets the draw-slot count, therefore the visibility uniform size and that of
   // indirect compaction: it is read before creating them.
