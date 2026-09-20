@@ -34,6 +34,7 @@ export function visMaterial(material: THREE.Material | THREE.Material[]): VisMat
   const color =
     'color' in first && first.color instanceof THREE.Color ? first.color : new THREE.Color(1, 1, 1);
   const std = first as THREE.MeshStandardMaterial;
+  const basic = first as THREE.MeshBasicMaterial;
   const phys = first as THREE.MeshPhysicalMaterial;
   const lit = !!std.isMeshStandardMaterial,
     side = sideOf(first);
@@ -51,8 +52,8 @@ export function visMaterial(material: THREE.Material | THREE.Material[]): VisMat
     normalMap: lit && std.normalMap ? std.normalMap : undefined,
     normalScale: lit && std.normalScale ? std.normalScale.x : 1,
     normalScaleY: lit && std.normalScale ? std.normalScale.y : 1,
-    aoMap: lit && std.aoMap ? std.aoMap : undefined,
-    aoIntensity: lit ? std.aoMapIntensity : 1,
+    aoMap: (lit ? std.aoMap : basic.aoMap) ?? undefined,
+    aoIntensity: (lit ? std.aoMapIntensity : basic.aoMapIntensity) ?? 1,
     emissive: lit
       ? [
           std.emissive.r * std.emissiveIntensity,

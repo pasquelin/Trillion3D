@@ -26,6 +26,7 @@ export class WebglClusterState {
   private polygon = -1;
   private polygonFactor = Number.NaN;
   private polygonUnits = Number.NaN;
+  private winding = -1;
   private gl: WebGL2RenderingContext;
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
@@ -33,7 +34,17 @@ export class WebglClusterState {
   invalidate() {
     this.cull = this.face = this.depth = this.depthFunction = -1;
     this.depthWrite = this.colorWrite = this.polygon = -1;
+    this.winding = -1;
     this.polygonFactor = this.polygonUnits = Number.NaN;
+  }
+  applyWinding(matrix: ArrayLike<number>) {
+    const determinant =
+      matrix[0] * (matrix[5] * matrix[10] - matrix[6] * matrix[9]) -
+      matrix[4] * (matrix[1] * matrix[10] - matrix[2] * matrix[9]) +
+      matrix[8] * (matrix[1] * matrix[6] - matrix[2] * matrix[5]);
+    const winding = determinant < 0 ? this.gl.CW : this.gl.CCW;
+    if (winding !== this.winding) this.gl.frontFace(winding);
+    this.winding = winding;
   }
   private capability(enabled: boolean, previous: number, capability: number) {
     const next = enabled ? 1 : 0;

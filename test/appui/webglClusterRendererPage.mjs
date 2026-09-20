@@ -64,6 +64,11 @@ export async function execute() {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   renderer.draw([mesh], scene, drawCamera, false, true);
   const canvasCenter = pixel(gl, 16, 16);
+  mesh.matrix.makeScale(-1, 1, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  renderer.draw([mesh], scene, drawCamera, false, true);
+  const mirroredFront = pixel(gl, 16, 16);
+  mesh.matrix.identity();
 
   const texture = gl.createTexture(),
     framebuffer = gl.createFramebuffer(),
@@ -103,6 +108,17 @@ export async function execute() {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   renderer.draw([mesh], scene, drawCamera, false, true);
   const direct = pixel(gl, 16, 16);
+  scene.clear();
+  const spot = new THREE.SpotLight(0xffffff, 1, 0, 0.5, 0, 2);
+  spot.position.set(0, 0, 1);
+  scene.add(spot, spot.target);
+  scene.updateMatrixWorld(true);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  renderer.draw([mesh], scene, drawCamera, false, true);
+  const zeroPenumbraSpot = pixel(gl, 16, 16);
+  scene.clear();
+  scene.add(sun, sun.target);
+  scene.updateMatrixWorld(true);
   placeRig(mesh, camera, sun, drawCamera, 1e8);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   renderer.draw([mesh], scene, drawCamera, false, true);
@@ -151,12 +167,14 @@ export async function execute() {
   const curvedMotion = [-0.02, -0.01, 0, 0.01, 0.02].map((offset) => curvedComparison(128, offset));
   return {
     canvasCenter,
+    mirroredFront,
     fboInside,
     fboOutside,
     framebufferStatus,
     drawError,
     ambient,
     direct,
+    zeroPenumbraSpot,
     translatedDirect,
     directWitness: planarWitness(),
     neutralNormal,

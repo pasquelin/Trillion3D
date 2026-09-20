@@ -27,6 +27,8 @@ export function textureFixtures(renderer, gl, mesh, scene, camera, pixel) {
     }),
     basic = new THREE.MeshBasicMaterial({ color: 0xffffff, map: linear }),
     linearMap = draw(renderer, gl, mesh, scene, camera, basic, pixel),
+    basicAoMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, aoMap: linear }),
+    basicAo = draw(renderer, gl, mesh, scene, camera, basicAoMaterial, pixel),
     emissiveMaterial = new THREE.MeshStandardMaterial({ color: 0, emissive: 0xffffff });
   emissiveMaterial.emissiveMap = linear;
   const linearEmissive = draw(renderer, gl, mesh, scene, camera, emissiveMaterial, pixel),
@@ -45,9 +47,10 @@ export function textureFixtures(renderer, gl, mesh, scene, camera, pixel) {
     uv1Transform = draw(renderer, gl, mesh, scene, camera, uvMaterial, pixel);
   mesh.material = previous;
   basic.dispose();
+  basicAoMaterial.dispose();
   emissiveMaterial.dispose();
   uvMaterial.dispose();
   linear.dispose();
   indexed.dispose();
-  return { linearMap, linearEmissive, uv1Transform };
+  return { linearMap, basicAo, linearEmissive, uv1Transform };
 }
