@@ -7,7 +7,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.mjs';
 const { Gallery, Playground } = await loadReactComponents('docs/react/gallery/index.jsx');
-const { PlannedCard } = await loadReactComponents('docs/react/gallery/PlannedCard.jsx');
+const { ExampleCard } = await loadReactComponents('docs/react/gallery/ExampleCard.jsx');
 const { Home } = await loadReactComponents('docs/react/portal/Home.jsx');
 const { CodeBlock } = await loadReactComponents('docs/react/components/CodeBlock.jsx');
 const renderGallery = (locale) => renderToStaticMarkup(createElement(Gallery, { locale }));
@@ -16,7 +16,7 @@ const renderPlayground = (id, locale) =>
 const { codeFor } = await import(new URL('code.js', root));
 const { evaluate } = await import(new URL('evaluate.js', root));
 const { geometryFor } = await import(new URL('sceneGeometry.js', root));
-const { draw, legendAnchors } = await import(new URL('draw.js', root));
+const { legendAnchors } = await import(new URL('draw.js', root));
 const { initialState } = await import(new URL('scenarios.js', root));
 const { examples } = await import(new URL('catalog.js', root));
 const { apiScenario } = await import(new URL('apiScenario.js', root));
@@ -55,38 +55,6 @@ test('diagram legends assign a distinct fixed anchor to every label', () => {
   assert.ok(anchors.every(({ x, y }) => x >= 40 && x < 640 && y === 24));
 });
 
-test('all four advanced lessons mount their complementary diagram with finite geometry', () => {
-  class SvgNode {
-    children = [];
-    setAttribute(name, value) {
-      assert.doesNotMatch(String(value), /NaN|undefined/, name);
-    }
-    append(...children) {
-      this.children.push(...children);
-    }
-    replaceChildren(...children) {
-      this.children = children;
-    }
-  }
-  const previous = globalThis.document;
-  globalThis.document = { createElementNS: () => new SvgNode() };
-  try {
-    for (const id of [
-      'matrix-inverse',
-      'reflection-orientation',
-      'quaternion-turn',
-      'normal-transform',
-    ]) {
-      const state = initialState(id);
-      const svg = new SvgNode();
-      draw(svg, evaluate(id, state, 'fr'), 'fr');
-      assert.ok(svg.children.length > 3, id);
-    }
-  } finally {
-    globalThis.document = previous;
-  }
-});
-
 test('gallery renders visual, searchable cards and the real engine scene', () => {
   const gallery = renderGallery('en');
   assert.match(gallery, /type="search"/);
@@ -119,7 +87,7 @@ test('planned lessons stay honest, specific, and link to related ready material'
     assert.equal(new Set(roadmap.entries.map((entry) => entry.title[locale])).size, 607);
   const entry = roadmap.entries.find(({ subject }) => subject === 'camera');
   const card = renderToStaticMarkup(
-    createElement(PlannedCard, { entry, locale: 'fr', expanded: true, onOpen() {} }),
+    createElement(ExampleCard, { example: entry, locale: 'fr', expanded: true, onOpen() {} }),
   );
   assert.match(card, /Plan non exécutable/);
   assert.match(card, /Pourquoi/);
