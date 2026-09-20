@@ -48,7 +48,10 @@ pub const COLOR_EXPONENT: i32 = -8;
 /// `MAX_BITS` — a cluster wider than 2^24 steps, which the primitive grid never produces. A
 /// value the coarsest grid still cannot hold is refused rather than written unreadable.
 /// Returns the record and, per vertex, the `N` grid offsets from the page minimum.
-pub fn quantize<const N: usize>(values: &[f32], exponent: i32) -> Result<(Quant<N>, Vec<[u32; N]>)> {
+pub fn quantize<const N: usize>(
+    values: &[f32],
+    exponent: i32,
+) -> Result<(Quant<N>, Vec<[u32; N]>)> {
     let count = values.len() / N;
     let mut exponent = exponent;
     loop {
@@ -77,8 +80,13 @@ pub fn quantize<const N: usize>(values: &[f32], exponent: i32) -> Result<(Quant<
             ));
         }
         let bits: [u32; N] = std::array::from_fn(|c| bits_for(range(c) as u64));
-        let min: [f32; N] =
-            std::array::from_fn(|c| if count == 0 { 0.0 } else { (lo[c] * step) as f32 });
+        let min: [f32; N] = std::array::from_fn(|c| {
+            if count == 0 {
+                0.0
+            } else {
+                (lo[c] * step) as f32
+            }
+        });
         if min.iter().any(|m| !m.is_finite()) {
             return Err(CompilerError::new(
                 "INVALID_PAGE_ATTRIBUTE",
@@ -142,7 +150,10 @@ pub fn oct_encode(normal: [f32; 3]) -> u32 {
     let length = (x * x + y * y + z * z).sqrt();
     let unit = [x / length, y / length, z / length];
     let mut best = (f32::INFINITY, 0u32);
-    for candidate in [bx, bx + 1].into_iter().flat_map(|qx| [qx | (by << 8), qx | ((by + 1) << 8)]) {
+    for candidate in [bx, bx + 1]
+        .into_iter()
+        .flat_map(|qx| [qx | (by << 8), qx | ((by + 1) << 8)])
+    {
         let [dx, dy, dz] = oct_decode(candidate);
         let dot = dx * unit[0] + dy * unit[1] + dz * unit[2];
         let error = 1.0 - dot;
@@ -151,42 +162,4 @@ pub fn oct_encode(normal: [f32; 3]) -> u32 {
         }
     }
     best.1
-}
-
-/// Packs fixed-width fields, least significant bit first, into little-endian words. Every
-/// stream starts on a word: `stream` closes the last one it wrote.
-#[derive(Default)]
-pub struct BitWriter {
-    words: Vec<u32>,
-    bit: usize,
-}
-
-impl BitWriter {
-    pub fn push(&mut self, value: u32, bits: u32) {
-        if bits == 0 {
-            return;
-        }
-        let shift = (self.bit % 32) as u32;
-        if shift == 0 {
-            self.words.push(0);
-        }
-        let index = self.words.len() - 1;
-        self.words[index] |= value << shift;
-        if shift + bits > 32 {
-            self.words.push(value >> (32 - shift));
-        }
-        self.bit += bits as usize;
-    }
-
-    /// One whole stream: its fields, then the padding that closes the last word.
-    pub fn stream(&mut self, values: impl Iterator<Item = u32>, bits: u32) {
-        for value in values {
-            self.push(value, bits);
-        }
-        self.bit = self.words.len() * 32;
-    }
-
-    pub fn words(&self) -> &[u32] {
-        &self.words
-    }
 }

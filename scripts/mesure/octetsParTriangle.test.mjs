@@ -8,10 +8,25 @@ const manifest = {
   compilerVersion: '0.8.0',
   primitives: [
     {
-      quantization: { positionExponent: -10, positionStep: 2 ** -10, uvExponent: -16, maxPositionError: 0.0004 },
+      quantization: {
+        positionExponent: -10,
+        positionStep: 2 ** -10,
+        uvExponent: -16,
+        maxPositionError: 0.0004,
+      },
       pages: [
-        { count: 384, bytes: 1536, level: 0, geometry: { bytes: 640, uncompressedBytes: 8448, vertexCount: 96 } },
-        { count: 300, bytes: 1200, level: 1, geometry: { bytes: 500, uncompressedBytes: 6600, vertexCount: 80 } },
+        {
+          count: 384,
+          bytes: 1536,
+          level: 0,
+          geometry: { bytes: 640, uncompressedBytes: 8448, vertexCount: 96 },
+        },
+        {
+          count: 300,
+          bytes: 1200,
+          level: 1,
+          geometry: { bytes: 500, uncompressedBytes: 6600, vertexCount: 80 },
+        },
       ],
     },
     { pages: [{ count: 30, bytes: 120, level: 0 }] },

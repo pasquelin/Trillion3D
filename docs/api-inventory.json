@@ -1263,7 +1263,8 @@
         "packages/sdk-browser/exactPagesContractLights.test.ts",
         "packages/sdk-browser/explorerBackends.ts",
         "packages/sdk-browser/webgpuPagesLightResources.test.ts",
-        "packages/sdk-browser/webgpuPagesStateLights.ts"
+        "packages/sdk-browser/webgpuPagesStateLights.ts",
+        "test/appui/eclairageEchantillonnePage.mjs"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/sceneLightStore\".createSceneLightStore"
@@ -1481,7 +1482,10 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/manifestLoad.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/manifestLoad.ts",
+        "scripts/mesure/octetsParTriangle.mjs"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/manifestBinaryDecode\".decodeManifestBinary"
     },
@@ -2146,7 +2150,7 @@
     {
       "name": "GeometryPageDescriptor",
       "kind": "type",
-      "definingModule": "packages/sdk-core/geometryContracts.ts",
+      "definingModule": "packages/sdk-core/geometryPageContracts.ts",
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
@@ -2155,7 +2159,7 @@
         "packages/sdk-browser/manifestPageIndex.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/geometryContracts\".GeometryPageDescriptor"
+      "bindingIdentity": "\"packages/sdk-core/geometryPageContracts\".GeometryPageDescriptor"
     },
     {
       "name": "GeometryPool",
@@ -2701,6 +2705,8 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/bench/oracles/socle-math-ombres.mjs",
+        "packages/sdk-browser/directLightSamplingWgsl.test.ts",
+        "packages/sdk-browser/directLightSamplingWgsl.ts",
         "packages/sdk-browser/directLightWgsl.ts",
         "packages/sdk-browser/directShadowWgsl.ts",
         "packages/sdk-browser/exactPagesContractLights.test.ts",
@@ -2713,7 +2719,8 @@
         "packages/sdk-browser/gpuSunFarShadow.ts",
         "packages/sdk-browser/visibilityShaderRequest.ts",
         "packages/sdk-browser/webgpuPagesPrepareLights.ts",
-        "packages/sdk-browser/webgpuPagesPrepareSunFar.ts"
+        "packages/sdk-browser/webgpuPagesPrepareSunFar.ts",
+        "test/browser/eclairage-echantillonne.browser.mjs"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".LIGHT_SETTINGS"
@@ -4051,13 +4058,13 @@
     {
       "name": "PrimitiveQuantization",
       "kind": "type",
-      "definingModule": "packages/sdk-core/geometryContracts.ts",
+      "definingModule": "packages/sdk-core/geometryPageContracts.ts",
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/geometryContracts\".PrimitiveQuantization"
+      "bindingIdentity": "\"packages/sdk-core/geometryPageContracts\".PrimitiveQuantization"
     },
     {
       "name": "primitiveUsesClusterErrors",
@@ -5715,8 +5722,11 @@
         "test/appui/antialiasingTemporelPage.mjs",
         "test/appui/coupeGpuTenuePage.mjs",
         "test/appui/depthConventionMoteurCompletPage.mjs",
+        "test/appui/eclairageEchantillonnePage.mjs",
+        "test/appui/hizDeuxPassesPage.mjs",
         "test/appui/hizRigPage.mjs",
         "test/appui/rasterCalculPage.mjs",
+        "test/appui/sceneOccultante.mjs",
         "test/appui/setTransformParentPerimePage.mjs",
         "test/appui/transparentTransformPage.mjs",
         "test/justesse/cameraSitesMoteurs.mjs"

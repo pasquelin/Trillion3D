@@ -45,22 +45,36 @@ test('a page decodes to its triangles, every attribute within the declared error
     let distance = 0,
       dot = 0;
     for (let c = 0; c < 3; c++) {
-      distance += (decoded.attributes.position[local * 3 + c] - attributes.POSITION.array[source * 3 + c]) ** 2;
+      distance +=
+        (decoded.attributes.position[local * 3 + c] - attributes.POSITION.array[source * 3 + c]) **
+        2;
       dot += decoded.attributes.normal[local * 3 + c] * attributes.NORMAL.array[source * 3 + c];
     }
     assert.ok(Math.sqrt(distance) <= encoded.quantizationError + 1e-9, `position ${corner}`);
     assert.ok(Math.sqrt(distance) <= (step * Math.sqrt(3)) / 2 + 1e-9);
     assert.ok(Math.acos(dot / Math.hypot(1, 0.5)) < (1 * Math.PI) / 180, `normal ${corner}`);
     for (let c = 0; c < 2; c++)
-      assert.ok(Math.abs(decoded.attributes.uv[local * 2 + c] - attributes.TEXCOORD_0.array[source * 2 + c]) <= 2 ** -15 + 1e-9);
-    assert.ok(Math.abs(decoded.attributes.color[local * 4] - attributes.COLOR_0.array[source * 3]) <= 0.5 / 256 + 1e-6);
+      assert.ok(
+        Math.abs(
+          decoded.attributes.uv[local * 2 + c] - attributes.TEXCOORD_0.array[source * 2 + c],
+        ) <=
+          2 ** -15 + 1e-9,
+      );
+    assert.ok(
+      Math.abs(decoded.attributes.color[local * 4] - attributes.COLOR_0.array[source * 3]) <=
+        0.5 / 256 + 1e-6,
+    );
     assert.equal(decoded.attributes.color[local * 4 + 3], 1);
   }
 });
 
 test('vertices that land on the same cells are kept once and the indices remapped', () => {
   const position = new Float32Array([0, 0, 0, 1, 0, 0, 1 + 2 ** -12, 0, 0, 0, 1, 0]);
-  const encoded = encodeGeometryPage([0, 1, 3, 0, 2, 3], { POSITION: { itemSize: 3, array: position } }, -4);
+  const encoded = encodeGeometryPage(
+    [0, 1, 3, 0, 2, 3],
+    { POSITION: { itemSize: 3, array: position } },
+    -4,
+  );
   const decoded = decodeGeometryPage(encoded.data);
   assert.equal(decoded.vertexCount, 3);
   assert.deepEqual(Array.from(decoded.indices), [0, 1, 2, 0, 1, 2]);
@@ -76,7 +90,10 @@ test('a short header, a wrong version, a field beyond the format, a forged index
   const wide = Uint8Array.from(encoded.data);
   wide[20] = 25; // Position x width: 25 of the 6 bits, above 24.
   assert.throws(() => decodeGeometryPage(wide), /GEOMETRY_PAGE_BOUNDS/);
-  assert.throws(() => decodeGeometryPage(encoded.data.subarray(0, encoded.data.length - 4)), /GEOMETRY_PAGE_BOUNDS/);
+  assert.throws(
+    () => decodeGeometryPage(encoded.data.subarray(0, encoded.data.length - 4)),
+    /GEOMETRY_PAGE_BOUNDS/,
+  );
   assert.throws(() => decodeGeometryPage(encoded.data, 16), /GEOMETRY_PAGE_BOUNDS/);
   const forged = Uint8Array.from(encoded.data);
   forged[96] = 0xff; // Every field of the first index word set: 63 > 5 vertices.

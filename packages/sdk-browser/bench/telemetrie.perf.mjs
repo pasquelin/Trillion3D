@@ -15,18 +15,6 @@ for (let i = 0; i < 2000; i++) {
   digests.push(octets);
 }
 
-const resDecode = await mesure({
-  name: 'decodePageAttributes',
-  fichier: 'packages/sdk-browser/geometryPage.ts',
-  cas: [
-    { name: '30 000 vertices, 4 attributes', input: grande, size: 30000 },
-    { name: '9 vertices', input: petite, size: 9 },
-  ],
-  calcul: (args) => decodePageAttributes(...args),
-  attendu: (args) => referenceDecode(...args),
-  options: { tours: 60, budgetMs: 1500 },
-});
-
 const resTelemetry = await mesure({
   name: 'intervals and hexadecimal',
   fichier: 'packages/sdk-browser/telemetry.ts',
