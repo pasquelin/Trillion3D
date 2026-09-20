@@ -82,7 +82,7 @@ test('generated inventory and explicit facade files are current', async () => {
   const inventory = JSON.parse(
     await readFile(new URL('../../docs/api-inventory.json', import.meta.url)),
   );
-  assert.equal(inventory.exports.length, 445);
+  assert.equal(inventory.exports.length, 475);
   assert.deepEqual(inventory.collisions, []);
   assert.ok(inventory.exports.every((entry) => !entry.bindingIdentity.includes(process.cwd())));
   assert.ok(inventory.exports.every((entry) => !entry.bindingIdentity.includes('file://')));
@@ -91,6 +91,23 @@ test('generated inventory and explicit facade files are current', async () => {
       (entry) => entry.name === 'sideOf' && entry.disposition === 'newly exposed',
     ),
   );
+  const entries = new Map(inventory.exports.map((entry) => [entry.name, entry]));
+  for (const [name, entryPoint] of [
+    ['CameraPose', 'web-geometry (common)'],
+    ['JobSnapshot', 'web-geometry (common)'],
+    ['Explorer', 'web-geometry (browser condition)'],
+    ['ExplorerOptions', 'web-geometry (browser condition)'],
+    ['CompilationJob', 'web-geometry (node condition)'],
+    ['CompilationResult', 'web-geometry (node condition)'],
+    ['PrepareOptions', 'web-geometry (node condition)'],
+  ]) {
+    const entry = entries.get(name);
+    assert.equal(entry?.kind, 'type', `${name} must remain a named public type`);
+    assert.ok(
+      entry.currentEntryPoints.includes(entryPoint),
+      `${name} must remain reachable from ${entryPoint}`,
+    );
+  }
 });
 
 test('a maths-only bundle keeps baseline bytes and excludes platform modules', async () => {
@@ -116,7 +133,7 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   assert.ok(!inputs.some((path) => path.includes('/sdk-browser/') || path.includes('/sdk-node/')));
   assert.equal(baseline.outputFiles[0].contents.length, 5_245);
   assert.equal(proposed.outputFiles[0].contents.length, 1_780);
-  assert.equal(browserProposed.outputFiles[0].contents.length, 3_289);
+  assert.equal(browserProposed.outputFiles[0].contents.length, 3_292);
   assert.ok(
     !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),
   );
