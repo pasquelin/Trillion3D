@@ -1,7 +1,8 @@
 // GEO-03: the host is allowed to write the source graph directly — `mesh.position.x = 100`,
 // a lamp's intensity and pose — without calling any engine API. No revision
-// announced it, and the frame was held on a stale scene. Rereading the graph is what
-// announces it; it is exact, bounded by the nodes and the lamps, and idempotent.
+// announced it, and the frame was held on a stale scene. The write itself is what announces
+// it now (#6): the hooked field increments the watch's revision, the frame compares one
+// integer, and a still scene rereads no node.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -109,6 +110,39 @@ test('the frame gate no longer holds a frame when the host has written the scene
   mesh.position.x = 100;
   gate.readScene(source, dessins);
   assert.equal(gate.held(), false, 'the scene moved under the held frame');
+});
+
+test('a write the engine made itself is settled with its revision, not announced twice', () => {
+  const gate = createWebglFrameGate();
+  const { source, mesh } = graphe();
+  const dessins = dessine(mesh);
+  gate.readScene(source, dessins);
+  gate.readScene(source, dessins);
+  const before = gate.revisions.scene;
+  // What `setTransform` does: writes the node, declares the scene changed, notes the walk done.
+  mesh.position.x = 5;
+  gate.sceneChanged();
+  gate.noteWorldsUpdated();
+  gate.readScene(source, dessins);
+  assert.equal(gate.revisions.scene, before + 1, 'one change, one revision');
+  gate.readScene(source, dessins);
+  assert.equal(gate.revisions.scene, before + 1, 'and none after');
+});
+
+test('a lamp retargeted by the host: the new target is hooked, its later pose is seen', () => {
+  const gate = createWebglFrameGate();
+  const { source, soleil } = graphe();
+  gate.readScene(source, []);
+  gate.readScene(source, []);
+  const cible = new THREE.Object3D();
+  soleil.target = cible;
+  gate.readScene(source, []);
+  const after = gate.revisions.scene;
+  gate.readScene(source, []);
+  assert.equal(gate.revisions.scene, after, 'the retarget is announced once');
+  cible.position.y = -3;
+  gate.readScene(source, []);
+  assert.equal(gate.revisions.scene, after + 1, 'the new target moved: seen');
 });
 
 /** The Three engine with a lamp declared in the source graph, which the host will write directly. */
