@@ -1,7 +1,6 @@
 // Rendering of a measurement row, written once. Benchmark console and aggregated table
 // compose the exact same cells in the same order: they can no longer display two formats of
-// the same figure. Only regression icons distinguish the two outputs. The witness column carries
-// none: a witness is a point of comparison, a baseline is a gate.
+// the same figure. Only regression icons distinguish the two outputs; the witness column has none.
 import { niveauEcart } from './baseline.mjs';
 
 const ms = (v) => (v === null ? 'null' : v.toFixed(3));

@@ -1,6 +1,7 @@
 // Absolute measurement of an engine calculation, on named cases, against an oracle.
 // This file only measures and compares: table, fragments, baselines and path
 // checking of cited files are managed by `rapport.mjs`.
+import { ecartRelatif } from './baseline.mjs';
 import { ecart } from './ecart.mjs';
 
 /** Pseudo-random generator with fixed seed (xorshift32): two executions see the same inputs. */
@@ -58,10 +59,8 @@ const compteTexte = (c) => `${c.nombre} discrepancy(ies), ${c.ulpMax} ULP at mos
  * kept: without an oracle it says where correctness is held, with one it says what the comparison
  * leaves out; never silence.
  */
-async function verifie(item, { calcul, attendu, differences, motif, temoin }) {
+async function verifie(item, { calcul, attendu, differences, motif }) {
   if (!attendu) return { correct: null, difference: null, motif: motif ?? null };
-  // The oracle may read the witness's result: the witness runs once before it is read.
-  if (temoin) await temoin(item.input);
   const ref = await attendu(item.input);
   const obt = await calcul(item.input);
   if (!differences) {
@@ -75,26 +74,22 @@ async function verifie(item, { calcul, attendu, differences, motif, temoin }) {
 /**
  * Absolute measurement of a calculation on a set of named cases, each verified against `attendu`.
  * `fichier` is the measured path, or list of paths; `mesure: false` on a case verifies it without timing.
- * `temoin` is another calculation of the same thing — a host library, a rejected candidate — timed
- * on the same input with the same settings: the row keeps its statistics under `temoin` and reads
- * `ecartTemoin`, the calculation's median relative to the witness's, as `ecartBaseline` reads it
- * relative to the baseline. Never `0` without a witness: `null`.
+ * `temoin` is another calculation of the same thing, timed under the same settings: its statistics
+ * go under `temoin` and `ecartTemoin` reads the calculation's median against its (`null` without).
  */
-export async function mesure({ name, fichier, cas, options = {}, temoin, ...conf }) {
-  const { chauffe = 20, tours = 200, budgetMs = 1000 } = options;
-  const reglages = { chauffe, tours, budgetMs };
+export async function mesure({ name, fichier, cas, options = {}, ...conf }) {
+  const reglages = { chauffe: 20, tours: 200, budgetMs: 1000, ...options };
   const resultats = [];
 
   for (const item of cas) {
-    const verdict = await verifie(item, { ...conf, temoin });
+    const verdict = await verifie(item, conf);
 
     if (item.mesure === false) {
       resultats.push(ligne({ ...verdict, name: item.name, size: item.size }));
       continue;
     }
 
-    // The witness runs first, under the same clock and the same budget as the calculation.
-    const t = temoin ? await chronometre(temoin, item.input, reglages) : null;
+    const t = conf.temoin ? await chronometre(conf.temoin, item.input, reglages) : null;
     const s = await chronometre(conf.calcul, item.input, reglages);
     resultats.push({
       name: item.name,
@@ -103,7 +98,7 @@ export async function mesure({ name, fichier, cas, options = {}, temoin, ...conf
       nsParElement: item.size > 0 ? (s.medianeMs * 1e6) / item.size : null,
       opsParSec: s.medianeMs > 0 ? Math.round(1000 / s.medianeMs) : null,
       temoin: t,
-      ecartTemoin: t?.medianeMs ? (s.medianeMs - t.medianeMs) / t.medianeMs : null,
+      ecartTemoin: ecartRelatif(s.medianeMs, t?.medianeMs ?? null),
       ...verdict,
     });
   }
