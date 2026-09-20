@@ -72,6 +72,7 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     state.pairTargetA?.dispose();
     state.pairTargetB?.dispose();
     compositor?.dispose();
+    streaming.backgroundFetchController?.abort();
     streamer.dispose();
     releasePageDecoders();
     releasePageIntegration();
