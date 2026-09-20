@@ -18,17 +18,20 @@ import {
  * fragment stage of a class runs on its pixels only, compiled with the class's feature bits as
  * pipeline overrides. Every value written is exact in `f32`: a class never misses its pixels.
  */
-export const CLASS_UV = 1,
-  CLASS_MAP = 2,
-  CLASS_MASK = 4,
-  CLASS_ROUGH = 8,
-  CLASS_METAL = 16,
-  CLASS_AO = 32,
-  CLASS_EMISSIVE = 64,
-  CLASS_NORMAL_MAP = 128,
-  CLASS_VERTEX_NORMAL = 256,
-  CLASS_DOUBLE = 512,
-  CLASS_TANGENT = 1024;
+export const CLASS_FEATURE = {
+  HAS_UV: 1,
+  HAS_MAP: 2,
+  HAS_MASK: 4,
+  HAS_ROUGH: 8,
+  HAS_METAL: 16,
+  HAS_AO: 32,
+  HAS_EMISSIVE: 64,
+  HAS_NORMAL_MAP: 128,
+  HAS_VERTEX_NORMAL: 256,
+  DOUBLE_SIDED: 512,
+  HAS_TANGENT: 1024,
+} as const;
+export type MaterialClassFeature = keyof typeof CLASS_FEATURE;
 /** Keys addressable: one more bit than the highest feature; key + 1 stays exact as a depth. */
 export const MATERIAL_CLASS_KEYS = 2048;
 /** Depth denominator: a power of two, so every class depth is exact in `f32`. */
@@ -49,39 +52,24 @@ export type MaterialClassMaps = {
 
 /** Class key of a row: its resolve-relevant flags, and which maps it reads. */
 export function materialClassKey(flags: number, maps: MaterialClassMaps) {
+  const f = CLASS_FEATURE;
   let key = 0;
-  if (flags & FLAG_HAS_UV) key |= CLASS_UV;
-  if (flags & FLAG_HAS_MAP) key |= CLASS_MAP;
-  if (flags & FLAG_MASK) key |= CLASS_MASK;
-  if (maps.rough) key |= CLASS_ROUGH;
-  if (maps.metal) key |= CLASS_METAL;
-  if (maps.ao) key |= CLASS_AO;
-  if (maps.emissive) key |= CLASS_EMISSIVE;
-  if (maps.normal) key |= CLASS_NORMAL_MAP;
-  if (flags & FLAG_HAS_NORMAL) key |= CLASS_VERTEX_NORMAL;
-  if (flags & FLAG_DOUBLE) key |= CLASS_DOUBLE;
-  if (flags & FLAG_HAS_TANGENT) key |= CLASS_TANGENT;
+  if (flags & FLAG_HAS_UV) key |= f.HAS_UV;
+  if (flags & FLAG_HAS_MAP) key |= f.HAS_MAP;
+  if (flags & FLAG_MASK) key |= f.HAS_MASK;
+  if (maps.rough) key |= f.HAS_ROUGH;
+  if (maps.metal) key |= f.HAS_METAL;
+  if (maps.ao) key |= f.HAS_AO;
+  if (maps.emissive) key |= f.HAS_EMISSIVE;
+  if (maps.normal) key |= f.HAS_NORMAL_MAP;
+  if (flags & FLAG_HAS_NORMAL) key |= f.HAS_VERTEX_NORMAL;
+  if (flags & FLAG_DOUBLE) key |= f.DOUBLE_SIDED;
+  if (flags & FLAG_HAS_TANGENT) key |= f.HAS_TANGENT;
   return key;
 }
 
 /** Depth of a class's pixels in the material-depth target; the background stays at zero. */
 export const materialClassDepth = (key: number) => (key + 1) / CLASS_DEPTH_UNITS;
-
-/** Override name of each feature bit, as the resolve shader tests it. */
-const FEATURES = {
-  HAS_UV: CLASS_UV,
-  HAS_MAP: CLASS_MAP,
-  HAS_MASK: CLASS_MASK,
-  HAS_ROUGH: CLASS_ROUGH,
-  HAS_METAL: CLASS_METAL,
-  HAS_AO: CLASS_AO,
-  HAS_EMISSIVE: CLASS_EMISSIVE,
-  HAS_NORMAL_MAP: CLASS_NORMAL_MAP,
-  HAS_VERTEX_NORMAL: CLASS_VERTEX_NORMAL,
-  DOUBLE_SIDED: CLASS_DOUBLE,
-  HAS_TANGENT: CLASS_TANGENT,
-} as const;
-export type MaterialClassFeature = keyof typeof FEATURES;
 
 /**
  * Pipeline overrides of the resolve: the class key, the depth its triangle is drawn at, and one
@@ -90,7 +78,7 @@ export type MaterialClassFeature = keyof typeof FEATURES;
  */
 export const MATERIAL_CLASS_WGSL = `override CLASS_KEY:u32=0u;
 override CLASS_DEPTH:f32=f32(CLASS_KEY+1u)/${CLASS_DEPTH_UNITS}.0;
-${Object.entries(FEATURES)
+${Object.entries(CLASS_FEATURE)
   .map(([name, bit]) => `override ${name}:bool=(CLASS_KEY&${bit}u)!=0u;`)
   .join('\n')}
 /** Depth of a pixel's class, read off the page table: what each class pass tests against. */
