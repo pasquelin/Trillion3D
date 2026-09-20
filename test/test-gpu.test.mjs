@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { gitPaths } from '../scripts/git-paths.mjs';
 import {
   BROWSER_ECARTES,
   DOUBLE_PERIME,
@@ -26,15 +26,14 @@ test('each listed probe exists and bears the name required by convention', () =>
 
 // The count that matters: a file in `test/justesse/` skipped by hyphen must be someone's support module —
 // imported, or given as input to esbuild for the browser page. Without it, a misnamed probe would never run, silently.
-test('no test/justesse file remains orphaned: run, or named by a probe', () => {
+test('no test/justesse file remains orphaned: run, or named by a probe', async () => {
   const dossier = join(RACINE, 'test/justesse');
   const tous = readdirSync(dossier).filter((f) => f.endsWith('.mjs'));
   const lances = new Set(listJustesseTests().map((s) => s.slice('test/justesse/'.length)));
   // Support module consumers are not all in the directory: shared case sets are re-read by unit tests and render tests.
-  const suivis = execFileSync('git', ['ls-files'], { cwd: RACINE, encoding: 'utf8' })
-    .trim()
-    .split('\n')
-    .filter((f) => /\.(mjs|ts|mts)$/.test(f));
+  const suivis = (await gitPaths(['ls-files', '-z'], RACINE)).filter((f) =>
+    /\.(mjs|ts|mts)$/.test(f),
+  );
   const textes = new Map(suivis.map((f) => [f, readFileSync(join(RACINE, f), 'utf8')]));
   for (const fichier of tous) {
     if (lances.has(fichier)) continue;

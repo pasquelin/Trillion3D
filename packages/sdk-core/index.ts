@@ -95,6 +95,9 @@ export type {
 } from './pageDecodeContracts.ts';
 export * from './oracles.ts';
 export * from './mathIndex.ts';
+export { SCENE_MODEL_VERSION, SceneNode, type SceneNodeOptions } from './sceneNode.ts';
+export type { SceneState } from './sceneNodeContracts.ts';
+export { SceneRoot, createSceneRoot } from './sceneRoot.ts';
 export { compareImages } from './compareImages.ts';
 
 /** The pending operation must support abort through its owner (RAF, readback, etc.). */
@@ -111,6 +114,12 @@ export {
 } from './lightingExperimentScene.ts';
 export type { Vec3, Surface, Patch, Scene, LightingSceneLight } from './lightingExperimentScene.ts';
 export { createTransport, solveTransportOracle } from './lightingTransport.ts';
+export type {
+  TransportOptions,
+  TransportProgress,
+  TransportResult,
+  TransportSnapshot,
+} from './lightingTransportContracts.ts';
 export {
   LIGHT_SETTINGS,
   MAX_SHADOW_SLICES,
@@ -144,4 +153,7 @@ export { RECTS_PER_SLICE, createShadowPlan } from './sceneLightShadowPlan.ts';
 export type { ShadowPlan } from './sceneLightShadowPlan.ts';
 export { SHADOW_PAGE, pageRowsOf } from './sceneLightShadowPages.ts';
 export { regionRect } from './sceneLightShadowVolume.ts';
+export type { NumberSink } from './mathMatrix4.ts';
+export type { Counts } from './manifestBinaryLayout.ts';
+export type { SlimCulling, SlimStreams, SlimStructure } from './manifestBinaryTypes.ts';
 export * from './llm/index.ts';
