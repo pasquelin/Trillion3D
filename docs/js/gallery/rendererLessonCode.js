@@ -13,6 +13,8 @@ explorer.addLight({ id: 'lesson', kind: 'directional', direction: [Math.sin(angl
     return `explorer.addLight({ id: 'lesson', kind: 'directional', direction: [-0.4, -0.8, -0.3], color: [1, 0.92, 0.78], intensity: 2.5, castsShadow: true });
 explorer.setEnvironment({ exposure: ${state.exposure} });`;
   if (lesson.kind === 'lod') return `explorer.setPixelError(${state.pixelError});`;
+  if (lesson.kind === 'lod-diagnostic')
+    return `explorer.setPixelError(${state.pixelError});\nexplorer.setDiagnostic(${state.showLevels === 1 ? "'lod'" : "'beauty'"});`;
   return `await explorer.setMemoryBudgets({ geometryPoolBytes: ${state.geometryMiB} * 1024 * 1024 });`;
 };
 
@@ -25,5 +27,6 @@ export function rendererCodeFor(lesson, state) {
     importedLights: lesson.importedLights,
     sceneLight: lesson.sceneLight,
     sceneFill: lesson.sceneFill,
+    initialPose: lesson.initialPose,
   });
 }
