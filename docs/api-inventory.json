@@ -1269,6 +1269,17 @@
       "bindingIdentity": "\"packages/sdk-core/sceneLightStore\".createSceneLightStore"
     },
     {
+      "name": "createSceneRoot",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/sceneRoot.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["test/fixtures/publicCommon.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/sceneRoot\".createSceneRoot"
+    },
+    {
       "name": "createShadowPlan",
       "kind": "value",
       "definingModule": "packages/sdk-core/sceneLightShadowPlan.ts",
@@ -4373,6 +4384,17 @@
       "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".SCENE_LIGHT_VERSION"
     },
     {
+      "name": "SCENE_MODEL_VERSION",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/sceneNodeContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/sceneNodeContracts\".SCENE_MODEL_VERSION"
+    },
+    {
       "name": "SCENE_PROXY_HEADER_WORDS",
       "kind": "value",
       "definingModule": "packages/sdk-core/proxyContracts.ts",
@@ -4461,6 +4483,28 @@
       "bindingIdentity": "\"packages/sdk-core/sceneLightStore\".SceneLightStore"
     },
     {
+      "name": "SceneNode",
+      "kind": "both",
+      "definingModule": "packages/sdk-core/sceneNode.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["test/fixtures/publicCommon.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/sceneNode\".SceneNode"
+    },
+    {
+      "name": "SceneNodeOptions",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/sceneNodeContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["test/fixtures/publicCommon.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/sceneNodeContracts\".SceneNodeOptions"
+    },
+    {
       "name": "SceneProxy",
       "kind": "type",
       "definingModule": "packages/sdk-core/proxyContracts.ts",
@@ -4501,6 +4545,28 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/proxyContracts\".SceneProxyDescriptor"
+    },
+    {
+      "name": "SceneRoot",
+      "kind": "both",
+      "definingModule": "packages/sdk-core/sceneRoot.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["test/fixtures/publicCommon.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/sceneRoot\".SceneRoot"
+    },
+    {
+      "name": "SceneState",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/sceneNodeContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["test/fixtures/publicCommon.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/sceneNodeContracts\".SceneState"
     },
     {
       "name": "screenErrorBound",
