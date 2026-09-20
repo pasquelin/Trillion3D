@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { basicSetup, EditorView } from 'codemirror';
 import { javascript } from '@codemirror/lang-javascript';
-import { codeHighlight } from './codeHighlight.js';
+import { codeHighlight } from './codeHighlight.jsx';
 
 /** The site's single editable JavaScript primitive, backed by CodeMirror. */
 export function CodeInput({ value, onChange, label }) {
