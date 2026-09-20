@@ -1,89 +1,107 @@
 import { useMemo, useState } from 'react';
-import { SectionHeader } from '../components/SectionHeader.jsx';
+import roadmap from '../../data/gallery-roadmap.json';
 import { Alert, Field } from '../components/UI.jsx';
 import { examples } from '../../js/gallery/catalog.js';
 import { engineExample, ExampleCard } from './ExampleCard.jsx';
+import { themeOf, themes } from './roadmapThemes.js';
+import { Pagination } from '../components/Pagination.jsx';
+import { ThemeTabs } from './ThemeTabs.jsx';
 
-const local = (value, locale) => value[locale === 'fr' ? 'fr' : 'en'];
-const categories = {
-  transforms: { en: 'Transforms', fr: 'Transformations' },
-  camera: { en: 'Camera', fr: 'Caméra' },
-  vectors: { en: 'Vectors', fr: 'Vecteurs' },
-  bounds: { en: 'Bounds', fr: 'Volumes' },
-  scene: { en: 'Scene', fr: 'Scène' },
-  color: { en: 'Color', fr: 'Couleur' },
-  streaming: { en: 'Streaming', fr: 'Streaming' },
-};
-const searchable = (example) =>
-  `${example.title.en} ${example.title.fr} ${example.description.en} ${example.description.fr} ${(example.functions ?? []).join(' ')}`.toLowerCase();
+const PAGE_SIZE = 24;
+const READY = [engineExample, ...examples].map((entry) => ({ ...entry, status: 'ready' }));
+const normalized = (value) =>
+  value
+    .normalize('NFD')
+    .replaceAll(/\p{Diacritic}/gu, '')
+    .toLowerCase();
+const searchable = (entry) =>
+  normalized(
+    `${entry.id} ${entry.title.en} ${entry.title.fr} ${entry.description?.en ?? ''} ${entry.description?.fr ?? ''} ${entry.subject ?? ''} ${entry.supplementaryTopic ?? ''} ${(entry.functions ?? []).join(' ')}`,
+  );
 
 export function Gallery({ locale = 'en' }) {
-  const [query, setQuery] = useState(''),
-    [category, setCategory] = useState('all');
-  const categoryIds = [...new Set(examples.map((example) => example.category))];
-  const visible = useMemo(
+  const [query, setQuery] = useState('');
+  const [category, setCategory] = useState('all'),
+    [page, setPage] = useState(0);
+  const [expanded, setExpanded] = useState('');
+  const entries = useMemo(
     () =>
-      [engineExample, ...examples].filter(
-        (example) =>
-          (category === 'all' || example.category === category) &&
-          searchable(example).includes(query.toLowerCase()),
+      [...READY, ...roadmap.entries].filter(
+        (entry) =>
+          (category === 'all' || themeOf(entry) === category) &&
+          searchable(entry).includes(normalized(query)),
       ),
     [query, category],
   );
+  const categories = themes
+    .map(([value]) => value)
+    .filter((value) => [...READY, ...roadmap.entries].some((entry) => themeOf(entry) === value));
+  const pages = Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
+  const visible = entries.slice(
+    Math.min(page, pages - 1) * PAGE_SIZE,
+    (Math.min(page, pages - 1) + 1) * PAGE_SIZE,
+  );
   const french = locale === 'fr';
+  const filter = (setter) => (event) => {
+    setter(event.target.value);
+    setPage(0);
+    setExpanded('');
+  };
   return (
     <section data-gallery>
       <div className="flex flex-col gap-5 mb-6 lg:flex-row lg:items-end lg:justify-between">
-        <SectionHeader
-          level={1}
-          eyebrow={french ? 'Apprendre par l’image' : 'Learn by seeing'}
-          title={french ? 'Galerie interactive' : 'Interactive gallery'}
-        />
+        <header>
+          <p className="text-xs font-bold uppercase tracking-widest text-primary">
+            {french ? 'Apprendre par l’image' : 'Learn by seeing'}
+          </p>
+          <h1 className="text-3xl font-bold mt-2">
+            {french ? 'Galerie complète' : 'Complete gallery'}
+          </h1>
+        </header>
         <Field
           className="w-full lg:max-w-sm"
-          label={french ? 'Rechercher les exemples' : 'Search examples'}
+          label={`${french ? 'Rechercher' : 'Search'} ${READY.length + roadmap.entries.length} ${french ? 'sujets' : 'topics'}`}
         >
           <input
             className="input input-bordered w-full"
             type="search"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={filter(setQuery)}
             aria-label={french ? 'Rechercher les exemples' : 'Search examples'}
           />
         </Field>
       </div>
-      <div
-        className="tabs tabs-box bg-base-200 flex flex-wrap h-auto mb-4"
-        role="tablist"
-        aria-label={french ? 'Filtrer les exemples' : 'Filter examples'}
-      >
-        {['all', ...categoryIds].map((item) => (
-          <button
-            key={item}
-            type="button"
-            role="tab"
-            className={`tab ${category === item ? 'tab-active' : ''}`}
-            aria-selected={category === item}
-            aria-pressed={category === item}
-            onClick={() => setCategory(item)}
-          >
-            {item === 'all' ? (french ? 'Tous' : 'All') : local(categories[item], locale)}
-          </button>
-        ))}
+      <div className="mb-4">
+        <ThemeTabs
+          active={category}
+          available={categories}
+          locale={locale}
+          onSelect={(item) => {
+            setCategory(item);
+            setPage(0);
+            setExpanded('');
+          }}
+        />
       </div>
       <p className="text-sm opacity-70 mb-4" role="status">
-        {french
-          ? `${visible.length} résultat${visible.length > 1 ? 's' : ''}`
-          : `${visible.length} result${visible.length === 1 ? '' : 's'}`}
+        {entries.length} {french ? 'résultats affichés' : 'results shown'} · {READY.length}{' '}
+        {french ? 'leçons prêtes dans toute la galerie' : 'ready lessons in the full gallery'}
       </p>
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-        {visible.map((example) => (
-          <ExampleCard key={example.id} example={example} locale={locale} />
+        {visible.map((entry) => (
+          <ExampleCard
+            key={entry.id}
+            example={entry}
+            locale={locale}
+            expanded={expanded === entry.id}
+            onOpen={(id) => setExpanded((value) => (value === id ? '' : id))}
+          />
         ))}
       </div>
-      {visible.length === 0 && (
-        <Alert tone="info">{french ? 'Aucun exemple trouvé.' : 'No examples found.'}</Alert>
+      {!entries.length && (
+        <Alert tone="info">{french ? 'Aucun sujet trouvé.' : 'No topics found.'}</Alert>
       )}
+      <Pagination page={page} pages={pages} onChange={setPage} locale={locale} />
     </section>
   );
 }

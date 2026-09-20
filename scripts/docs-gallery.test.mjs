@@ -7,6 +7,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.mjs';
 const { Gallery, Playground } = await loadReactComponents('docs/react/gallery/index.jsx');
+const { ExampleCard } = await loadReactComponents('docs/react/gallery/ExampleCard.jsx');
 const { Home } = await loadReactComponents('docs/react/portal/Home.jsx');
 const { CodeBlock } = await loadReactComponents('docs/react/components/CodeBlock.jsx');
 const renderGallery = (locale) => renderToStaticMarkup(createElement(Gallery, { locale }));
@@ -20,8 +21,8 @@ const { initialState } = await import(new URL('scenarios.js', root));
 const { examples } = await import(new URL('catalog.js', root));
 const { apiScenario } = await import(new URL('apiScenario.js', root));
 
-test('gallery exposes twelve bilingual, interactive examples', () => {
-  assert.equal(examples.length, 12);
+test('gallery exposes sixteen bilingual, interactive examples', () => {
+  assert.equal(examples.length, 16);
   assert.equal(new Set(examples.map(({ id }) => id)).size, examples.length);
   for (const example of examples) {
     assert.ok(example.title.en && example.title.fr);
@@ -59,14 +60,42 @@ test('gallery renders visual, searchable cards and the real engine scene', () =>
   assert.match(gallery, /type="search"/);
   assert.match(gallery, /aria-pressed="true"/);
   assert.match(gallery, /tabs tabs-box bg-base-200/);
+  assert.match(gallery, />Animation<\/button>/);
+  assert.match(gallery, />Lights and shadows<\/button>/);
+  assert.match(gallery, /<summary[^>]*aria-label="More">More/);
+  assert.doesNotMatch(gallery, /overflow-x-auto/);
+  assert.doesNotMatch(gallery, /<select/);
   assert.equal((gallery.match(/<canvas /g) ?? []).length, examples.length);
   assert.doesNotMatch(gallery, /data-geometry-fps/);
   assert.match(renderPlayground('compose-transform', 'en'), /data-geometry-fps/);
   assert.match(gallery, /#\/en\/examples\/engine-scene/);
   assert.match(gallery, /assets\/kinetic-garden\/preview\.png/);
-  assert.equal((gallery.match(/class="gallery-preview/g) ?? []).length, examples.length + 1);
+  assert.equal((gallery.match(/class="gallery-preview/g) ?? []).length, 24);
+  assert.match(gallery, /624 results shown · 17 ready lessons in the full gallery/);
+  assert.match(gallery, /In development/);
+  assert.doesNotMatch(gallery, /data-geometry-3d="webgl_/);
   assert.doesNotMatch(gallery, /Try it|À essayer/);
   assert.match(gallery, /#\/en\/playground\/compose-transform/);
+});
+
+test('planned lessons stay honest, specific, and link to related ready material', async () => {
+  const roadmap = JSON.parse(
+    await readFile(new URL('../docs/data/gallery-roadmap.json', import.meta.url), 'utf8'),
+  );
+  assert.equal(roadmap.entries.length, 607);
+  for (const locale of ['en', 'fr'])
+    assert.equal(new Set(roadmap.entries.map((entry) => entry.title[locale])).size, 607);
+  const entry = roadmap.entries.find(({ subject }) => subject === 'camera');
+  const card = renderToStaticMarkup(
+    createElement(ExampleCard, { example: entry, locale: 'fr', expanded: true, onOpen() {} }),
+  );
+  assert.match(card, /Plan non exécutable/);
+  assert.match(card, /Pourquoi/);
+  assert.match(card, /#\/fr\/playground\/perspective/);
+  assert.doesNotMatch(card, /contrat public prouvé|prise en charge actuelle/);
+  const frenchTitles = roadmap.entries.map((item) => item.title.fr).join('\n');
+  assert.match(frenchTitles, /Réfraction/);
+  assert.doesNotMatch(frenchTitles, /^Walk$/m);
 });
 
 test('home and gallery reuse the same linked example card', () => {
@@ -97,6 +126,10 @@ test('every displayed snippet runs and matches its playground result', async () 
     const expected = {
       'compose-transform': result.points?.[2],
       'matrix-chain': result.point,
+      'matrix-inverse': result.identity,
+      'reflection-orientation': [result.determinant, result.linear],
+      'quaternion-turn': result.direction,
+      'normal-transform': result.normal,
       perspective: result.ndc,
       frustum: result.status,
       'dot-product': result.dot,
@@ -126,7 +159,9 @@ test('visible engine results follow the selected language', () => {
 test('every scenario calls the generated engine module', async () => {
   const source = (
     await Promise.all(
-      ['evaluate.js', 'evaluateDetail.js'].map((file) => readFile(new URL(file, root), 'utf8')),
+      ['evaluate.js', 'evaluateDetail.js', 'evaluateAdvanced.js'].map((file) =>
+        readFile(new URL(file, root), 'utf8'),
+      ),
     )
   ).join('\n');
   for (const example of examples)

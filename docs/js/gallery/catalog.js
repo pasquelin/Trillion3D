@@ -20,6 +20,46 @@ export const examples = [
     },
   },
   {
+    id: 'matrix-inverse',
+    category: 'transforms',
+    functions: ['composeMatrix4', 'invertMatrix4', 'multiplyMatrix4', 'transformAffinePoint'],
+    title: { en: 'Travel out and back', fr: 'Faire l’aller-retour' },
+    description: {
+      en: 'Invert a transform and recover a local point from world space.',
+      fr: 'Inversez une transformation et retrouvez un point local depuis le monde.',
+    },
+  },
+  {
+    id: 'reflection-orientation',
+    category: 'transforms',
+    functions: ['composeMatrix4', 'determinantMatrix4', 'linearPartDeterminant'],
+    title: { en: 'When a mirror flips faces', fr: 'Quand un miroir retourne les faces' },
+    description: {
+      en: 'Watch determinant sign track orientation through negative scale.',
+      fr: 'Suivez le signe du déterminant lors d’une échelle négative.',
+    },
+  },
+  {
+    id: 'quaternion-turn',
+    category: 'transforms',
+    functions: ['composeMatrix4', 'transformDirectionVector3'],
+    title: { en: 'Quaternion axis rotation', fr: 'Rotation par quaternion' },
+    description: {
+      en: 'Build a unit quaternion and rotate a direction without translation.',
+      fr: 'Construisez un quaternion unité et tournez une direction sans translation.',
+    },
+  },
+  {
+    id: 'normal-transform',
+    category: 'vectors',
+    functions: ['composeMatrix4', 'normalMatrix3', 'applyMatrix3Vector3', 'normalizeVector3'],
+    title: { en: 'Normals under uneven scale', fr: 'Normales sous échelle inégale' },
+    description: {
+      en: 'Compare a corrected surface normal with a naively scaled direction.',
+      fr: 'Comparez la normale corrigée à une direction naïvement redimensionnée.',
+    },
+  },
+  {
     id: 'perspective',
     category: 'camera',
     functions: ['perspectiveProjection', 'transformHomogeneousPoint'],
