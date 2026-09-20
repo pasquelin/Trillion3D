@@ -526,15 +526,13 @@ kbd {
   gap: 2rem;
   margin-bottom: 2rem;
 }
-.api-index .api-heading h1,
-.not-found h1 {
+.api-index .api-heading h1 {
   margin: 0.75rem 0 1rem;
   font-size: 2rem;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
-.api-index .api-heading p:last-child,
-.not-found p {
+.api-index .api-heading p:last-child {
   color: var(--muted);
   font-size: 1.05rem;
   line-height: 1.65;
@@ -577,10 +575,6 @@ kbd {
   .api-index .api-grid {
     grid-template-columns: repeat(3, minmax(26rem, 1fr));
   }
-}
-.not-found {
-  max-width: 40rem;
-  padding: 10vh 0;
 }
 .eyebrow,
 .section-kicker {
@@ -897,4 +891,54 @@ kbd {
     padding: 0;
     justify-content: center;
   }
+}
+
+.scene-controls {
+  container-type: inline-size;
+}
+.scene-controls-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+.scene-control-slot {
+  display: flex;
+  align-items: center;
+  height: 2.5rem;
+  min-width: 0;
+}
+.scene-controls-grid .select {
+  width: 100%;
+  min-width: 0;
+}
+@container (min-width: 24rem) {
+  .scene-controls-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container (min-width: 48rem) {
+  .scene-controls-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) 6rem;
+  }
+}
+
+.scene-controls-grid .fieldset-legend {
+  width: 100%;
+  line-height: 1.25rem;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .canvas-actions {
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+  canvas:hover + .canvas-actions,
+  .canvas-actions:hover,
+  .canvas-actions:focus-within {
+    opacity: 1;
+  }
+}
+
+[data-scene-status]:empty {
+  display: none;
 }

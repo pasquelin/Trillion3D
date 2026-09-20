@@ -45,6 +45,7 @@ export function createExplorerCameraApi(inputs: Inputs) {
     near: camera.near,
     far: camera.far,
   });
+  let orbit: OrbitControls | undefined;
   return {
     pointsOfInterest(): Array<PointOfInterest> {
       const extras = (options.pointsOfInterest ?? []).filter(
@@ -87,8 +88,11 @@ export function createExplorerCameraApi(inputs: Inputs) {
       return controls;
     },
     controls() {
+      check();
+      if (options.interactive && orbit) return orbit;
       const controls = new OrbitControls(camera, canvas);
       controls.target.copy(center);
+      orbit = controls;
       controls.enableDamping = false;
       controls.update();
       hostedControls.push(controls);
