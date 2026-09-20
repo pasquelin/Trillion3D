@@ -31,6 +31,29 @@ Version 0.2.0 is the breaking import boundary. Replace `@web-geometry/sdk`,
 `web-geometry`. The former package name and subpaths are no longer exported. `SDK_VERSION` advances
 to `0.2.0`; `FORMAT_VERSION` and compiler/cache identity do not change.
 
+For a strict browser TypeScript project, enable the `browser` condition explicitly. Without it,
+Bundler resolution deliberately selects the platform-neutral common declarations, which do not
+contain `createExplorer` or browser-only types.
+
+```jsonc
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "customConditions": ["browser"],
+    "lib": ["ES2023", "DOM"],
+    "types": ["@webgpu/types"],
+  },
+}
+```
+
+Install the SDK's browser type dependencies in the host project: `three` is a peer dependency, and
+`@types/three` plus `@webgpu/types` are development dependencies. A Node TypeScript host instead
+uses `"module": "NodeNext"`, `"moduleResolution": "NodeNext"` and `"types": ["node"]`; NodeNext
+then selects the Node declarations from the same `web-geometry` specifier.
+
 `replicateInstances` is a helper that instances the source 1, 4 or 9 times while sharing geometry and materials.
 
 ## CLI
