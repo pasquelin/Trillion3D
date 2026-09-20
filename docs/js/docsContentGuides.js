@@ -1,5 +1,4 @@
 import { engineExampleCode } from './engine-scene/code.js';
-import { RENDERING_GUIDES } from './docsContentGuidesRendering.js';
 /** Guides and examples: prose in `html`, code in `example`, both rendered by the React Entry component. */
 const GUIDE = { section: 'guides', kind: 'Guide' };
 const EXAMPLE = { section: 'examples', kind: 'Example' };
@@ -98,7 +97,6 @@ const explorer: Explorer = await createExplorer('viewer', options);
 </ul>
 <p>The lesson <a class="link link-primary" href="#/en/examples/occlusion-two-phase">Hide a ring behind a ring</a> shows the counters move on the garden as the eye drops to ring height.</p>`,
   },
-  ...RENDERING_GUIDES,
 ];
 
 export const EXAMPLES = [
