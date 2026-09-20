@@ -12,10 +12,8 @@
 //! all colinear, zero area, non-finite coordinates — has no ear to cut: it comes out as a fan,
 //! and the cut says so to the caller, which counts it under its own name.
 //!
-//! A strictly convex ring is recognised in one pass (`convex`) and written as the fan at
-//! once: the ear cut would have yielded that fan, triangle for triangle, at the price of a
-//! scan of the living corners per triangle. Everything else — concave, collinear corners,
-//! self-crossing — goes through the ears as before.
+//! A strictly convex ring is recognised in one pass and written as the fan at once, which is
+//! what the ears would have cut (`convex` says why); everything else goes through the ears.
 mod convex;
 mod plane;
 #[cfg(test)]
