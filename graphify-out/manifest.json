@@ -13266,9 +13266,9 @@
     "semantic_hash": ""
   },
   "docs/react/components/CodeInput.jsx": {
-    "mtime": 1789898435.2694185,
-    "seen": 1789898553.662634,
-    "ast_hash": "380af52054a09842561b1e53eced9b52",
+    "mtime": 1789898659.3429353,
+    "seen": 1789899013.649941,
+    "ast_hash": "c2641adadeb3149a71ae55c4677a5439",
     "semantic_hash": ""
   },
   "docs/react/components/CodeSurface.jsx": {
@@ -13319,9 +13319,9 @@
     "ast_hash": "f06b91b6fe6e7a71bb8ddfa54433b67d",
     "semantic_hash": ""
   },
-  "docs/react/components/codeHighlight.js": {
+  "docs/react/components/codeHighlight.jsx": {
     "mtime": 1789898435.3591,
-    "seen": 1789898553.662642,
+    "seen": 1789899013.649954,
     "ast_hash": "2745188dea914a0f15747375c444581b",
     "semantic_hash": ""
   }
