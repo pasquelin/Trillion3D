@@ -6,53 +6,7 @@ import { determinantMatrix4, type NumberSink } from './mathMatrix4.ts';
  * recomposes the same world matrices as the one it replaces.
  */
 
-/**
- * `out = T · R · S`. The last row is written `(0, 0, 0, 1)` exactly; quaternion products
- * are doubled by addition (`x + x`), like the reference, never multiplied by two.
- */
-export function composeMatrix4<T extends NumberSink>(
-  out: T,
-  position: ArrayLike<number>,
-  quaternion: ArrayLike<number>,
-  scale: ArrayLike<number>,
-) {
-  const x = quaternion[0],
-    y = quaternion[1],
-    z = quaternion[2],
-    w = quaternion[3];
-  const x2 = x + x,
-    y2 = y + y,
-    z2 = z + z;
-  const xx = x * x2,
-    xy = x * y2,
-    xz = x * z2;
-  const yy = y * y2,
-    yz = y * z2,
-    zz = z * z2;
-  const wx = w * x2,
-    wy = w * y2,
-    wz = w * z2;
-  const sx = scale[0],
-    sy = scale[1],
-    sz = scale[2];
-  out[0] = (1 - (yy + zz)) * sx;
-  out[1] = (xy + wz) * sx;
-  out[2] = (xz - wy) * sx;
-  out[3] = 0;
-  out[4] = (xy - wz) * sy;
-  out[5] = (1 - (xx + zz)) * sy;
-  out[6] = (yz + wx) * sy;
-  out[7] = 0;
-  out[8] = (xz + wy) * sz;
-  out[9] = (yz - wx) * sz;
-  out[10] = (1 - (xx + yy)) * sz;
-  out[11] = 0;
-  out[12] = position[0];
-  out[13] = position[1];
-  out[14] = position[2];
-  out[15] = 1;
-  return out;
-}
+export { composeMatrix4 } from './mathMatrix4Compose.ts';
 
 /** The nine rotation terms of the last decomposition, stored by row: read immediately. */
 const rotation = new Float64Array(9);
