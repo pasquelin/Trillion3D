@@ -15,10 +15,25 @@ export const treeFr = {
     description:
       'Arbitre JS contre WebAssembly par opération : médianes glissantes en nanosecondes par élément, bascule après cinq avances consécutives, puis rééchantillonnage périodique de l’autre chemin.',
   },
-  'batch-api': {
-    title: 'L’API de lots pour les hôtes',
+  frustumKeepsBoxBatch: {
     description:
-      'Les lots demandés par l’hôte traitent `n` éléments en un appel sur des tableaux typés plats, sans allocation. Une opération n’est ajoutée que si le coût de sa boucle est mesuré ; JS reste la référence et le repli.',
+      '`n` boîtes de six nombres (min puis max) contre les vingt-quatre flottants d’un frustum : `kept[i]` vaut 1 où la boîte coupe ou tient dans le volume, et le nombre gardé est renvoyé — `frustumExcludesBox` inversé, la polarité de la référence. Le lot de sphères écrit quatre nombres par boîte, centre puis rayon jusqu’au coin, comme `sphereFromBounds`.',
+  },
+  boxUnionBatch: {
+    description:
+      '`into` agrandi de `n` boîtes, ou de `n` boîtes chacune transformée par sa matrice d’abord — une passe, une boîte de brouillon, aucune allocation. Les deux répètent `boxUnion`, le second `boxTransform` avant : les bornes monde d’une scène entière en un appel.',
+  },
+  invertMatrix4Batch: {
+    description:
+      '`n` inverses, `n` matrices normales de neuf nombres, `n` compositions `T · R · S`, `n` décompositions. Une matrice de déterminant nul est inversée en identité et signalée dans `singular[i]` — jamais d’exception au milieu d’un lot. `composeMatrix4Batch` prend tout à plat ou tout en sous-vues, et tranche la forme avant la boucle.',
+  },
+  transformPointsBatch: {
+    description:
+      '`n` points de trois nombres par une matrice affine, ou une matrice par point ; `n` directions par le bloc 3×3 supérieur puis normalisées, translation ignorée. Ils répètent `transformAffinePoint` et `transformDirectionVector3`.',
+  },
+  srgbToLinearBatch: {
+    description:
+      'Un canal par élément, les courbes exactes de `mathColor.ts` : la référence multiplie par des constantes arrondies, l’écart est au plus `1.1e-11` à l’aller et `6.3e-6` au retour — invisible sur 8 bits, déclaré une fois dans le banc.',
   },
   createTransformTree: {
     description:

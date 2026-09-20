@@ -116,6 +116,18 @@ Three verdict types, never silence:
 
 `mesure()` refuses to run if the file reported as measured by a benchmark does not exist.
 
+**The reference-library duels** (`packages/sdk-core/bench/three-vs-core-*.perf.mjs`,
+`pnpm run perf:core`) put the host library and the engine on the same seeded inputs and refuse an
+engine that differs by a bit or runs slower. The four `three-vs-core-batch-*.perf.mjs` files —
+`volumes` (frustum, spheres, unions, points, directions), `matrices` (invert, normal, compose),
+`instances` (per-instance points, decompose, transformed union) and `colors` (the two curves) — pit
+the reference's `for` loop over 200 000 elements against one batch call. A line reads: the
+reference's median and the batch's, the ratio, then the verdict — bit for bit, or within the
+tolerance the line declares once (the sRGB curves), and under the ceiling the line declares where
+the two sides do not compute the same thing (`Matrix4.invert`, `NormalMatrix3`: the engine keeps
+its singularity policy). `docs/API.md` § "Batch math for hosts" carries the ratios of one
+published run.
+
 ## 3. Baselines and Report
 
 `pnpm run perf:all` outputs a fragment per domain into `.mesure/perf/`, then
