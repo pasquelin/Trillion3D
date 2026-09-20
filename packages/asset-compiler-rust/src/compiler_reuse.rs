@@ -43,6 +43,8 @@ pub(super) fn reuse(
             Ok(Some(reused))
         }
         Err(reason) => {
+            // A cancellation reached inside the proof is a cancellation, not a reason to rebuild.
+            check(o)?;
             progress(json!({"phase":"reuse","completed":0,"total":1,"reason":reason}));
             Ok(None)
         }
@@ -51,7 +53,7 @@ pub(super) fn reuse(
 
 /// Ends a job on a proven folder: pointer, prune, and this job's own numbers —
 /// nothing of the compile that wrote the folder is passed off as this run's work.
-/// `importMs` is the time to the decision: routing, loading and the key.
+/// `importMs` runs to the decision: routing, loading, the key and the proof.
 pub(super) fn finish(
     o: &Options,
     key: &str,
