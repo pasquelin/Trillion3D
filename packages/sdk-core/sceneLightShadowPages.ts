@@ -64,12 +64,12 @@ export function setRect(
 }
 
 /**
- * Marks the window rectangle `[x0, x1] × [y0, y1]` of a face whose window origin sits at
+ * Marks the extent rectangle `[x0, x1] × [y0, y1]` of a face whose extent origin sits at
  * physical page `(wx, wy)`: a cascade map is addressed by absolute page, modulo the face, so
- * window page `(x, y)` lives at physical page `((x + wx) mod rows, (y + wy) mod rows)`. The row
+ * extent page `(x, y)` lives at physical page `((x + wx) mod rows, (y + wy) mod rows)`. The row
  * pattern is rotated once, then written on each wrapped row.
  */
-export function markWindowRect(
+export function markExtentRect(
   mask: Uint8Array,
   base: number,
   rows: number,
@@ -100,7 +100,7 @@ const pageOf = (value: number, rows: number) => Math.max(0, Math.min(rows - 1, M
 
 /**
  * Marks the pages of the face that the world box `min..max` can reach, `matrix` being the
- * window's and `(wx, wy)` the physical page of its origin.
+ * extent's and `(wx, wy)` the physical page of its origin.
  *
  * Only those pixels can change when the object of this box moves: the map keeps a minimum
  * of depth on every occluder, and the other occluders, for their part, have not moved. Redrawing
@@ -152,6 +152,6 @@ export function markBoxPages(
     x1 = pageOf((u1 * 0.5 + 0.5) * rows, rows),
     y0 = pageOf((0.5 - v1 * 0.5) * rows, rows),
     y1 = pageOf((0.5 - v0 * 0.5) * rows, rows);
-  markWindowRect(mask, base, rows, wx, wy, x0, x1, y0, y1);
+  markExtentRect(mask, base, rows, wx, wy, x0, x1, y0, y1);
   return true;
 }

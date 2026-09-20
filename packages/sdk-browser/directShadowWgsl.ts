@@ -53,13 +53,13 @@ fn shadowBiasMetres(cosine:f32)->f32{
 }
 /** Pages per side of a face. */
 fn faceRows(side:f32)->f32{return max(round(side/SHADOW_PAGE),1.0);}
-/** Physical page of the window origin, as a fraction of the face: the key in \`rect.w\`. A
+/** Physical page of the extent origin, as a fraction of the face: the key in \`rect.w\`. A
  *  cascade map is addressed by absolute page modulo the face; a point or spot face carries zero. */
 fn faceWrap(entry:ShadowFace,rows:f32)->vec2f{
  let key=max(entry.rect.w-1.0,0.0);
  return vec2f(key%WRAP_BASE,floor(key/WRAP_BASE))/rows;
 }
-/** Is the page under this window coordinate drawn? A page that entered a slid window but
+/** Is the page under this extent coordinate drawn? A page that entered a slid extent but
  *  is not drawn yet still holds what the far side left there: it is read by no one. */
 fn pageDrawn(entry:ShadowFace,local:vec2f,rows:f32)->bool{
  let page=vec2u(clamp(fract(local+faceWrap(entry,rows))*rows,vec2f(0.0),vec2f(rows-1.0)));
@@ -69,8 +69,8 @@ fn pageDrawn(entry:ShadowFace,local:vec2f,rows:f32)->bool{
 }
 /**
  * Sixteen taps in the face rectangle, offset by a slice texel, never by an atlas texel. The
- * window coordinate is wrapped onto the face through \`faceWrap\`. A tap is held at the last
- * texel centre of the window, so a window edge never wraps to the far side, nor blends with
+ * extent coordinate is wrapped onto the face through \`faceWrap\`. A tap is held at the last
+ * texel centre of the extent, so an extent edge never wraps to the far side, nor blends with
  * the neighbouring face.
  */
 fn shadowPcf(entry:ShadowFace,local:vec2f,reference:f32,side:f32)->f32{

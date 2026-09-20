@@ -23,12 +23,12 @@ function view(overrides: Partial<ShadowViewpoint> = {}): ShadowViewpoint {
   };
 }
 
-// Unit, as the store validates it: the window is reprojected on it below.
+// Unit, as the store validates it: the extent is reprojected on it below.
 const AXIS_LENGTH = Math.hypot(0.1, -0.9, 0.4);
 const AXIS: [number, number, number] = [0.1 / AXIS_LENGTH, -0.9 / AXIS_LENGTH, 0.4 / AXIS_LENGTH];
 
-// The oracle predates the page-aligned window: the two sides share the split cache and the
-// frustum sphere, hence the radius, and that is what is compared. The window itself is proven
+// The oracle predates the page-aligned extent: the two sides share the split cache and the
+// frustum sphere, hence the radius, and that is what is compared. The extent itself is proven
 // directly: its centre on the page grid of the light plane, within half a page of the camera
 // point it follows, and its anchor within one radius along the axis.
 const right = new Float64Array(3),

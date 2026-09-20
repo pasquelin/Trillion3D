@@ -129,7 +129,7 @@ export const LIGHT_SETTINGS = {
   sunFarShadowStartCells: 1,
   /**
    * Pull-back of a cascade's near plane, in radii of its sphere: what sits above the
-   * cascade, between it and the sun, must enter the map to cast its shadow there. The window
+   * cascade, between it and the sun, must enter the map to cast its shadow there. The extent
    * adds two radii on either side, the play its depth anchor leaves the sphere
    * (`sceneLightSunFaces.ts`).
    */

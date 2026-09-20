@@ -107,7 +107,7 @@ export function planShadowRegions(
       shiftX = regions.shiftXOf(region),
       shiftY = regions.shiftYOf(region);
     const matrixBase = region * 16;
-    // The matrix and the volume are the window's: the region rectangle is read in window pages,
+    // The matrix and the volume are the extent's: the region rectangle is read in extent pages,
     // the physical rectangle minus the translation the draw applies.
     const planes = writeFace(
       faceMatrices,
