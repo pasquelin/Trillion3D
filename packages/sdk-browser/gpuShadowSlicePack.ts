@@ -4,6 +4,7 @@ import {
   POINT_FACES,
   RECTS_PER_SLICE,
   SHADOW_FACE_FLOATS,
+  SHADOW_FACE_MASK_WORD,
   SHADOW_SLICE_FLOATS,
 } from '../sdk-core/index.ts';
 
@@ -27,10 +28,23 @@ export const wrapKey = (wx: number, wy: number) => 1 + wx + WRAP_BASE * wy;
  */
 export function createShadowSlicePack(size: number, faceStride: number) {
   const slicePacked = new Float32Array(MAX_SHADOW_SLICES * SHADOW_SLICE_FLOATS);
+  const sliceWords = new Uint32Array(slicePacked.buffer);
   const facePacked = new Float32Array((MAX_SHADOW_REGIONS * faceStride) / 4);
   return {
     slicePacked,
     facePacked,
+    /**
+     * Drawn-page mask of a face, two words of eight rows: the complement of the scheduler's
+     * stale mask, in physical pages. Returns true when the words changed, so the slice is
+     * pushed even on a frame that drew nothing in it — a slide alone stales a strip.
+     */
+    writeDrawnMask(slice: number, face: number, low: number, high: number) {
+      const at = slice * SHADOW_SLICE_FLOATS + face * SHADOW_FACE_FLOATS + SHADOW_FACE_MASK_WORD;
+      if (sliceWords[at] === low && sliceWords[at + 1] === high) return false;
+      sliceWords[at] = low;
+      sliceWords[at + 1] = high;
+      return true;
+    },
     /**
      * Writes a region into both buffers. The matrix is that of the whole window, never of the
      * region: that is what makes the page draw identical to the bit. `matrices` carries it at

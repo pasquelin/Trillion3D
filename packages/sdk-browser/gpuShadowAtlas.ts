@@ -106,6 +106,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       allocationBytes: shadowAtlasBytes() + faceUniform.size + sliceBuffer.size,
       writeRegion: pack.writeRegion,
       writeSliceInfo: pack.writeSliceInfo,
+      writeDrawnMask: pack.writeDrawnMask,
       flushRegions(count: number) {
         if (count)
           device.queue.writeBuffer(faceUniform, 0, facePacked, 0, (count * FACE_STRIDE) / 4);

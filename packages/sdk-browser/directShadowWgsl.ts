@@ -29,7 +29,7 @@ const POISSON_16 = [
 /** A shadow slice as the GPU reads it: the matrix and atlas rectangle of each face, then
  *  the header (faces, aperture, side, near plane). Shared by every shader that reads a
  *  slice, in the buffer or copied into a uniform. */
-export const SHADOW_SLICE_WGSL = `struct ShadowFace{viewProjection:mat4x4f,rect:vec4f,}
+export const SHADOW_SLICE_WGSL = `struct ShadowFace{viewProjection:mat4x4f,rect:vec4f,drawn:vec4u,}
 struct ShadowSlice{faces:array<ShadowFace,${POINT_FACES}>,info:vec4f,}`;
 
 export const DIRECT_SHADOW_WGSL = `
@@ -51,18 +51,31 @@ const POISSON:array<vec2f,${LIGHT_SETTINGS.pcfTaps}>=array<vec2f,${LIGHT_SETTING
 fn shadowBiasMetres(cosine:f32)->f32{
  return SHADOW_BIAS+min(SHADOW_SLOPE*sqrt(1.0-cosine*cosine)/cosine,SHADOW_SLOPE_MAX);
 }
+/** Pages per side of a face. */
+fn faceRows(side:f32)->f32{return max(round(side/SHADOW_PAGE),1.0);}
+/** Physical page of the window origin, as a fraction of the face: the key in \`rect.w\`. A
+ *  cascade map is addressed by absolute page modulo the face; a point or spot face carries zero. */
+fn faceWrap(entry:ShadowFace,rows:f32)->vec2f{
+ let key=max(entry.rect.w-1.0,0.0);
+ return vec2f(key%WRAP_BASE,floor(key/WRAP_BASE))/rows;
+}
+/** Is the page under this window coordinate drawn? A page that entered a slid window but
+ *  is not drawn yet still holds what the far side left there: it is read by no one. */
+fn pageDrawn(entry:ShadowFace,local:vec2f,rows:f32)->bool{
+ let page=vec2u(clamp(fract(local+faceWrap(entry,rows))*rows,vec2f(0.0),vec2f(rows-1.0)));
+ let bit=page.y*u32(rows)+page.x;
+ let word=select(entry.drawn.x,entry.drawn.y,bit>=32u);
+ return ((word>>(bit&31u))&1u)!=0u;
+}
 /**
  * Sixteen taps in the face rectangle, offset by a slice texel, never by an atlas texel. The
- * window coordinate is wrapped onto the face through the key in \`rect.w\`: a cascade map is
- * addressed by absolute page modulo the face, and its origin sits at physical page
- * \`(wx, wy)\`. A tap is held at the last texel centre of the window, so a window edge never
- * wraps to the far side, nor blends with the neighbouring face.
+ * window coordinate is wrapped onto the face through \`faceWrap\`. A tap is held at the last
+ * texel centre of the window, so a window edge never wraps to the far side, nor blends with
+ * the neighbouring face.
  */
 fn shadowPcf(entry:ShadowFace,local:vec2f,reference:f32,side:f32)->f32{
  let step=1.0/max(side,1.0);
- let rows=max(round(side/SHADOW_PAGE),1.0);
- let key=max(entry.rect.w-1.0,0.0);
- let wrap=vec2f(key%WRAP_BASE,floor(key/WRAP_BASE))/rows;
+ let wrap=faceWrap(entry,faceRows(side));
  var lit=0.0;
  for(var tap=0u;tap<PCF_TAPS;tap++){
   let offset=POISSON[tap]*step;
@@ -73,10 +86,12 @@ fn shadowPcf(entry:ShadowFace,local:vec2f,reference:f32,side:f32)->f32{
  return lit/f32(PCF_TAPS);
 }
 /**
- * Sun cascades: the first whose point falls in the unit cube wins, and the loop is bounded
- * by the published cascade count (X2). The cascade scale is read from its own matrix —
- * orthographic, so the world texel is 2/(scale in x · side) and a metre of depth is the
- * scale in z. No double data, so nothing that can diverge.
+ * Sun cascades: the first whose point falls in the unit cube, on a drawn page, wins, and the
+ * loop is bounded by the published cascade count (X2). A page not drawn yet hands the point
+ * to the next cascade, as an unmapped page of a virtual shadow map falls back to a coarser
+ * level. The cascade scale is read from its own matrix — orthographic, so the world texel is
+ * 2/(scale in x · side) and a metre of depth is the scale in z. No double data, so nothing
+ * that can diverge.
  */
 fn sunShadowFactor(record:ShadowSlice,cascades:u32,P:vec3f,N:vec3f,L:vec3f)->f32{
  let cosine=clamp(dot(N,L),1e-3,1.0);
@@ -92,6 +107,7 @@ fn sunShadowFactor(record:ShadowSlice,cascades:u32,P:vec3f,N:vec3f,L:vec3f)->f32
   let ndc=clip.xyz/clip.w;
   if(abs(ndc.x)>1.0||abs(ndc.y)>1.0||ndc.z<0.0||ndc.z>1.0){continue;}
   let local=vec2f(ndc.x*0.5+0.5,0.5-ndc.y*0.5);
+  if(!pageDrawn(entry,local,faceRows(side))){continue;}
   return shadowPcf(entry,local,ndc.z+shadowBiasMetres(cosine)*scaleZ,side);
  }
  // Beyond the last cascade, the shadow is tested by a ray against the resident proxy. With
