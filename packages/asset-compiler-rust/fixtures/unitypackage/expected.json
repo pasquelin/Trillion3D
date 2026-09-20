@@ -1,6 +1,6 @@
 {
-  "case": "Un projet Unity CC0 livré en .unitypackage : archive tar.gz, un dossier par GUID, l'arbre Assets/ reconstruit sous le cache depuis les fichiers pathname, puis routé vers le pilote unity.",
-  "rule": "Un conteneur ne change rien au projet qu'il emballe. Le test compare d'abord la compilation issue du paquet à celle du même projet à plat — nom, taille et empreinte de chaque fichier de données lu compris — puis fixe les trois paquets piégés, refusés par leur code sans qu'un octet soit écrit.",
+  "case": "A CC0 Unity project delivered as a .unitypackage: a tar.gz archive, one directory per GUID, the Assets/ tree rebuilt under the cache from the pathname files, then routed to the unity driver.",
+  "rule": "A container changes nothing about the project it wraps. The test first compares the compilation from the package with that of the same project laid out flat - name, size and fingerprint of every data file read included - then pins the three booby-trapped packages, refused by their code without a byte being written.",
   "scenePlugin": {
     "name": "unitypackage",
     "version": "unitypackage-ustar-gzip-tar-0.4.46-flate2-1.1.10-extract-1"

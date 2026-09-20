@@ -10,7 +10,7 @@ export default {
     'packages/**/*.test.{ts,mjs}',
     'scripts/*.mjs',
     'scripts/mesure/banc.mjs',
-    // Servis à la page du harnais et importés par leur URL, jamais par un import local.
+    // Served to the harness page and imported by URL, never by local import.
     'scripts/mesure/pageCoupe.mjs',
     'scripts/mesure/pageTemoin.mjs',
     'scripts/mesure/pageExplorateur.mjs',
@@ -19,7 +19,7 @@ export default {
     'scripts/mesure/pageThreeNu.mjs',
     'scripts/mesure/pageThreeLod.mjs',
     'scripts/mesure/pageMesure.mjs',
-    // La campagne complète et son rapport, lancés à la main.
+    // Full campaign and its report, launched manually.
     'scripts/mesure/campagne.mjs',
     'scripts/mesure/rapportGlobal.mjs',
     'scripts/mesure/oracle.mjs',
@@ -40,8 +40,8 @@ export default {
   paths: {
     '/packages/sdk-browser/*': ['packages/sdk-browser/*'],
   },
-  // `scripts/build-wasm.mjs` interroge la chaîne Rust installée par rustup, pas un paquet npm ;
-  // `sips` est l'outil d'image de macOS, que le rapport global appelle pour ses JPEG.
+  // `scripts/build-wasm.mjs` queries the Rust toolchain installed by rustup, not an npm package;
+  // `sips` is the macOS image tool called by the global report for its JPEGs.
   ignoreBinaries: ['rustc', 'sips'],
   // These specifiers are harness server URLs resolved by the browser, not local Node modules.
   ignoreUnresolved: ['/mesure/poses.mjs', '/__wg-fixture/drawRun.mjs'],

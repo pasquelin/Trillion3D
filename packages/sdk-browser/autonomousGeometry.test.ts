@@ -80,13 +80,13 @@ function scenario(count: number) {
       assert.equal(
         impl.state.submittedTriangles,
         oracle.state.submittedTriangles,
-        `triangles soumis pour ${JSON.stringify(indices)}`,
+        `triangles submitted for ${JSON.stringify(indices)}`,
       );
       for (let i = 0; i < count; i++)
         assert.equal(
           sceneA.meshes.has(recsA[i].mesh),
           sceneB.meshes.has(recsB[i].mesh),
-          `attachement de la page ${i} pour ${JSON.stringify(indices)}`,
+          `attachment of page ${i} for ${JSON.stringify(indices)}`,
         );
       assert.equal(sceneA.meshes.size, sceneB.meshes.size);
     },

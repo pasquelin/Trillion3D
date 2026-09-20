@@ -1,6 +1,6 @@
 {
-  "case": "Une surface opaque et, exactement dessus, une surface à masque alpha (alphaMode MASK).",
-  "rule": "Un masque découpe ses propres trous par pixel : l'étape ne le classe pas. Une seule surface est collectée, aucune couche n'est attribuée, l'ordre de dessin reste celui d'avant.",
+  "case": "An opaque surface and, exactly on top of it, an alpha-masked surface (alphaMode MASK).",
+  "rule": "A mask cuts its own holes per pixel: the stage does not classify it. One surface only is collected, no layer is assigned, and the draw order stays what it was.",
   "formatVersion": 3,
   "manifestBinaryVersion": 5,
   "coplanar": {
