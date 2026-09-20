@@ -1,6 +1,7 @@
 import { createGpuTiming } from './gpuTiming.ts';
 import { addGpuPasses, bounceGpuMs, directLightTimings } from './stageMapping.ts';
 import { PAGES_RING } from './webgpuPagesStateLights.ts';
+import { markWebgpuLost } from './webgpuPagesLost.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Starts the per-pass GPU timer and reports whether the device can measure at all. */
@@ -75,19 +76,20 @@ export function watchGpuDevice(
   gpuDevice: GPUDevice,
   onGpuError: (event: GPUUncapturedErrorEvent) => void,
 ) {
-  const { run, diag } = rt;
+  const { diag } = rt;
   gpuDevice.addEventListener?.('uncapturederror', onGpuError);
+  // The surface and the held frame are withdrawn before the loss is announced: a host that
+  // reacts to the diagnostic by drawing already finds nothing stale to present.
   gpuDevice.lost
     .then((info) => {
-      if (!run.lost)
+      if (markWebgpuLost(rt))
         diag.engineDiagnostic('gpu-device-lost', 'WebGPU device lost', {
+          code: 'WEBGPU_LOST',
           reason: info.reason,
           message: info.message,
         });
-      run.lost = true;
     })
     .catch((error) => {
-      if (!run.lost) diag.diagnosticFailure('gpu-device-lost', error);
-      run.lost = true;
+      if (markWebgpuLost(rt)) diag.diagnosticFailure('gpu-device-lost', error);
     });
 }
