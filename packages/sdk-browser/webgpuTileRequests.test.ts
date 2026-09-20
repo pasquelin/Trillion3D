@@ -52,6 +52,7 @@ test('a deferred remainder is offered again until fresh feedback replaces it', (
   queue.defer(first, 1);
   assert.equal(queue.deferred, 2);
   const second = queue.take(2);
+  assert.equal(queue.frame, 1, 'a replay is placed at the frame of the feedback that named it');
   assert.deepEqual(
     second.map((r) => r.weight),
     [2, 1],
@@ -62,6 +63,7 @@ test('a deferred remainder is offered again until fresh feedback replaces it', (
   queue.defer(first, 0);
   assert.equal(queue.deferred, 3);
   const third = queue.take(3);
+  assert.equal(queue.frame, 3);
   assert.deepEqual(
     third.map((r) => r.weight),
     [9],

@@ -51,8 +51,9 @@ export interface ExplorerOptions {
   /** Texture-tile bytes the WebGPU engine admits per frame; 16 MiB by default. */
   maxTextureTransferBytesPerFrame?: number;
   /** CPU milliseconds the WebGPU engine may spend copying texture tiles per frame; 1.0 by
-   *  default. Tiles beyond it wait for the next frame, shown meanwhile by their coarser
-   *  resident level; the worst pass is published as `textureUploadPeakMs`. */
+   *  default. The pass stops after the copy that crosses it; the tiles left wait for the next
+   *  frame, shown meanwhile by their coarser resident level; the worst pass is published as
+   *  `textureUploadPeakMs`. */
   maxTextureUploadMsPerFrame?: number;
   /** Geometry-page pool bytes of the WebGPU engine — streamed geometry memory, regardless
    *  of the scene, like the reference's 512 MB pool. 512 MiB by default. The root cover

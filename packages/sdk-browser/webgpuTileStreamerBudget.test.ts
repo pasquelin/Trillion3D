@@ -97,6 +97,7 @@ function streamer(budgetMs: number) {
 
 test('a pass copies until its millisecond budget is spent, then defers the rest to the next passes', async () => {
   const { textures, feed, copies } = streamer(1.5 * COPY_MS);
+  assert.equal(textures.metrics().textureUploadPeakMs, null, 'no pass yet: unmeasured');
   await feed();
   // First pass: the levels are not decoded yet, nothing is copied, the reads are launched.
   assert.deepEqual(textures.pump(1), { served: 0, waiting: 5 });

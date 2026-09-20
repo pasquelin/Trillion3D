@@ -21,11 +21,12 @@ export function createTileCounters() {
     /** True when the last pass had tiles to serve, and what it cost. */
     worked: false,
     lastMs: 0,
-    /** Worst bounded pass of the session: a barrier lifts the budget and is not a frame's cost. */
-    peakMs: 0,
+    /** Worst bounded pass of the session, `null` until one ran: a barrier lifts the budget and is
+     *  not a frame's cost. */
+    peakMs: null as number | null,
     pass(ms: number, unbounded: boolean) {
       this.lastMs = ms;
-      if (!unbounded && ms > this.peakMs) this.peakMs = ms;
+      if (!unbounded && ms > (this.peakMs ?? -1)) this.peakMs = ms;
     },
     metrics(atlases: readonly WebgpuTileAtlas[], levels: WebgpuTileLevels | undefined) {
       const sum = (of: (atlas: WebgpuTileAtlas) => number) =>
