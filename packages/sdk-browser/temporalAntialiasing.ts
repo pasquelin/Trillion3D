@@ -103,6 +103,7 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
       saved.hasHistory = frame.hasHistory;
       saved.sceneSeen = frame.sceneSeen;
       saved.quiet = quiet;
+      saved.sampledRank = frame.sampledRank;
       saved.previousViewProjection.set(frame.previousViewProjection);
     },
     /** Returns the stillness of the replayed frame: its own, not the one arrived tiles disturbed. */
@@ -113,6 +114,7 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
       frame.stillFrames = saved.stillFrames;
       frame.hasHistory = saved.hasHistory;
       frame.sceneSeen = saved.sceneSeen;
+      frame.sampledRank = saved.sampledRank;
       frame.previousViewProjection.set(saved.previousViewProjection);
       return saved.quiet;
     },
