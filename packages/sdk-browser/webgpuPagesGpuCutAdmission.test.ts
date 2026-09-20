@@ -1,6 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { admitGpuCut, BUDGET_RELAX_RATIO } from './webgpuPagesGpuCutAdmission.ts';
+import {
+  admitGpuCut,
+  BUDGET_RELAX_RATIO,
+  MIN_BUDGET_PIXEL_ERROR,
+} from './webgpuPagesGpuCutAdmission.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** A runtime reduced to what admission reads: the pool, the sample's threshold, the counts. */
@@ -80,6 +84,17 @@ test('relaxing walks the ladder back down to the host threshold, never below it'
   assert.equal(frame(2, 40, 0.5), 1);
   assert.equal(frame(1, 40, 0.5), 0);
   assert.equal(frame(0.5, 40, 0.5), 0);
+});
+
+test('under a host threshold of zero the ladder goes below one pixel, down to its finest rung', () => {
+  const { state, frame } = mount(100);
+  frame(0, 250);
+  state.view = 1;
+  assert.equal(frame(1, 40), 0.5);
+  assert.equal(frame(0.5, 40), 0.25);
+  assert.equal(frame(0.25, 40), MIN_BUDGET_PIXEL_ERROR);
+  assert.equal(frame(MIN_BUDGET_PIXEL_ERROR, 40), 0, 'below the finest rung, the host threshold');
+  assert.equal(frame(0, 250), 1, 'and an overflow there climbs back to one pixel');
 });
 
 test('the relax share is the fraction of the slots under which the floor lowers', () => {

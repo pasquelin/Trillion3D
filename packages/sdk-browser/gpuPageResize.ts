@@ -23,13 +23,19 @@ export const createPageBuffer = (device: GPUDevice, size: number) =>
 
 /**
  * The pool changes size WITHOUT losing what it holds: the reference, by contrast, empties its
- * pool when `StreamingPoolSize` changes. Pages in slots that survive are copied on the GPU in
- * the same place; those in slots that disappear are moved into a free slot of the new pool while
- * any remain — pinned first, then most recent — and only then evicted. Each move goes through
- * the change log, which the residency mirror reads as an ordinary arrival or departure. Returns
- * the evicted keys, pinned included: the caller unpins them on its side.
+ * pool when `StreamingPoolSize` changes. The pages that matter most keep a place, wherever they
+ * were: the `held` cover first — the root cover, which a pool never goes below —, then the pinned
+ * pages, then the most recent. A page whose slot survives is copied on the GPU in the same place;
+ * one whose slot disappears takes a slot left free — by the new size or by a page that ranks
+ * below it — and the rest is evicted. Each move goes through the change log, which the residency
+ * mirror reads as an ordinary arrival or departure. Returns the evicted keys, pinned included:
+ * the caller unpins them on its side.
  */
-export function resizeGpuPages(context: GpuPageContext, slots: number): string[] {
+export function resizeGpuPages(
+  context: GpuPageContext,
+  slots: number,
+  held?: ReadonlySet<string>,
+): string[] {
   const { device, pageBytes, resident, pins, free } = context;
   const size = pageBufferBytes(device, pageBytes, slots);
   const next = createPageBuffer(device, size);
@@ -41,27 +47,27 @@ export function resizeGpuPages(context: GpuPageContext, slots: number): string[]
     0,
     Math.min(context.slots, slots) * pageBytes,
   );
-  // One pass over residency: occupied slots that survive, and pages that are moved — pinned
-  // first, then most recent, when room runs out.
+  const rank = (page: ResidentPage) => (held?.has(page.key) ? 2 : 0) + (pins.has(page.key) ? 1 : 0);
+  const pages = [...resident.values()].sort(
+    (a, b) => rank(b) - rank(a) || b.generation - a.generation,
+  );
+  // The first `slots` pages stay; those already inside the new pool keep their slot, the others
+  // take the slots the rest leaves free.
   const occupied = new Uint8Array(slots);
   const displaced: ResidentPage[] = [];
-  for (const page of resident.values()) {
-    if (page.slot < slots) occupied[page.slot] = 1;
-    else displaced.push(page);
+  for (let i = 0; i < pages.length && i < slots; i++)
+    if (pages[i].slot < slots) occupied[pages[i].slot] = 1;
+    else displaced.push(pages[i]);
+  const evicted: string[] = [];
+  for (let i = slots; i < pages.length; i++) {
+    evictResident(context, pages[i], 'resize');
+    evicted.push(pages[i].key);
   }
+  // Free slots are taken from the top by a load; a displaced page takes the lowest.
   free.length = 0;
   for (let slot = 0; slot < slots; slot++) if (!occupied[slot]) free.push(slot);
-  displaced.sort(
-    (a, b) => Number(pins.has(b.key)) - Number(pins.has(a.key)) || b.generation - a.generation,
-  );
-  const evicted: string[] = [];
   let taken = 0;
   for (const page of displaced) {
-    if (taken === free.length) {
-      evictResident(context, page, 'resize');
-      evicted.push(page.key);
-      continue;
-    }
     const slot = free[taken++];
     encoder.copyBufferToBuffer(context.buffer, page.offset, next, slot * pageBytes, pageBytes);
     page.slot = slot;
