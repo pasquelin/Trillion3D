@@ -111,13 +111,9 @@ export async function measureView(options) {
       gpuPassSamples.push(sample);
   }
   await explorer.flush();
-  // Capture pose frozen here: the stage-profile loop must not walk the trajectory again.
-  // `poseAt(0)` after `poseAt(frames-1)` teleports the camera, and TAA would average a second
+  // Capture freezes the last measured pose. Restarting at poseAt(0) would average a second
   // journey into the A/A witness (#25: still camera 0 px, moving camera leftover on `sol`).
   const capturePose = current;
-  // Stage profile is a separate loop after the measured one, so those timings stay comparable.
-  // Yield to the browser between frames: timestamp queries resolve on a promise, and a loop
-  // that never waits recovers almost none; the window is flushed first.
   const stageProfile = options.stageProfile ? explorer.stageProfile() : null;
   // The shadow-page queue is drained before any atlas read: a pending page still holds the
   // previous depth, and the fingerprint would prove nothing. The loop is bounded, and the

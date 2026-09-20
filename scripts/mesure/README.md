@@ -45,7 +45,8 @@ What the witness does not render, named rather than guessed: **no shadow casting
 The measured camera path also advances once per `requestAnimationFrame` on both sides. Its
 `rafIntervalMs` distribution is the real moving-frame envelope, including browser backpressure and
 the display cap. `cpuFrameMs` remains the engine's synchronous submission reading; the two durations
-are never added.
+are never added. Use `--profil off` for the beauty verdict; `--profil on` attributes cost inside the
+same moving loop but keeps diagnostic instrumentation active.
 
 Outputs in `--out` (default `.mesure/out/<engine>-<timestamp>/`, gitignored and un-linted):
 `mesure.json`, `resume.md`, and per view, threshold, and side: `.png`, `.coupe.txt`, and metrics line — `rafIntervalMs`, `cpuFrameMs` and `cpuSelectMs` p50/p95, `gpuFrameMs` p50 (WebGPU), selected and unrendered triangles, Hi-Z counters, selection hash, page budget, system load —, plus A/A check (same side run twice) and before/after delta per channel. `null` = unmeasured, never inferred; all launched tasks exit cleanly.
