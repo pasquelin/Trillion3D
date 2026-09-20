@@ -70,4 +70,10 @@ export type {
 export { RECTS_PER_SLICE } from '../../sdk-core/sceneLightShadowSlices.ts';
 export { regionRect } from '../../sdk-core/sceneLightShadowVolume.ts';
 export { solveTransportOracle } from '../../sdk-core/lightingTransportOracle.ts';
+export type {
+  TransportOptions,
+  TransportProgress,
+  TransportResult,
+  TransportSnapshot,
+} from '../../sdk-core/lightingTransportContracts.ts';
 export { validateSceneEnvironment, validateSceneLight } from '../../sdk-core/sceneLightValidate.ts';
