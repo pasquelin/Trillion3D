@@ -28,6 +28,9 @@ export function uploadRowCorners(rt: WebgpuPagesRuntime, partition: GpuPartition
   const { from, to } = dirtyRange(rows, stale, cornerHold.count);
   cornerHold.count = rows.packedCount;
   if (to < from) return;
+  // A new age moves no page between ranks: the rows keep their history, on corners that moved.
+  // Any other dirty interval is rows whose page arrived, left or changed rank.
+  if (!stale) partition.forgetRows(from, to);
   for (let row = from; row <= to; row++) {
     const rec = rows.packedRecs[row];
     const base = row * CORNER_VALUES;
