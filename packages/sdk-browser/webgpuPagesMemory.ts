@@ -48,7 +48,9 @@ export async function setWebgpuMemoryBudgets(
   if (budgets.geometryPoolBytes !== undefined) {
     const pool = setup.geometryPoolFor(budgets.geometryPoolBytes);
     if (pool.slots !== setup.slots && gpu.cache && !run.lost) {
-      const evicted = await gpu.cache.resize(pool.slots);
+      // The root cover keeps its place before any other page: the pool never goes below it, and a
+      // cut can only be completed from it.
+      const evicted = await gpu.cache.resize(pool.slots, setup.bootstrapUrls);
       // A pinned page that has just been evicted: the pin trace knows, and the pin step puts it back
       // in the queue if the image still keeps it — the path of a host page drop.
       for (const url of evicted) {
