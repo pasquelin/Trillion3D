@@ -7,7 +7,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.mjs';
 const { Gallery, Playground } = await loadReactComponents('docs/react/gallery/index.jsx');
-const { PlannedCard } = await loadReactComponents('docs/react/gallery/PlannedCard.jsx');
+const { ExampleCard } = await loadReactComponents('docs/react/gallery/ExampleCard.jsx');
 const { Home } = await loadReactComponents('docs/react/portal/Home.jsx');
 const { CodeBlock } = await loadReactComponents('docs/react/components/CodeBlock.jsx');
 const renderGallery = (locale) => renderToStaticMarkup(createElement(Gallery, { locale }));
@@ -118,7 +118,7 @@ test('planned lessons stay honest, specific, and link to related ready material'
     assert.equal(new Set(roadmap.entries.map((entry) => entry.title[locale])).size, 607);
   const entry = roadmap.entries.find(({ subject }) => subject === 'camera');
   const card = renderToStaticMarkup(
-    createElement(PlannedCard, { entry, locale: 'fr', expanded: true, onOpen() {} }),
+    createElement(ExampleCard, { example: entry, locale: 'fr', expanded: true, onOpen() {} }),
   );
   assert.match(card, /Plan non exécutable/);
   assert.match(card, /Pourquoi/);
