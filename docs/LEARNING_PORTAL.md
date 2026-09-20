@@ -13,7 +13,7 @@ route.
 - `docs/js/portal/` owns the route and content data used by the React application.
   `routes.js` is the only place that translates URLs into page kinds. All generated links include
   the locale as `#/en/...` or `#/fr/...`; old hashes are accepted using the current locale.
-- `docs/js/docsContent*.js` contains the English API and guide entries. Keep identifiers,
+- `docs/js/docsContent*.js` contains the English API, guide and example entries. Keep identifiers,
   signatures, module paths and executable examples in these source entries.
 - `docs/js/i18n/` contains French overlays and interface strings. `localizeEntries()` applies an
   overlay by entry id while preserving technical fields. Missing fields and unsupported locales
