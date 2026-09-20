@@ -14028,7 +14028,7 @@
     }
   },
   "localizationSource": {
-    "file": "/tmp/wg-gallery-localization.json",
+    "source": "Agent-authored bilingual metadata derived from the dated topic inventory.",
     "coverage": "607/607",
     "integratedOn": "2026-09-20"
   }
