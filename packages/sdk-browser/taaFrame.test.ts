@@ -173,14 +173,15 @@ test('a convergence frame replays the last ordinary frame instead of advancing j
   assert.equal(temporal.frame.stillFrames, 1);
 });
 
-// Lighting is sampled on a moving image that accumulates, and on no other: a still image
-// converges to the exact sum, an image that does not accumulate must never be noisy.
+// Lighting is sampled on a moving image accumulated on a history, and on no other.
 test('the sampled rank: moving accumulated frames only, another each frame, replayed', () => {
   const { rt, temporal, frame } = runtime();
   assert.equal(taaSampledRank(rt), 0, 'before any frame, nothing is sampled');
   frame(false);
+  assert.equal(taaSampledRank(rt), 0, 'the first moving frame has no history to average it');
+  frame(false);
   const first = taaSampledRank(rt);
-  assert.ok(first > 0, 'a moving frame samples');
+  assert.ok(first > 0, 'a moving frame on a history samples');
   rt.run.frame++;
   frame(false);
   const second = taaSampledRank(rt);
