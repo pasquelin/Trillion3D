@@ -3,7 +3,8 @@
   "generatedAt": "2026-09-20",
   "provenance": {
     "roadmap": "docs/data/gallery-roadmap.json",
-    "visualEvidence": "In-app browser observations recorded during the gallery quality audit; unvisited references remain pending."
+    "visualEvidence": "In-app browser observations recorded during the gallery quality audit; unvisited references remain pending.",
+    "scope": "Capability states describe public feature coverage, not visual quality or performance parity. Reviewed references may still require a new original scene. Pending rows are not completed audits."
   },
   "summary": {
     "topics": 607,
@@ -381,9 +382,7 @@
         "interaction": null,
         "limitation": null
       },
-      "closestLessons": [
-        "offline-convex-prism"
-      ],
+      "closestLessons": ["offline-convex-prism"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -399,9 +398,7 @@
         "interaction": "Initial visual inspection.",
         "limitation": null
       },
-      "closestLessons": [
-        "offline-painted"
-      ],
+      "closestLessons": ["offline-painted"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -417,9 +414,7 @@
         "interaction": "Changed colorMap to cooltowarm; blue-white-red mapping visible on model and legend.",
         "limitation": null
       },
-      "closestLessons": [
-        "offline-height-palette"
-      ],
+      "closestLessons": ["offline-height-palette"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -435,9 +430,7 @@
         "interaction": null,
         "limitation": null
       },
-      "closestLessons": [
-        "offline-convex-prism"
-      ],
+      "closestLessons": ["offline-convex-prism"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -453,9 +446,7 @@
         "interaction": "Changed SUBTRACTION to INTERSECTION; the result visibly becomes the common tilted cylindrical volume with rounded caps.",
         "limitation": null
       },
-      "closestLessons": [
-        "offline-difference"
-      ],
+      "closestLessons": ["offline-difference"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -471,10 +462,7 @@
         "interaction": null,
         "limitation": null
       },
-      "closestLessons": [
-        "offline-prism",
-        "offline-prism"
-      ],
+      "closestLessons": ["offline-prism", "offline-prism"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "supported",
@@ -490,10 +478,7 @@
         "interaction": null,
         "limitation": null
       },
-      "closestLessons": [
-        "offline-contour",
-        "offline-contour"
-      ],
+      "closestLessons": ["offline-contour", "offline-contour"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "supported",
@@ -509,9 +494,7 @@
         "interaction": "Changed spline from GrannyKnot to HeartCurve; the whole tube visibly becomes a large heart outline.",
         "limitation": null
       },
-      "closestLessons": [
-        "offline-ribbon"
-      ],
+      "closestLessons": ["offline-ribbon"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "supported",
@@ -527,9 +510,7 @@
         "interaction": null,
         "limitation": null
       },
-      "closestLessons": [
-        "offline-difference"
-      ],
+      "closestLessons": ["offline-difference"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -545,10 +526,7 @@
         "interaction": null,
         "limitation": null
       },
-      "closestLessons": [
-        "offline-rational-roof",
-        "offline-rational-roof"
-      ],
+      "closestLessons": ["offline-rational-roof", "offline-rational-roof"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "supported",
@@ -564,9 +542,7 @@
         "interaction": null,
         "limitation": null
       },
-      "closestLessons": [
-        "offline-convex-prism"
-      ],
+      "closestLessons": ["offline-convex-prism"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -582,9 +558,7 @@
         "interaction": "Initial visual inspection only.",
         "limitation": null
       },
-      "closestLessons": [
-        "offline-curve-control"
-      ],
+      "closestLessons": ["offline-curve-control"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -600,9 +574,7 @@
         "interaction": "Changed Shading from glossy to wireframe, then Tessellation Level from15 to3: visible mesh became much sparser and silhouette visibly angular.",
         "limitation": null
       },
-      "closestLessons": [
-        "offline-vessel"
-      ],
+      "closestLessons": ["offline-vessel"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -618,10 +590,7 @@
         "interaction": null,
         "limitation": null
       },
-      "closestLessons": [
-        "offline-terrain",
-        "offline-terrain"
-      ],
+      "closestLessons": ["offline-terrain", "offline-terrain"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "supported",
@@ -637,9 +606,7 @@
         "interaction": "Initial visual inspection; hit marker not yet tested.",
         "limitation": null
       },
-      "closestLessons": [
-        "offline-terrain-hit"
-      ],
+      "closestLessons": ["offline-terrain-hit"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -655,9 +622,7 @@
         "interaction": "Pressed W; the rendered 3D glyph changed to W.",
         "limitation": null
       },
-      "closestLessons": [
-        "offline-lettering"
-      ],
+      "closestLessons": ["offline-lettering"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -673,9 +638,7 @@
         "interaction": "Visual observation incomplete; revisit after fonts load.",
         "limitation": "The reference did not reach a stable, fully observable result during the browser visit."
       },
-      "closestLessons": [
-        "offline-lettering"
-      ],
+      "closestLessons": ["offline-lettering"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -691,9 +654,7 @@
         "interaction": "Visual inspection after font load.",
         "limitation": null
       },
-      "closestLessons": [
-        "offline-lettering"
-      ],
+      "closestLessons": ["offline-lettering"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -2085,9 +2046,7 @@
         "interaction": "Initial visual inspection; no control changes.",
         "limitation": null
       },
-      "closestLessons": [
-        "runtime-pixel-error"
-      ],
+      "closestLessons": ["runtime-pixel-error"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "pending",
@@ -2103,9 +2062,7 @@
         "interaction": "Initial visual inspection only.",
         "limitation": null
       },
-      "closestLessons": [
-        "offline-implicit-shell"
-      ],
+      "closestLessons": ["offline-implicit-shell"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -2793,9 +2750,7 @@
         "interaction": "Observed the loaded text on the curve; no handle drag tested.",
         "limitation": null
       },
-      "closestLessons": [
-        "offline-ribbon"
-      ],
+      "closestLessons": ["offline-ribbon"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -2811,9 +2766,7 @@
         "interaction": null,
         "limitation": null
       },
-      "closestLessons": [
-        "offline-bent-prism"
-      ],
+      "closestLessons": ["offline-bent-prism"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -2829,9 +2782,7 @@
         "interaction": "Unchecked edgeSplit; control state changed. Visual difference is subtle in this view, so no quantitative or strong visible-change claim.",
         "limitation": "The control changed, but the visual difference remained subtle from the reviewed camera."
       },
-      "closestLessons": [
-        "offline-hard-edges"
-      ],
+      "closestLessons": ["offline-hard-edges"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -2847,9 +2798,7 @@
         "interaction": "Filled ratio from0.125 to0.5. Enter action timed out, but the subsequent visible input was0.5 and right bust had visibly finer facets; input change took effect.",
         "limitation": "Our sampling recipe is not equivalent to a runtime simplifier; keep the distinction explicit."
       },
-      "closestLessons": [
-        "offline-sampling"
-      ],
+      "closestLessons": ["offline-sampling"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -2865,9 +2814,7 @@
         "interaction": "Enabled flatOnly then wireframe. Rounded result became a sharp cube with many visible interior triangles, directly demonstrating non-smoothing refinement.",
         "limitation": "Default smooth subdivision is not our midpoint refinement. The tested flatOnly mode is the relevant visual comparison."
       },
-      "closestLessons": [
-        "offline-refinement"
-      ],
+      "closestLessons": ["offline-refinement"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -2883,9 +2830,7 @@
         "interaction": "Observed the loaded fragmented text; no parameter interaction tested.",
         "limitation": null
       },
-      "closestLessons": [
-        "offline-refinement"
-      ],
+      "closestLessons": ["offline-refinement"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -3157,9 +3102,7 @@
         "interaction": null,
         "limitation": "The reference did not reach a stable, fully observable result during the browser visit."
       },
-      "closestLessons": [
-        "offline-uv-tiles"
-      ],
+      "closestLessons": ["offline-uv-tiles"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -3287,9 +3230,7 @@
         "interaction": null,
         "limitation": null
       },
-      "closestLessons": [
-        "offline-sculpture"
-      ],
+      "closestLessons": ["offline-sculpture"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -3385,9 +3326,7 @@
         "interaction": null,
         "limitation": null
       },
-      "closestLessons": [
-        "shadow-casting-switch"
-      ],
+      "closestLessons": ["shadow-casting-switch"],
       "originalGoal": "An original studio of ceramic, metal, glass and foliage forms will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -3419,10 +3358,7 @@
         "interaction": null,
         "limitation": "The current terrain and shell subjects do not surround the light with readable receiving surfaces."
       },
-      "closestLessons": [
-        "moving-point-shadow",
-        "light-emitter-envelope"
-      ],
+      "closestLessons": ["moving-point-shadow", "light-emitter-envelope"],
       "originalGoal": "An original studio of ceramic, metal, glass and foliage forms will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -4030,9 +3966,7 @@
         "interaction": null,
         "limitation": null
       },
-      "closestLessons": [
-        "offline-indexed"
-      ],
+      "closestLessons": ["offline-indexed"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "supported",
@@ -4128,9 +4062,7 @@
         "interaction": null,
         "limitation": null
       },
-      "closestLessons": [
-        "offline-indexed"
-      ],
+      "closestLessons": ["offline-indexed"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "supported",
@@ -4290,9 +4222,7 @@
         "interaction": null,
         "limitation": null
       },
-      "closestLessons": [
-        "offline-wide-indices"
-      ],
+      "closestLessons": ["offline-wide-indices"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "supported",
@@ -5577,9 +5507,7 @@
         "interaction": null,
         "limitation": null
       },
-      "closestLessons": [
-        "offline-city"
-      ],
+      "closestLessons": ["offline-city"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -5595,9 +5523,7 @@
         "interaction": null,
         "limitation": null
       },
-      "closestLessons": [
-        "offline-city"
-      ],
+      "closestLessons": ["offline-city"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -5613,10 +5539,7 @@
         "interaction": "Clicked sections: filled objects and background changed into stacked pale section outlines, immediately exposing the construction.",
         "limitation": null
       },
-      "closestLessons": [
-        "offline-loft",
-        "offline-loft"
-      ],
+      "closestLessons": ["offline-loft", "offline-loft"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "supported",
@@ -5952,11 +5875,7 @@
         "interaction": null,
         "limitation": "The current lessons demonstrate range, colour balance, and lifecycle separately; none yet matches the close authored subject or visible moving emitters."
       },
-      "closestLessons": [
-        "point-light-range",
-        "colored-light-balance",
-        "light-session-lifecycle"
-      ],
+      "closestLessons": ["point-light-range", "colored-light-balance", "light-session-lifecycle"],
       "originalGoal": "An original studio of ceramic, metal, glass and foliage forms will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -6020,9 +5939,7 @@
         "interaction": null,
         "limitation": "The engine lesson exposes angle and intensity but no projected gobo texture; a dedicated theatre or museum subject remains feasible with a declared texture-projection gap."
       },
-      "closestLessons": [
-        "spot-light-cone"
-      ],
+      "closestLessons": ["spot-light-cone"],
       "originalGoal": "An original studio of ceramic, metal, glass and foliage forms will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -6038,9 +5955,7 @@
         "interaction": null,
         "limitation": "The current single hard-edged object lacks depth and repeated shadow landmarks."
       },
-      "closestLessons": [
-        "directional-shadow"
-      ],
+      "closestLessons": ["directional-shadow"],
       "originalGoal": "An original studio of ceramic, metal, glass and foliage forms will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -6584,9 +6499,7 @@
         "interaction": "Observed the loaded lettering; no timing comparison or handle interaction claimed.",
         "limitation": null
       },
-      "closestLessons": [
-        "offline-ribbon"
-      ],
+      "closestLessons": ["offline-ribbon"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -7626,9 +7539,7 @@
         "interaction": null,
         "limitation": null
       },
-      "closestLessons": [
-        "offline-sculpture"
-      ],
+      "closestLessons": ["offline-sculpture"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
@@ -7708,9 +7619,7 @@
         "interaction": null,
         "limitation": "The public lesson currently rotates the sun only; cascade helpers should be claimed only if a matching public diagnostic exists."
       },
-      "closestLessons": [
-        "directional-shadow"
-      ],
+      "closestLessons": ["directional-shadow"],
       "originalGoal": "An original studio of ceramic, metal, glass and foliage forms will make the mechanism visible.",
       "capabilityReview": {
         "state": "pending",
@@ -8030,9 +7939,7 @@
         "interaction": null,
         "limitation": "The lesson exposes ACES exposure but not operator selection or HDR environment choice; its current uniform vessel lacks the dynamic range required for a strong proof."
       },
-      "closestLessons": [
-        "camera-exposure"
-      ],
+      "closestLessons": ["camera-exposure"],
       "originalGoal": "An original studio of ceramic, metal, glass and foliage forms will make the mechanism visible.",
       "capabilityReview": {
         "state": "feasible",
