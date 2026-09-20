@@ -269,8 +269,9 @@ kbd {
   flex-direction: column;
 }
 .engine-canvas-frame {
-  display: flex;
+  display: block;
   width: 100%;
+  height: clamp(18rem, 42dvh, 32rem);
   min-height: clamp(18rem, 42dvh, 32rem);
 }
 .engine-canvas-frame [data-scene-canvas] {
