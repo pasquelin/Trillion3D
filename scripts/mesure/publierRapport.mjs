@@ -1,38 +1,45 @@
 #!/usr/bin/env node
-// Copies the campaign report into `docs/` for GitHub Pages (branch + /docs folder), next to
-// the documentation portal that `docs/index.html` serves.
-//
-//   node scripts/mesure/rapportGlobal.mjs
-//   node scripts/mesure/publierRapport.mjs
-import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+// Stage immutable campaign evidence beside the portal; no network publication occurs here.
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { assertReport } from '../../docs/js/reports/contract.js';
 import { parseArgs } from './options.mjs';
-
-const ROOT = resolve(import.meta.dirname, '../..');
-
-/** The page the report is published as; `index.html` belongs to the documentation portal. */
-const REPORT_PAGE = 'report.html';
-
-/**
- * Places `rapport.html` as the Pages folder's `report.html`, copies the thumbnails, and disables
- * Jekyll (`.nojekyll`) so GitHub serves the HTML as-is.
- */
 export function publierRapport(source, dest) {
-  const rapport = join(source, 'rapport.html');
-  if (!existsSync(rapport)) throw new Error(`no report: ${rapport}`);
-  mkdirSync(dest, { recursive: true });
-  cpSync(rapport, join(dest, REPORT_PAGE));
-  const vignettes = join(source, 'vignettes');
-  const destVignettes = join(dest, 'vignettes');
-  rmSync(destVignettes, { recursive: true, force: true });
-  if (existsSync(vignettes)) cpSync(vignettes, destVignettes, { recursive: true });
+  const report = assertReport(JSON.parse(readFileSync(join(source, 'report.json'), 'utf8')));
+  const folder = join(dest, 'reports', report.id);
+  if (existsSync(folder)) throw new Error('Campaign already published; use a new campaign ID');
+  for (const path of [
+    ...report.runs.map((run) => run.source),
+    ...report.records.map((r) => r.image),
+  ].filter(Boolean))
+    if (!existsSync(join(source, path))) throw new Error(`Missing evidence: ${path}`);
+  mkdirSync(join(dest, 'reports'), { recursive: true });
+  cpSync(source, folder, { recursive: true });
+  const indexPath = join(dest, 'reports/index.json');
+  const index = existsSync(indexPath) ? JSON.parse(readFileSync(indexPath, 'utf8')) : [];
+  index.unshift({
+    id: report.id,
+    records: report.records.length,
+    date:
+      report.runs
+        .map((run) => run.startedAt)
+        .filter(Boolean)
+        .sort()[0] ?? null,
+  });
+  writeFileSync(indexPath, JSON.stringify(index) + '\n');
+  writeFileSync(
+    join(dest, 'report.html'),
+    '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Measurements · Web Geometry</title><meta http-equiv="refresh" content="0;url=./#/en/reports"><a href="./#/en/reports">Measurements</a> · <a href="./#/fr/reports">Mesures</a></html>\n',
+  );
   writeFileSync(join(dest, '.nojekyll'), '');
-  return join(dest, REPORT_PAGE);
+  return folder;
 }
-
 if (import.meta.filename === process.argv[1]) {
   const flags = parseArgs(process.argv.slice(2));
-  const source = resolve(flags.get('dossier') ?? join(ROOT, '.mesure/out/global'));
-  const dest = resolve(flags.get('vers') ?? join(ROOT, 'docs'));
-  console.log(`Pages: ${publierRapport(source, dest)}`);
+  console.log(
+    publierRapport(
+      resolve(flags.get('dossier') ?? '.mesure/out/global/report-data'),
+      resolve(flags.get('vers') ?? 'docs'),
+    ),
+  );
 }
