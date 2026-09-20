@@ -23,7 +23,7 @@ const reading = () => ({
   provenance: { machine: { id: 'machine' }, browser: 'Chrome 1' },
   settings: { lightShadows: true },
   gpuMethod: 'timestamp-query',
-  data: { cpuFrameMs: { p50: 4 }, gpuFrameMs: { p50: 8 } },
+  data: { erreur: 'certifiee', cpuFrameMs: { p50: 4 }, gpuFrameMs: { p50: 8 } },
 });
 
 test('export preserves source numbers and original pixels without inventing provenance', () => {
@@ -72,7 +72,7 @@ test('export preserves source numbers and original pixels without inventing prov
 
 test('comparison admits only its declared variable and separates GPU and synchronized clocks', () => {
   const a = reading(),
-    b = { ...reading(), id: 'b', data: { cpuFrameMs: { p50: 3 } } };
+    b = { ...reading(), id: 'b', data: { erreur: 'certifiee', cpuFrameMs: { p50: 3 } } };
   assert.deepEqual(comparison(a, b, 'cpu'), {
     status: 'descriptive',
     reasons: [],
@@ -89,7 +89,10 @@ test('comparison admits only its declared variable and separates GPU and synchro
   assert.equal(comparison(a, { ...b, data: { imageSyncMs: { p50: 3 } } }, 'gpu').delta, null);
   assert.equal(comparison(a, { ...b, buildHash: 'other' }, 'cpu').delta, null);
   assert.equal(comparison(a, { ...b, buildHash: 'other' }, 'cpu', 'version').delta, -1);
-  assert.equal(comparison({ ...a, data: { cpuFrameMs: { p50: 0 } } }, b, 'cpu').percent, null);
+  assert.equal(
+    comparison({ ...a, data: { ...a.data, cpuFrameMs: { p50: 0 } } }, b, 'cpu').percent,
+    null,
+  );
 });
 
 test('resume requires identical campaign identity and completed error-free measurements', () => {
@@ -102,4 +105,14 @@ test('resume requires identical campaign identity and completed error-free measu
     { errors: ['failed'] },
   ])
     assert.equal(canResume({ ...raw, ...changed }, 'a'), false);
+});
+
+test('comparison rejects different or missing geometric error definitions', () => {
+  const a = reading();
+  for (const erreur of ['reference', null, undefined]) {
+    const b = { ...reading(), id: 'b', data: { ...a.data, erreur } };
+    const result = comparison(a, b, 'cpu');
+    assert.equal(result.delta, null);
+    assert.ok(result.reasons.includes('errorMetric'));
+  }
 });
