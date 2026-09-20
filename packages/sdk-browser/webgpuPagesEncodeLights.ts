@@ -53,6 +53,8 @@ export function encodeDirectLights(
   rt.sunFar.gpu?.prepare(encoder, rt.run.frame);
   // The pass may refuse to encode (reject or missing selection): pages the scheduler just took out
   // of the queue then go back in, or their map would keep a stale depth with nothing saying so.
+  // Their drawn-page mask, pushed with the plan, says "drawn" for this one frame; the next plan
+  // finds them stale again and pushes the corrected mask.
   if (regions && !encodeShadowAtlas(rt, device, encoder, regions)) {
     lights.plan.reissue(frame, nowMs);
     lights.shadowPages = 0;
