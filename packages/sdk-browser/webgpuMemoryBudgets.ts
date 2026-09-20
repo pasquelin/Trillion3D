@@ -16,6 +16,11 @@ export const DEFAULT_TEXTURE_POOL_BUDGET = 512 * 1024 * 1024;
  *  unit. What it defers shows its coarser resident level until the next pass. */
 export const DEFAULT_TEXTURE_UPLOAD_MS = 1;
 
+/** The tile pass's millisecond budget for what the host declared: the default when it declared
+ *  nothing finite, never below zero — where one tile per pass still lands. */
+export const textureUploadMsFor = (declared: number | undefined) =>
+  Math.max(0, Number.isFinite(declared) ? declared! : DEFAULT_TEXTURE_UPLOAD_MS);
+
 /** Why a pool does not make the requested size, or `null` when it does. */
 export type PoolClamp =
   'root-cover' | 'scene' | 'page-cap' | 'device-limit' | 'minimum' | 'ceiling' | null;
