@@ -7,12 +7,12 @@ import {
   VIEWPORT,
   cameraFace,
   estRouge,
-  executerPasses,
   image,
   libere,
   engine,
   versApi,
 } from './preuveSceneCommune.mjs';
+import { executerPasses } from './preuveAppareil.mjs';
 import { sceneTransparente } from './transparentTransformScene.mjs';
 
 const point = new THREE.Vector3();
