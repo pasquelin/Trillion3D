@@ -184,6 +184,31 @@ hierarchyUpdateBatch(
   },
   {
     ...EXAMPLE,
+    id: 'example-texture-streaming',
+    title: 'Texture tiles under a per-frame budget',
+    description:
+      'How material textures stream tile by tile, what bounds each frame, and how a host reads the cadence.',
+    html: `<p>Material textures are virtual: 128×128 tiles live in two fixed pools, and the rendered image itself asks for the tiles it reads (<code>textureTilesRequested</code>). A tile that is not resident yet shows its finest resident ancestor level, down to the pinned tail — never a hole. Each frame, one pass copies the requested tiles most looked-at first under two fixed budgets: <code>maxTextureTransferBytesPerFrame</code> (16 MiB) and <code>maxTextureUploadMsPerFrame</code> (1.0 ms of CPU). Once either is spent, the pass stops; the remainder is deferred to the next frames — offered again in the same order until fresh feedback replaces it — so a cold traversal streams at a fixed cadence instead of stalling the frame. The first tile of a pass is always copied: even a zero budget makes progress. <code>flush()</code> lifts both budgets and converges the pose.</p>
+<p>Read the cadence on peaks, never on medians: <code>textureUploadPeakMs</code> is the worst budgeted pass since the start, <code>textureUploadMs</code> the last pass (<code>null</code> when it had nothing to serve), <code>textureTilesDeferred</code> what the budget pushed to the next frame, and <code>stageProfile()</code> gives the p50/p95 of the "Textures" stage. Measured on the Emerald cache, general view, cold cache and moving camera (1280×720, DPR 1, threshold 1 px, two runs): the "Textures" stage p95 went from 4.2–9.3 ms to 1.1–1.2 ms, the browser frame interval p99 from 33–133 ms to 16.8 ms; the declared cost is a coarser image while tiles land — 8–12 tiles per frame, 1.2–1.8 missing levels on average at the end of the traversal against 0.6–0.7 before — and a still pose converges to the same 0 px capture. The bench reads it with <code>--budget-textures &lt;ms&gt;</code> (<code>scripts/mesure/README.md</code>).</p>`,
+    example: `import { createExplorer } from 'web-geometry';
+
+const explorer = await createExplorer('viewer', {
+  manifestUrl: '/cache/city/manifest.json',
+  scope: 'full',
+  textureSource: 'cache', // baked levels read on demand, source images never decoded
+  maxTextureUploadMsPerFrame: 1, // CPU milliseconds of tile copies per frame (default)
+  maxTextureTransferBytesPerFrame: 16 * 1024 * 1024, // tile bytes per frame (default)
+  stageProfile: true,
+});
+const metrics = explorer.render(pose);
+console.log(metrics.textureTilesRequested, metrics.textureTilesDeferred); // asked, pushed to next frame
+console.log(metrics.textureUploadPeakMs); // worst pass since the start: a stutter is a peak
+const textures = explorer.stageProfile().stages.find((stage) => stage.stage === 'textures');
+console.log(textures?.cpuMs); // { p50, p95 } of the pass, or null when no image asked for tiles
+await explorer.flush(); // the barrier lifts both budgets: the pose converges before a capture`,
+  },
+  {
+    ...EXAMPLE,
     id: 'example-diagnostics',
     title: 'Diagnostics and quality',
     description: 'Switching what the frame draws and how fine the cut is, on a live explorer.',
