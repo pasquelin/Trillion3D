@@ -109,6 +109,10 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
       cpu: metrics.cpuFrameMs,
       memory: metrics.geometryPoolAllocatedBytes,
       triangles: metrics.drawnTriangles,
+      // What the occlusion test of an earlier image did, as the device counted it: `null` until
+      // a sample has come back, never estimated.
+      occluded: metrics.hizRejectedClusters ?? null,
+      tested: metrics.hizTestedClusters ?? null,
       idle,
     });
     readyResolve?.();
