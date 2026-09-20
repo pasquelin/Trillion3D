@@ -1,12 +1,7 @@
 import * as THREE from 'three';
-import { WebglClusterRenderer } from '../../packages/sdk-browser/webglClusterRenderer.ts';
-import {
-  createHostDrawCamera,
-  readHostDrawCamera,
-} from '../../packages/sdk-browser/cameraWorld.ts';
 import { triangleGeometry } from '../../packages/sdk-browser/triangleDiagnostic.ts';
 import { drawCoplanarBlend } from './webglClusterCoplanarBlend.mjs';
-import { clear, pixel } from './webglClusterPixels.mjs';
+import { clear, mountClusterRenderer, pixel } from './webglClusterPixels.mjs';
 
 const geometry = (reverseFirst = false) => {
   const result = new THREE.BufferGeometry();
@@ -43,16 +38,10 @@ const mesh = (geometry, material, starts = [0], counts = [6]) => ({
 });
 
 export function execute() {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 32;
-  const gl = canvas.getContext('webgl2');
-  if (!gl) return { unavailable: 'WebGL2 unavailable' };
-  gl.viewport(0, 0, 32, 32);
-  const renderer = new WebglClusterRenderer(gl),
-    scene = new THREE.Scene(),
-    camera = new THREE.PerspectiveCamera(60, 1, 0.1, 10),
-    drawCamera = readHostDrawCamera(createHostDrawCamera(), camera),
-    blend = new THREE.MeshBasicMaterial({
+  const mounted = mountClusterRenderer();
+  if (!mounted) return { unavailable: 'WebGL2 unavailable' };
+  const { gl, renderer, scene, drawCamera } = mounted;
+  const blend = new THREE.MeshBasicMaterial({
       transparent: true,
       opacity: 0.5,
       vertexColors: true,

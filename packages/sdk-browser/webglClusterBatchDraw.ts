@@ -32,7 +32,6 @@ export function drawClusterBatches(
   );
   stats.subDraws = 0;
   stats.submittedTriangles = 0;
-  stats.copyDraws = 0;
   for (const mesh of meshes) {
     let passes = 0;
     if (Array.isArray(mesh.material)) {
@@ -48,9 +47,8 @@ export function drawClusterBatches(
     stats.subDraws++;
     stats.submittedTriangles += wholeMeshTriangles(mesh);
   }
-  for (const mesh of copies)
-    if (!Array.isArray(mesh.material) && mesh.material.visible) stats.copyDraws++;
   // Copies are not paged clusters: the cluster counters leave them out.
+  stats.copyDraws = owner.copySubmissions;
   stats.drawCalls = submitted - stats.copyDraws;
   stats.cpuSubmitMs = performance.now() - start;
   stats.autonomousClusterDrawsTotal += stats.drawCalls;

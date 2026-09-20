@@ -20,6 +20,9 @@ export class WebglClusterOwner {
   get backdropBytes() {
     return this.renderer.backdropBytes;
   }
+  get copySubmissions() {
+    return this.renderer.copySubmissions;
+  }
   draw(
     meshes: readonly ClusterDrawMesh[],
     scene: WebglClusterScene,
