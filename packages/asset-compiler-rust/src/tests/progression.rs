@@ -31,8 +31,8 @@ fn a17_l_avancement_d_une_compilation_ne_recule_jamais() {
         );
         previous = *ratio;
     }
-    assert_eq!(steps.last().expect("une fin").1, 1.0, "{steps:?}");
-    fs::remove_dir_all(root).expect("nettoyage");
+    assert_eq!(steps.last().expect("an end").1, 1.0, "{steps:?}");
+    fs::remove_dir_all(root).expect("cleanup");
 }
 
 // Behaviour: the resident proxy and lights are known phases, placed between
@@ -45,11 +45,11 @@ fn a17_le_proxy_et_les_lampes_sont_des_phases_connues() {
         let (_, ratio) = steps
             .iter()
             .find(|(phase, _)| phase == name)
-            .unwrap_or_else(|| panic!("phase {name} absente de {steps:?}"));
+            .unwrap_or_else(|| panic!("phase {name} missing from {steps:?}"));
         assert!(
             *ratio > 0.95 && *ratio < 1.0,
-            "la phase {name} annonce {ratio}"
+            "phase {name} announces {ratio}"
         );
     }
-    fs::remove_dir_all(root).expect("nettoyage");
+    fs::remove_dir_all(root).expect("cleanup");
 }

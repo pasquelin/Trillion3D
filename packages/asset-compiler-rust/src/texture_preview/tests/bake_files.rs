@@ -38,7 +38,7 @@ fn levels_above_the_tail_are_written_once_per_atlas_as_lossless_png() {
     );
     assert_eq!(
         previews[0].first_level, 2,
-        "256 → 64 : deux niveaux au-dessus de la queue"
+        "256 → 64: two levels above the tail"
     );
     assert_eq!(previews[0].baked_levels, 2);
     assert_eq!(report["bakedLevels"], json!(4));
@@ -53,15 +53,15 @@ fn levels_above_the_tail_are_written_once_per_atlas_as_lossless_png() {
                 kind,
                 level,
             ));
-            assert!(path.exists(), "{} doit exister", path.display());
-            let decoded = image::open(&path).expect("png relisible").to_rgba8();
+            assert!(path.exists(), "{} must exist", path.display());
+            let decoded = image::open(&path).expect("readable png").to_rgba8();
             let (w, h) = preview_level_size(256, 256, level);
             assert_eq!((decoded.width(), decoded.height()), (w, h));
             let chain = reduce::chain(&source, kind);
             assert_eq!(
                 decoded.as_raw(),
                 &chain[level as usize],
-                "niveau {level} sans perte"
+                "lossless level {level}"
             );
         }
         let missing = native.join(crate::texture_preview::bake::level_path(
@@ -71,7 +71,7 @@ fn levels_above_the_tail_are_written_once_per_atlas_as_lossless_png() {
         ));
         assert!(
             !missing.exists(),
-            "la queue reste dans le sidecar, pas en fichier"
+            "the tail remains in the sidecar, not as a file"
         );
     }
     // Report counts both atlases.
@@ -97,14 +97,14 @@ fn an_existing_level_file_is_left_untouched() {
             AtlasKind::Color,
             0,
         ));
-    let stamp = b"pas un png, et personne ne doit y toucher";
+    let stamp = b"not a png, and no one should touch it";
     fs::write(&path, stamp).expect("overwrite");
     let modified = fs::metadata(&path)
         .expect("meta")
         .modified()
         .expect("mtime");
     let (_, report) = stage(&dir);
-    assert_eq!(fs::read(&path).expect("relire"), stamp);
+    assert_eq!(fs::read(&path).expect("read back"), stamp);
     assert_eq!(
         fs::metadata(&path)
             .expect("meta")
@@ -139,7 +139,7 @@ fn a_level_that_cannot_be_written_keeps_the_tail_and_bakes_nothing() {
     source.save(dir.join("leaf.png")).expect("save");
     let native = dir.join("cache").join("native");
     fs::create_dir_all(&native).expect("native");
-    fs::write(native.join(TEXTURE_DIR), b"pas un dossier").expect("bloquer");
+    fs::write(native.join(TEXTURE_DIR), b"not a folder").expect("block");
     let (previews, report) = stage(&dir);
     assert_eq!(previews.len(), 2);
     let (first, tail) = tail_of(&source, AtlasKind::Color);

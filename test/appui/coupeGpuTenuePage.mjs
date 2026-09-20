@@ -12,7 +12,7 @@ const IMAGES = 30;
 
 export async function executer() {
   const appareil = await ouvrirAppareil();
-  if (!appareil) return { indisponible: 'aucun adaptateur WebGPU' };
+  if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
   const evenements = [];
   const fixture = dagFixture();
@@ -38,7 +38,7 @@ export async function executer() {
     images = [];
   try {
     await backend.prepare();
-    // Chargement : les pages que la coupe demande arrivent, puis la mesure commence.
+    // Loading: pages requested by the cut arrive, then measurement begins.
     for (let i = 0; i < 4; i++) {
       backend.render(camera);
       await backend.flush();

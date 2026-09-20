@@ -55,7 +55,7 @@ export async function runCameraPath(
     };
     // Exact A/A/candidate gate at every measured pose. No image capture during timed blocks.
     for (let i = 0; i < path.length; i++) {
-      notify('verify', i, path.length, 'Comparaison exacte des pixels');
+      notify('verify', i, path.length, 'Exact pixel comparison');
       explorer.select(ids[0]);
       explorer.setPose(path[i]);
       await explorer.awaitPages();

@@ -107,10 +107,10 @@ const rebase = (packed) => packedWorldsToRenderOrigin(packed, [{ world }], unifo
 const avecCone = rebase(empaquete(cone)),
   sansCone = rebase(empaquete(OPEN_CONE));
 const gpu = await selectionGpu([
-  { nom: 'avecCone', packed: avecCone, uniforms },
-  { nom: 'sansCone', packed: sansCone, uniforms },
+  { name: 'avecCone', packed: avecCone, uniforms },
+  { name: 'sansCone', packed: sansCone, uniforms },
 ]);
-const pagesGpu = (nom) => gpu.resultats?.find((r) => r.nom === nom)?.pages ?? null;
+const pagesGpu = (nom) => gpu.resultats?.find((r) => r.name === nom)?.pages ?? null;
 const rapport = {
   temoin: temoin(),
   cone,

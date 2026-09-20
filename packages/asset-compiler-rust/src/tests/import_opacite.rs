@@ -9,7 +9,7 @@ use super::*;
 pub(super) fn fbx_fixture(shared_texture: bool) -> (PathBuf, Options) {
     let (root, mut options) = fixture();
     let source = root.join("fbx");
-    fs::create_dir_all(&source).expect("dossier fbx");
+    fs::create_dir_all(&source).expect("fbx dir");
     let mut fbx =
         fs::read_to_string(golden_dir("import-fbx").join("riviere.fbx")).expect("fixture");
     if shared_texture {
@@ -20,7 +20,7 @@ pub(super) fn fbx_fixture(shared_texture: bool) -> (PathBuf, Options) {
     }
     fs::write(source.join("riviere.fbx"), &fbx).expect("fbx");
     for image in ["albedo.png", "opacite.png"] {
-        fs::write(source.join(image), b"\x89PNG\r\n\x1a\npas-un-vrai-png").expect("png");
+        fs::write(source.join(image), b"\x89PNG\r\n\x1a\nnot-a-real-png").expect("png");
     }
     options.source = source.join("riviere.fbx");
     options.scope = "full".into();
@@ -36,7 +36,7 @@ pub(super) fn import_of(options: &Options) -> (Value, Value) {
         .expect("imports")
         .map(|e| e.expect("entry").path())
         .next()
-        .expect("un import");
+        .expect("an import");
     (
         read_json(&entry.join("model.gltf")),
         read_json(&entry.join("manifest.json")),
@@ -65,7 +65,7 @@ fn la_transparence_fbx_classique_devient_un_materiau_mele() {
         "{}",
         manifest["unsupported"]
     );
-    fs::remove_dir_all(root).expect("nettoyage");
+    fs::remove_dir_all(root).expect("cleanup");
 }
 
 #[test]
@@ -83,14 +83,14 @@ fn une_carte_dopacite_partagee_avec_la_couleur_de_base_se_branche_sans_rapport()
         "{}",
         manifest["unsupported"]
     );
-    fs::remove_dir_all(root).expect("nettoyage");
+    fs::remove_dir_all(root).expect("cleanup");
 }
 
 /// Classic FBX convention, isolated: `TransparentColor` is a transparency, not an opacity.
 #[test]
-fn transparent_color_noir_vaut_opaque() {
+fn transparent_color_black_means_opaque() {
     use crate::import::opacity::opacity_from_transparency as opacity;
-    // La forme de `M_Water_Ocean` dans le Village : couleur noire, facteur plein.
+    // The form of `M_Water_Ocean` in Village: black colour, full factor.
     assert_eq!(opacity([0.0, 0.0, 0.0], 1.0), 1.0);
     assert_eq!(opacity([1.0, 1.0, 1.0], 0.25), 0.75);
     assert_eq!(opacity([1.0, 1.0, 1.0], 1.0), 0.0);

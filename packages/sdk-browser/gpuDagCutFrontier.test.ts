@@ -11,8 +11,8 @@
 //
 // It also measures the OTHER half of the problem, which persistence does not touch:
 // top-down reject. The replacement error ceiling only drops a too-fine subtree; the
-// own-error floor, which packing derives from the pages and stores in the node, also drops the too
-// grossier — rien du compilateur, rien du format.
+// own-error floor, which packing derives from the pages and stores in the node, also drops the too-
+// coarse — nothing from the compiler, nothing from the format.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -153,7 +153,7 @@ test('the descent frontier is what no exact persistence can save', () => {
       ligne.internesParImage * 6 <= ligne.frontiereParImage,
       `${ligne.regime}: internals ${ligne.internesParImage} for a frontier of ${ligne.frontiereParImage}`,
     );
-    assert.ok(ligne.plafondPourCent < 5, `${ligne.regime} : plafond ${ligne.plafondPourCent} %`);
+    assert.ok(ligne.plafondPourCent < 5, `${ligne.regime}: ceiling ${ligne.plafondPourCent} %`);
     // Top-down reject is SAFE: it never drops anything but a candidate that is actually too coarse.
     assert.ok(
       ligne.candidatesRetireesParImage <= ligne.candidatesTropGrossieresParImage,

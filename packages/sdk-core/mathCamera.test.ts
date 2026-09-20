@@ -29,8 +29,8 @@ test('perspectiveProjection: infinite far plane — depth approaches 0 without r
   assert.deepEqual([p[10], p[14]], [0, near]);
   for (const distance of [1e3, 1e6, 1e12]) {
     const z = profondeur(p, distance);
-    assert.ok(z > 0, `distance ${distance} : profondeur ${z} doit rester strictement positive`);
-    assert.ok(z < 1, `distance ${distance} : profondeur ${z} doit rester sous le plan proche`);
+    assert.ok(z > 0, `distance ${distance}: depth ${z} must remain strictly positive`);
+    assert.ok(z < 1, `distance ${distance}: depth ${z} must remain below near plane`);
   }
 });
 

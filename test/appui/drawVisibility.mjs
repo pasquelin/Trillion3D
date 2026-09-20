@@ -66,7 +66,7 @@ export function setupVisibility(
     visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
     buffer: { type: 'read-only-storage' },
   });
-  // Une table de pages vide : aucune page ne porte de carte, le pool n'est jamais lu.
+  // Empty page table: no page carries a map, pool is never read.
   const colorPages = makeBuffer(64 * 4);
   const visLayout = device.createBindGroupLayout({
     entries: [

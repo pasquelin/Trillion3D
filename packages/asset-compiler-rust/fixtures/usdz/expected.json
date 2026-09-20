@@ -1,5 +1,5 @@
 {
-  "case": "Un paquet USDZ conforme — entrées stockées telles quelles, charges alignées sur soixante-quatre octets — portant une couche usdc et sa texture en sous-dossier.",
+  "case": "A compliant USDZ package — entries stored as-is, payloads aligned on sixty-four bytes — carrying a usdc layer and its texture in a subfolder.",
   "chain": [
     {
       "name": "usdz",
@@ -15,7 +15,7 @@
     "compressee": "USDZ_LAYOUT_INVALID",
     "sansScene": "USDZ_ROOT_LAYER_MISSING"
   },
-  "rule": "Un conteneur ne change rien à la scène qu'il emballe : le paquet est extrait sous le cache et la scène qui en sort est exactement celle de la même couche lue hors paquet. La couche racine est la première entrée du paquet, jamais une couche cherchée parmi les autres : celles-là sont des ressources. Un paquet mal disposé ou qui n'ouvre pas sur une couche USD est refusé par son code, jamais extrait à moitié.",
+  "rule": "A container changes nothing of the scene it packs: the package is extracted under the cache and the scene that comes out is exactly that of the same layer read outside the package. The root layer is the first entry of the package, never a layer sought among the others: those are resources. A badly laid-out package or one that does not open on a USD layer is refused by its code, never half-extracted.",
   "scene": {
     "formatVersion": 4,
     "manifestBinaryVersion": 5,

@@ -60,7 +60,7 @@ fn canonical_gives_same_orientation_for_opposite_planes() {
 
 #[test]
 fn canonical_picks_first_non_zero_axis_for_sign() {
-    // Normale avec premier axe positif
+    // Normal with positive first axis
     let (n1, _) = canonical([0.5, 0.0, 0.0], 1.0);
     assert!(n1[0] > 0.0);
 
@@ -76,7 +76,7 @@ fn canonical_uses_second_axis_when_first_is_zero() {
     assert!(n1[1] > 0.0);
 }
 
-// Test des fonctions auxiliaires
+// Tests for helper functions
 #[test]
 fn dot_product_works_correctly() {
     let a = [1.0, 2.0, 3.0];

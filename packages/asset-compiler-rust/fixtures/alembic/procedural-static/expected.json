@@ -1,5 +1,5 @@
 {
-  "case": "Trois cubes Alembic de huit sommets, posés par des Xform en x = 0, 3 et 6 sous une racine commune ; six faces de quatre côtés chacun, normales et coordonnées de texture par coin de face, et trois face sets nommés Emissive, Opaque et Transparent.",
+  "case": "Three Alembic cubes of eight vertices, placed by Xforms at x = 0, 3 and 6 under a shared root; six faces of four sides each, normals and texture coordinates per face corner, and three face sets named Emissive, Opaque and Transparent.",
   "compiled": {
     "selectedTriangles": 36,
     "totalNodes": 3
@@ -118,7 +118,7 @@
     }
   ],
   "roots": [6],
-  "rule": "Une face Alembic est enroulée dans l'ordre horaire, une face glTF dans l'ordre inverse : chaque face est lue à l'envers, découpée en éventail, et ses coins distincts deviennent des sommets distincts. Un face set donne son nom à un matériau neutre et découpe une primitive. Trois objets aux mêmes octets sont un seul maillage et trois nœuds.",
+  "rule": "An Alembic face is wound clockwise, a glTF face counter-clockwise: each face is read backwards, fan-triangulated, and its distinct corners become distinct vertices. A face set gives its name to a neutral material and splits a primitive. Three objects with the same bytes are one mesh and three nodes.",
   "trianglesAcrossNodes": 36,
   "unsupported": {}
 }

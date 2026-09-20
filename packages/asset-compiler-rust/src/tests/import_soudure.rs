@@ -17,8 +17,8 @@ fn deux_coins_aux_memes_valeurs_sont_un_seul_sommet() {
     let indices = primitive["indices"].as_u64().expect("indices");
     assert_eq!(
         gltf["accessors"][position as usize]["count"], 4,
-        "un quad plat a quatre sommets, pas un par coin: {primitive}"
+        "a flat quad has four vertices, not one per corner: {primitive}"
     );
     assert_eq!(gltf["accessors"][indices as usize]["count"], 6);
-    fs::remove_dir_all(root).expect("nettoyage");
+    fs::remove_dir_all(root).expect("cleanup");
 }

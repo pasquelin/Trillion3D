@@ -3,7 +3,7 @@
 // uniform scale — including under s ≈ 2.15e-7, where the absolute threshold `abs(det)<1e-20` on
 // the raw determinant left the normal local and lit the surface as if it had not rotated. Ground
 // truth is Three's f64 inverse-transpose. The full campaign, its
-// chiffres et sa version d'avant le lot sont dans
+// figures and its pre-batch version are in
 // `test/justesse/normale-eclairage-petite-echelle.mjs`.
 //
 // node --experimental-strip-types test/browser/normale-eclairage-petite-echelle.browser.mjs

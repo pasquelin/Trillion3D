@@ -1,4 +1,4 @@
-// `metricsScratch.triangles` (contrat `FrameMetrics.triangles: number | null`) : quand ni le moteur
+// `metricsScratch.triangles` (`FrameMetrics.triangles: number | null` contract): when neither the engine
 // (`totalSubmittedTriangles`) nor the host renderer have counted a frame, `createExplorerRender`
 // must publish `null`, never `0` — a zero would read as an empty frame.
 import test from 'node:test';

@@ -7,7 +7,7 @@ use super::*;
 /// dimensions, origin kind — 0 for `uri`, 1 for buffer view whose index follows —
 /// then rank of first carried level, count, pixel start and length, atlas
 /// it serves — 0 color, 1 data — and count of levels baked into files under
-/// `textures/<sha>/`, du 0 au `baked - 1`.
+/// `textures/<sha>/`, from 0 to `baked - 1`.
 /// `uri` itself not copied: read from `images[image]` named by entry,and
 /// duplicating it would create two truths. Levels not described one by one: their
 /// dimensions re-deduced from source dimensions, so reader recomputes

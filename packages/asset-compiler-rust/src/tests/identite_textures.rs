@@ -32,8 +32,7 @@ fn source_texturee() -> (PathBuf, Options, PathBuf) {
 }
 
 /// Compiles and returns the key exposed to the consumer with the fingerprint of
-/// the binary sidecar written under that key.
-/// elle : c'est ce couple qui doit bouger ensemble, ou pas du tout.
+/// the binary sidecar written under that key: this pair must move together, or not at all.
 fn cle_et_sidecar(options: &Options) -> (String, String) {
     let result = compile(options, |_| {}).expect("compile");
     let key = result["key"].as_str().expect("key").to_string();
@@ -43,17 +42,17 @@ fn cle_et_sidecar(options: &Options) -> (String, String) {
         .join(&options.scope)
         .join(&key)
         .join(MANIFEST_BINARY_FILE);
-    let bytes = fs::read(sidecar).expect("sidecar binaire");
+    let bytes = fs::read(sidecar).expect("binary sidecar");
     (key, hash(&bytes))
 }
 
 // Behaviour: a linked image that changes changes the exposed key; the same image
 // yields the same key,
-// et deux compilations identiques aussi.
+// and two identical compilations do as well.
 #[test]
 fn une_image_liee_modifiee_change_la_cle_exposee() {
     let (root, options, image) = source_texturee();
-    fs::write(&image, png([255, 0, 0, 255])).expect("image rouge");
+    fs::write(&image, png([255, 0, 0, 255])).expect("red image");
     let (cle_rouge, sidecar_rouge) = cle_et_sidecar(&options);
     let (cle_repetee, sidecar_repete) = cle_et_sidecar(&options);
     assert_eq!(
@@ -62,7 +61,7 @@ fn une_image_liee_modifiee_change_la_cle_exposee() {
         "two identical compilations yield the same key and the same sidecar"
     );
 
-    fs::write(&image, png([0, 0, 255, 255])).expect("image bleue");
+    fs::write(&image, png([0, 0, 255, 255])).expect("blue image");
     let (cle_bleue, sidecar_bleu) = cle_et_sidecar(&options);
     assert_ne!(
         sidecar_rouge, sidecar_bleu,
@@ -73,14 +72,14 @@ fn une_image_liee_modifiee_change_la_cle_exposee() {
         "a changed image must change the key exposed to the consumer"
     );
 
-    fs::write(&image, png([255, 0, 0, 255])).expect("image rouge revenue");
+    fs::write(&image, png([255, 0, 0, 255])).expect("restored red image");
     let (cle_revenue, sidecar_revenu) = cle_et_sidecar(&options);
     assert_eq!(
         (cle_rouge, sidecar_rouge),
         (cle_revenue, sidecar_revenu),
         "back to the previous image, the source finds its key again"
     );
-    fs::remove_dir_all(root).expect("nettoyage");
+    fs::remove_dir_all(root).expect("cleanup");
 }
 
 // Behaviour: an image that appears or disappears next to an unchanged scene
@@ -90,17 +89,17 @@ fn une_image_liee_modifiee_change_la_cle_exposee() {
 fn une_image_liee_absente_puis_presente_change_la_cle_exposee() {
     let (root, options, image) = source_texturee();
     let (absente, _) = cle_et_sidecar(&options);
-    fs::write(&image, png([0, 255, 0, 255])).expect("image verte");
+    fs::write(&image, png([0, 255, 0, 255])).expect("green image");
     let (presente, _) = cle_et_sidecar(&options);
     assert_ne!(
         absente, presente,
         "an image that appeared must change the exposed key"
     );
-    fs::remove_file(&image).expect("retrait");
+    fs::remove_file(&image).expect("remove");
     let (retiree, _) = cle_et_sidecar(&options);
     assert_eq!(
         absente, retiree,
         "the removed image yields the previous key"
     );
-    fs::remove_dir_all(root).expect("nettoyage");
+    fs::remove_dir_all(root).expect("cleanup");
 }

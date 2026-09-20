@@ -96,7 +96,7 @@ pub(super) fn written_gltf(options: &Options, key: &str) -> Value {
 /// named folder: that folder is what resolves the library.
 pub(super) fn obj_source(root: &Path, folder: &str, mtl: &str) -> PathBuf {
     let source = root.join(folder);
-    fs::create_dir_all(&source).expect("dossier obj");
+    fs::create_dir_all(&source).expect("obj dir");
     fs::write(
         source.join("scene.obj"),
         "mtllib scene.mtl\nv 0 0 0\nv 1 0 0\nv 0 1 0\nvn 0 0 1\nusemtl Uni\nf 1//1 2//1 3//1\n",

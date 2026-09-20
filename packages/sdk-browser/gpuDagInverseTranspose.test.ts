@@ -91,7 +91,7 @@ test('a null column: the adjoint carries the plane normal, not the local axis', 
 // The degeneracy judgement has not moved for all that — that is what this test holds.
 test('the shipped shader no longer carries an absolute threshold on the raw determinant', () => {
   const corps = DAG_SELECTION_SHADER.split('fn invTranspose3Prep')[1].split('\n}')[0];
-  assert.doesNotMatch(corps, /abs\(det\)<1e-20/, 'seuil absolu sur le determinant brut');
+  assert.doesNotMatch(corps, /abs\(det\)<1e-20/, 'absolute threshold on the raw determinant');
   assert.match(corps, /let a=m\[0\]\/t;let b=m\[1\]\/t;let c=m\[2\]\/t;/, 'normalisation absente');
   assert.match(corps, /fini&&abs\(det\)>1e-20/, 'garde relative absente');
   // And this number is not written in the shader: it comes from the constant shared with

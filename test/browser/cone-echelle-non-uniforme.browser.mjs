@@ -82,11 +82,11 @@ function casConformeDosCamera() {
 
 const cas = [casDeclencheur(), casConformeDosCamera()];
 const appels = cas.flatMap((c) => [
-  { nom: `${c.nom}:avecCone`, packed: c.avecCone, uniforms: c.uniforms },
-  { nom: `${c.nom}:sansCone`, packed: c.sansCone, uniforms: c.uniforms },
+  { name: `${c.nom}:avecCone`, packed: c.avecCone, uniforms: c.uniforms },
+  { name: `${c.nom}:sansCone`, packed: c.sansCone, uniforms: c.uniforms },
 ]);
 const gpu = await selectionGpu(appels);
-const pages = (nom) => gpu.resultats?.find((r) => r.nom === nom)?.pages ?? null;
+const pages = (nom) => gpu.resultats?.find((r) => r.name === nom)?.pages ?? null;
 const indisponible = gpu.indisponible ?? null;
 console.log(
   JSON.stringify(

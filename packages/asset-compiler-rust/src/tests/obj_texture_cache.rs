@@ -37,7 +37,7 @@ fn une_texture_ajoutee_apparait_dans_le_cache_existant() {
     let (obj, image) = source_avec_texture(&root);
     options.source = obj;
     let (absente, gltf, _) = import_key(&options);
-    assert_eq!(uri(&gltf), Value::Null, "l'image n'existe pas encore");
+    assert_eq!(uri(&gltf), Value::Null, "the image does not exist yet");
 
     fs::write(&image, png(200)).expect("image");
     let (presente, gltf, _) = import_key(&options);
@@ -52,14 +52,14 @@ fn une_texture_ajoutee_apparait_dans_le_cache_existant() {
     assert_ne!(presente, autre, "changed image bytes must change the key");
     assert_eq!(uri(&gltf), json!("color.png"));
 
-    fs::remove_file(&image).expect("retrait");
+    fs::remove_file(&image).expect("remove");
     let (retiree, gltf, _) = import_key(&options);
     assert_eq!(
         retiree, absente,
         "back to the previous state, the source finds its key again"
     );
     assert_eq!(uri(&gltf), Value::Null, "the removed image disappears");
-    fs::remove_dir_all(root).expect("nettoyage");
+    fs::remove_dir_all(root).expect("cleanup");
 }
 
 // Behaviour: a fresh cache and a cache already served yield the same scene for the same source.
@@ -80,5 +80,5 @@ fn un_cache_neuf_et_un_cache_servi_rendent_la_meme_scene() {
     assert_eq!(servi, neuf, "the key does not depend on cache state");
     assert_eq!(uri(&servi_gltf), uri(&neuf_gltf));
     assert_eq!(uri(&neuf_gltf), json!("color.png"));
-    fs::remove_dir_all(root).expect("nettoyage");
+    fs::remove_dir_all(root).expect("cleanup");
 }

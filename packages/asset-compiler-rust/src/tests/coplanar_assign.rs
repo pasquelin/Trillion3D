@@ -45,11 +45,8 @@ fn assign_layers_gives_the_longest_overlap_chain_not_a_rank() {
     ];
     let (assigned, overflow) = assign::layers(&surfaces, &overlaps, 15);
     assert_eq!(overflow, 0);
-    assert_eq!(assigned[0], 0, "le sol ne recouvre rien : couche 0");
-    assert_eq!(
-        assigned[1], 1,
-        "un seul recouvrement au-dessus du sol : couche 1"
-    );
+    assert_eq!(assigned[0], 0, "the ground covers nothing: layer 0");
+    assert_eq!(assigned[1], 1, "a single overlap above the ground: layer 1");
     assert_eq!(
         assigned[2], 1,
         "two disjoint surfaces above the same ground share layer 1"

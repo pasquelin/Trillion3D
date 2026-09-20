@@ -58,7 +58,7 @@ fn a_rotate_axis_turns_the_point_before_the_rotation() {
     assert_eq!(
         turned,
         vec![0., 0., -1., 0., 1., 0., 0., 0., 0., -1., 0., 0., 0., 0., 0., 1.],
-        "la matrice est `rotate · rotateAxis`, jamais l'inverse"
+        "the matrix is `rotate · rotateAxis`, never the other way round"
     );
 }
 
@@ -74,7 +74,7 @@ fn a_shear_is_composed_into_the_node_matrix() {
     assert_eq!(
         sheared,
         vec![1., 0., 0., 0., 1., 1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1.],
-        "`shearXY` penche l'axe Y vers X"
+        "`shearXY` tilts the Y axis towards X"
     );
 }
 

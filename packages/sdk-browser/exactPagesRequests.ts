@@ -87,8 +87,8 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
     scene,
     resourcesChanged,
   } = ctx;
-  // Le rang de page de la coupe WebGL vit dans les lots, pas dans une table de pages : la fiche ne
-  // porte donc que la place de chaque enregistrement dans le paquet et sa taille.
+  // The WebGL cut's page rank lives in batches, not in a page table: the record therefore
+  // only carries the position of each entry in the bundle and its size.
   const pageSpecs = createArrivalSpecs(byUrl, () => undefined);
   return {
     pageSpecs,

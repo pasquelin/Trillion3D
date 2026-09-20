@@ -70,7 +70,7 @@ function publish(rt: WebgpuPagesRuntime) {
     proxy = ready?.proxy;
   if (sunFar.published && !proxy) return;
   sunFar.published = true;
-  diag.engineDiagnostic('sun-far-shadow', 'Ombres lointaines du soleil contre le proxy', {
+  diag.engineDiagnostic('sun-far-shadow', 'Sun far shadows against proxy', {
     version: 1,
     beyondFraction: LIGHT_SETTINGS.sunShadowFarFraction,
     cascadeRatioMax: LIGHT_SETTINGS.sunCascadeRatioMax,
