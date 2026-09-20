@@ -39,7 +39,8 @@ export function execute() {
   backend.render(camera);
   draw(backend, null);
   const beautyMetrics = backend.metrics(),
-    beautyDraws = beautyMetrics.autonomousClusterDrawsTotal;
+    beautyDraws = beautyMetrics.autonomousClusterDrawsTotal,
+    selectedIds = backend.selectedPageIds();
   backend.setDiagnostic('clusters');
   backend.render(camera);
   draw(backend, null);
@@ -63,6 +64,7 @@ export function execute() {
   fixture.material.dispose();
   return {
     beautyDraws,
+    selectedIds,
     beautyCounts: [
       beautyMetrics.drawCalls,
       beautyMetrics.subDraws,
