@@ -5,6 +5,7 @@ import {
   readHostDrawCamera,
 } from '../../packages/sdk-browser/cameraWorld.ts';
 import { curvedComparison, planarWitness } from './webglClusterCurvedPage.mjs';
+import { curvedOracleQuality } from './webglClusterOraclePage.mjs';
 import { heldRestore } from './webglClusterRestorePage.mjs';
 import { textureFixtures } from './webglClusterTexturePage.mjs';
 const pixel = (gl, x, y) => {
@@ -47,11 +48,9 @@ const placeRig = (mesh, camera, light, drawCamera, offset) => {
   light.parent.updateMatrixWorld(true);
   readHostDrawCamera(drawCamera, camera);
 };
-
 export async function execute() {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 32;
-  document.body.append(canvas);
   const gl = canvas.getContext('webgl2');
   if (!gl) return { unavailable: 'WebGL2 unavailable' };
   const renderer = new WebglClusterRenderer(gl),
@@ -90,6 +89,18 @@ export async function execute() {
   const drawError = gl.getError();
   const fboInside = pixel(gl, 12, 16),
     fboOutside = pixel(gl, 24, 16);
+  mesh.material.opacity = 0.5;
+  gl.disable(gl.SCISSOR_TEST);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  renderer.draw([mesh], scene, drawCamera, false, false);
+  const opaqueAlpha = pixel(gl, 16, 16)[3];
+  mesh.material.opacity = 0.75;
+  mesh.material.alphaTest = 0.5;
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  renderer.draw([mesh], scene, drawCamera, false, false);
+  const maskAlpha = pixel(gl, 16, 16)[3];
+  mesh.material.opacity = 1;
+  mesh.material.alphaTest = 0;
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   gl.disable(gl.SCISSOR_TEST);
   const standard = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0 });
@@ -161,15 +172,14 @@ export async function execute() {
   renderer.dispose();
   mesh.geometry.dispose();
   mesh.material.dispose();
-  gl.deleteFramebuffer(framebuffer);
-  gl.deleteRenderbuffer(depth);
-  gl.deleteTexture(texture);
   const curvedMotion = [-0.02, -0.01, 0, 0.01, 0.02].map((offset) => curvedComparison(128, offset));
   return {
     canvasCenter,
     mirroredFront,
     fboInside,
     fboOutside,
+    opaqueAlpha,
+    maskAlpha,
     framebufferStatus,
     drawError,
     ambient,
@@ -185,5 +195,6 @@ export async function execute() {
     heldRestore: await heldRestore(),
     curved: [64, 128, 256].map((size) => curvedComparison(size)),
     curvedMotion,
+    curvedOracle: curvedOracleQuality(),
   };
 }

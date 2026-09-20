@@ -29,3 +29,9 @@ export const setClusterSamplers = (
   const names = ['baseMap', 'roughMap', 'metalMap', 'normalMap', 'aoMap', 'emissiveMap'];
   for (let unit = 0; unit < names.length; unit++) gl.uniform1i(location(names[unit]), unit);
 };
+
+export const setMatrix3 = (
+  gl: WebGL2RenderingContext,
+  location: WebGLUniformLocation | null,
+  value: Float32List,
+) => gl.uniformMatrix3fv(location, false, value);

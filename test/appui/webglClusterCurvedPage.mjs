@@ -5,7 +5,7 @@ import {
   readHostDrawCamera,
 } from '../../packages/sdk-browser/cameraWorld.ts';
 
-const pixels = (gl, size) => {
+export const curvedPixels = (gl, size) => {
   const output = new Uint8Array(size * size * 4);
   gl.readPixels(0, 0, size, size, gl.RGBA, gl.UNSIGNED_BYTE, output);
   return output;
@@ -37,7 +37,7 @@ export function planarWitness() {
   renderer.setClearColor(0, 1);
   renderer.render(scene, camera);
   const result = [
-    ...pixels(renderer.getContext(), 32).slice((16 * 32 + 16) * 4, (16 * 32 + 17) * 4),
+    ...curvedPixels(renderer.getContext(), 32).slice((16 * 32 + 16) * 4, (16 * 32 + 17) * 4),
   ];
   renderer.dispose();
   geometry.dispose();
@@ -60,7 +60,7 @@ const sceneInputs = () => {
   return { geometry, material, camera, scene };
 };
 
-export function curvedComparison(size = 64, offset = 0) {
+export function curvedComparison(size = 64, offset = 0, details = false) {
   const rawCanvas = document.createElement('canvas');
   rawCanvas.width = rawCanvas.height = size;
   const rawGl = rawCanvas.getContext('webgl2', { antialias: false }),
@@ -88,7 +88,7 @@ export function curvedComparison(size = 64, offset = 0) {
     false,
     true,
   );
-  const raw = pixels(rawGl, size);
+  const raw = curvedPixels(rawGl, size);
 
   const witnessCanvas = document.createElement('canvas');
   witnessCanvas.width = witnessCanvas.height = size;
@@ -102,7 +102,7 @@ export function curvedComparison(size = 64, offset = 0) {
   mesh.matrixAutoUpdate = false;
   witnessInput.scene.add(mesh);
   witness.render(witnessInput.scene, witnessInput.camera);
-  const reference = pixels(witness.getContext(), size);
+  const reference = curvedPixels(witness.getContext(), size);
 
   let changed = 0,
     max = 0,
@@ -135,5 +135,5 @@ export function curvedComparison(size = 64, offset = 0) {
   input.material.dispose();
   witnessInput.geometry.dispose();
   witnessInput.material.dispose();
-  return result;
+  return details ? { ...result, raw, reference } : result;
 }
