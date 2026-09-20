@@ -21,12 +21,8 @@ fn a_vertex_soup_still_climbs_to_a_single_root() {
     let (positions, indices) = soup(64);
     let (dag, _, tallies) = build_of(&positions, &indices);
     let depth = dag.iter().map(|c| c.level).max().unwrap_or(0);
-    assert!(depth > 0, "la soupe doit avoir des niveaux grossiers");
-    assert_eq!(
-        dag.iter().filter(|c| c.is_root()).count(),
-        1,
-        "une seule racine"
-    );
+    assert!(depth > 0, "soup must have coarse levels");
+    assert_eq!(dag.iter().filter(|c| c.is_root()).count(), 1, "single root");
     assert!(
         tallies.iter().any(|t| t.welded > 0),
         "at least one group had to weld"
@@ -36,7 +32,7 @@ fn a_vertex_soup_still_climbs_to_a_single_root() {
         for &id in &cluster.indices {
             assert_eq!(
                 weld[id as usize], id,
-                "un niveau grossier cite la copie canonique"
+                "a coarse level cites the canonical copy"
             );
         }
     }

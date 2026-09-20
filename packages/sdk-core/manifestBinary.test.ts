@@ -88,7 +88,7 @@ test('a cluster url that does not follow the manifest template is refused at enc
 });
 
 // Behaviour 10: TypeScript encoding rejects a depthLayer that exceeds four bits (> 15)
-// et accepte la valeur limite.
+// and accepts the limit value.
 test('encodeManifestBinary rejects a depth layer above 15 and accepts the four-bit limit', () => {
   const tooDeep = manifest();
   tooDeep.primitives[0].pages[0].depthLayer = MAX_DEPTH_LAYER + 1;
