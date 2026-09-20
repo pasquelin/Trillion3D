@@ -22,7 +22,7 @@ packages/
 test/
   integration/         15 *.test.mjs     — architecture, boundaries, export contracts,
                                         documentation portal
-  browser/             20 *.browser.mjs  — rendering in real Chromium (18 enabled, 2 skipped)
+  browser/             30 *.browser.mjs  — rendering in real Chromium (all launched)
   justesse/            18 GPU probes + 25 support modules
   appui/               27 shared modules: fixtures server, served pages
   fixtures/            scenes and test data
