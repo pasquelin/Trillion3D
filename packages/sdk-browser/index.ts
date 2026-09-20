@@ -32,6 +32,17 @@ export type {
   DiagnosticObserver,
 } from './diagnosticChannel.ts';
 export type { SurfaceBuffer, SurfaceCapture } from './surfaceBuffer.ts';
+export type { HostDrawCamera } from './cameraWorld.ts';
+export type { MemoryBudgets, MemoryBudgetsReport } from './webgpuPagesMemory.ts';
+export type { GeometryPool, PoolClamp, TexturePool } from './webgpuMemoryBudgets.ts';
+export type { ShadowAtlasDigest } from './gpuShadowDigest.ts';
+export type { PartitionAudit } from './webgpuPartitionAudit.ts';
+export type { TransparentOcclusionAudit } from './webgpuTransparentOcclusionAudit.ts';
+export type { ArrivalPlan } from './pageIntegrationHost.ts';
+export type { DecodedGeometryPage } from './geometryPage.ts';
+export type { TextureLevelReader } from './textureLevelReader.ts';
+export type { HostRetentionDelta, StreamPage } from './streamingTypes.ts';
+export type { MultiplyLot } from './mathBatchRuntime.ts';
 export type { LightingCapabilities } from '../sdk-core/index.ts';
 export { framingFromBounds } from './framing.ts';
 export { presentationColorDiagnostic } from './presentationDiagnostic.ts';

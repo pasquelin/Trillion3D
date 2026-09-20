@@ -82,6 +82,7 @@ export {
   linearPartDeterminant,
   multiplyMatrix4,
 } from '../../sdk-core/mathMatrix4.ts';
+export type { NumberSink } from '../../sdk-core/mathMatrix4.ts';
 export {
   createPathGovernor,
   PATH_EXPLORE_EVERY,
