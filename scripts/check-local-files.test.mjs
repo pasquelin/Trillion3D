@@ -8,6 +8,7 @@ import { trackedIgnoredFiles } from './check-local-files.mjs';
 import { repositoryFiles } from './repository-files.mjs';
 import { checkLinks } from './check-links.mjs';
 import { existingChangedFiles } from './check-changed.mjs';
+import { consumerImports } from './sdk-api-model.mjs';
 
 test('ignored personal content stays outside shared checks and force-addition is rejected', () => {
   const root = mkdtempSync(join(tmpdir(), 'wg-local-files-'));
@@ -29,6 +30,9 @@ test('ignored personal content stays outside shared checks and force-addition is
     git('rm', '--cached', 'docs/PRIVATE.md');
     const changed = new Set(['docs/PRIVATE.md', 'docs/guide.md']);
     assert.deepEqual(existingChangedFiles(changed, root), ['docs/guide.md']);
+    writeFileSync(join(root, 'personal/helper.mjs'), "import { hidden } from '@web-geometry/sdk';");
+    writeFileSync(join(root, 'consumer.mjs'), "import { visible } from '@web-geometry/sdk';");
+    assert.deepEqual([...consumerImports(root)], [['visible', new Set(['consumer.mjs'])]]);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
