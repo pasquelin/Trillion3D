@@ -32,3 +32,14 @@ export function interactiveOptions(canvas: HTMLCanvasElement, options: ExplorerO
     backends: options.backends ?? (options.autonomousGeometry ? undefined : [webgpuPagesBackend]),
   };
 }
+
+/** Preserve manual backend selection; the simple WebGPU path never silently changes capabilities. */
+export function directWebgpu(options: ExplorerOptions, device: GPUDevice | undefined) {
+  const requested = options.backends?.length === 1 && options.backends[0] === webgpuPagesBackend;
+  if (options.interactive && requested && !device)
+    throw new EngineError(
+      'WEBGPU_UNAVAILABLE',
+      'Interactive startup requires WebGPU; choose an explicit backend for another capability set',
+    );
+  return !!device && requested;
+}

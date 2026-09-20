@@ -81,6 +81,10 @@ test('hidden or invalid initial viewports fail with an actionable error', () => 
   Object.defineProperty(element, 'clientWidth', { value: 0 });
   assert.throws(() => interactiveSize(element, options), /positive CSS size/);
   assert.equal(interactiveSize(element, { ...options, width: 40 }).width, 40);
+  assert.throws(
+    () => interactiveSize(element, { ...options, width: 1, pixelRatio: 0.1 }),
+    /at least one pixel/,
+  );
   for (const pixelRatio of [0, -1, NaN, Infinity])
     assert.throws(
       () => interactiveSize(element, { ...options, width: 40, pixelRatio }),
