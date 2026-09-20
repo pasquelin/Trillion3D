@@ -136,7 +136,7 @@ export const lightingLessonDefinitions = [
     title: text('Light a surface with many lamps', 'Éclairer une surface avec beaucoup de lampes'),
     description: text(
       'Ring a terrain with more lamps than a moving pixel shades, and watch the image converge.',
-      'Entourez un terrain de plus de lampes qu’un pixel en mouvement n’en ombre, et regardez l’image converger.',
+      'Entourez un terrain de plus de lampes qu’un pixel en mouvement n’en calcule, et regardez l’image converger.',
     ),
     controls: [range('count', 'Lamps', 'Lampes', 2, 16, 12, 1)],
     referenceCoverage: { webgpu_lights_pointlights: 'full' },
@@ -153,7 +153,7 @@ export const lightingLessonDefinitions = [
     ),
     changes: text(
       'A moving pixel shades at most lightSettings.samplesPerPixel lamps whatever their count; a still one shades them all.',
-      'Un pixel en mouvement n’ombre au plus que lightSettings.samplesPerPixel lampes quel que soit leur nombre ; un pixel immobile les ombre toutes.',
+      'Un pixel en mouvement ne calcule au plus que lightSettings.samplesPerPixel lampes quel que soit leur nombre ; un pixel immobile les calcule toutes.',
     ),
     kind: 'many-lights',
   },

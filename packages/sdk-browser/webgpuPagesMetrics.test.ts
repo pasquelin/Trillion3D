@@ -133,7 +133,7 @@ test("texture metrics are the streamer's, and `null` until it is built", () => {
   });
 }
 
-test('`lightsSampled` is true only on a moving accumulated frame that lit contract lights', () => {
+test('`lightsSampled` is true only on a moving accumulated frame whose resolve ran sampled', () => {
   const temporal = { frame: { active: true, sampledRank: 3 } };
   const rt = {
     run: createWebgpuRunState(),
