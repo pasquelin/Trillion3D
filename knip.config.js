@@ -15,10 +15,10 @@ export default {
     'scripts/mesure/pageTemoin.mjs',
     'scripts/mesure/pageExplorateur.mjs',
     'scripts/mesure/pageEclairage.mjs',
+    'scripts/mesure/poses.mjs',
     'scripts/mesure/pageThreeNu.mjs',
     'scripts/mesure/pageThreeLod.mjs',
     'scripts/mesure/pageMesure.mjs',
-    'scripts/mesure/poses.mjs',
     // La campagne complète et son rapport, lancés à la main.
     'scripts/mesure/campagne.mjs',
     'scripts/mesure/rapportGlobal.mjs',
