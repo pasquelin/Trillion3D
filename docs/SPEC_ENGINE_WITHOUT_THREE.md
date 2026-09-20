@@ -416,7 +416,7 @@ What the reference is made of, and our counterpart:
 | Screen probes (16 px grid) + world radiance cache | final gather, temporally filtered                            | cascaded SH2 world probes; no screen probe                   | L5              |
 | Reflections                                       | screen traces, then distance fields reading the cache        | none                                                         | L1, L6          |
 | Virtual shadow maps                               | 16k shadow pages, only the views, cached                     | 4096 atlas, cascades, 1 ms budget                            | L3              |
-| Stochastic direct lighting                        | few samples per pixel, denoised                              | tiled culling shipped, sampling not                          | L2              |
+| Stochastic direct lighting                        | few samples per pixel, denoised                              | tiled culling; four draws per moving pixel, exact at rest    | —               |
 
 What the web imposes, and the answer:
 
@@ -441,7 +441,12 @@ Stages, each with its proof (0 px A/A at rest, budget held, before/after publish
   envelope no lower. What remains is sampling (L2 / Lumière 13), not a cascade ring.
 - **L1** — screen traces: reflections and short bounce from the already-rendered HDR, depth and
   normal; the cheapest piece of the reference, and the first.
-- **L2** — stochastic direct denoised by TAA (Lumière 13): dozens of lights at the price of one.
+- **L2** — done (#36, 20 Sept. 2026, Emerald 2496×1404, ground view, 32 shadowed lights reaching
+  one pixel): a moving pixel weighs every light of its tile without its shadow, shades the four
+  it draws — exactly those worth a sample's share, stratified for the rest — and the history
+  averages the draws; a still image shades every light and converges to the exact sum, 0 px
+  A/A. Envelope 39.9 → 17.9 ms GPU on a moving camera; the grain left in motion is declared in
+  the pull request. What remains: a spatial denoise before the history, where the reference has one.
 - **L3** — shadows in virtual pages from the hardware raster (Lumière 2, 6, 12): only the pages
   seen, cached. The compute raster has been off since Geometry 26, measurement done.
 - **L4** — baked global distance field, walked in compute, reading the proxy's surface cache.
