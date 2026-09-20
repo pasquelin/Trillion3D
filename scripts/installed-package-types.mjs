@@ -8,7 +8,7 @@ export function proveInstalledTypes({ fixture, packageName, run, write }) {
       `const matrix=new Float64Array(16);multiply(matrix,identityMatrix,identityMatrix);\n` +
       `const snapshot:JobSnapshot<Pose>={eventVersion:1,id:'camera',status:'completed',progress:null,result:pose,error:null};\n` +
       `// @ts-expect-error Camera positions contain exactly three coordinates.\n` +
-      `const invalid:CameraPose={...pose,position:[0,1]};\n` +
+      `const invalid:Pose={...pose,position:[0,1]};\n` +
       `// @ts-expect-error legacy package subpaths are not public.\nimport('${packageName}/core');\n` +
       `// @ts-expect-error implementation paths are not public.\nimport('${packageName}/dist/sdk-core/index.js');\n` +
       `// @ts-expect-error the safe fallback excludes browser values.\nimport { createExplorer } from '${packageName}';\n` +
