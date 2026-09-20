@@ -43,7 +43,7 @@ export default {
   paths: {
     '/packages/sdk-browser/*': ['packages/sdk-browser/*'],
   },
-  // Rust and the image utility are platform tools; DaisyUI is loaded by Tailwind.
+  // Rust is a platform tool; DaisyUI is loaded by Tailwind.
   ignoreDependencies: ['daisyui'],
   ignoreBinaries: ['rustc'],
   // These specifiers are harness server URLs resolved by the browser, not local Node modules.
