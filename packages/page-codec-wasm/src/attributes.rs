@@ -65,9 +65,17 @@ impl Layout {
         let indices = stream(true, h.index_count, index_bits);
         let position = h.position.bits.map(|b| stream(true, h.vertex_count, b));
         let normal = stream(h.flags & FLAG_NORMAL != 0, h.vertex_count, 16);
-        let uv = h.uv.bits.map(|b| stream(h.flags & FLAG_UV != 0, h.vertex_count, b));
-        let uv1 = h.uv1.bits.map(|b| stream(h.flags & FLAG_UV1 != 0, h.vertex_count, b));
-        let color = h.color.bits.map(|b| stream(h.flags & FLAG_COLOR != 0, h.vertex_count, b));
+        let uv =
+            h.uv.bits
+                .map(|b| stream(h.flags & FLAG_UV != 0, h.vertex_count, b));
+        let uv1 = h
+            .uv1
+            .bits
+            .map(|b| stream(h.flags & FLAG_UV1 != 0, h.vertex_count, b));
+        let color = h
+            .color
+            .bits
+            .map(|b| stream(h.flags & FLAG_COLOR != 0, h.vertex_count, b));
         Self {
             index_bits,
             indices,
@@ -117,7 +125,10 @@ pub fn split(words: &[u32], h: &Header) -> Result<DecodedPage, PageError> {
     let indices: Vec<u32> = (0..h.index_count)
         .map(|i| field(words, index_base + i * bits as usize, bits))
         .collect();
-    if indices.iter().any(|&index| index as usize >= h.vertex_count) {
+    if indices
+        .iter()
+        .any(|&index| index as usize >= h.vertex_count)
+    {
         return Err(PageError::Index);
     }
     let n = h.vertex_count;

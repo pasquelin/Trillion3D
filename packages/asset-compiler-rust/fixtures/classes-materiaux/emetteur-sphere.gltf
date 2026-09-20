@@ -1,304 +1,233 @@
 {
- "asset": {
-  "version": "2.0"
- },
- "buffers": [
-  {
-   "uri": "emetteur-sphere.bin",
-   "byteLength": 720
-  }
- ],
- "bufferViews": [
-  {
-   "buffer": 0,
-   "byteOffset": 0,
-   "byteLength": 48
+  "asset": {
+    "version": "2.0"
   },
-  {
-   "buffer": 0,
-   "byteOffset": 48,
-   "byteLength": 24
-  },
-  {
-   "buffer": 0,
-   "byteOffset": 72,
-   "byteLength": 96
-  },
-  {
-   "buffer": 0,
-   "byteOffset": 168,
-   "byteLength": 144
-  },
-  {
-   "buffer": 0,
-   "byteOffset": 312,
-   "byteLength": 96
-  },
-  {
-   "buffer": 0,
-   "byteOffset": 408,
-   "byteLength": 144
-  },
-  {
-   "buffer": 0,
-   "byteOffset": 552,
-   "byteLength": 72
-  },
-  {
-   "buffer": 0,
-   "byteOffset": 624,
-   "byteLength": 96
-  }
- ],
- "accessors": [
-  {
-   "bufferView": 0,
-   "componentType": 5126,
-   "count": 4,
-   "type": "VEC3",
-   "min": [
-    -0.7,
-    0,
-    -0.7
-   ],
-   "max": [
-    0.7,
-    0,
-    0.7
-   ]
-  },
-  {
-   "bufferView": 1,
-   "componentType": 5125,
-   "count": 6,
-   "type": "SCALAR"
-  },
-  {
-   "bufferView": 2,
-   "componentType": 5126,
-   "count": 8,
-   "type": "VEC3",
-   "min": [
-    0.14,
-    0.73,
-    0.12000000000000001
-   ],
-   "max": [
-    0.24,
-    0.8300000000000001,
-    0.22000000000000003
-   ]
-  },
-  {
-   "bufferView": 3,
-   "componentType": 5125,
-   "count": 36,
-   "type": "SCALAR"
-  },
-  {
-   "bufferView": 4,
-   "componentType": 5126,
-   "count": 8,
-   "type": "VEC3",
-   "min": [
-    0.03660254037844386,
-    0.6366025403784438,
-    0.03660254037844386
-   ],
-   "max": [
-    0.13660254037844388,
-    0.7366025403784439,
-    0.13660254037844388
-   ]
-  },
-  {
-   "bufferView": 5,
-   "componentType": 5125,
-   "count": 36,
-   "type": "SCALAR"
-  },
-  {
-   "bufferView": 6,
-   "componentType": 5126,
-   "count": 6,
-   "type": "VEC3",
-   "min": [
-    -0.2,
-    -0.2,
-    -0.2
-   ],
-   "max": [
-    0.2,
-    0.2,
-    0.2
-   ]
-  },
-  {
-   "bufferView": 7,
-   "componentType": 5125,
-   "count": 24,
-   "type": "SCALAR"
-  }
- ],
- "materials": [
-  {
-   "name": "sol",
-   "doubleSided": true,
-   "pbrMetallicRoughness": {
-    "baseColorFactor": [
-     0.55,
-     0.55,
-     0.58,
-     1
-    ]
-   }
-  },
-  {
-   "name": "occultant",
-   "doubleSided": true,
-   "pbrMetallicRoughness": {
-    "baseColorFactor": [
-     0.75,
-     0.35,
-     0.2,
-     1
-    ]
-   }
-  },
-  {
-   "name": "enveloppe",
-   "doubleSided": false,
-   "emissiveFactor": [
-    1.0,
-    0.95,
-    0.85
-   ],
-   "pbrMetallicRoughness": {
-    "baseColorFactor": [
-     0.02,
-     0.02,
-     0.02,
-     1
-    ]
-   }
-  }
- ],
- "meshes": [
-  {
-   "name": "sol",
-   "primitives": [
+  "buffers": [
     {
-     "attributes": {
-      "POSITION": 0
-     },
-     "indices": 1,
-     "material": 0
+      "uri": "emetteur-sphere.bin",
+      "byteLength": 720
     }
-   ]
-  },
-  {
-   "name": "occultant-diagonale",
-   "primitives": [
+  ],
+  "bufferViews": [
     {
-     "attributes": {
-      "POSITION": 2
-     },
-     "indices": 3,
-     "material": 1
-    }
-   ]
-  },
-  {
-   "name": "occultant-proche",
-   "primitives": [
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 48
+    },
     {
-     "attributes": {
-      "POSITION": 4
-     },
-     "indices": 5,
-     "material": 1
-    }
-   ]
-  },
-  {
-   "name": "enveloppe-lampe",
-   "primitives": [
+      "buffer": 0,
+      "byteOffset": 48,
+      "byteLength": 24
+    },
     {
-     "attributes": {
-      "POSITION": 6
-     },
-     "indices": 7,
-     "material": 2
+      "buffer": 0,
+      "byteOffset": 72,
+      "byteLength": 96
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 168,
+      "byteLength": 144
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 312,
+      "byteLength": 96
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 408,
+      "byteLength": 144
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 552,
+      "byteLength": 72
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 624,
+      "byteLength": 96
     }
-   ]
-  }
- ],
- "nodes": [
-  {
-   "mesh": 0,
-   "name": "sol"
-  },
-  {
-   "mesh": 1,
-   "name": "occultant-diagonale"
-  },
-  {
-   "mesh": 2,
-   "name": "occultant-proche"
-  },
-  {
-   "name": "lampe",
-   "translation": [
-    0.0,
-    0.6,
-    0.0
-   ],
-   "extensions": {
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3",
+      "min": [-0.7, 0, -0.7],
+      "max": [0.7, 0, 0.7]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5125,
+      "count": 6,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 8,
+      "type": "VEC3",
+      "min": [0.14, 0.73, 0.12000000000000001],
+      "max": [0.24, 0.8300000000000001, 0.22000000000000003]
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5125,
+      "count": 36,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 8,
+      "type": "VEC3",
+      "min": [0.03660254037844386, 0.6366025403784438, 0.03660254037844386],
+      "max": [0.13660254037844388, 0.7366025403784439, 0.13660254037844388]
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5125,
+      "count": 36,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5126,
+      "count": 6,
+      "type": "VEC3",
+      "min": [-0.2, -0.2, -0.2],
+      "max": [0.2, 0.2, 0.2]
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5125,
+      "count": 24,
+      "type": "SCALAR"
+    }
+  ],
+  "materials": [
+    {
+      "name": "sol",
+      "doubleSided": true,
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.55, 0.55, 0.58, 1]
+      }
+    },
+    {
+      "name": "occultant",
+      "doubleSided": true,
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.75, 0.35, 0.2, 1]
+      }
+    },
+    {
+      "name": "enveloppe",
+      "doubleSided": false,
+      "emissiveFactor": [1.0, 0.95, 0.85],
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.02, 0.02, 0.02, 1]
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "sol",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0
+          },
+          "indices": 1,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "occultant-diagonale",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 2
+          },
+          "indices": 3,
+          "material": 1
+        }
+      ]
+    },
+    {
+      "name": "occultant-proche",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 4
+          },
+          "indices": 5,
+          "material": 1
+        }
+      ]
+    },
+    {
+      "name": "enveloppe-lampe",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 6
+          },
+          "indices": 7,
+          "material": 2
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "sol"
+    },
+    {
+      "mesh": 1,
+      "name": "occultant-diagonale"
+    },
+    {
+      "mesh": 2,
+      "name": "occultant-proche"
+    },
+    {
+      "name": "lampe",
+      "translation": [0.0, 0.6, 0.0],
+      "extensions": {
+        "KHR_lights_punctual": {
+          "light": 0
+        }
+      }
+    },
+    {
+      "mesh": 3,
+      "name": "enveloppe-lampe",
+      "translation": [0.0, 0.6, 0.0]
+    }
+  ],
+  "scenes": [
+    {
+      "nodes": [0, 1, 2, 3, 4]
+    }
+  ],
+  "scene": 0,
+  "images": [],
+  "extensionsUsed": ["KHR_lights_punctual"],
+  "extensions": {
     "KHR_lights_punctual": {
-     "light": 0
+      "lights": [
+        {
+          "type": "point",
+          "color": [1.0, 0.95, 0.85],
+          "intensity": 6000.0,
+          "range": 3.0
+        }
+      ]
     }
-   }
-  },
-  {
-   "mesh": 3,
-   "name": "enveloppe-lampe",
-   "translation": [
-    0.0,
-    0.6,
-    0.0
-   ]
   }
- ],
- "scenes": [
-  {
-   "nodes": [
-    0,
-    1,
-    2,
-    3,
-    4
-   ]
-  }
- ],
- "scene": 0,
- "images": [],
- "extensionsUsed": [
-  "KHR_lights_punctual"
- ],
- "extensions": {
-  "KHR_lights_punctual": {
-   "lights": [
-    {
-     "type": "point",
-     "color": [
-      1.0,
-      0.95,
-      0.85
-     ],
-     "intensity": 6000.0,
-     "range": 3.0
-    }
-   ]
-  }
- }
 }

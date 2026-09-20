@@ -4,30 +4,16 @@
       "bufferView": 0,
       "componentType": 5126,
       "count": 12,
-      "max": [
-        8.0,
-        2.0,
-        2.0
-      ],
-      "min": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "max": [8.0, 2.0, 2.0],
+      "min": [0.0, 0.0, 0.0],
       "type": "VEC3"
     },
     {
       "bufferView": 1,
       "componentType": 5126,
       "count": 12,
-      "max": [
-        1.0,
-        1.0
-      ],
-      "min": [
-        0.0,
-        0.0
-      ],
+      "max": [1.0, 1.0],
+      "min": [0.0, 0.0],
       "type": "VEC2"
     },
     {
@@ -153,9 +139,7 @@
   "scene": 0,
   "scenes": [
     {
-      "nodes": [
-        0
-      ]
+      "nodes": [0]
     }
   ],
   "textures": [
