@@ -6,6 +6,7 @@ import { createWebgpuCutAdopter } from './webgpuCutAdoption.ts';
 import { markDrawnMirrored } from './webgpuPagesHelpers.ts';
 import type { WebgpuResidencySets } from './webgpuResidencySets.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
+import { noteShadowCutChange } from './webgpuShadowCut.ts';
 
 /**
  * What the rank journal notifies when a page changes coverage. Set outside publication so that
@@ -49,6 +50,7 @@ export function createWebgpuCutPublication(
   const publishDrawn = () => {
     residencySets.applyDrawn(drawnDelta);
     cutCounts.apply();
+    if (noteShadowCutChange(rt.lights, packedPages, drawnDelta)) run.gate.resourcesChanged();
   };
   // Readback describes submitted work and future streaming requests. It never
   // decides the cut drawn for a moving camera; the current GPU mask does that.

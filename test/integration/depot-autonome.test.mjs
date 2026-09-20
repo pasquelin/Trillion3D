@@ -9,7 +9,7 @@ const root = new URL('../../', import.meta.url);
 // A tracked file that carries a path into someone's home directory (a tool hook written with the
 // absolute path of a binary, a marker file dropped by an installer, an exporter that stamps the
 // source file's location into a binary asset) ties the repository to one workstation and leaks its
-// owner's account name. AGENTS.md says the repository is self-contained: it builds, tests and
+// owner's account name. The repository is self-contained: it builds, tests and
 // measures itself with its own dependencies, so nothing in it may point outside the working tree.
 // Binary files are scanned too — the Alembic fixture once carried its exporter's path.
 const HOME_PATH = /\/(?:Users|home)\/[A-Za-z0-9._-]+\//;
