@@ -27,7 +27,7 @@ export const rendererSceneFor = (lesson) => ({
         ? './assets/gallery/shadow-theatre/cache/native/full/manifest.json'
         : assignments[lesson.id] === 'signature-architecture'
           ? './assets/gallery/signature-architecture/cache/native/full/manifest.json'
-        : asset(assignments[lesson.id]),
+          : asset(assignments[lesson.id]),
   preview: `./assets/gallery/renderer/${lesson.id}.png`,
   importedLights: lesson.id === 'runtime-pixel-error',
   sceneLight: ['lod', 'memory'].includes(lesson.kind) || lesson.runtime === 'camera-pose',

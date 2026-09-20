@@ -104,7 +104,10 @@ export const rendererLessons = [
     id: 'runtime-pixel-error',
     category: 'streaming',
     functions: ['setPixelError', 'setDiagnostic'],
-    title: title('Cross the observatory at any scale', 'Traverser l’observatoire à toutes les échelles'),
+    title: title(
+      'Cross the observatory at any scale',
+      'Traverser l’observatoire à toutes les échelles',
+    ),
     description: title(
       'Move through a detailed architectural scene while its geometry adapts to the view.',
       'Parcourez une scène architecturale détaillée dont la géométrie s’adapte à la vue.',
