@@ -33,7 +33,7 @@ function table() {
 function lightsSpy() {
   const boxes: number[][] = [];
   const lights = {
-    plan: { worldChanged: (min: number[], max: number[]) => boxes.push([...min, ...max]) },
+    plan: { representationChanged: (min: number[], max: number[]) => boxes.push([...min, ...max]) },
   } as unknown as Parameters<typeof shadowsFollowTextures>[0];
   return { lights, boxes };
 }

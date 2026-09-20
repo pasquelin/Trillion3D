@@ -23,8 +23,8 @@ export interface ShadowRowTable {
  * A colour tile of texture `slot` is resident, or has left: the alpha cutout the shadow pass reads
  * has just changed for every masked surface that carries this texture, and a map drawn at the
  * previous level would describe foliage that is no longer the image's. The pages the world box
- * of those surfaces covers go back to waiting, under the ordinary Shadows stage budget — and
- * those alone: a colour tile of a texture no cutout reads changes no depth, and stales nothing.
+ * of those surfaces covers go back to waiting once the camera rests, under the ordinary
+ * Shadows stage budget — and those alone: a colour tile of a texture no cutout reads changes no depth, and stales nothing.
  * At `slot < 0` the pool changed without naming a texture — a resize, an eviction — and every
  * page restarts. Without this signal, two identical runs produced two different shadows,
  * depending on when each page had been drawn.
@@ -35,7 +35,7 @@ export function shadowsFollowTextures(
   slot: number,
 ) {
   if (slot < 0) {
-    lights.plan.worldChanged(EVERYWHERE_MIN, EVERYWHERE_MAX);
+    lights.plan.representationChanged(EVERYWHERE_MIN, EVERYWHERE_MAX);
     return;
   }
   const ints = rows.pageTableInts;
@@ -52,7 +52,7 @@ export function shadowsFollowTextures(
     growClusterBox(rec, boxMin, boxMax);
     touched = true;
   }
-  if (touched) lights.plan.worldChanged(boxMin, boxMax);
+  if (touched) lights.plan.representationChanged(boxMin, boxMax);
 }
 
 /**
