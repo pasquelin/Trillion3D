@@ -17,15 +17,15 @@ const normalScratch = new Float64Array(9);
 /**
  * Every vector of the pixel's frame in one buffer, each read and written at its offset — the
  * form the kernels' offsets exist for (#72): the three vertex normals, tangents and bitangents,
- * then `N`, `T`, `B`, `Q` and the returned normal.
+ * then `T`, `B`, the two edge products `q1`, `q2` of the texture-space frame, and the returned normal.
  */
 const NORMALS = 0,
   TANGENTS = 9,
   BITANGENTS = 18,
-  N_AT = 27,
-  T_AT = 30,
-  B_AT = 33,
-  Q_AT = 36,
+  T_AT = 27,
+  B_AT = 30,
+  Q1_AT = 33,
+  Q2_AT = 36,
   OUT_AT = 39;
 const frame = new Float64Array(OUT_AT + 3);
 const frameOut = frame.subarray(OUT_AT, OUT_AT + 3);
@@ -66,7 +66,7 @@ export function shadingNormal(
   const normalAttr = page.attributes.normal,
     tangentAttr = page.attributes.tangent;
   normalMatrix3(normalScratch, world);
-  if (normalAttr)
+  if (normalAttr) {
     for (let j = 0; j < 3; j++) {
       const i = j === 0 ? tri.i0 : j === 1 ? tri.i1 : tri.i2,
         at = NORMALS + j * 3;
@@ -81,7 +81,6 @@ export function shadingNormal(
       normalizeVector3(frame, at);
       scaleVector3(frame, side, at);
     }
-  if (normalAttr) {
     // Interpolation, normalisation and side kept as scalars: the same operations in the same
     // order as `copyScaledVector3`, `addScaledVector3`, `normalizeVector3` and `scaleVector3`,
     // without round-trips through a buffer whose value is never reread.
@@ -147,17 +146,16 @@ export function shadingNormal(
         dv1 = uvb[1] - uva[1],
         du2 = uvc[0] - uva[0],
         dv2 = uvc[1] - uva[1];
-      // `q1` occupies the `N` slot, like the host frame; that is its only write of the pass.
-      frame[N_AT] = cy * Nz - cz * Ny;
-      frame[N_AT + 1] = cz * Nx - cx * Nz;
-      frame[N_AT + 2] = cx * Ny - cy * Nx;
-      frame[Q_AT] = Ny * nz - Nz * ny;
-      frame[Q_AT + 1] = Nz * nx - Nx * nz;
-      frame[Q_AT + 2] = Nx * ny - Ny * nx;
-      copyScaledVector3(frame, frame, du1, T_AT, N_AT);
-      addScaledVector3(frame, frame, du2, T_AT, Q_AT);
-      copyScaledVector3(frame, frame, dv1, B_AT, N_AT);
-      addScaledVector3(frame, frame, dv2, B_AT, Q_AT);
+      frame[Q1_AT] = cy * Nz - cz * Ny;
+      frame[Q1_AT + 1] = cz * Nx - cx * Nz;
+      frame[Q1_AT + 2] = cx * Ny - cy * Nx;
+      frame[Q2_AT] = Ny * nz - Nz * ny;
+      frame[Q2_AT + 1] = Nz * nx - Nx * nz;
+      frame[Q2_AT + 2] = Nx * ny - Ny * nx;
+      copyScaledVector3(frame, frame, du1, T_AT, Q1_AT);
+      addScaledVector3(frame, frame, du2, T_AT, Q2_AT);
+      copyScaledVector3(frame, frame, dv1, B_AT, Q1_AT);
+      addScaledVector3(frame, frame, dv2, B_AT, Q2_AT);
       const scale =
         screenFace /
         Math.sqrt(Math.max(lengthSqVector3(frame, T_AT), lengthSqVector3(frame, B_AT), 1e-20));

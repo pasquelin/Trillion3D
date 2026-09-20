@@ -1,7 +1,6 @@
-// A duel between Three.js and sdk-core on one calculation family: same seeded inputs, Three timed
-// as the witness of the perf base, the engine on its own operation alone, Three's result — read
-// untimed — the oracle of the engine's. Three serves as the witness only, never inside a
-// `math*.ts` file.
+// A duel between Three.js and sdk-core on one calculation family: same seeded inputs, both sides
+// timed on their own operation alone, Three's result — read untimed — the oracle of the engine's.
+// Three serves as the witness only, never inside a `math*.ts` file.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -81,17 +80,16 @@ export function flatOf(objects, stride, out) {
 }
 
 /**
- * One row: Three timed as the perf base's witness, then `core` timed, each running its operation
- * and nothing else on `size` elements; the row's `vs witness` column reads the engine's median
- * against Three's. `oracle` reads Three's result untimed; `core` returns the engine's. Without
- * `tolerance`, the two must be equal bit for bit; with it, the largest absolute difference must
- * stay under it and the line counts the values that differ. `motif` names what the comparison
- * leaves out, when it leaves something out.
+ * One row, `three` the perf base's witness and `core` the calculation, each running its operation
+ * and nothing else on `size` elements. `oracle` reads Three's result untimed, after one run of
+ * `three`; `core` returns the engine's. Without `tolerance`, the two must be equal bit for bit;
+ * with it, the largest absolute difference must stay under it and the line counts the values that
+ * differ. `motif` names what the comparison leaves out, when it leaves something out.
  *
  * `slower` is for the one case where the two sides do not compute the same thing: `{ atMost, reason }`
- * lets the engine reach `atMost` times Three, on the MEDIAN — the statistic the table prints — and
- * the measured ratio and the reason go on the line. It is a declaration, not a waiver: the ceiling
- * still fails the test, and a line without `slower` is gated on its best time and must win.
+ * lets the engine reach `atMost` times Three, on the MEDIAN — the statistic the `vs witness` column
+ * prints — and the ceiling and the reason go on the line. It is a declaration, not a waiver: the
+ * ceiling still fails the test, and a line without `slower` is gated on its best time and must win.
  */
 export async function duel({
   name,
@@ -121,16 +119,19 @@ export async function duel({
     cas: [{ name, size, input: null }],
     temoin: three,
     calcul: core,
-    attendu: oracle,
+    attendu: () => {
+      three();
+      return oracle();
+    },
     motif,
     ...(tolerance === undefined ? {} : { differences }),
   });
   const c = engine.resultats[0],
     t = c.temoin;
   if (tolerance !== undefined) c.motif = `largest gap ${maxAbs.toExponential(1)} ; ${c.motif}`;
-  const ratio = slower ? c.medianeMs / t.medianeMs : null;
+  const ratio = slower ? 1 + c.ecartTemoin : null;
   if (slower)
-    c.motif = [`${ratio.toFixed(2)}× Three.js (median): ${slower.reason}`, c.motif]
+    c.motif = [`declared up to ${slower.atMost}× Three.js: ${slower.reason}`, c.motif]
       .filter(Boolean)
       .join(' ; ');
   test(`${name}: same result as Three.js, at least as fast`, () => {
