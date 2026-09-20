@@ -93,6 +93,17 @@ test('the shadow switch uses its original theatre and keeps direct light in both
   assert.match(off, /intensity: 1800.*castsShadow: false/);
   const markup = renderToStaticMarkup(createElement(Playground, { id: lesson.id, locale: 'en' }));
   assert.match(markup, /type="checkbox"[^>]*aria-label="Cast shadow"/);
+  assert.match(markup, /Cast shadow: Enabled/);
+  assert.match(markup, /aria-busy="true"[^>]*class="[^"]*invisible/);
+  const [onCapture, offCapture] = await Promise.all([
+    readFile(
+      new URL('../docs/assets/gallery/proofs/shadow-casting-switch-on.png', import.meta.url),
+    ),
+    readFile(
+      new URL('../docs/assets/gallery/proofs/shadow-casting-switch-off.png', import.meta.url),
+    ),
+  ]);
+  assert.notDeepEqual(onCapture, offCapture);
 });
 
 test('partial reference topics link to qualified original offline lessons', () => {
