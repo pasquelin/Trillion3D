@@ -22,3 +22,11 @@ assert.equal(result.diagnosticSubmissions, 1);
 assert.ok(result.diagnosticPixel[0] + result.diagnosticPixel[1] > 0);
 assert.equal(result.mutationRejected, true);
 assert.deepEqual(result.rejectionPixel, [0, 0, 255, 255], 'preflight rejected before drawing');
+assert.equal(result.hiddenSubmissions, 0, 'source visibility suppresses both generated passes');
+assert.deepEqual(result.hiddenPixel, [0, 0, 255, 255]);
+assert.equal(result.sourceMutationRejected, true);
+assert.deepEqual(
+  result.sourceRejectionPixel,
+  [0, 0, 255, 255],
+  'source preflight rejected before drawing',
+);

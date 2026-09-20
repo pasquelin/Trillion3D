@@ -28,6 +28,7 @@ export function validateClusterMeshes(
       if (mesh.material !== mesh._sideSplitMaterials)
         throw new Error('Unsupported autonomous cluster material: material arrays are unsupported');
       if (
+        !mesh._sideSplitSource ||
         mesh.material.length !== 2 ||
         mesh.material[0] !== mesh._sideSplitBack ||
         mesh.material[1] !== mesh._sideSplitFront ||
@@ -37,6 +38,13 @@ export function validateClusterMeshes(
         !mesh.material[1].transparent
       )
         throw new Error('Unsupported autonomous cluster material: invalid sideSplit pass order');
+      validateMaterial(mesh._sideSplitSource, mesh.geometry.attributes, seen);
+      if (
+        !mesh._sideSplitSource.transparent ||
+        mesh._sideSplitSource.side !== 2 ||
+        mesh._sideSplitSource.forceSinglePass
+      )
+        throw new Error('Unsupported autonomous cluster material: mutated sideSplit source');
       for (const material of mesh.material)
         validateMaterial(material, mesh.geometry.attributes, seen);
     } else validateMaterial(mesh.material, mesh.geometry.attributes, seen);
