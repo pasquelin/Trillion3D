@@ -63,24 +63,28 @@ fn faceWrap(entry:ShadowFace,rows:f32)->vec2f{
  *  is not drawn yet still holds what the far side left there: it is read by no one. */
 fn pageDrawn(entry:ShadowFace,local:vec2f,rows:f32)->bool{
  let page=vec2u(clamp(fract(local+faceWrap(entry,rows))*rows,vec2f(0.0),vec2f(rows-1.0)));
- let bit=page.y*u32(rows)+page.x;
+ // Rows of eight bits, whatever the face's own row count: the host packs the mask that way.
+ let bit=page.y*8u+page.x;
  let word=select(entry.drawn.x,entry.drawn.y,bit>=32u);
  return ((word>>(bit&31u))&1u)!=0u;
 }
 /**
  * Sixteen taps in the face rectangle, offset by a slice texel, never by an atlas texel. The
  * extent coordinate is wrapped onto the face through \`faceWrap\`. A tap is held at the last
- * texel centre of the extent, so an extent edge never wraps to the far side, nor blends with
- * the neighbouring face.
+ * texel centre of the extent, so an extent edge never wraps to the far side; and at the last
+ * texel centre of the face, so the seam of a slid extent never blends with the neighbouring
+ * face — the tap that would straddle the seam reads the edge texel instead, a named
+ * approximation one texel wide along that seam.
  */
 fn shadowPcf(entry:ShadowFace,local:vec2f,reference:f32,side:f32)->f32{
  let step=1.0/max(side,1.0);
  let wrap=faceWrap(entry,faceRows(side));
+ let edge=vec2f(0.5*step);
  var lit=0.0;
  for(var tap=0u;tap<PCF_TAPS;tap++){
   let offset=POISSON[tap]*step;
-  let inside=clamp(local+offset,vec2f(0.5*step),vec2f(1.0-0.5*step));
-  let uv=entry.rect.xy+fract(inside+wrap)*entry.rect.z;
+  let inside=clamp(local+offset,edge,vec2f(1.0)-edge);
+  let uv=entry.rect.xy+clamp(fract(inside+wrap),edge,vec2f(1.0)-edge)*entry.rect.z;
   lit+=textureSampleCompareLevel(shadowAtlas,shadowSampler,uv,reference);
  }
  return lit/f32(PCF_TAPS);
@@ -93,11 +97,12 @@ fn shadowPcf(entry:ShadowFace,local:vec2f,reference:f32,side:f32)->f32{
  * 2/(scale in x · side) and a metre of depth is the scale in z. No double data, so nothing
  * that can diverge.
  */
-fn sunShadowFactor(record:ShadowSlice,cascades:u32,P:vec3f,N:vec3f,L:vec3f)->f32{
+fn sunShadowFactor(slice:u32,cascades:u32,P:vec3f,N:vec3f,L:vec3f)->f32{
  let cosine=clamp(dot(N,L),1e-3,1.0);
- let side=max(record.info.z,1.0);
+ let side=max(shadows.items[slice].info.z,1.0);
  for(var c=0u;c<min(SUN_CASCADES,cascades);c++){
-  let entry=record.faces[c];
+  // One face read per cascade tried, never the whole slice: the record is six faces wide.
+  let entry=shadows.items[slice].faces[c];
   if(entry.rect.w<0.5){continue;}
   let m=entry.viewProjection;
   let scaleX=max(length(vec3f(m[0][0],m[1][0],m[2][0])),1e-9);
@@ -118,20 +123,21 @@ fn sunShadowFactor(record:ShadowSlice,cascades:u32,P:vec3f,N:vec3f,L:vec3f)->f32
 /** Fraction of light that reaches the point: 1 in full light, 0 fully in shadow. */
 fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
  if(slice<0){return 1.0;}
- let record=shadows.items[u32(slice)];
- let faces=u32(record.info.x);
+ let index=u32(slice);
+ let info=shadows.items[index].info;
+ let faces=u32(info.x);
  if(faces==0u){return 1.0;}
- if(isSun(light)){return sunShadowFactor(record,faces,P,N,L);}
+ if(isSun(light)){return sunShadowFactor(index,faces,P,N,L);}
  let face=select(0u,pointFaceOf(P-light.positionRange.xyz),faces==POINT_FACES);
- let entry=record.faces[face];
+ let entry=shadows.items[index].faces[face];
  if(entry.rect.w<0.5){return 1.0;}
  // The read point is offset along the normal by a slice texel, divided by the incidence
  // cosine: a texel covers more depth the more grazing the surface. That is the offset that
  // closes the seam between two faces of a point light and removes grazing acne.
  let cosine=clamp(dot(N,L),1e-3,1.0);
  let radius=length(light.positionRange.xyz-P);
- let side=max(record.info.z,1.0);
- let texel=2.0*record.info.y*radius/side;
+ let side=max(info.z,1.0);
+ let texel=2.0*info.y*radius/side;
  let clip=entry.viewProjection*vec4f(P+N*texel*SHADOW_NORMAL_TEXELS/max(cosine,0.2),1.0);
  if(clip.w<=0.0){return 1.0;}
  let ndc=clip.xyz/clip.w;
@@ -139,7 +145,7 @@ fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
  let local=vec2f(ndc.x*0.5+0.5,0.5-ndc.y*0.5);
  // These metres become a depth margin at the considered point: dz/dd of a perspective
  // projection is near·far/((far−near)·d²), so the margin follows the distance to the light.
- let near=record.info.w;
+ let near=info.w;
  let far=max(near*1.001,light.positionRange.w);
  let scale=near*far/((far-near)*max(clip.w*clip.w,1e-4));
  return shadowPcf(entry,local,ndc.z+shadowBiasMetres(cosine)*scale,side);
