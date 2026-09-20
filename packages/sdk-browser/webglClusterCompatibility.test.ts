@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as THREE from 'three';
 import { clusterMaterialReason } from './webglClusterCompatibility.ts';
+import { validateClusterMeshes } from './webglClusterValidation.ts';
 
 const position = new THREE.BufferAttribute(new Float32Array(9), 3);
 
@@ -33,6 +34,23 @@ test('a texture selecting UV1 is refused when geometry has only UV0', () => {
       position,
       uv: new THREE.BufferAttribute(new Float32Array(6), 2),
     })!,
+    /no UV1 attribute/,
+  );
+});
+
+test('one material is validated against every distinct geometry attribute set', () => {
+  const material = new THREE.MeshBasicMaterial({ map: new THREE.Texture({}) });
+  material.map!.channel = 1;
+  const uv = new THREE.BufferAttribute(new Float32Array(6), 2);
+  assert.throws(
+    () =>
+      validateClusterMeshes(
+        [
+          { material, geometry: { attributes: { position, uv, uv1: uv } } },
+          { material, geometry: { attributes: { position, uv } } },
+        ] as never,
+        new Map(),
+      ),
     /no UV1 attribute/,
   );
 });

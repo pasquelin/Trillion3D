@@ -14,12 +14,14 @@ const result = await preuveDansLaPage(
 console.log(JSON.stringify(result, null, 2));
 preuveSaine(result);
 assert.deepEqual(result.canvasCenter, [118, 0, 0, 255]);
+assert.deepEqual(result.mirroredFront, result.canvasCenter);
 assert.deepEqual(result.fboInside, [118, 0, 0, 255]);
 assert.deepEqual(result.fboOutside, [0, 0, 255, 255]);
 assert.equal(result.framebufferStatus, 36053);
 assert.equal(result.drawError, 0);
 assert.deepEqual(result.ambient, [118, 0, 0, 255]);
 assert.deepEqual(result.direct, [70, 10, 10, 255]);
+assert.ok(result.zeroPenumbraSpot[0] > 0);
 assert.deepEqual(result.translatedDirect, result.direct);
 assert.ok(result.directWitness[0] > 0);
 assert.deepEqual(result.neutralNormal, result.direct);
@@ -27,6 +29,7 @@ assert.equal(result.invisibleSubmissions, 0);
 assert.equal(result.rejected, true);
 assert.deepEqual(result.textures, {
   linearMap: [118, 118, 118, 255],
+  basicAo: [118, 118, 118, 255],
   linearEmissive: [118, 118, 118, 255],
   uv1Transform: [255, 255, 0, 255],
 });

@@ -32,7 +32,10 @@ export class WebglClusterRenderer {
   private materialMatrices: Matrix3UniformCache;
   private lights: WebglClusterLights;
   private state: WebglClusterState;
-  private validatedMaterials = new Set<Exclude<ClusterDrawMesh['material'], unknown[]>>();
+  private validatedMaterials = new Map<
+    Exclude<ClusterDrawMesh['material'], unknown[]>,
+    Set<ClusterDrawMesh['geometry']['attributes']>
+  >();
   private materialUniforms: WebglClusterMaterialUniforms;
   private multiDraw: {
     multiDrawElementsWEBGL(
@@ -164,6 +167,7 @@ export class WebglClusterRenderer {
       }
       const model = mesh.matrix.elements;
       multiplyMatrix4(this.modelView, camera.view, model);
+      this.state.applyWinding(this.modelView);
       gl.uniformMatrix4fv(this.at('modelViewMatrix'), false, this.modelView);
       normalMatrix3(this.normal, this.modelView);
       matrix(gl, this.at('normalMatrix'), this.normal);
