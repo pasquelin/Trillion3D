@@ -11,7 +11,7 @@ type CachedAttribute = {
 };
 type CachedGeometry = {
   vao: WebGLVertexArrayObject;
-  index: CachedAttribute;
+  index?: CachedAttribute;
   attributes: Map<string, CachedAttribute>;
 };
 
@@ -67,20 +67,21 @@ export class WebglClusterGeometry {
     let cached = this.cache.get(geometry);
     if (!cached) {
       const index = geometry.index;
-      if (!index) throw new Error('Cluster geometry has no index');
       const vao = gl.createVertexArray()!;
       gl.bindVertexArray(vao);
       cached = {
         vao,
-        index: upload(gl, gl.ELEMENT_ARRAY_BUFFER, index),
+        index: index ? upload(gl, gl.ELEMENT_ARRAY_BUFFER, index) : undefined,
         attributes: new Map(),
       };
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cached.index.buffer);
+      if (cached.index) gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cached.index.buffer);
       this.cache.set(geometry, cached);
     }
     gl.bindVertexArray(cached.vao);
-    cached.index = upload(gl, gl.ELEMENT_ARRAY_BUFFER, geometry.index!, cached.index);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cached.index.buffer);
+    if (geometry.index) {
+      cached.index = upload(gl, gl.ELEMENT_ARRAY_BUFFER, geometry.index, cached.index);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cached.index.buffer);
+    }
     for (const name of ['position', 'normal', 'tangent', 'uv', 'uv1', 'color']) {
       const attribute = geometry.getAttribute(name),
         location = this.locations[name];
@@ -114,7 +115,7 @@ export class WebglClusterGeometry {
   dispose() {
     for (const entry of this.cache.values()) {
       this.gl.deleteVertexArray(entry.vao);
-      this.gl.deleteBuffer(entry.index.buffer);
+      if (entry.index) this.gl.deleteBuffer(entry.index.buffer);
       for (const attribute of entry.attributes.values()) this.gl.deleteBuffer(attribute.buffer);
     }
     this.cache.clear();

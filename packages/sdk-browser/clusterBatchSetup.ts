@@ -122,7 +122,7 @@ export function setupClusterBatches(pages: readonly BatchPage[], installThreeSha
   for (let order = 0; order < groupDrafts.length; order++) {
     const entry = groupDrafts[order],
       group = state.groups[order];
-    if (!entry || !group || !splitable.get(group.primitive)) continue;
+    if (!entry || !group || (installThreeShaderHooks && !splitable.get(group.primitive))) continue;
     const original = entry.material as THREE.Material;
     let pair = splits.get(original);
     if (!pair) {
@@ -133,11 +133,12 @@ export function setupClusterBatches(pages: readonly BatchPage[], installThreeSha
     }
     group.split = pair;
   }
-  for (const primitive of state.primitives) {
-    if (!splitable.get(primitive)) continue;
-    primitive.geometry.addGroup(0, Infinity, 0);
-    primitive.geometry.addGroup(0, Infinity, 1);
-  }
+  if (installThreeShaderHooks)
+    for (const primitive of state.primitives) {
+      if (!splitable.get(primitive)) continue;
+      primitive.geometry.addGroup(0, Infinity, 0);
+      primitive.geometry.addGroup(0, Infinity, 1);
+    }
   const layered = buildLayerGroups(pages, state.groups);
   state.layerGroups = layered.layerGroups;
   state.ownedMaterials = [...splits.values()].flat().concat(layered.materials);
