@@ -5,6 +5,7 @@ import { createExplorerMetrics } from './explorerMetrics.ts';
 import type { ExplorerResources, prepareExplorer } from './explorerPrepare.ts';
 import { createExplorerRender } from './explorerRender.ts';
 import type { ExplorerSession } from './explorerSession.ts';
+import type { createSceneDrawer } from './explorerDrawScene.ts';
 import { createExplorerStreaming } from './explorerStreaming.ts';
 
 type Prepared = Awaited<ReturnType<typeof prepareExplorer>>;
@@ -13,11 +14,12 @@ type Inputs = {
   resources: ExplorerResources;
   host: ReturnType<typeof createExplorerHostState>;
   backends: RenderBackend[];
+  drawScene: ReturnType<typeof createSceneDrawer>;
 };
 
 export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs) {
   const { options, metadata } = session;
-  const { prepared, resources, host, backends } = inputs;
+  const { prepared, resources, host, backends, drawScene } = inputs;
   const { camera, directGpu, pageSources } = prepared;
   const { geometryUrls, pageIdByUrl, streamer } = pageSources;
   const renderer = resources.renderer;
@@ -54,6 +56,7 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     presentBackend,
     baseline,
     state,
+    drawScene,
   });
   const render = createExplorerRender(session, {
     check,
@@ -74,6 +77,7 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     profiler,
     pageIdByUrl,
     streamer,
+    drawScene,
   });
   return { render, profiler, streaming };
 }

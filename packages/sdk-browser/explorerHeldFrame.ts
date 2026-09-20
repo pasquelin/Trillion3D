@@ -66,5 +66,14 @@ export function createHeldFrame() {
       renderer.render(scene, camera);
       renderer.outputColorSpace = sortie;
     },
+    invalidate() {
+      kept = false;
+    },
+    dispose() {
+      texture?.dispose();
+      material.dispose();
+      quad.geometry.dispose();
+      kept = false;
+    },
   };
 }

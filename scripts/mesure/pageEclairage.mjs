@@ -89,41 +89,32 @@ export async function measureView(options) {
   const reglageVivant = await mesure.reglerReservoirs(explorer, pose, options.poolVivant);
   const cpuFrameMs = [],
     cpuSelectMs = [],
-    gpuFrameMs = [];
-  let last = null;
+    gpuFrameMs = [],
+    rafIntervalMs = [];
+  const gpuPassSamples = [];
+  const profileStart = Math.max(0, options.frames - options.profileFrames);
+  let last = null,
+    previousRaf = null;
   for (let i = 0; i < options.frames; i++) {
+    if (options.stageProfile && i === profileStart) explorer.resetStageProfile();
+    const now = await new Promise((done) => requestAnimationFrame(done));
+    if (previousRaf !== null && i > 2) rafIntervalMs.push(now - previousRaf);
+    previousRaf = now;
     moveLight(i);
     moveNode(i);
     last = explorer.render(poseAt(i));
     if (typeof last.cpuFrameMs === 'number') cpuFrameMs.push(last.cpuFrameMs);
     if (typeof last.cpuSelectMs === 'number') cpuSelectMs.push(last.cpuSelectMs);
     if (typeof last.gpuFrameMs === 'number') gpuFrameMs.push(last.gpuFrameMs);
+    const sample = last.gpuPassMs;
+    if (i >= profileStart && sample && sample.frame !== gpuPassSamples.at(-1)?.frame)
+      gpuPassSamples.push(sample);
   }
   await explorer.flush();
-  // Capture pose frozen here: the stage-profile loop must not walk the trajectory again.
-  // `poseAt(0)` after `poseAt(frames-1)` teleports the camera, and TAA would average a second
+  // Capture freezes the last measured pose. Restarting at poseAt(0) would average a second
   // journey into the A/A witness (#25: still camera 0 px, moving camera leftover on `sol`).
   const capturePose = current;
-  // Stage profile is a separate loop after the measured one, so those timings stay comparable.
-  // Yield to the browser between frames: timestamp queries resolve on a promise, and a loop
-  // that never waits recovers almost none; the window is flushed first.
-  let stageProfile = null;
-  // Each distinct pass sample seen in this loop, keyed by the frame it describes: the same
-  // sample stays on the metrics until the next one, and counting it twice would weight it.
-  const gpuPassSamples = [];
-  if (options.stageProfile) {
-    explorer.resetStageProfile();
-    for (let i = 0; i < options.profileFrames; i++) {
-      const frame = explorer.render(capturePose);
-      const sample = frame.gpuPassMs;
-      if (sample && sample.frame !== gpuPassSamples.at(-1)?.frame) gpuPassSamples.push(sample);
-      await explorer.flush();
-      // A real frame boundary: the browser only makes a WebGL2 timestamp query readable
-      // after a frame boundary, which is also what a real application does.
-      await new Promise((done) => requestAnimationFrame(done));
-    }
-    stageProfile = explorer.stageProfile();
-  }
+  const stageProfile = options.stageProfile ? explorer.stageProfile() : null;
   // The shadow-page queue is drained before any atlas read: a pending page still holds the
   // previous depth, and the fingerprint would prove nothing. The loop is bounded, and the
   // remaining count is published as-is, never assumed zero.
@@ -172,6 +163,7 @@ export async function measureView(options) {
     cpuFrameMs,
     cpuSelectMs,
     gpuFrameMs,
+    rafIntervalMs,
     importedLights,
     lampesTemoin: witnessLights,
     shadowAtlas,
@@ -184,8 +176,6 @@ export async function measureView(options) {
     network,
     imagesCalme,
     reglageVivant,
-    // The compute-path governor reading: an object, so dropped by the scalar filter above.
-    // Without it, nothing would say which path the campaign actually ran.
     mathBatch: last?.mathBatch ?? null,
     size,
     lost,

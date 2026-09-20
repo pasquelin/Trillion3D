@@ -26,6 +26,9 @@
 
 ## Measure before optimising
 
+- Under identical input, camera, quality and budgets, image quality and performance must equal or
+  exceed the Three.js witness. Any measured regression blocks validation and merge. Measurement
+  noise is not an exemption, and an unmeasured metric is never evidence of parity.
 - **Never optimise a path whose cost is not measured.** State its share of the frame first, on a real
   scene, or say plainly that it is unknown. A batch justified by a supposition is a batch to stop.
 - Measure the whole frame before a part of it: the engine publishes a per-step CPU profile
@@ -38,7 +41,7 @@
   Unmeasured values = `null`, never estimates presented as measurements. Keep diagnostics outside
   measured beauty passes; report unsupported capabilities. Measure on a quiet machine, and publish
   the run-to-run spread whenever a claim rests on a difference smaller than it.
-- A per-pass GPU duration says *where*, never *how much*: on tile-based GPUs passes overlap and a
+- A per-pass GPU duration says _where_, never _how much_: on tile-based GPUs passes overlap and a
   pass's timestamp absorbs its neighbours' work (17 Sept. 2026: a composition pass read 7 ms with
   the sun and 2.4 ms without, having not changed). The frame envelope is the total; a difference
   between two runs is read on the envelope only.
