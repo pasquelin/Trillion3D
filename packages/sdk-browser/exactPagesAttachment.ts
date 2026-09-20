@@ -20,7 +20,7 @@ export function createExactPagesAttachment(
       rec.attached = false;
     }
   };
-  const attach = (rec: PageRec) => {
+  const attach = (rec: PageRec, addToScene = true) => {
     if (!rec.array) return;
     if (!indexByUrl.has(rec.url)) indexByUrl.set(rec.url, new THREE.BufferAttribute(rec.array, 1));
     if (!rec.mesh) {
@@ -41,7 +41,7 @@ export function createExactPagesAttachment(
     rec.mesh!.matrix.copy(rec.matrix);
     if (rec.mesh && rec.geometry)
       paint(rec.mesh, rec.geometry, rec.mesh.material, hashId(rec.clusterId));
-    if (!rec.attached) {
+    if (addToScene && !rec.attached) {
       scene.add(rec.mesh!);
       rec.attached = true;
     }
