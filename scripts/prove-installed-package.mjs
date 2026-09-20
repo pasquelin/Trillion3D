@@ -4,6 +4,7 @@ import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:f
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { proveInstalledBrowser } from './installed-package-browser.mjs';
 import { proveInstalledTypes } from './installed-package-types.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -47,7 +48,8 @@ function bundle(name, source, platform = 'browser', conditions = null) {
 
 try {
   run(pnpm, ['run', 'build']);
-  const proveNative = process.argv.includes('--native');
+  const proveBrowser = process.argv.includes('--browser');
+  const proveNative = process.argv.includes('--native') || proveBrowser;
   if (proveNative) run(pnpm, ['run', 'build:native']);
   const packed = JSON.parse(run(pnpm, ['pack', '--json', '--pack-destination', fixture]));
   const archive = packed.filename ?? packed[0]?.filename;
@@ -119,7 +121,7 @@ try {
         join(fixture, 'native-cache'),
         'slice',
         '150000',
-        '/fixture/',
+        '/native-source/',
         '1',
         '256',
         'none',
@@ -163,6 +165,14 @@ try {
     )
       throw new Error(`${name} bundle reaches renderer or Node modules`);
   }
+  const browserProof = proveBrowser
+    ? await proveInstalledBrowser({
+        fixture,
+        packageName: source.name,
+        browserEntry: manifest.exports['.'].browser?.import ?? 'dist/sdk-browser/index.js',
+        manifestUrl: `/native-cache/native/slice/${native.url}`,
+      })
+    : null;
   const manifest = JSON.parse(
     readFileSync(join(fixture, `node_modules/${source.name}/package.json`)),
   );
@@ -174,6 +184,7 @@ try {
     files: packed.files?.map(({ path, size }) => ({ path, size })) ?? [],
     bundles,
     native,
+    browser: browserProof,
   };
   const output = process.argv.indexOf('--output');
   if (output >= 0)
