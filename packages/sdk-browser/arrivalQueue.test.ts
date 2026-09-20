@@ -23,7 +23,7 @@ function target() {
 test('a drain stops at the byte budget and the next one resumes where it left off', () => {
   const a = target();
   // Three 8-byte pages for a budget of 12: the second exceeds the budget and closes the drain.
-  const queue = createArrivalQueue(12, 64);
+  const queue = createArrivalQueue(12, 64, Infinity);
   for (const url of ['p0', 'p1', 'p2']) assert.equal(queue.queue(a, url, new Uint32Array(2)), true);
   assert.equal(queue.pending, 3);
   assert.equal(queue.drain(), 2, 'the byte budget stops the drain');
@@ -40,7 +40,7 @@ test('a drain stops at the byte budget and the next one resumes where it left of
 test('a page already waiting for a target is queued once, and each target keeps its own residency', () => {
   const a = target(),
     b = target();
-  const queue = createArrivalQueue(1 << 20, 2);
+  const queue = createArrivalQueue(1 << 20, 2, Infinity);
   const page = new Uint32Array(1);
   assert.equal(queue.queue(a, 'p0', page), true);
   assert.equal(queue.queue(a, 'p0', page), false, 'already waiting for this target');
@@ -71,7 +71,7 @@ test('many duplicate targets across a drain deliver exactly like the reference',
     const targets = Array.from({ length: 8 }, (_, c) => ({
       acceptPage: (url: string) => delivered.push(`${c}:${url}`),
     }));
-    const queue = create(1 << 20, 4096);
+    const queue = create(1 << 20, 4096, Infinity);
     const bytes = new Uint32Array(4);
     // Round-robin over the eight targets so the touched list sees many repeats before a drain.
     for (let i = 0; i < 500; i++) queue.queue(targets[i % 8], `page-${i % 50}.bin`, bytes);
@@ -82,4 +82,28 @@ test('many duplicate targets across a drain deliver exactly like the reference',
   const optimisee = arrivals(createArrivalQueue);
   const reference = arrivals(referenceArrivalQueue as typeof createArrivalQueue);
   assert.deepEqual(optimisee, reference);
+});
+
+test('the default time budget yields at its boundary and resumes in arrival order', (t) => {
+  let now = 0;
+  t.mock.method(performance, 'now', () => now);
+  const accepted: string[] = [];
+  const receiver = {
+    acceptPage(url: string) {
+      accepted.push(url);
+      now += url === 'slow' ? 3 : 1;
+    },
+  };
+  const queue = createArrivalQueue(1 << 20, 64);
+  for (const url of ['p0', 'p1', 'slow', 'p3']) queue.queue(receiver, url, new Uint32Array(1));
+  assert.equal(queue.drain(), 2, 'two 1 ms deliveries reach the default 2 ms ceiling');
+  assert.deepEqual(accepted, ['p0', 'p1']);
+  assert.equal(queue.pending, 2);
+  assert.equal(queue.drain(), 1, 'an over-budget first delivery still makes progress');
+  assert.deepEqual(accepted, ['p0', 'p1', 'slow']);
+  assert.equal(queue.pending, 1);
+  assert.equal(queue.drain(), 1);
+  assert.deepEqual(accepted, ['p0', 'p1', 'slow', 'p3']);
+  assert.equal(queue.pending, 0);
+  assert.equal(queue.drain(), 0);
 });
