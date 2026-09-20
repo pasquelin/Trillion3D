@@ -27,6 +27,8 @@ export function Button({ children, variant = 'ghost', size = 'md', className = '
   );
 }
 
+export const CARD_SURFACE = 'card bg-base-200 border border-base-300';
+
 export const surfaceClass = (surface) =>
   ({ default: 'bg-base-200', nested: 'bg-base-100', inset: 'bg-base-300' })[surface] ??
   'bg-base-200';

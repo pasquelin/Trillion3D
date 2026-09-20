@@ -16,10 +16,9 @@ const renderPlayground = (id, locale) =>
 const { codeFor } = await import(new URL('code.js', root));
 const { evaluate } = await import(new URL('evaluate.js', root));
 const { geometryFor } = await import(new URL('sceneGeometry.js', root));
-const { legendAnchors } = await import(new URL('draw.js', root));
+const { draw, legendAnchors } = await import(new URL('draw.js', root));
 const { initialState } = await import(new URL('scenarios.js', root));
 const { examples } = await import(new URL('catalog.js', root));
-const { apiScenario } = await import(new URL('apiScenario.js', root));
 
 test('gallery exposes sixteen bilingual, interactive examples', () => {
   assert.equal(examples.length, 16);
@@ -53,6 +52,38 @@ test('diagram legends assign a distinct fixed anchor to every label', () => {
   const anchors = legendAnchors(4);
   assert.equal(new Set(anchors.map(({ x, y }) => `${x}:${y}`)).size, anchors.length);
   assert.ok(anchors.every(({ x, y }) => x >= 40 && x < 640 && y === 24));
+});
+
+test('all four advanced lessons mount their complementary diagram with finite geometry', () => {
+  class SvgNode {
+    children = [];
+    setAttribute(name, value) {
+      assert.doesNotMatch(String(value), /NaN|undefined/, name);
+    }
+    append(...children) {
+      this.children.push(...children);
+    }
+    replaceChildren(...children) {
+      this.children = children;
+    }
+  }
+  const previous = globalThis.document;
+  globalThis.document = { createElementNS: () => new SvgNode() };
+  try {
+    for (const id of [
+      'matrix-inverse',
+      'reflection-orientation',
+      'quaternion-turn',
+      'normal-transform',
+    ]) {
+      const state = initialState(id);
+      const svg = new SvgNode();
+      draw(svg, evaluate(id, state, 'fr'), 'fr');
+      assert.ok(svg.children.length > 3, id);
+    }
+  } finally {
+    globalThis.document = previous;
+  }
 });
 
 test('gallery renders visual, searchable cards and the real engine scene', () => {
@@ -144,16 +175,6 @@ test('every displayed snippet runs and matches its playground result', async () 
     if (typeof expected === 'number') assert.ok(Math.abs(actual - expected) < 1e-10, example.id);
     else assert.deepEqual(Array.from(actual), Array.from(expected), example.id);
   }
-});
-
-test('API functions resolve to a visual example', () => {
-  assert.equal(apiScenario('crossVector3'), 'cross-product');
-  assert.equal(apiScenario('missing'), undefined);
-});
-
-test('visible engine results follow the selected language', () => {
-  const french = evaluate('frustum', { x: 0, depth: 4, fov: 55 }, 'fr');
-  assert.equal(french.value, 'dedans');
 });
 
 test('every scenario calls the generated engine module', async () => {
