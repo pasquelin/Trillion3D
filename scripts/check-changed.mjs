@@ -1,17 +1,14 @@
-import { execFileSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { posix } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
+import { gitPaths } from './git-paths.mjs';
 import { repositoryFiles } from './repository-files.mjs';
 
 const sourcePattern = /\.(?:[cm]?js|[cm]?ts|jsx|tsx)$/;
 const testPattern = /\.test\.(?:ts|mts|mjs)$/;
 const formatPattern = /\.(?:[cm]?js|[cm]?ts|jsx|tsx|json)$/;
-
-function gitPaths(args) {
-  return execFileSync('git', args, { encoding: 'utf8' }).split('\0').filter(Boolean);
-}
 
 function candidates(importer, specifier) {
   if (specifier.startsWith('@web-geometry/sdk')) {
@@ -75,14 +72,14 @@ export function existingChangedFiles(changed, root = process.cwd()) {
   return [...changed].filter((file) => maintained.has(file));
 }
 
-function main() {
+async function main() {
   const base = process.env.WEB_GEOMETRY_BASE_REF ?? 'develop';
   const changed = new Set([
-    ...gitPaths(['diff', '--name-only', '-z', base, '--']),
-    ...gitPaths(['ls-files', '--others', '--exclude-standard', '-z']),
+    ...(await gitPaths(['diff', '--name-only', '-z', base, '--'])),
+    ...(await gitPaths(['ls-files', '--others', '--exclude-standard', '-z'])),
   ]);
   const existing = existingChangedFiles(changed);
-  const paths = gitPaths(['ls-files', '-z']);
+  const paths = await gitPaths(['ls-files', '-z']);
   const files = new Map(
     [...new Set([...paths, ...existing])]
       .filter((file) => sourcePattern.test(file) && existsSync(file))
@@ -144,4 +141,4 @@ function main() {
     console.log('No directly related unit test; the final validation still runs the full suite.');
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();
