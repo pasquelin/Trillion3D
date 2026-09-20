@@ -3,6 +3,8 @@
 // integration lane load them by URL, never by import.
 export default {
   entry: [
+    'docs/react/main.jsx',
+    'scripts/docs/highlight-entry.mjs',
     'packages/sdk-browser/pageDecodeWorker.ts',
     'packages/sdk-browser/pageIntegrationWorker.ts',
     'packages/sdk-node/{index,cli}.mts',
@@ -31,6 +33,7 @@ export default {
     'test/browser/*.browser.mjs',
   ],
   project: [
+    'docs/react/**/*.jsx',
     'packages/**/*.{ts,mts,mjs,js}',
     'scripts/**/*.{ts,mts,mjs,js}',
     'test/**/*.{ts,mts,mjs,js}',
@@ -40,8 +43,8 @@ export default {
   paths: {
     '/packages/sdk-browser/*': ['packages/sdk-browser/*'],
   },
-  // `scripts/build-wasm.mjs` queries the Rust toolchain installed by rustup, not an npm package;
-  // `sips` is the macOS image tool called by the global report for its JPEGs.
+  // Rust and the image utility are platform tools; DaisyUI is loaded by Tailwind.
+  ignoreDependencies: ['daisyui'],
   ignoreBinaries: ['rustc', 'sips'],
   // These specifiers are harness server URLs resolved by the browser, not local Node modules.
   ignoreUnresolved: ['/mesure/poses.mjs', '/__wg-fixture/drawRun.mjs'],
