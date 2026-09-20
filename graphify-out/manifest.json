@@ -14022,9 +14022,9 @@
     "semantic_hash": "fc9b9bfb100e4412ad5c2fcbca86053f"
   },
   "scripts/prove-installed-package.mjs": {
-    "mtime": 1789915689.0116658,
-    "seen": 1789915750.442116,
-    "ast_hash": "c3ce6d935b7641ebdb5d8876bbad362d",
+    "mtime": 1789916361.4734502,
+    "seen": 1789916465.688412,
+    "ast_hash": "f6bf5cc7662d49a861924c9e54e65952",
     "semantic_hash": ""
   },
   "scripts/setup-development.mjs": {
@@ -14043,6 +14043,12 @@
     "mtime": 1789915983.8251283,
     "seen": 1789916052.4007292,
     "ast_hash": "fa6bafa855883792769e8deae4cc12d2",
+    "semantic_hash": ""
+  },
+  "scripts/installed-package-browser.mjs": {
+    "mtime": 1789916413.3448133,
+    "seen": 1789916465.688355,
+    "ast_hash": "b80eb8d661adbbbacf63662b0603e558",
     "semantic_hash": ""
   }
 }
