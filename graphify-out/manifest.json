@@ -1373,12 +1373,6 @@
     "ast_hash": "1be9da68c24faa79dd0b850938174bc3",
     "semantic_hash": ""
   },
-  "docs/react/components/Pagination.jsx": {
-    "mtime": 1789911866.5480964,
-    "seen": 1789912258.3043258,
-    "ast_hash": "e170eb9f35c28911acf3307de773a895",
-    "semantic_hash": ""
-  },
   "docs/react/components/Prose.jsx": {
     "mtime": 1789911866.548194,
     "seen": 1789912258.304327,
@@ -4614,8 +4608,8 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/arrivalQueue.test.ts": {
-    "mtime": 1789911867.192497,
-    "seen": 1789912258.304828,
+    "mtime": 1789912855.2347252,
+    "seen": 1789912921.269807,
     "ast_hash": "9505a37f3f5165e17cb0ed6f88aadeed",
     "semantic_hash": ""
   },
@@ -8982,8 +8976,8 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPages.12.test.ts": {
-    "mtime": 1789912199.6063297,
-    "seen": 1789912258.3057878,
+    "mtime": 1789912863.9222577,
+    "seen": 1789912921.270657,
     "ast_hash": "3c35ad003352ce565acd373b513590ce",
     "semantic_hash": ""
   },
@@ -9018,8 +9012,8 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webgpuPages.18.test.ts": {
-    "mtime": 1789911867.428166,
-    "seen": 1789912258.305793,
+    "mtime": 1789912855.2350721,
+    "seen": 1789912921.270663,
     "ast_hash": "0477ca2c8220eb814ab2dc7eb878e6f0",
     "semantic_hash": ""
   },
@@ -13893,6 +13887,30 @@
     "mtime": 1789911867.5137393,
     "seen": 1789912258.306336,
     "ast_hash": "565223afebd2554f3651f42f4fb78c49",
+    "semantic_hash": ""
+  },
+  "docs/react/components/ProgressiveList.jsx": {
+    "mtime": 1789910659.4476674,
+    "seen": 1789910688.209544,
+    "ast_hash": "ce7ce2db04ee9f863a886034bd0dad74",
+    "semantic_hash": ""
+  },
+  "scripts/docs-gallery-scroll.test.mjs": {
+    "mtime": 1789910659.5733368,
+    "seen": 1789910688.2113311,
+    "ast_hash": "e9e0384d6b2e4c5e83f79923b136571c",
+    "semantic_hash": ""
+  },
+  "scripts/docs-gallery-scroll.browser.mjs": {
+    "mtime": 1789910594.1771781,
+    "seen": 1789910688.21133,
+    "ast_hash": "d0aa1a72a003ecf898d719214531f092",
+    "semantic_hash": ""
+  },
+  "docs/react/components/Pagination.jsx": {
+    "mtime": 1789911866.5480964,
+    "seen": 1789912258.3043258,
+    "ast_hash": "e170eb9f35c28911acf3307de773a895",
     "semantic_hash": ""
   },
   "docs/api-inventory.json": {
