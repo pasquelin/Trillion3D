@@ -1,4 +1,4 @@
-import { Card } from '../components/UI.jsx';
+import { Alert, Card } from '../components/UI.jsx';
 import { CodeBlock } from '../components/CodeBlock.jsx';
 import { routeHref } from '../../js/portal/routes.js';
 import { GeometryPreview } from './WebGPUCanvas.jsx';
@@ -89,11 +89,11 @@ function PlannedDetails({ example, locale }) {
     related = relatedReadyLesson(example);
   return (
     <>
-      <div className="alert alert-soft alert-warning">
+      <Alert tone="warning">
         <span>
           <strong>{french ? 'Pourquoi :' : 'Why:'}</strong> {local(example.reason, locale)}
         </span>
-      </div>
+      </Alert>
       <CodeBlock
         locale={locale}
         label={french ? 'Plan non exécutable' : 'Non-runnable plan'}

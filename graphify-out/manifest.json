@@ -12900,9 +12900,9 @@
     "semantic_hash": ""
   },
   "docs/react/gallery/Gallery.jsx": {
-    "mtime": 1789897926.2186015,
-    "seen": 1789898105.54262,
-    "ast_hash": "6313f97ee92e337182441196003ed282",
+    "mtime": 1789900115.0063674,
+    "seen": 1789900161.54741,
+    "ast_hash": "e9fd8a33c9e15a215668aeb34d238209",
     "semantic_hash": ""
   },
   "docs/react/gallery/Playground.jsx": {
@@ -12984,9 +12984,9 @@
     "semantic_hash": ""
   },
   "docs/react/gallery/ExampleCard.jsx": {
-    "mtime": 1789897946.6749353,
-    "seen": 1789898105.542619,
-    "ast_hash": "3f08ccd3465c0e5c29c659c069da54ac",
+    "mtime": 1789900115.0061607,
+    "seen": 1789900161.5474088,
+    "ast_hash": "5bdf79aac69616fe88318e2ef68194e9",
     "semantic_hash": ""
   },
   "docs/react/components/Section.jsx": {
@@ -13281,6 +13281,12 @@
     "mtime": 1789898169.4189575,
     "seen": 1789898468.54673,
     "ast_hash": "e44a2d012e92382ebc33bdad36671906",
+    "semantic_hash": ""
+  },
+  "docs/react/components/Pagination.jsx": {
+    "mtime": 1789900115.0490413,
+    "seen": 1789900161.5473971,
+    "ast_hash": "e170eb9f35c28911acf3307de773a895",
     "semantic_hash": ""
   }
 }
