@@ -373,11 +373,11 @@ error is 1.148/max 36 versus 1.461/max 47. The oracle is independent of both pro
 OPAQUE ignores source alpha and surviving MASK fragments write alpha one, as required by glTF.
 
 On the 1 px Emerald street path at 1280×720 and DPR 1, with one 40-intensity point light, shadows
-off, 20 warm-up frames and 60 moving-camera frames, the final candidate measured median CPU frame
-submission-burst CPU readings were 5.6/5.6/5.6 ms against 5.6/5.5/5.7 ms for the temporary adapter.
+off, 20 warm-up frames and 60 moving-camera frames, earlier synchronous submission-burst readings
+were 5.6/5.6/5.6 ms against 5.6/5.5/5.7 ms for the temporary adapter.
 They led to the texture and bounded-light reductions described above, but are not a frame-performance
-verdict because that old loop did not yield to the browser. At candidate `c2315306` versus integrated
-base `48c90c4e`, three diagnostic-free 60-frame moving runs measured rAF p50/p95 intervals of
+verdict because that old loop did not yield to the browser. At candidate `c2315306` versus witness
+`48c90c4e` (the same runtime as the integrated base), three diagnostic-free moving runs measured rAF p50/p95 intervals of
 16.7/33.3, 16.7/16.8 and 16.7/16.8 ms, versus 16.7/83.4, 16.7/83.3 and 16.7/83.3 ms. The headless
 display cap was 60 Hz. Synchronous CPU submission p50 was 4.7/5.0/4.9 ms versus 5.0/5.2/4.9 ms;
 it is reported separately and never added to the frame interval. Every repeat kept the same cut and
