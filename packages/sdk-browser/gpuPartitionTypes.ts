@@ -1,13 +1,16 @@
 import type { PartitionFrame } from './gpuPartitionUniform.ts';
 import type { PartitionCountsFrame } from './gpuPartitionCounters.ts';
 
-/** Buffers the partition writes but does not own: those of the draw compact, and the Hi-Z
- *  test's verdict buffer, which it rereads to feed the occluder history. */
+/** Buffers the partition uses but does not own: those of the draw compact, the Hi-Z test's
+ *  verdict buffer, which it rereads to feed the occluder history, and the pyramid the previous
+ *  image left, which its main-pass cull reads. The pyramid is asked for on every image because
+ *  a target resize gives it a new identity; `undefined` once the Hi-Z is gone. */
 export type PartitionSources = {
   items: GPUBuffer;
   flags: GPUBuffer;
   restBits: GPUBuffer;
   slotUsed: GPUBuffer;
+  pyramid: () => GPUBuffer | undefined;
 };
 
 /** What the last frame sent the kernel, copied: the exact input of its projection. */

@@ -31,10 +31,12 @@ export type PartitionFrame = {
   levels: Array<{ offset: number; width: number }>;
   /** Highest coplanar layer an indirect slot names. */
   layerTop: number;
-  /** False as soon as the row table has changed age: per-row history describes nothing. */
-  historyValid: boolean;
-  /** False when no pipeline can draw the tested half: the frame stays a single pass. */
+  /** False when no pipeline can draw the tested half: the frame stays a single pass, and no
+   *  row leaves the occluders. */
   hasRest: boolean;
+  /** True when the view differs from the previous image's: rows the test kept while it stood
+   *  still may be withdrawn from the occluders again. */
+  viewMoved: boolean;
 };
 
 /**
@@ -62,8 +64,8 @@ export function packPartitionUniform(
   words[UNI_SCALARS + 2] = frame.height;
   words[UNI_SCALARS + 3] = Math.min(frame.levels.length, MAX_HIZ_LEVELS);
   words[UNI_SCALARS + 4] = frame.layerTop;
-  words[UNI_SCALARS + 5] = frame.historyValid ? 1 : 0;
-  words[UNI_SCALARS + 6] = frame.hasRest ? 1 : 0;
+  words[UNI_SCALARS + 5] = frame.hasRest ? 1 : 0;
+  words[UNI_SCALARS + 6] = frame.viewMoved ? 1 : 0;
   words[UNI_SCALARS + 7] = 0;
   for (let level = 0; level < MAX_HIZ_LEVELS; level++) {
     const mip = frame.levels[level];

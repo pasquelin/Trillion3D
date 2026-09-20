@@ -18,7 +18,7 @@ export const PARTITION_UNI_WGSL = `struct Uni{
  anchorHigh:vec3f,near:f32,
  anchorLow:vec3f,pad1:f32,
  rows:u32,width:u32,height:u32,levels:u32,
- layerTop:u32,historyValid:u32,hasRest:u32,pad0:u32,
+ layerTop:u32,hasRest:u32,viewMoved:u32,pad0:u32,
  levelOffset:array<vec4u,4>,
  levelWidth:array<vec4u,4>,
 }
@@ -48,9 +48,9 @@ export const PARTITION_UNI_WGSL = `struct Uni{
  *     `hizNearestBound` guarantees in double precision.
  */
 export const BOX_PROJECT_WGSL = `
-/** What a projected box returns: its unclipped rectangle, its depth bound, the VIEW depth of its
- *  nearest corner, and the clip flag that forbids any rejection. */
-struct BoxProj{rect:vec4i,nearest:f32,lowView:f32,clips:u32,}
+/** What a projected box returns: its unclipped rectangle, its depth bound, and the clip flag
+ *  that forbids any rejection. */
+struct BoxProj{rect:vec4i,nearest:f32,clips:u32,}
 /**
  * A four-term dot product on an anchored point, and enough to bound its error: the value, the
  * sum of absolute values of the terms, and the share of input rounding —
@@ -76,17 +76,10 @@ fn biasedDepth(value:f32,layer:u32)->f32{
  let units=min(layer,15u)*16u;
  return bitcast<f32>(min(0x3f800000u,bitcast<u32>(value)+units));
 }
-/** Sortable image of a float: unsigned comparison of the keys yields float order. */
-fn depthKey(value:f32)->u32{
- let bits=bitcast<u32>(value);
- return select(bits^0x80000000u,~bits,(bits&0x80000000u)!=0u);
-}
 fn projectBox(slot:u32,layer:u32)->BoxProj{
  var lowX=1.0e30;var highX=-1.0e30;var lowY=1.0e30;var highY=-1.0e30;
  // Reversed depth: the NEAREST corner is the one whose depth is the LARGEST.
  var nearestZ=-1.0e30;
- // VIEW depth of the nearest corner: the split key, never the Hi-Z test's.
- var lowView=1.0e30;
  var clips=false;
  let m=uni.viewProj;let v=uni.view;
  for(var k=0u;k<8u;k++){
@@ -104,7 +97,6 @@ fn projectBox(slot:u32,layer:u32)->BoxProj{
   if(!(vd.x>slackOf(vd))){clips=true;break;}
   let depth=-(vz.x/vd.x);
   if(depth-quotientSlack(depth,vz,vd)<=uni.near){clips=true;break;}
-  lowView=min(lowView,depth);
   let cw=dot4(m[0][3],m[1][3],m[2][3],m[3][3],d,mag);
   if(!(cw.x>slackOf(cw))||!(abs(cw.x)<3.0e38)){clips=true;break;}
   let cx=dot4(m[0][0],m[1][0],m[2][0],m[3][0],d,mag);
@@ -115,7 +107,7 @@ fn projectBox(slot:u32,layer:u32)->BoxProj{
   lowY=min(lowY,ny-quotientSlack(ny,cy,cw));highY=max(highY,ny+quotientSlack(ny,cy,cw));
   nearestZ=max(nearestZ,nz+quotientSlack(nz,cz,cw));
  }
- if(clips){return BoxProj(vec4i(0,0,0,0),0.0,lowView,${FLAG_CLIP}u);}
+ if(clips){return BoxProj(vec4i(0,0,0,0),0.0,${FLAG_CLIP}u);}
  let wF=f32(uni.width);let hF=f32(uni.height);
  let slack=${SLACK}*max(wF,hF)+1.0e-4;
  let rect=vec4i(
@@ -125,6 +117,6 @@ fn projectBox(slot:u32,layer:u32)->BoxProj{
   i32(ceil((1.0-(lowY*0.5+0.5))*hF+slack)));
  var nearest=nearestZ;
  if(nearest>0.0){nearest=biasedDepth(nearest*${GROW},layer);}
- return BoxProj(rect,nearest,lowView,0u);
+ return BoxProj(rect,nearest,0u);
 }
 `;
