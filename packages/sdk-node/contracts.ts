@@ -83,7 +83,7 @@ export interface CompilationSummary {
   unsupported?: unknown;
 }
 
-/** What a job proved before keeping an existing folder instead of writing it (`null` when it compiled). */
+/** What a job proved before keeping an existing folder instead of writing it (`null` when it compiled; `clusterHierarchyPagesMs` is then `null` too). */
 export interface ReusedFolder {
   files: number;
   fileBytes: number;
@@ -99,7 +99,6 @@ export interface CompilationPointer extends CompilationSummary {
   primitives: number;
   metrics: {
     importMs: number;
-    /** `null` when the folder was reused: no hierarchy was built by this run. */
     clusterHierarchyPagesMs: number | null;
     wallMs: number;
     pruneMs: number;
