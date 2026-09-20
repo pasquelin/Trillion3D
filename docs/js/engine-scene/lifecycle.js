@@ -2,7 +2,6 @@ import { SCENE_BACKGROUND } from '../scenePalette.js';
 import { createSceneTelemetry } from './telemetry.js';
 import { configureSceneCamera } from './cameraControls.js';
 import { createLightingControls } from './lightingControls.js';
-
 export function mountScene(host, copy, locale) {
   const canvas = host.querySelector('[data-scene-canvas]');
   const start = host.querySelector('[data-scene-start]');
