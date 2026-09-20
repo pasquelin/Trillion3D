@@ -8,6 +8,7 @@ export {
   depthLayerUnits,
   MAX_DEPTH_LAYER,
 } from '../../sdk-core/depthLayer.ts';
+export { createSceneRoot, SceneRoot } from '../../sdk-core/sceneRoot.ts';
 export type { DagReport, DagWarning } from '../../sdk-core/dagContracts.ts';
 export { dagWarningsDiagnostic } from '../../sdk-core/dagWarnings.ts';
 export type { PrimitiveDagWarning } from '../../sdk-core/dagWarnings.ts';
@@ -19,4 +20,7 @@ export {
   setScreenErrorVariant,
 } from '../../sdk-core/screenErrorVariant.ts';
 export type { ScreenErrorVariant } from '../../sdk-core/screenErrorVariant.ts';
+export { SCENE_MODEL_VERSION } from '../../sdk-core/sceneNodeContracts.ts';
+export type { SceneNodeOptions, SceneState } from '../../sdk-core/sceneNodeContracts.ts';
+export { SceneNode } from '../../sdk-core/sceneNode.ts';
 export type { ShadowFrameMetrics } from '../../sdk-core/shadowMetricsContracts.ts';
