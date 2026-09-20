@@ -97,7 +97,13 @@ export function RendererLesson({ lesson, locale = 'en', onSelect }) {
     </div>
   );
   const right = (
-    <RendererViewport lesson={lesson} state={state} locale={locale} label={`${title} — WebGPU`} />
+    <RendererViewport
+      key={lesson.id}
+      lesson={lesson}
+      state={state}
+      locale={locale}
+      label={`${title} — WebGPU`}
+    />
   );
   return (
     <section className="grid gap-5" data-renderer-playground={lesson.id}>
