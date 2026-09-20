@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { rendererLessons, rendererInitialState } from '../docs/js/gallery/rendererLessons.js';
 import { rendererCodeFor } from '../docs/js/gallery/rendererLessonCode.js';
-import { relatedReadyLesson } from '../docs/react/gallery/roadmapRelated.js';
+import { galleryRoadmapEntry, relatedReadyLesson } from '../docs/react/gallery/roadmapRelated.js';
+import roadmap from '../docs/data/gallery-roadmap.json' with { type: 'json' };
 import { transformSync } from 'esbuild';
 
 test('every integrated renderer lesson emits complete parseable host code', () => {
@@ -31,5 +32,18 @@ test('partial reference topics link to qualified original offline lessons', () =
     const lesson = rendererLessons.find((entry) => entry.id === related);
     assert.equal(lesson.referenceCoverage[id], 'partial');
     assert.equal(lesson.coverage, 'offline-analogue');
+  }
+});
+
+test('full reference topics become ready links to their actual lesson', () => {
+  const ready = roadmap.entries
+    .map(galleryRoadmapEntry)
+    .filter(({ readyLessonId }) => readyLessonId);
+  assert.equal(ready.length, 9);
+  for (const entry of ready) {
+    const lesson = rendererLessons.find(({ id }) => id === entry.readyLessonId);
+    assert.equal(lesson.referenceCoverage[entry.id], 'full');
+    assert.equal(entry.status, 'ready');
+    assert.equal(entry.preview, lesson.preview);
   }
 });

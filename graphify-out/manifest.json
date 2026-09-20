@@ -12900,9 +12900,9 @@
     "semantic_hash": ""
   },
   "docs/react/gallery/Gallery.jsx": {
-    "mtime": 1789899985.180213,
-    "seen": 1789901465.182271,
-    "ast_hash": "6313f97ee92e337182441196003ed282",
+    "mtime": 1789902946.3049865,
+    "seen": 1789902988.821695,
+    "ast_hash": "4316dfe8f82d3e0085f705e3641a0422",
     "semantic_hash": ""
   },
   "docs/react/gallery/Playground.jsx": {
@@ -12984,9 +12984,9 @@
     "semantic_hash": ""
   },
   "docs/react/gallery/ExampleCard.jsx": {
-    "mtime": 1789900791.480904,
-    "seen": 1789901465.18227,
-    "ast_hash": "e59c3f22cd5334c4766511e7078f7b3b",
+    "mtime": 1789902927.7916958,
+    "seen": 1789902988.821694,
+    "ast_hash": "6622c4f0062029f550e843b4962b5e90",
     "semantic_hash": ""
   },
   "docs/react/components/Section.jsx": {
@@ -13260,9 +13260,9 @@
     "semantic_hash": ""
   },
   "docs/react/gallery/roadmapRelated.js": {
-    "mtime": 1789900543.5322754,
-    "seen": 1789901465.182278,
-    "ast_hash": "7e82c2f6a45f87f3a3de504a6e08c266",
+    "mtime": 1789902946.1901112,
+    "seen": 1789902988.821703,
+    "ast_hash": "25cda0d5f203e26bc208f1a379db83c9",
     "semantic_hash": ""
   },
   "docs/react/gallery/roadmapThemes.js": {
@@ -13950,9 +13950,9 @@
     "semantic_hash": ""
   },
   "docs/js/gallery/offline/catalog.js": {
-    "mtime": 1789900033.1379828,
-    "seen": 1789901465.182227,
-    "ast_hash": "8ea460cff0fcd33ff4018f1596497b5b",
+    "mtime": 1789902927.065484,
+    "seen": 1789902988.8216472,
+    "ast_hash": "f7716c57675f74e628bc857acc1344e2",
     "semantic_hash": ""
   },
   "docs/js/gallery/offline/implicit.js": {
@@ -13968,9 +13968,9 @@
     "semantic_hash": ""
   },
   "docs/js/gallery/offline/lessons.js": {
-    "mtime": 1789900791.3864737,
-    "seen": 1789901465.18223,
-    "ast_hash": "57acfa2bb47030b7710b175576b5d9de",
+    "mtime": 1789902927.2132404,
+    "seen": 1789902988.82165,
+    "ast_hash": "67c6a852f64ada5ece25740da1e82f46",
     "semantic_hash": ""
   },
   "docs/js/gallery/offline/mesh.js": {
@@ -14022,9 +14022,9 @@
     "semantic_hash": ""
   },
   "scripts/docs-renderer-integration.test.mjs": {
-    "mtime": 1789902007.8652477,
-    "seen": 1789902407.3214788,
-    "ast_hash": "4e15d1bc9cdebe70a79deb19b62f1e43",
+    "mtime": 1789902954.2449765,
+    "seen": 1789902988.8233778,
+    "ast_hash": "d2146306df8c8ca9c3ac7c7ecc8bd47e",
     "semantic_hash": ""
   },
   "scripts/docs/gallery-geometry/build.mjs": {
