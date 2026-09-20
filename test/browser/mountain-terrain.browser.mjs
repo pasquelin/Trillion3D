@@ -6,17 +6,21 @@ import { startServer } from '../../scripts/mesure/serveur.mjs';
 import { launchChrome } from '../../scripts/mesure/chrome.mjs';
 
 const root = resolve(import.meta.dirname, '../..'),
-  output = resolve(root, 'benchmark-runs/mountain-terrain');
+  output = resolve(root, 'benchmark-runs/mountain-terrain'),
+  mountDirectories = {
+    '/sdk/': 'dist',
+    '/vendor/three/': 'node_modules/three',
+    '/vendor/meshoptimizer/': 'node_modules/meshoptimizer',
+    '/docs/': 'docs',
+  };
 await mkdir(output, { recursive: true });
 const server = await startServer({
   port: 0,
   captures: new Map(),
-  mounts: [
-    { prefix: '/sdk/', dir: resolve(root, 'dist') },
-    { prefix: '/vendor/three/', dir: resolve(root, 'node_modules/three') },
-    { prefix: '/vendor/meshoptimizer/', dir: resolve(root, 'node_modules/meshoptimizer') },
-    { prefix: '/docs/', dir: resolve(root, 'docs') },
-  ],
+  mounts: Object.entries(mountDirectories).map(([prefix, directory]) => ({
+    prefix,
+    dir: resolve(root, directory),
+  })),
 });
 const browser = await launchChrome({ headless: true }),
   errors = [];
