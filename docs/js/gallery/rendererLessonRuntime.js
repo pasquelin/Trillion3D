@@ -53,6 +53,10 @@ export function applyRendererLesson(explorer, lesson, state, added) {
   }
   if (lesson.kind === 'exposure') explorer.setEnvironment({ exposure: state.exposure });
   if (lesson.kind === 'lod') explorer.setPixelError(state.pixelError);
+  if (lesson.kind === 'lod-diagnostic') {
+    explorer.setPixelError(state.pixelError);
+    explorer.setDiagnostic(state.showLevels === 1 ? 'lod' : 'beauty');
+  }
   if (lesson.kind === 'memory')
     return explorer.setMemoryBudgets({ geometryPoolBytes: state.geometryMiB * 1024 * 1024 });
 }
@@ -149,19 +153,26 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
     const camera = configureSceneCamera(explorer, controls);
     const reset = () => {
       camera.reset();
-      camera.zoomOut();
+      if (lesson.initialPose) {
+        const home = explorer.homePose();
+        explorer.setPose({ ...home, ...lesson.initialPose });
+        controls.target.fromArray(lesson.initialPose.target);
+        controls.update();
+      } else camera.zoomOut();
       invalidate();
     };
     reset();
     controls.addEventListener('change', invalidate);
     await update(state);
-    resize = new ResizeObserver(() => {
+    const resizeCanvas = () => {
       if (disposed) return;
       const rect = canvas.getBoundingClientRect();
       explorer.resize(Math.max(1, Math.round(rect.width)), Math.max(1, Math.round(rect.height)));
       invalidate();
-    });
+    };
+    resize = new ResizeObserver(resizeCanvas);
     resize.observe(canvas);
+    resizeCanvas();
     await ready;
     return {
       update,

@@ -25,7 +25,7 @@ export const LIFECYCLE = [
         desc: "`{ resourceBaseUrl, executable, threads = 2, ramBudgetMb = 256, simplification = 'none', signal, onProgress }`. `WEB_GEOMETRY_COMPILER_BIN` names the executable when `executable` does not.",
       },
     ],
-    example: `import { prepare } from '@web-geometry/sdk/node';
+    example: `import { prepare } from 'web-geometry';
 
 const result = await prepare('scenes/city', 'cache/city', 'full', 150000, {
   resourceBaseUrl: '/cache/city/',
@@ -52,7 +52,7 @@ console.log(result.metrics.wallMs);`,
         desc: '`{ workers, ramBudgetMb, threads, onEvent }`. `createBatchProgress` prints one line per job id, in arrival order.',
       },
     ],
-    example: `import { createBatchProgress, prepareMany } from '@web-geometry/sdk/node';
+    example: `import { createBatchProgress, prepareMany } from 'web-geometry';
 
 const summary = await prepareMany(jobs, { workers: 2, onEvent: createBatchProgress() });`,
   },

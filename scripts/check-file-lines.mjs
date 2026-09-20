@@ -1,6 +1,6 @@
-import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { gitPaths as readGitPaths } from './git-paths.mjs';
 
 export const MAX_LINES = 200;
 const sourceFile = /\.(?:[cm]?js|[cm]?ts|jsx|tsx|rs)$/;
@@ -19,7 +19,7 @@ export function nulSeparated(args) {
 }
 
 function gitPaths(args) {
-  return execFileSync('git', nulSeparated(args), { encoding: 'utf8' }).split('\0').filter(Boolean);
+  return readGitPaths(nulSeparated(args));
 }
 
 export function lineCount(source) {
@@ -38,19 +38,19 @@ export function lineLimitViolations(lines, selected = new Set(lines.keys())) {
   return errors;
 }
 
-function main() {
+async function main() {
   const changedOnly = process.argv.includes('--changed');
-  const paths = new Set(gitPaths(['ls-files', '-co', '--exclude-standard']));
+  const paths = new Set(await gitPaths(['ls-files', '-co', '--exclude-standard']));
   const changed = new Set(
     changedOnly
       ? [
-          ...gitPaths([
+          ...(await gitPaths([
             'diff',
             '--name-only',
             process.env.WEB_GEOMETRY_BASE_REF ?? 'develop',
             '--',
-          ]),
-          ...gitPaths(['ls-files', '--others', '--exclude-standard']),
+          ])),
+          ...(await gitPaths(['ls-files', '--others', '--exclude-standard'])),
         ]
       : [...paths],
   );
@@ -69,4 +69,4 @@ function main() {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();

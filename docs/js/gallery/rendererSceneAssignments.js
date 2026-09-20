@@ -5,11 +5,11 @@ const assignments = {
   'spot-light-cone': 'sculpture',
   'directional-shadow': 'hard-edges',
   'camera-exposure': 'vessel',
-  'runtime-pixel-error': 'terrain',
+  'runtime-pixel-error': 'signature-architecture',
   'runtime-memory-budget': 'refinement',
   'colored-light-balance': 'painted',
   'moving-point-shadow': 'height-palette',
-  'shadow-casting-switch': 'kinetic-garden',
+  'shadow-casting-switch': 'shadow-theatre',
   'light-emitter-envelope': 'implicit-shell',
   'light-session-lifecycle': 'contour',
   'camera-dolly': 'loft',
@@ -23,9 +23,15 @@ export const rendererSceneFor = (lesson) => ({
   manifest:
     assignments[lesson.id] === 'kinetic-garden'
       ? './assets/kinetic-garden/cache/native/full/manifest.json'
-      : asset(assignments[lesson.id]),
+      : assignments[lesson.id] === 'shadow-theatre'
+        ? './assets/gallery/shadow-theatre/cache/native/full/manifest.json'
+        : assignments[lesson.id] === 'signature-architecture'
+          ? './assets/gallery/signature-architecture/cache/native/full/manifest.json'
+          : asset(assignments[lesson.id]),
   preview: `./assets/gallery/renderer/${lesson.id}.png`,
-  importedLights: false,
+  importedLights: lesson.id === 'runtime-pixel-error',
   sceneLight: ['lod', 'memory'].includes(lesson.kind) || lesson.runtime === 'camera-pose',
-  sceneFill: lesson.kind !== 'light-lifecycle',
+  sceneFill:
+    lesson.id !== 'runtime-pixel-error' &&
+    !['light-lifecycle', 'shadow-switch'].includes(lesson.kind),
 });

@@ -126,7 +126,7 @@ export class BatchGroup {
   split: [THREE.Material, THREE.Material] | undefined;
   /** Frozen depth-bias material, on the sub-batches of a coplanar layer above 0.
    *  Undefined on the layer-0 batch, which draws exactly as before. */
-  biased: THREE.Material | undefined;
+  biased: THREE.Material | [THREE.Material, THREE.Material] | undefined;
   /** Coplanar layer of this batch. 0 = the ordinary batch. */
   layer = 0;
   pending: BatchPage[] = [];
