@@ -7,6 +7,7 @@
 // evaluated function is serialised and cannot reach a module of its own.
 import * as THREE from 'three';
 import { batisseur, cameraFace, engine, image, libere } from './preuveSceneCommune.mjs';
+import { ouvrirAppareil } from '../justesse/appareilWebgpu.mjs';
 import { creer, appliquer } from '/mesure/pageTemoin.mjs';
 import { CLEAR_COLOR, SIZE, SUN, fixtures } from './materialFixtures.mjs';
 
@@ -68,6 +69,7 @@ function witnessImage(referenceBackend, scene, renderer, camera) {
   const gl = renderer.getContext();
   gl.readPixels(0, 0, SIZE, SIZE, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
   backend.dispose();
+  for (const material of scene.materials) material.dispose();
   return pixels;
 }
 
@@ -95,11 +97,9 @@ async function engineImage(webgpuPagesBackend, scene, device, sceneLights, camer
 export async function run({ sdkUrl, coreUrl }) {
   const { referenceBackend, webgpuPagesBackend } = await import(sdkUrl);
   const { createSceneLightStore } = await import(coreUrl);
-  const adapter = await navigator.gpu?.requestAdapter();
-  if (!adapter) return { unavailable: 'no WebGPU adapter' };
-  const device = await adapter.requestDevice();
-  const errors = [];
-  device.addEventListener('uncapturederror', (event) => errors.push(event.error.message));
+  const appareil = await ouvrirAppareil();
+  if (!appareil) return { unavailable: 'no WebGPU adapter' };
+  const { device, erreurs: errors } = appareil;
   const { renderer, canvas } = witnessRenderer();
   const camera = cameraFace();
   const results = [];
@@ -140,13 +140,6 @@ export async function run({ sdkUrl, coreUrl }) {
     renderer.dispose();
     canvas.remove();
   }
-  await device.queue.onSubmittedWorkDone();
-  const info = adapter.info;
-  device.destroy();
-  return {
-    results,
-    errors,
-    gpu: `${info.vendor} ${info.architecture}`,
-    userAgent: navigator.userAgent,
-  };
+  const info = await appareil.fermer();
+  return { results, errors, gpu: info.court, userAgent: navigator.userAgent };
 }
