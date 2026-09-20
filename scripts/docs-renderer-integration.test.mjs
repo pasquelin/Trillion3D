@@ -189,7 +189,6 @@ test('full reference topics become ready links to their actual lesson', () => {
     assert.equal(entry.preview, lesson.preview);
   }
 });
-
 test('a control change during setup reaches the mounted renderer', async () => {
   const initial = { intensity: 60 },
     latest = { intensity: 80 },
