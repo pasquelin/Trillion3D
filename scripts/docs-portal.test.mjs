@@ -8,6 +8,8 @@ import {
   routeHref,
 } from '../docs/js/portal/routes.js';
 import { searchEntries } from '../docs/js/portal/search.js';
+import { rawEntries } from '../docs/js/portal/data.js';
+import { localizeEntries } from '../docs/js/i18n/index.js';
 import { canonicalEntryId, expandEntryLinks } from '../docs/react/portal/entryLinks.js';
 
 test('canonical routes preserve locale, area, and multi-part identifier', () => {
@@ -20,6 +22,7 @@ test('canonical routes preserve locale, area, and multi-part identifier', () => 
     routeHref({ locale: 'en', area: 'learn', id: 'quick start' }),
     '#/en/learn/quick%20start',
   );
+  assert.equal(parseRoute('#/fr/api/L%E2%80%99API%20de%20lots').id, 'L’API de lots');
 });
 
 test('legacy documentation hashes keep their destination in the chosen locale', () => {
@@ -94,4 +97,34 @@ test('composite API entries become one navigation link per function', () => {
   assert.ok(links.every(({ entry }) => entry.id === 'boxUnion'));
   assert.equal(canonicalEntryId([links[0].entry], 'boxIsEmpty'), 'boxUnion');
   assert.equal(canonicalEntryId([links[0].entry], 'boxUnion'), 'boxUnion');
+});
+
+test('localized prose titles keep canonical routes and old encoded links still resolve', () => {
+  const frenchEntry = {
+    id: 'host-batches',
+    title: 'L’API de lots pour les hôtes',
+    section: 'batches',
+  };
+  const [link] = expandEntryLinks([frenchEntry]);
+  assert.equal(link.id, 'host-batches');
+  assert.equal(
+    canonicalEntryId([frenchEntry], 'L%E2%80%99API%20de%20lots%20pour%20les%20h%C3%B4tes'),
+    'host-batches',
+  );
+});
+
+test('every bilingual API menu link resolves to its source entry', () => {
+  for (const locale of ['en', 'fr']) {
+    const entries = localizeEntries(rawEntries, locale).filter(
+      ({ section }) => !['guides', 'examples', 'demo'].includes(section),
+    );
+    for (const link of expandEntryLinks(entries)) {
+      assert.equal(canonicalEntryId(entries, link.id), link.entry.id, `${locale}:${link.id}`);
+      assert.equal(
+        resolvePage({ locale, area: 'api', id: link.entry.id }, entries).kind,
+        'entry',
+        `${locale}:${link.entry.id}`,
+      );
+    }
+  }
 });

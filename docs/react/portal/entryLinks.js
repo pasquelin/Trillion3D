@@ -2,6 +2,10 @@ export function symbolOf(label) {
   return label.replace(/\(\)$/, '').trim();
 }
 
+function isIdentifier(label) {
+  return /^[A-Za-z_$][\w$]*$/.test(symbolOf(label));
+}
+
 export function entryLinks(entry) {
   const labels = (entry.title || entry.id).split(/\s*·\s*/).filter(Boolean);
   const primaryIndex = Math.max(
@@ -11,15 +15,24 @@ export function entryLinks(entry) {
   return labels.map((label, index) => ({
     entry,
     key: `${entry.id}:${symbolOf(label)}`,
-    id: symbolOf(label),
+    id: isIdentifier(label) ? symbolOf(label) : entry.id,
     label,
     primary: index === primaryIndex,
   }));
 }
 
 export function canonicalEntryId(entries, id) {
-  if (entries.some((entry) => entry.id === id)) return id;
-  return expandEntryLinks(entries).find((link) => link.id === id)?.entry.id ?? id;
+  let decoded = id;
+  try {
+    decoded = decodeURIComponent(id);
+  } catch {
+    /* The route resolver will display its ordinary not-found page. */
+  }
+  if (entries.some((entry) => entry.id === decoded)) return decoded;
+  return (
+    expandEntryLinks(entries).find((link) => link.id === decoded || link.label === decoded)?.entry
+      .id ?? decoded
+  );
 }
 
 export function expandEntryLinks(entries) {
