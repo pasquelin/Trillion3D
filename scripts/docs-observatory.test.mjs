@@ -11,11 +11,17 @@ test('the original observatory reproduces its source and retains distinct materi
   const temporary = await mkdtemp(join(tmpdir(), 'wg-observatory-'));
   try {
     const gltf = await writeObservatory(temporary);
-    for (const name of ['geometry.gltf', 'geometry.bin'])
-      assert.deepEqual(
-        await readFile(join(temporary, name)),
-        await readFile(new URL(`source/${name}`, directory)),
+    for (const name of ['geometry.gltf', 'geometry.bin']) {
+      const actual = await readFile(join(temporary, name));
+      const expected = await readFile(new URL(`source/${name}`, directory));
+      const first = actual.findIndex((byte, index) => byte !== expected[index]);
+      assert.ok(
+        actual.equals(expected),
+        `${name}: ${actual.length}/${expected.length} bytes; first difference at ${first}; ` +
+          `${actual.subarray(Math.max(0, first - 4), first + 12).toString('hex')} != ` +
+          expected.subarray(Math.max(0, first - 4), first + 12).toString('hex'),
       );
+    }
     const bytes = await readFile(join(temporary, 'geometry.bin'));
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     let triangles = 0;
