@@ -1,7 +1,7 @@
 # Graph Report - webGeometry-118-report-portal  (2026-09-20)
 
 ## Corpus Check
-- 2046 files · ~1,044,764 words
+- 2046 files · ~1,044,771 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 1041 file(s) not represented in the graph (top: .bin 880, .meta 20, .gltf 19)
 
@@ -11,224 +11,224 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `ab235e3e`
+- Built from commit: `51a84e01`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- exactPagesBackend.ts
-- visibilityMath.ts
-- webgpuPagesBackend
-- visibilityTypes.ts
-- manifestBinaryFormat.ts
-- options.mjs
-- scene/archive.rs
-- visibilityBuffer.ts
-- Report.jsx
-- demosMatrix.js
-- pages-webgpu.perf.mjs
-- webgpuCutPublication.ts
-- docs-i18n.test.mjs
-- cameraMoteur
-- engine.js
-- multiplyMatrix4
-- hierarchieRejeuNous.mjs
-- Plugin
-- SceneTables
-- std
-- unitypackage.rs
-- hizOcclusion.ts
-- ref_node_child_process
-- webgpuTransparentTable.test.ts
-- mathIndex.ts
-- bounceNodeWgsl.ts
+- Backends de rendu exacts
+- sdk-browser · VisTriangle
+- Sélection DAG et pages WebGPU
+- Mathématiques du tampon de visibilité
+- Manifeste binaire (2)
+- Options et poses du banc
+- Verrou CLI et fixtures du compilateur (2)
+- Pyramide Hi-Z et occlusion
+- reports · keyboard
+- js · choice
+- bench · parcoursDeVue
+- Publication de la coupe
+- js · B
+- Sélection des pages visibles
+- js · constructor
+- Matrices et origine de rendu
+- Rejeu de la hiérarchie
+- Greffons et pilotes de scène
+- Tables de scène à l'import
+- Verrou CLI et fixtures du compilateur
+- Extraction unitypackage
+- sdk-browser · depthCam
+- test · steps
+- sdk-browser · Built
+- Équivalence du socle mesuré (2)
+- sdk-browser · SunFarCounts
 - Pages de preuve navigateur
-- explorer.ts
+- sdk-browser · dispose
 - Lots de grappes
 - llm · JsonSchemaProperty
-- volumesCasTronc.mjs
+- Frustum, boîtes et volumes
 - packages_sdk_browser_gpupassblocks_gpupassstageof
-- gpuPartitionContract.ts
-- index.mts
-- mathPathGovernor.ts
-- mesure/rapport.mjs
-- sdk-core/index.ts
-- demosCamera.js
-- AtlasKind
-- compile_layer
-- webgpuResidencySets.ts
-- webgpuPagesDrops.ts
-- visibilityPageWgsl.test.ts
+- Partition GPU et classification
+- SDK Node : contrats et progression
+- Gouverneur du chemin mathématique
+- Rapport de mesure
+- Intégration des pages arrivées
+- js · scratch
+- Aperçus de textures et pyramide (3)
+- Pilote USD et fidélité
+- Résidence et amorçage GPU (2)
+- sdk-browser · CpuStepSummary
+- Raster de calcul
 - Aperçus de textures et pyramide (4)
-- bounds.rs
+- dag · Bits
 - packages_sdk_core_manifestbinary_assertmanifestbinary
-- sceneLightContracts.ts
-- explorerBackends.ts
-- webgpuPagesHelpers.ts
-- sdk-browser/gpuDraw.ts
-- super
-- inputs
-- visibilityWrapModes.test.ts
+- sdk-core · Inputs
+- Erreurs moteur et cache (2)
+- Encodage des dessins WebGPU
+- Dessin GPU et contrat
+- Budget et ouvriers du compilateur (3)
+- Aperçus de textures (étage)
+- Adressage et bouclage des textures (2)
 - packages_sdk_core_index_createpageintegrationplan
-- UI.jsx
-- hostWorldTree.ts
-- depthConvention.ts
+- components · Content
+- Arbre monde et lots de maths
+- sdk-browser · CORNERS
 - Couches de profondeur
-- yaml.rs
-- lignes-dessinables.perf.mjs
-- cut.rs
-- Changes
-- normale-eclairage-petite-echelle.mjs
-- lightingTransport.ts
+- Constructeur YAML Unity
+- Lignes dessinables et validation (3)
+- proxy · ERROR_LADDER
+- Références et changements Unity
+- justesse · compte
+- Transport de lumière
 - packages_sdk_browser_pageselection_acceptpagearray
-- webgpuTileRequestWgsl.ts
+- sdk-browser · Device
 - Maths partagées et BVH
-- harness.rs
-- SceneRequest
-- socleConsommateursCore.mjs
+- Bancs de calcul Rust (2)
+- plugins · AsRef
+- Faces et volumes d'ombre
 - Bancs de hiérarchie
-- gpuSelection.ts
+- Lancements de coupe et relevé
 - Socle du banc sdk-core
-- oracle.mjs
-- emeraude-webgpu.browser.mjs
+- Oracle et serveur de mesure
+- /mesure/poses
 - src · DAG_ROOT_SHARE
-- webgpuPagesServices.ts
-- projectCornersInto
+- Lignes dessinables et validation (2)
+- sdk-browser · camera
 - Manifeste binaire (Rust)
-- normals/tests.rs
-- ScenePlugin
+- Normales et jointures
+- Routage des conteneurs d'archives
 - Observation de l'éclairage
-- compiler_world.rs
-- coupe-difference.perf.mjs
-- visibilityBuffer.test.ts
-- manifestBinaryPreview.test.ts
+- Matrices monde du compilateur
+- Coupe en différence
+- Caméra moteur et tampon
+- Manifeste binaire
 - manifest_binary · encode_previews_rejects_a_null_dimension
-- hizPyramidFlat.test.ts
-- Path
-- awaitBackendPages.test.ts
-- build_dag_tallied
-- webgpuPagesSetup.ts
-- webgpuPagesTransform.ts
-- rgba_from
-- unity/textures.rs
-- Accessor<'_>
-- UNITY
-- banc.mjs
+- sdk-core · assertSamePyramid
+- unity · les_mesures_et_la_provenance_sortent_de_lidentite
+- sdk-browser · flush
+- Construction du DAG
+- sdk-browser · PoolClamp
+- Transformations et collecte des pages
+- Aperçus de textures et pyramide (2)
+- unity · FILTER_UNSUPPORTED
+- src · Option
+- scene · AtomicBool
+- mesure · typescript
 - Refus d'attributs Maya
 - Matériaux USD
 - DAG et stratégie de coupe
-- pageCone.ts
-- lightingExperimentScene.ts
-- pageDecodeShared.ts
-- webgpuBlendState.ts
-- compile_ma
-- compile_golden_source
-- dds/header.rs
-- unity/materials.rs
-- erreur-ecran-hors-axe.mjs
+- Justesse de l'inverse transposée
+- Scène d'expérience d'éclairage
+- Décodage partagé des pages
+- Plan de mélange des transparents
+- Pilote Maya et matrices posées
+- Tests dorés du compilateur
+- Codecs DDS
+- Matériaux et projet Unity
+- Erreur d'écran hors axe
 - docs · Crate texture2ddecoder 0.1.2 (décodeur de blocs)
-- parse_batch
-- keys.rs
-- lampes-ombres.perf.mjs
+- Lots et annulation
+- Clés et orientation KTX2
+- sdk-browser · couverture
 - Fixtures de correction zip
 - Matières et couches USD
-- sdk-core/bench/oracles/volumes.mjs
-- webgpuPagesRenderCpu.ts
-- taaFrame.ts
-- image/exr.rs
-- reduce_group
+- sdk-core · hostileRig
+- sdk-browser · image
+- sdk-browser · TaaFrameState
+- Décodage EXR
+- dag · Item
 - CLAUDE.md — project entry rule
-- webgpuPages.ts
-- webgpuVisibilityPipelines.ts
-- cadre-vue.perf.mjs
+- sdk-browser · ShadowAtlasDigest
+- sdk-browser · DagBuffers
+- Pages autonomes (2)
 - Couches coplanaires
 - Décodage PSD
-- world.rs
-- write_gltf
+- Monde et composition USD
+- Lecture et écriture glTF (3)
 - unity · .scale
-- gpuDagLayout.ts
-- oracle/geometry.rs
-- ref_three
-- replicateInstances.test.ts
+- Oracle DAG et plancher de coupe
+- Oracle : rayons et indirect
+- Pages autonomes
+- sdk-browser · sourceOf
 - proxy · CELL_ERROR_FACTOR
-- gpuBounceProbes.ts
+- Sondes et rebond GPU
 - Décodage BMP
-- eac.rs
-- texture_preview.rs
-- rebond-sondes.perf.mjs
-- Parts
+- Blocs EAC du KTX2
+- Aperçus de textures (étage) (2)
+- bench · lot
+- Monde et ombrage Maya
 - blend · LA_AREA
 - Banc de mesure commun
-- CompilerError
+- Erreurs du compilateur et USDZ
 - Scripts npm et build
-- bad
-- asset-compiler-rust/src/lib.rs
+- Encodage du manifeste binaire
+- Empaquetage des pages DAG
 - Archives zip et USDZ
-- normalTransformCas.mjs
-- Emitter
-- demosBounds.js
+- justesse · pire
+- compiler_lights · DERIVED
+- js · BOXES
 - Documentation et frontières
 - Ressources externes à l'import
 - Sections et pixels PSD
-- Row
+- Rapport des bancs de calcul
 - Blocs de test KTX2
 - Fixtures dorées des pilotes
 - Lecture du format Blender (2)
-- normale-ombrage.mjs
-- sdk-browser/index.ts
-- explorerScene.ts
+- oracles · attribut
+- API et session de l'explorateur (2)
+- Scène de l'explorateur et chargement (2)
 - Refus nommés et fixtures dorées
-- package.json
-- Xorshift
-- blend.rs
+- Configuration du dépôt
+- Jeux de bancs Rust
+- scene · .accepts_head
 - Profils et couleurs TIFF
-- alembic/archive.rs
-- blend/tests/mod.rs
-- webgpuPagesEncodeShadows.ts
-- socle-math.mjs
-- explorerCapabilities.ts
-- ma.rs
-- Palette
+- Archive Alembic
+- Descripteurs et n-gones Blender
+- sdk-core · flushedSlices
+- oracles · referenceLinearToSrgb8
+- sdk-browser · Inputs
+- scene · .accepts_head (2)
+- Palette et albédo
 - Maillages et jeux de faces
-- oracles.ts
+- Oracles de projection
 - Décodage GIF
 - Décodage PNG
-- ogawa.rs
+- Alembic : format Ogawa
 - Blender : pointeurs bruts
 - Tests DDS
-- unity_projet.rs
-- exactPagesBackend
-- serie.mjs
-- dag/tests/part5.rs
-- evaluate.js
-- Archive
-- admission-arrivees.perf.mjs
+- Projet et propriétés Unity
+- sdk-browser · graphe
+- mesure · page
+- Groupes et bissection du DAG
+- gallery · round
+- Propriétés Alembic
+- Diffusion des pages en continu
 - gallery · COLORS
 - mesure · Bancs de performance packages/<paquet>/bench (pnpm run perf:all)
-- grid_fixture_displaced
-- webgpuCutAdopterFixture.ts
-- usd/read.rs
+- Fixtures de grille et ratios
+- Adoption et reprise de la coupe
+- usd · AssetPath
 - ma · Item
-- matrixWindingCw
-- sdk-browser/gpuPages.ts
-- walk.rs
-- tests/hdr.rs
+- sdk-core · poseComposee
+- Cache de pages GPU
+- Parcours des objets Alembic
+- tests · BLANC
 - Décodage WebP
 - Décodage HDR
 - Décodage KTX2
 - Géométrie Alembic
-- exactPagesContractLights.ts
+- Backends de rendu exacts (2)
 - Formules communes TypeScript
 - ma · Fixture blend/limites — licence CC0
-- ref_node_fs_promises
-- depthLayerUnits
-- EngineError
-- wasm_math.rs
-- hizSplit.ts
-- ref_node_fs
+- sdk-node · SheetTexture
+- Pipelines de visibilité
+- Erreurs moteur et cache
+- src · BOX_VALUES
+- sdk-browser · splitCounts
+- reports · reading
 - scripts · excludedDirs
 - tests · CUTOUT_ALPHA
-- src/coplanar.rs
+- COPLANAR_MAX_LAYER
 - docs · clustered-blend : mélange statique dans le DAG (format 2)
 - cutout · BTreeSet
 - bench_calculs · Option
@@ -236,252 +236,252 @@
 - blend · .face
 - ma · CLAMP
 - manifest_binary · String
-- scratch
+- Bacs à sable des pilotes
 - packages_sdk_core_index_assertmanifestbinary
-- h3_proxy.rs
+- bench_calculs · Bits
 - tests · DEMI_DIAGONALE
-- webgpuPageRow.ts
-- partition-uniforme.perf.mjs
-- gpuShadowAtlas.ts
+- Lignes de page et double face
+- bench · decompose
+- Atlas d'ombres GPU
 - mesure · collecteDiagnostics
 - docs · Dépôt autonome, sans voisin sur disque
-- adressage-cpu.mjs
-- normalTransform.test.ts
+- Adressage et bouclage des textures
+- sdk-browser · NOYAU
 - Commandes et document Maya
-- Ngon
-- texture-echantillonnee.perf.mjs
-- pageTemoin.mjs
-- Options
-- pageSelectionCutState.ts
+- scene · .begin
+- bench · passeTexture
+- Banc de mesure commun (2)
+- Budget et ouvriers du compilateur (2)
+- Coupe projetée de la sélection (3)
 - Lecture du format Blender (3)
-- identite_import.rs
+- Bacs à sable des pilotes (2)
 - i18n · FRENCH
-- image_as_registry
+- Registre des images de test
 - docs_js_engine_depth_compare_or_equal
-- Gallery.jsx
+- gallery · HeroArt
 - Minuterie et phases de travail
 - image · CODEC_UNSUPPORTED
-- apercus_source.rs
+- tests · CASE
 - ma · Default
-- oracle.rs
-- sunFarShadowBlend.test.ts
+- src · KIND_POINT
+- sdk-browser · DeferredBindings
 - usd · HashMap
-- webgpuPagesPrepare.ts
+- sdk-browser · HostSurface
 - tests · ASTC_4X4
-- ma/xform.rs
-- descripteur.rs
+- ma · AXES
+- Descripteurs et n-gones Blender (2)
 - bench_calculs · LECTURES
-- webgpuPagesEncodeLights.ts
+- Vidange et lumières encodées
 - usd · ALPHA_CHANNEL
 - ma · a_component_list_names_faces_and_counts_what_is_not_one
-- image.rs
+- Décodage d'images
 - hdr · EXPONENT_BIAS
-- GoldenRun
-- lines.rs
+- Exécution des tests dorés
+- psd · COUNT_PSB
 - En-tête et DFD du KTX2
-- mesh/build.rs
-- App.jsx
-- tests/tga.rs
+- mesh · AtomicBool
+- portal · AREAS
+- tests · MAX_ALLOC
 - usd · Fn
-- explorerApi.ts
-- unity_sparse.rs
+- API et session de l'explorateur (3)
+- tests · DELTA
 - ma · Item (2)
 - . · declaration
-- pageDecodeHost.ts
-- page-codec-wasm/src/lib.rs
-- usd/texture.rs
-- report
+- Banc de décodage wasm
+- src · budget_de_decompression_refuse_avant_toute_decompression
+- usd · Prim
+- coplanar · Counts
 - image · FOOTER_BYTES
-- normale-eclairage-substitutions-refusees.browser.mjs
-- attributes.rs
-- bvh.rs
+- justesse · ECHELLES
+- src · Debug
+- proxy · extent
 - blend · HashMap
-- RenderBackend
-- stageMapping.ts
+- API et session de l'explorateur
+- Étapes et profilage de trame
 - usd · CLAMP
 - usd · FAMILY
-- build
-- textureTiles.ts
-- alembic_golden.rs
+- usd · BTreeSet
+- sdk-browser · MipPipeline
+- tests · CASE (2)
 - src · Fn
-- webgpuPagesRuntime.ts
+- Encodage des dessins WebGPU (2)
 - . · daisyui
-- sceneLightSunCascades.ts
-- qe
+- sdk-core · SunCascade
+- js · f
 - coplanar · Result
 - image · APP2
 - blend · GZIP
 - scripts · MANIFESTE
 - usd · INVERT
-- erreur-ecran-cpu-gpu.mjs
+- Erreur d'écran CPU contre GPU
 - docs · Statut de l'occlusion Hi-Z
 - tests · MAT
-- layer.rs
-- socle.mjs
+- usd · DEFAULT_METERS_PER_UNIT
+- Socle de mesure des bancs (2)
 - Lecture du format Blender (4)
-- ref_node_url
-- inverseTransposeF32.mjs
-- bench_calculs · Bits
-- Dna
-- Notices des fixtures
+- Pages de justesse WebGPU
+- Justesse de la transformation normale
 - bench_calculs · Bits (2)
-- pageRaster.ts
-- src/uri.rs
-- alembic/tests.rs
+- blend · Display
+- Notices des fixtures
+- bench_calculs · Bits (3)
+- Mathématiques du tampon de visibilité (2)
+- src · Option (2)
+- alembic · a_group_above_the_allocation_ceiling_is_refused_by_name
 - image · DEPTH
 - alembic · Result
 - gallery · make
 - unity · MESH_FILTER
-- test/assets — corpus de formats sources, livré hors dépôt et ignoré par git
-- pageSelectionMath.test.ts
+- ktx2 · Chemin Basis Universal (UASTC / ETC1S + BASIS_LZ)
+- sdk-browser · makeEnv
 - test_justesse_normaltransformcas_deg
-- profil-etapes.perf.mjs
-- dna/read.rs
+- bench · depose
+- dna · Option
 - sdk-browser · node
-- material_json
+- Rapport et table des textures
 - . · import
 - blend · EXCLUDE
-- ref_node_assert_strict
-- ImageDecoded
-- webgpuRowCommit.test.ts
-- pageDecodeNodeWorker.mjs
-- job.rs
-- ClusterPlane
-- explorerHeldFrame.test.ts
-- evaluateDetail.js
+- sdk-browser · arrivals
+- image · IntoIterator
+- sdk-browser · Plan
+- oracles · .constructor
+- oracle · Into
+- tests · Option
+- Contrat backend et dessin (3)
+- js · round
 - docs · Batch E2 — WebGL2 surface foundation (#108)
 - src · CACHE_LOCK_FILE
-- apply_decisions
+- cutout · BTreeMap
 - blend · ALPHA_CHANNEL
 - docs · Mesures : importMs, compileMs, wallMs, phaseElapsedMs
-- graphify-libelles.mjs
+- scripts · graph
 - ref_packages_sdk_browser_gpuraster_ts
-- visit.rs
-- ngones.rs
-- src · BTreeMap (3)
-- Builder
+- usd · MAX_DEPTH
+- Descripteurs et n-gones Blender (3)
+- src · BTreeMap
+- unity · GAME_OBJECT
 - ref_packages_sdk_browser_visibilitybuffer_ts
 - ref_src_lab_modelcampaign_ts
-- chargement-scene.perf.mjs
-- Entry.jsx
-- Bits
-- eclairage-pixel.perf.mjs
-- metricsContracts.ts
-- golden_dir
-- normale-ombrage.perf.mjs
-- prune_cache
-- hiz-pyramide.perf.mjs
-- geometry_page_codec_tests.rs
+- bench · passeIndex
+- engine-scene · searchText
+- Bancs de calcul Rust
+- bench · passe
+- sdk-core · GpuPassTiming
+- tests · HEADER_WORDS
+- Normale d'ombrage mesurée
+- tests · Fn
+- Socle de mesure des bancs
+- src · PLAN
 - docs · 0. Goal and non-goals
-- unity_fidelite.rs
+- tests · each_prefab_override_names_its_own_object_and_ten_runs_agree
 - ref_wg_fixture_capturerun_mjs
-- ngon/tests.rs
+- Descripteurs et n-gones Blender (4)
 - sdk-node · node
 - ext_index_js
 - packages_sdk_core_index_page_decode_protocol
-- Scene
-- usd/light.rs
-- crate
-- Structure
+- alembic · BTreeMap
+- usd · DEFAULT_CONE
+- src · NAMES
+- unity · ADDED_COMPONENT
 - gallery · number
-- fixture
+- tests · gamma
 - Lecture du format Blender
-- tests/gif.rs
-- h3_proxy_jeux.rs
+- tests · ALPHA_TRANSPARENT
+- bench_calculs · BTreeMap
 - tests · MAT (2)
-- Projet
+- tests · .drop
 - page-codec · node
-- lampes.rs
-- tests/exr.rs
+- Descripteurs et n-gones Blender (5)
+- tests · both_precisions_yield_the_reference_values
 - sdk-core · node
 - . · lib
-- normales.rs
+- tests · close
 - src · Bits
-- local_trs
+- unity · Builder<'_, '_>
 - docs · Événements JSON par ligne et ratio de progression
 - . · meshoptimizer
-- invalid
-- vector_into
-- .prefab_instance
+- Validation du compilateur
+- manifest_binary · .i32
+- unity · Value
 - usd · DEFAULT_IOR
 - oracles · CompactResult
-- traverse
-- check-changed.mjs
+- usd · PathBuf
+- Scripts de build et distribution (2)
 - integration · valeurConstante
 - appui · drawCase
-- cameraSites.mjs
-- geometry_page.rs
+- Caméra monde et contrat
+- src · FLAG_COLOR
 - cutout · ABSENT
 - ma · Item (3)
 - bench · longueurs
-- blend_golden.rs
-- proxy.rs
+- tests · CASE (3)
+- Proxy de scène du compilateur
 - full · compiler
-- usd_faces.rs
-- load_model_file
-- streamingPriority.ts
+- tests · a_face_whose_indices_leave_the_arrays_is_counted_and_dropped_never_clamped
+- Chargement des modèles
+- sdk-browser · PriorityCamera
 - png · CHUNK_HEADER
 - ma · Face
 - Document
 - import · cone_angles
-- lightingSceneGltf.test.ts
-- primitive
-- usdz_golden.rs
-- fill
-- atlas_textures
-- soleil-cascades.perf.mjs
-- portail-documentation.test.mjs
-- workflow-gates.test.mjs
+- fixtures · readLightingGltf
+- import · Option
+- tests · CASE (4)
+- mesh · Node
+- tests · Option (2)
+- bench · faces
+- integration · lignesFautives
+- integration · checkBody
 - png · Item
-- import.rs
-- atomic
+- Import Unity et maillages
+- Écriture de la scène source
 - packages_sdk_core_index_sortpages
-- three-vs-core-matrices.perf.mjs
+- bench · oracle
 - . · printWidth
 - types · browser.d
-- gpuHizDevice.test.ts
-- Web Geometry SDK guide (docs/SDK.md)
-- sceneLightValidate.ts
+- sdk-browser · HizDeviceOverrides
+- docs · atlasClasses — one or two material-atlas size classes
+- Magasin des lumières de scène
 - asset-compiler-rust · web-geometry-compiler
 - page-codec-wasm · web-geometry-page-codec
-- surgery.rs
+- tests · HEADER
 - packages_sdk_browser_gpudraw_base_slots
 - packages_sdk_browser_gpudraw_bin_back
 - packages_sdk_browser_gpudraw_bin_front
-- webgpuSunFarHold.test.ts
+- sdk-browser · assertAdoption
 - packages_sdk_browser_gpudraw_bin_none
 - packages_sdk_browser_pageselection_pagerec
 - packages_sdk_browser_pageselection_projectedpageerror
-- gpuDeviceLedger.ts
+- sdk-browser · GpuDeviceLedgerSnapshot
 - . · Répondre en français concis, ne pas coder sans demande
 - packages_sdk_browser_pageselection_selectvisiblepages
-- couches-coplanaires.perf.mjs
+- bench · biaise
 - docs · Fichiers source acceptés
-- socleEquivalence.mjs
-- check-file-lines.mjs
+- Équivalence du socle mesuré
+- Scripts de build et distribution (3)
 - unity · BUILTIN_GUID
 - packages_sdk_browser_gpudagselection_dag_selection_shader
-- image_registry.rs
-- stage_one_texture
+- tests · a_format_outside_the_registry_is_named_in_the_report
+- tests · TexturePreview
 - packages_sdk_browser_gpudagselection_evaluatedagselectionkernel
-- tests/tiff.rs
-- webgpuBudgetRanking.test.ts
+- tests · a_tiff_outside_profile_comes_out_as_a_report_reason_never_as_a_panic
+- sdk-browser · rec
 - packages_sdk_browser_gpudagselection_packdagselection
 - thread
 - packages_sdk_browser_gpudagselection_packeddag
-- compiler_lights.rs
+- src · fbx_intensity_scale
 - packages_sdk_browser_gpudagselection_packedworldstorenderorigin
-- Web Geometry README
-- declarations.rs
-- tests/icc.rs
+- docs · Source Ownership and Integration
+- psd · LAYERS_AT
+- tests · a_png_icc_profile_is_counted_unless_it_names_srgb
 - ref_15_virtualized_integration_implementation_engines_ts
 - ref_node_stream
 - write_page
 - . · node
 - ISSUE_TEMPLATE · Code Context
-- cones-normaux.perf.mjs
-- ref_node_path
-- decodage-wasm.perf.mjs
+- bench · blocs
+- docs · root
+- appui · tour
 - packages_sdk_browser_gpudraw_compactslotlayout
 - packages_sdk_browser_gpudraw_creategpudraw
 - ref_vite_deps_three_js
@@ -496,10 +496,10 @@
 - packages_sdk_browser_gpudraw_evaluatedrawcompact
 - packages_sdk_browser_gpudraw_gpudraw
 - packages_sdk_browser_webgpupages_outputcolordiagnostic
-- visibilityShadingNormal.ts
+- Vecteurs et normale d'ombrage
 - /__wg-fixture/beautyRun
 - .github · Local review before push
-- unity_golden.rs
+- tests · PathBuf
 - docs_js_gallery_index_examples
 - packages_sdk_browser_gpudraw_indirectfordraw
 - .githooks · refuse
@@ -554,7 +554,7 @@
 - packages_sdk_browser_pageselection_requeststamps
 - packages_sdk_browser_pageselection_resolvepixelerror
 - packages_sdk_browser_pageselection_selectionresult
-- graine
+- bench · parcours
 - packages_sdk_browser_telemetry_telemetryreport
 - packages_sdk_browser_visibilitybuffer_clusterhash
 - packages_sdk_browser_visibilitybuffer_shade_shader
@@ -658,32 +658,32 @@
 - packages_sdk_core_manifestbinary_slimprimitivebinary
 - packages_sdk_core_manifestbinary_texture_preview_version
 - packages_sdk_core_scenelightshadowplan_rects_per_slice
-- geometry_page_codec_refus_tests.rs
-- encode_glb
-- lightingTransportLights.test.ts
+- src · stride
+- tests · Value
+- Transport de lumière (2)
 - /15-virtualized-integration/implementation/engines
 - /src/lab/modelCampaign
 - /.vite/deps/three
-- fbx_with_external_images
-- Arena
-- ma_golden.rs
-- gpuHiz.test.ts
-- Vertex
-- tests/bmp.rs
-- peerDependencies
-- obj_golden.rs
-- gpuPageResize.test.ts
+- tests · PathBuf (2)
+- Arbre monde et lots de maths (2)
+- tests · a_file_without_the_maya_header_is_refused_by_name
+- sdk-browser · PackedHiz
+- src · Default
+- tests · all_writings_of_the_format_yield_the_same_pixels
+- . · three
+- tests · CASE (5)
+- sdk-browser · Copy
 - kinetic-garden/README
 - document · edit
-- fixtureLampes.mjs
-- tests/webp.rs
-- dds/refus.rs
-- wide.rs
+- mesure · flags
+- Registre des images de test (2)
+- dds · ARRAY_SIZE
+- proxy · Child
 - docs · highlightCode
 - private_tmp_webgeometry_107_learning_portal_dist_sdk_browser_index_js
 - ref_dist_sdk_browser_index_js
-- sha_columns
-- split
+- manifest_binary · Result
+- src · Result
 
 ## God Nodes (most connected - your core abstractions)
 1. `cameraMoteur()` - 107 edges
@@ -712,8 +712,8 @@
 ## Import Cycles
 - 2-file cycle: `packages/sdk-browser/pageCone.ts -> packages/sdk-browser/pageConeBuild.ts -> packages/sdk-browser/pageCone.ts`
 - 2-file cycle: `packages/asset-compiler-rust/src/plugins/image.rs -> packages/asset-compiler-rust/src/plugins/image/decoded.rs -> packages/asset-compiler-rust/src/plugins/image.rs`
-- 5-file cycle: `packages/sdk-browser/webgpuPagesDrops.ts -> packages/sdk-browser/webgpuPagesRuntime.ts -> packages/sdk-browser/webgpuPagesLayout.ts -> packages/sdk-browser/webgpuVisibilityItemWords.ts -> packages/sdk-browser/webgpuPagesPipelineFor.ts -> packages/sdk-browser/webgpuPagesDrops.ts`
 - 5-file cycle: `packages/sdk-browser/webgpuPagesCpuSteps.ts -> packages/sdk-browser/webgpuPagesPrepareSunFar.ts -> packages/sdk-browser/webgpuPagesDrops.ts -> packages/sdk-browser/webgpuPagesRuntime.ts -> packages/sdk-browser/webgpuPagesStateTiming.ts -> packages/sdk-browser/webgpuPagesCpuSteps.ts`
+- 5-file cycle: `packages/sdk-browser/webgpuPagesDrops.ts -> packages/sdk-browser/webgpuPagesRuntime.ts -> packages/sdk-browser/webgpuPagesLayout.ts -> packages/sdk-browser/webgpuVisibilityItemWords.ts -> packages/sdk-browser/webgpuPagesPipelineFor.ts -> packages/sdk-browser/webgpuPagesDrops.ts`
 
 ## Communities (673 total, 225 thin omitted)
 
