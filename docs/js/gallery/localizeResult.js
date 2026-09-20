@@ -17,6 +17,11 @@ const replacements = [
   ['screen', 'écran'],
   ['light', 'lumière'],
   ['allowed error', 'erreur admise'],
+  ['recovered', 'retrouvé'],
+  ['mirrored', 'inversée'],
+  ['preserved', 'préservée'],
+  ['collapsed', 'aplatie'],
+  ['corrected normal', 'normale corrigée'],
 ];
 
 export function localizeResult(result, locale) {
