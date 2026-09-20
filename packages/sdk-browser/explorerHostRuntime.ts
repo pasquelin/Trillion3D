@@ -98,6 +98,13 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     backends,
     canvas,
     render,
+    async pendingFrame() {
+      const loading = streaming.promise;
+      await loading;
+      if (state.disposed) return false;
+      const pending = await state.active.pendingFrame?.();
+      return !!loading || !!streaming.promise || streaming.arrivals.pending > 0 || !!pending;
+    },
     capture,
     dispose,
     setPose,

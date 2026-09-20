@@ -1,0 +1,100 @@
+.code-scroll {
+  overflow: auto;
+  max-height: min(55dvh, 38rem);
+  scrollbar-width: none;
+  padding-bottom: 1rem;
+}
+.code-scroll::-webkit-scrollbar {
+  display: none;
+}
+/* Syntax colors use the active DaisyUI theme's semantic palette. */
+.code-lines {
+  width: max-content;
+  min-width: 100%;
+}
+.mockup-code .code-lines pre {
+  overflow: visible;
+  max-width: none;
+}
+.mockup-code {
+  --code-keyword: var(--color-secondary);
+  --code-string: var(--color-primary);
+  --code-number: var(--color-accent);
+  --code-function: var(--color-info);
+  --code-comment: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+  color: var(--color-base-content);
+  background: var(--color-base-300);
+  overflow: hidden;
+  max-height: none;
+}
+.mockup-code .hljs-keyword,
+.mockup-code .hljs-selector-tag,
+.mockup-code .hljs-literal {
+  color: var(--code-keyword);
+  font-weight: 600;
+}
+.mockup-code .hljs-string,
+.mockup-code .hljs-regexp {
+  color: var(--code-string);
+}
+.mockup-code .hljs-number,
+.mockup-code .hljs-symbol {
+  color: var(--code-number);
+}
+.mockup-code .hljs-title,
+.mockup-code .hljs-built_in,
+.mockup-code .hljs-type {
+  color: var(--code-function);
+}
+.mockup-code .hljs-comment {
+  color: var(--code-comment);
+  font-style: italic;
+}
+.mockup-code .hljs-attr,
+.mockup-code .hljs-property {
+  color: var(--color-base-content);
+}
+
+[data-theme='light'] .mockup-code {
+  --code-keyword: #a31545;
+  --code-string: #116329;
+  --code-number: #6639a6;
+  --code-function: #0550ae;
+}
+
+/* CodeMirror owns editing, selection and its single hidden-but-scrollable viewport. */
+.code-editor-input .cm-editor {
+  background: transparent;
+  color: var(--color-base-content);
+  font-size: 0.875rem;
+}
+.code-editor-input .cm-scroller {
+  min-height: 12rem;
+  max-height: min(55dvh, 38rem);
+  overflow: auto;
+  scrollbar-width: none;
+  font-family: var(--font-mono);
+}
+.code-editor-input .cm-scroller::-webkit-scrollbar {
+  display: none;
+}
+.code-editor-input .cm-gutters {
+  background: var(--color-base-300);
+  color: color-mix(in oklab, var(--color-base-content) 65%, transparent);
+  border: 0;
+}
+.code-editor-input .cm-cursor {
+  border-left-color: var(--color-base-content);
+}
+.code-result {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 14rem;
+  overflow: auto;
+  font-variant-numeric: tabular-nums;
+}
+.numeric-copy {
+  font-variant-numeric: tabular-nums;
+  min-height: 2.5rem;
+  overflow-wrap: anywhere;
+}

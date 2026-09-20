@@ -34,7 +34,7 @@ export class WebglClusterRenderer {
   private state: WebglClusterState;
   private validatedMaterials = new Map<
     Exclude<ClusterDrawMesh['material'], unknown[]>,
-    Set<ClusterDrawMesh['geometry']['attributes']>
+    ClusterDrawMesh['geometry']['attributes']
   >();
   private materialUniforms: WebglClusterMaterialUniforms;
   private multiDraw: {
@@ -72,6 +72,9 @@ export class WebglClusterRenderer {
   private material(material: Exclude<ClusterDrawMesh['material'], unknown[]>, toneMapped: boolean) {
     const source = material as { opacity: number },
       mat = visMaterial(material);
+    const basic = material as import('three').MeshBasicMaterial,
+      aoMap = mat.aoMap ?? (!mat.lit ? (basic.aoMap ?? undefined) : undefined),
+      aoIntensity = mat.aoMap ? mat.aoIntensity : (basic.aoMapIntensity ?? 1);
     this.materialUniforms.f4(
       0,
       'baseFactor',
@@ -84,7 +87,7 @@ export class WebglClusterRenderer {
     this.materialUniforms.f1(5, 'roughFactor', mat.roughness);
     this.materialUniforms.f1(6, 'alphaCutoff', mat.alphaTest);
     this.materialUniforms.f2(7, 'normalScale', mat.normalScale, mat.normalScaleY);
-    this.materialUniforms.f1(9, 'aoStrength', mat.aoIntensity);
+    this.materialUniforms.f1(9, 'aoStrength', aoIntensity);
     this.materialUniforms.f3(10, 'emissiveFactor', mat.emissive);
     this.materialUniforms.i1(13, 'lit', mat.lit ? 1 : 0);
     this.materialUniforms.i1(14, 'hasNormalMap', mat.normalMap ? 1 : 0);
@@ -104,7 +107,7 @@ export class WebglClusterRenderer {
       mat.roughnessMap.channel === mat.metalnessMap.channel;
     let mapMask = 0;
     for (let unit = 0; unit < maps.length; unit++) {
-      const texture = mat[maps[unit]];
+      const texture = maps[unit] === 'aoMap' ? aoMap : mat[maps[unit]];
       if (texture) mapMask |= 1 << unit;
       this.textures.bind(
         unit,
@@ -132,7 +135,7 @@ export class WebglClusterRenderer {
     this.materialUniforms.i2(
       21,
       'extraChannels',
-      mat.aoMap?.channel ?? 0,
+      aoMap?.channel ?? 0,
       mat.emissiveMap?.channel ?? 0,
     );
     this.state.apply(material, mat.doubleSided, mat.backSide);
