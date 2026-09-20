@@ -1,6 +1,7 @@
 # Web Geometry SDK
 
-Standalone compiler/runtime. Public imports are `@web-geometry/sdk` (core), `/node` and `/browser`. Do not import `packages/` internals.
+Standalone compiler/runtime. Every public import uses `web-geometry`; conditional exports select
+the common, browser or Node API. Do not import `packages/` internals.
 
 Build: `pnpm install`, `pnpm run build`, `pnpm test`. Native: `pnpm run build:native` and `pnpm run test:native`. `SDK_VERSION` and `FORMAT_VERSION` are independent.
 
@@ -12,13 +13,53 @@ The compiler publishes under `native/<scope>/manifest.json`. See [the cache form
 
 The compiler rejects selected accessors that cross their `bufferView`, invalid strides, malformed sparse ranges/indices and invalid POSITION/index component contracts before publishing a ready pointer. Simplification error is meshoptimizer's reported relative error scaled to object space; it is not a certified global Hausdorff bound. Cache keys include the executed compiler implementation and its dependency lock. Recompile prepared assets to use these corrections; source files are never overwritten.
 
-## Entry points
+## Installation and environment API
 
-| Import                         | Symbols                                                                                                                                                                                                                                                                                                                                                    |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@web-geometry/sdk` or `/core` | `SDK_VERSION`, `FORMAT_VERSION`, `DEFAULT_SCOPE`, `assertFormat`, `assertCachePointer`, `assertCacheReady`, `assertCacheIdentity`, `EngineError`, `createJob`, `createSafetyPolicy`, `userNotice`, `compareImages`, `summarize`, `frameStatistics`, `makeCameraPath`, `CAMERA_SCENARIOS`, `DIAGNOSTICS`, `LOD_QUALITY`, `lodQuality`, `adaptivePixelError` |
-| `@web-geometry/sdk/node`       | `prepare`, `prepareMany`, `createCompilationJob`, `createTerminalProgress`, `createBatchProgress`, `reviewCutouts`, `getSdkProvenance`, CLI                                                                                                                                                                                                                |
-| `@web-geometry/sdk/browser`    | `createExplorer`, `createExplorerJob`, `runCameraPath`, `createGpuPageCache`, `httpPageSource`, `detectCapabilities`, `replicateInstances` (1/4/9 replica helper), `webgpuPagesBackend`, backend factories                                                                                                                                                 |
+The package remains private and is installed from this repository or a local tarball; it is not
+published to npm. Browser bundlers must honor the standard `browser` export condition. Node ESM and
+NodeNext select the Node branch. A resolver with no platform condition receives the safe common
+branch, which contains no DOM, WebGPU, filesystem or process API.
+
+| Task                | Examples                                                                                                                                                                                                   |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Common API          | `SDK_VERSION`, `FORMAT_VERSION`, `assertFormat`, `EngineError`, batch maths, hierarchy, camera calculations, diagnostics, lighting contracts, jobs and safety policy                                       |
+| Native preparation  | `prepare`, `prepareMany`, `createCompilationJob`, `createTerminalProgress`, `createBatchProgress`, `reviewCutouts`, `getSdkProvenance`, CLI                                                                |
+| Browser exploration | `createExplorer`, `createExplorerJob`, `runCameraPath`, `createGpuPageCache`, `httpPageSource`, `detectCapabilities`, `replicateInstances` (1/4/9 replica helper), `webgpuPagesBackend`, backend factories |
+
+Version 0.2.0 is the breaking import boundary. Replace `@web-geometry/sdk`,
+`@web-geometry/sdk/core`, `@web-geometry/sdk/browser` and `@web-geometry/sdk/node` with
+`web-geometry`. The former package name and subpaths are no longer exported. `SDK_VERSION` advances
+to `0.2.0`; `FORMAT_VERSION` and compiler/cache identity do not change.
+
+For a strict browser TypeScript project, enable the `browser` condition explicitly. Without it,
+Bundler resolution deliberately selects the platform-neutral common declarations, which do not
+contain `createExplorer` or browser-only types.
+
+```jsonc
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "customConditions": ["browser"],
+    "lib": ["ES2023", "DOM"],
+    "types": ["@webgpu/types"],
+  },
+}
+```
+
+Install the SDK's browser type dependencies in the host project: `three` is a peer dependency, and
+`@types/three` plus `@webgpu/types` are development dependencies. A Node TypeScript host instead
+uses `"module": "NodeNext"`, `"moduleResolution": "NodeNext"` and `"types": ["node"]`; NodeNext
+then selects the Node declarations from the same `web-geometry` specifier.
+
+The browser runtime is not a zero-configuration single-file bundle. Configure the bundler with the
+public `web-geometry` import as the application entry, the installed decode and integration worker
+files as separate module-worker entries, and code splitting enabled. Copy the installed
+`pageCodec.wasm` beside every emitted chunk that retains its relative URL. Serve only that output
+directory together with the compiled scene cache. `pnpm run proof:package -- --browser` is the
+repository's executable esbuild configuration and verifies both worker tasks and WASM selection.
 
 `replicateInstances` is a helper that instances the source 1, 4 or 9 times while sharing geometry and materials.
 
@@ -29,6 +70,12 @@ web-geometry-compile SOURCE CACHE [slice|full] [triangle-budget] RESOURCE_BASE_U
 ```
 
 `SOURCE` is a directory with `manifest.json`, a directory with exactly one `.gltf`/`.glb`, a `.gltf`/`.glb` file, a `.fbx`/`.obj` file, or a directory of `.fbx`/`.obj` files (merged into one scene). `WEB_GEOMETRY_COMPILER_BIN` (or `PrepareOptions.executable`) selects the native executable.
+
+Compiler selection uses `PrepareOptions.executable` first, then `WEB_GEOMETRY_COMPILER_BIN`, then
+the package-relative development build. The packed artifact contains neither that native executable
+nor the Rust sources needed to build it, so an installed tarball requires one of the first two
+explicit selections. The installed-package proof supplies a repository-built executable and does
+not claim that the tarball ships it.
 
 ### Native executable
 
@@ -57,7 +104,7 @@ FBX/OBJ sources are first imported into `<cache>/native/imports/<key>/` as `mode
 
 ## Scene hierarchy foundation
 
-`@web-geometry/sdk-core` publishes scene-model version `SCENE_MODEL_VERSION` 1. A
+`web-geometry` publishes scene-model version `SCENE_MODEL_VERSION` 1. A
 `SceneRoot` owns one transform hierarchy; nodes created by `root.createNode({ id, visible })`
 have stable, root-unique identifiers and can be attached with `add` or `reparent`. `remove` and
 `clear` detach live nodes, while `destroy` permanently invalidates a whole subtree. `clone` gives
@@ -67,7 +114,7 @@ Recursive copying from an ancestor into its descendant is rejected with
 `SCENE_COPY_OVERLAP` before either node changes; non-recursive copying remains allowed.
 
 ```javascript
-import { createSceneRoot } from '@web-geometry/sdk-core';
+import { createSceneRoot } from 'web-geometry';
 
 const scene = createSceneRoot({ id: 'warehouse' });
 const shelf = scene.createNode({ id: 'shelf' }).setPosition(2, 0, -4);
@@ -93,14 +140,16 @@ remain later #78 lots; lights continue to use the existing `SceneLight` version 
 <canvas id="viewer" style="width:100%;height:70vh;display:block"></canvas>
 ```
 
-```javascript
-import { createExplorer } from '@web-geometry/sdk/browser';
+```typescript
+import { createExplorer, type CameraPose, type Explorer, type ExplorerOptions } from 'web-geometry';
 
-const explorer = await createExplorer('viewer', {
+const options: ExplorerOptions = {
   manifestUrl: '/cache/city/manifest.json',
   scope: 'full',
   interactive: true,
-});
+};
+const explorer: Explorer = await createExplorer('viewer', options);
+const home: CameraPose = explorer.pointsOfInterest()[0].pose;
 ```
 
 `ExplorerTarget` is a canvas element or a **literal ID**, without `#`. Existing-element

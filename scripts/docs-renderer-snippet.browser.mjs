@@ -16,7 +16,7 @@ test('the published observatory snippet runs in Chrome until its streamed frame 
   if (!address || typeof address === 'string') throw Error('HTTP listener unavailable');
   const moduleUrl = `http://127.0.0.1:${address.port}/runtime/engine.js`,
     source = rendererCodeFor(lesson, rendererInitialState(lesson)).replace(
-      "'@web-geometry/sdk/browser'",
+      "'web-geometry'",
       `'${moduleUrl}'`,
     ),
     browser = await launchChrome({ headless: true });
