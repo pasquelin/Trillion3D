@@ -25,7 +25,7 @@ const explorer = await createExplorer(canvas, {
   scope: 'full',
   backends: [webgpuPagesBackend],
   importedLights: ${importedLights},
-  interactive: true,
+  interactive: false,
   width: Math.max(1, Math.round(viewport.width)),
   height: Math.max(1, Math.round(viewport.height)),
   pixelRatio: window.devicePixelRatio,
@@ -43,14 +43,31 @@ ${fill}
 const home = explorer.homePose();
 ${framing}
 ${operation}
-explorer.render();
+async function renderUntilHeld(limit = 64) {
+  for (let frame = 0; frame < limit; frame++) {
+    await explorer.awaitPages();
+    const metrics = explorer.render();
+    await explorer.flush();
+    if (metrics.frameHeld) return;
+    await new Promise(requestAnimationFrame);
+  }
+  throw new Error('The streamed view did not settle within 64 frames.');
+}
+await renderUntilHeld();
 
-const resize = new ResizeObserver(([entry]) => {
+let resizePending = false;
+const resize = new ResizeObserver(async ([entry]) => {
   explorer.resize(
     Math.max(1, Math.round(entry.contentRect.width)),
     Math.max(1, Math.round(entry.contentRect.height)),
   );
-  explorer.render();
+  if (resizePending) return;
+  resizePending = true;
+  try {
+    await renderUntilHeld();
+  } finally {
+    resizePending = false;
+  }
 });
 resize.observe(canvas);
 
