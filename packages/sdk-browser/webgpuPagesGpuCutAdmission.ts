@@ -21,9 +21,9 @@ export const MIN_BUDGET_PIXEL_ERROR = 0.125;
  *   samples the verdict is the previous one, and a step is never taken on the count of another
  *   threshold — doubling on a count the last doubling has already answered, or halving five times
  *   before the first halving has been seen;
- * - a threshold that overflowed the pool for this view is not asked for again while the view stays:
- *   relaxing to it would only reproduce the overflow, then the coarsening, every few frames. A view
- *   change forgets it, since another view may fit it.
+ * - a threshold that overflowed the pool for this view is not asked for again while the view and
+ *   the pool stay: relaxing to it would only reproduce the overflow, then the coarsening, every few
+ *   frames. A view change or a pool resize forgets it, since either may fit it.
  */
 export function admitGpuCut(rt: WebgpuPagesRuntime, pixelError: number, budgeted: number) {
   const { run, services } = rt,
@@ -31,8 +31,9 @@ export function admitGpuCut(rt: WebgpuPagesRuntime, pixelError: number, budgeted
   const sample = run.gpuSelection?.peek();
   if (!sample || sample.uniforms.pixelError !== budgeted) return;
   const view = run.gate.revisions.view;
-  if (run.budgetOverflowView !== view) {
+  if (run.budgetOverflowView !== view || run.budgetOverflowSlots !== slots) {
     run.budgetOverflowView = view;
+    run.budgetOverflowSlots = slots;
     run.budgetOverflowError = -1;
   }
   // What the image asks the cache: the cut's delta posted it at the moment of adopting.

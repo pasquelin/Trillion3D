@@ -8,10 +8,12 @@ export interface WebgpuBudgetState {
   coverageBudgetLimited: boolean;
   /** Screen-error floor the GPU page budget imposes on the cut; 0 when the requested detail fits. */
   budgetPixelError: number;
-  /** Finest threshold whose cut overflowed the pool for the current view, `-1` when none did, and
-   *  the view revision it was seen on: the admission never asks for it again while the view stays. */
+  /** Finest threshold whose cut overflowed the pool for the current view, `-1` when none did, with
+   *  the view revision and the slot count it was seen under: the admission never asks for it again
+   *  while both stay. */
   budgetOverflowError: number;
   budgetOverflowView: number;
+  budgetOverflowSlots: number;
   /** The verdict just changed: published once by the flush, as `coverage-budget`. */
   coverageBudgetEvent: Record<string, unknown> | undefined;
 }
@@ -22,6 +24,7 @@ export function createWebgpuBudgetState(): WebgpuBudgetState {
     budgetPixelError: 0,
     budgetOverflowError: -1,
     budgetOverflowView: -1,
+    budgetOverflowSlots: -1,
     coverageBudgetEvent: undefined,
   };
 }
