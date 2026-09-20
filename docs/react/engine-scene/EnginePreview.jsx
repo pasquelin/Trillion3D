@@ -1,97 +1,30 @@
 import { sceneCopy } from '../../js/engine-scene/content.js';
 import { sceneControlsCopy } from '../../js/engine-scene/controlsCopy.js';
 import { Canvas } from '../components/Canvas.jsx';
-import { Section } from '../components/Section.jsx';
-import { Alert, Button, Field, Form, Range, Select, Toggle } from '../components/UI.jsx';
+import { SceneControls } from './SceneControls.jsx';
+import { Alert } from '../components/UI.jsx';
 
-const MODES = ['beauty', 'clusters', 'pages', 'wireframe', 'lod', 'screen-error', 'visibility'];
 export const engineCopy = (locale) => ({
   ...(sceneCopy[locale] ?? sceneCopy.en),
   ...(sceneControlsCopy[locale] ?? sceneControlsCopy.en),
 });
 
-function Toolbar({ copy, diagnostic }) {
-  return (
-    <Section title={copy.controls} className="mb-4">
-      <Form className="flex flex-wrap items-end">
-        <Button variant="primary" data-scene-start hidden>
-          {copy.retry}
-        </Button>
-        <Field label={copy.mode}>
-          <Select data-scene-mode defaultValue={diagnostic} disabled>
-            {MODES.map((mode) => (
-              <option value={mode} key={mode}>
-                {copy[mode]}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label={copy.quality} className="w-36">
-          <Range
-            min="0"
-            max="8"
-            step="1"
-            defaultValue="0"
-            data-scene-quality
-            disabled
-            aria-label={copy.quality}
-          />
-          <output className="font-mono text-xs w-8" data-scene-quality-value>
-            0 px
-          </output>
-        </Field>
-        <Field label={copy.light} className="w-40">
-          <Range
-            min="0.25"
-            max="2"
-            step="0.05"
-            defaultValue="1"
-            data-scene-light
-            disabled
-            aria-label={copy.light}
-          />
-          <output className="font-mono text-xs w-12" data-scene-light-value>
-            {copy.lightValue}1
-          </output>
-        </Field>
-        <Field label={copy.shadows}>
-          <Toggle data-scene-shadows defaultChecked disabled aria-label={copy.shadows} />
-        </Field>
-        <div className="join">
-          <Button
-            size="sm"
-            className="join-item"
-            data-scene-zoom-out
-            disabled
-            aria-label={copy.zoomOut}
-          >
-            −
-          </Button>
-          <Button
-            size="sm"
-            className="join-item"
-            data-scene-zoom-in
-            disabled
-            aria-label={copy.zoomIn}
-          >
-            +
-          </Button>
-        </div>
-        <Button data-scene-home disabled>
-          {copy.home}
-        </Button>
-      </Form>
-    </Section>
-  );
-}
-
 export function EnginePreview({ locale = 'en', diagnostic = 'beauty' }) {
   const copy = engineCopy(locale);
   return (
     <section data-engine-scene className="engine-preview min-w-0">
-      <Toolbar copy={copy} diagnostic={diagnostic} />
+      <SceneControls copy={copy} diagnostic={diagnostic} />
       <div className="engine-canvas-frame relative rounded-2xl overflow-hidden border border-base-300 bg-[#101b2b] max-w-5xl mx-auto">
-        <Canvas data-scene-canvas className="aspect-video max-h-[28rem]" label={copy.title} />
+        <Canvas
+          data-scene-canvas
+          className="aspect-video max-h-[28rem]"
+          label={copy.title}
+          actions={[
+            { label: copy.zoomOut, symbol: '−', 'data-scene-zoom-out': '', disabled: true },
+            { label: copy.zoomIn, symbol: '+', 'data-scene-zoom-in': '', disabled: true },
+            { label: copy.home, symbol: '↺', 'data-scene-home': '', disabled: true },
+          ]}
+        />
         <div
           data-scene-placeholder
           className="absolute inset-0 bg-[#101b2b] text-white overflow-hidden"

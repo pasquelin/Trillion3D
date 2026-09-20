@@ -20,7 +20,14 @@ export function parseRoute(hash, fallbackLocale = 'en') {
   if (parts[0] === 'en' || parts[0] === 'fr') {
     const locale = parts[0];
     const area = AREAS.has(parts[1]) ? parts[1] : 'learn';
-    return { locale, area, id: parts.slice(2).join('/') || (area === 'learn' ? 'home' : '') };
+    const encodedId = parts.slice(2).join('/');
+    let id = encodedId;
+    try {
+      id = decodeURIComponent(encodedId);
+    } catch {
+      /* Keep malformed external hashes stable so the not-found page can handle them. */
+    }
+    return { locale, area, id: id || (area === 'learn' ? 'home' : '') };
   }
   if (parts[0] === 'examples')
     return { locale: fallbackLocale, area: 'examples', id: parts[1] || '' };
