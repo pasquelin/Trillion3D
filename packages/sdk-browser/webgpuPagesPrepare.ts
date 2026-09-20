@@ -10,7 +10,7 @@ import { createTransparentTable } from './webgpuTransparentTable.ts';
 import { prepareBlendResources } from './webgpuBlendResources.ts';
 import { createTransparentCompaction } from './webgpuTransparentCompact.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
-import { VOLUME_STRIDE, createVolumeBuffer } from './webgpuTransmission.ts';
+import { VOLUME_WORDS, createVolumeBuffer } from './webgpuTransmission.ts';
 import { createGpuDagSelection, packDagSelection } from './gpuDagSelection.ts';
 import { OPEN_CONE, triangleCone } from './pageCone.ts';
 import { visMaterial } from './visibilityBuffer.ts';
@@ -117,7 +117,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   });
   gpuDevice.queue.writeBuffer(gpu.zeroUv, 0, new Float32Array([0, 0]));
   blendState.transmissive = prepareWebgpuBlend(gpuDevice, blendCopies, gpu, blendState, scene);
-  blendState.volumePacked = new Float32Array(blendState.blendGpu.length * (VOLUME_STRIDE / 4));
+  blendState.volumePacked = new Float32Array(blendState.blendGpu.length * VOLUME_WORDS);
   gpu.volumeBuffer = createVolumeBuffer(gpuDevice, blendState.blendGpu.length);
   // The transparent draw order is the scene's and is settled here, once: an image only chooses which
   // of its entries survive.
