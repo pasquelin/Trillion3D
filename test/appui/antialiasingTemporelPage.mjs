@@ -15,7 +15,7 @@ import {
   engine,
   versApi,
 } from './preuveSceneCommune.mjs';
-import { ouvrirAppareil } from '../justesse/appareilWebgpu.mjs';
+import { executerAccumulation } from './preuveAppareil.mjs';
 
 /** Maximum images rendered before giving up waiting for frame hold. */
 const PLAFOND = 64;
@@ -86,26 +86,8 @@ async function executionComplete(device, evenements, temporel) {
   }
 }
 
+/** Without, with, and with again as the A/A witness; the viewport, for the proof's counts. */
 export async function executer() {
-  const appareil = await ouvrirAppareil();
-  if (!appareil) return { indisponible: 'no WebGPU adapter' };
-  const { device, erreurs } = appareil;
-  const evenements = [];
-  try {
-    const sans = await executionComplete(device, evenements, false);
-    const avec = await executionComplete(device, evenements, true);
-    const temoin = await executionComplete(device, evenements, true);
-    const info = await appareil.fermer();
-    return {
-      adaptateur: info.court,
-      viewport: VIEWPORT,
-      sans,
-      avec,
-      temoin,
-      evenements: evenements.filter((e) => /failed|error|unavailable/.test(e.phase)),
-      erreurs,
-    };
-  } catch (error) {
-    return { erreur: String(error) + (error?.stack ?? ''), evenements, erreurs };
-  }
+  const resultat = await executerAccumulation(executionComplete);
+  return { viewport: VIEWPORT, ...resultat };
 }
