@@ -110,7 +110,6 @@ export function clusterMaterialReason(
   if (!standard.isMeshStandardMaterial && !basic.isMeshBasicMaterial)
     return `material ${material.type} is unsupported`;
   if (
-    material.transparent ||
     material.alphaHash ||
     material.blending !== THREE.NormalBlending ||
     material.premultipliedAlpha ||
