@@ -25,6 +25,11 @@ export function uploadRowCorners(rt: WebgpuPagesRuntime, partition: GpuPartition
   const { rows, boxCorners, cornerPacked, cornerHold } = rt.layout;
   const stale = cornerHold.epoch !== rows.tableEpoch;
   if (stale) cornerHold.epoch = rows.tableEpoch;
+  // Rows whose page arrived, left or changed rank: what they held describes another page, and
+  // the partition reads them as never projected. A new age moves no page between ranks, so the
+  // rows it re-uploads beyond that interval keep their history, on corners that moved.
+  const rewritten = dirtyRange(rows, false, cornerHold.count);
+  partition.forgetRows(rewritten.from, rewritten.to);
   const { from, to } = dirtyRange(rows, stale, cornerHold.count);
   cornerHold.count = rows.packedCount;
   if (to < from) return;
