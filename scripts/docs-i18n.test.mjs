@@ -98,3 +98,15 @@ test('legacy documentation hashes retain the active locale', () => {
   });
   assert.equal(localizedHref('#guides/quick-start', 'fr'), '#/fr/learn/quick-start');
 });
+
+test('both locales describe interactive startup and align every method description', () => {
+  for (const locale of supportedLocales) {
+    const localized = localizeEntries(entries, locale);
+    const explorer = localized.find(({ id }) => id === 'createExplorer');
+    assert.match(explorer.description, /interactive: true/);
+    assert.match(explorer.description, /ExplorerTarget/);
+    assert.match(explorer.values.find(({ name }) => name === 'invalidate()').desc, /camera|caméra/);
+    assert.match(explorer.values.find(({ name }) => name === 'dispose()').desc, /Releases|Libère/);
+    assert.match(localized.find(({ id }) => id === 'quick-start').html, /interactive: true/);
+  }
+});
