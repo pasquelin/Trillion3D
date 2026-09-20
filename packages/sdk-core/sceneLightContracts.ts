@@ -67,6 +67,13 @@ export const LIGHT_SETTINGS = {
   /** Side in pixels of a screen tile of the light list. */
   tileSize: 16,
   /**
+   * Lights shaded in full — shadow read included — per pixel of a MOVING image (X2): the
+   * others are weighed without their shadow, and the shaded ones are drawn in proportion, so
+   * the estimate is unbiased and temporal antialiasing averages it. A still image shades
+   * every light of its tile and converges to the exact sum; there, this number plays no part.
+   */
+  samplesPerPixel: 4,
+  /**
    * Shadow regions at most per frame: the buffer ceiling, never a quality setting. The
    * millisecond budget almost always stops first; this ceiling is only an ultimate bound,
    * and the only limit on a device without a GPU clock.

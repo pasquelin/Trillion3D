@@ -36,13 +36,10 @@ export async function createDeferredLighting(
   directLights: GPUBuffer,
   onReady?: () => void,
 ) {
-  const uniform = device.createBuffer({
-    label: 'WG deferred view v1',
-    size: 128,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
-  const placeholders = createDeferredPlaceholders(device);
-  const bindings = { uniform, directLights, placeholders };
+  const usage = GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST;
+  const uniform = device.createBuffer({ label: 'WG deferred view v1', size: 128, usage });
+  const placeholders = createDeferredPlaceholders(device),
+    bindings = { uniform, directLights, placeholders };
   try {
     const unlit = await createDeferredProgram(
       device,
@@ -59,12 +56,12 @@ export async function createDeferredLighting(
     // Three programs, never a branch: the unlit view, the contract, and the contract plus
     // bounce. A session without bounce thus runs exactly the previous shader.
     type Variant = { program?: DeferredProgram; pending?: Promise<unknown> };
-    const variants: Record<'direct' | 'bounce', Variant> = { direct: {}, bounce: {} };
-    let active: DeferredProgram = unlit;
-    const packed = new Float32Array(32);
+    const variants: Record<'direct' | 'bounce', Variant> = { direct: {}, bounce: {} },
+      packed = new Float32Array(32);
     // Diagnostic views output raw values: no ACES, no sRGB, no composed background. The
     // indirect-irradiance view is one, and lighting says so, not the caller.
-    let rawOutput = false;
+    let active: DeferredProgram = unlit,
+      rawOutput = false;
     return {
       uniform,
       /** What an absent contract resource is worth: the blend pass binds the same. */
@@ -77,6 +74,7 @@ export async function createDeferredLighting(
       get usesContract() {
         return active !== unlit;
       },
+      /** `sampledRank` non-zero: the contract program draws a subset of each pixel's lights. */
       update(
         inverseViewProjection: ArrayLike<number>,
         camera: readonly number[],
@@ -85,10 +83,11 @@ export async function createDeferredLighting(
         clearColor: number,
         diagnostic: boolean,
         direct: ArrayLike<number> = ZERO_DIRECT,
+        sampledRank = 0,
       ) {
         packed.set(inverseViewProjection as ArrayLike<number> & number[], 0);
         packed.set(camera, 16);
-        packed.set([width, height, diagnostic || rawOutput ? 1 : 0, 0], 20);
+        packed.set([width, height, diagnostic || rawOutput ? 1 : 0, sampledRank], 20);
         packed.set(
           [(clearColor >> 16) / 255, ((clearColor >> 8) & 255) / 255, (clearColor & 255) / 255, 1],
           24,
