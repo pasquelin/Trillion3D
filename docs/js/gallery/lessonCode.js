@@ -2,12 +2,19 @@ import { sceneFillLightCode } from '../sceneFillLight.js';
 
 export function lessonCode(
   operation,
-  { manifest, importedLights = true, sceneLight = false, sceneFill = false } = {},
+  { manifest, importedLights = true, sceneLight = false, sceneFill = false, initialPose } = {},
 ) {
   const lighting = sceneLight
     ? `\nexplorer.addLight({ id: 'scene', kind: 'directional', direction: [-0.4, -0.8, -0.3], color: [1, 0.92, 0.78], intensity: 2.5, castsShadow: true });`
     : '';
   const fill = sceneFill ? `\n${sceneFillLightCode()}` : '';
+  const framing = initialPose
+    ? `explorer.setPose({ ...home, position: [${initialPose.position}], target: [${initialPose.target}] });`
+    : `explorer.setPose({
+  ...home,
+  position: home.target.map((value, index) =>
+    value + (home.position[index] - value) * 1.25),
+});`;
   return `import { createExplorer } from '@web-geometry/sdk/browser';
 
 // HTML: <canvas id="garden" style="width:100%;height:60vh;display:block"></canvas>
@@ -25,11 +32,7 @@ await explorer.awaitPages();
 ${lighting}
 ${fill}
 const home = explorer.homePose();
-explorer.setPose({
-  ...home,
-  position: home.target.map((value, index) =>
-    value + (home.position[index] - value) * 1.25),
-});
+${framing}
 ${operation}
 explorer.render();
 
