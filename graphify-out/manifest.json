@@ -222,15 +222,15 @@
     "semantic_hash": ""
   },
   "scripts/mesure/pageEclairage.test.mjs": {
-    "mtime": 1789905720.7283685,
-    "seen": 1789905755.2670588,
-    "ast_hash": "ac0f4ce41ba65255075b0f76de2cffff",
+    "mtime": 1789906745.0226562,
+    "seen": 1789906781.917058,
+    "ast_hash": "71a0a9eb8ce8cdf65047828895045b12",
     "semantic_hash": ""
   },
   "scripts/mesure/pageEclairage.mjs": {
-    "mtime": 1789905852.560832,
-    "seen": 1789906322.177582,
-    "ast_hash": "ccc83916b2e9ea469f6c4ee0045bc058",
+    "mtime": 1789906719.589627,
+    "seen": 1789906781.917057,
+    "ast_hash": "a2b262c99f03407453f3eb79718ffcc0",
     "semantic_hash": ""
   },
   "scripts/mesure/page.mjs": {
@@ -8400,9 +8400,9 @@
     "semantic_hash": ""
   },
   "docs/SDK.md": {
-    "mtime": 1789905697.0880148,
-    "seen": 1789905755.2672598,
-    "ast_hash": "40fefffcd92bc48f7bb2b663d0f82d46",
+    "mtime": 1789906549.3408744,
+    "seen": 1789906781.917258,
+    "ast_hash": "3fde61a0134e4a7772ddceaf272e81d1",
     "semantic_hash": ""
   },
   "docs/FORMAT.md": {
@@ -8418,9 +8418,9 @@
     "semantic_hash": ""
   },
   "scripts/mesure/README.md": {
-    "mtime": 1789905613.3724542,
-    "seen": 1789905755.267319,
-    "ast_hash": "23882b58fde43ddbd132bab2986b1813",
+    "mtime": 1789906719.713297,
+    "seen": 1789906781.9173179,
+    "ast_hash": "51829d9bbd69653956cf6dec086eb158",
     "semantic_hash": ""
   },
   "packages/README.md": {
@@ -14424,9 +14424,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webglClusterRenderer.ts": {
-    "mtime": 1789905852.445924,
-    "seen": 1789906322.1770382,
-    "ast_hash": "6c5040308303fa2bb6d3a19b8c02ae6d",
+    "mtime": 1789906641.824167,
+    "seen": 1789906781.916493,
+    "ast_hash": "3aab61aab6f89cada2d5ca028940d26b",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webglClusterShaders.ts": {
@@ -14472,9 +14472,9 @@
     "semantic_hash": ""
   },
   "test/appui/webglClusterRendererPage.mjs": {
-    "mtime": 1789905871.2895553,
-    "seen": 1789906322.177676,
-    "ast_hash": "e906a8aa9abebb651e0b719567fffbaa",
+    "mtime": 1789906652.920539,
+    "seen": 1789906781.9171462,
+    "ast_hash": "ceb9b5f3c48c386372a1dcd2271dd826",
     "semantic_hash": ""
   },
   "test/appui/webglClusterRestorePage.mjs": {
@@ -14490,15 +14490,21 @@
     "semantic_hash": ""
   },
   "test/browser/rendu-clusters-webgl.browser.mjs": {
-    "mtime": 1789905485.390489,
-    "seen": 1789905755.2671711,
-    "ast_hash": "9096174f8e4a93869874f4c63d2d9ddd",
+    "mtime": 1789906642.1863847,
+    "seen": 1789906781.9171698,
+    "ast_hash": "565223afebd2554f3651f42f4fb78c49",
     "semantic_hash": ""
   },
   "test/appui/webglClusterOraclePage.mjs": {
     "mtime": 1789905644.6430786,
     "seen": 1789905755.2671459,
     "ast_hash": "6444c874604d1b86a3bfd0787daf9539",
+    "semantic_hash": ""
+  },
+  "test/appui/webglClusterWindingPage.mjs": {
+    "mtime": 1789906641.9412267,
+    "seen": 1789906781.9171488,
+    "ast_hash": "c93a5dacd3bca77256a42b208fbad996",
     "semantic_hash": ""
   }
 }

@@ -1,13 +1,11 @@
 import * as THREE from 'three';
 import { WebglClusterRenderer } from '../../packages/sdk-browser/webglClusterRenderer.ts';
-import {
-  createHostDrawCamera,
-  readHostDrawCamera,
-} from '../../packages/sdk-browser/cameraWorld.ts';
+import { createHostDrawCamera, readHostDrawCamera } from '../../packages/sdk-browser/cameraWorld.ts';
 import { curvedComparison, planarWitness } from './webglClusterCurvedPage.mjs';
 import { curvedOracleQuality } from './webglClusterOraclePage.mjs';
 import { heldRestore } from './webglClusterRestorePage.mjs';
 import { textureFixtures } from './webglClusterTexturePage.mjs';
+import { windingComparisons } from './webglClusterWindingPage.mjs';
 const pixel = (gl, x, y) => {
   const value = new Uint8Array(4);
   gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, value);
@@ -196,5 +194,6 @@ export async function execute() {
     curved: [64, 128, 256].map((size) => curvedComparison(size)),
     curvedMotion,
     curvedOracle: curvedOracleQuality(),
+    winding: windingComparisons(),
   };
 }
