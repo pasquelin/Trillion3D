@@ -1,5 +1,7 @@
+import { advancedGeometry } from './sceneGeometryAdvanced.js';
+
 const vertices = [];
-const COLORS = {
+export const COLORS = {
   blue: [0.12, 0.42, 0.9],
   orange: [0.95, 0.34, 0.08],
   red: [0.85, 0.12, 0.18],
@@ -21,7 +23,7 @@ function pushTriangle(points, normal, color) {
   points.forEach((point) => vertices.push(...point, ...normal, ...color));
 }
 
-function box(center, size, color = COLORS.violet) {
+export function box(center, size, color = COLORS.violet) {
   const [x, y, z] = center,
     [sx, sy, sz] = size;
   const corners = [
@@ -40,7 +42,7 @@ function box(center, size, color = COLORS.violet) {
   });
 }
 
-function beam(from, to, width, color) {
+export function beam(from, to, width, color) {
   const dx = to[0] - from[0],
     dy = to[1] - from[1],
     dz = to[2] - from[2],
@@ -77,7 +79,7 @@ function beam(from, to, width, color) {
   });
 }
 
-const arrow = (vector, color, scale = 2.2) => {
+export const arrow = (vector, color, scale = 2.2) => {
   const end = [vector[0] * scale, vector[1] * scale, (vector[2] ?? 0) * scale];
   beam([0, 0, 0], end, 0.055, color);
   box(end, [0.22, 0.22, 0.22], color);
@@ -124,6 +126,12 @@ function sphere(center, r, color) {
 
 export function geometryFor(id, result) {
   vertices.length = 0;
+  if (
+    ['matrix-inverse', 'reflection-orientation', 'quaternion-turn', 'normal-transform'].includes(id)
+  ) {
+    advancedGeometry(id, result, { arrow, beam, box, COLORS });
+    return new Float32Array(vertices);
+  }
   if (id === 'compose-transform') {
     box([0, 0, 0], [2, 1.4, 0.18], COLORS.grey);
     const p = result.points;

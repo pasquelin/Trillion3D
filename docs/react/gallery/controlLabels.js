@@ -19,6 +19,7 @@ const english = {
   base: 'base error',
   frame: 'frame time',
   budget: 'budget',
+  scaleY: 'vertical scale',
 };
 const french = {
   tx: 'translation x',
@@ -41,6 +42,7 @@ const french = {
   base: 'erreur de base',
   frame: 'temps de trame',
   budget: 'budget',
+  scaleY: 'échelle verticale',
 };
 
 export const controlLabel = (name, locale) => (locale === 'fr' ? french : english)[name];
