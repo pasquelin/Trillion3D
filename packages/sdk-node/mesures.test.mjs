@@ -63,6 +63,8 @@ test('prepare() reports the folder reused by a second identical run', async (t) 
     assert.ok(second.reused.objects > 0, JSON.stringify(second.reused));
     assert.equal(typeof second.reused.validateMs, 'number');
     assert.equal(typeof second.metrics.wallMs, 'number');
+    // The manifest on disk still says how long the first run clustered; this run did not.
+    assert.equal(second.metrics.clusterHierarchyPagesMs, null);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

@@ -11,8 +11,8 @@ fn png(couleur: [u8; 4]) -> Vec<u8> {
 }
 
 /// A solid square PNG of the given side: above 64 texels its levels are baked as files.
-pub(super) fn png_sized(side: u32, couleur: [u8; 4]) -> Vec<u8> {
-    let image = image::RgbaImage::from_pixel(side, side, image::Rgba(couleur));
+pub(super) fn png_sized(side: u32, colour: [u8; 4]) -> Vec<u8> {
+    let image = image::RgbaImage::from_pixel(side, side, image::Rgba(colour));
     let mut bytes = Vec::new();
     image
         .write_to(
