@@ -46,6 +46,9 @@ export const lifecycleFr = {
       { desc: 'Lit la surface dessinée ou redimensionne les cibles.' },
       { desc: 'Quantiles CPU/GPU par étape et rapport de télémétrie.' },
       { desc: 'Éclairage de scène, déclaré avant la préparation du premier backend.' },
+      {
+        desc: 'Une pose, une visibilité ou une lampe écrite sur un nœud source sans aucun appel — `mesh.position.x = 100` — est vue : l’écriture elle-même incrémente la révision de scène, l’image compare un entier et une scène immobile ne relit aucun nœud. Une matrice posée à la main (`matrixAutoUpdate = false`) s’annonce comme Three l’exige, par `matrixWorldNeedsUpdate = true` ; une lampe ajoutée au graphe ou retirée s’annonce par `refreshSceneLighting()`.',
+      },
       { desc: 'Libère backends, appareil GPU et sources. Obligatoire.' },
     ],
   },
