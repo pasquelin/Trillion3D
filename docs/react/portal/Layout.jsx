@@ -5,6 +5,7 @@ export function Layout({
   children,
   entries,
   route,
+  localeRoute = route,
   query,
   t,
   drawerOpen,
@@ -19,7 +20,7 @@ export function Layout({
     <>
       <Header
         locale={route.locale}
-        route={route}
+        route={localeRoute}
         t={t}
         drawerOpen={drawerOpen}
         onMenu={onMenu}

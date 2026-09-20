@@ -8,33 +8,13 @@ import { rawEntries } from '../js/portal/data.js';
 import { parseRoute, resolvePage, routeHref } from '../js/portal/routes.js';
 import { localizeEntries, t } from '../js/i18n/index.js';
 import { ApiIndex } from './portal/ApiIndex.jsx';
+import { NotFound } from './portal/NotFound.jsx';
 import { Home } from './portal/Home.jsx';
 import { Layout } from './portal/Layout.jsx';
 import { canonicalEntryId } from './portal/entryLinks.js';
 
 function currentRoute() {
   return parseRoute(location.hash, document.documentElement.lang === 'fr' ? 'fr' : 'en');
-}
-
-function NotFound({ locale }) {
-  const copy =
-    locale === 'fr'
-      ? [
-          'Page introuvable',
-          'Cette adresse ne correspond à aucune page du portail.',
-          'Revenir à l’accueil',
-        ]
-      : ['Page not found', 'This address does not match a page in the portal.', 'Return home'];
-  return (
-    <section className="not-found">
-      <p className="eyebrow">404</p>
-      <h1>{copy[0]}</h1>
-      <p>{copy[1]}</p>
-      <a className="btn btn-primary" href={routeHref({ locale, area: 'learn', id: 'home' })}>
-        {copy[2]}
-      </a>
-    </section>
-  );
 }
 
 function Page({ page, route, entries }) {
@@ -74,15 +54,17 @@ export function App() {
   const [theme, setTheme] = useState(readTheme);
   const inputRef = useRef(null);
   const entries = useMemo(() => localizeEntries(rawEntries, route.locale), [route.locale]);
+  const resolvedRoute = useMemo(
+    () => (route.area === 'api' ? { ...route, id: canonicalEntryId(entries, route.id) } : route),
+    [entries, route],
+  );
   const page = useMemo(() => {
-    const resolvedRoute =
-      route.area === 'api' ? { ...route, id: canonicalEntryId(entries, route.id) } : route;
     return resolvePage(
       resolvedRoute,
       entries,
       examples.map(({ id }) => id),
     );
-  }, [route, entries]);
+  }, [resolvedRoute, entries]);
 
   useEffect(() => {
     const update = () => {
@@ -161,6 +143,7 @@ export function App() {
     <Layout
       entries={entries}
       route={route}
+      localeRoute={resolvedRoute}
       query={query}
       t={t}
       drawerOpen={drawerOpen}
