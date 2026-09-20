@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { hookHostNode, unhookHostNode, type WriteRevision } from './hostSceneHooks.ts';
 
-const mark = (): WriteRevision => ({ revision: 0, reshaped: false });
+const mark = (): WriteRevision => ({ revision: 0 });
 
 function hooked() {
   const parent = new THREE.Group();
@@ -25,7 +25,6 @@ type Scene = ReturnType<typeof hooked>;
 const WRITES: Array<{
   name: string;
   write: (s: Scene) => unknown;
-  reshapes?: boolean;
   again?: (s: Scene, put: unknown) => void;
 }> = [
   { name: 'a position component', write: ({ mesh }) => (mesh.position.x = 100) },
@@ -42,7 +41,6 @@ const WRITES: Array<{
   {
     name: 'reparenting',
     write: ({ mesh }) => new THREE.Group().add(mesh),
-    reshapes: true,
     again: ({ mesh }, put) => (mesh.parent = put as THREE.Group),
   },
   { name: 'light intensity', write: ({ light }) => (light.intensity = 7) },
@@ -59,17 +57,15 @@ const WRITES: Array<{
   {
     name: 'a light target replaced',
     write: ({ light }) => (light.target = new THREE.Object3D()),
-    reshapes: true,
     again: ({ light }, put) => (light.target = put as THREE.Object3D),
   },
 ];
 
-for (const { name, write, reshapes, again } of WRITES)
-  test(`a write of ${name} bumps the revision${reshapes ? ' and reshapes' : ''}`, () => {
+for (const { name, write, again } of WRITES)
+  test(`a write of ${name} bumps the revision`, () => {
     const scene = hooked();
     const put = write(scene);
     assert.ok(scene.revision.revision > 0, 'a write, an increment');
-    assert.equal(scene.revision.reshaped, !!reshapes);
     scene.revision.revision = 0;
     if (again) again(scene, put);
     else write(scene);

@@ -3,13 +3,12 @@ import type * as THREE from 'three';
 /**
  * Revision a watch owns. Every write the host makes on one of the nodes hooked for it — a pose,
  * a visibility, a light's number — increments `revision` at the instant of the write, so the
- * frame compares one integer instead of rereading the graph. `reshaped` says that a write
- * changed WHICH objects are read (a light retargeted, a node reparented): the watched set is
- * to be rebuilt, not only reread.
+ * frame compares one integer instead of rereading the graph. A write that changes WHICH
+ * objects are read (a light retargeted, a node reparented) increments it like any other: the
+ * scene change it announces is what rebuilds the watched set.
  */
 export interface WriteRevision {
   revision: number;
-  reshaped: boolean;
 }
 
 /** Hook of one host node: the revisions it bumps. A node hooked once stays hooked. */
@@ -25,12 +24,9 @@ interface Owned {
 const hooks = new WeakMap<object, Hook>();
 const owned = new WeakMap<object, Owned>();
 
-function bump(hook: Hook, reshape = false) {
+function bump(hook: Hook) {
   const list = hook.revisions;
-  for (let i = 0; i < list.length; i++) {
-    list[i].revision++;
-    if (reshape) list[i].reshaped = true;
-  }
+  for (let i = 0; i < list.length; i++) list[i].revision++;
 }
 
 /** Redefines a data field as an accessor of the instance: a write of ANOTHER value is announced. */
@@ -134,8 +130,8 @@ function hookLight(light: HookedLight, hook: Hook) {
       bump(hook);
     });
   }
-  // A new target is another chain of ancestors to watch: the set is rebuilt.
-  if ('target' in light) accessor(light, 'target', () => bump(hook, true));
+  // A new target is another chain of ancestors to watch: the scene change rebuilds the set.
+  if ('target' in light) accessor(light, 'target', () => bump(hook));
 }
 
 /**
@@ -147,7 +143,7 @@ function hookLight(light: HookedLight, hook: Hook) {
  * one comparison and one increment, and a frame that reads nothing else knows the node did
  * not move. A matrix set by hand, recomposition cut, is announced as the reference requires:
  * `matrixWorldNeedsUpdate = true` (which `updateMatrix()` writes itself). A reparented node
- * changes its ancestor chain: the watched set is rebuilt.
+ * changes its ancestor chain: the scene change it announces rebuilds the watched set.
  */
 export function hookHostNode(node: THREE.Object3D, revision: WriteRevision) {
   const known = hooks.get(node);
@@ -163,7 +159,7 @@ export function hookHostNode(node: THREE.Object3D, revision: WriteRevision) {
   hookRotation(node, hook);
   accessor(node, 'visible', () => bump(hook));
   accessor(node, 'matrixAutoUpdate', () => bump(hook));
-  accessor(node, 'parent', () => bump(hook, true));
+  accessor(node, 'parent', () => bump(hook));
   let needsUpdate = node.matrixWorldNeedsUpdate;
   Object.defineProperty(node, 'matrixWorldNeedsUpdate', {
     configurable: true,
