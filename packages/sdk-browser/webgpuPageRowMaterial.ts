@@ -59,9 +59,10 @@ export function rowMaterial(
 }
 
 /**
- * Resolve classes of a scene, sorted: every page's class, from the same material fields, geometry
- * block and atlas slots its row will carry. Known once the atlases are laid out, before any image:
- * the class pipelines are compiled here, never on the frame that first draws one.
+ * Resolve classes of a scene, sorted: the class of every page that takes a row — transparent
+ * pages never do (`webgpuRowSync.ts`) — from the same material fields, geometry block and atlas
+ * slots the row will carry. Known once the atlases are laid out, before any image: the class
+ * pipelines are compiled here, never on the frame that first draws one.
  */
 export function sceneMaterialClasses(
   allPages: readonly PageRec[],
@@ -71,12 +72,13 @@ export function sceneMaterialClasses(
   const constants = createPageRowConstants();
   const keys = new Set<number>();
   for (const rec of allPages)
-    keys.add(
-      rowMaterial(
-        constants.materialOf(rec.material).mat,
-        geometryBlocks.get(rec.attributes),
-        layers,
-      ).classKey,
-    );
+    if (!rec.transparent)
+      keys.add(
+        rowMaterial(
+          constants.materialOf(rec.material).mat,
+          geometryBlocks.get(rec.attributes),
+          layers,
+        ).classKey,
+      );
   return [...keys].sort((a, b) => a - b);
 }

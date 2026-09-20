@@ -5,7 +5,7 @@ import { DEPTH_COMPARE } from './depthConvention.ts';
 import { openValidation, validationError } from './gpuErrorScope.ts';
 import { SHADE_BINDINGS, atlasLayoutEntries, readOnly } from './webgpuBindLayout.ts';
 import { shadeVariantFragment, visVariantFragment } from './diagnosticGpuGeometry.ts';
-import { MATERIAL_DEPTH_FORMAT, materialClassConstants } from './visibilityMaterialClass.ts';
+import { MATERIAL_DEPTH_FORMAT } from './visibilityMaterialClass.ts';
 import type { DiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
 
 /** Face modes of a layer set, in order: back, none, front, reversed back, reversed front. */
@@ -154,19 +154,17 @@ export function createWebgpuShadePipelines(
   const layout = device.createPipelineLayout({ bindGroupLayouts: [shadeBindGroupLayout] });
   const primitive: GPUPrimitiveState = { topology: 'triangle-list', cullMode: 'none' };
   const entryPoint = shadeVariantFragment(variant);
-  /** A class pipeline: the class key as override of both stages, whatever the fragment reads. */
-  const shadePipelineFor = (key: number) =>
-    device.createRenderPipeline({
+  /** A class pipeline: the class key as override of both stages, whatever the fragment reads;
+   *  the depth and the feature booleans derive from it in the shader. */
+  const shadePipelineFor = (key: number) => {
+    const constants = { CLASS_KEY: key };
+    return device.createRenderPipeline({
       layout,
-      vertex: {
-        module: shadeModule,
-        entryPoint: 'shade_vs',
-        constants: materialClassConstants(key),
-      },
+      vertex: { module: shadeModule, entryPoint: 'shade_vs', constants },
       fragment: {
         module: shadeModule,
         entryPoint,
-        constants: materialClassConstants(key),
+        constants,
         // The surfaces, then the tile request the image's feedback target receives.
         targets: [...SURFACE_FORMATS, FEEDBACK_FORMAT].map((format) => ({ format })),
       },
@@ -177,6 +175,7 @@ export function createWebgpuShadePipelines(
         depthCompare: 'equal',
       },
     });
+  };
   return scoped(device, () => ({
     shadeBindGroupLayout,
     materialDepthPipeline: device.createRenderPipeline({
