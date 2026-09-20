@@ -3,11 +3,12 @@ import type { HostCamera } from './cameraWorld.ts';
 import type {
   BackendCapabilities,
   ClusterManifest,
+  DiagnosticMode,
   SceneLightStore,
   StageProfile,
 } from '../sdk-core/index.ts';
-import type { DiagnosticMode } from '../sdk-core/index.ts';
 import type { BackendMetrics } from './backendMetricKeys.ts';
+import type { MemoryBudgets, MemoryBudgetsReport } from './webgpuPagesMemory.ts';
 export type { BackendCapabilities };
 
 export interface RenderBackend {
@@ -28,9 +29,7 @@ export interface RenderBackend {
   /** Moves a named node of the prepared scene; applied to the next frame, without allocation (R8). */
   setTransform?(nodeName: string, matrix: Float32Array): void;
   /** Sets memory pools during the session; returns what the engine holds afterwards. */
-  setMemoryBudgets?(
-    budgets: import('./webgpuPagesMemory.ts').MemoryBudgets,
-  ): Promise<import('./webgpuPagesMemory.ts').MemoryBudgetsReport>;
+  setMemoryBudgets?(budgets: MemoryBudgets): Promise<MemoryBudgetsReport>;
   prepare(): Promise<void>;
   render(camera: HostCamera): void;
   /** Draws engine-owned opaque geometry into the framebuffer currently bound by the host.
@@ -152,8 +151,9 @@ export interface BackendContext {
   gpuCanvas?: HTMLCanvasElement;
   /** Engine-owned host context. WebGL backends may allocate resources on it but never replace it. */
   webglContext?: WebGL2RenderingContext;
-  /** Texture-tile bytes admitted per frame. */
+  /** Texture-tile bytes, then CPU milliseconds, a frame's tile pass may spend; the rest waits. */
   maxTextureTransferBytesPerFrame?: number;
+  maxTextureUploadMsPerFrame?: number;
   /** Geometry-page pool bytes, fixed regardless of the scene; 512 MiB by default.
    *  The root cover always fits; the rest draws coarser when it does not fit. Image
    *  targets are not budgeted: they follow resolution. */

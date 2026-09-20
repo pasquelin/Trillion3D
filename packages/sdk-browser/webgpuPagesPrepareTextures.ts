@@ -76,6 +76,7 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     data,
     layersPerAtlas: rt.setup.texturePool.layers,
     budgetBytes: rt.setup.textureBudget,
+    budgetMs: rt.setup.textureUploadMs,
     readLevel,
     onFailure: diag.diagnosticFailure,
     onColorChanged: () => {

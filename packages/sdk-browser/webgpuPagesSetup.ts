@@ -16,6 +16,7 @@ import { RASTER_BACKGROUND } from './pageRaster.ts';
 import {
   DEFAULT_GEOMETRY_POOL_BUDGET,
   DEFAULT_TEXTURE_POOL_BUDGET,
+  DEFAULT_TEXTURE_UPLOAD_MS,
   geometryPoolFor,
   texturePoolFor,
 } from './webgpuMemoryBudgets.ts';
@@ -129,6 +130,15 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
       ? context.maxTextureTransferBytesPerFrame!
       : 16 * 1024 * 1024,
   );
+  // Milliseconds a frame's tile pass may spend, the reference's fixed upload cadence in the
+  // frame's own unit: a value under zero would defer everything, so it is brought back to zero,
+  // where one tile per pass still lands.
+  const textureUploadMs = Math.max(
+    0,
+    Number.isFinite(context.maxTextureUploadMsPerFrame)
+      ? context.maxTextureUploadMsPerFrame!
+      : DEFAULT_TEXTURE_UPLOAD_MS,
+  );
   return {
     source,
     // Index of the engine's world matrices: what the image walks, and what a moved node recomputes.
@@ -160,6 +170,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     sourceBytes,
     reserveHiz,
     textureBudget,
+    textureUploadMs,
     // The two pools as they are held; `setMemoryBudgets` replaces them with another drawn from the
     // same rule, `slots` follows.
     geometryPool,
