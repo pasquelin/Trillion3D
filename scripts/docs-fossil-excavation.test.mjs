@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { box, ellipsoid, bone } from './docs/fossil-excavation/geometry.mjs';
 import { fossilExcavation } from './docs/fossil-excavation/scene.mjs';
 import { writeFossilExcavation } from './docs/fossil-excavation/write.mjs';
 
@@ -39,9 +40,11 @@ test('published OBJ and MTL are reproduced byte for byte by the recipe', async (
   try {
     await writeFossilExcavation(temporary, fossilExcavation());
     for (const file of ['excavation.obj', 'excavation.mtl'])
-      assert.deepEqual(
-        await readFile(join(temporary, file)),
-        await readFile(join(published, 'source', file)),
+      assert.ok(
+        (await readFile(join(temporary, file))).equals(
+          await readFile(join(published, 'source', file)),
+        ),
+        `${file} must reproduce exactly`,
       );
   } finally {
     await rm(temporary, { recursive: true, force: true });
@@ -60,4 +63,29 @@ test('published cache proves the public OBJ importer and authored groups', async
   assert.equal(manifest.primitives.length, 8);
   assert.equal(manifest.scenePlugin.name, 'obj');
   assert.equal(manifest.simplification, false);
+});
+
+test('fossil primitives expose their exterior rather than inward-facing surfaces', () => {
+  for (const shape of [
+    box([0, 0, 0], [2, 2, 2]),
+    ellipsoid([0, 0, 0], [1, 2, 3]),
+    bone([0, -1, 0], [0, 1, 0], 1),
+  ]) {
+    for (const indices of shape.faces) {
+      const [a, b, c] = indices.map((index) => shape.vertices[index - 1]);
+      const u = b.map((value, axis) => value - a[axis]);
+      const v = c.map((value, axis) => value - a[axis]);
+      const normal = [
+        u[1] * v[2] - u[2] * v[1],
+        u[2] * v[0] - u[0] * v[2],
+        u[0] * v[1] - u[1] * v[0],
+      ];
+      if (Math.hypot(...normal) < 1e-12) continue;
+      const outward = normal.reduce(
+        (sum, value, axis) => sum + value * (a[axis] + b[axis] + c[axis]),
+        0,
+      );
+      assert.ok(outward > 0, 'the face normal points away from the primitive centre');
+    }
+  }
 });

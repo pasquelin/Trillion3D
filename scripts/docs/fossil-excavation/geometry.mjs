@@ -1,6 +1,6 @@
 const mesh = () => ({ vertices: [], faces: [] });
 const vertex = (out, point) => (out.vertices.push(point), out.vertices.length);
-const face = (out, a, b, c) => out.faces.push([a, b, c]);
+const face = (out, a, b, c) => out.faces.push([a, c, b]);
 
 export function box(center, size) {
   const out = mesh(),
@@ -96,8 +96,8 @@ export function bone(start, end, radius, sides = 12) {
     const next = (side + 1) % sides;
     face(out, rings[0][side], rings[1][side], rings[1][next]);
     face(out, rings[0][side], rings[1][next], rings[0][next]);
-    face(out, caps[0], rings[0][next], rings[0][side]);
-    face(out, caps[1], rings[1][side], rings[1][next]);
+    face(out, caps[0], rings[0][side], rings[0][next]);
+    face(out, caps[1], rings[1][next], rings[1][side]);
   }
   return out;
 }
