@@ -3756,6 +3756,17 @@
       "bindingIdentity": "\"packages/sdk-browser/explorerOptions\".PointOfInterest"
     },
     {
+      "name": "PoolClamp",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/webgpuMemoryBudgets.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": ["test/fixtures/publicBrowser.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/webgpuMemoryBudgets\".PoolClamp"
+    },
+    {
       "name": "POSITION_VALUES",
       "kind": "value",
       "definingModule": "packages/sdk-core/mathBatchStrides.ts",

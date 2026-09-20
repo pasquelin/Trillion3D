@@ -34,7 +34,7 @@ export type {
 export type { SurfaceBuffer, SurfaceCapture } from './surfaceBuffer.ts';
 export type { HostDrawCamera } from './cameraWorld.ts';
 export type { MemoryBudgets, MemoryBudgetsReport } from './webgpuPagesMemory.ts';
-export type { GeometryPool, TexturePool } from './webgpuMemoryBudgets.ts';
+export type { GeometryPool, PoolClamp, TexturePool } from './webgpuMemoryBudgets.ts';
 export type { ShadowAtlasDigest } from './gpuShadowDigest.ts';
 export type { PartitionAudit } from './webgpuPartitionAudit.ts';
 export type { TransparentOcclusionAudit } from './webgpuTransparentOcclusionAudit.ts';
