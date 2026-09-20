@@ -10,7 +10,7 @@ export const VIS_IDENTITY_SIZE = 13;
  * indirect buffers, the selection mask. Read before any group is served; nothing is dropped by name
  * elsewhere.
  */
-export function voidStaleVisibilityGroups(rt: WebgpuPagesRuntime) {
+function voidStaleVisibilityGroups(rt: WebgpuPagesRuntime) {
   const { vis, gpu, run } = rt,
     { next } = vis.visIdentity;
   next[0] = vis.visBindGroupLayout;
