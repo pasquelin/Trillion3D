@@ -186,7 +186,7 @@ export async function proveInstalledBrowser({
       },
       requests: evidenceRequests(requests),
       moduleRequestCount: requests.length,
-      errors,
+      browserVersion: browser.version(),
     };
   } catch (error) {
     const evidence = JSON.stringify(evidenceRequests(requests));

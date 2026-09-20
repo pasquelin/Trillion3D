@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { proveInstalledBrowser } from './installed-package-browser.mjs';
+import { evidenceSummary, installedEvidence } from './installed-package-evidence.mjs';
 import { compileInstalledScene } from './installed-package-scene.mjs';
 import { proveInstalledTypes } from './installed-package-types.mjs';
 
@@ -12,7 +13,6 @@ const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const fixture = mkdtempSync(join(tmpdir(), 'web-geometry-installed-'));
 const logs = [];
-
 function run(command, args, cwd = root, environment = process.env) {
   const result = spawnSync(command, args, { cwd, encoding: 'utf8', env: environment });
   logs.push({ command: [command, ...args], cwd, stdout: result.stdout, stderr: result.stderr });
@@ -23,15 +23,12 @@ function run(command, args, cwd = root, environment = process.env) {
     );
   return result.stdout;
 }
-
 function write(name, value) {
   writeFileSync(join(fixture, name), value);
 }
-
 function installedVersion(name) {
   return JSON.parse(readFileSync(join(root, 'node_modules', name, 'package.json'), 'utf8')).version;
 }
-
 function bundle(name, source, platform = 'browser', conditions = null) {
   write(`${name}.ts`, source);
   const conditionArgs = conditions === null ? [] : [`--conditions=${conditions.join(',')}`];
@@ -50,7 +47,6 @@ function bundle(name, source, platform = 'browser', conditions = null) {
   );
   return JSON.parse(readFileSync(join(fixture, `${name}-meta.json`)));
 }
-
 try {
   run(pnpm, ['run', 'build']);
   const proveBrowser = process.argv.includes('--browser');
@@ -99,7 +95,8 @@ try {
   );
   run(process.execPath, ['runtime.mjs'], fixture);
   proveInstalledTypes({ fixture, packageName, run, write });
-  let native = null;
+  let native = null,
+    compilerVersion = null;
   if (proveNative) {
     const executable = join(
       root,
@@ -108,6 +105,7 @@ try {
     );
     const compile = (name, variant) =>
       compileInstalledScene({ fixture, executable, run, pnpm, name, variant });
+    compilerVersion = run(executable, ['--version']).trim();
     native = {
       primer: compile('primer', 0),
       replay: compile('replay', 0.01),
@@ -171,9 +169,21 @@ try {
   const evidence = {
     package: `${manifest.name}@${manifest.version}`,
     commit: run('git', ['rev-parse', 'HEAD']).trim(),
-    tools: { node: process.version, pnpm: run(pnpm, ['--version']).trim() },
-    settings: { node: 'ESM', browser: 'esbuild bundle, ESM, browser platform' },
-    files: packed.files?.map(({ path, size }) => ({ path, size })) ?? [],
+    ...installedEvidence({
+      fixture,
+      packageName,
+      packed,
+      tools: {
+        node: process.version,
+        pnpm: run(pnpm, ['--version']).trim(),
+        typescript: installedVersion('typescript'),
+        esbuild: installedVersion('esbuild'),
+      },
+      compilerVersion,
+      browserProof,
+      proveNative,
+      proveBrowser,
+    }),
     bundles,
     native,
     browser: browserProof,
@@ -181,9 +191,7 @@ try {
   const output = process.argv.indexOf('--output');
   if (output >= 0)
     writeFileSync(resolve(process.argv[output + 1]), `${JSON.stringify(evidence, null, 2)}\n`);
-  process.stdout.write(
-    `${JSON.stringify({ package: evidence.package, commit: evidence.commit, tools: evidence.tools, fileCount: evidence.files.length, bundleBytes: Object.fromEntries(Object.entries(bundles).map(([name, meta]) => [name, meta.outputs[`${name}.js`]?.bytes])) })}\n`,
-  );
+  process.stdout.write(`${evidenceSummary(evidence)}\n`);
 } catch (error) {
   console.error(JSON.stringify({ error: String(error), fixture, logs }, null, 2));
   throw error;
