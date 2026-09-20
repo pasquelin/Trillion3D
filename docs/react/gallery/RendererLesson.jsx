@@ -13,6 +13,12 @@ import { rawEntries } from '../../js/portal/data.js';
 
 const local = (value, locale) => value[locale === 'fr' ? 'fr' : 'en'];
 const documentedApi = new Set(rawEntries.map(({ id }) => id));
+const controlValue = (item, state, french) => {
+  const current = state[item.id] ?? item.value;
+  if (item.type === 'boolean')
+    return current === 1 ? (french ? 'Activé' : 'Enabled') : french ? 'Désactivé' : 'Disabled';
+  return Number(current.toFixed(3));
+};
 
 export function RendererLesson({ lesson, locale = 'en', onSelect }) {
   const initial = useMemo(() => rendererInitialState(lesson), [lesson]),
@@ -77,10 +83,7 @@ export function RendererLesson({ lesson, locale = 'en', onSelect }) {
         input={
           lesson.controls.length
             ? lesson.controls
-                .map(
-                  (item) =>
-                    `${local(item.label, locale)}: ${Number((state[item.id] ?? item.value).toFixed(3))}`,
-                )
+                .map((item) => `${local(item.label, locale)}: ${controlValue(item, state, french)}`)
                 .join(' · ')
             : french
               ? 'Géométrie préparée avant compilation.'
