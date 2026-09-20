@@ -27,6 +27,17 @@ export function mountScene(host, copy, locale) {
   const invalidate = () => {
     if (!disposed) explorer?.invalidate();
   };
+  /** The scene is gone: what it held is released, and the start button offers to reopen it. */
+  const fail = (message) => {
+    telemetry.stop();
+    explorer?.dispose();
+    explorer = null;
+    status.textContent = message;
+    loading.hidden = true;
+    start.disabled = false;
+    start.hidden = false;
+    start.textContent = copy.retry;
+  };
   const updateGuide = () => {
     const [what, tryThis, observe] = copy.views[mode.value];
     host.querySelector('[data-scene-what]').textContent = what;
@@ -60,7 +71,10 @@ export function mountScene(host, copy, locale) {
         signal: controller.signal,
         diagnosticDetail: 'trace',
         onDiagnostic: (event) => {
-          if (!disposed && event.phase === 'frame') telemetry.frame(event.context.metrics);
+          if (disposed) return;
+          if (event.phase === 'frame') telemetry.frame(event.context.metrics);
+          // The engine has already withdrawn its image: only a new explorer draws again.
+          else if (event.phase === 'gpu-device-lost') fail(copy.lost);
         },
         onEvent: (event) => {
           if (!disposed && event.type === 'fatal') status.textContent = copy.failed;
@@ -92,17 +106,11 @@ export function mountScene(host, copy, locale) {
       invalidate();
     } catch (error) {
       if (disposed) return;
-      telemetry.stop();
-      explorer?.dispose();
-      explorer = null;
-      const message = /WEBGPU|adapter|GPU/.test(String(error))
-        ? copy.unavailable
-        : `${copy.failed} (${error.message})`;
-      status.textContent = message;
-      loading.hidden = true;
-      start.disabled = false;
-      start.hidden = false;
-      start.textContent = copy.retry;
+      fail(
+        /WEBGPU|adapter|GPU/.test(String(error))
+          ? copy.unavailable
+          : `${copy.failed} (${error.message})`,
+      );
     }
   };
   start.addEventListener('click', load, events);

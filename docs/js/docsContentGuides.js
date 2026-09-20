@@ -188,13 +188,21 @@ hierarchyUpdateBatch(
     ...EXAMPLE,
     id: 'example-diagnostics',
     title: 'Diagnostics and quality',
-    description: 'Switching what the frame draws and how fine the cut is, on a live explorer.',
+    description:
+      'Switching what the frame draws and how fine the cut is, on a live explorer; and what a lost GPU device leaves on screen — nothing stale.',
     example: `explorer.setDiagnostic('clusters'); // one stable colour per cluster, on the real cut
 explorer.setDiagnostic('screen-error'); // the projected error the cut compares to the threshold
 explorer.setDiagnostic('materials'); // one colour per material class: the pass that resolved the pixel
 explorer.setDiagnostic('beauty'); // back to the lit image
 explorer.setPixelError(2); // coarser cut: up to two pixels of projected error
 console.log(explorer.diagnostics); // which modes this backend can produce, and why not
-console.log(explorer.stageProfile()); // per-stage CPU/GPU quantiles over the last frames`,
+console.log(explorer.stageProfile()); // per-stage CPU/GPU quantiles over the last frames
+
+// A lost WebGPU device leaves nothing stale: the engine withdraws and blanks the canvas it
+// presented as the loss happens, announces it, and the next frame raises WEBGPU_LOST. The two
+// observers given at creation see it, in that order:
+//   onDiagnostic: (event) => event.phase === 'gpu-device-lost' && lost(event.context.code),
+//   onEvent: (event) => event.type === 'fatal' && lost(event.code), // INTERACTIVE_RENDER_FAILED
+// Recovery is a new explorer: dispose this one, then createExplorer again.`,
   },
 ];
