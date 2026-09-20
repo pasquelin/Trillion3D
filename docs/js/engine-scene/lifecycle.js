@@ -20,6 +20,7 @@ export function mountScene(host, copy, locale) {
   const controller = new AbortController();
   let explorer,
     disposed = false,
+    lost = false,
     camera,
     lighting;
   const events = { signal: controller.signal };
@@ -45,6 +46,7 @@ export function mountScene(host, copy, locale) {
     host.querySelector('[data-scene-observe]').textContent = observe;
   };
   const load = async () => {
+    lost = false;
     start.disabled = true;
     start.hidden = true;
     loading.hidden = false;
@@ -53,6 +55,8 @@ export function mountScene(host, copy, locale) {
       if (!navigator.gpu) throw new Error('WEBGPU_UNAVAILABLE');
       const { createExplorer } = await import('../../runtime/engine.js');
       if (disposed) return;
+      // The engine has already withdrawn its image on a loss: only a new explorer draws again,
+      // and one still preparing when it happens is released as soon as it exists.
       const created = await createExplorer(canvas, {
         manifestUrl: new URL(
           'assets/kinetic-garden/cache/native/full/manifest.json',
@@ -73,14 +77,16 @@ export function mountScene(host, copy, locale) {
         onDiagnostic: (event) => {
           if (disposed) return;
           if (event.phase === 'frame') telemetry.frame(event.context.metrics);
-          // The engine has already withdrawn its image: only a new explorer draws again.
-          else if (event.phase === 'gpu-device-lost') fail(copy.lost);
+          else if (event.phase === 'gpu-device-lost') {
+            lost = true;
+            fail(copy.lost);
+          }
         },
         onEvent: (event) => {
           if (!disposed && event.type === 'fatal') status.textContent = copy.failed;
         },
       });
-      if (disposed) {
+      if (disposed || lost) {
         created.dispose();
         return;
       }
@@ -105,7 +111,7 @@ export function mountScene(host, copy, locale) {
       status.textContent = '';
       invalidate();
     } catch (error) {
-      if (disposed) return;
+      if (disposed || lost) return;
       fail(
         /WEBGPU|adapter|GPU/.test(String(error))
           ? copy.unavailable
