@@ -31,6 +31,8 @@ const SANS_MESURE = {
   nsParElement: null,
   tours: 0,
   opsParSec: null,
+  temoin: null,
+  ecartTemoin: null,
 };
 
 const ligne = ({ name, size = null, motif = null, correct = null, difference = null }) => ({
@@ -56,8 +58,10 @@ const compteTexte = (c) => `${c.nombre} discrepancy(ies), ${c.ulpMax} ULP at mos
  * kept: without an oracle it says where correctness is held, with one it says what the comparison
  * leaves out; never silence.
  */
-async function verifie(item, { calcul, attendu, differences, motif }) {
+async function verifie(item, { calcul, attendu, differences, motif, temoin }) {
   if (!attendu) return { correct: null, difference: null, motif: motif ?? null };
+  // The oracle may read the witness's result: the witness runs once before it is read.
+  if (temoin) await temoin(item.input);
   const ref = await attendu(item.input);
   const obt = await calcul(item.input);
   if (!differences) {
@@ -71,45 +75,58 @@ async function verifie(item, { calcul, attendu, differences, motif }) {
 /**
  * Absolute measurement of a calculation on a set of named cases, each verified against `attendu`.
  * `fichier` is the measured path, or list of paths; `mesure: false` on a case verifies it without timing.
+ * `temoin` is another calculation of the same thing — a host library, a rejected candidate — timed
+ * on the same input with the same settings: the row keeps its statistics under `temoin` and reads
+ * `ecartTemoin`, the calculation's median relative to the witness's, as `ecartBaseline` reads it
+ * relative to the baseline. Never `0` without a witness: `null`.
  */
-export async function mesure({ name, fichier, cas, options = {}, ...conf }) {
+export async function mesure({ name, fichier, cas, options = {}, temoin, ...conf }) {
   const { chauffe = 20, tours = 200, budgetMs = 1000 } = options;
+  const reglages = { chauffe, tours, budgetMs };
   const resultats = [];
 
   for (const item of cas) {
-    const verdict = await verifie(item, conf);
+    const verdict = await verifie(item, { ...conf, temoin });
 
     if (item.mesure === false) {
       resultats.push(ligne({ ...verdict, name: item.name, size: item.size }));
       continue;
     }
 
-    for (let i = 0; i < chauffe; i++) await conf.calcul(item.input);
-
-    // Two clock readings per turn, not three: the end of a turn is also where the
-    // budget is evaluated. The timer wraps exactly the call, as before.
-    const durees = [];
-    const debut = process.hrtime.bigint();
-    let fin;
-    while (durees.length < tours) {
-      const t0 = process.hrtime.bigint();
-      await conf.calcul(item.input);
-      fin = process.hrtime.bigint();
-      durees.push(Number(fin - t0) / 1e6);
-      if (durees.length >= 5 && Number(fin - debut) / 1e6 > budgetMs) break;
-    }
-
-    const s = stats(durees);
+    // The witness runs first, under the same clock and the same budget as the calculation.
+    const t = temoin ? await chronometre(temoin, item.input, reglages) : null;
+    const s = await chronometre(conf.calcul, item.input, reglages);
     resultats.push({
       name: item.name,
       size: item.size ?? null,
       ...s,
       nsParElement: item.size > 0 ? (s.medianeMs * 1e6) / item.size : null,
       opsParSec: s.medianeMs > 0 ? Math.round(1000 / s.medianeMs) : null,
+      temoin: t,
+      ecartTemoin: t?.medianeMs ? (s.medianeMs - t.medianeMs) / t.medianeMs : null,
       ...verdict,
     });
   }
   return { name, fichier, resultats };
+}
+
+/** Warm-up, then timed turns until `tours` or the budget: the statistics of one calculation on one input. */
+async function chronometre(calcul, input, { chauffe, tours, budgetMs }) {
+  for (let i = 0; i < chauffe; i++) await calcul(input);
+
+  // Two clock readings per turn, not three: the end of a turn is also where the
+  // budget is evaluated. The timer wraps exactly the call, as before.
+  const durees = [];
+  const debut = process.hrtime.bigint();
+  let fin;
+  while (durees.length < tours) {
+    const t0 = process.hrtime.bigint();
+    await calcul(input);
+    fin = process.hrtime.bigint();
+    durees.push(Number(fin - t0) / 1e6);
+    if (durees.length >= 5 && Number(fin - debut) / 1e6 > budgetMs) break;
+  }
+  return stats(durees);
 }
 
 /** Checks that a calculation absorbs its extremes without throwing: no exception is the contract. */
