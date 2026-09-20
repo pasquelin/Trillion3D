@@ -51,7 +51,7 @@ export function mountainTerrain(detail = 96) {
     const z = (step / detail - 0.5) * 12,
       x = valleyCenter(z),
       y = terrainHeight(x, z) + 0.16,
-      width = 0.26 + 0.055 * Math.cos(z * 0.7);
+      width = 0.42 + 0.07 * Math.cos(z * 0.7);
     positions.push(x - width, y, z, x + width, y, z);
   }
   const start = positions.length / 3 - (detail + 1) * 2;
