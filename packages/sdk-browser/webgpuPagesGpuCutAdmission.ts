@@ -28,6 +28,9 @@ export const MIN_BUDGET_PIXEL_ERROR = 0.125;
 export function admitGpuCut(rt: WebgpuPagesRuntime, pixelError: number, budgeted: number) {
   const { run, services } = rt,
     { slots } = rt.setup;
+  // A floor the host's own threshold has passed no longer decides anything: it is given up, so
+  // what is published is what the cut is drawn at.
+  if (run.budgetPixelError > 0 && run.budgetPixelError <= pixelError) run.budgetPixelError = 0;
   const sample = run.gpuSelection?.peek();
   if (!sample || sample.uniforms.pixelError !== budgeted) return;
   const view = run.gate.revisions.view;
@@ -43,15 +46,11 @@ export function admitGpuCut(rt: WebgpuPagesRuntime, pixelError: number, budgeted
   // way the cut does: without that, ancestors holding the slots would wait for children that cannot
   // enter. The CPU cut applies the same rule.
   run.coverageBudgetLimited = requested > slots || keepCount > slots;
-  // The ladder is the powers of two: a first overflow climbs to one pixel — or twice the host's
-  // threshold —, every rung above doubles, and relaxing halves down to the finest rung, below
-  // which the floor is given up.
+  // The ladder doubles what the image was drawn at — one pixel at least on a first overflow —,
+  // and relaxing halves down to the finest rung, below which the floor is given up.
   if (run.coverageBudgetLimited) {
     run.budgetOverflowError = budgeted;
-    run.budgetPixelError = Math.min(
-      MAX_BUDGET_PIXEL_ERROR,
-      run.budgetPixelError > 0 ? run.budgetPixelError * 2 : Math.max(1, pixelError * 2),
-    );
+    run.budgetPixelError = Math.min(MAX_BUDGET_PIXEL_ERROR, Math.max(1, budgeted * 2));
   } else if (run.budgetPixelError > 0 && requested < slots * BUDGET_RELAX_RATIO) {
     let next = run.budgetPixelError / 2;
     if (next <= pixelError || next < MIN_BUDGET_PIXEL_ERROR) next = 0;
