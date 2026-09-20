@@ -88,6 +88,7 @@ export function createHostSceneWatch() {
     /** The engine wrote the graph itself, under a scene revision it already incremented. */
     settle() {
       seen = mark.revision;
+      seenShape = mark.shape;
     },
     /** Forgets every node: their writes no longer reach this watch. */
     release() {
