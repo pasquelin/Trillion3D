@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { WebglClusterRenderer } from '../../packages/sdk-browser/webglClusterRenderer.ts';
-import { createHostDrawCamera, readHostDrawCamera } from '../../packages/sdk-browser/cameraWorld.ts';
+import {
+  createHostDrawCamera,
+  readHostDrawCamera,
+} from '../../packages/sdk-browser/cameraWorld.ts';
 
 const center = (gl) => {
   const value = new Uint8Array(4);
