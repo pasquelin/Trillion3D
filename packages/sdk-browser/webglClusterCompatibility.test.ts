@@ -17,7 +17,16 @@ test('unsupported mutations refuse the autonomous draw before it becomes partial
     'lit material has no normal attribute',
   );
   material.transparent = true;
+  assert.equal(
+    clusterMaterialReason(material, {
+      position,
+      normal: new THREE.BufferAttribute(new Float32Array(9), 3),
+    }),
+    undefined,
+  );
+  material.premultipliedAlpha = true;
   assert.match(clusterMaterialReason(material, { position })!, /clustered blend contract/);
+  material.premultipliedAlpha = false;
   material.transparent = false;
   material.wireframe = true;
   assert.match(clusterMaterialReason(material, { position })!, /unsupported extension/);
@@ -49,6 +58,7 @@ test('one material is validated against every distinct geometry attribute set', 
           { material, geometry: { attributes: { position, uv, uv1: uv } } },
           { material, geometry: { attributes: { position, uv } } },
         ] as never,
+        [],
         new Map(),
       ),
     /no UV1 attribute/,
@@ -61,8 +71,24 @@ test('a runtime mutation to a material array is rejected instead of disappearing
     () =>
       validateClusterMeshes(
         [{ material: [material], geometry: { attributes: { position } } }] as never,
+        [],
         new Map(),
       ),
     /material arrays are unsupported/,
   );
+});
+
+test('mutating one generated sideSplit pass is refused before either pass draws', () => {
+  const back = new THREE.MeshBasicMaterial({ transparent: true, side: THREE.BackSide });
+  const front = new THREE.MeshBasicMaterial({ transparent: true, side: THREE.FrontSide });
+  const pair = [back, front] as [THREE.Material, THREE.Material];
+  const mesh = {
+    material: pair,
+    geometry: { attributes: { position } },
+    _sideSplitMaterials: pair,
+    _sideSplitBack: back,
+    _sideSplitFront: front,
+  };
+  pair[0] = new THREE.MeshBasicMaterial({ transparent: true, side: THREE.BackSide });
+  assert.throws(() => validateClusterMeshes([mesh] as never, [], new Map()), /invalid sideSplit/);
 });
