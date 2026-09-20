@@ -2,6 +2,7 @@ import { applyLightingLesson, createLightingLessonSession } from './lightingLess
 import { applyCameraLesson } from './cameraLessonRuntime.js';
 import { configureSceneCamera } from '../engine-scene/cameraControls.js';
 import { createLessonExplorer } from './lessonExplorer.js';
+import { addSceneFillLight } from '../sceneFillLight.js';
 
 function lightFor(kind, state) {
   if (kind === 'point')
@@ -71,12 +72,21 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
     remaining = 0,
     previous = 0,
     resize,
-    controls;
+    controls,
+    readyResolve,
+    readyReject;
+  const ready = new Promise((resolve, reject) => {
+    readyResolve = resolve;
+    readyReject = reject;
+  });
   const added = { value: false },
     lighting = createLightingLessonSession();
   const dispose = () => {
     if (disposed) return;
     disposed = true;
+    readyReject?.(new DOMException('Cancelled', 'AbortError'));
+    readyResolve = undefined;
+    readyReject = undefined;
     cancelAnimationFrame(frame);
     resize?.disconnect();
     controls?.dispose();
@@ -100,6 +110,9 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
       triangles: metrics.drawnTriangles,
       idle,
     });
+    readyResolve?.();
+    readyResolve = undefined;
+    readyReject = undefined;
     previous = now;
     if (!idle) frame = requestAnimationFrame(draw);
   };
@@ -120,6 +133,16 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
   try {
     await explorer.awaitPages();
     if (disposed) throw new DOMException('Cancelled', 'AbortError');
+    if (lesson.sceneLight)
+      explorer.addLight({
+        id: 'scene',
+        kind: 'directional',
+        direction: [-0.4, -0.8, -0.3],
+        color: [1, 0.92, 0.78],
+        intensity: 2.5,
+        castsShadow: true,
+      });
+    if (lesson.sceneFill) addSceneFillLight(explorer);
     controls = explorer.controls();
     const camera = configureSceneCamera(explorer, controls);
     const reset = () => {
@@ -137,6 +160,7 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
       invalidate();
     });
     resize.observe(canvas);
+    await ready;
     return {
       update,
       dispose,

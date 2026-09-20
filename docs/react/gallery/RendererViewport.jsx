@@ -24,7 +24,8 @@ export function RendererViewport({ lesson, state, locale, label }) {
     runtime = useRef(null),
     latest = useRef(state),
     [metrics, setMetrics] = useState({}),
-    [error, setError] = useState('');
+    [error, setError] = useState(''),
+    [pending, setPending] = useState(true);
   latest.current = state;
   useEffect(() => {
     let active = true;
@@ -32,6 +33,7 @@ export function RendererViewport({ lesson, state, locale, label }) {
       initialState = latest.current;
     setError('');
     setMetrics({});
+    setPending(true);
     createRendererLessonRuntime({
       canvas: canvas.current,
       lesson,
@@ -42,10 +44,17 @@ export function RendererViewport({ lesson, state, locale, label }) {
       .then((mounted) => {
         if (active) {
           runtime.current = mounted;
-          return syncRendererState(mounted, initialState, latest.current);
+          return syncRendererState(mounted, initialState, latest.current).then(() => {
+            if (active) setPending(false);
+          });
         } else mounted.dispose();
       })
-      .catch((error) => active && setError(errorMessage(error, locale, 'rendering')));
+      .catch((error) => {
+        if (active) {
+          setPending(false);
+          setError(errorMessage(error, locale, 'rendering'));
+        }
+      });
     return () => {
       active = false;
       lifecycle.abort();
@@ -65,6 +74,8 @@ export function RendererViewport({ lesson, state, locale, label }) {
         canvasRef={canvas}
         className="geometry-3d-canvas"
         label={label}
+        pending={pending}
+        loadingLabel={locale === 'fr' ? 'Préparation de la scène…' : 'Preparing the scene…'}
         actions={[
           {
             label: french ? 'Zoom arrière' : 'Zoom out',
