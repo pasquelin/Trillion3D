@@ -1,7 +1,7 @@
+import { SCENE_BACKGROUND } from '../scenePalette.js';
 import { createSceneTelemetry } from './telemetry.js';
 import { configureSceneCamera } from './cameraControls.js';
 import { createLightingControls } from './lightingControls.js';
-
 export function mountScene(host, copy, locale) {
   const canvas = host.querySelector('[data-scene-canvas]');
   const start = host.querySelector('[data-scene-start]');
@@ -58,7 +58,7 @@ export function mountScene(host, copy, locale) {
         texturePoolBytes: 128 * 1024 * 1024,
         maxCachedBytes: 16 * 1024 * 1024,
         pageFetchWorkers: 2,
-        clearColor: 0x101b2b,
+        clearColor: SCENE_BACKGROUND.packed,
         signal: controller.signal,
         diagnosticDetail: 'trace',
         onDiagnostic: (event) => {
