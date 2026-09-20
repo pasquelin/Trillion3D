@@ -9,11 +9,13 @@ export function cameraPoseFor(explorer, lesson, state) {
   const angle = (state.angle * Math.PI) / 180,
     offset = home.position.map((value, index) => value - home.target[index]),
     radius = Math.hypot(offset[0], offset[2]);
+  // An orbit keeps the eye's height unless the lesson sets it: the occlusion lesson lowers it to
+  // ring height, where the rings of a row hide one another.
   return {
     ...home,
     position: [
       home.target[0] + Math.sin(angle) * radius,
-      home.position[1],
+      state.height ?? home.position[1],
       home.target[2] + Math.cos(angle) * radius,
     ],
   };
