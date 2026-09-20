@@ -1,7 +1,12 @@
 import { codeForBounds, codeForScene } from './codeScene.js';
 import { codeForTransform, codeForVector } from './codeSpatial.js';
+import { codeForAdvanced } from './codeAdvanced.js';
 
 export function codeFor(id, state) {
+  if (
+    ['matrix-inverse', 'reflection-orientation', 'quaternion-turn', 'normal-transform'].includes(id)
+  )
+    return codeForAdvanced(id, state);
   if (['compose-transform', 'matrix-chain', 'perspective', 'frustum'].includes(id))
     return codeForTransform(id, state);
   if (['dot-product', 'cross-product', 'normalize'].includes(id)) return codeForVector(id, state);
