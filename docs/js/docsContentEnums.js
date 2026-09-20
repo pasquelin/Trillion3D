@@ -15,7 +15,7 @@ export const ENUMS_IMAGE = [
       { name: '[1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]', desc: 'Sixteen numbers, column-major.' },
     ],
     replaces: 'Matrix4.identity()',
-    example: `import { IDENTITY_MATRIX4, copyMatrix4 } from '@web-geometry/sdk/core';
+    example: `import { IDENTITY_MATRIX4, copyMatrix4 } from 'web-geometry';
 
 copyMatrix4(nodeTransform, IDENTITY_MATRIX4); // reset, no allocation`,
   },
@@ -57,7 +57,7 @@ copyMatrix4(nodeTransform, IDENTITY_MATRIX4); // reset, no allocation`,
       { name: "'texture-mip'", desc: 'Unavailable: texture mip residency is not instrumented.' },
       { name: "'overdraw'", desc: 'Unavailable: no fragment counter.' },
     ],
-    example: `import { DIAGNOSTICS } from '@web-geometry/sdk/core';
+    example: `import { DIAGNOSTICS } from 'web-geometry';
 
 explorer.setDiagnostic('clusters');
 console.log(DIAGNOSTICS['overdraw']); // { available: false, reason: 'No fragment counter' }`,
@@ -80,7 +80,7 @@ console.log(DIAGNOSTICS['overdraw']); // { available: false, reason: 'No fragmen
         desc: 'Adaptive — `pixelError: 2`, raised with camera speed by `adaptivePixelError(base, speed, radius)`; a still view keeps the base.',
       },
     ],
-    example: `import { LOD_QUALITY, lodQuality } from '@web-geometry/sdk/core';
+    example: `import { LOD_QUALITY, lodQuality } from 'web-geometry';
 
 const { pixelError } = lodQuality('balanced'); // 4; an unknown id throws
 explorer.setPixelError(pixelError);`,
@@ -100,7 +100,7 @@ explorer.setPixelError(pixelError);`,
       },
       { name: "'reference'", desc: 'The published formula, for the comparison bench.' },
     ],
-    example: `import { screenErrorVariant, setScreenErrorVariant } from '@web-geometry/sdk/core';
+    example: `import { screenErrorVariant, setScreenErrorVariant } from 'web-geometry';
 
 setScreenErrorVariant('reference'); // null or undefined restores 'certifiee'
 console.log(screenErrorVariant());`,

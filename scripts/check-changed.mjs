@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { posix } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
+import { repositoryFiles } from './repository-files.mjs';
 
 const sourcePattern = /\.(?:[cm]?js|[cm]?ts|jsx|tsx)$/;
 const testPattern = /\.test\.(?:ts|mts|mjs)$/;
@@ -13,18 +14,8 @@ function gitPaths(args) {
 }
 
 function candidates(importer, specifier) {
-  if (specifier.startsWith('@web-geometry/sdk')) {
-    const entry = specifier.slice('@web-geometry/sdk'.length);
-    if (entry === '/core') return ['packages/sdk-core/index.ts'];
-    if (entry === '/browser') return ['packages/sdk-browser/index.ts'];
-    if (entry === '/node') return ['packages/sdk-node/index.mts'];
-    if (!entry)
-      return [
-        'packages/sdk-core/index.ts',
-        'packages/sdk-browser/index.ts',
-        'packages/sdk-node/index.mts',
-      ];
-  }
+  if (specifier === 'web-geometry')
+    return ['packages/sdk/index.ts', 'packages/sdk/browser.ts', 'packages/sdk/node.mts'];
   if (!specifier.startsWith('.')) return [];
   const target = posix.normalize(posix.join(posix.dirname(importer), specifier));
   const stem = target.replace(/\.(?:m?js)$/, '');
@@ -69,13 +60,18 @@ function run(command, args) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
+export function existingChangedFiles(changed, root = process.cwd()) {
+  const maintained = new Set(repositoryFiles(root));
+  return [...changed].filter((file) => maintained.has(file));
+}
+
 function main() {
   const base = process.env.WEB_GEOMETRY_BASE_REF ?? 'develop';
   const changed = new Set([
     ...gitPaths(['diff', '--name-only', '-z', base, '--']),
     ...gitPaths(['ls-files', '--others', '--exclude-standard', '-z']),
   ]);
-  const existing = [...changed].filter((file) => existsSync(file));
+  const existing = existingChangedFiles(changed);
   const paths = gitPaths(['ls-files', '-z']);
   const files = new Map(
     [...new Set([...paths, ...existing])]
