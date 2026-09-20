@@ -28,6 +28,7 @@ import { setWebgpuTransform } from './webgpuPagesTransform.ts';
 import { disposeWebgpuPages, metricsOf } from './webgpuPagesMetrics.ts';
 import { setWebgpuMemoryBudgets } from './webgpuPagesMemory.ts';
 import { installGpuDeviceLedger } from './gpuDeviceLedger.ts';
+import { markWebgpuLost } from './webgpuPagesLost.ts';
 export { outputColorDiagnostic } from './webgpuPagesHelpers.ts';
 
 /** WebGPU raster of cluster pages. GPU frustum + per-cluster error band when compute is available;
@@ -40,15 +41,16 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
   // receives from an arrival.
   const pageSpecs = createArrivalSpecs(setup.byUrl, rt.layout.rows.pageIndexOf);
   const onGpuError = (event: GPUUncapturedErrorEvent) => {
+    markWebgpuLost(rt);
     diag.diagnosticFailure('gpu-uncaptured-error', event.error);
-    run.lost = true;
   };
   const backend: WebgpuPagesBackend = {
     id: 'webgpu-page-raster',
     capabilities: rt.capabilities,
     scene: setup.scene,
     get presentedSurface() {
-      // The host canvas needs no composition: the engine already presented into it.
+      // The host canvas needs no composition: the engine already presented into it. A lost or
+      // disposed device has no presenter left: nothing stale is published (`markWebgpuLost`).
       return context.gpuCanvas ? undefined : rt.gpu.presenter?.canvas;
     },
     get overBudget() {
