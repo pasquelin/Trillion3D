@@ -55,6 +55,34 @@ FBX/OBJ sources are first imported into `<cache>/native/imports/<key>/` as `mode
 
 `prepareMany` resolves with the `BatchSummary` whenever the compiler printed one, and the compiler prints one whether or not every job succeeded: `{status: 'ready' | 'partial' | 'failed', completed, failed, cancelled, jobs}`. A partly successful batch exits 2 and is a resolved `partial` summary, not a rejection — read `jobs` to see which entries carry a `pointer` and which carry a `code`. It rejects only when no summary came back: a batch the compiler refused outright (`INVALID_BATCH`), a missing pointer, a cancelled run, or a spawn failure.
 
+## Scene hierarchy foundation
+
+`@web-geometry/sdk-core` publishes scene-model version `SCENE_MODEL_VERSION` 1. A
+`SceneRoot` owns one transform hierarchy; nodes created by `root.createNode({ id, visible })`
+have stable, root-unique identifiers and can be attached with `add` or `reparent`. `remove` and
+`clear` detach live nodes, while `destroy` permanently invalidates a whole subtree. `clone` gives
+the new node a fresh identifier unless one is supplied; `copy` retains the destination identifier.
+Both reproduce the local pose and optionally the descendants.
+
+```javascript
+import { createSceneRoot } from '@web-geometry/sdk-core';
+
+const scene = createSceneRoot({ id: 'warehouse' });
+const shelf = scene.createNode({ id: 'shelf' }).setPosition(2, 0, -4);
+const crate = scene.createNode({ id: 'crate' }).setScale(0.5, 0.5, 0.5);
+scene.add(shelf);
+shelf.add(crate).updateWorldMatrix();
+```
+
+Nodes from different roots cannot be combined, duplicate ids are rejected, and a cycle leaves the
+hierarchy unchanged. Pose setters mark the data-oriented transform dirty; call
+`updateWorldMatrix()` before reading `worldMatrix`. The matrix views are read-only by contract;
+write through the setters so dirty tracking remains correct.
+
+This first #78 lot is the hierarchy foundation only. `createExplorer` does not accept a
+`SceneRoot` yet. Engine materials, texture references, frame hooks, and browser-contract migration
+remain later #78 lots; lights continue to use the existing `SceneLight` version 2 contract.
+
 ## Browser explorer
 
 ### Simple browser startup
