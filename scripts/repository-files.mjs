@@ -1,6 +1,6 @@
-import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { gitPathsSync } from './git-paths.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 
@@ -9,12 +9,9 @@ export function repositoryFiles(directory = root) {
   if (!existsSync(resolve(directory, '.git'))) return null;
   return [
     ...new Set(
-      execFileSync('git', ['ls-files', '-co', '--exclude-standard', '-z'], {
-        cwd: directory,
-        encoding: 'utf8',
-      })
-        .split('\0')
-        .filter((file) => file && existsSync(resolve(directory, file))),
+      gitPathsSync(['ls-files', '-co', '--exclude-standard', '-z'], directory).filter((file) =>
+        existsSync(resolve(directory, file)),
+      ),
     ),
   ];
 }
