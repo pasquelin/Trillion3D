@@ -4,8 +4,8 @@ import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 
-/** Remplace, dans `page`, `webgpuPages` et `visibilityBuffer` par ceux de `baselineDir`, et
- *  consigne leurs empreintes dans `provenance.baselineOverrides` et leurs sources sous `out`. */
+/** Replaces, in `page`, `webgpuPages` and `visibilityBuffer` with those from `baselineDir`, and
+ *  records their footprints in `provenance.baselineOverrides` and their sources under `out`. */
 export async function routeBaseline(page, out, provenance, baselineDir) {
   const ts = (await import('typescript')).default;
   for (const file of ['webgpuPages', 'visibilityBuffer']) {
@@ -19,8 +19,7 @@ export async function routeBaseline(page, out, provenance, baselineDir) {
       .transpileModule(source, {
         compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
       })
-      .outputText.replaceAll(".ts'", ".js'")
-      .replaceAll("from 'three'", "from '/.vite/deps/three.js'");
+      .outputText.replaceAll(".ts'", ".js'");
     await page.route('**/dist/sdk-browser/' + file + '.js*', (route) =>
       route.fulfill({ contentType: 'application/javascript', body: js }),
     );

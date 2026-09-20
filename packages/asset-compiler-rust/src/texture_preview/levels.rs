@@ -7,7 +7,7 @@
 //! anything, and sample it as-is.
 use super::*;
 
-/// Dimensions du niveau `level` d'une image `width`×`height`.
+/// Dimensions of level `level` of a `width`×`height` image.
 pub fn preview_level_size(width: u32, height: u32, level: u32) -> (u32, u32) {
     let shift = level.min(31);
     ((width >> shift).max(1), (height >> shift).max(1))

@@ -66,7 +66,7 @@ fn one_shared_mesh_becomes_one_gltf_mesh_instanced_three_times() {
         );
         assert!(primitive["material"].is_u64(), "{primitive}");
     }
-    fs::remove_dir_all(cache).expect("nettoyage");
+    fs::remove_dir_all(cache).expect("cleanup");
 }
 
 // Behaviour 30: the envelope changes nothing. The same file repacked as gzip
@@ -84,19 +84,19 @@ fn a_gzipped_file_gives_exactly_the_same_scene_as_the_zstandard_one() {
     let gzipped = dir.join("scene.blend");
     fs::write(&gzipped, encoder.finish().expect("gzip")).expect("write");
     let raw = dir.join("brut").join("scene.blend");
-    fs::create_dir_all(raw.parent().expect("dossier")).expect("dossier");
+    fs::create_dir_all(raw.parent().expect("dir")).expect("dir");
     fs::write(&raw, &plain).expect("write");
     let cache = scratch("blend", "gzip-cache");
     let from_gzip = fs::read(converted(&gzipped, &cache).join("model.gltf")).expect("gzip");
-    let from_raw = fs::read(converted(&raw, &cache).join("model.gltf")).expect("brut");
+    let from_raw = fs::read(converted(&raw, &cache).join("model.gltf")).expect("raw");
     let from_zstd = fs::read(converted(&source(), &cache).join("model.gltf")).expect("zstd");
     assert_eq!(
         from_gzip, from_zstd,
         "gzip and Zstandard yield the same scene"
     );
     assert_eq!(from_raw, from_zstd, "a bare file yields the same scene");
-    fs::remove_dir_all(dir).expect("nettoyage");
-    fs::remove_dir_all(cache).expect("nettoyage");
+    fs::remove_dir_all(dir).expect("cleanup");
+    fs::remove_dir_all(cache).expect("cleanup");
 }
 
 // Behaviour 31: an image packed in the file comes out in the scene binary byte
@@ -110,19 +110,19 @@ fn a_packed_image_is_carried_through_byte_for_byte() {
     let images = gltf["images"].as_array().expect("images");
     assert_eq!(images.len(), 1, "only one image in this scene");
     assert_eq!(images[0]["mimeType"], "image/png");
-    let view = images[0]["bufferView"].as_u64().expect("vue de tampon") as usize;
+    let view = images[0]["bufferView"].as_u64().expect("buffer view") as usize;
     let from = gltf["bufferViews"][view]["byteOffset"]
         .as_u64()
         .expect("offset") as usize;
     let length = gltf["bufferViews"][view]["byteLength"]
         .as_u64()
-        .expect("longueur") as usize;
+        .expect("length") as usize;
     let carried = &bin[from..from + length];
     let plain = unpacked();
     let start = find(&plain, b"\x89PNG\r\n\x1a\n").expect("the packed PNG");
-    let end = find(&plain[start..], b"IEND").expect("la fin du PNG") + start + 8;
+    let end = find(&plain[start..], b"IEND").expect("PNG end") + start + 8;
     assert_eq!(carried, &plain[start..end], "the PNG bytes are kept");
-    fs::remove_dir_all(cache).expect("nettoyage");
+    fs::remove_dir_all(cache).expect("cleanup");
 }
 
 /// Bytes of the fixture file once unpacked. Blender writes its Zstandard in several

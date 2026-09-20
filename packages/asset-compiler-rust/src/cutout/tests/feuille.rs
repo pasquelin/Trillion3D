@@ -38,13 +38,13 @@ fn deux_textures_dune_meme_image_ne_font_quune_ligne() {
     let previews = [apercu(3, 0, "abc"), apercu(7, 0, "abc")];
     let measures = BTreeMap::from([(3usize, forme()), (7usize, forme())]);
     let weights = BTreeMap::from([(3usize, 2u64), (7usize, 3u64)]);
-    let decisions = load_decisions(Path::new("/introuvable"), Path::new("/introuvable"))
-        .expect("aucune feuille");
+    let decisions =
+        load_decisions(Path::new("/introuvable"), Path::new("/introuvable")).expect("no sheet");
     let entries = entries(&g, &previews, &measures, &decisions, &weights);
-    assert_eq!(entries.len(), 1, "une image, une ligne");
+    assert_eq!(entries.len(), 1, "one image, one line");
     assert_eq!(
         entries[0].weight, 5,
-        "les primitives des deux liaisons s'additionnent"
+        "primitives of both bindings are summed"
     );
     assert_eq!(
         entries[0].name, "dossier/feuillage.png",
@@ -52,14 +52,14 @@ fn deux_textures_dune_meme_image_ne_font_quune_ligne() {
     );
 }
 
-// Comportement : deux images distinctes gardent deux lignes, et chacune son interrupteur.
+// Behaviour: two distinct images keep two lines, and each has its own switch.
 #[test]
 fn deux_images_distinctes_gardent_deux_lignes() {
     let g = json!({ "images": [{ "uri": "a.png" }, { "uri": "b.png" }] });
     let previews = [apercu(0, 0, "abc"), apercu(1, 1, "def")];
     let measures = BTreeMap::from([(0usize, forme()), (1usize, forme())]);
-    let decisions = load_decisions(Path::new("/introuvable"), Path::new("/introuvable"))
-        .expect("aucune feuille");
+    let decisions =
+        load_decisions(Path::new("/introuvable"), Path::new("/introuvable")).expect("no sheet");
     let entries = entries(&g, &previews, &measures, &decisions, &BTreeMap::new());
     assert_eq!(entries.len(), 2);
 }

@@ -49,15 +49,15 @@ fn a_truncated_file_and_an_ambiguous_directory_are_refused_by_name() {
         "blend-truncated"
     );
     let dir = std::env::temp_dir().join(format!("wg-blend-deux-{}", std::process::id()));
-    fs::create_dir_all(&dir).expect("dossier");
+    fs::create_dir_all(&dir).expect("dir");
     for name in ["a.blend", "b.blend"] {
-        fs::copy(&truncated, dir.join(name)).expect("copie");
+        fs::copy(&truncated, dir.join(name)).expect("copy");
     }
     assert_eq!(
         refused_golden_source(&dir, "blend-ambigu"),
         "SOURCE_FORMAT_AMBIGUOUS"
     );
-    fs::remove_dir_all(dir).expect("nettoyage");
+    fs::remove_dir_all(dir).expect("cleanup");
 }
 
 /// What the golden fixes: the retained driver, its report, then the scene itself

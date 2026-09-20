@@ -1,6 +1,6 @@
 {
-  "case": "Un glTF à buffer externe et texture en sous-dossier, lu à travers son ZIP : extraction sous le cache, dossier racine unique traversé, routage du contenu vers le pilote glTF.",
-  "rule": "Un conteneur ne change rien à la scène qu'il emballe. Le test compare d'abord la compilation issue de l'archive à celle du même glTF hors archive, clé de cache comprise ; les archives piégées sont refusées par leur code, jamais extraites à moitié.",
+  "case": "A glTF with an external buffer and a texture in a subdirectory, read through its ZIP: extraction under the cache, a single root directory walked through, content routed to the glTF driver.",
+  "rule": "A container changes nothing about the scene it wraps. The test first compares the compilation from the archive with that of the same glTF outside the archive, cache key included; booby-trapped archives are refused by their code and never half extracted.",
   "scenePlugin": {
     "name": "zip",
     "version": "zip-appnote-6.3.10-zip-8.6.0-extract-1"

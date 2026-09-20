@@ -5,20 +5,20 @@ use super::*;
 /// disk. Exactly what concurrent purge destroys.
 fn assert_cache_coherent(cache: &Path, scope: &str) {
     let pointer = read_json(&cache.join("native").join(scope).join("manifest.json"));
-    let key = pointer["key"].as_str().expect("clef du pointeur");
+    let key = pointer["key"].as_str().expect("pointer key");
     let directory = cache.join("native").join(scope).join(key);
     assert!(
         directory.join("clusters.json").exists(),
-        "le pointeur nomme {key}, dont le dossier a disparu"
+        "the pointer names {key}, whose directory is gone"
     );
     let binary = fs::read(directory.join(MANIFEST_BINARY_FILE)).expect("sidecar");
-    for digest in manifest_binary::digests(&binary).expect("colonnes du sidecar") {
+    for digest in manifest_binary::digests(&binary).expect("sidecar columns") {
         assert!(
             cache
                 .join("native/objects")
                 .join(format!("{digest}.bin"))
                 .exists(),
-            "la page {digest} que le manifeste nomme a disparu"
+            "the page {digest} the manifest names is gone"
         );
     }
 }
@@ -54,7 +54,7 @@ fn a02_deux_fils_sur_un_meme_cache_laissent_un_pointeur_lisible() {
         }
         assert!(
             outcomes.iter().any(Result::is_ok),
-            "au moins une compilation aboutit"
+            "at least one compilation succeeds"
         );
         assert_cache_coherent(&first.cache, "full");
         fs::remove_dir_all(first_root).expect("cleanup");

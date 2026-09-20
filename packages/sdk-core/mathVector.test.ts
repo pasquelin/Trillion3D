@@ -95,7 +95,7 @@ test('normalizeVector3: a zero vector stays zero, an ordinary vector becomes len
   assert.ok(proche(v[0], 0.6) && v[1] === 0 && proche(v[2], 0.8));
 });
 
-test('normalizeVector3 : contre v.normalize(), NaN, ±0 et infinis compris', () => {
+test('normalizeVector3: against v.normalize(), including NaN, ±0 and infinities', () => {
   for (const v of VECTEURS) {
     const out = Float64Array.from(v);
     normalizeVector3(out);
@@ -104,7 +104,7 @@ test('normalizeVector3 : contre v.normalize(), NaN, ±0 et infinis compris', () 
   }
 });
 
-test('lengthSqVector3 : contre v.lengthSq(), NaN, ±0 et infinis compris', () => {
+test('lengthSqVector3: against v.lengthSq(), including NaN, ±0 and infinities', () => {
   for (const v of VECTEURS) {
     const out = lengthSqVector3(v);
     const ref = new THREE.Vector3(...v).lengthSq();
@@ -112,7 +112,7 @@ test('lengthSqVector3 : contre v.lengthSq(), NaN, ±0 et infinis compris', () =>
   }
 });
 
-test('scaleVector3 : contre v.multiplyScalar(s) en place, NaN, ±0 et infinis compris', () => {
+test('scaleVector3: against in-place v.multiplyScalar(s), including NaN, ±0 and infinities', () => {
   for (const v of VECTEURS)
     for (const s of SCALAIRES) {
       const out = Float64Array.from(v);
@@ -122,7 +122,7 @@ test('scaleVector3 : contre v.multiplyScalar(s) en place, NaN, ±0 et infinis co
     }
 });
 
-test('copyScaledVector3 : contre out.copy(a).multiplyScalar(s), out distinct de a', () => {
+test('copyScaledVector3: against out.copy(a).multiplyScalar(s), out distinct from a', () => {
   for (const a of VECTEURS)
     for (const s of SCALAIRES) {
       const out = new Float64Array(3);
@@ -132,7 +132,7 @@ test('copyScaledVector3 : contre out.copy(a).multiplyScalar(s), out distinct de 
     }
 });
 
-test('addScaledVector3 : contre out.addScaledVector(a, s), accumulation sur un out non nul', () => {
+test('addScaledVector3: against out.addScaledVector(a, s), accumulation on non-zero out', () => {
   for (const base of VECTEURS)
     for (const a of VECTEURS.slice(0, 3))
       for (const s of [1, -1, 0.5, NaN, Infinity]) {

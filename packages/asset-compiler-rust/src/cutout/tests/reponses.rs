@@ -8,17 +8,17 @@ fn dossier(nom: &str) -> PathBuf {
         std::process::id(),
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .expect("horloge")
+            .expect("clock")
             .as_nanos()
     ));
-    fs::create_dir_all(&path).expect("dossier");
+    fs::create_dir_all(&path).expect("dir");
     path
 }
 
 fn ecrire(directory: &Path, sheet: &Value) {
     fs::write(
         directory.join(DECISIONS_FILE),
-        serde_json::to_vec(sheet).expect("feuille"),
+        serde_json::to_vec(sheet).expect("sheet"),
     )
     .expect("write");
 }
@@ -26,25 +26,24 @@ fn ecrire(directory: &Path, sheet: &Value) {
 /// Scene of mesh, blend material, and embedded image whose bytes are
 /// binary itself: sheet sorts by fingerprint of these bytes.
 fn scene() -> (Value, Vec<u8>, String) {
-    let bin = b"des octets d'image".to_vec();
+    let bin = b"some image bytes".to_vec();
     let g = json!({"meshes":[{"primitives":[{"material":0}]}],
         "materials":[{"alphaMode":"BLEND","pbrMetallicRoughness":{"baseColorTexture":{"index":0}}}],
         "textures":[{"source":0}],"images":[{"bufferView":0}],
-        "bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":18}]});
+        "bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":bin.len()}]});
     let sha = hash(&bin);
     (g, bin, sha)
 }
 
 fn appliquer(g: &mut Value, bin: &[u8], decisions: &Decisions) -> CutoutApplied {
-    apply_decisions(g, bin, Path::new("."), &BTreeSet::from([0usize]), decisions)
-        .expect("application")
+    apply_decisions(g, bin, Path::new("."), &BTreeSet::from([0usize]), decisions).expect("apply")
 }
 
 // Behavior: without sheet, nothing changes. Blend stays blend, report says so.
 #[test]
 fn sans_feuille_le_melange_reste_du_melange() {
     let directory = dossier("vide");
-    let decisions = load_decisions(&directory, &directory).expect("lecture");
+    let decisions = load_decisions(&directory, &directory).expect("read");
     let (mut g, bin, _) = scene();
     let applied = appliquer(&mut g, &bin, &decisions);
     assert_eq!(g["materials"][0]["alphaMode"], json!("BLEND"));
@@ -65,7 +64,7 @@ fn une_reponse_decoupe_passe_le_materiau_en_masque() {
         &directory,
         &json!({"version":1,"textures":{&sha:{"cutout":true}}}),
     );
-    let decisions = load_decisions(&directory, &directory).expect("lecture");
+    let decisions = load_decisions(&directory, &directory).expect("read");
     let applied = appliquer(&mut g, &bin, &decisions);
     assert_eq!(g["materials"][0]["alphaMode"], json!("MASK"));
     assert_eq!(g["materials"][0]["alphaCutoff"], json!(0.5));
@@ -82,7 +81,7 @@ fn une_reponse_vitre_laisse_la_scene_intacte() {
         &directory,
         &json!({"version":1,"textures":{&sha:{"cutout":false}}}),
     );
-    let decisions = load_decisions(&directory, &directory).expect("lecture");
+    let decisions = load_decisions(&directory, &directory).expect("read");
     appliquer(&mut g, &bin, &decisions);
     assert_eq!(g["materials"][0]["alphaMode"], json!("BLEND"));
 }
@@ -99,7 +98,7 @@ fn une_transmission_est_refusee_malgre_la_reponse() {
         &directory,
         &json!({"version":1,"textures":{&sha:{"cutout":true}}}),
     );
-    let decisions = load_decisions(&directory, &directory).expect("lecture");
+    let decisions = load_decisions(&directory, &directory).expect("read");
     let applied = appliquer(&mut g, &bin, &decisions);
     assert_eq!(g["materials"][0]["alphaMode"], json!("BLEND"));
     assert_eq!(applied.refused[0]["reason"], json!("transmission"));
@@ -116,7 +115,7 @@ fn un_facteur_alpha_partiel_est_refuse() {
         &directory,
         &json!({"version":1,"textures":{&sha:{"cutout":true}}}),
     );
-    let decisions = load_decisions(&directory, &directory).expect("lecture");
+    let decisions = load_decisions(&directory, &directory).expect("read");
     let applied = appliquer(&mut g, &bin, &decisions);
     assert_eq!(g["materials"][0]["alphaMode"], json!("BLEND"));
     assert_eq!(applied.refused[0]["reason"], json!("alpha-factor"));
@@ -134,7 +133,7 @@ fn une_feuille_illisible_est_refusee_et_une_reponse_nulle_attend() {
     );
     assert_eq!(
         load_decisions(&directory, &directory)
-            .expect("lecture")
+            .expect("read")
             .verdict("abc"),
         None
     );
@@ -158,7 +157,7 @@ fn une_feuille_livree_avec_la_source_amorce() {
     );
     assert_eq!(
         load_decisions(&cache, &source)
-            .expect("lecture")
+            .expect("read")
             .verdict("abc"),
         Some(true)
     );

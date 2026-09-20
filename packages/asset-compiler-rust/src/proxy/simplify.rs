@@ -4,8 +4,8 @@
 //! doubling threshold changes nothing and proxy retains millions of triangles. Proxy
 //! simplifies itself by rule independent of DAG: vertices snapped to
 //! grid step `c`, degenerate triangles from snapping disappear, duplicates
-//! merge, and what remains larger than `c` is subdivided until longest side <= c.
-//! passe sous `c`.
+//! merge, and what remains larger than `c` is subdivided until its longest side
+//! falls below `c`.
 //!
 //! Both directions count. Downwards, merge reduces triangle count. Upwards,
 //! subdivision gives surface cache known-size meshes: light per

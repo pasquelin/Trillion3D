@@ -53,7 +53,7 @@
       "type": "SCALAR"
     }
   ],
-  "case": "Un OBJ et son MTL : deux groupes nuancés par deux matériaux, un quadrilatère et un pentagone, une couleur ambiante et sa carte, une couleur spéculaire, un exposant, un indice de réfraction, une opacité de 0,5 avec sa carte à part, une émission texturée, une normale et un relief qui visent deux fichiers différents, et les options de map -s, -o, -bm et -clamp.",
+  "case": "An OBJ and its MTL: two groups shaded by two materials, a quad and a pentagon, an ambient colour and its map, a specular colour, an exponent, an IOR, 0.5 opacity with its separate map, textured emission, a normal and a bump that point at two different files, and map options -s, -o, -bm and -clamp.",
   "compiled": {
     "selectedTriangles": 5,
     "totalNodes": 1
@@ -178,7 +178,7 @@
     "version": "obj-ufbx-0.11.3-gltf-7"
   },
   "roots": [0],
-  "rule": "Le pilote rend ce que la bibliothèque déclare et compte le reste par son nom : la normale l'emporte sur le relief, l'opacité reste un mélange et jamais une découpe, -clamp devient le mode de bord de l'échantillonneur, et couleur ambiante, spéculaire, indice de réfraction, décalage, échelle et force de relief sont comptés faute de place dans le modèle métal-rugosité de glTF.",
+  "rule": "The driver yields what the library declares and counts the rest by name: the normal wins over the bump, opacity stays blend and never a cutout, -clamp becomes the sampler wrap mode, and ambient colour, specular, IOR, offset, scale and bump strength are counted for lack of a place in glTF's metal-roughness model.",
   "samplers": [
     {
       "magFilter": 9729,

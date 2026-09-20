@@ -69,7 +69,7 @@ const sphereEtroite = [3.5, 0, 0, 1],
  *  as the frame input carries it to the GPU. Packing in absolute world under a relative view
  *  would mix two frames in the same formula, and the frustum would cut wrongly. */
 const appel = (nom, world, sphere, uniforms) => ({
-  nom,
+  name: nom,
   packed: packedWorldsToRenderOrigin(empaquete(world, sphere), [{ world }], uniforms.cameraWorld),
   uniforms,
 });
@@ -84,7 +84,7 @@ const appels = [
 ];
 
 const gpu = await selectionGpu(appels);
-const pages = (nom) => gpu.resultats?.find((r) => r.nom === nom)?.pages ?? null;
+const pages = (nom) => gpu.resultats?.find((r) => r.name === nom)?.pages ?? null;
 console.log(
   JSON.stringify(
     {

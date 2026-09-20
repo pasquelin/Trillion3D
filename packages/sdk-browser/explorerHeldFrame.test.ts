@@ -68,7 +68,7 @@ test('a resize drops the kept frame: it no longer describes the target', () => {
   const { renderer } = rendu();
   const held = createHeldFrame();
   held.keep(renderer, taille(1280, 720));
-  assert.equal(held.holds(taille(640, 360)), false, 'une autre taille n’est pas cette image');
+  assert.equal(held.holds(taille(640, 360)), false, 'another size is not this image');
   held.keep(renderer, taille(640, 360));
   assert.equal(held.holds(taille(640, 360)), true);
   assert.equal(held.holds(taille(1280, 720)), false);

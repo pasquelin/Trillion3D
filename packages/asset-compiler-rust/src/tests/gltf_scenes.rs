@@ -67,7 +67,7 @@ fn seule_la_scene_selectionnee_est_compilee() {
     assert_eq!(nodes, vec![0, 1], "only scene 0's nodes");
     assert_eq!(triangles, 2, "one triangle per kept node");
     assert_eq!(lampes, 0, "scene 1's light is not of this scene");
-    fs::remove_dir_all(root).expect("nettoyage");
+    fs::remove_dir_all(root).expect("cleanup");
 }
 
 // Behaviour: the named scene takes its lights, and only those.
@@ -78,7 +78,7 @@ fn la_scene_nommee_emporte_ses_propres_lampes() {
     assert_eq!(nodes, vec![2, 3], "only scene 1's nodes");
     assert_eq!(triangles, 2);
     assert_eq!(lampes, 1, "node 3's light is in scene 1");
-    fs::remove_dir_all(root).expect("nettoyage");
+    fs::remove_dir_all(root).expect("cleanup");
 }
 
 // Behaviour: a child follows its parent in the scene, even named by no root.
@@ -92,7 +92,7 @@ fn les_enfants_des_racines_de_la_scene_suivent() {
     assert_eq!(nodes, vec![0, 1], "node 0's child is in scene 0");
     assert_eq!(triangles, 2);
     assert_eq!(lampes, 0);
-    fs::remove_dir_all(root).expect("nettoyage");
+    fs::remove_dir_all(root).expect("cleanup");
 }
 
 // Behaviour: without `scene` or `scenes`, the document excludes no one — every
@@ -104,5 +104,5 @@ fn sans_scenes_toutes_les_racines_sont_compilees() {
     assert_eq!(nodes, vec![0, 1, 2, 3, 4]);
     assert_eq!(triangles, 5);
     assert_eq!(lampes, 1);
-    fs::remove_dir_all(root).expect("nettoyage");
+    fs::remove_dir_all(root).expect("cleanup");
 }

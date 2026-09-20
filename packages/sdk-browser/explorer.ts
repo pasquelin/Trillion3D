@@ -1,3 +1,6 @@
+import { resolveExplorerTarget, type ExplorerTarget } from './explorerTarget.ts';
+import { interactiveOptions } from './explorerInteractiveOptions.ts';
+import { startInteractiveExplorer } from './explorerInteractive.ts';
 import { disposeSource } from './explorerDisposeSource.ts';
 import { EngineError } from '../sdk-core/index.ts';
 import { loadExplorerManifest } from './explorerManifest.ts';
@@ -7,7 +10,15 @@ import { prepareExplorer, type ExplorerResources } from './explorerPrepare.ts';
 import { createExplorerHostRuntime } from './explorerHostRuntime.ts';
 import { createExplorerApi } from './explorerApi.ts';
 
-export async function createExplorer(canvas: HTMLCanvasElement, options: ExplorerOptions) {
+export async function createExplorer(target: ExplorerTarget, original: ExplorerOptions) {
+  const canvas = resolveExplorerTarget(target);
+  const options = interactiveOptions(canvas, original);
+  options.signal?.throwIfAborted();
+  const lifetime = options.interactive ? new AbortController() : undefined;
+  if (lifetime)
+    options.signal = options.signal
+      ? AbortSignal.any([options.signal, lifetime.signal])
+      : lifetime.signal;
   const { diagnosticChannel, emit, diagnose, preparationStart, signal, scope, progress } =
     createExplorerSession(options);
   progress('manifest', 0, 1, 'Reading the cache');
@@ -39,6 +50,7 @@ export async function createExplorer(canvas: HTMLCanvasElement, options: Explore
     emit,
     diagnose,
   };
+  let disposeRuntime: (() => void) | undefined;
   try {
     const prepared = await prepareExplorer(session, {
       manifestUrl,
@@ -51,6 +63,8 @@ export async function createExplorer(canvas: HTMLCanvasElement, options: Explore
       progress,
     });
     const runtime = createExplorerHostRuntime(session, { prepared, resources, backends });
+    disposeRuntime = runtime.dispose;
+    if (lifetime) runtime.hostedControls.push({ dispose: () => lifetime.abort() });
     const { profiler } = runtime;
     progress('ready', 1, 1, 'Explorer ready');
     if (typeof window !== 'undefined') {
@@ -62,11 +76,17 @@ export async function createExplorer(canvas: HTMLCanvasElement, options: Explore
         disableAutoLog: () => profiler.stopAutoLog(),
       };
     }
-    return createExplorerApi({
+    const explorer = createExplorerApi({
       ...runtime,
       capabilities: prepared.capabilities,
       preparationMs: performance.now() - preparationStart,
     });
+    const invalidate = options.interactive
+      ? startInteractiveExplorer(explorer, runtime, original, { emit, diagnose })
+      : () => {
+          explorer.render();
+        };
+    return Object.assign(explorer, { invalidate });
   } catch (error) {
     diagnose('error', 'Explorer preparation failed', {
       kind: 'error',
@@ -74,9 +94,14 @@ export async function createExplorer(canvas: HTMLCanvasElement, options: Explore
       scope,
       manifestUrl,
     });
+    if (disposeRuntime) {
+      disposeRuntime();
+      throw error;
+    }
     backends.forEach((b) => b.dispose());
     if (resources.source) disposeSource(resources.source);
     resources.renderer?.dispose();
+    resources.webglSurface?.dispose();
     try {
       resources.gpuDevice?.destroy();
     } catch {

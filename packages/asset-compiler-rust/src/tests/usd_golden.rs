@@ -61,13 +61,13 @@ fn the_text_and_binary_serialisations_of_one_scene_give_the_same_intermediate_sc
     );
 }
 
-/// La couche de la fixture minuscule.
+/// The minuscule fixture layer.
 fn layer(dir: &Path) -> PathBuf {
     dir.join("minuscule").join("scene.usda")
 }
 
 /// What the corpus puts under watch: three cubes with the same three materials, six quads
-/// chacun, donc trente-six triangles en tout.
+/// each, so thirty-six triangles in all.
 fn corpus_counts(gltf: &Value) -> Value {
     let meshes = gltf["meshes"].as_array().expect("meshes");
     let triangles: usize = meshes

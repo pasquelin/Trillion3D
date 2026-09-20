@@ -20,7 +20,7 @@ test('each listed probe exists and bears the name required by convention', () =>
   assert.ok(sondes.length > 0, 'no probe found');
   for (const sonde of sondes) {
     assert.match(sonde, /^test\/justesse\/.*-.*\.mjs$/);
-    assert.ok(existsSync(join(RACINE, sonde)), `${sonde} n'existe pas`);
+    assert.ok(existsSync(join(RACINE, sonde)), `${sonde} does not exist`);
   }
 });
 
@@ -50,7 +50,7 @@ test('each run render proof exists and bears the name required by convention', (
   assert.ok(lancees.length > 0, 'no render proof found');
   for (const cible of lancees) {
     assert.match(cible, /^test\/browser\/[a-z0-9]+(-[a-z0-9]+)*\.browser\.mjs$/);
-    assert.ok(existsSync(join(RACINE, cible)), `${cible} n'existe pas`);
+    assert.ok(existsSync(join(RACINE, cible)), `${cible} does not exist`);
   }
 });
 
@@ -75,9 +75,9 @@ test('no exclusion outlives the file it names, and each states its category', ()
     assert.ok(surDisque.has(nom), `${nom} is excluded but no longer exists: remove the entry`);
     assert.ok(
       [MONTAGE, REGRESSION, DOUBLE_PERIME].includes(genre),
-      `${nom} : genre inconnu ${genre}`,
+      `${nom}: unknown kind ${genre}`,
     );
-    assert.ok(motif.length > 10, `${nom} : motif trop court pour dire quoi que ce soit`);
+    assert.ok(motif.length > 10, `${nom}: reason too short to state anything`);
   }
 });
 

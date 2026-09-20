@@ -16,8 +16,8 @@ test('sheet name and version are identical on both sides', async () => {
   const source = await readFile(RUST, 'utf8');
   const file = source.match(/DECISIONS_FILE: &str = "([^"]+)"/u);
   const version = source.match(/SHEET_VERSION: u64 = (\d+)/u);
-  assert.ok(file, 'le compilateur nomme toujours sa feuille');
-  assert.ok(version, 'le compilateur versionne toujours sa feuille');
+  assert.ok(file, 'the compiler always names its sheet');
+  assert.ok(version, 'the compiler always versions its sheet');
   assert.equal(
     file[1],
     CUTOUT_SHEET_FILE,

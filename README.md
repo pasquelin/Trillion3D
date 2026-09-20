@@ -19,6 +19,8 @@
 
 </div>
 
+[Simple browser startup](docs/SDK.md#simple-browser-startup): pass a canvas ID or element and opt into `interactive: true` for controls, CSS/DPR sizing and demand-driven rendering. Manual integration remains available.
+
 ---
 
 ## Why Web Geometry

@@ -29,7 +29,7 @@ export async function lignesConsommateursBrowser() {
     await ligne(
       'streaming queue: rendered order',
       'packages/sdk-browser/streamingPriority.ts',
-      'enregistrements hostiles, par paquets de 30',
+      'hostile records, in batches of 30',
       paquets,
       (l) => l.map((p) => essaie(() => referenceOrder(p, camera, echelle))),
       (l) => l.map((p) => essaie(() => orderPendingUrls(p, vue, echelle, []))),
@@ -59,9 +59,9 @@ export async function lignesConsommateursBrowser() {
         }),
     ),
     await ligne(
-      'sens de parcours d’un cluster',
+      'winding order of a cluster',
       'packages/sdk-browser/webgpuPagesWinding.ts',
-      'matrices hostiles',
+      'hostile matrices',
       matrices,
       (l) => l.map((e) => ancien.referenceWindingCw(e)),
       (l) =>
@@ -73,7 +73,7 @@ export async function lignesConsommateursBrowser() {
     await ligne(
       'projected vertex of the visibility buffer',
       'packages/sdk-browser/visibilityProjection.ts',
-      'poses × vues-projections × sommets',
+      'poses × view-projections × vertices',
       affines.slice(0, 60),
       (l) =>
         l.flatMap((m, i) =>
@@ -107,9 +107,9 @@ export async function lignesConsommateursBrowser() {
         ),
     ),
     await ligne(
-      'sRGB : table des octets et encodage 8 bits',
+      'sRGB: byte table and 8-bit encoding',
       'packages/sdk-browser/visibilityMath.ts',
-      '256 octets et valeurs hostiles',
+      '256 bytes and hostile values',
       octets,
       (l) =>
         l.map((c, i) => [ancien.referenceSrgb8Linear(i % 256), ancien.referenceLinearToSrgb8(c)]),

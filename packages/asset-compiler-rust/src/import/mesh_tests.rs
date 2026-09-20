@@ -15,7 +15,7 @@ fn index_bytes_is_empty_for_an_empty_index_list() {
 fn index_bytes_encodes_u16_at_and_below_the_boundary() {
     let indices = [0u32, 1, 65_535];
     let (bytes, component) = index_bytes(&indices, 65_535);
-    assert_eq!(component, 5123, "65 535 sommets tiennent encore en 16 bits");
+    assert_eq!(component, 5123, "65,535 vertices still fit in 16 bits");
     let mut expected = Vec::new();
     for i in indices {
         expected.extend_from_slice(&(i as u16).to_le_bytes());

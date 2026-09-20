@@ -36,14 +36,14 @@ fn hold(cache: &Path) -> File {
 /// The single line that the program writes to its output: the pointer, or the refusal.
 fn outcome(output: &Output) -> Value {
     let printed = lines(&String::from_utf8_lossy(&output.stdout));
-    assert_eq!(printed.len(), 1, "une seule ligne de sortie");
+    assert_eq!(printed.len(), 1, "single line of output");
     printed[0].clone()
 }
 /// Waits for the lock file to appear, meaning the compilation has entered the cache.
 fn wait_for(path: &Path) {
     let deadline = Instant::now() + Duration::from_secs(60);
     while !path.exists() {
-        assert!(Instant::now() < deadline, "le verrou n'est jamais apparu");
+        assert!(Instant::now() < deadline, "lock never appeared");
         std::thread::sleep(Duration::from_millis(5));
     }
 }
@@ -52,7 +52,7 @@ fn wait_for(path: &Path) {
 /// and the system recorded it upon the process's death: the relaunch must take the lock on the first
 /// try. Zero wait, so the test measures no duration: it succeeds, or it is refused.
 #[test]
-fn a18_le_verrou_d_un_proprietaire_tue_ne_bloque_plus_le_cache() {
+fn a18_killed_owner_lock_no_longer_blocks_cache() {
     let (root, source, cache) = grid_fixture("verrou-tue", 96);
     let mut owner = compiler(&source, &cache)
         .stdin(Stdio::null())
@@ -73,17 +73,17 @@ fn a18_le_verrou_d_un_proprietaire_tue_ne_bloque_plus_le_cache() {
         .env("WG_CACHE_LOCK_WAIT_MS", "0")
         .stdin(Stdio::null())
         .output()
-        .expect("relance");
+        .expect("relaunch");
     let relaunch = outcome(&output);
     assert_eq!(relaunch["status"], "ready", "{relaunch}");
-    assert!(pointer.exists(), "la relance publie son pointeur");
+    assert!(pointer.exists(), "relaunch publishes its pointer");
     fs::remove_dir_all(root).ok();
 }
 
 /// A18: a living owner, on the other hand, keeps the cache. The second gives up, and within the timeout announced
 /// by the documented variable, without waiting for the default thirty seconds.
 #[test]
-fn a18_un_proprietaire_vivant_fait_renoncer_le_second_dans_le_delai_annonce() {
+fn a18_living_owner_makes_second_give_up_within_announced_timeout() {
     let (root, source, cache) = fixture("verrou-vivant");
     let held = hold(&cache);
     let started = Instant::now();
@@ -98,7 +98,7 @@ fn a18_un_proprietaire_vivant_fait_renoncer_le_second_dans_le_delai_annonce() {
     assert_eq!(output.status.code(), Some(2));
     assert!(
         waited < Duration::from_secs(10),
-        "attente tenue : {waited:?}"
+        "timeout respected: {waited:?}"
     );
     drop(held);
     fs::remove_dir_all(root).ok();
@@ -107,7 +107,7 @@ fn a18_un_proprietaire_vivant_fait_renoncer_le_second_dans_le_delai_annonce() {
 /// A19: cancelled while waiting for the lock, the second exits with `CANCELLED`, immediately, without
 /// waiting for the deadline; the owner's lock itself is not touched.
 #[test]
-fn a19_l_annulation_pendant_l_attente_du_verrou_sort_en_annule() {
+fn a19_cancellation_while_waiting_for_lock_exits_cancelled() {
     let (root, source, cache) = fixture("verrou-annule");
     let held = hold(&cache);
     let mut second = compiler(&source, &cache)
@@ -131,7 +131,7 @@ fn a19_l_annulation_pendant_l_attente_du_verrou_sort_en_annule() {
         .expect("stdin")
         .write_all(b"{\"cancel\":\"*\"}\n")
         .expect("cancel");
-    let output = second.wait_with_output().expect("fin du second");
+    let output = second.wait_with_output().expect("second process finished");
     let answered = sent.elapsed();
     let refusal = outcome(&output);
     assert_eq!(refusal["code"], "CANCELLED", "{refusal}");

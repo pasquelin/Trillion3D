@@ -161,7 +161,7 @@ test('the contract hides the source-graph lights as soon as it governs, and rest
   assert.ok((back[0] as THREE.DirectionalLight).isDirectionalLight);
 });
 
-test('changer le type d une lampe remplace son objet Three, sans en laisser deux', () => {
+test('changing a light type replaces its Three object, leaving no second one', () => {
   const bench = harness();
   bench.store.add({
     id: 'lampe',

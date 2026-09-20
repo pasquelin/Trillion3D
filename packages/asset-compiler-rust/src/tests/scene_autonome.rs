@@ -5,7 +5,7 @@
 //! nothing in the passes betrayed it.
 use super::*;
 
-/// Les deux tableaux que la fixture de base porte : neuf flottants de position, trois indices.
+/// Both arrays carried by the base fixture: nine position floats, three indices.
 const BASE_BYTES: usize = 48;
 
 /// Compiles the fixture, animated or not, and returns the compilation result and

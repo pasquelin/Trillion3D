@@ -89,7 +89,7 @@ fn verifie(page: &codec::DecodedPage, original: &[u32], positions: &[f32], attrs
                 assert_eq!(
                     sortie[i * attribute.width + c].to_bits(),
                     attendu.to_bits(),
-                    "attribut {rang} sommet {i} voie {c}"
+                    "attribute {rang} vertex {i} channel {c}"
                 );
             }
         }
@@ -111,7 +111,7 @@ fn memes_triangles(local: &[u32], decodes: &[u32]) {
         ];
         assert!(
             rotations.iter().any(|r| r == obtenu),
-            "triangle {t} : {obtenu:?} n'est pas une rotation de {triangle:?}"
+            "triangle {t}: {obtenu:?} is not a rotation of {triangle:?}"
         );
     }
 }

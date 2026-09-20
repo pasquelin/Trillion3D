@@ -115,6 +115,7 @@ const AUTORISES = {
   pageSelectionTypes: 'contract: geometries, materials and matrices the host writes',
   triangleDiagnostic: 'it colours a host geometry in a host material',
   visibilityMath: 'host attributes, textures and wrap modes',
+  visibilityMaterial: 'host material properties converted to engine material',
   visibilityTypes: 'contract: host materials, textures and colours',
   visibilityWrapModes: 'host-texture wrap modes',
   webgpuTileAtlas: 'host texture as a tile source',

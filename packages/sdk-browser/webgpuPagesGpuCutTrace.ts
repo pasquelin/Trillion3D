@@ -85,7 +85,7 @@ export function traceGpuCutFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
     readbackPurpose: 'streaming-and-metrics',
     metricsReady: run.gpuMetricsReady,
   }));
-  diag.traceDiagnostic('frame', 'Snapshot complet de la frame WebGPU', () =>
+  diag.traceDiagnostic('frame', 'Complete WebGPU frame snapshot', () =>
     frameTraceSnapshot(
       rt,
       cam,

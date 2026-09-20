@@ -19,6 +19,12 @@ export const rnd = (a = -10, b = 10) => a + alea() * (b - a);
  * for every bench that measures it.
  */
 export const SRGB_REFERENCE_GAP = 1e-10;
+/**
+ * Three's reverse curve uses exponent 0.41666 instead of 1 / 2.4. On [0, 1], the mean-value
+ * theorem bounds the gap by 1.055 * abs(1 / 2.4 - 0.41666) / (Math.E * 0.41666) < 6.3e-6.
+ * This is a different direction from SRGB_REFERENCE_GAP; the engine keeps its exact exponent.
+ */
+export const LINEAR_SRGB_REFERENCE_GAP = 6.3e-6;
 
 /** A unit quaternion from four seeded draws. */
 export const quaternion = () => new THREE.Quaternion(rnd(), rnd(), rnd(), rnd()).normalize();
@@ -79,8 +85,23 @@ export function flatOf(objects, stride, out) {
  * engine's. Without `tolerance`, the two must be equal bit for bit; with it, the largest absolute
  * difference must stay under it and the line counts the values that differ. `motif` names what
  * the comparison leaves out, when it leaves something out.
+ *
+ * `slower` is for the one case where the two sides do not compute the same thing: `{ atMost, reason }`
+ * lets the engine reach `atMost` times Three, on the MEDIAN — the statistic the table prints — and
+ * the measured ratio and the reason go on the line. It is a declaration, not a waiver: the ceiling
+ * still fails the test, and a line without `slower` is gated on its best time and must win.
  */
-export async function duel({ name, fichier, size = N, three, oracle, core, tolerance, motif }) {
+export async function duel({
+  name,
+  fichier,
+  size = N,
+  three,
+  oracle,
+  core,
+  tolerance,
+  motif,
+  slower,
+}) {
   const cas = [{ name, size, input: null }];
   const witness = await mesure({ name, fichier, cas, calcul: three, motif: 'Three.js witness' });
   let maxAbs = 0;
@@ -107,14 +128,25 @@ export async function duel({ name, fichier, size = N, three, oracle, core, toler
     engine.resultats[0].motif = `largest gap ${maxAbs.toExponential(1)} ; ${engine.resultats[0].motif}`;
   const t = { ...witness.resultats[0], name: `${name} · Three.js` },
     c = { ...engine.resultats[0], name: `${name} · sdk-core` };
+  const ratio = slower ? c.medianeMs / t.medianeMs : null;
+  if (slower)
+    c.motif = [`${ratio.toFixed(2)}× Three.js (median): ${slower.reason}`, c.motif]
+      .filter(Boolean)
+      .join(' ; ');
   test(`${name}: same result as Three.js, at least as fast`, () => {
     if (tolerance !== undefined)
       assert.ok(maxAbs <= tolerance, `${name}: largest difference ${maxAbs} above ${tolerance}`);
     else assert.equal(c.correct, true, `${name}: ${c.difference}`);
-    assert.ok(
-      c.minMs <= t.minMs,
-      `${name}: sdk-core best ${c.minMs.toFixed(3)} ms above Three.js ${t.minMs.toFixed(3)} ms`,
-    );
+    if (slower)
+      assert.ok(
+        ratio <= slower.atMost,
+        `${name}: sdk-core median ${ratio.toFixed(2)}× Three.js, above the declared ${slower.atMost}× (${slower.reason})`,
+      );
+    else
+      assert.ok(
+        c.minMs <= t.minMs,
+        `${name}: sdk-core best ${c.minMs.toFixed(3)} ms above Three.js ${t.minMs.toFixed(3)} ms`,
+      );
   });
   return { name, fichier, resultats: [t, c] };
 }

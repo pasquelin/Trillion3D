@@ -136,7 +136,7 @@ pub(crate) fn write(rows: &[Row]) {
     );
     page.push_str(&format!(
         "`calculs-natif-{date}-fixtures.json` (bytes compared one by one) and the `perf.rs` \
-         `perf.rs` par phase dans `calculs-natif-{date}-phases.json`.\n\n"
+         per phase in `calculs-natif-{date}-phases.json`.\n\n"
     ));
     page.push_str(&table(rows));
     page.push('\n');

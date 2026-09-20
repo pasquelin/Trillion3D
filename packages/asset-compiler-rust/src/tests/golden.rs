@@ -183,7 +183,7 @@ pub(super) fn write_expected(dir: &Path, mut expected: Value, case: &str, rule: 
     let previous: Option<Value> = fs::read(dir.join("expected.json"))
         .ok()
         .and_then(|bytes| serde_json::from_slice(&bytes).ok());
-    let object = expected.as_object_mut().expect("attendu");
+    let object = expected.as_object_mut().expect("expected");
     for (field, fallback) in [("case", case), ("rule", rule)] {
         let kept = previous
             .as_ref()
@@ -192,7 +192,7 @@ pub(super) fn write_expected(dir: &Path, mut expected: Value, case: &str, rule: 
             .unwrap_or_else(|| json!(fallback));
         object.insert(field.into(), kept);
     }
-    let text = serde_json::to_vec_pretty(&expected).expect("attendu");
+    let text = serde_json::to_vec_pretty(&expected).expect("expected");
     fs::write(dir.join("expected.json"), &text).expect("expected.json");
     println!("fixture written to {}", dir.display());
 }

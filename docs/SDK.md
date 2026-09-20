@@ -57,7 +57,72 @@ FBX/OBJ sources are first imported into `<cache>/native/imports/<key>/` as `mode
 
 ## Browser explorer
 
-`createExplorer(canvas, { manifestUrl, scope, width, height, fov, pixelRatio, maxResidentPages, pageFetchWorkers, replicaCount, backends, pixelError, preload, comparisonLayout, comparisonPair, gpu, pointsOfInterest, ... })` owns neither the animation loop nor the canvas. Call `dispose()` when finished; hosted Orbit/Fly controls created through the explorer are disposed with it. The default camera is framed from the loaded bounding box (`near = radius / 10000`, no absolute floor). `pointsOfInterest()` returns that home pose; extra named poses come from the host `pointsOfInterest` option, not from the SDK. `pixelError` (default `0`) keeps the exact leaves; a positive threshold selects coarse QEM pages when the cache includes them. `preload: 'visible'` (default) streams detail for the current camera; WebGPU first loads a complete, camera-independent root cover before explorer creation resolves; `preload: 'all'` restores the previous eager load. `awaitPages()` must be called before the first official image when using the visible preload. Comparison layouts (`single`, `side-by-side`, `wipe`, `toggle`, `difference`) render backends A and B to detached targets with the same camera; they are not an official performance verdict.
+### Simple browser startup
+
+```html
+<canvas id="viewer" style="width:100%;height:70vh;display:block"></canvas>
+```
+
+```javascript
+import { createExplorer } from '@web-geometry/sdk/browser';
+
+const explorer = await createExplorer('viewer', {
+  manifestUrl: '/cache/city/manifest.json',
+  scope: 'full',
+  interactive: true,
+});
+```
+
+`ExplorerTarget` is a canvas element or a **literal ID**, without `#`. Existing-element
+usage is equivalent: `createExplorer(canvas, options)`. Use the element form for framework
+refs, shadow roots or another document. Invalid targets are rejected before cache requests.
+ID lookup without a document fails with `CANVAS_DOCUMENT_UNAVAILABLE`; missing IDs use
+`CANVAS_NOT_FOUND`, and empty IDs/non-canvas targets use `INVALID_CANVAS`.
+
+`interactive: true` opts into browser-owned OrbitControls, CSS sizing, browser DPR and
+coalesced rendering. Creation resolves after submitting a first image with the prepared
+root cover; visible detail and temporal antialiasing refine progressively. No `controls()`,
+`awaitPages()` or animation loop is needed to explore. Calling `controls()` again returns
+those same controls. After programmatic edits to the camera, scene or lights, call
+`explorer.invalidate()`. In manual mode, that method renders immediately.
+
+Set a CSS width **and** height independently of the canvas drawing-buffer attributes, as
+above. Omitted `width`/`height` follow that CSS box; omitted `pixelRatio` follows the browser,
+including later DPR changes. Explicit values override each automatic dimension independently.
+An initially hidden/zero-size canvas needs explicit dimensions or must be shown before creation;
+a canvas hidden later retains its last dimensions until visible. Invalid initial sizes/DPR fail.
+The host retains ownership of CSS layout and the canvas element.
+
+The simple path prepares only the direct WebGPU backend. Unavailable WebGPU rejects startup
+with `WEBGPU_UNAVAILABLE`; there is no silent change of lighting or rendering capability.
+An explicit `backends` list or `autonomousGeometry` retains its own capability contract.
+`scope` still defaults to `slice`: keep `scope: 'full'` for a full cache. Memory pools retain
+their bounded 512 MiB geometry / 512 MiB texture defaults; the earlier 16/128 MiB example
+was an explicit budget choice and remains available through overrides.
+
+Automatic rendering waits for asynchronous feedback without reading image pixels and retains
+per-frame streaming/shadow budgets. Once settled, it schedules no frames. A burst that cannot
+settle within 120 frames pauses and publishes `interactive-settle-limit`; `invalidate()` or a
+new interaction resumes it. An asynchronous render failure stops automatic work and emits
+`INTERACTIVE_RENDER_FAILED` through `onEvent`, with a diagnostic. Explicit capture/measurement
+work should use a manual session to avoid competing rendering.
+
+Dispose in the actual component/page teardown, **not immediately after startup**:
+
+```javascript
+function unmountViewer() {
+  explorer.dispose();
+}
+```
+
+Disposal removes owned controls, observers, queued frames and abort listeners without removing
+the canvas. An aborted interactive session also disposes itself. `createExplorerJob(jobId,
+canvasOrId, options)` accepts the same target and options; await its creation, then `job.promise`.
+Its first argument is the job identifier, separate from the canvas ID.
+
+### Manual rendering and explicit configuration
+
+Without `interactive: true`, `createExplorer(canvas, { manifestUrl, scope, width, height, fov, pixelRatio, maxResidentPages, pageFetchWorkers, replicaCount, backends, pixelError, preload, comparisonLayout, comparisonPair, gpu, pointsOfInterest, ... })` owns neither the animation loop nor the canvas. Call `dispose()` when finished; hosted Orbit/Fly controls created through the explorer are disposed with it. The default camera is framed from the loaded bounding box (`near = radius / 10000`, no absolute floor). `pointsOfInterest()` returns that home pose; extra named poses come from the host `pointsOfInterest` option, not from the SDK. `pixelError` (default `0`) keeps the exact leaves; a positive threshold selects coarse QEM pages when the cache includes them. `preload: 'visible'` (default) streams detail for the current camera; WebGPU first loads a complete, camera-independent root cover before explorer creation resolves; `preload: 'all'` restores the previous eager load. `awaitPages()` must be called before the first official image when using the visible preload. Comparison layouts (`single`, `side-by-side`, `wipe`, `toggle`, `difference`) render backends A and B to detached targets with the same camera; they are not an official performance verdict.
 
 What the engine computes for itself — matrices, vectors, colours, its camera, the side of a material — it builds on `sdk-core` (`engineCamera.ts`, `materialSide.ts`), not on host-library objects — one exception left, the secondary capture view of `webgpuPagesSurfaceCapture.ts`, which enters the frame gate as a host camera until #78; the functions and their proofs are listed batch by batch in [`docs/API.md`](API.md). The host contract itself — the `THREE.Scene` handed to `createExplorer` and the `THREE.PerspectiveCamera` read once per frame — holds until the engine-owned scene model lands (#78).
 
@@ -260,6 +325,13 @@ The transparent path still uses the authored Three.js light graph and its fixed 
 
 For `backends: [webgpuPagesBackend]`, `createExplorer` configures the host canvas with its own `GPUCanvasContext` and the engine writes the final image into it; no WebGL renderer is created. A mixed-backend explorer composes on a WebGL2 surface instead: the engine presents into a canvas of its own, publishes it as `presentedSurface` on the backend, and the host copies it there with the engine's own full-screen program (`createBackendPresenter`) — no texture, material or mesh of a rendering library takes part, and the bytes go through unchanged. This cross-API composition has a separate cost and must not be conflated with direct presentation. Neither normal path calls `copyTextureToBuffer` for the image. No physical zero-copy or performance gain is claimed without browser measurements. Geometry-selection feedback is separate from image readback and still exists.
 
+For every WebGL2-hosted session, `createWebglSurface` creates and owns the context before the scene
+renderer exists. It fixes the context attributes, computes drawing-buffer dimensions from logical
+size and DPR, avoids resetting the buffer on an unchanged size, observes context loss/restoration,
+and releases the context once. The current scene renderer is a temporary adapter over that context;
+the surface foundation alone does not replace cluster drawing, composition, held frames, or capture.
+Pure direct-WebGPU sessions never bind the host canvas to a WebGL context.
+
 **Memory budgets are fixed reservoirs, as in the reference, never read from the machine.** Free memory changes every second — another application, another tab —, so a budget measured at start-up would be wrong five minutes later. The WebGPU engine keeps two byte-sized pools, both host-set and both defaulting to 512 MiB like `r.Nanite.Streaming.StreamingPoolSize`: `geometryPoolBytes` (cluster page slots: `floor(bytes / pageBytes)` slots, the root cover always resident) and `texturePoolBytes` (virtual-texture tiles, split between the colour and data atlases in 63.5 MiB layers, every texture's tail always resident). What a view asks beyond a pool is shown coarser — the cut raises its screen error until the cover fits (`coverageBudgetLimited`), a tile shows its coarser level — and nothing is refused, nothing stops. A value that cannot be held as given is brought to what can be and the reason is published: `geometryPoolClamp` / `texturePoolClamp` read `root-cover` (raised to the root cover), `scene` (the scene is smaller), `page-cap` (`maxResidentPages`, the page-count cap tests and benches use), `minimum` (one layer per atlas), `device-limit`, `ceiling`, or `null`. `geometryPoolSaturated` counts the pages the image holds — root cover, cut and drawn ancestors — beyond the pool's slots; zero is normal, a lasting count says the pool is too small for that view, and the cut coarsens until it fits. The only true refusal is `GEOMETRY_POOL_DEVICE_LIMIT`: the device cannot hold even the root cover.
 
 Frame targets are **not** budgeted: colour, depth, visibility, HDR, material surfaces, Hi-Z, the temporal history and a surface capture follow the resolution, as the reference's do, and `gpuFrameTargetBytes` says what they cost. Only a size the device cannot make is refused (`SURFACE_DEVICE_LIMIT`). The previous 288 MiB frame cap refused 4K on machines that held it; it is gone.
@@ -285,11 +357,11 @@ If visibility/material initialization fails in a direct WebGPU session, the engi
 
 ### WebGPU visual checks and diagnostics
 
-`diagnosticDetail: "trace" | "summary"` controls event detail. An `onDiagnostic` observer defaults to trace; omit the observer to disable collection. The Lab's model bench enables **Mode debug** by default and saves this choice in the report. Debug frames are marked `measurementKind: "diagnostic"`, including beauty renders. Turn debug off before collecting performance evidence.
+`diagnosticDetail: "trace" | "summary"` controls event detail. An `onDiagnostic` observer defaults to trace; omit the observer to disable collection. The repository's model bench enables debug mode by default and records that choice in its report. Debug frames are marked `measurementKind: "diagnostic"`, including beauty renders. Turn debug off before collecting performance evidence.
 
 Trace covers host frames and camera poses, selection decisions and fallback reasons, complete coverage/admission, residency queues and protections, CPU cache reads and hash verification, retries/errors, GPU slot generations/uploads, actual cache eviction, draw-list detachments, target allocations, rendering steps, and capture/disposal boundaries. Page catalogues and numeric page references avoid repeating long URLs in every snapshot. Missing physical measurements remain `null`; a successful image or coverage flag does not certify compiler correctness or visual parity.
 
-Explorer events carry a session ID, a monotonic sequence and their creation timestamp. The host queues observer delivery outside the measured call, with a 65,536-event pending limit and an explicit `diagnostic-loss` record on overflow. `createDiagnosticChannel` exposes `flush()`, `flushSync()`, `pending()` and `dropped()` for standalone hosts. Do not discard a loss record. The Lab streams the full report to a compressed archive and extracts its complete JSONL journal plus capture gallery. The pending archive does not mark success until writing finishes. The Lab archives sequence/session metadata alongside the event context; file export and observer work can still affect scheduling and the next frame.
+Explorer events carry a session ID, a monotonic sequence and their creation timestamp. The host queues observer delivery outside the measured call, with a 65,536-event pending limit and an explicit `diagnostic-loss` record on overflow. `createDiagnosticChannel` exposes `flush()`, `flushSync()`, `pending()` and `dropped()` for standalone hosts. Do not discard a loss record. A host that streams the full report to a compressed archive extracts its complete JSONL journal plus capture gallery, and does not mark the pending archive successful until writing finishes; such a host archives sequence/session metadata alongside the event context, file export and observer work can still affect scheduling and the next frame.
 
 Every SDK build records SHA-256 hashes of distributed JavaScript modules in its configuration event. A direct source import has `hash: null`; it must not claim a compiled build identity. These hashes identify code, while the cache's compiler/format metadata identifies prepared assets.
 
@@ -305,19 +377,17 @@ WebGPU filters transparent meshes against the current camera frustum before uplo
 
 For image checks, call `setPose()`, `awaitPages()`, `render()`, then `await flush()` and `capture()`. The WebGPU `flush()` performs an explicit asynchronous image readback outside the beauty loop; `capture()` returns bottom-left RGBA bytes for that submitted frame. If a browser host renders again and immediately calls the existing synchronous `capture()` API, an isolated WebGL2 canvas copies the current GPU canvas with the same engine-owned program and reads its pixels on demand; `capture-synchronous` identifies this expensive compatibility path. It is never used by normal `render()`. A texture-only backend rejects unavailable/stale captures. Serialize `flush()` with explicit host rendering; a frame changed by a host render during readback is rejected rather than returned as current. Streaming completion during readback retains the accepted page bytes and defers its automatic redraw to the next render, preserving the captured frame. The first such deferral emits `capture-streaming-deferred`. The WebGL backends continue reading their rendered default framebuffer so pinned Three r174 tone mapping matches the displayed image.
 
-`pnpm run test:gpu` runs every hardware proof (`test/justesse/`, `test/browser/`) with the repository's own Playwright and esbuild, the machine's Chrome and its actual WebGPU device, and the assets under `.mesure/assets/` (see `scripts/mesure/README.md` § Assets). Nothing outside this repository is read. Three proofs are mounted on Render Tech Lab's pages and are excluded from `test:gpu` by name; they take the Lab server's address explicitly:
+`pnpm run test:gpu` runs every hardware proof (`test/justesse/`, `test/browser/`) with the repository's own Playwright and esbuild, the machine's Chrome and its actual WebGPU device, and the assets under `.mesure/assets/` (see `scripts/mesure/README.md` § Assets). Nothing outside this repository is read. The Emerald visual proof runs standalone on the test harness server:
 
 ```sh
-LAB_URL=http://localhost:5174 node test/browser/beaute-webgpu.browser.mjs
-LAB_URL=http://localhost:5174 node test/browser/emeraude-webgpu.browser.mjs
-LAB_URL=http://localhost:5174 node test/browser/presentation-gpu.browser.mjs
+node test/browser/emeraude-webgpu.browser.mjs
 ```
 
-The material check compares nine pixels on 18 fixtures with a two-level RGB tolerance and rejects missing diagnostics or GPU failures. The Emerald check replays ten bench-15 poses on the same source, camera, pixel error 1, and a 2496×1404 viewport — the internal resolution of the published profile `docs/REFERENCE_UE5.md` compares pass shapes against, declared once as `MEASURE_WIDTH`/`MEASURE_HEIGHT` in `test/appui/emeraldProvenance.mjs` and recorded in the provenance. What is matched is the internal render size, not their 4K output: that comes from a temporal upscale this engine does not have. It saves PNGs, per-view differences, source fingerprints and logs under `benchmark-runs/webgpu-visual/`. A successful runner execution is **not** a full-scene visual-parity verdict: inspect the measured differences and screenshots. Neither runner measures performance or proves memory stability.
+The Emerald check replays ten bench poses on the same source, camera, pixel error 1, and a 2496×1404 viewport — the internal resolution of the published profile `docs/REFERENCE_UE5.md` compares pass shapes against, declared once as `MEASURE_WIDTH`/`MEASURE_HEIGHT` in `test/appui/emeraldProvenance.mjs` and recorded in the provenance. What is matched is the internal render size, not their 4K output: that comes from a temporal upscale this engine does not have. It saves PNGs, per-view differences, source fingerprints and logs under `benchmark-runs/webgpu-visual/`. A successful runner execution is **not** a full-scene visual-parity verdict: inspect the measured differences and screenshots. The runner measures no performance and proves no memory stability.
 
 The current WebGPU path still lacks per-texture transforms/UV channels/filter modes, environment maps, shadows and the full material contract. Padded texture-array boundaries, transparent compositing and full-scene pixel differences still need dedicated parity checks. The CPU shading oracle encodes linear lighting to sRGB without ACES; it is not a substitute for the displayed-image comparisons.
 
-The separated pipeline has completed real Lab paths and A/A checks; full material parity and a controlled performance verdict remain unvalidated. Start the Lab recipe with material fixtures, then Emerald with fixed camera, resolution, lights, pixel error and warmup. Verify actual direct-presentation logs, independent A/A captures, foreground coverage, transparent compositing and second-view restoration before timing. Preserve raw source hashes and results; old reports do not validate this code. Node tests validate orchestration/CPU contracts with GPU doubles and do not execute WGSL.
+The separated pipeline has completed real render paths and A/A checks; full material parity and a controlled performance verdict remain unvalidated. Start with material fixtures, then Emerald with fixed camera, resolution, lights, pixel error and warmup. Verify actual direct-presentation logs, independent A/A captures, foreground coverage, transparent compositing and second-view restoration before timing. Preserve raw source hashes and results; old reports do not validate this code. Node tests validate orchestration/CPU contracts with GPU doubles and do not execute WGSL.
 
 For prepared WebGPU scenes, material textures are virtual: every texture is cut into 128×128 tiles (plus a 4-texel border) that live in two fixed-size physical pools (sRGB colour, linear data), one page table per texture says which pool tile serves each tile of each mip level, and only the tiles the image reads are resident. `texturePoolBytes` (512 MiB by default, split evenly between the two pools, in 63.5 MiB layers of 30×30 tiles) is the texture memory of the session whatever the scene; a budget under one layer per pool is raised to one layer, named `texturePoolClamp: 'minimum'`, never refused. Residency is driven by the rendered image itself: the material resolution counts, for one pixel in sixteen (a rotating phase, every pixel during `flush()`), the tile each map needs at the mip level the pixel's derivatives select; transparents write their request into their own `r32uint` target, reduced to the same counters by a compute pass, so the blend fragment stage writes no memory and keeps early depth rejection. The counters come back one frame late through `mapAsync`. `maxTextureTransferBytesPerFrame` (16 MiB by default) bounds the tile bytes copied per frame, most-requested tiles first; when a pool is full, the least recently read tile gives its place, and a tile nothing can accommodate is counted in `textureTilesRefused`, never silently dropped. A tile that is not yet resident is served by its finest resident ancestor, down to the texture's tail (every level of 64 texels or less, pinned from the sidecar at `prepare()`): a missing tile shows a coarser level, never a fill texel. `flush()` renders the pose until nothing it reads is missing, redraws the pending shadow pages, and alternates the two until a drain redraws nothing, replaying the temporal accumulation identically; nothing is released there — a tile stays until a full pool evicts the least recently read one, as in the reference — so a flushed pose is deterministic and the held image returns once the pose is quiet (`pose-settle` diagnostic: rounds, tiles served, shadow frames, what still moves). Frame metrics expose the sixteen `texture*` counters of `TextureFrameMetrics` (pool bytes and layers, resident tiles and bytes, tiles requested / served at level / missing levels / pending, served / evicted / refused, level reads and decodes, host level cache bytes, scratch builds).
 

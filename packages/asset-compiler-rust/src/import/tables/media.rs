@@ -35,7 +35,7 @@ impl SceneTables {
     /// scene continues without it.
     pub(crate) fn image_unreadable(&mut self, written: &str) {
         self.report.notes.push(format!(
-            "texture illisible ou hors registre d'images: {written}"
+            "unreadable texture or outside image registry: {written}"
         ));
     }
 
