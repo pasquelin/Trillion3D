@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
-import { hookHostNode, unhookHostNode, type WriteRevision } from './hostSceneHooks.ts';
+import type { WriteRevision } from './hostSceneHookCore.ts';
+import { hookHostNode, unhookHostNode } from './hostSceneHooks.ts';
 
 /**
  * Mark of a node the engine created itself — an instance copy, for example. The host never
@@ -45,15 +46,16 @@ function withAncestors(node: THREE.Object3D | undefined, into: Set<THREE.Object3
  * trigger a second one.
  */
 export function createHostSceneWatch() {
-  const mark: WriteRevision = { revision: 1 };
-  let watched: THREE.Object3D[] = [],
-    seen = 0;
+  const mark: WriteRevision = { revision: 1, shape: 0 };
+  let watched = new Set<THREE.Object3D>(),
+    seen = 0,
+    seenShape = 0;
   return {
     /**
      * Sets the list of hooked nodes: the source models of what the engine draws, the lights,
      * and the ancestors of both. To be called when the scene changes shape — one more instance,
-     * a light set after the fact — never per frame. A node that enters or leaves the list is
-     * itself a change of the scene, announced by the next `changed()`.
+     * a light set after the fact — never per frame: the scene change that made the list stale
+     * is what announced it, and a node that enters the list is read as-is by that same frame.
      */
     observe(source: THREE.Object3D, drawn: WatchedSources) {
       const set = new Set<THREE.Object3D>();
@@ -66,16 +68,21 @@ export function createHostSceneWatch() {
       for (const node of set) if (node.userData[ENGINE_OWNED]) set.delete(node);
       // With neither a declared root nor a light, there is nothing to hook: the whole graph is not a default.
       if (!set.size) withAncestors(source, set);
-      let moved = false;
-      for (const node of watched) if (!set.has(node) && unhookHostNode(node, mark)) moved = true;
-      for (const node of set) if (hookHostNode(node, mark)) moved = true;
-      watched = [...set];
-      if (moved) mark.revision++;
+      for (const node of watched) if (!set.has(node)) unhookHostNode(node, mark);
+      for (const node of set) hookHostNode(node, mark);
+      watched = set;
     },
     /** Says whether the host wrote one of the hooked nodes since the previous read. Reads nothing else. */
     changed() {
       if (seen === mark.revision) return false;
       seen = mark.revision;
+      return true;
+    },
+    /** Says whether a write since the previous read changed which objects are read — a light
+     *  retargeted, a node reparented — so that the list is to be rebuilt. */
+    reshaped() {
+      if (seenShape === mark.shape) return false;
+      seenShape = mark.shape;
       return true;
     },
     /** The engine wrote the graph itself, under a scene revision it already incremented. */
@@ -85,7 +92,7 @@ export function createHostSceneWatch() {
     /** Forgets every node: their writes no longer reach this watch. */
     release() {
       for (const node of watched) unhookHostNode(node, mark);
-      watched = [];
+      watched.clear();
     },
   };
 }

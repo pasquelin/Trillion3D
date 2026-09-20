@@ -14,18 +14,19 @@ export type HookedLight = THREE.Light & {
 };
 
 export function hookLight(light: HookedLight, hook: Hook) {
-  for (const key of LIGHT_NUMBERS) if (key in light) accessor(light, key, () => bump(hook));
+  const written = () => bump(hook);
+  for (const key of LIGHT_NUMBERS) if (key in light) accessor(light, key, hook, written);
   // A colour replaced as a whole is hooked in turn: what the host writes into it afterwards
   // must still be seen.
   for (const key of ['color', 'groundColor'] as const) {
     const colour = light[key];
     if (!colour) continue;
     hookTriple(colour, RGB, hook);
-    accessor(light, key, (next) => {
+    accessor(light, key, hook, (next) => {
       if (next) hookTriple(next, RGB, hook);
       bump(hook);
     });
   }
-  // A new target is another chain of ancestors to watch: the scene change rebuilds the set.
-  if ('target' in light) accessor(light, 'target', () => bump(hook));
+  // A new target is another chain of ancestors to watch: the set is reshaped.
+  if ('target' in light) accessor(light, 'target', hook, () => bump(hook, true));
 }
