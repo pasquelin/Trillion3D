@@ -132,6 +132,116 @@ This first #78 lot is the hierarchy foundation only. `createExplorer` does not a
 `SceneRoot` yet. Engine materials, texture references, frame hooks, and browser-contract migration
 remain later #78 lots; lights continue to use the existing `SceneLight` version 2 contract.
 
+## Batch math for hosts
+
+A host that moves ten thousand instances or culls ten thousand boxes writes the loop itself with a
+per-object library, one `Vector3` or `Matrix4` per call and a temporary per step. The engine's
+**batches** take `n` elements in one call: flat typed arrays, no allocation, the same formula as the
+unit function they repeat — which stays the oracle — and a count as the only return value. They are
+exported by `web-geometry`, `packages/sdk-core` and `packages/sdk-browser` alike, so a host imports
+one entry point, and none of them needs `three`.
+
+**Layout.** One element occupies a fixed number of consecutive values, declared once in
+`mathBatchStrides.ts`: `MATRIX_VALUES` 16 (column-major, `[12..14]` the translation),
+`BOX_VALUES` 6 (min x, y, z then max x, y, z), `POSITION_VALUES` 3, `QUATERNION_VALUES` 4
+(`x, y, z, w`), `SPHERE_VALUES` 4 (centre then radius), `NORMAL_MATRIX_VALUES` 9,
+`FRUSTUM_PLANE_VALUES` 24 (six planes `a, b, c, d`, facing inward, in the order of
+`frustumPlanesFromMatrix`). Flat inputs are read as `ArrayLike<number>` — a `Float32Array`, a plain
+array or a host buffer enters as-is; outputs are `Float64Array` (or a `Uint8Array` of flags).
+Matrices that are read one at a time — `mats[i]` — travel as **sub-views** of sixteen numbers
+(`buffer.subarray(i * 16, (i + 1) * 16)`), built once at load, never per frame: `multiplyMatrix4`
+reads its operands at constant indices, and a computed offset costs 6 % of the product.
+
+**Allocate once, reuse every frame.** The buffers below are the host's; a call writes into `out`
+and nothing else. Culling ten thousand boxes and bringing the survivors' centres into view space is
+two calls — this is `packages/sdk-core/mathBatchHost.test.ts`, run by `pnpm test`:
+
+```javascript
+import {
+  BOX_VALUES, POSITION_VALUES, SPHERE_VALUES,
+  createCameraFrame, perspectiveProjection, updateCameraFrame,
+  frustumKeepsBoxBatch, sphereFromBoundsBatch, transformPointsBatch,
+} from 'web-geometry';
+
+const N = 10_000;
+// Allocated once, at scene load.
+const boxes = new Float64Array(N * BOX_VALUES); // min x, y, z then max x, y, z, per box
+const kept = new Uint8Array(N); // 1 where the frustum keeps the box
+const spheres = new Float64Array(N * SPHERE_VALUES); // centre x, y, z then radius, per box
+const centres = new Float64Array(N * POSITION_VALUES); // survivors' centres, packed
+const viewCentres = new Float64Array(N * POSITION_VALUES); // the same, in view space
+const frame = createCameraFrame(), projection = new Float64Array(16);
+const cameraWorld = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+
+// Every frame: the frustum, one cull, the survivors packed, one transform.
+perspectiveProjection(projection, 60, 16 / 9, 0.1, 1);
+updateCameraFrame(frame, projection, cameraWorld, 100);
+const visible = frustumKeepsBoxBatch(kept, frame.planes, boxes, N);
+sphereFromBoundsBatch(spheres, boxes, N);
+let m = 0;
+for (let i = 0; i < N; i++) {
+  if (!kept[i]) continue;
+  centres[m * POSITION_VALUES] = spheres[i * SPHERE_VALUES];
+  centres[m * POSITION_VALUES + 1] = spheres[i * SPHERE_VALUES + 1];
+  centres[m * POSITION_VALUES + 2] = spheres[i * SPHERE_VALUES + 2];
+  m++;
+}
+transformPointsBatch(viewCentres, frame.view, centres, m); // m === visible
+```
+
+**The batches**, each named after the unit function it repeats; the reference loop it replaces and
+its measured ratio are in [`docs/API.md`](API.md#batch-math-for-hosts-104-80):
+
+| Batch | Signature | Returns |
+| --- | --- | --- |
+| `frustumKeepsBoxBatch` | `(kept: Uint8Array, planes, boxes, n)` | the number kept; `kept[i]` 1 where the box intersects or sits inside |
+| `sphereFromBoundsBatch` | `(out, boxes, n)` | 4 values per box: centre, radius to the corner |
+| `boxUnionBatch` | `(into, boxes, n)` | `into` grown by the `n` boxes |
+| `boxTransformBatch` | `(out, boxes, mats[], n)` | 6 values per box, each transformed by its matrix |
+| `boxTransformUnionBatch` | `(into, boxes, mats[], n)` | `into` grown by the `n` transformed boxes, one pass |
+| `multiplyMatrix4Batch` | `(out[], a[], b[], n)` | `out[i] = a[i] · b[i]`, sub-views on all three sides |
+| `invertMatrix4Batch` | `(out[], mats[], n, singular?: Uint8Array)` | `out[i] = mats[i]⁻¹`; a zero determinant writes the identity and flags `singular[i]`, never throws mid-batch |
+| `normalMatrix3Batch` | `(out, mats[], n)` | 9 values per matrix: `transpose(inverse(upper 3×3))` |
+| `composeMatrix4Batch` | `(out, positions, quaternions, scales, n)` | 16 values per element, `T · R · S`; everything flat, or everything as sub-views |
+| `decomposeMatrix4Batch` | `(positions[], quaternions[], scales[], mats[], n)` | the reverse, the determinant's sign carried by the x scale |
+| `transformPointsBatch` | `(out, m, points, n)` | `n` points by one affine matrix |
+| `transformPointsByMatricesBatch` | `(out, mats[], points, n)` | `n` points, one matrix each |
+| `transformDirectionsBatch` | `(out, m, dirs, n)` | the upper 3×3 applied, then normalized |
+| `srgbToLinearBatch`, `linearToSrgbBatch` | `(out, values, n)` | one channel per element; the curve differs from the reference by at most `1.1e-11` forward and `6.3e-6` back |
+| `hierarchyUpdateBatch` | `(worldViews[], positions[], rotations[], scales[], parents, n, local)` | a whole hierarchy, parents before children — see [Scene hierarchy foundation](#scene-hierarchy-foundation) |
+
+**Which path ran.** Three of them — `hierarchyUpdateBatch`, `multiplyMatrix4Batch`,
+`boxTransformBatch` — also exist as WebAssembly kernels (`packages/page-codec-wasm/src/math.rs`),
+bit-identical to the JavaScript loop, and the governor (`mathPathGovernor.ts`) plays whichever it
+measured faster, operation by operation. `createExplorer(canvas, { mathPath })` takes `'auto'`
+(the default), `'js'` or `'wasm'` — `'wasm'` falls back on `'js'` where the module is missing and
+says so. `explorer.metrics().mathBatch` publishes `MathPathMetrics` (`MATH_PATH_CONTRACT` 1):
+`operations[name].path` is the path the next call plays, `jsNsPerElement` and `wasmNsPerElement`
+the sliding medians in nanoseconds per element (`null` while unmeasured — never zero), `switches`
+how many times the decision changed, `elements` the total processed; `clockCoarse` says the thread
+clock is too coarse to arbitrate, and everything then stays on JavaScript. The other batches have no
+kernel: none of their loops was measured above 0.1 ms in the engine's own frame (below), and a
+kernel for a cost that is not measured is refused by AGENTS.md.
+
+**What the engine's own frame pays for them** (#80 stage 1, `scripts/mesure/banc.mjs`, WebGPU,
+1280×720, DPR 1, `pixelError 1`, 60 measured frames, three runs per line, commit `<<COMMIT>>`,
+Apple M2 Max under a load average of <<LOAD>> — the spread quoted is the run-to-run range of the
+p50). The per-step profile (`cpu-timing` diagnostic) has a 0.1 ms clock: a step that reads
+`0.000 / 0.100` is under it, not zero.
+
+<<TABLE>>
+
+The reading: on the GPU-cut path (Emerald Square), `lightsMs` is zero by construction — declared
+lamps live in a store the frame does not walk — and `selectionDispatchMs` is under the clock; the
+only per-element loop the CPU runs every moving frame is the root rebase
+(`rootWorldsToRenderOrigin`, <<ROOTS>> roots, sixteen floats each), inside `worldMs`, whose share is
+at the clock's edge. On Whisperwind Village the GPU cut is unavailable (visibility-identifier
+capacity) and the frame runs the CPU reference cut, where `frustumExcludesBox` is called per DAG
+node visited (`cpuSelectNodesTested`); that traversal is not a batch — a node is tested only if its
+parent was kept — and its cost is the cut's, published as `cpuSelectMs`. No engine loop was
+replaced by a batch in this stage: the verdict per loop is in the table's last column, and the
+rule stays that a batch enters the frame only where its loop's share is measured above the spread.
+
 ## Browser explorer
 
 ### Simple browser startup
