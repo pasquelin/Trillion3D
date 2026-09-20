@@ -4,8 +4,14 @@ import { createShadowDirty } from './sceneLightShadowDirty.ts';
 
 /** Rectangles of a slice: `(x, y, side)` per face, six faces reserved for every slice. */
 export const RECTS_PER_SLICE = POINT_FACES * 3;
-/** Key of a cascade: centre aligned on the texel grid and radius. Four numbers, not one more. */
+/** Key of a cascade window: page origin, depth anchor and radius. Four numbers, not one more. */
 const CASCADE_KEY = 4;
+/** Verdicts of `cascadeSlide`: the map is kept, slides by whole pages, or restarts whole. */
+export const CASCADE_SAME = 0,
+  CASCADE_SLIDE = 1,
+  CASCADE_WHOLE = 2;
+/** What a cascade window slid by, in pages, after a `CASCADE_SLIDE` verdict. */
+export const cascadeShift = { x: 0, y: 0 };
 
 /**
  * The shadow-slice table: which slice is taken, at which side, which pages of which face
@@ -101,28 +107,38 @@ export function createShadowSliceTable() {
       drawn[slice] = 1;
     },
     /**
-     * Has a cascade's world extent changed since its last draw? A cascade follows the
-     * camera: as long as its aligned centre and radius are the same, its map describes exactly the
-     * same thing and is kept. As soon as they change, the map describes another world extent and
-     * none of its texels is worth anything — the atlas does not address its pages in a ring, so there
-     * is nothing to recover from a slide, and the cascade redraws in full.
+     * Compares a cascade's window with the one its map describes, and records the new one.
+     * A cascade follows the camera, but its map is addressed by absolute page: as long as
+     * the origin, anchor and radius are the same, every texel is worth what it was; a move by
+     * whole pages keeps the pages that stay inside and only the entering strip restarts
+     * (`cascadeShift` says by how much); a move of a window side or more, a new anchor along
+     * the axis or a new radius describe another world and the cascade redraws in full.
      */
-    cascadeChanged(slice: number, face: number, center: ArrayLike<number>, radius: number) {
+    cascadeSlide(
+      slice: number,
+      face: number,
+      rows: number,
+      originX: number,
+      originY: number,
+      anchor: number,
+      radius: number,
+    ) {
       const index = slice * POINT_FACES + face,
         base = index * CASCADE_KEY;
-      const same =
-        cascadeSeen[index] === 1 &&
-        cascade[base] === center[0] &&
-        cascade[base + 1] === center[1] &&
-        cascade[base + 2] === center[2] &&
-        cascade[base + 3] === radius;
-      if (same) return false;
+      const seen = cascadeSeen[index] === 1,
+        dx = originX - cascade[base],
+        dy = originY - cascade[base + 1],
+        sameDepth = cascade[base + 2] === anchor && cascade[base + 3] === radius;
       cascadeSeen[index] = 1;
-      cascade[base] = center[0];
-      cascade[base + 1] = center[1];
-      cascade[base + 2] = center[2];
+      cascade[base] = originX;
+      cascade[base + 1] = originY;
+      cascade[base + 2] = anchor;
       cascade[base + 3] = radius;
-      return true;
+      if (!seen || !sameDepth || Math.abs(dx) >= rows || Math.abs(dy) >= rows) return CASCADE_WHOLE;
+      if (dx === 0 && dy === 0) return CASCADE_SAME;
+      cascadeShift.x = dx;
+      cascadeShift.y = dy;
+      return CASCADE_SLIDE;
     },
     reset() {
       for (let slice = 0; slice < MAX_SHADOW_SLICES; slice++) table.free(slice);
