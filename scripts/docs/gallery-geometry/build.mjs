@@ -1,3 +1,4 @@
+import { rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { geometryRecipes } from '../../../docs/js/gallery/offline/recipes.js';
@@ -26,4 +27,5 @@ for (const recipe of geometryRecipes) {
   );
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`Compilation failed for ${recipe.id}`);
+  await rm(resolve(directory, 'cache/native/.lock'), { force: true });
 }
