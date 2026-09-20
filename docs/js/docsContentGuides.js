@@ -1,4 +1,4 @@
-/** Guides and examples: prose in `html`, code in `example`, both rendered by `viewRenderer.js`. */
+/** Guides and examples: prose in `html`, code in `example`, both rendered by the React Entry component. */
 const GUIDE = { section: 'guides', kind: 'Guide' };
 const EXAMPLE = { section: 'examples', kind: 'Example' };
 
