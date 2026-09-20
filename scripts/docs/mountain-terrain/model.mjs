@@ -46,16 +46,18 @@ export function mountainTerrain(detail = 96) {
         bands[bandFor(height)].push(...triangle);
       }
     }
-  const river = [];
-  for (let step = 0; step <= detail; step++) {
+  const river = [],
+    riverMargin = Math.max(1, Math.round(detail / 12));
+  for (let step = riverMargin; step <= detail - riverMargin; step++) {
     const z = (step / detail - 0.5) * 12,
       x = valleyCenter(z),
-      y = terrainHeight(x, z) + 0.16,
-      width = 0.42 + 0.07 * Math.cos(z * 0.7);
+      width = 0.58 + 0.07 * Math.cos(z * 0.7),
+      y = Math.max(terrainHeight(x - width, z), terrainHeight(x + width, z)) + 0.08;
     positions.push(x - width, y, z, x + width, y, z);
   }
-  const start = positions.length / 3 - (detail + 1) * 2;
-  for (let step = 0; step < detail; step++) {
+  const riverSegments = detail - riverMargin * 2,
+    start = positions.length / 3 - (riverSegments + 1) * 2;
+  for (let step = 0; step < riverSegments; step++) {
     const a = start + step * 2,
       b = a + 2;
     river.push(a, b, b + 1, a, b + 1, a + 1);
