@@ -2,8 +2,6 @@ import { createGpuPeriodicReadback } from './gpuPeriodicReadback.ts';
 import {
   STATE_WORDS,
   ST_HISTORY_OCCLUDERS,
-  ST_IN_FRONT,
-  ST_MODE,
   ST_OCCLUDERS,
   ST_OVERSIZED,
   ST_OVERSIZED_TRIANGLES,
@@ -11,7 +9,7 @@ import {
   ST_REJECTED_TRIANGLES,
   ST_TESTED,
   ST_TESTED_TRIANGLES,
-  ST_TWO_PASS,
+  ST_WITHDRAWN,
 } from './gpuPartitionContract.ts';
 
 /**
@@ -30,11 +28,10 @@ export type PartitionCountsFrame = {
   testedTriangles: number;
   rejectedTriangles: number;
   oversizedTriangles: number;
+  /** Rows the previous image drew: the occluder set before its own pyramid culls it. */
   historyOccluders: number;
-  inFront: number;
-  /** 1 when the frame split by occluder history, 0 when it split by the median. */
-  fromHistory: number;
-  twoPass: number;
+  /** Rows drawn last image that last image's pyramid withdrew to the tested half. */
+  withdrawn: number;
 };
 
 const empty = (): PartitionCountsFrame => ({
@@ -47,9 +44,7 @@ const empty = (): PartitionCountsFrame => ({
   rejectedTriangles: 0,
   oversizedTriangles: 0,
   historyOccluders: 0,
-  inFront: 0,
-  fromHistory: 0,
-  twoPass: 0,
+  withdrawn: 0,
 });
 
 /** Periodic sample of partition counters: one copy, one mapping, no wait. */
@@ -67,9 +62,7 @@ export function createPartitionCounters(device: GPUDevice) {
     counted.rejectedTriangles = words[ST_REJECTED_TRIANGLES];
     counted.oversizedTriangles = words[ST_OVERSIZED_TRIANGLES];
     counted.historyOccluders = words[ST_HISTORY_OCCLUDERS];
-    counted.inFront = words[ST_IN_FRONT];
-    counted.fromHistory = words[ST_MODE];
-    counted.twoPass = words[ST_TWO_PASS];
+    counted.withdrawn = words[ST_WITHDRAWN];
   });
 
   /** Sample buffer, made on the first sampled frame and never once per frame. */

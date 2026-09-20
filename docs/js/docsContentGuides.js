@@ -73,6 +73,28 @@ const explorer: Explorer = await createExplorer('viewer', options);
 <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/API.md">docs/API.md</a>.</p>
 <p>Two-step path for a host: keep Three.js for loading and scene building and render with the engine (what the measurement Lab does today); then replace the loading by the compiled cache and drop <code>three</code> from the dependencies.</p>`,
   },
+  {
+    ...GUIDE,
+    id: 'occlusion-two-phase',
+    title: 'Occlusion: the two-phase Hi-Z',
+    description:
+      'How a cluster hidden behind another leaves the image, what decides it, and the counters that say so.',
+    html: `<p>The WebGPU visibility path draws its opaque clusters in two passes, following the published two-phase design. There is no option to set: the mechanism is fixed, automatic, and reads its own history.</p>
+<ol class="list-decimal pl-6 space-y-1">
+<li><strong>Main pass.</strong> A cluster is an <em>occluder</em> when the previous image drew it and the previous image's depth pyramid does not hide it: its rectangle and depth bound from that image are read against that pyramid, still in its buffer. The occluders are rasterised first.</li>
+<li><strong>Pyramid.</strong> The depth of the main pass becomes a Hi-Z pyramid: a mip chain where each texel keeps the farthest depth of its footprint.</li>
+<li><strong>Post pass.</strong> Every other cluster — withdrawn from the occluders, or rejected last image — is tested against that pyramid: a footprint clipped to the viewport, the mip that covers it in sixteen texels, and the comparison of the cluster's nearest depth to the farthest depth read there. What stays hidden is not drawn; what is not is rasterised in a second pass over the same targets.</li>
+</ol>
+<p>The post-pass test is the only thing allowed to reject, and it is conservative to the ulp: the rectangle contains the reference's, the depth bound stays below it, a box that crosses the near plane is never rejected. The main-pass verdict only decides <em>draw order</em>: a wrong one costs a second test, never a pixel. That is why a moved world, a resized target or a page that changed rank need no invalidation — only a rank that changed page forgets what it held.</p>
+<p>In a still view the two halves converge within one antialiasing jitter cycle: a cluster the test kept stays an occluder until the view, or a world, moves. The image is then held — no pass runs — which a moving pyramid would forbid.</p>
+<h3 class="text-lg font-bold mt-4">Reading it</h3>
+<ul class="list-disc pl-6 space-y-1">
+<li><code>render()</code> returns <code>hizTestedClusters</code>, <code>hizRejectedClusters</code>, <code>hizRejectedTriangles</code> and <code>hizCountedFrame</code>: what the post pass tested and rejected on the image the last periodic sample described — the device counts, the host rereads one image in fifteen, and <code>null</code> means no sample yet, never zero.</li>
+<li><code>stageProfile()</code> carries the partition stage: <code>lignes</code> (resident rows), <code>occulteurs</code>, <code>testees</code>, <code>historiqueOcculteurs</code> (rows the previous image drew) and <code>retiresParLaPyramide</code> (rows that pyramid withdrew), with the GPU milliseconds of the <code>WG partition</code>, <code>WG HiZ pyramid</code>, <code>WG HiZ test</code>, <code>WG visibility primary</code> and <code>WG visibility secondary</code> passes.</li>
+<li>The measurement harness prints the same numbers per view as <em>Hi-Z tested/rejected</em>; the street view of the reference scene rejects 5,131 of 24,902 rows where the former history rejected 440.</li>
+</ul>
+<p>The lesson <a class="link link-primary" href="#/en/examples/occlusion-two-phase">Hide a ring behind a ring</a> shows the counters move on the garden as the eye drops to ring height.</p>`,
+  },
 ];
 
 export const EXAMPLES = [
