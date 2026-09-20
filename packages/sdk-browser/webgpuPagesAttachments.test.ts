@@ -47,7 +47,7 @@ test('a resize (new view array) rebuilds the attachments, without deriving from 
 });
 
 test('an engine that returns to a view set already seen elsewhere still rebuilds (array identity, not content)', () => {
-  // `attachmentsFor !== views` compares array identities: two arrays of identical content but
+  // The cache is keyed by array identity: two arrays of identical content but
   // different identity (two distinct `SurfaceBuffer`s) must never be confused.
   const viewsA = [{ label: 'x' }] as unknown as GPUTextureView[];
   const viewsB = [{ label: 'x' }] as unknown as GPUTextureView[];
@@ -58,4 +58,13 @@ test('an engine that returns to a view set already seen elsewhere still rebuilds
   assert.notEqual(attB, attA, 'two distinct view identities do not share their cache');
   memeContenu(attA, referenceAttachments(surfacesA));
   memeContenu(attB, referenceAttachments(surfacesB));
+});
+
+test('two surface buffers alive at once each keep their attachments (opaque resolve and water)', () => {
+  const opaque = surfacesWith([{ label: 'opaque' }] as unknown as GPUTextureView[]);
+  const water = surfacesWith([{ label: 'water' }] as unknown as GPUTextureView[]);
+  const first = [surfaceColorAttachments(opaque), surfaceColorAttachments(water)];
+  const second = [surfaceColorAttachments(opaque), surfaceColorAttachments(water)];
+  assert.equal(second[0], first[0], 'the opaque set survives a water image between two of its own');
+  assert.equal(second[1], first[1], 'and the water set survives an opaque one');
 });

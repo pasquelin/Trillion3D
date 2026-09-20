@@ -5,6 +5,11 @@ import { encodeWaterPass, WATER_SURFACE_PASS } from './webgpuWaterPass.ts';
 import { WATER_COMPOSITE_PASS } from './webgpuWaterComposite.ts';
 import { device, prepared, targets } from './webgpuWaterPassFixture.ts';
 import type { WebgpuGpuState } from './webgpuPagesStateGpu.ts';
+import { createWebgpuBlendState } from './webgpuBlendState.ts';
+import { createWebgpuVisState } from './webgpuPagesStateVis.ts';
+import { createWebgpuPagesLayout } from './webgpuPagesLayout.ts';
+import { createWebgpuRunState } from './webgpuPagesStateRun.ts';
+import { dropVis } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Replays the frame's transparent passes: their labels, the items each drew, and the copies. */
@@ -112,4 +117,31 @@ test('without the pass, or without a backdrop, nothing of it is encoded', () => 
   blendState.water = { surfaces: [{}, {}, {}] as never, composite: {} as never };
   gpu.backdrop = undefined;
   assert.equal(encodeWaterPass(rt, device, encoder as never, inverse), false, 'no backdrop');
+});
+
+test('dropping the visibility path disposes the water pass with the blend pipelines', () => {
+  const blendState = createWebgpuBlendState();
+  let disposed = 0;
+  blendState.water = {
+    surfaces: [{}, {}, {}] as never,
+    composite: { dispose: () => disposed++ } as never,
+  };
+  const vis = createWebgpuVisState();
+  const rt = {
+    vis,
+    layout: createWebgpuPagesLayout({
+      roots: [],
+      bootstrap: [],
+      slots: 1,
+      cap: 1,
+      pageBytes: 12,
+    } as never),
+    run: createWebgpuRunState(),
+    gpu: { bindGroups: new Map() },
+    blendState,
+    capabilities: { materials: '', unsupported: [] as string[] },
+  } as unknown as WebgpuPagesRuntime;
+  dropVis(rt);
+  assert.equal(disposed, 1, 'the composite released its view buffer');
+  assert.equal(blendState.water, undefined, 'and the frame no longer has a pass to encode');
 });
