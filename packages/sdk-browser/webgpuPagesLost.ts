@@ -1,12 +1,15 @@
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
+/** Why the device is gone, as the `gpu-device-lost` diagnostic publishes it. */
+export type LossCause = { reason: string; message: string };
+
 /**
  * The one place that declares the device lost, whatever reported it — the device's own `lost`
  * promise, an uncaptured error, a residency read that failed on it, or `dispose`.
  *
  * Everything a lost device leaves behind is older than the device — its resident pages, its
  * colour target, the image it presented — and the two things a consumer could still read are
- * withdrawn here, before any call raises `WEBGPU_LOST`:
+ * withdrawn here, before any call raises `WEBGPU_LOST` and before the loss is announced:
  *
  * - the presented surface: its context is unconfigured, which replaces the drawing buffer with
  *   a transparent black image, and the presenter is dropped so `presentedSurface` no longer
@@ -15,16 +18,26 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
  * - the held frame: `frameHeld` is cleared and the resource revision moves, so the witness no
  *   longer matches and nothing redisplays the target as this frame.
  *
- * Returns true the first time only: the caller reports that cause, and the later ones change
- * nothing.
+ * Then, given a cause, the loss is announced once under `gpu-device-lost` with
+ * `code: 'WEBGPU_LOST'`: a host that reacts to it by drawing already finds nothing stale. A
+ * dispose gives no cause: it withdraws the same things and announces nothing. Returns true the
+ * first time only; the later causes change nothing.
  */
-export function markWebgpuLost(rt: Pick<WebgpuPagesRuntime, 'run' | 'gpu'>) {
-  const { run, gpu } = rt;
+export function markWebgpuLost(
+  rt: Pick<WebgpuPagesRuntime, 'run' | 'gpu' | 'diag'>,
+  cause?: LossCause,
+) {
+  const { run, gpu, diag } = rt;
   if (run.lost) return false;
   run.lost = true;
   run.frameHeld = false;
   run.gate.resourcesChanged();
   gpu.presenter?.dispose();
   gpu.presenter = undefined;
+  if (cause)
+    diag.engineDiagnostic('gpu-device-lost', 'WebGPU device lost', {
+      code: 'WEBGPU_LOST',
+      ...cause,
+    });
   return true;
 }

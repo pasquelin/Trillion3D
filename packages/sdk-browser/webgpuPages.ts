@@ -40,8 +40,9 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
   // Integer record of a request, set once per address: that is all off-thread integration
   // receives from an arrival.
   const pageSpecs = createArrivalSpecs(setup.byUrl, rt.layout.rows.pageIndexOf);
+  // An uncaptured error abandons the device: what follows would draw on a state no one knows.
   const onGpuError = (event: GPUUncapturedErrorEvent) => {
-    markWebgpuLost(rt);
+    markWebgpuLost(rt, { reason: 'uncaptured-error', message: String(event.error.message) });
     diag.diagnosticFailure('gpu-uncaptured-error', event.error);
   };
   const backend: WebgpuPagesBackend = {

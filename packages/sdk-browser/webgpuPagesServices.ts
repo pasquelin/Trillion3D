@@ -109,7 +109,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     getFrame: () => run.frame,
     updatePins,
     ensureResident,
-    markLost: () => markWebgpuLost(rt),
+    markLost: (error) => markWebgpuLost(rt, { reason: 'residency', message: String(error) }),
     traceEnabled: diag.traceEnabled,
     traceDiagnostic: diag.traceDiagnostic,
     diagnosticFailure: diag.diagnosticFailure,

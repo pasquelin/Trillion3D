@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { markWebgpuLost } from './webgpuPagesLost.ts';
 
-test('a lost device withdraws the presented surface and breaks the held frame, once', () => {
-  let unconfigured = 0;
+function runtime() {
   const revisions = { scene: 1, view: 1, resources: 1 };
+  const announced: Array<{ phase: string; details: Record<string, unknown> }> = [];
   const rt = {
     run: {
       lost: false,
@@ -16,22 +16,47 @@ test('a lost device withdraws the presented surface and breaks the held frame, o
         },
       },
     },
-    gpu: {
-      presenter: {
-        canvas: {},
-        dispose() {
-          unconfigured++;
-        },
+    gpu: { presenter: { canvas: {}, disposed: 0, dispose() {} } },
+    diag: {
+      engineDiagnostic: (phase: string, _message: string, details: Record<string, unknown>) => {
+        announced.push({ phase, details });
       },
     },
   };
-  assert.equal(markWebgpuLost(rt as never), true, 'the first report is the one to announce');
+  rt.gpu.presenter.dispose = () => {
+    rt.gpu.presenter.disposed++;
+  };
+  return { rt, revisions, announced, presenter: rt.gpu.presenter };
+}
+
+test('a lost device withdraws the surface and the held frame, then announces it once', () => {
+  const { rt, revisions, announced, presenter } = runtime();
+  rt.diag.engineDiagnostic = (phase, message, details) => {
+    // Announced after the withdrawal: the host already finds nothing to present.
+    assert.equal(rt.gpu.presenter, undefined, 'the canvas is withdrawn before the announcement');
+    announced.push({ phase, details });
+  };
+  assert.equal(markWebgpuLost(rt as never, { reason: 'destroyed', message: 'gone' }), true);
   assert.equal(rt.run.lost, true);
-  assert.equal(rt.gpu.presenter, undefined, 'the canvas of a dead device stays unpublished');
-  assert.equal(unconfigured, 1, 'unconfiguring the context blanks the drawing buffer');
+  assert.equal(presenter.disposed, 1, 'the presenter is disposed, which blanks its canvas');
   assert.equal(rt.run.frameHeld, false, 'no frame of a lost device is still held');
   assert.equal(revisions.resources, 2, 'the held witness no longer matches the revisions');
-  assert.equal(markWebgpuLost(rt as never), false, 'a second cause changes nothing');
+  assert.deepEqual(announced, [
+    {
+      phase: 'gpu-device-lost',
+      details: { code: 'WEBGPU_LOST', reason: 'destroyed', message: 'gone' },
+    },
+  ]);
+  assert.equal(markWebgpuLost(rt as never, { reason: 'residency', message: 'again' }), false);
+  assert.equal(announced.length, 1, 'a second cause announces nothing');
   assert.equal(revisions.resources, 2);
-  assert.equal(unconfigured, 1);
+  assert.equal(presenter.disposed, 1);
+});
+
+test('a dispose withdraws the same things without announcing a loss', () => {
+  const { rt, announced, presenter } = runtime();
+  assert.equal(markWebgpuLost(rt as never), true);
+  assert.equal(rt.gpu.presenter, undefined);
+  assert.equal(presenter.disposed, 1);
+  assert.deepEqual(announced, []);
 });
