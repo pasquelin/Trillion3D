@@ -132,3 +132,22 @@ test("texture metrics are the streamer's, and `null` until it is built", () => {
     scenario([big, big], [big, undefined, undefined], [[big, undefined, undefined]]);
   });
 }
+
+test('`lightsSampled` is true only on a moving accumulated frame that lit contract lights', () => {
+  const temporal = { frame: { active: true, sampledRank: 3 } };
+  const rt = {
+    run: createWebgpuRunState(),
+    gpu: { positionBuffers: new Map(), temporal },
+    vis: createWebgpuVisState(),
+    timing: {},
+    blendState: createWebgpuBlendState(),
+    services: { bootstrapState: { ready: true }, residencySets: { keepCount: 0 } },
+    setup: { geometryPool: { slots: 0 }, texturePool: {} },
+    lights: createWebgpuLightState(),
+  } as unknown as WebgpuPagesRuntime;
+  assert.equal(metricsOf(rt).lightsSampled, false, 'no light lit: nothing was drawn');
+  rt.lights.lightsActive = 2;
+  assert.equal(metricsOf(rt).lightsSampled, true);
+  temporal.frame.sampledRank = 0;
+  assert.equal(metricsOf(rt).lightsSampled, false, 'a still frame shades every light');
+});
