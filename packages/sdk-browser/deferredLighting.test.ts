@@ -162,10 +162,6 @@ test('diagnostic composition retains the display-space flag and unbound calls fa
   assert.deepEqual([...h.writes[0].slice(20, 24)], [800, 600, 1, 0]);
   lighting.update(matrix, [1, 2, 3], 800, 600, 0x204060, false);
   assert.deepEqual([...h.writes[1].slice(20, 24)], [800, 600, 0, 0]);
-  // The rank of a sampled image rides in the fourth viewport slot; zero without one.
-  lighting.update(matrix, [1, 2, 3], 800, 600, 0x204060, false, [3, 2, 1, 1], 7);
-  assert.deepEqual([...h.writes[2].slice(20, 24)], [800, 600, 0, 7]);
-  assert.deepEqual([...h.writes[2].slice(28, 32)], [3, 2, 1, 1]);
   lighting.bind(h.surface, h.view(), h.view());
   lighting.dispose();
   assert.equal(h.destroyed, true);
@@ -174,4 +170,16 @@ test('diagnostic composition retains the display-space flag and unbound calls fa
     /SURFACE_NOT_BOUND/,
   );
   assert.equal(h.passes.length, 0);
+});
+
+test('the rank of a sampled image rides in the fourth viewport slot, zero without one', async () => {
+  const h = gpuHarness(),
+    lighting = await createDeferredLighting(h.device, {} as GPUBuffer),
+    matrix = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+  lighting.update(matrix, [1, 2, 3], 800, 600, 0x204060, false, [3, 2, 1, 1], 7);
+  assert.deepEqual([...h.writes[0].slice(20, 24)], [800, 600, 0, 7]);
+  assert.deepEqual([...h.writes[0].slice(28, 32)], [3, 2, 1, 1]);
+  lighting.update(matrix, [1, 2, 3], 800, 600, 0x204060, false);
+  assert.deepEqual([...h.writes[1].slice(20, 24)], [800, 600, 0, 0]);
+  lighting.dispose();
 });
