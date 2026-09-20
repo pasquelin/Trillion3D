@@ -14,14 +14,23 @@ import { BatchGroup } from './clusterBatchPrimitive.ts';
  */
 
 /** Material of a biased sub-batch: the original material, plus its layer offset. */
-function biasedMaterial(material: THREE.Material, layer: number) {
+function applyBias(material: THREE.Material, layer: number) {
+  material.polygonOffset = true;
+  material.polygonOffsetFactor = 0;
+  material.polygonOffsetUnits = -depthLayerUnits(layer);
+  return material;
+}
+
+function biasedMaterial(base: BatchGroup, material: THREE.Material, layer: number) {
+  if (base.split)
+    return base.split.map((pass) => applyBias(pass.clone(), layer)) as [
+      THREE.Material,
+      THREE.Material,
+    ];
   const clone = material.clone();
-  clone.polygonOffset = true;
-  clone.polygonOffsetFactor = 0;
   // This path draws with the host-library projection, in FORWARD depth: getting closer
   // to the eye means SUBTRACTING units — the opposite of the engine path.
-  clone.polygonOffsetUnits = -depthLayerUnits(layer);
-  return clone;
+  return applyBias(clone, layer);
 }
 
 /** One twin batch per (instance, layer) encountered. A scene without stacked coplanar
@@ -44,8 +53,8 @@ export function buildLayerGroups(
     const group = new BatchGroup(base.primitive);
     group.transparent = base.transparent;
     group.layer = layer;
-    group.biased = biasedMaterial(page.material, layer);
-    materials.push(group.biased);
+    group.biased = biasedMaterial(base, page.material, layer);
+    materials.push(...(Array.isArray(group.biased) ? group.biased : [group.biased]));
     map.set(layer, group);
   }
   return { layerGroups, materials };
