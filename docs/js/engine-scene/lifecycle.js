@@ -119,7 +119,7 @@ export function mountScene(host, copy, locale) {
       light.disabled = !lighting.hasLights;
       quality.disabled = false;
       shadows.disabled = !lighting.hasShadows;
-      status.textContent = copy.ready;
+      status.textContent = '';
       invalidate();
     } catch (error) {
       if (disposed) return;
