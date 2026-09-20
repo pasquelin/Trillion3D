@@ -5,13 +5,7 @@ import type { ClusterManifest } from '../sdk-core/index.ts';
 import { collectClusterPages } from './pageSelection.ts';
 import { createPageRowWriter } from './webgpuPageRow.ts';
 import { FLAG_MASK, PAGE_INFO_STRIDE, isTransmissive } from './visibilityBuffer.ts';
-import {
-  CLASS_DOUBLE,
-  CLASS_MASK,
-  CLASS_UV,
-  CLASS_VERTEX_NORMAL,
-  ROW_MATERIAL_CLASS_WORD,
-} from './visibilityMaterialClass.ts';
+import { CLASS_FEATURE, ROW_MATERIAL_CLASS_WORD } from './visibilityMaterialClass.ts';
 import { sceneMaterialClasses } from './webgpuPageRowMaterial.ts';
 import { markPresentClasses } from './webgpuMaterialPasses.ts';
 
@@ -139,19 +133,20 @@ test('a row carries its resolve class, the census of the scene knows it before a
   );
   writeRow(mask, 0, 0, 0, new Uint32Array([0, 1, 2]), floats, ints);
   writeRow(blend, 1, 1, 0, new Uint32Array([0, 1, 2]), floats, ints);
-  const cutout = CLASS_MASK | CLASS_VERTEX_NORMAL | CLASS_DOUBLE;
+  const { HAS_MASK, HAS_VERTEX_NORMAL, DOUBLE_SIDED, HAS_UV } = CLASS_FEATURE;
+  const cutout = HAS_MASK | HAS_VERTEX_NORMAL | DOUBLE_SIDED;
   assert.equal(ints[ROW_MATERIAL_CLASS_WORD], cutout, 'double-sided cut-out with vertex normals');
-  assert.equal(ints[stride + ROW_MATERIAL_CLASS_WORD], CLASS_VERTEX_NORMAL, 'the plain blend');
-  assert.equal(cutout & CLASS_UV, 0, 'no uv block, no uv class bit');
+  assert.equal(ints[stride + ROW_MATERIAL_CLASS_WORD], HAS_VERTEX_NORMAL, 'the plain blend');
+  assert.equal(cutout & HAS_UV, 0, 'no uv block, no uv class bit');
   // The census reads the same fields the rows will carry: the two classes, sorted, once each.
   assert.deepEqual(sceneMaterialClasses(collected.allPages, geometryBlocks, layers), [
-    CLASS_VERTEX_NORMAL,
+    HAS_VERTEX_NORMAL,
     cutout,
   ]);
   // An image draws the classes of its packed rows only: the second row alone leaves the cut-out out.
   const stamps = new Uint32Array(2048);
   assert.equal(markPresentClasses(ints, 2, 7, stamps), 2);
   assert.equal(markPresentClasses(ints.subarray(stride), 1, 8, stamps), 1);
-  assert.equal(stamps[CLASS_VERTEX_NORMAL], 8);
+  assert.equal(stamps[HAS_VERTEX_NORMAL], 8);
   assert.equal(stamps[cutout], 7);
 });
