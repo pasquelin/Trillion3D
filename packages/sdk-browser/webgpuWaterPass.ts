@@ -1,10 +1,9 @@
 import { blendPassReady, countBlendDraws, drawBlendRuns } from './webgpuBlendDraw.ts';
-import { feedbackAttachment } from './webgpuPagesAttachments.ts';
+import { shadeColorAttachments } from './webgpuPagesAttachments.ts';
 import { copyBackdrop } from './webgpuTransmission.ts';
 import { createWaterComposite, type WaterComposite } from './webgpuWaterComposite.ts';
 import { createWaterSurfacePipelines, type WaterSurfacePipelines } from './webgpuWaterPipelines.ts';
 import { WATER_MAX_ITEMS } from './webgpuWaterSurfaceWgsl.ts';
-import type { TransmissionBackdrop } from './webgpuPagesStateGpu.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Label of the measured surface stage; its GPU duration is read under this name. */
@@ -36,26 +35,6 @@ export async function createWaterPass(
   return { surfaces, composite };
 }
 
-let attachmentsFor: GPUTextureView[] | undefined,
-  attachments: GPURenderPassColorAttachment[] | undefined;
-
-/** The five colour attachments of the surface stage: the surfaces, cleared — zero says "no water
- *  here" to the composite —, then the feedback target. Rebuilt only when the views change. */
-function surfaceAttachments(rt: WebgpuPagesRuntime, backdrop: TransmissionBackdrop) {
-  const views = backdrop.surfaces.views();
-  if (attachmentsFor !== views || !attachments) {
-    attachments = views.map((view) => ({
-      view,
-      loadOp: 'clear' as const,
-      storeOp: 'store' as const,
-      clearValue: [0, 0, 0, 0],
-    }));
-    attachmentsFor = views;
-  }
-  attachments[views.length] = feedbackAttachment(rt);
-  return attachments;
-}
-
 /**
  * Encodes the water pass, after the blends and on the image they left: the backdrop is frozen,
  * the transmissive surfaces are drawn into their surface buffer — hardware depth against the
@@ -85,7 +64,8 @@ export function encodeWaterPass(
   const [width, height] = gpu.targetSize;
   const pass = encoder.beginRenderPass({
     label: WATER_SURFACE_PASS,
-    colorAttachments: surfaceAttachments(rt, backdrop),
+    // The surfaces are cleared: zero says "no water here" to the composite.
+    colorAttachments: shadeColorAttachments(rt, backdrop.surfaces),
     depthStencilAttachment: {
       view: backdrop.waterDepthView,
       depthLoadOp: 'load',
