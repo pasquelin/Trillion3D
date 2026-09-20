@@ -6,7 +6,11 @@ A single harness for all test batches. One command, no server to start manually,
          --vues generale,sol,rue --images 60 --pixelError 0,1
 
     node scripts/mesure/campagne.mjs
-    node scripts/mesure/rapportGlobal.mjs
+    node scripts/mesure/rapportGlobal.mjs --id my-campaign
+
+The report is rendered by the bilingual React portal. See the [report publication pipeline](report/README.md)
+for export, immutable campaign staging, provenance and comparison rules. Rebuilding the site does not
+rerun benchmarks.
 
 - `--moteur`: `webgl` (exact-cluster-pages), `webgpu` (webgpu-page-raster), or `webgl2`
   (autonomous-pages-webgl, the autonomous engine decoding geometry pages itself, hence the only one incrementing `pagesDecodedWasm`); it also sets Chromium flags (`optionsCote.mjs`). `webgl2` requires a cache where all primitives are exact clusters: otherwise the compiler leaves `autonomousScene` null and the explorer rejects the run with `AUTONOMOUS_SCENE_UNAVAILABLE`.
