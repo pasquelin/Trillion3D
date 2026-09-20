@@ -462,7 +462,7 @@
         "interaction": null,
         "limitation": null
       },
-      "closestLessons": ["offline-prism", "offline-prism"],
+      "closestLessons": ["offline-prism"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "supported",
@@ -478,7 +478,7 @@
         "interaction": null,
         "limitation": null
       },
-      "closestLessons": ["offline-contour", "offline-contour"],
+      "closestLessons": ["offline-contour"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "supported",
@@ -526,7 +526,7 @@
         "interaction": null,
         "limitation": null
       },
-      "closestLessons": ["offline-rational-roof", "offline-rational-roof"],
+      "closestLessons": ["offline-rational-roof"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "supported",
@@ -590,7 +590,7 @@
         "interaction": null,
         "limitation": null
       },
-      "closestLessons": ["offline-terrain", "offline-terrain"],
+      "closestLessons": ["offline-terrain"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "supported",
@@ -5539,7 +5539,7 @@
         "interaction": "Clicked sections: filled objects and background changed into stacked pale section outlines, immediately exposing the construction.",
         "limitation": null
       },
-      "closestLessons": ["offline-loft", "offline-loft"],
+      "closestLessons": ["offline-loft"],
       "originalGoal": "An original procedural geometry study made from numbered primitives will make the mechanism visible.",
       "capabilityReview": {
         "state": "supported",
