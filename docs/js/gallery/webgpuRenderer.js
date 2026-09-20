@@ -1,3 +1,4 @@
+import { SCENE_BACKGROUND } from '../scenePalette.js';
 import { evaluate } from './evaluate.js';
 import { geometryFor } from './sceneGeometry.js';
 import { getIllustrationGpu } from './webgpuDevice.js';
@@ -93,7 +94,7 @@ export async function mountIllustration(canvas, id, state, options = {}) {
         colorAttachments: [
           {
             view: context.getCurrentTexture().createView(),
-            clearValue: { r: 0.055, g: 0.085, b: 0.13, a: 1 },
+            clearValue: SCENE_BACKGROUND.gpu,
             loadOp: 'clear',
             storeOp: 'store',
           },

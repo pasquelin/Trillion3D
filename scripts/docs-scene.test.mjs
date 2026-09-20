@@ -7,6 +7,7 @@ import { writeGarden } from './docs/garden-source.mjs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { engineDiagnosticsCode, engineExampleCode } from '../docs/js/engine-scene/code.js';
+import { SCENE_BACKGROUND } from '../docs/js/scenePalette.js';
 import { loadReactComponents } from './docs/render-react.mjs';
 const root = resolve(import.meta.dirname, '..');
 
@@ -49,6 +50,11 @@ test('the embedded preview and its code share the published scene contract', asy
   assert.match(preview, /data-engine-scene/);
   assert.match(preview, /data-scene-canvas/);
   assert.match(preview, /Préparation de la scène/);
+  assert.match(preview, /background-color:#0e1621/);
+  assert.equal(SCENE_BACKGROUND.packed, 0x0e1621);
+  assert.deepEqual(SCENE_BACKGROUND.gpu, { r: 14 / 255, g: 22 / 255, b: 33 / 255, a: 1 });
+  for (const file of ['docs/js/engine-scene/lifecycle.js', 'docs/js/gallery/webgpuRenderer.js'])
+    assert.match(await readFile(join(root, file), 'utf8'), /SCENE_BACKGROUND/);
   assert.match(example, /data-code-block/);
   assert.match(example, /scene-stats/);
   assert.match(example, /data-scene-guide/);
