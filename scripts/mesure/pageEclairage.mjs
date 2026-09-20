@@ -91,9 +91,12 @@ export async function measureView(options) {
     cpuSelectMs = [],
     gpuFrameMs = [],
     rafIntervalMs = [];
+  const gpuPassSamples = [];
+  const profileStart = Math.max(0, options.frames - options.profileFrames);
   let last = null,
     previousRaf = null;
   for (let i = 0; i < options.frames; i++) {
+    if (options.stageProfile && i === profileStart) explorer.resetStageProfile();
     const now = await new Promise((done) => requestAnimationFrame(done));
     if (previousRaf !== null && i > 2) rafIntervalMs.push(now - previousRaf);
     previousRaf = now;
@@ -103,6 +106,9 @@ export async function measureView(options) {
     if (typeof last.cpuFrameMs === 'number') cpuFrameMs.push(last.cpuFrameMs);
     if (typeof last.cpuSelectMs === 'number') cpuSelectMs.push(last.cpuSelectMs);
     if (typeof last.gpuFrameMs === 'number') gpuFrameMs.push(last.gpuFrameMs);
+    const sample = last.gpuPassMs;
+    if (i >= profileStart && sample && sample.frame !== gpuPassSamples.at(-1)?.frame)
+      gpuPassSamples.push(sample);
   }
   await explorer.flush();
   // Capture pose frozen here: the stage-profile loop must not walk the trajectory again.
@@ -112,23 +118,7 @@ export async function measureView(options) {
   // Stage profile is a separate loop after the measured one, so those timings stay comparable.
   // Yield to the browser between frames: timestamp queries resolve on a promise, and a loop
   // that never waits recovers almost none; the window is flushed first.
-  let stageProfile = null;
-  // Each distinct pass sample seen in this loop, keyed by the frame it describes: the same
-  // sample stays on the metrics until the next one, and counting it twice would weight it.
-  const gpuPassSamples = [];
-  if (options.stageProfile) {
-    explorer.resetStageProfile();
-    for (let i = 0; i < options.profileFrames; i++) {
-      const frame = explorer.render(capturePose);
-      const sample = frame.gpuPassMs;
-      if (sample && sample.frame !== gpuPassSamples.at(-1)?.frame) gpuPassSamples.push(sample);
-      await explorer.flush();
-      // A real frame boundary: the browser only makes a WebGL2 timestamp query readable
-      // after a frame boundary, which is also what a real application does.
-      await new Promise((done) => requestAnimationFrame(done));
-    }
-    stageProfile = explorer.stageProfile();
-  }
+  const stageProfile = options.stageProfile ? explorer.stageProfile() : null;
   // The shadow-page queue is drained before any atlas read: a pending page still holds the
   // previous depth, and the fingerprint would prove nothing. The loop is bounded, and the
   // remaining count is published as-is, never assumed zero.
