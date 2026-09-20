@@ -1,7 +1,7 @@
 import { routeHref } from '../../js/portal/routes.js';
 import { Button } from '../components/UI.jsx';
 
-const NAV_ITEMS = ['learn', 'examples', 'playground', 'api'];
+const NAV_ITEMS = ['learn', 'examples', 'playground', 'api', 'reports'];
 
 function navRoute(locale, area) {
   return {
