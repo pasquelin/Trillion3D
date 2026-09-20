@@ -40,11 +40,14 @@ function explorerMock(metrics) {
   };
 }
 
-async function mesurer(metrics) {
+async function mesurer(metrics, { frames = 1, rafStep = 0 } = {}) {
   const originalDocument = globalThis.document;
   const originalFetch = globalThis.fetch;
+  const originalRaf = globalThis.requestAnimationFrame;
   globalThis.document = { createElement: () => canvasMock(), body: { append: () => {} } };
   globalThis.fetch = async () => ({ status: 200 });
+  let rafTime = 0;
+  globalThis.requestAnimationFrame = (callback) => callback((rafTime += rafStep));
   globalThis.__wgTestExplorer = explorerMock(metrics);
   try {
     return await measureView({
@@ -57,16 +60,22 @@ async function mesurer(metrics) {
       pixelError: 1,
       maxPages: 4,
       warmup: 0,
-      frames: 1,
+      frames,
       pose: { position: [0, 0, 0] },
       captureFile: 'test.png',
     });
   } finally {
     globalThis.document = originalDocument;
     globalThis.fetch = originalFetch;
+    globalThis.requestAnimationFrame = originalRaf;
     delete globalThis.__wgTestExplorer;
   }
 }
+
+test('the measured moving loop publishes real requestAnimationFrame intervals', async () => {
+  const result = await mesurer({ drawCalls: 1 }, { frames: 5, rafStep: 16.5 });
+  assert.deepEqual(result.rafIntervalMs, [16.5, 16.5]);
+});
 
 test('measureView keeps an explicit `null` in metrics instead of erasing it', async () => {
   const { metrics } = await mesurer({ triangles: null, gpuSelectionFallback: null, drawCalls: 3 });

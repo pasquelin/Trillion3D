@@ -222,15 +222,15 @@
     "semantic_hash": ""
   },
   "scripts/mesure/pageEclairage.test.mjs": {
-    "mtime": 1789892914.910804,
-    "seen": 1789905083.5594869,
-    "ast_hash": "f76ffb99705237f2bb56d9afac4a4c47",
+    "mtime": 1789905720.7283685,
+    "seen": 1789905755.2670588,
+    "ast_hash": "ac0f4ce41ba65255075b0f76de2cffff",
     "semantic_hash": ""
   },
   "scripts/mesure/pageEclairage.mjs": {
-    "mtime": 1789892914.9106824,
-    "seen": 1789905083.559486,
-    "ast_hash": "b4bf2525eb410a8d31f27abe9aed4062",
+    "mtime": 1789905852.560832,
+    "seen": 1789906322.177582,
+    "ast_hash": "ccc83916b2e9ea469f6c4ee0045bc058",
     "semantic_hash": ""
   },
   "scripts/mesure/page.mjs": {
@@ -3312,9 +3312,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/backendTypes.ts": {
-    "mtime": 1789905045.944051,
-    "seen": 1789905083.558309,
-    "ast_hash": "31c45ff5248ff403b508a4c8bc45055c",
+    "mtime": 1789905871.2893798,
+    "seen": 1789906322.1763468,
+    "ast_hash": "74a688fb07fed9058025e2b2710e1bd5",
     "semantic_hash": ""
   },
   "packages/sdk-browser/visibilityPageWgsl.ts": {
@@ -8400,9 +8400,9 @@
     "semantic_hash": ""
   },
   "docs/SDK.md": {
-    "mtime": 1789905045.4697497,
-    "seen": 1789905083.559674,
-    "ast_hash": "a73e243be996f26ad57dc8a045d610b8",
+    "mtime": 1789905697.0880148,
+    "seen": 1789905755.2672598,
+    "ast_hash": "40fefffcd92bc48f7bb2b663d0f82d46",
     "semantic_hash": ""
   },
   "docs/FORMAT.md": {
@@ -8418,9 +8418,9 @@
     "semantic_hash": ""
   },
   "scripts/mesure/README.md": {
-    "mtime": 1789892914.9088855,
-    "seen": 1789905083.5597281,
-    "ast_hash": "78ef9b30d65eb13f3bef95eae1054f36",
+    "mtime": 1789905613.3724542,
+    "seen": 1789905755.267319,
+    "ast_hash": "23882b58fde43ddbd132bab2986b1813",
     "semantic_hash": ""
   },
   "packages/README.md": {
@@ -10638,9 +10638,9 @@
     "semantic_hash": ""
   },
   "scripts/mesure/pageThreeMesure.mjs": {
-    "mtime": 1789892914.9112742,
-    "seen": 1789905083.5594912,
-    "ast_hash": "f10dd4a6d92202ab98c15e4c41b7e720",
+    "mtime": 1789906224.5085256,
+    "seen": 1789906322.177587,
+    "ast_hash": "9f7365ad28a604137ba5022d95050e3a",
     "semantic_hash": ""
   },
   "scripts/mesure/pageThreeNu.mjs": {
@@ -13080,9 +13080,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/visibilityMaterial.ts": {
-    "mtime": 1789904942.8118236,
-    "seen": 1789905083.558941,
-    "ast_hash": "28981f3d4147369de467414af68f622f",
+    "mtime": 1789905218.3738813,
+    "seen": 1789905755.266474,
+    "ast_hash": "6217e3492ab0fd6d0a20ad36f683998c",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webglSurface.test.ts": {
@@ -14376,9 +14376,9 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webglClusterCompatibility.test.ts": {
-    "mtime": 1789904905.8298035,
-    "seen": 1789905083.558965,
-    "ast_hash": "8293407a5842e56dd5d7091cce1eccb8",
+    "mtime": 1789905264.3183715,
+    "seen": 1789905755.266499,
+    "ast_hash": "7501439b6a68225376167cfc6189e382",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webglClusterCompatibility.ts": {
@@ -14424,15 +14424,15 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webglClusterRenderer.ts": {
-    "mtime": 1789904905.718237,
-    "seen": 1789905083.558971,
-    "ast_hash": "9206fc1e2cba866c865d348959403ed7",
+    "mtime": 1789905852.445924,
+    "seen": 1789906322.1770382,
+    "ast_hash": "6c5040308303fa2bb6d3a19b8c02ae6d",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webglClusterShaders.ts": {
-    "mtime": 1789904905.4874632,
-    "seen": 1789905083.558972,
-    "ast_hash": "92574fd9a4b691923bff0bd747cf4a2c",
+    "mtime": 1789905375.6238606,
+    "seen": 1789905755.266508,
+    "ast_hash": "3c6e6f3f07febf35f2f60310c62e3fdb",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webglClusterState.ts": {
@@ -14454,27 +14454,27 @@
     "semantic_hash": ""
   },
   "packages/sdk-browser/webglClusterUniforms.ts": {
-    "mtime": 1789903182.3990147,
-    "seen": 1789905083.558976,
-    "ast_hash": "45512849e1164f21ededfdfc721be9d1",
+    "mtime": 1789905852.3258924,
+    "seen": 1789906322.177043,
+    "ast_hash": "30c0cceaae3b544a1028eda2daecd658",
     "semantic_hash": ""
   },
   "packages/sdk-browser/webglClusterValidation.ts": {
-    "mtime": 1789904905.6030478,
-    "seen": 1789905083.558976,
-    "ast_hash": "98762599fc5074d1fcc7e957369fddd4",
+    "mtime": 1789905264.202194,
+    "seen": 1789905755.2665129,
+    "ast_hash": "844b3dab5c50151edf9f4988b21c749d",
     "semantic_hash": ""
   },
   "test/appui/webglClusterCurvedPage.mjs": {
-    "mtime": 1789903552.4849687,
-    "seen": 1789905083.5595672,
-    "ast_hash": "894403c7a98ff4861110c975317dbeac",
+    "mtime": 1789905484.9985092,
+    "seen": 1789905755.267145,
+    "ast_hash": "2b2a8a467ab502ee539e2df8884e8c93",
     "semantic_hash": ""
   },
   "test/appui/webglClusterRendererPage.mjs": {
-    "mtime": 1789905004.574573,
-    "seen": 1789905083.559568,
-    "ast_hash": "c4ccc5a9f97b95c86079cac659775359",
+    "mtime": 1789905871.2895553,
+    "seen": 1789906322.177676,
+    "ast_hash": "e906a8aa9abebb651e0b719567fffbaa",
     "semantic_hash": ""
   },
   "test/appui/webglClusterRestorePage.mjs": {
@@ -14490,9 +14490,15 @@
     "semantic_hash": ""
   },
   "test/browser/rendu-clusters-webgl.browser.mjs": {
-    "mtime": 1789905004.7842255,
-    "seen": 1789905083.5595908,
-    "ast_hash": "1e95314bcafc5b5bd426de809f6c8ab4",
+    "mtime": 1789905485.390489,
+    "seen": 1789905755.2671711,
+    "ast_hash": "9096174f8e4a93869874f4c63d2d9ddd",
+    "semantic_hash": ""
+  },
+  "test/appui/webglClusterOraclePage.mjs": {
+    "mtime": 1789905644.6430786,
+    "seen": 1789905755.2671459,
+    "ast_hash": "6444c874604d1b86a3bfd0787daf9539",
     "semantic_hash": ""
   }
 }
