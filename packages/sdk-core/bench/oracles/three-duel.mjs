@@ -1,6 +1,7 @@
-// A duel between Three.js and sdk-core on one calculation family: same seeded inputs, both sides
-// timed on their own operation alone, Three's result — read untimed — the oracle of the engine's.
-// Three serves as the witness only, never inside a `math*.ts` file.
+// A duel between Three.js and sdk-core on one calculation family: same seeded inputs, Three timed
+// as the witness of the perf base, the engine on its own operation alone, Three's result — read
+// untimed — the oracle of the engine's. Three serves as the witness only, never inside a
+// `math*.ts` file.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -80,11 +81,12 @@ export function flatOf(objects, stride, out) {
 }
 
 /**
- * One measure with two lines: `three` timed, then `core` timed, each running its operation and
- * nothing else on `size` elements. `oracle` reads Three's result untimed; `core` returns the
- * engine's. Without `tolerance`, the two must be equal bit for bit; with it, the largest absolute
- * difference must stay under it and the line counts the values that differ. `motif` names what
- * the comparison leaves out, when it leaves something out.
+ * One row: Three timed as the perf base's witness, then `core` timed, each running its operation
+ * and nothing else on `size` elements; the row's `vs witness` column reads the engine's median
+ * against Three's. `oracle` reads Three's result untimed; `core` returns the engine's. Without
+ * `tolerance`, the two must be equal bit for bit; with it, the largest absolute difference must
+ * stay under it and the line counts the values that differ. `motif` names what the comparison
+ * leaves out, when it leaves something out.
  *
  * `slower` is for the one case where the two sides do not compute the same thing: `{ atMost, reason }`
  * lets the engine reach `atMost` times Three, on the MEDIAN — the statistic the table prints — and
@@ -102,8 +104,6 @@ export async function duel({
   motif,
   slower,
 }) {
-  const cas = [{ name, size, input: null }];
-  const witness = await mesure({ name, fichier, cas, calcul: three, motif: 'Three.js witness' });
   let maxAbs = 0;
   const differences = (ref, obt, chemin) => {
     const c = compteur();
@@ -118,16 +118,16 @@ export async function duel({
   const engine = await mesure({
     name,
     fichier,
-    cas,
+    cas: [{ name, size, input: null }],
+    temoin: three,
     calcul: core,
     attendu: oracle,
     motif,
     ...(tolerance === undefined ? {} : { differences }),
   });
-  if (tolerance !== undefined)
-    engine.resultats[0].motif = `largest gap ${maxAbs.toExponential(1)} ; ${engine.resultats[0].motif}`;
-  const t = { ...witness.resultats[0], name: `${name} · Three.js` },
-    c = { ...engine.resultats[0], name: `${name} · sdk-core` };
+  const c = engine.resultats[0],
+    t = c.temoin;
+  if (tolerance !== undefined) c.motif = `largest gap ${maxAbs.toExponential(1)} ; ${c.motif}`;
   const ratio = slower ? c.medianeMs / t.medianeMs : null;
   if (slower)
     c.motif = [`${ratio.toFixed(2)}× Three.js (median): ${slower.reason}`, c.motif]
@@ -148,5 +148,5 @@ export async function duel({
         `${name}: sdk-core best ${c.minMs.toFixed(3)} ms above Three.js ${t.minMs.toFixed(3)} ms`,
       );
   });
-  return { name, fichier, resultats: [t, c] };
+  return engine;
 }
