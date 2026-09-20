@@ -6,8 +6,8 @@ import { linearToSrgb, srgbToLinear } from './mathColor.ts';
  *
  * Repeats `srgbToLinear`. Replaces Three.js loop: `for … color.convertSRGBToLinear()`.
  * DECLARED DIFFERENCE with the reference, inherited from the unit function: the engine writes
- * the exact curve where the reference multiplies by rounded constants — at most `1.1e-11` apart
- * per channel, invisible at 8 bits (`three-vs-core-batch-colors.perf.mjs`).
+ * the exact curve where the reference multiplies by rounded constants. The gap per channel is
+ * bounded by `SRGB_REFERENCE_GAP` (`bench/oracles/three-duel.mjs`), invisible at 8 bits.
  */
 export function srgbToLinearBatch(out: Float64Array, values: ArrayLike<number>, n: number): void {
   for (let i = 0; i < n; i++) {
@@ -19,8 +19,8 @@ export function srgbToLinearBatch(out: Float64Array, values: ArrayLike<number>, 
  * Converts `n` linear channel values to encoded sRGB: `out[i] = linearToSrgb(values[i])`.
  *
  * Repeats `linearToSrgb`. Replaces Three.js loop: `for … color.convertLinearToSRGB()`.
- * Same declared difference as above, wider on this side of the curve: at most `6.3e-6` per channel
- * (the bound of the mean value theorem on the rounded exponent, `6.21e-6` measured).
+ * Same declared difference as above, wider on this side of the curve: bounded by
+ * `LINEAR_SRGB_REFERENCE_GAP`, derived in the same file.
  */
 export function linearToSrgbBatch(out: Float64Array, values: ArrayLike<number>, n: number): void {
   for (let i = 0; i < n; i++) {

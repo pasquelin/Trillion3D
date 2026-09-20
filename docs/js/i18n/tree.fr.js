@@ -33,7 +33,7 @@ export const treeFr = {
   },
   srgbToLinearBatch: {
     description:
-      'Un canal par élément, les courbes exactes de `mathColor.ts` : la référence multiplie par des constantes arrondies, l’écart est au plus `1.1e-11` à l’aller et `6.3e-6` au retour — invisible sur 8 bits, déclaré une fois dans le banc.',
+      'Un canal par élément, les courbes exactes de `mathColor.ts` : la référence multiplie par des constantes arrondies, et l’écart — invisible sur 8 bits — est borné une fois, dans le banc qui les oppose.',
   },
   createTransformTree: {
     description:

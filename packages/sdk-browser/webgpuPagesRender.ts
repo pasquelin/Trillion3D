@@ -64,10 +64,11 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
   // in one case, in the other the same point is rewritten in a closer frame, and nothing the
   // records or the occluders describe has changed.
   const originMoved = !sameRenderOrigin(run.worldUploadOrigin, cam.eye);
-  const worldCounts = rt.timing.worldCounts;
+  const rebased = worldsMoved || originMoved,
+    worldCounts = rt.timing.worldCounts;
   worldCounts.racines = selectionRoots.length;
-  worldCounts.racinesRebasees = worldsMoved || originMoved ? selectionRoots.length : 0;
-  if (worldsMoved || originMoved) {
+  worldCounts.racinesRebasees = rebased ? selectionRoots.length : 0;
+  if (rebased) {
     run.worldUploadRevision = run.gate.revisions.scene;
     run.worldUploadOrigin.set(cam.eye);
     // The subtraction is done in double, the single-precision rounding comes after it.
