@@ -649,6 +649,17 @@
       "bindingIdentity": "\"packages/sdk-core/mathFrustum\".clipPlanesFromMatrix"
     },
     {
+      "name": "cloneSceneLight",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/sceneLightContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/explorerLightApi.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".cloneSceneLight"
+    },
+    {
       "name": "CLUSTERED_BLEND_FORMAT_VERSION",
       "kind": "value",
       "definingModule": "packages/sdk-core/contractsBase.ts",
@@ -1262,8 +1273,10 @@
         "packages/sdk-browser/bench/lampes-ombres.perf.mjs",
         "packages/sdk-browser/exactPagesContractLights.test.ts",
         "packages/sdk-browser/explorerBackends.ts",
+        "packages/sdk-browser/explorerLightApi.test.ts",
         "packages/sdk-browser/webgpuPagesLightResources.test.ts",
-        "packages/sdk-browser/webgpuPagesStateLights.ts"
+        "packages/sdk-browser/webgpuPagesStateLights.ts",
+        "test/appui/eclairageEchantillonnePage.mjs"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/sceneLightStore\".createSceneLightStore"
@@ -1853,7 +1866,10 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["test/justesse/cameraSitesMoteurs.mjs"],
+      "affectedConsumers": [
+        "test/appui/webglClusterExplorerPage.mjs",
+        "test/justesse/cameraSitesMoteurs.mjs"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/exactPagesBackend\".exactPagesBackend"
     },
@@ -2649,7 +2665,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["packages/sdk-browser/explorerLightApi.test.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/sceneLightStore\".LIGHT_FIELD"
     },
@@ -2676,6 +2692,8 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/bench/oracles/socle-math-ombres.mjs",
+        "packages/sdk-browser/directLightSamplingWgsl.test.ts",
+        "packages/sdk-browser/directLightSamplingWgsl.ts",
         "packages/sdk-browser/directLightWgsl.ts",
         "packages/sdk-browser/directShadowWgsl.ts",
         "packages/sdk-browser/exactPagesContractLights.test.ts",
@@ -2688,7 +2706,8 @@
         "packages/sdk-browser/gpuSunFarShadow.ts",
         "packages/sdk-browser/visibilityShaderRequest.ts",
         "packages/sdk-browser/webgpuPagesPrepareLights.ts",
-        "packages/sdk-browser/webgpuPagesPrepareSunFar.ts"
+        "packages/sdk-browser/webgpuPagesPrepareSunFar.ts",
+        "test/browser/eclairage-echantillonne.browser.mjs"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".LIGHT_SETTINGS"
@@ -4255,6 +4274,17 @@
       "bindingIdentity": "\"packages/sdk-browser/gpuPageTypes\".ResidentPage"
     },
     {
+      "name": "resolveCompilerExecutable",
+      "kind": "value",
+      "definingModule": "packages/sdk-node/compilerProcess.mts",
+      "currentEntryPoints": ["web-geometry (node condition)"],
+      "proposedEnvironments": "node",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-node/compilerProcess\".resolveCompilerExecutable"
+    },
+    {
       "name": "reviewCutouts",
       "kind": "value",
       "definingModule": "packages/sdk-node/cutoutReview.mts",
@@ -4368,7 +4398,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["packages/sdk-browser/explorerLightApi.test.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".SCENE_LIGHT_HEADER_FLOATS"
     },
@@ -4447,6 +4477,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/exactPagesContractLights.ts",
+        "packages/sdk-browser/explorerLightApi.test.ts",
         "packages/sdk-browser/explorerLightApi.ts",
         "packages/sdk-browser/importedLights.ts",
         "packages/sdk-browser/webgpuPagesLightResources.test.ts"
@@ -5668,8 +5699,11 @@
         "test/appui/antialiasingTemporelPage.mjs",
         "test/appui/coupeGpuTenuePage.mjs",
         "test/appui/depthConventionMoteurCompletPage.mjs",
+        "test/appui/eclairageEchantillonnePage.mjs",
+        "test/appui/hizDeuxPassesPage.mjs",
         "test/appui/hizRigPage.mjs",
         "test/appui/rasterCalculPage.mjs",
+        "test/appui/sceneOccultante.mjs",
         "test/appui/setTransformParentPerimePage.mjs",
         "test/appui/transparentTransformPage.mjs",
         "test/justesse/cameraSitesMoteurs.mjs"
