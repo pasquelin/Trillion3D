@@ -13308,9 +13308,9 @@
     "semantic_hash": ""
   },
   "scripts/docs-editor.test.mjs": {
-    "mtime": 1789899375.906512,
-    "seen": 1789899448.8080142,
-    "ast_hash": "5d57c4f13c6e9fd88fb1bd50c869d204",
+    "mtime": 1789899591.3075397,
+    "seen": 1789899654.6227221,
+    "ast_hash": "142f2ae4477d049eb1b505781bf100ab",
     "semantic_hash": ""
   },
   "scripts/docs-gallery-localization.test.mjs": {
@@ -13326,9 +13326,9 @@
     "semantic_hash": ""
   },
   "docs/js/code/resolveSdkImports.js": {
-    "mtime": 1789899359.4315124,
-    "seen": 1789899448.801335,
-    "ast_hash": "6445d23a169751c815db7cbdf7646922",
+    "mtime": 1789899590.6594079,
+    "seen": 1789899654.620901,
+    "ast_hash": "c376f800f39e0d9bfe59a9c61413945e",
     "semantic_hash": ""
   }
 }
