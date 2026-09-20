@@ -16,6 +16,7 @@ const assignments = {
   'camera-orbit-pose': 'rational-roof',
   'camera-live-fov': 'ribbon',
   'camera-near-plane': 'bent-prism',
+  'occlusion-two-phase': 'kinetic-garden',
 };
 
 export const rendererSceneFor = (lesson) => ({

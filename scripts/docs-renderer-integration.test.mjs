@@ -34,7 +34,7 @@ test('every integrated renderer lesson emits complete parseable host code', () =
 
 test('live renderer lessons use diverse original scenes and matching captures', () => {
   const live = rendererLessons.filter((lesson) => lesson.kind !== 'offline');
-  assert.equal(live.length, 15);
+  assert.equal(live.length, 16);
   const scenes = new Map();
   for (const lesson of live)
     scenes.set(lesson.manifest, [...(scenes.get(lesson.manifest) ?? []), lesson.id]);
@@ -181,7 +181,7 @@ test('full reference topics become ready links to their actual lesson', () => {
   const ready = roadmap.entries
     .map(galleryRoadmapEntry)
     .filter(({ readyLessonId }) => readyLessonId);
-  assert.equal(ready.length, 10);
+  assert.equal(ready.length, 11);
   for (const entry of ready) {
     const lesson = rendererLessons.find(({ id }) => id === entry.readyLessonId);
     assert.equal(lesson.referenceCoverage[entry.id], 'full');
