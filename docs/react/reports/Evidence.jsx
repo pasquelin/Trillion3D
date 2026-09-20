@@ -60,7 +60,7 @@ export function Evidence({ a, b, campaign, locale, imageOnly = false }) {
       )}
       {!imageOnly && (
         <Collapse
-          surface="nested"
+          surface="default"
           title={fr ? 'Chiffres et images originales' : 'Figures and original images'}
         >
           <p>

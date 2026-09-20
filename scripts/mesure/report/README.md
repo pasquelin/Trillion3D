@@ -21,7 +21,7 @@ Unknown values stay null. Filesystem paths and commands are excluded from public
 The original private `mesure.json` files are never overwritten. Capture paths must stay inside
 the measurement directory. Export into a new directory; do not reuse an existing export.
 
-The portal presents seven family tabs, with named-engine charts, every measured image
+The portal presents seven categories through the sidebar, with named-engine charts, every measured image
 pair as a slider, all scene/run comparisons, and complete source tables including repeated captures.
 There are no global filters. Primary charts and comparisons stay visible; raw source and protocol tables use closed disclosures. The hash identifies a campaign and tab; the latest
 campaign opens by default. All source numbers remain visible, with null distinct from zero.

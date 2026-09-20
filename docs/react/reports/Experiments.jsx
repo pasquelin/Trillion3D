@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Select } from '../components/UI.jsx';
 import { Tabs } from '../components/Tabs.jsx';
 import { viewName, runName, engineName } from '../../js/reports/names.js';
 import { Section } from '../components/Section.jsx';
@@ -31,26 +32,50 @@ const GROUPS = [
   ],
 ];
 export function Experiments({ report, scene, locale }) {
-  const [selected, setSelected] = useState('sol/1');
+  const [selected, setSelected] = useState('sol');
+  const [quality, setQuality] = useState('1');
   const records = report.records.filter(
     (r) => r.scene === scene && !['three-nu', 'three-lod'].includes(runOf(report, r)),
   );
+  const views = [...new Set(records.map((r) => r.view))];
+  const view = views.includes(selected) ? selected : views[0];
+  const qualities = [
+    ...new Set(records.filter((r) => r.view === view).map((r) => String(r.quality))),
+  ];
+  const activeQuality = qualities.includes(quality) ? quality : qualities[0];
   return (
     <Section title={sceneName(scene)}>
       <Tabs
         sticky
-        label={locale === 'fr' ? 'Vue et qualité' : 'View and quality'}
+        label={locale === 'fr' ? 'Position' : 'View'}
         value={selected}
         onChange={setSelected}
-        items={[...new Set(records.map((r) => `${r.view}/${r.quality}`))].map((key) => ({
+        accessory={
+          <div className="w-24">
+            <Select
+              size="sm"
+              aria-label={locale === 'fr' ? 'Seuil de détail' : 'Detail threshold'}
+              value={activeQuality}
+              onChange={(event) => setQuality(event.target.value)}
+            >
+              {qualities.map((value) => (
+                <option key={value} value={value}>
+                  {value} px
+                </option>
+              ))}
+            </Select>
+          </div>
+        }
+        items={views.map((key) => ({
           id: key,
-          label: `${viewName(key.split('/')[0], locale)} · ${key.split('/')[1]} px`,
+          label: viewName(key, locale),
           render: () => (
             <>
               {GROUPS.map(([en, fr, , metrics], groupIndex) => {
                 const rows = records.filter(
                   (r) =>
-                    `${r.view}/${r.quality}` === key &&
+                    r.view === key &&
+                    String(r.quality) === activeQuality &&
                     GROUPS.findIndex(([, , pattern]) => pattern.test(runOf(report, r))) ===
                       groupIndex,
                 );

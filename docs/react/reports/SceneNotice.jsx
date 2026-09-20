@@ -5,8 +5,8 @@ import { reportCopy } from '../../js/reports/copy.js';
 export function SceneNotice({ note, locale }) {
   if (!note) return null;
   return (
-    <Alert tone="warning">
-      <div className="grid gap-2 min-w-0">
+    <Alert tone="warning" className="grid-cols-1">
+      <div className="grid w-full gap-2 min-w-0">
         <p>
           {note.includes('export omitted')
             ? reportCopy(locale).sourceTextures
