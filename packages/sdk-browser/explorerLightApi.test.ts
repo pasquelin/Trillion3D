@@ -75,7 +75,7 @@ test('a light read back never aliases the store: writing into it changes nothing
   read.intensity = 99;
   assert.deepEqual(engineView(store, 'l0'), before, 'the engine still holds the validated light');
   assert.equal(store.epoch, epoch, 'and no change was published');
-  assert.deepEqual(api.lights()[0], { ...before.record }, 'the next read is clean');
+  assert.deepEqual(api.lights()[0], before.record, 'the next read is clean');
 });
 
 test('imported lights are the same detached copies', () => {
