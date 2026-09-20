@@ -4,7 +4,7 @@ import { SectionHeader } from '../components/SectionHeader.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { CodeBlock } from '../components/CodeBlock.jsx';
 import { ExampleLayout } from '../components/ExampleLayout.jsx';
-import { Alert, Button, Field, Form, Range, Select } from '../components/UI.jsx';
+import { Alert, Button, Field, Form, Range, Select, Toggle } from '../components/UI.jsx';
 import { examples } from '../../js/gallery/catalog.js';
 import { rendererInitialState } from '../../js/gallery/rendererLessons.js';
 import { rendererCodeFor } from '../../js/gallery/rendererLessonCode.js';
@@ -13,6 +13,12 @@ import { rawEntries } from '../../js/portal/data.js';
 
 const local = (value, locale) => value[locale === 'fr' ? 'fr' : 'en'];
 const documentedApi = new Set(rawEntries.map(({ id }) => id));
+const controlValue = (item, state, french) => {
+  const current = state[item.id] ?? item.value;
+  if (item.type === 'boolean')
+    return current === 1 ? (french ? 'Activé' : 'Enabled') : french ? 'Désactivé' : 'Disabled';
+  return Number(current.toFixed(3));
+};
 
 export function RendererLesson({ lesson, locale = 'en', onSelect }) {
   const initial = useMemo(() => rendererInitialState(lesson), [lesson]),
@@ -42,16 +48,42 @@ export function RendererLesson({ lesson, locale = 'en', onSelect }) {
             <div className="flex flex-wrap gap-4">
               {lesson.controls.map((item) => (
                 <Field key={item.id} label={local(item.label, locale)} className="grow">
-                  <Range
-                    aria-label={local(item.label, locale)}
-                    min={item.min}
-                    max={item.max}
-                    step={item.step}
-                    value={state[item.id] ?? item.value}
-                    onChange={(event) =>
-                      setState({ ...state, [item.id]: Number(event.target.value) })
-                    }
-                  />
+                  {item.type === 'boolean' ? (
+                    <div className="grid gap-2">
+                      <Toggle
+                        aria-label={local(item.label, locale)}
+                        checked={(state[item.id] ?? item.value) === 1}
+                        onChange={(event) =>
+                          setState({ ...state, [item.id]: event.target.checked ? 1 : 0 })
+                        }
+                      />
+                      {item.legend && (
+                        <ul className="flex flex-wrap gap-3 text-xs">
+                          {item.legend.map((entry) => (
+                            <li key={entry.color} className="flex items-center gap-1.5">
+                              <span
+                                className="size-2.5 rounded-full"
+                                style={{ backgroundColor: entry.color }}
+                                aria-hidden="true"
+                              />
+                              {local(entry.label, locale)}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  ) : (
+                    <Range
+                      aria-label={local(item.label, locale)}
+                      min={item.min}
+                      max={item.max}
+                      step={item.step}
+                      value={state[item.id] ?? item.value}
+                      onChange={(event) =>
+                        setState({ ...state, [item.id]: Number(event.target.value) })
+                      }
+                    />
+                  )}
                 </Field>
               ))}
             </div>
@@ -67,10 +99,7 @@ export function RendererLesson({ lesson, locale = 'en', onSelect }) {
         input={
           lesson.controls.length
             ? lesson.controls
-                .map(
-                  (item) =>
-                    `${local(item.label, locale)}: ${Number((state[item.id] ?? item.value).toFixed(3))}`,
-                )
+                .map((item) => `${local(item.label, locale)}: ${controlValue(item, state, french)}`)
                 .join(' · ')
             : french
               ? 'Géométrie préparée avant compilation.'
