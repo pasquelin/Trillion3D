@@ -25,5 +25,9 @@ ${light('cool', '3, 3, 2', '0.12, 0.4, 1', state.cool)}`;
 }
 
 export function lightingLessonCode(lesson, state) {
-  return lessonCode(operation(lesson, state), { importedLights: false });
+  return lessonCode(operation(lesson, state), {
+    manifest: lesson.manifest,
+    importedLights: lesson.importedLights,
+    sceneFill: lesson.sceneFill,
+  });
 }
