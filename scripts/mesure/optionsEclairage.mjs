@@ -10,6 +10,9 @@ export function lightingSettings(flags, number) {
     lightShadows: (flags.get('ombres') ?? 'on') !== 'off',
     // `--intensite` sets point light emission uniformly across scenes.
     lightIntensity: number('intensite', 40),
+    // `--portee` sets the range of each grid light as a multiple of its cell (0.75 by default):
+    // above one, several lights reach the same pixel.
+    lightRangeFactor: number('portee', 0.75),
     movingLight: flags.get('lampe-mobile') === 'true',
     // `--lampes-fichier off` opens the scene without imported lights from source file.
     importedLights: (flags.get('lampes-fichier') ?? 'on') !== 'off',

@@ -1,0 +1,43 @@
+{
+  "commit": "989765fb",
+  "scene": "./assets/kinetic-garden/cache/native/full/manifest.json",
+  "resolution": [1920, 1080],
+  "dpr": 2,
+  "backend": "webgpu-page-raster",
+  "target": [0, 1.2150123885873512, 0],
+  "orbitRadius": 14.64120707792806,
+  "samples": [
+    {
+      "height": 1.45,
+      "angle": 0,
+      "held": true,
+      "hizTestedClusters": 18,
+      "hizRejectedClusters": 18,
+      "hizRejectedTriangles": 1384
+    },
+    {
+      "height": 1.45,
+      "angle": 45,
+      "held": true,
+      "hizTestedClusters": 6,
+      "hizRejectedClusters": 6,
+      "hizRejectedTriangles": 510
+    },
+    {
+      "height": 1.45,
+      "angle": 90,
+      "held": true,
+      "hizTestedClusters": 70,
+      "hizRejectedClusters": 70,
+      "hizRejectedTriangles": 5804
+    },
+    {
+      "height": 6,
+      "angle": 0,
+      "held": true,
+      "hizTestedClusters": 0,
+      "hizRejectedClusters": 0,
+      "hizRejectedTriangles": 0
+    }
+  ]
+}

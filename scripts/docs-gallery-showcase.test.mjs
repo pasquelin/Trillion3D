@@ -26,5 +26,5 @@ test('showcase remains above the unchanged searchable catalogue', () => {
   assert.ok(showcase >= 0);
   assert.ok(catalogueTabs > showcase);
   assert.match(html, /91 352 triangles originaux/);
-  assert.match(html, /Rechercher 663 sujets/);
+  assert.match(html, /Rechercher 665 sujets/);
 });
