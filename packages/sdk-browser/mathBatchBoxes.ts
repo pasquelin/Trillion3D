@@ -1,4 +1,10 @@
-import { BOX_VALUES, MATRIX_VALUES, boxTransform, boxUnion } from '../sdk-core/index.ts';
+import {
+  BOX_VALUES,
+  MATRIX_VALUES,
+  boxTransform,
+  boxUnion,
+  boxUnionBatch,
+} from '../sdk-core/index.ts';
 import { createBoxTransformLot, type BoxTransformLot } from './mathBatchRuntime.ts';
 import type { ClusterRoot, PageRec } from './pageSelectionTypes.ts';
 
@@ -25,9 +31,7 @@ function lotBoxesReady(lot: BoxTransformLot | null | undefined, n: number) {
 
 /** Union into `into` of first `n` boxes produced by batch. */
 function unionLotBoxes(into: Float64Array, lot: BoxTransformLot, n: number) {
-  const out = lot.out;
-  for (let at = 0; at < n * BOX_VALUES; at += BOX_VALUES)
-    boxUnion(into, 0, out[at], out[at + 1], out[at + 2], out[at + 3], out[at + 4], out[at + 5]);
+  boxUnionBatch(into, lot.out, n);
 }
 
 /**

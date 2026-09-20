@@ -19,7 +19,7 @@ fn a_preview_surface_that_writes_nothing_carries_the_values_of_the_specification
     assert_eq!(
         pbr(&gltf)["baseColorFactor"],
         json!([0.18, 0.18, 0.18, 1.0]),
-        "la couleur diffuse implicite de UsdPreviewSurface est 0,18"
+        "the implicit diffuse colour of UsdPreviewSurface is 0.18"
     );
     assert_eq!(pbr(&gltf)["metallicFactor"], 0.0);
     assert_eq!(pbr(&gltf)["roughnessFactor"], 0.5);

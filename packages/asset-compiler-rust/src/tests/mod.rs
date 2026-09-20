@@ -1,8 +1,10 @@
 use super::*;
 mod base;
+mod directories;
 mod fixtures;
 mod golden;
 use base::*;
+use directories::scratch;
 use fixtures::*;
 use golden::*;
 mod admission_sparse;

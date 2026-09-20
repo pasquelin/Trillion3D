@@ -1,4 +1,6 @@
 import { createExplorer } from './explorer.ts';
+import type { ExplorerTarget } from './explorerTarget.ts';
+export type { ExplorerTarget } from './explorerTarget.ts';
 import type { ExplorerOptions } from './backendTypes.ts';
 
 export { replicateInstances } from './replicateInstances.ts';
@@ -49,14 +51,14 @@ export { COMPARISON_LIBRARIES, LOD_QUALITY } from '../sdk-core/index.ts';
 /** Public browser job adapter. A completed explorer is owned by the caller; cancel/fail after construct disposes it. */
 export async function createExplorerJob(
   id: string,
-  canvas: HTMLCanvasElement,
+  target: ExplorerTarget,
   options: ExplorerOptions,
 ) {
   const { createJob } = await import('../sdk-core/index.ts');
   return createJob(
     id,
     ({ signal, progress }) =>
-      createExplorer(canvas, {
+      createExplorer(target, {
         ...options,
         signal,
         onPreparation: (event) => progress({ ...event }),
@@ -71,3 +73,28 @@ export type {
   LightingExperimentRenderState,
   LightingExperimentRayDiagnostics,
 } from './lightingExperimentBackend.ts';
+
+export {
+  HIERARCHY_ROOT,
+  MATRIX_VALUES,
+  NORMAL_MATRIX_VALUES,
+  POSITION_VALUES,
+  QUATERNION_VALUES,
+  SPHERE_VALUES,
+  boxTransformBatch,
+  boxTransformUnionBatch,
+  boxUnionBatch,
+  composeMatrix4Batch,
+  decomposeMatrix4Batch,
+  frustumKeepsBoxBatch,
+  hierarchyUpdateBatch,
+  invertMatrix4Batch,
+  linearToSrgbBatch,
+  multiplyMatrix4Batch,
+  normalMatrix3Batch,
+  sphereFromBoundsBatch,
+  srgbToLinearBatch,
+  transformDirectionsBatch,
+  transformPointsBatch,
+  transformPointsByMatricesBatch,
+} from '../sdk-core/index.ts';

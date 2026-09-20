@@ -5,8 +5,17 @@ exactly one GitHub issue; every rule of AGENTS.md applies, this file only orders
 
 1. `gh issue view <number>`. Read only the files it names and their direct dependants, the graph
    first (AGENTS.md §graphify).
-2. `git fetch origin && git switch -c <number>-<short-name> origin/develop`. The branch name starts
-   with the issue number; the pre-commit hook refuses any other branch.
+2. `git fetch origin`, then cut the branch in a worktree of its own — the shared checkout may hold
+   another agent's batch, and two agents in one tree overwrite each other:
+   `git worktree add ../webGeometry-<number>-<short-name> -b <number>-<short-name> origin/develop`,
+   then `pnpm install` in it and work there. Mark the issue in progress:
+   `gh issue edit <number> --add-label "in progress"`. The branch name starts with the issue number; the
+   pre-commit hook refuses any other branch. A sibling tree has no `.mesure/assets/` of its own
+   (off git): a batch that measures points `WG_ASSETS` at the shared one. The tree outlives your
+   report, since merging is the maintainer's; it is removed with `git worktree remove` and
+   `git branch -d` once the branch is merged, by whoever comes to it first. At the same time, run
+   `gh issue edit <number> --remove-label "in review"`, then `gh issue close <number>`: the merge
+   targets `develop`, so the issue is not closed automatically.
 3. Code and test as AGENTS.md §Quality and evidence and §Engine and package boundaries require.
 4. `pnpm run check:changed`, then `pnpm run test:changed`, then `pnpm run validate`.
 5. Commit in small steps, message `type(scope): what changed (#<number>)`, no trailer, no
@@ -18,8 +27,13 @@ exactly one GitHub issue; every rule of AGENTS.md applies, this file only orders
      `docs/roles/reviewer.md` step 2 to the local diff and fix every finding.
      Rerun step 4, commit, and only then push.
 7. `gh pr create --base develop`, body on `.github/PULL_REQUEST_TEMPLATE.md`: `Closes #<number>`,
-   what changed, the proof, and "Local review before push" — what each pass found and fixed. The
-   CI refuses a pull request whose section is empty.
+   what changed, the proof, and "Local review before push" — what each pass found and fixed. Switch
+   the issue label to in review:
+   `gh issue edit <number> --remove-label "in progress" --add-label "in review"`.
+   If the pull request closes without merging, run
+   `gh issue edit <number> --remove-label "in review" --remove-label "in progress"`;
+   add `in progress` again only when implementation continues. Leave the issue open.
+   The CI refuses a pull request whose section is empty.
 8. Hand the pull request to the reviewer role as a **separate agent with a fresh context** — in
    Claude Code the `reviewer` subagent, elsewhere a second agent told to follow
    `docs/roles/reviewer.md` for that pull request — and loop with it until it answers `READY`:

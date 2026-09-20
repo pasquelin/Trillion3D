@@ -43,7 +43,7 @@ for (const version of [FORMAT_VERSION, CLUSTERED_BLEND_FORMAT_VERSION])
       throw sourceBoundary;
     });
     await assert.rejects(
-      createExplorer({} as HTMLCanvasElement, {
+      createExplorer({ nodeName: 'CANVAS', getContext() {} } as unknown as HTMLCanvasElement, {
         manifestUrl: 'http://localhost/manifest.json',
         scope: 'full',
       }),
@@ -83,7 +83,7 @@ test('explorer rejects an unsupported pointer format before requesting metadata'
     );
   });
   await assert.rejects(
-    createExplorer({} as HTMLCanvasElement, {
+    createExplorer({ nodeName: 'CANVAS', getContext() {} } as unknown as HTMLCanvasElement, {
       manifestUrl: 'http://localhost/manifest.json',
       scope: 'full',
     }),

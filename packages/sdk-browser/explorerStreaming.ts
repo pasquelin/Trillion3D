@@ -65,7 +65,7 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
               } catch (error) {
                 // A decode refusal is final for this address; a cancellation is not: the page
                 // will leave again with the next request, otherwise a camera that
-                // change d'avis creuserait un trou permanent dans l'image.
+                // changes its mind would dig a permanent hole in the image.
                 if (!controller.signal.aborted) decodeFailures.add(url);
                 throw error;
               }

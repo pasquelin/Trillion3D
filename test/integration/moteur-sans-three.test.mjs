@@ -62,6 +62,8 @@ const AUTORISES = {
   explorerCapture: 'boundary: it reads pixels of the host target',
   explorerDisposeSource: 'boundary: it frees host-graph resources',
   explorerDraw: 'boundary: it calls the host renderer',
+  // Split out of `explorerDraw`, not a new dependency: the same boundary, on its own file.
+  explorerDrawScene: 'boundary: it draws the scene an engine hands to the host renderer',
   explorerHeldFrame: 'boundary: it recomposes the held image in a host scene',
   explorerHostState: 'boundary: it restores a recorded pose into the host camera',
   explorerLifecycle: 'boundary: it creates and destroys the host renderer',
@@ -113,6 +115,7 @@ const AUTORISES = {
   pageSelectionTypes: 'contract: geometries, materials and matrices the host writes',
   triangleDiagnostic: 'it colours a host geometry in a host material',
   visibilityMath: 'host attributes, textures and wrap modes',
+  visibilityMaterial: 'host material properties converted to engine material',
   visibilityTypes: 'contract: host materials, textures and colours',
   visibilityWrapModes: 'host-texture wrap modes',
   webgpuTileAtlas: 'host texture as a tile source',
@@ -128,10 +131,9 @@ const AUTORISES = {
   webgpuPagesHelpers: 'host colours and colour management',
   webgpuPagesPrepare: 'host geometry attributes',
   webgpuPagesSetup: 'meshes of the host scene',
-  webgpuPagesStateGpu: 'contract: host geometries, textures and presentation mesh',
+  webgpuPagesStateGpu: 'contract: host geometries and textures',
   webgpuPagesStateVis: 'contract: host geometries and textures',
   webgpuPositions: 'position attribute of the host geometry',
-  webgpuPresentationSetup: 'presentation goes through a host scene and material',
 };
 
 const IMPORTE_HOTE = /^\s*(?:import|export)\b[^\n]*\bfrom\s+['"]three['"]/m;

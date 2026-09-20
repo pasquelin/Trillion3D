@@ -59,7 +59,7 @@ impl SceneTables {
     }
     /// Sampler per repeat mode pair, filtered as glTF default.
     /// Format clamping one axis and repeating other carries two modes: confusing them
-    /// replie la texture.
+    /// folds the texture.
     pub(crate) fn sampler_uv(&mut self, wrap_s: u32, wrap_t: u32) -> usize {
         self.sampler_filtered([wrap_s, wrap_t, DEFAULT_FILTER[0], DEFAULT_FILTER[1]])
     }

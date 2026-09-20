@@ -14,7 +14,7 @@ fn a_source_under_the_base_carries_its_own_full_resolution() {
     assert_eq!(
         level_bytes(width, height, &pixels, 0),
         source.as_raw().as_slice(),
-        "le niveau 0 est la source sans perte"
+        "level 0 is the lossless source"
     );
 }
 
@@ -31,7 +31,7 @@ fn odd_dimensions_reduce_without_panicking() {
     assert_eq!(preview_level_count(width, height), 5);
     for index in 0..preview_level_count(width, height) as usize {
         for texel in level_bytes(width, height, &pixels, index).chunks(4) {
-            assert_eq!(texel, [37, 201, 88, 255], "niveau {index} uniforme");
+            assert_eq!(texel, [37, 201, 88, 255], "level {index} uniform");
         }
     }
 }
@@ -43,6 +43,6 @@ fn the_srgb_curve_round_trips_every_byte() {
     for value in 0..=255u8 {
         let source = rgba_from(2, 2, |_, _| [value, value, value, 255]);
         let chain = reduce::chain(&source, AtlasKind::Color);
-        assert_eq!(&chain[1][..3], &[value, value, value], "octet {value}");
+        assert_eq!(&chain[1][..3], &[value, value, value], "byte {value}");
     }
 }

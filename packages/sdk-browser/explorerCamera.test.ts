@@ -1,6 +1,6 @@
 // Batch M4a, explorerCamera.ts: framing by flat bounds and core `sphereFromBounds` instead of
 // Three's `Box3`/`getCenter`/`getSize().length()/2`. Confronted bit for bit (Object.is) with the old
-// chemin, autonome et non autonome, sur des bornes hostiles.
+// path, autonomous and non-autonomous, on hostile bounds.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -10,7 +10,7 @@ import { assertBits } from '../sdk-core/bench/oracles/volumes.mjs';
 
 const canvas = { width: 800, height: 450 } as unknown as HTMLCanvasElement;
 
-/** L'ancien chemin non autonome : `expandByObject` par maillage, `getCenter`/`getSize().length()/2`. */
+/** The old non-autonomous path: `expandByObject` per mesh, `getCenter`/`getSize().length()/2`. */
 function referenceFraming(source: THREE.Object3D) {
   const bounds = new THREE.Box3();
   source.updateMatrixWorld(true); // the old `objects()` of sceneMeshes.ts resolved the subtree before walking it

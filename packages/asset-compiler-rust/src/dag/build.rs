@@ -5,8 +5,8 @@ use super::*;
 /// published coverage is exactly source triangles.
 ///
 /// `uvs` — two floats per vertex, or none — says which position copies reduction is
-/// allowed to weld when stuck: those sharing texture, never opposite edge
-/// d'une couture.
+/// allowed to weld when stuck: those sharing texture, never the opposite edge
+/// of a seam.
 pub fn build_dag_tallied(
     positions: &[f32],
     uvs: Option<&[f32]>,

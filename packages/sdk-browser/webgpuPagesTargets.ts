@@ -45,7 +45,7 @@ export function ensureTargets(
     (!vis.gpuHiz || (vis.gpuHiz.width === width && vis.gpuHiz.height === height))
   )
     return;
-  diag.traceDiagnostic('targets-request', 'Demande de cibles GPU pour la frame', () => ({
+  diag.traceDiagnostic('targets-request', 'GPU frame targets request', () => ({
     frame: run.frame,
     width,
     height,

@@ -92,9 +92,9 @@ pub(crate) fn row() -> Row {
         cote
     };
     compare(
-        "B3 refine_bisection sans HashSet",
+        "B3 refine_bisection without HashSet",
         "dag/groups.rs",
-        "8 192 clusters, 8 voisins chacun".into(),
+        "8 192 clusters, 8 neighbors each".into(),
         &mut reference,
         &mut optimise,
         empreinte,

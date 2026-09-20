@@ -53,7 +53,7 @@
       "type": "SCALAR"
     }
   ],
-  "case": "Un fichier Maya ASCII : une hiérarchie transform en centimètres, un mesh de deux quadrilatères dont le second réutilise une arête du premier à l'envers, deux instObjGroups d'une face chacun nuancés par deux shadingEngine, une seconde pose de la forme par parent -add, un lambert opaque, un standardSurface métallique translucide à texture de couleur, une caméra, un select sur un nœud absent du fichier et une commande python.",
+  "case": "A Maya ASCII file: a transform hierarchy in centimetres, a mesh of two quads of which the second reuses an edge of the first reversed, two instObjGroups of one face each shaded by two shadingEngine, a second pose of the shape via parent -add, an opaque lambert, a metallic translucent standardSurface with a colour texture, a camera, a select on a node absent from the file and a python command.",
   "compiled": {
     "selectedTriangles": 8,
     "totalNodes": 2
@@ -160,7 +160,7 @@
     "version": "ma-mel-subset-1-gltf-8"
   },
   "roots": [3],
-  "rule": "Le pilote rend les données du fichier et rien d'autre : aucune commande n'est exécutée, un nœud est identifié par son chemin de scène, une pose se compose dans l'ordre complet du format, les faces sont résolues par leurs arêtes signées puis découpées par oreilles dans le plan de leur normale, un groupe de faces devient une primitive à part et ce qu'aucun ne réclame en fait une sans matériau, les formes intermédiaires et invisibles restent dehors, les normales absentes sont calculées depuis la géométrie et le drapeau de dureté de chaque arête, le mode de répétition de chaque axe suit son propre attribut, lambert et standardSurface vont vers pbrMetallicRoughness, l'unité linéaire est portée par la racine de la scène, et tout ce qui reste est compté par son nom.",
+  "rule": "The driver yields the file data and nothing else: no command is executed, a node is identified by its scene path, a pose is composed in the format's full order, faces are resolved by their signed edges then ear-clipped in their normal plane, a face group becomes a separate primitive and what none claims makes one without a material, intermediate and invisible shapes stay out, missing normals are computed from the geometry and each edge's hardness flag, each axis wrap mode follows its own attribute, lambert and standardSurface go to pbrMetallicRoughness, the linear unit is carried by the scene root, and everything else is counted by name.",
   "samplers": [
     {
       "magFilter": 9729,

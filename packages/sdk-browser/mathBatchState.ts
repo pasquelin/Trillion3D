@@ -42,13 +42,13 @@ export function loadMathBatch(): Promise<void> {
   const g = mathGovernor();
   attente ??= (async () => {
     const wasm = await prepareSdkWasm();
-    if (!wasm) return g.setWasm(false, null, 'module WebAssembly indisponible');
+    if (!wasm) return g.setWasm(false, null, 'WebAssembly module unavailable');
     const contrat = typeof wasm.math_contract === 'function' ? wasm.math_contract() : 0;
     if (contrat !== WASM_ARENA_CONTRACT)
       return g.setWasm(
         false,
         null,
-        `contrat de calcul ${contrat} ; ce chargeur attend ${WASM_ARENA_CONTRACT}`,
+        `computation contract ${contrat}; this loader expects ${WASM_ARENA_CONTRACT}`,
       );
     module = wasm;
     g.setWasm(true, wasm.math_simd() === 1, null);

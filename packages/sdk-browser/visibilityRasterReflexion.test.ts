@@ -16,7 +16,7 @@ import { matrixWindingCw } from '../sdk-core/index.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 
 const VUE: [number, number] = [96, 96];
-// Gauche : sens direct. Droite : sens inverse. same aire, same hauteur, no recouvrement.
+// Left: front winding. Right: reverse winding. Same area, same height, no overlap.
 const POSITIONS = [-2, -1, 0, -0.5, -1, 0, -1.25, 1, 0, 0.5, -1, 0, 1.25, 1, 0, 2, -1, 0];
 
 function page(matrix: THREE.Matrix4, side: THREE.Side): VisPage {

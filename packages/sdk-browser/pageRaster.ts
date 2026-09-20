@@ -51,7 +51,7 @@ export function rasterPageRecords(
   );
   const meshes: THREE.Mesh[] = [];
   backend.scene.traverse((o) => {
-    if ((o as THREE.Mesh).isMesh && !(o as THREE.Mesh).userData.blit) meshes.push(o as THREE.Mesh);
+    if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh);
   });
   for (const mesh of meshes) {
     const geometry = mesh.geometry,

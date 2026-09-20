@@ -31,14 +31,14 @@ test('a page whose replacement error sits below its own error is rejected at loa
   assert.throws(
     () =>
       collectClusterPages(fixture.source, fixture.metadata, fixture.indices, fixture.associations),
-    /parentError sous lodError/,
+    /parentError below lodError/,
   );
   fixture.metadata.primitives[0].pages[4].parentError = 0.2;
   fixture.metadata.primitives[0].pages[4].parentSphere = null;
   assert.throws(
     () =>
       collectClusterPages(fixture.source, fixture.metadata, fixture.indices, fixture.associations),
-    /parentError sans parentSphere/,
+    /parentError without parentSphere/,
   );
   fixture.geometry.dispose();
 });

@@ -93,7 +93,7 @@ export function traceCpuFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const { run, timing, diag, blendState } = rt,
     { tracking, bootstrap, bootstrapUrls, slots } = rt.setup;
   if (!diag.traceEnabled) return;
-  diag.traceDiagnostic('frame', 'Snapshot complet de la frame WebGPU', () =>
+  diag.traceDiagnostic('frame', 'Complete WebGPU frame snapshot', () =>
     frameTraceSnapshot(rt, cam, cpuSelectionDecision(rt), {
       coverage: {
         loaded: tracking.traceSet('frame.loaded', urlsOf(run.drawn)),

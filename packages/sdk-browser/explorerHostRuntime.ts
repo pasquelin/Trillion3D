@@ -39,6 +39,7 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     hostedControls,
     lookAtTarget,
     compositor,
+    presentBackend,
     check,
     setPose,
   } = host;
@@ -54,6 +55,7 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     renderer: renderer!,
     options,
     directGpu,
+    presentBackend,
     state,
     check,
     diagnose,
@@ -71,6 +73,7 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     backends,
     source,
     renderer,
+    webglSurface: resources.webglSurface,
     camera,
     geometryUrls,
   });
@@ -83,6 +86,13 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     backends,
     canvas,
     render,
+    async pendingFrame() {
+      const loading = streaming.promise;
+      await loading;
+      if (state.disposed) return false;
+      const pending = await state.active.pendingFrame?.();
+      return !!loading || !!streaming.promise || streaming.arrivals.pending > 0 || !!pending;
+    },
     capture,
     dispose,
     setPose,
@@ -92,6 +102,7 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     scope,
     directGpu,
     renderer: renderer!,
+    webglSurface: resources.webglSurface,
     viewport,
     context,
     homeOffset,

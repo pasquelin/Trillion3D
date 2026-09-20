@@ -46,7 +46,7 @@ export type SlimClusterManifest = Omit<ClusterManifest, 'primitives'> & {
   primitives: SlimPrimitive[];
 };
 
-/** Les comptes qu'un descriptif doit porter, et ce qu'un refus nomme. */
+/** Counts a descriptor must carry, and what a rejection names. */
 const COUNT_KEYS = {
   texturePreviews: 'texture preview count',
   texturePreviewBytes: 'texture preview byte length',

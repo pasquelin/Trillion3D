@@ -21,7 +21,16 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
   const { camera, directGpu, pageSources } = prepared;
   const { geometryUrls, pageIdByUrl, streamer } = pageSources;
   const renderer = resources.renderer;
-  const { state, baseline, lookAtTarget, compositor, ensureTarget, check, setPose } = host;
+  const {
+    state,
+    baseline,
+    lookAtTarget,
+    compositor,
+    presentBackend,
+    ensureTarget,
+    check,
+    setPose,
+  } = host;
   const { metricsScratch, profiler, fillMetrics } = createExplorerMetrics(
     metadata,
     options,
@@ -42,6 +51,7 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     streaming,
     directGpu,
     renderer: renderer!,
+    presentBackend,
     baseline,
     state,
   });

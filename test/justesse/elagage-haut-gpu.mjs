@@ -50,7 +50,7 @@ const cas = POSES.map(([nom, x, z, seuil]) => {
   // The kernel works in the render frame: world matrices are brought there, as the engine carries
   // them, otherwise relative view and absolute world would mix in the formula.
   return {
-    nom,
+    name: nom,
     packed: packedWorldsToRenderOrigin(packDagSelection(roots), roots, uniforms.cameraWorld),
     uniforms,
   };
@@ -65,11 +65,11 @@ for (const gpu of [avec, sans]) {
   assert.deepEqual([...(gpu.compilation ?? []), ...(gpu.erreurs ?? [])], []);
 }
 const part = (retire, de) => Number(((100 * retire) / Math.max(1, de)).toFixed(1));
-const lignes = cas.map(({ nom }) => {
-  const a = avec.resultats.find((r) => r.nom === nom),
-    s = sans.resultats.find((r) => r.nom === nom);
+const lignes = cas.map(({ name }) => {
+  const a = avec.resultats.find((r) => r.name === name),
+    s = sans.resultats.find((r) => r.name === name);
   return {
-    pose: nom,
+    pose: name,
     retenues: a.pages.length,
     candidatesSansPlancher: s.candidates,
     candidatesAvecPlancher: a.candidates,

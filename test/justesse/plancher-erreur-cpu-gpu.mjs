@@ -76,11 +76,13 @@ for (const [nom, x, z, seuil, profondeurs] of POSES) {
   });
 }
 
-const gpu = await selectionGpu(cas.map(({ nom, packed, uniforms }) => ({ nom, packed, uniforms })));
+const gpu = await selectionGpu(
+  cas.map(({ nom, packed, uniforms }) => ({ name: nom, packed, uniforms })),
+);
 assert.equal(gpu.indisponible ?? null, null);
 assert.deepEqual([...(gpu.compilation ?? []), ...(gpu.erreurs ?? [])], []);
 const lignes = cas.map((c) => {
-  const lu = gpu.resultats.find((r) => r.nom === c.nom);
+  const lu = gpu.resultats.find((r) => r.name === c.nom);
   return {
     pose: c.nom,
     seuil: c.seuil,

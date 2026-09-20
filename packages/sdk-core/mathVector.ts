@@ -73,11 +73,12 @@ export function transformHomogeneousPoint<T extends NumberSink>(
 }
 
 /** Reference `v.normalize()`: each component multiplied by `1 / (length || 1)`. */
-export function normalizeVector3(v: NumberSink) {
-  const inverse = 1 / (Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) || 1);
-  v[0] *= inverse;
-  v[1] *= inverse;
-  v[2] *= inverse;
+export function normalizeVector3(v: NumberSink, at = 0) {
+  const inverse =
+    1 / (Math.sqrt(v[at] * v[at] + v[at + 1] * v[at + 1] + v[at + 2] * v[at + 2]) || 1);
+  v[at] *= inverse;
+  v[at + 1] *= inverse;
+  v[at + 2] *= inverse;
 }
 
 /** `v.lengthSq()`: the three squares summed in the reference's order, read at `at`. */
@@ -107,7 +108,7 @@ export function copyScaledVector3<T extends NumberSink>(
   return out;
 }
 
-/** `v.addScaledVector(a, s)` : `out += a · s`, composante par composante. */
+/** `v.addScaledVector(a, s)`: `out += a · s`, component by component. */
 export function addScaledVector3<T extends NumberSink>(out: T, a: ArrayLike<number>, s: number) {
   out[0] += a[0] * s;
   out[1] += a[1] * s;
@@ -142,10 +143,11 @@ export function transformDirectionVector3<T extends NumberSink>(
   x: number,
   y: number,
   z: number,
+  outOffset = 0,
 ) {
-  out[0] = m[0] * x + m[4] * y + m[8] * z;
-  out[1] = m[1] * x + m[5] * y + m[9] * z;
-  out[2] = m[2] * x + m[6] * y + m[10] * z;
-  normalizeVector3(out);
+  out[outOffset] = m[0] * x + m[4] * y + m[8] * z;
+  out[outOffset + 1] = m[1] * x + m[5] * y + m[9] * z;
+  out[outOffset + 2] = m[2] * x + m[6] * y + m[10] * z;
+  normalizeVector3(out, outOffset);
   return out;
 }

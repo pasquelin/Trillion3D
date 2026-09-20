@@ -20,10 +20,10 @@ test('cisaillement-transform.browser.mjs and cone-echelle-non-uniforme.browser.m
     assert.match(
       texte,
       /import \{ cameraMoteur \} from '\.\.\/\.\.\/packages\/sdk-browser\/cameraFixture\.ts'/,
-      `${fichier} doit importer cameraMoteur`,
+      `${fichier} must import cameraMoteur`,
     );
     const appels = texte.match(/cameraSelectionUniforms\(\s*cameraMoteur\(/g) ?? [];
-    assert.equal(appels.length, attendus, `${fichier} : tous les appels passent par cameraMoteur`);
+    assert.equal(appels.length, attendus, `${fichier}: all calls must go through cameraMoteur`);
     // Witness: no call passes the raw host camera anymore (the defect before 5fecd558).
     assert.doesNotMatch(
       texte,
@@ -38,13 +38,13 @@ test('inverse-transposee-petite-echelle.browser.mjs calls cameraSelectionUniform
     new URL('inverse-transposee-petite-echelle.browser.mjs', navigateur),
     'utf8',
   );
-  assert.match(texte, /\bvue,\n/, 'doit importer `vue` de inverseTransposeCas.mjs');
+  assert.match(texte, /\bvue,\n/, 'must import `vue` from inverseTransposeCas.mjs');
   assert.doesNotMatch(
     texte,
     /\bcamera,\n/,
-    'ne doit plus importer `camera` de inverseTransposeCas.mjs',
+    'must no longer import `camera` from inverseTransposeCas.mjs',
   );
-  assert.match(texte, /cameraSelectionUniforms\(\s*vue\s*,/, 'l’appel doit passer `vue`');
+  assert.match(texte, /cameraSelectionUniforms\(\s*vue\s*,/, 'the call must pass `vue`');
   assert.doesNotMatch(
     texte,
     /cameraSelectionUniforms\(\s*camera\s*,/,
@@ -57,7 +57,7 @@ test('reflexion-face-eliminee.browser.mjs calls rasterVisibility(..., vue, ...),
   assert.match(
     texte,
     /import \{ decisionCpu, vue \} from '\.\.\/justesse\/inverseTransposeCas\.mjs'/,
-    'doit importer `vue`, pas `camera`',
+    'must import `vue`, not `camera`',
   );
   assert.match(texte, /rasterVisibility\(\[pageVisible\(tousLesCas\[i\]\)\],\s*vue,/);
   assert.doesNotMatch(

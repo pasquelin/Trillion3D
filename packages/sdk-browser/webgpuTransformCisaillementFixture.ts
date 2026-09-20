@@ -26,7 +26,7 @@ export function proche(
   for (let i = 0; i < attendu.length; i++)
     assert.ok(
       Math.abs(obtenu[i] - attendu[i]) <= tolerance,
-      `${quoi}[${i}] : ${obtenu[i]} au lieu de ${attendu[i]}`,
+      `${quoi}[${i}]: ${obtenu[i]} instead of ${attendu[i]}`,
     );
 }
 

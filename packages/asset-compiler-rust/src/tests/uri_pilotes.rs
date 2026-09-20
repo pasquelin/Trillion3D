@@ -54,7 +54,7 @@ fn the_maya_driver_writes_an_escaped_image_uri() {
     let (dir, file) = source("ma", "scene.ma", &format!("{head}{body}"));
     let run = compile_golden_source(&file, "uri-ma");
     assert_round_trip(&only_image_uri(&run, "ma"));
-    fs::remove_dir_all(&dir).expect("nettoyage");
+    fs::remove_dir_all(&dir).expect("cleanup");
 }
 
 // Behaviour 2: the `usd` driver names its texture by a URI, by the same helper and the same rule.
@@ -82,5 +82,5 @@ fn the_usd_driver_writes_an_escaped_image_uri() {
     let (dir, file) = source("usd", "scene.usda", &body);
     let run = compile_golden_source(&file, "uri-usd");
     assert_round_trip(&only_image_uri(&run, "usd"));
-    fs::remove_dir_all(&dir).expect("nettoyage");
+    fs::remove_dir_all(&dir).expect("cleanup");
 }
