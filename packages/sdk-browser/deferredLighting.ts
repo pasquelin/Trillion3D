@@ -12,12 +12,11 @@ import {
   type DeferredProgram,
   type DirectLightResources,
 } from './deferredLightingProgram.ts';
+import { ZERO_DIRECT, createDeferredView } from './deferredLightingView.ts';
 export { DIRECT_LIGHTING_SHADER, FULLSCREEN_VERTEX } from './deferredLightingShaders.ts';
 
 /** Label of the measured pass; `gpuLightingMs` is read under this name. */
 export const DEFERRED_LIGHTING_PASS = 'WG deferred lighting';
-/** With no declared light: zero lights, zero tiles, exposure 1. */
-const ZERO_DIRECT = [0, 0, 0, 1] as const;
 
 /**
  * Deferred resolve. Two programs live here: the unlit view — raw material albedo, composed
@@ -36,11 +35,8 @@ export async function createDeferredLighting(
   directLights: GPUBuffer,
   onReady?: () => void,
 ) {
-  const uniform = device.createBuffer({
-    label: 'WG deferred view v1',
-    size: 128,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
+  const view = createDeferredView(device);
+  const uniform = view.buffer;
   const placeholders = createDeferredPlaceholders(device);
   const bindings = { uniform, directLights, placeholders };
   try {
@@ -61,7 +57,6 @@ export async function createDeferredLighting(
     type Variant = { program?: DeferredProgram; pending?: Promise<unknown> };
     const variants: Record<'direct' | 'bounce', Variant> = { direct: {}, bounce: {} };
     let active: DeferredProgram = unlit;
-    const packed = new Float32Array(32);
     // Diagnostic views output raw values: no ACES, no sRGB, no composed background. The
     // indirect-irradiance view is one, and lighting says so, not the caller.
     let rawOutput = false;
@@ -77,6 +72,7 @@ export async function createDeferredLighting(
       get usesContract() {
         return active !== unlit;
       },
+      /** Writes the view uniform of this image (`deferredLightingView.ts`). */
       update(
         inverseViewProjection: ArrayLike<number>,
         camera: readonly number[],
@@ -85,17 +81,19 @@ export async function createDeferredLighting(
         clearColor: number,
         diagnostic: boolean,
         direct: ArrayLike<number> = ZERO_DIRECT,
+        sampledRank = 0,
       ) {
-        packed.set(inverseViewProjection as ArrayLike<number> & number[], 0);
-        packed.set(camera, 16);
-        packed.set([width, height, diagnostic || rawOutput ? 1 : 0, 0], 20);
-        packed.set(
-          [(clearColor >> 16) / 255, ((clearColor >> 8) & 255) / 255, (clearColor & 255) / 255, 1],
-          24,
+        const raw = diagnostic || rawOutput;
+        view.write(
+          inverseViewProjection,
+          camera,
+          width,
+          height,
+          clearColor,
+          raw,
+          direct,
+          sampledRank,
         );
-        // Contract lights, tiles in X and Y, then exposure.
-        packed.set(direct as number[], 28);
-        device.queue.writeBuffer(uniform, 0, packed);
       },
       /**
        * Picks the frame program and binds its resources. `wantsContract` stays false as long as
@@ -185,7 +183,7 @@ export async function createDeferredLighting(
         pass.end();
       },
       dispose() {
-        uniform.destroy();
+        view.dispose();
         placeholders.dispose();
         unlit.release();
         variants.direct.program?.release();
@@ -193,7 +191,7 @@ export async function createDeferredLighting(
       },
     };
   } catch (error) {
-    uniform.destroy();
+    view.dispose();
     placeholders.dispose();
     throw error;
   }

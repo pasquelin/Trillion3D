@@ -171,3 +171,15 @@ test('diagnostic composition retains the display-space flag and unbound calls fa
   );
   assert.equal(h.passes.length, 0);
 });
+
+test('the rank of a sampled image rides in the fourth viewport slot, zero without one', async () => {
+  const h = gpuHarness(),
+    lighting = await createDeferredLighting(h.device, {} as GPUBuffer),
+    matrix = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+  lighting.update(matrix, [1, 2, 3], 800, 600, 0x204060, false, [3, 2, 1, 1], 7);
+  assert.deepEqual([...h.writes[0].slice(20, 24)], [800, 600, 0, 7]);
+  assert.deepEqual([...h.writes[0].slice(28, 32)], [3, 2, 1, 1]);
+  lighting.update(matrix, [1, 2, 3], 800, 600, 0x204060, false);
+  assert.deepEqual([...h.writes[1].slice(20, 24)], [800, 600, 0, 0]);
+  lighting.dispose();
+});

@@ -12,6 +12,7 @@ const assignments = {
   'shadow-casting-switch': 'shadow-theatre',
   'light-emitter-envelope': 'implicit-shell',
   'light-session-lifecycle': 'contour',
+  'many-lights-sampling': 'terrain',
   'camera-dolly': 'loft',
   'camera-orbit-pose': 'rational-roof',
   'camera-live-fov': 'ribbon',
@@ -34,5 +35,5 @@ export const rendererSceneFor = (lesson) => ({
   sceneLight: ['lod', 'memory'].includes(lesson.kind) || lesson.runtime === 'camera-pose',
   sceneFill:
     lesson.id !== 'runtime-pixel-error' &&
-    !['light-lifecycle', 'shadow-switch'].includes(lesson.kind),
+    !['light-lifecycle', 'shadow-switch', 'many-lights'].includes(lesson.kind),
 });

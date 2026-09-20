@@ -10,6 +10,17 @@ const range = (id, en, fr, min, max, value, step) => ({
 });
 export const LESSON_POINT_INTENSITY = 80;
 export const LESSON_COLORED_INTENSITY = 60;
+/** Lamps of the ring lesson, above the watershed's peaks: two colours in turn, so a drawn
+ *  subset differs from the whole; a range that reaches past the valley, so every lamp meets
+ *  the others there while each still pools its colour on its own slope. */
+export const LESSON_RING_INTENSITY = 45;
+export const LESSON_RING_RANGE = 11;
+export const LESSON_RING_RADIUS = 6;
+export const LESSON_RING_HEIGHT = 4.5;
+export const LESSON_RING_COLORS = [
+  [1, 0.3, 0.08],
+  [0.08, 0.35, 1],
+];
 
 export const lightingLessonDefinitions = [
   {
@@ -122,5 +133,33 @@ export const lightingLessonDefinitions = [
       'L’éclairage d’appoint est désactivé dans cette leçon : retirer la lumière rend la vue noire.',
     ),
     kind: 'light-lifecycle',
+  },
+  {
+    id: 'many-lights-sampling',
+    category: 'lighting',
+    functions: ['addLight', 'setLight', 'removeLight'],
+    title: text('Light a surface with many lamps', 'Éclairer une surface avec beaucoup de lampes'),
+    description: text(
+      'Ring a terrain with more lamps than a moving pixel shades, and watch the image converge.',
+      'Entourez un terrain de plus de lampes qu’un pixel en mouvement n’en calcule, et regardez l’image converger.',
+    ),
+    controls: [range('count', 'Lamps', 'Lampes', 2, 16, 12, 1)],
+    referenceCoverage: { webgpu_lights_pointlights: 'full' },
+    referenceReview: {
+      urls: ['https://threejs.org/examples/webgpu_lights_pointlights.html'],
+      observed: 'Several coloured point lights circle above one model and tint it in turn.',
+      originalGoal:
+        'An original rolling terrain under a ring of warm and cool lamps, all overlapping: while the camera moves each pixel shades four drawn lamps and the history averages the draws; at rest every lamp is shaded and the image holds.',
+    },
+    initialPose: { position: [0, 9, 12], target: [0, 1.5, 0] },
+    try: text(
+      'Orbit with sixteen lamps, then stop: the frame counter reads Paused once the still image has converged.',
+      'Tournez avec seize lampes, puis arrêtez-vous : le compteur affiche Pause une fois l’image immobile convergée.',
+    ),
+    changes: text(
+      'A moving pixel shades at most lightSettings.samplesPerPixel lamps whatever their count; a still one shades them all.',
+      'Un pixel en mouvement ne calcule au plus que lightSettings.samplesPerPixel lampes quel que soit leur nombre ; un pixel immobile les calcule toutes.',
+    ),
+    kind: 'many-lights',
   },
 ].map((lesson) => ({ ...lesson, renderer: true, runtime: 'advanced-lighting' }));
