@@ -43,6 +43,7 @@ function ProfileReading({ record: r, report, locale }) {
         {fr ? 'Caméra mobile, soleil et ombres.' : 'Moving camera, sun and shadows.'}
       </p>
       <Tabs
+        sticky
         label={fr ? 'Travail mesuré' : 'Measured work'}
         value={clock}
         onChange={setClock}
@@ -125,6 +126,7 @@ function SceneProfiles({ records, report, locale }) {
     [quality, setQuality] = useState('1');
   return (
     <Tabs
+      sticky
       label={locale === 'fr' ? 'Point de vue' : 'Viewpoint'}
       value={view}
       onChange={setView}
@@ -133,6 +135,7 @@ function SceneProfiles({ records, report, locale }) {
         label: viewName(id, locale),
         render: () => (
           <Tabs
+            sticky
             label={locale === 'fr' ? 'Niveau de détail' : 'Detail level'}
             value={quality}
             onChange={setQuality}
