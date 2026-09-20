@@ -168,6 +168,7 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
     return {
       update: (next) => {
         const run = async () => {
+          if (disposed) throw new DOMException('Cancelled', 'AbortError');
           const settled = nextReady();
           await update(next);
           await settled;
