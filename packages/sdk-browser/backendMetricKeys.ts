@@ -67,6 +67,7 @@ export const BACKEND_METRIC_KEYS = [
   'shadowFacesDrawn',
   'shadowDrawCalls',
   'shadowPagesDrawn',
+  'shadowPagesTotal',
   'shadowPagesPending',
   'shadowWaitMs',
   'gpuLightListsMs',

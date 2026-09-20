@@ -93,6 +93,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     shadowFacesDrawn: lights.shadowFaces,
     shadowDrawCalls: lights.shadowDrawCalls,
     shadowPagesDrawn: lights.shadowPages,
+    shadowPagesTotal: lights.shadowPagesTotal,
     shadowPagesPending: lights.plan.counts.pendingPages,
     shadowWaitMs: lights.plan.counts.waitedMs,
     ...directLightTimings(timing.lastGpuPassMs),
