@@ -10,6 +10,8 @@ import { WEBGPU_STAGES } from './stageMapping.ts';
 /** The timestamps of one GPU-cut image, written in place as each step ends. */
 type GpuCutMarks = Record<
   | 'preStart'
+  | 'gateEnd'
+  | 'tilesEnd'
   | 'blendStart'
   | 'cpuStart'
   | 'lightsEnd'
@@ -52,6 +54,10 @@ export interface WebgpuTimingState {
      *  never those of the current image. `-1` until a sample has come back. */
     imageRelevee: number;
   };
+  /** What the world step walks: counts, never durations. `racines` is how many root matrices one
+   *  rebase brings back to the eye; `racinesRebasees` is how many this image did — all of them when
+   *  the camera or the scene moved, none otherwise, so a held or still image reports zero. */
+  worldCounts: { racines: number; racinesRebasees: number };
   /** What encode uploaded and submitted: counts, never durations. */
   encodeCounts: {
     lignesTeleversees: number;
@@ -115,6 +121,7 @@ export function createWebgpuTimingState(stages?: StageProfiler): WebgpuTimingSta
       retiresParLaPyramide: 0,
       imageRelevee: -1,
     },
+    worldCounts: { racines: 0, racinesRebasees: 0 },
     encodeCounts: {
       lignesTeleversees: 0,
       fichesTeleversees: 0,
@@ -126,6 +133,8 @@ export function createWebgpuTimingState(stages?: StageProfiler): WebgpuTimingSta
     rowFilled: false,
     marks: {
       preStart: 0,
+      gateEnd: 0,
+      tilesEnd: 0,
       blendStart: 0,
       cpuStart: 0,
       lightsEnd: 0,
