@@ -20,8 +20,8 @@ const { initialState } = await import(new URL('scenarios.js', root));
 const { examples } = await import(new URL('catalog.js', root));
 const { apiScenario } = await import(new URL('apiScenario.js', root));
 
-test('gallery exposes twelve bilingual, interactive examples', () => {
-  assert.equal(examples.length, 12);
+test('gallery exposes sixteen bilingual, interactive examples', () => {
+  assert.equal(examples.length, 16);
   assert.equal(new Set(examples.map(({ id }) => id)).size, examples.length);
   for (const example of examples) {
     assert.ok(example.title.en && example.title.fr);
@@ -97,6 +97,10 @@ test('every displayed snippet runs and matches its playground result', async () 
     const expected = {
       'compose-transform': result.points?.[2],
       'matrix-chain': result.point,
+      'matrix-inverse': result.identity,
+      'reflection-orientation': [result.determinant, result.linear],
+      'quaternion-turn': result.direction,
+      'normal-transform': result.normal,
       perspective: result.ndc,
       frustum: result.status,
       'dot-product': result.dot,
@@ -126,7 +130,9 @@ test('visible engine results follow the selected language', () => {
 test('every scenario calls the generated engine module', async () => {
   const source = (
     await Promise.all(
-      ['evaluate.js', 'evaluateDetail.js'].map((file) => readFile(new URL(file, root), 'utf8')),
+      ['evaluate.js', 'evaluateDetail.js', 'evaluateAdvanced.js'].map((file) =>
+        readFile(new URL(file, root), 'utf8'),
+      ),
     )
   ).join('\n');
   for (const example of examples)
