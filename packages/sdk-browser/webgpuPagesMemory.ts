@@ -1,5 +1,4 @@
 import { texturePoolFor, type GeometryPool, type TexturePool } from './webgpuMemoryBudgets.ts';
-import { dropPoolBindGroups } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** What a host can change mid-session; a missing field keeps its value. */
@@ -43,8 +42,6 @@ export async function setWebgpuMemoryBudgets(
     const pool = texturePoolFor(budgets.texturePoolBytes, setup.gpuDevice);
     if (pool.layers !== setup.texturePool.layers && vis.textures && !run.lost) {
       evictedTiles = vis.textures.resize(pool.layers);
-      // Right away, before an image goes through: the groups name a destroyed pool.
-      dropPoolBindGroups(rt);
     }
     setup.texturePool = pool;
   }
@@ -59,7 +56,6 @@ export async function setWebgpuMemoryBudgets(
         if (key !== undefined) setup.tracking.unmarkPinned(key);
       }
       evictedPages = evicted.length;
-      dropPoolBindGroups(rt);
     }
     setup.geometryPool = pool;
   }

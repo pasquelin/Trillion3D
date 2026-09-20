@@ -12,7 +12,8 @@ import { drawBlendPass } from './webgpuBlendDraw.ts';
 import { buildBlendStatics } from './webgpuBlendPlan.ts';
 import { orderBlendPasses } from './webgpuBlendOrder.ts';
 import { createWebgpuBlendState } from './webgpuBlendState.ts';
-import { BASE_SLOTS, MAX_DRAW_SLOTS } from './gpuDraw.ts';
+import { createWebgpuVisState } from './webgpuPagesStateVis.ts';
+import { BASE_SLOTS } from './gpuDraw.ts';
 import { createGpuRaster } from './gpuRaster.ts';
 import type { WebgpuTileStreamer } from './webgpuTileStreamer.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
@@ -55,6 +56,7 @@ function stubTextures() {
 function stubVis(layouts: Record<string, unknown>) {
   const token = () => ({}) as GPUBuffer;
   return {
+    ...createWebgpuVisState(),
     ...layouts,
     concatPos: token(),
     concatUv: token(),
@@ -67,7 +69,6 @@ function stubVis(layouts: Record<string, unknown>) {
     textures: stubTextures(),
     mapsSampler: {} as GPUSampler,
     gpuHiz: undefined,
-    visSlotGroups: new Array(MAX_DRAW_SLOTS * 2).fill(undefined),
     gpuDraw: { indirectBuffer: token(), instanceBuffer: token(), slotOffsetsBuffer: token() },
   };
 }
@@ -79,7 +80,7 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
   const { visBindGroupLayout, visModule } = await createWebgpuVisibilityShaders(device, 8);
   void visModule;
   const { shadeBindGroupLayout } = await createWebgpuShadePipeline(device, {} as GPUShaderModule);
-  const { blendBindGroupLayout } = await createWebgpuBlendPipelines(device, []);
+  const { blendBindGroupLayout } = await createWebgpuBlendPipelines(device);
   const visCount = (visBindGroupLayout as unknown as { entries: unknown[] }).entries.length,
     shadeCount = (shadeBindGroupLayout as unknown as { entries: unknown[] }).entries.length,
     blendCount = (blendBindGroupLayout as unknown as { entries: unknown[] }).entries.length;

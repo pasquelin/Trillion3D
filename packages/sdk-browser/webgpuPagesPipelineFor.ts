@@ -1,6 +1,5 @@
 import type { PageRec } from './pageSelection.ts';
 import { projectedPageError } from './pageSelection.ts';
-import { dropPoolBindGroups } from './webgpuPagesDrops.ts';
 import { BASE_SLOTS, BIN_BACK, BIN_FRONT, BIN_NONE } from './gpuDraw.ts';
 import { visLayerPipelineIndex } from './webgpuVisibilityPipelines.ts';
 import { screenErrorColor } from './diagnosticColors.ts';
@@ -67,8 +66,18 @@ export const visBin = (rec: PageRec): 0 | 1 | 2 => {
   return (side === 'back') !== windingCw(rec) ? BIN_FRONT : BIN_BACK;
 };
 
+/** Resources the fallback groups name besides their own position buffer. */
+export const FALLBACK_IDENTITY_SIZE = 3;
+
+/** The fallback group of one position buffer, voided with the others when the layout, the page pool
+ *  or the uniform it names changed identity. */
 export function bindGroupFor(rt: WebgpuPagesCore, device: GPUDevice, position: GPUBuffer) {
-  const { gpu } = rt;
+  const { gpu } = rt,
+    { next } = gpu.fallbackIdentity;
+  next[0] = gpu.bindGroupLayout;
+  next[1] = gpu.cache?.buffer;
+  next[2] = gpu.uniformBuffer;
+  if (gpu.fallbackIdentity.moved()) gpu.bindGroups.clear();
   let id = gpu.positionIds.get(position);
   if (!id) {
     id = gpu.nextPositionId++;
@@ -94,7 +103,6 @@ export function ensureUniform(rt: WebgpuPagesCore, device: GPUDevice, draws: num
   const bytes = Math.max(1, draws, rt.setup.cap) * UNIFORM_STRIDE;
   if (!gpu.uniformBuffer || gpu.uniformBuffer.size < bytes) {
     gpu.uniformBuffer?.destroy();
-    dropPoolBindGroups(rt);
     gpu.uniformBuffer = device.createBuffer({
       size: bytes,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
