@@ -48,12 +48,12 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
       if (ctx.diagnostic !== 'beauty') {
         metricsSeen.clear();
         bytes = 0;
-        submitted = 0;
-        draws = blendCopies.length;
+        submitted = batches.autonomousDraw ? batched.submittedTriangles : 0;
+        draws = blendCopies.length + (batches.autonomousDraw ? batched.drawCalls : 0);
         for (const rec of attached)
           if (rec.geometry) bytes += geometryBytes(rec.geometry, metricsSeen);
         for (let i = 0; i < attached.length; i++)
-          if (attached[i].attached) {
+          if (!batches.autonomousDraw && attached[i].attached) {
             draws++;
             submitted += attached[i].triangles;
           }
