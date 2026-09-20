@@ -85,3 +85,17 @@ test('composeMatrix4Batch: the flat form writes the same sixteen floats as the s
   const unit = composeMatrix4(new Float64Array(16), positions, quaternions, scales);
   assert.deepEqual(Array.from(unit), Array.from(views[0]));
 });
+
+test('composeMatrix4Batch: plain flat arrays remain numeric sinks, including an empty destination', () => {
+  const positions = [1, 2, 3, -4, 5, -6];
+  const quaternions = [0, 0, 0, 1, 0, 0, 0, 1];
+  const scales = [2, 3, 4, 5, 6, 7];
+  const expected = [
+    2, 0, 0, 0, 0, 3, 0, 0, 0, 0, 4, 0, 1, 2, 3, 1, 5, 0, 0, 0, 0, 6, 0, 0, 0, 0, 7, 0, -4, 5, -6,
+    1,
+  ];
+  for (const out of [[], Array<number>(32), Array<number>(32).fill(0)]) {
+    composeMatrix4Batch(out, positions, quaternions, scales, 2);
+    assert.deepEqual(out, expected);
+  }
+});

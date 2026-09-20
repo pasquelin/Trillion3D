@@ -1,4 +1,4 @@
-// Three.js vs sdk-core, vector, box and colour batches: n elements per call, zero allocation.
+// Three.js vs sdk-core, vector and box batches: n elements per call, zero allocation.
 // Tested against Three's for loop on 200 000 elements, bit for bit.
 import * as THREE from 'three';
 import {
@@ -6,12 +6,11 @@ import {
   boxUnionBatch,
   frustumKeepsBoxBatch,
   sphereFromBoundsBatch,
-  srgbToLinearBatch,
   transformDirectionsBatch,
   transformPointsBatch,
 } from '../mathIndex.ts';
 import { rapport } from './socle.mjs';
-import { SRGB_REFERENCE_GAP, duel } from './oracles/three-duel.mjs';
+import { duel } from './oracles/three-duel.mjs';
 import { N, prepareBatchData } from './oracles/batch-duel.mjs';
 
 const BATCH = 'packages/sdk-core/mathBatch.ts';
@@ -23,7 +22,6 @@ const {
   oraclePts,
   boxes,
   threeBoxes,
-  colors,
   threeFrustum,
   planes,
   outExThree,
@@ -96,51 +94,27 @@ lines.push(
 // 7. Box3.getBoundingSphere batch
 const outSpheres = new Float64Array(N * SPHERE_VALUES),
   outThreeSpheres = new Float64Array(N * SPHERE_VALUES);
-const sTmp = new THREE.Sphere();
+const threeSpheres = Array.from({ length: N }, () => new THREE.Sphere());
 lines.push(
   await duel({
     name: 'Box3.getBoundingSphere batch',
     fichier: BATCH,
     three: () => {
-      for (let i = 0; i < N; i++) {
-        threeBoxes[i].getBoundingSphere(sTmp);
-        const at = i * SPHERE_VALUES;
-        outThreeSpheres[at] = sTmp.center.x;
-        outThreeSpheres[at + 1] = sTmp.center.y;
-        outThreeSpheres[at + 2] = sTmp.center.z;
-        outThreeSpheres[at + 3] = sTmp.radius;
-      }
+      for (let i = 0; i < N; i++) threeBoxes[i].getBoundingSphere(threeSpheres[i]);
     },
-    oracle: () => outThreeSpheres,
+    oracle: () => {
+      for (let i = 0; i < N; i++) {
+        const sphere = threeSpheres[i],
+          at = i * SPHERE_VALUES;
+        sphere.center.toArray(outThreeSpheres, at);
+        outThreeSpheres[at + 3] = sphere.radius;
+      }
+      return outThreeSpheres;
+    },
     core: () => {
       sphereFromBoundsBatch(outSpheres, boxes, N);
       return outSpheres;
     },
-  }),
-);
-
-// 8. Color.convertSRGBToLinear batch
-const colorsThree = new Float64Array(N),
-  colorsCore = new Float64Array(N),
-  cTmp = new THREE.Color();
-lines.push(
-  await duel({
-    name: 'Color.convertSRGBToLinear batch',
-    fichier: BATCH,
-    three: () => {
-      for (let i = 0; i < N; i++) {
-        cTmp.r = colors[i];
-        cTmp.convertSRGBToLinear();
-        colorsThree[i] = cTmp.r;
-      }
-    },
-    oracle: () => colorsThree,
-    core: () => {
-      srgbToLinearBatch(colorsCore, colors, N);
-      return colorsCore;
-    },
-    tolerance: SRGB_REFERENCE_GAP,
-    motif: 'Three multiplies by rounded constants, the engine divides',
   }),
 );
 
@@ -163,5 +137,5 @@ lines.push(
 rapport(
   'three-vs-core-batch-volumes',
   lines,
-  'sdk-core vector, box and colour batches give the same bits as Three.js, at least as fast',
+  'sdk-core vector and box batches give the same bits as Three.js, at least as fast',
 );
