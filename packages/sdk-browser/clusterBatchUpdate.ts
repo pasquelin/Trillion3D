@@ -27,13 +27,22 @@ type BatchUpdateState = {
   attachMeshes: boolean;
 };
 
-function setMaterial(mesh: ClusterDrawMesh, material: THREE.Material | THREE.Material[]) {
+function setMaterial(
+  mesh: ClusterDrawMesh,
+  material: THREE.Material | THREE.Material[],
+  source: THREE.Material | THREE.Material[],
+) {
   mesh.material = material;
   mesh._sideSplitMaterials = Array.isArray(material)
     ? (material as [THREE.Material, THREE.Material])
     : undefined;
   mesh._sideSplitBack = mesh._sideSplitMaterials?.[0];
   mesh._sideSplitFront = mesh._sideSplitMaterials?.[1];
+  mesh._sideSplitSource = mesh._sideSplitMaterials
+    ? Array.isArray(source)
+      ? undefined
+      : source
+    : undefined;
 }
 
 /** Updates the sub-draws and the scene objects without copying the indices. */
@@ -113,8 +122,12 @@ export function updateClusterBatches(state: BatchUpdateState, display: readonly 
       mesh.userData.clusterId = String(sample.renderOrder);
       mesh.userData.lodRole = 'exact';
       group.mesh = mesh;
-      setMaterial(mesh, material);
-    } else if (mesh.material !== material) setMaterial(mesh, material);
+      setMaterial(mesh, material, sample.material);
+    } else if (
+      mesh.material !== material ||
+      (Array.isArray(material) && mesh._sideSplitSource !== sample.material)
+    )
+      setMaterial(mesh, material, sample.material);
     mesh.matrix.copy(sample.matrix);
     // Arrays are reused; their identity changes only when they had to grow.
     mesh._multiDrawStarts = group.ranges.starts;
