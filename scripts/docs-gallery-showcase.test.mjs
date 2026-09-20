@@ -4,7 +4,10 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.mjs';
 
-const { Gallery, GalleryShowcase } = await loadReactComponents('docs/react/gallery/index.jsx');
+const { Gallery } = await loadReactComponents('docs/react/gallery/index.jsx');
+const { GalleryShowcase } = await loadReactComponents(
+  'docs/react/gallery/GalleryShowcase.jsx',
+);
 const render = (component, locale) => renderToStaticMarkup(createElement(component, { locale }));
 
 test('showcase leads with a large observatory and exposes both live pilots', () => {
