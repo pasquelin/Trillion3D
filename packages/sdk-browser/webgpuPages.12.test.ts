@@ -56,9 +56,10 @@ test('mixed GPU and transparent pages wait for initial coverage before validatin
     backend.render(camera());
     await backend.flush();
     assert.equal(backend.metrics().coverageReady, true);
-    // Transparent clusters are counted by the same readback as the opaque ones, so the count lands
-    // on the image after the cut they describe — the draw itself follows the current frame's mask.
+    // The first complete image submits a new sample. Its transparent count is published only once
+    // flush has adopted that readback, just like the opaque count from the same resident cut.
     backend.render(camera());
+    await backend.flush();
     assert.equal(backend.metrics().transparentSubmittedTriangles, 2);
     assert.equal(backend.metrics().submittedTriangles, 4);
   } finally {
