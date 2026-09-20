@@ -130,7 +130,11 @@ export function execute() {
     geometry,
     mesh,
     lower,
+    false,
   );
+  const coplanarBlendWithoutBias = pixel(gl);
+  clear(gl);
+  drawCoplanarBlend(renderer, scene, drawCamera, geometry, mesh, lower, true);
   const coplanarBlendPixel = pixel(gl);
 
   const diagnosticGeometry = triangleGeometry(geometry()),
@@ -180,6 +184,7 @@ export function execute() {
     blendPixel,
     coplanarPixel,
     coplanarBlendPixel,
+    coplanarBlendWithoutBias,
     coplanarBlendSubmissions,
     diagnosticPixel,
     diagnosticSubmissions,
