@@ -7,6 +7,9 @@ import type { GpuDraw } from './gpuDraw.ts';
 import type { GpuRestCompact } from './gpuRestCompact.ts';
 import { MAX_DRAW_SLOTS } from './gpuDraw.ts';
 import type { WebgpuTileStreamer } from './webgpuTileStreamer.ts';
+import { createWebgpuBindIdentity, type WebgpuBindIdentity } from './webgpuBindIdentity.ts';
+import { VIS_IDENTITY_SIZE } from './webgpuVisibilityBindings.ts';
+import { SHADE_IDENTITY_SIZE } from './webgpuShadeBindings.ts';
 
 type GeometryBlock = {
   vertexBase: number;
@@ -62,6 +65,9 @@ export interface WebgpuVisState {
   // sets are built from buffers that outlive the frame, so a frame never rebuilds a bind group.
   visSlotGroups: Array<GPUBindGroup | undefined>;
   rasterGroups: Array<unknown>;
+  /** What those groups, and the resolve's, currently name: a moved identity voids them. */
+  visIdentity: WebgpuBindIdentity;
+  shadeIdentity: WebgpuBindIdentity;
   concatPos: GPUBuffer | undefined;
   concatUv: GPUBuffer | undefined;
   concatNrm: GPUBuffer | undefined;
@@ -111,6 +117,8 @@ export function createWebgpuVisState(): WebgpuVisState {
     shadeBindGroup: undefined,
     visSlotGroups: new Array(MAX_DRAW_SLOTS * 2).fill(undefined),
     rasterGroups: new Array(8).fill(undefined),
+    visIdentity: createWebgpuBindIdentity(VIS_IDENTITY_SIZE),
+    shadeIdentity: createWebgpuBindIdentity(SHADE_IDENTITY_SIZE),
     concatPos: undefined,
     concatUv: undefined,
     concatNrm: undefined,
