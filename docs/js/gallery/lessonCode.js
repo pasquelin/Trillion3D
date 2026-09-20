@@ -15,7 +15,7 @@ export function lessonCode(
   position: home.target.map((value, index) =>
     value + (home.position[index] - value) * 1.25),
 });`;
-  return `import { createExplorer } from '@web-geometry/sdk/browser';
+  return `import { createExplorer } from 'web-geometry';
 
 // HTML: <canvas id="garden" style="width:100%;height:60vh;display:block"></canvas>
 const explorer = await createExplorer('garden', {

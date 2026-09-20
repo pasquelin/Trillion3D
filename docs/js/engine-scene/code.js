@@ -1,6 +1,6 @@
 import { sceneFillLightCode } from '../sceneFillLight.js';
 
-export const engineExampleCode = `import { createExplorer } from '@web-geometry/sdk/browser';
+export const engineExampleCode = `import { createExplorer } from 'web-geometry';
 
 // HTML: <canvas id="garden" style="width:100%;height:60vh;display:block"></canvas>
 const explorer = await createExplorer('garden', {

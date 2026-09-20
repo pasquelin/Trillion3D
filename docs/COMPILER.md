@@ -341,7 +341,7 @@ is byte-identical to before.
 **The compiler draws nothing.** It publishes what is pending — in the manifest and in a `cutouts`
 progress event — and whoever called it presents the question: a terminal asks it, an application
 shows it in its own panel, and a log or an automated chain is asked nothing at all. `reviewCutouts`
-in `@web-geometry/sdk/node` is the terminal side of that: it gathers the pending textures of a whole
+in `web-geometry` on Node is the terminal side of that: it gathers the pending textures of a whole
 batch (a single import is a batch of one), shows each one — a real picture where the terminal has an
 image protocol, a mosaic of half-blocks where it has none, plus a link to the full-resolution
 texture — takes one keypress per texture, writes the answers into every sheet that knows the image,
@@ -599,20 +599,27 @@ A Unity scene also carries the report of the driver that read each model it refe
 
 ## Using it from Node
 
-`@web-geometry/sdk/node` is a thin relay over the executable ([`packages/sdk-node/index.mts`](../packages/sdk-node/index.mts)):
+`web-geometry` resolves to a thin Node relay over the executable ([`packages/sdk-node/index.mts`](../packages/sdk-node/index.mts)):
 
-```js
-import { prepare, prepareMany } from '@web-geometry/sdk/node';
+```ts
+import { prepare, prepareMany, type CompilationResult, type PrepareOptions } from 'web-geometry';
 
 // One model: events → onProgress, pointer read from stdout, manifest read back from disk.
-const result = await prepare('scenes/city/city.obj', 'cache/city', 'full', 150000, {
+const options: PrepareOptions = {
   resourceBaseUrl: '/assets/city/',
   threads: 8,
   ramBudgetMb: 8192,
   simplification: 'qem-endpoints',
   signal: controller.signal, // abort → {"cancel":"*"} on stdin, kill after 5 s
   onProgress: (event) => console.log(event.event, event.phase),
-});
+};
+const result: CompilationResult = await prepare(
+  'scenes/city/city.obj',
+  'cache/city',
+  'full',
+  150000,
+  options,
+);
 result.pointer; // path of native/full/manifest.json
 result.selectedTriangles; // from clusters.json
 

@@ -75,7 +75,7 @@ export function consumerImports(root = ROOT) {
       if (!ts.isImportDeclaration(node) || !ts.isStringLiteral(node.moduleSpecifier)) continue;
       const clause = node.importClause;
       const specifier = node.moduleSpecifier.text;
-      const publicEntry = specifier.startsWith('@web-geometry/sdk');
+      const publicEntry = specifier === 'web-geometry';
       const internalEntry =
         specifier.includes('/sdk-core/') ||
         specifier.includes('/sdk-browser/') ||
