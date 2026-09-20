@@ -71,7 +71,6 @@ function dropGpuPartition(rt: WebgpuPagesRuntime) {
   rt.blendState.occlusionEpoch = -1;
   rt.vis.gpuPartition?.dispose();
   rt.vis.gpuPartition = undefined;
-  rt.run.occluderHistoryEpoch = -1;
 }
 
 export function dropGpuHiz(rt: WebgpuPagesRuntime) {
