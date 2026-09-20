@@ -65,25 +65,34 @@ try {
     }
     const pixels = new Uint8Array(window.scene.capture());
     const colors = new Set();
-    let visiblePixels = 0;
+    const background = pixels.slice(0, 3);
+    let visiblePixels = 0,
+      riverPixels = 0;
     for (let index = 0; index < pixels.length; index += 4) {
       const red = pixels[index],
         green = pixels[index + 1],
         blue = pixels[index + 2];
-      if (red + green + blue > 25) {
+      const distance =
+        Math.abs(red - background[0]) +
+        Math.abs(green - background[1]) +
+        Math.abs(blue - background[2]);
+      if (distance > 24) {
         visiblePixels++;
         colors.add(`${red >> 4},${green >> 4},${blue >> 4}`);
+        if (blue > red * 1.3 && blue > green * 1.15) riverPixels++;
       }
     }
     return {
       metrics,
       visiblePixels,
+      riverPixels,
       colorBuckets: colors.size,
       size: [window.scene.canvas.width, window.scene.canvas.height],
     };
   });
   assert.deepEqual(sample.size, [1800, 1240]);
   assert.ok(sample.visiblePixels > 150_000, 'the landscape occupies a meaningful image area');
+  assert.ok(sample.riverPixels > 8, 'the river remains visible through the mountain valley');
   assert.ok(sample.colorBuckets > 24, 'lighting and material strata remain visually distinct');
   assert.equal(sample.metrics.selectedTriangles, 18624);
   assert.deepEqual(errors, []);
@@ -97,6 +106,7 @@ try {
         resolution: sample.size,
         sourceTriangles: 18624,
         visiblePixels: sample.visiblePixels,
+        riverPixels: sample.riverPixels,
         colorBuckets: sample.colorBuckets,
         errors,
       },
