@@ -40,8 +40,11 @@ export function faceCountOf(rank: number) {
 /** Half-angle of the cone widened by half a degree, so the cone edge stays covered by the map. */
 const spotFov = (coneAngle: number) => Math.min(Math.PI * 0.98, 2 * coneAngle + 0.0175);
 
-/** Floats of a face volume: centre and far plane, face axis and half-angle. */
-export const SHADOW_CULL_FLOATS = 8;
+/**
+ * Floats of a region volume: centre and far plane, face axis and half-angle, then — for a
+ * box, flagged by a negative half-angle — the two other axes with their half-extents.
+ */
+export const SHADOW_CULL_FLOATS = 16;
 
 /**
  * Writes the view-projection matrix of a face at its slot in `matrices`, and, if reject is

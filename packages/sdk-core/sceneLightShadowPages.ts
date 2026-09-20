@@ -63,6 +63,28 @@ export function setRect(
     mask[base + row] = on ? mask[base + row] | span : mask[base + row] & ~span;
 }
 
+/**
+ * Marks the window rectangle `[x0, x1] × [y0, y1]` of a face whose window origin sits at
+ * physical page `(wx, wy)`: a cascade map is addressed by absolute page, modulo the face, so
+ * window page `(x, y)` lives at physical page `((x + wx) mod rows, (y + wy) mod rows)`. The row
+ * pattern is rotated once, then written on each wrapped row.
+ */
+export function markWindowRect(
+  mask: Uint8Array,
+  base: number,
+  rows: number,
+  wx: number,
+  wy: number,
+  x0: number,
+  x1: number,
+  y0: number,
+  y1: number,
+) {
+  const span = ((1 << (x1 - x0 + 1)) - 1) << x0;
+  const bits = ((span << wx) | (span >> (rows - wx))) & ((1 << rows) - 1);
+  for (let row = y0; row <= y1; row++) mask[base + ((row + wy) % rows)] |= bits;
+}
+
 const clip = new Float64Array(3);
 
 /** `x`, `y` and `w` of a world point in the face clip space, column-major matrix. */
@@ -77,7 +99,8 @@ function project(m: Float32Array, b: number, x: number, y: number, z: number) {
 const pageOf = (value: number, rows: number) => Math.max(0, Math.min(rows - 1, Math.floor(value)));
 
 /**
- * Marks the pages of the face that the world box `min..max` can reach.
+ * Marks the pages of the face that the world box `min..max` can reach, `matrix` being the
+ * window's and `(wx, wy)` the physical page of its origin.
  *
  * Only those pixels can change when the object of this box moves: the map keeps a minimum
  * of depth on every occluder, and the other occluders, for their part, have not moved. Redrawing
@@ -96,6 +119,8 @@ export function markBoxPages(
   matrixBase: number,
   min: ArrayLike<number>,
   max: ArrayLike<number>,
+  wx = 0,
+  wy = 0,
 ) {
   let u0 = Infinity,
     u1 = -Infinity,
@@ -127,6 +152,6 @@ export function markBoxPages(
     x1 = pageOf((u1 * 0.5 + 0.5) * rows, rows),
     y0 = pageOf((0.5 - v1 * 0.5) * rows, rows),
     y1 = pageOf((0.5 - v0 * 0.5) * rows, rows);
-  setRect(mask, base, x0, x1, y0, y1, true);
+  markWindowRect(mask, base, rows, wx, wy, x0, x1, y0, y1);
   return true;
 }
