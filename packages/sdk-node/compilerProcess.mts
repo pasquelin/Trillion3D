@@ -133,9 +133,11 @@ export function runCompiler<T>(
     );
     child.on('error', (error: NodeJS.ErrnoException) =>
       fail(
-        error.code === 'ENOENT' || error.code === 'EACCES'
+        error.code === 'ENOENT'
           ? new Error(`COMPILER_EXECUTABLE_MISSING: ${executable}`, { cause: error })
-          : error,
+          : error.code === 'EACCES'
+            ? new Error(`COMPILER_EXECUTABLE_NOT_EXECUTABLE: ${executable}`, { cause: error })
+            : error,
       ),
     );
     child.on('close', (code) => {
