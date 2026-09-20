@@ -1,5 +1,6 @@
 import {
   LIGHT_KIND,
+  MAX_SHADOW_SLICES,
   RECTS_PER_SLICE,
   SHADOW_CULL_FLOATS,
   SHADOW_PAGE,
@@ -13,6 +14,7 @@ import {
 import { MAX_SHADOW_REGIONS, wrapKey } from './gpuShadowAtlas.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import type { EngineCamera } from './cameraWorld.ts';
+import { writeDrawnMasks } from './webgpuShadowDrawnMask.ts';
 
 const viewpoint: ShadowViewpoint & {
   position: [number, number, number];
@@ -34,7 +36,8 @@ const rectScratch = new Float64Array(4);
  */
 export const regionScissor = new Int32Array(MAX_SHADOW_REGIONS * 4);
 export const regionViewport = new Int32Array(MAX_SHADOW_REGIONS * 3);
-const flushedSlices = new Int32Array(MAX_SHADOW_REGIONS);
+/** Slices to push this frame: those redrawn, then those whose drawn-page mask changed. */
+const flushedSlices = new Int32Array(MAX_SHADOW_REGIONS + MAX_SHADOW_SLICES);
 
 /**
  * View the scheduler reads: position, axis, vertical half-fov, aspect, near and far planes. The
@@ -160,6 +163,7 @@ export function planShadowRegions(
     }
   }
   if (count) shadows.flushRegions(count);
+  flushes = writeDrawnMasks(lights, flushedSlices, flushes);
   if (flushes) shadows.flushSlices(flushedSlices, flushes);
   lights.shadowsUpdated = plan.counts.lights;
   lights.shadowRegions = count;
