@@ -55,9 +55,9 @@ export interface WebgpuRunState {
   renderPathLogged: boolean;
   outputDiagnosticLogged: boolean;
   noOccluderHistory: boolean;
-  /** Age of the table whose per-row occluder history came from: a new table redistributes rows, so
-   *  that history no longer describes anything. */
-  occluderHistoryEpoch: number;
+  /** True on an image whose view differs from the previous one's: the GPU partition then lets
+   *  every row be withdrawn from the occluders again. */
+  hizViewMoved: boolean;
   previousHizView: EngineCamera | undefined;
   temporalHizState: TemporalHizState;
   /** Counters of the CPU occlusion oracle, which runs only where the GPU test does not. */
@@ -157,7 +157,7 @@ export function createWebgpuRunState(): WebgpuRunState {
     renderPathLogged: false,
     outputDiagnosticLogged: false,
     noOccluderHistory: true,
-    occluderHistoryEpoch: -1,
+    hizViewMoved: true,
     previousHizView: undefined,
     temporalHizState: {},
     cpuHizCounts: createHizCounts(),

@@ -107,6 +107,11 @@ export function RendererViewport({ lesson, state, locale, label }) {
         <Stat title={french ? 'Triangles dessinés' : 'Drawn triangles'}>
           {value(metrics.triangles, '')}
         </Stat>
+        <Stat title={french ? 'Grappes occultées' : 'Occluded clusters'}>
+          {Number.isFinite(metrics.occluded)
+            ? `${metrics.occluded} / ${value(metrics.tested, '')}`
+            : '—'}
+        </Stat>
       </StatGroup>
       {error && <Alert tone="warning">{error}</Alert>}
     </div>

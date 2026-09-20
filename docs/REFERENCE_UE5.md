@@ -84,12 +84,12 @@ Their profile, PS5 demo, average 2496 × 1404 reconstructed to 4K, **25 M raster
 | ------------------------- | ---------- | ---------------------------------- |
 | Clear VisBuffer           | 66 µs      | —                                  |
 | Main Pass: InstanceCull   | 108 µs (1) | instance sort                      |
-| Main Pass: ClusterCull    | 406 µs     | GPU DAG traversal                  |
+| Main Pass: ClusterCull    | 406 µs     | GPU DAG traversal, last-image pyramid cull (`projectRows`) |
 | Main Pass: Rasterize      | 1,148 µs   | hardware raster (5)                |
 | BuildHZB                  | 99 µs      | Hi-Z pyramid                       |
-| Post Pass: InstanceCull   | 125 µs     | — (no second pass yet)             |
-| Post Pass: ClusterCull    | 102 µs     | —                                  |
-| Post Pass: Rasterize      | 183 µs     | —                                  |
+| Post Pass: InstanceCull   | 125 µs     | — (no instance level: rows are clusters) |
+| Post Pass: ClusterCull    | 102 µs     | Hi-Z test of the withdrawn and rejected rows (`WG HiZ test`) |
+| Post Pass: Rasterize      | 183 µs     | `WG visibility secondary`          |
 | **Total VisBuffer**       | **~2.5 ms**|                                    |
 | DepthExport               | 217 µs     |                                    |
 | Emit GBuffer              | 2,084 µs   | material pass                      |
