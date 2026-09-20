@@ -19,7 +19,8 @@ export async function writeFossilExcavation(directory, groups) {
   let offset = 0;
   for (const [name, geometry] of Object.entries(groups)) {
     obj.push(`o ${name}`, `usemtl ${name}`);
-    for (const point of geometry.vertices) obj.push(`v ${point.join(' ')}`);
+    for (const point of geometry.vertices)
+      obj.push(`v ${point.map((value) => Number(value.toFixed(9))).join(' ')}`);
     for (const indices of geometry.faces)
       obj.push(`f ${indices.map((index) => index + offset).join(' ')}`);
     offset += geometry.vertices.length;
