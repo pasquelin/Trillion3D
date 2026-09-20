@@ -3,17 +3,24 @@ import type { ClusterDrawMesh } from './clusterBatchMesh.ts';
 type Material = Exclude<ClusterDrawMesh['material'], unknown[]>;
 
 const depthFunction = (gl: WebGL2RenderingContext, value: number) => {
-  const functions = new Map<number, number>([
-    [0, gl.NEVER],
-    [1, gl.ALWAYS],
-    [2, gl.LESS],
-    [3, gl.LEQUAL],
-    [4, gl.EQUAL],
-    [5, gl.GEQUAL],
-    [6, gl.GREATER],
-    [7, gl.NOTEQUAL],
-  ]);
-  return functions.get(value) ?? gl.LEQUAL;
+  switch (value) {
+    case 0:
+      return gl.NEVER;
+    case 1:
+      return gl.ALWAYS;
+    case 2:
+      return gl.LESS;
+    case 4:
+      return gl.EQUAL;
+    case 5:
+      return gl.GEQUAL;
+    case 6:
+      return gl.GREATER;
+    case 7:
+      return gl.NOTEQUAL;
+    default:
+      return gl.LEQUAL;
+  }
 };
 
 export class WebglClusterState {
