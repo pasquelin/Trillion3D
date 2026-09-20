@@ -103,10 +103,12 @@ export function growClusterBox(rec: PageRec, min: number[], max: number[]) {
 }
 
 /**
- * A page enters residency or leaves it: world geometry has changed where it is, so the shadow maps
- * of lights whose range touches this box no longer describe the scene and become candidates again.
- * Without that, a cached map would keep showing the shadow of a cluster that left, or ignore that of
- * a cluster that arrived. The declared box is that of the cluster's world sphere.
+ * A page enters residency or leaves it, or enters or leaves the drawn cut: the scene is drawn
+ * at another precision where it is, so the shadow maps of lights whose range touches this box
+ * no longer describe it exactly and become candidates again — once the camera rests, since
+ * the change is one of representation, not of the world. Without that, a settled map would
+ * keep the shadow of a cluster that left, or ignore that of a cluster that arrived (#159). The
+ * declared box is that of the cluster's world sphere.
  */
 export function noteResidenceChange(lights: WebgpuLightState, rec: PageRec) {
   const { store, plan } = lights;
@@ -114,5 +116,5 @@ export function noteResidenceChange(lights: WebgpuLightState, rec: PageRec) {
   boxMin.fill(Infinity);
   boxMax.fill(-Infinity);
   growClusterBox(rec, boxMin, boxMax);
-  plan.worldChanged(boxMin, boxMax);
+  plan.representationChanged(boxMin, boxMax);
 }
