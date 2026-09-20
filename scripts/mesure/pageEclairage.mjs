@@ -97,6 +97,7 @@ export async function measureView(options) {
     previousRaf = null;
   for (let i = 0; i < options.frames; i++) {
     if (options.stageProfile && i === profileStart) explorer.resetStageProfile();
+    diagnostics.image = i;
     const now = await new Promise((done) => requestAnimationFrame(done));
     if (previousRaf !== null && i > 2) rafIntervalMs.push(now - previousRaf);
     previousRaf = now;
@@ -181,6 +182,8 @@ export async function measureView(options) {
     lost,
     // Compiler warnings the engine reported at open; `null` with none.
     avertissementsDag: diagnostics.avertissements,
+    // The engine's CPU bounds, as it published them; `null` when it published none.
+    bornesCpu: diagnostics.bornesCpu.length ? diagnostics.bornesCpu : null,
     captureStatus: response.status,
   };
 }
