@@ -4,7 +4,7 @@ Closes #
 
 ## Proof
 
-<!-- Commands run and their outcome; numbers as AGENTS.md §Measure before optimising requires. -->
+<!-- Commands run and their outcome; measurement evidence follows CONTRIBUTING.md. -->
 
 ## Local review before push
 

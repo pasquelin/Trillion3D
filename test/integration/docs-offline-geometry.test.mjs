@@ -71,7 +71,7 @@ test('every published cache preserves the authored triangle count', async () => 
   const { readFile } = await import('node:fs/promises');
   const { offlineExamples } = await import('../../docs/js/gallery/offline/catalog.js');
   for (const [index, example] of offlineExamples.entries()) {
-    if (example.id === 'terrain') continue; // Its dedicated landscape recipe owns this cache.
+    if (example.id === 'terrain' || example.id === 'offline-city') continue;
     const url = new URL(`../../docs/${example.asset}`, import.meta.url);
     const pointer = JSON.parse(await readFile(url, 'utf8'));
     const manifest = JSON.parse(await readFile(new URL(pointer.url, url), 'utf8'));

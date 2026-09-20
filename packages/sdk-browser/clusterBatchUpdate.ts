@@ -7,6 +7,10 @@ import type { ClusterBatchStats } from './clusterBatches.ts';
 
 const bySourceOrder = (a: BatchPage, b: BatchPage) =>
   (a.sourceOrder ?? a.id) - (b.sourceOrder ?? b.id);
+const byDrawOrder = (a: BatchGroup, b: BatchGroup) =>
+  Number(a.transparent) - Number(b.transparent) ||
+  a.sample!.renderOrder - b.sample!.renderOrder ||
+  a.layer - b.layer;
 
 type BatchUpdateState = {
   scene: THREE.Scene;
@@ -22,6 +26,26 @@ type BatchUpdateState = {
   attributeBytes: number;
   attachMeshes: boolean;
 };
+
+function setMaterial(
+  mesh: ClusterDrawMesh,
+  material: THREE.Material | THREE.Material[],
+  source: THREE.Material | THREE.Material[],
+  biased: boolean,
+) {
+  mesh.material = material;
+  mesh._sideSplitMaterials = Array.isArray(material)
+    ? (material as [THREE.Material, THREE.Material])
+    : undefined;
+  mesh._sideSplitBack = mesh._sideSplitMaterials?.[0];
+  mesh._sideSplitFront = mesh._sideSplitMaterials?.[1];
+  mesh._sideSplitSource = mesh._sideSplitMaterials
+    ? Array.isArray(source)
+      ? undefined
+      : source
+    : undefined;
+  mesh._sideSplitPolygonMaterials = biased ? mesh._sideSplitMaterials : undefined;
+}
 
 /** Updates the sub-draws and the scene objects without copying the indices. */
 export function updateClusterBatches(state: BatchUpdateState, display: readonly BatchPage[]) {
@@ -100,7 +124,12 @@ export function updateClusterBatches(state: BatchUpdateState, display: readonly 
       mesh.userData.clusterId = String(sample.renderOrder);
       mesh.userData.lodRole = 'exact';
       group.mesh = mesh;
-    } else if (mesh.material !== material) mesh.material = material;
+      setMaterial(mesh, material, sample.material, group.biased === material);
+    } else if (
+      mesh.material !== material ||
+      (Array.isArray(material) && mesh._sideSplitSource !== sample.material)
+    )
+      setMaterial(mesh, material, sample.material, group.biased === material);
     mesh.matrix.copy(sample.matrix);
     // Arrays are reused; their identity changes only when they had to grow.
     mesh._multiDrawStarts = group.ranges.starts;
@@ -115,6 +144,7 @@ export function updateClusterBatches(state: BatchUpdateState, display: readonly 
     subDraws += group.ranges.count;
     triangles += group.triangles;
   }
+  touched.sort(byDrawOrder);
   state.touched = active;
   state.active = touched;
   state.stats.drawCalls = draws;

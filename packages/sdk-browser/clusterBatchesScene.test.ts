@@ -37,7 +37,6 @@ test('instances of one primitive share a single resident index buffer written on
   assert.equal(batches.metrics.submittedTriangles, (2 + 3 + 1) * 2 + 4);
   assert.equal(scene.children.length, 3);
 });
-
 test('a cut that changes every frame rewrites no index and detaches the groups it drops', () => {
   const scene = new THREE.Scene(),
     data = fixture();
@@ -67,7 +66,6 @@ test('a cut that changes every frame rewrites no index and detaches the groups i
   assert.equal(drawOf(scene, 1)!.counts[0], 18);
   assert.equal(batches.metrics.drawCalls, 3);
 });
-
 test('an evicted page frees its range and the next residency reuses it', () => {
   const scene = new THREE.Scene(),
     data = fixture();
@@ -89,7 +87,6 @@ test('an evicted page frees its range and the next residency reuses it', () => {
   assert.equal(back.count, 1, 'b takes back exactly its hole: everything becomes contiguous again');
   assert.deepEqual(back.counts, [18]);
 });
-
 test('a transparent group draws its pages in source order whatever the order of the cut', () => {
   const material = new THREE.MeshBasicMaterial({ transparent: true });
   const attrs = attributes(64);
@@ -125,7 +122,60 @@ test('a transparent group draws its pages in source order whatever the order of 
   assert.deepEqual(forward.starts, [3 * 4, 0]);
   assert.deepEqual(forward.counts, [6, 3]);
 });
-
+test('draw groups keep opaque first then transparent source rank and coplanar layer', () => {
+  const attrs = attributes(12),
+    matrix = new THREE.Matrix4(),
+    opaque = new THREE.MeshBasicMaterial(),
+    blend = new THREE.MeshBasicMaterial({ transparent: true });
+  const pages: BatchPage[] = [
+    {
+      ...fixture().pages[0],
+      id: 0,
+      url: 'opaque',
+      attributes: attrs,
+      material: opaque,
+      matrix,
+      renderOrder: 0,
+    },
+    {
+      ...fixture().pages[0],
+      id: 1,
+      url: 'late',
+      attributes: attrs,
+      material: blend,
+      matrix,
+      renderOrder: 2,
+      transparent: true,
+    },
+    {
+      ...fixture().pages[0],
+      id: 2,
+      url: 'early',
+      attributes: attrs,
+      material: blend,
+      matrix,
+      renderOrder: 1,
+      transparent: true,
+      depthLayer: 2,
+    },
+  ];
+  const batches = new ClusterBatches(new THREE.Scene(), pages);
+  for (const page of pages) {
+    page.array = Uint32Array.from([0, 1, 2]);
+    batches.acceptPage([page], page.array);
+  }
+  batches.update([pages[1], pages[2], pages[0]]);
+  const active = (batches as unknown as { active: Array<{ sample: BatchPage; layer: number }> })
+    .active;
+  assert.deepEqual(
+    active.map((group) => [group.sample.renderOrder, group.layer]),
+    [
+      [0, 0],
+      [1, 2],
+      [2, 0],
+    ],
+  );
+});
 test('page urls of a cut are listed once per page, instances included, and diagnostics can hide every batch', () => {
   const scene = new THREE.Scene(),
     data = fixture();

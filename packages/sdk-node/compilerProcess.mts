@@ -6,10 +6,14 @@ import type { CompilerEvent } from './contracts.ts';
 export const COMPILER_LINE_LIMIT = 4 * 1024 * 1024;
 /** Grace period between a cooperative cancel request on stdin and a hard kill. */
 export const CANCEL_GRACE_MS = 5000;
-function nativeCompilerPath(explicit?: string) {
+export function resolveCompilerExecutable(
+  explicit?: string,
+  environment: NodeJS.ProcessEnv = process.env,
+  platform = process.platform,
+) {
   if (explicit) return explicit;
-  if (process.env.WEB_GEOMETRY_COMPILER_BIN) return process.env.WEB_GEOMETRY_COMPILER_BIN;
-  const ext = process.platform === 'win32' ? '.exe' : '';
+  if (environment.WEB_GEOMETRY_COMPILER_BIN) return environment.WEB_GEOMETRY_COMPILER_BIN;
+  const ext = platform === 'win32' ? '.exe' : '';
   return fileURLToPath(
     new URL(
       `../../packages/asset-compiler-rust/target/release/web-geometry-compiler${ext}`,
@@ -58,7 +62,8 @@ export function runCompiler<T>(
   onEvent?: (event: CompilerEvent) => void,
 ): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const child = spawn(nativeCompilerPath(options.executable), args, {
+    const executable = resolveCompilerExecutable(options.executable);
+    const child = spawn(executable, args, {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     let settled = false;
@@ -126,7 +131,15 @@ export function runCompiler<T>(
         () => fail(new Error('COMPILER_LINE_LIMIT')),
       ),
     );
-    child.on('error', fail);
+    child.on('error', (error: NodeJS.ErrnoException) =>
+      fail(
+        error.code === 'ENOENT'
+          ? new Error(`COMPILER_EXECUTABLE_MISSING: ${executable}`, { cause: error })
+          : error.code === 'EACCES'
+            ? new Error(`COMPILER_EXECUTABLE_NOT_EXECUTABLE: ${executable}`, { cause: error })
+            : error,
+      ),
+    );
     child.on('close', (code) => {
       if (options.signal?.aborted) {
         finish(reject, new Error('CANCELLED'));
