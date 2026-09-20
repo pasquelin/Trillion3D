@@ -1,5 +1,5 @@
 import type { EngineCamera } from './cameraWorld.ts';
-import { PAGES_RING, uploadSceneLights } from './webgpuPagesStateLights.ts';
+import { PAGES_RING, noteShadowFrame, uploadSceneLights } from './webgpuPagesStateLights.ts';
 import { planShadowRegions } from './webgpuPagesEncodeShadows.ts';
 import { encodeShadowAtlas } from './webgpuPagesEncodeShadowPass.ts';
 import { ensureBounce } from './webgpuPagesPrepareBounce.ts';
@@ -55,13 +55,9 @@ export function encodeDirectLights(
   // of the queue then go back in, or their map would keep a stale depth with nothing saying so.
   // Their drawn-page mask, pushed with the plan, says "drawn" for this one frame; the next plan
   // finds them stale again and pushes the corrected mask.
-  if (regions && !encodeShadowAtlas(rt, device, encoder, regions)) {
-    lights.plan.reissue(frame, nowMs);
-    lights.shadowPages = 0;
-    lights.shadowRegions = 0;
-    lights.pagesByFrame[pagesSlot] = 0;
-  }
-  lights.shadowPagesTotal += lights.shadowPages;
+  const encoded = !regions || encodeShadowAtlas(rt, device, encoder, regions);
+  if (!encoded) lights.plan.reissue(frame, nowMs);
+  noteShadowFrame(lights, pagesSlot, encoded);
   if (!tiles || !gpu.depthView) return directParams;
   if (!tiles.ensure(width, height, gpu.depthView)) return directParams;
   tiles.update(inverseViewProjection, width, height, active);
