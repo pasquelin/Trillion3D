@@ -3,7 +3,7 @@ import { engineName } from '../../js/reports/names.js';
 import { missingMetric } from '../../js/reports/availability.js';
 import { METRICS, metricValue, formatValue } from '../../js/reports/metrics.js';
 import { metricLabel } from '../../js/reports/copy.js';
-import { recordLabel } from '../../js/reports/presentation.js';
+import { recordLabel, runOf } from '../../js/reports/presentation.js';
 import { ChartGrid } from '../components/ChartGrid.jsx';
 import { BarChart } from '../components/BarChart.jsx';
 import { Collapse } from '../components/Collapse.jsx';
@@ -35,11 +35,12 @@ export function MetricCharts({
             <BarChart
               key={key}
               title={metricLabel(key, locale)}
-              unit={METRICS[key].unit}
               format={(v) => formatValue(v, locale, METRICS[key].unit)}
               missingLabel={locale === 'fr' ? 'Non mesuré' : 'Not measured'}
               rows={records.map((r) => ({
-                id: r.id,
+                id: colorByEngine
+                  ? r.engine
+                  : `${runOf(report, r)}:${r.engine}:${r.variant ?? ''}:${r.canvas?.width}:${r.canvas?.height}`,
                 label: label(r),
                 value: metricValue(r, key),
                 tone: colorByEngine ? engineTone(r.engine) : assessment(r, key).tone,
