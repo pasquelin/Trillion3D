@@ -1,16 +1,16 @@
-# Portable engine boundaries — version 0.1.0
+# Portable engine boundaries — version 0.2.0
 
 [Simple browser startup](../docs/SDK.md#simple-browser-startup): pass a canvas ID or element and opt into `interactive: true` for controls, CSS/DPR sizing and demand-driven rendering. Manual integration remains available.
 
 This standalone repository builds ESM JavaScript and TypeScript declarations into `dist/`, with explicit public SDK entry points. npm publication and cross-platform binary distribution are not yet configured.
 
-| Boundary | Public API | Current implementation |
-|---|---|---|
-| `sdk-core` | versioned contracts, jobs/progress/cancellation, image comparison, statistics and paths | pure TypeScript, no DOM/platform/UI imports |
-| `sdk-browser` | `createExplorer`, `runCameraPath`, backend factories | Three.js WebGL adapter; WebGPU page cache plus optional page raster (`webgpu-page-raster`) with GPU frustum + `lodScore` compute, visibility buffer, source-material second pass and this-frame GPU Hi-Z; DOM, loading and controls live here |
-| `page-codec` | `encodeGeometryPage(indices,attributes)` | reference geometry-page encoder; exists so the browser decoder is tested against a second implementation, not a production path |
-| `sdk-node` | `prepare`, `createCompilationJob`, CLI | native process/job adapter and its filesystem boundary |
-| `packages/asset-compiler-rust` | Rust `compile(options,progress)` and binary | native glTF import, cluster DAG, culling hierarchy, streaming bundles with shared pinned objects, binary manifest sidecar, SHA-addressed pages, Rayon pool |
+| Boundary                       | Public API                                                                              | Current implementation                                                                                                                                                                                                                        |
+| ------------------------------ | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sdk-core`                     | versioned contracts, jobs/progress/cancellation, image comparison, statistics and paths | pure TypeScript, no DOM/platform/UI imports                                                                                                                                                                                                   |
+| `sdk-browser`                  | `createExplorer`, `runCameraPath`, backend factories                                    | Three.js WebGL adapter; WebGPU page cache plus optional page raster (`webgpu-page-raster`) with GPU frustum + `lodScore` compute, visibility buffer, source-material second pass and this-frame GPU Hi-Z; DOM, loading and controls live here |
+| `page-codec`                   | `encodeGeometryPage(indices,attributes)`                                                | reference geometry-page encoder; exists so the browser decoder is tested against a second implementation, not a production path                                                                                                               |
+| `sdk-node`                     | `prepare`, `createCompilationJob`, CLI                                                  | native process/job adapter and its filesystem boundary                                                                                                                                                                                        |
+| `packages/asset-compiler-rust` | Rust `compile(options,progress)` and binary                                             | native glTF import, cluster DAG, culling hierarchy, streaming bundles with shared pinned objects, binary manifest sidecar, SHA-addressed pages, Rayon pool                                                                                    |
 
 ## Current native implementation
 
@@ -38,7 +38,7 @@ Performance regression budgets require repeated runs on a stable runner and vari
 
 ## Electron / external hosts
 
-The main process can call `sdk-node.prepare(sourceDirectory,cacheDirectory,'full',150000,{executable,resourceBaseUrl,threads,ramBudgetMb,simplification,signal,onProgress})`. Both directories, the source resource URL and executable are host configuration. Serve outputs and original texture resources through a host-owned URL/protocol, then pass the compiler-specific `manifestUrl` to the browser adapter. The renderer process owns the canvas and controller lifecycle. Forward progress through host-owned IPC; do not import Electron into a core package. No AI Desktop Studio code was modified.
+The main process imports `prepare` from `web-geometry` and calls `prepare(sourceDirectory,cacheDirectory,'full',150000,{executable,resourceBaseUrl,threads,ramBudgetMb,simplification,signal,onProgress})`. Both directories, the source resource URL and executable are host configuration. Serve outputs and original texture resources through a host-owned URL/protocol, then pass the compiler-specific `manifestUrl` to the browser adapter. The renderer process owns the canvas and controller lifecycle. Forward progress through host-owned IPC; do not import Electron into a core package. No AI Desktop Studio code was modified.
 
 ## SDK public contract
 
