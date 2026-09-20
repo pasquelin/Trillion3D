@@ -105,3 +105,17 @@ export function uploadSceneLights(device: GPUDevice, lights: WebgpuLightState) {
   device.queue.writeBuffer(buffer, 0, store.packed);
   return true;
 }
+
+/**
+ * Closes the frame's shadow work. A pass that could not be encoded drew nothing: its pages are
+ * counted as none, for the frame and for the GPU timer that will number it. What was drawn joins
+ * the cumulative total a host reads across frames and settle drains.
+ */
+export function noteShadowFrame(lights: WebgpuLightState, pagesSlot: number, encoded: boolean) {
+  if (!encoded) {
+    lights.shadowPages = 0;
+    lights.shadowRegions = 0;
+    lights.pagesByFrame[pagesSlot] = 0;
+  }
+  lights.shadowPagesTotal += lights.shadowPages;
+}
