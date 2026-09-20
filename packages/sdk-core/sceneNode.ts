@@ -43,7 +43,7 @@ export class SceneNode {
 
   set visible(value: boolean) {
     this.assertAlive();
-    this.visibleState = sceneNodeVisibility(value);
+    this.visibleState = sceneNodeVisibility(value, false);
   }
 
   /** Parent in the scene, or null while detached. */
