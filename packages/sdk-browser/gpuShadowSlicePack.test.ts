@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { RECTS_PER_SLICE, SHADOW_SLICE_FLOATS } from '../sdk-core/index.ts';
+import { RECTS_PER_SLICE, SHADOW_FACE_FLOATS, SHADOW_SLICE_FLOATS } from '../sdk-core/index.ts';
 import { createShadowSlicePack, wrapKey } from './gpuShadowSlicePack.ts';
 
 const STRIDE = 256;
@@ -50,5 +50,5 @@ test('a face with no atlas rectangle stays "never drawn" whatever its wrap', () 
     0,
     wrapKey(7, 7),
   );
-  assert.equal(pack.slicePacked[SHADOW_SLICE_FLOATS + 2 * 20 + 19], 0);
+  assert.equal(pack.slicePacked[SHADOW_SLICE_FLOATS + 2 * SHADOW_FACE_FLOATS + 19], 0);
 });

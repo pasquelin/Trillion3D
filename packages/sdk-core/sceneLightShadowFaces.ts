@@ -22,8 +22,14 @@ export const POINT_FACE_AXES: ReadonlyArray<readonly [number, number, number]> =
   [0, 0, 1],
   [0, 0, -1],
 ];
-/** Floats of a face in the slice buffer: the matrix then the atlas rectangle. */
-export const SHADOW_FACE_FLOATS = 20;
+/**
+ * Floats of a face in the slice buffer: the matrix, the atlas rectangle, then the four words
+ * of its drawn-page mask — one bit per physical page, rows of eight, the third and fourth words
+ * spare. A window page that entered but is not yet drawn still holds what the far side left
+ * there: the read must know it and fall back to the next cascade, never sample it.
+ */
+export const SHADOW_FACE_FLOATS = 24;
+export const SHADOW_FACE_MASK_WORD = 20;
 /** Floats of a slice: six faces plus a header `vec4f` (faces, kind, side, pad). */
 export const SHADOW_SLICE_FLOATS = POINT_FACES * SHADOW_FACE_FLOATS + 4;
 
