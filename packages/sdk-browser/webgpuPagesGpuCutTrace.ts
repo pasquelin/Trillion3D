@@ -10,7 +10,9 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
   const submitMs = m.cpuEnd - m.encodeStart;
   timing.lastSubmitMs = submitMs;
   const steps = timing.cpuProfile.row;
-  steps[CPU_STEP.worldMs] = m.blendStart - m.preStart;
+  steps[CPU_STEP.gateMs] = m.gateEnd - m.preStart;
+  steps[CPU_STEP.tilesPumpMs] = m.tilesEnd - m.gateEnd;
+  steps[CPU_STEP.worldMs] = m.blendStart - m.tilesEnd;
   steps[CPU_STEP.blendWorldMs] = m.cpuStart - m.blendStart;
   steps[CPU_STEP.lightsMs] = m.lightsEnd - m.cpuStart;
   steps[CPU_STEP.adoptCutMs] = m.adoptEnd - m.lightsEnd;
