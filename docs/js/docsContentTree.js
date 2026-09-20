@@ -144,7 +144,7 @@ export const BATCHES = [
     title: 'The batch API for hosts',
     issue: 80,
     signature:
-      'frustumExcludesBoxBatch · invertMatrix4Batch · normalMatrix3Batch · composeMatrix4Batch · decomposeMatrix4Batch\ntransformPointsBatch · transformPointsByMatricesBatch · transformDirectionsBatch\nboxUnionBatch · boxTransformUnionBatch · sphereFromBoundsBatch\nsrgbToLinearBatch · linearToSrgbBatch · nodeWorldFramesBatch',
+      'frustumKeepsBoxBatch · invertMatrix4Batch · normalMatrix3Batch · composeMatrix4Batch · decomposeMatrix4Batch\ntransformPointsBatch · transformPointsByMatricesBatch · transformDirectionsBatch\nboxUnionBatch · boxTransformUnionBatch · sphereFromBoundsBatch\nsrgbToLinearBatch · linearToSrgbBatch · nodeWorldFramesBatch',
     description:
       'The batches a host asks for — `n` elements, one call, flat typed arrays, zero allocation — are the work of issue #80, and the three above are the foundation they extend. The order is fixed: the CPU shares of the per-element loops are measured first, and **a batch is only implemented if its loop\'s share is measured**; a loop below the run-to-run spread is recorded as "not worth a batch" and left alone. A WebAssembly kernel follows for every batch whose JS path measures above 0.1 ms per frame, JS staying the reference and the fallback. `hierarchySubtreeUpdate`, the targeted subtree update, is issue #60.',
   },
