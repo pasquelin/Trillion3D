@@ -104,3 +104,21 @@ test('unsettled work has a published finite bound and a new input resumes it', a
   assert.equal(run.renders, 121);
   run.dispose();
 });
+
+test('a stale idle answer cannot strand work submitted by a newer camera input', async () => {
+  let finish!: (value: boolean) => void;
+  const run = fixture(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  run.invalidate();
+  await run.frame();
+  run.invalidate();
+  await run.frame();
+  finish(false);
+  await Promise.resolve();
+  assert.equal(run.frames.size, 1, 'the newer frame still needs its feedback drained');
+  run.dispose();
+});

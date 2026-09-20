@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { EngineError } from '../sdk-core/index.ts';
+import { directWebgpu } from './explorerInteractiveOptions.ts';
 import { detectCapabilities } from './capabilities.ts';
 import { mathBatchMetrics, prepareMathBatch } from './mathBatchState.ts';
 import { pageDecodeTransport } from './pageDecodeShared.ts';
@@ -122,18 +122,7 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
       scope,
     }); /* WebGPU stays optional; the WebGL2 backends remain the default path. */
   }
-  if (
-    options.interactive &&
-    options.backends?.length === 1 &&
-    options.backends[0] === webgpuPagesBackend &&
-    !gpuDevice
-  )
-    throw new EngineError(
-      'WEBGPU_UNAVAILABLE',
-      'Interactive startup requires WebGPU; choose an explicit backend for another capability set',
-    );
-  const directGpu =
-    !!gpuDevice && options.backends?.length === 1 && options.backends[0] === webgpuPagesBackend;
+  const directGpu = directWebgpu(options, gpuDevice);
   if (!directGpu) {
     const surface = prepareExplorerWebglSurface({
       canvas,

@@ -10,7 +10,8 @@ export function createExplorerFrameScheduler(inputs: {
   let frame: number | undefined,
     disposed = false,
     waiting = false,
-    rounds = 0;
+    rounds = 0,
+    revision = 0;
   const schedule = () => {
     if (disposed || frame !== undefined) return;
     if (rounds >= 120) {
@@ -27,9 +28,10 @@ export function createExplorerFrameScheduler(inputs: {
   const drain = () => {
     if (waiting || disposed) return;
     waiting = true;
+    const submitted = revision;
     void inputs.pending().then((again) => {
       waiting = false;
-      if (again) schedule();
+      if (again || submitted !== revision) schedule();
     }, fail);
   };
   function draw() {
@@ -37,6 +39,7 @@ export function createExplorerFrameScheduler(inputs: {
     if (disposed) return;
     try {
       rounds++;
+      revision++;
       inputs.render();
       drain();
     } catch (error) {
