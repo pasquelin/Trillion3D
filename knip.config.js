@@ -45,7 +45,7 @@ export default {
   },
   // Rust and the image utility are platform tools; DaisyUI is loaded by Tailwind.
   ignoreDependencies: ['daisyui'],
-  ignoreBinaries: ['rustc', 'sips'],
+  ignoreBinaries: ['rustc'],
   // These specifiers are harness server URLs resolved by the browser, not local Node modules.
   ignoreUnresolved: ['/mesure/poses.mjs', '/__wg-fixture/drawRun.mjs'],
 };

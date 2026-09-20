@@ -186,10 +186,10 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
  */
 async function runInPage(page, payload) {
   try {
-    return await page.evaluate(
-      async (o) => (await import(`${o.modulesUrl}${o.page}`)).measureView(o),
-      payload,
-    );
+    return await page.evaluate(async (o) => {
+      const result = await (await import(`${o.modulesUrl}${o.page}`)).measureView(o);
+      return { ...result, size: { ...result.size, dpr: devicePixelRatio } };
+    }, payload);
   } catch (error) {
     const incidents = await page.evaluate(() => globalThis.incidentsGpu ?? []).catch(() => []);
     if (!incidents.length) throw error;

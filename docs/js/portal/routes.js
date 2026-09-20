@@ -1,5 +1,12 @@
+function decodeId(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
 export const DEFAULT_ROUTE = Object.freeze({ locale: 'en', area: 'learn', id: 'home' });
-const AREAS = new Set(['learn', 'examples', 'playground', 'api']);
+const AREAS = new Set(['learn', 'examples', 'playground', 'api', 'reports']);
 const LEGACY_SECTIONS = new Set([
   'guides',
   'demo',
@@ -20,7 +27,11 @@ export function parseRoute(hash, fallbackLocale = 'en') {
   if (parts[0] === 'en' || parts[0] === 'fr') {
     const locale = parts[0];
     const area = AREAS.has(parts[1]) ? parts[1] : 'learn';
-    return { locale, area, id: parts.slice(2).join('/') || (area === 'learn' ? 'home' : '') };
+    return {
+      locale,
+      area,
+      id: decodeId(parts.slice(2).join('/')) || (area === 'learn' ? 'home' : ''),
+    };
   }
   if (parts[0] === 'examples')
     return { locale: fallbackLocale, area: 'examples', id: parts[1] || '' };
@@ -49,6 +60,7 @@ export function entryRoute(entry, locale) {
 }
 
 export function resolvePage(route, entries, exampleIds = []) {
+  if (route.area === 'reports') return { kind: 'report' };
   const entry = entries.find((candidate) => candidate.id === route.id);
   const isExample = exampleIds.includes(route.id);
   if (route.area === 'learn' && route.id === 'home') return { kind: 'home' };
