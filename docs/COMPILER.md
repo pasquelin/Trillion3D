@@ -153,7 +153,14 @@ The key names the product entirely, so a folder already under it holds the bytes
 
 The first failed check stops the proof: the `reuse` event names the reason (`completed: 0`), the job compiles as if the folder were absent and overwrites it whole. A proven folder yields `reused` on the pointer and a `reuse` event with `completed: 1`; the manifest on disk is not rewritten, so its `metrics` still describe the compile that produced it, and the cutout answer sheet is not rewritten either — it already holds what that compile measured and what was answered since (an answer that changes the product changes the key, and compiles). The `files` record is written by every compile, so a folder written by a compiler without it is never reused: its key differs anyway, since the compiler's own sources enter the key.
 
-The cost of a reuse is the identity (routing, loading, hashing the source binary and the linked images) plus the proof (hashing every product and object). Emerald (10 M triangles, 83 303 objects, 388 MB; 200 MB of products) and Whisperwind (172 M triangles, 229 013 objects, 737 MB; 285 MB of products) measured on 2026-09-21, 8 threads, `full 150000`, `qem-endpoints`, same machine and same caches, warm recompile of an unchanged source: see the pull request of #47 for the raw runs and their spread.
+The cost of a reuse is the identity (routing, loading, hashing the source binary and the linked images) plus the proof (hashing every product and object). Measured on 2026-09-21, 8 threads, `full 150000`, `qem-endpoints`, one machine shared with other work (load average 25–39 on 12 cores, so the spread is wide and each pair below ran back to back), warm recompile of an unchanged source with the previous compiler against a reuse with this one, three pairs each, `wallMs` in seconds:
+
+| Scene                                                                       | Recompile before (s) | Reuse after (s)   | of which proof (s) |
+| --------------------------------------------------------------------------- | -------------------- | ----------------- | ------------------ |
+| Emerald — 10 M triangles, 83 303 objects (388 MB), 200 MB of products       | 9.8 · 13.1 · 12.1    | 5.4 · 5.9 · 7.8   | 2.3 · 2.3 · 2.4    |
+| Whisperwind — 172 M triangles, 229 013 objects (737 MB), 285 MB of products | 15.8 · 24.1 · 14.9   | 11.1 · 15.7 · 9.4 | 7.0 · 8.9 · 5.9    |
+
+Every reuse is under the recompile it was paired with; the proof is most of a reuse on Whisperwind, whose 229 013 small objects cost their opening more than their hashing. The compile path pays the `files` record — one hash of each product it just wrote — once per compile; on these two scenes that is 200–285 MB hashed, under the run-to-run spread above.
 
 ## Measurements
 
