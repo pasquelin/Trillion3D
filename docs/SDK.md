@@ -54,6 +54,13 @@ Install the SDK's browser type dependencies in the host project: `three` is a pe
 uses `"module": "NodeNext"`, `"moduleResolution": "NodeNext"` and `"types": ["node"]`; NodeNext
 then selects the Node declarations from the same `web-geometry` specifier.
 
+The browser runtime is not a zero-configuration single-file bundle. Configure the bundler with the
+public `web-geometry` import as the application entry, the installed decode and integration worker
+files as separate module-worker entries, and code splitting enabled. Copy the installed
+`pageCodec.wasm` beside every emitted chunk that retains its relative URL. Serve only that output
+directory together with the compiled scene cache. `pnpm run proof:package -- --browser` is the
+repository's executable esbuild configuration and verifies both worker tasks and WASM selection.
+
 `replicateInstances` is a helper that instances the source 1, 4 or 9 times while sharing geometry and materials.
 
 ## CLI
@@ -63,6 +70,12 @@ web-geometry-compile SOURCE CACHE [slice|full] [triangle-budget] RESOURCE_BASE_U
 ```
 
 `SOURCE` is a directory with `manifest.json`, a directory with exactly one `.gltf`/`.glb`, a `.gltf`/`.glb` file, a `.fbx`/`.obj` file, or a directory of `.fbx`/`.obj` files (merged into one scene). `WEB_GEOMETRY_COMPILER_BIN` (or `PrepareOptions.executable`) selects the native executable.
+
+Compiler selection uses `PrepareOptions.executable` first, then `WEB_GEOMETRY_COMPILER_BIN`, then
+the package-relative development build. The packed artifact contains neither that native executable
+nor the Rust sources needed to build it, so an installed tarball requires one of the first two
+explicit selections. The installed-package proof supplies a repository-built executable and does
+not claim that the tarball ships it.
 
 ### Native executable
 
@@ -91,7 +104,7 @@ FBX/OBJ sources are first imported into `<cache>/native/imports/<key>/` as `mode
 
 ## Scene hierarchy foundation
 
-`@web-geometry/sdk-core` publishes scene-model version `SCENE_MODEL_VERSION` 1. A
+`web-geometry` publishes scene-model version `SCENE_MODEL_VERSION` 1. A
 `SceneRoot` owns one transform hierarchy; nodes created by `root.createNode({ id, visible })`
 have stable, root-unique identifiers and can be attached with `add` or `reparent`. `remove` and
 `clear` detach live nodes, while `destroy` permanently invalidates a whole subtree. `clone` gives
@@ -101,7 +114,7 @@ Recursive copying from an ancestor into its descendant is rejected with
 `SCENE_COPY_OVERLAP` before either node changes; non-recursive copying remains allowed.
 
 ```javascript
-import { createSceneRoot } from '@web-geometry/sdk-core';
+import { createSceneRoot } from 'web-geometry';
 
 const scene = createSceneRoot({ id: 'warehouse' });
 const shelf = scene.createNode({ id: 'shelf' }).setPosition(2, 0, -4);
