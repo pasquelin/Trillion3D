@@ -1,3 +1,4 @@
+import { canonicalizeFossilCache } from './docs/fossil-excavation/canonical.mjs';
 import { rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -29,3 +30,5 @@ const result = spawnSync(
 if (result.error) throw result.error;
 if (result.status !== 0) throw new Error('Fossil excavation compilation failed');
 await rm(resolve(directory, 'cache/native/.lock'), { force: true });
+
+await canonicalizeFossilCache(resolve(directory, 'cache'));

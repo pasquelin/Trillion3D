@@ -36,5 +36,5 @@ export async function writeFossilExcavation(directory, groups) {
     );
   }
   await writeFile(`${directory}/excavation.obj`, `${obj.join('\n')}\n`);
-  await writeFile(`${directory}/excavation.mtl`, `${mtl.join('\n')}\n`);
+  await writeFile(`${directory}/excavation.mtl`, `${mtl.join('\n').trimEnd()}\n`);
 }
