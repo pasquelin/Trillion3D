@@ -165,7 +165,7 @@ export class WebglClusterRenderer {
       }
       const model = mesh.matrix.elements;
       multiplyMatrix4(this.modelView, camera.view, model);
-      this.state.applyWinding(this.modelView);
+      this.state.applyWinding(model);
       gl.uniformMatrix4fv(this.at('modelViewMatrix'), false, this.modelView);
       normalMatrix3(this.normal, this.modelView);
       setMatrix3(gl, this.at('normalMatrix'), this.normal);

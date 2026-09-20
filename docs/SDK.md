@@ -376,8 +376,13 @@ On the 1 px Emerald street path at 1280×720 and DPR 1, with one 40-intensity po
 off, 20 warm-up frames and 60 moving-camera frames, the final candidate measured median CPU frame
 submission-burst CPU readings were 5.6/5.6/5.6 ms against 5.6/5.5/5.7 ms for the temporary adapter.
 They led to the texture and bounded-light reductions described above, but are not a frame-performance
-verdict because that old loop did not yield to the browser. The final campaign uses one moving render
-per `requestAnimationFrame`; its interval and dispersion are reported separately below once measured.
+verdict because that old loop did not yield to the browser. At candidate `565dc4b0` versus integrated
+base `48c90c4e`, the corrected 60-frame moving loop measured rAF p50/p95 intervals of
+16.7/16.8, 16.7/33.2 and 16.7/16.8 ms, versus 16.7/83.4, 16.7/83.4 and 16.7/83.3 ms. The headless
+display cap was 60 Hz. Synchronous CPU submission p50 was 5.0/5.1/5.0 ms versus 4.8/4.9/4.9 ms;
+it is reported separately and never added to the frame interval. Every repeat kept the same cut and
+had zero A/A pixels. This establishes better whole-frame cadence for this path, not a general speed
+claim; GPU timestamps remained unavailable.
 
 **Memory budgets are fixed reservoirs, as in the reference, never read from the machine.** Free memory changes every second — another application, another tab —, so a budget measured at start-up would be wrong five minutes later. The WebGPU engine keeps two byte-sized pools, both host-set and both defaulting to 512 MiB like `r.Nanite.Streaming.StreamingPoolSize`: `geometryPoolBytes` (cluster page slots: `floor(bytes / pageBytes)` slots, the root cover always resident) and `texturePoolBytes` (virtual-texture tiles, split between the colour and data atlases in 63.5 MiB layers, every texture's tail always resident). What a view asks beyond a pool is shown coarser — the cut raises its screen error until the cover fits (`coverageBudgetLimited`), a tile shows its coarser level — and nothing is refused, nothing stops. A value that cannot be held as given is brought to what can be and the reason is published: `geometryPoolClamp` / `texturePoolClamp` read `root-cover` (raised to the root cover), `scene` (the scene is smaller), `page-cap` (`maxResidentPages`, the page-count cap tests and benches use), `minimum` (one layer per atlas), `device-limit`, `ceiling`, or `null`. `geometryPoolSaturated` counts the pages the image holds — root cover, cut and drawn ancestors — beyond the pool's slots; zero is normal, a lasting count says the pool is too small for that view, and the cut coarsens until it fits. The only true refusal is `GEOMETRY_POOL_DEVICE_LIMIT`: the device cannot hold even the root cover.
 
