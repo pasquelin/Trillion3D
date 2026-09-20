@@ -21,7 +21,7 @@ test('every integrated renderer lesson emits complete parseable host code', () =
     assert.match(code, /pixelRatio: window\.devicePixelRatio/);
     assert.match(code, /new ResizeObserver/);
     assert.match(code, /await explorer.awaitPages\(\)/);
-    assert.match(code, /interactive: true/);
+    assert.match(code, /interactive: false/);
     assert.match(code, /explorer\.dispose\(\)/);
     assert.ok(code.indexOf('await explorer.awaitPages()') < code.indexOf('explorer.render()'));
     assert.ok(code.includes(lesson.manifest), `${lesson.id} uses its displayed manifest`);
@@ -76,7 +76,7 @@ test('the LOD lesson uses a compiled multi-level cache', async () => {
     "manifestUrl: './assets/gallery/signature-architecture/cache/native/full/manifest.json'",
     'backends: [webgpuPagesBackend]',
     'importedLights: true',
-    'interactive: true',
+    'interactive: false',
     'pixelRatio: window.devicePixelRatio',
     'pixelError: 0',
     'position: [19,13,22]',
