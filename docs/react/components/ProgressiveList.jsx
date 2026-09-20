@@ -13,6 +13,15 @@ function progressiveRange(direction, range, pageCount, maxPages) {
   return { start: Math.max(0, end - maxPages + 1), end };
 }
 
+function rangeForScroll(scrollY, rootTop, heights, pageCount, maxPages) {
+  const known = Object.values(heights).filter((height) => height > 0);
+  if (!known.length) return null;
+  const average = known.reduce((sum, height) => sum + height, 0) / known.length;
+  const page = clamp(Math.floor(Math.max(0, scrollY - rootTop) / average), 0, pageCount - 1);
+  const start = clamp(page - 1, 0, Math.max(0, pageCount - maxPages));
+  return { start, end: Math.min(pageCount - 1, start + maxPages - 1) };
+}
+
 export function ProgressiveList({
   items,
   renderItem,
@@ -30,6 +39,7 @@ export function ProgressiveList({
   const [heights, setHeights] = useState(() => initialState?.heights ?? {});
   const [loading, setLoading] = useState(false);
   const root = useRef(null);
+  const lastScrollY = useRef(typeof window === 'undefined' ? 0 : window.scrollY);
   const pages = useMemo(
     () => Array.from({ length: range.end - range.start + 1 }, (_, index) => range.start + index),
     [range],
@@ -50,6 +60,38 @@ export function ProgressiveList({
 
   useEffect(() => onStateChange?.({ ...range, heights }), [heights, onStateChange, range]);
 
+  useEffect(() => {
+    let frame;
+    const recover = () => {
+      frame = undefined;
+      const node = root.current;
+      if (!node) return;
+      const jump = Math.abs(window.scrollY - lastScrollY.current);
+      lastScrollY.current = window.scrollY;
+      const atEnd =
+        window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
+      const known = Object.values(heights);
+      const average = known.reduce((sum, height) => sum + height, 0) / Math.max(1, known.length);
+      const next =
+        atEnd && jump > average * 4
+          ? { start: Math.max(0, pageCount - maxBatches), end: pageCount - 1 }
+          : rangeForScroll(
+              window.scrollY,
+              node.getBoundingClientRect().top + window.scrollY,
+              heights,
+              pageCount,
+              maxBatches,
+            );
+      if (next && (next.end < range.start || next.start > range.end)) setRange(next);
+    };
+    const onScroll = () => (frame ??= requestAnimationFrame(recover));
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [heights, maxBatches, pageCount, range]);
+
   const move = (direction) => {
     if (loading) return;
     setLoading(true);
@@ -67,14 +109,17 @@ export function ProgressiveList({
     observer.observe(node);
     return () => observer.disconnect();
   };
-  const topHeight = Array.from({ length: range.start }, (_, page) => heights[page] ?? 0).reduce(
-    (total, height) => total + height,
-    0,
-  );
-  const bottomHeight = Object.entries(heights).reduce(
-    (total, [page, height]) => total + (Number(page) > range.end ? height : 0),
-    0,
-  );
+  const averageHeight =
+    Object.values(heights).reduce((sum, height) => sum + height, 0) /
+    Math.max(1, Object.keys(heights).length);
+  const topHeight = Array.from(
+    { length: range.start },
+    (_, page) => heights[page] ?? averageHeight,
+  ).reduce((total, height) => total + height, 0);
+  const bottomHeight = Array.from(
+    { length: pageCount - range.end - 1 },
+    (_, offset) => heights[range.end + offset + 1] ?? averageHeight,
+  ).reduce((total, height) => total + height, 0);
   const mountedItems = pages.reduce(
     (total, page) => total + items.slice(page * batchSize, (page + 1) * batchSize).length,
     0,
@@ -106,7 +151,6 @@ export function ProgressiveList({
           <Loading label={labels.loading} />
         </div>
       )}
-      <div style={{ height: bottomHeight }} aria-hidden="true" />
       {!loading && range.end < pageCount - 1 && (
         <button
           ref={(node) => observe(node, 'forward')}
@@ -121,6 +165,7 @@ export function ProgressiveList({
           {labels.end}
         </p>
       )}
+      <div style={{ height: bottomHeight }} aria-hidden="true" />
     </div>
   );
 }
