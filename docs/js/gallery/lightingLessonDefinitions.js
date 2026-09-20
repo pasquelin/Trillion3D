@@ -2,6 +2,7 @@ const text = (en, fr) => ({ en, fr });
 const range = (id, en, fr, min, max, value, step) => ({
   id,
   label: text(en, fr),
+  type: min === 0 && max === 1 && step === 1 ? 'boolean' : 'range',
   min,
   max,
   value,
@@ -64,10 +65,21 @@ export const lightingLessonDefinitions = [
       'Comparez le même éclairage avec et sans ombres portées.',
     ),
     controls: [range('shadow', 'Cast shadow', 'Projeter une ombre', 0, 1, 1, 1)],
-    try: text('Switch between zero and one.', 'Passez de zéro à un.'),
+    referenceReview: {
+      urls: ['https://threejs.org/examples/webgl_shadowmap.html'],
+      observed:
+        'Large animated actors cross a bright stage and cast long moving shadows across the set.',
+      originalGoal:
+        'An original miniature theatre keeps its lamp and materials visible while suspended paper actors either cast silhouettes or let the projection wall remain clear.',
+    },
+    initialPose: { position: [0, 5.5, 14], target: [0, 4, -1] },
+    try: text(
+      'Keep the lamp on and compare the projection wall with and without the actors’ silhouettes.',
+      'Gardez la lampe allumée et comparez la paroi avec et sans les silhouettes des acteurs.',
+    ),
     changes: text(
-      'Only shadow casting changes; direct radiance remains.',
-      'Seule l’ombre change ; la radiance directe reste identique.',
+      'Only the cast silhouettes disappear; direct illumination and the theatre remain visible.',
+      'Seules les silhouettes projetées disparaissent ; l’éclairage direct et le théâtre restent visibles.',
     ),
     kind: 'shadow-switch',
   },
