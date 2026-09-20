@@ -6,6 +6,7 @@ import { buildBlendStatics, refreshBlendPlan } from './webgpuBlendPlan.ts';
 import { orderBlendPasses } from './webgpuBlendOrder.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import type { WebgpuGpuState } from './webgpuPagesStateGpu.ts';
+import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** What the water-pass tests share: a scene of three transparent copies, one of which transmits,
  *  prepared and planned as `prepareBlendResources` does, and the frame targets of a replay. */
@@ -105,4 +106,68 @@ export function targets(gpu: WebgpuGpuState) {
       ),
     },
   });
+}
+
+/**
+ * A frame to replay the transparent passes into: a runtime whose bind groups are already built
+ * on the placeholders — the tests observe draw order, not group construction —, and a recording
+ * encoder that keeps each pass's label and the items it set, and counts the texture copies.
+ */
+export function replay(blendState: ReturnType<typeof prepared>['blendState'], gpu: WebgpuGpuState) {
+  const passes: { label: string; drawn: number[] }[] = [];
+  const items = blendState.blendGpu;
+  for (const item of items) item.group = {} as GPUBindGroup;
+  const counters = { copies: 0 };
+  const encoder = {
+    beginRenderPass: ({ label }: { label: string }) => {
+      const drawn: number[] = [];
+      passes.push({ label, drawn });
+      return {
+        setViewport() {},
+        setBindGroup(_slot: number, group: GPUBindGroup) {
+          drawn.push(items.findIndex((item) => item.group === group));
+        },
+        setPipeline() {},
+        drawIndirect() {},
+        end() {},
+      };
+    },
+    copyTextureToTexture: () => counters.copies++,
+  } as unknown as GPUCommandEncoder;
+  const rt = {
+    vis: {
+      visEnabled: true,
+      pipelineBlendFront: {},
+      pipelineBlendBack: {},
+      pipelineBlendTextured: {},
+    },
+    gpu,
+    lights: { buffer: {}, shadows: undefined, store: { count: 0, unlit: false } },
+    bounce: { probes: undefined },
+    // `lit` view with no light: the contract lights, so the pass binds its resources by default.
+    sunFar: { gpu: undefined },
+    blendState,
+    run: {
+      gpuDrawCalls: 0,
+      blendDrawCalls: 0,
+      blendUnpagedTriangles: 0,
+      blendPagedTriangles: 0,
+      blendSubmittedTriangles: 0,
+      feedbackWritten: true,
+    },
+  } as unknown as WebgpuPagesRuntime;
+  const p = gpu.deferred!.placeholders;
+  blendState.lighting = {
+    directLights: rt.lights.buffer!,
+    shadowSlices: p.slices,
+    shadowAtlas: p.atlasView,
+    shadowSampler: p.sampler,
+    bounceGrid: p.bounceGrid,
+    probes: p.probes,
+    tileLights: p.tiles,
+    proxy: p.proxy,
+  };
+  // No paged item here, and the shared group is posted ahead for the same reason.
+  blendState.pagedGroup = {} as GPUBindGroup;
+  return { rt, encoder, passes, counters };
 }
