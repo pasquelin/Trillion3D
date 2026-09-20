@@ -130,6 +130,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
     release,
     disposeGeometry,
     scene,
+    gate,
     get diagnostic() {
       return diagnostic;
     },

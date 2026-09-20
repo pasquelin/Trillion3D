@@ -165,6 +165,15 @@ root cover; visible detail and temporal antialiasing refine progressively. No `c
 those same controls. After programmatic edits to the camera, scene or lights, call
 `explorer.invalidate()`. In manual mode, that method renders immediately.
 
+A value written directly on a source node — `mesh.position.x = 100`, `mesh.visible = false`, a
+light's intensity, colour or pose — needs no call to be seen by the next frame: the fields the
+host may write are hooked on the drawn nodes, the lights and their ancestors, and the write
+itself increments the scene revision. A frame compares one integer, so a still scene rereads
+no node, whatever their number. Two rules come from Three itself: a matrix set by hand
+(`matrixAutoUpdate = false`) is announced by `matrixWorldNeedsUpdate = true`, which
+`updateMatrix()` writes; a light added to or removed from the graph changes its shape, and is
+announced by `refreshSceneLighting()`.
+
 Set a CSS width **and** height independently of the canvas drawing-buffer attributes, as
 above. Omitted `width`/`height` follow that CSS box; omitted `pixelRatio` follows the browser,
 including later DPR changes. Explicit values override each automatic dimension independently.
