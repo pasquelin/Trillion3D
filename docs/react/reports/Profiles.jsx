@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Collapse } from '../components/Collapse.jsx';
 import { Tabs } from '../components/Tabs.jsx';
-import { Alert } from '../components/UI.jsx';
+import { Alert, Select } from '../components/UI.jsx';
 import { formatValue, metricValue } from '../../js/reports/metrics.js';
 import { viewName } from '../../js/reports/names.js';
 import { Section } from '../components/Section.jsx';
@@ -10,7 +10,7 @@ import { BarChart } from '../components/BarChart.jsx';
 import { Details } from './Details.jsx';
 import { Conditions } from './Conditions.jsx';
 import { Diagnostics } from './Diagnostics.jsx';
-function ProfileReading({ record: r, report, locale }) {
+function ProfileReading({ record: r, report, locale, filters }) {
   const [clock, setClock] = useState('cpu');
   const fr = locale === 'fr';
   const charts = [
@@ -44,6 +44,7 @@ function ProfileReading({ record: r, report, locale }) {
       </p>
       <Tabs
         sticky
+        accessory={filters}
         label={fr ? 'Travail mesuré' : 'Measured work'}
         value={clock}
         onChange={setClock}
@@ -124,31 +125,48 @@ function ProfileReading({ record: r, report, locale }) {
 function SceneProfiles({ records, report, locale }) {
   const [view, setView] = useState('sol'),
     [quality, setQuality] = useState('1');
+  const views = [...new Set(records.map((r) => r.view))];
+  const selectedView = views.includes(view) ? view : views[0];
+  const readings = records.filter((r) => r.view === selectedView);
+  const active = readings.find((r) => String(r.quality) === quality) ?? readings[0];
+  if (!active) return null;
   return (
-    <Tabs
-      sticky
-      label={locale === 'fr' ? 'Point de vue' : 'Viewpoint'}
-      value={view}
-      onChange={setView}
-      items={[...new Set(records.map((r) => r.view))].map((id) => ({
-        id,
-        label: viewName(id, locale),
-        render: () => (
-          <Tabs
-            sticky
-            label={locale === 'fr' ? 'Niveau de détail' : 'Detail level'}
-            value={quality}
-            onChange={setQuality}
-            items={records
-              .filter((r) => r.view === id)
-              .map((r) => ({
-                id: String(r.quality),
-                label: `${r.quality} px`,
-                render: () => <ProfileReading key={r.id} record={r} {...{ report, locale }} />,
-              }))}
-          />
-        ),
-      }))}
+    <ProfileReading
+      key={active.id}
+      record={active}
+      {...{ report, locale }}
+      filters={
+        <div className="flex items-center gap-3">
+          <div className="w-40">
+            <Select
+              size="sm"
+              aria-label={locale === 'fr' ? 'Point de vue' : 'Viewpoint'}
+              value={selectedView}
+              onChange={(event) => setView(event.target.value)}
+            >
+              {views.map((id) => (
+                <option key={id} value={id}>
+                  {viewName(id, locale)}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="w-24">
+            <Select
+              size="sm"
+              aria-label={locale === 'fr' ? 'Détail' : 'Detail'}
+              value={String(active.quality)}
+              onChange={(event) => setQuality(event.target.value)}
+            >
+              {readings.map((r) => (
+                <option key={r.id} value={String(r.quality)}>
+                  {r.quality} px
+                </option>
+              ))}
+            </Select>
+          </div>
+        </div>
+      }
     />
   );
 }
