@@ -81,28 +81,31 @@ test('disposing rejects overlapping public updates by name', async () => {
   try {
     const page = await browser.newPage({ viewport: { width: 960, height: 640 } });
     await page.goto(`http://127.0.0.1:${address.port}/`);
-    const names = await page.evaluate(async () => {
-      const [{ createRendererLessonRuntime }, { rendererInitialState, rendererLessonById }] =
-        await Promise.all([
-          import('./js/gallery/rendererLessonRuntime.js'),
-          import('./js/gallery/rendererLessons.js'),
-        ]);
-      const lesson = rendererLessonById('runtime-pixel-error'),
-        state = rendererInitialState(lesson),
-        canvas = document.createElement('canvas');
-      canvas.style.cssText = 'width:800px;height:450px;display:block';
-      document.body.replaceChildren(canvas);
-      const runtime = await createRendererLessonRuntime({
-        canvas,
-        lesson,
-        state,
-        report() {},
-      });
-      const first = runtime.update({ ...state, pixelError: 0 }),
-        second = runtime.update({ ...state, pixelError: 2 });
-      runtime.dispose();
-      return (await Promise.allSettled([first, second])).map((result) => result.reason?.name);
-    });
+    const names = await page.evaluate(
+      async ({ runtimeUrl, lessonsUrl }) => {
+        const [{ createRendererLessonRuntime }, { rendererInitialState, rendererLessonById }] =
+          await Promise.all([import(runtimeUrl), import(lessonsUrl)]);
+        const lesson = rendererLessonById('runtime-pixel-error'),
+          state = rendererInitialState(lesson),
+          canvas = document.createElement('canvas');
+        canvas.style.cssText = 'width:800px;height:450px;display:block';
+        document.body.replaceChildren(canvas);
+        const runtime = await createRendererLessonRuntime({
+          canvas,
+          lesson,
+          state,
+          report() {},
+        });
+        const first = runtime.update({ ...state, pixelError: 0 }),
+          second = runtime.update({ ...state, pixelError: 2 });
+        runtime.dispose();
+        return (await Promise.allSettled([first, second])).map((result) => result.reason?.name);
+      },
+      {
+        runtimeUrl: `http://127.0.0.1:${address.port}/js/gallery/rendererLessonRuntime.js`,
+        lessonsUrl: `http://127.0.0.1:${address.port}/js/gallery/rendererLessons.js`,
+      },
+    );
     assert.deepEqual(names, ['AbortError', 'AbortError']);
   } finally {
     await browser.close();
