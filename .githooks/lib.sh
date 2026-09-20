@@ -2,7 +2,7 @@
 # Shared by the tracked git hooks: every change reaches develop/main through an issue and a
 # pull request, whoever (or whatever) types the command. Installed by `pnpm install`
 # (`git config core.hooksPath .githooks`). Each hook ends by delegating to the hook of the same
-# name that a tool installed in .git/hooks (graphify), so core.hooksPath hides nothing.
+# name installed locally in .git/hooks, so core.hooksPath preserves personal hooks.
 
 refuse() {
   printf 'git hook: %s\n' "$1" >&2
