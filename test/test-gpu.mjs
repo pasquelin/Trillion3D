@@ -28,13 +28,7 @@ export const DOUBLE_PERIME = 'stale duplicate';
  * Render proofs that `pnpm run test:gpu` does not launch, and why. A `REGRESSION` entry is an
  * open debt, not a waiver: it is removed by fixing the engine.
  */
-/** Proofs mounted on the Lab pages: they take its address from `LAB_URL`. */
-const SUR_LE_LAB = 'mounted on the Lab pages (`LAB_URL`)';
-export const BROWSER_ECARTES = new Map([
-  ['beaute-webgpu', [MONTAGE, `${SUR_LE_LAB}; its assets need recompiling`]],
-  ['emeraude-webgpu', [MONTAGE, `${SUR_LE_LAB}; remount on the harness server`]],
-  ['presentation-gpu', [MONTAGE, `${SUR_LE_LAB}; its assets need recompiling`]],
-]);
+export const BROWSER_ECARTES = new Map();
 
 /**
  * Executable probes of `test/justesse/`: those whose name carries a hyphen. The other files in

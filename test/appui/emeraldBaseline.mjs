@@ -19,8 +19,7 @@ export async function routeBaseline(page, out, provenance, baselineDir) {
       .transpileModule(source, {
         compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
       })
-      .outputText.replaceAll(".ts'", ".js'")
-      .replaceAll("from 'three'", "from '/.vite/deps/three.js'");
+      .outputText.replaceAll(".ts'", ".js'");
     await page.route('**/dist/sdk-browser/' + file + '.js*', (route) =>
       route.fulfill({ contentType: 'application/javascript', body: js }),
     );
