@@ -21,7 +21,7 @@ for (const recipe of geometryRecipes) {
       '2',
       '256',
       '../../../../source/',
-      'none',
+      recipe.id === 'terrain' ? 'qem-endpoints' : 'none',
     ],
     { stdio: 'inherit' },
   );
