@@ -33,7 +33,10 @@ test('GPU camera jumps reclaim detail slots while preserving pinned coarse cover
       cam.position.set(x, 0, 5);
       cam.lookAt(x, 0, 0);
       cam.updateMatrixWorld();
-      for (let step = 0; step < 3; step++) {
+      const expected = x ? ['b0', 'b1'] : ['0', '1'];
+      // Selection readback, residency upload and adoption are asynchronous. Stop on the
+      // requested detail cut; the finite cap detects a stalled pipeline, not a frame deadline.
+      for (let step = 0; step < 32; step++) {
         draws.length = 0;
         backend.render(cam);
         assert.ok(
@@ -42,8 +45,11 @@ test('GPU camera jumps reclaim detail slots while preserving pinned coarse cover
         );
         await backend.flush();
         assert.equal(backend.metrics().submittedTriangles, 2);
+        const selected = backend.selectedPageIds().sort();
+        if (selected.length === expected.length && selected.every((id, i) => id === expected[i]))
+          break;
       }
-      assert.deepEqual(backend.selectedPageIds().sort(), x ? ['b0', 'b1'] : ['0', '1']);
+      assert.deepEqual(backend.selectedPageIds().sort(), expected, 'detail cut must converge');
     }
     assert.ok(backend.metrics().cacheEvictions! > 0);
   } finally {
