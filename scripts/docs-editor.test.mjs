@@ -69,3 +69,30 @@ test('SDK resolution handles dynamic imports and re-exported bindings', async ()
   assert.equal(reexport.ok, true);
   assert.equal(JSON.parse(reexport.text).length, 16);
 });
+
+test('default string exports remain values rather than module specifiers', async () => {
+  for (const expression of ["'./js/engine.js'", "('./js/engine.js')", '`./js/engine.js`']) {
+    const code = `export default ${expression};`;
+    assert.equal(resolveSdkImports(code, sdk), code);
+    assert.deepEqual(await execute(code).promise, { ok: true, text: '"./js/engine.js"' });
+  }
+});
+
+test('only source positions in supported import and re-export syntax are rewritten', () => {
+  for (const prefix of [
+    'import',
+    'import value from',
+    'import * as value from',
+    'export * from',
+    'export * as value from',
+    'export { value } from',
+    'import(',
+  ]) {
+    const suffix = prefix === 'import(' ? ')' : ';';
+    const code = `${prefix} /* source */ './js/engine.js'${suffix}`;
+    assert.equal(
+      resolveSdkImports(code, sdk),
+      `${prefix} /* source */ ${JSON.stringify(sdk)}${suffix}`,
+    );
+  }
+});
