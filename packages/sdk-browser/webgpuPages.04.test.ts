@@ -169,7 +169,13 @@ test('the lost promise unpublishes the composed canvas and names WEBGPU_LOST', a
   // The composed presentation needs a canvas of the engine's own: the document hands it out.
   Object.assign(globalThis, { document: { createElement: () => canvas } });
   const events: Array<{ phase: string; context: Record<string, unknown> }> = [];
-  const { fixture, backend } = quadBackend(device, { onDiagnostic: (e) => events.push(e) });
+  const { fixture, backend } = quadBackend(device, {
+    onDiagnostic: (e) => {
+      // Announced after the withdrawal: a host drawing on it already finds no canvas.
+      if (e.phase === 'gpu-device-lost') assert.equal(backend.presentedSurface, undefined);
+      events.push(e);
+    },
+  });
   try {
     await backend.prepare();
     backend.render(camera());
