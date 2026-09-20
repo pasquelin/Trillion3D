@@ -29,7 +29,7 @@ function MoreMenu({ ids, active, locale, onSelect, className }) {
   return (
     <details ref={menu} className={`dropdown ${className}`}>
       <summary
-        className={`tab h-10 list-none [&::-webkit-details-marker]:hidden ${selected ? 'tab-active' : ''}`}
+        className={`tab inline-flex h-10 items-center px-4 list-none [&::-webkit-details-marker]:hidden ${selected ? 'tab-active' : ''}`}
         style={{ listStyle: 'none' }}
         aria-label={selected ? `${label}: ${themeLabel(active, locale)}` : label}
       >
