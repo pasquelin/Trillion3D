@@ -5,6 +5,7 @@ import { DEPTH_COMPARE } from './depthConvention.ts';
 import { openValidation, validationError } from './gpuErrorScope.ts';
 import { SHADE_BINDINGS, atlasLayoutEntries, readOnly } from './webgpuBindLayout.ts';
 import { shadeVariantFragment, visVariantFragment } from './diagnosticGpuGeometry.ts';
+import { MATERIAL_DEPTH_FORMAT, materialClassConstants } from './visibilityMaterialClass.ts';
 import type { DiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
 
 /** Face modes of a layer set, in order: back, none, front, reversed back, reversed front. */
@@ -118,10 +119,16 @@ export function createWebgpuCoplanarLayerPipelines(
   });
 }
 
-/** Builds the material resolve pipeline after shader compilation succeeds. */
-export function createWebgpuShadePipeline(
+/**
+ * Builds the material resolve after shader compilation succeeds: the material-depth export, then
+ * one pipeline per class of the scene, each compiled with the class's overrides and drawn under
+ * the depth test equal to its class depth (`visibilityMaterialClass.ts`). Compiled here, at
+ * preparation: no image pays the first draw of a class.
+ */
+export function createWebgpuShadePipelines(
   device: GPUDevice,
   shadeModule: GPUShaderModule,
+  classes: readonly number[],
   variant?: DiagnosticGpuVariant,
 ) {
   const b = SHADE_BINDINGS;
@@ -144,18 +151,46 @@ export function createWebgpuShadePipeline(
       ...atlasLayoutEntries(b.data),
     ],
   });
-  return scoped(device, () => ({
-    shadeBindGroupLayout,
-    shadePipeline: device.createRenderPipeline({
-      layout: device.createPipelineLayout({ bindGroupLayouts: [shadeBindGroupLayout] }),
-      vertex: { module: shadeModule, entryPoint: 'shade_vs' },
+  const layout = device.createPipelineLayout({ bindGroupLayouts: [shadeBindGroupLayout] });
+  const primitive: GPUPrimitiveState = { topology: 'triangle-list', cullMode: 'none' };
+  const entryPoint = shadeVariantFragment(variant);
+  /** A class pipeline: the class key as override of both stages, whatever the fragment reads. */
+  const shadePipelineFor = (key: number) =>
+    device.createRenderPipeline({
+      layout,
+      vertex: {
+        module: shadeModule,
+        entryPoint: 'shade_vs',
+        constants: materialClassConstants(key),
+      },
       fragment: {
         module: shadeModule,
-        entryPoint: shadeVariantFragment(variant),
+        entryPoint,
+        constants: materialClassConstants(key),
         // The surfaces, then the tile request the image's feedback target receives.
         targets: [...SURFACE_FORMATS, FEEDBACK_FORMAT].map((format) => ({ format })),
       },
-      primitive: { topology: 'triangle-list', cullMode: 'none' },
+      primitive,
+      depthStencil: {
+        format: MATERIAL_DEPTH_FORMAT,
+        depthWriteEnabled: false,
+        depthCompare: 'equal',
+      },
+    });
+  return scoped(device, () => ({
+    shadeBindGroupLayout,
+    materialDepthPipeline: device.createRenderPipeline({
+      layout,
+      vertex: { module: shadeModule, entryPoint: 'shade_vs' },
+      fragment: { module: shadeModule, entryPoint: 'material_depth_fs', targets: [] },
+      primitive,
+      depthStencil: {
+        format: MATERIAL_DEPTH_FORMAT,
+        depthWriteEnabled: true,
+        depthCompare: 'always',
+      },
     }),
+    shadePipelineFor,
+    shadePipelines: new Map(classes.map((key) => [key, shadePipelineFor(key)])),
   }));
 }

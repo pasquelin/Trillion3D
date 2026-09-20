@@ -10,8 +10,8 @@ test('a surface rejects an invalid or off-device size, and nothing else: no byte
   assert.equal(checkSurfaceSize(device, 1024, 1024), 1024 * 1024 * 28, '4K follows resolution');
   assert.equal(
     frameTargetBytes(3, 3, true),
-    9 * 52 + 9 * 4 + (9 + 4 + 1) * 8,
-    'odd Hi-Z levels must reserve ceil dimensions',
+    9 * 56 + 9 * 4 + (9 + 4 + 1) * 8,
+    'material depth counts with the targets; odd Hi-Z levels must reserve ceil dimensions',
   );
 });
 

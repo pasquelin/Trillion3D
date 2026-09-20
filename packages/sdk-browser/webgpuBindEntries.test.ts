@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { createWebgpuVisibilityShaders } from './webgpuVisibilityShaders.ts';
-import { createWebgpuShadePipeline } from './webgpuVisibilityPipelines.ts';
+import { createWebgpuShadePipelines } from './webgpuVisibilityPipelines.ts';
 import { createWebgpuBlendPipelines } from './webgpuBlendPipelines.ts';
 import { ensureWebgpuVisibilityBindings } from './webgpuVisibilityBindings.ts';
 import { ensureWebgpuShadeBindings } from './webgpuShadeBindings.ts';
@@ -78,7 +78,11 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
   const device = recordingDevice(groups);
   const { visBindGroupLayout, visModule } = await createWebgpuVisibilityShaders(device, 8);
   void visModule;
-  const { shadeBindGroupLayout } = await createWebgpuShadePipeline(device, {} as GPUShaderModule);
+  const { shadeBindGroupLayout } = await createWebgpuShadePipelines(
+    device,
+    {} as GPUShaderModule,
+    [],
+  );
   const { blendBindGroupLayout } = await createWebgpuBlendPipelines(device, []);
   const visCount = (visBindGroupLayout as unknown as { entries: unknown[] }).entries.length,
     shadeCount = (shadeBindGroupLayout as unknown as { entries: unknown[] }).entries.length,
