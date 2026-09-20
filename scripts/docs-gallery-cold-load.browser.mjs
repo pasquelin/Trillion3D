@@ -4,7 +4,7 @@ import test from 'node:test';
 import { launchChrome } from './mesure/chrome.mjs';
 import { createDocsServer } from './docs-serve.mjs';
 
-test('a cold observatory load settles without user input', async () => {
+async function openDocsBrowser() {
   const server = createDocsServer();
   await new Promise((ready, reject) => {
     server.once('error', reject);
@@ -13,6 +13,18 @@ test('a cold observatory load settles without user input', async () => {
   const address = server.address();
   if (!address || typeof address === 'string') throw Error('HTTP listener unavailable');
   const browser = await launchChrome({ headless: true });
+  return {
+    address,
+    browser,
+    close: async () => {
+      await browser.close();
+      await new Promise((resolve) => server.close(resolve));
+    },
+  };
+}
+
+test('a cold observatory load settles without user input', async () => {
+  const { address, browser, close } = await openDocsBrowser();
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     let delayed = 0;
@@ -64,20 +76,12 @@ test('a cold observatory load settles without user input', async () => {
     assert.ok(delayed > 1, `expected streamed requests, observed ${delayed}`);
     assert.equal(coldTriangles, resetTriangles);
   } finally {
-    await browser.close();
-    await new Promise((resolve) => server.close(resolve));
+    await close();
   }
 });
 
 test('disposing rejects overlapping public updates by name', async () => {
-  const server = createDocsServer();
-  await new Promise((ready, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', ready);
-  });
-  const address = server.address();
-  if (!address || typeof address === 'string') throw Error('HTTP listener unavailable');
-  const browser = await launchChrome({ headless: true });
+  const { address, browser, close } = await openDocsBrowser();
   try {
     const page = await browser.newPage({ viewport: { width: 960, height: 640 } });
     await page.goto(`http://127.0.0.1:${address.port}/`);
@@ -108,7 +112,76 @@ test('disposing rejects overlapping public updates by name', async () => {
     );
     assert.deepEqual(names, ['AbortError', 'AbortError']);
   } finally {
-    await browser.close();
-    await new Promise((resolve) => server.close(resolve));
+    await close();
+  }
+});
+
+test('a never-ending binary response exhausts one global startup deadline', async () => {
+  const { address, browser, close } = await openDocsBrowser();
+  try {
+    const page = await browser.newPage({ viewport: { width: 960, height: 640 } });
+    await page.goto(`http://127.0.0.1:${address.port}/`);
+    const result = await page.evaluate(
+      async ({ runtimeUrl, lessonsUrl }) => {
+        const nativeFetch = globalThis.fetch,
+          nativeRequestFrame = globalThis.requestAnimationFrame,
+          nativeCancelFrame = globalThis.cancelAnimationFrame,
+          frames = new Set();
+        let pendingBinaries = 0;
+        globalThis.requestAnimationFrame = (callback) => {
+          const id = nativeRequestFrame((time) => {
+            frames.delete(id);
+            callback(time);
+          });
+          frames.add(id);
+          return id;
+        };
+        globalThis.cancelAnimationFrame = (id) => {
+          frames.delete(id);
+          nativeCancelFrame(id);
+        };
+        globalThis.fetch = (input, init) => {
+          const url = typeof input === 'string' ? input : input.url;
+          if (!new URL(url, location.href).pathname.endsWith('.bin'))
+            return nativeFetch(input, init);
+          const signal = init?.signal ?? input.signal;
+          pendingBinaries++;
+          return new Promise((_, reject) => {
+            const cancel = () => {
+              pendingBinaries--;
+              reject(signal.reason);
+            };
+            if (signal.aborted) cancel();
+            else signal.addEventListener('abort', cancel, { once: true });
+          });
+        };
+        const [{ createRendererLessonRuntime }, { rendererInitialState, rendererLessonById }] =
+          await Promise.all([import(runtimeUrl), import(lessonsUrl)]);
+        const lesson = rendererLessonById('runtime-pixel-error'),
+          state = rendererInitialState(lesson),
+          canvas = document.createElement('canvas'),
+          started = performance.now();
+        canvas.style.cssText = 'width:800px;height:450px;display:block';
+        document.body.replaceChildren(canvas);
+        let name;
+        try {
+          await createRendererLessonRuntime({ canvas, lesson, state, report() {} });
+        } catch (error) {
+          name = error.name;
+        }
+        await new Promise((resolve) => setTimeout(resolve));
+        return { name, elapsed: performance.now() - started, pendingBinaries, frames: frames.size };
+      },
+      {
+        runtimeUrl: `http://127.0.0.1:${address.port}/js/gallery/rendererLessonRuntime.js`,
+        lessonsUrl: `http://127.0.0.1:${address.port}/js/gallery/rendererLessons.js`,
+      },
+    );
+    assert.equal(result.name, 'TimeoutError');
+    assert.ok(result.elapsed >= 30_000 && result.elapsed < 34_000, `elapsed ${result.elapsed}`);
+    assert.equal(result.pendingBinaries, 0);
+    assert.equal(result.frames, 0);
+  } finally {
+    await close();
   }
 });
