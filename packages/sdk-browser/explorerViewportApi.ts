@@ -74,7 +74,10 @@ export function createExplorerViewportApi(inputs: Inputs) {
       } else {
         if (webglSurface)
           resizeExplorerWebglHost(webglSurface, renderer, width, height, options.pixelRatio ?? 1);
-        else renderer.setSize(width, height, false);
+        else {
+          renderer.setPixelRatio(options.pixelRatio ?? 1);
+          renderer.setSize(width, height, false);
+        }
       }
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
