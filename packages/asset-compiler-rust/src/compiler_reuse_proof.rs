@@ -22,7 +22,8 @@ pub(super) fn prove(
         return Err("sidecar does not match binary.sha256".into());
     }
     let native = o.cache.join("native");
-    let (files, file_bytes) = check_files(directory, &manifest[compiler_publish::FILES_FIELD])?;
+    let (files, file_bytes) =
+        check_files(directory, &manifest[compiler_publish::FILES_FIELD], pool)?;
     // Objects live in the sidecar columns alone; the `sha256` fields of the head
     // name the sidecar, the proxy and the recorded files, checked above.
     let digests: BTreeSet<String> = manifest_binary::digests(&binary)
@@ -64,31 +65,31 @@ fn check_head(manifest: &Value, key: &str, scope: &str) -> Check<()> {
     Ok(())
 }
 
-/// Every product the manifest recorded, by fingerprint and size. A missing record
-/// is a folder written before records existed, or by hand: not proven.
-fn check_files(directory: &Path, record: &Value) -> Check<(usize, u64)> {
+/// Every product the manifest recorded, by fingerprint and size, hashed side by
+/// side on the job's pool. A missing record is a folder written before records
+/// existed, or by hand: not proven.
+fn check_files(directory: &Path, record: &Value, pool: &rayon::ThreadPool) -> Check<(usize, u64)> {
     let files = record.as_object().ok_or("manifest records no files")?;
-    let mut bytes = 0u64;
-    for (name, expected) in files {
+    let one = |(name, expected): (&String, &Value)| -> Check<u64> {
         if !is_safe_source_name(name) {
             return Err(format!("file record names {name:?}"));
         }
-        let path = directory.join(name);
-        let size = fs::metadata(&path)
-            .map(|m| m.len())
-            .map_err(|e| format!("{name}: {e}"))?;
+        let (sha256, size) =
+            hash_file_sized(&directory.join(name)).map_err(|e| format!("{name}: {e}"))?;
         if expected["bytes"] != json!(size) {
             return Err(format!(
                 "{name} is {size} bytes, not what the manifest recorded"
             ));
         }
-        let sha256 = hash_file(&path).map_err(|e| format!("{name}: {e}"))?;
         if expected["sha256"] != json!(sha256) {
             return Err(format!("{name} does not match its recorded fingerprint"));
         }
-        bytes += size;
-    }
-    Ok((files.len(), bytes))
+        Ok(size)
+    };
+    let entries: Vec<(&String, &Value)> = files.iter().collect();
+    let sizes: Vec<u64> =
+        pool.install(|| entries.par_iter().copied().map(one).collect::<Check<_>>())?;
+    Ok((files.len(), sizes.iter().sum()))
 }
 
 /// Every object the manifest names, against its content-addressed name: the same
@@ -107,13 +108,12 @@ fn check_objects(
             return Err(format!("manifest names object {digest:?}"));
         }
         let path = objects.join(format!("{digest}.bin"));
-        let sha256 = hash_file(&path).map_err(|e| format!("object {digest}: {e}"))?;
+        let (sha256, bytes) =
+            hash_file_sized(&path).map_err(|e| format!("object {digest}: {e}"))?;
         if sha256 != *digest {
             return Err(format!("object {digest} does not match its name"));
         }
-        fs::metadata(&path)
-            .map(|m| m.len())
-            .map_err(|e| format!("object {digest}: {e}"))
+        Ok(bytes)
     };
     let sizes: Vec<u64> = pool.install(|| digests.par_iter().map(one).collect::<Check<_>>())?;
     Ok(sizes.iter().sum())
