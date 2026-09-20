@@ -13,7 +13,7 @@ export const DEFAULT_GEOMETRY_POOL_BUDGET = 512 * 1024 * 1024;
 export const DEFAULT_TEXTURE_POOL_BUDGET = 512 * 1024 * 1024;
 
 /** Why a pool does not make the requested size, or `null` when it does. */
-type PoolClamp =
+export type PoolClamp =
   'root-cover' | 'scene' | 'page-cap' | 'device-limit' | 'minimum' | 'ceiling' | null;
 
 export type GeometryPool = {

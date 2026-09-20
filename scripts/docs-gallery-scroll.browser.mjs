@@ -61,6 +61,17 @@ test('gallery progressively loads a bounded window and restores navigation state
     await page.waitForFunction((y) => Math.abs(scrollY - y) < 80, before.y);
     assert.equal(await list.getAttribute('data-mounted-items'), before.count);
 
+    await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+    await page.waitForFunction(() => {
+      const pages = [...document.querySelectorAll('[data-progressive-page]')];
+      return Number(pages.at(-1)?.dataset.progressivePage) >= 20;
+    });
+    assert.ok((await page.locator('[data-progressive-page]').count()) <= 3);
+    await page.evaluate(() => scrollTo(0, 0));
+    await page.waitForFunction(
+      () => document.querySelector('[data-progressive-page]')?.dataset.progressivePage === '0',
+    );
+
     await page.setViewportSize({ width: 390, height: 844 });
     assert.ok((await page.locator('[data-progressive-page]').count()) <= 3);
     assert.equal(
