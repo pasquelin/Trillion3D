@@ -40,8 +40,8 @@ export const lightingLessonDefinitions = [
     functions: ['addLight', 'setLight'],
     title: text('Move a shadow-casting lamp', 'Déplacer une lampe avec ombres'),
     description: text(
-      'Move one point emitter across the original sculpture.',
-      'Déplacez un émetteur ponctuel au-dessus de la sculpture originale.',
+      'Move one point emitter across a rolling terrain.',
+      'Déplacez un émetteur ponctuel au-dessus d’un terrain ondulé.',
     ),
     controls: [range('x', 'Horizontal position', 'Position horizontale', -5, 5, 0, 0.1)],
     try: text(
@@ -82,8 +82,8 @@ export const lightingLessonDefinitions = [
     ),
     controls: [range('radius', 'Emitter radius', 'Rayon émetteur', 0.05, 2, 0.2, 0.05)],
     try: text(
-      'Grow the envelope around the visible lamp housing.',
-      'Agrandissez l’enveloppe autour du boîtier visible.',
+      'Grow the envelope and compare the shell’s closest shadows.',
+      'Agrandissez l’enveloppe et comparez les ombres proches de la coque.',
     ),
     changes: text(
       'The point-light shadow near plane follows this radius.',
@@ -106,8 +106,8 @@ export const lightingLessonDefinitions = [
       'Retirez la seule lumière puis restaurez-la.',
     ),
     changes: text(
-      'The lit view becomes black when the store has no light.',
-      'La vue éclairée devient noire quand le magasin ne contient plus de lumière.',
+      'The fill light is disabled in this lesson, so removing the store light makes the view black.',
+      'L’éclairage d’appoint est désactivé dans cette leçon : retirer la lumière rend la vue noire.',
     ),
     kind: 'light-lifecycle',
   },

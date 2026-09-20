@@ -2,6 +2,7 @@ import { SCENE_BACKGROUND } from '../scenePalette.js';
 import { createSceneTelemetry } from './telemetry.js';
 import { configureSceneCamera } from './cameraControls.js';
 import { createLightingControls } from './lightingControls.js';
+import { addSceneFillLight } from '../sceneFillLight.js';
 export function mountScene(host, copy, locale) {
   const canvas = host.querySelector('[data-scene-canvas]');
   const start = host.querySelector('[data-scene-start]');
@@ -15,8 +16,7 @@ export function mountScene(host, copy, locale) {
   const qualityValue = host.querySelector('[data-scene-quality-value]');
   const shadows = host.querySelector('[data-scene-shadows]');
   const status = host.querySelector('[data-scene-status]');
-  const placeholder = host.querySelector('[data-scene-placeholder]');
-  const placeholderStatus = host.querySelector('[data-scene-placeholder-status]');
+  const loading = host.querySelector('[data-scene-loading]');
   const controller = new AbortController();
   let explorer,
     disposed = false,
@@ -36,10 +36,8 @@ export function mountScene(host, copy, locale) {
   const load = async () => {
     start.disabled = true;
     start.hidden = true;
-    placeholder.hidden = false;
-    placeholder.querySelector('.loading').hidden = false;
-    placeholderStatus.textContent = copy.loading;
-    status.textContent = copy.loading;
+    loading.hidden = false;
+    status.textContent = '';
     try {
       if (!navigator.gpu) throw new Error('WEBGPU_UNAVAILABLE');
       const { createExplorer } = await import('../../runtime/engine.js');
@@ -73,6 +71,7 @@ export function mountScene(host, copy, locale) {
         return;
       }
       explorer = created;
+      addSceneFillLight(explorer);
       for (const option of mode.options)
         option.disabled = explorer.diagnostics[option.value]?.available === false;
       if (mode.value !== 'beauty') explorer.setDiagnostic(mode.value);
@@ -80,7 +79,7 @@ export function mountScene(host, copy, locale) {
       const controls = explorer.controls();
       camera = configureSceneCamera(explorer, controls);
       camera.reset();
-      placeholder.hidden = true;
+      loading.hidden = true;
       start.hidden = true;
       mode.disabled = false;
       home.disabled = false;
@@ -100,8 +99,7 @@ export function mountScene(host, copy, locale) {
         ? copy.unavailable
         : `${copy.failed} (${error.message})`;
       status.textContent = message;
-      placeholderStatus.textContent = copy.failed;
-      placeholder.querySelector('.loading').hidden = true;
+      loading.hidden = true;
       start.disabled = false;
       start.hidden = false;
       start.textContent = copy.retry;
