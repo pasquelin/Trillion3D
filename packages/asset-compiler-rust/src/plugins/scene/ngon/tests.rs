@@ -12,13 +12,17 @@ pub(super) fn flat_ring(points: &[[f64; 2]]) -> Vec<[f64; 3]> {
     points.iter().map(|[x, y]| [*x, *y, 0.0]).collect()
 }
 
-/// Cut of a ring: its triangles, and whether it is exact.
-pub(super) fn cut(ring: &[[f64; 3]]) -> (Vec<[usize; 3]>, bool) {
+/// A cutter holding the ring, ready to cut.
+pub(super) fn loaded(ring: &[[f64; 3]]) -> Ngon {
     let mut ngon = Ngon::default();
     ngon.begin();
-    for point in ring {
-        ngon.corner(*point);
-    }
+    ring.iter().for_each(|point| ngon.corner(*point));
+    ngon
+}
+
+/// Cut of a ring: its triangles, and whether it is exact.
+pub(super) fn cut(ring: &[[f64; 3]]) -> (Vec<[usize; 3]>, bool) {
+    let mut ngon = loaded(ring);
     let exact = ngon.cut(&AtomicBool::new(false)).expect("token at rest");
     (ngon.triangles().to_vec(), exact)
 }
