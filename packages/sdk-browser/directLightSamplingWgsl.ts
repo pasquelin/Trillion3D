@@ -30,7 +30,8 @@ const LUMINANCE:vec3f=vec3f(0.2126,0.7152,0.0722);
 const GOLDEN_RATIO:f32=0.61803399;
 ${HASH_UNIT_WGSL}
 /** Unshadowed weight of a light at the point: its share of the pixel's drawing. Zero exactly
- *  when the shaded contribution is — out of range, or behind the surface. */
+ *  when the unshadowed contribution is — out of range, or behind the surface —, so no light
+ *  that could contribute is ever left undrawable. */
 fn lightWeight(light:DirectLight,N:vec3f,P:vec3f)->f32{
  let incidence=directIncidence(light,P);
  return light.colorIntensity.w*incidence.w*max(dot(N,incidence.xyz),0.0)*dot(light.colorIntensity.rgb,LUMINANCE);
