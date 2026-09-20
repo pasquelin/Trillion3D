@@ -32,6 +32,8 @@ export function validateClusterMeshes(
         mesh.material.length !== 2 ||
         mesh.material[0] !== mesh._sideSplitBack ||
         mesh.material[1] !== mesh._sideSplitFront ||
+        (mesh._sideSplitPolygonMaterials !== undefined &&
+          mesh._sideSplitPolygonMaterials !== mesh.material) ||
         mesh.material[0].side !== 1 ||
         mesh.material[1].side !== 0 ||
         !mesh.material[0].transparent ||

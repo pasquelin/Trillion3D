@@ -57,7 +57,7 @@ export class WebglClusterRenderer {
       this.uniforms.set(name, this.gl.getUniformLocation(this.program, name));
     return this.uniforms.get(name)!;
   }
-  private material(material: Material, toneMapped: boolean, passSide?: number) {
+  private material(material: Material, toneMapped: boolean, side?: number, bias?: Material) {
     const source = material as { opacity: number },
       mat = visMaterial(material);
     const basic = material as import('three').MeshBasicMaterial,
@@ -126,11 +126,9 @@ export class WebglClusterRenderer {
       aoMap?.channel ?? 0,
       mat.emissiveMap?.channel ?? 0,
     );
-    this.state.apply(
-      material,
-      passSide === undefined ? mat.doubleSided : false,
-      passSide === undefined ? mat.backSide : passSide === 1,
-    );
+    const doubleSided = side === undefined ? mat.doubleSided : false,
+      backSide = side === undefined ? mat.backSide : side === 1;
+    this.state.apply(material, doubleSided, backSide, bias);
   }
   private pass(
     mesh: ClusterDrawMesh | THREE.Mesh,
@@ -138,9 +136,10 @@ export class WebglClusterRenderer {
     toneMapped: boolean,
     diagnostic: boolean,
     passSide?: number,
+    polygonMaterial?: THREE.Material,
   ) {
     if (!material.visible) return 0;
-    this.material(material, toneMapped, passSide);
+    this.material(material, toneMapped, passSide, polygonMaterial);
     if (diagnostic) submitDiagnosticMesh(this.gl, mesh);
     else submitClusterMesh(this.gl, this.multiDraw, mesh as ClusterDrawMesh);
     return 1;
@@ -162,8 +161,9 @@ export class WebglClusterRenderer {
     let submitted = 0;
     if (Array.isArray(mesh.material)) {
       const source = (mesh as ClusterDrawMesh)._sideSplitSource!;
-      submitted += this.pass(mesh, source, toneMapped, diagnostic, 1);
-      submitted += this.pass(mesh, source, toneMapped, diagnostic, 0);
+      const polygon = (mesh as ClusterDrawMesh)._sideSplitPolygonMaterials;
+      submitted += this.pass(mesh, source, toneMapped, diagnostic, 1, polygon?.[0]);
+      submitted += this.pass(mesh, source, toneMapped, diagnostic, 0, polygon?.[1]);
     } else submitted = this.pass(mesh, mesh.material, toneMapped, diagnostic);
     return submitted;
   }

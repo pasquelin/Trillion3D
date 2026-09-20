@@ -31,6 +31,7 @@ function setMaterial(
   mesh: ClusterDrawMesh,
   material: THREE.Material | THREE.Material[],
   source: THREE.Material | THREE.Material[],
+  biased: boolean,
 ) {
   mesh.material = material;
   mesh._sideSplitMaterials = Array.isArray(material)
@@ -43,6 +44,7 @@ function setMaterial(
       ? undefined
       : source
     : undefined;
+  mesh._sideSplitPolygonMaterials = biased ? mesh._sideSplitMaterials : undefined;
 }
 
 /** Updates the sub-draws and the scene objects without copying the indices. */
@@ -122,12 +124,12 @@ export function updateClusterBatches(state: BatchUpdateState, display: readonly 
       mesh.userData.clusterId = String(sample.renderOrder);
       mesh.userData.lodRole = 'exact';
       group.mesh = mesh;
-      setMaterial(mesh, material, sample.material);
+      setMaterial(mesh, material, sample.material, group.biased === material);
     } else if (
       mesh.material !== material ||
       (Array.isArray(material) && mesh._sideSplitSource !== sample.material)
     )
-      setMaterial(mesh, material, sample.material);
+      setMaterial(mesh, material, sample.material, group.biased === material);
     mesh.matrix.copy(sample.matrix);
     // Arrays are reused; their identity changes only when they had to grow.
     mesh._multiDrawStarts = group.ranges.starts;

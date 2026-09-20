@@ -18,6 +18,12 @@ assert.equal(result.singleSubmissions, 1, 'forceSinglePass submits one double-si
 assert.equal(result.maskPixel[3], 255, 'MASK remains opaque after its cutoff');
 assert.ok(result.blendPixel[2] > 0, 'BLEND preserves the blue destination');
 assert.ok(result.coplanarPixel[1] > result.coplanarPixel[0], 'the raised coplanar layer wins');
+assert.equal(
+  result.coplanarBlendSubmissions,
+  3,
+  'opaque base plus both BLEND passes are submitted',
+);
+assert.ok(result.coplanarBlendPixel[1] > 0 && result.coplanarBlendPixel[0] < 255);
 assert.equal(result.diagnosticSubmissions, 1);
 assert.ok(result.diagnosticPixel[0] + result.diagnosticPixel[1] > 0);
 assert.equal(result.mutationRejected, true);
