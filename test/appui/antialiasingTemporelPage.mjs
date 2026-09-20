@@ -11,14 +11,12 @@ import {
   carre,
   cameraFace,
   image,
+  jusquaTenue,
   libere,
   engine,
   versApi,
 } from './preuveSceneCommune.mjs';
 import { executerAccumulation } from './preuveAppareil.mjs';
-
-/** Maximum images rendered before giving up waiting for frame hold. */
-const PLAFOND = 64;
 
 /** The background and the red tile, the latter rotated by a third of a radian: its edges are oblique. */
 function scene() {
@@ -34,19 +32,6 @@ function scene() {
   bati.source.add(rouge);
   bati.ajoute(rouge, 'exact-clusters', 0.6);
   return bati.fini();
-}
-
-/** Renders until the image is held; returns the last RENDERED image, the held one, and the count. */
-async function jusquaTenue(backend, camera) {
-  let rendue,
-    rendues = 0;
-  for (let i = 0; i < PLAFOND; i++) {
-    const { pixels, metriques } = await image(backend, camera);
-    if (metriques.frameHeld) return { rendue, tenue: Array.from(pixels), rendues };
-    rendue = Array.from(pixels);
-    rendues++;
-  }
-  return { rendue, tenue: null, rendues };
 }
 
 /** The tile's move: the same rotation, pushed 0.5 on `x`. */
