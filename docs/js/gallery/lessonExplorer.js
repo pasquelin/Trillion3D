@@ -1,14 +1,18 @@
 import { SCENE_BACKGROUND } from '../scenePalette.js';
 
-export async function createLessonExplorer({ canvas, signal }) {
+export async function createLessonExplorer({
+  canvas,
+  signal,
+  manifest = 'assets/kinetic-garden/cache/native/full/manifest.json',
+  importedLights = true,
+}) {
   const { createExplorer, webgpuPagesBackend } = await import('../../runtime/engine.js');
   const bounds = canvas.getBoundingClientRect();
   return createExplorer(canvas, {
-    manifestUrl: new URL('assets/kinetic-garden/cache/native/full/manifest.json', document.baseURI)
-      .href,
+    manifestUrl: new URL(manifest, document.baseURI).href,
     scope: 'full',
     backends: [webgpuPagesBackend],
-    importedLights: false,
+    importedLights,
     width: Math.max(1, Math.round(bounds.width)),
     height: Math.max(1, Math.round(bounds.height)),
     pixelRatio: window.devicePixelRatio,

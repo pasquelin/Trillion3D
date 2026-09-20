@@ -1,3 +1,6 @@
+import { applyLightingLesson, createLightingLessonSession } from './lightingLessonRuntime.js';
+import { applyCameraLesson } from './cameraLessonRuntime.js';
+import { configureSceneCamera } from '../engine-scene/cameraControls.js';
 import { createLessonExplorer } from './lessonExplorer.js';
 
 function lightFor(kind, state) {
@@ -53,59 +56,98 @@ export function applyRendererLesson(explorer, lesson, state, added) {
     return explorer.setMemoryBudgets({ geometryPoolBytes: state.geometryMiB * 1024 * 1024 });
 }
 
-export async function createRendererLessonRuntime({ canvas, lesson, state, report }) {
-  const explorer = await createLessonExplorer({ canvas });
-  const added = { value: false };
+export async function createRendererLessonRuntime({ canvas, lesson, state, report, signal }) {
+  const importedLights =
+    lesson.importedLights ??
+    (['lod', 'memory', 'offline'].includes(lesson.kind) || lesson.runtime === 'camera-pose');
+  const explorer = await createLessonExplorer({
+    canvas,
+    signal,
+    manifest: lesson.manifest,
+    importedLights,
+  });
   let disposed = false,
     frame = 0,
     remaining = 0,
-    previous = 0;
+    previous = 0,
+    resize,
+    controls;
+  const added = { value: false },
+    lighting = createLightingLessonSession();
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    cancelAnimationFrame(frame);
+    resize?.disconnect();
+    controls?.dispose();
+    explorer.dispose();
+    signal?.removeEventListener('abort', dispose);
+  };
+  if (signal?.aborted) {
+    dispose();
+    throw new DOMException('Cancelled', 'AbortError');
+  }
+  signal?.addEventListener('abort', dispose, { once: true });
   const draw = (now) => {
     frame = 0;
     if (disposed) return;
     const metrics = explorer.render();
+    const idle = --remaining <= 0;
     report({
-      fps: previous ? 1000 / (now - previous) : null,
+      fps: !idle && previous ? 1000 / (now - previous) : null,
       cpu: metrics.cpuFrameMs,
       memory: metrics.geometryPoolAllocatedBytes,
       triangles: metrics.drawnTriangles,
+      idle,
     });
     previous = now;
-    if (--remaining > 0) frame = requestAnimationFrame(draw);
-    else
-      report({
-        ...metrics,
-        fps: null,
-        cpu: metrics.cpuFrameMs,
-        memory: metrics.geometryPoolAllocatedBytes,
-        triangles: metrics.drawnTriangles,
-        idle: true,
-      });
+    if (!idle) frame = requestAnimationFrame(draw);
   };
   const invalidate = () => {
+    if (disposed) return;
     remaining = 24;
     previous = 0;
     if (!frame) frame = requestAnimationFrame(draw);
   };
   const update = async (next) => {
-    await applyRendererLesson(explorer, lesson, next, added);
+    if (disposed) return;
+    if (lesson.runtime === 'advanced-lighting')
+      applyLightingLesson(explorer, lesson, next, lighting);
+    else if (lesson.runtime === 'camera-pose') applyCameraLesson(explorer, lesson, next);
+    else await applyRendererLesson(explorer, lesson, next, added);
     invalidate();
   };
-  await explorer.awaitPages();
-  await update(state);
-  const resize = new ResizeObserver(() => {
-    const rect = canvas.getBoundingClientRect();
-    explorer.resize(Math.max(1, Math.round(rect.width)), Math.max(1, Math.round(rect.height)));
-    invalidate();
-  });
-  resize.observe(canvas);
-  return {
-    update,
-    dispose() {
-      disposed = true;
-      cancelAnimationFrame(frame);
-      resize.disconnect();
-      explorer.dispose();
-    },
-  };
+  try {
+    await explorer.awaitPages();
+    if (disposed) throw new DOMException('Cancelled', 'AbortError');
+    controls = explorer.controls();
+    const camera = configureSceneCamera(explorer, controls);
+    const reset = () => {
+      camera.reset();
+      camera.zoomOut();
+      invalidate();
+    };
+    reset();
+    controls.addEventListener('change', invalidate);
+    await update(state);
+    resize = new ResizeObserver(() => {
+      if (disposed) return;
+      const rect = canvas.getBoundingClientRect();
+      explorer.resize(Math.max(1, Math.round(rect.width)), Math.max(1, Math.round(rect.height)));
+      invalidate();
+    });
+    resize.observe(canvas);
+    return {
+      update,
+      dispose,
+      camera: {
+        zoomIn: camera.zoomIn,
+        zoomOut: camera.zoomOut,
+        reset,
+      },
+    };
+  } catch (error) {
+    dispose();
+    throw error;
+  }
 }

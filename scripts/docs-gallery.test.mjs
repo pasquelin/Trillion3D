@@ -25,8 +25,8 @@ const { rendererLessons, rendererInitialState } = await import(new URL('renderer
 const mathExamples = examples.filter(({ renderer }) => !renderer);
 
 test('gallery exposes bilingual math and public renderer lessons', () => {
-  assert.equal(examples.length, 22);
-  assert.equal(rendererLessons.length, 6);
+  assert.equal(examples.length, 55);
+  assert.equal(rendererLessons.length, 39);
   assert.equal(new Set(examples.map(({ id }) => id)).size, examples.length);
   for (const example of examples) {
     assert.ok(example.title.en && example.title.fr);
@@ -76,8 +76,7 @@ test('gallery renders visual, searchable cards and the real engine scene', () =>
   assert.match(gallery, /#\/en\/examples\/engine-scene/);
   assert.match(gallery, /assets\/kinetic-garden\/preview\.png/);
   assert.equal((gallery.match(/class="gallery-preview/g) ?? []).length, 24);
-  assert.match(gallery, /630 results shown · 23 ready lessons in the full gallery/);
-  assert.match(gallery, /In development/);
+  assert.match(gallery, /663 results shown · 56 ready lessons in the full gallery/);
   assert.doesNotMatch(gallery, /data-geometry-3d="webgl_/);
   assert.doesNotMatch(gallery, /Try it|À essayer/);
   assert.match(gallery, /#\/en\/playground\/compose-transform/);
@@ -187,4 +186,11 @@ test('renderer lessons show complete code that calls their public API', () => {
       lesson.id,
     );
   }
+});
+
+test('renderer badges link only to documented API entries', () => {
+  const light = renderPlayground('point-light-range', 'en');
+  assert.doesNotMatch(light, /#\/en\/api\/addLight/);
+  assert.match(light, />addLight<\/code>/);
+  assert.match(renderPlayground('offline-prism', 'en'), /#\/en\/api\/createExplorer/);
 });
