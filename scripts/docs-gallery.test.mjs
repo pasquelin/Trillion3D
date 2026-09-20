@@ -94,7 +94,7 @@ test('gallery renders visual, searchable cards and the real engine scene', () =>
   assert.match(gallery, /tabs tabs-box bg-base-200/);
   assert.match(gallery, />Animation<\/button>/);
   assert.match(gallery, />Lights and shadows<\/button>/);
-  assert.match(gallery, /<summary[^>]*>More<\/summary>/);
+  assert.match(gallery, /<summary[^>]*aria-label="More">More/);
   assert.doesNotMatch(gallery, /overflow-x-auto/);
   assert.doesNotMatch(gallery, /<select/);
   assert.equal((gallery.match(/<canvas /g) ?? []).length, examples.length);

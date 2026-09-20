@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { themeLabel } from './roadmapThemes.js';
 
-const primary = ['transforms', 'camera'];
+const primary = ['transforms', 'camera', 'geometry', 'animation'];
 
 function Tab({ id, active, locale, onSelect, className = '' }) {
   return (
@@ -27,14 +27,18 @@ function MoreMenu({ ids, active, locale, onSelect, className }) {
     menu.current.open = false;
   };
   return (
-    <details ref={menu} className={`dropdown dropdown-end ml-auto ${className}`}>
+    <details ref={menu} className={`dropdown ${className}`}>
       <summary
-        className={`tab ${selected ? 'tab-active' : ''}`}
+        className={`tab h-10 list-none [&::-webkit-details-marker]:hidden ${selected ? 'tab-active' : ''}`}
+        style={{ listStyle: 'none' }}
         aria-label={selected ? `${label}: ${themeLabel(active, locale)}` : label}
       >
         {label}
+        <span className="ml-1 text-xs opacity-60" aria-hidden="true">
+          ⌄
+        </span>
       </summary>
-      <ul className="menu dropdown-content right-0 z-20 mt-2 w-64 rounded-box bg-base-200 border border-base-300 shadow-lg">
+      <ul className="menu dropdown-content left-0 z-20 mt-2 w-64 rounded-box bg-base-200 border border-base-300 shadow-lg">
         {ids.map((id) => (
           <li key={id}>
             <button type="button" aria-pressed={active === id} onClick={() => choose(id)}>
@@ -51,7 +55,7 @@ export function ThemeTabs({ active, available, locale, onSelect }) {
   const overflow = available.filter((id) => !primary.includes(id));
   return (
     <div
-      className="tabs tabs-box bg-base-200 flex flex-wrap w-full"
+      className="tabs tabs-box bg-base-200 flex flex-wrap w-fit max-w-full"
       role="tablist"
       aria-label={locale === 'fr' ? 'Catégories d’exemples' : 'Example categories'}
     >
@@ -64,7 +68,7 @@ export function ThemeTabs({ active, available, locale, onSelect }) {
             active={active === id}
             locale={locale}
             onSelect={onSelect}
-            className="hidden xl:inline-flex"
+            className="hidden lg:inline-flex"
           />
         ) : null,
       )}
@@ -73,14 +77,14 @@ export function ThemeTabs({ active, available, locale, onSelect }) {
         active={active}
         locale={locale}
         onSelect={onSelect}
-        className="xl:hidden"
+        className="lg:hidden"
       />
       <MoreMenu
         ids={overflow}
         active={active}
         locale={locale}
         onSelect={onSelect}
-        className="hidden xl:block"
+        className="hidden lg:block"
       />
     </div>
   );
