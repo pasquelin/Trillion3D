@@ -9,7 +9,7 @@
  * opacity in its high sixteen bits: the composite reads the material volume at that rank and
  * blends by that opacity. `WATER_RANK_BITS` bounds the transparent items a scene may carry.
  */
-export const WATER_RANK_BITS = 16;
+const WATER_RANK_BITS = 16;
 export const WATER_MAX_ITEMS = (1 << WATER_RANK_BITS) - 1;
 /** The five targets of the stage: the surface buffer, then the virtual-texture feedback. */
 export const WATER_SURFACE_WGSL = `
