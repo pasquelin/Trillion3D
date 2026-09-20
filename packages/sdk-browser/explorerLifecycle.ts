@@ -11,6 +11,7 @@ import type { ExplorerSession } from './explorerSession.ts';
 import type { createExplorerStreaming } from './explorerStreaming.ts';
 import type { createPageStreamer } from './streamingPages.ts';
 import type { EngineProfiler } from './telemetry.ts';
+import type { WebglSurface } from './webglSurface.ts';
 
 type Inputs = {
   check: () => void;
@@ -25,6 +26,7 @@ type Inputs = {
   backends: RenderBackend[];
   source: THREE.Object3D;
   renderer?: THREE.WebGLRenderer;
+  webglSurface?: WebglSurface;
   camera: THREE.PerspectiveCamera;
   geometryUrls: Set<string>;
 };
@@ -44,6 +46,7 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     backends,
     source,
     renderer,
+    webglSurface,
     camera,
     geometryUrls,
   } = inputs;
@@ -76,7 +79,7 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     backends.forEach((backend) => backend.dispose());
     disposeSource(source);
     renderer?.dispose();
-    renderer?.forceContextLoss();
+    webglSurface?.dispose();
     try {
       gpuDevice?.destroy();
     } catch {

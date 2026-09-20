@@ -15,7 +15,8 @@ import {
 } from './backendCommon.ts';
 import type { createExplorerPageSources } from './explorerPageSources.ts';
 import type { ExplorerSession } from './explorerSession.ts';
-
+import type { WebglSurface } from './webglSurface.ts';
+import { prepareExplorerWebglSurface, resizeExplorerWebglHost } from './explorerWebglHost.ts';
 type Inputs = {
   autonomous: boolean;
   manifestUrl: string;
@@ -24,9 +25,12 @@ type Inputs = {
   base: string;
   source: THREE.Object3D;
   pageSources: Awaited<ReturnType<typeof createExplorerPageSources>>;
-  resources: { renderer?: THREE.WebGLRenderer; gpuDevice?: GPUDevice };
+  resources: {
+    renderer?: THREE.WebGLRenderer;
+    webglSurface?: WebglSurface;
+    gpuDevice?: GPUDevice;
+  };
 };
-
 export async function configureExplorer(session: ExplorerSession, inputs: Inputs) {
   const { canvas, options, scope, metadata, diagnosticChannel, emit, diagnose } = session;
   const { autonomous, manifestUrl, metadataUrl, sceneFile, base, source, pageSources, resources } =
@@ -34,12 +38,6 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
   const { pages, geometryPages, cacheCap } = pageSources;
   let gpuDevice: GPUDevice | undefined;
   let renderer: THREE.WebGLRenderer | undefined;
-  // The batched-compute path is decided here, with the other capabilities, and never in
-  // silence: missing module, unknown compute contract or too-coarse clock leave everything
-  // on the JavaScript path, and the sample published below carries the reason. Module load
-  // starts at once but is only awaited at publish time: it overlaps with capability
-  // detection and the GPU-device request, which last much longer, and therefore does not
-  // delay the first frame.
   const calculEnLot = prepareMathBatch(options.mathPath ?? 'auto');
   const capabilities = await detectCapabilities('webgl', canvas);
   if (!capabilities.renderer) {
@@ -126,18 +124,33 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
   const directGpu =
     !!gpuDevice && options.backends?.length === 1 && options.backends[0] === webgpuPagesBackend;
   if (!directGpu) {
-    renderer = new THREE.WebGLRenderer({
+    const surface = prepareExplorerWebglSurface({
       canvas,
-      antialias: false,
-      alpha: false,
-      preserveDrawingBuffer: false,
+      onLifecycle: (state) =>
+        diagnose(`webgl-context-${state}`, `Engine WebGL2 surface context ${state}`, {
+          kind: 'lifecycle',
+          scope,
+        }),
     });
-    resources.renderer = renderer;
-    renderer.setPixelRatio(options.pixelRatio ?? DEFAULT_PIXEL_RATIO);
-    renderer.setSize(options.width ?? DEFAULT_WIDTH, options.height ?? DEFAULT_HEIGHT, false);
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1;
+    resources.webglSurface = surface;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, context: surface.context });
+      resizeExplorerWebglHost(
+        surface,
+        renderer,
+        options.width ?? DEFAULT_WIDTH,
+        options.height ?? DEFAULT_HEIGHT,
+        options.pixelRatio ?? DEFAULT_PIXEL_RATIO,
+      );
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1;
+      resources.renderer = renderer;
+    } catch (error) {
+      renderer?.dispose();
+      surface.dispose();
+      throw error;
+    }
   } else {
     canvas.width = devicePixels(options.width ?? DEFAULT_WIDTH, options.pixelRatio);
     canvas.height = devicePixels(options.height ?? DEFAULT_HEIGHT, options.pixelRatio);
