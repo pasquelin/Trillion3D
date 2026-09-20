@@ -23,7 +23,7 @@ pub(super) fn prove(
     }
     let native = o.cache.join("native");
     let (files, file_bytes) =
-        check_files(directory, &manifest[compiler_publish::FILES_FIELD], pool)?;
+        check_files(o, directory, &manifest[compiler_publish::FILES_FIELD], pool)?;
     // Objects live in the sidecar columns alone; the `sha256` fields of the head
     // name the sidecar, the proxy and the recorded files, checked above.
     let digests: BTreeSet<String> = manifest_binary::digests(&binary)
@@ -68,9 +68,15 @@ fn check_head(manifest: &Value, key: &str, scope: &str) -> Check<()> {
 /// Every product the manifest recorded, by fingerprint and size, hashed side by
 /// side on the job's pool. A missing record is a folder written before records
 /// existed, or by hand: not proven.
-fn check_files(directory: &Path, record: &Value, pool: &rayon::ThreadPool) -> Check<(usize, u64)> {
+fn check_files(
+    o: &Options,
+    directory: &Path,
+    record: &Value,
+    pool: &rayon::ThreadPool,
+) -> Check<(usize, u64)> {
     let files = record.as_object().ok_or("manifest records no files")?;
     let one = |(name, expected): (&String, &Value)| -> Check<u64> {
+        check(o).map_err(|e| e.message)?;
         if !is_safe_source_name(name) {
             return Err(format!("file record names {name:?}"));
         }
