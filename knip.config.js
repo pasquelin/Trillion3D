@@ -33,6 +33,8 @@ export default {
     'scripts/mesure/perf/*.mjs',
     'test/integration/*.test.mjs',
     'test/browser/*.browser.mjs',
+    // Served to the harness page by the material proof and imported by URL.
+    'test/appui/materialPixelsPage.mjs',
   ],
   project: [
     'docs/react/**/*.jsx',
@@ -49,5 +51,5 @@ export default {
   ignoreDependencies: ['daisyui'],
   ignoreBinaries: ['rustc'],
   // These specifiers are harness server URLs resolved by the browser, not local Node modules.
-  ignoreUnresolved: ['/mesure/poses.mjs', '/__wg-fixture/drawRun.mjs'],
+  ignoreUnresolved: ['/mesure/poses.mjs', '/mesure/pageTemoin.mjs', '/__wg-fixture/drawRun.mjs'],
 };
