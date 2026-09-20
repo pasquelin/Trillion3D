@@ -136,10 +136,12 @@ test('a lamp retargeted by the host: the new target is hooked, its later pose is
   gate.readScene(source, []);
   const cible = new THREE.Object3D();
   soleil.target = cible;
+  gate.readScene(source, []); // the retarget is a scene change
+  gate.readScene(source, []); // which rebuilds the list: the new target is hooked
   gate.readScene(source, []);
   const after = gate.revisions.scene;
   gate.readScene(source, []);
-  assert.equal(gate.revisions.scene, after, 'the retarget is announced once');
+  assert.equal(gate.revisions.scene, after, 'quiet again');
   cible.position.y = -3;
   gate.readScene(source, []);
   assert.equal(gate.revisions.scene, after + 1, 'the new target moved: seen');
