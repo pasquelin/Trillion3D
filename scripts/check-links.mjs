@@ -5,22 +5,18 @@
 // heading anchor or an explicit id/name. Runtime routes (/api/...) are
 // reported separately, never checked. Same behavior as the retired
 // scripts/check-links.py, ported so `pnpm run check:links` needs no Python.
+import { repositoryFiles } from './repository-files.mjs';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const sdkRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const excludedDirs = new Set([
-  '.git',
-  '.idea',
-  'node_modules',
-  'dist',
-  'target',
-  '.claude',
-  'test/assets',
-]);
+const excludedDirs = new Set(['.git', '.idea', 'node_modules', 'dist', 'target', 'test/assets']);
 
 function findMarkdownFiles(root) {
+  const maintained = repositoryFiles(root);
+  if (maintained)
+    return maintained.filter((file) => file.endsWith('.md')).map((file) => join(root, file));
   const results = [];
   const walk = (dir) => {
     let entries;
