@@ -10,7 +10,7 @@ Three categories, each compared differently:
    when any of them diverges from this table.
 2. **Bytes per triangle** compare per triangle, never per scene: the reference scene is not ours.
 3. **Milliseconds do not compare directly**: their profile was recorded on a console demo, ours
-   on a laptop GPU. `AGENTS.md` requires identical input, camera, quality, machine, and budget;
+   on a laptop GPU. The [contribution guidelines](../CONTRIBUTING.md) require identical input, camera, quality, machine, and budget;
    none of the five match. They are listed here for profile SHAPE — what pass costs what — and
    for the one figure that crosses hardware: per-frame CPU cost.
 
@@ -118,7 +118,7 @@ What can be concluded rigorously:
 - **GPU milliseconds are inconclusive** until measured on identical hardware. The only rigorous
   comparison requires running the reference and WebGeometry with the same scene, pose, resolution,
   and hardware. Without this, any cross-engine GPU millisecond comparison remains an assumption, which
-  `AGENTS.md` strictly prohibits.
+  the [measurement rules](../CONTRIBUTING.md#measure-before-optimising) strictly prohibit.
 
 ## 4. Summary
 
