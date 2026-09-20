@@ -21,6 +21,9 @@ export function rendererCodeFor(lesson, state) {
   if (lesson.runtime === 'advanced-lighting') return lightingLessonCode(lesson, state);
   if (lesson.runtime === 'camera-pose') return cameraLessonCode(lesson, state);
   return lessonCode(line(lesson, state), {
-    importedLights: ['lod', 'memory'].includes(lesson.kind),
+    manifest: lesson.manifest,
+    importedLights: lesson.importedLights,
+    sceneLight: lesson.sceneLight,
+    sceneFill: lesson.sceneFill,
   });
 }

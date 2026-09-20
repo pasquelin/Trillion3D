@@ -2,7 +2,7 @@ import { sceneCopy } from '../../js/engine-scene/content.js';
 import { sceneControlsCopy } from '../../js/engine-scene/controlsCopy.js';
 import { Canvas } from '../components/Canvas.jsx';
 import { SceneControls } from './SceneControls.jsx';
-import { Alert } from '../components/UI.jsx';
+import { Loading } from '../components/Loading.jsx';
 import { SCENE_BACKGROUND } from '../../js/scenePalette.js';
 
 export const engineCopy = (locale) => ({
@@ -29,25 +29,9 @@ export function EnginePreview({ locale = 'en', diagnostic = 'beauty' }) {
             { label: copy.home, symbol: '↺', 'data-scene-home': '', disabled: true },
           ]}
         />
-        <div
-          data-scene-placeholder
-          className="absolute inset-0 text-white overflow-hidden"
-          style={{ backgroundColor: SCENE_BACKGROUND.css }}
-        >
-          <img
-            src="./assets/kinetic-garden/preview.png"
-            alt={copy.previewAlt}
-            className="w-full h-full object-cover"
-          />
-          <Alert className="absolute inset-x-0 bottom-0 rounded-none">
-            <span className="loading loading-spinner loading-sm" />
-            <span data-scene-placeholder-status>{copy.loading}</span>
-          </Alert>
-        </div>
+        <Loading data-scene-loading label={copy.loading} />
       </div>
-      <p data-scene-status role="status" className="my-3 text-sm">
-        {copy.loading}
-      </p>
+      <p data-scene-status role="status" className="my-3 text-sm" />
     </section>
   );
 }
