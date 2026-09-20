@@ -63,11 +63,15 @@ const summary = await prepareMany(jobs, { workers: 2, onEvent: createBatchProgre
     title: 'createExplorer()',
     module: 'packages/sdk-browser/explorer.ts',
     signature:
-      'createExplorer(canvas: HTMLCanvasElement, options: ExplorerOptions): Promise<Explorer>',
+      'createExplorer(target: ExplorerTarget, options: ExplorerOptions): Promise<Explorer>',
     valuesTitle: 'What the explorer offers',
     description:
-      "Opens a compiled cache on a canvas and returns the explorer. It owns neither the animation loop nor the canvas: the host calls `render()` for a frame and `dispose()` when done — hosted Orbit/Fly controls created through the explorer are disposed with it. The default camera is framed from the loaded bounding box. `preload: 'visible'` (the default) streams the detail of the current camera after a complete, camera-independent root cover is resident; call `awaitPages()` before the first official image.",
+      "Opens a compiled cache on a canvas element or literal ID (ExplorerTarget). With `interactive: true`, it submits the first image, owns controls, follows CSS size and browser DPR, and redraws on demand. This path defaults to direct WebGPU and rejects unavailable WebGPU. Without the option, the host owns rendering and the existing defaults stay unchanged. The host always owns the canvas and calls `dispose()` when done — hosted Orbit/Fly controls created through the explorer are disposed with it. The default camera is framed from the loaded bounding box. `preload: 'visible'` (the default) streams the detail of the current camera after a complete, camera-independent root cover is resident; use a manual session with `awaitPages()` for deterministic captures.",
     values: [
+      {
+        name: 'invalidate()',
+        desc: 'After programmatic camera, scene or light edits: coalesces an interactive frame; draws immediately in manual mode.',
+      },
       { name: 'render(pose?)', desc: 'Draws one frame and returns its `FrameMetrics`.' },
       {
         name: 'setPose(pose) / pointsOfInterest() / resetHome()',
@@ -93,11 +97,11 @@ const summary = await prepareMany(jobs, { workers: 2, onEvent: createBatchProgre
       },
       { name: 'dispose()', desc: 'Releases backends, GPU device and sources. Mandatory.' },
     ],
-    example: `const explorer = await createExplorer(canvas, { manifestUrl: '/cache/city/manifest.json' });
-await explorer.awaitPages();
-const metrics = explorer.render();
-console.log(metrics.triangles, metrics.clusters, explorer.capabilities.gpuDriven);
-explorer.dispose();`,
+    example: `// HTML: <canvas id="viewer" style="width:100%;height:70vh"></canvas>
+const explorer = await createExplorer('viewer', {
+  manifestUrl: '/cache/city/manifest.json', scope: 'full', interactive: true,
+});
+// In your page/component teardown: explorer.dispose();`,
   },
   {
     ...BROWSER,
@@ -105,10 +109,12 @@ explorer.dispose();`,
     exports: ['createExplorerJob'],
     title: 'createExplorerJob()',
     module: 'packages/sdk-browser/index.ts',
-    signature: 'createExplorerJob(id: string, canvas: HTMLCanvasElement, options: ExplorerOptions)',
+    signature: 'createExplorerJob(id: string, target: ExplorerTarget, options: ExplorerOptions)',
     description:
       'The same creation as a cancellable job: preparation events become job progress, and an abort before the end disposes the explorer it would have returned. A completed explorer is owned by the caller.',
-    example: `const job = createExplorerJob('city', canvas, { manifestUrl });
+    example: `const job = await createExplorerJob('city-job', 'viewer', {
+  manifestUrl, scope: 'full', interactive: true,
+});
 job.subscribe(() => console.log(job.getSnapshot().progress));
 const explorer = await job.promise;`,
   },

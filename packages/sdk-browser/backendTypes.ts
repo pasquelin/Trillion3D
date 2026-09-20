@@ -98,6 +98,8 @@ export interface RenderBackend {
   dropPage?(url: string): void;
   syncResident?(): void;
   flush?(): Promise<void>;
+  /** Wait for submitted work without image readback; true asks for another interactive frame. */
+  pendingFrame?(): Promise<boolean>;
   /** Current GPU image, bottom-left origin. Prefer flush() first; browser hosts can explicitly read synchronously. */
   capture?(): Uint8Array;
   captureSurfaceView?(

@@ -19,6 +19,20 @@ numbers. Conventions shared by every entry:
   the engine's speed-up over the reference, best of three runs on the same machine (#72, #76,
   19 Sept. 2026); they say where, not how much a frame gains.
 
+## Explorer startup (#111)
+
+- `createExplorer(target: ExplorerTarget, options: ExplorerOptions)` and
+  `createExplorerJob(id, target, options)` accept a canvas element or its literal document ID.
+- `interactive: true` owns CSS/DPR sizing, OrbitControls and bounded demand-driven rendering;
+  absent/false preserves manual sessions. Defaults to direct WebGPU, with explicit failure
+  when unavailable. `invalidate()` requests a frame after programmatic edits.
+- `RenderBackend.pendingFrame?()` waits for submitted work without image readback and returns
+  whether interactive rendering should continue. Custom backends with progressive work should
+  implement it. Disposal owns all interactive listeners and pending callbacks.
+- Details, defaults and teardown: [SDK guide](SDK.md#simple-browser-startup). Proof:
+  `explorerTarget.test.ts`, `explorerFrameScheduler.test.ts` and the browser startup proof.
+
+
 ## Batch A — maths and side enum (#76)
 
 ### Matrices — `packages/sdk-core/mathMatrix4.ts`, `mathMatrix4Inverse.ts`, `mathMatrix4Trs.ts`
