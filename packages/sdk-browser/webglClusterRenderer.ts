@@ -17,6 +17,7 @@ import { createClusterProgram } from './webglClusterProgram.ts';
 import { validateClusterMeshes } from './webglClusterValidation.ts';
 import type * as THREE from 'three';
 import { submitClusterMesh, submitDiagnosticMesh, type MultiDraw } from './webglClusterSubmit.ts';
+type Material = Exclude<ClusterDrawMesh['material'], unknown[]>;
 const IDENTITY_MATRIX3 = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);
 export class WebglClusterRenderer {
   private gl: WebGL2RenderingContext;
@@ -56,7 +57,7 @@ export class WebglClusterRenderer {
       this.uniforms.set(name, this.gl.getUniformLocation(this.program, name));
     return this.uniforms.get(name)!;
   }
-  private material(material: Exclude<ClusterDrawMesh['material'], unknown[]>, toneMapped: boolean) {
+  private material(material: Material, toneMapped: boolean, passSide?: number) {
     const source = material as { opacity: number },
       mat = visMaterial(material);
     const basic = material as import('three').MeshBasicMaterial,
@@ -125,16 +126,21 @@ export class WebglClusterRenderer {
       aoMap?.channel ?? 0,
       mat.emissiveMap?.channel ?? 0,
     );
-    this.state.apply(material, mat.doubleSided, mat.backSide);
+    this.state.apply(
+      material,
+      passSide === undefined ? mat.doubleSided : false,
+      passSide === undefined ? mat.backSide : passSide === 1,
+    );
   }
   private pass(
     mesh: ClusterDrawMesh | THREE.Mesh,
     material: THREE.Material,
     toneMapped: boolean,
     diagnostic: boolean,
+    passSide?: number,
   ) {
     if (!material.visible) return 0;
-    this.material(material, toneMapped);
+    this.material(material, toneMapped, passSide);
     if (diagnostic) submitDiagnosticMesh(this.gl, mesh);
     else submitClusterMesh(this.gl, this.multiDraw, mesh as ClusterDrawMesh);
     return 1;
@@ -154,10 +160,11 @@ export class WebglClusterRenderer {
     normalMatrix3(this.normal, this.modelView);
     setMatrix3(gl, this.at('normalMatrix'), this.normal);
     let submitted = 0;
-    if (Array.isArray(mesh.material))
-      for (const material of mesh.material)
-        submitted += this.pass(mesh, material, toneMapped, diagnostic);
-    else submitted = this.pass(mesh, mesh.material, toneMapped, diagnostic);
+    if (Array.isArray(mesh.material)) {
+      const source = (mesh as ClusterDrawMesh)._sideSplitSource!;
+      submitted += this.pass(mesh, source, toneMapped, diagnostic, 1);
+      submitted += this.pass(mesh, source, toneMapped, diagnostic, 0);
+    } else submitted = this.pass(mesh, mesh.material, toneMapped, diagnostic);
     return submitted;
   }
   draw(

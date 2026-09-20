@@ -46,6 +46,7 @@ export class ClusterDrawMesh extends THREE.Mesh {
   _sideSplitMaterials: [THREE.Material, THREE.Material] | undefined;
   _sideSplitBack: THREE.Material | undefined;
   _sideSplitFront: THREE.Material | undefined;
+  _sideSplitSource: THREE.Material | undefined;
   constructor(
     geometry: THREE.BufferGeometry,
     material: THREE.Material | THREE.Material[],
@@ -61,6 +62,7 @@ export class ClusterDrawMesh extends THREE.Mesh {
     this._sideSplitMaterials = undefined;
     this._sideSplitBack = undefined;
     this._sideSplitFront = undefined;
+    this._sideSplitSource = undefined;
     this.matrixAutoUpdate = false;
     this.frustumCulled = false;
   }

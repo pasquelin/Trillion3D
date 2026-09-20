@@ -80,6 +80,7 @@ export function execute() {
     transparent: true,
     opacity: 0.5,
     vertexColors: true,
+    side: THREE.DoubleSide,
   });
   const back = double.clone(),
     front = double.clone();
@@ -90,6 +91,7 @@ export function execute() {
   split._sideSplitMaterials = pair;
   split._sideSplitBack = back;
   split._sideSplitFront = front;
+  split._sideSplitSource = double;
   clear(gl);
   const splitSubmissions = renderer.draw([split], scene, drawCamera, false, false);
   const splitPixel = pixel(gl);
@@ -97,6 +99,7 @@ export function execute() {
   double.forceSinglePass = true;
   split.material = double;
   split._sideSplitMaterials = undefined;
+  split._sideSplitSource = undefined;
   clear(gl);
   const singleSubmissions = renderer.draw([split], scene, drawCamera, false, false);
 
@@ -136,7 +139,25 @@ export function execute() {
   const diagnosticSubmissions = renderer.draw([], scene, drawCamera, false, false, [diagnostic]);
   const diagnosticPixel = pixel(gl);
 
+  double.forceSinglePass = false;
   split.material = pair;
+  split._sideSplitMaterials = pair;
+  split._sideSplitSource = double;
+  double.visible = false;
+  clear(gl);
+  const hiddenSubmissions = renderer.draw([split], scene, drawCamera, false, false);
+  const hiddenPixel = pixel(gl);
+  double.visible = true;
+  double.premultipliedAlpha = true;
+  clear(gl);
+  let sourceMutationRejected = false;
+  try {
+    renderer.draw([split], scene, drawCamera, false, false);
+  } catch {
+    sourceMutationRejected = true;
+  }
+  const sourceRejectionPixel = pixel(gl);
+  double.premultipliedAlpha = false;
   pair[0] = double;
   clear(gl);
   let mutationRejected = false;
@@ -160,5 +181,9 @@ export function execute() {
     diagnosticSubmissions,
     mutationRejected,
     rejectionPixel,
+    hiddenSubmissions,
+    hiddenPixel,
+    sourceMutationRejected,
+    sourceRejectionPixel,
   };
 }

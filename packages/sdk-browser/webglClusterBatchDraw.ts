@@ -32,7 +32,7 @@ export function drawClusterBatches(
   for (const mesh of meshes) {
     let passes = 0;
     if (Array.isArray(mesh.material)) {
-      for (const material of mesh.material) if (material.visible) passes++;
+      if (mesh._sideSplitSource?.visible) passes = 2;
     } else if (mesh.material.visible) passes = 1;
     stats.subDraws += mesh._multiDrawCount * passes;
     let indices = 0;
