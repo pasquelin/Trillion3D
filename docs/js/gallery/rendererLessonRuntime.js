@@ -149,7 +149,12 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
     const camera = configureSceneCamera(explorer, controls);
     const reset = () => {
       camera.reset();
-      camera.zoomOut();
+      if (lesson.initialPose) {
+        const home = explorer.homePose();
+        explorer.setPose({ ...home, ...lesson.initialPose });
+        controls.target.fromArray(lesson.initialPose.target);
+        controls.update();
+      } else camera.zoomOut();
       invalidate();
     };
     reset();
