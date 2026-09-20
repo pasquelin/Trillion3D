@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CodeBlock } from '../components/CodeBlock.jsx';
+import { CodeEditor } from '../components/CodeEditor.jsx';
+import { formatNumericText } from '../../js/code/formatNumber.js';
 import { ExampleLayout } from '../components/ExampleLayout.jsx';
 import { Section } from '../components/Section.jsx';
 import { Alert, Button, Field, Form, Range, Select } from '../components/UI.jsx';
@@ -20,7 +21,8 @@ export function Playground({ id, locale = 'en', onSelect }) {
   useEffect(() => setState(initialState(example.id)), [example.id]);
   const result = useMemo(() => evaluate(example.id, state, locale), [example.id, state, locale]),
     guidance = guidanceFor(example.id, locale),
-    french = locale === 'fr';
+    french = locale === 'fr',
+    initialCode = useMemo(() => codeFor(example.id, initialState(example.id)), [example.id]);
   const motion = usePlaygroundMotion(scenario, setState);
   const choose = (next) => {
     setState(initialState(next));
@@ -102,7 +104,12 @@ export function Playground({ id, locale = 'en', onSelect }) {
     <div className="playground-learn grid gap-4">
       {controls}
       {cards}
-      <CodeBlock code={codeFor(example.id, state)} locale={locale} />
+      <CodeEditor
+        key={example.id}
+        initialCode={initialCode}
+        resetCode={() => codeFor(example.id, state)}
+        locale={locale}
+      />
     </div>
   );
   const right = (
@@ -159,7 +166,7 @@ function Content({ title, children }) {
   return (
     <div>
       <div className="text-xs font-bold uppercase opacity-60">{title}</div>
-      <div className="text-sm">{children}</div>
+      <div className="text-sm numeric-copy">{formatNumericText(children)}</div>
     </div>
   );
 }
