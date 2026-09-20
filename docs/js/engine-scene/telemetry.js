@@ -1,5 +1,5 @@
 export function createSceneTelemetry(host, copy, locale) {
-  let previousFrameAt = 0;
+  let idleTimer;
   const format = (value) => (Number.isFinite(value) ? value.toLocaleString(locale) : '—');
   const milliseconds = (value) =>
     Number.isFinite(value) ? `${value.toFixed(2)} ms` : copy.unavailableMetric;
@@ -9,18 +9,11 @@ export function createSceneTelemetry(host, copy, locale) {
     host.querySelector(selector).textContent = value;
   };
   return {
-    reset() {
-      previousFrameAt = 0;
-    },
-    frame(metrics, now) {
+    frame(metrics) {
+      clearTimeout(idleTimer);
       text('[data-scene-selected]', format(metrics.selectedTriangles));
       text('[data-scene-drawn]', format(metrics.drawnTriangles));
-      text(
-        '[data-scene-fps]',
-        previousFrameAt
-          ? `${(1000 / (now - previousFrameAt)).toFixed(0)} FPS`
-          : copy.unavailableMetric,
-      );
+      text('[data-scene-fps]', copy.unavailableMetric);
       text('[data-scene-cpu]', milliseconds(metrics.cpuFrameMs));
       text('[data-scene-gpu]', milliseconds(metrics.gpuFrameMs));
       text('[data-scene-geometry-memory]', bytes(metrics.geometryPoolAllocatedBytes));
@@ -33,10 +26,10 @@ export function createSceneTelemetry(host, copy, locale) {
         '[data-scene-texture-budget]',
         `${copy.textureMemoryDesc}: ${bytes(metrics.texturePoolBytes)}`,
       );
-      previousFrameAt = now;
+      idleTimer = setTimeout(() => text('[data-scene-fps]', copy.idle), 250);
     },
-    idle() {
-      text('[data-scene-fps]', copy.idle);
+    stop() {
+      clearTimeout(idleTimer);
     },
   };
 }
