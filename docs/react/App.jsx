@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Report } from './reports/Report.jsx';
 import { Entry } from './Entry.jsx';
 import { EngineScene } from './engine-scene/index.jsx';
 import { Gallery, Playground } from './gallery/index.jsx';
@@ -37,6 +38,7 @@ function NotFound({ locale }) {
 }
 
 function Page({ page, route, entries }) {
+  if (page.kind === 'report') return <Report route={route} />;
   if (page.kind === 'home') return <Home locale={route.locale} t={t} />;
   if (page.kind === 'api-index') return <ApiIndex locale={route.locale} entries={entries} t={t} />;
   if (page.kind === 'gallery') return <Gallery locale={route.locale} />;
