@@ -51,7 +51,7 @@ fn slotWrapped(s:TileSlot,uv:vec2f,wrap:u32)->vec2f{
  if(!wrapRepete(wrap)){return wrapReplie(uv,wrap);}
  return wrapUv(uv,wrap,s.size).proche;
 }
-fn tailOffset(rank:u32)->f32{return select(TEXEL_TILE-f32(${TILE_SIZE}u>>rank),0.0,rank==0u);}
+fn tailOffset(rank:u32)->f32{return f32((${TILE_SIZE}u-(${TILE_SIZE}u>>rank)+3u)&~3u);}
 fn placeOrigin(word:u32)->vec2f{return vec2f(f32(word&0xffu),f32((word>>8u)&0xffu))*TEXEL_PITCH+TEXEL_BORDER;}
 fn placeLayer(word:u32)->i32{return i32((word>>16u)&0xffu);}
 fn sizeOf(word:u32)->vec2f{return vec2f(f32(word&0xffffu),f32(word>>16u));}

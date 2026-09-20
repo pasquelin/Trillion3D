@@ -52,6 +52,8 @@ export function explorerOptions(options, factory, lighting) {
     ...(options.shadowPages === false ? { shadowPageInvalidation: false } : {}),
     // Texture levels read from the cache rather than decoded source images.
     ...(options.textureSource === 'cache' ? { textureSource: 'cache' } : {}),
+    // Block format of the texture pools; the engine takes `auto` without it.
+    ...(options.textureCompression ? { textureCompression: options.textureCompression } : {}),
     // Temporal antialiasing cut: the pre-batch image, sampled at the pixel centre.
     ...(options.temporalAntialiasing === false ? { temporalAntialiasing: false } : {}),
   };

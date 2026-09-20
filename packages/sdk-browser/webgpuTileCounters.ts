@@ -25,6 +25,7 @@ export function createTileCounters() {
         atlases.reduce((total, atlas) => total + of(atlas), 0);
       const metrics: TextureFrameMetrics = {
         texturePoolBytes: sum((atlas) => atlas.pool.bytes),
+        texturePoolFormat: atlases[0]?.pool.texture.format ?? null,
         texturePoolLayers: atlases[0]?.pool.layers ?? null,
         textureTilesResident: sum((atlas) => atlas.pool.resident),
         textureResidentBytes: sum((atlas) => atlas.pool.residentBytes),

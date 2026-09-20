@@ -7,7 +7,10 @@
 //! not keep up with screen. Here, every level exists: tail in sidecar,
 //! RGBA8; levels above are lossless PNGs in cache, one file per level,
 //! addressed by source byte hash and atlas (`textures/<sha>/<srgb|linear>-<k>.png`),
-//! shared across scenes sharing image, never rewritten if present.
+//! shared across scenes sharing image, never rewritten if present. Beside each
+//! PNG, the same level block-compressed — `.bc7` for desktop cards, `.astc` for
+//! mobile ones — and the tail carried in those formats too (`blocks.rs`): one
+//! byte per texel in the pool instead of four, a declared, measured loss.
 //!
 //! Reduction rule matches GPU (`reduce.rs`): baking instead of
 //! regenerating does not change image. Covers both engine atlases — base color
@@ -20,6 +23,8 @@ use super::*;
 use std::sync::atomic::AtomicUsize;
 
 pub(crate) mod bake;
+mod bake_write;
+pub(crate) mod blocks;
 pub(crate) mod collect;
 mod curves;
 mod levels;
@@ -29,17 +34,20 @@ pub(crate) mod source;
 mod tests;
 pub use levels::*;
 
-/// Section contract: moving level scale, order, reduction rule, or
-/// color space requires incrementing this version and binary sidecar version
-/// carrying it. Version 3 is GPU rule and full chain, both atlases included.
-pub const TEXTURE_PREVIEW_VERSION: u32 = 3;
-pub use bake::{texture_version_dir, TEXTURE_DIR};
+/// Section contract: moving level scale, order, reduction rule, color space
+/// or a block codec requires incrementing this version and binary sidecar
+/// version carrying it. Version 3 is GPU rule and full chain, both atlases
+/// included; version 4 adds the block-compressed levels and tails.
+pub const TEXTURE_PREVIEW_VERSION: u32 = 4;
+pub use bake_write::{level_path, texture_version_dir, LOSSLESS, TEXTURE_DIR};
+pub use blocks::BlockFormat;
 pub use reduce::AtlasKind;
-/// Baked level template path, relative to `native/`; `bake::level_path` populates.
+/// Baked level template path, relative to `native/`; `bake_write::level_path`
+/// populates. `{format}` is `png`, or a block format's name.
 pub fn level_template() -> String {
     format!(
-        "{}/{{sha}}/{{kind}}-{{level}}.png",
-        bake::texture_version_dir()
+        "{}/{{sha}}/{{kind}}-{{level}}.{{format}}",
+        bake_write::texture_version_dir()
     )
 }
 /// Largest side sidecar level can have. Choice bounds section: at most
@@ -89,6 +97,8 @@ pub struct TexturePreview {
     /// when chain complete, 0 when nothing could be written.
     pub baked_levels: u32,
     pub pixels: Vec<u8>,
+    /// The same tail in each block format, `BlockFormat::ALL` order.
+    pub blocks: [Vec<u8>; 2],
 }
 
 /// Everything step reads. `view_map` translates input glTF views to those written in

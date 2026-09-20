@@ -1,15 +1,28 @@
 {
   "binary": {
+    "texturePreviewBlockBytes": 5904,
     "texturePreviewBytes": 23292,
     "texturePreviews": 3
   },
   "case": "Three quads, three opaque materials, one KTX 2.0 texture each: an uncompressed 4 × 4 R8G8B8A8 sRGB level, a 16 × 16 UASTC LDR 4 × 4 payload, and a 256 × 256 ETC1S payload under BasisLZ supercompression.",
   "formatVersion": 3,
-  "manifestBinaryVersion": 5,
+  "manifestBinaryVersion": 6,
   "previews": [
     {
       "atlas": 0,
       "bakedLevels": 0,
+      "blocks": [
+        {
+          "bytes": 48,
+          "format": "bc7",
+          "sha256": "83cd78d324dd634ea4964d4ba4fa0842717a3cad80a4067a82d662d5b72bc563"
+        },
+        {
+          "bytes": 48,
+          "format": "astc",
+          "sha256": "89d7e058ab1bd7729063af4c706410c67333f8622dcf4767a28f479aaffefa06"
+        }
+      ],
       "firstLevel": 0,
       "height": 4,
       "image": 0,
@@ -66,6 +79,18 @@
     {
       "atlas": 0,
       "bakedLevels": 0,
+      "blocks": [
+        {
+          "bytes": 368,
+          "format": "bc7",
+          "sha256": "faafcd033552cf9b246b14b1bc3dd2d4797cbf419339eb903510cd08d8e912ee"
+        },
+        {
+          "bytes": 368,
+          "format": "astc",
+          "sha256": "7e566d208eebaaf49356ea9488b51e6c7ed0a20b68a3f1aaa3c6b35f599b5d04"
+        }
+      ],
       "firstLevel": 0,
       "height": 16,
       "image": 1,
@@ -148,6 +173,18 @@
     {
       "atlas": 0,
       "bakedLevels": 2,
+      "blocks": [
+        {
+          "bytes": 5488,
+          "format": "bc7",
+          "sha256": "826d9e4a2d4f9f8980b1bc5e712d215ce2209b8c98f3ca669c94da9b436dd040"
+        },
+        {
+          "bytes": 5488,
+          "format": "astc",
+          "sha256": "b4b39be5fd217828fac3715fb789277004f722d96ef14a3e9e406a88bc0b77bb"
+        }
+      ],
       "firstLevel": 2,
       "height": 256,
       "image": 2,
@@ -257,6 +294,8 @@
   "report": {
     "bakedLevels": 2,
     "base": 64,
+    "blockBytes": 11808,
+    "blockFormats": ["bc7", "astc"],
     "colorTextures": 3,
     "dataTextures": 0,
     "maxLevels": 7,
@@ -264,10 +303,10 @@
     "pixelBytes": 23292,
     "previews": 3,
     "skipped": {},
-    "version": 3
+    "version": 4
   },
   "rule": "Each colour texture carries the lossless tail of its mip chain, from the first level whose neither side exceeds 64 through 1×1, in RGBA8 sRGB with straight alpha. The KTX2 container adds no loss: what the driver yields is the reconstruction the codec specification defines, and nothing else.",
   "textures": {
-    "url": "../../textures/v3/{sha}/{kind}-{level}.png"
+    "url": "../../textures/v4/{sha}/{kind}-{level}.{format}"
   }
 }

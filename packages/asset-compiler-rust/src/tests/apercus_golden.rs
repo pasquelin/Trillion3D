@@ -13,6 +13,9 @@ const HEADER_WORDS: usize = 4;
 const TEXTURE_PREVIEW_U32: usize = 21;
 const TEXTURE_PREVIEW_SHA: usize = 22;
 const TEXTURE_PREVIEW_PIXELS: usize = 23;
+/// The tails block-compressed, BC7 then ASTC 4 × 4: no offset written, one
+/// contiguous range per entry whose length follows from its dimensions.
+const TEXTURE_PREVIEW_BLOCKS: [(&str, usize); 2] = [("bc7", 24), ("astc", 25)];
 /// Numbers per entry: texture, image, width, height, kind and provenance view,
 /// first level, level count, pixel start and length, atlas, levels baked to files.
 const PREVIEW_WORDS: usize = 12;
@@ -48,17 +51,29 @@ pub(super) fn previews_digest(run: &GoldenRun) -> Value {
     let (words_at, words_len) = column(TEXTURE_PREVIEW_U32);
     let (sha_at, _) = column(TEXTURE_PREVIEW_SHA);
     let (pixels_at, _) = column(TEXTURE_PREVIEW_PIXELS);
+    let mut blocks_at = TEXTURE_PREVIEW_BLOCKS.map(|(_, index)| column(index).0);
     let previews: Vec<Value> = (0..words_len / (PREVIEW_WORDS * 4))
         .map(|entry| {
             let base = words_at + entry * PREVIEW_WORDS * 4;
             let sha = &bytes[sha_at + entry * 64..sha_at + entry * 64 + 64];
-            entry_digest(
+            let mut digest = entry_digest(
                 bytes,
                 base,
                 pixels_at,
                 std::str::from_utf8(sha).expect("sha"),
                 word,
-            )
+            );
+            let length = texture_preview::preview_block_bytes(word(base + 8), word(base + 12));
+            digest["blocks"] = TEXTURE_PREVIEW_BLOCKS
+                .iter()
+                .zip(blocks_at.iter_mut())
+                .map(|((format, _), at)| {
+                    let tail = &bytes[*at..*at + length];
+                    *at += length;
+                    json!({"format": format, "bytes": length, "sha256": hash(tail)})
+                })
+                .collect();
+            digest
         })
         .collect();
     json!({
@@ -69,6 +84,7 @@ pub(super) fn previews_digest(run: &GoldenRun) -> Value {
       "binary": {
         "texturePreviews": run.slim["binary"]["texturePreviews"],
         "texturePreviewBytes": run.slim["binary"]["texturePreviewBytes"],
+        "texturePreviewBlockBytes": run.slim["binary"]["texturePreviewBlockBytes"],
       },
       "previews": previews,
     })

@@ -93,4 +93,21 @@ export const guidesFr = {
 <p>Les fonctions livrées et leurs preuves figurent dans <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/API.md">docs/API.md</a>.</p>
 <p>Parcours en deux temps : garder Three.js pour charger et construire la scène tout en dessinant avec le moteur, puis passer au cache compilé et retirer <code>three</code> des dépendances.</p>`,
   },
+  'texture-compression': {
+    title: 'Textures compressées à la cuisson',
+    description:
+      'BC7 pour les cartes de bureau, ASTC 4×4 pour les mobiles, cuits une fois par le compilateur ; la carte choisit, le pool tient un octet par texel.',
+    html: `<p>Les textures des matériaux sont virtuelles : le compilateur cuit toute la chaîne de mips de chaque texture lue par un atlas, le navigateur ne lit que les tuiles de 128×128 demandées par l’image, et deux pools fixes les portent. Sans compression, un texel coûte quatre octets dans le pool. Le compilateur cuit désormais chaque niveau trois fois — un PNG sans perte, puis le même niveau en <strong>BC7</strong> et en <strong>ASTC 4×4</strong>, un octet par texel — et la queue de chaque chaîne voyage dans l’annexe du manifeste dans les trois encodages. Un seul cache sert toutes les cartes.</p>
+<h3 class="text-lg font-bold mt-4">Ce que le moteur décide</h3>
+<ul class="list-disc pl-6 space-y-1">
+<li><strong>La carte choisit le format.</strong> Une carte avec <code>texture-compression-bc</code> lit du BC7, une avec <code>texture-compression-astc</code> lit de l’ASTC, une sans les deux garde le RGBA8 — la raison est publiée, jamais devinée. <code>textureCompression</code> (<code>'auto'</code> par défaut) peut imposer <code>'bc7'</code> ou <code>'astc'</code>, ou demander <code>'none'</code> : l’« avant » sans perte d’une comparaison.</li>
+<li><strong>Les budgets ne bougent pas, les tuiles si.</strong> <code>texturePoolBytes</code> reste le même réservoir fixe ; en format bloc il porte quatre fois plus de tuiles — seize couches par atlas à 512 Mio au lieu de quatre — et chaque queue épinglée coûte le quart.</li>
+<li><strong>Tout ou rien.</strong> Cela s’applique sous <code>textureSource: 'cache'</code>, et une image source ne peut pas remplir un pool bloc : une seule texture sans chaîne cuite complète ramène les deux pools au RGBA8, en le nommant.</li>
+</ul>
+<h3 class="text-lg font-bold mt-4">Ce qu’il faut lire</h3>
+<p><code>texturePoolFormat</code> dans les métriques d’image nomme le pool couleur réellement tenu (<code>bc7-rgba-unorm-srgb</code>, <code>astc-4x4-unorm-srgb</code> ou <code>rgba8unorm-srgb</code>) ; <code>texturePoolBytes</code>, <code>texturePoolLayers</code> et <code>textureResidentBytes</code> suivent le format. Le diagnostic <code>material-textures-ready</code> porte le choix et sa raison sous <code>pool.compression</code>. Le banc oppose les formats sur un même cache avec <code>--textures cache --compression-avant none --compression-apres bc7</code>.</p>
+<h3 class="text-lg font-bold mt-4">Le coût déclaré</h3>
+<p>Les deux codecs sont ceux du compilateur, une seule disposition chacun et aucune recherche de mode : BC7 mode 6, ASTC à une partition sur la plage de 192 niveaux avec des poids de 3 bits, chaque bloc ajusté sur un segment de l’espace RGBA et prouvé sur un décodeur indépendant. Sur les textures 2048² de la scène de référence, la perte se lit à 45–63 dB de PSNR sur les cartes de couleur et de données lisses et à 32 dB sur une carte de normales de briques dont les blocs varient dans deux directions — le cas qu’un mode à deux sous-ensembles ou le BC5 servirait, laissé à un lot mesuré. Les seuils 0 px du banc ne s’appliquent pas à ce lot ; la différence de pixels est mesurée et publiée avec le lot.</p>
+<p>Essayez-le en direct dans le bac à sable : <em>Redimensionner les deux pools</em> relit le format du pool de textures et son allocation acceptée. Contrat dans <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/SDK.md">docs/SDK.md</a>, disposition du cache dans <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/FORMAT.md">docs/FORMAT.md</a>.</p>`,
+  },
 };

@@ -21,6 +21,10 @@ fn preview(texture: u32, width: u32, height: u32, fill: u8) -> TexturePreview {
         first_level: preview_first_level(width, height),
         baked_levels: preview_first_level(width, height),
         pixels: vec![fill; preview_pixel_bytes(width, height)],
+        blocks: [
+            vec![fill; preview_block_bytes(width, height)],
+            vec![fill.wrapping_add(1); preview_block_bytes(width, height)],
+        ],
     }
 }
 
@@ -68,6 +72,31 @@ fn texture_previews_round_trip_through_the_binary_columns() {
         );
         offset += length;
     }
+    // The block columns follow the same order, one contiguous range per entry, both formats.
+    for (format, index) in TEXTURE_PREVIEW_BLOCKS.iter().enumerate() {
+        let (blocks_off, blocks_len) = column(*index);
+        let mut at = 0usize;
+        for source in &previews {
+            let length = preview_block_bytes(source.width, source.height);
+            assert_eq!(source.blocks[format].len(), length);
+            assert_eq!(
+                &bytes[blocks_off + at..blocks_off + at + length],
+                source.blocks[format].as_slice()
+            );
+            at += length;
+        }
+        assert_eq!(at, blocks_len);
+    }
+}
+
+// Behavior 9 (h): a block tail of the wrong length — a codec change that would
+// stride the reader wrongly — is refused.
+#[test]
+fn encode_previews_rejects_the_wrong_block_byte_length() {
+    let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
+    let mut malformed = preview(0, 4, 4, 1);
+    malformed.blocks[1].pop();
+    assert!(crate::manifest_binary::preview::encode_previews(&[malformed], &mut columns).is_err());
 }
 
 // Behavior 9 (b): file from earlier version (here 3, fixed-length previews)

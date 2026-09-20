@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TEMPLATES, sha } from '../../test/fixtures/manifestBinary.ts';
+import { TEMPLATES, previewLevels, sha } from '../../test/fixtures/manifestBinary.ts';
 import {
   encodeManifestBinary,
   decodeManifestBinary,
@@ -12,20 +12,13 @@ import {
   type ClusterManifest,
   type TexturePreview,
 } from './contracts.ts';
-import { previewFirstLevel, previewLevelCount, previewLevelSize } from './texturePreviewLevels.ts';
+import { previewBlockBytes, previewFirstLevel } from './texturePreviewLevels.ts';
 import {
   COLUMN_NAMES,
   MANIFEST_BINARY_HEADER_WORDS,
   PREVIEW_WORDS,
 } from './manifestBinaryFormat.ts';
 
-function levels(width: number, height: number, seed: number) {
-  const first = previewFirstLevel(width, height);
-  return Array.from({ length: previewLevelCount(width, height) }, (_, index) => {
-    const [w, h] = previewLevelSize(width, height, first + index);
-    return new Uint8Array(w * h * 4).map((_b, i) => (i + seed) % 256) as Uint8Array<ArrayBuffer>;
-  });
-}
 function preview(texture: number, width: number, height: number, seed: number): TexturePreview {
   return {
     texture,
@@ -38,7 +31,7 @@ function preview(texture: number, width: number, height: number, seed: number): 
     bakedLevels: 0,
     sha256: sha(String(texture)),
     firstLevel: previewFirstLevel(width, height),
-    levels: levels(width, height, seed),
+    ...previewLevels(width, height, seed),
   };
 }
 function manifestWith(previews: TexturePreview[]): ClusterManifest {
@@ -156,4 +149,34 @@ test('an unknown atlas, or more baked levels than lie above the tail, is refused
   const { slim, buffer } = encode([preview(0, 256, 256, 1)]);
   previewWord(buffer, 0, PREVIEW_ATLAS)[0] = 7;
   refused(buffer, slim);
+});
+
+// Behaviour: the block tails travel in their own columns with no written range — each entry's
+// follows the previous at the length its dimensions imply — and a column that is short or long
+// against those lengths is refused whole, never sliced wrongly.
+test('block tails round-trip by dimension, and a column of the wrong length is refused', () => {
+  const previews = [preview(0, 40, 24, 1), preview(2, 8, 8, 5)];
+  const { slim, buffer } = encode(previews);
+  assert.equal(
+    slim.binary.texturePreviewBlockBytes,
+    previewBlockBytes(40, 24) + previewBlockBytes(8, 8),
+  );
+  const decoded = decodeManifestBinary(slim, buffer).texturePreviews!;
+  decoded.forEach((entry, index) => {
+    assert.deepEqual(entry.blocks.bc7, previews[index].blocks.bc7);
+    assert.deepEqual(entry.blocks.astc, previews[index].blocks.astc);
+    assert.equal(
+      entry.blocks.astc[0].length,
+      16 * Math.ceil(entry.width / 4) * Math.ceil(entry.height / 4),
+    );
+  });
+  for (const delta of [-16, 16]) {
+    const lying = { ...slim, binary: { ...slim.binary } };
+    lying.binary.texturePreviewBlockBytes += delta;
+    refused(buffer, lying);
+  }
+  assert.throws(
+    () => encode([{ ...preview(0, 8, 8, 1), blocks: { bc7: [], astc: [] } }]),
+    /wrong length/,
+  );
 });

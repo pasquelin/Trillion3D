@@ -4,7 +4,7 @@ const n = (v) => (typeof v === 'number' ? String(v) : 'unmeasured');
 const n2 = (v) => (typeof v === 'number' ? v.toFixed(2) : 'unmeasured');
 
 /**
- * Virtual textures of one side, read from the sixteen counters the engine publishes. The pool is
+ * Virtual textures of one side, read from the seventeen counters the engine publishes. The pool is
  * COMPUTED from its dimensions and format — WebGPU does not publish occupied memory — and it is
  * fixed: "resident on pool" says what the view occupies, never what the scene weighs. Image
  * feedback says what the pixels asked for and what they are missing; "unmeasured" is not zero.
@@ -22,8 +22,9 @@ export function textures(metrics, resultat = {}) {
       ? `${(resultat.preparationMs / 1000).toFixed(2)} s`
       : 'unmeasured';
   return [
-    `- Textures: pool ${go(m.texturePoolBytes)} computed, ${n(m.texturePoolLayers)} layer(s) per ` +
-      `atlas; resident ${go(m.textureResidentBytes)} in ${n(m.textureTilesResident)} tiles`,
+    `- Textures: pool ${go(m.texturePoolBytes)} computed in ${m.texturePoolFormat ?? 'unmeasured'}, ` +
+      `${n(m.texturePoolLayers)} layer(s) per atlas; resident ${go(m.textureResidentBytes)} in ` +
+      `${n(m.textureTilesResident)} tiles`,
     `- Image feedback: ${n(m.textureTilesRequested)} tiles requested, ${n(m.textureTilesAtLevel)} ` +
       `served at the requested level, ${n2(m.textureMissingLevels)} missing level(s) on average, ` +
       `${n(m.textureTilesPending)} pending`,

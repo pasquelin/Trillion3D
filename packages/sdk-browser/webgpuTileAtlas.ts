@@ -8,13 +8,16 @@ import {
   type WebgpuTilePageTable,
 } from './webgpuTilePageTable.ts';
 import { writeTailFromBytes } from './webgpuTileWrite.ts';
+import { writeTailFromBlocks } from './webgpuTileWriteBlocks.ts';
+import { isBlockFormat } from './textureBlockFormats.ts';
 import { resizeTileAtlas } from './webgpuTileAtlasResize.ts';
 import { tailId, tileId, tileKeyOf } from './webgpuTileIds.ts';
 
 /**
  * Where a texture's texels come from. `bytes`: everything fits in the sidecar tail, nothing is
  * streamed. `baked`: the tail comes from the sidecar, streamed levels are read cooked from the
- * cache. `host`: neither, the host image goes through a working texture.
+ * cache. `host`: neither, the host image goes through a working texture. A tail is in the pool's
+ * own encoding — RGBA8 texels, or the blocks of its format — as the catalogue chose it.
  */
 type TileSource =
   | { kind: 'bytes'; tail: readonly Uint8Array[] }
@@ -68,6 +71,7 @@ export function createWebgpuTileAtlas(
   },
 ): WebgpuTileAtlas {
   const { kind, textures } = options;
+  const writeTail = isBlockFormat(options.format) ? writeTailFromBlocks : writeTailFromBytes;
   let pool = createWebgpuTilePool(device, {
     kind,
     format: options.format,
@@ -123,7 +127,7 @@ export function createWebgpuTileAtlas(
         const { layout, source } = texture;
         if (source.kind === 'host') fromHost(slot, place);
         else
-          writeTailFromBytes(
+          writeTail(
             queue,
             pool.texture,
             place,

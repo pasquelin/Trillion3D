@@ -55,6 +55,7 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     shadowDigest: settings.shadowDigest,
     // Textures read from the cache: only for an engine that reads the atlas, never the witness.
     textureSource: settings.textureSource,
+    textureCompression: side.compression ?? undefined,
     temporalAntialiasing: settings.temporalAntialiasing,
     mathPath: settings.mathPath === 'auto' ? null : settings.mathPath,
     movingNode: settings.movingNode,

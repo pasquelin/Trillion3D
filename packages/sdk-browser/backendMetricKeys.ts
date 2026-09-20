@@ -47,6 +47,7 @@ export const BACKEND_METRIC_KEYS = [
   'geometryPoolSaturated',
   'texturePoolClamp',
   'texturePoolBytes',
+  'texturePoolFormat',
   'texturePoolLayers',
   'textureTilesResident',
   'textureResidentBytes',

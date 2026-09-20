@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuTilePool } from './webgpuTilePool.ts';
-import { POOL_LAYER_BYTES, TILE_BYTES, TILES_PER_LAYER } from './textureTiles.ts';
+import { poolLayerBytes, tileBytes, TILES_PER_LAYER } from './textureTiles.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 
 installGpuGlobals();
@@ -32,12 +32,29 @@ test('the pool allocates its layers once, at the fixed size, and counts its tile
   assert.deepEqual(created[0].size, { width: 4080, height: 4080, depthOrArrayLayers: 2 });
   assert.equal(created[0].format, 'rgba8unorm-srgb');
   assert.equal(pool.tiles, 2 * TILES_PER_LAYER);
-  assert.equal(pool.bytes, 2 * POOL_LAYER_BYTES);
+  assert.equal(pool.bytes, 2 * poolLayerBytes(4));
+  assert.ok((created[0].usage & GPUTextureUsage.RENDER_ATTACHMENT) !== 0);
   assert.equal(pool.resident, 0);
   assert.throws(
     () => createWebgpuTilePool(device, { kind: 'data', format: 'rgba8unorm', layers: 0 }),
     /TEXTURE_POOL_LAYERS/,
   );
+});
+
+// Behaviour: a block pool counts one byte per texel and is never a render attachment — WebGPU
+// refuses that usage on a compressed format, and no browser image is copied into it.
+test('a block-compressed pool counts a quarter of the bytes and asks for no attachment usage', () => {
+  const { device, created } = fakeDevice();
+  const pool = createWebgpuTilePool(device, {
+    kind: 'color',
+    format: 'bc7-rgba-unorm-srgb',
+    layers: 1,
+  });
+  assert.equal(pool.bytes, poolLayerBytes(1));
+  assert.equal(pool.bytes * 4, poolLayerBytes(4));
+  assert.equal(created[0].usage & GPUTextureUsage.RENDER_ATTACHMENT, 0);
+  pool.acquire(1, 0);
+  assert.equal(pool.residentBytes, tileBytes(1));
 });
 
 test('take, touch, return: the key follows the slot, and a full pool refuses without dropping', () => {
@@ -46,7 +63,7 @@ test('take, touch, return: the key follows the slot, and a full pool refuses wit
   const first = pool.acquire(41, 3)!;
   assert.equal(pool.keyOf(first), 41);
   assert.deepEqual(pool.placeOf(first), { x: 0, y: 0, layer: 0 });
-  assert.equal(pool.residentBytes, TILE_BYTES);
+  assert.equal(pool.residentBytes, tileBytes(4));
   pool.touch(first, 9);
   assert.equal(pool.lastUseOf(first), 9);
   pool.release(first);

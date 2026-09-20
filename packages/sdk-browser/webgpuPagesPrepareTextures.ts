@@ -1,9 +1,10 @@
 import { compteMateriauxEtTangentes } from './webgpuPagesCatalogue.ts';
 import { prepareWebgpuGeometry } from './webgpuGeometryPrepare.ts';
 import { collectWebgpuMaterialTextures } from './webgpuMaterialTextures.ts';
-import { tileCatalogue } from './webgpuTileCatalogue.ts';
+import { chainOf, tileCatalogue } from './webgpuTileCatalogue.ts';
 import { createWebgpuTileStreamer } from './webgpuTileStreamer.ts';
-import { POOL_LAYER_BYTES, TILE_BYTES } from './textureTiles.ts';
+import { poolLayerBytes, tileBytes } from './textureTiles.ts';
+import { texelBytes } from './textureBlockFormats.ts';
 import { shadowsFollowTextures } from './webgpuPagesLightResources.ts';
 import {
   PREVIEW_ATLAS_COLOR,
@@ -26,8 +27,10 @@ const catalogueReport = (textures: TileTexture[]) => ({
 
 /**
  * Concatenates page geometry, inventories material textures and builds virtual textures: two tile
- * pools at the size the host budget sets, their page tables, each texture's queue pinned from the
- * start, and the sampler the passes read.
+ * pools at the size the host budget sets, in the block format the session chose when every
+ * texture the render needs has its baked chain — a host image cannot fill a block pool, so one
+ * without brings both pools back to RGBA8, by name —, their page tables, each texture's queue
+ * pinned from the start, and the sampler the passes read.
  */
 export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { vis, diag, run } = rt,
@@ -68,13 +71,30 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     return source === undefined ? undefined : byTexture.get(`${source}/${atlas}`);
   };
   const readLevel = rt.context.readTextureLevel;
-  const color = tileCatalogue(maps, previewOf(PREVIEW_ATLAS_COLOR, maps), readLevel);
-  const data = tileCatalogue(dataMaps, previewOf(PREVIEW_ATLAS_DATA, dataMaps), readLevel);
+  const colorPreview = previewOf(PREVIEW_ATLAS_COLOR, maps),
+    dataPreview = previewOf(PREVIEW_ATLAS_DATA, dataMaps);
+  if (rt.setup.blockChoice.block) {
+    const missing = [
+      ...maps.map((_, i) => (chainOf(colorPreview(i), readLevel) ? null : `colour ${i}`)),
+      ...dataMaps.map((_, i) => (chainOf(dataPreview(i), readLevel) ? null : `data ${i}`)),
+    ].filter((name) => name !== null);
+    if (missing.length) {
+      rt.setup.blockChoice = {
+        block: undefined,
+        reason: `${missing.length} texture(s) without a whole baked chain: ${missing.join(', ')}`,
+      };
+      rt.setup.texturePool = rt.setup.texturePoolFor(rt.setup.texturePool.budgetBytes);
+    }
+  }
+  const { block } = rt.setup.blockChoice;
+  const color = tileCatalogue(maps, colorPreview, readLevel, block);
+  const data = tileCatalogue(dataMaps, dataPreview, readLevel, block);
   const textures = createWebgpuTileStreamer({
     device: gpuDevice,
     color,
     data,
     layersPerAtlas: rt.setup.texturePool.layers,
+    block,
     budgetBytes: rt.setup.textureBudget,
     readLevel,
     onFailure: diag.diagnosticFailure,
@@ -93,8 +113,10 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     pool: {
       layersPerAtlas: rt.setup.texturePool.layers,
       bytes: textures.color.pool.bytes + textures.data.pool.bytes,
-      layerBytes: POOL_LAYER_BYTES,
-      tileBytes: TILE_BYTES,
+      format: textures.color.pool.texture.format,
+      compression: rt.setup.blockChoice,
+      layerBytes: poolLayerBytes(texelBytes(textures.color.pool.texture.format)),
+      tileBytes: tileBytes(texelBytes(textures.color.pool.texture.format)),
       tilesPerAtlas: textures.color.pool.tiles,
       pinnedTails: textures.color.pool.resident + textures.data.pool.resident,
       requestReduce: textures.requestReduce,

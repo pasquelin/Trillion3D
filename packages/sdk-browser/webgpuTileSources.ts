@@ -1,5 +1,7 @@
 import { levelSize, type TilePlace } from './textureTiles.ts';
 import type { TextureLevelReader } from './textureLevelReader.ts';
+import type { TextureLevelFormat } from '../sdk-core/index.ts';
+import { writeTileFromBlocks } from './webgpuTileWriteBlocks.ts';
 import type { WebgpuTileAtlas } from './webgpuTileAtlas.ts';
 import { createWebgpuTileLevels, type LevelKey } from './webgpuTileLevels.ts';
 import { createTileScratch, type TileScratch } from './webgpuTileScratch.ts';
@@ -22,8 +24,9 @@ const MAX_SCRATCHES = 2;
 const LEVEL_CACHE_BYTES = 192 * 1024 * 1024;
 
 /**
- * Where a tile's texels come from, and how they reach the pool: a cooked level decoded by the
- * browser and held in the level cache, or a working texture built from the host image. A tile whose
+ * Where a tile's texels come from, and how they reach the pool: a cooked level — decoded by the
+ * browser, or block-compressed as the file holds it — held in the level cache, or a working texture
+ * built from the host image, which only an RGBA8 pool can receive. A tile whose
  * source is not yet in hand is not served; it will come back on the next feedback. A host texture's
  * queue goes through here too, at prepare: its working texture, the queue copied, submitted, then
  * returned — one whole source at a time, never all together.
@@ -31,10 +34,12 @@ const LEVEL_CACHE_BYTES = 192 * 1024 * 1024;
 export function createTileSources(options: {
   device: GPUDevice;
   readLevel?: TextureLevelReader;
+  /** What the pools sample: the block format's file, or the lossless one. */
+  levelFormat: TextureLevelFormat;
   counters: TileCounters;
   onFailure: (phase: string, error: unknown) => void;
 }) {
-  const { device, counters } = options;
+  const { device, counters, levelFormat } = options;
   const levels = options.readLevel
     ? createWebgpuTileLevels({
         read: options.readLevel,
@@ -89,16 +94,25 @@ export function createTileSources(options: {
       const [width, height] = levelSize(layout.width, layout.height, key.level);
       const region = tileRegion(width, height, key.tx, key.ty);
       if (source.kind === 'baked') {
-        const levelKey = { sha256: source.sha256, atlas: source.atlas, level: key.level };
-        const bitmap = levels?.get(levelKey, frame);
-        if (!bitmap) {
+        const levelKey = {
+          sha256: source.sha256,
+          atlas: source.atlas,
+          level: key.level,
+          format: levelFormat,
+          width: layout.width,
+          height: layout.height,
+        };
+        const held = levels?.get(levelKey, frame);
+        if (!held) {
           if (!atlas.roomFor(frame)) return 'refused';
           if (levels && levels.inFlight < MAX_LEVEL_READS) levels.request(levelKey, frame);
           return 'waiting';
         }
         const place = atlas.place(key, frame);
         if (!place) return 'refused';
-        writeTileFromBitmap(device.queue, atlas.pool.texture, place, bitmap, region);
+        if ('blocks' in held)
+          writeTileFromBlocks(device.queue, atlas.pool.texture, place, held, region);
+        else writeTileFromBitmap(device.queue, atlas.pool.texture, place, held, region);
         return 'served';
       }
       if (source.kind !== 'host') throw new Error('TEXTURE_TILE_WITHOUT_SOURCE');

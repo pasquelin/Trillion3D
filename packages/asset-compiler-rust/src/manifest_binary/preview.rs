@@ -12,7 +12,9 @@ use super::*;
 /// duplicating it would create two truths. Levels not described one by one: their
 /// dimensions re-deduced from source dimensions, so reader recomputes
 /// declared geometry instead of trusting it. Entries strictly increasing by texture index
-/// then atlas, ranges contiguous without gaps, re-checked by reader.
+/// then atlas, ranges contiguous without gaps, re-checked by reader. The block
+/// columns carry the same tails compressed, entry after entry with no offset
+/// written: their lengths follow from the dimensions, and the reader re-derives them.
 pub(super) fn encode_previews(previews: &[TexturePreview], columns: &mut [Column]) -> Result<()> {
     let mut previous: Option<(u32, u32)> = None;
     let mut offset: u32 = 0;
@@ -71,6 +73,17 @@ pub(super) fn encode_previews(previews: &[TexturePreview], columns: &mut [Column
             .ok_or_else(|| bad("Texture preview pixels exceed four gigabytes"))?;
         columns[TEXTURE_PREVIEW_SHA].sha(&preview.sha256)?;
         columns[TEXTURE_PREVIEW_PIXELS].raw(&preview.pixels);
+        let block_bytes = preview_block_bytes(preview.width, preview.height);
+        for (column, blocks) in TEXTURE_PREVIEW_BLOCKS.iter().zip(&preview.blocks) {
+            if blocks.len() != block_bytes {
+                return Err(bad(format!(
+                    "Texture preview {} carries {} block bytes, expected {block_bytes}",
+                    preview.texture,
+                    blocks.len()
+                )));
+            }
+            columns[*column].raw(blocks);
+        }
     }
     debug_assert_eq!(
         columns[TEXTURE_PREVIEW_U32].bytes.len(),

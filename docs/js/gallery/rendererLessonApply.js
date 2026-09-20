@@ -52,5 +52,8 @@ export function applyRendererLesson(explorer, lesson, state, added) {
     explorer.setDiagnostic(state.showLevels === 1 ? 'lod' : 'beauty');
   }
   if (lesson.kind === 'memory')
-    return explorer.setMemoryBudgets({ geometryPoolBytes: state.geometryMiB * 1024 * 1024 });
+    return explorer.setMemoryBudgets({
+      geometryPoolBytes: state.geometryMiB * 1024 * 1024,
+      texturePoolBytes: state.textureMiB * 1024 * 1024,
+    });
 }

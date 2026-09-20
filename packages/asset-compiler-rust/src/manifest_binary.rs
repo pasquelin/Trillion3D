@@ -11,7 +11,8 @@
 //!   columnCount × (u32 byteOffset, u32 byteLength)
 //!   column payloads, each starting on an 8-byte boundary
 use crate::texture_preview::{
-    preview_first_level, preview_level_count, preview_pixel_bytes, TexturePreview,
+    preview_block_bytes, preview_first_level, preview_level_count, preview_pixel_bytes,
+    TexturePreview,
 };
 use crate::{CompilerError, Result};
 use serde_json::{json, Map, Value};
@@ -34,7 +35,9 @@ use format::*;
 /// Version 5 widens an entry from ten to twelve words — the atlas it serves and the number of
 /// levels baked as files under `textures/` — and its pixels follow the graphics card's mip rule.
 /// A reader of version 4 would stride through the entries wrongly, so it refuses this file.
-pub const MANIFEST_BINARY_VERSION: u32 = 5;
+/// Version 6 adds two columns: the same tails block-compressed, BC7 then ASTC 4 × 4, each entry's
+/// range following from its dimensions. A reader of version 5 would not know them, so it refuses.
+pub const MANIFEST_BINARY_VERSION: u32 = 6;
 /// 'W','G','M','B' read as a little-endian u32.
 pub const MANIFEST_BINARY_MAGIC: u32 = 0x424d_4757;
 const HEADER_WORDS: usize = 4;
@@ -63,7 +66,9 @@ const PAGE_DEPTH_LAYER: usize = 20;
 const TEXTURE_PREVIEW_U32: usize = 21;
 const TEXTURE_PREVIEW_SHA: usize = 22;
 const TEXTURE_PREVIEW_PIXELS: usize = 23;
-const COLUMNS: usize = 24;
+/// The tails block-compressed, one column per format in `BlockFormat::ALL` order.
+const TEXTURE_PREVIEW_BLOCKS: [usize; 2] = [24, 25];
+const COLUMNS: usize = 26;
 /// Numbers per level entry: texture, image, width, height, kind and provenance
 /// view, then the first carried level, their count, and the start and length of
 /// its pixels.
@@ -146,9 +151,11 @@ pub fn split(
         )?);
     }
     preview::encode_previews(previews, &mut columns)?;
-    // The pixel column has no fixed stride: its total length enters the small JSON, without
-    // which a reader would not know how many bytes the column must be before reading it.
+    // The pixel and block columns have no fixed stride: their total lengths enter the small
+    // JSON, without which a reader would not know how many bytes a column must be before
+    // reading it. Both block columns are the same length, so one number serves.
     let preview_bytes = columns[TEXTURE_PREVIEW_PIXELS].bytes.len();
+    let preview_block_bytes = columns[TEXTURE_PREVIEW_BLOCKS[0]].bytes.len();
     let header_bytes = (HEADER_WORDS + COLUMNS * 2) * 4;
     let mut offsets = [0u32; COLUMNS];
     let mut offset = (header_bytes + 7) & !7;
@@ -172,6 +179,6 @@ pub fn split(
     slim.insert("primitives".into(), Value::Array(slim_primitives));
     slim.insert("binary".into(),json!({"version":MANIFEST_BINARY_VERSION,"url":templates.binary,"sha256":"","bytes":bytes.len(),
   "pageUrl":templates.page,"geometryUrl":templates.geometry,"bundleUrl":templates.bundle,"texturePreviews":previews.len(),
-  "texturePreviewBytes":preview_bytes}));
+  "texturePreviewBytes":preview_bytes,"texturePreviewBlockBytes":preview_block_bytes}));
     Ok((Value::Object(slim), bytes))
 }

@@ -1,22 +1,12 @@
 //! A decoded image, its baked chains and its written files. This module knows
 //! what it decodes and where it writes it; it does not know what a cutout is, and
 //! receives the list of textures to measure.
+use super::bake_write::{block_tail, write_levels};
+use super::blocks::BlockFormat;
 use super::collect::AtlasTexture;
 use super::reduce::AtlasKind;
 use super::*;
 use crate::plugins::image::DecodedImage;
-use image::codecs::png::{CompressionType, FilterType, PngEncoder};
-use image::{ExtendedColorType, ImageEncoder};
-
-/// Where an image's levels live in the cache, relative to `native/`: one folder
-/// per reduction-rule version, then one per fingerprint, one file per atlas and
-/// per level. The version is in the path because a file already there is never
-/// rewritten: without it, a rule that changes would keep serving levels computed
-/// by the old one.
-pub const TEXTURE_DIR: &str = "textures";
-pub fn texture_version_dir() -> String {
-    format!("{TEXTURE_DIR}/v{TEXTURE_PREVIEW_VERSION}")
-}
 
 /// What an image yields once baked: one entry per (texture, atlas) that reads it.
 pub(super) struct Baked {
@@ -93,6 +83,10 @@ pub(super) fn one_image(
             }
         };
         let pixels = reduce::tail(&levels, first_level);
+        let blocks = {
+            let _t = perf::Timer::new(perf::Phase::TextureBake);
+            BlockFormat::ALL.map(|format| block_tail(&levels, (width, height), format))
+        };
         for reader in readers.iter().filter(|r| r.kind == kind) {
             previews.push(TexturePreview {
                 texture: u32::try_from(reader.texture)
@@ -106,6 +100,7 @@ pub(super) fn one_image(
                 first_level,
                 baked_levels,
                 pixels: pixels.clone(),
+                blocks: blocks.clone(),
             });
         }
     }
@@ -116,48 +111,6 @@ pub(super) fn one_image(
     })
 }
 
-/// File of a level, relative to `native/`: the template published in the
-/// manifest, filled. One truth, the same the engine applies on its side.
-pub fn level_path(sha256: &str, kind: AtlasKind, level: u32) -> String {
-    level_template()
-        .replace("{sha}", sha256)
-        .replace("{kind}", kind.name())
-        .replace("{level}", &level.to_string())
-}
-
-/// Writes the levels above the sidecar tail as lossless PNG, one file per level,
-/// and returns how many exist at the end. A file already there is left as-is: the
-/// source-bytes fingerprint and the atlas suffice to say its content is the right
-/// one, and rewriting it would cost compressing a 2048² on every compilation of a
-/// scene that shares the image.
-fn write_levels(
-    o: &Options,
-    sha256: &str,
-    kind: AtlasKind,
-    levels: &[Vec<u8>],
-    (width, height): (u32, u32),
-) -> Result<u32> {
-    let native = o.cache.join("native");
-    let first = preview_first_level(width, height);
-    for (level, pixels) in levels.iter().enumerate().take(first as usize) {
-        let path = native.join(level_path(sha256, kind, level as u32));
-        if path.exists() {
-            continue;
-        }
-        let (w, h) = preview_level_size(width, height, level as u32);
-        let _t = perf::Timer::new(perf::Phase::TextureWrite);
-        let mut encoded = Vec::with_capacity(pixels.len() / 2);
-        PngEncoder::new_with_quality(&mut encoded, CompressionType::Default, FilterType::Adaptive)
-            .write_image(pixels, w, h, ExtendedColorType::Rgba8)
-            .map_err(|e| CompilerError::new("TEXTURE_ENCODE_FAILED", e.to_string()))?;
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        atomic(&path, &encoded)?;
-    }
-    Ok(first)
-}
-
 /// Stage report, which counts what it baked and what it refused.
 pub(super) fn report(
     wanted: &[AtlasTexture],
@@ -166,10 +119,15 @@ pub(super) fn report(
     notes: &BTreeMap<&'static str, usize>,
 ) -> Value {
     let pixel_bytes: usize = previews.iter().map(|entry| entry.pixels.len()).sum();
+    let block_bytes: usize = previews
+        .iter()
+        .map(|entry| entry.blocks.iter().map(Vec::len).sum::<usize>())
+        .sum();
     let baked: u32 = previews.iter().map(|entry| entry.baked_levels).sum();
     json!({"version":TEXTURE_PREVIEW_VERSION,"base":PREVIEW_BASE,"maxLevels":PREVIEW_MAX_LEVELS,
         "colorTextures":wanted.iter().filter(|w| w.kind == AtlasKind::Color).count(),
         "dataTextures":wanted.iter().filter(|w| w.kind == AtlasKind::Data).count(),
-        "previews":previews.len(),"pixelBytes":pixel_bytes,"bakedLevels":baked,
+        "previews":previews.len(),"pixelBytes":pixel_bytes,"blockBytes":block_bytes,
+        "blockFormats":BlockFormat::ALL.map(BlockFormat::name),"bakedLevels":baked,
         "skipped":skipped,"notes":notes})
 }

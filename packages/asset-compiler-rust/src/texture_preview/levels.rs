@@ -47,3 +47,14 @@ pub fn preview_pixel_bytes(width: u32, height: u32) -> usize {
     }
     bytes
 }
+
+/// Bytes of every carried level once block-compressed, whole 4 × 4 blocks of
+/// sixteen bytes, end to end from finest to coarsest — the same in both formats.
+pub fn preview_block_bytes(width: u32, height: u32) -> usize {
+    (preview_first_level(width, height)..=preview_last_level(width, height))
+        .map(|level| {
+            let (w, h) = preview_level_size(width, height, level);
+            super::blocks::level_block_bytes(w, h)
+        })
+        .sum()
+}

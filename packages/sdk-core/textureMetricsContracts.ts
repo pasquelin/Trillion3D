@@ -9,11 +9,14 @@
 export interface TextureFrameMetrics {
   /**
    * The physical pool, fixed for the session: its bytes — COMPUTED from its dimensions and
-   * format, WebGPU not publishing occupied memory —, its layers per atlas, and what it holds.
-   * `texturePoolBytes` does not depend on the scene; `textureResidentBytes` is the occupied share,
-   * pinned tails included.
+   * format, WebGPU not publishing occupied memory —, the colour atlas's format (`bc7-…`,
+   * `astc-4x4-…` when the device samples a block format and every texture has its baked chain,
+   * `rgba8unorm-srgb` otherwise), its layers per atlas, and what it holds. `texturePoolBytes`
+   * does not depend on the scene; `textureResidentBytes` is the occupied share, pinned tails
+   * included.
    */
   texturePoolBytes?: number | null;
+  texturePoolFormat?: string | null;
   texturePoolLayers?: number | null;
   textureTilesResident?: number | null;
   textureResidentBytes?: number | null;

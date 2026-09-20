@@ -1,4 +1,4 @@
-import { texturePoolFor, type GeometryPool, type TexturePool } from './webgpuMemoryBudgets.ts';
+import type { GeometryPool, TexturePool } from './webgpuMemoryBudgets.ts';
 import { dropPoolBindGroups } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -40,7 +40,7 @@ export async function setWebgpuMemoryBudgets(
   const before = { pages: residentPages(), tiles: residentTiles() };
   // Tiles first: their copy is synchronous, the pages' waits for in-flight loads.
   if (budgets.texturePoolBytes !== undefined) {
-    const pool = texturePoolFor(budgets.texturePoolBytes, setup.gpuDevice);
+    const pool = setup.texturePoolFor(budgets.texturePoolBytes);
     if (pool.layers !== setup.texturePool.layers && vis.textures && !run.lost) {
       evictedTiles = vis.textures.resize(pool.layers);
       // Right away, before an image goes through: the groups name a destroyed pool.

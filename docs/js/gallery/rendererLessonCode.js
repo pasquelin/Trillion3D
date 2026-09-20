@@ -15,7 +15,11 @@ explorer.setEnvironment({ exposure: ${state.exposure} });`;
   if (lesson.kind === 'lod') return `explorer.setPixelError(${state.pixelError});`;
   if (lesson.kind === 'lod-diagnostic')
     return `explorer.setPixelError(${state.pixelError});\nexplorer.setDiagnostic(${state.showLevels === 1 ? "'lod'" : "'beauty'"});`;
-  return `await explorer.setMemoryBudgets({ geometryPoolBytes: ${state.geometryMiB} * 1024 * 1024 });`;
+  return `const pools = await explorer.setMemoryBudgets({
+  geometryPoolBytes: ${state.geometryMiB} * 1024 * 1024,
+  texturePoolBytes: ${state.textureMiB} * 1024 * 1024,
+});
+// pools.texturePool.layers per atlas; explorer.render().texturePoolFormat names the block format.`;
 };
 
 export function rendererCodeFor(lesson, state) {

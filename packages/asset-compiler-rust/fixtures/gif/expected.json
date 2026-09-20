@@ -1,15 +1,28 @@
 {
   "binary": {
+    "texturePreviewBlockBytes": 48,
     "texturePreviewBytes": 44,
     "texturePreviews": 1
   },
   "case": "A quad whose base colour is palette-globale.gif, a 4 × 2 GIF indexed on a global colour table of eight entries, compiled by the common harness.",
   "formatVersion": 3,
-  "manifestBinaryVersion": 5,
+  "manifestBinaryVersion": 6,
   "previews": [
     {
       "atlas": 0,
       "bakedLevels": 0,
+      "blocks": [
+        {
+          "bytes": 48,
+          "format": "bc7",
+          "sha256": "96ba237f1e32ea5a7debbc859bcd51ed0c9e199b0da8950c0b294edd50e9d42f"
+        },
+        {
+          "bytes": 48,
+          "format": "astc",
+          "sha256": "47b1280d88342d67f4e9bbb84d32e9c7f72a68c7da2c246b9c1db671b3e171cc"
+        }
+      ],
       "firstLevel": 0,
       "height": 2,
       "image": 0,
@@ -67,6 +80,8 @@
   "report": {
     "bakedLevels": 0,
     "base": 64,
+    "blockBytes": 96,
+    "blockFormats": ["bc7", "astc"],
     "colorTextures": 1,
     "dataTextures": 0,
     "maxLevels": 7,
@@ -74,10 +89,10 @@
     "pixelBytes": 44,
     "previews": 1,
     "skipped": {},
-    "version": 3
+    "version": 4
   },
   "rule": "Each colour texture carries the lossless tail of its mip chain, from the first level whose neither side exceeds 64 through 1×1, in RGBA8 sRGB with straight alpha. Neither BMP nor GIF adds loss: the first is read as-is and put back in image order, the second is indexed, and a colour table already carries 8-8-8.",
   "textures": {
-    "url": "../../textures/v3/{sha}/{kind}-{level}.png"
+    "url": "../../textures/v4/{sha}/{kind}-{level}.{format}"
   }
 }

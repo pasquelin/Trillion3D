@@ -1,11 +1,12 @@
-// Texture lines of the summary: all sixteen pool counters named, readable bytes, nothing invented.
+// Texture lines of the summary: all seventeen pool counters named, readable bytes, nothing invented.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { textures } from './rapportTextures.mjs';
 
-test('the sixteen virtual texture counters are read in three lines', () => {
+test('the seventeen virtual texture counters are read in three lines', () => {
   const [pool, retour, diffuseur, , vide] = textures({
     texturePoolBytes: 532_684_800,
+    texturePoolFormat: 'rgba8unorm-srgb',
     texturePoolLayers: 4,
     textureTilesResident: 1_212,
     textureResidentBytes: 89_668_608,
@@ -24,7 +25,7 @@ test('the sixteen virtual texture counters are read in three lines', () => {
   });
   assert.equal(
     pool,
-    '- Textures: pool 0.533 GB computed, 4 layer(s) per atlas; resident 0.090 GB in 1212 tiles',
+    '- Textures: pool 0.533 GB computed in rgba8unorm-srgb, 4 layer(s) per atlas; resident 0.090 GB in 1212 tiles',
   );
   assert.equal(
     retour,
@@ -48,7 +49,7 @@ test('preparation and network are read in seconds and GB per file type', () => {
 
 test('an engine that does not publish textures states them as unmeasured, never zero', () => {
   const [pool, retour, diffuseur] = textures({});
-  assert.match(pool, /pool unmeasured computed, unmeasured layer\(s\)/);
+  assert.match(pool, /pool unmeasured computed in unmeasured, unmeasured layer\(s\)/);
   assert.match(retour, /unmeasured tiles requested/);
   assert.match(diffuseur, /baked levels unmeasured in read/);
   for (const ligne of [pool, retour, diffuseur]) assert.doesNotMatch(ligne, /\b0 (GB|MB|tiles)\b/);

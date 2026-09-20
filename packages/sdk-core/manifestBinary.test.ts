@@ -137,6 +137,7 @@ test('assertManifestBinary accepts this version and refuses every other one', ()
     bundleUrl: '../../objects/{sha}.bin',
     texturePreviews: 0,
     texturePreviewBytes: 0,
+    texturePreviewBlockBytes: 0,
   };
   assert.doesNotThrow(() => assertManifestBinary(descriptor));
   for (const version of [0, 1, 2, 3, 999])

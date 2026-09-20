@@ -1,11 +1,12 @@
 import {
   placeOf,
-  POOL_LAYER_BYTES,
+  poolLayerBytes,
   POOL_LAYER_SIDE,
-  TILE_BYTES,
+  tileBytes,
   TILES_PER_LAYER,
   type TilePlace,
 } from './textureTiles.ts';
+import { isBlockFormat, texelBytes } from './textureBlockFormats.ts';
 
 /**
  * Physical pool of an atlas: an array-texture of 30×30-tile layers, at the size the host budget
@@ -54,19 +55,22 @@ export function createWebgpuTilePool(
   device: TilePoolDevice,
   options: { kind: 'color' | 'data'; format: GPUTextureFormat; layers: number },
 ): WebgpuTilePool {
-  const { layers } = options;
+  const { layers, format } = options;
   if (!Number.isSafeInteger(layers) || layers < 1) throw new Error('TEXTURE_POOL_LAYERS');
   const tiles = layers * TILES_PER_LAYER;
+  const perTexel = texelBytes(format);
+  // `copyExternalImageToTexture` also requires `RENDER_ATTACHMENT` of its destination; a block
+  // format cannot be one, and no browser image is ever copied into it.
+  const attachment = isBlockFormat(format) ? 0 : GPUTextureUsage.RENDER_ATTACHMENT;
   const texture = device.createTexture({
     label: `WG texture pool ${options.kind}`,
     size: { width: POOL_LAYER_SIDE, height: POOL_LAYER_SIDE, depthOrArrayLayers: layers },
-    format: options.format,
-    // `copyExternalImageToTexture` also requires `RENDER_ATTACHMENT` of its destination.
+    format,
     usage:
       GPUTextureUsage.TEXTURE_BINDING |
       GPUTextureUsage.COPY_DST |
       GPUTextureUsage.COPY_SRC |
-      GPUTextureUsage.RENDER_ATTACHMENT,
+      attachment,
   });
   const owner = new Int32Array(tiles).fill(-1),
     lastUse = new Uint32Array(tiles),
@@ -96,12 +100,12 @@ export function createWebgpuTilePool(
     view: texture.createView({ dimension: '2d-array' }),
     layers,
     tiles,
-    bytes: layers * POOL_LAYER_BYTES,
+    bytes: layers * poolLayerBytes(perTexel),
     get resident() {
       return resident;
     },
     get residentBytes() {
-      return resident * TILE_BYTES;
+      return resident * tileBytes(perTexel);
     },
     acquire(key, frame, pin = false) {
       settle();

@@ -15,6 +15,8 @@ export interface ManifestBinaryDescriptor {
   texturePreviews: number;
   /** Bytes of the pixel column: entries have no fixed stride, so their total is written here. */
   texturePreviewBytes: number;
+  /** Bytes of each block column, the same for both formats: their total is written here too. */
+  texturePreviewBlockBytes: number;
 }
 export interface SlimCulling {
   stride: number;
@@ -50,6 +52,7 @@ export type SlimClusterManifest = Omit<ClusterManifest, 'primitives'> & {
 const COUNT_KEYS = {
   texturePreviews: 'texture preview count',
   texturePreviewBytes: 'texture preview byte length',
+  texturePreviewBlockBytes: 'texture preview block byte length',
   bytes: 'byte length',
 } as const;
 type CountKey = keyof typeof COUNT_KEYS;

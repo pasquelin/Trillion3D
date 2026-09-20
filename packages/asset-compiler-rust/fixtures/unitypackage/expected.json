@@ -28,13 +28,13 @@
     },
     "files": [
       {
-        "file": "Map.unity",
         "bytes": 10495,
+        "file": "Map.unity",
         "sha256": "02ffa23c2a97cd62f1fa74c11d4bab2d2580ba00e0f10396ca157fedb98e006c"
       },
       {
-        "file": "Standard.mat",
         "bytes": 1006,
+        "file": "Standard.mat",
         "sha256": "8f2e840e969ddfdcb7c7db51d9580c60dae13f1ebaf2853d8faffd1657785696"
       }
     ],
@@ -48,8 +48,8 @@
     },
     "unsupported": {},
     "notes": [],
-    "manifestBinaryVersion": 5,
-    "sidecarSha256": "f3256659fbe97a50248170fb9588955962778f288f4ae1e5c20bd62bf7bb9d25",
+    "manifestBinaryVersion": 6,
+    "sidecarSha256": "90f29e8b783b3ca13513c99676c49278af8e5398fb318d4c7b9f9ff974569a84",
     "primitives": 1,
     "selectedNodes": [0, 4, 8],
     "totalNodes": 3,

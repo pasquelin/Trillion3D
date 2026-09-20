@@ -84,6 +84,8 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
         fps: !idle && previous ? 1000 / (now - previous) : null,
         cpu: metrics.cpuFrameMs,
         memory: metrics.geometryPoolAllocatedBytes,
+        textureMemory: metrics.texturePoolBytes,
+        textureFormat: metrics.texturePoolFormat,
         triangles: metrics.drawnTriangles,
         occluded: metrics.hizRejectedClusters ?? null, // the device's count, never estimated
         tested: metrics.hizTestedClusters ?? null,

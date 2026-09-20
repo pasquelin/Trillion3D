@@ -1,6 +1,7 @@
 import { CLUSTERED_BLEND_FORMAT_VERSION } from '../../packages/sdk-core/contractsBase.ts';
 import type { ClusterManifest } from '../../packages/sdk-core/contracts.ts';
 import {
+  levelBlockBytes,
   previewFirstLevel,
   previewLevelCount,
   previewLevelSize,
@@ -18,16 +19,32 @@ const url = (c: string) => `../../objects/${sha(c)}.bin`;
 /** Source dimensions of the fixture's single progressive-level entry. */
 const PREVIEW_SIZE: [number, number] = [32, 16];
 
-/** One progressive level pyramid: the lossless tail of the source's mip chain, each byte
+/** The tail of a `width`×`height` source, each level `bytesOf` its dimensions, every byte
  *  deterministic and level-distinct so a round trip that mixed up two levels would show here. */
-function previewLevels() {
-  const first = previewFirstLevel(...PREVIEW_SIZE);
-  return Array.from({ length: previewLevelCount(...PREVIEW_SIZE) }, (_, index) => {
-    const [width, height] = previewLevelSize(...PREVIEW_SIZE, first + index);
-    return new Uint8Array(width * height * 4).map(
-      (_byte, i) => (i + index) % 256,
+export function previewTail(
+  width: number,
+  height: number,
+  seed: number,
+  bytesOf: (w: number, h: number) => number,
+) {
+  const first = previewFirstLevel(width, height);
+  return Array.from({ length: previewLevelCount(width, height) }, (_, index) => {
+    const [w, h] = previewLevelSize(width, height, first + index);
+    return new Uint8Array(bytesOf(w, h)).map(
+      (_byte, i) => (i + index + seed) % 256,
     ) as Uint8Array<ArrayBuffer>;
   });
+}
+/** One progressive level pyramid: the lossless RGBA8 tail, and the same tail in each block
+ *  format, as the sidecar carries them. */
+export function previewLevels(width: number, height: number, seed: number) {
+  return {
+    levels: previewTail(width, height, seed, (w, h) => w * h * 4),
+    blocks: {
+      bc7: previewTail(width, height, seed + 1, levelBlockBytes),
+      astc: previewTail(width, height, seed + 2, levelBlockBytes),
+    },
+  };
 }
 
 /** Every optional field in both of its shapes: a round trip that misses one would show here. */
@@ -127,7 +144,7 @@ export function manifest(): ClusterManifest {
         bakedLevels: 0,
         sha256: sha('9'),
         firstLevel: previewFirstLevel(...PREVIEW_SIZE),
-        levels: previewLevels(),
+        ...previewLevels(...PREVIEW_SIZE, 0),
       },
     ],
     primitives: [

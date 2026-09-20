@@ -7,7 +7,7 @@ import {
   MANIFEST_BINARY_HEADER_WORDS,
   type ColumnName,
 } from './manifestBinaryFormat.ts';
-import { previewPixelBytes } from './texturePreviewLevels.ts';
+import { previewBlockBytes, previewPixelBytes } from './texturePreviewLevels.ts';
 
 const digestRefuse = (sha: string) =>
   new EngineError(
@@ -58,6 +58,8 @@ export interface Counts {
   previews: number;
   /** Bytes of the pixel column, every level of every entry concatenated. */
   previewBytes: number;
+  /** Bytes of each block column: the same levels compressed, whole blocks, entries contiguous. */
+  previewBlockBytes: number;
 }
 export function countManifest(manifest: ClusterManifest): Counts {
   const previews = manifest.texturePreviews ?? [];
@@ -72,6 +74,10 @@ export function countManifest(manifest: ClusterManifest): Counts {
     previews: previews.length,
     previewBytes: previews.reduce(
       (bytes, preview) => bytes + previewPixelBytes(preview.width, preview.height),
+      0,
+    ),
+    previewBlockBytes: previews.reduce(
+      (bytes, preview) => bytes + previewBlockBytes(preview.width, preview.height),
       0,
     ),
   };
@@ -123,6 +129,9 @@ export function columnElements(name: ColumnName, counts: Counts) {
       return counts.previews;
     case 'texturePreviewPixels':
       return counts.previewBytes;
+    case 'texturePreviewBc7':
+    case 'texturePreviewAstc':
+      return counts.previewBlockBytes;
   }
 }
 function columnBytes(name: ColumnName, counts: Counts) {

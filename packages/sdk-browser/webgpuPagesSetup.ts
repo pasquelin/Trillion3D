@@ -19,6 +19,7 @@ import {
   geometryPoolFor,
   texturePoolFor,
 } from './webgpuMemoryBudgets.ts';
+import { chooseBlockFormat, poolFormat, texelBytes } from './textureBlockFormats.ts';
 
 export type WebgpuDiagnostics = ReturnType<typeof createWebgpuDiagnostics> & {
   traceEnabled: boolean;
@@ -118,9 +119,17 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   const cap = poolFor(
     Math.max(geometryPool.budgetBytes, context.geometryPoolCeilingBytes ?? 0),
   ).slots;
+  // The block format the device samples, under the host's choice: the pool is sized by it, since
+  // a block texel costs a quarter of an RGBA8 one. Prepare confirms it against the textures
+  // the render needs, and brings the pool back to RGBA8 when one has no baked chain.
+  const blockChoice = chooseBlockFormat(
+    gpuDevice?.features ?? { has: () => false },
+    context.textureCompression,
+  );
   const texturePool = texturePoolFor(
     context.texturePoolBytes ?? DEFAULT_TEXTURE_POOL_BUDGET,
     gpuDevice,
+    texelBytes(poolFormat('color', blockChoice.block)),
   );
   const reserveHiz = typeof gpuDevice?.createComputePipeline === 'function';
   const textureBudget = Math.max(
@@ -166,6 +175,15 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     // The same pool for another budget, under the session ceiling.
     geometryPoolFor: (budgetBytes: number) => poolFor(budgetBytes, cap),
     texturePool,
+    blockChoice,
+    /** The same texture pool for another budget, in the format the session holds. */
+    texturePoolFor(budgetBytes: number) {
+      return texturePoolFor(
+        budgetBytes,
+        gpuDevice,
+        texelBytes(poolFormat('color', this.blockChoice.block)),
+      );
+    },
     get slots() {
       return this.geometryPool.slots;
     },

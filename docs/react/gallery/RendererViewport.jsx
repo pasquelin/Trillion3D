@@ -7,6 +7,8 @@ import { syncRendererState } from '../../js/gallery/syncRendererState.js';
 
 const value = (number, suffix, digits = 0) =>
   Number.isFinite(number) ? `${number.toFixed(digits)}${suffix}` : '—';
+const mebibytes = (bytes) =>
+  bytes < 1048576 ? value(bytes / 1024, ' KiB', 1) : value(bytes / 1048576, ' MiB', 1);
 const errorMessage = (error, locale, action) => {
   const fallback =
     action === 'update'
@@ -99,11 +101,17 @@ export function RendererViewport({ lesson, state, locale, label }) {
           {metrics.idle ? (french ? 'Pause' : 'Paused') : value(metrics.fps, '')}
         </Stat>
         <Stat title={french ? 'Image CPU' : 'CPU frame'}>{value(metrics.cpu, ' ms', 2)}</Stat>
-        <Stat title={french ? 'Pool alloué' : 'Allocated pool'}>
-          {metrics.memory < 1048576
-            ? value(metrics.memory / 1024, ' KiB', 1)
-            : value(metrics.memory / 1048576, ' MiB', 1)}
+        <Stat title={french ? 'Pool géométrique' : 'Geometry pool'}>
+          {mebibytes(metrics.memory)}
         </Stat>
+        {lesson.kind === 'memory' && (
+          <Stat
+            title={french ? 'Pool de textures' : 'Texture pool'}
+            description={metrics.textureFormat ?? '—'}
+          >
+            {mebibytes(metrics.textureMemory)}
+          </Stat>
+        )}
         <Stat title={french ? 'Triangles dessinés' : 'Drawn triangles'}>
           {value(metrics.triangles, '')}
         </Stat>

@@ -1,13 +1,20 @@
 import type * as THREE from 'three';
-import type { HostCamera } from './cameraWorld.ts';
+import type { HostCamera, HostDrawCamera } from './cameraWorld.ts';
+import type { MemoryBudgets, MemoryBudgetsReport } from './webgpuPagesMemory.ts';
+import type { TransparentOcclusionAudit } from './webgpuTransparentOcclusionAudit.ts';
+import type { ArrivalPlan } from './pageIntegrationHost.ts';
+import type { DecodedGeometryPage } from './geometryPage.ts';
 import type {
   BackendCapabilities,
   ClusterManifest,
+  DiagnosticMode,
   SceneLightStore,
+  SceneProxy,
   StageProfile,
 } from '../sdk-core/index.ts';
-import type { DiagnosticMode } from '../sdk-core/index.ts';
 import type { BackendMetrics } from './backendMetricKeys.ts';
+import type { TextureCompression } from './textureBlockFormats.ts';
+import type { TextureLevelReader } from './textureLevelReader.ts';
 export type { BackendCapabilities };
 
 export interface RenderBackend {
@@ -28,15 +35,13 @@ export interface RenderBackend {
   /** Moves a named node of the prepared scene; applied to the next frame, without allocation (R8). */
   setTransform?(nodeName: string, matrix: Float32Array): void;
   /** Sets memory pools during the session; returns what the engine holds afterwards. */
-  setMemoryBudgets?(
-    budgets: import('./webgpuPagesMemory.ts').MemoryBudgets,
-  ): Promise<import('./webgpuPagesMemory.ts').MemoryBudgetsReport>;
+  setMemoryBudgets?(budgets: MemoryBudgets): Promise<MemoryBudgetsReport>;
   prepare(): Promise<void>;
   render(camera: HostCamera): void;
   /** Draws engine-owned opaque geometry into the framebuffer currently bound by the host.
    *  The host clears first and draws its remaining Three scene afterwards without clearing. */
   drawHostGeometry?(
-    camera: import('./cameraWorld.ts').HostDrawCamera,
+    camera: HostDrawCamera,
     output: { encodeSrgb: boolean; toneMapped: boolean },
   ): void;
   readonly overBudget: boolean;
@@ -69,9 +74,7 @@ export interface RenderBackend {
   partitionAudit?(): Promise<import('./webgpuPartitionAudit.ts').PartitionAudit | null>;
   /** What the transparent occlusion test rejected, and the depth it rejected against:
    *  the proof that no removed cluster would have written a pixel. */
-  transparentOcclusionAudit?(): Promise<
-    import('./webgpuTransparentOcclusionAudit.ts').TransparentOcclusionAudit | null
-  >;
+  transparentOcclusionAudit?(): Promise<TransparentOcclusionAudit | null>;
   pendingUrls?(): string[];
   /** Bundles a finer cut would need. Fetched at low priority while the network is otherwise idle,
    *  so a small camera move finds them already resident. */
@@ -82,13 +85,9 @@ export interface RenderBackend {
   retainedRanks?(): import('./streamingTypes.ts').HostRetentionDelta;
   /** The catalogue integer sheet for a request: what off-thread integration plans. */
   pageSpecs?(url: string): Int32Array | undefined;
-  acceptPage?(
-    url: string,
-    array: Uint32Array,
-    plan?: import('./pageIntegrationHost.ts').ArrivalPlan,
-  ): void;
-  acceptGeometryPage?(url: string, data: import('./geometryPage.ts').DecodedGeometryPage): void;
-  replaceGeometryPage?(url: string, data: import('./geometryPage.ts').DecodedGeometryPage): void;
+  acceptPage?(url: string, array: Uint32Array, plan?: ArrivalPlan): void;
+  acceptGeometryPage?(url: string, data: DecodedGeometryPage): void;
+  replaceGeometryPage?(url: string, data: DecodedGeometryPage): void;
   /** Additional prepared-scene instance; supported by backends that own mutable scene records. */
   addInstance?(id: string, transform: THREE.Matrix4): void;
   updateInstance?(id: string, transform: THREE.Matrix4): void;
@@ -129,11 +128,10 @@ export interface BackendContext {
   /** glTF rank of each texture of the prepared scene, to tie an atlas layer to its preview. */
   textureIndices?: Map<THREE.Texture, number>;
   /** Reader of texture levels baked in the cache; absent from a cache that has none. */
-  readTextureLevel?: import('./textureLevelReader.ts').TextureLevelReader;
+  readTextureLevel?: TextureLevelReader;
   signal?: AbortSignal;
   maxResidentPages?: number;
-  /** What host-memory engines keep resident without a host ceiling; the WebGPU engine
-   *  ignores it, its pool is in bytes. */
+  /** What host-memory engines keep resident without a host ceiling; the WebGPU pool is in bytes. */
   residentPagesDefault?: number;
   maxCachedPages?: number;
   /** Resident page/bundle bytes kept by the streamer. Defaults to DEFAULT_CACHED_BYTES. */
@@ -154,44 +152,46 @@ export interface BackendContext {
   webglContext?: WebGL2RenderingContext;
   /** Texture-tile bytes admitted per frame. */
   maxTextureTransferBytesPerFrame?: number;
-  /** Geometry-page pool bytes, fixed regardless of the scene; 512 MiB by default.
-   *  The root cover always fits; the rest draws coarser when it does not fit. Image
-   *  targets are not budgeted: they follow resolution. */
+  /** Geometry-page pool bytes, fixed regardless of the scene; 512 MiB by default. The root
+   *  cover always fits; the rest draws coarser when it does not fit. Image targets are not
+   *  budgeted: they follow resolution. */
   geometryPoolBytes?: number;
-  /** The largest geometry pool a `setMemoryBudgets` may ask for during the session;
-   *  the starting budget without it. Per-drawable-page tables are sized once, to it. */
+  /** The largest geometry pool a `setMemoryBudgets` may ask for during the session; the
+   *  starting budget without it. Per-drawable-page tables are sized once, to it. */
   geometryPoolCeilingBytes?: number;
-  /** Virtual-texture pool bytes, shared between the colour atlas and the data atlas;
-   *  512 MiB by default. What a view asks beyond that waits for a less-looked-at tile
-   *  to free, and a missing tile shows its coarse level. */
+  /** Virtual-texture pool bytes, shared between the colour atlas and the data atlas; 512 MiB
+   *  by default. What a view asks beyond that waits for a less-looked-at tile to free, and a
+   *  missing tile shows its coarse level. `textureCompression`: the pools' block format —
+   *  `'auto'` (default) takes what the device samples, `'none'` keeps RGBA8. */
   texturePoolBytes?: number;
-  /** Temporal antialiasing, on by default as in the reference: `false` renders the
-   *  image sampled at the pixel centre, with no jitter and no history — the "before" of a comparison. */
+  textureCompression?: TextureCompression;
+  /** Temporal antialiasing, on by default as in the reference: `false` renders the image
+   *  sampled at the pixel centre, with no jitter and no history — the "before" of a comparison. */
   temporalAntialiasing?: boolean;
   sceneLighting?: THREE.Object3D;
   /** Contract lights, owned by the host and shared by every engine of the session. */
   sceneLights?: SceneLightStore;
-  /** Identifiers of the lights the source file carried, in cache order. The host rereads
-   *  them via `explorer.importedLights()` to set or remove them one by one. */
+  /** Identifiers of the lights the source file carried, in cache order; the host rereads them
+   *  via `explorer.importedLights()` to set or remove them one by one. */
   importedLightIds?: string[];
-  /** Bounced light. Off by default: its step stays above the one-millisecond bar measured
-   *  on the three views; `true` turns it on for the whole session. */
+  /** Bounced light. Off by default: its step stays above the one-millisecond bar measured on
+   *  the three views; `true` turns it on for the whole session. */
   bounce?: boolean;
-  /** Target duration of the "Bounce" step on the GPU, per frame, in milliseconds.
-   *  Default `BOUNCE_SETTINGS.budgetMs` (0.8 ms): a target, not a promise. */
+  /** Target duration of the "Bounce" step on the GPU, per frame, in milliseconds. Default
+   *  `BOUNCE_SETTINGS.budgetMs` (0.8 ms): a target, not a promise. */
   bounceBudgetMs?: number;
   /** Time every step of the frame. Off by default: only the bench and the harness turn it on. */
   stageProfile?: boolean;
-  /** DIAGNOSTIC variant kept by the host, already checked (`diagnosticGpuVariant.ts`).
-   *  Absent in production: an engine without it encodes exactly what it used to encode. */
+  /** DIAGNOSTIC variant kept by the host, already checked (`diagnosticGpuVariant.ts`). Absent
+   *  in production: an engine without it encodes exactly what it used to encode. */
   diagnosticGpuVariant?: DiagnosticGpuVariant;
   /** Shadows-step budget, in GPU milliseconds per frame. See `LIGHT_SETTINGS`. */
   shadowBudgetMs?: number;
   /** Page-by-page shadow-map invalidation. On by default. */
   shadowPageInvalidation?: boolean;
-  /** Reads the resident-proxy cache object. Absent when the cache does not carry one;
-   *  called at most once, on the first frame that carries a declared light. */
-  readSceneProxy?: () => Promise<import('../sdk-core/index.ts').SceneProxy>;
+  /** Reads the resident-proxy cache object. Absent when the cache does not carry one; called
+   *  at most once, on the first frame that carries a declared light. */
+  readSceneProxy?: () => Promise<SceneProxy>;
   /** Host-owned, validated page reader for the initial complete GPU fallback. */
   readPage?: (url: string) => Promise<Uint32Array>;
   readGeometryPage?: (url: string) => Promise<Uint8Array>;

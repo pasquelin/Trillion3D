@@ -59,12 +59,26 @@ export const ENGINES = {
   },
 };
 
-/** Cache, engine, diagnostic variant, and error metric for one side. */
+/** Cache, engine, diagnostic variant, texture compression and error metric for one side. */
 export function equipSide(side, flags, settings) {
   side.cache = resolveCache(flags.get(`cache-${side.name}`));
   side.engine = engineOf(flags, side.name, settings.engine);
   side.variant = variantOf(flags, side.name);
+  side.compression = compressionOf(flags, side.name);
   side.errorMetric = screenErrorOf(flags, side.name);
+}
+
+const COMPRESSIONS = ['auto', 'bc7', 'astc', 'none'];
+/**
+ * Block format of a side's texture pools: `--compression-<side>`, otherwise `--compression`,
+ * otherwise the engine's own choice (`auto`). Two sides on one cache and two formats measure
+ * the format alone — same poses, same tiles, same server.
+ */
+function compressionOf(flags, name) {
+  const value = flags.get(`compression-${name}`) ?? flags.get('compression') ?? null;
+  if (value !== null && !COMPRESSIONS.includes(value))
+    throw new Error(`--compression-${name} must be ${COMPRESSIONS.join(', ')}`);
+  return value;
 }
 
 /**
@@ -87,6 +101,7 @@ export const sideReport = (side) => [
     cache: side.cache ?? null,
     moteur: side.engine.id,
     variante: side.variant,
+    compression: side.compression,
     erreur: side.errorMetric ?? 'certifiee',
   },
 ];

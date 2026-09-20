@@ -23,6 +23,7 @@ rerun benchmarks.
 - `--vues` among `generale`, `sol`, `rue`, `detail` (`poses.mjs`, `PATH_VERSION` 5); `--pixelError` accepts a list; also `--chauffe`, `--largeur`, `--hauteur`, `--out`, and `--port`.
 - `--rebond on|off` (default `off`): enables bounce lighting.
 - `--textures cache|host` (default `host`): `cache` makes WebGPU engine read baked texture mips from cache without opening source images.
+- `--compression auto|bc7|astc|none` (default `auto`), or per side `--compression-avant` / `--compression-apres`: block format of the WebGPU texture pools, under `--textures cache`. `auto` takes what the device samples — BC7 before ASTC 4×4 —, `none` keeps RGBA8 pools (the lossless "before" of a texture comparison), `bc7` or `astc` insist on one and fall back to RGBA8, by name, when the device lacks it. Two sides on one `dist/` and one cache with `--compression-avant none --compression-apres bc7` measure the format alone; the summary's texture line names the pool format actually held (`texturePoolFormat`).
 - `--antialiasing on|off` (default `on`): toggles TAA jitter and accumulation.
 - `--profil on|off` (default `on`): requests per-step timing breakdown.
 - `--lampes N`: enables N point lights in the scene. `--ombres on|off` toggles shadow casting; `--lampe-mobile` animates the first light in a circle. `--intensite N` sets light intensity. `--portee F` sets each light's range to `F` grid cells (0.75 by default): above one, several lights reach the same pixel.

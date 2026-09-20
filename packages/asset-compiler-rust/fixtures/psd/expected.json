@@ -1,15 +1,28 @@
 {
   "binary": {
+    "texturePreviewBlockBytes": 48,
     "texturePreviewBytes": 44,
     "texturePreviews": 1
   },
   "case": "A quad whose base colour is rgb-brut.psd, a flattened 4 × 2 Photoshop composite in eight-bit RGB with a raw surface, compiled by the common harness.",
   "formatVersion": 3,
-  "manifestBinaryVersion": 5,
+  "manifestBinaryVersion": 6,
   "previews": [
     {
       "atlas": 0,
       "bakedLevels": 0,
+      "blocks": [
+        {
+          "bytes": 48,
+          "format": "bc7",
+          "sha256": "b4e0b3718587ca57e06fea15eda5a87ace835d7621eb97b799df6b7f55caf72c"
+        },
+        {
+          "bytes": 48,
+          "format": "astc",
+          "sha256": "1399f14dbad7541595170e03f368f6fe47323af05cb430cb73aa7896c5767530"
+        }
+      ],
       "firstLevel": 0,
       "height": 2,
       "image": 0,
@@ -67,6 +80,8 @@
   "report": {
     "bakedLevels": 0,
     "base": 64,
+    "blockBytes": 96,
+    "blockFormats": ["bc7", "astc"],
     "colorTextures": 1,
     "dataTextures": 0,
     "maxLevels": 7,
@@ -74,10 +89,10 @@
     "pixelBytes": 44,
     "previews": 1,
     "skipped": {},
-    "version": 3
+    "version": 4
   },
   "rule": "A flattened composite of eight bits per channel enters progressive previews like any other RGBA8 source: the lossless tail of its mip chain is produced, no reason is carried in the report, and the pixels are those the file already carried — never recomposed layers.",
   "textures": {
-    "url": "../../textures/v3/{sha}/{kind}-{level}.png"
+    "url": "../../textures/v4/{sha}/{kind}-{level}.{format}"
   }
 }

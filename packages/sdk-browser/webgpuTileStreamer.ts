@@ -1,5 +1,7 @@
-import { TILE_BYTES } from './textureTiles.ts';
+import { tileBytes } from './textureTiles.ts';
 import type { TextureLevelReader } from './textureLevelReader.ts';
+import { poolFormat, texelBytes } from './textureBlockFormats.ts';
+import { PREVIEW_LOSSLESS_FORMAT, type TextureBlockFormat } from '../sdk-core/index.ts';
 import {
   createWebgpuTileAtlas,
   type TileTexture,
@@ -28,6 +30,8 @@ export function createWebgpuTileStreamer(options: {
   color: TileTexture[];
   data: TileTexture[];
   layersPerAtlas: number;
+  /** The block format both pools take, or RGBA8 without one. */
+  block?: TextureBlockFormat;
   /** Tile bytes admitted per image outside a barrier. */
   budgetBytes: number;
   readLevel?: TextureLevelReader;
@@ -35,27 +39,29 @@ export function createWebgpuTileStreamer(options: {
   /** Colour tiles have just arrived or left: what a cutout-foliage shadow must follow. */
   onColorChanged: () => void;
 }) {
-  const { device } = options;
+  const { device, block } = options;
   const color = createWebgpuTileAtlas(device, {
     kind: 'color',
-    format: 'rgba8unorm-srgb',
+    format: poolFormat('color', block),
     layers: options.layersPerAtlas,
     feedbackOffset: 0,
     textures: options.color,
   });
   const data = createWebgpuTileAtlas(device, {
     kind: 'data',
-    format: 'rgba8unorm',
+    format: poolFormat('data', block),
     layers: options.layersPerAtlas,
     feedbackOffset: color.pages.entries,
     textures: options.data,
   });
+  const bytesPerTile = tileBytes(texelBytes(color.pool.texture.format));
   const feedback = createWebgpuTileFeedback(device, color.pages.entries + data.pages.entries);
   const reduce = createWebgpuTileReduce(device);
   const counters = createTileCounters();
   const sources = createTileSources({
     device,
     readLevel: options.readLevel,
+    levelFormat: block ?? PREVIEW_LOSSLESS_FORMAT,
     counters,
     onFailure: options.onFailure,
   });
@@ -128,7 +134,7 @@ export function createWebgpuTileStreamer(options: {
         if (verdict === 'waiting') waiting++;
         else if (verdict === 'served') {
           served++;
-          bytes += TILE_BYTES;
+          bytes += bytesPerTile;
           if (request.atlas === color) colorServed = true;
         }
       }

@@ -45,6 +45,7 @@ export function readManifestColumns(slim: SlimClusterManifest, buffer: ArrayBuff
     bundles: 0,
     previews: slim.binary.texturePreviews,
     previewBytes: slim.binary.texturePreviewBytes,
+    previewBlockBytes: slim.binary.texturePreviewBlockBytes,
   };
   for (const primitive of slim.primitives) {
     const binary = primitive.binary;
@@ -128,6 +129,10 @@ export function readManifestColumns(slim: SlimClusterManifest, buffer: ArrayBuff
     column('texturePreviewSha', (b, o, n) => new Uint8Array(b, o, n)),
   );
   const previewPixels = column('texturePreviewPixels', (b, o, n) => new Uint8Array(b, o, n));
+  const previewBlocks = {
+    bc7: column('texturePreviewBc7', (b, o, n) => new Uint8Array(b, o, n)),
+    astc: column('texturePreviewAstc', (b, o, n) => new Uint8Array(b, o, n)),
+  };
   const [pagePrefix, pageSuffix] = slim.binary.pageUrl.split('{sha}');
   const [geometryPrefix, geometrySuffix] = slim.binary.geometryUrl.split('{sha}');
   const [bundlePrefix, bundleSuffix] = slim.binary.bundleUrl.split('{sha}');
@@ -155,7 +160,13 @@ export function readManifestColumns(slim: SlimClusterManifest, buffer: ArrayBuff
       structureRoot,
     },
     bundles: { bundleWords, bundleShaText },
-    previews: { count: counts.previews, previewWords, previewShaText, previewPixels },
+    previews: {
+      count: counts.previews,
+      previewWords,
+      previewShaText,
+      previewPixels,
+      previewBlocks,
+    },
     cullingNodes,
     urls: { pagePrefix, pageSuffix, geometryPrefix, geometrySuffix, bundlePrefix, bundleSuffix },
   };

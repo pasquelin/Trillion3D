@@ -21,8 +21,9 @@ fn stage(dir: &Path) -> (Vec<TexturePreview>, Value) {
 
 // Behavior 9: 256 px image read by both atlases decoded once, yielding two
 // entries, one per atlas; each writes levels above tail — 256 and 128 px, i.e.
-// `first_level` files — under `textures/v3/<sha>/<atlas>-<k>.png`, sidecar tail starts
-// at 64 px. PNG is lossless: re-read, gives exact level bytes.
+// `first_level` files — under `textures/v4/<sha>/<atlas>-<k>.png`, sidecar tail starts
+// at 64 px. PNG is lossless: re-read, gives exact level bytes. Beside each PNG,
+// the same level in both block formats, one byte per texel; and the tail in both.
 #[test]
 fn levels_above_the_tail_are_written_once_per_atlas_as_lossless_png() {
     let dir = temp_dir("bake-files");
@@ -48,11 +49,7 @@ fn levels_above_the_tail_are_written_once_per_atlas_as_lossless_png() {
         (AtlasKind::Data, &previews[1]),
     ] {
         for level in 0..2u32 {
-            let path = native.join(crate::texture_preview::bake::level_path(
-                &expected.sha256,
-                kind,
-                level,
-            ));
+            let path = native.join(level_path(&expected.sha256, kind, level, LOSSLESS));
             assert!(path.exists(), "{} must exist", path.display());
             let decoded = image::open(&path).expect("readable png").to_rgba8();
             let (w, h) = preview_level_size(256, 256, level);
@@ -63,16 +60,35 @@ fn levels_above_the_tail_are_written_once_per_atlas_as_lossless_png() {
                 &chain[level as usize],
                 "lossless level {level}"
             );
+            for format in BlockFormat::ALL {
+                let blocks =
+                    fs::read(native.join(level_path(&expected.sha256, kind, level, format.name())))
+                        .expect("block level");
+                assert_eq!(
+                    blocks.len(),
+                    (w as usize) * (h as usize),
+                    "one byte per texel"
+                );
+                assert_eq!(
+                    blocks,
+                    blocks::encode_level(&chain[level as usize], w, h, format)
+                );
+            }
         }
-        let missing = native.join(crate::texture_preview::bake::level_path(
-            &expected.sha256,
-            kind,
-            2,
-        ));
-        assert!(
-            !missing.exists(),
-            "the tail remains in the sidecar, not as a file"
-        );
+        for format in [LOSSLESS, "bc7", "astc"] {
+            let missing = native.join(level_path(&expected.sha256, kind, 2, format));
+            assert!(
+                !missing.exists(),
+                "the tail remains in the sidecar, not as a file"
+            );
+        }
+        for (format, blocks) in BlockFormat::ALL.iter().zip(&expected.blocks) {
+            assert_eq!(
+                blocks.len(),
+                preview_block_bytes(256, 256),
+                "{format:?} tail"
+            );
+        }
     }
     // Report counts both atlases.
     assert_eq!(report["colorTextures"], json!(1));
@@ -89,14 +105,12 @@ fn an_existing_level_file_is_left_untouched() {
         .save(dir.join("leaf.png"))
         .expect("save");
     let (previews, _) = stage(&dir);
-    let path = dir
-        .join("cache")
-        .join("native")
-        .join(crate::texture_preview::bake::level_path(
-            &previews[0].sha256,
-            AtlasKind::Color,
-            0,
-        ));
+    let path = dir.join("cache").join("native").join(level_path(
+        &previews[0].sha256,
+        AtlasKind::Color,
+        0,
+        LOSSLESS,
+    ));
     let stamp = b"not a png, and no one should touch it";
     fs::write(&path, stamp).expect("overwrite");
     let modified = fs::metadata(&path)

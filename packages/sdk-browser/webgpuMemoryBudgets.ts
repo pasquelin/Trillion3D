@@ -1,4 +1,4 @@
-import { POOL_LAYER_BYTES } from './textureTiles.ts';
+import { poolLayerBytes } from './textureTiles.ts';
 import { pageBufferCap } from './gpuPageResize.ts';
 
 /**
@@ -90,16 +90,20 @@ export type TexturePool = {
 };
 
 /**
- * Layers per atlas that the texture-pool budget yields. Below one layer per atlas — the minimum for
- * every texture to show its queue — the pool is raised to one layer, by name; above the layer count
- * the device accepts, it is brought back to that limit, by name.
+ * Layers per atlas that the texture-pool budget yields, for a pool whose texel costs `texelBytes`
+ * — four in RGBA8, one block-compressed, so the same budget then holds four times the tiles.
+ * Below one layer per atlas — the minimum for every texture to show its queue — the pool is
+ * raised to one layer, by name; above the layer count the device accepts, it is brought back to
+ * that limit, by name.
  */
 export function texturePoolFor(
   budgetBytes: number,
   device: { limits?: { maxTextureArrayLayers?: number } } | undefined,
+  texelBytes: number,
 ): TexturePool {
   checkBudget(budgetBytes, 'INVALID_TEXTURE_POOL_BUDGET');
-  let layers = Math.floor(budgetBytes / 2 / POOL_LAYER_BYTES),
+  const layerBytes = poolLayerBytes(texelBytes);
+  let layers = Math.floor(budgetBytes / 2 / layerBytes),
     clamp: PoolClamp = null;
   if (layers < 1) {
     layers = 1;
@@ -110,5 +114,5 @@ export function texturePoolFor(
     layers = Math.max(1, limit);
     clamp = 'device-limit';
   }
-  return { budgetBytes, layers, allocatedBytes: 2 * layers * POOL_LAYER_BYTES, clamp };
+  return { budgetBytes, layers, allocatedBytes: 2 * layers * layerBytes, clamp };
 }
