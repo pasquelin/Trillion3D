@@ -5,6 +5,7 @@ import { CAMERA, HOST_CAMERA } from '../docs/js/docsContentCamera.js';
 import { ENUMS_IMAGE } from '../docs/js/docsContentEnums.js';
 import { ENUMS_RUNTIME } from '../docs/js/docsContentEnumsRuntime.js';
 import { EXAMPLES, GUIDES } from '../docs/js/docsContentGuides.js';
+import { RENDERING_GUIDES } from '../docs/js/docsContentGuidesRendering.js';
 import { LIFECYCLE } from '../docs/js/docsContentLifecycle.js';
 import { MATRICES } from '../docs/js/docsContentMatrix.js';
 import { BATCHES, TREE } from '../docs/js/docsContentTree.js';
@@ -15,6 +16,7 @@ import { localizedHref, parseRoute } from '../docs/js/portal/routes.js';
 
 const entries = [
   ...GUIDES,
+  ...RENDERING_GUIDES,
   ...EXAMPLES,
   ...ENUMS_IMAGE,
   ...ENUMS_RUNTIME,
