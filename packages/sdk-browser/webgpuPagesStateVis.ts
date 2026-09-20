@@ -8,14 +8,7 @@ import type { GpuRestCompact } from './gpuRestCompact.ts';
 import { MAX_DRAW_SLOTS } from './gpuDraw.ts';
 import type { WebgpuTileStreamer } from './webgpuTileStreamer.ts';
 import { createPresentClasses, type PresentClasses } from './webgpuMaterialPasses.ts';
-
-type GeometryBlock = {
-  vertexBase: number;
-  count: number;
-  hasUv: boolean;
-  hasNormal: boolean;
-  hasTangent: boolean;
-};
+import type { GeometryBlock } from './webgpuPageRowMaterial.ts';
 
 /** GPU resources of the visibility-buffer path: raster and shade pipelines, their bind groups, the
  *  concatenated geometry, the page table and the material atlases. */
