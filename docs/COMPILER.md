@@ -284,10 +284,13 @@ corner turns the same way, by a non-zero angle, and the edges swing round exactl
 as the fan from its first corner, in a single pass over its corners. Every other ring goes through
 ear clipping, which cuts only triangles whose interior is empty and so keeps the area and outline of
 a concave face; a ring the ears cannot finish (self-crossing, or with no plane at all) falls back on
-the fan and is counted under `<driver>-ngon-untriangulable`. The fan is exactly what the ears yielded
-on a convex ring, triangle for triangle, so this path moves no index and no byte of the cache: a
-collinear or duplicated corner, whose empty triangle the ears treat as a special case, keeps the ear
-path for the same reason. What it saves is the scan of the living corners per triangle: a convex
+the fan and is counted under `<driver>-ngon-untriangulable`. On a strictly convex ring the ears cut
+that very fan, triangle for triangle — in exact arithmetic, and on every ring tested and fuzzed
+(millions of random rings, none differing) — so this path moves no index of the caches it was
+compared on, and a collinear or duplicated corner, whose empty triangle the ears treat as a special
+case, keeps the ear path for the same reason. What is not a theorem is the floating-point case: a
+ring with corners within rounding of collinear could in principle be read convex here and cut
+otherwise by the ears. What it saves is the scan of the living corners per triangle: a convex
 polygon of `n` corners cost `n²` corner tests and now costs `n`.
 
 ## Cache layout
