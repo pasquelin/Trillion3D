@@ -16,6 +16,8 @@ import {
   SHADE_SHADER,
 } from './visibilityBuffer.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { DIAGNOSTICS } from '../sdk-core/index.ts';
+import { createExplorerDiagnosticApi } from './explorerDiagnosticApi.ts';
 import { createWebgpuShadePipelines } from './webgpuVisibilityPipelines.ts';
 
 const noMaps = { rough: 0, metal: 0, ao: 0, emissive: 0, normal: 0 };
@@ -95,4 +97,34 @@ test('the resolve compiles one pipeline per class under equal depth, after the d
     assert.equal(pipeline.depthStencil.format, depth.depthStencil.format);
     assert.equal(made.shadePipelines.get(key), pipeline);
   }
+});
+
+test('the materials view colours a pixel by the class that resolved it, on the WebGPU path only', () => {
+  assert.equal(DIAGNOSTICS.materials.available, true);
+  assert.match(
+    SHADE_SHADER,
+    /if\(uni\.mode==7u\)\{return diagnosticSurface\(hashColor\(CLASS_KEY\),request\);\}/,
+  );
+  const modes: string[] = [];
+  const backend = (id: string) =>
+    ({ id, setDiagnostic: (mode: string) => modes.push(`${id}:${mode}`) }) as never;
+  const forward = backend('exact-cluster-pages'),
+    visibility = backend('webgpu-page-raster');
+  const api = (active: never) =>
+    createExplorerDiagnosticApi({
+      check() {},
+      active: () => active,
+      backends: [forward, visibility],
+      beautyMaterials: new Map(),
+      overlays: [],
+      setMode: (mode) => modes.push(`mode:${mode}`),
+    });
+  assert.throws(() => api(forward).setDiagnostic('materials'), /WebGPU visibility path/);
+  assert.deepEqual(modes, []);
+  api(visibility).setDiagnostic('materials');
+  assert.deepEqual(modes, [
+    'exact-cluster-pages:materials',
+    'webgpu-page-raster:materials',
+    'mode:materials',
+  ]);
 });
