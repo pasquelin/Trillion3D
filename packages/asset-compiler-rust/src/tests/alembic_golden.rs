@@ -61,11 +61,11 @@ fn an_ogawa_file_routes_to_the_alembic_plugin() {
     };
     assert_eq!(routed(&fixture().join("scene.abc")), "alembic");
     let dir = std::env::temp_dir().join(format!("wg-alembic-route-{}", std::process::id()));
-    fs::create_dir_all(&dir).expect("dossier");
-    fs::copy(fixture().join("scene.abc"), dir.join("nameless")).expect("copie");
+    fs::create_dir_all(&dir).expect("dir");
+    fs::copy(fixture().join("scene.abc"), dir.join("nameless")).expect("copy");
     assert_eq!(routed(&dir.join("nameless")), "alembic", "header alone");
-    assert_eq!(routed(&dir), "alembic", "dossier");
-    fs::remove_dir_all(&dir).expect("nettoyage");
+    assert_eq!(routed(&dir), "alembic", "dir");
+    fs::remove_dir_all(&dir).expect("cleanup");
 }
 
 // Behaviour 30: what the driver does not convert, it counts — curves, subdivision

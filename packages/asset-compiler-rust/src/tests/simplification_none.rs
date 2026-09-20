@@ -27,7 +27,7 @@ fn dag_of(mode: &str) -> (u64, usize, u64) {
         .filter(|page| page["level"] == json!(0))
         .map(|page| page["count"].as_u64().expect("count") / 3)
         .sum();
-    fs::remove_dir_all(root).expect("nettoyage");
+    fs::remove_dir_all(root).expect("cleanup");
     (depth, racines, niveau_zero)
 }
 
@@ -36,11 +36,11 @@ fn dag_of(mode: &str) -> (u64, usize, u64) {
 #[test]
 fn simplification_none_ne_construit_aucun_niveau_grossier() {
     let (depth, racines, niveau_zero) = dag_of("none");
-    assert_eq!(depth, 0, "un seul niveau : les clusters exacts");
+    assert_eq!(depth, 0, "a single level: exact clusters");
     assert_eq!(niveau_zero, 8192, "level zero covers the whole source");
     assert_eq!(
         racines, 8192,
-        "les clusters exacts sont les racines : rien ne les remplace"
+        "exact clusters are the roots: nothing replaces them"
     );
 }
 

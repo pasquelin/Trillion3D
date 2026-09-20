@@ -31,8 +31,8 @@ fn empreinte_vecteurs(vecteurs: &Vec<[f64; 3]>) -> Bits {
     bits
 }
 
-/// F5 — `pad_to_4` contre les deux formes d'avant : la soustraction de `compiler_buffers.rs`,
-/// `compiler_copy.rs` et `import.rs`, et la boucle `while` de `compiler_autonomous.rs`.
+/// F5 — `pad_to_4` against the two previous forms: the subtraction in `compiler_buffers.rs`,
+/// `compiler_copy.rs` and `import.rs`, and the `while` loop in `compiler_autonomous.rs`.
 pub(crate) fn row_bourrage() -> Row {
     let lengths: Vec<usize> = (0..SPAN)
         .chain((usize::MAX - 8)..usize::MAX)
@@ -42,7 +42,7 @@ pub(crate) fn row_bourrage() -> Row {
         "F5 padding to four bytes (pad_to_4)",
         "shared_math.rs",
         format!(
-            "{} longueurs, dont le voisinage de usize::MAX",
+            "{} lengths, including the neighbourhood of usize::MAX",
             lengths.len()
         ),
         &mut || {

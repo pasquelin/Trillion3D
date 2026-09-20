@@ -14,7 +14,7 @@ test('opaque materials are rendered before lighting into reusable GPU surface te
     backend.render(camera());
     await backend.flush?.();
     backend.render(camera());
-    // Les quatre surfaces, puis la cible de retour des textures virtuelles (`r32uint` elle aussi).
+    // The four surfaces, then the virtual textures feedback target (`r32uint` as well).
     const surface = passes.findIndex(
       (pass) =>
         pass.formats.length === 5 && pass.formats[3] === 'r32uint' && pass.formats[4] === 'r32uint',

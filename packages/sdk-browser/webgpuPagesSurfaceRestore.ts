@@ -68,7 +68,6 @@ export async function restoreMainView(
       gpu.presenter.present(encoder, gpu.colorTexture, ...gpu.targetSize);
       gpuDevice.queue.submit([encoder.finish()]);
     }
-    if (gpu.canvasTexture) gpu.canvasTexture.needsUpdate = true;
     diag.engineDiagnostic('surface-main-restored', 'Main view restored', {
       width: saved.size[0],
       height: saved.size[1],

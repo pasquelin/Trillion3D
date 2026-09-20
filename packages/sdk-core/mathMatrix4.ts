@@ -159,6 +159,12 @@ export const IDENTITY_MATRIX4: Float64Array = new Float64Array([
  * `TypedArray.prototype.set`: on a view, `set` costs a native call, and the outputs are not
  * all typed (host matrices, GPU single-precision buffers — the only conversion, here).
  */
-export function copyMatrix4(out: NumberSink, m: ArrayLike<number>, outAt = 0, mAt = 0) {
+export function copyMatrix4<T extends NumberSink>(
+  out: T,
+  m: ArrayLike<number>,
+  outAt = 0,
+  mAt = 0,
+) {
   for (let i = 0; i < 16; i++) out[outAt + i] = m[mAt + i];
+  return out;
 }

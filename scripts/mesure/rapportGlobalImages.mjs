@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-/** Le chemin relatif au rapport de la capture `chemin` en JPEG, ou `null` si elle manque. */
+/** Relative path to the report for capture `chemin` in JPEG, or `null` if missing. */
 export function capture(dossier, chemin) {
   if (!chemin || !existsSync(join(dossier, chemin))) return null;
   const relatif = join('vignettes', chemin.replaceAll('/', '__').replace(/\.png$/, '.jpg'));

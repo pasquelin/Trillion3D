@@ -1,4 +1,4 @@
-/** Guides and examples: prose in `html`, code in `example`, both rendered by `viewRenderer.js`. */
+/** Guides and examples: prose in `html`, code in `example`, both rendered by the React Entry component. */
 const GUIDE = { section: 'guides', kind: 'Guide' };
 const EXAMPLE = { section: 'examples', kind: 'Example' };
 
@@ -12,25 +12,22 @@ export const GUIDES = [
     html: `<p>The engine streams geometry by clusters: a native compiler cuts a source scene into pages once, a browser explorer then reads only the pages the camera needs, within fixed memory budgets. Two entry points, one per side.</p>
 <ol>
 <li><strong>Compile</strong> on the machine that holds the source, with <code>@web-geometry/sdk/node</code>. The cache directory receives the manifest, the pages and the texture sidecars; <code>resourceBaseUrl</code> is the URL the browser will read them from.</li>
-<li><strong>Explore</strong> in the browser, with <code>@web-geometry/sdk/browser</code>. <code>createExplorer</code> owns neither the animation loop nor the canvas: the host calls <code>render()</code> when it wants a frame and <code>dispose()</code> when it is done.</li>
+<li><strong>Explore</strong> in the browser, with <code>@web-geometry/sdk/browser</code>. <code>createExplorer</code> accepts a canvas ID or element. Set <code>interactive: true</code> for controls, automatic sizing and rendering only while needed. Give the canvas a CSS width and height; dispose on unmount. WebGPU is required by this simple path.</li>
 </ol>
 <p>The full contract — options, budgets, lighting, temporal antialiasing, diagnostics — is in <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/SDK.md">docs/SDK.md</a>.</p>`,
     example: `// 1. Node — compile the source once (the native compiler must be on PATH or named by \`executable\`).
 import { prepare } from '@web-geometry/sdk/node';
 await prepare('scenes/city', 'cache/city', 'full', 150000, { resourceBaseUrl: '/cache/city/' });
 
-// 2. Browser — explore the compiled cache.
+// 2. Browser — HTML: <canvas id="viewer" style="width:100%;height:70vh"></canvas>
 import { createExplorer } from '@web-geometry/sdk/browser';
-const explorer = await createExplorer(document.querySelector('canvas'), {
+const explorer = await createExplorer('viewer', {
   manifestUrl: '/cache/city/manifest.json',
+  scope: 'full',
+  interactive: true,
 });
-await explorer.awaitPages(); // the visible pages are resident before the first official image
-function frame() {
-  explorer.render();
-  requestAnimationFrame(frame);
-}
-frame();
-// later: explorer.dispose();`,
+// A first image is submitted; detail and temporal antialiasing settle progressively.
+// In your page/component teardown: explorer.dispose();`,
   },
   {
     ...GUIDE,
@@ -81,11 +78,12 @@ export const EXAMPLES = [
     id: 'example-explorer',
     title: 'Explorer options and budgets',
     description:
-      'The options a host sets once: resolution, quality threshold, memory budgets, events.',
+      'Manual integration with explicit resolution, quality, budgets and events; the host schedules rendering.',
     example: `import { createExplorer } from '@web-geometry/sdk/browser';
 
 const explorer = await createExplorer(canvas, {
   manifestUrl: '/cache/city/manifest.json',
+  scope: 'full',
   width: 1920,
   height: 1080,
   pixelRatio: 1,

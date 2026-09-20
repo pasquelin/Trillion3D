@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { CameraPose, DiagnosticMode } from '../sdk-core/index.ts';
 import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
 import { createComparisonCompositor, type ComparisonLayout } from './comparison.ts';
+import { createBackendPresenter } from './explorerComposeSurface.ts';
 import type { prepareExplorer } from './explorerPrepare.ts';
 
 type Prepared = Awaited<ReturnType<typeof prepareExplorer>>;
@@ -67,6 +68,9 @@ export function createExplorerHostState(
   const hostedControls: { dispose(): void }[] = [];
   const lookAtTarget = new THREE.Vector3().copy(center);
   const compositor = prepared.directGpu ? undefined : createComparisonCompositor(renderer!);
+  // Same owner as the compositor: what puts an engine's image on the host surface, for the frame
+  // and for the explicit capture alike.
+  const presentBackend = prepared.directGpu ? () => false : createBackendPresenter(renderer!);
   const targetOptions = { type: THREE.UnsignedByteType, colorSpace: THREE.SRGBColorSpace };
   const ensureTarget = (current?: THREE.WebGLRenderTarget) =>
     current ?? new THREE.WebGLRenderTarget(canvas.width, canvas.height, targetOptions);
@@ -92,6 +96,7 @@ export function createExplorerHostState(
     hostedControls,
     lookAtTarget,
     compositor,
+    presentBackend,
     ensureTarget,
     check,
     setPose,

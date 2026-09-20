@@ -8,17 +8,17 @@ use std::time::Duration;
 fn phase(result: &Value, name: &str) -> f64 {
     result["metrics"]["phaseElapsedMs"][name]
         .as_f64()
-        .unwrap_or_else(|| panic!("phase {name} absente de {}", result["metrics"]))
+        .unwrap_or_else(|| panic!("phase {name} missing from {}", result["metrics"]))
 }
 /// Longest cumulative phase of job, with name.
 fn longest_phase(result: &Value) -> (String, f64) {
     result["metrics"]["phaseElapsedMs"]
         .as_object()
-        .expect("les phases")
+        .expect("the phases")
         .iter()
         .map(|(name, ms)| (name.clone(), ms.as_f64().unwrap_or(0.0)))
         .max_by(|a, b| a.1.total_cmp(&b.1))
-        .expect("au moins une phase")
+        .expect("at least one phase")
 }
 /// Simplifying grid: carries enough groups for simplification phase to take time.
 fn grid_that_simplifies() -> (PathBuf, Options) {
@@ -30,7 +30,7 @@ fn grid_that_simplifies() -> (PathBuf, Options) {
 fn wait_for(flag: &AtomicBool) {
     let deadline = Instant::now() + Duration::from_secs(300);
     while !flag.load(Ordering::Relaxed) {
-        assert!(Instant::now() < deadline, "jalon jamais franchi");
+        assert!(Instant::now() < deadline, "milestone never crossed");
         std::thread::sleep(Duration::from_millis(2));
     }
 }
@@ -43,7 +43,7 @@ fn a14_un_travail_ne_publie_pas_les_phases_du_precedent() {
     let premier = compile(&grille, |_| {}).expect("grille");
     assert!(
         phase(&premier, "simplifyMs") > 0.0,
-        "la grille simplifie bien"
+        "the grid does simplify"
     );
     let (root_petit, petit) = fixture();
     let second = compile(&petit, |_| {}).expect("deux triangles");
@@ -58,8 +58,8 @@ fn a14_un_travail_ne_publie_pas_les_phases_du_precedent() {
         wall >= longest,
         "announced duration {wall} ms under phase {name} of {longest} ms"
     );
-    fs::remove_dir_all(root_grille).expect("nettoyage");
-    fs::remove_dir_all(root_petit).expect("nettoyage");
+    fs::remove_dir_all(root_grille).expect("cleanup");
+    fs::remove_dir_all(root_petit).expect("cleanup");
 }
 
 // Behavior: jobs overlap. Grid holds publication while
@@ -82,9 +82,9 @@ fn a14_deux_travaux_paralleles_ne_melangent_pas_leurs_phases() {
             })
         });
         wait_for(&simplifie);
-        let court = compile(&petit, |_| {}).expect("deux triangles");
+        let court = compile(&petit, |_| {}).expect("two triangles");
         petit_fini.store(true, Ordering::Relaxed);
-        (long.join().expect("fil").expect("grille"), court)
+        (long.join().expect("thread").expect("grid"), court)
     });
     assert_eq!(
         phase(&court, "simplifyMs"),
@@ -93,10 +93,10 @@ fn a14_deux_travaux_paralleles_ne_melangent_pas_leurs_phases() {
     );
     assert!(
         phase(&long, "simplifyMs") > 0.0,
-        "la grille garde sa propre simplification"
+        "the grid keeps its own simplification"
     );
-    fs::remove_dir_all(root_grille).expect("nettoyage");
-    fs::remove_dir_all(root_petit).expect("nettoyage");
+    fs::remove_dir_all(root_grille).expect("cleanup");
+    fs::remove_dir_all(root_petit).expect("cleanup");
 }
 
 // Behavior: announced duration taken after purge, not when manifest
@@ -111,16 +111,16 @@ fn a14_la_duree_annoncee_contient_la_publication_et_la_purge() {
     let marks: std::sync::Mutex<(Option<Instant>, Option<Instant>)> =
         std::sync::Mutex::new((None, None));
     let result = compile(&options, |event| {
-        let mut marks = marks.lock().expect("jalons");
+        let mut marks = marks.lock().expect("milestones");
         match event["phase"].as_str() {
             Some("import") => marks.0 = Some(Instant::now()),
             Some("prune") => marks.1 = Some(Instant::now()),
             _ => {}
         }
     })
-    .expect("seconde");
-    let (import_evt, prune_evt) = marks.into_inner().expect("jalons");
-    let observed = prune_evt.expect("la purge a bien eu lieu") - import_evt.expect("import");
+    .expect("second");
+    let (import_evt, prune_evt) = marks.into_inner().expect("milestones");
+    let observed = prune_evt.expect("prune did happen") - import_evt.expect("import");
     let import_ms = result["metrics"]["importMs"].as_f64().expect("importMs");
     let wall = result["metrics"]["wallMs"].as_f64().expect("wallMs");
     let floor = import_ms + observed.as_secs_f64() * 1000.0;
@@ -128,7 +128,7 @@ fn a14_la_duree_annoncee_contient_la_publication_et_la_purge() {
         wall >= floor,
         "announced duration {wall} ms under the observed floor {floor} ms"
     );
-    fs::remove_dir_all(root).expect("nettoyage");
+    fs::remove_dir_all(root).expect("cleanup");
 }
 
 // Finding V03: durations are wall time, never CPU time. Test demonstrates:
@@ -138,21 +138,21 @@ fn a14_la_duree_annoncee_contient_la_publication_et_la_purge() {
 #[test]
 fn v03_une_attente_dans_un_rappel_entre_dans_la_duree_ecoulee_de_la_phase() {
     let (root, options) = fixture();
-    let attente = Duration::from_millis(250);
+    let wait_time = Duration::from_millis(250);
     let result = compile(&options, |event| {
         if event["phase"] == "coplanar" && event["step"] == "done" {
-            std::thread::sleep(attente);
+            std::thread::sleep(wait_time);
         }
     })
     .expect("compilation");
     let coplanar = phase(&result, "coplanarMs");
     assert!(
-        coplanar >= attente.as_secs_f64() * 1000.0,
-        "l'attente du rappel n'entre pas dans la phase : {coplanar} ms"
+        coplanar >= wait_time.as_secs_f64() * 1000.0,
+        "callback wait does not enter phase: {coplanar} ms"
     );
     assert!(
         result["metrics"]["cpuMs"].is_null(),
         "CPU time is not measured, it stays null"
     );
-    fs::remove_dir_all(root).expect("nettoyage");
+    fs::remove_dir_all(root).expect("cleanup");
 }

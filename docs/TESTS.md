@@ -67,12 +67,17 @@ Anything that cannot run is **explicitly declared** in `BROWSER_ECARTES` (`test/
 category and reason, and the command prints it before starting — never in silence:
 
 - **montage** (setup) — the proof is valid, but the machine is not ready: assets in `.mesure/assets/`
-  need recompilation, `LAB_URL` missing for a proof mounted on Lab pages, `timestamp-query`
-  unavailable.
+  need recompilation, `timestamp-query` unavailable.
 - **regression** — the proof fails because an issue exists. This is an open debt to be resolved by
   fixing the engine.
 - **stale-double** — the proof maintains a manual copy of a contract that evolved in the source.
   The engine is correct, the copy drifted: fix by reading the contract rather than duplicating it.
+
+`BROWSER_ECARTES` is empty: every render proof runs. The Emerald proof
+(`emeraude-webgpu`) reads the compiled cache `emerald-square-derived` under `.mesure/assets/`, off
+git, and a sibling worktree has none of its own: point `WG_ASSETS` at the shared folder. Without it
+the proof exits on an `HTTP 404` naming the manifest it could not fetch, and `pnpm run test:gpu`
+fails with it — loudly, never in silence.
 
 `test/test-gpu.test.mjs` enforces symmetric guarding across both directories: **executed ∪ excluded ==
 on-disk**, and no exclusion outlives the file it names. Without this guard, forgotten proofs would

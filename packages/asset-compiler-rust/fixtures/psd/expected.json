@@ -3,7 +3,7 @@
     "texturePreviewBytes": 44,
     "texturePreviews": 1
   },
-  "case": "Un quad dont la couleur de base est rgb-brut.psd, un composite Photoshop aplati de 4 × 2 en RVB huit bits à surface brute, compilé par le harnais commun.",
+  "case": "A quad whose base colour is rgb-brut.psd, a flattened 4 × 2 Photoshop composite in eight-bit RGB with a raw surface, compiled by the common harness.",
   "formatVersion": 3,
   "manifestBinaryVersion": 5,
   "previews": [
@@ -76,7 +76,7 @@
     "skipped": {},
     "version": 3
   },
-  "rule": "Un composite aplati de huit bits par canal entre dans les aperçus progressifs comme toute autre source RGBA8 : la queue sans perte de sa chaîne de mips est produite, aucune raison n'est portée au rapport, et les pixels sont ceux que le fichier portait déjà — jamais des calques recomposés.",
+  "rule": "A flattened composite of eight bits per channel enters progressive previews like any other RGBA8 source: the lossless tail of its mip chain is produced, no reason is carried in the report, and the pixels are those the file already carried — never recomposed layers.",
   "textures": {
     "url": "../../textures/v3/{sha}/{kind}-{level}.png"
   }

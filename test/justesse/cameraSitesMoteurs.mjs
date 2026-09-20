@@ -84,7 +84,7 @@ export const sitesMoteurs = [
   },
   {
     name: 'webgpuPagesBackend.captureSurfaceView (seconde vue)',
-    // La vue principale est fixe et sans parent : seule la seconde vue vient du rig.
+    // The main view is fixed and parentless: only the second view comes from the rig.
     cree: async () => {
       const engine = await webgpuEngine(quadScene());
       await imageWebgpu(engine, principale());

@@ -147,7 +147,7 @@ fn split_rejects_a_depth_layer_that_exceeds_four_bits() {
     assert_eq!(error.code, "INVALID_MANIFEST");
     assert!(
         error.message.contains("depthLayer"),
-        "le message doit nommer le champ en cause : {}",
+        "message must name the offending field: {}",
         error.message
     );
 }

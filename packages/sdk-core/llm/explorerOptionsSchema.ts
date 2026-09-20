@@ -9,6 +9,12 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
   description:
     'Initialization options for the WebGeometry rendering engine (createExplorer). Configures virtualized geometry (Nanite), temporal antialiasing (TAA), fixed GPU memory pools, dynamic lighting (Lumen), and virtual shadow maps.',
   properties: {
+    interactive: {
+      type: 'boolean',
+      default: false,
+      description:
+        'Browser-owned controls, CSS size, device pixel ratio and demand-driven rendering. Defaults to direct WebGPU; rejects when unavailable.',
+    },
     manifestUrl: {
       type: 'string',
       description: 'Absolute or relative URL to the compiled scene manifest.json.',
