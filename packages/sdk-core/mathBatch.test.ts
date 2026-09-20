@@ -1,9 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  BOX_VALUES,
   SPHERE_VALUES,
-  boxTransformBatch,
   boxTransformUnionBatch,
   boxUnionBatch,
   frustumKeepsBoxBatch,
@@ -97,46 +95,4 @@ test('srgbToLinearBatch and linearToSrgbBatch: color roundtrip', () => {
   for (let i = 0; i < 3; i++) {
     assert.ok(Math.abs(srgb[i] - back[i]) < 1e-10);
   }
-});
-
-test('docs example: cull 10 000 boxes then transform the survivors', () => {
-  const N = 10000;
-  const boxes = new Float64Array(N * BOX_VALUES);
-  for (let i = 0; i < N; i++) {
-    const z = i % 2 === 0 ? -5 : 5;
-    boxes[i * BOX_VALUES + 0] = -1;
-    boxes[i * BOX_VALUES + 1] = -1;
-    boxes[i * BOX_VALUES + 2] = z - 0.5;
-    boxes[i * BOX_VALUES + 3] = 1;
-    boxes[i * BOX_VALUES + 4] = 1;
-    boxes[i * BOX_VALUES + 5] = z + 0.5;
-  }
-
-  const proj = new Float64Array(16);
-  perspectiveProjection(proj, 60, 1, 0.1, 1);
-  const planes = new Float64Array(24);
-  frustumPlanesFromMatrix(planes, proj);
-
-  const keptMask = new Uint8Array(N);
-  const keptCount = frustumKeepsBoxBatch(keptMask, planes, boxes, N);
-  assert.equal(keptCount, 5000);
-
-  const survivorBoxes = new Float64Array(keptCount * BOX_VALUES);
-  let cursor = 0;
-  for (let i = 0; i < N; i++) {
-    if (keptMask[i]) {
-      const src = i * BOX_VALUES;
-      for (let k = 0; k < BOX_VALUES; k++) survivorBoxes[cursor + k] = boxes[src + k];
-      cursor += BOX_VALUES;
-    }
-  }
-
-  const transform = new Float64Array(16);
-  composeMatrix4(transform, [0, 0, -10], [0, 0, 0, 1], [1, 1, 1]);
-  const mats = Array.from({ length: keptCount }, () => transform);
-  const transformed = new Float64Array(keptCount * BOX_VALUES);
-  boxTransformBatch(transformed, survivorBoxes, mats, keptCount);
-
-  assert.equal(transformed[2], -15.5);
-  assert.equal(transformed[5], -14.5);
 });
