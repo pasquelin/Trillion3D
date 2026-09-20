@@ -152,20 +152,15 @@ export function comptesEtape(backend, etape) {
   return profil?.stages?.find((input) => input.stage === etape)?.counts ?? null;
 }
 
-/** Releases a built scene: its geometries, its materials and the textures they carry. */
-export function libereScene(scene) {
+/** Releases the engine of a proof and its scene: geometries, materials and their textures. */
+export function libere(backend, canvas, scene) {
+  backend.dispose();
+  canvas.remove();
   for (const g of scene.geometries) g.dispose();
   for (const m of scene.materials) {
     for (const value of Object.values(m)) if (value?.isTexture) value.dispose();
     m.dispose();
   }
-}
-
-/** Releases the scene and the engine of a proof. */
-export function libere(backend, canvas, scene) {
-  backend.dispose();
-  canvas.remove();
-  libereScene(scene);
 }
 
 /** How many RGBA quadruplets differ between two images of the same size. */

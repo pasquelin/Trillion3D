@@ -6,14 +6,7 @@
 // This module is SERVED to the harness page (mount `/test/`) and imported by its URL, since the
 // evaluated function is serialised and cannot reach a module of its own.
 import * as THREE from 'three';
-import {
-  batisseur,
-  cameraFace,
-  engine,
-  image,
-  libere,
-  libereScene,
-} from './preuveSceneCommune.mjs';
+import { batisseur, cameraFace, engine, jusquaTenue, libere } from './preuveSceneCommune.mjs';
 import { ouvrirAppareil } from '../justesse/appareilWebgpu.mjs';
 import { creer, appliquer } from '/mesure/pageTemoin.mjs';
 import { SIZE, SUN, fixtures } from './materialFixtures.mjs';
@@ -67,9 +60,10 @@ function sceneOf(fixture, sun) {
 
 /** RGB at `(x, y)` of a bottom-left RGBA image of `SIZE` columns. */
 const rgbAt = (pixels, [x, y]) =>
-  Array.from(pixels.subarray((y * SIZE + x) * 4, (y * SIZE + x) * 4 + 3));
+  Array.from(pixels.slice((y * SIZE + x) * 4, (y * SIZE + x) * 4 + 3));
 
-/** The witness image of a prepared scene, drawn by the display chain of a Three engine. */
+/** The witness image of a prepared scene, drawn by the display chain of a Three engine; the
+ *  witness copies the source's meshes and lights, so the scene is left for the engine. */
 function witnessImage(referenceBackend, scene, renderer, camera) {
   const backend = referenceBackend({ source: scene.source, clearColor: CLEAR_COLOR });
   renderer.toneMapping = backend.sceneLit() ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
@@ -79,11 +73,11 @@ function witnessImage(referenceBackend, scene, renderer, camera) {
   const gl = renderer.getContext();
   gl.readPixels(0, 0, SIZE, SIZE, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
   backend.dispose();
-  libereScene(scene);
   return pixels;
 }
 
-/** The engine image of a prepared scene, held: rendered until `frameHeld`, eight frames at most. */
+/** The engine image of a prepared scene, held when the engine holds it, the last rendered one
+ *  otherwise; releases the scene. */
 async function engineImage(webgpuPagesBackend, scene, device, sceneLights, camera, events) {
   const { backend, canvas } = engine(webgpuPagesBackend, scene, device, (e) => events.push(e), {
     clearColor: CLEAR_COLOR,
@@ -91,9 +85,8 @@ async function engineImage(webgpuPagesBackend, scene, device, sceneLights, camer
   });
   try {
     await backend.prepare();
-    let frame = await image(backend, camera);
-    for (let n = 1; n < 8 && !frame.metriques.frameHeld; n++) frame = await image(backend, camera);
-    return { pixels: frame.pixels, held: frame.metriques.frameHeld, dataUrl: canvas.toDataURL() };
+    const { tenue, rendue } = await jusquaTenue(backend, camera);
+    return { pixels: tenue ?? rendue, held: tenue !== null, dataUrl: canvas.toDataURL() };
   } finally {
     libere(backend, canvas, scene);
   }
@@ -103,9 +96,9 @@ async function engineImage(webgpuPagesBackend, scene, device, sceneLights, camer
 async function compare(fixture, sides) {
   const { referenceBackend, webgpuPagesBackend, device, renderer, canvas, camera, stores } = sides;
   const events = [];
-  const witness = witnessImage(referenceBackend, sceneOf(fixture, sides.sun), renderer, camera);
-  const witnessUrl = canvas.toDataURL();
   const scene = sceneOf(fixture, sides.sun);
+  const witness = witnessImage(referenceBackend, scene, renderer, camera);
+  const witnessUrl = canvas.toDataURL();
   const lights = fixture.lit ? stores.sun : stores.none;
   const engineSide = await engineImage(webgpuPagesBackend, scene, device, lights, camera, events);
   const { name, difference, reason, holds } = fixture;
