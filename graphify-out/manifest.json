@@ -13896,9 +13896,9 @@
     "semantic_hash": ""
   },
   "scripts/prove-installed-package.mjs": {
-    "mtime": 1789911322.7553482,
-    "seen": 1789911554.505023,
-    "ast_hash": "efe25a1929102b8b31561be71a51aa40",
+    "mtime": 1789913472.2311742,
+    "seen": 1789913514.497566,
+    "ast_hash": "2d3ff49ad2c0b03ce18947050e442c2c",
     "semantic_hash": ""
   },
   "scripts/setup-development.mjs": {

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,8 +10,8 @@ const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const fixture = mkdtempSync(join(tmpdir(), 'web-geometry-installed-'));
 const logs = [];
 
-function run(command, args, cwd = root) {
-  const result = spawnSync(command, args, { cwd, encoding: 'utf8' });
+function run(command, args, cwd = root, environment = process.env) {
+  const result = spawnSync(command, args, { cwd, encoding: 'utf8', env: environment });
   logs.push({ command: [command, ...args], cwd, stdout: result.stdout, stderr: result.stderr });
   if (result.error) throw result.error;
   if (result.status !== 0)
@@ -42,6 +42,8 @@ function bundle(name, source) {
 
 try {
   run(pnpm, ['run', 'build']);
+  const proveNative = process.argv.includes('--native');
+  if (proveNative) run(pnpm, ['run', 'build:native']);
   const packed = JSON.parse(run(pnpm, ['pack', '--json', '--pack-destination', fixture]));
   const archive = packed.filename ?? packed[0]?.filename;
   if (!archive) throw new Error('pnpm pack did not report an archive');
@@ -86,6 +88,41 @@ try {
       `const p=await getSdkProvenance();if(!p.files['dist/sdk-node/index.mjs'])process.exit(3);\n`,
   );
   run(process.execPath, ['runtime.mjs'], fixture);
+  let native = null;
+  if (proveNative) {
+    const sourceFixture = join(fixture, 'native-source');
+    cpSync(
+      join(root, 'packages/asset-compiler-rust/fixtures/coplanar/three-stack'),
+      sourceFixture,
+      {
+        recursive: true,
+      },
+    );
+    const executable = join(
+      root,
+      'packages/asset-compiler-rust/target/release',
+      `web-geometry-compiler${process.platform === 'win32' ? '.exe' : ''}`,
+    );
+    const stdout = run(
+      pnpm,
+      [
+        'exec',
+        'web-geometry-compile',
+        sourceFixture,
+        join(fixture, 'native-cache'),
+        'slice',
+        '150000',
+        '/fixture/',
+        '1',
+        '256',
+        'none',
+      ],
+      fixture,
+      { ...process.env, WEB_GEOMETRY_COMPILER_BIN: executable },
+    );
+    native = JSON.parse(stdout);
+    if (native.status !== 'ready') throw new Error('installed CLI did not prepare the fixture');
+  }
   const bundles = {
     maths: bundle(
       'maths',
@@ -120,6 +157,7 @@ try {
     settings: { node: 'ESM', browser: 'esbuild bundle, ESM, browser platform' },
     files: packed.files?.map(({ path, size }) => ({ path, size })) ?? [],
     bundles,
+    native,
   };
   const output = process.argv.indexOf('--output');
   if (output >= 0)
