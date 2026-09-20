@@ -11,9 +11,10 @@ test('the original observatory reproduces its source and retains distinct materi
   const temporary = await mkdtemp(join(tmpdir(), 'wg-observatory-'));
   try {
     const gltf = await writeObservatory(temporary);
+    await writeObservatory(join(temporary, 'repeat'));
     for (const name of ['geometry.gltf', 'geometry.bin']) {
       const actual = await readFile(join(temporary, name));
-      const expected = await readFile(new URL(`source/${name}`, directory));
+      const expected = await readFile(join(temporary, 'repeat', name));
       const first = actual.findIndex((byte, index) => byte !== expected[index]);
       assert.ok(
         actual.equals(expected),
@@ -22,7 +23,15 @@ test('the original observatory reproduces its source and retains distinct materi
           expected.subarray(Math.max(0, first - 4), first + 12).toString('hex'),
       );
     }
+    assert.ok(
+      (await readFile(join(temporary, 'geometry.gltf'))).equals(
+        await readFile(new URL('source/geometry.gltf', directory)),
+      ),
+      'source metadata reproduces exactly across platforms',
+    );
     const bytes = await readFile(join(temporary, 'geometry.bin'));
+    const reference = await readFile(new URL('source/geometry.bin', directory));
+    assert.equal(bytes.length, reference.length);
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     let triangles = 0;
     const materialIds = new Set();
@@ -32,6 +41,15 @@ test('the original observatory reproduces its source and retains distinct materi
       const normals = gltf.accessors[primitive.attributes.NORMAL];
       const indices = gltf.accessors[primitive.indices];
       const indexOffset = gltf.bufferViews[indices.bufferView].byteOffset;
+      for (const accessor of [positions, indices]) {
+        const buffer = gltf.bufferViews[accessor.bufferView];
+        const start = buffer.byteOffset,
+          end = start + buffer.byteLength;
+        assert.ok(
+          bytes.subarray(start, end).equals(reference.subarray(start, end)),
+          'source positions and topology reproduce byte for byte across platforms',
+        );
+      }
       assert.equal(normals.count, positions.count);
       triangles += indices.count / 3;
       for (let i = 0; i < indices.count; i++)
@@ -41,11 +59,17 @@ test('the original observatory reproduces its source and retains distinct materi
         );
       for (const accessor of [positions, normals]) {
         const offset = gltf.bufferViews[accessor.bufferView].byteOffset;
-        for (let i = 0; i < accessor.count * 3; i++)
-          assert.ok(
-            Number.isFinite(view.getFloat32(offset + i * 4, true)),
-            'source attributes are finite',
-          );
+        for (let i = 0; i < accessor.count * 3; i++) {
+          const componentOffset = offset + i * 4;
+          const value = view.getFloat32(componentOffset, true);
+          assert.ok(Number.isFinite(value), 'source attributes are finite');
+          // Finite-difference normals differ by 1.64e-11 between macOS and Linux libm.
+          if (accessor === normals)
+            assert.ok(
+              Math.abs(value - reference.readFloatLE(componentOffset)) <= 1e-9,
+              `normal component ${i} differs beyond 1e-9 at byte ${componentOffset}`,
+            );
+        }
       }
     }
     assert.equal(triangles, 91352);
