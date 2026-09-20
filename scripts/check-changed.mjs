@@ -1,30 +1,18 @@
-import { execFileSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { posix } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
+import { gitPaths } from './git-paths.mjs';
+import { repositoryFiles } from './repository-files.mjs';
 
 const sourcePattern = /\.(?:[cm]?js|[cm]?ts|jsx|tsx)$/;
 const testPattern = /\.test\.(?:ts|mts|mjs)$/;
 const formatPattern = /\.(?:[cm]?js|[cm]?ts|jsx|tsx|json)$/;
 
-function gitPaths(args) {
-  return execFileSync('git', args, { encoding: 'utf8' }).split('\0').filter(Boolean);
-}
-
 function candidates(importer, specifier) {
-  if (specifier.startsWith('@web-geometry/sdk')) {
-    const entry = specifier.slice('@web-geometry/sdk'.length);
-    if (entry === '/core') return ['packages/sdk-core/index.ts'];
-    if (entry === '/browser') return ['packages/sdk-browser/index.ts'];
-    if (entry === '/node') return ['packages/sdk-node/index.mts'];
-    if (!entry)
-      return [
-        'packages/sdk-core/index.ts',
-        'packages/sdk-browser/index.ts',
-        'packages/sdk-node/index.mts',
-      ];
-  }
+  if (specifier === 'web-geometry')
+    return ['packages/sdk/index.ts', 'packages/sdk/browser.ts', 'packages/sdk/node.mts'];
   if (!specifier.startsWith('.')) return [];
   const target = posix.normalize(posix.join(posix.dirname(importer), specifier));
   const stem = target.replace(/\.(?:m?js)$/, '');
@@ -69,14 +57,19 @@ function run(command, args) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-function main() {
+export function existingChangedFiles(changed, root = process.cwd()) {
+  const maintained = new Set(repositoryFiles(root));
+  return [...changed].filter((file) => maintained.has(file));
+}
+
+async function main() {
   const base = process.env.WEB_GEOMETRY_BASE_REF ?? 'develop';
   const changed = new Set([
-    ...gitPaths(['diff', '--name-only', '-z', base, '--']),
-    ...gitPaths(['ls-files', '--others', '--exclude-standard', '-z']),
+    ...(await gitPaths(['diff', '--name-only', '-z', base, '--'])),
+    ...(await gitPaths(['ls-files', '--others', '--exclude-standard', '-z'])),
   ]);
-  const existing = [...changed].filter((file) => existsSync(file));
-  const paths = gitPaths(['ls-files', '-z']);
+  const existing = existingChangedFiles(changed);
+  const paths = await gitPaths(['ls-files', '-z']);
   const files = new Map(
     [...new Set([...paths, ...existing])]
       .filter((file) => sourcePattern.test(file) && existsSync(file))
@@ -138,4 +131,4 @@ function main() {
     console.log('No directly related unit test; the final validation still runs the full suite.');
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();

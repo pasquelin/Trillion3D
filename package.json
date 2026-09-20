@@ -1,26 +1,24 @@
 {
-  "name": "@web-geometry/sdk",
-  "version": "0.1.0",
+  "name": "web-geometry",
+  "version": "0.2.0",
   "packageManager": "pnpm@11.16.0",
   "type": "module",
   "private": true,
+  "sideEffects": false,
   "license": "PolyForm-Noncommercial-1.0.0",
   "exports": {
     ".": {
-      "types": "./dist/sdk-core/index.d.ts",
-      "import": "./dist/sdk-core/index.js"
-    },
-    "./core": {
-      "types": "./dist/sdk-core/index.d.ts",
-      "import": "./dist/sdk-core/index.js"
-    },
-    "./node": {
-      "types": "./dist/sdk-node/index.d.mts",
-      "import": "./dist/sdk-node/index.mjs"
-    },
-    "./browser": {
-      "types": "./types/browser.d.ts",
-      "import": "./dist/sdk-browser/index.js"
+      "browser": {
+        "types": "./dist/sdk/browser.d.ts",
+        "import": "./dist/sdk/browser.js"
+      },
+      "node": {
+        "types": "./dist/sdk/node.d.mts",
+        "import": "./dist/sdk/node.mjs"
+      },
+      "types": "./dist/sdk/index.d.ts",
+      "import": "./dist/sdk/index.js",
+      "default": "./dist/sdk/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -29,22 +27,17 @@
   },
   "files": [
     "dist",
-    "types",
-    "packages/asset-compiler-rust/Cargo.toml",
-    "packages/asset-compiler-rust/Cargo.lock",
-    "packages/asset-compiler-rust/src",
     "README.md",
     "docs/SDK.md",
     "LICENSE",
     "packages/README.md"
   ],
   "scripts": {
-    "prepare": "[ -n \"$CI\" ] || ! git rev-parse --is-inside-work-tree >/dev/null 2>&1 || git config core.hooksPath .githooks",
-    "preinstall": "node scripts/only-pnpm.mjs",
+    "pnpm:devPreinstall": "node scripts/setup-development.mjs",
     "build": "tsc -p tsconfig.json && node scripts/rewrite-dts-extensions.mjs && node scripts/copy-resources.mjs && node scripts/write-build-provenance.mjs",
     "build:native": "cargo build --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml",
     "build:wasm": "node scripts/build-wasm.mjs",
-    "test": "node --experimental-strip-types --test packages/sdk-core/*.test.ts packages/sdk-browser/*.test.ts packages/sdk-node/*.test.mjs scripts/*.test.mjs scripts/mesure/*.test.mjs packages/*/bench/socle/*.test.mjs test/*.test.mjs test/integration/*.test.mjs",
+    "test": "node scripts/test-unit.mjs",
     "test:changed": "node scripts/check-changed.mjs --tests-only",
     "test:gpu": "node test/test-gpu.mjs",
     "check:changed": "node scripts/check-changed.mjs",
@@ -53,24 +46,25 @@
     "bench:calculs:natif": "cargo test --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml -- --ignored --nocapture bench_calculs",
     "bench:calculs:natif-g": "cargo test --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml -- --ignored --nocapture bench_calculs_g",
     "lint": "eslint . && cargo clippy --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml --all-targets -- -D warnings && cargo clippy --release --locked --manifest-path packages/page-codec-wasm/Cargo.toml --all-targets -- -D warnings",
-    "format": "prettier --write \"**/*.{js,cjs,mjs,ts,mts,tsx,json}\" && cargo fmt --all --manifest-path packages/asset-compiler-rust/Cargo.toml && cargo fmt --all --manifest-path packages/page-codec-wasm/Cargo.toml",
-    "format:check": "prettier --check \"**/*.{js,cjs,mjs,ts,mts,tsx,json}\" && cargo fmt --all --manifest-path packages/asset-compiler-rust/Cargo.toml -- --check && cargo fmt --all --manifest-path packages/page-codec-wasm/Cargo.toml -- --check",
+    "format": "prettier --ignore-path .gitignore --ignore-path .prettierignore --write \"**/*.{js,cjs,mjs,ts,mts,tsx,json}\" && cargo fmt --all --manifest-path packages/asset-compiler-rust/Cargo.toml && cargo fmt --all --manifest-path packages/page-codec-wasm/Cargo.toml",
+    "format:check": "prettier --ignore-path .gitignore --ignore-path .prettierignore --check \"**/*.{js,cjs,mjs,ts,mts,tsx,json}\" && cargo fmt --all --manifest-path packages/asset-compiler-rust/Cargo.toml -- --check && cargo fmt --all --manifest-path packages/page-codec-wasm/Cargo.toml -- --check",
     "check:lines": "node scripts/check-file-lines.mjs",
     "check:duplicates": "jscpd packages scripts test docs/js --format typescript,javascript,rust --cross-formats js-ts --min-lines 12 --min-tokens 100 --reporters console --exit-code 1 --no-tips",
     "check:unused": "knip",
     "validate": "node scripts/validate.mjs",
     "check:structure": "node --test test/integration/depot-autonome.test.mjs test/integration/structure-moteur.test.mjs test/integration/moteur-sans-three.test.mjs test/integration/moteur-sans-three-math.test.mjs && tsc -p tsconfig.core.json --noEmit",
     "check:links": "node scripts/check-links.mjs",
-    "graphify:libelles": "node scripts/graphify-libelles.mjs",
     "check:dts": "node scripts/rewrite-dts-extensions.mjs --check",
     "check:docs-demo": "node scripts/docs-demo-bundle.mjs --check",
+    "proof:package": "node scripts/prove-installed-package.mjs",
     "perf:browser": "node --experimental-strip-types --test --test-concurrency=1 packages/sdk-browser/bench/*.perf.mjs",
     "perf:core": "node --experimental-strip-types --test --test-concurrency=1 packages/sdk-core/bench/*.perf.mjs",
     "perf:all": "node --experimental-strip-types --test --test-concurrency=1 packages/*/bench/*.perf.mjs && node scripts/mesure/perf/agrege.mjs",
     "perf:baseline": "node --experimental-strip-types --test --test-concurrency=1 packages/*/bench/*.perf.mjs && node scripts/mesure/perf/baseline-save.mjs",
     "build:docs": "node scripts/docs-build.mjs",
     "docs:scene": "node scripts/docs-scene.mjs",
-    "docs:serve": "node scripts/docs-serve.mjs"
+    "docs:serve": "node scripts/docs-serve.mjs",
+    "check:local": "node scripts/check-local-files.mjs"
   },
   "jscpd": {
     "ignore": [

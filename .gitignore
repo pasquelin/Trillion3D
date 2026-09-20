@@ -4,17 +4,30 @@ dist/
 benchmark-runs/
 .idea/
 .mesure/
-.claude/*
-!.claude/agents/
+# Personal files stay local. Shared checks read these patterns.
+# Local files begin
+.claude/
+.codex/
 .agents/
+.grok/
+AGENTS.md
+AGENTS.local.md
+AGENTS.override.md
+CLAUDE.md
+CLAUDE.local.md
+CODEX.md
+CODEX.local.md
+GROK.md
+GROK.local.md
+RTK.md
+.graphifyignore
+graphify-out/
+/scripts/graphify-communautes.json
+/scripts/graphify-libelles.mjs
+/scripts/graphify-libelles.test.mjs
+/docs/roles/coder.md
+/docs/roles/reviewer.md
+# Local files end
 
-# Graphe de connaissance graphify : le dossier est commité pour que chaque poste démarre avec
-# la carte. Seuls le compteur local et le cache d'extraction restent dehors (recommandation amont).
-graphify-out/cost.json
-graphify-out/cache/
-graphify-out/.rebuild.lock
-graphify-out/.graphify_python
-graphify-out/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
-
-# Jeu de modèles de test livré hors git (voir packages/asset-compiler-rust/FORMATS.md)
+# Local test assets (see packages/asset-compiler-rust/FORMATS.md)
 test/assets/

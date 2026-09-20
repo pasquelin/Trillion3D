@@ -117,29 +117,40 @@ function resolveFrom(directory, specifier) {
 }
 
 const ENTRY_POINTS = {
-  '@web-geometry/sdk': 'packages/sdk-core/index.ts',
-  '@web-geometry/sdk/core': 'packages/sdk-core/index.ts',
-  '@web-geometry/sdk/browser': 'packages/sdk-browser/index.ts',
-  '@web-geometry/sdk/node': 'packages/sdk-node/index.mts',
+  'web-geometry': ['packages/sdk/index.ts', 'packages/sdk/browser.ts', 'packages/sdk/node.mts'],
 };
+
+function exampleModule(specifier) {
+  return ENTRY_POINTS[specifier] ?? null;
+}
 
 test('an example only imports what the file or entry point it names really exports', () => {
   for (const entry of ENTRIES) {
     if (entry.issue || !entry.example) continue;
     for (const match of entry.example.matchAll(/import\s+\{([^}]*)\}\s+from\s+'([^']+)'/g)) {
-      // Either a published entry point, or the source file that holds the symbol — an example
-      // may not invent a third form, and either way the names must be there.
-      const file = ENTRY_POINTS[match[2]] ?? (match[2].startsWith('packages/') ? match[2] : null);
-      assert.ok(file, `${entry.id}: neither an entry point nor a source file: ${match[2]}`);
-      assert.ok(existsSync(join(ROOT, file)), `${entry.id}: ${file} does not exist`);
-      const surface = surfaceOf(file);
+      const files = exampleModule(match[2]);
+      assert.ok(files, `${entry.id}: unsupported public import: ${match[2]}`);
+      for (const file of files)
+        assert.ok(existsSync(join(ROOT, file)), `${entry.id}: ${file} does not exist`);
+      const surface = new Set(files.flatMap((file) => [...surfaceOf(file)]));
       for (const name of match[1]
         .split(',')
-        .map((part) => part.trim())
+        .map(
+          (part) =>
+            part
+              .trim()
+              .replace(/^type\s+/, '')
+              .split(/\s+as\s+/)[0],
+        )
         .filter(Boolean))
         assert.ok(surface.has(name), `${entry.id}: ${match[2]} does not export ${name}`);
     }
   }
+});
+
+test('examples cannot treat arbitrary implementation files as public modules', () => {
+  assert.equal(exampleModule('packages/sdk-core/index.ts'), null);
+  assert.equal(exampleModule('packages/sdk-browser/explorer.ts'), null);
 });
 
 test('every demo belongs to an entry of the portal', async () => {

@@ -56,10 +56,10 @@ test('mixed GPU and transparent pages wait for initial coverage before validatin
     backend.render(camera());
     await backend.flush();
     assert.equal(backend.metrics().coverageReady, true);
-    // The first complete image submits a new sample. Its transparent count is published only once
-    // flush has adopted that readback, just like the opaque count from the same resident cut.
+    // The interactive barrier adopts the complete GPU cut before the frame that measures it. A
+    // plain image flush only settles the work submitted by the preceding render.
+    assert.equal(await backend.pendingFrame?.(), true);
     backend.render(camera());
-    await backend.flush();
     assert.equal(backend.metrics().transparentSubmittedTriangles, 2);
     assert.equal(backend.metrics().submittedTriangles, 4);
   } finally {
