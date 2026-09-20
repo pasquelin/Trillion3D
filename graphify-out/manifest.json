@@ -11730,9 +11730,9 @@
     "semantic_hash": ""
   },
   "docs/js/engine-scene/lifecycle.js": {
-    "mtime": 1789901518.1175942,
-    "seen": 1789901679.684855,
-    "ast_hash": "a81980aff3fb1e14e2539fad2d2a80f3",
+    "mtime": 1789903178.6024165,
+    "seen": 1789903231.5207481,
+    "ast_hash": "dd0a7d0d4f0575c74d5a25f24d660c42",
     "semantic_hash": ""
   },
   "docs/js/engine-scene/lightingControls.js": {
@@ -11754,15 +11754,15 @@
     "semantic_hash": ""
   },
   "docs/js/gallery/catalog.js": {
-    "mtime": 1789895502.2987387,
-    "seen": 1789896687.2187898,
-    "ast_hash": "dfc08410a73c1e26b1b801b5b3ef3998",
+    "mtime": 1789903178.6026974,
+    "seen": 1789903231.520753,
+    "ast_hash": "a2397e54920cd05fa1d4b3f32efc671d",
     "semantic_hash": ""
   },
   "docs/js/gallery/code.js": {
-    "mtime": 1789895502.2988145,
-    "seen": 1789896687.2187898,
-    "ast_hash": "22c89b3da3c148c3ebc617798b099d9b",
+    "mtime": 1789903178.6028214,
+    "seen": 1789903231.520753,
+    "ast_hash": "5f09699e2ffeea424cc22771fe68edf4",
     "semantic_hash": ""
   },
   "docs/js/gallery/codeScene.js": {
@@ -11778,9 +11778,9 @@
     "semantic_hash": ""
   },
   "docs/js/gallery/draw.js": {
-    "mtime": 1789895502.2990901,
-    "seen": 1789896687.218793,
-    "ast_hash": "b57b716f449a8c46aba0e9e4b758cd8f",
+    "mtime": 1789903178.603039,
+    "seen": 1789903231.520757,
+    "ast_hash": "21d6ac7423d093230ea7840e88333779",
     "semantic_hash": ""
   },
   "docs/js/gallery/drawDetails.js": {
@@ -11796,9 +11796,9 @@
     "semantic_hash": ""
   },
   "docs/js/gallery/evaluate.js": {
-    "mtime": 1789895502.2993367,
-    "seen": 1789896687.218796,
-    "ast_hash": "64d8f0213bc01caaf7db19b13275eb5b",
+    "mtime": 1789903178.6032383,
+    "seen": 1789903231.520761,
+    "ast_hash": "05cc07305b0fd5747f06e60b927fdc6f",
     "semantic_hash": ""
   },
   "docs/js/gallery/evaluateDetail.js": {
@@ -11808,27 +11808,27 @@
     "semantic_hash": ""
   },
   "docs/js/gallery/guidance.js": {
-    "mtime": 1789895502.2994897,
-    "seen": 1789896687.2187982,
-    "ast_hash": "bd8f57372a55987549f9e1bb4d0acf9a",
+    "mtime": 1789903178.603471,
+    "seen": 1789903231.520763,
+    "ast_hash": "0dcd06d791493e65de90ed6bb4c92436",
     "semantic_hash": ""
   },
   "docs/js/gallery/localizeResult.js": {
-    "mtime": 1789895502.299565,
-    "seen": 1789896687.218799,
-    "ast_hash": "5514a17f531bb2cfb33c0f98e8c73dc8",
+    "mtime": 1789903178.603607,
+    "seen": 1789903231.5207639,
+    "ast_hash": "8683467a9b27a4d83a9ceac61fd697e8",
     "semantic_hash": ""
   },
   "docs/js/gallery/scenarios.js": {
-    "mtime": 1789895502.2996316,
-    "seen": 1789896687.2188,
-    "ast_hash": "a279648009bee41bba0b1b0d927f77e3",
+    "mtime": 1789903178.603727,
+    "seen": 1789903231.5207648,
+    "ast_hash": "e12da2c5bb4b83f920710dea1050c857",
     "semantic_hash": ""
   },
   "docs/js/gallery/sceneGeometry.js": {
-    "mtime": 1789895502.2997282,
-    "seen": 1789896687.2188008,
-    "ast_hash": "c2451c9f72c8c575d72056b883e220ed",
+    "mtime": 1789903178.6038606,
+    "seen": 1789903231.520766,
+    "ast_hash": "9cf2081d4bb84148999cf9258707b731",
     "semantic_hash": ""
   },
   "docs/js/gallery/webgpuDevice.js": {
@@ -11838,9 +11838,9 @@
     "semantic_hash": ""
   },
   "docs/js/gallery/webgpuRenderer.js": {
-    "mtime": 1789895502.2999487,
-    "seen": 1789896687.218803,
-    "ast_hash": "63cd2d433186b31e8d0813b7559196d1",
+    "mtime": 1789903178.6040838,
+    "seen": 1789903231.520768,
+    "ast_hash": "09d29b6683299b59836616051c9f5151",
     "semantic_hash": ""
   },
   "docs/js/i18n/bounds.fr.js": {
@@ -12036,9 +12036,9 @@
     "semantic_hash": ""
   },
   "docs/react/engine-scene/EnginePreview.jsx": {
-    "mtime": 1789901518.1190605,
-    "seen": 1789901679.68493,
-    "ast_hash": "095ddb7894db1ea44cdbd246846319d6",
+    "mtime": 1789903178.604468,
+    "seen": 1789903231.520816,
+    "ast_hash": "c111882bb4cfd405b9cb2f3e136f6d68",
     "semantic_hash": ""
   },
   "docs/react/engine-scene/Guide.jsx": {
@@ -12066,15 +12066,15 @@
     "semantic_hash": ""
   },
   "docs/react/gallery/ExampleCard.jsx": {
-    "mtime": 1789895502.3034291,
-    "seen": 1789896687.2188401,
-    "ast_hash": "d80bad4616e9815ee6b8a73775303be7",
+    "mtime": 1789903178.604635,
+    "seen": 1789903231.520822,
+    "ast_hash": "5bdf79aac69616fe88318e2ef68194e9",
     "semantic_hash": ""
   },
   "docs/react/gallery/Gallery.jsx": {
-    "mtime": 1789895502.3035336,
-    "seen": 1789896687.218841,
-    "ast_hash": "a29bfe55673742ee2c970a9dc96fb871",
+    "mtime": 1789903178.604755,
+    "seen": 1789903231.520823,
+    "ast_hash": "e9fd8a33c9e15a215668aeb34d238209",
     "semantic_hash": ""
   },
   "docs/react/gallery/Playground.jsx": {
@@ -12090,9 +12090,9 @@
     "semantic_hash": ""
   },
   "docs/react/gallery/controlLabels.js": {
-    "mtime": 1789895502.3038843,
-    "seen": 1789896687.218844,
-    "ast_hash": "3880c07011fbd15f271d15caac6aaa6a",
+    "mtime": 1789903178.6050463,
+    "seen": 1789903231.520826,
+    "ast_hash": "bb46232eb178a4de62649c263998668d",
     "semantic_hash": ""
   },
   "docs/react/gallery/index.jsx": {
@@ -12216,9 +12216,9 @@
     "semantic_hash": ""
   },
   "scripts/docs-gallery.test.mjs": {
-    "mtime": 1789895502.33111,
-    "seen": 1789896687.220858,
-    "ast_hash": "b222fcd9719686a04ae0535883935910",
+    "mtime": 1789903178.6345503,
+    "seen": 1789903231.5226188,
+    "ast_hash": "a7c5d6ac75dc6fe5c790e934dda4c36b",
     "semantic_hash": ""
   },
   "scripts/docs-highlighting.test.mjs": {
@@ -12252,9 +12252,9 @@
     "semantic_hash": ""
   },
   "scripts/docs-scene.test.mjs": {
-    "mtime": 1789901518.1481147,
-    "seen": 1789901679.686794,
-    "ast_hash": "71955e8c69bc27530258a08707f94631",
+    "mtime": 1789903178.6346977,
+    "seen": 1789903231.5226262,
+    "ast_hash": "12ea70e7779a46b4f40eda24f11355b6",
     "semantic_hash": ""
   },
   "scripts/docs-serve.mjs": {
@@ -12342,9 +12342,9 @@
     "semantic_hash": ""
   },
   "docs/assets/kinetic-garden/preview.png": {
-    "mtime": 1789895502.2916546,
-    "seen": 1789896687.221122,
-    "ast_hash": "b46f962c32eda06590be2ab38c6a8175",
+    "mtime": 1789903178.6010025,
+    "seen": 1789903231.522871,
+    "ast_hash": "c278e22b933b14e9359f2ca51c1b76f1",
     "semantic_hash": ""
   },
   "docs/react/reports/Conditions.jsx": {
@@ -12585,6 +12585,84 @@
     "mtime": 1789901518.1487336,
     "seen": 1789901679.686869,
     "ast_hash": "50dc3f2ab62cc187938ca931d99dc42a",
+    "semantic_hash": ""
+  },
+  "docs/data/gallery-roadmap.json": {
+    "mtime": 1789903178.6021934,
+    "seen": 1789903231.520714,
+    "ast_hash": "0b18ebfa52f05e90def2b7770abc9dc7",
+    "semantic_hash": ""
+  },
+  "docs/js/gallery/codeAdvanced.js": {
+    "mtime": 1789903178.6028962,
+    "seen": 1789903231.5207539,
+    "ast_hash": "3d4caf041db4137b5402b1ceb0a77856",
+    "semantic_hash": ""
+  },
+  "docs/js/gallery/drawAdvanced.js": {
+    "mtime": 1789903178.603112,
+    "seen": 1789903231.520758,
+    "ast_hash": "da3faaf26896cb51470326cdbbf1716a",
+    "semantic_hash": ""
+  },
+  "docs/js/gallery/evaluateAdvanced.js": {
+    "mtime": 1789903178.6033354,
+    "seen": 1789903231.520761,
+    "ast_hash": "865f3368241d9e279ca140e83b0a5fea",
+    "semantic_hash": ""
+  },
+  "docs/js/gallery/sceneGeometryAdvanced.js": {
+    "mtime": 1789903178.6039398,
+    "seen": 1789903231.520766,
+    "ast_hash": "98f3cc775217c08d16b1945ed11dc22d",
+    "semantic_hash": ""
+  },
+  "docs/js/scenePalette.js": {
+    "mtime": 1789903178.6041596,
+    "seen": 1789903231.5207942,
+    "ast_hash": "e44a2d012e92382ebc33bdad36671906",
+    "semantic_hash": ""
+  },
+  "docs/react/components/Pagination.jsx": {
+    "mtime": 1789903178.6042497,
+    "seen": 1789903231.5208058,
+    "ast_hash": "e170eb9f35c28911acf3307de773a895",
+    "semantic_hash": ""
+  },
+  "docs/react/components/TabsMenu.jsx": {
+    "mtime": 1789903178.6043246,
+    "seen": 1789903231.5208142,
+    "ast_hash": "7f8378c1c3e4604f83ad41b7ca5ea199",
+    "semantic_hash": ""
+  },
+  "docs/react/gallery/ThemeTabs.jsx": {
+    "mtime": 1789903178.604826,
+    "seen": 1789903231.5208251,
+    "ast_hash": "61328f56ce129dada2c5984911d0c57e",
+    "semantic_hash": ""
+  },
+  "docs/react/gallery/roadmapPlan.js": {
+    "mtime": 1789903178.6051176,
+    "seen": 1789903231.520828,
+    "ast_hash": "b1729d39fb78f28c7ff6ba0d932fc02d",
+    "semantic_hash": ""
+  },
+  "docs/react/gallery/roadmapRelated.js": {
+    "mtime": 1789903178.60519,
+    "seen": 1789903231.520829,
+    "ast_hash": "fe75c8c11352ba13dc6382a2da8b3bdc",
+    "semantic_hash": ""
+  },
+  "docs/react/gallery/roadmapThemes.js": {
+    "mtime": 1789903178.6052678,
+    "seen": 1789903231.520829,
+    "ast_hash": "49011c92b7f3f7d02c9edafa8f930eff",
+    "semantic_hash": ""
+  },
+  "scripts/docs-gallery-diagram.test.mjs": {
+    "mtime": 1789903178.634362,
+    "seen": 1789903231.522618,
+    "ast_hash": "2eb7f22cf7c87d2e09719db1c7fa9729",
     "semantic_hash": ""
   }
 }

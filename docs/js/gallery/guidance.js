@@ -11,6 +11,30 @@ const guidance = {
     'Gardez le décalage et tournez seulement le parent.',
     'L’enfant trace un cercle car son décalage local est transformé.',
   ],
+  'matrix-inverse': [
+    'Animate rotation, then make the scale small.',
+    'The inverse retraces the world transform back to the same local point.',
+    'Animez la rotation, puis réduisez l’échelle.',
+    'L’inverse retrace la transformation monde jusqu’au même point local.',
+  ],
+  'reflection-orientation': [
+    'Move scale through zero from negative to positive.',
+    'The determinant sign flips at the collapsed pose and changes face orientation.',
+    'Passez l’échelle de négative à positive par zéro.',
+    'Le signe change à la pose aplatie et inverse l’orientation des faces.',
+  ],
+  'quaternion-turn': [
+    'Animate a full turn and inspect the arrow.',
+    'The unit quaternion rotates direction while translation stays absent.',
+    'Animez un tour complet et observez la flèche.',
+    'Le quaternion unité tourne la direction sans translation.',
+  ],
+  'normal-transform': [
+    'Swap the wide and narrow scale axes.',
+    'The inverse-transpose normal remains perpendicular where naive scaling does not.',
+    'Inversez les axes large et étroit.',
+    'La normale inverse-transposée reste perpendiculaire, contrairement à l’échelle naïve.',
+  ],
   perspective: [
     'Keep FOV fixed and push the point away.',
     'Projected size shrinks with depth and with a wider FOV.',

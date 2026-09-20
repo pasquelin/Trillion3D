@@ -12,6 +12,7 @@ import {
   transformHomogeneousPoint,
 } from '../engine.js';
 import { evaluateDetail } from './evaluateDetail.js';
+import { evaluateAdvanced } from './evaluateAdvanced.js';
 import { localizeResult } from './localizeResult.js';
 
 const rad = (degrees) => (degrees * Math.PI) / 180;
@@ -125,7 +126,11 @@ function vectors(id, state) {
 
 export function evaluate(id, state, locale = 'en') {
   let result;
-  if (id === 'compose-transform' || id === 'matrix-chain') result = transforms(id, state);
+  if (
+    ['matrix-inverse', 'reflection-orientation', 'quaternion-turn', 'normal-transform'].includes(id)
+  )
+    result = evaluateAdvanced(id, state);
+  else if (id === 'compose-transform' || id === 'matrix-chain') result = transforms(id, state);
   else if (id === 'perspective' || id === 'frustum') result = camera(id, state);
   else if (['dot-product', 'cross-product', 'normalize'].includes(id)) result = vectors(id, state);
   else result = evaluateDetail(id, state);
