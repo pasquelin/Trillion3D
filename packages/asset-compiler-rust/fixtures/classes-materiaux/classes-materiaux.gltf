@@ -1,312 +1,251 @@
 {
- "asset": {
-  "version": "2.0"
- },
- "buffers": [
-  {
-   "uri": "classes-materiaux.bin",
-   "byteLength": 82344
-  }
- ],
- "bufferViews": [
-  {
-   "buffer": 0,
-   "byteOffset": 0,
-   "byteLength": 5856
+  "asset": {
+    "version": "2.0"
   },
-  {
-   "buffer": 0,
-   "byteOffset": 5856,
-   "byteLength": 11664
-  },
-  {
-   "buffer": 0,
-   "byteOffset": 17520,
-   "byteLength": 5856
-  },
-  {
-   "buffer": 0,
-   "byteOffset": 23376,
-   "byteLength": 11664
-  },
-  {
-   "buffer": 0,
-   "byteOffset": 35040,
-   "byteLength": 5856
-  },
-  {
-   "buffer": 0,
-   "byteOffset": 40896,
-   "byteLength": 11664
-  },
-  {
-   "buffer": 0,
-   "byteOffset": 52560,
-   "byteLength": 5292
-  },
-  {
-   "buffer": 0,
-   "byteOffset": 57852,
-   "byteLength": 9600
-  },
-  {
-   "buffer": 0,
-   "byteOffset": 67452,
-   "byteLength": 5292
-  },
-  {
-   "buffer": 0,
-   "byteOffset": 72744,
-   "byteLength": 9600
-  }
- ],
- "accessors": [
-  {
-   "bufferView": 0,
-   "componentType": 5126,
-   "count": 488,
-   "type": "VEC3",
-   "min": [
-    -7.2,
-    -0.19999999999999996,
-    -5.2
-   ],
-   "max": [
-    -4.8,
-    2.2,
-    -2.7999999999999994
-   ]
-  },
-  {
-   "bufferView": 1,
-   "componentType": 5125,
-   "count": 2916,
-   "type": "SCALAR"
-  },
-  {
-   "bufferView": 2,
-   "componentType": 5126,
-   "count": 488,
-   "type": "VEC3",
-   "min": [
-    -1.2,
-    -0.19999999999999996,
-    -6.2
-   ],
-   "max": [
-    1.2,
-    2.2,
-    -3.7999999999999994
-   ]
-  },
-  {
-   "bufferView": 3,
-   "componentType": 5125,
-   "count": 2916,
-   "type": "SCALAR"
-  },
-  {
-   "bufferView": 4,
-   "componentType": 5126,
-   "count": 488,
-   "type": "VEC3",
-   "min": [
-    4.8,
-    -0.19999999999999996,
-    -5.2
-   ],
-   "max": [
-    7.2,
-    2.2,
-    -2.7999999999999994
-   ]
-  },
-  {
-   "bufferView": 5,
-   "componentType": 5125,
-   "count": 2916,
-   "type": "SCALAR"
-  },
-  {
-   "bufferView": 6,
-   "componentType": 5126,
-   "count": 441,
-   "type": "VEC3",
-   "min": [
-    -6.0,
-    0.0,
-    0.0
-   ],
-   "max": [
-    0.0,
-    4.0,
-    0.0
-   ]
-  },
-  {
-   "bufferView": 7,
-   "componentType": 5125,
-   "count": 2400,
-   "type": "SCALAR"
-  },
-  {
-   "bufferView": 8,
-   "componentType": 5126,
-   "count": 441,
-   "type": "VEC3",
-   "min": [
-    1.0,
-    0.0,
-    0.0
-   ],
-   "max": [
-    7.0,
-    4.0,
-    0.0
-   ]
-  },
-  {
-   "bufferView": 9,
-   "componentType": 5125,
-   "count": 2400,
-   "type": "SCALAR"
-  }
- ],
- "materials": [
-  {
-   "name": "beton",
-   "pbrMetallicRoughness": {
-    "baseColorFactor": [
-     0.8,
-     0.78,
-     0.74,
-     1
-    ]
-   }
-  },
-  {
-   "name": "grillage",
-   "alphaMode": "MASK",
-   "alphaCutoff": 0.5,
-   "doubleSided": true,
-   "pbrMetallicRoughness": {
-    "baseColorFactor": [
-     0.35,
-     0.4,
-     0.35,
-     1
-    ]
-   }
-  },
-  {
-   "name": "vitre",
-   "alphaMode": "BLEND",
-   "doubleSided": true,
-   "pbrMetallicRoughness": {
-    "baseColorFactor": [
-     0.6,
-     0.72,
-     0.9,
-     0.35
-    ]
-   }
-  }
- ],
- "meshes": [
-  {
-   "name": "opaque0",
-   "primitives": [
+  "buffers": [
     {
-     "attributes": {
-      "POSITION": 0
-     },
-     "indices": 1,
-     "material": 0
+      "uri": "classes-materiaux.bin",
+      "byteLength": 82344
     }
-   ]
-  },
-  {
-   "name": "opaque1",
-   "primitives": [
+  ],
+  "bufferViews": [
     {
-     "attributes": {
-      "POSITION": 2
-     },
-     "indices": 3,
-     "material": 0
-    }
-   ]
-  },
-  {
-   "name": "opaque2",
-   "primitives": [
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 5856
+    },
     {
-     "attributes": {
-      "POSITION": 4
-     },
-     "indices": 5,
-     "material": 0
-    }
-   ]
-  },
-  {
-   "name": "grille",
-   "primitives": [
+      "buffer": 0,
+      "byteOffset": 5856,
+      "byteLength": 11664
+    },
     {
-     "attributes": {
-      "POSITION": 6
-     },
-     "indices": 7,
-     "material": 1
-    }
-   ]
-  },
-  {
-   "name": "vitre",
-   "primitives": [
+      "buffer": 0,
+      "byteOffset": 17520,
+      "byteLength": 5856
+    },
     {
-     "attributes": {
-      "POSITION": 8
-     },
-     "indices": 9,
-     "material": 2
+      "buffer": 0,
+      "byteOffset": 23376,
+      "byteLength": 11664
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 35040,
+      "byteLength": 5856
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 40896,
+      "byteLength": 11664
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 52560,
+      "byteLength": 5292
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 57852,
+      "byteLength": 9600
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 67452,
+      "byteLength": 5292
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 72744,
+      "byteLength": 9600
     }
-   ]
-  }
- ],
- "nodes": [
-  {
-   "mesh": 0,
-   "name": "opaque0"
-  },
-  {
-   "mesh": 1,
-   "name": "opaque1"
-  },
-  {
-   "mesh": 2,
-   "name": "opaque2"
-  },
-  {
-   "mesh": 3,
-   "name": "grille"
-  },
-  {
-   "mesh": 4,
-   "name": "vitre"
-  }
- ],
- "scenes": [
-  {
-   "nodes": [
-    0,
-    1,
-    2,
-    3,
-    4
-   ]
-  }
- ],
- "scene": 0,
- "images": []
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 488,
+      "type": "VEC3",
+      "min": [-7.2, -0.19999999999999996, -5.2],
+      "max": [-4.8, 2.2, -2.7999999999999994]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5125,
+      "count": 2916,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 488,
+      "type": "VEC3",
+      "min": [-1.2, -0.19999999999999996, -6.2],
+      "max": [1.2, 2.2, -3.7999999999999994]
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5125,
+      "count": 2916,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 488,
+      "type": "VEC3",
+      "min": [4.8, -0.19999999999999996, -5.2],
+      "max": [7.2, 2.2, -2.7999999999999994]
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5125,
+      "count": 2916,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5126,
+      "count": 441,
+      "type": "VEC3",
+      "min": [-6.0, 0.0, 0.0],
+      "max": [0.0, 4.0, 0.0]
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5125,
+      "count": 2400,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 8,
+      "componentType": 5126,
+      "count": 441,
+      "type": "VEC3",
+      "min": [1.0, 0.0, 0.0],
+      "max": [7.0, 4.0, 0.0]
+    },
+    {
+      "bufferView": 9,
+      "componentType": 5125,
+      "count": 2400,
+      "type": "SCALAR"
+    }
+  ],
+  "materials": [
+    {
+      "name": "beton",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.8, 0.78, 0.74, 1]
+      }
+    },
+    {
+      "name": "grillage",
+      "alphaMode": "MASK",
+      "alphaCutoff": 0.5,
+      "doubleSided": true,
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.35, 0.4, 0.35, 1]
+      }
+    },
+    {
+      "name": "vitre",
+      "alphaMode": "BLEND",
+      "doubleSided": true,
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.6, 0.72, 0.9, 0.35]
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "opaque0",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0
+          },
+          "indices": 1,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "opaque1",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 2
+          },
+          "indices": 3,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "opaque2",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 4
+          },
+          "indices": 5,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "grille",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 6
+          },
+          "indices": 7,
+          "material": 1
+        }
+      ]
+    },
+    {
+      "name": "vitre",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 8
+          },
+          "indices": 9,
+          "material": 2
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "opaque0"
+    },
+    {
+      "mesh": 1,
+      "name": "opaque1"
+    },
+    {
+      "mesh": 2,
+      "name": "opaque2"
+    },
+    {
+      "mesh": 3,
+      "name": "grille"
+    },
+    {
+      "mesh": 4,
+      "name": "vitre"
+    }
+  ],
+  "scenes": [
+    {
+      "nodes": [0, 1, 2, 3, 4]
+    }
+  ],
+  "scene": 0,
+  "images": []
 }

@@ -3,7 +3,7 @@
 //! vertices that quantize alike kept once.
 
 use crate::geometry_page::{encode, Attribute, FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
-use crate::geometry_page_quant::{primitive_exponent, UV_EXPONENT};
+use crate::geometry_page_quant::UV_EXPONENT;
 use web_geometry_page_codec as codec;
 use web_geometry_page_codec::bits::pow2;
 
@@ -24,14 +24,19 @@ fn value(state: &mut u32, scale: f32) -> f32 {
 }
 
 fn attributes(count: usize, state: &mut u32) -> Vec<Attribute> {
-    [(FLAG_NORMAL, 3, 1.0), (FLAG_UV, 2, 4.0), (FLAG_UV1, 2, 1.0), (FLAG_COLOR, 3, 1.0)]
-        .into_iter()
-        .map(|(flag, width, scale)| Attribute {
-            flag,
-            width,
-            values: (0..count * width).map(|_| value(state, scale)).collect(),
-        })
-        .collect()
+    [
+        (FLAG_NORMAL, 3, 1.0),
+        (FLAG_UV, 2, 4.0),
+        (FLAG_UV1, 2, 1.0),
+        (FLAG_COLOR, 3, 1.0),
+    ]
+    .into_iter()
+    .map(|(flag, width, scale)| Attribute {
+        flag,
+        width,
+        values: (0..count * width).map(|_| value(state, scale)).collect(),
+    })
+    .collect()
 }
 
 /// Mesh with every vertex touched, repeated triangles and shared vertices.
@@ -55,7 +60,13 @@ fn distance(a: &[f32], b: &[f32]) -> f64 {
 }
 
 /// Every decoded vertex against the source vertex its triangle names, within the declared error.
-fn verify(page: &codec::DecodedPage, indices: &[u32], positions: &[f32], attrs: &[Attribute], error: f64) {
+fn verify(
+    page: &codec::DecodedPage,
+    indices: &[u32],
+    positions: &[f32],
+    attrs: &[Attribute],
+    error: f64,
+) {
     let uv_bound = f64::from(pow2(UV_EXPONENT)) * 0.5 * 2f64.sqrt() + 1e-6;
     for (corner, &source) in indices.iter().enumerate() {
         let local = page.indices[corner] as usize;
@@ -73,19 +84,28 @@ fn verify(page: &codec::DecodedPage, indices: &[u32], positions: &[f32], attrs: 
                     let unit: Vec<f32> = if length == 0.0 {
                         vec![0.0, 0.0, 1.0]
                     } else {
-                        expected.iter().map(|v| (f64::from(*v) / length) as f32).collect()
+                        expected
+                            .iter()
+                            .map(|v| (f64::from(*v) / length) as f32)
+                            .collect()
                     };
                     let dot: f64 = decoded[local * 3..local * 3 + 3]
                         .iter()
                         .zip(&unit)
                         .map(|(a, b)| f64::from(*a) * f64::from(*b))
                         .sum();
-                    assert!(dot.clamp(-1.0, 1.0).acos().to_degrees() < 1.0, "normal {corner}: {dot}");
+                    assert!(
+                        dot.clamp(-1.0, 1.0).acos().to_degrees() < 1.0,
+                        "normal {corner}: {dot}"
+                    );
                 }
                 FLAG_COLOR => {
                     for c in 0..3 {
                         let got = f64::from(decoded[local * 4 + c]);
-                        assert!((got - f64::from(expected[c].clamp(0.0, 1.0))).abs() <= 0.5 / 256.0 + 1e-6);
+                        assert!(
+                            (got - f64::from(expected[c].clamp(0.0, 1.0))).abs()
+                                <= 0.5 / 256.0 + 1e-6
+                        );
                     }
                     assert_eq!(decoded[local * 4 + 3], 1.0);
                 }
@@ -104,13 +124,26 @@ fn round_trip(vertices: usize, seed: u32) {
     assert_eq!(page.flags, encoded.flags);
     assert_eq!(page.vertex_count, encoded.vertex_count);
     assert_eq!(page.decoded_bytes, encoded.decoded_bytes);
-    assert_eq!(page.decoded_bytes, encoded.vertex_count * (3 + 3 + 2 + 2 + 4) * 4 + indices.len() * 4);
+    assert_eq!(
+        page.decoded_bytes,
+        encoded.vertex_count * (3 + 3 + 2 + 2 + 4) * 4 + indices.len() * 4
+    );
     assert!(encoded.quantization_error <= f64::from(pow2(-9)) * 3f64.sqrt() * 0.5 + 1e-9);
     // Random vertices spend their full widths; a real cluster, tighter, spends fewer.
     if vertices >= 1024 {
-        assert!(encoded.bytes.len() < page.decoded_bytes / 2, "{} B packed", encoded.bytes.len());
+        assert!(
+            encoded.bytes.len() < page.decoded_bytes / 2,
+            "{} B packed",
+            encoded.bytes.len()
+        );
     }
-    verify(&page, &indices, &positions, &attrs, encoded.quantization_error);
+    verify(
+        &page,
+        &indices,
+        &positions,
+        &attrs,
+        encoded.quantization_error,
+    );
 }
 
 #[test]
@@ -118,47 +151,4 @@ fn golden_page_reread_within_its_declared_error() {
     for (vertices, seed) in [(3usize, 1u32), (17, 7), (1024, 99), (65_535, 424_242)] {
         round_trip(vertices, seed);
     }
-}
-
-#[test]
-fn a_constant_colour_costs_no_bits_and_the_primitive_grid_follows_the_finest_error() {
-    let colour = Attribute {
-        flag: FLAG_COLOR,
-        width: 3,
-        values: vec![0.5, 0.25, 1.0, 0.5, 0.25, 1.0, 0.5, 0.25, 1.0],
-    };
-    let positions = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
-    let plain = encode(&[0, 1, 2], &positions, &[], -8).expect("plain").bytes.len();
-    let tinted = encode(&[0, 1, 2], &positions, &[colour], -8).expect("tinted");
-    assert_eq!(tinted.bytes.len(), plain);
-    let page = codec::decode(&tinted.bytes, 1 << 20).expect("decode");
-    assert_eq!(
-        page.optional[3].as_deref(),
-        Some(&[0.5, 0.25, 1.0, 1.0].repeat(3)[..])
-    );
-    // A primitive one unit wide: 2^-16 by extent; an error of 2^-15 asks for 2^-18, the finer.
-    assert_eq!(primitive_exponent(&positions, [0.5f64].into_iter()), -16);
-    assert_eq!(primitive_exponent(&positions, [0.0, 2f64.powi(-15)].into_iter()), -18);
-    assert_eq!(primitive_exponent(&[0.0; 3], [].into_iter()), -16);
-}
-
-#[test]
-fn vertices_on_the_same_grid_cells_are_kept_once() {
-    // Two corners a hair apart on a coarse grid, and a third copy exactly equal: one vertex.
-    let positions = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0 + 1e-6, 0.0, 0.0, 0.0, 1.0, 0.0];
-    let encoded = encode(&[0, 1, 3, 0, 2, 3], &positions, &[], -4).expect("encode");
-    assert_eq!(encoded.vertex_count, 3);
-    let page = codec::decode(&encoded.bytes, 1 << 20).expect("decode");
-    assert_eq!(page.indices, [0, 1, 2, 0, 1, 2]);
-    assert_eq!(page.position[3..6], [1.0, 0.0, 0.0]);
-}
-
-#[test]
-fn a_page_wider_than_its_grid_coarsens_and_a_page_beyond_any_grid_is_refused() {
-    let wide = [0.0, 0.0, 0.0, 1e9, 0.0, 0.0, 0.0, 1e9, 0.0];
-    let encoded = encode(&[0, 1, 2], &wide, &[], -16).expect("coarsened");
-    let page = codec::decode(&encoded.bytes, 1 << 20).expect("decode");
-    assert!((f64::from(page.position[3]) - 1e9).abs() <= encoded.quantization_error);
-    let beyond = [-f32::MAX, 0.0, 0.0, f32::MAX, 0.0, 0.0, 0.0, 0.0, 0.0];
-    assert_eq!(encode(&[0, 1, 2], &beyond, &[], -16).unwrap_err().code, "INVALID_PAGE_ATTRIBUTE");
 }

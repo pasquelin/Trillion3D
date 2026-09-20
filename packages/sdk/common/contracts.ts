@@ -12,6 +12,10 @@ export { createSceneRoot, SceneRoot } from '../../sdk-core/sceneRoot.ts';
 export type { DagReport, DagWarning } from '../../sdk-core/dagContracts.ts';
 export { dagWarningsDiagnostic } from '../../sdk-core/dagWarnings.ts';
 export type { PrimitiveDagWarning } from '../../sdk-core/dagWarnings.ts';
+export type {
+  GeometryPageDescriptor,
+  PrimitiveQuantization,
+} from '../../sdk-core/geometryPageContracts.ts';
 export type { GpuMemoryFrameMetrics } from '../../sdk-core/gpuMemoryContracts.ts';
 export type { OcclusionFrameMetrics } from '../../sdk-core/occlusionMetricsContracts.ts';
 export {

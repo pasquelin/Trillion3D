@@ -3,15 +3,15 @@
 Six tiny files and a scene. Two files carry the same image in the two precisions
 of the subset; four are there to be refused, each by name.
 
-| file                      | what it carries                                   | what it puts under watch                                                                                                           |
-| ------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `demi.exr`                | 2 × 2, `A`, `B`, `G`, `R` channels in half-float  | read order, the four channels, an alpha that is neither 0 nor 1, and un-premultiplication                                          |
-| `flottant.exr`            | 2 × 2, `B`, `G`, `R` channels in single float     | the same RGB values as `demi.exr` — half extends without rounding — and the opaque alpha the specification requires when the channel is missing |
-| `canaux-xyz.exr`          | 2 × 2, `X`, `Y`, `Z` channels                     | a channel set of another name: rejection `exr-channels-unsupported`                                                                |
-| `profond.exr`             | `demi.exr` with the deep-data flag                | the version field is enough: rejection `exr-deep-unsupported` before any other read                                                |
-| `multi-parties.exr`       | `demi.exr` with the multi-part flag               | rejection `exr-multipart-unsupported`: nothing says which part is the texture                                                      |
-| `tronque.exr`             | 40 of the 395 bytes of `demi.exr`                 | the magic is there, the header is not: rejection `exr-header-invalid`                                                              |
-| `scene.gltf`, `scene.bin` | a quad whose base colour is `demi.exr`            | the full path through to the preview report, where the float texture is named                                                      |
+| file                      | what it carries                                  | what it puts under watch                                                                                                                        |
+| ------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `demi.exr`                | 2 × 2, `A`, `B`, `G`, `R` channels in half-float | read order, the four channels, an alpha that is neither 0 nor 1, and un-premultiplication                                                       |
+| `flottant.exr`            | 2 × 2, `B`, `G`, `R` channels in single float    | the same RGB values as `demi.exr` — half extends without rounding — and the opaque alpha the specification requires when the channel is missing |
+| `canaux-xyz.exr`          | 2 × 2, `X`, `Y`, `Z` channels                    | a channel set of another name: rejection `exr-channels-unsupported`                                                                             |
+| `profond.exr`             | `demi.exr` with the deep-data flag               | the version field is enough: rejection `exr-deep-unsupported` before any other read                                                             |
+| `multi-parties.exr`       | `demi.exr` with the multi-part flag              | rejection `exr-multipart-unsupported`: nothing says which part is the texture                                                                   |
+| `tronque.exr`             | 40 of the 395 bytes of `demi.exr`                | the magic is there, the header is not: rejection `exr-header-invalid`                                                                           |
+| `scene.gltf`, `scene.bin` | a quad whose base colour is `demi.exr`           | the full path through to the preview report, where the float texture is named                                                                   |
 
 The two readable files carry the same RGB image, and `src/plugins/tests/exr.rs` compares their
 values **one by one** against a reference written in the clear in the test. The chosen values — 0, ⅛,

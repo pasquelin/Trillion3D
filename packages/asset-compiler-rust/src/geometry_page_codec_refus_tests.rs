@@ -9,7 +9,9 @@ const TRIANGLE: [f32; 9] = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
 
 #[test]
 fn the_decoder_refuses_what_the_encoder_never_writes() {
-    let good = encode(&[0, 1, 2], &TRIANGLE, &[], -8).expect("encode").bytes;
+    let good = encode(&[0, 1, 2], &TRIANGLE, &[], -8)
+        .expect("encode")
+        .bytes;
     assert!(codec::decode(&good, 1 << 20).is_ok());
     // An index past the vertex count, forged in the index stream: two bits per index.
     let mut forged = good.clone();
@@ -53,7 +55,9 @@ fn the_encoder_refuses_nonfinite_and_ill_shaped_attributes() {
     );
     let short = normal(vec![0.0; 6]);
     assert_eq!(
-        encode(&[0, 1, 2], &TRIANGLE, &[short], -8).unwrap_err().code,
+        encode(&[0, 1, 2], &TRIANGLE, &[short], -8)
+            .unwrap_err()
+            .code,
         "INVALID_PAGE_ATTRIBUTE"
     );
     let wide = Attribute {

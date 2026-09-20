@@ -8,16 +8,16 @@ of them through the whole compiler and pins the bytes of its previews in `expect
 
 ## What the driver reads
 
-| file                          | header | depth                        | row order | what it puts under watch                                  |
-| ----------------------------- | ------ | ---------------------------- | --------- | --------------------------------------------------------- |
-| `vraies-couleurs-24-bas.bmp`  | Info   | 24-bit `BI_RGB`              | bottom-up | BGR → RGB, rows restored to order, alpha filled to 255    |
-| `vraies-couleurs-32-haut.bmp` | V3     | 32-bit `BI_BITFIELDS`        | top-down  | V3 header alpha mask, straight alpha kept (128 and 0)     |
-| `palette-8.bmp`               | Info   | 8 bits, 8-entry palette      | bottom-up | indices resolved to the same colours                      |
-| `palette-8-rle.bmp`           | Info   | 8-bit `BI_RLE8`              | bottom-up | absolute mode, end of line and end of bitmap              |
-| `palette-4.bmp`               | Info   | 4 bits, 8-entry palette      | bottom-up | two indices per byte, row padded to four bytes            |
-| `palette-1.bmp`               | Info   | 1 bit, 2-entry palette       | bottom-up | one index per bit; its reference is a checkerboard        |
-| `r5g5b5.bmp`                  | Info   | 16-bit `BI_RGB`              | bottom-up | the default 5-5-5 masks, with no mask field               |
-| `r5g6b5.bmp`                  | Info   | 16-bit `BI_BITFIELDS`        | bottom-up | 5-6-5 masks read after the header, six bits on green      |
+| file                          | header | depth                   | row order | what it puts under watch                               |
+| ----------------------------- | ------ | ----------------------- | --------- | ------------------------------------------------------ |
+| `vraies-couleurs-24-bas.bmp`  | Info   | 24-bit `BI_RGB`         | bottom-up | BGR → RGB, rows restored to order, alpha filled to 255 |
+| `vraies-couleurs-32-haut.bmp` | V3     | 32-bit `BI_BITFIELDS`   | top-down  | V3 header alpha mask, straight alpha kept (128 and 0)  |
+| `palette-8.bmp`               | Info   | 8 bits, 8-entry palette | bottom-up | indices resolved to the same colours                   |
+| `palette-8-rle.bmp`           | Info   | 8-bit `BI_RLE8`         | bottom-up | absolute mode, end of line and end of bitmap           |
+| `palette-4.bmp`               | Info   | 4 bits, 8-entry palette | bottom-up | two indices per byte, row padded to four bytes         |
+| `palette-1.bmp`               | Info   | 1 bit, 2-entry palette  | bottom-up | one index per bit; its reference is a checkerboard     |
+| `r5g5b5.bmp`                  | Info   | 16-bit `BI_RGB`         | bottom-up | the default 5-5-5 masks, with no mask field            |
+| `r5g6b5.bmp`                  | Info   | 16-bit `BI_BITFIELDS`   | bottom-up | 5-6-5 masks read after the header, six bits on green   |
 
 The eight carry the same image — except `palette-1.bmp`, which a single bit reduces to two colours, and
 `vraies-couleurs-32-haut.bmp`, the only one that carries an alpha. The golden checks this explicitly: neither
@@ -38,11 +38,11 @@ both 16-bit writings yield those bytes and not their neighbours.
 
 ## What the driver refuses, and under which name
 
-| file                  | rejection                        | why                                                                                               |
-| --------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `masques-10-bits.bmp` | `bmp-bitfields-lossy`            | 32-bit with 10-10-10 masks: the decoder would keep only the eight high bits of each channel       |
-| `jpeg-embarque.bmp`   | `bmp-embedded-codec-unsupported` | `BI_JPEG`: the file does not wrap pixels but a whole format, which has its own driver             |
-| `tronque.bmp`         | `image-decode-failed`            | 31 bytes out of 196,662: header recognised, pixel read refused                                    |
+| file                  | rejection                        | why                                                                                         |
+| --------------------- | -------------------------------- | ------------------------------------------------------------------------------------------- |
+| `masques-10-bits.bmp` | `bmp-bitfields-lossy`            | 32-bit with 10-10-10 masks: the decoder would keep only the eight high bits of each channel |
+| `jpeg-embarque.bmp`   | `bmp-embedded-codec-unsupported` | `BI_JPEG`: the file does not wrap pixels but a whole format, which has its own driver       |
+| `tronque.bmp`         | `image-decode-failed`            | 31 bytes out of 196,662: header recognised, pixel read refused                              |
 
 The golden adds two rejections that no file carries, obtained by rewriting two fields of a readable
 header: a 64-bit depth (`bmp-depth-unsupported`) and the
@@ -58,7 +58,7 @@ header: a 64-bit depth (`bmp-depth-unsupported`) and the
   an error in both the writer and the decoder would not pass the double read. The two
   16-bit files were checked another way, and that must be said: Pillow expands an `n`-bit
   channel by `(v × 255) ÷ (2^n − 1)` **truncated**, where the `image` crate rounds. So it is the
-  *stored indices* that were compared against Pillow's convention, not the rendered bytes — both
+  _stored indices_ that were compared against Pillow's convention, not the rendered bytes — both
   conventions being injective, neither loses information, but they do not give the
   same values to the last bit.
 - `tronque.bmp` is taken as-is from `test/assets/limites/truncated-bmp/truncated.bmp`, also

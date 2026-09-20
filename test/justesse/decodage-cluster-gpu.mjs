@@ -71,7 +71,11 @@ for (const [k, { decoded, vertexCount, indexCount }] of pages.entries()) {
   for (let t = 0; t < indexCount / 3; t++) {
     const base = vertexCount * VERTEX_WORDS + t * 7,
       corners = [words[base], words[base + 1], words[base + 2]];
-    assert.deepEqual(corners, Array.from(decoded.indices.subarray(t * 3, t * 3 + 3)), `page ${k} triangle ${t}`);
+    assert.deepEqual(
+      corners,
+      Array.from(decoded.indices.subarray(t * 3, t * 3 + 3)),
+      `page ${k} triangle ${t}`,
+    );
     const tangent = [values[base + 3], values[base + 4], values[base + 5]],
       n = corners[0];
     // Three corners on one texture line have no frame: the routine says so with a zero.
@@ -86,7 +90,13 @@ for (const [k, { decoded, vertexCount, indexCount }] of pages.entries()) {
   }
 }
 console.log(
-  JSON.stringify({ adaptateur: gpu.adaptateur, pages: pages.length, pireNormale, pireTangente, sansAire }),
+  JSON.stringify({
+    adaptateur: gpu.adaptateur,
+    pages: pages.length,
+    pireNormale,
+    pireTangente,
+    sansAire,
+  }),
 );
 // `normalize` is granted a few ULP by WGSL; a bit-exact normal is not what the format promises.
 assert.ok(pireNormale < 1e-6, `normal off by ${pireNormale}`);

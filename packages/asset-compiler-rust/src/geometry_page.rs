@@ -1,5 +1,4 @@
-use crate::geometry_page_cells::{grids, Cell, Grids};
-use crate::geometry_page_quant::BitWriter;
+use crate::geometry_page_cells::{grids, BitWriter, Cell, Grids};
 use crate::{CompilerError, Result};
 use std::collections::HashMap;
 use web_geometry_page_codec::{Header, Layout};
@@ -69,6 +68,10 @@ mod tests_codec;
 #[cfg(test)]
 #[path = "geometry_page_codec_refus_tests.rs"]
 mod tests_codec_refus;
+
+#[cfg(test)]
+#[path = "geometry_page_grid_tests.rs"]
+mod tests_grid;
 
 /**
  * A complete, independently decodable `WGP3` page: positions on the primitive grid of
@@ -147,13 +150,19 @@ pub fn encode(
     for (set, flag) in [FLAG_UV, FLAG_UV1].into_iter().enumerate() {
         if flags & flag != 0 {
             for c in 0..2 {
-                out.stream(unique.iter().map(|cell| cell.uv[set][c]), uv_records[set].bits[c]);
+                out.stream(
+                    unique.iter().map(|cell| cell.uv[set][c]),
+                    uv_records[set].bits[c],
+                );
             }
         }
     }
     if flags & FLAG_COLOR != 0 {
         for c in 0..4 {
-            out.stream(unique.iter().map(|cell| cell.color[c]), color_record.bits[c]);
+            out.stream(
+                unique.iter().map(|cell| cell.color[c]),
+                color_record.bits[c],
+            );
         }
     }
     let mut bytes = Vec::with_capacity(layout.bytes());

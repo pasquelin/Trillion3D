@@ -6,10 +6,10 @@ behaviours that only the inside of the driver proves — text splitting, writing
 slices, resolving a corner from its edge — are in
 [`../../src/plugins/scene/ma/tests.rs`](../../src/plugins/scene/ma/tests.rs).
 
-| file                             | what it pins                                                                                    |
-| -------------------------------- | ----------------------------------------------------------------------------------------------- |
+| file                             | what it pins                                                                                                                                                                 |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `minuscule/scene.ma`             | the scene: `transform` hierarchy, `mesh` of two quadrilaterals, two shaded face groups, instance via `parent -add`, `lambert` and `standardSurface` of which one is textured |
-| `minuscule/textures/checker.png` | the texture the `standardSurface` cites, resolved relative to the source folder                 |
+| `minuscule/textures/checker.png` | the texture the `standardSurface` cites, resolved relative to the source folder                                                                                              |
 
 What each choice puts under watch:
 

@@ -8,8 +8,9 @@
 pub const MAX_BITS: u32 = 24;
 /// Largest magnitude of a grid exponent: the step stays a normal `f32`.
 pub const MAX_EXPONENT: i32 = 64;
-/// `2 / 255` as the nearest `f32` (`0x3C008081`): an octahedral byte to `[-1, 1]`.
-pub const OCT_SCALE: f32 = 0.007_843_137_718_737_125;
+/// `2 / 255` as the nearest `f32`: an octahedral byte to `[-1, 1]`. Built from its bits, the
+/// very value `clusterFormat.ts` and the WGSL spell out to the digit.
+pub const OCT_SCALE: f32 = f32::from_bits(0x3C00_8081);
 
 /// Bits needed to hold every value of `0..=range`; zero for a constant field.
 pub fn bits_for(range: u64) -> u32 {
@@ -144,7 +145,10 @@ mod tests {
         assert_eq!(Quant::unpack(record.packed(), record.min), Some(record));
         assert_eq!(Quant::<3>::unpack(25, record.min), None);
         assert_eq!(Quant::<3>::unpack(1 << 18, record.min), None);
-        assert_eq!(Quant::<3>::unpack(record.packed(), [f32::NAN, 0.0, 0.0]), None);
+        assert_eq!(
+            Quant::<3>::unpack(record.packed(), [f32::NAN, 0.0, 0.0]),
+            None
+        );
         assert_eq!(dequant(1.5, 3, 0.25), 2.25);
     }
 

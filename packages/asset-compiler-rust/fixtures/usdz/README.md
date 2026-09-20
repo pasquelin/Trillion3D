@@ -5,12 +5,12 @@ A container must change nothing about the scene it wraps. The package carries th
 ([`../../src/tests/usdz_golden.rs`](../../src/tests/usdz_golden.rs)) compiles both, compares the
 second against the first, then compares the first against `expected.json`.
 
-| file                | what it pins                                                                    |
-| ------------------- | ------------------------------------------------------------------------------- |
-| `scene.usdz`        | the conforming package: entries stored as-is, payloads aligned on 64 bytes, one `usdc` layer and its texture in a subfolder |
-| `compressee.usdz`   | a `deflate` entry: rejection `USDZ_LAYOUT_INVALID`, nothing is extracted        |
-| `sans-scene.usdz`   | a package that does not open on a USD layer: rejection `USDZ_ROOT_LAYER_MISSING` |
-| `deux-scenes.usdz`  | two layers: a triangle first, a quadrilateral next. The package delivers the first, and the triangle count says so |
+| file               | what it pins                                                                                                                |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `scene.usdz`       | the conforming package: entries stored as-is, payloads aligned on 64 bytes, one `usdc` layer and its texture in a subfolder |
+| `compressee.usdz`  | a `deflate` entry: rejection `USDZ_LAYOUT_INVALID`, nothing is extracted                                                    |
+| `sans-scene.usdz`  | a package that does not open on a USD layer: rejection `USDZ_ROOT_LAYER_MISSING`                                            |
+| `deux-scenes.usdz` | two layers: a triangle first, a quadrilateral next. The package delivers the first, and the triangle count says so          |
 
 What each choice puts under watch:
 

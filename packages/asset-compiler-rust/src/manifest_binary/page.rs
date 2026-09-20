@@ -133,7 +133,9 @@ pub(super) fn encode_page(
             if integer(geometry.get("formatVersion"), "page.geometry.formatVersion")?
                 != i64::from(GEOMETRY_PAGE_VERSION)
             {
-                return Err(bad("page.geometry.formatVersion is not the quantized page's"));
+                return Err(bad(
+                    "page.geometry.formatVersion is not the quantized page's",
+                ));
             }
             if text(geometry.get("codec"), "page.geometry.codec")? != GEOMETRY_PAGE_CODEC {
                 return Err(bad("page.geometry.codec is not quantized"));

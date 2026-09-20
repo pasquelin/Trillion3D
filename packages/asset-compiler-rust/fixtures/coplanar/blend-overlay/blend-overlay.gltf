@@ -1,146 +1,117 @@
 {
- "asset": {
-  "version": "2.0"
- },
- "buffers": [
-  {
-   "uri": "blend-overlay.bin",
-   "byteLength": 612
-  }
- ],
- "bufferViews": [
-  {
-   "buffer": 0,
-   "byteOffset": 0,
-   "byteLength": 108
+  "asset": {
+    "version": "2.0"
   },
-  {
-   "buffer": 0,
-   "byteOffset": 108,
-   "byteLength": 96
-  },
-  {
-   "buffer": 0,
-   "byteOffset": 204,
-   "byteLength": 192
-  },
-  {
-   "buffer": 0,
-   "byteOffset": 396,
-   "byteLength": 216
-  }
- ],
- "accessors": [
-  {
-   "bufferView": 0,
-   "componentType": 5126,
-   "type": "VEC3",
-   "count": 9,
-   "min": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "max": [
-    4.0,
-    4.0,
-    0.0
-   ]
-  },
-  {
-   "bufferView": 1,
-   "componentType": 5125,
-   "type": "SCALAR",
-   "count": 24
-  },
-  {
-   "bufferView": 2,
-   "componentType": 5126,
-   "type": "VEC3",
-   "count": 16,
-   "min": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "max": [
-    4.0,
-    4.0,
-    0.0
-   ]
-  },
-  {
-   "bufferView": 3,
-   "componentType": 5125,
-   "type": "SCALAR",
-   "count": 54
-  }
- ],
- "materials": [
-  {
-   "name": "concrete",
-   "pbrMetallicRoughness": {
-    "baseColorFactor": [
-     0.8,
-     0.8,
-     0.8,
-     1
-    ]
-   }
-  },
-  {
-   "name": "glass",
-   "alphaMode": "BLEND",
-   "pbrMetallicRoughness": {
-    "baseColorFactor": [
-     0.6,
-     0.7,
-     0.9,
-     0.4
-    ]
-   }
-  }
- ],
- "meshes": [
-  {
-   "primitives": [
+  "buffers": [
     {
-     "attributes": {
-      "POSITION": 0
-     },
-     "indices": 1,
-     "material": 0
+      "uri": "blend-overlay.bin",
+      "byteLength": 612
     }
-   ]
-  },
-  {
-   "primitives": [
+  ],
+  "bufferViews": [
     {
-     "attributes": {
-      "POSITION": 2
-     },
-     "indices": 3,
-     "material": 1
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 108
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 108,
+      "byteLength": 96
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 204,
+      "byteLength": 192
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 396,
+      "byteLength": 216
     }
-   ]
-  }
- ],
- "nodes": [
-  {
-   "mesh": 0
-  },
-  {
-   "mesh": 1
-  }
- ],
- "scenes": [
-  {
-   "nodes": [
-    0,
-    1
-   ]
-  }
- ],
- "scene": 0,
- "images": []
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "type": "VEC3",
+      "count": 9,
+      "min": [0.0, 0.0, 0.0],
+      "max": [4.0, 4.0, 0.0]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5125,
+      "type": "SCALAR",
+      "count": 24
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "type": "VEC3",
+      "count": 16,
+      "min": [0.0, 0.0, 0.0],
+      "max": [4.0, 4.0, 0.0]
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5125,
+      "type": "SCALAR",
+      "count": 54
+    }
+  ],
+  "materials": [
+    {
+      "name": "concrete",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.8, 0.8, 0.8, 1]
+      }
+    },
+    {
+      "name": "glass",
+      "alphaMode": "BLEND",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.6, 0.7, 0.9, 0.4]
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0
+          },
+          "indices": 1,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 2
+          },
+          "indices": 3,
+          "material": 1
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0
+    },
+    {
+      "mesh": 1
+    }
+  ],
+  "scenes": [
+    {
+      "nodes": [0, 1]
+    }
+  ],
+  "scene": 0,
+  "images": []
 }

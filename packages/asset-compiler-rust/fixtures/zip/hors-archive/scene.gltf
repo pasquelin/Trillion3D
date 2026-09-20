@@ -6,9 +6,7 @@
   "scene": 0,
   "scenes": [
     {
-      "nodes": [
-        0
-      ]
+      "nodes": [0]
     }
   ],
   "nodes": [
@@ -104,16 +102,8 @@
       "componentType": 5126,
       "count": 9,
       "type": "VEC3",
-      "min": [
-        0,
-        0,
-        0
-      ],
-      "max": [
-        8,
-        8,
-        0
-      ]
+      "min": [0, 0, 0],
+      "max": [8, 8, 0]
     },
     {
       "bufferView": 1,
