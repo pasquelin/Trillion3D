@@ -55,22 +55,11 @@
   color: var(--color-base-content);
 }
 
-[data-theme='light'] .mockup-code .hljs-keyword,
-[data-theme='light'] .mockup-code .hljs-literal {
-  color: #a31545;
-}
-[data-theme='light'] .mockup-code .hljs-string,
-[data-theme='light'] .mockup-code .hljs-regexp {
-  color: #116329;
-}
-[data-theme='light'] .mockup-code .hljs-number,
-[data-theme='light'] .mockup-code .hljs-symbol {
-  color: #6639a6;
-}
-[data-theme='light'] .mockup-code .hljs-title,
-[data-theme='light'] .mockup-code .hljs-built_in,
-[data-theme='light'] .mockup-code .hljs-type {
-  color: #0550ae;
+[data-theme='light'] .mockup-code {
+  --code-keyword: #a31545;
+  --code-string: #116329;
+  --code-number: #6639a6;
+  --code-function: #0550ae;
 }
 
 /* CodeMirror owns editing, selection and its single hidden-but-scrollable viewport. */
