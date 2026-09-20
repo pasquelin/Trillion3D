@@ -1,4 +1,8 @@
-import type { ClusterManifest } from '../sdk-core/index.ts';
+import {
+  GEOMETRY_PAGE_CODEC,
+  GEOMETRY_PAGE_FORMAT_VERSION,
+  type ClusterManifest,
+} from '../sdk-core/index.ts';
 import type { ClusterRoot, PageRec } from './pageSelection.ts';
 
 export function prepareAutonomousManifest(input: ClusterManifest) {
@@ -9,8 +13,8 @@ export function prepareAutonomousManifest(input: ClusterManifest) {
       pages: primitive.pages.map((page) => {
         if (
           !page.geometry ||
-          page.geometry.formatVersion !== 2 ||
-          page.geometry.codec !== 'meshopt' ||
+          page.geometry.formatVersion !== GEOMETRY_PAGE_FORMAT_VERSION ||
+          page.geometry.codec !== GEOMETRY_PAGE_CODEC ||
           page.geometry.indexCount !== page.count
         )
           throw new Error('AUTONOMOUS_PAGE_MISSING');
