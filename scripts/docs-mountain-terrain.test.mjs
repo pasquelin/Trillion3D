@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { mountainTerrain } from './docs/mountain-terrain/model.mjs';
+import { mountainTerrain, terrainHeight } from './docs/mountain-terrain/model.mjs';
 import { writeMountainTerrain } from './docs/mountain-terrain/write.mjs';
 const root = resolve(import.meta.dirname, '..'),
   published = resolve(root, 'docs/assets/gallery/offline/terrain');
@@ -24,6 +24,7 @@ test('mountain terrain is deterministic with deep relief, strata, and a river', 
   );
   assert.ok(Math.min(...riverVertices.map(([, , z]) => z)) > -5.1);
   assert.ok(Math.max(...riverVertices.map(([, , z]) => z)) < 5.1);
+  for (const [x, y, z] of riverVertices) assert.ok(Math.abs(y - terrainHeight(x, z) - 0.08) < 1e-9);
   assert.ok(Math.max(...heights) - Math.min(...heights) > 4.5);
   assert.ok(heights.some((height) => height > 2.4));
   assert.ok(heights.some((height) => height < -0.5));
