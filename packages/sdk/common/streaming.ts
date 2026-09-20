@@ -11,8 +11,11 @@ export { assertManifestBinary, isBinaryManifest } from '../../sdk-core/manifestB
 export type {
   ManifestBinaryDescriptor,
   SlimClusterManifest,
+  SlimCulling,
   SlimPrimitive,
   SlimPrimitiveBinary,
+  SlimStreams,
+  SlimStructure,
 } from '../../sdk-core/manifestBinaryTypes.ts';
 export {
   clusterSphereValid,
@@ -33,6 +36,8 @@ export type {
   StreamCatalogue,
   TexturePreview,
 } from '../../sdk-core/geometryContracts.ts';
+export { manifestBinaryRanges } from '../../sdk-core/manifestBinaryLayout.ts';
+export type { Counts } from '../../sdk-core/manifestBinaryLayout.ts';
 export {
   createPageIntegrationPlan,
   planPageIntegration,
@@ -54,7 +59,6 @@ export {
   COLUMN_KIND,
 } from '../../sdk-core/manifestBinaryFormat.ts';
 export type { ColumnKind } from '../../sdk-core/manifestBinaryFormat.ts';
-export { manifestBinaryRanges } from '../../sdk-core/manifestBinaryLayout.ts';
 export {
   PAGE_DECODE_FAILURES,
   PAGE_DECODE_PROTOCOL,

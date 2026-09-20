@@ -1,7 +1,7 @@
 # Unified SDK facade contract
 
-Issue #121 prepares one future consumer specifier, `web-geometry`, without changing the existing
-`@web-geometry/sdk` exports yet. The source facade has three environment branches:
+Version 0.2.0 exposes one consumer specifier, `web-geometry`. The source facade has three
+environment branches:
 
 | Resolver context                        | Source facade             | Public surface                | Declaration constraints                                                               |
 | --------------------------------------- | ------------------------- | ----------------------------- | ------------------------------------------------------------------------------------- |
@@ -14,9 +14,9 @@ SSR resolves the Node branch. It therefore exposes native and common APIs, and d
 browser rendering APIs. Importing any branch has no startup action: it does not create a renderer,
 worker, DOM object, GPU object or compiler process.
 
-Batch #122 will map these built files to `web-geometry` with conditional JavaScript and matching
-conditional declarations. The `browser` condition must precede the generic import/default path;
-the Node branch must use a Node condition, and the final default must remain the common branch.
+The package maps these built files with conditional JavaScript and matching conditional
+declarations. The `browser` condition precedes the Node and generic import/default paths; the Node
+branch uses the standard `node` condition, and the final default remains the common branch.
 Resolvers that ignore `browser` therefore receive the safe common facade instead of browser code.
 
 `api-inventory.json` is generated with the TypeScript checker. It follows aliases and transitive

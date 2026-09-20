@@ -1,4 +1,4 @@
-export const SDK_VERSION = '0.1.0';
+export const SDK_VERSION = '0.2.0';
 /** Cache format this runtime reads. Format 3 carries the per-cluster coplanar depth layer, which
  *  decides which of two exactly coplanar opaque surfaces draws on top; formats 1 and 2 have no such
  *  column and are refused rather than half-read. */
