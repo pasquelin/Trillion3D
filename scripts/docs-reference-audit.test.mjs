@@ -42,6 +42,7 @@ test('capability states distinguish delivered, blocked and unaudited topics', ()
     assert.ok(row.originalGoal.length > 20, roadmap.entries[index].id);
     assert.ok(['supported', 'feasible', 'blocked', 'pending'].includes(row.capabilityReview.state));
     assert.ok(row.capabilityReview.reason.length > 20, row.id);
+    assert.equal(new Set(row.closestLessons).size, row.closestLessons.length, row.id);
     for (const lessonId of row.closestLessons) assert.ok(lessons.has(lessonId), lessonId);
     if (row.capabilityReview.state === 'supported')
       assert.ok(
