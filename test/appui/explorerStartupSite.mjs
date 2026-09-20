@@ -13,7 +13,11 @@ export async function startupSite(page, base, out) {
     assert.match(text, /interactive: true/);
     assert.match(text, /scope: 'full'/);
     assert.doesNotMatch(text, /querySelector|requestAnimationFrame/);
-    await page.screenshot({ path: resolve(out, `docs-${width}.png`), fullPage: true });
+    await page.screenshot({
+      path: resolve(out, `docs-${width}.png`),
+      fullPage: true,
+      animations: 'disabled',
+    });
   }
   await page.goto(base + '/docs/index.html#browser/createExplorerJob');
   await page.locator('main pre code').filter({ hasText: 'createExplorerJob(' }).first().waitFor();
