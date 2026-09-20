@@ -17,10 +17,12 @@ export const DEFAULT_SCENE = 'emerald-square';
 export const REFERENCE_SCENES = ['emerald-square', 'whisperwind-village'];
 
 /** What the report must say of a scene, and that a reading does not carry. */
-export const SCENE_NOTES = {
+const SCENE_NOTES = {
   'whisperwind-village':
     'Unreal FBX, heavy instancing (one wall × 1,292). 81 materials, 6 textured: the export omitted Megascans textures — not on us; re-export from Unreal.',
 };
+
+export const sceneNote = (scene) => SCENE_NOTES[scene] ?? null;
 
 export const sceneDerived = (scene, assets = ASSETS) => join(assets, `${scene}-derived`);
 

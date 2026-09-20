@@ -11,9 +11,11 @@
 // this difference that is read in `rapportGlobal.mjs`. Resolutions, camera, sun, and baked textures
 // are those of the backlog measurements so numbers remain comparable.
 // =====================================================================================
+import { launchChrome } from './chrome.mjs';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, appendFileSync } from 'node:fs';
+import { existsSync, mkdirSync, appendFileSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { campaignIdentity, canResume } from './report/provenance.mjs';
 import { parseArgs, scenesOf } from './options.mjs';
 
 const ROOT = resolve(import.meta.dirname, '../..');
@@ -89,9 +91,21 @@ export const CAMPAGNE = LIGNES.trim()
   .map((ligne) => ligne.split('|').map((champ) => champ.trim()))
   .map(([nom, pourquoi, args]) => [nom, pourquoi, mots(args)]);
 
-function run(name, args, out, log, scene) {
+async function run(name, args, out, log, scene, browserVersion) {
   const dir = join(out, scene, name);
-  if (existsSync(join(dir, 'mesure.json'))) return 'already measured';
+  const identity = await campaignIdentity(
+    ROOT,
+    scene,
+    [...SOCLE.split(' '), ...args],
+    browserVersion,
+  );
+  if (existsSync(join(dir, 'mesure.json'))) {
+    if (canResume(JSON.parse(readFileSync(join(dir, 'mesure.json'), 'utf8')), identity))
+      return 'already measured';
+    throw new Error(
+      `Cannot resume ${scene}/${name}: identity changed or run incomplete; use a new --out directory.`,
+    );
+  }
   mkdirSync(dir, { recursive: true });
   const argv = [
     'scripts/mesure/banc.mjs',
@@ -106,9 +120,10 @@ function run(name, args, out, log, scene) {
   const result = spawnSync(process.execPath, argv, {
     cwd: ROOT,
     encoding: 'utf8',
-    env: process.env,
+    env: { ...process.env, WG_CAMPAIGN_IDENTITY: identity },
   });
   appendFileSync(join(dir, 'campagne.log'), `${result.stdout ?? ''}\n${result.stderr ?? ''}`);
+  if (result.status !== 0) process.exitCode = 1;
   const status = result.status === 0 ? 'ok' : `failed (${result.status})`;
   appendFileSync(
     log,
@@ -128,11 +143,14 @@ if (import.meta.filename === process.argv[1]) {
       for (const [name, why] of chosen) console.log(`${`${scene}/${name}`.padEnd(36)} ${why}`);
     process.exit(0);
   }
+  const browser = await launchChrome({ headless: true });
+  const browserVersion = browser.version();
+  await browser.close();
   mkdirSync(out, { recursive: true });
   const log = join(out, 'campagne.log');
   for (const scene of scenes)
     for (const [name, why, args] of chosen) {
       console.log(`▶ ${scene}/${name} — ${why}`);
-      console.log(`  ${run(name, args, out, log, scene)}`);
+      console.log(`  ${await run(name, args, out, log, scene, browserVersion)}`);
     }
 }
