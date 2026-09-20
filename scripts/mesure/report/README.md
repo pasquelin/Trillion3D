@@ -21,14 +21,16 @@ Unknown values stay null. Filesystem paths and commands are excluded from public
 The original private `mesure.json` files are never overwritten. Capture paths must stay inside
 the measurement directory. Export into a new directory; do not reuse an existing export.
 
-The portal translates presentation through EN/FR catalogues, keeps selection in its hash route,
-and uses shared React/DaisyUI primitives. Timing methods stay separate; no GPU pass sum is
-presented as a frame. Differences require matching recorded conditions, except for the explicit
-experimental variable. Repeated-run uncertainty is not available in current inputs, so differences
-are descriptive and never receive a significance or speedup verdict. Historical measurements
-without provenance remain readable but cannot establish controlled comparisons.
+The portal presents seven family tabs, with named-engine charts, every measured image
+pair as a slider, all scene/run comparisons, and complete source tables including repeated captures.
+There are no global filters. Primary charts and comparisons stay visible; raw source and protocol tables use closed disclosures. The hash identifies a campaign and tab; the latest
+campaign opens by default. All source numbers remain visible, with null distinct from zero.
+Timing methods stay separate; no GPU pass sum is presented as a frame. Observed arithmetic
+is shown when both readings exist, with an explicit warning that it is not a controlled performance
+claim. Percentages still require matching recorded conditions. Repeated-run uncertainty is not
+available in current inputs, so no significance or speedup verdict is claimed.
 
-Raw source downloads preserve diagnostics for lighting, shadow pages, bounce, residency,
+Source tables and downloads preserve diagnostics for lighting, shadow pages, bounce, residency,
 streaming, resolution, CPU stages, GPU passes and fidelity. Hardware publication references
 remain outside controlled comparisons. Original captures are lazy-loaded without changing their
 pixels. Missing captures remain unavailable. The report does not infer fidelity from appearance.

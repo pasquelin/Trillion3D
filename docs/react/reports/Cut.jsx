@@ -1,17 +1,18 @@
+import { Table } from '../components/Table.jsx';
 import { formatValue } from '../../js/reports/metrics.js';
 export function Cut({ analysis, locale }) {
   if (!analysis) return null;
   const fr = locale === 'fr';
   return (
-    <details>
-      <summary>
+    <section className="grid min-w-0 gap-3">
+      <h3 className="text-lg font-semibold">
         {fr ? 'Origine des triangles de la capture' : 'Where capture triangles come from'}
-      </summary>
+      </h3>
       <p>
         {formatValue(analysis.total, locale)}{' '}
         {fr ? 'triangles · pages inconnues :' : 'triangles · unknown pages:'} {analysis.unknown}
       </p>
-      <p className="report-note">
+      <p className="text-sm leading-relaxed text-base-content/75">
         {fr
           ? 'Coupe de la capture stabilisée ; elle peut différer de la dernière image mesurée en mouvement.'
           : 'Settled capture cut; it may differ from the last measured moving frame.'}
@@ -20,33 +21,31 @@ export function Cut({ analysis, locale }) {
         ['Primitive', analysis.byPrimitive],
         ['DAG', analysis.byLevel],
       ].map(([label, rows]) => (
-        <div className="report-table" key={label}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th scope="col">{label}</th>
-                <th scope="col">Triangles</th>
-                <th scope="col">%</th>
+        <Table key={label}>
+          <thead>
+            <tr>
+              <th scope="col">{label}</th>
+              <th scope="col">Triangles</th>
+              <th scope="col">%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.name}>
+                <th scope="row">{row.name}</th>
+                <td>{formatValue(row.triangles, locale)}</td>
+                <td>
+                  {formatValue(
+                    analysis.total ? (row.triangles / analysis.total) * 100 : null,
+                    locale,
+                    '%',
+                  )}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.name}>
-                  <th scope="row">{row.name}</th>
-                  <td>{formatValue(row.triangles, locale)}</td>
-                  <td>
-                    {formatValue(
-                      analysis.total ? (row.triangles / analysis.total) * 100 : null,
-                      locale,
-                      '%',
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </Table>
       ))}
-    </details>
+    </section>
   );
 }
