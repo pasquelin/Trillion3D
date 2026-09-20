@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { pnpmCommand } from './only-pnpm.mjs';
 
 const steps = [
+  'check:local',
   'format:check',
   'check:lines',
   'check:duplicates',
