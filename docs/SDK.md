@@ -141,12 +141,12 @@ unit function they repeat — which stays the oracle — and a count as the only
 exported by `web-geometry`, `packages/sdk-core` and `packages/sdk-browser` alike, so a host imports
 one entry point, and none of them needs `three`.
 
-**Layout.** One element occupies a fixed number of consecutive values, declared once in
-`mathBatchStrides.ts`: `MATRIX_VALUES` 16 (column-major, `[12..14]` the translation),
-`BOX_VALUES` 6 (min x, y, z then max x, y, z), `POSITION_VALUES` 3, `QUATERNION_VALUES` 4
-(`x, y, z, w`), `SPHERE_VALUES` 4 (centre then radius), `NORMAL_MATRIX_VALUES` 9,
-`FRUSTUM_PLANE_VALUES` 24 (six planes `a, b, c, d`, facing inward, in the order of
-`frustumPlanesFromMatrix`). Flat inputs are read as `ArrayLike<number>` — a `Float32Array`, a plain
+**Layout.** One element occupies a fixed number of consecutive values, each declared once:
+`MATRIX_VALUES` 16 (column-major, `[12..14]` the translation), `POSITION_VALUES` 3,
+`QUATERNION_VALUES` 4 (`x, y, z, w`), `SPHERE_VALUES` 4 (centre then radius) and
+`NORMAL_MATRIX_VALUES` 9 in `mathBatchStrides.ts`; `BOX_VALUES` 6 (min x, y, z then max x, y, z)
+in `mathBox.ts`; `FRUSTUM_PLANE_VALUES` 24 (six planes `a, b, c, d`, facing inward, in the order
+of `frustumPlanesFromMatrix`) in `mathFrustum.ts`. Flat inputs are read as `ArrayLike<number>` — a `Float32Array`, a plain
 array or a host buffer enters as-is; outputs are `Float64Array` (or a `Uint8Array` of flags).
 Matrices that are read one at a time — `mats[i]` — travel as **sub-views** of sixteen numbers
 (`buffer.subarray(i * 16, (i + 1) * 16)`), built once at load, never per frame: `multiplyMatrix4`
@@ -170,7 +170,8 @@ const kept = new Uint8Array(N); // 1 where the frustum keeps the box
 const spheres = new Float64Array(N * SPHERE_VALUES); // centre x, y, z then radius, per box
 const centres = new Float64Array(N * POSITION_VALUES); // survivors' centres, packed
 const viewCentres = new Float64Array(N * POSITION_VALUES); // the same, in view space
-const frame = createCameraFrame(), projection = new Float64Array(16);
+const frame = createCameraFrame();
+const projection = new Float64Array(16);
 const cameraWorld = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 
 // Every frame: the frustum, one cull, the survivors packed, one transform.
@@ -181,34 +182,15 @@ sphereFromBoundsBatch(spheres, boxes, N);
 let m = 0;
 for (let i = 0; i < N; i++) {
   if (!kept[i]) continue;
-  centres[m * POSITION_VALUES] = spheres[i * SPHERE_VALUES];
-  centres[m * POSITION_VALUES + 1] = spheres[i * SPHERE_VALUES + 1];
-  centres[m * POSITION_VALUES + 2] = spheres[i * SPHERE_VALUES + 2];
-  m++;
+  const at = i * SPHERE_VALUES;
+  centres.set(spheres.subarray(at, at + POSITION_VALUES), m++ * POSITION_VALUES);
 }
 transformPointsBatch(viewCentres, frame.view, centres, m); // m === visible
 ```
 
-**The batches**, each named after the unit function it repeats; the reference loop it replaces and
-its measured ratio are in [`docs/API.md`](API.md#batch-math-for-hosts-104-80):
-
-| Batch | Signature | Returns |
-| --- | --- | --- |
-| `frustumKeepsBoxBatch` | `(kept: Uint8Array, planes, boxes, n)` | the number kept; `kept[i]` 1 where the box intersects or sits inside |
-| `sphereFromBoundsBatch` | `(out, boxes, n)` | 4 values per box: centre, radius to the corner |
-| `boxUnionBatch` | `(into, boxes, n)` | `into` grown by the `n` boxes |
-| `boxTransformBatch` | `(out, boxes, mats[], n)` | 6 values per box, each transformed by its matrix |
-| `boxTransformUnionBatch` | `(into, boxes, mats[], n)` | `into` grown by the `n` transformed boxes, one pass |
-| `multiplyMatrix4Batch` | `(out[], a[], b[], n)` | `out[i] = a[i] · b[i]`, sub-views on all three sides |
-| `invertMatrix4Batch` | `(out[], mats[], n, singular?: Uint8Array)` | `out[i] = mats[i]⁻¹`; a zero determinant writes the identity and flags `singular[i]`, never throws mid-batch |
-| `normalMatrix3Batch` | `(out, mats[], n)` | 9 values per matrix: `transpose(inverse(upper 3×3))` |
-| `composeMatrix4Batch` | `(out, positions, quaternions, scales, n)` | 16 values per element, `T · R · S`; everything flat, or everything as sub-views |
-| `decomposeMatrix4Batch` | `(positions[], quaternions[], scales[], mats[], n)` | the reverse, the determinant's sign carried by the x scale |
-| `transformPointsBatch` | `(out, m, points, n)` | `n` points by one affine matrix |
-| `transformPointsByMatricesBatch` | `(out, mats[], points, n)` | `n` points, one matrix each |
-| `transformDirectionsBatch` | `(out, m, dirs, n)` | the upper 3×3 applied, then normalized |
-| `srgbToLinearBatch`, `linearToSrgbBatch` | `(out, values, n)` | one channel per element; the curve differs from the reference by at most `1.1e-11` forward and `6.3e-6` back |
-| `hierarchyUpdateBatch` | `(worldViews[], positions[], rotations[], scales[], parents, n, local)` | a whole hierarchy, parents before children — see [Scene hierarchy foundation](#scene-hierarchy-foundation) |
+**The batches**, each named after the unit function it repeats, with the reference loop it
+replaces, its measured ratio and the exceptions it declares, are listed once, in
+[`docs/API.md`](API.md#batch-math-for-hosts-104-80).
 
 **Which path ran.** Three of them — `hierarchyUpdateBatch`, `multiplyMatrix4Batch`,
 `boxTransformBatch` — also exist as WebAssembly kernels (`packages/page-codec-wasm/src/math.rs`),
