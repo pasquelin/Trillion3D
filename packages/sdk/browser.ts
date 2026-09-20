@@ -30,7 +30,7 @@ export { exactPagesBackend } from '../sdk-browser/exactPagesBackend.ts';
 export type { ExplorerOptions, PointOfInterest } from '../sdk-browser/explorerOptions.ts';
 export type { ExplorerTarget } from '../sdk-browser/explorerTarget.ts';
 export { framingFromBounds } from '../sdk-browser/framing.ts';
-export type { GeometryPool, TexturePool } from '../sdk-browser/webgpuMemoryBudgets.ts';
+export type { GeometryPool, PoolClamp, TexturePool } from '../sdk-browser/webgpuMemoryBudgets.ts';
 export { gpuPassBlockOf, gpuPassStageOf } from '../sdk-browser/stageMapping.ts';
 export type { GpuPassBlock } from '../sdk-browser/stageMapping.ts';
 export { gpuPassBlockTotals } from '../sdk-browser/gpuPassBlocks.ts';

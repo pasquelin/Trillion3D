@@ -30,51 +30,56 @@ function missingNamedContracts(file) {
   const exports = checker.getExportsOfModule(module);
   const publicNames = new Set(exports.map((symbol) => symbol.name));
   const missing = new Set();
+  const seen = new Set();
 
-  function visit(type, depth = 0, seen = new Set()) {
-    if (!type || depth > 4 || seen.has(type.id)) return;
+  const sdkDeclaration = (declaration) =>
+    declaration.getSourceFile().fileName.includes('/packages/sdk-');
+
+  function visit(type) {
+    if (!type || seen.has(type.id)) return;
     seen.add(type.id);
-    for (const symbol of [type.aliasSymbol, type.symbol]) {
+    const symbols = [type.aliasSymbol, type.symbol].filter(Boolean);
+    for (const symbol of symbols) {
       if (!symbol || publicNames.has(symbol.name)) continue;
       const declarations = symbol.declarations ?? [];
       if (
         declarations.some(
-          (declaration) =>
-            isNamedContract(declaration) &&
-            declaration.getSourceFile().fileName.includes('/packages/sdk-'),
+          (declaration) => isNamedContract(declaration) && sdkDeclaration(declaration),
         )
       )
         missing.add(symbol.name);
     }
     for (const argument of [...(type.aliasTypeArguments ?? []), ...(type.typeArguments ?? [])])
-      visit(argument, depth + 1, seen);
+      visit(argument);
+    if (type.isUnionOrIntersection()) for (const member of type.types) visit(member);
+    const declarations = symbols.flatMap((symbol) => symbol.declarations ?? []);
+    if (
+      declarations.length > 0 &&
+      declarations.every((declaration) => !sdkDeclaration(declaration))
+    )
+      return;
     for (const property of checker.getPropertiesOfType(type)) {
       const declaration = property.valueDeclaration ?? property.declarations?.[0];
-      if (declaration)
-        visit(checker.getTypeOfSymbolAtLocation(property, declaration), depth + 1, seen);
+      if (declaration) visit(checker.getTypeOfSymbolAtLocation(property, declaration));
     }
     for (const signature of [...type.getCallSignatures(), ...type.getConstructSignatures()]) {
-      visit(signature.getReturnType(), depth + 1, seen);
+      visit(signature.getReturnType());
       for (const parameter of signature.parameters) {
         const declaration = parameter.valueDeclaration ?? parameter.declarations?.[0];
-        if (declaration)
-          visit(checker.getTypeOfSymbolAtLocation(parameter, declaration), depth + 1, seen);
+        if (declaration) visit(checker.getTypeOfSymbolAtLocation(parameter, declaration));
       }
     }
   }
 
   for (const symbol of exports) {
-    const declaration = symbol.valueDeclaration ?? symbol.declarations?.[0];
+    const canonical =
+      symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+    const declaration = canonical.valueDeclaration ?? canonical.declarations?.[0];
     if (!declaration) continue;
-    const type = checker.getTypeOfSymbolAtLocation(symbol, declaration);
-    for (const signature of [...type.getCallSignatures(), ...type.getConstructSignatures()]) {
-      visit(signature.getReturnType());
-      for (const parameter of signature.parameters) {
-        const parameterDeclaration = parameter.valueDeclaration ?? parameter.declarations?.[0];
-        if (parameterDeclaration)
-          visit(checker.getTypeOfSymbolAtLocation(parameter, parameterDeclaration));
-      }
-    }
+    const type = isNamedContract(declaration)
+      ? checker.getDeclaredTypeOfSymbol(canonical)
+      : checker.getTypeOfSymbolAtLocation(canonical, declaration);
+    visit(type);
   }
   return [...missing].sort();
 }

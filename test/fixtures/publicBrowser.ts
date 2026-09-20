@@ -10,6 +10,7 @@ import {
   type Explorer,
   type ExplorerOptions,
   type MemoryBudgets,
+  type PoolClamp,
   type TelemetryReport,
 } from 'web-geometry';
 
@@ -22,6 +23,7 @@ const pose: CameraPose = {
 };
 const options: ExplorerOptions = { manifestUrl: '/scene/cache.json', pointsOfInterest: [] };
 const budgets: MemoryBudgets = { geometryPoolBytes: 64 * 1024 * 1024 };
+const clamp: PoolClamp = 'root-cover';
 const profiler = new EngineProfiler(60);
 export const readTelemetry = (): TelemetryReport => profiler.getReport();
 export const renderExplorer = (explorer: Explorer) => explorer.render(pose);
@@ -38,6 +40,7 @@ export const browserContract = {
   hierarchyUpdateBatch,
   invalidPose,
   budgets,
+  clamp,
   options,
   pose,
 };
