@@ -72,20 +72,24 @@ export function createFrameGateCore(holdValues: number) {
       );
     },
     /**
-     * Rereads the source nodes and declares the scene changed when the host wrote them directly —
-     * a pose, a visibility, a light — without going through the engine. Call BEFORE `held()`:
-     * without that the frame would be held on a stale scene. Nothing is walked here: only local
-     * poses are compared, and the comparison is idempotent.
+     * Declares the scene changed when the host wrote the source nodes directly — a pose, a
+     * visibility, a light — without going through the engine. Call BEFORE `held()`: without
+     * that the frame would be held on a stale scene. Nothing is walked or reread here: the
+     * writes themselves incremented the watch's revision, and one integer is compared.
      *
-     * The reread node list is rebuilt after every scene change, never per frame: one more instance
-     * or a light set after the fact goes through here, and nothing else adds it.
+     * The hooked node list is rebuilt after every scene change, never per frame: one more
+     * instance or a light set after the fact goes through here, and nothing else adds it. A
+     * change the hooks announced themselves changes no node's membership, so it rebuilds nothing.
      */
     readScene(source: THREE.Object3D, drawn: FrameGateSources) {
-      if (watchRevision !== revisions.scene) {
+      if (watchRevision !== revisions.scene || sceneWatch.reshaped) {
         sceneWatch.observe(source, typeof drawn === 'function' ? drawn() : drawn);
         watchRevision = revisions.scene;
       }
-      if (sceneWatch.changed()) bumpScene(revisions);
+      if (sceneWatch.changed()) {
+        bumpScene(revisions);
+        watchRevision = revisions.scene;
+      }
     },
     /** True when two identical frames followed each other and nothing has moved since. */
     held: () => hold.stable && hold.same(revisions),
@@ -99,10 +103,14 @@ export function createFrameGateCore(holdValues: number) {
       return true;
     },
     /** The hierarchy already carries the current revision's matrices: written by whoever just
-     *  walked them itself, on the only subtree it moved. */
+     *  walked them itself, on the only subtree it moved. Its writes into the source graph are
+     *  the engine's own, under this revision: the watch does not announce them a second time. */
     noteWorldsUpdated() {
       worldsRevision = revisions.scene;
+      sceneWatch.settle();
     },
+    /** Lets go of the source graph: its writes no longer reach this gate. */
+    release: () => sceneWatch.release(),
     /**
      * Frame entry, in the order every engine follows, and which carries the hold verdict.
      *

@@ -1,20 +1,11 @@
-import * as THREE from 'three';
-import { readLightInto, LIGHT_SLOTS } from './hostSceneLightState.ts';
-
-/** Slot reserved for a node: visibility, recomposition flag, and sixteen pose values — its set
- *  matrix, or its translation, rotation and scale. A fixed slot, so the loop has neither to
- *  measure nor to offset anything. */
-const NODE_SLOTS = 18;
+import type * as THREE from 'three';
+import { hookHostNode, unhookHostNode, type WriteRevision } from './hostSceneHooks.ts';
 
 /**
  * Mark of a node the engine created itself — an instance copy, for example. The host never
- * received it and therefore cannot write it: rereading it would pay a comparison for a value
- * known not to move.
+ * received it and therefore cannot write it: hooking it would listen for a write that never comes.
  */
 export const ENGINE_OWNED = 'webGeometryEngineOwned';
-
-/** Pose of a node that recomposes its matrix, reread without allocation. */
-const poseScratch = new Float64Array(10);
 
 /** What the engine draws, seen from here: each entry names the source node it comes from. A
  *  page of a selection root, a blended mesh outside the DAG: the same key, the same treatment. */
@@ -40,111 +31,66 @@ function withAncestors(node: THREE.Object3D | undefined, into: Set<THREE.Object3
  *
  * The contract lets it move a node (`mesh.position.x = 100`), hide it, change a light's intensity
  * or pose. No engine API is called: no revision announces it, and a frame held on those
- * revisions would show a stale scene. The only honest way to know is to reread what the
- * contract lets write and compare it to what the last frame read.
+ * revisions would show a stale scene. What announces it is the WRITE ITSELF: every field the
+ * contract lets the host write is hooked on the watched nodes (`hostSceneHooks.ts`), and a
+ * write of another value increments this watch's revision at that instant. The frame then
+ * compares one integer to the one it last saw — no node is reread, whatever their number.
  *
- * What is reread is bounded twice. By SOURCE NODES first: a drawn entry names the node it comes
- * from, and several entries of the same node reread it only once. By the LOCAL pose next: no
- * world matrix is walked up or multiplied to know if something moved, since a world matrix is a
- * product of locals.
+ * What is hooked is bounded twice. By SOURCE NODES first: a drawn entry names the node it
+ * comes from, and several entries of the same node hook it once. By the LOCAL pose next: an
+ * ancestor's pose is hooked in its own right, and no world matrix is ever walked up here.
  *
- * Read and compare are the same pass, in a flat array, with neither allocation nor a per-node
- * call: the frame pays only one comparison per reread value. The comparison is exact — values
- * are kept, not a fingerprint — and idempotent: it compares a state to the one it holds, so a
- * write that went through the engine API, which already incremented the scene revision, does
- * not trigger a second one.
+ * The revision is monotonic and idempotent in the engine's favour: a write that went through
+ * the engine API, which already incremented the scene revision, is settled by it and does not
+ * trigger a second one.
  */
 export function createHostSceneWatch() {
+  const mark: WriteRevision = { revision: 1, reshaped: false };
   let watched: THREE.Object3D[] = [],
-    lights: THREE.Light[] = [],
-    held = new Float64Array(0),
-    posed = false;
+    seen = 0;
   return {
+    /** True when a hooked write changed which objects are read: the list is to be rebuilt. */
+    get reshaped() {
+      return mark.reshaped;
+    },
     /**
-     * Sets the list of reread nodes: the source models of what the engine draws, the lights,
+     * Sets the list of hooked nodes: the source models of what the engine draws, the lights,
      * and the ancestors of both. To be called when the scene changes shape — one more instance,
-     * a light set after the fact — never per frame.
+     * a light set after the fact — never per frame. A node that enters or leaves the list is
+     * itself a change of the scene, announced by the next `changed()`.
      */
     observe(source: THREE.Object3D, drawn: WatchedSources) {
       const set = new Set<THREE.Object3D>();
-      lights = [];
       source.traverse((object) => {
-        if ((object as THREE.Light).isLight) {
-          const light = object as THREE.Light;
-          lights.push(light);
-          withAncestors(light, set);
-          withAncestors((light as THREE.DirectionalLight).target, set);
-        }
+        if (!(object as THREE.Light).isLight) return;
+        withAncestors(object, set);
+        withAncestors((object as THREE.DirectionalLight).target, set);
       });
       for (const entry of drawn) withAncestors(sourceOf(entry), set);
       for (const node of set) if (node.userData[ENGINE_OWNED]) set.delete(node);
-      // With neither a declared root nor a light, there is nothing to reread: the whole graph is not a default.
+      // With neither a declared root nor a light, there is nothing to hook: the whole graph is not a default.
       if (!set.size) withAncestors(source, set);
+      let moved = false;
+      for (const node of watched) if (!set.has(node) && unhookHostNode(node, mark)) moved = true;
+      for (const node of set) if (hookHostNode(node, mark)) moved = true;
       watched = [...set];
-      const need = watched.length * NODE_SLOTS + lights.length * LIGHT_SLOTS;
-      // Held state survives a list reset identically: otherwise each announcement would trigger
-      // another and the scene would never go quiet. A list of another size drops it, and the
-      // first comparison that follows announces a change, which is exact.
-      if (held.length !== need) {
-        held = new Float64Array(need);
-        posed = false;
-      }
+      mark.reshaped = false;
+      if (moved) mark.revision++;
     },
-    /** Says whether the host wrote one of the reread nodes since the previous read. Walks nothing up. */
+    /** Says whether the host wrote one of the hooked nodes since the previous read. Reads nothing else. */
     changed() {
-      const h = held;
-      let moved = !posed,
-        at = 0;
-      posed = true;
-      for (let i = 0; i < watched.length; i++) {
-        const node = watched[i],
-          auto = node.matrixAutoUpdate,
-          visible = node.visible ? 1 : 0,
-          flag = auto ? 1 : 0;
-        if (h[at] !== visible) {
-          h[at] = visible;
-          moved = true;
-        }
-        if (h[at + 1] !== flag) {
-          h[at + 1] = flag;
-          moved = true;
-        }
-        at += 2;
-        if (auto) {
-          // The node recomposes its matrix from these ten values: those are what the host writes.
-          const { position: p, quaternion: q, scale: s } = node;
-          poseScratch[0] = p.x;
-          poseScratch[1] = p.y;
-          poseScratch[2] = p.z;
-          poseScratch[3] = q.x;
-          poseScratch[4] = q.y;
-          poseScratch[5] = q.z;
-          poseScratch[6] = q.w;
-          poseScratch[7] = s.x;
-          poseScratch[8] = s.y;
-          poseScratch[9] = s.z;
-          for (let k = 0; k < 10; k++)
-            if (h[at + k] !== poseScratch[k]) {
-              h[at + k] = poseScratch[k];
-              moved = true;
-            }
-          // The last six slots belong to the set matrix: this node does not read it, and the
-          // flag that would say so already announced the change the day it would switch.
-        } else {
-          const e = node.matrix.elements;
-          for (let k = 0; k < 16; k++)
-            if (h[at + k] !== e[k]) {
-              h[at + k] = e[k];
-              moved = true;
-            }
-        }
-        at += NODE_SLOTS - 2;
-      }
-      for (let i = 0; i < lights.length; i++) {
-        if (readLightInto(lights[i], h, at)) moved = true;
-        at += LIGHT_SLOTS;
-      }
-      return moved;
+      if (seen === mark.revision) return false;
+      seen = mark.revision;
+      return true;
+    },
+    /** The engine wrote the graph itself, under a scene revision it already incremented. */
+    settle() {
+      seen = mark.revision;
+    },
+    /** Forgets every node: their writes no longer reach this watch. */
+    release() {
+      for (const node of watched) unhookHostNode(node, mark);
+      watched = [];
     },
   };
 }

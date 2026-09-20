@@ -17,6 +17,8 @@ type MetricsContext = {
   release: (rec: PageRec) => void;
   disposeGeometry: (geometry: THREE.BufferGeometry) => void;
   scene: THREE.Scene;
+  /** The frame gate, released with the scene: the host graph keeps no hook of this engine. */
+  gate: { release(): void };
   readonly diagnostic: DiagnosticMode;
   /** What the current frame decided, read as-is: the sample does not copy field by field what
    *  the render state already carries. */
@@ -35,6 +37,7 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
     release,
     disposeGeometry,
     scene,
+    gate,
     state,
   } = ctx;
   return {
@@ -102,6 +105,7 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
       for (const copy of blendCopies)
         disposeTriangleGeometry(copy.userData.sourceGeometry as THREE.BufferGeometry);
       scene.clear();
+      gate.release();
     },
   };
 }

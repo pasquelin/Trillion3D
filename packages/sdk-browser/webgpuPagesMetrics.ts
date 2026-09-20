@@ -110,6 +110,7 @@ export function disposeWebgpuPages(
     { gpuDevice, scene, pagedBlendCopies } = rt.setup;
   gpuDevice?.removeEventListener?.('uncapturederror', onGpuError);
   run.lost = true;
+  run.gate.release();
   services.residency.quietPending();
   timing.gpuTiming?.dispose();
   dropGpuSelection(rt);

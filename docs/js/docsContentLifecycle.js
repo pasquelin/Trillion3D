@@ -95,6 +95,10 @@ const summary = await prepareMany(jobs, { workers: 2, onEvent: createBatchProgre
         name: 'addLight / setLight / removeLight / setEnvironment',
         desc: 'Scene lighting, declared before the first backend prepares.',
       },
+      {
+        name: 'Direct writes on the source graph',
+        desc: 'A pose, a visibility or a light written on a source node without any call — `mesh.position.x = 100` — is seen: the write itself increments the scene revision, so a frame compares one integer and a still scene rereads no node. A matrix set by hand (`matrixAutoUpdate = false`) is announced as Three requires, by `matrixWorldNeedsUpdate = true`; a light added to or removed from the graph is announced by `refreshSceneLighting()`.',
+      },
       { name: 'dispose()', desc: 'Releases backends, GPU device and sources. Mandatory.' },
     ],
     example: `// HTML: <canvas id="viewer" style="width:100%;height:70vh"></canvas>
