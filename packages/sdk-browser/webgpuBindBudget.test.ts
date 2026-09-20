@@ -33,7 +33,7 @@ test('no layout exceeds the eight storage buffers guaranteed per stage', async (
   const device = recordingDevice();
   const { visBindGroupLayout } = await createWebgpuVisibilityShaders(device, 8);
   const { shadeBindGroupLayout } = await createWebgpuShadePipeline(device, {} as GPUShaderModule);
-  const { blendBindGroupLayout } = await createWebgpuBlendPipelines(device, []);
+  const { blendBindGroupLayout } = await createWebgpuBlendPipelines(device);
   const layouts: Array<[string, unknown]> = [
     ['visibility', visBindGroupLayout],
     ['hardware resolve', shadeBindGroupLayout],
