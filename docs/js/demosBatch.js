@@ -1,16 +1,83 @@
 /** Batch demos: n elements in one call, checked against the unit function they repeat. */
 import {
+  BOX_VALUES,
   HIERARCHY_ROOT,
   MATRIX_VALUES,
   POSITION_VALUES,
   QUATERNION_VALUES,
+  SPHERE_VALUES,
+  createCameraFrame,
+  frustumExcludesBox,
+  frustumKeepsBoxBatch,
   hierarchyUpdateBatch,
   multiplyMatrix4,
   multiplyMatrix4Batch,
+  perspectiveProjection,
+  sphereFromBoundsBatch,
+  transformPointsBatch,
+  updateCameraFrame,
 } from './engine.js';
 import { formatNumber, slider, valueView } from './demoKit.js';
 
+/** The example of the SDK guide: a grid of unit boxes, half of it behind the camera. */
+function gridBoxes(count) {
+  const boxes = new Float64Array(count * BOX_VALUES),
+    side = Math.ceil(Math.sqrt(count));
+  for (let i = 0; i < count; i++) {
+    const x = (i % side) - side / 2,
+      y = Math.floor(i / side) - side / 2,
+      z = i % 2 === 0 ? -20 : 20;
+    boxes.set([x, y, z, x + 1, y + 1, z + 1], i * BOX_VALUES);
+  }
+  return boxes;
+}
+
 export const BATCH_DEMOS = {
+  frustumKeepsBoxBatch: {
+    controls: [
+      slider('count', 'boxes in the batch', 100, 40000, 10000, 100),
+      slider('fov', 'field of view (°)', 20, 110, 60, 1),
+    ],
+    run(state) {
+      const count = Math.round(state.count);
+      const boxes = gridBoxes(count),
+        kept = new Uint8Array(count),
+        spheres = new Float64Array(count * SPHERE_VALUES),
+        centres = new Float64Array(count * POSITION_VALUES),
+        viewCentres = new Float64Array(count * POSITION_VALUES),
+        frame = createCameraFrame(),
+        projection = new Float64Array(16),
+        cameraWorld = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+      perspectiveProjection(projection, state.fov, 16 / 9, 0.1, 1);
+      updateCameraFrame(frame, projection, cameraWorld, 100);
+      const visible = frustumKeepsBoxBatch(kept, frame.planes, boxes, count);
+      sphereFromBoundsBatch(spheres, boxes, count);
+      let m = 0;
+      for (let i = 0; i < count; i++) {
+        if (!kept[i]) continue;
+        centres[m * POSITION_VALUES] = spheres[i * SPHERE_VALUES];
+        centres[m * POSITION_VALUES + 1] = spheres[i * SPHERE_VALUES + 1];
+        centres[m * POSITION_VALUES + 2] = spheres[i * SPHERE_VALUES + 2];
+        m++;
+      }
+      transformPointsBatch(viewCentres, frame.view, centres, m);
+      let disagreements = 0;
+      for (let i = 0; i < count; i++) {
+        const at = i * BOX_VALUES;
+        const excluded = frustumExcludesBox(frame.planes, ...boxes.subarray(at, at + BOX_VALUES));
+        if (kept[i] === (excluded ? 1 : 0)) disagreements++;
+      }
+      return [
+        valueView('cull, then transform the survivors: two calls, no allocation between them', [
+          ['boxes tested', String(count)],
+          ['kept by the frustum', String(visible)],
+          ['behind the camera, by construction', String(Math.floor(count / 2))],
+          ['first survivor, view-space z', m ? formatNumber(viewCentres[2]) : '—'],
+          ['boxes where the batch and frustumExcludesBox disagree', String(disagreements)],
+        ]),
+      ];
+    },
+  },
   hierarchyUpdateBatch: {
     controls: [slider('count', 'nodes in the batch', 100, 20000, 5000, 100)],
     run(state) {
