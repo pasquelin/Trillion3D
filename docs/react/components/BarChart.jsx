@@ -11,15 +11,11 @@ const TONES = {
   neutral: 'progress-neutral',
 };
 /** A shared card and DaisyUI progress bars, with one zero-based scale per metric. */
-export function BarChart({ title, note, rows, unit = '', format, missingLabel }) {
+export function BarChart({ title, note, rows, format, missingLabel }) {
   const max = Math.max(0, ...rows.map((r) => r.value ?? 0));
   return (
     <Card surface="nested" title={title} className="min-w-0" data-chart>
       {note && <p className="text-sm text-base-content/75">{note}</p>}
-      <div className="flex justify-between text-xs text-base-content/60" aria-hidden="true">
-        <span>0 {unit}</span>
-        <span>{rows.some((r) => r.value !== null) ? format(max) : '—'}</span>
-      </div>
       <ul className="grid gap-3 m-0 p-0 list-none">
         {rows.map((row, i) => (
           <li key={row.id ?? i}>

@@ -30,6 +30,7 @@ function ProfileReading({ record: r, report, locale, filters }) {
       id: 'gpu',
       label: fr ? 'GPU · dessiner l’image' : 'GPU · draw the image',
       rows: (r.data.passesGpu?.passes ?? []).map((p) => ({
+        id: p.name,
         label: p.name,
         value: p.gpuMs?.p50 ?? null,
         p95: p.gpuMs?.p95,
@@ -84,7 +85,6 @@ function ProfileReading({ record: r, report, locale, filters }) {
               {rows.length ? (
                 <BarChart
                   title={label}
-                  unit="ms"
                   format={(v) => formatValue(v, locale, 'ms')}
                   missingLabel={fr ? 'Non mesuré' : 'Not measured'}
                   rows={rows}
@@ -132,7 +132,6 @@ function SceneProfiles({ records, report, locale }) {
   if (!active) return null;
   return (
     <ProfileReading
-      key={active.id}
       record={active}
       {...{ report, locale }}
       filters={
