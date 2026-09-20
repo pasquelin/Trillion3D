@@ -16,9 +16,12 @@ test('every integrated renderer lesson emits complete parseable host code', () =
   for (const lesson of rendererLessons) {
     const code = rendererCodeFor(lesson, rendererInitialState(lesson));
     assert.doesNotThrow(() => transformSync(code, { format: 'esm' }), lesson.id);
-    assert.match(code, /createExplorer\('garden'/);
+    assert.match(code, /from 'web-geometry'[\s\S]*createExplorer\(canvas/);
+    assert.match(code, /backends: \[webgpuPagesBackend\]/);
+    assert.match(code, /pixelRatio: window\.devicePixelRatio/);
+    assert.match(code, /new ResizeObserver/);
     assert.match(code, /await explorer.awaitPages\(\)/);
-    assert.match(code, /interactive: true/);
+    assert.match(code, /interactive: false/);
     assert.match(code, /explorer\.dispose\(\)/);
     assert.ok(code.indexOf('await explorer.awaitPages()') < code.indexOf('explorer.render()'));
     assert.ok(code.includes(lesson.manifest), `${lesson.id} uses its displayed manifest`);
@@ -32,11 +35,17 @@ test('every integrated renderer lesson emits complete parseable host code', () =
 test('live renderer lessons use diverse original scenes and matching captures', () => {
   const live = rendererLessons.filter((lesson) => lesson.kind !== 'offline');
   assert.equal(live.length, 15);
-  assert.equal(new Set(live.map(({ manifest }) => manifest)).size, live.length);
+  const scenes = new Map();
+  for (const lesson of live)
+    scenes.set(lesson.manifest, [...(scenes.get(lesson.manifest) ?? []), lesson.id]);
+  assert.deepEqual(
+    [...scenes.values()].filter((ids) => ids.length > 1),
+    [],
+  );
   for (const lesson of live) {
     assert.match(
       lesson.manifest,
-      /^\.\/assets\/(gallery\/(offline|shadow-theatre)|kinetic-garden)\//,
+      /^\.\/assets\/(gallery\/(offline|shadow-theatre|signature-architecture)|kinetic-garden)\//,
     );
     assert.equal(lesson.preview, `./assets/gallery/renderer/${lesson.id}.png`);
   }
@@ -57,7 +66,46 @@ test('the LOD lesson uses a compiled multi-level cache', async () => {
     ),
   );
   assert.equal(manifest.simplification, true);
-  assert.equal(manifest.selectedTriangles, 1_152);
+  assert.equal(manifest.selectedTriangles, 91_352);
+  assert.deepEqual(lesson.referenceReview.urls, [
+    'https://threejs.org/examples/webgl_lod.html',
+    'https://threejs.org/examples/webgl_batch_lod_bvh.html',
+  ]);
+  const code = rendererCodeFor(lesson, rendererInitialState(lesson));
+  for (const expected of [
+    "manifestUrl: './assets/gallery/signature-architecture/cache/native/full/manifest.json'",
+    'backends: [webgpuPagesBackend]',
+    'importedLights: true',
+    'interactive: false',
+    'pixelRatio: window.devicePixelRatio',
+    'pixelError: 0',
+    'position: [19,13,22]',
+    'target: [0,3,0]',
+    "explorer.setDiagnostic('beauty')",
+  ])
+    assert.ok(code.includes(expected), expected);
+  assert.doesNotMatch(code, /addLight\(/);
+
+  const proof = JSON.parse(
+      await readFile(
+        new URL('../docs/assets/gallery/proofs/observatory-proof.json', import.meta.url),
+        'utf8',
+      ),
+    ),
+    [fine, coarse, restored] = [proof.samples[0], proof.samples[2], proof.samples[3]],
+    captures = await Promise.all([
+      readFile(new URL('../docs/assets/gallery/proofs/observatory-detail-0.png', import.meta.url)),
+      readFile(new URL('../docs/assets/gallery/proofs/observatory-detail-8.png', import.meta.url)),
+    ]);
+  assert.deepEqual(proof.resolution, [1600, 1040]);
+  assert.equal(proof.dpr, 2);
+  assert.deepEqual(proof.camera, lesson.initialPose);
+  assert.equal(fine.selected, 91_352);
+  assert.equal(coarse.selected, 7_132);
+  assert.equal(restored.selected, 91_352);
+  assert.equal(restored.restoredDifference, 0);
+  assert.equal(restored.stillDifference, 0);
+  assert.notDeepEqual(captures[0], captures[1]);
 });
 
 test('renderer badges link only to documented API entries', () => {
@@ -106,6 +154,16 @@ test('the shadow switch uses its original theatre and keeps direct light in both
   assert.notDeepEqual(onCapture, offCapture);
 });
 
+test('binary lesson controls render as accessible toggles', () => {
+  const markup = renderToStaticMarkup(
+    createElement(Playground, { id: 'runtime-pixel-error', locale: 'en' }),
+  );
+  assert.match(markup, /<input[^>]*type="checkbox"[^>]*aria-label="Show detail levels"/);
+  assert.match(markup, /#38bdf8[^>]*><\/span>Exact detail/);
+  assert.match(markup, /#f59e0b[^>]*><\/span>Coarse fallback/);
+  assert.doesNotMatch(markup, /<input[^>]*type="range"[^>]*aria-label="Show detail levels"/);
+});
+
 test('partial reference topics link to qualified original offline lessons', () => {
   for (const id of [
     'webgl_marchingcubes',
@@ -123,7 +181,7 @@ test('full reference topics become ready links to their actual lesson', () => {
   const ready = roadmap.entries
     .map(galleryRoadmapEntry)
     .filter(({ readyLessonId }) => readyLessonId);
-  assert.equal(ready.length, 9);
+  assert.equal(ready.length, 10);
   for (const entry of ready) {
     const lesson = rendererLessons.find(({ id }) => id === entry.readyLessonId);
     assert.equal(lesson.referenceCoverage[entry.id], 'full');
@@ -131,7 +189,6 @@ test('full reference topics become ready links to their actual lesson', () => {
     assert.equal(entry.preview, lesson.preview);
   }
 });
-
 test('a control change during setup reaches the mounted renderer', async () => {
   const initial = { intensity: 60 },
     latest = { intensity: 80 },

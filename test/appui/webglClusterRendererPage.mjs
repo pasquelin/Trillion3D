@@ -147,13 +147,14 @@ export async function execute() {
   const invisibleSubmissions = renderer.draw([mesh], scene, drawCamera, false, true);
   standard.visible = true;
   standard.transparent = true;
+  standard.premultipliedAlpha = true;
   let rejected = false;
   try {
     renderer.draw([mesh], scene, drawCamera, false, true);
   } catch {
     rejected = true;
   }
-  standard.transparent = false;
+  standard.transparent = standard.premultipliedAlpha = false;
   scene.clear();
   const textures = textureFixtures(renderer, gl, mesh, scene, drawCamera, pixel);
   const sourceLights = new THREE.Scene(),

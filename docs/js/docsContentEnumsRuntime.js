@@ -18,7 +18,7 @@ export const ENUMS_RUNTIME = [
         desc: 'The WebAssembly kernel imposed, when one exists for that operation.',
       },
     ],
-    example: `import { MATH_PATH_CONTRACT, createPathGovernor } from '@web-geometry/sdk/core';
+    example: `import { MATH_PATH_CONTRACT, createPathGovernor } from 'web-geometry';
 
 const governor = createPathGovernor(performance.now.bind(performance), 'auto');
 console.log(MATH_PATH_CONTRACT, governor.metrics()); // per operation: jsNsPerElement, wasmNsPerElement, path, switches`,
@@ -88,8 +88,7 @@ console.log(profile.gpuMethod, profile.gpuImageMs); // null when nothing measure
       { name: "'u32'", desc: 'Unsigned counters and offsets.' },
       { name: "'u8'", desc: 'Raw bytes — SHA objects, preview pixels.' },
     ],
-    example: `// The table lives in the file above; the package entry point does not re-export it.
-import { COLUMN_KIND } from 'packages/sdk-core/manifestBinaryFormat.ts';
+    example: `import { COLUMN_KIND } from 'web-geometry';
 
 console.log(COLUMN_KIND.pageBounds); // 'f64'`,
   },
@@ -109,8 +108,8 @@ console.log(COLUMN_KIND.pageBounds); // 'f64'`,
     ],
     replaces: 'FrontSide, BackSide, DoubleSide',
     proof: 'materialSide.test.ts',
-    example: `// Read once at the import boundary; not re-exported from the package entry point yet.
-import { sideOf } from 'packages/sdk-browser/materialSide.ts';
+    example: `// Read once at the import boundary.
+import { sideOf } from 'web-geometry';
 
 if (sideOf(material) === 'double') { /* rasterize without backface culling */ }`,
   },
