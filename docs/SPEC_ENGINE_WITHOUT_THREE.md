@@ -98,6 +98,18 @@ already-owned context as a temporary draw adapter. Cluster programs, composition
 and observation meshes move to engine resources in the following stages; this stage does not claim
 their removal or a performance gain.
 
+The next delivered stage owns opaque and alpha-masked prepared-page cluster submission on WebGL2.
+Its GLSL implements an additive Lambert plus Cook-Torrance GGX/Smith/Schlick model from published
+material equations and handles the glTF texture channels, transforms, UV sets and samplers accepted by
+its explicit compatibility gate. Published geometric normal variance filters specular roughness, and
+identical mobile-scene campaigns must equal or beat the temporary adapter's whole-frame envelope.
+One frame owner routes display, render targets, held-frame recovery
+and capture through that program, then restores state for the temporary scene adapter. Unsupported
+clustered blend and diagnostic ordering remain #119; transmission composition and removal of the
+temporary complete-scene fallback remain #120. The image delta, curved-surface stability and
+whole-frame cost against the witness are measured and published; this stage does not claim bit
+identity or an unmeasured speed gain.
+
 R1a. **What remains of Three.js in the engine, measured.** The 15 September survey (lot T1) listed
 file by file every call to a Three.js math method in `sdk-browser`; those counts are stale and are
 reread from `git log` rather than copied here. The rule in force is the closed list held by
