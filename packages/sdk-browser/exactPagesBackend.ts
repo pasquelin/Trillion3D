@@ -14,12 +14,12 @@ import {
   CONTRACT_LIGHTS_UNSUPPORTED,
 } from './exactPagesContractLights.ts';
 import { collectClusterPages, type PageRec } from './pageSelection.ts';
-import { ClusterBatches } from './clusterBatches.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import { disposeTriangleGeometry } from './triangleDiagnostic.ts';
 import type { BackendFactory } from './backendTypes.ts';
 import * as THREE from 'three';
 import type { CameraMotion } from './cameraWorld.ts';
+import { createExactPagesClusterBatches } from './exactPagesClusterBatches.ts';
 
 export const exactPagesBackend: BackendFactory = (context) => {
   const {
@@ -41,7 +41,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
     attached: PageRec[] = [];
   const requestData = createExactPagesRequestData(allPages, requestCount);
   // One resident index buffer per primitive: the visible cut is now only a list of ranges.
-  const batches = new ClusterBatches(scene, allPages);
+  const batches = createExactPagesClusterBatches(scene, allPages, blendCopies, context);
   for (const copy of blendCopies) {
     copy.userData.sourceGeometry = copy.geometry;
     copy.userData.sourceMaterial = copy.material;
@@ -180,6 +180,9 @@ export const exactPagesBackend: BackendFactory = (context) => {
     refreshSceneLights: contract.apply,
     lighting: CONTRACT_LIGHTS_LIGHTING,
     render: renderFrame,
+    drawHostGeometry: batches.autonomousDraw
+      ? (camera, output) => batches.draw(camera, output.toneMapped, output.encodeSrgb)
+      : undefined,
     ...cpuMethods,
     ...requestMethods,
     syncResident() {
