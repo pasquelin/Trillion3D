@@ -53,7 +53,7 @@
       "type": "SCALAR"
     }
   ],
-  "case": "Une couche usda : un Xform translaté, un Mesh de deux quadrilatères, un GeomSubset materialBind qui lie la seconde face à un second matériau, un UsdPreviewSurface opaque et un autre translucide à texture UsdUVTexture en sous-dossier.",
+  "case": "A usda layer: a translated Xform, a Mesh of two quads, a GeomSubset materialBind that binds the second face to a second material, an opaque UsdPreviewSurface and another translucent one with a UsdUVTexture in a subfolder.",
   "counts": {
     "materials": 2,
     "meshInstances": 1,
@@ -144,7 +144,7 @@
     "version": "usd-openusd-0.7.0-gltf-8"
   },
   "primitives": 2,
-  "rule": "Le pilote rend la scène composée et rien d'autre : polygones triangulés en éventail, une primitive par partie de matériau, normales et primvars:st résolues par leur interpolation, UsdPreviewSurface vers pbrMetallicRoughness, et l'unité comme l'axe haut de la couche portés par la racine de la scène.",
+  "rule": "The driver yields the composed scene and nothing else: polygons fan-triangulated, one primitive per material part, normals and primvars:st resolved by their interpolation, UsdPreviewSurface to pbrMetallicRoughness, and the layer's unit and up-axis carried by the scene root.",
   "samplers": [
     {
       "magFilter": 9729,

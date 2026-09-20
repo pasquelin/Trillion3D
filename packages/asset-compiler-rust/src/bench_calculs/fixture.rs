@@ -84,11 +84,11 @@ fn compile_one(name: &str) -> (f64, Value) {
     let slim: Value = serde_json::from_slice(
         &std::fs::read(directory.join("clusters.json")).expect("clusters.json"),
     )
-    .expect("clusters.json est du JSON");
+    .expect("clusters.json is valid JSON");
     // Phases belong to the job that spent them: the survey carries them per fixture,
     // since no counter adds them up from one compilation to another.
     let record = json!({"fixture":name,"ms":ms,"phasesMs":result["metrics"]["phaseElapsedMs"],
-      "manifesteAllege":hash(serde_json::to_vec(&stable(slim)).expect("manifeste").as_slice()),
+      "manifesteAllege":hash(serde_json::to_vec(&stable(slim)).expect("manifest").as_slice()),
       "fichiers":files.iter().map(|(n,d)|json!([n,d])).collect::<Vec<Value>>(),
       "objets":objects.iter().map(|(_,d)|json!(d)).collect::<Vec<Value>>()});
     let _ = std::fs::remove_dir_all(&root);

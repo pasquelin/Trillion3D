@@ -51,7 +51,7 @@ impl DagShape {
     }
 }
 
-/// Les avertissements d'une primitive, ou aucun. `groups` compte les groupes par issue.
+/// Warnings for a primitive, if any. `tallies` counts groups by outcome.
 pub(super) fn dag_warnings(
     strategy: crate::dag::DagStrategy,
     shape: &DagShape,

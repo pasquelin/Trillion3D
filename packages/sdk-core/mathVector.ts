@@ -107,7 +107,7 @@ export function copyScaledVector3<T extends NumberSink>(
   return out;
 }
 
-/** `v.addScaledVector(a, s)` : `out += a · s`, composante par composante. */
+/** `v.addScaledVector(a, s)`: `out += a · s`, component by component. */
 export function addScaledVector3<T extends NumberSink>(out: T, a: ArrayLike<number>, s: number) {
   out[0] += a[0] * s;
   out[1] += a[1] * s;

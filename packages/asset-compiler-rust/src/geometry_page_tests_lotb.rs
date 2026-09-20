@@ -6,7 +6,7 @@ use super::*;
 
 #[test]
 fn localise_on_empty_indices_returns_empty_lists() {
-    let (original, local) = localise(&[], 0).expect("page vide");
+    let (original, local) = localise(&[], 0).expect("empty page");
     assert!(original.is_empty());
     assert!(local.is_empty());
 }

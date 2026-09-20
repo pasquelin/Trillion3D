@@ -41,7 +41,7 @@ fn noeuds(seed: u64, count: usize) -> (Vec<Value>, Vec<Value>) {
     }
     let mut fautifs = sains[..16.min(count)].to_vec();
     if fautifs.len() > 9 {
-        fautifs[9] = json!("pas un nombre");
+        fautifs[9] = json!("not a number");
     }
     (sains, fautifs)
 }
@@ -97,7 +97,7 @@ mod tests {
         let mut colonne_neuve = Column::default();
         numbers_into(sains, "primitive.culling.nodes", &mut colonne_neuve)
             .expect("healthy nodes, new version");
-        assert_eq!(colonne_ref.bytes, colonne_neuve.bytes, "{label}: octets");
+        assert_eq!(colonne_ref.bytes, colonne_neuve.bytes, "{label}: bytes");
 
         if fautifs.is_empty() {
             return;
@@ -110,28 +110,28 @@ mod tests {
         let message_neuf = numbers_into(fautifs, "primitive.culling.nodes", &mut poubelle2)
             .expect_err("faulty set, new version")
             .to_string();
-        assert_eq!(message_ref, message_neuf, "{label}: message d'erreur");
+        assert_eq!(message_ref, message_neuf, "{label}: error message");
     }
 
     #[test]
     fn tableau_vide_ne_produit_ni_octet_ni_erreur() {
-        memes_octets_et_message(&[], &[], "tableau vide");
+        memes_octets_et_message(&[], &[], "empty array");
     }
 
     #[test]
     fn un_seul_noeud_valide_ou_fautif() {
-        memes_octets_et_message(&[json!(3.5)], &[], "un noeud valide");
-        memes_octets_et_message(&[], &[json!("pas un nombre")], "un noeud fautif seul");
+        memes_octets_et_message(&[json!(3.5)], &[], "single valid node");
+        memes_octets_et_message(&[], &[json!("not a number")], "single faulty node");
     }
 
     #[test]
     fn le_noeud_fautif_en_tete_au_milieu_ou_en_queue_donne_le_meme_message() {
         let tete = vec![json!("x"), json!(1.0), json!(2.0)];
-        memes_octets_et_message(&[], &tete, "fautif en tete");
+        memes_octets_et_message(&[], &tete, "faulty at head");
         let milieu = vec![json!(1.0), json!("x"), json!(2.0)];
-        memes_octets_et_message(&[], &milieu, "fautif au milieu");
+        memes_octets_et_message(&[], &milieu, "faulty in middle");
         let queue = vec![json!(1.0), json!(2.0), json!("x")];
-        memes_octets_et_message(&[], &queue, "fautif en queue");
+        memes_octets_et_message(&[], &queue, "faulty at tail");
     }
 
     #[test]
@@ -143,12 +143,12 @@ mod tests {
             json!(0.0),
             json!(1.0 / 3.0),
         ];
-        memes_octets_et_message(&sains, &[], "poison flottant");
+        memes_octets_et_message(&sains, &[], "floating poison");
     }
 
     #[test]
     fn un_grand_jeu_sain_puis_le_meme_avec_une_seule_entree_fautive() {
         let (sains, fautifs) = noeuds(0x707, 5_000);
-        memes_octets_et_message(&sains, &fautifs, "grand jeu, dix-neuvieme rate");
+        memes_octets_et_message(&sains, &fautifs, "large set, nineteenth failed");
     }
 }
