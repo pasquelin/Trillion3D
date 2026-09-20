@@ -13,7 +13,7 @@ const boxMin = [0, 0, 0],
   boxMax = [0, 0, 0];
 
 /** The page-table rows the invalidation reads: their words, and the record each row draws. */
-export interface ShadowRowTable {
+interface ShadowRowTable {
   rowCount: number;
   pageTableInts: Uint32Array | undefined;
   packedRecs: ArrayLike<PageRec | undefined>;
@@ -34,6 +34,7 @@ export function shadowsFollowTextures(
   rows: ShadowRowTable,
   slot: number,
 ) {
+  if (!lights.store.count) return;
   if (slot < 0) {
     lights.plan.representationChanged(EVERYWHERE_MIN, EVERYWHERE_MAX);
     return;

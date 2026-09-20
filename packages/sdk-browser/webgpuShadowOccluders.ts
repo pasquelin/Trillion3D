@@ -33,7 +33,7 @@ function kept(volumes: Float32Array, base: number, spheres: Float32Array, at: nu
 }
 
 /** What the last frame's shadow cull tested and kept, replayed on the host. */
-export const shadowOccluders = { tested: 0, kept: 0 };
+const shadowOccluders = { tested: 0, kept: 0 };
 
 /**
  * Replays the region cull of the frame on the host, over the resident rows: how many cluster
