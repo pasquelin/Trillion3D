@@ -47,15 +47,15 @@ test('the packed distribution is self-contained at its declared boundaries', () 
     assert.ok(statSync(join(root, 'package/dist/sdk-node/cli.mjs')).mode & 0o111);
 
     const consumer = join(root, 'consumer');
-    const installed = join(consumer, 'node_modules/@web-geometry/sdk');
-    mkdirSync(join(consumer, 'node_modules/@web-geometry'), { recursive: true });
+    const installed = join(consumer, 'node_modules/web-geometry');
+    mkdirSync(join(consumer, 'node_modules'), { recursive: true });
     renameSync(join(root, 'package'), installed);
     const probe = spawnSync(
       process.execPath,
       [
         '--input-type=module',
         '--eval',
-        "const core=await import('@web-geometry/sdk/core');const node=await import('@web-geometry/sdk/node');const p=await node.getSdkProvenance();if(!core.hierarchyUpdateBatch||!p.files['dist/sdk-node/index.mjs'])process.exit(2)",
+        "const sdk=await import('web-geometry');const p=await sdk.getSdkProvenance();if(!sdk.hierarchyUpdateBatch||!sdk.prepare||!p.files['dist/sdk/node.mjs'])process.exit(2);for(const path of ['/core','/node','/browser'])try{await import('web-geometry'+path);process.exit(3)}catch(e){if(e.code!=='ERR_PACKAGE_PATH_NOT_EXPORTED')process.exit(4)}",
       ],
       { cwd: consumer, encoding: 'utf8' },
     );

@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { proveInstalledBrowser } from './installed-package-browser.mjs';
+import { compileInstalledScene } from './installed-package-scene.mjs';
 import { proveInstalledTypes } from './installed-package-types.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -25,6 +26,10 @@ function run(command, args, cwd = root, environment = process.env) {
 
 function write(name, value) {
   writeFileSync(join(fixture, name), value);
+}
+
+function installedVersion(name) {
+  return JSON.parse(readFileSync(join(root, 'node_modules', name, 'package.json'), 'utf8')).version;
 }
 
 function bundle(name, source, platform = 'browser', conditions = null) {
@@ -57,12 +62,12 @@ try {
   const source = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
   const dependencies = {
     [source.name]: `file:${archive}`,
-    three: source.peerDependencies.three,
+    three: installedVersion('three'),
   };
   const devDependencies = Object.fromEntries(
     ['@types/node', '@types/three', '@webgpu/types', 'typescript'].map((name) => [
       name,
-      source.devDependencies[name],
+      installedVersion(name),
     ]),
   );
   write(
@@ -81,75 +86,57 @@ try {
     )}\n`,
   );
   run(pnpm, ['install', '--frozen-lockfile=false'], fixture);
-  const core = source.name === 'web-geometry' ? source.name : `${source.name}/core`;
-  const node = source.name === 'web-geometry' ? source.name : `${source.name}/node`;
-  const browser = source.name === 'web-geometry' ? source.name : `${source.name}/browser`;
+  const packageName = source.name;
   write(
     'runtime.mjs',
-    `import { HIERARCHY_ROOT,MATRIX_VALUES,POSITION_VALUES,QUATERNION_VALUES,hierarchyUpdateBatch } from '${core}';\n` +
-      `import { getSdkProvenance, prepare } from '${node}';\n` +
+    `import { HIERARCHY_ROOT,MATRIX_VALUES,POSITION_VALUES,QUATERNION_VALUES,getSdkProvenance,hierarchyUpdateBatch,prepare } from '${packageName}';\n` +
       `if(typeof hierarchyUpdateBatch!=='function'||typeof prepare!=='function')process.exit(2);\n` +
       `const n=2,views=(b,s)=>Array.from({length:n},(_,i)=>b.subarray(i*s,(i+1)*s));\n` +
       `const world=new Float64Array(n*MATRIX_VALUES),positions=new Float64Array(n*POSITION_VALUES),rotations=new Float64Array(n*QUATERNION_VALUES),scales=new Float64Array(n*POSITION_VALUES).fill(1),parents=new Uint32Array([HIERARCHY_ROOT,0]),local=new Float64Array(MATRIX_VALUES);\n` +
       `positions.set([2,3,4,5,7,11]);rotations[3]=rotations[7]=1;hierarchyUpdateBatch(views(world,MATRIX_VALUES),views(positions,POSITION_VALUES),views(rotations,QUATERNION_VALUES),views(scales,POSITION_VALUES),parents,n,local);if(world[28]!==7||world[29]!==10||world[30]!==15)process.exit(4);\n` +
       `const p=await getSdkProvenance();if(!p.files['dist/sdk-node/index.mjs'])process.exit(3);\n` +
-      `try{await import('${source.name}/dist/sdk-core/index.js');process.exit(5)}catch(e){if(e.code!=='ERR_PACKAGE_PATH_NOT_EXPORTED')process.exit(6)}\n`,
+      `for(const path of ['/core','/node','/browser','/dist/sdk-core/index.js'])try{await import('${packageName}'+path);process.exit(5)}catch(e){if(e.code!=='ERR_PACKAGE_PATH_NOT_EXPORTED')process.exit(6)}\n`,
   );
   run(process.execPath, ['runtime.mjs'], fixture);
-  proveInstalledTypes({ fixture, core, node, browser, run, write });
+  proveInstalledTypes({ fixture, packageName, run, write });
   let native = null;
   if (proveNative) {
-    const sourceFixture = join(fixture, 'native-source');
-    cpSync(
-      join(root, 'packages/asset-compiler-rust/fixtures/coplanar/three-stack'),
-      sourceFixture,
-      {
-        recursive: true,
-      },
-    );
     const executable = join(
       root,
       'packages/asset-compiler-rust/target/release',
       `web-geometry-compiler${process.platform === 'win32' ? '.exe' : ''}`,
     );
-    const stdout = run(
-      pnpm,
-      [
-        'exec',
-        'web-geometry-compile',
-        sourceFixture,
-        join(fixture, 'native-cache'),
-        'slice',
-        '150000',
-        '/native-source/',
-        '1',
-        '256',
-        'none',
-      ],
-      fixture,
-      { ...process.env, WEB_GEOMETRY_COMPILER_BIN: executable },
-    );
-    native = JSON.parse(stdout);
-    if (native.status !== 'ready') throw new Error('installed CLI did not prepare the fixture');
+    const compile = (name, variant) =>
+      compileInstalledScene({ fixture, executable, run, pnpm, name, variant });
+    native = {
+      primer: compile('primer', 0),
+      replay: compile('replay', 0.01),
+    };
   }
   const bundles = {
     default: bundle(
       'default',
-      `import { hierarchyUpdateBatch } from '${core}';\nconsole.log(hierarchyUpdateBatch);\n`,
+      `import { hierarchyUpdateBatch } from '${packageName}';\nconsole.log(hierarchyUpdateBatch);\n`,
       'neutral',
       [],
     ),
     maths: bundle(
       'maths',
-      `import { multiplyMatrix4Batch } from '${browser}';\nconsole.log(multiplyMatrix4Batch);\n`,
+      `import { multiplyMatrix4Batch } from '${packageName}';\nconsole.log(multiplyMatrix4Batch);\n`,
     ),
     hierarchy: bundle(
       'hierarchy',
-      `import { hierarchyUpdateBatch } from '${browser}';\nconsole.log(hierarchyUpdateBatch);\n`,
+      `import { hierarchyUpdateBatch } from '${packageName}';\nconsole.log(hierarchyUpdateBatch);\n`,
     ),
     explorer: bundle(
       'explorer',
-      `import { createExplorer } from '${browser}';\nconsole.log(createExplorer);\n`,
+      `import { createExplorer } from '${packageName}';\nconsole.log(createExplorer);\n`,
+    ),
+    types: bundle(
+      'types',
+      `import type { CameraPose } from '${packageName}';\nconst pose:CameraPose={position:[0,0,1],target:[0,0,0],fov:45,near:.1,far:10};\nconsole.log(pose.position.length);\n`,
+      'neutral',
+      [],
     ),
   };
   for (const name of ['default', 'maths', 'hierarchy']) {
@@ -165,17 +152,22 @@ try {
     )
       throw new Error(`${name} bundle reaches renderer or Node modules`);
   }
+  if (
+    Object.keys(bundles.types.outputs['types.js'].inputs).some((path) => path.includes(packageName))
+  )
+    throw new Error('type-only import was not erased');
+  const manifest = JSON.parse(
+    readFileSync(join(fixture, `node_modules/${source.name}/package.json`)),
+  );
   const browserProof = proveBrowser
     ? await proveInstalledBrowser({
         fixture,
         packageName: source.name,
         browserEntry: manifest.exports['.'].browser?.import ?? 'dist/sdk-browser/index.js',
-        manifestUrl: `/native-cache/native/slice/${native.url}`,
+        manifestUrl: '/native-cache-primer/native/slice/manifest.json',
+        replayUrl: '/native-cache-replay/native/slice/manifest.json',
       })
     : null;
-  const manifest = JSON.parse(
-    readFileSync(join(fixture, `node_modules/${source.name}/package.json`)),
-  );
   const evidence = {
     package: `${manifest.name}@${manifest.version}`,
     commit: run('git', ['rev-parse', 'HEAD']).trim(),
