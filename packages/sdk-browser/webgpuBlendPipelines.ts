@@ -4,7 +4,7 @@ import { BLEND_VIEW_SIZE } from './webgpuBlendUniforms.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 import { BLEND_BINDINGS, atlasLayoutEntries, readOnly } from './webgpuBindLayout.ts';
 import { WATER_SURFACE_WGSL } from './webgpuWaterSurfaceWgsl.ts';
-import { createWaterPass } from './webgpuWaterPass.ts';
+import { createWaterPass, waterPassRefusal } from './webgpuWaterPass.ts';
 import {
   blendVariantPipeline,
   DIAGNOSTIC_BLEND_WGSL,
@@ -114,9 +114,10 @@ export async function createWebgpuBlendPipelines(
     pipelineBlendBack = await makeBlend('back');
   // The water pass shares the module and the layout: under a diagnostic variant the transmission
   // slice draws as one more blend, so the variant measures the same fragment stage on all of it.
+  // A scene beyond the rank the surface can carry gets none either, and the caller names it.
   const water =
-    transmissive && !variant
-      ? await createWaterPass(device, blendModule, blendBindGroupLayout, items.length)
+    transmissive && !variant && !waterPassRefusal(items.length)
+      ? await createWaterPass(device, blendModule, blendBindGroupLayout)
       : undefined;
   return {
     blendBindGroupLayout,

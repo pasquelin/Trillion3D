@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { drawBlendPass } from './webgpuBlendDraw.ts';
 import { encodeWaterPass, WATER_SURFACE_PASS } from './webgpuWaterPass.ts';
 import { WATER_COMPOSITE_PASS } from './webgpuWaterComposite.ts';
-import { device, prepared, targets } from './webgpuWaterPassFixture.ts';
+import { device, prepared, replay, targets } from './webgpuWaterPassFixture.ts';
 import type { WebgpuGpuState } from './webgpuPagesStateGpu.ts';
 import { createWebgpuBlendState } from './webgpuBlendState.ts';
 import { createWebgpuVisState } from './webgpuPagesStateVis.ts';
@@ -12,30 +12,9 @@ import { createWebgpuRunState } from './webgpuPagesStateRun.ts';
 import { dropVis } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Replays the frame's transparent passes: their labels, the items each drew, and the copies. */
+/** Replays the frame's transparent passes with a counting composite in place of the real one. */
 function frame(blendState: ReturnType<typeof prepared>['blendState'], gpu: WebgpuGpuState) {
-  const passes: { label: string; drawn: number[] }[] = [];
-  let current: number[] = [];
-  const items = blendState.blendGpu;
-  for (const item of items) item.group = {} as GPUBindGroup;
-  const pass = {
-    setViewport() {},
-    setBindGroup(_slot: number, group: GPUBindGroup) {
-      current.push(items.findIndex((item) => item.group === group));
-    },
-    setPipeline() {},
-    drawIndirect() {},
-    end() {},
-  };
-  let copies = 0;
-  const encoder = {
-    beginRenderPass: ({ label }: { label: string }) => {
-      current = [];
-      passes.push({ label, drawn: current });
-      return pass;
-    },
-    copyTextureToTexture: () => copies++,
-  } as unknown as GPUCommandEncoder;
+  const { rt, encoder, passes, counters } = replay(blendState, gpu);
   const composite = { updates: 0, binds: 0, composed: 0 };
   blendState.water = {
     surfaces: [{}, {}, {}] as never,
@@ -49,46 +28,9 @@ function frame(blendState: ReturnType<typeof prepared>['blendState'], gpu: Webgp
       dispose() {},
     },
   };
-  const rt = {
-    vis: {
-      visEnabled: true,
-      pipelineBlendFront: {},
-      pipelineBlendBack: {},
-      pipelineBlendTextured: {},
-    },
-    gpu,
-    lights: { buffer: {}, shadows: undefined, store: { count: 0, unlit: false } },
-    bounce: { probes: undefined },
-    // `lit` view with no light: the contract lights, so the pass binds its resources by default.
-    sunFar: { gpu: undefined },
-    blendState,
-    run: {
-      gpuDrawCalls: 0,
-      blendDrawCalls: 0,
-      blendUnpagedTriangles: 0,
-      blendPagedTriangles: 0,
-      blendSubmittedTriangles: 0,
-      feedbackWritten: true,
-    },
-  } as unknown as WebgpuPagesRuntime;
-  // Groups are already built on these lighting resources: the pass therefore need not rebuild them,
-  // and this test observes draw order, not group construction.
-  const p = gpu.deferred!.placeholders;
-  blendState.lighting = {
-    directLights: rt.lights.buffer!,
-    shadowSlices: p.slices,
-    shadowAtlas: p.atlasView,
-    shadowSampler: p.sampler,
-    bounceGrid: p.bounceGrid,
-    probes: p.probes,
-    tileLights: p.tiles,
-    proxy: p.proxy,
-  };
-  // No paged item here, and the shared group is posted ahead for the same reason.
-  blendState.pagedGroup = {} as GPUBindGroup;
   drawBlendPass(rt, device, encoder);
   const water = encodeWaterPass(rt, device, encoder, new Float64Array(16));
-  return { passes, copies, composite, water, rt };
+  return { passes, copies: counters.copies, composite, water, rt };
 }
 
 test('the water pass follows the blends: frozen backdrop, surfaces, then one composite', () => {

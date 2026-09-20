@@ -1,4 +1,5 @@
 import { createWebgpuBlendPipelines } from './webgpuBlendPipelines.ts';
+import { waterPassRefusal } from './webgpuWaterPass.ts';
 import { ensureWebgpuShadeBindings } from './webgpuShadeBindings.ts';
 import { createWebgpuVisibilityShaders } from './webgpuVisibilityShaders.ts';
 import {
@@ -39,6 +40,10 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
     ));
     // A new layout voids the shared group of paged items like the others'.
     blendState.pagedGroup = undefined;
+    const refused = blendState.transmissive
+      ? waterPassRefusal(blendState.blendGpu.length)
+      : undefined;
+    if (refused) diag.diagnosticFailure('water-pass-refused', refused);
   } catch (error) {
     diag.diagnosticFailure('forward-material-pipeline-failed', error);
     vis.blendBindGroupLayout = undefined;

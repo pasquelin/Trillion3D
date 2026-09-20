@@ -15,19 +15,25 @@ export interface WaterPass {
   composite: WaterComposite;
 }
 
+/** The item rank travels in sixteen bits of the surface: a scene with more transparent items than
+ *  that has no water pass — its transmission slice draws as a blend — and the refusal is named
+ *  (`water-pass-refused`) rather than composed wrong. `undefined` when the scene fits. */
+export function waterPassRefusal(items: number) {
+  return items > WATER_MAX_ITEMS
+    ? new Error(`WATER_ITEMS_LIMIT: ${items} transparent items, ${WATER_MAX_ITEMS} at most`)
+    : undefined;
+}
+
 /**
  * Builds the pass for a scene that carries a transmissive item. `module` and `layout` are the
  * blend pass's: the surface stage is one more fragment entry of the same module, on the same bind
- * groups. The item rank travels in sixteen bits of the surface, so a scene with more transparent
- * items than that is refused by name rather than composed wrong.
+ * groups.
  */
 export async function createWaterPass(
   device: GPUDevice,
   module: GPUShaderModule,
   layout: GPUBindGroupLayout,
-  items: number,
 ): Promise<WaterPass> {
-  if (items > WATER_MAX_ITEMS) throw new Error(`WATER_ITEMS_LIMIT: ${items} > ${WATER_MAX_ITEMS}`);
   const [surfaces, composite] = await Promise.all([
     createWaterSurfacePipelines(device, module, layout),
     createWaterComposite(device),
