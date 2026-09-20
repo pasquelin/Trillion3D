@@ -1,9 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { mountainTerrain } from './docs/mountain-terrain/model.mjs';
-const root = resolve(import.meta.dirname, '..');
+import { writeMountainTerrain } from './docs/mountain-terrain/write.mjs';
+const root = resolve(import.meta.dirname, '..'),
+  published = resolve(root, 'docs/assets/gallery/offline/terrain');
 
 test('mountain terrain is deterministic with deep relief, strata, and a river', () => {
   const first = mountainTerrain(),
@@ -19,10 +22,26 @@ test('mountain terrain is deterministic with deep relief, strata, and a river', 
   assert.ok(Math.max(...heights) - Math.min(...heights) > 4.5);
   assert.ok(heights.some((height) => height > 2.4));
   assert.ok(heights.some((height) => height < -0.5));
+  assert.ok(first.positions.every(Number.isFinite));
+  assert.ok(first.indices.every((index) => index >= 0 && index < first.positions.length / 3));
+});
+
+test('published mountain source is reproduced byte for byte by its original recipe', async () => {
+  const temporary = await mkdtemp(join(tmpdir(), 'wg-mountain-terrain-'));
+  try {
+    await writeMountainTerrain(temporary, mountainTerrain());
+    for (const file of ['geometry.gltf', 'geometry.bin'])
+      assert.deepEqual(
+        await readFile(join(temporary, file)),
+        await readFile(join(published, 'source', file)),
+      );
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
 });
 
 test('published mountain cache preserves source triangles and hierarchy', async () => {
-  const directory = resolve(root, 'docs/assets/gallery/offline/terrain/cache/native/full'),
+  const directory = resolve(published, 'cache/native/full'),
     pointer = JSON.parse(await readFile(resolve(directory, 'manifest.json'), 'utf8')),
     manifest = JSON.parse(await readFile(resolve(directory, pointer.url), 'utf8'));
   assert.equal(manifest.sourceTriangles, 18624);

@@ -6,7 +6,7 @@ const COLORS = [
   [0.29, 0.38, 0.2, 1],
   [0.38, 0.29, 0.2, 1],
   [0.72, 0.7, 0.65, 1],
-  [0.035, 0.22, 0.34, 1],
+  [0.04, 0.34, 0.5, 1],
 ];
 
 export async function writeMountainTerrain(directory, geometry) {
@@ -72,6 +72,7 @@ export async function writeMountainTerrain(directory, geometry) {
     materials: COLORS.map((baseColorFactor, index) => ({
       name: ['valley soil', 'alpine grass', 'exposed rock', 'summit stone', 'river'][index],
       doubleSided: true,
+      ...(index === 4 ? { emissiveFactor: [0.015, 0.12, 0.18] } : {}),
       pbrMetallicRoughness: {
         baseColorFactor,
         metallicFactor: index === 4 ? 0.18 : 0,
