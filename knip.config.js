@@ -3,6 +3,8 @@
 // integration lane load them by URL, never by import.
 export default {
   entry: [
+    'docs/react/main.jsx',
+    'scripts/docs/highlight-entry.mjs',
     'packages/sdk-browser/pageDecodeWorker.ts',
     'packages/sdk-browser/pageIntegrationWorker.ts',
     'packages/sdk-node/{index,cli}.mts',
@@ -30,6 +32,7 @@ export default {
     'test/browser/*.browser.mjs',
   ],
   project: [
+    'docs/react/**/*.jsx',
     'packages/**/*.{ts,mts,mjs,js}',
     'scripts/**/*.{ts,mts,mjs,js}',
     'test/**/*.{ts,mts,mjs,js}',
@@ -41,6 +44,8 @@ export default {
   },
   // `scripts/build-wasm.mjs` interroge la chaîne Rust installée par rustup, pas un paquet npm ;
   // `sips` est l'outil d'image de macOS, que le rapport global appelle pour ses JPEG.
+  // Loaded by Tailwind's CSS @plugin directive, through the JavaScript build adapter.
+  ignoreDependencies: ['daisyui'],
   ignoreBinaries: ['rustc', 'sips'],
   // These specifiers are Vite/Render Tech Lab runtime URLs, not local Node modules.
   ignoreUnresolved: [

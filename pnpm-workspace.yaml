@@ -1,5 +1,3 @@
-# Le script d'installation d'esbuild ne fait que vérifier son binaire natif, qu'il trouve de toute
-# façon dans son paquet par plateforme ; l'autoriser évite l'avertissement de pnpm à chaque
-# installation. C'est le seul script de dépendance autorisé.
+# esbuild verifies its platform-specific binary during installation.
 allowBuilds:
   esbuild: true
