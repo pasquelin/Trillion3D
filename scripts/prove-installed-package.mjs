@@ -40,7 +40,6 @@ function bundle(name, source) {
   return JSON.parse(readFileSync(join(fixture, `${name}-meta.json`)));
 }
 
-let succeeded = false;
 try {
   run(pnpm, ['run', 'build']);
   const packed = JSON.parse(run(pnpm, ['pack', '--json', '--pack-destination', fixture]));
@@ -128,14 +127,9 @@ try {
   process.stdout.write(
     `${JSON.stringify({ package: evidence.package, commit: evidence.commit, tools: evidence.tools, fileCount: evidence.files.length, bundleBytes: Object.fromEntries(Object.entries(bundles).map(([name, meta]) => [name, meta.outputs[`${name}.js`]?.bytes])) })}\n`,
   );
-  succeeded = true;
 } catch (error) {
-  writeFileSync(
-    join(fixture, 'failure.json'),
-    `${JSON.stringify({ error: String(error), logs }, null, 2)}\n`,
-  );
-  console.error(`Installed-package proof kept at ${fixture}`);
+  console.error(JSON.stringify({ error: String(error), fixture, logs }, null, 2));
   throw error;
 } finally {
-  if (succeeded) rmSync(fixture, { recursive: true, force: true });
+  rmSync(fixture, { recursive: true, force: true });
 }
