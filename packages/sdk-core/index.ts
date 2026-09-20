@@ -129,6 +129,7 @@ export {
   SCENE_LIGHT_HEADER_FLOATS,
   LIGHT_KIND,
   SCENE_LIGHT_VERSION,
+  cloneSceneLight,
 } from './sceneLightContracts.ts';
 export type {
   SceneEnvironment,
