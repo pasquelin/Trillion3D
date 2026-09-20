@@ -6,6 +6,7 @@ import {
   faceDirty,
   markBoxPages,
   markWholeFace,
+  markWindowRect,
   maskBase,
   setRect,
 } from './sceneLightShadowPages.ts';
@@ -20,13 +21,19 @@ const FACES = MAX_SHADOW_SLICES * POINT_FACES;
  * box covers. The moment a clean face became dirty again is kept as-is: it is what
  * gives the published lag, and it only restarts once the last page of the face is redrawn.
  *
+ * The mask is in physical pages. A cascade window slides by whole pages and its map is
+ * addressed by absolute page modulo the face: `wrapX`/`wrapY` hold, per face, the physical
+ * page of the window origin, and every window rectangle is written through them.
+ *
  * Everything is allocated once: 64 slices × 6 faces × 8 mask bytes.
  */
 export function createShadowDirty() {
   const mask = new Uint8Array(SHADOW_MASK_BYTES);
   const since = new Float64Array(FACES),
     sinceFrame = new Float64Array(FACES),
-    dirty = new Uint8Array(FACES);
+    dirty = new Uint8Array(FACES),
+    wrapX = new Uint8Array(FACES),
+    wrapY = new Uint8Array(FACES);
   /** Pages that entered the queue since the start of the frame: a raw count, never a difference. */
   let added = 0;
   const indexOf = (slice: number, face: number) => slice * POINT_FACES + face;
@@ -77,6 +84,37 @@ export function createShadowDirty() {
     },
     pages: (slice: number, face: number) => countPages(mask, maskBase(slice, face)),
     row: (slice: number, face: number, row: number) => mask[maskBase(slice, face) + row],
+    wrapXOf: (slice: number, face: number) => wrapX[indexOf(slice, face)],
+    wrapYOf: (slice: number, face: number) => wrapY[indexOf(slice, face)],
+    /** Physical page of the window origin: where window page `(0, 0)` lives in the face. */
+    setWindow(slice: number, face: number, wx: number, wy: number) {
+      wrapX[indexOf(slice, face)] = wx;
+      wrapY[indexOf(slice, face)] = wy;
+    },
+    /**
+     * The window slid by `(dx, dy)` pages: the strip that entered on the far side is to
+     * remake, and nothing else — the pages that stayed inside still describe the same world.
+     */
+    slide(
+      slice: number,
+      face: number,
+      rows: number,
+      dx: number,
+      dy: number,
+      nowMs: number,
+      frame: number,
+    ) {
+      const index = indexOf(slice, face),
+        base = maskBase(slice, face),
+        wx = wrapX[index],
+        wy = wrapY[index];
+      const before = countPages(mask, base);
+      if (dx > 0) markWindowRect(mask, base, rows, wx, wy, rows - dx, rows - 1, 0, rows - 1);
+      else if (dx < 0) markWindowRect(mask, base, rows, wx, wy, 0, -dx - 1, 0, rows - 1);
+      if (dy > 0) markWindowRect(mask, base, rows, wx, wy, 0, rows - 1, rows - dy, rows - 1);
+      else if (dy < 0) markWindowRect(mask, base, rows, wx, wy, 0, rows - 1, 0, -dy - 1);
+      entered(slice, face, base, before, nowMs, frame);
+    },
     /** The whole face is to remake: moved light, reallocated slice, moved cascade, first frame. */
     whole(slice: number, face: number, rows: number, nowMs: number, frame: number) {
       const base = maskBase(slice, face);
@@ -96,9 +134,11 @@ export function createShadowDirty() {
       nowMs: number,
       frame: number,
     ) {
-      const base = maskBase(slice, face);
+      const index = indexOf(slice, face),
+        base = maskBase(slice, face);
       const before = countPages(mask, base);
-      if (!markBoxPages(mask, base, rows, matrix, matrixBase, min, max)) return false;
+      if (!markBoxPages(mask, base, rows, matrix, matrixBase, min, max, wrapX[index], wrapY[index]))
+        return false;
       entered(slice, face, base, before, nowMs, frame);
       return true;
     },
@@ -133,6 +173,8 @@ export function createShadowDirty() {
       for (let face = 0; face < POINT_FACES; face++) {
         clearFace(mask, maskBase(slice, face));
         forget(indexOf(slice, face));
+        wrapX[indexOf(slice, face)] = 0;
+        wrapY[indexOf(slice, face)] = 0;
       }
     },
   };

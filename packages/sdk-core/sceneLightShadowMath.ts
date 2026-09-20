@@ -81,6 +81,25 @@ const UP_Y = [0, 1, 0] as const,
 const right = new Float64Array(3),
   upward = new Float64Array(3);
 
+/**
+ * Right and up axes of a face looking along `forward`: the frame its view matrix is composed
+ * with. A sun cascade aligns its page grid on these same two axes, so the map slides by whole
+ * pages under the camera — one calculation for the view and for the grid, nothing can diverge.
+ */
+export function faceFrame(
+  forward: readonly [number, number, number] | ArrayLike<number>,
+  outRight: Float64Array,
+  outUp: Float64Array,
+) {
+  // A frame axis parallel to the direction would make a zero cross product: the up axis is switched.
+  crossVector3(outRight, forward, Math.abs(forward[1]) > 0.999 ? UP_Z : UP_Y);
+  const rl = Math.hypot(outRight[0], outRight[1], outRight[2]) || 1;
+  outRight[0] /= rl;
+  outRight[1] /= rl;
+  outRight[2] /= rl;
+  crossVector3(outUp, outRight, forward);
+}
+
 /** Column-major view matrix of a camera at `eye` looking along `forward`. */
 function shadowView(
   out: Float64Array,
@@ -90,13 +109,7 @@ function shadowView(
   const fx = forward[0],
     fy = forward[1],
     fz = forward[2];
-  // A frame axis parallel to the direction would make a zero cross product: the up axis is switched.
-  crossVector3(right, forward, Math.abs(fy) > 0.999 ? UP_Z : UP_Y);
-  const rl = Math.hypot(right[0], right[1], right[2]) || 1;
-  right[0] /= rl;
-  right[1] /= rl;
-  right[2] /= rl;
-  crossVector3(upward, right, forward);
+  faceFrame(forward, right, upward);
   for (let axis = 0; axis < 3; axis++) {
     faceBasis[axis] = right[axis];
     faceBasis[3 + axis] = upward[axis];

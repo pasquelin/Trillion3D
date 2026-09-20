@@ -10,7 +10,7 @@ import {
   writeFace,
   type ShadowViewpoint,
 } from '../sdk-core/index.ts';
-import { MAX_SHADOW_REGIONS } from './gpuShadowAtlas.ts';
+import { MAX_SHADOW_REGIONS, wrapKey } from './gpuShadowAtlas.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import type { EngineCamera } from './cameraWorld.ts';
 
@@ -100,8 +100,12 @@ export function planShadowRegions(
     const x0 = regions.x0Of(region),
       x1 = regions.x1Of(region),
       y0 = regions.y0Of(region),
-      y1 = regions.y1Of(region);
+      y1 = regions.y1Of(region),
+      shiftX = regions.shiftXOf(region),
+      shiftY = regions.shiftYOf(region);
     const matrixBase = region * 16;
+    // The matrix and the volume are the window's: the region rectangle is read in window pages,
+    // the physical rectangle minus the translation the draw applies.
     const planes = writeFace(
       faceMatrices,
       matrixBase,
@@ -111,7 +115,7 @@ export function planShadowRegions(
       face,
       view,
       side,
-      regionRect(rectScratch, rows, x0, x1, y0, y1),
+      regionRect(rectScratch, rows, x0 - shiftX, x1 - shiftX, y0 - shiftY, y1 - shiftY),
     );
     shadows.writeRegion(
       region,
@@ -122,6 +126,9 @@ export function planShadowRegions(
       slices.rects,
       light.position,
       light.emitterRadius ?? 0,
+      (2 * shiftX) / rows,
+      (-2 * shiftY) / rows,
+      wrapKey(slices.dirty.wrapXOf(slice, face), slices.dirty.wrapYOf(slice, face)),
     );
     const rect = slice * RECTS_PER_SLICE + face * 3;
     const faceX = slices.rects[rect],

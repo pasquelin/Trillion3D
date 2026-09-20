@@ -32,8 +32,9 @@ export function createWebgpuTileStreamer(options: {
   budgetBytes: number;
   readLevel?: TextureLevelReader;
   onFailure: (phase: string, error: unknown) => void;
-  /** Colour tiles have just arrived or left: what a cutout-foliage shadow must follow. */
-  onColorChanged: () => void;
+  /** A colour tile of texture `slot` has just arrived — what a cutout-foliage shadow must
+   *  follow —, or, at `-1`, the pool changed without naming a texture: a resize, an eviction. */
+  onColorChanged: (slot: number) => void;
 }) {
   const { device } = options;
   const color = createWebgpuTileAtlas(device, {
@@ -53,6 +54,8 @@ export function createWebgpuTileStreamer(options: {
   const feedback = createWebgpuTileFeedback(device, color.pages.entries + data.pages.entries);
   const reduce = createWebgpuTileReduce(device);
   const counters = createTileCounters();
+  /** Colour textures a pass served a tile of: named once each, however many tiles came. */
+  const colorServed = new Set<number>();
   const sources = createTileSources({
     device,
     readLevel: options.readLevel,
@@ -109,8 +112,9 @@ export function createWebgpuTileStreamer(options: {
       let served = 0,
         waiting = 0,
         bytes = 0,
-        colorServed = false,
         encoder: GPUCommandEncoder | undefined;
+      const evictionsBefore = color.evictions;
+      colorServed.clear();
       const open = () => (encoder ??= device.createCommandEncoder({ label: 'WG texture tiles' }));
       const wanted = requests(frame);
       counters.worked = wanted.length > 0;
@@ -129,7 +133,7 @@ export function createWebgpuTileStreamer(options: {
         else if (verdict === 'served') {
           served++;
           bytes += TILE_BYTES;
-          if (request.atlas === color) colorServed = true;
+          if (request.atlas === color) colorServed.add(request.key.slot);
         }
       }
       if (encoder) device.queue.submit([encoder.finish()]);
@@ -139,7 +143,9 @@ export function createWebgpuTileStreamer(options: {
       counters.pending = waiting;
       counters.bytesLastFrame = bytes;
       counters.lastMs = performance.now() - started;
-      if (colorServed) options.onColorChanged();
+      // An evicted tile is not named: whatever cutout read it must follow, hence everything.
+      if (color.evictions !== evictionsBefore) options.onColorChanged(-1);
+      else for (const slot of colorServed) options.onColorChanged(slot);
       return { served, waiting };
     },
     /** An image's feedback leaves with it: the target where its pixels posted their requests — when a
@@ -161,7 +167,7 @@ export function createWebgpuTileStreamer(options: {
     resize(layers: number) {
       const evicted = color.resize(device, layers) + data.resize(device, layers);
       flushAll();
-      options.onColorChanged();
+      options.onColorChanged(-1);
       return evicted;
     },
     metrics: () => counters.metrics([color, data], sources.levels),

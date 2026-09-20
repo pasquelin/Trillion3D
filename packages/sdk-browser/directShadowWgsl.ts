@@ -1,4 +1,5 @@
-import { LIGHT_SETTINGS, POINT_FACES } from '../sdk-core/index.ts';
+import { LIGHT_SETTINGS, POINT_FACES, SHADOW_PAGE } from '../sdk-core/index.ts';
+import { WRAP_BASE } from './gpuShadowSlicePack.ts';
 
 const POISSON_16 = [
   [-0.94201624, -0.39906216],
@@ -39,6 +40,8 @@ const SHADOW_BIAS:f32=${LIGHT_SETTINGS.shadowDepthBias};
 const SHADOW_SLOPE:f32=${LIGHT_SETTINGS.shadowSlopeBias};
 const SHADOW_SLOPE_MAX:f32=${LIGHT_SETTINGS.shadowSlopeBiasMax};
 const SHADOW_NORMAL_TEXELS:f32=${LIGHT_SETTINGS.shadowNormalOffsetTexels};
+const SHADOW_PAGE:f32=${SHADOW_PAGE}.0;
+const WRAP_BASE:f32=${WRAP_BASE}.0;
 const POISSON:array<vec2f,${LIGHT_SETTINGS.pcfTaps}>=array<vec2f,${LIGHT_SETTINGS.pcfTaps}>(${POISSON_16.map(
   ([x, y]) => `vec2f(${x},${y})`,
 ).join(',')});
@@ -48,14 +51,23 @@ const POISSON:array<vec2f,${LIGHT_SETTINGS.pcfTaps}>=array<vec2f,${LIGHT_SETTING
 fn shadowBiasMetres(cosine:f32)->f32{
  return SHADOW_BIAS+min(SHADOW_SLOPE*sqrt(1.0-cosine*cosine)/cosine,SHADOW_SLOPE_MAX);
 }
-/** Sixteen taps in the face rectangle, offset by a slice texel, never by an atlas texel. */
+/**
+ * Sixteen taps in the face rectangle, offset by a slice texel, never by an atlas texel. The
+ * window coordinate is wrapped onto the face through the key in \`rect.w\`: a cascade map is
+ * addressed by absolute page modulo the face, and its origin sits at physical page
+ * \`(wx, wy)\`. A tap is held at the last texel centre of the window, so a window edge never
+ * wraps to the far side, nor blends with the neighbouring face.
+ */
 fn shadowPcf(entry:ShadowFace,local:vec2f,reference:f32,side:f32)->f32{
  let step=1.0/max(side,1.0);
+ let rows=max(round(side/SHADOW_PAGE),1.0);
+ let key=max(entry.rect.w-1.0,0.0);
+ let wrap=vec2f(key%WRAP_BASE,floor(key/WRAP_BASE))/rows;
  var lit=0.0;
  for(var tap=0u;tap<PCF_TAPS;tap++){
   let offset=POISSON[tap]*step;
-  let inside=clamp(local+offset,vec2f(0.0),vec2f(1.0));
-  let uv=entry.rect.xy+inside*entry.rect.z;
+  let inside=clamp(local+offset,vec2f(0.5*step),vec2f(1.0-0.5*step));
+  let uv=entry.rect.xy+fract(inside+wrap)*entry.rect.z;
   lit+=textureSampleCompareLevel(shadowAtlas,shadowSampler,uv,reference);
  }
  return lit/f32(PCF_TAPS);
