@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-export function usePlaygroundMotion(scenario, setValues) {
+export function usePlaygroundMotion(scenario, setValues, { autoPlay = false } = {}) {
   const [playing, setPlaying] = useState(false),
     frame = useRef(0),
     preset = useRef(0),
@@ -22,9 +22,8 @@ export function usePlaygroundMotion(scenario, setValues) {
       stop();
     };
   }, [scenario, stop]);
-  const toggle = () => {
-    if (playing) return stop();
-    if (motion.current?.matches) return;
+  const start = useCallback(() => {
+    if (motion.current?.matches || document.hidden) return;
     const [name, min, max] = scenario.controls[0];
     const animate = (time) => {
       setValues((values) => ({
@@ -35,7 +34,12 @@ export function usePlaygroundMotion(scenario, setValues) {
     };
     setPlaying(true);
     frame.current = requestAnimationFrame(animate);
-  };
+  }, [scenario, setValues]);
+  useEffect(() => {
+    if (autoPlay) start();
+    return stop;
+  }, [autoPlay, start, stop]);
+  const toggle = () => (playing ? stop() : start());
   const applyPreset = () => {
     stop();
     preset.current = (preset.current + 1) % scenario.presets.length;
