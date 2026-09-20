@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { PassThrough } from 'node:stream';
+import { EventEmitter } from 'node:events';
 import { reviewCutouts } from './cutoutReview.mts';
 import { SHEET_FILE } from './cutoutSheet.mts';
 import { leaf } from './cutoutFixture.mjs';
@@ -17,28 +17,33 @@ async function model(id, textures) {
 
 const sheetOf = async (one) => JSON.parse(await readFile(join(one.cache, SHEET_FILE), 'utf8'));
 
+/** Delivers exactly one key for each read, after that read has installed its listener. */
+function keyboard(keys) {
+  const input = new EventEmitter();
+  let at = 0;
+  input.isRaw = false;
+  input.setRawMode = () => {};
+  input.pause = () => input;
+  input.resume = () => {
+    const key = keys[at++];
+    if (key === undefined) throw new Error('cutout review asked for an unexpected key');
+    queueMicrotask(() => input.emit('data', Buffer.from(key)));
+    return input;
+  };
+  return input;
+}
+
 /**
  * One pass, answered by a keyboard that types on its own: a terminal that collects what was written
  * and a stream of keys delivered one at a time, so a single press is never read as several.
  */
 async function passe(models, keys) {
   const written = [];
-  const input = new PassThrough();
-  input.setRawMode = () => {};
-  let at = 0;
-  const timer = setInterval(() => {
-    if (at < keys.length) input.write(keys[at++]);
-    else clearInterval(timer);
-  }, 5);
-  try {
-    const summary = await reviewCutouts(models, {
-      stream: { isTTY: true, write: (text) => written.push(text) },
-      input,
-    });
-    return { summary, ecran: written.join('') };
-  } finally {
-    clearInterval(timer);
-  }
+  const summary = await reviewCutouts(models, {
+    stream: { isTTY: true, write: (text) => written.push(text) },
+    input: keyboard(keys),
+  });
+  return { summary, ecran: written.join('') };
 }
 
 // Behaviour: off a terminal — a log, an automated chain — nothing is asked. The list is written
