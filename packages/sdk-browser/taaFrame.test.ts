@@ -7,6 +7,7 @@ import {
   dropTaaHistory,
   encodeTaaPass,
   taaRenderMatrix,
+  taaSampledRank,
   taaSettled,
 } from './taaFrame.ts';
 import { TAA_STILL_FRAMES } from './taaJitter.ts';
@@ -45,7 +46,7 @@ function runtime() {
   const rt = {
     gpu: { temporal, targetSize: [64, 32], depthView: { depth: true }, hdrView: { hdr: true } },
     vis: { visView: { ids: true }, pageTable: { pages: true } },
-    run: { diagnostic: 'beauty', gpuDrawCalls: 0, gate: { revisions: { scene: 1 } } },
+    run: { diagnostic: 'beauty', gpuDrawCalls: 0, frame: 0, gate: { revisions: { scene: 1 } } },
     capture: { secondaryCamera: undefined },
   } as unknown as WebgpuPagesRuntime;
   const device = {
@@ -170,4 +171,29 @@ test('a convergence frame replays the last ordinary frame instead of advancing j
   assert.equal(checkpoints, 1, 'and remembers nothing new');
   // The replayed stillness is that of the reference frame, not the one the tiles disturbed.
   assert.equal(temporal.frame.stillFrames, 1);
+});
+
+// Lighting is sampled on a moving image that accumulates, and on no other: a still image
+// converges to the exact sum, an image that does not accumulate must never be noisy.
+test('the sampled rank: moving accumulated frames only, another each frame, replayed', () => {
+  const { rt, temporal, frame } = runtime();
+  assert.equal(taaSampledRank(rt), 0, 'before any frame, nothing is sampled');
+  frame(false);
+  const first = taaSampledRank(rt);
+  assert.ok(first > 0, 'a moving frame samples');
+  rt.run.frame++;
+  frame(false);
+  const second = taaSampledRank(rt);
+  assert.notEqual(second, first, 'the next moving frame draws elsewhere');
+  frame(true);
+  assert.equal(taaSampledRank(rt), 0, 'a still frame shades every light');
+  // A convergence frame replays the rank of the moving frame it remakes.
+  temporal.replay = () => ((temporal.frame.sampledRank = second), false);
+  rt.run.textureConverging = true;
+  frame(false);
+  assert.equal(taaSampledRank(rt), second, 'a replayed frame draws the same lights');
+  rt.run.textureConverging = false;
+  rt.capture.secondaryCamera = {} as never;
+  frame(false);
+  assert.equal(taaSampledRank(rt), 0, 'a capture does not accumulate: nothing is sampled');
 });
