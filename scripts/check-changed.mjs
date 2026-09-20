@@ -11,18 +11,8 @@ const testPattern = /\.test\.(?:ts|mts|mjs)$/;
 const formatPattern = /\.(?:[cm]?js|[cm]?ts|jsx|tsx|json)$/;
 
 function candidates(importer, specifier) {
-  if (specifier.startsWith('@web-geometry/sdk')) {
-    const entry = specifier.slice('@web-geometry/sdk'.length);
-    if (entry === '/core') return ['packages/sdk-core/index.ts'];
-    if (entry === '/browser') return ['packages/sdk-browser/index.ts'];
-    if (entry === '/node') return ['packages/sdk-node/index.mts'];
-    if (!entry)
-      return [
-        'packages/sdk-core/index.ts',
-        'packages/sdk-browser/index.ts',
-        'packages/sdk-node/index.mts',
-      ];
-  }
+  if (specifier === 'web-geometry')
+    return ['packages/sdk/index.ts', 'packages/sdk/browser.ts', 'packages/sdk/node.mts'];
   if (!specifier.startsWith('.')) return [];
   const target = posix.normalize(posix.join(posix.dirname(importer), specifier));
   const stem = target.replace(/\.(?:m?js)$/, '');
