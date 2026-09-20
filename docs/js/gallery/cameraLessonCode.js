@@ -8,7 +8,7 @@ function change(lesson, state) {
 const dx = pose.position[0] - pose.target[0];
 const dz = pose.position[2] - pose.target[2];
 const radius = Math.hypot(dx, dz);
-pose.position = [pose.target[0] + Math.sin(angle) * radius, pose.position[1], pose.target[2] + Math.cos(angle) * radius];`;
+pose.position = [pose.target[0] + Math.sin(angle) * radius, ${state.height ?? 'pose.position[1]'}, pose.target[2] + Math.cos(angle) * radius];`;
 }
 
 export function cameraLessonCode(lesson, state) {

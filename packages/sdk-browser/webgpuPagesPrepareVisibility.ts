@@ -163,6 +163,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       flags: vis.gpuHiz.flags,
       restBits: vis.gpuDraw.restBitsBuffer,
       slotUsed: vis.gpuDraw.slotUsedBuffer,
+      pyramid: () => vis.gpuHiz?.pyramidBuffer(),
     });
     // Compaction of the tested half reads the pyramid verdict and rewrites the instance list draw
     // compaction just posted: it exists only with both.

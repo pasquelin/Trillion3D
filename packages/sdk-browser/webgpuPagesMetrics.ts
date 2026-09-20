@@ -3,6 +3,7 @@ import { disposeBackdrop } from './webgpuTransmission.ts';
 import { dropBlendBuffers } from './webgpuBlendBuffers.ts';
 import { disposeBlendResources } from './webgpuBlendResources.ts';
 import { directLightTimings } from './stageMapping.ts';
+import { taaSampledRank } from './taaFrame.ts';
 import { gpuDeviceLedgerOf } from './gpuDeviceLedger.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -89,6 +90,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     cpuSelectMs: run.cpuSelectMs,
     gpuSelectionFallback: rt.gpu.selectionFallback,
     lightsActive: lights.lightsActive,
+    lightsSampled: lights.lightsActive > 0 && taaSampledRank(rt) > 0,
     shadowsUpdated: lights.shadowsUpdated,
     shadowFacesDrawn: lights.shadowFaces,
     shadowDrawCalls: lights.shadowDrawCalls,
