@@ -1,7 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { copyScaledVector3, crossVector3, dotVector3, lengthSqVector3 } from './mathVector.ts';
+import {
+  addScaledVector3,
+  applyMatrix3Vector3,
+  copyScaledVector3,
+  crossVector3,
+  dotVector3,
+  lengthSqVector3,
+  scaleVector3,
+} from './mathVector.ts';
 import { assertBits } from './bench/oracles/volumes.mjs';
 
 /** Four vectors flat in one buffer, read at an offset: the form the engine's batches use. */
@@ -58,4 +66,39 @@ test('copyScaledVector3 at offsets: written where asked, the same bits as copy(a
       assertBits(out.subarray(6, 9), three(i).multiplyScalar(s).toArray());
       assertBits(out.subarray(0, 6), [...UNTOUCHED, ...UNTOUCHED]);
     }
+});
+
+test('scaleVector3 at an offset: scaled in place where asked, the same bits as v.multiplyScalar(s)', () => {
+  for (let i = 0; i < 4; i++)
+    for (const s of [1.5, -0, NaN, Infinity]) {
+      const out = new Float64Array(9).fill(7);
+      out.set(buffer.subarray(at(i), at(i) + 3), 3);
+      scaleVector3(out, s, 3);
+      assertBits(out.subarray(3, 6), three(i).multiplyScalar(s).toArray());
+      assertBits(out.subarray(0, 3), UNTOUCHED);
+      assertBits(out.subarray(6, 9), UNTOUCHED);
+    }
+});
+
+test('addScaledVector3 at offsets: accumulated where asked, the same bits as out.addScaledVector(a, s)', () => {
+  for (let i = 0; i < 4; i++)
+    for (let j = 0; j < 4; j++) {
+      const out = new Float64Array(9).fill(7);
+      out.set(buffer.subarray(at(i), at(i) + 3), 6);
+      addScaledVector3(out, buffer, -2.5, 6, at(j));
+      assertBits(out.subarray(6, 9), three(i).addScaledVector(three(j), -2.5).toArray());
+      assertBits(out.subarray(0, 6), [...UNTOUCHED, ...UNTOUCHED]);
+    }
+});
+
+test('applyMatrix3Vector3 at an offset: written where asked, the same bits as v.applyMatrix3(m)', () => {
+  const m = new THREE.Matrix3().set(1, 2, 3, -4, 0.5, 6, 7, -8, 1e16);
+  const out = new Float64Array(9).fill(7);
+  for (let i = 0; i < 4; i++) {
+    const v = three(i);
+    applyMatrix3Vector3(out, m.elements, v.x, v.y, v.z, 3);
+    assertBits(out.subarray(3, 6), v.applyMatrix3(m).toArray());
+    assertBits(out.subarray(0, 3), UNTOUCHED);
+    assertBits(out.subarray(6, 9), UNTOUCHED);
+  }
 });
