@@ -87,13 +87,16 @@ export function createFrameGateCore(holdValues: number) {
      * — never per frame, and never after a pose write, which changes no node's membership.
      */
     readScene(source: THREE.Object3D, drawn: FrameGateSources) {
-      if (watchRevision !== revisions.scene) {
+      const observe = () =>
         sceneWatch.observe(source, typeof drawn === 'function' ? drawn() : drawn);
-        watchRevision = revisions.scene;
+      if (watchRevision !== revisions.scene) observe();
+      if (sceneWatch.changed()) {
+        bumpScene(revisions);
+        // The list is rebuilt in this very frame: a node the reshape brought in is hooked before
+        // the host can write it again, so no write falls between the reshape and the rebuild.
+        if (sceneWatch.reshaped()) observe();
       }
-      if (!sceneWatch.changed()) return;
-      bumpScene(revisions);
-      if (!sceneWatch.reshaped()) watchRevision = revisions.scene;
+      watchRevision = revisions.scene;
     },
     /** True when two identical frames followed each other and nothing has moved since. */
     held: () => hold.stable && hold.same(revisions),

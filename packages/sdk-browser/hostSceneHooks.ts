@@ -52,10 +52,12 @@ function hookRotation(node: THREE.Object3D, hook: Hook) {
  * its pose is hooked field by field.
  */
 function hookSetMatrix(node: THREE.Object3D, hook: Hook) {
-  const elements = node.matrix.elements;
-  let held: Float64Array | null = node.matrixAutoUpdate ? null : Float64Array.from(elements);
+  // Read at each write, never captured: the reference lets a host replace the matrix object.
+  let held: Float64Array | null = node.matrixAutoUpdate
+    ? null
+    : Float64Array.from(node.matrix.elements);
   accessor(node, 'matrixAutoUpdate', hook, (auto) => {
-    held = auto ? null : Float64Array.from(elements);
+    held = auto ? null : Float64Array.from(node.matrix.elements);
     bump(hook);
   });
   accessor(
@@ -63,6 +65,7 @@ function hookSetMatrix(node: THREE.Object3D, hook: Hook) {
     'matrixWorldNeedsUpdate',
     hook,
     (raised) => {
+      const elements = node.matrix.elements;
       if (!raised || !held || sameElements(held, elements)) return;
       copyElements(held, elements);
       bump(hook);
