@@ -1,3 +1,5 @@
+import { sceneFillLightCode } from '../sceneFillLight.js';
+
 export const engineExampleCode = `import { createExplorer } from '@web-geometry/sdk/browser';
 
 // HTML: <canvas id="garden" style="width:100%;height:60vh;display:block"></canvas>
@@ -8,6 +10,7 @@ const explorer = await createExplorer('garden', {
   geometryPoolBytes: 16 * 1024 * 1024,
   texturePoolBytes: 128 * 1024 * 1024,
 });
+${sceneFillLightCode()}
 
 // In a component, call dispose() on unmount instead.
 window.addEventListener('pagehide', () => explorer.dispose(), { once: true });`;

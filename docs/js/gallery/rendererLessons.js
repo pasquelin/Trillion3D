@@ -1,6 +1,7 @@
 import { lightingLessonDefinitions, LESSON_POINT_INTENSITY } from './lightingLessonDefinitions.js';
 import { cameraLessonDefinitions } from './cameraLessonDefinitions.js';
 import { offlineLessons } from './offline/lessons.js';
+import { rendererSceneFor } from './rendererSceneAssignments.js';
 const title = (en, fr) => ({ en, fr });
 const control = (id, en, fr, min, max, value, step) => ({
   id,
@@ -27,8 +28,8 @@ export const rendererLessons = [
     ],
     kind: 'point',
     try: title(
-      'Pull the range inside the rear rings.',
-      'Ramenez la portée devant les anneaux arrière.',
+      'Pull the range inside the farthest buildings.',
+      'Ramenez la portée devant les bâtiments les plus éloignés.',
     ),
     changes: title(
       'Pixels beyond the range receive no energy.',
@@ -50,8 +51,8 @@ export const rendererLessons = [
     ],
     kind: 'spot',
     try: title(
-      'Close the cone until it isolates one ring.',
-      'Fermez le cône jusqu’à isoler un anneau.',
+      'Close the cone until it isolates one side of the sculpture.',
+      'Fermez le cône jusqu’à isoler un côté de la sculpture.',
     ),
     changes: title(
       'The public half-angle moves its soft boundary.',
@@ -72,7 +73,10 @@ export const rendererLessons = [
       control('angle', 'Sun angle', 'Angle du soleil', -180, 180, -35, 1),
     ],
     kind: 'directional',
-    try: title('Sweep the sun across the floor.', 'Balayez le sol avec le soleil.'),
+    try: title(
+      'Sweep the sun across the hard edges.',
+      'Balayez les arêtes franches avec le soleil.',
+    ),
     changes: title(
       'Light direction and cascaded shadows rotate together.',
       'La lumière et les ombres en cascades tournent ensemble.',
@@ -111,8 +115,8 @@ export const rendererLessons = [
       'Montez le seuil en observant le nombre de triangles.',
     ),
     changes: title(
-      'The selected DAG cut may become coarser.',
-      'La coupe sélectionnée dans le DAG peut devenir plus grossière.',
+      'The selected DAG cut becomes coarser.',
+      'La coupe sélectionnée dans le DAG devient plus grossière.',
     ),
   },
   {
@@ -135,7 +139,11 @@ export const rendererLessons = [
   ...lightingLessonDefinitions,
   ...cameraLessonDefinitions,
   ...offlineLessons,
-].map((lesson) => ({ ...lesson, renderer: true }));
+].map((lesson) =>
+  lesson.kind === 'offline'
+    ? { ...lesson, renderer: true }
+    : rendererSceneFor({ ...lesson, renderer: true }),
+);
 
 export const rendererLessonById = (id) => rendererLessons.find((lesson) => lesson.id === id);
 export const rendererInitialState = (lesson) =>

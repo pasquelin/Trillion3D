@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFile } from 'node:fs/promises';
 import { rendererLessons, rendererInitialState } from '../docs/js/gallery/rendererLessons.js';
 import { rendererCodeFor } from '../docs/js/gallery/rendererLessonCode.js';
 import { syncRendererState } from '../docs/js/gallery/syncRendererState.js';
@@ -20,9 +21,40 @@ test('every integrated renderer lesson emits complete parseable host code', () =
     assert.match(code, /interactive: true/);
     assert.match(code, /explorer\.dispose\(\)/);
     assert.ok(code.indexOf('await explorer.awaitPages()') < code.indexOf('explorer.render()'));
+    assert.ok(code.includes(lesson.manifest), `${lesson.id} uses its displayed manifest`);
     if (lesson.kind === 'offline') assert.ok(code.includes(lesson.manifest));
-    if (['lod', 'memory'].includes(lesson.kind)) assert.match(code, /importedLights: true/);
+    assert.match(code, new RegExp(`importedLights: ${lesson.importedLights}`));
+    if (lesson.sceneLight) assert.match(code, /id: 'scene'.*kind: 'directional'/);
+    if (lesson.sceneFill) assert.match(code, /id: 'scene-fill'.*castsShadow: false/);
   }
+});
+
+test('live renderer lessons use diverse original scenes and matching captures', () => {
+  const live = rendererLessons.filter((lesson) => lesson.kind !== 'offline');
+  assert.equal(live.length, 15);
+  assert.equal(new Set(live.map(({ manifest }) => manifest)).size, live.length);
+  for (const lesson of live) {
+    assert.match(lesson.manifest, /^\.\/assets\/(gallery\/offline|kinetic-garden)\//);
+    assert.equal(lesson.preview, `./assets/gallery/renderer/${lesson.id}.png`);
+  }
+});
+
+test('the LOD lesson uses a compiled multi-level cache', async () => {
+  const lesson = rendererLessons.find(({ id }) => id === 'runtime-pixel-error');
+  const pointer = JSON.parse(
+    await readFile(new URL(`../docs/${lesson.manifest.slice(2)}`, import.meta.url), 'utf8'),
+  );
+  const manifest = JSON.parse(
+    await readFile(
+      new URL(
+        `../docs/${lesson.manifest.slice(2).replace('manifest.json', pointer.url)}`,
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+  );
+  assert.equal(manifest.simplification, true);
+  assert.equal(manifest.selectedTriangles, 1_152);
 });
 
 test('renderer badges link only to documented API entries', () => {
