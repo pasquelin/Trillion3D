@@ -13,12 +13,17 @@ test('mountain terrain is deterministic with deep relief, strata, and a river', 
     second = mountainTerrain(),
     heights = first.positions.filter((_, index) => index % 3 === 1);
   assert.deepEqual(first, second);
-  assert.equal(first.indices.length / 3, 18624);
+  assert.equal(first.indices.length / 3, 18592);
   assert.deepEqual(
     first.bands.map((band) => band.length > 0),
     [true, true, true, true],
   );
-  assert.equal(first.river.length / 3, 192);
+  assert.equal(first.river.length / 3, 160);
+  const riverVertices = [...new Set(first.river)].map((index) =>
+    first.positions.slice(index * 3, index * 3 + 3),
+  );
+  assert.ok(Math.min(...riverVertices.map(([, , z]) => z)) > -5.1);
+  assert.ok(Math.max(...riverVertices.map(([, , z]) => z)) < 5.1);
   assert.ok(Math.max(...heights) - Math.min(...heights) > 4.5);
   assert.ok(heights.some((height) => height > 2.4));
   assert.ok(heights.some((height) => height < -0.5));
@@ -44,8 +49,8 @@ test('published mountain cache preserves source triangles and hierarchy', async 
   const directory = resolve(published, 'cache/native/full'),
     pointer = JSON.parse(await readFile(resolve(directory, 'manifest.json'), 'utf8')),
     manifest = JSON.parse(await readFile(resolve(directory, pointer.url), 'utf8'));
-  assert.equal(manifest.sourceTriangles, 18624);
-  assert.equal(manifest.selectedTriangles, 18624);
+  assert.equal(manifest.sourceTriangles, 18592);
+  assert.equal(manifest.selectedTriangles, 18592);
   assert.equal(manifest.primitives.length, 5);
   assert.equal(manifest.scenePlugin.name, 'gltf');
 });
