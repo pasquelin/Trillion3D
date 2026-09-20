@@ -126,7 +126,10 @@
   on one branch.
 - **Issue lifecycle labels make ongoing work visible.** As soon as the worktree is created, mark
   the issue in progress (`gh issue edit <issue> --add-label "in progress"`). When the pull request
-  is opened, switch it to `in review` (`gh issue edit <issue> --remove-label "in progress" --add-label "in review"`).
+  is opened, replace `in progress` with `in review`. After merge, remove `in review` and close the
+  issue when cleaning up the worktree: merging into `develop` does not close it automatically.
+  If the pull request is closed without merging, remove both labels; add `in progress` again only
+  if implementation continues. The coder role gives the commands for each transition.
 - **The release is a pull request like any other.** `develop` reaches `main` through its own
   issue and its own pull request, body on the same template and starting with `Closes #<issue>`,
   merged once `validate` is green; its head is `develop` itself, so no branch is cut for it and
