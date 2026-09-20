@@ -438,8 +438,9 @@ declared lights stays on a null albedo, no light of the pass's own. The copy sha
 depth buffer, target encoding and tone mapping, and reaches captures, comparison targets and held
 frames through the same owner; `autonomousCopyDraws` counts it per frame and
 `transmissionBackdropBytes` publishes the two copies' cost, zero without a transmissive surface.
-The second cluster pass is the cost of the backdrop, paid only by a frame that carries one, as
-the reference renderer pays its transmission target. The backdrop is a plain copy: roughness does
+The second cluster pass is the cost of the backdrop, paid only by a frame with a transmissive
+copy in view — copies are frustum-tested like the host renderer tests them — as the reference
+renderer pays its transmission target. The backdrop is a plain copy: roughness does
 not blur what comes through, and one transmissive surface does not see through another.
 
 There is no other renderer for paged clusters. A scene whose material, light or texture the
