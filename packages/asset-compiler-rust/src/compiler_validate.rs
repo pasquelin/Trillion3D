@@ -29,15 +29,26 @@ pub(super) fn hash(b: &[u8]) -> String {
     format!("{:x}", Sha256::digest(b))
 }
 pub(super) fn hash_file(p: &Path) -> Result<String> {
-    Ok(hash_file_tail(p)?.0)
+    Ok(hash_file_read(p)?.0)
 }
 /// File fingerprint and last byte, from a single read pass: a caller wanting to
 /// know how file ends does not have to re-open it afterwards. `None` for empty file.
 pub(super) fn hash_file_tail(p: &Path) -> Result<(String, Option<u8>)> {
+    let (sha256, last, _) = hash_file_read(p)?;
+    Ok((sha256, last))
+}
+/// File fingerprint and size from the same pass: a proof of thousands of objects
+/// does not stat each one after reading it.
+pub(super) fn hash_file_sized(p: &Path) -> Result<(String, u64)> {
+    let (sha256, _, bytes) = hash_file_read(p)?;
+    Ok((sha256, bytes))
+}
+fn hash_file_read(p: &Path) -> Result<(String, Option<u8>, u64)> {
     let mut f = File::open(p)?;
     let mut h = Sha256::new();
     let mut block = [0u8; 65536];
     let mut last = None;
+    let mut bytes = 0u64;
     loop {
         let n = f.read(&mut block)?;
         if n == 0 {
@@ -45,8 +56,9 @@ pub(super) fn hash_file_tail(p: &Path) -> Result<(String, Option<u8>)> {
         }
         h.update(&block[..n]);
         last = Some(block[n - 1]);
+        bytes += n as u64;
     }
-    Ok((format!("{:x}", h.finalize()), last))
+    Ok((format!("{:x}", h.finalize()), last, bytes))
 }
 pub(super) fn is_safe_source_name(name: &str) -> bool {
     !name.is_empty()
