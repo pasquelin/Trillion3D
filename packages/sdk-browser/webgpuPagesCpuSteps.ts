@@ -7,7 +7,6 @@ import {
 } from './frameCostAudit.ts';
 import type { HostCpuStep } from './hostCpuProfile.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
-import { countShadowOccluders } from './webgpuShadowOccluders.ts';
 
 /**
  * CPU bounds of an image, in order: for each, its public name and the profile stage it deposits
@@ -76,7 +75,9 @@ function recordStages(rt: WebgpuPagesRuntime) {
   // this image, `pagesRedessinees` what the kept regions cover, `pagesEnAttente` what the budget
   // left for later, and `retardMaxMs` the wait of the oldest page in that queue.
   const { counts } = lights.plan;
-  const occluders = countShadowOccluders(lights, rt.layout.rows.packedCount);
+  // What the region culls kept, sampled on the device one frame in fifteen: the frame it
+  // describes is named, and until a sample has returned there is no count at all.
+  const culled = lights.cull?.counts.counts();
   stages.setCounts('shadows', {
     lampesRedessinees: lights.shadowsUpdated,
     cartesReutilisees: counts.reused,
@@ -90,8 +91,13 @@ function recordStages(rt: WebgpuPagesRuntime) {
     pagesEnAttente: counts.pendingPages,
     retardMaxMs: counts.waitedMs,
     retardMaxImages: counts.waitedFrames,
-    occludeursTestes: occluders.tested,
-    occludeursGardes: occluders.kept,
+    ...(culled
+      ? {
+          occludeursGardes: culled.kept,
+          regionsRelevees: culled.regions,
+          imageRelevee: culled.frame,
+        }
+      : {}),
   });
   stages.setCounts('lightLists', { lampesActives: lights.lightsActive });
   // The sun's far shadow: counts sampled one image in fifteen, never a duration. Its ray is traced
