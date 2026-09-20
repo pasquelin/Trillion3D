@@ -8,7 +8,6 @@ import type {
 } from '../sdk-core/index.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import type { BackendMetrics } from './backendMetricKeys.ts';
-
 export type { BackendCapabilities };
 
 export interface RenderBackend {

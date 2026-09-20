@@ -105,28 +105,18 @@ export async function mesurerThree(options, preparer) {
   const attendre = () => gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, unPixel);
   for (let i = 0; i < options.warmup; i++) renderer.render(scene, camera);
   attendre();
-  const cpuFrameMs = [],
-    syncFrameMs = [];
+  const cpuFrameMs = [];
+  const rafIntervalMs = [];
+  let previousRaf = null;
   for (let i = 0; i < options.frames; i++) {
+    const now = await new Promise((done) => requestAnimationFrame(done));
+    if (previousRaf !== null && i > 2) rafIntervalMs.push(now - previousRaf);
+    previousRaf = now;
     moveLight(i);
     poser(poseAt(i));
     const t = performance.now();
     renderer.render(scene, camera);
     cpuFrameMs.push(performance.now() - t);
-    attendre();
-    syncFrameMs.push(performance.now() - t);
-  }
-  // Real cadence: one frame per rAF, like an application; capped by the display. The
-  // first two intervals absorb the queue left by the measured loop and are not recorded.
-  const rafIntervalMs = [];
-  let previous = null;
-  for (let i = 0; i < options.profileFrames; i++) {
-    moveLight(i);
-    poser(poseAt(i));
-    renderer.render(scene, camera);
-    const now = await new Promise((done) => requestAnimationFrame(done));
-    if (previous !== null && i > 2) rafIntervalMs.push(now - previous);
-    previous = now;
   }
   poser(current);
   renderer.render(scene, camera);
@@ -164,7 +154,7 @@ export async function mesurerThree(options, preparer) {
     cpuFrameMs,
     cpuSelectMs: [],
     gpuFrameMs: [],
-    syncFrameMs,
+    syncFrameMs: [],
     rafIntervalMs,
     importedLights: null,
     lampesTemoin: { nombre: lampes.size, ombres: shadows, ids: [...lampes.keys()], nu: true },

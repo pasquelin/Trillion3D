@@ -364,15 +364,20 @@ levels on both implementations (owned 51 to 45; witness 53 to 47), and silhouett
 every frame. This proves the tested spatial and motion stability; it does not claim temporal quality
 for every material or camera path.
 
+The independent full-surface fixture uses the same 32×16 tessellated sphere and a test-only glTF
+Fresnel-mix BRDF (§B.3.5), rendered at 8× and box-resolved to 128 px after decoding the quantised
+sRGB samples to linear light and re-encoding the average. Its five-pose 4× to 8× convergence is RMS
+0.135 and maximum 4 channel levels. Across the same five subpixel poses, owned spatial error is RMS
+1.338/max 24 against the common oracle, versus 2.107/max 40 for the witness; temporal-difference
+error is 1.148/max 36 versus 1.461/max 47. The oracle is independent of both production programs.
+OPAQUE ignores source alpha and surviving MASK fragments write alpha one, as required by glTF.
+
 On the 1 px Emerald street path at 1280×720 and DPR 1, with one 40-intensity point light, shadows
 off, 20 warm-up frames and 60 moving-camera frames, the final candidate measured median CPU frame
-times of 5.6, 5.6 and 5.6 ms against 5.6, 5.5 and 5.7 ms for the temporary adapter: both medians are
-5.6 ms. The three A/A repeats measured 5.5, 5.7 and 6.2 ms. All six owned captures have the same PNG
-hash. GPU timestamp samples and rAF interval were unavailable, so `gpuImageMs` is not used as a
-duration or as evidence. Avoiding absent texture samples, sharing the packed metallic-roughness read,
-and uploading the bounded lights through a uniform block removed the earlier measured regression
-without changing the captured image. This establishes equal whole-frame performance for this path,
-not a general speed claim.
+submission-burst CPU readings were 5.6/5.6/5.6 ms against 5.6/5.5/5.7 ms for the temporary adapter.
+They led to the texture and bounded-light reductions described above, but are not a frame-performance
+verdict because that old loop did not yield to the browser. The final campaign uses one moving render
+per `requestAnimationFrame`; its interval and dispersion are reported separately below once measured.
 
 **Memory budgets are fixed reservoirs, as in the reference, never read from the machine.** Free memory changes every second — another application, another tab —, so a budget measured at start-up would be wrong five minutes later. The WebGPU engine keeps two byte-sized pools, both host-set and both defaulting to 512 MiB like `r.Nanite.Streaming.StreamingPoolSize`: `geometryPoolBytes` (cluster page slots: `floor(bytes / pageBytes)` slots, the root cover always resident) and `texturePoolBytes` (virtual-texture tiles, split between the colour and data atlases in 63.5 MiB layers, every texture's tail always resident). What a view asks beyond a pool is shown coarser — the cut raises its screen error until the cover fits (`coverageBudgetLimited`), a tile shows its coarser level — and nothing is refused, nothing stops. A value that cannot be held as given is brought to what can be and the reason is published: `geometryPoolClamp` / `texturePoolClamp` read `root-cover` (raised to the root cover), `scene` (the scene is smaller), `page-cap` (`maxResidentPages`, the page-count cap tests and benches use), `minimum` (one layer per atlas), `device-limit`, `ceiling`, or `null`. `geometryPoolSaturated` counts the pages the image holds — root cover, cut and drawn ancestors — beyond the pool's slots; zero is normal, a lasting count says the pool is too small for that view, and the cut coarsens until it fits. The only true refusal is `GEOMETRY_POOL_DEVICE_LIMIT`: the device cannot hold even the root cover.
 
