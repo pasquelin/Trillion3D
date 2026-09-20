@@ -6,14 +6,14 @@ carry a colour profile. The golden
 `src/plugins/tests/png.rs` feeds them to the image registry and compares the result against a reference
 written in the clear in the test.
 
-| file            | colour type     | depth                   | what it puts under watch                                                              |
-| --------------- | --------------- | ----------------------- | ------------------------------------------------------------------------------------- |
-| `rgb8.png`      | 2 (RGB)         | 8 bits per channel      | the common case: decoded, alpha filled to 255, pixels unchanged                       |
-| `palette4.png`  | 3 (palette)     | 4 bits, 24-bit palette  | under eight bits the expansion to RGBA8 copies, it loses nothing                      |
-| `rgb16.png`     | 2 (RGB)         | 16 bits per channel     | refused under `image-depth-unsupported`, before any decoding                          |
-| `anime.png`     | 2 (RGB)         | 8 bits, two frames      | APNG: the default image comes out, the animation is counted under `image-animation-first-frame` |
-| `icc-autre.png` | 2 (RGB)         | 8 bits, `iCCP` chunk    | a profile that is not the output's: counted under `image-icc-profile-ignored`         |
-| `icc-srgb.png`  | 2 (RGB)         | 8 bits, `iCCP` chunk    | a profile that names itself sRGB: nothing to convert, nothing to count                |
+| file            | colour type | depth                  | what it puts under watch                                                                        |
+| --------------- | ----------- | ---------------------- | ----------------------------------------------------------------------------------------------- |
+| `rgb8.png`      | 2 (RGB)     | 8 bits per channel     | the common case: decoded, alpha filled to 255, pixels unchanged                                 |
+| `palette4.png`  | 3 (palette) | 4 bits, 24-bit palette | under eight bits the expansion to RGBA8 copies, it loses nothing                                |
+| `rgb16.png`     | 2 (RGB)     | 16 bits per channel    | refused under `image-depth-unsupported`, before any decoding                                    |
+| `anime.png`     | 2 (RGB)     | 8 bits, two frames     | APNG: the default image comes out, the animation is counted under `image-animation-first-frame` |
+| `icc-autre.png` | 2 (RGB)     | 8 bits, `iCCP` chunk   | a profile that is not the output's: counted under `image-icc-profile-ignored`                   |
+| `icc-srgb.png`  | 2 (RGB)     | 8 bits, `iCCP` chunk   | a profile that names itself sRGB: nothing to convert, nothing to count                          |
 
 The drawing is the same everywhere: red, green on the top row, blue, yellow on the bottom. The two
 readable fixtures must therefore yield exactly the same four pixels — that is the proof that bit depth
@@ -65,13 +65,13 @@ run over them during development, read in place, never modified. Only one file c
 behaviour, the one the decision targeted; the other four yield what their colour type
 announces:
 
-| file               | colour type     | depth      | verdict                           |
-| ------------------ | --------------- | ---------- | --------------------------------- |
-| `rgb8.png`         | 2 (RGB)         | 8 bits     | decoded                           |
-| `rgba8-binary.png` | 6 (RGBA)        | 8 bits     | decoded, alpha kept               |
-| `palette.png`      | 3 (palette)     | 8 bits     | decoded                           |
-| `gray.png`         | 0 (grey)        | 8 bits     | decoded                           |
-| `rgb16.png`        | 2 (RGB)         | 16 bits    | refused, `image-depth-unsupported` |
+| file               | colour type | depth   | verdict                            |
+| ------------------ | ----------- | ------- | ---------------------------------- |
+| `rgb8.png`         | 2 (RGB)     | 8 bits  | decoded                            |
+| `rgba8-binary.png` | 6 (RGBA)    | 8 bits  | decoded, alpha kept                |
+| `palette.png`      | 3 (palette) | 8 bits  | decoded                            |
+| `gray.png`         | 0 (grey)    | 8 bits  | decoded                            |
+| `rgb16.png`        | 2 (RGB)     | 16 bits | refused, `image-depth-unsupported` |
 
 They are not committed here: one hundred and forty kilobytes for pixels that cannot be written
 in the clear do not make a minimal fixture, and the `test/assets/` folder is shipped off git.

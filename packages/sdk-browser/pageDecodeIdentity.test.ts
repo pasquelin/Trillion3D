@@ -86,7 +86,10 @@ test('a page truncated after its header refuses GEOMETRY_PAGE_BOUNDS on the thre
     POSITION: { itemSize: 3, array: new Float32Array([1, 2, 3, 4, 5, 6, 7, 8, 9]) },
   });
   const tronquee = (data as Uint8Array).slice(0, 96 + 4); // accepted header, body cut.
-  await assert.rejects(async () => decodeGeometryPage(tronquee.slice(), MAX), /GEOMETRY_PAGE_BOUNDS/);
+  await assert.rejects(
+    async () => decodeGeometryPage(tronquee.slice(), MAX),
+    /GEOMETRY_PAGE_BOUNDS/,
+  );
   await assert.rejects(() => decodeGeometryPageWasm(tronquee.slice(), MAX), /GEOMETRY_PAGE_BOUNDS/);
   const { answer } = await runPageDecodeTask({
     protocol: PAGE_DECODE_PROTOCOL,

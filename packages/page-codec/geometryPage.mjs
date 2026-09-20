@@ -5,12 +5,13 @@
  * It quantizes on the same grids — a primitive position exponent, a fixed texture grid of 2^-16,
  * octahedral normal bytes, colour bytes — and packs the same streams, without sharing a line.
  */
+import { bitsFor, octEncode, Packer, quantize } from './pageGrids.mjs';
+
 const MAGIC = 0x33504757,
   VERSION = 3,
   HEADER_WORDS = 24,
   UV_EXPONENT = -14,
-  COLOR_EXPONENT = -8,
-  MAX_BITS = 24;
+  COLOR_EXPONENT = -8;
 /** Source attribute, presence bit and the field of the page cell it fills. */
 const ATTRIBUTES = [
   ['NORMAL', 3, 1],
@@ -18,63 +19,6 @@ const ATTRIBUTES = [
   ['TEXCOORD_1', 2, 4],
   ['COLOR_0', 4, 8],
 ];
-
-const bitsFor = (range) => (range <= 0 ? 0 : Math.floor(Math.log2(range)) + 1);
-
-/** Integer cells of `n`-wide vectors on a power-of-two grid, and the record that describes them. */
-function quantize(values, n, exponent) {
-  const count = values.length / n;
-  for (;;) {
-    const step = 2 ** exponent,
-      lo = new Array(n).fill(Infinity),
-      hi = new Array(n).fill(-Infinity),
-      cells = [];
-    for (let i = 0; i < count; i++)
-      for (let c = 0; c < n; c++) {
-        const cell = Math.round(values[i * n + c] / step);
-        cells.push(cell);
-        lo[c] = Math.min(lo[c], cell);
-        hi[c] = Math.max(hi[c], cell);
-      }
-    const bits = lo.map((low, c) => (count ? bitsFor(hi[c] - low) : 0));
-    if (bits.some((b) => b > MAX_BITS)) {
-      if (exponent >= 64) throw new Error('PAGE_ATTRIBUTE_RANGE');
-      exponent++;
-      continue;
-    }
-    const min = lo.map((low) => (count ? Math.fround(low * step) : 0));
-    for (let i = 0; i < cells.length; i++) cells[i] -= lo[i % n];
-    return { min, exponent, bits, cells };
-  }
-}
-
-/** Octahedral bytes of a normal, `x` low and `y` high; a zero normal takes `+z`. */
-function octEncode(x, y, z) {
-  const sum = Math.abs(x) + Math.abs(y) + Math.abs(z);
-  if (!sum) return 128 | (128 << 8);
-  let px = x / sum,
-    py = y / sum;
-  if (z < 0) [px, py] = [(1 - Math.abs(py)) * Math.sign(px || 1), (1 - Math.abs(px)) * Math.sign(py || 1)];
-  const byte = (v) => Math.max(0, Math.min(255, Math.round((v + 1) * 127.5)));
-  return byte(px) | (byte(py) << 8);
-}
-
-/** Bit streams, least significant bit first, each starting on a fresh word. */
-class Packer {
-  words = [];
-  bit = 0;
-  stream(values, bits) {
-    for (const value of values) {
-      if (!bits) continue;
-      const shift = this.bit % 32;
-      if (!shift) this.words.push(0);
-      this.words[this.words.length - 1] = (this.words[this.words.length - 1] | (value << shift)) >>> 0;
-      if (shift + bits > 32) this.words.push(value >>> (32 - shift));
-      this.bit += bits;
-    }
-    this.bit = this.words.length * 32;
-  }
-}
 
 /**
  * Encodes one page from source indices and `{ array, itemSize }` attributes (`POSITION`
@@ -115,12 +59,22 @@ export function encodeGeometryPage(sourceIndices, attributes, positionExponent =
     return out;
   };
   const positions = quantize(gather(position, 3), 3, positionExponent);
-  const cells = original.map((_, i) => ({ p: positions.cells.slice(i * 3, i * 3 + 3), n: 0, uv: [[], []], c: [] }));
+  const cells = original.map((_, i) => ({
+    p: positions.cells.slice(i * 3, i * 3 + 3),
+    n: 0,
+    uv: [[], []],
+    c: [],
+  }));
   let error = 0;
   original.forEach((_, i) => {
     let d = 0;
     for (let c = 0; c < 3; c++)
-      d += (Math.fround(positions.min[c] + Math.fround(positions.cells[i * 3 + c] * 2 ** positions.exponent)) - position.array[original[i] * 3 + c]) ** 2;
+      d +=
+        (Math.fround(
+          positions.min[c] + Math.fround(positions.cells[i * 3 + c] * 2 ** positions.exponent),
+        ) -
+          position.array[original[i] * 3 + c]) **
+        2;
     error = Math.max(error, Math.sqrt(d));
   });
   const uvRecords = [null, null];
@@ -128,13 +82,23 @@ export function encodeGeometryPage(sourceIndices, attributes, positionExponent =
   for (const [name, size, bit] of ATTRIBUTES) {
     const attr = attributes[name];
     if (!attr) continue;
-    if ((attr.itemSize !== size && !(name === 'COLOR_0' && attr.itemSize === 3)) || attr.array.length !== count * attr.itemSize)
+    if (
+      (attr.itemSize !== size && !(name === 'COLOR_0' && attr.itemSize === 3)) ||
+      attr.array.length !== count * attr.itemSize
+    )
       throw new Error('PAGE_ATTRIBUTE_INVALID: ' + name);
     flags |= bit;
     const values = gather(attr, size);
-    if (bit === 1) cells.forEach((cell, i) => (cell.n = octEncode(values[i * 3], values[i * 3 + 1], values[i * 3 + 2])));
+    if (bit === 1)
+      cells.forEach(
+        (cell, i) => (cell.n = octEncode(values[i * 3], values[i * 3 + 1], values[i * 3 + 2])),
+      );
     else if (bit === 8) {
-      colorRecord = quantize(values.map((v) => Math.max(0, Math.min(1, v))), 4, COLOR_EXPONENT);
+      colorRecord = quantize(
+        values.map((v) => Math.max(0, Math.min(1, v))),
+        4,
+        COLOR_EXPONENT,
+      );
       cells.forEach((cell, i) => (cell.c = colorRecord.cells.slice(i * 4, i * 4 + 4)));
     } else {
       const set = bit === 2 ? 0 : 1,
@@ -151,12 +115,33 @@ export function encodeGeometryPage(sourceIndices, attributes, positionExponent =
     return rank.get(key);
   });
   const pack = new Packer();
-  pack.stream(corners.map((id) => remap[id]), bitsFor(unique.length - 1));
-  for (let c = 0; c < 3; c++) pack.stream(unique.map((cell) => cell.p[c]), positions.bits[c]);
-  if (flags & 1) pack.stream(unique.map((cell) => cell.n), 16);
+  pack.stream(
+    corners.map((id) => remap[id]),
+    bitsFor(unique.length - 1),
+  );
+  for (let c = 0; c < 3; c++)
+    pack.stream(
+      unique.map((cell) => cell.p[c]),
+      positions.bits[c],
+    );
+  if (flags & 1)
+    pack.stream(
+      unique.map((cell) => cell.n),
+      16,
+    );
   for (const set of [0, 1])
-    if (uvRecords[set]) for (let c = 0; c < 2; c++) pack.stream(unique.map((cell) => cell.uv[set][c]), uvRecords[set].bits[c]);
-  if (flags & 8) for (let c = 0; c < 4; c++) pack.stream(unique.map((cell) => cell.c[c]), colorRecord.bits[c]);
+    if (uvRecords[set])
+      for (let c = 0; c < 2; c++)
+        pack.stream(
+          unique.map((cell) => cell.uv[set][c]),
+          uvRecords[set].bits[c],
+        );
+  if (flags & 8)
+    for (let c = 0; c < 4; c++)
+      pack.stream(
+        unique.map((cell) => cell.c[c]),
+        colorRecord.bits[c],
+      );
   const data = new Uint8Array((HEADER_WORDS + pack.words.length) * 4),
     head = new DataView(data.buffer);
   const record = (at, q, n, exponent) => {
@@ -165,7 +150,9 @@ export function encodeGeometryPage(sourceIndices, attributes, positionExponent =
     head.setUint32(at * 4, word >>> 0, true);
     for (let c = 0; c < n; c++) head.setFloat32((at + 1 + c) * 4, q?.min[c] ?? 0, true);
   };
-  [MAGIC, VERSION, unique.length, corners.length, flags].forEach((word, i) => head.setUint32(i * 4, word, true));
+  [MAGIC, VERSION, unique.length, corners.length, flags].forEach((word, i) =>
+    head.setUint32(i * 4, word, true),
+  );
   record(5, positions, 3, positionExponent);
   record(9, uvRecords[0], 2, UV_EXPONENT);
   record(12, uvRecords[1], 2, UV_EXPONENT);

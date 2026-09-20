@@ -108,10 +108,7 @@ impl Header {
         if data.len() < HEADER_BYTES {
             return Err(PageError::Header);
         }
-        let w: Vec<u32> = data[..HEADER_BYTES]
-            .chunks_exact(4)
-            .map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
-            .collect();
+        let w: Vec<u32> = words(&data[..HEADER_BYTES]);
         if w[0] != MAGIC || w[1] != VERSION {
             return Err(PageError::Version);
         }
@@ -151,14 +148,20 @@ impl Header {
     }
 }
 
+/// Little-endian words of a byte slice whose length is a multiple of four.
+fn words(bytes: &[u8]) -> Vec<u32> {
+    bytes
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|b| u32::from_le_bytes(*b))
+        .collect()
+}
+
 /// A complete page, its streams unpacked and dequantized: the same buffers as `decodeGeometryPage`.
 pub fn decode(data: &[u8], max_decoded_bytes: usize) -> Result<DecodedPage, PageError> {
     let header = Header::parse(data, max_decoded_bytes)?;
-    let words: Vec<u32> = data[HEADER_BYTES..]
-        .chunks_exact(4)
-        .map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
-        .collect();
-    attributes::split(&words, &header)
+    attributes::split(&words(&data[HEADER_BYTES..]), &header)
 }
 
 #[cfg(test)]

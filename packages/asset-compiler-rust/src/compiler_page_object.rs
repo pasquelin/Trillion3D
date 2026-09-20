@@ -42,7 +42,9 @@ pub(super) fn quantization_report(pages: &[Value], position_exponent: i32) -> Va
     let worst = pages
         .iter()
         .filter_map(|page| page["geometry"]["quantizationError"].as_f64())
-        .fold(None, |worst: Option<f64>, error| Some(worst.map_or(error, |w| w.max(error))));
+        .fold(None, |worst: Option<f64>, error| {
+            Some(worst.map_or(error, |w| w.max(error)))
+        });
     json!({
         "positionExponent": position_exponent,
         "positionStep": f64::from(web_geometry_page_codec::bits::pow2(position_exponent)),
