@@ -1,3 +1,4 @@
+import { offlineExamples } from '../../js/gallery/offline/catalog.js';
 const matches = [
   [/quaternion/, 'quaternion-turn'],
   [/normal/, 'normal-transform'],
@@ -17,6 +18,26 @@ const matches = [
 ];
 
 export function relatedReadyLesson(entry) {
+  const reference = offlineReference(entry);
+  if (reference) return reference.lesson.id;
   const searchable = `${entry.id} ${entry.subject} ${entry.supplementaryTopic} ${entry.title.en}`;
   return matches.find(([pattern]) => pattern.test(searchable))?.[1];
+}
+
+export function offlineReference(entry) {
+  const lesson = offlineExamples.find((candidate) => candidate.referenceIds.includes(entry.id));
+  if (!lesson) return undefined;
+  return { lesson, coverage: lesson.referenceCoverage[entry.id] };
+}
+
+export function galleryRoadmapEntry(entry) {
+  const reference = offlineReference(entry);
+  if (reference?.coverage !== 'full') return entry;
+  return {
+    ...entry,
+    status: 'ready',
+    readyLessonId: reference.lesson.id,
+    renderer: true,
+    preview: reference.lesson.preview,
+  };
 }
