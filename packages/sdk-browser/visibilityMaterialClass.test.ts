@@ -1,12 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  CLASS_MAP,
-  CLASS_MASK,
-  CLASS_NORMAL_MAP,
-  CLASS_ROUGH,
-  CLASS_UV,
-  CLASS_VERTEX_NORMAL,
+  CLASS_FEATURE,
   MATERIAL_CLASS_KEYS,
   MATERIAL_CLASS_WGSL,
   materialClassConstants,
@@ -24,16 +19,17 @@ import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { createWebgpuShadePipelines } from './webgpuVisibilityPipelines.ts';
 
 const noMaps = { rough: 0, metal: 0, ao: 0, emissive: 0, normal: 0 };
+const { HAS_UV, HAS_MAP, HAS_MASK, HAS_ROUGH, HAS_NORMAL_MAP, HAS_VERTEX_NORMAL } = CLASS_FEATURE;
 
 test('a class key carries the resolve features of a row, and nothing a class does not branch on', () => {
   assert.equal(materialClassKey(0, noMaps), 0);
   assert.equal(
     materialClassKey(FLAG_HAS_UV | FLAG_HAS_MAP | FLAG_MASK, noMaps),
-    CLASS_UV | CLASS_MAP | CLASS_MASK,
+    HAS_UV | HAS_MAP | HAS_MASK,
   );
   assert.equal(
     materialClassKey(FLAG_HAS_NORMAL, { ...noMaps, rough: 3, normal: 2 }),
-    CLASS_VERTEX_NORMAL | CLASS_ROUGH | CLASS_NORMAL_MAP,
+    HAS_VERTEX_NORMAL | HAS_ROUGH | HAS_NORMAL_MAP,
   );
   // Lit, back-side and the row's other bits select a value in the shader; they do not branch.
   assert.equal(materialClassKey(1 | 256 | 512 | 4096, noMaps), 0);
@@ -63,7 +59,7 @@ test('the resolve shader tests class overrides, never the page flags, for what a
     MATERIAL_CLASS_WGSL.match(/override [A-Z_]+:bool=\(CLASS_KEY&\d+u\)!=0u;/g)?.length,
     11,
   );
-  assert.deepEqual(materialClassConstants(CLASS_UV | CLASS_MAP), { CLASS_KEY: 3 });
+  assert.deepEqual(materialClassConstants(HAS_UV | HAS_MAP), { CLASS_KEY: 3 });
 });
 
 test('the resolve compiles one pipeline per class under equal depth, after the depth export', async () => {
