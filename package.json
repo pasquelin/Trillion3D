@@ -4,6 +4,7 @@
   "packageManager": "pnpm@11.16.0",
   "type": "module",
   "private": true,
+  "sideEffects": false,
   "license": "PolyForm-Noncommercial-1.0.0",
   "exports": {
     ".": {
@@ -30,17 +31,13 @@
   "files": [
     "dist",
     "types",
-    "packages/asset-compiler-rust/Cargo.toml",
-    "packages/asset-compiler-rust/Cargo.lock",
-    "packages/asset-compiler-rust/src",
     "README.md",
     "docs/SDK.md",
     "LICENSE",
     "packages/README.md"
   ],
   "scripts": {
-    "prepare": "[ -n \"$CI\" ] || ! git rev-parse --is-inside-work-tree >/dev/null 2>&1 || git config core.hooksPath .githooks",
-    "preinstall": "node scripts/only-pnpm.mjs",
+    "pnpm:devPreinstall": "node scripts/setup-development.mjs",
     "build": "tsc -p tsconfig.json && node scripts/rewrite-dts-extensions.mjs && node scripts/copy-resources.mjs && node scripts/write-build-provenance.mjs",
     "build:native": "cargo build --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml",
     "build:wasm": "node scripts/build-wasm.mjs",
@@ -64,6 +61,7 @@
     "graphify:libelles": "node scripts/graphify-libelles.mjs",
     "check:dts": "node scripts/rewrite-dts-extensions.mjs --check",
     "check:docs-demo": "node scripts/docs-demo-bundle.mjs --check",
+    "proof:package": "node scripts/prove-installed-package.mjs",
     "perf:browser": "node --experimental-strip-types --test --test-concurrency=1 packages/sdk-browser/bench/*.perf.mjs",
     "perf:core": "node --experimental-strip-types --test --test-concurrency=1 packages/sdk-core/bench/*.perf.mjs",
     "perf:all": "node --experimental-strip-types --test --test-concurrency=1 packages/*/bench/*.perf.mjs && node scripts/mesure/perf/agrege.mjs",
