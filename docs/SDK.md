@@ -57,7 +57,72 @@ FBX/OBJ sources are first imported into `<cache>/native/imports/<key>/` as `mode
 
 ## Browser explorer
 
-`createExplorer(canvas, { manifestUrl, scope, width, height, fov, pixelRatio, maxResidentPages, pageFetchWorkers, replicaCount, backends, pixelError, preload, comparisonLayout, comparisonPair, gpu, pointsOfInterest, ... })` owns neither the animation loop nor the canvas. Call `dispose()` when finished; hosted Orbit/Fly controls created through the explorer are disposed with it. The default camera is framed from the loaded bounding box (`near = radius / 10000`, no absolute floor). `pointsOfInterest()` returns that home pose; extra named poses come from the host `pointsOfInterest` option, not from the SDK. `pixelError` (default `0`) keeps the exact leaves; a positive threshold selects coarse QEM pages when the cache includes them. `preload: 'visible'` (default) streams detail for the current camera; WebGPU first loads a complete, camera-independent root cover before explorer creation resolves; `preload: 'all'` restores the previous eager load. `awaitPages()` must be called before the first official image when using the visible preload. Comparison layouts (`single`, `side-by-side`, `wipe`, `toggle`, `difference`) render backends A and B to detached targets with the same camera; they are not an official performance verdict.
+### Simple browser startup
+
+```html
+<canvas id="viewer" style="width:100%;height:70vh;display:block"></canvas>
+```
+
+```javascript
+import { createExplorer } from '@web-geometry/sdk/browser';
+
+const explorer = await createExplorer('viewer', {
+  manifestUrl: '/cache/city/manifest.json',
+  scope: 'full',
+  interactive: true,
+});
+```
+
+`ExplorerTarget` is a canvas element or a **literal ID**, without `#`. Existing-element
+usage is equivalent: `createExplorer(canvas, options)`. Use the element form for framework
+refs, shadow roots or another document. Invalid targets are rejected before cache requests.
+ID lookup without a document fails with `CANVAS_DOCUMENT_UNAVAILABLE`; missing IDs use
+`CANVAS_NOT_FOUND`, and empty IDs/non-canvas targets use `INVALID_CANVAS`.
+
+`interactive: true` opts into browser-owned OrbitControls, CSS sizing, browser DPR and
+coalesced rendering. Creation resolves after submitting a first image with the prepared
+root cover; visible detail and temporal antialiasing refine progressively. No `controls()`,
+`awaitPages()` or animation loop is needed to explore. Calling `controls()` again returns
+those same controls. After programmatic edits to the camera, scene or lights, call
+`explorer.invalidate()`. In manual mode, that method renders immediately.
+
+Set a CSS width **and** height independently of the canvas drawing-buffer attributes, as
+above. Omitted `width`/`height` follow that CSS box; omitted `pixelRatio` follows the browser,
+including later DPR changes. Explicit values override each automatic dimension independently.
+An initially hidden/zero-size canvas needs explicit dimensions or must be shown before creation;
+a canvas hidden later retains its last dimensions until visible. Invalid initial sizes/DPR fail.
+The host retains ownership of CSS layout and the canvas element.
+
+The simple path prepares only the direct WebGPU backend. Unavailable WebGPU rejects startup
+with `WEBGPU_UNAVAILABLE`; there is no silent change of lighting or rendering capability.
+An explicit `backends` list or `autonomousGeometry` retains its own capability contract.
+`scope` still defaults to `slice`: keep `scope: 'full'` for a full cache. Memory pools retain
+their bounded 512 MiB geometry / 512 MiB texture defaults; the earlier 16/128 MiB example
+was an explicit budget choice and remains available through overrides.
+
+Automatic rendering waits for asynchronous feedback without reading image pixels and retains
+per-frame streaming/shadow budgets. Once settled, it schedules no frames. A burst that cannot
+settle within 120 frames pauses and publishes `interactive-settle-limit`; `invalidate()` or a
+new interaction resumes it. An asynchronous render failure stops automatic work and emits
+`INTERACTIVE_RENDER_FAILED` through `onEvent`, with a diagnostic. Explicit capture/measurement
+work should use a manual session to avoid competing rendering.
+
+Dispose in the actual component/page teardown, **not immediately after startup**:
+
+```javascript
+function unmountViewer() {
+  explorer.dispose();
+}
+```
+
+Disposal removes owned controls, observers, queued frames and abort listeners without removing
+the canvas. An aborted interactive session also disposes itself. `createExplorerJob(jobId,
+canvasOrId, options)` accepts the same target and options; await its creation, then `job.promise`.
+Its first argument is the job identifier, separate from the canvas ID.
+
+### Manual rendering and explicit configuration
+
+Without `interactive: true`, `createExplorer(canvas, { manifestUrl, scope, width, height, fov, pixelRatio, maxResidentPages, pageFetchWorkers, replicaCount, backends, pixelError, preload, comparisonLayout, comparisonPair, gpu, pointsOfInterest, ... })` owns neither the animation loop nor the canvas. Call `dispose()` when finished; hosted Orbit/Fly controls created through the explorer are disposed with it. The default camera is framed from the loaded bounding box (`near = radius / 10000`, no absolute floor). `pointsOfInterest()` returns that home pose; extra named poses come from the host `pointsOfInterest` option, not from the SDK. `pixelError` (default `0`) keeps the exact leaves; a positive threshold selects coarse QEM pages when the cache includes them. `preload: 'visible'` (default) streams detail for the current camera; WebGPU first loads a complete, camera-independent root cover before explorer creation resolves; `preload: 'all'` restores the previous eager load. `awaitPages()` must be called before the first official image when using the visible preload. Comparison layouts (`single`, `side-by-side`, `wipe`, `toggle`, `difference`) render backends A and B to detached targets with the same camera; they are not an official performance verdict.
 
 What the engine computes for itself — matrices, vectors, colours, its camera, the side of a material — it builds on `sdk-core` (`engineCamera.ts`, `materialSide.ts`), not on host-library objects — one exception left, the secondary capture view of `webgpuPagesSurfaceCapture.ts`, which enters the frame gate as a host camera until #78; the functions and their proofs are listed batch by batch in [`docs/API.md`](API.md). The host contract itself — the `THREE.Scene` handed to `createExplorer` and the `THREE.PerspectiveCamera` read once per frame — holds until the engine-owned scene model lands (#78).
 
