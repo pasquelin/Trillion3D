@@ -80,6 +80,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     textureIndices: loadedScene.textureIndices,
     pageSources,
     gpuDevice: resources.gpuDevice,
+    webglContext: resources.webglSurface?.context,
     directGpu: configured.directGpu,
     autonomous,
     backends,

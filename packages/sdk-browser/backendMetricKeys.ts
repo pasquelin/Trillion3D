@@ -21,6 +21,7 @@ export const BACKEND_METRIC_KEYS = [
   'hizCountedFrame',
   'lodLevel',
   'frameHeld',
+  'autonomousClusterDrawsTotal',
   'submittedTriangles',
   'transparentMeshes',
   'transparentFrustumRejected',
