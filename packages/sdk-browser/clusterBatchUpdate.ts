@@ -20,6 +20,7 @@ type BatchUpdateState = {
   stats: ClusterBatchStats;
   indexCapacityBytes: number;
   attributeBytes: number;
+  attachMeshes: boolean;
 };
 
 /** Updates the sub-draws and the scene objects without copying the indices. */
@@ -105,7 +106,7 @@ export function updateClusterBatches(state: BatchUpdateState, display: readonly 
     mesh._multiDrawStarts = group.ranges.starts;
     mesh._multiDrawCounts = group.ranges.counts;
     mesh._multiDrawCount = group.ranges.count;
-    if (!group.attached) {
+    if (state.attachMeshes && !group.attached) {
       state.scene.add(mesh);
       group.attached = true;
     }
