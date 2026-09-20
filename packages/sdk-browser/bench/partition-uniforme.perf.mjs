@@ -63,12 +63,13 @@ const image = (niveaux) => ({
     width: Math.max(1, Math.floor(alea() * 1024)),
   })),
   layerTop: 0,
-  historyValid: true,
-  hasRest: false,
+  hasRest: true,
+  viewMoved: false,
 });
 
 const words = new Uint32Array(UNIFORM_U32),
-  floats = new Float32Array(words.buffer);
+  floats = new Float32Array(words.buffer),
+  forget = { from: 12, to: 400 };
 
 const mesureUniforme = await mesure({
   name: 'partition uniform',
@@ -78,10 +79,10 @@ const mesureUniforme = await mesure({
     { name: '0 levels', input: image(0), size: 1 },
   ],
   calcul: (frame) => {
-    packPartitionUniform(words, floats, frame, frame.rows);
+    packPartitionUniform(words, floats, frame, frame.rows, forget);
     return words;
   },
-  attendu: (frame) => referencePartitionUniform(frame, frame.rows),
+  attendu: (frame) => referencePartitionUniform(frame, frame.rows, forget),
   options: { tours: 1000 },
 });
 

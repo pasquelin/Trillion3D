@@ -72,6 +72,7 @@ async function main() {
     lamps: number('lampes', 1),
     // Same generic rule as benchmark: point light intensity is a measurement option.
     intensity: number('intensite', 40),
+    rangeFactor: number('portee', 0.75),
     shadows: flag('ombres', 'on') === 'on',
     pixelError: number('pixelError', 0),
     maxPages: number('max-pages', 100000),
@@ -117,6 +118,7 @@ async function main() {
       lights: settings.lamps,
       lightShadows: settings.shadows,
       lightIntensity: settings.intensity,
+      lightRangeFactor: settings.rangeFactor,
       sun: false,
       movingLight: false,
     });
