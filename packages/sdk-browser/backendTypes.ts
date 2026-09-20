@@ -33,12 +33,13 @@ export interface RenderBackend {
   ): Promise<import('./webgpuPagesMemory.ts').MemoryBudgetsReport>;
   prepare(): Promise<void>;
   render(camera: HostCamera): void;
-  /** Draws engine-owned opaque geometry into the framebuffer currently bound by the host.
-   *  The host clears first and draws its remaining Three scene afterwards without clearing. */
+  /** Draws engine-owned geometry (clusters, diagnostic pages, transmissive copies) into the
+   *  host's bound framebuffer; the host clears first and draws its remaining scene after. */
   drawHostGeometry?(
     camera: import('./cameraWorld.ts').HostDrawCamera,
     output: { encodeSrgb: boolean; toneMapped: boolean },
   ): void;
+  clusterDraws?(): readonly import('./clusterBatches.ts').ClusterDraw[]; // what the owner submits
   readonly overBudget: boolean;
   /** True when the last rendered frame was held: nothing was reselected or rebuilt, and the
    *  attached scene IS this frame. Read per frame; absent from an engine that holds nothing. */
@@ -53,7 +54,6 @@ export interface RenderBackend {
     drawCalls?: number;
     batchRebuilds?: number;
     batchIndexBytesUpdated?: number;
-    displayDetachments?: number;
     pageRangeWrites?: number;
     subDraws?: number;
   };

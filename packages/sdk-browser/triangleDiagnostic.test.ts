@@ -57,10 +57,7 @@ test('exact pages wireframe uses non-indexed submitted triangles', () => {
   backend.render(camera);
   backend.setDiagnostic('wireframe');
   backend.render(camera);
-  const drawn: THREE.Mesh[] = [];
-  backend.scene.traverse((o) => {
-    if ((o as THREE.Mesh).isMesh) drawn.push(o as THREE.Mesh);
-  });
+  const drawn = backend.clusterDraws!();
   assert.ok(drawn.length >= 1);
   assert.ok(drawn.every((item) => item.geometry.getIndex() === null));
   assert.ok(
