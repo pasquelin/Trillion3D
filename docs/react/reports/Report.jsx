@@ -1,10 +1,8 @@
 import { ReadingLegend } from './ReadingLegend.jsx';
 import { reportCopy } from '../../js/reports/copy.js';
-import { sceneName, REPORT_SECTIONS } from '../../js/reports/presentation.js';
-import { routeHref } from '../../js/portal/routes.js';
+import { sceneName } from '../../js/reports/presentation.js';
 import { useReports } from './useReports.js';
 import { Alert } from '../components/UI.jsx';
-import { Tabs } from '../components/Tabs.jsx';
 import { SectionHeader } from '../components/SectionHeader.jsx';
 import { Collapse } from '../components/Collapse.jsx';
 import { SceneReport } from './SceneReport.jsx';
@@ -75,19 +73,7 @@ export function Report({ route }) {
         eyebrow={`Web Geometry · ${report.id}`}
         description={`${report.records.length} ${fr ? 'mesures' : 'readings'} · ${report.runs.length} ${fr ? 'exécutions' : 'runs'} · ${scenes.map(sceneName).join(' / ')}`}
       />
-      <Tabs
-        sticky
-        label={fr ? 'Rubriques du rapport' : 'Report categories'}
-        value={active}
-        onChange={(tab) => {
-          location.hash = routeHref({ ...route, id: `${report.id}/${tab}` });
-        }}
-        items={REPORT_SECTIONS.map(([id, en, translated]) => ({
-          id,
-          label: fr ? translated : en,
-          render: content[id],
-        }))}
-      />
+      {(Object.hasOwn(content, active) ? content[active] : content.overview)()}
     </article>
   );
 }
