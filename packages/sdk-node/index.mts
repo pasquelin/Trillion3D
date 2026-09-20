@@ -87,10 +87,12 @@ export async function prepare(
  * the purge and the job's own duration. Those live on the pointer alone, and a caller that only
  * reads the returned result would otherwise never see them. The manifest stays authoritative for
  * every measurement it does carry: it is spread last, so it wins over the pointer, which
- * only fills in the keys it leaves out.
+ * only fills in the keys it leaves out. A reused folder reverses that: its manifest describes the
+ * compile that wrote it, not this run, so the pointer's numbers win wherever it has them.
  */
 function withFinalMetrics(manifest: CompilationResult, pointer: CompilationPointer) {
-  return { ...pointer.metrics, ...(manifest.metrics as Record<string, unknown> | undefined) };
+  const written = manifest.metrics as Record<string, unknown> | undefined;
+  return pointer.reused ? { ...written, ...pointer.metrics } : { ...pointer.metrics, ...written };
 }
 /**
  * Prepares many models in one compiler process. `jobs` entries: {id, source, cache, scope, triangles,
