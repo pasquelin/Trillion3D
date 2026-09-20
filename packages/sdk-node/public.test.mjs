@@ -10,6 +10,7 @@ import {
   DEFAULT_SCOPE,
   COMPILER_LINE_LIMIT,
   getSdkProvenance,
+  resolveCompilerExecutable,
 } from './index.mts';
 /** A stand-in compiler that speaks the event protocol: events on stderr, a pointer on stdout, manifest on disk. */
 async function fakeCompiler(root, body) {
@@ -37,13 +38,34 @@ test('Node SDK public API imports without executing a compiler or depending on U
 test('Compilation jobs expose the shared slice default', () => {
   assert.equal(DEFAULT_SCOPE, 'slice');
 });
+test('compiler executable selection is explicit, then environment, then package-relative', () => {
+  assert.equal(
+    resolveCompilerExecutable('/explicit', { WEB_GEOMETRY_COMPILER_BIN: '/env' }),
+    '/explicit',
+  );
+  assert.equal(resolveCompilerExecutable(undefined, { WEB_GEOMETRY_COMPILER_BIN: '/env' }), '/env');
+  assert.match(resolveCompilerExecutable(undefined, {}, 'win32'), /web-geometry-compiler\.exe$/);
+});
+test('a missing compiler is reported by contract', async () => {
+  await assert.rejects(
+    prepare('in', 'out', 'slice', 1, {
+      executable: '/missing/web-geometry-compiler',
+      resourceBaseUrl: '/assets/',
+    }),
+    /COMPILER_EXECUTABLE_MISSING: \/missing\/web-geometry-compiler/,
+  );
+});
 test('getSdkProvenance hashes files without embedding source text', async () => {
   const provenance = await getSdkProvenance();
   assert.equal(provenance.sdkVersion, '0.2.0');
   const sample = Object.values(provenance.files)[0];
   assert.equal(typeof sample.sha256, 'string');
   assert.equal(sample.text, undefined);
-  assert.ok(provenance.files['packages/asset-compiler-rust/src/import.rs']);
+  assert.ok(provenance.files['dist/sdk-node/index.mjs']);
+  assert.equal(
+    provenance.scope,
+    'Installed JavaScript files; external compiler binary equality not established',
+  );
 });
 test('prepare relays events, reads the pointer from stdout and the manifest from disk', async () => {
   const root = await mkdtemp(join(tmpdir(), 'web-geometry-prepare-'));
