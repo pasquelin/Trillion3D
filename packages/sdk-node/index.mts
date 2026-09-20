@@ -78,6 +78,7 @@ export async function prepare(
     url: pointer.url,
     pointer: pointer.pointer,
     cache: pointer.cache,
+    reused: pointer.reused ?? null,
   };
 }
 /**

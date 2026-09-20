@@ -42,15 +42,41 @@ pub(super) fn referenced_objects(
     }
     Ok(())
 }
-/// Objects and image fingerprints named by a scope that is not recompiled. Its
-/// pages and texture levels live only in its sidecar columns, read once for both:
-/// without a readable sidecar, prune cannot decide what to keep, so it fails and
-/// deletes nothing rather than counting that scope as zero objects.
-fn other_scope(
-    dir: &Path,
-    objects: &mut BTreeSet<String>,
-    textures: &mut BTreeSet<String>,
-) -> Result<()> {
+/// What the key just published or proved still needs: its objects and the source
+/// images whose baked levels it reads. Everything else of the cache may go.
+pub(super) struct Keep {
+    pub objects: BTreeSet<String>,
+    pub textures: BTreeSet<String>,
+}
+impl Keep {
+    /// What a result just published names: its objects, and the images its previews read.
+    pub fn of_result(result: &Value, previews: &[texture_preview::TexturePreview]) -> Result<Self> {
+        let mut objects = BTreeSet::new();
+        referenced_objects(result, None, &mut objects)?;
+        let textures = previews.iter().map(|p| p.sha256.clone()).collect();
+        Ok(Self { objects, textures })
+    }
+    /// What a published manifest and its sidecar name: pages and texture levels
+    /// live only in the sidecar columns, read once for both.
+    pub fn named_by(manifest: &Value, binary: &[u8]) -> Result<Self> {
+        let mut objects = BTreeSet::new();
+        referenced_objects(manifest, Some(binary), &mut objects)?;
+        let textures = manifest_binary::texture_digests(binary)
+            .map_err(|e| {
+                CompilerError::new(
+                    "UNSUPPORTED_FORMAT",
+                    format!("Cached manifest binary is not readable by this compiler: {e}"),
+                )
+            })?
+            .into_iter()
+            .collect();
+        Ok(Self { objects, textures })
+    }
+}
+/// Objects and image fingerprints named by a scope that is not recompiled. Without
+/// a readable sidecar, prune cannot decide what to keep, so it fails and deletes
+/// nothing rather than counting that scope as zero objects.
+fn other_scope(dir: &Path, keep: &mut Keep) -> Result<()> {
     let Ok(text) = fs::read(dir.join("clusters.json")) else {
         return Ok(());
     };
@@ -63,29 +89,22 @@ fn other_scope(
             ),
         )
     })?;
-    referenced_objects(&serde_json::from_slice(&text)?, Some(&binary), objects)?;
-    textures.extend(manifest_binary::texture_digests(&binary).map_err(|e| {
-        CompilerError::new(
-            "UNSUPPORTED_FORMAT",
-            format!("Cached manifest binary is not readable by this compiler: {e}"),
-        )
-    })?);
+    let named = Keep::named_by(&serde_json::from_slice(&text)?, &binary)?;
+    keep.objects.extend(named.objects);
+    keep.textures.extend(named.textures);
     Ok(())
 }
+
 /// After a successful compile, remove the other keys of this scope and every object no surviving
 /// manifest references. Objects are shared across scopes, so the other scope's manifest is read too.
 /// Hosts therefore never need to wipe a cache before recompiling: the cache converges on its own.
 pub(super) fn prune_cache(
     o: &Options,
     key: &str,
-    result: &Value,
-    textures: &[texture_preview::TexturePreview],
+    mut keep: Keep,
     progress: &(impl Fn(Value) + Sync),
 ) -> Result<Value> {
     let native = o.cache.join("native");
-    let mut keep = BTreeSet::new();
-    referenced_objects(result, None, &mut keep)?;
-    let mut keep_textures: BTreeSet<String> = textures.iter().map(|p| p.sha256.clone()).collect();
     let mut removed_keys = 0usize;
     for scope in ["slice", "full"] {
         let dir = native.join(scope);
@@ -106,7 +125,7 @@ pub(super) fn prune_cache(
         // still uses.
         if scope != o.scope {
             if let Some(name) = current.as_deref() {
-                other_scope(&dir.join(name), &mut keep, &mut keep_textures)?;
+                other_scope(&dir.join(name), &mut keep)?;
             }
         }
         for entry in entries {
@@ -144,7 +163,7 @@ pub(super) fn prune_cache(
             let name = entry.file_name();
             let Some(name) = name.to_str() else { continue };
             let digest = name.trim_end_matches(".bin");
-            if keep.contains(digest) {
+            if keep.objects.contains(digest) {
                 kept_objects += 1;
             } else {
                 removed_bytes += entry.metadata().map(|m| m.len()).unwrap_or(0);
@@ -154,7 +173,7 @@ pub(super) fn prune_cache(
         }
     }
     let (removed_textures, texture_bytes) =
-        compiler_prune_textures::prune_textures(&native, &keep_textures)?;
+        compiler_prune_textures::prune_textures(&native, &keep.textures)?;
     let summary = json!({"removedKeys":removed_keys,"removedObjects":removed_objects,"removedBytes":removed_bytes,"keptObjects":kept_objects,
         "removedTextures":removed_textures,"removedTextureBytes":texture_bytes});
     if removed_keys > 0 || removed_objects > 0 || removed_textures > 0 {
