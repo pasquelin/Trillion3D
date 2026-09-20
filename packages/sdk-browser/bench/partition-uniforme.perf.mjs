@@ -63,8 +63,8 @@ const image = (niveaux) => ({
     width: Math.max(1, Math.floor(alea() * 1024)),
   })),
   layerTop: 0,
-  historyValid: true,
-  hasRest: false,
+  hasRest: true,
+  viewMoved: false,
 });
 
 const words = new Uint32Array(UNIFORM_U32),
