@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { basicSetup, EditorView } from 'codemirror';
 import { javascript } from '@codemirror/lang-javascript';
+import { codeHighlight } from './codeHighlight.js';
 
 /** The site's single editable JavaScript primitive, backed by CodeMirror. */
 export function CodeInput({ value, onChange, label }) {
@@ -17,6 +18,7 @@ export function CodeInput({ value, onChange, label }) {
       extensions: [
         basicSetup,
         javascript(),
+        codeHighlight,
         EditorView.contentAttributes.of({ 'aria-label': label }),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) change.current(update.state.doc.toString());

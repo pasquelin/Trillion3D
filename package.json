@@ -87,7 +87,9 @@
   },
   "devDependencies": {
     "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/language": "^6.12.4",
     "@eslint/js": "^10.0.1",
+    "@lezer/highlight": "^1.2.3",
     "@types/node": "^22.20.2",
     "@types/three": "^0.174.0",
     "@webgpu/types": "^0.1.72",

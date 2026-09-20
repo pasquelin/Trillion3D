@@ -17,6 +17,11 @@
   max-width: none;
 }
 .mockup-code {
+  --code-keyword: var(--color-secondary);
+  --code-string: var(--color-primary);
+  --code-number: var(--color-accent);
+  --code-function: var(--color-info);
+  --code-comment: color-mix(in oklab, var(--color-base-content) 70%, transparent);
   color: var(--color-base-content);
   background: var(--color-base-300);
   overflow: hidden;
@@ -25,25 +30,24 @@
 .mockup-code .hljs-keyword,
 .mockup-code .hljs-selector-tag,
 .mockup-code .hljs-literal {
-  color: var(--color-secondary);
+  color: var(--code-keyword);
   font-weight: 600;
 }
 .mockup-code .hljs-string,
 .mockup-code .hljs-regexp {
-  color: var(--color-primary);
+  color: var(--code-string);
 }
 .mockup-code .hljs-number,
 .mockup-code .hljs-symbol {
-  color: var(--color-accent);
+  color: var(--code-number);
 }
 .mockup-code .hljs-title,
 .mockup-code .hljs-built_in,
 .mockup-code .hljs-type {
-  color: var(--color-info);
+  color: var(--code-function);
 }
 .mockup-code .hljs-comment {
-  color: var(--color-base-content);
-  opacity: 0.7;
+  color: var(--code-comment);
   font-style: italic;
 }
 .mockup-code .hljs-attr,
