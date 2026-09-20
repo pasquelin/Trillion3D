@@ -92,6 +92,9 @@ test('gallery renders visual, searchable cards and the real engine scene', () =>
   assert.match(gallery, /type="search"/);
   assert.match(gallery, /aria-pressed="true"/);
   assert.match(gallery, /tabs tabs-box bg-base-200/);
+  assert.match(gallery, />Animation<\/button>/);
+  assert.match(gallery, />Lights and shadows<\/button>/);
+  assert.doesNotMatch(gallery, /<select/);
   assert.equal((gallery.match(/<canvas /g) ?? []).length, examples.length);
   assert.doesNotMatch(gallery, /data-geometry-fps/);
   assert.match(renderPlayground('compose-transform', 'en'), /data-geometry-fps/);
