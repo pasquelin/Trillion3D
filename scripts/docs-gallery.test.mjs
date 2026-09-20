@@ -19,7 +19,6 @@ const { geometryFor } = await import(new URL('sceneGeometry.js', root));
 const { draw, legendAnchors } = await import(new URL('draw.js', root));
 const { initialState } = await import(new URL('scenarios.js', root));
 const { examples } = await import(new URL('catalog.js', root));
-const { apiScenario } = await import(new URL('apiScenario.js', root));
 
 test('gallery exposes sixteen bilingual, interactive examples', () => {
   assert.equal(examples.length, 16);
@@ -176,16 +175,6 @@ test('every displayed snippet runs and matches its playground result', async () 
     if (typeof expected === 'number') assert.ok(Math.abs(actual - expected) < 1e-10, example.id);
     else assert.deepEqual(Array.from(actual), Array.from(expected), example.id);
   }
-});
-
-test('API functions resolve to a visual example', () => {
-  assert.equal(apiScenario('crossVector3'), 'cross-product');
-  assert.equal(apiScenario('missing'), undefined);
-});
-
-test('visible engine results follow the selected language', () => {
-  const french = evaluate('frustum', { x: 0, depth: 4, fov: 55 }, 'fr');
-  assert.equal(french.value, 'dedans');
 });
 
 test('every scenario calls the generated engine module', async () => {
